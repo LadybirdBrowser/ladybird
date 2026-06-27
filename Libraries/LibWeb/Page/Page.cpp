@@ -798,16 +798,18 @@ void Page::for_each_media_element(Callback&& callback)
     }
 }
 
-void Page::update_all_media_element_video_sinks()
+void Page::restore_all_media_element_video_sinks()
 {
-    bool should_request_another_frame = false;
     for_each_media_element([&](auto& media_element) {
-        media_element.update_video_frame_and_timeline();
-        should_request_another_frame = true;
+        media_element.add_current_video_sink();
     });
+}
 
-    if (should_request_another_frame)
-        client().request_frame();
+void Page::detach_all_media_element_video_sinks_after_compositor_lost()
+{
+    for_each_media_element([&](auto& media_element) {
+        media_element.detach_video_sink_after_compositor_lost();
+    });
 }
 
 void Page::register_canvas_element(Badge<HTML::HTMLCanvasElement>, UniqueNodeID canvas_id)

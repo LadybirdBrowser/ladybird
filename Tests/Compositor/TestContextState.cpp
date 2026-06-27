@@ -17,7 +17,9 @@
 struct TestWebContentClient final : public Compositor::CompositorStateWebContentClient {
     virtual void dispatch_mouse_event_to_web_content(u64, Web::MouseEvent const&) override { }
     virtual void request_rendering_update() override { }
-    virtual void release_video_frame(Media::VideoFramePoolID, u32) override { }
+    virtual void create_video_edge(Media::VideoSinkHandle) override { }
+    virtual void release_video_edge(Media::VideoSinkHandle) override { }
+    virtual void set_video_sink_ticking(Media::VideoSinkHandle, bool) override { }
 };
 
 static NonnullRefPtr<Web::Painting::DisplayList> make_display_list(Web::Painting::AccumulatedVisualContextTree const& visual_context_tree, Optional<Gfx::Color> color, Optional<Gfx::Color> surface_clear_color = {})

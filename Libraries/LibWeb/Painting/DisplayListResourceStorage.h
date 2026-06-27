@@ -20,8 +20,9 @@
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Forward.h>
 #include <LibIPC/Forward.h>
+#include <LibMedia/Sinks/VideoSink.h>
 #include <LibMedia/VideoFrame.h>
-#include <LibMedia/VideoFrameHandle.h>
+#include <LibMedia/VideoSinkHandle.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/DisplayListResourceIds.h>
@@ -39,7 +40,7 @@ struct DisplayListResourceSet {
 
     HashTable<FontResourceId> fonts;
     HashTable<ImageFrameResourceId> image_frames;
-    HashTable<VideoFrameResourceId> video_frames;
+    HashTable<VideoSinkResourceId> video_sinks;
     HashTable<DisplayListResourceId> display_lists;
 };
 
@@ -53,15 +54,17 @@ struct DisplayListImageFrameResource {
     Gfx::DecodedImageFrame frame;
 };
 
-struct DisplayListVideoFrameResource {
-    VideoFrameResourceId id;
-    // Handles only exist in transit; the receiver resolves them back to frames before applying the transaction.
-    Variant<Empty, NonnullRefPtr<Media::VideoFrame const>, Media::VideoFrameHandle> frame;
+struct DisplayListVideoSinkResource {
+    VideoSinkResourceId id;
+    // The display list routes a video by sink handle; the compositor resolves it to the hosted sink at
+    // transaction-apply, and the draw reads the sink's current frame.
+    Media::VideoSinkHandle sink_handle;
 };
 
 struct DisplayListStoredImageFrameResource;
 struct DisplayListCachedSkiaImageResource;
 struct DisplayListCachedNestedRasterResource;
+struct DisplayListStoredVideoSinkResource;
 
 struct DisplayListResource {
     DisplayListResource(NonnullRefPtr<DisplayList>, AccumulatedVisualContextTree);
@@ -75,12 +78,12 @@ struct DisplayListResource {
 struct DisplayListResourceTransaction {
     Vector<DisplayListFontResource> fonts;
     Vector<DisplayListImageFrameResource> image_frames;
-    Vector<DisplayListVideoFrameResource> video_frames;
+    Vector<DisplayListVideoSinkResource> video_sinks;
     Vector<DisplayListResource> display_lists;
 
     Vector<FontResourceId> font_ids_to_remove;
     Vector<ImageFrameResourceId> image_frame_ids_to_remove;
-    Vector<VideoFrameResourceId> video_frame_ids_to_remove;
+    Vector<VideoSinkResourceId> video_sink_ids_to_remove;
     Vector<DisplayListResourceId> display_list_ids_to_remove;
 };
 
@@ -95,7 +98,7 @@ public:
 
     FontResourceId add_font(Gfx::Font const&);
     ImageFrameResourceId add_image_frame(Gfx::DecodedImageFrame const&);
-    VideoFrameResourceId add_video_frame(VideoFrameResourceId, RefPtr<Media::VideoFrame const> = nullptr);
+    VideoSinkResourceId add_video_sink(VideoSinkResourceId, Media::VideoSinkHandle);
     DisplayListResourceId add_display_list(NonnullRefPtr<DisplayList const>, AccumulatedVisualContextTree const&);
     DisplayListResourceId add_display_list(DisplayListResource&&);
     bool has_display_list(DisplayListResourceId id) const { return m_display_lists.contains(id.value()); }
@@ -106,18 +109,20 @@ public:
     DisplayListResourceSet collect_referenced_resources(DisplayList const&) const;
     DisplayListResourceSet collect_referenced_resources(ReadonlyBytes command_bytes) const;
     void retain_only(DisplayListResourceSet const&);
-    void update_video_frame(VideoFrameResourceId, NonnullRefPtr<Media::VideoFrame const>);
-    void clear_video_frame(VideoFrameResourceId);
+    void set_video_sink(VideoSinkResourceId, RefPtr<Media::VideoSink>);
 
     Gfx::Font const& font(FontResourceId id) const { return *m_fonts.get(id.value()).value(); }
     Gfx::DecodedImageFrame const& image_frame(ImageFrameResourceId) const;
     sk_sp<SkImage> skia_image_for_image_frame(ImageFrameResourceId, RefPtr<Gfx::SkiaBackendContext> const&) const;
+    sk_sp<SkImage> skia_image_for_video_sink(VideoSinkResourceId, RefPtr<Gfx::SkiaBackendContext> const&) const;
     sk_sp<SkImage> cached_skia_image_for_display_list(DisplayListResourceId, Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&) const;
     void set_cached_skia_image_for_display_list(DisplayListResourceId, Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&, sk_sp<SkImage>) const;
     sk_sp<SkImage> cached_nested_display_list_raster(DisplayListResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect visible_rect_in_list_space, Gfx::IntRect& raster_rect_in_list_space) const;
     void add_cached_nested_display_list_raster(DisplayListResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect rect_in_list_space, sk_sp<SkImage>) const;
     bool should_cache_nested_display_list_raster(DisplayListResourceId) const;
-    RefPtr<Media::VideoFrame const> video_frame(VideoFrameResourceId id) const { return m_video_frames.get(id.value()).value(); }
+    RefPtr<Media::VideoSink const> video_sink(VideoSinkResourceId id) const;
+    Optional<Media::VideoSinkHandle> video_sink_handle(VideoSinkResourceId id) const { return m_video_sink_handles.get(id.value()); }
+    HashMap<u64, Media::VideoSinkHandle> const& video_sink_handles() const { return m_video_sink_handles; }
     DisplayListResource const& display_list_resource(DisplayListResourceId id) const { return m_display_lists.get(id.value()).value(); }
     DisplayList const& display_list(DisplayListResourceId id) const { return *display_list_resource(id).display_list; }
     AccumulatedVisualContextTree const& display_list_visual_context_tree(DisplayListResourceId id) const { return display_list_resource(id).visual_context_tree; }
@@ -130,7 +135,8 @@ private:
 
     HashMap<u64, NonnullRefPtr<Gfx::Font const>> m_fonts;
     HashMap<u64, NonnullOwnPtr<DisplayListStoredImageFrameResource>> m_image_frames;
-    HashMap<u64, RefPtr<Media::VideoFrame const>> m_video_frames;
+    HashMap<u64, Media::VideoSinkHandle> m_video_sink_handles;
+    HashMap<u64, NonnullOwnPtr<DisplayListStoredVideoSinkResource>> m_video_sinks;
     HashMap<u64, DisplayListResource> m_display_lists;
     mutable HashMap<u64, NonnullOwnPtr<DisplayListCachedSkiaImageResource>> m_display_list_cached_skia_images;
     mutable HashMap<u64, NonnullOwnPtr<DisplayListCachedNestedRasterResource>> m_display_list_cached_nested_rasters;
@@ -151,9 +157,9 @@ template<>
 WEB_API ErrorOr<Web::Painting::DisplayListImageFrameResource> decode(Decoder&);
 
 template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::DisplayListVideoFrameResource const&);
+WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::DisplayListVideoSinkResource const&);
 template<>
-WEB_API ErrorOr<Web::Painting::DisplayListVideoFrameResource> decode(Decoder&);
+WEB_API ErrorOr<Web::Painting::DisplayListVideoSinkResource> decode(Decoder&);
 
 template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::DisplayListResourceTransaction const&);

@@ -15,6 +15,7 @@
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Size.h>
 #include <LibIPC/ConnectionFromClient.h>
+#include <LibMedia/VideoPresentation/VideoPresentationClientConnection.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/WebGL/Types.h>
@@ -37,17 +38,17 @@ private:
     virtual void die() override;
 
     virtual Messages::CompositorWebContentServer::InitTransportResponse init_transport(int peer_pid) override;
+    virtual void offer_video_presentation_channel(IPC::TransportHandle handle) override;
+    virtual void add_video_sink(Media::VideoSinkHandle) override;
+    virtual void remove_video_sink(Media::VideoSinkHandle) override;
+    virtual void set_video_update_flags(Media::VideoSinkHandle, Web::Compositor::VideoUpdateFlags) override;
     virtual void set_parent_context(Web::Compositor::CompositorContextId, Optional<Web::Compositor::CompositorContextId>) override;
     virtual void stop_presenting_to_client(Web::Compositor::CompositorContextId) override;
     virtual void destroy_context(Web::Compositor::CompositorContextId) override;
     virtual void update_display_list(Web::Compositor::CompositorContextId, NonnullRefPtr<Web::Painting::DisplayList>, Web::Painting::AccumulatedVisualContextTree, Web::Painting::DisplayListResourceTransaction, Web::Painting::ScrollStateSnapshot) override;
     virtual void update_visual_context_tree(Web::Compositor::CompositorContextId, Web::Painting::AccumulatedVisualContextTree) override;
     virtual void update_scroll_state(Web::Compositor::CompositorContextId, Web::Painting::ScrollStateSnapshot) override;
-    virtual void announce_video_frame_slot(Media::VideoFramePoolID, u32 slot_index, Core::AnonymousBuffer) override;
-    virtual void retire_video_frame_pool(Media::VideoFramePoolID) override;
-    virtual void update_video_frame(Web::Compositor::CompositorContextId, Web::Painting::VideoFrameResourceId, Media::VideoFrameHandle) override;
     virtual void update_image_frame_resources(Web::Compositor::CompositorContextId, Vector<Web::Painting::DisplayListImageFrameResource>) override;
-    virtual void clear_video_frame(Web::Compositor::CompositorContextId, Web::Painting::VideoFrameResourceId) override;
     virtual Messages::CompositorWebContentServer::CreateCanvas2dContextResponse create_canvas_2d_context(Gfx::IntSize, bool) override;
     virtual void update_canvas_2d_stream(Vector<Web::Painting::Canvas2DCommandStreamSegment>) override;
     virtual void destroy_canvas_context(Web::Painting::CanvasId) override;
@@ -73,12 +74,17 @@ private:
 
     virtual void dispatch_mouse_event_to_web_content(u64 page_id, Web::MouseEvent const&) override;
     virtual void request_rendering_update() override;
-    virtual void release_video_frame(Media::VideoFramePoolID, u32 slot_index) override;
+    virtual void create_video_edge(Media::VideoSinkHandle) override;
+    virtual void release_video_edge(Media::VideoSinkHandle) override;
+    virtual void set_video_sink_ticking(Media::VideoSinkHandle, bool ticking) override;
     bool context_is_owned_by_this_connection(Web::Compositor::CompositorContextId);
 
     NonnullRefPtr<CompositorState> m_compositor_state;
     CanvasHost m_canvas_host;
     Function<void(ConnectionFromWebContent&)> m_on_death;
+
+    // The presentation client end of this WebContent's video presentation channel (connect-only for now).
+    RefPtr<Media::VideoPresentationClientConnection> m_video_presentation_connection;
 };
 
 }

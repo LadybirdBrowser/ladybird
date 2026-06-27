@@ -45,14 +45,19 @@ void CompositorContextHandle::update_visual_context_tree(Painting::AccumulatedVi
     m_host.update_visual_context_tree(m_context_id, move(visual_context_tree));
 }
 
-void CompositorContextHandle::update_video_frame(Painting::VideoFrameResourceId frame_id, NonnullRefPtr<Media::VideoFrame const> frame)
+void CompositorContextHandle::add_video_sink(Media::VideoSinkHandle video_sink_handle)
 {
-    m_host.update_video_frame(m_context_id, frame_id, move(frame));
+    m_host.add_video_sink(video_sink_handle);
 }
 
-void CompositorContextHandle::clear_video_frame(Painting::VideoFrameResourceId frame_id)
+void CompositorContextHandle::remove_video_sink(Media::VideoSinkHandle video_sink_handle)
 {
-    m_host.clear_video_frame(m_context_id, frame_id);
+    m_host.remove_video_sink(video_sink_handle);
+}
+
+void CompositorContextHandle::set_video_update_flags(Media::VideoSinkHandle video_sink_handle, VideoUpdateFlags flags)
+{
+    m_host.set_video_update_flags(video_sink_handle, flags);
 }
 
 void CompositorContextHandle::update_scroll_state(Painting::ScrollStateSnapshot&& scroll_state_snapshot)

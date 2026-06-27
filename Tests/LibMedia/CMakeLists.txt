@@ -13,8 +13,10 @@ set(TEST_SOURCES
     TestMatroskaDemuxer.cpp
     TestParseMatroska.cpp
     TestPipelineNodes.cpp
+    TestRemoteVideoNode.cpp
     TestMediaTime.cpp
     TestPlaybackStream.cpp
+    TestVideoEdgeQueue.cpp
     TestVideoFramePool.cpp
     TestVorbisDecode.cpp
     TestTimeRanges.cpp
@@ -35,6 +37,7 @@ target_link_libraries(TestFFmpegDemuxer PRIVATE LibThreading)
 target_link_libraries(TestMediaTime PRIVATE LibThreading)
 target_link_libraries(TestVideoFramePool PRIVATE LibThreading)
 target_link_libraries(TestIncrementallyPopulatedStream PRIVATE LibThreading)
+target_link_libraries(TestRemoteVideoNode PRIVATE LibThreading LibGfx LibIPC)
 
 if (LADYBIRD_AUDIO_BACKEND STREQUAL "PULSE")
     target_compile_definitions(TestPlaybackStream PRIVATE HAVE_PULSEAUDIO=1)

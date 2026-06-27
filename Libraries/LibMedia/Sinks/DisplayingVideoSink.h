@@ -11,18 +11,20 @@
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
 #include <AK/Time.h>
+#include <LibGfx/Size.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
 #include <LibMedia/MediaTime.h>
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Sinks/VideoSink.h>
+#include <LibMedia/VideoPresentation/PresentedFramePage.h>
 #include <LibSync/Weakable.h>
 
 namespace Media {
 
-enum class [[nodiscard]] DisplayingVideoSinkUpdateResult : u8 {
-    NewFrameAvailable,
-    NoChange,
+struct DisplayingVideoSinkUpdateResult {
+    bool new_frame_available { false };
+    bool may_require_updates { false };
 };
 
 class MEDIA_API DisplayingVideoSink final : public VideoSink
@@ -35,14 +37,18 @@ public:
 
     virtual void set_time_reader(MediaTimeReader) override;
     virtual void set_state_change_handler(PipelineStateChangeHandler) override;
+    virtual void set_resize_handler(PipelineResizeHandler) override;
 
     virtual ErrorOr<void> connect_input(NonnullRefPtr<VideoProducer> const&) override;
     virtual void disconnect_input(NonnullRefPtr<VideoProducer> const&) override;
 
     virtual void seek(AK::Duration timestamp) override;
 
-    [[nodiscard]] DisplayingVideoSinkUpdateResult update(MonotonicTime now);
-    RefPtr<VideoFrame> current_frame() const;
+    DisplayingVideoSinkUpdateResult update(MonotonicTime now);
+    virtual RefPtr<VideoFrame> current_frame() const override;
+
+    void set_on_present_needed(Function<void()> handler) { m_on_present_needed = move(handler); }
+    void set_presented_frame_page(PresentedFramePage page) { m_presented_frame_page = move(page); }
 
 private:
     void dispatch_state_if_changed(PipelineStatus);
@@ -63,6 +69,12 @@ private:
     PipelineStateChangeHandler m_on_state_changed;
     PipelineStatus m_last_dispatched_status { PipelineStatus::Pending };
     u32 m_seek_id { 0 };
+
+    PipelineResizeHandler m_on_resize;
+    Gfx::Size<u32> m_last_dispatched_size;
+
+    Function<void()> m_on_present_needed;
+    Optional<PresentedFramePage> m_presented_frame_page;
 };
 
 }

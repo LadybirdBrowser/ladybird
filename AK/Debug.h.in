@@ -306,6 +306,10 @@
 #    cmakedefine01 WEBDRIVER_ROUTE_DEBUG
 #endif
 
+#ifndef VIDEO_PRESENTATION_CHANNEL_DEBUG
+#    cmakedefine01 VIDEO_PRESENTATION_CHANNEL_DEBUG
+#endif
+
 #ifndef WEBGL_CONTEXT_DEBUG
 #    cmakedefine01 WEBGL_CONTEXT_DEBUG
 #endif

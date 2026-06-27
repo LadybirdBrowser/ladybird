@@ -15,6 +15,7 @@
 #include <LibGfx/Rect.h>
 #include <LibGfx/Size.h>
 #include <LibMedia/Forward.h>
+#include <LibMedia/VideoSinkHandle.h>
 #include <LibWeb/Compositor/Types.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -37,8 +38,9 @@ public:
 
     void update_display_list(NonnullRefPtr<Painting::DisplayList>, Painting::AccumulatedVisualContextTree, Painting::DisplayListResourceTransaction&&, Painting::ScrollStateSnapshot&&);
     void update_visual_context_tree(Painting::AccumulatedVisualContextTree);
-    void update_video_frame(Painting::VideoFrameResourceId, NonnullRefPtr<Media::VideoFrame const>);
-    void clear_video_frame(Painting::VideoFrameResourceId);
+    void add_video_sink(Media::VideoSinkHandle);
+    void remove_video_sink(Media::VideoSinkHandle);
+    void set_video_update_flags(Media::VideoSinkHandle, VideoUpdateFlags);
     void update_scroll_state(Painting::ScrollStateSnapshot&&);
     void invalidate_wheel_event_listener_state(u64 generation);
     AsyncScrollEnqueueResult async_scroll_by(UniqueNodeID expected_document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels,
@@ -81,8 +83,9 @@ public:
 
     virtual void update_display_list(CompositorContextId, NonnullRefPtr<Painting::DisplayList>, Painting::AccumulatedVisualContextTree, Painting::DisplayListResourceTransaction&&, Painting::ScrollStateSnapshot&&) = 0;
     virtual void update_visual_context_tree(CompositorContextId, Painting::AccumulatedVisualContextTree) = 0;
-    virtual void update_video_frame(CompositorContextId, Painting::VideoFrameResourceId, NonnullRefPtr<Media::VideoFrame const>) = 0;
-    virtual void clear_video_frame(CompositorContextId, Painting::VideoFrameResourceId) = 0;
+    virtual void add_video_sink(Media::VideoSinkHandle) = 0;
+    virtual void remove_video_sink(Media::VideoSinkHandle) = 0;
+    virtual void set_video_update_flags(Media::VideoSinkHandle, VideoUpdateFlags) = 0;
     virtual void update_scroll_state(CompositorContextId, Painting::ScrollStateSnapshot&&) = 0;
     virtual void invalidate_wheel_event_listener_state(CompositorContextId, u64 generation) = 0;
     virtual AsyncScrollEnqueueResult async_scroll_by(CompositorContextId, UniqueNodeID expected_document_id, Gfx::FloatPoint position,

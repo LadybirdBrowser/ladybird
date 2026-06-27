@@ -257,7 +257,8 @@ public:
     void register_media_element(Badge<HTML::HTMLMediaElement>, UniqueNodeID media_id);
     void unregister_media_element(Badge<HTML::HTMLMediaElement>, UniqueNodeID media_id);
 
-    void update_all_media_element_video_sinks();
+    void restore_all_media_element_video_sinks();
+    void detach_all_media_element_video_sinks_after_compositor_lost();
 
     void register_canvas_element(Badge<HTML::HTMLCanvasElement>, UniqueNodeID canvas_id);
     void unregister_canvas_element(Badge<HTML::HTMLCanvasElement>, UniqueNodeID canvas_id);

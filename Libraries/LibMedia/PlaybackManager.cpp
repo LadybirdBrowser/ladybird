@@ -19,6 +19,7 @@
 #include <LibMedia/Sinks/DisplayingVideoSink.h>
 #include <LibMedia/Sinks/VideoSink.h>
 #include <LibMedia/Track.h>
+#include <LibMedia/VideoFrame.h>
 #include <LibThreading/Thread.h>
 #include <LibThreading/ThreadPool.h>
 
@@ -427,12 +428,18 @@ void PlaybackManager::disable_audio()
 void PlaybackManager::attach_video_sink(VideoTrackData& track_data, NonnullRefPtr<VideoSink> video_sink)
 {
     VERIFY(track_data.video_sink == nullptr);
-    video_sink->set_time_reader(m_time_reader);
     auto track = track_data.track;
     video_sink->set_state_change_handler([self = weak(), track](PipelineStatus status) {
         if (!self)
             return;
         self->on_video_sink_state_changed(track, status);
+    });
+    video_sink->set_resize_handler([self = weak(), track](Gfx::Size<u32> size) {
+        if (!self)
+            return;
+        auto& track_data = self->get_video_data_for_track(track);
+        if (track_data.on_resize)
+            track_data.on_resize(size);
     });
     MUST(video_sink->connect_input(track_data.producer));
     track_data.video_sink = move(video_sink);
@@ -445,22 +452,16 @@ VideoSinkHandle PlaybackManager::reserve_video_sink_handle(Track const& track)
     if (track_data.handle.has_value())
         disable_video_sink_by_handle(*track_data.handle);
     track_data.handle = allocate_video_sink_handle();
+    track_data.ticking = true;
     video_sink_registrations().set(*track_data.handle, this);
     update_pipeline_state();
     return *track_data.handle;
 }
 
-RefPtr<DisplayingVideoSink> PlaybackManager::resolve_video_sink(VideoSinkHandle handle)
+void PlaybackManager::set_video_resize_handler(VideoSinkHandle handle, Function<void(Gfx::Size<u32>)> handler)
 {
-    auto* manager = video_sink_registrations().get(handle).value_or(nullptr);
-    if (!manager)
-        return nullptr;
-    auto& track_data = manager->get_video_data_for_handle(handle);
-    if (track_data.video_sink)
-        return static_ptr_cast<DisplayingVideoSink>(track_data.video_sink);
-    auto video_sink = MUST(DisplayingVideoSink::try_create(manager->m_time_reader));
-    manager->attach_video_sink(track_data, video_sink);
-    return video_sink;
+    if (auto* track_data = find_video_data_for_handle(handle))
+        track_data->on_resize = move(handler);
 }
 
 void PlaybackManager::disable_video_sink_by_handle(VideoSinkHandle handle)
@@ -480,11 +481,72 @@ void PlaybackManager::disable_video_sink_by_handle(VideoSinkHandle handle)
 
 void PlaybackManager::set_video_sink_ticking(VideoSinkHandle handle, bool ticking)
 {
-    auto& track_data = get_video_data_for_handle(handle);
+    auto* manager = video_sink_registrations().get(handle).value_or(nullptr);
+    if (!manager)
+        return;
+    auto& track_data = manager->get_video_data_for_handle(handle);
     if (track_data.ticking == ticking)
         return;
     track_data.ticking = ticking;
+    manager->update_pipeline_state();
+}
+
+void PlaybackManager::detach_lost_video_sink(VideoSinkHandle handle)
+{
+    auto* track_data = find_video_data_for_handle(handle);
+    if (!track_data)
+        return;
+    if (track_data->video_sink) {
+        track_data->video_sink->disconnect_input(track_data->producer);
+        track_data->video_sink = nullptr;
+    }
+    track_data->sink_status = PipelineStatus::Pending;
     update_pipeline_state();
+}
+
+ErrorOr<PlaybackManager::RemoteVideoEdge> PlaybackManager::create_video_edge(VideoSinkHandle handle, RemoteVideoSink::Delegates delegates)
+{
+    auto* manager = video_sink_registrations().get(handle).value_or(nullptr);
+    if (!manager)
+        return Error::from_string_literal("No playback manager registered for video sink handle");
+
+    auto pump = TRY(RemoteVideoSink::create(move(delegates)));
+    return RemoteVideoEdge {
+        .sink = pump,
+        .time_reader = manager->m_time_reader,
+    };
+}
+
+void PlaybackManager::attach_video_edge(VideoSinkHandle handle, NonnullRefPtr<RemoteVideoSink> const& pump)
+{
+    auto* manager = video_sink_registrations().get(handle).value_or(nullptr);
+    if (!manager)
+        return;
+    auto& track_data = manager->get_video_data_for_handle(handle);
+    if (track_data.video_sink != nullptr) {
+        dbgln("PlaybackManager: Refusing to attach a video edge to an already-attached video sink handle");
+        return;
+    }
+    manager->attach_video_sink(track_data, pump);
+}
+
+RefPtr<VideoFrame> PlaybackManager::current_presented_frame(VideoSinkHandle handle)
+{
+    auto* manager = video_sink_registrations().get(handle).value_or(nullptr);
+    if (!manager)
+        return nullptr;
+    auto& track_data = manager->get_video_data_for_handle(handle);
+    if (!track_data.video_sink)
+        return nullptr;
+    return track_data.video_sink->current_frame();
+}
+
+void PlaybackManager::release_video_edge(VideoSinkHandle handle)
+{
+    auto* manager = video_sink_registrations().get(handle).value_or(nullptr);
+    if (!manager)
+        return;
+    manager->disable_video_sink_by_handle(handle);
 }
 
 void PlaybackManager::enable_an_audio_track(Track const& track)

@@ -9,6 +9,7 @@
 #include <AK/Format.h>
 #include <AK/Function.h>
 #include <AK/Types.h>
+#include <LibGfx/Forward.h>
 
 namespace Media {
 
@@ -72,6 +73,7 @@ constexpr PipelineStatus select_combined_pipeline_status(PipelineStatus a, Pipel
 
 using PipelineStateChangeHandler = Function<void(PipelineStatus)>;
 using PipelineWakeHandler = Function<void()>;
+using PipelineResizeHandler = Function<void(Gfx::Size<u32>)>;
 
 constexpr StringView pipeline_status_to_string(PipelineStatus status)
 {

@@ -20,7 +20,6 @@
 #include <core/SkRRect.h>
 #include <core/SkSurface.h>
 #include <core/SkTextBlob.h>
-#include <core/SkYUVAPixmaps.h>
 #include <effects/SkDashPathEffect.h>
 #include <effects/SkGradient.h>
 #include <effects/SkImageFilters.h>
@@ -37,8 +36,6 @@
 #include <LibGfx/PainterSkia.h>
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibGfx/SkiaUtils.h>
-#include <LibGfx/YUVData.h>
-#include <LibMedia/VideoFrame.h>
 #include <LibWeb/Painting/CanvasSurfaceRegistry.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 
@@ -280,45 +277,8 @@ void DisplayListPlayerSkia::play_command(DrawCanvas const& command)
 
 void DisplayListPlayerSkia::play_command(DrawVideoFrame const& command)
 {
-    auto frame = resource_storage().video_frame(command.video_frame_id);
-    if (!frame)
-        return;
-
-    auto color_space = Gfx::ColorSpace {};
-    if (auto color_space_result = Gfx::ColorSpace::from_cicp(frame->yuv_data().cicp()); !color_space_result.is_error())
-        color_space = color_space_result.release_value();
-
-    sk_sp<SkImage> image;
-    auto* gr_context = m_skia_backend_context ? m_skia_backend_context->sk_context() : nullptr;
-    if (gr_context) {
-        image = SkImages::TextureFromYUVAPixmaps(
-            gr_context,
-            frame->yuv_data().make_pixmaps(),
-            skgpu::Mipmapped::kNo,
-            false,
-            color_space.color_space<sk_sp<SkColorSpace>>());
-    }
-
-    RefPtr<Gfx::Bitmap> converted_bitmap;
-    if (!image) {
-        auto bitmap_or_error = frame->yuv_data().to_bitmap();
-        if (bitmap_or_error.is_error()) {
-            dbgln("Could not convert video frame to bitmap: {}", bitmap_or_error.release_error());
-            return;
-        }
-        converted_bitmap = bitmap_or_error.release_value();
-        auto raster_image = Gfx::sk_image_from_bitmap(*converted_bitmap, color_space);
-        if (gr_context) {
-            image = SkImages::TextureFromImage(gr_context, raster_image.get(), skgpu::Mipmapped::kNo, skgpu::Budgeted::kYes);
-            if (!image)
-                image = move(raster_image);
-        } else {
-            image = move(raster_image);
-        }
-    }
-
-    // A failed revalidation means the data acquired above was recycled by the pool's owner mid-read.
-    if (!frame->revalidate_backing())
+    auto image = resource_storage().skia_image_for_video_sink(command.video_sink_id, m_skia_backend_context);
+    if (!image)
         return;
 
     auto dst_rect = to_skia_rect(command.dst_rect);

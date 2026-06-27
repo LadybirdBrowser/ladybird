@@ -6,10 +6,12 @@
 
 #include <LibWebView/CompositorConnection.h>
 
+#include <AK/Debug.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/EventLoop.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/PaintingSurface.h>
+#include <LibIPC/Transport.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 
 namespace WebView {
@@ -22,6 +24,30 @@ CompositorConnection::CompositorConnection(NonnullOwnPtr<IPC::Transport> transpo
 void CompositorConnection::die()
 {
     did_lose_compositor();
+}
+
+void CompositorConnection::ensure_video_presentation_channel()
+{
+    if (m_video_presentation_channel)
+        return;
+    if (!can_send_message_to_compositor())
+        return;
+
+    auto paired_or_error = IPC::Transport::create_paired();
+    if (paired_or_error.is_error()) {
+        dbgln("Failed to create video presentation channel transport: {}", paired_or_error.error());
+        return;
+    }
+    auto paired = paired_or_error.release_value();
+
+    m_video_presentation_channel = Media::VideoPresentationServerConnection::construct(move(paired.local));
+
+#ifdef AK_OS_WINDOWS
+    m_video_presentation_channel->transport().set_peer_pid(transport().peer_pid());
+#endif
+
+    async_offer_video_presentation_channel(paired.remote_handle);
+    dbgln_if(VIDEO_PRESENTATION_CHANNEL_DEBUG, "WebContent: offered video presentation channel to Compositor");
 }
 
 void CompositorConnection::set_parent_context(Web::Compositor::CompositorContextId context_id, Optional<Web::Compositor::CompositorContextId> parent_context_id)
@@ -66,11 +92,6 @@ void CompositorConnection::update_display_list(Web::Compositor::CompositorContex
         }
     }
 
-    for (auto const& video_frame_resource : resource_transaction.video_frames) {
-        if (auto const* frame = video_frame_resource.frame.get_pointer<NonnullRefPtr<Media::VideoFrame const>>())
-            lend_video_frame_to_compositor(**frame);
-    }
-
     auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateDisplayList::static_encode(context_id, display_list, visual_context_tree, resource_transaction, scroll_state_snapshot));
     if (post_message(encoded_message).is_error())
         did_lose_compositor();
@@ -90,62 +111,25 @@ void CompositorConnection::update_scroll_state(Web::Compositor::CompositorContex
     async_update_scroll_state(context_id, scroll_state_snapshot);
 }
 
-void CompositorConnection::update_video_frame(Web::Compositor::CompositorContextId context_id, Web::Painting::VideoFrameResourceId frame_id, NonnullRefPtr<Media::VideoFrame const> const& frame)
+void CompositorConnection::add_video_sink(Media::VideoSinkHandle video_sink_handle)
 {
     if (!can_send_message_to_compositor())
         return;
-
-    lend_video_frame_to_compositor(*frame);
-    async_update_video_frame(context_id, frame_id, Media::VideoFrameHandle::for_frame(*frame));
+    async_add_video_sink(video_sink_handle);
 }
 
-void CompositorConnection::lend_video_frame_to_compositor(Media::VideoFrame const& frame)
-{
-    auto const* pool_slot = frame.pool_slot();
-    VERIFY(pool_slot != nullptr);
-    auto& pool = pool_slot->pool();
-
-    auto& lent_pool = m_lent_video_frame_pools.ensure(pool.id().value(), [&] {
-        return LentVideoFramePool { .pool = pool, .lend_counts_by_slot_index = {}, .announced_allocated_buffer_ids_by_slot_index = {}, .outstanding_lend_count = 0 };
-    });
-
-    auto announced_buffer_id = lent_pool.announced_allocated_buffer_ids_by_slot_index.get(pool_slot->slot_index());
-    if (!announced_buffer_id.has_value() || *announced_buffer_id != pool_slot->allocated_buffer_id()) {
-        async_announce_video_frame_slot(pool.id(), pool_slot->slot_index(), pool.slot_buffer(pool_slot->slot_index()));
-        lent_pool.announced_allocated_buffer_ids_by_slot_index.set(pool_slot->slot_index(), pool_slot->allocated_buffer_id());
-    }
-
-    pool.add_hold(pool_slot->slot_index());
-    lent_pool.lend_counts_by_slot_index.ensure(pool_slot->slot_index(), [] { return 0u; })++;
-    lent_pool.outstanding_lend_count++;
-}
-
-void CompositorConnection::release_video_frame(Media::VideoFramePoolID pool_id, u32 slot_index)
-{
-    auto lent_pool_it = m_lent_video_frame_pools.find(pool_id.value());
-    if (lent_pool_it == m_lent_video_frame_pools.end())
-        return;
-    auto& lent_pool = lent_pool_it->value;
-
-    auto lend_count_it = lent_pool.lend_counts_by_slot_index.find(slot_index);
-    if (lend_count_it == lent_pool.lend_counts_by_slot_index.end() || lend_count_it->value == 0)
-        return;
-    lend_count_it->value--;
-    lent_pool.outstanding_lend_count--;
-    lent_pool.pool->release_hold(slot_index);
-
-    if (lent_pool.outstanding_lend_count == 0) {
-        if (can_send_message_to_compositor())
-            async_retire_video_frame_pool(pool_id);
-        m_lent_video_frame_pools.remove(lent_pool_it);
-    }
-}
-
-void CompositorConnection::clear_video_frame(Web::Compositor::CompositorContextId context_id, Web::Painting::VideoFrameResourceId frame_id)
+void CompositorConnection::remove_video_sink(Media::VideoSinkHandle video_sink_handle)
 {
     if (!can_send_message_to_compositor())
         return;
-    async_clear_video_frame(context_id, frame_id);
+    async_remove_video_sink(video_sink_handle);
+}
+
+void CompositorConnection::set_video_update_flags(Media::VideoSinkHandle video_sink_handle, Web::Compositor::VideoUpdateFlags flags)
+{
+    if (!can_send_message_to_compositor())
+        return;
+    async_set_video_update_flags(video_sink_handle, flags);
 }
 
 Optional<Web::Painting::CanvasId> CompositorConnection::create_canvas_2d_context(Gfx::IntSize size, bool alpha)
@@ -410,16 +394,6 @@ void CompositorConnection::did_lose_compositor()
             entry.value.callback();
     }
     m_screenshots.clear();
-
-    for (auto& lent_pool_entry : m_lent_video_frame_pools) {
-        for (auto& lend_count_entry : lent_pool_entry.value.lend_counts_by_slot_index) {
-            while (lend_count_entry.value > 0) {
-                lend_count_entry.value--;
-                lent_pool_entry.value.pool->release_hold(lend_count_entry.key);
-            }
-        }
-    }
-    m_lent_video_frame_pools.clear();
 
     if (on_compositor_lost)
         on_compositor_lost();

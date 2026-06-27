@@ -23,6 +23,7 @@
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/PlaybackStates/Forward.h>
 #include <LibMedia/PlaybackStates/PlaybackState.h>
+#include <LibMedia/Sinks/RemoteVideoSink.h>
 #include <LibMedia/TimeRanges.h>
 #include <LibMedia/Track.h>
 #include <LibMedia/VideoSinkHandle.h>
@@ -70,9 +71,10 @@ public:
     Optional<Track> preferred_audio_track() { return m_preferred_audio_track; }
 
     VideoSinkHandle reserve_video_sink_handle(Track const&);
-    static RefPtr<DisplayingVideoSink> resolve_video_sink(VideoSinkHandle);
     void disable_video_sink_by_handle(VideoSinkHandle);
-    void set_video_sink_ticking(VideoSinkHandle, bool);
+    static void set_video_sink_ticking(VideoSinkHandle, bool);
+    void detach_lost_video_sink(VideoSinkHandle);
+    void set_video_resize_handler(VideoSinkHandle, Function<void(Gfx::Size<u32>)>);
 
     void enable_an_audio_track(Track const&);
     void disable_an_audio_track(Track const&);
@@ -103,6 +105,17 @@ public:
     void add_media_source(NonnullRefPtr<MediaStream> const&);
     void add_media_source(NonnullRefPtr<Demuxer> const&);
 
+    struct RemoteVideoEdge {
+        NonnullRefPtr<RemoteVideoSink> sink;
+        MediaTimeReader time_reader;
+    };
+    // The edge is created unattached, so the caller can transmit it to its consumer before the pump
+    // can produce any traffic; attach_video_edge() then starts the flow.
+    static ErrorOr<RemoteVideoEdge> create_video_edge(VideoSinkHandle, RemoteVideoSink::Delegates);
+    static void attach_video_edge(VideoSinkHandle, NonnullRefPtr<RemoteVideoSink> const&);
+    static RefPtr<VideoFrame> current_presented_frame(VideoSinkHandle);
+    static void release_video_edge(VideoSinkHandle);
+
 private:
     struct VideoTrackData {
         Track track;
@@ -114,6 +127,7 @@ private:
         // authority; while unticked, it is stale and the track ends at its verified end time.
         bool ticking { true };
         bool read_blocked { false };
+        Function<void(Gfx::Size<u32>)> on_resize { nullptr };
     };
     using VideoTrackDatas = Vector<VideoTrackData, EXPECTED_VIDEO_TRACK_COUNT>;
 

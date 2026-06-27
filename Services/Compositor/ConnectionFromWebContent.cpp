@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Debug.h>
 #include <Compositor/ConnectionFromWebContent.h>
 #include <LibCore/System.h>
 #include <LibWeb/Page/InputEvent.h>
@@ -24,6 +25,58 @@ void ConnectionFromWebContent::die()
     m_compositor_state->destroy_contexts_for_web_content_client(*this);
     if (m_on_death)
         m_on_death(*this);
+}
+
+void ConnectionFromWebContent::offer_video_presentation_channel(IPC::TransportHandle handle)
+{
+    auto transport_or_error = handle.create_transport();
+    if (transport_or_error.is_error()) {
+        did_misbehave("WebContent sent an unusable video presentation transport handle");
+        return;
+    }
+    m_video_presentation_connection = adopt_ref(*new Media::VideoPresentationClientConnection(transport_or_error.release_value()));
+
+#ifdef AK_OS_WINDOWS
+    m_video_presentation_connection->transport().set_peer_pid(transport().peer_pid());
+#endif
+
+    dbgln_if(VIDEO_PRESENTATION_CHANNEL_DEBUG, "Compositor: established video presentation channel for WebContent (client_id={})", client_id());
+}
+
+void ConnectionFromWebContent::add_video_sink(Media::VideoSinkHandle video_sink_handle)
+{
+    m_compositor_state->add_video_sink(*this, video_sink_handle);
+}
+
+void ConnectionFromWebContent::remove_video_sink(Media::VideoSinkHandle video_sink_handle)
+{
+    m_compositor_state->remove_video_sink(*this, video_sink_handle);
+}
+
+void ConnectionFromWebContent::set_video_update_flags(Media::VideoSinkHandle video_sink_handle, Web::Compositor::VideoUpdateFlags flags)
+{
+    m_compositor_state->set_video_update_flags(*this, video_sink_handle, flags);
+}
+
+void ConnectionFromWebContent::create_video_edge(Media::VideoSinkHandle video_sink_handle)
+{
+    if (!m_video_presentation_connection)
+        return;
+    m_video_presentation_connection->create_edge(video_sink_handle, [this, video_sink_handle](NonnullRefPtr<Media::DisplayingVideoSink> sink) {
+        m_compositor_state->on_video_sink_ready(*this, video_sink_handle, move(sink));
+    });
+}
+
+void ConnectionFromWebContent::release_video_edge(Media::VideoSinkHandle video_sink_handle)
+{
+    if (m_video_presentation_connection)
+        m_video_presentation_connection->release_edge(video_sink_handle);
+}
+
+void ConnectionFromWebContent::set_video_sink_ticking(Media::VideoSinkHandle video_sink_handle, bool ticking)
+{
+    if (m_video_presentation_connection)
+        m_video_presentation_connection->set_sink_ticking(video_sink_handle, ticking);
 }
 
 void ConnectionFromWebContent::notify_compositor_lost()
@@ -112,35 +165,6 @@ void ConnectionFromWebContent::update_scroll_state(Web::Compositor::CompositorCo
     if (!context_is_owned_by_this_connection(context_id))
         return;
     m_compositor_state->update_scroll_state(context_id, move(scroll_state_snapshot));
-}
-
-void ConnectionFromWebContent::announce_video_frame_slot(Media::VideoFramePoolID pool_id, u32 slot_index, Core::AnonymousBuffer slot_buffer)
-{
-    m_compositor_state->announce_video_frame_slot(*this, pool_id, slot_index, move(slot_buffer));
-}
-
-void ConnectionFromWebContent::retire_video_frame_pool(Media::VideoFramePoolID pool_id)
-{
-    m_compositor_state->retire_video_frame_pool(*this, pool_id);
-}
-
-void ConnectionFromWebContent::release_video_frame(Media::VideoFramePoolID pool_id, u32 slot_index)
-{
-    async_release_video_frame(pool_id, slot_index);
-}
-
-void ConnectionFromWebContent::update_video_frame(Web::Compositor::CompositorContextId context_id, Web::Painting::VideoFrameResourceId frame_id, Media::VideoFrameHandle frame_handle)
-{
-    if (!context_is_owned_by_this_connection(context_id))
-        return;
-    m_compositor_state->update_video_frame(context_id, frame_id, frame_handle);
-}
-
-void ConnectionFromWebContent::clear_video_frame(Web::Compositor::CompositorContextId context_id, Web::Painting::VideoFrameResourceId frame_id)
-{
-    if (!context_is_owned_by_this_connection(context_id))
-        return;
-    m_compositor_state->clear_video_frame(context_id, frame_id);
 }
 
 Messages::CompositorWebContentServer::CreateCanvas2dContextResponse ConnectionFromWebContent::create_canvas_2d_context(Gfx::IntSize size, bool alpha)

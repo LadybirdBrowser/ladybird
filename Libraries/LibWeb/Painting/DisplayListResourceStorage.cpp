@@ -4,15 +4,21 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/Bitmap.h>
+#include <LibGfx/ColorSpace.h>
 #include <LibGfx/Filter.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibGfx/SkiaUtils.h>
+#include <LibGfx/YUVData.h>
 #include <LibMedia/VideoFrame.h>
+#include <LibMedia/VideoFrameHandle.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 
+#include <core/SkColorSpace.h>
 #include <core/SkImage.h>
+#include <core/SkYUVAPixmaps.h>
 #include <gpu/ganesh/GrDirectContext.h>
 #include <gpu/ganesh/SkImageGanesh.h>
 
@@ -75,6 +81,19 @@ struct DisplayListCachedNestedRasterResource {
     Vector<Raster> rasters;
 };
 
+struct DisplayListCachedVideoSinkImageResource {
+    Media::VideoFramePoolID pool_id { 0 };
+    u32 slot_index { 0 };
+    u64 slot_acquisition_id { 0 };
+    RefPtr<Gfx::SkiaBackendContext> skia_backend_context;
+    sk_sp<SkImage> image;
+};
+
+struct DisplayListStoredVideoSinkResource {
+    RefPtr<Media::VideoSink> sink;
+    mutable DisplayListCachedVideoSinkImageResource cached_image;
+};
+
 static sk_sp<SkImage> create_skia_image(Gfx::DecodedImageFrame const& frame, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
 {
     auto raster_image = Gfx::sk_image_from_bitmap(frame.bitmap(), frame.color_space());
@@ -102,7 +121,7 @@ bool DisplayListResourceSet::is_empty() const
 {
     return fonts.is_empty()
         && image_frames.is_empty()
-        && video_frames.is_empty()
+        && video_sinks.is_empty()
         && display_lists.is_empty();
 }
 
@@ -112,8 +131,8 @@ void DisplayListResourceSet::include(DisplayListResourceSet const& other)
         fonts.set(id, AK::HashSetExistingEntryBehavior::Keep);
     for (auto id : other.image_frames)
         image_frames.set(id, AK::HashSetExistingEntryBehavior::Keep);
-    for (auto id : other.video_frames)
-        video_frames.set(id, AK::HashSetExistingEntryBehavior::Keep);
+    for (auto id : other.video_sinks)
+        video_sinks.set(id, AK::HashSetExistingEntryBehavior::Keep);
     for (auto id : other.display_lists)
         display_lists.set(id, AK::HashSetExistingEntryBehavior::Keep);
 }
@@ -155,9 +174,9 @@ ImageFrameResourceId DisplayListResourceStorage::add_image_frame(Gfx::DecodedIma
     return { id };
 }
 
-VideoFrameResourceId DisplayListResourceStorage::add_video_frame(VideoFrameResourceId id, RefPtr<Media::VideoFrame const> frame)
+VideoSinkResourceId DisplayListResourceStorage::add_video_sink(VideoSinkResourceId id, Media::VideoSinkHandle sink_handle)
 {
-    m_video_frames.set(id.value(), move(frame), AK::HashSetExistingEntryBehavior::Keep);
+    m_video_sink_handles.set(id.value(), sink_handle, AK::HashSetExistingEntryBehavior::Keep);
     return id;
 }
 
@@ -195,6 +214,75 @@ Gfx::DecodedImageFrame const& DisplayListResourceStorage::image_frame(ImageFrame
 sk_sp<SkImage> DisplayListResourceStorage::skia_image_for_image_frame(ImageFrameResourceId id, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context) const
 {
     return skia_image_for_stored_image_frame(*m_image_frames.get(id.value()).value(), skia_backend_context);
+}
+
+sk_sp<SkImage> DisplayListResourceStorage::skia_image_for_video_sink(VideoSinkResourceId id, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context) const
+{
+    auto stored = m_video_sinks.find(id.value());
+    if (stored == m_video_sinks.end())
+        return nullptr;
+    auto& resolved = *stored->value;
+    if (!resolved.sink)
+        return nullptr;
+    auto frame = resolved.sink->current_frame();
+    if (!frame)
+        return nullptr;
+
+    auto handle = Media::VideoFrameHandle::for_frame(*frame);
+    auto& cached_image_storage = resolved.cached_image;
+    auto cached_image_matches = [&] {
+        if (!cached_image_storage.image)
+            return false;
+        if (cached_image_storage.pool_id != handle.pool_id)
+            return false;
+        if (cached_image_storage.slot_index != handle.slot_index)
+            return false;
+        if (cached_image_storage.slot_acquisition_id != handle.slot_acquisition_id)
+            return false;
+        if (cached_image_storage.skia_backend_context != skia_backend_context)
+            return false;
+        return true;
+    }();
+    if (cached_image_matches)
+        return cached_image_storage.image;
+
+    auto color_space = Gfx::ColorSpace {};
+    if (auto color_space_result = Gfx::ColorSpace::from_cicp(frame->yuv_data().cicp()); !color_space_result.is_error())
+        color_space = color_space_result.release_value();
+
+    sk_sp<SkImage> image;
+    auto* gr_context = skia_backend_context ? skia_backend_context->sk_context() : nullptr;
+    if (gr_context) {
+        image = SkImages::TextureFromYUVAPixmaps(
+            gr_context,
+            frame->yuv_data().make_pixmaps(),
+            skgpu::Mipmapped::kNo,
+            false,
+            color_space.color_space<sk_sp<SkColorSpace>>());
+    }
+
+    if (!image) {
+        auto bitmap_or_error = frame->yuv_data().to_bitmap();
+        if (bitmap_or_error.is_error()) {
+            dbgln("Could not convert video frame to bitmap: {}", bitmap_or_error.release_error());
+            return nullptr;
+        }
+        auto raster_image = Gfx::sk_image_adopting_bitmap(bitmap_or_error.release_value(), color_space);
+        if (gr_context)
+            image = SkImages::TextureFromImage(gr_context, raster_image.get(), skgpu::Mipmapped::kNo, skgpu::Budgeted::kYes);
+        if (!image)
+            image = move(raster_image);
+    }
+
+    if (!frame->revalidate_backing())
+        return nullptr;
+
+    cached_image_storage.pool_id = handle.pool_id;
+    cached_image_storage.slot_index = handle.slot_index;
+    cached_image_storage.slot_acquisition_id = handle.slot_acquisition_id;
+    cached_image_storage.skia_backend_context = skia_backend_context;
+    cached_image_storage.image = image;
+    return image;
 }
 
 sk_sp<SkImage> DisplayListResourceStorage::cached_skia_image_for_display_list(DisplayListResourceId id, Gfx::IntSize tile_size, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context) const
@@ -389,8 +477,8 @@ void DisplayListResourceStorage::collect_referenced_resources(
                 referenced_resources.fonts.set(command.font_id, AK::HashSetExistingEntryBehavior::Keep);
             if constexpr (requires { command.frame_id; })
                 referenced_resources.image_frames.set(command.frame_id, AK::HashSetExistingEntryBehavior::Keep);
-            if constexpr (requires { command.video_frame_id; })
-                referenced_resources.video_frames.set(command.video_frame_id, AK::HashSetExistingEntryBehavior::Keep);
+            if constexpr (requires { command.video_sink_id; })
+                referenced_resources.video_sinks.set(command.video_sink_id, AK::HashSetExistingEntryBehavior::Keep);
             if constexpr (requires { command.paint_style; command.paint_kind; }) {
                 if (command.paint_kind == decltype(command.paint_kind)::PaintStyle
                     && command.paint_style.type == DisplayListPaintStyleType::Pattern)
@@ -465,13 +553,11 @@ DisplayListResourceTransaction DisplayListResourceStorage::create_transaction(
         if (!previous.image_frames.contains(id))
             transaction.image_frames.append({ id, image_frame(id) });
     }
-    for (auto id : current.video_frames) {
-        if (previous.video_frames.contains(id))
+    for (auto id : current.video_sinks) {
+        if (previous.video_sinks.contains(id))
             continue;
-        if (auto frame = video_frame(id))
-            transaction.video_frames.append({ id, frame.release_nonnull() });
-        else
-            transaction.video_frames.append({ id, Empty {} });
+        if (auto sink_handle = video_sink_handle(id); sink_handle.has_value())
+            transaction.video_sinks.append({ id, *sink_handle });
     }
     for (auto id : current.display_lists) {
         if (!previous.display_lists.contains(id))
@@ -486,9 +572,9 @@ DisplayListResourceTransaction DisplayListResourceStorage::create_transaction(
         if (!current.image_frames.contains(id))
             transaction.image_frame_ids_to_remove.append(id);
     }
-    for (auto id : previous.video_frames) {
-        if (!current.video_frames.contains(id))
-            transaction.video_frame_ids_to_remove.append(id);
+    for (auto id : previous.video_sinks) {
+        if (!current.video_sinks.contains(id))
+            transaction.video_sink_ids_to_remove.append(id);
     }
     for (auto id : previous.display_lists) {
         if (!current.display_lists.contains(id))
@@ -503,12 +589,8 @@ void DisplayListResourceStorage::apply_transaction(DisplayListResourceTransactio
         set_font(font.id, move(font.font));
     for (auto& frame : transaction.image_frames)
         set_image_frame(frame.id, move(frame.frame));
-    for (auto& video_frame : transaction.video_frames) {
-        RefPtr<Media::VideoFrame const> frame;
-        if (auto* resolved_frame = video_frame.frame.get_pointer<NonnullRefPtr<Media::VideoFrame const>>())
-            frame = move(*resolved_frame);
-        add_video_frame(video_frame.id, move(frame));
-    }
+    for (auto& video_sink : transaction.video_sinks)
+        add_video_sink(video_sink.id, video_sink.sink_handle);
     for (auto& display_list : transaction.display_lists)
         add_display_list(move(display_list));
 
@@ -516,8 +598,10 @@ void DisplayListResourceStorage::apply_transaction(DisplayListResourceTransactio
         m_fonts.remove(id.value());
     for (auto id : transaction.image_frame_ids_to_remove)
         m_image_frames.remove(id.value());
-    for (auto id : transaction.video_frame_ids_to_remove)
-        m_video_frames.remove(id.value());
+    for (auto id : transaction.video_sink_ids_to_remove) {
+        m_video_sink_handles.remove(id.value());
+        m_video_sinks.remove(id.value());
+    }
     for (auto id : transaction.display_list_ids_to_remove)
         m_display_lists.remove(id.value());
     for (auto id : transaction.display_list_ids_to_remove)
@@ -534,9 +618,11 @@ void DisplayListResourceStorage::retain_only(DisplayListResourceSet const& resou
     m_image_frames.remove_all_matching([&](auto id, auto const&) {
         return !resource_set.image_frames.contains(ImageFrameResourceId { id });
     });
-    m_video_frames.remove_all_matching([&](auto id, auto const&) {
-        return !resource_set.video_frames.contains(VideoFrameResourceId { id });
-    });
+    auto should_remove_video_resource = [&](auto id) {
+        return !resource_set.video_sinks.contains(VideoSinkResourceId { id });
+    };
+    m_video_sink_handles.remove_all_matching([&](auto id, auto const&) { return should_remove_video_resource(id); });
+    m_video_sinks.remove_all_matching([&](auto id, auto const&) { return should_remove_video_resource(id); });
     m_display_lists.remove_all_matching([&](auto id, auto const&) {
         return !resource_set.display_lists.contains(DisplayListResourceId { id });
     });
@@ -548,15 +634,17 @@ void DisplayListResourceStorage::retain_only(DisplayListResourceSet const& resou
     });
 }
 
-void DisplayListResourceStorage::update_video_frame(VideoFrameResourceId frame_id, NonnullRefPtr<Media::VideoFrame const> frame)
+void DisplayListResourceStorage::set_video_sink(VideoSinkResourceId id, RefPtr<Media::VideoSink> sink)
 {
-    m_video_frames.set(frame_id.value(), move(frame));
+    m_video_sinks.ensure(id.value(), [] { return make<DisplayListStoredVideoSinkResource>(); })->sink = move(sink);
 }
 
-void DisplayListResourceStorage::clear_video_frame(VideoFrameResourceId frame_id)
+RefPtr<Media::VideoSink const> DisplayListResourceStorage::video_sink(VideoSinkResourceId id) const
 {
-    if (m_video_frames.contains(frame_id.value()))
-        m_video_frames.set(frame_id.value(), nullptr);
+    auto stored = m_video_sinks.find(id.value());
+    if (stored == m_video_sinks.end())
+        return nullptr;
+    return stored->value->sink;
 }
 
 }

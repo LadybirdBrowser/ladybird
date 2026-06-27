@@ -225,16 +225,22 @@ void CompositorHostBase::update_visual_context_tree(Web::Compositor::CompositorC
         connection->update_visual_context_tree(context_id, visual_context_tree);
 }
 
-void CompositorHostBase::update_video_frame(Web::Compositor::CompositorContextId context_id, Web::Painting::VideoFrameResourceId frame_id, NonnullRefPtr<Media::VideoFrame const> frame)
+void CompositorHostBase::add_video_sink(Media::VideoSinkHandle video_sink_handle)
 {
     if (auto* connection = compositor_connection())
-        connection->update_video_frame(context_id, frame_id, frame);
+        connection->add_video_sink(video_sink_handle);
 }
 
-void CompositorHostBase::clear_video_frame(Web::Compositor::CompositorContextId context_id, Web::Painting::VideoFrameResourceId frame_id)
+void CompositorHostBase::remove_video_sink(Media::VideoSinkHandle video_sink_handle)
 {
     if (auto* connection = compositor_connection())
-        connection->clear_video_frame(context_id, frame_id);
+        connection->remove_video_sink(video_sink_handle);
+}
+
+void CompositorHostBase::set_video_update_flags(Media::VideoSinkHandle video_sink_handle, Web::Compositor::VideoUpdateFlags flags)
+{
+    if (auto* connection = compositor_connection())
+        connection->set_video_update_flags(video_sink_handle, flags);
 }
 
 void CompositorHostBase::update_scroll_state(Web::Compositor::CompositorContextId context_id, Web::Painting::ScrollStateSnapshot&& scroll_state_snapshot)

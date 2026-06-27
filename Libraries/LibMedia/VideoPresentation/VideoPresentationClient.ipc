@@ -1,0 +1,13 @@
+#include <LibMedia/MediaTime.h>
+#include <LibMedia/VideoEdgeQueue.h>
+#include <LibMedia/VideoFramePool.h>
+#include <LibMedia/VideoPresentation/PresentedFramePage.h>
+
+endpoint VideoPresentationClient {
+    video_edge_ready(u64 edge_id, Media::VideoEdgeQueue edge, Media::PresentedFramePage presented_frame_page, Media::MediaTimeReader time_reader) =|
+    update_edge_time_reader(u64 edge_id, Media::MediaTimeReader time_reader) =|
+    announce_video_frame_slot(u64 edge_id, Media::VideoFramePoolID pool_id, u32 slot_index, Core::AnonymousBuffer slot_buffer) =|
+    retire_video_frame_pool(u64 edge_id, Media::VideoFramePoolID pool_id) =|
+    notify_data_available(u64 edge_id) =|
+    seek_sink(u64 edge_id, u32 requested_seek_id) =|
+}

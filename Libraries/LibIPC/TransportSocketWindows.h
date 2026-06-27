@@ -34,6 +34,7 @@ public:
     ~TransportSocketWindows();
 
     void set_peer_pid(int pid);
+    int peer_pid() const { return m_peer_pid; }
     void set_up_read_hook(Function<void()>);
     bool is_open() const;
     void close();

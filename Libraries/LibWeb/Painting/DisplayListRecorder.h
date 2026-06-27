@@ -21,6 +21,7 @@
 #include <LibGfx/Rect.h>
 #include <LibGfx/ScalingMode.h>
 #include <LibMedia/Forward.h>
+#include <LibMedia/VideoSinkHandle.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
@@ -76,7 +77,7 @@ public:
     void draw_scaled_decoded_image_frame(Gfx::IntRect const& dst_rect, Gfx::FloatRect const& src_rect, Gfx::DecodedImageFrame frame, Gfx::ScalingMode scaling_mode, Gfx::CompositingAndBlendingOperator = Gfx::CompositingAndBlendingOperator::Normal, Optional<Color> isolated_backdrop_color = {});
     void draw_composited_context(Gfx::IntRect const& dst_rect, Web::Compositor::CompositorContextId, Gfx::ScalingMode scaling_mode = Gfx::ScalingMode::NearestNeighbor);
     void draw_canvas(Gfx::IntRect const& dst_rect, CanvasId, u64 content_generation, Gfx::ScalingMode scaling_mode = Gfx::ScalingMode::NearestNeighbor);
-    void draw_video_frame(Gfx::IntRect const& dst_rect, VideoFrameResourceId, RefPtr<Media::VideoFrame const>, u64 content_generation, Gfx::ScalingMode scaling_mode = Gfx::ScalingMode::NearestNeighbor);
+    void draw_video_frame(Gfx::IntRect const& dst_rect, VideoSinkResourceId, Media::VideoSinkHandle, Gfx::ScalingMode scaling_mode = Gfx::ScalingMode::NearestNeighbor);
 
     void draw_repeated_decoded_image_frame(Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, Gfx::DecodedImageFrame frame, Gfx::ScalingMode scaling_mode, bool repeat_x, bool repeat_y, Gfx::CompositingAndBlendingOperator = Gfx::CompositingAndBlendingOperator::Normal, Optional<Color> isolated_backdrop_color = {});
     void draw_repeated_display_list(Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, DisplayListResource const&, Gfx::ScalingMode, bool repeat_x, bool repeat_y);

@@ -9,6 +9,7 @@
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Producers/VideoProducer.h>
 #include <LibMedia/VideoFrame.h>
+#include <LibMedia/VideoFrameHandle.h>
 
 #include "DisplayingVideoSink.h"
 
@@ -40,22 +41,22 @@ void DisplayingVideoSink::set_state_change_handler(PipelineStateChangeHandler on
     m_on_state_changed = move(on_state_changed);
 }
 
+void DisplayingVideoSink::set_resize_handler(PipelineResizeHandler on_resize)
+{
+    m_on_resize = move(on_resize);
+}
+
 ErrorOr<void> DisplayingVideoSink::connect_input(NonnullRefPtr<VideoProducer> const& input)
 {
     VERIFY(m_input == nullptr);
     m_input = input;
     input->set_wake_handler([this] {
-        auto status = m_input->peek().status;
-        if (status == PipelineStatus::Suspended) {
+        if (m_input->peek().status == PipelineStatus::Suspended) {
             m_next_frame = nullptr;
-            dispatch_state_if_changed(status);
+            dispatch_state_if_changed(PipelineStatus::Suspended);
             return;
         }
-        if (!resolves_seek(status))
-            return;
-        if (m_current_frame != nullptr && m_seek_status == SeekStatus::None)
-            status = PipelineStatus::HaveData;
-        dispatch_state_if_changed(status);
+        update(MonotonicTime::now());
     });
     input->seek(m_time_reader.current_time());
     input->start();
@@ -98,12 +99,7 @@ void DisplayingVideoSink::seek(AK::Duration timestamp)
     }();
 
     if (can_resolve_seek_within_cached_frames) {
-        Core::deferred_invoke([self = NonnullRefPtr(*this), seek_id = m_seek_id] {
-            if (self->m_seek_id != seek_id)
-                return;
-            self->dispatch_state_if_changed(PipelineStatus::HaveData);
-            VERIFY(self->m_seek_status == SeekStatus::None);
-        });
+        update(MonotonicTime::now());
         return;
     }
 
@@ -126,10 +122,11 @@ void DisplayingVideoSink::dispatch_state_if_changed(PipelineStatus status)
 DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
 {
     if (m_input == nullptr)
-        return DisplayingVideoSinkUpdateResult::NoChange;
+        return {};
 
-    auto current_time = m_time_reader.current_time(now);
-    auto result = DisplayingVideoSinkUpdateResult::NoChange;
+    auto time_state = m_time_reader.time_state(now);
+    auto current_time = time_state.time;
+    auto new_frame_available = false;
 
     auto last_status = PipelineStatus::Pending;
     auto seek_resolved_during_this_update = false;
@@ -140,7 +137,7 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
             if (output.frame == nullptr) {
                 if (is_terminal(last_status) && m_seek_status == SeekStatus::InProgress) {
                     m_seek_status = SeekStatus::None;
-                    result = DisplayingVideoSinkUpdateResult::NewFrameAvailable;
+                    new_frame_available = true;
                 }
                 break;
             }
@@ -151,12 +148,19 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
             m_current_frame.clear();
             m_seek_status = SeekStatus::None;
             seek_resolved_during_this_update = true;
-            result = DisplayingVideoSinkUpdateResult::NewFrameAvailable;
+            new_frame_available = true;
         }
         if (m_seek_status != SeekStatus::None)
             break;
         if (m_next_frame->timestamp() > current_time)
             break;
+
+        if (auto frame_size = m_next_frame->size(); frame_size != m_last_dispatched_size) {
+            m_last_dispatched_size = frame_size;
+            if (m_on_resize)
+                m_on_resize(frame_size);
+        }
+
         // Skip presenting frames that are late, unless we're resolving a seek. Seeks should always resolve with a
         // frame regardless of whether it is late.
         if (!seek_resolved_during_this_update && current_time > m_next_frame->conservative_end()) {
@@ -174,7 +178,7 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
         }
         m_current_frame = m_next_frame.release_nonnull();
         m_cached_frames_are_discontinuous = false;
-        result = DisplayingVideoSinkUpdateResult::NewFrameAvailable;
+        new_frame_available = true;
     }
 
     if (m_current_frame != nullptr && m_seek_status == SeekStatus::None) {
@@ -194,18 +198,30 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
         last_status = PipelineStatus::Pending;
     }
 
-    // Dispatch the new state with a deferred invoke to avoid reentrancy. This prevents a seek from resolving while
-    // an update is being processed.
-    Core::deferred_invoke([weak_self = make_weak_ref(), last_status, seek_id = m_seek_id] {
-        auto self = weak_self.strong_ref();
-        if (!self)
-            return;
-        if (seek_id != self->m_seek_id)
-            return;
-        self->dispatch_state_if_changed(last_status);
-    });
+    if (new_frame_available) {
+        if (m_presented_frame_page.has_value())
+            m_presented_frame_page->store(m_current_frame ? VideoFrameHandle::for_frame(*m_current_frame) : VideoFrameHandle {});
+        if (m_on_present_needed)
+            m_on_present_needed();
+    }
 
-    return result;
+    if (last_status != m_last_dispatched_status) {
+        // Dispatch the new state with a deferred invoke to avoid reentrancy. This prevents a seek from resolving while
+        // an update is being processed.
+        Core::deferred_invoke([weak_self = make_weak_ref(), last_status, seek_id = m_seek_id] {
+            auto self = weak_self.strong_ref();
+            if (!self)
+                return;
+            if (seek_id != self->m_seek_id)
+                return;
+            self->dispatch_state_if_changed(last_status);
+        });
+    }
+
+    return {
+        .new_frame_available = new_frame_available,
+        .may_require_updates = !is_terminal(last_status) && (time_state.is_advancing || m_seek_status != SeekStatus::None),
+    };
 }
 
 RefPtr<VideoFrame> DisplayingVideoSink::current_frame() const
