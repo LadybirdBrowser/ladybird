@@ -2508,47 +2508,65 @@ impl TreeBuilder {
         }
     }
 
-    // https://html.spec.whatwg.org/multipage/parsing.html#the-after-body-insertion-mode
+    // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-afterbody
     fn handle_after_body(&mut self, token: Token) {
+        // -> A character token that is one of U+0009 CHARACTER TABULATION, U+000A LINE FEED (LF), U+000C FORM FEED (FF),
+        //    U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
         if token.is_parser_whitespace() {
+            // Process the token using the rules for the "in body" insertion mode.
             self.process_using_the_rules_for(InsertionMode::InBody, token);
             return;
         }
 
+        // -> A comment token
         if token.token_type == TokenType::Comment {
+            // Insert a comment as the last child of the first element in the stack of open elements (the html element).
             if let Some(html) = self.stack_of_open_elements.first() {
                 self.append_comment_to_node(html.handle, token.comment_data());
             }
             return;
         }
 
+        // FIXME: -> A processing instruction token
+
+        // -> A DOCTYPE token
         if token.token_type == TokenType::Doctype {
             // Parse error. Ignore the token.
             self.parse_error("DOCTYPE token in after body insertion mode");
             return;
         }
 
+        // -> A start tag whose tag name is "html"
         if token.is_start_tag_named("html") {
+            // Process the token using the rules for the "in body" insertion mode.
             self.process_using_the_rules_for(InsertionMode::InBody, token);
             return;
         }
 
+        // -> An end tag whose tag name is "html"
         if token.is_end_tag_named("html") {
+            // If the parser was created as part of the HTML fragment parsing algorithm, this is a parse error;
+            // ignore the token. (fragment case)
             if self.parsing_fragment {
                 // Parse error. Ignore the token.
                 self.parse_error("html end tag in after body insertion mode for fragment");
-            } else {
+            }
+            // Otherwise, switch the insertion mode to "after after body".
+            else {
                 self.insertion_mode = InsertionMode::AfterAfterBody;
             }
             return;
         }
 
+        // -> An end-of-file token
         if token.token_type == TokenType::EndOfFile {
+            // Process the token using the rules for the "in body" insertion mode.
             self.stop_parsing();
             return;
         }
 
-        // Parse error.
+        // -> Anything else
+        // Parse error. Switch the insertion mode to "in body" and reprocess the token.
         self.parse_error("unexpected token in after body insertion mode");
         self.insertion_mode = InsertionMode::InBody;
         self.process_using_the_rules_for(InsertionMode::InBody, token);
