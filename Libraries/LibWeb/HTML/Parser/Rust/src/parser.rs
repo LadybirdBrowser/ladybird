@@ -2323,52 +2323,76 @@ impl TreeBuilder {
 
     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-intd
     fn handle_in_cell(&mut self, token: Token) {
+        // -> An end tag whose tag name is one of: "td", "th"
         if token.is_end_tag_one_of(&["td", "th"]) {
+            // If the stack of open elements does not have an element in table scope that is an HTML element with th
+            // same tag name as that of the token, then this is a parse error; ignore the token.
             if !self.has_in_table_scope(token.tag_name()) {
-                // Parse error. Ignore the token.
                 self.parse_error("cell end tag without matching element in table scope");
                 return;
             }
+
+            // Otherwise:
+            // 1. Generate implied end tags.
             self.generate_implied_end_tags();
+
+            // 2. Now, if the current node is not an HTML element with the same tag name as the token, then this is a parse error.
             if !self.current_node_named(token.tag_name()) {
                 self.parse_error("current node does not match cell end tag");
             }
+
+            // 3. Pop elements from the stack of open elements until an HTML element with the same tag name as the token
+            // has been popped from the stack.
             self.pop_until_tag_name_has_been_popped(token.tag_name());
+
+            // 4. Clear the list of active formatting elements up to the last marker.
             self.clear_the_list_of_active_formatting_elements_up_to_the_last_marker();
+
+            // 5. Switch the insertion mode to "in row".
             self.insertion_mode = InsertionMode::InRow;
             return;
         }
 
+        // -> A start tag whose tag name is one of: "caption", "col", "colgroup", "tbody", "td", "tfoot", "th", "thead", "tr"
         if token.is_start_tag_one_of(&[
             "caption", "col", "colgroup", "tbody", "td", "tfoot", "th", "thead", "tr",
         ]) {
+            // FIXME: Assert: the stack of open elements has a td or th element in table scope.
             if !self.has_in_table_scope("td") && !self.has_in_table_scope("th") {
-                // Parse error. Ignore the token.
                 self.parse_error("table token in cell insertion mode without cell element in table scope");
                 return;
             }
+
+            // Close the cell (see below) and reprocess the token.
             self.close_the_cell();
             self.process_using_the_rules_for(self.insertion_mode, token);
             return;
         }
 
+        // -> An end tag whose tag name is one of: "body", "caption", "col", "colgroup", "html"
         if token.is_end_tag_one_of(&["body", "caption", "col", "colgroup", "html"]) {
             // Parse error. Ignore the token.
             self.parse_error("unexpected end tag in in cell insertion mode");
             return;
         }
 
+        // -> An end tag whose tag name is one of: "table", "tbody", "tfoot", "thead", "tr"
         if token.is_end_tag_one_of(&["table", "tbody", "tfoot", "thead", "tr"]) {
+            // If the stack of open elements does not have an element in table scope that is an HTML element with the same
+            // tag name as that of the token, then this is a parse error; ignore the token.
             if !self.has_in_table_scope(token.tag_name()) {
-                // Parse error. Ignore the token.
                 self.parse_error("table end tag in cell insertion mode without matching element in table scope");
                 return;
             }
+
+            // Otherwise, close the cell (see below) and reprocess the token.
             self.close_the_cell();
             self.process_using_the_rules_for(self.insertion_mode, token);
             return;
         }
 
+        // -> Anything else
+        // Process the token using the rules for the "in body" insertion mode.
         self.process_using_the_rules_for(InsertionMode::InBody, token);
     }
 
