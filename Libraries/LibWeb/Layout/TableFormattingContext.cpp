@@ -164,7 +164,17 @@ void TableFormattingContext::compute_cell_measures(RowMeasurement row_measuremen
         CSSPixels border_left = use_collapsing_borders_model ? round(cell_state.border_left / 2) : computed_values.border_left().width;
         CSSPixels border_right = use_collapsing_borders_model ? round(cell_state.border_right / 2) : computed_values.border_right().width;
 
+        auto cell_intrinsic_width_offsets = padding_left + padding_right + border_left + border_right;
+
+        auto min_width = computed_values.min_width().to_px(containing_block_width);
         auto width = computed_values.width().is_length() ? computed_values.width().to_px(containing_block_width) : 0;
+        auto max_width = computed_values.max_width().is_length() ? computed_values.max_width().to_px(containing_block_width) : CSSPixels::max();
+
+        if (computed_values.box_sizing() == CSS::BoxSizing::BorderBox) {
+            min_width -= cell_intrinsic_width_offsets;
+            width -= cell_intrinsic_width_offsets;
+            max_width -= cell_intrinsic_width_offsets;
+        }
 
         CSSPixels min_content_width;
         CSSPixels max_content_width;
@@ -184,8 +194,6 @@ void TableFormattingContext::compute_cell_measures(RowMeasurement row_measuremen
         }
 
         // The outer min-content width of a table-cell is max(min-width, min-content width) adjusted by the cell intrinsic offsets.
-        auto min_width = computed_values.min_width().to_px(containing_block_width);
-        auto cell_intrinsic_width_offsets = padding_left + padding_right + border_left + border_right;
         cell.outer_min_width = max(min_width, min_content_width) + cell_intrinsic_width_offsets;
 
         if (row_measurement == RowMeasurement::Include) {
@@ -215,8 +223,6 @@ void TableFormattingContext::compute_cell_measures(RowMeasurement row_measuremen
         }
 
         // See the explanation for height and max_height above.
-
-        auto max_width = computed_values.max_width().is_length() ? computed_values.max_width().to_px(containing_block_width) : CSSPixels::max();
         if (m_columns[cell.column_index].is_constrained) {
             // The outer max-content width of a table-cell in a constrained column is
             // max(min-width, width, min-content width, min(max-width, width)) adjusted by the cell intrinsic offsets.
