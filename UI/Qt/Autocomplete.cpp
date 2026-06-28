@@ -89,9 +89,23 @@ static QFont autocomplete_section_header_font()
     return font;
 }
 
+static bool autocomplete_color_is_dark(QColor const& color)
+{
+    return color.lightness() < 128;
+}
+
 static QColor autocomplete_selection_fill(QPalette const& palette)
 {
-    return ChromeStyle::chrome_surface_pressed(palette);
+    auto text = ChromeStyle::chrome_text(palette);
+    if (!autocomplete_color_is_dark(text))
+        return ChromeStyle::mix(ChromeStyle::chrome_surface_pressed(palette), text, 0.06);
+
+    auto surface = palette.color(QPalette::Base);
+    if (autocomplete_color_is_dark(surface))
+        surface = palette.color(QPalette::Window);
+    if (autocomplete_color_is_dark(surface))
+        surface = QColor(255, 255, 255);
+    return ChromeStyle::mix(surface, QColor(0, 0, 0), 0.08);
 }
 
 static QColor autocomplete_selection_border(QPalette const& palette)
@@ -440,7 +454,7 @@ void Autocomplete::update_chrome_style()
         return;
 
     m_is_updating_chrome_style = true;
-    auto palette = m_anchor->palette();
+    auto palette = QApplication::palette();
     m_popup->setPalette(palette);
     m_list_view->setPalette(palette);
     m_popup->setStyleSheet(ChromeStyle::autocomplete_popup_style_sheet(palette));
