@@ -52,6 +52,7 @@
 #include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLObjectElement.h>
+#include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/Location.h>
 #include <LibWeb/HTML/MessageEvent.h>
 #include <LibWeb/HTML/MessagePort.h>
@@ -65,7 +66,6 @@
 #include <LibWeb/HTML/Storage.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/TokenizedFeatures.h>
-#include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
@@ -913,7 +913,7 @@ void Window::close()
 
         // 2. Queue a task on the DOM manipulation task source to definitely close thisTraversable.
         HTML::queue_global_task(HTML::Task::Source::DOMManipulation, incumbent_global_object, GC::create_function(heap(), [traversable] {
-            as<TraversableNavigable>(*traversable).definitely_close_top_level_traversable();
+            as<LocalTraversableNavigable>(*traversable).definitely_close_top_level_traversable();
         }));
     }
 }

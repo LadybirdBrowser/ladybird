@@ -16,8 +16,8 @@
 #include <LibWeb/HTML/CloseWatcher.h>
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/HTMLDialogElement.h>
+#include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/ToggleEvent.h>
-#include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/PointerEvent.h>
 

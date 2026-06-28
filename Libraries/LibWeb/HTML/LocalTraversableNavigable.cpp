@@ -20,13 +20,13 @@
 #include <LibWeb/HTML/BrowsingContextGroup.h>
 #include <LibWeb/HTML/DocumentState.h>
 #include <LibWeb/HTML/History.h>
+#include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
-#include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
@@ -36,9 +36,9 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(TraversableNavigable);
+GC_DEFINE_ALLOCATOR(LocalTraversableNavigable);
 
-TraversableNavigable::TraversableNavigable(GC::Ref<Page> page)
+LocalTraversableNavigable::LocalTraversableNavigable(GC::Ref<Page> page)
     : LocalNavigable(
           page,
           page->client().is_svg_page_client(),
@@ -48,9 +48,9 @@ TraversableNavigable::TraversableNavigable(GC::Ref<Page> page)
 {
 }
 
-TraversableNavigable::~TraversableNavigable() = default;
+LocalTraversableNavigable::~LocalTraversableNavigable() = default;
 
-void TraversableNavigable::visit_edges(Cell::Visitor& visitor)
+void LocalTraversableNavigable::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     if (m_emulated_position_data.has<GC::Ref<Geolocation::GeolocationCoordinates>>())
@@ -61,9 +61,9 @@ void TraversableNavigable::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_paused_apply_history_step_state);
 }
 
-static OrderedHashTable<TraversableNavigable*>& user_agent_top_level_traversable_set()
+static OrderedHashTable<LocalTraversableNavigable*>& user_agent_top_level_traversable_set()
 {
-    static NeverDestroyed<OrderedHashTable<TraversableNavigable*>> set;
+    static NeverDestroyed<OrderedHashTable<LocalTraversableNavigable*>> set;
     return *set;
 }
 
@@ -78,7 +78,7 @@ BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document(
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-top-level-traversable
-GC::Ref<TraversableNavigable> TraversableNavigable::create_a_new_top_level_traversable(GC::Ref<Page> page, GC::Ptr<HTML::BrowsingContext> opener, String target_name)
+GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_level_traversable(GC::Ref<Page> page, GC::Ptr<HTML::BrowsingContext> opener, String target_name)
 {
     auto& vm = Bindings::main_thread_vm();
     page->ensure_compositor_host();
@@ -114,7 +114,7 @@ GC::Ref<TraversableNavigable> TraversableNavigable::create_a_new_top_level_trave
     document_state->set_about_base_url(document->about_base_url());
 
     // 5. Let traversable be a new traversable navigable.
-    auto traversable = vm.heap().allocate<TraversableNavigable>(page);
+    auto traversable = vm.heap().allocate<LocalTraversableNavigable>(page);
 
     // 6. Initialize the navigable traversable given documentState.
     traversable->initialize_navigable(document_state, nullptr, *document);
@@ -144,7 +144,7 @@ GC::Ref<TraversableNavigable> TraversableNavigable::create_a_new_top_level_trave
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#create-a-fresh-top-level-traversable
-GC::Ref<TraversableNavigable> TraversableNavigable::create_a_fresh_top_level_traversable(GC::Ref<Page> page, URL::URL const& initial_navigation_url, Variant<Empty, String, POSTResource> initial_navigation_post_resource)
+GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_fresh_top_level_traversable(GC::Ref<Page> page, URL::URL const& initial_navigation_url, Variant<Empty, String, POSTResource> initial_navigation_post_resource)
 {
     // 1. Let traversable be the result of creating a new top-level traversable given null and the empty string.
     auto traversable = create_a_new_top_level_traversable(page, nullptr, {});
@@ -194,7 +194,7 @@ GC::Ref<TraversableNavigable> TraversableNavigable::create_a_fresh_top_level_tra
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#top-level-traversable
-bool TraversableNavigable::is_top_level_traversable() const
+bool LocalTraversableNavigable::is_top_level_traversable() const
 {
     // A top-level traversable is a traversable navigable with a null parent.
     return parent() == nullptr;
@@ -340,7 +340,7 @@ static bool expected_ongoing_navigation_was_superseded(GC::Ptr<LocalNavigable> n
     return navigable->ongoing_navigation() != *expected_navigation_id;
 }
 
-bool TraversableNavigable::replace_top_level_session_history_entries_from_ui_process(Vector<SessionHistoryEntryDescriptor> entries_from_ui_process, size_t current_top_level_entry_index, bool allow_reconstructing_current_entry)
+bool LocalTraversableNavigable::replace_top_level_session_history_entries_from_ui_process(Vector<SessionHistoryEntryDescriptor> entries_from_ui_process, size_t current_top_level_entry_index, bool allow_reconstructing_current_entry)
 {
     if (entries_from_ui_process.is_empty() || current_top_level_entry_index >= entries_from_ui_process.size())
         return false;
@@ -474,7 +474,7 @@ bool TraversableNavigable::replace_top_level_session_history_entries_from_ui_pro
     return true;
 }
 
-void TraversableNavigable::reset_session_history_for_testing(GC::Ref<GC::Function<void()>> on_complete)
+void LocalTraversableNavigable::reset_session_history_for_testing(GC::Ref<GC::Function<void()>> on_complete)
 {
     append_session_history_traversal_steps(GC::create_function(heap(), [this, on_complete](NonnullRefPtr<Core::Promise<Empty>> signal) {
         auto maybe_active_entry = active_session_history_entry();
@@ -509,7 +509,7 @@ void TraversableNavigable::reset_session_history_for_testing(GC::Ref<GC::Functio
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-all-used-history-steps
-Vector<int> TraversableNavigable::get_all_used_history_steps() const
+Vector<int> LocalTraversableNavigable::get_all_used_history_steps() const
 {
     // FIXME: 1. Assert: this is running within traversable's session history traversal queue.
 
@@ -547,7 +547,7 @@ Vector<int> TraversableNavigable::get_all_used_history_steps() const
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-the-history-object-length-and-index
-TraversableNavigable::HistoryObjectLengthAndIndex TraversableNavigable::get_the_history_object_length_and_index(int step) const
+LocalTraversableNavigable::HistoryObjectLengthAndIndex LocalTraversableNavigable::get_the_history_object_length_and_index(int step) const
 {
     // 1. Let steps be the result of getting all used history steps within traversable.
     auto steps = get_all_used_history_steps();
@@ -569,7 +569,7 @@ TraversableNavigable::HistoryObjectLengthAndIndex TraversableNavigable::get_the_
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-the-used-step
-int TraversableNavigable::get_the_used_step(int step) const
+int LocalTraversableNavigable::get_the_used_step(int step) const
 {
     // 1. Let steps be the result of getting all used history steps within traversable.
     auto steps = get_all_used_history_steps();
@@ -588,14 +588,14 @@ int TraversableNavigable::get_the_used_step(int step) const
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#get-all-navigables-whose-current-session-history-entry-will-change-or-reload
-Vector<GC::Root<LocalNavigable>> TraversableNavigable::get_all_local_navigables_whose_current_session_history_entry_will_change_or_reload(int target_step) const
+Vector<GC::Root<LocalNavigable>> LocalTraversableNavigable::get_all_local_navigables_whose_current_session_history_entry_will_change_or_reload(int target_step) const
 {
     // 1. Let results be an empty list.
     Vector<GC::Root<LocalNavigable>> results;
 
     // 2. Let navigablesToCheck be « traversable ».
     Vector<GC::Root<LocalNavigable>> navigables_to_check;
-    navigables_to_check.append(const_cast<TraversableNavigable&>(*this));
+    navigables_to_check.append(const_cast<LocalTraversableNavigable&>(*this));
 
     // 3. For each navigable of navigablesToCheck:
     while (!navigables_to_check.is_empty()) {
@@ -625,7 +625,7 @@ Vector<GC::Root<LocalNavigable>> TraversableNavigable::get_all_local_navigables_
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-all-navigables-that-only-need-history-object-length/index-update
-Vector<GC::Root<LocalNavigable>> TraversableNavigable::get_all_local_navigables_that_only_need_history_object_length_index_update(int target_step) const
+Vector<GC::Root<LocalNavigable>> LocalTraversableNavigable::get_all_local_navigables_that_only_need_history_object_length_index_update(int target_step) const
 {
     // NOTE: Other navigables might not be impacted by the traversal. For example, if the response is a 204, the currently active document will remain.
     //       Additionally, going 'back' after a 204 will change the current session history entry, but the active session history entry will already be correct.
@@ -635,7 +635,7 @@ Vector<GC::Root<LocalNavigable>> TraversableNavigable::get_all_local_navigables_
 
     // 2. Let navigablesToCheck be « traversable ».
     Vector<GC::Root<LocalNavigable>> navigables_to_check;
-    navigables_to_check.append(const_cast<TraversableNavigable&>(*this));
+    navigables_to_check.append(const_cast<LocalTraversableNavigable&>(*this));
 
     // 3. For each navigable of navigablesToCheck:
     while (!navigables_to_check.is_empty()) {
@@ -661,7 +661,7 @@ Vector<GC::Root<LocalNavigable>> TraversableNavigable::get_all_local_navigables_
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-all-navigables-that-might-experience-a-cross-document-traversal
-Vector<GC::Root<LocalNavigable>> TraversableNavigable::get_all_local_navigables_that_might_experience_a_cross_document_traversal(int target_step) const
+Vector<GC::Root<LocalNavigable>> LocalTraversableNavigable::get_all_local_navigables_that_might_experience_a_cross_document_traversal(int target_step) const
 {
     // NOTE: From traversable's session history traversal queue's perspective, these documents are candidates for going cross-document during the
     //       traversal described by targetStep. They will not experience a cross-document traversal if the status code for their target document is
@@ -674,7 +674,7 @@ Vector<GC::Root<LocalNavigable>> TraversableNavigable::get_all_local_navigables_
 
     // 2. Let navigablesToCheck be « traversable ».
     Vector<GC::Root<LocalNavigable>> navigables_to_check;
-    navigables_to_check.append(const_cast<TraversableNavigable&>(*this));
+    navigables_to_check.append(const_cast<LocalTraversableNavigable&>(*this));
 
     // 3. For each navigable of navigablesToCheck:
     while (!navigables_to_check.is_empty()) {
@@ -795,11 +795,11 @@ public:
     static constexpr int TIMEOUT_MS = 15000;
 
     ApplyHistoryStepState(
-        GC::Ref<TraversableNavigable> traversable, int step, int target_step,
+        GC::Ref<LocalTraversableNavigable> traversable, int step, int target_step,
         GC::Ptr<SourceSnapshotParams> source_snapshot_params,
         UserNavigationInvolvement user_involvement,
         Optional<Bindings::NavigationType> navigation_type,
-        TraversableNavigable::SynchronousNavigation synchronous_navigation,
+        LocalTraversableNavigable::SynchronousNavigation synchronous_navigation,
         LocalNavigable::NavigationAPIAbortBehavior navigation_api_abort_behavior,
         GC::Ptr<DOM::Document> pending_document,
         GC::Ptr<LocalNavigable> expected_ongoing_navigation_navigable,
@@ -922,13 +922,13 @@ private:
 
     Phase m_phase { Phase::WaitingForDocumentPopulation };
     u64 m_generation { 0 };
-    GC::Ref<TraversableNavigable> m_traversable;
+    GC::Ref<LocalTraversableNavigable> m_traversable;
     int m_step;
     int m_target_step;
     GC::Ptr<SourceSnapshotParams> m_source_snapshot_params;
     UserNavigationInvolvement m_user_involvement;
     Optional<Bindings::NavigationType> m_navigation_type;
-    TraversableNavigable::SynchronousNavigation m_synchronous_navigation;
+    LocalTraversableNavigable::SynchronousNavigation m_synchronous_navigation;
     LocalNavigable::NavigationAPIAbortBehavior m_navigation_api_abort_behavior;
     GC::Ptr<DOM::Document> m_pending_document;
     GC::Ptr<LocalNavigable> m_expected_ongoing_navigation_navigable;
@@ -970,7 +970,7 @@ void ApplyHistoryStepState::start()
     // 8. For each navigable of changingNavigables:
     auto changing_navigables = m_traversable->get_all_local_navigables_whose_current_session_history_entry_will_change_or_reload(m_target_step);
     for (auto& navigable : changing_navigables) {
-        if (m_synchronous_navigation == TraversableNavigable::SynchronousNavigation::Yes
+        if (m_synchronous_navigation == LocalTraversableNavigable::SynchronousNavigation::Yes
             && synchronous_same_document_navigation_must_preserve_ongoing_navigation(*navigable)) {
             continue;
         }
@@ -1065,7 +1065,7 @@ void ApplyHistoryStepState::start()
             //         A later queued reload can additionally set reload pending on an already-active target entry
             //         before that synchronous step is applied. The reload step owns that population work.
             bool is_update_only = displayed_entry == target_entry && !target_entry->document_state()->reload_pending();
-            if (m_synchronous_navigation == TraversableNavigable::SynchronousNavigation::Yes)
+            if (m_synchronous_navigation == LocalTraversableNavigable::SynchronousNavigation::Yes)
                 is_update_only = !target_entry->document_state()->reload_pending() || displayed_entry == target_entry;
             if (is_update_only) {
                 // 1. Set changingNavigableContinuation's update-only to true.
@@ -1477,7 +1477,7 @@ void ApplyHistoryStepState::enter_waiting_for_non_changing_jobs()
     try_advance();
 }
 
-TraversableNavigable::SessionHistorySnapshot TraversableNavigable::create_session_history_snapshot(SaveActiveEntryPersistedState save_active_entry_persisted_state)
+LocalTraversableNavigable::SessionHistorySnapshot LocalTraversableNavigable::create_session_history_snapshot(SaveActiveEntryPersistedState save_active_entry_persisted_state)
 {
     if (save_active_entry_persisted_state == SaveActiveEntryPersistedState::Yes)
         save_persisted_state_to_active_session_history_entry();
@@ -1542,7 +1542,7 @@ void ApplyHistoryStepState::complete()
 
         // AD-HOC: Report the updated session history descriptors to the UI-process mirror.
         if (m_traversable->page().client().should_report_session_history_updates()) {
-            auto save_active_entry_persisted_state = TraversableNavigable::SaveActiveEntryPersistedState::Yes;
+            auto save_active_entry_persisted_state = LocalTraversableNavigable::SaveActiveEntryPersistedState::Yes;
             // NB: During history traversal, the active entry can point at the target
             //     entry before the active document's queued history-step update has
             //     restored the target entry's persisted state. Do not overwrite that
@@ -1551,7 +1551,7 @@ void ApplyHistoryStepState::complete()
                 auto document = m_traversable->active_document();
                 auto active_entry = m_traversable->active_session_history_entry();
                 if (document && active_entry && document->latest_entry() != active_entry)
-                    save_active_entry_persisted_state = TraversableNavigable::SaveActiveEntryPersistedState::No;
+                    save_active_entry_persisted_state = LocalTraversableNavigable::SaveActiveEntryPersistedState::No;
             }
             auto session_history_snapshot = m_traversable->create_session_history_snapshot(save_active_entry_persisted_state);
             m_traversable->page().client().page_did_update_session_history(session_history_snapshot.top_level_session_history_entries, session_history_snapshot.used_session_history_steps, session_history_snapshot.current_used_step_index);
@@ -1641,7 +1641,7 @@ void ApplyHistoryStepState::clear_ongoing_traversals_for_changing_navigables()
         clear_ongoing_traversal_for_changing_navigable(navigable);
 }
 
-int TraversableNavigable::claim_next_session_history_step()
+int LocalTraversableNavigable::claim_next_session_history_step()
 {
     int step = m_current_session_history_step;
     for (auto claimed : m_outstanding_claimed_session_history_steps)
@@ -1651,13 +1651,13 @@ int TraversableNavigable::claim_next_session_history_step()
     return step;
 }
 
-void TraversableNavigable::retire_claimed_session_history_step(int step)
+void LocalTraversableNavigable::retire_claimed_session_history_step(int step)
 {
     m_outstanding_claimed_session_history_steps.remove_first_matching([step](int claimed) { return claimed == step; });
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#apply-the-history-step
-void TraversableNavigable::apply_the_history_step(
+void LocalTraversableNavigable::apply_the_history_step(
     int step,
     bool check_for_cancelation,
     GC::Ptr<SourceSnapshotParams> source_snapshot_params,
@@ -1688,7 +1688,7 @@ void TraversableNavigable::apply_the_history_step(
         }));
 }
 
-void TraversableNavigable::run_the_history_step_prechecks(
+void LocalTraversableNavigable::run_the_history_step_prechecks(
     int step,
     bool check_for_cancelation,
     GC::Ptr<SourceSnapshotParams> source_snapshot_params,
@@ -1752,7 +1752,7 @@ void TraversableNavigable::run_the_history_step_prechecks(
     on_complete->function()(HistoryStepResult::Applied, target_step, navigation_api_abort_behavior);
 }
 
-void TraversableNavigable::apply_the_history_step_after_unload_check(
+void LocalTraversableNavigable::apply_the_history_step_after_unload_check(
     int step,
     int target_step,
     GC::Ptr<SourceSnapshotParams> source_snapshot_params,
@@ -1785,11 +1785,11 @@ class CheckUnloadingCanceledState : public GC::Cell {
     GC_DECLARE_ALLOCATOR(CheckUnloadingCanceledState);
 
 public:
-    using Result = TraversableNavigable::CheckIfUnloadingIsCanceledResult;
+    using Result = LocalTraversableNavigable::CheckIfUnloadingIsCanceledResult;
     static constexpr int TIMEOUT_MS = 15000;
 
     CheckUnloadingCanceledState(
-        GC::Ptr<TraversableNavigable> traversable,
+        GC::Ptr<LocalTraversableNavigable> traversable,
         Optional<UserNavigationInvolvement> user_involvement,
         GC::Ref<GC::Function<void(Result)>> callback)
         : m_traversable(traversable)
@@ -1984,7 +1984,7 @@ private:
     bool m_needs_beforeunload { false };
     size_t m_remaining_phase2_tasks { 0 };
     Vector<GC::Ref<DOM::Document>> m_phase2_documents;
-    GC::Ptr<TraversableNavigable> m_traversable;
+    GC::Ptr<LocalTraversableNavigable> m_traversable;
     RefPtr<SessionHistoryEntry> m_target_entry;
     Optional<UserNavigationInvolvement> m_user_involvement;
     GC::Ref<GC::Function<void(Result)>> m_callback;
@@ -1994,9 +1994,9 @@ private:
 GC_DEFINE_ALLOCATOR(CheckUnloadingCanceledState);
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#checking-if-unloading-is-canceled
-void TraversableNavigable::check_if_unloading_is_canceled(
+void LocalTraversableNavigable::check_if_unloading_is_canceled(
     Vector<GC::Root<LocalNavigable>> navigables_that_need_before_unload,
-    GC::Ptr<TraversableNavigable> traversable,
+    GC::Ptr<LocalTraversableNavigable> traversable,
     Optional<int> target_step,
     Optional<UserNavigationInvolvement> user_involvement_for_navigate_events,
     GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult)>> callback)
@@ -2008,12 +2008,12 @@ void TraversableNavigable::check_if_unloading_is_canceled(
     state->start(navigables_that_need_before_unload, target_step);
 }
 
-void TraversableNavigable::check_if_unloading_is_canceled(Vector<GC::Root<LocalNavigable>> navigables_that_need_before_unload, GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult)>> callback)
+void LocalTraversableNavigable::check_if_unloading_is_canceled(Vector<GC::Root<LocalNavigable>> navigables_that_need_before_unload, GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult)>> callback)
 {
     check_if_unloading_is_canceled(move(navigables_that_need_before_unload), {}, {}, {}, callback);
 }
 
-Vector<NonnullRefPtr<SessionHistoryEntry>> TraversableNavigable::get_session_history_entries_for_the_navigation_api(GC::Ref<LocalNavigable> navigable, int target_step)
+Vector<NonnullRefPtr<SessionHistoryEntry>> LocalTraversableNavigable::get_session_history_entries_for_the_navigation_api(GC::Ref<LocalNavigable> navigable, int target_step)
 {
     // 1. Let rawEntries be the result of getting session history entries for navigable.
     auto raw_entries = navigable->get_session_history_entries();
@@ -2099,7 +2099,7 @@ Vector<NonnullRefPtr<SessionHistoryEntry>> TraversableNavigable::get_session_his
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#clear-the-forward-session-history
-void TraversableNavigable::clear_the_forward_session_history()
+void LocalTraversableNavigable::clear_the_forward_session_history()
 {
     // FIXME: 1. Assert: this is running within navigable's session history traversal queue.
 
@@ -2142,7 +2142,7 @@ void TraversableNavigable::clear_the_forward_session_history()
     }
 }
 
-bool TraversableNavigable::can_go_back() const
+bool LocalTraversableNavigable::can_go_back() const
 {
     auto all_steps = get_all_used_history_steps();
     auto current_step_index = all_steps.find_first_index(current_session_history_step());
@@ -2150,7 +2150,7 @@ bool TraversableNavigable::can_go_back() const
     return *current_step_index > 0;
 }
 
-bool TraversableNavigable::can_go_forward() const
+bool LocalTraversableNavigable::can_go_forward() const
 {
     auto all_steps = get_all_used_history_steps();
     auto current_step_index = all_steps.find_first_index(current_session_history_step());
@@ -2159,7 +2159,7 @@ bool TraversableNavigable::can_go_forward() const
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#traverse-the-history-by-a-delta
-void TraversableNavigable::traverse_the_history_by_delta(int delta, GC::Ptr<DOM::Document> source_document)
+void LocalTraversableNavigable::traverse_the_history_by_delta(int delta, GC::Ptr<DOM::Document> source_document)
 {
     // 1. Let sourceSnapshotParams and initiatorToCheck be null.
     GC::Ptr<SourceSnapshotParams> source_snapshot_params = nullptr;
@@ -2257,7 +2257,7 @@ void TraversableNavigable::traverse_the_history_by_delta(int delta, GC::Ptr<DOM:
     }));
 }
 
-void TraversableNavigable::traverse_the_history_to_step(int step, GC::Ref<GC::Function<void(bool step_was_available, HistoryStepResult)>> on_complete)
+void LocalTraversableNavigable::traverse_the_history_to_step(int step, GC::Ref<GC::Function<void(bool step_was_available, HistoryStepResult)>> on_complete)
 {
     // NB: This is used when the UI process owns the top-level session
     //     history and has already resolved the browser UI delta to a stable step.
@@ -2277,7 +2277,7 @@ void TraversableNavigable::traverse_the_history_to_step(int step, GC::Ref<GC::Fu
     }));
 }
 
-void TraversableNavigable::check_if_traverse_history_step_is_canceled(int step, GC::Ref<OnApplyHistoryStepComplete> on_complete)
+void LocalTraversableNavigable::check_if_traverse_history_step_is_canceled(int step, GC::Ref<OnApplyHistoryStepComplete> on_complete)
 {
     // NB: This is used when the UI process owns the top-level session history
     //     and needs WebContent to run the cancelable part of the traverse algorithm
@@ -2307,7 +2307,7 @@ void TraversableNavigable::check_if_traverse_history_step_is_canceled(int step, 
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#update-for-navigable-creation/destruction
-void TraversableNavigable::update_for_navigable_creation_or_destruction(GC::Ref<OnApplyHistoryStepComplete> on_complete)
+void LocalTraversableNavigable::update_for_navigable_creation_or_destruction(GC::Ref<OnApplyHistoryStepComplete> on_complete)
 {
     // 1. Let step be traversable's current session history step.
     auto step = current_session_history_step();
@@ -2317,7 +2317,7 @@ void TraversableNavigable::update_for_navigable_creation_or_destruction(GC::Ref<
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#apply-the-reload-history-step
-void TraversableNavigable::apply_the_reload_history_step(UserNavigationInvolvement user_involvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete)
+void LocalTraversableNavigable::apply_the_reload_history_step(UserNavigationInvolvement user_involvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete)
 {
     // 1. Let step be traversable's current session history step.
     auto step = current_session_history_step();
@@ -2342,14 +2342,14 @@ void TraversableNavigable::apply_the_reload_history_step(UserNavigationInvolveme
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#apply-the-push/replace-history-step
-void TraversableNavigable::apply_the_push_or_replace_history_step(int step, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, SynchronousNavigation synchronous_navigation, GC::Ptr<DOM::Document> pending_document, GC::Ptr<LocalNavigable> expected_ongoing_navigation_navigable, Optional<String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete)
+void LocalTraversableNavigable::apply_the_push_or_replace_history_step(int step, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, SynchronousNavigation synchronous_navigation, GC::Ptr<DOM::Document> pending_document, GC::Ptr<LocalNavigable> expected_ongoing_navigation_navigable, Optional<String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete)
 {
     // 1. Return the result of applying the history step step to traversable given false, null, null, userInvolvement, and historyHandling.
     auto navigation_type = history_handling == HistoryHandlingBehavior::Replace ? Bindings::NavigationType::Replace : Bindings::NavigationType::Push;
     apply_the_history_step(step, false, {}, {}, user_involvement, navigation_type, synchronous_navigation, LocalNavigable::NavigationAPIAbortBehavior::Abort, pending_document, expected_ongoing_navigation_navigable, move(expected_ongoing_navigation_id), on_complete);
 }
 
-static Optional<int> update_session_history_entries_for_same_document_navigation(TraversableNavigable& traversable, GC::Ref<LocalNavigable> target_navigable, NonnullRefPtr<SessionHistoryEntry> target_entry, RefPtr<SessionHistoryEntry> entry_to_replace)
+static Optional<int> update_session_history_entries_for_same_document_navigation(LocalTraversableNavigable& traversable, GC::Ref<LocalNavigable> target_navigable, NonnullRefPtr<SessionHistoryEntry> target_entry, RefPtr<SessionHistoryEntry> entry_to_replace)
 {
     // NB: This is the entry-list portion of the "finalize a same-document navigation" algorithm. Keep the synchronous
     //     commit path and the queued fallback sharing it so the two paths cannot drift.
@@ -2405,7 +2405,7 @@ static Optional<int> update_session_history_entries_for_same_document_navigation
     return target_step;
 }
 
-bool TraversableNavigable::try_to_synchronously_commit_same_document_navigation(GC::Ref<LocalNavigable> target_navigable, NonnullRefPtr<SessionHistoryEntry> target_entry, RefPtr<SessionHistoryEntry> entry_to_replace)
+bool LocalTraversableNavigable::try_to_synchronously_commit_same_document_navigation(GC::Ref<LocalNavigable> target_navigable, NonnullRefPtr<SessionHistoryEntry> target_entry, RefPtr<SessionHistoryEntry> entry_to_replace)
 {
     if (m_apply_history_step_state || m_paused_apply_history_step_state)
         return false;
@@ -2460,14 +2460,14 @@ bool TraversableNavigable::try_to_synchronously_commit_same_document_navigation(
     return true;
 }
 
-void TraversableNavigable::apply_the_traverse_history_step(int step, GC::Ptr<SourceSnapshotParams> source_snapshot_params, GC::Ptr<LocalNavigable> initiator_to_check, UserNavigationInvolvement user_involvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete)
+void LocalTraversableNavigable::apply_the_traverse_history_step(int step, GC::Ptr<SourceSnapshotParams> source_snapshot_params, GC::Ptr<LocalNavigable> initiator_to_check, UserNavigationInvolvement user_involvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete)
 {
     // 1. Return the result of applying the history step step to traversable given true, sourceSnapshotParams, initiatorToCheck, userInvolvement, and "traverse".
     apply_the_history_step(step, true, source_snapshot_params, initiator_to_check, user_involvement, Bindings::NavigationType::Traverse, SynchronousNavigation::No, LocalNavigable::NavigationAPIAbortBehavior::Abort, nullptr, nullptr, {}, on_complete);
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#resume-applying-the-traverse-history-step
-void TraversableNavigable::resume_applying_the_traverse_history_step(int step, UserNavigationInvolvement user_involvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete)
+void LocalTraversableNavigable::resume_applying_the_traverse_history_step(int step, UserNavigationInvolvement user_involvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete)
 {
     // To resume applying the traverse history step given a non-negative integer step, a traversable
     // navigable traversable, and user navigation involvement userInvolvement, apply step to
@@ -2481,7 +2481,7 @@ void TraversableNavigable::resume_applying_the_traverse_history_step(int step, U
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#close-a-top-level-traversable
-void TraversableNavigable::close_top_level_traversable()
+void LocalTraversableNavigable::close_top_level_traversable()
 {
     // 1. If traversable's is closing is true, then return.
     if (is_closing())
@@ -2495,7 +2495,7 @@ void TraversableNavigable::close_top_level_traversable()
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#definitely-close-a-top-level-traversable
-void TraversableNavigable::definitely_close_top_level_traversable()
+void LocalTraversableNavigable::definitely_close_top_level_traversable()
 {
     VERIFY(is_top_level_traversable());
 
@@ -2522,7 +2522,7 @@ void TraversableNavigable::definitely_close_top_level_traversable()
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#destroy-a-top-level-traversable
-void TraversableNavigable::destroy_top_level_traversable()
+void LocalTraversableNavigable::destroy_top_level_traversable()
 {
     VERIFY(is_top_level_traversable());
 
@@ -2556,7 +2556,7 @@ void TraversableNavigable::destroy_top_level_traversable()
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-same-document-navigation
-void finalize_a_same_document_navigation(GC::Ref<TraversableNavigable> traversable, GC::Ref<LocalNavigable> target_navigable, NonnullRefPtr<SessionHistoryEntry> target_entry, RefPtr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ref<OnApplyHistoryStepComplete> on_complete)
+void finalize_a_same_document_navigation(GC::Ref<LocalTraversableNavigable> traversable, GC::Ref<LocalNavigable> target_navigable, NonnullRefPtr<SessionHistoryEntry> target_entry, RefPtr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ref<OnApplyHistoryStepComplete> on_complete)
 {
     // NOTE: This is not in the spec but we should not navigate destroyed navigable.
     if (target_navigable->has_been_destroyed()) {
@@ -2573,11 +2573,11 @@ void finalize_a_same_document_navigation(GC::Ref<TraversableNavigable> traversab
     }
 
     // 6. Apply the push/replace history step targetStep to traversable given historyHandling and userInvolvement.
-    traversable->apply_the_push_or_replace_history_step(*target_step, history_handling, user_involvement, TraversableNavigable::SynchronousNavigation::Yes, nullptr, nullptr, {}, on_complete);
+    traversable->apply_the_push_or_replace_history_step(*target_step, history_handling, user_involvement, LocalTraversableNavigable::SynchronousNavigation::Yes, nullptr, nullptr, {}, on_complete);
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#system-visibility-state
-void TraversableNavigable::set_system_visibility_state(VisibilityState visibility_state)
+void LocalTraversableNavigable::set_system_visibility_state(VisibilityState visibility_state)
 {
     if (m_system_visibility_state == visibility_state)
         return;
@@ -2604,7 +2604,7 @@ void TraversableNavigable::set_system_visibility_state(VisibilityState visibilit
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#currently-focused-area-of-a-top-level-traversable
-GC::Ptr<DOM::Node> TraversableNavigable::currently_focused_area()
+GC::Ptr<DOM::Node> LocalTraversableNavigable::currently_focused_area()
 {
     // 1. If traversable does not have system focus, then return null.
     if (!is_focused())
@@ -2633,20 +2633,20 @@ GC::Ptr<DOM::Node> TraversableNavigable::currently_focused_area()
 }
 
 // https://w3c.github.io/geolocation/#dfn-emulated-position-data
-Geolocation::EmulatedPositionData const& TraversableNavigable::emulated_position_data() const
+Geolocation::EmulatedPositionData const& LocalTraversableNavigable::emulated_position_data() const
 {
     VERIFY(is_top_level_traversable());
     return m_emulated_position_data;
 }
 
 // https://w3c.github.io/geolocation/#dfn-emulated-position-data
-void TraversableNavigable::set_emulated_position_data(Geolocation::EmulatedPositionData data)
+void LocalTraversableNavigable::set_emulated_position_data(Geolocation::EmulatedPositionData data)
 {
     VERIFY(is_top_level_traversable());
     m_emulated_position_data = data;
 }
 
-void TraversableNavigable::process_screenshot_requests()
+void LocalTraversableNavigable::process_screenshot_requests()
 {
     auto& client = page().client();
     while (!m_screenshot_tasks.is_empty()) {

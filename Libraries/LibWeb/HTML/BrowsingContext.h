@@ -32,7 +32,7 @@ public:
 
     virtual ~BrowsingContext() override;
 
-    GC::Ref<TraversableNavigable> top_level_traversable() const;
+    GC::Ref<LocalTraversableNavigable> top_level_traversable() const;
 
     bool is_ancestor_of(BrowsingContext const&) const;
     bool is_familiar_with(BrowsingContext const&) const;

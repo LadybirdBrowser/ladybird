@@ -624,6 +624,7 @@ set(SOURCES
     HTML/ImageRequest.cpp
     HTML/ListOfAvailableImages.cpp
     HTML/LocalNavigable.cpp
+    HTML/LocalTraversableNavigable.cpp
     HTML/Location.cpp
     HTML/MediaError.cpp
     HTML/MediaTrackBase.cpp
@@ -718,7 +719,6 @@ set(SOURCES
     HTML/ToggleEvent.cpp
     HTML/TokenizedFeatures.cpp
     HTML/TrackEvent.cpp
-    HTML/TraversableNavigable.cpp
     HTML/UniversalGlobalScope.cpp
     HTML/UserActivation.cpp
     HTML/UserNavigationInvolvement.cpp

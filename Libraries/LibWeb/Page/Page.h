@@ -87,7 +87,7 @@ public:
     Compositor::CompositorHost& compositor_host();
     Compositor::CompositorHost const& compositor_host() const;
 
-    void set_top_level_traversable(GC::Ref<HTML::TraversableNavigable>);
+    void set_top_level_traversable(GC::Ref<HTML::LocalTraversableNavigable>);
 
     // FIXME: This is a hack.
     bool top_level_traversable_is_initialized() const;
@@ -95,7 +95,7 @@ public:
     HTML::BrowsingContext& top_level_browsing_context();
     HTML::BrowsingContext const& top_level_browsing_context() const;
 
-    GC::Ref<HTML::TraversableNavigable> top_level_traversable() const;
+    GC::Ref<HTML::LocalTraversableNavigable> top_level_traversable() const;
 
     HTML::LocalNavigable& focused_navigable();
     HTML::LocalNavigable const& focused_navigable() const { return const_cast<Page*>(this)->focused_navigable(); }
@@ -328,7 +328,7 @@ private:
 
     GC::Weak<HTML::LocalNavigable> m_focused_navigable;
 
-    GC::Ptr<HTML::TraversableNavigable> m_top_level_traversable;
+    GC::Ptr<HTML::LocalTraversableNavigable> m_top_level_traversable;
 
     bool m_is_scripting_enabled { true };
     bool m_should_block_pop_ups { true };

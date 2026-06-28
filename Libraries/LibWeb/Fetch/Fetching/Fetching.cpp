@@ -2007,7 +2007,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
         if (response->status() == 401
             && http_request->response_tainting() != Infrastructure::Request::ResponseTainting::CORS
             && include_credentials == HTTP::Cookie::IncludeCredentials::Yes
-            && request->traversable_for_user_prompts().has<GC::Ptr<HTML::TraversableNavigable>>()
+            && request->traversable_for_user_prompts().has<GC::Ptr<HTML::LocalTraversableNavigable>>()
             && www_authenticate_has_credential_based_scheme()) {
             // 1. Needs testing: multiple `WWW-Authenticate` headers, missing, parsing issues.
             // (Red box in the spec, no-op)
