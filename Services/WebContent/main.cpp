@@ -130,7 +130,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     Web::Platform::EventLoopPlugin::install(*new Web::Platform::EventLoopPlugin);
 
-    auto config_path = ByteString::formatted("{}/ladybird/default-config", WebView::s_ladybird_resource_root);
+    auto config_path = WebView::s_ladybird_resource_root;
     StringView mach_server_name {};
     Vector<ByteString> certificates;
     bool enable_test_mode = false;
