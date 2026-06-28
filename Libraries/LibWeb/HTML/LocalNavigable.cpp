@@ -1221,7 +1221,7 @@ GC::Ptr<LocalNavigable> LocalNavigable::find_a_navigable_by_target_name(StringVi
     // 4. For each subtreeToSearch of subtreesToSearch, in reverse order:
     for (auto const& subtree_to_search : subtrees_to_search.in_reverse()) {
         // 1. Let documentToSearch be subtreeToSearch's active document.
-        auto& document_to_search = *subtree_to_search->active_document();
+        auto& document_to_search = *as<LocalNavigable>(*subtree_to_search).active_document();
 
         // 2. For each navigable of the inclusive descendant navigables of documentToSearch:
         for (auto const& navigable : document_to_search.inclusive_descendant_navigables()) {

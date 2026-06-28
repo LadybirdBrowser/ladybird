@@ -5269,7 +5269,7 @@ Vector<GC::Root<HTML::LocalNavigable>> Document::inclusive_descendant_navigables
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#ancestor-navigables
-Vector<GC::Root<HTML::LocalNavigable>> Document::ancestor_navigables()
+GC::RootVector<GC::Ref<HTML::Navigable>> Document::ancestor_navigables()
 {
     // FIXME: The document's node navigable should not be null here. But we currently do not implement the "unload a
     //        document and its descendants" steps correctly, and the navigable becomes null during unloading. We are
@@ -5280,11 +5280,10 @@ Vector<GC::Root<HTML::LocalNavigable>> Document::ancestor_navigables()
         return {};
 
     // 1. Let navigable be document's node navigable's parent.
-    auto parent_navigable = document_node_navigable->parent();
-    auto* navigable = parent_navigable ? &as<HTML::LocalNavigable>(*parent_navigable) : nullptr;
+    auto navigable = document_node_navigable->parent();
 
     // 2. Let ancestors be an empty list.
-    Vector<GC::Root<HTML::LocalNavigable>> ancestors;
+    GC::RootVector<GC::Ref<HTML::Navigable>> ancestors;
 
     // 3. While navigable is not null:
     while (navigable) {
@@ -5292,21 +5291,20 @@ Vector<GC::Root<HTML::LocalNavigable>> Document::ancestor_navigables()
         ancestors.prepend(*navigable);
 
         // 2. Set navigable to navigable's parent.
-        parent_navigable = navigable->parent();
-        navigable = parent_navigable ? &as<HTML::LocalNavigable>(*parent_navigable) : nullptr;
+        navigable = navigable->parent();
     }
 
     // 4. Return ancestors.
     return ancestors;
 }
 
-Vector<GC::Root<HTML::LocalNavigable>> const Document::ancestor_navigables() const
+GC::RootVector<GC::Ref<HTML::Navigable>> const Document::ancestor_navigables() const
 {
     return const_cast<Document&>(*this).ancestor_navigables();
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#inclusive-ancestor-navigables
-Vector<GC::Root<HTML::LocalNavigable>> Document::inclusive_ancestor_navigables()
+GC::RootVector<GC::Ref<HTML::Navigable>> Document::inclusive_ancestor_navigables()
 {
     // FIXME: The document's node navigable should not be null here. But we currently do not implement the "unload a
     //        document and its descendants" steps correctly, and the navigable becomes null during unloading. We are

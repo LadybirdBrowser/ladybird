@@ -724,9 +724,9 @@ public:
     Vector<GC::Root<HTML::LocalNavigable>> descendant_navigables();
     Vector<GC::Root<HTML::LocalNavigable>> const descendant_navigables() const;
     Vector<GC::Root<HTML::LocalNavigable>> inclusive_descendant_navigables();
-    Vector<GC::Root<HTML::LocalNavigable>> ancestor_navigables();
-    Vector<GC::Root<HTML::LocalNavigable>> const ancestor_navigables() const;
-    Vector<GC::Root<HTML::LocalNavigable>> inclusive_ancestor_navigables();
+    GC::RootVector<GC::Ref<HTML::Navigable>> ancestor_navigables();
+    GC::RootVector<GC::Ref<HTML::Navigable>> const ancestor_navigables() const;
+    GC::RootVector<GC::Ref<HTML::Navigable>> inclusive_ancestor_navigables();
     Vector<GC::Root<HTML::LocalNavigable>> document_tree_child_navigables();
 
     [[nodiscard]] bool has_been_destroyed() const { return m_has_been_destroyed; }
