@@ -136,7 +136,7 @@ void HTMLOrSVGOrMathMLElement<ElementBase>::inserted()
             return;
 
         // 6. Let topDocument be target's node navigable's top-level traversable's active document.
-        auto top_document = target.navigable()->top_level_traversable()->active_document();
+        auto top_document = as<LocalTraversableNavigable>(*target.navigable()->top_level_traversable()).active_document();
 
         // 7. If topDocument's autofocus processed flag is false, then remove the element from topDocument's autofocus
         //    candidates, and append the element to topDocument's autofocus candidates.

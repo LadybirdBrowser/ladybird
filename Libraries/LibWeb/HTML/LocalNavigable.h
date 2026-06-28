@@ -122,7 +122,6 @@ public:
     GC::Ptr<DOM::Document> container_document() const;
 
     GC::Ptr<LocalTraversableNavigable> traversable_navigable() const;
-    GC::Ptr<LocalTraversableNavigable> top_level_traversable();
 
     virtual bool is_top_level_traversable() const { return false; }
 
