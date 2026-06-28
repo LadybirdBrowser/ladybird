@@ -9,6 +9,7 @@
 #include <AK/String.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibURL/URL.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
@@ -31,6 +32,8 @@ public:
     virtual GC::Ptr<WindowProxy> active_window_proxy() = 0;
     virtual String target_name() const = 0;
     GC::Ref<Navigable> top_level_traversable();
+    virtual Optional<URL::URL> active_document_url() const = 0;
+    virtual Optional<URL::Origin> active_document_origin() const = 0;
 
 protected:
     Navigable() = default;

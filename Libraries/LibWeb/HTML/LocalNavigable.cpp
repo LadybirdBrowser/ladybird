@@ -924,6 +924,20 @@ GC::Ptr<DOM::Document> LocalNavigable::active_document() const
     return m_active_document;
 }
 
+Optional<URL::URL> LocalNavigable::active_document_url() const
+{
+    if (!m_active_document)
+        return {};
+    return m_active_document->url();
+}
+
+Optional<URL::Origin> LocalNavigable::active_document_origin() const
+{
+    if (!m_active_document)
+        return {};
+    return m_active_document->origin();
+}
+
 Optional<UniqueNodeID> LocalNavigable::active_document_id() const
 {
     if (!m_active_document)
