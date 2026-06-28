@@ -2,15 +2,15 @@ Harness status: OK
 
 Found 11 tests
 
-5 Pass
-6 Fail
+8 Pass
+3 Fail
 Pass	table 1
 Pass	table 2
 Pass	table 3
 Pass	table 4
-Fail	table 5
-Fail	table 6
-Fail	table 7
+Pass	table 5
+Pass	table 6
+Pass	table 7
 Fail	table 8
 Fail	table 9
 Fail	table 10
