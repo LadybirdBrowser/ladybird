@@ -116,7 +116,7 @@ public:
     void restore_persisted_state_from_session_history_entry(SessionHistoryEntry const&);
     void restore_scroll_position_data(SessionHistoryEntry const&);
 
-    String target_name() const;
+    virtual String target_name() const override;
 
     GC::Ptr<NavigableContainer> container() const;
     GC::Ptr<DOM::Document> container_document() const;

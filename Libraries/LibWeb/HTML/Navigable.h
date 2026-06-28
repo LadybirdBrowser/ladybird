@@ -29,6 +29,7 @@ public:
     bool is_ancestor_of(GC::Ref<Navigable>) const;
 
     virtual GC::Ptr<WindowProxy> active_window_proxy() = 0;
+    virtual String target_name() const = 0;
 
 protected:
     Navigable() = default;
