@@ -8,7 +8,8 @@
 
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Compositor/CompositorHost.h>
-#include <LibWeb/HTML/TraversableNavigable.h>
+#include <LibWeb/HTML/LocalTraversableNavigable.h>
+
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/PageClient.h>
 #include <WebContent/PageHost.h>
@@ -26,7 +27,7 @@ void PageHost::initialize(u64 initial_page_id)
 {
     VERIFY(m_pages.is_empty());
     auto& first_page = create_page(initial_page_id);
-    Web::HTML::TraversableNavigable::create_a_fresh_top_level_traversable(first_page.page(), URL::about_blank());
+    Web::HTML::LocalTraversableNavigable::create_a_fresh_top_level_traversable(first_page.page(), URL::about_blank());
 }
 
 PageClient& PageHost::create_page(u64 page_id)

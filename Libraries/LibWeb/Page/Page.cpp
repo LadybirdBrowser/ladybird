@@ -25,10 +25,10 @@
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
+#include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/SelectedFile.h>
-#include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Loader/ContentBlocker.h>
 #include <LibWeb/Page/Page.h>
@@ -425,7 +425,7 @@ void Page::update_needs_beforeunload_check()
     client().page_did_change_needs_beforeunload_check(m_needs_beforeunload_check);
 }
 
-void Page::set_top_level_traversable(GC::Ref<HTML::TraversableNavigable> navigable)
+void Page::set_top_level_traversable(GC::Ref<HTML::LocalTraversableNavigable> navigable)
 {
     VERIFY(!m_top_level_traversable); // Replacement is not allowed!
     VERIFY(&navigable->page() == this);
@@ -448,7 +448,7 @@ HTML::BrowsingContext const& Page::top_level_browsing_context() const
     return *m_top_level_traversable->active_browsing_context();
 }
 
-GC::Ref<HTML::TraversableNavigable> Page::top_level_traversable() const
+GC::Ref<HTML::LocalTraversableNavigable> Page::top_level_traversable() const
 {
     return *m_top_level_traversable;
 }

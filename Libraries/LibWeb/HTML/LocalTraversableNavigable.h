@@ -31,15 +31,15 @@ namespace Web::HTML {
 class ApplyHistoryStepState;
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#traversable-navigable
-class WEB_API TraversableNavigable final : public LocalNavigable {
-    GC_CELL(TraversableNavigable, LocalNavigable);
-    GC_DECLARE_ALLOCATOR(TraversableNavigable);
+class WEB_API LocalTraversableNavigable final : public LocalNavigable {
+    GC_CELL(LocalTraversableNavigable, LocalNavigable);
+    GC_DECLARE_ALLOCATOR(LocalTraversableNavigable);
 
 public:
-    static GC::Ref<TraversableNavigable> create_a_new_top_level_traversable(GC::Ref<Page>, GC::Ptr<BrowsingContext> opener, String target_name);
-    static GC::Ref<TraversableNavigable> create_a_fresh_top_level_traversable(GC::Ref<Page>, URL::URL const& initial_navigation_url, Variant<Empty, String, POSTResource> = Empty {});
+    static GC::Ref<LocalTraversableNavigable> create_a_new_top_level_traversable(GC::Ref<Page>, GC::Ptr<BrowsingContext> opener, String target_name);
+    static GC::Ref<LocalTraversableNavigable> create_a_fresh_top_level_traversable(GC::Ref<Page>, URL::URL const& initial_navigation_url, Variant<Empty, String, POSTResource> = Empty {});
 
-    virtual ~TraversableNavigable() override;
+    virtual ~LocalTraversableNavigable() override;
 
     virtual bool is_top_level_traversable() const override;
 
@@ -144,7 +144,7 @@ public:
 private:
     friend class ApplyHistoryStepState;
 
-    TraversableNavigable(GC::Ref<Page>);
+    LocalTraversableNavigable(GC::Ref<Page>);
 
     virtual bool is_traversable() const override { return true; }
 
@@ -189,7 +189,7 @@ private:
         LocalNavigable::NavigationAPIAbortBehavior,
         GC::Ref<OnHistoryStepPrechecksComplete>);
 
-    void check_if_unloading_is_canceled(Vector<GC::Root<LocalNavigable>> navigables_that_need_before_unload, GC::Ptr<TraversableNavigable> traversable, Optional<int> target_step, Optional<UserNavigationInvolvement> user_involvement_for_navigate_events, GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult)>> callback);
+    void check_if_unloading_is_canceled(Vector<GC::Root<LocalNavigable>> navigables_that_need_before_unload, GC::Ptr<LocalTraversableNavigable> traversable, Optional<int> target_step, Optional<UserNavigationInvolvement> user_involvement_for_navigate_events, GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult)>> callback);
 
     Vector<NonnullRefPtr<SessionHistoryEntry>> get_session_history_entries_for_the_navigation_api(GC::Ref<LocalNavigable>, int);
 
@@ -260,9 +260,9 @@ struct BrowsingContextAndDocument {
 };
 
 BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document(GC::Ref<Page> page);
-void finalize_a_same_document_navigation(GC::Ref<TraversableNavigable> traversable, GC::Ref<LocalNavigable> target_navigable, NonnullRefPtr<SessionHistoryEntry> target_entry, RefPtr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior, UserNavigationInvolvement, GC::Ref<OnApplyHistoryStepComplete> on_complete);
+void finalize_a_same_document_navigation(GC::Ref<LocalTraversableNavigable> traversable, GC::Ref<LocalNavigable> target_navigable, NonnullRefPtr<SessionHistoryEntry> target_entry, RefPtr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior, UserNavigationInvolvement, GC::Ref<OnApplyHistoryStepComplete> on_complete);
 
 template<>
-inline bool LocalNavigable::fast_is<TraversableNavigable>() const { return is_traversable(); }
+inline bool LocalNavigable::fast_is<LocalTraversableNavigable>() const { return is_traversable(); }
 
 }

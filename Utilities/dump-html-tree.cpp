@@ -27,9 +27,9 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/CustomElements/CustomElementRegistry.h>
 #include <LibWeb/HTML/HTMLTemplateElement.h>
+#include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Parser/ParserScriptingMode.h>
-#include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -338,7 +338,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto page = Web::Page::create(vm, page_client);
     page->set_is_scripting_enabled(false);
     page_client->set_page(page);
-    page->set_top_level_traversable(Web::HTML::TraversableNavigable::create_a_new_top_level_traversable(page, nullptr, {}));
+    page->set_top_level_traversable(Web::HTML::LocalTraversableNavigable::create_a_new_top_level_traversable(page, nullptr, {}));
     auto& origin_document = *page->top_level_traversable()->active_document();
     auto& realm = origin_document.realm();
 

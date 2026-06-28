@@ -55,10 +55,10 @@
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
+#include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/NavigationObserver.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/SelectedFile.h>
-#include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/HTML/XMLSerializer.h>
 #include <LibWeb/Loader/FileRequest.h>
@@ -142,7 +142,7 @@ static Gfx::IntRect compute_window_rect(Web::Page const& page)
     };
 }
 
-static Optional<size_t> current_top_level_entry_index(Web::HTML::TraversableNavigable::SessionHistorySnapshot const& session_history_snapshot)
+static Optional<size_t> current_top_level_entry_index(Web::HTML::LocalTraversableNavigable::SessionHistorySnapshot const& session_history_snapshot)
 {
     VERIFY(session_history_snapshot.current_used_step_index < session_history_snapshot.used_session_history_steps.size());
     auto current_step = session_history_snapshot.used_session_history_steps[session_history_snapshot.current_used_step_index];
@@ -156,7 +156,7 @@ static Optional<size_t> current_top_level_entry_index(Web::HTML::TraversableNavi
     return result;
 }
 
-static JsonObject serialize_session_history_snapshot_for_webdriver(Web::HTML::TraversableNavigable::SessionHistorySnapshot const& session_history_snapshot)
+static JsonObject serialize_session_history_snapshot_for_webdriver(Web::HTML::LocalTraversableNavigable::SessionHistorySnapshot const& session_history_snapshot)
 {
     JsonObject serialized;
     serialized.set("currentUsedStepIndex"sv, session_history_snapshot.current_used_step_index);

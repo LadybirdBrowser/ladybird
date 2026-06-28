@@ -14,7 +14,7 @@
 
 namespace Web {
 
-WEB_API void dump_tree(HTML::TraversableNavigable&);
+WEB_API void dump_tree(HTML::LocalTraversableNavigable&);
 void dump_tree(StringBuilder&, DOM::Node const&);
 WEB_API void dump_tree(DOM::Node const&);
 WEB_API void dump_tree(StringBuilder&, Layout::Node const&, bool show_computed_properties = false, bool colorize = false);
