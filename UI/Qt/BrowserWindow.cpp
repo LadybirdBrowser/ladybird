@@ -101,6 +101,16 @@ static Vector<URL::URL> recently_closed_urls_for_window(TabWidget const& tabs_co
     return urls;
 }
 
+static int visible_browser_window_count()
+{
+    int count = 0;
+    for (auto* widget : QApplication::topLevelWidgets()) {
+        if (as_if<BrowserWindow>(widget) && widget->isVisible())
+            ++count;
+    }
+    return count;
+}
+
 FullscreenMode::FullscreenMode(BrowserWindow* window, ExitFullscreenButton* exit_button)
     : QObject(window)
     , m_window(window)
@@ -724,8 +734,13 @@ bool BrowserWindow::activate_tab_with_url(URL::URL const& url)
     return false;
 }
 
-void BrowserWindow::definitely_close_tab(int index)
+bool BrowserWindow::definitely_close_tab(int index)
 {
+    if (m_tabs_container->count() == 1 && Application::the().file_downloader().has_active_downloads() && visible_browser_window_count() <= 1) {
+        if (!Application::the().confirm_cancel_active_downloads(this))
+            return false;
+    }
+
     auto* tab = m_tabs_container->tab(index);
     auto url = tab->view().url();
     m_tabs_container->remove_tab(index);
@@ -737,6 +752,8 @@ void BrowserWindow::definitely_close_tab(int index)
         m_should_record_closed_window_on_close = false;
         close();
     }
+
+    return true;
 }
 
 void BrowserWindow::update_reopen_recently_closed_action()
@@ -1575,6 +1592,15 @@ void BrowserWindow::wheelEvent(QWheelEvent* event)
 
 void BrowserWindow::closeEvent(QCloseEvent* event)
 {
+    if (Application::the().file_downloader().has_active_downloads()) {
+        if (visible_browser_window_count() <= 1) {
+            if (!Application::the().confirm_cancel_active_downloads(this)) {
+                event->ignore();
+                return;
+            }
+        }
+    }
+
     clear_resize_cursor();
 
     Optional<Vector<URL::URL>> recently_closed_window_urls;

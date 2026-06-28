@@ -14,6 +14,7 @@
 #include <QApplication>
 
 class QMenu;
+class QWidget;
 
 namespace Ladybird {
 
@@ -39,6 +40,7 @@ public:
     void reopen_recently_closed_tab();
     void open_file();
     void quit();
+    bool confirm_cancel_active_downloads(QWidget* parent = nullptr);
     void initialize_macos_application_menu();
     QMenu* qt_bookmarks_menu() const;
 

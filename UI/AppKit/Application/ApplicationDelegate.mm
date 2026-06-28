@@ -6,6 +6,7 @@
 
 #include <LibWebView/Application.h>
 
+#import <Application/Application.h>
 #import <Application/ApplicationDelegate.h>
 #import <Interface/InfoBar.h>
 #import <Interface/LadybirdWebView.h>
@@ -134,6 +135,11 @@
 - (void)removeTab:(TabController*)controller
 {
     [self.managed_tabs removeObject:controller];
+}
+
+- (NSUInteger)tabCount
+{
+    return self.managed_tabs.count;
 }
 
 - (void)rebuildBookmarksMenu
@@ -408,7 +414,7 @@
 
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication*)sender
 {
-    return YES;
+    return [(Application*)sender confirmCancelActiveDownloads];
 }
 
 - (void)applicationDidChangeScreenParameters:(NSNotification*)notification

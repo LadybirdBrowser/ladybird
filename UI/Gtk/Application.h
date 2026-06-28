@@ -33,6 +33,7 @@ public:
     Tab* active_tab() const;
 
     AdwApplication* adw_application() const { return m_adw_application; }
+    bool confirm_cancel_active_downloads(GtkWindow* parent);
 
     template<typename Callback>
     void for_each_window(Callback callback)

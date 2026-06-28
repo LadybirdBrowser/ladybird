@@ -126,6 +126,18 @@ BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls)
     }),
         nullptr);
 
+    g_signal_connect(window_ref.gtk_window(), "close-request", G_CALLBACK(+[](GtkWindow* gtk_window, gpointer) -> gboolean {
+        auto& app = Application::the();
+        size_t window_count = 0;
+        app.for_each_window([&](auto&) { ++window_count; });
+
+        if (window_count <= 1 && !app.confirm_cancel_active_downloads(gtk_window))
+            return GDK_EVENT_STOP;
+
+        return GDK_EVENT_PROPAGATE;
+    }),
+        nullptr);
+
     // Clean up when window is destroyed — defer removal to avoid mutating m_windows during iteration
     g_signal_connect(window_ref.gtk_window(), "destroy", G_CALLBACK(+[](GtkWidget* gtk_window, gpointer) {
         auto& app = Application::the();
@@ -140,7 +152,7 @@ BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls)
             app.remove_window(*to_remove);
             bool has_windows = false;
             app.for_each_window([&](auto&) { has_windows = true; });
-            if (!has_windows)
+            if (!has_windows && !app.file_downloader().has_active_downloads())
                 Core::EventLoop::current().quit(0);
         }
     }),
@@ -149,6 +161,40 @@ BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls)
     window_ref.present();
     m_windows.append(move(window));
     return window_ref;
+}
+
+bool Application::confirm_cancel_active_downloads(GtkWindow* parent)
+{
+    auto& downloader = file_downloader();
+    if (!downloader.has_active_downloads())
+        return true;
+
+    auto* dialog = adw_alert_dialog_new("Downloads are still in progress.", "Quitting will cancel active downloads.");
+    adw_alert_dialog_add_response(ADW_ALERT_DIALOG(dialog), "cancel", "Cancel");
+    adw_alert_dialog_add_response(ADW_ALERT_DIALOG(dialog), "quit", "Quit and Cancel Downloads");
+    adw_alert_dialog_set_response_appearance(ADW_ALERT_DIALOG(dialog), "quit", ADW_RESPONSE_DESTRUCTIVE);
+    adw_alert_dialog_set_default_response(ADW_ALERT_DIALOG(dialog), "cancel");
+    adw_alert_dialog_set_close_response(ADW_ALERT_DIALOG(dialog), "cancel");
+
+    struct ConfirmCancelDownloadsResult {
+        bool done { false };
+        bool accepted { false };
+    } result;
+
+    g_signal_connect(dialog, "response", G_CALLBACK(+[](AdwAlertDialog*, char const* response, gpointer user_data) {
+        auto* result = static_cast<ConfirmCancelDownloadsResult*>(user_data);
+        result->accepted = StringView(response, strlen(response)) == "quit"sv;
+        result->done = true;
+    }),
+        &result);
+    adw_dialog_present(ADW_DIALOG(dialog), GTK_WIDGET(parent));
+
+    Core::EventLoop::current().spin_until([&] { return result.done; });
+    if (!result.accepted)
+        return false;
+
+    downloader.cancel_active_downloads();
+    return true;
 }
 
 void Application::remove_window(BrowserWindow& window)

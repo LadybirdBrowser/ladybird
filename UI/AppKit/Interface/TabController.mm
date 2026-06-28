@@ -11,6 +11,7 @@
 #include <LibWebView/URL.h>
 #include <LibWebView/ViewImplementation.h>
 
+#import <Application/Application.h>
 #import <Application/ApplicationDelegate.h>
 #import <Interface/Autocomplete.h>
 #import <Interface/LadybirdWebView.h>
@@ -994,7 +995,17 @@ static NSImage* location_field_globe_icon()
 
 - (BOOL)windowShouldClose:(NSWindow*)sender
 {
+    auto* delegate = (ApplicationDelegate*)[NSApp delegate];
+    auto confirm_canceling_downloads = [&]() {
+        if ([delegate tabCount] > 1)
+            return true;
+        return [(Application*)NSApp confirmCancelActiveDownloads];
+    };
+
     if (![[[self tab] web_view] needsBeforeUnloadCheck]) {
+        if (!confirm_canceling_downloads())
+            return false;
+
         m_pending_immediate_close = [[[self tab] web_view] prepareForImmediateClose];
         return true;
     }
@@ -1009,6 +1020,9 @@ static NSImage* location_field_globe_icon()
 
     // If the user has already requested a close, then respect the user's request and just close the tab.
     // For example, the WebContent process may not be responding.
+    if (!confirm_canceling_downloads())
+        return false;
+
     return true;
 }
 
