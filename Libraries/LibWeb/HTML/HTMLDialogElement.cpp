@@ -502,7 +502,7 @@ void HTMLDialogElement::run_dialog_focusing_steps()
     run_focusing_steps(control);
 
     // 7. Let topDocument be control's node navigable's top-level traversable's active document.
-    auto top_document = control->navigable()->top_level_traversable()->active_document();
+    auto top_document = as<LocalTraversableNavigable>(*control->navigable()->top_level_traversable()).active_document();
 
     // 8. If control's node document's origin is not the same as the origin of topDocument, then return.
     if (!control->document().origin().is_same_origin(top_document->origin()))

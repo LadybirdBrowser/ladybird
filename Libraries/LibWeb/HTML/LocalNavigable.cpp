@@ -1019,20 +1019,6 @@ GC::Ptr<LocalTraversableNavigable> LocalNavigable::traversable_navigable() const
     return navigable ? &as<LocalTraversableNavigable>(*navigable) : nullptr;
 }
 
-// https://html.spec.whatwg.org/multipage/document-sequences.html#nav-top
-GC::Ptr<LocalTraversableNavigable> LocalNavigable::top_level_traversable()
-{
-    // 1. Let navigable be inputNavigable.
-    GC::Ptr<Navigable> navigable = this;
-
-    // 2. While navigable's parent is not null, set navigable to navigable's parent.
-    while (navigable->parent())
-        navigable = navigable->parent();
-
-    // 3. Return navigable.
-    return &as<LocalTraversableNavigable>(*navigable);
-}
-
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#set-the-ongoing-navigation
 void LocalNavigable::set_ongoing_navigation(Variant<Empty, Traversal, String> ongoing_navigation, NavigationAPIAbortBehavior navigation_api_abort_behavior)
 {

@@ -30,6 +30,7 @@ public:
 
     virtual GC::Ptr<WindowProxy> active_window_proxy() = 0;
     virtual String target_name() const = 0;
+    GC::Ref<Navigable> top_level_traversable();
 
 protected:
     Navigable() = default;

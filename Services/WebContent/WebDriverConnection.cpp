@@ -323,8 +323,7 @@ void WebDriverConnection::close_session()
 
     // 5. Optionally, close all top-level browsing contexts, without prompting to unload.
     for (auto navigable : Web::HTML::all_local_navigables()) {
-        if (auto traversable = navigable->top_level_traversable())
-            traversable->close_top_level_traversable();
+        as<Web::HTML::LocalTraversableNavigable>(*navigable->top_level_traversable()).close_top_level_traversable();
     }
 }
 
@@ -688,12 +687,12 @@ Messages::WebDriverClient::SwitchToWindowResponse WebDriverConnection::switch_to
     bool found_matching_context = false;
 
     for (auto navigable : Web::HTML::all_local_navigables()) {
-        auto traversable = navigable->top_level_traversable();
-        if (!traversable || !traversable->active_browsing_context())
+        auto& traversable = as<Web::HTML::LocalTraversableNavigable>(*navigable->top_level_traversable());
+        if (!traversable.active_browsing_context())
             continue;
 
-        if (handle == traversable->window_handle()) {
-            set_current_top_level_browsing_context(*traversable->active_browsing_context());
+        if (handle == traversable.window_handle()) {
+            set_current_top_level_browsing_context(*traversable.active_browsing_context());
             found_matching_context = true;
             break;
         }
