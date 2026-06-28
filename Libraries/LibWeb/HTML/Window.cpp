@@ -1118,7 +1118,7 @@ WebIDL::ExceptionOr<void> Window::set_opener(JS::Value value)
 GC::Ptr<WindowProxy const> Window::parent() const
 {
     // 1. Let navigable be this's navigable.
-    auto navigable = this->navigable();
+    GC::Ptr<Navigable> navigable = this->navigable();
 
     // 2. If navigable is null, then return null.
     if (!navigable)
@@ -1126,7 +1126,7 @@ GC::Ptr<WindowProxy const> Window::parent() const
 
     // 3. If navigable's parent is not null, then set navigable to navigable's parent.
     if (auto parent = navigable->parent())
-        navigable = as<LocalNavigable>(*parent);
+        navigable = parent;
 
     // 4. Return navigable's active WindowProxy.
     return navigable->active_window_proxy();

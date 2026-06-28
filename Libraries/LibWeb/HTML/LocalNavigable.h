@@ -106,7 +106,7 @@ public:
     Optional<UniqueNodeID> active_document_id() const;
     void set_active_document(GC::Ptr<DOM::Document>);
     GC::Ptr<BrowsingContext> active_browsing_context();
-    GC::Ptr<WindowProxy> active_window_proxy();
+    virtual GC::Ptr<WindowProxy> active_window_proxy() override;
     GC::Ptr<Window> active_window();
 
     RefPtr<SessionHistoryEntry> get_the_target_history_entry(int target_step) const;
