@@ -2534,7 +2534,9 @@ void EventHandler::update_cursor(RefPtr<Painting::Paintable> paintable, GC::Ptr<
 
         if (paintable) {
             auto cursor_data = paintable->computed_values().cursor();
-            if (paintable->layout_node().is_text_node() || host_element->is_editable_or_editing_host())
+            auto is_selectable_text_node = paintable->layout_node().is_text_node() && paintable->layout_node().parent()->computed_values().user_select() != CSS::UserSelect::None;
+
+            if (is_selectable_text_node || host_element->is_editable_or_editing_host())
                 return resolve_cursor(*paintable->layout_node().parent(), cursor_data, Gfx::StandardCursor::IBeam);
             if (host_element && host_element->is_element())
                 return resolve_cursor(static_cast<Layout::NodeWithStyle&>(*host_element->layout_node()), cursor_data, Gfx::StandardCursor::Arrow);
