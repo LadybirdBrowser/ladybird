@@ -27,6 +27,7 @@ class QTimer;
 namespace Ladybird {
 
 class BrowserWindow;
+enum class ChromeIcon;
 class WindowControlButton;
 
 class HyperlinkLabel final : public QLabel {
@@ -124,6 +125,7 @@ private:
 
     virtual void download_added(WebView::FileDownloader::Download const&) override;
     virtual void download_updated(WebView::FileDownloader::Download const&) override;
+    virtual void download_removed(u64) override;
 
     QWidget* m_toolbar_container { nullptr };
     QWidget* m_toolbar { nullptr };
@@ -165,6 +167,8 @@ private:
     QAction* m_navigate_forward_action { nullptr };
     QAction* m_reload_action { nullptr };
     QAction* m_open_downloads_page_action { nullptr };
+    Optional<ChromeIcon> m_downloads_button_icon;
+    QString m_downloads_button_tooltip;
 
     QPointer<QDialog> m_dialog;
 
