@@ -428,10 +428,7 @@ static Vector<ComponentValue> replace_a_var_function(DOM::AbstractElement& eleme
         // Look up the value of the custom property
         auto custom_property_name = name_token.token().ident();
         RefPtr<StyleValue const> custom_property_value;
-        if (auto const* computed_style = replacement_context.computed_style_for_custom_property_resolution)
-            custom_property_value = element.document().style_computer().compute_value_of_custom_property(*computed_style, element, custom_property_name, guarded_contexts);
-        else
-            custom_property_value = StyleComputer::compute_value_of_custom_property(element, custom_property_name, guarded_contexts);
+        custom_property_value = element.document().style_computer().compute_value_of_custom_property(replacement_context.computed_style_for_custom_property_resolution, element, custom_property_name, guarded_contexts);
         result = custom_property_value->tokenize();
     }
 

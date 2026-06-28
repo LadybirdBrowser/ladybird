@@ -421,7 +421,7 @@ static Optional<StyleRangeComparableValue> evaluate_style_range_value(StyleFeatu
                     return {};
             }
 
-            auto computed_value = StyleComputer::compute_value_of_custom_property(element, property.name(), guarded_contexts);
+            auto computed_value = document.style_computer().compute_value_of_custom_property(nullptr, element, property.name(), guarded_contexts);
             auto computed_tokens = computed_value->tokenize();
             if (did_evaluate_attr_tainted_style_query && Parser::contains_attr_tainted_value(computed_tokens))
                 *did_evaluate_attr_tainted_style_query = true;
@@ -534,7 +534,7 @@ MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& con
         }
     }
 
-    auto computed_value = StyleComputer::compute_value_of_custom_property(element, property_name, guarded_contexts);
+    auto computed_value = document.style_computer().compute_value_of_custom_property(nullptr, element, property_name, guarded_contexts);
     auto computed_tokens = computed_value->tokenize();
     if (context.did_evaluate_attr_tainted_style_query) {
         if (Parser::contains_attr_tainted_value(computed_tokens))

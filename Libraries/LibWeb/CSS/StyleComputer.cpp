@@ -3812,8 +3812,7 @@ static bool matches_subject_pseudo_class_bucket(PseudoClass pseudo_class, DOM::E
     }
 }
 
-template<typename ComputeRegisteredValue>
-static NonnullRefPtr<StyleValue const> compute_value_of_custom_property_impl(DOM::AbstractElement abstract_element, Utf16FlyString const& name, Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts, ComputedProperties const* computed_style_for_custom_property_resolution, ComputeRegisteredValue compute_registered_value)
+NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(ComputedProperties const* computed_style_for_custom_property_resolution, DOM::AbstractElement abstract_element, Utf16FlyString const& name, Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts) const
 {
     // https://drafts.csswg.org/css-variables/#propdef-
     // The computed value of a custom property is its specified value with any arbitrary-substitution functions replaced.
@@ -3897,9 +3896,20 @@ static NonnullRefPtr<StyleValue const> compute_value_of_custom_property_impl(DOM
     if (parsed_value->is_guaranteed_invalid())
         return invalid_custom_property_fallback_value(move(parsed_value));
 
-    auto computed_value = compute_registered_value(*registration, move(parsed_value));
+    auto computed_value = [&] {
+        // FIXME: At the moment we incorrectly apply ASF replacement at cascade time when we should instead be applying
+        //        it at computed-value time. This means we may not yet have a ComputedProperties for us to absolutize
+        //        against. For now we just return the parsed value as-is and rely on the consuming property to
+        //        absolutize it later.
+        if (!computed_style_for_custom_property_resolution)
+            return parsed_value;
+
+        return compute_registered_custom_property_value(registration.value(), move(parsed_value), get_computation_context_for_property(PropertyID::Custom, *computed_style_for_custom_property_resolution, abstract_element));
+    }();
+
     if (resolved_value_contains_attr_tainted_values)
         return UnresolvedStyleValue::create(computed_value->tokenize(), {}, {}, UnresolvedStyleValue::SourceTextMode::Trim, true);
+
     return computed_value;
 }
 
@@ -3929,29 +3939,6 @@ ComputationContext StyleComputer::fallback_computation_context_for_custom_proper
     };
 }
 
-NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(DOM::AbstractElement abstract_element, Utf16FlyString const& name, Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts)
-{
-    return compute_value_of_custom_property_impl(abstract_element, name, guarded_contexts, nullptr, [&](CustomPropertyRegistration const& registration, NonnullRefPtr<StyleValue const> parsed_value) {
-        // In the fallback path we may be resolving var() before this element's new ComputedProperties have been
-        // installed. Avoid freezing relative values against stale metrics; the consuming property can still compute
-        // them with its own context.
-        if (!parsed_value->is_computationally_independent())
-            return parsed_value;
-
-        auto const& style_computer = abstract_element.document().style_computer();
-        auto computation_context = style_computer.fallback_computation_context_for_custom_property(abstract_element);
-        return compute_registered_custom_property_value(registration, move(parsed_value), computation_context);
-    });
-}
-
-NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(ComputedProperties const& computed_style, DOM::AbstractElement abstract_element, Utf16FlyString const& name, Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts) const
-{
-    auto const& computation_context = get_computation_context_for_property(PropertyID::Color, computed_style, abstract_element);
-    return compute_value_of_custom_property_impl(abstract_element, name, guarded_contexts, &computed_style, [&](CustomPropertyRegistration const& registration, NonnullRefPtr<StyleValue const> parsed_value) {
-        return compute_registered_custom_property_value(registration, move(parsed_value), computation_context);
-    });
-}
-
 void StyleComputer::compute_custom_properties(ComputedProperties& computed_style, DOM::AbstractElement abstract_element) const
 {
     // https://drafts.csswg.org/css-variables/#propdef-
@@ -3979,7 +3966,7 @@ void StyleComputer::compute_custom_properties(ComputedProperties& computed_style
 
     OrderedHashMap<Utf16FlyString, StyleProperty> resolved_own;
     for (auto const& [name, style_property] : data->own_values()) {
-        auto resolved_value = compute_value_of_custom_property(computed_style, abstract_element, name);
+        auto resolved_value = compute_value_of_custom_property(&computed_style, abstract_element, name);
         if (parent_data) {
             auto const* parent_property = parent_data->get(name);
             if (parent_property && resolved_value->equals(*parent_property->value))
