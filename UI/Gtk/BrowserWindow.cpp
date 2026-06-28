@@ -118,7 +118,11 @@ void BrowserWindow::register_actions()
         if (auto* tab = self.current_tab())
             tab->view().find_in_page_previous_match(); });
 
-    add_action("quit", [](BrowserWindow&) { Core::EventLoop::current().quit(0); });
+    add_action("quit", [](BrowserWindow& self) {
+        if (!Application::the().confirm_cancel_active_downloads(self.gtk_window()))
+            return;
+        Core::EventLoop::current().quit(0);
+    });
 
     add_action("fullscreen", [](BrowserWindow& self) {
         if (gtk_window_is_fullscreen(GTK_WINDOW(self.m_window)))

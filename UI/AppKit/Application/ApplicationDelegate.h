@@ -36,6 +36,7 @@
 - (nullable Tab*)activeTab;
 
 - (void)removeTab:(nonnull TabController*)controller;
+- (NSUInteger)tabCount;
 
 - (void)rebuildBookmarksMenu;
 

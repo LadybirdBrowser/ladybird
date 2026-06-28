@@ -8,6 +8,7 @@
 #include <LibCore/ArgsParser.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/ThreadEventQueue.h>
+#include <LibWebView/Application.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/ViewImplementation.h>
 #include <Utilities/Conversions.h>
@@ -395,8 +396,31 @@ void Application::on_devtools_disabled() const
 
 #pragma mark - NSApplication
 
+- (BOOL)confirmCancelActiveDownloads
+{
+    auto& downloader = WebView::Application::the().file_downloader();
+    if (!downloader.has_active_downloads())
+        return YES;
+
+    auto* dialog = [[NSAlert alloc] init];
+    [dialog setMessageText:@"Downloads are still in progress."];
+    [dialog setInformativeText:@"Quitting will cancel active downloads."];
+    [dialog setAlertStyle:NSAlertStyleWarning];
+    [[dialog addButtonWithTitle:@"Quit and Cancel Downloads"] setTag:NSModalResponseOK];
+    [[dialog addButtonWithTitle:@"Cancel"] setTag:NSModalResponseCancel];
+
+    if ([dialog runModal] != NSModalResponseOK)
+        return NO;
+
+    downloader.cancel_active_downloads();
+    return YES;
+}
+
 - (void)terminate:(id)sender
 {
+    if (![self confirmCancelActiveDownloads])
+        return;
+
     Core::EventLoop::current().quit(0);
 }
 

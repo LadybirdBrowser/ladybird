@@ -47,4 +47,7 @@ private:
 }
 
 @interface Application : NSApplication
+
+- (BOOL)confirmCancelActiveDownloads;
+
 @end
