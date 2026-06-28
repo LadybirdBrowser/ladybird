@@ -682,6 +682,16 @@ void Settings::set_autocomplete_engine(Optional<StringView> autocomplete_engine_
         observer.autocomplete_engine_changed();
 }
 
+void Settings::set_autocomplete_engine(AutocompleteEngine autocomplete_engine)
+{
+    // Custom engines are not persisted: settings stores the engine by name and reloads it
+    // from the builtin list, so a non-builtin engine would not round-trip.
+    m_autocomplete_engine = autocomplete_engine;
+
+    for (auto& observer : m_observers)
+        observer.autocomplete_engine_changed();
+}
+
 void Settings::set_autoplay_policy(Web::HTML::AutoplayPolicy policy)
 {
     m_autoplay.policy = policy;

@@ -248,7 +248,7 @@ void SettingsUI::set_search_engine(JsonValue const& search_engine)
 {
     if (search_engine.is_null()) {
         WebView::Application::settings().set_search_engine({});
-        WebView::Application::settings().set_autocomplete_engine({});
+        WebView::Application::settings().set_autocomplete_engine(OptionalNone {});
     } else if (search_engine.is_string()) {
         WebView::Application::settings().set_search_engine(search_engine.as_string());
     }
@@ -275,7 +275,7 @@ void SettingsUI::remove_custom_search_engine(JsonValue const& search_engine)
 void SettingsUI::set_autocomplete_engine(JsonValue const& autocomplete_engine)
 {
     if (autocomplete_engine.is_null())
-        WebView::Application::settings().set_autocomplete_engine({});
+        WebView::Application::settings().set_autocomplete_engine(OptionalNone {});
     else if (autocomplete_engine.is_string())
         WebView::Application::settings().set_autocomplete_engine(autocomplete_engine.as_string());
 }
