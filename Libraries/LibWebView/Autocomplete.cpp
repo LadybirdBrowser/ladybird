@@ -48,8 +48,12 @@ Autocomplete::~Autocomplete() = default;
 void Autocomplete::cancel_pending_query()
 {
     if (m_request) {
-        m_request->stop();
-        m_request.clear();
+        // This can be reached synchronously from inside the request's own completion callback: activating a suggestion
+        // clears the location bar's focus, canceling the query. Stopping the request inline would destroy a still-
+        // running callback — so defer the teardown (just as set_buffered_request_finished_callback defers its clear).
+        Core::deferred_invoke([request = move(m_request)] {
+            request->stop();
+        });
     }
 
     // Buffered callbacks may still arrive after we stop the request, so clear

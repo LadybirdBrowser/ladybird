@@ -147,6 +147,7 @@ public:
 
     Optional<AutocompleteEngine> const& autocomplete_engine() const { return m_autocomplete_engine; }
     void set_autocomplete_engine(Optional<StringView> autocomplete_engine_name);
+    void set_autocomplete_engine(AutocompleteEngine);
 
     AutoplaySiteSetting const& autoplay_settings() const { return m_autoplay; }
     void set_autoplay_policy(Web::HTML::AutoplayPolicy);
