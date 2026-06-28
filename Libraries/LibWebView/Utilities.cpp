@@ -102,7 +102,11 @@ void copy_default_config_files(StringView config_path)
 {
     MUST(Core::Directory::create(config_path, Core::Directory::CreateDirectories::Yes));
 
-    auto config_resources = MUST(Core::Resource::load_from_uri("resource://ladybird/default-config"sv));
+    auto config_resources_or_error = Core::Resource::load_from_uri("resource://ladybird/default-config"sv);
+    if (config_resources_or_error.is_error())
+        return;
+
+    auto config_resources = config_resources_or_error.release_value();
 
     config_resources->for_each_descendant_file([config_path](Core::Resource const& resource) -> IterationDecision {
         auto file_path = ByteString::formatted("{}/{}", config_path, resource.filename());

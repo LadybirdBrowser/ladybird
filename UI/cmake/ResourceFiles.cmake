@@ -67,11 +67,6 @@ set(THEMES
 )
 list(TRANSFORM THEMES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/themes/")
 
-set(CONFIG_RESOURCES
-    BrowserContentBlockers.txt
-)
-list(TRANSFORM CONFIG_RESOURCES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/default-config/")
-
 # pdf.js viewer assets installed by the pdfjs vcpkg port.
 # Only populated when building with vcpkg and pdfjs is installed.
 set(PDFJS_BUILD_FILES "")
@@ -173,10 +168,6 @@ function(copy_resources_to_build base_directory bundle_target)
         DESTINATION ${base_directory} TARGET ${bundle_target}
     )
 
-    copy_resource_set(ladybird/default-config RESOURCES ${CONFIG_RESOURCES}
-        DESTINATION ${base_directory} TARGET ${bundle_target}
-    )
-
     if (PDFJS_BUILD_FILES)
         copy_resource_set(ladybird/pdfjs/build RESOURCES ${PDFJS_BUILD_FILES}
             DESTINATION ${base_directory} TARGET ${bundle_target}
@@ -209,7 +200,6 @@ function(install_ladybird_resources destination component)
     install(FILES ${ABOUT_PAGES} DESTINATION "${destination}/ladybird/about-pages" COMPONENT ${component})
     install(FILES ${ABOUT_SETTINGS_RESOURCES} DESTINATION "${destination}/ladybird/about-pages/settings" COMPONENT ${component})
     install(FILES ${WEB_TEMPLATES} DESTINATION "${destination}/ladybird/templates" COMPONENT ${component})
-    install(FILES ${CONFIG_RESOURCES} DESTINATION "${destination}/ladybird/default-config" COMPONENT ${component})
     if (PDFJS_BUILD_FILES)
         install(FILES ${PDFJS_BUILD_FILES} DESTINATION "${destination}/ladybird/pdfjs/build" COMPONENT ${component})
         install(FILES ${PDFJS_WEB_BASE_FILES} ${PDFJS_VIEWER_HTML} DESTINATION "${destination}/ladybird/pdfjs/web" COMPONENT ${component})
