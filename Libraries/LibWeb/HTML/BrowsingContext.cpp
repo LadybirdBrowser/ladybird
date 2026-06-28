@@ -463,7 +463,7 @@ bool BrowsingContext::is_ancestor_of(BrowsingContext const& potential_descendant
 
     // 3. Let ancestorBCs be the list obtained by taking the browsing context of the active document of each member of potentialDescendantDocument's ancestor navigables.
     for (auto const& ancestor : potential_descendant_document->ancestor_navigables()) {
-        auto ancestor_browsing_context = ancestor->active_browsing_context();
+        auto ancestor_browsing_context = as<HTML::LocalNavigable>(*ancestor).active_browsing_context();
 
         // 4. If ancestorBCs contains potentialAncestor, then return true.
         if (ancestor_browsing_context == this)
@@ -501,7 +501,7 @@ bool BrowsingContext::is_familiar_with(BrowsingContext const& other) const
         return false;
 
     for (auto const& ancestor : B.active_document()->ancestor_navigables()) {
-        if (ancestor->active_document()->origin().is_same_origin(A.active_document()->origin()))
+        if (as<LocalNavigable>(*ancestor).active_document()->origin().is_same_origin(A.active_document()->origin()))
             return true;
     }
 
