@@ -36,6 +36,13 @@
                 font-size: 13px;
             }
 
+            .downloads-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+            }
+
             .downloads-empty {
                 padding: 36px 12px;
                 text-align: center;
@@ -140,6 +147,11 @@
             }
 
             @media (max-width: 640px) {
+                .downloads-header {
+                    align-items: flex-start;
+                    flex-direction: column;
+                }
+
                 .download-entry {
                     grid-template-columns: 1fr;
                 }
@@ -161,7 +173,12 @@
 
         <div class="card">
             <div class="card-body downloads-content">
-                <div id="downloads-status" class="downloads-status">Loading downloads...</div>
+                <div class="downloads-header">
+                    <div id="downloads-status" class="downloads-status">Loading downloads...</div>
+                    <button id="prune-inactive-downloads" class="secondary-button" disabled>
+                        Clear finished downloads
+                    </button>
+                </div>
                 <div id="downloads-empty" class="downloads-empty hidden"></div>
                 <div id="downloads-list" class="downloads-list"></div>
             </div>
@@ -171,6 +188,7 @@
             const downloadsStatus = document.querySelector("#downloads-status");
             const downloadsEmpty = document.querySelector("#downloads-empty");
             const downloadsList = document.querySelector("#downloads-list");
+            const pruneInactiveDownloadsButton = document.querySelector("#prune-inactive-downloads");
 
             const sizeFormatter = new Intl.NumberFormat([], {
                 maximumFractionDigits: 1,
@@ -342,8 +360,10 @@
             function render() {
                 const sortedDownloads = [...downloads].sort((a, b) => b.id - a.id);
                 const activeCount = downloads.filter(download => download.status === "in-progress").length;
+                const inactiveCount = downloads.length - activeCount;
 
                 updateDownloadList(sortedDownloads);
+                pruneInactiveDownloadsButton.disabled = inactiveCount === 0;
 
                 const isEmpty = downloads.length === 0;
                 downloadsEmpty.classList.toggle("hidden", !isEmpty);
@@ -368,6 +388,16 @@
                 render();
             }
 
+            function removeDownload(downloadId) {
+                downloads = downloads.filter(download => download.id !== downloadId);
+                downloadRows.delete(downloadId);
+                render();
+            }
+
+            pruneInactiveDownloadsButton.addEventListener("click", () => {
+                ladybird.sendMessage("pruneInactiveDownloads");
+            });
+
             document.addEventListener("WebUILoaded", () => {
                 ladybird.sendMessage("loadDownloads");
             });
@@ -379,6 +409,8 @@
                     render();
                 } else if (name === "downloadAdded" || name === "downloadUpdated") {
                     updateDownload(data);
+                } else if (name === "downloadRemoved") {
+                    removeDownload(data);
                 }
             });
         </script>

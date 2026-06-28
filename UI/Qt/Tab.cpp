@@ -82,7 +82,22 @@ public:
 
     void set_progress(Optional<double> progress)
     {
-        m_progress = AK::move(progress);
+        auto normalized_progress = progress.map([](auto value) {
+            if (value < 0.0)
+                return 0.0;
+            if (value > 1.0)
+                return 1.0;
+            return value;
+        });
+
+        if (m_progress.has_value() == normalized_progress.has_value()) {
+            if (!normalized_progress.has_value())
+                return;
+            if (AK::abs(*m_progress - *normalized_progress) < 0.005)
+                return;
+        }
+
+        m_progress = AK::move(normalized_progress);
         update();
     }
 
@@ -101,7 +116,7 @@ protected:
             progress = 1.0;
 
         constexpr qreal bar_height = 3.0;
-        constexpr qreal bar_bottom_margin = 1.0;
+        constexpr qreal bar_bottom_margin = 2.0;
         auto const icon_size = this->iconSize();
         auto icon_rect = QRectF {
             (static_cast<qreal>(width()) - icon_size.width()) / 2.0,
@@ -111,7 +126,7 @@ protected:
         };
         auto bar_rect = QRectF {
             icon_rect.left(),
-            icon_rect.top() + icon_rect.height() - bar_bottom_margin - bar_height,
+            static_cast<qreal>(height()) - bar_bottom_margin - bar_height,
             icon_rect.width(),
             bar_height
         };
@@ -960,6 +975,7 @@ void Tab::recreate_toolbar_icons()
     m_navigate_back_action->setIcon(create_chrome_icon(ChromeIcon::Back, palette()));
     m_navigate_forward_action->setIcon(create_chrome_icon(ChromeIcon::Forward, palette()));
     m_reload_action->setIcon(create_chrome_icon(ChromeIcon::Reload, palette()));
+    m_downloads_button_icon = {};
     update_downloads_button();
     m_hamburger_button->setIcon(create_chrome_icon(ChromeIcon::Menu, palette()));
     update_window_control_icons();
@@ -1005,7 +1021,12 @@ void Tab::update_downloads_button()
     }
 
     m_downloads_button->setVisible(!downloads.is_empty());
-    m_open_downloads_page_action->setIcon(create_chrome_icon(active_download_count > 0 ? ChromeIcon::DownloadActive : ChromeIcon::Download, palette()));
+
+    auto downloads_icon = active_download_count > 0 ? ChromeIcon::DownloadActive : ChromeIcon::Download;
+    if (!m_downloads_button_icon.has_value() || *m_downloads_button_icon != downloads_icon) {
+        m_open_downloads_page_action->setIcon(create_chrome_icon(downloads_icon, palette()));
+        m_downloads_button_icon = downloads_icon;
+    }
 
     Optional<double> active_download_progress;
     if (known_total_size > 0.0)
@@ -1032,8 +1053,11 @@ void Tab::update_downloads_button()
         tooltip = "Downloads";
     }
 
-    m_open_downloads_page_action->setToolTip(tooltip);
-    m_downloads_button->setToolTip(tooltip);
+    if (m_downloads_button_tooltip != tooltip) {
+        m_downloads_button_tooltip = tooltip;
+        m_open_downloads_page_action->setToolTip(tooltip);
+        m_downloads_button->setToolTip(tooltip);
+    }
 }
 
 void Tab::download_added(WebView::FileDownloader::Download const&)
@@ -1042,6 +1066,11 @@ void Tab::download_added(WebView::FileDownloader::Download const&)
 }
 
 void Tab::download_updated(WebView::FileDownloader::Download const&)
+{
+    update_downloads_button();
+}
+
+void Tab::download_removed(u64)
 {
     update_downloads_button();
 }

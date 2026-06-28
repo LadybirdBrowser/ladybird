@@ -45,6 +45,9 @@ void DownloadsUI::register_interfaces()
     register_interface("loadDownloads"sv, [this](auto const&) {
         load_downloads();
     });
+    register_interface("pruneInactiveDownloads"sv, [this](auto const&) {
+        prune_inactive_downloads();
+    });
     register_interface("cancelDownload"sv, [this](auto const& data) {
         cancel_download(data);
     });
@@ -66,6 +69,11 @@ void DownloadsUI::download_updated(FileDownloader::Download const& download)
     async_send_message("downloadUpdated"sv, serialize_download(download));
 }
 
+void DownloadsUI::download_removed(u64 id)
+{
+    async_send_message("downloadRemoved"sv, JsonValue { id });
+}
+
 void DownloadsUI::load_downloads()
 {
     auto downloads = Application::the().file_downloader().downloads();
@@ -76,6 +84,11 @@ void DownloadsUI::load_downloads()
         serialized_downloads.must_append(serialize_download(download));
 
     async_send_message("loadDownloads"sv, move(serialized_downloads));
+}
+
+void DownloadsUI::prune_inactive_downloads()
+{
+    (void)Application::the().file_downloader().prune_inactive_downloads();
 }
 
 static Optional<FileDownloader::Download const&> download_from_message(JsonValue const& data)
