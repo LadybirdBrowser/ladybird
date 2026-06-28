@@ -12,6 +12,7 @@
 #include <LibWebView/Application.h>
 #include <LibWebView/Utilities.h>
 #include <LibWebView/WebContentClient.h>
+#include <UI/Qt/Application.h>
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/ChromeLayout.h>
 #include <UI/Qt/ChromeStyle.h>
@@ -27,6 +28,8 @@
 #include <QFileDialog>
 #include <QFont>
 #include <QFontMetrics>
+#include <QFrame>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QImage>
 #include <QInputDialog>
@@ -35,8 +38,13 @@
 #include <QMimeData>
 #include <QMimeDatabase>
 #include <QPainter>
+#include <QProgressBar>
+#include <QPushButton>
 #include <QResizeEvent>
+#include <QScreen>
+#include <QScrollArea>
 #include <QTimer>
+#include <QVBoxLayout>
 
 namespace Ladybird {
 
@@ -101,6 +109,12 @@ public:
         update();
     }
 
+    void set_progress_icon(QIcon icon)
+    {
+        m_progress_icon = icon;
+        update();
+    }
+
 protected:
     virtual void paintEvent(QPaintEvent* event) override
     {
@@ -115,8 +129,6 @@ protected:
         if (progress > 1.0)
             progress = 1.0;
 
-        constexpr qreal bar_height = 3.0;
-        constexpr qreal bar_bottom_margin = 2.0;
         auto const icon_size = this->iconSize();
         auto icon_rect = QRectF {
             (static_cast<qreal>(width()) - icon_size.width()) / 2.0,
@@ -124,33 +136,22 @@ protected:
             static_cast<qreal>(icon_size.width()),
             static_cast<qreal>(icon_size.height())
         };
-        auto bar_rect = QRectF {
+        auto fill_rect = QRectF {
             icon_rect.left(),
-            static_cast<qreal>(height()) - bar_bottom_margin - bar_height,
+            icon_rect.top(),
             icon_rect.width(),
-            bar_height
+            icon_rect.height() * progress
         };
-        auto fill_rect = bar_rect;
-        fill_rect.setWidth(bar_rect.width() * progress);
-
-        auto track_color = ChromeStyle::chrome_control_border(palette());
-        track_color.setAlpha(112);
-        auto fill_color = ChromeStyle::chrome_accent(palette());
 
         QPainter painter(this);
-        painter.setRenderHint(QPainter::Antialiasing, true);
-        painter.setPen(Qt::NoPen);
-        painter.setBrush(track_color);
-        painter.drawRoundedRect(bar_rect, 1.5, 1.5);
-
-        if (fill_rect.width() > 0.0) {
-            painter.setBrush(fill_color);
-            painter.drawRoundedRect(fill_rect, 1.5, 1.5);
-        }
+        painter.setClipRect(fill_rect);
+        auto pixmap = m_progress_icon.pixmap(icon_size, devicePixelRatioF(), isEnabled() ? QIcon::Normal : QIcon::Disabled);
+        painter.drawPixmap(icon_rect.toRect(), pixmap);
     }
 
 private:
     Optional<double> m_progress;
+    QIcon m_progress_icon;
 };
 
 static QToolButton* create_toolbar_button(QWidget& parent, QAction& action)
@@ -212,6 +213,9 @@ static constexpr int TOOLBAR_MACOS_TRAFFIC_LIGHTS_CONTROL_GAP = 22;
 static constexpr int TOOLBAR_SIDEBAR_TOGGLE_NAVIGATION_GAP = 8;
 static constexpr int TOOLBAR_LOCATION_EDIT_SIDE_GAP = 32;
 static constexpr int TOOLBAR_WINDOW_CONTROLS_RIGHT_MARGIN = 4;
+static constexpr int DOWNLOADS_POPOVER_WIDTH = 380;
+static constexpr int DOWNLOADS_POPOVER_MAX_HEIGHT = 360;
+static constexpr int DOWNLOADS_POPOVER_MAX_VISIBLE_DOWNLOADS = 5;
 
 static QString download_count_text(size_t count, char const* singular, char const* plural)
 {
@@ -228,6 +232,381 @@ static QString download_percent_text(double progress)
     auto percent = static_cast<int>(progress * 100.0);
     return QString("%1%").arg(percent);
 }
+
+static QString download_size_text(u64 size)
+{
+    constexpr double kibibyte = 1024.0;
+    constexpr double mebibyte = kibibyte * 1024.0;
+    constexpr double gibibyte = mebibyte * 1024.0;
+
+    auto size_as_double = static_cast<double>(size);
+    if (size_as_double < kibibyte)
+        return QString("%1 B").arg(size);
+    if (size_as_double < mebibyte)
+        return QString("%1 KB").arg(size_as_double / kibibyte, 0, 'f', 1);
+    if (size_as_double < gibibyte)
+        return QString("%1 MB").arg(size_as_double / mebibyte, 0, 'f', 1);
+    return QString("%1 GB").arg(size_as_double / gibibyte, 0, 'f', 1);
+}
+
+static Optional<double> download_progress(WebView::FileDownloader::Download const& download)
+{
+    if (!download.total_size.has_value() || *download.total_size == 0)
+        return {};
+
+    return static_cast<double>(min(download.downloaded_size, *download.total_size)) / static_cast<double>(*download.total_size);
+}
+
+static QString download_status_text(WebView::FileDownloader::Download const& download)
+{
+    using DownloadStatus = WebView::FileDownloader::DownloadStatus;
+
+    switch (download.status) {
+    case DownloadStatus::InProgress:
+        if (auto progress = download_progress(download); progress.has_value()) {
+            return QString("%1 of %2 - %3")
+                .arg(download_size_text(download.downloaded_size))
+                .arg(download_size_text(*download.total_size))
+                .arg(download_percent_text(*progress));
+        }
+        return QString("%1 downloaded").arg(download_size_text(download.downloaded_size));
+    case DownloadStatus::Completed:
+        return QString("Completed - %1").arg(download_size_text(download.downloaded_size));
+    case DownloadStatus::Canceled:
+        return "Canceled";
+    case DownloadStatus::Failed:
+        if (download.error.has_value() && !download.error->is_empty())
+            return QString("Failed - %1").arg(qstring_from_ak_string(*download.error));
+        return "Failed";
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static QString downloads_popover_style_sheet(QPalette const& palette)
+{
+    auto surface = ChromeStyle::style_sheet_color(ChromeStyle::chrome_surface(palette));
+    auto recessed_surface = ChromeStyle::style_sheet_color(ChromeStyle::chrome_surface_recessed(palette));
+    auto hover_surface = ChromeStyle::style_sheet_color(ChromeStyle::chrome_surface_hover(palette));
+    auto border = ChromeStyle::style_sheet_color(ChromeStyle::chrome_border(palette));
+    auto text = ChromeStyle::style_sheet_color(ChromeStyle::chrome_text(palette));
+    auto muted_text = ChromeStyle::style_sheet_color(ChromeStyle::chrome_muted_text(palette));
+    auto accent = ChromeStyle::style_sheet_color(ChromeStyle::chrome_accent(palette));
+
+    return qformatted(R"(
+QFrame#LadybirdDownloadsPopover {{
+    color: {4};
+    background: {0};
+    border: 1px solid {3};
+    border-radius: 8px;
+}}
+
+QScrollArea#LadybirdDownloadsPopoverScroll,
+QWidget#LadybirdDownloadsPopoverRows {{
+    background: transparent;
+    border: 0;
+}}
+
+QLabel#LadybirdDownloadsPopoverTitle,
+QLabel#LadybirdDownloadFileName {{
+    color: {4};
+    font-weight: 600;
+}}
+
+QLabel#LadybirdDownloadStatus,
+QLabel#LadybirdDownloadsEmpty {{
+    color: {5};
+}}
+
+QFrame#LadybirdDownloadRow {{
+    background: {0};
+    border: 1px solid {3};
+    border-radius: 6px;
+}}
+
+QFrame#LadybirdDownloadRow:hover {{
+    background: {2};
+}}
+
+QProgressBar#LadybirdDownloadProgress {{
+    background: {1};
+    border: 0;
+    border-radius: 2px;
+    min-height: 4px;
+    max-height: 4px;
+}}
+
+QProgressBar#LadybirdDownloadProgress::chunk {{
+    background: {6};
+    border-radius: 2px;
+}}
+)",
+        surface, recessed_surface, hover_surface, border, text, muted_text, accent);
+}
+
+class ElidedLabel final : public QLabel {
+public:
+    explicit ElidedLabel(QString text, Qt::TextElideMode elide_mode, QWidget* parent = nullptr)
+        : QLabel(text, parent)
+        , m_elide_mode(elide_mode)
+    {
+        setMinimumWidth(0);
+        setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    }
+
+    virtual QSize sizeHint() const override
+    {
+        auto size = QLabel::sizeHint();
+        size.setWidth(0);
+        return size;
+    }
+
+    virtual QSize minimumSizeHint() const override
+    {
+        return { 0, QLabel::minimumSizeHint().height() };
+    }
+
+protected:
+    virtual void paintEvent(QPaintEvent*) override
+    {
+        QPainter painter(this);
+        painter.setFont(font());
+        painter.setPen(palette().color(foregroundRole()));
+        painter.drawText(rect(), alignment() | Qt::TextSingleLine, fontMetrics().elidedText(text(), m_elide_mode, width()));
+    }
+
+private:
+    Qt::TextElideMode m_elide_mode { Qt::ElideRight };
+};
+
+class DownloadRow final : public QFrame {
+public:
+    explicit DownloadRow(WebView::FileDownloader::Download const& download, QWidget* parent)
+        : QFrame(parent)
+        , m_download_id(download.id)
+    {
+        setObjectName("LadybirdDownloadRow");
+        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+
+        auto* row_layout = new QHBoxLayout(this);
+        row_layout->setContentsMargins(10, 8, 10, 8);
+        row_layout->setSpacing(8);
+
+        auto* details_layout = new QVBoxLayout;
+        details_layout->setContentsMargins(0, 0, 0, 0);
+        details_layout->setSpacing(4);
+
+        m_file_name_label = new ElidedLabel({}, Qt::ElideRight, this);
+        m_file_name_label->setObjectName("LadybirdDownloadFileName");
+        details_layout->addWidget(m_file_name_label);
+
+        m_status_label = new ElidedLabel({}, Qt::ElideRight, this);
+        m_status_label->setObjectName("LadybirdDownloadStatus");
+        details_layout->addWidget(m_status_label);
+
+        m_progress_bar = new QProgressBar(this);
+        m_progress_bar->setObjectName("LadybirdDownloadProgress");
+        m_progress_bar->setRange(0, 1000);
+        m_progress_bar->setTextVisible(false);
+        details_layout->addWidget(m_progress_bar);
+
+        row_layout->addLayout(details_layout, 1);
+
+        m_cancel_button = new QPushButton("Cancel", this);
+        m_cancel_button->setFocusPolicy(Qt::NoFocus);
+        QObject::connect(m_cancel_button, &QPushButton::clicked, this, [this] {
+            if (on_cancel_download)
+                on_cancel_download(m_download_id);
+        });
+        row_layout->addWidget(m_cancel_button, 0, Qt::AlignTop);
+
+        (void)update_download(download);
+    }
+
+    u64 id() const { return m_download_id; }
+
+    bool update_download(WebView::FileDownloader::Download const& download)
+    {
+        VERIFY(download.id == m_download_id);
+
+        m_file_name_label->setText(qstring_from_ak_string(download.destination.basename()));
+        m_file_name_label->setToolTip(qstring_from_ak_string(download.destination.string()));
+
+        auto status_text = download_status_text(download);
+        m_status_label->setText(status_text);
+        m_status_label->setToolTip(status_text);
+
+        bool geometry_changed = false;
+        auto progress = download_progress(download);
+        auto show_progress = download.status == WebView::FileDownloader::DownloadStatus::InProgress && progress.has_value();
+        auto progress_bar_is_visible = !m_progress_bar->isHidden();
+        if (progress_bar_is_visible != show_progress) {
+            m_progress_bar->setVisible(show_progress);
+            geometry_changed = true;
+        }
+        if (progress.has_value())
+            m_progress_bar->setValue(static_cast<int>(*progress * 1000.0));
+
+        auto should_show_cancel = download.status == WebView::FileDownloader::DownloadStatus::InProgress;
+        auto cancel_button_is_visible = !m_cancel_button->isHidden();
+        if (cancel_button_is_visible != should_show_cancel) {
+            m_cancel_button->setVisible(should_show_cancel);
+            geometry_changed = true;
+        }
+
+        return geometry_changed;
+    }
+
+    Function<void(u64)> on_cancel_download;
+
+private:
+    u64 m_download_id { 0 };
+    ElidedLabel* m_file_name_label { nullptr };
+    ElidedLabel* m_status_label { nullptr };
+    QProgressBar* m_progress_bar { nullptr };
+    QPushButton* m_cancel_button { nullptr };
+};
+
+class DownloadsPopover final : public QFrame {
+public:
+    explicit DownloadsPopover(QWidget* parent)
+        : QFrame(parent, Qt::Popup | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint)
+    {
+        setObjectName("LadybirdDownloadsPopover");
+#if defined(AK_OS_MACOS)
+        setAttribute(Qt::WA_NativeWindow);
+#endif
+        setFrameShape(QFrame::StyledPanel);
+        setFrameShadow(QFrame::Raised);
+        setAutoFillBackground(true);
+        setFixedWidth(DOWNLOADS_POPOVER_WIDTH);
+
+        auto* layout = new QVBoxLayout(this);
+        layout->setContentsMargins(12, 10, 12, 12);
+        layout->setSpacing(8);
+
+        auto* title = new QLabel("Downloads", this);
+        title->setObjectName("LadybirdDownloadsPopoverTitle");
+        layout->addWidget(title);
+
+        m_empty_label = new QLabel("No downloads", this);
+        m_empty_label->setObjectName("LadybirdDownloadsEmpty");
+        m_empty_label->setAlignment(Qt::AlignCenter);
+        m_empty_label->setMinimumHeight(80);
+        layout->addWidget(m_empty_label);
+
+        m_scroll_area = new QScrollArea(this);
+        m_scroll_area->setObjectName("LadybirdDownloadsPopoverScroll");
+        m_scroll_area->setFrameShape(QFrame::NoFrame);
+        m_scroll_area->setWidgetResizable(true);
+        m_scroll_area->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        m_scroll_area->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+
+        m_rows_widget = new QWidget(m_scroll_area);
+        m_rows_widget->setObjectName("LadybirdDownloadsPopoverRows");
+        m_rows_widget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+        m_rows_layout = new QVBoxLayout(m_rows_widget);
+        m_rows_layout->setContentsMargins(0, 0, 0, 0);
+        m_rows_layout->setSpacing(6);
+        m_scroll_area->setWidget(m_rows_widget);
+        layout->addWidget(m_scroll_area);
+
+        auto* show_all_button = new QPushButton("Show All Downloads", this);
+        QObject::connect(show_all_button, &QPushButton::clicked, this, [this] {
+            if (on_open_all_downloads)
+                on_open_all_downloads();
+        });
+        layout->addWidget(show_all_button);
+    }
+
+    void update_chrome_style(QPalette const& palette)
+    {
+        setPalette(palette);
+        setStyleSheet(downloads_popover_style_sheet(palette));
+    }
+
+    bool set_downloads(ReadonlySpan<WebView::FileDownloader::Download> downloads)
+    {
+        bool geometry_changed = false;
+        Vector<WebView::FileDownloader::Download const*> visible_downloads;
+        visible_downloads.ensure_capacity(min(downloads.size(), DOWNLOADS_POPOVER_MAX_VISIBLE_DOWNLOADS));
+
+        for (size_t i = downloads.size(); i > 0 && visible_downloads.size() < DOWNLOADS_POPOVER_MAX_VISIBLE_DOWNLOADS; --i)
+            visible_downloads.append(&downloads[i - 1]);
+
+        if (!rows_match(visible_downloads)) {
+            rebuild_rows(visible_downloads);
+            geometry_changed = true;
+        } else {
+            for (size_t i = 0; i < visible_downloads.size(); ++i) {
+                if (m_download_rows[i]->update_download(*visible_downloads[i]))
+                    geometry_changed = true;
+            }
+        }
+
+        auto is_empty = visible_downloads.is_empty();
+        auto empty_label_is_visible = !m_empty_label->isHidden();
+        if (empty_label_is_visible != is_empty) {
+            m_empty_label->setVisible(is_empty);
+            geometry_changed = true;
+        }
+        auto scroll_area_is_visible = !m_scroll_area->isHidden();
+        if (scroll_area_is_visible == is_empty) {
+            m_scroll_area->setVisible(!is_empty);
+            geometry_changed = true;
+        }
+
+        return geometry_changed;
+    }
+
+    Function<void(u64)> on_cancel_download;
+    Function<void()> on_open_all_downloads;
+
+private:
+    bool rows_match(Vector<WebView::FileDownloader::Download const*> const& downloads) const
+    {
+        if (m_download_rows.size() != downloads.size())
+            return false;
+
+        for (size_t i = 0; i < downloads.size(); ++i) {
+            if (m_download_rows[i]->id() != downloads[i]->id)
+                return false;
+        }
+
+        return true;
+    }
+
+    void rebuild_rows(Vector<WebView::FileDownloader::Download const*> const& downloads)
+    {
+        clear_rows();
+        m_download_rows.ensure_capacity(downloads.size());
+
+        for (auto* download : downloads) {
+            auto* row = new DownloadRow(*download, m_rows_widget);
+            row->on_cancel_download = [this](u64 id) {
+                if (on_cancel_download)
+                    on_cancel_download(id);
+            };
+            m_rows_layout->addWidget(row);
+            m_download_rows.append(row);
+        }
+    }
+
+    void clear_rows()
+    {
+        while (auto* item = m_rows_layout->takeAt(0)) {
+            if (auto* widget = item->widget())
+                delete widget;
+            delete item;
+        }
+        m_download_rows.clear();
+    }
+
+    QLabel* m_empty_label { nullptr };
+    QScrollArea* m_scroll_area { nullptr };
+    QWidget* m_rows_widget { nullptr };
+    QVBoxLayout* m_rows_layout { nullptr };
+    Vector<DownloadRow*> m_download_rows;
+};
 
 Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client, size_t page_index)
     : QWidget(window)
@@ -372,12 +751,15 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_right_toggle_vertical_tabs_expanded_button = create_toolbar_button(*m_toolbar, *m_toggle_vertical_tabs_expanded_action);
     toolbar_layout->addWidget(m_right_toggle_vertical_tabs_expanded_button, 0, Qt::AlignTop);
     m_downloads_button = new DownloadsButton(m_toolbar);
-    m_downloads_button->setDefaultAction(m_open_downloads_page_action);
+    m_downloads_button->setText("Downloads");
     m_downloads_button->setAutoRaise(true);
     m_downloads_button->setFocusPolicy(Qt::NoFocus);
     m_downloads_button->setIconSize({ 20, 20 });
     m_downloads_button->setFixedSize(36, 36);
     m_downloads_button->setVisible(m_open_downloads_page_action->isVisible());
+    QObject::connect(m_downloads_button, &QToolButton::clicked, this, [this] {
+        show_downloads_popover();
+    });
     toolbar_layout->addWidget(m_downloads_button, 0, Qt::AlignTop);
     toolbar_layout->addWidget(m_hamburger_button, 0, Qt::AlignTop);
     if (use_right_custom_window_controls()) {
@@ -962,6 +1344,8 @@ void Tab::update_chrome_style()
     auto hover_text = ChromeStyle::style_sheet_color(ChromeStyle::chrome_text(palette()));
     m_hover_label->setStyleSheet(qformatted("background: {}; color: {}; border: 1px solid {}; border-radius: 6px;",
         hover_surface, hover_text, hover_border));
+    if (m_downloads_popover)
+        m_downloads_popover->update_chrome_style(palette());
     m_is_updating_chrome_style = false;
 }
 
@@ -1021,16 +1405,25 @@ void Tab::update_downloads_button()
     }
 
     m_downloads_button->setVisible(!downloads.is_empty());
-
-    auto downloads_icon = active_download_count > 0 ? ChromeIcon::DownloadActive : ChromeIcon::Download;
-    if (!m_downloads_button_icon.has_value() || *m_downloads_button_icon != downloads_icon) {
-        m_open_downloads_page_action->setIcon(create_chrome_icon(downloads_icon, palette()));
-        m_downloads_button_icon = downloads_icon;
+    if (downloads.is_empty()) {
+        static_cast<DownloadsButton*>(m_downloads_button)->set_progress({});
+        if (m_downloads_popover)
+            m_downloads_popover->close();
     }
 
     Optional<double> active_download_progress;
     if (known_total_size > 0.0)
         active_download_progress = known_downloaded_size / known_total_size;
+
+    auto downloads_icon = active_download_count > 0 && !active_download_progress.has_value() ? ChromeIcon::DownloadActive : ChromeIcon::Download;
+    if (!m_downloads_button_icon.has_value() || *m_downloads_button_icon != downloads_icon) {
+        auto icon = create_chrome_icon(downloads_icon, palette());
+        m_open_downloads_page_action->setIcon(icon);
+        m_downloads_button->setIcon(icon);
+        static_cast<DownloadsButton*>(m_downloads_button)->set_progress_icon(create_chrome_icon(ChromeIcon::DownloadActive, palette()));
+        m_downloads_button_icon = downloads_icon;
+    }
+
     static_cast<DownloadsButton*>(m_downloads_button)->set_progress(active_download_count > 0 ? active_download_progress : Optional<double> {});
 
     QString tooltip;
@@ -1060,19 +1453,91 @@ void Tab::update_downloads_button()
     }
 }
 
+void Tab::update_downloads_popover()
+{
+    if (!m_downloads_popover || !m_downloads_popover->isVisible())
+        return;
+
+    if (m_downloads_popover->set_downloads(WebView::Application::the().file_downloader().downloads()))
+        position_downloads_popover();
+}
+
+void Tab::show_downloads_popover()
+{
+    if (!m_downloads_button || !m_downloads_button->isVisible())
+        return;
+
+    if (!m_downloads_popover) {
+        m_downloads_popover = new DownloadsPopover(this);
+        m_downloads_popover->on_cancel_download = [this](u64 id) {
+            auto& file_downloader = WebView::Application::the().file_downloader();
+            if (auto download = file_downloader.download(id); download.has_value() && download->status == WebView::FileDownloader::DownloadStatus::InProgress)
+                file_downloader.cancel_download(id);
+            update_downloads_popover();
+        };
+        m_downloads_popover->on_open_all_downloads = [this] {
+            if (m_downloads_popover)
+                m_downloads_popover->close();
+            m_open_downloads_page_action->trigger();
+        };
+    }
+
+    m_downloads_popover->update_chrome_style(palette());
+    (void)m_downloads_popover->set_downloads(WebView::Application::the().file_downloader().downloads());
+    position_downloads_popover();
+    m_downloads_popover->show();
+    position_downloads_popover();
+    m_downloads_popover->raise();
+}
+
+void Tab::position_downloads_popover()
+{
+    if (!m_downloads_popover || !m_downloads_button)
+        return;
+
+    m_downloads_popover->adjustSize();
+    auto size = m_downloads_popover->sizeHint();
+    size.setWidth(DOWNLOADS_POPOVER_WIDTH);
+    if (size.height() > DOWNLOADS_POPOVER_MAX_HEIGHT)
+        size.setHeight(DOWNLOADS_POPOVER_MAX_HEIGHT);
+    m_downloads_popover->setFixedSize(size);
+
+    auto anchor_position = m_downloads_button->mapToGlobal(m_downloads_button->rect().bottomRight());
+    auto popup_position = QPoint(anchor_position.x() - m_downloads_popover->width(), anchor_position.y() + 4);
+
+    if (auto* screen = QGuiApplication::screenAt(anchor_position)) {
+        auto available_geometry = screen->availableGeometry();
+        if (popup_position.x() < available_geometry.left())
+            popup_position.setX(available_geometry.left());
+        if (popup_position.x() + m_downloads_popover->width() > available_geometry.right())
+            popup_position.setX(available_geometry.right() - m_downloads_popover->width() + 1);
+        if (popup_position.y() + m_downloads_popover->height() > available_geometry.bottom())
+            popup_position.setY(m_downloads_button->mapToGlobal(m_downloads_button->rect().topRight()).y() - m_downloads_popover->height() - 4);
+    }
+
+    m_downloads_popover->move(popup_position);
+}
+
 void Tab::download_added(WebView::FileDownloader::Download const&)
 {
     update_downloads_button();
+    if (Application::the().active_tab() == this && m_window->isActiveWindow()) {
+        show_downloads_popover();
+        return;
+    }
+    update_downloads_popover();
 }
 
 void Tab::download_updated(WebView::FileDownloader::Download const&)
 {
     update_downloads_button();
+    update_downloads_popover();
 }
 
 void Tab::download_removed(u64)
 {
     update_downloads_button();
+    update_downloads_popover();
 }
 
 void Tab::update_vertical_tabs_toolbar_button_placement()

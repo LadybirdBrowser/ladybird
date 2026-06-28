@@ -23,11 +23,11 @@
 #include <QWidget>
 
 class QTimer;
-
 namespace Ladybird {
 
 class BrowserWindow;
 enum class ChromeIcon;
+class DownloadsPopover;
 class WindowControlButton;
 
 class HyperlinkLabel final : public QLabel {
@@ -119,6 +119,9 @@ private:
     void update_chrome_style();
     void update_tab_title();
     void update_downloads_button();
+    void update_downloads_popover();
+    void show_downloads_popover();
+    void position_downloads_popover();
     void set_loading(bool);
     void update_tab_icon();
     int tab_index();
@@ -141,6 +144,7 @@ private:
     BookmarksBar* m_bookmarks_bar { nullptr };
     QToolButton* m_hamburger_button { nullptr };
     QToolButton* m_downloads_button { nullptr };
+    QPointer<DownloadsPopover> m_downloads_popover;
     LocationEdit* m_location_edit { nullptr };
     WebContentView* m_view { nullptr };
     FindInPageWidget* m_find_in_page { nullptr };
