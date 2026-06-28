@@ -30,7 +30,7 @@ not already exist!
 
 ### Will you have a built in ad blocker?
 
-We have a rudimentary built-in ad blocker, and we already have open issues about supporting uBlock via extensions.
+Ladybird supports user-configured content blocker lists, and we already have open issues about supporting uBlock via extensions.
 
 ## Is there a release roadmap?
 
