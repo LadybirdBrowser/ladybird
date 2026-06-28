@@ -5735,13 +5735,13 @@ RefPtr<FontSourceStyleValue const> Parser::parse_font_source_value(TokenStream<C
     return FontSourceStyleValue::create(url.release_value(), move(format), move(tech));
 }
 
-NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(ParsingParams const& context, DOM::AbstractElement abstract_element, PropertyNameAndID const& property, UnresolvedStyleValue const& unresolved, Optional<GuardedSubstitutionContexts&> existing_guarded_contexts)
+NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(ParsingParams const& context, DOM::AbstractElement abstract_element, ArbitrarySubstitutionReplacementContext const& replacement_context, PropertyNameAndID const& property, UnresolvedStyleValue const& unresolved, Optional<GuardedSubstitutionContexts&> existing_guarded_contexts)
 {
     auto parser = Parser::create(context, ""sv);
     if (existing_guarded_contexts.has_value())
-        return parser.resolve_unresolved_style_value(abstract_element, existing_guarded_contexts.value(), property, unresolved);
+        return parser.resolve_unresolved_style_value(abstract_element, existing_guarded_contexts.value(), replacement_context, property, unresolved);
     GuardedSubstitutionContexts guarded_contexts;
-    return parser.resolve_unresolved_style_value(abstract_element, guarded_contexts, property, unresolved);
+    return parser.resolve_unresolved_style_value(abstract_element, guarded_contexts, replacement_context, property, unresolved);
 }
 
 // If a component value sequence is a single CSS-wide keyword (inherit/initial/unset/revert/revert-layer),
@@ -5763,7 +5763,7 @@ static Optional<Keyword> single_css_wide_keyword(Vector<ComponentValue> const& v
 }
 
 // https://drafts.csswg.org/css-values-5/#property-replacement
-NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(DOM::AbstractElement element, GuardedSubstitutionContexts& guarded_contexts, PropertyNameAndID const& property, UnresolvedStyleValue const& unresolved)
+NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(DOM::AbstractElement element, GuardedSubstitutionContexts& guarded_contexts, ArbitrarySubstitutionReplacementContext const& replacement_context, PropertyNameAndID const& property, UnresolvedStyleValue const& unresolved)
 {
     // AD-HOC: Report that we might rely on custom properties.
     if (unresolved.includes_attr_function())
@@ -5779,9 +5779,6 @@ NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(DOM::Abst
 
     // 1. Substitute arbitrary substitution functions in prop’s value, given «"property", prop’s name» as the
     //    substitution context. Let result be the returned component value sequence.
-    auto replacement_context = ArbitrarySubstitutionReplacementContext {
-        .computed_style_for_custom_property_resolution = m_computed_style_for_custom_property_resolution,
-    };
     auto result = substitute_arbitrary_substitution_functions(element, guarded_contexts, replacement_context, unresolved.values(), SubstitutionContext { PropertySubstitutionContextDependency { property.name().to_utf16_string() } });
 
     // 2. If result contains the guaranteed-invalid value, prop is invalid at computed-value time; return.

@@ -520,6 +520,7 @@ class SyntaxNode;
 class Token;
 class Tokenizer;
 
+struct ArbitrarySubstitutionReplacementContext;
 struct AtRule;
 struct Declaration;
 struct Function;

@@ -922,7 +922,7 @@ void StyleComputer::apply_property_list_to_cascade(
             continue;
 
         if (property_value->is_unresolved())
-            property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { abstract_element.document() }, abstract_element, PropertyNameAndID::from_id(property.property_id), property_value->as_unresolved());
+            property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { abstract_element.document() }, abstract_element, {}, PropertyNameAndID::from_id(property.property_id), property_value->as_unresolved());
 
         if (property_value->is_guaranteed_invalid()) {
             // https://drafts.csswg.org/css-values-5/#invalid-at-computed-value-time
@@ -1033,7 +1033,7 @@ static Optional<CSS::EasingFunction> resolve_keyframe_easing(CSS::StyleValue con
 {
     RefPtr<CSS::StyleValue const> resolved = style_value;
     if (resolved->is_unresolved())
-        resolved = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { abstract_element.document() }, abstract_element, CSS::PropertyNameAndID::from_id(CSS::PropertyID::AnimationTimingFunction), resolved->as_unresolved());
+        resolved = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { abstract_element.document() }, abstract_element, {}, CSS::PropertyNameAndID::from_id(CSS::PropertyID::AnimationTimingFunction), resolved->as_unresolved());
     if (!resolved || resolved->is_guaranteed_invalid())
         return {};
     if (resolved->is_value_list()) {
@@ -1204,7 +1204,7 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
                 continue;
 
             if (style_value->is_unresolved())
-                style_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { abstract_element.document() }, abstract_element, PropertyNameAndID::from_id(property_id), style_value->as_unresolved());
+                style_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { abstract_element.document() }, abstract_element, {}, PropertyNameAndID::from_id(property_id), style_value->as_unresolved());
 
             // https://drafts.csswg.org/css-values-5/#invalid-at-computed-value-time
             // When substitution results in a guaranteed-invalid value, treat it as unset
@@ -3859,9 +3859,10 @@ static NonnullRefPtr<StyleValue const> compute_value_of_custom_property_impl(DOM
 
     if (resolved_value->is_unresolved() && resolved_value->as_unresolved().contains_arbitrary_substitution_function()) {
         auto& unresolved = resolved_value->as_unresolved();
-        auto parsing_params = Parser::ParsingParams { document };
-        parsing_params.computed_style_for_custom_property_resolution = computed_style_for_custom_property_resolution;
-        resolved_value = Parser::Parser::resolve_unresolved_style_value(parsing_params, abstract_element, PropertyNameAndID::from_name(name).release_value(), unresolved, guarded_contexts);
+        Parser::ArbitrarySubstitutionReplacementContext arbitrary_substitution_context {
+            .computed_style_for_custom_property_resolution = computed_style_for_custom_property_resolution,
+        };
+        resolved_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { document }, abstract_element, arbitrary_substitution_context, PropertyNameAndID::from_name(name).release_value(), unresolved, guarded_contexts);
 
         // A CSS-wide keyword produced by substitution takes on that keyword's meaning for the custom property,
         // exactly as a literally-specified one would (handled above before substitution).
