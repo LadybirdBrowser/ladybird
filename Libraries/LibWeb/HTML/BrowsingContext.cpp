@@ -501,7 +501,7 @@ bool BrowsingContext::is_familiar_with(BrowsingContext const& other) const
         return false;
 
     for (auto const& ancestor : B.active_document()->ancestor_navigables()) {
-        if (as<LocalNavigable>(*ancestor).active_document()->origin().is_same_origin(A.active_document()->origin()))
+        if (ancestor->active_document_origin()->is_same_origin(A.active_document()->origin()))
             return true;
     }
 
