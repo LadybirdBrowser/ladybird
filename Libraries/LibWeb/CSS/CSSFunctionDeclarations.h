@@ -21,7 +21,7 @@ public:
 
     virtual ~CSSFunctionDeclarations() override = default;
 
-    GC::Ref<CSSFunctionDescriptors> style() { return m_style; }
+    GC::Ref<CSSFunctionDescriptors> style() const { return m_style; }
 
 private:
     CSSFunctionDeclarations(JS::Realm&, GC::Ref<CSSFunctionDescriptors>);
