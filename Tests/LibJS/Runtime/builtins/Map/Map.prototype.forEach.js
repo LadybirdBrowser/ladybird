@@ -53,4 +53,19 @@ describe("normal behavior", () => {
             expect(map).toBe(a);
         });
     });
+
+    test("callback can clear map during iteration", () => {
+        const map = new Map([
+            ["a", 0],
+            ["b", 1],
+        ]);
+        const visited = [];
+
+        map.forEach((value, key) => {
+            visited.push([key, value]);
+            map.clear();
+        });
+
+        expect(visited).toEqual([["a", 0]]);
+    });
 });

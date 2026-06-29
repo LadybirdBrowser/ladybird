@@ -72,7 +72,7 @@ OrderedHashMap<FlyString, Vector<u32>> CSSFontFeatureValuesMap::to_ordered_hash_
 {
     OrderedHashMap<FlyString, Vector<u32>> result;
 
-    for (auto const& entry : *m_map_entries) {
+    for (auto entry : *m_map_entries) {
         auto key = MUST(entry.key.to_utf16_string(vm())).to_utf8_but_should_be_ported_to_utf16();
 
         auto const& array = as<JS::Array>(entry.value.as_object());

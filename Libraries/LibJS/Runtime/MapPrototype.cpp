@@ -110,7 +110,7 @@ JS_DEFINE_NATIVE_FUNCTION(MapPrototype::for_each)
     // 5. Let numEntries be the number of elements in entries.
     // 6. Let index be 0.
     // 7. Repeat, while index < numEntries,
-    for (auto& entry : *map) {
+    for (auto entry : *map) {
         // i. Let e be entries[index].
         // b. Set index to index + 1.
         // c. If e.[[Key]] is not empty, then

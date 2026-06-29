@@ -330,7 +330,7 @@ ErrorOr<void> print_map(JS::PrintContext& print_context, JS::Map const& map, GC:
     TRY(print_type(print_context, "Map"sv));
     TRY(js_out(print_context, " {{"));
     bool first = true;
-    for (auto const& entry : map) {
+    for (auto entry : map) {
         TRY(print_separator(print_context, first));
         TRY(print_value(print_context, entry.key, seen_objects));
         TRY(js_out(print_context, " => "));
