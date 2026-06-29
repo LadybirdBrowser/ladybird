@@ -999,7 +999,11 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::last_index_of)
     // 7. Else,
     else {
         //  a. Let k be len + n.
-        k = (double)length + n;
+        auto relative_k = static_cast<double>(length) + n;
+
+        // AD-HOC: A large negative fromIndex visits nothing. Clamp k to -1 rather than converting an
+        //         out-of-range value to a signed type.
+        k = relative_k < 0 ? -1 : static_cast<ssize_t>(relative_k);
     }
 
     // 8. Repeat, while k ≥ 0,

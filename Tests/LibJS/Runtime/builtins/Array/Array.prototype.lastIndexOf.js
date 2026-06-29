@@ -20,3 +20,7 @@ test("basic functionality", () => {
     expect([undefined].lastIndexOf()).toBe(0);
     expect([undefined, undefined, undefined].lastIndexOf()).toBe(2);
 });
+
+test("out-of-range fromIndex is not converted to an integer type", () => {
+    expect([1].lastIndexOf(1, -1e300)).toBe(-1);
+});
