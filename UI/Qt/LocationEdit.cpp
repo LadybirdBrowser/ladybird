@@ -446,6 +446,11 @@ void LocationEdit::changeEvent(QEvent* event)
 
 void LocationEdit::focusInEvent(QFocusEvent* event)
 {
+    if (event->reason() == Qt::PopupFocusReason) {
+        QLineEdit::focusInEvent(event);
+        return;
+    }
+
     auto should_defer_full_url = event->reason() == Qt::MouseFocusReason
         && m_url.has_value()
         && text() == display_url();
@@ -460,7 +465,7 @@ void LocationEdit::focusInEvent(QFocusEvent* event)
     highlight_location();
     animate_focus_glow(58);
 
-    if (event->reason() != Qt::PopupFocusReason && !should_defer_full_url) {
+    if (!should_defer_full_url) {
         QTimer::singleShot(0, this, [this] {
             if (hasFocus())
                 selectAll();
