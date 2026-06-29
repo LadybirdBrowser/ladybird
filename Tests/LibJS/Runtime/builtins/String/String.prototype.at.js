@@ -21,3 +21,8 @@ test("UTF-16", () => {
     expect(s.at(1)).toBe("\ude00");
     expect(s.at(2)).toBeUndefined();
 });
+
+test("out-of-range index is not converted to an integer type", () => {
+    expect("abc".at(1e300)).toBeUndefined();
+    expect("abc".at(-1e300)).toBeUndefined();
+});

@@ -240,24 +240,24 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::at)
     if (Value(relative_index).is_infinity())
         return js_undefined();
 
-    Checked<size_t> index { 0 };
+    double index;
     // 4. If relativeIndex ≥ 0, then
     if (relative_index >= 0) {
         // a. Let k be relativeIndex.
-        index += relative_index;
+        index = relative_index;
     }
     // 5. Else,
     else {
         // a. Let k be len + relativeIndex.
-        index += length;
-        index -= -relative_index;
+        index = length + relative_index;
     }
+
     // 6. If k < 0 or k ≥ len, return undefined.
-    if (index.has_overflow() || index.value() >= length)
+    if (index < 0 || index >= length)
         return js_undefined();
 
     // 7. Return ? Get(O, ! ToString(𝔽(k))).
-    return PrimitiveString::create(vm, *string, index.value(), 1);
+    return PrimitiveString::create(vm, *string, static_cast<size_t>(index), 1);
 }
 
 // 22.1.3.2 String.prototype.charAt ( pos ), https://tc39.es/ecma262/#sec-string.prototype.charat
