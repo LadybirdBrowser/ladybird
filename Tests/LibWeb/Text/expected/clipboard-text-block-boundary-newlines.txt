@@ -1,0 +1,3 @@
+adjacent blocks: "one\ntwo\nthree"
+single block: "only"
+br: "a\nb"
