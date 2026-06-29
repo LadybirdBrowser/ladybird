@@ -39,6 +39,11 @@ public:
     struct EndIterator {
     };
 
+    struct Entry {
+        Value key;
+        Value value;
+    };
+
     template<bool IsConst>
     struct IteratorImpl {
         bool is_end() const
@@ -53,16 +58,11 @@ public:
             return *this;
         }
 
-        decltype(auto) operator*()
+        Entry operator*() const
         {
             ensure_next_element();
-            return *m_map->m_entries.find(*m_map->m_keys.begin_from(m_index));
-        }
-
-        decltype(auto) operator*() const
-        {
-            ensure_next_element();
-            return *m_map->m_entries.find(*m_map->m_keys.begin_from(m_index));
+            auto const& entry = *m_map->m_entries.find(*m_map->m_keys.begin_from(m_index));
+            return { entry.key, entry.value };
         }
 
         bool operator==(IteratorImpl const& other) const { return m_index == other.m_index && &m_map == &other.m_map; }

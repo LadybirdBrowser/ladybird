@@ -508,7 +508,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::for_each)
     auto this_arg = vm.argument(1);
 
     // 6. For each key → value of map:
-    for (auto& [key, value] : *map) {{
+    for (auto [key, value] : *map) {{
         // 1. Let jsKey and jsValue be key and value converted to a JavaScript value.
         // 2. Perform ? Call(callbackFn, thisArg, « jsValue, jsKey, O »).
         TRY(JS::call(vm, callback.as_function(), this_arg, value, key, this_impl));
