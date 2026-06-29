@@ -323,6 +323,11 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::copy_within)
         // g. Set count to min(count, len - startIndex, len - targetIndex).
         count = min(count, min(length - start_index, length - target_index));
 
+        // NB: If a coercion side effect shrank the buffer, count may be non-positive. Return before attempting
+        //     conversion to an unsigned type.
+        if (count <= 0)
+            return typed_array;
+
         // h. Let elementSize be TypedArrayElementSize(O).
         auto element_size = typed_array->element_size();
 

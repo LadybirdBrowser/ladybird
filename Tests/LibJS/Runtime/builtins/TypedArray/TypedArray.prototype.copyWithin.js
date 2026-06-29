@@ -155,4 +155,23 @@ describe("normal behavior", () => {
             expect(typedArray).toEqual(new T([1, 2, 2]));
         });
     });
+
+    test("shrinking the buffer to a non-positive copy count during copyWithin is a no-op", () => {
+        TYPED_ARRAYS.forEach(T => {
+            let arrayBuffer = new ArrayBuffer(T.BYTES_PER_ELEMENT * 8, {
+                maxByteLength: T.BYTES_PER_ELEMENT * 8,
+            });
+
+            let typedArray = new T(arrayBuffer);
+            let start = {
+                valueOf() {
+                    arrayBuffer.resize(0);
+                    return 4;
+                },
+            };
+
+            expect(typedArray.copyWithin(0, start, 8)).toEqual(typedArray);
+            expect(typedArray.length).toBe(0);
+        });
+    });
 });
