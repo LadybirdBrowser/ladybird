@@ -27,6 +27,12 @@ extern OwnPtr<ResourceSubstitutionMap> g_resource_substitution_map;
 
 static long s_connect_timeout_seconds = 90L;
 
+Request::TransferredBodyFile::~TransferredBodyFile()
+{
+    if (fd != -1)
+        (void)Core::System::close(fd);
+}
+
 static void log_network_activity(URL::URL const& url, ByteString const& method, void* curl_easy_handle, int curl_result_code, bool is_revalidation, RequestType type)
 {
     if constexpr (!REQUESTSERVER_WIRE_DEBUG)
@@ -704,10 +710,20 @@ void Request::handle_read_cache_state()
     }
 
     auto file = body_file.release_value();
+    m_transferred_body_file.emplace();
+    m_transferred_body_file->fd = file.fd;
+    m_transferred_body_file->offset = file.offset;
+    m_transferred_body_file->size = file.size;
+
     m_bytes_transferred_to_client = file.size;
     m_curl_result_code = CURLE_OK;
 
-    m_client->async_request_body_file_available(m_request_id, IPC::File::adopt_fd(file.fd), file.offset, file.size);
+    if (send_transferred_body_file_to_client().is_error()) {
+        m_network_error = Requests::NetworkError::CacheReadFailed;
+        transition_to_state(State::Error);
+        return;
+    }
+
     m_cache_entry_reader.clear();
 
     transition_to_state(State::Complete);
@@ -1192,6 +1208,9 @@ ErrorOr<void> Request::transfer_to_client(ConnectionFromClient& client, u64 requ
     if (m_sent_response_headers_to_client)
         send_headers_to_client();
 
+    if (m_transferred_body_file.has_value())
+        TRY(send_transferred_body_file_to_client());
+
     if (was_complete) {
         if (m_state == State::Complete)
             m_client->async_request_finished(m_request_id, m_bytes_transferred_to_client, acquire_timing_info(), m_network_error);
@@ -1201,6 +1220,14 @@ ErrorOr<void> Request::transfer_to_client(ConnectionFromClient& client, u64 requ
         previous_client.async_request_transferred(previous_request_id);
     }
 
+    return {};
+}
+
+ErrorOr<void> Request::send_transferred_body_file_to_client()
+{
+    VERIFY(m_transferred_body_file.has_value());
+    auto fd = TRY(Core::System::dup(m_transferred_body_file->fd));
+    m_client->async_request_body_file_available(m_request_id, IPC::File::adopt_fd(fd), m_transferred_body_file->offset, m_transferred_body_file->size);
     return {};
 }
 

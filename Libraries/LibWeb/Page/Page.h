@@ -501,6 +501,12 @@ public:
         (void)initial_data;
         return {};
     }
+    virtual Optional<u64> page_did_start_download(URL::URL const&, ByteString const& suggested_filename, Optional<u64> total_size)
+    {
+        (void)suggested_filename;
+        (void)total_size;
+        return {};
+    }
     virtual void page_did_receive_download_data([[maybe_unused]] u64 download_id, [[maybe_unused]] ByteBuffer data) { }
     virtual void page_did_finish_download([[maybe_unused]] u64 download_id) { }
     virtual void page_did_fail_download([[maybe_unused]] u64 download_id, [[maybe_unused]] String const& error) { }
