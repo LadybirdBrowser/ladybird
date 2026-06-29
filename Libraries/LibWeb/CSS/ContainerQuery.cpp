@@ -276,13 +276,6 @@ static Optional<Keyword> single_css_wide_keyword(ReadonlySpan<Parser::ComponentV
     return {};
 }
 
-static NonnullRefPtr<StyleValue const> inherited_custom_property_value(DOM::AbstractElement const& element, Utf16FlyString const& name, DOM::Document const& document, Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts)
-{
-    if (auto parent = element.element_to_inherit_style_from(); parent.has_value())
-        return StyleComputer::compute_value_of_custom_property(parent.value(), name, guarded_contexts);
-    return document.custom_property_initial_value(name);
-}
-
 static ColorResolutionContext fallback_color_resolution_context_for_style_query(DOM::AbstractElement const& element, ComputationContext const& computation_context)
 {
     auto calculation_resolution_context = CalculationResolutionContext::from_computation_context(computation_context);
@@ -606,12 +599,12 @@ MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& con
             return as_match_result(style_values_are_equal(*comparable_computed_value, *initial_value));
         }
         case Keyword::Inherit: {
-            auto inherited_value = inherited_custom_property_value(element, property_name, document, guarded_contexts);
+            auto inherited_value = inherited_custom_property_value(element, property_name);
             return as_match_result(style_values_are_equal(*comparable_computed_value, *inherited_value));
         }
         case Keyword::Unset: {
             auto expected_value = !registration.has_value() || registration->inherit
-                ? inherited_custom_property_value(element, property_name, document, guarded_contexts)
+                ? inherited_custom_property_value(element, property_name)
                 : document.custom_property_initial_value(property_name);
             return as_match_result(style_values_are_equal(*comparable_computed_value, *expected_value));
         }

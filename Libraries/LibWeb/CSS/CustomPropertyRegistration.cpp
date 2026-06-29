@@ -46,4 +46,14 @@ NonnullRefPtr<StyleValue const> compute_registered_custom_property_initial_value
     return computed_initial_value;
 }
 
+NonnullRefPtr<StyleValue const> inherited_custom_property_value(DOM::AbstractElement abstract_element, Utf16FlyString const& name)
+{
+    if (auto element_to_inherit_style_from = abstract_element.element_to_inherit_style_from(); element_to_inherit_style_from.has_value()) {
+        if (auto parent_property = element_to_inherit_style_from->get_custom_property(name))
+            return parent_property.release_nonnull();
+    }
+
+    return abstract_element.document().custom_property_initial_value(name);
+}
+
 }

@@ -3812,20 +3812,6 @@ static bool matches_subject_pseudo_class_bucket(PseudoClass pseudo_class, DOM::E
     }
 }
 
-static NonnullRefPtr<StyleValue const> compute_inherited_custom_property_value(DOM::AbstractElement abstract_element, Utf16FlyString const& name, Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts)
-{
-    auto element_to_inherit_style_from = abstract_element.element_to_inherit_style_from();
-    if (!element_to_inherit_style_from.has_value())
-        return abstract_element.document().custom_property_initial_value(name);
-    auto parent_data = inheritable_custom_property_data(element_to_inherit_style_from.value());
-    if (parent_data) {
-        auto const* parent_property = parent_data->get(name);
-        if (parent_property)
-            return parent_property->value;
-    }
-    return StyleComputer::compute_value_of_custom_property(element_to_inherit_style_from.value(), name, guarded_contexts);
-}
-
 template<typename ComputeRegisteredValue>
 static NonnullRefPtr<StyleValue const> compute_value_of_custom_property_impl(DOM::AbstractElement abstract_element, Utf16FlyString const& name, Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts, ComputedProperties const* computed_style_for_custom_property_resolution, ComputeRegisteredValue compute_registered_value)
 {
@@ -3840,11 +3826,11 @@ static NonnullRefPtr<StyleValue const> compute_value_of_custom_property_impl(DOM
         return document.custom_property_initial_value(name);
 
     if (value->is_inherit())
-        return compute_inherited_custom_property_value(abstract_element, name, guarded_contexts);
+        return inherited_custom_property_value(abstract_element, name);
 
     // Unset is the same as inherit for inherited properties, and by default all unregistered custom properties inherit.
     if (value->is_unset())
-        return registration.has_value() && !registration->inherit ? document.custom_property_initial_value(name) : compute_inherited_custom_property_value(abstract_element, name, guarded_contexts);
+        return registration.has_value() && !registration->inherit ? document.custom_property_initial_value(name) : inherited_custom_property_value(abstract_element, name);
 
     if (value->is_revert()) {
         // FIXME: Implement reverting custom properties.
@@ -3869,9 +3855,9 @@ static NonnullRefPtr<StyleValue const> compute_value_of_custom_property_impl(DOM
         if (resolved_value->is_initial())
             return document.custom_property_initial_value(name);
         if (resolved_value->is_inherit())
-            return compute_inherited_custom_property_value(abstract_element, name, guarded_contexts);
+            return inherited_custom_property_value(abstract_element, name);
         if (resolved_value->is_unset())
-            return registration.has_value() && !registration->inherit ? document.custom_property_initial_value(name) : compute_inherited_custom_property_value(abstract_element, name, guarded_contexts);
+            return registration.has_value() && !registration->inherit ? document.custom_property_initial_value(name) : inherited_custom_property_value(abstract_element, name);
         // FIXME: Implement reverting custom properties for is_revert() / is_revert_layer().
     }
 
@@ -3893,7 +3879,7 @@ static NonnullRefPtr<StyleValue const> compute_value_of_custom_property_impl(DOM
             // Either the property’s inherited value or its initial value depending on whether the property is
             // inherited or not, respectively, as if the property’s value had been specified as the unset keyword.
             if (registration->inherit)
-                return compute_inherited_custom_property_value(abstract_element, name, guarded_contexts);
+                return inherited_custom_property_value(abstract_element, name);
             return abstract_element.document().custom_property_initial_value(name);
         }
     };
