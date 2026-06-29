@@ -74,3 +74,11 @@ test("basic functionality", () => {
         expect(typedArray.at(-Infinity)).toBeUndefined();
     });
 });
+
+test("out-of-range index is not converted to an integer type", () => {
+    TYPED_ARRAYS.forEach(T => {
+        const typedArray = new T(3);
+        expect(typedArray.at(1e21)).toBeUndefined();
+        expect(typedArray.at(-1e21)).toBeUndefined();
+    });
+});

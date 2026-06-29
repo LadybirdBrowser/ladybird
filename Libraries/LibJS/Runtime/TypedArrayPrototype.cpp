@@ -149,26 +149,25 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::at)
     if (Value { relative_index }.is_infinity())
         return js_undefined();
 
-    Checked<size_t> k_checked { 0 };
+    double k;
 
     // 5. If relativeIndex ≥ 0, then
     if (relative_index >= 0) {
         // a. Let k be relativeIndex.
-        k_checked += relative_index;
+        k = relative_index;
     }
     // 6. Else,
     else {
         // a. Let k be len + relativeIndex.
-        k_checked += length;
-        k_checked -= -relative_index;
+        k = length + relative_index;
     }
 
     // 7. If k < 0 or k ≥ len, return undefined.
-    if (k_checked.has_overflow() || k_checked.value() >= length)
+    if (k < 0 || k >= length)
         return js_undefined();
 
     // 8. Return ! Get(O, ! ToString(𝔽(k))).
-    return MUST(typed_array->get(k_checked.value()));
+    return MUST(typed_array->get(static_cast<size_t>(k)));
 }
 
 // 23.2.3.2 get %TypedArray%.prototype.buffer, https://tc39.es/ecma262/#sec-get-%typedarray%.prototype.buffer
