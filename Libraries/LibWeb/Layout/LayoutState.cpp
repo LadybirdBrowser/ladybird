@@ -15,6 +15,7 @@
 #include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Layout/LayoutState.h>
 #include <LibWeb/Layout/Viewport.h>
+#include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/Painting/SVGForeignObjectPaintable.h>
 #include <LibWeb/Painting/SVGGraphicsPaintable.h>
@@ -198,6 +199,21 @@ static PhysicalOverflowDirections physical_overflow_directions(Box const& box)
     };
 }
 
+static CSSPixelRect apply_css_transform_to_overflow_rect(Box const& box, CSSPixelRect const& rect)
+{
+    auto const& paintable_box = *box.paintable_box();
+    auto transform_data = Painting::compute_transform(paintable_box, box.computed_values(), 1.0);
+    if (!transform_data.has_value())
+        return rect;
+
+    auto affine = Gfx::extract_2d_affine_transform(transform_data->matrix);
+    auto transformed_rect = rect.to_type<float>();
+    transformed_rect.translate_by(-transform_data->origin);
+    transformed_rect = affine.map(transformed_rect);
+    transformed_rect.translate_by(transform_data->origin);
+    return transformed_rect.to_type<CSSPixels>();
+}
+
 static CSSPixelRect measure_scrollable_overflow(Box const& box, ContainedBoxesMap const& contained_boxes_map)
 {
     if (!box.paintable_box())
@@ -256,7 +272,8 @@ static CSSPixelRect measure_scrollable_overflow(Box const& box, ContainedBoxesMa
 
     // - The border boxes of all boxes for which it is the containing block and whose border boxes are positioned not
     //   wholly in the negative scrollable overflow region,
-    //   FIXME: accounting for transforms by projecting each box onto the plane of the element that establishes its 3D rendering context. [CSS3-TRANSFORMS]
+    //   FIXME: accounting for 3D transforms by projecting each box onto the plane of the element that establishes
+    //          its 3D rendering context. [CSS3-TRANSFORMS]
     if (auto it = contained_boxes_map.find(&box); it != contained_boxes_map.end()) {
         for (auto const* child_ptr : it->value) {
             auto const& child = *child_ptr;
@@ -268,7 +285,7 @@ static CSSPixelRect measure_scrollable_overflow(Box const& box, ContainedBoxesMa
             if (child.is_fixed_position())
                 continue;
 
-            auto child_border_box = child.paintable_box()->absolute_border_box_rect();
+            auto child_border_box = apply_css_transform_to_overflow_rect(child, child.paintable_box()->absolute_border_box_rect());
 
             // NOTE: Only boxes that are not wholly in the unreachable scrollable overflow region contribute.
             auto wholly_in_unreachable_x = overflow_directions.x_positive
@@ -296,7 +313,7 @@ static CSSPixelRect measure_scrollable_overflow(Box const& box, ContainedBoxesMa
                 continue;
 
             if (child.computed_values().overflow_x() == CSS::Overflow::Visible || child.computed_values().overflow_y() == CSS::Overflow::Visible) {
-                auto child_scrollable_overflow = measure_scrollable_overflow(child, contained_boxes_map);
+                auto child_scrollable_overflow = apply_css_transform_to_overflow_rect(child, measure_scrollable_overflow(child, contained_boxes_map));
                 if (!child_scrollable_overflow.is_empty()) {
                     if (child.computed_values().overflow_x() == CSS::Overflow::Visible) {
                         scrollable_overflow_rect.unite_horizontally(child_scrollable_overflow);

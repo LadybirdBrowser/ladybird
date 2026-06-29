@@ -22,8 +22,15 @@
 #include <LibWeb/Painting/ScrollFrame.h>
 #include <LibWeb/PixelUnits.h>
 
+namespace Web::CSS {
+
+class ComputedValues;
+
+}
+
 namespace Web::Painting {
 
+class PaintableBox;
 class ScrollStateSnapshot;
 
 AK_TYPEDEF_DISTINCT_ORDERED_ID(size_t, VisualContextIndex);
@@ -83,6 +90,8 @@ struct ScrollCompensation {
 };
 
 using VisualContextData = Variant<ScrollData, ClipData, TransformData, PerspectiveData, ClipPathData, EffectsData, ScrollCompensation>;
+
+Optional<TransformData> compute_transform(PaintableBox const&, CSS::ComputedValues const&, double pixel_ratio);
 
 struct AccumulatedVisualContextNode {
     VisualContextData data;
