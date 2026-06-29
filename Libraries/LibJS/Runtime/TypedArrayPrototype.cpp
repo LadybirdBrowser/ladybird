@@ -934,6 +934,10 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::includes)
     u32 k;
     // 9. If n ≥ 0, then
     if (n >= 0) {
+        // AD-HOC: A fromIndex at or beyond len matches nothing. Return before converting it to an unsigned type.
+        if (n >= length)
+            return Value { false };
+
         // a. Let k be n.
         k = n;
     }
