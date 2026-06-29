@@ -48,15 +48,10 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       PaintableBox (Box<DIV>.outer-grid) [10,10 402x202]
         PaintableBox (Box<DIV>.inner-grid) [11,11 200x200]
           PaintableWithLines (BlockContainer<DIV>.item) [12,12 99x99]
-            TextPaintable (TextNode<#text>)
           PaintableWithLines (BlockContainer<DIV>.item) [111,12 99x99]
-            TextPaintable (TextNode<#text>)
           PaintableWithLines (BlockContainer<DIV>.item) [12,111 99x99]
-            TextPaintable (TextNode<#text>)
           PaintableWithLines (BlockContainer<DIV>.item) [111,111 99x99]
-            TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.item) [211,11 200x200]
-          TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [10,212 780x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

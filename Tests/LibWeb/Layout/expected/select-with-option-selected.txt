@@ -20,7 +20,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       PaintableWithLines (BlockContainer<SELECT>) [8,8 99.109375x22]
         PaintableBox (Box<DIV>) [13,10 89.109375x18]
           PaintableWithLines (BlockContainer<DIV>) [13,10 69.109375x18]
-            TextPaintable (TextNode<#text>)
           PaintableWithLines (BlockContainer<DIV>) [86.109375,11 16x16]
             SVGSVGPaintable (SVGSVGBox<svg>) [86.109375,11 16x16]
               SVGPathPaintable (SVGGeometryBox<path>) [90.109375,16.71875 8x4.953125]

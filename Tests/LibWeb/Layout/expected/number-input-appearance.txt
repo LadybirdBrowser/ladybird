@@ -60,7 +60,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       PaintableWithLines (TextInputBox<INPUT>) [8,9 202x22]
         PaintableBox (Box<DIV>) [9,10 200x22]
           PaintableWithLines (BlockContainer<DIV>) [11,12 160x18]
-            TextPaintable (TextNode<#text>)
           PaintableWithLines (BlockContainer<BUTTON>) [171,11 18x20]
             PaintableWithLines (BlockContainer(anonymous)) [172,12 16x18]
               PaintableWithLines (BlockContainer(anonymous)) [172,12 16x18]
@@ -71,11 +70,9 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
               PaintableWithLines (BlockContainer(anonymous)) [190,12 16x18]
                 SVGSVGPaintable (SVGSVGBox<svg>) [190,12 16x16]
                   SVGPathPaintable (SVGGeometryBox<path>) [194,17.71875 8x4.953125]
-      TextPaintable (TextNode<#text>)
       PaintableWithLines (TextInputBox<INPUT>) [218,9 202x22]
         PaintableBox (Box<DIV>) [219,10 200x22]
           PaintableWithLines (BlockContainer<DIV>) [221,12 160x18]
-            TextPaintable (TextNode<#text>)
           PaintableWithLines (BlockContainer<BUTTON>) [381,11 18x20]
             PaintableWithLines (BlockContainer(anonymous)) [382,12 16x18]
               PaintableWithLines (BlockContainer(anonymous)) [382,12 16x18]
@@ -86,11 +83,9 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
               PaintableWithLines (BlockContainer(anonymous)) [400,12 16x18]
                 SVGSVGPaintable (SVGSVGBox<svg>) [400,12 16x16]
                   SVGPathPaintable (SVGGeometryBox<path>) [404,17.71875 8x4.953125]
-      TextPaintable (TextNode<#text>)
       PaintableWithLines (TextInputBox<INPUT>) [428,8 202x22]
         PaintableBox (Box<DIV>) [429,9 200x20]
           PaintableWithLines (BlockContainer<DIV>) [431,10 196x18]
-            TextPaintable (TextNode<#text>)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x40] (z-index: auto)

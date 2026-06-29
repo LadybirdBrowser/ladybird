@@ -72,31 +72,22 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableBox (Box<BODY>) [18,18 764x530]
       PaintableBox (Box<DIV>.outer.normal) [28,28 170x170]
         PaintableWithLines (BlockContainer<DIV>) [38,38 170x70]
-          TextPaintable (TextNode<#text>)
       PaintableBox (Box<DIV>.outer.stretch) [198,28 170x170]
         PaintableWithLines (BlockContainer<DIV>) [208,38 170x70]
-          TextPaintable (TextNode<#text>)
       PaintableBox (Box<DIV>.outer.start) [368,28 170x170]
         PaintableWithLines (BlockContainer<DIV>) [378,38 170x70]
-          TextPaintable (TextNode<#text>)
       PaintableBox (Box<DIV>.outer.flex-start) [538,28 170x170]
         PaintableWithLines (BlockContainer<DIV>) [548,38 170x70]
-          TextPaintable (TextNode<#text>)
       PaintableBox (Box<DIV>.outer.end) [28,198 170x170]
         PaintableWithLines (BlockContainer<DIV>) [38,288 170x70]
-          TextPaintable (TextNode<#text>)
       PaintableBox (Box<DIV>.outer.flex-end) [198,198 170x170]
         PaintableWithLines (BlockContainer<DIV>) [208,288 170x70]
-          TextPaintable (TextNode<#text>)
       PaintableBox (Box<DIV>.outer.center) [368,198 170x170]
         PaintableWithLines (BlockContainer<DIV>) [378,248 170x70]
-          TextPaintable (TextNode<#text>)
       PaintableBox (Box<DIV>.outer.self-start) [538,198 170x170]
         PaintableWithLines (BlockContainer<DIV>) [548,208 170x70]
-          TextPaintable (TextNode<#text>)
       PaintableBox (Box<DIV>.outer.self-end) [28,368 170x170]
         PaintableWithLines (BlockContainer<DIV>) [38,458 170x70]
-          TextPaintable (TextNode<#text>)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [10,10 780x546] (z-index: auto)

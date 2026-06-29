@@ -99,35 +99,23 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x1024]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x1008]
       PaintableBox (Box<DIV>.row) [8,8 252x252]
         PaintableWithLines (BlockContainer<DIV>.box) [9,157 102x102]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.box) [111,157 102x102]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.box) [9,32 102x102]
-          TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,260 784x0]
       PaintableBox (Box<DIV>.column) [8,260 252x252]
         PaintableWithLines (BlockContainer<DIV>.box) [157,261 102x102]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.box) [157,363 102x102]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.box) [32,261 102x102]
-          TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,512 784x0]
       PaintableBox (Box<DIV>.row.start) [8,512 252x252]
         PaintableWithLines (BlockContainer<DIV>.box) [9,638 102x102]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.box) [111,638 102x102]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.box) [9,513 102x102]
-          TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,764 784x0]
       PaintableBox (Box<DIV>.column.start) [8,764 252x252]
         PaintableWithLines (BlockContainer<DIV>.box) [134,765 102x102]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.box) [134,867 102x102]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.box) [9,765 102x102]
-          TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,1016 784x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

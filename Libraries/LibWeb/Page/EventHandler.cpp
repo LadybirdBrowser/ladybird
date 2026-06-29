@@ -37,6 +37,7 @@
 #include <LibWeb/HTML/Navigator.h>
 #include <LibWeb/HTML/PaintConfig.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
+#include <LibWeb/Layout/TextOffsetMapping.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/AutoScrollHandler.h>
 #include <LibWeb/Page/DragAndDropEventHandler.h>
@@ -48,7 +49,6 @@
 #include <LibWeb/Painting/HitTestDisplayList.h>
 #include <LibWeb/Painting/NavigableContainerViewportPaintable.h>
 #include <LibWeb/Painting/PaintableBox.h>
-#include <LibWeb/Painting/TextPaintable.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/EventNames.h>
@@ -103,6 +103,13 @@ static GC::Ptr<DOM::Node> dom_node_for_event_dispatch(Painting::Paintable& paint
     return nullptr;
 }
 
+static CSS::UserSelect user_select_used_value_for_caret_position(Painting::CaretPosition const& caret_position)
+{
+    if (auto* layout_node = caret_position.boundary.node->layout_node())
+        return layout_node->user_select_used_value();
+    return caret_position.paintable->layout_node().user_select_used_value();
+}
+
 static Optional<EventResult> dispatch_event_to_nested_navigable(Painting::Paintable& paintable, CSSPixelPoint viewport_position, Function<EventResult(EventHandler&, CSSPixelPoint)> dispatch)
 {
     auto node = dom_node_for_event_dispatch(paintable);
@@ -122,11 +129,12 @@ static Optional<EventResult> dispatch_event_to_nested_navigable(Painting::Painta
 
 static bool parent_element_for_event_dispatch(Painting::Paintable& paintable, GC::Ptr<DOM::Node>& node, Layout::Node*& layout_node)
 {
-    layout_node = &paintable.layout_node();
-    if (layout_node->is_generated_for_backdrop_pseudo_element()
-        || layout_node->is_generated_for_after_pseudo_element()
-        || layout_node->is_generated_for_before_pseudo_element()) {
-        node = layout_node->pseudo_element_generator();
+    auto* paintable_layout_node = &paintable.layout_node();
+    layout_node = node && node->layout_node() ? node->layout_node() : paintable_layout_node;
+    if (paintable_layout_node->is_generated_for_backdrop_pseudo_element()
+        || paintable_layout_node->is_generated_for_after_pseudo_element()
+        || paintable_layout_node->is_generated_for_before_pseudo_element()) {
+        node = paintable_layout_node->pseudo_element_generator();
         if (auto* generator_layout_node = node->layout_node())
             layout_node = generator_layout_node;
     }
@@ -179,9 +187,11 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
 
     RefPtr<Painting::Paintable> paintable;
     RefPtr<Painting::ChromeWidget> chrome_widget;
+    GC::Ptr<DOM::Node> node;
     if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value()) {
         paintable = result->paintable;
         chrome_widget = result->chrome_widget;
+        node = result->dom_node;
     } else {
         return EventResult::Dropped;
     }
@@ -190,7 +200,6 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
     // FIXME: Handle other values for pointer-events.
     VERIFY(pointer_events != CSS::PointerEvents::None);
 
-    auto node = dom_node_for_event_dispatch(*paintable);
     if (!node)
         return EventResult::Dropped;
 
@@ -328,11 +337,13 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
 
     RefPtr<Painting::Paintable> paintable;
     RefPtr<Painting::ChromeWidget> chrome_widget;
+    GC::Ptr<DOM::Node> node;
     Optional<int> start_index;
 
     if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value()) {
         paintable = result->paintable;
         chrome_widget = result->chrome_widget;
+        node = result->dom_node;
         start_index = result->index_in_node;
     }
 
@@ -341,8 +352,6 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
     };
 
     if (paintable) {
-        auto node = dom_node_for_event_dispatch(*paintable);
-
         if (!node)
             return EventResult::Dropped;
 
@@ -448,9 +457,11 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
 
     RefPtr<Painting::Paintable> paintable;
     RefPtr<Painting::ChromeWidget> chrome_widget;
+    GC::Ptr<DOM::Node> node;
     if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value()) {
         paintable = result->paintable;
         chrome_widget = result->chrome_widget;
+        node = result->dom_node;
     }
 
     auto click_count = m_mousedown_click_count;
@@ -475,7 +486,6 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
     if (pointer_events == CSS::PointerEvents::None)
         return EventResult::Cancelled;
 
-    auto node = dom_node_for_event_dispatch(*paintable);
     if (!node)
         return EventResult::Dropped;
 
@@ -798,9 +808,11 @@ void EventHandler::update_hover_after_scroll(CSSPixelPoint visual_viewport_posit
 
     RefPtr<Painting::Paintable> paintable;
     RefPtr<Painting::ChromeWidget> chrome_widget;
+    GC::Ptr<DOM::Node> node;
     if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value()) {
         paintable = result->paintable;
         chrome_widget = result->chrome_widget;
+        node = result->dom_node;
     }
 
     ArmedScopeGuard clear_hover = [&] {
@@ -812,7 +824,6 @@ void EventHandler::update_hover_after_scroll(CSSPixelPoint visual_viewport_posit
     if (!paintable)
         return;
 
-    auto node = dom_node_for_event_dispatch(*paintable);
     if (!node)
         return;
 
@@ -1156,12 +1167,14 @@ EventResult EventHandler::handle_drag_and_drop_event(DragEvent::Type type, CSSPi
         return EventResult::Dropped;
 
     RefPtr<Painting::Paintable> paintable;
-    if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value())
+    GC::Ptr<DOM::Node> node;
+    if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value()) {
         paintable = result->paintable;
-    else
+        node = result->dom_node;
+    } else {
         return EventResult::Dropped;
+    }
 
-    auto node = dom_node_for_event_dispatch(*paintable);
     if (!node)
         return EventResult::Dropped;
 
@@ -1530,7 +1543,7 @@ Optional<EventHandler::Target> EventHandler::target_for_mouse_position(CSSPixelP
         return {};
 
     if (auto result = document->hit_test(position, Painting::HitTestType::Exact); result.has_value())
-        return Target { .paintable = result->paintable.ptr(), .chrome_widget = result->chrome_widget, .index_in_node = result->index_in_node };
+        return Target { .paintable = result->paintable.ptr(), .chrome_widget = result->chrome_widget, .dom_node = result->dom_node(), .index_in_node = result->index_in_node };
     return {};
 }
 
@@ -1540,7 +1553,7 @@ GC::Ptr<DOM::Node> EventHandler::target_node_for_mouse_position(CSSPixelPoint po
     if (!target.has_value() || !target->paintable)
         return {};
 
-    return target->paintable->dom_node();
+    return target->dom_node;
 }
 
 GC::Ptr<DOM::Node> EventHandler::focus_candidate_for_position(CSSPixelPoint visual_viewport_position) const
@@ -1549,7 +1562,7 @@ GC::Ptr<DOM::Node> EventHandler::focus_candidate_for_position(CSSPixelPoint visu
     if (!exact_hit.has_value())
         return {};
 
-    auto focus_dom_node = exact_hit->paintable->dom_node();
+    auto focus_dom_node = exact_hit->dom_node();
 
     while (focus_dom_node && !focus_dom_node->is_focusable())
         focus_dom_node = focus_dom_node->parent_or_shadow_host();
@@ -1615,7 +1628,7 @@ void EventHandler::run_mousedown_default_actions(DOM::Document& document, CSSPix
     // https://drafts.csswg.org/css-ui/#valdef-user-select-none
     // Attempting to start a selection in an element where user-select is none, such as by clicking in it or starting a
     // drag in it, must not cause a pre-existing selection to become unselected or to be affected in any way.
-    auto user_select = caret_position->paintable->layout_node().user_select_used_value();
+    auto user_select = user_select_used_value_for_caret_position(*caret_position);
     if (user_select == CSS::UserSelect::None)
         return;
 
@@ -1974,14 +1987,15 @@ bool EventHandler::initiate_character_selection(DOM::Document& document, Paintin
 
 bool EventHandler::initiate_word_selection(DOM::Document& document, Painting::CaretPosition const& caret_position, CSS::UserSelect user_select)
 {
-    auto* hit_paintable = as_if<Painting::TextPaintable>(*caret_position.paintable);
-    if (!hit_paintable)
-        return false;
     if (!is<DOM::Text>(*caret_position.boundary.node))
         return false;
 
     auto& hit_node = as<DOM::Text>(*caret_position.boundary.node);
     auto hit_index = caret_position.boundary.offset;
+    Layout::TextOffsetMapping mapping { hit_node };
+    auto const* hit_layout_text_node = mapping.fragment_containing(hit_index);
+    if (!hit_layout_text_node)
+        return false;
 
     size_t previous_boundary = 0;
     size_t next_boundary = 0;
@@ -1990,7 +2004,7 @@ bool EventHandler::initiate_word_selection(DOM::Document& document, Painting::Ca
         next_boundary = hit_node.length_in_utf16_code_units();
     } else {
         auto& segmenter = word_segmenter();
-        segmenter.set_segmented_text(hit_paintable->layout_node().text_for_rendering());
+        segmenter.set_segmented_text(hit_layout_text_node->text_for_rendering());
 
         previous_boundary = segmenter.previous_boundary(hit_index, Unicode::Segmenter::Inclusive::Yes).value_or(0);
         next_boundary = segmenter.next_boundary(hit_index).value_or(hit_node.length());
@@ -2194,10 +2208,10 @@ void EventHandler::apply_mouse_selection(CSSPixelPoint visual_viewport_position)
             if (selection_anchor_node) {
                 if (&selection_anchor_node->root() == &focus_node->root()) {
                     auto selection_anchor_offset = anchor_offset.has_value() ? anchor_offset.value() : selection->anchor_offset();
-                    set_user_selection(*selection_anchor_node, selection_anchor_offset, *focus_node, focus_index, selection, caret_position->paintable->layout_node().user_select_used_value());
+                    set_user_selection(*selection_anchor_node, selection_anchor_offset, *focus_node, focus_index, selection, user_select_used_value_for_caret_position(*caret_position));
                 }
             } else {
-                set_user_selection(*focus_node, focus_index, *focus_node, focus_index, selection, caret_position->paintable->layout_node().user_select_used_value());
+                set_user_selection(*focus_node, focus_index, *focus_node, focus_index, selection, user_select_used_value_for_caret_position(*caret_position));
             }
 
             document.set_needs_repaint(Badge<EventHandler> {});

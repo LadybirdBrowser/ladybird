@@ -32,13 +32,10 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
         SVGSVGPaintable (SVGSVGBox<svg>) [8,8 302x152]
           SVGGraphicsPaintable (SVGGraphicsBox<a>) [33.765625,32.4375 188.71875x60.15625]
             SVGPathPaintable (SVGTextBox<text>) [33.765625,32.4375 188.71875x60.15625]
-        TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<math>) [318,123 104x112]
           PaintableWithLines (BlockContainer<a>) [319,124 102x102]
-            TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer<DIV>) [8,235 784x48]
         PaintableWithLines (InlineNode<A>) [9,235 101.484375x48]
-          TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,283 784x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

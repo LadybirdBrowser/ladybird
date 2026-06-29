@@ -79,31 +79,18 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
         PaintableWithLines (BlockContainer(anonymous)) [48,16 744x0]
         PaintableWithLines (ListItemBox<LI>.number) [48,16 744x18]
           PaintableWithLines (InlineNode(anonymous)) [48,16 10.125x18]
-            TextPaintable (GeneratedTextNode(anonymous))
-            TextPaintable (GeneratedTextNode(anonymous))
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [48,34 744x0]
         PaintableWithLines (ListItemBox<LI>.bullet) [48,34 744x18]
           PaintableWithLines (InlineNode(anonymous)) [48,34 13.84375x18]
-            TextPaintable (GeneratedTextNode(anonymous))
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [48,52 744x0]
         PaintableWithLines (ListItemBox<LI>.number) [48,52 744x18]
           PaintableWithLines (InlineNode(anonymous)) [48,52 12.875x18]
-            TextPaintable (GeneratedTextNode(anonymous))
-            TextPaintable (GeneratedTextNode(anonymous))
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [48,70 744x0]
         PaintableWithLines (ListItemBox<LI>.bullet) [48,70 744x18]
           PaintableWithLines (InlineNode(anonymous)) [48,70 13.84375x18]
-            TextPaintable (GeneratedTextNode(anonymous))
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [48,88 744x0]
         PaintableWithLines (ListItemBox<LI>.number) [48,88 744x18]
           PaintableWithLines (InlineNode(anonymous)) [48,88 12.234375x18]
-            TextPaintable (GeneratedTextNode(anonymous))
-            TextPaintable (GeneratedTextNode(anonymous))
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [48,106 744x0]
       PaintableWithLines (BlockContainer(anonymous)) [8,122 784x0]
 

@@ -27,12 +27,10 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x28]
       PaintableBox (Box<DIV>.flex) [8,8 784x28]
         PaintableWithLines (BlockContainer(anonymous)) [8,8 24.171875x28]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<FOO-A>) [32.171875,8 58.15625x28]
           PaintableBox (Box<FOO-B>) [32.171875,8 58.15625x28]
             PaintableWithLines (BlockContainer(anonymous)) [37.171875,13 48.15625x18]
               PaintableWithLines (InlineNode(anonymous)) [37.171875,13 48.15625x18]
-                TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,36 784x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

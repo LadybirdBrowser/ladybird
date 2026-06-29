@@ -13,4 +13,3 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x602]
     PaintableWithLines (BlockContainer<BODY>) [9,9 782x23.46875]
       PaintableBox (Box<DIV>.grid-container) [10,10 780x21.46875]
         PaintableWithLines (BlockContainer<DIV>.grid-item) [11,11 45.640625x19.46875] overflow: [12,12 87.28125x17.46875]
-          TextPaintable (TextNode<#text>)

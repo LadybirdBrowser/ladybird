@@ -53,22 +53,18 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
         PaintableWithLines (BlockContainer(anonymous)) [48,16 744x0]
         PaintableWithLines (ListItemBox<LI>) [48,16 744x18]
           MarkerPaintable (ListItemMarkerBox(anonymous)) [34,22 6x6]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [48,34 744x0]
         PaintableWithLines (ListItemBox<LI>) [48,34 744x18]
           MarkerPaintable (ListItemMarkerBox(anonymous)) [34,40 6x6]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [48,52 744x0]
       PaintableWithLines (BlockContainer(anonymous)) [8,68 784x0]
       PaintableWithLines (BlockContainer<UL>.B) [8,68 784x36]
         PaintableWithLines (BlockContainer(anonymous)) [48,68 744x0]
         PaintableWithLines (ListItemBox<LI>) [48,68 744x18]
           MarkerPaintable (ListItemMarkerBox(anonymous)) [41,71 3x3]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [48,86 744x0]
         PaintableWithLines (ListItemBox<LI>) [48,86 744x18]
           MarkerPaintable (ListItemMarkerBox(anonymous)) [41,89 3x3]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [48,104 744x0]
       PaintableWithLines (BlockContainer(anonymous)) [8,120 784x0]
 

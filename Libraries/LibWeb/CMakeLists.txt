@@ -911,7 +911,6 @@ set(SOURCES
     Painting/SVGPathPaintable.cpp
     Painting/SVGSVGPaintable.cpp
     Painting/TableBordersPainting.cpp
-    Painting/TextPaintable.cpp
     Painting/VideoPaintable.cpp
     Painting/ViewportPaintable.cpp
     PerformanceTimeline/EntryTypes.cpp

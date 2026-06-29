@@ -60,13 +60,9 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       PaintableWithLines (BlockContainer(anonymous)) [8,8 784x0]
       PaintableBox (Box<SECTION>#page) [8,8 784x200]
         PaintableWithLines (BlockContainer<HEADER>) [8,8 784x30]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<NAV>) [8,38 120x170]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<MAIN>) [128,38 664x140]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<FOOTER>) [128,178 664x30]
-          TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,208 784x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

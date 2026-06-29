@@ -2730,6 +2730,10 @@ void Node::clear_paintable()
 void Node::set_needs_repaint(InvalidateDisplayList should_invalidate_display_list)
 {
     if (auto* layout_node = unsafe_layout_node()) {
+        if (auto* text_node = as_if<Layout::TextNode>(*layout_node)) {
+            text_node->set_needs_repaint(should_invalidate_display_list);
+            return;
+        }
         for (auto& paintable : layout_node->paintables())
             paintable->set_needs_repaint(should_invalidate_display_list);
     }

@@ -27,13 +27,10 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x0]
       PaintableWithLines (BlockContainer<DIV>.a) [8,8 32x32]
         PaintableWithLines (BlockContainer<DIV>.b) [8,8 32x32]
-          TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer<DIV>.a) [40,8 32.3125x40]
         PaintableWithLines (BlockContainer<SPAN>.ib.c) [40,8 32.3125x40]
-          TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer<DIV>.a) [72.3125,8 33.140625x40]
         PaintableWithLines (BlockContainer<SPAN>.ib.d) [72.3125,8 33.140625x40]
-          TextPaintable (TextNode<#text>)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x48] (z-index: auto)

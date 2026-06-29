@@ -70,35 +70,27 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
         PaintableWithLines (BlockContainer(anonymous)) [48,16 744x0]
         PaintableWithLines (ListItemBox<LI>) [48,16 744x18]
           MarkerPaintable (ListItemMarkerBox(anonymous)) [29,17 18.6875x16]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [48,34 744x0]
         PaintableWithLines (ListItemBox<LI>) [48,34 744x18]
           MarkerPaintable (ListItemMarkerBox(anonymous)) [18,35 29.96875x16]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [48,52 744x0]
         PaintableWithLines (ListItemBox<DIV>) [48,52 744x18]
           MarkerPaintable (ListItemMarkerBox(anonymous)) [18,53 30.25x16]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [48,70 744x0]
         PaintableWithLines (ListItemBox<LI>) [48,70 744x18]
           MarkerPaintable (ListItemMarkerBox(anonymous)) [19,71 28.90625x16]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [48,88 744x0]
         PaintableWithLines (ListItemBox<P>) [48,104 744x18]
           MarkerPaintable (ListItemMarkerBox(anonymous)) [18,105 29.609375x16]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [48,138 744x0]
         PaintableWithLines (ListItemBox<LI>) [48,138 744x18]
           MarkerPaintable (ListItemMarkerBox(anonymous)) [18,139 29.890625x16]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [48,156 744x0]
         PaintableWithLines (ListItemBox<SPAN>) [48,156 744x18]
           MarkerPaintable (ListItemMarkerBox(anonymous)) [18,157 29.875x16]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [48,174 744x0]
         PaintableWithLines (ListItemBox<LI>) [48,174 744x18]
           MarkerPaintable (ListItemMarkerBox(anonymous)) [17,175 30.640625x16]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [48,192 744x0]
       PaintableWithLines (BlockContainer(anonymous)) [8,208 784x0]
 

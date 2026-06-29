@@ -1041,7 +1041,6 @@ class PaintableBox;
 class PaintableWithLines;
 class ScrollStateSnapshot;
 class StackingContext;
-class TextPaintable;
 class VideoPaintable;
 class ViewportPaintable;
 

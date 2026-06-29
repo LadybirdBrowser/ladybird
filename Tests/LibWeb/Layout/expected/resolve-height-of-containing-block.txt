@@ -35,7 +35,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 1288x824]
           PaintableWithLines (BlockContainer(anonymous)) [8,16 1280x0]
             ImagePaintable (ImageBox<IMG>) [488,16 800x400]
           PaintableWithLines (BlockContainer<P>) [8,16 1280x18]
-            TextPaintable (TextNode<#text>)
           PaintableWithLines (BlockContainer(anonymous)) [8,50 1280x0]
         PaintableWithLines (BlockContainer(anonymous)) [8,416 1280x0]
       PaintableWithLines (BlockContainer(anonymous)) [8,816 784x0]

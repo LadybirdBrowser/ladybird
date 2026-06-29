@@ -321,9 +321,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
             PaintableBox (Box(anonymous)) [0,270 256x24]
               PaintableWithLines (BlockContainer<DIV>.cell) [0,270 256x24]
                 PaintableWithLines (BlockContainer<SPAN>.segment) [0,270 80x20]
-                TextPaintable (TextNode<#text>)
                 PaintableWithLines (BlockContainer<SPAN>.segment) [88,270 80x20]
-                TextPaintable (TextNode<#text>)
                 PaintableWithLines (BlockContainer<SPAN>.segment) [176,270 80x20]
       PaintableWithLines (BlockContainer(anonymous)) [0,294 800x0]
       PaintableBox (Box<DIV>.grid.wide-grid.stretch) [0,294 300x60]
@@ -351,9 +349,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
             PaintableBox (Box(anonymous)) [0,414 260x24]
               PaintableWithLines (BlockContainer<DIV>.cell) [0,414 260x24]
                 PaintableWithLines (BlockContainer<SPAN>.segment) [0,414 80x20]
-                TextPaintable (TextNode<#text>)
                 PaintableWithLines (BlockContainer<SPAN>.segment) [88,414 80x20]
-                TextPaintable (TextNode<#text>)
                 PaintableWithLines (BlockContainer<SPAN>.segment) [176,414 80x20]
       PaintableWithLines (BlockContainer(anonymous)) [0,438 800x0]
       PaintableBox (Box<DIV>.grid.stretch) [0,438 100x20]

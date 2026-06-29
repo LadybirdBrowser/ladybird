@@ -24,9 +24,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x260]
       PaintableWithLines (BlockContainer<FORM>) [8,8 784x260]
         ImagePaintable (ImageBox<INPUT>) [8,216 48x48]
-        TextPaintable (TextNode<#text>)
         ImagePaintable (ImageBox<INPUT>) [64,200 64x64]
-        TextPaintable (TextNode<#text>)
         ImagePaintable (ImageBox<INPUT>) [136,8 128x256]
       PaintableWithLines (BlockContainer(anonymous)) [8,268 784x0]
 

@@ -20,10 +20,8 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       PaintableWithLines (BlockContainer(anonymous)) [8,8 784x0]
       PaintableWithLines (ListItemBox<LI>) [8,8 784x18]
         MarkerPaintable (ListItemMarkerBox(anonymous)) [-6,14 6x6]
-        TextPaintable (TextNode<#text>)
       PaintableWithLines (ListItemBox<LI>) [8,26 784x18]
         MarkerPaintable (ListItemMarkerBox(anonymous)) [-6,32 6x6]
-        TextPaintable (TextNode<#text>)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x52] (z-index: auto)

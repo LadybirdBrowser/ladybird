@@ -64,29 +64,21 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
             PaintableWithLines (BlockContainer<BUTTON>) [8,8 104.375x22]
               PaintableWithLines (BlockContainer(anonymous)) [13,10 94.375x18]
                 PaintableWithLines (BlockContainer(anonymous)) [13,10 94.375x18]
-                  TextPaintable (TextNode<#text>)
             PaintableWithLines (InlineNode<LABEL>) [112.375,10 132.28125x18]
-              TextPaintable (TextNode<#text>)
-      TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer<INPUT>) [252.65625,8 255.34375x26]
         PaintableWithLines (BlockContainer(anonymous)) [252.65625,8 255.34375x26]
           PaintableWithLines (BlockContainer(anonymous)) [252.65625,8 255.34375x26]
             PaintableWithLines (BlockContainer<BUTTON>) [252.65625,8 113.71875x22]
               PaintableWithLines (BlockContainer(anonymous)) [257.65625,10 103.71875x18]
                 PaintableWithLines (BlockContainer(anonymous)) [257.65625,10 103.71875x18]
-                  TextPaintable (TextNode<#text>)
             PaintableWithLines (InlineNode<LABEL>) [366.375,10 141.625x18]
-              TextPaintable (TextNode<#text>)
-      TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer<INPUT>#multiple) [516,8 255.34375x26]
         PaintableWithLines (BlockContainer(anonymous)) [516,8 255.34375x26]
           PaintableWithLines (BlockContainer(anonymous)) [516,8 255.34375x26]
             PaintableWithLines (BlockContainer<BUTTON>) [516,8 113.71875x22]
               PaintableWithLines (BlockContainer(anonymous)) [521,10 103.71875x18]
                 PaintableWithLines (BlockContainer(anonymous)) [521,10 103.71875x18]
-                  TextPaintable (TextNode<#text>)
             PaintableWithLines (InlineNode<LABEL>) [629.71875,10 141.625x18]
-              TextPaintable (TextNode<#text>)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x42] (z-index: auto)

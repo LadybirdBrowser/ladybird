@@ -19,9 +19,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x140]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x124]
       ImagePaintable (ImageBox<IMG>.min) [8,8 120x120]
-      TextPaintable (TextNode<#text>)
       ImagePaintable (ImageBox<IMG>.max) [136,8 120x120]
-      TextPaintable (TextNode<#text>)
       ImagePaintable (ImageBox<IMG>.fit) [264,8 120x120]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

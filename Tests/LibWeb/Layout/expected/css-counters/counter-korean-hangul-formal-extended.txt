@@ -191,107 +191,81 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x468]
       PaintableWithLines (BlockContainer<DIV>) [8,8 784x18]
         PaintableWithLines (InlineNode(anonymous)) [8,8 11.6875x18]
-          TextPaintable (GeneratedTextNode(anonymous))
       PaintableWithLines (BlockContainer(anonymous)) [8,26 784x0]
       PaintableWithLines (BlockContainer<DIV>) [8,26 784x18]
         PaintableWithLines (InlineNode(anonymous)) [8,26 11.6875x18]
-          TextPaintable (GeneratedTextNode(anonymous))
       PaintableWithLines (BlockContainer(anonymous)) [8,44 784x0]
       PaintableWithLines (BlockContainer<DIV>) [8,44 784x18]
         PaintableWithLines (InlineNode(anonymous)) [8,44 11.6875x18]
-          TextPaintable (GeneratedTextNode(anonymous))
       PaintableWithLines (BlockContainer(anonymous)) [8,62 784x0]
       PaintableWithLines (BlockContainer<DIV>) [8,62 784x18]
         PaintableWithLines (InlineNode(anonymous)) [8,62 60.59375x18]
-          TextPaintable (GeneratedTextNode(anonymous))
       PaintableWithLines (BlockContainer(anonymous)) [8,80 784x0]
       PaintableWithLines (BlockContainer<DIV>) [8,80 784x18]
         PaintableWithLines (InlineNode(anonymous)) [8,80 60.59375x18]
-          TextPaintable (GeneratedTextNode(anonymous))
       PaintableWithLines (BlockContainer(anonymous)) [8,98 784x0]
       PaintableWithLines (BlockContainer<DIV>) [8,98 784x18]
         PaintableWithLines (InlineNode(anonymous)) [8,98 25.53125x18]
-          TextPaintable (GeneratedTextNode(anonymous))
       PaintableWithLines (BlockContainer(anonymous)) [8,116 784x0]
       PaintableWithLines (BlockContainer<DIV>) [8,116 784x18]
         PaintableWithLines (InlineNode(anonymous)) [8,116 31.375x18]
-          TextPaintable (GeneratedTextNode(anonymous))
       PaintableWithLines (BlockContainer(anonymous)) [8,134 784x0]
       PaintableWithLines (BlockContainer<DIV>) [8,134 784x18]
         PaintableWithLines (InlineNode(anonymous)) [8,134 31.375x18]
-          TextPaintable (GeneratedTextNode(anonymous))
       PaintableWithLines (BlockContainer(anonymous)) [8,152 784x0]
       PaintableWithLines (BlockContainer<DIV>) [8,152 784x18]
         PaintableWithLines (InlineNode(anonymous)) [8,152 31.375x18]
-          TextPaintable (GeneratedTextNode(anonymous))
       PaintableWithLines (BlockContainer(anonymous)) [8,170 784x0]
       PaintableWithLines (BlockContainer<DIV>) [8,170 784x18]
         PaintableWithLines (InlineNode(anonymous)) [8,170 11.6875x18]
-          TextPaintable (GeneratedTextNode(anonymous))
       PaintableWithLines (BlockContainer(anonymous)) [8,188 784x0]
       PaintableWithLines (BlockContainer<DIV>) [8,188 784x18]
         PaintableWithLines (InlineNode(anonymous)) [8,188 11.6875x18]
-          TextPaintable (GeneratedTextNode(anonymous))
       PaintableWithLines (BlockContainer(anonymous)) [8,206 784x0]
       PaintableWithLines (BlockContainer<DIV>) [8,206 784x18]
         PaintableWithLines (InlineNode(anonymous)) [8,206 11.6875x18]
-          TextPaintable (GeneratedTextNode(anonymous))
       PaintableWithLines (BlockContainer(anonymous)) [8,224 784x0]
       PaintableWithLines (BlockContainer<DIV>) [8,224 784x18]
         PaintableWithLines (InlineNode(anonymous)) [8,224 115.34375x18]
-          TextPaintable (GeneratedTextNode(anonymous))
       PaintableWithLines (BlockContainer(anonymous)) [8,242 784x0]
       PaintableWithLines (BlockContainer<DIV>) [8,242 784x18]
         PaintableWithLines (InlineNode(anonymous)) [8,242 115.34375x18]
-          TextPaintable (GeneratedTextNode(anonymous))
       PaintableWithLines (BlockContainer(anonymous)) [8,260 784x0]
       PaintableWithLines (BlockContainer<DIV>) [8,260 784x18]
         PaintableWithLines (InlineNode(anonymous)) [8,260 25.53125x18]
-          TextPaintable (GeneratedTextNode(anonymous))
       PaintableWithLines (BlockContainer(anonymous)) [8,278 784x0]
       PaintableWithLines (BlockContainer<DIV>) [8,278 784x18]
         PaintableWithLines (InlineNode(anonymous)) [8,278 31.375x18]
-          TextPaintable (GeneratedTextNode(anonymous))
       PaintableWithLines (BlockContainer(anonymous)) [8,296 784x0]
       PaintableWithLines (BlockContainer<DIV>) [8,296 784x18]
         PaintableWithLines (InlineNode(anonymous)) [8,296 37.21875x18]
-          TextPaintable (GeneratedTextNode(anonymous))
       PaintableWithLines (BlockContainer(anonymous)) [8,314 784x0]
       PaintableWithLines (BlockContainer<DIV>) [8,314 784x18]
         PaintableWithLines (InlineNode(anonymous)) [8,314 37.21875x18]
-          TextPaintable (GeneratedTextNode(anonymous))
       PaintableWithLines (BlockContainer(anonymous)) [8,332 784x0]
       PaintableWithLines (BlockContainer<DIV>) [8,332 784x18]
         PaintableWithLines (InlineNode(anonymous)) [8,332 37.21875x18]
-          TextPaintable (GeneratedTextNode(anonymous))
       PaintableWithLines (BlockContainer(anonymous)) [8,350 784x0]
       PaintableWithLines (BlockContainer<DIV>) [8,350 784x18]
         PaintableWithLines (InlineNode(anonymous)) [8,350 17.53125x18]
-          TextPaintable (GeneratedTextNode(anonymous))
       PaintableWithLines (BlockContainer(anonymous)) [8,368 784x0]
       PaintableWithLines (BlockContainer<DIV>) [8,368 784x18]
         PaintableWithLines (InlineNode(anonymous)) [8,368 17.53125x18]
-          TextPaintable (GeneratedTextNode(anonymous))
       PaintableWithLines (BlockContainer(anonymous)) [8,386 784x0]
       PaintableWithLines (BlockContainer<DIV>) [8,386 784x18]
         PaintableWithLines (InlineNode(anonymous)) [8,386 11.6875x18]
-          TextPaintable (GeneratedTextNode(anonymous))
       PaintableWithLines (BlockContainer(anonymous)) [8,404 784x0]
       PaintableWithLines (BlockContainer<DIV>) [8,404 784x18]
         PaintableWithLines (InlineNode(anonymous)) [8,404 43.0625x18]
-          TextPaintable (GeneratedTextNode(anonymous))
       PaintableWithLines (BlockContainer(anonymous)) [8,422 784x0]
       PaintableWithLines (BlockContainer<DIV>) [8,422 784x18]
         PaintableWithLines (InlineNode(anonymous)) [8,422 43.0625x18]
-          TextPaintable (GeneratedTextNode(anonymous))
       PaintableWithLines (BlockContainer(anonymous)) [8,440 784x0]
       PaintableWithLines (BlockContainer<DIV>) [8,440 784x18]
         PaintableWithLines (InlineNode(anonymous)) [8,440 158.40625x18]
-          TextPaintable (GeneratedTextNode(anonymous))
       PaintableWithLines (BlockContainer(anonymous)) [8,458 784x0]
       PaintableWithLines (BlockContainer<DIV>) [8,458 784x18]
         PaintableWithLines (InlineNode(anonymous)) [8,458 37.21875x18]
-          TextPaintable (GeneratedTextNode(anonymous))
       PaintableWithLines (BlockContainer(anonymous)) [8,476 784x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

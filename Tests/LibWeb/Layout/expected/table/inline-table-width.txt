@@ -34,14 +34,10 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
             PaintableBox (Box<TBODY>) [11,11 131.984375x42]
               PaintableBox (Box<TR>) [11,11 131.984375x20]
                 PaintableWithLines (BlockContainer<TD>) [11,11 89.90625x20]
-                  TextPaintable (TextNode<#text>)
                 PaintableWithLines (BlockContainer<TD>) [102.90625,11 40.078125x20]
-                  TextPaintable (TextNode<#text>)
               PaintableBox (Box<TR>) [11,33 131.984375x20]
                 PaintableWithLines (BlockContainer<TD>) [11,33 89.90625x20]
-                  TextPaintable (TextNode<#text>)
                 PaintableWithLines (BlockContainer<TD>) [102.90625,33 40.078125x20]
-                  TextPaintable (TextNode<#text>)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x64] (z-index: auto)

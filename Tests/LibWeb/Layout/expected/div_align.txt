@@ -89,22 +89,18 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x640]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x612]
       PaintableWithLines (BlockContainer<DIV>) [8,8 784x138]
         PaintableWithLines (BlockContainer(anonymous)) [8,8 784x18]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.square) [28,46 100x100]
       PaintableWithLines (BlockContainer(anonymous)) [8,166 784x0]
       PaintableWithLines (BlockContainer<DIV>) [8,166 784x138]
         PaintableWithLines (BlockContainer(anonymous)) [8,166 784x18]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.square) [350,204 100x100]
       PaintableWithLines (BlockContainer(anonymous)) [8,324 784x0]
       PaintableWithLines (BlockContainer<DIV>) [8,324 784x138]
         PaintableWithLines (BlockContainer(anonymous)) [8,324 784x18]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.square) [672,362 100x100]
       PaintableWithLines (BlockContainer(anonymous)) [8,482 784x0]
       PaintableWithLines (BlockContainer<DIV>) [8,482 784x138]
         PaintableWithLines (BlockContainer(anonymous)) [8,482 784x18]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.square) [28,520 100x100]
       PaintableWithLines (BlockContainer(anonymous)) [8,640 784x0]
 

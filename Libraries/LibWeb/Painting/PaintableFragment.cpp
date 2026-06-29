@@ -10,10 +10,11 @@
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/PaintableBox.h>
-#include <LibWeb/Painting/TextPaintable.h>
+#include <LibWeb/Painting/PaintableWithLines.h>
 
 namespace Web::Painting {
 
@@ -37,8 +38,9 @@ static void for_each_cluster_in_glyph_run(Gfx::GlyphRun const& glyph_run, size_t
     }
 }
 
-PaintableFragment::PaintableFragment(Layout::LineBoxFragment const& fragment, LineBoxData line_box_data)
+PaintableFragment::PaintableFragment(PaintableWithLines const& paintable_with_lines, Layout::LineBoxFragment const& fragment, LineBoxData line_box_data)
     : m_layout_node(fragment.layout_node())
+    , m_paintable_with_lines(paintable_with_lines)
     , m_offset(fragment.offset())
     , m_size(fragment.size())
     , m_line_box_data(line_box_data)
@@ -55,10 +57,25 @@ PaintableFragment::PaintableFragment(Layout::LineBoxFragment const& fragment, Li
         m_dom_start_offset_in_node = m_start_offset;
 }
 
+void PaintableFragment::set_selection_state(Paintable::SelectionState state)
+{
+    if (m_selection_state == state)
+        return;
+
+    m_selection_state = state;
+
+    auto& paintable_with_lines = const_cast<PaintableWithLines&>(this->paintable_with_lines());
+    paintable_with_lines.invalidate_paint_cache();
+    for (auto ancestor = paintable_with_lines.parent(); ancestor; ancestor = ancestor->parent()) {
+        if (auto* ancestor_box = as_if<PaintableBox>(ancestor.ptr()))
+            ancestor_box->invalidate_paint_cache();
+    }
+}
+
 CSSPixelRect const PaintableFragment::absolute_rect() const
 {
     CSSPixelRect rect { offset(), size() };
-    if (auto containing_block = paintable().containing_block())
+    if (auto containing_block = containing_block_paintable())
         rect.translate_by(containing_block->absolute_position());
     return rect;
 }
@@ -66,15 +83,26 @@ CSSPixelRect const PaintableFragment::absolute_rect() const
 CSSPixelRect const PaintableFragment::absolute_line_box_rect() const
 {
     auto rect = m_line_box_data.rect;
-    if (auto containing_block = paintable().containing_block())
+    if (auto containing_block = containing_block_paintable())
         rect.translate_by(containing_block->absolute_position());
     return rect;
 }
 
+RefPtr<PaintableBox> PaintableFragment::containing_block_paintable() const
+{
+    if (auto paintable = layout_node().first_paintable())
+        return paintable->containing_block();
+
+    auto const* containing_block = layout_node().containing_block();
+    if (!containing_block)
+        return nullptr;
+    return const_cast<Layout::Box&>(*containing_block).paintable_box();
+}
+
 size_t PaintableFragment::index_in_node_for_point(CSSPixelPoint position) const
 {
-    auto const* text_paintable = as_if<TextPaintable>(paintable());
-    if (!text_paintable)
+    auto const* text_node = as_if<Layout::TextNode>(layout_node());
+    if (!text_node)
         return 0;
 
     auto relative_inline_offset = [&] {
@@ -92,7 +120,7 @@ size_t PaintableFragment::index_in_node_for_point(CSSPixelPoint position) const
     GraphemeEdgeTracker tracker { relative_inline_offset };
 
     if (m_glyph_run) {
-        auto& segmenter = text_paintable->layout_node().grapheme_segmenter();
+        auto& segmenter = text_node->grapheme_segmenter();
 
         // A single glyph can cover several code units / graphemes. In the case of ligatures, we want clicks inside to
         // snap to the closest grapheme boundary inside it, not jump to either end. To achieve this we walk
@@ -254,10 +282,10 @@ Gfx::Orientation PaintableFragment::orientation() const
 Optional<PaintableFragment::SelectionOffsets> PaintableFragment::selection_range_for_text_control() const
 {
     // For focused text controls (input/textarea), determine selection from the control's internal state.
-    auto const* text_control = as_if<HTML::FormAssociatedTextControlElement>(paintable().document().focused_area().ptr());
+    auto const* text_control = as_if<HTML::FormAssociatedTextControlElement>(layout_node().document().focused_area().ptr());
     if (!text_control)
         return {};
-    if (paintable().dom_node() != text_control->form_associated_element_to_text_node())
+    if (layout_node().dom_node() != text_control->form_associated_element_to_text_node())
         return {};
 
     auto selection_start = text_control->selection_start();
@@ -273,18 +301,17 @@ Optional<PaintableFragment::SelectionOffsets> PaintableFragment::selection_offse
     if (auto offsets = selection_range_for_text_control(); offsets.has_value())
         return compute_selection_offsets(Paintable::SelectionState::StartAndEnd, offsets->start, offsets->end);
 
-    auto selection_state = paintable().selection_state();
-    if (selection_state == Paintable::SelectionState::None)
+    if (m_selection_state == Paintable::SelectionState::None)
         return {};
 
-    auto selection = paintable().document().get_selection();
+    auto selection = layout_node().document().get_selection();
     if (!selection)
         return {};
     auto range = selection->range();
     if (!range)
         return {};
 
-    return compute_selection_offsets(selection_state, range->start_offset(), range->end_offset());
+    return compute_selection_offsets(m_selection_state, range->start_offset(), range->end_offset());
 }
 
 CSSPixelRect PaintableFragment::selection_rect() const
@@ -292,26 +319,25 @@ CSSPixelRect PaintableFragment::selection_rect() const
     if (auto offsets = selection_range_for_text_control(); offsets.has_value())
         return range_rect(Paintable::SelectionState::StartAndEnd, offsets->start, offsets->end);
 
-    auto const selection_state = paintable().selection_state();
-    if (selection_state == Paintable::SelectionState::None)
+    if (m_selection_state == Paintable::SelectionState::None)
         return {};
 
-    auto selection = paintable().document().get_selection();
+    auto selection = layout_node().document().get_selection();
     if (!selection)
         return {};
     auto range = selection->range();
     if (!range)
         return {};
 
-    return range_rect(selection_state, range->start_offset(), range->end_offset());
+    return range_rect(m_selection_state, range->start_offset(), range->end_offset());
 }
 
 Utf16View PaintableFragment::text() const
 {
-    auto const* text_paintable = as_if<TextPaintable>(paintable());
-    if (!text_paintable)
+    auto const* text_node = as_if<Layout::TextNode>(layout_node());
+    if (!text_node)
         return {};
-    return text_paintable->layout_node().text_for_rendering().substring_view(m_start_offset, m_length_in_code_units);
+    return text_node->text_for_rendering().substring_view(m_start_offset, m_length_in_code_units);
 }
 
 }

@@ -21,18 +21,23 @@ struct LineBoxData {
     CSSPixelRect rect;
 };
 
-class WEB_API PaintableFragment {
-    friend class PaintableWithLines;
+class PaintableWithLines;
 
+class WEB_API PaintableFragment {
 public:
-    PaintableFragment(Layout::LineBoxFragment const&, LineBoxData);
+    PaintableFragment(PaintableWithLines const&, Layout::LineBoxFragment const&, LineBoxData);
 
     Layout::Node const& layout_node() const
     {
         VERIFY(m_layout_node);
         return *m_layout_node;
     }
-    Paintable const& paintable() const { return *layout_node().first_paintable(); }
+    PaintableWithLines const& paintable_with_lines() const
+    {
+        VERIFY(m_paintable_with_lines);
+        return *m_paintable_with_lines;
+    }
+    RefPtr<PaintableBox> containing_block_paintable() const;
 
     size_t start_offset() const { return m_start_offset; }
     size_t length_in_code_units() const { return m_length_in_code_units; }
@@ -65,6 +70,8 @@ public:
     };
     Optional<SelectionOffsets> selection_offsets() const;
     Optional<SelectionOffsets> selection_range_for_text_control() const;
+    Paintable::SelectionState selection_state() const { return m_selection_state; }
+    void set_selection_state(Paintable::SelectionState);
 
     struct TextDecorationData {
         Vector<CSS::TextDecorationLine> line;
@@ -98,6 +105,7 @@ private:
     Optional<SelectionOffsets> compute_selection_offsets(Paintable::SelectionState, size_t start_offset_in_code_units, size_t end_offset_in_code_units) const;
 
     WeakPtr<Layout::Node const> m_layout_node;
+    WeakPtr<PaintableWithLines const> m_paintable_with_lines;
     CSSPixelPoint m_offset;
     CSSPixelSize m_size;
     LineBoxData m_line_box_data;
@@ -109,6 +117,7 @@ private:
     CSSPixels m_baseline;
     CSSPixels m_text_decoration_thickness { 0 };
     CSS::WritingMode m_writing_mode;
+    Paintable::SelectionState m_selection_state { Paintable::SelectionState::None };
     bool m_has_trailing_whitespace { false };
 };
 

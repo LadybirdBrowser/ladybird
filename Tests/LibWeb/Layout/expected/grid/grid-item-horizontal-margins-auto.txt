@@ -96,23 +96,14 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [9,9 782x454]
       PaintableBox (Box<DIV>.grid) [10,10 502x452]
         PaintableWithLines (BlockContainer<DIV>.left-margin-auto.right-margin-auto) [98.71875,11 324.5625x20]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.left-margin-auto) [251.375,31 259.625x20]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.right-margin-auto) [11,51 270.484375x20]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.left-margin-auto.right-margin-auto.fit-content-width) [74.25,71 373.484375x20]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.left-margin-auto.fit-content-width) [202.453125,91 308.546875x20]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.right-margin-auto.fit-content-width) [11,111 319.40625x20]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.left-margin-auto.right-margin-auto.fixed-width) [235,131 52x110]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.left-margin-auto.fixed-width) [459,241 52x110]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.right-margin-auto.fixed-width) [11,351 52x110]
-          TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [10,462 780x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

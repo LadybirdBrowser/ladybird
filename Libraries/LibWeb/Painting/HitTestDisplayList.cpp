@@ -7,6 +7,7 @@
 #include <AK/QuickSort.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Node.h>
+#include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Painting/ChromeWidget.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
 #include <LibWeb/Painting/PaintableFragment.h>
@@ -145,6 +146,21 @@ static Optional<CSSPixelRect> absolute_margin_box_rect_for_containing_block(Pain
     };
 }
 
+static Optional<CSSPixelRect> absolute_margin_box_rect_for_containing_block(PaintableFragment const& fragment)
+{
+    auto containing_block = fragment.containing_block_paintable();
+    if (!containing_block)
+        return {};
+
+    auto margin_box = containing_block->box_model().margin_box();
+    return CSSPixelRect {
+        containing_block->absolute_x() - margin_box.left,
+        containing_block->absolute_y() - margin_box.top,
+        containing_block->content_width() + margin_box.left + margin_box.right,
+        containing_block->content_height() + margin_box.top + margin_box.bottom,
+    };
+}
+
 NonnullRefPtr<HitTestDisplayList> HitTestDisplayList::create(u64 visual_context_tree_version)
 {
     return adopt_ref(*new HitTestDisplayList(visual_context_tree_version));
@@ -227,24 +243,30 @@ void HitTestDisplayList::append_svg_path(Paintable& target, Gfx::Path path, Gfx:
 
 void HitTestDisplayList::append_text_fragment(PaintableFragment const& fragment, VisualContextIndex visual_context_index)
 {
-    auto fragment_paintable = fragment.layout_node().first_paintable();
-    if (!fragment_paintable)
+    auto const* text_node = as_if<Layout::TextNode>(fragment.layout_node());
+    if (!text_node)
         return;
 
-    if (!fragment_paintable->is_text_paintable() || !fragment_paintable->is_visible() || !fragment_paintable->visible_for_hit_testing())
+    auto const& computed_values = text_node->computed_values();
+    if (computed_values.visibility() != CSS::Visibility::Visible || computed_values.opacity() == 0)
+        return;
+    if (auto const* node = text_node->dom_text(); node && node->is_inert())
+        return;
+    if (computed_values.pointer_events() == CSS::PointerEvents::None)
         return;
 
+    auto& fragment_paintable = const_cast<PaintableWithLines&>(fragment.paintable_with_lines());
     auto item_index = m_items.size();
     m_items.append({
         .kind = ItemKind::TextFragment,
-        .paintable = const_cast<Paintable&>(*fragment_paintable),
+        .paintable = fragment_paintable,
         .chrome_widget = {},
         .text_fragment = &fragment,
         .rect = fragment.absolute_rect(),
         .caret_rect = fragment.range_rect(Paintable::SelectionState::StartAndEnd, fragment.dom_start_offset_in_node(), fragment.dom_end_offset_in_node()),
         .caret_line_index = fragment.line_box_data().index,
         .caret_line_rect = fragment.absolute_line_box_rect(),
-        .block_container_margin_rect = absolute_margin_box_rect_for_containing_block(*fragment_paintable),
+        .block_container_margin_rect = absolute_margin_box_rect_for_containing_block(fragment),
         .visual_context_index = visual_context_index,
         .border_radii = {},
     });
@@ -379,8 +401,13 @@ void HitTestDisplayList::add_item_to_caret_items(size_t item_index)
         auto same_inferred_line = !first_line_item.caret_line_index.has_value()
             && !item.caret_line_index.has_value()
             && rects_overlap_in_block_axis(line.rect, item.caret_rect, writing_mode);
+        auto containing_block_for_item = [](Item const& item) -> Layout::Box const* {
+            if (item.kind == ItemKind::TextFragment && item.text_fragment)
+                return item.text_fragment->layout_node().containing_block();
+            return item.paintable->layout_node().containing_block();
+        };
         if (line.visual_context_index == item.visual_context_index
-            && first_line_item.paintable->layout_node().containing_block() == item.paintable->layout_node().containing_block()
+            && containing_block_for_item(first_line_item) == containing_block_for_item(item)
             && (same_recorded_line || same_inferred_line)) {
             line.rect.unite(item_line_rect);
             if (!line.block_container_margin_rect.has_value())
@@ -450,6 +477,9 @@ DOM::Node const* HitTestDisplayList::item_dom_node(Item const& item) const
 
 DOM::Node const* HitTestDisplayList::event_dispatch_dom_node_for_item(Item const& item) const
 {
+    if (item.kind == ItemKind::TextFragment)
+        return item_dom_node(item);
+
     for (auto const* current = item.paintable.ptr(); current; current = current->parent()) {
         if (auto node = current->dom_node())
             return node;
@@ -473,6 +503,7 @@ HitTestResult HitTestDisplayList::hit_test_result_for_item(Item const& item, CSS
         VERIFY(item.text_fragment);
         return HitTestResult {
             .paintable = item.paintable,
+            .dom_node_override = const_cast<DOM::Node*>(item_dom_node(item)),
             .index_in_node = item.text_fragment->index_in_node_for_point(local_point),
         };
     case ItemKind::EmptyEditable:

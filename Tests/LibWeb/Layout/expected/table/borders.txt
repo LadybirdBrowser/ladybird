@@ -243,74 +243,50 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
           PaintableBox (Box<TBODY>) [11,11 168.296875x70]
             PaintableBox (Box<TR>) [11,11 168.296875x22]
               PaintableWithLines (BlockContainer<TD>) [11,11 86.015625x22]
-                TextPaintable (TextNode<#text>)
               PaintableWithLines (BlockContainer<TD>) [99.015625,11 80.28125x22]
-                TextPaintable (TextNode<#text>)
             PaintableBox (Box<TR>) [11,35 168.296875x22]
               PaintableWithLines (BlockContainer<TD>) [11,35 86.015625x22]
-                TextPaintable (TextNode<#text>)
               PaintableWithLines (BlockContainer<TD>) [99.015625,35 80.28125x22]
-                TextPaintable (TextNode<#text>)
             PaintableBox (Box<TR>) [11,59 168.296875x22]
               PaintableWithLines (BlockContainer<TD>) [11,59 86.015625x22]
-                TextPaintable (TextNode<#text>)
               PaintableWithLines (BlockContainer<TD>) [99.015625,59 80.28125x22]
-                TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,84 784x0]
       PaintableWithLines (TableWrapper(anonymous)) [8,84 164.296875x64]
         PaintableBox (Box<TABLE>.table-border-black) [8,84 164.296875x64]
           PaintableBox (Box<TBODY>) [8,84 164.296875x64]
             PaintableBox (Box<TR>) [8,84 164.296875x21]
               PaintableWithLines (BlockContainer<TD>) [8,84 85.015625x21]
-                TextPaintable (TextNode<#text>)
               PaintableWithLines (BlockContainer<TD>) [93.015625,84 79.28125x21]
-                TextPaintable (TextNode<#text>)
             PaintableBox (Box<TR>) [8,105 164.296875x22]
               PaintableWithLines (BlockContainer<TD>) [8,105 85.015625x22]
-                TextPaintable (TextNode<#text>)
               PaintableWithLines (BlockContainer<TD>) [93.015625,105 79.28125x22]
-                TextPaintable (TextNode<#text>)
             PaintableBox (Box<TR>) [8,127 164.296875x21]
               PaintableWithLines (BlockContainer<TD>) [8,127 85.015625x21]
-                TextPaintable (TextNode<#text>)
               PaintableWithLines (BlockContainer<TD>) [93.015625,127 79.28125x21]
-                TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,148 784x0]
       PaintableWithLines (TableWrapper(anonymous)) [8,148 160.296875x58]
         PaintableBox (Box<DIV>.table.border-black) [8,148 160.296875x58]
           PaintableBox (Box<DIV>.table-row.border-black) [8,148 160.296875x19]
             PaintableWithLines (BlockContainer<DIV>.table-cell.border-black) [8,148 83.015625x19]
-              TextPaintable (TextNode<#text>)
             PaintableWithLines (BlockContainer<DIV>.table-cell.border-black) [91.015625,148 77.28125x19]
-              TextPaintable (TextNode<#text>)
           PaintableBox (Box<DIV>.table-row.border-black) [8,167 160.296875x20]
             PaintableWithLines (BlockContainer<DIV>.table-cell.border-black) [8,167 83.015625x20]
-              TextPaintable (TextNode<#text>)
             PaintableWithLines (BlockContainer<DIV>.table-cell.border-black) [91.015625,167 77.28125x20]
-              TextPaintable (TextNode<#text>)
           PaintableBox (Box<DIV>.table-row.border-black) [8,187 160.296875x19]
             PaintableWithLines (BlockContainer<DIV>.table-cell.border-black) [8,187 83.015625x19]
-              TextPaintable (TextNode<#text>)
             PaintableWithLines (BlockContainer<DIV>.table-cell.border-black) [91.015625,187 77.28125x19]
-              TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,206 784x0]
       PaintableWithLines (TableWrapper(anonymous)) [8,206 168.296875x74]
         PaintableBox (Box<DIV>.table.thick-border-black) [8,206 168.296875x74]
           PaintableBox (Box<DIV>.table-row.thick-border-black) [8,206 168.296875x23]
             PaintableWithLines (BlockContainer<DIV>.table-cell.thick-border-black) [8,206 87.015625x23]
-              TextPaintable (TextNode<#text>)
             PaintableWithLines (BlockContainer<DIV>.table-cell.thick-border-black) [95.015625,206 81.28125x23]
-              TextPaintable (TextNode<#text>)
           PaintableBox (Box<DIV>.table-row.thick-border-black) [8,229 168.296875x28]
             PaintableWithLines (BlockContainer<DIV>.table-cell.thick-border-black) [8,229 87.015625x28]
-              TextPaintable (TextNode<#text>)
             PaintableWithLines (BlockContainer<DIV>.table-cell.thick-border-black) [95.015625,229 81.28125x28]
-              TextPaintable (TextNode<#text>)
           PaintableBox (Box<DIV>.table-row.thick-border-black) [8,257 168.296875x23]
             PaintableWithLines (BlockContainer<DIV>.table-cell.thick-border-black) [8,257 87.015625x23]
-              TextPaintable (TextNode<#text>)
             PaintableWithLines (BlockContainer<DIV>.table-cell.thick-border-black) [95.015625,257 81.28125x23]
-              TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,280 784x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
