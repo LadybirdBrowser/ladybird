@@ -866,6 +866,10 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::index_of)
 
     // 8. If n ≥ 0, then
     if (n >= 0) {
+        // AD-HOC: A fromIndex at or beyond len matches nothing. Return before converting it to an unsigned type.
+        if (n >= length)
+            return Value(-1);
+
         // a. Let k be n.
         k = (size_t)n;
     }
