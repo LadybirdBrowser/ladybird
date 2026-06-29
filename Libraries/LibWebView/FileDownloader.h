@@ -75,6 +75,7 @@ private:
     Download* mutable_download_or_null(u64 id);
     ActiveDownload* active_download(u64 id);
     void attach_request_to_download(u64 id, NonnullRefPtr<Requests::Request>);
+    void discard_active_download(u64 id);
 
     void notify_download_added(Download const&);
     void notify_download_updated(Download const&);

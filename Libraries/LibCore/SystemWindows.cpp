@@ -151,6 +151,15 @@ ErrorOr<void> unlink(StringView path)
     return {};
 }
 
+ErrorOr<void> link(StringView old_path, StringView new_path)
+{
+    ByteString old_path_string = old_path;
+    ByteString new_path_string = new_path;
+    if (!CreateHardLinkA(new_path_string.characters(), old_path_string.characters(), nullptr))
+        return Error::from_windows_error();
+    return {};
+}
+
 ErrorOr<void> mkdir(StringView path, mode_t)
 {
     ByteString str = path;

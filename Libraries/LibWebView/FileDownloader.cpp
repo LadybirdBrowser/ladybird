@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Random.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
@@ -44,7 +45,7 @@ FileDownloader::~FileDownloader() = default;
 
 static LexicalPath temporary_destination_for(LexicalPath const& destination, u64 download_id)
 {
-    return LexicalPath { ByteString::formatted("{}.{}.download", destination.string(), download_id) };
+    return LexicalPath { ByteString::formatted("{}.{}.{}.download", destination.string(), download_id, generate_random_uuid()) };
 }
 
 static String status_to_error_string(Optional<Requests::NetworkError> const& network_error, Optional<u32> response_code, Optional<String> const& reason_phrase)
@@ -166,7 +167,7 @@ u64 FileDownloader::start_download(URL::URL const& url, LexicalPath destination,
     notify_download_added(download);
 
     auto temporary_destination = temporary_destination_for(download.destination, download_id);
-    auto file_or_error = Core::File::open(temporary_destination.string(), Core::File::OpenMode::Write);
+    auto file_or_error = Core::File::open(temporary_destination.string(), Core::File::OpenMode::Write | Core::File::OpenMode::MustBeNew);
     if (file_or_error.is_error()) {
         fail_download(download_id, MUST(String::formatted("Unable to save downloaded file: {}", file_or_error.error())));
         return download_id;
@@ -273,6 +274,26 @@ void FileDownloader::set_cancel_callback(u64 id, Function<void()> on_cancel)
         active->on_cancel = move(on_cancel);
 }
 
+void FileDownloader::discard_active_download(u64 id)
+{
+    auto* active = active_download(id);
+    if (!active)
+        return;
+
+    active->stopped = true;
+    if (active->request)
+        active->request->stop();
+    if (active->on_cancel)
+        active->on_cancel();
+
+    active->file = nullptr;
+    (void)Core::System::unlink(active->temporary_destination.string());
+
+    Core::deferred_invoke([this, id] {
+        m_active_downloads.remove(id);
+    });
+}
+
 void FileDownloader::cancel_active_downloads()
 {
     Vector<u64> active_download_ids;
@@ -294,20 +315,7 @@ void FileDownloader::cancel_download(u64 id)
     download->status = DownloadStatus::Canceled;
     download->error = {};
 
-    if (auto* active = active_download(id)) {
-        active->stopped = true;
-        if (active->request)
-            active->request->stop();
-        if (active->on_cancel)
-            active->on_cancel();
-
-        active->file = nullptr;
-        (void)Core::System::unlink(active->temporary_destination.string());
-
-        Core::deferred_invoke([this, id] {
-            m_active_downloads.remove(id);
-        });
-    }
+    discard_active_download(id);
 
     notify_download_updated(*download);
 }
@@ -321,15 +329,7 @@ void FileDownloader::fail_download(u64 id, String error)
     download->status = DownloadStatus::Failed;
     download->error = move(error);
 
-    if (auto* active = active_download(id)) {
-        active->stopped = true;
-        active->file = nullptr;
-        (void)Core::System::unlink(active->temporary_destination.string());
-
-        Core::deferred_invoke([this, id] {
-            m_active_downloads.remove(id);
-        });
-    }
+    discard_active_download(id);
 
     notify_download_updated(*download);
 }

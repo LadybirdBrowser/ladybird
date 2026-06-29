@@ -493,12 +493,24 @@ void Application::display_error_dialog(StringView error_message) const
 
 void Application::open_download(WebView::FileDownloader::Download const& download) const
 {
-    QDesktopServices::openUrl(QUrl::fromLocalFile(qstring_from_ak_string(download.destination.string())));
+    auto path = download_file_path_for_frontend_action(download);
+    if (path.is_error()) {
+        display_error_dialog("Unable to open downloaded file: path cannot be represented by this frontend"sv);
+        return;
+    }
+
+    QDesktopServices::openUrl(QUrl::fromLocalFile(qstring_from_ak_string(path.release_value())));
 }
 
 void Application::show_download_in_folder(WebView::FileDownloader::Download const& download) const
 {
-    QDesktopServices::openUrl(QUrl::fromLocalFile(qstring_from_ak_string(download.destination.dirname())));
+    auto path = download_directory_path_for_frontend_action(download);
+    if (path.is_error()) {
+        display_error_dialog("Unable to show downloaded file: path cannot be represented by this frontend"sv);
+        return;
+    }
+
+    QDesktopServices::openUrl(QUrl::fromLocalFile(qstring_from_ak_string(path.release_value())));
 }
 
 static QClipboard::Mode clipboard_mode(QClipboard const& clipboard, Application::ClipboardType type)
