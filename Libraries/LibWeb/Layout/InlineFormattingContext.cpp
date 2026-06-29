@@ -80,8 +80,9 @@ CSSPixels InlineFormattingContext::automatic_content_height() const
     return m_automatic_content_height;
 }
 
-void InlineFormattingContext::run(AvailableSpace const& available_space)
+void InlineFormattingContext::run(LayoutInput const& layout_input)
 {
+    auto const& available_space = layout_input.available_space;
     FORMATTING_CONTEXT_TRACE();
     VERIFY(containing_block().children_are_inline());
     m_available_space = available_space;
@@ -123,7 +124,8 @@ void InlineFormattingContext::dimension_box_on_line(Box const& box, LayoutMode l
     if (box_is_sized_as_replaced_element(box, *m_available_space)) {
         box_state.set_content_width(compute_width_for_replaced_element(box, *m_available_space));
         box_state.set_content_height(compute_height_for_replaced_element(box, *m_available_space));
-        auto independent_formatting_context = layout_inside(box, layout_mode, box_state.available_inner_space_or_constraints_from(*m_available_space));
+        auto child_layout_input = LayoutInput { box_state.available_inner_space_or_constraints_from(*m_available_space) };
+        auto independent_formatting_context = layout_inside(box, layout_mode, child_layout_input);
         if (independent_formatting_context)
             independent_formatting_context->parent_context_did_dimension_child_root_box();
         return;
@@ -189,7 +191,8 @@ void InlineFormattingContext::dimension_box_on_line(Box const& box, LayoutMode l
     if (box.display().is_flex_inside())
         parent().resolve_used_height_if_treated_as_auto(box, AvailableSpace(AvailableSize::make_definite(width), AvailableSize::make_indefinite()));
 
-    auto independent_formatting_context = layout_inside(box, layout_mode, box_state.available_inner_space_or_constraints_from(*m_available_space));
+    auto child_layout_input = LayoutInput { box_state.available_inner_space_or_constraints_from(*m_available_space) };
+    auto independent_formatting_context = layout_inside(box, layout_mode, child_layout_input);
 
     if (should_treat_height_as_auto(box, *m_available_space)) {
         // FIXME: (10.6.6) If 'height' is 'auto', the height depends on the element's descendants per 10.6.7.

@@ -22,7 +22,7 @@ public:
     explicit BlockFormattingContext(LayoutState&, LayoutMode layout_mode, BlockContainer const&, FormattingContext* parent);
     ~BlockFormattingContext();
 
-    virtual void run(AvailableSpace const&) override;
+    virtual void run(LayoutInput const&) override;
     virtual CSSPixels automatic_content_width() const override;
     virtual CSSPixels automatic_content_height() const override;
 
@@ -62,7 +62,7 @@ public:
 
     void layout_floating_box(Box const& child, BlockContainer const& containing_block, AvailableSpace const&, CSSPixels y, LineBuilder* = nullptr);
 
-    void layout_block_level_box(Box const&, BlockContainer const&, CSSPixels& bottom_of_lowest_margin_box, AvailableSpace const&);
+    void layout_block_level_box(Box const&, BlockContainer const&, CSSPixels& bottom_of_lowest_margin_box, LayoutInput const&);
 
     void resolve_vertical_box_model_metrics(Box const&, CSSPixels width_of_containing_block);
     void resolve_horizontal_box_model_metrics(Box const&, CSSPixels width_of_containing_block);
@@ -102,9 +102,9 @@ private:
 
     void compute_width_for_block_level_replaced_element_in_normal_flow(Box const&, AvailableSpace const&);
 
-    void layout_block_level_children(BlockContainer const&, AvailableSpace const&);
+    void layout_block_level_children(BlockContainer const&, LayoutInput const&);
     void layout_inline_children(BlockContainer const&, AvailableSpace const&);
-    void layout_fieldset_with_rendered_legend(FieldSetBox const&, AvailableSpace const&);
+    void layout_fieldset_with_rendered_legend(FieldSetBox const&, LayoutInput const&);
 
     void place_block_level_element_in_normal_flow_horizontally(Box const& child_box, AvailableSpace const&);
     void place_block_level_element_in_normal_flow_vertically(Box const&, CSSPixels y);

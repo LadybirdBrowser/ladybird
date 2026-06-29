@@ -1682,7 +1682,8 @@ static void relayout_svg_root(Layout::SVGSVGBox& svg_root)
     auto content_height = svg_state.content_height();
 
     Layout::SVGFormattingContext svg_context(layout_state, Layout::LayoutMode::Normal, svg_root, nullptr);
-    svg_context.run(Layout::AvailableSpace(Layout::AvailableSize::make_definite(content_width), Layout::AvailableSize::make_definite(content_height)));
+    auto available_space = Layout::AvailableSpace(Layout::AvailableSize::make_definite(content_width), Layout::AvailableSize::make_definite(content_height));
+    svg_context.run(Layout::LayoutInput { available_space });
     layout_state.commit(svg_root);
 
     svg_root.for_each_in_inclusive_subtree([](auto& node) {
@@ -1911,10 +1912,10 @@ void Document::update_layout(UpdateLayoutReason reason)
                 auto content_height = layout_state.get(*svg_root.containing_block()).content_height();
                 layout_state.get_mutable(svg_root).set_content_height(content_height);
                 Layout::SVGFormattingContext svg_formatting_context(layout_state, Layout::LayoutMode::Normal, svg_root, nullptr);
-                svg_formatting_context.run(available_space);
+                svg_formatting_context.run(Layout::LayoutInput { available_space });
             } else {
                 Layout::BlockFormattingContext root_formatting_context(layout_state, Layout::LayoutMode::Normal, *m_layout_root, nullptr);
-                root_formatting_context.run(available_space);
+                root_formatting_context.run(Layout::LayoutInput { available_space });
             }
         }
 

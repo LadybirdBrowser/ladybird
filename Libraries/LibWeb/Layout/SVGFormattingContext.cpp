@@ -180,8 +180,9 @@ static bool is_container_element(Node const& node)
     return false;
 }
 
-void SVGFormattingContext::run(AvailableSpace const& available_space)
+void SVGFormattingContext::run(LayoutInput const& layout_input)
 {
+    auto const& available_space = layout_input.available_space;
     FORMATTING_CONTEXT_TRACE();
     // NOTE: SVG doesn't have a "formatting context" in the spec, but this is the most
     //       obvious way to drive SVG layout in our engine at the moment.
@@ -304,12 +305,12 @@ void SVGFormattingContext::run(AvailableSpace const& available_space)
         svg_transform_for_children = svg_box_state.computed_svg_transforms()->svg_transform();
 
     context_box().for_each_child_of_type<Box>([&](Box const& child) {
-        layout_svg_element(child, svg_transform_for_children);
+        layout_svg_element(child, layout_input, svg_transform_for_children);
         return IterationDecision::Continue;
     });
 }
 
-void SVGFormattingContext::layout_svg_element(Box const& child, Gfx::AffineTransform const& parent_svg_transform)
+void SVGFormattingContext::layout_svg_element(Box const& child, LayoutInput const& layout_input, Gfx::AffineTransform const& parent_svg_transform)
 {
     if (is<SVG::SVGFitToViewBox>(child.dom_node())) {
         layout_nested_viewport(child, parent_svg_transform);
@@ -335,7 +336,8 @@ void SVGFormattingContext::layout_svg_element(Box const& child, Gfx::AffineTrans
         child_state.set_content_width(transformed_rect.width());
         child_state.set_content_height(transformed_rect.height());
 
-        bfc.run(AvailableSpace(AvailableSize::make_definite(child_state.content_width()), AvailableSize::make_definite(child_state.content_height())));
+        auto child_available_space = AvailableSpace(AvailableSize::make_definite(child_state.content_width()), AvailableSize::make_definite(child_state.content_height()));
+        bfc.run(LayoutInput { child_available_space });
 
         if (auto* mask_box = child.first_child_of_type<SVGMaskBox>())
             layout_mask_or_clip(*mask_box);
@@ -343,7 +345,7 @@ void SVGFormattingContext::layout_svg_element(Box const& child, Gfx::AffineTrans
         if (auto* clip_box = child.first_child_of_type<SVGClipBox>())
             layout_mask_or_clip(*clip_box);
     } else if (is<SVGGraphicsBox>(child)) {
-        layout_graphics_element(static_cast<SVGGraphicsBox const&>(child), parent_svg_transform);
+        layout_graphics_element(static_cast<SVGGraphicsBox const&>(child), layout_input, parent_svg_transform);
     }
 }
 
@@ -390,7 +392,7 @@ void SVGFormattingContext::layout_nested_viewport(Box const& viewport, Gfx::Affi
     nested_viewport_state.set_has_definite_width(true);
     nested_viewport_state.set_has_definite_height(true);
     SVGFormattingContext nested_context(m_state, m_layout_mode, viewport, this, parent_viewbox_transform, parent_svg_transform);
-    nested_context.run(*m_available_space);
+    nested_context.run(LayoutInput { *m_available_space });
 }
 
 Gfx::Path SVGFormattingContext::compute_path_for_text(SVGTextBox const& text_box) const
@@ -480,7 +482,7 @@ Gfx::Path SVGFormattingContext::compute_path_for_text_path(SVGTextPathBox const&
     return shape_path.place_text_along(text_contents, font, start_offset);
 }
 
-void SVGFormattingContext::layout_path_like_element(SVGGraphicsBox const& graphics_box)
+void SVGFormattingContext::layout_path_like_element(SVGGraphicsBox const& graphics_box, LayoutInput const& layout_input)
 {
     auto& graphics_box_state = m_state.get_mutable(graphics_box);
     VERIFY(graphics_box_state.computed_svg_transforms().has_value());
@@ -503,7 +505,7 @@ void SVGFormattingContext::layout_path_like_element(SVGGraphicsBox const& graphi
         // <text> and <tspan> elements can contain more text elements.
         text_box->for_each_child_of_type<SVGGraphicsBox>([&](auto& child) {
             if (is<SVGTextBox>(child) || is<SVGTextPathBox>(child))
-                layout_graphics_element(child, graphics_box_state.computed_svg_transforms()->svg_transform());
+                layout_graphics_element(child, layout_input, graphics_box_state.computed_svg_transforms()->svg_transform());
             return IterationDecision::Continue;
         });
     } else if (auto* text_path_box = as_if<SVGTextPathBox>(graphics_box)) {
@@ -525,7 +527,7 @@ void SVGFormattingContext::layout_path_like_element(SVGGraphicsBox const& graphi
     graphics_box_state.set_computed_svg_path(move(path));
 }
 
-void SVGFormattingContext::layout_graphics_element(SVGGraphicsBox const& graphics_box, Gfx::AffineTransform const& parent_svg_transform)
+void SVGFormattingContext::layout_graphics_element(SVGGraphicsBox const& graphics_box, LayoutInput const& layout_input, Gfx::AffineTransform const& parent_svg_transform)
 {
     auto& graphics_box_state = m_state.get_mutable(graphics_box);
     auto svg_transform = parent_svg_transform;
@@ -536,12 +538,12 @@ void SVGFormattingContext::layout_graphics_element(SVGGraphicsBox const& graphic
         // https://svgwg.org/svg2-draft/struct.html#Groups
         // 5.2. Grouping: the ‘g’ element
         // The ‘g’ element is a container element for grouping together related graphics elements.
-        layout_container_element(graphics_box, svg_transform);
+        layout_container_element(graphics_box, layout_input, svg_transform);
     } else if (is<SVGImageBox>(graphics_box)) {
         layout_image_element(static_cast<SVGImageBox const&>(graphics_box));
     } else {
         // Assume this is a path-like element.
-        layout_path_like_element(graphics_box);
+        layout_path_like_element(graphics_box, layout_input);
     }
 
     if (auto* mask_box = graphics_box.first_child_of_type<SVGMaskBox>())
@@ -617,10 +619,10 @@ void SVGFormattingContext::layout_mask_or_clip(SVGBox const& mask_or_clip)
     SVGFormattingContext nested_context(m_state, m_layout_mode, mask_or_clip, this, parent_viewbox_transform, Gfx::AffineTransform {});
     layout_state.set_has_definite_width(true);
     layout_state.set_has_definite_height(true);
-    nested_context.run(*m_available_space);
+    nested_context.run(LayoutInput { *m_available_space });
 }
 
-void SVGFormattingContext::layout_container_element(SVGBox const& container, Gfx::AffineTransform const& container_svg_transform)
+void SVGFormattingContext::layout_container_element(SVGBox const& container, LayoutInput const& layout_input, Gfx::AffineTransform const& container_svg_transform)
 {
     auto& box_state = m_state.get_mutable(container);
     Gfx::BoundingBox<CSSPixels> bounding_box;
@@ -628,7 +630,7 @@ void SVGFormattingContext::layout_container_element(SVGBox const& container, Gfx
         // Masks/clips/patterns do not change the bounding box of their parents.
         if (is<SVGMaskBox>(child) || is<SVGClipBox>(child) || is<SVGPatternBox>(child))
             return IterationDecision::Continue;
-        layout_svg_element(child, container_svg_transform);
+        layout_svg_element(child, layout_input, container_svg_transform);
         auto& child_state = m_state.get(child);
         bounding_box.add_point(child_state.offset);
         bounding_box.add_point(child_state.offset.translated(child_state.content_width(), child_state.content_height()));

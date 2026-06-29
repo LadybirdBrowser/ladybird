@@ -77,7 +77,7 @@ CSSPixels TableFormattingContext::run_caption_layout(CSS::CaptionSide phase, Ava
                 inner_available_space = m_state.get(child_box).available_inner_space_or_constraints_from(caption_available_space);
             }
 
-            caption_context->run(inner_available_space);
+            caption_context->run(LayoutInput { inner_available_space });
 
             if (block_context) {
                 auto& caption_state = m_state.get_mutable(child_box);
@@ -1048,7 +1048,7 @@ void TableFormattingContext::compute_table_height()
         // - the horizontal/vertical border-spacing times the amount of spanned visible columns/rows minus one
         // FIXME: Account for visibility.
         cell_state.set_content_width(span_width - cell_state.border_box_left() - cell_state.border_box_right() + (cell.column_span - 1) * border_spacing_horizontal());
-        if (auto independent_formatting_context = layout_inside(cell.box, m_layout_mode, cell_state.available_inner_space_or_constraints_from(*m_available_space))) {
+        if (auto independent_formatting_context = layout_inside(cell.box, m_layout_mode, LayoutInput { cell_state.available_inner_space_or_constraints_from(*m_available_space) })) {
             cell_state.set_content_height(independent_formatting_context->automatic_content_height());
             independent_formatting_context->parent_context_did_dimension_child_root_box();
         }
@@ -1144,7 +1144,7 @@ void TableFormattingContext::compute_table_height()
         }
 
         cell_state.set_content_width(span_width - cell_state.border_box_left() - cell_state.border_box_right() + (cell.column_span - 1) * border_spacing_horizontal());
-        if (auto independent_formatting_context = layout_inside(cell.box, m_layout_mode, cell_state.available_inner_space_or_constraints_from(*m_available_space))) {
+        if (auto independent_formatting_context = layout_inside(cell.box, m_layout_mode, LayoutInput { cell_state.available_inner_space_or_constraints_from(*m_available_space) })) {
             independent_formatting_context->parent_context_did_dimension_child_root_box();
         }
 
@@ -1792,8 +1792,9 @@ void TableFormattingContext::finish_grid_initialization(TableGrid const& table_g
     }
 }
 
-void TableFormattingContext::run_until_width_calculation(AvailableSpace const& available_space, RowMeasurement row_measurement)
+void TableFormattingContext::run_until_width_calculation(LayoutInput const& layout_input, RowMeasurement row_measurement)
 {
+    auto const& available_space = layout_input.available_space;
     m_available_space = available_space;
 
     // Determine the number of rows/columns the table requires.
@@ -1849,12 +1850,13 @@ void TableFormattingContext::parent_context_did_dimension_child_root_box()
     layout_absolutely_positioned_children();
 }
 
-void TableFormattingContext::run(AvailableSpace const& available_space)
+void TableFormattingContext::run(LayoutInput const& layout_input)
 {
+    auto const& available_space = layout_input.available_space;
     FORMATTING_CONTEXT_TRACE();
     m_available_space = available_space;
 
-    run_until_width_calculation(available_space);
+    run_until_width_calculation(layout_input);
 
     if (available_space.width.is_intrinsic_sizing_constraint() && !available_space.height.is_intrinsic_sizing_constraint()) {
         return;

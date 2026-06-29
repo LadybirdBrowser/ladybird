@@ -20,16 +20,16 @@ public:
     explicit SVGFormattingContext(LayoutState&, LayoutMode, Box const&, FormattingContext* parent, Gfx::AffineTransform parent_viewbox_transform = {}, Optional<Gfx::AffineTransform> parent_svg_transform = {});
     ~SVGFormattingContext();
 
-    virtual void run(AvailableSpace const&) override;
+    virtual void run(LayoutInput const&) override;
     virtual CSSPixels automatic_content_width() const override;
     virtual CSSPixels automatic_content_height() const override;
 
 private:
-    void layout_svg_element(Box const&, Gfx::AffineTransform const& parent_svg_transform);
+    void layout_svg_element(Box const&, LayoutInput const&, Gfx::AffineTransform const& parent_svg_transform);
     void layout_nested_viewport(Box const&, Gfx::AffineTransform const& parent_svg_transform);
-    void layout_container_element(SVGBox const&, Gfx::AffineTransform const& container_svg_transform);
-    void layout_graphics_element(SVGGraphicsBox const&, Gfx::AffineTransform const& parent_svg_transform);
-    void layout_path_like_element(SVGGraphicsBox const&);
+    void layout_container_element(SVGBox const&, LayoutInput const&, Gfx::AffineTransform const& container_svg_transform);
+    void layout_graphics_element(SVGGraphicsBox const&, LayoutInput const&, Gfx::AffineTransform const& parent_svg_transform);
+    void layout_path_like_element(SVGGraphicsBox const&, LayoutInput const&);
     void layout_mask_or_clip(SVGBox const&);
     void layout_image_element(SVGImageBox const& image_box);
 
