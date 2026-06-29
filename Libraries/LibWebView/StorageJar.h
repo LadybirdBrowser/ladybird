@@ -46,6 +46,7 @@ public:
     void remove_items_accessed_since(UnixDateTime);
     void clear_storage_key(StorageEndpointType storage_endpoint, String const& storage_key);
     Vector<String> get_all_keys(StorageEndpointType storage_endpoint, String const& storage_key);
+    u64 calculate_size(StorageEndpointType storage_endpoint, String const& storage_key) const;
     Requests::CacheSizes estimate_storage_size_accessed_since(UnixDateTime since) const;
 
 private:
@@ -58,6 +59,7 @@ private:
         Database::StatementID clear { 0 };
         Database::StatementID get_keys { 0 };
         Database::StatementID calculate_size_excluding_key { 0 };
+        Database::StatementID calculate_size { 0 };
         Database::StatementID estimate_storage_size_accessed_since { 0 };
     };
 
@@ -70,6 +72,7 @@ private:
         void clear(StorageEndpointType storage_endpoint, String const& storage_key);
         Vector<String> get_keys(StorageEndpointType storage_endpoint, String const& storage_key);
         Requests::CacheSizes estimate_storage_size_accessed_since(UnixDateTime since) const;
+        u64 calculate_size(StorageEndpointType storage_endpoint, String const& storage_key) const;
 
     private:
         struct Entry {
@@ -88,6 +91,7 @@ private:
         void clear(StorageEndpointType storage_endpoint, String const& storage_key);
         Vector<String> get_keys(StorageEndpointType storage_endpoint, String const& storage_key);
         Requests::CacheSizes estimate_storage_size_accessed_since(UnixDateTime since) const;
+        u64 calculate_size(StorageEndpointType storage_endpoint, String const& storage_key) const;
 
         Database::Database& database;
         Statements statements;

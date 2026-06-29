@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="./include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        let estimate = await navigator.storage.estimate();
+        println(`usage is a number: ${typeof estimate.usage === "number"}`);
+        println(`quota is a number: ${typeof estimate.quota === "number"}`);
+        println(`usage does not exceed quota: ${estimate.usage <= estimate.quota}`);
+
+        // Use a unique key and assert the origin's usage includes at least our own entry (not a
+        // before/after delta): concurrent test runs share this origin's storage, so a delta is racy.
+        let key = `estimate-usage-${crypto.randomUUID()}`;
+        localStorage.setItem(key, "x".repeat(1000));
+        let usage = (await navigator.storage.estimate()).usage;
+        localStorage.removeItem(key);
+        println(`usage reflects written localStorage: ${usage >= 1000}`);
+
+        done();
+    });
+</script>

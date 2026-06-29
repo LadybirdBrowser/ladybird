@@ -1192,6 +1192,11 @@ Messages::WebContentClient::DidRequestStorageKeysResponse WebContentClient::did_
     return Application::storage_jar().get_all_keys(storage_endpoint, storage_key);
 }
 
+Messages::WebContentClient::DidRequestStorageUsageResponse WebContentClient::did_request_storage_usage(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key)
+{
+    return Application::storage_jar().calculate_size(storage_endpoint, storage_key);
+}
+
 void WebContentClient::did_clear_storage(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key)
 {
     Application::storage_jar().clear_storage_key(storage_endpoint, storage_key);

@@ -1,0 +1,4 @@
+usage is a number: true
+quota is a number: true
+usage does not exceed quota: true
+usage reflects written localStorage: true
