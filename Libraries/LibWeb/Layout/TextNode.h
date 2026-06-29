@@ -103,7 +103,7 @@ public:
     Unicode::Segmenter& grapheme_segmenter() const;
     Unicode::Segmenter& line_segmenter() const;
 
-    virtual RefPtr<Painting::Paintable> create_paintable() const override;
+    void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::Yes) const;
 
 protected:
     TextNode(DOM::Document&, DOM::Text&, AttachToDOMNode);

@@ -31,6 +31,7 @@
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/ValidityState.h>
 #include <LibWeb/Infra/Strings.h>
+#include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/UIEvents/InputTypes.h>
@@ -1122,11 +1123,7 @@ void FormAssociatedTextControlElement::scroll_cursor_into_view()
     if (!text_node)
         return;
 
-    auto paintable = text_node->paintable();
-    if (!paintable)
-        return;
-
-    paintable->scroll_ancestor_to_offset_into_view(m_selection_end);
+    Painting::Paintable::scroll_text_offset_into_view(*text_node, m_selection_end);
 }
 
 void FormAssociatedTextControlElement::selection_was_changed(SelectionSource source)
@@ -1144,17 +1141,13 @@ void FormAssociatedTextControlElement::selection_was_changed(SelectionSource sou
     if (!text_node)
         return;
     // NB: Called during selection change handling, layout may be stale.
-    auto text_paintable = text_node->unsafe_paintable();
-    if (!text_paintable)
+    auto* layout_text_node = as_if<Layout::TextNode>(text_node->unsafe_layout_node());
+    if (!layout_text_node)
         return;
 
-    if (m_selection_start == m_selection_end) {
-        text_paintable->set_selection_state(Painting::Paintable::SelectionState::None);
+    if (m_selection_start == m_selection_end)
         text_node->document().reset_cursor_blink_cycle();
-    } else {
-        text_paintable->set_selection_state(Painting::Paintable::SelectionState::StartAndEnd);
-    }
-    text_paintable->set_needs_repaint();
+    layout_text_node->set_needs_repaint();
 
     // AD-HOC: Only scroll the cursor into view for UI-driven selection changes (like keyboard input). Programmatic
     //         changes (input.value, setSelectionRange) do not cause the cursor to scroll into view. This matches the

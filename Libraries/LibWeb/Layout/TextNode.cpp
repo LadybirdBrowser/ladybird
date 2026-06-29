@@ -15,7 +15,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/InlineFormattingContext.h>
 #include <LibWeb/Layout/TextNode.h>
-#include <LibWeb/Painting/TextPaintable.h>
+#include <LibWeb/Painting/PaintableBox.h>
 
 namespace Web::Layout {
 
@@ -941,9 +941,12 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::try_commit_chunk(size_t start
     return {};
 }
 
-RefPtr<Painting::Paintable> TextNode::create_paintable() const
+void TextNode::set_needs_repaint(InvalidateDisplayList should_invalidate_display_list) const
 {
-    return Painting::TextPaintable::create(*this);
+    if (auto* containing_block = this->containing_block()) {
+        if (auto paintable_box = const_cast<Box&>(*containing_block).paintable_box())
+            paintable_box->set_needs_repaint(should_invalidate_display_list);
+    }
 }
 
 }

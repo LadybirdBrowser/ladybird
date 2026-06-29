@@ -27,7 +27,12 @@ public:
 
     void add_fragment(Layout::LineBoxFragment const& fragment, LineBoxData line_box_data)
     {
-        m_fragments.append(PaintableFragment { fragment, line_box_data });
+        m_fragments.empend(*this, fragment, line_box_data);
+    }
+    void reset_fragment_selection_states()
+    {
+        for (auto& fragment : m_fragments)
+            fragment.set_selection_state(SelectionState::None);
     }
 
     virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;

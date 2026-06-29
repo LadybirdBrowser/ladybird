@@ -15,7 +15,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x35.59375]
       FieldSetPaintable (FieldSetBox<FIELDSET>) [10,8 780x35.59375]
         PaintableWithLines (LegendBox<LEGEND>) [24,8 40.328125x18]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [24,31.59375 752x0]
       PaintableWithLines (BlockContainer(anonymous)) [8,43.59375 784x0]
 

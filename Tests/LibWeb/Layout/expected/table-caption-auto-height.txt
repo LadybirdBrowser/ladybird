@@ -35,7 +35,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
               PaintableWithLines (BlockContainer(anonymous)) [50,120 102x0]
           PaintableWithLines (BlockContainer<FIGCAPTION>) [48,14 106x54]
             PaintableWithLines (BlockContainer(anonymous)) [50,16 102x18]
-              TextPaintable (TextNode<#text>)
             PaintableWithLines (BlockContainer<DIV>.caption-content) [50,34 102x32]
             PaintableWithLines (BlockContainer(anonymous)) [50,66 102x0]
       PaintableWithLines (BlockContainer(anonymous)) [8,192 784x0]

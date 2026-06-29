@@ -21,12 +21,9 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x114]
     PaintableWithLines (BlockContainer<BODY>) [9,9 782x96]
-      TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer<DIV>.ib) [113.140625,10 204x94]
         PaintableWithLines (BlockContainer<DIV>) [114.140625,11 202x20]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>) [114.140625,31 202x20]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.whee) [114.140625,51 202x52]
         PaintableWithLines (BlockContainer(anonymous)) [114.140625,103 202x0]
 

@@ -21,7 +21,6 @@
 #include <LibWeb/Painting/SVGGraphicsPaintable.h>
 #include <LibWeb/Painting/SVGPathPaintable.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
-#include <LibWeb/Painting/TextPaintable.h>
 
 namespace Web::Layout {
 
@@ -500,7 +499,6 @@ void LayoutState::commit(Box& root)
         return TraversalDecision::Continue;
     });
 
-    HashTable<Layout::TextNode*> text_nodes;
     HashTable<WeakPtr<Painting::PaintableWithLines>> inline_node_paintables;
 
     auto transfer_box_model_metrics = [](Painting::BoxModelMetrics& box_model, UsedValues const& used_values) {
@@ -578,9 +576,6 @@ void LayoutState::commit(Box& root)
                     for (auto const& fragment : line_box.fragments()) {
                         if (fragment.is_fully_truncated())
                             continue;
-                        if (auto const* text_node = as_if<TextNode>(fragment.layout_node()))
-                            text_nodes.set(const_cast<TextNode*>(text_node));
-
                         auto fragmentation_state = Painting::PaintableBox::FragmentationState::Unfragmented;
                         auto is_first_fragment = &line_box.fragments().first() == &fragment;
                         auto is_last_fragment = &line_box.fragments().last() == &fragment;
@@ -706,9 +701,6 @@ void LayoutState::commit(Box& root)
         paintable.set_offset(offset);
     });
 
-    for (auto* text_node : text_nodes)
-        text_node->add_paintable(text_node->create_paintable());
-
     build_paint_tree(root, parent_paintable);
 
     resolve_relative_positions();
@@ -736,10 +728,12 @@ void LayoutState::commit(Box& root)
 
             auto const& fragments = paintable.fragments();
             if (!fragments.is_empty()) {
-                if (!offset.has_value() || (fragments.first().offset().x() < offset->x()))
+                auto use_fragment_offset = !offset.has_value() || (fragments.first().offset().x() < offset->x());
+                if (use_fragment_offset) {
                     offset = fragments.first().offset();
-                if (&paintable == paintable_with_lines->first_child() && used_values)
-                    offset->translate_by(-used_values->margin_box_left(), 0);
+                    if (&paintable == paintable_with_lines->first_child() && used_values)
+                        offset->translate_by(-used_values->margin_box_left(), 0);
+                }
             }
             for (auto const& fragment : fragments)
                 size.set_width(size.width() + fragment.width());

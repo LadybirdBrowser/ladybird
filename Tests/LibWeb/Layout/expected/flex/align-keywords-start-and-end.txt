@@ -31,17 +31,13 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [9,9 782x270]
       PaintableBox (Box<DIV>.flex.row.align-start) [10,10 502x202]
         PaintableWithLines (BlockContainer<DIV>) [11,11 138.5x20]
-          TextPaintable (TextNode<#text>)
       PaintableBox (Box<DIV>.flex.align-end) [10,212 502x22]
         PaintableWithLines (BlockContainer<DIV>) [11,213 123.453125x20]
-          TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [10,234 780x0]
       PaintableBox (Box<DIV>.flex.align-start) [10,234 502x22]
         PaintableWithLines (BlockContainer<DIV>) [11,235 138.5x20]
-          TextPaintable (TextNode<#text>)
       PaintableBox (Box<DIV>.flex.column.align-end) [10,256 502x22]
         PaintableWithLines (BlockContainer<DIV>) [387.546875,257 123.453125x20]
-          TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [10,278 780x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

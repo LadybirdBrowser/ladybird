@@ -64,23 +64,16 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [0,0 800x430]
       PaintableBox (Box<DIV>.container) [0,0 502x54]
         PaintableWithLines (BlockContainer<DIV>.item) [1,1 102x52]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.item) [103,1 152x52]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.item) [255,1 82x52]
-          TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [0,54 800x0]
       PaintableBox (Box<DIV>.container) [0,64 502x54]
         PaintableWithLines (BlockContainer<DIV>.item) [1,65 102x52]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.item) [103,65 152x52]
-          TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [0,118 800x0]
       PaintableBox (Box<DIV>.container) [0,128 800x302]
         PaintableWithLines (BlockContainer<DIV>.item) [1,129 52x102]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.item) [1,231 52x82]
-          TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [0,430 800x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

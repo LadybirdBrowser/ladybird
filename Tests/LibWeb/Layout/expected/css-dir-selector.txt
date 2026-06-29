@@ -70,28 +70,20 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x832]
   PaintableWithLines (BlockContainer<HTML>) [100,0 700x832]
     PaintableWithLines (BlockContainer<BODY>) [200,8 592x816]
       PaintableWithLines (BlockContainer<DIV>) [300,8 102x102]
-        TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [200,110 592x0]
       PaintableWithLines (BlockContainer<DIV>) [300,110 102x102]
-        TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [200,212 592x0]
       PaintableWithLines (BlockContainer<DIV>) [400,212 102x102]
-        TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [200,314 592x0]
       PaintableWithLines (BlockContainer<DIV>) [300,314 102x102]
-        TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [200,416 592x0]
       PaintableWithLines (BlockContainer<DIV>) [300,416 102x102]
-        TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [200,518 592x0]
       PaintableWithLines (BlockContainer<DIV>) [300,518 102x102]
-        TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [200,620 592x0]
       PaintableWithLines (BlockContainer<DIV>) [400,620 102x102]
-        TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [200,722 592x0]
       PaintableWithLines (BlockContainer<DIV>) [400,722 102x102]
-        TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [200,824 592x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

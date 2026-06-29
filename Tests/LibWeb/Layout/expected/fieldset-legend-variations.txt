@@ -249,123 +249,98 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x811]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x787]
       FieldSetPaintable (FieldSetBox<FIELDSET>) [8,8 784x38]
         PaintableWithLines (LegendBox<LEGEND>) [10,8 56.5x18]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [10,26 780x18]
           PaintableWithLines (BlockContainer(anonymous)) [10,26 780x0]
           PaintableWithLines (BlockContainer(anonymous)) [10,26 780x0]
           PaintableWithLines (BlockContainer<P>) [10,26 780x18]
-            TextPaintable (TextNode<#text>)
           PaintableWithLines (BlockContainer(anonymous)) [10,44 780x0]
       PaintableWithLines (BlockContainer(anonymous)) [8,62 784x0]
       FieldSetPaintable (FieldSetBox<FIELDSET>) [8,62 784x36]
         PaintableWithLines (LegendBox<LEGEND>) [8,62 82.703125x18]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [8,80 784x18]
           PaintableWithLines (BlockContainer(anonymous)) [8,80 784x0]
           PaintableWithLines (BlockContainer(anonymous)) [8,80 784x0]
           PaintableWithLines (BlockContainer<P>) [8,80 784x18]
-            TextPaintable (TextNode<#text>)
           PaintableWithLines (BlockContainer(anonymous)) [8,98 784x0]
       PaintableWithLines (BlockContainer(anonymous)) [8,114 784x0]
       FieldSetPaintable (FieldSetBox<FIELDSET>) [8,114 784x41]
         PaintableWithLines (LegendBox<LEGEND>) [13,114 104.828125x18]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [13,132 774x18]
           PaintableWithLines (BlockContainer(anonymous)) [13,132 774x0]
           PaintableWithLines (BlockContainer(anonymous)) [13,132 774x0]
           PaintableWithLines (BlockContainer<P>) [13,132 774x18]
-            TextPaintable (TextNode<#text>)
           PaintableWithLines (BlockContainer(anonymous)) [13,150 774x0]
       PaintableWithLines (BlockContainer(anonymous)) [8,171 784x0]
       FieldSetPaintable (FieldSetBox<FIELDSET>) [8,171 784x58]
         PaintableWithLines (LegendBox<LEGEND>) [10,171 104.8125x38]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [10,209 780x18]
           PaintableWithLines (BlockContainer(anonymous)) [10,209 780x0]
           PaintableWithLines (BlockContainer(anonymous)) [10,209 780x0]
           PaintableWithLines (BlockContainer<P>) [10,209 780x18]
-            TextPaintable (TextNode<#text>)
           PaintableWithLines (BlockContainer(anonymous)) [10,227 780x0]
       PaintableWithLines (BlockContainer(anonymous)) [8,245 784x0]
       FieldSetPaintable (FieldSetBox<FIELDSET>) [8,245 784x58]
         PaintableWithLines (LegendBox<LEGEND>) [28,246 202.90625x18]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [28,265 744x18]
           PaintableWithLines (BlockContainer(anonymous)) [28,265 744x0]
           PaintableWithLines (BlockContainer(anonymous)) [28,265 744x0]
           PaintableWithLines (BlockContainer<P>) [28,265 744x18]
-            TextPaintable (TextNode<#text>)
           PaintableWithLines (BlockContainer(anonymous)) [28,283 744x0]
       PaintableWithLines (BlockContainer(anonymous)) [8,319 784x0]
       FieldSetPaintable (FieldSetBox<FIELDSET>) [8,319 784x54]
         PaintableWithLines (LegendBox<LEGEND>) [18,327 61.015625x18]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [10,353 780x18]
           PaintableWithLines (BlockContainer(anonymous)) [10,353 780x0]
           PaintableWithLines (BlockContainer(anonymous)) [10,353 780x0]
           PaintableWithLines (BlockContainer<P>) [10,353 780x18]
-            TextPaintable (TextNode<#text>)
           PaintableWithLines (BlockContainer(anonymous)) [10,371 780x0]
       PaintableWithLines (BlockContainer(anonymous)) [8,389 784x0]
       FieldSetPaintable (FieldSetBox<FIELDSET>) [8,389 54x92]
         PaintableWithLines (LegendBox<LEGEND>) [10,389 50x72]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [10,461 50x18]
           PaintableWithLines (BlockContainer(anonymous)) [10,461 50x0]
           PaintableWithLines (BlockContainer(anonymous)) [10,461 50x0]
           PaintableWithLines (BlockContainer<P>) [10,461 50x18]
-            TextPaintable (TextNode<#text>)
           PaintableWithLines (BlockContainer(anonymous)) [10,479 50x0]
       PaintableWithLines (BlockContainer(anonymous)) [8,497 784x0]
       FieldSetPaintable (FieldSetBox<FIELDSET>) [8,497 784x38]
         PaintableWithLines (LegendBox<LEGEND>) [10,497 200x18]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [10,515 780x18]
           PaintableWithLines (BlockContainer(anonymous)) [10,515 780x0]
           PaintableWithLines (BlockContainer(anonymous)) [10,515 780x0]
           PaintableWithLines (BlockContainer<P>) [10,515 780x18]
-            TextPaintable (TextNode<#text>)
           PaintableWithLines (BlockContainer(anonymous)) [10,533 780x0]
       PaintableWithLines (BlockContainer(anonymous)) [8,551 784x0]
       FieldSetPaintable (FieldSetBox<FIELDSET>) [8,551 784x78]
         PaintableWithLines (LegendBox<LEGEND>) [30,551 117.90625x18]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [30,589 740x18]
           PaintableWithLines (BlockContainer(anonymous)) [30,589 740x0]
           PaintableWithLines (BlockContainer(anonymous)) [30,589 740x0]
           PaintableWithLines (BlockContainer<P>) [30,589 740x18]
-            TextPaintable (TextNode<#text>)
           PaintableWithLines (BlockContainer(anonymous)) [30,607 740x0]
       PaintableWithLines (BlockContainer(anonymous)) [8,645 784x0]
       FieldSetPaintable (FieldSetBox<FIELDSET>) [8,645 784x22]
         PaintableWithLines (BlockContainer(anonymous)) [10,647 780x0]
           PaintableWithLines (LegendBox<LEGEND>) [10,647 59.921875x18]
-            TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<P>) [10,647 780x18]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [10,665 780x0]
       PaintableWithLines (BlockContainer(anonymous)) [8,683 784x0]
       FieldSetPaintable (FieldSetBox<FIELDSET>) [8,683 784x22]
         PaintableWithLines (BlockContainer(anonymous)) [10,685 780x0]
           PaintableWithLines (LegendBox<LEGEND>) [10,685 73.015625x18]
-            TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<P>) [10,685 780x18]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [10,703 780x0]
       PaintableWithLines (BlockContainer(anonymous)) [8,721 784x0]
       FieldSetPaintable (FieldSetBox<FIELDSET>) [8,721 784x38]
         PaintableWithLines (LegendBox<LEGEND>) [10,721 134.5x18]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [10,739 780x18]
           PaintableWithLines (BlockContainer(anonymous)) [10,739 780x0]
           PaintableWithLines (BlockContainer<P>) [10,739 780x18]
-            TextPaintable (TextNode<#text>)
           PaintableWithLines (BlockContainer(anonymous)) [10,757 780x0]
           PaintableWithLines (BlockContainer(anonymous)) [10,757 780x0]
       PaintableWithLines (BlockContainer(anonymous)) [8,775 784x0]
       FieldSetPaintable (FieldSetBox<FIELDSET>) [8,775 784x20]
         PaintableWithLines (LegendBox<LEGEND>) [10,775 113.8125x18]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [10,793 780x0]
           PaintableWithLines (BlockContainer(anonymous)) [10,793 780x0]
           PaintableWithLines (BlockContainer(anonymous)) [10,793 780x0]

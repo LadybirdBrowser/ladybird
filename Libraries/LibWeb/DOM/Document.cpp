@@ -184,6 +184,8 @@
 #include <LibWeb/Layout/BlockFormattingContext.h>
 #include <LibWeb/Layout/SVGFormattingContext.h>
 #include <LibWeb/Layout/SVGSVGBox.h>
+#include <LibWeb/Layout/TextNode.h>
+#include <LibWeb/Layout/TextOffsetMapping.h>
 #include <LibWeb/Layout/TreeBuilder.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/ContentBlocker.h>
@@ -573,7 +575,13 @@ Document::Document(JS::Realm& realm, URL::URL const& url)
             return;
 
         auto node = cursor_position->node();
-        if (node->unsafe_paintable()) {
+        if (auto* text = as_if<DOM::Text>(*node)) {
+            auto* layout_text_node = as_if<Layout::TextNode>(text->unsafe_layout_node());
+            if (!layout_text_node)
+                return;
+            m_cursor_blink_state = !m_cursor_blink_state;
+            layout_text_node->set_needs_repaint();
+        } else if (node->unsafe_paintable()) {
             m_cursor_blink_state = !m_cursor_blink_state;
             node->set_needs_repaint();
         }
@@ -8439,24 +8447,18 @@ Optional<CSSPixelRect> Document::current_caret_rect()
         return navigable->to_top_level_rect(viewport_rect);
     };
 
-    // Walk up to the nearest PaintableWithLines, which is where text fragments live.
-    Painting::PaintableWithLines const* paintable_with_lines = nullptr;
-    for (auto paintable = layout_node->first_paintable(); paintable; paintable = paintable->parent()) {
-        if (auto const* with_lines = as_if<Painting::PaintableWithLines>(*paintable)) {
-            paintable_with_lines = with_lines;
-            break;
-        }
-    }
-
-    if (paintable_with_lines) {
-        for (auto const& fragment : paintable_with_lines->fragments()) {
-            if (fragment.layout_node().dom_node() != &dom_node)
-                continue;
-            auto const offset = position->offset();
+    if (auto* text = as_if<DOM::Text>(dom_node)) {
+        Optional<CSSPixelRect> caret_rect;
+        auto const offset = position->offset();
+        Layout::TextOffsetMapping mapping { *text };
+        mapping.for_each_paintable_fragment([&](Painting::PaintableFragment const& fragment) {
             if (offset < fragment.dom_start_offset_in_node() || offset > fragment.dom_end_offset_in_node())
-                continue;
-            return to_viewport_rect(fragment.range_rect(Painting::Paintable::SelectionState::StartAndEnd, offset, offset));
-        }
+                return TraversalDecision::Continue;
+            caret_rect = fragment.range_rect(Painting::Paintable::SelectionState::StartAndEnd, offset, offset);
+            return TraversalDecision::Break;
+        });
+        if (caret_rect.has_value())
+            return to_viewport_rect(*caret_rect);
     }
 
     // Empty editable elements have no fragments; fall back to the padding-box corner.
@@ -8481,8 +8483,18 @@ void Document::reset_cursor_blink_cycle()
 
 void Document::set_cursor_position_needs_repaint()
 {
-    if (auto position = cursor_position())
-        position->node()->set_needs_repaint();
+    auto position = cursor_position();
+    if (!position)
+        return;
+
+    auto node = position->node();
+    if (auto* text = as_if<DOM::Text>(*node)) {
+        if (auto* layout_text_node = as_if<Layout::TextNode>(text->unsafe_layout_node()))
+            layout_text_node->set_needs_repaint();
+        return;
+    }
+
+    node->set_needs_repaint();
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#doc-container-document

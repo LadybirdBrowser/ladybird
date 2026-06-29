@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibWeb/Forward.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableFragment.h>
@@ -43,25 +44,84 @@ public:
     TextNode const* fragment_containing(size_t dom_offset) const;
 
     template<typename Callback>
-    void for_each_paintable_fragment_in_dom_range(size_t dom_start, size_t dom_end, Callback&& callback) const
+    TraversalDecision for_each_paintable_fragment(Callback&& callback) const
     {
+        auto decision = TraversalDecision::Continue;
         for_each_fragment([&](TextNode const& fragment) {
-            auto fragment_paintable = fragment.first_paintable();
-            if (!fragment_paintable)
+            if (decision == TraversalDecision::Break)
                 return;
 
-            auto paintable_with_lines = fragment_paintable->template first_ancestor_of_type<Painting::PaintableWithLines>();
-            if (!paintable_with_lines)
+            auto const* containing_block = fragment.containing_block();
+            if (!containing_block)
                 return;
-            for (auto const& paintable_fragment : paintable_with_lines->fragments()) {
-                if (&paintable_fragment.paintable() != fragment_paintable)
-                    continue;
-                auto const fragment_dom_start = paintable_fragment.dom_start_offset_in_node();
-                auto const fragment_dom_end = paintable_fragment.dom_end_offset_in_node();
-                if (fragment_dom_end <= dom_start || fragment_dom_start >= dom_end)
-                    continue;
-                callback(paintable_fragment);
-            }
+            auto paintable_box = containing_block->paintable_box();
+            if (!paintable_box)
+                return;
+
+            decision = paintable_box->template for_each_in_inclusive_subtree_of_type<Painting::PaintableWithLines>([&](auto const& paintable_with_lines) {
+                for (auto const& paintable_fragment : paintable_with_lines.fragments()) {
+                    if (&paintable_fragment.layout_node() != &fragment)
+                        continue;
+                    if (callback(paintable_fragment) == TraversalDecision::Break)
+                        return TraversalDecision::Break;
+                }
+                return TraversalDecision::Continue;
+            });
+        });
+        return decision;
+    }
+
+    template<typename Callback>
+    TraversalDecision for_each_paintable_fragment(Callback&& callback)
+    {
+        auto decision = TraversalDecision::Continue;
+        for_each_fragment([&](TextNode& fragment) {
+            if (decision == TraversalDecision::Break)
+                return;
+
+            auto* containing_block = fragment.containing_block();
+            if (!containing_block)
+                return;
+            auto paintable_box = containing_block->paintable_box();
+            if (!paintable_box)
+                return;
+
+            decision = paintable_box->template for_each_in_inclusive_subtree_of_type<Painting::PaintableWithLines>([&](auto& paintable_with_lines) {
+                for (auto& paintable_fragment : paintable_with_lines.fragments()) {
+                    if (&paintable_fragment.layout_node() != &fragment)
+                        continue;
+                    if (callback(paintable_fragment) == TraversalDecision::Break)
+                        return TraversalDecision::Break;
+                }
+                return TraversalDecision::Continue;
+            });
+        });
+        return decision;
+    }
+
+    template<typename Callback>
+    void for_each_paintable_fragment_in_dom_range(size_t dom_start, size_t dom_end, Callback&& callback) const
+    {
+        for_each_paintable_fragment([&](auto const& paintable_fragment) {
+            auto const fragment_dom_start = paintable_fragment.dom_start_offset_in_node();
+            auto const fragment_dom_end = paintable_fragment.dom_end_offset_in_node();
+            if (fragment_dom_end <= dom_start || fragment_dom_start >= dom_end)
+                return TraversalDecision::Continue;
+            callback(paintable_fragment);
+            return TraversalDecision::Continue;
+        });
+    }
+
+    template<typename Callback>
+    void for_each_paintable_fragment_in_dom_range(size_t dom_start, size_t dom_end, Callback&& callback)
+    {
+        for_each_paintable_fragment([&](auto& paintable_fragment) {
+            auto const fragment_dom_start = paintable_fragment.dom_start_offset_in_node();
+            auto const fragment_dom_end = paintable_fragment.dom_end_offset_in_node();
+            if (fragment_dom_end <= dom_start || fragment_dom_start >= dom_end)
+                return TraversalDecision::Continue;
+            callback(paintable_fragment);
+            return TraversalDecision::Continue;
         });
     }
 

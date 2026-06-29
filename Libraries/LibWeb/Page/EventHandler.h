@@ -102,6 +102,7 @@ private:
     struct Target {
         RefPtr<Painting::Paintable> paintable;
         RefPtr<Painting::ChromeWidget> chrome_widget;
+        GC::Ptr<DOM::Node> dom_node;
         Optional<int> index_in_node;
     };
     Optional<Target> target_for_mouse_position(CSSPixelPoint position);

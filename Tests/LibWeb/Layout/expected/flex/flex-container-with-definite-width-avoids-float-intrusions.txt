@@ -72,34 +72,29 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x1098]
         PaintableWithLines (BlockContainer<DIV>.a) [8,26 100x100]
       PaintableBox (Box<DIV>.c) [8,126 400x100]
         PaintableWithLines (BlockContainer(anonymous)) [8,126 257.3125x100]
-          TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,226 400x0]
       PaintableWithLines (BlockContainer<HR>) [8,234 400x2]
       PaintableWithLines (BlockContainer<DIV>.a) [8,244 100x100]
       PaintableWithLines (BlockContainer<DIV>.b) [358,244 50x200]
       PaintableBox (Box<DIV>.c) [8,444 400x100]
         PaintableWithLines (BlockContainer(anonymous)) [8,444 268.5625x100]
-          TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,544 400x0]
       PaintableWithLines (BlockContainer<HR>) [8,552 400x2]
       PaintableWithLines (BlockContainer<DIV>.a) [8,562 100x100]
       PaintableWithLines (BlockContainer<DIV>.b) [358,562 50x200]
       PaintableBox (Box<DIV>.d) [58,662 300x100]
         PaintableWithLines (BlockContainer(anonymous)) [58,662 300x100]
-          TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,762 400x0]
       PaintableWithLines (BlockContainer<HR>) [8,770 400x2]
       PaintableWithLines (BlockContainer<DIV>.a) [8,780 100x100]
       PaintableBox (Box<DIV>.e) [108,780 190x100]
         PaintableWithLines (BlockContainer(anonymous)) [148,780 150x100]
-          TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,880 400x0]
       PaintableWithLines (BlockContainer<HR>) [8,888 400x2]
       PaintableWithLines (BlockContainer<DIV>.a) [8,898 100x100]
       PaintableWithLines (BlockContainer<DIV>.b) [358,898 50x200]
       PaintableBox (Box<DIV>.f) [133,898 200x100]
         PaintableWithLines (BlockContainer(anonymous)) [133,898 200x100]
-          TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,998 400x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

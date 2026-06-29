@@ -23,7 +23,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
         PaintableWithLines (BlockContainer<BUTTON>) [184.390625,8 47.21875x22]
           PaintableWithLines (BlockContainer(anonymous)) [189.390625,10 37.21875x18]
             PaintableWithLines (BlockContainer(anonymous)) [189.390625,10 37.21875x18]
-              TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [8,30 400x0]
       PaintableWithLines (BlockContainer(anonymous)) [8,30 784x0]
 

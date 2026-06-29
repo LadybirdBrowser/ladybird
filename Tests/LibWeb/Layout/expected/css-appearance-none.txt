@@ -63,22 +63,14 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
         PaintableWithLines (BlockContainer(anonymous)) [13,10 0x18]
           PaintableWithLines (BlockContainer(anonymous)) [13,10 0x18]
             PaintableWithLines (BlockContainer<SPAN>) [13,10 0x18]
-              TextPaintable (TextNode<#text>)
-      TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer<INPUT>) [8,30 10x22]
         PaintableWithLines (BlockContainer(anonymous)) [13,32 0x18]
           PaintableWithLines (BlockContainer(anonymous)) [13,32 0x18]
             PaintableWithLines (BlockContainer<SPAN>) [13,32 0x18]
-              TextPaintable (TextNode<#text>)
-      TextPaintable (TextNode<#text>)
       CheckBoxPaintable (CheckBox<INPUT>) [8,52 13x13]
-      TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer<INPUT>) [8,83 0x0]
-      TextPaintable (TextNode<#text>)
       RadioButtonPaintable (RadioButton<INPUT>) [8,89 12x12]
-      TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer<INPUT>) [8,119 0x0]
-      TextPaintable (TextNode<#text>)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x132] (z-index: auto)

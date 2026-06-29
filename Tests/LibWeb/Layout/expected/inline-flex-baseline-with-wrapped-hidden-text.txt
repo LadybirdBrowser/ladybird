@@ -31,13 +31,9 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x50]
     PaintableWithLines (BlockContainer<BODY>) [8,16 784x18]
       PaintableWithLines (BlockContainer<P>) [8,16 784x18]
-        TextPaintable (TextNode<#text>)
         PaintableWithLines (InlineNode<A>) [43.15625,16 45.640625x18]
-          TextPaintable (TextNode<#text>)
           PaintableBox (Box<SPAN>.icon) [74.796875,16 18x18]
             PaintableWithLines (BlockContainer<SPAN>.hidden-label) [74.796875,16 27.203125x18]
-              TextPaintable (TextNode<#text>)
-        TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,50 784x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

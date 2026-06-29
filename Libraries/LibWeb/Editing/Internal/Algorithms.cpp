@@ -41,7 +41,6 @@
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Namespace.h>
-#include <LibWeb/Painting/TextPaintable.h>
 
 namespace Web::Editing {
 

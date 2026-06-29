@@ -22,11 +22,8 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x976]
     PaintableWithLines (BlockContainer<BODY>) [8,8 600x960]
       PaintableWithLines (BlockContainer<DIV>.normal) [8,8 320x320]
       PaintableWithLines (BlockContainer<DIV>#top) [8,328 100x100]
-        TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer<DIV>#left) [8,428 100x100]
-        TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer<DIV>#right) [108,428 100x100]
-        TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer<DIV>.normal) [8,328 320x320]
       PaintableWithLines (BlockContainer<DIV>.normal) [8,648 320x320]
 

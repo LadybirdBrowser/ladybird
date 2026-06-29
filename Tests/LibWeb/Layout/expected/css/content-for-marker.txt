@@ -72,31 +72,18 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       PaintableWithLines (BlockContainer(anonymous)) [8,8 784x0]
       PaintableWithLines (ListItemBox<DIV>.numbers) [8,8 784x18]
         PaintableWithLines (InlineNode(anonymous)) [8,8 10.125x18]
-          TextPaintable (GeneratedTextNode(anonymous))
-          TextPaintable (GeneratedTextNode(anonymous))
-        TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,26 784x0]
       PaintableWithLines (ListItemBox<DIV>.bullets) [8,26 784x18]
         PaintableWithLines (InlineNode(anonymous)) [8,26 13.84375x18]
-          TextPaintable (GeneratedTextNode(anonymous))
-        TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,44 784x0]
       PaintableWithLines (ListItemBox<DIV>.numbers) [8,44 784x18]
         PaintableWithLines (InlineNode(anonymous)) [8,44 12.875x18]
-          TextPaintable (GeneratedTextNode(anonymous))
-          TextPaintable (GeneratedTextNode(anonymous))
-        TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,62 784x0]
       PaintableWithLines (ListItemBox<DIV>.bullets) [8,62 784x18]
         PaintableWithLines (InlineNode(anonymous)) [8,62 13.84375x18]
-          TextPaintable (GeneratedTextNode(anonymous))
-        TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,80 784x0]
       PaintableWithLines (ListItemBox<DIV>.numbers) [8,80 784x18]
         PaintableWithLines (InlineNode(anonymous)) [8,80 12.234375x18]
-          TextPaintable (GeneratedTextNode(anonymous))
-          TextPaintable (GeneratedTextNode(anonymous))
-        TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,98 784x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

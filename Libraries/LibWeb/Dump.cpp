@@ -51,7 +51,6 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
-#include <LibWeb/Painting/TextPaintable.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 
 namespace Web {
@@ -370,13 +369,6 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
     }
 
     auto dump_fragment = [&](auto& fragment, size_t fragment_index) {
-        auto fragment_has_paintable = fragment.layout_node().first_paintable();
-        auto fragment_rect = [&] {
-            if (fragment_has_paintable)
-                return fragment.absolute_rect();
-            return CSSPixelRect { fragment.offset(), fragment.size() };
-        }();
-
         builder.append_repeated("  "sv, indent);
         builder.appendff("  {}frag {}{} from {} ",
             fragment_color_on,
@@ -386,9 +378,9 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
         builder.appendff("start: {}, length: {}, rect: {} baseline: {}\n",
             fragment.start_offset(),
             fragment.length_in_code_units(),
-            fragment_rect,
+            fragment.absolute_rect(),
             fragment.baseline());
-        if (fragment_has_paintable && fragment.length_in_code_units() > 0) {
+        if (fragment.length_in_code_units() > 0) {
             builder.append_repeated("  "sv, indent);
             builder.appendff("      \"{}\"\n", fragment.text());
         }
@@ -738,14 +730,12 @@ void dump_tree(StringBuilder& builder, Painting::Paintable const& paintable, boo
     // This makes detached/disconnected paintables visible across the full subtree.
     StringView paintable_with_lines_color_on = ""sv;
     StringView paintable_box_color_on = ""sv;
-    StringView text_paintable_color_on = ""sv;
     StringView paintable_color_on = ""sv;
     StringView color_off = ""sv;
 
     if (colorize) {
         paintable_with_lines_color_on = "\033[34m"sv;
         paintable_box_color_on = "\033[33m"sv;
-        text_paintable_color_on = "\033[35m"sv;
         paintable_color_on = "\033[32m"sv;
         color_off = "\033[0m"sv;
     }
@@ -762,8 +752,6 @@ void dump_tree(StringBuilder& builder, Painting::Paintable const& paintable, boo
             builder.append(paintable_with_lines_color_on);
         else if (is<Painting::PaintableBox>(node_paintable))
             builder.append(paintable_box_color_on);
-        else if (is<Painting::TextPaintable>(node_paintable))
-            builder.append(text_paintable_color_on);
         else
             builder.append(paintable_color_on);
 

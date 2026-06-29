@@ -15,7 +15,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       PaintableWithLines (BlockContainer<DETAILS>) [8,8 784x138]
         PaintableWithLines (ListItemBox<SUMMARY>) [84,68 648x18]
           MarkerPaintable (ListItemMarkerBox(anonymous)) [68,73 8x8]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<SLOT>) [68,86 664x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

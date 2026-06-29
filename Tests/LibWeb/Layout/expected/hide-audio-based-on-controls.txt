@@ -46,7 +46,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
                   SVGSVGPaintable (SVGSVGBox<svg>.icon.play-pause-icon) [16,20 24x24]
                     SVGPathPaintable (SVGGeometryBox<path>.play-path) [22,25 13x14]
                 PaintableWithLines (BlockContainer<SPAN>.timestamp) [48,25 80.84375x14]
-                  TextPaintable (TextNode<#text>)
                 PaintableBox (Box<BUTTON>.control-button.mute-button.high.muted) [276,20 24x24]
                   SVGSVGPaintable (SVGSVGBox<svg>.icon) [276,20 24x24]
                     SVGPathPaintable (SVGGeometryBox<path>.muted-line) [279.5,25 15.5x15.5]

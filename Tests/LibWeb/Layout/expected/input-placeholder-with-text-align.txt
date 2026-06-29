@@ -19,9 +19,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       PaintableWithLines (TextInputBox<INPUT>) [8,8 402x102]
         PaintableBox (Box<DIV>) [9,9 400x102]
           PaintableWithLines (BlockContainer<DIV>) [11,51 0x18]
-            TextPaintable (TextNode<#text>)
           PaintableWithLines (BlockContainer<DIV>) [11,51 396x18]
-            TextPaintable (TextNode<#text>)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x118] (z-index: auto)

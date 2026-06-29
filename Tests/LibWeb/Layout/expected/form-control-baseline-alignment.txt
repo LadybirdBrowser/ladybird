@@ -56,30 +56,20 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       PaintableWithLines (TextInputBox<INPUT>) [8,24 202x22]
         PaintableBox (Box<DIV>) [9,25 200x20]
           PaintableWithLines (BlockContainer<DIV>) [11,26 196x18]
-            TextPaintable (TextNode<#text>)
       PaintableWithLines (InlineNode<SPAN>) [210,30 30.1875x18]
-        TextPaintable (TextNode<#text>)
       PaintableWithLines (TextAreaBox<TEXTAREA>) [240.1875,8 166x36]
         PaintableWithLines (BlockContainer<DIV>) [243.1875,11 160x15]
           PaintableWithLines (BlockContainer<DIV>) [243.1875,11 160x15]
-            TextPaintable (TextNode<#text>)
       PaintableWithLines (InlineNode<SPAN>) [406.1875,30 30.1875x18]
-        TextPaintable (TextNode<#text>)
       PaintableWithLines (TextInputBox<INPUT>) [436.375,24 202x22]
         PaintableBox (Box<DIV>) [437.375,25 200x20]
           PaintableWithLines (BlockContainer<DIV>) [439.375,26 0x18]
-            TextPaintable (TextNode<#text>)
           PaintableWithLines (BlockContainer<DIV>) [439.375,26 196x18]
-            TextPaintable (TextNode<#text>)
-      TextPaintable (TextNode<#text>)
       PaintableWithLines (InlineNode<SPAN>) [646.375,30 30.1875x18]
-        TextPaintable (TextNode<#text>)
       PaintableWithLines (TextAreaBox<TEXTAREA>) [8,44 166x36]
         PaintableWithLines (BlockContainer<DIV>) [11,47 160x15]
           PaintableWithLines (InlineNode<DIV>) [11,47 0x15]
-            TextPaintable (TextNode<#text>)
           PaintableWithLines (InlineNode<DIV>) [11,47 29.921875x15]
-            TextPaintable (TextNode<#text>)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x88] (z-index: auto)

@@ -10,6 +10,7 @@
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
 #include <AK/Types.h>
+#include <LibGC/Ptr.h>
 #include <LibWeb/DOM/AbstractRange.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/PixelUnits.h>
@@ -22,6 +23,7 @@ class Paintable;
 struct HitTestResult {
     NonnullRefPtr<Paintable> paintable;
     RefPtr<ChromeWidget> chrome_widget {};
+    GC::Ptr<DOM::Node> dom_node_override {};
     size_t index_in_node { 0 };
     enum InternalPosition {
         None,

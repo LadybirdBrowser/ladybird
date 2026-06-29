@@ -38,21 +38,15 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [9,9 782x248]
       PaintableBox (Box<DIV>.grid) [10,10 780x82]
         PaintableWithLines (BlockContainer<DIV>.start) [31,31 52.203125x20]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.item-padding) [388.765625,31 380.234375x40]
-          TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [10,92 780x0]
       PaintableBox (Box<DIV>.grid) [10,92 780x82]
         PaintableWithLines (BlockContainer<DIV>.center) [179.1875,123 61.390625x20]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.item-padding) [388.765625,113 380.234375x40]
-          TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [10,174 780x0]
       PaintableBox (Box<DIV>.grid) [10,174 780x82]
         PaintableWithLines (BlockContainer<DIV>.end) [351.09375,215 37.671875x20]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.item-padding) [388.765625,195 380.234375x40]
-          TextPaintable (TextNode<#text>)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [1,1 798x264] (z-index: auto)

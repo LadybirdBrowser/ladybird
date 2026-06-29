@@ -45,26 +45,21 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [9,9 782x110]
       PaintableWithLines (BlockContainer<DIV>.block.formatting-context) [10,10 780x22]
         PaintableWithLines (BlockContainer<DIV>) [11,11 778x20]
-          TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [10,32 780x0]
       PaintableWithLines (BlockContainer<DIV>.inline.formatting-context) [10,32 780x20]
         PaintableWithLines (InlineNode<DIV>) [11,32 43.296875x20]
-          TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [10,52 780x0]
       PaintableBox (Box<DIV>.flex.formatting-context) [10,52 780x22]
         PaintableWithLines (BlockContainer<DIV>) [11,53 31.09375x20]
-          TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [10,74 780x0]
       PaintableBox (Box<DIV>.grid.formatting-context) [10,74 780x22]
         PaintableWithLines (BlockContainer<DIV>) [11,75 778x20]
-          TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [10,96 780x0]
       PaintableWithLines (TableWrapper(anonymous)) [10,96 42.625x22]
         PaintableBox (Box<DIV>.table.formatting-context) [10,96 42.625x22]
           PaintableBox (Box(anonymous)) [11,97 40.625x20]
             PaintableWithLines (BlockContainer(anonymous)) [11,97 40.625x20]
               PaintableWithLines (BlockContainer<DIV>) [11,97 40.625x20]
-                TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [10,118 780x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

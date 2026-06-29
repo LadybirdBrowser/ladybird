@@ -65,35 +65,23 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x616]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x600]
       PaintableBox (Box<DIV>.outer.row) [8,8 150x150]
         PaintableWithLines (BlockContainer<DIV>.inner) [12.609375,8 30.078125x150]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.inner) [51.921875,8 36.84375x150]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.inner) [98,8 55.359375x150]
-          TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,158 784x0]
       PaintableBox (Box<DIV>.outer.row-reverse) [8,158 150x150]
         PaintableWithLines (BlockContainer<DIV>.inner) [123.3125,158 30.078125x150]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.inner) [77.234375,158 36.84375x150]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.inner) [12.640625,158 55.359375x150]
-          TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,308 784x0]
       PaintableBox (Box<DIV>.outer.column) [8,308 150x150]
         PaintableWithLines (BlockContainer<DIV>.inner) [8,324 150x18]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.inner) [8,374 150x18]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.inner) [8,424 150x18]
-          TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,458 784x0]
       PaintableBox (Box<DIV>.outer.column-reverse) [8,458 150x150]
         PaintableWithLines (BlockContainer<DIV>.inner) [8,574 150x18]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.inner) [8,524 150x18]
-          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.inner) [8,474 150x18]
-          TextPaintable (TextNode<#text>)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x616] (z-index: auto)

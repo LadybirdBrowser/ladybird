@@ -22,7 +22,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
         SVGForeignObjectPaintable (SVGForeignObjectBox<foreignObject>) [58,58 100x100]
           PaintableWithLines (BlockContainer(anonymous)) [58,58 100x0]
             PaintableWithLines (BlockContainer<DIV>) [58,58 100x100]
-              TextPaintable (TextNode<#text>)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x216] (z-index: auto)
