@@ -88,7 +88,7 @@ static TransformData visual_viewport_transform_data(DOM::Document& document)
 }
 
 // https://drafts.csswg.org/css-transforms-2/#ctm
-static Optional<TransformData> compute_transform(PaintableBox const& paintable_box, CSS::ComputedValues const& computed_values, double pixel_ratio)
+Optional<TransformData> compute_transform(PaintableBox const& paintable_box, CSS::ComputedValues const& computed_values, double pixel_ratio)
 {
     if (!paintable_box.has_css_transform())
         return {};

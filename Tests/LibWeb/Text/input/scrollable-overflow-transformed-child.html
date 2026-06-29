@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+body {
+    margin: 0;
+}
+
+#centered-absolute {
+    position: relative;
+    width: 800px;
+    height: 20px;
+}
+
+#centered-absolute .overlay {
+    position: absolute;
+    width: 100vw;
+    max-width: 600px;
+    height: 10px;
+    margin-left: 50%;
+    transform: translateX(-50%);
+}
+
+#positive-transform {
+    width: 100px;
+    height: 10px;
+}
+
+#positive-transform .child {
+    width: 50px;
+    height: 10px;
+    transform: translateX(100px);
+}
+</style>
+<div id="centered-absolute"><div class="overlay"></div></div>
+<div id="positive-transform"><div class="child"></div></div>
+<script>
+test(() => {
+    println(`document scroll width: ${document.documentElement.scrollWidth}`);
+    println(`positive transform scroll width: ${document.getElementById("positive-transform").scrollWidth}`);
+});
+</script>
