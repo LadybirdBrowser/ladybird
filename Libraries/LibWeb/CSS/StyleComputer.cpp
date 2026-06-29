@@ -44,6 +44,7 @@
 #include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/CSS/CustomPropertyRegistration.h>
 #include <LibWeb/CSS/FontComputer.h>
+#include <LibWeb/CSS/HypotheticalElement.h>
 #include <LibWeb/CSS/Interpolation.h>
 #include <LibWeb/CSS/InvalidationSet.h>
 #include <LibWeb/CSS/Parser/ArbitrarySubstitutionFunctions.h>
@@ -3812,7 +3813,7 @@ static bool matches_subject_pseudo_class_bucket(PseudoClass pseudo_class, DOM::E
     }
 }
 
-static NonnullRefPtr<StyleValue const> resolve_css_wide_keyword_for_custom_property(Optional<CustomPropertyRegistration const&> registration, DOM::AbstractElement const& element, Utf16FlyString const& name, NonnullRefPtr<StyleValue const> keyword_value)
+static NonnullRefPtr<StyleValue const> resolve_css_wide_keyword_for_custom_property(Optional<CustomPropertyRegistration const&> registration, AbstractOrHypotheticalElement const& element, Utf16FlyString const& name, NonnullRefPtr<StyleValue const> keyword_value)
 {
     if (keyword_value->is_initial())
         return initial_custom_property_value(registration, element.document());
@@ -3836,31 +3837,31 @@ static NonnullRefPtr<StyleValue const> resolve_css_wide_keyword_for_custom_prope
     VERIFY_NOT_REACHED();
 }
 
-NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(ComputedProperties const* computed_style_for_custom_property_resolution, DOM::AbstractElement abstract_element, Utf16FlyString const& name, Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts) const
+NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(ComputedProperties const* computed_style_for_custom_property_resolution, AbstractOrHypotheticalElement const& element, Utf16FlyString const& name, Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts) const
 {
     // https://drafts.csswg.org/css-variables/#propdef-
     // The computed value of a custom property is its specified value with any arbitrary-substitution functions replaced.
     // FIXME: These should probably be part of ComputedProperties.
-    auto& document = abstract_element.document();
-    auto registration = document.get_registered_custom_property(name);
+    auto& document = element.document();
+    auto registration = element.get_registered_custom_property(name);
 
-    auto value = abstract_element.get_custom_property(name);
+    auto value = element.get_custom_property(name);
     auto resolved_value = value ? value.release_nonnull() : initial_custom_property_value(registration, document);
 
     if (resolved_value->is_css_wide_keyword())
-        return resolve_css_wide_keyword_for_custom_property(registration, abstract_element, name, move(resolved_value));
+        return resolve_css_wide_keyword_for_custom_property(registration, element, name, move(resolved_value));
 
     if (resolved_value->is_unresolved() && resolved_value->as_unresolved().contains_arbitrary_substitution_function()) {
         auto& unresolved = resolved_value->as_unresolved();
         Parser::ArbitrarySubstitutionReplacementContext arbitrary_substitution_context {
             .computed_style_for_custom_property_resolution = computed_style_for_custom_property_resolution,
         };
-        resolved_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { document }, abstract_element, arbitrary_substitution_context, PropertyNameAndID::from_name(name).release_value(), unresolved, guarded_contexts);
+        resolved_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { document }, element, arbitrary_substitution_context, PropertyNameAndID::from_name(name).release_value(), unresolved, guarded_contexts);
 
         // A CSS-wide keyword produced by substitution takes on that keyword's meaning for the custom property,
         // exactly as a literally-specified one would (handled above before substitution).
         if (resolved_value->is_css_wide_keyword())
-            return resolve_css_wide_keyword_for_custom_property(registration, abstract_element, name, move(resolved_value));
+            return resolve_css_wide_keyword_for_custom_property(registration, element, name, move(resolved_value));
     }
 
     auto invalid_custom_property_fallback_value = [&](NonnullRefPtr<StyleValue const> invalid_value) {
@@ -3881,8 +3882,8 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(
             // Either the property’s inherited value or its initial value depending on whether the property is
             // inherited or not, respectively, as if the property’s value had been specified as the unset keyword.
             if (registration->inherit)
-                return inherited_custom_property_value(registration, abstract_element, name);
-            return initial_custom_property_value(registration, abstract_element.document());
+                return inherited_custom_property_value(registration, element, name);
+            return initial_custom_property_value(registration, element.document());
         }
     };
 
@@ -3907,7 +3908,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(
         if (!computed_style_for_custom_property_resolution)
             return parsed_value;
 
-        return compute_registered_custom_property_value(registration.value(), move(parsed_value), get_computation_context_for_property(PropertyID::Custom, *computed_style_for_custom_property_resolution, abstract_element));
+        return compute_registered_custom_property_value(registration.value(), move(parsed_value), get_computation_context_for_property(PropertyID::Custom, *computed_style_for_custom_property_resolution, element.abstract_element()));
     }();
 
     if (resolved_value_contains_attr_tainted_values)
@@ -3916,8 +3917,10 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(
     return computed_value;
 }
 
-ComputationContext StyleComputer::fallback_computation_context_for_custom_property(DOM::AbstractElement const& abstract_element) const
+ComputationContext StyleComputer::fallback_computation_context_for_custom_property(AbstractOrHypotheticalElement const& element) const
 {
+    auto abstract_element = element.abstract_element();
+
     auto context_from_computed_values = [&](DOM::AbstractElement const& styled_element) -> ComputationContext {
         auto length_resolution_context = Length::ResolutionContext::for_element(styled_element);
         length_resolution_context.subject_element = &abstract_element.element();

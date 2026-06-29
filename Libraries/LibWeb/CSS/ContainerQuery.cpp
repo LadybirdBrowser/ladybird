@@ -276,7 +276,7 @@ static Optional<Keyword> single_css_wide_keyword(ReadonlySpan<Parser::ComponentV
     return {};
 }
 
-static ColorResolutionContext fallback_color_resolution_context_for_style_query(DOM::AbstractElement const& element, ComputationContext const& computation_context)
+static ColorResolutionContext fallback_color_resolution_context_for_style_query(AbstractOrHypotheticalElement const& element, ComputationContext const& computation_context)
 {
     auto calculation_resolution_context = CalculationResolutionContext::from_computation_context(computation_context);
     auto color_resolution_context_for_style = [&](ComputedValues const& style) {
@@ -288,10 +288,12 @@ static ColorResolutionContext fallback_color_resolution_context_for_style_query(
         return color_resolution_context;
     };
 
-    if (auto const* style = element.computed_values())
+    auto abstract_element = element.abstract_element();
+
+    if (auto const* style = abstract_element.computed_values())
         return color_resolution_context_for_style(*style);
 
-    if (auto parent = element.element_to_inherit_style_from(); parent.has_value() && parent->computed_values())
+    if (auto parent = abstract_element.element_to_inherit_style_from(); parent.has_value() && parent->computed_values())
         return color_resolution_context_for_style(*parent->computed_values());
 
     return {
@@ -409,7 +411,7 @@ static RefPtr<StyleValue const> parse_style_range_literal_value(DOM::Document co
     return {};
 }
 
-static Optional<StyleRangeComparableValue> evaluate_style_range_value(StyleFeature::StyleRangeValue const& range_value, DOM::AbstractElement const& element, DOM::Document const& document, ComputationContext const& computation_context, Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts, bool* did_evaluate_attr_tainted_style_query)
+static Optional<StyleRangeComparableValue> evaluate_style_range_value(StyleFeature::StyleRangeValue const& range_value, AbstractOrHypotheticalElement const& element, DOM::Document const& document, ComputationContext const& computation_context, Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts, bool* did_evaluate_attr_tainted_style_query)
 {
     return range_value.visit(
         [&](PropertyNameAndID const& property) -> Optional<StyleRangeComparableValue> {
@@ -541,7 +543,7 @@ MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& con
             *context.did_evaluate_attr_tainted_style_query = true;
     }
 
-    auto registration = document.get_registered_custom_property(property_name);
+    auto registration = element.get_registered_custom_property(property_name);
     auto computation_context = element.document().style_computer().fallback_computation_context_for_custom_property(element);
     auto color_resolution_context = fallback_color_resolution_context_for_style_query(element, computation_context);
     auto comparable_computed_value = computed_value;

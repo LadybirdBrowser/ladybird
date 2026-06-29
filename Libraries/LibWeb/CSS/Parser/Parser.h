@@ -180,7 +180,7 @@ public:
 
     Vector<ComponentValue> parse_as_list_of_component_values();
 
-    static NonnullRefPtr<StyleValue const> resolve_unresolved_style_value(ParsingParams const&, DOM::AbstractElement, ArbitrarySubstitutionReplacementContext const&, PropertyNameAndID const&, UnresolvedStyleValue const&, Optional<GuardedSubstitutionContexts&> = {});
+    static NonnullRefPtr<StyleValue const> resolve_unresolved_style_value(ParsingParams const&, AbstractOrHypotheticalElement, ArbitrarySubstitutionReplacementContext const&, PropertyNameAndID const&, UnresolvedStyleValue const&, Optional<GuardedSubstitutionContexts&> = {});
 
     [[nodiscard]] NonnullRefPtr<StyleValue const> parse_as_sizes_attribute(DOM::Element const& element, HTML::HTMLImageElement const* img = nullptr);
 
@@ -650,7 +650,7 @@ private:
     OwnPtr<BooleanExpression> parse_container_query_feature(TokenStream<ComponentValue>&);
     RefPtr<ContainerQuery> parse_container_query(TokenStream<ComponentValue>&);
 
-    NonnullRefPtr<StyleValue const> resolve_unresolved_style_value(DOM::AbstractElement, GuardedSubstitutionContexts&, ArbitrarySubstitutionReplacementContext const&, PropertyNameAndID const&, UnresolvedStyleValue const&);
+    NonnullRefPtr<StyleValue const> resolve_unresolved_style_value(AbstractOrHypotheticalElement, GuardedSubstitutionContexts&, ArbitrarySubstitutionReplacementContext const&, PropertyNameAndID const&, UnresolvedStyleValue const&);
 
     RefPtr<StyleValue const> parse_according_to_syntax_node(TokenStream<ComponentValue>& tokens, SyntaxNode const& syntax_node);
 

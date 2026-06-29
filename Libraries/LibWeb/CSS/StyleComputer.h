@@ -139,8 +139,8 @@ public:
 
     [[nodiscard]] inline bool should_reject_with_ancestor_filter(Selector const&) const;
 
-    NonnullRefPtr<StyleValue const> compute_value_of_custom_property(ComputedProperties const*, DOM::AbstractElement, Utf16FlyString const& name, Optional<Parser::GuardedSubstitutionContexts&> = {}) const;
-    ComputationContext fallback_computation_context_for_custom_property(DOM::AbstractElement const&) const;
+    NonnullRefPtr<StyleValue const> compute_value_of_custom_property(ComputedProperties const*, AbstractOrHypotheticalElement const&, Utf16FlyString const& name, Optional<Parser::GuardedSubstitutionContexts&> = {}) const;
+    ComputationContext fallback_computation_context_for_custom_property(AbstractOrHypotheticalElement const&) const;
 
     static NonnullRefPtr<StyleValue const> compute_value_of_property(PropertyID, NonnullRefPtr<StyleValue const> const& specified_value, Function<NonnullRefPtr<StyleValue const>(PropertyID)> const& get_property_specified_value, ComputationContext const&, double device_pixels_per_css_pixel);
     static NonnullRefPtr<StyleValue const> compute_animation_name(NonnullRefPtr<StyleValue const> const& absolutized_value);

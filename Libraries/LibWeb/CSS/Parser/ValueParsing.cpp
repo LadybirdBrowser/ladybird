@@ -21,6 +21,7 @@
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/FontFeatureData.h>
+#include <LibWeb/CSS/HypotheticalElement.h>
 #include <LibWeb/CSS/MathFunctions.h>
 #include <LibWeb/CSS/Parser/ArbitrarySubstitutionFunctions.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
@@ -5735,13 +5736,13 @@ RefPtr<FontSourceStyleValue const> Parser::parse_font_source_value(TokenStream<C
     return FontSourceStyleValue::create(url.release_value(), move(format), move(tech));
 }
 
-NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(ParsingParams const& context, DOM::AbstractElement abstract_element, ArbitrarySubstitutionReplacementContext const& replacement_context, PropertyNameAndID const& property, UnresolvedStyleValue const& unresolved, Optional<GuardedSubstitutionContexts&> existing_guarded_contexts)
+NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(ParsingParams const& context, AbstractOrHypotheticalElement element, ArbitrarySubstitutionReplacementContext const& replacement_context, PropertyNameAndID const& property, UnresolvedStyleValue const& unresolved, Optional<GuardedSubstitutionContexts&> existing_guarded_contexts)
 {
     auto parser = Parser::create(context, ""sv);
     if (existing_guarded_contexts.has_value())
-        return parser.resolve_unresolved_style_value(abstract_element, existing_guarded_contexts.value(), replacement_context, property, unresolved);
+        return parser.resolve_unresolved_style_value(element, existing_guarded_contexts.value(), replacement_context, property, unresolved);
     GuardedSubstitutionContexts guarded_contexts;
-    return parser.resolve_unresolved_style_value(abstract_element, guarded_contexts, replacement_context, property, unresolved);
+    return parser.resolve_unresolved_style_value(element, guarded_contexts, replacement_context, property, unresolved);
 }
 
 // If a component value sequence is a single CSS-wide keyword (inherit/initial/unset/revert/revert-layer),
@@ -5763,17 +5764,17 @@ static Optional<Keyword> single_css_wide_keyword(Vector<ComponentValue> const& v
 }
 
 // https://drafts.csswg.org/css-values-5/#property-replacement
-NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(DOM::AbstractElement element, GuardedSubstitutionContexts& guarded_contexts, ArbitrarySubstitutionReplacementContext const& replacement_context, PropertyNameAndID const& property, UnresolvedStyleValue const& unresolved)
+NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(AbstractOrHypotheticalElement element, GuardedSubstitutionContexts& guarded_contexts, ArbitrarySubstitutionReplacementContext const& replacement_context, PropertyNameAndID const& property, UnresolvedStyleValue const& unresolved)
 {
     // AD-HOC: Report that we might rely on custom properties.
     if (unresolved.includes_attr_function())
-        element.element().set_style_uses_attr_css_function();
+        element.abstract_element().element().set_style_uses_attr_css_function();
     if (unresolved.includes_if_function())
-        element.element().set_style_uses_if_css_function();
+        element.abstract_element().element().set_style_uses_if_css_function();
     if (unresolved.includes_inherit_function())
-        element.element().set_style_uses_inherit_css_function();
+        element.abstract_element().element().set_style_uses_inherit_css_function();
     if (unresolved.includes_var_function())
-        element.element().set_style_uses_var_css_function();
+        element.abstract_element().element().set_style_uses_var_css_function();
 
     // To replace substitution functions in a property prop:
 
