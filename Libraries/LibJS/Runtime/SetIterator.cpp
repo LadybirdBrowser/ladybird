@@ -58,7 +58,7 @@ ThrowCompletionOr<void> SetIterator::next(VM& vm, bool& done, Value& value)
 
     VERIFY(m_iteration_kind != Object::PropertyKind::Key);
 
-    value = (*m_iterator).key;
+    value = *m_iterator;
     ++m_iterator;
     if (m_iteration_kind == Object::PropertyKind::Value) {
         return {};

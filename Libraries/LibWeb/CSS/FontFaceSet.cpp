@@ -145,11 +145,11 @@ void FontFaceSet::clear()
     auto* window = as_if<HTML::Window>(HTML::relevant_global_object(*this));
     Vector<JS::Value> to_remove;
     for (auto font_face_value : *m_set_entries) {
-        auto& font_face = as<FontFace>(font_face_value.key.as_object());
+        auto& font_face = as<FontFace>(font_face_value.as_object());
         if (!font_face.is_css_connected()) {
             if (window && font_face.should_be_registered_with_font_computer())
                 window->associated_document().font_computer().unregister_font_face(font_face);
-            to_remove.append(font_face_value.key);
+            to_remove.append(font_face_value);
             font_face.remove_from_set(*this);
         }
     }
@@ -242,11 +242,11 @@ static WebIDL::ExceptionOr<GC::Ref<JS::Set>> find_matching_font_faces(JS::Realm&
         auto font_family_name = string_from_style_value(font_family);
 
         for (auto font_face_value : *available_font_faces) {
-            auto& font_face = as<FontFace>(font_face_value.key.as_object());
+            auto& font_face = as<FontFace>(font_face_value.as_object());
             if (font_face.family() != font_family_name)
                 continue;
 
-            matched_font_faces->set_add(font_face_value.key);
+            matched_font_faces->set_add(font_face_value);
         }
     }
 
@@ -255,8 +255,8 @@ static WebIDL::ExceptionOr<GC::Ref<JS::Set>> find_matching_font_faces(JS::Realm&
     // 8. For each font face in matched font faces, if its defined unicode-range does not include the codepoint of at
     //    least one character in text, remove it from the list.
     GC::RootVector<JS::Value> faces_to_remove;
-    for (auto entry : *matched_font_faces) {
-        auto& font_face = as<FontFace>(entry.key.as_object());
+    for (auto font_face_value : *matched_font_faces) {
+        auto& font_face = as<FontFace>(font_face_value.as_object());
         bool includes_at_least_one_text_code_point = false;
         for (auto code_point : text.code_points()) {
             for (auto const& range : font_face.unicode_ranges()) {
@@ -269,7 +269,7 @@ static WebIDL::ExceptionOr<GC::Ref<JS::Set>> find_matching_font_faces(JS::Realm&
                 break;
         }
         if (!includes_at_least_one_text_code_point)
-            faces_to_remove.append(entry.key);
+            faces_to_remove.append(font_face_value);
     }
     for (auto& key : faces_to_remove)
         matched_font_faces->set_remove(key);
@@ -306,7 +306,7 @@ JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> FontFaceSet::load(String const& 
 
             // 1. For all of the font faces in the font face list, call their load() method.
             for (auto font_face_value : *matched_font_faces) {
-                auto& font_face = as<FontFace>(font_face_value.key.as_object());
+                auto& font_face = as<FontFace>(font_face_value.as_object());
                 font_face.load();
 
                 promises.append(font_face.font_status_promise());
@@ -354,7 +354,7 @@ WebIDL::ExceptionOr<bool> FontFaceSet::check(String const& font, String const& t
         return true;
 
     for (auto font_face_value : *result) {
-        auto& font_face = as<FontFace>(font_face_value.key.as_object());
+        auto& font_face = as<FontFace>(font_face_value.as_object());
         // FIXME: We should check if the font face is a system font here.
         if (font_face.status() != Bindings::FontFaceLoadStatus::Loaded)
             return false;

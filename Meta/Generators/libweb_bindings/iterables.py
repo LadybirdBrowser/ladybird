@@ -746,9 +746,8 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::for_each)
     auto this_arg = vm.argument(1);
 
     // 6. For each value of set:
-    for (auto& entry : *set) {{
+    for (auto value : *set) {{
         // 1. Let jsValue be value converted to a JavaScript value.
-        auto value = entry.key;
 
         // 2. Perform ? Call(callbackFn, thisArg, « jsValue, jsValue, O»).
         TRY(JS::call(vm, callback.as_function(), this_arg, value, value, this_impl));

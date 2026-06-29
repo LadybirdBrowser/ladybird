@@ -35,8 +35,8 @@ GC::Ref<Set> Set::copy() const
     // FIXME: This is very inefficient, but there's no better way to do this at the moment, as the underlying Map
     //  implementation of m_values uses a non-copyable RedBlackTree.
     auto result = Set::create(realm);
-    for (auto const& entry : *this)
-        result->set_add(entry.key);
+    for (auto value : *this)
+        result->set_add(value);
     return *result;
 }
 
