@@ -114,6 +114,11 @@ void Request::release_for_transfer()
         client->release_request_for_transfer({}, *this);
 }
 
+bool Request::has_file_backed_response_body() const
+{
+    return m_internal_stream_data && m_internal_stream_data->file_backed_payload.has_value();
+}
+
 void Request::set_request_fd(Badge<Requests::RequestClient>, int fd)
 {
     VERIFY(m_fd == -1);
@@ -347,6 +352,8 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
 
             m_internal_stream_data->delivered_size += read_bytes.size();
             m_internal_stream_data->on_data_available(ResponseData::from_bytes(read_bytes));
+            if (!m_internal_stream_data)
+                return;
 
             if (m_internal_stream_data->body_delivery_remaining_byte_count.has_value()) {
                 if (read_bytes.size() >= *m_internal_stream_data->body_delivery_remaining_byte_count) {

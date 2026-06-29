@@ -192,6 +192,7 @@ private:
     virtual void page_did_change_active_document_in_top_level_browsing_context(Web::DOM::Document&) override;
     virtual void page_did_finish_loading(URL::URL const&) override;
     virtual Optional<u64> page_did_start_download(URL::URL const&, ByteString const& suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data) override;
+    virtual Optional<u64> page_did_start_download(URL::URL const&, ByteString const& suggested_filename, Optional<u64> total_size) override;
     virtual void page_did_receive_download_data(u64 download_id, ByteBuffer data) override;
     virtual void page_did_finish_download(u64 download_id) override;
     virtual void page_did_fail_download(u64 download_id, String const& error) override;

@@ -535,6 +535,12 @@ Optional<u64> PageClient::page_did_start_download(URL::URL const& url, ByteStrin
     return response->download_id();
 }
 
+Optional<u64> PageClient::page_did_start_download(URL::URL const& url, ByteString const& suggested_filename, Optional<u64> total_size)
+{
+    auto response = client().send_sync<Messages::WebContentClient::DidStartDownloadWithoutRequest>(m_id, url, suggested_filename, total_size);
+    return response->download_id();
+}
+
 void PageClient::page_did_receive_download_data(u64 download_id, ByteBuffer data)
 {
     if (m_canceled_downloads.contains(download_id))

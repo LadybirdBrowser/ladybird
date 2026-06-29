@@ -136,6 +136,7 @@ private:
     virtual void did_middle_click_link(u64 page_id, URL::URL, ByteString, unsigned) override;
     virtual void did_start_loading(u64 page_id, URL::URL, Variant<Empty, String, Web::HTML::POSTResource>, bool, Web::Bindings::NavigationHistoryBehavior) override;
     virtual void did_cancel_loading(u64 page_id, URL::URL) override;
+    virtual Messages::WebContentClient::DidStartDownloadWithoutRequestResponse did_start_download_without_request(u64 page_id, URL::URL, ByteString suggested_filename, Optional<u64> total_size) override;
     virtual Messages::WebContentClient::DidStartDownloadResponse did_start_download(u64 page_id, URL::URL, ByteString suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data) override;
     virtual void did_receive_download_data(u64 page_id, u64 download_id, ByteBuffer data) override;
     virtual void did_finish_download(u64 page_id, u64 download_id) override;
@@ -251,11 +252,15 @@ private:
     Optional<ViewImplementation&> view_for_page_id(u64, SourceLocation = SourceLocation::current());
 
     void remember_compositor_context(Web::Compositor::CompositorContextId, Optional<u64> page_id);
+    bool is_renderer_owned_download(u64 page_id, u64 download_id) const;
+    void forget_renderer_owned_download(u64 download_id);
+    void fail_renderer_owned_downloads();
 
     HashMap<u64, NonnullRawPtr<ViewImplementation>> m_views;
     HashTable<u64> m_embedded_pages;
     HashTable<u64> m_detached_pages_pending_close;
     HashMap<Web::Compositor::CompositorContextId, Optional<u64>> m_compositor_contexts;
+    HashMap<u64, u64> m_renderer_owned_downloads;
     HashMap<u64, String> m_history_recorded_urls_for_current_load;
     Optional<i32> m_compositor_connection_id;
     u64 m_initial_page_id { 0 };

@@ -128,6 +128,9 @@ Application::~Application()
     if (m_compositor_client)
         m_compositor_client->on_death = nullptr;
 
+    m_spare_web_content_process = nullptr;
+    m_process_manager = nullptr;
+
     s_the = nullptr;
 }
 

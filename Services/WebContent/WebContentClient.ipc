@@ -55,6 +55,7 @@ endpoint WebContentClient
     did_start_loading(u64 page_id, URL::URL url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, bool is_redirect, Web::Bindings::NavigationHistoryBehavior history_handling) =|
     did_cancel_loading(u64 page_id, URL::URL url) =|
     did_finish_loading(u64 page_id, URL::URL url) =|
+    did_start_download_without_request(u64 page_id, URL::URL url, ByteString suggested_filename, Optional<u64> total_size) => (Optional<u64> download_id)
     did_start_download(u64 page_id, URL::URL url, ByteString suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data) => (Optional<u64> download_id)
     did_receive_download_data(u64 page_id, u64 download_id, ByteBuffer data) =|
     did_finish_download(u64 page_id, u64 download_id) =|

@@ -87,6 +87,18 @@ public:
     void notify_fetch_complete(Badge<ConnectionFromClient>, int result_code);
 
 private:
+    struct TransferredBodyFile {
+        TransferredBodyFile() = default;
+        ~TransferredBodyFile();
+
+        TransferredBodyFile(TransferredBodyFile const&) = delete;
+        TransferredBodyFile& operator=(TransferredBodyFile const&) = delete;
+
+        int fd { -1 };
+        u64 offset { 0 };
+        u64 size { 0 };
+    };
+
     enum class State : u8 {
         Init,              // Decide whether to service this request from cache or the network.
         ReadCache,         // Read the cached response from disk.
@@ -174,6 +186,7 @@ private:
     ErrorOr<void> detach_curl_handle_from_multi();
     ErrorOr<void> inform_client_request_started();
     ErrorOr<void> send_request_pipe_to_client();
+    ErrorOr<void> send_transferred_body_file_to_client();
     void transfer_headers_to_client_if_needed();
     void send_headers_to_client(Optional<IPC::File> javascript_bytecode = {}, u64 javascript_bytecode_size = 0, Optional<u64> javascript_bytecode_cache_vary_key = {});
     ErrorOr<void> write_queued_bytes_without_blocking();
@@ -225,6 +238,7 @@ private:
     AllocatingMemoryStream m_response_buffer;
     RefPtr<Core::Notifier> m_client_writer_notifier;
     Optional<RequestPipe> m_client_request_pipe;
+    Optional<TransferredBodyFile> m_transferred_body_file;
     size_t m_bytes_transferred_to_client { 0 };
 
     Optional<Requests::NetworkError> m_network_error;

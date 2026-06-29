@@ -335,8 +335,12 @@ static ByteString sanitize_suggested_download_filename(ByteString filename)
 
 static ByteString suggested_download_filename(URL::URL const& url, HTTP::HeaderList const& headers)
 {
+    // https://html.spec.whatwg.org/multipage/links.html#getting-the-suggested-filename
+    // FIXME: This is a partial implementation. We do not yet model the
+    //        hyperlink download attribute, trusted operation, or extension
+    //        adjustment steps.
     auto content_disposition = parse_content_disposition(headers);
-    if (content_disposition.filename.has_value())
+    if (content_disposition.is_attachment && content_disposition.filename.has_value())
         return sanitize_suggested_download_filename(content_disposition.filename.release_value());
 
     return sanitize_suggested_download_filename(url.basename());
@@ -350,16 +354,22 @@ static Optional<u64> response_content_length(HTTP::HeaderList const& headers)
     return {};
 }
 
+// https://html.spec.whatwg.org/multipage/links.html#handle-as-a-download
 static bool handle_navigation_response_as_download(JS::Realm& realm, GC::Ref<NavigationParams> navigation_params, GC::Ref<SourceSnapshotParams> source_snapshot_params, Optional<ReadonlyBytes> initial_data = {})
 {
     auto response = navigation_params->response;
     if (!response || !response->body())
         return true;
 
-    if (!source_snapshot_params->allows_downloading) {
-        response->release_request_for_transfer();
+    // FIXME: Implement the WebDriver BiDi download will begin/end hooks.
+    //        uaAllowsDownloading is currently always true.
+    auto source_allows_downloading = source_snapshot_params->allows_downloading;
+    auto target_allows_downloading = !has_flag(navigation_params->final_sandboxing_flag_set, SandboxingFlagSet::SandboxedDownloads);
+    if (!source_allows_downloading || !target_allows_downloading) {
         if (navigation_params->fetch_controller)
-            navigation_params->fetch_controller->abort(realm, {});
+            navigation_params->fetch_controller->stop_fetch();
+        else
+            response->resume_body_delivery();
         return true;
     }
 
@@ -373,8 +383,9 @@ static bool handle_navigation_response_as_download(JS::Realm& realm, GC::Ref<Nav
     auto download_url = response->url().value_or(navigation_params->request ? navigation_params->request->current_url() : URL::about_blank());
     auto suggested_filename = suggested_download_filename(download_url, *response->header_list());
     if (auto const& request_server_request = response->request_server_request(); request_server_request.has_value()) {
+        auto response_body_will_be_transferred_in_full = request_server_request->request && request_server_request->request->has_file_backed_response_body();
         ByteBuffer initial_data_buffer;
-        if (initial_data.has_value() && !initial_data->is_empty())
+        if (initial_data.has_value() && !initial_data->is_empty() && !response_body_will_be_transferred_in_full)
             initial_data_buffer = MUST(ByteBuffer::copy(*initial_data));
 
         auto download_id = navigation_params->navigable->page().client().page_did_start_download(download_url, suggested_filename, response_content_length(*response->header_list()), request_server_request->client_id, request_server_request->request_id, move(initial_data_buffer));
@@ -390,10 +401,57 @@ static bool handle_navigation_response_as_download(JS::Realm& realm, GC::Ref<Nav
         return true;
     }
 
+    auto download_id = navigation_params->navigable->page().client().page_did_start_download(download_url, suggested_filename, response_content_length(*response->header_list()));
+    if (!download_id.has_value()) {
+        if (navigation_params->fetch_controller)
+            navigation_params->fetch_controller->stop_fetch();
+        return true;
+    }
+
     if (navigation_params->fetch_controller)
-        navigation_params->fetch_controller->stop_fetch();
+        navigation_params->navigable->page().client().page_did_register_download_controller(*download_id, *navigation_params->fetch_controller);
+
+    auto process_body_chunk = GC::create_function(realm.heap(), [navigable = navigation_params->navigable, download_id = *download_id](ByteBuffer data) {
+        if (navigable->page().client().page_is_download_canceled(download_id))
+            return;
+
+        navigable->page().client().page_did_receive_download_data(download_id, move(data));
+    });
+
+    auto process_end_of_body = GC::create_function(realm.heap(), [navigable = navigation_params->navigable, download_id = *download_id]() {
+        if (navigable->page().client().page_is_download_canceled(download_id))
+            return;
+
+        navigable->page().client().page_did_finish_download(download_id);
+    });
+
+    auto process_body_error = GC::create_function(realm.heap(), [navigable = navigation_params->navigable, download_id = *download_id](JS::Value) {
+        if (navigable->page().client().page_is_download_canceled(download_id))
+            return;
+
+        navigable->page().client().page_did_fail_download(download_id, "Unable to read downloaded file"_string);
+    });
+
+    // https://fetch.spec.whatwg.org/#body-incrementally-read
+    auto reader = response->body()->incrementally_read(process_body_chunk, process_end_of_body, process_body_error, GC::Ref { realm.global_object() });
+    navigation_params->navigable->page().client().page_did_register_download_reader(*download_id, reader);
+    response->resume_body_delivery();
 
     return true;
+}
+
+static void stop_or_resume_response_body_delivery(LocalNavigable::NavigationParamsVariant const& navigation_params)
+{
+    // AD-HOC: Fetch controller stop_fetch() is an implementation hook for
+    //         tearing down a paused network body when no spec consumer remains.
+    if (!navigation_params.has<GC::Ref<NavigationParams>>())
+        return;
+
+    auto const& nav_params = navigation_params.get<GC::Ref<NavigationParams>>();
+    if (nav_params->fetch_controller)
+        nav_params->fetch_controller->stop_fetch();
+    else
+        nav_params->response->resume_body_delivery();
 }
 
 void PopulateSessionHistoryEntryDocumentOutput::apply_to(NonnullRefPtr<SessionHistoryEntry> entry)
@@ -1968,8 +2026,10 @@ void LocalNavigable::populate_session_history_entry_document(
     GC::Ptr<GC::Function<void(GC::Ptr<PopulateSessionHistoryEntryDocumentOutput>)>> completion_steps)
 {
     // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
-    if (!active_window())
+    if (!active_window()) {
+        stop_or_resume_response_body_delivery(navigation_params);
         return;
+    }
 
     // FIXME: 1. Assert: this is running in parallel.
 
@@ -1982,8 +2042,10 @@ void LocalNavigable::populate_session_history_entry_document(
 
     auto received_navigation_params = GC::create_function(heap(), [this, url, navigation_id, user_involvement, completion_steps, csp_navigation_type, source_snapshot_params](GC::Ref<InternalNavigationResult> result) {
         // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
-        if (!active_window())
+        if (!active_window()) {
+            stop_or_resume_response_body_delivery(result->navigation_params);
             return;
+        }
 
         // 5. Queue a global task on the navigation and traversal task source, given navigable's active window, to run these steps:
         queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this, url, result, navigation_id, user_involvement, completion_steps, csp_navigation_type, source_snapshot_params]() mutable {
@@ -2067,6 +2129,10 @@ void LocalNavigable::populate_session_history_entry_document(
                     // 1. Run the environment discarding steps for navigationParams's reserved environment.
                     navigation_params.visit(
                         [](GC::Ref<NavigationParams> const& it) {
+                            if (it->fetch_controller)
+                                it->fetch_controller->stop_fetch();
+                            else
+                                it->response->resume_body_delivery();
                             it->reserved_environment->discard_environment();
                         },
                         [](auto const&) {});
@@ -2108,7 +2174,7 @@ void LocalNavigable::populate_session_history_entry_document(
                                     nav_params->response->resume_body_delivery();
                                 }
                             } else {
-                                nav_params->response->release_request_for_transfer();
+                                stop_or_resume_response_body_delivery(navigation_params);
                             }
                             output->navigation_params = navigation_params;
                             if (completion_steps)
