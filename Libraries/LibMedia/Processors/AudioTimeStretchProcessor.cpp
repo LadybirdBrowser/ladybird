@@ -5,7 +5,6 @@
  */
 
 #include <AK/Math.h>
-#include <AK/TypedTransfer.h>
 #include <LibMedia/Audio/WSOLATimeStretcher.h>
 #include <LibMedia/Processors/AudioTimeStretchProcessor.h>
 
@@ -31,17 +30,12 @@ ErrorOr<void> AudioTimeStretchProcessor::connect_input(NonnullRefPtr<AudioProduc
     VERIFY(m_input == nullptr);
     m_input = input;
     input->set_wake_handler([this] {
-        bool should_wake_downstream;
+        bool should_wake;
         {
             Sync::MutexLocker locker { m_mutex };
-            auto status = PipelineStatus::HaveData;
-            if (m_pending_block.is_empty())
-                status = produce_block_while_locked(m_pending_block);
-            if (!m_pending_block.is_empty())
-                status = PipelineStatus::HaveData;
-            should_wake_downstream = m_downstream_needs_wake && resolves_seek(status);
+            should_wake = m_downstream_needs_wake;
         }
-        if (should_wake_downstream)
+        if (should_wake)
             dispatch_wake();
     });
 
@@ -86,7 +80,6 @@ void AudioTimeStretchProcessor::seek(AK::Duration timestamp)
 
         m_stretcher->flush(m_next_emit_media_time, m_next_output_frame);
 
-        m_moved_position_pending = true;
         m_pending_block.clear();
         m_downstream_needs_wake = true;
         m_stretcher_reached_eos = false;
@@ -175,17 +168,10 @@ void AudioTimeStretchProcessor::maybe_recover_from_stale_upstream_eos_while_lock
     if (!m_stretcher_reached_eos)
         return;
 
-    auto status = m_input->status();
-    while (status == PipelineStatus::MovedPosition) {
-        m_input->pull(m_input_block);
-        VERIFY(m_input_block.is_empty());
-        status = m_input->status();
-    }
-    if (is_terminal(status))
+    if (is_terminal(m_input->peek().status))
         return;
 
     m_stretcher->flush(m_next_emit_media_time, m_next_output_frame);
-    m_input_block.clear();
     m_stretcher_reached_eos = false;
 }
 
@@ -195,20 +181,6 @@ PipelineStatus AudioTimeStretchProcessor::produce_block_while_locked(AudioBlock&
         return PipelineStatus::Pending;
 
     VERIFY(m_playback_rate != 0.0f);
-
-    auto pull_input = [&](AudioBlock& input_block) -> PipelineStatus {
-        auto status = m_input->status();
-        while (status == PipelineStatus::MovedPosition) {
-            m_input->pull(input_block);
-            VERIFY(input_block.is_empty());
-            status = m_input->status();
-        }
-        if (status == PipelineStatus::HaveData)
-            m_input->pull(input_block);
-        else
-            input_block.clear();
-        return status;
-    };
 
     ensure_stretcher_while_locked();
     maybe_recover_from_stale_upstream_eos_while_locked();
@@ -228,22 +200,21 @@ PipelineStatus AudioTimeStretchProcessor::produce_block_while_locked(AudioBlock&
         if (result.error().category() != DecoderErrorCategory::NeedsMoreInput)
             return PipelineStatus::Error;
 
-        auto status = pull_input(m_input_block);
-        if (status == PipelineStatus::EndOfStream) {
-            VERIFY(m_input_block.is_empty());
+        auto output = m_input->peek();
+        if (output.status == PipelineStatus::EndOfStream) {
             m_stretcher->signal_end_of_stream();
             m_stretcher_reached_eos = false;
             continue;
         }
-        if (m_input_block.is_empty())
-            return status;
-        VERIFY(status == PipelineStatus::HaveData);
-        VERIFY(m_input_block.sample_specification() == m_sample_specification);
-        m_stretcher->push_block(m_input_block);
+        if (output.status != PipelineStatus::HaveData)
+            return output.status;
+        VERIFY(output.block->sample_specification() == m_sample_specification);
+        m_stretcher->push_block(*output.block);
+        m_input->consume();
     }
 }
 
-PipelineStatus AudioTimeStretchProcessor::status() const
+AudioProducerOutput AudioTimeStretchProcessor::peek()
 {
     Sync::MutexLocker locker { m_mutex };
     auto status = PipelineStatus::HaveData;
@@ -251,34 +222,14 @@ PipelineStatus AudioTimeStretchProcessor::status() const
         status = produce_block_while_locked(m_pending_block);
     if (!m_pending_block.is_empty())
         status = PipelineStatus::HaveData;
-
-    if (m_moved_position_pending)
-        status = PipelineStatus::MovedPosition;
     m_downstream_needs_wake = is_waiting_for_data(status);
-    return status;
+    return { m_pending_block.is_empty() ? nullptr : &m_pending_block, status };
 }
 
-void AudioTimeStretchProcessor::pull(AudioBlock& into)
+void AudioTimeStretchProcessor::consume()
 {
     Sync::MutexLocker locker { m_mutex };
-
-    if (m_moved_position_pending) {
-        m_moved_position_pending = false;
-        into.clear();
-        return;
-    }
-
-    if (!m_pending_block.is_empty()) {
-        into.initialize(m_pending_block.sample_specification(), m_pending_block.first_frame_index(), m_pending_block.frame_count());
-        for (size_t channel = 0; channel < into.channel_count(); channel++)
-            AK::TypedTransfer<float>::copy(into.channel_data(channel).data(), m_pending_block.channel_data(channel).data(), into.frame_count());
-        into.set_media_time_start(m_pending_block.media_time_start());
-        into.set_media_time_duration(m_pending_block.media_time_duration());
-        m_pending_block.clear();
-        return;
-    }
-
-    into.clear();
+    m_pending_block.clear();
 }
 
 }

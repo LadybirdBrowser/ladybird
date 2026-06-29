@@ -119,11 +119,9 @@ static inline void decode_audio(StringView path, u32 sample_rate, u8 channel_cou
     auto reached_end = false;
 
     while (true) {
-        Media::AudioBlock block;
-        auto status = producer->status();
-        if (status == Media::PipelineStatus::HaveData)
-            producer->pull(block);
-        if (status == Media::PipelineStatus::HaveData) {
+        auto output = producer->peek();
+        if (output.status == Media::PipelineStatus::HaveData) {
+            auto const& block = *output.block;
             EXPECT(!block.is_empty());
             EXPECT_EQ(block.sample_rate(), sample_rate);
             EXPECT_EQ(block.channel_count(), channel_count);
@@ -134,7 +132,8 @@ static inline void decode_audio(StringView path, u32 sample_rate, u8 channel_cou
             last_frame = block.first_frame_index() + static_cast<i64>(block.frame_count());
 
             frame_count += block.frame_count();
-        } else if (status == Media::PipelineStatus::EndOfStream) {
+            producer->consume();
+        } else if (output.status == Media::PipelineStatus::EndOfStream) {
             reached_end = true;
             break;
         }

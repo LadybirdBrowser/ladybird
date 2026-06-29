@@ -33,8 +33,8 @@ public:
     virtual ErrorOr<void> set_output_sample_specification(Audio::SampleSpecification) override;
     virtual void start() override;
 
-    virtual PipelineStatus status() const override;
-    virtual void pull(AudioBlock&) override;
+    virtual AudioProducerOutput peek() override;
+    virtual void consume() override;
     virtual void set_wake_handler(PipelineWakeHandler) override;
     virtual void set_playback_rate(float) override;
 
@@ -56,10 +56,8 @@ private:
     mutable AK::Duration m_next_emit_media_time;
     mutable bool m_stretcher_reached_eos { false };
 
-    mutable AudioBlock m_input_block;
     mutable AudioBlock m_pending_block;
     mutable bool m_downstream_needs_wake { true };
-    bool m_moved_position_pending { false };
 
     PipelineWakeHandler m_wake_handler;
 };
