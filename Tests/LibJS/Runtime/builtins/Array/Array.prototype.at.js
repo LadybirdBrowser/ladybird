@@ -14,6 +14,12 @@ test("basic functionality", () => {
     expect(array.at(-Infinity)).toBeUndefined();
 });
 
+test("out-of-range index is not converted to an integer type", () => {
+    const array = ["a", "b", "c"];
+    expect(array.at(1e300)).toBeUndefined();
+    expect(array.at(-1e300)).toBeUndefined();
+});
+
 test("is unscopable", () => {
     expect(Array.prototype[Symbol.unscopables].at).toBeTrue();
     const array = [];

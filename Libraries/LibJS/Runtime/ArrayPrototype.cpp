@@ -194,16 +194,15 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::at)
     auto relative_index = TRY(vm.argument(0).to_integer_or_infinity(vm));
     if (Value(relative_index).is_infinity())
         return js_undefined();
-    Checked<size_t> index { 0 };
+    double index;
     if (relative_index >= 0) {
-        index += relative_index;
+        index = relative_index;
     } else {
-        index += length;
-        index -= -relative_index;
+        index = static_cast<double>(length) + relative_index;
     }
-    if (index.has_overflow() || index.value() >= length)
+    if (index < 0 || index >= length)
         return js_undefined();
-    return TRY(this_object->get(index.value()));
+    return TRY(this_object->get(static_cast<size_t>(index)));
 }
 
 // 23.1.3.2 Array.prototype.concat ( ...items ), https://tc39.es/ecma262/#sec-array.prototype.concat
