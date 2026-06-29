@@ -2292,6 +2292,31 @@ fn emit_instruction(
             }
         }
 
+        // load_c_symbol_address dst, symbol - Load the address of an external C symbol.
+        "load_c_symbol_address" => {
+            if insn.operands.len() == 2 {
+                let dst = resolve_op(&insn.operands[0], handler, program);
+                let symbol = match &insn.operands[1] {
+                    Operand::Register(symbol) | Operand::Constant(symbol) | Operand::Label(symbol) => symbol,
+                    _ => panic!("load_c_symbol_address expects a symbol operand"),
+                };
+                let symbol = format!("CSYM({symbol})");
+                match program.object_format {
+                    ObjectFormat::MachO => {
+                        w!(out, "    adrp {dst}, {symbol}@GOTPAGE");
+                        w!(out, "    ldr {dst}, [{dst}, {symbol}@GOTPAGEOFF]");
+                    }
+                    ObjectFormat::Elf => {
+                        w!(out, "    adrp {dst}, :got:{symbol}");
+                        w!(out, "    ldr {dst}, [{dst}, :got_lo12:{symbol}]");
+                    }
+                    ObjectFormat::Coff => {
+                        emit_symbol_addr(out, &dst, &symbol, program.object_format);
+                    }
+                }
+            }
+        }
+
         // Floating point instructions
         "fp_add" => {
             if insn.operands.len() == 2 {

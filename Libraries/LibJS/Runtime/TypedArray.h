@@ -45,24 +45,25 @@ public:
     ContentType content_type() const { return m_content_type; }
     ArrayBuffer* viewed_array_buffer() const { return m_viewed_array_buffer; }
 
-    // Cached raw pointer: viewed_array_buffer->data() + byte_offset.
-    // nullptr means "not cached, use slow path". This is only safe for
-    // fixed-length ArrayBuffers that own stable backing storage.
-    u8* cached_data_ptr() const { return m_data; }
-    void set_cached_data_ptr(u8* ptr) { m_data = ptr; }
+    static constexpr size_t invalid_cached_data_offset = GC::PrimitiveStorage::invalid_offset;
+
+    // Cached cage offset: viewed_array_buffer->data_offset() + byte_offset.
+    // invalid_cached_data_offset means "not cached, use slow path".
+    size_t cached_data_offset() const { return m_cached_data_offset; }
+    void set_cached_data_offset(size_t offset) { m_cached_data_offset = offset; }
 
     void set_array_length(ByteLength length) { m_array_length = move(length); }
     void set_byte_length(ByteLength length) { m_byte_length = move(length); }
     void set_byte_offset(u32 offset)
     {
         m_byte_offset = offset;
-        update_cached_data_ptr();
+        update_cached_data_offset();
     }
 
     void set_viewed_array_buffer(ArrayBuffer* array_buffer)
     {
         m_viewed_array_buffer = array_buffer;
-        update_cached_data_ptr();
+        update_cached_data_offset();
     }
 
     [[nodiscard]] Kind kind() const { return m_kind; }
@@ -98,16 +99,27 @@ protected:
         set_is_typed_array();
     }
 
-    void update_cached_data_ptr()
+    void update_cached_data_offset()
     {
-        if (!m_viewed_array_buffer || !m_viewed_array_buffer->can_cache_typed_array_view_data_pointer()) {
+        if (!m_viewed_array_buffer || !m_viewed_array_buffer->can_cache_typed_array_view_data_offset()) {
             remove_from_cached_view_list();
-            m_data = nullptr;
+            m_cached_data_offset = invalid_cached_data_offset;
             return;
         }
 
+        auto data_offset = m_viewed_array_buffer->data_offset();
+        if (data_offset == invalid_cached_data_offset) {
+            remove_from_cached_view_list();
+            m_cached_data_offset = invalid_cached_data_offset;
+            return;
+        }
+
+        Checked<size_t> cached_data_offset = data_offset;
+        cached_data_offset += m_byte_offset;
+        VERIFY(!cached_data_offset.has_overflow());
+
         m_viewed_array_buffer->register_cached_typed_array_view(*this);
-        m_data = m_viewed_array_buffer->data() + m_byte_offset;
+        m_cached_data_offset = cached_data_offset.value();
     }
 
     u32 m_element_size { 0 };
@@ -117,7 +129,7 @@ protected:
     ContentType m_content_type { ContentType::Number };
     Kind m_kind {};
     GC::Ptr<ArrayBuffer> m_viewed_array_buffer;
-    u8* m_data { nullptr };
+    size_t m_cached_data_offset { invalid_cached_data_offset };
 
 private:
     virtual bool is_typed_array_base() const final { return true; }

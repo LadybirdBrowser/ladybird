@@ -82,7 +82,10 @@ void ArrayBuffer::account_external_memory_change(size_t old_external_memory_size
 void ArrayBuffer::set_data_block(DataBlock block)
 {
     auto old_external_memory_size = external_memory_size();
+    auto old_data_offset = m_data_block.offset();
     m_data_block = move(block);
+    if (m_data_block.offset() != old_data_offset)
+        invalidate_cached_typed_array_view_offsets();
     account_external_memory_change(old_external_memory_size, external_memory_size());
 }
 
@@ -94,7 +97,10 @@ void ArrayBuffer::did_change_data_block_capacity(size_t old_external_memory_size
 ErrorOr<void> ArrayBuffer::try_resize(size_t new_size, DataBlock::ZeroFillNewBytes zero_fill_new_bytes)
 {
     auto old_external_memory_size = external_memory_size();
+    auto old_data_offset = m_data_block.offset();
     TRY(m_data_block.try_resize(new_size, zero_fill_new_bytes));
+    if (m_data_block.offset() != old_data_offset)
+        invalidate_cached_typed_array_view_offsets();
     did_change_data_block_capacity(old_external_memory_size);
     return {};
 }
@@ -102,7 +108,10 @@ ErrorOr<void> ArrayBuffer::try_resize(size_t new_size, DataBlock::ZeroFillNewByt
 ErrorOr<void> ArrayBuffer::try_ensure_capacity(size_t new_capacity)
 {
     auto old_external_memory_size = external_memory_size();
+    auto old_data_offset = m_data_block.offset();
     TRY(m_data_block.try_ensure_capacity(new_capacity));
+    if (m_data_block.offset() != old_data_offset)
+        invalidate_cached_typed_array_view_offsets();
     did_change_data_block_capacity(old_external_memory_size);
     return {};
 }
@@ -115,18 +124,32 @@ void ArrayBuffer::visit_edges(Cell::Visitor& visitor)
         visitor.visit(external->owner);
 }
 
+void ArrayBuffer::invalidate_cached_typed_array_view_offsets()
+{
+    for (auto& cached_view : m_cached_views) {
+        auto& view = static_cast<TypedArrayBase&>(cached_view);
+        if (view.viewed_array_buffer() == this)
+            view.set_cached_data_offset(TypedArrayBase::invalid_cached_data_offset);
+    }
+    m_cached_views.clear();
+}
+
 // 6.2.9.1 CreateByteDataBlock ( size ), https://tc39.es/ecma262/#sec-createbytedatablock
-ThrowCompletionOr<DataBlock> create_byte_data_block(VM& vm, size_t size)
+ThrowCompletionOr<DataBlock> create_byte_data_block(VM& vm, size_t size, Optional<size_t> capacity)
 {
     // 1. If size > 2^53 - 1, throw a RangeError exception.
     if (size > MAX_ARRAY_LIKE_INDEX)
         return vm.throw_completion<RangeError>(ErrorType::InvalidLength, "array buffer");
+    if (capacity.has_value() && *capacity > MAX_ARRAY_LIKE_INDEX)
+        return vm.throw_completion<RangeError>(ErrorType::InvalidLength, "array buffer");
 
     // 2. Let db be a new Data Block value consisting of size bytes. If it is impossible to create such a Data Block, throw a RangeError exception.
     // 3. Set all of the bytes of db to 0.
-    auto data_block = DataBlock::OwnedBackingStore::create_zeroed(size);
+    auto data_block = capacity.has_value()
+        ? DataBlock::OwnedBackingStore::create_zeroed_with_capacity(size, *capacity)
+        : DataBlock::OwnedBackingStore::create_zeroed(size);
     if (data_block.is_error())
-        return vm.throw_completion<RangeError>(ErrorType::NotEnoughMemoryToAllocate, size);
+        return vm.throw_completion<RangeError>(ErrorType::NotEnoughMemoryToAllocate, capacity.value_or(size));
 
     // 4. Return db.
     return DataBlock { data_block.release_value(), DataBlock::Shared::No };
@@ -134,12 +157,15 @@ ThrowCompletionOr<DataBlock> create_byte_data_block(VM& vm, size_t size)
 
 // FIXME: The returned DataBlock is not shared in the sense that the standard specifies it.
 // 6.2.9.2 CreateSharedByteDataBlock ( size ), https://tc39.es/ecma262/#sec-createsharedbytedatablock
-static ThrowCompletionOr<DataBlock> create_shared_byte_data_block(VM& vm, size_t size)
+static ThrowCompletionOr<DataBlock> create_shared_byte_data_block(VM& vm, size_t size, Optional<size_t> capacity = {})
 {
+    if (!capacity.has_value())
+        capacity = size;
+
     // 1. Let db be a new Shared Data Block value consisting of size bytes. If it is impossible to create such a Shared Data Block, throw a RangeError exception.
-    auto data_block = DataBlock::OwnedBackingStore::create_zeroed(size);
+    auto data_block = DataBlock::OwnedBackingStore::create_zeroed_with_capacity(size, *capacity);
     if (data_block.is_error())
-        return vm.throw_completion<RangeError>(ErrorType::NotEnoughMemoryToAllocate, size);
+        return vm.throw_completion<RangeError>(ErrorType::NotEnoughMemoryToAllocate, *capacity);
 
     // 2. Let execution be the [[CandidateExecution]] field of the surrounding agent's Agent Record.
     // 3. Let eventsRecord be the Agent Events Record of execution.[[EventsRecords]] whose [[AgentSignifier]] is AgentSignifier().
@@ -229,7 +255,7 @@ ThrowCompletionOr<ArrayBuffer*> allocate_array_buffer(VM& vm, FunctionObject& co
     auto obj = TRY(ordinary_create_from_constructor<ArrayBuffer>(vm, constructor, &Intrinsics::array_buffer_prototype, static_cast<ByteBuffer*>(nullptr), DataBlock::Shared::No));
 
     // 5. Let block be ? CreateByteDataBlock(byteLength).
-    auto block = TRY(create_byte_data_block(vm, byte_length));
+    auto block = TRY(create_byte_data_block(vm, byte_length, max_byte_length));
 
     // 6. Set obj.[[ArrayBufferData]] to block.
     obj->set_data_block(move(block));
@@ -240,8 +266,6 @@ ThrowCompletionOr<ArrayBuffer*> allocate_array_buffer(VM& vm, FunctionObject& co
     if (allocating_resizable_buffer) {
         // a. If it is not possible to create a Data Block block consisting of maxByteLength bytes, throw a RangeError exception.
         // b. NOTE: Resizable ArrayBuffers are designed to be implementable with in-place growth. Implementations may throw if, for example, virtual memory cannot be reserved up front.
-        if (auto result = obj->try_ensure_capacity(*max_byte_length); result.is_error())
-            return vm.throw_completion<RangeError>(ErrorType::NotEnoughMemoryToAllocate, *max_byte_length);
 
         // c. Set obj.[[ArrayBufferMaxByteLength]] to maxByteLength.
         obj->set_max_byte_length(*max_byte_length);
@@ -310,12 +334,7 @@ ThrowCompletionOr<ArrayBuffer*> array_buffer_copy_and_detach(VM& vm, ArrayBuffer
 void ArrayBuffer::detach_buffer()
 {
     auto old_external_memory_size = external_memory_size();
-    for (auto& cached_view : m_cached_views) {
-        auto& view = static_cast<TypedArrayBase&>(cached_view);
-        if (view.viewed_array_buffer() == this)
-            view.set_cached_data_ptr(nullptr);
-    }
-    m_cached_views.clear();
+    invalidate_cached_typed_array_view_offsets();
     m_data_block.byte_buffer = Empty {};
     account_external_memory_change(old_external_memory_size, 0);
 }
@@ -329,12 +348,7 @@ ThrowCompletionOr<DataBlock> ArrayBuffer::detach_and_take_data_block(VM& vm)
 
     auto old_external_memory_size = external_memory_size();
     auto block = move(m_data_block);
-    for (auto& cached_view : m_cached_views) {
-        auto& view = static_cast<TypedArrayBase&>(cached_view);
-        if (view.viewed_array_buffer() == this)
-            view.set_cached_data_ptr(nullptr);
-    }
-    m_cached_views.clear();
+    invalidate_cached_typed_array_view_offsets();
     m_data_block.byte_buffer = Empty {};
     account_external_memory_change(old_external_memory_size, 0);
     return block;
@@ -434,9 +448,9 @@ ThrowCompletionOr<GC::Ref<ArrayBuffer>> allocate_shared_array_buffer(VM& vm, Fun
     auto alloc_length = allocating_growable_buffer ? *max_byte_length : byte_length;
 
     // 7. Let block be ? CreateSharedByteDataBlock(allocLength).
-    // AD-HOC: We track [[ArrayBufferByteLength(Data)]] via the length of the Data Block, so shrink it down to byteLength.
-    auto block = TRY(create_shared_byte_data_block(vm, alloc_length));
-    block.set_size(byte_length);
+    // AD-HOC: We track [[ArrayBufferByteLength(Data)]] via the length of the Data Block, so reserve allocLength
+    //         up front and expose byteLength as the current length.
+    auto block = TRY(create_shared_byte_data_block(vm, byte_length, alloc_length));
 
     // 8. Set obj.[[ArrayBufferData]] to block.
     obj->set_data_block(move(block));

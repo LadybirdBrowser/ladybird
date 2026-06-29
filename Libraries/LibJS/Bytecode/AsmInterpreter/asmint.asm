@@ -1781,7 +1781,7 @@ end
 
 # Fast path for array[int32_index] = value with Packed/Holey indexed storage.
 handler PutByValue
-    temp kind, base, prop, base_tag, prop_tag, index, obj, flags, storage_kind, size, elements, src, capacity_addr, capacity, slot, empty_tag, kind_byte, addr, src_int32, max, result
+    temp kind, base, prop, base_tag, prop_tag, index, obj, flags, storage_kind, size, elements, src, capacity_addr, capacity, slot, empty_tag, kind_byte, addr, src_int32, max, result, cached_offset, invalid_offset
     ftemp src_dbl
     # Only fast-path Normal puts (not Getter/Setter/Own)
     load8 kind, [pb, pc, m_kind]
@@ -1834,10 +1834,15 @@ handler PutByValue
     branch_nonzero result, .slow
     dispatch_next
 .try_typed_array:
-    # Load cached data pointer (pre-computed: buffer.data() + byte_offset)
-    # nullptr means uncached -> C++ helper will resolve the access.
-    load64 elements, [obj, TYPED_ARRAY_CACHED_DATA_PTR]
+    # Load cached cage offset (pre-computed: buffer.data_offset() + byte_offset)
+    # invalid means uncached -> C++ helper will resolve the access.
+    load64 cached_offset, [obj, TYPED_ARRAY_CACHED_DATA_OFFSET]
+    mov invalid_offset, TYPED_ARRAY_CACHED_DATA_OFFSET_INVALID
+    branch_eq cached_offset, invalid_offset, .try_typed_array_slow
+    load_c_symbol_address elements, js_primitive_storage_cage_base
+    load64 elements, [elements, 0]
     branch_zero elements, .try_typed_array_slow
+    add elements, cached_offset
     assert_nonzero elements
     # Cached pointers only exist for fixed-length typed arrays, so array_length
     # is known to hold a concrete u32 value here.
@@ -2016,7 +2021,7 @@ end
 
 # Fast path for array[int32_index] with Packed/Holey indexed storage.
 handler GetByValue
-    temp base, prop, base_tag, prop_tag, index, obj, flags, storage_kind, size, elements, slot, capacity_addr, capacity, kind_byte, raw, addr, neg_zero, dst, result
+    temp base, prop, base_tag, prop_tag, index, obj, flags, storage_kind, size, elements, slot, capacity_addr, capacity, kind_byte, raw, addr, neg_zero, dst, result, cached_offset, invalid_offset
     ftemp slot_dbl
     load_operand base, m_base
     load_operand prop, m_property
@@ -2061,8 +2066,13 @@ handler GetByValue
     store_operand m_dst, slot
     dispatch_next
 .try_typed_array:
-    load64 elements, [obj, TYPED_ARRAY_CACHED_DATA_PTR]
+    load64 cached_offset, [obj, TYPED_ARRAY_CACHED_DATA_OFFSET]
+    mov invalid_offset, TYPED_ARRAY_CACHED_DATA_OFFSET_INVALID
+    branch_eq cached_offset, invalid_offset, .try_typed_array_slow
+    load_c_symbol_address elements, js_primitive_storage_cage_base
+    load64 elements, [elements, 0]
     branch_zero elements, .try_typed_array_slow
+    add elements, cached_offset
     assert_nonzero elements
     # Cached pointers only exist for fixed-length typed arrays, so array_length
     # is known to hold a concrete u32 value here.

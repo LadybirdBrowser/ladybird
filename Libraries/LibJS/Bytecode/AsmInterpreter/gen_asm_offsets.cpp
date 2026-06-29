@@ -358,7 +358,8 @@ int main()
     EMIT_OFFSET(TYPED_ARRAY_ARRAY_LENGTH, TypedArrayBase, m_array_length);
     EMIT_OFFSET(TYPED_ARRAY_BYTE_OFFSET, TypedArrayBase, m_byte_offset);
     EMIT_OFFSET(TYPED_ARRAY_KIND, TypedArrayBase, m_kind);
-    EMIT_OFFSET(TYPED_ARRAY_CACHED_DATA_PTR, TypedArrayBase, m_data);
+    EMIT_OFFSET(TYPED_ARRAY_CACHED_DATA_OFFSET, TypedArrayBase, m_cached_data_offset);
+    outln("const TYPED_ARRAY_CACHED_DATA_OFFSET_INVALID = 0x{:X}", TypedArrayBase::invalid_cached_data_offset);
 
     // ByteLength (Variant<Auto, Detached, u32>) layout
     outln("\n# ByteLength layout");

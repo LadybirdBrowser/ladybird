@@ -10,7 +10,6 @@
 #include <AK/Function.h>
 #include <AK/IntrusiveList.h>
 #include <AK/Variant.h>
-#include <AK/kmalloc.h>
 #include <LibGC/PrimitiveStorage.h>
 #include <LibJS/Export.h>
 #include <LibJS/Runtime/BigInt.h>
@@ -62,7 +61,11 @@ struct DataBlock {
     class OwnedBackingStore {
     public:
         OwnedBackingStore() = default;
-        ~OwnedBackingStore() { kfree(m_data); }
+        ~OwnedBackingStore()
+        {
+            if (m_handle.is_valid())
+                GC::PrimitiveStorage::the().free(m_handle);
+        }
 
         OwnedBackingStore(OwnedBackingStore&& other)
         {
@@ -72,7 +75,8 @@ struct DataBlock {
         OwnedBackingStore& operator=(OwnedBackingStore&& other)
         {
             if (this != &other) {
-                kfree(m_data);
+                if (m_handle.is_valid())
+                    GC::PrimitiveStorage::the().free(m_handle);
                 move_from(move(other));
             }
             return *this;
@@ -84,67 +88,76 @@ struct DataBlock {
         static ErrorOr<OwnedBackingStore> create_zeroed(size_t size)
         {
             OwnedBackingStore buffer;
-            TRY(buffer.try_resize(size, ZeroFillNewBytes::Yes));
+            if (size > 0)
+                buffer.m_handle = TRY(GC::PrimitiveStorage::the().try_allocate(size, GC::PrimitiveStorage::ZeroFillNewBytes::Yes));
             return buffer;
         }
 
         static ErrorOr<OwnedBackingStore> create_uninitialized(size_t size)
         {
             OwnedBackingStore buffer;
-            TRY(buffer.try_resize(size, ZeroFillNewBytes::No));
+            if (size > 0)
+                buffer.m_handle = TRY(GC::PrimitiveStorage::the().try_allocate(size, GC::PrimitiveStorage::ZeroFillNewBytes::No));
             return buffer;
         }
 
-        u8* data() { return m_data; }
-        u8 const* data() const { return m_data; }
-        size_t size() const { return m_size; }
-        size_t capacity() const { return m_capacity; }
+        static ErrorOr<OwnedBackingStore> create_zeroed_with_capacity(size_t size, size_t capacity)
+        {
+            OwnedBackingStore buffer;
+            if (capacity > 0)
+                buffer.m_handle = TRY(GC::PrimitiveStorage::the().try_reserve(size, capacity, GC::PrimitiveStorage::ZeroFillNewBytes::Yes));
+            return buffer;
+        }
+
+        u8* data() { return GC::PrimitiveStorage::the().data(m_handle); }
+        u8 const* data() const { return GC::PrimitiveStorage::the().data(m_handle); }
+        size_t size() const { return GC::PrimitiveStorage::the().size(m_handle); }
+        size_t capacity() const { return GC::PrimitiveStorage::the().capacity(m_handle); }
+        size_t offset() const { return GC::PrimitiveStorage::the().offset(m_handle); }
+        GC::PrimitiveStorageHandle handle() const { return m_handle; }
         Bytes bytes() { return { data(), size() }; }
         ReadonlyBytes bytes() const { return { data(), size() }; }
 
         void set_size(size_t new_size, ZeroFillNewBytes zero_fill_new_bytes = ZeroFillNewBytes::No)
         {
             VERIFY(new_size <= capacity());
-            if (zero_fill_new_bytes == ZeroFillNewBytes::Yes && new_size > m_size)
-                __builtin_memset(data() + m_size, 0, new_size - m_size);
-            m_size = new_size;
+            MUST(try_resize(new_size, zero_fill_new_bytes));
         }
 
         ErrorOr<void> try_resize(size_t new_size, ZeroFillNewBytes zero_fill_new_bytes = ZeroFillNewBytes::No)
         {
-            if (new_size <= m_size) {
-                m_size = new_size;
+            auto primitive_zero_fill = zero_fill_new_bytes == ZeroFillNewBytes::Yes
+                ? GC::PrimitiveStorage::ZeroFillNewBytes::Yes
+                : GC::PrimitiveStorage::ZeroFillNewBytes::No;
+
+            if (!m_handle.is_valid()) {
+                if (new_size == 0)
+                    return {};
+                m_handle = TRY(GC::PrimitiveStorage::the().try_allocate(new_size, primitive_zero_fill));
                 return {};
             }
-            if (new_size > capacity())
-                TRY(try_ensure_capacity(new_size));
-            set_size(new_size, zero_fill_new_bytes);
-            return {};
+
+            return GC::PrimitiveStorage::the().try_resize(m_handle, new_size, primitive_zero_fill);
         }
 
         ErrorOr<void> try_ensure_capacity(size_t new_capacity)
         {
             if (new_capacity <= capacity())
                 return {};
-            auto* new_data = static_cast<u8*>(krealloc(HeapPartition::ArrayBuffer, m_data, new_capacity));
-            if (!new_data)
-                return AK::Error::from_errno(ENOMEM);
-            m_data = new_data;
-            m_capacity = new_capacity;
-            return {};
+            if (!m_handle.is_valid()) {
+                m_handle = TRY(GC::PrimitiveStorage::the().try_reserve(0, new_capacity, GC::PrimitiveStorage::ZeroFillNewBytes::No));
+                return {};
+            }
+            return GC::PrimitiveStorage::the().try_reserve(m_handle, new_capacity);
         }
 
     private:
         void move_from(OwnedBackingStore&& other)
         {
-            m_data = exchange(other.m_data, nullptr);
-            m_size = exchange(other.m_size, 0);
-            m_capacity = exchange(other.m_capacity, 0);
+            m_handle = exchange(other.m_handle, {});
         }
 
-        u8* m_data { nullptr };
-        size_t m_size { 0 };
-        size_t m_capacity { 0 };
+        GC::PrimitiveStorageHandle m_handle;
     };
 
     struct UnownedFixedLengthByteBuffer {
@@ -272,7 +285,7 @@ struct DataBlock {
     {
         return byte_buffer.visit(
             [](Empty) -> size_t { return GC::PrimitiveStorage::invalid_offset; },
-            [](OwnedBackingStore const&) { return GC::PrimitiveStorage::invalid_offset; },
+            [](OwnedBackingStore const& buffer) { return buffer.offset(); },
             [](UnownedFixedLengthByteBuffer const&) { return GC::PrimitiveStorage::invalid_offset; },
             [](ExternalPrimitiveStorage const& value) { return value.offset(); });
     }
@@ -281,7 +294,7 @@ struct DataBlock {
     {
         return byte_buffer.visit(
             [](Empty) { return false; },
-            [](OwnedBackingStore const&) { return false; },
+            [](OwnedBackingStore const& buffer) { return buffer.handle().is_valid() || buffer.size() == 0; },
             [](UnownedFixedLengthByteBuffer const&) { return false; },
             [](ExternalPrimitiveStorage const& value) { return value.handle.is_valid(); });
     }
@@ -325,6 +338,7 @@ public:
     ReadonlyBytes bytes() const { return m_data_block.bytes(); }
     void overwrite(size_t offset, void const* source, size_t count) { m_data_block.overwrite(offset, source, count); }
     bool is_external() const { return m_data_block.is_external(); }
+    size_t data_offset() const { return m_data_block.offset(); }
 
     // Detaches this ArrayBuffer and returns its underlying DataBlock for use in a TransferArrayBuffer-like operation.
     // If detach fails, the underlying storage is left untouched.
@@ -367,9 +381,9 @@ public:
         return true;
     }
 
-    bool can_cache_typed_array_view_data_pointer() const
+    bool can_cache_typed_array_view_data_offset() const
     {
-        return !is_detached() && is_fixed_length() && m_data_block.byte_buffer.has<DataBlock::OwnedBackingStore>();
+        return !is_detached() && is_fixed_length() && m_data_block.is_caged();
     }
 
     // 25.2.2.2 IsSharedArrayBuffer ( obj ), https://tc39.es/ecma262/#sec-issharedarraybuffer
@@ -408,6 +422,7 @@ private:
     virtual void visit_edges(Visitor&) override;
 
     void account_external_memory_change(size_t old_external_memory_size, size_t new_external_memory_size);
+    void invalidate_cached_typed_array_view_offsets();
 
     DataBlock m_data_block;
     Optional<size_t> m_max_byte_length;
@@ -421,7 +436,7 @@ private:
 template<>
 inline bool Object::fast_is<ArrayBuffer>() const { return is_array_buffer(); }
 
-JS_API ThrowCompletionOr<DataBlock> create_byte_data_block(VM& vm, size_t size);
+JS_API ThrowCompletionOr<DataBlock> create_byte_data_block(VM& vm, size_t size, Optional<size_t> capacity = {});
 JS_API void copy_data_block_bytes(Bytes to_block, u64 to_index, ReadonlyBytes from_block, u64 from_index, u64 count);
 ThrowCompletionOr<ArrayBuffer*> allocate_array_buffer(VM&, FunctionObject& constructor, size_t byte_length, Optional<size_t> const& max_byte_length = {});
 ThrowCompletionOr<ArrayBuffer*> array_buffer_copy_and_detach(VM&, ArrayBuffer& array_buffer, Value new_length, PreserveResizability preserve_resizability);
