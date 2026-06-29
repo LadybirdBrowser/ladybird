@@ -2767,8 +2767,9 @@ CSSPixelRect GridFormattingContext::get_grid_area_rect(GridItem const& grid_item
     return area_rect;
 }
 
-void GridFormattingContext::run(AvailableSpace const& available_space)
+void GridFormattingContext::run(LayoutInput const& layout_input)
 {
+    auto const& available_space = layout_input.available_space;
     // OPTIMIZATION: If we're in intrinsic sizing layout, but the grid container is not the
     //               box being measured, we can skip everything here.
     //               The parent formatting context has already figured out our size anyway.
@@ -2875,7 +2876,7 @@ void GridFormattingContext::run(AvailableSpace const& available_space)
         auto available_space_for_children = AvailableSpace(AvailableSize::make_definite(grid_item.used_values.content_width()), AvailableSize::make_definite(grid_item.used_values.content_height()));
         grid_item.used_values.set_has_definite_width(true);
         grid_item.used_values.set_has_definite_height(true);
-        if (auto independent_formatting_context = layout_inside(grid_item.box, LayoutMode::Normal, available_space_for_children))
+        if (auto independent_formatting_context = layout_inside(grid_item.box, LayoutMode::Normal, LayoutInput { available_space_for_children }))
             independent_formatting_context->parent_context_did_dimension_child_root_box();
     }
 

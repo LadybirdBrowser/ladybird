@@ -28,9 +28,9 @@ public:
     explicit TableFormattingContext(LayoutState&, LayoutMode, Box const&, FormattingContext* parent);
     ~TableFormattingContext();
 
-    void run_until_width_calculation(AvailableSpace const& available_space, RowMeasurement = RowMeasurement::Include);
+    void run_until_width_calculation(LayoutInput const&, RowMeasurement = RowMeasurement::Include);
 
-    virtual void run(AvailableSpace const&) override;
+    virtual void run(LayoutInput const&) override;
     virtual CSSPixels automatic_content_width() const override;
     virtual CSSPixels automatic_content_height() const override;
     StaticPositionRect calculate_static_position_rect(Box const&) const;
