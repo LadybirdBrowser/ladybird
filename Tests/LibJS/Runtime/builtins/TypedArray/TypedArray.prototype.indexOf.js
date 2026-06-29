@@ -63,3 +63,10 @@ test("basic functionality", () => {
         expect(typedArray.indexOf(2n, -2)).toBe(1);
     });
 });
+
+test("out-of-range fromIndex is not converted to an integer type", () => {
+    TYPED_ARRAYS.forEach(T => {
+        const typedArray = new T(3);
+        expect(typedArray.indexOf(0, 5e9)).toBe(-1);
+    });
+});
