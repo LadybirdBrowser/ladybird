@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Checked.h>
 #include <AK/Enumerate.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/SaturatingMath.h>
-#include <LibCore/System.h>
 #include <LibGC/Heap.h>
 #include <LibSync/MutexProtected.h>
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
@@ -173,11 +173,8 @@ MemoryBuffer::~MemoryBuffer()
 MemoryBuffer::MemoryBuffer(MemoryBuffer&& other)
     : m_size(exchange(other.m_size, 0))
     , m_reserved_capacity(exchange(other.m_reserved_capacity, 0))
-    , m_mapping_size(exchange(other.m_mapping_size, 0))
-    , m_host_page_size(exchange(other.m_host_page_size, 0))
-    , m_mapping_base(exchange(other.m_mapping_base, nullptr))
-    , m_data(exchange(other.m_data, nullptr))
-    , m_fallback(move(other.m_fallback))
+    , m_handle(exchange(other.m_handle, {}))
+    , m_storage_offset(exchange(other.m_storage_offset, GC::PrimitiveStorage::invalid_offset))
 {
 }
 
@@ -187,91 +184,260 @@ MemoryBuffer& MemoryBuffer::operator=(MemoryBuffer&& other)
         clear();
         m_size = exchange(other.m_size, 0);
         m_reserved_capacity = exchange(other.m_reserved_capacity, 0);
-        m_mapping_size = exchange(other.m_mapping_size, 0);
-        m_host_page_size = exchange(other.m_host_page_size, 0);
-        m_mapping_base = exchange(other.m_mapping_base, nullptr);
-        m_data = exchange(other.m_data, nullptr);
-        m_fallback = move(other.m_fallback);
+        m_handle = exchange(other.m_handle, {});
+        m_storage_offset = exchange(other.m_storage_offset, GC::PrimitiveStorage::invalid_offset);
     }
     return *this;
 }
 
 void MemoryBuffer::clear()
 {
-    if (m_mapping_base) {
-        VERIFY(m_reserved_capacity);
-        VERIFY(m_mapping_size);
-        VERIFY(m_host_page_size);
-        auto reservation_size = m_mapping_size + 2 * m_host_page_size;
-        [[maybe_unused]] auto result = Core::System::release_address_space(m_mapping_base, reservation_size);
-        VERIFY(!result.is_error());
-    }
-    m_mapping_base = nullptr;
-    m_data = nullptr;
+    if (m_handle.is_valid())
+        GC::PrimitiveStorage::the().free(m_handle);
     m_reserved_capacity = 0;
-    m_mapping_size = 0;
-    m_host_page_size = 0;
     m_size = 0;
-    m_fallback.clear();
+    m_handle = {};
+    m_storage_offset = GC::PrimitiveStorage::invalid_offset;
 }
 
-void MemoryBuffer::reserve_wasm32_address_space()
+void MemoryBuffer::update_storage_offset()
 {
-    if (m_mapping_base)
-        return;
+    m_storage_offset = GC::PrimitiveStorage::the().offset(m_handle);
+}
 
-    auto host_page_size = static_cast<size_t>(PAGE_SIZE);
-    auto reserved_capacity = static_cast<size_t>(Constants::page_size) * 65536;
-    auto mapping_size = reserved_capacity * 2;
-    auto reservation_size = mapping_size + 2 * host_page_size;
+ErrorOr<void> MemoryBuffer::try_reserve(size_t capacity)
+{
+    if (m_handle.is_valid()) {
+        if (capacity <= m_reserved_capacity)
+            return {};
+        TRY(GC::PrimitiveStorage::the().try_reserve(m_handle, capacity));
+        m_reserved_capacity = GC::PrimitiveStorage::the().capacity(m_handle);
+        update_storage_offset();
+        return {};
+    }
 
-    auto mapping_or_error = MUST(Core::System::reserve_address_space(reservation_size));
-
-    m_mapping_base = mapping_or_error;
-    m_data = reinterpret_cast<u8*>(m_mapping_base) + host_page_size;
-    m_reserved_capacity = reserved_capacity;
-    m_mapping_size = mapping_size;
-    m_host_page_size = host_page_size;
+    m_handle = TRY(GC::PrimitiveStorage::the().try_reserve(0, capacity, GC::PrimitiveStorage::ZeroFillNewBytes::Yes));
+    m_reserved_capacity = capacity;
+    update_storage_offset();
+    return {};
 }
 
 ErrorOr<void> MemoryBuffer::try_resize(size_t new_size)
 {
-    if (m_data) {
-        VERIFY(new_size >= m_size);
-        VERIFY(m_host_page_size);
-        if (new_size > m_reserved_capacity)
-            return Error::from_errno(ENOMEM);
-        if (new_size == m_size)
-            return {};
-
-        auto* grow_base = m_data + m_size;
-        auto grow_size = new_size - m_size;
-        TRY(Core::System::commit_memory(grow_base, grow_size));
-
+    VERIFY(new_size >= m_size);
+    if (m_handle.is_valid()) {
+        TRY(GC::PrimitiveStorage::the().try_resize(m_handle, new_size, GC::PrimitiveStorage::ZeroFillNewBytes::Yes));
+        m_reserved_capacity = GC::PrimitiveStorage::the().capacity(m_handle);
         m_size = new_size;
+        update_storage_offset();
         return {};
     }
 
-    TRY(m_fallback.try_resize(new_size));
-    m_size = m_fallback.size();
+    if (new_size == 0)
+        return {};
+
+    auto capacity = max(new_size, m_reserved_capacity);
+    m_handle = TRY(GC::PrimitiveStorage::the().try_reserve(new_size, capacity, GC::PrimitiveStorage::ZeroFillNewBytes::Yes));
+    m_reserved_capacity = capacity;
+    m_size = new_size;
+    update_storage_offset();
     return {};
+}
+
+ErrorOr<void> MemoryBuffer::try_resize(size_t new_size, size_t reserved_capacity)
+{
+    VERIFY(new_size >= m_size);
+    VERIFY(new_size <= reserved_capacity);
+    if (m_handle.is_valid()) {
+        TRY(GC::PrimitiveStorage::the().try_resize_and_reserve(m_handle, new_size, reserved_capacity, GC::PrimitiveStorage::ZeroFillNewBytes::Yes));
+        m_reserved_capacity = GC::PrimitiveStorage::the().capacity(m_handle);
+        m_size = new_size;
+        update_storage_offset();
+        return {};
+    }
+
+    if (reserved_capacity == 0)
+        return {};
+
+    m_handle = TRY(GC::PrimitiveStorage::the().try_reserve(new_size, reserved_capacity, GC::PrimitiveStorage::ZeroFillNewBytes::Yes));
+    m_reserved_capacity = reserved_capacity;
+    m_size = new_size;
+    update_storage_offset();
+    return {};
+}
+
+size_t MemoryBuffer::contiguous_bytes_from(size_t offset, size_t count) const
+{
+    if (count == 0 || m_storage_offset == GC::PrimitiveStorage::invalid_offset)
+        return count;
+    auto caged_offset = GC::PrimitiveStorage::mask_offset(m_storage_offset + offset);
+    return min(count, GC::PrimitiveStorage::default_cage_size - caged_offset);
+}
+
+size_t MemoryBuffer::contiguous_bytes_before(size_t offset, size_t count) const
+{
+    if (count == 0 || m_storage_offset == GC::PrimitiveStorage::invalid_offset)
+        return count;
+    VERIFY(offset > 0);
+    auto caged_offset = GC::PrimitiveStorage::mask_offset(m_storage_offset + offset - 1);
+    return min(count, caged_offset + 1);
+}
+
+void MemoryBuffer::copy_to(size_t offset, Bytes destination) const
+{
+    VERIFY(offset <= size());
+    VERIFY(destination.size() <= size() - offset);
+
+    size_t copied = 0;
+    while (copied < destination.size()) {
+        auto chunk_size = contiguous_bytes_from(offset + copied, destination.size() - copied);
+        __builtin_memcpy(destination.data() + copied, offset_pointer(offset + copied), chunk_size);
+        copied += chunk_size;
+    }
+}
+
+void MemoryBuffer::copy_from(MemoryBuffer const& source, size_t source_offset, size_t destination_offset, size_t count)
+{
+    VERIFY(source_offset <= source.size());
+    VERIFY(count <= source.size() - source_offset);
+    VERIFY(destination_offset <= size());
+    VERIFY(count <= size() - destination_offset);
+
+    if (&source == this) {
+        move_data(destination_offset, source_offset, count);
+        return;
+    }
+
+    size_t copied = 0;
+    while (copied < count) {
+        auto source_chunk_size = source.contiguous_bytes_from(source_offset + copied, count - copied);
+        auto destination_chunk_size = contiguous_bytes_from(destination_offset + copied, count - copied);
+        auto chunk_size = min(source_chunk_size, destination_chunk_size);
+        __builtin_memcpy(offset_pointer(destination_offset + copied), source.offset_pointer(source_offset + copied), chunk_size);
+        copied += chunk_size;
+    }
+}
+
+void MemoryBuffer::fill(size_t offset, u8 value, size_t count)
+{
+    VERIFY(offset <= size());
+    VERIFY(count <= size() - offset);
+
+    size_t filled = 0;
+    while (filled < count) {
+        auto chunk_size = contiguous_bytes_from(offset + filled, count - filled);
+        __builtin_memset(offset_pointer(offset + filled), value, chunk_size);
+        filled += chunk_size;
+    }
+}
+
+void MemoryBuffer::overwrite(size_t offset, void const* source, size_t count)
+{
+    VERIFY(offset <= size());
+    VERIFY(count <= size() - offset);
+
+    auto const* source_bytes = static_cast<u8 const*>(source);
+    size_t copied = 0;
+    while (copied < count) {
+        auto chunk_size = contiguous_bytes_from(offset + copied, count - copied);
+        __builtin_memcpy(offset_pointer(offset + copied), source_bytes + copied, chunk_size);
+        copied += chunk_size;
+    }
+}
+
+void MemoryBuffer::move_data(size_t destination_offset, size_t source_offset, size_t count)
+{
+    VERIFY(destination_offset <= size());
+    VERIFY(count <= size() - destination_offset);
+    VERIFY(source_offset <= size());
+    VERIFY(count <= size() - source_offset);
+
+    if (count == 0 || destination_offset == source_offset)
+        return;
+
+    if (source_offset < destination_offset && destination_offset < source_offset + count) {
+        size_t remaining = count;
+        while (remaining > 0) {
+            auto source_chunk_size = contiguous_bytes_before(source_offset + remaining, remaining);
+            auto destination_chunk_size = contiguous_bytes_before(destination_offset + remaining, remaining);
+            auto chunk_size = min(source_chunk_size, destination_chunk_size);
+            remaining -= chunk_size;
+            __builtin_memmove(offset_pointer(destination_offset + remaining), offset_pointer(source_offset + remaining), chunk_size);
+        }
+        return;
+    }
+
+    size_t copied = 0;
+    while (copied < count) {
+        auto source_chunk_size = contiguous_bytes_from(source_offset + copied, count - copied);
+        auto destination_chunk_size = contiguous_bytes_from(destination_offset + copied, count - copied);
+        auto chunk_size = min(source_chunk_size, destination_chunk_size);
+        __builtin_memmove(offset_pointer(destination_offset + copied), offset_pointer(source_offset + copied), chunk_size);
+        copied += chunk_size;
+    }
 }
 
 bool MemoryBuffer::contains_virtual_address(void const* address) const
 {
-    if (!m_mapping_base)
+    if (!m_handle.is_valid())
         return false;
+    return GC::PrimitiveStorage::the().contains(m_handle, address);
+}
 
-    auto fault_address = bit_cast<FlatPtr>(address);
-    auto base = bit_cast<FlatPtr>(m_data);
-    return fault_address >= base && fault_address < base + m_mapping_size;
+static ErrorOr<size_t> size_from_page_count(u64 pages)
+{
+    Checked<size_t> size { pages };
+    size *= Constants::page_size;
+    if (size.has_overflow())
+        return Error::from_errno(ENOMEM);
+    return size.value();
+}
+
+static ErrorOr<size_t> maximum_memory_size(MemoryType const& type)
+{
+    auto supported_max_pages = type.limits().address_type() == AddressType::I32 ? Constants::wasm32_max_pages : Constants::wasm64_max_pages;
+    auto max_pages = min(type.limits().max().value_or(supported_max_pages), supported_max_pages);
+    return size_from_page_count(max_pages);
+}
+
+static ErrorOr<size_t> initial_memory_reservation_size(MemoryType const& type)
+{
+    auto maximum_size = TRY(maximum_memory_size(type));
+    auto initial_size = TRY(size_from_page_count(type.limits().min()));
+    if (initial_size > maximum_size)
+        return Error::from_errno(ENOMEM);
+
+    if (type.limits().max().has_value())
+        return maximum_size;
+
+    if (type.limits().address_type() != AddressType::I32)
+        return initial_size;
+
+    return min(max(initial_size, static_cast<size_t>(Constants::wasm32_default_memory_reservation_size)), maximum_size);
+}
+
+static size_t grown_memory_reservation_size(size_t current_capacity, size_t required_size, size_t maximum_size)
+{
+    auto new_capacity = max(current_capacity, static_cast<size_t>(Constants::wasm32_default_memory_reservation_size));
+    while (new_capacity < required_size) {
+        if (new_capacity > maximum_size / 2) {
+            new_capacity = maximum_size;
+            break;
+        }
+        new_capacity *= 2;
+    }
+    return min(max(new_capacity, required_size), maximum_size);
 }
 
 ErrorOr<MemoryInstance> MemoryInstance::create(MemoryType const& type)
 {
     MemoryInstance instance { type };
 
-    if (!instance.grow(type.limits().min() * Constants::page_size, GrowType::No))
+    auto reserved_capacity = TRY(initial_memory_reservation_size(type));
+    TRY(instance.m_data.try_reserve(reserved_capacity));
+
+    auto initial_size = TRY(size_from_page_count(type.limits().min()));
+    if (!instance.grow(initial_size, GrowType::No))
         return Error::from_string_literal("Failed to grow to requested size");
 
     return { move(instance) };
@@ -280,28 +446,30 @@ ErrorOr<MemoryInstance> MemoryInstance::create(MemoryType const& type)
 MemoryInstance::MemoryInstance(MemoryType const& type)
     : m_type(type)
 {
-    if (type.limits().address_type() == AddressType::I32)
-        m_data.reserve_wasm32_address_space();
 }
 
 bool MemoryInstance::grow(size_t size_to_grow, GrowType grow_type, InhibitGrowCallback inhibit_callback)
 {
     if (size_to_grow == 0)
         return true;
-    u64 new_size = m_data.size() + size_to_grow;
-    if (new_size > Constants::page_size * 65536)
-        return false;
-    if (auto max = m_type.limits().max(); max.has_value()) {
-        if (max.value() * Constants::page_size < new_size)
-            return false;
-    }
 
-    auto previous_size = m_data.size();
-    if (m_data.try_resize(new_size).is_error())
+    auto maximum_size = maximum_memory_size(m_type);
+    if (maximum_size.is_error())
         return false;
-    if (!m_data.is_virtual())
-        m_data.span().slice(previous_size, size_to_grow).fill(0);
 
+    Checked<size_t> new_size { m_data.size() };
+    new_size += size_to_grow;
+    if (new_size.has_overflow() || new_size.value() > maximum_size.value())
+        return false;
+
+    auto new_capacity = m_data.capacity();
+    if (new_size.value() > new_capacity)
+        new_capacity = m_type.limits().max().has_value()
+            ? maximum_size.value()
+            : grown_memory_reservation_size(new_capacity, new_size.value(), maximum_size.value());
+
+    if (m_data.try_resize(new_size.value(), new_capacity).is_error())
+        return false;
     if (inhibit_callback == InhibitGrowCallback::No && successful_grow_hook)
         successful_grow_hook();
 
@@ -394,6 +562,10 @@ Optional<MemoryAddress> Store::allocate(MemoryType const& type)
 {
     MemoryAddress address { m_memories.size() };
     auto instance = MemoryInstance::create(type);
+    if (instance.is_error() && m_heap) {
+        m_heap->collect_garbage();
+        instance = MemoryInstance::create(type);
+    }
     if (instance.is_error())
         return {};
 

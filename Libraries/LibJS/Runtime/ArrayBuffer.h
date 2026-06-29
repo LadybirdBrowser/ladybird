@@ -161,6 +161,10 @@ struct DataBlock {
     struct DynamicPrimitiveStorageSize {
     };
 
+    // AD-HOC: ECMA-262 models ArrayBuffer backing storage as a Data Block. We additionally allow
+    //         host code to provide an external caged primitive store, so engine-independent
+    //         consumers like LibWeb can project spec-defined host objects onto ArrayBuffer without
+    //         teaching LibJS about those hosts.
     struct ExternalPrimitiveStorage {
         explicit ExternalPrimitiveStorage(GC::Ref<GC::Cell> owner, GC::PrimitiveStorageHandle handle)
             : handle(handle)
@@ -192,43 +196,12 @@ struct DataBlock {
         GC::Ref<GC::Cell> owner;
     };
 
-    // AD-HOC: ECMA-262 models ArrayBuffer backing storage as a Data Block. We additionally allow
-    //         host code to provide an external byte store via callbacks so engine-independent
-    //         consumers like LibWeb can project spec-defined host objects onto ArrayBuffer without
-    //         teaching LibJS about those hosts.
-    struct UnownedExternalBuffer {
-        using DataFunction = u8* (*)(void*);
-        using SizeFunction = size_t (*)(void*);
-
-        explicit UnownedExternalBuffer(GC::Ref<GC::Cell> owner, void* context, DataFunction data, SizeFunction size)
-            : context(context)
-            , data(data)
-            , size(size)
-            , owner(owner)
-        {
-        }
-
-        explicit UnownedExternalBuffer(GC::Ref<GC::Cell> owner, void* context, DataFunction data, size_t fixed_size)
-            : context(context)
-            , data(data)
-            , size(fixed_size)
-            , owner(owner)
-        {
-        }
-
-        void* context { nullptr };
-        DataFunction data { nullptr };
-        Variant<SizeFunction, size_t> size;
-        GC::Ref<GC::Cell> owner;
-    };
-
     u8* data()
     {
         return byte_buffer.visit(
             [](Empty) -> u8* { VERIFY_NOT_REACHED(); },
             [](OwnedBackingStore& value) -> u8* { return value.data(); },
             [](UnownedFixedLengthByteBuffer& value) -> u8* { return value.buffer->data(); },
-            [](UnownedExternalBuffer& value) -> u8* { return value.data ? value.data(value.context) : nullptr; },
             [](ExternalPrimitiveStorage& value) -> u8* { return value.data(); });
     }
     u8 const* data() const { return const_cast<DataBlock*>(this)->data(); }
@@ -253,7 +226,6 @@ struct DataBlock {
             [&](Empty) { VERIFY_NOT_REACHED(); },
             [&](OwnedBackingStore& value) { value.set_size(new_size, zero_fill_new_bytes); },
             [&](UnownedFixedLengthByteBuffer& value) { value.buffer->set_size(new_size, byte_buffer_zero_fill); },
-            [&](UnownedExternalBuffer&) { VERIFY_NOT_REACHED(); },
             [&](ExternalPrimitiveStorage&) { VERIFY_NOT_REACHED(); });
     }
 
@@ -266,7 +238,6 @@ struct DataBlock {
             [&](Empty) -> ErrorOr<void> { VERIFY_NOT_REACHED(); },
             [&](OwnedBackingStore& value) { return value.try_resize(new_size, zero_fill_new_bytes); },
             [&](UnownedFixedLengthByteBuffer& value) { return value.buffer->try_resize(new_size, byte_buffer_zero_fill); },
-            [&](UnownedExternalBuffer&) -> ErrorOr<void> { VERIFY_NOT_REACHED(); },
             [&](ExternalPrimitiveStorage&) -> ErrorOr<void> { VERIFY_NOT_REACHED(); });
     }
 
@@ -276,7 +247,6 @@ struct DataBlock {
             [&](Empty) -> ErrorOr<void> { VERIFY_NOT_REACHED(); },
             [&](OwnedBackingStore& value) { return value.try_ensure_capacity(new_capacity); },
             [&](UnownedFixedLengthByteBuffer& value) { return value.buffer->try_ensure_capacity(new_capacity); },
-            [&](UnownedExternalBuffer&) -> ErrorOr<void> { VERIFY_NOT_REACHED(); },
             [&](ExternalPrimitiveStorage&) -> ErrorOr<void> { VERIFY_NOT_REACHED(); });
     }
 
@@ -286,11 +256,6 @@ struct DataBlock {
             [](Empty) -> size_t { return 0u; },
             [](OwnedBackingStore const& buffer) { return buffer.size(); },
             [](UnownedFixedLengthByteBuffer const& value) { return value.size; },
-            [](UnownedExternalBuffer const& value) {
-                return value.size.visit(
-                    [](size_t size) { return size; },
-                    [&](auto& fn) { return fn ? fn(value.context) : 0zu; });
-            },
             [](ExternalPrimitiveStorage const& value) { return value.byte_length(); });
     }
 
@@ -300,11 +265,6 @@ struct DataBlock {
             [](Empty) -> size_t { return 0; },
             [](OwnedBackingStore const& buffer) { return buffer.capacity(); },
             [](UnownedFixedLengthByteBuffer const& value) { return value.size; },
-            [](UnownedExternalBuffer const& value) {
-                return value.size.visit(
-                    [](size_t size) { return size; },
-                    [&](auto& fn) { return fn ? fn(value.context) : 0zu; });
-            },
             [](ExternalPrimitiveStorage const& value) { return value.capacity(); });
     }
 
@@ -314,7 +274,6 @@ struct DataBlock {
             [](Empty) -> size_t { return GC::PrimitiveStorage::invalid_offset; },
             [](OwnedBackingStore const&) { return GC::PrimitiveStorage::invalid_offset; },
             [](UnownedFixedLengthByteBuffer const&) { return GC::PrimitiveStorage::invalid_offset; },
-            [](UnownedExternalBuffer const&) { return GC::PrimitiveStorage::invalid_offset; },
             [](ExternalPrimitiveStorage const& value) { return value.offset(); });
     }
 
@@ -324,7 +283,6 @@ struct DataBlock {
             [](Empty) { return false; },
             [](OwnedBackingStore const&) { return false; },
             [](UnownedFixedLengthByteBuffer const&) { return false; },
-            [](UnownedExternalBuffer const&) { return false; },
             [](ExternalPrimitiveStorage const& value) { return value.handle.is_valid(); });
     }
 
@@ -334,13 +292,12 @@ struct DataBlock {
             [](Empty) -> size_t { return 0; },
             [](OwnedBackingStore const& buffer) { return buffer.capacity(); },
             [](UnownedFixedLengthByteBuffer const&) -> size_t { return 0; },
-            [](UnownedExternalBuffer const&) -> size_t { return 0; },
             [](ExternalPrimitiveStorage const&) -> size_t { return 0; });
     }
 
-    bool is_external() const { return byte_buffer.has<UnownedExternalBuffer>() || byte_buffer.has<ExternalPrimitiveStorage>(); }
+    bool is_external() const { return byte_buffer.has<ExternalPrimitiveStorage>(); }
 
-    Variant<Empty, OwnedBackingStore, UnownedFixedLengthByteBuffer, UnownedExternalBuffer, ExternalPrimitiveStorage> byte_buffer;
+    Variant<Empty, OwnedBackingStore, UnownedFixedLengthByteBuffer, ExternalPrimitiveStorage> byte_buffer;
     Shared is_shared = { Shared::No };
 };
 
@@ -353,7 +310,6 @@ public:
     static GC::Ref<ArrayBuffer> create(Realm&, ByteBuffer, DataBlock::Shared = DataBlock::Shared::No);
     static GC::Ref<ArrayBuffer> create(Realm&, ByteBuffer*, DataBlock::Shared = DataBlock::Shared::No);
     static GC::Ref<ArrayBuffer> create(Realm&, DataBlock);
-    static GC::Ref<ArrayBuffer> create(Realm&, DataBlock::UnownedExternalBuffer, DataBlock::Shared = DataBlock::Shared::No);
 
     virtual ~ArrayBuffer() override = default;
 
@@ -446,7 +402,6 @@ public:
 private:
     ArrayBuffer(DataBlock::OwnedBackingStore buffer, DataBlock::Shared, Object& prototype);
     ArrayBuffer(ByteBuffer* buffer, DataBlock::Shared, Object& prototype);
-    ArrayBuffer(DataBlock::UnownedExternalBuffer buffer, DataBlock::Shared, Object& prototype);
 
     virtual bool is_array_buffer() const final { return true; }
 

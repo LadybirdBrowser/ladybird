@@ -64,6 +64,13 @@ static constexpr auto extern_global_tag = 0x03;
 static constexpr auto extern_tag_tag = 0x04; // Proposal "exception-handling"
 
 static constexpr auto page_size = 64 * KiB;
+static constexpr u64 wasm32_max_pages = 1ull << 16;
+// FIXME: The compiled memory access path currently narrows memory64 addresses
+//        to i32 before adding the memarg offset. Keep memory64 memories within
+//        the currently supported address width until 64-bit memory accesses are
+//        implemented there.
+static constexpr u64 wasm64_max_pages = wasm32_max_pages;
+static constexpr auto wasm32_default_memory_reservation_size = 16 * MiB;
 
 // Implementation-defined limits
 // These are not concretely defined by the spec, so the values are only defined by us.

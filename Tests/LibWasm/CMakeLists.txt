@@ -1,3 +1,5 @@
+ladybird_test(TestWasmMemory.cpp LibWasm LIBS LibGC LibWasm)
+
 add_executable(test-wasm test-wasm.cpp)
 target_link_libraries(test-wasm AK LibCore LibFileSystem JavaScriptTestRunnerMain LibTest LibWasm LibJS LibCrypto LibGC)
 set(wasm_test_root "${LADYBIRD_SOURCE_DIR}")

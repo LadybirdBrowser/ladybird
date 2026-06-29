@@ -49,7 +49,6 @@ public:
         m_locals_base = frame.locals_data();
         auto const& memories = frame.module().memories();
         m_default_memory = memories.is_empty() ? nullptr : m_store.unsafe_get(memories[0]);
-        m_default_memory_base = m_default_memory ? m_default_memory->data().data() : nullptr;
         frame.set_compiled_fn_table(&frame.module().compiled_fn_table(m_store));
 
         auto continuation = frame.expression().instructions().size() - 1;
@@ -84,7 +83,6 @@ public:
         m_locals_base = locals_ptr;
         auto const& memories = module.memories();
         m_default_memory = memories.is_empty() ? nullptr : m_store.unsafe_get(memories[0]);
-        m_default_memory_base = m_default_memory ? m_default_memory->data().data() : nullptr;
         // Skip capacity hints and label push (Cranelift uses its own structured control flow).
     }
 
@@ -114,8 +112,6 @@ public:
     ALWAYS_INLINE auto& store() const { return m_store; }
     ALWAYS_INLINE auto& store() { return m_store; }
     ALWAYS_INLINE MemoryInstance* default_memory() const { return m_default_memory; }
-    ALWAYS_INLINE u8* default_memory_base() const { return m_default_memory_base; }
-    ALWAYS_INLINE void refresh_default_memory_base() { m_default_memory_base = m_default_memory ? m_default_memory->data().data() : nullptr; }
     ALWAYS_INLINE Value& compiled_call_result_scratch() { return m_compiled_call_result_scratch; }
     ALWAYS_INLINE Value const& compiled_call_result_scratch() const { return m_compiled_call_result_scratch; }
 
@@ -128,7 +124,7 @@ public:
     size_t m_compiled_direct_call_depth { 0 };
 
     static constexpr size_t locals_base_offset() { return __builtin_offsetof(Configuration, m_locals_base); }
-    static constexpr size_t default_memory_base_offset() { return __builtin_offsetof(Configuration, m_default_memory_base); }
+    static constexpr size_t default_memory_offset() { return __builtin_offsetof(Configuration, m_default_memory); }
     static constexpr size_t compiled_call_result_scratch_offset() { return __builtin_offsetof(Configuration, m_compiled_call_result_scratch); }
 
     ALWAYS_INLINE Value& call_record_entry(size_t index) { return m_call_record_base[index]; }
@@ -355,7 +351,6 @@ public:
     Value* m_locals_base { nullptr };
     Value* m_call_record_base { nullptr };
     MemoryInstance* m_default_memory { nullptr };
-    u8* m_default_memory_base { nullptr };
     Value m_compiled_call_result_scratch;
 };
 

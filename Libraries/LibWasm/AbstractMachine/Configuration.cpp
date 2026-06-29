@@ -24,11 +24,9 @@ void Configuration::unwind_impl()
     m_locals_base = m_frame_stack.is_empty() ? nullptr : m_frame_stack.last().locals_data();
     if (m_frame_stack.is_empty()) {
         m_default_memory = nullptr;
-        m_default_memory_base = nullptr;
     } else {
         auto const& memories = m_frame_stack.last().module().memories();
         m_default_memory = memories.is_empty() ? nullptr : m_store.unsafe_get(memories[0]);
-        m_default_memory_base = m_default_memory ? m_default_memory->data().data() : nullptr;
     }
 
     if (!last_frame.owns_locals()) {

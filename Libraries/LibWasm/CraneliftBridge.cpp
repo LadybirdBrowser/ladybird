@@ -97,7 +97,7 @@ struct BatchInput {
 // any rebuild that changes those will simply miss the cache rather than try to
 // execute incompatible bytes.
 constexpr u64 cache_blob_magic = 0x4354494A4D534157ULL; // "WASMJITC" little-endian
-constexpr u32 cache_blob_format_version = 3;
+constexpr u32 cache_blob_format_version = 5;
 
 struct CacheBlobHeader {
     u64 magic;
@@ -165,8 +165,12 @@ static u64 compute_layout_hash(RuntimeHelpers const& h)
     hash = fnv1a(hash, h.regs_offset);
     hash = fnv1a(hash, h.value_size);
     hash = fnv1a(hash, h.locals_base_offset);
-    hash = fnv1a(hash, h.default_memory_base_offset);
+    hash = fnv1a(hash, h.default_memory_offset);
+    hash = fnv1a(hash, h.memory_instance_data_offset);
+    hash = fnv1a(hash, h.memory_buffer_size_offset);
+    hash = fnv1a(hash, h.memory_buffer_storage_offset_offset);
     hash = fnv1a(hash, h.compiled_call_result_scratch_offset);
+    hash = fnv1a(hash, h.primitive_storage_cage_offset_mask);
     return hash;
 }
 
@@ -174,7 +178,8 @@ static u64 compute_layout_hash(RuntimeHelpers const& h)
 // so the helper address for id N is simply the N-th `size_t` field of the struct.
 static_assert(offsetof(RuntimeHelpers, call_function) == 0);
 static_assert(offsetof(RuntimeHelpers, memory_fill) == sizeof(size_t) * 30);
-static_assert(HELPER_COUNT == 31);
+static_assert(offsetof(RuntimeHelpers, primitive_storage_cage_base) == sizeof(size_t) * 31);
+static_assert(HELPER_COUNT == 32);
 
 static bool apply_helper_relocs(u8* code_bytes, size_t code_size, HelperReloc const* relocs, size_t reloc_count, RuntimeHelpers const& helpers)
 {
@@ -601,8 +606,6 @@ i32 wasm_cl_memory_grow(void* config_ptr, i32 mem_idx, i32 pages)
     auto old_pages = memory->size() / Constants::page_size;
     if (!memory->grow(pages * Constants::page_size))
         return -1;
-    if (mem_idx == 0)
-        config.refresh_default_memory_base();
     return static_cast<i32>(old_pages);
 }
 
@@ -680,7 +683,7 @@ i32 wasm_cl_memory_copy(void* interp_ptr, void* config_ptr, i32 dst_mem, i32 src
         return interpreter.set_trap(Trap::from_string("Memory access out of bounds"));
 
     if (count > 0)
-        __builtin_memmove(dst_instance->data().data() + static_cast<u32>(dst_offset), src_instance->data().data() + static_cast<u32>(src_offset), static_cast<u32>(count));
+        dst_instance->data().copy_from(src_instance->data(), static_cast<u32>(src_offset), static_cast<u32>(dst_offset), static_cast<u32>(count));
 
     return 0;
 }
@@ -699,7 +702,7 @@ i32 wasm_cl_memory_fill(void* interp_ptr, void* config_ptr, i32 mem_idx, i32 off
         return interpreter.set_trap(Trap::from_string("Memory access out of bounds"));
 
     if (count > 0)
-        __builtin_memset(instance->data().data() + static_cast<u32>(offset), static_cast<u8>(value), static_cast<u32>(count));
+        instance->data().fill(static_cast<u32>(offset), static_cast<u8>(value), static_cast<u32>(count));
 
     return 0;
 }
@@ -966,10 +969,15 @@ static RuntimeHelpers make_runtime_helpers()
         .call_indirect = bit_cast<uintptr_t>(&wasm_cl_call_indirect),
         .memory_copy = bit_cast<uintptr_t>(&wasm_cl_memory_copy),
         .memory_fill = bit_cast<uintptr_t>(&wasm_cl_memory_fill),
+        .primitive_storage_cage_base = bit_cast<uintptr_t>(&js_primitive_storage_cage_base),
+        .primitive_storage_cage_offset_mask = GC::PrimitiveStorage::cage_offset_mask,
         .regs_offset = static_cast<u32>(offsetof(Configuration, regs)),
         .value_size = static_cast<u32>(sizeof(Value)),
         .locals_base_offset = static_cast<u32>(Configuration::locals_base_offset()),
-        .default_memory_base_offset = static_cast<u32>(Configuration::default_memory_base_offset()),
+        .default_memory_offset = static_cast<u32>(Configuration::default_memory_offset()),
+        .memory_instance_data_offset = static_cast<u32>(MemoryInstance::data_offset()),
+        .memory_buffer_size_offset = static_cast<u32>(MemoryBuffer::size_offset()),
+        .memory_buffer_storage_offset_offset = static_cast<u32>(MemoryBuffer::storage_offset_offset()),
         .compiled_call_result_scratch_offset = static_cast<u32>(Configuration::compiled_call_result_scratch_offset()),
     };
 }
@@ -1056,7 +1064,7 @@ static CraneliftInsn serialize_insn(Dispatch const& dispatch, SourcesAndDestinat
     } else if (opc >= Instructions::i32_load.value() && opc <= Instructions::i64_store32.value()) {
         auto const& mem_arg = args.get<Instruction::MemoryArgument>();
         out.imm1 = static_cast<i64>(mem_arg.offset);
-        out.imm3 = static_cast<u32>(mem_arg.memory_index.value()) | (mem_arg.memory_index.value() == 0 ? (1u << 31) : 0);
+        out.imm3 = static_cast<u32>(mem_arg.memory_index.value());
     } else if (opc == Instructions::memory_size.value()
         || opc == Instructions::memory_grow.value()) {
         auto const& mem_idx_arg = args.get<Instruction::MemoryIndexArgument>();
@@ -1093,7 +1101,7 @@ static CraneliftInsn serialize_insn(Dispatch const& dispatch, SourcesAndDestinat
             auto const& mem_arg = args.get<Instruction::MemoryArgument>();
             out.imm1 = static_cast<i64>(mem_arg.offset);
             out.imm2 = static_cast<i64>(insn->local_index().value());
-            out.imm3 = static_cast<u32>(mem_arg.memory_index.value()) | (mem_arg.memory_index.value() == 0 ? (1u << 31) : 0);
+            out.imm3 = static_cast<u32>(mem_arg.memory_index.value());
         } else if (is_syn(Instructions::synthetic_local_seti32_const)) {
             out.imm1 = static_cast<i64>(args.get<i32>());
             out.imm2 = static_cast<i64>(insn->local_index().value());

@@ -491,7 +491,7 @@ ErrorOr<void, ValidationError> Validator::validate(TableType const& type)
 
 ErrorOr<void, ValidationError> Validator::validate(MemoryType const& type)
 {
-    u64 bound = type.limits().address_type() == AddressType::I64 ? 1ull << 48 : 1ull << 16;
+    u64 bound = type.limits().address_type() == AddressType::I64 ? 1ull << 48 : Constants::wasm32_max_pages;
     return validate(type.limits(), bound);
 }
 

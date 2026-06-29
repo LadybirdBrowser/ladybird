@@ -55,11 +55,6 @@ GC::Ref<ArrayBuffer> ArrayBuffer::create(Realm& realm, DataBlock block)
     return array_buffer;
 }
 
-GC::Ref<ArrayBuffer> ArrayBuffer::create(Realm& realm, DataBlock::UnownedExternalBuffer buffer, DataBlock::Shared is_shared)
-{
-    return realm.create<ArrayBuffer>(buffer, is_shared, prototype_for_shared_state(realm, is_shared));
-}
-
 ArrayBuffer::ArrayBuffer(DataBlock::OwnedBackingStore buffer, DataBlock::Shared is_shared, Object& prototype)
     : Object(ConstructWithPrototypeTag::Tag, prototype)
     , m_data_block(DataBlock { move(buffer), is_shared })
@@ -70,13 +65,6 @@ ArrayBuffer::ArrayBuffer(DataBlock::OwnedBackingStore buffer, DataBlock::Shared 
 ArrayBuffer::ArrayBuffer(ByteBuffer* buffer, DataBlock::Shared is_shared, Object& prototype)
     : Object(ConstructWithPrototypeTag::Tag, prototype)
     , m_data_block(DataBlock { DataBlock::UnownedFixedLengthByteBuffer(buffer), is_shared })
-    , m_detach_key(js_undefined())
-{
-}
-
-ArrayBuffer::ArrayBuffer(DataBlock::UnownedExternalBuffer buffer, DataBlock::Shared is_shared, Object& prototype)
-    : Object(ConstructWithPrototypeTag::Tag, prototype)
-    , m_data_block(DataBlock { move(buffer), is_shared })
     , m_detach_key(js_undefined())
 {
 }
@@ -123,8 +111,6 @@ void ArrayBuffer::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_detach_key);
-    if (auto* external = m_data_block.byte_buffer.get_pointer<DataBlock::UnownedExternalBuffer>())
-        visitor.visit(external->owner);
     if (auto* external = m_data_block.byte_buffer.get_pointer<DataBlock::ExternalPrimitiveStorage>())
         visitor.visit(external->owner);
 }

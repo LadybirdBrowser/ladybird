@@ -208,6 +208,36 @@ TESTJS_GLOBAL_FUNCTION(validate_webassembly_module, validateWebAssemblyModule)
     return JS::js_undefined();
 }
 
+TESTJS_GLOBAL_FUNCTION(is_cranelift_compiled, isCraneliftCompiled)
+{
+    auto address = static_cast<unsigned long>(TRY(vm.argument(0).to_double(vm)));
+    auto function_instance = WebAssemblyModule::machine().store().get(Wasm::FunctionAddress { address });
+    if (!function_instance)
+        return vm.throw_completion<JS::TypeError>("Invalid function address"_utf16);
+
+    auto* wasm_function = function_instance->get_pointer<Wasm::WasmFunction>();
+    if (!wasm_function)
+        return JS::Value(false);
+
+    auto const& compiled_instructions = wasm_function->code().func().body().compiled_instructions;
+    return JS::Value(Wasm::cranelift_entry_acquire(compiled_instructions) != 0);
+}
+
+TESTJS_GLOBAL_FUNCTION(is_cranelift_eligible, isCraneliftEligible)
+{
+    auto address = static_cast<unsigned long>(TRY(vm.argument(0).to_double(vm)));
+    auto function_instance = WebAssemblyModule::machine().store().get(Wasm::FunctionAddress { address });
+    if (!function_instance)
+        return vm.throw_completion<JS::TypeError>("Invalid function address"_utf16);
+
+    auto* wasm_function = function_instance->get_pointer<Wasm::WasmFunction>();
+    if (!wasm_function)
+        return JS::Value(false);
+
+    auto const& compiled_instructions = wasm_function->code().func().body().compiled_instructions;
+    return JS::Value(compiled_instructions.cranelift_eligible);
+}
+
 TESTJS_GLOBAL_FUNCTION(compare_typed_arrays, compareTypedArrays)
 {
     auto lhs = TRY(vm.argument(0).to_object(vm));

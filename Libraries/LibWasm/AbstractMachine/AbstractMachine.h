@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/ByteBuffer.h>
 #include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
@@ -18,6 +17,7 @@
 #include <LibGC/CellAllocator.h>
 #include <LibGC/ConservativeRangeProvider.h>
 #include <LibGC/Heap.h>
+#include <LibGC/PrimitiveStorage.h>
 #include <LibWasm/Export.h>
 #include <LibWasm/TypeSystem.h>
 #include <LibWasm/Types.h>
@@ -598,39 +598,44 @@ public:
     MemoryBuffer(MemoryBuffer const&) = delete;
     MemoryBuffer& operator=(MemoryBuffer const&) = delete;
 
-    void reserve_wasm32_address_space();
+    ErrorOr<void> try_reserve(size_t capacity);
     ErrorOr<void> try_resize(size_t new_size);
+    ErrorOr<void> try_resize(size_t new_size, size_t reserved_capacity);
 
     auto size() const { return m_size; }
-    auto data() const { return m_data ? m_data : m_fallback.data(); }
-    auto data() { return m_data ? m_data : m_fallback.data(); }
+    auto capacity() const { return m_reserved_capacity; }
+    auto data() const { return GC::PrimitiveStorage::the().data(m_handle); }
+    auto data() { return GC::PrimitiveStorage::the().data(m_handle); }
+    auto storage_offset() const { return m_storage_offset; }
+    GC::PrimitiveStorageHandle primitive_storage_handle() const { return m_handle; }
     Bytes bytes() { return { data(), size() }; }
     ReadonlyBytes bytes() const { return { data(), size() }; }
     Bytes span() { return bytes(); }
     ReadonlyBytes span() const { return bytes(); }
-    u8* offset_pointer(size_t offset) { return data() + offset; }
-    u8 const* offset_pointer(size_t offset) const { return data() + offset; }
-    u8& operator[](size_t index) { return data()[index]; }
-    u8 const& operator[](size_t index) const { return data()[index]; }
-    void overwrite(size_t offset, void const* source, size_t count)
-    {
-        VERIFY(offset <= size());
-        VERIFY(count <= size() - offset);
-        __builtin_memcpy(offset_pointer(offset), source, count);
-    }
-    bool is_virtual() const { return m_data != nullptr; }
+    u8* offset_pointer(size_t offset) { return GC::PrimitiveStorage::the().data(m_handle, offset); }
+    u8 const* offset_pointer(size_t offset) const { return GC::PrimitiveStorage::the().data(m_handle, offset); }
+    u8& operator[](size_t index) { return *offset_pointer(index); }
+    u8 const& operator[](size_t index) const { return *offset_pointer(index); }
+    size_t contiguous_bytes_from(size_t offset, size_t count) const;
+    size_t contiguous_bytes_before(size_t offset, size_t count) const;
+    void copy_to(size_t offset, Bytes destination) const;
+    void copy_from(MemoryBuffer const& source, size_t source_offset, size_t destination_offset, size_t count);
+    void fill(size_t offset, u8 value, size_t count);
+    void overwrite(size_t offset, void const* source, size_t count);
+    void move_data(size_t destination_offset, size_t source_offset, size_t count);
     bool contains_virtual_address(void const* address) const;
+
+    static constexpr size_t size_offset() { return __builtin_offsetof(MemoryBuffer, m_size); }
+    static constexpr size_t storage_offset_offset() { return __builtin_offsetof(MemoryBuffer, m_storage_offset); }
 
 private:
     void clear();
+    void update_storage_offset();
 
     size_t m_size { 0 };
     size_t m_reserved_capacity { 0 };
-    size_t m_mapping_size { 0 };
-    size_t m_host_page_size { 0 };
-    void* m_mapping_base { nullptr };
-    u8* m_data { nullptr };
-    ByteBuffer m_fallback;
+    GC::PrimitiveStorageHandle m_handle;
+    size_t m_storage_offset { GC::PrimitiveStorage::invalid_offset };
 };
 
 class WASM_API MemoryInstance {
@@ -656,6 +661,8 @@ public:
     bool grow(size_t size_to_grow, GrowType grow_type = GrowType::Yes, InhibitGrowCallback inhibit_callback = InhibitGrowCallback::No);
 
     Function<void()> successful_grow_hook;
+
+    static constexpr size_t data_offset() { return __builtin_offsetof(MemoryInstance, m_data); }
 
 private:
     explicit MemoryInstance(MemoryType const& type);

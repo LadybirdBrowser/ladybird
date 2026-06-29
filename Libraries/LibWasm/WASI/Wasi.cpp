@@ -5,6 +5,7 @@
  */
 
 #include <AK/ByteReader.h>
+#include <AK/Checked.h>
 #include <AK/Debug.h>
 #include <AK/FlyString.h>
 #include <AK/Random.h>
@@ -72,6 +73,29 @@ CompatibleValue<T> to_compatible_value(Wasm::Value const& value)
 }
 
 namespace Wasm::Wasi {
+
+static ErrorOr<size_t> checked_byte_count(size_t element_size, Size count)
+{
+    Checked<size_t> byte_count { static_cast<u32>(count) };
+    byte_count *= element_size;
+    if (byte_count.has_overflow())
+        return Error::from_errno(ENOBUFS);
+    return byte_count.value();
+}
+
+static bool memory_range_is_in_bounds(MemoryInstance const& memory, size_t address, size_t byte_count)
+{
+    return address <= memory.size() && byte_count <= memory.size() - address;
+}
+
+static Optional<Bytes> contiguous_memory_bytes(MemoryInstance& memory, size_t address, size_t byte_count)
+{
+    if (!memory_range_is_in_bounds(memory, address, byte_count))
+        return {};
+    if (memory.data().contiguous_bytes_from(address, byte_count) < byte_count)
+        return {};
+    return Bytes { memory.data().offset_pointer(address), byte_count };
+}
 
 void ArgsSizes::serialize_into(Array<Bytes, 2> bytes) const
 {
@@ -230,15 +254,16 @@ ErrorOr<Vector<T>> copy_typed_array(Configuration& configuration, Pointer<T> sou
     if (!memory)
         return Error::from_errno(ENOMEM);
 
-    UnderlyingPointerType address = source.value();
-    auto size = sizeof(T);
-    if (memory->size() < address || memory->size() <= address + (size * count)) {
+    size_t address = source.value();
+    auto byte_count = TRY(checked_byte_count(sizeof(T), count));
+    if (!memory_range_is_in_bounds(*memory, address, byte_count))
         return Error::from_errno(ENOBUFS);
-    }
 
     for (Size i = 0; i < count; i += 1) {
-        values.unchecked_append(T::read_from(Array { ReadonlyBytes { memory->data().bytes().slice(address, size) } }));
-        address += size;
+        u8 bytes[sizeof(T)];
+        memory->data().copy_to(address, { bytes, sizeof(bytes) });
+        values.unchecked_append(T::read_from(Array { ReadonlyBytes { bytes, sizeof(bytes) } }));
+        address += sizeof(T);
     }
 
     return values;
@@ -251,13 +276,13 @@ ErrorOr<void> copy_typed_value_to(Configuration& configuration, T const& value, 
     if (!memory)
         return Error::from_errno(ENOMEM);
 
-    UnderlyingPointerType address = destination.value();
-    auto size = sizeof(T);
-    if (memory->size() < address || memory->size() <= address + size) {
+    size_t address = destination.value();
+    if (!memory_range_is_in_bounds(*memory, address, sizeof(T)))
         return Error::from_errno(ENOBUFS);
-    }
 
-    ABI::serialize(value, Array { Bytes { memory->data().bytes().slice(address, size) } });
+    u8 bytes[sizeof(T)];
+    ABI::serialize(value, Array { Bytes { bytes, sizeof(bytes) } });
+    memory->data().overwrite(address, bytes, sizeof(bytes));
     return {};
 }
 
@@ -268,13 +293,13 @@ ErrorOr<Span<T>> slice_typed_memory(Configuration& configuration, Pointer<T> sou
     if (!memory)
         return Error::from_errno(ENOMEM);
 
-    auto address = source.value();
-    auto size = sizeof(T);
-    if (memory->size() < address || memory->size() <= address + (size * count))
+    size_t address = source.value();
+    auto byte_count = TRY(checked_byte_count(sizeof(T), count));
+    auto bytes = contiguous_memory_bytes(*memory, address, byte_count);
+    if (!bytes.has_value())
         return Error::from_errno(ENOBUFS);
 
-    auto untyped_slice = memory->data().bytes().slice(address, size * count);
-    return Span<T>(untyped_slice.data(), count);
+    return Span<T>(reinterpret_cast<T*>(bytes->data()), static_cast<size_t>(count));
 }
 
 template<typename T>
@@ -284,13 +309,13 @@ ErrorOr<Span<T const>> slice_typed_memory(Configuration& configuration, ConstPoi
     if (!memory)
         return Error::from_errno(ENOMEM);
 
-    auto address = source.value();
-    auto size = sizeof(T);
-    if (memory->size() < address || memory->size() <= address + (size * count))
+    size_t address = source.value();
+    auto byte_count = TRY(checked_byte_count(sizeof(T), count));
+    auto bytes = contiguous_memory_bytes(*memory, address, byte_count);
+    if (!bytes.has_value())
         return Error::from_errno(ENOBUFS);
 
-    auto untyped_slice = memory->data().bytes().slice(address, size * count);
-    return Span<T const>(untyped_slice.data(), count);
+    return Span<T const>(reinterpret_cast<T const*>(bytes->data()), static_cast<size_t>(count));
 }
 
 static ErrorOr<size_t> copy_string_including_terminating_null(Configuration& configuration, StringView string, Pointer<u8> target)
@@ -849,10 +874,12 @@ ErrorOr<Result<void>> Implementation::impl$sock_shutdown(Configuration&, FD fd, 
 template<size_t N>
 static Array<Bytes, N> address_spans(Span<Value> values, Configuration& configuration)
 {
-    Array<Bytes, N> result;
-    auto memory = configuration.store().get(MemoryAddress { 0 })->data().span();
-    for (size_t i = 0; i < N; ++i)
-        result[i] = memory.slice(values[i].to<i32>());
+    Array<Bytes, N> result {};
+    auto& memory = configuration.store().get(MemoryAddress { 0 })->data();
+    for (size_t i = 0; i < N; ++i) {
+        if (auto address = static_cast<size_t>(values[i].to<i32>()); address <= memory.size())
+            result[i] = Bytes { memory.offset_pointer(address), memory.contiguous_bytes_from(address, memory.size() - address) };
+    }
     return result;
 }
 
