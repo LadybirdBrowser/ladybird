@@ -40,23 +40,12 @@ void DisplayingVideoSink::set_state_change_handler(PipelineStateChangeHandler on
     m_on_state_changed = move(on_state_changed);
 }
 
-void DisplayingVideoSink::consume_moved_position_signals(PipelineStatus& status)
-{
-    while ((status = m_input->status()) == PipelineStatus::MovedPosition) {
-        m_input->pull(m_next_frame);
-        VERIFY(m_next_frame == nullptr);
-        m_seek_status = SeekStatus::FrameInvalidated;
-    }
-    VERIFY(status != PipelineStatus::MovedPosition);
-}
-
 ErrorOr<void> DisplayingVideoSink::connect_input(NonnullRefPtr<VideoProducer> const& input)
 {
     VERIFY(m_input == nullptr);
     m_input = input;
-    input->set_wake_handler([this, input] {
-        auto status = PipelineStatus::Pending;
-        consume_moved_position_signals(status);
+    input->set_wake_handler([this] {
+        auto status = m_input->peek().status;
         if (!resolves_seek(status))
             return;
         if (m_current_frame != nullptr && m_seek_status == SeekStatus::None)
@@ -96,7 +85,11 @@ void DisplayingVideoSink::seek(AK::Duration timestamp)
         include_frame(m_current_frame);
         include_frame(m_next_frame);
 
-        return timestamp >= available_start && timestamp < available_end;
+        if (timestamp < available_start)
+            return false;
+        if (timestamp < available_end)
+            return true;
+        return m_input != nullptr && m_input->peek().status == PipelineStatus::EndOfStream;
     }();
 
     if (can_resolve_seek_within_cached_frames) {
@@ -113,6 +106,7 @@ void DisplayingVideoSink::seek(AK::Duration timestamp)
         m_input->seek(timestamp);
     if (m_seek_status == SeekStatus::None)
         m_seek_status = SeekStatus::InProgress;
+    m_next_frame = nullptr;
 }
 
 void DisplayingVideoSink::dispatch_state_if_changed(PipelineStatus status)
@@ -134,31 +128,35 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
 
     auto last_status = PipelineStatus::Pending;
     while (true) {
-        if (m_next_frame == nullptr || m_seek_status != SeekStatus::None)
-            consume_moved_position_signals(last_status);
         if (m_next_frame == nullptr) {
-            if (last_status != PipelineStatus::HaveData)
+            auto output = m_input->peek();
+            last_status = output.status;
+            if (output.frame == nullptr) {
+                if (is_terminal(last_status) && m_seek_status == SeekStatus::InProgress) {
+                    m_seek_status = SeekStatus::None;
+                    result = DisplayingVideoSinkUpdateResult::NewFrameAvailable;
+                }
                 break;
-            m_input->pull(m_next_frame);
-            VERIFY(m_next_frame != nullptr);
-            if (m_seek_status == SeekStatus::FrameInvalidated) {
-                m_current_frame.clear();
-                result = DisplayingVideoSinkUpdateResult::NewFrameAvailable;
             }
+            m_next_frame = move(output.frame);
+            m_input->consume();
         }
-        if (resolves_seek(last_status))
+        if (m_seek_status != SeekStatus::None && resolves_seek(last_status)) {
+            m_current_frame.clear();
             m_seek_status = SeekStatus::None;
+            result = DisplayingVideoSinkUpdateResult::NewFrameAvailable;
+        }
         if (m_seek_status != SeekStatus::None)
             break;
         if (m_next_frame->timestamp() > current_time)
             break;
         if (current_time > m_next_frame->conservative_end()) {
-            consume_moved_position_signals(last_status);
-            if (m_next_frame == nullptr)
-                continue;
+            auto next = m_input->peek();
+            last_status = next.status;
             if (!is_terminal(last_status)) {
                 if (last_status == PipelineStatus::HaveData) {
-                    m_next_frame.clear();
+                    m_next_frame = move(next.frame);
+                    m_input->consume();
                     m_cached_frames_are_discontinuous = true;
                     continue;
                 }

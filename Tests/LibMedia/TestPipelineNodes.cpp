@@ -52,14 +52,13 @@ TEST_CASE(audio_producer_underspecified_5_1_channel_map)
     auto start_time = MonotonicTime::now_coarse();
 
     while (true) {
-        Media::AudioBlock block;
-        auto status = producer->status();
-        if (status == Media::PipelineStatus::HaveData)
-            producer->pull(block);
-        if (status == Media::PipelineStatus::HaveData) {
+        auto output = producer->peek();
+        if (output.status == Media::PipelineStatus::HaveData) {
+            auto const& block = *output.block;
             EXPECT(!block.is_empty());
             EXPECT_EQ(block.channel_count(), 6);
             EXPECT_EQ(block.sample_specification().channel_map(), Audio::ChannelMap::surround_5_1());
+            producer->consume();
             return;
         }
         if (MonotonicTime::now_coarse() - start_time >= time_limit)
@@ -102,9 +101,8 @@ TEST_CASE(audio_mixer_seek_during_playback_rewakes_consumer)
 
     // Play until the mixer is producing data, mirroring steady playback (its wake-forwarding state is
     // now latched as it would be then).
-    EXPECT(pump_until([&] { return mixer->status() == Media::PipelineStatus::HaveData; }));
-    Media::AudioBlock block;
-    mixer->pull(block);
+    EXPECT(pump_until([&] { return mixer->peek().status == Media::PipelineStatus::HaveData; }));
+    mixer->consume();
 
     // Seek mid-playback. The consumer is now waiting to be woken (it is not polling anymore), so the
     // mixer must forward the producer's post-seek wake downstream or the seek never resolves.
@@ -130,12 +128,9 @@ TEST_CASE(video_producer_seeks_while_frames_are_held)
         auto time_limit = AK::Duration::from_seconds(10);
         auto start_time = MonotonicTime::now_coarse();
         while (MonotonicTime::now_coarse() - start_time < time_limit) {
-            auto status = producer->status();
-            if (status == Media::PipelineStatus::MovedPosition || status == Media::PipelineStatus::HaveData) {
-                RefPtr<Media::VideoFrame> frame;
-                producer->pull(frame);
-                if (frame != nullptr)
-                    return frame;
+            if (auto output = producer->peek(); output.frame != nullptr) {
+                producer->consume();
+                return output.frame;
             }
             loop.pump(Core::EventLoop::WaitMode::PollForEvents);
         }
@@ -161,4 +156,49 @@ TEST_CASE(video_producer_seeks_while_frames_are_held)
 
     if (pull_next_frame() == nullptr)
         FAIL("The seek did not resolve; the producer is likely starved of frame pool slots");
+}
+
+TEST_CASE(video_producer_seeks_past_the_end_resolve_within_queued_data)
+{
+    auto& loop = never_destroyed_event_loop();
+
+    auto stream = load_test_file("vp9_oob_blocks.webm"sv);
+    auto demuxer = create_demuxer(stream);
+    auto tracks = TRY_OR_FAIL(demuxer->get_tracks_for_type(Media::TrackType::Video));
+    VERIFY(!tracks.is_empty());
+
+    auto producer = TRY_OR_FAIL(Media::DecodedVideoProducer::try_create(loop, demuxer, tracks[0]));
+    producer->start();
+
+    auto pump_until = [&](auto condition) {
+        auto deadline = MonotonicTime::now_coarse() + AK::Duration::from_seconds(5);
+        while (MonotonicTime::now_coarse() < deadline) {
+            if (condition())
+                return true;
+            loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+        }
+        return false;
+    };
+
+    auto past_end = AK::Duration::from_seconds(100);
+    producer->seek(past_end);
+    EXPECT(pump_until([&] { return producer->peek().status == Media::PipelineStatus::HaveData; }));
+
+    // Give the decode loop time to observe the demuxer's end of stream behind the queued final frame.
+    auto fill_until = MonotonicTime::now_coarse() + AK::Duration::from_milliseconds(250);
+    while (MonotonicTime::now_coarse() < fill_until)
+        loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+
+    // Nothing exists beyond the queued final frame for the demuxer to re-emit, so a further seek past
+    // the end must resolve with the queued frame instead of discarding it.
+    producer->seek(past_end + AK::Duration::from_seconds(1));
+    auto output = producer->peek();
+    EXPECT_EQ(output.status, Media::PipelineStatus::HaveData);
+    EXPECT(output.frame != nullptr);
+    producer->consume();
+    EXPECT(pump_until([&] { return producer->peek().status == Media::PipelineStatus::EndOfStream; }));
+
+    // With the final frame consumed, later seeks past the end resolve immediately at end of stream.
+    producer->seek(past_end + AK::Duration::from_seconds(2));
+    EXPECT_EQ(producer->peek().status, Media::PipelineStatus::EndOfStream);
 }

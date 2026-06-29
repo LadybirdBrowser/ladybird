@@ -89,14 +89,14 @@ void DecodedVideoProducer::start()
     m_thread_data->start();
 }
 
-void DecodedVideoProducer::pull(RefPtr<VideoFrame>& into)
+VideoProducerOutput DecodedVideoProducer::peek()
 {
-    m_thread_data->pull(into);
+    return m_thread_data->peek();
 }
 
-PipelineStatus DecodedVideoProducer::status() const
+void DecodedVideoProducer::consume()
 {
-    return m_thread_data->status();
+    m_thread_data->consume();
 }
 
 void DecodedVideoProducer::set_wake_handler(PipelineWakeHandler handler)
@@ -104,47 +104,38 @@ void DecodedVideoProducer::set_wake_handler(PipelineWakeHandler handler)
     m_thread_data->set_wake_handler(move(handler));
 }
 
-PipelineStatus DecodedVideoProducer::ThreadData::status() const
+VideoProducerOutput DecodedVideoProducer::ThreadData::peek()
 {
     auto locker = take_lock();
     VERIFY(!m_decode_thread_id.is_current_thread());
     note_consumer_activity_while_locked();
-    auto status = status_while_locked();
-    m_downstream_needs_wake = is_waiting_for_data(status);
-    return status;
+    auto output = peek_while_locked();
+    m_downstream_needs_wake = is_waiting_for_data(output.status);
+    return output;
 }
 
-PipelineStatus DecodedVideoProducer::ThreadData::status_while_locked() const
+VideoProducerOutput DecodedVideoProducer::ThreadData::peek_while_locked()
 {
     if (m_last_processed_seek_id != m_seek_id)
-        return PipelineStatus::Pending;
-    if (m_moved_position_pending)
-        return PipelineStatus::MovedPosition;
+        return { nullptr, PipelineStatus::Pending };
     if (!m_queue.is_empty())
-        return PipelineStatus::HaveData;
-    if (m_current_halting_status != PipelineStatus::Pending)
-        return m_current_halting_status;
-    return PipelineStatus::Pending;
+        return { m_queue.head().frame, PipelineStatus::HaveData };
+    return { nullptr, m_current_halting_status };
 }
 
-void DecodedVideoProducer::ThreadData::pull(RefPtr<VideoFrame>& into)
+void DecodedVideoProducer::ThreadData::consume()
 {
-    auto previous_frame = move(into);
+    // Hold the frame until after the mutex is unlocked, or our pool slot freed callback may reentrantly lock.
+    RefPtr<VideoFrame> frame;
+
     auto locker = take_lock();
     VERIFY(!m_decode_thread_id.is_current_thread());
     note_consumer_activity_while_locked();
-    if (m_moved_position_pending) {
-        m_moved_position_pending = false;
-        into = nullptr;
+    if (m_queue.is_empty())
         return;
-    }
-    if (!m_queue.is_empty()) {
-        into = m_queue.dequeue();
-        m_earliest_available_timestamp = max(m_earliest_available_timestamp, into->timestamp() + into->duration());
-        wake();
-        return;
-    }
-    into = nullptr;
+    frame = m_queue.dequeue().frame;
+    m_earliest_available_timestamp = max(m_earliest_available_timestamp, frame->timestamp() + frame->duration());
+    wake();
 }
 
 void DecodedVideoProducer::ThreadData::enter_halting_state(PipelineStatus status, Optional<DecoderError> error)
@@ -308,7 +299,9 @@ void DecodedVideoProducer::ThreadData::seek(AK::Duration timestamp)
     note_consumer_activity_while_locked();
     m_downstream_needs_wake = true;
 
-    if (timestamp >= m_earliest_available_timestamp && timestamp < m_latest_available_timestamp) {
+    auto is_within_available_range = timestamp >= m_earliest_available_timestamp
+        && (timestamp < m_latest_available_timestamp || m_current_halting_status == PipelineStatus::EndOfStream);
+    if (is_within_available_range) {
         dispatch_wake_if_needed_while_locked();
         return;
     }
@@ -424,7 +417,7 @@ void DecodedVideoProducer::ThreadData::queue_frame(NonnullRefPtr<VideoFrame> con
 {
     if (m_seek_id.load() != m_last_processed_seek_id)
         return;
-    m_queue.enqueue(frame);
+    m_queue.enqueue({ frame });
     m_latest_available_timestamp = max(m_latest_available_timestamp, frame->conservative_end());
     dispatch_wake_if_needed_while_locked();
 }
@@ -440,10 +433,8 @@ void DecodedVideoProducer::ThreadData::dispatch_error(DecoderError&& error)
 void DecodedVideoProducer::ThreadData::resolve_seek(u32 seek_id, bool moved_position)
 {
     m_last_processed_seek_id = seek_id;
-    if (moved_position) {
+    if (moved_position)
         m_current_halting_status = PipelineStatus::Pending;
-        m_moved_position_pending = true;
-    }
 }
 
 bool DecodedVideoProducer::ThreadData::handle_seek()
@@ -460,10 +451,8 @@ bool DecodedVideoProducer::ThreadData::handle_seek()
 
     auto handle_error = [&](DecoderError&& error) {
         auto locker = take_lock();
-        if (moved_position) {
+        if (moved_position)
             m_current_halting_status = PipelineStatus::Pending;
-            m_moved_position_pending = true;
-        }
         enter_halting_state(PipelineStatus::Error, move(error));
         m_last_processed_seek_id = seek_id;
     };

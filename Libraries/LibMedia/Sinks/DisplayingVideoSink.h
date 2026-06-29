@@ -43,8 +43,6 @@ public:
     RefPtr<VideoFrame> current_frame() const;
 
 private:
-    void consume_moved_position_signals(PipelineStatus&);
-
     void dispatch_state_if_changed(PipelineStatus);
 
     MediaTimeReader m_time_reader;
@@ -57,7 +55,6 @@ private:
     enum class SeekStatus : u8 {
         None,
         InProgress,
-        FrameInvalidated,
     };
     SeekStatus m_seek_status { SeekStatus::None };
 

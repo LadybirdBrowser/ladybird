@@ -95,11 +95,9 @@ static void decode_and_expect()
 
     MonotonicTime deadline = MonotonicTime::now_coarse() + AK::Duration::from_seconds(1);
     while (MonotonicTime::now_coarse() < deadline) {
-        Media::AudioBlock block;
-        auto status = producer->status();
-        if (status == Media::PipelineStatus::HaveData)
-            producer->pull(block);
-        if (status == Media::PipelineStatus::HaveData) {
+        auto output = producer->peek();
+        if (output.status == Media::PipelineStatus::HaveData) {
+            auto const& block = *output.block;
             EXPECT(!block.is_empty());
             for (size_t channel = 0; channel < block.channel_count(); ++channel) {
                 for (float sample : block.channel_data(channel)) {
@@ -115,7 +113,8 @@ static void decode_and_expect()
                 }
             }
             decoded_frame_count += block.frame_count();
-        } else if (status == Media::PipelineStatus::EndOfStream) {
+            producer->consume();
+        } else if (output.status == Media::PipelineStatus::EndOfStream) {
             reached_end_of_stream = true;
             break;
         }

@@ -98,21 +98,7 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                 auto& output_block = output_thread_data->m_blocks[output_thread_data->m_block_tail];
 
                 if (input != nullptr) {
-                    auto status = input->status();
-                    if (status == PipelineStatus::MovedPosition) {
-                        input->pull(output_block);
-                        VERIFY(output_block.is_empty());
-                        Sync::MutexLocker locker { output_thread_data->m_output_mutex };
-                        output_thread_data->m_block_head = 0;
-                        output_thread_data->m_block_tail = 0;
-                        output_thread_data->m_block_count = 0;
-                        output_thread_data->block_timings().clear();
-                        output_thread_data->m_last_real_data_end_in_frames = output_thread_data->m_next_frame_to_play;
-                        output_thread_data->m_eos_media_frame_remainder = 0.0f;
-                        output_thread_data->m_waiting_for_upstream_data = false;
-                        output_thread_data->m_output_condition.broadcast();
-                        continue;
-                    }
+                    auto status = input->peek().status;
                     if (audio_processor_will_enqueue(status)) {
                         Sync::MutexLocker locker { output_thread_data->m_output_mutex };
                         output_thread_data->m_last_pull_status = status;
@@ -152,13 +138,14 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                     input = output_thread_data->m_input;
                 }
 
-                auto status = input->status();
-                if (status == PipelineStatus::MovedPosition)
-                    continue;
-                if (status == PipelineStatus::EndOfStream)
+                auto output = input->peek();
+                auto status = output.status;
+                if (status == PipelineStatus::HaveData) {
+                    output_block = *output.block;
+                    input->consume();
+                } else {
                     output_block.clear();
-                else
-                    input->pull(output_block);
+                }
 
                 {
                     Sync::MutexLocker locker { output_thread_data->m_output_mutex };
@@ -254,12 +241,9 @@ AudioPlaybackSink::~AudioPlaybackSink()
 
 ErrorOr<void> AudioPlaybackSink::connect_input(NonnullRefPtr<AudioProducer> const& input)
 {
-    input->set_wake_handler([input, &output_thread_data = *m_output_thread_data] {
-        auto status = input->status();
-        if (status == PipelineStatus::Pending)
-            return;
+    input->set_wake_handler([&output_thread_data = *m_output_thread_data] {
+        // Pure relay: never peek here (that would race the output thread). Just wake it to pull.
         Sync::MutexLocker locker { output_thread_data.m_output_mutex };
-        output_thread_data.m_last_pull_status = status;
         output_thread_data.m_waiting_for_upstream_data = false;
         output_thread_data.m_output_condition.broadcast();
     });
@@ -542,6 +526,12 @@ void AudioPlaybackSink::seek(AK::Duration time)
         m_output_thread_data->m_last_dispatched_status = PipelineStatus::Pending;
         m_output_thread_data->m_last_real_data_end_in_frames = seek_target_in_frames;
         m_output_thread_data->m_eos_media_frame_remainder = 0.0f;
+
+        // Discard the stale output ring; upstream no longer signals the move in-band.
+        m_output_thread_data->m_block_head = 0;
+        m_output_thread_data->m_block_tail = 0;
+        m_output_thread_data->m_block_count = 0;
+        m_output_thread_data->block_timings().clear();
 
         m_output_thread_data->m_waiting_for_upstream_data = true;
         m_output_thread_data->m_time_writer.seek(time);

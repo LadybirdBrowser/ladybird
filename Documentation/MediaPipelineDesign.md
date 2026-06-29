@@ -20,36 +20,30 @@ control flow is intentionally similar.
 
 Producers expose three core operations:
 
-- `status()` reports what a subsequent `pull()` would observe.
-- `pull(...)` consumes the status previously observed and writes data into the provided output
-  object if that status indicates that it should.
-- `set_wake_handler(...)` is used by the downstream node to wake itself when a previously-queried
+- `peek()` reports the current status and, when data is available, exposes the head of the
+  producer's output without removing it.
+- `consume()` removes the head that a prior `peek()` exposed.
+- `set_wake_handler(...)` is used by the downstream node to wake itself when a previously-observed
   status would result in it going to sleep.
 
-Downstream nodes call `status()` when they need new data, before deciding whether to pull or sleep.
-This allows producers to provide in-band signals without forcing their downstream nodes to
-potentially hold data that they have no room for.
+Downstream nodes `peek()` when they need new data, then either read the head and `consume()` it or
+go to sleep. Peeking without consuming lets a node decide whether to take the head, rather than
+being forced to accept data it may have no room for.
 
 ## PipelineStatus
 
 `PipelineStatus` is the shared status language between nodes:
 
 - `Pending`: Data is not available yet, but may become available later.
-- `HaveData`: The next pull will produce data.
-- `MovedPosition`: The upstream position moved and downstream cached data may no longer be monotonic
-  with future output.
+- `HaveData`: A peek exposes data.
 - `Blocked`: Data is not available yet, i.e. we have run out of buffered data from over the network.
 - `EndOfStream`: We have reached the end of the input data.
 - `Error`: The upstream node encountered an error and cannot continue without a seek.
 
-`HaveData` can carry data. All other statuses require handling by downstream code.
+`HaveData` carries data. All other statuses require handling by downstream code.
 
-`Pending`, `MovedPosition`, `Blocked`, `EndOfStream` and `Error` are waiting statuses. A downstream
-node that normally polls for upstream input seeing these should sleep until its wake handler fires.
-
-`MovedPosition` signals that downstream nodes should invalidate their queued data in order to begin
-playback of fresh data. This is mainly important for backwards seeks, since data with a lower
-timestamp will not be output otherwise.
+`Pending`, `Blocked`, `EndOfStream` and `Error` are waiting statuses. A downstream node that
+normally polls for upstream input seeing these should sleep until its wake handler fires.
 
 `EndOfStream` and `Error` are terminal statuses. They resolve seeks even though they are still
 "waiting" statuses for helper APIs, because no more data is required to decide the seek has
@@ -57,7 +51,7 @@ completed.
 
 ## Wake Handlers
 
-Wake handlers do not carry state. A wake means the downstream node should query `status()` again.
+Wake handlers do not carry state. A wake means the downstream node should `peek()` again.
 
 Nodes should dispatch a wake when the downstream node may be waiting, and the status has changed to
 one that resolves a seek: `HaveData`, `EndOfStream`, or `Error`.
@@ -75,30 +69,27 @@ but `EndOfStream` or `Error` can also complete the wait.
 Sinks report pipeline status changes to their users. A user such as the playback manager can
 interpret a seek-resolving status as seek completion.
 
-`MovedPosition` is separate from seek completion. It tells downstream nodes that the upstream
-position moved and cached data may no longer be monotonic with future output. It often precedes the
-new data for a seek, but data may still be pending afterward. A pull that consumes `MovedPosition`
-must not also produce decoded data. The downstream caller should clear cached data that could now be
-out of order, then query status and wait or pull again.
+If a node forwards a seek upstream, it can clear or invalidate its cached data, since the upstream
+node is required to emit data at or before the target timestamp.
 
-Internal seeks used by a producer to resume decoding may also produce `MovedPosition`. This is safe
-as long as downstream nodes consume the signal before accepting resumed output, clearing any cached
-data that could otherwise be out of order.
+However, if a node uses its cached data to resolve seeks, it must also resolve seeks past the last
+frame in that cached data if its last known status is `EndOfStream`. This ensures that a seek past
+EOS will not invalidate in-flight frames by bumping a seek generation.
 
 ## Decoded Data Producers
 
 Decoded data producers run demux and decode video/audio data into queues in order to absorb variance
 in processing for each individual coded frame.
 
-When a downstream pull consumes an item from the queue, the producer wakes its decoder thread so it
-can refill the queue. When the queue is full and no downstream activity occurs for the idle timeout,
-the producer may auto-suspend: it drops decoder state, remembers where decoding should resume, and
-waits for new demand.
+When a downstream `consume()` removes an item from the queue, the producer wakes its decoder thread
+so it can refill the queue. When the queue is full and no downstream activity occurs for the idle
+timeout, the producer may auto-suspend: it drops decoder state, remembers where decoding should
+resume, and waits for new demand.
 
-Both `status()` and `pull()` count as downstream activity for a suspended producer. This matters
-because downstream nodes often sleep after observing `Pending`; if only `pull()` woke a suspended
-producer, the pipeline could become stuck with downstream waiting for a wake while upstream waits
-for a pull.
+Both `peek()` and `consume()` count as downstream activity for a suspended producer. This matters
+because downstream nodes often sleep after observing `Pending`; if only `consume()` woke a suspended
+producer, the pipeline could become stuck with downstream waiting for a wake while upstream waits to
+be consumed.
 
 ## Playback Manager
 
@@ -162,6 +153,10 @@ The media pipeline crosses several threads:
 - Decoded data producers manage decoding threads to amortize the cost to decode each frame
 - The audio sink runs a processing thread to amortize the cost of mixing/stretching each audio block
 - The playback stream data callback is invoked from an (often system-managed) thread
+
+Data should only be consumed via `peek()` and `consume()` from a single thread, to allow producers
+to use lock-free structures internally. Control methods like `seek()` should similarly only initiate
+from a single thread, or be otherwise serialized.
 
 Avoid synchronous callback dispatch while holding locks unless the callee is known not to reenter
 the same pipeline. Deferred dispatch is often used to keep lock ordering simple.

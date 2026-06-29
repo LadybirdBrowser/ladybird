@@ -15,7 +15,6 @@ namespace Media {
 enum class PipelineStatus : u8 {
     Pending,
     HaveData,
-    MovedPosition,
     Blocked,
     EndOfStream,
     Error,
@@ -67,8 +66,6 @@ constexpr PipelineStatus select_combined_pipeline_status(PipelineStatus a, Pipel
         return PipelineStatus::Pending;
     if (a == PipelineStatus::HaveData || b == PipelineStatus::HaveData)
         return PipelineStatus::HaveData;
-    if (a == PipelineStatus::MovedPosition || b == PipelineStatus::MovedPosition)
-        return PipelineStatus::MovedPosition;
     return PipelineStatus::EndOfStream;
 }
 
@@ -82,8 +79,6 @@ constexpr StringView pipeline_status_to_string(PipelineStatus status)
         return "Pending"sv;
     case PipelineStatus::HaveData:
         return "HaveData"sv;
-    case PipelineStatus::MovedPosition:
-        return "MovedPosition"sv;
     case PipelineStatus::Blocked:
         return "Blocked"sv;
     case PipelineStatus::EndOfStream:

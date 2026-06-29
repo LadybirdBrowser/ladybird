@@ -35,7 +35,10 @@ class MEDIA_API DecodedVideoProducer : public VideoProducer {
     class ThreadData;
 
 public:
-    using FrameQueue = Queue<NonnullRefPtr<VideoFrame>>;
+    struct QueuedFrame {
+        NonnullRefPtr<VideoFrame> frame;
+    };
+    using FrameQueue = Queue<QueuedFrame>;
 
     using ErrorHandler = Function<void(DecoderError&&)>;
     using FrameEndTimeHandler = Function<void(AK::Duration)>;
@@ -51,8 +54,8 @@ public:
 
     virtual void start() override;
 
-    virtual PipelineStatus status() const override;
-    virtual void pull(RefPtr<VideoFrame>& into) override;
+    virtual VideoProducerOutput peek() override;
+    virtual void consume() override;
     virtual void set_wake_handler(PipelineWakeHandler) override;
 
     AK::Duration select_fast_seek_target(AK::Duration timestamp, SeekMode);
@@ -78,9 +81,9 @@ private:
 
         FrameQueue& queue();
 
-        PipelineStatus status() const;
-        PipelineStatus status_while_locked() const;
-        void pull(RefPtr<VideoFrame>& into);
+        VideoProducerOutput peek();
+        VideoProducerOutput peek_while_locked();
+        void consume();
 
         void seek(AK::Duration timestamp);
         AK::Duration select_fast_seek_target(AK::Duration target, SeekMode) const;
@@ -149,7 +152,6 @@ private:
         ErrorHandler m_error_handler;
         ReadBlockedChangeHandler m_read_blocked_change_handler;
         PipelineStatus m_current_halting_status { PipelineStatus::Pending };
-        bool m_moved_position_pending { false };
 
         u32 m_last_processed_seek_id { 0 };
         Atomic<u32> m_seek_id { 0 };

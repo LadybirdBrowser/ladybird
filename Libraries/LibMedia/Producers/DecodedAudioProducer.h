@@ -34,7 +34,10 @@ class MEDIA_API DecodedAudioProducer final : public AudioProducer {
 
 public:
     static constexpr size_t QUEUE_CAPACITY = 16;
-    using AudioQueue = Queue<AudioBlock, QUEUE_CAPACITY>;
+    struct QueuedBlock {
+        AudioBlock block;
+    };
+    using AudioQueue = Queue<QueuedBlock, QUEUE_CAPACITY>;
 
     using ErrorHandler = Function<void(DecoderError&&)>;
     using BlockEndTimeHandler = Function<void(AK::Duration)>;
@@ -50,8 +53,8 @@ public:
 
     virtual void start() override;
 
-    virtual PipelineStatus status() const override;
-    virtual void pull(AudioBlock& into) override;
+    virtual AudioProducerOutput peek() override;
+    virtual void consume() override;
     virtual void set_wake_handler(PipelineWakeHandler) override;
 
     virtual void seek(AK::Duration timestamp) override;
@@ -93,9 +96,9 @@ private:
         void resolve_seek(u32 seek_id, bool moved_position);
         void push_data_and_decode_a_block();
 
-        PipelineStatus status() const;
-        PipelineStatus status_while_locked() const;
-        void pull(AudioBlock& into);
+        AudioProducerOutput peek();
+        AudioProducerOutput peek_while_locked();
+        void consume();
 
         TimeRanges buffered_time_ranges() const;
 
@@ -144,7 +147,6 @@ private:
         ErrorHandler m_error_handler;
         ReadBlockedChangeHandler m_read_blocked_change_handler;
         PipelineStatus m_current_halting_status { PipelineStatus::Pending };
-        bool m_moved_position_pending { false };
 
         u32 m_last_processed_seek_id { 0 };
         Atomic<u32> m_seek_id { 0 };
