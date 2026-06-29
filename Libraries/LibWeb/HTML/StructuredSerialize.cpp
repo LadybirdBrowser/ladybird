@@ -517,9 +517,9 @@ public:
                 copied_list.ensure_capacity(set->set_size());
 
                 // 2. For each entry of value.[[SetData]]:
-                for (auto const& entry : *set) {
+                for (auto entry : *set) {
                     // 1. If entry is not the special value empty, append entry to copiedList.
-                    copied_list.append(entry.key);
+                    copied_list.append(entry);
                 }
 
                 serialized.encode(set->set_size());

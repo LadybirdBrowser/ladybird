@@ -36,9 +36,38 @@ public:
     void set_add(Value const& key) { m_values->map_set(key, js_undefined()); }
     size_t set_size() const { return m_values->map_size(); }
 
-    auto begin() const { return const_cast<Map const&>(*m_values).begin(); }
-    auto begin() { return m_values->begin(); }
-    auto end() const { return m_values->end(); }
+    struct EndIterator {
+    };
+
+    class ConstIterator {
+    public:
+        ConstIterator& operator++()
+        {
+            ++m_iterator;
+            return *this;
+        }
+
+        Value operator*() const { return (*m_iterator).key; }
+
+        bool operator==(ConstIterator const& other) const { return m_iterator == other.m_iterator; }
+        bool operator==(EndIterator const&) const { return m_iterator == Map::EndIterator {}; }
+
+        void visit_edges(Cell::Visitor& visitor) { m_iterator.visit_edges(visitor); }
+
+    private:
+        friend class Set;
+
+        explicit ConstIterator(Map::ConstIterator iterator)
+            : m_iterator(iterator)
+        {
+        }
+
+        Map::ConstIterator m_iterator;
+    };
+
+    ConstIterator begin() const { return ConstIterator { const_cast<Map const&>(*m_values).begin() }; }
+    ConstIterator begin() { return ConstIterator { const_cast<Map const&>(*m_values).begin() }; }
+    EndIterator end() const { return {}; }
 
     GC::Ref<Set> copy() const;
 

@@ -347,9 +347,9 @@ ErrorOr<void> print_set(JS::PrintContext& print_context, JS::Set const& set, GC:
     TRY(print_type(print_context, "Set"sv));
     TRY(js_out(print_context, " {{"));
     bool first = true;
-    for (auto const& entry : set) {
+    for (auto value : set) {
         TRY(print_separator(print_context, first));
-        TRY(print_value(print_context, entry.key, seen_objects));
+        TRY(print_value(print_context, value, seen_objects));
     }
     if (!first)
         TRY(js_out(print_context, " "));

@@ -36,7 +36,7 @@ private:
     GC::Ref<Set> m_set;
     bool m_done { false };
     Object::PropertyKind m_iteration_kind;
-    Map::ConstIterator m_iterator;
+    Set::ConstIterator m_iterator;
 };
 
 }

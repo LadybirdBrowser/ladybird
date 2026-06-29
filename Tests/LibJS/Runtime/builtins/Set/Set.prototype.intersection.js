@@ -18,3 +18,33 @@ test("basic functionality", () => {
         ["b", "c"].forEach(value => expect(intersectionSet.has(value)).toBeTrue());
     }
 });
+
+test("receiver mutations during other.has preserve the current key", () => {
+    const key = {};
+    const replacement = {};
+    const set = new Set([key]);
+    const visited = [];
+
+    const other = {
+        size: 10,
+        has(value) {
+            visited.push(value);
+
+            if (value === key) {
+                set.clear();
+                set.add(replacement);
+            }
+
+            return true;
+        },
+        keys() {
+            throw new Error("unexpected keys call");
+        },
+    };
+
+    const intersection = set.intersection(other);
+    expect(visited).toEqual([key, replacement]);
+    expect(intersection).toHaveSize(2);
+    expect(intersection.has(key)).toBeTrue();
+    expect(intersection.has(replacement)).toBeTrue();
+});
