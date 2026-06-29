@@ -26,13 +26,18 @@ static StringView status_to_string(FileDownloader::DownloadStatus status)
     VERIFY_NOT_REACHED();
 }
 
+static String path_string_for_display(StringView path)
+{
+    return String::from_utf8_with_replacement_character(path, String::WithBOMHandling::No);
+}
+
 static JsonObject serialize_download(FileDownloader::Download const& download)
 {
     JsonObject serialized;
     serialized.set("id"sv, download.id);
     serialized.set("url"sv, download.url.serialize());
-    serialized.set("fileName"sv, download.destination.basename());
-    serialized.set("destination"sv, MUST(String::from_utf8(download.destination.string().view())));
+    serialized.set("fileName"sv, path_string_for_display(download.destination.basename()));
+    serialized.set("destination"sv, path_string_for_display(download.destination.string().view()));
     serialized.set("status"sv, status_to_string(download.status));
     serialized.set("downloadedSize"sv, download.downloaded_size);
     serialized.set("totalSize"sv, download.total_size.has_value() ? JsonValue { *download.total_size } : JsonValue {});
