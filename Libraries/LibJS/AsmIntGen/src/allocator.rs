@@ -1561,6 +1561,41 @@ end
     }
 
     #[test]
+    fn and_immediate_keeps_live_temps_off_x86_scratch_registers() {
+        // x86_64 lowers large `and` immediates through rax, or through r11
+        // when the destination is rax. Temps live across the instruction
+        // must avoid both scratch registers.
+        let src = "
+handler Test
+    temp base, index
+    mov base, 100
+    mov index, 0x123456789
+    and index, 0x3ffffffff
+    add index, base
+    store_operand m_dst, index
+    dispatch_next
+end
+";
+        let out = build(src, Arch::X86_64).expect("allocation should succeed");
+        for insn in &out {
+            if insn.mnemonic == "mov" && insn.operands.len() == 2 {
+                if let Operand::Immediate(100) = insn.operands[1] {
+                    if let Operand::Register(name) = &insn.operands[0] {
+                        assert_ne!(name, "rax", "live temp must avoid rax");
+                        assert_ne!(name, "r11", "live temp must avoid r11");
+                    }
+                }
+            }
+            if insn.mnemonic == "and" {
+                if let Some(Operand::Register(name)) = insn.operands.first() {
+                    assert_ne!(name, "rax", "and dst must avoid rax");
+                    assert_ne!(name, "r11", "and dst must avoid r11");
+                }
+            }
+        }
+    }
+
+    #[test]
     fn macro_local_temps_can_share_a_physical_register_across_invocations() {
         // Two non-overlapping invocations of the same macro should be
         // free to put their private `tmp` in the same physical register.

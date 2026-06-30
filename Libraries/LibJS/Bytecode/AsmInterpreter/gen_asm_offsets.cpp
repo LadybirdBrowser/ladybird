@@ -10,6 +10,7 @@
 #include <AK/Format.h>
 #include <AK/StringBase.h>
 #include <AK/Utf16StringData.h>
+#include <LibGC/PrimitiveStorage.h>
 #include <LibJS/Bytecode/Builtins.h>
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Bytecode/PropertyNameIterator.h>
@@ -359,7 +360,8 @@ int main()
     EMIT_OFFSET(TYPED_ARRAY_BYTE_OFFSET, TypedArrayBase, m_byte_offset);
     EMIT_OFFSET(TYPED_ARRAY_KIND, TypedArrayBase, m_kind);
     EMIT_OFFSET(TYPED_ARRAY_CACHED_DATA_OFFSET, TypedArrayBase, m_cached_data_offset);
-    outln("const TYPED_ARRAY_CACHED_DATA_OFFSET_INVALID = 0x{:X}", TypedArrayBase::invalid_cached_data_offset);
+    outln("const TYPED_ARRAY_CACHED_DATA_OFFSET_INVALID = 0x{:X}", static_cast<size_t>(TypedArrayBase::invalid_cached_data_offset));
+    outln("const PRIMITIVE_STORAGE_CAGE_OFFSET_MASK = 0x{:X}", static_cast<size_t>(GC::PrimitiveStorage::cage_offset_mask));
 
     // ByteLength (Variant<Auto, Detached, u32>) layout
     outln("\n# ByteLength layout");

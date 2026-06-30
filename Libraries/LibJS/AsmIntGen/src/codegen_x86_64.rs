@@ -1502,9 +1502,12 @@ fn emit_instruction(
                         // Use mov to 32-bit register to zero upper bits
                         let dst32 = to_32bit_reg(&dst);
                         w!(out, "    mov {dst32}, {dst32}");
+                    } else if val >= i32::MIN as i64 && val <= i32::MAX as i64 {
+                        w!(out, "    and {dst}, {val}");
                     } else {
-                        let src = resolve_op(&insn.operands[1], handler, program);
-                        w!(out, "    and {dst}, {src}");
+                        let scratch = if dst == "rax" { "r11" } else { "rax" };
+                        w!(out, "    movabs {scratch}, {val}");
+                        w!(out, "    and {dst}, {scratch}");
                     }
                 } else {
                     let src = resolve_op(&insn.operands[1], handler, program);
@@ -1558,7 +1561,7 @@ fn emit_instruction(
                         w!(out, "    mov {dst}, QWORD PTR [rip + CSYM({symbol})@GOTPCREL]");
                     }
                     ObjectFormat::Coff => {
-                        w!(out, "    lea {dst}, [rip + CSYM({symbol})]");
+                        w!(out, "    mov {dst}, QWORD PTR [rip + __imp_{symbol}]");
                     }
                 }
             }
@@ -1921,6 +1924,67 @@ mod tests {
         assert!(out.contains("bt rdx, 32"));
         assert!(out.contains("jnc .Lasm_Call.slow"));
         assert!(!out.contains("test rdx, 4294967296"));
+    }
+
+    #[test]
+    fn lowers_large_and_mask_through_scratch_register() {
+        let mut program = test_program();
+        program
+            .constants
+            .insert("CAGE_MASK".into(), 0x0000_003f_ffff_ffff);
+        let handler = call_handler();
+        let instruction = AsmInstruction {
+            mnemonic: "and".into(),
+            operands: vec![
+                Operand::Register("rdx".into()),
+                Operand::Constant("CAGE_MASK".into()),
+            ],
+        };
+        let mut out = String::new();
+        let mut state = HandlerState::new();
+
+        emit_instruction(
+            &mut out,
+            &instruction,
+            &handler,
+            &program,
+            &mut state,
+            X86_64Abi::SysV,
+        );
+
+        assert!(out.contains("movabs rax, 274877906943"));
+        assert!(out.contains("and rdx, rax"));
+        assert!(!out.contains("and rdx, 274877906943"));
+    }
+
+    #[test]
+    fn lowers_large_and_mask_on_rax_through_r11() {
+        let mut program = test_program();
+        program
+            .constants
+            .insert("CAGE_MASK".into(), 0x0000_003f_ffff_ffff);
+        let handler = call_handler();
+        let instruction = AsmInstruction {
+            mnemonic: "and".into(),
+            operands: vec![
+                Operand::Register("rax".into()),
+                Operand::Constant("CAGE_MASK".into()),
+            ],
+        };
+        let mut out = String::new();
+        let mut state = HandlerState::new();
+
+        emit_instruction(
+            &mut out,
+            &instruction,
+            &handler,
+            &program,
+            &mut state,
+            X86_64Abi::SysV,
+        );
+
+        assert!(out.contains("movabs r11, 274877906943"));
+        assert!(out.contains("and rax, r11"));
     }
 
     #[test]

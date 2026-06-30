@@ -624,6 +624,14 @@ macro load_global_variable_cache(cache)
     add cache, caches
 end
 
+macro caged_primitive_storage_address(dst, cage_base, cached_offset, index, shift)
+    mov dst, index
+    shl dst, shift
+    add dst, cached_offset
+    and dst, PRIMITIVE_STORAGE_CAGE_OFFSET_MASK
+    add dst, cage_base
+end
+
 # ============================================================================
 # Simple data movement
 # ============================================================================
@@ -1842,7 +1850,6 @@ handler PutByValue
     load_c_symbol_address elements, js_primitive_storage_cage_base
     load64 elements, [elements, 0]
     branch_zero elements, .try_typed_array_slow
-    add elements, cached_offset
     assert_nonzero elements
     # Cached pointers only exist for fixed-length typed arrays, so array_length
     # is known to hold a concrete u32 value here.
@@ -1856,16 +1863,12 @@ handler PutByValue
     branch_eq kind_byte, TYPED_ARRAY_KIND_FLOAT32, .ta_store_float32
     branch_ne kind_byte, TYPED_ARRAY_KIND_FLOAT64, .try_typed_array_slow
     # Compute store address before check_is_double mangles its argument.
-    mov addr, index
-    shl addr, 3
-    add addr, elements
+    caged_primitive_storage_address addr, elements, cached_offset, index, 3
     check_is_double src, .try_typed_array_slow
     store64 [addr, 0], src
     dispatch_next
 .ta_store_float32:
-    mov addr, index
-    shl addr, 2
-    add addr, elements
+    caged_primitive_storage_address addr, elements, cached_offset, index, 2
     check_is_double src, .try_typed_array_slow
     fp_mov src_dbl, src
     double_to_float src_dbl, src_dbl
@@ -1880,37 +1883,36 @@ handler PutByValue
     branch_any_eq kind_byte, TYPED_ARRAY_KIND_UINT16, TYPED_ARRAY_KIND_INT16, .ta_put_uint16
     jmp .try_typed_array_slow
 .ta_put_int32:
-    store32 [elements, index, 4], src_int32
+    caged_primitive_storage_address addr, elements, cached_offset, index, 2
+    store32 [addr, 0], src_int32
     dispatch_next
 .ta_put_float32:
     int_to_double src_dbl, src_int32
     double_to_float src_dbl, src_dbl
-    mov addr, index
-    shl addr, 2
-    add addr, elements
+    caged_primitive_storage_address addr, elements, cached_offset, index, 2
     storef32 [addr, 0], src_dbl
     dispatch_next
 .ta_put_uint8_clamped:
+    caged_primitive_storage_address addr, elements, cached_offset, index, 0
     branch_negative src_int32, .ta_put_uint8_clamped_zero
     mov max, 255
     branch_ge_unsigned src_int32, max, .ta_put_uint8_clamped_max
-    store8 [elements, index], src_int32
+    store8 [addr, 0], src_int32
     dispatch_next
 .ta_put_uint8_clamped_zero:
     mov src_int32, 0
-    store8 [elements, index], src_int32
+    store8 [addr, 0], src_int32
     dispatch_next
 .ta_put_uint8_clamped_max:
     mov src_int32, 255
-    store8 [elements, index], src_int32
+    store8 [addr, 0], src_int32
     dispatch_next
 .ta_put_uint8:
-    store8 [elements, index], src_int32
+    caged_primitive_storage_address addr, elements, cached_offset, index, 0
+    store8 [addr, 0], src_int32
     dispatch_next
 .ta_put_uint16:
-    mov addr, index
-    add addr, index
-    add addr, elements
+    caged_primitive_storage_address addr, elements, cached_offset, index, 1
     store16 [addr, 0], src_int32
     dispatch_next
 .try_typed_array_slow:
@@ -2072,7 +2074,6 @@ handler GetByValue
     load_c_symbol_address elements, js_primitive_storage_cage_base
     load64 elements, [elements, 0]
     branch_zero elements, .try_typed_array_slow
-    add elements, cached_offset
     assert_nonzero elements
     # Cached pointers only exist for fixed-length typed arrays, so array_length
     # is known to hold a concrete u32 value here.
@@ -2089,28 +2090,27 @@ handler GetByValue
     branch_eq kind_byte, TYPED_ARRAY_KIND_FLOAT64, .ta_float64
     jmp .try_typed_array_slow
 .ta_int32:
-    load32 raw, [elements, index, 4]
+    caged_primitive_storage_address addr, elements, cached_offset, index, 2
+    load32 raw, [addr, 0]
     jmp .ta_box_int32
 .ta_uint8:
-    load8 raw, [elements, index]
+    caged_primitive_storage_address addr, elements, cached_offset, index, 0
+    load8 raw, [addr, 0]
     jmp .ta_box_int32
 .ta_uint16:
-    mov addr, index
-    add addr, index
-    load16 raw, [elements, addr]
+    caged_primitive_storage_address addr, elements, cached_offset, index, 1
+    load16 raw, [addr, 0]
     jmp .ta_box_int32
 .ta_int8:
-    load8s raw, [elements, index]
+    caged_primitive_storage_address addr, elements, cached_offset, index, 0
+    load8s raw, [addr, 0]
     jmp .ta_box_int32
 .ta_int16:
-    mov addr, index
-    add addr, index
-    load16s raw, [elements, addr]
+    caged_primitive_storage_address addr, elements, cached_offset, index, 1
+    load16s raw, [addr, 0]
     jmp .ta_box_int32
 .ta_float32:
-    mov addr, index
-    shl addr, 2
-    add addr, elements
+    caged_primitive_storage_address addr, elements, cached_offset, index, 2
     loadf32 slot_dbl, [addr, 0]
     float_to_double slot_dbl, slot_dbl
     fp_mov slot, slot_dbl
@@ -2120,9 +2120,7 @@ handler GetByValue
     branch_nonzero raw, .ta_f64_as_int
     jmp .ta_f64_as_int
 .ta_float64:
-    mov addr, index
-    shl addr, 3
-    add addr, elements
+    caged_primitive_storage_address addr, elements, cached_offset, index, 3
     load64 slot, [addr, 0]
     fp_mov slot_dbl, slot
     # Exclude negative zero early (slot gets clobbered by double_to_int32).
@@ -2140,7 +2138,8 @@ handler GetByValue
     store_operand m_dst, dst
     dispatch_next
 .ta_uint32:
-    load32 raw, [elements, index, 4]
+    caged_primitive_storage_address addr, elements, cached_offset, index, 2
+    load32 raw, [addr, 0]
     branch_bit_set raw, 31, .ta_uint32_to_double
     jmp .ta_box_int32
 .ta_uint32_to_double:
@@ -2357,7 +2356,7 @@ handler Call
     #   3. Reserve an InterpreterStack frame and populate ExecutionContext.
     #   4. Materialize [registers | locals | constants | arguments].
     #   5. Swap VM state over to the callee frame and dispatch at pc = 0.
-    temp callee, callee_value, flags, shared_data, exec_ptr, meta, this_value, tag, scratch, formal_count, passed_count, arg_count, total_slots, regs_locals_count, frame_bytes, vm_ptr, stack_limit, frame_base, value_tail, realm, lex_env, priv_env, empty_tag, som_src, som_lo, som_hi, return_pc, return_dst, base_pc, slot_offset, slot_end, const_count, const_data, const_idx, const_value, write_idx, arg_idx, arg_ops, arg_value, undef_slot, fill_end, native_func, variant, native_return, helper_arg, native_pc, exception_pc, native_total_bytes, after_pc, dst_offset, after_offset, result
+    temp callee, callee_value, flags, shared_data, exec_ptr, meta, this_value, tag, scratch, formal_count, passed_count, arg_count, total_slots, regs_locals_count, frame_bytes, vm_ptr, stack_limit, frame_base, value_tail, realm, lex_env, priv_env, empty_tag, som_src, som_lo, som_hi, return_pc, return_dst, base_pc, slot_offset, slot_end, const_count, const_data, const_idx, const_value, write_idx, arg_idx, arg_ops, arg_value, undef_slot, fill_end, native_func, variant, native_return, native_payload, helper_arg, native_pc, exception_pc, native_total_bytes, after_pc, dst_offset, after_offset, result
     load_operand callee_value, m_callee
     extract_tag tag, callee_value
     branch_ne tag, OBJECT_TAG, .call_slow
@@ -2726,6 +2725,7 @@ handler Call
     load64 native_func, [callee, RAW_NATIVE_FUNCTION_NATIVE_FUNCTION]
     assert_nonzero native_func
     call_raw_native native_func, native_return, variant
+    mov native_payload, native_return
     and variant, 0xFF
     assert_lt_unsigned variant, 2
     branch_nonzero variant, .call_raw_native_exception
@@ -2740,7 +2740,7 @@ handler Call
     store64 [vm_ptr, VM_INTERPRETER_STACK_TOP], exec_ctx
     mov exec_ctx, frame_base
     lea values, [exec_ctx, SIZEOF_EXECUTION_CONTEXT]
-    store_operand m_dst, native_return
+    store_operand m_dst, native_payload
     load32 after_offset, [pb, pc, m_length]
     dispatch_variable after_offset
 
@@ -2753,10 +2753,10 @@ handler Call
     #          program counter to resume at inside the (post-unwind)
     #          running execution context.
     #    < 0 : no handler; bail out of the asm dispatch loop entirely.
-    # native_return is pinned to rax by call_raw_native; helper_arg is
-    # pinned to rcx by call_helper, so this mov is the explicit bridge
-    # between the two ABIs.
-    mov helper_arg, native_return
+    # native_payload carries the rax-pinned call_raw_native payload.
+    # helper_arg is pinned to rcx by call_helper, so this mov is the
+    # explicit bridge between the two ABIs.
+    mov helper_arg, native_payload
     call_helper asm_helper_handle_raw_native_exception, helper_arg, exception_pc
     branch_negative exception_pc, .call_exit_asm
     # Reload exec_ctx/values/pb/pc from the caller frame the helper left
