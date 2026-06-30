@@ -24,8 +24,8 @@ TEST_CASE(small_allocation)
     EXPECT(storage.data(handle) != nullptr);
     EXPECT(storage.contains(storage.data(handle), 32));
 
-    storage.bytes(handle).fill(0xaa);
-    EXPECT_EQ(storage.bytes(handle)[0], 0xaa);
+    *storage.data(handle, 0) = 0xaa;
+    EXPECT_EQ(*storage.data(handle, 0), 0xaa);
 
     storage.free(handle);
 }
@@ -105,14 +105,15 @@ TEST_CASE(resize_and_zero_fill_growth)
 {
     auto& storage = GC::PrimitiveStorage::the();
     auto handle = MUST(storage.try_allocate(8, GC::PrimitiveStorage::ZeroFillNewBytes::Yes));
-    storage.bytes(handle).fill(0x7b);
+    for (size_t i = 0; i < storage.size(handle); ++i)
+        *storage.data(handle, i) = 0x7b;
 
     MUST(storage.try_resize(handle, 64, GC::PrimitiveStorage::ZeroFillNewBytes::Yes));
     EXPECT_EQ(storage.size(handle), 64u);
-    EXPECT_EQ(storage.bytes(handle)[0], 0x7b);
-    EXPECT_EQ(storage.bytes(handle)[7], 0x7b);
+    EXPECT_EQ(*storage.data(handle, 0), 0x7b);
+    EXPECT_EQ(*storage.data(handle, 7), 0x7b);
     for (size_t i = 8; i < storage.size(handle); ++i)
-        EXPECT_EQ(storage.bytes(handle)[i], 0u);
+        EXPECT_EQ(*storage.data(handle, i), 0u);
 
     storage.free(handle);
 }

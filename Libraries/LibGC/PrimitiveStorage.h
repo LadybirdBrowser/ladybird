@@ -42,6 +42,7 @@ public:
     static constexpr size_t invalid_offset = NumericLimits<size_t>::max();
 
     static PrimitiveStorage& the();
+    static constexpr size_t mask_offset(size_t offset) { return offset & cage_offset_mask; }
 
     ErrorOr<PrimitiveStorageHandle> try_allocate(size_t size, ZeroFillNewBytes = ZeroFillNewBytes::Yes);
     ErrorOr<PrimitiveStorageHandle> try_reserve(size_t size, size_t capacity, ZeroFillNewBytes = ZeroFillNewBytes::Yes, size_t guard_size = 0);
@@ -57,8 +58,8 @@ public:
 
     u8* data(PrimitiveStorageHandle);
     u8 const* data(PrimitiveStorageHandle) const;
-    Bytes bytes(PrimitiveStorageHandle);
-    ReadonlyBytes bytes(PrimitiveStorageHandle) const;
+    u8* data(PrimitiveStorageHandle, size_t byte_offset);
+    u8 const* data(PrimitiveStorageHandle, size_t byte_offset) const;
 
     ErrorOr<void> try_resize(PrimitiveStorageHandle, size_t new_size, ZeroFillNewBytes = ZeroFillNewBytes::No);
     ErrorOr<void> try_reserve(PrimitiveStorageHandle, size_t new_capacity);

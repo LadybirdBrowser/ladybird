@@ -384,7 +384,7 @@ u8* PrimitiveStorage::Allocator::data(Allocation const& allocation, size_t byte_
 {
     VERIFY(m_cage_base);
     VERIFY(allocation.offset != invalid_offset);
-    return m_cage_base + allocation.offset + byte_offset;
+    return m_cage_base + PrimitiveStorage::mask_offset(allocation.offset + byte_offset);
 }
 
 ErrorOr<PrimitiveStorageHandle> PrimitiveStorage::try_allocate(size_t size, ZeroFillNewBytes zero_fill_new_bytes)
@@ -473,17 +473,15 @@ u8 const* PrimitiveStorage::data(PrimitiveStorageHandle handle) const
     return const_cast<PrimitiveStorage&>(*this).data(handle);
 }
 
-Bytes PrimitiveStorage::bytes(PrimitiveStorageHandle handle)
+u8* PrimitiveStorage::data(PrimitiveStorageHandle handle, size_t byte_offset)
 {
     auto* entry = entry_for(handle);
-    if (!entry)
-        return {};
-    return { data_unchecked(*entry), entry->size };
+    return entry ? m_allocator.data(entry->allocation, byte_offset) : nullptr;
 }
 
-ReadonlyBytes PrimitiveStorage::bytes(PrimitiveStorageHandle handle) const
+u8 const* PrimitiveStorage::data(PrimitiveStorageHandle handle, size_t byte_offset) const
 {
-    return const_cast<PrimitiveStorage&>(*this).bytes(handle);
+    return const_cast<PrimitiveStorage&>(*this).data(handle, byte_offset);
 }
 
 ErrorOr<void> PrimitiveStorage::try_resize(PrimitiveStorageHandle handle, size_t new_size, ZeroFillNewBytes zero_fill_new_bytes)
