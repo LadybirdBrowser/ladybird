@@ -1,0 +1,27 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        font: 20px SerenitySans, sans-serif;
+        line-height: 32px;
+    }
+
+    #cursor-target {
+        height: 40px;
+    }
+</style>
+<div id="cursor-target">Hover this selectable text</div>
+<script>
+    test(() => {
+        document.body.offsetWidth;
+
+        const cursorTarget = document.getElementById("cursor-target");
+        const range = document.createRange();
+        range.selectNodeContents(cursorTarget.firstChild);
+        const rect = range.getBoundingClientRect();
+
+        internals.mouseMove(rect.left + 5, rect.top + rect.height / 2);
+        println(`cursor over selectable text: ${internals.currentCursor()}`);
+    });
+</script>

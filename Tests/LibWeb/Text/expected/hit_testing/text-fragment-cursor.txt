@@ -1,0 +1,1 @@
+cursor over selectable text: IBeam
