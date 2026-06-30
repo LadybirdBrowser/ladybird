@@ -122,6 +122,8 @@ public:
 
     ErrorOr<void> execute_raw(ByteString const& sql);
 
+    ErrorOr<void> transaction(Function<ErrorOr<void>()> callback);
+
     // Error-returning sibling of execute_statement, for callers that must handle failures
     // (e.g. migration backfills, which roll the migration transaction back) instead of
     // aborting the process.
