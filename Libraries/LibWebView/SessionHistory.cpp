@@ -65,6 +65,94 @@ static Optional<size_t> top_level_entry_index_for_step(Vector<TraversableSession
     return result;
 }
 
+static bool steps_are_valid(Vector<i32> const& steps)
+{
+    Optional<i32> previous_step;
+    for (auto const& step : steps) {
+        if (step < 0)
+            return false;
+        if (previous_step.has_value() && step <= *previous_step)
+            return false;
+        previous_step = step;
+    }
+    return true;
+}
+
+static bool entries_are_valid(Vector<TraversableSessionHistory::Entry> const& entries)
+{
+    Optional<i32> previous_step;
+    for (auto const& entry : entries) {
+        if (entry.step < 0)
+            return false;
+        if (previous_step.has_value() && entry.step <= *previous_step)
+            return false;
+        for (auto const& nested_history : entry.document_state.nested_histories) {
+            if (!entries_are_valid(nested_history.entries))
+                return false;
+        }
+        previous_step = entry.step;
+    }
+    return true;
+}
+
+static bool nesting_depth_is_valid(Vector<TraversableSessionHistory::Entry> const& entries, size_t depth = 0)
+{
+    if (depth > MAX_NESTED_HISTORY_DEPTH)
+        return false;
+
+    for (auto const& entry : entries) {
+        for (auto const& nested_history : entry.document_state.nested_histories) {
+            if (!nesting_depth_is_valid(nested_history.entries, depth + 1))
+                return false;
+        }
+    }
+    return true;
+}
+
+static TraversableSessionHistory::Entry const* entry_for_step_in_entry_list(Vector<TraversableSessionHistory::Entry> const& entries, i32 step)
+{
+    TraversableSessionHistory::Entry const* result = nullptr;
+    for (auto const& entry : entries) {
+        if (entry.step > step)
+            break;
+        result = &entry;
+    }
+    return result;
+}
+
+// A step found only under an inactive nested sibling (off the greatest-step<=target path) is not reachable.
+static bool active_path_reaches_step(TraversableSessionHistory::Entry const& active_entry, i32 step)
+{
+    if (active_entry.step == step)
+        return true;
+    for (auto const& nested_history : active_entry.document_state.nested_histories) {
+        auto const* active_nested_entry = entry_for_step_in_entry_list(nested_history.entries, step);
+        if (active_nested_entry && active_path_reaches_step(*active_nested_entry, step))
+            return true;
+    }
+    return false;
+}
+
+ErrorOr<void> validate_snapshot_is_restorable(Vector<TraversableSessionHistory::Entry> const& entries, Vector<i32> const& used_steps, size_t current_used_step_index)
+{
+    if (entries.is_empty() || used_steps.is_empty() || current_used_step_index >= used_steps.size()
+        || !nesting_depth_is_valid(entries) || !entries_are_valid(entries) || !steps_are_valid(used_steps)
+        || get_all_used_history_steps(entries) != used_steps)
+        return Error::from_string_literal("Session history snapshot is structurally invalid");
+
+    for (auto step : used_steps) {
+        auto top_level_entry_index = top_level_entry_index_for_step(entries, step);
+        if (!top_level_entry_index.has_value() || !active_path_reaches_step(entries[*top_level_entry_index], step))
+            return Error::from_string_literal("Session history snapshot has a used step that is not reachable");
+    }
+
+    auto current_top_level_entry_index = top_level_entry_index_for_step(entries, used_steps[current_used_step_index]);
+    if (!entries[*current_top_level_entry_index].document_state.ever_populated)
+        return Error::from_string_literal("Session history snapshot's current entry has no document state");
+
+    return {};
+}
+
 static void clear_forward_session_history_entries(Vector<TraversableSessionHistory::Entry>& entries, i32 step)
 {
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#clear-the-forward-session-history
@@ -120,6 +208,29 @@ void TraversableSessionHistory::initialize_with_initial_history_entry(Entry init
     m_entries.append(move(initial_history_entry));
     m_used_steps.append(0);
     m_current_used_step_index = 0;
+}
+
+static void assign_fresh_ids_to_restored_entries(Vector<TraversableSessionHistory::Entry>& entries, Function<Web::HTML::CrossProcessId()> const& allocate_cross_process_id, HashMap<Web::HTML::CrossProcessId, Web::HTML::CrossProcessId>& assigned_ids)
+{
+    for (auto& entry : entries) {
+        entry.document_state.id = assigned_ids.ensure(entry.document_state.id, [&] { return allocate_cross_process_id(); });
+        for (auto& nested_history : entry.document_state.nested_histories) {
+            nested_history.id = assigned_ids.ensure(nested_history.id, [&] { return allocate_cross_process_id(); });
+            assign_fresh_ids_to_restored_entries(nested_history.entries, allocate_cross_process_id, assigned_ids);
+        }
+    }
+}
+
+ErrorOr<void> TraversableSessionHistory::restore_from_ui_snapshot(Vector<Entry> entries, Vector<i32> used_steps, size_t current_used_step_index, Function<Web::HTML::CrossProcessId()> allocate_cross_process_id)
+{
+    TRY(validate_snapshot_is_restorable(entries, used_steps, current_used_step_index));
+
+    HashMap<Web::HTML::CrossProcessId, Web::HTML::CrossProcessId> assigned_ids;
+    assign_fresh_ids_to_restored_entries(entries, allocate_cross_process_id, assigned_ids);
+    m_entries = move(entries);
+    m_used_steps = move(used_steps);
+    m_current_used_step_index = current_used_step_index;
+    return {};
 }
 
 void TraversableSessionHistory::mark_current_entry_reload_pending()

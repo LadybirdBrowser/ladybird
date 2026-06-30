@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Error.h>
 #include <AK/Function.h>
 #include <AK/Optional.h>
 #include <AK/Vector.h>
@@ -18,6 +19,8 @@
 #include <LibWebView/Forward.h>
 
 namespace WebView {
+
+inline constexpr size_t MAX_NESTED_HISTORY_DEPTH = 16;
 
 // AD-HOC: The HTML Standard stores a traversable navigable's session history entries on the traversable. Ladybird
 //         keeps an IPC-serializable mirror in the UI process so browser history survives WebContent process swaps
@@ -53,6 +56,7 @@ public:
     void clear();
     bool initialize_for_testing(Vector<Entry>, Vector<i32> used_steps, size_t current_used_step_index);
     void initialize_with_initial_history_entry(Entry initial_history_entry);
+    [[nodiscard]] ErrorOr<void> restore_from_ui_snapshot(Vector<Entry> entries, Vector<i32> used_steps, size_t current_used_step_index, Function<Web::HTML::CrossProcessId()> allocate_cross_process_id);
     void mark_current_entry_reload_pending();
     bool update_entry(Optional<Web::HTML::CrossProcessId> nested_history_id, Utf16String const& navigation_api_key, Function<void(Entry&)> const& update_entry);
     bool update_entry_persisted_state(Optional<Web::HTML::CrossProcessId> nested_history_id, Web::HTML::SessionHistoryEntryPersistedState const&);
@@ -103,5 +107,7 @@ private:
     // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-current-session-history-step
     Optional<size_t> m_current_used_step_index;
 };
+
+WEBVIEW_API ErrorOr<void> validate_snapshot_is_restorable(Vector<TraversableSessionHistory::Entry> const& entries, Vector<i32> const& used_steps, size_t current_used_step_index);
 
 }
