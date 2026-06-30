@@ -262,6 +262,38 @@ ValueType Database::result_column(StatementID statement_id, int column)
 ENUMERATE_SQL_TYPES
 #undef __ENUMERATE_TYPE
 
+ErrorOr<i64, Database::ColumnReadError> Database::result_i64_checked(StatementID statement_id, int column)
+{
+    auto* statement = prepared_statement(statement_id);
+    if (sqlite3_column_type(statement, column) != SQLITE_INTEGER)
+        return ColumnReadError::WrongType;
+    return static_cast<i64>(sqlite3_column_int64(statement, column));
+}
+
+ErrorOr<ByteString, Database::ColumnReadError> Database::result_text_column_bounded(StatementID statement_id, int column, size_t max_bytes)
+{
+    auto* statement = prepared_statement(statement_id);
+    if (sqlite3_column_type(statement, column) != SQLITE_TEXT)
+        return ColumnReadError::WrongType;
+    auto length = static_cast<size_t>(sqlite3_column_bytes(statement, column));
+    if (length > max_bytes)
+        return ColumnReadError::TooLarge;
+    auto const* text = reinterpret_cast<char const*>(sqlite3_column_text(statement, column));
+    return ByteString { text, length };
+}
+
+ErrorOr<ByteString, Database::ColumnReadError> Database::result_blob_column_bounded(StatementID statement_id, int column, size_t max_bytes)
+{
+    auto* statement = prepared_statement(statement_id);
+    if (sqlite3_column_type(statement, column) != SQLITE_BLOB)
+        return ColumnReadError::WrongType;
+    auto length = static_cast<size_t>(sqlite3_column_bytes(statement, column));
+    if (length > max_bytes)
+        return ColumnReadError::TooLarge;
+    auto const* blob = sqlite3_column_blob(statement, column);
+    return ByteString { reinterpret_cast<char const*>(blob), length };
+}
+
 ErrorOr<void> Database::execute_raw(ByteString const& sql)
 {
     SQL_TRY(sqlite3_exec(m_database, sql.characters(), nullptr, nullptr, nullptr));

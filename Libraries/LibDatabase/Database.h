@@ -120,6 +120,15 @@ public:
     template<typename ValueType>
     ValueType result_column(StatementID, int column);
 
+    // Checked reads reject SQLite coercions; bounded reads also reject oversized cells before copying.
+    enum class ColumnReadError {
+        WrongType,
+        TooLarge,
+    };
+    ErrorOr<i64, ColumnReadError> result_i64_checked(StatementID, int column);
+    ErrorOr<ByteString, ColumnReadError> result_text_column_bounded(StatementID, int column, size_t max_bytes);
+    ErrorOr<ByteString, ColumnReadError> result_blob_column_bounded(StatementID, int column, size_t max_bytes);
+
     ErrorOr<void> execute_raw(ByteString const& sql);
 
     ErrorOr<void> transaction(Function<ErrorOr<void>()> callback);

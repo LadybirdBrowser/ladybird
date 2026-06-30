@@ -191,3 +191,91 @@ TEST_CASE(transaction_commits_on_success_and_rolls_back_on_error)
     EXPECT(rolled_back.is_error());
     EXPECT_EQ(count_rows(*database, "t"sv), 1);
 }
+
+// A column with no declared type has NONE affinity, so each bound value keeps its storage class.
+static Database::StatementID prepare_untyped_value_table(DB& database)
+{
+    database.execute_statement(MUST(database.prepare_statement("CREATE TABLE t (i INTEGER PRIMARY KEY, v);"sv)), {});
+    return MUST(database.prepare_statement("SELECT v FROM t WHERE i = ?;"sv));
+}
+
+TEST_CASE(checked_reads_reject_wrong_storage_class)
+{
+    auto database = TRY_OR_FAIL(DB::create_memory_backed());
+    auto select = prepare_untyped_value_table(*database);
+
+    auto insert_value = MUST(database->prepare_statement("INSERT INTO t (i, v) VALUES (?, ?);"sv));
+    auto insert_null = MUST(database->prepare_statement("INSERT INTO t (i) VALUES (?);"sv));
+
+    database->execute_statement(insert_value, {}, 1, "hello"_string);
+    database->execute_statement(insert_value, {}, 2, static_cast<i64>(42));
+    database->execute_statement(insert_value, {}, 3, ByteString { "\x01\x02\x03", 3 });
+    database->execute_statement(insert_null, {}, 4);
+    database->execute_statement(insert_value, {}, 5, ByteString {});
+
+    auto with_value = [&](i32 key, auto fn) {
+        database->execute_statement(select, [&](auto statement_id) { fn(statement_id); }, key);
+    };
+
+    with_value(1, [&](auto id) {
+        auto text = database->result_text_column_bounded(id, 0, 1024);
+        EXPECT(!text.is_error());
+        EXPECT_EQ(text.value(), ByteString { "hello" });
+        EXPECT(database->result_i64_checked(id, 0).is_error());
+        EXPECT(database->result_blob_column_bounded(id, 0, 1024).is_error());
+    });
+    with_value(2, [&](auto id) {
+        auto integer = database->result_i64_checked(id, 0);
+        EXPECT(!integer.is_error());
+        EXPECT_EQ(integer.value(), 42);
+        EXPECT(database->result_text_column_bounded(id, 0, 1024).is_error());
+        EXPECT(database->result_blob_column_bounded(id, 0, 1024).is_error());
+    });
+    with_value(3, [&](auto id) {
+        ByteString const expected_blob { "\x01\x02\x03", 3 };
+        auto blob = database->result_blob_column_bounded(id, 0, 1024);
+        EXPECT(!blob.is_error());
+        EXPECT_EQ(blob.value(), expected_blob);
+        EXPECT(database->result_i64_checked(id, 0).is_error());
+        EXPECT(database->result_text_column_bounded(id, 0, 1024).is_error());
+    });
+    with_value(4, [&](auto id) {
+        // A SQL NULL is not any of the expected storage classes.
+        EXPECT(database->result_i64_checked(id, 0).is_error());
+        EXPECT(database->result_text_column_bounded(id, 0, 1024).is_error());
+        EXPECT(database->result_blob_column_bounded(id, 0, 1024).is_error());
+    });
+    with_value(5, [&](auto id) {
+        // A zero-length blob is a valid empty value, distinct from NULL.
+        auto blob = database->result_blob_column_bounded(id, 0, 1024);
+        EXPECT(!blob.is_error());
+        EXPECT(blob.value().is_empty());
+    });
+}
+
+TEST_CASE(bounded_reads_reject_oversized_cells)
+{
+    auto database = TRY_OR_FAIL(DB::create_memory_backed());
+    auto select = prepare_untyped_value_table(*database);
+
+    auto insert_value = MUST(database->prepare_statement("INSERT INTO t (i, v) VALUES (?, ?);"sv));
+    database->execute_statement(insert_value, {}, 1, "abcdefghij"_string);
+    database->execute_statement(insert_value, {}, 2, ByteString { "0123456789", 10 });
+
+    auto with_value = [&](i32 key, auto fn) {
+        database->execute_statement(select, [&](auto statement_id) { fn(statement_id); }, key);
+    };
+
+    with_value(1, [&](auto id) {
+        auto too_small = database->result_text_column_bounded(id, 0, 4);
+        EXPECT(too_small.is_error());
+        EXPECT(too_small.error() == DB::ColumnReadError::TooLarge);
+        EXPECT(!database->result_text_column_bounded(id, 0, 10).is_error());
+    });
+    with_value(2, [&](auto id) {
+        auto too_small = database->result_blob_column_bounded(id, 0, 4);
+        EXPECT(too_small.is_error());
+        EXPECT(too_small.error() == DB::ColumnReadError::TooLarge);
+        EXPECT(!database->result_blob_column_bounded(id, 0, 10).is_error());
+    });
+}
