@@ -9,8 +9,11 @@
 #include <AK/Error.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
+#include <AK/Utf16String.h>
+#include <AK/Variant.h>
 #include <LibURL/Origin.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
+#include <LibWeb/HTML/POSTResource.h>
 #include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
 #include <LibWebView/Export.h>
 
@@ -40,5 +43,14 @@ WEBVIEW_API ErrorOr<Web::Fetch::Infrastructure::Request::ReferrerType> decode_re
 
 WEBVIEW_API i64 encode_referrer_policy(Web::ReferrerPolicy::ReferrerPolicy);
 WEBVIEW_API ErrorOr<Web::ReferrerPolicy::ReferrerPolicy> decode_referrer_policy(i64 tag);
+
+struct PersistedResource {
+    i64 kind { 0 };
+    Optional<Utf16String> string {};
+};
+
+// v1 does not persist POST bodies: a POST resource encodes as Empty, so decode never yields one.
+WEBVIEW_API PersistedResource encode_resource(Web::HTML::DocumentResource const&);
+WEBVIEW_API ErrorOr<Web::HTML::DocumentResource> decode_resource(PersistedResource const&);
 
 }
