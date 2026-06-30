@@ -14,6 +14,7 @@
 #include <LibURL/Origin.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/HTML/POSTResource.h>
+#include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
 #include <LibWebView/Export.h>
 
@@ -52,5 +53,8 @@ struct PersistedResource {
 // v1 does not persist POST bodies: a POST resource encodes as Empty, so decode never yields one.
 WEBVIEW_API PersistedResource encode_resource(Web::HTML::DocumentResource const&);
 WEBVIEW_API ErrorOr<Web::HTML::DocumentResource> decode_resource(PersistedResource const&);
+
+WEBVIEW_API i64 encode_scroll_restoration_mode(Web::HTML::ScrollRestorationMode);
+WEBVIEW_API ErrorOr<Web::HTML::ScrollRestorationMode> decode_scroll_restoration_mode(i64 tag);
 
 }

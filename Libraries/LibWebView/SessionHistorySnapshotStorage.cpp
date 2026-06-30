@@ -287,4 +287,28 @@ ErrorOr<Web::HTML::DocumentResource> decode_resource(PersistedResource const& pe
     VERIFY_NOT_REACHED();
 }
 
+// Schema-stable tags for the scroll restoration mode. These values are persisted; never reorder them.
+i64 encode_scroll_restoration_mode(Web::HTML::ScrollRestorationMode mode)
+{
+    switch (mode) {
+    case Web::HTML::ScrollRestorationMode::Auto:
+        return 0;
+    case Web::HTML::ScrollRestorationMode::Manual:
+        return 1;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+ErrorOr<Web::HTML::ScrollRestorationMode> decode_scroll_restoration_mode(i64 tag)
+{
+    switch (tag) {
+    case 0:
+        return Web::HTML::ScrollRestorationMode::Auto;
+    case 1:
+        return Web::HTML::ScrollRestorationMode::Manual;
+    default:
+        return Error::from_string_literal("Persisted scroll restoration mode has an unknown tag");
+    }
+}
+
 }
