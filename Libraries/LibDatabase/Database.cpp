@@ -291,6 +291,15 @@ ErrorOr<void> Database::Transaction::commit()
     return {};
 }
 
+ErrorOr<void> Database::transaction(Function<ErrorOr<void>()> callback)
+{
+    Transaction transaction { *this };
+    TRY(transaction.begin());
+    TRY(callback());
+    TRY(transaction.commit());
+    return {};
+}
+
 ErrorOr<MigrationOutcome> Database::migrate(StringView store_name, ReadonlySpan<Migration> migrations, MigrationMode mode)
 {
     VERIFY(!migrations.is_empty());

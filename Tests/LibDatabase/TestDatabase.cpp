@@ -171,3 +171,23 @@ TEST_CASE(foreign_key_cascade_follows_the_pragma)
     create_schema(disabled);
     EXPECT_EQ(count_rows(disabled, "child"sv), 1);
 }
+
+TEST_CASE(transaction_commits_on_success_and_rolls_back_on_error)
+{
+    auto database = TRY_OR_FAIL(DB::create_memory_backed());
+    database->execute_statement(TRY_OR_FAIL(database->prepare_statement("CREATE TABLE t (v INTEGER);"sv)), {});
+    auto insert = TRY_OR_FAIL(database->prepare_statement("INSERT INTO t (v) VALUES (?);"sv));
+
+    TRY_OR_FAIL(database->transaction([&]() -> ErrorOr<void> {
+        TRY(database->try_execute_statement(insert, {}, 1));
+        return {};
+    }));
+    EXPECT_EQ(count_rows(*database, "t"sv), 1);
+
+    auto rolled_back = database->transaction([&]() -> ErrorOr<void> {
+        TRY(database->try_execute_statement(insert, {}, 2));
+        return Error::from_string_literal("deliberate failure");
+    });
+    EXPECT(rolled_back.is_error());
+    EXPECT_EQ(count_rows(*database, "t"sv), 1);
+}
