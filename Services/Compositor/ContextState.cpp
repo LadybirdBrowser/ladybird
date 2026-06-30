@@ -136,6 +136,12 @@ void ContextState::apply_display_list_resource_transaction(Web::Painting::Displa
     m_display_list_resource_storage.apply_transaction(move(resource_transaction));
 }
 
+void ContextState::update_image_frame_resources(Vector<Web::Painting::DisplayListImageFrameResource> image_frames)
+{
+    for (auto& frame : image_frames)
+        m_display_list_resource_storage.set_image_frame(frame.id, move(frame.frame));
+}
+
 void ContextState::install_display_list_update(
     NonnullRefPtr<Web::Painting::DisplayList> display_list,
     Web::Painting::AccumulatedVisualContextTree visual_context_tree,
