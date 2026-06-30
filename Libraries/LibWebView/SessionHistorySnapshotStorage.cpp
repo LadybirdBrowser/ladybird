@@ -242,4 +242,49 @@ ErrorOr<Web::ReferrerPolicy::ReferrerPolicy> decode_referrer_policy(i64 tag)
     }
 }
 
+// Schema-stable tags for PersistedResource::kind. These values are persisted; never reorder or reuse them.
+enum class ResourceKind : i64 {
+    Empty = 0,
+    Srcdoc = 1,
+};
+
+static Optional<ResourceKind> resource_kind_from_tag(i64 tag)
+{
+    switch (tag) {
+    case 0:
+        return ResourceKind::Empty;
+    case 1:
+        return ResourceKind::Srcdoc;
+    default:
+        return {};
+    }
+}
+
+PersistedResource encode_resource(Web::HTML::DocumentResource const& resource)
+{
+    // FIXME: POST bodies can contain sensitive data such as login credentials, and we cannot yet ask the user
+    // to confirm resubmission when restoring an entry. Do not persist them until both are addressed.
+    return resource.visit(
+        [](Empty) -> PersistedResource { return { .kind = to_underlying(ResourceKind::Empty) }; },
+        [](Utf16String const& srcdoc) -> PersistedResource { return { .kind = to_underlying(ResourceKind::Srcdoc), .string = srcdoc }; },
+        [](Web::HTML::POSTResource const&) -> PersistedResource { return { .kind = to_underlying(ResourceKind::Empty) }; });
+}
+
+ErrorOr<Web::HTML::DocumentResource> decode_resource(PersistedResource const& persisted)
+{
+    auto kind = resource_kind_from_tag(persisted.kind);
+    if (!kind.has_value())
+        return Error::from_string_literal("Persisted resource has an unknown kind");
+
+    switch (*kind) {
+    case ResourceKind::Empty:
+        return Web::HTML::DocumentResource { Empty {} };
+    case ResourceKind::Srcdoc:
+        if (!persisted.string.has_value())
+            return Error::from_string_literal("Persisted srcdoc resource has no string");
+        return Web::HTML::DocumentResource { *persisted.string };
+    }
+    VERIFY_NOT_REACHED();
+}
+
 }

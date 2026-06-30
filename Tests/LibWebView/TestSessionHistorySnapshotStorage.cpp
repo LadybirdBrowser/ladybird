@@ -162,3 +162,38 @@ TEST_CASE(referrer_policy_round_trips)
     EXPECT(unknown.is_error());
     EXPECT_EQ(unknown.error().string_literal(), "Persisted referrer policy has an unknown tag"sv);
 }
+
+TEST_CASE(resource_round_trips)
+{
+    auto empty = decode_resource(encode_resource(Web::HTML::DocumentResource { Empty {} }));
+    EXPECT(!empty.is_error());
+    EXPECT(empty.value().has<Empty>());
+
+    auto srcdoc = decode_resource(encode_resource(Web::HTML::DocumentResource { "<p>hi</p>"_utf16 }));
+    EXPECT(!srcdoc.is_error());
+    EXPECT(srcdoc.value().has<Utf16String>());
+    EXPECT_EQ(srcdoc.value().get<Utf16String>(), "<p>hi</p>"_utf16);
+}
+
+TEST_CASE(resource_drops_post_body)
+{
+    Web::HTML::POSTResource post {
+        .request_body = MUST(ByteBuffer::copy("name=ladybird"sv.bytes())),
+        .request_content_type = Web::HTML::POSTResource::RequestContentType::ApplicationXWWWFormUrlencoded,
+    };
+
+    // v1 restores a POST entry as a GET: the resource encodes as Empty and never decodes to a POST.
+    auto persisted = encode_resource(Web::HTML::DocumentResource { move(post) });
+    EXPECT_EQ(persisted.kind, 0);
+
+    auto decoded = decode_resource(persisted);
+    EXPECT(!decoded.is_error());
+    EXPECT(decoded.value().has<Empty>());
+}
+
+TEST_CASE(resource_decode_rejects_unknown_kind)
+{
+    auto unknown = decode_resource({ .kind = 9 });
+    EXPECT(unknown.is_error());
+    EXPECT_EQ(unknown.error().string_literal(), "Persisted resource has an unknown kind"sv);
+}
