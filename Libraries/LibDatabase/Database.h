@@ -36,8 +36,40 @@ struct Migration {
 
 class DATABASE_API Database : public RefCounted<Database> {
 public:
-    static ErrorOr<NonnullRefPtr<Database>> create_memory_backed();
-    static ErrorOr<NonnullRefPtr<Database>> create(ByteString const& directory, StringView name);
+    // https://www.sqlite.org/pragma.html#pragma_journal_mode
+    enum class JournalMode {
+        Delete,
+        Truncate,
+        Persist,
+        Memory,
+        WriteAheadLog,
+        Off,
+    };
+
+    // https://www.sqlite.org/pragma.html#pragma_synchronous
+    enum class Synchronous {
+        Off,
+        Normal,
+        Full,
+        Extra,
+    };
+
+    // https://www.sqlite.org/pragma.html#pragma_foreign_keys
+    enum class ForeignKeys {
+        No,
+        Yes,
+    };
+
+    struct Options {
+        JournalMode journal_mode { JournalMode::WriteAheadLog };
+        Synchronous synchronous { Synchronous::Normal };
+        ForeignKeys foreign_keys { ForeignKeys::No };
+    };
+
+    static ErrorOr<NonnullRefPtr<Database>> create_memory_backed(Options);
+    static ErrorOr<NonnullRefPtr<Database>> create_memory_backed() { return create_memory_backed(Options {}); }
+    static ErrorOr<NonnullRefPtr<Database>> create(ByteString const& directory, StringView name, Options);
+    static ErrorOr<NonnullRefPtr<Database>> create(ByteString const& directory, StringView name) { return create(directory, name, Options {}); }
     ~Database();
 
     using OnResult = Function<void(StatementID)>;
@@ -48,6 +80,8 @@ public:
     };
 
     Optional<LexicalPath> const& database_path() const { return m_database_path; }
+
+    Options const& options() const { return m_options; }
 
     ErrorOr<StatementID> prepare_statement(StringView statement);
 
@@ -126,32 +160,16 @@ public:
     // The version recorded for the store in SchemaVersions, or empty if it has none yet.
     ErrorOr<Optional<u32>> schema_version(StringView store);
 
-    // https://www.sqlite.org/pragma.html#pragma_journal_mode
-    enum class JournalMode {
-        Delete,
-        Truncate,
-        Persist,
-        Memory,
-        WriteAheadLog,
-        Off,
-    };
-    ErrorOr<void> set_journal_mode_pragma(JournalMode);
-
-    // https://www.sqlite.org/pragma.html#pragma_synchronous
-    enum class Synchronous {
-        Off,
-        Normal,
-        Full,
-        Extra,
-    };
-    ErrorOr<void> set_synchronous_pragma(Synchronous);
-
     // https://www.sqlite.org/c3ref/busy_timeout.html
     ErrorOr<void> set_busy_timeout(i32 milliseconds);
 
 private:
-    static ErrorOr<NonnullRefPtr<Database>> create(sqlite3*, Optional<LexicalPath> database_path = {});
+    static ErrorOr<NonnullRefPtr<Database>> create(sqlite3*, Options, Optional<LexicalPath> database_path = {});
     Database(sqlite3*, Optional<LexicalPath> database_path);
+
+    ErrorOr<JournalMode> set_journal_mode_pragma(JournalMode);
+    ErrorOr<void> set_synchronous_pragma(Synchronous);
+    ErrorOr<void> set_foreign_keys_pragma(ForeignKeys);
 
     void execute_statement_internal(StatementID, OnResult);
     StatementExecutionOutcome execute_interruptible_statement_internal(StatementID, OnResult);
@@ -193,6 +211,7 @@ private:
     }
 
     Optional<LexicalPath> m_database_path;
+    Options m_options;
     sqlite3* m_database { nullptr };
     Vector<sqlite3_stmt*> m_prepared_statements;
     Optional<StatementID> m_table_exists_statement;
