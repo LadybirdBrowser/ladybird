@@ -418,6 +418,8 @@ struct LayoutState {
     UsedValues& get_mutable(NodeWithStyle const&);
     UsedValues const& get(NodeWithStyle const&) const;
 
+    UsedValues& initialize_used_values_for(NodeWithStyle const&);
+
     UsedValues& populate_from_paintable(NodeWithStyle const&, Painting::PaintableBox const&);
     UsedValues& populate_node_from(LayoutState const& source, NodeWithStyle const& node);
 
@@ -426,7 +428,6 @@ struct LayoutState {
     UsedValues const* try_get(Node const&) const;
 
 private:
-    UsedValues& ensure_used_values_for(NodeWithStyle const&);
     void resolve_relative_positions();
 
     PagedStore<UsedValues> m_used_values_store;

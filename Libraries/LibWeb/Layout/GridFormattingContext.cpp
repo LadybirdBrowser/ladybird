@@ -1966,6 +1966,7 @@ void GridFormattingContext::place_grid_items()
         if (child_box.is_out_of_flow(*this))
             return IterationDecision::Continue;
 
+        m_state.initialize_used_values_for(child_box);
         child_box.set_grid_item(true);
 
         auto& order_bucket = order_item_bucket.ensure(child_box.computed_values().order());
@@ -3054,7 +3055,7 @@ void GridFormattingContext::parent_context_did_dimension_child_root_box()
 
     grid_container().for_each_child_of_type<Box>([&](Layout::Box& box) {
         if (box.is_absolutely_positioned()) {
-            m_state.get_mutable(box).set_static_position_rect(calculate_static_position_rect(box));
+            m_state.initialize_used_values_for(box).set_static_position_rect(calculate_static_position_rect(box));
         }
         return IterationDecision::Continue;
     });

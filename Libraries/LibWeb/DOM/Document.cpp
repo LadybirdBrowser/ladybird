@@ -1890,13 +1890,16 @@ void Document::update_layout(UpdateLayoutReason reason)
 
         {
             auto& viewport = static_cast<Layout::Viewport&>(*m_layout_root);
-            auto& viewport_state = layout_state.get_mutable(viewport);
+            auto& viewport_state = layout_state.initialize_used_values_for(viewport);
             viewport_state.set_content_width(viewport_rect.width());
             viewport_state.set_content_height(viewport_rect.height());
 
             // NB: Called during layout update.
             if (document_element && document_element->unsafe_layout_node()) {
-                auto& icb_state = layout_state.get_mutable(as<Layout::NodeWithStyleAndBoxModelMetrics>(*document_element->unsafe_layout_node()));
+                auto& document_element_layout_node = as<Layout::NodeWithStyleAndBoxModelMetrics>(*document_element->unsafe_layout_node());
+                if (auto* containing_block = document_element_layout_node.containing_block(); containing_block && containing_block != &viewport)
+                    layout_state.initialize_used_values_for(*containing_block);
+                auto& icb_state = layout_state.initialize_used_values_for(document_element_layout_node);
                 icb_state.set_content_width(viewport_rect.width());
             }
 
@@ -1910,7 +1913,7 @@ void Document::update_layout(UpdateLayoutReason reason)
                 //       and we call directly into the SVG layout code from here.
                 auto const& svg_root = as<Layout::SVGSVGBox>(*m_layout_root->first_child());
                 auto content_height = layout_state.get(*svg_root.containing_block()).content_height();
-                layout_state.get_mutable(svg_root).set_content_height(content_height);
+                layout_state.initialize_used_values_for(svg_root).set_content_height(content_height);
                 Layout::SVGFormattingContext svg_formatting_context(layout_state, Layout::LayoutMode::Normal, svg_root, nullptr);
                 svg_formatting_context.run(Layout::LayoutInput { available_space });
             } else {
