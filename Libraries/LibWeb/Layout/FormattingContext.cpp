@@ -2666,15 +2666,6 @@ bool FormattingContext::can_skip_is_anonymous_text_run(Box& box)
     return false;
 }
 
-CSSPixelRect FormattingContext::absolute_content_rect(Box const& box) const
-{
-    auto const& box_state = m_state.get(box);
-    CSSPixelRect rect { box_state.offset, box_state.content_size() };
-    for (auto* block = box_state.containing_block_used_values(); block; block = block->containing_block_used_values())
-        rect.translate_by(block->offset);
-    return rect;
-}
-
 Box const* FormattingContext::box_child_to_derive_baseline_from(Box const& box, BaselineSet baseline_set) const
 {
     if (!box.has_children() || box.children_are_inline())
