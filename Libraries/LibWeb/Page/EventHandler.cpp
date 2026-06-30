@@ -339,12 +339,14 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
     RefPtr<Painting::ChromeWidget> chrome_widget;
     GC::Ptr<DOM::Node> node;
     Optional<int> start_index;
+    bool hit_text_node = false;
 
     if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value()) {
         paintable = result->paintable;
         chrome_widget = result->chrome_widget;
         node = result->dom_node;
         start_index = result->index_in_node;
+        hit_text_node = node && node->is_text();
     }
 
     ArmedScopeGuard clear_cursor = [&] {
@@ -379,7 +381,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
         bool found_parent_element = parent_element_for_event_dispatch(*paintable, node, layout_node);
 
         if (found_parent_element) {
-            update_cursor(*paintable, *node, chrome_widget);
+            update_cursor(*paintable, *node, chrome_widget, hit_text_node);
             clear_cursor.disarm();
 
             auto coordinates = compute_mouse_event_coordinates(visual_viewport_position, viewport_position, *paintable, *layout_node);
@@ -809,10 +811,12 @@ void EventHandler::update_hover_after_scroll(CSSPixelPoint visual_viewport_posit
     RefPtr<Painting::Paintable> paintable;
     RefPtr<Painting::ChromeWidget> chrome_widget;
     GC::Ptr<DOM::Node> node;
+    bool hit_text_node = false;
     if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value()) {
         paintable = result->paintable;
         chrome_widget = result->chrome_widget;
         node = result->dom_node;
+        hit_text_node = node && node->is_text();
     }
 
     ArmedScopeGuard clear_hover = [&] {
@@ -841,7 +845,7 @@ void EventHandler::update_hover_after_scroll(CSSPixelPoint visual_viewport_posit
         return;
 
     update_hovered_chrome_widget(chrome_widget);
-    update_cursor(*paintable, *node, chrome_widget);
+    update_cursor(*paintable, *node, chrome_widget, hit_text_node);
 
     auto coordinates = compute_mouse_event_coordinates(visual_viewport_position, viewport_position, *paintable, *layout_node);
     track_the_effective_position_of_the_legacy_mouse_pointer(node, DOM::HoverEventData {
@@ -2537,7 +2541,8 @@ static Gfx::Cursor resolve_cursor(Layout::NodeWithStyle const& layout_node, Read
     return Gfx::StandardCursor::None;
 }
 
-void EventHandler::update_cursor(RefPtr<Painting::Paintable> paintable, GC::Ptr<DOM::Node> host_element, RefPtr<Painting::ChromeWidget> chrome_widget)
+void EventHandler::update_cursor(RefPtr<Painting::Paintable> paintable, GC::Ptr<DOM::Node> host_element,
+    RefPtr<Painting::ChromeWidget> chrome_widget, bool hit_text_node)
 {
     // AD-HOC: Update the cursor image based on the CSS rules before the steps terminate if the target hasn't changed.
     auto cursor = [&] -> Gfx::Cursor {
@@ -2547,13 +2552,23 @@ void EventHandler::update_cursor(RefPtr<Painting::Paintable> paintable, GC::Ptr<
         }
 
         if (paintable) {
-            auto cursor_data = paintable->computed_values().cursor();
-            auto is_selectable_text_node = paintable->layout_node().is_text_node() && paintable->layout_node().parent()->computed_values().user_select() != CSS::UserSelect::None;
+            auto* host_layout_node = host_element ? host_element->layout_node() : nullptr;
+            auto const* cursor_data = &paintable->computed_values().cursor();
+            if (hit_text_node && host_layout_node)
+                cursor_data = &host_layout_node->computed_values().cursor();
 
-            if (is_selectable_text_node || host_element->is_editable_or_editing_host())
-                return resolve_cursor(*paintable->layout_node().parent(), cursor_data, Gfx::StandardCursor::IBeam);
-            if (host_element && host_element->is_element())
-                return resolve_cursor(static_cast<Layout::NodeWithStyle&>(*host_element->layout_node()), cursor_data, Gfx::StandardCursor::Arrow);
+            auto* host_node_with_style = host_layout_node ? as_if<Layout::NodeWithStyle>(*host_layout_node) : nullptr;
+            auto is_selectable_text_node = hit_text_node
+                && host_layout_node
+                && host_layout_node->user_select_used_value() != CSS::UserSelect::None;
+
+            if (is_selectable_text_node || host_element->is_editable_or_editing_host()) {
+                if (host_node_with_style)
+                    return resolve_cursor(*host_node_with_style, *cursor_data, Gfx::StandardCursor::IBeam);
+                return resolve_cursor(*paintable->layout_node().parent(), *cursor_data, Gfx::StandardCursor::IBeam);
+            }
+            if (host_element && host_element->is_element() && host_node_with_style)
+                return resolve_cursor(*host_node_with_style, *cursor_data, Gfx::StandardCursor::Arrow);
         }
 
         return Gfx::StandardCursor::Arrow;
