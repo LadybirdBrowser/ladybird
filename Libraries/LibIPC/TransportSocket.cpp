@@ -66,15 +66,36 @@ void SendQueue::enqueue_message(SocketMessageHeader header, MessageDataType payl
 {
     Sync::MutexLocker locker(m_mutex);
     m_queued_byte_count += sizeof(SocketMessageHeader) + payload.size();
-    m_queued_messages.append(QueuedMessage { header, move(payload) });
-    m_fds.append(fds.data(), fds.size());
+    m_queued_messages.append(QueuedMessage { header, move(payload), move(fds) });
 }
 
 SendQueue::BytesAndFds SendQueue::peek(size_t max_bytes)
 {
     Sync::MutexLocker locker(m_mutex);
     BytesAndFds result;
-    auto bytes_to_send = min(max_bytes, m_queued_byte_count);
+    // Walk the queue, taking bytes and fds together. A message's fds ride out with its bytes; the peer parses messages
+    // in order, and stalls if a message's bytes complete before its fds arrive; and a single transfer carries at most
+    // MAX_TRANSFER_FDS fds. So take each message's still-unsent fds up to the budget and hold back its final byte until
+    // all of its fds have been taken (a message with more than MAX_TRANSFER_FDS fds is thus split across transfers).
+    size_t bytes_to_send = 0;
+    for (auto const& queued_message : m_queued_messages) {
+        if (bytes_to_send == max_bytes)
+            break;
+        auto unsent_fds = queued_message.fds.size() - queued_message.fds_offset;
+        auto fd_budget = Core::LocalSocket::MAX_TRANSFER_FDS - result.fds.size();
+        if (unsent_fds > 0 && fd_budget == 0)
+            break;
+        auto take_fds = min(unsent_fds, fd_budget);
+        for (size_t i = 0; i < take_fds; ++i)
+            result.fds.append(queued_message.fds[queued_message.fds_offset + i]);
+        auto remaining = queued_message.size() - queued_message.start_offset;
+        auto fds_fully_sent = queued_message.fds_offset + take_fds == queued_message.fds.size();
+        auto byte_cap = fds_fully_sent ? remaining : (remaining > 0 ? remaining - 1 : 0);
+        auto take = min(byte_cap, max_bytes - bytes_to_send);
+        bytes_to_send += take;
+        if (take < remaining)
+            break;
+    }
     result.bytes.resize(bytes_to_send);
     size_t copied_bytes = 0;
     for (auto const& queued_message : m_queued_messages) {
@@ -97,11 +118,6 @@ SendQueue::BytesAndFds SendQueue::peek(size_t max_bytes)
         }
     }
 
-    if (m_fds.size() > 0) {
-        auto fds_to_send = min(m_fds.size(), Core::LocalSocket::MAX_TRANSFER_FDS);
-        result.fds = Vector<int> { m_fds.span().slice(0, fds_to_send) };
-        // NOTE: This relies on a subsequent call to discard to actually remove the fds from m_fds
-    }
     return result;
 }
 
@@ -110,16 +126,27 @@ void SendQueue::discard(size_t bytes_count, size_t fds_count)
     Sync::MutexLocker locker(m_mutex);
     VERIFY(bytes_count <= m_queued_byte_count);
     m_queued_byte_count -= bytes_count;
-    while (bytes_count > 0) {
-        auto& queued_message = m_queued_messages.first();
-        auto available_bytes = queued_message.size() - queued_message.start_offset;
-        auto consumed_bytes = min(available_bytes, bytes_count);
-        queued_message.start_offset += consumed_bytes;
-        bytes_count -= consumed_bytes;
-        if (queued_message.start_offset == queued_message.size())
-            (void)m_queued_messages.remove(m_queued_messages.begin());
+    for (auto& queued_message : m_queued_messages) {
+        if (bytes_count == 0)
+            break;
+        auto consumed = min(queued_message.size() - queued_message.start_offset, bytes_count);
+        queued_message.start_offset += consumed;
+        bytes_count -= consumed;
     }
-    m_fds.remove(0, fds_count);
+    for (auto& queued_message : m_queued_messages) {
+        if (fds_count == 0)
+            break;
+        auto consumed = min(queued_message.fds.size() - queued_message.fds_offset, fds_count);
+        queued_message.fds_offset += consumed;
+        fds_count -= consumed;
+    }
+    while (!m_queued_messages.is_empty()) {
+        auto const& front = m_queued_messages.first();
+        if (front.start_offset == front.size() && front.fds_offset == front.fds.size())
+            (void)m_queued_messages.remove(m_queued_messages.begin());
+        else
+            break;
+    }
 }
 
 TransportSocket::TransportSocket(NonnullOwnPtr<Core::LocalSocket> socket)
@@ -391,6 +418,13 @@ void TransportSocket::read_incoming_messages()
 {
     Vector<NonnullOwnPtr<Message>> batch;
     while (m_socket->is_open()) {
+        // Backpressure: If the unprocessed-fd queue is near its cap, stop receiving, and leave the remaining data in
+        // the kernel socket buffer – which throttles the sender. The parse step below drains the queue into messages,
+        // and the next read cycle resumes. A single receive can deliver up to MAX_TRANSFER_FDS fds — so leave that much
+        // headroom to stay within MAX_UNPROCESSED_FDS.
+        if (m_unprocessed_attachments.size() + Core::LocalSocket::MAX_TRANSFER_FDS > MAX_UNPROCESSED_FDS)
+            break;
+
         u8 buffer[4096];
         auto received_fds = Vector<int> {};
         auto maybe_bytes_read = m_socket->receive_message({ buffer, 4096 }, MSG_DONTWAIT, received_fds);
@@ -424,11 +458,6 @@ void TransportSocket::read_incoming_messages()
         }
         if (m_unprocessed_bytes.try_append(bytes_read.data(), bytes_read.size()).is_error()) {
             dbgln("TransportSocket: Failed to append to unprocessed_bytes buffer");
-            m_peer_eof = true;
-            break;
-        }
-        if (m_unprocessed_attachments.size() + received_fds.size() > MAX_UNPROCESSED_FDS) {
-            dbgln("TransportSocket: Unprocessed FDs would exceed {}, disconnecting peer", MAX_UNPROCESSED_FDS);
             m_peer_eof = true;
             break;
         }

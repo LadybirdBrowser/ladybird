@@ -46,14 +46,15 @@ private:
     struct QueuedMessage {
         SocketMessageHeader header;
         MessageDataType payload;
+        Vector<int> fds;
         size_t start_offset { 0 };
+        size_t fds_offset { 0 };
 
         size_t size() const { return sizeof(SocketMessageHeader) + payload.size(); }
     };
 
     SinglyLinkedList<QueuedMessage, AK::DefaultSizeCalculationPolicy> m_queued_messages;
     size_t m_queued_byte_count { 0 };
-    Vector<int> m_fds;
     Sync::Mutex m_mutex;
 };
 
