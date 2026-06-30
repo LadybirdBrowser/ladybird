@@ -55,29 +55,30 @@ static constexpr StringView sql_error(int error_code)
     __ENUMERATE_TYPE(double)             \
     __ENUMERATE_TYPE(bool)
 
-ErrorOr<NonnullRefPtr<Database>> Database::create_memory_backed()
+ErrorOr<NonnullRefPtr<Database>> Database::create_memory_backed(Options options)
 {
     sqlite3* sql_database { nullptr };
     SQL_TRY(sqlite3_open(":memory:", &sql_database));
-    return create(sql_database);
+    return create(sql_database, options);
 }
 
-ErrorOr<NonnullRefPtr<Database>> Database::create(ByteString const& directory, StringView name)
+ErrorOr<NonnullRefPtr<Database>> Database::create(ByteString const& directory, StringView name, Options options)
 {
     TRY(Core::Directory::create(directory, Core::Directory::CreateDirectories::Yes));
     LexicalPath database_path { ByteString::formatted("{}/{}.db", directory, name) };
     sqlite3* sql_database { nullptr };
     SQL_TRY(sqlite3_open(database_path.string().characters(), &sql_database));
-    return create(sql_database, database_path);
+    return create(sql_database, options, database_path);
 }
 
-ErrorOr<NonnullRefPtr<Database>> Database::create(sqlite3* sql_database, Optional<LexicalPath> database_path)
+ErrorOr<NonnullRefPtr<Database>> Database::create(sqlite3* sql_database, Options options, Optional<LexicalPath> database_path)
 {
     auto database = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) Database(sql_database, move(database_path))));
 
-    // Enable the WAL and set the synchronous pragma to normal by default for performance.
-    TRY(database->set_journal_mode_pragma(JournalMode::WriteAheadLog));
-    TRY(database->set_synchronous_pragma(Synchronous::Normal));
+    options.journal_mode = TRY(database->set_journal_mode_pragma(options.journal_mode));
+    TRY(database->set_synchronous_pragma(options.synchronous));
+    TRY(database->set_foreign_keys_pragma(options.foreign_keys));
+    database->m_options = options;
 
     return database;
 }
@@ -374,7 +375,7 @@ ErrorOr<Optional<u32>> Database::schema_version(StringView store)
     return version;
 }
 
-ErrorOr<void> Database::set_journal_mode_pragma(JournalMode journal_mode)
+ErrorOr<Database::JournalMode> Database::set_journal_mode_pragma(JournalMode journal_mode)
 {
     auto journal_mode_string = [&]() {
         switch (journal_mode) {
@@ -395,9 +396,30 @@ ErrorOr<void> Database::set_journal_mode_pragma(JournalMode journal_mode)
     }();
 
     auto pragma = ByteString::formatted("PRAGMA journal_mode={};", journal_mode_string);
-    TRY(execute_raw(pragma));
+    auto statement_id = TRY(prepare_statement(pragma));
+    Optional<JournalMode> applied_journal_mode;
+    TRY(try_execute_statement(statement_id, [&](auto result_statement_id) -> ErrorOr<void> {
+        auto applied_mode = result_column<String>(result_statement_id, 0);
+        if (applied_mode.equals_ignoring_ascii_case("delete"sv))
+            applied_journal_mode = JournalMode::Delete;
+        else if (applied_mode.equals_ignoring_ascii_case("truncate"sv))
+            applied_journal_mode = JournalMode::Truncate;
+        else if (applied_mode.equals_ignoring_ascii_case("persist"sv))
+            applied_journal_mode = JournalMode::Persist;
+        else if (applied_mode.equals_ignoring_ascii_case("memory"sv))
+            applied_journal_mode = JournalMode::Memory;
+        else if (applied_mode.equals_ignoring_ascii_case("wal"sv))
+            applied_journal_mode = JournalMode::WriteAheadLog;
+        else if (applied_mode.equals_ignoring_ascii_case("off"sv))
+            applied_journal_mode = JournalMode::Off;
+        else
+            return Error::from_string_literal("PRAGMA journal_mode returned an unknown mode");
+        return {};
+    }));
 
-    return {};
+    if (!applied_journal_mode.has_value())
+        return Error::from_string_literal("PRAGMA journal_mode returned no mode");
+    return *applied_journal_mode;
 }
 
 ErrorOr<void> Database::set_synchronous_pragma(Synchronous synchronous)
@@ -427,6 +449,12 @@ ErrorOr<void> Database::set_busy_timeout(i32 milliseconds)
     if (milliseconds < 0)
         return Error::from_string_literal("Database busy timeout must not be negative");
     SQL_TRY(sqlite3_busy_timeout(m_database, milliseconds));
+    return {};
+}
+
+ErrorOr<void> Database::set_foreign_keys_pragma(ForeignKeys foreign_keys)
+{
+    TRY(execute_raw(foreign_keys == ForeignKeys::Yes ? "PRAGMA foreign_keys=ON;" : "PRAGMA foreign_keys=OFF;"));
     return {};
 }
 
