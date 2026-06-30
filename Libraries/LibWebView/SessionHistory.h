@@ -108,6 +108,12 @@ private:
     Optional<size_t> m_current_used_step_index;
 };
 
+struct SessionHistorySnapshot {
+    Vector<TraversableSessionHistory::Entry> entries;
+    Vector<i32> used_steps;
+    size_t current_used_step_index { 0 };
+};
+
 WEBVIEW_API ErrorOr<void> validate_snapshot_is_restorable(Vector<TraversableSessionHistory::Entry> const& entries, Vector<i32> const& used_steps, size_t current_used_step_index);
 
 }
