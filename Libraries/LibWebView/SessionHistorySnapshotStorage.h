@@ -10,6 +10,8 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <LibURL/Origin.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
+#include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
 #include <LibWebView/Export.h>
 
 namespace WebView {
@@ -27,5 +29,16 @@ struct PersistedOrigin {
 
 WEBVIEW_API PersistedOrigin encode_origin(Optional<URL::Origin> const&);
 WEBVIEW_API ErrorOr<Optional<URL::Origin>> decode_origin(PersistedOrigin const&);
+
+struct PersistedReferrer {
+    i64 kind { 0 };
+    Optional<String> url {};
+};
+
+WEBVIEW_API PersistedReferrer encode_referrer(Web::Fetch::Infrastructure::Request::ReferrerType const&);
+WEBVIEW_API ErrorOr<Web::Fetch::Infrastructure::Request::ReferrerType> decode_referrer(PersistedReferrer const&);
+
+WEBVIEW_API i64 encode_referrer_policy(Web::ReferrerPolicy::ReferrerPolicy);
+WEBVIEW_API ErrorOr<Web::ReferrerPolicy::ReferrerPolicy> decode_referrer_policy(i64 tag);
 
 }

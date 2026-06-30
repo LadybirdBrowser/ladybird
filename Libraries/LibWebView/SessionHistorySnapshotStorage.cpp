@@ -131,4 +131,115 @@ ErrorOr<Optional<URL::Origin>> decode_origin(PersistedOrigin const& persisted)
     VERIFY_NOT_REACHED();
 }
 
+using Referrer = Web::Fetch::Infrastructure::Request::Referrer;
+using ReferrerType = Web::Fetch::Infrastructure::Request::ReferrerType;
+
+// Schema-stable tags for PersistedReferrer::kind. These values are persisted; never reorder or reuse them.
+enum class ReferrerKind : i64 {
+    Client = 0,
+    NoReferrer = 1,
+    Url = 2,
+};
+
+static Optional<ReferrerKind> referrer_kind_from_tag(i64 tag)
+{
+    switch (tag) {
+    case 0:
+        return ReferrerKind::Client;
+    case 1:
+        return ReferrerKind::NoReferrer;
+    case 2:
+        return ReferrerKind::Url;
+    default:
+        return {};
+    }
+}
+
+PersistedReferrer encode_referrer(ReferrerType const& referrer)
+{
+    return referrer.visit(
+        [](Referrer kind) -> PersistedReferrer {
+            return { .kind = to_underlying(kind == Referrer::NoReferrer ? ReferrerKind::NoReferrer : ReferrerKind::Client) };
+        },
+        [](URL::URL const& url) -> PersistedReferrer {
+            return { .kind = to_underlying(ReferrerKind::Url), .url = url.serialize() };
+        });
+}
+
+ErrorOr<ReferrerType> decode_referrer(PersistedReferrer const& persisted)
+{
+    auto kind = referrer_kind_from_tag(persisted.kind);
+    if (!kind.has_value())
+        return Error::from_string_literal("Persisted referrer has an unknown kind");
+
+    switch (*kind) {
+    case ReferrerKind::Client:
+        return ReferrerType { Referrer::Client };
+    case ReferrerKind::NoReferrer:
+        return ReferrerType { Referrer::NoReferrer };
+    case ReferrerKind::Url: {
+        if (!persisted.url.has_value())
+            return Error::from_string_literal("Persisted referrer has no url");
+        auto url = URL::Parser::basic_parse(*persisted.url);
+        if (!url.has_value())
+            return Error::from_string_literal("Persisted referrer has an unparseable url");
+        return ReferrerType { url.release_value() };
+    }
+    }
+    VERIFY_NOT_REACHED();
+}
+
+i64 encode_referrer_policy(Web::ReferrerPolicy::ReferrerPolicy policy)
+{
+    using RP = Web::ReferrerPolicy::ReferrerPolicy;
+    switch (policy) {
+    case RP::EmptyString:
+        return 0;
+    case RP::NoReferrer:
+        return 1;
+    case RP::NoReferrerWhenDowngrade:
+        return 2;
+    case RP::SameOrigin:
+        return 3;
+    case RP::Origin:
+        return 4;
+    case RP::StrictOrigin:
+        return 5;
+    case RP::OriginWhenCrossOrigin:
+        return 6;
+    case RP::StrictOriginWhenCrossOrigin:
+        return 7;
+    case RP::UnsafeURL:
+        return 8;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+ErrorOr<Web::ReferrerPolicy::ReferrerPolicy> decode_referrer_policy(i64 tag)
+{
+    using RP = Web::ReferrerPolicy::ReferrerPolicy;
+    switch (tag) {
+    case 0:
+        return RP::EmptyString;
+    case 1:
+        return RP::NoReferrer;
+    case 2:
+        return RP::NoReferrerWhenDowngrade;
+    case 3:
+        return RP::SameOrigin;
+    case 4:
+        return RP::Origin;
+    case 5:
+        return RP::StrictOrigin;
+    case 6:
+        return RP::OriginWhenCrossOrigin;
+    case 7:
+        return RP::StrictOriginWhenCrossOrigin;
+    case 8:
+        return RP::UnsafeURL;
+    default:
+        return Error::from_string_literal("Persisted referrer policy has an unknown tag");
+    }
+}
+
 }

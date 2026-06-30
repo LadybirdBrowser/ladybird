@@ -7,6 +7,7 @@
 #include <AK/IPv4Address.h>
 #include <LibTest/TestCase.h>
 #include <LibURL/Origin.h>
+#include <LibURL/Parser.h>
 #include <LibWebView/SessionHistorySnapshotStorage.h>
 
 using namespace WebView;
@@ -117,4 +118,47 @@ TEST_CASE(origin_decode_rejects_invalid_columns)
     expect_origin_rejected(tuple("resource"sv, "example.com"sv), "Persisted resource tuple origin has a host or port"sv);
     expect_origin_rejected(tuple("file"sv, ""sv), "Persisted file tuple origin while file tuple origins are disabled"sv);
     expect_origin_rejected(tuple("gopher"sv, "example.com"sv), "Persisted tuple origin has a scheme that cannot form a tuple origin"sv);
+}
+
+static void expect_referrer_round_trips(Web::Fetch::Infrastructure::Request::ReferrerType const& referrer)
+{
+    auto decoded = decode_referrer(encode_referrer(referrer));
+    EXPECT(!decoded.is_error());
+    EXPECT(decoded.value() == referrer);
+}
+
+TEST_CASE(referrer_round_trips)
+{
+    using Referrer = Web::Fetch::Infrastructure::Request::Referrer;
+    using ReferrerType = Web::Fetch::Infrastructure::Request::ReferrerType;
+
+    expect_referrer_round_trips(ReferrerType { Referrer::Client });
+    expect_referrer_round_trips(ReferrerType { Referrer::NoReferrer });
+    expect_referrer_round_trips(ReferrerType { URL::Parser::basic_parse("https://ref.example/"sv).value() });
+}
+
+TEST_CASE(referrer_decode_rejects_invalid_columns)
+{
+    auto unknown_kind = decode_referrer({ .kind = 9 });
+    EXPECT(unknown_kind.is_error());
+    EXPECT_EQ(unknown_kind.error().string_literal(), "Persisted referrer has an unknown kind"sv);
+
+    auto bad_url = decode_referrer({ .kind = 2, .url = "http://[invalid"_string });
+    EXPECT(bad_url.is_error());
+    EXPECT_EQ(bad_url.error().string_literal(), "Persisted referrer has an unparseable url"sv);
+}
+
+TEST_CASE(referrer_policy_round_trips)
+{
+    using RP = Web::ReferrerPolicy::ReferrerPolicy;
+    Array policies { RP::EmptyString, RP::NoReferrer, RP::NoReferrerWhenDowngrade, RP::SameOrigin, RP::Origin, RP::StrictOrigin, RP::OriginWhenCrossOrigin, RP::StrictOriginWhenCrossOrigin, RP::UnsafeURL };
+    for (auto policy : policies) {
+        auto decoded = decode_referrer_policy(encode_referrer_policy(policy));
+        EXPECT(!decoded.is_error());
+        EXPECT(decoded.value() == policy);
+    }
+
+    auto unknown = decode_referrer_policy(99);
+    EXPECT(unknown.is_error());
+    EXPECT_EQ(unknown.error().string_literal(), "Persisted referrer policy has an unknown tag"sv);
 }
