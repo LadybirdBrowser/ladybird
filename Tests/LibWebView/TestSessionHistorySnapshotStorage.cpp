@@ -197,3 +197,17 @@ TEST_CASE(resource_decode_rejects_unknown_kind)
     EXPECT(unknown.is_error());
     EXPECT_EQ(unknown.error().string_literal(), "Persisted resource has an unknown kind"sv);
 }
+
+TEST_CASE(scroll_restoration_mode_round_trips)
+{
+    using Mode = Web::HTML::ScrollRestorationMode;
+    for (auto mode : Array { Mode::Auto, Mode::Manual }) {
+        auto decoded = decode_scroll_restoration_mode(encode_scroll_restoration_mode(mode));
+        EXPECT(!decoded.is_error());
+        EXPECT(decoded.value() == mode);
+    }
+
+    auto unknown = decode_scroll_restoration_mode(7);
+    EXPECT(unknown.is_error());
+    EXPECT_EQ(unknown.error().string_literal(), "Persisted scroll restoration mode has an unknown tag"sv);
+}
