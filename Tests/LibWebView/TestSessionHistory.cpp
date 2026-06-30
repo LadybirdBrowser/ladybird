@@ -17,6 +17,10 @@ static Web::HTML::CrossProcessId navigable_id(StringView id)
         return { 1, 1 };
     if (id == "frame"sv)
         return { 1, 2 };
+    if (id == "child"sv)
+        return { 1, 3 };
+    if (id == "grandchild"sv)
+        return { 1, 4 };
     if (id == "1"sv)
         return { 2, 1 };
     VERIFY_NOT_REACHED();
@@ -26,6 +30,12 @@ static Web::HTML::CrossProcessId test_document_state_id(u64 local_id)
 {
     VERIFY(local_id > 0);
     return { 3, local_id };
+}
+
+static Web::HTML::CrossProcessId allocate_test_ui_process_document_state_id()
+{
+    static Web::HTML::CrossProcessIdAllocator allocator { .namespace_id = 4 };
+    return allocator.allocate();
 }
 
 static Web::HTML::SessionHistoryNestedHistoryDescriptor nested_history(StringView id, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries)
@@ -864,4 +874,187 @@ TEST_CASE(nested_finalization_rejects_wrong_key_for_populated_entry)
     auto const& nested_history = entries.first().document_state.nested_histories.first();
     EXPECT_EQ(nested_history.entries.size(), 1uz);
     expect_nested_entry(nested_history, 0, 0, "https://frame.example/first"sv);
+}
+
+static constexpr auto restore_error_structurally_invalid = "Session history snapshot is structurally invalid"sv;
+static constexpr auto restore_error_step_not_reachable = "Session history snapshot has a used step that is not reachable"sv;
+static constexpr auto restore_error_no_document_state = "Session history snapshot's current entry has no document state"sv;
+
+TEST_CASE(restore_from_ui_snapshot_installs_a_valid_snapshot)
+{
+    WebView::TraversableSessionHistory history;
+
+    auto result = history.restore_from_ui_snapshot({
+                                                       entry(0, "https://a.example/"sv, 1, "main"sv),
+                                                       entry(1, "https://b.example/"sv, 2, "main"sv),
+                                                   },
+        { 0, 1 }, 1, allocate_test_ui_process_document_state_id);
+
+    EXPECT(!result.is_error());
+    EXPECT_EQ(history.size(), 2uz);
+    EXPECT(history.can_go_back());
+    EXPECT(!history.can_go_forward());
+    expect_entry(history, 0, 0, "https://a.example/"sv);
+    expect_current_entry(history, 1, "https://b.example/"sv);
+    EXPECT_EQ(history.entry_at(0)->document_state.id.namespace_id, 4u);
+    EXPECT(history.entry_at(0)->document_state.id != test_document_state_id(1));
+    EXPECT_EQ(history.entry_at(1)->document_state.id.namespace_id, 4u);
+    EXPECT(history.entry_at(1)->document_state.id != test_document_state_id(2));
+}
+
+TEST_CASE(restore_from_ui_snapshot_installs_a_valid_nested_snapshot)
+{
+    WebView::TraversableSessionHistory history;
+
+    // Nested step 1 lives under the step-0 entry, which is the correct top-level entry for step 1.
+    Vector<Web::HTML::SessionHistoryEntryDescriptor> entries;
+    entries.append(entry_with_reload_pending(0, "https://a.example/"sv, 1, "main"sv,
+        { nested_history("frame"sv, { entry(1, "https://nested.example/"sv) }) }));
+    entries.append(entry(2, "https://b.example/"sv, 2, "main"sv));
+
+    auto result = history.restore_from_ui_snapshot(move(entries), { 0, 1, 2 }, 2, allocate_test_ui_process_document_state_id);
+
+    EXPECT(!result.is_error());
+    EXPECT_EQ(history.size(), 2uz);
+    expect_current_entry(history, 2, "https://b.example/"sv);
+    auto const& restored_nested_history = history.entry_at(0)->document_state.nested_histories[0];
+    EXPECT_EQ(restored_nested_history.id.namespace_id, 4u);
+    EXPECT(restored_nested_history.id != navigable_id("frame"sv));
+}
+
+TEST_CASE(restore_from_ui_snapshot_preserves_shared_document_state_identity)
+{
+    WebView::TraversableSessionHistory history;
+    auto original_id = test_document_state_id(1);
+
+    auto result = history.restore_from_ui_snapshot({
+                                                       entry(0, "https://a.example/"sv, 1, "main"sv),
+                                                       entry(1, "https://a.example/next"sv, 1, "main"sv),
+                                                   },
+        { 0, 1 }, 1, allocate_test_ui_process_document_state_id);
+
+    EXPECT(!result.is_error());
+    auto first_id = history.entry_at(0)->document_state.id;
+    auto second_id = history.entry_at(1)->document_state.id;
+    EXPECT_EQ(first_id.namespace_id, 4u);
+    EXPECT(first_id != original_id);
+    EXPECT_EQ(first_id, second_id);
+}
+
+TEST_CASE(restore_from_ui_snapshot_rejects_structurally_invalid_snapshots)
+{
+    auto restore = [](Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index) {
+        WebView::TraversableSessionHistory history;
+        auto result = history.restore_from_ui_snapshot(move(entries), move(used_steps), current_used_step_index, allocate_test_ui_process_document_state_id);
+        EXPECT(result.is_error());
+        EXPECT_EQ(result.error().string_literal(), restore_error_structurally_invalid);
+        EXPECT_EQ(history.size(), 0uz);
+    };
+
+    restore({}, { 0 }, 0);
+    restore({ entry(0, "https://a.example/"sv, 1, "main"sv) }, {}, 0);
+    restore({ entry(0, "https://a.example/"sv, 1, "main"sv) }, { 0 }, 5);
+    restore({ entry(0, "https://a.example/"sv, 1, "main"sv), entry(1, "https://b.example/"sv, 2, "main"sv) }, { 0, 5 }, 1);
+}
+
+TEST_CASE(restore_from_ui_snapshot_rejects_excessive_nesting_before_restoration)
+{
+    auto nested_entry = entry(0, "https://nested.example/"sv, 1, "frame"sv);
+    for (size_t depth = 0; depth <= WebView::MAX_NESTED_HISTORY_DEPTH; ++depth) {
+        Web::HTML::SessionHistoryNestedHistoryDescriptor nested_history {
+            .id = { 1, depth + 1 },
+            .entries = { move(nested_entry) },
+        };
+        nested_entry = entry_with_reload_pending(0, "https://nested.example/"sv, depth + 2, "frame"sv, { move(nested_history) });
+    }
+
+    WebView::TraversableSessionHistory history;
+    auto result = history.restore_from_ui_snapshot({ move(nested_entry) }, { 0 }, 0, allocate_test_ui_process_document_state_id);
+    EXPECT(result.is_error());
+    EXPECT_EQ(result.error().string_literal(), restore_error_structurally_invalid);
+    EXPECT_EQ(history.size(), 0uz);
+}
+
+TEST_CASE(restore_from_ui_snapshot_rejects_current_entry_without_document_state)
+{
+    WebView::TraversableSessionHistory history;
+
+    auto result = history.restore_from_ui_snapshot({
+                                                       entry(0, "https://a.example/"sv, 1, "main"sv),
+                                                       entry(1, "https://b.example/"sv),
+                                                   },
+        { 0, 1 }, 1, allocate_test_ui_process_document_state_id);
+
+    EXPECT(result.is_error());
+    EXPECT_EQ(result.error().string_literal(), restore_error_no_document_state);
+    EXPECT_EQ(history.size(), 0uz);
+}
+
+TEST_CASE(restore_from_ui_snapshot_rejects_used_step_without_top_level_entry)
+{
+    WebView::TraversableSessionHistory history;
+
+    // The only top-level entry is at step 5, but used step 1 (a nested step) has no top-level entry,
+    // so a later back traversal to step 1 would crash. The step set is internally consistent.
+    Vector<Web::HTML::SessionHistoryEntryDescriptor> entries;
+    entries.append(entry_with_reload_pending(5, "https://a.example/"sv, 1, "main"sv,
+        { nested_history("frame"sv, { entry(1, "https://nested.example/"sv) }) }));
+
+    auto result = history.restore_from_ui_snapshot(move(entries), { 1, 5 }, 1, allocate_test_ui_process_document_state_id);
+
+    EXPECT(result.is_error());
+    EXPECT_EQ(result.error().string_literal(), restore_error_step_not_reachable);
+    EXPECT_EQ(history.size(), 0uz);
+}
+
+TEST_CASE(restore_from_ui_snapshot_rejects_used_step_under_shadowed_top_level_entry)
+{
+    WebView::TraversableSessionHistory history;
+
+    // Nested step 4 lives under the step-0 entry, but the step-2 top-level entry shadows it, so
+    // top_level_entry_for_step(4) resolves to page 2, which does not contain step 4.
+    Vector<Web::HTML::SessionHistoryEntryDescriptor> entries;
+    entries.append(entry_with_reload_pending(0, "https://a.example/"sv, 1, "main"sv,
+        { nested_history("frame"sv, { entry(4, "https://nested.example/"sv) }) }));
+    entries.append(entry(2, "https://b.example/"sv, 2, "main"sv));
+
+    auto result = history.restore_from_ui_snapshot(move(entries), { 0, 2, 4 }, 1, allocate_test_ui_process_document_state_id);
+
+    EXPECT(result.is_error());
+    EXPECT_EQ(result.error().string_literal(), restore_error_step_not_reachable);
+    EXPECT_EQ(history.size(), 0uz);
+}
+
+TEST_CASE(restore_from_ui_snapshot_rejects_step_under_inactive_nested_sibling)
+{
+    WebView::TraversableSessionHistory history;
+
+    // The child history's active entry for step 4 is the sibling at step 2, but the step-4 grandchild
+    // lives under the inactive child at step 0, so step 4 is unreachable on the active path.
+    auto child_entry_0 = entry_with_reload_pending(0, "https://child0.example/"sv, 2, "frame"sv,
+        { nested_history("grandchild"sv, { entry(4, "https://grandchild.example/"sv) }) });
+    auto child_entry_2 = entry(2, "https://child2.example/"sv, 3, "frame"sv);
+
+    Vector<Web::HTML::SessionHistoryEntryDescriptor> entries;
+    entries.append(entry_with_reload_pending(0, "https://a.example/"sv, 1, "main"sv,
+        { nested_history("child"sv, { move(child_entry_0), move(child_entry_2) }) }));
+
+    auto result = history.restore_from_ui_snapshot(move(entries), { 0, 2, 4 }, 1, allocate_test_ui_process_document_state_id);
+
+    EXPECT(result.is_error());
+    EXPECT_EQ(result.error().string_literal(), restore_error_step_not_reachable);
+    EXPECT_EQ(history.size(), 0uz);
+}
+
+TEST_CASE(restore_from_ui_snapshot_leaves_history_untouched_on_failure)
+{
+    WebView::TraversableSessionHistory history;
+    MUST(history.restore_from_ui_snapshot({ entry(0, "https://a.example/"sv, 1, "main"sv) }, { 0 }, 0, allocate_test_ui_process_document_state_id));
+    EXPECT_EQ(history.size(), 1uz);
+
+    auto result = history.restore_from_ui_snapshot({}, { 0 }, 0, allocate_test_ui_process_document_state_id);
+    EXPECT(result.is_error());
+    EXPECT_EQ(result.error().string_literal(), restore_error_structurally_invalid);
+    EXPECT_EQ(history.size(), 1uz);
+    expect_current_entry(history, 0, "https://a.example/"sv);
 }
