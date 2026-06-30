@@ -90,6 +90,7 @@ public:
     RefPtr<Gfx::PaintingSurface> latest_rendered_surface() const { return m_latest_rendered_surface; }
 
     void apply_display_list_resource_transaction(Web::Painting::DisplayListResourceTransaction&&);
+    void update_image_frame_resources(Vector<Web::Painting::DisplayListImageFrameResource>);
     void install_display_list_update(
         NonnullRefPtr<Web::Painting::DisplayList>,
         Web::Painting::AccumulatedVisualContextTree,
