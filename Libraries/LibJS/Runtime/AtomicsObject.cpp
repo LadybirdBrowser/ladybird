@@ -27,7 +27,7 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(AtomicsObject);
 
-// 25.4.2.1 ValidateIntegerTypedArray ( typedArray, waitable ), https://tc39.es/ecma262/#sec-validateintegertypedarray
+// 25.4.3.1 ValidateIntegerTypedArray ( typedArray, waitable ), https://tc39.es/ecma262/#sec-validateintegertypedarray
 static ThrowCompletionOr<TypedArrayWithBufferWitness> validate_integer_typed_array(VM& vm, TypedArrayBase const& typed_array, bool waitable)
 {
     // 1. Let taRecord be ? ValidateTypedArray(typedArray, unordered).
@@ -56,7 +56,7 @@ static ThrowCompletionOr<TypedArrayWithBufferWitness> validate_integer_typed_arr
     return typed_array_record;
 }
 
-// 25.4.2.2 ValidateAtomicAccess ( taRecord, requestIndex ), https://tc39.es/ecma262/#sec-validateatomicaccess
+// 25.4.3.2 ValidateAtomicAccess ( taRecord, requestIndex ), https://tc39.es/ecma262/#sec-validateatomicaccess
 static ThrowCompletionOr<size_t> validate_atomic_access(VM& vm, TypedArrayWithBufferWitness const& typed_array_record, Value request_index)
 {
     // 1. Let length be TypedArrayLength(taRecord).
@@ -117,30 +117,6 @@ static ThrowCompletionOr<void> revalidate_atomic_access(VM& vm, TypedArrayBase c
     return {};
 }
 
-// 25.4.2.17 AtomicReadModifyWrite ( typedArray, index, value, op ), https://tc39.es/ecma262/#sec-atomicreadmodifywrite
-static ThrowCompletionOr<Value> atomic_read_modify_write(VM& vm, TypedArrayBase& typed_array, Value index, Value value, ReadWriteModifyFunction operation)
-{
-    // 1. Let byteIndexInBuffer be ? ValidateAtomicAccessOnIntegerTypedArray(typedArray, index).
-    auto byte_index_in_buffer = TRY(validate_atomic_access_on_integer_typed_array(vm, typed_array, index));
-
-    Value value_to_set;
-
-    // 2. If typedArray.[[ContentType]] is bigint, let v be ? ToBigInt(value).
-    if (typed_array.content_type() == TypedArrayBase::ContentType::BigInt)
-        value_to_set = TRY(value.to_bigint(vm));
-    // 3. Otherwise, let v be 𝔽(? ToIntegerOrInfinity(value)).
-    else
-        value_to_set = Value(TRY(value.to_integer_or_infinity(vm)));
-
-    // 4. Perform ? RevalidateAtomicAccess(typedArray, byteIndexInBuffer).
-    TRY(revalidate_atomic_access(vm, typed_array, byte_index_in_buffer));
-
-    // 5. Let buffer be typedArray.[[ViewedArrayBuffer]].
-    // 6. Let elementType be TypedArrayElementType(typedArray).
-    // 7. Return GetModifySetValueInBuffer(buffer, byteIndexInBuffer, elementType, v, op).
-    return typed_array.get_modify_set_value_in_buffer(byte_index_in_buffer, value_to_set, move(operation));
-}
-
 enum class WaitMode {
     Sync,
     Async,
@@ -197,6 +173,30 @@ static ThrowCompletionOr<Value> do_wait(VM& vm, WaitMode mode, TypedArrayBase& t
     return vm.throw_completion<InternalError>(ErrorType::NotImplemented, "SharedArrayBuffer"sv);
 }
 
+// 25.4.3.17 AtomicReadModifyWrite ( typedArray, index, value, op ), https://tc39.es/ecma262/#sec-atomicreadmodifywrite
+static ThrowCompletionOr<Value> atomic_read_modify_write(VM& vm, TypedArrayBase& typed_array, Value index, Value value, ReadWriteModifyFunction operation)
+{
+    // 1. Let byteIndexInBuffer be ? ValidateAtomicAccessOnIntegerTypedArray(typedArray, index).
+    auto byte_index_in_buffer = TRY(validate_atomic_access_on_integer_typed_array(vm, typed_array, index));
+
+    Value value_to_set;
+
+    // 2. If typedArray.[[ContentType]] is bigint, let v be ? ToBigInt(value).
+    if (typed_array.content_type() == TypedArrayBase::ContentType::BigInt)
+        value_to_set = TRY(value.to_bigint(vm));
+    // 3. Otherwise, let v be 𝔽(? ToIntegerOrInfinity(value)).
+    else
+        value_to_set = Value(TRY(value.to_integer_or_infinity(vm)));
+
+    // 4. Perform ? RevalidateAtomicAccess(typedArray, byteIndexInBuffer).
+    TRY(revalidate_atomic_access(vm, typed_array, byte_index_in_buffer));
+
+    // 5. Let buffer be typedArray.[[ViewedArrayBuffer]].
+    // 6. Let elementType be TypedArrayElementType(typedArray).
+    // 7. Return GetModifySetValueInBuffer(buffer, byteIndexInBuffer, elementType, v, op).
+    return typed_array.get_modify_set_value_in_buffer(byte_index_in_buffer, value_to_set, move(operation));
+}
+
 template<typename T, typename AtomicFunction>
 static ThrowCompletionOr<Value> perform_atomic_operation(VM& vm, TypedArrayBase& typed_array, AtomicFunction&& operation)
 {
@@ -247,7 +247,7 @@ void AtomicsObject::initialize(Realm& realm)
     define_native_function(realm, vm.names.notify, notify, 3, attr);
     define_native_function(realm, vm.names.xor_, xor_, 3, attr);
 
-    // 25.4.17 Atomics [ @@toStringTag ], https://tc39.es/ecma262/#sec-atomics-@@tostringtag
+    // 25.4.18 Atomics [ %Symbol.toStringTag% ], https://tc39.es/ecma262/#sec-atomics-@@tostringtag
     define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Atomics"_utf16_fly_string), Attribute::Configurable);
 }
 
@@ -427,7 +427,50 @@ JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::load)
     return typed_array->get_value_from_buffer(byte_index_in_buffer, ArrayBuffer::Order::SeqCst, true);
 }
 
-// 25.4.10 Atomics.or ( typedArray, index, value ), https://tc39.es/ecma262/#sec-atomics.or
+// 25.4.10 Atomics.notify ( typedArray, index, count ), https://tc39.es/ecma262/#sec-atomics.notify
+JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::notify)
+{
+    auto* typed_array = TRY(typed_array_from(vm, vm.argument(0)));
+    auto index = vm.argument(1);
+    auto count_value = vm.argument(2);
+
+    // 1. Let byteIndexInBuffer be ? ValidateAtomicAccessOnIntegerTypedArray(typedArray, index, true).
+    auto byte_index_in_buffer = TRY(validate_atomic_access_on_integer_typed_array(vm, *typed_array, index, true));
+
+    // 2. If count is undefined, then
+    double count = 0.0;
+    if (count_value.is_undefined()) {
+        // a. Let c be +∞.
+        count = js_infinity().as_double();
+    }
+    // 3. Else,
+    else {
+        // a. Let intCount be ? ToIntegerOrInfinity(count).
+        auto int_count = TRY(count_value.to_integer_or_infinity(vm));
+
+        // b. Let c be max(intCount, 0).
+        count = max(int_count, 0.0);
+    }
+
+    // 4. Let buffer be typedArray.[[ViewedArrayBuffer]].
+    auto* buffer = typed_array->viewed_array_buffer();
+
+    // 5. Let block be buffer.[[ArrayBufferData]].
+    auto block = buffer->bytes();
+
+    // 6. If IsSharedArrayBuffer(buffer) is false, return +0𝔽.
+    if (!buffer->is_shared_array_buffer())
+        return Value { 0 };
+
+    // FIXME: Implement the remaining steps when we support SharedArrayBuffer.
+    (void)byte_index_in_buffer;
+    (void)count;
+    (void)block;
+
+    return vm.throw_completion<InternalError>(ErrorType::NotImplemented, "SharedArrayBuffer"sv);
+}
+
+// 25.4.11 Atomics.or ( typedArray, index, value ), https://tc39.es/ecma262/#sec-atomics.or
 JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::or_)
 {
     auto* typed_array = TRY(typed_array_from(vm, vm.argument(0)));
@@ -477,7 +520,7 @@ JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::pause)
     return js_undefined();
 }
 
-// 25.4.11 Atomics.store ( typedArray, index, value ), https://tc39.es/ecma262/#sec-atomics.store
+// 25.4.13 Atomics.store ( typedArray, index, value ), https://tc39.es/ecma262/#sec-atomics.store
 JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::store)
 {
     auto* typed_array = TRY(typed_array_from(vm, vm.argument(0)));
@@ -506,7 +549,7 @@ JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::store)
     return value;
 }
 
-// 25.4.12 Atomics.sub ( typedArray, index, value ), https://tc39.es/ecma262/#sec-atomics.sub
+// 25.4.14 Atomics.sub ( typedArray, index, value ), https://tc39.es/ecma262/#sec-atomics.sub
 JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::sub)
 {
     auto* typed_array = TRY(typed_array_from(vm, vm.argument(0)));
@@ -522,7 +565,7 @@ JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::sub)
     VERIFY_NOT_REACHED();
 }
 
-// 25.4.13 Atomics.wait ( typedArray, index, value, timeout ), https://tc39.es/ecma262/#sec-atomics.wait
+// 25.4.15 Atomics.wait ( typedArray, index, value, timeout ), https://tc39.es/ecma262/#sec-atomics.wait
 JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::wait)
 {
     auto* typed_array = TRY(typed_array_from(vm, vm.argument(0)));
@@ -534,7 +577,7 @@ JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::wait)
     return TRY(do_wait(vm, WaitMode::Sync, *typed_array, index, value, timeout));
 }
 
-// 25.4.14 Atomics.waitAsync ( typedArray, index, value, timeout ), https://tc39.es/ecma262/#sec-atomics.waitasync
+// 25.4.16 Atomics.waitAsync ( typedArray, index, value, timeout ), https://tc39.es/ecma262/#sec-atomics.waitasync
 JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::wait_async)
 {
     auto* typed_array = TRY(typed_array_from(vm, vm.argument(0)));
@@ -546,50 +589,7 @@ JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::wait_async)
     return TRY(do_wait(vm, WaitMode::Async, *typed_array, index, value, timeout));
 }
 
-// 25.4.15 Atomics.notify ( typedArray, index, count ), https://tc39.es/ecma262/#sec-atomics.notify
-JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::notify)
-{
-    auto* typed_array = TRY(typed_array_from(vm, vm.argument(0)));
-    auto index = vm.argument(1);
-    auto count_value = vm.argument(2);
-
-    // 1. Let byteIndexInBuffer be ? ValidateAtomicAccessOnIntegerTypedArray(typedArray, index, true).
-    auto byte_index_in_buffer = TRY(validate_atomic_access_on_integer_typed_array(vm, *typed_array, index, true));
-
-    // 2. If count is undefined, then
-    double count = 0.0;
-    if (count_value.is_undefined()) {
-        // a. Let c be +∞.
-        count = js_infinity().as_double();
-    }
-    // 3. Else,
-    else {
-        // a. Let intCount be ? ToIntegerOrInfinity(count).
-        auto int_count = TRY(count_value.to_integer_or_infinity(vm));
-
-        // b. Let c be max(intCount, 0).
-        count = max(int_count, 0.0);
-    }
-
-    // 4. Let buffer be typedArray.[[ViewedArrayBuffer]].
-    auto* buffer = typed_array->viewed_array_buffer();
-
-    // 5. Let block be buffer.[[ArrayBufferData]].
-    auto block = buffer->bytes();
-
-    // 6. If IsSharedArrayBuffer(buffer) is false, return +0𝔽.
-    if (!buffer->is_shared_array_buffer())
-        return Value { 0 };
-
-    // FIXME: Implement the remaining steps when we support SharedArrayBuffer.
-    (void)byte_index_in_buffer;
-    (void)count;
-    (void)block;
-
-    return vm.throw_completion<InternalError>(ErrorType::NotImplemented, "SharedArrayBuffer"sv);
-}
-
-// 25.4.16 Atomics.xor ( typedArray, index, value ), https://tc39.es/ecma262/#sec-atomics.xor
+// 25.4.17 Atomics.xor ( typedArray, index, value ), https://tc39.es/ecma262/#sec-atomics.xor
 JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::xor_)
 {
     auto* typed_array = TRY(typed_array_from(vm, vm.argument(0)));
