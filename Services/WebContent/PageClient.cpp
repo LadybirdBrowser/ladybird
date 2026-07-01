@@ -1011,11 +1011,6 @@ void PageClient::send_current_needs_beforeunload_check()
     client().async_did_change_needs_beforeunload_check(m_id, page().needs_beforeunload_check());
 }
 
-void PageClient::page_did_update_navigation_buttons_state(bool back_enabled, bool forward_enabled)
-{
-    client().async_did_update_navigation_buttons_state(m_id, back_enabled, forward_enabled);
-}
-
 bool PageClient::should_report_session_history_updates() const
 {
     return !Web::HTML::Window::in_test_mode() || s_should_report_session_history_updates_in_test_mode;

@@ -179,11 +179,6 @@ void Page::traverse_the_history_by_delta(int delta)
     if (m_client->page_did_request_traverse_the_history_by_delta(delta, HistoryTraversalPrecheck::Needed))
         return;
 
-    traverse_the_history_by_delta_from_ui_process(delta);
-}
-
-void Page::traverse_the_history_by_delta_from_ui_process(int delta)
-{
     top_level_traversable()->traverse_the_history_by_delta(delta);
 }
 

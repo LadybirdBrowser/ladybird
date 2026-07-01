@@ -1426,11 +1426,6 @@ Messages::WebContentClient::DidRequestTraverseTheHistoryByDeltaResponse WebConte
             auto check_for_cancelation = ViewImplementation::CheckForCancelation::IfWebContentCannotTraverseTarget;
             if (history_traversal_precheck == Web::HistoryTraversalPrecheck::Needed)
                 check_for_cancelation = ViewImplementation::CheckForCancelation::Yes;
-            // NB: SourceDocumentSandboxingAlreadyDone only covers the source-document sandboxing
-            //     check. If the UI process has to apply the traversal itself, WebContent still needs
-            //     to run the cancelable part of the traverse history step prechecks.
-            else if (history_traversal_precheck == Web::HistoryTraversalPrecheck::SourceDocumentSandboxingAlreadyDone)
-                check_for_cancelation = ViewImplementation::CheckForCancelation::Yes;
             (void)view->traverse_the_history_by_delta(delta, check_for_cancelation);
         });
         return true;
@@ -1708,15 +1703,6 @@ void WebContentClient::did_change_audio_play_state(u64 page_id, Web::HTML::Audio
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
         view->did_change_audio_play_state({}, play_state);
-}
-
-void WebContentClient::did_update_navigation_buttons_state(u64 page_id, bool back_enabled, bool forward_enabled)
-{
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->should_manage_session_history_in_ui_process())
-            return;
-        view->did_update_navigation_buttons_state({}, back_enabled, forward_enabled);
-    }
 }
 
 void WebContentClient::did_update_session_history(u64 page_id, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index)

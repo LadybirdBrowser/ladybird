@@ -113,7 +113,6 @@ public:
     void reload();
 
     void traverse_the_history_by_delta(int delta);
-    void traverse_the_history_by_delta_from_ui_process(int delta);
 
     CSSPixelPoint device_to_css_point(DevicePixelPoint) const;
     DevicePixelPoint css_to_device_point(CSSPixelPoint) const;
@@ -414,7 +413,6 @@ enum class ContextMenuForInputEventsTarget : u8 {
 enum class HistoryTraversalPrecheck : u8 {
     Needed,
     AlreadyDone,
-    SourceDocumentSandboxingAlreadyDone,
 };
 
 enum class NavigationTarget : u8 {
@@ -564,7 +562,6 @@ public:
     virtual NewWebViewResult page_did_request_new_web_view(HTML::ActivateTab, HTML::WebViewHints, HTML::TokenizedFeature::NoOpener) { return {}; }
     virtual void page_did_request_activate_tab() { }
     virtual void page_did_close_top_level_traversable() { }
-    virtual void page_did_update_navigation_buttons_state([[maybe_unused]] bool back_enabled, [[maybe_unused]] bool forward_enabled) { }
     virtual bool should_report_session_history_updates() const { return true; }
     virtual void page_did_update_session_history([[maybe_unused]] Vector<HTML::SessionHistoryEntryDescriptor> const& entries, [[maybe_unused]] Vector<i32> const& used_steps, [[maybe_unused]] size_t current_used_step_index) { }
     virtual String page_did_request_ui_process_session_history_for_testing() { return "{}"_string; }

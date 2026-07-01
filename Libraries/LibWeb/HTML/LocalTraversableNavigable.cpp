@@ -502,7 +502,6 @@ void LocalTraversableNavigable::reset_session_history_for_testing(GC::Ref<GC::Fu
             page().client().page_did_update_session_history(session_history_snapshot.top_level_session_history_entries, session_history_snapshot.used_session_history_steps, session_history_snapshot.current_used_step_index);
         }
 
-        page().client().page_did_update_navigation_buttons_state(false, false);
         signal->resolve({});
         on_complete->function()();
     }));
@@ -1558,9 +1557,6 @@ void ApplyHistoryStepState::complete()
         }
 
         VERIFY(m_traversable->m_session_history_entries.size() > 0);
-        auto back_enabled = m_traversable->can_go_back();
-        auto forward_enabled = m_traversable->can_go_forward();
-        m_traversable->page().client().page_did_update_navigation_buttons_state(back_enabled, forward_enabled);
         m_traversable->page().client().page_did_change_url(m_traversable->current_session_history_entry()->url());
     }
 
@@ -2455,7 +2451,6 @@ bool LocalTraversableNavigable::try_to_synchronously_commit_same_document_naviga
     }
 
     VERIFY(session_history_entries().size() > 0);
-    page().client().page_did_update_navigation_buttons_state(can_go_back(), can_go_forward());
     page().client().page_did_change_url(current_session_history_entry()->url());
     return true;
 }
