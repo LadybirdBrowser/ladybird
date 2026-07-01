@@ -14,7 +14,7 @@
 #    include <unistd.h>
 #endif
 
-TEST_CASE(allocation)
+TEST_CASE(small_allocation)
 {
     auto& storage = GC::PrimitiveStorage::the();
     auto handle = MUST(storage.try_allocate(32));
@@ -27,6 +27,14 @@ TEST_CASE(allocation)
     storage.bytes(handle).fill(0xaa);
     EXPECT_EQ(storage.bytes(handle)[0], 0xaa);
 
+    storage.free(handle);
+}
+
+TEST_CASE(free_maximum_small_allocation)
+{
+    auto& storage = GC::PrimitiveStorage::the();
+    auto handle = MUST(storage.try_allocate(64 * KiB));
+    EXPECT_EQ(storage.capacity(handle), 64u * KiB);
     storage.free(handle);
 }
 

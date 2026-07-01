@@ -6,6 +6,7 @@
 
 #include <AK/Checked.h>
 #include <AK/NeverDestroyed.h>
+#include <AK/ScopeGuard.h>
 #include <LibCore/System.h>
 #include <LibGC/PrimitiveStorage.h>
 
@@ -15,10 +16,34 @@ GC_API FlatPtr js_primitive_storage_cage_base = 0;
 
 namespace GC {
 
+static constexpr size_t small_slab_size = 64 * KiB;
+static constexpr size_t minimum_small_slot_size = 16;
+static constexpr size_t maximum_small_slot_size = 64 * KiB;
+
 static size_t round_up_to_page(size_t value)
 {
     auto page = static_cast<size_t>(PAGE_SIZE);
     return align_up_to(value, page);
+}
+
+static Optional<u16> small_size_class_index(size_t size)
+{
+    auto slot_size = max(size, minimum_small_slot_size);
+    if (slot_size > maximum_small_slot_size)
+        return {};
+
+    size_t class_size = minimum_small_slot_size;
+    u16 index = 0;
+    while (class_size < slot_size) {
+        class_size <<= 1;
+        ++index;
+    }
+    return index;
+}
+
+static size_t small_slot_size_for_class(u16 index)
+{
+    return minimum_small_slot_size << index;
 }
 
 PrimitiveStorage& PrimitiveStorage::the()
@@ -54,10 +79,85 @@ ErrorOr<void> PrimitiveStorage::Allocator::ensure_cage()
     return {};
 }
 
-ErrorOr<PrimitiveStorage::Allocator::Allocation> PrimitiveStorage::Allocator::allocate(size_t size, size_t capacity, ZeroFillNewBytes zero_fill_new_bytes, size_t guard_size, bool)
+ErrorOr<PrimitiveStorage::Allocator::Allocation> PrimitiveStorage::Allocator::allocate(size_t size, size_t capacity, ZeroFillNewBytes zero_fill_new_bytes, size_t guard_size, bool force_large)
 {
     VERIFY(size <= capacity);
+    if (!force_large && guard_size == 0 && size == capacity && small_size_class_index(size).has_value())
+        return allocate_small_storage(size, zero_fill_new_bytes);
     return allocate_large_storage(size, capacity, zero_fill_new_bytes, guard_size);
+}
+
+ErrorOr<PrimitiveStorage::Allocator::Allocation> PrimitiveStorage::Allocator::allocate_small_storage(size_t size, ZeroFillNewBytes zero_fill_new_bytes)
+{
+    auto size_class_index = small_size_class_index(size);
+    VERIFY(size_class_index.has_value());
+
+    TRY(ensure_cage());
+
+    auto slot_size = small_slot_size_for_class(*size_class_index);
+    auto& slabs = m_small_slabs[*size_class_index];
+
+    for (u32 slab_index = 0; slab_index < slabs.size(); ++slab_index) {
+        auto& slab = slabs[slab_index];
+        if (slab.free_slots.is_empty())
+            continue;
+
+        auto slot_index = slab.free_slots.take_last();
+        ++slab.used_slot_count;
+        auto offset = slab.offset + slot_index * slot_size;
+        if (zero_fill_new_bytes == ZeroFillNewBytes::Yes)
+            __builtin_memset(m_cage_base + offset, 0, size);
+        return Allocation {
+            .offset = offset,
+            .capacity = slot_size,
+            .reservation_size = slot_size,
+            .committed_size = slot_size,
+            .small_allocation = SmallAllocation { *size_class_index, static_cast<u16>(slab_index), slot_index },
+        };
+    }
+
+    return allocate_from_new_slab(*size_class_index, slot_size, zero_fill_new_bytes, size);
+}
+
+ErrorOr<PrimitiveStorage::Allocator::Allocation> PrimitiveStorage::Allocator::allocate_from_new_slab(u16 size_class_index, size_t slot_size, ZeroFillNewBytes zero_fill_new_bytes, size_t requested_size)
+{
+    auto& slabs = m_small_slabs[size_class_index];
+    if (slabs.size() >= NumericLimits<u16>::max())
+        return Error::from_errno(ENOMEM);
+
+    auto slab_offset = TRY(allocate_cage_range(small_slab_size));
+    auto commit_result = Core::System::commit_memory(m_cage_base + slab_offset, small_slab_size);
+    if (commit_result.is_error()) {
+        release_cage_range(slab_offset, small_slab_size);
+        return commit_result.release_error();
+    }
+    auto release_slab_on_error = ArmedScopeGuard([&] {
+        release_cage_range(slab_offset, small_slab_size);
+    });
+
+    Slab slab;
+    slab.offset = slab_offset;
+    slab.slot_size = slot_size;
+    slab.slot_count = static_cast<u32>(small_slab_size / slot_size);
+    slab.used_slot_count = 1;
+    slab.free_slots.ensure_capacity(slab.slot_count);
+    for (u32 slot = slab.slot_count - 1; slot > 0; --slot)
+        slab.free_slots.unchecked_append(slot);
+
+    auto slab_index = static_cast<u16>(slabs.size());
+    slabs.append(move(slab));
+    release_slab_on_error.disarm();
+
+    if (zero_fill_new_bytes == ZeroFillNewBytes::Yes)
+        __builtin_memset(m_cage_base + slab_offset, 0, requested_size);
+
+    return Allocation {
+        .offset = slab_offset,
+        .capacity = slot_size,
+        .reservation_size = slot_size,
+        .committed_size = slot_size,
+        .small_allocation = SmallAllocation { size_class_index, slab_index, 0 },
+    };
 }
 
 ErrorOr<PrimitiveStorage::Allocator::Allocation> PrimitiveStorage::Allocator::allocate_large_storage(size_t size, size_t capacity, ZeroFillNewBytes zero_fill_new_bytes, size_t guard_size)
@@ -88,6 +188,7 @@ ErrorOr<PrimitiveStorage::Allocator::Allocation> PrimitiveStorage::Allocator::al
         .capacity = capacity,
         .reservation_size = reservation_size.value(),
         .committed_size = committed_size,
+        .small_allocation = {},
     };
 }
 
@@ -125,7 +226,8 @@ ErrorOr<void> PrimitiveStorage::Allocator::resize(Allocation& allocation, size_t
 {
     VERIFY(new_size <= allocation.capacity);
 
-    TRY(commit_large_storage(allocation, new_size));
+    if (!allocation.small_allocation.has_value())
+        TRY(commit_large_storage(allocation, new_size));
 
     if (zero_fill_new_bytes == ZeroFillNewBytes::Yes && new_size > old_size)
         __builtin_memset(data(allocation, old_size), 0, new_size - old_size);
@@ -135,6 +237,7 @@ ErrorOr<void> PrimitiveStorage::Allocator::resize(Allocation& allocation, size_t
 
 ErrorOr<void> PrimitiveStorage::Allocator::commit_large_storage(Allocation& allocation, size_t new_size)
 {
+    VERIFY(!allocation.small_allocation.has_value());
     VERIFY(new_size <= allocation.capacity);
 
     auto new_committed_size = round_up_to_page(new_size);
@@ -148,6 +251,7 @@ ErrorOr<void> PrimitiveStorage::Allocator::commit_large_storage(Allocation& allo
 
 void PrimitiveStorage::Allocator::decommit_large_storage(Allocation const& allocation)
 {
+    VERIFY(!allocation.small_allocation.has_value());
     if (allocation.committed_size == 0)
         return;
     MUST(Core::System::decommit_memory(m_cage_base + allocation.offset, allocation.committed_size));
@@ -169,6 +273,18 @@ ErrorOr<PrimitiveStorage::Allocator::Allocation> PrimitiveStorage::Allocator::re
 
 void PrimitiveStorage::Allocator::deallocate(Allocation& allocation)
 {
+    if (auto small_allocation = allocation.small_allocation; small_allocation.has_value()) {
+        auto& slabs = m_small_slabs[small_allocation->size_class_index];
+        VERIFY(small_allocation->slab_index < slabs.size());
+        auto& slab = slabs[small_allocation->slab_index];
+        VERIFY(slab.free_slots.size() < slab.slot_count);
+        slab.free_slots.unchecked_append(small_allocation->slot_index);
+        VERIFY(slab.used_slot_count > 0);
+        --slab.used_slot_count;
+        allocation = {};
+        return;
+    }
+
     if (allocation.reservation_size > 0) {
         decommit_large_storage(allocation);
         release_cage_range(allocation.offset, allocation.reservation_size);
