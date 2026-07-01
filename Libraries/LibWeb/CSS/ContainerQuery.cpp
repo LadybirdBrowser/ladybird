@@ -16,6 +16,7 @@
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
@@ -300,6 +301,19 @@ MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& con
         auto right_color = right_absolutized->to_color(color_resolution_context);
         if (left_color.has_value() || right_color.has_value())
             return left_color.has_value() && right_color.has_value() && left_color.value() == right_color.value();
+
+        auto calculation_resolution_context = CalculationResolutionContext::from_computation_context(computation_context);
+        auto left_resolved = left_absolutized->is_calculated()
+            ? left_absolutized->as_calculated().resolve_as_style_value(calculation_resolution_context)
+            : nullptr;
+        auto right_resolved = right_absolutized->is_calculated()
+            ? right_absolutized->as_calculated().resolve_as_style_value(calculation_resolution_context)
+            : nullptr;
+        if (left_resolved || right_resolved) {
+            auto const& comparable_left = left_resolved ? *left_resolved : *left_absolutized;
+            auto const& comparable_right = right_resolved ? *right_resolved : *right_absolutized;
+            return comparable_left.equals(comparable_right);
+        }
 
         return left_absolutized->equals(*right_absolutized);
     };

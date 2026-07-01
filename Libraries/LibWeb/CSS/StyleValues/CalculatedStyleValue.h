@@ -108,6 +108,8 @@ public:
     Optional<double> resolve_number(CalculationResolutionContext const&) const;
     Optional<i32> resolve_integer(CalculationResolutionContext const&) const;
 
+    RefPtr<StyleValue const> resolve_as_style_value(CalculationResolutionContext const&) const;
+
     bool resolves_to_dimension() const { return m_resolved_type.matches_dimension(); }
 
     bool contains_percentage() const;
