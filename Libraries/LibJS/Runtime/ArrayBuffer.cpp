@@ -125,6 +125,8 @@ void ArrayBuffer::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_detach_key);
     if (auto* external = m_data_block.byte_buffer.get_pointer<DataBlock::UnownedExternalBuffer>())
         visitor.visit(external->owner);
+    if (auto* external = m_data_block.byte_buffer.get_pointer<DataBlock::ExternalPrimitiveStorage>())
+        visitor.visit(external->owner);
 }
 
 // 6.2.9.1 CreateByteDataBlock ( size ), https://tc39.es/ecma262/#sec-createbytedatablock
