@@ -1,0 +1,6 @@
+unary-deep: SyntaxError
+parens-deep: SyntaxError
+array-deep: SyntaxError
+block-deep: SyntaxError
+binding-deep: SyntaxError
+shallow: parsed

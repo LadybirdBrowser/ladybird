@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="./include.js"></script>
+<script>
+    test(() => {
+        // Deeply-nested input must throw a SyntaxError, not exhaust the native stack and crash the parser. See #5749.
+        function check(label, source) {
+            try {
+                eval(source);
+                println(`${label}: parsed`);
+            } catch (e) {
+                println(`${label}: ${e.constructor.name}`);
+            }
+        }
+
+        check("unary-deep", "!".repeat(100000) + "1");
+        check("parens-deep", "(".repeat(100000) + "1" + ")".repeat(100000));
+        check("array-deep", "[".repeat(100000) + "1" + "]".repeat(100000));
+        check("block-deep", "{".repeat(100000) + "}".repeat(100000));
+        check("binding-deep", "var " + "[".repeat(100000) + "a" + "]".repeat(100000) + "=0");
+
+        // A shallow expression must still parse successfully.
+        check("shallow", "!".repeat(50) + "1");
+    });
+</script>

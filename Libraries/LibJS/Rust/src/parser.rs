@@ -279,6 +279,12 @@ pub struct Parser<'a> {
     pub(crate) class_has_super_class: bool,
     /// Depth counter for class bodies — used to reject `#name` outside classes.
     pub(crate) class_scope_depth: u32,
+    /// Current expression-parser recursion depth, used to guard against native
+    /// stack exhaustion from pathologically-nested expressions (see #5749).
+    recursion_depth: u32,
+    /// Set once the recursion-depth limit is hit — so parsing loops stop
+    /// spinning on unconsumed input after a placeholder node is returned.
+    recursion_limit_reached: bool,
     pub(crate) has_default_export_name: bool,
 
     /// Stack of sets tracking private names referenced inside class bodies.
@@ -354,6 +360,8 @@ impl<'a> Parser<'a> {
             allow_member_expressions: false,
             class_has_super_class: false,
             class_scope_depth: 0,
+            recursion_depth: 0,
+            recursion_limit_reached: false,
             has_default_export_name: false,
             referenced_private_names_stack: Vec::new(),
             eval_referenced_private_names: Vec::new(),
@@ -528,7 +536,7 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn done(&self) -> bool {
-        self.match_token(TokenType::Eof)
+        self.recursion_limit_reached || self.match_token(TokenType::Eof)
     }
 
     // === Token consumption ===
@@ -675,6 +683,31 @@ impl<'a> Parser<'a> {
     }
 
     // === Error reporting ===
+
+    /// Maximum parser recursion depth. Beyond this, the parser reports a syntax
+    /// error — rather than exhausting the native stack, which would crash the
+    /// process on pathologically-nested input (see #5749).
+    const MAX_RECURSION_DEPTH: u32 = 2000;
+
+    /// Enters a nested-parse recursion level. Returns false if the maximum depth
+    /// would be exceeded — in which case a syntax error is recorded, and the caller
+    /// must return a placeholder node instead of recursing further.
+    #[must_use]
+    fn enter_recursion(&mut self) -> bool {
+        self.recursion_depth += 1;
+        if self.recursion_depth > Self::MAX_RECURSION_DEPTH {
+            self.recursion_depth -= 1;
+            self.recursion_limit_reached = true;
+            self.syntax_error("Maximum parser recursion depth exceeded");
+            return false;
+        }
+        true
+    }
+
+    /// Leaves a recursion level previously entered via enter_recursion.
+    fn leave_recursion(&mut self) {
+        self.recursion_depth -= 1;
+    }
 
     pub(crate) fn syntax_error(&mut self, message: &str) {
         self.errors.push(ParseError {
