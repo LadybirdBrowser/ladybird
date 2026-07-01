@@ -2597,7 +2597,7 @@ WebIDL::ExceptionOr<void> Element::set_outer_html(TrustedTypes::TrustedHTMLOrStr
     auto fragment = TRY(as<Element>(*parent).parse_fragment(compliant_string.to_utf8_but_should_be_ported_to_utf16()));
 
     // 6. Replace this with fragment within this's parent.
-    TRY(parent->replace_child(fragment, *this));
+    TRY(this->parent()->replace_child(fragment, *this));
 
     return {};
 }
