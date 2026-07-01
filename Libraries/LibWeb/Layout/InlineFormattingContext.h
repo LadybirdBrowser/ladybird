@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Optional.h>
 #include <AK/Types.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/BlockContainer.h>
@@ -29,10 +30,11 @@ public:
 
     void dimension_box_on_line(Box const&, LayoutMode);
 
-    CSSPixels leftmost_inline_offset_at(CSSPixels y) const;
-    AvailableSize available_space_for_line(CSSPixels y) const;
-    bool any_floats_intrude_at_block_offset(CSSPixels block_offset) const;
-    bool can_fit_new_line_at_block_offset(CSSPixels block_offset) const;
+    CSSPixels leftmost_inline_offset_at(CSSPixels block_offset, CSSPixels line_height) const;
+    AvailableSize available_space_for_line(CSSPixels block_offset, CSSPixels line_height) const;
+    bool any_floats_intrude_in_block_range(CSSPixels block_start, CSSPixels block_end) const;
+    bool can_fit_new_line_at_block_offset(CSSPixels block_offset, CSSPixels line_height) const;
+    Optional<CSSPixels> next_float_band_block_start_after(CSSPixels block_offset) const;
 
     CSSPixels vertical_float_clearance() const;
     void set_vertical_float_clearance(CSSPixels);

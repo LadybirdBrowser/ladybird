@@ -46,7 +46,7 @@ public:
     CSSPixels current_block_offset() const { return m_current_block_offset; }
 
     void recalculate_available_space();
-    CSSPixels y_for_float_to_be_inserted_here(Box const&);
+    CSSPixels ceiling_for_float_to_be_inserted_here(Box const&);
 
     void did_introduce_clearance(CSSPixels);
 

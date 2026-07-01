@@ -193,18 +193,6 @@ protected:
         CSSPixels right { 0 };
     };
 
-    struct SpaceUsedAndContainingMarginForFloats {
-        // Width for left / right floats, including their own margins.
-        CSSPixels left_used_space;
-        CSSPixels right_used_space;
-        // Left / right total margins from the outermost containing block to the floating element.
-        // Each block in the containing chain adds its own margin and we store the total here.
-        CSSPixels left_total_containing_margin;
-        CSSPixels right_total_containing_margin;
-        Box const* matching_left_float_box { nullptr };
-        Box const* matching_right_float_box { nullptr };
-    };
-
     struct ShrinkToFitResult {
         CSSPixels preferred_width { 0 };
         CSSPixels preferred_minimum_width { 0 };
