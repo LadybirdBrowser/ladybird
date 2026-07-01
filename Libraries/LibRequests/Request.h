@@ -131,6 +131,7 @@ private:
 
     void attach_read_stream();
     void set_up_internal_stream_data(DataReceived on_data_available);
+    void defer_teardown();
 
     WeakPtr<RequestClient> m_client;
     u64 m_request_id { 0 };
