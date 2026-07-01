@@ -26,9 +26,6 @@ public:
     virtual CSSPixels automatic_content_width() const override;
     virtual CSSPixels automatic_content_height() const override;
 
-    auto const& left_side_floats() const { return m_left_floats; }
-    auto const& right_side_floats() const { return m_right_floats; }
-
     bool box_should_avoid_floats_because_it_establishes_fc(Box const&);
     void compute_width(Box const&, AvailableSpace const&);
     void avoid_float_intrusions(Box const&, AvailableSpace const&);
@@ -44,19 +41,17 @@ public:
     template<typename Callback>
     void for_each_floating_box(Callback callback)
     {
-        for (auto const& floating_box : m_left_floats.all_boxes) {
-            if (callback(*floating_box) == IterationDecision::Break)
-                return;
-        }
-        for (auto const& floating_box : m_right_floats.all_boxes) {
+        for (auto const& floating_box : m_floats) {
             if (callback(*floating_box) == IterationDecision::Break)
                 return;
         }
     }
 
-    SpaceUsedAndContainingMarginForFloats space_used_and_containing_margin_for_floats(CSSPixels y) const;
+    [[nodiscard]] SpaceUsedByFloats available_inline_space(CSSPixels block_start_in_root, CSSPixels block_end_in_root) const;
     [[nodiscard]] SpaceUsedByFloats intrusion_by_floats_into_box(Box const&, CSSPixels y_in_box) const;
     [[nodiscard]] SpaceUsedByFloats intrusion_by_floats_into_box(LayoutState::UsedValues const&, CSSPixels y_in_box) const;
+    [[nodiscard]] SpaceUsedByFloats intrusion_by_floats_into_box(LayoutState::UsedValues const&, CSSPixels block_start_in_box, CSSPixels block_end_in_box) const;
+    [[nodiscard]] Optional<CSSPixels> next_float_band_block_start_after(CSSPixels y_in_root) const;
 
     virtual CSSPixels greatest_child_width(Box const&) const override;
 
@@ -76,10 +71,17 @@ public:
 
     void reset_margin_state() { m_margin_state.reset(); }
 
+    enum class FloatSide {
+        Left,
+        Right,
+    };
+
     struct FloatingBox {
         Box const& box;
 
         LayoutState::UsedValues& used_values;
+
+        FloatSide side { FloatSide::Left };
 
         // Offset from left/right edge to the left content edge of `box`.
         CSSPixels offset_from_edge { 0 };
@@ -92,8 +94,6 @@ public:
 
         CSSPixelRect margin_box_rect_in_root_coordinate_space;
     };
-
-    Optional<FloatingBox&> last_inserted_float() { return m_last_inserted_float; }
 
 private:
     CSSPixels compute_auto_height_for_block_level_element(Box const&, AvailableSpace const&);
@@ -123,34 +123,25 @@ private:
     // https://www.w3.org/TR/css-align-3/#column-row-gap
     CSSPixels get_column_gap_used_value_for_multicol(CSSPixels const& U) const;
 
-    enum class FloatSide {
-        Left,
-        Right,
+    struct FloatBand {
+        CSSPixels block_start { 0 };
+        CSSPixels left_intrusion { 0 };
+        CSSPixels right_intrusion { 0 };
     };
 
-    struct FloatSideData {
-        // Floating boxes currently accumulating on this side.
-        Vector<FloatingBox&> current_boxes;
-
-        // Combined width of boxes currently accumulating on this side.
-        // This is the innermost margin of the innermost floating box.
-        CSSPixels current_width { 0 };
-
-        // Highest value of `m_current_width` we've seen.
-        CSSPixels max_width { 0 };
-
-        // All floating boxes encountered thus far within this BFC.
-        Vector<NonnullOwnPtr<FloatingBox>> all_boxes;
-
-        // Current Y offset from BFC root top.
-        CSSPixels y_offset { 0 };
-
-        void clear()
-        {
-            current_boxes.clear();
-            current_width = 0;
-        }
+    struct FloatPlacement {
+        CSSPixels block_start { 0 };
+        CSSPixels offset_from_edge { 0 };
     };
+
+    [[nodiscard]] size_t band_index_at(CSSPixels y) const;
+    [[nodiscard]] FloatBand const& band_at(CSSPixels y) const;
+    [[nodiscard]] SpaceUsedByFloats intrusions_for_band_into_rect(FloatBand const&, CSSPixelRect const& rect_in_root) const;
+    [[nodiscard]] SpaceUsedByFloats available_inline_space_in_box(LayoutState::UsedValues const&, CSSPixels block_start_in_box, CSSPixels block_end_in_box) const;
+    [[nodiscard]] FloatPlacement place_float(FloatSide, LayoutState::UsedValues const&, AvailableSpace const&, CSSPixelRect const& containing_block_rect_in_root, CSSPixels ceiling_in_root) const;
+    void ensure_band_boundary(CSSPixels);
+    void add_float_to_bands(FloatingBox const&, CSSPixelRect const& containing_block_rect_in_root);
+    void rebuild_float_bands();
 
     class BlockMarginState {
     public:
@@ -212,9 +203,10 @@ private:
 
     BlockMarginState m_margin_state;
 
-    FloatSideData m_left_floats;
-    FloatSideData m_right_floats;
-    Optional<FloatingBox&> m_last_inserted_float;
+    Vector<NonnullOwnPtr<FloatingBox>> m_floats;
+    Vector<FloatBand> m_bands;
+    CSSPixels m_lowest_left_margin_edge { 0 };
+    CSSPixels m_lowest_right_margin_edge { 0 };
 
     bool m_was_notified_after_parent_dimensioned_my_root_box { false };
 };

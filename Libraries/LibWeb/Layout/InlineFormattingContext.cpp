@@ -39,34 +39,18 @@ BlockFormattingContext const& InlineFormattingContext::parent() const
     return static_cast<BlockFormattingContext const&>(*FormattingContext::parent());
 }
 
-CSSPixels InlineFormattingContext::leftmost_inline_offset_at(CSSPixels y) const
+CSSPixels InlineFormattingContext::leftmost_inline_offset_at(CSSPixels block_offset, CSSPixels line_height) const
 {
-    // NOTE: Floats are relative to the BFC root box, not necessarily the containing block of this IFC.
-    auto box_in_root_rect = content_box_rect_in_ancestor_coordinate_space(m_containing_block_used_values, parent().root());
-    CSSPixels y_in_root = box_in_root_rect.y() + y;
-    auto space_and_containing_margin = parent().space_used_and_containing_margin_for_floats(y_in_root);
-
-    // If there's no float box to take into account, we start at the left edge of the containing block.
-    if (!space_and_containing_margin.matching_left_float_box)
-        return 0;
-
-    // If the left edge of the containing block is to the right of the rightmost left-side float, start placing inline
-    // content at the left edge of the containing block.
-    auto left_side_floats_limit_to_right = space_and_containing_margin.left_total_containing_margin + space_and_containing_margin.left_used_space;
-    if (box_in_root_rect.x() >= left_side_floats_limit_to_right)
-        return 0;
-
-    // The left edge of the containing block is to the left of the rightmost left-side float.
-    // We adjust the inline content insertion point by the overlap between the containing block and the float.
-    return left_side_floats_limit_to_right - box_in_root_rect.x();
+    auto intrusions = parent().intrusion_by_floats_into_box(m_containing_block_used_values, block_offset, block_offset + line_height);
+    return intrusions.left;
 }
 
-AvailableSize InlineFormattingContext::available_space_for_line(CSSPixels y) const
+AvailableSize InlineFormattingContext::available_space_for_line(CSSPixels block_offset, CSSPixels line_height) const
 {
     if (!m_available_space->width.is_definite())
         return m_available_space->width;
 
-    auto intrusions = parent().intrusion_by_floats_into_box(m_containing_block_used_values, y);
+    auto intrusions = parent().intrusion_by_floats_into_box(m_containing_block_used_values, block_offset, block_offset + line_height);
     return AvailableSize::make_definite(m_available_space->width.to_px_or_zero() - intrusions.left - intrusions.right);
 }
 
@@ -546,40 +530,29 @@ void InlineFormattingContext::generate_line_boxes()
     m_containing_block_used_values.set_inline_end_static_position_rect(calculate_inline_end_static_position_rect());
 }
 
-bool InlineFormattingContext::any_floats_intrude_at_block_offset(CSSPixels block_offset) const
+bool InlineFormattingContext::any_floats_intrude_in_block_range(CSSPixels block_start, CSSPixels block_end) const
 {
-    auto box_in_root_rect = content_box_rect_in_ancestor_coordinate_space(m_containing_block_used_values, parent().root());
     // FIXME: Respect inline direction.
-    CSSPixels y_in_root = box_in_root_rect.y() + block_offset;
-    auto space_and_containing_margin = parent().space_used_and_containing_margin_for_floats(y_in_root);
-    return space_and_containing_margin.left_used_space > 0 || space_and_containing_margin.right_used_space > 0;
+    auto intrusions = parent().intrusion_by_floats_into_box(m_containing_block_used_values, block_start, block_end);
+    return intrusions.left > 0 || intrusions.right > 0;
 }
 
-bool InlineFormattingContext::can_fit_new_line_at_block_offset(CSSPixels block_offset) const
+bool InlineFormattingContext::can_fit_new_line_at_block_offset(CSSPixels block_offset, CSSPixels line_height) const
 {
     // FIXME: Respect inline direction.
 
-    auto top_intrusions = parent().intrusion_by_floats_into_box(m_containing_block_used_values, block_offset);
-    auto bottom_intrusions = parent().intrusion_by_floats_into_box(m_containing_block_used_values, block_offset + containing_block().computed_values().line_height() - 1);
+    if (!m_available_space->width.is_definite())
+        return true;
+    return available_space_for_line(block_offset, line_height).to_px_or_zero() > 0;
+}
 
-    auto left_edge = [](auto& space) -> CSSPixels {
-        return space.left;
-    };
-
-    auto right_edge = [this](auto& space) -> CSSPixels {
-        return m_available_space->width.to_px_or_zero() - space.right;
-    };
-
-    auto top_left_edge = left_edge(top_intrusions);
-    auto top_right_edge = right_edge(top_intrusions);
-    auto bottom_left_edge = left_edge(bottom_intrusions);
-    auto bottom_right_edge = right_edge(bottom_intrusions);
-
-    if (top_left_edge > bottom_right_edge)
-        return false;
-    if (bottom_left_edge > top_right_edge)
-        return false;
-    return true;
+Optional<CSSPixels> InlineFormattingContext::next_float_band_block_start_after(CSSPixels block_offset) const
+{
+    auto box_in_root_rect = content_box_rect_in_ancestor_coordinate_space(m_containing_block_used_values, parent().root());
+    auto next_band_start = parent().next_float_band_block_start_after(box_in_root_rect.y() + block_offset);
+    if (!next_band_start.has_value())
+        return {};
+    return next_band_start.value() - box_in_root_rect.y();
 }
 
 CSSPixels InlineFormattingContext::vertical_float_clearance() const
