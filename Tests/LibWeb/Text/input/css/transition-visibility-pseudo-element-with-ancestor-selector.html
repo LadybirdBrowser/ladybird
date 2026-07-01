@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    ul.sub {
+        visibility: hidden;
+        opacity: 0;
+        transition: opacity 100ms ease-in, visibility 100ms ease-in;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .open ul.sub {
+        visibility: visible;
+        opacity: 1;
+    }
+
+    li#item > a.link::before {
+        content: "";
+        display: inline-block;
+        width: 45px;
+        height: 45px;
+        background: green;
+    }
+</style>
+<div id="wrap">
+    <ul class="sub">
+        <li id="item"><a class="link">item text</a></li>
+    </ul>
+</div>
+<script>
+    asyncTest(async done => {
+        const item = document.getElementById("item");
+        const heightBeforeReveal = item.getBoundingClientRect().height;
+        println(`::before box present while hidden? ${heightBeforeReveal >= 45}`);
+
+        document.getElementById("wrap").classList.add("open");
+        setTimeout(() => {
+            const heightAfterReveal = item.getBoundingClientRect().height;
+            println(`::before box still present after reveal transition? ${heightAfterReveal >= 45}`);
+            done();
+        }, 300);
+    });
+</script>

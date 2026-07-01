@@ -986,6 +986,15 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
 
     auto& style_computer = document().style_computer();
 
+    auto did_push_ancestors = false;
+    auto push_ancestors_if_needed = [&] {
+        if (did_push_ancestors)
+            return;
+        for (auto const* ancestor = this; ancestor; ancestor = ancestor->parent_or_shadow_host_element())
+            style_computer.push_ancestor(*ancestor);
+        did_push_ancestors = true;
+    };
+
     // Any document change that can cause this element's style to change, could also affect its pseudo-elements.
     auto recompute_pseudo_element_style = [&](CSS::PseudoElement pseudo_element, bool has_implicit_style = false) {
         auto pseudo_element_style = computed_properties(pseudo_element);
@@ -996,7 +1005,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
         if (!should_recompute)
             return;
 
-        style_computer.push_ancestor(*this);
+        push_ancestors_if_needed();
 
         auto new_pseudo_element_style = style_computer.compute_pseudo_element_style_if_needed({ *this, pseudo_element }, did_change_custom_properties);
 
@@ -1009,7 +1018,6 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
         }
 
         set_computed_properties(pseudo_element, move(new_pseudo_element_style));
-        style_computer.pop_ancestor(*this);
     };
 
     recompute_pseudo_element_style(CSS::PseudoElement::Before);
@@ -1020,6 +1028,11 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
         recompute_pseudo_element_style(CSS::PseudoElement::Backdrop);
     if (had_list_marker || m_computed_properties->display().is_list_item())
         recompute_pseudo_element_style(CSS::PseudoElement::Marker, true);
+
+    if (did_push_ancestors) {
+        for (auto const* ancestor = this; ancestor; ancestor = ancestor->parent_or_shadow_host_element())
+            style_computer.pop_ancestor(*ancestor);
+    }
 
     return invalidation;
 }
