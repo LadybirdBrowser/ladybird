@@ -21,6 +21,7 @@
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
+#include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -287,6 +288,15 @@ MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& con
     auto registration = document.get_registered_custom_property(property_name);
     auto computation_context = element.document().style_computer().fallback_computation_context_for_custom_property(element);
     auto color_resolution_context = fallback_color_resolution_context_for_style_query(element, computation_context);
+    auto comparable_computed_value = computed_value;
+    if (registration.has_value() && computed_value->is_unresolved() && computed_value->as_unresolved().contains_attr_tainted_values()) {
+        // Registered custom properties with attr-tainted values are wrapped as unresolved values so tokenize()
+        // preserves the taint. Reparse that wrapper here so style queries can still compare the typed value.
+        // FIXME: Store the attr-tainted flag in a more sensible way so we don't have to do this!
+        auto parsed_computed_value = Parser::parse_with_a_syntax(Parser::ParsingParams { document }, computed_tokens, registration->syntax);
+        if (!parsed_computed_value->is_guaranteed_invalid())
+            comparable_computed_value = compute_registered_custom_property_value(registration.value(), move(parsed_computed_value), computation_context);
+    }
 
     // A <style-feature-plain> evaluates to true if the computed value of the given property on the query container
     // matches the given value (which is also computed with respect to the query container), and false otherwise.
@@ -322,7 +332,7 @@ MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& con
     // from the initial value for the given property.
     if (!m_value.has_value()) {
         auto initial_value = document.custom_property_initial_value(property_name);
-        return as_match_result(!style_values_are_equal(*computed_value, *initial_value));
+        return as_match_result(!style_values_are_equal(*comparable_computed_value, *initial_value));
     }
 
     auto const& query_value = m_value.value();
@@ -330,17 +340,17 @@ MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& con
         switch (query_css_wide_keyword.value()) {
         case Keyword::Initial: {
             auto initial_value = document.custom_property_initial_value(property_name);
-            return as_match_result(style_values_are_equal(*computed_value, *initial_value));
+            return as_match_result(style_values_are_equal(*comparable_computed_value, *initial_value));
         }
         case Keyword::Inherit: {
             auto inherited_value = inherited_custom_property_value(element, property_name, document, guarded_contexts);
-            return as_match_result(style_values_are_equal(*computed_value, *inherited_value));
+            return as_match_result(style_values_are_equal(*comparable_computed_value, *inherited_value));
         }
         case Keyword::Unset: {
             auto expected_value = !registration.has_value() || registration->inherit
                 ? inherited_custom_property_value(element, property_name, document, guarded_contexts)
                 : document.custom_property_initial_value(property_name);
-            return as_match_result(style_values_are_equal(*computed_value, *expected_value));
+            return as_match_result(style_values_are_equal(*comparable_computed_value, *expected_value));
         }
         case Keyword::Revert:
         case Keyword::RevertLayer:
@@ -364,7 +374,7 @@ MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& con
         return MatchResult::False;
     parsed_query_value = compute_registered_custom_property_value(registration.value(), move(parsed_query_value), computation_context);
 
-    return as_match_result(style_values_are_equal(*computed_value, *parsed_query_value));
+    return as_match_result(style_values_are_equal(*comparable_computed_value, *parsed_query_value));
 }
 
 void StyleFeature::collect_container_query_feature_requirements(ContainerQueryFeatureRequirements& requirements) const
