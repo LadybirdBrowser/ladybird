@@ -32,6 +32,12 @@ public:
         return PropertyNameAndID({}, property_id);
     }
 
+    PropertyNameAndID(Badge<StyleComputer>, PropertyID property_id, Utf16FlyString name)
+        : m_name(move(name))
+        , m_property_id(property_id)
+    {
+    }
+
     bool is_custom_property() const { return m_property_id == PropertyID::Custom; }
     PropertyID id() const { return m_property_id; }
 

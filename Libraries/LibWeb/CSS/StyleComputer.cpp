@@ -3856,7 +3856,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(
         Parser::ArbitrarySubstitutionReplacementContext arbitrary_substitution_context {
             .computed_style_for_custom_property_resolution = computed_style_for_custom_property_resolution,
         };
-        resolved_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { document }, element, arbitrary_substitution_context, PropertyNameAndID::from_name(name).release_value(), unresolved, guarded_contexts);
+        resolved_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { document }, element, arbitrary_substitution_context, PropertyNameAndID { {}, PropertyID::Custom, name }, unresolved, guarded_contexts);
 
         // A CSS-wide keyword produced by substitution takes on that keyword's meaning for the custom property,
         // exactly as a literally-specified one would (handled above before substitution).
