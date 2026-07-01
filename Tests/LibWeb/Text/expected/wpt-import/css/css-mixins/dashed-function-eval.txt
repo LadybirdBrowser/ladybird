@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 89 tests
 
-76 Pass
-13 Fail
+78 Pass
+11 Fail
 Pass	Literal result
 Pass	Literal result, typed return
 Pass	Literal result, typed return, calc
@@ -78,7 +78,7 @@ Fail	Default with initial keyword
 Pass	initial appearing via fallback
 Pass	Local variable with inherit keyword
 Pass	Local variable with inherit keyword (nested)
-Fail	Inheriting an invalid value
+Pass	Inheriting an invalid value
 Fail	Default with inherit keyword
 Fail	Default with inherit keyword (nested)
 Pass	Local with the unset keyword
@@ -92,4 +92,4 @@ Fail	revert keyword left unresolved on result descriptor
 Fail	revert-layer keyword left unresolved on result descriptor
 Fail	revert-rule keyword left unresolved on result descriptor
 Pass	Keyword can be returned from function into local variable
-Fail	Can not return CSS-wide keyword as length
+Pass	Can not return CSS-wide keyword as length

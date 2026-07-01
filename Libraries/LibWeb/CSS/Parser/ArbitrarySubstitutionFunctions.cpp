@@ -456,13 +456,19 @@ static Vector<ComponentValue> replace_an_inherit_function(AbstractOrHypothetical
     // 2. If parsing returned a <custom-property-name>, and the inherited value of that custom property on the element
     //    does not contain the guaranteed-invalid value, return that inherited value.
     if (name_token.is(Token::Type::Ident) && is_a_custom_property_name_string(name_token.token().ident()) && first_argument_tokens.is_empty()) {
-        if (auto element_to_inherit_style_from = element.element_to_inherit_style_from(); element_to_inherit_style_from.has_value()) {
-            if (auto const& inherited_value = element_to_inherit_style_from->get_custom_property(name_token.token().ident())) {
-                auto inherited_value_tokens = inherited_value->tokenize();
-                if (!contains_guaranteed_invalid_value(inherited_value_tokens))
-                    return inherited_value_tokens;
-            }
-        }
+        auto const& custom_property_name = name_token.token().ident();
+
+        auto inherited_value = inherited_custom_property_value(
+            element.get_registered_custom_property(custom_property_name),
+            element,
+            custom_property_name,
+            replacement_context.computed_style_for_custom_property_resolution,
+            guarded_contexts);
+
+        auto inherited_value_tokens = inherited_value->tokenize();
+
+        if (!contains_guaranteed_invalid_value(inherited_value_tokens))
+            return inherited_value_tokens;
     }
 
     // 3. Otherwise, if a second <declaration-value>? was passed in arguments, substitute arbitrary substitution

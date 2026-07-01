@@ -3813,7 +3813,7 @@ static bool matches_subject_pseudo_class_bucket(PseudoClass pseudo_class, DOM::E
     }
 }
 
-static NonnullRefPtr<StyleValue const> resolve_css_wide_keyword_for_custom_property(Optional<CustomPropertyRegistration const&> registration, AbstractOrHypotheticalElement const& element, Utf16FlyString const& name, NonnullRefPtr<StyleValue const> keyword_value)
+static NonnullRefPtr<StyleValue const> resolve_css_wide_keyword_for_custom_property(Optional<CustomPropertyRegistration const&> registration, AbstractOrHypotheticalElement const& element, Utf16FlyString const& name, NonnullRefPtr<StyleValue const> keyword_value, ComputedProperties const* computed_style_for_custom_property_resolution, Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts)
 {
     VERIFY(keyword_value->is_css_wide_keyword());
 
@@ -3826,7 +3826,7 @@ static NonnullRefPtr<StyleValue const> resolve_css_wide_keyword_for_custom_prope
         return initial_custom_property_value(registration, element.document());
 
     if (keyword_value->is_inherit())
-        return inherited_custom_property_value(registration, element, name);
+        return inherited_custom_property_value(registration, element, name, computed_style_for_custom_property_resolution, guarded_contexts);
 
     // NB: When resolving function styles (i.e. when we have a hypothetical element), all CSS-wide keywords other than
     //     inherit and initial resolve to the guaranteed-invalidate value.
@@ -3835,7 +3835,9 @@ static NonnullRefPtr<StyleValue const> resolve_css_wide_keyword_for_custom_prope
 
     // Unset is the same as inherit for inherited properties, and by default all unregistered custom properties inherit.
     if (keyword_value->is_unset())
-        return registration.has_value() && !registration->inherit ? initial_custom_property_value(registration, element.document()) : inherited_custom_property_value(registration, element, name);
+        return registration.has_value() && !registration->inherit
+            ? initial_custom_property_value(registration, element.document())
+            : inherited_custom_property_value(registration, element, name, computed_style_for_custom_property_resolution, guarded_contexts);
 
     if (keyword_value->is_revert()) {
         // FIXME: Implement reverting custom properties.
@@ -3861,7 +3863,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(
     auto resolved_value = value ? value.release_nonnull() : initial_custom_property_value(registration, document);
 
     if (resolved_value->is_css_wide_keyword())
-        return resolve_css_wide_keyword_for_custom_property(registration, element, name, move(resolved_value));
+        resolved_value = resolve_css_wide_keyword_for_custom_property(registration, element, name, move(resolved_value), computed_style_for_custom_property_resolution, guarded_contexts);
 
     if (resolved_value->is_unresolved() && resolved_value->as_unresolved().contains_arbitrary_substitution_function()) {
         auto& unresolved = resolved_value->as_unresolved();
@@ -3873,7 +3875,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(
         // A CSS-wide keyword produced by substitution takes on that keyword's meaning for the custom property,
         // exactly as a literally-specified one would (handled above before substitution).
         if (resolved_value->is_css_wide_keyword())
-            return resolve_css_wide_keyword_for_custom_property(registration, element, name, move(resolved_value));
+            resolved_value = resolve_css_wide_keyword_for_custom_property(registration, element, name, move(resolved_value), computed_style_for_custom_property_resolution, guarded_contexts);
     }
 
     auto invalid_custom_property_fallback_value = [&](NonnullRefPtr<StyleValue const> invalid_value) {
@@ -3894,7 +3896,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(
             // Either the property’s inherited value or its initial value depending on whether the property is
             // inherited or not, respectively, as if the property’s value had been specified as the unset keyword.
             if (registration->inherit)
-                return inherited_custom_property_value(registration, element, name);
+                return inherited_custom_property_value(registration, element, name, computed_style_for_custom_property_resolution, guarded_contexts);
             return initial_custom_property_value(registration, element.document());
         }
     };

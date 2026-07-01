@@ -2,10 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-3 Pass
-2 Fail
+5 Pass
 Pass	inherit() refers to parent stack frame (element)
 Pass	inherit() refers to parent stack frame (other function call)
-Fail	inherit() referring to guaranteed-invalid in parent frame
-Fail	inherit() referring to cycle in parent frame
+Pass	inherit() referring to guaranteed-invalid in parent frame
+Pass	inherit() referring to cycle in parent frame
 Pass	inherit() referring to typed value in parent frame

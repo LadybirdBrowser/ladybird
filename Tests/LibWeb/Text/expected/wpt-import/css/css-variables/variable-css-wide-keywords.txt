@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 30 tests
 
-22 Pass
-8 Fail
+26 Pass
+4 Fail
 Pass	`initial` as a value for an unregistered custom property
 Pass	`inherit` as a value for an unregistered custom property
 Pass	`unset` as a value for an unregistered custom property
@@ -15,8 +15,8 @@ Pass	`inherit` as a value for a non-inheriting registered custom property
 Pass	`inherit` as a value for an inheriting registered custom property
 Pass	`unset` as a value for a non-inheriting registered custom property
 Pass	`unset` as a value for an inheriting registered custom property
-Fail	`revert` as a value for a non-inheriting registered custom property
-Fail	`revert` as a value for an inheriting registered custom property
+Pass	`revert` as a value for a non-inheriting registered custom property
+Pass	`revert` as a value for an inheriting registered custom property
 Pass	`revert-layer` as a value for a non-inheriting registered custom property
 Pass	`revert-layer` as a value for an inheriting registered custom property
 Pass	`initial` as a `var()` fallback for an unregistered custom property
@@ -30,7 +30,7 @@ Pass	`inherit` as a `var()` fallback for a non-inheriting registered custom prop
 Pass	`inherit` as a `var()` fallback for an inheriting registered custom property
 Pass	`unset` as a `var()` fallback for a non-inheriting registered custom property
 Pass	`unset` as a `var()` fallback for an inheriting registered custom property
-Fail	`revert` as a `var()` fallback for a non-inheriting registered custom property
-Fail	`revert` as a `var()` fallback for an inheriting registered custom property
+Pass	`revert` as a `var()` fallback for a non-inheriting registered custom property
+Pass	`revert` as a `var()` fallback for an inheriting registered custom property
 Fail	`revert-layer` as a `var()` fallback for a non-inheriting registered custom property
 Fail	`revert-layer` as a `var()` fallback for an inheriting registered custom property

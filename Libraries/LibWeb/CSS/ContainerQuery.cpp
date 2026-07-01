@@ -544,7 +544,12 @@ MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& con
     }
 
     auto registration = element.get_registered_custom_property(property_name);
+
+    // FIXME: We should use the computed style that we are currently computing rather than the fallback (i.e. the previously applied style).
     auto computation_context = element.document().style_computer().fallback_computation_context_for_custom_property(element);
+    auto const* computed_values = element.abstract_element().computed_values();
+    auto const* computed_style_for_custom_property_resolution = computed_values ? document.style_computer().reconstruct_computed_properties(*computed_values).ptr() : nullptr;
+
     auto color_resolution_context = fallback_color_resolution_context_for_style_query(element, computation_context);
     auto comparable_computed_value = computed_value;
     if (registration.has_value() && computed_value->is_unresolved() && computed_value->as_unresolved().contains_attr_tainted_values()) {
@@ -601,12 +606,12 @@ MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& con
             return as_match_result(style_values_are_equal(*comparable_computed_value, *initial_value));
         }
         case Keyword::Inherit: {
-            auto inherited_value = inherited_custom_property_value(registration, element, property_name);
+            auto inherited_value = inherited_custom_property_value(registration, element, property_name, computed_style_for_custom_property_resolution, guarded_contexts);
             return as_match_result(style_values_are_equal(*comparable_computed_value, *inherited_value));
         }
         case Keyword::Unset: {
             auto expected_value = !registration.has_value() || registration->inherit
-                ? inherited_custom_property_value(registration, element, property_name)
+                ? inherited_custom_property_value(registration, element, property_name, computed_style_for_custom_property_resolution, guarded_contexts)
                 : initial_custom_property_value(registration, element.document());
             return as_match_result(style_values_are_equal(*comparable_computed_value, *expected_value));
         }
