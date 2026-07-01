@@ -199,10 +199,10 @@ Vector<DownloadRecord> DownloadStore::resumable_downloads()
 
     m_database->execute_statement(
         m_statements.list_downloads,
-        [&](auto statement_id) {
+        [&](auto statement_id) -> ErrorOr<void> {
             auto segments = deserialize_segments(m_database->result_column<String>(statement_id, 8));
             if (!segments.has_value())
-                return;
+                return {};
 
             auto etag = m_database->result_column<String>(statement_id, 6);
             auto last_modified = m_database->result_column<String>(statement_id, 7);
@@ -220,6 +220,8 @@ Vector<DownloadRecord> DownloadStore::resumable_downloads()
                 .created_time = m_database->result_column<UnixDateTime>(statement_id, 10),
                 .can_restart_from_zero = m_database->result_column<u64>(statement_id, 9) != 0,
             });
+
+            return {};
         });
 
     return downloads;
@@ -234,8 +236,9 @@ u64 DownloadStore::maximum_download_id()
 
     m_database->execute_statement(
         m_statements.maximum_download_id,
-        [&](auto statement_id) {
+        [&](auto statement_id) -> ErrorOr<void> {
             maximum_id = m_database->result_column<u64>(statement_id, 0);
+            return {};
         });
 
     return maximum_id;

@@ -215,7 +215,7 @@ HSTSStore::TransientStorage::Policies HSTSStore::PersistedStorage::select_all_po
 {
     TransientStorage::Policies policies;
 
-    database.execute_statement(statements.select_all_policies, [&](auto row) {
+    database.execute_statement(statements.select_all_policies, [&](auto row) -> ErrorOr<void> {
         auto domain = database.result_column<String>(row, 0);
         StoredPolicy stored_policy {
             .expiry = database.result_column<UnixDateTime>(row, 1),
@@ -223,6 +223,7 @@ HSTSStore::TransientStorage::Policies HSTSStore::PersistedStorage::select_all_po
             .last_observed_time = database.result_column<UnixDateTime>(row, 3),
         };
         policies.set(move(domain), stored_policy);
+        return {};
     });
 
     return policies;

@@ -91,7 +91,7 @@ static void log_orphaned_disk_cache_entries(Database::Database& database)
         }
 
         bool has_entry = false;
-        database.execute_statement(check_entry, [&](auto) { has_entry = true; }, cache_entry_data->cache_key, cache_entry_data->vary_key);
+        database.execute_statement(check_entry, [&](auto) -> ErrorOr<void> { has_entry = true; return {}; }, cache_entry_data->cache_key, cache_entry_data->vary_key);
 
         if (!has_entry)
             dbgln("Cache file missing from cache index: {}", cache_entry);
@@ -194,7 +194,7 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database, LexicalPath
     u64 total_estimated_size { 0 };
     database.execute_statement(
         statements.select_total_estimated_size,
-        [&](auto statement_id) { total_estimated_size = database.result_column<u64>(statement_id, 0); });
+        [&](auto statement_id) -> ErrorOr<void> { total_estimated_size = database.result_column<u64>(statement_id, 0); return {}; });
 
     return CacheIndex { database, statements, limits, total_estimated_size };
 }
@@ -243,9 +243,10 @@ ErrorOr<void> CacheIndex::create_entry(u64 cache_key, u64 vary_key, String url, 
 
     m_database->execute_statement(
         m_statements.remove_entry,
-        [&](auto statement_id) {
+        [&](auto statement_id) -> ErrorOr<void> {
             auto removed_size = m_database->result_column<u64>(statement_id, 0);
             m_total_estimated_size -= removed_size;
+            return {};
         },
         cache_key,
         vary_key);
@@ -271,9 +272,10 @@ void CacheIndex::remove_entry(u64 cache_key, u64 vary_key)
 {
     m_database->execute_statement(
         m_statements.remove_entry,
-        [&](auto statement_id) {
+        [&](auto statement_id) -> ErrorOr<void> {
             auto removed_size = m_database->result_column<u64>(statement_id, 0);
             m_total_estimated_size -= removed_size;
+            return {};
         },
         cache_key,
         vary_key);
@@ -288,7 +290,7 @@ void CacheIndex::remove_entries_exceeding_cache_limit(Function<void(u64 cache_ke
 
     m_database->execute_statement(
         m_statements.remove_entries_exceeding_cache_limit,
-        [&](auto statement_id) {
+        [&](auto statement_id) -> ErrorOr<void> {
             auto cache_key = m_database->result_column<u64>(statement_id, 0);
             auto vary_key = m_database->result_column<u64>(statement_id, 1);
             auto removed_size = m_database->result_column<u64>(statement_id, 2);
@@ -297,6 +299,7 @@ void CacheIndex::remove_entries_exceeding_cache_limit(Function<void(u64 cache_ke
 
             if (on_entry_removed)
                 on_entry_removed(cache_key, vary_key);
+            return {};
         },
         m_limits.maximum_disk_cache_size);
 }
@@ -305,7 +308,7 @@ void CacheIndex::remove_entries_accessed_since(UnixDateTime since, Function<void
 {
     m_database->execute_statement(
         m_statements.remove_entries_accessed_since,
-        [&](auto statement_id) {
+        [&](auto statement_id) -> ErrorOr<void> {
             auto cache_key = m_database->result_column<u64>(statement_id, 0);
             auto vary_key = m_database->result_column<u64>(statement_id, 1);
             auto removed_size = m_database->result_column<u64>(statement_id, 2);
@@ -314,6 +317,7 @@ void CacheIndex::remove_entries_accessed_since(UnixDateTime since, Function<void
 
             if (on_entry_removed)
                 on_entry_removed(cache_key, vary_key);
+            return {};
         },
         since);
 }
@@ -367,7 +371,7 @@ Optional<CacheIndex::Entry const&> CacheIndex::find_entry(u64 cache_key, HeaderL
 
         m_database->execute_statement(
             m_statements.select_entries,
-            [&](auto statement_id) {
+            [&](auto statement_id) -> ErrorOr<void> {
                 int column = 0;
 
                 auto vary_key = m_database->result_column<u64>(statement_id, column++);
@@ -381,6 +385,7 @@ Optional<CacheIndex::Entry const&> CacheIndex::find_entry(u64 cache_key, HeaderL
                 auto last_access_time = m_database->result_column<UnixDateTime>(statement_id, column++);
 
                 entries.empend(vary_key, move(url), deserialize_headers(request_headers), deserialize_headers(response_headers), data_size, associated_data_size, request_headers.length(), response_headers.length(), request_time, response_time, last_access_time);
+                return {};
             },
             cache_key);
 
@@ -424,12 +429,12 @@ Requests::CacheSizes CacheIndex::estimate_cache_size_accessed_since(UnixDateTime
 
     m_database->execute_statement(
         m_statements.estimate_cache_size_accessed_since,
-        [&](auto statement_id) { sizes.since_requested_time = m_database->result_column<u64>(statement_id, 0); },
+        [&](auto statement_id) -> ErrorOr<void> { sizes.since_requested_time = m_database->result_column<u64>(statement_id, 0); return {}; },
         since);
 
     m_database->execute_statement(
         m_statements.estimate_cache_size_accessed_since,
-        [&](auto statement_id) { sizes.total = m_database->result_column<u64>(statement_id, 0); },
+        [&](auto statement_id) -> ErrorOr<void> { sizes.total = m_database->result_column<u64>(statement_id, 0); return {}; },
         UnixDateTime::earliest());
 
     return sizes;

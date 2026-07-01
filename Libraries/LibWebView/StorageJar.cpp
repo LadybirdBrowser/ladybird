@@ -233,8 +233,9 @@ Optional<Utf16String> StorageJar::PersistedStorage::get_item(StorageLocation con
 
     database.execute_statement(
         statements.get_item,
-        [&](auto statement_id) {
+        [&](auto statement_id) -> ErrorOr<void> {
             result = database.result_column<String>(statement_id, 0);
+            return {};
         },
         to_underlying(key.storage_endpoint),
         key.storage_key,
@@ -262,8 +263,9 @@ StorageSetResult StorageJar::PersistedStorage::set_item(StorageLocation const& k
     size_t current_size = 0;
     database.execute_statement(
         statements.calculate_size_excluding_bottle_key,
-        [&](auto statement_id) {
+        [&](auto statement_id) -> ErrorOr<void> {
             current_size = database.result_column<int>(statement_id, 0);
+            return {};
         },
         to_underlying(key.storage_endpoint),
         key.storage_key,
@@ -317,8 +319,9 @@ Vector<Utf16String> StorageJar::PersistedStorage::get_keys(StorageEndpointType s
 
     database.execute_statement(
         statements.get_keys,
-        [&](auto statement_id) {
+        [&](auto statement_id) -> ErrorOr<void> {
             keys.append(storage_string_from_database_string(database.result_column<String>(statement_id, 0)));
+            return {};
         },
         to_underlying(storage_endpoint),
         storage_key);
@@ -331,8 +334,9 @@ u64 StorageJar::PersistedStorage::usage(String const& storage_key)
     u64 current_size_in_bytes = 0;
     database.execute_statement(
         statements.calculate_size,
-        [&](auto statement_id) {
+        [&](auto statement_id) -> ErrorOr<void> {
             current_size_in_bytes = database.result_column<u64>(statement_id, 0);
+            return {};
         },
         storage_key);
     return current_size_in_bytes;
@@ -344,12 +348,12 @@ Requests::CacheSizes StorageJar::PersistedStorage::estimate_storage_size_accesse
 
     database.execute_statement(
         statements.estimate_storage_size_accessed_since,
-        [&](auto statement_id) { sizes.since_requested_time = database.result_column<u64>(statement_id, 0); },
+        [&](auto statement_id) -> ErrorOr<void> { sizes.since_requested_time = database.result_column<u64>(statement_id, 0); return {}; },
         since);
 
     database.execute_statement(
         statements.estimate_storage_size_accessed_since,
-        [&](auto statement_id) { sizes.total = database.result_column<u64>(statement_id, 0); },
+        [&](auto statement_id) -> ErrorOr<void> { sizes.total = database.result_column<u64>(statement_id, 0); return {}; },
         UnixDateTime::earliest());
 
     return sizes;

@@ -72,7 +72,7 @@ public:
     static ErrorOr<NonnullRefPtr<Database>> create(ByteString const& directory, StringView name) { return create(directory, name, Options {}); }
     ~Database();
 
-    using OnResult = Function<void(StatementID)>;
+    using OnResult = Function<ErrorOr<void>(StatementID)>;
 
     enum class StatementExecutionOutcome {
         Completed,
