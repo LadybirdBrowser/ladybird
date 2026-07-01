@@ -46,7 +46,7 @@ void WebGL2RenderingContextOverloads::buffer_data(WebIDL::UnsignedLong target, W
         return;
     }
 
-    auto data = MUST(get_offset_span<u8 const>(src_data.downcast<WebIDL::BufferSourceVariant>(), /* src_offset= */ 0));
+    auto data = SET_ERROR_VALUE_IF_ERROR(copy_buffer_source_to_byte_buffer(WebIDL::BufferSource { src_data.downcast<WebIDL::BufferSourceVariant>() }, /* src_offset= */ 0), GL_INVALID_VALUE);
     m_context->buffer_data(target, static_cast<GLsizeiptr>(data.size()), data.data(), usage);
 }
 
@@ -54,7 +54,7 @@ void WebGL2RenderingContextOverloads::buffer_sub_data(WebIDL::UnsignedLong targe
 {
     m_context->make_current();
 
-    auto data = MUST(get_offset_span<u8 const>(src_data, /* src_offset= */ 0));
+    auto data = SET_ERROR_VALUE_IF_ERROR(copy_buffer_source_to_byte_buffer(src_data, /* src_offset= */ 0), GL_INVALID_VALUE);
     m_context->buffer_sub_data(target, dst_byte_offset, data.size(), data.data());
 }
 
@@ -62,25 +62,27 @@ void WebGL2RenderingContextOverloads::buffer_data(WebIDL::UnsignedLong target, W
 {
     m_context->make_current();
 
-    auto span = SET_ERROR_VALUE_IF_ERROR(get_offset_span<u8 const>(src_data, src_offset, length), GL_INVALID_VALUE);
-    m_context->buffer_data(target, span.size(), span.data(), usage);
+    auto data = SET_ERROR_VALUE_IF_ERROR(copy_buffer_source_to_byte_buffer(WebIDL::BufferSource { src_data }, src_offset, length), GL_INVALID_VALUE);
+    m_context->buffer_data(target, data.size(), data.data(), usage);
 }
 
 void WebGL2RenderingContextOverloads::buffer_sub_data(WebIDL::UnsignedLong target, WebIDL::LongLong dst_byte_offset, WebIDL::ArrayBufferView src_data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong length)
 {
     m_context->make_current();
 
-    auto span = SET_ERROR_VALUE_IF_ERROR(get_offset_span<u8 const>(src_data, src_offset, length), GL_INVALID_VALUE);
-    m_context->buffer_sub_data(target, dst_byte_offset, span.size(), span.data());
+    auto data = SET_ERROR_VALUE_IF_ERROR(copy_buffer_source_to_byte_buffer(WebIDL::BufferSource { src_data }, src_offset, length), GL_INVALID_VALUE);
+    m_context->buffer_sub_data(target, dst_byte_offset, data.size(), data.data());
 }
 
 void WebGL2RenderingContextOverloads::tex_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long border, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, WebIDL::NullableArrayBufferViewVariant pixels)
 {
     m_context->make_current();
 
+    ByteBuffer pixels_storage;
     ReadonlyBytes pixels_span;
     if (!pixels.has<Empty>()) {
-        pixels_span = SET_ERROR_VALUE_IF_ERROR(get_offset_span<u8 const>(pixels.downcast<WebIDL::ArrayBufferViewVariant>(), /* src_offset= */ 0), GL_INVALID_OPERATION);
+        pixels_storage = SET_ERROR_VALUE_IF_ERROR(copy_buffer_source_to_byte_buffer(WebIDL::BufferSource { pixels.downcast<WebIDL::ArrayBufferViewVariant>() }, /* src_offset= */ 0), GL_INVALID_OPERATION);
+        pixels_span = pixels_storage;
     }
 
     m_context->tex_image2d_robust_angle(target, level, internalformat, width, height, border, format, type, pixels_span.size(), pixels_span.data());
@@ -101,9 +103,11 @@ void WebGL2RenderingContextOverloads::tex_sub_image2d(WebIDL::UnsignedLong targe
 {
     m_context->make_current();
 
+    ByteBuffer pixels_storage;
     ReadonlyBytes pixels_span;
     if (!pixels.has<Empty>()) {
-        pixels_span = SET_ERROR_VALUE_IF_ERROR(get_offset_span<u8 const>(pixels.downcast<WebIDL::ArrayBufferViewVariant>(), /* src_offset= */ 0), GL_INVALID_OPERATION);
+        pixels_storage = SET_ERROR_VALUE_IF_ERROR(copy_buffer_source_to_byte_buffer(WebIDL::BufferSource { pixels.downcast<WebIDL::ArrayBufferViewVariant>() }, /* src_offset= */ 0), GL_INVALID_OPERATION);
+        pixels_span = pixels_storage;
     }
 
     m_context->tex_sub_image2d_robust_angle(target, level, xoffset, yoffset, width, height, format, type, pixels_span.size(), pixels_span.data());
@@ -142,7 +146,7 @@ void WebGL2RenderingContextOverloads::tex_image2d(WebIDL::UnsignedLong target, W
 {
     m_context->make_current();
 
-    auto pixels_span = SET_ERROR_VALUE_IF_ERROR(get_offset_span<u8 const>(src_data, src_offset), GL_INVALID_OPERATION);
+    auto pixels_span = SET_ERROR_VALUE_IF_ERROR(copy_buffer_source_to_byte_buffer(WebIDL::BufferSource { src_data }, src_offset), GL_INVALID_OPERATION);
 
     m_context->tex_image2d_robust_angle(target, level, internalformat, width, height, border, format, type, pixels_span.size(), pixels_span.data());
 }
@@ -162,7 +166,7 @@ void WebGL2RenderingContextOverloads::tex_sub_image2d(WebIDL::UnsignedLong targe
 {
     m_context->make_current();
 
-    auto pixels_span = SET_ERROR_VALUE_IF_ERROR(get_offset_span<u8 const>(src_data, src_offset), GL_INVALID_OPERATION);
+    auto pixels_span = SET_ERROR_VALUE_IF_ERROR(copy_buffer_source_to_byte_buffer(WebIDL::BufferSource { src_data }, src_offset), GL_INVALID_OPERATION);
 
     m_context->tex_sub_image2d_robust_angle(target, level, xoffset, yoffset, width, height, format, type, pixels_span.size(), pixels_span.data());
 }
@@ -176,7 +180,7 @@ void WebGL2RenderingContextOverloads::compressed_tex_image2d(WebIDL::UnsignedLon
         return;
     }
 
-    auto pixels = SET_ERROR_VALUE_IF_ERROR(get_offset_span<u8 const>(src_data, src_offset, src_length_override), GL_INVALID_VALUE);
+    auto pixels = SET_ERROR_VALUE_IF_ERROR(copy_buffer_source_to_byte_buffer(WebIDL::BufferSource { src_data }, src_offset, src_length_override), GL_INVALID_VALUE);
     m_context->compressed_tex_image2d_robust_angle(target, level, internalformat, width, height, border, pixels.size(), pixels.size(), pixels.data());
 }
 
@@ -189,7 +193,7 @@ void WebGL2RenderingContextOverloads::compressed_tex_sub_image2d(WebIDL::Unsigne
         return;
     }
 
-    auto pixels = SET_ERROR_VALUE_IF_ERROR(get_offset_span<u8 const>(src_data, src_offset, src_length_override), GL_INVALID_VALUE);
+    auto pixels = SET_ERROR_VALUE_IF_ERROR(copy_buffer_source_to_byte_buffer(WebIDL::BufferSource { src_data }, src_offset, src_length_override), GL_INVALID_VALUE);
     m_context->compressed_tex_sub_image2d_robust_angle(target, level, xoffset, yoffset, width, height, format, pixels.size(), pixels.size(), pixels.data());
 }
 
@@ -384,8 +388,20 @@ void WebGL2RenderingContextOverloads::read_pixels(WebIDL::Long x, WebIDL::Long y
         return;
     }
 
-    auto span = MUST(get_offset_span<u8>(pixels.downcast<WebIDL::ArrayBufferViewVariant>(), /* src_offset= */ 0));
-    m_context->read_pixels_robust_angle(x, y, width, height, format, type, span.size(), nullptr, nullptr, nullptr, span.data());
+    WebIDL::ArrayBufferView view { pixels.downcast<WebIDL::ArrayBufferViewVariant>() };
+    auto bytes_or_error = ByteBuffer::create_uninitialized(view.byte_length());
+    if (bytes_or_error.is_error()) {
+        set_error(GL_OUT_OF_MEMORY);
+        return;
+    }
+    auto bytes = bytes_or_error.release_value();
+    GLsizei bytes_read = 0;
+    m_context->read_pixels_robust_angle(x, y, width, height, format, type, bytes.size(), &bytes_read, nullptr, nullptr, bytes.data());
+    if (bytes_read == 0)
+        return;
+    VERIFY(bytes_read > 0);
+    if (view.write_checked(ReadonlyBytes { bytes.data(), static_cast<size_t>(bytes_read) }).is_error()) [[unlikely]]
+        set_error(GL_INVALID_OPERATION);
 }
 
 void WebGL2RenderingContextOverloads::read_pixels(WebIDL::Long x, WebIDL::Long y, WebIDL::Long width, WebIDL::Long height,

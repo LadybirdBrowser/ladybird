@@ -168,11 +168,11 @@ Web::WebGL::ReadPixelsResult CanvasHost::webgl_read_pixels_robust_angle(Web::Pai
     return as_webgl(*context).read_pixels_robust_angle(x, y, width, height, format, type, buf_size, move(pixels));
 }
 
-void CanvasHost::webgl_read_buffer_sub_data(Web::Painting::CanvasId canvas_id, Web::WebGL::GLenum target, Web::WebGL::GLintptr offset, Web::WebGL::GLintptr size, Core::AnonymousBuffer data)
+bool CanvasHost::webgl_read_buffer_sub_data(Web::Painting::CanvasId canvas_id, Web::WebGL::GLenum target, Web::WebGL::GLintptr offset, Web::WebGL::GLintptr size, Core::AnonymousBuffer data)
 {
     auto* context = this->context(canvas_id);
     VERIFY(context);
-    as_webgl(*context).read_buffer_sub_data(target, offset, size, move(data));
+    return as_webgl(*context).read_buffer_sub_data(target, offset, size, move(data));
 }
 
 void CanvasHost::present_webgl_canvas(Web::Painting::CanvasId canvas_id, bool preserve_drawing_buffer)

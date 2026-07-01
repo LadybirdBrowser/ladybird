@@ -79,11 +79,11 @@ private:
         return m_connection->read_webgl_pixels(*m_canvas_id, x, y, width, height, format, type, buf_size, pixels);
     }
 
-    virtual void read_buffer_sub_data(Web::WebGL::GLenum target, Web::WebGL::GLintptr offset, Web::WebGL::GLintptr size, Core::AnonymousBuffer data) override
+    virtual bool read_buffer_sub_data(Web::WebGL::GLenum target, Web::WebGL::GLintptr offset, Web::WebGL::GLintptr size, Core::AnonymousBuffer data) override
     {
         if (!m_canvas_id.has_value())
-            return;
-        m_connection->read_webgl_buffer_sub_data(*m_canvas_id, target, offset, size, data);
+            return false;
+        return m_connection->read_webgl_buffer_sub_data(*m_canvas_id, target, offset, size, data);
     }
 
     virtual Gfx::ShareableBitmap read_back_drawing_buffer(Gfx::IntRect const& rect) override

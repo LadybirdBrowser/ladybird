@@ -172,14 +172,14 @@ Messages::CompositorWebContentServer::WebglReadPixelsResponse ConnectionFromWebC
     return { result.length, result.columns, result.rows };
 }
 
-void ConnectionFromWebContent::webgl_read_buffer_sub_data(Web::Painting::CanvasId canvas_id, u32 target, i64 offset, i64 size, Core::AnonymousBuffer data)
+Messages::CompositorWebContentServer::WebglReadBufferSubDataResponse ConnectionFromWebContent::webgl_read_buffer_sub_data(Web::Painting::CanvasId canvas_id, u32 target, i64 offset, i64 size, Core::AnonymousBuffer data)
 {
     if (size < 0 || (size > 0 && (!data.is_valid() || data.size() < static_cast<size_t>(size)))) {
         did_misbehave("WebContent sent an invalid WebGL buffer readback target");
-        return;
+        return { false };
     }
 
-    m_canvas_host.webgl_read_buffer_sub_data(canvas_id, target, offset, size, move(data));
+    return { m_canvas_host.webgl_read_buffer_sub_data(canvas_id, target, offset, size, move(data)) };
 }
 
 void ConnectionFromWebContent::invalidate_wheel_event_listener_state(Web::Compositor::CompositorContextId context_id, u64 generation)

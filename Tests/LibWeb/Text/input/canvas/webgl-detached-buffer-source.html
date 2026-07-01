@@ -1,0 +1,141 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    function detachedUint8Array(length = 4) {
+        const view = new Uint8Array(length);
+        view.buffer.transfer();
+        return view;
+    }
+
+    function errorName(gl, error) {
+        switch (error) {
+        case gl.NO_ERROR:
+            return "NO_ERROR";
+        case gl.INVALID_ENUM:
+            return "INVALID_ENUM";
+        case gl.INVALID_VALUE:
+            return "INVALID_VALUE";
+        case gl.INVALID_OPERATION:
+            return "INVALID_OPERATION";
+        case gl.OUT_OF_MEMORY:
+            return "OUT_OF_MEMORY";
+        default:
+            return `0x${error.toString(16)}`;
+        }
+    }
+
+    function clearErrors(gl) {
+        while (gl.getError() !== gl.NO_ERROR) {
+        }
+    }
+
+    function printError(label, gl) {
+        println(`${label}: ${errorName(gl, gl.getError())}`);
+    }
+
+    function byteList(bytes) {
+        return Array.from(bytes).join(",");
+    }
+
+    function runBufferUploadTests(gl, label) {
+        const buffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, 16, gl.STATIC_DRAW);
+        clearErrors(gl);
+
+        gl.bufferData(gl.ARRAY_BUFFER, detachedUint8Array(), gl.STATIC_DRAW);
+        printError(`${label} bufferData detached view`, gl);
+
+        gl.bufferSubData(gl.ARRAY_BUFFER, 0, detachedUint8Array());
+        printError(`${label} bufferSubData detached view`, gl);
+    }
+
+    function runTextureUploadTests(gl, label) {
+        const texture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        clearErrors(gl);
+
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, detachedUint8Array());
+        printError(`${label} texImage2D detached view`, gl);
+
+        const imageDataPixels = new Uint8ClampedArray([1, 2, 3, 4]);
+        const imageData = new ImageData(imageDataPixels, 1, 1);
+        imageDataPixels.buffer.transfer();
+
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, imageData);
+        printError(`${label} texImage2D detached ImageData data`, gl);
+
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        clearErrors(gl);
+
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, detachedUint8Array());
+        printError(`${label} texSubImage2D detached view`, gl);
+
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, imageData);
+        printError(`${label} texSubImage2D detached ImageData data`, gl);
+    }
+
+    function runReadPixelsTests(gl, label) {
+        clearErrors(gl);
+
+        gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(4));
+        printError(`${label} readPixels valid view`, gl);
+
+        const oversizedPixels = new Uint8Array(8);
+        oversizedPixels.fill(17);
+        gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, oversizedPixels);
+        printError(`${label} readPixels oversized view`, gl);
+        println(`${label} readPixels oversized tail: ${byteList(oversizedPixels.subarray(4))}`);
+
+        const zeroPixels = new Uint8Array([21, 22, 23, 24]);
+        gl.readPixels(0, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, zeroPixels);
+        printError(`${label} readPixels empty rectangle`, gl);
+        println(`${label} readPixels empty rectangle destination: ${byteList(zeroPixels)}`);
+
+        gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, detachedUint8Array());
+        printError(`${label} readPixels detached view`, gl);
+    }
+
+    function runBufferReadbackTests(gl) {
+        const buffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array([1, 2, 3, 4]), gl.STATIC_DRAW);
+        clearErrors(gl);
+
+        const offsetPastEndDestination = new Uint8Array([5, 6, 7, 8]);
+        gl.getBufferSubData(gl.ARRAY_BUFFER, 0, offsetPastEndDestination, 5);
+        printError("webgl2 getBufferSubData dstOffset past length", gl);
+        println(`webgl2 getBufferSubData dstOffset past length destination: ${byteList(offsetPastEndDestination)}`);
+
+        const destination = new Uint8Array([9, 8, 7, 6]);
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        clearErrors(gl);
+
+        gl.getBufferSubData(gl.ARRAY_BUFFER, 0, destination);
+        printError("webgl2 getBufferSubData unbound buffer", gl);
+        println(`webgl2 getBufferSubData unbound destination: ${byteList(destination)}`);
+    }
+
+    test(() => {
+        const canvas = document.createElement("canvas");
+        const canvas2 = document.createElement("canvas");
+
+        const gl = canvas.getContext("webgl");
+        runBufferUploadTests(gl, "webgl");
+        runTextureUploadTests(gl, "webgl");
+        runReadPixelsTests(gl, "webgl");
+
+        const gl2 = canvas2.getContext("webgl2");
+        runBufferUploadTests(gl2, "webgl2");
+        runTextureUploadTests(gl2, "webgl2");
+        runReadPixelsTests(gl2, "webgl2");
+
+        gl2.bufferData(gl2.ARRAY_BUFFER, detachedUint8Array(), gl2.STATIC_DRAW, 0, 0);
+        printError("webgl2 bufferData detached view with source range", gl2);
+
+        gl2.bufferSubData(gl2.ARRAY_BUFFER, 0, detachedUint8Array(), 0, 0);
+        printError("webgl2 bufferSubData detached view with source range", gl2);
+
+        runBufferReadbackTests(gl2);
+    });
+</script>

@@ -184,7 +184,7 @@ ReadPixelsResult HostWebGLContext::read_pixels_robust_angle(GLint x, GLint y, GL
     };
 }
 
-void HostWebGLContext::read_buffer_sub_data(GLenum target, Web::WebGL::GLintptr offset, Web::WebGL::GLintptr size, Core::AnonymousBuffer data)
+bool HostWebGLContext::read_buffer_sub_data(GLenum target, Web::WebGL::GLintptr offset, Web::WebGL::GLintptr size, Core::AnonymousBuffer data)
 {
     VERIFY(size >= 0);
     VERIFY(static_cast<size_t>(size) <= data.size());
@@ -194,7 +194,9 @@ void HostWebGLContext::read_buffer_sub_data(GLenum target, Web::WebGL::GLintptr 
     if (auto* mapped = m_gl_context->map_buffer_range(target, offset, size, GL_MAP_READ_BIT)) {
         __builtin_memcpy(data.data<void>(), mapped, static_cast<size_t>(size));
         m_gl_context->unmap_buffer(target);
+        return true;
     }
+    return false;
 }
 
 ErrorOr<void> HostWebGLContext::set_drawing_buffer_size(int width, int height)

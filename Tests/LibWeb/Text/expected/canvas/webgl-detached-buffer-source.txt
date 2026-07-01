@@ -1,0 +1,30 @@
+webgl bufferData detached view: INVALID_VALUE
+webgl bufferSubData detached view: INVALID_VALUE
+webgl texImage2D detached view: INVALID_OPERATION
+webgl texImage2D detached ImageData data: INVALID_VALUE
+webgl texSubImage2D detached view: INVALID_OPERATION
+webgl texSubImage2D detached ImageData data: INVALID_VALUE
+webgl readPixels valid view: NO_ERROR
+webgl readPixels oversized view: NO_ERROR
+webgl readPixels oversized tail: 17,17,17,17
+webgl readPixels empty rectangle: NO_ERROR
+webgl readPixels empty rectangle destination: 21,22,23,24
+webgl readPixels detached view: INVALID_OPERATION
+webgl2 bufferData detached view: INVALID_VALUE
+webgl2 bufferSubData detached view: INVALID_VALUE
+webgl2 texImage2D detached view: INVALID_OPERATION
+webgl2 texImage2D detached ImageData data: INVALID_VALUE
+webgl2 texSubImage2D detached view: INVALID_OPERATION
+webgl2 texSubImage2D detached ImageData data: INVALID_VALUE
+webgl2 readPixels valid view: NO_ERROR
+webgl2 readPixels oversized view: NO_ERROR
+webgl2 readPixels oversized tail: 17,17,17,17
+webgl2 readPixels empty rectangle: NO_ERROR
+webgl2 readPixels empty rectangle destination: 21,22,23,24
+webgl2 readPixels detached view: INVALID_OPERATION
+webgl2 bufferData detached view with source range: INVALID_VALUE
+webgl2 bufferSubData detached view with source range: INVALID_VALUE
+webgl2 getBufferSubData dstOffset past length: INVALID_VALUE
+webgl2 getBufferSubData dstOffset past length destination: 5,6,7,8
+webgl2 getBufferSubData unbound buffer: INVALID_OPERATION
+webgl2 getBufferSubData unbound destination: 9,8,7,6

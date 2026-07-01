@@ -5,6 +5,7 @@
  */
 
 #include <AK/StringBuilder.h>
+#include <GLES2/gl2.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/PaintingSurface.h>
@@ -138,19 +139,27 @@ void WebGLContextProxyBase::tex_sub_image2d_from_bitmap(GLenum target, GLint lev
     });
 }
 
-void WebGLContextProxyBase::read_buffer_sub_data(GLenum target, long long offset, Bytes destination)
+bool WebGLContextProxyBase::read_buffer_sub_data(GLenum target, long long offset, Bytes destination)
 {
-    if (m_lost || destination.is_empty())
-        return;
+    if (m_lost)
+        return false;
+    if (destination.is_empty())
+        return true;
 
     auto shared_data_or_error = Core::AnonymousBuffer::create_with_size(destination.size());
+    if (shared_data_or_error.is_error()) {
+        set_pending_local_error(GL_OUT_OF_MEMORY);
+        return false;
+    }
 
-    auto shared_data = shared_data_or_error.release_value_but_fixme_should_propagate_errors();
+    auto shared_data = shared_data_or_error.release_value();
     flush_commands();
-    m_transport->read_buffer_sub_data(target, static_cast<GLintptr>(offset), static_cast<GLintptr>(destination.size()), shared_data);
+    if (!m_transport->read_buffer_sub_data(target, static_cast<GLintptr>(offset), static_cast<GLintptr>(destination.size()), shared_data))
+        return false;
     if (m_lost)
-        return;
+        return false;
     __builtin_memcpy(destination.data(), shared_data.data<void>(), destination.size());
+    return true;
 }
 
 void WebGLContextProxy::shader_source(GLuint shader, GLsizei count, GLchar const* const* string, GLint const* length)
@@ -191,7 +200,12 @@ void WebGLContextProxy::read_pixels_robust_angle(GLint x, GLint y, GLsizei width
 
     Core::AnonymousBuffer shared_pixels;
     if (bufSize > 0) {
-        shared_pixels = Core::AnonymousBuffer::create_with_size(static_cast<size_t>(bufSize)).release_value_but_fixme_should_propagate_errors();
+        auto shared_pixels_or_error = Core::AnonymousBuffer::create_with_size(static_cast<size_t>(bufSize));
+        if (shared_pixels_or_error.is_error()) {
+            set_pending_local_error(GL_OUT_OF_MEMORY);
+            return;
+        }
+        shared_pixels = shared_pixels_or_error.release_value();
     }
 
     auto result = read_pixels_robust_angle_into_shared_buffer(x, y, width, height, format, type, bufSize, shared_pixels);

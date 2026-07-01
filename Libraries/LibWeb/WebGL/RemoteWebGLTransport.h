@@ -38,7 +38,7 @@ public:
     virtual void present_canvas(bool preserve_drawing_buffer) = 0;
     virtual ByteBuffer sync_call(ByteBuffer request) = 0;
     virtual ReadPixelsResult read_pixels_robust_angle(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, GLsizei buf_size, Core::AnonymousBuffer pixels) = 0;
-    virtual void read_buffer_sub_data(GLenum target, GLintptr offset, GLintptr size, Core::AnonymousBuffer data) = 0;
+    virtual bool read_buffer_sub_data(GLenum target, GLintptr offset, GLintptr size, Core::AnonymousBuffer data) = 0;
 
     virtual Gfx::ShareableBitmap read_back_drawing_buffer(Gfx::IntRect const&) = 0;
 };

@@ -53,7 +53,7 @@ public:
     RefPtr<Gfx::Bitmap> read_back_drawing_buffer(Gfx::IntRect const&);
 
     void read_pixels_into_pixel_pack_buffer(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, long long offset);
-    void read_buffer_sub_data(GLenum target, long long offset, Bytes destination);
+    bool read_buffer_sub_data(GLenum target, long long offset, Bytes destination);
 
     void tex_image2d_from_bitmap(GLenum target, GLint level, GLint internalformat, GLenum format, GLenum type, Gfx::DecodedImageFrame, Optional<Gfx::IntSize> destination_size, bool flip_y, bool premultiply_alpha);
     void tex_sub_image2d_from_bitmap(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLenum format, GLenum type, Gfx::DecodedImageFrame, Optional<Gfx::IntSize> destination_size, bool flip_y, bool premultiply_alpha);
