@@ -270,7 +270,10 @@ static JS::ThrowCompletionOr<JS::Value> load_ini_impl(JS::VM& vm)
     if (file_or_error.is_error())
         return vm.throw_completion<JS::Error>(Utf16String::formatted("Failed to open '{}': {}", filename, file_or_error.error()));
 
-    auto config_file = MUST(Core::ConfigFile::open(filename, file_or_error.release_value()));
+    auto config_file_or_error = Core::ConfigFile::open(filename, file_or_error.release_value());
+    if (config_file_or_error.is_error())
+        return vm.throw_completion<JS::Error>(Utf16String::formatted("Failed to read '{}': {}", filename, config_file_or_error.error()));
+    auto config_file = config_file_or_error.release_value();
     auto object = JS::Object::create(realm, realm.intrinsics().object_prototype());
     for (auto const& group : config_file->groups()) {
         auto group_object = JS::Object::create(realm, realm.intrinsics().object_prototype());
