@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/ByteBuffer.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/Realm.h>
@@ -65,7 +64,9 @@ GC::Ref<JS::DataView> create_out_of_bounds_data_view(JS::VM& vm)
 {
     auto& realm = *vm.current_realm();
     auto array_buffer = create_shrunken_resizable_array_buffer(vm);
-    return JS::DataView::create(realm, array_buffer.ptr(), JS::ByteLength { 4 }, 8);
+    auto data_view = JS::DataView::create(realm, array_buffer.ptr(), JS::ByteLength { 4 }, 8);
+
+    return data_view;
 }
 
 GC::Ref<JS::Uint16Array> create_uint16_array_view(JS::VM& vm, GC::Ref<JS::ArrayBuffer> array_buffer, u32 byte_offset, u32 element_length)
@@ -156,10 +157,11 @@ TEST_CASE(buffer_source_copy_and_checked_write_handle_in_bounds_views)
     u8 data_view_replacement[] { 0xe0, 0xe1 };
     EXPECT(!data_view_view.write_checked(data_view_replacement, 1).is_error());
 
-    EXPECT_EQ(array_buffer->bytes()[6], 0xf0);
-    EXPECT_EQ(array_buffer->bytes()[7], 0xf1);
-    EXPECT_EQ(array_buffer->bytes()[9], 0xe0);
-    EXPECT_EQ(array_buffer->bytes()[10], 0xe1);
+    auto final_bytes = MUST(array_buffer->copy_to_byte_buffer(0, 16));
+    EXPECT_EQ(final_bytes[6], 0xf0);
+    EXPECT_EQ(final_bytes[7], 0xf1);
+    EXPECT_EQ(final_bytes[9], 0xe0);
+    EXPECT_EQ(final_bytes[10], 0xe1);
 }
 
 TEST_CASE(webgl_buffer_source_copy_treats_out_of_bounds_views_as_empty)

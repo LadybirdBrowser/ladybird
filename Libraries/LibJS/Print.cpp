@@ -422,7 +422,7 @@ ErrorOr<void> print_array_buffer(JS::PrintContext& print_context, JS::ArrayBuffe
     if (byte_length == 0)
         return {};
 
-    auto const* buffer_data = array_buffer.data();
+    auto buffer_data = TRY(array_buffer.copy_to_byte_buffer());
     TRY(js_out(print_context, "\n"));
     for (size_t i = 0; i < byte_length; ++i) {
         TRY(js_out(print_context, "{:02x}", buffer_data[i]));
@@ -486,27 +486,20 @@ ErrorOr<void> print_typed_array(JS::PrintContext& print_context, JS::TypedArrayB
     TRY(js_out(print_context, "\n"));
     // FIXME: Find a better way to print typed arrays to the console.
     // The current solution is limited to 100 lines, is hard to read, and hampers debugging.
-#define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, ArrayType) \
-    if (is<JS::ClassName>(typed_array_base)) {                                           \
-        TRY(js_out(print_context, "[ "));                                                \
-        auto& typed_array = static_cast<JS::ClassName const&>(typed_array_base);         \
-        auto data = typed_array.data();                                                  \
-        size_t printed_count = 0;                                                        \
-        for (size_t i = 0; i < length; ++i) {                                            \
-            if (i > 0)                                                                   \
-                TRY(js_out(print_context, ", "));                                        \
-            TRY(print_number(print_context, data[i]));                                   \
-            if (++printed_count > 100 && i < length) {                                   \
-                TRY(js_out(print_context, ", ..."));                                     \
-                break;                                                                   \
-            }                                                                            \
-        }                                                                                \
-        TRY(js_out(print_context, " ]"));                                                \
-        return {};                                                                       \
+    TRY(js_out(print_context, "[ "));
+    size_t printed_count = 0;
+    for (size_t i = 0; i < length; ++i) {
+        if (i > 0)
+            TRY(js_out(print_context, ", "));
+        auto byte_index = typed_array_base.byte_offset() + i * typed_array_base.element_size();
+        TRY(print_value(print_context, typed_array_base.get_value_from_buffer(byte_index, JS::ArrayBuffer::Order::Unordered), seen_objects));
+        if (++printed_count > 100 && i < length) {
+            TRY(js_out(print_context, ", ..."));
+            break;
+        }
     }
-    JS_ENUMERATE_TYPED_ARRAYS
-#undef __JS_ENUMERATE
-    VERIFY_NOT_REACHED();
+    TRY(js_out(print_context, " ]"));
+    return {};
 }
 
 ErrorOr<void> print_data_view(JS::PrintContext& print_context, JS::DataView const& data_view, GC::RootHashTable<GC::Ref<JS::Object>>& seen_objects)

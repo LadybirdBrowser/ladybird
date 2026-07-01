@@ -51,7 +51,6 @@ struct DecodeResult {
 
 ThrowCompletionOr<GC::Ref<TypedArrayBase>> validate_uint8_array(VM&);
 ThrowCompletionOr<ByteBuffer> get_uint8_array_bytes(VM&, TypedArrayBase const&);
-ThrowCompletionOr<ReadonlyBytes> get_uint8_array_bytes_view(VM&, TypedArrayBase const&);
 void set_uint8_array_bytes(TypedArrayBase&, ReadonlyBytes);
 DecodeResult from_base64(VM&, Utf16View string, Alphabet alphabet, AK::LastChunkHandling last_chunk_handling, Optional<size_t> max_length = {});
 DecodeResult from_hex(VM&, Utf16View string, Optional<size_t> max_length = {});

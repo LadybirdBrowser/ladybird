@@ -508,32 +508,6 @@ public:
         return { move(keys) };
     }
 
-    ReadonlySpan<UnderlyingBufferDataType> data() const
-    {
-        auto typed_array_record = make_typed_array_with_buffer_witness_record(*this, ArrayBuffer::Order::SeqCst);
-
-        if (is_typed_array_out_of_bounds(typed_array_record)) {
-            // FIXME: Propagate this as an error?
-            return {};
-        }
-
-        auto length = typed_array_length(typed_array_record);
-        return { reinterpret_cast<UnderlyingBufferDataType const*>(m_viewed_array_buffer->data() + m_byte_offset), length };
-    }
-
-    Span<UnderlyingBufferDataType> data()
-    {
-        auto typed_array_record = make_typed_array_with_buffer_witness_record(*this, ArrayBuffer::Order::SeqCst);
-
-        if (is_typed_array_out_of_bounds(typed_array_record)) {
-            // FIXME: Propagate this as an error?
-            return {};
-        }
-
-        auto length = typed_array_length(typed_array_record);
-        return { reinterpret_cast<UnderlyingBufferDataType*>(m_viewed_array_buffer->data() + m_byte_offset), length };
-    }
-
     bool is_unclamped_integer_element_type() const override
     {
         constexpr bool is_unclamped_integer = IsSame<T, i8> || IsSame<T, u8> || IsSame<T, i16> || IsSame<T, u16> || IsSame<T, i32> || IsSame<T, u32>;
@@ -557,7 +531,7 @@ protected:
         VERIFY(!Checked<u32>::multiplication_would_overflow(array_length, sizeof(UnderlyingBufferDataType)));
         set_viewed_array_buffer(&array_buffer);
         if (array_length)
-            VERIFY(!data().is_null());
+            VERIFY(m_viewed_array_buffer->data_at(0));
         m_array_length = array_length;
         m_byte_length = m_viewed_array_buffer->byte_length();
     }

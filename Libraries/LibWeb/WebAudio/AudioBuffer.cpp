@@ -101,13 +101,26 @@ WebIDL::ExceptionOr<void> AudioBuffer::copy_from_channel(GC::Ref<JS::Float32Arra
 
     auto const channel = TRY(get_channel_data(channel_number));
 
-    auto channel_length = channel->data().size();
+    auto channel_record = JS::make_typed_array_with_buffer_witness_record(*channel, JS::ArrayBuffer::Order::SeqCst);
+    auto channel_length = JS::is_typed_array_out_of_bounds(channel_record) ? 0 : JS::typed_array_length(channel_record);
     if (buffer_offset >= channel_length)
         return {};
 
-    auto destination_data = destination->data();
-    auto count = min(destination_data.size(), channel_length - buffer_offset);
-    channel->data().slice(buffer_offset, count).copy_to(destination_data.slice(0, count));
+    auto destination_record = JS::make_typed_array_with_buffer_witness_record(*destination, JS::ArrayBuffer::Order::SeqCst);
+    auto destination_length = JS::is_typed_array_out_of_bounds(destination_record) ? 0 : JS::typed_array_length(destination_record);
+    auto count = min(destination_length, channel_length - buffer_offset);
+    if (count == 0)
+        return {};
+
+    auto byte_count = count * sizeof(float);
+    auto source_byte_offset = channel->byte_offset() + buffer_offset * sizeof(float);
+    auto destination_byte_offset = destination->byte_offset();
+    auto& source_buffer = *channel->viewed_array_buffer();
+    auto& destination_buffer = *destination->viewed_array_buffer();
+    if (source_buffer.shares_storage_with(destination_buffer))
+        destination_buffer.move_data(destination_byte_offset, source_byte_offset, byte_count);
+    else
+        source_buffer.copy_data_to(destination_buffer, source_byte_offset, destination_byte_offset, byte_count);
 
     return {};
 }
@@ -129,13 +142,26 @@ WebIDL::ExceptionOr<void> AudioBuffer::copy_to_channel(GC::Ref<JS::Float32Array>
 
     auto channel = TRY(get_channel_data(channel_number));
 
-    auto channel_length = channel->data().size();
+    auto channel_record = JS::make_typed_array_with_buffer_witness_record(*channel, JS::ArrayBuffer::Order::SeqCst);
+    auto channel_length = JS::is_typed_array_out_of_bounds(channel_record) ? 0 : JS::typed_array_length(channel_record);
     if (buffer_offset >= channel_length)
         return {};
 
-    auto source_data = source->data();
-    auto count = min(source_data.size(), channel_length - buffer_offset);
-    source_data.slice(0, count).copy_to(channel->data().slice(buffer_offset, count));
+    auto source_record = JS::make_typed_array_with_buffer_witness_record(*source, JS::ArrayBuffer::Order::SeqCst);
+    auto source_length = JS::is_typed_array_out_of_bounds(source_record) ? 0 : JS::typed_array_length(source_record);
+    auto count = min(source_length, channel_length - buffer_offset);
+    if (count == 0)
+        return {};
+
+    auto byte_count = count * sizeof(float);
+    auto source_byte_offset = source->byte_offset();
+    auto destination_byte_offset = channel->byte_offset() + buffer_offset * sizeof(float);
+    auto& source_buffer = *source->viewed_array_buffer();
+    auto& destination_buffer = *channel->viewed_array_buffer();
+    if (source_buffer.shares_storage_with(destination_buffer))
+        destination_buffer.move_data(destination_byte_offset, source_byte_offset, byte_count);
+    else
+        source_buffer.copy_data_to(destination_buffer, source_byte_offset, destination_byte_offset, byte_count);
 
     return {};
 }

@@ -2105,10 +2105,7 @@ bool readable_byte_stream_controller_fill_pull_into_descriptor_from_queue(Readab
         VERIFY(can_copy_data_block_bytes_buffer(descriptor_buffer, dest_start, queue_buffer, queue_byte_offset, bytes_to_copy));
 
         // 8. Perform ! CopyDataBlockBytes(pullIntoDescriptor’s buffer.[[ArrayBufferData]], destStart, headOfQueue’s buffer.[[ArrayBufferData]], headOfQueue’s byte offset, bytesToCopy).
-        // NOTE: Stream buffers are never externally backed, so copy_data_block_bytes is safe here.
-        auto descriptor_buffer_bytes = pull_into_descriptor.buffer->bytes();
-        auto queue_buffer_bytes = head_of_queue.buffer->bytes();
-        JS::copy_data_block_bytes(descriptor_buffer_bytes, dest_start, queue_buffer_bytes, head_of_queue.byte_offset, bytes_to_copy);
+        head_of_queue.buffer->copy_data_to(*descriptor_buffer, head_of_queue.byte_offset, dest_start, bytes_to_copy);
 
         // 9. If headOfQueue’s byte length is bytesToCopy,
         if (head_of_queue.byte_length == bytes_to_copy) {

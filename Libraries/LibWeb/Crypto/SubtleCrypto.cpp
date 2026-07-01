@@ -870,7 +870,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::derive_key(AlgorithmIdentifier algorithm,
         }
 
         // 15. Let result be the result of performing the import key operation specified by normalizedDerivedKeyAlgorithmImport using "raw" as format, secret as keyData, derivedKeyType as algorithm and using extractable and usages.
-        auto secret_bytes = MUST(ByteBuffer::copy(secret.release_value()->bytes()));
+        auto secret_bytes = MUST(secret.release_value()->copy_to_byte_buffer());
         auto result_or_error = normalized_derived_key_algorithm_import.methods->import_key(*normalized_derived_key_algorithm_import.parameter, Bindings::KeyFormat::Raw, move(secret_bytes), extractable, key_usages);
         if (result_or_error.is_error()) {
             WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), result_or_error.release_error()).release_value());
@@ -1001,7 +1001,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::wrap_key(Bindings::KeyFormat format, GC::
             || format == Bindings::KeyFormat::Pkcs8
             || format == Bindings::KeyFormat::Spki) {
             // Let bytes be exportedKey.
-            bytes = MUST(ByteBuffer::copy(as<JS::ArrayBuffer>(*exported_key).bytes()));
+            bytes = MUST(as<JS::ArrayBuffer>(*exported_key).copy_to_byte_buffer());
         } else {
             VERIFY_NOT_REACHED();
         }
@@ -1147,7 +1147,8 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::unwrap_key(Bindings::KeyFormat format, We
         // 15. If format is equal to the string "jwk":
         if (format == Bindings::KeyFormat::Jwk) {
             // Let key be the result of executing the parse a JWK algorithm, with bytes as the data to be parsed.
-            auto maybe_parsed = JsonWebKey::parse(realm, bytes->bytes());
+            auto bytes_data = MUST(bytes->copy_to_byte_buffer());
+            auto maybe_parsed = JsonWebKey::parse(realm, bytes_data);
             if (maybe_parsed.is_error()) {
                 WebIDL::reject_promise(realm, promise, maybe_parsed.release_error().release_value());
                 return;
@@ -1165,7 +1166,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::unwrap_key(Bindings::KeyFormat format, We
             || format == Bindings::KeyFormat::Pkcs8
             || format == Bindings::KeyFormat::Spki) {
             // Let key be bytes.
-            key = MUST(ByteBuffer::copy(bytes->bytes()));
+            key = MUST(bytes->copy_to_byte_buffer());
         } else {
             VERIFY_NOT_REACHED();
         }
@@ -1479,7 +1480,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::decapsulate_key(AlgorithmIdentifier decap
         auto maybe_shared_key = normalized_shared_key_algorithm.methods->import_key(
             *normalized_shared_key_algorithm.parameter,
             Bindings::KeyFormat::RawSecret,
-            MUST(ByteBuffer::copy(decapsulated_bits->bytes())),
+            MUST(decapsulated_bits->copy_to_byte_buffer()),
             extractable,
             usages);
         if (maybe_shared_key.is_error()) {

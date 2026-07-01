@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ByteBuffer.h>
 #include <AK/MemoryStream.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibTest/JavaScriptTestRunner.h>
@@ -34,9 +35,11 @@ TESTJS_GLOBAL_FUNCTION(read_binary_wasm_file, readBinaryWasmFile)
 
     auto array = TRY(JS::Uint8Array::create(realm, file_size.value()));
 
-    auto read = file.value()->read_until_filled(array->data());
+    auto bytes = MUST(ByteBuffer::create_uninitialized(file_size.value()));
+    auto read = file.value()->read_until_filled(bytes);
     if (read.is_error())
         return vm.throw_completion<JS::TypeError>(Utf16String::from_utf8(error_code_to_string(read.error().code())));
+    array->viewed_array_buffer()->overwrite(array->byte_offset(), bytes.data(), bytes.size());
 
     return JS::Value(array);
 }
@@ -171,7 +174,9 @@ TESTJS_GLOBAL_FUNCTION(parse_webassembly_module, parseWebAssemblyModule)
     if (!is<JS::Uint8Array>(*object))
         return vm.throw_completion<JS::TypeError>("Expected a Uint8Array argument to parse_webassembly_module"_utf16);
     auto& array = static_cast<JS::Uint8Array&>(*object);
-    FixedMemoryStream stream { array.data() };
+    auto record = JS::make_typed_array_with_buffer_witness_record(array, JS::ArrayBuffer::Order::SeqCst);
+    auto bytes = MUST(array.viewed_array_buffer()->copy_to_byte_buffer(array.byte_offset(), JS::typed_array_byte_length(record)));
+    FixedMemoryStream stream { ReadonlyBytes { bytes.data(), bytes.size() } };
     auto result = Wasm::Module::parse(stream);
     if (result.is_error())
         return vm.throw_completion<JS::SyntaxError>(Utf16String::from_utf8(Wasm::parse_error_to_byte_string(result.error())));
@@ -199,7 +204,9 @@ TESTJS_GLOBAL_FUNCTION(validate_webassembly_module, validateWebAssemblyModule)
     if (!is<JS::Uint8Array>(*object))
         return vm.throw_completion<JS::TypeError>("Expected a Uint8Array argument to validate_webassembly_module"_utf16);
     auto& array = static_cast<JS::Uint8Array&>(*object);
-    FixedMemoryStream stream { array.data() };
+    auto record = JS::make_typed_array_with_buffer_witness_record(array, JS::ArrayBuffer::Order::SeqCst);
+    auto bytes = MUST(array.viewed_array_buffer()->copy_to_byte_buffer(array.byte_offset(), JS::typed_array_byte_length(record)));
+    FixedMemoryStream stream { ReadonlyBytes { bytes.data(), bytes.size() } };
     auto result = Wasm::Module::parse(stream);
     if (result.is_error())
         return vm.throw_completion<JS::SyntaxError>(Utf16String::from_utf8(Wasm::parse_error_to_byte_string(result.error())));
@@ -250,9 +257,13 @@ TESTJS_GLOBAL_FUNCTION(compare_typed_arrays, compareTypedArrays)
     auto& rhs_array = static_cast<JS::TypedArrayBase&>(*rhs);
     auto lhs_record = JS::make_typed_array_with_buffer_witness_record(lhs_array, JS::ArrayBuffer::Order::SeqCst);
     auto rhs_record = JS::make_typed_array_with_buffer_witness_record(rhs_array, JS::ArrayBuffer::Order::SeqCst);
-    auto lhs_bytes = lhs_array.viewed_array_buffer()->bytes().slice(lhs_array.byte_offset(), JS::typed_array_byte_length(lhs_record));
-    auto rhs_bytes = rhs_array.viewed_array_buffer()->bytes().slice(rhs_array.byte_offset(), JS::typed_array_byte_length(rhs_record));
-    return JS::Value(lhs_bytes == rhs_bytes);
+    auto lhs_byte_length = JS::typed_array_byte_length(lhs_record);
+    auto rhs_byte_length = JS::typed_array_byte_length(rhs_record);
+    if (lhs_byte_length != rhs_byte_length)
+        return JS::Value(false);
+    auto lhs_bytes = MUST(lhs_array.viewed_array_buffer()->copy_to_byte_buffer(lhs_array.byte_offset(), lhs_byte_length));
+    auto rhs_bytes = MUST(rhs_array.viewed_array_buffer()->copy_to_byte_buffer(rhs_array.byte_offset(), rhs_byte_length));
+    return JS::Value(lhs_bytes.bytes() == rhs_bytes.bytes());
 }
 
 static bool _is_canonical_nan32(u32 value)
@@ -461,9 +472,12 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
             if (!is<JS::TypedArrayBase>(*object))
                 return vm.throw_completion<JS::TypeError>("Expected typed array"_utf16);
             auto& array = static_cast<JS::TypedArrayBase&>(*object);
+            auto record = JS::make_typed_array_with_buffer_witness_record(array, JS::ArrayBuffer::Order::SeqCst);
+            if (JS::typed_array_byte_length(record) < sizeof(u128))
+                return vm.throw_completion<JS::TypeError>("Expected at least 16 bytes"_utf16);
             u128 bits = 0;
             auto* ptr = bit_cast<u8*>(&bits);
-            memcpy(ptr, array.viewed_array_buffer()->data(), 16);
+            array.viewed_array_buffer()->copy_to(array.byte_offset(), { ptr, sizeof(u128) });
             arguments.append(Wasm::Value(bits));
             break;
         }
@@ -547,7 +561,8 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
             u128 val = value.to<u128>();
             // FIXME: remove the MUST here
             auto buf = MUST(JS::ArrayBuffer::create(*vm.current_realm(), 16));
-            memcpy(buf->data(), val.bytes().data(), 16);
+            auto bytes = val.bytes();
+            buf->overwrite(0, bytes.data(), bytes.size());
             return JS::Value(buf);
         }
         case Wasm::ValueType::FunctionReference:

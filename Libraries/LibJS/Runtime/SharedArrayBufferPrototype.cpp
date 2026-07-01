@@ -219,14 +219,8 @@ JS_DEFINE_NATIVE_FUNCTION(SharedArrayBufferPrototype::slice)
     if (new_array_buffer_object->byte_length() < new_length)
         return vm.throw_completion<TypeError>(ErrorType::SpeciesConstructorReturned, "an ArrayBuffer smaller than requested");
 
-    // 20. Let fromBuf be O.[[ArrayBufferData]].
-    auto from_buf = array_buffer_object->bytes();
-
-    // 21. Let toBuf be new.[[ArrayBufferData]].
-    auto to_buf = new_array_buffer_object->bytes();
-
     // 22. Perform CopyDataBlockBytes(toBuf, 0, fromBuf, first, newLen).
-    copy_data_block_bytes(to_buf, 0, from_buf, first, new_length);
+    array_buffer_object->copy_data_to(*new_array_buffer_object, first, 0, new_length);
 
     // 23. Return new.
     return new_array_buffer_object;

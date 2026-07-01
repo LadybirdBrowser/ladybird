@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Checked.h>
 #include <AK/ScopeGuard.h>
 #include <AK/Types.h>
 #include <LibJS/Bytecode/Builtins.h>
@@ -2812,34 +2813,38 @@ i64 asm_try_get_by_value_typed_array(VM* vm, u32, Op::GetByValue const* instruct
     }
 
     auto* buffer = typed_array.viewed_array_buffer();
-    auto const* data = buffer->data() + typed_array.byte_offset();
+    Checked<size_t> byte_index = index;
+    byte_index *= typed_array.element_size();
+    byte_index += typed_array.byte_offset();
+    if (byte_index.has_overflow()) [[unlikely]]
+        return 1;
 
     Value result;
     switch (typed_array.kind()) {
     case TypedArrayBase::Kind::Uint8Array:
     case TypedArrayBase::Kind::Uint8ClampedArray:
-        result = Value(static_cast<i32>(data[index]));
+        result = buffer->get_value<u8>(byte_index.value(), true, ArrayBuffer::Order::Unordered);
         break;
     case TypedArrayBase::Kind::Int8Array:
-        result = Value(static_cast<i32>(reinterpret_cast<i8 const*>(data)[index]));
+        result = buffer->get_value<i8>(byte_index.value(), true, ArrayBuffer::Order::Unordered);
         break;
     case TypedArrayBase::Kind::Uint16Array:
-        result = Value(static_cast<i32>(reinterpret_cast<u16 const*>(data)[index]));
+        result = buffer->get_value<u16>(byte_index.value(), true, ArrayBuffer::Order::Unordered);
         break;
     case TypedArrayBase::Kind::Int16Array:
-        result = Value(static_cast<i32>(reinterpret_cast<i16 const*>(data)[index]));
+        result = buffer->get_value<i16>(byte_index.value(), true, ArrayBuffer::Order::Unordered);
         break;
     case TypedArrayBase::Kind::Uint32Array:
-        result = Value(static_cast<double>(reinterpret_cast<u32 const*>(data)[index]));
+        result = buffer->get_value<u32>(byte_index.value(), true, ArrayBuffer::Order::Unordered);
         break;
     case TypedArrayBase::Kind::Int32Array:
-        result = Value(reinterpret_cast<i32 const*>(data)[index]);
+        result = buffer->get_value<i32>(byte_index.value(), true, ArrayBuffer::Order::Unordered);
         break;
     case TypedArrayBase::Kind::Float32Array:
-        result = Value(static_cast<double>(reinterpret_cast<float const*>(data)[index]));
+        result = buffer->get_value<float>(byte_index.value(), true, ArrayBuffer::Order::Unordered);
         break;
     case TypedArrayBase::Kind::Float64Array:
-        result = Value(reinterpret_cast<double const*>(data)[index]);
+        result = buffer->get_value<double>(byte_index.value(), true, ArrayBuffer::Order::Unordered);
         break;
     default:
         return 1;
@@ -2883,32 +2888,36 @@ i64 asm_try_put_by_value_typed_array(VM* vm, u32, Op::PutByValue const* instruct
         return 1;
 
     auto* buffer = typed_array.viewed_array_buffer();
-    auto* data = buffer->data() + typed_array.byte_offset();
+    Checked<size_t> byte_index = index;
+    byte_index *= typed_array.element_size();
+    byte_index += typed_array.byte_offset();
+    if (byte_index.has_overflow()) [[unlikely]]
+        return 1;
     auto value = vm->get(instruction->src());
 
     if (value.is_int32()) {
         auto int_val = value.as_i32();
         switch (typed_array.kind()) {
         case TypedArrayBase::Kind::Uint8Array:
-            data[index] = static_cast<u8>(int_val);
+            buffer->set_value<u8>(byte_index.value(), value, true, ArrayBuffer::Order::Unordered);
             return 0;
         case TypedArrayBase::Kind::Uint8ClampedArray:
-            data[index] = static_cast<u8>(clamp(int_val, 0, 255));
+            buffer->set_value<ClampedU8>(byte_index.value(), Value { clamp(int_val, 0, 255) }, true, ArrayBuffer::Order::Unordered);
             return 0;
         case TypedArrayBase::Kind::Int8Array:
-            reinterpret_cast<i8*>(data)[index] = static_cast<i8>(int_val);
+            buffer->set_value<i8>(byte_index.value(), value, true, ArrayBuffer::Order::Unordered);
             return 0;
         case TypedArrayBase::Kind::Uint16Array:
-            reinterpret_cast<u16*>(data)[index] = static_cast<u16>(int_val);
+            buffer->set_value<u16>(byte_index.value(), value, true, ArrayBuffer::Order::Unordered);
             return 0;
         case TypedArrayBase::Kind::Int16Array:
-            reinterpret_cast<i16*>(data)[index] = static_cast<i16>(int_val);
+            buffer->set_value<i16>(byte_index.value(), value, true, ArrayBuffer::Order::Unordered);
             return 0;
         case TypedArrayBase::Kind::Uint32Array:
-            reinterpret_cast<u32*>(data)[index] = static_cast<u32>(int_val);
+            buffer->set_value<u32>(byte_index.value(), value, true, ArrayBuffer::Order::Unordered);
             return 0;
         case TypedArrayBase::Kind::Int32Array:
-            reinterpret_cast<i32*>(data)[index] = int_val;
+            buffer->set_value<i32>(byte_index.value(), value, true, ArrayBuffer::Order::Unordered);
             return 0;
         default:
             break;
@@ -2917,10 +2926,10 @@ i64 asm_try_put_by_value_typed_array(VM* vm, u32, Op::PutByValue const* instruct
         auto dbl_val = value.as_double();
         switch (typed_array.kind()) {
         case TypedArrayBase::Kind::Float32Array:
-            reinterpret_cast<float*>(data)[index] = static_cast<float>(dbl_val);
+            buffer->set_value<float>(byte_index.value(), Value { dbl_val }, true, ArrayBuffer::Order::Unordered);
             return 0;
         case TypedArrayBase::Kind::Float64Array:
-            reinterpret_cast<double*>(data)[index] = dbl_val;
+            buffer->set_value<double>(byte_index.value(), Value { dbl_val }, true, ArrayBuffer::Order::Unordered);
             return 0;
         default:
             break;

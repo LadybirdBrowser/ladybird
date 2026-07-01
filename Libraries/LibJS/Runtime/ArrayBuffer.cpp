@@ -322,7 +322,7 @@ ThrowCompletionOr<ArrayBuffer*> array_buffer_copy_and_detach(VM& vm, ArrayBuffer
     // 12. Let toBlock be newBuffer.[[ArrayBufferData]].
     // 13. Perform CopyDataBlockBytes(toBlock, 0, fromBlock, 0, copyLength).
     // 14. NOTE: Neither creation of the new Data Block nor copying from the old Data Block are observable. Implementations may implement this method as a zero-copy move or a realloc.
-    new_buffer->overwrite(0, array_buffer.data(), copy_length);
+    array_buffer.copy_data_to(*new_buffer, 0, 0, copy_length);
 
     // 15. Perform ! DetachArrayBuffer(arrayBuffer).
     MUST(detach_array_buffer(vm, array_buffer));
@@ -393,11 +393,9 @@ ThrowCompletionOr<ArrayBuffer*> clone_array_buffer(VM& vm, ArrayBuffer& source_b
     auto* target_buffer = TRY(allocate_array_buffer(vm, realm.intrinsics().array_buffer_constructor(), source_length));
 
     // 3. Let srcBlock be srcBuffer.[[ArrayBufferData]].
-    auto source_block = source_buffer.bytes().slice(source_byte_offset, source_length);
-
     // 4. Let targetBlock be targetBuffer.[[ArrayBufferData]].
     // 5. Perform CopyDataBlockBytes(targetBlock, 0, srcBlock, srcByteOffset, srcLength).
-    target_buffer->overwrite(0, source_block.data(), source_length);
+    source_buffer.copy_data_to(*target_buffer, source_byte_offset, 0, source_length);
 
     // 6. Return targetBuffer.
     return target_buffer;

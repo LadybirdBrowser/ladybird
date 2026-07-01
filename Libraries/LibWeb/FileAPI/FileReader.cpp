@@ -240,7 +240,11 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
                     auto const& byte_sequence = as<JS::Uint8Array>(value.as_object());
 
                     // 2. Append bs to bytes.
-                    state->bytes.append(byte_sequence.data());
+                    auto byte_sequence_record = JS::make_typed_array_with_buffer_witness_record(byte_sequence, JS::ArrayBuffer::Order::SeqCst);
+                    if (!JS::is_typed_array_out_of_bounds(byte_sequence_record)) {
+                        auto bytes = MUST(byte_sequence.viewed_array_buffer()->copy_to_byte_buffer(byte_sequence.byte_offset(), JS::typed_array_byte_length(byte_sequence_record)));
+                        state->bytes.append(bytes);
+                    }
 
                     // 3. If roughly 50ms have passed since these steps were last invoked, queue a task to fire a progress event called progress at fr.
                     auto now = MonotonicTime::now();

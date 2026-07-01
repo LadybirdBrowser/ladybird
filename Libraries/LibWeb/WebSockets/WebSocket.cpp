@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ByteBuffer.h>
 #include <AK/QuickSort.h>
 #include <AK/Utf16String.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
@@ -318,10 +319,14 @@ WebIDL::ExceptionOr<void> WebSocket::send(WebSocketSendData const& data)
             },
             [this](WebIDL::BufferSourceVariant buffer_source_variant) {
                 auto buffer_source = WebIDL::BufferSource { buffer_source_variant };
+                ByteBuffer buffer_storage;
                 ReadonlyBytes buffer;
 
-                if (auto array_buffer = buffer_source.viewed_array_buffer(); array_buffer && !array_buffer->is_detached() && !buffer_source.is_out_of_bounds())
-                    buffer = array_buffer->bytes().slice(buffer_source.byte_offset(), buffer_source.byte_length());
+                if (auto array_buffer = buffer_source.viewed_array_buffer(); array_buffer && !array_buffer->is_detached() && !buffer_source.is_out_of_bounds()) {
+                    buffer_storage = MUST(ByteBuffer::create_uninitialized(buffer_source.byte_length()));
+                    array_buffer->copy_to(buffer_source.byte_offset(), buffer_storage);
+                    buffer = buffer_storage;
+                }
 
                 m_websocket->send(buffer, false);
             },

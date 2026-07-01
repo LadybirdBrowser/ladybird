@@ -141,9 +141,7 @@ protected:
         if (byte_length > array_buffer->byte_length() - byte_offset_in_buffer.value()) [[unlikely]]
             return Error::from_errno(EINVAL);
 
-        auto bytes = TRY(ByteBuffer::create_uninitialized(byte_length));
-        array_buffer->bytes().slice(byte_offset_in_buffer.value(), byte_length).copy_to(bytes);
-        return bytes;
+        return array_buffer->copy_to_byte_buffer(byte_offset_in_buffer.value(), byte_length);
     }
 
     template<typename T>
@@ -217,14 +215,7 @@ protected:
         if (byte_offset.has_overflow() || byte_length.has_overflow()) [[unlikely]]
             return Error::from_errno(EINVAL);
 
-        auto* array_buffer = typed_array.viewed_array_buffer();
-        if (byte_offset.value() > array_buffer->byte_length()) [[unlikely]]
-            return Error::from_errno(EINVAL);
-        if (byte_length.value() > array_buffer->byte_length() - byte_offset.value()) [[unlikely]]
-            return Error::from_errno(EINVAL);
-
-        auto bytes = TRY(ByteBuffer::create_uninitialized(byte_length.value()));
-        array_buffer->bytes().slice(byte_offset.value(), byte_length.value()).copy_to(bytes);
+        auto bytes = TRY(typed_array.viewed_array_buffer()->copy_to_byte_buffer(byte_offset.value(), byte_length.value()));
         return SpanWithStorage<T> { move(bytes) };
     }
 

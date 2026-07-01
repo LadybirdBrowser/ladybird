@@ -398,7 +398,8 @@ GC::Ref<WebIDL::Promise> Blob::text()
         auto const& array_buffer = static_cast<JS::ArrayBuffer const&>(object);
 
         auto decoder = TextCodec::decoder_for("UTF-8"sv);
-        auto utf8_text = TRY_OR_THROW_OOM(vm, TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, array_buffer.bytes()));
+        auto buffer_data = MUST(array_buffer.copy_to_byte_buffer());
+        auto utf8_text = TRY_OR_THROW_OOM(vm, TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, buffer_data));
         return JS::PrimitiveString::create(vm, Utf16String::from_utf8(utf8_text));
     }));
 }
@@ -426,7 +427,7 @@ GC::Ref<WebIDL::Promise> Blob::array_buffer()
         VERIFY(is<JS::ArrayBuffer>(object));
         auto const& array_buffer = static_cast<JS::ArrayBuffer const&>(object);
 
-        return JS::ArrayBuffer::create(realm, MUST(ByteBuffer::copy(array_buffer.bytes())));
+        return JS::ArrayBuffer::create(realm, MUST(array_buffer.copy_to_byte_buffer()));
     }));
 }
 

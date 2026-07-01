@@ -373,26 +373,14 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::copy_within)
             return typed_array;
         }
 
-        // OPTIMIZATION: Fast path for non-shared ArrayBuffers that are not detached and have enough space to perform the copy with memmove.
         if (!buffer->is_shared_array_buffer()) {
-            Checked<size_t> from_end = from_byte_index;
-            from_end += count_bytes;
-
-            Checked<size_t> to_end = to_byte_index;
-            to_end += count_bytes;
-
-            if (!from_end.has_overflow() && !to_end.has_overflow()) {
-                auto* base = buffer->data();
-                void const* src = base + from_byte_index;
-                void* dst = base + to_byte_index;
-                memmove(dst, src, count_bytes);
-                return typed_array;
-            }
+            buffer->move_data(to_byte_index, from_byte_index, count_bytes);
+            return typed_array;
         }
 
         i8 direction;
 
-        // l. If fromByteIndex < toByteIndex and toByteIndex < fromByteIndex + countBytes, then
+        // m. If fromByteIndex < toByteIndex and toByteIndex < fromByteIndex + countBytes, then
         if (from_byte_index < to_byte_index && to_byte_index < from_plus_count.value()) {
             // i. Let direction be -1.
             direction = -1;
@@ -410,7 +398,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::copy_within)
             // iii. Set toByteIndex to toByteIndex + countBytes - 1.
             to_byte_index = to_plus_count.value() - 1;
         }
-        // m. Else,
+        // n. Else,
         else {
             // i. Let direction be 1.
             direction = 1;
@@ -517,9 +505,11 @@ inline void fast_typed_array_fill(TypedArrayBase& typed_array, u32 begin, u32 en
     }
 
     auto& array_buffer = *typed_array.viewed_array_buffer();
-    auto* slot = reinterpret_cast<T*>(array_buffer.data() + computed_begin.value());
-    for (auto i = begin; i < end; ++i)
-        *(slot++) = value;
+    auto byte_index = computed_begin.value();
+    for (auto i = begin; i < end; ++i) {
+        array_buffer.overwrite(byte_index, &value, sizeof(T));
+        byte_index += sizeof(T);
+    }
 }
 
 // 23.2.3.9 %TypedArray%.prototype.fill ( value [ , start [ , end ] ] ), https://tc39.es/ecma262/#sec-%typedarray%.prototype.fill
@@ -1479,7 +1469,7 @@ static ThrowCompletionOr<void> set_typed_array_from_typed_array(VM& vm, TypedArr
     auto same_shared_array_buffer = false;
 
     // 18. If IsSharedArrayBuffer(srcBuffer) is true, IsSharedArrayBuffer(targetBuffer) is true, and srcBuffer.[[ArrayBufferData]] is targetBuffer.[[ArrayBufferData]], let sameSharedArrayBuffer be true; otherwise, let sameSharedArrayBuffer be false.
-    if (source_buffer->is_shared_array_buffer() && target_buffer->is_shared_array_buffer() && (source_buffer->data() == target_buffer->data()))
+    if (source_buffer->is_shared_array_buffer() && target_buffer->is_shared_array_buffer() && source_buffer->shares_storage_with(*target_buffer))
         same_shared_array_buffer = true;
 
     size_t source_byte_index = 0;
@@ -1527,7 +1517,7 @@ static ThrowCompletionOr<void> set_typed_array_from_typed_array(VM& vm, TypedArr
         //     ii. Perform SetValueInBuffer(targetBuffer, targetByteIndex, Uint8, value, true, Unordered).
         //     iii. Set srcByteIndex to srcByteIndex + 1.
         //     iv. Set targetByteIndex to targetByteIndex + 1.
-        target_buffer->overwrite(target_byte_index, source_buffer->data() + source_byte_index, limit - target_byte_index);
+        source_buffer->copy_data_to(*target_buffer, source_byte_index, target_byte_index, limit - target_byte_index);
     }
     // 24. Else,
     else {
@@ -1767,8 +1757,8 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::slice)
             // OPTIMIZATION: If the buffers are not detached and not shared, we can do a single bulk copy.
             if (!target_buffer.is_detached() && !target_buffer.is_shared_array_buffer()
                 && !source_buffer.is_detached() && !source_buffer.is_shared_array_buffer()
-                && target_buffer.data() != source_buffer.data()) {
-                target_buffer.overwrite(target_byte_index, source_buffer.data() + source_byte_index.value(), limit.value() - target_byte_index);
+                && !target_buffer.shares_storage_with(source_buffer)) {
+                source_buffer.copy_data_to(target_buffer, source_byte_index.value(), target_byte_index, limit.value() - target_byte_index);
             } else {
                 // ix. Repeat, while targetByteIndex < limit,
                 while (target_byte_index < limit) {

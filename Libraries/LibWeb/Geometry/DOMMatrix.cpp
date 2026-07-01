@@ -170,18 +170,20 @@ WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::from_float32_array(JS::VM& vm
     if (element_count != 6 && element_count != 16)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Expected a Float32Array argument with 6 or 16 elements"_string };
 
-    auto elements = array->data();
+    return array->viewed_array_buffer()->with_readonly_bytes(array->byte_offset(), element_count * sizeof(float), [&](ReadonlyBytes bytes) -> WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> {
+        auto elements = bytes.reinterpret<float const>();
 
-    // If array32 has 6 elements, return the result of invoking create a 2d matrix of type DOMMatrixReadOnly or DOMMatrix as appropriate, with a sequence of numbers taking the values from array32 in the provided order.
-    if (element_count == 6)
-        return realm.create<DOMMatrix>(realm, elements.at(0), elements.at(1), elements.at(2), elements.at(3), elements.at(4), elements.at(5));
+        // If array32 has 6 elements, return the result of invoking create a 2d matrix of type DOMMatrixReadOnly or DOMMatrix as appropriate, with a sequence of numbers taking the values from array32 in the provided order.
+        if (element_count == 6)
+            return realm.create<DOMMatrix>(realm, elements.at(0), elements.at(1), elements.at(2), elements.at(3), elements.at(4), elements.at(5));
 
-    // If array32 has 16 elements, return the result of invoking create a 3d matrix of type DOMMatrixReadOnly or DOMMatrix as appropriate, with a sequence of numbers taking the values from array32 in the provided order.
-    VERIFY(element_count == 16);
-    return realm.create<DOMMatrix>(realm, elements.at(0), elements.at(1), elements.at(2), elements.at(3),
-        elements.at(4), elements.at(5), elements.at(6), elements.at(7),
-        elements.at(8), elements.at(9), elements.at(10), elements.at(11),
-        elements.at(12), elements.at(13), elements.at(14), elements.at(15));
+        // If array32 has 16 elements, return the result of invoking create a 3d matrix of type DOMMatrixReadOnly or DOMMatrix as appropriate, with a sequence of numbers taking the values from array32 in the provided order.
+        VERIFY(element_count == 16);
+        return realm.create<DOMMatrix>(realm, elements.at(0), elements.at(1), elements.at(2), elements.at(3),
+            elements.at(4), elements.at(5), elements.at(6), elements.at(7),
+            elements.at(8), elements.at(9), elements.at(10), elements.at(11),
+            elements.at(12), elements.at(13), elements.at(14), elements.at(15));
+    });
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrix-fromfloat64array
@@ -196,18 +198,20 @@ WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::from_float64_array(JS::VM& vm
     if (element_count != 6 && element_count != 16)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Expected a Float64Array argument with 6 or 16 elements"_string };
 
-    auto elements = array->data();
+    return array->viewed_array_buffer()->with_readonly_bytes(array->byte_offset(), element_count * sizeof(double), [&](ReadonlyBytes bytes) -> WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> {
+        auto elements = bytes.reinterpret<double const>();
 
-    // If array64 has 6 elements, return the result of invoking create a 2d matrix of type DOMMatrixReadOnly or DOMMatrix as appropriate, with a sequence of numbers taking the values from array64 in the provided order.
-    if (element_count == 6)
-        return realm.create<DOMMatrix>(realm, elements.at(0), elements.at(1), elements.at(2), elements.at(3), elements.at(4), elements.at(5));
+        // If array64 has 6 elements, return the result of invoking create a 2d matrix of type DOMMatrixReadOnly or DOMMatrix as appropriate, with a sequence of numbers taking the values from array64 in the provided order.
+        if (element_count == 6)
+            return realm.create<DOMMatrix>(realm, elements.at(0), elements.at(1), elements.at(2), elements.at(3), elements.at(4), elements.at(5));
 
-    // If array64 has 16 elements, return the result of invoking create a 3d matrix of type DOMMatrixReadOnly or DOMMatrix as appropriate, with a sequence of numbers taking the values from array64 in the provided order.
-    VERIFY(element_count == 16);
-    return realm.create<DOMMatrix>(realm, elements.at(0), elements.at(1), elements.at(2), elements.at(3),
-        elements.at(4), elements.at(5), elements.at(6), elements.at(7),
-        elements.at(8), elements.at(9), elements.at(10), elements.at(11),
-        elements.at(12), elements.at(13), elements.at(14), elements.at(15));
+        // If array64 has 16 elements, return the result of invoking create a 3d matrix of type DOMMatrixReadOnly or DOMMatrix as appropriate, with a sequence of numbers taking the values from array64 in the provided order.
+        VERIFY(element_count == 16);
+        return realm.create<DOMMatrix>(realm, elements.at(0), elements.at(1), elements.at(2), elements.at(3),
+            elements.at(4), elements.at(5), elements.at(6), elements.at(7),
+            elements.at(8), elements.at(9), elements.at(10), elements.at(11),
+            elements.at(12), elements.at(13), elements.at(14), elements.at(15));
+    });
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-m11

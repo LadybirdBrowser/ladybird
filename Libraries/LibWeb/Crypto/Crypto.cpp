@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ByteBuffer.h>
 #include <AK/Random.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/Crypto.h>
@@ -72,7 +73,9 @@ WebIDL::ExceptionOr<WebIDL::ArrayBufferViewVariant> Crypto::get_random_values(We
         return WebIDL::QuotaExceededError::create(realm(), "array's byteLength may not be greater than 65536"_utf16);
 
     // 3. Overwrite all elements of array with cryptographically strong random values of the appropriate type.
-    fill_with_random(array_view.viewed_array_buffer()->bytes().slice(array_view.byte_offset(), array_view.byte_length()));
+    auto random_bytes = MUST(ByteBuffer::create_uninitialized(array_view.byte_length()));
+    fill_with_random(random_bytes);
+    array_view.viewed_array_buffer()->overwrite(array_view.byte_offset(), random_bytes.data(), random_bytes.size());
 
     // 4. Return array.
     return array;

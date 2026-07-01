@@ -59,7 +59,10 @@ Bindings::TextEncoderEncodeIntoResult TextEncoder::encode_into(String const& sou
     if (destination->viewed_array_buffer()->is_detached())
         return { 0, 0 };
 
-    auto data = destination->data();
+    auto destination_record = JS::make_typed_array_with_buffer_witness_record(*destination, JS::ArrayBuffer::Order::SeqCst);
+    if (JS::is_typed_array_out_of_bounds(destination_record))
+        return { 0, 0 };
+    auto destination_byte_length = JS::typed_array_byte_length(destination_record);
 
     // 1. Let read be 0.
     WebIDL::UnsignedLongLong read = 0;
@@ -85,7 +88,7 @@ Bindings::TextEncoderEncodeIntoResult TextEncoder::encode_into(String const& sou
 
         // 6.4. Otherwise:
         // 6.4.1. If destination’s byte length − written is greater than or equal to the number of bytes in result, then:
-        if (data.size() - written >= result.size()) {
+        if (destination_byte_length - written >= result.size()) {
             // 6.4.1.1. If item is greater than U+FFFF, then increment read by 2.
             if (item > 0xffff) {
                 read += 2;
@@ -98,8 +101,8 @@ Bindings::TextEncoderEncodeIntoResult TextEncoder::encode_into(String const& sou
             // 6.4.1.3. Write the bytes in result into destination, with startingOffset set to written.
             // 6.4.1.4. Increment written by the number of bytes in result.
             // WARNING: See the warning for SharedArrayBuffer objects at https://encoding.spec.whatwg.org/#sharedarraybuffer-warning.
-            for (auto byte : result)
-                data[written++] = byte;
+            destination->viewed_array_buffer()->overwrite(destination->byte_offset() + written, result.data(), result.size());
+            written += result.size();
         }
         // 6.4.2. Otherwise, break.
         else {

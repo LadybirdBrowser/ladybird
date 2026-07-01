@@ -139,8 +139,8 @@ TEST_CASE(resize_and_reserve_failure_preserves_existing_storage)
     auto offset = storage.offset(handle);
     auto capacity = storage.capacity(handle);
     auto* data = storage.data(handle);
-    storage.bytes(handle)[0] = 0x42;
-    storage.bytes(handle)[15] = 0x24;
+    *storage.data(handle, 0) = 0x42;
+    *storage.data(handle, 15) = 0x24;
 
     auto result = storage.try_resize_and_reserve(handle, 32, GC::PrimitiveStorage::default_cage_size + 64 * KiB, GC::PrimitiveStorage::ZeroFillNewBytes::Yes);
 
@@ -149,8 +149,8 @@ TEST_CASE(resize_and_reserve_failure_preserves_existing_storage)
     EXPECT_EQ(storage.size(handle), 16u);
     EXPECT_EQ(storage.capacity(handle), capacity);
     EXPECT_EQ(storage.data(handle), data);
-    EXPECT_EQ(storage.bytes(handle)[0], 0x42);
-    EXPECT_EQ(storage.bytes(handle)[15], 0x24);
+    EXPECT_EQ(*storage.data(handle, 0), 0x42);
+    EXPECT_EQ(*storage.data(handle, 15), 0x24);
 
     storage.free(handle);
 }

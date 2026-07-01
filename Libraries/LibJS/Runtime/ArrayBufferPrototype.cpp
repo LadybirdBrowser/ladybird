@@ -163,9 +163,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayBufferPrototype::resize)
     auto copy_length = min(new_byte_length, array_buffer_object->byte_length());
 
     // 12. Perform CopyDataBlockBytes(newBlock, 0, oldBlock, 0, copyLength).
-    auto new_block_bytes = new_block.bytes();
-    auto old_block_bytes = array_buffer_object->bytes();
-    copy_data_block_bytes(new_block_bytes, 0, old_block_bytes, 0, copy_length);
+    array_buffer_object->copy_data_to(new_block, 0, 0, copy_length);
 
     // 13. NOTE: Neither creation of the new Data Block nor copying from the old Data Block are observable. Implementations may implement this method as in-place growth or shrinkage.
 
@@ -277,14 +275,8 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayBufferPrototype::slice)
         // a. Let count be min(newLen, currentLen - first).
         auto count = min(new_length, current_length - first);
 
-        // Let fromBuf be O.[[ArrayBufferData]].
-        auto from_buf = array_buffer_object->bytes();
-
-        // Let toBuf be new.[[ArrayBufferData]].
-        auto to_buf = new_array_buffer_object->bytes();
-
         // b. Perform CopyDataBlockBytes(toBuf, 0, fromBuf, first, count).
-        copy_data_block_bytes(to_buf, 0, from_buf, first, count);
+        array_buffer_object->copy_data_to(*new_array_buffer_object, first, 0, count);
     }
 
     // 28. Return new.

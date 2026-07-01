@@ -144,14 +144,14 @@ static WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, TransferData
             //           [[ArrayBufferMaxByteLength]]: value.[[ArrayBufferMaxByteLength]],
             //           FIXME: [[AgentCluster]]: the surrounding agent's agent cluster }.
             data_holder.encode(ValueTag::GrowableSharedArrayBuffer);
-            data_holder.encode(MUST(ByteBuffer::copy(array_buffer.bytes())));
+            data_holder.encode(MUST(array_buffer.copy_to_byte_buffer()));
             data_holder.encode(array_buffer.max_byte_length());
         } else {
             // 4. Otherwise, set serialized to { [[Type]]: "SharedArrayBuffer", [[ArrayBufferData]]: value.[[ArrayBufferData]],
             //           [[ArrayBufferByteLength]]: value.[[ArrayBufferByteLength]],
             //           FIXME: [[AgentCluster]]: the surrounding agent's agent cluster }.
             data_holder.encode(ValueTag::SharedArrayBuffer);
-            data_holder.encode(MUST(ByteBuffer::copy(array_buffer.bytes())));
+            data_holder.encode(MUST(array_buffer.copy_to_byte_buffer()));
         }
     }
     // 2. Otherwise:
@@ -168,21 +168,19 @@ static WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, TransferData
         auto data_copy = TRY(JS::create_byte_data_block(vm, size));
 
         // 4. Perform CopyDataBlockBytes(dataCopy, 0, value.[[ArrayBufferData]], 0, size).
-        auto data_copy_bytes = data_copy.bytes();
-        auto array_buffer_bytes = array_buffer.bytes();
-        JS::copy_data_block_bytes(data_copy_bytes, 0, array_buffer_bytes, 0, size);
+        array_buffer.copy_data_to(data_copy, 0, 0, size);
 
         // 5. If value has an [[ArrayBufferMaxByteLength]] internal slot, then set serialized to { [[Type]]: "ResizableArrayBuffer",
         //    [[ArrayBufferData]]: dataCopy, [[ArrayBufferByteLength]]: size, [[ArrayBufferMaxByteLength]]: value.[[ArrayBufferMaxByteLength]] }.
         if (!array_buffer.is_fixed_length()) {
             data_holder.encode(ValueTag::ResizeableArrayBuffer);
-            data_holder.encode(MUST(ByteBuffer::copy(data_copy.bytes())));
+            data_holder.encode(MUST(data_copy.copy_to_byte_buffer()));
             data_holder.encode(array_buffer.max_byte_length());
         }
         // 6. Otherwise, set serialized to { [[Type]]: "ArrayBuffer", [[ArrayBufferData]]: dataCopy, [[ArrayBufferByteLength]]: size }.
         else {
             data_holder.encode(ValueTag::ArrayBuffer);
-            data_holder.encode(MUST(ByteBuffer::copy(data_copy.bytes())));
+            data_holder.encode(MUST(data_copy.copy_to_byte_buffer()));
         }
     }
     return {};
@@ -1049,7 +1047,7 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
         // 4. If transferable has an [[ArrayBufferData]] internal slot, then:
         if (array_buffer) {
             // 1. If transferable has an [[ArrayBufferMaxByteLength]] internal slot, then:
-            auto buffer_data = MUST(ByteBuffer::copy(array_buffer->bytes()));
+            auto buffer_data = MUST(array_buffer->copy_to_byte_buffer());
 
             if (!array_buffer->is_fixed_length()) {
                 // 1. Set dataHolder.[[Type]] to "ResizableArrayBuffer".

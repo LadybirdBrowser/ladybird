@@ -187,10 +187,7 @@ JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayConstructorHelpers::from_hex)
 
     // 7. Set the value at each index of ta.[[ViewedArrayBuffer]].[[ArrayBufferData]] to the value at the corresponding
     //    index of result.[[Bytes]].
-    auto* array_buffer_data = typed_array->viewed_array_buffer()->data();
-
-    for (size_t index = 0; index < result_length; ++index)
-        array_buffer_data[index] = result.bytes[index];
+    typed_array->viewed_array_buffer()->overwrite(0, result.bytes.data(), result.bytes.size());
 
     // 8. Return ta.
     return typed_array;
@@ -357,20 +354,16 @@ JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayPrototypeHelpers::to_base64)
     }
 
     // 8. Let toEncode be ? GetUint8ArrayBytes(O).
+    auto typed_array_record = make_typed_array_with_buffer_witness_record(*typed_array, ArrayBuffer::Order::SeqCst);
+    if (is_typed_array_out_of_bounds(typed_array_record))
+        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"sv);
+
+    auto length = typed_array_length(typed_array_record);
+    auto byte_offset = typed_array->byte_offset();
+
     Utf16String out_ascii;
 
-    // OPTIMIZATION: If the ArrayBuffer is not shared, we can avoid copying the bytes.
-    if (!typed_array->viewed_array_buffer()->is_shared_array_buffer()
-        && !typed_array->viewed_array_buffer()->is_detached()) {
-        auto to_encode = TRY(get_uint8_array_bytes_view(vm, typed_array));
-        if (alphabet == Alphabet::Base64) {
-            out_ascii = MUST(encode_base64_to_utf16(to_encode, omit_padding));
-        } else {
-            out_ascii = MUST(encode_base64url_to_utf16(to_encode, omit_padding));
-        }
-    } else {
-        auto to_encode = TRY(get_uint8_array_bytes(vm, typed_array));
-
+    typed_array->viewed_array_buffer()->with_readonly_bytes(byte_offset, length, [&](ReadonlyBytes to_encode) {
         // 9. If alphabet is "base64", then
         if (alphabet == Alphabet::Base64) {
             // a. Let outAscii be the sequence of code points which results from encoding toEncode according to the base64
@@ -384,7 +377,7 @@ JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayPrototypeHelpers::to_base64)
             //    encoding specified in section 5 of RFC 4648. Padding is included if and only if omitPadding is false.
             out_ascii = MUST(encode_base64url_to_utf16(to_encode, omit_padding));
         }
-    }
+    });
 
     // 11. Return CodePointsToString(outAscii).
     return PrimitiveString::create(vm, move(out_ascii));
@@ -398,18 +391,25 @@ JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayPrototypeHelpers::to_hex)
     auto typed_array = TRY(validate_uint8_array(vm));
 
     // 3. Let toEncode be ? GetUint8ArrayBytes(O).
-    auto to_encode = TRY(get_uint8_array_bytes(vm, typed_array));
+    auto typed_array_record = make_typed_array_with_buffer_witness_record(*typed_array, ArrayBuffer::Order::SeqCst);
+    if (is_typed_array_out_of_bounds(typed_array_record))
+        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"sv);
+
+    auto length = typed_array_length(typed_array_record);
+    auto byte_offset = typed_array->byte_offset();
 
     // 4. Let out be the empty String.
-    Utf16StringBuilder out(to_encode.bytes().size() * 2);
+    Utf16StringBuilder out(static_cast<size_t>(length) * 2);
 
-    // 5. For each byte byte of toEncode, do
-    for (auto byte : to_encode.bytes()) {
-        // a. Let hex be Number::toString(𝔽(byte), 16).
-        // b. Set hex to StringPad(hex, 2, "0", START).
-        // c. Set out to the string-concatenation of out and hex.
-        append_lowercase_hex_byte(out, byte);
-    }
+    typed_array->viewed_array_buffer()->with_readonly_bytes(byte_offset, length, [&](ReadonlyBytes to_encode) {
+        // 5. For each byte byte of toEncode, do
+        for (auto byte : to_encode) {
+            // a. Let hex be Number::toString(𝔽(byte), 16).
+            // b. Set hex to StringPad(hex, 2, "0", START).
+            // c. Set out to the string-concatenation of out and hex.
+            append_lowercase_hex_byte(out, byte);
+        }
+    });
 
     // 6. Return out.
     return PrimitiveString::create(vm, out.to_string());
@@ -452,45 +452,12 @@ ThrowCompletionOr<ByteBuffer> get_uint8_array_bytes(VM& vm, TypedArrayBase const
     auto byte_offset = typed_array.byte_offset();
 
     // 6. Let bytes be a new empty List.
-    ByteBuffer bytes;
-
     // 7. Let index be 0.
     // 8. Repeat, while index < len,
-    for (u32 index = 0; index < length; ++index) {
-        // a. Let byteIndex be byteOffset + index.
-        auto byte_index = byte_offset + index;
-
-        // b. Let byte be ℝ(GetValueFromBuffer(buffer, byteIndex, UINT8, true, UNORDERED)).
-        auto byte = typed_array.get_value_from_buffer(byte_index, ArrayBuffer::Order::Unordered);
-
-        // c. Append byte to bytes.
-        bytes.append(MUST(byte.to_u8(vm)));
-
-        // d. Set index to index + 1.
-    }
+    auto bytes = MUST(typed_array.viewed_array_buffer()->copy_to_byte_buffer(byte_offset, length));
 
     // 9. Return bytes.
     return bytes;
-}
-
-// 23.3.3.2 GetUint8ArrayBytes ( ta ), https://tc39.es/ecma262/#sec-getuint8arraybytes
-// NOTE: This is an optimized version that returns a view into the underlying buffer when possible.
-//       It's only safe to use when the ArrayBuffer is known to not be shared or detached.
-ThrowCompletionOr<ReadonlyBytes> get_uint8_array_bytes_view(VM& vm, TypedArrayBase const& typed_array)
-{
-    VERIFY(typed_array.kind() == TypedArrayBase::Kind::Uint8Array);
-    VERIFY(!typed_array.viewed_array_buffer()->is_shared_array_buffer());
-    VERIFY(!typed_array.viewed_array_buffer()->is_detached());
-    auto typed_array_record = make_typed_array_with_buffer_witness_record(typed_array, ArrayBuffer::Order::SeqCst);
-    if (is_typed_array_out_of_bounds(typed_array_record))
-        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"sv);
-    auto length = typed_array_length(typed_array_record);
-    auto byte_offset = typed_array.byte_offset();
-
-    return ReadonlyBytes {
-        typed_array.viewed_array_buffer()->data() + byte_offset,
-        length
-    };
 }
 
 // 23.3.3.3 SetUint8ArrayBytes ( into, bytes ), https://tc39.es/ecma262/#sec-setuint8arraybytes

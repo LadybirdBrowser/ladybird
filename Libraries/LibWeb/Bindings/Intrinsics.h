@@ -42,7 +42,7 @@ struct UnforgeableKey {
     bool operator==(UnforgeableKey const&) const = default;
 };
 
-class Intrinsics final : public JS::Cell {
+class WEB_API Intrinsics final : public JS::Cell {
     GC_CELL(Intrinsics, JS::Cell);
     GC_DECLARE_ALLOCATOR(Intrinsics);
 

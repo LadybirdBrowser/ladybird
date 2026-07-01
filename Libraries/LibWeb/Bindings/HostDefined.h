@@ -8,11 +8,12 @@
 
 #include <LibGC/Ptr.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Bindings {
 
-struct HostDefined : public JS::Realm::HostDefined {
+struct WEB_API HostDefined : public JS::Realm::HostDefined {
     explicit HostDefined(GC::Ref<Intrinsics> intrinsics)
         : intrinsics(intrinsics)
     {
