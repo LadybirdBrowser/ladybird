@@ -613,7 +613,7 @@ int HTMLElement::offset_top() const
     //    relative to the initial containing block origin,
     //    ignoring any transforms that apply to the element and its ancestors, and terminate this algorithm.
     auto offset_parent = this->offset_parent();
-    if (!offset_parent || !offset_parent->layout_node()) {
+    if (!offset_parent || !offset_parent->paintable_box()) {
         return top_border_edge_of_element.to_int();
     }
 
@@ -655,7 +655,7 @@ int HTMLElement::offset_left() const
     //    relative to the initial containing block origin,
     //    ignoring any transforms that apply to the element and its ancestors, and terminate this algorithm.
     auto offset_parent = this->offset_parent();
-    if (!offset_parent || !offset_parent->layout_node()) {
+    if (!offset_parent || !offset_parent->paintable_box()) {
         return left_border_edge_of_element.to_int();
     }
 
