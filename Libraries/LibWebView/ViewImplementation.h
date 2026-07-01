@@ -252,7 +252,6 @@ public:
     void did_change_audio_play_state(Badge<WebContentClient>, Web::HTML::AudioPlayState);
     Web::HTML::AudioPlayState audio_play_state() const { return m_audio_play_state; }
 
-    void did_update_navigation_buttons_state(Badge<WebContentClient>, bool back_enabled, bool forward_enabled);
     void did_update_session_history(Badge<WebContentClient>, Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32>, size_t current_used_step_index);
     void did_update_session_history_for_testing(Badge<WebContentClient>, Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32>, size_t current_used_step_index);
     void did_set_top_level_session_history(Badge<WebContentClient>, bool accepted, Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32> used_steps, size_t current_used_step_index);
@@ -426,7 +425,6 @@ protected:
     NonnullRefPtr<Core::Promise<Empty>> reset_session_history_for_testing();
 
     virtual void update_zoom();
-    virtual bool should_manage_session_history_in_ui_process() const { return true; }
     String current_host() const;
     void apply_zoom_for_current_host();
 

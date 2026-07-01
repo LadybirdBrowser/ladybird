@@ -312,12 +312,6 @@ void ConnectionFromClient::cancel_download(u64 page_id, u64 download_id)
         page->cancel_download(download_id);
 }
 
-void ConnectionFromClient::traverse_the_history_by_delta(u64 page_id, i32 delta)
-{
-    if (auto page = this->page(page_id); page.has_value())
-        page->page().traverse_the_history_by_delta_from_ui_process(delta);
-}
-
 void ConnectionFromClient::traverse_the_history_to_step(u64 page_id, i32 step)
 {
     auto page = this->page(page_id);

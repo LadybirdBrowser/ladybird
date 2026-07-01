@@ -164,24 +164,20 @@ void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL c
     handle_resize();
 
     auto ui_session_history_already_points_to_url = false;
-    if (should_manage_session_history_in_ui_process()) {
-        if (auto const* current_entry = m_session_history.current_entry(); current_entry && current_entry->url == url)
-            ui_session_history_already_points_to_url = true;
+    if (auto const* current_entry = m_session_history.current_entry(); current_entry && current_entry->url == url)
+        ui_session_history_already_points_to_url = true;
 
-        if (m_pending_session_history_traversal.has_value() && m_pending_session_history_traversal->will_replace_web_content_process)
-            m_pending_session_history_traversal->stage = PendingSessionHistoryTraversal::Stage::ReplacingWebContentProcess;
-        if (m_pending_session_history_navigation.has_value())
-            m_pending_session_history_navigation->web_content_restore_mode = PendingSessionHistoryNavigation::WebContentRestoreMode::RestoreFromUIProcess;
-        m_current_web_content_session_history_matches_mirror = false;
-        m_session_history.forget_web_content_state();
-        m_pending_web_content_session_history_seed.waiting_for_ack = false;
-        m_pending_web_content_session_history_seed.should_send_entries = true;
-        m_pending_web_content_session_history_seed.ignore_updates_until_seed = true;
-    }
+    if (m_pending_session_history_traversal.has_value() && m_pending_session_history_traversal->will_replace_web_content_process)
+        m_pending_session_history_traversal->stage = PendingSessionHistoryTraversal::Stage::ReplacingWebContentProcess;
+    if (m_pending_session_history_navigation.has_value())
+        m_pending_session_history_navigation->web_content_restore_mode = PendingSessionHistoryNavigation::WebContentRestoreMode::RestoreFromUIProcess;
+    m_current_web_content_session_history_matches_mirror = false;
+    m_session_history.forget_web_content_state();
+    m_pending_web_content_session_history_seed.waiting_for_ack = false;
+    m_pending_web_content_session_history_seed.should_send_entries = true;
+    m_pending_web_content_session_history_seed.ignore_updates_until_seed = true;
 
     auto seed_replacement_process_before_load_if_possible = [&] {
-        if (!should_manage_session_history_in_ui_process())
-            return false;
         if (!m_pending_web_content_session_history_seed.should_send_entries)
             return false;
         if (m_session_history_entry_url_loading_from_ui_process.has_value())
@@ -205,7 +201,7 @@ void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL c
     } else {
         m_should_suppress_history_for_current_load = false;
         m_should_suppress_history_for_next_load = false;
-        if (should_manage_session_history_in_ui_process() && !m_session_history_entry_url_loading_from_ui_process.has_value()) {
+        if (!m_session_history_entry_url_loading_from_ui_process.has_value()) {
             if (m_session_history.current_entry()) {
                 m_pending_session_history_navigation = PendingSessionHistoryNavigation {
                     url,
@@ -285,7 +281,7 @@ void ViewImplementation::load(URL::URL const& url, Web::Bindings::NavigationHist
     auto should_defer_ui_process_history_update = false;
     if (!m_session_history_entry_url_loading_from_ui_process.has_value())
         abandon_pending_web_content_session_history_seed();
-    if (should_manage_session_history_in_ui_process() && !m_session_history_entry_url_loading_from_ui_process.has_value()) {
+    if (!m_session_history_entry_url_loading_from_ui_process.has_value()) {
         m_pending_session_history_traversal.clear();
         auto const* current_entry = m_session_history.current_entry();
         auto is_javascript_navigation = url.scheme() == "javascript"sv;
@@ -328,10 +324,8 @@ void ViewImplementation::load_html(StringView html)
     m_should_suppress_history_for_current_load = false;
     m_should_suppress_history_for_next_load = false;
     abandon_pending_web_content_session_history_seed();
-    if (should_manage_session_history_in_ui_process()) {
-        m_current_web_content_session_history_matches_mirror = false;
-        m_session_history.forget_web_content_state();
-    }
+    m_current_web_content_session_history_matches_mirror = false;
+    m_session_history.forget_web_content_state();
     client().async_load_html(page_id(), html);
 }
 
@@ -341,10 +335,8 @@ void ViewImplementation::load_crash_page_html(StringView html, URL::URL const& c
     m_should_suppress_history_for_current_load = true;
     m_should_suppress_history_for_next_load = true;
     abandon_pending_web_content_session_history_seed();
-    if (should_manage_session_history_in_ui_process()) {
-        m_current_web_content_session_history_matches_mirror = false;
-        m_session_history.forget_web_content_state();
-    }
+    m_current_web_content_session_history_matches_mirror = false;
+    m_session_history.forget_web_content_state();
     set_url(crashed_url);
     client().async_load_html_with_url(page_id(), html, crashed_url);
 }
@@ -362,7 +354,7 @@ void ViewImplementation::load_navigation_error_page(StringView text)
 
 void ViewImplementation::reload()
 {
-    if (should_manage_session_history_in_ui_process() && m_is_showing_crash_page) {
+    if (m_is_showing_crash_page) {
         m_is_showing_crash_page = false;
         m_should_suppress_history_for_current_load = false;
         m_should_suppress_history_for_next_load = false;
@@ -375,12 +367,10 @@ void ViewImplementation::reload()
     m_should_suppress_history_for_current_load = false;
     m_should_suppress_history_for_next_load = false;
     abandon_pending_web_content_session_history_seed();
-    if (should_manage_session_history_in_ui_process()) {
-        m_session_history.mark_current_entry_reload_pending();
-        m_current_web_content_session_history_matches_mirror = false;
-        update_navigation_action_state();
-        dump_session_history("reload-mark-current-entry-reload-pending"sv);
-    }
+    m_session_history.mark_current_entry_reload_pending();
+    m_current_web_content_session_history_matches_mirror = false;
+    update_navigation_action_state();
+    dump_session_history("reload-mark-current-entry-reload-pending"sv);
     client().async_reload(page_id());
 }
 
@@ -389,17 +379,6 @@ ViewImplementation::HistoryTraversalOutcome ViewImplementation::traverse_the_his
     CheckForCancelation check_for_cancelation,
     Function<void(HistoryTraversalOutcome)> on_cancelation_check_complete)
 {
-    if (!should_manage_session_history_in_ui_process()) {
-        m_should_suppress_history_for_current_load = false;
-        m_should_suppress_history_for_next_load = false;
-        m_webdriver_pending_navigation_completes_with_session_history_update = false;
-        client().async_traverse_the_history_by_delta(page_id(), delta);
-        return {
-            .status = HistoryTraversalStatus::Started,
-            .will_change_top_level_entry = true,
-        };
-    }
-
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#traverse-the-history-by-a-delta
     // Let allSteps be the result of getting all used history steps for traversable.
     // Let currentStepIndex be the index of traversable's current session history step within allSteps.
@@ -1299,15 +1278,6 @@ void ViewImplementation::did_change_audio_play_state(Badge<WebContentClient>, We
         on_audio_play_state_changed(m_audio_play_state);
 }
 
-void ViewImplementation::did_update_navigation_buttons_state(Badge<WebContentClient>, bool back_enabled, bool forward_enabled)
-{
-    VERIFY(!should_manage_session_history_in_ui_process());
-
-    m_navigate_back_action->set_enabled(back_enabled);
-    m_navigate_forward_action->set_enabled(forward_enabled);
-    dump_session_history("did-update-navigation-buttons-state-using-webcontent"sv);
-}
-
 static Optional<size_t> current_top_level_history_entry_index_for_step(Vector<Web::HTML::SessionHistoryEntryDescriptor> const&, Optional<i32> current_step);
 
 TraversableSessionHistory::UpdateResult ViewImplementation::update_session_history_from_web_content(Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index, bool pending_step_after_fallback_load_was_restored, bool seed_web_content_on_invalid_snapshot)
@@ -1370,9 +1340,6 @@ bool ViewImplementation::adopt_web_content_session_history_after_rejected_seed(V
 
 void ViewImplementation::did_update_session_history(Badge<WebContentClient>, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index)
 {
-    if (!should_manage_session_history_in_ui_process())
-        return;
-
     if (history_debug_enabled()) {
         dbgln("[History] UI received WebContent session history snapshot page={} pid={} current_used_step={} entries={} used_steps={}",
             page_id(),
@@ -1406,9 +1373,6 @@ void ViewImplementation::did_update_session_history(Badge<WebContentClient>, Vec
 
 void ViewImplementation::did_update_session_history_for_testing(Badge<WebContentClient>, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index)
 {
-    if (!should_manage_session_history_in_ui_process())
-        return;
-
     // NB: dumpUIProcessSessionHistory() first sends WebContent's current snapshot to the UI process, then returns
     //     the UI mirror. If a stale seed ack is still pending, normal async snapshots are intentionally ignored, so
     //     use the same convergence path as a rejected seed ack to make this testing hook deterministic.
@@ -1552,9 +1516,6 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
 
 void ViewImplementation::did_start_navigation(URL::URL const& url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, bool is_redirect, Web::Bindings::NavigationHistoryBehavior history_handling)
 {
-    if (!should_manage_session_history_in_ui_process())
-        return;
-
     if (m_should_suppress_history_for_next_load || m_should_suppress_history_for_current_load)
         return;
 
@@ -1679,7 +1640,7 @@ void ViewImplementation::did_finish_navigation(URL::URL const& url)
     if (m_pending_session_history_navigation.has_value() && m_pending_session_history_navigation->url == url)
         m_pending_session_history_navigation.clear();
 
-    if (should_manage_session_history_in_ui_process() && m_pending_web_content_session_history_seed.should_send_entries) {
+    if (m_pending_web_content_session_history_seed.should_send_entries) {
         if (auto const* current_entry = m_session_history.current_entry(); current_entry && current_entry->url == url) {
             m_session_history.clear_current_entry_reload_pending();
             auto allow_current_entry_reconstruction = m_pending_web_content_session_history_seed.should_reseed_after_current_history_load
@@ -2074,9 +2035,6 @@ NonnullRefPtr<Core::Promise<Empty>> ViewImplementation::reset_session_history_fo
 
 void ViewImplementation::did_set_top_level_session_history(Badge<WebContentClient>, bool accepted, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index)
 {
-    if (!should_manage_session_history_in_ui_process())
-        return;
-
     if (history_debug_enabled()) {
         dbgln("[History] UI received WebContent session history seed ack page={} pid={} accepted={} current_used_step={} entries={} used_steps={}",
             page_id(),
@@ -2166,9 +2124,6 @@ void ViewImplementation::did_set_top_level_session_history(Badge<WebContentClien
 
 void ViewImplementation::did_traverse_the_history_to_step(Badge<WebContentClient>, i32 step, bool step_was_available, Web::HTML::HistoryStepResult result)
 {
-    if (!should_manage_session_history_in_ui_process())
-        return;
-
     if (!m_pending_web_content_session_history_seed.step_after_loading_top_level_entry.has_value()) {
         if (!m_pending_session_history_traversal.has_value() || m_pending_session_history_traversal->target_step != step) {
             dump_session_history("ignored-stale-webcontent-history-step-result"sv);
@@ -2261,9 +2216,6 @@ void ViewImplementation::did_traverse_the_history_to_step(Badge<WebContentClient
 void ViewImplementation::did_check_if_traverse_history_step_is_canceled(
     Badge<WebContentClient>, u64 request_id, i32 step, bool canceled)
 {
-    if (!should_manage_session_history_in_ui_process())
-        return;
-
     if (!m_pending_session_history_traversal.has_value()
         || m_pending_session_history_traversal->stage != PendingSessionHistoryTraversal::Stage::CheckingCancelation
         || m_pending_session_history_traversal->cancelation_check_request_id != request_id
@@ -2418,10 +2370,8 @@ void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_err
     // Don't keep a stale backup bitmap around.
     m_backup_shared_image_buffer = nullptr;
 
-    if (should_manage_session_history_in_ui_process()) {
-        m_session_history_entry_url_loading_from_ui_process.clear();
-        prepare_to_seed_web_content_session_history_from_ui_process();
-    }
+    m_session_history_entry_url_loading_from_ui_process.clear();
+    prepare_to_seed_web_content_session_history_from_ui_process();
 
     handle_resize();
 
@@ -2433,7 +2383,7 @@ void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_err
         builder.appendff("<p>The web page <a href=\"{}\">{}</a> has crashed.<br><br>You can reload the page to try again.</p>", escaped_url, escaped_url);
         builder.append(ERROR_HTML_FOOTER);
         load_crash_page_html(builder.string_view(), m_url);
-    } else if (should_manage_session_history_in_ui_process()) {
+    } else {
         m_should_suppress_history_for_current_load = false;
         m_should_suppress_history_for_next_load = false;
         restore_current_session_history_entry_from_ui_process();
