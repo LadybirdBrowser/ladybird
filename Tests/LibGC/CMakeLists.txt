@@ -2,6 +2,7 @@ set(TEST_SOURCES
     TestGCContainers.cpp
     TestGCHeapGroup.cpp
     TestGCIdleCollection.cpp
+    TestPrimitiveStorage.cpp
     TestGCVisitor.cpp
 )
 

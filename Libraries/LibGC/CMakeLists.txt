@@ -14,6 +14,7 @@ set(SOURCES
     Heap.cpp
     HeapGroup.cpp
     HeapBlock.cpp
+    PrimitiveStorage.cpp
     Timer.cpp
     WeakBlock.cpp
     WeakContainer.cpp

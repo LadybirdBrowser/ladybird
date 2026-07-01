@@ -162,6 +162,22 @@ ErrorOr<void> commit_memory(void* address, size_t size)
     return {};
 }
 
+ErrorOr<void> decommit_memory(void* address, size_t size)
+{
+    if (size == 0)
+        return {};
+
+    int flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED;
+#ifdef MAP_NORESERVE
+    flags |= MAP_NORESERVE;
+#endif
+    auto* ptr = ::mmap(address, size, PROT_NONE, flags, -1, 0);
+    if (ptr == MAP_FAILED)
+        return Error::from_syscall("mmap"sv, errno);
+    VERIFY(ptr == address);
+    return {};
+}
+
 ErrorOr<void> release_address_space(void* address, size_t size)
 {
     if (::munmap(address, size) < 0)

@@ -223,6 +223,15 @@ ErrorOr<void> commit_memory(void* address, size_t size)
     return {};
 }
 
+ErrorOr<void> decommit_memory(void* address, size_t size)
+{
+    if (size == 0)
+        return {};
+    if (!VirtualFree(address, size, MEM_DECOMMIT))
+        return Error::from_windows_error();
+    return {};
+}
+
 ErrorOr<void> release_address_space(void* address, size_t size)
 {
     // VirtualFree with MEM_RELEASE requires size == 0 and frees the entire reservation.

@@ -80,6 +80,7 @@ ErrorOr<void*> mmap(void* address, size_t, int protection, int flags, int fd, of
 ErrorOr<void> munmap(void* address, size_t);
 CORE_API ErrorOr<void*> reserve_address_space(size_t size);
 CORE_API ErrorOr<void> commit_memory(void* address, size_t size);
+CORE_API ErrorOr<void> decommit_memory(void* address, size_t size);
 CORE_API ErrorOr<void> release_address_space(void* address, size_t size);
 ErrorOr<int> anon_create(size_t size, int options);
 CORE_API ErrorOr<int> open(StringView path, int options, mode_t mode = 0);
