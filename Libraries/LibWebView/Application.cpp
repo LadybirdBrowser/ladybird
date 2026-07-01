@@ -140,8 +140,10 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     m_arguments = arguments;
 
 #if !defined(AK_OS_WINDOWS)
-    // Increase the open file limit, as the default limits on Linux cause us to run out of file descriptors with around 15 tabs open.
-    if (auto result = Core::System::set_resource_limits(RLIMIT_NOFILE, 8192); result.is_error())
+    // Raise the open file limit well above the platform default. Each decoded image is backed by its own shared-memory
+    // file descriptor — so a document with thousands of images (or many open tabs) otherwise exhausts the descriptor
+    // table, and aborts when the next descriptor is sent over IPC.
+    if (auto result = Core::System::set_resource_limits(RLIMIT_NOFILE, 65536); result.is_error())
         warnln("Unable to increase open file limit: {}", result.error());
 #endif
 
