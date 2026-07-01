@@ -776,11 +776,12 @@ CookieJar::TransientStorage::Cookies CookieJar::PersistedStorage::select_all_coo
 
     database.execute_statement(
         statements.select_all_cookies,
-        [&](auto statement_id) {
+        [&](auto statement_id) -> ErrorOr<void> {
             auto cookie = parse_cookie(database, statement_id);
 
             CookieStorageKey key { cookie.name, cookie.domain, cookie.path };
             cookies.set(move(key), move(cookie));
+            return {};
         });
 
     return cookies;

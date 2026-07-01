@@ -131,7 +131,7 @@ Database::StatementExecutionOutcome Database::execute_interruptible_statement_in
 
         case SQLITE_ROW:
             if (on_result)
-                on_result(statement_id);
+                MUST(on_result(statement_id));
             continue;
 
         case SQLITE_INTERRUPT:
@@ -157,25 +157,21 @@ ErrorOr<void> Database::try_execute_statement_internal(StatementID statement_id,
 {
     auto* statement = prepared_statement(statement_id);
 
-    while (true) {
-        auto result = sqlite3_step(statement);
-
-        switch (result) {
-        case SQLITE_DONE:
-            SQL_TRY(sqlite3_reset(statement));
-            return {};
-
-        case SQLITE_ROW:
-            if (on_result)
-                on_result(statement_id);
+    Optional<Error> row_error;
+    while (sqlite3_step(statement) == SQLITE_ROW) {
+        if (!on_result)
             continue;
-
-        default:
-            // Reset so the failed statement does not stay active and block a later COMMIT or ROLLBACK.
-            sqlite3_reset(statement);
-            return Error::from_string_view(sql_error(result));
+        if (auto result = on_result(statement_id); result.is_error()) {
+            row_error = result.release_error();
+            break;
         }
     }
+
+    // Reset the statement and re-report any sqlite3_step() failure.
+    SQL_TRY(sqlite3_reset(statement));
+    if (row_error.has_value())
+        return row_error.release_value();
+    return {};
 }
 
 int Database::bound_parameter_count(StatementID statement_id)
@@ -399,7 +395,13 @@ ErrorOr<bool> Database::table_exists(StringView table)
         m_table_exists_statement = TRY(prepare_statement("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?;"sv));
 
     bool exists = false;
-    TRY(try_execute_statement(*m_table_exists_statement, [&](auto) { exists = true; }, TRY(String::from_utf8(table))));
+    TRY(try_execute_statement(
+        *m_table_exists_statement,
+        [&](auto) -> ErrorOr<void> {
+            exists = true;
+            return {};
+        },
+        TRY(String::from_utf8(table))));
     return exists;
 }
 
@@ -412,7 +414,13 @@ ErrorOr<Optional<u32>> Database::schema_version(StringView store)
         m_schema_version_statement = TRY(prepare_statement("SELECT version FROM SchemaVersions WHERE store = ?;"sv));
 
     Optional<u32> version;
-    TRY(try_execute_statement(*m_schema_version_statement, [&](auto statement_id) { version = result_column<u32>(statement_id, 0); }, TRY(String::from_utf8(store))));
+    TRY(try_execute_statement(
+        *m_schema_version_statement,
+        [&](auto statement_id) -> ErrorOr<void> {
+            version = result_column<u32>(statement_id, 0);
+            return {};
+        },
+        TRY(String::from_utf8(store))));
     return version;
 }
 

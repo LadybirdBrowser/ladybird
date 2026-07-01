@@ -17,7 +17,13 @@ static bool column_exists(Database::Database& database, String const& table, Str
 {
     bool exists = false;
     auto statement = MUST(database.prepare_statement("SELECT 1 FROM pragma_table_info(?) WHERE name = ?;"sv));
-    database.execute_statement(statement, [&](auto) { exists = true; }, table, column);
+    database.execute_statement(
+        statement,
+        [&](auto) -> ErrorOr<void> {
+            exists = true;
+            return {};
+        },
+        table, column);
     return exists;
 }
 
@@ -25,7 +31,10 @@ static u32 count_rows(Database::Database& database, StringView table)
 {
     u32 count = 0;
     auto statement = MUST(database.prepare_statement(MUST(String::formatted("SELECT COUNT(*) FROM {};", table))));
-    database.execute_statement(statement, [&](auto statement_id) { count = database.result_column<u32>(statement_id, 0); });
+    database.execute_statement(statement, [&](auto statement_id) -> ErrorOr<void> {
+        count = database.result_column<u32>(statement_id, 0);
+        return {};
+    });
     return count;
 }
 
@@ -102,7 +111,10 @@ TEST_CASE(backfill_callback_can_bind_placeholders)
 
     Optional<UnixDateTime> time;
     auto statement = TRY_OR_FAIL(database->prepare_statement("SELECT time FROM Events WHERE name = 'launch';"sv));
-    database->execute_statement(statement, [&](auto statement_id) { time = database->result_column<UnixDateTime>(statement_id, 0); });
+    database->execute_statement(statement, [&](auto statement_id) -> ErrorOr<void> {
+        time = database->result_column<UnixDateTime>(statement_id, 0);
+        return {};
+    });
     EXPECT_EQ(time, Optional<UnixDateTime> { UnixDateTime::from_seconds_since_epoch(123) });
 }
 

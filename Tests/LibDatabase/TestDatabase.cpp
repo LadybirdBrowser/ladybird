@@ -29,8 +29,9 @@ TEST_CASE(string_can_contain_null_bytes)
         Optional<String> result;
         database->execute_statement(
             get_item_statement,
-            [&](auto statement_id) {
+            [&](auto statement_id) -> ErrorOr<void> {
                 result = database->result_column<String>(statement_id, 0);
+                return {};
             },
             key);
         return result;
@@ -68,8 +69,9 @@ TEST_CASE(double_values_can_be_bound_and_read)
     double result = 0;
     database->execute_statement(
         statement,
-        [&](auto statement_id) {
+        [&](auto statement_id) -> ErrorOr<void> {
             result = database->result_column<double>(statement_id, 0);
+            return {};
         },
         3.25);
 
@@ -86,16 +88,18 @@ TEST_CASE(interrupted_statement_can_be_reused)
     )#"sv));
 
     size_t row_count = 0;
-    auto outcome = database->execute_interruptible_statement(statement, [&](auto) {
+    auto outcome = database->execute_interruptible_statement(statement, [&](auto) -> ErrorOr<void> {
         ++row_count;
         database->interrupt();
+        return {};
     });
     EXPECT_EQ(outcome, Database::Database::StatementExecutionOutcome::Interrupted);
     EXPECT_EQ(row_count, 1u);
 
     row_count = 0;
-    outcome = database->execute_interruptible_statement(statement, [&](auto) {
+    outcome = database->execute_interruptible_statement(statement, [&](auto) -> ErrorOr<void> {
         ++row_count;
+        return {};
     });
     EXPECT_EQ(outcome, Database::Database::StatementExecutionOutcome::Completed);
     EXPECT_EQ(row_count, 3u);
@@ -108,8 +112,9 @@ TEST_CASE(busy_timeout_can_be_configured)
 
     auto statement = TRY_OR_FAIL(database->prepare_statement("PRAGMA busy_timeout;"sv));
     i32 busy_timeout = 0;
-    database->execute_statement(statement, [&](auto statement_id) {
+    database->execute_statement(statement, [&](auto statement_id) -> ErrorOr<void> {
         busy_timeout = database->result_column<i32>(statement_id, 0);
+        return {};
     });
     EXPECT_EQ(busy_timeout, 250);
 }
@@ -118,7 +123,7 @@ static i32 read_foreign_keys_pragma(DB& database)
 {
     auto statement = MUST(database.prepare_statement("PRAGMA foreign_keys;"sv));
     i32 value = -1;
-    database.execute_statement(statement, [&](auto statement_id) { value = database.result_column<i32>(statement_id, 0); });
+    database.execute_statement(statement, [&](auto statement_id) -> ErrorOr<void> { value = database.result_column<i32>(statement_id, 0); return {}; });
     return value;
 }
 
@@ -149,7 +154,7 @@ static i32 count_rows(DB& database, StringView table)
 {
     auto statement = MUST(database.prepare_statement(MUST(String::formatted("SELECT COUNT(*) FROM {};", table))));
     i32 count = -1;
-    database.execute_statement(statement, [&](auto statement_id) { count = database.result_column<i32>(statement_id, 0); });
+    database.execute_statement(statement, [&](auto statement_id) -> ErrorOr<void> { count = database.result_column<i32>(statement_id, 0); return {}; });
     return count;
 }
 
@@ -214,7 +219,7 @@ TEST_CASE(checked_reads_reject_wrong_storage_class)
     database->execute_statement(insert_value, {}, 5, ByteString {});
 
     auto with_value = [&](i32 key, auto fn) {
-        database->execute_statement(select, [&](auto statement_id) { fn(statement_id); }, key);
+        database->execute_statement(select, [&](auto statement_id) -> ErrorOr<void> { fn(statement_id); return {}; }, key);
     };
 
     with_value(1, [&](auto id) {
@@ -263,7 +268,7 @@ TEST_CASE(bounded_reads_reject_oversized_cells)
     database->execute_statement(insert_value, {}, 2, ByteString { "0123456789", 10 });
 
     auto with_value = [&](i32 key, auto fn) {
-        database->execute_statement(select, [&](auto statement_id) { fn(statement_id); }, key);
+        database->execute_statement(select, [&](auto statement_id) -> ErrorOr<void> { fn(statement_id); return {}; }, key);
     };
 
     with_value(1, [&](auto id) {
