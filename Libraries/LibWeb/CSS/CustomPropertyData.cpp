@@ -23,26 +23,29 @@ CustomPropertyData::CustomPropertyData(OrderedHashMap<Utf16FlyString, StylePrope
 
 NonnullRefPtr<CustomPropertyData> CustomPropertyData::create(
     OrderedHashMap<Utf16FlyString, StyleProperty> own_values,
-    RefPtr<CustomPropertyData const> parent)
+    RefPtr<CustomPropertyData const> parent,
+    CustomPropertyData::AllowParentOwnValueAbsorption allow_parent_own_value_absorption)
 {
     if (!parent)
         return adopt_ref(*new CustomPropertyData(move(own_values), nullptr, 0));
 
-    // If parent chain is too deep, flatten by copying all ancestor values into own.
-    if (parent->m_ancestor_count >= max_ancestor_count - 1) {
-        parent->for_each_property([&](Utf16FlyString const& name, StyleProperty const& property) {
-            own_values.ensure(name, [&] { return property; });
-        });
-        return adopt_ref(*new CustomPropertyData(move(own_values), nullptr, 0));
-    }
+    if (allow_parent_own_value_absorption == AllowParentOwnValueAbsorption::Yes) {
+        // If parent chain is too deep, flatten by copying all ancestor values into own.
+        if (parent->m_ancestor_count >= max_ancestor_count - 1) {
+            parent->for_each_property([&](Utf16FlyString const& name, StyleProperty const& property) {
+                own_values.ensure(name, [&] { return property; });
+            });
+            return adopt_ref(*new CustomPropertyData(move(own_values), nullptr, 0));
+        }
 
-    // If parent has few own values, absorb them to shorten the chain.
-    if (parent->m_own_values.size() <= absorb_threshold) {
-        for (auto const& [name, property] : parent->m_own_values)
-            own_values.ensure(name, [&] { return property; });
-        auto grandparent = parent->m_parent;
-        u8 ancestor_count = grandparent ? grandparent->m_ancestor_count + 1 : 0;
-        return adopt_ref(*new CustomPropertyData(move(own_values), move(grandparent), ancestor_count));
+        // If parent has few own values, absorb them to shorten the chain.
+        if (parent->m_own_values.size() <= absorb_threshold) {
+            for (auto const& [name, property] : parent->m_own_values)
+                own_values.ensure(name, [&] { return property; });
+            auto grandparent = parent->m_parent;
+            u8 ancestor_count = grandparent ? grandparent->m_ancestor_count + 1 : 0;
+            return adopt_ref(*new CustomPropertyData(move(own_values), move(grandparent), ancestor_count));
+        }
     }
 
     u8 ancestor_count = parent->m_ancestor_count + 1;
