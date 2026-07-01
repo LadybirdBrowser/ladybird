@@ -2,13 +2,12 @@ Harness status: OK
 
 Found 25 tests
 
-23 Pass
-2 Fail
+25 Pass
 Pass	Local with self-cycle
 Pass	Cycle reference without fallback makes result invalid
 Pass	Local with self-cycle in unused fallback
-Fail	Local shadowing cyclic property --x
-Fail	Local shadowing cyclic outer local --x
+Pass	Local shadowing cyclic property --x
+Pass	Local shadowing cyclic outer local --x
 Pass	Argument shadowing cyclic outer local --x
 Pass	Arguments shadowing cyclic properties
 Pass	Observing property cycle locally

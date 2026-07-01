@@ -86,4 +86,11 @@ RefPtr<CustomPropertyData const> AbstractOrHypotheticalElement::inheritable_cust
         });
 }
 
+RefPtr<CustomPropertyData const> AbstractOrHypotheticalElement::custom_property_data() const
+{
+    return visit(
+        [](DOM::AbstractElement const& abstract_element) -> RefPtr<CustomPropertyData const> { return abstract_element.custom_property_data(); },
+        [](HypotheticalElement* hypothetical_element) -> RefPtr<CustomPropertyData const> { return hypothetical_element->custom_property_data; });
+}
+
 }

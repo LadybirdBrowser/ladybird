@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 89 tests
 
-78 Pass
-11 Fail
+79 Pass
+10 Fail
 Pass	Literal result
 Pass	Literal result, typed return
 Pass	Literal result, typed return, calc
@@ -51,7 +51,7 @@ Pass	Inner argument shadowing outer argument
 Pass	Inner argument shadowing outer local
 Pass	Inner local shadowing outer argument
 Pass	Inner local shadowing outer local
-Fail	Referencing outer local containing var()
+Pass	Referencing outer local containing var()
 Pass	Referencing outer typed argument
 Pass	Same function with different scopes
 Pass	Referencing local two frames up

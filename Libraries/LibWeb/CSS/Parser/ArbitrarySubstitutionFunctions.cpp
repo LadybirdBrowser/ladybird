@@ -506,8 +506,37 @@ static Vector<ComponentValue> replace_a_var_function(AbstractOrHypotheticalEleme
     } else {
         // Look up the value of the custom property
         auto custom_property_name = name_token.token().ident();
-        RefPtr<StyleValue const> custom_property_value;
-        custom_property_value = element.document().style_computer().compute_value_of_custom_property(replacement_context.computed_style_for_custom_property_resolution, element, custom_property_name, guarded_contexts);
+
+        // NB: We compute against the element that declared the custom property (if any did) - this is irrelevant for
+        //     normal style computation since inherited values are already in computed form (since style computation
+        //     occurs in tree order), but it is required for custom function evaluation.
+        auto element_to_compute_custom_property_against = [&] -> AbstractOrHypotheticalElement {
+            if (!element.get_custom_property(custom_property_name))
+                return element;
+
+            Optional<AbstractOrHypotheticalElement> current_element = element;
+
+            while (current_element.has_value()) {
+                auto custom_property_data = current_element->custom_property_data();
+
+                // NB: We disable own value absorption for CustomPropertyData associated with custom functions so this
+                //     is a reliable way to check if the current element is the one that declared the custom property.
+                if (custom_property_data && custom_property_data->own_values().contains(custom_property_name))
+                    return current_element.value();
+
+                current_element = current_element->element_to_inherit_style_from();
+            }
+
+            return element;
+        }();
+
+        // NB: We always use `replacement_context.computed_style_for_custom_property_resolution here` rather than the
+        //     computed style of the element we are computing against because either:
+        //      1. We are computing against either the current element, an ancestor hypothetical element, or the
+        //         "calling context root" element, in which case this is the correct computed style to use, or;
+        //      2. We are computing against an ancestor abstract element in which case the custom property's value will
+        //         already be in it's computed form so the computed_style used is irrelevant.
+        auto custom_property_value = element.document().style_computer().compute_value_of_custom_property(replacement_context.computed_style_for_custom_property_resolution, element_to_compute_custom_property_against, custom_property_name, guarded_contexts);
         result = custom_property_value->tokenize();
     }
 
