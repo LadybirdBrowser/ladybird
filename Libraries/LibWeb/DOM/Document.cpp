@@ -9547,17 +9547,6 @@ Optional<CSS::CustomPropertyRegistration const&> Document::get_registered_custom
     return {};
 }
 
-NonnullRefPtr<CSS::StyleValue const> Document::custom_property_initial_value(Utf16FlyString const& name) const
-{
-    auto maybe_custom_property = get_registered_custom_property(name);
-    if (maybe_custom_property.has_value())
-        return CSS::compute_registered_custom_property_initial_value(*this, maybe_custom_property.value());
-
-    // For non-registered properties, the initial value is the guaranteed-invalid value.
-    // See: https://drafts.csswg.org/css-variables/#propdef-
-    return CSS::GuaranteedInvalidStyleValue::create();
-}
-
 void Document::did_change_custom_property_registrations()
 {
     ++m_custom_property_registration_generation;

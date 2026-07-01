@@ -1280,7 +1280,6 @@ public:
     // https://www.w3.org/TR/css-properties-values-api-1/#dom-window-registeredpropertyset-slot
     HashMap<Utf16FlyString, CSS::CustomPropertyRegistration>& registered_property_set();
     Optional<CSS::CustomPropertyRegistration const&> get_registered_custom_property(Utf16FlyString const& name) const;
-    NonnullRefPtr<CSS::StyleValue const> custom_property_initial_value(Utf16FlyString const& name) const;
     size_t custom_property_registration_generation() const { return m_custom_property_registration_generation; }
     void did_change_custom_property_registrations();
 

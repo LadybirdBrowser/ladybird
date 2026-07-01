@@ -587,7 +587,7 @@ MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& con
     // A style feature without a value (<style-feature-boolean>) evaluates to true if the computed value is different
     // from the initial value for the given property.
     if (!value.has_value()) {
-        auto initial_value = document.custom_property_initial_value(property_name);
+        auto initial_value = initial_custom_property_value(registration, element.document());
         return as_match_result(!style_values_are_equal(*comparable_computed_value, *initial_value));
     }
 
@@ -595,17 +595,17 @@ MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& con
     if (query_css_wide_keyword.has_value()) {
         switch (query_css_wide_keyword.value()) {
         case Keyword::Initial: {
-            auto initial_value = document.custom_property_initial_value(property_name);
+            auto initial_value = initial_custom_property_value(registration, element.document());
             return as_match_result(style_values_are_equal(*comparable_computed_value, *initial_value));
         }
         case Keyword::Inherit: {
-            auto inherited_value = inherited_custom_property_value(element, property_name);
+            auto inherited_value = inherited_custom_property_value(registration, element, property_name);
             return as_match_result(style_values_are_equal(*comparable_computed_value, *inherited_value));
         }
         case Keyword::Unset: {
             auto expected_value = !registration.has_value() || registration->inherit
-                ? inherited_custom_property_value(element, property_name)
-                : document.custom_property_initial_value(property_name);
+                ? inherited_custom_property_value(registration, element, property_name)
+                : initial_custom_property_value(registration, element.document());
             return as_match_result(style_values_are_equal(*comparable_computed_value, *expected_value));
         }
         case Keyword::Revert:

@@ -3822,14 +3822,14 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(
 
     auto value = abstract_element.get_custom_property(name);
     if (!value || value->is_initial())
-        return document.custom_property_initial_value(name);
+        return initial_custom_property_value(registration, document);
 
     if (value->is_inherit())
-        return inherited_custom_property_value(abstract_element, name);
+        return inherited_custom_property_value(registration, abstract_element, name);
 
     // Unset is the same as inherit for inherited properties, and by default all unregistered custom properties inherit.
     if (value->is_unset())
-        return registration.has_value() && !registration->inherit ? document.custom_property_initial_value(name) : inherited_custom_property_value(abstract_element, name);
+        return registration.has_value() && !registration->inherit ? initial_custom_property_value(registration, document) : inherited_custom_property_value(registration, abstract_element, name);
 
     if (value->is_revert()) {
         // FIXME: Implement reverting custom properties.
@@ -3852,11 +3852,11 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(
         // A CSS-wide keyword produced by substitution takes on that keyword's meaning for the custom property,
         // exactly as a literally-specified one would (handled above before substitution).
         if (resolved_value->is_initial())
-            return document.custom_property_initial_value(name);
+            return initial_custom_property_value(registration, document);
         if (resolved_value->is_inherit())
-            return inherited_custom_property_value(abstract_element, name);
+            return inherited_custom_property_value(registration, abstract_element, name);
         if (resolved_value->is_unset())
-            return registration.has_value() && !registration->inherit ? document.custom_property_initial_value(name) : inherited_custom_property_value(abstract_element, name);
+            return registration.has_value() && !registration->inherit ? initial_custom_property_value(registration, document) : inherited_custom_property_value(registration, abstract_element, name);
         // FIXME: Implement reverting custom properties for is_revert() / is_revert_layer().
     }
 
@@ -3878,8 +3878,8 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(
             // Either the property’s inherited value or its initial value depending on whether the property is
             // inherited or not, respectively, as if the property’s value had been specified as the unset keyword.
             if (registration->inherit)
-                return inherited_custom_property_value(abstract_element, name);
-            return abstract_element.document().custom_property_initial_value(name);
+                return inherited_custom_property_value(registration, abstract_element, name);
+            return initial_custom_property_value(registration, abstract_element.document());
         }
     };
 
