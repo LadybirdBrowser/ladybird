@@ -551,6 +551,21 @@ void DisplayListRecorder::draw_scaled_decoded_image_frame(Gfx::IntRect const& ds
         return;
     append_command(DrawScaledDecodedImageFrame {
         .dst_rect = dst_rect,
+        .src_rect = {},
+        .frame_id = resource_storage().add_image_frame(frame),
+        .scaling_mode = scaling_mode,
+    });
+}
+
+void DisplayListRecorder::draw_scaled_decoded_image_frame(Gfx::IntRect const& dst_rect, Gfx::FloatRect const& src_rect, Gfx::DecodedImageFrame frame, Gfx::ScalingMode scaling_mode)
+{
+    if (dst_rect.is_empty())
+        return;
+    if (src_rect.is_empty())
+        return;
+    append_command(DrawScaledDecodedImageFrame {
+        .dst_rect = dst_rect,
+        .src_rect = src_rect,
         .frame_id = resource_storage().add_image_frame(frame),
         .scaling_mode = scaling_mode,
     });

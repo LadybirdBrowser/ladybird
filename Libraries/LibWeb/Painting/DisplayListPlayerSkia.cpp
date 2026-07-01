@@ -321,7 +321,12 @@ void DisplayListPlayerSkia::play_command(DrawScaledDecodedImageFrame const& comm
     paint.setAntiAlias(true);
     canvas.save();
     canvas.clipRect(dst_rect, true);
-    canvas.drawImageRect(image.get(), dst_rect, to_skia_sampling_options(command.scaling_mode), &paint);
+    if (command.src_rect.has_value()) {
+        auto src_rect = to_skia_rect(command.src_rect.value());
+        canvas.drawImageRect(image.get(), src_rect, dst_rect, to_skia_sampling_options(command.scaling_mode), &paint, SkCanvas::kStrict_SrcRectConstraint);
+    } else {
+        canvas.drawImageRect(image.get(), dst_rect, to_skia_sampling_options(command.scaling_mode), &paint);
+    }
     canvas.restore();
 }
 
