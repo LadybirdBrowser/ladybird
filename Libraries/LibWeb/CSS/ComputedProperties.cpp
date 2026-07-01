@@ -16,6 +16,7 @@
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
+#include <LibWeb/CSS/StyleValues/BorderImageSliceStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
@@ -862,6 +863,38 @@ Vector<BackgroundLayerData> ComputedProperties::background_layers() const
     }
 
     return layers;
+}
+
+Optional<BorderImageData> ComputedProperties::border_image() const
+{
+    auto const& source = property(PropertyID::BorderImageSource);
+    if (!source.is_abstract_image())
+        return {};
+
+    auto expand_sides = [](StyleValue const& value) -> BorderImageSideValues {
+        if (value.is_value_list()) {
+            auto const& list = value.as_value_list();
+            return { list.value_at(0, true), list.value_at(1, true), list.value_at(2, true), list.value_at(3, true) };
+        }
+        return { value, value, value, value };
+    };
+
+    auto const& repeat = property(PropertyID::BorderImageRepeat);
+    auto repeat_at = [&](size_t index) {
+        auto const& keyword_value = repeat.is_value_list() ? *repeat.as_value_list().value_at(index, true) : repeat;
+        return keyword_to_border_image_repeat(keyword_value.to_keyword()).value_or(BorderImageRepeat::Stretch);
+    };
+
+    auto const& slice = property(PropertyID::BorderImageSlice).as_border_image_slice();
+    return BorderImageData {
+        .source = source.as_abstract_image(),
+        .slice = { slice.top(), slice.right(), slice.bottom(), slice.left() },
+        .width = expand_sides(property(PropertyID::BorderImageWidth)),
+        .outset = expand_sides(property(PropertyID::BorderImageOutset)),
+        .fill = slice.fill(),
+        .repeat_x = repeat_at(0),
+        .repeat_y = repeat_at(1),
+    };
 }
 
 Vector<BackgroundLayerData> ComputedProperties::mask_layers() const

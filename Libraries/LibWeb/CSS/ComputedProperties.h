@@ -175,6 +175,7 @@ public:
     TextUnderlinePosition text_underline_position() const;
     Vector<BackgroundLayerData> background_layers() const;
     Vector<BackgroundLayerData> mask_layers() const;
+    Optional<BorderImageData> border_image() const;
     BackgroundBox background_color_clip() const;
     CSSPixels border_spacing_horizontal() const;
     CSSPixels border_spacing_vertical() const;
