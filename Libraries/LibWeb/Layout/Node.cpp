@@ -27,6 +27,7 @@
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
@@ -694,7 +695,12 @@ void NodeWithStyle::rebuild_image_observers()
         if (auto const* cursor_style_value = cursor.get_pointer<NonnullRefPtr<CSS::CursorStyleValue const>>())
             add_observer_for(&(*cursor_style_value)->image(), new_observers);
     }
-    // TODO: Observe border-image and other <image> accepting properties once we support them.
+    if (auto const* element = as_if<DOM::Element>(dom_node())) {
+        auto const& border_image_source = element->computed_properties()->property(CSS::PropertyID::BorderImageSource);
+        if (border_image_source.is_abstract_image())
+            add_observer_for(&border_image_source.as_abstract_image(), new_observers);
+    }
+    // TODO: Observe other <image> accepting properties once we support them.
 
     m_image_observers = move(new_observers);
 }
@@ -741,6 +747,11 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
         const_cast<CSS::AbstractImageStyleValue&>(*layer.background_image).load_any_resources(*this);
 
     computed_values.set_mask_layers(move(mask_layers));
+
+    auto border_image = computed_style.border_image();
+    if (border_image.has_value())
+        const_cast<CSS::AbstractImageStyleValue&>(*border_image->source).load_any_resources(*this);
+    computed_values.set_border_image(move(border_image));
 
     computed_values.set_background_color(computed_style.color(CSS::PropertyID::BackgroundColor, color_resolution_context));
     computed_values.set_background_color_clip(computed_style.background_color_clip());
