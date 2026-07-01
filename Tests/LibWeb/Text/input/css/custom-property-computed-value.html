@@ -9,9 +9,11 @@
     --media-valid: if(media((width >= 0px)): media-valid; else: media-fallback);
     --media-trailing: if(media((width >= 0px) trailing): media-valid; else: media-fallback);
 }
+#d { --bar: var(--missing, fallback ); }
 </style>
 <div id="a"><div id="b"></div></div>
 <div id="c"></div>
+<div id="d"></div>
 <script>
     test(() => {
         println(getComputedStyle(document.getElementById("b")).getPropertyValue("--bar"));
@@ -19,5 +21,6 @@
         println(getComputedStyle(document.getElementById("c")).getPropertyValue("--supports-trailing"));
         println(getComputedStyle(document.getElementById("c")).getPropertyValue("--media-valid"));
         println(getComputedStyle(document.getElementById("c")).getPropertyValue("--media-trailing"));
+        println(JSON.stringify(getComputedStyle(document.getElementById("d")).getPropertyValue("--bar")));
     });
 </script>

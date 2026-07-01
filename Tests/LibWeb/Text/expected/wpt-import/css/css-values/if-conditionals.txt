@@ -2,10 +2,10 @@ Harness status: OK
 
 Found 202 tests
 
-162 Pass
-40 Fail
+163 Pass
+39 Fail
 Pass	CSS Values and Units Test: CSS inline if() function
-Fail	CSS Values and Units Test: CSS inline if() function 1
+Pass	CSS Values and Units Test: CSS inline if() function 1
 Pass	CSS Values and Units Test: CSS inline if() function 2
 Pass	CSS Values and Units Test: CSS inline if() function 3
 Pass	CSS Values and Units Test: CSS inline if() function 4

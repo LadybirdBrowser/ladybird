@@ -5691,7 +5691,10 @@ NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(DOM::Abst
     // FIXME: Parse according to @property syntax once we support that.
     if (property.is_custom_property()) {
         auto contains_attr_tainted_values = result.first_matching([](auto const& component_value) { return component_value.contains_attr_tainted_value(); }).has_value();
-        return UnresolvedStyleValue::create(move(result), {}, {}, UnresolvedStyleValue::SourceTextMode::Trim, contains_attr_tainted_values);
+        auto source_text_mode = unresolved.contains_arbitrary_substitution_function() && !contains_attr_tainted_values
+            ? UnresolvedStyleValue::SourceTextMode::TrimLeading
+            : UnresolvedStyleValue::SourceTextMode::Trim;
+        return UnresolvedStyleValue::create(move(result), {}, {}, source_text_mode, contains_attr_tainted_values);
     }
 
     auto expanded_value_tokens = TokenStream { result };
