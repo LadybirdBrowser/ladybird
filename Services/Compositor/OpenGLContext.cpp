@@ -13,9 +13,10 @@ extern "C" {
 }
 #include <GLES3/gl3.h>
 
+// Define EGL_EGLEXT_PROTOTYPES before eglext.h pulls in the ANGLE extension headers without it.
+#define EGL_EGLEXT_PROTOTYPES 1
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
-#define EGL_EGLEXT_PROTOTYPES 1
 extern "C" {
 #include <EGL/eglext_angle.h>
 }
