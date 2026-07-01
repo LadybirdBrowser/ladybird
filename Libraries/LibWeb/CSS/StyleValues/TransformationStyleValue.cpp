@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
- * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2026, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022-2023, MacDue <macdue@dueutil.tech>
  * Copyright (c) 2024, Steffen T. Larssen <dudedbz@gmail.com>
  * Copyright (c) 2024-2025, Bastiaan van der Plaat <bastiaan.v.d.plaat@gmail.com>
@@ -33,6 +33,7 @@
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/SVG/SVGElement.h>
 
 namespace Web::CSS {
 
@@ -139,7 +140,31 @@ FloatMatrix4x4 TransformationStyleValue::to_matrix(Optional<Painting::PaintableB
     auto count = m_properties.values.size();
     auto function_metadata = transform_function_metadata(m_properties.transform_function);
 
-    auto get_value = [&](size_t argument_index, Optional<CSSPixels> reference_length = {}) -> float {
+    Optional<CSSPixels> width;
+    Optional<CSSPixels> height;
+    float horizontal_length_ratio = 1;
+    float vertical_length_ratio = 1;
+    if (paintable_box.has_value()) {
+        auto reference_box = paintable_box->transform_reference_box();
+        width = reference_box.width();
+        height = reference_box.height();
+
+        // NB: SVG elements measure lengths relative to their ViewBox, if any.
+        if (auto const* svg_element = as_if<SVG::SVGElement>(paintable_box->dom_node().ptr())) {
+            if (auto view_box = svg_element->nearest_ancestor_view_box(); view_box.has_value()) {
+                horizontal_length_ratio = reference_box.width() / view_box->width;
+                vertical_length_ratio = reference_box.height() / view_box->height;
+            }
+        }
+    }
+
+    enum class LengthAxis : u8 {
+        None,
+        Horizontal,
+        Vertical,
+    };
+
+    auto get_value = [&](size_t argument_index, Optional<CSSPixels> reference_length = {}, LengthAxis length_axis = LengthAxis::None) -> float {
         auto const& transformation_value = *m_properties.values[argument_index];
 
         switch (function_metadata.parameters[argument_index].type) {
@@ -147,8 +172,19 @@ FloatMatrix4x4 TransformationStyleValue::to_matrix(Optional<Painting::PaintableB
             return Angle::from_style_value(transformation_value, {}).to_radians();
         case TransformFunctionParameterType::Length:
         case TransformFunctionParameterType::LengthNone:
-        case TransformFunctionParameterType::LengthPercentage:
-            return Length::from_style_value(transformation_value, reference_length.map([](CSSPixels px) { return Length::make_px(px); })).absolute_length_to_px().to_float();
+        case TransformFunctionParameterType::LengthPercentage: {
+            auto base_length = Length::from_style_value(transformation_value, reference_length.map([](CSSPixels px) { return Length::make_px(px); })).absolute_length_to_px().to_float();
+
+            switch (length_axis) {
+            case LengthAxis::Horizontal:
+                return base_length * horizontal_length_ratio;
+            case LengthAxis::Vertical:
+                return base_length * vertical_length_ratio;
+            case LengthAxis::None:
+            default:
+                return base_length;
+            }
+        }
         case TransformFunctionParameterType::Number:
         case TransformFunctionParameterType::NumberPercentage:
             return number_from_style_value(transformation_value, 1);
@@ -156,14 +192,6 @@ FloatMatrix4x4 TransformationStyleValue::to_matrix(Optional<Painting::PaintableB
 
         VERIFY_NOT_REACHED();
     };
-
-    Optional<CSSPixels> width;
-    Optional<CSSPixels> height;
-    if (paintable_box.has_value()) {
-        auto reference_box = paintable_box->transform_reference_box();
-        width = reference_box.width();
-        height = reference_box.height();
-    }
 
     switch (m_properties.transform_function) {
     case TransformFunction::Perspective:
@@ -197,19 +225,19 @@ FloatMatrix4x4 TransformationStyleValue::to_matrix(Optional<Painting::PaintableB
         break;
     case TransformFunction::Translate:
         if (count == 1)
-            return Gfx::translation_matrix(Vector3 { get_value(0, width), 0.f, 0.f });
+            return Gfx::translation_matrix(Vector3 { get_value(0, width, LengthAxis::Horizontal), 0.f, 0.f });
         if (count == 2)
-            return Gfx::translation_matrix(Vector3 { get_value(0, width), get_value(1, height), 0.f });
+            return Gfx::translation_matrix(Vector3 { get_value(0, width, LengthAxis::Horizontal), get_value(1, height, LengthAxis::Vertical), 0.f });
         break;
     case TransformFunction::Translate3d:
-        return Gfx::translation_matrix(Vector3 { get_value(0, width), get_value(1, height), get_value(2) });
+        return Gfx::translation_matrix(Vector3 { get_value(0, width, LengthAxis::Horizontal), get_value(1, height, LengthAxis::Vertical), get_value(2) });
     case TransformFunction::TranslateX:
         if (count == 1)
-            return Gfx::translation_matrix(Vector3 { get_value(0, width), 0.f, 0.f });
+            return Gfx::translation_matrix(Vector3 { get_value(0, width, LengthAxis::Horizontal), 0.f, 0.f });
         break;
     case TransformFunction::TranslateY:
         if (count == 1)
-            return Gfx::translation_matrix(Vector3 { 0.f, get_value(0, height), 0.f });
+            return Gfx::translation_matrix(Vector3 { 0.f, get_value(0, height, LengthAxis::Vertical), 0.f });
         break;
     case TransformFunction::TranslateZ:
         if (count == 1)
