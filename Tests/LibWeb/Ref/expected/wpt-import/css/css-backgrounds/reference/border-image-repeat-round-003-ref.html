@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Reftest reference</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+
+  <style>
+  div#first-subtest
+    {
+      background-color: black;
+      display: inline-table;
+      margin-right: 1em;
+      table-layout: fixed;
+
+      height: 224px;
+      width: 224px;
+    }
+
+  div#second-subtest
+    {
+      background-color: black;
+      display: inline-table;
+      table-layout: fixed;
+
+      height: 208px;
+      width: 208px;
+    }
+
+  div#third-subtest
+    {
+      background-color: black;
+      display: inline-table;
+      margin-top: 1em;
+      table-layout: fixed;
+
+      height: 272px;
+      width: 296px;
+    }
+  </style>
+
+    <div id="first-subtest">
+      <div style="display: table-row;">
+        <div style="display: table-cell; height: 64px; width: 64px;"></div><div style="display: table-cell; background-image: linear-gradient(to right, yellow 0% 25%, purple 25% 50%, yellow 50% 75%, purple 75% 100%);"></div><div style="display: table-cell; height: 64px; width: 64px;"></div>
+      </div>
+
+      <div style="display: table-row;">
+        <div style="display: table-cell; background-image: linear-gradient(orange 0% 25%, blue 25% 50%, orange 50% 75%, blue 75% 100%);"></div><div style="display: table-cell;"></div><div style="display: table-cell; background-image: linear-gradient(orange 0% 25%, blue 25% 50%, orange 50% 75%, blue 75% 100%);"></div>
+      </div>
+
+      <div style="display: table-row;">
+        <div style="display: table-cell; height: 64px; width: 64px;"></div><div style="display: table-cell; background-image: linear-gradient(to right, yellow 0% 25%, purple 25% 50%, yellow 50% 75%, purple 75% 100%);"></div><div style="display: table-cell; height: 64px; width: 64px;"></div>
+      </div>
+    </div>
+
+    <div id="second-subtest" style="vertical-align: bottom;">
+      <div style="display: table-row;">
+        <div style="display: table-cell; height: 64px; width: 64px;"></div><div style="display: table-cell; background-image: linear-gradient(to right, yellow 0% 50%, purple 50% 100%);"></div><div style="display: table-cell; height: 64px; width: 64px;"></div>
+      </div>
+
+      <div style="display: table-row;">
+        <div style="display: table-cell; background-image: linear-gradient(orange 0% 50%, blue 50% 100%);"></div><div style="display: table-cell;"></div><div style="display: table-cell; background-image: linear-gradient(orange 0% 50%, blue 50% 100%);"></div>
+      </div>
+
+      <div style="display: table-row;">
+        <div style="display: table-cell; height: 64px; width: 64px;"></div><div style="display: table-cell; background-image: linear-gradient(to right, yellow 0% 50%, purple 50% 100%);"></div><div style="display: table-cell; height: 64px; width: 64px;"></div>
+      </div>
+    </div><br>
+
+  <div id="third-subtest">
+    <div style="display: table-row;">
+      <div style="display: table-cell; height: 64px; width: 64px;"></div><div style="display: table-cell; background-image: linear-gradient(to right, yellow 0px 28px, purple 28px 56px, yellow 56px 84px, purple 84px 112px, yellow 112px 140px, purple 140px 168px, yellow 168px 196px, purple 196px 224px);"></div><div style="display: table-cell; height: 64px; width: 64px;"></div>
+    </div>
+
+    <div style="display: table-row;">
+      <div style="display: table-cell; background-image: linear-gradient(orange 0% 25%, blue 25% 50%, orange 50% 75%, blue 75% 100%);"></div><div style="display: table-cell;"></div><div style="display: table-cell; background-image: linear-gradient(orange 0% 25%, blue 25% 50%, orange 50% 75%, blue 75% 100%);"></div>
+    </div>
+
+    <div style="display: table-row;">
+      <div style="display: table-cell; height: 64px; width: 64px;"></div><div style="display: table-cell; background-image: linear-gradient(to right, yellow 0px 28px, purple 28px 56px, yellow 56px 84px, purple 84px 112px, yellow 112px 140px, purple 140px 168px, yellow 168px 196px, purple 196px 224px);"></div><div style="display: table-cell; height: 64px; width: 64px;"></div>
+    </div>
+  </div>
