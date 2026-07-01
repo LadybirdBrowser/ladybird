@@ -104,6 +104,7 @@ private:
     bool m_is_applying_inline_autocomplete { false };
     bool m_should_suppress_inline_autocomplete_on_next_change { false };
     bool m_has_highlighted_autocomplete_suggestion { false };
+    bool m_should_submit_current_text_on_return { false };
     bool m_should_preserve_inline_autocomplete_on_close { false };
     bool m_should_skip_autocomplete_cancel_on_focus_out { false };
     QString m_autocomplete_popup_query;
