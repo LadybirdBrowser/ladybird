@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<video id="video"></video>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const mimeType = 'video/webm;codecs="vp9,opus"';
+        const video = document.getElementById("video");
+        const mediaSource = new MediaSource();
+        video.src = URL.createObjectURL(mediaSource);
+
+        mediaSource.addEventListener("sourceopen", () => {
+            const sourceBuffer = mediaSource.addSourceBuffer(mimeType);
+            const buffer = new ArrayBuffer(200, { maxByteLength: 200 });
+            const view = new Uint8Array(buffer, 100);
+            buffer.resize(50);
+
+            try {
+                sourceBuffer.appendBuffer(view);
+                println("appendBuffer accepted out-of-bounds view as empty");
+            } catch (error) {
+                println(`appendBuffer threw ${error.name}`);
+            }
+            done();
+        });
+    });
+</script>

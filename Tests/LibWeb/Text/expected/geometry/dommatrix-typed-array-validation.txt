@@ -1,0 +1,8 @@
+DOMMatrix Float32Array 6: 1, 2, 3, 4, 5, 6, true
+DOMMatrix Float64Array 16: 1, 2, 5, 6, 13, 14, false
+DOMMatrix Float32Array invalid: TypeError
+DOMMatrix Float64Array invalid: TypeError
+DOMMatrixReadOnly Float32Array 6: 1, 2, 3, 4, 5, 6, true
+DOMMatrixReadOnly Float64Array 16: 1, 2, 5, 6, 13, 14, false
+DOMMatrixReadOnly Float32Array invalid: TypeError
+DOMMatrixReadOnly Float64Array invalid: TypeError

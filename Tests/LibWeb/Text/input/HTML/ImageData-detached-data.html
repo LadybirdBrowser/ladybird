@@ -1,0 +1,34 @@
+<!doctype html>
+<script src="../include.js"></script>
+<canvas id="canvas" width="1" height="1"></canvas>
+<script>
+    asyncTest(async done => {
+        const context = canvas.getContext("2d");
+        const pixels = new Uint8ClampedArray([1, 2, 3, 4]);
+        const imageData = new ImageData(pixels, 1, 1);
+
+        println(`data identity before detach: ${imageData.data === pixels}`);
+        println(`dimensions before detach: ${imageData.width}x${imageData.height}`);
+
+        pixels.buffer.transfer();
+
+        println(`data byteLength after detach: ${imageData.data.byteLength}`);
+        println(`dimensions after detach: ${imageData.width}x${imageData.height}`);
+
+        try {
+            context.putImageData(imageData, 0, 0);
+            println("putImageData with detached ImageData data: did not throw");
+        } catch (error) {
+            println(`putImageData with detached ImageData data: ${error.name}`);
+        }
+
+        try {
+            await createImageBitmap(imageData);
+            println("createImageBitmap with detached ImageData data: resolved");
+        } catch (error) {
+            println(`createImageBitmap with detached ImageData data: ${error.name}`);
+        }
+
+        done();
+    });
+</script>

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        function report(label, callback) {
+            try {
+                const matrix = callback();
+                println(`${label}: ${matrix.a}, ${matrix.b}, ${matrix.c}, ${matrix.d}, ${matrix.e}, ${matrix.f}, ${matrix.is2D}`);
+            } catch (e) {
+                println(`${label}: ${e.name}`);
+            }
+        }
+
+        report("DOMMatrix Float32Array 6", () => DOMMatrix.fromFloat32Array(new Float32Array([1, 2, 3, 4, 5, 6])));
+        report("DOMMatrix Float64Array 16", () => DOMMatrix.fromFloat64Array(new Float64Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16])));
+        report("DOMMatrix Float32Array invalid", () => DOMMatrix.fromFloat32Array(new Float32Array(1024 * 1024)));
+        report("DOMMatrix Float64Array invalid", () => DOMMatrix.fromFloat64Array(new Float64Array(1024 * 1024)));
+
+        report("DOMMatrixReadOnly Float32Array 6", () => DOMMatrixReadOnly.fromFloat32Array(new Float32Array([1, 2, 3, 4, 5, 6])));
+        report("DOMMatrixReadOnly Float64Array 16", () => DOMMatrixReadOnly.fromFloat64Array(new Float64Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16])));
+        report("DOMMatrixReadOnly Float32Array invalid", () => DOMMatrixReadOnly.fromFloat32Array(new Float32Array(1024 * 1024)));
+        report("DOMMatrixReadOnly Float64Array invalid", () => DOMMatrixReadOnly.fromFloat64Array(new Float64Array(1024 * 1024)));
+    });
+</script>

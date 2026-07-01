@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Checked.h>
 #include <AK/TypeCasts.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/DataView.h>
@@ -55,6 +56,8 @@ u32 BufferSource::byte_length() const
     return m_buffer_source.visit(
         [](GC::Ref<JS::DataView> data_view) {
             auto view_record = JS::make_data_view_with_buffer_witness_record(data_view, JS::ArrayBuffer::Order::SeqCst);
+            if (JS::is_view_out_of_bounds(view_record))
+                return 0u;
             return JS::get_view_byte_length(view_record);
         },
         [](GC::Ref<JS::ArrayBuffer> array_buffer) {
@@ -102,6 +105,22 @@ GC::Ptr<JS::TypedArrayBase> BufferSource::typed_array_base() const
         [](auto const& typed_array) -> GC::Ptr<JS::TypedArrayBase> { return &static_cast<JS::TypedArrayBase&>(*typed_array); });
 }
 
+bool BufferSource::is_out_of_bounds() const
+{
+    return m_buffer_source.visit(
+        [](GC::Ref<JS::DataView> data_view) {
+            auto view_record = JS::make_data_view_with_buffer_witness_record(data_view, JS::ArrayBuffer::Order::SeqCst);
+            return JS::is_view_out_of_bounds(view_record);
+        },
+        [](GC::Ref<JS::ArrayBuffer>) {
+            return false;
+        },
+        [](auto const& typed_array) {
+            auto typed_array_record = JS::make_typed_array_with_buffer_witness_record(*typed_array, JS::ArrayBuffer::Order::SeqCst);
+            return JS::is_typed_array_out_of_bounds(typed_array_record);
+        });
+}
+
 bool BufferSource::is_data_view() const
 {
     return m_buffer_source.has<GC::Ref<JS::DataView>>();
@@ -142,24 +161,41 @@ GC::Ptr<JS::TypedArrayBase> ArrayBufferView::typed_array_base() const
     return BufferSource { m_array_buffer_view }.typed_array_base();
 }
 
-// https://webidl.spec.whatwg.org/#arraybufferview-write
-void ArrayBufferView::write(ReadonlyBytes bytes, u32 starting_offset)
+bool ArrayBufferView::is_out_of_bounds() const
 {
-    // 1. Let jsView be the result of converting view to a JavaScript value.
-    // 2. Assert: bytes’s length ≤ jsView.[[ByteLength]] − startingOffset.
-    VERIFY(bytes.size() <= byte_length() - starting_offset);
+    return BufferSource { m_array_buffer_view }.is_out_of_bounds();
+}
 
-    // 3. Assert: if view is not a DataView, then bytes’s length modulo the element size of view’s type is 0.
+ErrorOr<void> ArrayBufferView::write_checked(ReadonlyBytes bytes, u32 starting_offset)
+{
+    auto view_byte_length = byte_length();
+    if (starting_offset > view_byte_length) [[unlikely]]
+        return Error::from_errno(EINVAL);
+    if (bytes.size() > view_byte_length - starting_offset) [[unlikely]]
+        return Error::from_errno(EINVAL);
+
     if (!m_array_buffer_view.has<GC::Ref<JS::DataView>>()) {
         auto element_size = typed_array_base()->element_size();
-        VERIFY(bytes.size() % element_size == 0);
+        if (bytes.size() % element_size != 0) [[unlikely]]
+            return Error::from_errno(EINVAL);
     }
 
-    // 4. Let arrayBuffer be the result of converting jsView.[[ViewedArrayBuffer]] to an IDL value of type ArrayBuffer.
-    auto array_buffer = viewed_array_buffer();
+    if (bytes.is_empty())
+        return {};
 
-    // 5. Write bytes into arrayBuffer with startingOffset set to jsView.[[ByteOffset]] + startingOffset.
-    array_buffer->overwrite(byte_offset() + starting_offset, bytes.data(), bytes.size());
+    auto array_buffer = viewed_array_buffer();
+    if (!array_buffer || array_buffer->is_detached()) [[unlikely]]
+        return Error::from_errno(EINVAL);
+
+    Checked<size_t> write_offset = byte_offset();
+    write_offset += starting_offset;
+    if (write_offset.has_overflow() || write_offset.value() > array_buffer->byte_length()) [[unlikely]]
+        return Error::from_errno(EINVAL);
+    if (bytes.size() > array_buffer->byte_length() - write_offset.value()) [[unlikely]]
+        return Error::from_errno(EINVAL);
+
+    array_buffer->overwrite(write_offset.value(), bytes.data(), bytes.size());
+    return {};
 }
 
 // https://webidl.spec.whatwg.org/#buffersource-detached

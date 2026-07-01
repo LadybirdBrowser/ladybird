@@ -1,0 +1,4 @@
+open
+typed array send threw TypeError
+data view send threw TypeError
+close

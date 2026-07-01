@@ -227,8 +227,14 @@ Optional<WebGLRenderingContextBase::TexImageSourceFrame> WebGLRenderingContextBa
         [](GC::Ref<HTML::ImageBitmap> source) -> Optional<Gfx::DecodedImageFrame> {
             return Gfx::DecodedImageFrame { *source->bitmap() };
         },
-        [](GC::Ref<HTML::ImageData> source) -> Optional<Gfx::DecodedImageFrame> {
-            return Gfx::DecodedImageFrame { source->bitmap() };
+        [this](GC::Ref<HTML::ImageData> source) -> Optional<Gfx::DecodedImageFrame> {
+            auto bitmap = source->bitmap();
+            if (bitmap.is_error()) {
+                set_error(GL_INVALID_VALUE);
+                return OptionalNone {};
+            }
+            NonnullRefPtr<Gfx::Bitmap const> bitmap_ref = bitmap.release_value();
+            return Gfx::DecodedImageFrame { move(bitmap_ref) };
         });
     if (!frame.has_value())
         return OptionalNone {};

@@ -7,10 +7,12 @@
 
 #pragma once
 
+#include <AK/Error.h>
 #include <AK/Variant.h>
 #include <LibGC/CellAllocator.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::WebIDL {
@@ -35,7 +37,7 @@ using NullableArrayBufferViewVariant = FlattenVariant<ArrayBufferViewVariant, Va
 using BufferSourceVariant = FlattenVariant<ArrayBufferViewVariant, Variant<GC::Ref<JS::ArrayBuffer>>>;
 using NullableBufferSourceVariant = FlattenVariant<BufferSourceVariant, Variant<Empty>>;
 
-class BufferSource {
+class WEB_API BufferSource {
 public:
     static BufferSourceVariant from_object(GC::Ref<JS::Object>);
     static bool is_detached(JS::Value const&);
@@ -54,6 +56,7 @@ public:
     GC::Ptr<JS::ArrayBuffer> viewed_array_buffer() const;
     GC::Ptr<JS::TypedArrayBase> typed_array_base() const;
 
+    bool is_out_of_bounds() const;
     bool is_data_view() const;
     bool is_array_buffer() const;
 
@@ -62,7 +65,7 @@ private:
 };
 
 // https://webidl.spec.whatwg.org/#ArrayBufferView
-class ArrayBufferView {
+class WEB_API ArrayBufferView {
 public:
     static ArrayBufferViewVariant from_object(GC::Ref<JS::Object>);
 
@@ -78,9 +81,10 @@ public:
     GC::Ptr<JS::ArrayBuffer> viewed_array_buffer() const;
     GC::Ptr<JS::TypedArrayBase> typed_array_base() const;
 
+    bool is_out_of_bounds() const;
     bool is_data_view() const;
 
-    void write(ReadonlyBytes, u32 starting_offset = 0);
+    ErrorOr<void> write_checked(ReadonlyBytes, u32 starting_offset = 0);
 
 private:
     ArrayBufferViewVariant m_array_buffer_view;

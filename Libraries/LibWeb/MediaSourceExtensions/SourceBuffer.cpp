@@ -333,7 +333,7 @@ WebIDL::ExceptionOr<void> SourceBuffer::append_buffer(WebIDL::BufferSource data)
     TRY(prepare_append(data.byte_length(), m_media_source->media_element_assigned_to()->playback_manager().current_time()));
 
     // 2. Add data to the end of the [[input buffer]].
-    if (auto array_buffer = data.viewed_array_buffer(); array_buffer && !array_buffer->is_detached()) {
+    if (auto array_buffer = data.viewed_array_buffer(); array_buffer && !array_buffer->is_detached() && !data.is_out_of_bounds()) {
         auto bytes = array_buffer->bytes().slice(data.byte_offset(), data.byte_length());
         m_processor->append_to_input_buffer(bytes);
     }

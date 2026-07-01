@@ -27,6 +27,7 @@
 #include <LibWeb/Streams/WritableStream.h>
 #include <LibWeb/Streams/WritableStreamOperations.h>
 #include <LibWeb/WebIDL/Buffers.h>
+#include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Streams {
@@ -309,7 +310,8 @@ WebIDL::ExceptionOr<void> ReadableStream::pull_from_bytes(ByteBuffer bytes)
     // 8. If stream’s current BYOB request view is non-null, then:
     if (auto byob_view = current_byob_request_view(); byob_view.has_value()) {
         // 1. Write pulled into stream’s current BYOB request view.
-        byob_view->write(pulled);
+        if (byob_view->write_checked(pulled).is_error())
+            return WebIDL::InvalidStateError::create(realm, "BYOB request view is detached or out-of-bounds"_utf16);
 
         // 2. Perform ? ReadableByteStreamControllerRespond(stream.[[controller]], pullSize).
         TRY(readable_byte_stream_controller_respond(controller, pull_size));

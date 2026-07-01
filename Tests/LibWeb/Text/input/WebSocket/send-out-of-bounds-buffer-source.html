@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function makeOutOfBoundsUint8Array() {
+        const buffer = new ArrayBuffer(200, { maxByteLength: 200 });
+        const view = new Uint8Array(buffer, 100);
+        buffer.resize(50);
+        return view;
+    }
+
+    function makeOutOfBoundsDataView() {
+        const buffer = new ArrayBuffer(200, { maxByteLength: 200 });
+        const view = new DataView(buffer, 100);
+        buffer.resize(50);
+        return view;
+    }
+
+    asyncTest(done => {
+        const ws = new WebSocket(`ws://localhost:${internals.getEchoServerPort()}/`);
+
+        ws.onopen = event => {
+            println(event.type);
+            try {
+                ws.send(makeOutOfBoundsUint8Array());
+                println("sent out-of-bounds typed array as empty");
+            } catch (error) {
+                println(`typed array send threw ${error.name}`);
+            }
+            try {
+                ws.send(makeOutOfBoundsDataView());
+                println("sent out-of-bounds data view as empty");
+            } catch (error) {
+                println(`data view send threw ${error.name}`);
+            }
+            ws.close();
+        };
+        ws.onclose = event => {
+            println(event.type);
+            done();
+        };
+        ws.onerror = event => {
+            println(event.type);
+            done();
+        };
+    });
+</script>

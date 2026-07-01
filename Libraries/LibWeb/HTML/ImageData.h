@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <AK/Error.h>
+#include <AK/NonnullRefPtr.h>
 #include <LibGfx/Forward.h>
 #include <LibWeb/Bindings/ImageData.h>
 #include <LibWeb/Bindings/PlatformObject.h>
@@ -24,7 +26,7 @@ class ImageData final
 public:
     [[nodiscard]] static GC::Ref<ImageData> create(JS::Realm&);
     [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ImageData>> create(JS::Realm&, u32 sw, u32 sh, Optional<Bindings::ImageDataSettings> const& settings = {});
-    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ImageData>> create(JS::Realm&, GC::Ref<JS::Uint8ClampedArray> data, u32 sw, Optional<u32> sh = {}, Optional<Bindings::ImageDataSettings> const& settings = {});
+    [[nodiscard]] static WEB_API WebIDL::ExceptionOr<GC::Ref<ImageData>> create(JS::Realm&, GC::Ref<JS::Uint8ClampedArray> data, u32 sw, Optional<u32> sh = {}, Optional<Bindings::ImageDataSettings> const& settings = {});
 
     [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ImageData>> construct_impl(JS::Realm&, u32 sw, u32 sh, Optional<Bindings::ImageDataSettings> const& settings = {});
     [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ImageData>> construct_impl(JS::Realm&, GC::Ref<JS::Uint8ClampedArray> data, u32 sw, Optional<u32> sh = {}, Optional<Bindings::ImageDataSettings> const& settings = {});
@@ -34,8 +36,7 @@ public:
     WebIDL::UnsignedLong width() const;
     WebIDL::UnsignedLong height() const;
 
-    Gfx::Bitmap& bitmap() { return *m_bitmap; }
-    Gfx::Bitmap const& bitmap() const { return *m_bitmap; }
+    ErrorOr<NonnullRefPtr<Gfx::Bitmap>> bitmap();
 
     JS::Uint8ClampedArray* data();
     JS::Uint8ClampedArray const* data() const;
@@ -49,12 +50,13 @@ private:
     [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ImageData>> initialize(JS::Realm&, u32 rows, u32 pixels_per_row, Optional<Bindings::ImageDataSettings> const&, GC::Ptr<JS::Uint8ClampedArray> = {}, Optional<Bindings::PredefinedColorSpace> = {});
 
     explicit ImageData(JS::Realm&);
-    ImageData(JS::Realm&, NonnullRefPtr<Gfx::Bitmap>, GC::Ref<JS::Uint8ClampedArray>, Bindings::PredefinedColorSpace);
+    ImageData(JS::Realm&, u32 width, u32 height, GC::Ref<JS::Uint8ClampedArray>, Bindings::PredefinedColorSpace);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    RefPtr<Gfx::Bitmap> m_bitmap;
+    u32 m_width { 0 };
+    u32 m_height { 0 };
     Bindings::PredefinedColorSpace m_color_space { Bindings::PredefinedColorSpace::Srgb };
     GC::Ptr<JS::Uint8ClampedArray> m_data;
 };

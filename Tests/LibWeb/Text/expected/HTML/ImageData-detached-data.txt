@@ -1,0 +1,6 @@
+data identity before detach: true
+dimensions before detach: 1x1
+data byteLength after detach: 0
+dimensions after detach: 1x1
+putImageData with detached ImageData data: InvalidStateError
+createImageBitmap with detached ImageData data: InvalidStateError
