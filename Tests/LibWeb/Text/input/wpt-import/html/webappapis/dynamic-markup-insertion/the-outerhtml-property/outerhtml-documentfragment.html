@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<title>outerHTML: child of DocumentFragment</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#the-outerhtml-property">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script>
+test(() => {
+  const fragment = new DocumentFragment();
+  const div = document.createElement("div");
+  div.textContent = "original";
+  fragment.appendChild(div);
+
+  div.outerHTML = "<span>replaced</span>";
+
+  assert_equals(fragment.childNodes.length, 1, "Fragment should have one child");
+  assert_equals(fragment.firstChild.tagName, "SPAN", "Child should be a SPAN");
+  assert_equals(fragment.firstChild.textContent, "replaced", "Content should be 'replaced'");
+}, "outerHTML replaces element within DocumentFragment parent.");
+</script>
