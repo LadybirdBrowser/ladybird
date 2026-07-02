@@ -1378,8 +1378,57 @@ impl Generator {
                         {
                             self.emit_mov(&tgt, &cur);
                         }
-                        self.register_jump_in_finally_context(target);
+                        let mut needs_trampoline = false;
+                        {
+                            let mut j = i;
+                            while j > 0 {
+                                j -= 1;
+                                match self.boundaries[j] {
+                                    BlockBoundaryType::LeaveLexicalEnvironment => {
+                                        needs_trampoline = true;
+                                    }
+                                    b if (!is_break && b == BlockBoundaryType::Continue)
+                                        || (is_break && b == BlockBoundaryType::Break) =>
+                                    {
+                                        break;
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        }
+                        if !needs_trampoline {
+                            self.register_jump_in_finally_context(target);
+                            self.current_finally_context = saved_ctx;
+                            return;
+                        }
+                        let trampoline = self.make_block();
+                        self.register_jump_in_finally_context(trampoline);
                         self.current_finally_context = saved_ctx;
+                        self.switch_to_basic_block(trampoline);
+                        let mut restore_env_offset = env_offset;
+                        {
+                            let mut j = i;
+                            while j > 0 {
+                                j -= 1;
+                                match self.boundaries[j] {
+                                    BlockBoundaryType::LeaveLexicalEnvironment => {
+                                        restore_env_offset -= 1;
+                                        let env =
+                                            self.lexical_environment_register_stack[restore_env_offset - 1].clone();
+                                        self.emit(Instruction::SetLexicalEnvironment {
+                                            environment: env.operand(),
+                                        });
+                                    }
+                                    b if (!is_break && b == BlockBoundaryType::Continue)
+                                        || (is_break && b == BlockBoundaryType::Break) =>
+                                    {
+                                        break;
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        }
+                        self.emit(Instruction::Jump { target });
                         return;
                     }
                     self.emit_trampoline_through_finally();
@@ -1446,8 +1495,57 @@ impl Generator {
                             {
                                 self.emit_mov(&tgt, &cur);
                             }
-                            self.register_jump_in_finally_context(*target);
+                            let mut needs_trampoline = false;
+                            {
+                                let mut j = current_boundary;
+                                while j > 0 {
+                                    j -= 1;
+                                    match self.boundaries[j] {
+                                        BlockBoundaryType::LeaveLexicalEnvironment => {
+                                            needs_trampoline = true;
+                                        }
+                                        b if (!is_break && b == BlockBoundaryType::Continue)
+                                            || (is_break && b == BlockBoundaryType::Break) =>
+                                        {
+                                            break;
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                            }
+                            if !needs_trampoline {
+                                self.register_jump_in_finally_context(*target);
+                                self.current_finally_context = saved_ctx;
+                                return;
+                            }
+                            let trampoline = self.make_block();
+                            self.register_jump_in_finally_context(trampoline);
                             self.current_finally_context = saved_ctx;
+                            self.switch_to_basic_block(trampoline);
+                            let mut restore_env_offset = env_offset;
+                            {
+                                let mut j = current_boundary;
+                                while j > 0 {
+                                    j -= 1;
+                                    match self.boundaries[j] {
+                                        BlockBoundaryType::LeaveLexicalEnvironment => {
+                                            restore_env_offset -= 1;
+                                            let env =
+                                                self.lexical_environment_register_stack[restore_env_offset - 1].clone();
+                                            self.emit(Instruction::SetLexicalEnvironment {
+                                                environment: env.operand(),
+                                            });
+                                        }
+                                        b if (!is_break && b == BlockBoundaryType::Continue)
+                                            || (is_break && b == BlockBoundaryType::Break) =>
+                                        {
+                                            break;
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                            }
+                            self.emit(Instruction::Jump { target: *target });
                             return;
                         }
                         self.emit_trampoline_through_finally();
