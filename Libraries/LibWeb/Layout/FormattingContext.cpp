@@ -169,6 +169,7 @@ FormattingContext::FormattingContext(Type type, LayoutMode layout_mode, LayoutSt
     , m_context_box(context_box)
     , m_state(state)
 {
+    m_state.initialize_used_values_for(m_context_box);
 }
 
 FormattingContext::~FormattingContext() = default;
@@ -407,6 +408,8 @@ NonnullOwnPtr<FormattingContext> FormattingContext::create_independent_formattin
 
 OwnPtr<FormattingContext> FormattingContext::layout_inside(Box const& child_box, LayoutMode layout_mode, LayoutInput const& layout_input)
 {
+    m_state.initialize_used_values_for(child_box);
+
     {
         // OPTIMIZATION: If we're doing intrinsic sizing and `child_box` has definite size in both axes,
         //               we don't need to layout its insides. The size is resolvable without learning
@@ -646,7 +649,8 @@ CSSPixels FormattingContext::compute_table_box_width_inside_table_wrapper(
     if (table_wrapper_containing_block_width.has_value())
         containing_block_state.set_content_width(*table_wrapper_containing_block_width);
 
-    auto& table_box_state = throwaway_state.get_mutable(*table_box);
+    throwaway_state.initialize_used_values_for(box);
+    auto& table_box_state = throwaway_state.initialize_used_values_for(*table_box);
     auto const& table_box_computed_values = table_box->computed_values();
     table_box_state.border_left = table_box_computed_values.border_left().width;
     table_box_state.border_right = table_box_computed_values.border_right().width;
@@ -655,7 +659,7 @@ CSSPixels FormattingContext::compute_table_box_width_inside_table_wrapper(
 
     auto context = make<TableFormattingContext>(throwaway_state, LayoutMode::IntrinsicSizing, *table_box, this);
     context->run_until_width_calculation(
-        LayoutInput { m_state.get(*table_box).available_inner_space_or_constraints_from(available_space) },
+        LayoutInput { throwaway_state.get(*table_box).available_inner_space_or_constraints_from(available_space) },
         TableFormattingContext::RowMeasurement::Skip);
 
     auto table_used_width = throwaway_state.get(*table_box).border_box_width();
@@ -686,10 +690,11 @@ CSSPixels FormattingContext::compute_table_box_height_inside_table_wrapper(Box c
 
     LayoutState throwaway_state(box);
     throwaway_state.populate_node_from(m_state, *box.containing_block());
+    throwaway_state.populate_node_from(m_state, box);
 
     auto context = create_independent_formatting_context_if_needed(throwaway_state, LayoutMode::IntrinsicSizing, box);
     VERIFY(context);
-    context->run(LayoutInput { m_state.get(box).available_inner_space_or_constraints_from(available_space) });
+    context->run(LayoutInput { throwaway_state.get(box).available_inner_space_or_constraints_from(available_space) });
 
     Optional<Box const&> table_box;
     box.for_each_in_subtree_of_type<Box>([&](Box const& child_box) {
@@ -1853,6 +1858,8 @@ void FormattingContext::layout_absolutely_positioned_element(Box& box)
     // SVG elements cannot be absolutely positioned.
     VERIFY(!box.is_svg_box());
 
+    auto& box_state = m_state.initialize_used_values_for(box);
+
     resolve_anchor_insets(box);
 
     auto containing_block_info = resolve_abspos_containing_block_info(box);
@@ -1866,7 +1873,6 @@ void FormattingContext::layout_absolutely_positioned_element(Box& box)
     containing_block_state.set_has_definite_width(true);
     containing_block_state.set_has_definite_height(true);
 
-    auto& box_state = m_state.get_mutable(box);
     auto const& computed_values = box.computed_values();
 
     // The border computed values are not changed by the compute_height & width calculations below.
@@ -2215,7 +2221,7 @@ CSSPixels FormattingContext::calculate_min_content_width(Layout::Box const& box)
     LayoutState throwaway_state(box);
     throwaway_state.populate_node_from(m_state, *box.containing_block());
 
-    auto& box_state = throwaway_state.get_mutable(box);
+    auto& box_state = throwaway_state.initialize_used_values_for(box);
     box_state.width_constraint = SizeConstraint::MinContent;
     box_state.set_indefinite_content_width();
 
@@ -2306,7 +2312,7 @@ CSSPixels FormattingContext::calculate_max_content_width(Layout::Box const& box)
 
     auto const& actual_box_state = m_state.get(box);
 
-    auto& box_state = throwaway_state.get_mutable(box);
+    auto& box_state = throwaway_state.initialize_used_values_for(box);
     box_state.width_constraint = SizeConstraint::MaxContent;
     box_state.set_indefinite_content_width();
 
@@ -2355,7 +2361,7 @@ CSSPixels FormattingContext::calculate_min_content_height(Layout::Box const& box
     LayoutState throwaway_state(box);
     throwaway_state.populate_node_from(m_state, *box.containing_block());
 
-    auto& box_state = throwaway_state.get_mutable(box);
+    auto& box_state = throwaway_state.initialize_used_values_for(box);
     box_state.height_constraint = SizeConstraint::MinContent;
     box_state.set_indefinite_content_height();
     box_state.set_content_width(width);
@@ -2391,7 +2397,7 @@ CSSPixels FormattingContext::calculate_max_content_height(Layout::Box const& box
     LayoutState throwaway_state(box);
     throwaway_state.populate_node_from(m_state, *box.containing_block());
 
-    auto& box_state = throwaway_state.get_mutable(box);
+    auto& box_state = throwaway_state.initialize_used_values_for(box);
     box_state.height_constraint = SizeConstraint::MaxContent;
     box_state.set_indefinite_content_height();
     box_state.set_content_width(width);
@@ -2679,7 +2685,10 @@ Box const* FormattingContext::box_child_to_derive_baseline_from(Box const& box, 
             continue;
         if (child_box->is_out_of_flow(*this))
             continue;
-        if (!m_state.get(*child_box).line_boxes.is_empty())
+        auto const* child_box_state = m_state.try_get(*child_box);
+        if (!child_box_state)
+            child_box_state = &m_state.initialize_used_values_for(*child_box);
+        if (!child_box_state->line_boxes.is_empty())
             return child_box;
         if (box_child_to_derive_baseline_from(*child_box, baseline_set))
             return child_box;

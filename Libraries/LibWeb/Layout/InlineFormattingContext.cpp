@@ -86,7 +86,7 @@ void InlineFormattingContext::run(LayoutInput const& layout_input)
 void InlineFormattingContext::dimension_box_on_line(Box const& box, LayoutMode layout_mode)
 {
     auto width_of_containing_block = m_available_space->width.to_px_or_zero();
-    auto& box_state = m_state.get_mutable(box);
+    auto& box_state = m_state.initialize_used_values_for(box);
     auto const& computed_values = box.computed_values();
 
     box_state.margin_left = computed_values.margin().left().to_px_or_zero(width_of_containing_block);
@@ -521,7 +521,7 @@ void InlineFormattingContext::generate_line_boxes()
                 if (found_static_position_marker)
                     break;
             }
-            auto& box_state = m_state.get_mutable(*box);
+            auto& box_state = m_state.initialize_used_values_for(*box);
             box_state.set_static_position_rect(static_position_rect);
         }
     }

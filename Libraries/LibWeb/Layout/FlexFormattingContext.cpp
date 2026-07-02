@@ -260,7 +260,7 @@ void FlexFormattingContext::parent_context_did_dimension_child_root_box()
 
     flex_container().for_each_child_of_type<Box>([&](Layout::Box& box) {
         if (box.is_absolutely_positioned()) {
-            m_state.get_mutable(box).set_static_position_rect(calculate_static_position_rect(box));
+            m_state.initialize_used_values_for(box).set_static_position_rect(calculate_static_position_rect(box));
         }
         return IterationDecision::Continue;
     });
@@ -377,8 +377,9 @@ void FlexFormattingContext::generate_anonymous_flex_items()
         if (child_box.is_out_of_flow(*this))
             return IterationDecision::Continue;
 
+        auto& child_box_state = m_state.initialize_used_values_for(child_box);
         child_box.set_flex_item(true);
-        FlexItem item = { child_box, m_state.get_mutable(child_box) };
+        FlexItem item = { child_box, child_box_state };
         populate_specified_margins(item, m_flex_direction);
 
         auto& order_bucket = order_item_bucket.ensure(child_box.computed_values().order());

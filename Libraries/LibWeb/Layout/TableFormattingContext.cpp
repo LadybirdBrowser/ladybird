@@ -18,6 +18,7 @@ namespace Web::Layout {
 TableFormattingContext::TableFormattingContext(LayoutState& state, LayoutMode layout_mode, Box const& root, FormattingContext* parent)
     : FormattingContext(Type::Table, layout_mode, state, root, parent)
 {
+    state.initialize_used_values_for(table_wrapper());
 }
 
 TableFormattingContext::~TableFormattingContext() = default;
@@ -65,6 +66,7 @@ CSSPixels TableFormattingContext::run_caption_layout(CSS::CaptionSide phase, Ava
             continue;
         }
         auto const& child_box = as<Box>(*child);
+        auto& caption_state = m_state.initialize_used_values_for(child_box);
         // The caption boxes are principal block-level boxes that retain their own content, padding, margin, and border areas,
         // and are rendered as normal block boxes inside the table wrapper box, as described in https://www.w3.org/TR/CSS22/tables.html#model
         if (auto caption_context = create_independent_formatting_context_if_needed(m_state, m_layout_mode, child_box)) {
@@ -74,14 +76,12 @@ CSSPixels TableFormattingContext::run_caption_layout(CSS::CaptionSide phase, Ava
                 auto available_width = caption_available_space.width.to_px_or_zero();
                 block_context->resolve_vertical_box_model_metrics(child_box, available_width);
                 block_context->compute_width(child_box, caption_available_space);
-                inner_available_space = m_state.get(child_box).available_inner_space_or_constraints_from(caption_available_space);
+                inner_available_space = caption_state.available_inner_space_or_constraints_from(caption_available_space);
             }
 
             caption_context->run(LayoutInput { inner_available_space });
 
             if (block_context) {
-                auto& caption_state = m_state.get_mutable(child_box);
-
                 // Adjust x offset so border-box aligns with the table wrapper.
                 caption_state.set_content_x(caption_state.offset.x() + caption_state.border_left + caption_state.padding_left);
 
@@ -92,12 +92,10 @@ CSSPixels TableFormattingContext::run_caption_layout(CSS::CaptionSide phase, Ava
             }
         }
 
-        auto const& caption_state = m_state.get(child_box);
         if (phase == CSS::CaptionSide::Top) {
             m_state.get_mutable(table_box()).set_content_y(caption_state.content_height() + caption_state.margin_box_bottom());
         } else {
-            m_state.get_mutable(child_box).set_content_y(
-                m_state.get(table_box()).margin_box_height() + caption_state.margin_box_top());
+            caption_state.set_content_y(m_state.get(table_box()).margin_box_height() + caption_state.margin_box_top());
         }
         caption_height += caption_state.margin_box_height();
     }
@@ -508,6 +506,7 @@ CSSPixels TableFormattingContext::compute_capmin()
         }
         VERIFY(child->is_box());
         auto const& child_box = static_cast<Box const&>(*child);
+        m_state.initialize_used_values_for(child_box);
         auto const& computed_values = child_box.computed_values();
 
         auto margin_left = computed_values.margin().left().resolved_or_auto(width_of_table_wrapper_containing_block).to_px_or_zero();
@@ -1797,8 +1796,17 @@ void TableFormattingContext::run_until_width_calculation(LayoutInput const& layo
     auto const& available_space = layout_input.available_space;
     m_available_space = available_space;
 
+    TableGrid::for_each_child_box_matching(table_box(), TableGrid::is_table_row_group, [&](auto& row_group_box) {
+        m_state.initialize_used_values_for(row_group_box);
+    });
+
     // Determine the number of rows/columns the table requires.
     finish_grid_initialization(TableGrid::calculate_row_column_grid(context_box(), m_cells, m_rows));
+
+    for (auto& row : m_rows)
+        m_state.initialize_used_values_for(row.box);
+    for (auto& cell : m_cells)
+        m_state.initialize_used_values_for(cell.box);
 
     border_conflict_resolution();
 
@@ -1837,7 +1845,7 @@ void TableFormattingContext::parent_context_did_dimension_child_root_box()
             // FIXME: calculate_static_position_rect() is not aware of how to correctly calculate static position for
             //        a box nested inside a table, but we need to set some value, so layout_absolutely_positioned_element()
             //        won't crash trying to access it.
-            m_state.get_mutable(box).set_static_position_rect(calculate_static_position_rect(box));
+            m_state.initialize_used_values_for(box).set_static_position_rect(calculate_static_position_rect(box));
         }
 
         if (formatting_context_type_created_by_box(box).has_value()) {

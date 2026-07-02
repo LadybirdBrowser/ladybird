@@ -53,7 +53,7 @@ void InlineLevelIterator::enter_node_with_box_model_metrics(Layout::NodeWithStyl
 
     // FIXME: It's really weird that *this* is where we assign box model metrics for these layout nodes..
 
-    auto& used_values = m_layout_state.get_mutable(node);
+    auto& used_values = m_layout_state.initialize_used_values_for(node);
     auto const& computed_values = node.computed_values();
 
     used_values.margin_top = computed_values.margin().top().to_px_or_zero(m_containing_block_used_values.content_width());
@@ -88,7 +88,7 @@ void InlineLevelIterator::exit_node_with_box_model_metrics()
         m_extra_trailing_metrics = ExtraBoxMetrics {};
 
     auto& node = *m_box_model_node_stack.last();
-    auto& used_values = m_layout_state.get_mutable(node);
+    auto& used_values = m_layout_state.initialize_used_values_for(node);
 
     m_extra_trailing_metrics->margin += used_values.margin_right;
     m_extra_trailing_metrics->border += used_values.border_right;
@@ -397,8 +397,8 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
     }
 
     auto const& box = as<Layout::Box>(*m_current_node);
-    auto const& box_state = m_layout_state.get(box);
     m_inline_formatting_context.dimension_box_on_line(box, m_layout_mode);
+    auto const& box_state = m_layout_state.get(box);
 
     auto item = Item {
         .type = Item::Type::Element,

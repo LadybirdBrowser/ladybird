@@ -65,12 +65,16 @@ void LayoutState::ensure_capacity(u32 node_count)
 
 LayoutState::UsedValues& LayoutState::get_mutable(NodeWithStyle const& node)
 {
-    return ensure_used_values_for(node);
+    if (auto* used_values = try_get_mutable(node))
+        return *used_values;
+    VERIFY_NOT_REACHED();
 }
 
 LayoutState::UsedValues const& LayoutState::get(NodeWithStyle const& node) const
 {
-    return const_cast<LayoutState*>(this)->ensure_used_values_for(node);
+    if (auto const* used_values = try_get(node))
+        return *used_values;
+    VERIFY_NOT_REACHED();
 }
 
 LayoutState::UsedValues& LayoutState::populate_from_paintable(NodeWithStyle const& node, Painting::PaintableBox const& paintable)
@@ -98,7 +102,7 @@ LayoutState::UsedValues& LayoutState::populate_node_from(LayoutState const& sour
     return values;
 }
 
-LayoutState::UsedValues& LayoutState::ensure_used_values_for(NodeWithStyle const& node)
+LayoutState::UsedValues& LayoutState::initialize_used_values_for(NodeWithStyle const& node)
 {
     auto index = node.layout_index();
 
@@ -113,7 +117,8 @@ LayoutState::UsedValues& LayoutState::ensure_used_values_for(NodeWithStyle const
         // For the subtree root, ancestor values are not available in the throwaway state.
         containing_block_used_values = try_get(*node.containing_block());
     } else if (!node.is_viewport()) {
-        containing_block_used_values = &get(*node.containing_block());
+        containing_block_used_values = try_get(*node.containing_block());
+        VERIFY(containing_block_used_values);
     }
 
     auto& used_values = m_used_values_store.allocate(index);

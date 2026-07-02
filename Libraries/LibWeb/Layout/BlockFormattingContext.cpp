@@ -706,6 +706,11 @@ void BlockFormattingContext::resolve_used_height_if_treated_as_auto(Box const& b
     auto const& computed_values = box.computed_values();
     auto& box_state = m_state.get_mutable(box);
 
+    bool is_html_element_in_quirks_mode = box.document().in_quirks_mode()
+        && box.dom_node()
+        && box.dom_node()->is_html_html_element()
+        && box.computed_values().height().is_auto();
+
     CSSPixels height = 0;
     if (box_is_sized_as_replaced_element(box, available_space)) {
         height = compute_height_for_replaced_element(box, available_space);
@@ -727,10 +732,7 @@ void BlockFormattingContext::resolve_used_height_if_treated_as_auto(Box const& b
         height = max(height, calculate_inner_height(box, available_space, computed_values.min_height()));
     }
 
-    if (box.document().in_quirks_mode()
-        && box.dom_node()
-        && box.dom_node()->is_html_html_element()
-        && box.computed_values().height().is_auto()) {
+    if (is_html_element_in_quirks_mode) {
         // 3.6. The html element fills the viewport quirk
         // https://quirks.spec.whatwg.org/#the-html-element-fills-the-viewport-quirk
         // FIXME: Handle vertical writing mode.
@@ -957,7 +959,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
 
     if (box.is_absolutely_positioned()) {
         if (m_layout_mode == LayoutMode::Normal) {
-            auto& box_state = m_state.get_mutable(box);
+            auto& box_state = m_state.initialize_used_values_for(box);
             StaticPositionRect static_position;
             auto static_position_x = CSSPixels(0);
             auto static_position_y = m_y_offset_of_current_block_container.value();
@@ -978,7 +980,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         return;
     }
 
-    auto& box_state = m_state.get_mutable(box);
+    auto& box_state = m_state.initialize_used_values_for(box);
 
     // NOTE: ListItemMarkerBoxes are placed by their corresponding ListItemBox.
     if (is<ListItemMarkerBox>(box))
@@ -1007,9 +1009,15 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         && box.dom_node()->is_html_html_element()
         && box.computed_values().height().is_auto();
 
-    // NOTE: In quirks mode, the html element's height matches the viewport so it can be treated as definite
-    if (box_state.has_definite_height() || box_is_html_element_in_quirks_mode)
+    // NOTE: In quirks mode, the html element's height matches the viewport so it can be treated as definite.
+    if (!box_state.has_definite_height() && box_is_html_element_in_quirks_mode) {
+        auto margins = box_state.margin_top + box_state.margin_bottom;
+        auto size = box_state.containing_block_used_values()->content_height() - margins;
+        box_state.set_content_height(max(CSSPixels(0), size));
+        box_state.set_has_definite_height(true);
+    } else if (box_state.has_definite_height()) {
         resolve_used_height_if_treated_as_auto(box, available_space);
+    }
 
     auto independent_formatting_context = create_independent_formatting_context_if_needed(m_state, m_layout_mode, box);
 
@@ -1396,7 +1404,7 @@ void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer 
 {
     VERIFY(box.is_floating());
 
-    auto& box_state = m_state.get_mutable(box);
+    auto& box_state = m_state.initialize_used_values_for(box);
     auto const& computed_values = box.computed_values();
 
     auto const& block_container_state = m_state.get(block_container);
@@ -1472,7 +1480,7 @@ void BlockFormattingContext::ensure_sizes_correct_for_left_offset_calculation(Li
         return;
 
     auto& marker = *list_item_box.marker();
-    auto& marker_state = m_state.get_mutable(marker);
+    auto& marker_state = m_state.initialize_used_values_for(marker);
 
     // If an image is used, the marker's dimensions are the same as the image.
     if (auto const* list_style_image = marker.list_style_image()) {
@@ -1502,7 +1510,7 @@ void BlockFormattingContext::layout_list_item_marker(ListItemBox const& list_ite
         return;
 
     auto& marker = *list_item_box.marker();
-    auto& marker_state = m_state.get_mutable(marker);
+    auto& marker_state = m_state.initialize_used_values_for(marker);
     auto& list_item_state = m_state.get_mutable(list_item_box);
 
     auto marker_text = marker.text();
