@@ -1,5 +1,5 @@
 RESULT: adjacent match stops after plain element inserted between operands: initial=match expectedInitial=match, after=base expectedAfter=base
-PASS: non-subject :has sibling combinator: adjacent match stops after plain element inserted between operands | styleInvalidations=3, fullStyleInvalidations=0, hasAncestorWalkInvocations=1, hasInvalidationMetadataCandidates=0, hasMatchInvocations=2, hasResultCacheHits=0, hasResultCacheMisses=2
+PASS: non-subject :has sibling combinator: adjacent match stops after plain element inserted between operands
 RESULT: adjacent match starts after plain middle element is removed: initial=base expectedInitial=base, after=match expectedAfter=match
 PASS: non-subject :has sibling combinator: adjacent match starts after plain middle element is removed | styleInvalidations=4, fullStyleInvalidations=0, hasAncestorWalkInvocations=1, hasInvalidationMetadataCandidates=0, hasMatchInvocations=2, hasResultCacheHits=0, hasResultCacheMisses=2
 RESULT: adjacent match starts after plain middle element moves after right operand: initial=base expectedInitial=base, after=match expectedAfter=match
