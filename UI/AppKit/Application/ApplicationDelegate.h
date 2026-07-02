@@ -22,24 +22,30 @@ private:
     enum class Kind {
         End,
         AfterTab,
+        AtIndex,
     };
 
 public:
-    static TabLocation end() { return { Kind::End, nil }; }
-    static TabLocation after_tab(Tab* _Nullable tab) { return { Kind::AfterTab, tab }; }
+    static TabLocation end() { return { Kind::End, nil, 0 }; }
+    static TabLocation after_tab(Tab* _Nullable tab) { return { Kind::AfterTab, tab, 0 }; }
+    static TabLocation at_index(i64 index) { return { Kind::AtIndex, nil, index }; }
 
     bool is_after_tab() const { return m_kind == Kind::AfterTab; }
+    bool is_at_index() const { return m_kind == Kind::AtIndex; }
     Tab* _Nullable tab() const { return m_tab; }
+    i64 index() const { return m_index; }
 
 private:
-    TabLocation(Kind kind, Tab* _Nullable tab)
+    TabLocation(Kind kind, Tab* _Nullable tab, i64 index)
         : m_kind(kind)
         , m_tab(tab)
+        , m_index(index)
     {
     }
 
     Kind m_kind;
     Tab* _Nullable m_tab { nil };
+    i64 m_index { 0 };
 };
 
 @interface ApplicationDelegate : NSObject <NSApplicationDelegate>
@@ -63,6 +69,7 @@ private:
 - (void)setActiveTab:(nonnull Tab*)tab;
 - (nullable Tab*)activeTab;
 
+- (void)reconcileSessionTopology;
 - (void)removeTab:(nonnull TabController*)controller;
 - (NSUInteger)tabCount;
 

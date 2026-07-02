@@ -10,6 +10,7 @@
 #include <LibWebView/DownloadPresentation.h>
 #include <LibWebView/FileDownloader.h>
 #include <LibWebView/Omnibox.h>
+#include <LibWebView/SessionStore.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/ViewImplementation.h>
 
@@ -1560,6 +1561,7 @@ private:
 {
     auto* delegate = (ApplicationDelegate*)[NSApp delegate];
     [delegate setActiveTab:[self tab]];
+    [delegate reconcileSessionTopology];
 }
 
 - (void)windowDidChangeOcclusionState:(NSNotification*)notification
@@ -1608,6 +1610,17 @@ private:
 - (void)windowWillClose:(NSNotification*)notification
 {
     auto* delegate = (ApplicationDelegate*)[NSApp delegate];
+    [delegate reconcileSessionTopology];
+
+    if (auto session_tab_id = [[[self tab] web_view] view].session_tab_id(); session_tab_id.has_value()) {
+        WebView::SessionStore::TabClosed closed {
+            .tab_id = *session_tab_id,
+            .closed_at = UnixDateTime::now(),
+        };
+        if (auto result = WebView::Application::session_store([self isPrivate]).tab_closed(AK::move(closed)); result.is_error())
+            dbgln("Unable to record the closed tab in the session store: {}", result.error());
+    }
+
     [delegate removeTab:self];
 
     auto request_close = AK::move(m_pending_immediate_close);
