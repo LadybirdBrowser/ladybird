@@ -3,10 +3,24 @@
 <style>
 #a { --foo: "Hello"; }
 #b { --bar: var(--foo) "world!"; }
+#c {
+    --supports-valid: if(supports((width: 1px)): supports-valid; else: supports-fallback);
+    --supports-trailing: if(supports((width: 1px) trailing): supports-valid; else: supports-fallback);
+    --media-valid: if(media((width >= 0px)): media-valid; else: media-fallback);
+    --media-trailing: if(media((width >= 0px) trailing): media-valid; else: media-fallback);
+}
+#d { --bar: var(--missing, fallback ); }
 </style>
 <div id="a"><div id="b"></div></div>
+<div id="c"></div>
+<div id="d"></div>
 <script>
     test(() => {
         println(getComputedStyle(document.getElementById("b")).getPropertyValue("--bar"));
+        println(getComputedStyle(document.getElementById("c")).getPropertyValue("--supports-valid"));
+        println(getComputedStyle(document.getElementById("c")).getPropertyValue("--supports-trailing"));
+        println(getComputedStyle(document.getElementById("c")).getPropertyValue("--media-valid"));
+        println(getComputedStyle(document.getElementById("c")).getPropertyValue("--media-trailing"));
+        println(JSON.stringify(getComputedStyle(document.getElementById("d")).getPropertyValue("--bar")));
     });
 </script>

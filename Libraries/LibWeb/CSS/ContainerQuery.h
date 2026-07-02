@@ -10,6 +10,8 @@
 #include <AK/RefCounted.h>
 #include <LibWeb/CSS/BooleanExpression.h>
 #include <LibWeb/CSS/FeatureQuery.h>
+#include <LibWeb/CSS/Parser/ComponentValue.h>
+#include <LibWeb/CSS/PropertyNameAndID.h>
 
 namespace Web::CSS {
 
@@ -41,6 +43,28 @@ private:
         : Base(type, id, move(value))
     {
     }
+};
+
+// https://drafts.csswg.org/css-conditional-5/#typedef-style-feature
+class StyleFeature final : public BooleanExpression {
+public:
+    static NonnullOwnPtr<StyleFeature> create_boolean(PropertyNameAndID);
+    static NonnullOwnPtr<StyleFeature> create_plain(PropertyNameAndID, Vector<Parser::ComponentValue> value);
+
+    virtual MatchResult evaluate(BooleanExpressionEvaluationContext const&) const override;
+    virtual void collect_container_query_feature_requirements(ContainerQueryFeatureRequirements&) const override;
+    virtual String to_string() const override;
+    virtual void dump(StringBuilder&, int indent_levels = 0) const override;
+
+private:
+    StyleFeature(PropertyNameAndID property, Optional<Vector<Parser::ComponentValue>> value)
+        : m_property(move(property))
+        , m_value(move(value))
+    {
+    }
+
+    PropertyNameAndID m_property;
+    Optional<Vector<Parser::ComponentValue>> m_value;
 };
 
 // https://drafts.csswg.org/css-conditional-5/#container-rule

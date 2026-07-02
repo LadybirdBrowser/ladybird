@@ -20,6 +20,7 @@ class UnresolvedStyleValue final : public StyleValue {
 public:
     enum class SourceTextMode : u8 {
         Trim,
+        TrimLeading,
         Preserve,
     };
 

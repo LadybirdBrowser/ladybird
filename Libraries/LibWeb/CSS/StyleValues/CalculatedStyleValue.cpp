@@ -3312,6 +3312,35 @@ Optional<i32> CalculatedStyleValue::resolve_integer(CalculationResolutionContext
     return {};
 }
 
+RefPtr<StyleValue const> CalculatedStyleValue::resolve_as_style_value(CalculationResolutionContext const& context) const
+{
+    auto result = resolve_value(context);
+    if (!result.has_value() || !result->type.has_value())
+        return {};
+
+    if (result->type->matches_number(m_context.percentages_resolve_as)) {
+        if (m_context.resolve_numbers_as_integers)
+            return IntegerStyleValue::create(round_to_nearest_integer(result->value));
+        return NumberStyleValue::create(result->value);
+    }
+    if (result->type->matches_angle(m_context.percentages_resolve_as))
+        return AngleStyleValue::create(Angle::make_degrees(result->value));
+    if (result->type->matches_flex(m_context.percentages_resolve_as))
+        return FlexStyleValue::create(Flex::make_fr(result->value));
+    if (result->type->matches_frequency(m_context.percentages_resolve_as))
+        return FrequencyStyleValue::create(Frequency::make_hertz(result->value));
+    if (result->type->matches_length(m_context.percentages_resolve_as))
+        return LengthStyleValue::create(Length::make_px(result->value));
+    if (result->type->matches_percentage())
+        return PercentageStyleValue::create(Percentage { result->value });
+    if (result->type->matches_resolution(m_context.percentages_resolve_as))
+        return ResolutionStyleValue::create(Resolution::make_dots_per_pixel(result->value));
+    if (result->type->matches_time(m_context.percentages_resolve_as))
+        return TimeStyleValue::create(Time::make_seconds(result->value));
+
+    return {};
+}
+
 bool CalculatedStyleValue::contains_percentage() const
 {
     return m_calculation->contains_percentage();

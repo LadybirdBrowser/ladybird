@@ -61,6 +61,8 @@ ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::cr
 
         if (source_text_mode == SourceTextMode::Trim)
             return MUST(serialize_a_series_of_component_values_preserving_original_source_text(values).trim_ascii_whitespace());
+        if (source_text_mode == SourceTextMode::TrimLeading)
+            return MUST(serialize_a_series_of_component_values_preserving_original_source_text(values).trim_ascii_whitespace(TrimMode::Left));
 
         return source_text_from_component_values(values, source_text_mode);
     }();

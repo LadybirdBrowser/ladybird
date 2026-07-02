@@ -96,7 +96,7 @@ bool contains_guaranteed_invalid_value(ReadonlySpan<ComponentValue> values)
     return false;
 }
 
-static bool contains_attr_tainted_value(ReadonlySpan<ComponentValue> values)
+bool contains_attr_tainted_value(ReadonlySpan<ComponentValue> values)
 {
     for (auto const& value : values) {
         if (value.contains_attr_tainted_value())
@@ -338,6 +338,7 @@ static Vector<ComponentValue> replace_an_if_function(DOM::AbstractElement& eleme
 {
     // NB: We create a single parser and reuse that for parsing all the conditions
     auto parser = Parser::create(ParsingParams { element.element().document() }, {});
+    bool did_evaluate_attr_tainted_condition = false;
 
     // 1. For each <if-args-branch> branch in arguments:
     for (auto const& branch : arguments.get<IfArgs>()) {
@@ -357,8 +358,15 @@ static Vector<ComponentValue> replace_an_if_function(DOM::AbstractElement& eleme
         //    «"property", referenced-property-name» would mark it as a cyclic substitution context, that query
         //    evaluates to false.
         //    If the result of condition is false, continue.
-        // FIXME: Implement the above behavior once we support style queries.
-        auto condition_evaluation_result = maybe_parsed_if_condition->evaluate({ .document = element.element().document() });
+        bool did_evaluate_attr_tainted_style_query = false;
+        auto condition_evaluation_result = maybe_parsed_if_condition->evaluate({
+            .document = element.element().document(),
+            .style_query_element = element,
+            .guarded_contexts = guarded_contexts,
+            .did_evaluate_attr_tainted_style_query = &did_evaluate_attr_tainted_style_query,
+        });
+
+        did_evaluate_attr_tainted_condition |= condition_is_attr_tainted || did_evaluate_attr_tainted_style_query;
 
         if (condition_evaluation_result == MatchResult::False)
             continue;
@@ -368,7 +376,7 @@ static Vector<ComponentValue> replace_an_if_function(DOM::AbstractElement& eleme
             return {};
 
         auto result = substitute_arbitrary_substitution_functions(element, guarded_contexts, replacement_context, branch.value.value());
-        if (condition_is_attr_tainted)
+        if (did_evaluate_attr_tainted_condition)
             return mark_as_attr_tainted(move(result));
         return result;
     }

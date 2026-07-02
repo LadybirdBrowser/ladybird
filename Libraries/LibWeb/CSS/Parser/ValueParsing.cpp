@@ -5356,20 +5356,38 @@ OwnPtr<BooleanExpression> Parser::parse_if_condition(TokenStream<ComponentValue>
 
         auto const& function = maybe_function_token.function();
         TokenStream argument_tokens { function.value };
+        auto parse_entirely = [&argument_tokens](auto parse) -> OwnPtr<BooleanExpression> {
+            auto transaction = argument_tokens.begin_transaction();
+            auto parsed = parse(argument_tokens);
+            if (!parsed)
+                return nullptr;
+
+            argument_tokens.discard_whitespace();
+            if (argument_tokens.has_next_token())
+                return nullptr;
+
+            transaction.commit();
+            return parsed.template release_nonnull<BooleanExpression>();
+        };
 
         // supports( [ <ident> : <declaration-value> ] | <supports-condition> )
         if (function.name.equals_ignoring_ascii_case("supports"sv)) {
             // [ <ident> : <declaration-value> ]
-            m_rule_context.append(RuleContext::SupportsCondition);
-            auto maybe_supports_declaration = parse_supports_declaration(argument_tokens);
-            m_rule_context.take_last();
-
-            if (maybe_supports_declaration)
+            if (auto maybe_supports_declaration = parse_entirely([&](auto& tokens) {
+                    m_rule_context.append(RuleContext::SupportsCondition);
+                    auto supports = parse_supports_declaration(tokens);
+                    m_rule_context.take_last();
+                    return supports;
+                })) {
                 return maybe_supports_declaration;
+            }
 
             // <supports-condition>
-            if (auto maybe_supports_condition = parse_supports_condition(argument_tokens))
+            if (auto maybe_supports_condition = parse_entirely([&](auto& tokens) {
+                    return parse_supports_condition(tokens);
+                })) {
                 return maybe_supports_condition;
+            }
 
             return nullptr;
         }
@@ -5377,17 +5395,29 @@ OwnPtr<BooleanExpression> Parser::parse_if_condition(TokenStream<ComponentValue>
         // media( <media-feature> | <media-condition> )
         if (function.name.equals_ignoring_ascii_case("media"sv)) {
             // <media-feature>
-            if (auto maybe_media_feature = parse_media_feature(argument_tokens))
+            if (auto maybe_media_feature = parse_entirely([&](auto& tokens) {
+                    return parse_media_feature(tokens);
+                })) {
                 return maybe_media_feature;
+            }
 
             // <media-condition>
-            if (auto maybe_media_condition = parse_media_condition(argument_tokens))
+            if (auto maybe_media_condition = parse_entirely([&](auto& tokens) {
+                    return parse_media_condition(tokens);
+                })) {
                 return maybe_media_condition;
+            }
 
             return nullptr;
         }
 
-        // FIXME: Support style()
+        // style( <style-query> )
+        if (function.name.equals_ignoring_ascii_case("style"sv)) {
+            return parse_entirely([&](auto& tokens) {
+                return parse_style_query(tokens, MatchResult::False);
+            });
+        }
+
         return nullptr;
     });
 
@@ -5661,7 +5691,10 @@ NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(DOM::Abst
     // FIXME: Parse according to @property syntax once we support that.
     if (property.is_custom_property()) {
         auto contains_attr_tainted_values = result.first_matching([](auto const& component_value) { return component_value.contains_attr_tainted_value(); }).has_value();
-        return UnresolvedStyleValue::create(move(result), {}, {}, UnresolvedStyleValue::SourceTextMode::Trim, contains_attr_tainted_values);
+        auto source_text_mode = unresolved.contains_arbitrary_substitution_function() && !contains_attr_tainted_values
+            ? UnresolvedStyleValue::SourceTextMode::TrimLeading
+            : UnresolvedStyleValue::SourceTextMode::Trim;
+        return UnresolvedStyleValue::create(move(result), {}, {}, source_text_mode, contains_attr_tainted_values);
     }
 
     auto expanded_value_tokens = TokenStream { result };
