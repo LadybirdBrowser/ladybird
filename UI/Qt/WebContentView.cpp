@@ -94,8 +94,10 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
 #endif
 
     m_device_pixel_ratio = devicePixelRatio();
+    m_is_private = initial_state.is_private;
     m_maximum_frames_per_second = initial_state.maximum_frames_per_second;
     m_display_id = initial_state.display_id;
+
     set_page_background_color_to_system_canvas(is_using_dark_system_theme(*this));
 
     QObject::connect(qGuiApp, &QGuiApplication::screenRemoved, [this](QScreen*) {

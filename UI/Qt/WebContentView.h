@@ -16,6 +16,7 @@
 #include <LibGfx/Rect.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
+#include <LibWebView/PrivateBrowsing.h>
 #include <LibWebView/ViewImplementation.h>
 
 #include <QMenu>
@@ -49,6 +50,7 @@ using WebContentViewBase = QWidget;
 #endif
 
 struct WebContentViewInitialState {
+    WebView::IsPrivate is_private { WebView::IsPrivate::No };
     double maximum_frames_per_second { 60.0 };
     Optional<u64> display_id;
 };

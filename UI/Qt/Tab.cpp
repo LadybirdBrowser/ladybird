@@ -619,6 +619,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     tab_layout->setContentsMargins(0, 0, 0, 0);
 
     auto view_initial_state = WebContentViewInitialState {
+        .is_private = window->is_private(),
         .maximum_frames_per_second = window->refresh_rate(),
         .display_id = window->display_id(),
     };

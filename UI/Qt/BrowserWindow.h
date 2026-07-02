@@ -11,6 +11,7 @@
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWebView/Forward.h>
+#include <LibWebView/PrivateBrowsing.h>
 #include <LibWebView/Settings.h>
 #include <UI/Qt/Tab.h>
 #include <UI/Qt/TabBar.h>
@@ -94,10 +95,11 @@ public:
         Yes,
     };
 
-    BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window = IsPopupWindow::No, Tab* parent_tab = nullptr, Optional<u64> page_index = {});
+    BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window = IsPopupWindow::No, WebView::IsPrivate = WebView::IsPrivate::No, Tab* parent_tab = nullptr, Optional<u64> page_index = {});
     virtual ~BrowserWindow() override;
 
     WebContentView& view() const { return m_current_tab->view(); }
+    WebView::IsPrivate is_private() const { return m_is_private; }
 
     int tab_count() { return m_tabs_container->count(); }
     int tab_index(Tab*);
@@ -214,6 +216,8 @@ private:
     Optional<u64> m_display_id;
     double m_device_pixel_ratio { 0 };
     double m_refresh_rate { 60.0 };
+
+    WebView::IsPrivate m_is_private { WebView::IsPrivate::No };
 
     TabWidget* m_tabs_container { nullptr };
     Tab* m_current_tab { nullptr };
