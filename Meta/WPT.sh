@@ -22,6 +22,7 @@ TMPDIR=${TMPDIR:-/tmp}
 : "${SHOW_LOGFILES:=true}"
 : "${SHOW_PROGRESS:=true}"
 : "${PARALLEL_INSTANCES:=1}"
+: "${BUILD_LADYBIRD:=true}"
 
 if "$SHOW_PROGRESS"; then
     SHOW_LOGFILES=true
@@ -31,6 +32,11 @@ fi
 sudo_and_ask() {
     local prompt
     prompt="$1"; shift
+    # Running as root is only possible when the CI environment variable is set to true.
+    if [ "$(id -u)" -eq 0 ]; then
+        "${@}"
+        return
+    fi
     if [ -z "$prompt" ]; then
         prompt="Running '${*}' as root, please enter password for %p: "
     else
@@ -80,6 +86,14 @@ WPT_PROCESSES=${WPT_PROCESSES:-$(get_number_of_processing_units)}
 WPT_CERTIFICATES=(
     "tools/certs/cacert.pem"
 )
+WPT_TEST_TYPE_ARGS=(
+    "--test-types"
+    "testharness"
+    "reftest"
+    "wdspec"
+    "crashtest"
+    "test262"
+)
 WPT_ARGS=(
     "--binary=${LADYBIRD_BINARY}"
     "--webdriver-binary=${WEBDRIVER_BINARY}"
@@ -93,6 +107,7 @@ WPT_ARGS=(
 )
 IMPORT_ARGS=()
 WPT_LOG_ARGS=()
+TESTS_FROM_FILE=()
 
 ARG0=$0
 print_help() {
@@ -115,6 +130,7 @@ print_help() {
                       Find the first commit where a given set of tests produce unexpected results.
 
     Env vars:
+      BUILD_LADYBIRD:             Whether to build Ladybird and WebDriver before running tests; true or false, default true
       EXTRA_WPT_ARGS:             Extra arguments for the wpt command, placed at the end; array, default empty
       TRY_SHOW_LOGFILES_IN_TMUX:  Whether to show split logs in tmux; true or false, default false
       SHOW_LOGFILES:              Whether to show logs at all; true or false, default true
@@ -133,6 +149,9 @@ print_help() {
               N>1 to enable chunked mode with explicit process count
       --log PATH
           Alias for --log-raw PATH
+      --test-list PATH
+          Read tests to run from the given file, one test path per line
+              Empty lines and lines starting with '#' are ignored
       --log-(raw|unittest|xunit|html|mach|tbpl|grouped|chromium|wptreport|wptscreenshot) PATH
           Enable the given wpt log option with the given PATH
 
@@ -189,10 +208,17 @@ set_logging_flags()
 
 headless=1
 ARG=$1
-while [[ "$ARG" =~ ^(--show-window|--debug-process|--parallel-instances|(--log(-(raw|unittest|xunit|html|mach|tbpl|grouped|chromium|wptreport|wptscreenshot))?))$ ]]; do
+while [[ "$ARG" =~ ^(--show-window|--debug-process|--parallel-instances|--test-list|(--log(-(raw|unittest|xunit|html|mach|tbpl|grouped|chromium|wptreport|wptscreenshot))?))$ ]]; do
     case "$ARG" in
         --show-window)
             headless=0
+            ;;
+        --test-list)
+            [ -f "${2}" ] || die "No such test list file: '${2}'"
+            while IFS= read -r test_path; do
+                TESTS_FROM_FILE+=("$test_path")
+            done < <(grep -v -e '^#' -e '^[[:space:]]*$' "${2}")
+            shift
             ;;
         --debug-process)
             process_name="${2}"
@@ -221,10 +247,12 @@ if [ $headless -eq 1 ]; then
     WPT_ARGS+=( "--webdriver-arg=--headless" )
 fi
 
-exit_if_running_as_root "Do not run WPT.sh as root"
+if [ "${CI:-false}" != "true" ]; then
+    exit_if_running_as_root "Do not run WPT.sh as root"
+fi
 
 construct_test_list() {
-    TEST_LIST=( "$@" )
+    TEST_LIST=( "$@" "${TESTS_FROM_FILE[@]}" )
 
     for i in "${!TEST_LIST[@]}"; do
         item="${TEST_LIST[i]}"
@@ -246,6 +274,9 @@ ensure_wpt_repository() {
 }
 
 build_ladybird_and_webdriver() {
+    if ! "$BUILD_LADYBIRD"; then
+        return
+    fi
     "${LADYBIRD_SOURCE_DIR}"/Meta/ladybird.py build WebDriver
 }
 
@@ -487,7 +518,7 @@ run_wpt_chunked() {
 
     echo "Preparing the venv setup..."
     base_venv="${BUILD_DIR}/wpt-prep/_venv"
-    ./wpt --venv "$base_venv" run "${WPT_ARGS[@]}" ladybird THIS_TEST_CANNOT_POSSIBLY_EXIST || true
+    ./wpt --venv "$base_venv" run "${WPT_ARGS[@]}" ladybird THIS_TEST_CANNOT_POSSIBLY_EXIST "${WPT_TEST_TYPE_ARGS[@]}" || true
 
     echo "Launching $procs chunked instances (concurrency=$concurrency each)"
     local logs=()
@@ -556,7 +587,7 @@ execute_wpt() {
             WPT_ARGS+=( "--webdriver-arg=--certificate=${certificate_path}" )
         done
         construct_test_list "${@}"
-        run_wpt_chunked "$procs" "${WPT_ARGS[@]}" "${WPT_LOG_ARGS[@]}" ladybird "${TEST_LIST[@]}"
+        run_wpt_chunked "$procs" "${WPT_ARGS[@]}" "${WPT_LOG_ARGS[@]}" ladybird "${TEST_LIST[@]}" "${WPT_TEST_TYPE_ARGS[@]}"
     popd > /dev/null
 }
 
@@ -674,7 +705,7 @@ list_tests_wpt()
     construct_test_list "${@}"
 
     pushd "${WPT_SOURCE_DIR}" > /dev/null
-        ./wpt run --list-tests ladybird "${TEST_LIST[@]}"
+        ./wpt run --list-tests ladybird "${TEST_LIST[@]}" "${WPT_TEST_TYPE_ARGS[@]}"
     popd > /dev/null
 }
 
