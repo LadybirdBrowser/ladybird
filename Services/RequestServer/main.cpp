@@ -7,6 +7,7 @@
 
 #include <AK/ByteString.h>
 #include <AK/Format.h>
+#include <AK/Optional.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
 #include <LibCore/ArgsParser.h>
@@ -16,6 +17,7 @@
 #include <LibHTTP/Cache/DiskCache.h>
 #include <LibIPC/SingleServer.h>
 #include <LibMain/Main.h>
+#include <RequestServer/CURL.h>
 #include <RequestServer/ConnectionFromClient.h>
 #include <RequestServer/Resolver.h>
 #include <RequestServer/ResourceSubstitutionMap.h>
@@ -58,9 +60,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     if (wait_for_debugger)
         Core::Process::wait_for_debugger_and_break();
 
-    // FIXME: Update RequestServer to support multiple custom root certificates.
-    if (!certificates.is_empty())
-        RequestServer::set_default_certificate_path(certificates.first());
+    if (auto bundle = RequestServer::read_default_root_certificate_bundle(certificates); bundle.is_error())
+        warnln("Unable to read root certificate bundle: {}", bundle.error());
+    else
+        RequestServer::set_root_certificate_bundle(bundle.release_value());
 
     if (!resource_map_path.is_empty()) {
         auto map = RequestServer::ResourceSubstitutionMap::load_from_file(resource_map_path);
@@ -101,7 +104,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     }
 
     if (!disable_sandbox)
-        TRY(RequestServer::apply_sandbox(certificates));
+        TRY(RequestServer::apply_sandbox());
 
     // Connections are stored on the stack to ensure they are destroyed before static destruction begins. This prevents
     // crashes from notifiers trying to unregister from already-destroyed thread data during process exit.

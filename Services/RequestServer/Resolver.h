@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/ByteBuffer.h>
 #include <AK/Optional.h>
 #include <AK/RefCounted.h>
 #include <AK/Weakable.h>
@@ -39,7 +40,7 @@ private:
     explicit Resolver(Function<ErrorOr<DNS::Resolver::SocketResult>()> create_socket);
 };
 
-ByteString const& default_certificate_path();
-void set_default_certificate_path(ByteString);
+ByteBuffer const& root_certificate_bundle();
+void set_root_certificate_bundle(ByteBuffer);
 
 }

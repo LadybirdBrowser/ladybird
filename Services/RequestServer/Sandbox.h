@@ -6,12 +6,10 @@
 
 #pragma once
 
-#include <AK/ByteString.h>
 #include <AK/Error.h>
-#include <AK/Vector.h>
 
 namespace RequestServer {
 
-[[nodiscard]] ErrorOr<void> apply_sandbox(Vector<ByteString> const& certificates);
+[[nodiscard]] ErrorOr<void> apply_sandbox();
 
 }

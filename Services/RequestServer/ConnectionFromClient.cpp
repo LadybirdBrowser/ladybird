@@ -599,9 +599,6 @@ void ConnectionFromClient::websocket_connect(u64 websocket_id, URL::URL url, Byt
             connection_info.set_headers(HTTP::HeaderList::create(move(additional_request_headers)));
             connection_info.set_dns_result(move(dns_result));
 
-            if (auto const& path = default_certificate_path(); !path.is_empty())
-                connection_info.set_root_certificates_path(path);
-
             auto impl = WebSocketImplCurl::create(self->m_curl_multi);
             auto connection = WebSocket::WebSocket::create(move(connection_info), move(impl));
 
