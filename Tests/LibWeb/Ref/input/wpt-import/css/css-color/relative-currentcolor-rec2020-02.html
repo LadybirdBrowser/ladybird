@@ -1,0 +1,22 @@
+<!doctype html>
+<meta charset=utf-8>
+<link rel="match" href="../../../../expected/wpt-import/css/css-color/relative-rec2020-ref.html">
+<title>currentColor is inherited correctly in rec2020 RCS</title>
+<link rel="help" href="https://drafts.csswg.org/css-color-5/#resolving-rcs">
+<link rel="author" href="mailto:chris@w3.org" title="Chris Lilley">
+<style>
+div {
+  width: 100px;
+  height: 100px;
+  background-color: red;
+  color: red;
+  background-color: color(from currentColor rec2020 r g b);
+}
+div div {
+  color: color(prophoto-rgb 0.23 0.43 0.13); /* a little outside sRGB */
+  background-color: inherit;
+}
+</style>
+<div>
+  <div></div>
+</div>

@@ -119,7 +119,10 @@ static MissingComponents extract_missing_components(StyleValue const& style_valu
     if (!color.color_type().has_value())
         return {};
     auto const& function = as<ColorFunctionStyleValue>(color);
-    return { is_component_none(function.channel(0)), is_component_none(function.channel(1)), is_component_none(function.channel(2)), is_component_none(function.alpha()) };
+    auto alpha = function.alpha();
+    // An omitted alpha isn't a missing component; it defaults to 1.
+    bool alpha_is_none = alpha && is_component_none(*alpha);
+    return { is_component_none(function.channel(0)), is_component_none(function.channel(1)), is_component_none(function.channel(2)), alpha_is_none };
 }
 
 // https://drafts.csswg.org/css-color-4/#interpolation-missing
@@ -351,8 +354,11 @@ static Optional<Gfx::ColorComponents> style_value_to_color_components(StyleValue
     auto color_type = color.color_type();
     if (!color_type.has_value())
         return {};
-    auto resolve_alpha = [&](StyleValue const& alpha_sv) -> Optional<float> {
-        auto result = ColorStyleValue::resolve_alpha(alpha_sv, context);
+    auto resolve_alpha = [&](ValueComparingRefPtr<StyleValue const> const& alpha_style_value) -> Optional<float> {
+        // An omitted alpha on a ColorFunctionStyleValue is treated as 1 for interpolation.
+        if (!alpha_style_value)
+            return 1.0f;
+        auto result = ColorStyleValue::resolve_alpha(*alpha_style_value, context);
         if (!result.has_value())
             return {};
         return static_cast<float>(result.value());

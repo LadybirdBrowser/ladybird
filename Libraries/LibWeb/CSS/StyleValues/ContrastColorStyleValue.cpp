@@ -21,6 +21,7 @@ ValueComparingNonnullRefPtr<StyleValue const> ContrastColorStyleValue::absolutiz
     ColorResolutionContext color_resolution_context {
         .color_scheme = context.color_scheme,
         .current_color = {},
+        .current_color_style_value = nullptr,
         .calculation_resolution_context = CalculationResolutionContext::from_computation_context(context),
     };
 

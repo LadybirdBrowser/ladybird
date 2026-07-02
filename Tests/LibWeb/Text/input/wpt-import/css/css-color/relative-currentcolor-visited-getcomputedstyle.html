@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Relative color syntax and currentcolor with :visited don't leak information via getComputedStyle</title>
+<link rel="help" href="https://drafts.csswg.org/css-color-5/#relative-colors">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/computed-testcommon.js"></script>
+
+<style>
+  a:link {
+    color: lime;
+  }
+
+  a:visited {
+    color: red;
+  }
+</style>
+
+<a href=""><span id="target">getComputedStyle should return lime for background-color on this element</span></a>
+
+<script>
+      test_computed_value("background-color", "rgb(from currentcolor r g b)", "color(srgb 0 1 0)", "should not leak :visited for computed style");
+</script>

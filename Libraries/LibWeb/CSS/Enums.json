@@ -155,6 +155,21 @@
     "top",
     "bottom"
   ],
+  "channel-keyword": [
+    "r",
+    "g",
+    "b",
+    "h",
+    "s",
+    "l",
+    "w",
+    "c",
+    "a",
+    "alpha",
+    "x",
+    "y",
+    "z"
+  ],
   "clear": [
     "none",
     "left",

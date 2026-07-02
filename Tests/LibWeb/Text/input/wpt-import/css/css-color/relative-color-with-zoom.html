@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<title>CSS Color: relative color is not affected by zoom</title>
+<link rel="help" href="https://drafts.csswg.org/css-color-5/#relative-colors">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/numeric-testcommon.js"></script>
+<script src="../../css/support/computed-testcommon.js"></script>
+<style>
+:root {
+  zoom: 200%;
+}
+</style>
+<div id="target"></div>
+<script>
+test_math_used("oklch(from oklch(calc(0.54 + 0.01) 0.04 257) calc(0.994 + 0.001) calc(0.001 + 0.004) calc(h / alpha))", "oklch(0.995 0.005 257)", {"prop": "color"});
+</script>
+

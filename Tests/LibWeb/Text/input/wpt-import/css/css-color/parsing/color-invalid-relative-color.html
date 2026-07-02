@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Color Level 5: Parsing and serialization of colors using invalid relative color syntax</title>
+<link rel="author" title="Sam Weinig" href="mailto:weinig@apple.com">
+<link rel="help" href="https://drafts.csswg.org/css-color-5/#relative-colors">
+<link rel="help" href="https://drafts.csswg.org/css-color-5/#serial-relative-color">
+<meta name="assert" content="invalid colors using relative color syntax fail to parse">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+    // rgb(from ...)
+
+    // Testing invalid values
+    test_invalid_value(`color`, `rgb(from rebeccapurple r 10deg 10)`);
+    test_invalid_value(`color`, `rgb(from rebeccapurple r 10 10deg)`);
+    test_invalid_value(`color`, `rgb(from rebeccapurple 10deg g b)`);
+    test_invalid_value(`color`, `rgb(from rgb(10%, 20%, 30%, 40%) r 10deg 10)`);
+    test_invalid_value(`color`, `rgb(from rgb(10%, 20%, 30%, 40%) r 10 10deg)`);
+    test_invalid_value(`color`, `rgb(from rgb(10%, 20%, 30%, 40%) 10deg g b)`);
+
+    // Testing invalid component names
+    test_invalid_value(`color`, `rgb(from rebeccapurple red g b)`);
+    test_invalid_value(`color`, `rgb(from rebeccapurple l g b)`);
+    test_invalid_value(`color`, `rgb(from rebeccapurple h g b)`);
+
+    // Testing invalid separator
+    test_invalid_value(`color`, `rgb(from rebeccapurple, r, g, b)`);
+    test_invalid_value(`color`, `rgba(from rgb(10%, 20%, 30%, 40%), r, g, b, alpha)`);
+
+    // Testing with calc().
+    test_invalid_value(`color`, `rgb(from rebeccapurple calc(r + 1%) g b)`);
+
+    // Using a channel keyword without being a relative color.
+    test_invalid_value(`color`, `rgb(0 0 0 / alpha)`);
+
+    // hsl(from ...)
+
+    // Testing invalid values.
+    test_invalid_value(`color`, `hsl(from rebeccapurple 10% s l)`);
+    test_invalid_value(`color`, `hsl(from rgb(10%, 20%, 30%, 40%) 10% s l)`);
+
+    // Testing invalid component names
+    test_invalid_value(`color`, `hsl(from rebeccapurple hue s l)`);
+    test_invalid_value(`color`, `hsl(from rebeccapurple x s l)`);
+    test_invalid_value(`color`, `hsl(from rebeccapurple h g b)`);
+
+    // Testing invalid separator
+    test_invalid_value(`color`, `hsl(from rebeccapurple, h, s, l)`);
+    test_invalid_value(`color`, `hsla(from rgb(10%, 20%, 30%, 40%), h, s, l, alpha)`);
+
+    // Testing with calc().
+    test_invalid_value(`color`, `hsl(from rebeccapurple calc(h + 1deg) s l)`);
+    test_invalid_value(`color`, `hsl(from rebeccapurple calc(h + 1%) s l)`);
+
+    // hwb(from ...)
+
+    // Testing invalid values.
+    test_invalid_value(`color`, `hwb(from rebeccapurple 10% w b)`);
+    test_invalid_value(`color`, `hwb(from rgb(10%, 20%, 30%, 40%) 10% w b)`);
+
+    // Testing invalid component names
+    test_invalid_value(`color`, `hwb(from rebeccapurple hue w b)`);
+    test_invalid_value(`color`, `hwb(from rebeccapurple x w b)`);
+    test_invalid_value(`color`, `hwb(from rebeccapurple h g b)`);
+
+    // Testing with calc().
+    test_invalid_value(`color`, `hwb(from rebeccapurple calc(h + 1deg) w b)`);
+    test_invalid_value(`color`, `hwb(from rebeccapurple calc(h + 1%) w b)`);
+
+    for (const colorSpace of [ "lab", "oklab" ]) {
+        // Testing invalid values.
+        test_invalid_value(`color`, `${colorSpace}(from ${colorSpace}(.25 20 50) l 10deg 10)`);
+        test_invalid_value(`color`, `${colorSpace}(from ${colorSpace}(.25 20 50) l 10 10deg)`);
+        test_invalid_value(`color`, `${colorSpace}(from ${colorSpace}(.25 20 50) 10deg a b)`);
+        test_invalid_value(`color`, `${colorSpace}(from ${colorSpace}(.25 20 50 / 40%) l 10deg 10)`);
+        test_invalid_value(`color`, `${colorSpace}(from ${colorSpace}(.25 20 50 / 40%) l 10 10deg)`);
+        test_invalid_value(`color`, `${colorSpace}(from ${colorSpace}(.25 20 50 / 40%) 10deg a b)`);
+
+        // Testing invalid component names
+        test_invalid_value(`color`, `${colorSpace}(from ${colorSpace}(.25 20 50) lightness a b)`);
+        test_invalid_value(`color`, `${colorSpace}(from ${colorSpace}(.25 20 50) x a b)`);
+        test_invalid_value(`color`, `${colorSpace}(from ${colorSpace}(.25 20 50) h g b)`);
+
+        // Testing with calc().
+        test_invalid_value(`color`, `${colorSpace}(from ${colorSpace}(.25 20 50) l calc(a + 1%) b)`);
+    }
+
+    for (const colorSpace of [ "lch", "oklch" ]) {
+        // Testing invalid values.
+        test_invalid_value(`color`, `${colorSpace}(from ${colorSpace}(.70 45 30) l 10deg h)`);
+        test_invalid_value(`color`, `${colorSpace}(from ${colorSpace}(.70 45 30) l c 10%)`);
+        test_invalid_value(`color`, `${colorSpace}(from ${colorSpace}(.70 45 30) 10deg c h)`);
+        test_invalid_value(`color`, `${colorSpace}(from ${colorSpace}(.70 45 30 / 40%) l 10deg h)`);
+        test_invalid_value(`color`, `${colorSpace}(from ${colorSpace}(.70 45 30 / 40%) l c 10%)`);
+        test_invalid_value(`color`, `${colorSpace}(from ${colorSpace}(.70 45 30 / 40%) 10deg c h)`);
+
+        // Testing invalid component names
+        test_invalid_value(`color`, `${colorSpace}(from ${colorSpace}(.70 45 30) lightness c h)`);
+        test_invalid_value(`color`, `${colorSpace}(from ${colorSpace}(.70 45 30) x c h)`);
+        test_invalid_value(`color`, `${colorSpace}(from ${colorSpace}(.70 45 30) l g b)`);
+
+        // Testing with calc().
+        test_invalid_value(`color`, `${colorSpace}(from ${colorSpace}(.70 45 30) l c calc(h + 1%))`);
+        test_invalid_value(`color`, `${colorSpace}(from ${colorSpace}(.70 45 30) l c calc(h + 1deg))`);
+    }
+
+    for (const colorSpace of [ "srgb", "srgb-linear", "a98-rgb", "rec2020", "prophoto-rgb", "display-p3", "display-p3-linear" ]) {
+        // Testing invalid values.
+        test_invalid_value(`color`, `color(from color(${colorSpace} 0.7 0.5 0.3) ${colorSpace} 10deg g b)`);
+        test_invalid_value(`color`, `color(from color(${colorSpace} 0.7 0.5 0.3) ${colorSpace} r 10deg b)`);
+        test_invalid_value(`color`, `color(from color(${colorSpace} 0.7 0.5 0.3) ${colorSpace} r g 10deg)`);
+        test_invalid_value(`color`, `color(from color(${colorSpace} 0.7 0.5 0.3) ${colorSpace} r g b / 10deg)`);
+
+        // Testing invalid component names
+        test_invalid_value(`color`, `color(from color(${colorSpace} 0.7 0.5 0.3) ${colorSpace} red g b)`);
+        test_invalid_value(`color`, `color(from color(${colorSpace} 0.7 0.5 0.3) ${colorSpace} x g b)`);
+        test_invalid_value(`color`, `color(from color(${colorSpace} 0.7 0.5 0.3) ${colorSpace} l g b)`);
+        test_invalid_value(`color`, `color(from color(${colorSpace} 0.7 0.5 0.3) ${colorSpace} x y z)`);
+
+        // Testing with calc().
+        test_invalid_value(`color`, `color(from color(${colorSpace} 0.7 0.5 0.3) ${colorSpace} calc(r + 1%) g b)`);
+    }
+
+    for (const colorSpace of [ "xyz", "xyz-d50", "xyz-d65" ]) {
+        // Testing invalid values.
+        test_invalid_value(`color`, `color(from color(${colorSpace} 7 -20.5 100) ${colorSpace} 10deg y z)`);
+        test_invalid_value(`color`, `color(from color(${colorSpace} 7 -20.5 100) ${colorSpace} x 10deg z)`);
+        test_invalid_value(`color`, `color(from color(${colorSpace} 7 -20.5 100) ${colorSpace} x y 10deg)`);
+        test_invalid_value(`color`, `color(from color(${colorSpace} 7 -20.5 100) ${colorSpace} x y z / 10deg)`);
+
+        // Testing invalid component names
+        test_invalid_value(`color`, `color(from color(${colorSpace} 7 -20.5 100) ${colorSpace} red y)`);
+        test_invalid_value(`color`, `color(from color(${colorSpace} 7 -20.5 100) ${colorSpace} r y z)`);
+        test_invalid_value(`color`, `color(from color(${colorSpace} 7 -20.5 100) ${colorSpace} l y z)`);
+        test_invalid_value(`color`, `color(from color(${colorSpace} 7 -20.5 100) ${colorSpace} r g b)`);
+
+        // Testing with calc().
+        test_invalid_value(`color`, `color(from color(${colorSpace} 7 -20.5 100) ${colorSpace} calc(x + 1%) y z)`);
+    }
+</script>
+</body>
+</html>

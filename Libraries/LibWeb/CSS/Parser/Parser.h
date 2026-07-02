@@ -17,6 +17,7 @@
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/Descriptor.h>
 #include <LibWeb/CSS/DescriptorID.h>
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/MediaQuery.h>
 #include <LibWeb/CSS/PageSelector.h>
 #include <LibWeb/CSS/ParsedFontFace.h>
@@ -66,6 +67,10 @@ struct NegateNode {
 struct FunctionContext {
     StringView name;
 };
+
+struct RelativeColorParseContext {
+    Array<bool, to_underlying(ChannelKeyword::Z) + 1> allowed_channels {};
+};
 struct DescriptorContext {
     AtRuleID at_rule;
     DescriptorID descriptor;
@@ -77,7 +82,7 @@ enum SpecialContext : u8 {
     OnScreenCanvasContextFontValue
 };
 // FIXME: Use PropertyNameAndID instead of PropertyID as the context, for registered custom properties.
-using ValueParsingContext = Variant<PropertyID, FunctionContext, DescriptorContext, SpecialContext>;
+using ValueParsingContext = Variant<PropertyID, FunctionContext, DescriptorContext, SpecialContext, RelativeColorParseContext>;
 
 enum class ParsingMode {
     Normal,
@@ -420,13 +425,19 @@ private:
     RefPtr<StyleValue const> parse_specific_keyword_value(TokenStream<ComponentValue>&, ReadonlySpan<Keyword>);
     RefPtr<StyleValue const> parse_hue_none_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_solidus_and_alpha_value(TokenStream<ComponentValue>&);
+    RefPtr<StyleValue const> parse_relative_color_origin(TokenStream<ComponentValue>&);
+    RelativeColorParseContext const* current_relative_color_context() const;
     RefPtr<StyleValue const> parse_rgb_color_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_hsl_color_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_hwb_color_value(TokenStream<ComponentValue>&);
-    Optional<Array<RefPtr<StyleValue const>, 4>> parse_lab_like_color_value(TokenStream<ComponentValue>&, StringView);
+    struct LabOrLchColorValue {
+        Array<RefPtr<StyleValue const>, 4> components;
+        RefPtr<StyleValue const> origin_color;
+    };
+    Optional<LabOrLchColorValue> parse_lab_like_color_value(TokenStream<ComponentValue>&, StringView);
     RefPtr<StyleValue const> parse_lab_color_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_oklab_color_value(TokenStream<ComponentValue>&);
-    Optional<Array<RefPtr<StyleValue const>, 4>> parse_lch_like_color_value(TokenStream<ComponentValue>&, StringView);
+    Optional<LabOrLchColorValue> parse_lch_like_color_value(TokenStream<ComponentValue>&, StringView);
     RefPtr<StyleValue const> parse_lch_color_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_oklch_color_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_color_function(TokenStream<ComponentValue>&);
@@ -666,6 +677,20 @@ private:
             // Reset the random function index when we leave the top-level property parsing context
             if (removed_context.has<PropertyID>() && !m_value_context.find_first_index_if([](ValueParsingContext context) { return context.has<PropertyID>(); }).has_value())
                 m_random_function_index = 0;
+        } };
+    }
+    auto push_relative_color_parsing_context(RefPtr<StyleValue const> const& origin_color, ReadonlySpan<ChannelKeyword> allowed_channels)
+    {
+        if (origin_color) {
+            RelativeColorParseContext context {};
+            for (auto channel : allowed_channels)
+                context.allowed_channels[to_underlying(channel)] = true;
+            context.allowed_channels[to_underlying(ChannelKeyword::Alpha)] = true;
+            m_value_context.append(context);
+        }
+        return ScopeGuard { [this, pushed = !origin_color.is_null()] {
+            if (pushed)
+                m_value_context.take_last();
         } };
     }
     bool context_allows_quirky_length() const;

@@ -88,6 +88,7 @@
 #include <LibWeb/CSS/StyleValues/UnicodeRangeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/Page.h>
@@ -102,16 +103,26 @@ ColorResolutionContext ColorResolutionContext::for_element(DOM::AbstractElement 
 
     return {
         .color_scheme = color_scheme,
-        .current_color = element.computed_properties()->color(PropertyID::Color, { color_scheme, CSS::InitialValues::color(), calculation_resolution_context }),
+        .current_color = element.computed_properties()->color(PropertyID::Color, { .color_scheme = color_scheme, .current_color = CSS::InitialValues::color(), .current_color_style_value = nullptr, .calculation_resolution_context = calculation_resolution_context }),
+        .current_color_style_value = &element.computed_properties()->property(PropertyID::Color),
         .calculation_resolution_context = calculation_resolution_context
     };
 }
 
 ColorResolutionContext ColorResolutionContext::for_layout_node_with_style(Layout::NodeWithStyle const& layout_node)
 {
+    StyleValue const* current_color_style_value = nullptr;
+    if (auto* dom_node = layout_node.dom_node()) {
+        if (auto* element = as_if<DOM::Element>(*dom_node)) {
+            if (auto computed_properties = element->computed_properties())
+                current_color_style_value = &computed_properties->property(PropertyID::Color);
+        }
+    }
+
     return {
         .color_scheme = layout_node.computed_values().color_scheme(),
         .current_color = layout_node.computed_values().color(),
+        .current_color_style_value = current_color_style_value,
         .calculation_resolution_context = { .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) },
     };
 }

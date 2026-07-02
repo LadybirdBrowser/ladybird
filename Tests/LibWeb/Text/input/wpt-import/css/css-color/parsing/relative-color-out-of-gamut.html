@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Color Level 5: Parsing and serialization of colors using relative color syntax that result in out-of-gamut sRGB colors</title>
+<link rel="author" title="Sam Weinig" href="mailto:weinig@apple.com">
+<link rel="author" title="Aaron Krajeski" href="mailto:aaronhk@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-color-5/#relative-colors">
+<link rel="help" href="https://drafts.csswg.org/css-color-5/#serial-relative-color">
+<meta name="assert" content="gamut mapping works for computed value of relative color syntax">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<script src="../../../css/support/color-testcommon.js"></script>
+</head>
+<body>
+  <div id="target"></div>
+</body>
+<script>
+  // The following tests produce colors that are outside of the srgb gamut.
+  // No gamut mapping should occur and the resulting colors should be of the
+  // format color(srgb ... )
+  // See: https://github.com/mozilla/wg-decisions/issues/1125
+  fuzzy_test_computed_color(`rgb(from color(display-p3 0 1 0) r g b / alpha)`, `color(srgb -0.5116 1.01827 -0.31067)`, 0.0001);
+  fuzzy_test_computed_color(`rgb(from lab(100 104.3 -50.9) r g b)`, `color(srgb 1.5935 0.58776 1.40555)`, 0.0001);
+  fuzzy_test_computed_color(`rgb(from lab(0 104.3 -50.9) r g b)`, `color(srgb 0.35137 -0.21392 0.29945)`, 0.0001);
+  fuzzy_test_computed_color(`rgb(from lch(100 116 334) r g b)`, `color(srgb 1.59336 0.58802 1.40517)`, 0.0001);
+  fuzzy_test_computed_color(`rgb(from lch(0 116 334) r g b)`, `color(srgb 0.3513 -0.21385 0.29918)`, 0.0001);
+  fuzzy_test_computed_color(`rgb(from oklab(1 0.365 -0.16) r g b)`, `color(srgb 1.59297 0.3602 1.38555)`, 0.0001);
+  fuzzy_test_computed_color(`rgb(from oklab(0 0.365 -0.16) r g b)`, `color(srgb 0.07636 -0.04559 0.09322)`, 0.0001);
+  fuzzy_test_computed_color(`rgb(from oklch(1 0.399 336.3) r g b)`, `color(srgb 1.59331 0.35856 1.38647)`, 0.0001);
+  fuzzy_test_computed_color(`rgb(from oklch(0 0.399 336.3) r g b)`, `color(srgb 0.07651 -0.04579 0.0937)`, 0.0001);
+
+  fuzzy_test_computed_color(`hsl(from color(display-p3 0 1 0) h s l / alpha)`, `color(srgb -0.5116 1.01827 -0.31067)`, 0.0001);
+  fuzzy_test_computed_color(`hsl(from lab(100 104.3 -50.9) h s l)`, `color(srgb 1.5935 0.58776 1.40555)`, 0.0001);
+  fuzzy_test_computed_color(`hsl(from lab(0 104.3 -50.9) h s l)`, `color(srgb 0.35137 -0.21392 0.29945)`, 0.0001);
+  fuzzy_test_computed_color(`hsl(from lch(100 116 334) h s l)`, `color(srgb 1.59336 0.58802 1.40517)`, 0.0001);
+  fuzzy_test_computed_color(`hsl(from lch(0 116 334) h s l)`, `color(srgb 0.3513 -0.21385 0.29918)`, 0.0001);
+  fuzzy_test_computed_color(`hsl(from oklab(1 0.365 -0.16) h s l)`, `color(srgb 1.59297 0.3602 1.38555)`, 0.0001);
+  fuzzy_test_computed_color(`hsl(from oklab(0 0.365 -0.16) h s l)`, `color(srgb 0.07636 -0.04559 0.09322)`, 0.0001);
+  fuzzy_test_computed_color(`hsl(from oklch(1 0.399 336.3) h s l)`, `color(srgb 1.59331 0.35856 1.38647)`, 0.0001);
+  fuzzy_test_computed_color(`hsl(from oklch(0 0.399 336.3) h s l)`, `color(srgb 0.07651 -0.04579 0.0937)`, 0.0001);
+
+  fuzzy_test_computed_color(`hwb(from color(display-p3 0 1 0) h w b / alpha)`, `color(srgb -0.5116 1.01827 -0.31067)`, 0.0001);
+  fuzzy_test_computed_color(`hwb(from lab(100 104.3 -50.9) h w b)`, `color(srgb 1.5935 0.58776 1.40555)`, 0.0001);
+  fuzzy_test_computed_color(`hwb(from lab(0 104.3 -50.9) h w b)`, `color(srgb 0.35137 -0.21392 0.29945)`, 0.0001);
+  fuzzy_test_computed_color(`hwb(from lch(100 116 334) h w b)`, `color(srgb 1.59336 0.58802 1.40517)`, 0.0001);
+  fuzzy_test_computed_color(`hwb(from lch(0 116 334) h w b)`, `color(srgb 0.3513 -0.21385 0.29918)`, 0.0001);
+  fuzzy_test_computed_color(`hwb(from oklab(1 0.365 -0.16) h w b)`, `color(srgb 1.59297 0.3602 1.38555)`, 0.0001);
+  fuzzy_test_computed_color(`hwb(from oklab(0 0.365 -0.16) h w b)`, `color(srgb 0.07636 -0.04559 0.09322)`, 0.0001);
+  fuzzy_test_computed_color(`hwb(from oklch(1 0.399 336.3) h w b)`, `color(srgb 1.59331 0.35856 1.38647)`, 0.0001);
+  fuzzy_test_computed_color(`hwb(from oklch(0 0.399 336.3) h w b)`, `color(srgb 0.07651 -0.04579 0.0937)`, 0.0001);
+</script>
+</html>

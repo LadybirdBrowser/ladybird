@@ -9,6 +9,7 @@
 #include <AK/TypeCasts.h>
 #include <LibWeb/CSS/ColorInterpolation.h>
 #include <LibWeb/CSS/Interpolation.h>
+#include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorInterpolationMethodStyleValue.h>
 #include <LibWeb/Layout/Node.h>
 
@@ -226,6 +227,7 @@ ValueComparingNonnullRefPtr<StyleValue const> ColorMixStyleValue::absolutized(Co
     ColorResolutionContext color_resolution_context {
         .color_scheme = context.color_scheme,
         .current_color = {},
+        .current_color_style_value = nullptr,
         .calculation_resolution_context = CalculationResolutionContext::from_computation_context(context),
     };
     auto absolutized_color_interpolation_method = m_properties.color_interpolation_method ? ValueComparingRefPtr<StyleValue const> { m_properties.color_interpolation_method->absolutized(context) } : nullptr;
@@ -236,7 +238,23 @@ ValueComparingNonnullRefPtr<StyleValue const> ColorMixStyleValue::absolutized(Co
         ? absolutized_color_interpolation_method->as_color_interpolation_method().color_interpolation_method()
         : ColorInterpolationMethodStyleValue::ColorInterpolationMethod { RectangularColorSpace::Oklab };
 
-    if (auto interpolated = perform_color_interpolation(*m_properties.first_component.color, *m_properties.second_component.color, delta, color_interpolation_method, color_resolution_context); interpolated.has_value()) {
+    // Resolve relative-color components before interpolation so channel-keyword references and `none` missing-channel
+    // markers are made visible during interpolation.
+    auto resolve_if_relative = [&](ValueComparingNonnullRefPtr<StyleValue const> const& component) -> ValueComparingNonnullRefPtr<StyleValue const> {
+        if (!component->is_color_function())
+            return component;
+        auto const& color_function = as<ColorFunctionStyleValue>(*component);
+        if (!color_function.origin_color())
+            return component;
+        auto resolved = color_function.resolve_relative_form(color_resolution_context);
+        if (!resolved)
+            return component;
+        return resolved.release_nonnull();
+    };
+    auto first_component = resolve_if_relative(m_properties.first_component.color);
+    auto second_component = resolve_if_relative(m_properties.second_component.color);
+
+    if (auto interpolated = perform_color_interpolation(*first_component, *second_component, delta, color_interpolation_method, color_resolution_context); interpolated.has_value()) {
         if (normalized_percentages.alpha_multiplier < 1.0)
             interpolated->components.set_alpha(interpolated->components.alpha() * normalized_percentages.alpha_multiplier);
         if (auto style_value = style_value_for_interpolated_color(*interpolated))

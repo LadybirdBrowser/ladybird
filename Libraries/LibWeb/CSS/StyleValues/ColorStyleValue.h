@@ -52,6 +52,8 @@ public:
     static Optional<double> resolve_with_reference_value(StyleValue const&, float one_hundred_percent_value, CalculationResolutionContext const&);
     static Optional<double> resolve_alpha(StyleValue const&, CalculationResolutionContext const&);
 
+    static Optional<RelativeColorContext> extract_channels_in_color_space(StyleValue const& origin_color, ColorType target_color_type, ColorResolutionContext const&);
+
 protected:
     explicit ColorStyleValue(Optional<ColorType> color_type, ColorSyntax color_syntax)
         : StyleValue(Type::Color)

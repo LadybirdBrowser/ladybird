@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 71 tests
 
-18 Pass
-53 Fail
+19 Pass
+52 Fail
 Fail	e.style['width'] = "random(0px, 100px)" should set the property value
 Pass	e.style['width'] = "random(fixed 0.5, 0px, 100px)" should set the property value
 Fail	e.style['height'] = "random(auto, 0px, 100px)" should set the property value
@@ -53,7 +53,7 @@ Pass	e.style['width'] = "random(fixed calc(2 / 4), 0px, 100px)" should set the p
 Pass	e.style['width'] = "calc(2 * random(--foo, 0px, 100px))" should set the property value
 Pass	e.style['math-depth'] = "add(random(--foo, 0, 3))" should set the property value
 Pass	e.style['color'] = "rgb(random(--foo, 0, 255) random(--foo, 0, 255) random(--foo, 0, 255))" should set the property value
-Fail	e.style['color'] = "rgb(from blue r g random(--foo, b, (150 + b)))" should set the property value
+Pass	e.style['color'] = "rgb(from blue r g random(--foo, b, (150 + b)))" should set the property value
 Pass	e.style['color'] = "color-mix(in srgb, rgb(random(--foo, 0, 255) 0 random(--foo, 0, 255)), rgb(0 random(--foo, 0, 255) 0))" should set the property value
 Fail	e.style['max-lines'] = "random(--foo, 25, 50)" should set the property value
 Fail	e.style['max-lines'] = "random(--foo, 25, 50, 5)" should set the property value

@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	oklch(from oklch(calc(0.54 + 0.01) 0.04 257) calc(0.994 + 0.001) calc(0.001 + 0.004) calc(h / alpha)) should be used-value-equivalent to oklch(0.995 0.005 257)

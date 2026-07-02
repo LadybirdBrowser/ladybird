@@ -33,6 +33,7 @@
 #include <LibWeb/CSS/StyleValues/BasicShapeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusRectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorInterpolationMethodStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorMixStyleValue.h>
@@ -616,6 +617,17 @@ RefPtr<StyleValue const> Parser::parse_number_value(TokenStream<ComponentValue>&
     if (peek_token.is(Token::Type::Number) && accepted_range.contains(peek_token.token().number_value())) {
         tokens.discard_a_token(); // number
         return NumberStyleValue::create(peek_token.token().number_value());
+    }
+
+    if (auto const* relative = current_relative_color_context(); relative && peek_token.is(Token::Type::Ident)) {
+        if (auto keyword = keyword_from_string(peek_token.token().ident()); keyword.has_value()) {
+            if (auto channel = keyword_to_channel_keyword(*keyword); channel.has_value()) {
+                if (relative->allowed_channels[to_underlying(*channel)]) {
+                    tokens.discard_a_token();
+                    return KeywordStyleValue::create(*keyword);
+                }
+            }
+        }
     }
 
     if (auto calc = parse_calculated_value(peek_token, { .accepted_ranges_by_type = { { ValueType::Number, accepted_range } } }); calc && calc->as_calculated().resolves_to_number()) {
@@ -1480,6 +1492,36 @@ RefPtr<StyleValue const> Parser::parse_rect_value(TokenStream<ComponentValue>& t
     return RectStyleValue::create(params[0], params[1], params[2], params[3]);
 }
 
+RelativeColorParseContext const* Parser::current_relative_color_context() const
+{
+    for (auto i = m_value_context.size(); i > 0; --i) {
+        auto const* context = m_value_context[i - 1].get_pointer<RelativeColorParseContext>();
+        if (context)
+            return context;
+    }
+    return nullptr;
+}
+
+RefPtr<StyleValue const> Parser::parse_relative_color_origin(TokenStream<ComponentValue>& tokens)
+{
+    auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
+    if (!tokens.has_next_token())
+        return nullptr;
+    auto const& first_token = tokens.next_token();
+    if (!first_token.is_ident("from"sv))
+        return nullptr;
+    tokens.discard_a_token(); // from
+    tokens.discard_whitespace();
+
+    auto origin_color = parse_color_value(tokens);
+    if (!origin_color)
+        return nullptr;
+
+    transaction.commit();
+    return origin_color;
+}
+
 // https://www.w3.org/TR/css-color-4/#typedef-hue
 RefPtr<StyleValue const> Parser::parse_hue_none_value(TokenStream<ComponentValue>& tokens)
 {
@@ -1552,12 +1594,16 @@ RefPtr<StyleValue const> Parser::parse_rgb_color_value(TokenStream<ComponentValu
     auto inner_tokens = TokenStream { function_token.function().value };
     inner_tokens.discard_whitespace();
 
+    // https://drafts.csswg.org/css-color-5/#relative-RGB
+    auto origin_color = parse_relative_color_origin(inner_tokens);
+    auto relative_color_context_guard = push_relative_color_parsing_context(origin_color, Array { ChannelKeyword::R, ChannelKeyword::G, ChannelKeyword::B });
+
     red = parse_number_percentage_none_value(inner_tokens);
     if (!red)
         return {};
 
     inner_tokens.discard_whitespace();
-    bool legacy_syntax = inner_tokens.next_token().is(Token::Type::Comma);
+    bool legacy_syntax = !origin_color && inner_tokens.next_token().is(Token::Type::Comma);
     if (legacy_syntax) {
         // Legacy syntax
         //   <percentage>#{3} , <alpha-value>?
@@ -1634,11 +1680,8 @@ RefPtr<StyleValue const> Parser::parse_rgb_color_value(TokenStream<ComponentValu
         }
     }
 
-    if (!alpha)
-        alpha = NumberStyleValue::create(1);
-
     transaction.commit();
-    return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::RGB, red.release_nonnull(), green.release_nonnull(), blue.release_nonnull(), alpha.release_nonnull(), legacy_syntax ? ColorSyntax::Legacy : ColorSyntax::Modern);
+    return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::RGB, red.release_nonnull(), green.release_nonnull(), blue.release_nonnull(), move(alpha), legacy_syntax ? ColorSyntax::Legacy : ColorSyntax::Modern, {}, move(origin_color));
 }
 
 // https://www.w3.org/TR/css-color-4/#funcdef-hsl
@@ -1676,12 +1719,16 @@ RefPtr<StyleValue const> Parser::parse_hsl_color_value(TokenStream<ComponentValu
     auto inner_tokens = TokenStream { function_token.function().value };
     inner_tokens.discard_whitespace();
 
+    // https://drafts.csswg.org/css-color-5/#relative-HSL
+    auto origin_color = parse_relative_color_origin(inner_tokens);
+    auto relative_color_context_guard = push_relative_color_parsing_context(origin_color, Array { ChannelKeyword::H, ChannelKeyword::S, ChannelKeyword::L });
+
     h = parse_hue_none_value(inner_tokens);
     if (!h)
         return {};
 
     inner_tokens.discard_whitespace();
-    bool legacy_syntax = inner_tokens.next_token().is(Token::Type::Comma);
+    bool legacy_syntax = !origin_color && inner_tokens.next_token().is(Token::Type::Comma);
     if (legacy_syntax) {
         // Legacy syntax
         //   <hue>, <percentage>, <percentage>, <alpha-value>?
@@ -1746,11 +1793,8 @@ RefPtr<StyleValue const> Parser::parse_hsl_color_value(TokenStream<ComponentValu
         }
     }
 
-    if (!alpha)
-        alpha = NumberStyleValue::create(1);
-
     transaction.commit();
-    return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::HSL, h.release_nonnull(), s.release_nonnull(), l.release_nonnull(), alpha.release_nonnull(), legacy_syntax ? ColorSyntax::Legacy : ColorSyntax::Modern);
+    return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::HSL, h.release_nonnull(), s.release_nonnull(), l.release_nonnull(), move(alpha), legacy_syntax ? ColorSyntax::Legacy : ColorSyntax::Modern, {}, move(origin_color));
 }
 
 // https://www.w3.org/TR/css-color-4/#funcdef-hwb
@@ -1779,6 +1823,10 @@ RefPtr<StyleValue const> Parser::parse_hwb_color_value(TokenStream<ComponentValu
     auto inner_tokens = TokenStream { function_token.function().value };
     inner_tokens.discard_whitespace();
 
+    // https://drafts.csswg.org/css-color-5/#relative-HWB
+    auto origin_color = parse_relative_color_origin(inner_tokens);
+    auto relative_color_context_guard = push_relative_color_parsing_context(origin_color, Array { ChannelKeyword::H, ChannelKeyword::W, ChannelKeyword::B });
+
     h = parse_hue_none_value(inner_tokens);
     if (!h)
         return {};
@@ -1800,17 +1848,15 @@ RefPtr<StyleValue const> Parser::parse_hwb_color_value(TokenStream<ComponentValu
             return {};
     }
 
-    if (!alpha)
-        alpha = NumberStyleValue::create(1);
-
     transaction.commit();
-    return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::HWB, h.release_nonnull(), w.release_nonnull(), b.release_nonnull(), alpha.release_nonnull());
+    return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::HWB, h.release_nonnull(), w.release_nonnull(), b.release_nonnull(), move(alpha), ColorSyntax::Modern, {}, move(origin_color));
 }
 
-Optional<Array<RefPtr<StyleValue const>, 4>> Parser::parse_lab_like_color_value(TokenStream<ComponentValue>& outer_tokens, StringView function_name)
+Optional<Parser::LabOrLchColorValue> Parser::parse_lab_like_color_value(TokenStream<ComponentValue>& outer_tokens, StringView function_name)
 {
     // This helper is designed to be compatible with lab and oklab and parses a function with a form like:
-    // f() = f( [ <percentage> | <number> | none]
+    // f() = f( [<from <color>>]?
+    //     [ <percentage> | <number> | none]
     //     [ <percentage> | <number> | none]
     //     [ <percentage> | <number> | none]
     //     [ / [<alpha-value> | none] ]? )
@@ -1829,6 +1875,10 @@ Optional<Array<RefPtr<StyleValue const>, 4>> Parser::parse_lab_like_color_value(
 
     auto inner_tokens = TokenStream { function_token.function().value };
     inner_tokens.discard_whitespace();
+
+    // https://drafts.csswg.org/css-color-5/#relative-Lab
+    auto origin_color = parse_relative_color_origin(inner_tokens);
+    auto relative_color_context_guard = push_relative_color_parsing_context(origin_color, Array { ChannelKeyword::L, ChannelKeyword::A, ChannelKeyword::B });
 
     l = parse_number_percentage_none_value(inner_tokens);
     if (!l)
@@ -1851,12 +1901,9 @@ Optional<Array<RefPtr<StyleValue const>, 4>> Parser::parse_lab_like_color_value(
             return OptionalNone {};
     }
 
-    if (!alpha)
-        alpha = NumberStyleValue::create(1);
-
     transaction.commit();
 
-    return Array { move(l), move(a), move(b), move(alpha) };
+    return LabOrLchColorValue { { move(l), move(a), move(b), move(alpha) }, move(origin_color) };
 }
 
 // https://www.w3.org/TR/css-color-4/#funcdef-lab
@@ -1874,10 +1921,13 @@ RefPtr<StyleValue const> Parser::parse_lab_color_value(TokenStream<ComponentValu
     auto& color_values = *maybe_color_values;
 
     return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::Lab,
-        color_values[0].release_nonnull(),
-        color_values[1].release_nonnull(),
-        color_values[2].release_nonnull(),
-        color_values[3].release_nonnull());
+        color_values.components[0].release_nonnull(),
+        color_values.components[1].release_nonnull(),
+        color_values.components[2].release_nonnull(),
+        move(color_values.components[3]),
+        ColorSyntax::Modern,
+        {},
+        move(color_values.origin_color));
 }
 
 // https://www.w3.org/TR/css-color-4/#funcdef-oklab
@@ -1895,16 +1945,20 @@ RefPtr<StyleValue const> Parser::parse_oklab_color_value(TokenStream<ComponentVa
     auto& color_values = *maybe_color_values;
 
     return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::OKLab,
-        color_values[0].release_nonnull(),
-        color_values[1].release_nonnull(),
-        color_values[2].release_nonnull(),
-        color_values[3].release_nonnull());
+        color_values.components[0].release_nonnull(),
+        color_values.components[1].release_nonnull(),
+        color_values.components[2].release_nonnull(),
+        move(color_values.components[3]),
+        ColorSyntax::Modern,
+        {},
+        move(color_values.origin_color));
 }
 
-Optional<Array<RefPtr<StyleValue const>, 4>> Parser::parse_lch_like_color_value(TokenStream<ComponentValue>& outer_tokens, StringView function_name)
+Optional<Parser::LabOrLchColorValue> Parser::parse_lch_like_color_value(TokenStream<ComponentValue>& outer_tokens, StringView function_name)
 {
     // This helper is designed to be compatible with lch and oklch and parses a function with a form like:
-    // f() = f( [<percentage> | <number> | none]
+    // f() = f( [<from <color>>]?
+    //     [<percentage> | <number> | none]
     //     [ <percentage> | <number> | none]
     //     [ <hue> | none]
     //     [ / [<alpha-value> | none] ]? )
@@ -1918,6 +1972,10 @@ Optional<Array<RefPtr<StyleValue const>, 4>> Parser::parse_lch_like_color_value(
 
     auto inner_tokens = TokenStream { function_token.function().value };
     inner_tokens.discard_whitespace();
+
+    // https://drafts.csswg.org/css-color-5/#relative-LCH
+    auto origin_color = parse_relative_color_origin(inner_tokens);
+    auto relative_color_context_guard = push_relative_color_parsing_context(origin_color, Array { ChannelKeyword::L, ChannelKeyword::C, ChannelKeyword::H });
 
     auto l = parse_number_percentage_none_value(inner_tokens);
     if (!l)
@@ -1941,12 +1999,9 @@ Optional<Array<RefPtr<StyleValue const>, 4>> Parser::parse_lch_like_color_value(
             return OptionalNone {};
     }
 
-    if (!alpha)
-        alpha = NumberStyleValue::create(1);
-
     transaction.commit();
 
-    return Array { move(l), move(c), move(h), move(alpha) };
+    return LabOrLchColorValue { { move(l), move(c), move(h), move(alpha) }, move(origin_color) };
 }
 
 // https://www.w3.org/TR/css-color-4/#funcdef-lch
@@ -1963,10 +2018,14 @@ RefPtr<StyleValue const> Parser::parse_lch_color_value(TokenStream<ComponentValu
 
     auto& color_values = *maybe_color_values;
 
-    return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::LCH, color_values[0].release_nonnull(),
-        color_values[1].release_nonnull(),
-        color_values[2].release_nonnull(),
-        color_values[3].release_nonnull());
+    return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::LCH,
+        color_values.components[0].release_nonnull(),
+        color_values.components[1].release_nonnull(),
+        color_values.components[2].release_nonnull(),
+        move(color_values.components[3]),
+        ColorSyntax::Modern,
+        {},
+        move(color_values.origin_color));
 }
 
 // https://www.w3.org/TR/css-color-4/#funcdef-oklch
@@ -1983,10 +2042,14 @@ RefPtr<StyleValue const> Parser::parse_oklch_color_value(TokenStream<ComponentVa
 
     auto& color_values = *maybe_color_values;
 
-    return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::OKLCH, color_values[0].release_nonnull(),
-        color_values[1].release_nonnull(),
-        color_values[2].release_nonnull(),
-        color_values[3].release_nonnull());
+    return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::OKLCH,
+        color_values.components[0].release_nonnull(),
+        color_values.components[1].release_nonnull(),
+        color_values.components[2].release_nonnull(),
+        move(color_values.components[3]),
+        ColorSyntax::Modern,
+        {},
+        move(color_values.origin_color));
 }
 
 // https://www.w3.org/TR/css-color-4/#funcdef-color
@@ -2011,6 +2074,9 @@ RefPtr<StyleValue const> Parser::parse_color_function(TokenStream<ComponentValue
     auto inner_tokens = TokenStream { function_token.function().value };
     inner_tokens.discard_whitespace();
 
+    auto origin_color = parse_relative_color_origin(inner_tokens);
+    inner_tokens.discard_whitespace();
+
     auto const& maybe_color_space = inner_tokens.consume_a_token();
     inner_tokens.discard_whitespace();
     if (!maybe_color_space.is(Token::Type::Ident))
@@ -2019,6 +2085,10 @@ RefPtr<StyleValue const> Parser::parse_color_function(TokenStream<ComponentValue
     auto color_space = maybe_color_space.token().ident().to_ascii_lowercase();
     if (!color_type_from_color_function_name(color_space).has_value())
         return {};
+
+    bool is_xyz_space = first_is_one_of(color_space.to_ascii_lowercase(), "xyz"sv, "xyz-d50"sv, "xyz-d65"sv);
+    auto relative_color_context_guard = push_relative_color_parsing_context(origin_color,
+        is_xyz_space ? Array { ChannelKeyword::X, ChannelKeyword::Y, ChannelKeyword::Z } : Array { ChannelKeyword::R, ChannelKeyword::G, ChannelKeyword::B });
 
     auto c1 = parse_number_percentage_none_value(inner_tokens);
     if (!c1)
@@ -2042,9 +2112,6 @@ RefPtr<StyleValue const> Parser::parse_color_function(TokenStream<ComponentValue
             return {};
     }
 
-    if (!alpha)
-        alpha = NumberStyleValue::create(1);
-
     transaction.commit();
     auto color_type = color_type_from_color_function_name(color_space);
     VERIFY(color_type.has_value());
@@ -2052,7 +2119,10 @@ RefPtr<StyleValue const> Parser::parse_color_function(TokenStream<ComponentValue
         c1.release_nonnull(),
         c2.release_nonnull(),
         c3.release_nonnull(),
-        alpha.release_nonnull());
+        move(alpha),
+        ColorSyntax::Modern,
+        {},
+        move(origin_color));
 }
 
 // https://drafts.csswg.org/css-color-5/#color-interpolation-method
@@ -5105,6 +5175,12 @@ RefPtr<CalculationNode const> Parser::convert_to_calculation_node(CalcParsing::N
                 auto maybe_keyword = keyword_from_string(component_value->token().ident());
                 if (!maybe_keyword.has_value())
                     return nullptr;
+                if (auto const* relative = current_relative_color_context()) {
+                    if (auto channel = keyword_to_channel_keyword(*maybe_keyword); channel.has_value()) {
+                        if (relative->allowed_channels[to_underlying(*channel)])
+                            return ChannelKeywordCalculationNode::create(*channel, context);
+                    }
+                }
                 return NumericCalculationNode::from_keyword(*maybe_keyword, context);
             }
 

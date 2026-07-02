@@ -110,6 +110,8 @@ namespace Web::CSS {
 struct ColorResolutionContext {
     Optional<PreferredColorScheme> color_scheme;
     Optional<Color> current_color;
+    // Unlike current_color, this preserves precision and missing components, as needed by relative color origins.
+    StyleValue const* current_color_style_value { nullptr };
     CalculationResolutionContext calculation_resolution_context;
 
     [[nodiscard]] static ColorResolutionContext for_element(DOM::AbstractElement const&);
@@ -145,6 +147,8 @@ public:
     DimensionStyleValue& as_dimension() { return const_cast<DimensionStyleValue&>(const_cast<StyleValue const&>(*this).as_dimension()); }
 
     virtual bool is_color_function() const { return false; }
+
+    virtual bool depends_on_current_color() const { return to_keyword() == Keyword::Currentcolor; }
 
 #define __ENUMERATE_CSS_STYLE_VALUE_TYPE(title_case, snake_case, style_value_class_name) \
     bool is_##snake_case() const { return type() == Type::title_case; }                  \

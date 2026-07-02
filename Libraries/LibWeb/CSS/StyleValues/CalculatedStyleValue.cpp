@@ -308,7 +308,7 @@ static void serialize_a_math_function(StringBuilder& builder, CalculationNode co
     //    containing "calc(".
     //    Otherwise, let s be a string initially containing the name of the root node, lowercased (such as "sin" or
     //    "max"), followed by a "(" (open parenthesis).
-    if (fn.type() == CalculationNode::Type::Numeric || fn.is_calc_operator_node()) {
+    if (fn.type() == CalculationNode::Type::Numeric || fn.type() == CalculationNode::Type::ChannelKeyword || fn.is_calc_operator_node()) {
         builder.append("calc("sv);
     } else {
         builder.appendff("{}(", fn.name());
@@ -323,7 +323,8 @@ static void serialize_a_math_function(StringBuilder& builder, CalculationNode co
     //             The four AD-HOCs in this step are mentioned there.
     // AD-HOC: Numeric nodes have no children and should serialize directly.
     // AD-HOC: calc-operator nodes should also serialize directly, instead of separating their children by commas.#
-    if (fn.type() == CalculationNode::Type::Numeric || fn.is_calc_operator_node()) {
+    // AD-HOC: ChannelKeyword nodes, used for relative-color syntax, serialize directly as the keyword name.
+    if (fn.type() == CalculationNode::Type::Numeric || fn.type() == CalculationNode::Type::ChannelKeyword || fn.is_calc_operator_node()) {
         serialize_a_calculation_tree(builder, fn, context, serialization_mode, EmitOuterParentheses::No);
     } else {
         bool first = true;
@@ -440,6 +441,11 @@ static void serialize_a_calculation_tree(StringBuilder& builder, CalculationNode
 
     if (root.type() == CalculationNode::Type::NonMathFunction) {
         as<NonMathFunctionCalculationNode>(root).function()->serialize(builder, serialization_mode);
+        return;
+    }
+
+    if (root.type() == CalculationNode::Type::ChannelKeyword) {
+        builder.append(to_string(as<ChannelKeywordCalculationNode>(root).channel()));
         return;
     }
 
@@ -639,6 +645,7 @@ StringView CalculationNode::name() const
     case Type::Rem:
         return "rem"sv;
     case Type::Numeric:
+    case Type::ChannelKeyword:
     case Type::Sum:
     case Type::Product:
     case Type::Negate:
@@ -718,6 +725,33 @@ NonnullRefPtr<NumericCalculationNode const> NumericCalculationNode::create(Numer
 {
     auto numeric_type = numeric_type_from_calculated_style_value(value, context);
     return adopt_ref(*new (nothrow) NumericCalculationNode(move(value), numeric_type));
+}
+
+NonnullRefPtr<ChannelKeywordCalculationNode const> ChannelKeywordCalculationNode::create(ChannelKeyword channel, CalculationContext const&)
+{
+    return adopt_ref(*new (nothrow) ChannelKeywordCalculationNode(channel));
+}
+
+ChannelKeywordCalculationNode::ChannelKeywordCalculationNode(ChannelKeyword channel)
+    : CalculationNode(Type::ChannelKeyword, NumericType {})
+    , m_channel(channel)
+{
+}
+
+ChannelKeywordCalculationNode::~ChannelKeywordCalculationNode() = default;
+
+void ChannelKeywordCalculationNode::dump(StringBuilder& builder, int indent) const
+{
+    builder.appendff("{: >{}}CHANNEL-KEYWORD({})\n", "", indent, to_string(m_channel));
+}
+
+bool ChannelKeywordCalculationNode::equals(CalculationNode const& other) const
+{
+    if (this == &other)
+        return true;
+    if (type() != other.type())
+        return false;
+    return m_channel == static_cast<ChannelKeywordCalculationNode const&>(other).m_channel;
 }
 
 RefPtr<NumericCalculationNode const> NumericCalculationNode::from_keyword(Keyword keyword, CalculationContext const& context)
@@ -3515,6 +3549,16 @@ NonnullRefPtr<CalculationNode const> simplify_a_calculation_tree(CalculationNode
             return resolved_calculation_node.release_nonnull();
 
         // 2. Otherwise, return root.
+        return root;
+    }
+
+    // https://drafts.csswg.org/css-color-5/#relative-color
+    if (root->type() == CalculationNode::Type::ChannelKeyword) {
+        if (resolution_context.relative_color.has_value()) {
+            auto channel = as<ChannelKeywordCalculationNode>(*root).channel();
+            if (auto resolved = resolution_context.relative_color->get(channel); resolved.has_value())
+                return NumericCalculationNode::create(Number { Number::Type::Number, resolved.value() }, context);
+        }
         return root;
     }
 

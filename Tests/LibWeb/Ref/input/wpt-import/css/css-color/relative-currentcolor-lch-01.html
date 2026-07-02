@@ -1,0 +1,22 @@
+<!doctype html>
+<meta charset=utf-8>
+<link rel="match" href="../../../../expected/wpt-import/css/css-color/relative-green-ref.html">
+<title>currentColor is inherited correctly in lch RCS</title>
+<link rel="help" href="https://drafts.csswg.org/css-color-5/#resolving-rcs">
+<link rel="author" href="mailto:chris@w3.org" title="Chris Lilley">
+<style>
+div {
+  width: 100px;
+  height: 100px;
+  background-color: red;
+  color: red;
+  background-color: lch(from currentColor l c h);
+}
+div div {
+  color: green;
+  background-color: inherit;
+}
+</style>
+<div>
+  <div></div>
+</div>

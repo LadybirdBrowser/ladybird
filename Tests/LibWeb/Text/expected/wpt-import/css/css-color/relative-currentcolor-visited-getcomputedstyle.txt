@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Property background-color value 'rgb(from currentcolor r g b)' should not leak :visited for computed style
