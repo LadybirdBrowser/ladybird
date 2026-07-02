@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 25 tests
 
-24 Pass
-1 Fail
+25 Pass
 Pass	Test removing node paras[0]
 Pass	Test removing node paras[0].firstChild
 Pass	Test removing node paras[1].firstChild
@@ -28,4 +27,4 @@ Pass	Test removing node xmlComment
 Pass	Test removing node foreignComment
 Pass	Test removing node xmlDoctype
 Pass	Removing an inclusive ancestor of reference, pointer before reference is true, with a following node within root
-Fail	Removing an inclusive ancestor of reference, pointer before reference is true, with no following node within root
+Pass	Removing an inclusive ancestor of reference, pointer before reference is true, with no following node within root

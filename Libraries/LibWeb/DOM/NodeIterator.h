@@ -25,7 +25,7 @@ public:
 
     GC::Ref<Node> root() { return m_root; }
     GC::Ref<Node> reference_node() { return m_reference.node; }
-    bool pointer_before_reference_node() const { return m_reference.is_before_node; }
+    bool pointer_before_reference_node() const { return m_reference.pointer_before; }
     unsigned what_to_show() const { return m_what_to_show; }
 
     GC::Ptr<NodeFilter> filter() const;
@@ -38,7 +38,14 @@ public:
     void run_pre_removing_steps(Node&);
 
 private:
-    explicit NodeIterator(JS::Realm&, Node& root);
+    // https://dom.spec.whatwg.org/#node-pointer
+    // A node pointer is a tuple consisting of a node (a node) and a pointer before (a boolean).
+    struct NodePointer {
+        GC::Ref<Node> node;
+        bool pointer_before { true };
+    };
+
+    explicit NodeIterator(JS::Realm&, GC::Ref<Node> root, NodePointer);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -56,21 +63,13 @@ private:
     // https://dom.spec.whatwg.org/#concept-traversal-root
     GC::Ref<Node> m_root;
 
-    struct NodePointer {
-        GC::Ref<Node> node;
-
-        // https://dom.spec.whatwg.org/#nodeiterator-pointer-before-reference
-        bool is_before_node { true };
-    };
-
-    void run_pre_removing_steps_with_node_pointer(Node&, NodePointer&);
+    NodePointer adjust_node_pointer(NodePointer, Node& to_be_removed_node);
 
     // https://dom.spec.whatwg.org/#nodeiterator-reference
     NodePointer m_reference;
 
-    // While traversal is ongoing, we keep track of the current node pointer.
-    // This allows us to adjust it during traversal if calling the filter ends up removing the node from the DOM.
-    Optional<NodePointer> m_traversal_pointer;
+    // https://dom.spec.whatwg.org/#nodeiterator-candidate-reference
+    Optional<NodePointer> m_candidate_reference;
 
     // https://dom.spec.whatwg.org/#concept-traversal-whattoshow
     unsigned m_what_to_show { 0 };

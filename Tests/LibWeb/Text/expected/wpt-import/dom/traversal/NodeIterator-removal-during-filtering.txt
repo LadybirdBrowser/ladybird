@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-3 Pass
-1 Fail
+4 Pass
 Pass	Removing the accepted node during its own filtering retargets the reference and returns the filtered node
 Pass	Removing an already-visited subtree during filtering does not disrupt forward traversal
 Pass	referenceNode during filtering reflects the last accepted node, not the candidate
-Fail	Removing an ancestor of the in-flight position during filtering, pointer before it, with no following node within root
+Pass	Removing an ancestor of the in-flight position during filtering, pointer before it, with no following node within root
