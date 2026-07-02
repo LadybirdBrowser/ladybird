@@ -324,16 +324,20 @@ QMenu::separator {{
 
 QString toolbar_container_style_sheet(QPalette const& palette)
 {
+    auto dark = is_dark(palette);
+
     auto background = style_sheet_color(chrome_background(palette));
     auto surface_hover = style_sheet_color(chrome_control_surface_hover(palette));
     auto surface_pressed = style_sheet_color(chrome_control_surface_pressed(palette));
     auto control_border = style_sheet_color(chrome_control_border(palette));
     auto separator = style_sheet_color(chrome_border(palette));
-    auto window_controls_separator = style_sheet_color(mix(chrome_background(palette), chrome_border(palette), is_dark(palette) ? 0.36 : 0.46));
+    auto window_controls_separator = style_sheet_color(mix(chrome_background(palette), chrome_border(palette), dark ? 0.36 : 0.46));
     auto text = style_sheet_color(chrome_button_text(palette));
     auto disabled_text = style_sheet_color(chrome_muted_text(palette));
     auto close_hover = style_sheet_color(chrome_destructive_hover());
     auto close_text = style_sheet_color(chrome_destructive_text());
+    auto badge_surface = style_sheet_color(dark ? QColor(0x19, 0x0c, 0x4a) : QColor(0xe0, 0xd4, 0xff));
+    auto badge_border = style_sheet_color(dark ? QColor(0x9c, 0x90, 0xc8) : QColor(0x6c, 0x5f, 0x93));
 
     return qformatted(R"(
 QWidget#LadybirdToolbarContainer {{
@@ -378,6 +382,15 @@ QWidget#LadybirdNavigationToolbar QToolButton::menu-indicator {{
     image: none;
 }}
 
+QLabel#LadybirdPrivateBadge {{
+    color: {5};
+    background: {10};
+    border: 1px solid {11};
+    border-radius: 10px;
+    padding: 0 8px;
+    font-weight: 600;
+}}
+
 QWidget#LadybirdToolbarWindowControlsSeparator {{
     background: {9};
 }}
@@ -420,7 +433,7 @@ QWidget#LadybirdNavigationToolbar QToolButton#LadybirdCloseWindowButton[pressedO
     background: transparent;
 }}
 )",
-        background, surface_hover, surface_pressed, control_border, separator, text, disabled_text, close_hover, close_text, window_controls_separator);
+        background, surface_hover, surface_pressed, control_border, separator, text, disabled_text, close_hover, close_text, window_controls_separator, badge_surface, badge_border);
 }
 
 QString menu_bar_style_sheet(QPalette const& palette)

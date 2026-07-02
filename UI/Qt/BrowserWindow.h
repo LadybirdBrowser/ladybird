@@ -168,6 +168,7 @@ private:
     Tab& create_new_tab(Web::HTML::ActivateTab, Tab& parent, Optional<u64> page_index);
     void initialize_tab(Tab*);
     void uninitialize_tab(Tab*);
+    void update_window_title(QString const&);
 
     void set_current_tab(Tab* tab);
     bool position_is_in_rounded_corner_cutout(QPoint const&) const;
