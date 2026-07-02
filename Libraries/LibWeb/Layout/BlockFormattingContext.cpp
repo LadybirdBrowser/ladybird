@@ -957,7 +957,15 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
 
     if (box.is_absolutely_positioned()) {
         if (m_layout_mode == LayoutMode::Normal) {
-            auto& box_state = m_state.get_mutable(box);
+            // Absolutely positioned boxes enter layout here, in the context that contains them.
+            // Two kinds of boxes already have used values: list item markers, whose used values
+            // were created together with the ListItemBox that places them, and the document
+            // element, which was created by the layout entry point (and can end up absolutely
+            // positioned, e.g. as a popover).
+            auto box_is_document_element = box.dom_node() && box.dom_node() == box.document().document_element();
+            auto& box_state = is<ListItemMarkerBox>(box) || box_is_document_element
+                ? m_state.get_mutable(box)
+                : m_state.create(box);
             StaticPositionRect static_position;
             auto static_position_x = CSSPixels(0);
             auto static_position_y = m_y_offset_of_current_block_container.value();
@@ -965,10 +973,13 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
                 auto sibling_ref = box.previous_sibling();
                 auto const* sibling = as_if<Box>(sibling_ref.ptr());
                 if (sibling && sibling->is_anonymous() && sibling->children_are_inline()) {
-                    auto const& sibling_state = m_state.get(*sibling);
-                    if (auto const& inline_end_static_position_rect = sibling_state.inline_end_static_position_rect(); inline_end_static_position_rect.has_value()) {
-                        static_position_x = sibling_state.offset.x() + inline_end_static_position_rect->rect.x();
-                        static_position_y = sibling_state.offset.y() + inline_end_static_position_rect->rect.y();
+                    // The sibling may have been skipped by layout entirely (e.g. a whitespace-only
+                    // anonymous container), in which case it has no state to derive a position from.
+                    if (auto const* sibling_state = m_state.try_get(*sibling)) {
+                        if (auto const& inline_end_static_position_rect = sibling_state->inline_end_static_position_rect(); inline_end_static_position_rect.has_value()) {
+                            static_position_x = sibling_state->offset.x() + inline_end_static_position_rect->rect.x();
+                            static_position_y = sibling_state->offset.y() + inline_end_static_position_rect->rect.y();
+                        }
                     }
                 }
             }
@@ -978,11 +989,27 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         return;
     }
 
-    auto& box_state = m_state.get_mutable(box);
-
-    // NOTE: ListItemMarkerBoxes are placed by their corresponding ListItemBox.
+    // NOTE: ListItemMarkerBoxes are placed by their corresponding ListItemBox, and their used
+    //       values were created together with its own.
     if (is<ListItemMarkerBox>(box))
         return;
+
+    // NOTE: It is possible to encounter SVGMaskBox and SVGClipBox nodes while doing layout of the
+    //       formatting context established by a <foreignObject> that references them. Skip them
+    //       before creating any used values; SVGFormattingContext lays them out on behalf of the
+    //       referencing element.
+    if (box.is_svg_mask_box() || box.is_svg_clip_box())
+        return;
+
+    auto& box_state = [&]() -> LayoutState::UsedValues& {
+        auto const* document_element = box.document().document_element();
+        if (!m_state.has_subtree_root()
+            && document_element && document_element->unsafe_layout_node()
+            && box.is_inclusive_ancestor_of(*document_element->unsafe_layout_node())) {
+            return m_state.get_mutable(box);
+        }
+        return m_state.create(box);
+    }();
 
     resolve_vertical_box_model_metrics(box, m_state.get(block_container).content_width());
 
@@ -1012,11 +1039,6 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         resolve_used_height_if_treated_as_auto(box, available_space);
 
     auto independent_formatting_context = create_independent_formatting_context_if_needed(m_state, m_layout_mode, box);
-
-    // NOTE: It is possible to encounter SVGMaskBox nodes while doing layout of formatting context established by <foreignObject> with a mask.
-    //       We should skip and let SVGFormattingContext take care of them.
-    if (box.is_svg_mask_box())
-        return;
 
     if (!independent_formatting_context && !is<BlockContainer>(box)) {
         dbgln("FIXME: Block-level box is not BlockContainer but does not create formatting context: {}", box.debug_description());
@@ -1106,6 +1128,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
                 throwaway_state.populate_node_from(m_state, *cb);
             }
 
+            throwaway_state.create(box);
             auto measuring_context = create_independent_formatting_context_if_needed(throwaway_state, m_layout_mode, box);
             measuring_context->run(LayoutInput { inner_available_space });
             auto content_height = measuring_context->automatic_content_height();
@@ -1594,8 +1617,10 @@ CSSPixels BlockFormattingContext::greatest_child_width(Box const& box) const
         }
     } else {
         box.for_each_child_of_type<Box>([&](Box const& child) {
-            if (!child.is_absolutely_positioned())
-                max_width = max(max_width, m_state.get(child).margin_box_width());
+            if (child.is_absolutely_positioned())
+                return IterationDecision::Continue;
+            if (auto const* child_state = m_state.try_get(child))
+                max_width = max(max_width, child_state->margin_box_width());
             return IterationDecision::Continue;
         });
     }

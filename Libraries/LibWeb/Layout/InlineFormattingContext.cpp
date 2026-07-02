@@ -13,6 +13,7 @@
 #include <LibWeb/Layout/InlineFormattingContext.h>
 #include <LibWeb/Layout/InlineLevelIterator.h>
 #include <LibWeb/Layout/LineBuilder.h>
+#include <LibWeb/Layout/ListItemMarkerBox.h>
 
 namespace Web::Layout {
 
@@ -418,6 +419,8 @@ void InlineFormattingContext::generate_line_boxes()
 
         case InlineLevelIterator::Item::Type::FloatingElement:
             if (auto* box = as_if<Box>(*item.node)) {
+                if (!is<ListItemMarkerBox>(*box))
+                    m_state.create(*box);
                 (void)parent().clear_floating_boxes(*item.node, *this);
                 // Even if this introduces clearance, we do NOT reset the margin state, because that is clearance
                 // between floats and does not contribute to the height of the Inline Formatting Context.
@@ -521,7 +524,9 @@ void InlineFormattingContext::generate_line_boxes()
                 if (found_static_position_marker)
                     break;
             }
-            auto& box_state = m_state.get_mutable(*box);
+            auto& box_state = is<ListItemMarkerBox>(*box)
+                ? m_state.get_mutable(*box)
+                : m_state.create(*box);
             box_state.set_static_position_rect(static_position_rect);
         }
     }

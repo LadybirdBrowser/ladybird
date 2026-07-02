@@ -329,7 +329,7 @@ void SVGFormattingContext::layout_svg_element(Box const& child, LayoutInput cons
         layout_nested_viewport(child, parent_svg_transform);
     } else if (auto* foreign_object_element = as_if<SVG::SVGForeignObjectElement>(child.dom_node()); foreign_object_element && is<BlockContainer>(child)) {
         Layout::BlockFormattingContext bfc(m_state, m_layout_mode, as<BlockContainer>(child), this);
-        auto& child_state = m_state.get_mutable(child);
+        auto& child_state = m_state.create(child);
         CSSPixelRect rect {
             {
                 child.computed_values().x().to_px(m_available_space->width.to_px_or_zero()),
@@ -366,7 +366,7 @@ void SVGFormattingContext::layout_nested_viewport(Box const& viewport, Gfx::Affi
 {
     // Layout for a nested SVG viewport.
     // https://svgwg.org/svg2-draft/coords.html#EstablishingANewSVGViewport.
-    auto& nested_viewport_state = m_state.get_mutable(viewport);
+    auto& nested_viewport_state = m_state.create(viewport);
     auto resolve_dimension = [](auto size, auto reference_value) {
         // The value auto for width and height on the ‘svg’ element is treated as 100%.
         // https://svgwg.org/svg2-draft/geometry.html#Sizing
@@ -542,7 +542,7 @@ void SVGFormattingContext::layout_path_like_element(SVGGraphicsBox const& graphi
 
 void SVGFormattingContext::layout_graphics_element(SVGGraphicsBox const& graphics_box, LayoutInput const& layout_input, Gfx::AffineTransform const& parent_svg_transform)
 {
-    auto& graphics_box_state = m_state.get_mutable(graphics_box);
+    auto& graphics_box_state = m_state.create(graphics_box);
     auto svg_transform = parent_svg_transform;
     svg_transform.multiply(const_cast<SVGGraphicsBox&>(graphics_box).dom_node().element_transform());
     graphics_box_state.set_computed_svg_transforms(Painting::SVGGraphicsPaintable::ComputedTransforms(m_current_viewbox_transform, svg_transform));
@@ -601,7 +601,7 @@ void SVGFormattingContext::layout_mask_or_clip(SVGBox const& mask_or_clip)
     else
         VERIFY_NOT_REACHED();
     // FIXME: Somehow limit <clipPath> contents to: shape elements, <text>, and <use>.
-    auto& layout_state = m_state.get_mutable(mask_or_clip);
+    auto& layout_state = m_state.create(mask_or_clip);
     auto parent_viewbox_transform = m_current_viewbox_transform;
 
     auto const* pattern_box = as_if<SVGPatternBox>(mask_or_clip);

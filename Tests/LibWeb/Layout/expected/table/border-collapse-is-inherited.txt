@@ -127,11 +127,11 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                     frag 0 from TextNode start: 0, length: 1, rect: [141.125,180 8.453125x18] baseline: 13.796875
                         "5"
                     TextNode <#text> (not painted)
-                  BlockContainer <(anonymous)> at [9,9] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] children: inline
+                  BlockContainer <(anonymous)> (not painted) children: inline
                     TextNode <#text> (not painted)
-                BlockContainer <(anonymous)> at [9,9] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] children: inline
+                BlockContainer <(anonymous)> (not painted) children: inline
                   TextNode <#text> (not painted)
-              BlockContainer <(anonymous)> at [9,9] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] children: inline
+              BlockContainer <(anonymous)> (not painted) children: inline
                 TextNode <#text> (not painted)
         TextNode <#text> (not painted)
       BlockContainer <(anonymous)> at [8,210] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
@@ -168,9 +168,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
                   PaintableWithLines (BlockContainer<TD>) [9,169 56.265625x40]
                   PaintableWithLines (BlockContainer<TD>) [65.265625,169 54.546875x40]
                   PaintableWithLines (BlockContainer<TD>) [119.8125,169 51.09375x40]
-                  PaintableWithLines (BlockContainer(anonymous)) [9,9 0x0]
-                PaintableWithLines (BlockContainer(anonymous)) [9,9 0x0]
-              PaintableWithLines (BlockContainer(anonymous)) [9,9 0x0]
       PaintableWithLines (BlockContainer(anonymous)) [8,210 784x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

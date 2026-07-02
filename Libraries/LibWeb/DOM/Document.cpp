@@ -1890,13 +1890,13 @@ void Document::update_layout(UpdateLayoutReason reason)
 
         {
             auto& viewport = static_cast<Layout::Viewport&>(*m_layout_root);
-            auto& viewport_state = layout_state.get_mutable(viewport);
+            auto& viewport_state = layout_state.create(viewport);
             viewport_state.set_content_width(viewport_rect.width());
             viewport_state.set_content_height(viewport_rect.height());
 
             // NB: Called during layout update.
             if (document_element && document_element->unsafe_layout_node()) {
-                auto& icb_state = layout_state.get_mutable(as<Layout::NodeWithStyleAndBoxModelMetrics>(*document_element->unsafe_layout_node()));
+                auto& icb_state = layout_state.create(as<Layout::NodeWithStyleAndBoxModelMetrics>(*document_element->unsafe_layout_node()));
                 icb_state.set_content_width(viewport_rect.width());
             }
 

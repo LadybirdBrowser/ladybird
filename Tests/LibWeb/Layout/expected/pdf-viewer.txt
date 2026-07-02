@@ -20,15 +20,15 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                 frag 0 from Box start: 0, length: 0, rect: [1,2 798x28] baseline: 27.796875
                 TextNode <#text> (not painted)
                 Box <div#toolbarViewer.toolbarHorizontalGroup> at [1,2] flex-container(row) [0+0+0 798 0+0+0] [0+0+0 28 0+0+0] [FFC] children: not-inline
-                  BlockContainer <(anonymous)> at [1,2] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
+                  BlockContainer <(anonymous)> (not painted) [BFC] children: inline
                     TextNode <#text> (not painted)
                   Box <div#toolbarViewerLeft.toolbarHorizontalGroup> at [9,2] flex-container(row) flex-item [8+0+0 240.359375 0+0+0] [0+0+0 28 0+0+0] [FFC] children: not-inline
-                    BlockContainer <(anonymous)> at [9,2] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
+                    BlockContainer <(anonymous)> (not painted) [BFC] children: inline
                       TextNode <#text> (not painted)
                     Box <button#viewsManagerToggleButton.toolbarButton> at [9,2] positioned flex-container(row) flex-item [0+0+0 28 0+0+0] [0+0+0 28 0+0+0] [FFC] children: not-inline
                       BlockContainer <(anonymous)> at [15,8] flex-item [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
                         GeneratedTextNode <(anonymous)> (not painted)
-                      BlockContainer <(anonymous)> at [9,2] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
+                      BlockContainer <(anonymous)> (not painted) [BFC] children: inline
                         TextNode <#text> (not painted)
                       BlockContainer <span> at [31,16] flex-item [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
                         frag 0 from TextNode start: 0, length: 6, rect: [31,16 56.34375x18] baseline: 13.796875
@@ -395,12 +395,9 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
               PaintableWithLines (BlockContainer(anonymous)) [0,0 800x0]
               PaintableWithLines (BlockContainer<DIV>#toolbarContainer) [0,0 800x32]
                 PaintableBox (Box<DIV>#toolbarViewer.toolbarHorizontalGroup) [1,2 798x28]
-                  PaintableWithLines (BlockContainer(anonymous)) [1,2 0x0]
                   PaintableBox (Box<DIV>#toolbarViewerLeft.toolbarHorizontalGroup) [9,2 240.359375x28]
-                    PaintableWithLines (BlockContainer(anonymous)) [9,2 0x0]
                     PaintableBox (Box<BUTTON>#viewsManagerToggleButton.toolbarButton) [9,2 28x28]
                       PaintableWithLines (BlockContainer(anonymous)) [15,8 16x16]
-                      PaintableWithLines (BlockContainer(anonymous)) [9,2 0x0]
                       PaintableWithLines (BlockContainer<SPAN>) [31,16 0x0] overflow: [31,16 56.34375x36]
                     PaintableWithLines (BlockContainer<DIV>.toolbarButtonSpacer) [38,15.5 30x1]
                     PaintableWithLines (BlockContainer<DIV>.toolbarButtonWithContainer) [69,2 28x28]

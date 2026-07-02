@@ -1968,6 +1968,9 @@ void GridFormattingContext::place_grid_items()
 
         child_box.set_grid_item(true);
 
+        if (!m_state.try_get(child_box))
+            m_state.create(child_box);
+
         auto& order_bucket = order_item_bucket.ensure(child_box.computed_values().order());
         order_bucket.append(child_box);
 
@@ -3054,7 +3057,7 @@ void GridFormattingContext::parent_context_did_dimension_child_root_box()
 
     grid_container().for_each_child_of_type<Box>([&](Layout::Box& box) {
         if (box.is_absolutely_positioned()) {
-            m_state.get_mutable(box).set_static_position_rect(calculate_static_position_rect(box));
+            m_state.create(box).set_static_position_rect(calculate_static_position_rect(box));
         }
         return IterationDecision::Continue;
     });

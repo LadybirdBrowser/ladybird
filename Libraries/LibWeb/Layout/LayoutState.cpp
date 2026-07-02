@@ -14,6 +14,8 @@
 #include <LibWeb/Layout/AvailableSpace.h>
 #include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Layout/LayoutState.h>
+#include <LibWeb/Layout/ListItemBox.h>
+#include <LibWeb/Layout/ListItemMarkerBox.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
@@ -65,12 +67,31 @@ void LayoutState::ensure_capacity(u32 node_count)
 
 LayoutState::UsedValues& LayoutState::get_mutable(NodeWithStyle const& node)
 {
-    return ensure_used_values_for(node);
+    auto* used_values = m_used_values_store.get(node.layout_index());
+    if (!used_values) {
+        dbgln("LayoutState::get_mutable: no used values for {}; boxes must be created before their state is read", node.debug_description());
+        VERIFY_NOT_REACHED();
+    }
+    return *used_values;
 }
 
 LayoutState::UsedValues const& LayoutState::get(NodeWithStyle const& node) const
 {
-    return const_cast<LayoutState*>(this)->ensure_used_values_for(node);
+    auto const* used_values = m_used_values_store.get(node.layout_index());
+    if (!used_values) {
+        dbgln("LayoutState::get: no used values for {}; boxes must be created before their state is read", node.debug_description());
+        VERIFY_NOT_REACHED();
+    }
+    return *used_values;
+}
+
+LayoutState::UsedValues& LayoutState::create(NodeWithStyle const& node)
+{
+    if (m_used_values_store.get(node.layout_index())) {
+        dbgln("LayoutState::create: used values for {} already exist", node.debug_description());
+        VERIFY_NOT_REACHED();
+    }
+    return ensure_used_values_for(node);
 }
 
 LayoutState::UsedValues& LayoutState::populate_from_paintable(NodeWithStyle const& node, Painting::PaintableBox const& paintable)
@@ -113,11 +134,15 @@ LayoutState::UsedValues& LayoutState::ensure_used_values_for(NodeWithStyle const
         // For the subtree root, ancestor values are not available in the throwaway state.
         containing_block_used_values = try_get(*node.containing_block());
     } else if (!node.is_viewport()) {
-        containing_block_used_values = &get(*node.containing_block());
+        containing_block_used_values = &ensure_used_values_for(*node.containing_block());
     }
 
     auto& used_values = m_used_values_store.allocate(index);
     used_values.set_node(node, containing_block_used_values);
+
+    if (auto const* list_item_box = as_if<ListItemBox>(node); list_item_box && list_item_box->marker())
+        ensure_used_values_for(*list_item_box->marker());
+
     return used_values;
 }
 

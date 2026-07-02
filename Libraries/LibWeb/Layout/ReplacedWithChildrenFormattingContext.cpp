@@ -44,7 +44,7 @@ void ReplacedWithChildrenFormattingContext::run(LayoutInput const& layout_input)
     if (!wrapper)
         return;
 
-    auto& wrapper_state = m_state.get_mutable(*wrapper);
+    auto& wrapper_state = m_state.create(*wrapper);
     wrapper_state.set_content_width(content_width);
     wrapper_state.set_content_offset({ 0, 0 });
 

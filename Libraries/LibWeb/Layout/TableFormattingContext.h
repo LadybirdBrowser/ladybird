@@ -70,6 +70,7 @@ private:
     CSSPixels border_spacing_horizontal() const;
     CSSPixels border_spacing_vertical() const;
     void finish_grid_initialization(TableGrid const&);
+    void seed_table_participant_used_values();
 
     CSSPixels compute_columns_total_used_width() const;
     void commit_candidate_column_widths(Vector<CSSPixels> const& candidate_widths);

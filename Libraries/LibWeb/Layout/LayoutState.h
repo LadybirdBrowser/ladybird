@@ -418,12 +418,16 @@ struct LayoutState {
     UsedValues& get_mutable(NodeWithStyle const&);
     UsedValues const& get(NodeWithStyle const&) const;
 
+    UsedValues& create(NodeWithStyle const&);
+
     UsedValues& populate_from_paintable(NodeWithStyle const&, Painting::PaintableBox const&);
     UsedValues& populate_node_from(LayoutState const& source, NodeWithStyle const& node);
 
     UsedValues const* try_get(NodeWithStyle const&) const;
     UsedValues* try_get_mutable(NodeWithStyle const&);
     UsedValues const* try_get(Node const&) const;
+
+    bool has_subtree_root() const { return m_subtree_root != nullptr; }
 
 private:
     UsedValues& ensure_used_values_for(NodeWithStyle const&);

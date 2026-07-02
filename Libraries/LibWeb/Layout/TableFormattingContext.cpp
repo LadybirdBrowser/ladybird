@@ -1792,6 +1792,22 @@ void TableFormattingContext::finish_grid_initialization(TableGrid const& table_g
     }
 }
 
+void TableFormattingContext::seed_table_participant_used_values()
+{
+    TableGrid::for_each_child_box_matching(table_box(), TableGrid::is_table_row_group, [&](auto& row_group_box) {
+        m_state.create(row_group_box);
+    });
+    for (auto& row : m_rows)
+        m_state.create(row.box);
+    for (auto& cell : m_cells)
+        m_state.create(cell.box);
+
+    for (auto child = table_box().first_child(); child; child = child->next_sibling()) {
+        if (child->display().is_table_caption())
+            m_state.create(as<Box>(*child));
+    }
+}
+
 void TableFormattingContext::run_until_width_calculation(LayoutInput const& layout_input, RowMeasurement row_measurement)
 {
     auto const& available_space = layout_input.available_space;
@@ -1799,6 +1815,8 @@ void TableFormattingContext::run_until_width_calculation(LayoutInput const& layo
 
     // Determine the number of rows/columns the table requires.
     finish_grid_initialization(TableGrid::calculate_row_column_grid(context_box(), m_cells, m_rows));
+
+    seed_table_participant_used_values();
 
     border_conflict_resolution();
 
@@ -1837,7 +1855,7 @@ void TableFormattingContext::parent_context_did_dimension_child_root_box()
             // FIXME: calculate_static_position_rect() is not aware of how to correctly calculate static position for
             //        a box nested inside a table, but we need to set some value, so layout_absolutely_positioned_element()
             //        won't crash trying to access it.
-            m_state.get_mutable(box).set_static_position_rect(calculate_static_position_rect(box));
+            m_state.create(box).set_static_position_rect(calculate_static_position_rect(box));
         }
 
         if (formatting_context_type_created_by_box(box).has_value()) {
