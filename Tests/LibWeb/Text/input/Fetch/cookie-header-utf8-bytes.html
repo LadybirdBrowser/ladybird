@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Regression test: cookie values with multi-byte UTF-8 characters must round-trip
+    // through the outgoing Cookie header as their original bytes, not truncated to the
+    // low byte of each code point. The previous implementation ran the jar's UTF-8 string
+    // through isomorphic_encode, which collapsed e.g. Cyrillic 'п' (U+043F, UTF-8 0xD0 0xBF)
+    // to a single 0x3F ('?').
+    //
+    // Python's http.server encodes outgoing header values as Latin-1 and decodes incoming
+    // ones the same way. We pick Latin-1 code points whose byte sequence happens to be
+    // valid UTF-8 so the Set-Cookie line lands on the wire as the UTF-8 bytes we want the
+    // jar to store; conversely, we undo Python's Latin-1 view on the reflected Cookie
+    // header to recover the raw bytes we actually sent.
+
+    const COOKIE_NAME = "utf8roundtrip";
+    const EXPECTED_VALUE = "п"; // 'п' — UTF-8 0xD0 0xBF; low byte 0x3F is '?'
+    const SET_COOKIE_WIRE_VALUE = "Ð¿"; // Latin-1 view of the bytes 0xD0 0xBF
+
+    function extractCookieValue(cookieHeader, name) {
+        for (const pair of cookieHeader.split(";")) {
+            const trimmed = pair.trim();
+            const eq = trimmed.indexOf("=");
+            if (eq < 0)
+                continue;
+            if (trimmed.substring(0, eq) === name)
+                return trimmed.substring(eq + 1);
+        }
+        return null;
+    }
+
+    promiseTest(async () => {
+        try {
+            const server = httpTestServer();
+            const url = await server.createEcho("GET", "/cookie-header-utf8-bytes", {
+                status: 200,
+                headers: {
+                    "Access-Control-Allow-Origin": location.origin,
+                    "Access-Control-Allow-Credentials": "true",
+                    "Set-Cookie": `${COOKIE_NAME}=${SET_COOKIE_WIRE_VALUE}; Path=/echo`,
+                },
+                reflect_headers_in_body: true,
+            });
+
+            // First request installs the cookie; the request itself doesn't carry it yet.
+            await fetch(url, { credentials: "include" });
+
+            // Second request sends the cookie back; the reflected body shows what the
+            // server actually received.
+            const resp = await fetch(url, { credentials: "include" });
+            const headers = await resp.json();
+            const cookieHeaders = headers["Cookie"] ?? [];
+
+            if (cookieHeaders.length === 0) {
+                println("FAIL - No Cookie header received");
+                return;
+            }
+
+            const value = extractCookieValue(cookieHeaders[0], COOKIE_NAME);
+            if (value === null) {
+                println(`FAIL - "${COOKIE_NAME}" missing from Cookie: ${cookieHeaders[0]}`);
+                return;
+            }
+
+            // Reinterpret Python's Latin-1 decoding of the Cookie bytes, then UTF-8 decode.
+            const bytes = Uint8Array.from(value, c => c.charCodeAt(0));
+            let decoded;
+            try {
+                decoded = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+            } catch (e) {
+                const hex = Array.from(bytes, b => b.toString(16).padStart(2, "0")).join(" ");
+                println(`FAIL - cookie bytes not valid UTF-8: ${hex}`);
+                return;
+            }
+
+            if (decoded === EXPECTED_VALUE)
+                println("PASS");
+            else
+                println(`FAIL - expected "${EXPECTED_VALUE}" but got "${decoded}"`);
+        } catch (err) {
+            println("FAIL - " + err);
+        }
+    });
+</script>
