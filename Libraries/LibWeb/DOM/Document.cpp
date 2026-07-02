@@ -7017,15 +7017,21 @@ void Document::remove_replaced_animations()
     });
 
     // Lower value = higher priority
-    HashMap<CSS::PropertyID, size_t> highest_property_composite_orders;
+    HashMap<DOM::AbstractElement, HashTable<CSS::PropertyID>> highest_priority_properties_by_target;
     for (int i = replaceable_animations.size() - 1; i >= 0; i--) {
         auto animation = replaceable_animations[i];
+        auto& keyframe_effect = static_cast<Animations::KeyframeEffect&>(*animation->effect());
+        auto target = keyframe_effect.target_abstract_element();
+        if (!target.has_value())
+            continue;
+
+        auto& highest_priority_properties = highest_priority_properties_by_target.ensure(target.value());
         bool has_any_highest_priority_property = false;
 
         for (auto const& property : animation->effect()->target_properties()) {
-            if (!highest_property_composite_orders.contains(property)) {
+            if (!highest_priority_properties.contains(property)) {
                 has_any_highest_priority_property = true;
-                highest_property_composite_orders.set(property, i);
+                highest_priority_properties.set(property);
             }
         }
 
