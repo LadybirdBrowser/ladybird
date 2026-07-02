@@ -1,0 +1,182 @@
+<!doctype html>
+<title>NodeIterator removal tests</title>
+<link rel="author" title="Aryeh Gregor" href=ayg@aryeh.name>
+<meta name=timeout content=long>
+<div id=log></div>
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<script src=../common.js></script>
+<script>
+"use strict";
+
+for (var i = 0; i < testNodes.length; i++) {
+  var node = eval(testNodes[i]);
+  if (!node.parentNode) {
+    // Nothing to test
+    continue;
+  }
+  test(function() {
+    var iters = [];
+    var descs = [];
+    var expectedReferenceNodes = [];
+    var expectedPointers = [];
+
+    for (var j = 0; j < testNodes.length; j++) {
+      var root = eval(testNodes[j]);
+      // Add all distinct iterators with this root, calling nextNode()
+      // repeatedly until it winds up with the same iterator.
+      for (var k = 0; ; k++) {
+        var iter = document.createNodeIterator(root);
+        for (var l = 0; l < k; l++) {
+          iter.nextNode();
+        }
+        if (k && iter.referenceNode == iters[iters.length - 1].referenceNode
+            && iter.pointerBeforeReferenceNode
+               == iters[iters.length - 1].pointerBeforeReferenceNode) {
+          break;
+        } else {
+          iters.push(iter);
+          descs.push("document.createNodeIterator(" + testNodes[j]
+            + ") advanced " + k + " times");
+          expectedReferenceNodes.push(iter.referenceNode);
+          expectedPointers.push(iter.pointerBeforeReferenceNode);
+
+          var idx = iters.length - 1;
+
+          // "If the node is root or is not an inclusive ancestor of the
+          // referenceNode attribute value, terminate these steps."
+          //
+          // We also have to rule out the case where node is an ancestor of
+          // root, which is implicitly handled by the spec since such a node
+          // was not part of the iterator collection to start with.
+          if (isInclusiveAncestor(node, root)
+              || !isInclusiveAncestor(node, iter.referenceNode)) {
+            continue;
+          }
+
+          // "If the pointerBeforeReferenceNode attribute value is false, set
+          // the referenceNode attribute to the first node preceding the node
+          // that is being removed, and terminate these steps."
+          if (!iter.pointerBeforeReferenceNode) {
+            expectedReferenceNodes[idx] = previousNode(node);
+            continue;
+          }
+
+          // "If there is a node following the last inclusive descendant of the
+          // node that is being removed, set the referenceNode attribute to the
+          // first such node, and terminate these steps."
+          var next = nextNodeDescendants(node);
+          if (next) {
+            expectedReferenceNodes[idx] = next;
+            continue;
+          }
+
+          // "Set the referenceNode attribute to the first node preceding the
+          // node that is being removed and set the pointerBeforeReferenceNode
+          // attribute to false."
+          expectedReferenceNodes[idx] = previousNode(node);
+          expectedPointers[idx] = false;
+        }
+      }
+    }
+
+    var oldParent = node.parentNode;
+    var oldSibling = node.nextSibling;
+    oldParent.removeChild(node);
+
+    for (var j = 0; j < iters.length; j++) {
+      var iter = iters[j];
+      assert_equals(iter.referenceNode, expectedReferenceNodes[j],
+                    ".referenceNode of " + descs[j]);
+      assert_equals(iter.pointerBeforeReferenceNode, expectedPointers[j],
+                    ".pointerBeforeReferenceNode of " + descs[j]);
+    }
+
+    oldParent.insertBefore(node, oldSibling);
+  }, "Test removing node " + testNodes[i]);
+}
+
+testDiv.style.display = "none";
+
+
+// Targeted coverage for the pre-remove step that fires when
+// pointerBeforeReferenceNode is true and the iterator's reference is inside
+// the subtree being removed. The parametric loop above only drives iterators
+// forward with nextNode(), so pointerBeforeReferenceNode is true only when
+// referenceNode === root — a case the algorithm's first step now always
+// short-circuits. To reach the "find next within root" branch we have to back
+// the iterator up with previousNode() first.
+
+const buildScratchTree = (structure) => {
+  // structure is a string like "root[a[a1],b[b1],c]"; returns an object whose
+  // keys are the named elements.
+  const nodes = {};
+  let i = 0;
+  const parse = (parent) => {
+    let name = "";
+    while (i < structure.length && /[A-Za-z0-9]/.test(structure[i])) {
+      name += structure[i++];
+    }
+    const el = document.createElement(name);
+    nodes[name] = el;
+    if (parent) parent.appendChild(el);
+    if (structure[i] === "[") {
+      i++;
+      while (structure[i] !== "]") {
+        parse(el);
+        if (structure[i] === ",") i++;
+      }
+      i++;
+    }
+    return el;
+  };
+  const root = parse(null);
+  document.body.appendChild(root);
+  return { root, nodes };
+};
+
+test((t) => {
+  // Tree: root[a[a1], b[b1], c]
+  const { root, nodes } = buildScratchTree("root[a[a1],b[b1],c]");
+  t.add_cleanup(() => root.remove());
+
+  const iter = document.createNodeIterator(root);
+  for (let i = 0; i < 5; i++) iter.nextNode();
+  assert_equals(iter.referenceNode, nodes.b1, "advanced reference");
+  assert_false(iter.pointerBeforeReferenceNode, "advanced pointer");
+  iter.previousNode();
+  assert_equals(iter.referenceNode, nodes.b1, "backed-up reference");
+  assert_true(iter.pointerBeforeReferenceNode, "backed-up pointer");
+
+  nodes.b.remove();
+
+  // pre-remove step 2: next-within-root exists, so reference jumps to it and
+  // pointer stays true.
+  assert_equals(iter.referenceNode, nodes.c, "post-removal reference");
+  assert_true(iter.pointerBeforeReferenceNode, "post-removal pointer");
+}, "Removing an inclusive ancestor of reference, pointer before reference is true, "
+   + "with a following node within root");
+
+test((t) => {
+  // Tree: root[a[a1], b[b1]] — no node after b within root.
+  const { root, nodes } = buildScratchTree("root[a[a1],b[b1]]");
+  t.add_cleanup(() => root.remove());
+
+  const iter = document.createNodeIterator(root);
+  for (let i = 0; i < 5; i++) iter.nextNode();
+  assert_equals(iter.referenceNode, nodes.b1, "advanced reference");
+  assert_false(iter.pointerBeforeReferenceNode, "advanced pointer");
+  iter.previousNode();
+  assert_equals(iter.referenceNode, nodes.b1, "backed-up reference");
+  assert_true(iter.pointerBeforeReferenceNode, "backed-up pointer");
+
+  nodes.b.remove();
+
+  // pre-remove step 2: no next-within-root, so pointer flips to false and
+  // step 3 moves reference to the last inclusive descendant of b's previous
+  // sibling.
+  assert_equals(iter.referenceNode, nodes.a1, "post-removal reference");
+  assert_false(iter.pointerBeforeReferenceNode, "post-removal pointer");
+}, "Removing an inclusive ancestor of reference, pointer before reference is true, "
+   + "with no following node within root");
+</script>

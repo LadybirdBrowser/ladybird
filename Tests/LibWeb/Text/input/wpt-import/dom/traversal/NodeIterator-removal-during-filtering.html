@@ -1,0 +1,156 @@
+<!doctype html>
+<title>NodeIterator: removing nodes during filtering</title>
+<link rel="help" href="https://dom.spec.whatwg.org/#concept-nodeiterator-traverse">
+<div id=log></div>
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<script>
+"use strict";
+
+function buildTree() {
+  // Tree: root > [a, b, c]
+  const root = document.createElement("div");
+  const a = document.createElement("a-el");
+  const b = document.createElement("b-el");
+  const c = document.createElement("c-el");
+  root.append(a, b, c);
+  return { root, a, b, c };
+}
+
+test(() => {
+  const { root, a, b, c } = buildTree();
+
+  let removed = false;
+  const it = document.createNodeIterator(root, NodeFilter.SHOW_ELEMENT, {
+    acceptNode(node) {
+      // Remove b from the tree while it is being filtered, i.e. while a
+      // traverse() is in flight. This runs the NodeIterator pre-remove steps
+      // against the in-progress traversal.
+      if (node === b) {
+        b.remove();
+        removed = true;
+      }
+      return NodeFilter.FILTER_ACCEPT;
+    }
+  });
+
+  assert_equals(it.nextNode(), root, "first nextNode() returns root");
+  assert_equals(it.nextNode(), a, "second nextNode() returns a");
+
+  // Advances to b and filters it; the filter removes b.
+  const returned = it.nextNode();
+  assert_true(removed, "filter removed b");
+
+  // The value returned must be the node that was passed to the filter (b),
+  // even though the traversal pointer was retargeted away from it.
+  assert_equals(returned, b, "nextNode() returns the filtered node b");
+
+  // The reference node must be retargeted to a still-attached node (a), not
+  // left pointing at the removed b.
+  assert_equals(it.referenceNode, a, "referenceNode retargeted to a");
+  assert_false(it.pointerBeforeReferenceNode, "pointer before reference is false");
+
+  // Traversal continues from the retargeted reference, reaching c rather than
+  // getting stuck on the detached b.
+  assert_equals(it.nextNode(), c, "traversal continues to c");
+}, "Removing the accepted node during its own filtering retargets the reference "
+   + "and returns the filtered node");
+
+test(() => {
+  const { root, a, b, c } = buildTree();
+
+  // Filtering c removes an earlier, already-passed subtree (a). This should
+  // not affect the outcome for c, but exercises retargeting for a node that is
+  // not the one being filtered.
+  const it = document.createNodeIterator(root, NodeFilter.SHOW_ELEMENT, {
+    acceptNode(node) {
+      if (node === b) {
+        a.remove();
+      }
+      return NodeFilter.FILTER_ACCEPT;
+    }
+  });
+
+  assert_equals(it.nextNode(), root, "root");
+  assert_equals(it.nextNode(), a, "a");
+  assert_equals(it.nextNode(), b, "b (removes a)");
+  assert_equals(it.referenceNode, b, "reference is b");
+  assert_equals(it.nextNode(), c, "c");
+}, "Removing an already-visited subtree during filtering does not disrupt "
+   + "forward traversal");
+
+test(() => {
+  const { root, a, b, c } = buildTree();
+
+  // While a node is being filtered, referenceNode still reflects the last
+  // accepted node (the reference as of the start of the current nextNode()
+  // call), not the candidate currently being filtered. A candidate only
+  // becomes the reference once it is accepted.
+  let it;
+  const observed = [];
+  it = document.createNodeIterator(root, NodeFilter.SHOW_ELEMENT, {
+    acceptNode(node) {
+      observed.push([node, it.referenceNode]);
+      // Reject b so the traversal moves on without accepting it.
+      return node === b ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+    }
+  });
+
+  assert_equals(it.nextNode(), root, "root accepted");
+  assert_equals(it.nextNode(), a, "a accepted");
+  // Advances to b (rejected), then to c (accepted).
+  assert_equals(it.nextNode(), c, "c accepted after skipping b");
+
+  assert_array_equals(observed.map(([node]) => node), [root, a, b, c],
+    "each node was filtered in order");
+  // Filtering root: reference is the initial reference (root, pointer before).
+  // Filtering a: reference is root (accepted by the previous call).
+  // Filtering b and c: reference is a (accepted by the previous call).
+  assert_array_equals(observed.map(([, referenceNode]) => referenceNode),
+    [root, root, a, a],
+    "referenceNode during filtering is the last accepted node, not the candidate");
+}, "referenceNode during filtering reflects the last accepted node, not the candidate");
+
+test(() => {
+  // Tree: root > a > a1, root > b > b1 (no node after b within root).
+  const root = document.createElement("div");
+  const a = document.createElement("a-el");
+  const a1 = document.createElement("a1-el");
+  const b = document.createElement("b-el");
+  const b1 = document.createElement("b1-el");
+  a.append(a1);
+  b.append(b1);
+  root.append(a, b);
+
+  // Removing b while its descendant b1 is the in-flight (candidate) position,
+  // with the pointer before that position, exercises the pre-remove
+  // "pointer before is true" branch where there is no following node within
+  // root. The in-flight position must move to the last in-tree node before b
+  // (a1) and flip the pointer, rather than being left on the now-detached b1.
+  // WebKit and Blink get this wrong and leave it on the detached b1.
+  let armed = false;
+  const it = document.createNodeIterator(root, NodeFilter.SHOW_ELEMENT, {
+    acceptNode(node) {
+      if (armed && node === b1) {
+        b.remove();
+      }
+      return NodeFilter.FILTER_ACCEPT;
+    }
+  });
+
+  // Advance the reference forward to b1 (root, a, a1, b, b1).
+  for (let i = 0; i < 5; i++) it.nextNode();
+  assert_equals(it.referenceNode, b1, "reference advanced to b1");
+  assert_false(it.pointerBeforeReferenceNode, "pointer before reference is false");
+
+  armed = true;
+  // previousNode() puts the pointer before b1, then filters b1, whose callback
+  // removes b.
+  const returned = it.previousNode();
+
+  assert_equals(returned, b1, "previousNode() returns the filtered node b1");
+  assert_equals(it.referenceNode, a1, "reference retargeted to a1, not detached b1");
+  assert_false(it.pointerBeforeReferenceNode, "pointer before reference flipped to false");
+}, "Removing an ancestor of the in-flight position during filtering, pointer "
+   + "before it, with no following node within root");
+</script>
