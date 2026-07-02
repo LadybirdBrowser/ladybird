@@ -24,6 +24,7 @@ struct PrivateBrowsingSession {
     NonnullOwnPtr<StorageJar> storage_jar;
     NonnullOwnPtr<HSTSStore> hsts_store;
     NonnullOwnPtr<HistoryStore> history_store;
+    NonnullOwnPtr<SessionStore> session_store;
 };
 
 }

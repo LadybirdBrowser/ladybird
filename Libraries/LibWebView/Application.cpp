@@ -41,6 +41,7 @@
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/Menu.h>
 #include <LibWebView/ProcessType.h>
+#include <LibWebView/SessionStore.h>
 #include <LibWebView/SiteIsolation.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>
@@ -201,6 +202,13 @@ StorageJar& Application::storage_jar(IsPrivate is_private)
     return is_private == IsPrivate::Yes
         ? *the().ensure_private_browsing_session().storage_jar
         : *the().m_storage_jar;
+}
+
+SessionStore& Application::session_store(IsPrivate is_private)
+{
+    return is_private == IsPrivate::Yes
+        ? *the().ensure_private_browsing_session().session_store
+        : *the().m_session_store;
 }
 
 Requests::RequestClient& Application::request_server_client(IsPrivate is_private)
@@ -773,6 +781,7 @@ PrivateBrowsingSession& Application::ensure_private_browsing_session()
             .storage_jar = StorageJar::create(),
             .hsts_store = HSTSStore::create(),
             .history_store = HistoryStore::create_disabled(),
+            .session_store = SessionStore::create(),
         });
     }
 
@@ -812,6 +821,14 @@ void Application::maybe_close_private_browsing_session()
 void Application::reset_private_browsing_session()
 {
     m_file_downloader.cancel_private_downloads();
+
+    // Views pending deferred deletion may still push updates, and the replacement store reuses their ids.
+    ViewImplementation::for_each_view([](ViewImplementation& view) {
+        if (view.is_private() == IsPrivate::Yes)
+            view.clear_session_tab_id();
+        return IterationDecision::Continue;
+    });
+
     m_private_browsing_session = nullptr;
 }
 
@@ -1120,6 +1137,20 @@ ErrorOr<void> Application::launch_services()
             history_database_directory = {};
             m_history_store = HistoryStore::create();
         }
+
+        // Fall back without modifying the existing Sessions database.
+        auto session_store = [&]() -> ErrorOr<NonnullOwnPtr<SessionStore>> {
+            m_session_database = TRY(Database::Database::create(database_path, "Sessions"sv, { .foreign_keys = Database::Database::ForeignKeys::Yes }));
+            if (TRY(SessionStore::migrate_schema(*m_session_database)) != Database::MigrationOutcome::Success)
+                return Error::from_string_literal("Sessions database was created by a newer Ladybird version");
+            return SessionStore::create(*m_session_database);
+        }();
+        if (session_store.is_error()) {
+            dbgln("Sessions will not be persisted this session: {}", session_store.error());
+            m_session_store = SessionStore::create();
+        } else {
+            m_session_store = session_store.release_value();
+        }
     } else {
         dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] SQL history is disabled, disabling browsing history");
 
@@ -1128,9 +1159,14 @@ ErrorOr<void> Application::launch_services()
         m_hsts_store = HSTSStore::create();
         m_storage_jar = StorageJar::create();
         m_download_store = DownloadStore::create_disabled();
+        m_session_store = SessionStore::create();
     }
 
     m_file_downloader.adopt_download_store({}, *m_download_store);
+
+    m_session_store->on_closed_units_changed = [this] {
+        on_recently_closed_entries_changed();
+    };
 
     VERIFY(m_event_loop);
     m_autocomplete_service = make<AutocompleteService>(*m_event_loop, move(history_database_directory));
@@ -1741,6 +1777,12 @@ NonnullRefPtr<Core::Promise<Empty>> Application::clear_browsing_data(ClearBrowsi
 
     if (options.delete_history == ClearBrowsingDataOptions::Delete::Yes) {
         m_history_store->remove_entries_accessed_since(options.since);
+        if (auto result = m_session_store->remove_entries_accessed_since(options.since); result.is_error())
+            dbgln("Unable to remove closed session entries: {}", result.error());
+        if (m_private_browsing_session) {
+            if (auto result = m_private_browsing_session->session_store->remove_entries_accessed_since(options.since); result.is_error())
+                dbgln("Unable to remove closed private session entries: {}", result.error());
+        }
         did_change_history = true;
     }
 
