@@ -38,7 +38,7 @@ public:
     BrowserWindow& new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& = {}, BrowserWindow::IsPopupWindow is_popup_window = BrowserWindow::IsPopupWindow::No, WebView::IsPrivate = WebView::IsPrivate::No, Tab* parent_tab = nullptr, Optional<u64> page_index = {});
     WindowConfiguration configuration_for_new_window() const;
     void open_new_tab();
-    void open_new_window();
+    void open_new_window(WebView::IsPrivate);
     void focus_location_editor();
     void reopen_recently_closed_tab();
     void open_file();

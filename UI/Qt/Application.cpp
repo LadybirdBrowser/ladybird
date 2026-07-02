@@ -131,7 +131,7 @@ public:
 
 #if defined(AK_OS_MACOS)
         if (event_type == QEvent::ApplicationActivate && !has_visible_browser_window())
-            application.open_new_window();
+            application.open_new_window(WebView::IsPrivate::No);
 #endif
 
         return handled;
@@ -168,7 +168,12 @@ public:
 
         auto* new_window_action = add_application_menu_action(*file_menu, "New &Window", QKeySequence::keyBindings(QKeySequence::StandardKey::New));
         QObject::connect(new_window_action, &QAction::triggered, this, [] {
-            Application::the().open_new_window();
+            Application::the().open_new_window(WebView::IsPrivate::No);
+        });
+
+        auto* new_private_window_action = add_application_menu_action(*file_menu, "New Pri&vate Window", { QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_N) });
+        QObject::connect(new_private_window_action, &QAction::triggered, this, [] {
+            Application::the().open_new_window(WebView::IsPrivate::Yes);
         });
 
         m_reopen_recently_closed_tab_action = add_application_menu_action(*file_menu, {}, { QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_T) });
@@ -374,9 +379,10 @@ void Application::open_new_tab()
     tab.focus_location_editor();
 }
 
-void Application::open_new_window()
+void Application::open_new_window(WebView::IsPrivate is_private)
 {
-    new_window({ WebView::Application::settings().new_tab_page_url() }, configuration_for_new_window());
+    // FIXME: Create a new tab page specific to private windows.
+    new_window({ WebView::Application::settings().new_tab_page_url() }, configuration_for_new_window(), BrowserWindow::IsPopupWindow::No, is_private);
 }
 
 void Application::focus_location_editor()

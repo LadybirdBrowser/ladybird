@@ -445,6 +445,8 @@ static bool is_browser_reserved_shortcut(QKeyEvent const& event)
         return true;
     if (modifiers == (Qt::ControlModifier | Qt::ShiftModifier) && key == Qt::Key_T)
         return true;
+    if (modifiers == (Qt::ControlModifier | Qt::ShiftModifier) && key == Qt::Key_N)
+        return true;
 
     if (modifiers == Qt::ControlModifier && (key == Qt::Key_L || key == Qt::Key_Tab || key == Qt::Key_PageDown))
         return true;

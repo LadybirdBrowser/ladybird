@@ -286,6 +286,11 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     m_hamburger_menu->addAction(m_new_window_action);
     file_menu->addAction(m_new_window_action);
 
+    m_new_private_window_action = new QAction("New Pri&vate Window", this);
+    m_new_private_window_action->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_N));
+    m_hamburger_menu->addAction(m_new_private_window_action);
+    file_menu->addAction(m_new_private_window_action);
+
     m_reopen_recently_closed_tab_action = new QAction("&Reopen Recently Closed Tab", this);
     m_reopen_recently_closed_tab_action->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_T));
     m_hamburger_menu->addAction(m_reopen_recently_closed_tab_action);
@@ -421,7 +426,10 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         Application::the().open_new_tab();
     });
     QObject::connect(m_new_window_action, &QAction::triggered, this, [] {
-        Application::the().open_new_window();
+        Application::the().open_new_window(WebView::IsPrivate::No);
+    });
+    QObject::connect(m_new_private_window_action, &QAction::triggered, this, [] {
+        Application::the().open_new_window(WebView::IsPrivate::Yes);
     });
     QObject::connect(m_reopen_recently_closed_tab_action, &QAction::triggered, this, [] {
         Application::the().reopen_recently_closed_tab();

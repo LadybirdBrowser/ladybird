@@ -233,6 +233,7 @@ private:
 
     QAction* m_new_tab_action { nullptr };
     QAction* m_new_window_action { nullptr };
+    QAction* m_new_private_window_action { nullptr };
     QAction* m_reopen_recently_closed_tab_action { nullptr };
     QAction* m_find_in_page_action { nullptr };
 
