@@ -163,7 +163,7 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
         m_pending_prompt_text.clear();
     };
 
-    m_system_visibility_state = Web::HTML::VisibilityState::Visible;
+    m_top_level_traversable.set_system_visibility_state(Web::HTML::VisibilityState::Visible);
 }
 
 void HeadlessWebView::initialize_client(CreateNewClient create_new_client)

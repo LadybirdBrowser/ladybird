@@ -3,6 +3,7 @@ set(SOURCES
     Attribute.cpp
     Autocomplete.cpp
     BookmarkStore.cpp
+    CanonicalTraversable.cpp
     BrowserProcess.cpp
     ConsoleOutput.cpp
     CookieJar.cpp
