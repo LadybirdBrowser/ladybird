@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Reftest Reference</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+
+  <style>
+  div
+    {
+      background-color: green;
+    }
+
+  div.vertical
+    {
+      height: 75px;
+      margin-left: 75px;
+      width: 50px;
+    }
+
+  div.horizontal
+    {
+      height: 50px;
+      width: 200px;
+    }
+  </style>
+
+  <p>Test passes if there are 2 identical filled green plus ("+") signs and <strong>no red</strong>.
+
+  <div class="vertical"></div>
+
+  <div class="horizontal"></div>
+
+  <div class="vertical" style="margin-bottom: 10px;"></div>
+
+  <div class="vertical"></div>
+
+  <div class="horizontal"></div>
+
+  <div class="vertical"></div>

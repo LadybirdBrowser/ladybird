@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Reftest reference</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+
+  <style>
+  table
+    {
+      border-spacing: 0px;
+      margin: 70px;
+      table-layout: fixed;
+    }
+
+  td
+    {
+      height: 40px;
+      padding: 0px;
+    }
+
+  td.corner
+    {
+      background-image: url("../support/new-red-diamond-27x27.png");
+      background-size: cover;
+    }
+
+  td#first-row-second-cell , td#third-row-second-cell , td.second-row
+    {
+      background-image: url("../support/blue-diamond-27x27.png");
+      background-size: 100px 40px;
+    }
+
+  td.second-row
+    {
+      background-size: 40px 100px;
+      height: 100px;
+    }
+  </style>
+
+  <p>Test passes if there is only one (and streched) blue diamond on each side of the border.
+
+  <table>
+
+    <col width="40"><col width="100"><col width="40">
+
+    <tr><td class="corner"><td id="first-row-second-cell"><td class="corner">
+
+    <tr><td class="second-row"><td><td class="second-row">
+
+    <tr><td class="corner"><td id="third-row-second-cell"><td class="corner">
+
+  </table>

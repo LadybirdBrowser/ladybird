@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>CSS Border Image: border-image-repeat: round</title>
+    <link rel="author" title="Ethan Lin" href="mailto:ethlin@mozilla.com">
+    <link rel="author" title="Mozilla" href="https://www.mozilla.org">
+    <style type="text/css">
+      .outer {
+        width: 81px;
+        height: 81px;
+      }
+      .inner1 {
+        position: absolute;
+        top: 0px;
+        left: 0px;
+        width: 27px;
+        height: 27px;
+        background-image: url("support/border.png");
+      }
+      .inner2 {
+        position: absolute;
+        top: 0px;
+        left: 27px;
+        width: 34px;
+        height: 27px;
+        background-size: 102px 81px;
+        background-image: url("support/border.png");
+        background-position: -34px 0px;
+      }
+      .inner3 {
+        position: absolute;
+        top: 0px;
+        left: 61px;
+        width: 27px;
+        height: 27px;
+        background-image: url("support/border.png");
+      }
+      .inner4 {
+        position: absolute;
+        top: 27px;
+        left: 0px;
+        width: 27px;
+        height: 34px;
+        background-size: 81px 102px;
+        background-image: url("support/border.png");
+        background-position: 0px -34px;
+      }
+      .inner5 {
+        position: absolute;
+        top: 27px;
+        left: 61px;
+        width: 27px;
+        height: 34px;
+        background-size: 81px 102px;
+        background-image: url("support/border.png");
+        background-position: -54px -34px;
+      }
+      .inner6 {
+        position: absolute;
+        top: 61px;
+        left: 0px;
+        width: 27px;
+        height: 27px;
+        background-image: url("support/border.png");
+      }
+      .inner7 {
+        position: absolute;
+        top: 61px;
+        left: 27px;
+        width: 34px;
+        height: 27px;
+        background-size: 102px 81px;
+        background-image: url("support/border.png");
+        background-position: -34px -54px;
+      }
+      .inner8 {
+        position: absolute;
+        top: 61px;
+        left: 61px;
+        width: 27px;
+        height: 27px;
+        background-image: url("support/border.png");
+      }
+    </style>
+    </head>
+    <body>
+      <div class="outer">
+        <div class="inner1"></div>
+        <div class="inner2"></div>
+        <div class="inner3"></div>
+        <div class="inner4"></div>
+        <div class="inner5"></div>
+        <div class="inner6"></div>
+        <div class="inner7"></div>
+        <div class="inner8"></div>
+      </div>
+    </body>
+</html>
+
