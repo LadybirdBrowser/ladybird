@@ -88,6 +88,9 @@ ViewImplementation::~ViewImplementation()
 
     if (m_client_state.client)
         m_client_state.client->unregister_view(m_client_state.page_index);
+
+    if (m_is_private == IsPrivate::Yes)
+        Application::the().maybe_close_private_browsing_session();
 }
 
 WebContentClient& ViewImplementation::client()

@@ -5,19 +5,21 @@ set(SOURCES
     BookmarkStore.cpp
     CanonicalTraversable.cpp
     BrowserProcess.cpp
+    CompositorClient.cpp
     ConsoleOutput.cpp
     CookieJar.cpp
     DOMNodeProperties.cpp
     FileDownloader.cpp
     HeadlessWebView.cpp
+    HelperProcess.cpp
     HistoryDebug.cpp
     HistoryStore.cpp
-    HelperProcess.cpp
     HSTSStore.cpp
     Menu.cpp
     Mutation.cpp
     Omnibox.cpp
     Plugins/ImageCodecPlugin.cpp
+    PrivateBrowsing.cpp
     Process.cpp
     ProcessHandle.cpp
     ProcessManager.cpp
@@ -34,8 +36,6 @@ set(SOURCES
     Utilities.cpp
     ViewImplementation.cpp
     WebContentClient.cpp
-    WebWorkerClient.cpp
-    WorkerProcessManager.cpp
     WebUI.cpp
     WebUI/BookmarksUI.cpp
     WebUI/DownloadsUI.cpp
@@ -43,7 +43,8 @@ set(SOURCES
     WebUI/ProcessesUI.cpp
     WebUI/SettingsUI.cpp
     WebUI/VersionUI.cpp
-    CompositorClient.cpp
+    WebWorkerClient.cpp
+    WorkerProcessManager.cpp
 )
 
 if (APPLE)

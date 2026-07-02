@@ -26,6 +26,7 @@ class OutOfProcessWebView;
 class ProcessManager;
 class Settings;
 class SiteIsolationManager;
+class StorageJar;
 class TraversableSessionHistory;
 class ViewImplementation;
 class WebContentClient;

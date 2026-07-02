@@ -85,6 +85,9 @@ WebContentClient::~WebContentClient()
 {
     WorkerProcessManager::the().remove_web_content_owner(*this);
     clients().remove(this);
+
+    if (m_is_private == IsPrivate::Yes)
+        Application::the().maybe_close_private_browsing_session();
 }
 
 Optional<WebContentClient&> WebContentClient::client_for_compositor_context_id(Web::Compositor::CompositorContextId context_id)

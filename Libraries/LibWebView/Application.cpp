@@ -134,6 +134,34 @@ Application::~Application()
     s_the = nullptr;
 }
 
+HistoryStore& Application::history_store(IsPrivate is_private)
+{
+    return is_private == IsPrivate::Yes
+        ? *the().ensure_private_browsing_session().history_store
+        : *the().m_history_store;
+}
+
+CookieJar& Application::cookie_jar(IsPrivate is_private)
+{
+    return is_private == IsPrivate::Yes
+        ? *the().ensure_private_browsing_session().cookie_jar
+        : *the().m_cookie_jar;
+}
+
+HSTSStore& Application::hsts_store(IsPrivate is_private)
+{
+    return is_private == IsPrivate::Yes
+        ? *the().ensure_private_browsing_session().hsts_store
+        : *the().m_hsts_store;
+}
+
+StorageJar& Application::storage_jar(IsPrivate is_private)
+{
+    return is_private == IsPrivate::Yes
+        ? *the().ensure_private_browsing_session().storage_jar
+        : *the().m_storage_jar;
+}
+
 ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 {
     TRY(handle_attached_debugger());
@@ -559,6 +587,50 @@ u64 Application::allocate_page_id()
 {
     VERIFY(m_next_page_or_compositor_context_id > 0);
     return m_next_page_or_compositor_context_id++;
+}
+
+PrivateBrowsingSession& Application::ensure_private_browsing_session()
+{
+    if (!m_private_browsing_session) {
+        m_private_browsing_session = adopt_own(*new PrivateBrowsingSession {
+            .cookie_jar = CookieJar::create(IsPrivate::Yes),
+            .storage_jar = StorageJar::create(),
+            .hsts_store = HSTSStore::create(),
+            .history_store = HistoryStore::create_disabled(),
+        });
+    }
+
+    return *m_private_browsing_session;
+}
+
+void Application::maybe_close_private_browsing_session()
+{
+    if (!m_private_browsing_session)
+        return;
+
+    auto has_private_view = false;
+    ViewImplementation::for_each_view([&](ViewImplementation& view) {
+        if (view.is_private() == IsPrivate::No)
+            return IterationDecision::Continue;
+
+        has_private_view = true;
+        return IterationDecision::Break;
+    });
+    if (has_private_view)
+        return;
+
+    auto has_private_client = false;
+    WebContentClient::for_each_client([&](WebContentClient& client) {
+        if (client.is_private() == IsPrivate::No)
+            return IterationDecision::Continue;
+
+        has_private_client = true;
+        return IterationDecision::Break;
+    });
+    if (has_private_client)
+        return;
+
+    m_private_browsing_session = nullptr;
 }
 
 Web::Compositor::CompositorContextId Application::allocate_compositor_context_id()
@@ -1405,6 +1477,12 @@ void Application::clear_browsing_data(ClearBrowsingDataOptions const& options)
         m_cookie_jar->expire_cookies_accessed_since(options.since);
         m_storage_jar->remove_items_accessed_since(options.since);
         m_hsts_store->remove_policies_observed_since(options.since);
+
+        if (m_private_browsing_session) {
+            m_private_browsing_session->cookie_jar->expire_cookies_accessed_since(options.since);
+            m_private_browsing_session->storage_jar->remove_items_accessed_since(options.since);
+            m_private_browsing_session->hsts_store->remove_policies_observed_since(options.since);
+        }
     }
 
     if (did_change_history)

@@ -70,16 +70,17 @@ ErrorOr<NonnullOwnPtr<CookieJar>> CookieJar::create(Database::Database& database
     statements.expire_cookie = TRY(database.prepare_statement("DELETE FROM Cookies WHERE (expiry_time < ?);"sv));
     statements.select_all_cookies = TRY(database.prepare_statement("SELECT name, value, same_site, creation_time, last_access_time, expiry_time, domain, path, secure, http_only, host_only, persistent FROM Cookies;"sv));
 
-    return adopt_own(*new CookieJar { PersistedStorage { database, statements } });
+    return adopt_own(*new CookieJar { PersistedStorage { database, statements }, IsPrivate::No });
 }
 
-NonnullOwnPtr<CookieJar> CookieJar::create()
+NonnullOwnPtr<CookieJar> CookieJar::create(IsPrivate is_private)
 {
-    return adopt_own(*new CookieJar { OptionalNone {} });
+    return adopt_own(*new CookieJar { OptionalNone {}, is_private });
 }
 
-CookieJar::CookieJar(Optional<PersistedStorage> persisted_storage)
+CookieJar::CookieJar(Optional<PersistedStorage> persisted_storage, IsPrivate is_private)
     : m_persisted_storage(move(persisted_storage))
+    , m_transient_storage(is_private)
 {
     if (!m_persisted_storage.has_value())
         return;
@@ -600,6 +601,11 @@ Vector<HTTP::Cookie::Cookie> CookieJar::get_matching_cookies(URL::URL const& url
     return cookie_list;
 }
 
+CookieJar::TransientStorage::TransientStorage(IsPrivate is_private)
+    : m_is_private(is_private)
+{
+}
+
 void CookieJar::TransientStorage::set_cookies(Cookies cookies)
 {
     m_cookies = move(cookies);
@@ -685,6 +691,9 @@ Requests::CacheSizes CookieJar::TransientStorage::estimate_storage_size_accessed
 void CookieJar::TransientStorage::send_cookie_changed_notifications(ReadonlySpan<CookieEntry> cookies, bool inform_web_view_about_changed_domains)
 {
     ViewImplementation::for_each_view([&](ViewImplementation& view) {
+        if (view.is_private() != m_is_private)
+            return IterationDecision::Continue;
+
         auto retrieval_host_canonical = HTTP::Cookie::canonicalize_domain(view.url());
         if (!retrieval_host_canonical.has_value())
             return IterationDecision::Continue;

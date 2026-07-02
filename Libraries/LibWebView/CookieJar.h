@@ -19,6 +19,7 @@
 #include <LibURL/Forward.h>
 #include <LibWeb/Forward.h>
 #include <LibWebView/Forward.h>
+#include <LibWebView/PrivateBrowsing.h>
 
 namespace WebView {
 
@@ -35,7 +36,7 @@ public:
     static ErrorOr<Database::MigrationOutcome> migrate_schema(Database::Database&, Database::MigrationMode = Database::MigrationMode::Apply);
 
     static ErrorOr<NonnullOwnPtr<CookieJar>> create(Database::Database&);
-    static NonnullOwnPtr<CookieJar> create();
+    static NonnullOwnPtr<CookieJar> create(IsPrivate = IsPrivate::No);
 
     ~CookieJar();
 
@@ -64,6 +65,8 @@ private:
     class WEBVIEW_API TransientStorage {
     public:
         using Cookies = HashMap<CookieStorageKey, HTTP::Cookie::Cookie>;
+
+        explicit TransientStorage(IsPrivate);
 
         void set_cookies(Cookies);
         void set_cookie(CookieStorageKey, HTTP::Cookie::Cookie);
@@ -96,8 +99,9 @@ private:
 
     private:
         using CookieEntry = decltype(declval<Cookies>().take_all_matching(nullptr))::ValueType;
-        static void send_cookie_changed_notifications(ReadonlySpan<CookieEntry>, bool inform_web_view_about_changed_domains = true);
+        void send_cookie_changed_notifications(ReadonlySpan<CookieEntry>, bool inform_web_view_about_changed_domains = true);
 
+        IsPrivate m_is_private { IsPrivate::No };
         Cookies m_cookies;
         Cookies m_dirty_cookies;
     };
@@ -111,7 +115,7 @@ private:
         RefPtr<Core::Timer> synchronization_timer {};
     };
 
-    explicit CookieJar(Optional<PersistedStorage>);
+    CookieJar(Optional<PersistedStorage>, IsPrivate);
 
     AK_MAKE_NONCOPYABLE(CookieJar);
     AK_MAKE_NONMOVABLE(CookieJar);
