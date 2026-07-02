@@ -15,6 +15,7 @@
 #include <LibIPC/Forward.h>
 #include <LibIPC/TransportSocket.h>
 #include <LibTest/TestCase.h>
+#include <fcntl.h>
 
 using namespace AK::TimeLiterals;
 
@@ -208,4 +209,66 @@ TEST_CASE(buffered_message_is_drained_when_io_thread_stops_without_reading_it)
     });
 
     EXPECT_EQ(delivered.load(AK::MemoryOrder::memory_order_relaxed), 1u);
+}
+
+// SendQueue must hand each message's bytes and its file descriptors to the transport together and in order,
+// however the kernel socket buffer ends up chunking the writes. This drives peek()/discard() directly, with no
+// I/O thread and no real socket, simulating partial writes of many sizes and confirming that every message's
+// payload byte and its descriptor come back out, all present and in order.
+TEST_CASE(send_queue_drains_all_bytes_and_fds_across_partial_sends)
+{
+    constexpr u32 message_count = 1000;
+    for (size_t write_chunk : { 0u, 1u, 2u, 3u, 5u, 7u, 13u, 40u, 100u, 400u }) {
+        auto queue = adopt_ref(*new IPC::SendQueue);
+        for (u32 i = 0; i < message_count; ++i) {
+            IPC::SocketMessageHeader header { IPC::SocketMessageHeader::Type::Payload, 1u, 1u };
+            IPC::MessageDataType payload;
+            u8 byte = static_cast<u8>(i & 0xff);
+            payload.append(&byte, 1);
+            Vector<int> fds;
+            fds.append(static_cast<int>(100000 + i));
+            queue->enqueue_message(header, move(payload), move(fds));
+        }
+
+        // Drain the queue the way the I/O thread does: peek, "write" a chunk of bytes (0 meaning the whole peek),
+        // then discard what was written. Descriptors ride the first byte of any write, so a non-empty write
+        // carries every descriptor the peek reported.
+        Vector<u8> byte_stream;
+        Vector<int> fd_stream;
+        for (;;) {
+            auto peeked = queue->peek(4096);
+            if (peeked.bytes.is_empty() && peeked.fds.is_empty())
+                break;
+            // A peek must never surface descriptors with no byte to carry them, or they would be stranded.
+            EXPECT(!peeked.bytes.is_empty());
+            size_t bytes_to_write = write_chunk == 0 ? peeked.bytes.size() : min(write_chunk, peeked.bytes.size());
+            for (size_t k = 0; k < bytes_to_write; ++k)
+                byte_stream.append(peeked.bytes[k]);
+            for (size_t k = 0; k < peeked.fds.size(); ++k)
+                fd_stream.append(peeked.fds[k]);
+            queue->discard(bytes_to_write, peeked.fds.size());
+        }
+
+        // Reconstruct the messages from the drained streams and confirm each payload byte and descriptor, in order.
+        size_t index = 0;
+        size_t fd_index = 0;
+        u32 reconstructed = 0;
+        while (index + sizeof(IPC::SocketMessageHeader) <= byte_stream.size()) {
+            IPC::SocketMessageHeader header;
+            memcpy(&header, byte_stream.data() + index, sizeof(header));
+            index += sizeof(header);
+            EXPECT_EQ(header.fd_count, 1u);
+            if (index + header.payload_size > byte_stream.size() || fd_index + header.fd_count > fd_stream.size()) {
+                EXPECT(false);
+                break;
+            }
+            EXPECT_EQ(byte_stream[index], static_cast<u8>(reconstructed & 0xff));
+            EXPECT_EQ(fd_stream[fd_index], static_cast<int>(100000 + reconstructed));
+            index += header.payload_size;
+            fd_index += header.fd_count;
+            ++reconstructed;
+        }
+        EXPECT_EQ(reconstructed, message_count);
+        EXPECT_EQ(fd_index, fd_stream.size());
+    }
 }
