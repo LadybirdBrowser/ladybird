@@ -1369,7 +1369,7 @@ void WebContentClient::did_post_broadcast_channel_message(u64, Web::HTML::Broadc
         client.async_broadcast_channel_message(message);
         return IterationDecision::Continue;
     });
-    WorkerProcessManager::the().broadcast_channel_message_from_web_content(message);
+    WorkerProcessManager::the().broadcast_channel_message_from_web_content(message, m_is_private);
 }
 
 Messages::WebContentClient::DidRequestNewWebViewResponse WebContentClient::did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints)

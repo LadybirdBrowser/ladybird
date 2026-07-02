@@ -17,6 +17,7 @@
 #include <LibWeb/Worker/WebWorkerClientEndpoint.h>
 #include <LibWeb/Worker/WebWorkerServerEndpoint.h>
 #include <LibWebView/Export.h>
+#include <LibWebView/PrivateBrowsing.h>
 
 namespace WebView {
 
@@ -28,8 +29,10 @@ class WEBVIEW_API WebWorkerClient final
 public:
     using InitTransport = Messages::WebWorkerServer::InitTransport;
 
-    explicit WebWorkerClient(NonnullOwnPtr<IPC::Transport>, Web::HTML::WorkerAgentId agent_id);
+    WebWorkerClient(NonnullOwnPtr<IPC::Transport>, IsPrivate, Web::HTML::WorkerAgentId agent_id);
     ~WebWorkerClient();
+
+    IsPrivate is_private() const { return m_is_private; }
 
     pid_t pid() const { return m_pid; }
     void set_pid(pid_t pid) { m_pid = pid; }
@@ -48,6 +51,8 @@ public:
 
 private:
     virtual void die() override;
+
+    IsPrivate m_is_private { IsPrivate::No };
 
     pid_t m_pid { -1 };
     Web::HTML::WorkerAgentId m_agent_id { 0 };

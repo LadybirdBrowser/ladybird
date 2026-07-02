@@ -12,6 +12,15 @@
 
 namespace WebView {
 
+WebWorkerClient::WebWorkerClient(NonnullOwnPtr<IPC::Transport> transport, IsPrivate is_private, Web::HTML::WorkerAgentId agent_id)
+    : IPC::ConnectionToServer<WebWorkerClientEndpoint, WebWorkerServerEndpoint>(*this, move(transport))
+    , m_is_private(is_private)
+    , m_agent_id(agent_id)
+{
+}
+
+WebWorkerClient::~WebWorkerClient() = default;
+
 void WebWorkerClient::die()
 {
     WorkerProcessManager::the().worker_did_die(m_agent_id);
@@ -43,7 +52,7 @@ void WebWorkerClient::did_report_worker_exception(String message, String filenam
 Messages::WebWorkerClient::DidRequestCookieResponse WebWorkerClient::did_request_cookie(URL::URL url, HTTP::Cookie::Source source)
 {
     HTTP::Cookie::VersionedCookie cookie;
-    cookie.cookie = Application::cookie_jar().get_cookie(url, source);
+    cookie.cookie = Application::cookie_jar(m_is_private).get_cookie(url, source);
     return cookie;
 }
 
@@ -54,12 +63,12 @@ void WebWorkerClient::did_request_file(ByteString path, i32 request_id)
 
 void WebWorkerClient::did_store_hsts_policy(String domain, HTTP::HSTS::ParsedHSTSPolicy policy)
 {
-    Application::hsts_store().store_policy(domain, policy);
+    Application::hsts_store(m_is_private).store_policy(domain, policy);
 }
 
 Messages::WebWorkerClient::DidIsKnownHstsHostResponse WebWorkerClient::did_is_known_hsts_host(String domain)
 {
-    return Application::hsts_store().is_known_hsts_host(domain);
+    return Application::hsts_store(m_is_private).is_known_hsts_host(domain);
 }
 
 void WebWorkerClient::did_post_broadcast_channel_message(Web::HTML::BroadcastChannelMessage message)
@@ -76,13 +85,5 @@ void WebWorkerClient::close_worker_agent(Web::HTML::WorkerAgentId agent_id, Web:
 {
     WorkerProcessManager::the().close_worker_agent(*this, agent_id, owner_token);
 }
-
-WebWorkerClient::WebWorkerClient(NonnullOwnPtr<IPC::Transport> transport, Web::HTML::WorkerAgentId agent_id)
-    : IPC::ConnectionToServer<WebWorkerClientEndpoint, WebWorkerServerEndpoint>(*this, move(transport))
-    , m_agent_id(agent_id)
-{
-}
-
-WebWorkerClient::~WebWorkerClient() = default;
 
 }

@@ -29,7 +29,7 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(WebContentClie
         },
         .token = request.owner_token,
     };
-    return start_worker_agent(move(abstract_owner), move(request));
+    return start_worker_agent(move(abstract_owner), move(request), owner.is_private());
 }
 
 Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(WebWorkerClient& owner, Web::HTML::WorkerAgentStartRequest request)
@@ -40,15 +40,16 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(WebWorkerClien
         },
         .token = request.owner_token,
     };
-    return start_worker_agent(move(abstract_owner), move(request));
+    return start_worker_agent(move(abstract_owner), move(request), owner.is_private());
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-sharedworker
-Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, Web::HTML::WorkerAgentStartRequest request)
+Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, Web::HTML::WorkerAgentStartRequest request, IsPrivate is_private)
 {
     // 11.1. Let workerGlobalScope be null.
     if (request.agent_type == Web::Bindings::AgentType::SharedWorker) {
         SharedWorkerKey key {
+            .is_private = is_private,
             .storage_key = request.storage_key,
             .url = request.url,
             .name = request.name,
@@ -111,9 +112,9 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, W
     // AD-HOC: For DedicatedWorker there is no shared worker manager step; we always launch a fresh
     //         worker process here.
     auto agent_id = ++m_next_agent_id;
-    auto client = MUST(launch_web_worker_process(request.agent_type, agent_id));
+    auto client = MUST(launch_web_worker_process(request.agent_type, is_private, agent_id));
 
-    auto request_server_handle = MUST(connect_new_request_server_client());
+    auto request_server_handle = MUST(connect_new_request_server_client(is_private));
     auto image_decoder_handle = MUST(connect_new_image_decoder_client());
     client->async_connect_to_request_server(move(request_server_handle));
     client->async_connect_to_image_decoder(move(image_decoder_handle));
@@ -133,12 +134,14 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, W
         .credentials = request.credentials,
         .extended_lifetime = request.extended_lifetime,
         .worker_is_secure_context = request.caller_is_secure_context,
+        .is_private = is_private,
         .shared_worker_key = {},
         .owners = move(owners),
     };
 
     if (request.agent_type == Web::Bindings::AgentType::SharedWorker) {
         agent.shared_worker_key = SharedWorkerKey {
+            .is_private = is_private,
             .storage_key = request.storage_key,
             .url = request.url,
             .name = request.name,
@@ -204,11 +207,13 @@ void WorkerProcessManager::remove_web_worker_owner(WebWorkerClient& client)
         remove_agent(agent_id);
 }
 
-void WorkerProcessManager::broadcast_channel_message_from_web_content(Web::HTML::BroadcastChannelMessage const& message)
+void WorkerProcessManager::broadcast_channel_message_from_web_content(Web::HTML::BroadcastChannelMessage const& message, IsPrivate is_private)
 {
     for (auto& entry : m_agents) {
         auto& agent = entry.value;
         if (agent.client->pid() == message.source_process_id)
+            continue;
+        if (agent.is_private != is_private)
             continue;
         agent.client->async_broadcast_channel_message(message);
     }
@@ -345,8 +350,15 @@ void WorkerProcessManager::worker_did_request_file(Web::HTML::WorkerAgentId agen
 
 void WorkerProcessManager::worker_did_post_broadcast_channel_message(Web::HTML::WorkerAgentId agent_id, Web::HTML::BroadcastChannelMessage message)
 {
+    auto source_agent = m_agents.find(agent_id);
+    if (source_agent == m_agents.end())
+        return;
+    auto source_is_private = source_agent->value.is_private;
+
     WebContentClient::for_each_client([&](auto& client) {
         if (client.pid() == message.source_process_id)
+            return IterationDecision::Continue;
+        if (client.is_private() != source_is_private)
             return IterationDecision::Continue;
         client.async_broadcast_channel_message(message);
         return IterationDecision::Continue;
@@ -357,6 +369,8 @@ void WorkerProcessManager::worker_did_post_broadcast_channel_message(Web::HTML::
             continue;
         auto& agent = entry.value;
         if (agent.client->pid() == message.source_process_id)
+            continue;
+        if (agent.is_private != source_is_private)
             continue;
         agent.client->async_broadcast_channel_message(message);
     }

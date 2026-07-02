@@ -15,6 +15,7 @@
 #include <LibWeb/HTML/BroadcastChannelMessage.h>
 #include <LibWeb/HTML/WorkerAgentTypes.h>
 #include <LibWebView/Forward.h>
+#include <LibWebView/PrivateBrowsing.h>
 
 namespace WebView {
 
@@ -23,6 +24,7 @@ public:
     static WorkerProcessManager& the();
 
     struct SharedWorkerKey {
+        IsPrivate is_private { IsPrivate::No };
         Web::StorageAPI::StorageKey storage_key;
         URL::URL url;
         String name;
@@ -38,7 +40,7 @@ public:
     void remove_web_content_owner(WebContentClient&);
     void remove_web_worker_owner(WebWorkerClient&);
 
-    void broadcast_channel_message_from_web_content(Web::HTML::BroadcastChannelMessage const&);
+    void broadcast_channel_message_from_web_content(Web::HTML::BroadcastChannelMessage const&, IsPrivate);
 
 private:
     friend class WebWorkerClient;
@@ -59,7 +61,7 @@ private:
         Web::HTML::WorkerAgentOwnerToken token { 0 };
     };
 
-    Web::HTML::WorkerAgentId start_worker_agent(Owner, Web::HTML::WorkerAgentStartRequest);
+    Web::HTML::WorkerAgentId start_worker_agent(Owner, Web::HTML::WorkerAgentStartRequest, IsPrivate);
 
     void notify_worker_script_load_success(Owner const&);
     void notify_worker_script_load_failure(Owner const&);
@@ -86,6 +88,7 @@ private:
         bool extended_lifetime { false };
         Optional<bool> worker_is_secure_context;
         bool closing { false };
+        IsPrivate is_private { IsPrivate::No };
         Optional<SharedWorkerKey> shared_worker_key;
         Vector<Owner> owners;
     };
@@ -103,7 +106,7 @@ template<>
 struct Traits<WebView::WorkerProcessManager::SharedWorkerKey> : public DefaultTraits<WebView::WorkerProcessManager::SharedWorkerKey> {
     static unsigned hash(WebView::WorkerProcessManager::SharedWorkerKey const& key)
     {
-        return pair_int_hash(pair_int_hash(Traits<Web::StorageAPI::StorageKey>::hash(key.storage_key), Traits<URL::URL>::hash(key.url)), key.name.hash());
+        return pair_int_hash(pair_int_hash(pair_int_hash(Traits<Web::StorageAPI::StorageKey>::hash(key.storage_key), Traits<URL::URL>::hash(key.url)), key.name.hash()), static_cast<unsigned>(key.is_private));
     }
 };
 

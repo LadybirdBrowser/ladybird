@@ -182,7 +182,7 @@ ErrorOr<NonnullRefPtr<WebView::CompositorClient>> launch_compositor_process()
     return launch_server_process<WebView::CompositorClient>("Compositor"sv, move(arguments));
 }
 
-ErrorOr<NonnullRefPtr<WebWorkerClient>> launch_web_worker_process(Web::Bindings::AgentType type, Web::HTML::WorkerAgentId agent_id)
+ErrorOr<NonnullRefPtr<WebWorkerClient>> launch_web_worker_process(Web::Bindings::AgentType type, IsPrivate is_private, Web::HTML::WorkerAgentId agent_id)
 {
     auto const& browser_options = WebView::Application::browser_options();
     auto const& web_content_options = WebView::Application::web_content_options();
@@ -218,7 +218,7 @@ ErrorOr<NonnullRefPtr<WebWorkerClient>> launch_web_worker_process(Web::Bindings:
         arguments.append(server.value());
     }
 
-    return launch_server_process<WebWorkerClient>("WebWorker"sv, move(arguments), agent_id);
+    return launch_server_process<WebWorkerClient>("WebWorker"sv, move(arguments), is_private, agent_id);
 }
 
 ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process()
