@@ -2971,11 +2971,7 @@ HANDLE_INSTRUCTION(memory_init)
     if (count == 0)
         TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 
-    for (size_t i = 0; i < (size_t)count; ++i) {
-        auto value = data.data()[source_offset + i];
-        if (interpreter.store_to_memory(*memory, destination_offset + i, value))
-            return Outcome::Return;
-    }
+    memory->data().overwrite(destination_offset, data.data().data() + source_offset, count);
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 

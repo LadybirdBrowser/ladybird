@@ -612,8 +612,15 @@ public:
     ReadonlyBytes bytes() const { return { data(), size() }; }
     Bytes span() { return bytes(); }
     ReadonlyBytes span() const { return bytes(); }
-    u8* offset_pointer(size_t offset) { return GC::PrimitiveStorage::the().data(m_handle, offset); }
-    u8 const* offset_pointer(size_t offset) const { return GC::PrimitiveStorage::the().data(m_handle, offset); }
+    u8* offset_pointer(size_t offset)
+    {
+        if (m_storage_offset == GC::PrimitiveStorage::invalid_offset)
+            return nullptr;
+        auto* cage_base = GC::PrimitiveStorage::the().cage_base();
+        VERIFY(cage_base);
+        return cage_base + GC::PrimitiveStorage::mask_offset(m_storage_offset + offset);
+    }
+    u8 const* offset_pointer(size_t offset) const { return const_cast<MemoryBuffer&>(*this).offset_pointer(offset); }
     u8& operator[](size_t index) { return *offset_pointer(index); }
     u8 const& operator[](size_t index) const { return *offset_pointer(index); }
     size_t contiguous_bytes_from(size_t offset, size_t count) const;
