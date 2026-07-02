@@ -528,7 +528,7 @@ void WebContentClient::maybe_record_history_visit_for_current_load(u64 page_id, 
 
     // Title and favicon updates already give us a useful history entry, so
     // do not wait for did_finish_loading() on pages that never reach it.
-    Application::history_store().record_visit(url, move(title));
+    Application::history_store(m_is_private).record_visit(url, move(title));
     m_history_recorded_urls_for_current_load.set(page_id, normalized_url.release_value());
 }
 
@@ -668,9 +668,9 @@ void WebContentClient::did_finish_loading(u64 page_id, URL::URL url)
 
             maybe_record_history_visit_for_current_load(page_id, url, title, "load finish"sv);
             if (title.has_value())
-                Application::history_store().update_title(url, *title);
+                Application::history_store(m_is_private).update_title(url, *title);
             if (view->favicon_base64_png().has_value())
-                Application::history_store().update_favicon(url, *view->favicon_base64_png());
+                Application::history_store(m_is_private).update_favicon(url, *view->favicon_base64_png());
         }
 
         view->did_finish_navigation(client_url);
@@ -754,7 +754,7 @@ void WebContentClient::did_change_title(u64 page_id, Utf16String title)
                 view->url(),
                 title_utf8);
 
-            Application::history_store().update_title(view->url(), title_utf8);
+            Application::history_store(m_is_private).update_title(view->url(), title_utf8);
         }
 
         if (title.is_empty())
@@ -1240,23 +1240,23 @@ void WebContentClient::did_request_document_cookie_version_index(u64 page_id, i6
 
 Messages::WebContentClient::DidRequestAllCookiesWebdriverResponse WebContentClient::did_request_all_cookies_webdriver(URL::URL url)
 {
-    return Application::cookie_jar().get_all_cookies_webdriver(url);
+    return Application::cookie_jar(m_is_private).get_all_cookies_webdriver(url);
 }
 
 Messages::WebContentClient::DidRequestAllCookiesCookiestoreResponse WebContentClient::did_request_all_cookies_cookiestore(URL::URL url)
 {
-    return Application::cookie_jar().get_all_cookies_cookiestore(url);
+    return Application::cookie_jar(m_is_private).get_all_cookies_cookiestore(url);
 }
 
 Messages::WebContentClient::DidRequestNamedCookieResponse WebContentClient::did_request_named_cookie(URL::URL url, String name)
 {
-    return Application::cookie_jar().get_named_cookie(url, name);
+    return Application::cookie_jar(m_is_private).get_named_cookie(url, name);
 }
 
 Messages::WebContentClient::DidRequestCookieResponse WebContentClient::did_request_cookie(u64 page_id, URL::URL url, HTTP::Cookie::Source source)
 {
     HTTP::Cookie::VersionedCookie cookie;
-    cookie.cookie = Application::cookie_jar().get_cookie(url, source);
+    cookie.cookie = Application::cookie_jar(m_is_private).get_cookie(url, source);
 
     if (source == HTTP::Cookie::Source::NonHttp) {
         if (auto view = view_for_page_id(page_id); view.has_value())
@@ -1268,63 +1268,63 @@ Messages::WebContentClient::DidRequestCookieResponse WebContentClient::did_reque
 
 void WebContentClient::did_set_cookie(URL::URL url, HTTP::Cookie::ParsedCookie cookie, HTTP::Cookie::Source source)
 {
-    Application::cookie_jar().set_cookie(url, cookie, source);
+    Application::cookie_jar(m_is_private).set_cookie(url, cookie, source);
 }
 
 void WebContentClient::did_update_cookie(HTTP::Cookie::Cookie cookie)
 {
-    Application::cookie_jar().update_cookie(cookie);
+    Application::cookie_jar(m_is_private).update_cookie(cookie);
 }
 
 void WebContentClient::did_expire_cookies_with_time_offset(AK::Duration offset)
 {
-    Application::cookie_jar().expire_cookies_with_time_offset(offset);
+    Application::cookie_jar(m_is_private).expire_cookies_with_time_offset(offset);
 }
 
 void WebContentClient::did_request_delete_all_cookies(u64 page_id, u64 request_id, URL::URL url)
 {
-    Application::cookie_jar().delete_all_cookies(url);
+    Application::cookie_jar(m_is_private).delete_all_cookies(url);
     async_did_delete_all_cookies(page_id, request_id);
 }
 
 void WebContentClient::did_store_hsts_policy(String domain, HTTP::HSTS::ParsedHSTSPolicy policy)
 {
-    Application::hsts_store().store_policy(domain, policy);
+    Application::hsts_store(m_is_private).store_policy(domain, policy);
 }
 
 Messages::WebContentClient::DidIsKnownHstsHostResponse WebContentClient::did_is_known_hsts_host(String domain)
 {
-    return Application::hsts_store().is_known_hsts_host(domain);
+    return Application::hsts_store(m_is_private).is_known_hsts_host(domain);
 }
 
 Messages::WebContentClient::DidRequestStorageItemResponse WebContentClient::did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, String bottle_key)
 {
-    return Application::storage_jar().get_item(storage_endpoint, storage_key, bottle_key);
+    return Application::storage_jar(m_is_private).get_item(storage_endpoint, storage_key, bottle_key);
 }
 
 Messages::WebContentClient::DidSetStorageItemResponse WebContentClient::did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, String bottle_key, String value)
 {
-    return Application::storage_jar().set_item(storage_endpoint, storage_key, bottle_key, value);
+    return Application::storage_jar(m_is_private).set_item(storage_endpoint, storage_key, bottle_key, value);
 }
 
 void WebContentClient::did_remove_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, String bottle_key)
 {
-    Application::storage_jar().remove_item(storage_endpoint, storage_key, bottle_key);
+    Application::storage_jar(m_is_private).remove_item(storage_endpoint, storage_key, bottle_key);
 }
 
 Messages::WebContentClient::DidRequestStorageKeysResponse WebContentClient::did_request_storage_keys(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key)
 {
-    return Application::storage_jar().get_all_keys(storage_endpoint, storage_key);
+    return Application::storage_jar(m_is_private).get_all_keys(storage_endpoint, storage_key);
 }
 
 void WebContentClient::did_clear_storage(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key)
 {
-    Application::storage_jar().clear_storage_key(storage_endpoint, storage_key);
+    Application::storage_jar(m_is_private).clear_storage_key(storage_endpoint, storage_key);
 }
 
 Messages::WebContentClient::DidRequestStorageUsageResponse WebContentClient::did_request_storage_usage(String storage_key)
 {
-    return Application::storage_jar().usage(storage_key);
+    return Application::storage_jar(m_is_private).usage(storage_key);
 }
 
 void WebContentClient::did_change_storage_item(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String url, Optional<String> key, Optional<String> old_value, Optional<String> new_value)
@@ -1363,6 +1363,8 @@ void WebContentClient::did_post_broadcast_channel_message(u64, Web::HTML::Broadc
 {
     WebContentClient::for_each_client([&](auto& client) {
         if (client.pid() == message.source_process_id)
+            return IterationDecision::Continue;
+        if (client.is_private() != m_is_private)
             return IterationDecision::Continue;
         client.async_broadcast_channel_message(message);
         return IterationDecision::Continue;

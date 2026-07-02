@@ -9,6 +9,7 @@
 #include <LibURL/Parser.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/HistoryStore.h>
+#include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebUI/HistoryUI.h>
 
 #include <algorithm>
@@ -75,7 +76,7 @@ void HistoryUI::load_history_entries(JsonValue const& data)
     else
         limit = DEFAULT_HISTORY_PAGE_SIZE;
 
-    auto entries = Application::history_store().list_entries(query, offset, *limit + 1);
+    auto entries = Application::history_store(client().is_private()).list_entries(query, offset, *limit + 1);
     auto has_more = entries.size() > *limit;
     if (has_more)
         entries.resize(*limit);
@@ -108,7 +109,7 @@ void HistoryUI::remove_history_entry(JsonValue const& data)
     if (!parsed_url.has_value())
         return;
 
-    Application::history_store().remove_entry_for_url(*parsed_url);
+    Application::history_store(client().is_private()).remove_entry_for_url(*parsed_url);
 }
 
 void HistoryUI::forget_history_site(JsonValue const& data)
@@ -124,7 +125,7 @@ void HistoryUI::forget_history_site(JsonValue const& data)
     if (!parsed_url.has_value())
         return;
 
-    Application::history_store().remove_entries_for_same_site(*parsed_url);
+    Application::history_store(client().is_private()).remove_entries_for_same_site(*parsed_url);
 }
 
 }

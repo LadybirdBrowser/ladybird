@@ -33,6 +33,8 @@ public:
 protected:
     WebUI(WebContentClient&, NonnullOwnPtr<IPC::Transport>, String host);
 
+    WebContentClient& client() const { return m_client; }
+
     using Interface = Function<void(JsonValue)>;
 
     virtual void register_interfaces() { }

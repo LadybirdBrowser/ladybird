@@ -2082,15 +2082,17 @@ void Application::traverse_the_history_by_delta(DevTools::TabDescription const& 
 
 Vector<HTTP::Cookie::Cookie> Application::cookies(DevTools::TabDescription const& description) const
 {
-    if (!ViewImplementation::find_view_by_id(description.id).has_value())
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value())
         return {};
 
-    return Application::cookie_jar().get_all_cookies();
+    return Application::cookie_jar(view->is_private()).get_all_cookies();
 }
 
 ErrorOr<void> Application::set_cookie(DevTools::TabDescription const& description, Optional<HTTP::Cookie::Cookie> old_cookie, HTTP::Cookie::Cookie cookie) const
 {
-    if (!ViewImplementation::find_view_by_id(description.id).has_value())
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value())
         return Error::from_string_literal("Unable to locate tab");
 
     auto url = URL::Parser::basic_parse(description.url);
@@ -2101,17 +2103,18 @@ ErrorOr<void> Application::set_cookie(DevTools::TabDescription const& descriptio
     if (old_cookie.has_value())
         old_key = CookieStorageKey { old_cookie->name, old_cookie->domain, old_cookie->path };
 
-    TRY(Application::cookie_jar().set_cookie_from_devtools(*url, move(old_key), move(cookie)));
+    TRY(Application::cookie_jar(view->is_private()).set_cookie_from_devtools(*url, move(old_key), move(cookie)));
     return {};
 }
 
 void Application::delete_cookies(DevTools::TabDescription const& description, Vector<HTTP::Cookie::Cookie> cookies) const
 {
-    if (!ViewImplementation::find_view_by_id(description.id).has_value())
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value())
         return;
 
     for (auto const& cookie : cookies)
-        Application::cookie_jar().delete_cookie({ cookie.name, cookie.domain, cookie.path });
+        Application::cookie_jar(view->is_private()).delete_cookie({ cookie.name, cookie.domain, cookie.path });
 }
 
 void Application::listen_for_host_cookie_changes(DevTools::TabDescription const& description, OnHostCookieChange on_host_cookie_change) const
@@ -2162,7 +2165,7 @@ ErrorOr<Optional<String>> Application::set_storage_item(DevTools::TabDescription
         return TRY(storage_set_result_to_error_or_old_value(result.release_value()));
     }
 
-    auto old_value = TRY(storage_set_result_to_error_or_old_value(Application::storage_jar().set_item(storage_endpoint, storage_key, key, value)));
+    auto old_value = TRY(storage_set_result_to_error_or_old_value(Application::storage_jar(view->is_private()).set_item(storage_endpoint, storage_key, key, value)));
     if (!old_value.has_value()) {
         view->notify_storage_changed({ storage_endpoint, storage_key, DevTools::DevToolsDelegate::StorageChange::Type::Added, key });
     } else if (*old_value != value) {
@@ -2181,11 +2184,11 @@ ErrorOr<Optional<String>> Application::remove_storage_item(DevTools::TabDescript
     if (storage_endpoint == Web::StorageAPI::StorageEndpointType::SessionStorage)
         return view->remove_session_storage_item(key);
 
-    auto old_value = Application::storage_jar().get_item(storage_endpoint, storage_key, key);
+    auto old_value = Application::storage_jar(view->is_private()).get_item(storage_endpoint, storage_key, key);
     if (!old_value.has_value())
         return Optional<String> {};
 
-    Application::storage_jar().remove_item(storage_endpoint, storage_key, key);
+    Application::storage_jar(view->is_private()).remove_item(storage_endpoint, storage_key, key);
     view->notify_storage_changed({ storage_endpoint, storage_key, DevTools::DevToolsDelegate::StorageChange::Type::Deleted, key });
     return old_value;
 }
@@ -2201,11 +2204,11 @@ ErrorOr<void> Application::clear_storage(DevTools::TabDescription const& descrip
         return {};
     }
 
-    auto keys = Application::storage_jar().get_all_keys(storage_endpoint, storage_key);
+    auto keys = Application::storage_jar(view->is_private()).get_all_keys(storage_endpoint, storage_key);
     if (keys.is_empty())
         return {};
 
-    Application::storage_jar().clear_storage_key(storage_endpoint, storage_key);
+    Application::storage_jar(view->is_private()).clear_storage_key(storage_endpoint, storage_key);
     view->notify_storage_changed({ storage_endpoint, storage_key, DevTools::DevToolsDelegate::StorageChange::Type::Cleared, {} });
     return {};
 }
