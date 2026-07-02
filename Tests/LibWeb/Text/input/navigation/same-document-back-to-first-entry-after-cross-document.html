@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A same-document back-traversal to the first history entry — after a cross-document navigation — must not crash.
+    // Sequence driven inside an iframe: home -> #about (same-document) -> news (cross-document) -> back -> back.
+    // The final back traverses to "home" (the first entry), which was wrongly dropped from the Navigation API entry
+    // list — tripping an assert in update_the_navigation_api_entries_for_a_same_document_navigation. See #8700.
+    asyncTest(async done => {
+        const server = httpTestServer();
+
+        // The same phase driver runs in both pages; the phase is kept in
+        // sessionStorage so it survives the cross-document navigations.
+        const driver = newsUrl => `
+            let phase = +(sessionStorage.getItem("p") || "0");
+            function act() {
+                phase++;
+                sessionStorage.setItem("p", "" + phase);
+                if (phase === 1) { location.hash = "about"; setTimeout(act, 100); }
+                else if (phase === 2) { location.href = "${newsUrl}"; }
+                else if (phase === 3) { history.back(); }
+                else if (phase === 4) { history.back(); setTimeout(() => parent.postMessage("PASS", "*"), 250); }
+            }
+            addEventListener("load", () => setTimeout(act, 100));
+        `;
+
+        const newsUrl = await server.createEcho("GET", "/nav-8700-news", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html>news<script>${driver("")}<\/script>`,
+        });
+        const homeUrl = await server.createEcho("GET", "/nav-8700-home", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html>home<script>${driver(newsUrl)}<\/script>`,
+        });
+
+        const iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+        const result = await new Promise(resolve => {
+            window.addEventListener("message", event => {
+                if (event.source === iframe.contentWindow && event.data === "PASS")
+                    resolve("PASS");
+            });
+            iframe.src = homeUrl;
+        });
+        iframe.remove();
+        println(result);
+        done();
+    });
+</script>
