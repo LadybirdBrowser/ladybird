@@ -188,6 +188,10 @@
       "name": "vulkan-headers",
       "platform": "linux | bsd | android"
     },
+    {
+      "name": "vulkan-memory-allocator",
+      "platform": "linux | bsd | android"
+    },
     "woff2",
     "wuffs",
     "zlib"
@@ -418,7 +422,7 @@
     },
     {
       "name": "skia",
-      "version": "144#0"
+      "version": "148#0"
     },
     {
       "name": "sqlite3",
@@ -435,6 +439,10 @@
     {
       "name": "vulkan-headers",
       "version": "1.4.335.0#0"
+    },
+    {
+      "name": "vulkan-memory-allocator",
+      "version": "3.3.0#0"
     },
     {
       "name": "wayland",

@@ -49,7 +49,7 @@ private:
     void play_command(ApplyEffects const&, Gfx::Filter const*) override;
     void apply_transform(Gfx::FloatPoint origin, Gfx::FloatMatrix4x4 const&) override;
 
-    void add_clip_path(Gfx::Path const&) override;
+    void add_clip_path(Gfx::Path const&, Gfx::WindingRule) override;
 
     bool would_be_fully_clipped_by_painter(Gfx::IntRect) const override;
 

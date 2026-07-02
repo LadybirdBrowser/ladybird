@@ -69,7 +69,7 @@ private:
     virtual void apply_transform(Gfx::FloatPoint origin, Gfx::FloatMatrix4x4 const&) = 0;
     virtual bool would_be_fully_clipped_by_painter(Gfx::IntRect) const = 0;
 
-    virtual void add_clip_path(Gfx::Path const&) = 0;
+    virtual void add_clip_path(Gfx::Path const&, Gfx::WindingRule) = 0;
 
     DisplayList const* m_active_display_list { nullptr };
     AccumulatedVisualContextTree const* m_active_visual_context_tree { nullptr };

@@ -519,8 +519,8 @@
         {
           "type": "git",
           "url": "https://skia.googlesource.com/skia.git",
-          "commit": "cd0c5f445516ea4e90e02b5f634cbc5ca23b5a44",
-          "x-branch": "chrome/m144"
+          "commit": "e7c90ecca9444fe09598f1630ab7cee2c0ee027a",
+          "x-branch": "chrome/m148"
         },
         {
           "type": "file",

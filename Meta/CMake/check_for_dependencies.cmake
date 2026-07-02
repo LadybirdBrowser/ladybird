@@ -53,6 +53,7 @@ if (NOT APPLE AND NOT WIN32)
     if (VulkanHeaders_FOUND AND Vulkan_FOUND)
         set(HAS_VULKAN ON CACHE BOOL "" FORCE)
         add_cxx_compile_definitions(USE_VULKAN=1)
+        find_package(VulkanMemoryAllocator CONFIG REQUIRED)
 
         # Sharable Vulkan images are currently only implemented on Linux and BSDs
         if (((LINUX AND NOT ANDROID) OR BSD) AND GLSLANG_VALIDATOR)

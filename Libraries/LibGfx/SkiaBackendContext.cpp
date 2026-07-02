@@ -20,9 +20,11 @@
 #ifdef USE_DIRECTX
 #    include <AK/Windows.h>
 #    include <gpu/ganesh/d3d/GrD3DBackendContext.h>
+#    include <gpu/ganesh/d3d/GrD3DDirectContext.h>
 #endif
 
 #ifdef USE_VULKAN
+#    include <LibGfx/SkiaVulkanMemoryAllocator.h>
 #    include <gpu/ganesh/vk/GrVkDirectContext.h>
 #    include <gpu/vk/VulkanBackendContext.h>
 #    include <gpu/vk/VulkanExtensions.h>
@@ -208,7 +210,7 @@ RefPtr<SkiaBackendContext> SkiaBackendContext::create_direct3d_context(NonnullRe
     backend_context.fQueue.retain(direct3d_context->queue());
     backend_context.fProtectedContext = GrProtected::kNo;
 
-    auto context = GrDirectContext::MakeDirect3D(backend_context);
+    auto context = GrDirectContexts::MakeD3D(backend_context);
     if (!context) {
         dbgln("Skia Direct3D context creation failed");
         return {};
@@ -290,6 +292,9 @@ RefPtr<SkiaBackendContext> SkiaBackendContext::create_vulkan_context(VulkanConte
 
     auto extensions = make<skgpu::VulkanExtensions>();
     backend_context.fVkExtensions = extensions.ptr();
+
+    backend_context.fMemoryAllocator = create_skia_vulkan_memory_allocator(vulkan_context);
+    VERIFY(backend_context.fMemoryAllocator);
 
     sk_sp<GrDirectContext> ctx = GrDirectContexts::MakeVulkan(backend_context);
     VERIFY(ctx);

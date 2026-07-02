@@ -64,7 +64,7 @@ if (HAS_DIRECTX)
 endif()
 
 if (HAS_VULKAN)
-    list(APPEND SOURCES VulkanContext.cpp VulkanImage.cpp)
+    list(APPEND SOURCES SkiaVulkanMemoryAllocator.cpp VulkanContext.cpp VulkanImage.cpp)
 endif()
 
 if (HAS_FONTCONFIG)
@@ -105,6 +105,7 @@ endif()
 
 if (HAS_VULKAN)
     target_link_libraries(LibCore PUBLIC Vulkan::Vulkan Vulkan::Headers)
+    target_link_libraries(LibGfx PRIVATE GPUOpen::VulkanMemoryAllocator)
 
     if (USE_VULKAN_DMABUF_IMAGES)
         pkg_check_modules(LibDRM REQUIRED libdrm)
