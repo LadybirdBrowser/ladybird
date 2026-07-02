@@ -68,7 +68,7 @@ private:
     void allocate_iosurface_painting_surface();
 #endif
 #if defined(USE_VULKAN_DMABUF_IMAGES)
-    void allocate_vkimage_painting_surface();
+    bool allocate_vkimage_painting_surface();
 #endif
 #if defined(AK_OS_MACOS) || (defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID))
     void allocate_cpu_painting_surface();

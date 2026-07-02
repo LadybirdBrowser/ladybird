@@ -360,7 +360,7 @@ void OpenGLContext::allocate_iosurface_painting_surface()
 #endif
 
 #ifdef USE_VULKAN_DMABUF_IMAGES
-void OpenGLContext::allocate_vkimage_painting_surface()
+bool OpenGLContext::allocate_vkimage_painting_surface()
 {
     VERIFY(m_skia_backend_context);
 
@@ -374,7 +374,10 @@ void OpenGLContext::allocate_vkimage_painting_surface()
     Vector<EGLint> egl_formats;
     egl_formats.resize(num_formats);
     m_impl->ext_procs.query_dma_buf_formats(m_impl->display, num_formats, egl_formats.data(), &num_formats);
-    VERIFY(egl_formats.find(drm_format) != egl_formats.end());
+    if (egl_formats.find(drm_format) == egl_formats.end()) {
+        dbgln("Compositor: DMABUF format {:#x} is not supported by this driver; falling back to a CPU painting surface", drm_format);
+        return false;
+    }
 
     EGLint num_modifiers = 0;
     m_impl->ext_procs.query_dma_buf_modifiers(m_impl->display, drm_format, 0, nullptr, nullptr, &num_modifiers);
@@ -390,7 +393,12 @@ void OpenGLContext::allocate_vkimage_painting_surface()
         }
     }
 
-    auto vulkan_image = MUST(Gfx::create_shared_vulkan_image(m_skia_backend_context->vulkan_context(), m_size.width(), m_size.height(), vulkan_format, renderable_modifiers));
+    auto vulkan_image_or_error = Gfx::create_shared_vulkan_image(m_skia_backend_context->vulkan_context(), m_size.width(), m_size.height(), vulkan_format, renderable_modifiers);
+    if (vulkan_image_or_error.is_error()) {
+        dbgln("Compositor: create_shared_vulkan_image failed ({}); falling back to a CPU painting surface", vulkan_image_or_error.error());
+        return false;
+    }
+    auto vulkan_image = vulkan_image_or_error.release_value();
     m_painting_surface = Gfx::PaintingSurface::create_from_vkimage(*m_skia_backend_context, vulkan_image, Gfx::PaintingSurface::Origin::BottomLeft);
 
     EGLAttrib attribs[] = {
@@ -413,7 +421,10 @@ void OpenGLContext::allocate_vkimage_painting_surface()
         EGL_NONE,
     };
     m_impl->egl_image = eglCreateImage(m_impl->display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, nullptr, attribs);
-    VERIFY(m_impl->egl_image != EGL_NO_IMAGE);
+    if (m_impl->egl_image == EGL_NO_IMAGE) {
+        dbgln("Compositor: eglCreateImage for the DMABUF failed; falling back to a CPU painting surface");
+        return false;
+    }
 
     m_impl->surface = EGL_NO_SURFACE;
     eglMakeCurrent(m_impl->display, m_impl->surface, m_impl->surface, m_impl->context);
@@ -423,6 +434,8 @@ void OpenGLContext::allocate_vkimage_painting_surface()
     glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, m_impl->egl_image);
 
     glViewport(0, 0, m_size.width(), m_size.height());
+
+    return true;
 }
 #endif
 
@@ -540,11 +553,16 @@ void OpenGLContext::allocate_painting_surface_if_needed()
 #        if defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)
     if (m_impl->uses_cpu_painting_surface) {
         allocate_cpu_painting_surface();
-    } else
-#        endif
-    {
-        allocate_vkimage_painting_surface();
+    } else if (!allocate_vkimage_painting_surface()) {
+        // This driver advertises the DMABUF EGL extensions but can't actually allocate a Vulkan/DMABUF painting surface
+        // (unsupported format, modifier, or image import). Fall back to a CPU painting surface.
+        m_impl->uses_cpu_painting_surface = true;
+        free_surface_resources();
+        allocate_cpu_painting_surface();
     }
+#        else
+    (void)allocate_vkimage_painting_surface();
+#        endif
 #    elif defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)
     allocate_cpu_painting_surface();
 #    endif
