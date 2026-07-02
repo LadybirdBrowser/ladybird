@@ -6,6 +6,7 @@
 
 #include <AK/Checked.h>
 #include <AK/ScopeGuard.h>
+#include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
 #include <LibCore/System.h>
 #include <LibRequests/Request.h>
@@ -71,13 +72,7 @@ bool Request::stop()
     auto had_active_request = m_client->stop_request({}, *this);
     auto on_stop = move(m_on_stop);
 
-    on_headers_received = nullptr;
-    on_finish = nullptr;
-    on_certificate_requested = nullptr;
-
-    m_internal_buffered_data = nullptr;
-    m_internal_stream_data = nullptr;
-    m_mode = Mode::Unknown;
+    defer_teardown();
 
     if (had_active_request && on_stop)
         on_stop();
@@ -275,16 +270,24 @@ void Request::did_transfer(Badge<RequestClient>)
 {
     auto on_stop = move(m_on_stop);
 
-    on_headers_received = nullptr;
-    on_finish = nullptr;
-    on_certificate_requested = nullptr;
-
-    m_internal_buffered_data = nullptr;
-    m_internal_stream_data = nullptr;
-    m_mode = Mode::Unknown;
+    defer_teardown();
 
     if (on_stop)
         on_stop();
+}
+
+void Request::defer_teardown()
+{
+    if (m_internal_stream_data && m_internal_stream_data->read_notifier)
+        m_internal_stream_data->read_notifier->set_enabled(false);
+    m_mode = Mode::Unknown;
+    Core::deferred_invoke([self = NonnullRefPtr(*this)] {
+        self->on_headers_received = nullptr;
+        self->on_finish = nullptr;
+        self->on_certificate_requested = nullptr;
+        self->m_internal_buffered_data = nullptr;
+        self->m_internal_stream_data = nullptr;
+    });
 }
 
 void Request::set_up_internal_stream_data(DataReceived on_data_available)
