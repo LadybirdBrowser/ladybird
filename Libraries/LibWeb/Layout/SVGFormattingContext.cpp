@@ -380,6 +380,17 @@ void SVGFormattingContext::layout_nested_viewport(Box const& viewport, Gfx::Affi
     auto nested_viewport_width = resolve_dimension(viewport.computed_values().width(), m_viewport_size.width());
     auto nested_viewport_height = resolve_dimension(viewport.computed_values().height(), m_viewport_size.height());
 
+    if (auto const* svg_svg_box = as_if<SVGSVGBox>(viewport); svg_svg_box && !nested_viewport_state.computed_svg_transforms().has_value()) {
+        // https://svgwg.org/svg2-draft/coords.html#EstablishingANewSVGViewport
+        // Including an svg element inside SVG content creates a new SVG viewport into which all contained graphics are
+        // drawn; this implicitly establishes both a new viewport coordinate system and a new user coordinate system.
+        auto const& svg_graphics_element = as<SVG::SVGGraphicsElement>(*viewport.dom_node());
+        auto svg_transform = parent_svg_transform;
+        svg_transform.multiply(svg_graphics_element.element_transform());
+        nested_viewport_state.set_computed_svg_transforms(
+            Painting::SVGGraphicsPaintable::ComputedTransforms(m_current_viewbox_transform, svg_transform));
+    }
+
     CSSPixelPoint content_offset { nested_viewport_x, nested_viewport_y };
     auto content_width = nested_viewport_width;
     auto content_height = nested_viewport_height;

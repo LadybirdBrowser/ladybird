@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/translate-relative-to-viewbox-ref.html" />
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewbox="0 0 1000 1000">
+    <circle cx="50" cy="50" r="25" fill="blue" style="translate: 50px 200px" />
+    <rect x="500" y="700" width="100" height="100" fill="red"></rect>
+    <svg x="100" y="100" width="500" height="500" viewBox="0 0 50 50" style="translate: 400px 600px">
+        <rect id="target" width="10" height="10" fill="blue"></rect>
+    </svg>
+</svg>

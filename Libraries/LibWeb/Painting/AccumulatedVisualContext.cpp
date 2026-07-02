@@ -22,6 +22,9 @@
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/ResolvedCSSFilter.h>
+#include <LibWeb/Painting/SVGForeignObjectPaintable.h>
+#include <LibWeb/Painting/SVGGraphicsPaintable.h>
+#include <LibWeb/Painting/SVGSVGPaintable.h>
 #include <LibWeb/Painting/ScrollState.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 
@@ -87,6 +90,17 @@ static TransformData visual_viewport_transform_data(DOM::Document& document)
     return TransformData { matrix, { 0.f, 0.f } };
 }
 
+static Optional<Gfx::AffineTransform> svg_to_css_pixels_transform(PaintableBox const& paintable_box)
+{
+    if (auto const* svg_graphics_paintable = as_if<SVGGraphicsPaintable>(paintable_box))
+        return svg_graphics_paintable->computed_transforms().svg_to_css_pixels_transform();
+    if (auto const* svg_foreign_object_paintable = as_if<SVGForeignObjectPaintable>(paintable_box))
+        return svg_foreign_object_paintable->computed_transforms().svg_to_css_pixels_transform();
+    if (auto const* svg_svg_paintable = as_if<SVGSVGPaintable>(paintable_box))
+        return svg_svg_paintable->computed_transforms().svg_to_css_pixels_transform();
+    return {};
+}
+
 // https://drafts.csswg.org/css-transforms-2/#ctm
 Optional<TransformData> compute_transform(PaintableBox const& paintable_box, CSS::ComputedValues const& computed_values, double pixel_ratio)
 {
@@ -125,6 +139,13 @@ Optional<TransformData> compute_transform(PaintableBox const& paintable_box, CSS
 
     // 8. Translate by the negated computed X, Y and Z values of transform-origin.
     matrix = matrix * Gfx::translation_matrix(Vector3 { 0.f, 0.f, -origin_z });
+
+    // https://svgwg.org/svg2-draft/coords.html#ViewBoxAttribute
+    // The presence of the viewBox attribute results in a transformation being applied to the viewport coordinate system
+    if (auto svg_to_css_pixels = svg_to_css_pixels_transform(paintable_box); svg_to_css_pixels.has_value() && !svg_to_css_pixels->is_identity()) {
+        if (auto inverse_svg_to_css_pixels = svg_to_css_pixels->inverse(); inverse_svg_to_css_pixels.has_value())
+            matrix = svg_to_css_pixels->to_matrix() * matrix * inverse_svg_to_css_pixels->to_matrix();
+    }
 
     auto origin = reference_box.location() + CSSPixelPoint { origin_x, origin_y };
     auto scale = static_cast<float>(pixel_ratio);
