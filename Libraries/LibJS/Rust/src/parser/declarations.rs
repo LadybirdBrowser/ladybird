@@ -1442,6 +1442,18 @@ impl Parser<'_> {
     //                      | `[` BindingElementList `]`
     //                      | `[` BindingElementList `,` Elision? BindingRestElement? `]`
     pub(crate) fn parse_binding_pattern(&mut self) -> BindingPattern {
+        if !self.enter_recursion() {
+            return BindingPattern {
+                kind: BindingPatternKind::Object,
+                entries: Vec::new(),
+            };
+        }
+        let pattern = self.parse_binding_pattern_inner();
+        self.leave_recursion();
+        pattern
+    }
+
+    fn parse_binding_pattern_inner(&mut self) -> BindingPattern {
         let is_object = self.match_token(TokenType::CurlyOpen);
         let is_array = self.match_token(TokenType::BracketOpen);
         if !is_object && !is_array {

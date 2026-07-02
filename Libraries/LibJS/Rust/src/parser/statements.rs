@@ -26,6 +26,16 @@ enum LocalForInit {
 
 impl Parser<'_> {
     pub(crate) fn parse_statement(&mut self, allow_labelled_function: bool) -> Statement {
+        if !self.enter_recursion() {
+            let start = self.position();
+            return self.statement(start, StatementKind::Error);
+        }
+        let statement = self.parse_statement_inner(allow_labelled_function);
+        self.leave_recursion();
+        statement
+    }
+
+    fn parse_statement_inner(&mut self, allow_labelled_function: bool) -> Statement {
         let start = self.position();
         let tt = self.current_token_type();
 
