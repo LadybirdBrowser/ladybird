@@ -50,6 +50,7 @@
 #endif
 
 #if !defined(AK_OS_WINDOWS)
+#    include <signal.h>
 #    include <sys/wait.h>
 #endif
 
@@ -125,6 +126,11 @@ Application::~Application()
     // Explicitly delete the observers first, as the observer destructors will refer to Application::the().
     m_settings_observer.clear();
     m_bookmark_store_observer.clear();
+#if !defined(AK_OS_WINDOWS)
+    if (m_termination_signal_handler.has_value())
+        Core::EventLoop::unregister_signal(*m_termination_signal_handler);
+#endif
+    shutdown_request_server();
     if (m_compositor_client)
         m_compositor_client->on_death = nullptr;
 
@@ -481,6 +487,11 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     initialize_actions();
 
     m_event_loop = &create_platform_event_loop();
+#if !defined(AK_OS_WINDOWS)
+    m_termination_signal_handler = Core::EventLoop::register_signal(SIGTERM, [this](int) {
+        m_event_loop->quit(0);
+    });
+#endif
     TRY(launch_services());
 
     return {};
@@ -1002,6 +1013,34 @@ ErrorOr<void> Application::launch_request_server()
         m_settings.set_dns_settings(m_browser_options.dns_settings.value(), true);
 
     return {};
+}
+
+void Application::shutdown_request_server()
+{
+    if (!m_request_server_client)
+        return;
+
+    m_request_server_client->on_request_server_died = nullptr;
+    if (m_request_server_client->is_open())
+        m_request_server_client->async_close_server();
+
+    Vector<pid_t> request_server_pids;
+    if (m_process_manager) {
+        m_process_manager->for_each_process([&](Process& process) {
+            if (process.type() == ProcessType::RequestServer)
+                request_server_pids.append(process.pid());
+        });
+    }
+
+    for (auto request_server_pid : request_server_pids) {
+        auto request_server_process = m_process_manager->remove_process(request_server_pid);
+        if (request_server_process.has_value()) {
+            if (auto result = request_server_process->wait_for_termination(); result.is_error())
+                dbgln("Failed to wait for RequestServer process {} to exit: {}", request_server_pid, result.error());
+        }
+    }
+
+    m_request_server_client = nullptr;
 }
 
 ErrorOr<void> Application::launch_image_decoder_server()

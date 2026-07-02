@@ -201,6 +201,12 @@ Messages::RequestServer::ConnectNewClientsResponse ConnectionFromClient::connect
     return handles;
 }
 
+void ConnectionFromClient::close_server()
+{
+    // FIXME: Wait for other clients to disconnect before exiting, rather than abandoning their in-flight requests.
+    Core::EventLoop::current().quit(0);
+}
+
 ErrorOr<IPC::TransportHandle> ConnectionFromClient::create_client_socket()
 {
     auto paired = TRY(IPC::Transport::create_paired());

@@ -51,6 +51,7 @@ private:
     virtual Messages::RequestServer::InitTransportResponse init_transport(int peer_pid) override;
     virtual Messages::RequestServer::ConnectNewClientResponse connect_new_client() override;
     virtual Messages::RequestServer::ConnectNewClientsResponse connect_new_clients(size_t count) override;
+    virtual void close_server() override;
 
     virtual void set_disk_cache_settings(HTTP::DiskCacheSettings) override;
 

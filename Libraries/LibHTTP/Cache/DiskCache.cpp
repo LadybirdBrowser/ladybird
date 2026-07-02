@@ -40,7 +40,7 @@ static ErrorOr<u64> compute_associated_data_size(LexicalPath const& cache_direct
     return associated_data_size;
 }
 
-static constexpr StringView cache_directory_for_mode(DiskCache::Mode mode)
+static ByteString cache_directory_for_mode(DiskCache::Mode mode)
 {
     switch (mode) {
     case DiskCache::Mode::Normal:
@@ -49,7 +49,7 @@ static constexpr StringView cache_directory_for_mode(DiskCache::Mode mode)
         // FIXME: Ideally, we could support multiple RequestServer processes using the same database by setting a
         //        reasonable busy timeout. We would also have to prevent multiple processes writing to the same cache
         //        entry file at the same time with some interprocess locking mechanism.
-        return "PartitionedCache"sv;
+        return ByteString::formatted("PartitionedCache-{}", Core::System::getpid());
     case DiskCache::Mode::Testing:
         return "TestCache"sv;
     }
@@ -59,6 +59,11 @@ static constexpr StringView cache_directory_for_mode(DiskCache::Mode mode)
 ErrorOr<DiskCache> DiskCache::create(Mode mode)
 {
     auto cache_directory = LexicalPath::join(Core::StandardPaths::cache_directory(), "Ladybird"sv, cache_directory_for_mode(mode));
+
+    // Remove any cache contents left behind by an earlier process that was assigned the same PID.
+    if (mode == DiskCache::Mode::Partitioned)
+        (void)FileSystem::remove(cache_directory.string(), FileSystem::RecursionMode::Allowed);
+
     TRY(Core::Directory::create(cache_directory, Core::Directory::CreateDirectories::Yes));
 
     auto database = mode == DiskCache::Mode::Normal
@@ -94,9 +99,16 @@ DiskCache& DiskCache::operator=(DiskCache&&) = default;
 
 DiskCache::~DiskCache()
 {
-    // Clean up cache directories in testing modes to prevent endless growth of disk usage.
-    if (m_mode != Mode::Normal)
+    // Clean up cache directories in non-persistent modes to prevent endless growth of disk usage.
+    if (m_mode == Mode::Testing)
         remove_entries_accessed_since(UnixDateTime::earliest());
+
+    if (m_mode != Mode::Partitioned)
+        return;
+
+    // NB: The cache directory is empty when this instance has been moved from.
+    if (auto const& cache_directory = m_cache_directory.string(); !cache_directory.is_empty())
+        (void)FileSystem::remove(cache_directory, FileSystem::RecursionMode::Allowed);
 }
 
 Variant<Optional<CacheEntryWriter&>, DiskCache::CacheHasOpenEntry> DiskCache::create_entry(CacheRequest& request, URL::URL const& url, StringView method, HeaderList const& request_headers, UnixDateTime request_start_time)

@@ -5,7 +5,11 @@
  */
 
 #include <AK/ByteBuffer.h>
+#include <AK/LexicalPath.h>
+#include <LibCore/Directory.h>
+#include <LibCore/File.h>
 #include <LibCore/ImmutableBytes.h>
+#include <LibFileSystem/FileSystem.h>
 #include <LibHTTP/Cache/CacheRequest.h>
 #include <LibHTTP/Cache/DiskCache.h>
 #include <LibHTTP/Cache/Utilities.h>
@@ -84,6 +88,52 @@ TEST_CASE(associated_data_round_trips_with_cache_entry)
 
     retrieved_bytecode = TRY_OR_FAIL(disk_cache.retrieve_associated_data(url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode));
     EXPECT(!retrieved_bytecode.has_value());
+}
+
+TEST_CASE(partitioned_cache_directory_is_removed_on_destruction)
+{
+    Optional<LexicalPath> cache_directory;
+
+    {
+        auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Partitioned));
+        cache_directory = disk_cache.cache_directory();
+
+        TestCacheRequest request;
+        auto url = parse_url("https://example.com/script.js"sv);
+        auto request_headers = create_cacheable_request_headers();
+        auto response_headers = create_cacheable_response_headers();
+
+        auto& writer = create_cache_entry(disk_cache, request, url, *request_headers);
+        TRY_OR_FAIL(writer.write_status_and_reason(200, "OK"_string, *request_headers, *response_headers));
+        TRY_OR_FAIL(writer.write_data("console.log('hello');"sv.bytes()));
+        TRY_OR_FAIL(writer.flush(request_headers, response_headers));
+
+        auto bytecode = TRY_OR_FAIL(ByteBuffer::copy("bytecode"sv.bytes()));
+        EXPECT(TRY_OR_FAIL(disk_cache.store_associated_data(url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, bytecode.bytes())));
+        EXPECT(FileSystem::exists(cache_directory->string()));
+    }
+
+    VERIFY(cache_directory.has_value());
+    EXPECT(!FileSystem::exists(cache_directory->string()));
+}
+
+TEST_CASE(creating_partitioned_cache_removes_leftover_directory_contents)
+{
+    Optional<LexicalPath> cache_directory;
+
+    {
+        auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Partitioned));
+        cache_directory = disk_cache.cache_directory();
+    }
+
+    // Simulate a leftover directory from an earlier process that was assigned the same PID.
+    auto stale_file = cache_directory->append("stale-entry"sv);
+    TRY_OR_FAIL(Core::Directory::create(*cache_directory, Core::Directory::CreateDirectories::Yes));
+    (void)TRY_OR_FAIL(Core::File::open(stale_file.string(), Core::File::OpenMode::Write));
+
+    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Partitioned));
+    EXPECT(!FileSystem::exists(stale_file.string()));
+    EXPECT(FileSystem::exists(cache_directory->string()));
 }
 
 TEST_CASE(replacing_cache_entry_removes_associated_data)

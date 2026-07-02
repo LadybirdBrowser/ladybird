@@ -264,6 +264,7 @@ private:
     void recover_compositor_process();
     void crash_compositor_process();
     ErrorOr<void> launch_request_server();
+    void shutdown_request_server();
     ErrorOr<void> launch_image_decoder_server();
     ErrorOr<void> launch_devtools_server();
     ErrorOr<void> load_content_blocker_lists();
@@ -390,6 +391,9 @@ private:
     OwnPtr<Core::TimeZoneWatcher> m_time_zone_watcher;
 
     Core::EventLoop* m_event_loop { nullptr };
+#if !defined(AK_OS_WINDOWS)
+    Optional<int> m_termination_signal_handler;
+#endif
     OwnPtr<ProcessManager> m_process_manager;
 
     RefPtr<Action> m_reload_action;
