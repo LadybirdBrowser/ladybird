@@ -26,6 +26,7 @@ if (ENABLE_GUI_TARGETS)
     add_subdirectory(LibMedia)
     add_subdirectory(LibWeb)
     add_subdirectory(LibWebView)
+    add_subdirectory(UI)
 endif()
 
 if (ENABLE_CLANG_PLUGINS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang$")

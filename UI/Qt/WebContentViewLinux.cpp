@@ -11,6 +11,7 @@
 #include <AK/Math.h>
 #include <AK/Optional.h>
 #include <LibGfx/SharedImageBuffer.h>
+#include <UI/Qt/NativeWindowContainer.h>
 #include <UI/Qt/WebContentView.h>
 
 #include <QByteArrayList>
@@ -805,8 +806,7 @@ struct WebContentView::VulkanWindowRenderer final : public QVulkanWindowRenderer
             && m_renderer.prepare(m_window)
             && m_renderer.can_render(*paintable->shared_image_buffer);
         if (!can_render) {
-            if (m_view.m_vulkan_window_container)
-                m_view.m_vulkan_window_container->hide();
+            m_view.set_vulkan_window_container_visible(false);
             m_view.update();
             m_window.frameReady();
             return;
@@ -847,8 +847,7 @@ struct WebContentView::VulkanWindowRenderer final : public QVulkanWindowRenderer
 
         vkCmdEndRenderPass(command_buffer);
         if (!rendered) {
-            if (m_view.m_vulkan_window_container)
-                m_view.m_vulkan_window_container->hide();
+            m_view.set_vulkan_window_container_visible(false);
             m_view.update();
         }
         m_window.frameReady();
@@ -907,7 +906,12 @@ void WebContentView::create_vulkan_window()
     m_vulkan_window_container->setMouseTracking(true);
     m_vulkan_window_container->setGeometry(rect());
     m_vulkan_window_container->hide();
-    setFocusProxy(m_vulkan_window_container);
+}
+
+void WebContentView::set_vulkan_window_container_visible(bool visible)
+{
+    if (m_vulkan_window_container)
+        set_native_window_container_visible(*this, *m_vulkan_window_container, visible);
 }
 
 void WebContentView::destroy_vulkan_window()
@@ -940,16 +944,12 @@ void WebContentView::schedule_vulkan_window_update()
 {
     if (m_vulkan_window) {
         if (!current_paintable_can_use_vulkan_window()) {
-            if (m_vulkan_window_container)
-                m_vulkan_window_container->hide();
+            set_vulkan_window_container_visible(false);
             update();
             return;
         }
 
-        if (m_vulkan_window_container && !m_vulkan_window_container->isVisible()) {
-            m_vulkan_window_container->setGeometry(rect());
-            m_vulkan_window_container->show();
-        }
+        set_vulkan_window_container_visible(true);
         m_vulkan_window->requestUpdate();
         return;
     }

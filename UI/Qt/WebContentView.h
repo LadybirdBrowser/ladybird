@@ -191,6 +191,7 @@ private:
     void update_vulkan_window_geometry();
     void set_vulkan_window_cursor(QCursor const&);
     bool handle_vulkan_window_event(QEvent*);
+    void set_vulkan_window_container_visible(bool);
 
     VulkanWindow* m_vulkan_window { nullptr };
     QWidget* m_vulkan_window_container { nullptr };
