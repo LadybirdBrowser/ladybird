@@ -523,13 +523,13 @@ ColorComponents linear_a98_rgb_to_a98_rgb(ColorComponents const& components)
 // https://drafts.csswg.org/css-color-4/#color-conversion-code
 ColorComponents linear_a98_rgb_to_xyz65(ColorComponents const& components)
 {
-    float red = components[0];
-    float green = components[1];
-    float blue = components[2];
+    double red = components[0];
+    double green = components[1];
+    double blue = components[2];
     return {
-        0.57666904f * red + 0.18555824f * green + 0.18822865f * blue,
-        0.29734498f * red + 0.62736357f * green + 0.07529146f * blue,
-        0.02703136f * red + 0.07068885f * green + 0.99133754f * blue,
+        static_cast<float>((573536.0 / 994567.0) * red + (263643.0 / 1420810.0) * green + (187206.0 / 994567.0) * blue),
+        static_cast<float>((591459.0 / 1989134.0) * red + (6239551.0 / 9945670.0) * green + (374412.0 / 4972835.0) * blue),
+        static_cast<float>((53769.0 / 1989134.0) * red + (351524.0 / 4972835.0) * green + (4929758.0 / 4972835.0) * blue),
         components.alpha(),
     };
 }
@@ -538,13 +538,13 @@ ColorComponents linear_a98_rgb_to_xyz65(ColorComponents const& components)
 // https://drafts.csswg.org/css-color-4/#color-conversion-code
 ColorComponents xyz65_to_linear_a98_rgb(ColorComponents const& components)
 {
-    float x = components[0];
-    float y = components[1];
-    float z = components[2];
+    double x = components[0];
+    double y = components[1];
+    double z = components[2];
     return {
-        +2.0415879038f * x - 0.5650069743f * y - 0.3473784579f * z,
-        -0.9692436363f * x + 1.8759675015f * y + 0.0415550574f * z,
-        +0.0134442806f * x - 0.1183623922f * y + 1.0151749944f * z,
+        static_cast<float>((1829569.0 / 896150.0) * x + (-506331.0 / 896150.0) * y + (-308931.0 / 896150.0) * z),
+        static_cast<float>((-851781.0 / 878810.0) * x + (1648619.0 / 878810.0) * y + (36519.0 / 878810.0) * z),
+        static_cast<float>((16779.0 / 1248040.0) * x + (-147721.0 / 1248040.0) * y + (1266979.0 / 1248040.0) * z),
         components.alpha(),
     };
 }
