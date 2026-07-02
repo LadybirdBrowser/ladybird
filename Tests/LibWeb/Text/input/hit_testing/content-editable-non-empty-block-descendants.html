@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<style>
+    body {
+        border: 1px solid red;
+    }
+
+    p {
+        border: 1px solid green;
+        width: 300px;
+    }
+</style>
+<script src="../include.js"></script>
+<body contenteditable>
+    <p id="first">first</p>
+    <p id="second">second</p>
+    <script>
+        function clickEndOfParagraph(paragraph) {
+            const rect = paragraph.getBoundingClientRect();
+            internals.click(rect.right - 10, (rect.top + rect.bottom) / 2);
+        }
+
+        function printFocus() {
+            const selection = document.getSelection();
+            println(`${selection.focusNode.parentElement.id}:${selection.focusOffset}`);
+        }
+
+        test(() => {
+            document.getSelection().collapse(first.firstChild, first.firstChild.length);
+            printFocus();
+
+            clickEndOfParagraph(second);
+            printFocus();
+
+            clickEndOfParagraph(first);
+            printFocus();
+        });
+    </script>
+</body>

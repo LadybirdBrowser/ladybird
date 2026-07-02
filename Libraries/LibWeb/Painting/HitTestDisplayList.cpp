@@ -726,6 +726,21 @@ void HitTestDisplayList::find_topmost_caret_item_in_list(Vector<size_t> const& i
     }
 }
 
+void HitTestDisplayList::find_first_empty_editable_item_in_list(Vector<size_t> const& item_indices, CSSPixelPoint local_point, ChromeMetrics const& chrome_metrics, Optional<size_t>& first_item_index) const
+{
+    for (auto item_index : item_indices) {
+        if (first_item_index.has_value() && item_index >= *first_item_index)
+            return;
+        auto const& item = m_items[item_index];
+        if (item.kind != ItemKind::EmptyEditable)
+            continue;
+        if (!item_contains(item, local_point, chrome_metrics))
+            continue;
+        first_item_index = item_index;
+        return;
+    }
+}
+
 void HitTestDisplayList::find_items_in_list(Vector<size_t> const& item_indices, CSSPixelPoint local_point, ChromeMetrics const& chrome_metrics, Vector<size_t>& hit_item_indices) const
 {
     for (auto item_index : item_indices) {
@@ -745,6 +760,8 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
     Optional<CSSPixelPoint> topmost_item_local_point;
     Optional<size_t> topmost_hit_item_index;
     Optional<CSSPixelPoint> topmost_hit_item_local_point;
+    Optional<size_t> first_empty_editable_item_index;
+    Optional<CSSPixelPoint> first_empty_editable_item_local_point;
     for (auto visual_context_index : m_used_visual_context_indices) {
         auto const& spatial_index = m_spatial_indexes[visual_context_index.value()];
         VERIFY(spatial_index);
@@ -755,26 +772,36 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
 
         auto previous_topmost_item_index = topmost_item_index;
         auto previous_topmost_hit_item_index = topmost_hit_item_index;
+        auto previous_first_empty_editable_item_index = first_empty_editable_item_index;
         find_topmost_item_in_list(spatial_index->unbucketed_items, *local_point, chrome_metrics, topmost_hit_item_index);
         find_topmost_caret_item_in_list(spatial_index->unbucketed_items, *local_point, chrome_metrics, topmost_item_index);
+        find_first_empty_editable_item_in_list(spatial_index->unbucketed_items, *local_point, chrome_metrics, first_empty_editable_item_index);
 
         auto x = spatial_index_cell_for(local_point->x());
         auto y = spatial_index_cell_for(local_point->y());
         if (auto bucket = spatial_index->cells.get(spatial_index_cell_key(x, y)); bucket.has_value()) {
             find_topmost_item_in_list(*bucket, *local_point, chrome_metrics, topmost_hit_item_index);
             find_topmost_caret_item_in_list(*bucket, *local_point, chrome_metrics, topmost_item_index);
+            find_first_empty_editable_item_in_list(*bucket, *local_point, chrome_metrics, first_empty_editable_item_index);
         }
 
         if (topmost_item_index != previous_topmost_item_index)
             topmost_item_local_point = local_point;
         if (topmost_hit_item_index != previous_topmost_hit_item_index)
             topmost_hit_item_local_point = local_point;
+        if (first_empty_editable_item_index != previous_first_empty_editable_item_index)
+            first_empty_editable_item_local_point = local_point;
+    }
+
+    if (first_empty_editable_item_index.has_value()) {
+        topmost_item_index = first_empty_editable_item_index;
+        topmost_item_local_point = first_empty_editable_item_local_point;
     }
 
     // Direct caret hits win unless another non-caret item is visibly on top of them.
     auto topmost_caret_item_matches_hit_item = [&] {
         return topmost_hit_item_index.has_value()
-            && *topmost_item_index == *topmost_hit_item_index
+            && (*topmost_item_index == *topmost_hit_item_index || item_can_produce_caret_position(m_items[*topmost_hit_item_index]))
             && item_is_direct_caret_target(m_items[*topmost_item_index]);
     };
     if (topmost_item_index.has_value() && (!topmost_hit_item_index.has_value() || topmost_caret_item_matches_hit_item())) {
@@ -882,12 +909,19 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
 
         if (closest_line.index.has_value()
             && closest_line.is_before_point
-            && closest_line_after_point.index.has_value()
-            && closest_line_after_point.block_distance <= caret_line_block_axis_compare_slop
-            && closest_line_after_point.inline_distance <= closest_line.inline_distance) {
+            && closest_line_after_point.index.has_value()) {
             auto const& line = m_caret_lines[*closest_line.index];
             auto first_item_index = m_caret_item_indices[line.first_caret_item_index];
             auto const& first_item = m_items[first_item_index];
+            auto const& line_after_point = m_caret_lines[*closest_line_after_point.index];
+            auto first_item_after_point_index = m_caret_item_indices[line_after_point.first_caret_item_index];
+            auto const& first_item_after_point = m_items[first_item_after_point_index];
+            auto line_after_point_is_better = first_item.kind == ItemKind::EmptyEditable && first_item_after_point.kind == ItemKind::EmptyEditable
+                ? caret_line_is_better_candidate(closest_line_after_point.block_distance, closest_line_after_point.inline_distance, closest_line.block_distance, closest_line.inline_distance, caret_line_block_axis_compare_slop)
+                : closest_line_after_point.block_distance <= caret_line_block_axis_compare_slop && closest_line_after_point.inline_distance <= closest_line.inline_distance;
+            if (!line_after_point_is_better)
+                return closest_line;
+
             auto writing_mode = first_item.paintable->computed_values().writing_mode();
             auto block_coordinate = block_axis_coordinate(*closest_line.local_point, writing_mode);
             auto point_is_in_closest_line_block_container_margin = closest_line.block_container_margin_rect.has_value()

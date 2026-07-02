@@ -366,7 +366,7 @@ void PaintableWithLines::paint_cursor(DisplayListRecordingContext& context) cons
             return;
 
         caret_color = computed_values().caret_color();
-        auto content_box = absolute_padding_box_rect();
+        auto content_box = absolute_rect();
         cursor_rect = { content_box.x(), content_box.y(), 1, computed_values().line_height() };
     }
 

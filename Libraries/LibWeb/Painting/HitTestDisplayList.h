@@ -113,6 +113,7 @@ private:
     [[nodiscard]] bool item_is_inline_adjacent_to_line(Item const&, CaretLine const&) const;
     void find_topmost_item_in_list(Vector<size_t> const&, CSSPixelPoint local_point, ChromeMetrics const&, Optional<size_t>& topmost_item_index) const;
     void find_topmost_caret_item_in_list(Vector<size_t> const&, CSSPixelPoint local_point, ChromeMetrics const&, Optional<size_t>& topmost_item_index) const;
+    void find_first_empty_editable_item_in_list(Vector<size_t> const&, CSSPixelPoint local_point, ChromeMetrics const&, Optional<size_t>& first_item_index) const;
     void find_items_in_list(Vector<size_t> const&, CSSPixelPoint local_point, ChromeMetrics const&, Vector<size_t>& hit_item_indices) const;
 
     u64 m_visual_context_tree_version { 0 };
