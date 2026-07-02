@@ -277,9 +277,9 @@ ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process()
     return client;
 }
 
-ErrorOr<IPC::TransportHandle> connect_new_request_server_client()
+ErrorOr<IPC::TransportHandle> connect_new_request_server_client(IsPrivate is_private)
 {
-    auto response = Application::request_server_client().send_sync_but_allow_failure<Messages::RequestServer::ConnectNewClient>();
+    auto response = Application::request_server_client().send_sync_but_allow_failure<Messages::RequestServer::ConnectNewClient>(is_private == IsPrivate::Yes ? RequestServer::IsPrivate::Yes : RequestServer::IsPrivate::No);
     if (!response)
         return Error::from_string_literal("Failed to connect to RequestServer");
     return response->take_handle();

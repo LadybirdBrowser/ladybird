@@ -22,6 +22,7 @@
 #include <LibDatabase/Database.h>
 #include <LibDevTools/DevToolsServer.h>
 #include <LibFileSystem/FileSystem.h>
+#include <LibIPC/TransportHandle.h>
 #include <LibImageDecoderClient/Client.h>
 #include <LibURL/InternalURLs.h>
 #include <LibURL/Parser.h>
@@ -568,7 +569,7 @@ void Application::open_url_in_new_window(URL::URL const& url)
 
 ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(Optional<ViewImplementation&> view, IsPrivate is_private, u64 initial_page_id)
 {
-    auto request_server_handle = TRY(connect_new_request_server_client());
+    auto request_server_handle = TRY(connect_new_request_server_client(is_private));
     auto image_decoder_handle = TRY(connect_new_image_decoder_client());
 
     auto client = TRY(WebView::launch_web_content_process(is_private, initial_page_id));
@@ -1055,14 +1056,31 @@ ErrorOr<void> Application::launch_request_server()
             VERIFY_NOT_REACHED();
         }
 
-        auto client_count = WebContentClient::client_count();
-        auto request_server_response = m_request_server_client->send_sync_but_allow_failure<Messages::RequestServer::ConnectNewClients>(client_count);
-        if (!request_server_response || request_server_response->handles().is_empty()) {
-            warnln("\033Failed to connect {} new clients to ImageDecoder\033[0m", client_count);
-            VERIFY_NOT_REACHED();
-        }
+        size_t normal_client_count = 0;
+        size_t private_client_count = 0;
+        WebContentClient::for_each_client([&](WebContentClient& client) {
+            client.is_private() == IsPrivate::No ? ++normal_client_count : ++private_client_count;
+            return IterationDecision::Continue;
+        });
 
-        WebContentClient::for_each_client([handles = request_server_response->take_handles()](WebContentClient& client) mutable {
+        auto create_handles = [&](auto is_private, auto client_count) -> Vector<IPC::TransportHandle> {
+            if (client_count == 0)
+                return {};
+
+            auto response = m_request_server_client->send_sync_but_allow_failure<Messages::RequestServer::ConnectNewClients>(client_count, is_private);
+            if (!response || response->handles().size() != client_count) {
+                warnln("Failed to connect {} new clients to RequestServer", client_count);
+                VERIFY_NOT_REACHED();
+            }
+
+            return response->take_handles();
+        };
+
+        auto normal_handles = create_handles(RequestServer::IsPrivate::No, normal_client_count);
+        auto private_handles = create_handles(RequestServer::IsPrivate::Yes, private_client_count);
+
+        WebContentClient::for_each_client([&](WebContentClient& client) {
+            auto& handles = client.is_private() == IsPrivate::No ? normal_handles : private_handles;
             client.async_connect_to_request_server(handles.take_last());
             return IterationDecision::Continue;
         });

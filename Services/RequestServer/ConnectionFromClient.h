@@ -19,6 +19,7 @@
 #include <LibRequests/WebSocket.h>
 #include <LibWebSocket/WebSocket.h>
 #include <RequestServer/Forward.h>
+#include <RequestServer/IsPrivate.h>
 #include <RequestServer/RequestClientEndpoint.h>
 #include <RequestServer/RequestServerEndpoint.h>
 
@@ -42,15 +43,17 @@ public:
 
     static Optional<ConnectionFromClient&> primary_connection();
 
+    IsPrivate is_private() const { return m_is_private; }
+
     void start_revalidation_request(Badge<Request>, ByteString method, URL::URL, NonnullRefPtr<HTTP::HeaderList> request_headers, ByteBuffer request_body, HTTP::Cookie::IncludeCredentials, Core::ProxyData proxy_data);
     void request_complete(Badge<Request>, Request const&);
 
 private:
-    ConnectionFromClient(NonnullOwnPtr<IPC::Transport>, IsPrimaryConnection, ConnectionMap&, Optional<HTTP::DiskCache&>);
+    ConnectionFromClient(NonnullOwnPtr<IPC::Transport>, IsPrimaryConnection, IsPrivate, ConnectionMap&, Optional<HTTP::DiskCache&>);
 
     virtual Messages::RequestServer::InitTransportResponse init_transport(int peer_pid) override;
-    virtual Messages::RequestServer::ConnectNewClientResponse connect_new_client() override;
-    virtual Messages::RequestServer::ConnectNewClientsResponse connect_new_clients(size_t count) override;
+    virtual Messages::RequestServer::ConnectNewClientResponse connect_new_client(IsPrivate) override;
+    virtual Messages::RequestServer::ConnectNewClientsResponse connect_new_clients(size_t count, IsPrivate) override;
 
     virtual void set_disk_cache_settings(HTTP::DiskCacheSettings) override;
 
@@ -84,7 +87,9 @@ private:
     void check_active_requests();
     void fail_websocket(u64 websocket_id, Requests::WebSocket::Error);
 
-    ErrorOr<IPC::TransportHandle> create_client_socket();
+    ErrorOr<IPC::TransportHandle> create_client_socket(IsPrivate);
+
+    IsPrivate m_is_private { IsPrivate::No };
 
     ConnectionMap& m_connections;
     Optional<HTTP::DiskCache&> m_disk_cache;
@@ -101,7 +106,7 @@ private:
     HashMap<int, NonnullRefPtr<Core::Notifier>> m_write_notifiers;
 
     NonnullRefPtr<Resolver> m_resolver;
-    ByteString m_alt_svc_cache_path;
+    Optional<ByteString> m_alt_svc_cache_path;
 
     u64 m_next_revalidation_request_id { 0 };
 

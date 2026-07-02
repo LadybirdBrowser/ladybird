@@ -375,7 +375,7 @@ NonnullOwnPtr<Request> Request::fetch(
     NonnullRefPtr<HTTP::HeaderList> request_headers,
     ByteBuffer request_body,
     HTTP::Cookie::IncludeCredentials include_credentials,
-    ByteString alt_svc_cache_path,
+    Optional<ByteString> alt_svc_cache_path,
     Core::ProxyData proxy_data,
     bool keep_alive_for_transfer)
 {
@@ -410,7 +410,7 @@ NonnullOwnPtr<Request> Request::revalidate(
     NonnullRefPtr<HTTP::HeaderList> request_headers,
     ByteBuffer request_body,
     HTTP::Cookie::IncludeCredentials include_credentials,
-    ByteString alt_svc_cache_path,
+    Optional<ByteString> alt_svc_cache_path,
     Core::ProxyData proxy_data)
 {
     auto request = adopt_own(*new Request { request_id, RequestType::BackgroundRevalidation, disk_cache, HTTP::CacheMode::Default, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, move(alt_svc_cache_path), proxy_data });
@@ -432,7 +432,7 @@ Request::Request(
     NonnullRefPtr<HTTP::HeaderList> request_headers,
     ByteBuffer request_body,
     HTTP::Cookie::IncludeCredentials include_credentials,
-    ByteString alt_svc_cache_path,
+    Optional<ByteString> alt_svc_cache_path,
     Core::ProxyData proxy_data,
     bool keep_alive_for_transfer)
     : m_request_id(request_id)
@@ -934,7 +934,9 @@ void Request::handle_fetch_state()
     set_option(CURLOPT_PORT, m_url.port_or_default());
     set_option(CURLOPT_CONNECTTIMEOUT, s_connect_timeout_seconds);
     set_option(CURLOPT_PIPEWAIT, 1L);
-    set_option(CURLOPT_ALTSVC, m_alt_svc_cache_path.characters());
+
+    if (m_alt_svc_cache_path.has_value())
+        set_option(CURLOPT_ALTSVC, m_alt_svc_cache_path->characters());
 
     set_option(CURLOPT_CUSTOMREQUEST, m_method.characters());
     set_option(CURLOPT_FOLLOWLOCATION, 0);

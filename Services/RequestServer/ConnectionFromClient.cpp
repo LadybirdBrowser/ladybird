@@ -82,14 +82,17 @@ static auto time_curl_call(StringView label, F&& f)
 static constexpr i64 BURST_WINDOW_MS = 100;
 static constexpr u64 BURST_REPORT_THRESHOLD = 5;
 
-ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport, IsPrimaryConnection is_primary_connection, ConnectionMap& connections, Optional<HTTP::DiskCache&> disk_cache)
+ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport, IsPrimaryConnection is_primary_connection, IsPrivate is_private, ConnectionMap& connections, Optional<HTTP::DiskCache&> disk_cache)
     : IPC::ConnectionFromClient<RequestClientEndpoint, RequestServerEndpoint>(*this, move(transport), s_client_ids.allocate())
+    , m_is_private(is_private)
     , m_connections(connections)
     , m_disk_cache(disk_cache)
     , m_curl_multi(curl_multi_init())
     , m_resolver(Resolver::default_resolver())
-    , m_alt_svc_cache_path(ByteString::formatted("{}/Ladybird/alt-svc-cache.txt", Core::StandardPaths::cache_directory()))
 {
+    if (m_is_private == IsPrivate::No)
+        m_alt_svc_cache_path = ByteString::formatted("{}/Ladybird/alt-svc-cache.txt", Core::StandardPaths::cache_directory());
+
     if (is_primary_connection == IsPrimaryConnection::Yes) {
         VERIFY(g_primary_connection == nullptr);
         g_primary_connection = this;
@@ -172,9 +175,9 @@ Messages::RequestServer::InitTransportResponse ConnectionFromClient::init_transp
     VERIFY_NOT_REACHED();
 }
 
-Messages::RequestServer::ConnectNewClientResponse ConnectionFromClient::connect_new_client()
+Messages::RequestServer::ConnectNewClientResponse ConnectionFromClient::connect_new_client(IsPrivate is_private)
 {
-    auto client_socket = create_client_socket();
+    auto client_socket = create_client_socket(is_private);
     if (client_socket.is_error()) {
         dbgln("Failed to create client socket: {}", client_socket.error());
         return IPC::TransportHandle {};
@@ -183,13 +186,13 @@ Messages::RequestServer::ConnectNewClientResponse ConnectionFromClient::connect_
     return client_socket.release_value();
 }
 
-Messages::RequestServer::ConnectNewClientsResponse ConnectionFromClient::connect_new_clients(size_t count)
+Messages::RequestServer::ConnectNewClientsResponse ConnectionFromClient::connect_new_clients(size_t count, IsPrivate is_private)
 {
     Vector<IPC::TransportHandle> handles;
     handles.ensure_capacity(count);
 
     for (size_t i = 0; i < count; ++i) {
-        auto client_socket = create_client_socket();
+        auto client_socket = create_client_socket(is_private);
         if (client_socket.is_error()) {
             dbgln("Failed to create client socket: {}", client_socket.error());
             return Vector<IPC::TransportHandle> {};
@@ -201,13 +204,14 @@ Messages::RequestServer::ConnectNewClientsResponse ConnectionFromClient::connect
     return handles;
 }
 
-ErrorOr<IPC::TransportHandle> ConnectionFromClient::create_client_socket()
+ErrorOr<IPC::TransportHandle> ConnectionFromClient::create_client_socket(IsPrivate is_private)
 {
     auto paired = TRY(IPC::Transport::create_paired());
     auto handle = move(paired.remote_handle);
+    auto disk_cache = is_private == IsPrivate::Yes ? Optional<HTTP::DiskCache&> {} : m_disk_cache;
 
     // Note: A ref is stored in the m_connections map
-    auto client = adopt_ref(*new ConnectionFromClient(move(paired.local), IsPrimaryConnection::No, m_connections, m_disk_cache));
+    auto client = adopt_ref(*new ConnectionFromClient(move(paired.local), IsPrimaryConnection::No, is_private, m_connections, disk_cache));
 
     return handle;
 }

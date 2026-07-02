@@ -45,7 +45,7 @@ public:
         NonnullRefPtr<HTTP::HeaderList> request_headers,
         ByteBuffer request_body,
         HTTP::Cookie::IncludeCredentials include_credentials,
-        ByteString alt_svc_cache_path,
+        Optional<ByteString> alt_svc_cache_path,
         Core::ProxyData proxy_data,
         bool keep_alive_for_transfer);
 
@@ -68,7 +68,7 @@ public:
         NonnullRefPtr<HTTP::HeaderList> request_headers,
         ByteBuffer request_body,
         HTTP::Cookie::IncludeCredentials include_credentials,
-        ByteString alt_svc_cache_path,
+        Optional<ByteString> alt_svc_cache_path,
         Core::ProxyData proxy_data);
 
     virtual ~Request() override;
@@ -155,7 +155,7 @@ private:
         NonnullRefPtr<HTTP::HeaderList> request_headers,
         ByteBuffer request_body,
         HTTP::Cookie::IncludeCredentials include_credentials,
-        ByteString alt_svc_cache_path,
+        Optional<ByteString> alt_svc_cache_path,
         Core::ProxyData proxy_data,
         bool keep_alive_for_transfer = false);
 
@@ -226,7 +226,7 @@ private:
 
     HTTP::Cookie::IncludeCredentials m_include_credentials { HTTP::Cookie::IncludeCredentials::Yes };
 
-    ByteString m_alt_svc_cache_path;
+    Optional<ByteString> m_alt_svc_cache_path;
     Core::ProxyData m_proxy_data;
 
     Optional<u32> m_status_code;
