@@ -3,6 +3,7 @@
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibURL/URL.h>
+#include <RequestServer/IsPrivate.h>
 #include <RequestServer/RequestType.h>
 
 endpoint RequestClient
@@ -14,7 +15,7 @@ endpoint RequestClient
     headers_became_available(u64 request_id, Vector<HTTP::Header> response_headers, Optional<u32> status_code, Optional<String> reason_phrase, Optional<IPC::File> javascript_bytecode, u64 javascript_bytecode_size, Optional<u64> javascript_bytecode_cache_vary_key) =|
     request_transferred(u64 request_id) =|
 
-    retrieve_http_cookie(int client_id, u64 request_id, ::RequestServer::RequestType request_type, URL::URL url) =|
+    retrieve_http_cookie(int client_id, u64 request_id, ::RequestServer::RequestType request_type, URL::URL url, ::RequestServer::IsPrivate is_private) =|
 
     // Websocket API
     // FIXME: See if this can be merged with the regular APIs

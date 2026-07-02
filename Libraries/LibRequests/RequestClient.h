@@ -17,6 +17,7 @@
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibRequests/WebSocket.h>
 #include <LibWebSocket/WebSocket.h>
+#include <RequestServer/IsPrivate.h>
 #include <RequestServer/RequestClientEndpoint.h>
 #include <RequestServer/RequestServerEndpoint.h>
 
@@ -56,7 +57,7 @@ public:
     ErrorOr<Optional<Core::AnonymousBuffer>> retrieve_cache_associated_data(URL::URL const&, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData);
     ErrorOr<bool> create_synthetic_cache_entry(URL::URL const&, ByteString const& method);
 
-    Function<String(URL::URL const&)> on_retrieve_http_cookie;
+    Function<String(URL::URL const&, RequestServer::IsPrivate)> on_retrieve_http_cookie;
     Function<void()> on_request_server_died;
 
 private:
@@ -69,7 +70,7 @@ private:
     virtual void headers_became_available(u64 request_id, Vector<HTTP::Header>, Optional<u32>, Optional<String>, Optional<IPC::File>, u64 javascript_bytecode_size, Optional<u64>) override;
     virtual void request_transferred(u64 request_id) override;
 
-    virtual void retrieve_http_cookie(int client_id, u64 request_id, RequestServer::RequestType request_type, URL::URL url) override;
+    virtual void retrieve_http_cookie(int client_id, u64 request_id, RequestServer::RequestType request_type, URL::URL url, RequestServer::IsPrivate) override;
 
     virtual void certificate_requested(u64 request_id) override;
 

@@ -854,7 +854,7 @@ void Request::handle_retrieve_cookie_state()
 
     if (auto connection = ConnectionFromClient::primary_connection(); connection.has_value()) {
         mark_lifecycle_event(this, &WireStats::cookie_started_at);
-        connection->async_retrieve_http_cookie(m_client->client_id(), m_request_id, m_type, m_url);
+        connection->async_retrieve_http_cookie(m_client->client_id(), m_request_id, m_type, m_url, m_client->is_private());
     } else {
         m_network_error = Requests::NetworkError::RequestServerDied;
         transition_to_state(State::Error);

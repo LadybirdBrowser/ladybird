@@ -1032,11 +1032,12 @@ ErrorOr<void> Application::launch_request_server()
 {
     m_request_server_client = TRY(launch_request_server_process());
 
-    m_request_server_client->on_retrieve_http_cookie = [this](URL::URL const& url) -> String {
+    m_request_server_client->on_retrieve_http_cookie = [](URL::URL const& url, RequestServer::IsPrivate is_private) -> String {
+        auto& cookie_jar = Application::cookie_jar(is_private == RequestServer::IsPrivate::Yes ? IsPrivate::Yes : IsPrivate::No);
         if constexpr (!REQUESTSERVER_WIRE_DEBUG)
-            return m_cookie_jar->get_cookie(url, HTTP::Cookie::Source::Http);
+            return cookie_jar.get_cookie(url, HTTP::Cookie::Source::Http);
         auto started_at = MonotonicTime::now();
-        auto cookie = m_cookie_jar->get_cookie(url, HTTP::Cookie::Source::Http);
+        auto cookie = cookie_jar.get_cookie(url, HTTP::Cookie::Source::Http);
         auto elapsed_ms = (MonotonicTime::now() - started_at).to_milliseconds();
         if (elapsed_ms > 5) {
             dbgln("UI wire-cookie: get_cookie({}) took {} ms ({} bytes returned)",
