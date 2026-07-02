@@ -404,7 +404,7 @@ void Application::reopen_recently_closed_tab()
             auto& window = new_window(recently_closed_entry->urls);
             window.activate_tab(static_cast<int>(recently_closed_entry->active_tab_index));
         } else if (!recently_closed_entry->urls.is_empty()) {
-            if (!m_active_window)
+            if (!m_active_window || m_active_window->is_private() == WebView::IsPrivate::Yes)
                 new_window({ recently_closed_entry->urls[0] });
             else
                 m_active_window->new_tab_from_url(recently_closed_entry->urls[0], Web::HTML::ActivateTab::Yes);

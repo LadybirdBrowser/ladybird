@@ -752,8 +752,12 @@ bool BrowserWindow::definitely_close_tab(int index)
     auto* tab = m_tabs_container->tab(index);
     auto url = tab->view().url();
     m_tabs_container->remove_tab(index);
-    Application::history_store(WebView::IsPrivate::No).record_closed_tab(url);
-    Application::the().update_reopen_recently_closed_actions();
+
+    if (m_is_private == WebView::IsPrivate::No) {
+        Application::history_store(WebView::IsPrivate::No).record_closed_tab(url);
+        Application::the().update_reopen_recently_closed_actions();
+    }
+
     tab->deleteLater();
 
     if (m_tabs_container->count() == 0) {
@@ -771,7 +775,7 @@ void BrowserWindow::update_reopen_recently_closed_action()
 
     auto recently_closed_entry = Application::history_store(WebView::IsPrivate::No).most_recently_closed_entry();
     m_reopen_recently_closed_tab_action->setText("&Reopen Recently Closed Tab");
-    m_reopen_recently_closed_tab_action->setEnabled(recently_closed_entry.has_value());
+    m_reopen_recently_closed_tab_action->setEnabled(m_is_private == WebView::IsPrivate::No && recently_closed_entry.has_value());
 }
 
 void BrowserWindow::move_tab(int old_index, int new_index)
@@ -1669,15 +1673,18 @@ void BrowserWindow::closeEvent(QCloseEvent* event)
 
     Optional<Vector<URL::URL>> recently_closed_window_urls;
     size_t recently_closed_window_active_tab_index { 0 };
-    if (m_should_record_closed_window_on_close && m_tabs_container->count() > 0) {
-        recently_closed_window_urls = recently_closed_urls_for_window(*m_tabs_container);
-        recently_closed_window_active_tab_index = static_cast<size_t>(m_tabs_container->current_index());
-    }
 
-    if (m_is_popup_window == IsPopupWindow::No) {
-        Settings::the()->set_last_position(pos());
-        Settings::the()->set_last_size(size());
-        Settings::the()->set_is_maximized(isMaximized());
+    if (m_is_private == WebView::IsPrivate::No) {
+        if (m_should_record_closed_window_on_close && m_tabs_container->count() > 0) {
+            recently_closed_window_urls = recently_closed_urls_for_window(*m_tabs_container);
+            recently_closed_window_active_tab_index = static_cast<size_t>(m_tabs_container->current_index());
+        }
+
+        if (m_is_popup_window == IsPopupWindow::No) {
+            Settings::the()->set_last_position(pos());
+            Settings::the()->set_last_size(size());
+            Settings::the()->set_is_maximized(isMaximized());
+        }
     }
 
     QObject::deleteLater();
