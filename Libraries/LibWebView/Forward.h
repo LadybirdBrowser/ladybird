@@ -31,6 +31,7 @@ class WebContentClient;
 class WebWorkerClient;
 class WebUI;
 
+struct AccessibilityNodeData;
 struct Attribute;
 struct AutocompleteEngine;
 struct BookmarkItem;

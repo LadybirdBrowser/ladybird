@@ -1,0 +1,9 @@
+document
+  generic focused
+    listbox multiselectable
+      option name="First"
+        text leaf name="First"
+      option name="Second"
+        text leaf name="Second"
+      option name="Third"
+        text leaf name="Third"

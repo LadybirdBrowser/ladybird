@@ -514,6 +514,7 @@ public:
     virtual void page_did_register_download_reader([[maybe_unused]] u64 download_id, [[maybe_unused]] GC::Ref<Streams::ReadableStreamDefaultReader>) { }
     virtual void page_did_unregister_download([[maybe_unused]] u64 download_id) { }
     virtual bool page_is_download_canceled([[maybe_unused]] u64 download_id) const { return false; }
+    virtual void page_did_change_active_element(Web::UniqueNodeID) { }
     virtual void page_did_request_cursor_change(Gfx::Cursor const&) { }
     virtual void page_did_request_context_menu(CSSPixelPoint, ContextMenuForInputEventsTarget) { }
     virtual void page_did_request_link_context_menu(CSSPixelPoint, URL::URL const&, [[maybe_unused]] ByteString const& target, [[maybe_unused]] unsigned modifiers) { }

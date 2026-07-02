@@ -32,6 +32,26 @@ target_sources(ladybird PRIVATE
     WindowControlButton.cpp
     ladybird.qrc
 )
+if (APPLE)
+    target_sources(ladybird PRIVATE
+        WebContentViewAccessibility.mm
+        ${CMAKE_SOURCE_DIR}/UI/AppKit/Interface/LadybirdAccessibilityElement.mm
+    )
+    target_include_directories(ladybird PRIVATE ${CMAKE_SOURCE_DIR}/UI/AppKit)
+    target_link_libraries(ladybird PRIVATE "-framework AppKit" "-framework ApplicationServices")
+    set_source_files_properties(
+        WebContentViewAccessibility.mm
+        ${CMAKE_SOURCE_DIR}/UI/AppKit/Interface/LadybirdAccessibilityElement.mm
+        PROPERTIES COMPILE_FLAGS "-fobjc-arc"
+    )
+endif()
+
+if (NOT APPLE AND NOT WIN32 AND NOT ANDROID)
+    target_sources(ladybird PRIVATE
+        AccessibilityInterface.cpp
+    )
+endif()
+
 target_link_libraries(ladybird PRIVATE Qt::Core Qt::Gui Qt::Widgets)
 
 if (APPLE)

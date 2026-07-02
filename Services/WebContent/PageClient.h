@@ -135,6 +135,9 @@ public:
     void clear_pending_dom_mutations();
     void did_delete_all_cookies(u64 request_id);
 
+    void set_accessibility_tree_requested() { m_accessibility_tree_requested = true; }
+    void schedule_accessibility_tree_update();
+
 private:
     struct PendingDOMMutation {
         GC::Ref<Web::DOM::Node> target;
@@ -200,6 +203,8 @@ private:
     virtual void page_did_register_download_reader(u64 download_id, GC::Ref<Web::Streams::ReadableStreamDefaultReader>) override;
     virtual void page_did_unregister_download(u64 download_id) override;
     virtual bool page_is_download_canceled(u64 download_id) const override;
+    virtual void page_did_change_active_element(Web::UniqueNodeID) override;
+
     virtual void page_did_request_alert(String const&) override;
     virtual void page_did_request_confirm(String const&) override;
     virtual void page_did_request_prompt(String const&, String const&) override;
@@ -310,6 +315,9 @@ private:
     Optional<double> m_last_frame_dispatch_time;
     Queue<PendingDOMMutation> m_pending_dom_mutations;
     HashMap<String, Web::Compositor::CompositorContextId> m_remote_child_frame_compositor_contexts;
+
+    RefPtr<Core::Timer> m_accessibility_update_timer;
+    bool m_accessibility_tree_requested { false };
 
     u64 m_devtools_client_count { 0 };
 };

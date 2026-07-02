@@ -1,0 +1,12 @@
+document
+  generic focused
+    textbox editable
+    textbox readonly
+    textbox editable required
+    textbox readonly required
+    textbox editable invalid
+    textbox editable multiline
+    textbox multiline readonly
+    textbox editable multiline required
+    generic
+      text leaf name="Editable div"

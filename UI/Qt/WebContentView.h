@@ -16,6 +16,7 @@
 #include <LibGfx/Rect.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
+#include <LibWebView/AccessibilityTreeManager.h>
 #include <LibWebView/ViewImplementation.h>
 
 #include <QMenu>
@@ -34,6 +35,10 @@
 #    include <QRhiWidget>
 #else
 #    include <QWidget>
+#endif
+
+#if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
+#    include "AccessibilityInterface.h"
 #endif
 
 class QKeyEvent;
@@ -100,7 +105,15 @@ public:
 
     using ViewImplementation::client;
 
+    WebView::AccessibilityTreeManager const* accessibility_tree_manager() const { return m_accessibility_manager.ptr(); }
+
+#if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
+    QAccessibleInterface* accessibility_interface_for_node(i64 node_id);
+#endif
+
     QPoint map_point_to_global_position(Gfx::IntPoint) const;
+
+    void schedule_accessibility_tree_request();
 
 public slots:
     void select_dropdown_action();
@@ -149,6 +162,23 @@ private:
     void finish_handling_key_event(Web::KeyEvent const&);
 
     void update_screen_rects();
+
+#if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
+    void notify_accessibility_focus_on_document_root();
+#endif
+
+    friend void install_accessibility(WebContentView*);
+    friend void update_accessibility_tree(WebContentView*);
+    friend void post_accessibility_focus_changed(WebContentView*, i64);
+
+#if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
+    QHash<i64, AccessibilityInterface*> m_accessibility_elements;
+    friend class WebContentViewAccessible;
+#endif
+
+    OwnPtr<WebView::AccessibilityTreeManager> m_accessibility_manager;
+    QTimer m_accessibility_request_timer;
+    bool m_posted_initial_accessibility_focus { false };
 
     bool m_tooltip_override { false };
     Optional<ByteString> m_tooltip_text;

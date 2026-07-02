@@ -230,6 +230,7 @@
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/ObservableArray.h>
 #include <LibWeb/XPath/XPath.h>
+#include <LibWebView/AccessibilityNodeData.h>
 
 namespace Web::DOM {
 
@@ -708,6 +709,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_active_element);
     visitor.visit(m_target_element);
     visitor.visit(m_autofocus_candidates);
+    visitor.visit(m_accessibility_focus_target);
     visitor.visit(m_implementation);
     visitor.visit(m_current_script);
     visitor.visit(m_associated_inert_template_document);
@@ -3631,6 +3633,9 @@ void Document::set_active_element(GC::Ptr<Element> element)
 
     m_active_element = element;
 
+    if (m_active_element)
+        page().client().page_did_change_active_element(m_active_element->unique_id());
+
     set_needs_repaint();
 }
 
@@ -3748,6 +3753,20 @@ void Document::flush_autofocus_candidates()
             HTML::run_focusing_steps(target.ptr());
         }
     }
+}
+
+void Document::set_accessibility_focus_target(GC::Ptr<Element> element)
+{
+    if (m_accessibility_focus_target.ptr() == element)
+        return;
+
+    GC::Ptr<Element> old_target = move(m_accessibility_focus_target);
+
+    CSS::Invalidation::invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass::FocusVisible, old_target, element);
+
+    m_accessibility_focus_target = element;
+
+    set_needs_repaint();
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#the-indicated-part-of-the-document
@@ -5913,6 +5932,25 @@ String Document::dump_accessibility_tree_as_json()
 
     MUST(json.finish());
     return MUST(builder.to_string());
+}
+
+Vector<WebView::AccessibilityNodeData> Document::build_accessibility_node_data()
+{
+    Vector<WebView::AccessibilityNodeData> nodes;
+    auto accessibility_tree = AccessibilityTreeNode::create(this, nullptr);
+    build_accessibility_tree(*&accessibility_tree);
+
+    if (accessibility_tree->value()) {
+        accessibility_tree->serialize_tree_as_node_data(nodes, *this);
+    } else {
+        // Empty document: synthesize a root document node.
+        WebView::AccessibilityNodeData root;
+        root.id = static_cast<i64>(unique_id().value());
+        root.role = "document"_string;
+        nodes.append(move(root));
+    }
+
+    return nodes;
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createattribute

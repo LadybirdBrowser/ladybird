@@ -508,7 +508,19 @@ static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test
             view.on_test_complete({ test_index, result.value() });
     };
 
-    if (test.mode == TestMode::Layout) {
+    if (test.mode == TestMode::Accessibility) {
+        view.on_load_finish = [&view, &context, test_index, url, on_test_complete = move(on_test_complete)](auto const& loaded_url) {
+            if (!url.equals(loaded_url, URL::ExcludeFragment::Yes))
+                return;
+
+            auto promise = view.request_internal_page_info(WebView::PageInfoType::AccessibilityTree);
+
+            promise->when_resolved([&context, test_index, on_test_complete = move(on_test_complete)](auto const& text) {
+                context.tests[test_index].text = text;
+                on_test_complete();
+            });
+        };
+    } else if (test.mode == TestMode::Layout) {
         view.on_load_finish = [&view, &context, test_index, url](auto const& loaded_url) {
             // We don't want subframe loads to trigger the test finish.
             if (!url.equals(loaded_url, URL::ExcludeFragment::Yes))
@@ -937,6 +949,7 @@ static void run_test(TestWebView& view, TestRunContext& context, size_t test_ind
             switch (test.mode) {
             case TestMode::Crash:
             case TestMode::Text:
+            case TestMode::Accessibility:
             case TestMode::Layout:
                 run_dump_test(view, context, test, *url);
                 return;
@@ -1042,6 +1055,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     if (app.test_globs.is_empty())
         app.test_globs.append("*"sv);
 
+    TRY(collect_dump_tests(app, tests, ByteString::formatted("{}/Accessibility", app.test_root_path), "."sv, TestMode::Accessibility));
     TRY(collect_dump_tests(app, tests, ByteString::formatted("{}/Layout", app.test_root_path), "."sv, TestMode::Layout));
     TRY(collect_dump_tests(app, tests, ByteString::formatted("{}/Text", app.test_root_path), "."sv, TestMode::Text));
     TRY(collect_ref_tests(app, tests, ByteString::formatted("{}/Ref", app.test_root_path), "."sv));
