@@ -608,6 +608,32 @@ TEST_CASE(snapshot_round_trips_empty_policy_container)
         expect_policy_containers_equal(*container, Web::HTML::SerializedPolicyContainer {});
 }
 
+TEST_CASE(snapshot_delete_cascades_policy_container_rows)
+{
+    auto database = make_database();
+    auto statements = prepare_snapshot_tables(*database);
+
+    insert_tab_row(*database, 23);
+
+    auto entry = make_entry(0, "data:text/html,x"sv, 1, 0, 0, ""sv, ""sv, {});
+    entry.document_state.history_policy_container = make_policy_container();
+
+    WebView::SessionHistorySnapshot snapshot;
+    snapshot.entries.append(move(entry));
+    snapshot.used_steps = { 0 };
+    snapshot.current_used_step_index = 0;
+
+    TRY_OR_FAIL(store_session_history_snapshot(*database, statements, 23, snapshot));
+    EXPECT_EQ(count_rows(*database, "SessionCspDirectiveValues"sv), 3);
+
+    TRY_OR_FAIL(delete_session_history_snapshot(*database, statements, 23));
+    EXPECT_EQ(count_history_owned_rows(*database, "SessionEntries"sv, 23), 0);
+    EXPECT_EQ(count_history_owned_rows(*database, "SessionPolicyContainers"sv, 23), 0);
+    EXPECT_EQ(count_rows(*database, "SessionCspPolicies"sv), 0);
+    EXPECT_EQ(count_rows(*database, "SessionCspDirectives"sv), 0);
+    EXPECT_EQ(count_rows(*database, "SessionCspDirectiveValues"sv), 0);
+}
+
 TEST_CASE(snapshot_store_rejects_oversized_policy_container_text)
 {
     auto database = make_database();

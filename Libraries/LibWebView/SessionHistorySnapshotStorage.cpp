@@ -634,7 +634,22 @@ ErrorOr<SessionHistorySnapshotStatements> prepare_session_history_snapshot_state
             INNER JOIN SessionHistories ON SessionPolicyContainers.history_id = SessionHistories.id
             WHERE SessionHistories.tab_id = :tab_id;
         )#"sv)),
+        .delete_histories = TRY(database.prepare_statement(
+            "DELETE FROM SessionHistories WHERE tab_id = :tab_id;"sv)),
+        .delete_used_steps = TRY(database.prepare_statement(
+            "DELETE FROM SessionUsedSteps WHERE tab_id = :tab_id;"sv)),
     };
+}
+
+ErrorOr<void> delete_session_history_snapshot(Database::Database& database, SessionHistorySnapshotStatements const& statements, i64 tab_id)
+{
+    TRY(database.try_execute_bound_statement(statements.delete_histories, [&](auto& bind) -> ErrorOr<void> {
+        return bind("tab_id"sv, tab_id);
+    }));
+    TRY(database.try_execute_bound_statement(statements.delete_used_steps, [&](auto& bind) -> ErrorOr<void> {
+        return bind("tab_id"sv, tab_id);
+    }));
+    return {};
 }
 
 static ErrorOr<i64> insert_row_returning_id(Database::Database& database, Database::StatementID statement_id, auto&& bind_all)
@@ -740,6 +755,13 @@ static ErrorOr<void> validate_entries_storable(Vector<Web::HTML::SessionHistoryE
     return {};
 }
 
+ErrorOr<void> validate_session_history_snapshot_storable(SessionHistorySnapshot const& snapshot)
+{
+    SnapshotRowTotals totals;
+    TRY(validate_entries_storable(snapshot.entries, 0, totals));
+    return validate_snapshot_is_restorable(snapshot.entries, snapshot.used_steps, snapshot.current_used_step_index);
+}
+
 static ErrorOr<void> store_history_entries(Database::Database& database, SessionHistorySnapshotStatements const& statements, i64 tab_id, i64 history_id, Vector<Web::HTML::SessionHistoryEntryDescriptor> const& entries)
 {
     i64 entry_ordinal = 0;
@@ -823,12 +845,7 @@ static ErrorOr<void> store_history_entries(Database::Database& database, Session
 
 ErrorOr<void> store_session_history_snapshot(Database::Database& database, SessionHistorySnapshotStatements const& statements, i64 tab_id, SessionHistorySnapshot const& snapshot)
 {
-    // Preflight every entry before writing anything, so a snapshot we cannot persist is rejected
-    // without leaving partial rows behind. (For atomicity against database errors, the caller wraps
-    // store in a transaction; see the header.)
-    SnapshotRowTotals totals;
-    TRY(validate_entries_storable(snapshot.entries, 0, totals));
-    TRY(validate_snapshot_is_restorable(snapshot.entries, snapshot.used_steps, snapshot.current_used_step_index));
+    TRY(validate_session_history_snapshot_storable(snapshot));
 
     i64 step_ordinal = 0;
     for (auto step : snapshot.used_steps) {
