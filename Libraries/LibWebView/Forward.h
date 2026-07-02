@@ -30,6 +30,7 @@ class HSTSStore;
 class Menu;
 class OutOfProcessWebView;
 class ProcessManager;
+class SessionStore;
 class Settings;
 class SiteIsolationManager;
 class StorageJar;

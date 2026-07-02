@@ -86,6 +86,9 @@ public:
     TraversableSessionHistory const& session_history() const { return m_session_history; }
     Optional<size_t> effective_current_session_history_step_index() const;
 
+    // Fired after every canonical session-history mutation, once the history has reached its post-mutation state.
+    Function<void()> on_session_history_changed;
+
     Web::HTML::VisibilityState system_visibility_state() const { return m_system_visibility_state; }
     void set_system_visibility_state(Web::HTML::VisibilityState visibility_state) { m_system_visibility_state = visibility_state; }
 
@@ -113,6 +116,7 @@ public:
 
 private:
     struct HistoryOperation;
+    void session_history_changed();
     HistoryOperation* find_history_operation(u64 operation_id);
     void add_history_operation_completion_endpoint(HistoryOperation&, HistoryJobEndpoint, Optional<u64> initiation_id = {});
     bool select_changing_navigable_history_step_job_endpoint(HistoryOperation&, ApplyHistoryStepJobs::ChangingNavigableHistoryStepJob const&);

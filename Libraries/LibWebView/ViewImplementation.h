@@ -61,6 +61,7 @@
 #include <LibWebView/PageInfo.h>
 #include <LibWebView/PrivateBrowsing.h>
 #include <LibWebView/SessionHistory.h>
+#include <LibWebView/SessionStore.h>
 #include <LibWebView/Settings.h>
 #include <LibWebView/StorageSetResult.h>
 #include <LibWebView/WebContentClient.h>
@@ -146,6 +147,10 @@ public:
 
     [[nodiscard]] Optional<SessionHistorySnapshot> session_history_snapshot() const;
     [[nodiscard]] ErrorOr<void> restore_session_history_from_snapshot(SessionHistorySnapshot);
+
+    Optional<SessionTabId> session_tab_id() const { return m_session_tab_id; }
+    void set_session_tab_id(SessionTabId session_tab_id) { m_session_tab_id = session_tab_id; }
+    void clear_session_tab_id() { m_session_tab_id = {}; }
 
     void zoom_in();
     void zoom_out();
@@ -483,6 +488,7 @@ protected:
     void complete_webdriver_navigation(u64 navigation_id);
     void complete_webdriver_history_traversal(u64 operation_id);
     void update_navigation_action_state();
+    void notify_session_history_changed();
     enum class SessionHistoryDumpMode {
         IfDebuggingEnabled,
         Always,
@@ -680,6 +686,7 @@ protected:
     Web::HTML::MuteState m_mute_state { Web::HTML::MuteState::Unmuted };
 
     CanonicalTraversable m_top_level_traversable;
+    Optional<SessionTabId> m_session_tab_id;
     struct PendingWebDriverNavigation {
         u64 id { 0 };
         WebDriverNavigationCompletionSource completion_source { WebDriverNavigationCompletionSource::Load };

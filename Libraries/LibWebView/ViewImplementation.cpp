@@ -86,6 +86,10 @@ ViewImplementation::ViewImplementation(IsPrivate is_private)
         this->m_crash_count = 0;
     });
 
+    m_top_level_traversable.on_session_history_changed = [this] {
+        notify_session_history_changed();
+    };
+
     on_request_file = [this](auto const& path, auto request_id) {
         auto file = Core::File::open(path, Core::File::OpenMode::Read);
 
@@ -2236,6 +2240,21 @@ ErrorOr<void> ViewImplementation::restore_session_history_from_snapshot(SessionH
     reconstruct_current_session_history_entry_with_history_operation("restored-session-history-from-ui-snapshot"sv);
     update_navigation_action_state();
     return {};
+}
+
+void ViewImplementation::notify_session_history_changed()
+{
+    if (!m_session_tab_id.has_value())
+        return;
+    auto url = m_url;
+    if (auto const* current_entry = m_top_level_traversable.session_history().current_entry())
+        url = current_entry->url;
+    SessionStore::TabStateUpdate update {
+        .tab_id = *m_session_tab_id,
+        .history = session_history_snapshot(),
+        .url = move(url),
+    };
+    Application::session_store(is_private()).update_tab_state(move(update));
 }
 
 NonnullRefPtr<Core::Promise<Empty>> ViewImplementation::reset_session_history_for_testing()

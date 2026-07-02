@@ -122,6 +122,7 @@ public:
     static CookieJar& cookie_jar(IsPrivate);
     static HSTSStore& hsts_store(IsPrivate);
     static StorageJar& storage_jar(IsPrivate);
+    static SessionStore& session_store(IsPrivate);
 
     static ProcessManager& process_manager() { return *the().m_process_manager; }
 #if defined(AK_OS_MACOS)
@@ -458,6 +459,8 @@ private:
     OwnPtr<StorageJar> m_storage_jar;
     OwnPtr<DownloadStore> m_download_store;
     OwnPtr<PrivateBrowsingSession> m_private_browsing_session;
+    RefPtr<Database::Database> m_session_database;
+    OwnPtr<SessionStore> m_session_store;
 
     OwnPtr<Core::GeolocationProvider> m_geolocation_provider;
     OwnPtr<Core::TimeZoneWatcher> m_time_zone_watcher;
