@@ -13,5 +13,7 @@ layout(location = 0) out vec4 output_color;
 
 void main()
 {
-    output_color = texture(web_content_texture, texture_coordinates);
+    // Force opaque output so the page never blends; only the strips we explicitly clear to transparent (behind
+    // hover-expanded vertical tabs) reveal the widgets composited below this window.
+    output_color = vec4(texture(web_content_texture, texture_coordinates).rgb, 1.0);
 }

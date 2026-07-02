@@ -211,6 +211,7 @@ private:
     void recreate_icons();
     void update_chrome_style();
     void update_vertical_tabs_overlay_geometry();
+    void update_vertical_tabs_content_overlay();
     void set_vertical_tabs_hover_expanded(bool);
     void defer_update_vertical_tabs_hover_expanded();
     void update_vertical_tabs_hover_expanded();
