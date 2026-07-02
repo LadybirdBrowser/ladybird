@@ -9,6 +9,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/ThreadEventQueue.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/SessionStore.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/ViewImplementation.h>
 #include <Utilities/Conversions.h>
@@ -540,6 +541,9 @@ void Application::on_devtools_disabled() const
     if (![self confirmStopActiveDownloads])
         return;
 
+    ApplicationDelegate* delegate = [NSApp delegate];
+    [delegate reconcileSessionTopology];
+    WebView::Application::session_store(WebView::IsPrivate::No).application_quitting();
     Core::EventLoop::current().quit(0);
 }
 
