@@ -27,6 +27,9 @@ public:
     GC::Ref<SVGAnimatedString> class_name();
     GC::Ptr<SVGSVGElement> owner_svg_element();
     GC::Ptr<SVGElement> viewport_element();
+    GC::Ptr<SVGElement const> viewport_element() const;
+
+    Optional<ViewBox> nearest_ancestor_view_box() const;
 
     bool should_include_in_accessibility_tree() const;
     virtual Optional<ARIA::Role> default_role() const override;

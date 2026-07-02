@@ -352,6 +352,20 @@ GC::Ptr<SVGElement> SVGElement::viewport_element()
     return nullptr;
 }
 
+GC::Ptr<SVGElement const> SVGElement::viewport_element() const
+{
+    return const_cast<SVGElement*>(this)->viewport_element();
+}
+
+Optional<ViewBox> SVGElement::nearest_ancestor_view_box() const
+{
+    // NB: All viewport elements are SVGFitToViewBox.
+    if (auto viewport_element = as_if<SVGFitToViewBox const>(this->viewport_element().ptr()))
+        return viewport_element->view_box();
+
+    return {};
+}
+
 GC::Ref<SVGAnimatedLength> SVGElement::fake_animated_length_fixme() const
 {
     // FIXME: All callers of this method must implement their animated length correctly.
