@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Array.h>
 #include <AK/TypeCasts.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibJS/Runtime/AbstractOperations.h>
@@ -506,6 +507,22 @@ inline void fast_typed_array_fill(TypedArrayBase& typed_array, u32 begin, u32 en
 
     auto& array_buffer = *typed_array.viewed_array_buffer();
     auto byte_index = computed_begin.value();
+    if (!array_buffer.is_shared_array_buffer()) {
+        constexpr size_t pattern_byte_size = 256;
+        constexpr size_t pattern_element_count = max<size_t>(1, pattern_byte_size / sizeof(T));
+        AK::Array<T, pattern_element_count> pattern;
+        pattern.fill(value);
+
+        auto remaining_bytes = (end - begin) * sizeof(T);
+        while (remaining_bytes > 0) {
+            auto chunk_size = min(remaining_bytes, pattern.size() * sizeof(T));
+            array_buffer.overwrite(byte_index, pattern.data(), chunk_size);
+            byte_index += chunk_size;
+            remaining_bytes -= chunk_size;
+        }
+        return;
+    }
+
     for (auto i = begin; i < end; ++i) {
         array_buffer.overwrite(byte_index, &value, sizeof(T));
         byte_index += sizeof(T);
