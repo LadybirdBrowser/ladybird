@@ -48,6 +48,7 @@
 #include <LibWebView/DOMNodeProperties.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/PageInfo.h>
+#include <LibWebView/PrivateBrowsing.h>
 #include <LibWebView/SessionHistory.h>
 #include <LibWebView/Settings.h>
 #include <LibWebView/StorageSetResult.h>
@@ -65,6 +66,8 @@ public:
 
     static void for_each_view(Function<IterationDecision(ViewImplementation&)>);
     static Optional<ViewImplementation&> find_view_by_id(u64);
+
+    IsPrivate is_private() const { return m_is_private; }
 
     u64 view_id() const { return m_view_id; }
 
@@ -463,6 +466,8 @@ protected:
         u64 page_index { 0 };
         bool has_usable_bitmap { false };
     } m_client_state;
+
+    IsPrivate m_is_private { IsPrivate::No };
 
     URL::URL m_url;
     Utf16String m_title;

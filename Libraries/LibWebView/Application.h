@@ -33,6 +33,7 @@
 #include <LibWebView/FileDownloader.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/Options.h>
+#include <LibWebView/PrivateBrowsing.h>
 #include <LibWebView/Process.h>
 #include <LibWebView/ProcessManager.h>
 #include <LibWebView/Settings.h>
@@ -99,7 +100,7 @@ public:
         NonnullRefPtr<WebContentClient> client;
         u64 page_id { 0 };
     };
-    ErrorOr<ChildFrameWebContentProcess> launch_child_frame_web_content_process();
+    ErrorOr<ChildFrameWebContentProcess> launch_child_frame_web_content_process(IsPrivate);
     u64 allocate_page_id();
     Web::Compositor::CompositorContextId allocate_compositor_context_id();
     ErrorOr<void> connect_web_content_to_compositor(WebContentClient&);
@@ -256,7 +257,7 @@ protected:
     Main::Arguments& arguments() { return m_arguments; }
 
 private:
-    ErrorOr<NonnullRefPtr<WebContentClient>> create_web_content_client(Optional<ViewImplementation&>, u64 initial_page_id);
+    ErrorOr<NonnullRefPtr<WebContentClient>> create_web_content_client(Optional<ViewImplementation&>, IsPrivate, u64 initial_page_id);
     ErrorOr<void> launch_services();
     void launch_spare_web_content_process();
     ErrorOr<void> launch_compositor_process();

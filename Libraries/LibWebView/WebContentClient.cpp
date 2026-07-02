@@ -72,8 +72,9 @@ static bool is_download_in_progress(FileDownloader const& file_downloader, u64 d
     return download.has_value() && download->status == FileDownloader::DownloadStatus::InProgress;
 }
 
-WebContentClient::WebContentClient(NonnullOwnPtr<IPC::Transport> transport, u64 initial_page_id)
+WebContentClient::WebContentClient(NonnullOwnPtr<IPC::Transport> transport, IsPrivate is_private, u64 initial_page_id)
     : IPC::ConnectionToServer<WebContentClientEndpoint, WebContentServerEndpoint>(*this, move(transport))
+    , m_is_private(is_private)
     , m_initial_page_id(initial_page_id)
 {
     VERIFY(m_initial_page_id > 0);
@@ -156,6 +157,7 @@ void WebContentClient::remember_compositor_context(Web::Compositor::CompositorCo
 void WebContentClient::assign_view(Badge<Application>, ViewImplementation& view)
 {
     VERIFY(m_views.is_empty());
+    VERIFY(view.is_private() == m_is_private);
     view.m_client_state.page_index = m_initial_page_id;
     m_views.set(m_initial_page_id, view);
 }
@@ -168,6 +170,7 @@ void WebContentClient::set_compositor_connection_id(Badge<Application>, i32 comp
 void WebContentClient::register_view(u64 page_id, ViewImplementation& view)
 {
     VERIFY(page_id > 0);
+    VERIFY(view.is_private() == m_is_private);
     if (m_detached_page_close_timer)
         m_detached_page_close_timer->stop();
     Application::process_manager().cancel_forced_exit(pid());
@@ -450,7 +453,7 @@ void WebContentClient::did_request_new_process_for_child_frame_navigation(u64 pa
     if (!site_isolation_manager.has_matching_pending_child_frame_navigation(page_id, frame_id, url, ChildFrameOwner::Remote))
         return;
 
-    auto remote_process_or_error = Application::the().launch_child_frame_web_content_process();
+    auto remote_process_or_error = Application::the().launch_child_frame_web_content_process(m_is_private);
     if (remote_process_or_error.is_error()) {
         warnln("Unable to create WebContent process for child frame navigation: {}", remote_process_or_error.error());
         site_isolation_manager.clear_pending_child_frame_navigation(page_id, frame_id);

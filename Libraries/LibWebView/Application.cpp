@@ -538,12 +538,12 @@ void Application::open_url_in_new_window(URL::URL const& url)
     dbgln("open_url_in_new_window() is unsupported on this platform (url: {})", url);
 }
 
-ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(Optional<ViewImplementation&> view, u64 initial_page_id)
+ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(Optional<ViewImplementation&> view, IsPrivate is_private, u64 initial_page_id)
 {
     auto request_server_handle = TRY(connect_new_request_server_client());
     auto image_decoder_handle = TRY(connect_new_image_decoder_client());
 
-    auto client = TRY(WebView::launch_web_content_process(initial_page_id));
+    auto client = TRY(WebView::launch_web_content_process(is_private, initial_page_id));
     client->async_initialize(initial_page_id);
     if (view.has_value())
         client->assign_view({}, *view);
@@ -705,6 +705,9 @@ void Application::crash_compositor_process()
 
 ErrorOr<NonnullRefPtr<WebContentClient>> Application::launch_web_content_process(ViewImplementation& view)
 {
+    if (view.is_private() == IsPrivate::Yes)
+        return create_web_content_client(view, IsPrivate::Yes, allocate_page_id());
+
     if (m_spare_web_content_process) {
         auto web_content_client = m_spare_web_content_process.release_nonnull();
         launch_spare_web_content_process();
@@ -714,13 +717,13 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::launch_web_content_process
     }
 
     launch_spare_web_content_process();
-    return create_web_content_client(view, allocate_page_id());
+    return create_web_content_client(view, IsPrivate::No, allocate_page_id());
 }
 
-ErrorOr<Application::ChildFrameWebContentProcess> Application::launch_child_frame_web_content_process()
+ErrorOr<Application::ChildFrameWebContentProcess> Application::launch_child_frame_web_content_process(IsPrivate is_private)
 {
     auto page_id = allocate_page_id();
-    auto client = TRY(create_web_content_client({}, page_id));
+    auto client = TRY(create_web_content_client({}, is_private, page_id));
     return ChildFrameWebContentProcess {
         .client = move(client),
         .page_id = page_id,
@@ -748,7 +751,7 @@ void Application::launch_spare_web_content_process()
     Core::deferred_invoke([this]() {
         m_has_queued_task_to_launch_spare_web_content_process = false;
 
-        auto web_content_client = create_web_content_client({}, allocate_page_id());
+        auto web_content_client = create_web_content_client({}, IsPrivate::No, allocate_page_id());
         if (web_content_client.is_error()) {
             dbgln("Unable to create spare web content client: {}", web_content_client.error());
             return;

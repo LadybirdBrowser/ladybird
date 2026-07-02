@@ -38,6 +38,7 @@
 #include <LibWeb/Page/ViewportIsFullscreen.h>
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
 #include <LibWebView/Forward.h>
+#include <LibWebView/PrivateBrowsing.h>
 #include <LibWebView/SiteIsolationManager.h>
 #include <WebContent/WebContentClientEndpoint.h>
 #include <WebContent/WebContentServerEndpoint.h>
@@ -62,14 +63,18 @@ public:
     static size_t client_count() { return clients().size(); }
     static Optional<WebContentClient&> client_for_compositor_context_id(Web::Compositor::CompositorContextId);
 
-    WebContentClient(NonnullOwnPtr<IPC::Transport>, u64 initial_page_id);
+    WebContentClient(NonnullOwnPtr<IPC::Transport>, IsPrivate, u64 initial_page_id);
     ~WebContentClient();
 
+    IsPrivate is_private() const { return m_is_private; }
+
     void assign_view(Badge<Application>, ViewImplementation&);
-    void set_compositor_connection_id(Badge<Application>, i32);
-    Optional<i32> compositor_connection_id(Badge<Application>) const { return m_compositor_connection_id; }
     void register_view(u64 page_id, ViewImplementation&);
     void unregister_view(u64 page_id);
+
+    void set_compositor_connection_id(Badge<Application>, i32);
+    Optional<i32> compositor_connection_id(Badge<Application>) const { return m_compositor_connection_id; }
+
     void prepare_for_detached_close(u64 page_id);
     void request_close(u64 page_id);
 
@@ -255,6 +260,8 @@ private:
     bool is_renderer_owned_download(u64 page_id, u64 download_id) const;
     void forget_renderer_owned_download(u64 download_id);
     void fail_renderer_owned_downloads();
+
+    IsPrivate m_is_private { IsPrivate::No };
 
     HashMap<u64, NonnullRawPtr<ViewImplementation>> m_views;
     HashTable<u64> m_embedded_pages;
