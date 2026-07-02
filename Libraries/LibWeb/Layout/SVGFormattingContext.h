@@ -40,6 +40,7 @@ private:
     Optional<Gfx::AffineTransform> m_parent_svg_transform {};
 
     Optional<AvailableSpace> m_available_space {};
+    Optional<CSSPixels> m_quirks_mode_percentage_basis_height {};
     Gfx::AffineTransform m_current_viewbox_transform {};
     CSSPixelSize m_viewport_size {};
     CSSPixelPoint m_svg_offset {};

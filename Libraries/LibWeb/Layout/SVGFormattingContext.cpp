@@ -296,6 +296,7 @@ void SVGFormattingContext::run(LayoutInput const& layout_input)
     }();
 
     m_available_space = available_space;
+    m_quirks_mode_percentage_basis_height = layout_input.containing_block_constraints.quirks_mode_percentage_basis_height;
     m_svg_offset = svg_box_state.offset;
     m_viewport_size = { viewport_width, viewport_height };
 
@@ -329,7 +330,9 @@ void SVGFormattingContext::layout_svg_element(Box const& child, LayoutInput cons
         layout_nested_viewport(child, parent_svg_transform);
     } else if (auto* foreign_object_element = as_if<SVG::SVGForeignObjectElement>(child.dom_node()); foreign_object_element && is<BlockContainer>(child)) {
         Layout::BlockFormattingContext bfc(m_state, m_layout_mode, as<BlockContainer>(child), this);
-        auto& child_state = m_state.create(child);
+        // SVG layout resolves percentages against the SVG viewport, not a CSS containing
+        // block, so boxes inside the SVG subtree carry no percentage basis.
+        auto& child_state = m_state.create(child, {}, {});
         CSSPixelRect rect {
             {
                 child.computed_values().x().to_px(m_available_space->width.to_px_or_zero()),
@@ -350,7 +353,7 @@ void SVGFormattingContext::layout_svg_element(Box const& child, LayoutInput cons
         child_state.set_content_height(transformed_rect.height());
 
         auto child_available_space = AvailableSpace(AvailableSize::make_definite(child_state.content_width()), AvailableSize::make_definite(child_state.content_height()));
-        bfc.run(LayoutInput { child_available_space });
+        bfc.run(LayoutInput { child_available_space, { {}, {}, m_quirks_mode_percentage_basis_height } });
 
         if (auto* mask_box = child.first_child_of_type<SVGMaskBox>())
             layout_mask_or_clip(*mask_box);
@@ -366,7 +369,7 @@ void SVGFormattingContext::layout_nested_viewport(Box const& viewport, Gfx::Affi
 {
     // Layout for a nested SVG viewport.
     // https://svgwg.org/svg2-draft/coords.html#EstablishingANewSVGViewport.
-    auto& nested_viewport_state = m_state.create(viewport);
+    auto& nested_viewport_state = m_state.create(viewport, {}, {});
     auto resolve_dimension = [](auto size, auto reference_value) {
         // The value auto for width and height on the ‘svg’ element is treated as 100%.
         // https://svgwg.org/svg2-draft/geometry.html#Sizing
@@ -405,7 +408,7 @@ void SVGFormattingContext::layout_nested_viewport(Box const& viewport, Gfx::Affi
     nested_viewport_state.set_has_definite_width(true);
     nested_viewport_state.set_has_definite_height(true);
     SVGFormattingContext nested_context(m_state, m_layout_mode, viewport, this, parent_viewbox_transform, parent_svg_transform);
-    nested_context.run(LayoutInput { *m_available_space });
+    nested_context.run(LayoutInput { *m_available_space, { {}, {}, m_quirks_mode_percentage_basis_height } });
 }
 
 Gfx::Path SVGFormattingContext::compute_path_for_text(SVGTextBox const& text_box) const
@@ -542,7 +545,7 @@ void SVGFormattingContext::layout_path_like_element(SVGGraphicsBox const& graphi
 
 void SVGFormattingContext::layout_graphics_element(SVGGraphicsBox const& graphics_box, LayoutInput const& layout_input, Gfx::AffineTransform const& parent_svg_transform)
 {
-    auto& graphics_box_state = m_state.create(graphics_box);
+    auto& graphics_box_state = m_state.create(graphics_box, {}, {});
     auto svg_transform = parent_svg_transform;
     svg_transform.multiply(const_cast<SVGGraphicsBox&>(graphics_box).dom_node().element_transform());
     graphics_box_state.set_computed_svg_transforms(Painting::SVGGraphicsPaintable::ComputedTransforms(m_current_viewbox_transform, svg_transform));
@@ -601,7 +604,7 @@ void SVGFormattingContext::layout_mask_or_clip(SVGBox const& mask_or_clip)
     else
         VERIFY_NOT_REACHED();
     // FIXME: Somehow limit <clipPath> contents to: shape elements, <text>, and <use>.
-    auto& layout_state = m_state.create(mask_or_clip);
+    auto& layout_state = m_state.create(mask_or_clip, {}, {});
     auto parent_viewbox_transform = m_current_viewbox_transform;
 
     auto const* pattern_box = as_if<SVGPatternBox>(mask_or_clip);
@@ -632,7 +635,7 @@ void SVGFormattingContext::layout_mask_or_clip(SVGBox const& mask_or_clip)
     SVGFormattingContext nested_context(m_state, m_layout_mode, mask_or_clip, this, parent_viewbox_transform, Gfx::AffineTransform {});
     layout_state.set_has_definite_width(true);
     layout_state.set_has_definite_height(true);
-    nested_context.run(LayoutInput { *m_available_space });
+    nested_context.run(LayoutInput { *m_available_space, { {}, {}, m_quirks_mode_percentage_basis_height } });
 }
 
 void SVGFormattingContext::layout_container_element(SVGBox const& container, LayoutInput const& layout_input, Gfx::AffineTransform const& container_svg_transform)

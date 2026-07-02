@@ -1890,13 +1890,20 @@ void Document::update_layout(UpdateLayoutReason reason)
 
         {
             auto& viewport = static_cast<Layout::Viewport&>(*m_layout_root);
-            auto& viewport_state = layout_state.create(viewport);
+            auto& viewport_state = layout_state.create(
+                viewport,
+                Optional<CSSPixels> { viewport_rect.width() },
+                Optional<CSSPixels> { viewport_rect.height() });
             viewport_state.set_content_width(viewport_rect.width());
             viewport_state.set_content_height(viewport_rect.height());
 
             // NB: Called during layout update.
             if (document_element && document_element->unsafe_layout_node()) {
-                auto& icb_state = layout_state.create(as<Layout::NodeWithStyleAndBoxModelMetrics>(*document_element->unsafe_layout_node()));
+                auto percentage_basis = Layout::FormattingContext::constraints_for_child_context(viewport_state, {});
+                auto& icb_state = layout_state.create(
+                    as<Layout::NodeWithStyleAndBoxModelMetrics>(*document_element->unsafe_layout_node()),
+                    percentage_basis.percentage_basis_width,
+                    percentage_basis.percentage_basis_height);
                 icb_state.set_content_width(viewport_rect.width());
             }
 

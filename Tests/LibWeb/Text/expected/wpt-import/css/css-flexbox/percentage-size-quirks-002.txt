@@ -2,7 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-1 Pass
-1 Fail
+2 Pass
 Pass	.pct 1
-Fail	.pct 2
+Pass	.pct 2

@@ -70,7 +70,7 @@ private:
     CSSPixels border_spacing_horizontal() const;
     CSSPixels border_spacing_vertical() const;
     void finish_grid_initialization(TableGrid const&);
-    void seed_table_participant_used_values();
+    void seed_table_participant_used_values(ContainingBlockConstraints const&);
 
     CSSPixels compute_columns_total_used_width() const;
     void commit_candidate_column_widths(Vector<CSSPixels> const& candidate_widths);
@@ -87,6 +87,9 @@ private:
 
     CSSPixels table_wrapper_containing_block_width() const;
     CSSPixels table_wrapper_containing_block_height() const;
+
+    ContainingBlockConstraints m_table_constraints;
+    ContainingBlockConstraints m_participant_constraints;
 
     CSSPixels m_table_height { 0 };
     CSSPixels m_automatic_content_height { 0 };

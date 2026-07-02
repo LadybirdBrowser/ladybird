@@ -255,6 +255,9 @@ private:
     };
     Optional<AxisAgnosticAvailableSpace> m_available_space_for_items;
     Optional<AvailableSpace> m_available_space;
+    Optional<LayoutInput> m_layout_input;
+    ContainingBlockConstraints m_item_percentage_bases;
+    ContainingBlockConstraints item_containing_block_constraints() const;
 };
 
 }

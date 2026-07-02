@@ -308,6 +308,11 @@ private:
     Vector<GridItem> m_grid_items;
 
     Optional<AvailableSpace> m_available_space;
+    Optional<LayoutInput> m_layout_input;
+    ContainingBlockConstraints grid_area_constraints_for_item(GridItem const&) const;
+    ContainingBlockConstraints track_sizing_constraints_for_items() const;
+    ContainingBlockConstraints container_derived_constraints() const;
+    Optional<CSSPixels> item_quirks_mode_percentage_basis_height() const;
 
     LayoutState::UsedValues& m_grid_container_used_values;
 

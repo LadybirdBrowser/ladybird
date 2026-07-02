@@ -48,6 +48,7 @@ private:
     LayoutState::UsedValues& m_containing_block_used_values;
 
     Optional<AvailableSpace> m_available_space;
+    Optional<LayoutInput> m_layout_input;
 
     CSSPixels m_automatic_content_width { 0 };
     CSSPixels m_automatic_content_height { 0 };
