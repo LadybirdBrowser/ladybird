@@ -389,6 +389,12 @@ void WebGL2RenderingContextOverloads::read_pixels(WebIDL::Long x, WebIDL::Long y
     }
 
     WebIDL::ArrayBufferView view { pixels.downcast<WebIDL::ArrayBufferViewVariant>() };
+    auto viewed_array_buffer = view.viewed_array_buffer();
+    if (!viewed_array_buffer || viewed_array_buffer->is_detached() || view.is_out_of_bounds()) {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+
     auto bytes_or_error = ByteBuffer::create_uninitialized(view.byte_length());
     if (bytes_or_error.is_error()) {
         set_error(GL_OUT_OF_MEMORY);

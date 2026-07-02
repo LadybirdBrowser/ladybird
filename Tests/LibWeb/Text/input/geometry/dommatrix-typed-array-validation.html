@@ -12,12 +12,32 @@
         }
 
         report("DOMMatrix Float32Array 6", () => DOMMatrix.fromFloat32Array(new Float32Array([1, 2, 3, 4, 5, 6])));
+        report("DOMMatrix Float32Array 6 with byteOffset", () => {
+            const buffer = new ArrayBuffer(8 * Float32Array.BYTES_PER_ELEMENT);
+            new Float32Array(buffer).set([99, 100, 1, 2, 3, 4, 5, 6]);
+            return DOMMatrix.fromFloat32Array(new Float32Array(buffer, 2 * Float32Array.BYTES_PER_ELEMENT, 6));
+        });
         report("DOMMatrix Float64Array 16", () => DOMMatrix.fromFloat64Array(new Float64Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16])));
+        report("DOMMatrix Float64Array 16 with byteOffset", () => {
+            const buffer = new ArrayBuffer(18 * Float64Array.BYTES_PER_ELEMENT);
+            new Float64Array(buffer).set([99, 100, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+            return DOMMatrix.fromFloat64Array(new Float64Array(buffer, 2 * Float64Array.BYTES_PER_ELEMENT, 16));
+        });
         report("DOMMatrix Float32Array invalid", () => DOMMatrix.fromFloat32Array(new Float32Array(1024 * 1024)));
         report("DOMMatrix Float64Array invalid", () => DOMMatrix.fromFloat64Array(new Float64Array(1024 * 1024)));
 
         report("DOMMatrixReadOnly Float32Array 6", () => DOMMatrixReadOnly.fromFloat32Array(new Float32Array([1, 2, 3, 4, 5, 6])));
+        report("DOMMatrixReadOnly Float32Array 6 with byteOffset", () => {
+            const buffer = new ArrayBuffer(8 * Float32Array.BYTES_PER_ELEMENT);
+            new Float32Array(buffer).set([99, 100, 1, 2, 3, 4, 5, 6]);
+            return DOMMatrixReadOnly.fromFloat32Array(new Float32Array(buffer, 2 * Float32Array.BYTES_PER_ELEMENT, 6));
+        });
         report("DOMMatrixReadOnly Float64Array 16", () => DOMMatrixReadOnly.fromFloat64Array(new Float64Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16])));
+        report("DOMMatrixReadOnly Float64Array 16 with byteOffset", () => {
+            const buffer = new ArrayBuffer(18 * Float64Array.BYTES_PER_ELEMENT);
+            new Float64Array(buffer).set([99, 100, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+            return DOMMatrixReadOnly.fromFloat64Array(new Float64Array(buffer, 2 * Float64Array.BYTES_PER_ELEMENT, 16));
+        });
         report("DOMMatrixReadOnly Float32Array invalid", () => DOMMatrixReadOnly.fromFloat32Array(new Float32Array(1024 * 1024)));
         report("DOMMatrixReadOnly Float64Array invalid", () => DOMMatrixReadOnly.fromFloat64Array(new Float64Array(1024 * 1024)));
     });

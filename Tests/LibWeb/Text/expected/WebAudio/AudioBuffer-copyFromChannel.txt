@@ -6,4 +6,5 @@ Error calling copyFromChannel: TypeError: Not an object of type Float32Array
 5,5,5,5,5,5,5,0,0,0
 2,2,2,2,2,5,5,0,0,0
 2,2,2,2,2,5,5,0,0,0
+1,2,1,2,3,4,5
 Done.

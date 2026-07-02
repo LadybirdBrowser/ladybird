@@ -57,6 +57,10 @@
         audioBuffer.copyFromChannel(biggerBuffer, 1, channel1Data.length + 1);
         println(biggerBuffer);
 
+        channel0Data.set([1, 2, 3, 4, 5, 6, 7]);
+        audioBuffer.copyFromChannel(channel0Data.subarray(2), 0, 0);
+        println(audioBuffer.getChannelData(0));
+
         // Copy channel into detached buffer (no crash)
         let detachedBuffer = new Float32Array(channel0Data.length);
         const transferred = detachedBuffer.buffer.transfer();

@@ -194,6 +194,7 @@ WebIDL::UnsignedLong ImageData::height() const
 ErrorOr<NonnullRefPtr<Gfx::Bitmap>> ImageData::bitmap()
 {
     VERIFY(m_data);
+    // The wrapper aliases mutable ImageData storage. Use it synchronously only.
     return create_bitmap_backed_by_uint8_clamped_array(m_width, m_height, *m_data);
 }
 
