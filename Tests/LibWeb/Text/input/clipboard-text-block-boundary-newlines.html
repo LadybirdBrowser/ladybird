@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="./include.js"></script>
+<div id="blocks"><div>one</div><div>two</div><div>three</div></div>
+<div id="single"><div>only</div></div>
+<div id="withbr">a<br>b</div>
+<script>
+    test(() => {
+        function clip(label, id) {
+            getSelection().selectAllChildren(document.getElementById(id));
+            println(`${label}: "${internals.selectedTextForClipboard().replace(/\n/g, "\\n")}"`);
+        }
+        clip("adjacent blocks", "blocks");
+        clip("single block", "single");
+        clip("br", "withbr");
+    });
+</script>

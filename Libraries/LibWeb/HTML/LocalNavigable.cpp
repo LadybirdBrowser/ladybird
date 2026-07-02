@@ -7,6 +7,8 @@
  */
 
 #include <AK/NeverDestroyed.h>
+#include <AK/Utf16StringBuilder.h>
+#include <AK/Variant.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibWeb/CSS/ComputedProperties.h>
@@ -36,8 +38,10 @@
 #include <LibWeb/HTML/BrowsingContextGroup.h>
 #include <LibWeb/HTML/DocumentState.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
+#include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
+#include <LibWeb/HTML/HTMLParagraphElement.h>
 #include <LibWeb/HTML/History.h>
 #include <LibWeb/HTML/HistoryHandlingBehavior.h>
 #include <LibWeb/HTML/LocalNavigable.h>
@@ -3860,37 +3864,97 @@ bool LocalNavigable::is_focused() const
     return &m_page->focused_navigable() == this;
 }
 
-static String visible_text_in_range(DOM::Range const& range)
+namespace {
+
+struct RequiredLineBreakCount {
+    int count { 0 };
+};
+
+// Range-clipped variant of the HTML rendered-text collection steps — to serialize a selection for the clipboard. This
+// skips nodes with no layout box, and skips user-select:none content, and inserts line breaks at block boundaries.
+void collect_clipboard_text(DOM::Node const& node, DOM::Range const& range, Vector<Variant<Utf16String, RequiredLineBreakCount>>& items)
 {
-    // NOTE: This is an adaption of Range stringification — but we skip over DOM nodes that don't have a corresponding
-    //       layout node, and over nodes whose used value of user-select is 'none'. The latter implements
-    //       https://drafts.csswg.org/css-ui/#valdef-user-select-none — applied at the clipboard-extraction boundary.
-    StringBuilder builder;
+    if (!range.intersects_node(const_cast<DOM::Node&>(node)))
+        return;
 
-    auto is_user_select_none = [](DOM::Node const& node) {
-        auto const* layout = node.layout_node();
-        return layout && layout->user_select_used_value() == CSS::UserSelect::None;
-    };
-
-    if (range.start_container() == range.end_container() && is<DOM::Text>(*range.start_container())) {
-        if (!range.start_container()->layout_node() || is_user_select_none(*range.start_container()))
-            return String {};
-        return static_cast<DOM::Text const&>(*range.start_container()).data().substring_view(range.start_offset(), range.end_offset() - range.start_offset()).to_utf8_but_should_be_ported_to_utf16();
-    }
-
-    if (is<DOM::Text>(*range.start_container()) && range.start_container()->layout_node() && !is_user_select_none(*range.start_container()))
-        builder.append(static_cast<DOM::Text const&>(*range.start_container()).data().substring_view(range.start_offset()));
-
-    range.for_each_contained([&](GC::Ref<DOM::Node> node) {
-        if (is<DOM::Text>(*node) && node->layout_node() && !is_user_select_none(*node))
-            builder.append(static_cast<DOM::Text const&>(*node).data());
+    node.for_each_child([&](DOM::Node const& child) {
+        collect_clipboard_text(child, range, items);
         return IterationDecision::Continue;
     });
 
-    if (is<DOM::Text>(*range.end_container()) && range.end_container()->layout_node() && !is_user_select_none(*range.end_container()))
-        builder.append(static_cast<DOM::Text const&>(*range.end_container()).data().substring_view(0, range.end_offset()));
+    auto const* layout_node = node.layout_node();
+    if (!layout_node)
+        return;
 
-    return MUST(builder.to_string());
+    if (auto const* text = as_if<DOM::Text>(node)) {
+        if (layout_node->user_select_used_value() == CSS::UserSelect::None)
+            return;
+        Utf16String data;
+        if (&node == range.start_container().ptr() && &node == range.end_container().ptr())
+            data = MUST(text->substring_data(range.start_offset(), range.end_offset() - range.start_offset()));
+        else if (&node == range.start_container().ptr())
+            data = MUST(text->substring_data(range.start_offset(), text->length_in_utf16_code_units() - range.start_offset()));
+        else if (&node == range.end_container().ptr())
+            data = MUST(text->substring_data(0, range.end_offset()));
+        else
+            data = text->data();
+        items.append(move(data));
+        return;
+    }
+
+    if (is<HTMLBRElement>(node)) {
+        items.append("\n"_utf16);
+        return;
+    }
+
+    auto display = layout_node->computed_values().display();
+    if (display.is_table_cell() && node.next_sibling())
+        items.append("\t"_utf16);
+    if (display.is_table_row() && node.next_sibling())
+        items.append("\n"_utf16);
+
+    if (is<HTMLParagraphElement>(node)) {
+        items.prepend(RequiredLineBreakCount { 2 });
+        items.append(RequiredLineBreakCount { 2 });
+    } else if (display.is_block_outside() || display.is_table_caption()) {
+        items.prepend(RequiredLineBreakCount { 1 });
+        items.append(RequiredLineBreakCount { 1 });
+    }
+}
+
+}
+
+static String visible_text_in_range(DOM::Range const& range)
+{
+    Vector<Variant<Utf16String, RequiredLineBreakCount>> items;
+    collect_clipboard_text(range.common_ancestor_container(), range, items);
+
+    items.remove_all_matching([](auto& item) {
+        return item.visit(
+            [](Utf16String const& string) { return string.is_empty(); },
+            [](RequiredLineBreakCount const&) { return false; });
+    });
+    while (!items.is_empty() && items.first().has<RequiredLineBreakCount>())
+        items.take_first();
+    while (!items.is_empty() && items.last().has<RequiredLineBreakCount>())
+        items.take_last();
+
+    Utf16StringBuilder builder;
+    for (size_t i = 0; i < items.size(); ++i) {
+        items[i].visit(
+            [&](Utf16String const& string) { builder.append(string); },
+            [&](RequiredLineBreakCount const& line_break) {
+                int max_line_breaks = line_break.count;
+                size_t j = i + 1;
+                while (j < items.size() && items[j].has<RequiredLineBreakCount>()) {
+                    max_line_breaks = max(max_line_breaks, items[j].get<RequiredLineBreakCount>().count);
+                    ++j;
+                }
+                i = j - 1;
+                builder.append_repeated_ascii('\n', max_line_breaks);
+            });
+    }
+    return builder.to_string().to_utf8();
 }
 
 String LocalNavigable::selected_text() const
