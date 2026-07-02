@@ -87,12 +87,17 @@ struct SessionHistorySnapshotStatements {
     Database::StatementID select_csp_policies;
     Database::StatementID select_csp_directives;
     Database::StatementID select_csp_directive_values;
+    Database::StatementID delete_histories;
+    Database::StatementID delete_used_steps;
 };
 
 WEBVIEW_API ErrorOr<SessionHistorySnapshotStatements> prepare_session_history_snapshot_statements(Database::Database&);
 
+WEBVIEW_API ErrorOr<void> validate_session_history_snapshot_storable(SessionHistorySnapshot const&);
+
 // Validates before writing; the caller owns the transaction.
 WEBVIEW_API ErrorOr<void> store_session_history_snapshot(Database::Database&, SessionHistorySnapshotStatements const&, i64 tab_id, SessionHistorySnapshot const&);
 WEBVIEW_API ErrorOr<SessionHistorySnapshot> load_session_history_snapshot(Database::Database&, SessionHistorySnapshotStatements const&, i64 tab_id, size_t current_used_step_index);
+WEBVIEW_API ErrorOr<void> delete_session_history_snapshot(Database::Database&, SessionHistorySnapshotStatements const&, i64 tab_id);
 
 }
