@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<title>CSS Values and Units Test: invalid attr() syntax inside if style range</title>
+<link rel="help" href="https://crbug.com/407890255">
+<style>
+  div {
+    color: if(
+      style(attr(data-foo <number>) = 3): green;
+      else: red;
+    );
+  }
+</style>
+<div id="test" data-foo=3>
+  Pass if loading this page does not crash.
+</div>

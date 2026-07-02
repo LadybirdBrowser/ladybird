@@ -16,11 +16,17 @@
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
+#include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ResolutionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Document.h>
@@ -268,15 +274,204 @@ static ColorResolutionContext fallback_color_resolution_context_for_style_query(
     };
 }
 
+enum class StyleRangeNumericType : u8 {
+    Number,
+    Length,
+    Percentage,
+    Angle,
+    Time,
+    Frequency,
+    Resolution,
+};
+
+struct StyleRangeComparableValue {
+    StyleRangeNumericType type;
+    double value;
+};
+
+static Optional<StyleRangeComparableValue> comparable_style_range_value(NonnullRefPtr<StyleValue const> value, ComputationContext const& computation_context)
+{
+    auto comparable = value->absolutized(computation_context);
+    if (comparable->is_calculated()) {
+        auto calculation_resolution_context = CalculationResolutionContext::from_computation_context(computation_context);
+        auto resolved = comparable->as_calculated().resolve_as_style_value(calculation_resolution_context);
+        if (!resolved)
+            return {};
+        comparable = resolved.release_nonnull();
+    }
+
+    if (comparable->is_integer())
+        return StyleRangeComparableValue { StyleRangeNumericType::Number, static_cast<double>(comparable->as_integer().integer()) };
+    if (comparable->is_number())
+        return StyleRangeComparableValue { StyleRangeNumericType::Number, comparable->as_number().number() };
+    if (comparable->is_length())
+        return StyleRangeComparableValue { StyleRangeNumericType::Length, Length::from_style_value(comparable, {}).absolute_length_to_px_without_rounding() };
+    if (comparable->is_percentage())
+        return StyleRangeComparableValue { StyleRangeNumericType::Percentage, comparable->as_percentage().percentage().value() };
+    if (comparable->is_angle())
+        return StyleRangeComparableValue { StyleRangeNumericType::Angle, comparable->as_angle().angle().to_degrees() };
+    if (comparable->is_time())
+        return StyleRangeComparableValue { StyleRangeNumericType::Time, comparable->as_time().time().to_seconds() };
+    if (comparable->is_frequency())
+        return StyleRangeComparableValue { StyleRangeNumericType::Frequency, comparable->as_frequency().frequency().to_hertz() };
+    if (comparable->is_resolution())
+        return StyleRangeComparableValue { StyleRangeNumericType::Resolution, comparable->as_resolution().resolution().to_dots_per_pixel() };
+    return {};
+}
+
+static bool style_range_type_can_compare(StyleRangeComparableValue const& left, StyleRangeComparableValue const& right)
+{
+    if (left.type == right.type)
+        return true;
+
+    auto is_unitless_zero = [](auto value) {
+        return value.type == StyleRangeNumericType::Number && value.value == 0;
+    };
+
+    auto is_dimension = [](auto type) {
+        return type != StyleRangeNumericType::Number && type != StyleRangeNumericType::Percentage;
+    };
+
+    return (is_unitless_zero(left) && is_dimension(right.type))
+        || (is_unitless_zero(right) && is_dimension(left.type));
+}
+
+static bool compare_style_range_values(StyleRangeComparableValue const& left, FeatureComparison comparison, StyleRangeComparableValue const& right)
+{
+    if (!style_range_type_can_compare(left, right))
+        return false;
+
+    switch (comparison) {
+    case FeatureComparison::Equal:
+        return left.value == right.value;
+    case FeatureComparison::LessThan:
+        return left.value < right.value;
+    case FeatureComparison::LessThanOrEqual:
+        return left.value <= right.value;
+    case FeatureComparison::GreaterThan:
+        return left.value > right.value;
+    case FeatureComparison::GreaterThanOrEqual:
+        return left.value >= right.value;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static RefPtr<StyleValue const> parse_style_range_literal_value(DOM::Document const& document, ReadonlySpan<Parser::ComponentValue> tokens)
+{
+    if (Parser::contains_guaranteed_invalid_value(tokens))
+        return {};
+
+    // https://drafts.csswg.org/css-conditional-5/#style-container
+    // To evaluate a <style-range>:
+    // 1. If <style-range-value> is a <custom-property-name>, it needs to be substituted as if the
+    //    <custom-property-name> was wrapped inside a var().
+    // 2. Substitute arbitrary substitution function within <style-range-value>.
+    // 3. Parse <style-range-value> to <number>, <percentage>, <length>, <angle>, <time>,
+    //    <frequency> or <resolution>. If this cannot be done, evaluate to false.
+    auto parse_as = [&](ValueType value_type) -> RefPtr<StyleValue const> {
+        auto serialized_tokens = serialize_a_series_of_component_values(tokens);
+        auto parser = Parser::Parser::create(Parser::ParsingParams { document }, serialized_tokens);
+        return parser.parse_entirely_as_type(value_type);
+    };
+
+    for (auto value_type : { ValueType::Number, ValueType::Length, ValueType::Percentage, ValueType::Angle, ValueType::Time, ValueType::Frequency, ValueType::Resolution }) {
+        if (auto value = parse_as(value_type))
+            return value;
+    }
+
+    return {};
+}
+
+static Optional<StyleRangeComparableValue> evaluate_style_range_value(StyleFeature::StyleRangeValue const& range_value, DOM::AbstractElement const& element, DOM::Document const& document, ComputationContext const& computation_context, Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts, bool* did_evaluate_attr_tainted_style_query)
+{
+    return range_value.visit(
+        [&](PropertyNameAndID const& property) -> Optional<StyleRangeComparableValue> {
+            if (!property.is_custom_property())
+                return {};
+
+            if (guarded_contexts.has_value()) {
+                if (guarded_contexts->mark_existing_as_cyclic({ Parser::SubstitutionContext::DependencyType::Property, property.to_string() }))
+                    return {};
+            }
+
+            auto computed_value = StyleComputer::compute_value_of_custom_property(element, property.name(), guarded_contexts);
+            auto computed_tokens = computed_value->tokenize();
+            if (did_evaluate_attr_tainted_style_query && Parser::contains_attr_tainted_value(computed_tokens))
+                *did_evaluate_attr_tainted_style_query = true;
+
+            if (computed_value->is_guaranteed_invalid())
+                return {};
+
+            auto registration = document.get_registered_custom_property(property.name());
+            RefPtr<StyleValue const> comparable_value = computed_value;
+            if (registration.has_value() && computed_value->is_unresolved() && computed_value->as_unresolved().contains_attr_tainted_values()) {
+                // Registered custom properties with attr-tainted values are wrapped as unresolved values so tokenize()
+                // preserves the taint. Reparse that wrapper here so style queries can still compare the typed value.
+                // FIXME: Store the attr-tainted flag in a more sensible way so we don't have to do this!
+                auto parsed_computed_value = Parser::parse_with_a_syntax(Parser::ParsingParams { document }, computed_tokens, registration->syntax);
+                if (parsed_computed_value->is_guaranteed_invalid())
+                    return {};
+                comparable_value = compute_registered_custom_property_value(registration.value(), move(parsed_computed_value), computation_context);
+            } else if (!registration.has_value() || computed_value->is_unresolved()) {
+                comparable_value = parse_style_range_literal_value(document, computed_tokens);
+                if (!comparable_value)
+                    return {};
+            }
+
+            return comparable_style_range_value(comparable_value.release_nonnull(), computation_context);
+        },
+        [&](Vector<Parser::ComponentValue> const& tokens) -> Optional<StyleRangeComparableValue> {
+            if (did_evaluate_attr_tainted_style_query && Parser::contains_attr_tainted_value(tokens))
+                *did_evaluate_attr_tainted_style_query = true;
+
+            auto parsed_value = parse_style_range_literal_value(document, tokens);
+            if (!parsed_value)
+                return {};
+            return comparable_style_range_value(parsed_value.release_nonnull(), computation_context);
+        });
+}
+
+static MatchResult evaluate_style_range(StyleFeature::StyleRange const& range, BooleanExpressionEvaluationContext const& context)
+{
+    if (!context.style_query_element.has_value())
+        return MatchResult::Unknown;
+
+    auto element = context.style_query_element.value();
+    auto const& document = context.document ? *context.document : element.document();
+    auto computation_context = element.document().style_computer().fallback_computation_context_for_custom_property(element);
+    Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts;
+    if (context.guarded_contexts.has_value())
+        guarded_contexts = const_cast<Parser::GuardedSubstitutionContexts&>(context.guarded_contexts.value());
+
+    auto left = evaluate_style_range_value(range.left, element, document, computation_context, guarded_contexts, context.did_evaluate_attr_tainted_style_query);
+    if (!left.has_value())
+        return MatchResult::False;
+
+    auto middle = evaluate_style_range_value(range.middle, element, document, computation_context, guarded_contexts, context.did_evaluate_attr_tainted_style_query);
+    if (!middle.has_value())
+        return MatchResult::False;
+
+    if (!compare_style_range_values(left.value(), range.left_comparison, middle.value()))
+        return MatchResult::False;
+
+    if (!range.right.has_value())
+        return MatchResult::True;
+
+    auto right = evaluate_style_range_value(range.right.value(), element, document, computation_context, guarded_contexts, context.did_evaluate_attr_tainted_style_query);
+    if (!right.has_value())
+        return MatchResult::False;
+
+    return as_match_result(compare_style_range_values(middle.value(), range.right_comparison.value(), right.value()));
+}
+
 // https://drafts.csswg.org/css-conditional-5/#style-container
 MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& context) const
 {
     if (!context.style_query_element.has_value())
         return MatchResult::Unknown;
 
-    // FIXME: <style-range> is parsed but not evaluated yet.
-    if (m_feature.has<StyleRange>())
-        return MatchResult::False;
+    if (auto const* range = m_feature.get_pointer<StyleRange>())
+        return evaluate_style_range(*range, context);
 
     auto const& [property, value] = m_feature.get<StyleFeaturePlain>();
 

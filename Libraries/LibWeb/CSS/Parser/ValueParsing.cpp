@@ -5929,4 +5929,15 @@ RefPtr<StyleValue const> Parser::parse_value(ValueType value_type, TokenStream<C
     VERIFY_NOT_REACHED();
 }
 
+RefPtr<StyleValue const> Parser::parse_entirely_as_type(ValueType value_type)
+{
+    auto component_values = parse_a_list_of_component_values(m_token_stream);
+    TokenStream tokens { component_values };
+    auto value = parse_value(value_type, tokens);
+    tokens.discard_whitespace();
+    if (!value || tokens.has_next_token())
+        return nullptr;
+    return value;
+}
+
 }

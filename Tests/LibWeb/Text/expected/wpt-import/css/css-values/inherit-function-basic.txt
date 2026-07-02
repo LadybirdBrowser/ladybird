@@ -2,11 +2,10 @@ Harness status: OK
 
 Found 6 tests
 
-5 Pass
-1 Fail
+6 Pass
 Pass	inherit() on value set on parent
 Pass	inherit() on value set on ancestor
 Pass	inherit(), no value set on parent
 Pass	inherit(), accumulating values
 Pass	inherit(), accumulating font-size
-Fail	inherit() can be used within if()
+Pass	inherit() can be used within if()
