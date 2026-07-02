@@ -610,28 +610,42 @@ ColorComponents xyz50_to_linear_prophoto_rgb(ColorComponents const& components)
 }
 
 // https://drafts.csswg.org/css-color-4/#predefined-rec2020
-// https://drafts.csswg.org/css-color-4/#color-conversion-code
 ColorComponents rec2020_to_linear_rec2020(ColorComponents const& components)
 {
     auto to_linear = [](float c) -> float {
+        // AD-HOC: CSS Color 4 specifies a pure 2.4 gamma transfer function for rec2020, but all major engines
+        //         and the WPT rec2020 reftests use the piecewise OETF from ITU-R BT.2020-2, so we do the same.
+        constexpr auto alpha = 1.09929682680944;
+        constexpr auto beta = 0.018053968510807;
+
         float sign = c < 0.0f ? -1.0f : 1.0f;
         float absolute = abs(c);
 
-        return sign * static_cast<float>(pow(absolute, 2.4));
+        if (absolute < beta * 4.5)
+            return c / 4.5f;
+
+        return sign * static_cast<float>(pow((absolute + alpha - 1) / alpha, 1 / 0.45));
     };
 
     return { to_linear(components[0]), to_linear(components[1]), to_linear(components[2]), components.alpha() };
 }
 
 // https://drafts.csswg.org/css-color-4/#predefined-rec2020
-// https://drafts.csswg.org/css-color-4/#color-conversion-code
 ColorComponents linear_rec2020_to_rec2020(ColorComponents const& components)
 {
     auto to_gamma = [](float c) -> float {
+        // AD-HOC: CSS Color 4 specifies a pure 2.4 gamma transfer function for rec2020, but all major engines
+        //         and the WPT rec2020 reftests use the piecewise OETF from ITU-R BT.2020-2, so we do the same.
+        constexpr auto alpha = 1.09929682680944;
+        constexpr auto beta = 0.018053968510807;
+
         float sign = c < 0.0f ? -1.0f : 1.0f;
         float absolute = abs(c);
 
-        return sign * static_cast<float>(pow(absolute, 1.0 / 2.4));
+        if (absolute < beta)
+            return 4.5f * c;
+
+        return sign * static_cast<float>(alpha * pow(absolute, 0.45) - (alpha - 1));
     };
 
     return { to_gamma(components[0]), to_gamma(components[1]), to_gamma(components[2]), components.alpha() };
