@@ -1548,6 +1548,7 @@ TabWidget::TabWidget(QWidget* parent)
         m_toolbar_container->setCurrentIndex(index);
         update_vertical_tabs_overlay_geometry();
         update_vertical_tabs_resize_handle();
+        update_vertical_tabs_content_overlay();
     });
 
     connect(m_tab_bar, &QTabBar::tabCloseRequested, this, &TabWidget::tab_close_requested);
@@ -2306,7 +2307,26 @@ void TabWidget::set_vertical_tabs_hover_expanded(bool expanded)
         m_vertical_tabs_hover_collapse_timer->start();
     else
         m_vertical_tabs_hover_collapse_timer->stop();
+
     update_vertical_tabs_hover_layout();
+    update_vertical_tabs_content_overlay();
+}
+
+void TabWidget::update_vertical_tabs_content_overlay()
+{
+    auto index = current_index();
+    if (index < 0)
+        return;
+
+    int overlap = 0;
+    if (m_vertical_tabs_hover_expanded)
+        overlap = max(0, current_vertical_tabs_width() - vertical_tabs_layout_width());
+
+    auto left = vertical_tabs_are_on_right() ? 0 : overlap;
+    auto right = vertical_tabs_are_on_right() ? overlap : 0;
+
+    if (auto* current = tab(index))
+        current->view().set_vertical_tab_overlay_insets(left, right);
 }
 
 void TabWidget::defer_update_vertical_tabs_hover_expanded()
