@@ -1,17 +1,17 @@
 Harness status: OK
 
-Found 150 tests
+Found 152 tests
 
-128 Pass
-22 Fail
+112 Pass
+40 Fail
 Pass	Property scale value 'random(1, 11)'
-Pass	Property scale value 'random(--foo, 2, 12)'
-Pass	Property scale value 'random(--foo element-shared, 3, 13)'
-Pass	Property scale value 'random(element-shared --foo, 4, 14)'
+Fail	Property scale value 'random(--foo element-scoped, 2, 12)'
+Pass	Property scale value 'random(--foo, 3, 13)'
+Pass	Property scale value 'random(--foo, 4, 14)'
 Pass	Property scale value 'random(0, 10, 5)'
-Pass	Property scale value 'random(--foo, 10, 20, 5)'
-Pass	Property scale value 'random(--foo element-shared, 20, 30, 5)'
-Pass	Property scale value 'random(element-shared --foo, 30, 40, 5)'
+Fail	Property scale value 'random(--foo element-scoped, 10, 20, 5)'
+Pass	Property scale value 'random(--foo, 20, 30, 5)'
+Pass	Property scale value 'random(--foo, 30, 40, 5)'
 Pass	Property scale value 'random(100, 10)'
 Pass	Property scale value 'random(-10, -100)'
 Pass	Property scale value 'random(-100, -10)'
@@ -61,13 +61,13 @@ Pass	Property scale value 'calc(10 + random(10, 100, infinity))'
 Pass	Property scale value 'random(10, 100, -infinity)'
 Pass	Property scale value 'calc(10 + random(10, 100, -infinity))'
 Pass	Property scale value on pseudo element '::before' 'random(1, 300000)'
-Pass	Property scale value on pseudo element '::before' 'random(--bar, 1, 300000)'
-Pass	Property scale value on pseudo element '::before' 'random(element-shared, 1, 300000)'
-Pass	Property scale value on pseudo element '::before' 'random(element-shared --foo, 1, 300000)'
+Fail	Property scale value on pseudo element '::before' 'random(--bar element-scoped, 1, 300000)'
+Fail	Property scale value on pseudo element '::before' 'random(property-index-scoped, 1, 300000)'
+Pass	Property scale value on pseudo element '::before' 'random(--foo, 1, 300000)'
 Pass	Property translate value 'random(10%, 100%)'
 Pass	Property translate value 'random(3 * 10% , 10 * 10%)'
 Pass	Property translate value 'random(10%, 1%)'
-Pass	Property translate value 'random(--identifier element-shared, 10%, 100%)'
+Pass	Property translate value 'random(--identifier, 10%, 100%)'
 Pass	Property text-indent value 'random(10%, 30%)'
 Pass	Property flex-basis value 'random(10%, 30%)'
 Fail	Property offset-distance value 'random(10%, 30%)'
@@ -117,41 +117,43 @@ Pass	Property rotate value 'random(1, 0) random(1, 0) 1 90deg'
 Pass	Property rotate value 'x random(90deg, 30deg)'
 Pass	Property corner-shape value 'superellipse(random(3, 1))'
 Fail	Property offset-path value 'ray(random(30deg, 10deg))'
-Fail	Shared by property 'color' with values 'color-mix(in srgb, rgb(from blue random(10, 30) random(g, g + 30) random(b, b)), rgb(random(10, 90) 0 0))', 'color-mix(in srgb, rgb(from blue random(element-shared, 10, 30) random(element-shared, g, g + 30) random(element-shared, b, b)), rgb(random(element-shared, 10, 90) 0 0))'
-Pass	Shared by property 'math-depth' with values 'add(random(1, 30000))', 'add(random(element-shared, 1, 30000))'
-Fail	Shared by property 'view-transition-name' with values 'ident("myident" random(1, 300000))', 'ident("myident" random(element-shared, 1, 300000))'
-Pass	Shared by property 'aspect-ratio' with values 'random(1, 3000000, 1) / random(3000000, 9000000, 1)', 'random(element-shared, 1, 3000000, 1) / random(element-shared, 3000000, 9000000, 1)'
-Pass	Shared by property 'filter' with values 'drop-shadow(random(1px, 300000px) random(1px, 600000px) random(1px, 900000px) black)', 'drop-shadow(random(element-shared, 1px, 300000px) random(element-shared, 1px, 600000px) random(element-shared, 1px, 900000px) black)'
-Pass	Shared by property 'font-variation-settings' with values '"wght" random(100, 900)', '"wght" random(element-shared, 100, 900)'
-Pass	Shared by property 'font-style' with values 'oblique random(10deg, 90deg)', 'oblique random(element-shared, 10deg, 90deg)'
-Fail	Shared by property 'font-palette' with values 'palette-mix(in lch, --blue calc(90% * random(0, 1)), --yellow)', 'palette-mix(in lch, --blue calc(90% * random(element-shared, 0, 1)), --yellow)'
-Fail	Shared by property 'font-palette' with values 'palette-mix(in lch, --blue random(10%, 90%), --yellow)', 'palette-mix(in lch, --blue random(element-shared, 10%, 90%), --yellow)'
-Pass	Shared by property 'animation-timeline' with values 'view(random(1px, 300000px) random(300000px, 600000px))', 'view(random(element-shared, 1px, 300000px) random(element-shared, 300000px, 600000px))'
-Pass	Shared by property 'color' with values 'light-dark(rgb(random(10, 30) random(10, 60) random(10, 90)),  rgb(random(30, 10) random(60, 10) random(90, 10)))', 'light-dark(rgb(random(element-shared, 10, 30) random(element-shared, 10, 60) random(element-shared, 10, 90)),
-                                           rgb(random(element-shared, 30, 10) random(element-shared, 60, 10) random(element-shared, 90, 10)))'
+Fail	Shared by property 'color' with values 'color-mix(in srgb, rgb(from blue random(10, 30) random(g, g + 30) random(b, b)), rgb(random(10, 90) 0 0))', 'color-mix(in srgb, rgb(from blue random(property-index-scoped, 10, 30) random(property-index-scoped, g, g + 30) random(property-index-scoped, b, b)), rgb(random(property-index-scoped, 10, 90) 0 0))'
+Fail	Shared by property 'math-depth' with values 'add(random(1, 30000))', 'add(random(property-index-scoped, 1, 30000))'
+Fail	Shared by property 'view-transition-name' with values 'ident("myident" random(1, 300000))', 'ident("myident" random(property-index-scoped, 1, 300000))'
+Fail	Shared by property 'aspect-ratio' with values 'random(1, 3000000, 1) / random(3000000, 9000000, 1)', 'random(property-index-scoped, 1, 3000000, 1) / random(property-index-scoped, 3000000, 9000000, 1)'
+Fail	Shared by property 'filter' with values 'drop-shadow(random(1px, 300000px) random(1px, 600000px) random(1px, 900000px) black)', 'drop-shadow(random(property-index-scoped, 1px, 300000px) random(property-index-scoped, 1px, 600000px) random(property-index-scoped, 1px, 900000px) black)'
+Fail	Shared by property 'font-variation-settings' with values '"wght" random(100, 900)', '"wght" random(property-index-scoped, 100, 900)'
+Fail	Shared by property 'font-style' with values 'oblique random(10deg, 90deg)', 'oblique random(property-index-scoped, 10deg, 90deg)'
+Fail	Shared by property 'font-palette' with values 'palette-mix(in lch, --blue calc(90% * random(0, 1)), --yellow)', 'palette-mix(in lch, --blue calc(90% * random(property-index-scoped, 0, 1)), --yellow)'
+Fail	Shared by property 'font-palette' with values 'palette-mix(in lch, --blue random(10%, 90%), --yellow)', 'palette-mix(in lch, --blue random(property-index-scoped, 10%, 90%), --yellow)'
+Fail	Shared by property 'animation-timeline' with values 'view(random(1px, 300000px) random(300000px, 600000px))', 'view(random(property-index-scoped, 1px, 300000px) random(property-index-scoped, 300000px, 600000px))'
+Fail	Shared by property 'color' with values 'light-dark(rgb(random(10, 30) random(10, 60) random(10, 90)),  rgb(random(30, 10) random(60, 10) random(90, 10)))', 'light-dark(rgb(random(property-index-scoped, 10, 30) random(property-index-scoped, 10, 60) random(property-index-scoped, 10, 90)),
+                                           rgb(random(property-index-scoped, 30, 10) random(property-index-scoped, 60, 10) random(property-index-scoped, 90, 10)))'
 Pass	Maximum random: 'random(a, b)'
 Pass	Maximum random - shorthand: random(a, b)
-Pass	Shared by property name and value index: random(element-shared, a, b)
+Fail	Shared by property name and value index: random(property-index-scoped, a, b)
 Pass	Shared by property and index in list value: random(a, b)
 Fail	Nested in fixed value random() function used for custom property: 'random(a, b)'
 Fail	random() in different custom properties on the same element should not be shared
-Pass	Shared by name within an element: 'random(--identifier, a, b)'
-Pass	Shared by name within an element - shorthand: random(--identifier, a, b))
-Pass	Shared between elements within a property: random(element-shared, a, b)
-Pass	Shared between elements within a property, random inside color functions: random(element-shared, a, b)
-Pass	Shared between elements within a property, unresolved percentage values: random(element-shared, a, b)
-Fail	Shared between elements within a property - shorthand: random(element-shared, a, b)
-Pass	Shared globally: random(--identifier element-shared, a, b)
-Pass	Shared globally - shorthand: random(element-shared --other-identifier, a, b)
-Pass	Shared by property - shorthand and longhand: random(element-shared, a, b)
-Pass	Shared by property - logical and physical property: random(element-shared, a, b)
+Fail	Shared by name within an element: 'random(--identifier element-scoped, a, b)'
+Pass	Shared by name within an element - shorthand: random(--identifier element-scoped, a, b))
+Pass	Shared between elements within a property: random(property-index-scoped, a, b)
+Pass	Shared between elements within a property, random inside color functions: random(property-index-scoped, a, b)
+Pass	Shared between elements within a property, unresolved percentage values: random(property-index-scoped, a, b)
+Fail	Shared between elements within a property - shorthand: random(property-index-scoped, a, b)
+Fail	Shared globally: random(--identifier, a, b)
+Pass	Shared globally - shorthand: random(--other-identifier, a, b)
+Fail	Shared by property - shorthand and longhand: random(property-index-scoped, a, b)
+Fail	Shared by property - logical and physical property: random(property-index-scoped, a, b)
 Fail	Fixed: random(fixed <number>, a, b)
 Fail	Custom property with random() inside transform() should not have 'fixed'
 Fail	random() with percentages inside multiple nested functions should have 'fixed'
-Pass	random(--identifier, ...) should be different between elements
+Fail	random(--identifier element-scoped, ...) should be different between elements
 Pass	random() values should not be allowed as initial values in @property
 Pass	random() shared by property in var()
 Fail	random() shared by custom property in var()
 Pass	random() shared by shorthand property in var(), test random() value index
 Pass	random() shared by property in attr()
 Pass	random() shared by property in typed attr()
+Pass	Test collision with property name and identifier
+Fail	Test user specified <random-ua-ident>

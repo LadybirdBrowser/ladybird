@@ -58,34 +58,34 @@
     --random-length-2: random(fixed random(0, 1), 0px, 100px);
   }
   .randomMatchElement {
-    width: random(element-shared, 0px, 300000px);
-    height: random(element-shared, 0px, 300000px);
-    left: random(element-shared, 0px, 300000px);
-    right: random(element-shared, 0px, 300000px);
-    margin: random(element-shared, 0px, 300000px) random(element-shared, 0px, 300000px);
-    translate: random(element-shared, 0%, 300000%);
-    scale: random(element-shared, 1, 300000) random(element-shared, 1, 300000);
+    width: random(property-index-scoped, 0px, 300000px);
+    height: random(property-index-scoped, 0px, 300000px);
+    left: random(property-index-scoped, 0px, 300000px);
+    right: random(property-index-scoped, 0px, 300000px);
+    margin: random(property-index-scoped, 0px, 300000px) random(property-index-scoped, 0px, 300000px);
+    translate: random(property-index-scoped, 0%, 300000%);
+    scale: random(property-index-scoped, 1, 300000) random(property-index-scoped, 1, 300000);
   }
   .randomIdentifier {
-    width: random(--identifier, 0px, 300000px);
-    height: random(--identifier, 0px, 300000px);
-    left: random(--identifier, 0px, 300000px);
-    right: random(--identifier, 0px, 300000px);
-    margin: random(--identifier 0px, 300000px) random(--identifier 0px, 300000px);
+    width: random(--identifier element-scoped, 0px, 300000px);
+    height: random(--identifier element-scoped, 0px, 300000px);
+    left: random(--identifier element-scoped, 0px, 300000px);
+    right: random(--identifier element-scoped, 0px, 300000px);
+    margin: random(--identifier element-scoped, 0px, 300000px) random(--identifier element-scoped, 0px, 300000px);
   }
   .randomMatchElementAndIdentifier {
-    width: random(element-shared --other-identifier, 0px, 300000px);
-    height: random(element-shared --other-identifier, 0px, 300000px);
-    left: random(element-shared --other-identifier, 0px, 300000px);
-    right: random(element-shared --other-identifier, 0px, 300000px);
-    margin: random(element-shared --other-identifier 0px, 300000px) random(element-shared --other-identifier 0px, 100000px);
+    width: random(--other-identifier, 0px, 300000px);
+    height: random(--other-identifier, 0px, 300000px);
+    left: random(--other-identifier, 0px, 300000px);
+    right: random(--other-identifier, 0px, 300000px);
+    margin: random(--other-identifier, 0px, 300000px) random(--other-identifier, 0px, 300000px);
   }
   .randomFixed {
     width: random(fixed 0.5, 1px, 300000px);
     height: random(fixed 0.5, 1px, 300000px);
     left: random(fixed 0.5, 1px, 300000px);
     right: random(fixed 0.5, 1px, 300000px);
-    margin: random(fixed 0.5 1px, 300000px) random(fixed 0.5 1px, 300000px);
+    margin: random(fixed 0.5, 1px, 300000px) random(fixed 0.5, 1px, 300000px);
   }
 </style>
 <script>
@@ -289,14 +289,14 @@ function test_random_shared_by_property(property, random_value, random_element_s
 const property = 'scale';
 
 test_random_computed_value_in_range(property, 'random(1, 11)', '1', '11');
-test_random_computed_value_in_range(property, 'random(--foo, 2, 12)', '2', '12');
-test_random_computed_value_in_range(property, 'random(--foo element-shared, 3, 13)', '3', '13');
-test_random_computed_value_in_range(property, 'random(element-shared --foo, 4, 14)', '4', '14');
+test_random_computed_value_in_range(property, 'random(--foo element-scoped, 2, 12)', '2', '12');
+test_random_computed_value_in_range(property, 'random(--foo, 3, 13)', '3', '13');
+test_random_computed_value_in_range(property, 'random(--foo, 4, 14)', '4', '14');
 
 test_random_computed_value(property, 'random(0, 10, 5)', ['0', '5', '10']);
-test_random_computed_value(property, 'random(--foo, 10, 20, 5)', ['10', '15', '20']);
-test_random_computed_value(property, 'random(--foo element-shared, 20, 30, 5)', ['20', '25', '30']);
-test_random_computed_value(property, 'random(element-shared --foo, 30, 40, 5)', ['30', '35', '40']);
+test_random_computed_value(property, 'random(--foo element-scoped, 10, 20, 5)', ['10', '15', '20']);
+test_random_computed_value(property, 'random(--foo, 20, 30, 5)', ['20', '25', '30']);
+test_random_computed_value(property, 'random(--foo, 30, 40, 5)', ['30', '35', '40']);
 
 // Test out of order.
 test_random_computed_value(property, 'random(100, 10)', '100');
@@ -367,15 +367,15 @@ test_random_computed_value_in_range(property, 'calc(10 + random(10, 100, -infini
 
 // Test pseudo on psuedo elements
 test_pseudo_element_random_computed_value_in_range(property, '::before', 'random(1, 300000)', '1', '300000');
-test_pseudo_element_random_computed_value_in_range(property, '::before', 'random(--bar, 1, 300000)', '1', '300000');
-test_pseudo_element_random_computed_value_in_range(property, '::before', 'random(element-shared, 1, 300000)', '1', '300000');
-test_pseudo_element_random_computed_value_in_range(property, '::before', 'random(element-shared --foo, 1, 300000)', '1', '300000');
+test_pseudo_element_random_computed_value_in_range(property, '::before', 'random(--bar element-scoped, 1, 300000)', '1', '300000');
+test_pseudo_element_random_computed_value_in_range(property, '::before', 'random(property-index-scoped, 1, 300000)', '1', '300000');
+test_pseudo_element_random_computed_value_in_range(property, '::before', 'random(--foo, 1, 300000)', '1', '300000');
 
 // Test unresolvable percentage values
 test_random_computed_value_has_fixed('translate', 'random(10%, 100%)', '10%', '100%');
 test_random_computed_value_has_fixed('translate', 'random(3 * 10% , 10 * 10%)', '30%', '100%');
 test_random_computed_value_has_fixed('translate', 'random(10%, 1%)', '10%', '1%');
-test_random_computed_value_has_fixed('translate', 'random(--identifier element-shared, 10%, 100%)', '10%', '100%');
+test_random_computed_value_has_fixed('translate', 'random(--identifier, 10%, 100%)', '10%', '100%');
 test_random_computed_value_has_fixed('text-indent', 'random(10%, 30%)', '10%', '30%');
 test_random_computed_value_has_fixed('flex-basis', 'random(10%, 30%)', '10%', '30%');
 test_random_computed_value_has_fixed('offset-distance', 'random(10%, 30%)', '10%', '30%');
@@ -443,41 +443,41 @@ test_random_computed_value('offset-path',
 
 test_random_shared_by_property('color',
                                'color-mix(in srgb, rgb(from blue random(10, 30) random(g, g + 30) random(b, b)), rgb(random(10, 90) 0 0))',
-                               'color-mix(in srgb, rgb(from blue random(element-shared, 10, 30) random(element-shared, g, g + 30) random(element-shared, b, b)), rgb(random(element-shared, 10, 90) 0 0))',
+                               'color-mix(in srgb, rgb(from blue random(property-index-scoped, 10, 30) random(property-index-scoped, g, g + 30) random(property-index-scoped, b, b)), rgb(random(property-index-scoped, 10, 90) 0 0))',
                                ITERATIONS);
-test_random_shared_by_property('math-depth', 'add(random(1, 30000))', 'add(random(element-shared, 1, 30000))');
+test_random_shared_by_property('math-depth', 'add(random(1, 30000))', 'add(random(property-index-scoped, 1, 30000))');
 test_random_shared_by_property('view-transition-name',
                                'ident("myident" random(1, 300000))',
-                               'ident("myident" random(element-shared, 1, 300000))');
+                               'ident("myident" random(property-index-scoped, 1, 300000))');
 test_random_shared_by_property('aspect-ratio',
                                'random(1, 3000000, 1) / random(3000000, 9000000, 1)',
-                               'random(element-shared, 1, 3000000, 1) / random(element-shared, 3000000, 9000000, 1)');
+                               'random(property-index-scoped, 1, 3000000, 1) / random(property-index-scoped, 3000000, 9000000, 1)');
 test_random_shared_by_property('filter',
                                'drop-shadow(random(1px, 300000px) random(1px, 600000px) random(1px, 900000px) black)',
-                               'drop-shadow(random(element-shared, 1px, 300000px) random(element-shared, 1px, 600000px) random(element-shared, 1px, 900000px) black)');
+                               'drop-shadow(random(property-index-scoped, 1px, 300000px) random(property-index-scoped, 1px, 600000px) random(property-index-scoped, 1px, 900000px) black)');
 test_random_shared_by_property('font-variation-settings',
                                '"wght" random(100, 900)',
-                               '"wght" random(element-shared, 100, 900)',
+                               '"wght" random(property-index-scoped, 100, 900)',
                                ITERATIONS);
 test_random_shared_by_property('font-style',
                                'oblique random(10deg, 90deg)',
-                               'oblique random(element-shared, 10deg, 90deg)',
+                               'oblique random(property-index-scoped, 10deg, 90deg)',
                                ITERATIONS);
 test_random_shared_by_property('font-palette',
                                'palette-mix(in lch, --blue calc(90% * random(0, 1)), --yellow)',
-                               'palette-mix(in lch, --blue calc(90% * random(element-shared, 0, 1)), --yellow)',
+                               'palette-mix(in lch, --blue calc(90% * random(property-index-scoped, 0, 1)), --yellow)',
                                ITERATIONS);
 test_random_shared_by_property('font-palette',
                                'palette-mix(in lch, --blue random(10%, 90%), --yellow)',
-                               'palette-mix(in lch, --blue random(element-shared, 10%, 90%), --yellow)',
+                               'palette-mix(in lch, --blue random(property-index-scoped, 10%, 90%), --yellow)',
                                ITERATIONS);
 test_random_shared_by_property('animation-timeline',
                                'view(random(1px, 300000px) random(300000px, 600000px))',
-                               'view(random(element-shared, 1px, 300000px) random(element-shared, 300000px, 600000px))');
+                               'view(random(property-index-scoped, 1px, 300000px) random(property-index-scoped, 300000px, 600000px))');
 test_random_shared_by_property('color',
                                'light-dark(rgb(random(10, 30) random(10, 60) random(10, 90)),  rgb(random(30, 10) random(60, 10) random(90, 10)))',
-                               `light-dark(rgb(random(element-shared, 10, 30) random(element-shared, 10, 60) random(element-shared, 10, 90)),
-                                           rgb(random(element-shared, 30, 10) random(element-shared, 60, 10) random(element-shared, 90, 10)))`,
+                               `light-dark(rgb(random(property-index-scoped, 10, 30) random(property-index-scoped, 10, 60) random(property-index-scoped, 10, 90)),
+                                           rgb(random(property-index-scoped, 30, 10) random(property-index-scoped, 60, 10) random(property-index-scoped, 90, 10)))`,
                                ITERATIONS);
 
 // Test random value sharing
@@ -531,11 +531,11 @@ test(() => {
 
   try {
     const other1 = document.createElement('div');
-    other1.style.animationIterationCount = 'random(element-shared, 0, 300000), random(element-shared, 0, 300000)';
+    other1.style.animationIterationCount = 'random(property-index-scoped, 0, 300000), random(property-index-scoped, 0, 300000)';
     holder.appendChild(other1);
 
     const other2 = document.createElement('div');
-    other2.style.animationIterationCount = '300, random(element-shared, 0, 300000)';
+    other2.style.animationIterationCount = '300, random(property-index-scoped, 0, 300000)';
     holder.appendChild(other2);
 
     let [computed11, computed12] = getComputedStyle(other1)['animation-iteration-count'].split(', ');
@@ -547,7 +547,7 @@ test(() => {
   } finally {
     document.body.removeChild(holder);
   }
-}, `Shared by property name and value index: random(element-shared, a, b)`);
+}, `Shared by property name and value index: random(property-index-scoped, a, b)`);
 
 test(() => {
   const holder = document.createElement('div');
@@ -636,7 +636,7 @@ test(() => {
   } finally {
     document.body.removeChild(holder);
   }
-}, `Shared by name within an element: 'random(--identifier, a, b)'`);
+}, `Shared by name within an element: 'random(--identifier element-scoped, a, b)'`);
 
 test(() => {
   const holder = document.createElement('div');
@@ -654,7 +654,7 @@ test(() => {
   } finally {
     document.body.removeChild(holder);
   }
-}, `Shared by name within an element - shorthand: random(--identifier, a, b))`);
+}, `Shared by name within an element - shorthand: random(--identifier element-scoped, a, b))`);
 
 test(() => {
   const holder = document.createElement('div');
@@ -677,7 +677,7 @@ test(() => {
   } finally {
     document.body.removeChild(holder);
   }
-}, `Shared between elements within a property: random(element-shared, a, b)`);
+}, `Shared between elements within a property: random(property-index-scoped, a, b)`);
 
 test(() => {
   const holder = document.createElement('div');
@@ -700,7 +700,7 @@ test(() => {
   } finally {
     document.body.removeChild(holder);
   }
-}, `Shared between elements within a property, random inside color functions: random(element-shared, a, b)`);
+}, `Shared between elements within a property, random inside color functions: random(property-index-scoped, a, b)`);
 
 test(() => {
   const holder = document.createElement('div');
@@ -723,7 +723,7 @@ test(() => {
   } finally {
     document.body.removeChild(holder);
   }
-}, `Shared between elements within a property, unresolved percentage values: random(element-shared, a, b)`);
+}, `Shared between elements within a property, unresolved percentage values: random(property-index-scoped, a, b)`);
 
 test(() => {
   const holder = document.createElement('div');
@@ -745,7 +745,7 @@ test(() => {
   } finally {
     document.body.removeChild(holder);
   }
-}, `Shared between elements within a property - shorthand: random(element-shared, a, b)`);
+}, `Shared between elements within a property - shorthand: random(property-index-scoped, a, b)`);
 
 test(() => {
   const holder = document.createElement('div');
@@ -768,7 +768,7 @@ test(() => {
   } finally {
     document.body.removeChild(holder);
   }
-}, `Shared globally: random(--identifier element-shared, a, b)`);
+}, `Shared globally: random(--identifier, a, b)`);
 
 test(() => {
   const holder = document.createElement('div');
@@ -786,7 +786,7 @@ test(() => {
   } finally {
     document.body.removeChild(holder);
   }
-}, `Shared globally - shorthand: random(element-shared --other-identifier, a, b)`);
+}, `Shared globally - shorthand: random(--other-identifier, a, b)`);
 
 test(() => {
   const holder = document.createElement('div');
@@ -794,11 +794,11 @@ test(() => {
 
   try {
     const el1 = document.createElement('div');
-    el1.style['margin'] = 'random(element-shared, 1px, 300000px)';
+    el1.style['margin'] = 'random(property-index-scoped, 1px, 300000px)';
     holder.appendChild(el1);
 
     const el2 = document.createElement('div');
-    el2.style['margin-top'] = 'random(element-shared, 1px, 300000px)';
+    el2.style['margin-top'] = 'random(property-index-scoped, 1px, 300000px)';
     holder.appendChild(el2);
 
     const el1ComputedMargin = getComputedStyle(el1)['margin'];
@@ -809,7 +809,7 @@ test(() => {
   } finally {
     document.body.removeChild(holder);
   }
-}, `Shared by property - shorthand and longhand: random(element-shared, a, b)`);
+}, `Shared by property - shorthand and longhand: random(property-index-scoped, a, b)`);
 
 test(() => {
   const holder = document.createElement('div');
@@ -817,11 +817,11 @@ test(() => {
 
   try {
     const el1 = document.createElement('div');
-    el1.style['margin-block-start'] = 'random(element-shared, 1px, 300000px)';
+    el1.style['margin-block-start'] = 'random(property-index-scoped, 1px, 300000px)';
     holder.appendChild(el1);
 
     const el2 = document.createElement('div');
-    el2.style['margin-top'] = 'random(element-shared, 1px, 300000px)';
+    el2.style['margin-top'] = 'random(property-index-scoped, 1px, 300000px)';
     holder.appendChild(el2);
 
     const el1ComputedMargin = getComputedStyle(el1)['margin-block-start'];
@@ -832,7 +832,7 @@ test(() => {
   } finally {
     document.body.removeChild(holder);
   }
-}, `Shared by property - logical and physical property: random(element-shared, a, b)`);
+}, `Shared by property - logical and physical property: random(property-index-scoped, a, b)`);
 
 test(() => {
   const holder = document.createElement('div');
@@ -903,7 +903,7 @@ test(() => {
   } finally {
     document.body.removeChild(holder);
   }
-}, `random(--identifier, ...) should be different between elements`);
+}, `random(--identifier element-scoped, ...) should be different between elements`);
 
 test(() => {
   const holder = document.createElement('div');
@@ -926,12 +926,12 @@ test(() => {
 
   try {
     const el1 = document.createElement('div');
-    el1.style.setProperty('--unregistered1', 'random(element-shared, 1, 300000)');
+    el1.style.setProperty('--unregistered1', 'random(property-index-scoped, 1, 300000)');
     el1.style.setProperty('scale', 'var(--unregistered1)');
     holder.appendChild(el1);
 
     const el2 = document.createElement('div');
-    el2.style.setProperty('--unregistered2', 'random(element-shared, 1, 300000)');
+    el2.style.setProperty('--unregistered2', 'random(property-index-scoped, 1, 300000)');
     el2.style.setProperty('scale', 'var(--unregistered2)');
     holder.appendChild(el2);
 
@@ -946,7 +946,7 @@ test(() => {
 
 test(() => {
   const holder = document.createElement('div');
-  holder.style.setProperty('--unregistered', 'random(element-shared, 1, 300000)');
+  holder.style.setProperty('--unregistered', 'random(property-index-scoped, 1, 300000)');
   document.body.appendChild(holder);
 
   try {
@@ -955,7 +955,7 @@ test(() => {
     holder.appendChild(el1);
 
     const el2 = document.createElement('div');
-    el2.style.setProperty('--x', 'random(element-shared, 1, 300000)');
+    el2.style.setProperty('--x', 'random(property-index-scoped, 1, 300000)');
     holder.appendChild(el2);
 
     const el3 = document.createElement('div');
@@ -997,12 +997,12 @@ test(() => {
 
   try {
     const el1 = document.createElement('div');
-    el1.setAttribute("data-foo", 'random(element-shared, 1, 300000)');
+    el1.setAttribute("data-foo", 'random(property-index-scoped, 1, 300000)');
     el1.style.setProperty('scale', 'attr(data-foo)');
     holder.appendChild(el1);
 
     const el2 = document.createElement('div');
-    el2.setAttribute("data-foo", 'random(element-shared, 1, 300000)');
+    el2.setAttribute("data-foo", 'random(property-index-scoped, 1, 300000)');
     el2.style.setProperty('scale', 'attr(data-foo)');
     holder.appendChild(el2);
 
@@ -1020,12 +1020,12 @@ test(() => {
 
   try {
     const el1 = document.createElement('div');
-    el1.setAttribute("data-foo", 'random(element-shared, 1, 300000)');
+    el1.setAttribute("data-foo", 'random(property-index-scoped, 1, 300000)');
     el1.style.setProperty('scale', 'attr(data-foo type(<number>))');
     holder.appendChild(el1);
 
     const el2 = document.createElement('div');
-    el2.setAttribute("data-foo", 'random(element-shared, 1, 300000)');
+    el2.setAttribute("data-foo", 'random(property-index-scoped, 1, 300000)');
     el2.style.setProperty('scale', 'attr(data-foo type(<number>))');
     holder.appendChild(el2);
 
@@ -1036,5 +1036,46 @@ test(() => {
     document.body.removeChild(holder);
   }
 }, `random() shared by property in typed attr()`);
+
+test(() => {
+  const holder = document.createElement('div');
+  document.body.appendChild(holder);
+
+  try {
+    const t1 = document.createElement('div');
+    t1.style.setProperty('width', 'random(--ident property-scoped, 1px, 300000px)');
+    holder.appendChild(t1);
+
+    const t2 = document.createElement('div');
+    t2.style.setProperty('width', 'random(--identwidth, 1px, 300000px)');
+    holder.appendChild(t2);
+
+    let t1ComputedWidth = getComputedStyle(t1)['width'];
+    let t2ComputedWidth = getComputedStyle(t2)['width'];
+
+    test_random_not_equals(t1ComputedWidth, t2ComputedWidth);
+  } finally {
+    document.body.removeChild(holder);
+  }
+}, `Test collision with property name and identifier`);
+
+test(() => {
+  const holder = document.createElement('div');
+  document.body.appendChild(holder);
+
+  try {
+    const t = document.createElement('div');
+    t.style.setProperty('width', 'random(--foo ua-height-1, 1px, 300000px)');
+    t.style.setProperty('height', 'random(--foo property-index-scoped, 1px, 300000px)');
+    holder.appendChild(t);
+
+    let tComputedWidth = getComputedStyle(t)['width'];
+    let tComputedHeight = getComputedStyle(t)['height'];
+
+    test_random_equals(tComputedWidth, tComputedHeight);
+  } finally {
+    document.body.removeChild(holder);
+  }
+}, `Test user specified <random-ua-ident>`);
 
 </script>
