@@ -781,6 +781,23 @@ void WebContentView::set_device_pixel_ratio(double device_pixel_ratio)
     handle_resize();
 }
 
+void WebContentView::set_vertical_tab_overlay_insets([[maybe_unused]] int left, [[maybe_unused]] int right)
+{
+#ifdef LADYBIRD_QT_USE_VULKAN_WINDOW
+    if (m_vertical_tab_overlay_left == left && m_vertical_tab_overlay_right == right)
+        return;
+
+    // While vertical tabs are hover-expanded they overlay this view. On the Vulkan presentation path, the native window
+    // would occlude them, so we clear these left/right strips (in logical pixels) to transparent, letting the tab
+    // column that paints in the widget backing store show through.
+    m_vertical_tab_overlay_left = left;
+    m_vertical_tab_overlay_right = right;
+
+    update_vulkan_window_input_region();
+    schedule_repaint();
+#endif
+}
+
 void WebContentView::set_zoom_level(double zoom_level)
 {
     m_zoom_level = zoom_level;

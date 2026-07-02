@@ -90,6 +90,7 @@ public:
     void set_zoom_level(double);
     void set_maximum_frames_per_second(double);
     void set_display_metadata(Optional<u64> display_id, double maximum_frames_per_second);
+    void set_vertical_tab_overlay_insets(int left, int right);
 
     enum class PaletteMode {
         Default,
@@ -186,6 +187,8 @@ private:
 
     void create_vulkan_window();
     void destroy_vulkan_window();
+    void update_vulkan_window_input_region();
+    void update_vulkan_alpha_blending_support();
     bool current_paintable_can_use_vulkan_window() const;
     void schedule_vulkan_window_update();
     void update_vulkan_window_geometry();
@@ -194,6 +197,10 @@ private:
 
     VulkanWindow* m_vulkan_window { nullptr };
     QWidget* m_vulkan_window_container { nullptr };
+    Optional<bool> m_vulkan_window_supports_alpha_blending;
+
+    int m_vertical_tab_overlay_left { 0 };
+    int m_vertical_tab_overlay_right { 0 };
 #endif
 };
 

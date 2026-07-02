@@ -15,6 +15,7 @@
 
 #include <QByteArrayList>
 #include <QCursor>
+#include <QRegion>
 #include <QVersionNumber>
 #include <QVulkanInstance>
 #include <QVulkanWindow>
@@ -789,6 +790,8 @@ struct WebContentView::VulkanWindowRenderer final : public QVulkanWindowRenderer
 
     virtual void startNextFrame() override
     {
+        m_view.update_vulkan_alpha_blending_support();
+
         auto command_buffer = m_window.currentCommandBuffer();
         auto target_size = m_window.swapChainImageSize();
         auto render_pass = m_window.defaultRenderPass();
@@ -845,6 +848,41 @@ struct WebContentView::VulkanWindowRenderer final : public QVulkanWindowRenderer
 
         bool rendered = m_renderer.render(command_buffer, *paintable->shared_image_buffer, paintable->bitmap_size, target_size);
 
+        if (rendered && m_view.m_vulkan_window_supports_alpha_blending.value_or(false)) {
+            // Clear the strips overlaid by hover-expanded vertical tabs to transparent so the tab column painted in the
+            // widget backing store shows through this native window.
+            auto device_pixel_ratio = m_view.device_pixel_ratio();
+
+            auto punch_transparent_strip = [&](int logical_width, bool from_right) {
+                if (logical_width <= 0)
+                    return;
+
+                auto strip_width = min(qRound(logical_width * device_pixel_ratio), target_size.width());
+                if (strip_width <= 0)
+                    return;
+
+                VkClearAttachment clear_attachment {
+                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                    .colorAttachment = 0,
+                    .clearValue = { .color = { .float32 = { 0.0f, 0.0f, 0.0f, 0.0f } } },
+                };
+
+                VkClearRect clear_rect {
+                    .rect = {
+                        .offset = { from_right ? target_size.width() - strip_width : 0, 0 },
+                        .extent = { static_cast<u32>(strip_width), static_cast<u32>(target_size.height()) },
+                    },
+                    .baseArrayLayer = 0,
+                    .layerCount = 1,
+                };
+
+                vkCmdClearAttachments(command_buffer, 1, &clear_attachment, 1, &clear_rect);
+            };
+
+            punch_transparent_strip(m_view.m_vertical_tab_overlay_left, false);
+            punch_transparent_strip(m_view.m_vertical_tab_overlay_right, true);
+        }
+
         vkCmdEndRenderPass(command_buffer);
         if (!rendered) {
             if (m_view.m_vulkan_window_container)
@@ -896,6 +934,13 @@ void WebContentView::create_vulkan_window()
     m_vulkan_window = new VulkanWindow(*this);
     m_vulkan_window->setVulkanInstance(instance);
     m_vulkan_window->setDeviceExtensions(vulkan_dmabuf_device_extensions());
+
+    // Request an alpha channel so QVulkanWindow builds a blending swapchain (pre/post-multiplied composite alpha). This
+    // lets us punch transparent holes for hover-expanded vertical tabs, which this native window would otherwise occlude.
+    auto surface_format = m_vulkan_window->requestedFormat();
+    surface_format.setAlphaBufferSize(8);
+    m_vulkan_window->setFormat(surface_format);
+
     m_vulkan_window->setPreferredColorFormats({
         VK_FORMAT_B8G8R8A8_UNORM,
         VK_FORMAT_R8G8B8A8_UNORM,
@@ -961,6 +1006,58 @@ void WebContentView::update_vulkan_window_geometry()
 {
     if (m_vulkan_window_container)
         m_vulkan_window_container->setGeometry(rect());
+    update_vulkan_window_input_region();
+}
+
+void WebContentView::update_vulkan_window_input_region()
+{
+    if (!m_vulkan_window || !m_vulkan_window_container)
+        return;
+
+    // The strips overlaid by hover-expanded vertical tabs are painted transparent, but this native window still captures
+    // the pointer there. Exclude those strips from the input region so clicks fall through to the tab column beneath.
+    auto size = m_vulkan_window_container->size();
+    QRegion input_region { QRect { QPoint { 0, 0 }, size } };
+
+    if (m_vulkan_window_supports_alpha_blending.value_or(false)) {
+        if (m_vertical_tab_overlay_left > 0)
+            input_region -= QRect { 0, 0, m_vertical_tab_overlay_left, size.height() };
+        if (m_vertical_tab_overlay_right > 0)
+            input_region -= QRect { size.width() - m_vertical_tab_overlay_right, 0, m_vertical_tab_overlay_right, size.height() };
+    }
+
+    m_vulkan_window->setMask(input_region);
+}
+
+void WebContentView::update_vulkan_alpha_blending_support()
+{
+    if (m_vulkan_window_supports_alpha_blending.has_value())
+        return;
+
+    if (!m_vulkan_window)
+        return;
+
+    auto* physical_device = m_vulkan_window->physicalDevice();
+    if (physical_device == VK_NULL_HANDLE)
+        return;
+
+    auto* surface = QVulkanInstance::surfaceForWindow(m_vulkan_window);
+    if (surface == VK_NULL_HANDLE)
+        return;
+
+    VkSurfaceCapabilitiesKHR capabilities {};
+    if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface, &capabilities) != VK_SUCCESS)
+        return;
+
+    // Our transparent tab-column holes only reach the screen if the surface is blended per-pixel. QVulkanWindow (given
+    // our alpha format) picks a pre/post-multiplied mode when offered (the Wayland case), otherwise INHERIT, which
+    // blends against the window's ARGB visual on X11 while a compositor runs. If only OPAQUE is offered there is no
+    // blending at all, so the feature stays disabled.
+    static constexpr auto blending_modes = VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR | VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR | VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;
+    m_vulkan_window_supports_alpha_blending = (capabilities.supportedCompositeAlpha & blending_modes) != 0;
+
+    // The input mask was computed while support was still unknown; refresh it now that any stored insets can apply.
+    update_vulkan_window_input_region();
 }
 
 void WebContentView::set_vulkan_window_cursor(QCursor const& cursor)
