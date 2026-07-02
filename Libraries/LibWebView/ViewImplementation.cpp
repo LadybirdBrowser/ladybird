@@ -2214,6 +2214,30 @@ void ViewImplementation::reconstruct_current_session_history_entry_with_history_
     dump_session_history(reason);
 }
 
+Optional<SessionHistorySnapshot> ViewImplementation::session_history_snapshot() const
+{
+    auto const& session_history = m_top_level_traversable.session_history();
+
+    auto current_used_step_index = session_history.current_used_step_index();
+    if (!current_used_step_index.has_value())
+        return {};
+
+    return SessionHistorySnapshot {
+        .entries = session_history.entries(),
+        .used_steps = session_history.used_steps(),
+        .current_used_step_index = *current_used_step_index,
+    };
+}
+
+ErrorOr<void> ViewImplementation::restore_session_history_from_snapshot(SessionHistorySnapshot snapshot)
+{
+    TRY(m_top_level_traversable.restore_session_history_from_ui_snapshot(move(snapshot)));
+
+    reconstruct_current_session_history_entry_with_history_operation("restored-session-history-from-ui-snapshot"sv);
+    update_navigation_action_state();
+    return {};
+}
+
 NonnullRefPtr<Core::Promise<Empty>> ViewImplementation::reset_session_history_for_testing()
 {
     m_pending_session_history_reset_for_testing = Core::Promise<Empty>::construct();

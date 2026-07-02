@@ -5,6 +5,7 @@
  */
 
 #include <LibCore/EventLoop.h>
+#include <LibWebView/Application.h>
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/SiteIsolationManager.h>
 #include <LibWebView/ViewImplementation.h>
@@ -234,6 +235,15 @@ void CanonicalTraversable::reconstruct_the_history_to_step(i32 step)
             set_current_session_history_entry_identity({});
             traverse_the_history(*target, CheckForCancelation::No, nullptr, move(promise));
         });
+}
+
+ErrorOr<URL::URL> CanonicalTraversable::restore_session_history_from_ui_snapshot(SessionHistorySnapshot snapshot)
+{
+    TRY(m_session_history.restore_from_ui_snapshot(move(snapshot.entries), move(snapshot.used_steps), snapshot.current_used_step_index, [] { return Application::the().allocate_ui_process_cross_process_id(); }));
+
+    auto const* current_entry = m_session_history.current_entry();
+    VERIFY(current_entry);
+    return current_entry->url;
 }
 
 void CanonicalTraversable::traverse_the_history(TraversableSessionHistory::TraversalTarget const& target, CheckForCancelation check_for_cancelation, Function<void()> on_ready, NonnullRefPtr<Core::Promise<Empty>> promise)

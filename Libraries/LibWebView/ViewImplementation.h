@@ -144,6 +144,9 @@ public:
         Function<void()> on_ready = nullptr);
     [[nodiscard]] Vector<SessionHistoryTraversalMenuItem> session_history_traversal_menu_items(int direction) const;
 
+    [[nodiscard]] Optional<SessionHistorySnapshot> session_history_snapshot() const;
+    [[nodiscard]] ErrorOr<void> restore_session_history_from_snapshot(SessionHistorySnapshot);
+
     void zoom_in();
     void zoom_out();
     void set_zoom(double zoom_level);

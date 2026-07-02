@@ -104,6 +104,7 @@ public:
     void traverse_the_history_by_delta(int delta, CheckForCancelation, Function<void()> on_ready = nullptr);
     void traverse_the_history_to_step(i32 step, CheckForCancelation, Function<void()> on_ready = nullptr);
     void reconstruct_the_history_to_step(i32 step);
+    ErrorOr<URL::URL> restore_session_history_from_ui_snapshot(SessionHistorySnapshot);
     void abandon_after_web_content_process_crash();
     void recover_from_web_content_process_crash(Optional<HistoryJobEndpoint> crashed_endpoint, OnHistoryOperationComplete);
     void reset_session_history_for_testing(Web::HTML::SessionHistoryEntryDescriptor);
