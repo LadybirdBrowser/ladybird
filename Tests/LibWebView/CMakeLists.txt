@@ -13,6 +13,7 @@ set(TEST_SOURCES
     TestSessionHistory.cpp
     TestSessionHistorySnapshotStorage.cpp
     TestSessionHistoryTraversalQueue.cpp
+    TestSessionStore.cpp
     TestStorageJar.cpp
     TestWebViewURL.cpp
 )
