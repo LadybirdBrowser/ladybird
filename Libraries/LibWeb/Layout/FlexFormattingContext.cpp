@@ -508,12 +508,6 @@ CSSPixels FlexFormattingContext::specified_main_max_size_for_intrinsic_contribut
     return specified_main_max_size(item);
 }
 
-bool FlexFormattingContext::is_cross_auto(Box const& box) const
-{
-    auto& cross_length = computed_cross_size(box);
-    return cross_length.is_auto();
-}
-
 void FlexFormattingContext::set_has_definite_main_size(FlexItem& item)
 {
     if (main_axis_is_horizontal())
@@ -1380,19 +1374,14 @@ void FlexFormattingContext::calculate_cross_size_of_each_flex_line()
     }
 }
 
-// https://www.w3.org/TR/css-flexbox-1/#algo-stretch
+// https://drafts.csswg.org/css-flexbox-1/#algo-stretch
 void FlexFormattingContext::determine_used_cross_size_of_each_flex_item()
 {
     for (auto& flex_line : m_flex_lines) {
         for (auto& item : flex_line.items) {
-            //  If a flex item has align-self: stretch, its computed cross size property is auto,
-            //  and neither of its cross-axis margins are auto, the used outer cross size is the used cross size of its flex line,
-            //  clamped according to the item’s used min and max cross sizes.
-            auto flex_item_alignment = alignment_for_item(item.box);
-            if ((flex_item_alignment == CSS::AlignItems::Stretch || flex_item_alignment == CSS::AlignItems::Normal)
-                && is_cross_auto(item.box)
-                && !item.margins.cross_before_is_auto
-                && !item.margins.cross_after_is_auto) {
+            // If a flex item’s cross size depends on the available space in the cross axis, recalculate its cross
+            // size using the flex line’s cross size (rather than the flex container’s) as the available space.
+            if (flex_item_is_stretched(item)) {
                 auto unclamped_cross_size = flex_line.cross_size
                     - item.margins.cross_before - item.margins.cross_after
                     - item.padding.cross_before - item.padding.cross_after
@@ -1403,6 +1392,11 @@ void FlexFormattingContext::determine_used_cross_size_of_each_flex_item()
                 auto cross_max_size = !should_treat_cross_max_size_as_none(item.box) ? specified_cross_max_size(item) : CSSPixels::max();
 
                 item.cross_size = css_clamp(unclamped_cross_size, cross_min_size, cross_max_size);
+
+                // If the flex item’s cross size changed as a result, redo layout for its contents, treating this used
+                // size as its definite cross size so that percentage-sized children can be resolved.
+                set_cross_size(item, item.cross_size.value());
+                set_has_definite_cross_size(item);
             } else {
                 // Otherwise, the used cross size is the item’s hypothetical cross size.
                 item.cross_size = item.hypothetical_cross_size;

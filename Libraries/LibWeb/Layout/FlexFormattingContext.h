@@ -139,7 +139,6 @@ private:
     CSSPixels specified_cross_max_size(FlexItem const&) const;
     CSSPixels specified_main_max_size_for_intrinsic_contribution(FlexItem const&,
         AvailableSize const&) const;
-    bool is_cross_auto(Box const&) const;
     CSSPixels specified_main_min_size(FlexItem const&) const;
     CSSPixels specified_cross_min_size(FlexItem const&) const;
     CSSPixels calculate_inner_flex_container_cross_min_size() const;

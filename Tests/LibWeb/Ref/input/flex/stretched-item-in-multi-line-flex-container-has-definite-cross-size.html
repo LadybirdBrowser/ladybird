@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/flex/stretched-item-in-multi-line-flex-container-has-definite-cross-size-ref.html" />
+<style>
+    .outer {
+        display: flex;
+        flex-wrap: wrap;
+        height: 200px;
+    }
+
+    .centered {
+        display: flex;
+        align-items: center;
+        flex-basis: 100%;
+    }
+
+    .filled {
+        flex-basis: 100%;
+    }
+
+    .filled > div {
+        height: 100%;
+        background-color: blue;
+    }
+</style>
+<div class="outer">
+    <div class="centered">2</div>
+</div>
+<div class="outer">
+    <div class="filled">
+        <div></div>
+    </div>
+</div>
