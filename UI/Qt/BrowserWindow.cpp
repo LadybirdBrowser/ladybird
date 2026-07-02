@@ -678,6 +678,9 @@ void BrowserWindow::move_tab_to_window(int index, BrowserWindow& target_window, 
         return;
     }
 
+    if (is_private() != target_window.is_private())
+        return;
+
     auto* tab = m_tabs_container->tab(index);
     uninitialize_tab(tab);
     m_tabs_container->take_tab(index);

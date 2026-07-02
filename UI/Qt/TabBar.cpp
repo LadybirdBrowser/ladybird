@@ -117,6 +117,21 @@ static bool window_uses_client_side_decorations(QWidget& widget)
     return !top_level_window || top_level_window->uses_client_side_decorations();
 }
 
+static bool target_can_accept_tab_drop(QWidget& target, QDropEvent& event)
+{
+    if (!s_active_tab_drag_source)
+        return false;
+    if (!event.mimeData()->hasFormat(LADYBIRD_TAB_MIME_TYPE))
+        return false;
+
+    auto* source_window = qobject_cast<BrowserWindow*>(s_active_tab_drag_source->window());
+    auto* target_window = qobject_cast<BrowserWindow*>(target.window());
+    if (!source_window || !target_window)
+        return false;
+
+    return source_window->is_private() == target_window->is_private();
+}
+
 static QPainterPath tab_shape_path(QRectF const& rect, qreal top_radius, qreal bottom_radius)
 {
     top_radius = min(top_radius, rect.height() / 2.0);
@@ -800,7 +815,7 @@ void TabBar::contextMenuEvent(QContextMenuEvent* event)
 
 void TabBar::dragEnterEvent(QDragEnterEvent* event)
 {
-    if (!m_tab_widget || !s_active_tab_drag_source || !event->mimeData()->hasFormat(LADYBIRD_TAB_MIME_TYPE)) {
+    if (!m_tab_widget || !target_can_accept_tab_drop(*m_tab_widget, *event)) {
         event->ignore();
         return;
     }
@@ -819,7 +834,11 @@ void TabBar::dragLeaveEvent(QDragLeaveEvent* event)
 
 void TabBar::dragMoveEvent(QDragMoveEvent* event)
 {
-    if (!m_tab_widget || !s_active_tab_drag_source || !event->mimeData()->hasFormat(LADYBIRD_TAB_MIME_TYPE)) {
+    if (!m_tab_widget || !target_can_accept_tab_drop(*m_tab_widget, *event)) {
+        if (m_drop_indicator_index != -1) {
+            m_drop_indicator_index = -1;
+            update();
+        }
         event->ignore();
         return;
     }
@@ -837,7 +856,11 @@ void TabBar::dragMoveEvent(QDragMoveEvent* event)
 void TabBar::dropEvent(QDropEvent* event)
 {
     hide_tab_preview();
-    if (!m_tab_widget || !s_active_tab_drag_source || !event->mimeData()->hasFormat(LADYBIRD_TAB_MIME_TYPE)) {
+    if (!m_tab_widget || !target_can_accept_tab_drop(*m_tab_widget, *event)) {
+        if (m_drop_indicator_index != -1) {
+            m_drop_indicator_index = -1;
+            update();
+        }
         event->ignore();
         return;
     }
@@ -1857,7 +1880,7 @@ void TabWidget::resizeEvent(QResizeEvent* event)
 
 void TabWidget::accept_tab_drag(QDragMoveEvent* event)
 {
-    if (!s_active_tab_drag_source || !event->mimeData()->hasFormat(LADYBIRD_TAB_MIME_TYPE)) {
+    if (!target_can_accept_tab_drop(*this, *event)) {
         event->ignore();
         return;
     }
@@ -1875,7 +1898,7 @@ void TabWidget::accept_tab_drag(QDragMoveEvent* event)
 
 void TabWidget::accept_tab_drop(QDropEvent* event, int index)
 {
-    if (!s_active_tab_drag_source || !event->mimeData()->hasFormat(LADYBIRD_TAB_MIME_TYPE)) {
+    if (!target_can_accept_tab_drop(*this, *event)) {
         event->ignore();
         return;
     }
