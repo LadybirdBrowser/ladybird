@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Verify that the frame reloads with empty body after we remove srcdoc.

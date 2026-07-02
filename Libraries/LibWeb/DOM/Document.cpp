@@ -4943,13 +4943,19 @@ void Document::set_ready_for_post_load_tasks(bool ready)
     m_ready_for_post_load_tasks = ready;
     if (ready) {
         if (auto navigable = this->navigable()) {
-            // AD-HOC: Clear the navigation load event guard now that the document is ready.
-            //         This guard was set in finalize_a_cross_document_navigation to prevent the parent's
-            //         load event from firing while the about:blank was still the active document.
-            navigable->clear_navigation_load_event_guard();
-
             if (auto container = navigable->container()) {
-                container->document().schedule_html_parser_end_check();
+                // AD-HOC: The "ready for post-load tasks" step can run immediately after queueing this document's
+                //         load event task. Queue the parent wake-up behind that already-queued task so the parent's
+                //         parser end check observes the same task order as the spec event loop.
+                container->queue_an_element_task(HTML::Task::Source::DOMManipulation, [navigable, container] {
+                    // AD-HOC: Clear the navigation load event guard now that the document is ready.
+                    //         This guard was set in finalize_a_cross_document_navigation to prevent the parent's
+                    //         load event from firing while the about:blank was still the active document.
+                    navigable->clear_navigation_load_event_guard();
+                    container->document().schedule_html_parser_end_check();
+                });
+            } else {
+                navigable->clear_navigation_load_event_guard();
             }
         }
     }
