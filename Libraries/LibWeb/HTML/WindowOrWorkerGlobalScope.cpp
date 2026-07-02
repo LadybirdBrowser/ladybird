@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NumericLimits.h>
 #include <AK/QuickSort.h>
 #include <AK/String.h>
 #include <AK/Utf8View.h>
@@ -146,21 +147,25 @@ static ErrorOr<NonnullRefPtr<Gfx::Bitmap>> crop_to_the_source_rectangle_with_for
     //    (sx, sy), (sx+sw, sy), (sx+sw, sy+sh), (sx, sy+sh). Otherwise, let sourceRectangle be a rectangle whose
     //    corners are the four points (0, 0), (width of input, 0), (width of input, height of input), (0, height of input).
     //    NOTE: If either sw or sh are negative, then the top-left corner of this rectangle will be to the left or above the (sx, sy) point.
+    auto clamp_to_i32 = [](i64 value) {
+        return static_cast<int>(AK::clamp<i64>(value, NumericLimits<int>::min(), NumericLimits<int>::max()));
+    };
+
     Gfx::IntRect source_rectangle;
     if (sx.has_value() && sy.has_value() && sw.has_value() && sh.has_value()) {
-        WebIDL::Long effective_sx = sx.value();
-        WebIDL::Long effective_sy = sy.value();
-        WebIDL::Long effective_sw = sw.value();
-        WebIDL::Long effective_sh = sh.value();
+        i64 effective_sx = sx.value();
+        i64 effective_sy = sy.value();
+        i64 effective_sw = sw.value();
+        i64 effective_sh = sh.value();
         if (effective_sw < 0) {
+            effective_sx += effective_sw;
             effective_sw = -effective_sw;
-            effective_sx -= effective_sw;
         }
         if (effective_sh < 0) {
+            effective_sy += effective_sh;
             effective_sh = -effective_sh;
-            effective_sy -= effective_sh;
         }
-        source_rectangle = { effective_sx, effective_sy, effective_sw, effective_sh };
+        source_rectangle = { clamp_to_i32(effective_sx), clamp_to_i32(effective_sy), clamp_to_i32(effective_sw), clamp_to_i32(effective_sh) };
     } else {
         source_rectangle = input->rect();
     }
@@ -176,7 +181,7 @@ static ErrorOr<NonnullRefPtr<Gfx::Bitmap>> crop_to_the_source_rectangle_with_for
     else if (options.has_value() && options->resize_height.has_value()) {
         // the width of sourceRectangle, times the value of the resizeHeight member of options, divided by the height
         //  of sourceRectangle, rounded up to the nearest integer
-        output_width = ceil_div(source_rectangle.width() * options->resize_height.value(), source_rectangle.height());
+        output_width = clamp_to_i32(ceil_div(static_cast<i64>(source_rectangle.width()) * options->resize_height.value(), static_cast<i64>(source_rectangle.height())));
     }
     // -> If neither resizeWidth nor resizeHeight are specified
     else {
@@ -195,7 +200,7 @@ static ErrorOr<NonnullRefPtr<Gfx::Bitmap>> crop_to_the_source_rectangle_with_for
     else if (options.has_value() && options->resize_width.has_value()) {
         // the height of sourceRectangle, times the value of the resizeWidth member of options, divided by the width
         //  of sourceRectangle, rounded up to the nearest integer
-        output_height = ceil_div(source_rectangle.height() * options->resize_width.value(), source_rectangle.width());
+        output_height = clamp_to_i32(ceil_div(static_cast<i64>(source_rectangle.height()) * options->resize_width.value(), static_cast<i64>(source_rectangle.width())));
     }
     // -> If neither resizeWidth nor resizeHeight are specified
     else {
