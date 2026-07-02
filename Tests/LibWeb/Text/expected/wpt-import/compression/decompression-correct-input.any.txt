@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	decompressing deflate input should work
+Pass	decompressing gzip input should work
+Pass	decompressing deflate-raw input should work
+Pass	decompressing brotli input should work

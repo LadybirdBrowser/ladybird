@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Fail
+Fail	the length of deflate data should be shorter than that of the original data
+Fail	the length of deflate-raw data should be shorter than that of the original data
+Fail	the length of gzip data should be shorter than that of the original data
+Fail	the length of brotli data should be shorter than that of the original data

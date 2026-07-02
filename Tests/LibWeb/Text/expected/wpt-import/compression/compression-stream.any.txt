@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 13 tests
+
+5 Pass
+8 Fail
+Pass	CompressionStream constructor should throw on invalid format
+Pass	deflate empty data should be reinflated back to its origin
+Fail	deflate small amount data should be reinflated back to its origin
+Fail	deflate large amount data should be reinflated back to its origin
+Pass	deflate-raw empty data should be reinflated back to its origin
+Fail	deflate-raw small amount data should be reinflated back to its origin
+Fail	deflate-raw large amount data should be reinflated back to its origin
+Pass	gzip empty data should be reinflated back to its origin
+Fail	gzip small amount data should be reinflated back to its origin
+Fail	gzip large amount data should be reinflated back to its origin
+Pass	brotli empty data should be reinflated back to its origin
+Fail	brotli small amount data should be reinflated back to its origin
+Fail	brotli large amount data should be reinflated back to its origin

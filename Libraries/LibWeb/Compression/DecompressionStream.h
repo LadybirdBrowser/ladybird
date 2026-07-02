@@ -20,6 +20,7 @@
 namespace Web::Compression {
 
 using Decompressor = Variant<
+    NonnullOwnPtr<Compress::BrotliDecompressor>,
     NonnullOwnPtr<Compress::ZlibDecompressor>,
     NonnullOwnPtr<Compress::DeflateDecompressor>,
     NonnullOwnPtr<Compress::GzipDecompressor>>;

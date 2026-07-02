@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	decompressing gzip empty input should work
+Pass	decompressing deflate empty input should work
+Pass	decompressing deflate-raw empty input should work
+Pass	decompressing brotli empty input should work

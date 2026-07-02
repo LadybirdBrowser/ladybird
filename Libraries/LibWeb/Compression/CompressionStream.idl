@@ -1,5 +1,6 @@
 // https://compression.spec.whatwg.org/#enumdef-compressionformat
 enum CompressionFormat {
+    "brotli",
     "deflate",
     "deflate-raw",
     "gzip",

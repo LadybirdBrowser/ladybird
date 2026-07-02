@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	the result of compressing [,Hello,Hello] with deflate should be 'HelloHello'
+Pass	the result of compressing [Hello,,Hello] with deflate should be 'HelloHello'
+Pass	the result of compressing [Hello,Hello,] with deflate should be 'HelloHello'
+Pass	the result of compressing [,Hello,Hello] with deflate-raw should be 'HelloHello'
+Pass	the result of compressing [Hello,,Hello] with deflate-raw should be 'HelloHello'
+Pass	the result of compressing [Hello,Hello,] with deflate-raw should be 'HelloHello'
+Pass	the result of compressing [,Hello,Hello] with gzip should be 'HelloHello'
+Pass	the result of compressing [Hello,,Hello] with gzip should be 'HelloHello'
+Pass	the result of compressing [Hello,Hello,] with gzip should be 'HelloHello'
+Pass	the result of compressing [,Hello,Hello] with brotli should be 'HelloHello'
+Pass	the result of compressing [Hello,,Hello] with brotli should be 'HelloHello'
+Pass	the result of compressing [Hello,Hello,] with brotli should be 'HelloHello'

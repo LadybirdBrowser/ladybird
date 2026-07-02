@@ -34,10 +34,11 @@
         let expectedPrefixLengths = {
             'deflate': 2,
             'deflate-raw': 0,
-            'gzip': 2
+            'gzip': 2,
+            'brotli': 0,
         }
 
-        for (const format of ["deflate", "deflate-raw", "gzip"]) {
+        for (const format of ["deflate", "deflate-raw", "gzip", "brotli"]) {
             let compressed = await compress(data, format);
             println(`prefix=${compressed.slice(0, expectedPrefixLengths[format])}`)
             println(`equal=${data === compressed}`)

@@ -83,8 +83,8 @@ ErrorOr<ByteBuffer> decompress_all(ReadonlyBytes bytes)
     return TRY(deflate_stream->read_until_eof(4096));
 }
 
-template<class T>
-ErrorOr<ByteBuffer> compress_all(ReadonlyBytes bytes, GenericZlibCompressionLevel compression_level)
+template<class T, class CompressionLevel>
+ErrorOr<ByteBuffer> compress_all(ReadonlyBytes bytes, CompressionLevel compression_level)
 {
     auto output_stream = TRY(try_make<AllocatingMemoryStream>());
     auto gzip_stream = TRY(T::create(MaybeOwned { *output_stream }, compression_level));
