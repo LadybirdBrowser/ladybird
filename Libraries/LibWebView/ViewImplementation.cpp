@@ -2126,7 +2126,7 @@ void ViewImplementation::initialize_context_menus()
         if (download_path.is_error())
             return;
 
-        Application::the().file_downloader().download_file(m_context_menu_url, download_path.release_value());
+        Application::the().file_downloader().download_file(m_context_menu_url, download_path.release_value(), is_private());
     });
     m_copy_image_action = Action::create("Copy Image"sv, ActionID::CopyImage, [this]() {
         if (!m_image_context_menu_bitmap.has_value())

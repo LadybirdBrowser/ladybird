@@ -163,6 +163,27 @@ StorageJar& Application::storage_jar(IsPrivate is_private)
         : *the().m_storage_jar;
 }
 
+Requests::RequestClient& Application::request_server_client(IsPrivate is_private)
+{
+    if (is_private == IsPrivate::No)
+        return *the().m_request_server_client;
+
+    if (!the().m_private_request_server_client) {
+        auto handle = connect_new_request_server_client(IsPrivate::Yes).release_value_but_fixme_should_propagate_errors();
+        auto transport = handle.create_transport().release_value_but_fixme_should_propagate_errors();
+        auto request_server_client = make_ref_counted<Requests::RequestClient>(move(transport));
+
+#ifdef AK_OS_WINDOWS
+        auto response = request_server_client->send_sync<Messages::RequestServer::InitTransport>(Core::System::getpid());
+        request_server_client->transport().set_peer_pid(response->peer_pid());
+#endif
+
+        the().m_private_request_server_client = move(request_server_client);
+    }
+
+    return *the().m_private_request_server_client;
+}
+
 ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 {
     TRY(handle_attached_debugger());
@@ -1048,6 +1069,7 @@ ErrorOr<void> Application::launch_request_server()
 
     m_request_server_client->on_request_server_died = [this]() {
         m_request_server_client = nullptr;
+        m_private_request_server_client = nullptr;
 
         if (Core::EventLoop::current().was_exit_requested())
             return;

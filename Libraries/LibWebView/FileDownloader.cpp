@@ -59,7 +59,7 @@ static String status_to_error_string(Optional<Requests::NetworkError> const& net
     return MUST(String::formatted("Received error response code {} while downloading file", *response_code));
 }
 
-u64 FileDownloader::download_file(URL::URL const& url, LexicalPath destination)
+u64 FileDownloader::download_file(URL::URL const& url, LexicalPath destination, IsPrivate is_private)
 {
     auto download_id = start_download(url, move(destination));
     auto* active = active_download(download_id);
@@ -71,7 +71,7 @@ u64 FileDownloader::download_file(URL::URL const& url, LexicalPath destination)
     auto request_headers = HTTP::HeaderList::create();
     request_headers->set({ "User-Agent"sv, Web::default_user_agent });
 
-    auto request = Application::request_server_client().start_request("GET"sv, url, *request_headers);
+    auto request = Application::request_server_client(is_private).start_request("GET"sv, url, *request_headers);
     if (!request) {
         fail_download(download_id, "Unable to start request to download file"_string);
         return download_id;

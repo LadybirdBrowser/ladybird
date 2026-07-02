@@ -71,7 +71,7 @@ public:
     static RequestServerOptions const& request_server_options() { return the().m_request_server_options; }
     static WebContentOptions& web_content_options() { return the().m_web_content_options; }
 
-    static Requests::RequestClient& request_server_client() { return *the().m_request_server_client; }
+    static Requests::RequestClient& request_server_client(IsPrivate = IsPrivate::No);
     static ImageDecoderClient::Client& image_decoder_client() { return *the().m_image_decoder_client; }
 
     virtual bool supports_vertical_tabs() const { return false; }
@@ -372,6 +372,7 @@ private:
     Optional<Core::AnonymousBuffer> m_content_blocker_list_buffer;
 
     RefPtr<Requests::RequestClient> m_request_server_client;
+    RefPtr<Requests::RequestClient> m_private_request_server_client;
     RefPtr<ImageDecoderClient::Client> m_image_decoder_client;
     RefPtr<CompositorClient> m_compositor_client;
     size_t m_compositor_restart_count { 0 };

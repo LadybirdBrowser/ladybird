@@ -18,6 +18,7 @@
 #include <LibRequests/Forward.h>
 #include <LibURL/URL.h>
 #include <LibWebView/Forward.h>
+#include <LibWebView/PrivateBrowsing.h>
 
 namespace Core {
 
@@ -51,7 +52,7 @@ public:
     FileDownloader();
     ~FileDownloader();
 
-    u64 download_file(URL::URL const&, LexicalPath);
+    u64 download_file(URL::URL const&, LexicalPath, IsPrivate);
     u64 adopt_download(URL::URL const&, LexicalPath, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ReadonlyBytes initial_data = {});
     u64 start_download(URL::URL const&, LexicalPath, Optional<u64> total_size = {});
     bool has_active_downloads() const;
