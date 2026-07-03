@@ -1736,40 +1736,47 @@ void FormattingContext::resolve_anchor_insets(Box& box) const
     auto const& default_anchor_name = box.computed_values().position_anchor();
     auto const& containing_block_state = m_state.get(*containing_block);
 
-    // https://drafts.csswg.org/css-anchor-position-1/#determining
-    // Several features of this specification refer to the position and size of an anchor box. Unless otherwise
-    // specified, this refers to the border box edge of the principal box of relevant anchor element.
     // https://drafts.csswg.org/css-anchor-position-1/#acceptable-anchor-element
     // FIXME: An element possible anchor is an acceptable anchor element for an absolutely positioned element positioned
     //        el if all of the following are true:
     //        - possible anchor is laid out strictly before positioned el [...]
+    auto target_anchor_box = [&](FlyString const& anchor_name) -> Box* {
+        auto anchor_element = element->document().element_by_anchor_name(anchor_name, *element);
+        if (!anchor_element)
+            return nullptr;
+
+        // NB: We use unsafe_layout_node() because we are in the middle of layout.
+        auto* anchor_box = as_if<Box>(anchor_element->unsafe_layout_node());
+        if (!anchor_box)
+            return nullptr;
+
+        // The anchor element may not have been laid out (it must be laid out strictly before
+        // the positioned element to be an acceptable anchor).
+        if (!m_state.try_get(*anchor_box))
+            return nullptr;
+        return anchor_box;
+    };
+
+    // https://drafts.csswg.org/css-anchor-position-1/#determining
+    // Several features of this specification refer to the position and size of an anchor box. Unless otherwise
+    // specified, this refers to the border box edge of the principal box of relevant anchor element.
     auto resolve_anchor_rect = [&](CSS::AnchorStyleValue const& anchor) -> Optional<CSSPixelRect> {
         auto const& name = anchor.anchor_name().has_value() ? anchor.anchor_name() : default_anchor_name;
         if (!name.has_value())
             return {};
 
-        auto anchor_element = element->document().element_by_anchor_name(name.value(), *element);
-        if (!anchor_element)
+        auto const* anchor_box = target_anchor_box(name.value());
+        if (!anchor_box)
             return {};
 
-        // NB: We use unsafe_layout_node() because we are in the middle of layout.
-        auto anchor_layout_node = anchor_element->unsafe_layout_node();
-        if (!anchor_layout_node || !is<Box>(*anchor_layout_node))
-            return {};
-
-        auto const& anchor_box = as<Box>(*anchor_layout_node);
-        // The anchor element may not have been laid out (it must be laid out strictly before
-        // the positioned element to be an acceptable anchor).
-        auto const* anchor_state = m_state.try_get(anchor_box);
-        if (!anchor_state)
-            return {};
-        auto anchor_border_box_origin = anchor_state->cumulative_offset()
-            - CSSPixelPoint { anchor_state->border_box_left(), anchor_state->border_box_top() };
+        auto const& anchor_state = m_state.get(*anchor_box);
+        auto anchor_border_box_origin = anchor_state.cumulative_offset()
+            - CSSPixelPoint { anchor_state.border_box_left(), anchor_state.border_box_top() };
         auto containing_block_padding_box_origin = containing_block_state.cumulative_offset()
             - CSSPixelPoint { containing_block_state.padding_left, containing_block_state.padding_top };
         return CSSPixelRect {
             anchor_border_box_origin - containing_block_padding_box_origin,
-            { anchor_state->border_box_width(), anchor_state->border_box_height() },
+            { anchor_state.border_box_width(), anchor_state.border_box_height() },
         };
     };
 
