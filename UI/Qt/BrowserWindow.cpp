@@ -441,10 +441,13 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 
         set_current_tab(tab);
         if (tab) {
-            if (auto* focus_widget = tab->focusWidget(); focus_widget && tab->isAncestorOf(focus_widget))
-                focus_widget->setFocus();
-            else
-                tab->view().setFocus();
+            QWidget* focus_widget = &tab->view();
+            if (auto* tab_focus_widget = tab->focusWidget(); tab_focus_widget && tab->isAncestorOf(tab_focus_widget))
+                focus_widget = tab_focus_widget;
+#if defined(AK_OS_MACOS)
+            make_appkit_window_first_responder(*focus_widget);
+#endif
+            focus_widget->setFocus();
         }
         fullscreen_mode().exit(FullscreenMode::ExitInitiatedBy::UI);
     });
