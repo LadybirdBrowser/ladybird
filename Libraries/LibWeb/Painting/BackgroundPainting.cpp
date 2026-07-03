@@ -25,6 +25,18 @@
 
 namespace Web::Painting {
 
+static Gfx::FloatRect source_rect_for_visible_image_part(Gfx::IntRect const& visible_rect, Gfx::IntRect const& image_rect, Gfx::IntSize const& source_size)
+{
+    auto scale_x = static_cast<float>(source_size.width()) / static_cast<float>(image_rect.width());
+    auto scale_y = static_cast<float>(source_size.height()) / static_cast<float>(image_rect.height());
+    return {
+        static_cast<float>(visible_rect.x() - image_rect.x()) * scale_x,
+        static_cast<float>(visible_rect.y() - image_rect.y()) * scale_y,
+        static_cast<float>(visible_rect.width()) * scale_x,
+        static_cast<float>(visible_rect.height()) * scale_y,
+    };
+}
+
 static void append_text_clip_paths(DisplayListRecordingContext& context, Paintable const& paintable)
 {
     auto& display_list_recorder = context.display_list_recorder();
@@ -334,8 +346,17 @@ void paint_background(DisplayListRecordingContext& context, PaintableBox const& 
                 auto frame = image_style_value.current_frame(document, dest_rect);
                 if (!frame.has_value())
                     return;
-                auto scaling_mode = to_gfx_scaling_mode(image_rendering, frame->size(), dest_rect.size().to_type<int>());
-                context.display_list_recorder().draw_repeated_decoded_image_frame(dest_rect.to_type<int>(), clip_rect.to_type<int>(), *frame, scaling_mode, repeat_x, repeat_y);
+                auto tile_device_rect = dest_rect.to_type<int>();
+                auto clip_device_rect = clip_rect.to_type<int>();
+                auto visible_rect = tile_device_rect.intersected(clip_device_rect);
+                if (tile_count == 1) {
+                    auto source_rect = source_rect_for_visible_image_part(visible_rect, tile_device_rect, frame->size());
+                    auto scaling_mode = to_gfx_scaling_mode(image_rendering, source_rect.size().to_rounded<int>(), visible_rect.size());
+                    context.display_list_recorder().draw_scaled_decoded_image_frame(visible_rect, source_rect, *frame, scaling_mode);
+                } else if (tile_count > 1) {
+                    auto scaling_mode = to_gfx_scaling_mode(image_rendering, frame->size(), tile_device_rect.size());
+                    context.display_list_recorder().draw_repeated_decoded_image_frame(tile_device_rect, clip_device_rect, *frame, scaling_mode, repeat_x, repeat_y);
+                }
             }
         } else if ((repeat_x || repeat_y) && !repeat_x_has_gap && !repeat_y_has_gap && tile_count > max_tiles_before_pattern_fallback) {
             // A not-decoded-image repeating background otherwise records a separate painting command for every tile —
