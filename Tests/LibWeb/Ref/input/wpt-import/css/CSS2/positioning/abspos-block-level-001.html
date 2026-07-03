@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<title>CSS Test: Static positions of block-level absolutely positioned objects</title>
+<link rel="help" href="https://drafts.csswg.org/css2/visudet.html#static-position">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/positioning/abspos-block-level-001-ref.html">
+<link rel="author" title="Koji Ishii" href="mailto:kojii@chromium.org">
+<style>
+.rtl {
+  direction: rtl
+}
+.absolute {
+  position: absolute;
+}
+.red {
+  color: red;
+  padding: 0 1ch;
+}
+.green {
+  background-color: lime;
+  padding: 0 1ch;
+}
+</style>
+<body>
+  <div>
+    <div class="absolute green">Block-level abspos before inline content</div>
+    <span class="red">Inline content</span>
+  </div>
+  <div>
+    <span>Inline content</span>
+    <div class=absolute>Block-level abspos after inline content</div>
+  </div>
+  <br>
+  <div class=rtl>
+    <div class="absolute green">Block-level abspos before inline content</div>
+    <span class="red">Inline content</span>
+  </div>
+  <div class=rtl>
+    <span>Inline content</span>
+    <div class=absolute>Block-level abspos after inline content</div>
+  </div>
+</body>

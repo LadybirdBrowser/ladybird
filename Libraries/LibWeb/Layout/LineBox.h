@@ -20,6 +20,7 @@ public:
         CSSPixels inline_offset { 0 };
         CSSPixels block_offset { 0 };
         CSS::WritingMode writing_mode { CSS::WritingMode::HorizontalTb };
+        bool preceded_by_in_flow_content { false };
 
         CSSPixelPoint offset() const
         {

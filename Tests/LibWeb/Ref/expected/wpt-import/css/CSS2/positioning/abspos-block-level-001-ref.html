@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<style>
+.rtl {
+  direction: rtl
+}
+.absolute {
+  position: absolute;
+}
+.green {
+  background-color: lime;
+  padding: 0 1ch;
+}
+</style>
+<body>
+  <div>
+    <span class="absolute green">Block-level abspos before inline content</span>
+    <br>
+  </div>
+  <div>
+    <div>Inline content</div>
+    <div>Block-level abspos after inline content</div>
+  </div>
+  <div class=rtl>
+    <span class="absolute green">Block-level abspos before inline content</span>
+    <br>
+  </div>
+  <div class=rtl>
+    <div>Inline content</div>
+    <div>Block-level abspos after inline content</div>
+  </div>
+</body>

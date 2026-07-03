@@ -67,6 +67,7 @@ void LineBox::add_static_position_marker(Box const& box)
         .inline_offset = m_inline_length,
         .block_offset = 0,
         .writing_mode = m_writing_mode,
+        .preceded_by_in_flow_content = !m_fragments.is_empty(),
     });
 }
 
