@@ -37,6 +37,15 @@ using NullableArrayBufferViewVariant = FlattenVariant<ArrayBufferViewVariant, Va
 using BufferSourceVariant = FlattenVariant<ArrayBufferViewVariant, Variant<GC::Ref<JS::ArrayBuffer>>>;
 using NullableBufferSourceVariant = FlattenVariant<BufferSourceVariant, Variant<Empty>>;
 
+struct WEB_API ValidatedBufferSource {
+    GC::Ref<JS::ArrayBuffer> buffer;
+    size_t byte_offset { 0 };
+    size_t byte_length { 0 };
+    size_t element_size { 1 };
+    bool is_data_view { false };
+    bool is_array_buffer { false };
+};
+
 class WEB_API BufferSource {
 public:
     static BufferSourceVariant from_object(GC::Ref<JS::Object>);
@@ -89,5 +98,8 @@ public:
 private:
     ArrayBufferViewVariant m_array_buffer_view;
 };
+
+WEB_API ErrorOr<ValidatedBufferSource> validate_buffer_source(BufferSource const&);
+WEB_API ErrorOr<ValidatedBufferSource> validate_array_buffer_view(ArrayBufferView const&);
 
 }

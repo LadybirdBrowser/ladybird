@@ -166,6 +166,65 @@ bool ArrayBufferView::is_out_of_bounds() const
     return BufferSource { m_array_buffer_view }.is_out_of_bounds();
 }
 
+static ErrorOr<ValidatedBufferSource> validate_buffer_source_bounds(GC::Ref<JS::ArrayBuffer> array_buffer, size_t byte_offset, size_t byte_length, size_t element_size, bool is_data_view, bool is_array_buffer)
+{
+    if (array_buffer->is_detached()) [[unlikely]]
+        return Error::from_errno(EINVAL);
+
+    Checked<size_t> byte_end = byte_offset;
+    byte_end += byte_length;
+    if (byte_end.has_overflow() || byte_end.value() > array_buffer->byte_length()) [[unlikely]]
+        return Error::from_errno(EINVAL);
+
+    return ValidatedBufferSource {
+        .buffer = array_buffer,
+        .byte_offset = byte_offset,
+        .byte_length = byte_length,
+        .element_size = element_size,
+        .is_data_view = is_data_view,
+        .is_array_buffer = is_array_buffer,
+    };
+}
+
+ErrorOr<ValidatedBufferSource> validate_buffer_source(BufferSource const& buffer_source)
+{
+    return buffer_source.buffer_source().visit(
+        [](GC::Ref<JS::ArrayBuffer> array_buffer) -> ErrorOr<ValidatedBufferSource> {
+            return validate_buffer_source_bounds(array_buffer, 0, array_buffer->byte_length(), 1, false, true);
+        },
+        [](GC::Ref<JS::DataView> data_view) -> ErrorOr<ValidatedBufferSource> {
+            auto* array_buffer = data_view->viewed_array_buffer();
+            if (!array_buffer) [[unlikely]]
+                return Error::from_errno(EINVAL);
+            if (array_buffer->is_detached()) [[unlikely]]
+                return Error::from_errno(EINVAL);
+
+            auto view_record = JS::make_data_view_with_buffer_witness_record(data_view, JS::ArrayBuffer::Order::SeqCst);
+            if (JS::is_view_out_of_bounds(view_record)) [[unlikely]]
+                return Error::from_errno(EINVAL);
+
+            return validate_buffer_source_bounds(GC::Ref { *array_buffer }, data_view->byte_offset(), JS::get_view_byte_length(view_record), 1, true, false);
+        },
+        [](auto const& typed_array) -> ErrorOr<ValidatedBufferSource> {
+            auto* array_buffer = typed_array->viewed_array_buffer();
+            if (!array_buffer) [[unlikely]]
+                return Error::from_errno(EINVAL);
+            if (array_buffer->is_detached()) [[unlikely]]
+                return Error::from_errno(EINVAL);
+
+            auto typed_array_record = JS::make_typed_array_with_buffer_witness_record(*typed_array, JS::ArrayBuffer::Order::SeqCst);
+            if (JS::is_typed_array_out_of_bounds(typed_array_record)) [[unlikely]]
+                return Error::from_errno(EINVAL);
+
+            return validate_buffer_source_bounds(GC::Ref { *array_buffer }, typed_array->byte_offset(), JS::typed_array_byte_length(typed_array_record), typed_array->element_size(), false, false);
+        });
+}
+
+ErrorOr<ValidatedBufferSource> validate_array_buffer_view(ArrayBufferView const& array_buffer_view)
+{
+    return validate_buffer_source(BufferSource { array_buffer_view });
+}
+
 ErrorOr<void> ArrayBufferView::write_checked(ReadonlyBytes bytes, u32 starting_offset)
 {
     auto view_byte_length = byte_length();
@@ -183,18 +242,16 @@ ErrorOr<void> ArrayBufferView::write_checked(ReadonlyBytes bytes, u32 starting_o
     if (bytes.is_empty())
         return {};
 
-    auto array_buffer = viewed_array_buffer();
-    if (!array_buffer || array_buffer->is_detached()) [[unlikely]]
-        return Error::from_errno(EINVAL);
+    auto validated_view = TRY(validate_array_buffer_view(*this));
 
-    Checked<size_t> write_offset = byte_offset();
+    Checked<size_t> write_offset = validated_view.byte_offset;
     write_offset += starting_offset;
-    if (write_offset.has_overflow() || write_offset.value() > array_buffer->byte_length()) [[unlikely]]
+    if (write_offset.has_overflow() || write_offset.value() > validated_view.buffer->byte_length()) [[unlikely]]
         return Error::from_errno(EINVAL);
-    if (bytes.size() > array_buffer->byte_length() - write_offset.value()) [[unlikely]]
+    if (bytes.size() > validated_view.buffer->byte_length() - write_offset.value()) [[unlikely]]
         return Error::from_errno(EINVAL);
 
-    array_buffer->overwrite(write_offset.value(), bytes.data(), bytes.size());
+    validated_view.buffer->overwrite(write_offset.value(), bytes.data(), bytes.size());
     return {};
 }
 
