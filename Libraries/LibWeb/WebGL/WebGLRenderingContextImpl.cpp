@@ -42,6 +42,53 @@ namespace Web::WebGL {
 static constexpr GLenum UNMASKED_VENDOR_WEBGL = 0x9245;
 static constexpr GLenum UNMASKED_RENDERER_WEBGL = 0x9246;
 
+static bool is_valid_framebuffer_binding_target(WebGLVersion version, GLenum target)
+{
+    if (target == GL_FRAMEBUFFER)
+        return true;
+    if (version == WebGLVersion::WebGL2 && (target == GL_READ_FRAMEBUFFER || target == GL_DRAW_FRAMEBUFFER))
+        return true;
+    return false;
+}
+
+static bool is_valid_framebuffer_attachment(WebGLVersion version, bool draw_buffers_extension_enabled, GLenum attachment)
+{
+    switch (attachment) {
+    case GL_COLOR_ATTACHMENT0:
+    case GL_DEPTH_ATTACHMENT:
+    case GL_STENCIL_ATTACHMENT:
+    case GL_DEPTH_STENCIL_ATTACHMENT:
+        return true;
+    default:
+        break;
+    }
+
+    if (version == WebGLVersion::WebGL2 || draw_buffers_extension_enabled)
+        return attachment > GL_COLOR_ATTACHMENT0 && attachment <= GL_COLOR_ATTACHMENT0 + 15;
+    return false;
+}
+
+static bool is_valid_framebuffer_texture_2d_target(GLenum target)
+{
+    switch (target) {
+    case GL_TEXTURE_2D:
+    case GL_TEXTURE_CUBE_MAP_POSITIVE_X:
+    case GL_TEXTURE_CUBE_MAP_NEGATIVE_X:
+    case GL_TEXTURE_CUBE_MAP_POSITIVE_Y:
+    case GL_TEXTURE_CUBE_MAP_NEGATIVE_Y:
+    case GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
+    case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
+        return true;
+    default:
+        return false;
+    }
+}
+
+static bool is_cube_map_face(GLenum target)
+{
+    return target >= GL_TEXTURE_CUBE_MAP_POSITIVE_X && target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z;
+}
+
 WebGLRenderingContextImpl::WebGLRenderingContextImpl(JS::Realm& realm, NonnullOwnPtr<WebGLContextProxy> context)
     : WebGLRenderingContextBase(realm)
     , m_context(move(context))
@@ -488,6 +535,9 @@ void WebGLRenderingContextImpl::delete_framebuffer(GC::Ptr<WebGLFramebuffer> fra
 
     auto handle = framebuffer_handle.value();
     m_context->delete_framebuffers(1, &handle);
+
+    if (m_framebuffer_binding == framebuffer)
+        m_framebuffer_binding = nullptr;
 }
 
 void WebGLRenderingContextImpl::delete_program(GC::Ptr<WebGLProgram> program)
@@ -684,6 +734,26 @@ void WebGLRenderingContextImpl::framebuffer_renderbuffer(WebIDL::UnsignedLong ta
 {
     m_context->make_current();
 
+    if (!is_valid_framebuffer_binding_target(m_context->webgl_version(), target)) {
+        set_error(GL_INVALID_ENUM);
+        return;
+    }
+
+    if (!is_valid_framebuffer_attachment(m_context->webgl_version(), extension_enabled("WEBGL_draw_buffers"sv), attachment)) {
+        set_error(GL_INVALID_ENUM);
+        return;
+    }
+
+    if (renderbuffertarget != GL_RENDERBUFFER) {
+        set_error(GL_INVALID_ENUM);
+        return;
+    }
+
+    if (!m_framebuffer_binding) {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+
     auto renderbuffer_handle = 0;
     if (renderbuffer) {
         auto handle_or_error = renderbuffer->handle(this);
@@ -694,11 +764,37 @@ void WebGLRenderingContextImpl::framebuffer_renderbuffer(WebIDL::UnsignedLong ta
         renderbuffer_handle = handle_or_error.release_value();
     }
     m_context->framebuffer_renderbuffer(target, attachment, renderbuffertarget, renderbuffer_handle);
+    m_framebuffer_binding->set_renderbuffer_attachment(attachment, renderbuffer);
 }
 
 void WebGLRenderingContextImpl::framebuffer_texture2d(WebIDL::UnsignedLong target, WebIDL::UnsignedLong attachment, WebIDL::UnsignedLong textarget, GC::Ptr<WebGLTexture> texture, WebIDL::Long level)
 {
     m_context->make_current();
+
+    if (!is_valid_framebuffer_binding_target(m_context->webgl_version(), target)) {
+        set_error(GL_INVALID_ENUM);
+        return;
+    }
+
+    if (!is_valid_framebuffer_attachment(m_context->webgl_version(), extension_enabled("WEBGL_draw_buffers"sv), attachment)) {
+        set_error(GL_INVALID_ENUM);
+        return;
+    }
+
+    if (!is_valid_framebuffer_texture_2d_target(textarget)) {
+        set_error(GL_INVALID_ENUM);
+        return;
+    }
+
+    if (level < 0 || (m_context->webgl_version() == WebGLVersion::WebGL1 && level != 0)) {
+        set_error(GL_INVALID_VALUE);
+        return;
+    }
+
+    if (!m_framebuffer_binding) {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
 
     auto texture_handle = 0;
     if (texture) {
@@ -710,6 +806,7 @@ void WebGLRenderingContextImpl::framebuffer_texture2d(WebIDL::UnsignedLong targe
         texture_handle = handle_or_error.release_value();
     }
     m_context->framebuffer_texture2d(target, attachment, textarget, texture_handle, level);
+    m_framebuffer_binding->set_texture_attachment(attachment, texture, textarget, level);
 }
 
 void WebGLRenderingContextImpl::front_face(WebIDL::UnsignedLong mode)
@@ -1618,6 +1715,58 @@ WebIDL::UnsignedLong WebGLRenderingContextImpl::get_error()
 {
     m_context->make_current();
     return get_error_value();
+}
+
+JS::Value WebGLRenderingContextImpl::get_framebuffer_attachment_parameter(WebIDL::UnsignedLong target, WebIDL::UnsignedLong attachment, WebIDL::UnsignedLong pname)
+{
+    m_context->make_current();
+
+    if (!is_valid_framebuffer_binding_target(m_context->webgl_version(), target)) {
+        set_error(GL_INVALID_ENUM);
+        return JS::js_null();
+    }
+
+    if (!m_framebuffer_binding) {
+        set_error(GL_INVALID_OPERATION);
+        return JS::js_null();
+    }
+
+    if (!is_valid_framebuffer_attachment(m_context->webgl_version(), extension_enabled("WEBGL_draw_buffers"sv), attachment)) {
+        set_error(GL_INVALID_ENUM);
+        return JS::js_null();
+    }
+
+    auto const* framebuffer_attachment = m_framebuffer_binding->attachment(attachment);
+    if (!framebuffer_attachment) {
+        if (pname == GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE)
+            return JS::Value(GL_NONE);
+        if (pname == GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME && m_context->webgl_version() == WebGLVersion::WebGL2)
+            return JS::js_null();
+        set_error(m_context->webgl_version() == WebGLVersion::WebGL2 ? GL_INVALID_OPERATION : GL_INVALID_ENUM);
+        return JS::js_null();
+    }
+
+    switch (pname) {
+    case GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE:
+        if (framebuffer_attachment->texture)
+            return JS::Value(GL_TEXTURE);
+        return JS::Value(GL_RENDERBUFFER);
+    case GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME:
+        if (framebuffer_attachment->texture)
+            return JS::Value(framebuffer_attachment->texture);
+        return JS::Value(framebuffer_attachment->renderbuffer);
+    case GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL:
+        if (framebuffer_attachment->texture)
+            return JS::Value(framebuffer_attachment->texture_level);
+        break;
+    case GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE:
+        if (framebuffer_attachment->texture)
+            return JS::Value(is_cube_map_face(framebuffer_attachment->texture_target) ? framebuffer_attachment->texture_target : 0);
+        break;
+    }
+
+    set_error(GL_INVALID_ENUM);
+    return JS::js_null();
 }
 
 JS::Value WebGLRenderingContextImpl::get_program_parameter(GC::Ref<WebGLProgram> program, WebIDL::UnsignedLong pname)

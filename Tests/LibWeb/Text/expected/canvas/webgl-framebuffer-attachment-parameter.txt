@@ -1,0 +1,31 @@
+default framebuffer query returns null: true
+default framebuffer query error: 1282
+user framebuffer BACK attachment query returns null: true
+user framebuffer BACK attachment query error: 1280
+empty color attachment type is NONE: true
+empty color attachment type error: 0
+empty color attachment name is null: true
+empty color attachment name error: 1280
+texture attachment type is TEXTURE: true
+texture attachment name is texture: true
+texture attachment level is 0: true
+texture attachment cube map face is 0: true
+texture attachment queries error: 0
+invalid texture attachment point error: 1280
+invalid texture attachment point preserves texture: true
+invalid texture attachment point preservation query error: 0
+invalid texture level error: 1281
+invalid texture level preserves texture: true
+invalid texture level preservation query error: 0
+default framebuffer texture attachment error: 1282
+default framebuffer texture attachment preserves texture: true
+default framebuffer texture attachment preservation query error: 0
+renderbuffer attachment type is RENDERBUFFER: true
+renderbuffer attachment name is renderbuffer: true
+renderbuffer attachment texture level is null: true
+renderbuffer texture level error: 1280
+invalid renderbuffer target error: 1280
+invalid renderbuffer target preserves renderbuffer: true
+invalid renderbuffer target preservation query error: 0
+detached color attachment type is NONE: true
+detached color attachment type error: 0

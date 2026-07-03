@@ -87,6 +87,7 @@ public:
     WebIDL::Long get_attrib_location(GC::Ref<WebGLProgram> program, String name);
     JS::Value get_buffer_parameter(WebIDL::UnsignedLong target, WebIDL::UnsignedLong pname);
     WebIDL::ExceptionOr<JS::Value> get_parameter(WebIDL::UnsignedLong pname);
+    JS::Value get_framebuffer_attachment_parameter(WebIDL::UnsignedLong target, WebIDL::UnsignedLong attachment, WebIDL::UnsignedLong pname);
     WebIDL::UnsignedLong get_error();
     JS::Value get_program_parameter(GC::Ref<WebGLProgram> program, WebIDL::UnsignedLong pname);
     Optional<String> get_program_info_log(GC::Ref<WebGLProgram> program);

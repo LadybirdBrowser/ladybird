@@ -1,0 +1,78 @@
+<!doctype html>
+<canvas id="canvas" width="1" height="1"></canvas>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let gl = canvas.getContext("webgl");
+        if (!gl) {
+            println("WebGL unavailable");
+            return;
+        }
+
+        function printError(label) {
+            println(`${label}: ${gl.getError()}`);
+        }
+
+        let defaultFramebufferValue = gl.getFramebufferAttachmentParameter(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE);
+        println(`default framebuffer query returns null: ${defaultFramebufferValue === null}`);
+        printError("default framebuffer query error");
+
+        let framebuffer = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+
+        println(`user framebuffer BACK attachment query returns null: ${gl.getFramebufferAttachmentParameter(gl.FRAMEBUFFER, gl.BACK, gl.FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE) === null}`);
+        printError("user framebuffer BACK attachment query error");
+
+        println(`empty color attachment type is NONE: ${gl.getFramebufferAttachmentParameter(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE) === gl.NONE}`);
+        printError("empty color attachment type error");
+        println(`empty color attachment name is null: ${gl.getFramebufferAttachmentParameter(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.FRAMEBUFFER_ATTACHMENT_OBJECT_NAME) === null}`);
+        printError("empty color attachment name error");
+
+        let texture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+
+        println(`texture attachment type is TEXTURE: ${gl.getFramebufferAttachmentParameter(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE) === gl.TEXTURE}`);
+        println(`texture attachment name is texture: ${gl.getFramebufferAttachmentParameter(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.FRAMEBUFFER_ATTACHMENT_OBJECT_NAME) === texture}`);
+        println(`texture attachment level is 0: ${gl.getFramebufferAttachmentParameter(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL) === 0}`);
+        println(`texture attachment cube map face is 0: ${gl.getFramebufferAttachmentParameter(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE) === 0}`);
+        printError("texture attachment queries error");
+
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.BACK, gl.TEXTURE_2D, texture, 0);
+        printError("invalid texture attachment point error");
+        println(`invalid texture attachment point preserves texture: ${gl.getFramebufferAttachmentParameter(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.FRAMEBUFFER_ATTACHMENT_OBJECT_NAME) === texture}`);
+        printError("invalid texture attachment point preservation query error");
+
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 1);
+        printError("invalid texture level error");
+        println(`invalid texture level preserves texture: ${gl.getFramebufferAttachmentParameter(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.FRAMEBUFFER_ATTACHMENT_OBJECT_NAME) === texture}`);
+        printError("invalid texture level preservation query error");
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+        printError("default framebuffer texture attachment error");
+        gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+        println(`default framebuffer texture attachment preserves texture: ${gl.getFramebufferAttachmentParameter(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.FRAMEBUFFER_ATTACHMENT_OBJECT_NAME) === texture}`);
+        printError("default framebuffer texture attachment preservation query error");
+
+        let renderbuffer = gl.createRenderbuffer();
+        gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
+        gl.renderbufferStorage(gl.RENDERBUFFER, gl.RGBA4, 1, 1);
+        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, renderbuffer);
+
+        println(`renderbuffer attachment type is RENDERBUFFER: ${gl.getFramebufferAttachmentParameter(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE) === gl.RENDERBUFFER}`);
+        println(`renderbuffer attachment name is renderbuffer: ${gl.getFramebufferAttachmentParameter(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.FRAMEBUFFER_ATTACHMENT_OBJECT_NAME) === renderbuffer}`);
+        println(`renderbuffer attachment texture level is null: ${gl.getFramebufferAttachmentParameter(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL) === null}`);
+        printError("renderbuffer texture level error");
+
+        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, renderbuffer);
+        printError("invalid renderbuffer target error");
+        println(`invalid renderbuffer target preserves renderbuffer: ${gl.getFramebufferAttachmentParameter(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.FRAMEBUFFER_ATTACHMENT_OBJECT_NAME) === renderbuffer}`);
+        printError("invalid renderbuffer target preservation query error");
+
+        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, null);
+        println(`detached color attachment type is NONE: ${gl.getFramebufferAttachmentParameter(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE) === gl.NONE}`);
+        printError("detached color attachment type error");
+    });
+</script>
