@@ -7,13 +7,13 @@
  */
 
 #include <LibWeb/CSS/Parser/Parser.h>
-#include <LibWeb/CSS/SelectorEngine.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/HTMLCollection.h>
+#include <LibWeb/DOM/NodeList.h>
 #include <LibWeb/DOM/NodeOperations.h>
 #include <LibWeb/DOM/ParentNode.h>
+#include <LibWeb/DOM/SelectorQuery.h>
 #include <LibWeb/DOM/ShadowRoot.h>
-#include <LibWeb/DOM/StaticNodeList.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Infra/Strings.h>
@@ -23,63 +23,37 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(ParentNode);
 
-enum class ReturnMatches {
-    First,
-    All,
-};
-// https://dom.spec.whatwg.org/#scope-match-a-selectors-string
-static WebIDL::ExceptionOr<Variant<GC::Ptr<Element>, GC::Ref<NodeList>>> scope_match_a_selectors_string(ParentNode& node, StringView selector_text, ReturnMatches return_matches)
-{
-    // To scope-match a selectors string selectors against a node, run these steps:
-    auto& document = node.document();
-
-    // 1. Let s be the result of parse a selector selectors.
-    auto const& maybe_selectors = document.parse_or_cache_selector_list(selector_text);
-
-    // 2. If s is failure, then throw a "SyntaxError" DOMException.
-    if (!maybe_selectors.has_value())
-        return WebIDL::SyntaxError::create(node.realm(), "Failed to parse selector"_utf16);
-
-    auto const& selectors = maybe_selectors.value();
-
-    // 3. Return the result of match a selector against a tree with s and node’s root using scoping root node.
-    GC::Ptr<Element> single_result;
-    Vector<GC::Root<Node>> results;
-    // FIXME: This should be shadow-including. https://drafts.csswg.org/selectors-4/#match-a-selector-against-a-tree
-    node.for_each_in_subtree_of_type<Element>([&](auto& element) {
-        for (auto const& selector : selectors) {
-            SelectorEngine::MatchContext context;
-            if (SelectorEngine::matches(selector, element, nullptr, context, node)) {
-                if (return_matches == ReturnMatches::First) {
-                    single_result = &element;
-                    return TraversalDecision::Break;
-                }
-                results.append(element);
-                break;
-            }
-        }
-        return TraversalDecision::Continue;
-    });
-
-    if (return_matches == ReturnMatches::First)
-        return { single_result };
-
-    return { StaticNodeList::create(node.realm(), move(results)) };
-}
-
 // https://dom.spec.whatwg.org/#dom-parentnode-queryselector
 WebIDL::ExceptionOr<GC::Ptr<Element>> ParentNode::query_selector(StringView selector_text)
 {
     // The querySelector(selectors) method steps are to return the first result of running scope-match a selectors string selectors against this,
     // if the result is not an empty list; otherwise null.
-    return TRY(scope_match_a_selectors_string(*this, selector_text, ReturnMatches::First)).get<GC::Ptr<Element>>();
+
+    // Scope-match step 1. Let s be the result of parse a selector selectors.
+    auto query = document().selector_query_for(selector_text);
+
+    // Scope-match step 2. If s is failure, then throw a "SyntaxError" DOMException.
+    if (!query)
+        return WebIDL::SyntaxError::create(realm(), "Failed to parse selector"_utf16);
+
+    // Scope-match step 3. Return the result of match a selector against a tree with s and node’s root using scoping root node.
+    return query->query_first(*this);
 }
 
 // https://dom.spec.whatwg.org/#dom-parentnode-queryselectorall
 WebIDL::ExceptionOr<GC::Ref<NodeList>> ParentNode::query_selector_all(StringView selector_text)
 {
     // The querySelectorAll(selectors) method steps are to return the static result of running scope-match a selectors string selectors against this.
-    return TRY(scope_match_a_selectors_string(*this, selector_text, ReturnMatches::All)).get<GC::Ref<NodeList>>();
+
+    // Scope-match step 1. Let s be the result of parse a selector selectors.
+    auto query = document().selector_query_for(selector_text);
+
+    // Scope-match step 2. If s is failure, then throw a "SyntaxError" DOMException.
+    if (!query)
+        return WebIDL::SyntaxError::create(realm(), "Failed to parse selector"_utf16);
+
+    // Scope-match step 3. Return the result of match a selector against a tree with s and node’s root using scoping root node.
+    return query->query_all(*this);
 }
 
 GC::Ptr<Element> ParentNode::first_element_child()

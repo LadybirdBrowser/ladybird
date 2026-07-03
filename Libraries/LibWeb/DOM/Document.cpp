@@ -105,6 +105,7 @@
 #include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/ProcessingInstruction.h>
 #include <LibWeb/DOM/Range.h>
+#include <LibWeb/DOM/SelectorQuery.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/DOM/TreeWalker.h>
@@ -9523,7 +9524,7 @@ static bool contains_named_namespace(CSS::SelectorList const& selectors)
     return false;
 }
 
-Optional<CSS::SelectorList> const& Document::parse_or_cache_selector_list(StringView selector_text) const
+RefPtr<SelectorQuery const> Document::selector_query_for(StringView selector_text) const
 {
     static constexpr size_t MAX_SELECTOR_QUERY_CACHE_SIZE = 512;
 
@@ -9538,13 +9539,15 @@ Optional<CSS::SelectorList> const& Document::parse_or_cache_selector_list(String
     if (maybe_selectors.has_value() && contains_named_namespace(maybe_selectors.value()))
         maybe_selectors.clear();
 
+    RefPtr<SelectorQuery const> query;
+    if (maybe_selectors.has_value())
+        query = SelectorQuery::create(maybe_selectors.release_value());
+
     if (m_selector_query_cache.size() >= MAX_SELECTOR_QUERY_CACHE_SIZE)
         m_selector_query_cache.remove(m_selector_query_cache.begin());
 
-    m_selector_query_cache.set(selector_text_string, move(maybe_selectors));
-    auto it = m_selector_query_cache.find(selector_text_string);
-    VERIFY(it != m_selector_query_cache.end());
-    return it->value;
+    m_selector_query_cache.set(selector_text_string, query);
+    return query;
 }
 
 }

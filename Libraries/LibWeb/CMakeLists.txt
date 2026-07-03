@@ -377,6 +377,7 @@ set(SOURCES
     DOM/PseudoElement.cpp
     DOM/QualifiedName.cpp
     DOM/Range.cpp
+    DOM/SelectorQuery.cpp
     DOM/ShadowRoot.cpp
     DOM/Slot.cpp
     DOM/SlotRegistry.cpp

@@ -575,6 +575,7 @@ class ProcessingInstruction;
 class PseudoElement;
 class Range;
 class RegisteredObserver;
+class SelectorQuery;
 class ShadowRoot;
 class SlotRegistry;
 class StaticNodeList;
