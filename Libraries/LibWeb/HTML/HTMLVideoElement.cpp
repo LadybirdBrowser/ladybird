@@ -146,23 +146,17 @@ u32 HTMLVideoElement::video_height() const
     return 0;
 }
 
-bool HTMLVideoElement::update_intrinsic_video_dimensions()
+void HTMLVideoElement::update_intrinsic_video_dimensions()
 {
-    if (selected_video_track_sink() == nullptr) {
-        auto had_intrinsic_video_dimensions = m_intrinsic_video_dimensions.has_value();
-        set_intrinsic_video_dimensions({});
-        return had_intrinsic_video_dimensions;
+    Optional<Gfx::Size<u32>> dimensions = {};
+
+    if (selected_video_track_sink() != nullptr) {
+        auto current_frame = selected_video_track_sink()->current_frame();
+        if (current_frame != nullptr)
+            dimensions = current_frame->size();
     }
 
-    auto current_frame = selected_video_track_sink()->current_frame();
-    if (current_frame == nullptr)
-        return false;
-
-    auto current_frame_size = current_frame->size();
-    if (current_frame_size == m_intrinsic_video_dimensions)
-        return false;
-    set_intrinsic_video_dimensions(current_frame_size);
-    return true;
+    set_intrinsic_video_dimensions(dimensions);
 }
 
 void HTMLVideoElement::update_natural_dimensions()

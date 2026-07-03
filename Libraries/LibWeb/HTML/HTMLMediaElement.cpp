@@ -1737,8 +1737,7 @@ void HTMLMediaElement::update_current_video_frame()
     else
         clear_compositor_video_frame();
 
-    auto intrinsic_dimensions_changed = update_intrinsic_video_dimensions();
-    set_needs_repaint(intrinsic_dimensions_changed ? InvalidateDisplayList::Yes : InvalidateDisplayList::No);
+    set_needs_repaint(InvalidateDisplayList::No);
 }
 
 void HTMLMediaElement::set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML::VideoTrack> video_track)
@@ -1758,12 +1757,15 @@ void HTMLMediaElement::set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML:
         auto sink_update_result = m_selected_video_track_sink->update();
         if (sink_update_result == Media::DisplayingVideoSinkUpdateResult::NewFrameAvailable) {
             update_current_video_frame();
+            update_intrinsic_video_dimensions();
         } else if (auto* video_element = as_if<HTMLVideoElement>(this)) {
             auto const& video_data = video_track->track_in_playback_manager().video_data();
             video_element->set_intrinsic_video_dimensions(Gfx::Size<u32>(video_data.pixel_width, video_data.pixel_height));
         }
     } else {
         m_selected_video_track_sink = nullptr;
+        if (auto* video_element = as_if<HTMLVideoElement>(this))
+            video_element->set_intrinsic_video_dimensions({});
     }
 
     if (previous_track)
@@ -1779,8 +1781,10 @@ void HTMLMediaElement::update_video_frame_and_timeline()
 
     if (m_selected_video_track_sink) {
         auto sink_update_result = m_selected_video_track_sink->update();
-        if (sink_update_result == Media::DisplayingVideoSinkUpdateResult::NewFrameAvailable)
+        if (sink_update_result == Media::DisplayingVideoSinkUpdateResult::NewFrameAvailable) {
             update_current_video_frame();
+            update_intrinsic_video_dimensions();
+        }
     }
 
     // Wait for the seek to complete before updating the timestamp, otherwise we'll display the timestamp from
