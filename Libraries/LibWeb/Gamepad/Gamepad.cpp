@@ -235,7 +235,7 @@ void Gamepad::initialize_axes()
             axes_size = axis_index + 1;
     }
 
-    // NOTE: Instead of returning a list, we can just directly update m_buttons.
+    // NOTE: Instead of returning a list, we can just directly update m_axes.
     // 10. Let axes be an empty list.
     // 11. For each axisIndex of the range from 0 to axesSize − 1, append 0 to axes.
     // 12. Return axes.
