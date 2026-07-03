@@ -181,7 +181,7 @@ public:
     Optional<Painting::VideoFrameResourceId> video_frame_resource_id() const { return m_video_frame_resource_id; }
     u64 video_frame_content_generation() const { return m_video_frame_content_generation; }
 
-    virtual bool update_intrinsic_video_dimensions() { return false; }
+    virtual void update_intrinsic_video_dimensions() { }
     virtual void update_natural_dimensions() { }
 
 protected:
