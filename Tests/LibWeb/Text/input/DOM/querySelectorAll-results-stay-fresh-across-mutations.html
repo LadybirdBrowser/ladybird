@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"></div>
+<div id="list"></div>
+<div id="shadow-host"></div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+
+        // Each call must return a fresh static NodeList object.
+        println(`same selector returns distinct NodeList objects: ${document.querySelectorAll("div") !== document.querySelectorAll("div")}`);
+
+        // Structural mutations are reflected in subsequent queries.
+        const first = document.createElement("span");
+        first.className = "item";
+        host.appendChild(first);
+        println(`.item count after append: ${host.querySelectorAll(".item").length}`);
+        const second = document.createElement("span");
+        second.className = "item";
+        host.appendChild(second);
+        println(`.item count after second append: ${host.querySelectorAll(".item").length}`);
+        host.removeChild(first);
+        println(`.item count after remove: ${host.querySelectorAll(".item").length}`);
+
+        // The same selector queried from different roots gives per-root results.
+        println(`.item count from document: ${document.querySelectorAll(".item").length}`);
+
+        // Class attribute changes are reflected.
+        second.classList.remove("item");
+        println(`.item count after classList.remove: ${host.querySelectorAll(".item").length}`);
+        second.classList.add("item");
+        println(`.item count after classList.add: ${host.querySelectorAll(".item").length}`);
+
+        // Id changes are reflected.
+        second.id = "needle";
+        println(`#needle count after id set: ${host.querySelectorAll("#needle").length}`);
+        second.removeAttribute("id");
+        println(`#needle count after id removed: ${host.querySelectorAll("#needle").length}`);
+
+        // Attribute changes are reflected.
+        second.setAttribute("data-k", "v");
+        println(`[data-k=v] count after setAttribute: ${host.querySelectorAll("[data-k=v]").length}`);
+        second.setAttribute("data-k", "w");
+        println(`[data-k=v] count after attribute value change: ${host.querySelectorAll("[data-k=v]").length}`);
+        second.removeAttribute("data-k");
+        println(`[data-k] count after removeAttribute: ${host.querySelectorAll("[data-k]").length}`);
+
+        // :disabled tracks the disabled attribute.
+        const button = document.createElement("button");
+        host.appendChild(button);
+        println(`:disabled count before: ${host.querySelectorAll(":disabled").length}`);
+        button.disabled = true;
+        println(`:disabled count after: ${host.querySelectorAll(":disabled").length}`);
+
+        // :checked tracks checkedness, which changes without any attribute mutation.
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        host.appendChild(checkbox);
+        println(`:checked count before: ${host.querySelectorAll(":checked").length}`);
+        checkbox.checked = true;
+        println(`:checked count after: ${host.querySelectorAll(":checked").length}`);
+        println(`:has(:checked) count after: ${document.querySelectorAll("div:has(:checked)").length}`);
+
+        // :empty tracks character data mutations that don't change the tree structure.
+        const emptyProbe = document.createElement("div");
+        const text = document.createTextNode("hello");
+        emptyProbe.appendChild(text);
+        host.appendChild(emptyProbe);
+        println(`div:empty count before: ${host.querySelectorAll("div:empty").length}`);
+        text.data = "";
+        println(`div:empty count after text.data = "": ${host.querySelectorAll("div:empty").length}`);
+        text.data = "hello again";
+        println(`div:empty count after text.data restored: ${host.querySelectorAll("div:empty").length}`);
+        emptyProbe.textContent = "";
+        println(`div:empty count after textContent = "": ${host.querySelectorAll("div:empty").length}`);
+
+        // Structural pseudo-classes see sibling reordering.
+        const list = document.getElementById("list");
+        list.innerHTML = "<i>one</i><i>two</i><i>three</i>";
+        println(`i:nth-child(2) before reorder: ${list.querySelectorAll("i:nth-child(2)")[0].textContent}`);
+        list.insertBefore(list.children[2], list.children[0]);
+        println(`i:nth-child(2) after reorder: ${list.querySelectorAll("i:nth-child(2)")[0].textContent}`);
+
+        // :scope queries see mutations too.
+        println(`:scope > .item count: ${host.querySelectorAll(":scope > .item").length}`);
+        const third = document.createElement("span");
+        third.className = "item";
+        host.appendChild(third);
+        println(`:scope > .item count after append: ${host.querySelectorAll(":scope > .item").length}`);
+
+        // Queries rooted at a disconnected node see mutations.
+        const disconnected = document.createElement("div");
+        disconnected.innerHTML = `<p class="x"></p>`;
+        println(`disconnected .x count: ${disconnected.querySelectorAll(".x").length}`);
+        const extra = document.createElement("p");
+        extra.className = "x";
+        disconnected.appendChild(extra);
+        println(`disconnected .x count after append: ${disconnected.querySelectorAll(".x").length}`);
+
+        // Queries rooted in a shadow tree see mutations inside it.
+        const shadowRoot = document.getElementById("shadow-host").attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = `<p class="s"></p>`;
+        println(`shadow .s count: ${shadowRoot.querySelectorAll(".s").length}`);
+        const shadowExtra = document.createElement("p");
+        shadowExtra.className = "s";
+        shadowRoot.appendChild(shadowExtra);
+        println(`shadow .s count after append: ${shadowRoot.querySelectorAll(".s").length}`);
+
+        // A node adopted into another document, mutated there, and adopted back
+        // must not report stale results in its original document.
+        const otherDocument = document.implementation.createHTMLDocument("");
+        const traveler = document.createElement("div");
+        traveler.innerHTML = `<p class="y"></p>`;
+        println(`traveler .y count: ${traveler.querySelectorAll(".y").length}`);
+        otherDocument.adoptNode(traveler);
+        const foreignChild = otherDocument.createElement("p");
+        foreignChild.className = "y";
+        traveler.appendChild(foreignChild);
+        document.adoptNode(traveler);
+        println(`traveler .y count after adopt roundtrip: ${traveler.querySelectorAll(".y").length}`);
+
+        // querySelector agrees with querySelectorAll before and after mutations.
+        const firstItem = host.querySelector(".item");
+        println(`querySelector agrees with querySelectorAll[0]: ${firstItem === host.querySelectorAll(".item")[0]}`);
+        host.removeChild(firstItem);
+        println(`querySelector after remove: ${host.querySelector(".item") === host.querySelectorAll(".item")[0]}`);
+    });
+</script>
