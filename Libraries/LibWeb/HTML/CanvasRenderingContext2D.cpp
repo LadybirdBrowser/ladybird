@@ -1067,6 +1067,17 @@ static bool is_point_in_path_internal(Gfx::Path path, Gfx::AffineTransform const
     return path.contains(point, parse_fill_rule(fill_rule));
 }
 
+static bool image_provider_is_usable_for_canvas(Layout::ImageProvider const& image_provider)
+{
+    if (!image_provider.is_image_available())
+        return false;
+
+    auto intrinsic_width = image_provider.intrinsic_width();
+    auto intrinsic_height = image_provider.intrinsic_height();
+    return intrinsic_width.has_value() && intrinsic_height.has_value()
+        && *intrinsic_width > 0 && *intrinsic_height > 0;
+}
+
 bool CanvasRenderingContext2D::is_point_in_path(double x, double y, StringView fill_rule)
 {
     return is_point_in_path_internal(path(), drawing_state().transform, x, y, fill_rule);
@@ -1088,13 +1099,9 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
             if (image_element->current_request().state() == HTML::ImageRequest::State::Broken)
                 return WebIDL::InvalidStateError::create(image_element->realm(), "Image element state is broken"_utf16);
 
-            // If image is not fully decodable, then return bad.
-            auto current_image_frame = image_element->current_image_frame();
-            if (!current_image_frame.has_value())
-                return { CanvasImageSourceUsability::Bad };
-
-            // If image has an intrinsic width or intrinsic height (or both) equal to zero, then return bad.
-            if (current_image_frame->width() == 0 || current_image_frame->height() == 0)
+            // If image is not fully decodable, or has an intrinsic width or intrinsic height
+            // (or both) equal to zero, then return bad.
+            if (!image_provider_is_usable_for_canvas(*image_element))
                 return { CanvasImageSourceUsability::Bad };
             return Optional<CanvasImageSourceUsability> {};
         },
@@ -1102,13 +1109,9 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
         [](GC::Ref<SVG::SVGImageElement> image_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
             // FIXME: If image's current request's state is broken, then throw an "InvalidStateError" DOMException.
 
-            // If image is not fully decodable, then return bad.
-            auto current_image_frame = image_element->current_image_frame();
-            if (!current_image_frame.has_value())
-                return { CanvasImageSourceUsability::Bad };
-
-            // If image has an intrinsic width or intrinsic height (or both) equal to zero, then return bad.
-            if (current_image_frame->width() == 0 || current_image_frame->height() == 0)
+            // If image is not fully decodable, or has an intrinsic width or intrinsic height
+            // (or both) equal to zero, then return bad.
+            if (!image_provider_is_usable_for_canvas(*image_element))
                 return { CanvasImageSourceUsability::Bad };
             return Optional<CanvasImageSourceUsability> {};
         },

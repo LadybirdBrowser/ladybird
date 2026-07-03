@@ -2404,8 +2404,8 @@ WebIDL::UnsignedLong HTMLInputElement::height() const
     }
 
     // ...or else the natural height and height of the image, in CSS pixels, if an image is available but not being rendered
-    if (auto bitmap = current_image_frame(); bitmap.has_value())
-        return bitmap->height();
+    if (auto height = intrinsic_height(); height.has_value() && *height > 0)
+        return height->to_int();
 
     // ...or else 0, if the image is not available or does not have intrinsic dimensions.
     return 0;
@@ -2439,8 +2439,8 @@ WebIDL::UnsignedLong HTMLInputElement::width() const
     }
 
     // ...or else the natural width and height of the image, in CSS pixels, if an image is available but not being rendered
-    if (auto bitmap = current_image_frame(); bitmap.has_value())
-        return bitmap->width();
+    if (auto width = intrinsic_width(); width.has_value() && *width > 0)
+        return width->to_int();
 
     // ...or else 0, if the image is not available or does not have intrinsic dimensions.
     return 0;

@@ -15,17 +15,25 @@ namespace Web::HTML {
 
 Gfx::IntSize canvas_image_source_dimensions(CanvasImageSource const& image)
 {
+    auto image_provider_intrinsic_size = [](Layout::ImageProvider const& image_provider) -> Optional<Gfx::IntSize> {
+        auto intrinsic_width = image_provider.intrinsic_width();
+        auto intrinsic_height = image_provider.intrinsic_height();
+        if (!intrinsic_width.has_value() || !intrinsic_height.has_value())
+            return {};
+        return Gfx::IntSize { intrinsic_width->to_int(), intrinsic_height->to_int() };
+    };
+
     return image.visit(
-        [](GC::Ref<HTMLImageElement> source) -> Gfx::IntSize {
-            if (auto frame = source->current_image_frame(); frame.has_value())
-                return frame->size();
+        [&](GC::Ref<HTMLImageElement> source) -> Gfx::IntSize {
+            if (auto intrinsic_size = image_provider_intrinsic_size(*source); intrinsic_size.has_value())
+                return *intrinsic_size;
 
             // FIXME: This is very janky and not correct.
             return { source->width(), source->height() };
         },
-        [](GC::Ref<SVG::SVGImageElement> source) -> Gfx::IntSize {
-            if (auto decoded_image_frame = source->current_image_frame(); decoded_image_frame.has_value())
-                return decoded_image_frame->size();
+        [&](GC::Ref<SVG::SVGImageElement> source) -> Gfx::IntSize {
+            if (auto intrinsic_size = image_provider_intrinsic_size(*source); intrinsic_size.has_value())
+                return *intrinsic_size;
 
             // FIXME: This is very janky and not correct.
             return { source->width()->anim_val()->value(), source->height()->anim_val()->value() };

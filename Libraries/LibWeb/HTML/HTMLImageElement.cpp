@@ -314,8 +314,8 @@ WebIDL::UnsignedLong HTMLImageElement::width() const
 
     // ...or else the density-corrected intrinsic width and height of the image, in CSS pixels,
     // if the image has intrinsic dimensions and is available but not being rendered.
-    if (auto bitmap = current_image_frame(); bitmap.has_value())
-        return bitmap->width();
+    if (auto width = intrinsic_width(); width.has_value() && *width > 0)
+        return width->to_int();
 
     // ...or else 0, if the image is not available or does not have intrinsic dimensions.
     return 0;
@@ -345,8 +345,8 @@ WebIDL::UnsignedLong HTMLImageElement::height() const
 
     // ...or else the density-corrected intrinsic height and height of the image, in CSS pixels,
     // if the image has intrinsic dimensions and is available but not being rendered.
-    if (auto bitmap = current_image_frame(); bitmap.has_value())
-        return bitmap->height();
+    if (auto height = intrinsic_height(); height.has_value() && *height > 0)
+        return height->to_int();
 
     // ...or else 0, if the image is not available or does not have intrinsic dimensions.
     return 0;
@@ -363,26 +363,22 @@ void HTMLImageElement::set_height(WebIDL::UnsignedLong height)
 unsigned HTMLImageElement::natural_width() const
 {
     // 1. If the image is not available, then return 0.
-    auto bitmap = current_image_frame();
-    if (!bitmap.has_value())
-        return 0;
-
     // 2. Return the respective component of the image's density-corrected natural width and height, in CSS pixels. [CSS]
     // FIXME: Implement density-corrected algorithm.
-    return bitmap->width();
+    if (auto width = intrinsic_width(); width.has_value() && *width > 0)
+        return width->to_int();
+    return 0;
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-naturalheight
 unsigned HTMLImageElement::natural_height() const
 {
     // 1. If the image is not available, then return 0.
-    auto bitmap = current_image_frame();
-    if (!bitmap.has_value())
-        return 0;
-
     // 2. Return the respective component of the image's density-corrected natural width and height, in CSS pixels. [CSS]
     // FIXME: Implement density-corrected algorithm.
-    return bitmap->height();
+    if (auto height = intrinsic_height(); height.has_value() && *height > 0)
+        return height->to_int();
+    return 0;
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-htmlimageelement-x
