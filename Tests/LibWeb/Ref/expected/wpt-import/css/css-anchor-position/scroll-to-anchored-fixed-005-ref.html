@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html class=reftest-wait>
+<title>Reference: Scroll-to-Focus Fixed anchor()ed Box Horizontal</title>
+
+<link rel="stylesheet" href="../..../../fonts/ahem.css">
+<style>
+  /* Force scrolling. */
+  body {
+    border: solid silver;
+    height: 100vh;
+    width: 100vw;
+  }
+  .anchor {
+    position: absolute;
+    top: 100%;
+    left: 100%;
+    width: 100vw;
+    height: 100vh;
+    border: solid silver;
+    anchor-name: --foo;
+  }
+
+  /* Attach to anchor in horizontal axis */
+  .fixed {
+    position: absolute;
+    position-anchor: --foo;
+    top: calc(100vh - 5em);
+    left: anchor(left);
+    padding: 1em 2em;
+    border: solid orange 10px;
+    margin: 5px;
+  }
+
+  /* Avoid pixel differences. */
+  .fixed {
+    font-family: Ahem;
+  }
+  a:focus {
+    outline: solid blue;
+  }
+</style>
+
+<input value="Tab to the next link &rarr;"><br>
+<em>This should trigger a scroll operation...</em>
+
+<div class=anchor></div>
+<div class=fixed>
+  <p><a href="" id=test>One</a>
+  <p><a href="">Two</a>
+  <p><a href="">Three</a>
+</div>
+
+<script>
+function raf() {
+  return new Promise(resolve => requestAnimationFrame(resolve));
+}
+async function runTest() {
+  await raf();
+  document.getElementById('test').focus();
+  await raf();
+  window.scroll(window.scrollX, 0);
+  await raf();
+  document.documentElement.classList.remove('reftest-wait');
+}
+runTest();
+</script>

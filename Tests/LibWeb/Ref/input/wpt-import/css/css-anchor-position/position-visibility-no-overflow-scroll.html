@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<title>CSS Anchor Positioning Test: position-visibility: no-overflow</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#position-visibility">
+<link rel="match" href="../../../../expected/wpt-import/css/css-anchor-position/position-visibility-no-overflow-scroll-ref.html">
+<style>
+  #container {
+    position: relative;
+    width: 400px;
+    height: 150px;
+    overflow: hidden;
+  }
+
+  #scroll-container {
+    overflow: hidden scroll;
+    scrollbar-width: none;
+    width: 100%;
+    height: 100%;
+  }
+
+  .anchor {
+    width: 100px;
+    height: 100px;
+    background: orange;
+    display: inline-block;
+  }
+
+  .target {
+    position: absolute;
+    position-visibility: no-overflow;
+    width: 100px;
+    height: 100px;
+  }
+</style>
+
+<div id="container">
+<div id="scroll-container">
+  <div class="anchor" style="anchor-name: --a1;">anchor1</div>
+  <div class="anchor" style="anchor-name: --a2; position: relative; top: 100px">anchor2</div>
+  <div id="target1" class="target" style="position-anchor: --a1; top: anchor(bottom); background: green">target1</div>
+  <div id="target2" class="target" style="position-anchor: --a2; left: anchor(left); bottom: anchor(top); background: red">target2</div>
+  <div style="height: 300px"></div>
+</div>
+</div>
+
+<script>
+requestAnimationFrame(() => {
+  requestAnimationFrame(() => {
+    document.getElementById('scroll-container').scrollTop = 50;
+    document.documentElement.classList.remove('reftest-wait');
+  });
+});
+</script>
+</html>

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<title>Anchored element should update when anchor's div under `contain: layout size` becomes a scroll container.</title>
+<link rel="author" href="mailto:dshin@mozilla.com">
+<link rel="help" href="https://drafts.csswg.org/css-anchor-1/">
+<link rel="match" href="../../../../expected/wpt-import/css/css-anchor-position/reference/anchor-scroll-update-009-ref.html">
+<style>
+.abspos-cb {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  border: 1px solid;
+}
+
+.positioned {
+  width: 15px;
+  height: 15px;
+  background: purple;
+
+  position: absolute;
+  position-anchor: --a;
+  left: anchor(right);
+  top: anchor(top);
+}
+
+.scroller {
+  overflow-y: scroll;
+  height: 100%;
+}
+
+.filler {
+  width: 1px;
+  height: 500px;
+}
+
+.anchor {
+  width: 15px;
+  height: 15px;
+  background: magenta;
+  anchor-name: --a;
+}
+
+.contain {
+  contain: layout size;
+  width: 200px;
+  height: 200px;
+}
+</style>
+<div class=abspos-cb>
+  <div class=positioned></div>
+  <div class=contain><div id=dut>
+    <div class=filler></div>
+    <div class=anchor></div>
+  </div></div>
+</div>
+<script>
+dut.classList.toggle('scroller');
+dut.scrollTop = 315;
+
+function raf() {
+  return new Promise(resolve => requestAnimationFrame(resolve));
+}
+
+async function runTest() {
+  await raf();
+  await raf();
+  document.documentElement.classList.remove('reftest-wait');
+}
+runTest();
+</script>

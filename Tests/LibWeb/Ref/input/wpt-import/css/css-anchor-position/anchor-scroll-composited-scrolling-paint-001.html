@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html class=reftest-wait>
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1999954">
+<link rel="match" href="../../../../expected/wpt-import/css/css-anchor-position/anchor-scroll-composited-scrolling-paint-001-ref.html">
+<script src="../../common/reftest-wait.js"></script>
+<style>
+.abs-cb {
+  width: 100px;
+  height: 100px;
+  position: relative;
+}
+
+.scroller {
+  overflow: scroll;
+  scrollbar-width: none;
+  width: 100%;
+  height: 100%;
+}
+
+.anchor {
+  anchor-name: --a;
+  width: 50px;
+  height: 50px;
+  background: blue;
+}
+
+.chain {
+  width: 25px;
+  height: 25px;
+  background: pink;
+  position: absolute;
+  position-anchor: --a;
+  anchor-name: --b;
+  left: anchor(right);
+  top: anchor(bottom);
+}
+
+.filler {
+  width: 1px;
+  height: 50px;
+}
+
+.positioned {
+  width: 25px;
+  height: 25px;
+  background: yellow;
+  position: absolute;
+  position-anchor: --b;
+  left: anchor(right);
+  top: anchor(bottom);
+  position-visibility: always;
+}
+</style>
+<div class=abs-cb>
+  <div class=scroller>
+    <div id=s class=scroller>
+      <div class=filler></div>
+      <div class=anchor></div>
+      <div class=filler></div>
+    </div>
+    <div class=chain></div>
+  </div>
+  <div class=positioned></div>
+</div>
+<script>
+window.addEventListener("TestRendered", () => {
+  s.scrollTop = 50;
+  takeScreenshot();
+});
+</script>
+</html>

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<title>Anchored element should update when the nearest scroll container under `contain: layout size` element changes.</title>
+<style>
+.anchor {
+  width: 20px;
+  height: 20px;
+  background: magenta;
+}
+
+.positioned {
+  background: purple;
+  width: 20px;
+  height: 20px;
+}
+
+.flex {
+  display: flex;
+}
+
+.abs-cb {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  border: 1px solid;
+}
+
+.scroll {
+  overflow: scroll;
+}
+
+.outer {
+  width: 200px;
+  height: 200px;
+}
+
+.inner {
+  width: 150px;
+  height: 150px;
+}
+
+.filler {
+  width: 1px;
+  height: 200px;
+}
+</style>
+<div class=abs-cb>
+  <div id=outer class="scroll outer">
+    <div class=filler></div>
+    <div class=flex>
+      <div class=anchor></div>
+      <div class=positioned></div>
+    </div>
+    <div class=inner>
+      <div class=anchor></div>
+    </div>
+  </div>
+</div>
+<script>
+outer.scrollTop = 100;
+</script>

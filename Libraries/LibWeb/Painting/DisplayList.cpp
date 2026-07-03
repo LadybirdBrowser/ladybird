@@ -209,6 +209,12 @@ void DisplayListPlayer::execute_impl(
                     if (!offset.is_zero())
                         play_command(Translate { .delta = (-offset).to_type<int>() });
                 },
+                [&](AnchorScrollShift const& shift) {
+                    play_command(Save {});
+                    auto offset = shift.masked_offset(scroll_state);
+                    if (!offset.is_zero())
+                        play_command(Translate { .delta = offset.to_type<int>() });
+                },
                 [&](TransformData const& transform) {
                     play_command(Save {});
                     apply_transform(transform.origin, transform.matrix);
@@ -259,7 +265,8 @@ void DisplayListPlayer::execute_impl(
                 if (node.data.has<TransformData>()
                     || node.data.has<PerspectiveData>()
                     || node.data.has<ScrollData>()
-                    || node.data.has<ScrollCompensation>())
+                    || node.data.has<ScrollCompensation>()
+                    || node.data.has<AnchorScrollShift>())
                     return true;
                 if (index == VISUAL_VIEWPORT_NODE_INDEX)
                     break;

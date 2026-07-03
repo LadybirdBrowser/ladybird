@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<title>Tests that scroll adjustment still applies when using another anchor in default anchor's scroll container</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#needs-scroll-adjustment">
+<link rel="author" href="mailto:xiaochengh@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="support/test-common.js"></script>
+
+<style>
+body {
+  margin: 0;
+}
+
+#scroller {
+  width: 400px;
+  height: 400px;
+  overflow: scroll;
+  position: relative;
+}
+
+#spacer {
+  width: 1000px;
+  height: 1000px;
+}
+
+.anchor {
+  width: 50px;
+  height: 50px;
+  position: absolute;
+  background: orange;
+}
+
+#anchor1 {
+  anchor-name: --a1;
+  left: 300px;
+  top: 100px;
+}
+
+#anchor2 {
+  anchor-name: --a2;
+  left: 200px;
+  top: 200px;
+}
+
+#anchor3 {
+  anchor-name: --a3;
+  left: 100px;
+  top: 300px;
+}
+
+/* Uses different anchors in insets instead of the default anchor.
+ * Still scroll-adjusted because they are in the same scroll container. */
+#target {
+  position: fixed;
+  width: 50px;
+  height: 50px;
+  left: anchor(--a3 left);
+  top: anchor(--a1 top);
+  position-anchor: --a2;
+  background: lime;
+}
+</style>
+
+<div id="scroller">
+  <div id="spacer"></div>
+  <div class="anchor" id="anchor1"></div>
+  <div class="anchor" id="anchor2"></div>
+  <div class="anchor" id="anchor3"></div>
+</div>
+<div id="target"></div>
+
+<script>
+promise_test(async () => {
+  await waitUntilNextAnimationFrame();
+  assert_equals(target.getBoundingClientRect().left, 100);
+  assert_equals(target.getBoundingClientRect().top, 100);
+
+  scroller.scrollLeft = 50;
+  await waitUntilNextAnimationFrame();
+  assert_equals(target.getBoundingClientRect().left, 50);
+
+  scroller.scrollTop = 50;
+  await waitUntilNextAnimationFrame();
+  assert_equals(target.getBoundingClientRect().top, 50);
+}, '#target3 is scroll-adjusted in both axises');
+</script>

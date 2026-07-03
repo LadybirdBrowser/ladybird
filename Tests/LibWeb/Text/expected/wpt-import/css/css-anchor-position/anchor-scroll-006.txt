@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	#target1 is scroll-adjusted in x axis only
+Pass	#target2 is scroll-adjusted in y axis only
+Pass	#target3 is scroll-adjusted in neither axis

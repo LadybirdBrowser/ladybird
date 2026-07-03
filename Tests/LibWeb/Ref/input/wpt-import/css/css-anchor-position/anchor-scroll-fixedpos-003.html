@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+
+<title>Tests that fixed-positioned anchor-positioned elements doesn't get clipped by the viewport</title>
+<link rel="author" href="mailto:kiet.ho@apple.com">
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/">
+<link rel="match" href="../../../../expected/wpt-import/css/css-anchor-position/reference/anchor-scroll-fixedpos-003-ref.html">
+
+<style>
+  body {
+    margin: 0;
+  }
+
+  div {
+    width: 100px;
+    height: 100px;
+    font-size: 16px;
+  }
+
+  #anchor {
+    anchor-name: --a1;
+    margin-top: 105vh;
+    background: orange;
+  }
+
+  #anchored {
+    position: fixed;
+    position-anchor: --a1;
+    left: anchor(left);
+    bottom: anchor(top);
+    background: green;
+    color: white;
+  }
+</style>
+
+<body>
+  <div id="anchor"></div>
+  <div id="anchored"></div>
+
+  <script>
+    const anchor = document.getElementById("anchor");
+    anchor.scrollIntoView(false);
+  </script>
+</body>

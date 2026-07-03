@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html class=reftest-wait>
+<title>anchor() resolution in position-area</title>
+<style>
+.abs-cb {
+  width: 180px;
+  height: 180px;
+  position: relative;
+  border: 5px solid;
+}
+
+.scroller {
+  width: 100%;
+  height: 100%;
+  overflow: scroll;
+}
+
+.anchor {
+  width: 60px;
+  height: 60px;
+  margin-left: 60px;
+  background: pink;
+}
+
+.filler {
+  width: 1px;
+  height: 180px;
+}
+
+.positioned {
+  width: 30px;
+  height: 30px;
+  background: purple;
+  position: absolute;
+}
+
+.tl {
+  right: 120px;
+  bottom: 120px;
+}
+
+.tr {
+  left: 120px;
+  bottom: 120px;
+}
+
+.bl {
+  right: 120px;
+  top: 120px;
+}
+
+.br {
+  left: 120px;
+  top: 120px;
+}
+</style>
+<div class=abs-cb>
+  <div id=s class=scroller>
+    <div class=filler></div>
+    <div class=anchor></div>
+    <div class=filler></div>
+    <div class="positioned tl dn"></div>
+    <div class="positioned tr dn"></div>
+    <div class="positioned bl dn"></div>
+    <div class="positioned br dn"></div>
+  </div>
+</div>
+<script>
+s.scrollTop = 120;
+document.documentElement.classList.remove('reftest-wait');
+</script>
+</html>

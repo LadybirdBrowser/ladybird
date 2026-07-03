@@ -59,6 +59,16 @@ public:
     void clear_contained_abspos_children() { m_contained_abspos_children.clear(); }
     Vector<WeakPtr<Node>> const& contained_abspos_children() const { return m_contained_abspos_children; }
 
+    void set_default_scroll_shift(WeakPtr<Node> anchor, bool compensates_for_scroll_in_x, bool compensates_for_scroll_in_y)
+    {
+        m_default_scroll_shift_anchor = move(anchor);
+        m_compensates_for_scroll_in_x = compensates_for_scroll_in_x;
+        m_compensates_for_scroll_in_y = compensates_for_scroll_in_y;
+    }
+    Node* default_scroll_shift_anchor() const { return m_default_scroll_shift_anchor.ptr(); }
+    bool compensates_for_scroll_in_x() const { return m_compensates_for_scroll_in_x; }
+    bool compensates_for_scroll_in_y() const { return m_compensates_for_scroll_in_y; }
+
     IntrinsicSizes& cached_intrinsic_sizes() const
     {
         if (!m_cached_intrinsic_sizes)
@@ -77,6 +87,10 @@ private:
     virtual bool is_box() const final { return true; }
 
     Vector<WeakPtr<Node>> m_contained_abspos_children;
+
+    WeakPtr<Node> m_default_scroll_shift_anchor;
+    bool m_compensates_for_scroll_in_x { false };
+    bool m_compensates_for_scroll_in_y { false };
 
     OwnPtr<IntrinsicSizes> mutable m_cached_intrinsic_sizes;
 };

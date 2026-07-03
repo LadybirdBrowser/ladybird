@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<title>Top-layer element can anchor to non-top-layer absolutely positioned element</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-1/#target-anchor-element">
+<link rel="author" href="mailto:xiaochengh@chromium.org">
+<link rel="match" href="../../../../expected/wpt-import/css/css-anchor-position/anchor-position-top-layer-ref.html">
+
+<style>
+#anchor {
+  position: absolute;
+  top: 300px;
+  left: 200px;
+  width: 100px;
+  height: 100px;
+  background: orange;
+  anchor-name: --a;
+}
+
+#target {
+  top: anchor(top);
+  left: anchor(right);
+  width: 100px;
+  height: 100px;
+  background: lime;
+  position-anchor: --a;
+  outline: none;
+}
+
+body {
+  margin: 0;
+  height: 300vh;
+}
+
+dialog {
+  margin: 0;
+  border: 0;
+  padding: 0;
+  inset: auto;
+}
+
+dialog::backdrop {
+  background: transparent;
+}
+</style>
+
+<div id="anchor"></div>
+<dialog id="target"></dialog>
+
+<script>
+target.showModal();
+document.scrollingElement.scrollTop = 100;
+</script>

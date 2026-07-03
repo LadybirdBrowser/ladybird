@@ -1639,13 +1639,23 @@ static bool calculation_tree_contains_anchor(CSS::CalculationNode const& root)
     return false;
 }
 
+static Box const* nearest_scroll_container_ancestor(Box const& box)
+{
+    for (auto const* ancestor = box.containing_block(); ancestor; ancestor = ancestor->containing_block()) {
+        if (ancestor->is_scroll_container())
+            return ancestor;
+    }
+    return nullptr;
+}
+
 namespace {
 
-template<typename ResolveAnchorSide>
+template<typename ResolveAnchorSide, typename NoteResolvedAnchorFunction>
 class AnchorInsetResolver final : public CSS::AnchorResolver {
 public:
-    AnchorInsetResolver(ResolveAnchorSide const& resolve_anchor_side, bool box_is_absolutely_positioned, bool is_from_end, bool is_horizontal_axis, CSSPixels containing_block_extent)
+    AnchorInsetResolver(ResolveAnchorSide const& resolve_anchor_side, NoteResolvedAnchorFunction const& note_resolved_anchor_function, bool box_is_absolutely_positioned, bool is_from_end, bool is_horizontal_axis, CSSPixels containing_block_extent)
         : m_resolve_anchor_side(resolve_anchor_side)
+        , m_note_resolved_anchor_function(note_resolved_anchor_function)
         , m_box_is_absolutely_positioned(box_is_absolutely_positioned)
         , m_is_from_end(is_from_end)
         , m_is_horizontal_axis(is_horizontal_axis)
@@ -1662,6 +1672,8 @@ public:
         if (!side_px.has_value())
             return {};
 
+        m_note_resolved_anchor_function(anchor, m_is_horizontal_axis);
+
         // For inset properties measuring from the end edge (right, bottom), the resolved length is the distance from
         // the anchor side to the corresponding edge of the containing block's padding box.
         if (m_is_from_end)
@@ -1671,6 +1683,7 @@ public:
 
 private:
     ResolveAnchorSide const& m_resolve_anchor_side;
+    NoteResolvedAnchorFunction const& m_note_resolved_anchor_function;
     bool m_box_is_absolutely_positioned { false };
     bool m_is_from_end { false };
     bool m_is_horizontal_axis { false };
@@ -1692,6 +1705,10 @@ void FormattingContext::resolve_anchor_insets(Box& box) const
     // NB: The first two conditions are guaranteed: this function is called from layout_absolutely_positioned_element(),
     //     and we only resolve anchor() values in inset properties.
     // FIXME: Support anchor-scope, position-try-fallbacks, anchor-size(), and other anchor positioning features.
+
+    // Cleared up front so a box that is no longer anchored does not retain a stale default scroll shift from a
+    // previous layout.
+    box.set_default_scroll_shift({}, false, false);
 
     // NB: Generated boxes for pseudo-elements are anonymous, so their anchor insets live in the generator element's
     //     computed properties for the relevant pseudo-element rather than on a DOM node of their own.
@@ -1760,6 +1777,8 @@ void FormattingContext::resolve_anchor_insets(Box& box) const
     // https://drafts.csswg.org/css-anchor-position-1/#determining
     // Several features of this specification refer to the position and size of an anchor box. Unless otherwise
     // specified, this refers to the border box edge of the principal box of relevant anchor element.
+    // FIXME: Implement remembered scroll offsets. Anchor references are currently always resolved as if all scroll
+    //        containers were at their initial scroll position.
     auto resolve_anchor_rect = [&](CSS::AnchorStyleValue const& anchor) -> Optional<CSSPixelRect> {
         auto const& name = anchor.anchor_name().has_value() ? anchor.anchor_name() : default_anchor_name;
         if (!name.has_value())
@@ -1874,6 +1893,42 @@ void FormattingContext::resolve_anchor_insets(Box& box) const
         return {};
     };
 
+    auto* default_anchor_box = default_anchor_name.has_value() ? target_anchor_box(default_anchor_name.value()) : nullptr;
+    bool compensates_for_scroll_in_x = false;
+    bool compensates_for_scroll_in_y = false;
+
+    // https://drafts.csswg.org/css-anchor-position-1/#compensate-for-scroll
+    // An absolutely positioned box abspos compensates for scroll in the horizontal or vertical axis if both of the
+    // following conditions are true:
+    // - abspos has a default anchor box.
+    // - abspos has an anchor reference to its default anchor box or at least to something in the same scrolling
+    //   context, aka at least one of:
+    //   - abspos's used self-alignment property value in that axis is anchor-center;
+    //   - abspos has a non-none value for position-area
+    //   - at least one anchor() function on abspos's used inset properties in the axis refers to a target anchor
+    //     element with the same nearest scroll container ancestor with that axis as a scrollable axis as abspos's
+    //     default anchor box.
+    // FIXME: Account for anchor-center and position-area once they are supported.
+    // AD-HOC: Like Blink and WebKit, we do not require the axis to be a scrollable axis of the shared scroll
+    //         container.
+    auto note_resolved_anchor_function = [&](CSS::AnchorStyleValue const& anchor, bool is_horizontal_axis) {
+        if (!default_anchor_box)
+            return;
+
+        auto const& name = anchor.anchor_name().has_value() ? anchor.anchor_name() : default_anchor_name;
+        auto const* anchor_box = name.has_value() ? target_anchor_box(name.value()) : nullptr;
+        if (!anchor_box)
+            return;
+        if (anchor_box != default_anchor_box
+            && nearest_scroll_container_ancestor(*anchor_box) != nearest_scroll_container_ancestor(*default_anchor_box))
+            return;
+
+        if (is_horizontal_axis)
+            compensates_for_scroll_in_x = true;
+        else
+            compensates_for_scroll_in_y = true;
+    };
+
     auto resolve_inset = [&](bool contains_anchor, CSS::StyleValue const& value, CSS::LengthPercentageOrAuto const& existing_value, CSS::PropertyID property_id, bool is_from_end, bool is_horizontal_axis) -> CSS::LengthPercentageOrAuto {
         if (!contains_anchor)
             return existing_value;
@@ -1882,7 +1937,7 @@ void FormattingContext::resolve_anchor_insets(Box& box) const
             ? containing_block_state.padding_box_width()
             : containing_block_state.padding_box_height();
 
-        AnchorInsetResolver anchor_resolver { resolve_anchor_side, box.is_absolutely_positioned(), is_from_end, is_horizontal_axis, containing_block_extent };
+        AnchorInsetResolver anchor_resolver { resolve_anchor_side, note_resolved_anchor_function, box.is_absolutely_positioned(), is_from_end, is_horizontal_axis, containing_block_extent };
 
         CSS::CalculationResolutionContext resolution_context {
             .percentage_basis = CSS::Length::make_px(containing_block_extent),
@@ -1914,6 +1969,9 @@ void FormattingContext::resolve_anchor_insets(Box& box) const
         resolve_inset(bottom_contains_anchor, bottom, existing_inset.bottom(), CSS::PropertyID::Bottom, true, false),
         resolve_inset(left_contains_anchor, left, existing_inset.left(), CSS::PropertyID::Left, false, true),
     });
+
+    if (compensates_for_scroll_in_x || compensates_for_scroll_in_y)
+        box.set_default_scroll_shift(default_anchor_box->make_weak_ptr(), compensates_for_scroll_in_x, compensates_for_scroll_in_y);
 }
 
 void FormattingContext::layout_absolutely_positioned_children()

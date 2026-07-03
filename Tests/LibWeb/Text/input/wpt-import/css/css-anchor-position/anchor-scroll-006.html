@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<title>Tests that scroll adjustment is applied per-axis</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#needs-scroll-adjustment">
+<link rel="author" href="mailto:xiaochengh@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="support/test-common.js"></script>
+
+<style>
+body {
+  margin: 0;
+}
+
+.scroller {
+  width: 150px;
+  height: 150px;
+  margin-bottom: 50px;
+  overflow: scroll;
+  position: relative;
+}
+
+.spacer {
+  width: 400px;
+  height: 400px;
+}
+
+.anchor {
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  top: 50px;
+  left: 50px;
+  background: orange;
+}
+
+.target {
+  position: fixed;
+  width: 50px;
+  height: 50px;
+  background: lime;
+}
+
+#scroller1 { anchor-name: --scroller1; }
+#scroller2 { anchor-name: --scroller2; }
+#scroller3 { anchor-name: --scroller3; }
+
+#anchor1 { anchor-name: --a1; }
+#anchor2 { anchor-name: --a2; }
+#anchor3 { anchor-name: --a3; }
+
+/* Needs scroll adjustment in x axis only */
+#target1 {
+  position-anchor: --a1;
+  left: anchor(left);
+  top: anchor(--scroller1 bottom);
+}
+
+/* Needs scroll adjustment in y axis only */
+#target2 {
+  position-anchor: --a2;
+  top: anchor(top);
+  left: anchor(--scroller2 right);
+}
+
+/* No scroll adjustment needed */
+#target3 {
+  position-anchor: --a3;
+  top: anchor(--scroller3 bottom);
+  left: anchor(--scroller3 right);
+}
+</style>
+
+<div class="scroller" id="scroller1">
+  <div class="spacer"></div>
+  <div class="anchor" id="anchor1"></div>
+</div>
+<div class="target" id="target1"></div>
+
+<script>
+promise_test(async () => {
+  await waitUntilNextAnimationFrame();
+  assert_equals(target1.getBoundingClientRect().left, 50, "left initial");
+  assert_equals(target1.getBoundingClientRect().top, 150, "top initial");
+
+  scroller1.scrollLeft = 50;
+  await waitUntilNextAnimationFrame();
+  assert_equals(target1.getBoundingClientRect().left, 0, "left scroll");
+
+  scroller1.scrollTop = 50;
+  await waitUntilNextAnimationFrame();
+  assert_equals(target1.getBoundingClientRect().top, 150, "top scroll");
+}, '#target1 is scroll-adjusted in x axis only');
+</script>
+
+<div class="scroller" id="scroller2">
+  <div class="spacer"></div>
+  <div class="anchor" id="anchor2"></div>
+</div>
+<div class="target" id="target2"></div>
+
+<script>
+promise_test(async () => {
+  await waitUntilNextAnimationFrame();
+  assert_equals(target2.getBoundingClientRect().left, 150, "left initial");
+  assert_equals(target2.getBoundingClientRect().top, 250, "top initial");
+
+  scroller2.scrollLeft = 50;
+  await waitUntilNextAnimationFrame();
+  assert_equals(target2.getBoundingClientRect().left, 150, "left scroll");
+
+  scroller2.scrollTop = 50;
+  await waitUntilNextAnimationFrame();
+  assert_equals(target2.getBoundingClientRect().top, 200, "top scroll");
+}, '#target2 is scroll-adjusted in y axis only');
+</script>
+
+<div class="scroller" id="scroller3">
+  <div class="spacer"></div>
+  <div class="anchor" id="anchor3"></div>
+</div>
+<div class="target" id="target3"></div>
+
+<script>
+promise_test(async () => {
+  await waitUntilNextAnimationFrame();
+  assert_equals(target3.getBoundingClientRect().left, 150, "left initial");
+  assert_equals(target3.getBoundingClientRect().top, 550, "top initial");
+
+  scroller3.scrollLeft = 50;
+  await waitUntilNextAnimationFrame();
+  assert_equals(target3.getBoundingClientRect().left, 150, "left scroll");
+
+  scroller3.scrollTop = 50;
+  await waitUntilNextAnimationFrame();
+  assert_equals(target3.getBoundingClientRect().top, 550, "top scroll");
+}, '#target3 is scroll-adjusted in neither axis');
+</script>

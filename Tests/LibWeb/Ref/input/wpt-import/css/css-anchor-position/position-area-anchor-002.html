@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html class=reftest-wait>
+<title>anchor() resolution in position-area</title>
+<link rel="help" href="https://www.w3.org/TR/css-anchor-position/#position-area">
+<link rel="match" href="../../../../expected/wpt-import/css/css-anchor-position/position-area-anchor-002-ref.html">
+<link rel="author" name="David Shin" href="mailto:dshin@mozilla.com">
+<style>
+.abs-cb {
+  width: 180px;
+  height: 180px;
+  position: relative;
+  border: 5px solid;
+}
+
+.scroller {
+  width: 100%;
+  height: 100%;
+  overflow: scroll;
+}
+
+.anchor {
+  width: 60px;
+  height: 60px;
+  margin-left: 60px;
+  anchor-name: --a;
+  background: pink;
+}
+
+.filler {
+  width: 1px;
+  height: 180px;
+}
+
+.positioned {
+  width: 30px;
+  height: 30px;
+  background: purple;
+  position: absolute;
+  position-anchor: --a;
+}
+
+.tl {
+  position-area: top left;
+  right: anchor(left);
+  bottom: anchor(top);
+}
+
+.tr {
+  position-area: top right;
+  left: anchor(right);
+  bottom: anchor(top);
+}
+
+.bl {
+  position-area: bottom left;
+  right: anchor(left);
+  top: anchor(bottom);
+}
+
+.br {
+  position-area: bottom right;
+  left: anchor(right);
+  top: anchor(bottom);
+}
+
+.dn {
+  display: none;
+}
+
+</style>
+<div class=abs-cb>
+  <div id=s class=scroller>
+    <div class=filler></div>
+    <div class=anchor></div>
+    <div class=filler></div>
+    <div class="positioned tl dn"></div>
+    <div class="positioned tr dn"></div>
+    <div class="positioned bl dn"></div>
+    <div class="positioned br dn"></div>
+  </div>
+</div>
+<script>
+function raf() {
+  return new Promise(resolve => requestAnimationFrame(resolve));
+}
+
+async function runTest() {
+  s.scrollTop = 120;
+  await raf();
+  await raf();
+
+  for(const e of s.querySelectorAll('.positioned')) {
+    e.classList.remove('dn');
+  }
+  document.documentElement.classList.remove('reftest-wait');
+}
+runTest();
+</script>
+</html>

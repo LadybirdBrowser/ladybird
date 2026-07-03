@@ -89,7 +89,18 @@ struct ScrollCompensation {
     ScrollFrameIndex scroll_frame_index;
 };
 
-using VisualContextData = Variant<ScrollData, ClipData, TransformData, PerspectiveData, ClipPathData, EffectsData, ScrollCompensation>;
+// One scroll frame's contribution to the default scroll shift of an anchor-positioned box, masked to the axes in which
+// the box compensates for scroll. Frames that move the box but not its default anchor contribute negated.
+struct AnchorScrollShift {
+    ScrollFrameIndex scroll_frame_index;
+    bool negate { false };
+    bool compensate_x { true };
+    bool compensate_y { true };
+
+    Gfx::FloatPoint masked_offset(ScrollStateSnapshot const&) const;
+};
+
+using VisualContextData = Variant<ScrollData, ClipData, TransformData, PerspectiveData, ClipPathData, EffectsData, ScrollCompensation, AnchorScrollShift>;
 
 Optional<TransformData> compute_transform(PaintableBox const&, CSS::ComputedValues const&, double pixel_ratio);
 
@@ -190,6 +201,11 @@ template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::ScrollCompensation const&);
 template<>
 WEB_API ErrorOr<Web::Painting::ScrollCompensation> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::AnchorScrollShift const&);
+template<>
+WEB_API ErrorOr<Web::Painting::AnchorScrollShift> decode(Decoder&);
 
 template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::AccumulatedVisualContextNode const&);

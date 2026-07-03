@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<style>
+body {
+  margin: 0;
+}
+
+div {
+  width: 100px;
+  height: 100px;
+}
+
+#scroller {
+  overflow: scroll;
+}
+
+#anchor {
+  height: 20px;
+  background: orange;
+}
+
+#anchored1 {
+  position: absolute;
+  top: 50px;
+  left: 0;
+  background: green;
+}
+
+#anchored2 {
+  position: absolute;
+  top: 150px;
+  left: 0;
+  background: lime;
+}
+
+</style>
+
+<div id="scroller">
+  <div style="height: 230px"></div>
+  <div id="anchor"></div>
+  <div style="height: 230px"></div>
+</div>
+<div id="anchored1"></div>
+<div id="anchored2"></div>
+
+<script>
+scroller.scrollTop = 200;
+</script>

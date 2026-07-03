@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<title>Anchored element should update when the nearest scroll container under `contain: layout size` element changes.</title>
+<link rel="author" href="mailto:dshin@mozilla.com">
+<link rel="help" href="https://drafts.csswg.org/css-anchor-1/">
+<link rel="match" href="../../../../expected/wpt-import/css/css-anchor-position/reference/anchor-scroll-update-010-ref.html">
+<style>
+.anchor {
+  width: 20px;
+  height: 20px;
+  background: magenta;
+}
+
+.positioned {
+  position-anchor: --a;
+  position: absolute;
+  background: purple;
+  width: 20px;
+  height: 20px;
+  /* Initially not part of --a's nearest scroll container */
+  left: anchor(--b right);
+  top: anchor(--b top);
+}
+
+.abs-cb {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  border: 1px solid;
+}
+
+.scroll {
+  overflow: scroll;
+}
+
+.outer {
+  width: 200px;
+  height: 200px;
+}
+
+.inner {
+  width: 150px;
+  height: 150px;
+}
+
+.filler {
+  width: 1px;
+  height: 200px;
+}
+
+.contain {
+  contain: layout size;
+  width: 200px;
+  height: 200px;
+}
+</style>
+<div class=abs-cb>
+  <div class=contain>
+    <div id=outer class="scroll outer">
+      <div class=filler></div>
+      <div class=anchor style="anchor-name: --b"></div>
+      <div id=inner class="scroll inner">
+        <div class=anchor style="anchor-name: --a"></div>
+      </div>
+    </div>
+  </div>
+  <div class=positioned></div>
+</div>
+<script>
+inner.classList.toggle('scroll');
+outer.scrollTop = 100;
+
+function raf() {
+  return new Promise(resolve => requestAnimationFrame(resolve));
+}
+
+async function runTest() {
+  await raf();
+  await raf();
+  document.documentElement.classList.remove('reftest-wait');
+}
+runTest();
+</script>
+</html>

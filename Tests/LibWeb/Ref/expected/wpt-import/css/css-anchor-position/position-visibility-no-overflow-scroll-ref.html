@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<style>
+  #scroll-container {
+    overflow: hidden scroll;
+    scrollbar-width: none;
+    width: 400px;
+    height: 150px;
+  }
+
+  .anchor {
+    width: 100px;
+    height: 100px;
+    background: orange;
+    display: inline-block;
+  }
+
+  .target {
+    width: 100px;
+    height: 100px;
+  }
+</style>
+
+<div id="scroll-container">
+  <div class="anchor">anchor1</div>
+  <div class="anchor" style="position: relative; top: 100px">anchor2</div>
+  <div id="target1" class="target" style="background: green">target1</div>
+  <div style="height: 200px"></div>
+</div>
+<script>
+document.getElementById('scroll-container').scrollTop = 50;
+</script>

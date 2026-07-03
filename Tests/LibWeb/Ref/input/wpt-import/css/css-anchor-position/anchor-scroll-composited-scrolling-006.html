@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<title>Tests anchor-positioned element paint order in composited scrolling</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#scroll">
+<link rel="author" href="mailto:xiaochengh@chromium.org">
+<link rel="match" href="../../../../expected/wpt-import/css/css-anchor-position/reference/anchor-scroll-composited-scrolling-006-ref.html">
+<style>
+body {
+  margin: 0;
+}
+#scroller {
+  width: 200px;
+  height: 100px;
+  overflow: scroll;
+  will-change: scroll-position;
+}
+#spacer {
+  height: 400px;
+}
+#anchor {
+  width: 100px;
+  height: 100px;
+  anchor-name: --a;
+}
+#target {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  background: red;
+  left: 0;
+  bottom: anchor(top);
+  position-anchor: --a;
+}
+#overlap {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  top: 150px;
+  left: 0;
+  z-index: 100;
+  background: green;
+}
+</style>
+
+<div id="overlap"></div>
+<div id="scroller">
+  <div id="spacer"></div>
+  <div id="anchor"></div>
+</div>
+<div id="target"></div>
+
+<script type="module">
+function raf() { return new Promise(resolve => requestAnimationFrame(resolve)); }
+
+await raf();
+await raf();
+scroller.scrollTop = 150;
+
+document.documentElement.classList.remove('reftest-wait');
+</script>
+</html>

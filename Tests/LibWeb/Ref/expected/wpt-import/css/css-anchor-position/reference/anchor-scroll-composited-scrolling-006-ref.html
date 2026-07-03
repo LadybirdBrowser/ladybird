@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<style>
+body {
+  margin: 0;
+}
+#scroller {
+  width: 200px;
+  height: 100px;
+  overflow: scroll;
+  will-change: scroll-position;
+}
+#spacer {
+  height: 400px;
+}
+#anchor {
+  width: 100px;
+  height: 100px;
+  anchor-name: --a;
+}
+#overlap {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  top: 150px;
+  left: 0;
+  z-index: 100;
+  background: green;
+}
+</style>
+
+<div id="overlap"></div>
+<div id="scroller">
+  <div id="spacer"></div>
+  <div id="anchor"></div>
+</div>
+
+<script>
+scroller.scrollTop = 150;
+</script>

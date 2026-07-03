@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<style>
+#scroll-container {
+  width: 400px;
+  height: 400px;
+  overflow: scroll;
+}
+
+#scroll-contents {
+  width: 1000px;
+  height: 1000px;
+  position: relative;
+}
+
+#anchor {
+  anchor-name: --anchor;
+  height: 100px;
+  width: 100px;
+  overflow: scroll;
+}
+
+#anchored {
+  background: green;
+  width: 100px;
+  height: 100px;
+}
+</style>
+
+<div id="scroll-container">
+  <div id="scroll-contents">
+    <div style="height: 400px"></div>
+    <div id="anchored"></div>
+    <div id="anchor">
+      <div style="height: 500px"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.getElementById('scroll-container').scrollTop = 300;
+document.getElementById('anchor').scrollTop = 300;
+</script>

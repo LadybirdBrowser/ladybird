@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<title>Tests that scroll adjustments of fixed-positioned elements are applied correctly</title>
+<link rel="author" href="mailto:xiaochengh@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-anchor-1/">
+<link rel="match" href="../../../../expected/wpt-import/css/css-anchor-position/reference/anchor-scroll-fixedpos-ref.html">
+<style>
+body {
+  margin: 0;
+  height: 2000px;
+}
+
+div {
+  width: 100px;
+  height: 100px;
+}
+
+#anchor {
+  anchor-name: --a1;
+  margin: 300px;
+  background: orange;
+}
+
+#anchored {
+  position: fixed;
+  position-anchor: --a1;
+  left: anchor(right);
+  top: anchor(top);
+  background: green;
+}
+
+</style>
+
+<div id="anchor"></div>
+<div id="anchored"></div>
+
+<script>
+document.documentElement.scrollTop = 200;
+</script>

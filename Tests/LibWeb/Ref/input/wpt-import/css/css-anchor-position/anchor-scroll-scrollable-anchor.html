@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<meta name="fuzzy" content="1;0-50">
+<title>Basic of anchor positioned scrolling: scroll of a scrollable anchor should not affect anchor positioning</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-1/">
+<link rel="match" href="../../../../expected/wpt-import/css/css-anchor-position/anchor-scroll-scrollable-anchor-ref.html">
+<style>
+#scroll-container {
+  width: 400px;
+  height: 400px;
+  overflow: scroll;
+  will-change: scroll-position;
+}
+
+#scroll-contents {
+  width: 1000px;
+  height: 1000px;
+  position: relative;
+}
+
+.placefiller {
+  height: 500px;
+}
+
+#anchor {
+  anchor-name: --anchor;
+  height: 100px;
+  width: 100px;
+  overflow: scroll;
+  will-change: scroll-position;
+}
+
+#anchored {
+  background: green;
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  left: anchor(left);
+  bottom: anchor(top);
+  position-anchor: --anchor;
+}
+</style>
+
+<div id="scroll-container">
+  <div id="scroll-contents">
+    <div class="placefiller"></div>
+    <div id="anchor">
+      <div class="placefiller"></div>
+    </div>
+  </div>
+</div>
+<div id="anchored"></div>
+
+<script>
+document.getElementById('scroll-container').scrollTop = 300;
+document.getElementById('anchor').scrollTop = 300;
+</script>

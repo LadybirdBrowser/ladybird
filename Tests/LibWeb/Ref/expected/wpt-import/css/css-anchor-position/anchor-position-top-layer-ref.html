@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<title>Tests anchor positioning with top-layer elements</title>
+
+<style>
+body {
+  margin: 0;
+  height: 300vh;
+}
+
+#anchor {
+  position: fixed;
+  top: 200px;
+  left: 200px;
+  width: 100px;
+  height: 100px;
+  background: orange;
+}
+
+#target {
+  position: fixed;
+  top: 200px;
+  left: 300px;
+  width: 100px;
+  height: 100px;
+  background: lime;
+}
+</style>
+
+<div id="anchor"></div>
+<div id="target"></div>
+
+<script>
+document.scrollingElement.scrollTop = 100;
+</script>

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1999954">
+<style>
+.abs-cb {
+  width: 100px;
+  height: 100px;
+  position: relative;
+}
+
+.anchor {
+  anchor-name: --a;
+  width: 50px;
+  height: 50px;
+  background: blue;
+}
+
+.chain {
+  width: 25px;
+  height: 25px;
+  background: pink;
+  position: absolute;
+  left: 50px;
+  top: 50px;
+}
+
+.positioned {
+  width: 25px;
+  height: 25px;
+  background: yellow;
+  position: absolute;
+  left: 75px;
+  top: 75px;
+}
+</style>
+<div class=abs-cb>
+  <div class=anchor></div>
+  <div class=chain></div>
+  <div class=positioned></div>
+</div>
