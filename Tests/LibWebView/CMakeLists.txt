@@ -2,6 +2,7 @@ set(TEST_SOURCES
     TestCookieJar.cpp
     TestHistoryStore.cpp
     TestHSTSStore.cpp
+    TestOmnibox.cpp
     TestSessionHistory.cpp
     TestStorageJar.cpp
     TestWebViewURL.cpp

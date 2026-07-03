@@ -290,7 +290,14 @@ void Autocomplete::query_autocomplete_engine(String query, size_t max_suggestion
     }
 
     if (!immediate_suggestions.is_empty() && !should_defer_intermediate_suggestions(immediate_suggestions)) {
+        auto query_before_delivery = m_query;
         invoke_autocomplete_query_complete(move(immediate_suggestions), AutocompleteResultKind::Intermediate);
+
+        // Delivering the immediate suggestions can activate one of them (pressing Enter re-queries stale results
+        // and activates once fresh results arrive). Activation clears the location bar's focus, which re-entrantly
+        // cancels or replaces this query, so bail out instead of requesting remote suggestions for it.
+        if (m_query != query_before_delivery)
+            return;
     } else if (!immediate_suggestions.is_empty()) {
         dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Deferring singleton history intermediate result for '{}' until remote autocomplete responds", trimmed_query);
     } else {
