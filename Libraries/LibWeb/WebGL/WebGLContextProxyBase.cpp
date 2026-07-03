@@ -9,6 +9,7 @@
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/PaintingSurface.h>
+#include <LibIPC/Limits.h>
 #include <LibWeb/WebGL/WebGLContextProxy.h>
 #include <LibWeb/WebGL/WebGLContextProxyBase.h>
 
@@ -43,6 +44,20 @@ void WebGLContextProxyBase::flush_commands()
     m_transport->send_commands(m_commands.buffer(), m_pending_bitmaps);
     m_commands.clear_with_capacity();
     m_pending_bitmaps.clear_with_capacity();
+}
+
+u32 WebGLContextProxyBase::append_pending_bitmap(Gfx::DecodedImageFrame frame)
+{
+    static_assert(IPC::MAX_MESSAGE_FD_COUNT > 1);
+    // WebGL command bytes are transferred in one anonymous buffer attachment.
+    static constexpr size_t max_bitmap_attachments_per_message = IPC::MAX_MESSAGE_FD_COUNT - 1;
+
+    if (m_pending_bitmaps.size() >= max_bitmap_attachments_per_message)
+        flush_commands();
+
+    auto bitmap_index = static_cast<u32>(m_pending_bitmaps.size());
+    m_pending_bitmaps.append(move(frame));
+    return bitmap_index;
 }
 
 ByteBuffer WebGLContextProxyBase::send_sync_call(ByteBuffer request)
@@ -101,8 +116,7 @@ void WebGLContextProxyBase::tex_image2d_from_bitmap(GLenum target, GLint level, 
 {
     if (m_lost)
         return;
-    auto bitmap_index = static_cast<u32>(m_pending_bitmaps.size());
-    m_pending_bitmaps.append(move(frame));
+    auto bitmap_index = append_pending_bitmap(move(frame));
     auto has_explicit_destination_size = destination_size.has_value();
     record(Commands::TexImage2DFromBitmap {
         .target = target,
@@ -123,8 +137,7 @@ void WebGLContextProxyBase::tex_sub_image2d_from_bitmap(GLenum target, GLint lev
 {
     if (m_lost)
         return;
-    auto bitmap_index = static_cast<u32>(m_pending_bitmaps.size());
-    m_pending_bitmaps.append(move(frame));
+    auto bitmap_index = append_pending_bitmap(move(frame));
     auto has_explicit_destination_size = destination_size.has_value();
     record(Commands::TexSubImage2DFromBitmap {
         .target = target,

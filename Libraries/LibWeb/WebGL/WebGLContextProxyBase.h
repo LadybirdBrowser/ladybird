@@ -93,6 +93,8 @@ protected:
     HashMap<GLenum, NonnullOwnPtr<ByteBuffer>> m_string_cache;
 
 private:
+    u32 append_pending_bitmap(Gfx::DecodedImageFrame);
+
     NonnullRefPtr<RemoteWebGLTransport> m_transport;
     WebGLVersion m_webgl_version { WebGLVersion::WebGL1 };
     Vector<String> m_supported_extensions;
