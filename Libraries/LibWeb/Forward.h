@@ -422,6 +422,7 @@ class URL;
 class URLStyleValue;
 class VisualViewport;
 
+enum class FeatureComparison : u8;
 enum class FontFeatureValueType : u8;
 enum class Keyword : u16;
 enum class MediaFeatureID : u8;

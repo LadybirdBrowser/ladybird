@@ -38,6 +38,8 @@
 
 namespace Web::CSS::Parser {
 
+Optional<FeatureComparison> parse_feature_comparison(TokenStream<ComponentValue>&);
+
 namespace CalcParsing {
 
 struct Operator {

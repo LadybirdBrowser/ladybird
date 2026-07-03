@@ -188,7 +188,7 @@ struct FeatureName {
 //  <mf-gt> = '>' '='?
 //  <mf-eq> = '='
 //  <mf-comparison> = <mf-lt> | <mf-gt> | <mf-eq>`
-static Optional<FeatureComparison> parse_feature_comparison(TokenStream<ComponentValue>& tokens)
+Optional<FeatureComparison> parse_feature_comparison(TokenStream<ComponentValue>& tokens)
 {
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
