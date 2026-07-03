@@ -45,11 +45,13 @@ struct WEBCOMMON_API GamepadState {
 struct WEBCOMMON_API GamepadDualRumbleEffect {
     u16 strong_magnitude { 0 };
     u16 weak_magnitude { 0 };
+    u32 duration { 0 };
 };
 
 struct WEBCOMMON_API GamepadTriggerRumbleEffect {
     u16 left_trigger_magnitude { 0 };
     u16 right_trigger_magnitude { 0 };
+    u32 duration { 0 };
 };
 
 using GamepadEffect = Variant<GamepadDualRumbleEffect, GamepadTriggerRumbleEffect>;

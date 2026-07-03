@@ -51,6 +51,8 @@ public:
         SDL_Gamepad* sdl_gamepad { nullptr };
         Web::Gamepad::GamepadDescription description;
         bool announced { false };
+        WebContentClient* dual_rumble_owner { nullptr };
+        WebContentClient* trigger_rumble_owner { nullptr };
         Web::Gamepad::GamepadState last_published_state;
 
         WebContentClient* virtual_device_owner { nullptr };

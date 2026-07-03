@@ -26,6 +26,15 @@ namespace WebView {
 
 static constexpr int GAMEPAD_POLL_INTERVAL_MS = 8;
 
+// A compromised WebContent process must not be able to request an unbounded rumble.
+static constexpr u32 GAMEPAD_EFFECT_MAX_DURATION_MS = 5'000;
+static constexpr u32 GAMEPAD_EFFECT_EXPIRATION_SLACK_MS = 1'000;
+
+static u32 effect_expiration_backstop_ms(u32 duration)
+{
+    return min(duration, GAMEPAD_EFFECT_MAX_DURATION_MS) + GAMEPAD_EFFECT_EXPIRATION_SLACK_MS;
+}
+
 // https://w3c.github.io/gamepad/#dfn-standard-gamepad
 // Type     Index   Location
 // Button   0       Bottom button in right cluster
@@ -202,6 +211,9 @@ void GamepadManager::client_did_start_using_gamepads(WebContentClient& client)
 
 void GamepadManager::client_disconnected(WebContentClient& client)
 {
+    for (auto& entry : m_devices)
+        stop_effects(client, entry.key);
+
     m_consumers.remove(&client);
 
     Vector<Web::Gamepad::GamepadHandle> owned_virtual_devices;
@@ -221,12 +233,20 @@ void GamepadManager::play_effect(WebContentClient& client, Web::Gamepad::Gamepad
     if (!device)
         return;
 
+    // The expiration only silences the device if the client dies or hangs before ending the effect.
+    auto apply_rumble = [&](WebContentClient*& effect_owner, auto sdl_rumble_function, u16 first_magnitude, u16 second_magnitude, u32 duration) {
+        bool is_stop = first_magnitude == 0 && second_magnitude == 0;
+        if (is_stop && effect_owner != &client)
+            return;
+        effect_owner = is_stop ? nullptr : &client;
+        sdl_rumble_function(device->sdl_gamepad, first_magnitude, second_magnitude, is_stop ? 0 : effect_expiration_backstop_ms(duration));
+    };
     effect.visit(
         [&](Web::Gamepad::GamepadDualRumbleEffect const& dual_rumble_effect) {
-            SDL_RumbleGamepad(device->sdl_gamepad, dual_rumble_effect.strong_magnitude, dual_rumble_effect.weak_magnitude, 0);
+            apply_rumble(device->dual_rumble_owner, SDL_RumbleGamepad, dual_rumble_effect.strong_magnitude, dual_rumble_effect.weak_magnitude, dual_rumble_effect.duration);
         },
         [&](Web::Gamepad::GamepadTriggerRumbleEffect const& trigger_rumble_effect) {
-            SDL_RumbleGamepadTriggers(device->sdl_gamepad, trigger_rumble_effect.left_trigger_magnitude, trigger_rumble_effect.right_trigger_magnitude, 0);
+            apply_rumble(device->trigger_rumble_owner, SDL_RumbleGamepadTriggers, trigger_rumble_effect.left_trigger_magnitude, trigger_rumble_effect.right_trigger_magnitude, trigger_rumble_effect.duration);
         });
 }
 
@@ -239,14 +259,18 @@ void GamepadManager::stop_effects(WebContentClient& client, Web::Gamepad::Gamepa
     // https://wiki.libsdl.org/SDL3/SDL_RumbleGamepad
     // "Each call to this function cancels any previous rumble effect, and calling it with 0 intensity stops any
     // rumbling."
-    if (device->description.supports_dual_rumble)
+    if (device->dual_rumble_owner == &client) {
+        device->dual_rumble_owner = nullptr;
         SDL_RumbleGamepad(device->sdl_gamepad, 0, 0, 0);
+    }
 
     // https://wiki.libsdl.org/SDL3/SDL_RumbleGamepadTriggers
     // "Each call to this function cancels any previous trigger rumble effect, and calling it with 0 intensity stops
     // any rumbling."
-    if (device->description.supports_trigger_rumble)
+    if (device->trigger_rumble_owner == &client) {
+        device->trigger_rumble_owner = nullptr;
         SDL_RumbleGamepadTriggers(device->sdl_gamepad, 0, 0, 0);
+    }
 }
 
 Optional<Web::Gamepad::VirtualGamepad> GamepadManager::create_virtual_gamepad(WebContentClient& client)

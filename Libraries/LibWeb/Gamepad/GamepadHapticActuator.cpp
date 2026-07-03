@@ -51,13 +51,13 @@ static GC::Ref<GamepadHapticsCompletionSteps> create_haptics_completion_steps(GC
     });
 }
 
-static GamepadEffect gamepad_effect_for_type(GamepadHapticEffectType type, u16 first_magnitude, u16 second_magnitude)
+static GamepadEffect gamepad_effect_for_type(GamepadHapticEffectType type, u16 first_magnitude, u16 second_magnitude, u32 duration)
 {
     switch (type) {
     case GamepadHapticEffectType::DualRumble:
-        return GamepadDualRumbleEffect { first_magnitude, second_magnitude };
+        return GamepadDualRumbleEffect { first_magnitude, second_magnitude, duration };
     case GamepadHapticEffectType::TriggerRumble:
-        return GamepadTriggerRumbleEffect { first_magnitude, second_magnitude };
+        return GamepadTriggerRumbleEffect { first_magnitude, second_magnitude, duration };
     }
     VERIFY_NOT_REACHED();
 }
@@ -347,13 +347,14 @@ void GamepadHapticActuator::issue_haptic_effect(GamepadHapticEffectType type, Ga
         page.client().page_did_play_gamepad_effect(m_gamepad->handle(),
             gamepad_effect_for_type(type,
                 static_cast<u16>(first_magnitude * NumericLimits<u16>::max()),
-                static_cast<u16>(second_magnitude * NumericLimits<u16>::max())));
+                static_cast<u16>(second_magnitude * NumericLimits<u16>::max()),
+                static_cast<u32>(params.duration)));
 
         m_playing_effect_timer = Platform::Timer::create_single_shot(heap, params.duration, GC::create_function(heap, [this, type, on_complete] {
             // Explicitly stop the rumble before completing, ensuring the stop signal is sent synchronously.
             auto& page = m_window->page();
 
-            page.client().page_did_play_gamepad_effect(m_gamepad->handle(), gamepad_effect_for_type(type, 0, 0));
+            page.client().page_did_play_gamepad_effect(m_gamepad->handle(), gamepad_effect_for_type(type, 0, 0, 0));
             on_complete->function()();
         }));
 
