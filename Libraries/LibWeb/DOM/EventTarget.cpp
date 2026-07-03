@@ -358,6 +358,25 @@ static void update_needs_beforeunload_check(EventTarget& event_target, DOMEventL
     navigable->page().update_needs_beforeunload_check();
 }
 
+static void notify_page_that_window_listens_for_gamepad_events(EventTarget& event_target, DOMEventListener const& listener)
+{
+    if (!first_is_one_of(listener.type, Gamepad::EventNames::gamepadconnected, Gamepad::EventNames::gamepaddisconnected))
+        return;
+
+    auto* window = as_if<HTML::Window>(event_target);
+    if (!window)
+        return;
+
+    auto& document = window->associated_document();
+    if (!document.navigable())
+        return;
+
+    if (!document.is_allowed_to_use_feature(PolicyControlledFeature::Gamepad))
+        return;
+
+    window->page().client().page_did_start_using_gamepads();
+}
+
 // https://dom.spec.whatwg.org/#dom-eventtarget-addeventlistener
 void EventTarget::add_event_listener(FlyString const& type, GC::Ptr<IDLEventListener> callback, AddEventListenerOptions const& options)
 {
@@ -431,6 +450,7 @@ void EventTarget::add_an_event_listener(DOMEventListener& listener)
         wake_animation_frame_pump_for_animation_event_listener(*this, listener);
         update_needs_beforeunload_check(*this, listener);
         event_listener_list_changed();
+        notify_page_that_window_listens_for_gamepad_events(*this, listener);
     }
 
     // 6. If listener’s signal is not null, then add the following abort steps to it:
