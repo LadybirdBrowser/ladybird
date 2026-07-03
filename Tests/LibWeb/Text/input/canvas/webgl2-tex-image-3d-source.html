@@ -1,0 +1,67 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script src="webgl-helpers.js"></script>
+<script>
+    function readLayerPixel(gl, texture) {
+        const framebuffer = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+        gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, texture, 0, 0);
+        println(`framebuffer status: ${framebufferStatusName(gl, gl.checkFramebufferStatus(gl.FRAMEBUFFER))}`);
+
+        const pixel = new Uint8Array(4);
+        gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+        println(`pixel: ${Array.from(pixel).join(",")}`);
+    }
+
+    function createTexture(gl) {
+        const texture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D_ARRAY, texture);
+        gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        return texture;
+    }
+
+    function runTexImage3DSourceTest(gl) {
+        clearErrors(gl);
+
+        const texture = createTexture(gl);
+        const source = new ImageData(new Uint8ClampedArray([9, 20, 30, 255]), 1, 1);
+        let exception = "none";
+        try {
+            gl.texImage3D(gl.TEXTURE_2D_ARRAY, 0, gl.RGBA, 1, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, source);
+        } catch (e) {
+            exception = `${e.name}: ${e.message}`;
+        }
+        println(`texImage3D exception: ${exception}`);
+        printError("texImage3D error", gl);
+        readLayerPixel(gl, texture);
+    }
+
+    function runTexSubImage3DSourceTest(gl) {
+        clearErrors(gl);
+
+        const texture = createTexture(gl);
+        gl.texImage3D(gl.TEXTURE_2D_ARRAY, 0, gl.RGBA, 1, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+
+        const source = new ImageData(new Uint8ClampedArray([40, 50, 60, 255]), 1, 1);
+        let exception = "none";
+        try {
+            gl.texSubImage3D(gl.TEXTURE_2D_ARRAY, 0, 0, 0, 0, 1, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, source);
+        } catch (e) {
+            exception = `${e.name}: ${e.message}`;
+        }
+        println(`texSubImage3D exception: ${exception}`);
+        printError("texSubImage3D error", gl);
+        readLayerPixel(gl, texture);
+    }
+
+    test(() => {
+        const canvas = document.createElement("canvas");
+        const gl = canvas.getContext("webgl2");
+
+        runTexImage3DSourceTest(gl);
+        runTexSubImage3DSourceTest(gl);
+    });
+</script>

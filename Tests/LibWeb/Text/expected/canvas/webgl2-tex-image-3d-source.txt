@@ -1,0 +1,8 @@
+texImage3D exception: none
+texImage3D error: NO_ERROR
+framebuffer status: FRAMEBUFFER_COMPLETE
+pixel: 9,20,30,255
+texSubImage3D exception: none
+texSubImage3D error: NO_ERROR
+framebuffer status: FRAMEBUFFER_COMPLETE
+pixel: 40,50,60,255

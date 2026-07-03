@@ -23,6 +23,8 @@ namespace Web::WebGL::Commands {
 
 struct TexImage2DFromBitmap;
 struct TexSubImage2DFromBitmap;
+struct TexImage3DFromBitmap;
+struct TexSubImage3DFromBitmap;
 
 }
 
@@ -48,6 +50,8 @@ private:
     ErrorOr<void> set_drawing_buffer_size(int width, int height);
     ErrorOr<void> tex_image2d_from_bitmap(Web::WebGL::Commands::TexImage2DFromBitmap const&, Vector<Gfx::DecodedImageFrame> const& bitmaps);
     ErrorOr<void> tex_sub_image2d_from_bitmap(Web::WebGL::Commands::TexSubImage2DFromBitmap const&, Vector<Gfx::DecodedImageFrame> const& bitmaps);
+    ErrorOr<void> tex_image3d_from_bitmap(Web::WebGL::Commands::TexImage3DFromBitmap const&, Vector<Gfx::DecodedImageFrame> const& bitmaps);
+    ErrorOr<void> tex_sub_image3d_from_bitmap(Web::WebGL::Commands::TexSubImage3DFromBitmap const&, Vector<Gfx::DecodedImageFrame> const& bitmaps);
 
     NonnullOwnPtr<OpenGLContext> m_gl_context;
     WebGLObjectMap m_objects;

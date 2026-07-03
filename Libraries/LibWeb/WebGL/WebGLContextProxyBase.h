@@ -57,6 +57,8 @@ public:
 
     void tex_image2d_from_bitmap(GLenum target, GLint level, GLint internalformat, GLenum format, GLenum type, Gfx::DecodedImageFrame, Optional<Gfx::IntSize> destination_size, bool flip_y, bool premultiply_alpha);
     void tex_sub_image2d_from_bitmap(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLenum format, GLenum type, Gfx::DecodedImageFrame, Optional<Gfx::IntSize> destination_size, bool flip_y, bool premultiply_alpha);
+    void tex_image3d_from_bitmap(GLenum target, GLint level, GLint internalformat, GLsizei depth, GLenum format, GLenum type, Gfx::DecodedImageFrame, Optional<Gfx::IntSize> destination_size, bool flip_y, bool premultiply_alpha);
+    void tex_sub_image3d_from_bitmap(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei depth, GLenum format, GLenum type, Gfx::DecodedImageFrame, Optional<Gfx::IntSize> destination_size, bool flip_y, bool premultiply_alpha);
 
     GLenum take_pending_local_error()
     {

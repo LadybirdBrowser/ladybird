@@ -61,6 +61,10 @@ ErrorOr<void> HostWebGLContext::execute_commands(ReadonlyBytes bytes, Vector<Gfx
             return tex_image2d_from_bitmap(command, bitmaps);
         } else if constexpr (IsSame<Command, Commands::TexSubImage2DFromBitmap>) {
             return tex_sub_image2d_from_bitmap(command, bitmaps);
+        } else if constexpr (IsSame<Command, Commands::TexImage3DFromBitmap>) {
+            return tex_image3d_from_bitmap(command, bitmaps);
+        } else if constexpr (IsSame<Command, Commands::TexSubImage3DFromBitmap>) {
+            return tex_sub_image3d_from_bitmap(command, bitmaps);
         } else {
             return replay_webgl_command(*m_gl_context, m_objects, command, payload);
         }
@@ -111,6 +115,20 @@ ErrorOr<void> HostWebGLContext::tex_sub_image2d_from_bitmap(Commands::TexSubImag
 {
     auto converted = TRY(convert_bitmap_for_upload(bitmaps, command.bitmap_index, command.format, command.type, command.has_explicit_destination_size, command.destination_width, command.destination_height, command.flip_y, command.premultiply_alpha));
     m_gl_context->tex_sub_image2d_robust_angle(command.target, command.level, command.xoffset, command.yoffset, converted.width, converted.height, command.format, command.type, converted.buffer.size(), converted.buffer.data());
+    return {};
+}
+
+ErrorOr<void> HostWebGLContext::tex_image3d_from_bitmap(Commands::TexImage3DFromBitmap const& command, Vector<Gfx::DecodedImageFrame> const& bitmaps)
+{
+    auto converted = TRY(convert_bitmap_for_upload(bitmaps, command.bitmap_index, command.format, command.type, command.has_explicit_destination_size, command.destination_width, command.destination_height, command.flip_y, command.premultiply_alpha));
+    m_gl_context->tex_image3d_robust_angle(command.target, command.level, command.internalformat, converted.width, converted.height, command.depth, 0, command.format, command.type, converted.buffer.size(), converted.buffer.data());
+    return {};
+}
+
+ErrorOr<void> HostWebGLContext::tex_sub_image3d_from_bitmap(Commands::TexSubImage3DFromBitmap const& command, Vector<Gfx::DecodedImageFrame> const& bitmaps)
+{
+    auto converted = TRY(convert_bitmap_for_upload(bitmaps, command.bitmap_index, command.format, command.type, command.has_explicit_destination_size, command.destination_width, command.destination_height, command.flip_y, command.premultiply_alpha));
+    m_gl_context->tex_sub_image3d_robust_angle(command.target, command.level, command.xoffset, command.yoffset, command.zoffset, converted.width, converted.height, command.depth, command.format, command.type, converted.buffer.size(), converted.buffer.data());
     return {};
 }
 

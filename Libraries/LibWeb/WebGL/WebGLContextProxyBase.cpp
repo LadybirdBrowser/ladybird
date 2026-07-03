@@ -155,6 +155,52 @@ void WebGLContextProxyBase::tex_sub_image2d_from_bitmap(GLenum target, GLint lev
     });
 }
 
+void WebGLContextProxyBase::tex_image3d_from_bitmap(GLenum target, GLint level, GLint internalformat, GLsizei depth, GLenum format, GLenum type, Gfx::DecodedImageFrame frame, Optional<Gfx::IntSize> destination_size, bool flip_y, bool premultiply_alpha)
+{
+    if (m_lost)
+        return;
+    auto bitmap_index = append_pending_bitmap(move(frame));
+    auto has_explicit_destination_size = destination_size.has_value();
+    record(Commands::TexImage3DFromBitmap {
+        .target = target,
+        .level = level,
+        .internalformat = internalformat,
+        .depth = depth,
+        .format = format,
+        .type = type,
+        .bitmap_index = bitmap_index,
+        .has_explicit_destination_size = has_explicit_destination_size,
+        .destination_width = has_explicit_destination_size ? destination_size->width() : 0,
+        .destination_height = has_explicit_destination_size ? destination_size->height() : 0,
+        .flip_y = flip_y,
+        .premultiply_alpha = premultiply_alpha,
+    });
+}
+
+void WebGLContextProxyBase::tex_sub_image3d_from_bitmap(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei depth, GLenum format, GLenum type, Gfx::DecodedImageFrame frame, Optional<Gfx::IntSize> destination_size, bool flip_y, bool premultiply_alpha)
+{
+    if (m_lost)
+        return;
+    auto bitmap_index = append_pending_bitmap(move(frame));
+    auto has_explicit_destination_size = destination_size.has_value();
+    record(Commands::TexSubImage3DFromBitmap {
+        .target = target,
+        .level = level,
+        .xoffset = xoffset,
+        .yoffset = yoffset,
+        .zoffset = zoffset,
+        .depth = depth,
+        .format = format,
+        .type = type,
+        .bitmap_index = bitmap_index,
+        .has_explicit_destination_size = has_explicit_destination_size,
+        .destination_width = has_explicit_destination_size ? destination_size->width() : 0,
+        .destination_height = has_explicit_destination_size ? destination_size->height() : 0,
+        .flip_y = flip_y,
+        .premultiply_alpha = premultiply_alpha,
+    });
+}
+
 bool WebGLContextProxyBase::read_buffer_sub_data(GLenum target, long long offset, Bytes destination)
 {
     if (m_lost)

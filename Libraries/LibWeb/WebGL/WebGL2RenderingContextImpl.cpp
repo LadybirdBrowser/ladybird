@@ -222,6 +222,24 @@ void WebGL2RenderingContextImpl::tex_image3d(WebIDL::UnsignedLong target, WebIDL
     m_context->tex_image3d_robust_angle(target, level, internalformat, width, height, depth, border, format, type, src_data_span.size(), src_data_span.data());
 }
 
+void WebGL2RenderingContextImpl::tex_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth, WebIDL::Long border, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, TexImageSource source)
+{
+    m_context->make_current();
+
+    // https://registry.khronos.org/OpenGL-Refpages/es3.0/html/glTexImage3D.xhtml
+    // border: This value must be 0.
+    if (border != 0) {
+        set_error(GL_INVALID_VALUE);
+        return;
+    }
+
+    auto maybe_source_frame = read_texture_image_source(source, format, type);
+    if (!maybe_source_frame.has_value())
+        return;
+    auto source_frame = maybe_source_frame.release_value();
+    m_context->tex_image3d_from_bitmap(target, level, internalformat, depth, format, type, move(source_frame.frame), Gfx::IntSize { width, height }, source_frame.flip_y, source_frame.premultiply_alpha);
+}
+
 void WebGL2RenderingContextImpl::tex_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth, WebIDL::Long border, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, WebIDL::ArrayBufferView src_data, WebIDL::UnsignedLongLong src_offset)
 {
     m_context->make_current();
@@ -229,6 +247,17 @@ void WebGL2RenderingContextImpl::tex_image3d(WebIDL::UnsignedLong target, WebIDL
     auto src_data_span = SET_ERROR_VALUE_IF_ERROR(copy_buffer_source_to_byte_buffer(WebIDL::BufferSource { src_data }, src_offset), GL_INVALID_OPERATION);
 
     m_context->tex_image3d_robust_angle(target, level, internalformat, width, height, depth, border, format, type, src_data_span.size(), src_data_span.data());
+}
+
+void WebGL2RenderingContextImpl::tex_sub_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long zoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, TexImageSource source)
+{
+    m_context->make_current();
+
+    auto maybe_source_frame = read_texture_image_source(source, format, type);
+    if (!maybe_source_frame.has_value())
+        return;
+    auto source_frame = maybe_source_frame.release_value();
+    m_context->tex_sub_image3d_from_bitmap(target, level, xoffset, yoffset, zoffset, depth, format, type, move(source_frame.frame), Gfx::IntSize { width, height }, source_frame.flip_y, source_frame.premultiply_alpha);
 }
 
 void WebGL2RenderingContextImpl::tex_sub_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long zoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, WebIDL::NullableArrayBufferViewVariant src_data, WebIDL::UnsignedLongLong src_offset)
