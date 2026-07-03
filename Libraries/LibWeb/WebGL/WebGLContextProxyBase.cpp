@@ -50,7 +50,10 @@ ByteBuffer WebGLContextProxyBase::send_sync_call(ByteBuffer request)
     if (m_lost)
         return {};
     flush_commands();
-    return m_transport->sync_call(move(request));
+    auto reply = m_transport->sync_call(move(request));
+    if (reply.is_empty())
+        set_lost();
+    return reply;
 }
 
 ReadPixelsResult WebGLContextProxyBase::read_pixels_robust_angle_into_shared_buffer(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, GLsizei buf_size, Core::AnonymousBuffer const& pixels)
