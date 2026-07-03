@@ -414,11 +414,8 @@ void LineBuilder::update_last_line()
         lowermost_box_bottom = max(lowermost_box_bottom, bottom_of_inline_box);
     }
 
-    auto marker_inline_offset = line_box.fragments().is_empty()
-        ? start_inline_offset
-        : inline_offset;
     for (auto& marker : line_box.static_position_markers()) {
-        marker.inline_offset += marker_inline_offset;
+        marker.inline_offset += inline_offset;
         marker.block_offset += block_offset + m_current_block_offset;
     }
 
