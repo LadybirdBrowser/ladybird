@@ -12,7 +12,8 @@ namespace WebView {
 // Wraps the real autocomplete machinery (history store, search engine, remote suggestions).
 class AutocompleteSuggestionProvider final : public OmniboxSuggestionProvider {
 public:
-    AutocompleteSuggestionProvider()
+    AutocompleteSuggestionProvider(IsPrivate is_private)
+        : m_autocomplete(is_private)
     {
         m_autocomplete.on_autocomplete_query_complete = [this](auto suggestions, auto result_kind) {
             if (on_suggestions)
@@ -132,8 +133,8 @@ static Optional<size_t> index_of_exact_search_suggestion(String const& query, Ve
     });
 }
 
-Omnibox::Omnibox()
-    : Omnibox(make<AutocompleteSuggestionProvider>())
+Omnibox::Omnibox(IsPrivate is_private)
+    : Omnibox(make<AutocompleteSuggestionProvider>(is_private))
 {
 }
 

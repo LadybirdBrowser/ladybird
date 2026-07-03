@@ -53,7 +53,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         .query_url = "http://127.0.0.1:47919/{}"sv,
     });
 
-    WebView::Autocomplete autocomplete;
+    WebView::Autocomplete autocomplete { WebView::IsPrivate::No };
 
     auto completed = false;
     autocomplete.on_autocomplete_query_complete = [&](auto const&, WebView::AutocompleteResultKind kind) {

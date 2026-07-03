@@ -96,6 +96,7 @@ static constexpr int LOCATION_PILL_HORIZONTAL_PADDING = 18;
 
 LocationEdit::LocationEdit(QWidget* parent)
     : QLineEdit(parent)
+    , m_omnibox(WebView::IsPrivate::No)
     , m_autocomplete(new Autocomplete(this))
 {
     setObjectName("LadybirdLocationEdit");

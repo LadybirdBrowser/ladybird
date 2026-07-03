@@ -386,7 +386,7 @@ static NSImage* location_field_globe_icon()
         m_fullscreen_should_restore_tab_bar = false;
 
         self.autocomplete = [[Autocomplete alloc] init:self withToolbarItem:self.location_toolbar_item];
-        m_autocomplete = make<WebView::Autocomplete>();
+        m_autocomplete = make<WebView::Autocomplete>(WebView::IsPrivate::No);
 
         m_autocomplete->on_autocomplete_query_complete = [weak_self](auto suggestions, WebView::AutocompleteResultKind result_kind) {
             TabController* self = weak_self;

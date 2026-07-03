@@ -90,7 +90,7 @@ static void ladybird_location_entry_class_init(LadybirdLocationEntryClass* klass
 static void ladybird_location_entry_init(LadybirdLocationEntry* self)
 {
     self->state = adopt_own(*new LocationEntryState {
-        .autocomplete = make<WebView::Autocomplete>(),
+        .autocomplete = make<WebView::Autocomplete>(WebView::IsPrivate::No),
         .suggestions = {},
         .favicon = {},
         .selected_index = -1,

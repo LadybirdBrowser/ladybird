@@ -16,6 +16,7 @@
 #include <AK/Vector.h>
 #include <LibRequests/Forward.h>
 #include <LibWebView/Forward.h>
+#include <LibWebView/PrivateBrowsing.h>
 
 namespace WebView {
 
@@ -61,7 +62,7 @@ WEBVIEW_API bool autocomplete_url_can_complete(StringView query, StringView sugg
 
 class WEBVIEW_API Autocomplete {
 public:
-    Autocomplete();
+    explicit Autocomplete(IsPrivate);
     ~Autocomplete();
 
     Function<void(Vector<AutocompleteSuggestion>, AutocompleteResultKind)> on_autocomplete_query_complete;
@@ -73,6 +74,7 @@ private:
     static ErrorOr<Vector<String>> received_autocomplete_respsonse(AutocompleteEngine const&, Optional<ByteString const&> content_type, StringView response);
     void invoke_autocomplete_query_complete(Vector<AutocompleteSuggestion> suggestions, AutocompleteResultKind) const;
 
+    IsPrivate m_is_private { IsPrivate::No };
     String m_query;
     size_t m_max_suggestions { default_autocomplete_suggestion_limit };
     Vector<AutocompleteSuggestion> m_history_suggestions;

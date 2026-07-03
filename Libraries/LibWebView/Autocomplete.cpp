@@ -42,7 +42,11 @@ Optional<AutocompleteEngine const&> find_autocomplete_engine_by_name(StringView 
     });
 }
 
-Autocomplete::Autocomplete() = default;
+Autocomplete::Autocomplete(IsPrivate is_private)
+    : m_is_private(is_private)
+{
+}
+
 Autocomplete::~Autocomplete() = default;
 
 void Autocomplete::cancel_pending_query()
@@ -301,7 +305,8 @@ void Autocomplete::query_autocomplete_engine(String query, size_t max_suggestion
 
     dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Autocomplete query='{}' trimmed='{}'", m_query, trimmed_query);
 
-    m_history_suggestions = make_history_suggestions(trimmed_query, Application::history_store().autocomplete_entries(trimmed_query, m_max_suggestions));
+    // In private windows, we use a disabled history store for most things, but we allow querying non-private history for autocomplete.
+    m_history_suggestions = make_history_suggestions(trimmed_query, Application::history_store(IsPrivate::No).autocomplete_entries(trimmed_query, m_max_suggestions));
     auto literal_suggestion = preferred_literal_url_suggestion(trimmed_query, m_history_suggestions);
     auto search_suggestion = search_for_query_suggestion(trimmed_query);
 
@@ -351,7 +356,7 @@ void Autocomplete::query_autocomplete_engine(String query, size_t max_suggestion
     if (!url.has_value())
         return;
 
-    m_request = Application::request_server_client().start_request("GET"sv, *url);
+    m_request = Application::request_server_client(m_is_private).start_request("GET"sv, *url);
 
     m_request->set_buffered_request_finished_callback(
         [this, engine = engine.release_value(), query = m_query, literal_suggestion, search_suggestion](u64, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const& network_error, HTTP::HeaderList const& response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes>, Optional<u64>, Core::ImmutableBytes payload) {

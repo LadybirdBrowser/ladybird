@@ -14,6 +14,7 @@
 #include <AK/Vector.h>
 #include <LibWebView/Autocomplete.h>
 #include <LibWebView/Export.h>
+#include <LibWebView/PrivateBrowsing.h>
 
 namespace WebView {
 
@@ -56,7 +57,7 @@ class WEBVIEW_API Omnibox {
     AK_MAKE_NONMOVABLE(Omnibox);
 
 public:
-    Omnibox();
+    explicit Omnibox(IsPrivate);
     explicit Omnibox(NonnullOwnPtr<OmniboxSuggestionProvider>);
     ~Omnibox();
 
