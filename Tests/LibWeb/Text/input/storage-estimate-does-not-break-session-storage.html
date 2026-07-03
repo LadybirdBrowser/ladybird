@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    // StorageManager.estimate() must not insert a local storage shelf into the traversable navigable's session storage
+    // shed. It previously did, so window.open() (which legacy-clones that shed and assumes every shelf is a session
+    // shelf) dereferenced a null session storage bottle and crashed.
+    promiseTest(async () => {
+        await navigator.storage.estimate();
+
+        const win = window.open("about:blank");
+        println("window.open after estimate(): " + (win ? "ok" : "null"));
+        if (win) win.close();
+
+        window.sessionStorage.setItem("key", "value");
+        println("sessionStorage after estimate(): " + window.sessionStorage.getItem("key"));
+    });
+</script>

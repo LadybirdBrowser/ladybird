@@ -6,7 +6,6 @@
 
 #include <LibGC/Heap.h>
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Page/Page.h>
@@ -64,12 +63,17 @@ GC::Ptr<StorageShelf> obtain_a_local_storage_shelf(HTML::EnvironmentSettingsObje
 
     // FIXME: This should be implemented in a way that works for Workers.
     auto& window = as<HTML::Window>(settings.global_object());
-    auto navigable = window.associated_document().navigable();
-    if (!navigable || !navigable->traversable_navigable())
+
+    auto key = obtain_a_storage_key(settings);
+    if (!key.has_value())
         return {};
 
-    auto& shed = navigable->traversable_navigable()->storage_shed();
-    return shed.obtain_a_storage_shelf(settings, StorageType::Local);
+    // AD-HOC: We have no user-agent storage shed. Our local storage is backed by StorageJar. This shelf is a transient
+    //         helper for computing estimate()'s usage and quota — so a standalone shelf is functionally equivalent to
+    //         the spec's requirement to obtain one from a shed. It must not come from the traversable navigable's
+    //         storage shed. That holds *session* storage. And we have other existing code which expects the shelves for
+    //         that to have a populated session-storage bottle — which a local shelf lacks.
+    return StorageShelf::create(window.heap(), window.page(), key.release_value(), StorageType::Local);
 }
 
 }
