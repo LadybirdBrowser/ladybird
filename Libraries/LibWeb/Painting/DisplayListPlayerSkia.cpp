@@ -350,6 +350,51 @@ void DisplayListPlayerSkia::play_command(DrawRepeatedDecodedImageFrame const& co
     canvas.drawPaint(paint);
 }
 
+static void paint_repeated_image(SkCanvas& canvas, SkImage& image, Gfx::IntRect const& dst_rect, Gfx::IntRect const& clip_rect, bool repeat_x, bool repeat_y)
+{
+    SkMatrix matrix;
+    matrix.setTranslate(dst_rect.x(), dst_rect.y());
+
+    auto tile_mode_x = repeat_x ? SkTileMode::kRepeat : SkTileMode::kDecal;
+    auto tile_mode_y = repeat_y ? SkTileMode::kRepeat : SkTileMode::kDecal;
+    auto sampling = SkSamplingOptions(SkFilterMode::kLinear);
+    auto shader = image.makeShader(tile_mode_x, tile_mode_y, sampling, &matrix);
+
+    SkPaint paint;
+    paint.setAntiAlias(true);
+    paint.setShader(shader);
+
+    canvas.save();
+    canvas.clipRect(to_skia_rect(clip_rect), true);
+    canvas.drawPaint(paint);
+    canvas.restore();
+}
+
+void DisplayListPlayerSkia::play_command(DrawRepeatedDisplayList const& command)
+{
+    auto tile_size = command.dst_rect.size();
+    if (tile_size.is_empty())
+        return;
+
+    if (auto image = resource_storage().cached_skia_image_for_display_list(command.display_list_id, tile_size, m_skia_backend_context)) {
+        paint_repeated_image(surface().canvas(), *image, command.dst_rect, command.clip_rect, command.repeat.x, command.repeat.y);
+        return;
+    }
+
+    auto tile_surface = Gfx::PaintingSurface::create_with_size(tile_size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, m_skia_backend_context);
+    Gfx::PainterSkia painter { tile_surface };
+    painter.clear_rect(tile_surface->rect().to_type<float>(), Gfx::Color::Transparent);
+    auto const& tile_display_list = resource_storage().display_list_resource(command.display_list_id);
+    execute_display_list_into_surface(*tile_display_list.display_list, tile_display_list.visual_context_tree, *tile_surface);
+    auto image = tile_surface->sk_surface().makeImageSnapshot();
+    if (!image)
+        return;
+
+    resource_storage().set_cached_skia_image_for_display_list(command.display_list_id, tile_size, m_skia_backend_context, image);
+
+    paint_repeated_image(surface().canvas(), *image, command.dst_rect, command.clip_rect, command.repeat.x, command.repeat.y);
+}
+
 void DisplayListPlayerSkia::play_command(AddClipRect const& command)
 {
     auto& canvas = surface().canvas();

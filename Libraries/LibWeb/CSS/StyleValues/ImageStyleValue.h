@@ -90,6 +90,7 @@ public:
 
     virtual bool is_paintable(DOM::Document const&) const override;
     void paint(DisplayListRecordingContext& context, DOM::Document const&, DevicePixelRect const& dest_rect, CSS::ImageRendering image_rendering) const override;
+    Optional<Painting::DisplayListResource> record_display_list(DisplayListRecordingContext&, DOM::Document const&, DevicePixelRect const&) const;
 
     virtual Optional<Gfx::Color> color_if_single_pixel_bitmap(DOM::Document const&) const override;
     Optional<Gfx::DecodedImageFrame> current_frame(DOM::Document const&, DevicePixelRect const& dest_rect = {}) const;

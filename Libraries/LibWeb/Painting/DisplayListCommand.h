@@ -39,6 +39,7 @@ class DisplayList;
     V(FillRect, fill_rect)                                                             \
     V(DrawScaledDecodedImageFrame, draw_scaled_decoded_image_frame)                    \
     V(DrawRepeatedDecodedImageFrame, draw_repeated_decoded_image_frame)                \
+    V(DrawRepeatedDisplayList, draw_repeated_display_list)                             \
     V(DrawCompositedContext, draw_composited_context)                                  \
     V(DrawCanvas, draw_canvas)                                                         \
     V(DrawVideoFrame, draw_video_frame)                                                \
@@ -183,6 +184,24 @@ struct DrawRepeatedDecodedImageFrame {
     Gfx::IntRect clip_rect;
     ImageFrameResourceId frame_id;
     Gfx::ScalingMode scaling_mode;
+    Repeat repeat;
+
+    [[nodiscard]] Gfx::IntRect bounding_rect() const { return clip_rect; }
+    void dump(StringBuilder&) const;
+};
+
+struct DrawRepeatedDisplayList {
+    static constexpr StringView command_name = "DrawRepeatedDisplayList"sv;
+    static constexpr DisplayListCommandType command_type = DisplayListCommandType::DrawRepeatedDisplayList;
+
+    struct Repeat {
+        bool x { false };
+        bool y { false };
+    };
+
+    Gfx::IntRect dst_rect;
+    Gfx::IntRect clip_rect;
+    DisplayListResourceId display_list_id;
     Repeat repeat;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return clip_rect; }

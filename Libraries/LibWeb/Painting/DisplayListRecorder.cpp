@@ -558,11 +558,25 @@ void DisplayListRecorder::draw_scaled_decoded_image_frame(Gfx::IntRect const& ds
 
 void DisplayListRecorder::draw_repeated_decoded_image_frame(Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, Gfx::DecodedImageFrame frame, Gfx::ScalingMode scaling_mode, bool repeat_x, bool repeat_y)
 {
+    if (dst_rect.is_empty() || clip_rect.is_empty())
+        return;
     append_command(DrawRepeatedDecodedImageFrame {
         .dst_rect = dst_rect,
         .clip_rect = clip_rect,
         .frame_id = resource_storage().add_image_frame(frame),
         .scaling_mode = scaling_mode,
+        .repeat = { repeat_x, repeat_y },
+    });
+}
+
+void DisplayListRecorder::draw_repeated_display_list(Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, DisplayListResource const& display_list, bool repeat_x, bool repeat_y)
+{
+    if (dst_rect.is_empty() || clip_rect.is_empty())
+        return;
+    append_command(DrawRepeatedDisplayList {
+        .dst_rect = dst_rect,
+        .clip_rect = clip_rect,
+        .display_list_id = resource_storage().add_display_list(display_list.display_list, display_list.visual_context_tree),
         .repeat = { repeat_x, repeat_y },
     });
 }

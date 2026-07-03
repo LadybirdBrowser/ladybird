@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/HTML/DecodedImageData.h>
+#include <LibWeb/Painting/DisplayList.h>
 
 namespace Web::HTML {
 
@@ -33,6 +34,11 @@ void DecodedImageData::Client::unregister_with_decoded_image_data_if_needed()
 DecodedImageData::DecodedImageData() = default;
 
 DecodedImageData::~DecodedImageData() = default;
+
+Optional<Painting::DisplayListResource> DecodedImageData::record_display_list(Gfx::IntSize, Painting::DisplayListResourceStorage&) const
+{
+    return {};
+}
 
 void DecodedImageData::notify_clients_did_update()
 {

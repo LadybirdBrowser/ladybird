@@ -169,6 +169,15 @@ void ImageStyleValue::paint(DisplayListRecordingContext& context, DOM::Document 
     image_data->paint(context, dest_int_rect, image_rendering);
 }
 
+Optional<Painting::DisplayListResource> ImageStyleValue::record_display_list(DisplayListRecordingContext& context, DOM::Document const& document, DevicePixelRect const& dest_rect) const
+{
+    auto image_data = this->image_data(document);
+    if (!image_data)
+        return {};
+
+    return image_data->record_display_list(dest_rect.size().to_type<int>(), context.display_list_recorder().resource_storage());
+}
+
 Optional<Gfx::DecodedImageFrame> ImageStyleValue::current_frame(DOM::Document const& document, DevicePixelRect const& dest_rect) const
 {
     if (auto image_data = this->image_data(document))

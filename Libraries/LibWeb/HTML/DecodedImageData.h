@@ -13,6 +13,7 @@
 #include <LibGfx/Size.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/PixelUnits.h>
 
 namespace Web::HTML {
@@ -39,6 +40,7 @@ public:
     void set_is_cors_cross_origin(bool value) { m_is_cors_cross_origin = value; }
 
     virtual void paint([[maybe_unused]] DisplayListRecordingContext&, [[maybe_unused]] Gfx::IntRect dst_rect, CSS::ImageRendering) const = 0;
+    virtual Optional<Painting::DisplayListResource> record_display_list(Gfx::IntSize, Painting::DisplayListResourceStorage&) const;
 
     virtual Optional<Gfx::DecodedImageFrame> default_frame(Gfx::IntSize = {}) const = 0;
     virtual Optional<Gfx::DecodedImageFrame> current_frame(Gfx::IntSize = {}) const = 0;

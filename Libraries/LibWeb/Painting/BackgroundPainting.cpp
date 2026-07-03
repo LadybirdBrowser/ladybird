@@ -325,11 +325,16 @@ void paint_background(DisplayListRecordingContext& context, PaintableBox const& 
             if (dest_rect.height() == 0)
                 dest_rect.set_height(1);
 
-            auto frame = static_cast<CSS::ImageStyleValue const&>(image).current_frame(document, dest_rect);
-            if (!frame.has_value())
-                return;
-            auto scaling_mode = to_gfx_scaling_mode(image_rendering, frame->size(), dest_rect.size().to_type<int>());
-            context.display_list_recorder().draw_repeated_decoded_image_frame(dest_rect.to_type<int>(), clip_rect.to_type<int>(), *frame, scaling_mode, repeat_x, repeat_y);
+            auto const& image_style_value = static_cast<CSS::ImageStyleValue const&>(image);
+            if (auto display_list = image_style_value.record_display_list(context, document, dest_rect); display_list.has_value()) {
+                context.display_list_recorder().draw_repeated_display_list(dest_rect.to_type<int>(), clip_rect.to_type<int>(), *display_list, repeat_x, repeat_y);
+            } else {
+                auto frame = image_style_value.current_frame(document, dest_rect);
+                if (!frame.has_value())
+                    return;
+                auto scaling_mode = to_gfx_scaling_mode(image_rendering, frame->size(), dest_rect.size().to_type<int>());
+                context.display_list_recorder().draw_repeated_decoded_image_frame(dest_rect.to_type<int>(), clip_rect.to_type<int>(), *frame, scaling_mode, repeat_x, repeat_y);
+            }
         } else if ((repeat_x || repeat_y) && !repeat_x_has_gap && !repeat_y_has_gap && tile_count > max_tiles_before_pattern_fallback) {
             // A not-decoded-image repeating background otherwise records a separate painting command for every tile —
             // which for very-large tile counts can lead to enough commands that we crash. So, instead record a single

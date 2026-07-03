@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #target {
+        width: 120px;
+        height: 80px;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Crect width='20' height='20' fill='green'/%3E%3Ccircle cx='10' cy='10' r='5' fill='white'/%3E%3C/svg%3E");
+        background-repeat: repeat;
+    }
+</style>
+<div id="target"></div>
+<script>
+    promiseTest(async () => {
+        while (true) {
+            await animationFrame();
+
+            const displayList = internals.dumpDisplayList();
+            if (displayList.includes("DrawRepeatedDisplayList")) {
+                println(displayList);
+                return;
+            }
+        }
+    });
+</script>

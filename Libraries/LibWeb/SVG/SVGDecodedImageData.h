@@ -32,6 +32,8 @@ public:
     virtual Optional<CSSPixels> intrinsic_height() const override;
     virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const override;
 
+    virtual Optional<Painting::DisplayListResource> record_display_list(Gfx::IntSize, Painting::DisplayListResourceStorage&) const override;
+
     // FIXME: Support SVG animations. :^)
     DOM::Document const& svg_document() const { return *m_document; }
 
@@ -44,7 +46,6 @@ private:
     SVGDecodedImageData(GC::Ref<Page>, GC::Ref<SVGPageClient>, GC::Ref<DOM::Document>, GC::Ref<SVG::SVGSVGElement>);
 
     RefPtr<Gfx::PaintingSurface> render_to_surface(Gfx::IntSize) const;
-    Optional<Painting::DisplayListResource> record_display_list(Gfx::IntSize, Painting::DisplayListResourceStorage&) const;
     void prune_cached_display_list_resources() const;
     void did_request_frame();
     void invalidate_cached_rendering();

@@ -57,6 +57,7 @@ struct DisplayListVideoFrameResource {
 };
 
 struct DisplayListStoredImageFrameResource;
+struct DisplayListCachedSkiaImageResource;
 
 struct DisplayListResource {
     DisplayListResource(NonnullRefPtr<DisplayList>, AccumulatedVisualContextTree);
@@ -109,6 +110,8 @@ public:
     Gfx::Font const& font(FontResourceId id) const { return *m_fonts.get(id.value()).value(); }
     Gfx::DecodedImageFrame const& image_frame(ImageFrameResourceId) const;
     sk_sp<SkImage> skia_image_for_image_frame(ImageFrameResourceId, RefPtr<Gfx::SkiaBackendContext> const&) const;
+    sk_sp<SkImage> cached_skia_image_for_display_list(DisplayListResourceId, Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&) const;
+    void set_cached_skia_image_for_display_list(DisplayListResourceId, Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&, sk_sp<SkImage>) const;
     RefPtr<Media::VideoFrame const> video_frame(VideoFrameResourceId id) const { return m_video_frames.get(id.value()).value(); }
     DisplayListResource const& display_list_resource(DisplayListResourceId id) const { return m_display_lists.get(id.value()).value(); }
     DisplayList const& display_list(DisplayListResourceId id) const { return *display_list_resource(id).display_list; }
@@ -121,6 +124,7 @@ private:
     HashMap<u64, NonnullOwnPtr<DisplayListStoredImageFrameResource>> m_image_frames;
     HashMap<u64, RefPtr<Media::VideoFrame const>> m_video_frames;
     HashMap<u64, DisplayListResource> m_display_lists;
+    mutable HashMap<u64, NonnullOwnPtr<DisplayListCachedSkiaImageResource>> m_display_list_cached_skia_images;
 
     HashMap<u64, size_t> m_font_cache_reference_counts;
     HashMap<u64, size_t> m_image_frame_cache_reference_counts;

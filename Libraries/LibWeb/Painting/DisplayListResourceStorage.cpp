@@ -29,6 +29,19 @@ struct DisplayListStoredImageFrameResource {
     mutable RefPtr<Gfx::SkiaBackendContext> skia_backend_context;
 };
 
+struct DisplayListCachedSkiaImageResource {
+    DisplayListCachedSkiaImageResource(Gfx::IntSize tile_size, RefPtr<Gfx::SkiaBackendContext> skia_backend_context, sk_sp<SkImage> image)
+        : tile_size(tile_size)
+        , skia_backend_context(move(skia_backend_context))
+        , image(move(image))
+    {
+    }
+
+    Gfx::IntSize tile_size;
+    RefPtr<Gfx::SkiaBackendContext> skia_backend_context;
+    sk_sp<SkImage> image;
+};
+
 static sk_sp<SkImage> create_skia_image(Gfx::DecodedImageFrame const& frame, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
 {
     auto raster_image = Gfx::sk_image_from_bitmap(frame.bitmap(), frame.color_space());
@@ -149,6 +162,26 @@ Gfx::DecodedImageFrame const& DisplayListResourceStorage::image_frame(ImageFrame
 sk_sp<SkImage> DisplayListResourceStorage::skia_image_for_image_frame(ImageFrameResourceId id, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context) const
 {
     return skia_image_for_stored_image_frame(*m_image_frames.get(id.value()).value(), skia_backend_context);
+}
+
+sk_sp<SkImage> DisplayListResourceStorage::cached_skia_image_for_display_list(DisplayListResourceId id, Gfx::IntSize tile_size, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context) const
+{
+    auto cached_image = m_display_list_cached_skia_images.find(id.value());
+    if (cached_image == m_display_list_cached_skia_images.end())
+        return nullptr;
+
+    auto const& image = *cached_image->value;
+    if (image.tile_size != tile_size)
+        return nullptr;
+    if (image.skia_backend_context.ptr() != skia_backend_context.ptr())
+        return nullptr;
+
+    return image.image;
+}
+
+void DisplayListResourceStorage::set_cached_skia_image_for_display_list(DisplayListResourceId id, Gfx::IntSize tile_size, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, sk_sp<SkImage> image) const
+{
+    m_display_list_cached_skia_images.set(id.value(), make<DisplayListCachedSkiaImageResource>(tile_size, skia_backend_context, move(image)));
 }
 
 static ReadonlyBytes inline_data(ReadonlyBytes payload, DisplayListDataSpan span)
@@ -329,6 +362,8 @@ void DisplayListResourceStorage::apply_transaction(DisplayListResourceTransactio
         m_video_frames.remove(id.value());
     for (auto id : transaction.display_list_ids_to_remove)
         m_display_lists.remove(id.value());
+    for (auto id : transaction.display_list_ids_to_remove)
+        m_display_list_cached_skia_images.remove(id.value());
 }
 
 void DisplayListResourceStorage::retain_only(DisplayListResourceSet const& resource_set)
@@ -347,6 +382,10 @@ void DisplayListResourceStorage::retain_only(DisplayListResourceSet const& resou
             && !m_video_frame_cache_reference_counts.contains(id);
     });
     m_display_lists.remove_all_matching([&](auto id, auto const&) {
+        return !resource_set.display_lists.contains(DisplayListResourceId { id })
+            && !m_display_list_cache_reference_counts.contains(id);
+    });
+    m_display_list_cached_skia_images.remove_all_matching([&](auto id, auto const&) {
         return !resource_set.display_lists.contains(DisplayListResourceId { id })
             && !m_display_list_cache_reference_counts.contains(id);
     });
