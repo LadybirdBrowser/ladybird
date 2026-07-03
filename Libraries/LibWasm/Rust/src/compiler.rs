@@ -272,6 +272,73 @@ impl CraneliftCompiler {
                 .ins()
                 .load(ptr_type, MemFlags::trusted(), configuration_val, locals_base_offset);
         builder.def_var(locals_base_var, initial_locals_base);
+        let default_memory_size_var = Variable::from_u32(11);
+        builder.declare_var(default_memory_size_var, types::I64);
+        let default_memory_storage_offset_var = Variable::from_u32(12);
+        builder.declare_var(default_memory_storage_offset_var, types::I64);
+        let primitive_storage_cage_base_var = Variable::from_u32(13);
+        builder.declare_var(primitive_storage_cage_base_var, ptr_type);
+
+        let uses_default_memory = insns.iter().any(|insn| {
+            let mem_idx = insn.imm3 & 0x7fff_ffff;
+            matches!(
+                insn.opcode,
+                op::I32_LOAD
+                    | op::I64_LOAD
+                    | op::F32_LOAD
+                    | op::F64_LOAD
+                    | op::I32_LOAD8_S
+                    | op::I32_LOAD8_U
+                    | op::I32_LOAD16_S
+                    | op::I32_LOAD16_U
+                    | op::I64_LOAD8_S
+                    | op::I64_LOAD8_U
+                    | op::I64_LOAD16_S
+                    | op::I64_LOAD16_U
+                    | op::I64_LOAD32_S
+                    | op::I64_LOAD32_U
+                    | op::I32_STORE
+                    | op::I64_STORE
+                    | op::F32_STORE
+                    | op::F64_STORE
+                    | op::I32_STORE8
+                    | op::I32_STORE16
+                    | op::I64_STORE8
+                    | op::I64_STORE16
+                    | op::I64_STORE32
+                    | op::SYNTHETIC_I32_STORELOCAL
+                    | op::SYNTHETIC_I64_STORELOCAL
+            ) && mem_idx == 0
+        });
+        if uses_default_memory {
+            let default_memory =
+                builder
+                    .ins()
+                    .load(ptr_type, MemFlags::trusted(), configuration_val, default_memory_offset);
+            let memory_buffer_offset = memory_instance_data_offset;
+            let memory_size = builder.ins().load(
+                types::I64,
+                MemFlags::trusted(),
+                default_memory,
+                memory_buffer_offset + memory_buffer_size_offset,
+            );
+            builder.def_var(default_memory_size_var, memory_size);
+            let storage_offset = builder.ins().load(
+                types::I64,
+                MemFlags::trusted(),
+                default_memory,
+                memory_buffer_offset + memory_buffer_storage_offset_offset,
+            );
+            builder.def_var(default_memory_storage_offset_var, storage_offset);
+            let cage_base_storage = builder.ins().func_addr(ptr_type, h_primitive_storage_cage_base);
+            let cage_base = builder.ins().load(ptr_type, MemFlags::trusted(), cage_base_storage, 0);
+            builder.def_var(primitive_storage_cage_base_var, cage_base);
+        } else {
+            let zero = builder.ins().iconst(types::I64, 0);
+            builder.def_var(default_memory_size_var, zero);
+            builder.def_var(default_memory_storage_offset_var, zero);
+            builder.def_var(primitive_storage_cage_base_var, zero);
+        }
 
         let mut control_stack: Vec<ControlFrame> = Vec::new();
 
@@ -287,7 +354,7 @@ impl CraneliftCompiler {
         let mut is_unreachable = false;
         let mut dirty_regs = [false; REG_COUNT];
         let mut stack_vars: Vec<Variable> = Vec::with_capacity(max_stack_depth);
-        const VSTACK_VAR_BASE: u32 = 11;
+        const VSTACK_VAR_BASE: u32 = 14;
 
         for i in 0..max_stack_depth {
             let var = Variable::from_u32(VSTACK_VAR_BASE + i as u32);
@@ -546,6 +613,31 @@ impl CraneliftCompiler {
             }};
         }
 
+        macro_rules! refresh_default_memory_cache {
+            ($builder:expr) => {{
+                if uses_default_memory {
+                    let cfg = $builder.use_var(config_var);
+                    let memory = $builder
+                        .ins()
+                        .load(ptr_type, MemFlags::trusted(), cfg, default_memory_offset);
+                    let memory_buffer_offset = memory_instance_data_offset;
+                    let memory_size = $builder.ins().load(
+                        types::I64,
+                        MemFlags::trusted(),
+                        memory,
+                        memory_buffer_offset + memory_buffer_size_offset,
+                    );
+                    $builder.def_var(default_memory_size_var, memory_size);
+                    let storage_offset = $builder.ins().load(
+                        types::I64,
+                        MemFlags::trusted(),
+                        memory,
+                        memory_buffer_offset + memory_buffer_storage_offset_offset,
+                    );
+                    $builder.def_var(default_memory_storage_offset_var, storage_offset);
+                }
+            }};
+        }
         // Call + trap-check macro for helper calls that do not consume caller register state.
         // The callee gets arguments explicitly (register immediates, stack, or call record), and the caller's virtual registers stay live in SSA across the call.
         macro_rules! do_call_and_check {
@@ -563,6 +655,7 @@ impl CraneliftCompiler {
                     .ins()
                     .load(ptr_type, MemFlags::trusted(), _cfg_for_lb, locals_base_offset);
                 $builder.def_var(locals_base_var, new_lb);
+                refresh_default_memory_cache!($builder);
             }};
         }
         macro_rules! set_trap {
@@ -588,17 +681,7 @@ impl CraneliftCompiler {
         }
         macro_rules! inline_default_memory_address {
             ($builder:expr, $addr:expr, $access_size:expr) => {{
-                let cfg = $builder.use_var(config_var);
-                let memory = $builder
-                    .ins()
-                    .load(ptr_type, MemFlags::trusted(), cfg, default_memory_offset);
-                let memory_buffer_offset = memory_instance_data_offset;
-                let memory_size = $builder.ins().load(
-                    types::I64,
-                    MemFlags::trusted(),
-                    memory,
-                    memory_buffer_offset + memory_buffer_size_offset,
-                );
+                let memory_size = $builder.use_var(default_memory_size_var);
 
                 let addr_too_large = $builder
                     .ins()
@@ -621,21 +704,13 @@ impl CraneliftCompiler {
                 $builder.switch_to_block(access_in_bounds);
                 $builder.seal_block(access_in_bounds);
 
-                let storage_offset = $builder.ins().load(
-                    types::I64,
-                    MemFlags::trusted(),
-                    memory,
-                    memory_buffer_offset + memory_buffer_storage_offset_offset,
-                );
+                let storage_offset = $builder.use_var(default_memory_storage_offset_var);
                 let unmasked_caged_offset = $builder.ins().iadd(storage_offset, $addr);
                 let cage_offset_mask = $builder
                     .ins()
                     .iconst(types::I64, primitive_storage_cage_offset_mask);
                 let caged_offset = $builder.ins().band(unmasked_caged_offset, cage_offset_mask);
-                let cage_base_storage = $builder.ins().func_addr(ptr_type, h_primitive_storage_cage_base);
-                let cage_base = $builder
-                    .ins()
-                    .load(ptr_type, MemFlags::trusted(), cage_base_storage, 0);
+                let cage_base = $builder.use_var(primitive_storage_cage_base_var);
                 let caged_offset = if ptr_type == types::I64 {
                     caged_offset
                 } else {
@@ -1663,6 +1738,9 @@ impl CraneliftCompiler {
                     let result = builder.inst_results(call)[0];
                     let result = builder.ins().sextend(types::I64, result);
                     write_dst!(builder, insn.destination, result);
+                    if insn.imm1 == 0 {
+                        refresh_default_memory_cache!(builder);
+                    }
                 }
 
                 op::MEMORY_COPY => {
