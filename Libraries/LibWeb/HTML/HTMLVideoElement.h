@@ -86,7 +86,7 @@ private:
     RefPtr<Gfx::Bitmap> m_poster_frame;
 
     Optional<Gfx::Size<u32>> m_intrinsic_video_dimensions;
-    Optional<CSSPixelSize> m_natural_dimensiosn;
+    Optional<CSSPixelSize> m_natural_dimensions;
 
     GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
