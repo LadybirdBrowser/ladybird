@@ -1,0 +1,17 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const canvas = document.createElement("canvas");
+        const gl = canvas.getContext("webgl2");
+        const extensionName = "OES_texture_float_linear";
+        const supportedExtensions = gl.getSupportedExtensions();
+
+        println(`${extensionName} supported: ${supportedExtensions.includes(extensionName)}`);
+
+        const extension = gl.getExtension(extensionName);
+        println(`${extensionName} object: ${extension === null ? "null" : typeof extension}`);
+        println(`${extensionName} same object: ${extension === gl.getExtension(extensionName)}`);
+        println(`${extensionName} own properties: ${Object.keys(extension).length}`);
+    });
+</script>

@@ -12,6 +12,7 @@ extern "C" {
 }
 
 #include <LibGfx/DecodedImageFrame.h>
+#include <LibJS/Runtime/Object.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
@@ -54,6 +55,13 @@ struct Extension {
     Optional<WebGLVersion> only_for_webgl_version { OptionalNone {} };
 };
 
+static JS::ThrowCompletionOr<GC::Ref<JS::Object>> create_empty_extension_object(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase>)
+{
+    // WebGL 1.0: "A returned object may have no constants or functions if the extension does not define any, but a unique
+    //            object must still be returned. That object is used to indicate that the extension has been enabled."
+    return JS::Object::create(realm, realm.intrinsics().object_prototype());
+}
+
 static HashMap<String, Extension, AK::ASCIICaseInsensitiveStringTraits> const& available_webgl_extensions()
 {
     static auto const& extensions = *new HashMap<String, Extension, AK::ASCIICaseInsensitiveStringTraits> {
@@ -66,7 +74,7 @@ static HashMap<String, Extension, AK::ASCIICaseInsensitiveStringTraits> const& a
         { "OES_element_index_uint"_string, { { "GL_OES_element_index_uint"sv }, OESElementIndexUint::create, WebGLVersion::WebGL1 } },
         { "OES_standard_derivatives"_string, { { "GL_OES_standard_derivatives"sv }, OESStandardDerivatives::create, WebGLVersion::WebGL1 } },
         { "OES_texture_float"_string, { { "GL_OES_texture_float"sv }, nullptr, WebGLVersion::WebGL1 } },
-        { "OES_texture_float_linear"_string, { { "GL_OES_texture_float_linear"sv }, nullptr } },
+        { "OES_texture_float_linear"_string, { { "GL_OES_texture_float_linear"sv }, create_empty_extension_object } },
         { "OES_texture_half_float"_string, { { "GL_OES_texture_half_float"sv }, nullptr, WebGLVersion::WebGL1 } },
         { "OES_texture_half_float_linear"_string, { { "GL_OES_texture_half_float_linear"sv }, nullptr, WebGLVersion::WebGL1 } },
         { "OES_vertex_array_object"_string, { { "GL_OES_vertex_array_object"sv }, OESVertexArrayObject::create, WebGLVersion::WebGL1 } },
@@ -85,7 +93,7 @@ static HashMap<String, Extension, AK::ASCIICaseInsensitiveStringTraits> const& a
         { "EXT_depth_clamp"_string, { { "GL_EXT_depth_clamp"sv }, nullptr } },
         { "EXT_disjoint_timer_query"_string, { { "GL_EXT_disjoint_timer_query"sv }, nullptr, WebGLVersion::WebGL1 } },
         { "EXT_disjoint_timer_query_webgl2"_string, { { "GL_EXT_disjoint_timer_query"sv }, nullptr, WebGLVersion::WebGL2 } },
-        { "EXT_float_blend"_string, { { "GL_EXT_float_blend"sv }, nullptr } },
+        { "EXT_float_blend"_string, { { "GL_EXT_float_blend"sv }, create_empty_extension_object } },
         { "EXT_polygon_offset_clamp"_string, { { "GL_EXT_polygon_offset_clamp"sv }, nullptr } },
         { "EXT_render_snorm"_string, { { "GL_EXT_render_snorm"sv }, EXTRenderSnorm::create, WebGLVersion::WebGL2 } },
         { "EXT_sRGB"_string, { { "GL_EXT_sRGB"sv }, nullptr, WebGLVersion::WebGL1 } },

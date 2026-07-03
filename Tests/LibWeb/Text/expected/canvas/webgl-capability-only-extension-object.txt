@@ -1,0 +1,4 @@
+OES_texture_float_linear supported: true
+OES_texture_float_linear object: object
+OES_texture_float_linear same object: true
+OES_texture_float_linear own properties: 0
