@@ -2451,6 +2451,14 @@ void LocalNavigable::begin_navigation(NavigateParams params)
     // 12-13. Determine historyHandling for this navigation.
     history_handling = determine_history_handling_for_navigation(history_handling, url, active_document, initiator_origin_snapshot);
 
+    // FIXME: Revisit the following once the dust settles on our Navigation rewrites — specifically, whether the "the UI
+    //        process seeds the new process's active session-history entry with the target URL *before* its document has
+    //        loaded" behavior is actually a mistake that the following is just working around (papering over).
+    // AD-HOC: In addition to the spec requirements here, we also require the active document's URL (ignoring fragments)
+    //         to match. That's because: After a cross-site process swap, the UI process seeds the new process's active
+    //         session-history entry with the target URL *before* its document has loaded. So, doing just the session-
+    //         history-entry check alone would misclassify a fresh cross-document navigation as a same-document fragment
+    //         navigation — and completely skip loading the document. See issue #10312.
     // 14. If all of the following are true:
     //     - documentResource is null;
     //     - response is null;
@@ -2460,6 +2468,7 @@ void LocalNavigable::begin_navigation(NavigateParams params)
     if (document_resource.has<Empty>()
         && !response
         && url.equals(active_session_history_entry()->url(), URL::ExcludeFragment::Yes)
+        && url.equals(active_document.url(), URL::ExcludeFragment::Yes)
         && url.fragment().has_value()) {
         // 1. Navigate to a fragment given navigable, url, historyHandling, userInvolvement, sourceElement, navigationAPIState, and navigationId.
         navigate_to_a_fragment(url, to_history_handling_behavior(history_handling), user_involvement, source_element, navigation_api_state, navigation_id);

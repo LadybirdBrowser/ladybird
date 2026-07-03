@@ -51,6 +51,8 @@ class TestPageServer(http.server.ThreadingHTTPServer):
         self.release_blocked_same_url_post = threading.Event()
         self.state_replace_load_document_ran = threading.Event()
         self.a_document_ran = threading.Event()
+        self.fragment_source_document_ran = threading.Event()
+        self.fragment_target_document_ran = threading.Event()
         self.b_document_ran = threading.Event()
         self.c_document_ran = threading.Event()
         self.d_document_ran = threading.Event()
@@ -87,6 +89,43 @@ class TestPageHandler(http.server.BaseHTTPRequestHandler):
 
         if self.path == "/document-ran?a":
             server.a_document_ran.set()
+            self.send_response(204)
+            self.end_headers()
+            return
+
+        if self.path == "/fragment-source":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.end_headers()
+            self.wfile.write(
+                """<!doctype html>
+<title>Fragment Source</title>
+<script>fetch('/document-ran?fragment-source');</script>
+<p>Fragment Source</p>""".encode()
+            )
+            return
+
+        if self.path == "/fragment-target":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.end_headers()
+            self.wfile.write(
+                """<!doctype html>
+<title>Fragment Target</title>
+<script>fetch('/document-ran?fragment-target');</script>
+<h2 id="section">Section</h2>
+<p>Fragment Target</p>""".encode()
+            )
+            return
+
+        if self.path == "/document-ran?fragment-source":
+            server.fragment_source_document_ran.set()
+            self.send_response(204)
+            self.end_headers()
+            return
+
+        if self.path == "/document-ran?fragment-target":
+            server.fragment_target_document_ran.set()
             self.send_response(204)
             self.end_headers()
             return
@@ -2044,6 +2083,37 @@ def run_webdriver_fragment_navigation_test(webdriver_port, url):
     request(webdriver_port, "DELETE", f"/session/{session_id}")
 
 
+def expect_cross_site_fragment_navigation_from_ui_loads_document(
+    webdriver_port,
+    session_id,
+    page_server,
+    url_source,
+    url_target,
+    log,
+):
+    log.append("cross-site fragment navigation from the UI loads the target document")
+
+    page_server.fragment_source_document_ran.clear()
+    load_url_from_ui(webdriver_port, session_id, url_source)
+    wait_for_event(
+        page_server.fragment_source_document_ran,
+        "source document before cross-site fragment navigation",
+    )
+
+    target_with_fragment = f"{url_target}#section"
+    page_server.fragment_target_document_ran.clear()
+    load_url_from_ui(webdriver_port, session_id, target_with_fragment)
+
+    wait_for_event(
+        page_server.fragment_target_document_ran,
+        "target document after cross-site fragment navigation",
+    )
+
+    actual_url = current_url(webdriver_port, session_id)
+    if actual_url != target_with_fragment:
+        raise AssertionError(f"Expected current URL {target_with_fragment}, got {actual_url}")
+
+
 def run_test(webdriver_binary):
     page_server = TestPageServer(("0.0.0.0", 0), TestPageHandler)
     page_server_thread = threading.Thread(target=page_server.serve_forever, daemon=True)
@@ -2101,6 +2171,8 @@ def run_test(webdriver_binary):
         url_cross_site_post_blocked_form = f"http://localhost:{page_port}/cross-site-post-blocked-form"
         url_cross_site_post_blocked_result = f"http://127.0.0.1:{page_port}/post-result-blocked"
         url_cross_site_post_result = f"http://127.0.0.1:{page_port}/post-result"
+        url_fragment_source = f"http://localhost:{page_port}/fragment-source"
+        url_fragment_target = f"http://127.0.0.1:{page_port}/fragment-target"
 
         expect_ladybird_test_hooks_require_capability(webdriver_port)
 
@@ -4729,6 +4801,10 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
         expect_url(webdriver_port, session_id, "after blocked reload crash recovery", url_reload_blocked, log)
         expect_current_ui_entry_reload_pending(
             webdriver_port, session_id, "after blocked reload crash recovery", False, log
+        )
+
+        expect_cross_site_fragment_navigation_from_ui_loads_document(
+            webdriver_port, session_id, page_server, url_fragment_source, url_fragment_target, log
         )
 
         if baseline_open_fds is not None:
