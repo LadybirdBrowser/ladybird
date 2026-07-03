@@ -178,12 +178,38 @@ void SizeFeature::dump(StringBuilder& builder, int indent_levels) const
 
 NonnullOwnPtr<StyleFeature> StyleFeature::create_boolean(PropertyNameAndID property)
 {
-    return adopt_own(*new StyleFeature(move(property), {}));
+    return adopt_own(*new StyleFeature(StyleFeaturePlain {
+        .property = move(property),
+        .value = {},
+    }));
 }
 
 NonnullOwnPtr<StyleFeature> StyleFeature::create_plain(PropertyNameAndID property, Vector<Parser::ComponentValue> value)
 {
-    return adopt_own(*new StyleFeature(move(property), move(value)));
+    return adopt_own(*new StyleFeature(StyleFeaturePlain {
+        .property = move(property),
+        .value = move(value),
+    }));
+}
+
+NonnullOwnPtr<StyleFeature> StyleFeature::create_range(StyleRangeValue left, FeatureComparison comparison, StyleRangeValue right)
+{
+    return adopt_own(*new StyleFeature(StyleRange {
+        .left = left,
+        .left_comparison = comparison,
+        .middle = right,
+    }));
+}
+
+NonnullOwnPtr<StyleFeature> StyleFeature::create_range(StyleRangeValue left, FeatureComparison left_comparison, StyleRangeValue middle, FeatureComparison right_comparison, StyleRangeValue right)
+{
+    return adopt_own(*new StyleFeature(StyleRange {
+        .left = left,
+        .left_comparison = left_comparison,
+        .middle = middle,
+        .right_comparison = right_comparison,
+        .right = right,
+    }));
 }
 
 static Optional<Keyword> single_css_wide_keyword(ReadonlySpan<Parser::ComponentValue> value)
@@ -248,26 +274,32 @@ MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& con
     if (!context.style_query_element.has_value())
         return MatchResult::Unknown;
 
+    // FIXME: <style-range> is parsed but not evaluated yet.
+    if (m_feature.has<StyleRange>())
+        return MatchResult::False;
+
+    auto const& [property, value] = m_feature.get<StyleFeaturePlain>();
+
     // FIXME: Non-custom properties are valid style features, but if() is evaluated before the element's own
     //        non-custom computed values exist. Supporting these requires on-demand property resolution.
-    if (!m_property.is_custom_property())
+    if (!property.is_custom_property())
         return MatchResult::False;
 
     auto element = context.style_query_element.value();
     auto const& document = context.document ? *context.document : element.document();
-    auto const& property_name = m_property.name();
+    auto const& property_name = property.name();
     Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts;
     if (context.guarded_contexts.has_value())
         guarded_contexts = const_cast<Parser::GuardedSubstitutionContexts&>(context.guarded_contexts.value());
     Optional<Keyword> query_css_wide_keyword;
 
     if (guarded_contexts.has_value()) {
-        if (guarded_contexts->mark_existing_as_cyclic({ Parser::SubstitutionContext::DependencyType::Property, m_property.to_string() }))
+        if (guarded_contexts->mark_existing_as_cyclic({ Parser::SubstitutionContext::DependencyType::Property, property.to_string() }))
             return MatchResult::False;
     }
 
-    if (m_value.has_value()) {
-        auto const& query_value = m_value.value();
+    if (value.has_value()) {
+        auto const& query_value = *value;
         if (Parser::contains_guaranteed_invalid_value(query_value))
             return MatchResult::False;
 
@@ -330,12 +362,12 @@ MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& con
 
     // A style feature without a value (<style-feature-boolean>) evaluates to true if the computed value is different
     // from the initial value for the given property.
-    if (!m_value.has_value()) {
+    if (!value.has_value()) {
         auto initial_value = document.custom_property_initial_value(property_name);
         return as_match_result(!style_values_are_equal(*comparable_computed_value, *initial_value));
     }
 
-    auto const& query_value = m_value.value();
+    auto const& query_value = *value;
     if (query_css_wide_keyword.has_value()) {
         switch (query_css_wide_keyword.value()) {
         case Keyword::Initial: {
@@ -382,11 +414,30 @@ void StyleFeature::collect_container_query_feature_requirements(ContainerQueryFe
     requirements.requires_style_container = true;
 }
 
+static String serialize_style_range_value(StyleFeature::StyleRangeValue const& value)
+{
+    return value.visit(
+        [](PropertyNameAndID const& property) {
+            return property.to_string();
+        },
+        [](Vector<Parser::ComponentValue> const& component_values) {
+            return serialize_a_series_of_component_values(component_values);
+        });
+}
+
 String StyleFeature::to_string() const
 {
-    if (!m_value.has_value())
-        return m_property.to_string();
-    return MUST(String::formatted("{}: {}", m_property.to_string(), serialize_a_series_of_component_values(m_value.value())));
+    return m_feature.visit(
+        [](StyleFeaturePlain const& feature) {
+            if (!feature.value.has_value())
+                return feature.property.to_string();
+            return MUST(String::formatted("{}: {}", feature.property.to_string(), serialize_a_series_of_component_values(feature.value.value())));
+        },
+        [](StyleRange const& range) {
+            if (!range.right.has_value())
+                return MUST(String::formatted("{} {} {}", serialize_style_range_value(range.left), string_from_feature_comparison(range.left_comparison), serialize_style_range_value(range.middle)));
+            return MUST(String::formatted("{} {} {} {} {}", serialize_style_range_value(range.left), string_from_feature_comparison(range.left_comparison), serialize_style_range_value(range.middle), string_from_feature_comparison(range.right_comparison.value()), serialize_style_range_value(range.right.value())));
+        });
 }
 
 void StyleFeature::dump(StringBuilder& builder, int indent_levels) const

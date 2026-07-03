@@ -511,17 +511,117 @@ OwnPtr<BooleanExpression> Parser::parse_style_query(TokenStream<ComponentValue>&
     });
 }
 
+static bool next_token_is_feature_comparison(TokenStream<ComponentValue>& tokens)
+{
+    auto transaction = tokens.begin_transaction();
+    return parse_feature_comparison(tokens).has_value();
+}
+
+static bool contains_feature_comparison(Vector<ComponentValue> const& component_values)
+{
+    TokenStream tokens { component_values };
+    while (tokens.has_next_token()) {
+        if (next_token_is_feature_comparison(tokens))
+            return true;
+        tokens.discard_a_token();
+    }
+    return false;
+}
+
+static ReadonlySpan<ComponentValue> trim_style_range_value_tokens(ReadonlySpan<ComponentValue> tokens)
+{
+    auto start = 0uz;
+    while (start < tokens.size() && tokens[start].is(Token::Type::Whitespace))
+        ++start;
+
+    auto end = tokens.size();
+    while (end > start && tokens[end - 1].is(Token::Type::Whitespace))
+        --end;
+
+    return tokens.slice(start, end - start);
+}
+
+static Optional<StyleFeature::StyleRangeValue> parse_style_range_value(ReadonlySpan<ComponentValue> tokens)
+{
+    auto trimmed_tokens = trim_style_range_value_tokens(tokens);
+    if (trimmed_tokens.is_empty())
+        return {};
+
+    if (trimmed_tokens.size() == 1 && trimmed_tokens.first().is(Token::Type::Ident)) {
+        auto const& ident = trimmed_tokens.first().token().ident();
+        if (is_a_custom_property_name_string(ident)) {
+            auto property = PropertyNameAndID::from_name(Utf16FlyString::from_utf8(ident));
+            if (property.has_value())
+                return StyleFeature::StyleRangeValue { property.release_value() };
+        }
+    }
+
+    return StyleFeature::StyleRangeValue { Vector<ComponentValue> { trimmed_tokens } };
+}
+
+static Optional<StyleFeature::StyleRangeValue> parse_style_range_value_until_comparison(TokenStream<ComponentValue>& tokens)
+{
+    auto start_index = tokens.current_index();
+    while (tokens.has_next_token()) {
+        if (next_token_is_feature_comparison(tokens))
+            break;
+        tokens.discard_a_token();
+    }
+
+    return parse_style_range_value(tokens.tokens_since(start_index));
+}
+
 // https://drafts.csswg.org/css-conditional-5/#typedef-style-feature
 OwnPtr<BooleanExpression> Parser::parse_style_feature(TokenStream<ComponentValue>& tokens)
 {
     // <style-feature> = <style-feature-plain> | <style-feature-boolean> | <style-range>
-    // FIXME: <style-range>
 
     auto parse_style_feature_name = [](FlyString const& name) -> Optional<PropertyNameAndID> {
         // The <style-feature-name> can be either a supported CSS property or a valid <custom-property-name>.
         // NB: This is the same as what's allowed by PropertyNameAndID.
         return PropertyNameAndID::from_name(Utf16FlyString::from_utf8(name));
     };
+
+    // <style-range> = <style-range-value> <mf-comparison> <style-range-value>
+    //               | <style-range-value> <mf-lt> <style-range-value> <mf-lt> <style-range-value>
+    //               | <style-range-value> <mf-gt> <style-range-value> <mf-gt> <style-range-value>
+    {
+        auto transaction = tokens.begin_transaction();
+        tokens.discard_whitespace();
+
+        if (auto maybe_left = parse_style_range_value_until_comparison(tokens); maybe_left.has_value()) {
+            if (auto maybe_left_comparison = parse_feature_comparison(tokens); maybe_left_comparison.has_value()) {
+                if (auto maybe_middle = parse_style_range_value_until_comparison(tokens); maybe_middle.has_value()) {
+                    tokens.discard_whitespace();
+                    if (!tokens.has_next_token()) {
+                        transaction.commit();
+                        return StyleFeature::create_range(maybe_left.release_value(), maybe_left_comparison.release_value(), maybe_middle.release_value());
+                    }
+
+                    if (auto maybe_right_comparison = parse_feature_comparison(tokens); maybe_right_comparison.has_value()) {
+                        if (auto maybe_right = parse_style_range_value_until_comparison(tokens); maybe_right.has_value()) {
+                            tokens.discard_whitespace();
+
+                            auto left_comparison = maybe_left_comparison.release_value();
+                            auto right_comparison = maybe_right_comparison.release_value();
+
+                            if (!tokens.has_next_token()
+                                && feature_comparisons_match(left_comparison, right_comparison)
+                                && left_comparison != FeatureComparison::Equal) {
+                                transaction.commit();
+                                return StyleFeature::create_range(
+                                    maybe_left.release_value(),
+                                    left_comparison,
+                                    maybe_middle.release_value(),
+                                    right_comparison,
+                                    maybe_right.release_value());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     // <style-feature-plain> = <style-feature-name> : <style-feature-value>
     {
@@ -537,6 +637,8 @@ OwnPtr<BooleanExpression> Parser::parse_style_feature(TokenStream<ComponentValue
 
             auto style_feature_name = parse_style_feature_name(declaration->name);
             if (!style_feature_name.has_value())
+                return nullptr;
+            if (contains_feature_comparison(declaration->value))
                 return nullptr;
 
             transaction.commit();

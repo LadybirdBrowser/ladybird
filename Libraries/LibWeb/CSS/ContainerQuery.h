@@ -48,23 +48,40 @@ private:
 // https://drafts.csswg.org/css-conditional-5/#typedef-style-feature
 class StyleFeature final : public BooleanExpression {
 public:
+    using StyleRangeValue = Variant<PropertyNameAndID, Vector<Parser::ComponentValue>>;
+
     static NonnullOwnPtr<StyleFeature> create_boolean(PropertyNameAndID);
     static NonnullOwnPtr<StyleFeature> create_plain(PropertyNameAndID, Vector<Parser::ComponentValue> value);
+    static NonnullOwnPtr<StyleFeature> create_range(StyleRangeValue left, FeatureComparison comparison, StyleRangeValue right);
+    static NonnullOwnPtr<StyleFeature> create_range(StyleRangeValue left, FeatureComparison left_comparison, StyleRangeValue middle, FeatureComparison right_comparison, StyleRangeValue right);
 
     virtual MatchResult evaluate(BooleanExpressionEvaluationContext const&) const override;
     virtual void collect_container_query_feature_requirements(ContainerQueryFeatureRequirements&) const override;
     virtual String to_string() const override;
     virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
+    struct StyleFeaturePlain {
+        PropertyNameAndID property;
+        Optional<Vector<Parser::ComponentValue>> value;
+    };
+
+    struct StyleRange {
+        StyleRangeValue left;
+        FeatureComparison left_comparison;
+        StyleRangeValue middle;
+        Optional<FeatureComparison> right_comparison {};
+        Optional<StyleRangeValue> right {};
+    };
+
 private:
-    StyleFeature(PropertyNameAndID property, Optional<Vector<Parser::ComponentValue>> value)
-        : m_property(move(property))
-        , m_value(move(value))
+    using Feature = Variant<StyleFeaturePlain, StyleRange>;
+
+    explicit StyleFeature(Feature feature)
+        : m_feature(move(feature))
     {
     }
 
-    PropertyNameAndID m_property;
-    Optional<Vector<Parser::ComponentValue>> m_value;
+    Feature m_feature;
 };
 
 // https://drafts.csswg.org/css-conditional-5/#container-rule
