@@ -180,11 +180,11 @@ void HTMLVideoElement::update_natural_dimensions()
     if (current_representation() == Representation::PosterFrame && m_poster_frame)
         natural_dimensions = m_poster_frame->size().to_type<CSSPixels>();
 
-    if (natural_dimensions == m_natural_dimensiosn)
+    if (natural_dimensions == m_natural_dimensions)
         return;
 
     set_needs_layout_update(DOM::SetNeedsLayoutReason::HTMLVideoElementNaturalDimensionsChanged);
-    m_natural_dimensiosn = natural_dimensions;
+    m_natural_dimensions = natural_dimensions;
 }
 
 Optional<Gfx::Size<u32>> HTMLVideoElement::natural_media_size() const
@@ -194,7 +194,7 @@ Optional<Gfx::Size<u32>> HTMLVideoElement::natural_media_size() const
 
 Optional<CSSPixelSize> HTMLVideoElement::natural_element_size() const
 {
-    return m_natural_dimensiosn;
+    return m_natural_dimensions;
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#attr-video-poster
