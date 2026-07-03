@@ -1,0 +1,21 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script src="webgl-helpers.js"></script>
+<script>
+    test(() => {
+        const canvas = document.createElement("canvas");
+        const gl = canvas.getContext("webgl2");
+
+        const texture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D_ARRAY, texture);
+        gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texImage3D(gl.TEXTURE_2D_ARRAY, 0, gl.RGBA, 1, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        println(`texImage3D error: ${errorName(gl, gl.getError())}`);
+
+        const framebuffer = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+        gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, texture, 0, 0);
+        println(`framebuffer status: ${framebufferStatusName(gl, gl.checkFramebufferStatus(gl.FRAMEBUFFER))}`);
+    });
+</script>

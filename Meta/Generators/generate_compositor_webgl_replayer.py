@@ -51,18 +51,29 @@ def rewrite_size_expression(expression: str, function: dict, holder: str = "comm
 
 def emit_payload_resolution(lines: list, function: dict, arg: dict) -> str:
     field = snake_case(arg["name"])
-    lines.append(f"    auto {field}_bytes = WebGLCommandList::resolve_data_span(payload, command.{field});")
     expression = rewrite_size_expression(arg["payload"], function)
     size_check = f"static_cast<i64>({field}_bytes.size()) != static_cast<i64>({expression})"
     if arg.get("nullable"):
-        lines.append(f"    VERIFY(!command.has_{field} || !({size_check}));")
-        lines.append(f"    VERIFY(command.has_{field} || {field}_bytes.is_empty());")
+        lines.append(f"    ReadonlyBytes {field}_bytes;")
+        lines.append(f"    if (command.has_{field}) {{")
+        lines.append(f"        if (command.{field}.size != 0)")
+        lines.append(f"            {field}_bytes = WebGLCommandList::resolve_data_span(payload, command.{field});")
+        lines.append(f"        VERIFY(!({size_check}));")
+        lines.append("    } else {")
+        lines.append(f"        VERIFY(command.{field}.size == 0);")
+        lines.append("    }")
     else:
+        lines.append(f"    auto {field}_bytes = WebGLCommandList::resolve_data_span(payload, command.{field});")
         lines.append(f"    VERIFY(!({size_check}));")
 
     typed = element_type(arg["type"])
     if typed:
-        lines.append(f"    auto {field} = WebGLCommandList::resolve_typed_span<{typed}>(payload, command.{field});")
+        if arg.get("nullable"):
+            lines.append(f"    Span<{typed} const> {field};")
+            lines.append(f"    if (command.has_{field} && command.{field}.size != 0)")
+            lines.append(f"        {field} = WebGLCommandList::resolve_typed_span<{typed}>(payload, command.{field});")
+        else:
+            lines.append(f"    auto {field} = WebGLCommandList::resolve_typed_span<{typed}>(payload, command.{field});")
         data_expression = f"{field}.data()"
     else:
         data_expression = f"{field}_bytes.data()"
