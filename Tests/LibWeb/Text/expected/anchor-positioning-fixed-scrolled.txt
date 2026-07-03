@@ -1,0 +1,5 @@
+scrollY: 900
+anchor.bottom: 130
+target.top: 130
+anchor.left: 40
+target.left: 40

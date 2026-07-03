@@ -15,6 +15,7 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Layout/BlockFormattingContext.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/FlexFormattingContext.h>
@@ -1768,8 +1769,20 @@ void FormattingContext::resolve_anchor_insets(Box& box) const
             - CSSPixelPoint { anchor_state->border_box_left(), anchor_state->border_box_top() };
         auto containing_block_padding_box_origin = containing_block_state.cumulative_offset()
             - CSSPixelPoint { containing_block_state.padding_left, containing_block_state.padding_top };
+        auto anchor_origin = anchor_border_box_origin - containing_block_padding_box_origin;
+
+        // NB: A fixed-positioned box whose containing block is the viewport doesn't move when the document is scrolled.
+        //     So, its anchor() insets are resolved against the anchor's position within the viewport — not its position
+        //     within the document.
+        if (box.is_fixed_position() && containing_block->is_viewport()) {
+            if (auto navigable = box.navigable()) {
+                auto scroll_offset = navigable->viewport_scroll_offset();
+                anchor_origin.translate_by(-scroll_offset.x(), -scroll_offset.y());
+            }
+        }
+
         return CSSPixelRect {
-            anchor_border_box_origin - containing_block_padding_box_origin,
+            anchor_origin,
             { anchor_state->border_box_width(), anchor_state->border_box_height() },
         };
     };

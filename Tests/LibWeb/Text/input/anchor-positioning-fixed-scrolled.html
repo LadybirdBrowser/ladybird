@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #anchor {
+        anchor-name: --a;
+        position: absolute;
+        top: 1000px;
+        left: 40px;
+        width: 120px;
+        height: 30px;
+    }
+    #spacer { height: 2000px; }
+    #target {
+        position: fixed;
+        position-anchor: --a;
+        top: anchor(bottom);
+        left: anchor(left);
+        width: 50px;
+        height: 20px;
+    }
+</style>
+<div id="anchor"></div>
+<div id="spacer"></div>
+<script>
+    test(() => {
+        // A position:fixed element anchored to an element further down the page, positioned while the page is scrolled.
+        // Emulates a popup opened after the user has scrolled down. The fixed target must line up with the anchor's
+        // viewport position — not its document position. Regression test for #10387.
+        window.scrollTo(0, 900);
+
+        // Create the anchored target after scrolling, so it is laid out while scrolled.
+        const target = document.createElement("div");
+        target.id = "target";
+        document.body.appendChild(target);
+
+        const t = target.getBoundingClientRect();
+        const a = document.getElementById("anchor").getBoundingClientRect();
+        println(`scrollY: ${window.scrollY}`);
+        println(`anchor.bottom: ${a.bottom}`);
+        println(`target.top: ${t.top}`);
+        println(`anchor.left: ${a.left}`);
+        println(`target.left: ${t.left}`);
+    });
+</script>
