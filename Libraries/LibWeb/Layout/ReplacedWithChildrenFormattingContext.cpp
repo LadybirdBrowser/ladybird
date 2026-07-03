@@ -16,27 +16,18 @@ ReplacedWithChildrenFormattingContext::ReplacedWithChildrenFormattingContext(Lay
 
 void ReplacedWithChildrenFormattingContext::run(LayoutInput const& layout_input)
 {
-    auto const& available_space = layout_input.available_space;
     auto& root_state = m_state.get_mutable(context_box());
     auto content_inline_size = root_state.content_inline_size();
 
-    // Mark the replaced element as having definite dimensions when the parent FC has
-    // computed them from intrinsic size, so children with percentage sizes can resolve.
-    auto natural_size = context_box().natural_size();
-    if (natural_size.has_width())
-        root_state.set_has_definite_inline_size(true);
-    if (natural_size.has_height())
-        root_state.set_has_definite_block_size(true);
-
-    // For the block axis, use the parent-set content block size if it has been resolved (e.g. an
-    // explicit or intrinsic block size); otherwise use the parent formatting context's space.
-    auto child_available_block_size = root_state.has_definite_block_size()
-        ? AvailableSize::make_definite(root_state.content_block_size())
-        : available_space.block_size;
+    // The parent FC has already resolved this replaced box's used size (natural size, explicit size, or the default
+    // object size), so both dimensions are definite for its children — shadow content sized to fill
+    // (e.g. width/height: 100%) resolves against them.
+    root_state.set_has_definite_inline_size(true);
+    root_state.set_has_definite_block_size(true);
 
     auto child_available_space = AvailableSpace(
         AvailableSize::make_definite(content_inline_size),
-        child_available_block_size);
+        AvailableSize::make_definite(root_state.content_block_size()));
 
     // The TreeBuilder wraps shadow DOM children in an anonymous BlockContainer.
     // Delegate layout to a BFC for that wrapper.
