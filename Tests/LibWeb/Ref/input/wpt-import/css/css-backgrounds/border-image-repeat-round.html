@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSS Backgrounds and Borders Test: 'border-image-repeat' set as 'round'</title>
+    <link rel="author" title="Ren Jing" href="mailto:reni2046@gmail.com">
+    <link rel="help" href="http://www.w3.org/TR/css3-background/#border-images">
+    <link rel="match" href="../../../../expected/wpt-import/css/css-backgrounds/reference/border-image-repeat-round-ref.html">
+    <meta name="assert" content="diamonds in corners should be red, and other diamonds should be orange, it should be 4 orange diamonds on each side.">
+    <meta name="fuzzy" content="maxDifference=0-20; totalPixels=0-1500">
+    <style>
+        .container {
+            border: double red 1em;
+            border-image: url("support/border.png") 27 round;
+            height:64px;
+            width:64px;
+        }
+    </style>
+</head>
+<body>
+    <p>The test passes if diamonds in corners are red, and other diamonds are orange, there are 4 orange diamonds on each side.</p>
+    <div class="container"></div>
+</body>
+</html>

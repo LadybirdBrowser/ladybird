@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Backgrounds Test: border-image-repeat: repeat</title>
+
+  <!--
+
+  Created: February 24th 2023
+
+  Last modified: March 23rd 2023
+
+  Bugzilla bug report 1819487: border-image-repeat and positioning the first tile before repeating
+  https://bugzilla.mozilla.org/show_bug.cgi?id=1819487
+
+  -->
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+  <link rel="help" href="https://www.w3.org/TR/css-backgrounds-3/#border-image-repeat">
+  <link rel="help" href="https://www.w3.org/TR/css-backgrounds-3/#border-image-process">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-backgrounds/reference/border-image-repeat-repeat-001-ref.html">
+
+  <meta content="" name="flags">
+  <meta content="This test checks the process of positioning the first tile of each of the 9 border-image areas when 'border-image-repeat' is 'repeat'." name="assert">
+
+  <style>
+  div
+    {
+      background-color: green; /* so that the center of the + sign gets painted green */
+      border: red solid 75px;
+      border-image-repeat: repeat; /* this is the same as 'repeat repeat' since
+      "
+      If the second keyword is absent, it is assumed to be the same as the first.
+      https://www.w3.org/TR/css-backgrounds-3/#border-image-repeat
+      "
+      */
+      border-image-source: url("support/500x500-white-red-green-irreg-polygon.png");
+      height: 50px;
+      width: 50px;
+   }
+
+  div#top-plus-sign
+    {
+      border-image-slice: 50;
+      margin-bottom: 10px;
+    }
+
+  div#bottom-plus-sign
+    {
+      border-image-slice: 1;
+    }
+  </style>
+
+  <p>Test passes if there are 2 identical filled green plus ("+") signs and <strong>no red</strong>.
+
+  <div id="top-plus-sign"></div>
+
+  <div id="bottom-plus-sign"></div>

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>CSS Border Image: border-image-repeat: round</title>
+    <link rel="author" title="Ethan Lin" href="mailto:ethlin@mozilla.com">
+    <link rel="author" title="Mozilla" href="https://www.mozilla.org">
+    <link rel="help" href="https://www.w3.org/TR/css3-background/#background-repeat">
+    <link rel="match" href="../../../../expected/wpt-import/css/css-backgrounds/border-image-repeat-round-2-ref.html">
+    <meta name="assert" content="The test checks whether border-image-repeat: 'round' uses the correct rounding formula.">
+    <meta name="fuzzy" content="maxDifference=0-55; totalPixels=0-380">
+    <style type="text/css">
+      .outer {
+        position: absolute;
+        left: 0px;
+        top: 0px;
+        border: 27px solid transparent;
+        border-image: url("support/border.png") 27;
+        border-image-repeat: round round;
+        width: 13px;
+        height: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="outer"></div>
+  </body>
+</html>

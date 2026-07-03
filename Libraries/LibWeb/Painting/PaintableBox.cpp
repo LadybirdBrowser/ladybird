@@ -11,11 +11,17 @@
 #include <AK/GenericShorthands.h>
 #include <AK/StdLibExtras.h>
 #include <AK/Utf16StringBuilder.h>
+#include <LibGfx/Bitmap.h>
 #include <LibGfx/Font/Font.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/StyleScope.h>
+#include <LibWeb/CSS/StyleValues/BorderImageSliceStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
+#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
+#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/EventTarget.h>
@@ -1657,6 +1663,341 @@ BordersData PaintableBox::remove_element_kind_from_borders_data(PaintableBox::Bo
     };
 }
 
+enum class BorderImageTrack {
+    Start,
+    Center,
+    End,
+};
+
+struct BorderImageAxis {
+    CSSPixels start;
+    CSSPixels center_start;
+    CSSPixels center_end;
+    CSSPixels end;
+
+    CSSPixels track_start(BorderImageTrack track) const
+    {
+        switch (track) {
+        case BorderImageTrack::Start:
+            return start;
+        case BorderImageTrack::Center:
+            return center_start;
+        case BorderImageTrack::End:
+            return center_end;
+        }
+        VERIFY_NOT_REACHED();
+    }
+
+    CSSPixels track_end(BorderImageTrack track) const
+    {
+        switch (track) {
+        case BorderImageTrack::Start:
+            return center_start;
+        case BorderImageTrack::Center:
+            return center_end;
+        case BorderImageTrack::End:
+            return end;
+        }
+        VERIFY_NOT_REACHED();
+    }
+
+    CSSPixels track_size(BorderImageTrack track) const
+    {
+        return track_end(track) - track_start(track);
+    }
+};
+
+struct BorderImageGrid {
+    BorderImageAxis columns;
+    BorderImageAxis rows;
+};
+
+struct ResolvedBorderImageGeometry {
+    BorderImageGrid source;
+    BorderImageGrid destination;
+    PixelBox source_slices;
+    PixelBox widths;
+};
+
+static Gfx::FloatRect source_rect_for_track(BorderImageGrid const& grid, BorderImageTrack column, BorderImageTrack row)
+{
+    return {
+        grid.columns.track_start(column).to_float(),
+        grid.rows.track_start(row).to_float(),
+        grid.columns.track_size(column).to_float(),
+        grid.rows.track_size(row).to_float(),
+    };
+}
+
+static CSSPixelRect destination_rect_for_track(BorderImageGrid const& grid, BorderImageTrack column, BorderImageTrack row)
+{
+    return {
+        grid.columns.track_start(column),
+        grid.rows.track_start(row),
+        grid.columns.track_size(column),
+        grid.rows.track_size(row),
+    };
+}
+
+static ResolvedBorderImageGeometry resolve_border_image_geometry(CSS::BorderImageData const& border_image, Gfx::IntSize source_size, CSSPixelRect border_box_rect, PixelBox border_width)
+{
+    // https://drafts.csswg.org/css-backgrounds-3/#border-image-slice
+    auto resolve_slice = [](CSS::StyleValue const& value, CSSPixels reference_length) {
+        if (value.is_percentage())
+            return CSSPixels::nearest_value_for(reference_length * value.as_percentage().percentage().as_fraction());
+        return CSSPixels(value.as_number().number());
+    };
+
+    auto resolve_outset = [](CSS::StyleValue const& value, CSSPixels border_width) {
+        if (value.is_number())
+            return CSSPixels::nearest_value_for(border_width * value.as_number().number());
+        return CSS::Length::from_style_value(value, {}).absolute_length_to_px();
+    };
+
+    // https://drafts.csswg.org/css-backgrounds-3/#border-image-width
+    auto resolve_width = [](CSS::StyleValue const& value, CSSPixels border_width, CSSPixels reference_length, CSSPixels auto_width) {
+        if (value.is_number())
+            return CSSPixels::nearest_value_for(border_width * value.as_number().number());
+        if (value.is_percentage())
+            return CSSPixels::nearest_value_for(reference_length * value.as_percentage().percentage().as_fraction());
+        if (value.to_keyword() == CSS::Keyword::Auto)
+            return auto_width;
+        return CSS::Length::from_style_value(value, {}).absolute_length_to_px();
+    };
+
+    auto shrink_opposite_sides_to_fit = [](CSSPixels& first, CSSPixels& second, CSSPixels available) {
+        auto total = first + second;
+        if (total <= available)
+            return;
+        auto factor = available / total;
+        first = first * factor;
+        second = second * factor;
+    };
+
+    PixelBox source_slices {
+        .top = resolve_slice(border_image.slice.top, source_size.height()),
+        .right = resolve_slice(border_image.slice.right, source_size.width()),
+        .bottom = resolve_slice(border_image.slice.bottom, source_size.height()),
+        .left = resolve_slice(border_image.slice.left, source_size.width()),
+    };
+    shrink_opposite_sides_to_fit(source_slices.left, source_slices.right, source_size.width());
+    shrink_opposite_sides_to_fit(source_slices.top, source_slices.bottom, source_size.height());
+
+    auto const& outset = border_image.outset;
+    PixelBox resolved_outset {
+        .top = resolve_outset(outset.top, border_width.top),
+        .right = resolve_outset(outset.right, border_width.right),
+        .bottom = resolve_outset(outset.bottom, border_width.bottom),
+        .left = resolve_outset(outset.left, border_width.left),
+    };
+
+    auto border_image_rect = border_box_rect;
+    border_image_rect.inflate(resolved_outset.top, resolved_outset.right, resolved_outset.bottom, resolved_outset.left);
+
+    // https://drafts.csswg.org/css-backgrounds-3/#border-image-process
+    auto const& border_image_width = border_image.width;
+    PixelBox widths {
+        .top = resolve_width(border_image_width.top, border_width.top, border_image_rect.height(), source_slices.top),
+        .right = resolve_width(border_image_width.right, border_width.right, border_image_rect.width(), source_slices.right),
+        .bottom = resolve_width(border_image_width.bottom, border_width.bottom, border_image_rect.height(), source_slices.bottom),
+        .left = resolve_width(border_image_width.left, border_width.left, border_image_rect.width(), source_slices.left),
+    };
+    shrink_opposite_sides_to_fit(widths.left, widths.right, border_image_rect.width());
+    shrink_opposite_sides_to_fit(widths.top, widths.bottom, border_image_rect.height());
+
+    return {
+        .source = {
+            .columns = { 0, source_slices.left, CSSPixels(source_size.width()) - source_slices.right, CSSPixels(source_size.width()) },
+            .rows = { 0, source_slices.top, CSSPixels(source_size.height()) - source_slices.bottom, CSSPixels(source_size.height()) },
+        },
+        .destination = {
+            .columns = { border_image_rect.left(), border_image_rect.left() + widths.left, border_image_rect.right() - widths.right, border_image_rect.right() },
+            .rows = { border_image_rect.top(), border_image_rect.top() + widths.top, border_image_rect.bottom() - widths.bottom, border_image_rect.bottom() },
+        },
+        .source_slices = source_slices,
+        .widths = widths,
+    };
+}
+
+static Gfx::FloatSize rounded_repeated_border_image_tile_size(Gfx::FloatSize tile_size, Gfx::IntRect const& dest_rect, CSS::BorderImageRepeat repeat_x, CSS::BorderImageRepeat repeat_y)
+{
+    if (repeat_x == CSS::BorderImageRepeat::Stretch) {
+        tile_size.set_width(dest_rect.width());
+    } else if (repeat_x == CSS::BorderImageRepeat::Round && tile_size.width() > 0) {
+        auto tile_count = max(1, round_to<int>(static_cast<double>(dest_rect.width()) / static_cast<double>(tile_size.width())));
+        tile_size.set_width(static_cast<float>(dest_rect.width()) / tile_count);
+    }
+
+    if (repeat_y == CSS::BorderImageRepeat::Stretch) {
+        tile_size.set_height(dest_rect.height());
+    } else if (repeat_y == CSS::BorderImageRepeat::Round && tile_size.height() > 0) {
+        auto tile_count = max(1, round_to<int>(static_cast<double>(dest_rect.height()) / static_cast<double>(tile_size.height())));
+        tile_size.set_height(static_cast<float>(dest_rect.height()) / tile_count);
+    }
+
+    return tile_size;
+}
+
+static CSSPixels scale_source_length_to_destination(CSSPixels source_length, CSSPixels source_reference, CSSPixels destination_reference)
+{
+    if (source_reference <= 0)
+        return source_length;
+    auto scaled_length = source_length * (destination_reference / source_reference);
+    return max(CSSPixels::smallest_positive_value(), scaled_length);
+}
+
+static void paint_border_image_slice(DisplayListRecordingContext& context, Gfx::DecodedImageFrame const& source_frame, Gfx::FloatRect const& source_rect, Gfx::IntRect const& dest_rect, Gfx::FloatSize device_tile_size, CSS::ImageRendering image_rendering, CSS::BorderImageRepeat repeat_x, CSS::BorderImageRepeat repeat_y)
+{
+    if (source_rect.is_empty() || dest_rect.is_empty())
+        return;
+
+    device_tile_size = rounded_repeated_border_image_tile_size(device_tile_size, dest_rect, repeat_x, repeat_y);
+    if (device_tile_size.is_empty())
+        return;
+
+    auto source_size = source_rect.size().to_rounded<int>();
+
+    auto start_x = static_cast<float>(dest_rect.x());
+    auto start_y = static_cast<float>(dest_rect.y());
+    auto tile_step = device_tile_size;
+    Optional<u32> tile_count_x;
+    Optional<u32> tile_count_y;
+
+    if (repeat_x == CSS::BorderImageRepeat::Stretch)
+        tile_count_x = 1;
+    if (repeat_y == CSS::BorderImageRepeat::Stretch)
+        tile_count_y = 1;
+
+    if (repeat_x == CSS::BorderImageRepeat::Space || repeat_y == CSS::BorderImageRepeat::Space) {
+        auto whole_tiles_x = repeat_x == CSS::BorderImageRepeat::Space ? static_cast<int>(floor(static_cast<float>(dest_rect.width()) / device_tile_size.width())) : 1;
+        auto whole_tiles_y = repeat_y == CSS::BorderImageRepeat::Space ? static_cast<int>(floor(static_cast<float>(dest_rect.height()) / device_tile_size.height())) : 1;
+        if (whole_tiles_x <= 0 || whole_tiles_y <= 0)
+            return;
+
+        auto gap_x = repeat_x == CSS::BorderImageRepeat::Space ? (static_cast<float>(dest_rect.width()) - whole_tiles_x * device_tile_size.width()) / (whole_tiles_x + 1) : 0;
+        auto gap_y = repeat_y == CSS::BorderImageRepeat::Space ? (static_cast<float>(dest_rect.height()) - whole_tiles_y * device_tile_size.height()) / (whole_tiles_y + 1) : 0;
+
+        if (repeat_x == CSS::BorderImageRepeat::Space) {
+            start_x = dest_rect.x() + gap_x;
+            tile_step.set_width(device_tile_size.width() + gap_x);
+            tile_count_x = static_cast<u32>(whole_tiles_x);
+        } else {
+            tile_count_x = 1;
+        }
+
+        if (repeat_y == CSS::BorderImageRepeat::Space) {
+            start_y = dest_rect.y() + gap_y;
+            tile_step.set_height(device_tile_size.height() + gap_y);
+            tile_count_y = static_cast<u32>(whole_tiles_y);
+        } else {
+            tile_count_y = 1;
+        }
+    } else {
+        if (repeat_x == CSS::BorderImageRepeat::Repeat) {
+            start_x += (static_cast<float>(dest_rect.width()) - device_tile_size.width()) / 2;
+            while (start_x > dest_rect.x())
+                start_x -= device_tile_size.width();
+        }
+
+        if (repeat_y == CSS::BorderImageRepeat::Repeat) {
+            start_y += (static_cast<float>(dest_rect.height()) - device_tile_size.height()) / 2;
+            while (start_y > dest_rect.y())
+                start_y -= device_tile_size.height();
+        }
+    }
+
+    Gfx::IntSize tile_size_for_scaling {
+        max(1, round_to<int>(device_tile_size.width())),
+        max(1, round_to<int>(device_tile_size.height())),
+    };
+    auto scaling_mode = CSS::to_gfx_scaling_mode(image_rendering, source_size, tile_size_for_scaling);
+    context.display_list_recorder().draw_tiled_decoded_image_frame({
+        .tile_rect = { start_x, start_y, device_tile_size.width(), device_tile_size.height() },
+        .clip_rect = dest_rect,
+        .src_rect = source_rect,
+        .tile_step = tile_step,
+        .frame = source_frame,
+        .scaling_mode = scaling_mode,
+        .tile_count_x = tile_count_x,
+        .tile_count_y = tile_count_y,
+    });
+}
+
+static bool paint_border_image(DisplayListRecordingContext& context, PaintableBox const& paintable_box, BordersData const& borders_data)
+{
+    auto const& border_image = paintable_box.computed_values().border_image();
+    if (!border_image.has_value())
+        return false;
+
+    // FIXME: Support all abstract image sources here. NodeWithStyle loads and observes gradients and
+    // image-set(), but this painting path currently only handles raster images.
+    if (!border_image->source->is_image())
+        return false;
+
+    auto const& image = border_image->source->as_image();
+    auto const& document = paintable_box.document();
+    if (!image.is_paintable(document))
+        return false;
+
+    auto maybe_frame = image.current_frame(document);
+    if (!maybe_frame.has_value())
+        return false;
+
+    auto const& frame = *maybe_frame;
+    PixelBox border_width {
+        .top = borders_data.top.width,
+        .right = borders_data.right.width,
+        .bottom = borders_data.bottom.width,
+        .left = borders_data.left.width,
+    };
+    auto geometry = resolve_border_image_geometry(*border_image, frame.size(), paintable_box.absolute_border_box_rect(), border_width);
+
+    auto repeat_x = border_image->repeat_x;
+    auto repeat_y = border_image->repeat_y;
+
+    auto image_rendering = paintable_box.computed_values().image_rendering();
+
+    // A tile keeps the source region's aspect ratio at the scale forced by the border thickness.
+    auto natural_tile_size = [&](BorderImageTrack column, BorderImageTrack row, CSSPixelRect const& destination_rect) -> CSSPixelSize {
+        auto source_width = geometry.source.columns.track_size(column);
+        auto source_height = geometry.source.rows.track_size(row);
+        auto tile_width = destination_rect.width();
+        auto tile_height = destination_rect.height();
+
+        if (column == BorderImageTrack::Center && row != BorderImageTrack::Center) {
+            tile_width = scale_source_length_to_destination(source_width, source_height, destination_rect.height());
+        } else if (row == BorderImageTrack::Center && column != BorderImageTrack::Center) {
+            tile_height = scale_source_length_to_destination(source_height, source_width, destination_rect.width());
+        } else if (column == BorderImageTrack::Center && row == BorderImageTrack::Center) {
+            // The centre fill is scaled horizontally like the top edge and vertically like the left edge.
+            tile_width = scale_source_length_to_destination(source_width, geometry.source_slices.top, geometry.widths.top);
+            tile_height = scale_source_length_to_destination(source_height, geometry.source_slices.left, geometry.widths.left);
+        }
+        return { tile_width, tile_height };
+    };
+
+    // Only the centre track of an axis honours border-image-repeat; the edges always stretch.
+    auto paint_piece = [&](BorderImageTrack column, BorderImageTrack row) {
+        auto source_rect = source_rect_for_track(geometry.source, column, row);
+        auto destination_rect = destination_rect_for_track(geometry.destination, column, row);
+        auto destination_device_rect = context.rounded_device_rect(destination_rect).to_type<int>();
+        auto tile_device_size = css_size_to_device_size(natural_tile_size(column, row, destination_rect), context.device_pixels_per_css_pixel());
+        auto horizontal_repeat = column == BorderImageTrack::Center ? repeat_x : CSS::BorderImageRepeat::Stretch;
+        auto vertical_repeat = row == BorderImageTrack::Center ? repeat_y : CSS::BorderImageRepeat::Stretch;
+        paint_border_image_slice(context, frame, source_rect, destination_device_rect, tile_device_size, image_rendering, horizontal_repeat, vertical_repeat);
+    };
+
+    for (auto row : { BorderImageTrack::Start, BorderImageTrack::Center, BorderImageTrack::End }) {
+        for (auto column : { BorderImageTrack::Start, BorderImageTrack::Center, BorderImageTrack::End }) {
+            if (column == BorderImageTrack::Center && row == BorderImageTrack::Center && !border_image->fill)
+                continue; // The centre is only painted when the 'fill' keyword is present.
+            paint_piece(column, row);
+        }
+    }
+
+    return true;
+}
+
 void PaintableBox::paint_border(DisplayListRecordingContext& context) const
 {
     auto borders_data = m_override_borders_data.has_value() ? remove_element_kind_from_borders_data(m_override_borders_data.value()) : BordersData {
@@ -1665,6 +2006,8 @@ void PaintableBox::paint_border(DisplayListRecordingContext& context) const
         .bottom = box_model().border.bottom == 0 || m_fragment_bottom_edge_away ? CSS::BorderData() : computed_values().border_bottom(),
         .left = box_model().border.left == 0 || m_fragment_left_edge_away ? CSS::BorderData() : computed_values().border_left(),
     };
+    if (paint_border_image(context, *this, borders_data))
+        return;
     paint_all_borders(context.display_list_recorder(), context.rounded_device_rect(absolute_border_box_rect()), normalized_border_radii_data().as_corners(context.device_pixel_converter()), borders_data.to_device_pixels(context));
 }
 
