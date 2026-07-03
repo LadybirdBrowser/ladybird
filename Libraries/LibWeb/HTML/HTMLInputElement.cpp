@@ -15,7 +15,6 @@
 
 #include <AK/NeverDestroyed.h>
 #include <AK/Utf16StringBuilder.h>
-#include <LibGfx/DecodedImageFrame.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/RegExpObject.h>
