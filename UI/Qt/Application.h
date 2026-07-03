@@ -45,11 +45,12 @@ public:
     QMenu* qt_bookmarks_menu() const;
 
     BrowserWindow& active_window() const { return *m_active_window; }
-    void set_active_window(BrowserWindow& w) { m_active_window = &w; }
+    void set_active_window(BrowserWindow&);
     BrowserWindow* active_window_if_any() const { return m_active_window; }
 
     Tab* active_tab() const { return m_active_window ? m_active_window->current_tab() : nullptr; }
     void update_reopen_recently_closed_actions() const;
+    void update_macos_application_menu() const;
 
 private:
     explicit Application();

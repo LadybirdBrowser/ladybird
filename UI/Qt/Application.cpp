@@ -196,7 +196,14 @@ public:
         auto* help_menu = m_application_menu_bar->addMenu("&Help");
         help_menu->addAction(create_application_action(*help_menu, application.open_about_page_action(), IncludeActionIcon::No));
 
+        m_inspect_menu = create_application_menu(*m_application_menu_bar, application.inspect_menu());
+        m_application_menu_bar->insertMenu(help_menu->menuAction(), m_inspect_menu);
+
+        m_debug_menu = create_application_menu(*m_application_menu_bar, application.debug_menu());
+        m_application_menu_bar->insertMenu(help_menu->menuAction(), m_debug_menu);
+
         update_reopen_recently_closed_action();
+        update_application_menu_bar_tab_menus();
     }
 #endif
 
@@ -212,6 +219,15 @@ public:
     {
         if (m_bookmarks_menu)
             repopulate_application_menu(*m_bookmarks_menu, *m_application_menu_bar, Application::the().bookmarks_menu());
+    }
+
+    void update_application_menu_bar_tab_menus()
+    {
+        auto has_active_tab = Application::the().active_tab() != nullptr;
+        if (m_inspect_menu)
+            m_inspect_menu->menuAction()->setVisible(has_active_tab);
+        if (m_debug_menu)
+            m_debug_menu->menuAction()->setVisible(has_active_tab && Application::the().debug_menu().visible());
     }
 #endif
 
@@ -234,6 +250,8 @@ private:
 #if defined(AK_OS_MACOS)
     QMenuBar* m_application_menu_bar { nullptr };
     QMenu* m_bookmarks_menu { nullptr };
+    QMenu* m_inspect_menu { nullptr };
+    QMenu* m_debug_menu { nullptr };
     QAction* m_reopen_recently_closed_tab_action { nullptr };
 #endif
 };
@@ -266,8 +284,10 @@ BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, Win
     auto* window = new BrowserWindow(initial_urls, is_popup_window, parent_tab, move(page_index));
     set_active_window(*window);
     QObject::connect(window, &QObject::destroyed, m_application.ptr(), [this, window] {
-        if (m_active_window == window)
+        if (m_active_window == window) {
             m_active_window = nullptr;
+            update_macos_application_menu();
+        }
     });
 
     auto should_focus_location_editor = initial_urls.size() == 1 && initial_urls.first() == WebView::Application::settings().new_tab_page_url();
@@ -291,6 +311,12 @@ BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, Win
         });
     }
     return *window;
+}
+
+void Application::set_active_window(BrowserWindow& window)
+{
+    m_active_window = &window;
+    update_macos_application_menu();
 }
 
 void Application::open_new_tab()
@@ -399,6 +425,14 @@ void Application::initialize_macos_application_menu()
 #if defined(AK_OS_MACOS)
     if (m_application)
         static_cast<LadybirdQApplication*>(m_application.ptr())->create_application_menu_bar();
+#endif
+}
+
+void Application::update_macos_application_menu() const
+{
+#if defined(AK_OS_MACOS)
+    if (m_application)
+        static_cast<LadybirdQApplication*>(m_application.ptr())->update_application_menu_bar_tab_menus();
 #endif
 }
 
