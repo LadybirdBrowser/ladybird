@@ -6245,7 +6245,9 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
             // 3. If the intersection root is an Element, and target is not a descendant of the intersection root in the containing block chain, skip to step 11.
             // FIXME: Actually use the containing block chain.
             // NOTE: Check if target has a layout node is not in the spec but required to match other browsers.
-            if (target->layout_node() && (is_implicit_root || &target->document() == &intersection_root_node->document()) && !(root_is_element && !target->is_descendant_of(*intersection_root_node))) {
+            // AD-HOC: A target whose document was excluded from this rendering update has stale layout; treat it as
+            //         not intersecting like other engines instead of reading its geometry.
+            if (target->document().layout_is_up_to_date() && target->layout_node() && (is_implicit_root || &target->document() == &intersection_root_node->document()) && !(root_is_element && !target->is_descendant_of(*intersection_root_node))) {
                 // 4. Set targetRect to the DOMRectReadOnly obtained by getting the bounding box for target.
                 target_rect = target->bounding_client_rect_assuming_layout_clean();
 

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<iframe></iframe>
+<script>
+    const iframe = document.querySelector("iframe");
+
+    iframe.onload = () => {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                document.documentElement.classList.remove("test-wait");
+            });
+        });
+    };
+
+    iframe.srcdoc = `<body>x<script>
+        const target = document.documentElement;
+        new IntersectionObserver(() => {}).observe(target);
+        target.getBoundingClientRect();
+        document.body.remove();
+    <\/script>`;
+</script>
+</html>
