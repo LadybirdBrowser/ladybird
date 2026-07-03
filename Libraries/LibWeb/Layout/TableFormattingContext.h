@@ -9,7 +9,6 @@
 #include <AK/Forward.h>
 #include <LibWeb/Layout/FormattingContext.h>
 #include <LibWeb/Layout/TableGrid.h>
-#include <LibWeb/Layout/TableWrapper.h>
 
 namespace Web::Layout {
 
@@ -36,10 +35,6 @@ public:
     StaticPositionRect calculate_static_position_rect(Box const&) const;
 
     Box const& table_box() const { return context_box(); }
-    TableWrapper const& table_wrapper() const
-    {
-        return as<TableWrapper>(*table_box().containing_block());
-    }
 
     static bool border_is_less_specific(CSS::BorderData const& a, CSS::BorderData const& b);
 
@@ -84,9 +79,6 @@ private:
     bool distribute_excess_width_by_intrinsic_percentage(CSSPixels excess_width, ColumnFilter column_filter);
 
     bool use_fixed_mode_layout() const;
-
-    CSSPixels table_wrapper_containing_block_width() const;
-    CSSPixels table_wrapper_containing_block_height() const;
 
     ContainingBlockConstraints m_table_constraints;
     ContainingBlockConstraints m_participant_constraints;

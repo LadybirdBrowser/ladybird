@@ -2877,13 +2877,14 @@ void GridFormattingContext::run(LayoutInput const& layout_input)
 
     for (auto& grid_item : m_grid_items) {
         auto const grid_area_rect = get_grid_area_rect(grid_item);
+        Optional<CSSPixelSize> table_wrapper_grid_area_size;
         if (is<TableWrapper>(grid_item.box)) {
             // Track spacing can expand the final grid area after the earlier width pass. Recompute the wrapper width
-            // against that final area and store it so the real table layout resolves percentages against the grid area.
+            // against that final area so the real table layout resolves percentages against the grid area.
             resolve_table_wrapper_grid_item_width(grid_item, grid_area_rect.width());
             auto grid_area_size = grid_area_rect.size();
             grid_area_size.set_width(non_cyclic_containing_block_width_for_table_wrapper(grid_item, grid_area_size.width()));
-            grid_item.used_values.set_grid_area_size(grid_area_size);
+            table_wrapper_grid_area_size = grid_area_size;
         }
         CSSPixelPoint margin_offset = { grid_item.used_values.margin_box_left(), grid_item.used_values.margin_box_top() };
         grid_item.used_values.set_content_offset(grid_area_rect.top_left() + margin_offset);
@@ -2892,7 +2893,17 @@ void GridFormattingContext::run(LayoutInput const& layout_input)
         auto available_space_for_children = AvailableSpace(AvailableSize::make_definite(grid_item.used_values.content_width()), AvailableSize::make_definite(grid_item.used_values.content_height()));
         grid_item.used_values.set_has_definite_width(true);
         grid_item.used_values.set_has_definite_height(true);
-        if (auto independent_formatting_context = layout_inside(grid_item.box, LayoutMode::Normal, LayoutInput { available_space_for_children, grid_area_constraints_for_item(grid_item) }))
+        auto child_constraints = [&] {
+            auto constraints = grid_area_constraints_for_item(grid_item);
+            // Table wrappers pass their constraints through to the table box, so hand them the
+            // grid area in both axes for the table's percentage resolution.
+            if (table_wrapper_grid_area_size.has_value()) {
+                constraints.percentage_basis_width = table_wrapper_grid_area_size->width();
+                constraints.percentage_basis_height = table_wrapper_grid_area_size->height();
+            }
+            return constraints;
+        }();
+        if (auto independent_formatting_context = layout_inside(grid_item.box, LayoutMode::Normal, LayoutInput { available_space_for_children, child_constraints }))
             independent_formatting_context->parent_context_did_dimension_child_root_box();
     }
 
@@ -3505,17 +3516,39 @@ void GridFormattingContext::resolve_table_wrapper_grid_item_width(GridItem& item
     table_wrapper_constraints.percentage_basis_width = table_wrapper_containing_block_width;
     auto table_wrapper_width = compute_table_box_width_inside_table_wrapper(
         item.box, available_space, table_wrapper_constraints, table_wrapper_containing_block_width, TableWrapperWidthMode::UseTableUsedWidthIfNotAuto);
+    auto const& table_box = table_box_inside_table_wrapper(item);
     auto const& preferred_width = item.preferred_size(GridDimension::Column);
     if (!preferred_width.is_auto())
         table_wrapper_width = max(table_wrapper_width, calculate_inner_width(item.box, available_space.width, preferred_width, grid_area_constraints_for_item(item)));
-    if (table_box_inside_table_wrapper(item).computed_values().width().is_auto())
+    if (table_box.computed_values().width().is_auto())
         table_wrapper_width = max(table_wrapper_width, calculate_min_content_width(item.box, grid_area_constraints_for_item(item)));
     auto alignment = alignment_for_item(item.box, GridDimension::Column);
-    if (table_box_inside_table_wrapper(item).computed_values().width().is_auto()
+    if (table_box.computed_values().width().is_auto()
         && (alignment == Alignment::Normal || alignment == Alignment::Stretch)
         && !item.margin_start(GridDimension::Column).is_auto()
         && !item.margin_end(GridDimension::Column).is_auto()) {
-        table_wrapper_width = max(table_wrapper_width, table_wrapper_containing_block_width - item.used_margin_box_start(GridDimension::Column) - item.used_margin_box_end(GridDimension::Column));
+        // Stretching the wrapper also stretches the auto-width table inside it, so the stretched
+        // width has to respect the max-width of both the wrapper and the table box.
+        auto stretched_width = table_wrapper_containing_block_width - item.used_margin_box_start(GridDimension::Column) - item.used_margin_box_end(GridDimension::Column);
+        if (!should_treat_max_width_as_none(item.box, available_space.width, grid_area_constraints_for_item(item)))
+            stretched_width = min(stretched_width, calculate_inner_width(item.box, available_space.width, item.maximum_size(GridDimension::Column), grid_area_constraints_for_item(item)));
+        if (!should_treat_max_width_as_none(table_box, available_space.width, grid_area_constraints_for_item(item))) {
+            auto const& table_max_width = table_box.computed_values().max_width();
+            if (table_max_width.is_length_percentage()) {
+                auto const& table_box_computed_values = table_box.computed_values();
+                auto table_max_border_box_width = table_max_width.to_px(table_wrapper_containing_block_width);
+                if (table_box_computed_values.box_sizing() == CSS::BoxSizing::ContentBox) {
+                    table_max_border_box_width += table_box_computed_values.border_left().width
+                        + table_box_computed_values.padding().left().to_px_or_zero(table_wrapper_containing_block_width)
+                        + table_box_computed_values.padding().right().to_px_or_zero(table_wrapper_containing_block_width)
+                        + table_box_computed_values.border_right().width;
+                }
+                stretched_width = min(stretched_width, table_max_border_box_width);
+            } else {
+                stretched_width = min(stretched_width, table_wrapper_width);
+            }
+        }
+        table_wrapper_width = max(table_wrapper_width, stretched_width);
     }
     if (!should_treat_max_width_as_none(item.box, available_space.width, grid_area_constraints_for_item(item)))
         table_wrapper_width = min(table_wrapper_width, calculate_inner_width(item.box, available_space.width, item.maximum_size(GridDimension::Column), grid_area_constraints_for_item(item)));
@@ -3571,7 +3604,11 @@ CSSPixels GridFormattingContext::non_cyclic_containing_block_width_for_table_wra
 {
     auto const& table_box = table_box_inside_table_wrapper(item);
     auto const& table_box_computed_values = table_box.computed_values();
-    if (!table_box_computed_values.width().contains_percentage()
+    auto const& table_wrapper_computed_values = item.box.computed_values();
+    if (!table_wrapper_computed_values.width().contains_percentage()
+        && !table_wrapper_computed_values.min_width().contains_percentage()
+        && !table_wrapper_computed_values.max_width().contains_percentage()
+        && !table_box_computed_values.width().contains_percentage()
         && !table_box_computed_values.min_width().contains_percentage()
         && !table_box_computed_values.max_width().contains_percentage()) {
         return containing_block_width;
@@ -3917,10 +3954,20 @@ CSSPixels GridFormattingContext::calculate_minimum_contribution(GridItem const& 
         if (minimum_size.is_max_content())
             return calculate_max_content_contribution(item, dimension);
         CSSPixels inner_minimum_size;
-        if (dimension == GridDimension::Column)
-            inner_minimum_size = calculate_inner_width(item.box, item.available_space().width, minimum_size, track_sizing_constraints_for_items());
-        else
+        if (dimension == GridDimension::Column) {
+            auto available_width = item.available_space().width;
+            // Percentage minimum sizes on a table wrapper resolve against the same non-cyclic
+            // width that the wrapper's own width resolution uses.
+            if (is<TableWrapper>(item.box) && minimum_size.contains_percentage()) {
+                auto containing_block_width = non_cyclic_containing_block_width_for_table_wrapper(
+                    item,
+                    containing_block_size_for_item(item, GridDimension::Column));
+                available_width = AvailableSize::make_definite(clamp_to_max_dimension_value(containing_block_width));
+            }
+            inner_minimum_size = calculate_inner_width(item.box, available_width, minimum_size, track_sizing_constraints_for_items());
+        } else {
             inner_minimum_size = calculate_inner_height(item.box, item.available_space(), minimum_size, track_sizing_constraints_for_items());
+        }
         return item.add_margin_box_sizes(inner_minimum_size, dimension);
     }
 

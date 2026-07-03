@@ -51,6 +51,17 @@ CSSPixels BlockFormattingContext::automatic_content_width() const
 {
     if (root().children_are_inline())
         return m_state.get(root()).content_width();
+    if (is<TableWrapper>(root())) {
+        Optional<Box const&> table_box;
+        root().for_each_in_subtree_of_type<Box>([&](Box const& child_box) {
+            if (child_box.display().is_table_inside()) {
+                table_box = child_box;
+                return TraversalDecision::Break;
+            }
+            return TraversalDecision::Continue;
+        });
+        return m_state.get(*table_box).border_box_width();
+    }
     return greatest_child_width(root());
 }
 
@@ -1104,6 +1115,12 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         }
 
         independent_formatting_context->run(layout_input.with_available_space(inner_available_space));
+        if (is<TableWrapper>(block_container) && box.display().is_table_inside()) {
+            box_state.margin_left = max(box_state.margin_left, 0);
+            box_state.margin_right = max(box_state.margin_right, 0);
+        }
+        if (is<TableWrapper>(box) && !box.is_grid_item())
+            box_state.set_content_width(independent_formatting_context->automatic_content_width());
     } else {
         // This box participates in the current block container's flow.
         auto space_available_for_children = box.is_anonymous() ? available_space : box_state.available_inner_space_or_constraints_from(available_space);
@@ -1169,7 +1186,15 @@ void BlockFormattingContext::layout_block_level_children(BlockContainer const& b
     VERIFY(!block_container.children_are_inline());
 
     auto const& available_space = available_space_for_children;
-    auto child_layout_input = layout_input_for_child_context(m_state.get(block_container), layout_input, available_space_for_children);
+    // The table wrapper is invisible to percentage resolution: percentages on the table root
+    // resolve against the wrapper's containing block, so the wrapper's own constraints pass
+    // through to the table box unchanged.
+    auto child_layout_input = [&]() -> LayoutInput {
+        if (is<TableWrapper>(block_container))
+            return LayoutInput { available_space_for_children, layout_input.containing_block_constraints };
+        else
+            return layout_input_for_child_context(m_state.get(block_container), layout_input, available_space_for_children);
+    }();
 
     CSSPixels bottom_of_lowest_margin_box = 0;
 
@@ -1403,6 +1428,10 @@ void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer 
     }
 
     auto independent_formatting_context = layout_inside(box, m_layout_mode, layout_input.with_available_space(box_state.available_inner_space_or_constraints_from(available_space)));
+    // A floating table wrapper shrink-to-fits from cached intrinsic sizes, which may not match
+    // the width table layout just produced; the wrapper is exactly as wide as the table grid box.
+    if (is<TableWrapper>(box) && independent_formatting_context)
+        box_state.set_content_width(independent_formatting_context->automatic_content_width());
     resolve_used_height_if_treated_as_auto(box, available_space, layout_input.containing_block_constraints, independent_formatting_context);
 
     // Next, float to the left and/or right

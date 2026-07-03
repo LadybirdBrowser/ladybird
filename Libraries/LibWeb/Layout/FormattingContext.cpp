@@ -26,6 +26,7 @@
 #include <LibWeb/Layout/SVGFormattingContext.h>
 #include <LibWeb/Layout/SVGSVGBox.h>
 #include <LibWeb/Layout/TableFormattingContext.h>
+#include <LibWeb/Layout/TableWrapper.h>
 #include <LibWeb/Layout/TextInputBox.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
@@ -644,15 +645,13 @@ CSSPixels FormattingContext::compute_table_box_width_inside_table_wrapper(
     VERIFY(table_box.has_value());
 
     LayoutState throwaway_state(box);
-    auto& containing_block_state = throwaway_state.populate_node_from(m_state, *box.containing_block());
-    // CSS Grid lays out grid items into their grid-area containing blocks, which need not match the layout-tree
-    // containing block. Use the explicit grid-area width when measuring a table wrapper for grid alignment.
-    // NOTE: TableFormattingContext still reads the wrapper's containing block from layout state.
-    if (table_wrapper_containing_block_width.has_value())
-        containing_block_state.set_content_width(*table_wrapper_containing_block_width);
+    throwaway_state.populate_node_from(m_state, *box.containing_block());
 
-    auto const& table_wrapper_state = throwaway_state.create(box, table_wrapper_constraints.percentage_basis_width, table_wrapper_constraints.percentage_basis_height);
-    auto table_constraints = constraints_for_child_context(table_wrapper_state, table_wrapper_constraints);
+    // The table wrapper is invisible to percentage resolution, so the table box gets the
+    // wrapper's constraints unchanged. Callers measuring a table wrapper for grid alignment
+    // pass the grid-area width as the wrapper's percentage basis.
+    throwaway_state.create(box, table_wrapper_constraints.percentage_basis_width, table_wrapper_constraints.percentage_basis_height);
+    auto const& table_constraints = table_wrapper_constraints;
     auto& table_box_state = throwaway_state.create(*table_box, table_constraints.percentage_basis_width, table_constraints.percentage_basis_height);
     auto const& table_box_computed_values = table_box->computed_values();
     table_box_state.border_left = table_box_computed_values.border_left().width;
