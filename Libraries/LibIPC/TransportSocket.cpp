@@ -64,9 +64,10 @@ ErrorOr<TransportSocket::Paired> TransportSocket::create_paired()
 
 void SendQueue::enqueue_message(SocketMessageHeader header, MessageDataType payload, Vector<int>&& fds)
 {
+    VERIFY(fds.size() <= Core::LocalSocket::MAX_TRANSFER_FDS);
     Sync::MutexLocker locker(m_mutex);
     m_queued_byte_count += sizeof(SocketMessageHeader) + payload.size();
-    m_queued_messages.append(QueuedMessage { header, move(payload) });
+    m_queued_messages.append(QueuedMessage { header, move(payload), fds.size() });
     m_fds.append(fds.data(), fds.size());
 }
 
@@ -74,7 +75,21 @@ SendQueue::BytesAndFds SendQueue::peek(size_t max_bytes)
 {
     Sync::MutexLocker locker(m_mutex);
     BytesAndFds result;
-    auto bytes_to_send = min(max_bytes, m_queued_byte_count);
+
+    static_assert(Core::LocalSocket::MAX_TRANSFER_FDS == MAX_MESSAGE_FD_COUNT, "IPC message attachments must fit in one sendmsg()");
+    size_t bytes_to_send = 0;
+    size_t fds_to_send = 0;
+    for (auto const& queued_message : m_queued_messages) {
+        if (fds_to_send + queued_message.unsent_fd_count > Core::LocalSocket::MAX_TRANSFER_FDS)
+            break;
+        fds_to_send += queued_message.unsent_fd_count;
+        bytes_to_send += queued_message.size() - queued_message.start_offset;
+        if (bytes_to_send >= max_bytes) {
+            bytes_to_send = max_bytes;
+            break;
+        }
+    }
+
     result.bytes.resize(bytes_to_send);
     size_t copied_bytes = 0;
     for (auto const& queued_message : m_queued_messages) {
@@ -97,8 +112,7 @@ SendQueue::BytesAndFds SendQueue::peek(size_t max_bytes)
         }
     }
 
-    if (m_fds.size() > 0) {
-        auto fds_to_send = min(m_fds.size(), Core::LocalSocket::MAX_TRANSFER_FDS);
+    if (fds_to_send > 0) {
         result.fds = Vector<int> { m_fds.span().slice(0, fds_to_send) };
         // NOTE: This relies on a subsequent call to discard to actually remove the fds from m_fds
     }
@@ -108,6 +122,17 @@ SendQueue::BytesAndFds SendQueue::peek(size_t max_bytes)
 void SendQueue::discard(size_t bytes_count, size_t fds_count)
 {
     Sync::MutexLocker locker(m_mutex);
+
+    m_fds.remove(0, fds_count);
+    for (auto& queued_message : m_queued_messages) {
+        if (fds_count == 0)
+            break;
+        auto consumed_fds = min(queued_message.unsent_fd_count, fds_count);
+        queued_message.unsent_fd_count -= consumed_fds;
+        fds_count -= consumed_fds;
+    }
+    VERIFY(fds_count == 0);
+
     VERIFY(bytes_count <= m_queued_byte_count);
     m_queued_byte_count -= bytes_count;
     while (bytes_count > 0) {
@@ -116,10 +141,11 @@ void SendQueue::discard(size_t bytes_count, size_t fds_count)
         auto consumed_bytes = min(available_bytes, bytes_count);
         queued_message.start_offset += consumed_bytes;
         bytes_count -= consumed_bytes;
-        if (queued_message.start_offset == queued_message.size())
+        if (queued_message.start_offset == queued_message.size()) {
+            VERIFY(queued_message.unsent_fd_count == 0);
             (void)m_queued_messages.remove(m_queued_messages.begin());
+        }
     }
-    m_fds.remove(0, fds_count);
 }
 
 TransportSocket::TransportSocket(NonnullOwnPtr<Core::LocalSocket> socket)

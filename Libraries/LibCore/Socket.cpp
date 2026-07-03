@@ -10,9 +10,6 @@
 
 namespace Core {
 
-// FIXME: This limit has been chosen arbitrarily
-size_t const LocalSocket::MAX_TRANSFER_FDS = 64;
-
 ErrorOr<int> Socket::create_fd(SocketDomain domain, SocketType type)
 {
     int socket_domain;

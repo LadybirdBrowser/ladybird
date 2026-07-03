@@ -347,7 +347,7 @@ public:
 
     virtual ~LocalSocket() { close(); }
 
-    static size_t const MAX_TRANSFER_FDS;
+    static constexpr size_t MAX_TRANSFER_FDS = 128;
 
 private:
     explicit LocalSocket(PreventSIGPIPE prevent_sigpipe = PreventSIGPIPE::Yes)

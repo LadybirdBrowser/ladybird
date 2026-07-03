@@ -46,6 +46,7 @@ private:
     struct QueuedMessage {
         SocketMessageHeader header;
         MessageDataType payload;
+        size_t unsent_fd_count { 0 };
         size_t start_offset { 0 };
 
         size_t size() const { return sizeof(SocketMessageHeader) + payload.size(); }
