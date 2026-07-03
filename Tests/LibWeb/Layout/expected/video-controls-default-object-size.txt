@@ -1,0 +1,73 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 166 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 150 0+0+8] children: inline
+      frag 0 from VideoBox start: 0, length: 0, rect: [8,8 300x150] baseline: 150
+      VideoBox <video> at [8,8] inline-block [0+0+0 300 0+0+0] [0+0+0 150 0+0+0] children: not-inline
+        BlockContainer <(anonymous)> at [8,8] inline-block [0+0+0 300 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
+          BlockContainer <div.container.video> at [8,8] positioned [0+0+0 300 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
+            Box <div.video-overlay> at [8,8] positioned flex-container(row) [0+0+0 300 0+0+0] [0+0+0 0 0+0+0] [FFC] children: not-inline
+              Box <div.placeholder-circle> at [118,-32] flex-container(row) flex-item [0+0+0 80 0+0+0] [0+0+0 80 0+0+0] [FFC] children: not-inline
+                SVGSVGBox <svg.placeholder-icon> at [142,-10] flex-item [4+0+0 36 0+0+0] [0+0+0 36 0+0+0] [SVG] children: not-inline
+                  SVGGeometryBox <path.play-path> at [151,-2.5] [0+0+0 19.5 0+0+0] [0+0+0 21 0+0+0] children: not-inline
+            Box <div.controls.visible> at [8,-35] positioned flex-container(column) [0+0+0 300 0+0+0] [0+0+0 43 0+0+0] [FFC] children: not-inline
+              BlockContainer <div.timeline> at [8,-35] flex-item [0+0+0 300 0+0+0] [-5+0+5 5 5+0+-5] [BFC] children: not-inline
+                BlockContainer <div.timeline-track> at [8,-35] positioned [0+0+0 300 0+0+0] [0+0+0 5 0+0+0] children: not-inline
+                  BlockContainer <div.timeline-fill> at [8,-35] [0+0+0 0 0+0+300] [0+0+0 5 0+0+0] children: not-inline
+              Box <div.button-bar> at [16,-26] flex-container(row) flex-item [0+0+8 284 8+0+0] [0+0+4 30 4+0+0] [FFC] children: not-inline
+                Box <button.control-button.play-pause-button> at [16,-23] flex-container(row) flex-item [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] [FFC] children: not-inline
+                  SVGSVGBox <svg.icon.play-pause-icon> at [16,-23] flex-item [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] [SVG] children: not-inline
+                    SVGGeometryBox <path.play-path> at [22,-18] [0+0+0 13 0+0+0] [0+0+0 14 0+0+0] children: not-inline
+                BlockContainer <span.timestamp> at [48,-17] flex-item [0+0+0 80.84375 0+0+0] [0+0+0 12 0+0+0] [BFC] children: inline
+                  frag 0 from TextNode start: 0, length: 13, rect: [48,-17 80.84375x12] baseline: 9.59375
+                      "00:00 / 00:00"
+                  TextNode <#text> (not painted)
+                Box <button.control-button.mute-button.high.muted> at [244,-23] flex-container(row) flex-item [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] [FFC] children: not-inline
+                  SVGSVGBox <svg.icon> at [244,-23] flex-item [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] [SVG] children: not-inline
+                    SVGGeometryBox <path.muted-line> at [247.5,-18] [0+0+0 15.5 0+0+0] [0+0+0 15.5 0+0+0] children: not-inline
+                    SVGGeometryBox <path.volume-high> at [258,-18.921875] [0+0+0 6 0+0+0] [0+0+0 15.84375 0+0+0] children: not-inline
+                      SVGClipBox <clipPath#muted-clip> at [244,-23] [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] children: not-inline
+                        SVGGeometryBox <path> at [244,-23] [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] children: not-inline
+                    SVGGeometryBox <path.volume-low> at [258,-15.328125] [0+0+0 2.03125 0+0+0] [0+0+0 8.65625 0+0+0] children: not-inline
+                      SVGClipBox <clipPath#muted-clip> at [244,-23] [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] children: not-inline
+                        SVGGeometryBox <path> at [244,-23] [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] children: not-inline
+                    SVGGeometryBox <path.speaker> at [248,-19] [0+0+0 8 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+                      SVGClipBox <clipPath#muted-clip> at [244,-23] [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] children: not-inline
+                        SVGGeometryBox <path> at [244,-23] [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] children: not-inline
+                Box <div.control-button.fullscreen-button> at [276,-23] flex-container(row) flex-item [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] [FFC] children: not-inline
+                  SVGSVGBox <svg.icon.fullscreen-icon> at [276,-23] flex-item [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] [SVG] children: not-inline
+                    SVGGeometryBox <path.fullscreen-maximize-path> at [279,-20] [0+0+0 18 0+0+0] [0+0+0 18 0+0+0] children: not-inline
+      TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x166]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x150]
+      VideoPaintable (VideoBox<VIDEO>) [8,8 300x150]
+        PaintableWithLines (BlockContainer(anonymous)) [8,8 300x0]
+          PaintableWithLines (BlockContainer<DIV>.container.video) [8,8 300x0] overflow: [8,8 300x40]
+            Paintable (Box<DIV>.video-overlay) [8,8 300x0]
+              Paintable (Box<DIV>.placeholder-circle) [118,-32 80x80]
+                SVGSVGPaintable (SVGSVGBox<svg>.placeholder-icon) [142,-10 36x36]
+                  SVGPathPaintable (SVGGeometryBox<path>.play-path) [151,-2.5 19.5x21]
+            Paintable (Box<DIV>.controls.visible) [8,-35 300x43]
+              PaintableWithLines (BlockContainer<DIV>.timeline) [8,-40 300x15]
+                PaintableWithLines (BlockContainer<DIV>.timeline-track) [8,-35 300x5]
+                  PaintableWithLines (BlockContainer<DIV>.timeline-fill) [8,-35 0x5]
+              Paintable (Box<DIV>.button-bar) [8,-30 300x38]
+                Paintable (Box<BUTTON>.control-button.play-pause-button) [16,-23 24x24]
+                  SVGSVGPaintable (SVGSVGBox<svg>.icon.play-pause-icon) [16,-23 24x24]
+                    SVGPathPaintable (SVGGeometryBox<path>.play-path) [22,-18 13x14]
+                PaintableWithLines (BlockContainer<SPAN>.timestamp) [48,-17 80.84375x12]
+                Paintable (Box<BUTTON>.control-button.mute-button.high.muted) [244,-23 24x24]
+                  SVGSVGPaintable (SVGSVGBox<svg>.icon) [244,-23 24x24]
+                    SVGPathPaintable (SVGGeometryBox<path>.muted-line) [247.5,-18 15.5x15.5]
+                    SVGPathPaintable (SVGGeometryBox<path>.volume-high) [258,-18.921875 6x15.84375]
+                    SVGPathPaintable (SVGGeometryBox<path>.volume-low) [258,-15.328125 2.03125x8.65625]
+                    SVGPathPaintable (SVGGeometryBox<path>.speaker) [248,-19 8x16]
+                Paintable (Box<DIV>.control-button.fullscreen-button) [276,-23 24x24]
+                  SVGSVGPaintable (SVGSVGBox<svg>.icon.fullscreen-icon) [276,-23 24x24]
+                    SVGPathPaintable (SVGGeometryBox<path>.fullscreen-maximize-path) [279,-20 18x18]
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x166] (z-index: auto)
+  SC for Box<DIV>.placeholder-circle [118,-32 80x80] (z-index: auto)
+  SC for BlockContainer<DIV>.timeline [8,-35 300x5] (z-index: 1)
