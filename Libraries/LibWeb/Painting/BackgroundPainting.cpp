@@ -327,7 +327,9 @@ void paint_background(DisplayListRecordingContext& context, PaintableBox const& 
 
             auto const& image_style_value = static_cast<CSS::ImageStyleValue const&>(image);
             if (auto display_list = image_style_value.record_display_list(context, document, dest_rect); display_list.has_value()) {
-                context.display_list_recorder().draw_repeated_display_list(dest_rect.to_type<int>(), clip_rect.to_type<int>(), *display_list, repeat_x, repeat_y);
+                auto dest_int_rect = dest_rect.to_type<int>();
+                auto scaling_mode = to_gfx_scaling_mode(image_rendering, dest_int_rect.size(), dest_int_rect.size());
+                context.display_list_recorder().draw_repeated_display_list(dest_int_rect, clip_rect.to_type<int>(), *display_list, scaling_mode, repeat_x, repeat_y);
             } else {
                 auto frame = image_style_value.current_frame(document, dest_rect);
                 if (!frame.has_value())

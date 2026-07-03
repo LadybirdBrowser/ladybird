@@ -202,6 +202,7 @@ struct DrawRepeatedDisplayList {
     Gfx::IntRect dst_rect;
     Gfx::IntRect clip_rect;
     DisplayListResourceId display_list_id;
+    Gfx::ScalingMode scaling_mode;
     Repeat repeat;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return clip_rect; }

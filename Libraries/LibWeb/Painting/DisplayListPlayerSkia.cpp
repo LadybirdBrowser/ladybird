@@ -350,15 +350,15 @@ void DisplayListPlayerSkia::play_command(DrawRepeatedDecodedImageFrame const& co
     canvas.drawPaint(paint);
 }
 
-static void paint_repeated_image(SkCanvas& canvas, SkImage& image, Gfx::IntRect const& dst_rect, Gfx::IntRect const& clip_rect, bool repeat_x, bool repeat_y)
+static void paint_repeated_image(SkCanvas& canvas, SkImage& image, Gfx::IntRect const& dst_rect, Gfx::IntRect const& clip_rect, Gfx::ScalingMode scaling_mode, bool repeat_x, bool repeat_y)
 {
     SkMatrix matrix;
     matrix.setTranslate(dst_rect.x(), dst_rect.y());
 
     auto tile_mode_x = repeat_x ? SkTileMode::kRepeat : SkTileMode::kDecal;
     auto tile_mode_y = repeat_y ? SkTileMode::kRepeat : SkTileMode::kDecal;
-    auto sampling = SkSamplingOptions(SkFilterMode::kLinear);
-    auto shader = image.makeShader(tile_mode_x, tile_mode_y, sampling, &matrix);
+    auto sampling_options = to_skia_sampling_options(scaling_mode);
+    auto shader = image.makeShader(tile_mode_x, tile_mode_y, sampling_options, &matrix);
 
     SkPaint paint;
     paint.setAntiAlias(true);
@@ -377,7 +377,7 @@ void DisplayListPlayerSkia::play_command(DrawRepeatedDisplayList const& command)
         return;
 
     if (auto image = resource_storage().cached_skia_image_for_display_list(command.display_list_id, tile_size, m_skia_backend_context)) {
-        paint_repeated_image(surface().canvas(), *image, command.dst_rect, command.clip_rect, command.repeat.x, command.repeat.y);
+        paint_repeated_image(surface().canvas(), *image, command.dst_rect, command.clip_rect, command.scaling_mode, command.repeat.x, command.repeat.y);
         return;
     }
 
@@ -392,7 +392,7 @@ void DisplayListPlayerSkia::play_command(DrawRepeatedDisplayList const& command)
 
     resource_storage().set_cached_skia_image_for_display_list(command.display_list_id, tile_size, m_skia_backend_context, image);
 
-    paint_repeated_image(surface().canvas(), *image, command.dst_rect, command.clip_rect, command.repeat.x, command.repeat.y);
+    paint_repeated_image(surface().canvas(), *image, command.dst_rect, command.clip_rect, command.scaling_mode, command.repeat.x, command.repeat.y);
 }
 
 void DisplayListPlayerSkia::play_command(AddClipRect const& command)

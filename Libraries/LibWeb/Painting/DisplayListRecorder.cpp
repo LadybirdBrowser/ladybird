@@ -569,7 +569,7 @@ void DisplayListRecorder::draw_repeated_decoded_image_frame(Gfx::IntRect dst_rec
     });
 }
 
-void DisplayListRecorder::draw_repeated_display_list(Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, DisplayListResource const& display_list, bool repeat_x, bool repeat_y)
+void DisplayListRecorder::draw_repeated_display_list(Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, DisplayListResource const& display_list, Gfx::ScalingMode scaling_mode, bool repeat_x, bool repeat_y)
 {
     if (dst_rect.is_empty() || clip_rect.is_empty())
         return;
@@ -577,6 +577,7 @@ void DisplayListRecorder::draw_repeated_display_list(Gfx::IntRect dst_rect, Gfx:
         .dst_rect = dst_rect,
         .clip_rect = clip_rect,
         .display_list_id = resource_storage().add_display_list(display_list.display_list, display_list.visual_context_tree),
+        .scaling_mode = scaling_mode,
         .repeat = { repeat_x, repeat_y },
     });
 }

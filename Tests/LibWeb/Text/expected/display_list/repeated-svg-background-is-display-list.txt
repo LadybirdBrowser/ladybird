@@ -10,7 +10,6 @@ SaveLayer@0
   CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 120x80]
   Save@1
     AddClipRect@1 rect=[8,8 120x80]
-    DrawRepeatedDisplayList@1 dst_rect=[8,8 20x20] clip_rect=[8,8 120x80]
+    DrawRepeatedDisplayList@1 dst_rect=[8,8 20x20] clip_rect=[8,8 120x80] scaling_mode=NearestNeighbor
   Restore@1
 Restore@0
-
