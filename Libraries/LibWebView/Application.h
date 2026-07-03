@@ -84,10 +84,10 @@ public:
     void show_bookmarks_bar_changed(Badge<ApplicationSettingsObserver>);
     virtual void show_bookmark_context_menu(Gfx::IntPoint, Optional<BookmarkItem const&>, [[maybe_unused]] Optional<String const&> target_folder_id) { }
 
-    static HistoryStore& history_store(IsPrivate = IsPrivate::No);
-    static CookieJar& cookie_jar(IsPrivate = IsPrivate::No);
-    static HSTSStore& hsts_store(IsPrivate = IsPrivate::No);
-    static StorageJar& storage_jar(IsPrivate = IsPrivate::No);
+    static HistoryStore& history_store(IsPrivate);
+    static CookieJar& cookie_jar(IsPrivate);
+    static HSTSStore& hsts_store(IsPrivate);
+    static StorageJar& storage_jar(IsPrivate);
 
     static ProcessManager& process_manager() { return *the().m_process_manager; }
 #if defined(AK_OS_MACOS)

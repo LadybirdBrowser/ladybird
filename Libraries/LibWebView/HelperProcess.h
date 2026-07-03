@@ -26,7 +26,7 @@ WEBVIEW_API ErrorOr<NonnullRefPtr<WebView::CompositorClient>> launch_compositor_
 WEBVIEW_API ErrorOr<NonnullRefPtr<WebView::WebWorkerClient>> launch_web_worker_process(Web::Bindings::AgentType, IsPrivate, Web::HTML::WorkerAgentId);
 WEBVIEW_API ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process();
 
-WEBVIEW_API ErrorOr<IPC::TransportHandle> connect_new_request_server_client(IsPrivate = IsPrivate::No);
+WEBVIEW_API ErrorOr<IPC::TransportHandle> connect_new_request_server_client(IsPrivate);
 WEBVIEW_API ErrorOr<IPC::TransportHandle> connect_new_image_decoder_client();
 
 }

@@ -143,7 +143,7 @@ public:
         if (!m_reopen_recently_closed_tab_action)
             return;
 
-        auto recently_closed_entry = Application::history_store().most_recently_closed_entry();
+        auto recently_closed_entry = Application::history_store(WebView::IsPrivate::No).most_recently_closed_entry();
         m_reopen_recently_closed_tab_action->setText("&Reopen Recently Closed Tab");
         m_reopen_recently_closed_tab_action->setEnabled(recently_closed_entry.has_value());
     }
@@ -392,7 +392,7 @@ void Application::focus_location_editor()
 
 void Application::reopen_recently_closed_tab()
 {
-    auto recently_closed_entry = Application::history_store().pop_most_recently_closed_entry();
+    auto recently_closed_entry = Application::history_store(WebView::IsPrivate::No).pop_most_recently_closed_entry();
     if (recently_closed_entry.has_value()) {
         if (recently_closed_entry->was_window) {
             auto& window = new_window(recently_closed_entry->urls);

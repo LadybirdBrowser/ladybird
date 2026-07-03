@@ -743,7 +743,7 @@ bool BrowserWindow::definitely_close_tab(int index)
     auto* tab = m_tabs_container->tab(index);
     auto url = tab->view().url();
     m_tabs_container->remove_tab(index);
-    Application::history_store().record_closed_tab(url);
+    Application::history_store(WebView::IsPrivate::No).record_closed_tab(url);
     Application::the().update_reopen_recently_closed_actions();
     tab->deleteLater();
 
@@ -760,7 +760,7 @@ void BrowserWindow::update_reopen_recently_closed_action()
     if (!m_reopen_recently_closed_tab_action)
         return;
 
-    auto recently_closed_entry = Application::history_store().most_recently_closed_entry();
+    auto recently_closed_entry = Application::history_store(WebView::IsPrivate::No).most_recently_closed_entry();
     m_reopen_recently_closed_tab_action->setText("&Reopen Recently Closed Tab");
     m_reopen_recently_closed_tab_action->setEnabled(recently_closed_entry.has_value());
 }
@@ -1676,7 +1676,7 @@ void BrowserWindow::closeEvent(QCloseEvent* event)
     QMainWindow::closeEvent(event);
 
     if (event->isAccepted() && recently_closed_window_urls.has_value()) {
-        Application::history_store().record_closed_window(recently_closed_window_urls.release_value(), recently_closed_window_active_tab_index);
+        Application::history_store(WebView::IsPrivate::No).record_closed_window(recently_closed_window_urls.release_value(), recently_closed_window_active_tab_index);
         Application::the().update_reopen_recently_closed_actions();
     }
 }
