@@ -1847,9 +1847,8 @@ handler PutByValue
     load64 cached_offset, [obj, TYPED_ARRAY_CACHED_DATA_OFFSET]
     mov invalid_offset, TYPED_ARRAY_CACHED_DATA_OFFSET_INVALID
     branch_eq cached_offset, invalid_offset, .try_typed_array_slow
-    load_c_symbol_address elements, js_primitive_storage_cage_base
-    load64 elements, [elements, 0]
-    branch_zero elements, .try_typed_array_slow
+    load_vm elements
+    load64 elements, [elements, VM_PRIMITIVE_STORAGE_CAGE_BASE]
     assert_nonzero elements
     # Cached pointers only exist for fixed-length typed arrays, so array_length
     # is known to hold a concrete u32 value here.
@@ -2071,9 +2070,8 @@ handler GetByValue
     load64 cached_offset, [obj, TYPED_ARRAY_CACHED_DATA_OFFSET]
     mov invalid_offset, TYPED_ARRAY_CACHED_DATA_OFFSET_INVALID
     branch_eq cached_offset, invalid_offset, .try_typed_array_slow
-    load_c_symbol_address elements, js_primitive_storage_cage_base
-    load64 elements, [elements, 0]
-    branch_zero elements, .try_typed_array_slow
+    load_vm elements
+    load64 elements, [elements, VM_PRIMITIVE_STORAGE_CAGE_BASE]
     assert_nonzero elements
     # Cached pointers only exist for fixed-length typed arrays, so array_length
     # is known to hold a concrete u32 value here.

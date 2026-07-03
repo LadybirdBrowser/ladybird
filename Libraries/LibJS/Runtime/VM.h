@@ -346,6 +346,7 @@ public:
 
     u32 execution_generation() const { return m_execution_generation; }
     void finish_execution_generation() { ++m_execution_generation; }
+    FlatPtr primitive_storage_cage_base() const { return m_primitive_storage_cage_base; }
 
     ThrowCompletionOr<Reference> resolve_binding(Utf16FlyString const&, Strict, Environment* = nullptr);
     ThrowCompletionOr<Reference> get_identifier_reference(Environment*, Utf16FlyString, Strict, size_t hops = 0);
@@ -562,6 +563,7 @@ private:
     WellKnownSymbols m_well_known_symbols;
 
     u32 m_execution_generation { 0 };
+    FlatPtr m_primitive_storage_cage_base { 0 };
     u32 m_run_executable_depth { 0 };
     u32 m_module_execution_depth { 0 };
     u64 m_module_async_evaluation_count { 0 }; // [[ModuleAsyncEvaluationCount]]

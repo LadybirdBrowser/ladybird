@@ -552,8 +552,6 @@ pub const INSTRUCTIONS: &[InstructionInfo] = &[
         // Large offsets / non-power-of-two scales go through x9.
         ArchSpec { clobbers_gpr: &["x9"], ..ArchSpec::NONE },
     ),
-    plain("load_c_symbol_address", &[GprOut, FuncSymbol]),
-
     // ------------------------------------------------------------------
     // Integer ALU
     // ------------------------------------------------------------------

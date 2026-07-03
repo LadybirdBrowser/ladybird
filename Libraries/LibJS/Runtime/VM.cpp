@@ -17,6 +17,7 @@
 #include <LibCore/ImmutableBytes.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibGC/Heap.h>
+#include <LibGC/PrimitiveStorage.h>
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
@@ -83,6 +84,9 @@ VM::VM(ErrorMessages error_messages)
     , m_error_messages(move(error_messages))
 {
     s_the = this;
+    MUST(GC::PrimitiveStorage::the().ensure_cage());
+    m_primitive_storage_cage_base = js_primitive_storage_cage_base;
+    VERIFY(m_primitive_storage_cage_base != 0);
 
     m_heap.register_sweep_callback([] {
         Bytecode::StaticPropertyLookupCache::sweep_all();

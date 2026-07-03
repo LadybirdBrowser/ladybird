@@ -176,6 +176,7 @@ int main()
     EMIT_OFFSET(VM_INTERPRETER_STACK, VM, m_interpreter_stack);
     EMIT_OFFSET(VM_STACK_INFO, VM, m_stack_info);
     EMIT_OFFSET(VM_EXECUTION_GENERATION, VM, m_execution_generation);
+    EMIT_OFFSET(VM_PRIMITIVE_STORAGE_CAGE_BASE, VM, m_primitive_storage_cage_base);
     outln("const VM_INTERPRETER_STACK_TOP = {}", offsetof(VM, m_interpreter_stack) + offsetof(InterpreterStack, m_top));
 #if defined(HAS_ADDRESS_SANITIZER)
     outln("const VM_STACK_SPACE_LIMIT = {}", 96 * KiB);

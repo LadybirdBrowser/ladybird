@@ -46,6 +46,7 @@ public:
 
     ErrorOr<PrimitiveStorageHandle> try_allocate(size_t size, ZeroFillNewBytes = ZeroFillNewBytes::Yes);
     ErrorOr<PrimitiveStorageHandle> try_reserve(size_t size, size_t capacity, ZeroFillNewBytes = ZeroFillNewBytes::Yes, size_t guard_size = 0);
+    ErrorOr<void> ensure_cage();
 
     bool is_valid(PrimitiveStorageHandle) const;
     bool contains(void const* address, size_t size = 1) const;
@@ -93,6 +94,7 @@ private:
         ErrorOr<void> resize(Allocation&, size_t old_size, size_t new_size, ZeroFillNewBytes);
         ErrorOr<Allocation> reallocate(Allocation const&, size_t old_size, size_t new_size, size_t new_capacity, ZeroFillNewBytes, bool force_large);
         void deallocate(Allocation&);
+        ErrorOr<void> ensure_cage();
 
         bool contains(void const* address, size_t size = 1) const;
         bool contains(Allocation const&, void const* address, size_t size = 1) const;
@@ -116,7 +118,6 @@ private:
             Vector<u32> free_slots;
         };
 
-        ErrorOr<void> ensure_cage();
         ErrorOr<Allocation> allocate_small_storage(size_t size, ZeroFillNewBytes);
         ErrorOr<Allocation> allocate_large_storage(size_t size, size_t capacity, ZeroFillNewBytes, size_t guard_size);
         ErrorOr<Allocation> allocate_from_new_slab(u16 size_class_index, size_t slot_size, ZeroFillNewBytes, size_t requested_size);

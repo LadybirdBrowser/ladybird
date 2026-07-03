@@ -1548,25 +1548,6 @@ fn emit_instruction(
             }
         }
 
-        // load_c_symbol_address dst, symbol - Load the address of an external C symbol.
-        "load_c_symbol_address" => {
-            if insn.operands.len() == 2 {
-                let dst = resolve_op(&insn.operands[0], handler, program);
-                let symbol = match &insn.operands[1] {
-                    Operand::Register(symbol) | Operand::Constant(symbol) | Operand::Label(symbol) => symbol,
-                    _ => panic!("load_c_symbol_address expects a symbol operand"),
-                };
-                match program.object_format {
-                    ObjectFormat::MachO | ObjectFormat::Elf => {
-                        w!(out, "    mov {dst}, QWORD PTR [rip + CSYM({symbol})@GOTPCREL]");
-                    }
-                    ObjectFormat::Coff => {
-                        w!(out, "    mov {dst}, QWORD PTR [rip + __imp_{symbol}]");
-                    }
-                }
-            }
-        }
-
         // Unconditional jump - resolve local labels
         "jmp" => {
             if let Some(Operand::Label(label)) = insn.operands.first() {

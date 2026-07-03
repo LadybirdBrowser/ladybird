@@ -52,6 +52,11 @@ PrimitiveStorage& PrimitiveStorage::the()
     return *storage;
 }
 
+ErrorOr<void> PrimitiveStorage::ensure_cage()
+{
+    return m_allocator.ensure_cage();
+}
+
 size_t PrimitiveStorage::Allocator::page_size()
 {
     return static_cast<size_t>(PAGE_SIZE);
