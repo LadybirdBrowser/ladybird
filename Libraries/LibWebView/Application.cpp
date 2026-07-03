@@ -594,16 +594,9 @@ void Application::register_compositor_context(WebContentClient& web_content_clie
 {
     if (!can_send_compositor_process_ipc(m_compositor_client))
         return;
-    VERIFY(m_compositor_client);
 
-    auto web_content_connection_id = web_content_client.compositor_connection_id({});
-    if (!web_content_connection_id.has_value()) {
-        MUST(connect_web_content_to_compositor(web_content_client));
-        web_content_connection_id = web_content_client.compositor_connection_id({});
-    }
-    VERIFY(web_content_connection_id.has_value());
-
-    m_compositor_client->create_context(context_id, page_id, *web_content_connection_id);
+    if (auto result = try_register_compositor_context(web_content_client, context_id, page_id); result.is_error())
+        dbgln("Unable to register Compositor context: {}", result.error());
 }
 
 ErrorOr<void> Application::try_register_compositor_context(WebContentClient& web_content_client, Web::Compositor::CompositorContextId context_id, Optional<u64> page_id)
