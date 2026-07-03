@@ -15,6 +15,8 @@
 #include <core/SkMaskFilter.h>
 #include <core/SkPath.h>
 #include <core/SkPathEffect.h>
+#include <core/SkPicture.h>
+#include <core/SkPictureRecorder.h>
 #include <core/SkRRect.h>
 #include <core/SkSurface.h>
 #include <core/SkTextBlob.h>
@@ -364,7 +366,6 @@ static void paint_repeated_image(SkCanvas& canvas, SkImage& image, Gfx::IntRect 
     auto tile_mode_y = repeat_y ? SkTileMode::kRepeat : SkTileMode::kDecal;
     auto sampling_options = to_skia_sampling_options(scaling_mode);
     auto shader = image.makeShader(tile_mode_x, tile_mode_y, sampling_options, &matrix);
-
     SkPaint paint;
     paint.setAntiAlias(true);
     paint.setShader(shader);
@@ -373,6 +374,77 @@ static void paint_repeated_image(SkCanvas& canvas, SkImage& image, Gfx::IntRect 
     canvas.clipRect(to_skia_rect(clip_rect), true);
     canvas.drawPaint(paint);
     canvas.restore();
+}
+
+void DisplayListPlayerSkia::play_command(DrawTiledDecodedImageFrame const& command)
+{
+    auto image = resource_storage().skia_image_for_image_frame(command.frame_id, m_skia_backend_context);
+    if (!image)
+        return;
+
+    auto sampling_options = to_skia_sampling_options(command.scaling_mode);
+
+    auto scale_x = command.tile_rect.width() / command.src_rect.width();
+    auto scale_y = command.tile_rect.height() / command.src_rect.height();
+    auto tile_step_width = command.tile_step.width();
+    auto tile_step_height = command.tile_step.height();
+
+    SkPictureRecorder tile_recorder;
+    auto tile_bounds = SkRect::MakeWH(tile_step_width / scale_x, tile_step_height / scale_y);
+    auto* tile_canvas = tile_recorder.beginRecording(tile_bounds);
+    SkPaint tile_paint;
+    tile_paint.setAntiAlias(true);
+    tile_canvas->drawImageRect(
+        image.get(),
+        to_skia_rect(command.src_rect),
+        SkRect::MakeWH(command.src_rect.width(), command.src_rect.height()),
+        sampling_options,
+        &tile_paint,
+        SkCanvas::kStrict_SrcRectConstraint);
+    auto tile_picture = tile_recorder.finishRecordingAsPicture();
+
+    SkMatrix matrix;
+    matrix.setTranslate(command.tile_rect.x(), command.tile_rect.y());
+    matrix.preScale(scale_x, scale_y);
+
+    auto is_single_tile_axis = [](Optional<u32> const& tile_count) {
+        return tile_count.has_value() && tile_count.value() == 1;
+    };
+    auto tile_mode_x = is_single_tile_axis(command.tile_count_x) ? SkTileMode::kDecal : SkTileMode::kRepeat;
+    auto tile_mode_y = is_single_tile_axis(command.tile_count_y) ? SkTileMode::kDecal : SkTileMode::kRepeat;
+    auto filter_mode = [&] {
+        switch (command.scaling_mode) {
+        case Gfx::ScalingMode::None:
+        case Gfx::ScalingMode::NearestNeighbor:
+            return SkFilterMode::kNearest;
+        case Gfx::ScalingMode::Bilinear:
+        case Gfx::ScalingMode::BilinearMipmap:
+            return SkFilterMode::kLinear;
+        }
+        VERIFY_NOT_REACHED();
+    }();
+
+    auto shader = tile_picture->makeShader(tile_mode_x, tile_mode_y, filter_mode, &matrix, &tile_bounds);
+
+    auto pattern_left = command.tile_count_x.has_value() ? command.tile_rect.left() : static_cast<float>(command.clip_rect.left());
+    auto pattern_top = command.tile_count_y.has_value() ? command.tile_rect.top() : static_cast<float>(command.clip_rect.top());
+    auto pattern_right = command.tile_count_x.has_value()
+        ? command.tile_rect.left() + (command.tile_count_x.value() - 1) * command.tile_step.width() + command.tile_rect.width()
+        : static_cast<float>(command.clip_rect.right());
+    auto pattern_bottom = command.tile_count_y.has_value()
+        ? command.tile_rect.top() + (command.tile_count_y.value() - 1) * command.tile_step.height() + command.tile_rect.height()
+        : static_cast<float>(command.clip_rect.bottom());
+    Gfx::FloatRect pattern_rect { pattern_left, pattern_top, pattern_right - pattern_left, pattern_bottom - pattern_top };
+    pattern_rect.intersect(command.clip_rect.to_type<float>());
+    if (pattern_rect.is_empty())
+        return;
+
+    SkPaint paint;
+    paint.setAntiAlias(true);
+    paint.setShader(shader);
+
+    auto& canvas = surface().canvas();
+    canvas.drawRect(to_skia_rect(pattern_rect), paint);
 }
 
 void DisplayListPlayerSkia::play_command(DrawRepeatedDisplayList const& command)

@@ -597,6 +597,23 @@ void DisplayListRecorder::draw_repeated_display_list(Gfx::IntRect dst_rect, Gfx:
     });
 }
 
+void DisplayListRecorder::draw_tiled_decoded_image_frame(DrawTiledDecodedImageFrameParams const& params)
+{
+    if (params.tile_rect.is_empty() || params.clip_rect.is_empty() || params.src_rect.is_empty())
+        return;
+
+    append_command(DrawTiledDecodedImageFrame {
+        .tile_rect = params.tile_rect,
+        .clip_rect = params.clip_rect,
+        .src_rect = params.src_rect,
+        .tile_step = params.tile_step,
+        .frame_id = resource_storage().add_image_frame(params.frame),
+        .scaling_mode = params.scaling_mode,
+        .tile_count_x = params.tile_count_x,
+        .tile_count_y = params.tile_count_y,
+    });
+}
+
 void DisplayListRecorder::draw_line(Gfx::IntPoint from, Gfx::IntPoint to, Color color, int thickness, Gfx::LineStyle style, Color alternate_color)
 {
     if (color.alpha() == 0 || !thickness)
