@@ -7,9 +7,7 @@
 
 #pragma once
 
-#include <AK/OwnPtr.h>
-#include <AK/Vector.h>
-#include <LibWebView/Autocomplete.h>
+#include <LibWebView/Omnibox.h>
 #include <LibWebView/Settings.h>
 
 #include <QLineEdit>
@@ -71,19 +69,10 @@ private:
     bool text_matches_current_url() const;
     QString serialized_url() const;
     QString display_url() const;
-
-    int apply_inline_autocomplete(Vector<WebView::AutocompleteSuggestion> const&);
-    bool apply_inline_autocomplete_suggestion_text(QString const& suggestion_text, QString const& query, bool allow_preview = false);
-    void apply_inline_autocomplete_text(QString const& inline_text, QString const& query);
-    void apply_autocomplete_preview_text(QString const& suggestion_text, QString const& query);
-    void activate_selected_autocomplete_suggestion();
-    void restore_query();
-    void set_text_without_inline_autocomplete(QString const& text);
-    bool should_restore_autocomplete_query() const;
-    QString autocomplete_query() const;
     QString current_query() const;
-    void reset_autocomplete_state();
+    void set_text_and_restart_editing(QString const& text);
 
+    WebView::Omnibox m_omnibox;
     Autocomplete* m_autocomplete { nullptr };
     QToolButton* m_leading_icon_button { nullptr };
     QToolButton* m_trailing_action_button { nullptr };
@@ -100,19 +89,6 @@ private:
     bool m_should_show_full_url_on_mouse_release { false };
     int m_text_leading_margin { 0 };
     int m_focus_glow_alpha { 0 };
-
-    bool m_is_applying_inline_autocomplete { false };
-    bool m_should_suppress_inline_autocomplete_on_next_change { false };
-    bool m_has_highlighted_autocomplete_suggestion { false };
-    bool m_should_submit_current_text_on_return { false };
-    bool m_should_preserve_inline_autocomplete_on_close { false };
-    bool m_should_skip_autocomplete_cancel_on_focus_out { false };
-    QString m_autocomplete_popup_query;
-    QString m_autocomplete_query_without_inline;
-    QString m_autocomplete_preview_query;
-    QString m_current_inline_autocomplete_suggestion;
-    QString m_pending_autocomplete_activation_query;
-    QString m_suppressed_inline_autocomplete_query;
 };
 
 }

@@ -220,7 +220,6 @@ public:
     }
 
     Vector<RowModel> const& rows() const { return m_rows; }
-    Vector<WebView::AutocompleteSuggestion> const& suggestions() const { return m_suggestions; }
 
     int table_row_for_suggestion_index(int suggestion_index) const
     {
@@ -367,13 +366,23 @@ public:
 Autocomplete::Autocomplete(QLineEdit* anchor)
     : QObject(anchor)
     , m_anchor(anchor)
-    , m_autocomplete(make<WebView::Autocomplete>())
+{
+    m_model = new AutocompleteModel(this);
+    m_delegate = new AutocompleteDelegate(this);
+    create_popup();
+    qApp->installEventFilter(this);
+}
+
+void Autocomplete::create_popup()
 {
     // Use a non-activating top-level window so it can stack above native web
     // content windows without moving keyboard focus away from the address bar.
     m_popup = new QFrame(m_anchor->window(), Qt::ToolTip | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint);
     connect(m_popup, &QObject::destroyed, this, [this] {
+        // The popup dies with its parent window, which can go away while this object lives on (for
+        // example when the tab is moved to another window); it is recreated on the next show.
         m_popup = nullptr;
+        m_list_view = nullptr;
     });
     m_popup->setObjectName("LadybirdAutocompletePopup");
 #if defined(AK_OS_MACOS)
@@ -397,9 +406,6 @@ Autocomplete::Autocomplete(QLineEdit* anchor)
     m_list_view->setFrameShape(QFrame::NoFrame);
     m_list_view->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_list_view->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-
-    m_model = new AutocompleteModel(this);
-    m_delegate = new AutocompleteDelegate(this);
     m_list_view->setModel(m_model);
     m_list_view->setItemDelegate(m_delegate);
     update_chrome_style();
@@ -412,7 +418,7 @@ Autocomplete::Autocomplete(QLineEdit* anchor)
     connect(m_list_view, &QAbstractItemView::clicked, this, [this](QModelIndex const& index) {
         if (!is_selectable_row(index.row()))
             return;
-        emit suggestion_activated(index.data(UrlRole).toString());
+        emit suggestion_clicked(index.data(SuggestionIndexRole).toInt());
     });
 
     connect(m_list_view, &QAbstractItemView::entered, this, [this](QModelIndex const& index) {
@@ -420,15 +426,8 @@ Autocomplete::Autocomplete(QLineEdit* anchor)
             return;
         if (m_list_view->currentIndex() == index)
             return;
-        select_row(index.row());
+        emit suggestion_hovered(index.data(SuggestionIndexRole).toInt());
     });
-
-    m_autocomplete->on_autocomplete_query_complete = [this](auto suggestions, auto result_kind) {
-        if (on_query_complete)
-            on_query_complete(move(suggestions), result_kind);
-    };
-
-    qApp->installEventFilter(this);
 }
 
 Autocomplete::~Autocomplete()
@@ -438,19 +437,9 @@ Autocomplete::~Autocomplete()
         delete m_popup;
 }
 
-void Autocomplete::query_autocomplete_engine(String query)
-{
-    m_autocomplete->query_autocomplete_engine(move(query), MAXIMUM_VISIBLE_AUTOCOMPLETE_SUGGESTIONS);
-}
-
-void Autocomplete::cancel_pending_query()
-{
-    m_autocomplete->cancel_pending_query();
-}
-
 void Autocomplete::update_chrome_style()
 {
-    if (m_is_updating_chrome_style)
+    if (!m_popup || m_is_updating_chrome_style)
         return;
 
     m_is_updating_chrome_style = true;
@@ -475,8 +464,11 @@ void Autocomplete::schedule_chrome_style_update()
     });
 }
 
-void Autocomplete::show_with_suggestions(Vector<WebView::AutocompleteSuggestion> suggestions, int selected_suggestion_index)
+void Autocomplete::show_with_suggestions(Vector<WebView::AutocompleteSuggestion> suggestions, Optional<size_t> selected_suggestion_index)
 {
+    if (!m_popup)
+        create_popup();
+
     m_model->set_suggestions(move(suggestions));
     if (m_model->rowCount() == 0) {
         close();
@@ -491,91 +483,39 @@ void Autocomplete::show_with_suggestions(Vector<WebView::AutocompleteSuggestion>
     }
     m_popup->raise();
 
-    int table_row = m_model->table_row_for_suggestion_index(selected_suggestion_index);
-    if (table_row == -1)
-        clear_selection();
-    else
-        select_row(table_row, false);
+    set_selected_suggestion(selected_suggestion_index);
+}
+
+void Autocomplete::set_selected_suggestion(Optional<size_t> suggestion_index)
+{
+    if (!m_popup)
+        return;
+
+    int table_row = suggestion_index.has_value()
+        ? m_model->table_row_for_suggestion_index(static_cast<int>(*suggestion_index))
+        : -1;
+
+    if (table_row == -1) {
+        m_list_view->setCurrentIndex({});
+        return;
+    }
+
+    auto index = m_model->index(table_row, 0);
+    m_list_view->setCurrentIndex(index);
+    m_list_view->scrollTo(index);
 }
 
 bool Autocomplete::close()
 {
-    if (!m_popup->isVisible())
+    if (!m_popup || !m_popup->isVisible())
         return false;
     m_popup->hide();
-    emit did_close();
     return true;
 }
 
 bool Autocomplete::is_visible() const
 {
     return m_popup && m_popup->isVisible();
-}
-
-void Autocomplete::clear_selection()
-{
-    m_list_view->setCurrentIndex({});
-}
-
-Optional<String> Autocomplete::selected_suggestion() const
-{
-    if (!is_visible())
-        return {};
-    auto index = m_list_view->currentIndex();
-    if (!index.isValid() || !is_selectable_row(index.row()))
-        return {};
-    auto suggestion_index = index.data(SuggestionIndexRole).toInt();
-    if (suggestion_index < 0 || suggestion_index >= static_cast<int>(m_model->suggestions().size()))
-        return {};
-    return m_model->suggestions()[suggestion_index].text;
-}
-
-bool Autocomplete::select_next_suggestion()
-{
-    if (m_model->rowCount() == 0)
-        return false;
-
-    if (!m_popup->isVisible()) {
-        position_popup();
-        m_popup->show();
-        position_popup();
-        m_popup->raise();
-        int row = step_to_selectable_row(-1, 1);
-        if (row != -1)
-            select_row(row);
-        return true;
-    }
-
-    auto current = m_list_view->currentIndex();
-    int start = current.isValid() ? current.row() : -1;
-    int row = step_to_selectable_row(start, 1);
-    if (row != -1)
-        select_row(row);
-    return true;
-}
-
-bool Autocomplete::select_previous_suggestion()
-{
-    if (m_model->rowCount() == 0)
-        return false;
-
-    if (!m_popup->isVisible()) {
-        position_popup();
-        m_popup->show();
-        position_popup();
-        m_popup->raise();
-        int row = step_to_selectable_row(0, -1);
-        if (row != -1)
-            select_row(row);
-        return true;
-    }
-
-    auto current = m_list_view->currentIndex();
-    int start = current.isValid() ? current.row() : 0;
-    int row = step_to_selectable_row(start, -1);
-    if (row != -1)
-        select_row(row);
-    return true;
 }
 
 bool Autocomplete::eventFilter(QObject* watched, QEvent* event)
@@ -590,8 +530,10 @@ bool Autocomplete::eventFilter(QObject* watched, QEvent* event)
         auto global = mouse_event->globalPosition().toPoint();
         auto popup_global = QRect(m_popup->mapToGlobal(QPoint(0, 0)), m_popup->size());
         auto anchor_global = QRect(m_anchor->mapToGlobal(QPoint(0, 0)), m_anchor->size());
-        if (!popup_global.contains(global) && !anchor_global.contains(global))
-            close();
+        if (!popup_global.contains(global) && !anchor_global.contains(global)) {
+            if (close())
+                emit dismissed();
+        }
     }
     return QObject::eventFilter(watched, event);
 }
@@ -645,35 +587,6 @@ bool Autocomplete::is_selectable_row(int row) const
         return false;
     auto const& rows = m_model->rows();
     return rows[row].kind == RowKind::Suggestion;
-}
-
-int Autocomplete::step_to_selectable_row(int from, int direction) const
-{
-    int n = m_model->rowCount();
-    if (n == 0)
-        return -1;
-    int candidate = from;
-    for (int attempt = 0; attempt < n; ++attempt) {
-        candidate += direction;
-        if (candidate < 0)
-            candidate = n - 1;
-        else if (candidate >= n)
-            candidate = 0;
-        if (is_selectable_row(candidate))
-            return candidate;
-    }
-    return -1;
-}
-
-void Autocomplete::select_row(int row, bool notify)
-{
-    if (!is_selectable_row(row))
-        return;
-    auto index = m_model->index(row, 0);
-    m_list_view->setCurrentIndex(index);
-    m_list_view->scrollTo(index);
-    if (notify)
-        emit suggestion_highlighted(index.data(UrlRole).toString());
 }
 
 }

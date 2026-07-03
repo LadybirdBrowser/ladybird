@@ -8,10 +8,7 @@
 
 #pragma once
 
-#include <AK/Function.h>
-#include <AK/NonnullOwnPtr.h>
 #include <AK/Optional.h>
-#include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibWebView/Autocomplete.h>
 
@@ -26,6 +23,9 @@ namespace Ladybird {
 class AutocompleteModel;
 class AutocompleteDelegate;
 
+// The suggestion popup below the location bar. This is a pure view: LocationEdit feeds it rows and a
+// selection from the WebView::Omnibox model, and it reports row hovers, clicks, and outside-click
+// dismissals back.
 class Autocomplete final : public QObject {
     Q_OBJECT
 
@@ -33,35 +33,26 @@ public:
     explicit Autocomplete(QLineEdit* anchor);
     virtual ~Autocomplete() override;
 
-    AK::Function<void(Vector<WebView::AutocompleteSuggestion>, WebView::AutocompleteResultKind)> on_query_complete;
-
-    void query_autocomplete_engine(String);
-    void cancel_pending_query();
     void update_chrome_style();
     void schedule_chrome_style_update();
 
-    void show_with_suggestions(Vector<WebView::AutocompleteSuggestion>, int selected_suggestion_index);
+    void show_with_suggestions(Vector<WebView::AutocompleteSuggestion>, Optional<size_t> selected_suggestion_index);
+    void set_selected_suggestion(Optional<size_t> suggestion_index);
     bool close();
-    bool is_visible() const;
-
-    void clear_selection();
-    Optional<String> selected_suggestion() const;
-    bool select_next_suggestion();
-    bool select_previous_suggestion();
 
 signals:
-    void suggestion_activated(QString);
-    void suggestion_highlighted(QString);
-    void did_close();
+    void suggestion_clicked(int suggestion_index);
+    void suggestion_hovered(int suggestion_index);
+    void dismissed();
 
 protected:
     virtual bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
+    void create_popup();
+    bool is_visible() const;
     void position_popup();
     bool is_selectable_row(int row) const;
-    int step_to_selectable_row(int from, int direction) const;
-    void select_row(int row, bool notify = true);
 
     QLineEdit* m_anchor { nullptr };
     QFrame* m_popup { nullptr };
@@ -70,8 +61,6 @@ private:
     AutocompleteDelegate* m_delegate { nullptr };
     bool m_is_updating_chrome_style { false };
     bool m_has_pending_chrome_style_update { false };
-
-    NonnullOwnPtr<WebView::Autocomplete> m_autocomplete;
 };
 
 }
