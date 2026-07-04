@@ -2624,10 +2624,14 @@ bool FormattingContext::should_treat_width_as_auto(Box const& box, AvailableSpac
 
     // https://drafts.csswg.org/css-sizing-3/#cyclic-percentage-contribution
     if (computed_width.contains_percentage()) {
-        if (!box.is_replaced_box() && available_space.width.is_min_content())
+        switch (cyclic_percentage_intrinsic_contribution(box, computed_width, available_space.width, CyclicPercentageSizeProperty::PreferredOrMaxSize)) {
+        case CyclicPercentageIntrinsicContribution::ResolveAsZero:
+            return false;
+        case CyclicPercentageIntrinsicContribution::TreatAsInitialValue:
             return true;
-        if (available_space.width.is_max_content())
-            return true;
+        case CyclicPercentageIntrinsicContribution::NotCyclic:
+            break;
+        }
         if (available_space.width.is_indefinite())
             return true;
     }
@@ -2655,10 +2659,14 @@ bool FormattingContext::should_treat_height_as_auto(Box const& box, AvailableSpa
 
     // https://drafts.csswg.org/css-sizing-3/#cyclic-percentage-contribution
     if (computed_height.contains_percentage()) {
-        if (!box.is_replaced_box() && available_space.height.is_min_content())
+        switch (cyclic_percentage_intrinsic_contribution(box, computed_height, available_space.height, CyclicPercentageSizeProperty::PreferredOrMaxSize)) {
+        case CyclicPercentageIntrinsicContribution::ResolveAsZero:
+            return false;
+        case CyclicPercentageIntrinsicContribution::TreatAsInitialValue:
             return true;
-        if (available_space.height.is_max_content())
-            return true;
+        case CyclicPercentageIntrinsicContribution::NotCyclic:
+            break;
+        }
         // https://www.w3.org/TR/CSS22/visudet.html#the-height-property
         // If the height of the containing block is not specified explicitly (i.e., it depends on
         // content height), and this element is not absolutely positioned, the percentage value
@@ -2920,12 +2928,13 @@ bool FormattingContext::should_treat_max_width_as_none(Box const& box, Available
         return true;
     // https://drafts.csswg.org/css-sizing-3/#cyclic-percentage-contribution
     if (max_width.contains_percentage()) {
-        if (available_width.is_max_content())
-            return true;
-        if (available_width.is_min_content()) {
-            if (!box.is_replaced_box())
-                return true;
+        switch (cyclic_percentage_intrinsic_contribution(box, max_width, available_width, CyclicPercentageSizeProperty::PreferredOrMaxSize)) {
+        case CyclicPercentageIntrinsicContribution::ResolveAsZero:
             return false;
+        case CyclicPercentageIntrinsicContribution::TreatAsInitialValue:
+            return true;
+        case CyclicPercentageIntrinsicContribution::NotCyclic:
+            break;
         }
         if (!containing_block_constraints.percentage_basis_width.has_value())
             return true;
@@ -2961,6 +2970,24 @@ bool FormattingContext::should_treat_max_height_as_none(Box const& box, Availabl
     if (max_height.is_min_content() && available_height.is_min_content())
         return true;
     return false;
+}
+
+FormattingContext::CyclicPercentageIntrinsicContribution FormattingContext::cyclic_percentage_intrinsic_contribution(Box const& box, CSS::Size const& size, AvailableSize const& available_size, CyclicPercentageSizeProperty size_property) const
+{
+    if (!size.contains_percentage())
+        return CyclicPercentageIntrinsicContribution::NotCyclic;
+
+    // https://drafts.csswg.org/css-sizing-3/#cyclic-percentage-contribution
+    if (available_size.is_min_content()) {
+        if (size_property == CyclicPercentageSizeProperty::PreferredOrMaxSize && box.is_replaced_box())
+            return CyclicPercentageIntrinsicContribution::ResolveAsZero;
+        return CyclicPercentageIntrinsicContribution::TreatAsInitialValue;
+    }
+
+    if (available_size.is_max_content())
+        return CyclicPercentageIntrinsicContribution::TreatAsInitialValue;
+
+    return CyclicPercentageIntrinsicContribution::NotCyclic;
 }
 
 CSSPixels FormattingContext::gap_to_px(Variant<CSS::LengthPercentage, CSS::NormalGap> const& gap, CSSPixels reference_value) const

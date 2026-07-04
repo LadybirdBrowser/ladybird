@@ -195,6 +195,20 @@ protected:
 
     [[nodiscard]] bool box_is_sized_as_replaced_element(Box const&, AvailableSpace const&, ContainingBlockConstraints const&) const;
 
+    enum class CyclicPercentageIntrinsicContribution {
+        NotCyclic,
+        ResolveAsZero,
+        TreatAsInitialValue,
+    };
+    // CSS Sizing resolves cyclic percentages differently for minimum sizes than for preferred/max sizes.
+    // In particular, replaced boxes resolve cyclic preferred/max sizes against zero for min-content
+    // contributions, while cyclic min sizes are treated as their initial value.
+    enum class CyclicPercentageSizeProperty {
+        PreferredOrMaxSize,
+        MinSize,
+    };
+    [[nodiscard]] CyclicPercentageIntrinsicContribution cyclic_percentage_intrinsic_contribution(Box const&, CSS::Size const&, AvailableSize const&, CyclicPercentageSizeProperty) const;
+
     OwnPtr<FormattingContext> layout_inside(Box const&, LayoutMode, LayoutInput const&);
 
     struct SpaceUsedByFloats {

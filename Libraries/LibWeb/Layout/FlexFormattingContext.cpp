@@ -506,16 +506,15 @@ CSSPixels FlexFormattingContext::specified_main_max_size_for_intrinsic_contribut
     if (should_treat_main_max_size_as_none(item.box))
         return CSSPixels::max();
 
-    if (computed_max_size.contains_percentage()) {
-        // If the box is replaced, a cyclic percentage in the value of any max size property is resolved against
-        // zero when calculating the min-content contribution in the corresponding axis.
-        if (item.box.is_replaced_box() && available_size.is_min_content())
-            return 0;
-
+    switch (cyclic_percentage_intrinsic_contribution(item.box, computed_max_size, available_size, CyclicPercentageSizeProperty::PreferredOrMaxSize)) {
+    case CyclicPercentageIntrinsicContribution::ResolveAsZero:
+        return 0;
+    case CyclicPercentageIntrinsicContribution::TreatAsInitialValue:
         return CSSPixels::max();
+    case CyclicPercentageIntrinsicContribution::NotCyclic:
+        return specified_main_max_size(item);
     }
-
-    return specified_main_max_size(item);
+    VERIFY_NOT_REACHED();
 }
 
 void FlexFormattingContext::set_has_definite_main_size(FlexItem& item)
