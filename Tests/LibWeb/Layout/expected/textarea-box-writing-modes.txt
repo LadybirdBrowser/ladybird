@@ -15,26 +15,26 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       frag 6 from TextAreaBox start: 0, length: 0, rect: [553,131 30x40] baseline: 46
       TextNode <#text> (not painted)
       TextAreaBox <textarea> at [11,141] inline-block [0+1+2 160 2+1+0] [0+1+2 30 2+1+0] [BFC] children: not-inline
-        BlockContainer <div> at [11,141] [0+0+0 160 0+0+0] [0+0+0 15 0+0+0] children: not-inline
-          BlockContainer <div> at [11,141] [0+0+0 160 0+0+0] [0+0+0 15 0+0+0] children: inline
+        Box <div> at [11,141] flex-container(row) [0+0+0 160 0+0+0] [0+0+0 15 0+0+0] [FFC] children: not-inline
+          BlockContainer <div> at [11,141] flex-item [0+0+0 160 0+0+0] [0+0+0 15 0+0+0] [BFC] children: inline
             frag 0 from TextNode start: 0, length: 0, rect: [11,141 0x15] baseline: 11.390625
             TextNode <#text> (not painted)
       TextNode <#text> (not painted)
       TextAreaBox <textarea> at [185,11] inline-block [0+1+2 300 2+1+0] [0+1+2 160 2+1+0] [BFC] children: not-inline
-        BlockContainer <div> at [185,11] [0+0+0 300 0+0+0] [0+0+0 0 0+0+0] children: not-inline
-          BlockContainer <div> at [185,11] [0+0+0 300 0+0+0] [0+0+0 0 0+0+0] children: inline
+        Box <div> at [185,11] flex-container(row) [0+0+0 300 0+0+0] [0+0+0 0 0+0+0] [FFC] children: not-inline
+          BlockContainer <div> at [185,11] flex-item [0+0+0 300 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
             frag 0 from TextNode start: 0, length: 0, rect: [470,11 15x0] baseline: 11.390625
             TextNode <#text> (not painted)
       TextNode <#text> (not painted)
       TextAreaBox <textarea> at [499,141] inline-block [0+1+2 40 2+1+0] [0+1+2 30 2+1+0] [BFC] children: not-inline
-        BlockContainer <div> at [499,141] [0+0+0 40 0+0+0] [0+0+0 15 0+0+0] children: not-inline
-          BlockContainer <div> at [499,141] [0+0+0 40 0+0+0] [0+0+0 15 0+0+0] children: inline
+        Box <div> at [499,141] flex-container(row) [0+0+0 40 0+0+0] [0+0+0 15 0+0+0] [FFC] children: not-inline
+          BlockContainer <div> at [499,141] flex-item [0+0+0 40 0+0+0] [0+0+0 15 0+0+0] [BFC] children: inline
             frag 0 from TextNode start: 0, length: 0, rect: [499,141 0x15] baseline: 11.390625
             TextNode <#text> (not painted)
       TextNode <#text> (not painted)
       TextAreaBox <textarea> at [553,131] inline-block [0+1+2 30 2+1+0] [0+1+2 40 2+1+0] [BFC] children: not-inline
-        BlockContainer <div> at [553,131] [0+0+0 30 0+0+0] [0+0+0 0 0+0+0] children: not-inline
-          BlockContainer <div> at [553,131] [0+0+0 30 0+0+0] [0+0+0 0 0+0+0] children: inline
+        Box <div> at [553,131] flex-container(row) [0+0+0 30 0+0+0] [0+0+0 0 0+0+0] [FFC] children: not-inline
+          BlockContainer <div> at [553,131] flex-item [0+0+0 30 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
             frag 0 from TextNode start: 0, length: 0, rect: [568,131 15x0] baseline: 11.390625
             TextNode <#text> (not painted)
       TextNode <#text> (not painted)
@@ -44,16 +44,16 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer(anonymous)) [0,0 800x0]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x170]
       PaintableWithLines (TextAreaBox<TEXTAREA>) [8,138 166x36]
-        PaintableWithLines (BlockContainer<DIV>) [11,141 160x15]
+        PaintableBox (Box<DIV>) [11,141 160x15]
           PaintableWithLines (BlockContainer<DIV>) [11,141 160x15]
       PaintableWithLines (TextAreaBox<TEXTAREA>) [182,8 306x166]
-        PaintableWithLines (BlockContainer<DIV>) [185,11 300x0]
+        PaintableBox (Box<DIV>) [185,11 300x0]
           PaintableWithLines (BlockContainer<DIV>) [185,11 300x0]
       PaintableWithLines (TextAreaBox<TEXTAREA>) [496,138 46x36]
-        PaintableWithLines (BlockContainer<DIV>) [499,141 40x15]
+        PaintableBox (Box<DIV>) [499,141 40x15]
           PaintableWithLines (BlockContainer<DIV>) [499,141 40x15]
       PaintableWithLines (TextAreaBox<TEXTAREA>) [550,128 36x46]
-        PaintableWithLines (BlockContainer<DIV>) [553,131 30x0]
+        PaintableBox (Box<DIV>) [553,131 30x0]
           PaintableWithLines (BlockContainer<DIV>) [553,131 30x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

@@ -14,6 +14,7 @@
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Invalidation/FormControlInvalidator.h>
+#include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/DOM/Document.h>
@@ -353,9 +354,25 @@ void HTMLTextAreaElement::create_shadow_tree_if_needed()
     set_shadow_root(shadow_root);
 
     auto element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
+    {
+        static auto& style = *new GC::Root<CSS::CSSStyleProperties>;
+        if (!style) {
+            style = CSS::CSSStyleProperties::create(internal_css_realm(), {}, {});
+            style->set_declarations_from_text("display: flex;"sv);
+        }
+        element->set_inline_style(*style);
+    }
     MUST(shadow_root->append_child(element));
 
     m_inner_text_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
+    {
+        static auto& style = *new GC::Root<CSS::CSSStyleProperties>;
+        if (!style) {
+            style = CSS::CSSStyleProperties::create(internal_css_realm(), {}, {});
+            style->set_declarations_from_text("width: 100%;"sv);
+        }
+        m_inner_text_element->set_inline_style(*style);
+    }
     MUST(element->append_child(*m_inner_text_element));
 
     // NOTE: If `children_changed()` was called before now, `m_raw_value` will hold the text content.
@@ -387,6 +404,30 @@ void HTMLTextAreaElement::handle_maxlength_attribute()
     }
 }
 
+static GC::Ref<CSS::CSSStyleProperties> placeholder_style_when_visible()
+{
+    static auto& style = *new GC::Root<CSS::CSSStyleProperties>;
+    if (!style) {
+        style = CSS::CSSStyleProperties::create(internal_css_realm(), {}, {});
+        style->set_declarations_from_text(R"~~~(
+                width: 100%;
+                overflow: hidden;
+                margin-inline-start: -100%;
+            )~~~"sv);
+    }
+    return *style;
+}
+
+static GC::Ref<CSS::CSSStyleProperties> placeholder_style_when_hidden()
+{
+    static auto& style = *new GC::Root<CSS::CSSStyleProperties>;
+    if (!style) {
+        style = CSS::CSSStyleProperties::create(internal_css_realm(), {}, {});
+        style->set_declarations_from_text("display: none;"sv);
+    }
+    return *style;
+}
+
 void HTMLTextAreaElement::update_placeholder_visibility()
 {
     if (!m_placeholder_element)
@@ -394,13 +435,10 @@ void HTMLTextAreaElement::update_placeholder_visibility()
     if (!m_text_node)
         return;
     auto placeholder_text = get_attribute(AttributeNames::placeholder);
-    if (placeholder_text.has_value() && m_text_node->data().is_empty()) {
-        MUST(m_inner_text_element->style_for_bindings()->set_property(CSS::PropertyID::Display, "inline"sv));
-        MUST(m_placeholder_element->style_for_bindings()->set_property(CSS::PropertyID::Display, "inline"sv));
-    } else {
-        MUST(m_inner_text_element->style_for_bindings()->set_property(CSS::PropertyID::Display, "block"sv));
-        MUST(m_placeholder_element->style_for_bindings()->set_property(CSS::PropertyID::Display, "none"sv));
-    }
+    if (placeholder_text.has_value() && m_text_node->data().is_empty())
+        m_placeholder_element->set_inline_style(placeholder_style_when_visible());
+    else
+        m_placeholder_element->set_inline_style(placeholder_style_when_hidden());
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-textarea-element:children-changed-steps

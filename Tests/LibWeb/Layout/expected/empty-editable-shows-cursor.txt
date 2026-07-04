@@ -29,11 +29,11 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               TextNode <#text> (not painted)
         TextNode <#text> (not painted)
         TextAreaBox <textarea> at [225,29] inline-block [0+1+2 160 2+1+0] [0+1+2 30 2+1+0] [BFC] children: not-inline
-          BlockContainer <div> at [225,29] [0+0+0 160 0+0+0] [0+0+0 15 0+0+0] children: inline
-            InlineNode <div> at [225,29] [0+0+0 0 0+0+0] [0+0+0 15 0+0+0]
+          Box <div> at [225,29] flex-container(row) [0+0+0 160 0+0+0] [0+0+0 15 0+0+0] [FFC] children: not-inline
+            BlockContainer <div> at [225,29] flex-item [0+0+0 160 0+0+0] [0+0+0 15 0+0+0] [BFC] children: inline
               frag 0 from TextNode start: 0, length: 0, rect: [225,29 0x15] baseline: 11.390625
               TextNode <#text> (not painted)
-            InlineNode <div> at [225,29] [0+0+0 29.921875 0+0+0] [0+0+0 15 0+0+0]
+            BlockContainer <div> at [225,29] flex-item [-160+0+0 160 0+0+0] [0+0+0 15 0+0+0] [BFC] children: inline
               frag 0 from TextNode start: 0, length: 5, rect: [225,29 29.921875x15] baseline: 11.390625
                   "hello"
               TextNode <#text> (not painted)
@@ -45,8 +45,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               TextNode <#text> (not painted)
         TextNode <#text> (not painted)
         TextAreaBox <textarea> at [613,29] inline-block [0+1+2 160 2+1+0] [0+1+2 30 2+1+0] [BFC] children: not-inline
-          BlockContainer <div> at [613,29] [0+0+0 160 0+0+0] [0+0+0 15 0+0+0] children: not-inline
-            BlockContainer <div> at [613,29] [0+0+0 160 0+0+0] [0+0+0 15 0+0+0] children: inline
+          Box <div> at [613,29] flex-container(row) [0+0+0 160 0+0+0] [0+0+0 15 0+0+0] [FFC] children: not-inline
+            BlockContainer <div> at [613,29] flex-item [0+0+0 160 0+0+0] [0+0+0 15 0+0+0] [BFC] children: inline
               frag 0 from TextNode start: 0, length: 0, rect: [613,29 0x15] baseline: 11.390625
               TextNode <#text> (not painted)
         TextNode <#text> (not painted)
@@ -63,14 +63,14 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
             PaintableWithLines (BlockContainer<DIV>) [11,44 200x18]
             PaintableWithLines (BlockContainer<DIV>) [11,44 200x18]
         PaintableWithLines (TextAreaBox<TEXTAREA>) [222,26 166x36]
-          PaintableWithLines (BlockContainer<DIV>) [225,29 160x15]
-            PaintableWithLines (InlineNode<DIV>) [225,29 0x15]
-            PaintableWithLines (InlineNode<DIV>) [225,29 29.921875x15]
+          PaintableBox (Box<DIV>) [225,29 160x15]
+            PaintableWithLines (BlockContainer<DIV>) [225,29 160x15]
+            PaintableWithLines (BlockContainer<DIV>) [225,29 160x15]
         PaintableWithLines (TextInputBox<INPUT>) [396,42 206x22]
           PaintableBox (Box<DIV>) [399,44 200x18]
             PaintableWithLines (BlockContainer<DIV>) [399,44 200x18]
         PaintableWithLines (TextAreaBox<TEXTAREA>) [610,26 166x36]
-          PaintableWithLines (BlockContainer<DIV>) [613,29 160x15]
+          PaintableBox (Box<DIV>) [613,29 160x15]
             PaintableWithLines (BlockContainer<DIV>) [613,29 160x15]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

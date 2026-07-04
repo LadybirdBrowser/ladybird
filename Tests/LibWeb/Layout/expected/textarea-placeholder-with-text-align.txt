@@ -1,0 +1,25 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 52 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 36 0+0+8] children: inline
+      frag 0 from TextAreaBox start: 0, length: 0, rect: [11,11 160x30] baseline: 36
+      TextAreaBox <textarea> at [11,11] inline-block [0+1+2 160 2+1+0] [0+1+2 30 2+1+0] [BFC] children: not-inline
+        Box <div> at [11,11] flex-container(row) [0+0+0 160 0+0+0] [0+0+0 15 0+0+0] [FFC] children: not-inline
+          BlockContainer <div> at [11,11] flex-item [0+0+0 160 0+0+0] [0+0+0 15 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 0, rect: [91,11 0x15] baseline: 11.390625
+            TextNode <#text> (not painted)
+          BlockContainer <div> at [11,11] flex-item [-160+0+0 160 0+0+0] [0+0+0 15 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 6, rect: [65.359375,11 51.265625x15] baseline: 11.390625
+                "Amount"
+            TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x52]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x36]
+      PaintableWithLines (TextAreaBox<TEXTAREA>) [8,8 166x36]
+        PaintableBox (Box<DIV>) [11,11 160x15]
+          PaintableWithLines (BlockContainer<DIV>) [11,11 160x15]
+          PaintableWithLines (BlockContainer<DIV>) [11,11 160x15]
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x52] (z-index: auto)
