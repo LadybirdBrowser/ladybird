@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<title>CSS aspect-ratio: div block size with box-sizing</title>
+<link rel="author" title="Google LLC" href="https://www.google.com/">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#aspect-ratio">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-sizing/aspect-ratio/../../reference/ref-filled-green-100px-square.xht" />
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+
+<div style="background: green; width: 100px; aspect-ratio: 2/1; box-sizing: border-box; padding-left: 50px;"></div>
+<div style="background: green; width: 100px; aspect-ratio: auto 1/1; box-sizing: border-box; padding-left: 50px;"></div>

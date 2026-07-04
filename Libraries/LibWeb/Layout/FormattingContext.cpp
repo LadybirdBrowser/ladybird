@@ -38,6 +38,45 @@ enum class SizeDimension {
     Height,
 };
 
+static CSSPixels content_height_from_aspect_ratio(Box const& box, LayoutState::UsedValues const& box_state, CSSPixels content_width)
+{
+    VERIFY(box.has_preferred_aspect_ratio());
+
+    auto aspect_ratio = *box.preferred_aspect_ratio();
+    if (aspect_ratio == 0)
+        return 0;
+
+    if (box.computed_values().box_sizing_for_aspect_ratio() == CSS::BoxSizing::BorderBox) {
+        auto border_box_width = content_width + box_state.border_box_left() + box_state.border_box_right();
+        auto border_box_height = border_box_width / aspect_ratio;
+        return max(border_box_height - box_state.border_box_top() - box_state.border_box_bottom(), 0);
+    }
+
+    return content_width / aspect_ratio;
+}
+
+static CSSPixels content_height_from_aspect_ratio(Box const& box, LayoutState::UsedValues const& box_state)
+{
+    return content_height_from_aspect_ratio(box, box_state, box_state.content_width());
+}
+
+static CSSPixels content_width_from_aspect_ratio(Box const& box, LayoutState::UsedValues const& box_state, CSSPixels content_height)
+{
+    VERIFY(box.has_preferred_aspect_ratio());
+
+    auto aspect_ratio = *box.preferred_aspect_ratio();
+    if (aspect_ratio == 0)
+        return 0;
+
+    if (box.computed_values().box_sizing_for_aspect_ratio() == CSS::BoxSizing::BorderBox) {
+        auto border_box_height = content_height + box_state.border_box_top() + box_state.border_box_bottom();
+        auto border_box_width = border_box_height * aspect_ratio;
+        return max(border_box_width - box_state.border_box_left() - box_state.border_box_right(), 0);
+    }
+
+    return content_height * aspect_ratio;
+}
+
 // https://drafts.csswg.org/css-sizing-3/#intrinsic-sizes
 static Optional<CSSPixels> max_content_size_for_replaced_element_without_natural_size(Box const& box, CSS::SizeWithAspectRatio const& natural_size, SizeDimension dimension, Optional<CSSPixels> definite_opposite_size = {})
 {
@@ -502,8 +541,7 @@ CSSPixelSize FormattingContext::solve_replaced_size_constraint(CSSPixels input_w
     auto specified_max_height = should_treat_max_height_as_none(box, available_space.height, containing_block_constraints) ? input_height : calculate_inner_height(box, available_space, box.computed_values().max_height(), containing_block_constraints);
     auto max_height = max(min_height, specified_max_height);
 
-    CSSPixelFraction aspect_ratio = *box.preferred_aspect_ratio();
-
+    auto const& box_state = m_state.get(box);
     // These are from the "Constraint Violation" table in spec, but reordered so that each condition is
     // interpreted as mutually exclusive to any other.
     if (input_width < min_width && input_height > max_height)
@@ -513,23 +551,23 @@ CSSPixelSize FormattingContext::solve_replaced_size_constraint(CSSPixels input_w
 
     if (input_width > 0 && input_height > 0) {
         if (input_width > max_width && input_height > max_height && max_width / input_width <= max_height / input_height)
-            return { max_width, max(min_height, max_width / aspect_ratio) };
+            return { max_width, max(min_height, content_height_from_aspect_ratio(box, box_state, max_width)) };
         if (input_width > max_width && input_height > max_height && max_width / input_width > max_height / input_height)
-            return { max(min_width, max_height * aspect_ratio), max_height };
+            return { max(min_width, content_width_from_aspect_ratio(box, box_state, max_height)), max_height };
         if (input_width < min_width && input_height < min_height && min_width / input_width <= min_height / input_height)
-            return { min(max_width, min_height * aspect_ratio), min_height };
+            return { min(max_width, content_width_from_aspect_ratio(box, box_state, min_height)), min_height };
         if (input_width < min_width && input_height < min_height && min_width / input_width > min_height / input_height)
-            return { min_width, min(max_height, min_width / aspect_ratio) };
+            return { min_width, min(max_height, content_height_from_aspect_ratio(box, box_state, min_width)) };
     }
 
     if (input_width > max_width)
-        return { max_width, max(max_width / aspect_ratio, min_height) };
+        return { max_width, max(content_height_from_aspect_ratio(box, box_state, max_width), min_height) };
     if (input_width < min_width)
-        return { min_width, min(min_width / aspect_ratio, max_height) };
+        return { min_width, min(content_height_from_aspect_ratio(box, box_state, min_width), max_height) };
     if (input_height > max_height)
-        return { max(max_height * aspect_ratio, min_width), max_height };
+        return { max(content_width_from_aspect_ratio(box, box_state, max_height), min_width), max_height };
     if (input_height < min_height)
-        return { min(min_height * aspect_ratio, max_width), min_height };
+        return { min(content_width_from_aspect_ratio(box, box_state, min_height), max_width), min_height };
 
     return { input_width, input_height };
 }
@@ -811,7 +849,8 @@ CSSPixels FormattingContext::tentative_width_for_replaced_element(Box const& box
     //     (used height) * (intrinsic ratio)
     if ((computed_height.is_auto() && computed_width.is_auto() && !intrinsic.has_width() && intrinsic.has_height() && box.has_preferred_aspect_ratio())
         || (computed_width.is_auto() && !computed_height.is_auto() && box.has_preferred_aspect_ratio())) {
-        return compute_height_for_replaced_element(box, available_space, containing_block_constraints) * box.preferred_aspect_ratio().value();
+        auto content_height = compute_height_for_replaced_element(box, available_space, containing_block_constraints);
+        return content_width_from_aspect_ratio(box, m_state.get(box), content_height);
     }
 
     // If 'height' and 'width' both have computed values of 'auto' and the element has an intrinsic ratio but no intrinsic height or width,
@@ -902,7 +941,7 @@ CSSPixels FormattingContext::tentative_height_for_replaced_element(Box const& bo
     //
     //     (used width) / (intrinsic ratio)
     if (computed_height.is_auto() && box.has_preferred_aspect_ratio())
-        return m_state.get(box).content_width() / box.preferred_aspect_ratio().value();
+        return content_height_from_aspect_ratio(box, m_state.get(box));
 
     // Otherwise, if 'height' has a computed value of 'auto', and the element has an intrinsic height, then that intrinsic height is the used value of 'height'.
     if (computed_height.is_auto() && intrinsic.has_height())
@@ -2528,11 +2567,8 @@ CSSPixels FormattingContext::calculate_inner_height(Box const& box, AvailableSpa
 {
     auto const& box_state = m_state.get(box);
 
-    if (height.is_auto() && box.has_preferred_aspect_ratio()) {
-        if (*box.preferred_aspect_ratio() == 0)
-            return CSSPixels(0);
-        return box_state.content_width() / *box.preferred_aspect_ratio();
-    }
+    if (height.is_auto() && box.has_preferred_aspect_ratio())
+        return content_height_from_aspect_ratio(box, box_state);
 
     VERIFY(!height.is_auto());
 
@@ -2884,7 +2920,7 @@ bool FormattingContext::box_is_sized_as_replaced_element(Box const& box, Availab
     // When a box has a preferred aspect ratio, its automatic sizes are calculated the same as for a
     // replaced element with a natural aspect ratio and no natural size in that axis, see e.g. CSS2 §10
     // and CSS Flexible Box Model Level 1 §9.2.
-    // https://www.w3.org/TR/css-sizing-4/#aspect-ratio-automatic
+    // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-automatic
     if (box.is_replaced_box() && box.has_auto_content_box_size())
         return true;
 

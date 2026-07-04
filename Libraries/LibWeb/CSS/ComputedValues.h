@@ -572,6 +572,15 @@ public:
     ~ComputedValues() = default;
 
     AspectRatio aspect_ratio() const { return m_noninherited.aspect_ratio; }
+    BoxSizing box_sizing_for_aspect_ratio() const
+    {
+        // https://drafts.csswg.org/css-sizing-4/#aspect-ratio
+        // For a preferred aspect ratio specified as `auto && <ratio>`, the ratio is applied to the content box.
+        if (aspect_ratio().use_natural_aspect_ratio_if_available)
+            return BoxSizing::ContentBox;
+        return box_sizing();
+    }
+
     Float float_() const { return m_noninherited.float_; }
     CSSPixels border_spacing_horizontal() const { return m_inherited.border_spacing_horizontal; }
     CSSPixels border_spacing_vertical() const { return m_inherited.border_spacing_vertical; }
