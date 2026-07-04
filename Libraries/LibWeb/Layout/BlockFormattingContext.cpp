@@ -880,8 +880,18 @@ CSSPixels BlockFormattingContext::compute_auto_height_for_block_level_element(Bo
     // The element's height is the distance from its top content edge to the first applicable of the following:
 
     // 1. the bottom edge of the last line box, if the box establishes a inline formatting context with one or more lines
-    if (box.children_are_inline() && !box_state.line_boxes.is_empty())
-        return box_state.line_boxes.last().bottom();
+    if (box.children_are_inline() && !box_state.line_boxes.is_empty()) {
+        auto height = box_state.line_boxes.last().bottom();
+        if (box_state.line_boxes.last().has_block_level_box()) {
+            auto margin_bottom = m_margin_state.current_collapsed_margin();
+            if (box_state.padding_bottom == 0 && box_state.border_bottom == 0) {
+                m_margin_state.set_box_last_in_flow_child_margin_bottom_collapsed(true);
+                margin_bottom = 0;
+            }
+            height = max(CSSPixels(0), height + margin_bottom);
+        }
+        return height;
+    }
 
     // 2. the bottom edge of the bottom (possibly collapsed) margin of its last in-flow child, if the child's bottom margin does not collapse with the element's bottom margin
     // 3. the bottom border edge of the last in-flow child whose top margin doesn't collapse with the element's bottom margin
@@ -926,6 +936,29 @@ CSSPixels BlockFormattingContext::compute_auto_height_for_block_level_element(Bo
 
     // 4. zero, otherwise
     return 0;
+}
+
+void BlockFormattingContext::layout_interrupting_block_inside_inline_context(Box const& box, BlockContainer const& containing_block, LayoutInput const& layout_input, LineBuilder& line_builder)
+{
+    CSSPixels dummy_bottom_of_lowest_margin_box = 0;
+    CSSPixels block_bottom;
+    {
+        TemporaryChange<Optional<CSSPixels>> change { m_y_offset_of_current_block_container, line_builder.current_block_offset() };
+        layout_block_level_box(box, containing_block, dummy_bottom_of_lowest_margin_box, layout_input);
+        block_bottom = m_y_offset_of_current_block_container.value_or(line_builder.current_block_offset());
+    }
+    line_builder.append_block_level_box(box, block_bottom, m_margin_state.current_collapsed_margin());
+}
+
+CSSPixels BlockFormattingContext::commit_pending_margin_before_inline_content()
+{
+    auto margin_collapses_with_block_container = m_margin_state.has_block_container_waiting_for_final_y_position();
+    auto collapsed_margin = m_margin_state.current_collapsed_margin();
+
+    m_margin_state.update_block_waiting_for_final_y_position();
+    m_margin_state.reset();
+
+    return margin_collapses_with_block_container ? CSSPixels(0) : collapsed_margin;
 }
 
 void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContainer const& block_container, CSSPixels& bottom_of_lowest_margin_box, LayoutInput const& layout_input)
@@ -1114,28 +1147,27 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
     } else {
         // This box participates in the current block container's flow.
         auto space_available_for_children = box.is_anonymous() ? available_space : box_state.available_inner_space_or_constraints_from(available_space);
-        if (box.children_are_inline()) {
-            layout_inline_children(as<BlockContainer>(box), layout_input, space_available_for_children);
-        } else {
-            auto registered_block_container_y_position_update_callback = false;
-            if (box_state.border_top > 0 || box_state.padding_top > 0) {
-                // margin-top of block container can't collapse with it's children if it has non zero border or padding
-                m_margin_state.reset();
-            } else if (!m_margin_state.has_block_container_waiting_for_final_y_position()) {
-                // margin-top of block container can be updated during children layout hence it's final y position yet to be determined
-                m_margin_state.register_block_container_y_position_update_callback([this, &box, y, introduce_clearance](CSSPixels margin_top) {
-                    if (introduce_clearance == DidIntroduceClearance::No) {
-                        place_block_level_element_in_normal_flow_vertically(box, margin_top + y);
-                    }
-                });
-                registered_block_container_y_position_update_callback = true;
-            }
+        auto registered_block_container_y_position_update_callback = false;
+        if (box_state.border_top > 0 || box_state.padding_top > 0) {
+            // margin-top of block container can't collapse with its children if it has non-zero border or padding.
+            m_margin_state.reset();
+        } else if (!m_margin_state.has_block_container_waiting_for_final_y_position()) {
+            // margin-top of block container can be updated during children layout hence its final y position is yet to be determined.
+            m_margin_state.register_block_container_y_position_update_callback([this, &box, y, introduce_clearance](CSSPixels margin_top) {
+                if (introduce_clearance == DidIntroduceClearance::No) {
+                    place_block_level_element_in_normal_flow_vertically(box, margin_top + y);
+                }
+            });
+            registered_block_container_y_position_update_callback = true;
+        }
 
+        if (box.children_are_inline())
+            layout_inline_children(as<BlockContainer>(box), layout_input, space_available_for_children);
+        else
             layout_block_level_children(as<BlockContainer>(box), layout_input, space_available_for_children);
 
-            if (registered_block_container_y_position_update_callback) {
-                m_margin_state.unregister_block_container_y_position_update_callback();
-            }
+        if (registered_block_container_y_position_update_callback) {
+            m_margin_state.unregister_block_container_y_position_update_callback();
         }
     }
 

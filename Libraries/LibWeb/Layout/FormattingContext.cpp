@@ -501,6 +501,9 @@ CSSPixels FormattingContext::greatest_child_width(Box const& box) const
 
 CSSPixels FormattingContext::line_box_physical_width(Box const& box, LineBox const& line_box)
 {
+    if (line_box.has_block_level_box())
+        return line_box.inline_length();
+
     if (box.computed_values().writing_mode() == CSS::WritingMode::HorizontalTb)
         return line_box.width();
 
@@ -601,8 +604,13 @@ CSSPixels FormattingContext::compute_auto_height_for_block_formatting_context_ro
         // the top content edge and the bottom of the bottommost line box.
         auto const& line_boxes = m_state.get(root).line_boxes;
         top = 0;
-        if (!line_boxes.is_empty())
+        if (!line_boxes.is_empty()) {
             bottom = line_boxes.last().bottom();
+            // A trailing interrupting block's bottom margin cannot collapse out of a BFC root,
+            // so it contributes to the root's auto height. The line box bottom excludes it.
+            if (line_boxes.last().has_block_level_box())
+                bottom = max(CSSPixels(0), bottom.value() + line_boxes.last().block_level_box_bottom_margin());
+        }
     } else {
         // If it has block-level children, the height is the distance between
         // the top margin-edge of the topmost block-level child box
@@ -2981,9 +2989,26 @@ CSSPixels FormattingContext::box_baseline(Box const& box, BaselineSet baseline_s
     bool derive_baseline_from_content = baseline_set == BaselineSet::First || is_flex_or_grid_container || has_visible_overflow;
 
     if (derive_baseline_from_content && !box_state.line_boxes.is_empty()) {
-        auto const& line_box = baseline_set == BaselineSet::First ? box_state.line_boxes.first() : box_state.line_boxes.last();
-        auto line_box_top = line_box.bottom() - line_box.block_length();
-        return box_state.margin_box_top() + line_box_top + line_box.baseline();
+        auto baseline_for_line_box = [&](LineBox const& line_box) {
+            if (!line_box.has_block_level_box()) {
+                auto line_box_top = line_box.bottom() - line_box.block_length();
+                return box_state.margin_box_top() + line_box_top + line_box.baseline();
+            }
+
+            VERIFY(line_box.fragments().size() == 1);
+            auto const& block_child = as<Box>(line_box.fragments().first().layout_node());
+            auto const& block_child_state = m_state.get(block_child);
+            auto child_offset_from_margin_edge = block_child_state.offset.y() - block_child_state.margin_box_top();
+            return box_state.margin_box_top() + child_offset_from_margin_edge + box_baseline(block_child, baseline_set);
+        };
+
+        if (baseline_set == BaselineSet::First) {
+            auto line_box = box_state.line_boxes.first_matching([](auto& line_box) { return !line_box.is_empty(); });
+            return baseline_for_line_box(line_box.value_or(box_state.line_boxes.first()));
+        }
+
+        auto line_box = box_state.line_boxes.last_matching([](auto& line_box) { return !line_box.is_empty(); });
+        return baseline_for_line_box(line_box.value_or(box_state.line_boxes.last()));
     }
 
     // Derive baseline from block children if this box derives its baseline from its content.

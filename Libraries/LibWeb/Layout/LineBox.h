@@ -59,6 +59,8 @@ public:
     bool is_empty_or_ends_in_whitespace() const;
     bool is_empty() const { return m_fragments.is_empty() && !m_has_break; }
     bool has_forced_break() const { return m_has_forced_break; }
+    bool has_block_level_box() const { return m_has_block_level_box; }
+    CSSPixels block_level_box_bottom_margin() const { return m_block_level_box_bottom_margin; }
 
     AvailableSize original_available_width() const { return m_original_available_width; }
 
@@ -80,6 +82,9 @@ private:
     CSSPixels m_block_length { 0 };
     CSSPixels m_bottom { 0 };
     CSSPixels m_baseline { 0 };
+    // For a line box holding an interrupting block-level box: the block's pending (collapsed) bottom margin,
+    // which is not included in m_bottom. Needed to size BFC roots whose last line is such a line.
+    CSSPixels m_block_level_box_bottom_margin { 0 };
     CSS::Direction m_direction { CSS::Direction::Ltr };
     CSS::WritingMode m_writing_mode { CSS::WritingMode::HorizontalTb };
 
@@ -88,6 +93,7 @@ private:
 
     bool m_has_break { false };
     bool m_has_forced_break { false };
+    bool m_has_block_level_box { false };
 };
 
 }

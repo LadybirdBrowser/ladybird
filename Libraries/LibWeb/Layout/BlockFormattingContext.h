@@ -57,6 +57,9 @@ public:
 
     void layout_floating_box(Box const& child, BlockContainer const& containing_block, LayoutInput const&, CSSPixels y, LineBuilder* = nullptr);
 
+    void layout_interrupting_block_inside_inline_context(Box const&, BlockContainer const& containing_block, LayoutInput const&, LineBuilder&);
+    CSSPixels commit_pending_margin_before_inline_content();
+
     void layout_block_level_box(Box const&, BlockContainer const&, CSSPixels& bottom_of_lowest_margin_box, LayoutInput const&);
 
     void resolve_vertical_box_model_metrics(Box const&, CSSPixels width_of_containing_block);

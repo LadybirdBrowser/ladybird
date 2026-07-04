@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/Dump.h>
@@ -74,10 +75,14 @@ void InlineFormattingContext::run(LayoutInput const& layout_input)
     m_layout_input.emplace(layout_input);
     generate_line_boxes();
 
+    auto const& line_boxes = m_containing_block_used_values.line_boxes;
     CSSPixels content_height = 0;
-
-    for (auto& line_box : m_containing_block_used_values.line_boxes)
-        content_height += line_box.height();
+    if (any_of(line_boxes, [](auto& line_box) { return line_box.has_block_level_box(); })) {
+        content_height = line_boxes.last().bottom();
+    } else {
+        for (auto& line_box : line_boxes)
+            content_height += line_box.height();
+    }
 
     // NOTE: We ask the parent BFC to calculate the automatic content width of this IFC.
     //       This ensures that any floated boxes are taken into account.
@@ -370,11 +375,13 @@ void InlineFormattingContext::generate_line_boxes()
         auto& item = item_opt.value();
 
         // Ignore collapsible whitespace chunks at the start of line, and if the last fragment already ends in whitespace.
-        if (item.is_collapsible_whitespace && (line_boxes.is_empty() || line_boxes.last().is_empty_or_ends_in_whitespace())) {
+        if (item.is_collapsible_whitespace && (line_boxes.is_empty() || line_boxes.last().is_empty_or_ends_in_whitespace() || line_boxes.last().has_block_level_box())) {
             if (item.node->computed_values().text_wrap_mode() == CSS::TextWrapMode::Wrap) {
                 auto next_width = iterator.next_non_whitespace_sequence_width();
-                if (next_width > 0)
+                if (next_width > 0) {
+                    line_builder.prepare_to_append_inline_content();
                     line_builder.break_if_needed(next_width);
+                }
             }
             leading_margin_from_collapsible_whitespace += item.margin_start;
             leading_border_from_collapsible_whitespace += item.border_start;
@@ -403,6 +410,7 @@ void InlineFormattingContext::generate_line_boxes()
         }
         case InlineLevelIterator::Item::Type::Element: {
             auto& box = as<Layout::Box>(*item.node);
+            line_builder.prepare_to_append_inline_content();
             compute_inset(box, content_box_rect(m_containing_block_used_values).size());
             if (containing_block().computed_values().text_wrap_mode() == CSS::TextWrapMode::Wrap) {
                 auto minimum_space_needed_on_line = item.border_box_width();
@@ -415,8 +423,19 @@ void InlineFormattingContext::generate_line_boxes()
             line_builder.append_box(box, item.border_start + item.padding_start, item.padding_end + item.border_end, item.margin_start, item.margin_end);
             break;
         }
-        case InlineLevelIterator::Item::Type::BlockLevelBox:
-            VERIFY_NOT_REACHED();
+        case InlineLevelIterator::Item::Type::BlockLevelBox: {
+            auto& box = as<Layout::Box>(*item.node);
+            // The interrupting block cannot carry inline start-edge PBM; stash it back so it attaches to the next
+            // inline item instead of being dropped.
+            // FIXME: InlineLevelIterator's pending leading inline PBM still attaches to content after an interrupting
+            // block, even though the inline start edge should render on the line before the block.
+            leading_margin_from_collapsible_whitespace += item.margin_start;
+            leading_border_from_collapsible_whitespace += item.border_start;
+            leading_padding_from_collapsible_whitespace += item.padding_start;
+            line_builder.finish_current_line_before_block_level_box();
+            parent().layout_interrupting_block_inside_inline_context(box, containing_block(), *m_layout_input, line_builder);
+            break;
+        }
         case InlineLevelIterator::Item::Type::AbsolutelyPositionedElement:
             if (auto const* box = as_if<Box>(*item.node)) {
                 line_builder.append_static_position_marker(*box);
@@ -426,6 +445,7 @@ void InlineFormattingContext::generate_line_boxes()
 
         case InlineLevelIterator::Item::Type::FloatingElement:
             if (auto* box = as_if<Box>(*item.node)) {
+                line_builder.commit_pending_margin_before_float();
                 if (!is<ListItemMarkerBox>(*box))
                     m_state.create(*box, m_layout_input->containing_block_constraints.percentage_basis_width, m_layout_input->containing_block_constraints.percentage_basis_height);
                 (void)parent().clear_floating_boxes(*item.node, *this);
@@ -437,6 +457,7 @@ void InlineFormattingContext::generate_line_boxes()
 
         case InlineLevelIterator::Item::Type::Text: {
             auto& text_node = as<Layout::TextNode>(*item.node);
+            line_builder.prepare_to_append_inline_content();
 
             if (text_node.computed_values().text_wrap_mode() == CSS::TextWrapMode::Wrap) {
                 bool is_whitespace = false;

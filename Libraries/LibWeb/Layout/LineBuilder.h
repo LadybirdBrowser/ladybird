@@ -26,6 +26,10 @@ public:
     void append_box(Box const&, CSSPixels leading_size, CSSPixels trailing_size, CSSPixels leading_margin, CSSPixels trailing_margin);
     void append_text_chunk(TextNode const&, size_t offset_in_node, size_t length_in_node, CSSPixels leading_size, CSSPixels trailing_size, CSSPixels leading_margin, CSSPixels trailing_margin, CSSPixels content_width, CSSPixels content_height, RefPtr<Gfx::GlyphRun>);
     void append_static_position_marker(Box const&);
+    void prepare_to_append_inline_content();
+    void commit_pending_margin_before_float();
+    void finish_current_line_before_block_level_box();
+    void append_block_level_box(Box const&, CSSPixels block_bottom, CSSPixels block_bottom_margin);
 
     // Returns whether a line break occurred.
     bool break_if_needed(CSSPixels next_item_width)
@@ -71,6 +75,8 @@ private:
 
     bool m_last_line_needs_update { false };
     bool m_should_advance_to_last_line_box_bottom { false };
+    bool m_current_line_committed_pending_margin { false };
+    bool m_pending_margin_follows_block_level_box { false };
 };
 
 }
