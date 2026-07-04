@@ -1,0 +1,16 @@
+<!doctype html>
+<svg id="resources" xmlns="http://www.w3.org/2000/svg" style="display: none"></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">
+    <rect id="rect" width="100" height="100" fill="red"/>
+</svg>
+<script>
+    document.body.offsetWidth;
+
+    const svgNamespace = "http://www.w3.org/2000/svg";
+    const gradient = document.createElementNS(svgNamespace, "linearGradient");
+    gradient.id = "gradient";
+    gradient.setAttribute("color-interpolation", "linearRGB");
+    resources.appendChild(gradient);
+
+    rect.setAttribute("fill", "url(#gradient)");
+</script>

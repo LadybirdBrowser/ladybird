@@ -57,6 +57,16 @@ static void apply_document_style_invalidation_after_style_change(DOM::Document& 
         document.invalidate_stacking_context_tree();
 }
 
+enum class StyleUpdateTraversal : u8 {
+    Normal,
+    TraverseDisplayNoneSubtrees,
+};
+
+enum class StyleInvalidationBehavior : u8 {
+    Apply,
+    Suppress,
+};
+
 class ScopedStyleComputerAncestorChain {
 public:
     ScopedStyleComputerAncestorChain(StyleComputer& style_computer, DOM::Element& element)
@@ -89,12 +99,16 @@ struct StyleUpdateFrame {
         bool needs_inherited_style_update,
         bool recompute_elements_depending_on_custom_properties,
         bool parent_display_changed,
-        bool ancestor_needs_descendant_style_recompute)
+        bool ancestor_needs_descendant_style_recompute,
+        StyleUpdateTraversal traversal,
+        StyleInvalidationBehavior invalidation_behavior)
         : node(node)
         , needs_inherited_style_update(needs_inherited_style_update)
         , recompute_elements_depending_on_custom_properties(recompute_elements_depending_on_custom_properties)
         , parent_display_changed(parent_display_changed)
         , ancestor_needs_descendant_style_recompute(ancestor_needs_descendant_style_recompute)
+        , traversal(traversal)
+        , invalidation_behavior(invalidation_behavior)
     {
     }
 
@@ -115,6 +129,8 @@ struct StyleUpdateFrame {
     bool should_descend { false };
     bool did_enter { false };
     bool did_visit_shadow_root { false };
+    StyleUpdateTraversal traversal { StyleUpdateTraversal::Normal };
+    StyleInvalidationBehavior invalidation_behavior { StyleInvalidationBehavior::Apply };
 };
 
 static void enter_style_update_frame(StyleUpdateFrame& frame, StyleComputer& style_computer)
@@ -138,6 +154,7 @@ static void enter_style_update_frame(StyleUpdateFrame& frame, StyleComputer& sty
 
         if (frame.needs_full_style_update
             || node.needs_style_update()
+            || (frame.traversal == StyleUpdateTraversal::TraverseDisplayNoneSubtrees && !element.computed_properties())
             || frame.parent_display_changed
             || frame.ancestor_needs_descendant_style_recompute
             || (frame.recompute_elements_depending_on_custom_properties && (element.style_uses_var_css_function() || element.style_uses_inherit_css_function()))
@@ -151,7 +168,10 @@ static void enter_style_update_frame(StyleUpdateFrame& frame, StyleComputer& sty
         }
         frame.is_display_none = element.computed_properties()->display().is_none();
 
-        apply_element_style_invalidation_after_style_change(element, frame.node_invalidation, !frame.node_invalidation.is_none(), !frame.needs_inherited_style_update);
+        if (frame.invalidation_behavior == StyleInvalidationBehavior::Suppress)
+            element.set_needs_style_update(false);
+        else
+            apply_element_style_invalidation_after_style_change(element, frame.node_invalidation, !frame.node_invalidation.is_none(), !frame.needs_inherited_style_update);
     }
 
     if (!node.is_element())
@@ -174,10 +194,19 @@ static void enter_style_update_frame(StyleUpdateFrame& frame, StyleComputer& sty
     //               lazily. We can therefore skip the descent entirely. The exception is when display itself just
     //               changed or the document needs a full style update. In those cases descendants must be re-cascaded
     //               eagerly.
-    frame.skip_display_none_descent = frame.is_display_none && !frame.needs_full_style_update && !frame.children_need_full_style_recompute;
+    frame.skip_display_none_descent = frame.traversal == StyleUpdateTraversal::Normal
+        && frame.is_display_none
+        && !frame.needs_full_style_update
+        && !frame.children_need_full_style_recompute;
+    if (frame.skip_display_none_descent
+        && (did_change_custom_properties
+            || frame.node_invalidation.inherited_style_changed
+            || frame.node_invalidation.recompute_descendant_styles))
+        node.set_child_needs_style_update(true);
 
     frame.should_descend = !frame.skip_display_none_descent
-        && (frame.needs_full_style_update
+        && (frame.traversal == StyleUpdateTraversal::TraverseDisplayNoneSubtrees
+            || frame.needs_full_style_update
             || node.child_needs_style_update()
             || frame.children_need_inherited_style_update
             || frame.recompute_elements_depending_on_custom_properties
@@ -189,6 +218,11 @@ static void enter_style_update_frame(StyleUpdateFrame& frame, StyleComputer& sty
 
 static bool should_update_style_for_child(StyleUpdateFrame const& frame, DOM::Node const& child, bool child_needs_inherited_style_update)
 {
+    if (frame.traversal == StyleUpdateTraversal::TraverseDisplayNoneSubtrees) {
+        if (auto const* element = as_if<DOM::Element>(child); element && !element->computed_properties())
+            return true;
+    }
+
     return frame.needs_full_style_update
         || child.needs_style_update()
         || child_needs_inherited_style_update
@@ -213,13 +247,17 @@ static void push_style_update_frame_for_child(GC::ConservativeVector<StyleUpdate
     auto recompute_elements_depending_on_custom_properties = parent_frame.recompute_elements_depending_on_custom_properties;
     auto children_need_full_style_recompute = parent_frame.children_need_full_style_recompute;
     auto descendant_style_recompute_needed = parent_frame.descendant_style_recompute_needed;
+    auto traversal = parent_frame.traversal;
+    auto invalidation_behavior = parent_frame.invalidation_behavior;
 
     stack.empend(
         child,
         child_needs_inherited_style_update,
         recompute_elements_depending_on_custom_properties,
         children_need_full_style_recompute,
-        descendant_style_recompute_needed);
+        descendant_style_recompute_needed,
+        traversal,
+        invalidation_behavior);
 }
 
 [[nodiscard]] static RequiredInvalidationAfterStyleChange update_style_iteratively(
@@ -228,10 +266,12 @@ static void push_style_update_frame_for_child(GC::ConservativeVector<StyleUpdate
     bool needs_inherited_style_update,
     bool recompute_elements_depending_on_custom_properties,
     bool parent_display_changed,
-    bool ancestor_needs_descendant_style_recompute)
+    bool ancestor_needs_descendant_style_recompute,
+    StyleUpdateTraversal traversal = StyleUpdateTraversal::Normal,
+    StyleInvalidationBehavior invalidation_behavior = StyleInvalidationBehavior::Apply)
 {
     GC::ConservativeVector<StyleUpdateFrame, 32> stack;
-    stack.empend(root, needs_inherited_style_update, recompute_elements_depending_on_custom_properties, parent_display_changed, ancestor_needs_descendant_style_recompute);
+    stack.empend(root, needs_inherited_style_update, recompute_elements_depending_on_custom_properties, parent_display_changed, ancestor_needs_descendant_style_recompute, traversal, invalidation_behavior);
 
     RequiredInvalidationAfterStyleChange root_invalidation;
     while (!stack.is_empty()) {
@@ -279,7 +319,7 @@ static void push_style_update_frame_for_child(GC::ConservativeVector<StyleUpdate
         }
 
         auto& parent_frame = stack.last();
-        if (!parent_frame.is_display_none)
+        if (parent_frame.traversal == StyleUpdateTraversal::TraverseDisplayNoneSubtrees || !parent_frame.is_display_none)
             parent_frame.invalidation |= frame_invalidation;
     }
 
@@ -506,6 +546,34 @@ ComputedProperties const* update_style_for_element(DOM::Document& document, DOM:
     }
 
     return abstract_element.computed_properties();
+}
+
+void update_style_for_subtree_including_display_none(DOM::Document& document, DOM::Element const& subtree_root)
+{
+    auto& root = const_cast<DOM::Element&>(subtree_root);
+
+    auto* update_root = &root;
+    for (auto* ancestor = &root; ancestor; ancestor = ancestor->parent_or_shadow_host_element()) {
+        if (!ancestor->computed_properties())
+            update_root = ancestor;
+        if (auto const properties = ancestor->computed_properties(); properties && properties->display().is_none())
+            update_root = ancestor;
+    }
+
+    auto force_descendant_style_recompute = update_root->child_needs_style_update();
+
+    if (update_root->computed_properties() && !update_root->needs_style_update() && !force_descendant_style_recompute)
+        return;
+
+    VERIFY(&update_root->document() == &document);
+
+    document.style_computer().reset_has_result_cache();
+
+    auto& style_computer = document.style_computer();
+    ScopedStyleComputerAncestorChain scoped_ancestor_chain { style_computer, *update_root };
+
+    (void)update_style_iteratively(*update_root, style_computer, false, false, false, force_descendant_style_recompute, StyleUpdateTraversal::TraverseDisplayNoneSubtrees, StyleInvalidationBehavior::Suppress);
+    document.update_animated_style_if_needed();
 }
 
 bool element_needs_style_update(DOM::Document const& document, DOM::AbstractElement const& abstract_element)

@@ -10,6 +10,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SVGGraphicsElement.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/UpdateStyle.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Geometry/DOMRect.h>
@@ -61,9 +62,12 @@ Optional<Painting::PaintStyle> SVGGraphicsElement::svg_paint_computed_value_to_g
     // FIXME: This entire function is an ad-hoc hack:
     if (!paint_value.has_value() || !paint_value->is_url())
         return {};
-    if (auto gradient = try_resolve_url_to<SVG::SVGGradientElement const>(paint_value->as_url()))
+    if (auto gradient = try_resolve_url_to<SVG::SVGGradientElement const>(paint_value->as_url())) {
+        CSS::update_style_for_subtree_including_display_none(const_cast<DOM::Document&>(document()), *gradient);
         return gradient->to_gfx_paint_style(paint_context);
+    }
     if (auto pattern = try_resolve_url_to<SVG::SVGPatternElement const>(paint_value->as_url())) {
+        CSS::update_style_for_subtree_including_display_none(const_cast<DOM::Document&>(document()), *pattern);
         if (recording_context && layout_node())
             return pattern->to_gfx_paint_style(paint_context, *recording_context, *layout_node());
     }
