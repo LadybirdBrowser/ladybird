@@ -396,6 +396,7 @@ void SettingsUI::estimate_browsing_data_sizes(JsonValue const& options)
         return;
 
     auto& application = Application::the();
+    auto weak_this = static_cast<Core::EventReceiver&>(*this).make_weak_ptr();
 
     auto since = [&]() {
         if (auto since = options.as_object().get_integer<i64>("since"sv); since.has_value())
@@ -404,7 +405,14 @@ void SettingsUI::estimate_browsing_data_sizes(JsonValue const& options)
     }();
 
     application.estimate_browsing_data_size_accessed_since(since)
-        ->when_resolved([this](Application::BrowsingDataSizes sizes) {
+        ->when_resolved([weak_this](Application::BrowsingDataSizes const& sizes) {
+            if (!weak_this)
+                return;
+
+            auto& settings_ui = static_cast<SettingsUI&>(*weak_this.ptr());
+            if (!settings_ui.is_open())
+                return;
+
             JsonObject result;
 
             result.set("cacheSizeSinceRequestedTime"sv, sizes.cache_size_since_requested_time);
@@ -413,7 +421,7 @@ void SettingsUI::estimate_browsing_data_sizes(JsonValue const& options)
             result.set("siteDataSizeSinceRequestedTime"sv, sizes.site_data_size_since_requested_time);
             result.set("totalSiteDataSize"sv, sizes.total_site_data_size);
 
-            async_send_message("estimatedBrowsingDataSizes"sv, move(result));
+            settings_ui.async_send_message("estimatedBrowsingDataSizes"sv, move(result));
         })
         .when_rejected([](Error const& error) {
             dbgln("Failed to estimate browsing data sizes: {}", error);
