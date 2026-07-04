@@ -819,7 +819,17 @@ CSSPixels FormattingContext::tentative_width_for_replaced_element(Box const& box
     // depend on the replaced element's width, then the used value of 'width' is calculated from the constraint equation used for block-level,
     // non-replaced elements in normal flow.
     if (computed_height.is_auto() && computed_width.is_auto() && !intrinsic.has_width() && !intrinsic.has_height() && box.has_preferred_aspect_ratio()) {
-        return calculate_stretch_fit_width(box, available_space.width);
+        if (!available_space.width.is_intrinsic_sizing_constraint())
+            return calculate_stretch_fit_width(box, available_space.width);
+
+        switch (cyclic_percentage_intrinsic_contribution(box, box.computed_values().width(), available_space.width, CyclicPercentageSizeProperty::PreferredOrMaxSize)) {
+        case CyclicPercentageIntrinsicContribution::ResolveAsZero:
+            return 0;
+        case CyclicPercentageIntrinsicContribution::TreatAsInitialValue:
+            break;
+        case CyclicPercentageIntrinsicContribution::NotCyclic:
+            return calculate_stretch_fit_width(box, available_space.width);
+        }
     }
 
     // Otherwise, if 'width' has a computed value of 'auto', and the element has an intrinsic width, then that intrinsic width is the used value of 'width'.
