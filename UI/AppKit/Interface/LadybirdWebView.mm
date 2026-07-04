@@ -65,6 +65,7 @@ static bool is_browser_reserved_key_equivalent(NSEvent* event)
     return character == 'l'
         || character == 'n'
         || character == 'q'
+        || character == 'r'
         || character == 't'
         || character == 'w';
 }

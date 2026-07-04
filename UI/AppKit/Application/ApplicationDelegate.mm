@@ -331,6 +331,9 @@
     auto* menu = [[NSMenuItem alloc] init];
     auto* submenu = [[NSMenu alloc] initWithTitle:@"View"];
 
+    [submenu addItem:Ladybird::create_application_menu_item(WebView::Application::the().reload_action())];
+    [submenu addItem:[NSMenuItem separatorItem]];
+
     [submenu addItem:Ladybird::create_application_menu_item(WebView::Application::the().zoom_menu())];
     [submenu addItem:[NSMenuItem separatorItem]];
     [submenu addItem:Ladybird::create_application_menu_item(WebView::Application::the().color_scheme_menu())];
