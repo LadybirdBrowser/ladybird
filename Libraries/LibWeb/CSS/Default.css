@@ -26,6 +26,7 @@ label {
 /* FIXME: This is a temporary hack until we can render a native-looking frame for these. */
 input:not([type=submit], input[type=button], input[type=image], input[type=reset], input[type=color], input[type=checkbox], input[type=file], input[type=radio], input[type=range]), textarea {
     border: 1px solid ButtonBorder;
+    padding: 1px 2px;
     min-height: 16px;
     cursor: text;
 

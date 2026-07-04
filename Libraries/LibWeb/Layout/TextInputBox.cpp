@@ -24,9 +24,7 @@ CSS::SizeWithAspectRatio TextInputBox::auto_content_box_size_for_text_control(HT
     //        size attribute should only affect the width of the text entry types (text, search, tel, url, email,
     //        password). The other types using this box are domain-specific widgets that should ignore it.
     auto width = CSS::Length(input_element.size(), CSS::LengthUnit::Ch).to_px(box);
-    auto height = box.computed_values().line_height() + CSSPixels(2);
-    // FIXME: 2px is inline shadow DOM padding in HTMLInputElement::create_text_input_shadow_tree(). Find a better way
-    //        to handle sizing to the line height.
+    auto height = box.computed_values().line_height();
 
     if (box.computed_values().writing_mode() != CSS::WritingMode::HorizontalTb)
         swap(width, height);

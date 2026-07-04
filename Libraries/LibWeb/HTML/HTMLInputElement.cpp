@@ -1179,7 +1179,6 @@ void HTMLInputElement::create_text_input_shadow_tree()
                 align-items: center;
                 white-space: pre;
                 border: none;
-                padding: 1px 2px;
             )~~~"sv);
         }
         element->set_inline_style(*style);

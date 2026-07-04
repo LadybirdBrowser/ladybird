@@ -1,55 +1,55 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 24 0+0+8] children: inline
-      frag 0 from TextInputBox start: 0, length: 0, rect: [9,10 200x20] baseline: 19
-      frag 1 from TextNode start: 0, length: 1, rect: [210,14 8x18] baseline: 13.796875
+      frag 0 from TextInputBox start: 0, length: 0, rect: [11,11 200x18] baseline: 19
+      frag 1 from TextNode start: 0, length: 1, rect: [214,14 8x18] baseline: 13.796875
           " "
-      frag 2 from TextInputBox start: 0, length: 0, rect: [219,10 200x20] baseline: 19
-      frag 3 from TextNode start: 0, length: 1, rect: [420,14 8x18] baseline: 13.796875
+      frag 2 from TextInputBox start: 0, length: 0, rect: [225,11 200x18] baseline: 19
+      frag 3 from TextNode start: 0, length: 1, rect: [428,14 8x18] baseline: 13.796875
           " "
-      frag 4 from TextInputBox start: 0, length: 0, rect: [429,9 200x20] baseline: 20
-      TextInputBox <input> at [9,10] inline-block [0+1+0 200 0+1+0] [0+1+0 20 0+1+0] [BFC] children: not-inline
-        Box <div> at [11,11] flex-container(row) [0+0+2 196 2+0+0] [0+0+1 20 1+0+0] [FFC] children: not-inline
-          BlockContainer <div> at [11,12] flex-item [0+0+0 160 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+      frag 4 from TextInputBox start: 0, length: 0, rect: [439,10 200x18] baseline: 20
+      TextInputBox <input> at [11,11] inline-block [0+1+2 200 2+1+0] [0+1+1 18 1+1+0] [BFC] children: not-inline
+        Box <div> at [11,11] flex-container(row) [0+0+0 200 0+0+0] [0+0+0 20 0+0+0] [FFC] children: not-inline
+          BlockContainer <div> at [11,12] flex-item [0+0+0 164 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
             frag 0 from TextNode start: 0, length: 1, rect: [11,12 6.34375x18] baseline: 13.796875
                 "1"
             TextNode <#text> (not painted)
-          BlockContainer <button> at [172,12] flex-item [0+1+0 16 0+1+0] [0+1+0 18 0+1+0] [BFC] children: not-inline
-            BlockContainer <(anonymous)> at [172,12] flex-container(column) [0+0+0 16 0+0+0] [0+0+0 18 0+0+0] [FFC] children: not-inline
-              BlockContainer <(anonymous)> at [172,12] flex-item [0+0+0 16 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
-                frag 0 from SVGSVGBox start: 0, length: 0, rect: [172,12 16x16] baseline: 16
-                SVGSVGBox <svg> at [172,12] [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [SVG] children: not-inline
-                  SVGGeometryBox <path> at [176,17.328125] [0+0+0 8 0+0+0] [0+0+0 4.9375 0+0+0] children: not-inline
-          BlockContainer <button> at [190,12] flex-item [0+1+0 16 0+1+0] [0+1+0 18 0+1+0] [BFC] children: not-inline
-            BlockContainer <(anonymous)> at [190,12] flex-container(column) [0+0+0 16 0+0+0] [0+0+0 18 0+0+0] [FFC] children: not-inline
-              BlockContainer <(anonymous)> at [190,12] flex-item [0+0+0 16 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
-                frag 0 from SVGSVGBox start: 0, length: 0, rect: [190,12 16x16] baseline: 16
-                SVGSVGBox <svg> at [190,12] [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [SVG] children: not-inline
-                  SVGGeometryBox <path> at [194,17.71875] [0+0+0 8 0+0+0] [0+0+0 4.953125 0+0+0] children: not-inline
+          BlockContainer <button> at [176,12] flex-item [0+1+0 16 0+1+0] [0+1+0 18 0+1+0] [BFC] children: not-inline
+            BlockContainer <(anonymous)> at [176,12] flex-container(column) [0+0+0 16 0+0+0] [0+0+0 18 0+0+0] [FFC] children: not-inline
+              BlockContainer <(anonymous)> at [176,12] flex-item [0+0+0 16 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+                frag 0 from SVGSVGBox start: 0, length: 0, rect: [176,12 16x16] baseline: 16
+                SVGSVGBox <svg> at [176,12] [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [SVG] children: not-inline
+                  SVGGeometryBox <path> at [180,17.328125] [0+0+0 8 0+0+0] [0+0+0 4.9375 0+0+0] children: not-inline
+          BlockContainer <button> at [194,12] flex-item [0+1+0 16 0+1+0] [0+1+0 18 0+1+0] [BFC] children: not-inline
+            BlockContainer <(anonymous)> at [194,12] flex-container(column) [0+0+0 16 0+0+0] [0+0+0 18 0+0+0] [FFC] children: not-inline
+              BlockContainer <(anonymous)> at [194,12] flex-item [0+0+0 16 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+                frag 0 from SVGSVGBox start: 0, length: 0, rect: [194,12 16x16] baseline: 16
+                SVGSVGBox <svg> at [194,12] [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [SVG] children: not-inline
+                  SVGGeometryBox <path> at [198,17.71875] [0+0+0 8 0+0+0] [0+0+0 4.953125 0+0+0] children: not-inline
       TextNode <#text> (not painted)
-      TextInputBox <input> at [219,10] inline-block [0+1+0 200 0+1+0] [0+1+0 20 0+1+0] [BFC] children: not-inline
-        Box <div> at [221,11] flex-container(row) [0+0+2 196 2+0+0] [0+0+1 20 1+0+0] [FFC] children: not-inline
-          BlockContainer <div> at [221,12] flex-item [0+0+0 160 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 1, rect: [221,12 8.8125x18] baseline: 13.796875
+      TextInputBox <input> at [225,11] inline-block [0+1+2 200 2+1+0] [0+1+1 18 1+1+0] [BFC] children: not-inline
+        Box <div> at [225,11] flex-container(row) [0+0+0 200 0+0+0] [0+0+0 20 0+0+0] [FFC] children: not-inline
+          BlockContainer <div> at [225,12] flex-item [0+0+0 164 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 1, rect: [225,12 8.8125x18] baseline: 13.796875
                 "2"
             TextNode <#text> (not painted)
-          BlockContainer <button> at [382,12] flex-item [0+1+0 16 0+1+0] [0+1+0 18 0+1+0] [BFC] children: not-inline
-            BlockContainer <(anonymous)> at [382,12] flex-container(column) [0+0+0 16 0+0+0] [0+0+0 18 0+0+0] [FFC] children: not-inline
-              BlockContainer <(anonymous)> at [382,12] flex-item [0+0+0 16 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
-                frag 0 from SVGSVGBox start: 0, length: 0, rect: [382,12 16x16] baseline: 16
-                SVGSVGBox <svg> at [382,12] [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [SVG] children: not-inline
-                  SVGGeometryBox <path> at [386,17.328125] [0+0+0 8 0+0+0] [0+0+0 4.9375 0+0+0] children: not-inline
-          BlockContainer <button> at [400,12] flex-item [0+1+0 16 0+1+0] [0+1+0 18 0+1+0] [BFC] children: not-inline
-            BlockContainer <(anonymous)> at [400,12] flex-container(column) [0+0+0 16 0+0+0] [0+0+0 18 0+0+0] [FFC] children: not-inline
-              BlockContainer <(anonymous)> at [400,12] flex-item [0+0+0 16 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
-                frag 0 from SVGSVGBox start: 0, length: 0, rect: [400,12 16x16] baseline: 16
-                SVGSVGBox <svg> at [400,12] [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [SVG] children: not-inline
-                  SVGGeometryBox <path> at [404,17.71875] [0+0+0 8 0+0+0] [0+0+0 4.953125 0+0+0] children: not-inline
+          BlockContainer <button> at [390,12] flex-item [0+1+0 16 0+1+0] [0+1+0 18 0+1+0] [BFC] children: not-inline
+            BlockContainer <(anonymous)> at [390,12] flex-container(column) [0+0+0 16 0+0+0] [0+0+0 18 0+0+0] [FFC] children: not-inline
+              BlockContainer <(anonymous)> at [390,12] flex-item [0+0+0 16 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+                frag 0 from SVGSVGBox start: 0, length: 0, rect: [390,12 16x16] baseline: 16
+                SVGSVGBox <svg> at [390,12] [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [SVG] children: not-inline
+                  SVGGeometryBox <path> at [394,17.328125] [0+0+0 8 0+0+0] [0+0+0 4.9375 0+0+0] children: not-inline
+          BlockContainer <button> at [408,12] flex-item [0+1+0 16 0+1+0] [0+1+0 18 0+1+0] [BFC] children: not-inline
+            BlockContainer <(anonymous)> at [408,12] flex-container(column) [0+0+0 16 0+0+0] [0+0+0 18 0+0+0] [FFC] children: not-inline
+              BlockContainer <(anonymous)> at [408,12] flex-item [0+0+0 16 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+                frag 0 from SVGSVGBox start: 0, length: 0, rect: [408,12 16x16] baseline: 16
+                SVGSVGBox <svg> at [408,12] [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [SVG] children: not-inline
+                  SVGGeometryBox <path> at [412,17.71875] [0+0+0 8 0+0+0] [0+0+0 4.953125 0+0+0] children: not-inline
       TextNode <#text> (not painted)
-      TextInputBox <input> at [429,9] inline-block [0+1+0 200 0+1+0] [0+1+0 20 0+1+0] [BFC] children: not-inline
-        Box <div> at [431,10] flex-container(row) [0+0+2 196 2+0+0] [0+0+1 18 1+0+0] [FFC] children: not-inline
-          BlockContainer <div> at [431,10] flex-item [0+0+0 196 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 1, rect: [431,10 9.09375x18] baseline: 13.796875
+      TextInputBox <input> at [439,10] inline-block [0+1+2 200 2+1+0] [0+1+1 18 1+1+0] [BFC] children: not-inline
+        Box <div> at [439,10] flex-container(row) [0+0+0 200 0+0+0] [0+0+0 18 0+0+0] [FFC] children: not-inline
+          BlockContainer <div> at [439,10] flex-item [0+0+0 200 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 1, rect: [439,10 9.09375x18] baseline: 13.796875
                 "3"
             TextNode <#text> (not painted)
       TextNode <#text> (not painted)
@@ -57,35 +57,35 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x40]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x24]
-      PaintableWithLines (TextInputBox<INPUT>) [8,9 202x22]
-        PaintableBox (Box<DIV>) [9,10 200x22]
-          PaintableWithLines (BlockContainer<DIV>) [11,12 160x18]
-          PaintableWithLines (BlockContainer<BUTTON>) [171,11 18x20]
-            PaintableWithLines (BlockContainer(anonymous)) [172,12 16x18]
-              PaintableWithLines (BlockContainer(anonymous)) [172,12 16x18]
-                SVGSVGPaintable (SVGSVGBox<svg>) [172,12 16x16]
-                  SVGPathPaintable (SVGGeometryBox<path>) [176,17.328125 8x4.9375]
-          PaintableWithLines (BlockContainer<BUTTON>) [189,11 18x20]
-            PaintableWithLines (BlockContainer(anonymous)) [190,12 16x18]
-              PaintableWithLines (BlockContainer(anonymous)) [190,12 16x18]
-                SVGSVGPaintable (SVGSVGBox<svg>) [190,12 16x16]
-                  SVGPathPaintable (SVGGeometryBox<path>) [194,17.71875 8x4.953125]
-      PaintableWithLines (TextInputBox<INPUT>) [218,9 202x22]
-        PaintableBox (Box<DIV>) [219,10 200x22]
-          PaintableWithLines (BlockContainer<DIV>) [221,12 160x18]
-          PaintableWithLines (BlockContainer<BUTTON>) [381,11 18x20]
-            PaintableWithLines (BlockContainer(anonymous)) [382,12 16x18]
-              PaintableWithLines (BlockContainer(anonymous)) [382,12 16x18]
-                SVGSVGPaintable (SVGSVGBox<svg>) [382,12 16x16]
-                  SVGPathPaintable (SVGGeometryBox<path>) [386,17.328125 8x4.9375]
-          PaintableWithLines (BlockContainer<BUTTON>) [399,11 18x20]
-            PaintableWithLines (BlockContainer(anonymous)) [400,12 16x18]
-              PaintableWithLines (BlockContainer(anonymous)) [400,12 16x18]
-                SVGSVGPaintable (SVGSVGBox<svg>) [400,12 16x16]
-                  SVGPathPaintable (SVGGeometryBox<path>) [404,17.71875 8x4.953125]
-      PaintableWithLines (TextInputBox<INPUT>) [428,8 202x22]
-        PaintableBox (Box<DIV>) [429,9 200x20]
-          PaintableWithLines (BlockContainer<DIV>) [431,10 196x18]
+      PaintableWithLines (TextInputBox<INPUT>) [8,9 206x22]
+        PaintableBox (Box<DIV>) [11,11 200x20]
+          PaintableWithLines (BlockContainer<DIV>) [11,12 164x18]
+          PaintableWithLines (BlockContainer<BUTTON>) [175,11 18x20]
+            PaintableWithLines (BlockContainer(anonymous)) [176,12 16x18]
+              PaintableWithLines (BlockContainer(anonymous)) [176,12 16x18]
+                SVGSVGPaintable (SVGSVGBox<svg>) [176,12 16x16]
+                  SVGPathPaintable (SVGGeometryBox<path>) [180,17.328125 8x4.9375]
+          PaintableWithLines (BlockContainer<BUTTON>) [193,11 18x20]
+            PaintableWithLines (BlockContainer(anonymous)) [194,12 16x18]
+              PaintableWithLines (BlockContainer(anonymous)) [194,12 16x18]
+                SVGSVGPaintable (SVGSVGBox<svg>) [194,12 16x16]
+                  SVGPathPaintable (SVGGeometryBox<path>) [198,17.71875 8x4.953125]
+      PaintableWithLines (TextInputBox<INPUT>) [222,9 206x22]
+        PaintableBox (Box<DIV>) [225,11 200x20]
+          PaintableWithLines (BlockContainer<DIV>) [225,12 164x18]
+          PaintableWithLines (BlockContainer<BUTTON>) [389,11 18x20]
+            PaintableWithLines (BlockContainer(anonymous)) [390,12 16x18]
+              PaintableWithLines (BlockContainer(anonymous)) [390,12 16x18]
+                SVGSVGPaintable (SVGSVGBox<svg>) [390,12 16x16]
+                  SVGPathPaintable (SVGGeometryBox<path>) [394,17.328125 8x4.9375]
+          PaintableWithLines (BlockContainer<BUTTON>) [407,11 18x20]
+            PaintableWithLines (BlockContainer(anonymous)) [408,12 16x18]
+              PaintableWithLines (BlockContainer(anonymous)) [408,12 16x18]
+                SVGSVGPaintable (SVGSVGBox<svg>) [408,12 16x16]
+                  SVGPathPaintable (SVGGeometryBox<path>) [412,17.71875 8x4.953125]
+      PaintableWithLines (TextInputBox<INPUT>) [436,8 206x22]
+        PaintableBox (Box<DIV>) [439,10 200x18]
+          PaintableWithLines (BlockContainer<DIV>) [439,10 200x18]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x40] (z-index: auto)

@@ -105,10 +105,10 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                       Box <span.loadingInput.start.toolbarHorizontalGroup> at [158,2] positioned flex-container(row) flex-item [0+0+0 56 0+0+0] [0+0+0 28 0+0+0] [FFC] children: not-inline
                         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
                           TextNode <#text> (not painted)
-                        TextInputBox <input#pageNumber.toolbarField> at [166,7] flex-item [0+1+7 40 7+1+0] [3+1+4 18 4+1+3] [BFC] children: not-inline
-                          Box <div> at [168,8] flex-container(row) [0+0+2 36 2+0+0] [0+0+1 16 1+0+0] [FFC] children: not-inline
-                            BlockContainer <div> at [168,8] flex-item [0+0+0 36 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-                              frag 0 from TextNode start: 0, length: 1, rect: [199.234375,8 4.765625x16] baseline: 11.59375
+                        TextInputBox <input#pageNumber.toolbarField> at [166,8] flex-item [0+1+7 40 7+1+0] [3+1+4 16 4+1+3] [BFC] children: not-inline
+                          Box <div> at [166,8] flex-container(row) [0+0+0 40 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
+                            BlockContainer <div> at [166,8] flex-item [0+0+0 40 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+                              frag 0 from TextNode start: 0, length: 1, rect: [201.234375,8 4.765625x16] baseline: 11.59375
                                   "1"
                               TextNode <#text> (not painted)
                         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
@@ -416,9 +416,9 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
                         PaintableWithLines (BlockContainer<SPAN>) [151,16 0x0] overflow: [151,16 35.5625x18]
                     PaintableBox (Box<DIV>.toolbarHorizontalGroup) [158,2 91.359375x28]
                       PaintableBox (Box<SPAN>.loadingInput.start.toolbarHorizontalGroup) [158,2 56x28]
-                        PaintableWithLines (TextInputBox<INPUT>#pageNumber.toolbarField) [158,2 56x28]
-                          PaintableBox (Box<DIV>) [166,7 40x18]
-                            PaintableWithLines (BlockContainer<DIV>) [168,8 36x16]
+                        PaintableWithLines (TextInputBox<INPUT>#pageNumber.toolbarField) [158,3 56x26]
+                          PaintableBox (Box<DIV>) [166,8 40x16]
+                            PaintableWithLines (BlockContainer<DIV>) [166,8 40x16]
                       PaintableBox (Box<SPAN>#numPages.toolbarLabel) [217,2 30.359375x28]
                         PaintableWithLines (BlockContainer(anonymous)) [220,9 23.359375x14]
                   PaintableBox (Box<DIV>#toolbarViewerMiddle.toolbarHorizontalGroup) [313.9375,2 206.484375x28]
