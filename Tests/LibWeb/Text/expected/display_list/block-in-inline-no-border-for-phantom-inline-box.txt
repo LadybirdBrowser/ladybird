@@ -1,0 +1,21 @@
+AccumulatedVisualContext Tree:
+  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+    [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
+
+DisplayList:
+SaveLayer@0
+  CompositorWheelHitTestTarget@0 target_scroll_frame_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x90]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x80]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x80]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[100,50 50x10]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,-2 9.84375x24]
+  FillPath@1 path_bounding_rect=[0,-2 10x24]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[98,48 4x4]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[-2,58 9.921875x24]
+  FillPath@1 path_bounding_rect=[-2,58 10x24]
+  DrawGlyphRun@1 rect=[2,0 6x20] translation=[2,13] color=rgb(0, 0, 0)
+  DrawGlyphRun@1 rect=[100,50 7x20] translation=[100,63] color=rgb(0, 0, 0)
+  DrawGlyphRun@1 rect=[0,60 6x20] translation=[0,73] color=rgb(0, 0, 0)
+Restore@0
+

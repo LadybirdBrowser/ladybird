@@ -478,9 +478,31 @@ void LayoutState::resolve_relative_positions()
     });
 }
 
-static void build_paint_tree(Node& node, RefPtr<Painting::Paintable> parent_paintable = nullptr)
+static Optional<size_t> line_index_for_paint_parent_matching(Painting::Paintable const& paintable)
+{
+    if (auto const* paintable_with_lines = as_if<Painting::PaintableWithLines>(paintable); paintable_with_lines && is<InlineNode>(paintable.layout_node()))
+        return paintable_with_lines->line_index();
+
+    if (auto const* paintable_box = as_if<Painting::PaintableBox>(paintable)) {
+        if (paintable_box->containing_line_box_data().has_value())
+            return paintable_box->containing_line_box_data()->index;
+    }
+
+    return {};
+}
+
+// An InlineNode has one paintable per line it spans; a child paintable must be attached to the parent
+// paintable for the line it belongs to, keyed by line index.
+static void build_paint_tree(Node& node, Painting::Paintable* fallback_parent_paintable = nullptr, HashMap<size_t, Painting::Paintable*> const* parent_paintable_by_line_index = nullptr)
 {
     for (auto& paintable : node.paintables()) {
+        auto* parent_paintable = fallback_parent_paintable;
+        if (parent_paintable_by_line_index) {
+            if (auto line_index = line_index_for_paint_parent_matching(*paintable); line_index.has_value()) {
+                if (auto matching_parent = parent_paintable_by_line_index->get(line_index.value()); matching_parent.has_value())
+                    parent_paintable = matching_parent.value();
+            }
+        }
         if (parent_paintable && !paintable->forms_unconnected_subtree()) {
             VERIFY(!paintable->parent());
             parent_paintable->append_child(paintable);
@@ -489,8 +511,19 @@ static void build_paint_tree(Node& node, RefPtr<Painting::Paintable> parent_pain
         if (node.dom_node())
             node.dom_node()->set_paintable(paintable);
     }
+
+    if (!node.first_child())
+        return;
+
+    HashMap<size_t, Painting::Paintable*> paintable_by_line_index;
+    if (is<InlineNode>(node)) {
+        for (auto& paintable : node.paintables()) {
+            if (auto* paintable_with_lines = as_if<Painting::PaintableWithLines>(paintable.ptr()))
+                paintable_by_line_index.set(paintable_with_lines->line_index(), paintable_with_lines);
+        }
+    }
     for (auto child = node.first_child(); child; child = child->next_sibling()) {
-        build_paint_tree(*child, node.first_paintable());
+        build_paint_tree(*child, node.first_paintable().ptr(), is<InlineNode>(node) ? &paintable_by_line_index : nullptr);
     }
 }
 
@@ -746,7 +779,7 @@ void LayoutState::commit(Box& root)
         paintable.set_offset(offset);
     });
 
-    build_paint_tree(root, parent_paintable);
+    build_paint_tree(root, parent_paintable.ptr());
 
     resolve_relative_positions();
 

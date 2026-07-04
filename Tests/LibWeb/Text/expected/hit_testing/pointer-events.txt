@@ -4,8 +4,8 @@
 <DIV id="b3">
 <DIV id="b2">
 ---
-<A id="c1">
 <BODY>
+<HTML>
 ---
 <I id="d2">
 <B id="d1">

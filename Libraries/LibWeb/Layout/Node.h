@@ -381,7 +381,7 @@ public:
     NodeWithStyleAndBoxModelMetrics* continuation_of_node() const { return m_continuation_of_node.ptr(); }
     void set_continuation_of_node(Badge<TreeBuilder>, NodeWithStyleAndBoxModelMetrics* node) { m_continuation_of_node = node; }
 
-    bool should_create_inline_continuation() const;
+    bool is_inline_flow_interrupting_block() const;
 
     void propagate_style_along_continuation(CSS::ComputedProperties const&) const;
 

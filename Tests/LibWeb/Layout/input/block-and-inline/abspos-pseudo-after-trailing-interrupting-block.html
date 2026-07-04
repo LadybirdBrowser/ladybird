@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<style>
+@font-face {
+    font-family: Ahem;
+    src: url("../../../Ref/data/fonts/Ahem.ttf");
+}
+* { margin: 0; }
+body { font: 10px/20px Ahem; }
+</style>
+<style>
+.rel { position: relative; }
+.rel::after { content: "X"; position: absolute; }
+</style>
+<div class="rel"><span>a<div style="height: 10px; background: blue">block</div></span></div>

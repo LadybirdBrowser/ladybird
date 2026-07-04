@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+
+    body {
+        margin: 0;
+        font: 10px/20px Ahem;
+    }
+
+    span {
+        border: 2px solid red;
+    }
+</style>
+<body>
+    <!-- The span's per-line box that only hosts the interrupting block must not paint a degenerate border. -->
+    <div><span>a<div style="margin: 30px 0 0 100px; width: 50px; height: 10px">x</div>b</span></div>
+    <script>
+        test(() => {
+            println(internals.dumpDisplayList());
+        });
+    </script>
+</body>

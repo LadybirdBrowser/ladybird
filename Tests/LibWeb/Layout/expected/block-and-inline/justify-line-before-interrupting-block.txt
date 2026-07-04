@@ -1,0 +1,84 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 70 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 70 0+0+0] children: not-inline
+      BlockContainer <div> at [0,0] [0+0+0 200 0+0+600] [0+0+0 70 0+0+0] children: inline
+        frag 0 from TextNode start: 0, length: 2, rect: [0,0 20x20] baseline: 13
+            "aa"
+        frag 1 from TextNode start: 2, length: 1, rect: [20,0 10x20] baseline: 13
+            " "
+        frag 2 from TextNode start: 3, length: 2, rect: [30,0 20x20] baseline: 13
+            "bb"
+        frag 3 from TextNode start: 5, length: 1, rect: [50,0 10x20] baseline: 13
+            " "
+        frag 4 from TextNode start: 6, length: 2, rect: [60,0 20x20] baseline: 13
+            "cc"
+        frag 5 from TextNode start: 0, length: 2, rect: [0,30 20x20] baseline: 13
+            "dd"
+        frag 6 from TextNode start: 2, length: 1, rect: [20,30 10x20] baseline: 13
+            " "
+        frag 7 from TextNode start: 3, length: 2, rect: [30,30 20x20] baseline: 13
+            "ee"
+        frag 8 from TextNode start: 5, length: 1, rect: [50,30 10x20] baseline: 13
+            " "
+        frag 9 from TextNode start: 6, length: 2, rect: [60,30 20x20] baseline: 13
+            "ff"
+        frag 10 from TextNode start: 8, length: 1, rect: [80,30 10x20] baseline: 13
+            " "
+        frag 11 from TextNode start: 9, length: 2, rect: [90,30 20x20] baseline: 13
+            "gg"
+        frag 12 from TextNode start: 11, length: 1, rect: [110,30 10x20] baseline: 13
+            " "
+        frag 13 from TextNode start: 12, length: 2, rect: [120,30 20x20] baseline: 13
+            "hh"
+        frag 14 from TextNode start: 14, length: 1, rect: [140,30 10x20] baseline: 13
+            " "
+        frag 15 from TextNode start: 15, length: 2, rect: [150,30 20x20] baseline: 13
+            "ii"
+        frag 16 from TextNode start: 17, length: 1, rect: [170,30 10x20] baseline: 13
+            " "
+        frag 17 from TextNode start: 18, length: 2, rect: [180,30 20x20] baseline: 13
+            "jj"
+        frag 18 from TextNode start: 21, length: 2, rect: [0,50 20x20] baseline: 13
+            "kk"
+        frag 19 from TextNode start: 23, length: 1, rect: [20,50 10x20] baseline: 13
+            " "
+        frag 20 from TextNode start: 24, length: 2, rect: [30,50 20x20] baseline: 13
+            "ll"
+        frag 21 from TextNode start: 26, length: 1, rect: [50,50 10x20] baseline: 13
+            " "
+        frag 22 from TextNode start: 27, length: 2, rect: [60,50 20x20] baseline: 13
+            "mm"
+        frag 23 from TextNode start: 29, length: 1, rect: [80,50 10x20] baseline: 13
+            " "
+        frag 24 from TextNode start: 30, length: 2, rect: [90,50 20x20] baseline: 13
+            "nn"
+        frag 25 from TextNode start: 32, length: 1, rect: [110,50 10x20] baseline: 13
+            " "
+        frag 26 from TextNode start: 33, length: 2, rect: [120,50 20x20] baseline: 13
+            "oo"
+        frag 27 from TextNode start: 35, length: 1, rect: [140,50 10x20] baseline: 13
+            " "
+        frag 28 from TextNode start: 36, length: 2, rect: [150,50 20x20] baseline: 13
+            "pp"
+        frag 29 from TextNode start: 38, length: 1, rect: [170,50 10x20] baseline: 13
+            " "
+        frag 30 from TextNode start: 39, length: 2, rect: [180,50 20x20] baseline: 13
+            "qq"
+        TextNode <#text> (not painted)
+        InlineNode <span> at [0,20] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0]
+          frag 0 from BlockContainer start: 0, length: 0, rect: [0,20 200x10] baseline: 0
+          BlockContainer <div> at [0,20] [0+0+0 200 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+        TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [0,70] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x70]
+    PaintableWithLines (BlockContainer<BODY>) [0,0 800x70]
+      PaintableWithLines (BlockContainer<DIV>) [0,0 200x70]
+        PaintableWithLines (InlineNode<SPAN>) [0,20 0x0]
+          PaintableWithLines (BlockContainer<DIV>) [0,20 200x10]
+      PaintableWithLines (BlockContainer(anonymous)) [0,70 800x0]
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x70] (z-index: auto)

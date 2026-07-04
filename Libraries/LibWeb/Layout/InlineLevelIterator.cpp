@@ -32,7 +32,7 @@ InlineLevelIterator::InlineLevelIterator(Layout::InlineFormattingContext& inline
 static bool is_inline_flow_interrupting_block(Layout::Node const& node)
 {
     auto const* node_with_metrics = as_if<Layout::NodeWithStyleAndBoxModelMetrics>(node);
-    return node_with_metrics && node_with_metrics->should_create_inline_continuation();
+    return node_with_metrics && node_with_metrics->is_inline_flow_interrupting_block();
 }
 
 void InlineLevelIterator::generate_all_items()

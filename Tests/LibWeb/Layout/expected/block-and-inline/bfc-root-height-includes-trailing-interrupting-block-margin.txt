@@ -1,0 +1,32 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 90 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 90 0+0+0] children: not-inline
+      BlockContainer <div> at [0,0] [0+0+0 800 0+0+0] [0+0+0 90 0+0+0] [BFC] children: inline
+        InlineNode <span> at [0,0] [0+0+0 10 0+0+0] [0+0+0 20 0+0+0]
+          frag 0 from TextNode start: 0, length: 1, rect: [0,0 10x20] baseline: 13
+              "a"
+          frag 0 from BlockContainer start: 0, length: 0, rect: [0,20 800x20] baseline: 0
+          TextNode <#text> (not painted)
+          BlockContainer <div> at [0,20] [0+0+0 800 0+0+0] [0+0+0 20 0+0+50] children: inline
+            frag 0 from TextNode start: 0, length: 1, rect: [0,20 10x20] baseline: 13
+                "b"
+            TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [0,90] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x90]
+    PaintableWithLines (BlockContainer<BODY>) [0,0 800x90]
+      PaintableWithLines (BlockContainer<DIV>) [0,0 800x90]
+        PaintableWithLines (InlineNode<SPAN>) [0,0 10x20]
+
+        PaintableWithLines (InlineNode<SPAN>) [0,20 0x0]
+          PaintableWithLines (BlockContainer<DIV>) [0,20 800x20]
+        PaintableWithLines (InlineNode<SPAN>) [0,0 10x20]
+
+        PaintableWithLines (InlineNode<SPAN>) [0,20 0x0]
+          PaintableWithLines (BlockContainer<DIV>) [0,20 800x20]
+      PaintableWithLines (BlockContainer(anonymous)) [0,90 800x0]
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x90] (z-index: auto)
