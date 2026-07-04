@@ -27,10 +27,10 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         TextNode <#text> (not painted)
       TextInputBox <input> at [443.375,26] inline-block [0+1+2 200 2+1+0] [0+1+1 18 1+1+0] [BFC] children: not-inline
         Box <div> at [443.375,26] flex-container(row) [0+0+0 200 0+0+0] [0+0+0 18 0+0+0] [FFC] children: not-inline
-          BlockContainer <div> at [443.375,26] flex-item [0+0+0 0 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+          BlockContainer <div> at [443.375,26] flex-item [0+0+0 200 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
             frag 0 from TextNode start: 0, length: 0, rect: [443.375,26 0x18] baseline: 13.796875
             TextNode <#text> (not painted)
-          BlockContainer <div> at [443.375,26] flex-item [0+0+0 200 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+          BlockContainer <div> at [443.375,26] flex-item [-200+0+0 200 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
             frag 0 from TextNode start: 0, length: 5, rect: [443.375,26 36.84375x18] baseline: 13.796875
                 "hello"
             TextNode <#text> (not painted)
@@ -63,7 +63,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       PaintableWithLines (InlineNode<SPAN>) [410.1875,30 30.1875x18]
       PaintableWithLines (TextInputBox<INPUT>) [440.375,24 206x22]
         PaintableBox (Box<DIV>) [443.375,26 200x18]
-          PaintableWithLines (BlockContainer<DIV>) [443.375,26 0x18]
+          PaintableWithLines (BlockContainer<DIV>) [443.375,26 200x18]
           PaintableWithLines (BlockContainer<DIV>) [443.375,26 200x18]
       PaintableWithLines (InlineNode<SPAN>) [654.375,30 30.1875x18]
       PaintableWithLines (TextAreaBox<TEXTAREA>) [8,44 166x36]
