@@ -29,6 +29,12 @@ InlineLevelIterator::InlineLevelIterator(Layout::InlineFormattingContext& inline
     generate_all_items();
 }
 
+static bool is_inline_flow_interrupting_block(Layout::Node const& node)
+{
+    auto const* node_with_metrics = as_if<Layout::NodeWithStyleAndBoxModelMetrics>(node);
+    return node_with_metrics && node_with_metrics->should_create_inline_continuation();
+}
+
 void InlineLevelIterator::generate_all_items()
 {
     for (;;) {
@@ -38,7 +44,7 @@ void InlineLevelIterator::generate_all_items()
 
         // Track accumulated width for tab calculations.
         // Reset on forced breaks since tabs measure from line start.
-        if (item->type == Item::Type::ForcedBreak) {
+        if (item->type == Item::Type::ForcedBreak || item->type == Item::Type::BlockLevelBox) {
             m_accumulated_width_for_tabs = 0;
         } else {
             m_accumulated_width_for_tabs += item->border_box_width();
@@ -104,12 +110,13 @@ void InlineLevelIterator::exit_node_with_box_model_metrics()
     m_box_model_node_stack.take_last();
 }
 
-// This is similar to Layout::Node::next_in_pre_order() but will not descend into inline-block nodes.
+// This is similar to Layout::Node::next_in_pre_order() but will not descend into inline-block or interrupting block-level nodes.
 Layout::Node const* InlineLevelIterator::next_inline_node_in_pre_order(Layout::Node const& current, Layout::Node const* stay_within)
 {
     if (current.first_child()
-        && current.first_child()->display().is_inline_outside()
+        && (current.first_child()->display().is_inline_outside() || is_inline_flow_interrupting_block(*current.first_child()))
         && current.display().is_flow_inside()
+        && !is_inline_flow_interrupting_block(current)
         && !current.is_replaced_box()) {
         if (!current.is_box() || !static_cast<Box const&>(current).is_out_of_flow(m_inline_formatting_context))
             return current.first_child();
@@ -149,13 +156,14 @@ void InlineLevelIterator::compute_next()
             //       We should skip and let SVGFormattingContext take care of them.
             m_next_node = m_next_node->next_sibling();
         }
-    } while (m_next_node && (!m_next_node->is_inline() && !m_next_node->is_out_of_flow(m_inline_formatting_context)));
+    } while (m_next_node && (!m_next_node->is_inline() && !m_next_node->is_out_of_flow(m_inline_formatting_context) && !is_inline_flow_interrupting_block(*m_next_node)));
 }
 
 void InlineLevelIterator::skip_to_next()
 {
     if (m_next_node
         && is<Layout::NodeWithStyleAndBoxModelMetrics>(*m_next_node)
+        && m_next_node->is_inline()
         && m_next_node->display().is_flow_inside()
         && !m_next_node->is_out_of_flow(m_inline_formatting_context)
         && !m_next_node->is_replaced_box())
@@ -177,7 +185,7 @@ CSSPixels InlineLevelIterator::next_non_whitespace_sequence_width()
     CSSPixels next_width = 0;
     for (size_t i = m_next_item_index; i < m_items.size(); ++i) {
         auto const& next_item = m_items[i];
-        if (next_item.type == InlineLevelIterator::Item::Type::ForcedBreak)
+        if (next_item.type == InlineLevelIterator::Item::Type::ForcedBreak || next_item.type == InlineLevelIterator::Item::Type::BlockLevelBox)
             break;
         if (next_item.node->computed_values().text_wrap_mode() == CSS::TextWrapMode::Wrap) {
             if (next_item.type != InlineLevelIterator::Item::Type::Text)
@@ -404,6 +412,14 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
     }
 
     auto const& box = as<Layout::Box>(*m_current_node);
+    if (is_inline_flow_interrupting_block(box)) {
+        skip_to_next();
+        return Item {
+            .type = Item::Type::BlockLevelBox,
+            .node = &box,
+        };
+    }
+
     auto const& box_state = [&]() -> LayoutState::UsedValues const& {
         if (!m_box_model_node_stack.is_empty() && m_box_model_node_stack.last() == &box)
             return m_layout_state.get_mutable(box);

@@ -26,6 +26,7 @@ public:
         enum class Type {
             Text,
             Element,
+            BlockLevelBox,
             ForcedBreak,
             AbsolutelyPositionedElement,
             FloatingElement,

@@ -415,6 +415,8 @@ void InlineFormattingContext::generate_line_boxes()
             line_builder.append_box(box, item.border_start + item.padding_start, item.padding_end + item.border_end, item.margin_start, item.margin_end);
             break;
         }
+        case InlineLevelIterator::Item::Type::BlockLevelBox:
+            VERIFY_NOT_REACHED();
         case InlineLevelIterator::Item::Type::AbsolutelyPositionedElement:
             if (auto const* box = as_if<Box>(*item.node)) {
                 line_builder.append_static_position_marker(*box);
