@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>HTML Test: the RadioNodeList interface</title>
+<link rel="author" title="Intel" href="http://www.intel.com/">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/multipage/common-dom-interfaces.html#radionodelist">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<form >
+  <input type="checkbox" name="rdo" value="0" id="r0" checked>
+  <input type="radio" name="rdo" id="r1">
+  <input type="radio" name="rdo" id="r2" value="2">
+</form>
+<script>
+
+var rdoList;
+
+setup(function () {
+  rdoList = document.forms[0].elements.namedItem("rdo");
+});
+
+//on getting
+test(function () {
+  assert_equals(rdoList.value, "", "The value attribute should be empty.");
+}, "The value attribute should be empty if no element is checked");
+
+test(function () {
+  document.getElementById("r2").checked = true;
+  assert_equals(rdoList.value, "2", "The value attribute should be 2.");
+}, "The RadioNodeList.value must be the first checked radio button's value");
+
+test(function () {
+  document.getElementById("r1").checked = true;
+  assert_equals(rdoList.value, "on", "The value attribute should be on.");
+
+  document.getElementById("r1").value = 1;
+  assert_equals(rdoList.value, "1", "The value attribute should be 1.");
+}, "Check the RadioNodeList.value on getting");
+
+//on setting
+test(function () {
+  assert_equals(rdoList.value, document.getElementById("r1").value,
+                "The value attribute should be equal to the first checked radio input element's value.");
+  assert_false(document.getElementById("r2").checked,
+               "The second radio input element should not be checked.");
+
+  rdoList.value = "2";
+  assert_equals(rdoList.value, document.getElementById("r2").value,
+                "The value attribute should be equal to the second radio input element's value.");
+  assert_true(document.getElementById("r2").checked,
+              "The second radio input element should be checked.");
+
+  //Do nothing if no element's value is equal to new value.
+  rdoList.value = "3";
+  assert_equals(rdoList.value, document.getElementById("r2").value,
+                "The value attribute should be the second radio input element's value.");
+  assert_true(document.getElementById("r2").checked,
+              "The second radio input element should be checked.");
+}, "Check the RadioNodeList.value on setting");
+
+//setting to on, specific case
+test(function () {
+  rdoList.value = "on";
+  assert_equals(rdoList.value, document.getElementById("r2").value,
+                "The value attribute should be the second radio input element's value.");
+  assert_true(document.getElementById("r2").checked,
+              "The second radio input element should be checked.");
+
+  document.getElementById("r1").removeAttribute("value");
+  rdoList.value = "on";
+  assert_equals(rdoList.value, document.getElementById("r1").value,
+                "The value attribute should be the first radio input element's value.");
+  assert_true(document.getElementById("r1").checked,
+              "The first radio input element should be checked.");
+}, "Check the RadioNodeList.value on setting to 'on'");
+
+
+</script>
