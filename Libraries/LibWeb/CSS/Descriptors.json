@@ -262,15 +262,17 @@
     "descriptors": {
       "result": {
         "allow-arbitrary-substitution-functions": true,
+        "allow-css-wide-keywords": true,
         "syntax": [
-          "<declaration-value>?"
+          "<'custom'>"
         ]
       }
     },
     "custom-descriptors": {
       "allow-arbitrary-substitution-functions": true,
+      "allow-css-wide-keywords": true,
       "syntax": [
-        "<declaration-value>?"
+        "<'custom'>"
       ]
     }
   }

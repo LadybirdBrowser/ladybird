@@ -98,6 +98,7 @@ struct DescriptorMetadata {
     };
     Vector<Variant<Keyword, PropertyID, ValueType>> syntax;
     bool allow_arbitrary_substitution_functions { false };
+    bool allow_css_wide_keywords { false };
 };
 
 DescriptorMetadata get_descriptor_metadata(AtRuleID, DescriptorID);
@@ -352,8 +353,10 @@ DescriptorMetadata get_descriptor_metadata(AtRuleID at_rule_id, DescriptorID des
 """)
             generate_syntax_list(out, descriptor["syntax"])
             allow_arbitrary = "true" if descriptor.get("allow-arbitrary-substitution-functions", False) else "false"
+            allow_css_wide_keywords = "true" if descriptor.get("allow-css-wide-keywords", False) else "false"
             out.write(f"""
             metadata.allow_arbitrary_substitution_functions = {allow_arbitrary};
+            metadata.allow_css_wide_keywords = {allow_css_wide_keywords};
 
             return metadata;
         }}
@@ -369,8 +372,10 @@ DescriptorMetadata get_descriptor_metadata(AtRuleID at_rule_id, DescriptorID des
             allow_arbitrary = (
                 "true" if custom_descriptors.get("allow-arbitrary-substitution-functions", False) else "false"
             )
+            allow_css_wide_keywords = "true" if custom_descriptors.get("allow-css-wide-keywords", False) else "false"
             out.write(f"""
             metadata.allow_arbitrary_substitution_functions = {allow_arbitrary};
+            metadata.allow_css_wide_keywords = {allow_css_wide_keywords};
 
             return metadata;
         }}

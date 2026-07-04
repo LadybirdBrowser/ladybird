@@ -89,8 +89,8 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
                 if (value_or_error.is_error())
                     return nullptr;
                 auto value_for_property = value_or_error.release_value();
-                // Descriptors don't accept the CSS-wide keywords
-                if (value_for_property->is_css_wide_keyword())
+                // Some descriptors don't accept the CSS-wide keywords
+                if (value_for_property->is_css_wide_keyword() && !metadata.allow_css_wide_keywords)
                     return nullptr;
                 return value_for_property;
             },
