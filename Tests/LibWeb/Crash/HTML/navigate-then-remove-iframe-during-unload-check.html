@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<!-- Navigating an iframe runs the async "checking if unloading is user-canceled" step of its navigation. Removing the
+     iframe before that step's callback runs destroys the iframe's navigable — clearing its active document, window, and
+     browsing context. The callback must not dereference that destroyed navigable. -->
+<html class="test-wait">
+<body>
+<script>
+    const iframe = document.createElement("iframe");
+    iframe.src = "../../Assets/blank.html";
+    let navigated = false;
+    iframe.onload = () => {
+        if (navigated)
+            return;
+        navigated = true;
+
+        // Start a navigation (begin_navigation -> check if unloading is canceled, asynchronous)...
+        iframe.src = "../../Assets/blank.html?2";
+        // ...then destroy the navigable before the callback fires.
+        iframe.remove();
+
+        setTimeout(() => document.documentElement.classList.remove("test-wait"), 500);
+    };
+    document.body.appendChild(iframe);
+</script>
+</body>
+</html>
