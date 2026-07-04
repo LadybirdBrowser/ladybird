@@ -1,0 +1,28 @@
+child-of-relative-parent:
+  offsetParent: relative-parent-in-backdrop-filter
+  offsetLeft: 10
+  offsetTop: 0
+static-child-in-transform:
+  offsetParent: relative-parent-in-transform
+  offsetLeft: 0
+  offsetTop: 0
+fixed-child-in-transform:
+  offsetParent: transform-ancestor
+  offsetLeft: 30
+  offsetTop: 20
+static-child-of-transform:
+  offsetParent: transform-ancestor
+  offsetLeft: 0
+  offsetTop: 50
+fixed-without-fixed-position-containing-block:
+  offsetParent: null
+  offsetLeft: 5
+  offsetTop: 40
+child-of-boxless-fixed-ancestor:
+  offsetParent: BODY
+  offsetLeft: 0
+  offsetTop: 150
+child-of-boxless-fixed-in-relative-parent:
+  offsetParent: relative-parent-of-boxless-fixed
+  offsetLeft: 0
+  offsetTop: 0

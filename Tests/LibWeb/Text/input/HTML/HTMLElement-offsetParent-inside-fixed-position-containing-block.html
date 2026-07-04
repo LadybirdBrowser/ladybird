@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<style>
+* {
+    margin: 0;
+    padding: 0;
+}
+div {
+    width: 50px;
+    height: 50px;
+}
+</style>
+<div id="backdrop-filter-ancestor" style="backdrop-filter: blur(2px); padding: 25px">
+    <div id="relative-parent-in-backdrop-filter" style="position: relative; margin-left: 75px">
+        <div id="child-of-relative-parent" style="margin-left: 10px"></div>
+    </div>
+</div>
+<div id="transform-ancestor" style="transform: translateX(10px)">
+    <div id="relative-parent-in-transform" style="position: relative">
+        <div id="static-child-in-transform"></div>
+        <div id="fixed-child-in-transform" style="position: fixed; top: 20px; left: 30px"></div>
+    </div>
+    <div id="static-child-of-transform"></div>
+</div>
+<div id="fixed-without-fixed-position-containing-block" style="position: fixed; top: 40px; left: 5px"></div>
+<div style="display: contents; position: fixed">
+    <div id="child-of-boxless-fixed-ancestor"></div>
+</div>
+<div id="relative-parent-of-boxless-fixed" style="position: relative">
+    <div style="display: contents; position: fixed">
+        <div id="child-of-boxless-fixed-in-relative-parent"></div>
+    </div>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const id of [
+            "child-of-relative-parent",
+            "static-child-in-transform",
+            "fixed-child-in-transform",
+            "static-child-of-transform",
+            "fixed-without-fixed-position-containing-block",
+            "child-of-boxless-fixed-ancestor",
+            "child-of-boxless-fixed-in-relative-parent",
+        ]) {
+            const element = document.getElementById(id);
+            const offsetParent = element.offsetParent;
+            println(`${id}:`);
+            println(`  offsetParent: ${offsetParent ? offsetParent.id || offsetParent.nodeName : "null"}`);
+            println(`  offsetLeft: ${element.offsetLeft}`);
+            println(`  offsetTop: ${element.offsetTop}`);
+        }
+    });
+</script>

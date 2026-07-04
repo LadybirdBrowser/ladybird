@@ -542,6 +542,11 @@ GC::Ptr<DOM::Element> HTMLElement::offset_parent() const
     if (layout_node()->is_fixed_position() && no_ancestor_establishes_a_fixed_position_containing_block)
         return nullptr;
 
+    // NB: The spec does not define "the element is in a fixed position containing block".  Other engines treat it as
+    //     holding only when the element itself is fixed-positioned. We also set it to true for the remainder of the
+    //     walk once a fixed-positioned ancestor is crossed.
+    auto element_is_in_a_fixed_position_containing_block = layout_node()->is_fixed_position();
+
     // 2. Let ancestor be the parent of the element in the flat tree and repeat these substeps:
     auto ancestor = first_flat_tree_ancestor_of_type<DOM::Element>();
     while (true) {
@@ -549,8 +554,10 @@ GC::Ptr<DOM::Element> HTMLElement::offset_parent() const
         //    fixed, and no ancestor establishes a fixed position containing block, terminate this algorithm and return
         //    null.
         bool ancestor_is_closed_shadow_hidden = ancestor->is_closed_shadow_hidden_from(*this);
+        bool ancestor_is_fixed_position = ancestor->computed_properties()->position() == CSS::Positioning::Fixed;
+        auto const* ancestor_layout_node = ancestor->layout_node();
         if (ancestor_is_closed_shadow_hidden
-            && ancestor->computed_properties()->position() == CSS::Positioning::Fixed
+            && ancestor_is_fixed_position
             && no_ancestor_establishes_a_fixed_position_containing_block)
             return nullptr;
 
@@ -561,15 +568,18 @@ GC::Ptr<DOM::Element> HTMLElement::offset_parent() const
             //     Such ancestors can't be positioned or establish containing blocks, so we skip those checks.
             // - The element is in a fixed position containing block, and ancestor is a containing block for
             //   fixed-positioned descendants.
-            // FIXME: This is ambiguous but I believe it means any ancestor establishes a fixed position containing block.
-            //        https://github.com/w3c/csswg-drafts/pull/12531/commits/48e905bb3859f80ce822299f7e6b76515d867fc3#r2623785087
-            if (!no_ancestor_establishes_a_fixed_position_containing_block && ancestor->layout_node() && ancestor->layout_node()->establishes_a_fixed_positioning_containing_block())
-                return const_cast<Element*>(ancestor);
+            if (element_is_in_a_fixed_position_containing_block) {
+                if (ancestor_layout_node && ancestor_layout_node->establishes_a_fixed_positioning_containing_block())
+                    return const_cast<Element*>(ancestor);
+            }
             // - The element is not in a fixed position containing block, and:
-            if (no_ancestor_establishes_a_fixed_position_containing_block) {
+            else {
                 // - ancestor is a containing block of absolutely-positioned descendants (regardless of whether there
                 //   are any absolutely-positioned descendants).
-                if (ancestor->layout_node() && ancestor->layout_node()->is_positioned())
+                // NB: is_positioned() covers positioned inline ancestors, which
+                //     establishes_an_absolute_positioning_containing_block() excludes because they do not generate a
+                //     box.
+                if (ancestor_layout_node && (ancestor_layout_node->is_positioned() || ancestor_layout_node->establishes_an_absolute_positioning_containing_block()))
                     return const_cast<Element*>(ancestor);
                 // - It is the body element.
                 if (ancestor->is_html_body_element())
@@ -581,6 +591,9 @@ GC::Ptr<DOM::Element> HTMLElement::offset_parent() const
             }
             // - FIXME: The element has a different effective zoom than ancestor.
         }
+
+        if (ancestor_layout_node && ancestor_layout_node->is_fixed_position())
+            element_is_in_a_fixed_position_containing_block = true;
 
         // 3. If there is no more parent of ancestor in the flat tree, terminate this algorithm and return null.
         auto parent_of_ancestor = ancestor->first_flat_tree_ancestor_of_type<DOM::Element>();
