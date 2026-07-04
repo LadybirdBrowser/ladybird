@@ -871,46 +871,41 @@ CSSPixelRect PaintableBox::overflow_clip_edge_rect() const
 }
 
 template<typename Callable>
-static CSSPixelRect united_rect_for_continuation_chain(PaintableBox const& start, Callable get_rect)
+static CSSPixelRect united_rect_for_all_paintables(PaintableBox const& start, Callable get_rect)
 {
-    // Combine the absolute rects of all paintable boxes of all nodes in the continuation chain. Without this, we
-    // calculate the wrong rect for inline nodes that were split because of block elements.
+    // Inline nodes can have one paintable per line, so combine all paintables for this layout node.
     Optional<CSSPixelRect> result;
 
-    // FIXME: instead of walking the continuation chain in the layout tree, also keep track of this chain in the
-    //        painting tree so we can skip visiting the layout nodes altogether.
-    for (auto const* node = &start.layout_node_with_style_and_box_metrics(); node; node = node->continuation_of_node()) {
-        for (auto const& paintable : node->paintables()) {
-            if (!is<PaintableBox>(paintable))
-                continue;
-            auto const& paintable_box = static_cast<PaintableBox const&>(*paintable);
-            auto paintable_border_box_rect = get_rect(paintable_box);
-            if (!result.has_value())
-                result = paintable_border_box_rect;
-            else if (!paintable_border_box_rect.is_empty())
-                result->unite(paintable_border_box_rect);
-        }
+    for (auto const& paintable : start.layout_node().paintables()) {
+        if (!is<PaintableBox>(paintable))
+            continue;
+        auto const& paintable_box = static_cast<PaintableBox const&>(*paintable);
+        auto paintable_border_box_rect = get_rect(paintable_box);
+        if (!result.has_value())
+            result = paintable_border_box_rect;
+        else if (!paintable_border_box_rect.is_empty())
+            result->unite(paintable_border_box_rect);
     }
     return result.value_or({});
 }
 
 CSSPixelRect PaintableBox::absolute_united_border_box_rect() const
 {
-    return united_rect_for_continuation_chain(*this, [](auto const& paintable_box) {
+    return united_rect_for_all_paintables(*this, [](auto const& paintable_box) {
         return paintable_box.absolute_border_box_rect();
     });
 }
 
 CSSPixelRect PaintableBox::absolute_united_content_rect() const
 {
-    return united_rect_for_continuation_chain(*this, [](auto const& paintable_box) {
+    return united_rect_for_all_paintables(*this, [](auto const& paintable_box) {
         return paintable_box.absolute_rect();
     });
 }
 
 CSSPixelRect PaintableBox::absolute_united_padding_box_rect() const
 {
-    return united_rect_for_continuation_chain(*this, [](auto const& paintable_box) {
+    return united_rect_for_all_paintables(*this, [](auto const& paintable_box) {
         return paintable_box.absolute_padding_box_rect();
     });
 }
@@ -1201,15 +1196,7 @@ void PaintableBox::record_hit_test_items(DisplayListRecordingContext& context, P
         if (layout_node().is_anonymous()
             && !layout_node().is_generated_for_pseudo_element()
             && !layout_node().is_list_item_marker_box()) {
-            auto continuation_node = layout_node_with_style_and_box_metrics().continuation_of_node();
-            if (!continuation_node)
-                return;
-            while (continuation_node->continuation_of_node())
-                continuation_node = continuation_node->continuation_of_node();
-            auto& continuation_paintable = *continuation_node->first_paintable();
-            if (!continuation_paintable.visible_for_hit_testing())
-                return;
-            target = &continuation_paintable;
+            return;
         }
 
         hit_test_display_list->append_box(*this, *target, absolute_border_box_rect(), accumulated_visual_context_index(), border_radii_data());
@@ -1381,7 +1368,7 @@ void PaintableBox::paint_middle_button_scroll_indicator(DisplayListRecordingCont
 void PaintableBox::paint_inspector_overlay_internal(DisplayListRecordingContext& context) const
 {
     auto content_rect = absolute_united_content_rect();
-    auto margin_rect = united_rect_for_continuation_chain(*this, [](PaintableBox const& box) {
+    auto margin_rect = united_rect_for_all_paintables(*this, [](PaintableBox const& box) {
         auto margin_box = box.box_model().margin_box();
         return CSSPixelRect {
             box.absolute_x() - margin_box.left,

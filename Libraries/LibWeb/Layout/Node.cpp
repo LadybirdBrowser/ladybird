@@ -1105,9 +1105,6 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
 
     propagate_style_to_anonymous_wrappers();
 
-    if (auto* box_node = as_if<NodeWithStyleAndBoxModelMetrics>(*this))
-        box_node->propagate_style_along_continuation(computed_style);
-
     rebuild_image_observers();
 }
 
@@ -1669,15 +1666,6 @@ bool NodeWithStyleAndBoxModelMetrics::is_inline_flow_interrupting_block() const
         return false;
 
     return true;
-}
-
-void NodeWithStyleAndBoxModelMetrics::propagate_style_along_continuation(CSS::ComputedProperties const& computed_style) const
-{
-    auto continuation = continuation_of_node();
-    while (continuation && continuation->is_anonymous())
-        continuation = continuation->continuation_of_node();
-    if (continuation)
-        continuation->apply_style(computed_style);
 }
 
 void Node::set_needs_layout_update(DOM::SetNeedsLayoutReason reason)

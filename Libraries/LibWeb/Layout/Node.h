@@ -378,12 +378,7 @@ class NodeWithStyleAndBoxModelMetrics : public NodeWithStyle {
     LAYOUT_NODE(NodeWithStyleAndBoxModelMetrics, NodeWithStyle);
 
 public:
-    NodeWithStyleAndBoxModelMetrics* continuation_of_node() const { return m_continuation_of_node.ptr(); }
-    void set_continuation_of_node(Badge<TreeBuilder>, NodeWithStyleAndBoxModelMetrics* node) { m_continuation_of_node = node; }
-
     bool is_inline_flow_interrupting_block() const;
-
-    void propagate_style_along_continuation(CSS::ComputedProperties const&) const;
 
 protected:
     NodeWithStyleAndBoxModelMetrics(DOM::Document&, DOM::Node*, CSS::ComputedProperties const&);
@@ -395,8 +390,6 @@ protected:
 
 private:
     virtual bool is_node_with_style_and_box_model_metrics() const final { return true; }
-
-    WeakPtr<NodeWithStyleAndBoxModelMetrics> m_continuation_of_node;
 };
 
 template<>
