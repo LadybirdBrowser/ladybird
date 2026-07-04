@@ -57,6 +57,32 @@ static void apply_document_style_invalidation_after_style_change(DOM::Document& 
         document.invalidate_stacking_context_tree();
 }
 
+class ScopedStyleComputerAncestorChain {
+public:
+    ScopedStyleComputerAncestorChain(StyleComputer& style_computer, DOM::Element& element)
+        : m_style_computer(style_computer)
+    {
+        for (auto* cursor = element.parent_or_shadow_host_element(); cursor; cursor = cursor->parent_or_shadow_host_element())
+            m_ancestors.append(*cursor);
+
+        for (size_t i = m_ancestors.size(); i > 0; --i)
+            m_style_computer->push_ancestor(m_ancestors[i - 1]);
+    }
+
+    ~ScopedStyleComputerAncestorChain()
+    {
+        for (auto& ancestor : m_ancestors)
+            m_style_computer->pop_ancestor(ancestor);
+    }
+
+    ScopedStyleComputerAncestorChain(ScopedStyleComputerAncestorChain const&) = delete;
+    ScopedStyleComputerAncestorChain& operator=(ScopedStyleComputerAncestorChain const&) = delete;
+
+private:
+    GC::Ref<StyleComputer> m_style_computer;
+    GC::RootVector<GC::Ref<DOM::Element>> m_ancestors;
+};
+
 struct StyleUpdateFrame {
     StyleUpdateFrame(
         DOM::Node& node,
@@ -445,20 +471,10 @@ ComputedProperties const* update_style_for_element(DOM::Document& document, DOM:
     // element's DOM ancestors, so that descendant-combinator selectors match correctly. The filter is empty at this
     // point because the normal top-down `update_style` traversal skipped the display:none subtree, so we have to seed
     // it ourselves.
-    GC::RootVector<GC::Ref<DOM::Element>> ancestor_chain;
-    for (auto* cursor = inheritance_chain[*topmost_element_to_recompute]->parent_or_shadow_host_element(); cursor; cursor = cursor->parent_or_shadow_host_element())
-        ancestor_chain.append(*cursor);
-
     auto& style_computer = document.style_computer();
-    for (size_t i = ancestor_chain.size(); i > 0; --i)
-        style_computer.push_ancestor(ancestor_chain[i - 1]);
+    ScopedStyleComputerAncestorChain scoped_ancestor_chain { style_computer, inheritance_chain[*topmost_element_to_recompute] };
 
     GC::RootVector<GC::Ref<DOM::Element>> pushed_path_ancestors;
-
-    ScopeGuard pop_ancestor_chain = [&] {
-        for (auto& ancestor : ancestor_chain)
-            style_computer.pop_ancestor(ancestor);
-    };
 
     ScopeGuard pop_path_ancestors = [&] {
         for (auto& ancestor : pushed_path_ancestors)
