@@ -1,0 +1,23 @@
+<!DOCTYPE html><style>
+    button {
+        box-sizing: border-box;
+        min-height: 50px;
+        padding: 5px;
+        border: 5px solid black;
+        font: 10px / 10px SerenitySans;
+    }
+    .flex { display: flex; align-items: flex-start; }
+    .block button { display: block; }
+    .intrinsic button { height: fit-content; }
+    .abs button { position: absolute; top: 250px; }
+    .indefinite button { min-height: auto; height: fit-content; }
+    .indefinite .pct { height: 100%; }
+</style>
+<body
+    ><span class="inline"><button>x</button></span
+    ><div class="block"><button>x</button></div
+    ><div class="flex"><button>x</button></div
+    ><div class="intrinsic"><button>x</button></div
+    ><div class="abs"><button>x</button></div
+    ><div class="indefinite"><button><div class="pct"></div><div>x</div></button></div
+></body>

@@ -1093,13 +1093,17 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
 
         // For boxes with auto height but non-auto min-height, we need to determine if the content height is less than
         // min-height. If so, we run layout with min-height as the available height.
+        Optional<CSSPixels> measured_content_height;
         if (should_treat_height_as_auto(box, available_space, layout_input.containing_block_constraints) && !box.computed_values().min_height().is_auto()) {
             auto content_height = measure_automatic_content_height(box, inner_available_space, layout_input.containing_block_constraints);
+            measured_content_height = content_height;
             auto min_height = calculate_inner_height(box, available_space, box.computed_values().min_height(), layout_input.containing_block_constraints);
             if (content_height < min_height) {
                 inner_available_space.height = AvailableSize::make_definite(min_height);
             }
         }
+
+        make_button_content_box_definite(box, available_space, layout_input.containing_block_constraints, measured_content_height);
 
         independent_formatting_context->run(layout_input.with_available_space(inner_available_space));
         if (is<TableWrapper>(block_container) && box.display().is_table_inside()) {

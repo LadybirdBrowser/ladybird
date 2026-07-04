@@ -213,6 +213,7 @@ protected:
     static CSSPixels line_box_physical_width(Box const&, LineBox const&);
 
     CSSPixels measure_automatic_content_height(Box const&, AvailableSpace const& inner_available_space, ContainingBlockConstraints const&);
+    void make_button_content_box_definite(Box const&, AvailableSpace const&, ContainingBlockConstraints const&, Optional<CSSPixels> measured_content_height = {});
 
     [[nodiscard]] CSSPixelSize solve_replaced_size_constraint(CSSPixels input_width, CSSPixels input_height, Box const&, AvailableSpace const&, ContainingBlockConstraints const&) const;
 

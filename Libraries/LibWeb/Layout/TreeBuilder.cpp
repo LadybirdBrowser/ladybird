@@ -1263,7 +1263,6 @@ void TreeBuilder::wrap_in_button_layout_tree_if_needed(DOM::Node& dom_node, Layo
         flex_computed_values.set_justify_content(CSS::JustifyContent::Center);
         flex_computed_values.set_flex_direction(CSS::FlexDirection::Column);
         flex_computed_values.set_height(CSS::Size::make_percentage(CSS::Percentage(100)));
-        flex_computed_values.set_min_height(parent.computed_values().min_height());
 
         auto content_box_wrapper = parent.create_anonymous_wrapper();
         auto& content_computed_values = content_box_wrapper->mutable_computed_values();

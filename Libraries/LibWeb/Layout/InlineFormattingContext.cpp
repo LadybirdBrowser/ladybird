@@ -178,6 +178,8 @@ void InlineFormattingContext::dimension_box_on_line(Box const& box, LayoutMode l
     if (box.display().is_flex_inside())
         parent().resolve_used_height_if_treated_as_auto(box, AvailableSpace(AvailableSize::make_definite(width), AvailableSize::make_indefinite()), box_constraints);
 
+    make_button_content_box_definite(box, *m_available_space, box_constraints);
+
     auto child_layout_input = m_layout_input->with_available_space(box_state.available_inner_space_or_constraints_from(*m_available_space));
     auto independent_formatting_context = layout_inside(box, layout_mode, child_layout_input);
 

@@ -14,6 +14,7 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Dump.h>
+#include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/Layout/BlockFormattingContext.h>
 #include <LibWeb/Layout/Box.h>
@@ -627,6 +628,51 @@ CSSPixels FormattingContext::measure_automatic_content_height(Box const& box, Av
     auto measuring_context = create_independent_formatting_context_if_needed(throwaway_state, m_layout_mode, box);
     measuring_context->run(LayoutInput { inner_available_space, containing_block_constraints });
     return measuring_context->automatic_content_height();
+}
+
+void FormattingContext::make_button_content_box_definite(Box const& box, AvailableSpace const& available_space, ContainingBlockConstraints const& containing_block_constraints, Optional<CSSPixels> measured_content_height)
+{
+    auto const* html_element = as_if<HTML::HTMLElement>(box.dom_node());
+    if (!html_element || !html_element->uses_button_layout())
+        return;
+
+    // Flex/grid-inside buttons are their own flex/grid container and get no anonymous content wrapper,
+    // so there is nothing to make definite for centering.
+    auto display = box.display();
+    if (display.is_flex_inside() || display.is_grid_inside())
+        return;
+
+    auto const& computed_values = box.computed_values();
+
+    // With auto height and no min-height the content box already exactly wraps the content, so there is
+    // no extra space to center within and no need to force a definite content box.
+    if (computed_values.height().is_auto() && computed_values.min_height().is_auto())
+        return;
+
+    auto& box_state = m_state.get_mutable(box);
+    if (box_state.has_definite_height())
+        return;
+
+    auto natural_content_height = measured_content_height.value_or_lazy_evaluated([&] {
+        return measure_automatic_content_height(box, box_state.available_inner_space_or_constraints_from(available_space), containing_block_constraints);
+    });
+
+    auto used_height = should_treat_height_as_auto(box, available_space, containing_block_constraints)
+        ? natural_content_height
+        : calculate_inner_height(box, available_space, computed_values.height(), containing_block_constraints);
+    if (!should_treat_max_height_as_none(box, available_space.height, containing_block_constraints) && !computed_values.max_height().is_auto())
+        used_height = min(used_height, calculate_inner_height(box, available_space, computed_values.max_height(), containing_block_constraints));
+    if (!computed_values.min_height().is_auto())
+        used_height = max(used_height, calculate_inner_height(box, available_space, computed_values.min_height(), containing_block_constraints));
+
+    // Only force a definite content box when the button is taller than its content, so a min-height or a larger height
+    // has room to center within. A content-sized box stays indefinite, so an intrinsic keyword height does not resolve
+    // percentage-height descendants.
+    if (used_height <= natural_content_height)
+        return;
+
+    box_state.set_content_height(used_height);
+    box_state.set_has_definite_height(true);
 }
 
 // 17.5.2 Table width algorithms: the 'table-layout' property
@@ -2018,6 +2064,8 @@ void FormattingContext::layout_absolutely_positioned_element(Box& box)
         if ((!computed_values.height().is_auto() && computed_height_establishes_definite_containing_block_height(computed_values.height())) || height_resolved_from_aspect_ratio)
             box_state.set_has_definite_height(true);
     }
+
+    make_button_content_box_definite(box, available_space, absolutely_positioned_constraints);
 
     auto independent_formatting_context = layout_inside(box, LayoutMode::Normal, LayoutInput { box_state.available_inner_space_or_constraints_from(available_space), absolutely_positioned_constraints });
 
