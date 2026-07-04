@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+
+    body {
+        margin: 0;
+        font: 10px/20px Ahem;
+    }
+
+    .case {
+        margin: 10px 0 0 10px;
+        width: 45px;
+    }
+
+    #interrupted-block,
+    #only-block-block {
+        display: block;
+        width: 80px;
+        height: 30px;
+    }
+</style>
+<body>
+    <div class="case"><span id="wrap">aaaa aaaa aaaa</span></div>
+    <div class="case"><span id="interrupted">ana<div id="interrupted-block">block</div>tomy</span></div>
+    <div class="case"><span id="only-block"><div id="only-block-block">block</div></span></div>
+    <div class="case"><span id="empty"></span></div>
+    <span id="none" style="display: none;">none</span>
+
+    <script>
+        promiseTest(async () => {
+            await document.fonts.ready;
+            await animationFrame();
+
+            function formatNumber(value) {
+                if (Object.is(value, -0))
+                    return "0";
+                if (Number.isInteger(value))
+                    return `${value}`;
+                return value.toFixed(2);
+            }
+
+            function formatRect(rect) {
+                return `${formatNumber(rect.x)},${formatNumber(rect.y)} ${formatNumber(rect.width)}x${formatNumber(rect.height)}`;
+            }
+
+            function printClientRects(id) {
+                const rects = document.getElementById(id).getClientRects();
+                println(`${id}: ${rects.length}`);
+                for (let i = 0; i < rects.length; ++i)
+                    println(`${id}[${i}]: ${formatRect(rects[i])}`);
+            }
+
+            printClientRects("wrap");
+            printClientRects("interrupted");
+            println(`interrupted bounding: ${formatRect(document.getElementById("interrupted").getBoundingClientRect())}`);
+            printClientRects("only-block");
+            println(`only-block bounding: ${formatRect(document.getElementById("only-block").getBoundingClientRect())}`);
+            printClientRects("empty");
+            printClientRects("none");
+        });
+    </script>
+</body>
