@@ -612,6 +612,23 @@ CSSPixels FormattingContext::compute_auto_height_for_block_formatting_context_ro
     return max(CSSPixels(0.0f), bottom.value_or(0) - top.value_or(0));
 }
 
+CSSPixels FormattingContext::measure_automatic_content_height(Box const& box, AvailableSpace const& inner_available_space, ContainingBlockConstraints const& containing_block_constraints)
+{
+    LayoutState throwaway_state(box);
+    // Populate ancestor state: the throwaway formatting context may encounter abspos elements whose
+    // containing block is an ancestor above `box`, even if it is not in `box`'s containing block chain.
+    for (auto* ancestor = box.parent(); ancestor; ancestor = ancestor->parent()) {
+        auto* ancestor_box = as_if<Box>(*ancestor);
+        if (!ancestor_box || !m_state.try_get(*ancestor_box))
+            continue;
+        throwaway_state.populate_node_from(m_state, *ancestor_box);
+    }
+    throwaway_state.create(box, containing_block_constraints.percentage_basis_width, containing_block_constraints.percentage_basis_height);
+    auto measuring_context = create_independent_formatting_context_if_needed(throwaway_state, m_layout_mode, box);
+    measuring_context->run(LayoutInput { inner_available_space, containing_block_constraints });
+    return measuring_context->automatic_content_height();
+}
+
 // 17.5.2 Table width algorithms: the 'table-layout' property
 // https://www.w3.org/TR/CSS22/tables.html#width-layout
 CSSPixels FormattingContext::compute_table_box_width_inside_table_wrapper(

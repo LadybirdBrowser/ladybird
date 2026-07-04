@@ -1094,21 +1094,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         // For boxes with auto height but non-auto min-height, we need to determine if the content height is less than
         // min-height. If so, we run layout with min-height as the available height.
         if (should_treat_height_as_auto(box, available_space, layout_input.containing_block_constraints) && !box.computed_values().min_height().is_auto()) {
-            LayoutState throwaway_state(box);
-            // Populate ancestor state: the throwaway BFC may encounter abspos
-            // elements whose containing block is an ancestor above `box`, even if
-            // it is not in `box`'s containing block chain.
-            for (auto* ancestor = box.parent(); ancestor; ancestor = ancestor->parent()) {
-                auto* ancestor_box = as_if<Box>(*ancestor);
-                if (!ancestor_box || !m_state.try_get(*ancestor_box))
-                    continue;
-                throwaway_state.populate_node_from(m_state, *ancestor_box);
-            }
-
-            throwaway_state.create(box, layout_input.containing_block_constraints.percentage_basis_width, layout_input.containing_block_constraints.percentage_basis_height);
-            auto measuring_context = create_independent_formatting_context_if_needed(throwaway_state, m_layout_mode, box);
-            measuring_context->run(layout_input.with_available_space(inner_available_space));
-            auto content_height = measuring_context->automatic_content_height();
+            auto content_height = measure_automatic_content_height(box, inner_available_space, layout_input.containing_block_constraints);
             auto min_height = calculate_inner_height(box, available_space, box.computed_values().min_height(), layout_input.containing_block_constraints);
             if (content_height < min_height) {
                 inner_available_space.height = AvailableSize::make_definite(min_height);
