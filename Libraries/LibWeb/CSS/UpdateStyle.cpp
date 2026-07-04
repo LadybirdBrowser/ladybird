@@ -5,6 +5,7 @@
  */
 
 #include <AK/ScopeGuard.h>
+#include <LibGC/ConservativeVector.h>
 #include <LibGC/RootVector.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Invalidation/HasMutationInvalidator.h>
@@ -56,16 +57,44 @@ static void apply_document_style_invalidation_after_style_change(DOM::Document& 
         document.invalidate_stacking_context_tree();
 }
 
-[[nodiscard]] static RequiredInvalidationAfterStyleChange update_style_recursively(
-    DOM::Node& node,
-    StyleComputer& style_computer,
-    bool needs_inherited_style_update,
-    bool recompute_elements_depending_on_custom_properties,
-    bool parent_display_changed,
-    bool ancestor_needs_descendant_style_recompute)
-{
-    bool const needs_full_style_update = node.document().needs_full_style_update();
+struct StyleUpdateFrame {
+    StyleUpdateFrame(
+        DOM::Node& node,
+        bool needs_inherited_style_update,
+        bool recompute_elements_depending_on_custom_properties,
+        bool parent_display_changed,
+        bool ancestor_needs_descendant_style_recompute)
+        : node(node)
+        , needs_inherited_style_update(needs_inherited_style_update)
+        , recompute_elements_depending_on_custom_properties(recompute_elements_depending_on_custom_properties)
+        , parent_display_changed(parent_display_changed)
+        , ancestor_needs_descendant_style_recompute(ancestor_needs_descendant_style_recompute)
+    {
+    }
+
+    GC::Ref<DOM::Node> node;
+    GC::Ptr<DOM::Node> next_child;
     RequiredInvalidationAfterStyleChange invalidation;
+    RequiredInvalidationAfterStyleChange node_invalidation;
+    bool needs_inherited_style_update { false };
+    bool recompute_elements_depending_on_custom_properties { false };
+    bool parent_display_changed { false };
+    bool ancestor_needs_descendant_style_recompute { false };
+    bool needs_full_style_update { false };
+    bool is_display_none { false };
+    bool children_need_inherited_style_update { false };
+    bool children_need_full_style_recompute { false };
+    bool descendant_style_recompute_needed { false };
+    bool skip_display_none_descent { false };
+    bool should_descend { false };
+    bool did_enter { false };
+    bool did_visit_shadow_root { false };
+};
+
+static void enter_style_update_frame(StyleUpdateFrame& frame, StyleComputer& style_computer)
+{
+    auto& node = *frame.node;
+    frame.needs_full_style_update = node.document().needs_full_style_update();
 
     if (node.is_element())
         style_computer.push_ancestor(static_cast<DOM::Element const&>(node));
@@ -73,10 +102,7 @@ static void apply_document_style_invalidation_after_style_change(DOM::Document& 
     // NOTE: If the current node has `display:none`, we can disregard all invalidation
     //       caused by its children, as they will not be rendered anyway.
     //       We will still recompute style for the children, though.
-    bool is_display_none = false;
-
     bool did_change_custom_properties = false;
-    RequiredInvalidationAfterStyleChange node_invalidation;
     if (is<DOM::Element>(node)) {
         auto& element = static_cast<DOM::Element&>(node);
 
@@ -84,106 +110,154 @@ static void apply_document_style_invalidation_after_style_change(DOM::Document& 
         //        include media conditions, or b) the data used to resolve media queries hasn't changed.
         bool const needs_style_update_due_to_if_media = element.style_uses_if_css_function();
 
-        if (needs_full_style_update
+        if (frame.needs_full_style_update
             || node.needs_style_update()
-            || parent_display_changed
-            || ancestor_needs_descendant_style_recompute
-            || (recompute_elements_depending_on_custom_properties && (element.style_uses_var_css_function() || element.style_uses_inherit_css_function()))
+            || frame.parent_display_changed
+            || frame.ancestor_needs_descendant_style_recompute
+            || (frame.recompute_elements_depending_on_custom_properties && (element.style_uses_var_css_function() || element.style_uses_inherit_css_function()))
             || needs_style_update_due_to_if_media) {
-            node_invalidation = element.recompute_style(did_change_custom_properties);
+            frame.node_invalidation = element.recompute_style(did_change_custom_properties);
         } else {
-            if (needs_inherited_style_update)
-                node_invalidation = element.recompute_inherited_style(DOM::ScheduleAnimationUpdate::Yes);
-            if (recompute_elements_depending_on_custom_properties && element.refresh_inherited_custom_property_data())
+            if (frame.needs_inherited_style_update)
+                frame.node_invalidation = element.recompute_inherited_style(DOM::ScheduleAnimationUpdate::Yes);
+            if (frame.recompute_elements_depending_on_custom_properties && element.refresh_inherited_custom_property_data())
                 did_change_custom_properties = true;
         }
-        is_display_none = static_cast<DOM::Element&>(node).computed_properties()->display().is_none();
+        frame.is_display_none = element.computed_properties()->display().is_none();
 
-        apply_element_style_invalidation_after_style_change(element, node_invalidation, !node_invalidation.is_none(), !needs_inherited_style_update);
+        apply_element_style_invalidation_after_style_change(element, frame.node_invalidation, !frame.node_invalidation.is_none(), !frame.needs_inherited_style_update);
     }
+
     if (!node.is_element())
         node.set_needs_style_update(false);
-    invalidation |= node_invalidation;
+    frame.invalidation |= frame.node_invalidation;
 
-    if (did_change_custom_properties) {
-        recompute_elements_depending_on_custom_properties = true;
-    }
+    if (did_change_custom_properties)
+        frame.recompute_elements_depending_on_custom_properties = true;
 
-    bool children_need_inherited_style_update = !invalidation.is_none();
+    frame.children_need_inherited_style_update = !frame.invalidation.is_none();
     if (!node.is_element())
-        children_need_inherited_style_update |= needs_inherited_style_update;
+        frame.children_need_inherited_style_update |= frame.needs_inherited_style_update;
     // NB: When display changes to/from flex/grid/contents, children may need to be blockified or un-blockified.
     //     This requires a full style recompute, not just inherited style update.
-    bool children_need_full_style_recompute = node_invalidation.rebuild_layout_tree;
-    bool descendant_style_recompute_needed = ancestor_needs_descendant_style_recompute || node_invalidation.recompute_descendant_styles;
+    frame.children_need_full_style_recompute = frame.node_invalidation.rebuild_layout_tree;
+    frame.descendant_style_recompute_needed = frame.ancestor_needs_descendant_style_recompute || frame.node_invalidation.recompute_descendant_styles;
 
     // OPTIMIZATION: Descendants of a display:none element are not rendered and their computed style is not observable
     //               except through on-demand reads, which call Document::update_style_for_element to refresh the path
     //               lazily. We can therefore skip the descent entirely. The exception is when display itself just
     //               changed or the document needs a full style update. In those cases descendants must be re-cascaded
     //               eagerly.
-    bool const skip_display_none_descent = is_display_none && !needs_full_style_update && !children_need_full_style_recompute;
+    frame.skip_display_none_descent = frame.is_display_none && !frame.needs_full_style_update && !frame.children_need_full_style_recompute;
 
-    if (!skip_display_none_descent
-        && (needs_full_style_update
+    frame.should_descend = !frame.skip_display_none_descent
+        && (frame.needs_full_style_update
             || node.child_needs_style_update()
-            || children_need_inherited_style_update
-            || recompute_elements_depending_on_custom_properties
-            || children_need_full_style_recompute
-            || descendant_style_recompute_needed)) {
-        if (node.is_element()) {
-            if (auto shadow_root = static_cast<DOM::Element&>(node).shadow_root()) {
-                bool shadow_tree_children_need_inherited_style_update = node_invalidation.inherited_style_changed
-                    || (!node_invalidation.is_none() && shadow_root->children_may_depend_on_non_inherited_property_inheritance());
-                if (needs_full_style_update
-                    || shadow_root->needs_style_update()
-                    || shadow_root->child_needs_style_update()
-                    || shadow_tree_children_need_inherited_style_update
-                    || recompute_elements_depending_on_custom_properties
-                    || children_need_full_style_recompute
-                    || descendant_style_recompute_needed) {
-                    auto subtree_invalidation = update_style_recursively(
-                        *shadow_root,
-                        style_computer,
-                        shadow_tree_children_need_inherited_style_update,
-                        recompute_elements_depending_on_custom_properties,
-                        children_need_full_style_recompute,
-                        descendant_style_recompute_needed);
-                    if (!is_display_none)
-                        invalidation |= subtree_invalidation;
-                }
-            }
-        }
+            || frame.children_need_inherited_style_update
+            || frame.recompute_elements_depending_on_custom_properties
+            || frame.children_need_full_style_recompute
+            || frame.descendant_style_recompute_needed);
+    frame.next_child = node.first_child();
+    frame.did_enter = true;
+}
 
-        node.for_each_child([&](auto& child) {
-            if (needs_full_style_update
-                || child.needs_style_update()
-                || children_need_inherited_style_update
-                || child.child_needs_style_update()
-                || recompute_elements_depending_on_custom_properties
-                || children_need_full_style_recompute
-                || descendant_style_recompute_needed) {
-                auto subtree_invalidation = update_style_recursively(
-                    child,
-                    style_computer,
-                    children_need_inherited_style_update,
-                    recompute_elements_depending_on_custom_properties,
-                    children_need_full_style_recompute,
-                    descendant_style_recompute_needed);
-                if (!is_display_none)
-                    invalidation |= subtree_invalidation;
-            }
-            return IterationDecision::Continue;
-        });
-    }
+static bool should_update_style_for_child(StyleUpdateFrame const& frame, DOM::Node const& child, bool child_needs_inherited_style_update)
+{
+    return frame.needs_full_style_update
+        || child.needs_style_update()
+        || child_needs_inherited_style_update
+        || child.child_needs_style_update()
+        || frame.recompute_elements_depending_on_custom_properties
+        || frame.children_need_full_style_recompute
+        || frame.descendant_style_recompute_needed;
+}
 
-    if (!skip_display_none_descent)
+static void finish_style_update_frame(StyleUpdateFrame& frame, StyleComputer& style_computer)
+{
+    auto& node = *frame.node;
+    if (!frame.skip_display_none_descent)
         node.set_child_needs_style_update(false);
 
     if (node.is_element())
         style_computer.pop_ancestor(static_cast<DOM::Element const&>(node));
+}
 
-    return invalidation;
+static void push_style_update_frame_for_child(GC::ConservativeVector<StyleUpdateFrame, 32>& stack, StyleUpdateFrame const& parent_frame, DOM::Node& child, bool child_needs_inherited_style_update)
+{
+    auto recompute_elements_depending_on_custom_properties = parent_frame.recompute_elements_depending_on_custom_properties;
+    auto children_need_full_style_recompute = parent_frame.children_need_full_style_recompute;
+    auto descendant_style_recompute_needed = parent_frame.descendant_style_recompute_needed;
+
+    stack.empend(
+        child,
+        child_needs_inherited_style_update,
+        recompute_elements_depending_on_custom_properties,
+        children_need_full_style_recompute,
+        descendant_style_recompute_needed);
+}
+
+[[nodiscard]] static RequiredInvalidationAfterStyleChange update_style_iteratively(
+    DOM::Node& root,
+    StyleComputer& style_computer,
+    bool needs_inherited_style_update,
+    bool recompute_elements_depending_on_custom_properties,
+    bool parent_display_changed,
+    bool ancestor_needs_descendant_style_recompute)
+{
+    GC::ConservativeVector<StyleUpdateFrame, 32> stack;
+    stack.empend(root, needs_inherited_style_update, recompute_elements_depending_on_custom_properties, parent_display_changed, ancestor_needs_descendant_style_recompute);
+
+    RequiredInvalidationAfterStyleChange root_invalidation;
+    while (!stack.is_empty()) {
+        auto& frame = stack.last();
+        if (!frame.did_enter)
+            enter_style_update_frame(frame, style_computer);
+
+        if (frame.should_descend && !frame.did_visit_shadow_root) {
+            frame.did_visit_shadow_root = true;
+
+            if (is<DOM::Element>(*frame.node)) {
+                if (auto shadow_root = static_cast<DOM::Element&>(*frame.node).shadow_root()) {
+                    bool shadow_tree_children_need_inherited_style_update = frame.node_invalidation.inherited_style_changed
+                        || (!frame.node_invalidation.is_none() && shadow_root->children_may_depend_on_non_inherited_property_inheritance());
+                    if (should_update_style_for_child(frame, *shadow_root, shadow_tree_children_need_inherited_style_update)) {
+                        push_style_update_frame_for_child(stack, frame, *shadow_root, shadow_tree_children_need_inherited_style_update);
+                        continue;
+                    }
+                }
+            }
+        }
+
+        bool did_push_child = false;
+        while (frame.should_descend && frame.next_child) {
+            auto child = frame.next_child;
+            frame.next_child = child->next_sibling();
+
+            if (!should_update_style_for_child(frame, *child, frame.children_need_inherited_style_update))
+                continue;
+
+            push_style_update_frame_for_child(stack, frame, *child, frame.children_need_inherited_style_update);
+            did_push_child = true;
+            break;
+        }
+        if (did_push_child)
+            continue;
+
+        auto frame_invalidation = frame.invalidation;
+        finish_style_update_frame(frame, style_computer);
+        (void)stack.take_last();
+
+        if (stack.is_empty()) {
+            root_invalidation = frame_invalidation;
+            break;
+        }
+
+        auto& parent_frame = stack.last();
+        if (!parent_frame.is_display_none)
+            parent_frame.invalidation |= frame_invalidation;
+    }
+
+    return root_invalidation;
 }
 
 void update_style(DOM::Document& document)
@@ -231,7 +305,7 @@ void update_style(DOM::Document& document)
         document.style_computer().reset_has_result_cache();
         document.style_computer().reset_ancestor_filter();
 
-        invalidation |= update_style_recursively(document, document.style_computer(), false, false, false, false);
+        invalidation |= update_style_iteratively(document, document.style_computer(), false, false, false, false);
         document.set_needs_full_style_update(false);
 
         if (!document.style_invalidator().has_pending_invalidations() && !document.needs_style_update() && !document.child_needs_style_update())
