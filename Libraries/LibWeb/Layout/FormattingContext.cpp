@@ -2764,7 +2764,7 @@ CSSPixels FormattingContext::box_baseline(Box const& box, BaselineSet baseline_s
             return box.computed_values().font_size();
         case CSS::VerticalAlign::TextBottom:
             // TextBottom: Align the bottom of the box with the bottom of the parent's content area (see 10.6.1).
-            return box_state.margin_box_height() - CSSPixels::nearest_value_for(box.containing_block()->first_available_font().pixel_metrics().descent * 2);
+            return box_state.margin_box_height() - CSSPixels::nearest_value_for(box.containing_block()->first_available_font().pixel_metrics().descent);
         default:
             break;
         }
