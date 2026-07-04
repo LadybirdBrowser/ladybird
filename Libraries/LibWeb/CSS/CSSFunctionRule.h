@@ -43,6 +43,8 @@ public:
 
     virtual void initialize(JS::Realm&) override;
 
+    Utf16FlyString const& qualified_layer_name() const { return parent_layer_internal_qualified_name(); }
+
     Utf16String name() const;
     Vector<FunctionParameter> get_parameters() const;
     Utf16String return_type() const;

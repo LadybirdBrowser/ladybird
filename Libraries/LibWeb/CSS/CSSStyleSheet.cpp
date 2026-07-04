@@ -11,6 +11,7 @@
 #include <LibWeb/Bindings/CSSStyleSheet.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSCounterStyleRule.h>
+#include <LibWeb/CSS/CSSFunctionRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSNestedDeclarations.h>
@@ -371,6 +372,14 @@ void CSSStyleSheet::for_each_effective_counter_style_at_rule(Function<void(CSSCo
     for_each_effective_rule(TraversalOrder::Preorder, [&](CSSRule const& rule) {
         if (rule.type() == CSSRule::Type::CounterStyle)
             callback(static_cast<CSSCounterStyleRule const&>(rule));
+    });
+}
+
+void CSSStyleSheet::for_each_effective_function_at_rule(Function<void(CSSFunctionRule const&)> const& callback) const
+{
+    for_each_effective_rule(TraversalOrder::Preorder, [&](CSSRule const& rule) {
+        if (rule.type() == CSSRule::Type::Function)
+            callback(static_cast<CSSFunctionRule const&>(rule));
     });
 }
 

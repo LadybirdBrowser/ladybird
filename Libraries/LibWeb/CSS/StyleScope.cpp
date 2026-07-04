@@ -9,6 +9,7 @@
 #include <AK/Utf16StringBuilder.h>
 #include <LibWeb/CSS/CSSConditionRule.h>
 #include <LibWeb/CSS/CSSContainerRule.h>
+#include <LibWeb/CSS/CSSFunctionRule.h>
 #include <LibWeb/CSS/CSSGroupingRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
@@ -1133,6 +1134,7 @@ void StyleScope::build_counter_style_cache()
 
     Function<void(CSS::CSSStyleSheet&)> const collect_counter_style_definitions = [&](CSS::CSSStyleSheet const& style_sheet) {
         style_sheet.for_each_effective_counter_style_at_rule([&](CSS::CSSCounterStyleRule const& counter_style_rule) {
+            // FIXME: Respect CSS layers here
             if (auto const& definition = CSS::CounterStyleDefinition::from_counter_style_rule(counter_style_rule, computation_context); definition.has_value())
                 counter_style_definitions.set(definition->name(), *definition);
         });
@@ -1451,6 +1453,58 @@ RefPtr<CSS::CounterStyle const> StyleScope::get_registered_counter_style(Utf16Fl
         const_cast<StyleScope*>(this)->build_counter_style_cache();
 
     return dereference_global_tree_scoped_reference<CSS::CounterStyle const*>([&](StyleScope const& scope) { return scope.m_registered_counter_styles.get(name); })
+        .value_or(nullptr);
+}
+
+GC::Ptr<CSSFunctionRule const> StyleScope::get_function_definition(Utf16FlyString const& name) const
+{
+    return dereference_global_tree_scoped_reference<CSSFunctionRule const*>([&](StyleScope const& scope) {
+        auto const get_function_definition_for_cascade_origin = [&](CSS::CascadeOrigin cascade_origin) {
+            CSSFunctionRule const* cascade_origin_result = nullptr;
+
+            Function<void(CSS::CSSStyleSheet&)> const get_function_definition_from_style_sheet = [&](CSS::CSSStyleSheet& style_sheet) {
+                style_sheet.for_each_effective_function_at_rule([&](CSS::CSSFunctionRule const& function_rule) {
+                    if (function_rule.name() != name)
+                        return;
+
+                    auto layer_index = scope.rule_cache().qualified_layer_names_in_order.find_first_index(function_rule.qualified_layer_name());
+
+                    if (!layer_index.has_value())
+                        return;
+
+                    if (!cascade_origin_result) {
+                        cascade_origin_result = &function_rule;
+                        return;
+                    }
+
+                    // NB: We should have a layer index if we have a result since we needed to match it in the first place
+                    auto existing_layer_index = scope.rule_cache().qualified_layer_names_in_order.find_first_index(cascade_origin_result->qualified_layer_name()).value();
+
+                    if (layer_index.value() >= existing_layer_index)
+                        cascade_origin_result = &function_rule;
+                });
+            };
+
+            scope.for_each_stylesheet(cascade_origin, get_function_definition_from_style_sheet);
+
+            return cascade_origin_result;
+        };
+
+        Optional<CSSFunctionRule const*> result;
+
+        if (scope.m_node->is_document()) {
+            if (auto const* user_agent_result = get_function_definition_for_cascade_origin(CSS::CascadeOrigin::UserAgent))
+                result = user_agent_result;
+
+            if (auto const* user_result = get_function_definition_for_cascade_origin(CSS::CascadeOrigin::User))
+                result = user_result;
+        }
+
+        if (auto const* author_result = get_function_definition_for_cascade_origin(CSS::CascadeOrigin::Author))
+            result = author_result;
+
+        return result;
+    })
         .value_or(nullptr);
 }
 
