@@ -22,7 +22,7 @@ jobs:
         os_name: ['Linux']
         arch: ['x86_64']
         runner_labels: ['["ubuntu-24.04-internal", "web-benchmarks", "self-hosted"]']
-        container: [&ci_container '{"image":"ghcr.io/ladybirdbrowser/ladybird-ci:2026.06.14"}']
+        container: [&ci_container '{"image":"ghcr.io/ladybirdbrowser/ladybird-ci:2026.07.04"}']
 
         include:
           - os_name: 'macOS'
