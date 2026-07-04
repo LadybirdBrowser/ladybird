@@ -77,9 +77,12 @@ void FlexFormattingContext::run(LayoutInput const& layout_input)
     // OPTIMIZATION: If we're in intrinsic sizing layout, but the flex container is not the
     //               box being measured, we can skip everything here.
     //               The parent formatting context has already figured out our size anyway.
+    //               However, an inline-level container must still lay out its items, since the
+    //               parent inline formatting context derives the fragment's baseline from them.
     if (m_layout_mode == LayoutMode::IntrinsicSizing
         && !available_space.width.is_intrinsic_sizing_constraint()
-        && !available_space.height.is_intrinsic_sizing_constraint()) {
+        && !available_space.height.is_intrinsic_sizing_constraint()
+        && !flex_container().display().is_inline_outside()) {
         return;
     }
 
@@ -241,11 +244,10 @@ void FlexFormattingContext::run(LayoutInput const& layout_input)
     // 16. Align all flex lines (per align-content)
     align_all_flex_lines();
 
-    if (m_layout_mode == LayoutMode::IntrinsicSizing) {
+    if (available_space.width.is_intrinsic_sizing_constraint() || available_space.height.is_intrinsic_sizing_constraint()) {
         // We're computing intrinsic size for the flex container.
         determine_intrinsic_size_of_flex_container();
     } else {
-        // This is a normal layout (not intrinsic sizing).
         // AD-HOC: Finally, layout the inside of all flex items.
         copy_dimensions_from_flex_items_to_boxes();
         for (auto& item : m_flex_items) {

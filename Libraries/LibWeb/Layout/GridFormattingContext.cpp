@@ -2802,9 +2802,12 @@ void GridFormattingContext::run(LayoutInput const& layout_input)
     // OPTIMIZATION: If we're in intrinsic sizing layout, but the grid container is not the
     //               box being measured, we can skip everything here.
     //               The parent formatting context has already figured out our size anyway.
+    //               However, an inline-level container must still lay out its items, since the
+    //               parent inline formatting context derives the fragment's baseline from them.
     if (m_layout_mode == LayoutMode::IntrinsicSizing
         && !available_space.width.is_intrinsic_sizing_constraint()
-        && !available_space.height.is_intrinsic_sizing_constraint()) {
+        && !available_space.height.is_intrinsic_sizing_constraint()
+        && !grid_container().display().is_inline_outside()) {
         return;
     }
 
@@ -2870,7 +2873,7 @@ void GridFormattingContext::run(LayoutInput const& layout_input)
 
     resolve_track_spacing(GridDimension::Row);
 
-    if (m_layout_mode == LayoutMode::IntrinsicSizing) {
+    if (available_space.width.is_intrinsic_sizing_constraint() || available_space.height.is_intrinsic_sizing_constraint()) {
         determine_intrinsic_size_of_grid_container(available_space);
         return;
     }

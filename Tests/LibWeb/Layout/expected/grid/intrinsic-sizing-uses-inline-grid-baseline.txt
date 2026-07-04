@@ -1,0 +1,32 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 32 0+0+0] children: not-inline
+      Box <div.row> at [0,0] flex-container(row) [0+0+0 800 0+0+0] [0+0+0 32 0+0+0] [FFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.item> at [0,0] flex-item [0+0+0 164.9375 0+0+0] [0+0+0 32 0+0+0] [BFC] children: inline
+          frag 0 from Box start: 0, length: 0, rect: [13,1 48.203125x30] baseline: 20.203125
+          frag 1 from TextNode start: 0, length: 14, rect: [74.203125,5 90.734375x21] baseline: 14.703125
+              " trailing text"
+          Box <span.button> at [13,1] [0+1+12 48.203125 12+1+0] [0+1+0 30 0+1+0] [GFC] children: not-inline
+            BlockContainer <(anonymous)> at [13,5.5] [0+0+0 48.203125 0+0+0] [0+0+0 21 0+0+0] [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 7, rect: [13,5.5 48.203125x21] baseline: 14.703125
+                  "Filters"
+              TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [0,32] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x32]
+    PaintableWithLines (BlockContainer<BODY>) [0,0 800x32]
+      PaintableBox (Box<DIV>.row) [0,0 800x32]
+        PaintableWithLines (BlockContainer<DIV>.item) [0,0 164.9375x32]
+          PaintableBox (Box<SPAN>.button) [0,0 74.203125x32]
+            PaintableWithLines (BlockContainer(anonymous)) [13,5.5 48.203125x21]
+      PaintableWithLines (BlockContainer(anonymous)) [0,32 800x0]
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x32] (z-index: auto)
