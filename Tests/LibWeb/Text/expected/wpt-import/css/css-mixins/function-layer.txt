@@ -2,11 +2,11 @@ Harness status: OK
 
 Found 7 tests
 
-7 Fail
-Fail	Single function within anonymous layer
-Fail	Last anonymous layer wins
-Fail	Unlayered styles win
-Fail	Unlayered styles win, reverse
-Fail	Single named layer
-Fail	Named layers
-Fail	Named layers, reordered
+7 Pass
+Pass	Single function within anonymous layer
+Pass	Last anonymous layer wins
+Pass	Unlayered styles win
+Pass	Unlayered styles win, reverse
+Pass	Single named layer
+Pass	Named layers
+Pass	Named layers, reordered

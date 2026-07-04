@@ -2,94 +2,94 @@ Harness status: OK
 
 Found 89 tests
 
-7 Pass
-82 Fail
-Fail	Literal result
-Fail	Literal result, typed return
-Fail	Literal result, typed return, calc
+76 Pass
+13 Fail
+Pass	Literal result
+Pass	Literal result, typed return
+Pass	Literal result, typed return, calc
 Pass	Literal result, typed return, mismatch
 Pass	Missing result descriptor
 Pass	Literal result, empty
-Fail	result cascading behavior
-Fail	Another dashed-function in result
-Fail	Unused argument
-Fail	Single parameter
-Fail	Multiple parameters
-Fail	Single parameter, typed
-Fail	Typed parameter with calc()
-Fail	Untyped parameter with calc()
-Fail	Various typed parameters
-Fail	Parameter with complex type (auto)
-Fail	Parameter with complex type (px)
-Fail	Passing argument to inner function
-Fail	var() in argument resolved before call
-Fail	var() in argument resolved before call, typed
-Fail	Argument captures IACVT due to invalid var()
-Fail	Argument captures IACVT due to invalid var(), typed
-Fail	Argument captures IACVT due to type mismatch
-Fail	Single parameter with default value
-Fail	Multiple parameters with defaults
-Fail	Multiple parameters with defaults, typed
-Fail	Default referencing another parameter
-Fail	Default referencing another parameter, local interference
-Fail	Default referencing another defaulted parameter
+Pass	result cascading behavior
+Pass	Another dashed-function in result
+Pass	Unused argument
+Pass	Single parameter
+Pass	Multiple parameters
+Pass	Single parameter, typed
+Pass	Typed parameter with calc()
+Pass	Untyped parameter with calc()
+Pass	Various typed parameters
+Pass	Parameter with complex type (auto)
+Pass	Parameter with complex type (px)
+Pass	Passing argument to inner function
+Pass	var() in argument resolved before call
+Pass	var() in argument resolved before call, typed
+Pass	Argument captures IACVT due to invalid var()
+Pass	Argument captures IACVT due to invalid var(), typed
+Pass	Argument captures IACVT due to type mismatch
+Pass	Single parameter with default value
+Pass	Multiple parameters with defaults
+Pass	Multiple parameters with defaults, typed
+Pass	Default referencing another parameter
+Pass	Default referencing another parameter, local interference
+Pass	Default referencing another defaulted parameter
 Fail	Typed default with reference
-Fail	IACVT arguments are defaulted
-Fail	IACVT arguments are defaulted, typed
-Fail	Arguments are defaulted on type mismatch
-Fail	Unused local
-Fail	Local does not affect outer scope
-Fail	Substituting local in result
-Fail	Substituting multiple locals in result
-Fail	Local referring to another local
-Fail	Locals appearing after result
-Fail	Locals cascading behavior
-Fail	Custom properties are visible inside function
-Fail	Substitute local from outer scope
-Fail	Substitute argument from outer scope
-Fail	Inner argument shadowing outer argument
-Fail	Inner argument shadowing outer local
-Fail	Inner local shadowing outer argument
-Fail	Inner local shadowing outer local
+Pass	IACVT arguments are defaulted
+Pass	IACVT arguments are defaulted, typed
+Pass	Arguments are defaulted on type mismatch
+Pass	Unused local
+Pass	Local does not affect outer scope
+Pass	Substituting local in result
+Pass	Substituting multiple locals in result
+Pass	Local referring to another local
+Pass	Locals appearing after result
+Pass	Locals cascading behavior
+Pass	Custom properties are visible inside function
+Pass	Substitute local from outer scope
+Pass	Substitute argument from outer scope
+Pass	Inner argument shadowing outer argument
+Pass	Inner argument shadowing outer local
+Pass	Inner local shadowing outer argument
+Pass	Inner local shadowing outer local
 Fail	Referencing outer local containing var()
-Fail	Referencing outer typed argument
-Fail	Same function with different scopes
-Fail	Referencing local two frames up
-Fail	IACVT outer local shadows property
-Fail	Inner function call should see resolved outer locals
-Fail	Inner function call should see resolved outer locals (reverse)
-Fail	Parameter shadows custom property
-Fail	Local shadows parameter
-Fail	IACVT argument shadows outer scope
+Pass	Referencing outer typed argument
+Pass	Same function with different scopes
+Pass	Referencing local two frames up
+Pass	IACVT outer local shadows property
+Pass	Inner function call should see resolved outer locals
+Pass	Inner function call should see resolved outer locals (reverse)
+Pass	Parameter shadows custom property
+Pass	Local shadows parameter
+Pass	IACVT argument shadows outer scope
 Fail	IACVT argument shadows outer scope, typed
 Fail	IACVT argument shadows outer scope, type mismatch
 Pass	Missing only argument
 Pass	Missing one argument of several
-Fail	Passing list as only argument
-Fail	Passing list as first argument
-Fail	Passing list as second argument
-Fail	Passing comma as argument
-Fail	Passing {} as argument
-Fail	Passing non-whole-value {} as argument
-Fail	Local variable with initial keyword
-Fail	Local variable with initial keyword, defaulted
-Fail	Local variable with initial keyword, no value via IACVT-capture
+Pass	Passing list as only argument
+Pass	Passing list as first argument
+Pass	Passing list as second argument
+Pass	Passing comma as argument
+Pass	Passing {} as argument
+Pass	Passing non-whole-value {} as argument
+Pass	Local variable with initial keyword
+Pass	Local variable with initial keyword, defaulted
+Pass	Local variable with initial keyword, no value via IACVT-capture
 Fail	Default with initial keyword
-Fail	initial appearing via fallback
-Fail	Local variable with inherit keyword
-Fail	Local variable with inherit keyword (nested)
+Pass	initial appearing via fallback
+Pass	Local variable with inherit keyword
+Pass	Local variable with inherit keyword (nested)
 Fail	Inheriting an invalid value
 Fail	Default with inherit keyword
 Fail	Default with inherit keyword (nested)
-Fail	Local with the unset keyword
-Fail	Local with the revert keyword
-Fail	Local with the revert-layer keyword
+Pass	Local with the unset keyword
+Pass	Local with the revert keyword
+Pass	Local with the revert-layer keyword
 Fail	Local with the revert-rule keyword
 Pass	initial keyword left unresolved on result descriptor
-Fail	inherit keyword left unresolved on result descriptor
-Fail	unset keyword left unresolved on result descriptor
+Pass	inherit keyword left unresolved on result descriptor
+Pass	unset keyword left unresolved on result descriptor
 Fail	revert keyword left unresolved on result descriptor
 Fail	revert-layer keyword left unresolved on result descriptor
 Fail	revert-rule keyword left unresolved on result descriptor
-Fail	Keyword can be returned from function into local variable
-Pass	Can not return CSS-wide keyword as length
+Pass	Keyword can be returned from function into local variable
+Fail	Can not return CSS-wide keyword as length

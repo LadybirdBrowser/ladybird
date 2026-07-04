@@ -2,24 +2,24 @@ Harness status: OK
 
 Found 19 tests
 
-9 Pass
-10 Fail
+7 Pass
+12 Fail
 Fail	Return untyped url() from function
 Fail	Return untyped url() from function, quoted
 Fail	Return typed url() from function
 Fail	Return typed url() from function, quoted
-Fail	Return attr(type(<length>)) from untyped function
-Fail	Return attr(type(<length>)) from typed function
-Fail	Return attr(type(*)) from typed function
-Fail	Return attr(type(*)) from untyped function
-Fail	attr() in default parameter value
-Fail	attr() in local variable
-Pass	Returned url() is attr-tainted
-Pass	Returned url() is attr-tainted, typed attr()
-Pass	Returned url() is attr-tainted, typed return
-Pass	Returned url() is attr-tainted, local
-Pass	Returned url() is attr-tainted, argument
-Pass	Returned url() is attr-tainted, default
-Pass	Returned url() is attr-tainted, parent stack frame
+Pass	Return attr(type(<length>)) from untyped function
+Pass	Return attr(type(<length>)) from typed function
+Pass	Return attr(type(*)) from typed function
+Pass	Return attr(type(*)) from untyped function
+Pass	attr() in default parameter value
+Pass	attr() in local variable
+Fail	Returned url() is attr-tainted
+Fail	Returned url() is attr-tainted, typed attr()
+Fail	Returned url() is attr-tainted, typed return
+Fail	Returned url() is attr-tainted, local
+Fail	Returned url() is attr-tainted, argument
+Fail	Returned url() is attr-tainted, default
+Fail	Returned url() is attr-tainted, parent stack frame
 Pass	Returned url() is attr-tainted, initial
-Pass	Returned url() is attr-tainted, inherit
+Fail	Returned url() is attr-tainted, inherit

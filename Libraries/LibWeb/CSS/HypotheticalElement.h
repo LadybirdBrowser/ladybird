@@ -44,6 +44,7 @@ struct HypotheticalElement {
     //     compute custom properties, so we store it here for convenience.
     HashMap<Utf16FlyString, CustomPropertyRegistration> custom_property_registry;
 
+    GC::Ref<CSSFunctionRule const> custom_function;
     DOM::AbstractElement root_element;
     AbstractOrHypotheticalElement parent;
     NonnullRefPtr<CustomPropertyData> custom_property_data;

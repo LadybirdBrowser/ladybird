@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Tree scope is respected for otherwise identical styles
+1 Pass
+Pass	Tree scope is respected for otherwise identical styles

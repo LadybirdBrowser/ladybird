@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-4 Fail
-Fail	<dashed-function> in longhand
-Fail	<dashed-function> with typed result in longhand
-Fail	<dashed-function> with in inherited longhand
-Fail	<dashed-function> with typed result in shorthand
+4 Pass
+Pass	<dashed-function> in longhand
+Pass	<dashed-function> with typed result in longhand
+Pass	<dashed-function> with in inherited longhand
+Pass	<dashed-function> with typed result in shorthand

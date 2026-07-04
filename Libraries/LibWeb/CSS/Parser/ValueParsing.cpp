@@ -5783,7 +5783,7 @@ NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(AbstractO
 
     // 1. Substitute arbitrary substitution functions in prop’s value, given «"property", prop’s name» as the
     //    substitution context. Let result be the returned component value sequence.
-    auto result = substitute_arbitrary_substitution_functions(element, guarded_contexts, replacement_context, unresolved.values(), SubstitutionContext { PropertySubstitutionContextDependency { property.name().to_utf16_string() } });
+    auto result = substitute_arbitrary_substitution_functions(element, guarded_contexts, replacement_context, unresolved.values(), SubstitutionContext { PropertySubstitutionContextDependency::create(property.name().to_utf16_string(), element) });
 
     // 2. If result contains the guaranteed-invalid value, prop is invalid at computed-value time; return.
     if (contains_guaranteed_invalid_value(result))

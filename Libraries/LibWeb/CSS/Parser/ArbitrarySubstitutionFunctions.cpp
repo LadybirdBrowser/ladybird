@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/CSSFunctionRule.h>
 #include <LibWeb/CSS/HypotheticalElement.h>
 #include <LibWeb/CSS/Parser/ArbitrarySubstitutionFunctions.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -17,6 +18,19 @@
 #include <LibWeb/DOM/Element.h>
 
 namespace Web::CSS::Parser {
+
+PropertySubstitutionContextDependency PropertySubstitutionContextDependency::create(Utf16String property_name, AbstractOrHypotheticalElement const& element)
+{
+    // https://drafts.csswg.org/css-mixins/#resolve-function-styles
+    // For a given custom property prop, during property replacement for that property, the substitution context also
+    // includes custom function. In other words, the substitution context is «"property", prop’s name, custom function»
+
+    // NB: If we are are resolving a hypothetical element we know that we are evaluating a custom function
+    if (element.has<HypotheticalElement*>())
+        return PropertySubstitutionContextDependency { move(property_name), element.get<HypotheticalElement*>()->custom_function };
+
+    return PropertySubstitutionContextDependency { move(property_name), nullptr };
+}
 
 void GuardedSubstitutionContexts::guard(SubstitutionContext& context)
 {
@@ -256,6 +270,62 @@ static Vector<ComponentValue> replace_an_attr_function(AbstractOrHypotheticalEle
     // NB: Step 7 is a lambda defined at the top of the function.
 }
 
+// https://drafts.csswg.org/css-mixins/#replace-a-dashed-function
+static Vector<ComponentValue> replace_a_dashed_function(AbstractOrHypotheticalElement& element, GuardedSubstitutionContexts& guarded_contexts, ArbitrarySubstitutionReplacementContext const& replacement_context, Utf16FlyString const& function_name, ArbitrarySubstitutionFunctionArguments const& arguments)
+{
+    auto const& declaration_value_list = arguments.get<DeclarationValueList>();
+
+    // 1. Let function be the result of dereferencing the dashed function’s name as a tree-scoped reference. If no such
+    //    name exists, return the guaranteed-invalid value.
+
+    // FIXME: For hypothetical elements (i.e. nested calls) should we use the abstract element's style scope or the
+    //        scope in which the current function was defined?
+    auto const& function = element.abstract_element().style_scope().get_function_definition(function_name);
+
+    if (!function)
+        return { ComponentValue { GuaranteedInvalidValue {} } };
+
+    // 2. For each arg in arguments, substitute arbitrary substitution functions in arg, and replace arg with the
+    //    result.
+    // Note: This may leave some (or all) arguments as the guaranteed-invalid value, triggering default values (if any).
+    Vector<Vector<ComponentValue>> substituted_arguments;
+    substituted_arguments.ensure_capacity(declaration_value_list.size());
+
+    for (auto const& arg : declaration_value_list)
+        substituted_arguments.unchecked_append(substitute_arbitrary_substitution_functions(element, guarded_contexts, replacement_context, arg));
+
+    // 3. If dashed function is being substituted into a property on an element, let calling context be a calling
+    //    context with that element and that property.
+    //
+    //    Otherwise, it’s being substituted into a descriptor on a "hypothetical element", while evaluating another
+    //    custom function. Let calling context be a calling context with that "hypothetical element" and that
+    //    descriptor.
+
+    Optional<Utf16View> property_or_descriptor_name;
+
+    auto context_stack = guarded_contexts.as_readonly_span();
+
+    for (size_t i = context_stack.size(); i-- > 0;) {
+        if (auto const* property_dependency = context_stack[i]->dependency.get_pointer<PropertySubstitutionContextDependency>()) {
+            property_or_descriptor_name = property_dependency->property_name;
+            break;
+        }
+    }
+
+    // NB: The root context is always a property context so we should always find a property/descriptor name.
+    VERIFY(property_or_descriptor_name.has_value());
+
+    CSSFunctionRule::CallingContext calling_context {
+        .element = element,
+        .property_or_descriptor_name = property_or_descriptor_name.release_value(),
+        .computed_style_for_custom_property_resolution = replacement_context.computed_style_for_custom_property_resolution
+    };
+
+    // 4. Evaluate a custom function, using function, arguments, and calling context, and return the equivalent token
+    //    sequence of the value resulting from the evaluation.
+    return function->evaluate_a_custom_function(guarded_contexts, substituted_arguments, calling_context)->tokenize();
+}
+
 // https://drafts.csswg.org/css-env/#substitute-an-env
 static Vector<ComponentValue> replace_an_env_function(AbstractOrHypotheticalElement& element, GuardedSubstitutionContexts& guarded_contexts, ArbitrarySubstitutionReplacementContext const& replacement_context, ArbitrarySubstitutionFunctionArguments const& arguments)
 {
@@ -479,7 +549,7 @@ static ErrorOr<void> substitute_arbitrary_substitution_functions_step_2(Abstract
 
                 // 4. Replace an arbitrary substitution function for func, given arguments, as defined by that function.
                 //    Let result be the returned list of component values.
-                auto result = replace_an_arbitrary_substitution_function(element, guarded_contexts, replacement_context, function_id, arguments);
+                auto result = replace_an_arbitrary_substitution_function(element, guarded_contexts, replacement_context, function_id, source_function.name, arguments);
 
                 // 5. If result contains the guaranteed-invalid value, replace func in values with the guaranteed-invalid value.
                 //    Otherwise, replace func in values with result.
@@ -704,14 +774,13 @@ Optional<ArbitrarySubstitutionFunctionArguments> parse_according_to_argument_gra
 }
 
 // https://drafts.csswg.org/css-values-5/#replace-an-arbitrary-substitution-function
-Vector<ComponentValue> replace_an_arbitrary_substitution_function(AbstractOrHypotheticalElement& element, GuardedSubstitutionContexts& guarded_contexts, ArbitrarySubstitutionReplacementContext const& replacement_context, ArbitrarySubstitutionFunction function, ArbitrarySubstitutionFunctionArguments const& arguments)
+Vector<ComponentValue> replace_an_arbitrary_substitution_function(AbstractOrHypotheticalElement& element, GuardedSubstitutionContexts& guarded_contexts, ArbitrarySubstitutionReplacementContext const& replacement_context, ArbitrarySubstitutionFunction function, Utf16FlyString const& function_name, ArbitrarySubstitutionFunctionArguments const& arguments)
 {
     switch (function) {
     case ArbitrarySubstitutionFunction::Attr:
         return replace_an_attr_function(element, guarded_contexts, replacement_context, arguments);
     case ArbitrarySubstitutionFunction::DashedFunction:
-        // TODO: Implement this.
-        return { ComponentValue { GuaranteedInvalidValue {} } };
+        return replace_a_dashed_function(element, guarded_contexts, replacement_context, function_name, arguments);
     case ArbitrarySubstitutionFunction::Env:
         return replace_an_env_function(element, guarded_contexts, replacement_context, arguments);
     case ArbitrarySubstitutionFunction::If:

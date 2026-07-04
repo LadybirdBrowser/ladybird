@@ -2,12 +2,12 @@ Harness status: OK
 
 Found 7 tests
 
-1 Pass
-6 Fail
-Fail	var() in attribute value substitutes locally
-Fail	var() in attribute value substitutes locally, argument
-Fail	var() in attribute value substitutes locally, typed
-Fail	attr() fallback substitutes locally
+6 Pass
+1 Fail
+Pass	var() in attribute value substitutes locally
+Pass	var() in attribute value substitutes locally, argument
+Pass	var() in attribute value substitutes locally, typed
+Pass	attr() fallback substitutes locally
 Fail	attr() cycle through local
-Fail	attr() cycle through unused fallback in local
+Pass	attr() cycle through unused fallback in local
 Pass	attr() cycle through function

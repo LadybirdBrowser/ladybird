@@ -51,8 +51,20 @@ public:
 
     Utf16String serialized() const override;
 
+    // https://drafts.csswg.org/css-mixins/#calling-context
+    struct CallingContext {
+        AbstractOrHypotheticalElement& element;
+        Utf16View property_or_descriptor_name;
+
+        // NB: This isn't in the spec but we include it here to avoid extra parameters
+        ComputedProperties const* computed_style_for_custom_property_resolution;
+    };
+    NonnullRefPtr<StyleValue const> evaluate_a_custom_function(Parser::GuardedSubstitutionContexts&, Vector<Vector<Parser::ComponentValue>> const& arguments, CallingContext const&) const;
+
 private:
     CSSFunctionRule(JS::Realm&, CSSRuleList&, Utf16FlyString name, Vector<FunctionParameterInternal> parameters, NonnullRefPtr<Parser::SyntaxNode> return_type);
+
+    HashMap<Utf16FlyString, NonnullRefPtr<StyleValue const>> resolve_function_styles(OrderedHashMap<Utf16FlyString, StyleProperty>&& custom_properties, HashMap<Utf16FlyString, CustomPropertyRegistration> const&, CallingContext const&, Parser::GuardedSubstitutionContexts&) const;
 
     Utf16FlyString m_name;
     Vector<FunctionParameterInternal> m_parameters;

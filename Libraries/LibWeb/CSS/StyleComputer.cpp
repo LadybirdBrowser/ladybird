@@ -3815,11 +3815,23 @@ static bool matches_subject_pseudo_class_bucket(PseudoClass pseudo_class, DOM::E
 
 static NonnullRefPtr<StyleValue const> resolve_css_wide_keyword_for_custom_property(Optional<CustomPropertyRegistration const&> registration, AbstractOrHypotheticalElement const& element, Utf16FlyString const& name, NonnullRefPtr<StyleValue const> keyword_value)
 {
+    VERIFY(keyword_value->is_css_wide_keyword());
+
+    // https://drafts.csswg.org/css-mixins/#resolve-function-styles
+    // On result, all CSS-wide keywords are left unresolved.
+    if (name == "result"_utf16_fly_string)
+        return keyword_value;
+
     if (keyword_value->is_initial())
         return initial_custom_property_value(registration, element.document());
 
     if (keyword_value->is_inherit())
         return inherited_custom_property_value(registration, element, name);
+
+    // NB: When resolving function styles (i.e. when we have a hypothetical element), all CSS-wide keywords other than
+    //     inherit and initial resolve to the guaranteed-invalidate value.
+    if (element.has<HypotheticalElement*>())
+        return GuaranteedInvalidStyleValue::create();
 
     // Unset is the same as inherit for inherited properties, and by default all unregistered custom properties inherit.
     if (keyword_value->is_unset())
@@ -3972,6 +3984,8 @@ void StyleComputer::compute_custom_properties(ComputedProperties& computed_style
 
     OrderedHashMap<Utf16FlyString, StyleProperty> resolved_own;
     for (auto const& [name, style_property] : data->own_values()) {
+        // FIXME: Can we store the resolved value in `data` immediately to avoid recomputing it for any subsequent
+        //        properties that depend on it?
         auto resolved_value = compute_value_of_custom_property(&computed_style, abstract_element, name);
         if (parent_data) {
             auto const* parent_property = parent_data->get(name);

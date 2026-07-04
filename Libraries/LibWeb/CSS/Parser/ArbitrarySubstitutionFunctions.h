@@ -17,9 +17,18 @@ namespace Web::CSS::Parser {
 
 // "property", followed by a property name, and optionally a custom function.
 struct PropertySubstitutionContextDependency {
+    static PropertySubstitutionContextDependency create(Utf16String property_name, AbstractOrHypotheticalElement const& element);
+
     Utf16String property_name;
     GC::Ptr<CSSFunctionRule const> custom_function { nullptr };
     bool operator==(PropertySubstitutionContextDependency const& other) const = default;
+
+private:
+    PropertySubstitutionContextDependency(Utf16String&& property_name, GC::Ptr<CSSFunctionRule const> custom_function)
+        : property_name(move(property_name))
+        , custom_function(custom_function)
+    {
+    }
 };
 
 // "attribute", followed by an attribute name.
@@ -47,6 +56,8 @@ public:
     void guard(SubstitutionContext&);
     void unguard(SubstitutionContext const&);
     bool mark_existing_as_cyclic(SubstitutionContext const&);
+
+    ReadonlySpan<SubstitutionContext*> as_readonly_span() const { return m_contexts.span(); }
 
 private:
     Vector<SubstitutionContext&> m_contexts;
@@ -83,6 +94,6 @@ using ArbitrarySubstitutionFunctionArguments = Variant<DeclarationValueList, IfA
 // The returned argument spans borrow from the input component value list.
 [[nodiscard]] Optional<ArbitrarySubstitutionFunctionArguments> parse_according_to_argument_grammar(ArbitrarySubstitutionFunction, ReadonlySpan<ComponentValue>);
 
-[[nodiscard]] Vector<ComponentValue> replace_an_arbitrary_substitution_function(AbstractOrHypotheticalElement&, GuardedSubstitutionContexts&, ArbitrarySubstitutionReplacementContext const&, ArbitrarySubstitutionFunction, ArbitrarySubstitutionFunctionArguments const&);
+[[nodiscard]] Vector<ComponentValue> replace_an_arbitrary_substitution_function(AbstractOrHypotheticalElement&, GuardedSubstitutionContexts&, ArbitrarySubstitutionReplacementContext const&, ArbitrarySubstitutionFunction, Utf16FlyString const& function_name, ArbitrarySubstitutionFunctionArguments const&);
 
 }

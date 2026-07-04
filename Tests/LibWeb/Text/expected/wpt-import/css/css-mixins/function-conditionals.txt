@@ -2,26 +2,27 @@ Harness status: OK
 
 Found 22 tests
 
-22 Fail
-Fail	Basic @supports
-Fail	Basic @supports (false)
-Fail	Nested @supports
-Fail	Nested @supports (false)
-Fail	Inconsequential conditional
-Fail	@supports with locals
-Fail	Basic @media
-Fail	Basic @media (false)
-Fail	Nested @media
-Fail	Nested @media (false)
-Fail	Locals within @media
-Fail	@supports within @media
-Fail	@media within @supports
+17 Pass
+5 Fail
+Pass	Basic @supports
+Pass	Basic @supports (false)
+Pass	Nested @supports
+Pass	Nested @supports (false)
+Pass	Inconsequential conditional
+Pass	@supports with locals
+Pass	Basic @media
+Pass	Basic @media (false)
+Pass	Nested @media
+Pass	Nested @media (false)
+Pass	Locals within @media
+Pass	@supports within @media
+Pass	@media within @supports
 Fail	Basic @container
-Fail	Basic @container (false)
+Pass	Basic @container (false)
 Fail	Nested @container
-Fail	Nested @container (false)
+Pass	Nested @container (false)
 Fail	Locals within @container
-Fail	@supports within @container
+Pass	@supports within @container
 Fail	@container within @supports
-Fail	@container, @media, @supports
+Pass	@container, @media, @supports
 Fail	@supports, @media, @container

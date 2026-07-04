@@ -2,25 +2,25 @@ Harness status: OK
 
 Found 20 tests
 
-1 Pass
-19 Fail
-Fail	var() in if() condition's custom property value substitutes locally
-Fail	var() in if() condition's specified value substitutes locally
-Fail	var() in if() declaration value substitutes locally
-Fail	var() in if() condition's custom property value substitutes locally, argument
-Fail	var() in if() condition's specified value substitutes locally, argument
-Fail	var() in if() declaration value substitutes locally, argument
-Fail	dashed function in if() declaration value
-Fail	dashed function with argument in if() declaration value
-Fail	if() cycle through local
-Fail	if() cycle in condition custom property through local
-Fail	if() cycle in condition specified value through local
+19 Pass
+1 Fail
+Pass	var() in if() condition's custom property value substitutes locally
+Pass	var() in if() condition's specified value substitutes locally
+Pass	var() in if() declaration value substitutes locally
+Pass	var() in if() condition's custom property value substitutes locally, argument
+Pass	var() in if() condition's specified value substitutes locally, argument
+Pass	var() in if() declaration value substitutes locally, argument
+Pass	dashed function in if() declaration value
+Pass	dashed function with argument in if() declaration value
+Pass	if() cycle through local
+Pass	if() cycle in condition custom property through local
+Pass	if() cycle in condition specified value through local
 Pass	if() cycle through function
-Fail	if() no cycle in overridden local
+Pass	if() no cycle in overridden local
 Fail	if() no cycle in overridden argument
-Fail	CSS-wide keywords are interpreted locally (initial)
-Fail	CSS-wide keywords are interpreted locally (inherit)
-Fail	CSS-wide keywords are interpreted locally (guaranteed-invalid, initial)
-Fail	CSS-wide keywords are interpreted locally (guaranteed-invalid, unset)
-Fail	CSS-wide keywords are interpreted locally (revert)
-Fail	CSS-wide keywords are interpreted locally (revert-layer)
+Pass	CSS-wide keywords are interpreted locally (initial)
+Pass	CSS-wide keywords are interpreted locally (inherit)
+Pass	CSS-wide keywords are interpreted locally (guaranteed-invalid, initial)
+Pass	CSS-wide keywords are interpreted locally (guaranteed-invalid, unset)
+Pass	CSS-wide keywords are interpreted locally (revert)
+Pass	CSS-wide keywords are interpreted locally (revert-layer)
