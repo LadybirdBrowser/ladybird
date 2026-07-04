@@ -1438,19 +1438,30 @@ void WebContentClient::did_request_webdriver_history_traversal(u64 page_id, u64 
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         auto view_id = view->view_id();
+        auto weak_this = static_cast<Core::EventReceiver&>(*this).make_weak_ptr();
         // This request originates from WebDriver in WebContent. Defer the UI
         // traversal so it can safely call back into WebContent for the
         // cancelation checks from the traverse history step algorithm.
-        Core::deferred_invoke([this, page_id, request_id, view_id, delta] {
+        Core::deferred_invoke([weak_this, page_id, request_id, view_id, delta] {
+            auto self = weak_this.strong_ref();
+            if (!self)
+                return;
+            auto& client = static_cast<WebContentClient&>(*self);
+
             auto view = ViewImplementation::find_view_by_id(view_id);
             if (!view.has_value()) {
-                async_complete_webdriver_history_traversal(page_id, request_id, false, false, false);
+                client.async_complete_webdriver_history_traversal(page_id, request_id, false, false, false);
                 return;
             }
 
-            auto complete = [this, page_id, request_id](ViewImplementation::HistoryTraversalOutcome outcome) {
+            auto complete = [weak_this, page_id, request_id](ViewImplementation::HistoryTraversalOutcome outcome) {
+                auto self = weak_this.strong_ref();
+                if (!self)
+                    return;
+                auto& client = static_cast<WebContentClient&>(*self);
+
                 auto traversal_started = outcome.status == ViewImplementation::HistoryTraversalStatus::Started;
-                async_complete_webdriver_history_traversal(
+                client.async_complete_webdriver_history_traversal(
                     page_id,
                     request_id,
                     true,
@@ -1459,9 +1470,14 @@ void WebContentClient::did_request_webdriver_history_traversal(u64 page_id, u64 
             };
 
             auto outcome = view->traverse_the_history_by_delta(delta, ViewImplementation::CheckForCancelation::Yes,
-                [this, page_id, request_id](ViewImplementation::HistoryTraversalOutcome outcome) {
+                [weak_this, page_id, request_id](ViewImplementation::HistoryTraversalOutcome outcome) {
+                    auto self = weak_this.strong_ref();
+                    if (!self)
+                        return;
+                    auto& client = static_cast<WebContentClient&>(*self);
+
                     auto traversal_started = outcome.status == ViewImplementation::HistoryTraversalStatus::Started;
-                    async_complete_webdriver_history_traversal(
+                    client.async_complete_webdriver_history_traversal(
                         page_id,
                         request_id,
                         true,
