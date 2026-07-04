@@ -189,6 +189,7 @@ void StyleScope::build_style_invalidation_data()
     auto& style_cache = ensure_style_cache();
     style_cache.style_invalidation_data = make<StyleInvalidationData>();
     populate_style_invalidation_data(*style_cache.style_invalidation_data);
+    style_cache.style_invalidation_data->did_finish_building();
 }
 
 void StyleScope::populate_style_invalidation_data(StyleInvalidationData& style_invalidation_data)

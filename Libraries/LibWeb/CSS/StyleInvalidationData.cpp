@@ -22,12 +22,53 @@ enum class InvalidationSetPurpose {
     SubjectMatchSet,
 };
 
-static void append_or_merge_descendant_rule(Vector<DescendantInvalidationRule>& rules, DescendantInvalidationRule const& rule)
+static NonnullRefPtr<InvalidationPlan> copy_invalidation_plan(InvalidationPlan const& plan);
+
+// Interned payload plans are at least pointer-aligned, so the low bits of their addresses are free to tag rule
+// properties into the merge index keys below.
+static_assert(alignof(InvalidationPlan) >= 4);
+
+static constexpr size_t rule_merge_index_threshold = 8;
+
+static FlatPtr descendant_rule_merge_key(DescendantInvalidationRule const& rule)
 {
-    for (auto& existing_rule : rules) {
+    return bit_cast<FlatPtr>(rule.payload.ptr()) | (rule.match_any ? 1 : 0);
+}
+
+static FlatPtr sibling_rule_merge_key(SiblingInvalidationRule const& rule)
+{
+    return bit_cast<FlatPtr>(rule.payload.ptr()) | (rule.match_any ? 1 : 0) | (rule.reach == SiblingInvalidationReach::Subsequent ? 2 : 0);
+}
+
+void InvalidationPlan::add_descendant_rule(DescendantInvalidationRule rule)
+{
+    m_hash = {};
+
+    if (!m_rule_merge_index && descendant_rules.size() + sibling_rules.size() >= rule_merge_index_threshold) {
+        m_rule_merge_index = make<RuleMergeIndex>();
+        for (size_t i = 0; i < descendant_rules.size(); ++i)
+            m_rule_merge_index->descendant_rule_indexes.ensure(descendant_rule_merge_key(descendant_rules[i]), [i] { return i; });
+        for (size_t i = 0; i < sibling_rules.size(); ++i)
+            m_rule_merge_index->sibling_rule_indexes.ensure(sibling_rule_merge_key(sibling_rules[i]), [i] { return i; });
+    }
+
+    if (m_rule_merge_index) {
+        auto key = descendant_rule_merge_key(rule);
+        if (auto existing_index = m_rule_merge_index->descendant_rule_indexes.get(key); existing_index.has_value()) {
+            auto& existing_rule = descendant_rules[*existing_index];
+            if (!existing_rule.match_any)
+                existing_rule.match_set.include_all_from(rule.match_set);
+            return;
+        }
+        m_rule_merge_index->descendant_rule_indexes.set(key, descendant_rules.size());
+        descendant_rules.append(move(rule));
+        return;
+    }
+
+    for (auto& existing_rule : descendant_rules) {
         if (existing_rule.match_any != rule.match_any)
             continue;
-        if (*existing_rule.payload != *rule.payload)
+        if (existing_rule.payload != rule.payload && *existing_rule.payload != *rule.payload)
             continue;
 
         if (existing_rule.match_any)
@@ -36,17 +77,40 @@ static void append_or_merge_descendant_rule(Vector<DescendantInvalidationRule>& 
         existing_rule.match_set.include_all_from(rule.match_set);
         return;
     }
-    rules.append(rule);
+    descendant_rules.append(move(rule));
 }
 
-static void append_or_merge_sibling_rule(Vector<SiblingInvalidationRule>& rules, SiblingInvalidationRule const& rule)
+void InvalidationPlan::add_sibling_rule(SiblingInvalidationRule rule)
 {
-    for (auto& existing_rule : rules) {
+    m_hash = {};
+
+    if (!m_rule_merge_index && descendant_rules.size() + sibling_rules.size() >= rule_merge_index_threshold) {
+        m_rule_merge_index = make<RuleMergeIndex>();
+        for (size_t i = 0; i < descendant_rules.size(); ++i)
+            m_rule_merge_index->descendant_rule_indexes.ensure(descendant_rule_merge_key(descendant_rules[i]), [i] { return i; });
+        for (size_t i = 0; i < sibling_rules.size(); ++i)
+            m_rule_merge_index->sibling_rule_indexes.ensure(sibling_rule_merge_key(sibling_rules[i]), [i] { return i; });
+    }
+
+    if (m_rule_merge_index) {
+        auto key = sibling_rule_merge_key(rule);
+        if (auto existing_index = m_rule_merge_index->sibling_rule_indexes.get(key); existing_index.has_value()) {
+            auto& existing_rule = sibling_rules[*existing_index];
+            if (!existing_rule.match_any)
+                existing_rule.match_set.include_all_from(rule.match_set);
+            return;
+        }
+        m_rule_merge_index->sibling_rule_indexes.set(key, sibling_rules.size());
+        sibling_rules.append(move(rule));
+        return;
+    }
+
+    for (auto& existing_rule : sibling_rules) {
         if (existing_rule.reach != rule.reach)
             continue;
         if (existing_rule.match_any != rule.match_any)
             continue;
-        if (*existing_rule.payload != *rule.payload)
+        if (existing_rule.payload != rule.payload && *existing_rule.payload != *rule.payload)
             continue;
 
         if (existing_rule.match_any)
@@ -55,19 +119,24 @@ static void append_or_merge_sibling_rule(Vector<SiblingInvalidationRule>& rules,
         existing_rule.match_set.include_all_from(rule.match_set);
         return;
     }
-    rules.append(rule);
+    sibling_rules.append(move(rule));
 }
 
-static void append_or_merge_guarded_rule(Vector<GuardedInvalidationRule>& rules, GuardedInvalidationRule const& rule)
+void InvalidationPlan::add_guarded_rule(GuardedInvalidationRule rule)
 {
-    for (auto& existing_rule : rules) {
+    m_hash = {};
+
+    for (auto& existing_rule : guarded_rules) {
         if (existing_rule.guard != rule.guard)
             continue;
 
-        existing_rule.payload->include_all_from(*rule.payload);
+        // Payloads are immutable, so merging guards means building a merged payload copy.
+        auto merged_payload = copy_invalidation_plan(*existing_rule.payload);
+        merged_payload->include_all_from(*rule.payload);
+        existing_rule.payload = move(merged_payload);
         return;
     }
-    rules.append(rule);
+    guarded_rules.append(move(rule));
 }
 
 bool InvalidationPlan::is_empty() const
@@ -83,14 +152,14 @@ bool InvalidationGuard::operator==(InvalidationGuard const& other) const
 bool GuardedInvalidationRule::operator==(GuardedInvalidationRule const& other) const
 {
     return guard == other.guard
-        && *payload == *other.payload;
+        && (payload == other.payload || *payload == *other.payload);
 }
 
 bool DescendantInvalidationRule::operator==(DescendantInvalidationRule const& other) const
 {
     return match_set == other.match_set
         && match_any == other.match_any
-        && *payload == *other.payload;
+        && (payload == other.payload || *payload == *other.payload);
 }
 
 bool SiblingInvalidationRule::operator==(SiblingInvalidationRule const& other) const
@@ -98,7 +167,7 @@ bool SiblingInvalidationRule::operator==(SiblingInvalidationRule const& other) c
     return reach == other.reach
         && match_set == other.match_set
         && match_any == other.match_any
-        && *payload == *other.payload;
+        && (payload == other.payload || *payload == *other.payload);
 }
 
 template<typename Rule>
@@ -144,6 +213,7 @@ bool InvalidationPlan::operator==(InvalidationPlan const& other) const
 
 void InvalidationPlan::include_all_from(InvalidationPlan const& other)
 {
+    m_hash = {};
     invalidate_self |= other.invalidate_self;
     invalidate_self_and_structurally_affected_siblings |= other.invalidate_self_and_structurally_affected_siblings;
 
@@ -158,15 +228,81 @@ void InvalidationPlan::include_all_from(InvalidationPlan const& other)
         descendant_rules.clear();
         sibling_rules.clear();
         guarded_rules.clear();
+        m_rule_merge_index = nullptr;
         return;
     }
 
     for (auto const& descendant_rule : other.descendant_rules)
-        append_or_merge_descendant_rule(descendant_rules, descendant_rule);
+        add_descendant_rule(descendant_rule);
     for (auto const& sibling_rule : other.sibling_rules)
-        append_or_merge_sibling_rule(sibling_rules, sibling_rule);
+        add_sibling_rule(sibling_rule);
     for (auto const& guarded_rule : other.guarded_rules)
-        append_or_merge_guarded_rule(guarded_rules, guarded_rule);
+        add_guarded_rule(guarded_rule);
+}
+
+u32 InvalidationPlan::hash() const
+{
+    if (m_hash.has_value())
+        return *m_hash;
+
+    // Payloads are hashed by pointer. This is consistent with operator== for plans whose payloads are interned:
+    // structurally equal interned payloads share one pointer, and interning happens bottom-up.
+    u32 rule_hash_sum = 0;
+    u32 rule_hash_xor = 0;
+    auto accumulate_rule_hash = [&](u32 rule_hash) {
+        rule_hash_sum += rule_hash;
+        rule_hash_xor ^= pair_int_hash(rule_hash, 0x9e3779b9);
+    };
+    for (auto const& rule : descendant_rules)
+        accumulate_rule_hash(pair_int_hash(ptr_hash(rule.payload.ptr()), pair_int_hash(rule.match_set.hash(), rule.match_any)));
+    for (auto const& rule : sibling_rules)
+        accumulate_rule_hash(pair_int_hash(pair_int_hash(ptr_hash(rule.payload.ptr()), to_underlying(rule.reach)), pair_int_hash(rule.match_set.hash(), rule.match_any)));
+    for (auto const& rule : guarded_rules) {
+        u32 guard_hash = 0;
+        for (auto const& property_set : rule.guard.property_sets)
+            guard_hash = pair_int_hash(guard_hash, property_set.hash());
+        accumulate_rule_hash(pair_int_hash(guard_hash, ptr_hash(rule.payload.ptr())));
+    }
+
+    u32 hash = pair_int_hash(invalidate_self, invalidate_whole_subtree);
+    hash = pair_int_hash(hash, invalidate_self_and_structurally_affected_siblings);
+    hash = pair_int_hash(hash, descendant_rules.size() + sibling_rules.size() + guarded_rules.size());
+    hash = pair_int_hash(hash, rule_hash_sum);
+    hash = pair_int_hash(hash, rule_hash_xor);
+    m_hash = hash;
+    return hash;
+}
+
+NonnullRefPtr<InvalidationPlan const> StyleInvalidationData::intern_invalidation_plan(NonnullRefPtr<InvalidationPlan> plan)
+{
+    // Only per-property root plans carry guarded rules, and those are never used as payloads.
+    VERIFY(plan->guarded_rules.is_empty());
+
+    auto& bucket = m_interned_invalidation_plans.ensure(plan->hash(), [] { return Vector<NonnullRefPtr<InvalidationPlan const>> {}; });
+    for (auto const& existing_plan : bucket) {
+        if (*existing_plan == *plan)
+            return existing_plan;
+    }
+    NonnullRefPtr<InvalidationPlan const> interned_plan = move(plan);
+    bucket.append(interned_plan);
+    return interned_plan;
+}
+
+InvalidationPlan& StyleInvalidationData::ensure_invalidation_plan_being_built(InvalidationSet::Property const& property)
+{
+    return m_invalidation_plans_being_built.ensure(property, [] { return InvalidationPlan::create(); });
+}
+
+void StyleInvalidationData::did_finish_building()
+{
+    m_interned_invalidation_plans.clear();
+    for (auto& it : m_invalidation_plans_being_built) {
+        it.value->clear_rule_merge_index();
+        for (auto const& guarded_rule : it.value->guarded_rules)
+            guarded_rule.payload->clear_rule_merge_index();
+        invalidation_plans.set(it.key, move(it.value));
+    }
+    m_invalidation_plans_being_built.clear();
 }
 
 // Iterates over the given selector, grouping consecutive simple selectors that have no combinator (Combinator::None).
@@ -514,17 +650,15 @@ static void add_invalidation_plan_for_properties(StyleInvalidationData& style_in
         if (!should_register_invalidation_property(invalidation_property))
             return IterationDecision::Continue;
 
-        auto& stored_invalidation = style_invalidation_data.invalidation_plans.ensure(invalidation_property, [] {
-            return InvalidationPlan::create();
-        });
+        auto& stored_invalidation = style_invalidation_data.ensure_invalidation_plan_being_built(invalidation_property);
         if (invalidation_property.type != InvalidationSet::Property::Type::PseudoClass || guard.is_empty()) {
-            stored_invalidation->include_all_from(plan);
+            stored_invalidation.include_all_from(plan);
         } else {
             GuardedInvalidationRule guarded_rule {
                 .guard = guard,
                 .payload = copy_invalidation_plan(plan),
             };
-            append_or_merge_guarded_rule(stored_invalidation->guarded_rules, guarded_rule);
+            stored_invalidation.add_guarded_rule(move(guarded_rule));
         }
         return IterationDecision::Continue;
     });
@@ -533,34 +667,34 @@ static void add_invalidation_plan_for_properties(StyleInvalidationData& style_in
 struct SelectorRighthand {
     InvalidationSet subject_match_set;
     bool subject_matches_any { false };
-    NonnullRefPtr<InvalidationPlan> payload;
+    NonnullRefPtr<InvalidationPlan const> payload;
 };
 
-static NonnullRefPtr<InvalidationPlan> build_invalidation_for_combinator(Selector::Combinator combinator, SelectorRighthand const& righthand)
+static NonnullRefPtr<InvalidationPlan const> build_invalidation_for_combinator(Selector::Combinator combinator, SelectorRighthand const& righthand, StyleInvalidationData& style_invalidation_data)
 {
     if (combinator == Selector::Combinator::PseudoElement)
         return righthand.payload;
 
     if (righthand.payload->invalidate_whole_subtree || (!righthand.subject_matches_any && righthand.subject_match_set.is_empty()))
-        return make_invalidate_whole_subtree_invalidation();
+        return style_invalidation_data.intern_invalidation_plan(make_invalidate_whole_subtree_invalidation());
 
     auto invalidation = InvalidationPlan::create();
     switch (combinator) {
     case Selector::Combinator::ImmediateChild:
     case Selector::Combinator::Descendant:
-        append_or_merge_descendant_rule(invalidation->descendant_rules, { righthand.subject_match_set, righthand.subject_matches_any, righthand.payload });
+        invalidation->add_descendant_rule({ righthand.subject_match_set, righthand.subject_matches_any, righthand.payload });
         break;
     case Selector::Combinator::NextSibling:
-        append_or_merge_sibling_rule(invalidation->sibling_rules, { SiblingInvalidationReach::Adjacent, righthand.subject_match_set, righthand.subject_matches_any, righthand.payload });
+        invalidation->add_sibling_rule({ SiblingInvalidationReach::Adjacent, righthand.subject_match_set, righthand.subject_matches_any, righthand.payload });
         break;
     case Selector::Combinator::SubsequentSibling:
-        append_or_merge_sibling_rule(invalidation->sibling_rules, { SiblingInvalidationReach::Subsequent, righthand.subject_match_set, righthand.subject_matches_any, righthand.payload });
+        invalidation->add_sibling_rule({ SiblingInvalidationReach::Subsequent, righthand.subject_match_set, righthand.subject_matches_any, righthand.payload });
         break;
     default:
         invalidation->invalidate_whole_subtree = true;
         break;
     }
-    return invalidation;
+    return style_invalidation_data.intern_invalidation_plan(move(invalidation));
 }
 
 static void build_invalidation_sets_for_simple_selector_impl(Selector::SimpleSelector const& selector, InvalidationSet& invalidation_set, ExcludePropertiesNestedInNotPseudoClass exclude_properties_nested_in_not_pseudo_class, StyleInvalidationData& style_invalidation_data, InsideNthChildPseudoClass inside_nth_child_selector, SimpleSelectorGroupPosition simple_selector_group_position, InvalidationPlan const& root_invalidation_plan, InvalidationSetPurpose purpose)
@@ -761,19 +895,20 @@ static InvalidationSet build_invalidation_sets_for_selector_impl(StyleInvalidati
                 if (!root_plan->invalidate_whole_subtree)
                     root_plan->invalidate_self_and_structurally_affected_siblings = true;
             }
-            add_invalidation_plan_for_properties(style_invalidation_data, invalidation_properties, *root_plan);
+            auto interned_root_plan = style_invalidation_data.intern_invalidation_plan(move(root_plan));
+            add_invalidation_plan_for_properties(style_invalidation_data, invalidation_properties, *interned_root_plan);
 
             invalidation_set_for_rightmost_selector = subject_match_set;
             selector_righthand = SelectorRighthand {
                 .subject_match_set = move(subject_match_set),
                 .subject_matches_any = subject_matches_any,
-                .payload = root_plan,
+                .payload = move(interned_root_plan),
             };
         } else {
             VERIFY(previous_compound_combinator != Selector::Combinator::None);
             VERIFY(selector_righthand.has_value());
 
-            auto plan = build_invalidation_for_combinator(previous_compound_combinator, *selector_righthand);
+            auto plan = build_invalidation_for_combinator(previous_compound_combinator, *selector_righthand, style_invalidation_data);
             add_invalidation_plan_for_properties(style_invalidation_data, invalidation_properties, *plan, subject_guard);
 
             selector_righthand = SelectorRighthand {
