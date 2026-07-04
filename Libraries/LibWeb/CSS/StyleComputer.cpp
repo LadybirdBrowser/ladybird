@@ -236,7 +236,7 @@ NonnullRefPtr<InvalidationPlan> StyleComputer::invalidation_plan_for_properties(
     if (properties.is_empty())
         return result;
 
-    auto const& invalidation_plans = style_scope.style_invalidation_data().invalidation_plans;
+    auto const& invalidation_plans = style_scope.style_invalidation_data().invalidation_plans();
     for (auto const& property : properties) {
         if (auto it = invalidation_plans.find(property); it != invalidation_plans.end()) {
             result->include_all_from(*it->value);

@@ -28,6 +28,11 @@ static NonnullRefPtr<InvalidationPlan> copy_invalidation_plan(InvalidationPlan c
 // properties into the merge index keys below.
 static_assert(alignof(InvalidationPlan) >= 4);
 
+// If you add a field to InvalidationPlan, update operator==(), hash(), and include_all_from() to account for it,
+// then adjust this assertion. Missing one of them would make interning conflate distinct plans and cause
+// under-invalidation.
+static_assert(sizeof(void*) != 8 || sizeof(InvalidationPlan) == 104);
+
 static constexpr size_t rule_merge_index_threshold = 8;
 
 static FlatPtr descendant_rule_merge_key(DescendantInvalidationRule const& rule)
@@ -42,6 +47,7 @@ static FlatPtr sibling_rule_merge_key(SiblingInvalidationRule const& rule)
 
 void InvalidationPlan::add_descendant_rule(DescendantInvalidationRule rule)
 {
+    VERIFY(!m_interned);
     m_hash = {};
 
     if (!m_rule_merge_index && descendant_rules.size() + sibling_rules.size() >= rule_merge_index_threshold) {
@@ -82,6 +88,7 @@ void InvalidationPlan::add_descendant_rule(DescendantInvalidationRule rule)
 
 void InvalidationPlan::add_sibling_rule(SiblingInvalidationRule rule)
 {
+    VERIFY(!m_interned);
     m_hash = {};
 
     if (!m_rule_merge_index && descendant_rules.size() + sibling_rules.size() >= rule_merge_index_threshold) {
@@ -124,6 +131,7 @@ void InvalidationPlan::add_sibling_rule(SiblingInvalidationRule rule)
 
 void InvalidationPlan::add_guarded_rule(GuardedInvalidationRule rule)
 {
+    VERIFY(!m_interned);
     m_hash = {};
 
     for (auto& existing_rule : guarded_rules) {
@@ -213,6 +221,7 @@ bool InvalidationPlan::operator==(InvalidationPlan const& other) const
 
 void InvalidationPlan::include_all_from(InvalidationPlan const& other)
 {
+    VERIFY(!m_interned);
     m_hash = {};
     invalidate_self |= other.invalidate_self;
     invalidate_self_and_structurally_affected_siblings |= other.invalidate_self_and_structurally_affected_siblings;
@@ -275,14 +284,24 @@ u32 InvalidationPlan::hash() const
 
 NonnullRefPtr<InvalidationPlan const> StyleInvalidationData::intern_invalidation_plan(NonnullRefPtr<InvalidationPlan> plan)
 {
+    VERIFY(!m_finished_building);
+
     // Only per-property root plans carry guarded rules, and those are never used as payloads.
     VERIFY(plan->guarded_rules.is_empty());
+
+    // Plans are interned bottom-up: hashing payloads by pointer is only consistent with the structural operator==
+    // if structurally equal payloads have already been collapsed to one pointer.
+    for (auto const& rule : plan->descendant_rules)
+        VERIFY(rule.payload->m_interned);
+    for (auto const& rule : plan->sibling_rules)
+        VERIFY(rule.payload->m_interned);
 
     auto& bucket = m_interned_invalidation_plans.ensure(plan->hash(), [] { return Vector<NonnullRefPtr<InvalidationPlan const>> {}; });
     for (auto const& existing_plan : bucket) {
         if (*existing_plan == *plan)
             return existing_plan;
     }
+    plan->m_interned = true;
     NonnullRefPtr<InvalidationPlan const> interned_plan = move(plan);
     bucket.append(interned_plan);
     return interned_plan;
@@ -290,19 +309,22 @@ NonnullRefPtr<InvalidationPlan const> StyleInvalidationData::intern_invalidation
 
 InvalidationPlan& StyleInvalidationData::ensure_invalidation_plan_being_built(InvalidationSet::Property const& property)
 {
+    VERIFY(!m_finished_building);
     return m_invalidation_plans_being_built.ensure(property, [] { return InvalidationPlan::create(); });
 }
 
 void StyleInvalidationData::did_finish_building()
 {
+    VERIFY(!m_finished_building);
     m_interned_invalidation_plans.clear();
     for (auto& it : m_invalidation_plans_being_built) {
         it.value->clear_rule_merge_index();
         for (auto const& guarded_rule : it.value->guarded_rules)
             guarded_rule.payload->clear_rule_merge_index();
-        invalidation_plans.set(it.key, move(it.value));
+        m_invalidation_plans.set(it.key, move(it.value));
     }
     m_invalidation_plans_being_built.clear();
+    m_finished_building = true;
 }
 
 // Iterates over the given selector, grouping consecutive simple selectors that have no combinator (Combinator::None).

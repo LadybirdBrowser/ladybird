@@ -109,6 +109,10 @@ private:
     };
     mutable OwnPtr<RuleMergeIndex> m_rule_merge_index;
     mutable Optional<u32> m_hash;
+
+    // Set by interning. Mutating an interned plan would corrupt every plan sharing it, so mutators VERIFY against
+    // this. Payload pointers are const, but this also catches mutation through a reference obtained before interning.
+    bool m_interned { false };
 };
 
 struct HasInvalidationMetadata {
@@ -123,7 +127,6 @@ struct StyleInvalidationData;
 void build_invalidation_sets_for_simple_selector(Selector::SimpleSelector const&, InvalidationSet&, ExcludePropertiesNestedInNotPseudoClass, StyleInvalidationData&, InsideNthChildPseudoClass);
 
 struct StyleInvalidationData {
-    HashMap<InvalidationSet::Property, NonnullRefPtr<InvalidationPlan const>> invalidation_plans;
     HashMap<FlyString, Vector<HasInvalidationMetadata>> ids_used_in_has_selectors;
     HashMap<FlyString, Vector<HasInvalidationMetadata>> class_names_used_in_has_selectors;
     HashMap<FlyString, Vector<HasInvalidationMetadata>> attribute_names_used_in_has_selectors;
@@ -140,16 +143,25 @@ struct StyleInvalidationData {
 
     InvalidationPlan& ensure_invalidation_plan_being_built(InvalidationSet::Property const&);
 
-    // Publishes the plans being built into invalidation_plans and drops build-only acceleration structures (the
+    // Publishes the plans being built into invalidation_plans() and drops build-only acceleration structures (the
     // intern table and per-plan merge indexes).
     void did_finish_building();
+
+    HashMap<InvalidationSet::Property, NonnullRefPtr<InvalidationPlan const>> const& invalidation_plans() const
+    {
+        // Reading plans that did_finish_building() has not published yet would silently miss invalidations.
+        VERIFY(m_finished_building);
+        return m_invalidation_plans;
+    }
 
 private:
     HashMap<u32, Vector<NonnullRefPtr<InvalidationPlan const>>> m_interned_invalidation_plans;
 
     // Plans are mutable while selectors are merged into them and become immutable when did_finish_building()
-    // publishes them into invalidation_plans.
+    // publishes them into m_invalidation_plans.
     HashMap<InvalidationSet::Property, NonnullRefPtr<InvalidationPlan>> m_invalidation_plans_being_built;
+    HashMap<InvalidationSet::Property, NonnullRefPtr<InvalidationPlan const>> m_invalidation_plans;
+    bool m_finished_building { false };
 };
 
 }
