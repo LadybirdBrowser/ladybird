@@ -1,0 +1,41 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>CSS Test: Text-transform application to 'display: table-caption' element</title>
+        <link rel="author" title="Microsoft" href="http://www.microsoft.com/" />
+        <link rel="help" href="http://www.w3.org/TR/CSS21/text.html#propdef-text-transform" />
+        <link rel="help" href="http://www.w3.org/TR/CSS21/text.html#caps-prop" />
+        <link rel="help" href="https://drafts.csswg.org/css-text-3/#text-transform-property"/>
+        <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/text/../../reference/pass_if_letter_uppercase.html"/>
+        <meta name="assert" content="The 'text-transform' property is applied to 'display: table-caption' elements." />
+        <style type="text/css">
+            #table
+            {
+                display: table;
+                width: 100%
+            }
+            #caption
+            {
+                display: table-caption;
+                text-transform: capitalize;
+            }
+            #row
+            {
+                display: table-row;
+            }
+            #cell
+            {
+                display: table-cell;
+            }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if the letter "F" in the words "Filler Text" below is in upper-case.</p>
+        <div id="table">
+            <div id="caption">filler text</div>
+            <div id="row">
+                <div id="cell"></div>
+            </div>
+        </div>
+    </body>
+</html>

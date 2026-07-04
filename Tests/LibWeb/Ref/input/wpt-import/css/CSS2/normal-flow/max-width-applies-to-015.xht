@@ -1,0 +1,44 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>CSS Test: Max-width applied to elements with 'display' set to 'table-caption'</title>
+        <link rel="author" title="Microsoft" href="http://www.microsoft.com/" />
+        <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2012-10-30 -->
+        <link rel="help" href="http://www.w3.org/TR/CSS21/visudet.html#propdef-max-width" />
+        <link rel="help" href="http://www.w3.org/TR/CSS21/visudet.html#min-max-widths" />
+        <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/normal-flow/../reference/ref-filled-black-96px-square.xht" />
+
+        <meta name="assert" content="The 'max-width' property applies to elements with 'display' set to 'table-caption'." />
+        <style type="text/css">
+            #table
+            {
+                display: table;
+            }
+            #caption
+            {
+                background: black;
+                display: table-caption;
+                height: 1in;
+                max-width: 1in;
+                width: 3in;
+            }
+            #row
+            {
+                display: table-row;
+            }
+            #cell
+            {
+                display: table-cell;
+            }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if there is a filled black square.</p>
+        <div id="table">
+            <div id="caption"></div>
+            <div id="row">
+                <div id="cell"></div>
+            </div>
+        </div>
+    </body>
+</html>

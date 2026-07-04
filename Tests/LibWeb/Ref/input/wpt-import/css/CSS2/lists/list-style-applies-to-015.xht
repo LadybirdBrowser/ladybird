@@ -1,0 +1,46 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>CSS Test: List-style applied to elements with 'display' set to 'table-caption'</title>
+        <link rel="author" title="Microsoft" href="http://www.microsoft.com/" />
+        <link rel="help" href="http://www.w3.org/TR/CSS21/generate.html#propdef-list-style" />
+        <link rel="help" href="http://www.w3.org/TR/CSS21/generate.html#list-style" />
+        <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/lists/../../reference/single_square_list_marker.xht"/>
+        <meta name="assert" content="The 'list-style' property applies to elements with 'display' set to 'table-caption'." />
+        <style type="text/css">
+            #test
+            {
+                display: table-caption;
+                list-style: square;
+            }
+            #table
+            {
+                display: table;
+                margin-left: 1in;
+            }
+            #row
+            {
+                display: table-row;
+            }
+            #cell
+            {
+                display: table-cell;
+            }
+            #test div
+            {
+                display: list-item;
+            }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if there is a single square below.</p>
+        <div id="table">
+            <div id="test">
+                <div></div>
+            </div>
+            <div id="row">
+                <div id="cell"></div>
+            </div>
+        </div>
+    </body>
+</html>

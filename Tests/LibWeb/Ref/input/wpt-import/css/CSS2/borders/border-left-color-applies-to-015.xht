@@ -1,0 +1,44 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>CSS Test: Border-left-color applied to element with display table-caption</title>
+        <link rel="author" title="Microsoft" href="http://www.microsoft.com/" />
+        <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2012-12-08 -->
+        <link rel="help" href="http://www.w3.org/TR/CSS21/box.html#propdef-border-left-color" />
+        <link rel="help" href="http://www.w3.org/TR/CSS21/box.html#border-color-properties" />
+        <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/borders/border-left-applies-to-001-ref.xht" />
+
+        <meta name="assert" content="The 'border-left-color' properties applies to elements with a display of table-caption." />
+        <style type="text/css">
+            #test
+            {
+                border-left-style: solid;
+                border-left-color: green;
+                border-left-width: 3px;
+                display: table-caption;
+                height: 1in;
+            }
+            #table
+            {
+                display: table;
+            }
+            #row
+            {
+                display: table-row;
+            }
+            #cell
+            {
+                display: table-cell;
+            }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if there is a short vertical green line.</p>
+        <div id="table">
+            <div id="test"></div>
+            <div id="row">
+                <div id="cell"></div>
+            </div>
+        </div>
+    </body>
+</html>

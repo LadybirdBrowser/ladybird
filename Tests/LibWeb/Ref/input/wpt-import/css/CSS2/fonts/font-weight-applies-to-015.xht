@@ -1,0 +1,45 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>CSS Test: Font-weight and 'display: table-caption' elements</title>
+        <link rel="author" title="Microsoft" href="http://www.microsoft.com/" />
+        <link rel="help" href="http://www.w3.org/TR/CSS21/fonts.html#propdef-font-weight" />
+        <link rel="help" href="http://www.w3.org/TR/CSS21/fonts.html#font-boldness" />
+        <link rel="help" href="http://www.w3.org/TR/css-fonts-3/#font-weight-prop" />
+        <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/fonts/../../reference/pass_if_filler_text_match_bold.xht"/>
+        <meta name="assert" content="Font weights apply to 'display: table-caption' elements." />
+        <style type="text/css">
+            #reference, #caption
+            {
+                font-weight: bold;
+            }
+            #table
+            {
+                display: table;
+                width: 100%;
+            }
+            #caption
+            {
+                display: table-caption;
+            }
+            #row
+            {
+                display: table-row;
+            }
+            #cell
+            {
+                display: table-cell;
+            }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if the lines of "Filler Text" below match.</p>
+        <div id="reference">Filler Text</div>
+        <div id="table">
+            <div id="caption">Filler Text</div>
+            <div id="row">
+                <div id="cell"></div>
+            </div>
+        </div>
+    </body>
+</html>

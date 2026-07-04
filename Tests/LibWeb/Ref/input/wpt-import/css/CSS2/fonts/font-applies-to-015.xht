@@ -1,0 +1,46 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>CSS Test: Font and 'display: table-caption' elements</title>
+        <link rel="author" title="Microsoft" href="http://www.microsoft.com/" />
+        <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2012-12-15 -->
+        <link rel="help" href="http://www.w3.org/TR/CSS21/fonts.html#propdef-font" />
+        <link rel="help" href="http://www.w3.org/TR/CSS21/fonts.html#font-shorthand" />
+        <link rel="help" href="http://www.w3.org/TR/css-fonts-3/#font-prop"/>
+        <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/fonts/font-applies-to-001-ref.xht" />
+
+        <meta name="assert" content="The 'font' property applies to 'display: table-caption' elements." />
+        <style type="text/css">
+            #reference, #caption
+            {
+                font: italic small-caps bold 16px sans-serif;
+            }
+            #table
+            {
+                display: table;
+            }
+            #caption
+            {
+                display: table-caption;
+            }
+            #row
+            {
+                display: table-row;
+            }
+            #cell
+            {
+                display: table-cell;
+            }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if the 2 lines of "Filler Text" match.</p>
+        <div id="reference">Filler Text</div>
+        <div id="table">
+            <div id="caption">Filler&nbsp;Text</div>
+            <div id="row">
+                <div id="cell"></div>
+            </div>
+        </div>
+    </body>
+</html>

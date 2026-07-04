@@ -1,0 +1,51 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>CSS Test: Padding-bottom applied to element with display table-caption</title>
+        <link rel="author" title="Microsoft" href="http://www.microsoft.com/" />
+        <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2012-08-23 -->
+        <link rel="help" href="http://www.w3.org/TR/CSS21/box.html#propdef-padding-bottom" />
+        <link rel="help" href="http://www.w3.org/TR/CSS21/box.html#padding-properties" />
+		<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/margin-padding-clear/padding-bottom-applies-to-007-ref.xht" />
+
+        <meta name="assert" content="The 'padding-bottom' property applies to elements with a display of table-caption." />
+        <style type="text/css">
+            #test
+            {
+                border-bottom: 10px solid blue;
+                display: table-caption;
+                padding-bottom: 50px;
+                width: 200px;
+            }
+            #test div
+            {
+                border-bottom: 10px solid orange;
+            }
+            #table
+            {
+                display: table;
+            }
+            #row
+            {
+                display: table-row;
+            }
+            #cell
+            {
+                display: table-cell;
+            }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if there is space between the blue and orange lines.</p>
+        <div id="wrapper">
+            <div id="table">
+                <div id="test">
+                    <div></div>
+                </div>
+                <div id="row">
+                    <div id="cell"></div>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
