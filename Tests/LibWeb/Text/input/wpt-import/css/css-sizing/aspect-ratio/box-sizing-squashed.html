@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS aspect-ratio: correct ratio maintained when box-sizing: border-box and one axis is clamped to 0</title>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#aspect-ratio">
+<meta name="assert" content='CSS aspect-ratio: correct ratio maintained when box-sizing: border-box and one axis is clamped to 0.'>
+<style>
+.item {
+    box-sizing: border-box;
+    border: 20px solid blue;
+}
+
+.horizontal {
+    aspect-ratio: 2 / 1;
+}
+
+.vertical {
+    aspect-ratio: 1 / 2;
+}
+
+.non-replaced {
+    background: green;
+    /* Break the items apart to make them individually distinguishable */
+    margin-bottom: 10px;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+
+<body onload="checkLayout('.item')">
+
+<img class="item horizontal" style="width: 50px; height: auto" src="./support/20x50-green.png" width="20" height="50" data-expected-width="50" data-expected-height="40">
+
+<img class="item horizontal"  style="width: auto; height: 20px" src="./support/20x50-green.png" width="20" height="50" data-expected-width="80" data-expected-height="40">
+
+<img class="item horizontal" style="max-width: 50px; height: auto" src="./support/20x50-green.png" width="20" height="50" data-expected-width="40" data-expected-height="40">
+
+<img class="item horizontal" style="width: auto; max-height: 20px" src="./support/20x50-green.png" width="20" height="50" data-expected-width="80" data-expected-height="40">
+
+<img class="item vertical" style="height: 50px; width: auto" src="./support/20x50-green.png" width="20" height="50" data-expected-width="40" data-expected-height="50">
+
+<img class="item vertical"  style="height: auto; width: 20px" src="./support/20x50-green.png" width="20" height="50" data-expected-width="40" data-expected-height="80">
+
+<img class="item vertical" style="max-height: 50px; width: auto" src="./support/20x50-green.png" width="20" height="50" data-expected-width="40" data-expected-height="50">
+
+<img class="item vertical" style="height: auto; max-width: 20px" src="./support/20x50-green.png" width="20" height="50" data-expected-width="40" data-expected-height="80">
+
+<div class="non-replaced item horizontal" style="width: 50px; height: auto" width="20" height="50" data-expected-width="50" data-expected-height="40"></div>
+
+<div class="non-replaced item horizontal"  style="width: auto; height: 20px" width="20" height="50" data-expected-width="80" data-expected-height="40"></div>
+
+<div class="non-replaced item horizontal" style="max-width: 50px; height: auto" width="20" height="50" data-expected-width="50" data-expected-height="40"></div>
+
+<div class="non-replaced item horizontal" style="width: auto; max-height: 20px" width="20" height="50" data-expected-width="80" data-expected-height="40"></div>
+
+<div class="non-replaced item vertical" style="height: 50px; width: auto" width="20" height="50" data-expected-width="40" data-expected-height="50"></div>
+
+<div class="non-replaced item vertical"  style="height: auto; width: 20px" width="20" height="50" data-expected-width="40" data-expected-height="80"></div>
+
+<div class="non-replaced item vertical" style="max-height: 50px; width: auto" width="20" height="50" data-expected-width="40" data-expected-height="50"></div>
+
+<div class="non-replaced item vertical" style="height: auto; max-width: 20px" width="20" height="50" data-expected-width="40" data-expected-height="80"></div>

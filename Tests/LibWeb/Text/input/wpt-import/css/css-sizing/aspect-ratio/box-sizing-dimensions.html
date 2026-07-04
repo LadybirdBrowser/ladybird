@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS aspect-ratio: uses content box when "auto" is present and box-sizing dimensions when it is absent</title>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#aspect-ratio">
+<meta name="assert" content='CSS aspect-ratio: uses content box when "auto" is present and box-sizing dimensions when it is absent.'>
+<style>
+img {
+    border: 20px solid blue;
+    width: 100px;
+    height: auto;
+}
+
+.aspect {
+    aspect-ratio: 2 / 1;
+}
+
+.aspect-auto {
+    aspect-ratio: auto 2 / 1;
+}
+
+.border-box {
+    box-sizing: border-box;
+}
+
+.non-replaced {
+    background: green;
+    border: 20px solid blue;
+    width: 100px;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+
+<body onload="checkLayout('.item')">
+
+<img class="item aspect" src="./support/20x50-green.png" width="20" height="50" data-expected-width="140" data-expected-height="90">
+
+<img class="item aspect border-box" src="./support/20x50-green.png" width="20" height="50" data-expected-width="100" data-expected-height="50">
+
+<img class="item aspect-auto" src="./support/20x50-green.png" width="20" height="50" data-expected-width="140" data-expected-height="290">
+
+<img class="item aspect-auto border-box" src="./support/20x50-green.png" width="20" height="50" data-expected-width="100" data-expected-height="190">
+
+<div class="item non-replaced aspect" data-expected-width="140" data-expected-height="90"></div>
+
+<div class="item non-replaced aspect border-box" data-expected-width="100" data-expected-height="50"></div>
+
+<div class="item non-replaced aspect-auto" data-expected-width="140" data-expected-height="90"></div>
+
+<div class="item non-replaced aspect-auto border-box" data-expected-width="100" data-expected-height="70"></div>
