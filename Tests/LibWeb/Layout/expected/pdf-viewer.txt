@@ -171,7 +171,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                       BlockContainer <(anonymous)> (not painted) [BFC] children: inline
                         TextNode <#text> (not painted)
                       BlockContainer <select#scaleSelect> at [379.9375,3] flex-item [0+0+6 102.484375 38+0+0] [0+0+1 25 2+0+0] [BFC] children: not-inline
-                        Box <div> at [379.9375,3] flex-container(row) [0+0+0 102.484375 0+0+0] [0+0+0 25 0+0+0] [FFC] children: not-inline
+                        Box <div> at [379.9375,3] positioned flex-container(row) [0+0+0 102.484375 0+0+0] [0+0+0 25 0+0+0] [FFC] children: not-inline
                           BlockContainer <div> at [379.9375,8.5] flex-item [0+0+0 102.484375 0+0+0] [0+0+0 14 0+0+0] [BFC] children: inline
                             frag 0 from TextNode start: 0, length: 14, rect: [379.9375,8.5 102.484375x14] baseline: 10.59375
                                 "Automatic Zoom"

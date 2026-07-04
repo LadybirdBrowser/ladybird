@@ -703,8 +703,10 @@ void HTMLSelectElement::computed_properties_changed()
         auto appearance = computed_properties()->appearance();
         if (appearance == CSS::Appearance::None) {
             MUST(m_chevron_icon_element->style_for_bindings()->set_property(CSS::PropertyID::Display, "none"_string));
+            MUST(m_inner_text_element->style_for_bindings()->set_property(CSS::PropertyID::MarginInlineEnd, "0"_string));
         } else {
             MUST(m_chevron_icon_element->style_for_bindings()->set_property(CSS::PropertyID::Display, "block"_string));
+            MUST(m_inner_text_element->style_for_bindings()->set_property(CSS::PropertyID::MarginInlineEnd, "20px"_string));
         }
     }
 }
@@ -723,20 +725,26 @@ void HTMLSelectElement::create_shadow_tree_if_needed()
         display: flex;
         align-items: center;
         height: 100%;
+        position: relative;
     )~~~"_string);
     MUST(shadow_root->append_child(border));
 
     m_inner_text_element = DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
     m_inner_text_element->set_attribute_value(HTML::AttributeNames::style, R"~~~(
         flex: 1;
+        margin-inline-end: 20px;
     )~~~"_string);
     MUST(border->append_child(*m_inner_text_element));
 
+    // NB: The chevron icon is positioned out of flow so that the label is the wrapper's only flex item, keeping the
+    //     baseline of the select derived from the label text. The label's margin-inline-end reserves its space.
     m_chevron_icon_element = DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
     m_chevron_icon_element->set_attribute_value(HTML::AttributeNames::style, R"~~~(
+        position: absolute;
+        inset-inline-end: 0;
+        top: calc(50% - 8px);
         width: 16px;
         height: 16px;
-        margin-left: 4px;
     )~~~"_string);
 
     auto chevron_svg_element = DOM::create_element(document(), SVG::TagNames::svg, Namespace::SVG).release_value_but_fixme_should_propagate_errors();
