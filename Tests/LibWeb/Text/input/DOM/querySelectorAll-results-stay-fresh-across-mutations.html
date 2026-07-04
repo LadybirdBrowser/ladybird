@@ -52,6 +52,24 @@
         button.disabled = true;
         println(`:disabled count after: ${host.querySelectorAll(":disabled").length}`);
 
+        // Form-associated custom element upgrades change :enabled/:disabled matching.
+        const enabledCustomElement = document.createElement("cache-enabled-control");
+        host.appendChild(enabledCustomElement);
+        println(`FACE :enabled count before define: ${host.querySelectorAll("cache-enabled-control:enabled").length}`);
+        customElements.define("cache-enabled-control", class extends HTMLElement {
+            static get formAssociated() { return true; }
+        });
+        println(`FACE :enabled count after define: ${host.querySelectorAll("cache-enabled-control:enabled").length}`);
+
+        const disabledCustomElement = document.createElement("cache-disabled-control");
+        disabledCustomElement.setAttribute("disabled", "");
+        host.appendChild(disabledCustomElement);
+        println(`FACE :disabled count before define: ${host.querySelectorAll("cache-disabled-control:disabled").length}`);
+        customElements.define("cache-disabled-control", class extends HTMLElement {
+            static get formAssociated() { return true; }
+        });
+        println(`FACE :disabled count after define: ${host.querySelectorAll("cache-disabled-control:disabled").length}`);
+
         // :checked tracks checkedness, which changes without any attribute mutation.
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
@@ -124,5 +142,21 @@
         println(`querySelector agrees with querySelectorAll[0]: ${firstItem === host.querySelectorAll(".item")[0]}`);
         host.removeChild(firstItem);
         println(`querySelector after remove: ${host.querySelector(".item") === host.querySelectorAll(".item")[0]}`);
+
+        // Repeated identical queries with no intervening mutation return the same elements
+        // in fresh NodeList objects.
+        const repeatA = document.querySelectorAll("span.item");
+        const repeatB = document.querySelectorAll("span.item");
+        println(`repeated query returns distinct objects: ${repeatA !== repeatB}`);
+        let identical = repeatA.length > 0 && repeatA.length === repeatB.length;
+        for (let i = 0; i < repeatA.length; ++i)
+            identical = identical && repeatA[i] === repeatB[i];
+        println(`repeated query returns identical non-empty results: ${identical}`);
+        println(`querySelector agrees with repeated querySelectorAll[0]: ${document.querySelector("span.item") === repeatA[0]}`);
+
+        // Repeated queries with empty results stay empty.
+        const emptyA = document.querySelectorAll(".no-such-class");
+        const emptyB = document.querySelectorAll(".no-such-class");
+        println(`repeated empty query stays empty: ${emptyA.length === 0 && emptyB.length === 0}`);
     });
 </script>

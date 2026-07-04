@@ -573,6 +573,7 @@ class ParentNode;
 class Position;
 class ProcessingInstruction;
 class PseudoElement;
+class QuerySelectorResultCache;
 class Range;
 class RegisteredObserver;
 class SelectorQuery;

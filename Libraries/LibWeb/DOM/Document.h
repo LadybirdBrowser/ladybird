@@ -487,7 +487,14 @@ public:
     QuirksMode mode() const { return m_quirks_mode; }
     bool in_quirks_mode() const { return m_quirks_mode == QuirksMode::Yes; }
     bool in_limited_quirks_mode() const { return m_quirks_mode == QuirksMode::Limited; }
-    void set_quirks_mode(QuirksMode mode) { m_quirks_mode = mode; }
+    void set_quirks_mode(QuirksMode mode)
+    {
+        if (m_quirks_mode == mode)
+            return;
+        m_quirks_mode = mode;
+        // Quirks mode changes how id and class selectors match, so cached query results must not survive it.
+        bump_dom_tree_version();
+    }
 
     bool parser_cannot_change_the_mode() const { return m_parser_cannot_change_the_mode; }
     void set_parser_cannot_change_the_mode(bool parser_cannot_change_the_mode) { m_parser_cannot_change_the_mode = parser_cannot_change_the_mode; }
@@ -1144,6 +1151,7 @@ public:
     void exit_pointer_lock();
 
     RefPtr<SelectorQuery const> selector_query_for(StringView) const;
+    QuerySelectorResultCache& query_selector_result_cache();
 
     GC::Ptr<HTML::CustomElementRegistry> custom_element_registry() const;
     void set_custom_element_registry(GC::Ptr<HTML::CustomElementRegistry> custom_element_registry) { m_custom_element_registry = custom_element_registry; }
@@ -1641,6 +1649,9 @@ private:
     // Cache of parsed selector queries for querySelectorAll/querySelector/matches/closest.
     // A null value means the selector string failed to parse.
     mutable HashMap<String, RefPtr<SelectorQuery const>> m_selector_query_cache;
+
+    // Cache of querySelectorAll results, validated lazily against dom_tree_version/character_data_version.
+    OwnPtr<QuerySelectorResultCache> m_query_selector_result_cache;
 
     // https://fullscreen.spec.whatwg.org/#list-of-pending-fullscreen-events
     Vector<PendingFullscreenEvent> m_pending_fullscreen_events;

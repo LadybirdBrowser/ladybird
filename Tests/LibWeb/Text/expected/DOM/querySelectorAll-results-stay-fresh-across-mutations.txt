@@ -12,6 +12,10 @@ same selector returns distinct NodeList objects: true
 [data-k] count after removeAttribute: 0
 :disabled count before: 0
 :disabled count after: 1
+FACE :enabled count before define: 0
+FACE :enabled count after define: 1
+FACE :disabled count before define: 0
+FACE :disabled count after define: 1
 :checked count before: 0
 :checked count after: 1
 :has(:checked) count after: 1
@@ -31,3 +35,7 @@ traveler .y count: 1
 traveler .y count after adopt roundtrip: 2
 querySelector agrees with querySelectorAll[0]: true
 querySelector after remove: true
+repeated query returns distinct objects: true
+repeated query returns identical non-empty results: true
+querySelector agrees with repeated querySelectorAll[0]: true
+repeated empty query stays empty: true

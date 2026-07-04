@@ -763,6 +763,8 @@ void Document::visit_edges(Cell::Visitor& visitor)
 
     visitor.visit(m_potentially_named_elements);
     m_anchor_name_map.visit_edges(visitor);
+    if (m_query_selector_result_cache)
+        m_query_selector_result_cache->visit_edges(visitor);
 
     for (auto& event : m_pending_animation_event_queue) {
         visitor.visit(event.event);
@@ -3547,6 +3549,11 @@ void Document::adopt_node(Node& node)
             old_document.m_node_iterators.remove(&node_iterator);
             m_node_iterators.set(&node_iterator);
         }
+
+        // AD-HOC: A parentless node leaves oldDocument without any mutation observable through oldDocument's
+        //         dom_tree_version. Bump it so that caches keyed on that version can't serve stale results for this
+        //         node if it is later adopted back after being mutated under another document.
+        old_document.bump_dom_tree_version();
     }
 }
 
@@ -9548,6 +9555,13 @@ RefPtr<SelectorQuery const> Document::selector_query_for(StringView selector_tex
 
     m_selector_query_cache.set(selector_text_string, query);
     return query;
+}
+
+QuerySelectorResultCache& Document::query_selector_result_cache()
+{
+    if (!m_query_selector_result_cache)
+        m_query_selector_result_cache = make<QuerySelectorResultCache>();
+    return *m_query_selector_result_cache;
 }
 
 }
