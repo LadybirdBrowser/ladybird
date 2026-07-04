@@ -99,8 +99,11 @@ void PaintableWithLines::record_hit_test_items(DisplayListRecordingContext& cont
         return;
     }
 
-    for (auto const& fragment : m_fragments)
+    for (auto const& fragment : m_fragments) {
+        if (fragment.is_block_level_box())
+            continue;
         hit_test_display_list->append_text_fragment(fragment, accumulated_visual_context_for_descendants_index());
+    }
 
     if (stacking_context()
         && is_inline()
@@ -158,6 +161,11 @@ void PaintableWithLines::paint(DisplayListRecordingContext& context, PaintPhase 
     if (!is_visible())
         return;
 
+    // An inline's per-line paintable that only hosts an interrupting block's phantom fragment generates no box
+    // of its own; painting its background/border would draw a degenerate box at the block's corner.
+    if (is<Layout::InlineNode>(layout_node()) && has_only_block_level_fragments())
+        return;
+
     PaintableBox::paint(context, phase);
 
     if (phase == PaintPhase::Foreground) {
@@ -187,6 +195,9 @@ void PaintableWithLines::paint(DisplayListRecordingContext& context, PaintPhase 
 
 void compute_render_spans(PaintableFragment const& fragment, Vector<PaintableFragment::FragmentSpan, 4>& spans)
 {
+    if (fragment.is_block_level_box())
+        return;
+
     auto const* text_node = as_if<Layout::TextNode>(fragment.layout_node());
     if (!text_node) {
         // Non-text fragments still need shadow painting.

@@ -39,6 +39,10 @@ public:
     }
     RefPtr<PaintableBox> containing_block_paintable() const;
 
+    // Interrupting block-level boxes (block-in-inline) are recorded as phantom fragments; most
+    // fragment consumers (hit testing, render spans, client rects) must skip them.
+    bool is_block_level_box() const { return layout_node().display().is_block_outside(); }
+
     size_t start_offset() const { return m_start_offset; }
     size_t length_in_code_units() const { return m_length_in_code_units; }
 

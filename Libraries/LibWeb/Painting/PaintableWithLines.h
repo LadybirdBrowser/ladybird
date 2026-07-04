@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/AllOf.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/PaintableFragment.h>
@@ -24,6 +25,11 @@ public:
 
     Vector<PaintableFragment> const& fragments() const { return m_fragments; }
     Vector<PaintableFragment>& fragments() { return m_fragments; }
+
+    bool has_only_block_level_fragments() const
+    {
+        return !m_fragments.is_empty() && all_of(m_fragments, [](auto& fragment) { return fragment.is_block_level_box(); });
+    }
 
     void add_fragment(Layout::LineBoxFragment const& fragment, LineBoxData line_box_data)
     {
