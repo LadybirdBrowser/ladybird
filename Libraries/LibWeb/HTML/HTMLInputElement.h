@@ -410,6 +410,7 @@ private:
     bool is_number_underflowing(double number) const;
     bool is_number_overflowing(double number) const;
     bool is_number_mismatching_step(double number) const;
+    bool is_in_same_radio_button_group_as(HTML::HTMLInputElement const&) const;
 };
 
 }
