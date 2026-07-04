@@ -328,6 +328,7 @@ set(SOURCES
     CSS/Time.cpp
     CSS/TransitionEvent.cpp
     CSS/URL.cpp
+    CSS/UpdateStyle.cpp
     CSS/ValueType.cpp
     CSS/VisualViewport.cpp
     DOM/AbortController.cpp

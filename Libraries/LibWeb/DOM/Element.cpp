@@ -50,6 +50,7 @@
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RandomValueSharingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
+#include <LibWeb/CSS/UpdateStyle.h>
 #include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Attr.h>

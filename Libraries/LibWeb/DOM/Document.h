@@ -61,6 +61,7 @@
 namespace Web::CSS {
 
 class ImageStyleValueResource;
+enum class StyleUpdateMode : u8;
 
 }
 
@@ -394,11 +395,9 @@ public:
     void update_style();
     void invalidate_style_for_viewport_change();
     void update_style_if_needed_for_element(AbstractElement const&);
-    enum class StyleUpdateMode : u8 {
-        Normal,
-        StopAtDisplayNone,
-    };
-    CSS::ComputedProperties const* update_style_for_element(AbstractElement const&, StyleUpdateMode = StyleUpdateMode::Normal);
+    using StyleUpdateMode = CSS::StyleUpdateMode;
+    CSS::ComputedProperties const* update_style_for_element(AbstractElement const&);
+    CSS::ComputedProperties const* update_style_for_element(AbstractElement const&, StyleUpdateMode);
     [[nodiscard]] bool element_needs_style_update(AbstractElement const&) const;
     void update_layout(UpdateLayoutReason);
     void update_layout_if_needed_for_node(Node const&, UpdateLayoutReason);
@@ -406,6 +405,9 @@ public:
     void clear_devtools_layout_inspection_data();
     void update_paint_and_hit_testing_properties_if_needed();
     void update_animated_style_if_needed();
+    void update_style_computer_viewport_rect();
+    bool needs_animated_style_update() const { return m_needs_animated_style_update; }
+    bool is_running_update_layout() const { return m_is_running_update_layout; }
 
     void invalidate_layout_tree(InvalidateLayoutTreeReason);
     void invalidate_stacking_context_tree();
@@ -634,6 +636,8 @@ public:
     void run_the_scroll_steps();
 
     void evaluate_media_queries_and_report_changes();
+    bool needs_media_rule_evaluation() const { return m_needs_media_rule_evaluation; }
+    void evaluate_media_rules_for_style_update() { evaluate_media_rules(); }
     void set_needs_media_query_evaluation()
     {
         m_needs_media_query_list_evaluation = true;
@@ -684,6 +688,7 @@ public:
 
     bool needs_full_style_update() const { return m_needs_full_style_update; }
     void set_needs_full_style_update(bool b) { m_needs_full_style_update = b; }
+    void build_registered_properties_cache_for_style_update() { build_registered_properties_cache(); }
     void set_needs_container_query_evaluation_after_layout(Element const& query_container);
 
     [[nodiscard]] bool needs_full_layout_tree_update() const { return m_needs_full_layout_tree_update; }
@@ -897,6 +902,14 @@ public:
     void set_needs_animated_style_update();
 
     void set_needs_invalidation_of_elements_affected_by_has() { m_needs_invalidation_of_elements_affected_by_has = true; }
+    bool needs_invalidation_of_elements_affected_by_has() const { return m_needs_invalidation_of_elements_affected_by_has; }
+    bool consume_needs_invalidation_of_elements_affected_by_has()
+    {
+        if (!m_needs_invalidation_of_elements_affected_by_has)
+            return false;
+        m_needs_invalidation_of_elements_affected_by_has = false;
+        return true;
+    }
 
     // Test-only counters for observing style invalidation and recomputation work. See Internals.idl.
     struct StyleInvalidationCounters {
@@ -980,6 +993,7 @@ public:
     GC::Ptr<HTML::HTMLDialogElement> dialog_pointerdown_target() { return m_dialog_pointerdown_target; }
 
     size_t transition_generation() const { return m_transition_generation; }
+    void increment_transition_generation() { ++m_transition_generation; }
 
     // Does document represent an embedded svg img
     [[nodiscard]] bool is_decoded_svg() const { return m_is_decoded_svg; }
@@ -1132,6 +1146,7 @@ public:
     String dump_stacking_context_tree();
 
     CSS::Invalidation::StyleInvalidator& style_invalidator() { return m_style_invalidator; }
+    CSS::Invalidation::StyleInvalidator const& style_invalidator() const { return m_style_invalidator; }
 
     Optional<Vector<CSS::Parser::ComponentValue>> environment_variable_value(CSS::EnvironmentVariable, Span<i32> indices = {}) const;
 
