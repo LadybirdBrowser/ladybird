@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<!-- This exercises the min-height measurement throwaway layout path. The abspos
+     containing block is the positioned table row, which is outside the measured
+     flex subtree and not in that flex container's containing block chain. -->
+<style>
+    #table {
+        display: table;
+    }
+
+    #positioned-row {
+        display: table-row;
+        position: relative;
+    }
+
+    #cell {
+        display: table-cell;
+    }
+
+    #measured-flex {
+        display: flex;
+        min-height: 1px;
+    }
+
+    #grid {
+        display: grid;
+    }
+
+    #flex {
+        display: flex;
+    }
+
+    #abspos {
+        position: absolute;
+    }
+</style>
+<div id="table">
+    <div id="positioned-row">
+        <div id="cell">
+            <div id="measured-flex">
+                <div id="grid">
+                    <div id="flex">
+                        <div id="abspos"></div>
+                        <div>content</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    document.body.offsetHeight;
+</script>

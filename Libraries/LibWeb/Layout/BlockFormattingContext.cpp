@@ -1095,13 +1095,14 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         // min-height. If so, we run layout with min-height as the available height.
         if (should_treat_height_as_auto(box, available_space, layout_input.containing_block_constraints) && !box.computed_values().min_height().is_auto()) {
             LayoutState throwaway_state(box);
-            // Populate the entire containing block chain: the throwaway BFC may encounter abspos
-            // elements whose containing block is an ancestor above `box`. We stop when the source
-            // state lacks an entry, which happens when it is itself a nested throwaway state.
-            for (auto cb = box.containing_block(); cb; cb = cb->containing_block()) {
-                if (!m_state.try_get(*cb))
-                    break;
-                throwaway_state.populate_node_from(m_state, *cb);
+            // Populate ancestor state: the throwaway BFC may encounter abspos
+            // elements whose containing block is an ancestor above `box`, even if
+            // it is not in `box`'s containing block chain.
+            for (auto* ancestor = box.parent(); ancestor; ancestor = ancestor->parent()) {
+                auto* ancestor_box = as_if<Box>(*ancestor);
+                if (!ancestor_box || !m_state.try_get(*ancestor_box))
+                    continue;
+                throwaway_state.populate_node_from(m_state, *ancestor_box);
             }
 
             throwaway_state.create(box, layout_input.containing_block_constraints.percentage_basis_width, layout_input.containing_block_constraints.percentage_basis_height);
