@@ -7,7 +7,7 @@ interface HTMLInputElement : HTMLElement {
     [CEReactions, Reflect] attribute DOMString alt;
     [CEReactions] attribute DOMString autocomplete;
     [CEReactions, Reflect=checked] attribute boolean defaultChecked;
-    [ImplementedAs=checked_binding] attribute boolean checked;
+    attribute boolean checked;
     [CEReactions, Reflect=dirname] attribute DOMString dirName;
     [CEReactions, Reflect] attribute boolean disabled;
     readonly attribute HTMLFormElement? form;

@@ -216,17 +216,18 @@ void HTMLInputElement::set_checked(bool checked)
     CSS::Invalidation::invalidate_style_after_checked_state_change(*this, DOM::StyleInvalidationReason::HTMLInputElementSetChecked);
 
     set_needs_repaint();
-}
 
-void HTMLInputElement::set_checked_binding(bool checked)
-{
-    if (type_state() == TypeAttributeState::RadioButton) {
-        if (checked)
-            set_checked_within_group();
-        else
-            set_checked(false);
-    } else {
-        set_checked(checked);
+    // https://html.spec.whatwg.org/multipage/input.html#radio-button-state-(type=radio)
+    if (type_state() == TypeAttributeState::RadioButton && checked) {
+        // No point iterating the tree if we have an empty name.
+        if (!name().has_value() || name()->is_empty())
+            return;
+
+        root().for_each_in_inclusive_subtree_of_type<HTML::HTMLInputElement>([&](auto& element) {
+            if (element.checked() && &element != this && is_in_same_radio_button_group_as(element))
+                element.set_checked(false);
+            return TraversalDecision::Continue;
+        });
     }
 }
 
@@ -2225,25 +2226,6 @@ bool HTMLInputElement::is_in_same_radio_button_group_as(HTML::HTMLInputElement c
         && non_empty_equals(name().value(), other.name().value()));
 }
 
-// https://html.spec.whatwg.org/multipage/input.html#radio-button-state-(type=radio)
-void HTMLInputElement::set_checked_within_group()
-{
-    if (checked())
-        return;
-
-    set_checked(true);
-
-    // No point iterating the tree if we have an empty name.
-    if (!name().has_value() || name()->is_empty())
-        return;
-
-    root().for_each_in_inclusive_subtree_of_type<HTML::HTMLInputElement>([&](auto& element) {
-        if (element.checked() && &element != this && is_in_same_radio_button_group_as(element))
-            element.set_checked(false);
-        return TraversalDecision::Continue;
-    });
-}
-
 // https://html.spec.whatwg.org/multipage/input.html#the-input-element:legacy-pre-activation-behavior
 void HTMLInputElement::legacy_pre_activation_behavior()
 {
@@ -2270,7 +2252,7 @@ void HTMLInputElement::legacy_pre_activation_behavior()
             return TraversalDecision::Continue;
         });
 
-        set_checked_within_group();
+        set_checked(true);
     }
 }
 
@@ -2294,7 +2276,7 @@ void HTMLInputElement::legacy_cancelled_activation_behavior()
         if (m_legacy_pre_activation_behavior_checked_element_in_group) {
             auto& element_in_group = *m_legacy_pre_activation_behavior_checked_element_in_group;
             if (is_in_same_radio_button_group_as(element_in_group)) {
-                element_in_group.set_checked_within_group();
+                element_in_group.set_checked(true);
                 did_reselect_previous_element = true;
             }
 

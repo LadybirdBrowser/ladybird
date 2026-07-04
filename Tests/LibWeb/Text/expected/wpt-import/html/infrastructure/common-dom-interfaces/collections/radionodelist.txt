@@ -2,10 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-3 Pass
-2 Fail
+5 Pass
 Pass	The value attribute should be empty if no element is checked
 Pass	The RadioNodeList.value must be the first checked radio button's value
 Pass	Check the RadioNodeList.value on getting
-Fail	Check the RadioNodeList.value on setting
-Fail	Check the RadioNodeList.value on setting to 'on'
+Pass	Check the RadioNodeList.value on setting
+Pass	Check the RadioNodeList.value on setting to 'on'

@@ -104,9 +104,6 @@ public:
     bool checked() const { return m_checked; }
     void set_checked(bool);
 
-    bool checked_binding() const { return checked(); }
-    void set_checked_binding(bool);
-
     bool indeterminate() const;
     void set_indeterminate(bool);
 
@@ -322,7 +319,6 @@ private:
     void create_file_input_shadow_tree();
     void create_range_input_shadow_tree();
     WebIDL::ExceptionOr<void> run_input_activation_behavior(DOM::Event const&);
-    void set_checked_within_group();
 
     void handle_maxlength_attribute();
     WebIDL::ExceptionOr<void> handle_src_attribute(String const& value);
