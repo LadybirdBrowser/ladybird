@@ -1567,6 +1567,8 @@ GC::Ref<CSS::StylePropertyMap> Element::attribute_style_map()
 
 void Element::set_inline_style(GC::Ptr<CSS::CSSStyleProperties> style)
 {
+    if (m_inline_style == style)
+        return;
     m_inline_style = style;
     if (m_attribute_style_map)
         m_attribute_style_map = nullptr;
