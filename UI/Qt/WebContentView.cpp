@@ -1088,7 +1088,6 @@ bool WebContentView::handle_vulkan_window_event(QEvent* event)
         return true;
     case QEvent::MouseMove:
         mouseMoveEvent(static_cast<QMouseEvent*>(event));
-        emit native_window_pointer_event();
         return true;
     case QEvent::MouseButtonPress:
         mousePressEvent(static_cast<QMouseEvent*>(event));
@@ -1104,7 +1103,6 @@ bool WebContentView::handle_vulkan_window_event(QEvent* event)
         return true;
     case QEvent::Leave:
         leaveEvent(event);
-        emit native_window_pointer_event();
         return true;
     case QEvent::FocusIn:
         focusInEvent(static_cast<QFocusEvent*>(event));

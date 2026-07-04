@@ -171,6 +171,7 @@ private:
     bool position_is_in_rounded_corner_cutout(QPoint const&) const;
     Qt::Edges resize_edges_for_position(QPoint const&) const;
     Optional<Qt::CursorShape> resize_cursor_for_edges(Qt::Edges) const;
+    bool filter_native_window_event(QWindow&, QEvent&);
     bool start_window_resize(Qt::Edges, QPoint const& global_position);
     void update_window_resize(QPoint const& global_position);
     void finish_window_resize();
