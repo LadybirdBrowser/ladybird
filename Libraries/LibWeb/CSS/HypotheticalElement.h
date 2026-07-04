@@ -35,6 +35,7 @@ public:
 
     Optional<CustomPropertyRegistration const&> get_registered_custom_property(Utf16FlyString const& name) const;
     RefPtr<StyleValue const> get_custom_property(Utf16FlyString const& name) const;
+    RefPtr<CustomPropertyData const> inheritable_custom_property_data() const;
 };
 
 // https://drafts.csswg.org/css-mixins/#using-custom-functions

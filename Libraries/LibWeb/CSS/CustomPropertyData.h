@@ -33,6 +33,7 @@ public:
         AllowParentOwnValueAbsorption allow_parent_own_value_absorption = AllowParentOwnValueAbsorption::Yes);
 
     StyleProperty const* get(Utf16FlyString const& name) const;
+    RefPtr<CustomPropertyData const> inheritable_impl(RefPtr<CustomPropertyData const> inheritable_parent, AK::Function<Optional<CustomPropertyRegistration const&>(Utf16FlyString const&)> get_custom_property_registration) const;
     RefPtr<CustomPropertyData const> inheritable(DOM::Document const&) const;
 
     OrderedHashMap<Utf16FlyString, StyleProperty> const& own_values() const { return m_own_values; }

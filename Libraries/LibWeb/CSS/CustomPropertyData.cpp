@@ -61,6 +61,28 @@ StyleProperty const* CustomPropertyData::get(Utf16FlyString const& name) const
     return nullptr;
 }
 
+RefPtr<CustomPropertyData const> CustomPropertyData::inheritable_impl(RefPtr<CustomPropertyData const> inheritable_parent, AK::Function<Optional<CustomPropertyRegistration const&>(Utf16FlyString const&)> get_custom_property_registration) const
+{
+    OrderedHashMap<Utf16FlyString, StyleProperty> inheritable_own_values;
+
+    for (auto const& [name, property] : m_own_values) {
+        auto registration = get_custom_property_registration(name);
+
+        if (registration.has_value() && !registration->inherit)
+            continue;
+
+        inheritable_own_values.set(name, property);
+    }
+
+    if (inheritable_own_values.is_empty() && !inheritable_parent)
+        return nullptr;
+
+    if (inheritable_own_values.size() == m_own_values.size() && inheritable_parent.ptr() == m_parent.ptr())
+        return this;
+
+    return CustomPropertyData::create(move(inheritable_own_values), move(inheritable_parent));
+}
+
 RefPtr<CustomPropertyData const> CustomPropertyData::inheritable(DOM::Document const& document) const
 {
     auto document_identity = reinterpret_cast<FlatPtr>(&document);
@@ -75,16 +97,9 @@ RefPtr<CustomPropertyData const> CustomPropertyData::inheritable(DOM::Document c
     if (m_parent)
         inheritable_parent = m_parent->inheritable(document);
 
-    OrderedHashMap<Utf16FlyString, StyleProperty> inheritable_own_values;
-    bool filtered_any_own_values = false;
-    for (auto const& [name, property] : m_own_values) {
-        auto registration = document.get_registered_custom_property(name);
-        if (registration.has_value() && !registration->inherit) {
-            filtered_any_own_values = true;
-            continue;
-        }
-        inheritable_own_values.set(name, property);
-    }
+    auto inheritable = inheritable_impl(
+        inheritable_parent,
+        [&](Utf16FlyString const& name) { return document.get_registered_custom_property(name); });
 
     // Registration generations are local to each document, so the cache has to include the destination document
     // identity as well. Otherwise a subtree adopted into another document can incorrectly reuse a filtered result
@@ -92,20 +107,17 @@ RefPtr<CustomPropertyData const> CustomPropertyData::inheritable(DOM::Document c
     m_cached_inheritable_document_identity = document_identity;
     m_cached_inheritable_generation = generation;
 
-    if (!filtered_any_own_values && inheritable_parent.ptr() == m_parent.ptr()) {
+    // We can't store a RefPtr to `this` in m_cached_inheritable_data since it would create a reference cycle so we store
+    // that case as a special boolean flag instead.
+    if (inheritable.ptr() == this) {
         m_cached_inheritable_data = nullptr;
         m_cached_inheritable_is_self = true;
-        return RefPtr<CustomPropertyData const>(this);
+    } else {
+        m_cached_inheritable_is_self = false;
+        m_cached_inheritable_data = inheritable;
     }
 
-    m_cached_inheritable_is_self = false;
-    if (inheritable_own_values.is_empty() && !inheritable_parent) {
-        m_cached_inheritable_data = nullptr;
-        return nullptr;
-    }
-
-    m_cached_inheritable_data = CustomPropertyData::create(move(inheritable_own_values), move(inheritable_parent));
-    return m_cached_inheritable_data;
+    return inheritable;
 }
 
 void CustomPropertyData::for_each_property(Function<void(Utf16FlyString const&, StyleProperty const&)> callback) const
