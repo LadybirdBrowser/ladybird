@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+
+    body {
+        margin: 0;
+        font: 10px Ahem;
+    }
+
+    img {
+        display: block;
+        width: 50px;
+        height: 50px;
+        border: 5px solid orange;
+    }
+</style>
+<script>
+    asyncTest(async (done) => {
+        await document.fonts.load("10px Ahem");
+
+        const image = document.createElement("img");
+        image.alt = "foo bar baz";
+        document.body.appendChild(image);
+
+        println(internals.dumpDisplayList());
+        done();
+    });
+</script>
