@@ -219,7 +219,12 @@ void ViewportPaintable::assign_scroll_frames()
 void ViewportPaintable::assign_accumulated_visual_contexts()
 {
     auto visual_context_tree = build_accumulated_visual_context_tree(*this);
-    if (m_visual_context_tree.has_value() && visual_context_tree.is_compatible_with(*m_visual_context_tree)) {
+    auto is_compatible = m_visual_context_tree.has_value() && visual_context_tree.is_compatible_with(*m_visual_context_tree);
+    if (m_force_incompatible_visual_context_tree_rebuild_for_testing) {
+        m_force_incompatible_visual_context_tree_rebuild_for_testing = false;
+        is_compatible = false;
+    }
+    if (is_compatible) {
         visual_context_tree.reuse_version_from(*m_visual_context_tree);
     } else {
         document().set_needs_to_record_display_list();

@@ -3,6 +3,7 @@ interface Internals {
 
     undefined signalTestIsDone(DOMString text);
     undefined setTestTimeout(double milliseconds);
+    undefined forceIncompatibleVisualContextTreeRebuild();
     undefined loadReferenceTestMetadata();
 
     DOMString setTimeZone(DOMString timeZone);

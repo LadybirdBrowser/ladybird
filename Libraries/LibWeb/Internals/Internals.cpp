@@ -97,6 +97,16 @@ void Internals::set_test_timeout(double milliseconds)
     page().client().page_did_set_test_timeout(milliseconds);
 }
 
+void Internals::force_incompatible_visual_context_tree_rebuild()
+{
+    auto& document = window().associated_document();
+    auto paintable = document.paintable();
+    if (!paintable)
+        return;
+    paintable->set_force_incompatible_visual_context_tree_rebuild_for_testing();
+    document.set_needs_accumulated_visual_contexts_update(true);
+}
+
 // https://web-platform-tests.org/writing-tests/reftests.html#components-of-a-reftest
 WebIDL::ExceptionOr<void> Internals::load_reference_test_metadata()
 {

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<!-- An incompatible visual-context-tree rebuild mints a new tree version. On a composited (no-repaint) frame, the
+     producer must send a full display-list re-record — not a bare update_visual_context_tree carrying the new version
+     that the compositor's current display list doesn't match. See issue #10418. -->
+<html class="test-wait">
+<body>
+<div style="will-change: transform">content</div>
+<script>
+    let n = 0;
+    function frame() {
+        n++;
+        // Arm across a range — so it lands on a composited (no-repaint) frame after the page settles.
+        if (n >= 15 && n <= 30) internals.forceIncompatibleVisualContextTreeRebuild();
+        if (n >= 40) { document.documentElement.classList.remove("test-wait"); return; }
+        requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+</script>
+</body>
+</html>
