@@ -3963,8 +3963,10 @@ WebIDL::ExceptionOr<void> Document::set_cookie(StringView cookie_string)
 
     // Otherwise, the user agent must act as it would when receiving a set-cookie-string for the document's URL via a
     // "non-HTTP" API, consisting of the new value encoded as UTF-8.
-    if (auto cookie = HTTP::Cookie::parse_cookie(url(), cookie_string); cookie.has_value())
+    if (auto cookie = HTTP::Cookie::parse_cookie(url(), cookie_string); cookie.has_value()) {
         page().client().page_did_set_cookie(m_url, cookie.value(), HTTP::Cookie::Source::NonHttp);
+        reset_cookie_version();
+    }
 
     return {};
 }

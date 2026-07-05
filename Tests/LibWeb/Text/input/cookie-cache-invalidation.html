@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        const parentDomain = `cookie-${crypto.randomUUID()}.example.com`;
+        spoofCurrentURL(`https://www.${parentDomain}/cookie-cache-invalidation.html`);
+
+        await internals.deleteAllCookies();
+
+        document.cookie = `aggregate=base; domain=${parentDomain}`;
+        document.cookie = `aggregate=${document.cookie}$one; domain=${parentDomain}`;
+        document.cookie = `aggregate=${document.cookie}$two; domain=${parentDomain}`;
+
+        println(document.cookie);
+
+        await internals.deleteAllCookies();
+        done();
+    });
+</script>
