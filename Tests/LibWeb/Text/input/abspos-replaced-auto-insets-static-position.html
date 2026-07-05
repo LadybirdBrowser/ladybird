@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #cb {
+        position: relative;
+        width: 300px;
+        height: 200px;
+        font-size: 0;
+    }
+    #first-line-spacer {
+        display: inline-block;
+        width: 10px;
+        height: 50px;
+    }
+    #inline-spacer {
+        display: inline-block;
+        width: 70px;
+        height: 20px;
+    }
+    #target {
+        position: absolute;
+    }
+</style>
+<div id="cb">
+    <span id="first-line-spacer"></span><br>
+    <span id="inline-spacer"></span><canvas id="target" width="60" height="40"></canvas>
+</div>
+<script>
+    // An absolutely positioned replaced element with all insets auto is placed
+    // at its static position, which here has distinct x and y coordinates:
+    // x = 70 (after the inline spacer), y = 50 (on the second line). The
+    // resolved values of the inset properties must reflect that position, so
+    // top/bottom must be derived from the static y, not the static x. The
+    // resolved top must always match the box's actual offset within the
+    // containing block printed below.
+    test(() => {
+        const target = document.getElementById("target");
+        const style = getComputedStyle(target);
+        for (const property of ["top", "right", "bottom", "left"])
+            println(`${property}: ${style[property]}`);
+        const rect = target.getBoundingClientRect();
+        const cbRect = document.getElementById("cb").getBoundingClientRect();
+        println(`offset within containing block: ${rect.x - cbRect.x},${rect.y - cbRect.y}`);
+    });
+</script>
