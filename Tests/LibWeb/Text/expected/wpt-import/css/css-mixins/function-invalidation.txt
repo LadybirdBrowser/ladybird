@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-1 Pass
-3 Fail
+4 Pass
 Pass	Appending a rule
-Fail	Prepending a rule
-Fail	Deleting a rule
-Fail	Prepending a rule, then deleting last
+Pass	Prepending a rule
+Pass	Deleting a rule
+Pass	Prepending a rule, then deleting last

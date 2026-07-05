@@ -567,6 +567,7 @@ static bool rule_requires_broad_add_or_remove_invalidation(CSSRule const& rule)
     case CSSRule::Type::CounterStyle:
     case CSSRule::Type::LayerBlock:
     case CSSRule::Type::LayerStatement:
+    case CSSRule::Type::Function:
     // @font-feature-values changes how font-variant-alternates resolves at computed-style time, so
     // a declaration-time mutation still requires a whole-subtree restyle.
     case CSSRule::Type::FontFeatureValues:
