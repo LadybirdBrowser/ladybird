@@ -658,6 +658,13 @@ input:is([type=reset i], [type=button i], [type=submit i]), button {
     text-align: center;
 }
 
+/* https://www.w3.org/TR/css-ui-3/#default-style-sheet
+ * CSS UI 3's informative default style sheet gives input buttons no wrapping.
+ */
+input:is([type=reset i], [type=button i], [type=submit i]) {
+    white-space: pre;
+}
+
 input, button {
     display: inline-block;
 }

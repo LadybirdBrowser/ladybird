@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../Ref/data/fonts/Ahem.ttf");
+    }
+
+    body {
+        font: 20px Ahem;
+    }
+
+    form {
+        width: 300px;
+    }
+
+    .radios--container {
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .radios--container > *:not(:last-child) {
+        padding-right: 6px;
+    }
+
+    .radios--main {
+        display: flex;
+        padding-bottom: 16px;
+    }
+
+    .radios--value-button {
+        border: 2px solid gray;
+        line-height: 43px;
+        padding: 0 16px;
+    }
+
+    .radios--input[type="radio"] {
+        height: 1px;
+        margin: 0;
+        opacity: 0;
+        width: 1px;
+    }
+
+    input {
+        border: 2px solid black;
+        height: 48px;
+        padding: 0 5px;
+    }
+</style>
+<form>
+    <div class="radios--container">
+        <div class="radios--main">
+            <input class="radios--input" type="radio" checked>
+            <label class="radios--value-button">100 ML</label>
+        </div>
+        <div class="radios--main">
+            <input class="radios--input" type="radio">
+            <label class="radios--value-button">50 ML</label>
+        </div>
+        <div class="radios--main">
+            <input class="radios--input" type="radio">
+            <label class="radios--value-button">30 ML</label>
+        </div>
+        <div class="radios--main">
+            <input class="radios--input" type="radio">
+            <label class="radios--value-button">15ML</label>
+        </div>
+    </div>
+    <a><input class="radios--input" style="width: 171px" type="button" value="100ml Limited Edition"></a>
+    <a><input class="radios--input" style="width: 111px" type="button" value="Coffret 30ml"></a>
+    <a><input class="radios--input" style="width: 111px" type="button" value="Coffret 50ml"></a>
+    <a><input class="radios--input" style="margin-top: 10px; width: 120px" type="button" value="Coffret 100ml"></a>
+    <a><input class="radios--input" style="margin-top: 10px; width: 149px" type="button" value="Lait corps 200ml"></a>
+</form>
