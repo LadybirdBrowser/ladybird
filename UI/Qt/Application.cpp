@@ -70,6 +70,17 @@ private:
 
 #endif
 
+#if defined(AK_OS_MACOS)
+static bool has_visible_browser_window()
+{
+    for (auto* widget : QApplication::topLevelWidgets()) {
+        if (as_if<BrowserWindow>(widget) && widget->isVisible())
+            return true;
+    }
+    return false;
+}
+#endif
+
 class LadybirdQApplication : public QApplication {
 public:
     explicit LadybirdQApplication(Main::Arguments& arguments)
@@ -115,6 +126,11 @@ public:
         auto handled = QApplication::event(event);
         if (event_type == QEvent::ApplicationPaletteChange || event_type == QEvent::ThemeChange)
             update_chrome_style();
+
+#if defined(AK_OS_MACOS)
+        if (event_type == QEvent::ApplicationActivate && !has_visible_browser_window())
+            application.open_new_window();
+#endif
 
         return handled;
     }
