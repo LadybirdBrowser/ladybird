@@ -114,7 +114,9 @@ void InlineLevelIterator::exit_node_with_box_model_metrics()
 Layout::Node const* InlineLevelIterator::next_inline_node_in_pre_order(Layout::Node const& current, Layout::Node const* stay_within)
 {
     if (current.first_child()
-        && (current.first_child()->display().is_inline_outside() || is_inline_flow_interrupting_block(*current.first_child()))
+        && (current.first_child()->display().is_inline_outside()
+            || is_inline_flow_interrupting_block(*current.first_child())
+            || current.first_child()->is_out_of_flow(m_inline_formatting_context))
         && current.display().is_flow_inside()
         && !is_inline_flow_interrupting_block(current)
         && !current.is_replaced_box()) {
