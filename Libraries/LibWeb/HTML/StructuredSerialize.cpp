@@ -1183,7 +1183,7 @@ static WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, StructuredSe
         // NOTE: This check is only needed when serializing (and not when deserializing) as the cross-origin isolated capability cannot change
         //       over time and a SharedArrayBuffer cannot leave an agent cluster.
         if (current_settings_object().cross_origin_isolated_capability() == CanUseCrossOriginIsolatedAPIs::No)
-            return data_clone_error("Cannot serialize SharedArrayBuffer when cross-origin isolated"_utf16);
+            return data_clone_error("Cannot serialize SharedArrayBuffer when not cross-origin isolated"_utf16);
 
         // 2. If forStorage is true, then throw a "DataCloneError" DOMException.
         if (for_storage)
