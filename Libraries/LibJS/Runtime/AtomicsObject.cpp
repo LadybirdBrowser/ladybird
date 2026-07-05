@@ -15,7 +15,9 @@
 #include <AK/Atomic.h>
 #include <AK/ByteBuffer.h>
 #include <AK/Endian.h>
+#include <AK/NumericLimits.h>
 #include <AK/TypeCasts.h>
+#include <LibCore/Futex.h>
 #include <LibJS/Runtime/Agent.h>
 #include <LibJS/Runtime/AtomicsObject.h>
 #include <LibJS/Runtime/GlobalObject.h>
@@ -171,12 +173,37 @@ static ThrowCompletionOr<Value> do_wait(VM& vm, WaitMode mode, TypedArrayBase& t
     if (mode == WaitMode::Sync && !agent_can_suspend(vm))
         return vm.throw_completion<TypeError>(ErrorType::AgentCannotSuspend);
 
-    // FIXME: Implement the remaining steps when we support SharedArrayBuffer.
-    (void)byte_index_in_buffer;
-    (void)value;
-    (void)timeout;
+    // 11. Let block be buffer.[[ArrayBufferData]].
+    // 12-24. AD-HOC: Rather than maintaining the spec's WaiterList, we wait on the shared-memory word using an OS
+    //        futex. The word lives in memory mapped into every agent's process — so wait and notify coordinate across
+    //        processes. We don't yet implement Atomics.waitAsync (async mode).
+    if (mode == WaitMode::Async)
+        return vm.throw_completion<InternalError>(ErrorType::NotImplemented, "Atomics.waitAsync"sv);
 
-    return vm.throw_completion<InternalError>(ErrorType::NotImplemented, "SharedArrayBuffer"sv);
+    auto* address = buffer->data_at(byte_index_in_buffer);
+
+    // t is in milliseconds. Convert to nanoseconds in floating point — so sub-millisecond timeouts survive, and guard
+    // the cast: A value too large for i64 nanoseconds (or a non-finite t) means an infinite wait — rather than the UB
+    // of an out-of-range double-to-integer conversion.
+    Optional<AK::Duration> wait_timeout;
+    if (__builtin_isfinite(timeout)) {
+        auto timeout_ns = timeout * 1'000'000.0;
+        if (timeout_ns < static_cast<double>(NumericLimits<i64>::max()))
+            wait_timeout = AK::Duration::from_nanoseconds(static_cast<i64>(timeout_ns));
+    }
+
+    switch (Core::atomic_wait(address, static_cast<u64>(value), typed_array.element_size(), wait_timeout)) {
+    // 25. If waiterRecord.[[Result]] is "not-equal", return the String "not-equal".
+    case Core::AtomicWaitResult::NotEqual:
+        return PrimitiveString::create(vm, "not-equal"_utf16_fly_string);
+    // 26. If waiterRecord.[[Result]] is "timed-out", return the String "timed-out".
+    case Core::AtomicWaitResult::TimedOut:
+        return PrimitiveString::create(vm, "timed-out"_utf16_fly_string);
+    // 27. Return the String "ok".
+    case Core::AtomicWaitResult::Woken:
+        return PrimitiveString::create(vm, "ok"_utf16_fly_string);
+    }
+    VERIFY_NOT_REACHED();
 }
 
 // 25.4.3.17 AtomicReadModifyWrite ( typedArray, index, value, op ), https://tc39.es/ecma262/#sec-atomicreadmodifywrite
@@ -463,11 +490,17 @@ JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::notify)
     if (!buffer->is_shared_array_buffer())
         return Value { 0 };
 
-    // FIXME: Implement the remaining steps when we support SharedArrayBuffer.
-    (void)byte_index_in_buffer;
-    (void)count;
+    // 7-15. AD-HOC: Wake up to 'count' agents waiting on the shared-memory word via the OS futex (see do_wait).
+    auto* address = buffer->data_at(byte_index_in_buffer);
+    // count is >= 0 (step 3b). But a huge finite value would overflow size_t (UB on the cast). So, treat anything at or
+    // beyond size_t's range (and non-finite counts) as "wake every waiter".
+    auto max_count = (__builtin_isfinite(count) && count < static_cast<double>(NumericLimits<size_t>::max()))
+        ? static_cast<size_t>(count)
+        : NumericLimits<size_t>::max();
+    auto woken = Core::atomic_notify(address, typed_array->element_size(), max_count);
 
-    return vm.throw_completion<InternalError>(ErrorType::NotImplemented, "SharedArrayBuffer"sv);
+    // 16. Return 𝔽(n).
+    return Value { static_cast<double>(woken) };
 }
 
 // 25.4.11 Atomics.or ( typedArray, index, value ), https://tc39.es/ecma262/#sec-atomics.or
