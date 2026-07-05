@@ -10,6 +10,7 @@
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/DownloadPresentation.h>
 #include <LibWebView/Utilities.h>
 #include <LibWebView/WebContentClient.h>
 #include <UI/Qt/Application.h>
@@ -215,72 +216,6 @@ static constexpr int TOOLBAR_LOCATION_EDIT_SIDE_GAP = 32;
 static constexpr int TOOLBAR_WINDOW_CONTROLS_RIGHT_MARGIN = 4;
 static constexpr int DOWNLOADS_POPOVER_WIDTH = 380;
 static constexpr int DOWNLOADS_POPOVER_MAX_HEIGHT = 360;
-static constexpr int DOWNLOADS_POPOVER_MAX_VISIBLE_DOWNLOADS = 5;
-
-static QString download_count_text(size_t count, char const* singular, char const* plural)
-{
-    return QString("%1 %2").arg(count).arg(count == 1 ? singular : plural);
-}
-
-static QString download_percent_text(double progress)
-{
-    if (progress < 0.0)
-        progress = 0.0;
-    if (progress > 1.0)
-        progress = 1.0;
-
-    auto percent = static_cast<int>(progress * 100.0);
-    return QString("%1%").arg(percent);
-}
-
-static QString download_size_text(u64 size)
-{
-    constexpr double kibibyte = 1024.0;
-    constexpr double mebibyte = kibibyte * 1024.0;
-    constexpr double gibibyte = mebibyte * 1024.0;
-
-    auto size_as_double = static_cast<double>(size);
-    if (size_as_double < kibibyte)
-        return QString("%1 B").arg(size);
-    if (size_as_double < mebibyte)
-        return QString("%1 KB").arg(size_as_double / kibibyte, 0, 'f', 1);
-    if (size_as_double < gibibyte)
-        return QString("%1 MB").arg(size_as_double / mebibyte, 0, 'f', 1);
-    return QString("%1 GB").arg(size_as_double / gibibyte, 0, 'f', 1);
-}
-
-static Optional<double> download_progress(WebView::FileDownloader::Download const& download)
-{
-    if (!download.total_size.has_value() || *download.total_size == 0)
-        return {};
-
-    return static_cast<double>(min(download.downloaded_size, *download.total_size)) / static_cast<double>(*download.total_size);
-}
-
-static QString download_status_text(WebView::FileDownloader::Download const& download)
-{
-    using DownloadStatus = WebView::FileDownloader::DownloadStatus;
-
-    switch (download.status) {
-    case DownloadStatus::InProgress:
-        if (auto progress = download_progress(download); progress.has_value()) {
-            return QString("%1 of %2 - %3")
-                .arg(download_size_text(download.downloaded_size))
-                .arg(download_size_text(*download.total_size))
-                .arg(download_percent_text(*progress));
-        }
-        return QString("%1 downloaded").arg(download_size_text(download.downloaded_size));
-    case DownloadStatus::Completed:
-        return QString("Completed - %1").arg(download_size_text(download.downloaded_size));
-    case DownloadStatus::Canceled:
-        return "Canceled";
-    case DownloadStatus::Failed:
-        if (download.error.has_value() && !download.error->is_empty())
-            return QString("Failed - %1").arg(qstring_from_ak_string(*download.error));
-        return "Failed";
-    }
-    VERIFY_NOT_REACHED();
-}
 
 static QString downloads_popover_style_sheet(QPalette const& palette)
 {
@@ -431,12 +366,12 @@ public:
         m_file_name_label->setText(qstring_from_ak_string(download.destination.basename()));
         m_file_name_label->setToolTip(qstring_from_ak_string(download.destination.string()));
 
-        auto status_text = download_status_text(download);
+        auto status_text = qstring_from_ak_string(WebView::download_status_text(download));
         m_status_label->setText(status_text);
         m_status_label->setToolTip(status_text);
 
         bool geometry_changed = false;
-        auto progress = download_progress(download);
+        auto progress = download.progress();
         auto show_progress = download.status == WebView::FileDownloader::DownloadStatus::InProgress && progress.has_value();
         auto progress_bar_is_visible = !m_progress_bar->isHidden();
         if (progress_bar_is_visible != show_progress) {
@@ -527,11 +462,7 @@ public:
     bool set_downloads(ReadonlySpan<WebView::FileDownloader::Download> downloads)
     {
         bool geometry_changed = false;
-        Vector<WebView::FileDownloader::Download const*> visible_downloads;
-        visible_downloads.ensure_capacity(min(downloads.size(), DOWNLOADS_POPOVER_MAX_VISIBLE_DOWNLOADS));
-
-        for (size_t i = downloads.size(); i > 0 && visible_downloads.size() < DOWNLOADS_POPOVER_MAX_VISIBLE_DOWNLOADS; --i)
-            visible_downloads.append(&downloads[i - 1]);
+        auto visible_downloads = WebView::recent_downloads_for_popover(downloads);
 
         if (!rows_match(visible_downloads)) {
             rebuild_rows(visible_downloads);
@@ -1385,46 +1316,16 @@ void Tab::update_downloads_button()
         return;
 
     auto downloads = WebView::Application::the().file_downloader().downloads();
-    using DownloadStatus = WebView::FileDownloader::DownloadStatus;
+    auto button_state = WebView::downloads_button_state(downloads);
 
-    size_t active_download_count = 0;
-    size_t unknown_active_download_count = 0;
-    size_t failed_download_count = 0;
-    double known_downloaded_size = 0.0;
-    double known_total_size = 0.0;
-    for (auto const& download : downloads) {
-        switch (download.status) {
-        case DownloadStatus::InProgress:
-            ++active_download_count;
-            if (download.total_size.has_value() && *download.total_size > 0) {
-                known_downloaded_size += min(download.downloaded_size, *download.total_size);
-                known_total_size += *download.total_size;
-            } else {
-                ++unknown_active_download_count;
-            }
-            break;
-        case DownloadStatus::Completed:
-            break;
-        case DownloadStatus::Canceled:
-            break;
-        case DownloadStatus::Failed:
-            ++failed_download_count;
-            break;
-        }
-    }
-
-    m_downloads_button->setVisible(!downloads.is_empty());
-    if (downloads.is_empty()) {
+    m_downloads_button->setVisible(button_state.has_downloads);
+    if (!button_state.has_downloads) {
         static_cast<DownloadsButton*>(m_downloads_button)->set_progress({});
         if (m_downloads_popover)
             m_downloads_popover->close();
     }
 
-    Optional<double> active_download_progress;
-    if (known_total_size > 0.0)
-        active_download_progress = known_downloaded_size / known_total_size;
-
-    auto downloads_icon = active_download_count > 0 && !active_download_progress.has_value() ? ChromeIcon::DownloadActive : ChromeIcon::Download;
+    auto downloads_icon = button_state.active_download_count > 0 && !button_state.active_download_progress.has_value() ? ChromeIcon::DownloadActive : ChromeIcon::Download;
     if (!m_downloads_button_icon.has_value() || *m_downloads_button_icon != downloads_icon) {
         auto icon = create_chrome_icon(downloads_icon, palette());
         m_open_downloads_page_action->setIcon(icon);
@@ -1433,28 +1334,9 @@ void Tab::update_downloads_button()
         m_downloads_button_icon = downloads_icon;
     }
 
-    static_cast<DownloadsButton*>(m_downloads_button)->set_progress(active_download_count > 0 ? active_download_progress : Optional<double> {});
+    static_cast<DownloadsButton*>(m_downloads_button)->set_progress(button_state.active_download_count > 0 ? button_state.active_download_progress : Optional<double> {});
 
-    QString tooltip;
-    if (active_download_count > 0) {
-        if (active_download_progress.has_value() && unknown_active_download_count == 0) {
-            if (active_download_count == 1) {
-                tooltip = QString("Downloading - %1")
-                              .arg(download_percent_text(*active_download_progress));
-            } else {
-                tooltip = QString("%1 downloads - %2")
-                              .arg(active_download_count)
-                              .arg(download_percent_text(*active_download_progress));
-            }
-        } else {
-            tooltip = download_count_text(active_download_count, "download in progress", "downloads in progress");
-        }
-    } else if (failed_download_count > 0) {
-        tooltip = download_count_text(failed_download_count, "download failed", "downloads failed");
-    } else {
-        tooltip = "Downloads";
-    }
-
+    auto tooltip = qstring_from_ak_string(button_state.tooltip);
     if (m_downloads_button_tooltip != tooltip) {
         m_downloads_button_tooltip = tooltip;
         m_open_downloads_page_action->setToolTip(tooltip);

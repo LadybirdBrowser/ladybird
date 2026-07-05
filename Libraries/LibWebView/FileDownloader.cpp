@@ -40,6 +40,14 @@ struct FileDownloader::ActiveDownload {
     bool stopped { false };
 };
 
+Optional<double> FileDownloader::Download::progress() const
+{
+    if (!total_size.has_value() || *total_size == 0)
+        return {};
+
+    return static_cast<double>(min(downloaded_size, *total_size)) / static_cast<double>(*total_size);
+}
+
 FileDownloader::FileDownloader() = default;
 FileDownloader::~FileDownloader() = default;
 

@@ -9,6 +9,7 @@ set(SOURCES
     ConsoleOutput.cpp
     CookieJar.cpp
     DOMNodeProperties.cpp
+    DownloadPresentation.cpp
     FileDownloader.cpp
     HeadlessWebView.cpp
     HelperProcess.cpp

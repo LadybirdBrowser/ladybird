@@ -39,7 +39,9 @@ public:
         Failed,
     };
 
-    struct Download {
+    struct WEBVIEW_API Download {
+        Optional<double> progress() const;
+
         u64 id { 0 };
         URL::URL url;
         LexicalPath destination;
