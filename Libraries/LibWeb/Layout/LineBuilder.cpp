@@ -126,9 +126,9 @@ void LineBuilder::append_text_chunk(TextNode const& text_node, size_t offset_in_
     m_max_height_on_current_line = max(m_max_height_on_current_line, line_box.block_length());
 }
 
-void LineBuilder::append_static_position_marker(Box const& box)
+void LineBuilder::append_static_position_marker(Box const& box, bool preceded_by_inline_box_start_edges)
 {
-    ensure_last_line_box().add_static_position_marker(box);
+    ensure_last_line_box().add_static_position_marker(box, preceded_by_inline_box_start_edges);
 }
 
 void LineBuilder::prepare_to_append_inline_content()

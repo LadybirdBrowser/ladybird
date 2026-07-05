@@ -60,14 +60,17 @@ void LineBox::add_fragment(Node const& layout_node, size_t start, size_t length,
     m_block_length = max(m_block_length, content_height + border_box_top + border_box_bottom);
 }
 
-void LineBox::add_static_position_marker(Box const& box)
+void LineBox::add_static_position_marker(Box const& box, bool preceded_by_inline_box_start_edges)
 {
+    // Inline box start edges count like content here: a line box holding an inline element with
+    // non-zero margin, border or padding is not a zero-height line box (CSS 2 § 9.4.2), so a
+    // block-level abspos after such an edge belongs below this line, not at its top.
     m_static_position_markers.append(StaticPositionMarker {
         .box = &box,
         .inline_offset = m_inline_length,
         .block_offset = 0,
         .writing_mode = m_writing_mode,
-        .preceded_by_in_flow_content = !m_fragments.is_empty(),
+        .preceded_by_in_flow_content = !m_fragments.is_empty() || preceded_by_inline_box_start_edges,
     });
 }
 

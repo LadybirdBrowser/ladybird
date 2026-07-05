@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+@font-face {
+    font-family: Ahem;
+    src: url("../../../Ref/data/fonts/Ahem.ttf");
+}
+body { margin: 0; font: 10px/20px Ahem; }
+.wrapper { position: relative; }
+.edge { border-left: 40px solid transparent; }
+.abs { position: absolute; width: 10px; height: 10px; }
+</style>
+<!-- The span's start edge opens the line, so the block-level abspos anchors below it (CSS 2 § 9.4.2:
+     a line box containing an inline element with non-zero border is not a zero-height line box). -->
+<div class="wrapper" id="direct"><span class="edge"><div class="abs"></div>X</span></div>
+<!-- Same, but the span's start edge reaches the abspos via the collapsible whitespace chunk that
+     gets skipped at the start of the line. -->
+<div class="wrapper" id="restashed"><span class="edge"> <div class="abs"></div>X</span></div>
+<!-- No inline start edges precede the abspos: it anchors at the line top. -->
+<div class="wrapper" id="control"><div class="abs"></div>X</div>
+<script>
+promiseTest(async () => {
+    await document.fonts.ready;
+    await animationFrame();
+
+    for (const id of ["direct", "restashed", "control"]) {
+        const wrapper = document.getElementById(id);
+        const target = wrapper.querySelector(".abs");
+        const offset = Math.round(target.getBoundingClientRect().y - wrapper.getBoundingClientRect().y);
+        println(`${id}: abspos block offset in wrapper: ${offset}`);
+    }
+});
+</script>

@@ -438,7 +438,11 @@ void InlineFormattingContext::generate_line_boxes()
         }
         case InlineLevelIterator::Item::Type::AbsolutelyPositionedElement:
             if (auto const* box = as_if<Box>(*item.node)) {
-                line_builder.append_static_position_marker(*box);
+                // Enclosing inline boxes' start edges arrive either still unattached in the iterator
+                // or restashed onto this item from a skipped collapsible whitespace chunk.
+                auto preceded_by_inline_box_start_edges = item.preceded_by_unattached_inline_start_edges
+                    || item.margin_start != 0 || item.border_start != 0 || item.padding_start != 0;
+                line_builder.append_static_position_marker(*box, preceded_by_inline_box_start_edges);
                 absolute_boxes.append(box);
             }
             break;

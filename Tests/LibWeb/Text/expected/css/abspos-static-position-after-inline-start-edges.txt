@@ -1,0 +1,3 @@
+direct: abspos block offset in wrapper: 20
+restashed: abspos block offset in wrapper: 20
+control: abspos block offset in wrapper: 0
