@@ -27,6 +27,8 @@ private:
     virtual Optional<ByteString> ask_user_for_download_path(ByteString const& file) const override;
     virtual void display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const override;
     virtual void display_error_dialog(StringView error_message) const override;
+    virtual void open_download(WebView::FileDownloader::Download const&) const override;
+    virtual void show_download_in_folder(WebView::FileDownloader::Download const&) const override;
 
     virtual Utf16String clipboard_text(ClipboardType) const override;
     virtual Vector<Web::Clipboard::SystemClipboardRepresentation> clipboard_entries() const override;

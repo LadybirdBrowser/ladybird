@@ -111,6 +111,33 @@ void Application::display_error_dialog(StringView error_message) const
                    completionHandler:nil];
 }
 
+void Application::open_download(WebView::FileDownloader::Download const& download) const
+{
+    auto path = download_file_path_for_frontend_action(download);
+    if (path.is_error()) {
+        display_error_dialog("Unable to open downloaded file: path cannot be represented by this frontend"sv);
+        return;
+    }
+
+    auto* ns_path = Ladybird::string_to_ns_string(path.release_value());
+    auto* url = [NSURL fileURLWithPath:ns_path];
+    if (![[NSWorkspace sharedWorkspace] openURL:url])
+        display_error_dialog("Unable to open downloaded file"sv);
+}
+
+void Application::show_download_in_folder(WebView::FileDownloader::Download const& download) const
+{
+    auto path = download_file_path_for_frontend_action(download);
+    if (path.is_error()) {
+        display_error_dialog("Unable to show downloaded file: path cannot be represented by this frontend"sv);
+        return;
+    }
+
+    auto* ns_path = Ladybird::string_to_ns_string(path.release_value());
+    if (![[NSWorkspace sharedWorkspace] selectFile:ns_path inFileViewerRootedAtPath:@""])
+        display_error_dialog("Unable to show downloaded file in folder"sv);
+}
+
 Utf16String Application::clipboard_text(ClipboardType) const
 {
     auto* paste_board = [NSPasteboard generalPasteboard];

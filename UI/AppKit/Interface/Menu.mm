@@ -225,6 +225,10 @@ static void initialize_native_icon(WebView::Action& action, id control)
         set_control_image(control, @"arrow.clockwise");
         [control setKeyEquivalent:@"r"];
         break;
+    case WebView::ActionID::ViewDownloads:
+        set_control_image(control, @"arrow.down.circle");
+        [control setKeyEquivalent:@"j"];
+        break;
     case WebView::ActionID::ViewHistory:
         set_control_image(control, @"clock");
         break;
@@ -475,7 +479,12 @@ NSMenuItem* create_application_menu_item(WebView::Menu& menu)
 
 NSButton* create_application_button(WebView::Action& action)
 {
-    auto* button = [[NSButton alloc] init];
+    return create_application_button(action, [NSButton class]);
+}
+
+NSButton* create_application_button(WebView::Action& action, Class button_class)
+{
+    NSButton* button = [[button_class alloc] init];
     initialize_native_control(action, button);
     set_properties(button, action);
     return button;

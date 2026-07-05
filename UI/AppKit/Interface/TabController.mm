@@ -8,6 +8,8 @@
 #include <LibWebView/Application.h>
 #include <LibWebView/Autocomplete.h>
 #include <LibWebView/BookmarkStore.h>
+#include <LibWebView/DownloadPresentation.h>
+#include <LibWebView/FileDownloader.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/ViewImplementation.h>
 
@@ -31,15 +33,36 @@ static NSString* const TOOLBAR_RELOAD_IDENTIFIER = @"ToolbarReloadIdentifier";
 static NSString* const TOOLBAR_LOCATION_IDENTIFIER = @"ToolbarLocationIdentifier";
 static NSString* const TOOLBAR_ZOOM_IDENTIFIER = @"ToolbarZoomIdentifier";
 static NSString* const TOOLBAR_BOOKMARK_IDENTIFIER = @"ToolbarBookmarkIdentifier";
+static NSString* const TOOLBAR_DOWNLOADS_IDENTIFIER = @"ToolbarDownloadsIdentifier";
 static NSString* const TOOLBAR_NEW_TAB_IDENTIFIER = @"ToolbarNewTabIdentifier";
 static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIdentifier";
+
+static constexpr CGFloat DOWNLOADS_POPOVER_WIDTH = 380;
+static constexpr CGFloat DOWNLOADS_POPOVER_HORIZONTAL_PADDING = 12;
+static constexpr CGFloat DOWNLOADS_POPOVER_VERTICAL_PADDING = 12;
+static constexpr CGFloat DOWNLOADS_POPOVER_SPACING = 8;
+static constexpr CGFloat DOWNLOADS_POPOVER_EMPTY_HEIGHT = 80;
+static constexpr CGFloat DOWNLOADS_POPOVER_MAX_HEIGHT = 360;
+static constexpr CGFloat DOWNLOADS_POPOVER_ROW_HEIGHT = 66;
+static constexpr CGFloat DOWNLOADS_POPOVER_ROW_SPACING = 6;
+static constexpr CGFloat DOWNLOADS_POPOVER_SHOW_ALL_BUTTON_HEIGHT = 28;
 
 enum class LocationFieldDisplay {
     Editing,
     NotEditing,
 };
 
+class DownloadsObserver;
+
 static NSString* candidate_by_trimming_root_trailing_slash(NSString* candidate);
+
+static NSImage* downloads_toolbar_icon(bool active)
+{
+    auto* image = [NSImage imageWithSystemSymbolName:active ? @"arrow.down.circle.fill" : @"arrow.down.circle"
+                            accessibilityDescription:@"Downloads"];
+    [image setTemplate:YES];
+    return image;
+}
 
 static bool query_matches_candidate_exactly(NSString* query, NSString* candidate)
 {
@@ -303,11 +326,383 @@ static NSImage* location_field_globe_icon()
 
 @end
 
+@interface DownloadRowView : NSView
+
+- (instancetype)initWithFrame:(NSRect)frame
+                     download:(WebView::FileDownloader::Download const&)download;
+
+@property (nonatomic, readonly) u64 downloadID;
+@property (nonatomic, copy) void (^onCancelDownload)(u64);
+
+@end
+
+@implementation DownloadRowView
+{
+    u64 m_download_id;
+    NSTextField* m_file_name_label;
+    NSTextField* m_status_label;
+    NSProgressIndicator* m_progress_indicator;
+    NSButton* m_cancel_button;
+}
+
+- (instancetype)initWithFrame:(NSRect)frame
+                     download:(WebView::FileDownloader::Download const&)download
+{
+    if (self = [super initWithFrame:frame]) {
+        m_download_id = download.id;
+
+        [self setWantsLayer:YES];
+        [self layer].cornerRadius = 6;
+        [self layer].borderWidth = 1;
+        [self updateLayerColors];
+
+        auto* row_stack = [[NSStackView alloc] init];
+        [row_stack setOrientation:NSUserInterfaceLayoutOrientationHorizontal];
+        [row_stack setSpacing:8];
+        [row_stack setAlignment:NSLayoutAttributeTop];
+        [row_stack setDistribution:NSStackViewDistributionFill];
+        [row_stack setDetachesHiddenViews:YES];
+        [row_stack setEdgeInsets:NSEdgeInsets { 8, 10, 8, 10 }];
+        [row_stack setTranslatesAutoresizingMaskIntoConstraints:NO];
+
+        auto* details_stack = [[NSStackView alloc] init];
+        [details_stack setOrientation:NSUserInterfaceLayoutOrientationVertical];
+        [details_stack setSpacing:4];
+        [details_stack setAlignment:NSLayoutAttributeLeading];
+        [details_stack setDistribution:NSStackViewDistributionFill];
+        [details_stack setDetachesHiddenViews:YES];
+        [details_stack setContentCompressionResistancePriority:NSLayoutPriorityDefaultLow
+                                                forOrientation:NSLayoutConstraintOrientationHorizontal];
+
+        m_file_name_label = [NSTextField labelWithString:@""];
+        [m_file_name_label setFont:[NSFont boldSystemFontOfSize:[NSFont systemFontSize]]];
+        [m_file_name_label setMaximumNumberOfLines:1];
+        [[m_file_name_label cell] setLineBreakMode:NSLineBreakByTruncatingTail];
+        [m_file_name_label setContentCompressionResistancePriority:NSLayoutPriorityDefaultLow
+                                                    forOrientation:NSLayoutConstraintOrientationHorizontal];
+
+        m_status_label = [NSTextField labelWithString:@""];
+
+        // Use monospaced digits so the status text does not jitter as the downloaded size ticks up.
+        [m_status_label setFont:[NSFont monospacedDigitSystemFontOfSize:[NSFont smallSystemFontSize] weight:NSFontWeightRegular]];
+        [m_status_label setTextColor:[NSColor secondaryLabelColor]];
+        [m_status_label setMaximumNumberOfLines:1];
+        [[m_status_label cell] setLineBreakMode:NSLineBreakByTruncatingTail];
+        [m_status_label setContentCompressionResistancePriority:NSLayoutPriorityDefaultLow
+                                                 forOrientation:NSLayoutConstraintOrientationHorizontal];
+
+        m_progress_indicator = [[NSProgressIndicator alloc] init];
+        [m_progress_indicator setStyle:NSProgressIndicatorStyleBar];
+        [m_progress_indicator setIndeterminate:NO];
+        [m_progress_indicator setMinValue:0.0];
+        [m_progress_indicator setMaxValue:1.0];
+        [m_progress_indicator setControlSize:NSControlSizeSmall];
+        [m_progress_indicator setDisplayedWhenStopped:YES];
+        [m_progress_indicator setHidden:YES];
+        [m_progress_indicator setContentHuggingPriority:NSLayoutPriorityDefaultLow
+                                         forOrientation:NSLayoutConstraintOrientationHorizontal];
+        [[m_progress_indicator heightAnchor] constraintEqualToConstant:4].active = YES;
+
+        [details_stack addArrangedSubview:m_file_name_label];
+        [details_stack addArrangedSubview:m_status_label];
+        [details_stack addArrangedSubview:m_progress_indicator];
+
+        m_cancel_button = [NSButton buttonWithTitle:@"Cancel"
+                                             target:self
+                                             action:@selector(cancelDownload:)];
+        [m_cancel_button setBezelStyle:NSBezelStyleRounded];
+        [m_cancel_button setContentCompressionResistancePriority:NSLayoutPriorityRequired
+                                                  forOrientation:NSLayoutConstraintOrientationHorizontal];
+
+        [row_stack addArrangedSubview:details_stack];
+        [row_stack addArrangedSubview:m_cancel_button];
+
+        [self addSubview:row_stack];
+        [NSLayoutConstraint activateConstraints:@[
+            [[row_stack leadingAnchor] constraintEqualToAnchor:[self leadingAnchor]],
+            [[row_stack trailingAnchor] constraintEqualToAnchor:[self trailingAnchor]],
+            [[row_stack topAnchor] constraintEqualToAnchor:[self topAnchor]],
+            [[row_stack bottomAnchor] constraintEqualToAnchor:[self bottomAnchor]],
+            [[m_progress_indicator widthAnchor] constraintEqualToAnchor:[details_stack widthAnchor]],
+        ]];
+
+        [self updateWithDownload:download];
+    }
+
+    return self;
+}
+
+- (u64)downloadID
+{
+    return m_download_id;
+}
+
+- (void)viewDidChangeEffectiveAppearance
+{
+    [super viewDidChangeEffectiveAppearance];
+    [self updateLayerColors];
+}
+
+- (void)updateLayerColors
+{
+    [self layer].backgroundColor = [NSColor controlBackgroundColor].CGColor;
+    [self layer].borderColor = [NSColor separatorColor].CGColor;
+}
+
+- (void)updateWithDownload:(WebView::FileDownloader::Download const&)download
+{
+    VERIFY(download.id == m_download_id);
+
+    auto* file_name = Ladybird::string_to_ns_string(download.destination.basename());
+    auto* path = Ladybird::string_to_ns_string(download.destination.string());
+    [m_file_name_label setStringValue:file_name];
+    [m_file_name_label setToolTip:path];
+
+    auto* status_text = Ladybird::string_to_ns_string(WebView::download_status_text(download));
+    [m_status_label setStringValue:status_text];
+    [m_status_label setToolTip:status_text];
+
+    auto progress = download.progress();
+    auto show_progress = download.status == WebView::FileDownloader::DownloadStatus::InProgress && progress.has_value();
+    [m_progress_indicator setHidden:!show_progress];
+    if (progress.has_value())
+        [m_progress_indicator setDoubleValue:*progress];
+
+    [m_cancel_button setHidden:download.status != WebView::FileDownloader::DownloadStatus::InProgress];
+}
+
+- (void)cancelDownload:(id)sender
+{
+    if (self.onCancelDownload)
+        self.onCancelDownload(m_download_id);
+}
+
+@end
+
+@interface DownloadsRowsView : NSView
+@end
+
+@implementation DownloadsRowsView
+
+- (BOOL)isFlipped
+{
+    return YES;
+}
+
+@end
+
+@interface DownloadsPopoverViewController : NSViewController
+
+- (BOOL)setDownloads:(ReadonlySpan<WebView::FileDownloader::Download>)downloads;
+
+@property (nonatomic, copy) void (^onCancelDownload)(u64);
+@property (nonatomic, copy) void (^onOpenAllDownloads)(void);
+
+@end
+
+@implementation DownloadsPopoverViewController
+{
+    NSTextField* m_title_label;
+    NSTextField* m_empty_label;
+    NSScrollView* m_scroll_view;
+    DownloadsRowsView* m_rows_view;
+    Vector<DownloadRowView*> m_download_rows;
+    NSLayoutConstraint* m_scroll_view_height_constraint;
+}
+
+- (void)loadView
+{
+    auto* stack = [[NSStackView alloc] initWithFrame:NSMakeRect(0, 0, DOWNLOADS_POPOVER_WIDTH, DOWNLOADS_POPOVER_EMPTY_HEIGHT)];
+    [stack setOrientation:NSUserInterfaceLayoutOrientationVertical];
+    [stack setSpacing:DOWNLOADS_POPOVER_SPACING];
+    [stack setEdgeInsets:NSEdgeInsets {
+                             DOWNLOADS_POPOVER_VERTICAL_PADDING,
+                             DOWNLOADS_POPOVER_HORIZONTAL_PADDING,
+                             DOWNLOADS_POPOVER_VERTICAL_PADDING,
+                             DOWNLOADS_POPOVER_HORIZONTAL_PADDING,
+                         }];
+    [stack setDetachesHiddenViews:YES];
+    [[stack widthAnchor] constraintEqualToConstant:DOWNLOADS_POPOVER_WIDTH].active = YES;
+
+    m_title_label = [NSTextField labelWithString:@"Downloads"];
+    [m_title_label setFont:[NSFont boldSystemFontOfSize:[NSFont systemFontSize]]];
+    [stack addArrangedSubview:m_title_label];
+
+    m_empty_label = [NSTextField labelWithString:@"No downloads"];
+    [m_empty_label setTextColor:[NSColor secondaryLabelColor]];
+    [m_empty_label setAlignment:NSTextAlignmentCenter];
+    [[m_empty_label heightAnchor] constraintEqualToConstant:DOWNLOADS_POPOVER_EMPTY_HEIGHT].active = YES;
+    [stack addArrangedSubview:m_empty_label];
+
+    m_scroll_view = [[NSScrollView alloc] initWithFrame:NSMakeRect(0, 0, DOWNLOADS_POPOVER_WIDTH, DOWNLOADS_POPOVER_EMPTY_HEIGHT)];
+    [m_scroll_view setHasVerticalScroller:YES];
+    [m_scroll_view setDrawsBackground:NO];
+    [m_scroll_view setBorderType:NSNoBorder];
+    [m_scroll_view setHidden:YES];
+    m_rows_view = [[DownloadsRowsView alloc] initWithFrame:NSZeroRect];
+    [m_scroll_view setDocumentView:m_rows_view];
+    m_scroll_view_height_constraint = [[m_scroll_view heightAnchor] constraintEqualToConstant:DOWNLOADS_POPOVER_EMPTY_HEIGHT];
+    m_scroll_view_height_constraint.active = YES;
+    [stack addArrangedSubview:m_scroll_view];
+
+    auto* show_all_button = [NSButton buttonWithTitle:@"Show All Downloads"
+                                               target:self
+                                               action:@selector(openAllDownloads:)];
+    [show_all_button setBezelStyle:NSBezelStyleRounded];
+    [[show_all_button heightAnchor] constraintEqualToConstant:DOWNLOADS_POPOVER_SHOW_ALL_BUTTON_HEIGHT].active = YES;
+    [stack addArrangedSubview:show_all_button];
+
+    [self setView:stack];
+}
+
+- (BOOL)setDownloads:(ReadonlySpan<WebView::FileDownloader::Download>)downloads
+{
+    (void)[self view];
+    bool geometry_changed = false;
+
+    auto visible_downloads = WebView::recent_downloads_for_popover(downloads);
+
+    auto is_empty = visible_downloads.is_empty();
+    if ([m_empty_label isHidden] == is_empty) {
+        [m_empty_label setHidden:!is_empty];
+        geometry_changed = true;
+    }
+    if ([m_scroll_view isHidden] != is_empty) {
+        [m_scroll_view setHidden:is_empty];
+        geometry_changed = true;
+    }
+
+    auto row_width = DOWNLOADS_POPOVER_WIDTH - (DOWNLOADS_POPOVER_HORIZONTAL_PADDING * 2);
+    CGFloat rows_height = 0;
+    if (!is_empty)
+        rows_height = (DOWNLOADS_POPOVER_ROW_HEIGHT * visible_downloads.size()) + (DOWNLOADS_POPOVER_ROW_SPACING * (visible_downloads.size() - 1));
+
+    bool rows_match = m_download_rows.size() == visible_downloads.size();
+    if (rows_match) {
+        for (size_t i = 0; i < visible_downloads.size(); ++i) {
+            if ([m_download_rows[i] downloadID] != visible_downloads[i]->id) {
+                rows_match = false;
+                break;
+            }
+        }
+    }
+
+    if (!rows_match) {
+        for (auto* row : m_download_rows)
+            [row removeFromSuperview];
+        m_download_rows.clear();
+        m_download_rows.ensure_capacity(visible_downloads.size());
+        geometry_changed = true;
+
+        CGFloat y = 0;
+        for (auto* download : visible_downloads) {
+            auto* row = [[DownloadRowView alloc] initWithFrame:NSMakeRect(0, y, row_width, DOWNLOADS_POPOVER_ROW_HEIGHT)
+                                                      download:*download];
+            __weak DownloadsPopoverViewController* weak_self = self;
+            [row setOnCancelDownload:^(u64 id) {
+                DownloadsPopoverViewController* self = weak_self;
+                if (self != nil && self.onCancelDownload)
+                    self.onCancelDownload(id);
+            }];
+            [m_rows_view addSubview:row];
+            m_download_rows.append(row);
+
+            y += DOWNLOADS_POPOVER_ROW_HEIGHT + DOWNLOADS_POPOVER_ROW_SPACING;
+        }
+    } else {
+        for (size_t i = 0; i < visible_downloads.size(); ++i)
+            [m_download_rows[i] updateWithDownload:*visible_downloads[i]];
+    }
+
+    auto rows_frame = [m_rows_view frame];
+    if (rows_frame.size.width != row_width || rows_frame.size.height != rows_height)
+        [m_rows_view setFrameSize:NSMakeSize(row_width, rows_height)];
+
+    CGFloat body_height = DOWNLOADS_POPOVER_EMPTY_HEIGHT;
+    if (!is_empty) {
+        auto max_scroll_height = DOWNLOADS_POPOVER_MAX_HEIGHT
+            - (DOWNLOADS_POPOVER_VERTICAL_PADDING * 2)
+            - (DOWNLOADS_POPOVER_SPACING * 2)
+            - DOWNLOADS_POPOVER_SHOW_ALL_BUTTON_HEIGHT
+            - [m_title_label fittingSize].height;
+        body_height = rows_height < max_scroll_height ? rows_height : max_scroll_height;
+    }
+
+    auto should_show_vertical_scroller = rows_height > body_height;
+    if ([m_scroll_view hasVerticalScroller] != should_show_vertical_scroller) {
+        [m_scroll_view setHasVerticalScroller:should_show_vertical_scroller];
+        geometry_changed = true;
+    }
+
+    if (m_scroll_view_height_constraint.constant != body_height) {
+        m_scroll_view_height_constraint.constant = body_height;
+        geometry_changed = true;
+    }
+
+    if (geometry_changed)
+        [self updatePreferredContentSize];
+    return geometry_changed;
+}
+
+- (void)updatePreferredContentSize
+{
+    [[self view] layoutSubtreeIfNeeded];
+
+    auto fitting_size = [[self view] fittingSize];
+    fitting_size.width = DOWNLOADS_POPOVER_WIDTH;
+    [self setPreferredContentSize:fitting_size];
+}
+
+- (void)openAllDownloads:(id)sender
+{
+    if (self.onOpenAllDownloads)
+        self.onOpenAllDownloads();
+}
+
+@end
+
+@interface DownloadsButton : NSButton
+
+- (BOOL)isReadyToAnchorPopover;
+
+@property (nonatomic, copy) void (^onReadyToAnchorPopover)(void);
+
+@end
+
+@implementation DownloadsButton
+
+- (BOOL)isReadyToAnchorPopover
+{
+    return [self window] != nil && !NSIsEmptyRect([self frame]);
+}
+
+- (void)notifyIfReadyToAnchorPopover
+{
+    if ([self isReadyToAnchorPopover] && self.onReadyToAnchorPopover)
+        self.onReadyToAnchorPopover();
+}
+
+- (void)viewDidMoveToWindow
+{
+    [super viewDidMoveToWindow];
+    [self notifyIfReadyToAnchorPopover];
+}
+
+- (void)setFrameSize:(NSSize)size
+{
+    [super setFrameSize:size];
+    [self notifyIfReadyToAnchorPopover];
+}
+
+@end
+
 @interface TabController () <NSToolbarDelegate, NSSearchFieldDelegate, AutocompleteObserver>
 {
     u64 m_page_index;
 
     OwnPtr<WebView::Autocomplete> m_autocomplete;
+    OwnPtr<DownloadsObserver> m_downloads_observer;
+    bool m_show_downloads_popover_when_button_is_ready;
     bool m_is_applying_inline_autocomplete;
     bool m_should_suppress_inline_autocomplete_on_next_change;
 
@@ -330,8 +725,11 @@ static NSImage* location_field_globe_icon()
 @property (nonatomic, strong) NSToolbarItem* location_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* zoom_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* bookmark_toolbar_item;
+@property (nonatomic, strong) NSToolbarItem* downloads_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* new_tab_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* tab_overview_toolbar_item;
+@property (nonatomic, strong) DownloadsButton* downloads_button;
+@property (nonatomic, strong) NSPopover* downloads_popover;
 
 @property (nonatomic, strong) Autocomplete* autocomplete;
 @property (nonatomic, copy) NSString* current_inline_autocomplete_suggestion;
@@ -347,8 +745,38 @@ static NSImage* location_field_globe_icon()
 - (NSInteger)applyInlineAutocomplete:(Vector<WebView::AutocompleteSuggestion> const&)suggestions;
 - (void)previewHighlightedSuggestionInLocationField:(String const&)suggestion;
 - (void)restoreLocationFieldQuery;
+- (void)downloadAdded:(WebView::FileDownloader::Download const&)download;
+- (void)downloadUpdated:(WebView::FileDownloader::Download const&)download;
+- (void)downloadRemoved:(u64)download_id;
+- (void)downloadsButtonReadyToAnchorPopover;
 
 @end
+
+class DownloadsObserver final : public WebView::FileDownloaderObserver {
+public:
+    explicit DownloadsObserver(TabController* controller)
+        : m_controller(controller)
+    {
+    }
+
+private:
+    virtual void download_added(WebView::FileDownloader::Download const& download) override
+    {
+        [m_controller downloadAdded:download];
+    }
+
+    virtual void download_updated(WebView::FileDownloader::Download const& download) override
+    {
+        [m_controller downloadUpdated:download];
+    }
+
+    virtual void download_removed(u64 download_id) override
+    {
+        [m_controller downloadRemoved:download_id];
+    }
+
+    __weak TabController* m_controller { nil };
+};
 
 @implementation TabController
 
@@ -359,6 +787,7 @@ static NSImage* location_field_globe_icon()
 @synthesize location_toolbar_item = _location_toolbar_item;
 @synthesize zoom_toolbar_item = _zoom_toolbar_item;
 @synthesize bookmark_toolbar_item = _bookmark_toolbar_item;
+@synthesize downloads_toolbar_item = _downloads_toolbar_item;
 @synthesize new_tab_toolbar_item = _new_tab_toolbar_item;
 @synthesize tab_overview_toolbar_item = _tab_overview_toolbar_item;
 
@@ -387,6 +816,7 @@ static NSImage* location_field_globe_icon()
 
         self.autocomplete = [[Autocomplete alloc] init:self withToolbarItem:self.location_toolbar_item];
         m_autocomplete = make<WebView::Autocomplete>(WebView::IsPrivate::No);
+        m_downloads_observer = make<DownloadsObserver>(self);
 
         m_autocomplete->on_autocomplete_query_complete = [weak_self](auto suggestions, WebView::AutocompleteResultKind result_kind) {
             TabController* self = weak_self;
@@ -805,6 +1235,139 @@ static NSImage* location_field_globe_icon()
     self.tab.titlebarAppearsTransparent = YES;
 }
 
+- (void)showDownloadsPopover:(id)sender
+{
+    if (!self.downloads_button)
+        return;
+
+    // Unhiding the downloads toolbar item does not add the button's view to the window and give it a frame
+    // until a later layout pass, and the popover anchors to the centre of the window if it is shown before
+    // then. Wait for the button to become ready instead.
+    if (![self.downloads_button isReadyToAnchorPopover]) {
+        m_show_downloads_popover_when_button_is_ready = true;
+        return;
+    }
+
+    if (!self.downloads_popover) {
+        auto* content_view_controller = [[DownloadsPopoverViewController alloc] init];
+        __weak TabController* weak_self = self;
+        [content_view_controller setOnCancelDownload:^(u64 id) {
+            TabController* self = weak_self;
+            if (self == nil)
+                return;
+
+            auto& file_downloader = WebView::Application::the().file_downloader();
+            if (auto download = file_downloader.download(id); download.has_value() && download->status == WebView::FileDownloader::DownloadStatus::InProgress)
+                file_downloader.cancel_download(id);
+            [self updateDownloadsPopover];
+        }];
+        [content_view_controller setOnOpenAllDownloads:^{
+            TabController* self = weak_self;
+            if (self == nil)
+                return;
+
+            [self.downloads_popover close];
+            WebView::Application::the().open_downloads_page_action().activate();
+        }];
+
+        self.downloads_popover = [[NSPopover alloc] init];
+        [self.downloads_popover setAnimates:YES];
+        [self.downloads_popover setBehavior:NSPopoverBehaviorTransient];
+        [self.downloads_popover setContentViewController:content_view_controller];
+    }
+
+    [self updateDownloadsPopover];
+    [self.downloads_popover showRelativeToToolbarItem:self.downloads_toolbar_item];
+}
+
+- (void)downloadsButtonReadyToAnchorPopover
+{
+    if (!m_show_downloads_popover_when_button_is_ready)
+        return;
+    m_show_downloads_popover_when_button_is_ready = false;
+
+    [self showDownloadsPopover:self.downloads_button];
+}
+
+- (void)toggleDownloadsPopover:(id)sender
+{
+    if (self.downloads_popover && [self.downloads_popover isShown]) {
+        [self.downloads_popover close];
+        return;
+    }
+
+    [self showDownloadsPopover:sender];
+}
+
+- (void)updateDownloadsButton
+{
+    if (!self.downloads_button)
+        return;
+
+    auto downloads = WebView::Application::the().file_downloader().downloads();
+    auto button_state = WebView::downloads_button_state(downloads);
+
+    auto should_hide_button = !button_state.has_downloads;
+    if (@available(macOS 15, *)) {
+        [self.downloads_toolbar_item setHidden:should_hide_button];
+    } else {
+        [self.downloads_button setHidden:should_hide_button];
+    }
+
+    [self.downloads_button setImage:downloads_toolbar_icon(button_state.active_download_count > 0)];
+
+    auto* tooltip = Ladybird::string_to_ns_string(button_state.tooltip);
+    [self.downloads_button setToolTip:tooltip];
+    [self.downloads_toolbar_item setToolTip:tooltip];
+
+    if (!button_state.has_downloads) {
+        m_show_downloads_popover_when_button_is_ready = false;
+
+        if (self.downloads_popover && [self.downloads_popover isShown])
+            [self.downloads_popover close];
+    }
+}
+
+- (void)updateDownloadsPopover
+{
+    if (!self.downloads_popover)
+        return;
+
+    auto* content_view_controller = (DownloadsPopoverViewController*)[self.downloads_popover contentViewController];
+    if ([content_view_controller setDownloads:WebView::Application::the().file_downloader().downloads()])
+        [self.downloads_popover setContentSize:[content_view_controller preferredContentSize]];
+}
+
+- (void)downloadAdded:(WebView::FileDownloader::Download const&)download
+{
+    (void)download;
+
+    [self updateDownloadsButton];
+
+    if ([self.window isKeyWindow] && self.downloads_button) {
+        [self showDownloadsPopover:self.downloads_button];
+        return;
+    }
+
+    [self updateDownloadsPopover];
+}
+
+- (void)downloadUpdated:(WebView::FileDownloader::Download const&)download
+{
+    (void)download;
+
+    [self updateDownloadsButton];
+    [self updateDownloadsPopover];
+}
+
+- (void)downloadRemoved:(u64)download_id
+{
+    (void)download_id;
+
+    [self updateDownloadsButton];
+    [self updateDownloadsPopover];
+}
+
 #pragma mark - Properties
 
 - (NSButton*)create_button:(NSImageName)image
@@ -906,6 +1469,37 @@ static NSImage* location_field_globe_icon()
     return _bookmark_toolbar_item;
 }
 
+- (NSToolbarItem*)downloads_toolbar_item
+{
+    if (!_downloads_toolbar_item) {
+        auto* button = (DownloadsButton*)Ladybird::create_application_button(WebView::Application::the().open_downloads_page_action(), [DownloadsButton class]);
+        [button setImage:downloads_toolbar_icon(false)];
+        [button setTarget:self];
+        [button setAction:@selector(toggleDownloadsPopover:)];
+        [button setToolTip:@"Downloads"];
+
+        __weak TabController* weak_self = self;
+        [button setOnReadyToAnchorPopover:^{
+            TabController* self = weak_self;
+            if (self != nil)
+                [self downloadsButtonReadyToAnchorPopover];
+        }];
+
+        self.downloads_button = button;
+
+        _downloads_toolbar_item = [[NSToolbarItem alloc] initWithItemIdentifier:TOOLBAR_DOWNLOADS_IDENTIFIER];
+        [_downloads_toolbar_item setView:button];
+        [_downloads_toolbar_item setLabel:@"Downloads"];
+        [_downloads_toolbar_item setPaletteLabel:@"Downloads"];
+        [_downloads_toolbar_item setToolTip:@"Downloads"];
+        [_downloads_toolbar_item setMenuFormRepresentation:Ladybird::create_application_menu_item(WebView::Application::the().open_downloads_page_action())];
+
+        [self updateDownloadsButton];
+    }
+
+    return _downloads_toolbar_item;
+}
+
 - (NSToolbarItem*)new_tab_toolbar_item
 {
     if (!_new_tab_toolbar_item) {
@@ -945,6 +1539,7 @@ static NSImage* location_field_globe_icon()
             TOOLBAR_LOCATION_IDENTIFIER,
             TOOLBAR_BOOKMARK_IDENTIFIER,
             TOOLBAR_ZOOM_IDENTIFIER,
+            TOOLBAR_DOWNLOADS_IDENTIFIER,
             NSToolbarFlexibleSpaceItemIdentifier,
             TOOLBAR_NEW_TAB_IDENTIFIER,
             TOOLBAR_TAB_OVERVIEW_IDENTIFIER,
@@ -970,6 +1565,7 @@ static NSImage* location_field_globe_icon()
     [self.window makeKeyAndOrderFront:sender];
 
     [self focusLocationToolbarItem];
+    [self updateDownloadsButton];
 
     auto* delegate = (ApplicationDelegate*)[NSApp delegate];
     [delegate setActiveTab:[self tab]];
@@ -1147,6 +1743,9 @@ static NSImage* location_field_globe_icon()
     }
     if ([identifier isEqual:TOOLBAR_BOOKMARK_IDENTIFIER]) {
         return self.bookmark_toolbar_item;
+    }
+    if ([identifier isEqual:TOOLBAR_DOWNLOADS_IDENTIFIER]) {
+        return self.downloads_toolbar_item;
     }
     if ([identifier isEqual:TOOLBAR_NEW_TAB_IDENTIFIER]) {
         return self.new_tab_toolbar_item;

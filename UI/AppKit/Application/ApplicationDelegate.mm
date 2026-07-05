@@ -280,6 +280,7 @@
                                          keyEquivalent:@"w"]];
     [submenu addItem:[NSMenuItem separatorItem]];
 
+    [submenu addItem:Ladybird::create_application_menu_item(WebView::Application::the().open_downloads_page_action())];
     [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Open Location"
                                                 action:@selector(openLocation:)
                                          keyEquivalent:@"l"]];
