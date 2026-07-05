@@ -277,7 +277,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     auto* file_menu = menuBar()->addMenu("&File");
 
     m_new_tab_action = new QAction("New &Tab", this);
-    m_new_tab_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::AddTab));
+    m_new_tab_action->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_T));
     m_hamburger_menu->addAction(m_new_tab_action);
     file_menu->addAction(m_new_tab_action);
 

@@ -161,7 +161,7 @@ public:
 
         auto* file_menu = m_application_menu_bar->addMenu("&File");
 
-        auto* new_tab_action = add_application_menu_action(*file_menu, "New &Tab", QKeySequence::keyBindings(QKeySequence::StandardKey::AddTab));
+        auto* new_tab_action = add_application_menu_action(*file_menu, "New &Tab", { QKeySequence(Qt::CTRL | Qt::Key_T) });
         QObject::connect(new_tab_action, &QAction::triggered, this, [] {
             Application::the().open_new_tab();
         });

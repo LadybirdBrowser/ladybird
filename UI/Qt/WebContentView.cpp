@@ -433,8 +433,7 @@ static bool is_browser_reserved_shortcut(QKeyEvent const& event)
 {
     // Browser chrome shortcuts that manage tabs, windows, or focus should not wait for
     // WebContent to decide whether the page wants to suppress them.
-    if (event.matches(QKeySequence::StandardKey::AddTab)
-        || event.matches(QKeySequence::StandardKey::Close)
+    if (event.matches(QKeySequence::StandardKey::Close)
         || event.matches(QKeySequence::StandardKey::New)
         || event.matches(QKeySequence::StandardKey::Quit))
         return true;
@@ -442,6 +441,8 @@ static bool is_browser_reserved_shortcut(QKeyEvent const& event)
     auto const modifiers = event.modifiers() & (Qt::ControlModifier | Qt::ShiftModifier | Qt::AltModifier | Qt::MetaModifier);
     auto const key = event.key();
 
+    if (modifiers == Qt::ControlModifier && key == Qt::Key_T)
+        return true;
     if (modifiers == (Qt::ControlModifier | Qt::ShiftModifier) && key == Qt::Key_T)
         return true;
 
