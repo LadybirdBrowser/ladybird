@@ -1200,8 +1200,7 @@ static WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, StructuredSe
         //         them; see AllowSharedArrayBuffers.
         if (allow_shared_array_buffers == AllowSharedArrayBuffers::CrossOriginIsolatedOnly
             && current_settings_object().cross_origin_isolated_capability() == CanUseCrossOriginIsolatedAPIs::No)
-            return data_clone_error("Cannot serialize SharedArrayBuffer when cross-origin isolated"_utf16);
-
+            return data_clone_error("Cannot serialize SharedArrayBuffer when not cross-origin isolated"_utf16);
         // 2. If forStorage is true, then throw a "DataCloneError" DOMException.
         if (for_storage)
             return data_clone_error("Cannot serialize SharedArrayBuffer for storage"_utf16);
