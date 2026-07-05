@@ -12,6 +12,7 @@
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/PrivateBrowsing.h>
+#include <LibWebView/SessionStore.h>
 #include <LibWebView/Settings.h>
 #include <UI/Qt/Tab.h>
 #include <UI/Qt/TabBar.h>
@@ -101,25 +102,30 @@ public:
             End,
             AfterCurrentTab,
             AfterTab,
+            AtIndex,
         };
 
     public:
         static TabLocation end() { return { Kind::End, nullptr }; }
         static TabLocation after_current_tab() { return { Kind::AfterCurrentTab, nullptr }; }
         static TabLocation after_tab(Tab& tab) { return { Kind::AfterTab, &tab }; }
+        static TabLocation at_index(int index) { return { Kind::AtIndex, nullptr, index }; }
 
     private:
         Kind kind() const { return m_kind; }
         Tab* tab() const { return m_tab; }
+        int index() const { return m_index; }
 
-        TabLocation(Kind kind, Tab* tab)
+        TabLocation(Kind kind, Tab* tab, int index = 0)
             : m_kind(kind)
             , m_tab(tab)
+            , m_index(index)
         {
         }
 
         Kind m_kind;
         Tab* m_tab { nullptr };
+        int m_index { 0 };
     };
 
     BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window = IsPopupWindow::No, WebView::IsPrivate = WebView::IsPrivate::No, Tab* parent_tab = nullptr, Optional<u64> page_index = {});
@@ -127,6 +133,7 @@ public:
 
     WebContentView& view() const { return m_current_tab->view(); }
     WebView::IsPrivate is_private() const { return m_is_private; }
+    Optional<WebView::SessionWindowId> session_window_id() const { return m_session_window_id; }
 
     int tab_count() { return m_tabs_container->count(); }
     int tab_index(Tab*);
@@ -203,6 +210,8 @@ private:
     void initialize_tab(Tab*);
     void uninitialize_tab(Tab*);
     void update_window_title(QString const&);
+    void register_window_with_session_store();
+    void sync_session_tab_order();
 
     void set_current_tab(Tab* tab);
     Qt::Edges resize_edges_for_position(QPoint const&) const;
@@ -262,11 +271,12 @@ private:
 
     IsPopupWindow m_is_popup_window { IsPopupWindow::No };
 
+    Optional<WebView::SessionWindowId> m_session_window_id;
+
     ExitFullscreenButton* m_exit_button { nullptr };
     FullscreenMode* m_fullscreen_mode { nullptr };
     // Determine if window should restore to maximized or normal, when exiting fullscreen.
     bool m_restore_to_maximized { false };
-    bool m_should_record_closed_window_on_close { true };
     bool m_resize_cursor_active { false };
 };
 
