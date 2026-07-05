@@ -1,0 +1,3 @@
+byteLength: 8
+view[0]: 42
+Atomics.load view[1]: 7

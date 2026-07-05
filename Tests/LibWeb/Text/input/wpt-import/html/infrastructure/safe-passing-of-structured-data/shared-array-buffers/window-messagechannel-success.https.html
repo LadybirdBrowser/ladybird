@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Structured cloning of SharedArrayBuffers using MessageChannel</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#structuredserialize">
+<link rel="author" title="Domenic Denicola" href="mailto:d@domenic.me">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="resources/test-incrementer.js"></script>
+
+<div id="log"></div>
+
+<script>
+"use strict";
+
+promise_test(t => {
+  const worker = new Worker("resources/incrementer-worker-with-channel.js");
+  const channel = new MessageChannel();
+  worker.postMessage(channel.port2, [channel.port2]);
+
+  return testSharingViaIncrementerScript(t, channel.port1, "window", channel.port1, "worker");
+}, "postMessaging to a dedicated worker via MessageChannel allows them to see each others' modifications");
+</script>

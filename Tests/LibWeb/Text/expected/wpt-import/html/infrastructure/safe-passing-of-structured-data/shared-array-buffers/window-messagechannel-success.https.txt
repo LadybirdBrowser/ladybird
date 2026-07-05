@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	postMessaging to a dedicated worker via MessageChannel allows them to see each others' modifications
