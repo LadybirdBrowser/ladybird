@@ -50,6 +50,7 @@ struct WEBVIEW_API AutocompleteSuggestion {
     Optional<String> title;
     Optional<String> subtitle;
     Optional<String> favicon_base64_png;
+    bool can_be_automatically_selected { true };
 };
 
 WEBVIEW_API ReadonlySpan<AutocompleteEngine> autocomplete_engines();

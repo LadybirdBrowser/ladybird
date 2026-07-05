@@ -348,6 +348,11 @@ Optional<size_t> Omnibox::update_completion_for_suggestions(Vector<AutocompleteS
     if (suggestions.is_empty())
         return {};
 
+    if (!suggestions.first().can_be_automatically_selected) {
+        restore_query_display();
+        return {};
+    }
+
     // A literal URL always wins: no completion, restore the typed text.
     if (suggestions.first().source == AutocompleteSuggestionSource::LiteralURL) {
         restore_query_display();

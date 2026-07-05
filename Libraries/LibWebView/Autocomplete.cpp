@@ -87,12 +87,50 @@ StringView autocomplete_section_title(AutocompleteSuggestionSection section)
     return ByteString::formatted("[{}]", ByteString::join(", "sv, values));
 }
 
-static Vector<AutocompleteSuggestion> make_history_suggestions(Vector<HistoryEntry> history_entries)
+static Optional<StringView> url_without_scheme(StringView url)
+{
+    auto scheme_separator = url.find("://"sv);
+    if (!scheme_separator.has_value())
+        return {};
+
+    return url.substring_view(*scheme_separator + 3);
+}
+
+static StringView autocomplete_searchable_url(StringView url)
+{
+    auto stripped_url = url_without_scheme(url).value_or(url);
+    if (stripped_url.starts_with("www."sv, CaseSensitivity::CaseInsensitive))
+        stripped_url = stripped_url.substring_view(4);
+
+    return stripped_url;
+}
+
+static StringView autocomplete_url_query(StringView query)
+{
+    auto stripped_query = url_without_scheme(query).value_or(query);
+    if (stripped_query.starts_with("www."sv, CaseSensitivity::CaseInsensitive))
+        stripped_query = stripped_query.substring_view(4);
+
+    return stripped_query;
+}
+
+static bool history_entry_url_matches_query(StringView query, StringView url)
+{
+    auto url_query = autocomplete_url_query(query);
+    if (url_query.is_empty())
+        return false;
+
+    auto searchable_url = autocomplete_searchable_url(url);
+    return searchable_url.starts_with(url_query, CaseSensitivity::CaseInsensitive);
+}
+
+static Vector<AutocompleteSuggestion> make_history_suggestions(StringView query, Vector<HistoryEntry> history_entries)
 {
     Vector<AutocompleteSuggestion> suggestions;
     suggestions.ensure_capacity(history_entries.size());
 
     for (auto& entry : history_entries) {
+        auto can_be_automatically_selected = history_entry_url_matches_query(query, entry.url.bytes_as_string_view());
         suggestions.unchecked_append({
             .source = AutocompleteSuggestionSource::History,
             .section = AutocompleteSuggestionSection::History,
@@ -100,6 +138,7 @@ static Vector<AutocompleteSuggestion> make_history_suggestions(Vector<HistoryEnt
             .title = move(entry.title),
             .subtitle = {},
             .favicon_base64_png = move(entry.favicon_base64_png),
+            .can_be_automatically_selected = can_be_automatically_selected,
         });
     }
 
@@ -262,7 +301,7 @@ void Autocomplete::query_autocomplete_engine(String query, size_t max_suggestion
 
     dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Autocomplete query='{}' trimmed='{}'", m_query, trimmed_query);
 
-    m_history_suggestions = make_history_suggestions(Application::history_store().autocomplete_entries(trimmed_query, m_max_suggestions));
+    m_history_suggestions = make_history_suggestions(trimmed_query, Application::history_store().autocomplete_entries(trimmed_query, m_max_suggestions));
     auto literal_suggestion = preferred_literal_url_suggestion(trimmed_query, m_history_suggestions);
     auto search_suggestion = search_for_query_suggestion(trimmed_query);
 

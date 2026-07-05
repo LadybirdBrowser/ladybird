@@ -17,12 +17,25 @@ using WebView::Omnibox;
 
 AutocompleteSuggestion row(AutocompleteSuggestionSource source, AutocompleteSuggestionSection section, StringView text)
 {
-    return { .source = source, .section = section, .text = MUST(String::from_utf8(text)), .title = {}, .subtitle = {}, .favicon_base64_png = {} };
+    return { .source = source, .section = section, .text = MUST(String::from_utf8(text)), .title = {}, .subtitle = {}, .favicon_base64_png = {}, .can_be_automatically_selected = true };
 }
 
 AutocompleteSuggestion history_row(StringView url)
 {
     return row(AutocompleteSuggestionSource::History, AutocompleteSuggestionSection::History, url);
+}
+
+AutocompleteSuggestion non_automatic_history_row(StringView url, StringView title)
+{
+    return {
+        .source = AutocompleteSuggestionSource::History,
+        .section = AutocompleteSuggestionSection::History,
+        .text = MUST(String::from_utf8(url)),
+        .title = MUST(String::from_utf8(title)),
+        .subtitle = {},
+        .favicon_base64_png = {},
+        .can_be_automatically_selected = false,
+    };
 }
 
 AutocompleteSuggestion search_row(StringView query)
@@ -396,22 +409,58 @@ TEST_CASE(a_literal_url_suggestion_never_completes)
     EXPECT_EQ(harness.commits.last(), "t.example/path"sv);
 }
 
-TEST_CASE(a_top_row_that_does_not_match_the_prefix_is_only_highlighted)
+TEST_CASE(a_top_row_that_does_not_match_the_prefix_is_not_automatically_selected)
 {
     Harness harness;
     harness.begin_editing();
 
     harness.press_key('t');
-    harness.provider->deliver({ history_row("https://odd.example/t"sv), search_row("t"sv) }, AutocompleteResultKind::Final);
+    harness.provider->deliver({ non_automatic_history_row("https://odd.example/t"sv, "Odd"sv), search_row("t"sv) }, AutocompleteResultKind::Final);
     EXPECT_EQ(harness.display_text, "t"sv);
-    EXPECT_EQ(harness.omnibox.selected_suggestion(), 0u);
+    EXPECT(!harness.omnibox.selected_suggestion().has_value());
 
-    // The top row is the default action even without a completion.
     harness.omnibox.return_pressed();
-    EXPECT_EQ(harness.commits.last(), "https://odd.example/t"sv);
+    EXPECT_EQ(harness.commits.last(), "t"sv);
 }
 
-TEST_CASE(a_fresh_non_prefix_top_row_wins_after_editing_a_completion)
+TEST_CASE(a_title_only_history_row_is_not_automatically_selected)
+{
+    Harness harness;
+    harness.begin_editing();
+
+    for (auto code_point : "eau de"sv)
+        harness.press_key(code_point);
+
+    harness.provider->deliver({ non_automatic_history_row("https://example.com/fragrance"sv, "Eau de Parfum"sv), search_row("eau de"sv) }, AutocompleteResultKind::Final);
+    EXPECT_EQ(harness.display_text, "eau de"sv);
+    EXPECT(!harness.omnibox.selected_suggestion().has_value());
+    EXPECT(harness.omnibox.is_popup_visible());
+
+    harness.omnibox.return_pressed();
+    EXPECT_EQ(harness.commits.size(), 1u);
+    EXPECT_EQ(harness.commits.last(), "eau de"sv);
+}
+
+TEST_CASE(a_user_chosen_title_only_history_row_is_activated)
+{
+    Harness harness;
+    harness.begin_editing();
+
+    for (auto code_point : "eau de"sv)
+        harness.press_key(code_point);
+
+    harness.provider->deliver({ non_automatic_history_row("https://example.com/fragrance"sv, "Eau de Parfum"sv), search_row("eau de"sv) }, AutocompleteResultKind::Final);
+
+    EXPECT(harness.omnibox.select_next_suggestion());
+    EXPECT_EQ(harness.omnibox.selected_suggestion(), 0u);
+    EXPECT_EQ(harness.display_text, "https://example.com/fragrance"sv);
+
+    harness.omnibox.return_pressed();
+    EXPECT_EQ(harness.commits.size(), 1u);
+    EXPECT_EQ(harness.commits.last(), "https://example.com/fragrance"sv);
+}
+
+TEST_CASE(a_fresh_non_prefix_url_top_row_does_not_win_after_editing_a_completion)
 {
     Harness harness;
     harness.begin_editing();
@@ -420,17 +469,17 @@ TEST_CASE(a_fresh_non_prefix_top_row_wins_after_editing_a_completion)
     harness.provider->deliver({ history_row("https://www.thev.example/"sv), search_row("t"sv) }, AutocompleteResultKind::Final);
     EXPECT_EQ(harness.display_text, "thev.example"sv);
 
-    // The user types over the completion, and the fresh top hit is selected because it matched by title,
-    // not because its URL can inline-complete the typed query.
+    // The user types over the completion, and the fresh top hit is not
+    // selected merely because the query appears somewhere in its URL.
     for (auto code_point : "itle match"sv)
         harness.press_key(code_point);
-    harness.provider->deliver({ history_row("https://news.ycombinator.com/"sv), search_row("title match"sv) }, AutocompleteResultKind::Final);
+    harness.provider->deliver({ non_automatic_history_row("https://news.ycombinator.com/title-match"sv, "Title Match"sv), search_row("title match"sv) }, AutocompleteResultKind::Final);
     EXPECT_EQ(harness.display_text, "title match"sv);
-    EXPECT_EQ(harness.omnibox.selected_suggestion(), 0u);
+    EXPECT(!harness.omnibox.selected_suggestion().has_value());
 
     harness.omnibox.return_pressed();
     EXPECT_EQ(harness.commits.size(), 1u);
-    EXPECT_EQ(harness.commits.last(), "https://news.ycombinator.com/"sv);
+    EXPECT_EQ(harness.commits.last(), "title match"sv);
 }
 
 TEST_CASE(clicking_a_suggestion_commits_it)
