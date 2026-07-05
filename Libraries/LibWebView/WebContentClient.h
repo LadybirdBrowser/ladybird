@@ -13,6 +13,7 @@
 #include <AK/SourceLocation.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
+#include <AK/WeakPtr.h>
 #include <LibCore/Forward.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/SharedImage.h>
@@ -76,8 +77,13 @@ public:
     void request_close(u64 page_id);
 
     void web_ui_disconnected(Badge<WebUI>);
-    void register_embedded_page(u64 page_id);
+    void register_embedded_page(u64 page_id, CanonicalNavigable&);
     void unregister_embedded_page(u64 page_id);
+
+    CanonicalNavigable* embedded_page_host(u64 page_id);
+    CanonicalNavigable* navigable_for_page(u64 page_id);
+
+    Optional<CanonicalNavigable&> child_frame(u64 page_id, StringView frame_id);
 
     bool has_views() const { return !m_views.is_empty(); }
 
@@ -257,7 +263,7 @@ private:
     IsPrivate m_is_private { IsPrivate::No };
 
     HashMap<u64, NonnullRawPtr<ViewImplementation>> m_views;
-    HashTable<u64> m_embedded_pages;
+    HashMap<u64, WeakPtr<CanonicalNavigable>> m_embedded_pages;
     HashTable<u64> m_detached_pages_pending_close;
     HashMap<Web::Compositor::CompositorContextId, Optional<u64>> m_compositor_contexts;
     HashMap<u64, u64> m_renderer_owned_downloads;

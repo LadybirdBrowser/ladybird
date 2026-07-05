@@ -6,8 +6,69 @@
 
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/SiteIsolation.h>
+#include <LibWebView/WebContentClient.h>
 
 namespace WebView {
+
+CanonicalTraversable::CanonicalTraversable()
+    : CanonicalNavigable(String {}, String {}, nullptr, 0)
+{
+}
+
+CanonicalNavigable& CanonicalTraversable::insert(WebContentClient& reporting_client, u64 page_id, String parent_frame_id, String frame_id, CanonicalNavigable& fallback_parent)
+{
+    if (auto existing_navigable = find(page_id, frame_id); existing_navigable.has_value())
+        remove(*existing_navigable);
+
+    auto navigable = make<CanonicalNavigable>(move(frame_id), move(parent_frame_id), &reporting_client, page_id);
+
+    // A frame's parent frame is always created (and thus reported) before the frame
+    // itself, so if the parent is not in the index, the parent is the top-level document
+    // of the reporting page: the fallback parent.
+    auto* parent = &fallback_parent;
+    if (auto indexed_parent = find(page_id, navigable->parent_id()); indexed_parent.has_value())
+        parent = &*indexed_parent;
+
+    auto& navigable_ref = parent->append_child(move(navigable));
+    m_navigable_index.set(NavigableKey { page_id, navigable_ref.id() }, navigable_ref.make_weak_ptr());
+    return navigable_ref;
+}
+
+Optional<CanonicalNavigable&> CanonicalTraversable::find(u64 page_id, StringView frame_id)
+{
+    auto navigable = m_navigable_index.get(NavigableKey { page_id, MUST(String::from_utf8(frame_id)) });
+    if (!navigable.has_value() || !navigable.value())
+        return {};
+
+    return *navigable.value();
+}
+
+Optional<CanonicalNavigable const&> CanonicalTraversable::find(u64 page_id, StringView frame_id) const
+{
+    auto navigable = m_navigable_index.get(NavigableKey { page_id, MUST(String::from_utf8(frame_id)) });
+    if (!navigable.has_value() || !navigable.value())
+        return {};
+
+    return *navigable.value();
+}
+
+void CanonicalTraversable::remove(CanonicalNavigable& navigable)
+{
+    VERIFY(&navigable != this);
+    remove_from_index(navigable);
+
+    auto* parent = navigable.parent();
+    VERIFY(parent);
+    (void)parent->remove_child(navigable);
+}
+
+void CanonicalTraversable::remove_from_index(CanonicalNavigable& navigable)
+{
+    navigable.for_each_in_inclusive_subtree([&](CanonicalNavigable& child) {
+        m_navigable_index.remove(NavigableKey { child.reporting_page_id(), child.id() });
+        return IterationDecision::Continue;
+    });
+}
 
 static Optional<size_t> current_top_level_history_entry_index_for_step(Vector<Web::HTML::SessionHistoryEntryDescriptor> const& entries, Optional<i32> current_step)
 {

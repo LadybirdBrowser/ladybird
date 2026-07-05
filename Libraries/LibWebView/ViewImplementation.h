@@ -71,6 +71,9 @@ public:
 
     u64 view_id() const { return m_view_id; }
 
+    CanonicalTraversable& traversable() { return m_top_level_traversable; }
+    CanonicalTraversable const& traversable() const { return m_top_level_traversable; }
+
     void set_url(Badge<WebContentClient>, URL::URL url) { set_url(move(url)); }
     URL::URL const& url() const { return m_url; }
 

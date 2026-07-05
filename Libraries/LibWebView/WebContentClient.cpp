@@ -19,6 +19,7 @@
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/WebDriver/Error.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/HSTSStore.h>
 #include <LibWebView/HelperProcess.h>
@@ -185,8 +186,7 @@ void WebContentClient::register_view(u64 page_id, ViewImplementation& view)
 void WebContentClient::unregister_view(u64 page_id)
 {
     forget_compositor_context(Web::Compositor::compositor_context_id_for_page(page_id));
-    SiteIsolationManager::the().close_remote_child_frames_for_page(*this, page_id);
-    SiteIsolationManager::the().remove_page(page_id);
+    SiteIsolationManager::the().remove_page(*this, page_id);
 
     // A page that still needs a beforeunload check is not a detached
     // background close. It is being closed without waiting for WebContent,
@@ -238,9 +238,9 @@ void WebContentClient::request_close(u64 page_id)
     async_request_close(page_id);
 }
 
-void WebContentClient::register_embedded_page(u64 page_id)
+void WebContentClient::register_embedded_page(u64 page_id, CanonicalNavigable& child_frame)
 {
-    m_embedded_pages.set(page_id);
+    m_embedded_pages.set(page_id, child_frame.make_weak_ptr());
     Application::process_manager().cancel_forced_exit(pid());
 }
 
@@ -248,6 +248,39 @@ void WebContentClient::unregister_embedded_page(u64 page_id)
 {
     m_embedded_pages.remove(page_id);
     close_server_if_unused();
+}
+
+CanonicalNavigable* WebContentClient::embedded_page_host(u64 page_id)
+{
+    auto host = m_embedded_pages.find(page_id);
+    if (host == m_embedded_pages.end())
+        return nullptr;
+
+    auto* child_frame = host->value.ptr();
+    if (!child_frame || !child_frame->has_remote_host() || &child_frame->remote_host_client() != this)
+        return nullptr;
+
+    return child_frame;
+}
+
+CanonicalNavigable* WebContentClient::navigable_for_page(u64 page_id)
+{
+    if (auto* child_frame = embedded_page_host(page_id))
+        return child_frame;
+
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        return &view->traversable();
+
+    return nullptr;
+}
+
+Optional<CanonicalNavigable&> WebContentClient::child_frame(u64 page_id, StringView frame_id)
+{
+    auto* host = navigable_for_page(page_id);
+    if (!host)
+        return {};
+
+    return host->top_level_traversable().find(page_id, frame_id);
 }
 
 void WebContentClient::close_server_if_unused()
@@ -370,7 +403,7 @@ bool WebContentClient::send_async_scroll_to_compositor(u64 page_id, Gfx::FloatPo
 
 bool WebContentClient::handle_mouse_event_in_compositor(u64 page_id, Web::MouseEvent const& event)
 {
-    if (auto target = SiteIsolationManager::the().remote_child_frame_input_target_at(page_id, event.position); target.has_value()) {
+    if (auto target = SiteIsolationManager::the().remote_child_frame_input_target_at(*this, page_id, event.position); target.has_value()) {
         auto translated_event = event.clone_without_browser_data();
         translated_event.position.set_x(event.position.x() - target->viewport_rect.x());
         translated_event.position.set_y(event.position.y() - target->viewport_rect.y());
@@ -399,7 +432,7 @@ bool WebContentClient::handle_pinch_event_in_compositor(u64 page_id, Web::PinchE
 
 void WebContentClient::dispatch_mouse_event_to_web_content(u64 page_id, Web::MouseEvent const& event)
 {
-    if (auto target = SiteIsolationManager::the().remote_child_frame_input_target_at(page_id, event.position); target.has_value()) {
+    if (auto target = SiteIsolationManager::the().remote_child_frame_input_target_at(*this, page_id, event.position); target.has_value()) {
         auto translated_event = event.clone_without_browser_data();
         translated_event.position.set_x(event.position.x() - target->viewport_rect.x());
         translated_event.position.set_y(event.position.y() - target->viewport_rect.y());
@@ -449,25 +482,24 @@ Messages::WebContentClient::DecideNavigationProcessResponse WebContentClient::de
 
 void WebContentClient::did_request_new_process_for_child_frame_navigation(u64 page_id, String frame_id, URL::URL url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, Web::Bindings::NavigationHistoryBehavior history_handling)
 {
-    auto& site_isolation_manager = SiteIsolationManager::the();
-    auto child_frame = site_isolation_manager.child_frame(page_id, frame_id);
+    auto child_frame = this->child_frame(page_id, frame_id);
     if (!child_frame.has_value())
         return;
-    if (!site_isolation_manager.has_matching_pending_child_frame_navigation(page_id, frame_id, url, CanonicalNavigable::HostLocality::Remote))
+    if (!child_frame->has_matching_pending_navigation(url, CanonicalNavigable::HostLocality::Remote))
         return;
 
     auto remote_process_or_error = Application::the().launch_child_frame_web_content_process(m_is_private);
     if (remote_process_or_error.is_error()) {
         warnln("Unable to create WebContent process for child frame navigation: {}", remote_process_or_error.error());
-        site_isolation_manager.clear_pending_child_frame_navigation(page_id, frame_id);
+        child_frame->clear_pending_navigation();
         return;
     }
 
     auto remote_process = remote_process_or_error.release_value();
     auto remote_page_id = remote_process.page_id;
     auto remote_client = move(remote_process.client);
-    site_isolation_manager.record_pending_child_frame_navigation(page_id, frame_id, url, CanonicalNavigable::HostLocality::Remote, remote_page_id);
-    remote_client->register_embedded_page(remote_page_id);
+    child_frame->record_pending_navigation(url, CanonicalNavigable::HostLocality::Remote, remote_page_id);
+    remote_client->register_embedded_page(remote_page_id, *child_frame);
     remote_client->async_set_page_parent_context(remote_page_id, Web::Compositor::compositor_context_id_for_page(page_id));
     if (child_frame->viewport_rect().has_value()) {
         remote_client->async_set_viewport(
@@ -479,27 +511,40 @@ void WebContentClient::did_request_new_process_for_child_frame_navigation(u64 pa
     remote_client->async_set_system_visibility_state(remote_page_id, Web::HTML::VisibilityState::Visible);
     remote_client->async_load_url_with_document_resource(remote_page_id, url, move(document_resource), history_handling);
 
-    site_isolation_manager.transition_child_frame_to_remote(*this, page_id, frame_id, move(remote_client), remote_page_id);
+    SiteIsolationManager::the().transition_child_frame_to_remote(*this, page_id, frame_id, move(remote_client), remote_page_id);
 }
 
 void WebContentClient::did_create_child_frame(u64 page_id, String parent_frame_id, String frame_id)
 {
-    SiteIsolationManager::the().did_create_child_frame(page_id, move(parent_frame_id), move(frame_id));
+    auto* host = navigable_for_page(page_id);
+    if (!host)
+        return;
+
+    host->top_level_traversable().insert(*this, page_id, move(parent_frame_id), move(frame_id), *host);
 }
 
 void WebContentClient::did_update_child_frame_viewport(u64 page_id, String frame_id, Web::DevicePixelRect viewport_rect, double device_pixel_ratio)
 {
-    SiteIsolationManager::the().did_update_child_frame_viewport(page_id, move(frame_id), viewport_rect, device_pixel_ratio);
+    if (auto child_frame = this->child_frame(page_id, frame_id); child_frame.has_value())
+        child_frame->set_viewport(viewport_rect, device_pixel_ratio);
 }
 
 void WebContentClient::did_commit_child_frame_navigation(u64 page_id, String frame_id, URL::URL url)
 {
-    SiteIsolationManager::the().did_commit_child_frame_navigation(*this, page_id, frame_id, url);
+    auto child_frame = this->child_frame(page_id, frame_id);
+    if (!child_frame.has_value())
+        return;
+
+    if (child_frame->has_remote_host())
+        SiteIsolationManager::the().transition_child_frame_to_local(*child_frame);
+
+    child_frame->did_commit_navigation(move(url));
 }
 
 void WebContentClient::did_destroy_child_frame(u64 page_id, String frame_id)
 {
-    SiteIsolationManager::the().did_destroy_child_frame(*this, page_id, frame_id);
+    if (auto child_frame = this->child_frame(page_id, frame_id); child_frame.has_value())
+        SiteIsolationManager::the().remove_child_frame_subtree(*child_frame);
 }
 
 void WebContentClient::did_start_webdriver_navigation(u64 page_id, URL::URL url)
@@ -677,8 +722,8 @@ void WebContentClient::did_finish_loading(u64 page_id, URL::URL url)
             if (listener.on_load_finish)
                 listener.on_load_finish(client_url);
         }
-    } else {
-        SiteIsolationManager::the().remote_child_frame_did_commit_navigation(*this, page_id, url);
+    } else if (auto* child_frame = embedded_page_host(page_id)) {
+        child_frame->did_commit_navigation(url);
     }
 }
 
@@ -775,8 +820,9 @@ void WebContentClient::did_change_url(u64 page_id, URL::URL url)
 
         if (view->on_url_change)
             view->on_url_change(url);
-    } else {
-        SiteIsolationManager::the().remote_child_frame_did_finish_loading(*this, page_id, url);
+    } else if (auto* child_frame = embedded_page_host(page_id)) {
+        child_frame->did_commit_navigation(url);
+        child_frame->reporting_client().async_run_iframe_load_event_steps(child_frame->reporting_page_id(), child_frame->id());
     }
 }
 
@@ -1389,10 +1435,9 @@ void WebContentClient::did_request_activate_tab(u64 page_id)
 
 void WebContentClient::did_close_browsing_context(u64 page_id)
 {
+    SiteIsolationManager::the().remove_page(*this, page_id);
     unregister_embedded_page(page_id);
     m_detached_pages_pending_close.remove(page_id);
-    SiteIsolationManager::the().close_remote_child_frames_for_page(*this, page_id);
-    SiteIsolationManager::the().remove_page(page_id);
 
     if (auto view = m_views.get(page_id); view.has_value()) {
         if ((*view)->on_close)
@@ -1665,7 +1710,8 @@ void WebContentClient::did_finish_handling_input_event(u64 page_id, Web::EventRe
         return;
     }
 
-    SiteIsolationManager::the().remote_child_frame_did_finish_handling_input_event(*this, page_id, event_result);
+    if (auto* child_frame = embedded_page_host(page_id))
+        child_frame->reporting_client().did_finish_handling_input_event(child_frame->reporting_page_id(), event_result);
 }
 
 void WebContentClient::did_update_input_method_state(u64 page_id, Optional<Web::DevicePixelRect> caret_rect, bool is_enabled, i32 cursor_position, i32 anchor_position, Utf16String text_before_cursor, Utf16String text_after_cursor)

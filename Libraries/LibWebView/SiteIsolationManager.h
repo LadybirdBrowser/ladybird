@@ -7,14 +7,11 @@
 #pragma once
 
 #include <AK/HashMap.h>
-#include <AK/NonnullOwnPtr.h>
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <LibURL/URL.h>
-#include <LibWeb/Page/EventResult.h>
-#include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWebView/CanonicalNavigable.h>
@@ -34,62 +31,20 @@ public:
 
     Web::NavigationProcessDecision decide_navigation_process(WebContentClient&, u64 page_id, Optional<String> frame_id, URL::URL current_url, URL::URL target_url, Web::NavigationTarget);
 
-    void did_create_child_frame(u64 page_id, String parent_frame_id, String frame_id);
-    void did_update_child_frame_viewport(u64 page_id, String frame_id, Web::DevicePixelRect viewport_rect, double device_pixel_ratio);
-    bool did_commit_child_frame_navigation(WebContentClient&, u64 page_id, StringView frame_id, URL::URL const& url);
-    void did_destroy_child_frame(WebContentClient&, u64 page_id, StringView frame_id);
-    Optional<RemoteChildFrameInputTarget> remote_child_frame_input_target_at(u64 page_id, Web::DevicePixelPoint) const;
-    bool remote_child_frame_did_commit_navigation(WebContentClient& remote_client, u64 remote_page_id, URL::URL const&);
-    bool remote_child_frame_did_finish_loading(WebContentClient& remote_client, u64 remote_page_id, URL::URL const&);
-    bool remote_child_frame_did_finish_handling_input_event(WebContentClient& remote_client, u64 remote_page_id, Web::EventResult);
-    void remove_page(u64 page_id);
+    void transition_child_frame_to_remote(WebContentClient& parent_client, u64 page_id, StringView frame_id, NonnullRefPtr<WebContentClient>, u64 remote_page_id);
+    void transition_child_frame_to_local(CanonicalNavigable&);
+
+    void remove_child_frame_subtree(CanonicalNavigable&);
+
+    void remove_page(WebContentClient&, u64 page_id);
     void remove_all_pages_for_client(WebContentClient&);
+
+    Optional<RemoteChildFrameInputTarget> remote_child_frame_input_target_at(WebContentClient&, u64 page_id, Web::DevicePixelPoint) const;
     String dump_process_tree(WebContentClient&, u64 page_id) const;
     HashMap<pid_t, pid_t> remote_frame_process_embedders() const;
 
-    bool has_matching_pending_child_frame_navigation(u64 page_id, StringView frame_id, URL::URL const&, CanonicalNavigable::HostLocality) const;
-    void record_pending_child_frame_navigation(u64 page_id, StringView frame_id, URL::URL const&, CanonicalNavigable::HostLocality, Optional<u64> remote_page_id = {});
-    void clear_pending_child_frame_navigation(u64 page_id, StringView frame_id);
-    void transition_child_frame_to_remote(WebContentClient& parent_client, u64 page_id, StringView frame_id, NonnullRefPtr<WebContentClient>, u64 remote_page_id);
-    void transition_child_frame_to_local(WebContentClient& parent_client, u64 page_id, StringView frame_id);
-    void close_remote_child_frames_for_page(WebContentClient&, u64 page_id);
-
-    Optional<CanonicalNavigable&> child_frame(u64 page_id, StringView frame_id);
-    Optional<CanonicalNavigable const&> child_frame(u64 page_id, StringView frame_id) const;
-
-    template<CallableAs<IterationDecision, String const&, CanonicalNavigable const&> Callback>
-    void for_each_child_frame(u64 page_id, Callback callback) const;
-
 private:
     SiteIsolationManager() = default;
-
-    struct ParentFrame {
-        WebContentClient* parent_client { nullptr };
-        u64 page_id { 0 };
-        String frame_id;
-        CanonicalNavigable* child_frame { nullptr };
-    };
-
-    static bool client_owns_page(WebContentClient const&, u64 page_id);
-    Optional<ParentFrame> parent_frame_for_remote_page(WebContentClient&, u64 page_id);
-    URL::URL document_url_for_page(WebContentClient&, u64 page_id, URL::URL const& fallback_url);
-    Optional<URL::URL> document_url_for_child_frame(CanonicalNavigable const&);
-    URL::URL embedding_page_url_for_child_frame_navigation(WebContentClient&, u64 page_id, CanonicalNavigable const&, URL::URL const&);
-
-    HashMap<u64, HashMap<String, NonnullOwnPtr<CanonicalNavigable>>> m_child_frames;
 };
-
-template<CallableAs<IterationDecision, String const&, CanonicalNavigable const&> Callback>
-void SiteIsolationManager::for_each_child_frame(u64 page_id, Callback callback) const
-{
-    auto child_frames = m_child_frames.get(page_id);
-    if (!child_frames.has_value())
-        return;
-
-    for (auto const& entry : *child_frames) {
-        if (callback(entry.key, *entry.value) == IterationDecision::Break)
-            return;
-    }
-}
 
 }

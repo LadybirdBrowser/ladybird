@@ -7,17 +7,105 @@
 #include <LibWebView/CanonicalNavigable.h>
 
 #include <LibWeb/Page/ViewportIsFullscreen.h>
+#include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/WebContentClient.h>
 
 namespace WebView {
 
-CanonicalNavigable::CanonicalNavigable(String id, String parent_id)
+CanonicalNavigable::CanonicalNavigable(String id, String parent_id, RefPtr<WebContentClient> reporting_client, u64 reporting_page_id)
     : m_id(move(id))
     , m_parent_id(move(parent_id))
+    , m_reporting_client(move(reporting_client))
+    , m_reporting_page_id(reporting_page_id)
 {
 }
 
 CanonicalNavigable::~CanonicalNavigable() = default;
+
+WebContentClient& CanonicalNavigable::reporting_client() const
+{
+    VERIFY(m_reporting_client);
+    return *m_reporting_client;
+}
+
+// https://html.spec.whatwg.org/multipage/document-sequences.html#nav-top
+CanonicalTraversable& CanonicalNavigable::top_level_traversable()
+{
+    // 1. Let navigable be inputNavigable.
+    auto* navigable = this;
+
+    // 2. While navigable's parent is not null, set navigable to navigable's parent.
+    while (navigable->parent())
+        navigable = navigable->parent();
+
+    // 3. Return navigable.
+    VERIFY(navigable->is_top_level_traversable());
+    return static_cast<CanonicalTraversable&>(*navigable);
+}
+
+CanonicalTraversable const& CanonicalNavigable::top_level_traversable() const
+{
+    return const_cast<CanonicalNavigable&>(*this).top_level_traversable();
+}
+
+CanonicalNavigable& CanonicalNavigable::append_child(NonnullOwnPtr<CanonicalNavigable> child)
+{
+    VERIFY(!child->m_parent);
+    child->m_parent = this;
+    m_children.append(move(child));
+    return *m_children.last();
+}
+
+NonnullOwnPtr<CanonicalNavigable> CanonicalNavigable::remove_child(CanonicalNavigable& child)
+{
+    for (size_t i = 0; i < m_children.size(); ++i) {
+        if (m_children[i].ptr() != &child)
+            continue;
+
+        auto removed_child = m_children.take(i);
+        VERIFY(removed_child->m_parent == this);
+        removed_child->m_parent = nullptr;
+        return removed_child;
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
+IterationDecision CanonicalNavigable::for_each_in_inclusive_subtree(Function<IterationDecision(CanonicalNavigable&)> const& callback)
+{
+    if (callback(*this) == IterationDecision::Break)
+        return IterationDecision::Break;
+
+    return for_each_in_subtree(callback);
+}
+
+IterationDecision CanonicalNavigable::for_each_in_subtree(Function<IterationDecision(CanonicalNavigable&)> const& callback)
+{
+    for (auto const& child : m_children) {
+        if (child->for_each_in_inclusive_subtree(callback) == IterationDecision::Break)
+            return IterationDecision::Break;
+    }
+
+    return IterationDecision::Continue;
+}
+
+IterationDecision CanonicalNavigable::for_each_in_inclusive_subtree(Function<IterationDecision(CanonicalNavigable const&)> const& callback) const
+{
+    if (callback(*this) == IterationDecision::Break)
+        return IterationDecision::Break;
+
+    return for_each_in_subtree(callback);
+}
+
+IterationDecision CanonicalNavigable::for_each_in_subtree(Function<IterationDecision(CanonicalNavigable const&)> const& callback) const
+{
+    for (auto const& child : m_children) {
+        if (child->for_each_in_inclusive_subtree(callback) == IterationDecision::Break)
+            return IterationDecision::Break;
+    }
+
+    return IterationDecision::Continue;
+}
 
 WebContentClient& CanonicalNavigable::remote_host_client() const
 {
