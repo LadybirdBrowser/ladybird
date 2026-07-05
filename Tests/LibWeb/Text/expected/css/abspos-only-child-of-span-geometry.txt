@@ -1,0 +1,3 @@
+target rect: 0,10 10x10
+elementFromPoint hits target: true
+host rect count: 1

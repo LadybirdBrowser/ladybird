@@ -109,8 +109,9 @@ static Layout::Node& insertion_parent_for_inline_node(Layout::NodeWithStyle& lay
 
 static Layout::Node& insertion_parent_for_block_node(Layout::NodeWithStyle& layout_parent, Layout::Node& layout_node)
 {
-    // Inline is fine for in-flow block children; the inline formatting context can contain interrupting blocks.
-    if (!layout_node.is_anonymous() && layout_parent.is_inline() && layout_parent.display().is_flow_inside() && !layout_node.is_out_of_flow())
+    // Inline is fine for in-flow block children (interrupting blocks) and for out-of-flow children;
+    // the inline formatting context emits items for both.
+    if (!layout_node.is_anonymous() && layout_parent.is_inline() && layout_parent.display().is_flow_inside())
         return layout_parent;
 
     // Make sure we're not inserting into an inline node, since those do not support block nodes.
@@ -161,50 +162,13 @@ static Layout::Node& insertion_parent_for_block_node(Layout::NodeWithStyle& layo
 
 void TreeBuilder::insert_node_into_inline_or_block_ancestor(Layout::Node& node, CSS::Display display, AppendOrPrepend mode)
 {
-    // Find the nearest ancestor that can host the node.
-    NodeWithStyle* topmost_skipped_inline_flow_ancestor = nullptr;
-    bool skipped_inline_flow_ancestor_had_children = false;
-    auto& nearest_insertion_ancestor = [&]() -> NodeWithStyle& {
-        NodeWithStyle* previously_skipped_inline_flow_ancestor = nullptr;
-        for (auto& ancestor : m_ancestor_stack.in_reverse()) {
-            if (ancestor->is_svg_foreign_object_box())
-                return *ancestor;
-
-            auto const& ancestor_display = ancestor->display();
-
-            // Out-of-flow nodes cannot be hosted in inline flow nodes.
-            if (node.is_out_of_flow() && ancestor_display.is_inline_outside() && ancestor_display.is_flow_inside()) {
-                topmost_skipped_inline_flow_ancestor = ancestor;
-                // Content precedes the out-of-flow node only if some skipped inline has a child other than
-                // the previously skipped inline itself (which is always its child in the skip chain).
-                for (auto child = ancestor->first_child(); child; child = child->next_sibling()) {
-                    if (child.ptr() != previously_skipped_inline_flow_ancestor) {
-                        skipped_inline_flow_ancestor_had_children = true;
-                        break;
-                    }
-                }
-                previously_skipped_inline_flow_ancestor = ancestor;
-                continue;
-            }
-
-            return *ancestor;
-        }
-        VERIFY_NOT_REACHED();
-    }();
+    auto& nearest_insertion_ancestor = *m_ancestor_stack.last();
 
     auto& insertion_point = display.is_inline_outside() ? insertion_parent_for_inline_node(nearest_insertion_ancestor)
                                                         : insertion_parent_for_block_node(nearest_insertion_ancestor, node);
 
-    auto should_insert_before_topmost_skipped_inline_ancestor = node.is_out_of_flow()
-        && mode == AppendOrPrepend::Append
-        && topmost_skipped_inline_flow_ancestor
-        && !skipped_inline_flow_ancestor_had_children
-        && topmost_skipped_inline_flow_ancestor->parent() == &insertion_point;
-
     if (mode == AppendOrPrepend::Prepend)
         insertion_point.prepend_child(node);
-    else if (should_insert_before_topmost_skipped_inline_ancestor)
-        insertion_point.insert_before(node, *topmost_skipped_inline_flow_ancestor);
     else
         insertion_point.append_child(node);
 

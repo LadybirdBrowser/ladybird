@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+@font-face {
+    font-family: Ahem;
+    src: url("../../../Ref/data/fonts/Ahem.ttf");
+}
+body { margin: 0; font: 10px/20px Ahem; }
+</style>
+<div><span id="host">ab<b id="target">cd</b>ef</span></div>
+<script>
+promiseTest(async () => {
+    await document.fonts.ready;
+    await animationFrame();
+
+    const target = document.getElementById("target");
+    const positionOf = (element) => {
+        const rect = element.getBoundingClientRect();
+        return `${Math.round(rect.x)},${Math.round(rect.y)} ${Math.round(rect.width)}x${Math.round(rect.height)}`;
+    };
+
+    println(`in flow: ${positionOf(target)}`);
+
+    target.style.position = "absolute";
+    println(`absolute: ${positionOf(target)}`);
+
+    target.style.position = "";
+    println(`back in flow: ${positionOf(target)}`);
+});
+</script>
