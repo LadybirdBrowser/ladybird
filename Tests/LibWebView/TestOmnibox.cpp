@@ -417,7 +417,7 @@ TEST_CASE(a_top_row_that_does_not_match_the_prefix_is_not_automatically_selected
     harness.press_key('t');
     harness.provider->deliver({ non_automatic_history_row("https://odd.example/t"sv, "Odd"sv), search_row("t"sv) }, AutocompleteResultKind::Final);
     EXPECT_EQ(harness.display_text, "t"sv);
-    EXPECT(!harness.omnibox.selected_suggestion().has_value());
+    EXPECT_EQ(harness.omnibox.selected_suggestion(), 1u);
 
     harness.omnibox.return_pressed();
     EXPECT_EQ(harness.commits.last(), "t"sv);
@@ -433,7 +433,7 @@ TEST_CASE(a_title_only_history_row_is_not_automatically_selected)
 
     harness.provider->deliver({ non_automatic_history_row("https://example.com/fragrance"sv, "Eau de Parfum"sv), search_row("eau de"sv) }, AutocompleteResultKind::Final);
     EXPECT_EQ(harness.display_text, "eau de"sv);
-    EXPECT(!harness.omnibox.selected_suggestion().has_value());
+    EXPECT_EQ(harness.omnibox.selected_suggestion(), 1u);
     EXPECT(harness.omnibox.is_popup_visible());
 
     harness.omnibox.return_pressed();
@@ -475,7 +475,7 @@ TEST_CASE(a_fresh_non_prefix_url_top_row_does_not_win_after_editing_a_completion
         harness.press_key(code_point);
     harness.provider->deliver({ non_automatic_history_row("https://news.ycombinator.com/title-match"sv, "Title Match"sv), search_row("title match"sv) }, AutocompleteResultKind::Final);
     EXPECT_EQ(harness.display_text, "title match"sv);
-    EXPECT(!harness.omnibox.selected_suggestion().has_value());
+    EXPECT_EQ(harness.omnibox.selected_suggestion(), 1u);
 
     harness.omnibox.return_pressed();
     EXPECT_EQ(harness.commits.size(), 1u);
