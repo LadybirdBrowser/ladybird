@@ -2291,7 +2291,7 @@ void FormattingContext::compute_height_for_absolutely_positioned_replaced_elemen
     // If 'margin-top' or 'margin-bottom' is specified as 'auto' its used value is determined by the rules below.
     // 2. If both 'top' and 'bottom' have the value 'auto', replace 'top' with the element's static position.
     if (top.is_auto() && bottom.is_auto()) {
-        top = CSS::Length::make_px(static_position.x());
+        top = CSS::Length::make_px(static_position.y());
     }
 
     // 3. If 'bottom' is 'auto', replace any 'auto' on 'margin-top' or 'margin-bottom' with '0'.

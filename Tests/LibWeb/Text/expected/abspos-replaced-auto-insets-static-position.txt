@@ -1,5 +1,5 @@
-top: 70px
+top: 50px
 right: 170px
-bottom: 90px
+bottom: 110px
 left: 70px
 offset within containing block: 70,50
