@@ -232,7 +232,7 @@ public:
     void select_all();
     void paste(Utf16String const&);
     void set_marked_text_from_input_method(Utf16String const& text);
-    void commit_text_from_input_method(Utf16String const& text);
+    void commit_text_from_input_method(Utf16String const& text, i32 replacement_start = 0, i32 replacement_length = 0);
     void unmark_text_from_input_method();
 
     Web::EventHandler& event_handler() { return m_event_handler; }
@@ -343,6 +343,7 @@ private:
     //         m_input_method_composition_offset record the start of the marked (preedit) text; the marked text spans
     //         from there to the caret. A null node means no composition is in progress.
     void replace_input_method_marked_text(Utf16String const& text);
+    bool apply_input_method_commit_replacement(Utf16String const& text, i32 replacement_start, i32 replacement_length);
     GC::Ptr<DOM::Node> m_input_method_composition_node;
     size_t m_input_method_composition_offset { 0 };
 

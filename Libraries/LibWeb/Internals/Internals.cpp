@@ -421,9 +421,9 @@ void Internals::set_marked_text_from_input_method(Utf16String const& text)
     page().focused_navigable().set_marked_text_from_input_method(text);
 }
 
-void Internals::commit_text_from_input_method(Utf16String const& text)
+void Internals::commit_text_from_input_method(Utf16String const& text, WebIDL::Long replacement_start, WebIDL::Long replacement_length)
 {
-    page().focused_navigable().commit_text_from_input_method(text);
+    page().focused_navigable().commit_text_from_input_method(text, replacement_start, replacement_length);
 }
 
 void Internals::unmark_text_from_input_method()

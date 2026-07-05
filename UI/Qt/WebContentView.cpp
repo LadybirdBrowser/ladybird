@@ -495,16 +495,54 @@ void WebContentView::inputMethodEvent(QInputMethodEvent* event)
         return;
     }
 
-    if (!event->commitString().isEmpty()) {
-        QKeyEvent keyEvent(QEvent::KeyPress, 0, Qt::NoModifier, event->commitString());
-        keyPressEvent(&keyEvent);
-    }
+    if (!event->commitString().isEmpty() || event->replacementLength() != 0)
+        commit_text_from_input_method(utf16_string_from_qstring(event->commitString()), event->replacementStart(), event->replacementLength());
+
+    set_marked_text_from_input_method(utf16_string_from_qstring(event->preeditString()));
     event->accept();
 }
 
-QVariant WebContentView::inputMethodQuery(Qt::InputMethodQuery) const
+static Optional<QRectF> input_method_rect_for_caret(Optional<Web::DevicePixelRect> const& caret_rect, double device_pixel_ratio)
 {
-    return QVariant();
+    if (!caret_rect.has_value())
+        return {};
+
+    return QRectF {
+        caret_rect->x().value() / device_pixel_ratio,
+        caret_rect->y().value() / device_pixel_ratio,
+        max(caret_rect->width().value() / device_pixel_ratio, 1.0),
+        max(caret_rect->height().value() / device_pixel_ratio, 1.0),
+    };
+}
+
+QVariant WebContentView::inputMethodQuery(Qt::InputMethodQuery query) const
+{
+    auto const& state = input_method_state();
+
+    switch (query) {
+    case Qt::ImEnabled:
+        return state.is_enabled;
+    case Qt::ImCursorRectangle:
+    case Qt::ImAnchorRectangle:
+        if (auto rect = input_method_rect_for_caret(state.caret_rect, device_pixel_ratio()); rect.has_value())
+            return *rect;
+        return WebContentViewBase::inputMethodQuery(query);
+    case Qt::ImAbsolutePosition:
+    case Qt::ImCursorPosition:
+        return state.cursor_position;
+    case Qt::ImAnchorPosition:
+        return state.anchor_position;
+    case Qt::ImTextBeforeCursor:
+        return qstring_from_utf16_string(state.text_before_cursor);
+    case Qt::ImTextAfterCursor:
+        return qstring_from_utf16_string(state.text_after_cursor);
+    case Qt::ImSurroundingText:
+        return qstring_from_utf16_string(state.text_before_cursor) + qstring_from_utf16_string(state.text_after_cursor);
+    case Qt::ImReadOnly:
+        return !state.is_enabled;
+    default:
+        return WebContentViewBase::inputMethodQuery(query);
+    }
 }
 
 void WebContentView::leaveEvent(QEvent* event)

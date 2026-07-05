@@ -62,6 +62,7 @@ public:
     Function<void(IPC::TransportHandle const&)> on_image_decoder_connection;
 
     Queue<Web::QueuedInputEvent>& input_event_queue() { return m_input_event_queue; }
+    void update_input_method_state(u64 page_id);
 
 private:
     explicit ConnectionFromClient(NonnullOwnPtr<IPC::Transport>);
@@ -209,9 +210,8 @@ private:
 
     virtual void paste(u64 page_id, Utf16String text) override;
     virtual void set_marked_text_from_input_method(u64 page_id, Utf16String text) override;
-    virtual void commit_text_from_input_method(u64 page_id, Utf16String text) override;
+    virtual void commit_text_from_input_method(u64 page_id, Utf16String text, i32 replacement_start, i32 replacement_length) override;
     virtual void unmark_text_from_input_method(u64 page_id) override;
-    void update_input_method_caret_rect(u64 page_id);
 
     virtual void system_time_zone_changed() override;
 

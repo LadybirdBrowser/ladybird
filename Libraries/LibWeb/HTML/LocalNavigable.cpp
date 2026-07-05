@@ -4054,8 +4054,13 @@ void LocalNavigable::set_marked_text_from_input_method(Utf16String const& text)
     replace_input_method_marked_text(text);
 }
 
-void LocalNavigable::commit_text_from_input_method(Utf16String const& text)
+void LocalNavigable::commit_text_from_input_method(Utf16String const& text, i32 replacement_start, i32 replacement_length)
 {
+    if ((replacement_start != 0 || replacement_length != 0) && apply_input_method_commit_replacement(text, replacement_start, replacement_length)) {
+        m_input_method_composition_node = nullptr;
+        return;
+    }
+
     // The input method has committed text and finished the composition. Replace the marked text with the committed
     // text, then end the composition — so the text becomes ordinary editable content.
     replace_input_method_marked_text(text);
@@ -4084,15 +4089,19 @@ void LocalNavigable::replace_input_method_marked_text(Utf16String const& text)
         return;
     }
 
-    // Drop a stale composition start (for example, if the editable content was replaced out from under us).
-    if (m_input_method_composition_node && !m_input_method_composition_node->is_connected())
+    // Drop a stale composition start (for example, if the editable content was replaced out from under us, or focus moved
+    // to a different editable).
+    if (m_input_method_composition_node && (!m_input_method_composition_node->is_connected() || document->active_input_events_target(m_input_method_composition_node) != target))
         m_input_method_composition_node = nullptr;
 
     // The caret is the end of the marked text. Read it while the selection is still collapsed. Forming the marked-text
     // selection below would otherwise make cursor_position() return null for form controls.
     auto caret = document->cursor_position();
-    if (!caret)
+    if (!caret) {
+        if (!m_input_method_composition_node)
+            target->handle_insert(UIEvents::InputTypes::insertText, text);
         return;
+    }
 
     if (m_input_method_composition_node) {
         // A composition is already in progress. Select the existing marked text [composition start, caret] — so that
@@ -4106,6 +4115,62 @@ void LocalNavigable::replace_input_method_marked_text(Utf16String const& text)
     }
 
     target->handle_insert(UIEvents::InputTypes::insertText, text);
+}
+
+bool LocalNavigable::apply_input_method_commit_replacement(Utf16String const& text, i32 replacement_start, i32 replacement_length)
+{
+    if (replacement_length < 0)
+        return false;
+
+    auto document = active_document();
+    if (!document || !document->is_fully_active()) {
+        m_input_method_composition_node = nullptr;
+        return true;
+    }
+    auto* target = document->active_input_events_target();
+    if (!target) {
+        m_input_method_composition_node = nullptr;
+        return true;
+    }
+
+    if (m_input_method_composition_node && (!m_input_method_composition_node->is_connected() || document->active_input_events_target(m_input_method_composition_node) != target))
+        m_input_method_composition_node = nullptr;
+
+    auto caret = document->cursor_position();
+    if (!caret) {
+        if (!m_input_method_composition_node) {
+            target->handle_insert(UIEvents::InputTypes::insertText, text);
+            return true;
+        }
+        return false;
+    }
+
+    auto preedit_start_node = m_input_method_composition_node ? m_input_method_composition_node : caret->node();
+    auto preedit_start_offset = m_input_method_composition_node ? m_input_method_composition_offset : caret->offset();
+    if (!preedit_start_node || preedit_start_node != caret->node())
+        return false;
+
+    size_t replacement_start_offset = preedit_start_offset;
+    if (replacement_start < 0) {
+        auto offset_delta = static_cast<size_t>(-static_cast<i64>(replacement_start));
+        if (offset_delta > preedit_start_offset)
+            return false;
+        replacement_start_offset -= offset_delta;
+    } else {
+        auto offset_delta = static_cast<size_t>(replacement_start);
+        if (offset_delta > NumericLimits<size_t>::max() - replacement_start_offset)
+            return false;
+        replacement_start_offset += offset_delta;
+    }
+
+    auto replacement_length_as_size = static_cast<size_t>(replacement_length);
+    if (replacement_start_offset > preedit_start_node->length() || replacement_length_as_size > preedit_start_node->length() - replacement_start_offset)
+        return false;
+
+    target->set_selection_anchor(*preedit_start_node, replacement_start_offset);
+    target->set_selection_focus(*preedit_start_node, replacement_start_offset + replacement_length_as_size);
+    target->handle_insert(UIEvents::InputTypes::insertText, text);
+    return true;
 }
 
 // https://drafts.csswg.org/css-view-transitions-1/#snapshot-containing-block

@@ -118,6 +118,18 @@
         internals.setMarkedTextFromInputMethod("z");
         println(`after abort, fresh preedit at moved caret: ${JSON.stringify(preedit.value)}`);
 
+        // Some input methods commit text by replacing text around the caret instead of first setting preedit text.
+        const replacement = document.createElement("input");
+        replacement.value = "a";
+        document.body.appendChild(replacement);
+        replacement.focus();
+        replacement.setSelectionRange(1, 1);
+        event_promise = waitForEvent(replacement, "input");
+        internals.commitTextFromInputMethod("å", -1, 1);
+        event = await event_promise;
+        println(`replacement-range commit value: ${JSON.stringify(replacement.value)}`);
+        println(`replacement-range input event: ${JSON.stringify(event)}`);
+
         // #5: currentCaretRect is viewport-relative, so scrolling the page moves the caret rect by the scroll delta.
         const tall = document.createElement("div");
         tall.style.height = "3000px";

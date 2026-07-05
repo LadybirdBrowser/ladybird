@@ -53,6 +53,7 @@ public:
     ErrorOr<void> connect_to_web_ui(IPC::TransportHandle);
 
     virtual Queue<Web::QueuedInputEvent>& input_event_queue() override;
+    virtual void did_handle_input_event(u64 page_id, Web::InputEvent const&) override;
     virtual void report_finished_handling_input_event(u64 page_id, Web::EventResult event_was_handled) override;
     virtual Web::Compositor::CompositorContextId allocate_compositor_context_id(Web::Compositor::PagePresentationRegistration) override;
 

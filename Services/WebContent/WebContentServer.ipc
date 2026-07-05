@@ -137,7 +137,7 @@ endpoint WebContentServer
     select_all(u64 page_id) =|
     paste(u64 page_id, Utf16String text) =|
     set_marked_text_from_input_method(u64 page_id, Utf16String text) =|
-    commit_text_from_input_method(u64 page_id, Utf16String text) =|
+    commit_text_from_input_method(u64 page_id, Utf16String text, i32 replacement_start, i32 replacement_length) =|
     unmark_text_from_input_method(u64 page_id) =|
 
     find_in_page(u64 page_id, String query, AK::CaseSensitivity case_sensitivity) =|

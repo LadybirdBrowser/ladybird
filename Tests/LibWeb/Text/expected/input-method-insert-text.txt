@@ -19,4 +19,6 @@ after second composition commit: "你好"
 after unmark keeps preedit: "你好?"
 after abort clears preedit: "你好?"
 after abort, fresh preedit at moved caret: "你z好?"
+replacement-range commit value: "å"
+replacement-range input event: {"inputType":"insertText","data":"å"}
 caret rect is viewport-relative (moves with scroll): true

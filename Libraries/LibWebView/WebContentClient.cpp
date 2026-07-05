@@ -1665,10 +1665,10 @@ void WebContentClient::did_finish_handling_input_event(u64 page_id, Web::EventRe
     SiteIsolationManager::the().remote_child_frame_did_finish_handling_input_event(*this, page_id, event_result);
 }
 
-void WebContentClient::did_update_input_caret_rect(u64 page_id, Optional<Web::DevicePixelRect> rect)
+void WebContentClient::did_update_input_method_state(u64 page_id, Optional<Web::DevicePixelRect> caret_rect, bool is_enabled, i32 cursor_position, i32 anchor_position, Utf16String text_before_cursor, Utf16String text_after_cursor)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
-        view->set_input_caret_rect({}, rect);
+        view->set_input_method_state({}, { is_enabled, cursor_position, anchor_position, move(text_before_cursor), move(text_after_cursor), caret_rect });
 }
 
 void WebContentClient::did_change_theme_color(u64 page_id, Gfx::Color color)

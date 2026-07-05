@@ -279,6 +279,7 @@ void EventLoop::process_input_events() const
 
             for (size_t i = 0; i < event.coalesced_event_count; ++i)
                 page_client.report_finished_handling_input_event(event.page_id, EventResult::Dropped);
+            page_client.did_handle_input_event(event.page_id, event.event);
             page_client.report_finished_handling_input_event(event.page_id, result);
         }
 

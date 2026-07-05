@@ -54,7 +54,7 @@ interface Internals {
     // text. unmarkText finalizes the composition — leaving the current preedit in place. Each fires an InputEvent with
     // inputType = "insertText" on the focused editable. All are no-ops if nothing editable is focused.
     undefined setMarkedTextFromInputMethod(Utf16DOMString text);
-    undefined commitTextFromInputMethod(Utf16DOMString text);
+    undefined commitTextFromInputMethod(Utf16DOMString text, optional long replacementStart = 0, optional long replacementLength = 0);
     undefined unmarkTextFromInputMethod();
 
     // Returns the bounds of the current text caret in viewport-relative CSS pixels — or null if no editable element is
