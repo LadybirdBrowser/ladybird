@@ -1562,7 +1562,9 @@ bool Node::has_layout_containment() const
         return false;
 
     // - if its principal box is an internal ruby box or a non-atomic inline-level box
-    // FIXME: Implement this.
+    // FIXME: Also check for internal ruby boxes.
+    if (display().is_inline_outside() && display().is_flow_inside() && !is_replaced_box())
+        return false;
 
     if (computed_values().contain().layout_containment)
         return true;
@@ -1610,7 +1612,9 @@ bool Node::has_paint_containment() const
         return false;
 
     // - if its principal box is an internal ruby box or a non-atomic inline-level box
-    // FIXME: Implement this
+    // FIXME: Also check for internal ruby boxes.
+    if (display().is_inline_outside() && display().is_flow_inside() && !is_replaced_box())
+        return false;
 
     if (computed_values().contain().paint_containment)
         return true;
