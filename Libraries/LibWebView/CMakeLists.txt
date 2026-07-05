@@ -3,6 +3,7 @@ set(SOURCES
     Attribute.cpp
     Autocomplete.cpp
     BookmarkStore.cpp
+    CanonicalNavigable.cpp
     CanonicalTraversable.cpp
     BrowserProcess.cpp
     CompositorClient.cpp

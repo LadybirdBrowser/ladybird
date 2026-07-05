@@ -453,7 +453,7 @@ void WebContentClient::did_request_new_process_for_child_frame_navigation(u64 pa
     auto child_frame = site_isolation_manager.child_frame(page_id, frame_id);
     if (!child_frame.has_value())
         return;
-    if (!site_isolation_manager.has_matching_pending_child_frame_navigation(page_id, frame_id, url, ChildFrameOwner::Remote))
+    if (!site_isolation_manager.has_matching_pending_child_frame_navigation(page_id, frame_id, url, CanonicalNavigable::HostLocality::Remote))
         return;
 
     auto remote_process_or_error = Application::the().launch_child_frame_web_content_process(m_is_private);
@@ -466,14 +466,14 @@ void WebContentClient::did_request_new_process_for_child_frame_navigation(u64 pa
     auto remote_process = remote_process_or_error.release_value();
     auto remote_page_id = remote_process.page_id;
     auto remote_client = move(remote_process.client);
-    site_isolation_manager.record_pending_child_frame_navigation(page_id, frame_id, url, ChildFrameOwner::Remote, remote_page_id);
+    site_isolation_manager.record_pending_child_frame_navigation(page_id, frame_id, url, CanonicalNavigable::HostLocality::Remote, remote_page_id);
     remote_client->register_embedded_page(remote_page_id);
     remote_client->async_set_page_parent_context(remote_page_id, Web::Compositor::compositor_context_id_for_page(page_id));
-    if (child_frame->viewport_rect.has_value()) {
+    if (child_frame->viewport_rect().has_value()) {
         remote_client->async_set_viewport(
             remote_page_id,
-            child_frame->viewport_rect->size(),
-            child_frame->device_pixel_ratio,
+            child_frame->viewport_rect()->size(),
+            child_frame->device_pixel_ratio(),
             Web::ViewportIsFullscreen::No);
     }
     remote_client->async_set_system_visibility_state(remote_page_id, Web::HTML::VisibilityState::Visible);
@@ -500,11 +500,6 @@ void WebContentClient::did_commit_child_frame_navigation(u64 page_id, String fra
 void WebContentClient::did_destroy_child_frame(u64 page_id, String frame_id)
 {
     SiteIsolationManager::the().did_destroy_child_frame(*this, page_id, frame_id);
-}
-
-Optional<WebContentClient::ChildFrameHost const&> WebContentClient::child_frame(u64 page_id, StringView frame_id) const
-{
-    return SiteIsolationManager::the().child_frame(page_id, frame_id);
 }
 
 void WebContentClient::did_start_webdriver_navigation(u64 page_id, URL::URL url)

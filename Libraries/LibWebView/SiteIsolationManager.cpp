@@ -8,7 +8,6 @@
 
 #include <AK/QuickSort.h>
 #include <AK/StringBuilder.h>
-#include <LibWeb/Page/ViewportIsFullscreen.h>
 #include <LibWebView/SiteIsolation.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
@@ -24,10 +23,9 @@ SiteIsolationManager& SiteIsolationManager::the()
 void SiteIsolationManager::did_create_child_frame(u64 page_id, String parent_frame_id, String frame_id)
 {
     auto& child_frames = m_child_frames.ensure(page_id, [] {
-        return HashMap<String, ChildFrameHost> {};
+        return HashMap<String, NonnullOwnPtr<CanonicalNavigable>> {};
     });
-    ChildFrameHost child_frame;
-    child_frame.parent_frame_id = move(parent_frame_id);
+    auto child_frame = make<CanonicalNavigable>(frame_id, move(parent_frame_id));
     child_frames.set(move(frame_id), move(child_frame));
 }
 
@@ -43,12 +41,12 @@ Web::NavigationProcessDecision SiteIsolationManager::decide_navigation_process(W
         : Web::NavigationProcessDecision::Remote;
 
     if (target == Web::NavigationTarget::IFrame && frame_id.has_value()) {
-        auto target_owner = decision == Web::NavigationProcessDecision::Local
-            ? ChildFrameOwner::Local
-            : ChildFrameOwner::Remote;
-        record_pending_child_frame_navigation(page_id, *frame_id, target_url, target_owner);
+        auto target_locality = decision == Web::NavigationProcessDecision::Local
+            ? CanonicalNavigable::HostLocality::Local
+            : CanonicalNavigable::HostLocality::Remote;
+        record_pending_child_frame_navigation(page_id, *frame_id, target_url, target_locality);
 
-        if (target_owner == ChildFrameOwner::Local)
+        if (target_locality == CanonicalNavigable::HostLocality::Local)
             transition_child_frame_to_local(parent_client, page_id, *frame_id);
     }
 
@@ -61,15 +59,7 @@ void SiteIsolationManager::did_update_child_frame_viewport(u64 page_id, String f
     if (!child_frame.has_value())
         return;
 
-    child_frame->viewport_rect = viewport_rect;
-    child_frame->device_pixel_ratio = device_pixel_ratio;
-    if (child_frame->is_remote()) {
-        child_frame->remote_client->async_set_viewport(
-            child_frame->remote_page_id,
-            viewport_rect.size(),
-            device_pixel_ratio,
-            Web::ViewportIsFullscreen::No);
-    }
+    child_frame->set_viewport(viewport_rect, device_pixel_ratio);
 }
 
 bool SiteIsolationManager::did_commit_child_frame_navigation(WebContentClient& parent_client, u64 page_id, StringView frame_id, URL::URL const& url)
@@ -78,11 +68,10 @@ bool SiteIsolationManager::did_commit_child_frame_navigation(WebContentClient& p
     if (!child_frame.has_value())
         return false;
 
-    if (child_frame->is_remote())
+    if (child_frame->has_remote_host())
         transition_child_frame_to_local(parent_client, page_id, frame_id);
 
-    child_frame->last_committed_url = url;
-    child_frame->pending_navigation.clear();
+    child_frame->did_commit_navigation(url);
     return true;
 }
 
@@ -106,16 +95,17 @@ Optional<SiteIsolationManager::RemoteChildFrameInputTarget> SiteIsolationManager
         return {};
 
     for (auto const& child_frame_entry : *child_frames) {
-        auto const& child_frame = child_frame_entry.value;
-        if (!child_frame.is_remote() || !child_frame.viewport_rect.has_value())
+        auto const& child_frame = *child_frame_entry.value;
+        auto const& viewport_rect = child_frame.viewport_rect();
+        if (!child_frame.has_remote_host() || !viewport_rect.has_value())
             continue;
-        if (!child_frame.viewport_rect->contains(position))
+        if (!viewport_rect->contains(position))
             continue;
 
         return RemoteChildFrameInputTarget {
-            .remote_client = child_frame.remote_client,
-            .remote_page_id = child_frame.remote_page_id,
-            .viewport_rect = *child_frame.viewport_rect,
+            .remote_client = &child_frame.remote_host_client(),
+            .remote_page_id = child_frame.remote_host_page_id(),
+            .viewport_rect = *viewport_rect,
         };
     }
 
@@ -128,8 +118,7 @@ bool SiteIsolationManager::remote_child_frame_did_finish_loading(WebContentClien
     if (!parent_frame.has_value())
         return false;
 
-    parent_frame->child_frame->last_committed_url = url;
-    parent_frame->child_frame->pending_navigation.clear();
+    parent_frame->child_frame->did_commit_navigation(url);
     parent_frame->parent_client->async_run_iframe_load_event_steps(parent_frame->page_id, parent_frame->frame_id);
     return true;
 }
@@ -140,8 +129,7 @@ bool SiteIsolationManager::remote_child_frame_did_commit_navigation(WebContentCl
     if (!parent_frame.has_value())
         return false;
 
-    parent_frame->child_frame->last_committed_url = url;
-    parent_frame->child_frame->pending_navigation.clear();
+    parent_frame->child_frame->did_commit_navigation(url);
     return true;
 }
 
@@ -194,10 +182,10 @@ String SiteIsolationManager::dump_process_tree(WebContentClient& client, u64 pag
             return child_frame_ids;
 
         for (auto const& child_frame_entry : *child_frames) {
-            auto const& child_frame = child_frame_entry.value;
+            auto const& child_frame = *child_frame_entry.value;
             auto is_child_of_parent_frame = parent_frame_id.has_value()
-                ? child_frame.parent_frame_id == *parent_frame_id
-                : !child_frames->contains(child_frame.parent_frame_id);
+                ? child_frame.parent_id() == *parent_frame_id
+                : !child_frames->contains(child_frame.parent_id());
             if (is_child_of_parent_frame)
                 child_frame_ids.append(child_frame_entry.key);
         }
@@ -214,17 +202,17 @@ String SiteIsolationManager::dump_process_tree(WebContentClient& client, u64 pag
 
         auto child_frame_ids = sorted_child_frame_ids(current_page_id, parent_frame_id);
         for (size_t i = 0; i < child_frame_ids.size(); ++i) {
-            auto child_frame = child_frames->get(child_frame_ids[i]);
+            auto child_frame = this->child_frame(current_page_id, child_frame_ids[i]);
             VERIFY(child_frame.has_value());
 
             builder.append_repeated(' ', depth * 2);
-            builder.appendff("iframe#{}: {}", i, child_frame->is_remote() ? "remote"sv : "local"sv);
-            if (child_frame->is_remote())
-                builder.appendff(" WebContent#{}", process_index(*child_frame->remote_client));
+            builder.appendff("iframe#{}: {}", i, child_frame->has_remote_host() ? "remote"sv : "local"sv);
+            if (child_frame->has_remote_host())
+                builder.appendff(" WebContent#{}", process_index(child_frame->remote_host_client()));
             builder.append('\n');
 
-            if (child_frame->is_remote())
-                dump_frame_tree(*child_frame->remote_client, child_frame->remote_page_id, {}, depth + 1);
+            if (child_frame->has_remote_host())
+                dump_frame_tree(child_frame->remote_host_client(), child_frame->remote_host_page_id(), {}, depth + 1);
             else
                 dump_frame_tree(current_client, current_page_id, child_frame_ids[i].bytes_as_string_view(), depth + 1);
         }
@@ -252,38 +240,33 @@ HashMap<pid_t, pid_t> SiteIsolationManager::remote_frame_process_embedders() con
             continue;
 
         for (auto const& child_frame_entry : page_child_frames.value) {
-            auto const& child_frame = child_frame_entry.value;
-            if (!child_frame.is_remote())
+            auto const& child_frame = *child_frame_entry.value;
+            if (!child_frame.has_remote_host())
                 continue;
 
-            embedders.set(child_frame.remote_client->pid(), embedder_client->pid());
+            embedders.set(child_frame.remote_host_client().pid(), embedder_client->pid());
         }
     }
 
     return embedders;
 }
 
-bool SiteIsolationManager::has_matching_pending_child_frame_navigation(u64 page_id, StringView frame_id, URL::URL const& url, ChildFrameOwner target_owner) const
+bool SiteIsolationManager::has_matching_pending_child_frame_navigation(u64 page_id, StringView frame_id, URL::URL const& url, CanonicalNavigable::HostLocality target_locality) const
 {
     auto child_frame = this->child_frame(page_id, frame_id);
-    if (!child_frame.has_value() || !child_frame->pending_navigation.has_value())
+    if (!child_frame.has_value())
         return false;
 
-    return child_frame->pending_navigation->target_owner == target_owner
-        && child_frame->pending_navigation->target_url == url;
+    return child_frame->has_matching_pending_navigation(url, target_locality);
 }
 
-void SiteIsolationManager::record_pending_child_frame_navigation(u64 page_id, StringView frame_id, URL::URL const& url, ChildFrameOwner target_owner, Optional<u64> remote_page_id)
+void SiteIsolationManager::record_pending_child_frame_navigation(u64 page_id, StringView frame_id, URL::URL const& url, CanonicalNavigable::HostLocality target_locality, Optional<u64> remote_page_id)
 {
     auto child_frame = this->child_frame(page_id, frame_id);
     if (!child_frame.has_value())
         return;
 
-    child_frame->pending_navigation = PendingChildFrameNavigation {
-        .target_url = url,
-        .target_owner = target_owner,
-        .remote_page_id = remote_page_id,
-    };
+    child_frame->record_pending_navigation(url, target_locality, remote_page_id);
 }
 
 void SiteIsolationManager::clear_pending_child_frame_navigation(u64 page_id, StringView frame_id)
@@ -292,10 +275,10 @@ void SiteIsolationManager::clear_pending_child_frame_navigation(u64 page_id, Str
     if (!child_frame.has_value())
         return;
 
-    child_frame->pending_navigation.clear();
+    child_frame->clear_pending_navigation();
 }
 
-void SiteIsolationManager::transition_child_frame_to_remote(WebContentClient& parent_client, u64 page_id, StringView frame_id, RefPtr<WebContentClient> remote_client, u64 remote_page_id)
+void SiteIsolationManager::transition_child_frame_to_remote(WebContentClient& parent_client, u64 page_id, StringView frame_id, NonnullRefPtr<WebContentClient> remote_client, u64 remote_page_id)
 {
     auto child_frame = this->child_frame(page_id, frame_id);
     if (!child_frame.has_value())
@@ -303,9 +286,7 @@ void SiteIsolationManager::transition_child_frame_to_remote(WebContentClient& pa
 
     transition_child_frame_to_local(parent_client, page_id, frame_id);
 
-    child_frame->owner = ChildFrameOwner::Remote;
-    child_frame->remote_client = move(remote_client);
-    child_frame->remote_page_id = remote_page_id;
+    child_frame->set_remote_host(move(remote_client), remote_page_id);
     parent_client.async_set_remote_child_frame_compositor_context(
         page_id,
         MUST(String::from_utf8(frame_id)),
@@ -320,14 +301,7 @@ void SiteIsolationManager::transition_child_frame_to_local(WebContentClient& par
 
     parent_client.async_set_remote_child_frame_compositor_context(page_id, MUST(String::from_utf8(frame_id)), {});
 
-    if (child_frame->is_remote()) {
-        child_frame->remote_client->async_set_page_parent_context(child_frame->remote_page_id, {});
-        child_frame->remote_client->request_close(child_frame->remote_page_id);
-    }
-
-    child_frame->owner = ChildFrameOwner::Local;
-    child_frame->remote_client = nullptr;
-    child_frame->remote_page_id = 0;
+    child_frame->detach_remote_host();
 }
 
 void SiteIsolationManager::close_remote_child_frames_for_page(WebContentClient& parent_client, u64 page_id)
@@ -338,7 +312,7 @@ void SiteIsolationManager::close_remote_child_frames_for_page(WebContentClient& 
 
     Vector<String> remote_child_frame_ids;
     for (auto const& child_frame_entry : *child_frames) {
-        if (child_frame_entry.value.is_remote())
+        if (child_frame_entry.value->has_remote_host())
             remote_child_frame_ids.append(child_frame_entry.key);
     }
 
@@ -346,22 +320,30 @@ void SiteIsolationManager::close_remote_child_frames_for_page(WebContentClient& 
         transition_child_frame_to_local(parent_client, page_id, frame_id);
 }
 
-Optional<SiteIsolationManager::ChildFrameHost&> SiteIsolationManager::child_frame(u64 page_id, StringView frame_id)
+Optional<CanonicalNavigable&> SiteIsolationManager::child_frame(u64 page_id, StringView frame_id)
 {
     auto child_frames = m_child_frames.get(page_id);
     if (!child_frames.has_value())
         return {};
 
-    return child_frames->get(frame_id);
+    auto child_frame = child_frames->get(frame_id);
+    if (!child_frame.has_value())
+        return {};
+
+    return *child_frame.value();
 }
 
-Optional<SiteIsolationManager::ChildFrameHost const&> SiteIsolationManager::child_frame(u64 page_id, StringView frame_id) const
+Optional<CanonicalNavigable const&> SiteIsolationManager::child_frame(u64 page_id, StringView frame_id) const
 {
     auto child_frames = m_child_frames.get(page_id);
     if (!child_frames.has_value())
         return {};
 
-    return child_frames->get(frame_id);
+    auto child_frame = child_frames->get(frame_id);
+    if (!child_frame.has_value())
+        return {};
+
+    return *child_frame.value();
 }
 
 bool SiteIsolationManager::client_owns_page(WebContentClient const& client, u64 page_id)
@@ -380,8 +362,8 @@ Optional<SiteIsolationManager::ParentFrame> SiteIsolationManager::parent_frame_f
                 continue;
 
             for (auto& child_frame_entry : page_child_frames.value) {
-                auto& child_frame = child_frame_entry.value;
-                if (!child_frame.is_remote() || child_frame.remote_client.ptr() != &remote_client || child_frame.remote_page_id != remote_page_id)
+                auto& child_frame = *child_frame_entry.value;
+                if (!child_frame.has_remote_host() || &child_frame.remote_host_client() != &remote_client || child_frame.remote_host_page_id() != remote_page_id)
                     continue;
 
                 result = ParentFrame {
@@ -400,15 +382,9 @@ Optional<SiteIsolationManager::ParentFrame> SiteIsolationManager::parent_frame_f
     return result;
 }
 
-Optional<URL::URL> SiteIsolationManager::document_url_for_child_frame(ChildFrameHost const& child_frame)
+Optional<URL::URL> SiteIsolationManager::document_url_for_child_frame(CanonicalNavigable const& child_frame)
 {
-    if (child_frame.last_committed_url.has_value())
-        return child_frame.last_committed_url;
-
-    if (child_frame.pending_navigation.has_value())
-        return child_frame.pending_navigation->target_url;
-
-    return {};
+    return child_frame.document_url();
 }
 
 URL::URL SiteIsolationManager::document_url_for_page(WebContentClient& client, u64 page_id, URL::URL const& fallback_url)
@@ -426,9 +402,9 @@ URL::URL SiteIsolationManager::document_url_for_page(WebContentClient& client, u
     return fallback_url;
 }
 
-URL::URL SiteIsolationManager::embedding_page_url_for_child_frame_navigation(WebContentClient& parent_client, u64 page_id, ChildFrameHost const& child_frame, URL::URL const& fallback_url)
+URL::URL SiteIsolationManager::embedding_page_url_for_child_frame_navigation(WebContentClient& parent_client, u64 page_id, CanonicalNavigable const& child_frame, URL::URL const& fallback_url)
 {
-    if (auto parent_frame = this->child_frame(page_id, child_frame.parent_frame_id); parent_frame.has_value()) {
+    if (auto parent_frame = this->child_frame(page_id, child_frame.parent_id()); parent_frame.has_value()) {
         if (auto url = document_url_for_child_frame(*parent_frame); url.has_value())
             return *url;
     }

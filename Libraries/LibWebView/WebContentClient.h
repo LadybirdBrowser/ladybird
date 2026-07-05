@@ -39,7 +39,6 @@
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/PrivateBrowsing.h>
-#include <LibWebView/SiteIsolationManager.h>
 #include <WebContent/WebContentClientEndpoint.h>
 #include <WebContent/WebContentServerEndpoint.h>
 
@@ -54,8 +53,6 @@ class WEBVIEW_API WebContentClient final
 
 public:
     using InitTransport = Messages::WebContentServer::InitTransport;
-    using ChildFrameOwner = SiteIsolationManager::ChildFrameOwner;
-    using ChildFrameHost = SiteIsolationManager::ChildFrameHost;
 
     template<CallableAs<IterationDecision, WebContentClient&> Callback>
     static void for_each_client(Callback callback);
@@ -98,10 +95,6 @@ public:
     void notify_presented_bitmap_ready_to_paint(u64 page_id, i32 bitmap_id);
     void did_present_backing_stores(u64 page_id, i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store);
     void did_present_bitmap(u64 page_id, Gfx::IntRect, i32 bitmap_id);
-    Optional<ChildFrameHost const&> child_frame(u64 page_id, StringView frame_id) const;
-
-    template<CallableAs<IterationDecision, String const&, ChildFrameHost const&> Callback>
-    void for_each_child_frame(u64 page_id, Callback callback) const;
 
     pid_t pid() const { return m_process_handle.pid; }
     void set_pid(pid_t pid) { m_process_handle.pid = pid; }
@@ -287,12 +280,6 @@ void WebContentClient::for_each_client(Callback callback)
         if (callback(*it) == IterationDecision::Break)
             return;
     }
-}
-
-template<CallableAs<IterationDecision, String const&, WebContentClient::ChildFrameHost const&> Callback>
-void WebContentClient::for_each_child_frame(u64 page_id, Callback callback) const
-{
-    SiteIsolationManager::the().for_each_child_frame(page_id, move(callback));
 }
 
 }
