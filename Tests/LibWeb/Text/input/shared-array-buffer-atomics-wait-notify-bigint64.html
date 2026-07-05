@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script type="worker">
+    globalThis.onmessage = (e) => {
+        const view = new BigInt64Array(e.data);
+        // Block until the main thread publishes the value via the SharedArrayBuffer. Under load the store can
+        // land before we reach Atomics.wait, which then returns "not-equal" without blocking; loop until the
+        // value is visible so the result is deterministic no matter which thread wins the race.
+        postMessage("ready");
+        while (Atomics.load(view, 0) === 0n)
+            Atomics.wait(view, 0, 0n);
+        postMessage({ value: Atomics.load(view, 0).toString() });
+    };
+</script>
+<script src="include.js"></script>
+<script>
+    asyncTest((done) => {
+        const sab = new SharedArrayBuffer(8);
+        const view = new BigInt64Array(sab);
+        const workerSource = document.querySelector('[type=worker]').innerText;
+        const worker = new Worker(URL.createObjectURL(new Blob([workerSource], { type: "text/javascript" })));
+        worker.onmessage = (e) => {
+            if (e.data === "ready") {
+                Atomics.store(view, 0, 42n);
+                Atomics.notify(view, 0);
+                return;
+            }
+            println("worker saw value: " + e.data.value);
+            done();
+        };
+        worker.postMessage(sab);
+    });
+</script>
