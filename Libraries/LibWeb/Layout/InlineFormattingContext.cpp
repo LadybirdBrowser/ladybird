@@ -526,6 +526,10 @@ void InlineFormattingContext::generate_line_boxes()
         }
     }
 
+    line_builder.update_last_line();
+
+    // NB: This must happen after update_last_line() so that last-line alignment
+    //     adjustments are reflected in the used values of atomic inlines.
     for (auto& line_box : line_boxes) {
         for (auto& fragment : line_box.fragments()) {
             if (fragment.layout_node().is_inline_block()) {
@@ -535,8 +539,6 @@ void InlineFormattingContext::generate_line_boxes()
             }
         }
     }
-
-    line_builder.update_last_line();
 
     if (m_layout_mode == LayoutMode::Normal) {
         for (auto const* box : absolute_boxes) {
