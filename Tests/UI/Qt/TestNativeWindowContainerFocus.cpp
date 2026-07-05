@@ -46,6 +46,19 @@ struct TestWindow {
     QWidget& sibling;
 };
 
+class FocusEventRecorder final : public QObject {
+public:
+    QEvent::Type last_focus_event { QEvent::None };
+
+private:
+    virtual bool eventFilter(QObject*, QEvent* event) override
+    {
+        if (event->type() == QEvent::FocusIn || event->type() == QEvent::FocusOut)
+            last_focus_event = event->type();
+        return false;
+    }
+};
+
 }
 
 TEST_CASE(focus_proxy_follows_container_visibility)
@@ -96,6 +109,33 @@ TEST_CASE(focus_is_not_stolen_from_other_widgets)
 
     Ladybird::set_native_window_container_visible(widgets.host, widgets.container, false);
     EXPECT_EQ(QApplication::focusWidget(), &widgets.sibling);
+}
+
+TEST_CASE(container_focus_events_are_forwarded_to_the_host)
+{
+    application();
+    TestWindow widgets;
+    Ladybird::install_native_window_container_focus_forwarding(widgets.host, widgets.container);
+
+    FocusEventRecorder recorder;
+    widgets.host.installEventFilter(&recorder);
+
+    widgets.host.setFocus();
+    QApplication::processEvents();
+
+    Ladybird::set_native_window_container_visible(widgets.host, widgets.container, true);
+    EXPECT_EQ(QApplication::focusWidget(), &widgets.container);
+    EXPECT_EQ(recorder.last_focus_event, QEvent::FocusIn);
+
+    widgets.sibling.setFocus();
+    EXPECT_EQ(recorder.last_focus_event, QEvent::FocusOut);
+
+    widgets.container.setFocus();
+    EXPECT_EQ(recorder.last_focus_event, QEvent::FocusIn);
+
+    Ladybird::set_native_window_container_visible(widgets.host, widgets.container, false);
+    EXPECT_EQ(QApplication::focusWidget(), &widgets.host);
+    EXPECT_EQ(recorder.last_focus_event, QEvent::FocusIn);
 }
 
 TEST_CASE(visibility_changes_are_idempotent)

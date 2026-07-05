@@ -906,6 +906,7 @@ void WebContentView::create_vulkan_window()
     m_vulkan_window_container->setMouseTracking(true);
     m_vulkan_window_container->setGeometry(rect());
     m_vulkan_window_container->hide();
+    install_native_window_container_focus_forwarding(*this, *m_vulkan_window_container);
 }
 
 void WebContentView::set_vulkan_window_container_visible(bool visible)
