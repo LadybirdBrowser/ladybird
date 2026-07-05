@@ -8,6 +8,7 @@
 #include <AK/BinarySearch.h>
 #include <AK/CharacterTypes.h>
 #include <AK/Utf16StringBuilder.h>
+#include <AK/Utf8View.h>
 #include <LibJS/SourceCode.h>
 #include <LibJS/SourceRange.h>
 #include <LibJS/Token.h>
@@ -73,6 +74,10 @@ void SourceCode::ensure_code() const
     m_code = decode_source_range(0, m_length_in_code_units);
     m_source_bytes = {};
     m_code_view = m_code->utf16_view();
+
+    // The UTF-8 source byte span map is only usable while the source bytes are alive, so drop it here.
+    m_utf8_source_byte_spans.clear();
+    m_can_use_utf8_source_byte_spans = false;
 }
 
 Utf16String const& SourceCode::code() const
@@ -121,6 +126,8 @@ Utf16String SourceCode::source_text_from_offsets(size_t start_offset, size_t len
             VERIFY(all_of(source_text_bytes, AK::is_ascii));
             return Utf16String::from_ascii_without_validation(source_text_bytes);
         }
+        if (auto source_text = source_text_from_utf8_source_bytes(start_offset, length); source_text.has_value())
+            return source_text.release_value();
         return decode_source_range(start_offset, length);
     }
 
@@ -158,6 +165,114 @@ bool SourceCode::source_bytes_can_be_sliced_by_code_unit_offsets() const
     }
 
     return *m_source_bytes_can_be_sliced_by_code_unit_offsets;
+}
+
+Optional<Utf16String> SourceCode::source_text_from_utf8_source_bytes(size_t start_offset, size_t length) const
+{
+    auto start_byte_offset = byte_offset_for_utf8_code_unit_offset(start_offset);
+    if (!start_byte_offset.has_value())
+        return {};
+
+    auto end_byte_offset = byte_offset_for_utf8_code_unit_offset(start_offset + length);
+    if (!end_byte_offset.has_value())
+        return {};
+
+    VERIFY(*start_byte_offset <= *end_byte_offset);
+    auto source_text_bytes = m_source_bytes.bytes().slice(*start_byte_offset, *end_byte_offset - *start_byte_offset);
+    return Utf16String::from_utf8_without_validation(StringView { source_text_bytes });
+}
+
+bool SourceCode::ensure_utf8_source_byte_spans() const
+{
+    if (m_tried_to_build_utf8_source_byte_spans)
+        return m_can_use_utf8_source_byte_spans;
+
+    m_tried_to_build_utf8_source_byte_spans = true;
+
+    auto standardized_encoding = TextCodec::get_standardized_encoding(m_source_encoding.view());
+    if (!standardized_encoding.has_value() || !standardized_encoding->equals_ignoring_ascii_case("UTF-8"sv))
+        return false;
+
+    auto bytes = m_source_bytes.bytes();
+    StringView input { bytes };
+
+    if (bytes.size() >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF) {
+        input = input.substring_view(3);
+        m_utf8_source_byte_span_initial_byte_offset = 3;
+    } else if (bytes.size() >= 2 && ((bytes[0] == 0xFE && bytes[1] == 0xFF) || (bytes[0] == 0xFF && bytes[1] == 0xFE))) {
+        return false;
+    }
+
+    auto utf8_view = Utf8View { input };
+    if (!utf8_view.validate(AllowLonelySurrogates::No))
+        return false;
+
+    size_t code_unit_offset = 0;
+    size_t byte_offset = m_utf8_source_byte_span_initial_byte_offset;
+    for (auto it = utf8_view.begin(); it != utf8_view.end(); ++it) {
+        auto code_point = *it;
+        size_t code_unit_length = code_point <= 0xffff ? 1 : 2;
+        auto byte_length = it.underlying_code_point_length_in_bytes();
+        if (byte_length != code_unit_length) {
+            m_utf8_source_byte_spans.append({
+                .code_unit_offset = code_unit_offset,
+                .code_unit_length = code_unit_length,
+                .byte_offset = byte_offset,
+                .byte_length = byte_length,
+            });
+        }
+        code_unit_offset += code_unit_length;
+        byte_offset += byte_length;
+    }
+
+    if (code_unit_offset != m_length_in_code_units) {
+        m_utf8_source_byte_spans.clear();
+        return false;
+    }
+
+    m_can_use_utf8_source_byte_spans = true;
+    return true;
+}
+
+Optional<size_t> SourceCode::byte_offset_for_utf8_code_unit_offset(size_t code_unit_offset) const
+{
+    if (code_unit_offset > m_length_in_code_units)
+        return {};
+
+    if (!ensure_utf8_source_byte_spans())
+        return {};
+
+    size_t low = 0;
+    size_t high = m_utf8_source_byte_spans.size();
+    while (low < high) {
+        auto middle = low + (high - low) / 2;
+        auto const& span = m_utf8_source_byte_spans[middle];
+        auto span_end = span.code_unit_offset + span.code_unit_length;
+        if (span_end <= code_unit_offset)
+            low = middle + 1;
+        else
+            high = middle;
+    }
+
+    if (low < m_utf8_source_byte_spans.size()) {
+        auto const& span = m_utf8_source_byte_spans[low];
+        if (code_unit_offset >= span.code_unit_offset && code_unit_offset < span.code_unit_offset + span.code_unit_length) {
+            if (code_unit_offset == span.code_unit_offset)
+                return span.byte_offset;
+            return {};
+        }
+    }
+
+    size_t byte_delta = m_utf8_source_byte_span_initial_byte_offset;
+    if (low > 0) {
+        auto const& previous_span = m_utf8_source_byte_spans[low - 1];
+        auto previous_span_end_byte_offset = previous_span.byte_offset + previous_span.byte_length;
+        auto previous_span_end_code_unit_offset = previous_span.code_unit_offset + previous_span.code_unit_length;
+        VERIFY(previous_span_end_byte_offset >= previous_span_end_code_unit_offset);
+        byte_delta = previous_span_end_byte_offset - previous_span_end_code_unit_offset;
+    }
+
+    return code_unit_offset + byte_delta;
 }
 
 Utf16String SourceCode::decode_source_range(size_t start_offset, size_t length) const
