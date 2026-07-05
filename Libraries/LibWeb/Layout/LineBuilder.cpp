@@ -234,9 +234,16 @@ CSSPixels LineBuilder::ceiling_for_float_to_be_inserted_here(Box const& box)
     auto const& current_line = ensure_last_line_box();
     auto current_line_width = current_line.width() - current_line.get_trailing_whitespace_width();
 
+    // A float interrupting an unbreakable run cannot let the remainder of the run overflow across it;
+    // the remainder must also fit beside the float for the float to stay on this line.
+    auto width_needed_beside_float = current_line_width;
+    if (!current_line.is_empty_or_ends_in_whitespace())
+        width_needed_beside_float += m_unbreakable_run_width_interrupted_by_float;
+    m_unbreakable_run_width_interrupted_by_float = 0;
+
     // If there's already inline content on the current line, check if the new float can fit
     // alongside the content. If not, place it on the next line.
-    if (current_line_width > 0 && (current_line_width + width) > m_available_width_for_current_line)
+    if (current_line_width > 0 && (width_needed_beside_float + width) > m_available_width_for_current_line)
         candidate_block_offset += current_line.height();
 
     return max(candidate_block_offset, m_context.vertical_float_clearance());

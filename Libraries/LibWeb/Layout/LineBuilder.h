@@ -51,6 +51,7 @@ public:
 
     void recalculate_available_space();
     CSSPixels ceiling_for_float_to_be_inserted_here(Box const&);
+    void set_unbreakable_run_width_interrupted_by_float(CSSPixels width) { m_unbreakable_run_width_interrupted_by_float = width; }
 
     void did_introduce_clearance(CSSPixels);
 
@@ -67,6 +68,7 @@ private:
     AvailableSize m_available_width_for_current_line { AvailableSize::make_indefinite() };
     CSSPixels m_current_block_offset { 0 };
     CSSPixels m_max_height_on_current_line { 0 };
+    CSSPixels m_unbreakable_run_width_interrupted_by_float { 0 };
     CSSPixels m_text_indent { 0 };
     bool m_text_indent_hanging : 1 { false };
     bool m_text_indent_each_line : 1 { false };
