@@ -70,6 +70,8 @@ private:
 
 #endif
 
+static constexpr int new_window_cascade_offset = 32;
+
 #if defined(AK_OS_MACOS)
 static bool has_visible_browser_window()
 {
@@ -335,6 +337,31 @@ void Application::set_active_window(BrowserWindow& window)
     update_macos_application_menu();
 }
 
+WindowConfiguration Application::configuration_for_new_window() const
+{
+    if (auto* previous_active_window = active_window_if_any(); previous_active_window && previous_active_window->isVisible()) {
+        return {
+            .x = previous_active_window->pos().x() + new_window_cascade_offset,
+            .y = previous_active_window->pos().y() + new_window_cascade_offset,
+            .width = previous_active_window->width(),
+            .height = previous_active_window->height(),
+            .maximized = previous_active_window->isMaximized(),
+        };
+    }
+
+    auto last_size = Settings::the()->last_size();
+    WindowConfiguration configuration {
+        .width = last_size.width(),
+        .height = last_size.height(),
+        .maximized = Settings::the()->is_maximized(),
+    };
+    if (auto last_position = Settings::the()->last_position(); last_position.has_value()) {
+        configuration.x = last_position->x();
+        configuration.y = last_position->y();
+    }
+    return configuration;
+}
+
 void Application::open_new_tab()
 {
     if (!m_active_window) {
@@ -349,13 +376,7 @@ void Application::open_new_tab()
 
 void Application::open_new_window()
 {
-    WindowConfiguration configuration {};
-    if (auto* previous_active_window = active_window_if_any()) {
-        configuration.width = previous_active_window->width();
-        configuration.height = previous_active_window->height();
-        configuration.maximized = previous_active_window->isMaximized();
-    }
-    new_window({ WebView::Application::settings().new_tab_page_url() }, configuration);
+    new_window({ WebView::Application::settings().new_tab_page_url() }, configuration_for_new_window());
 }
 
 void Application::focus_location_editor()

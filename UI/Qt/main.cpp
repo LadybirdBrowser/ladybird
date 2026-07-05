@@ -90,13 +90,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         };
 
         browser_process.on_new_window = [&](auto const& urls) {
-            Ladybird::WindowConfiguration configuration {};
-            if (auto* previous_active_window = app->active_window_if_any()) {
-                configuration.width = previous_active_window->width();
-                configuration.height = previous_active_window->height();
-                configuration.maximized = previous_active_window->isMaximized();
-            }
-            app->new_window(urls, configuration);
+            app->new_window(urls, app->configuration_for_new_window());
         };
 
         auto last_size = Ladybird::Settings::the()->last_size();

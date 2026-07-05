@@ -34,6 +34,7 @@ public:
 
     Function<void(URL::URL)> on_open_file;
     BrowserWindow& new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& = {}, BrowserWindow::IsPopupWindow is_popup_window = BrowserWindow::IsPopupWindow::No, Tab* parent_tab = nullptr, Optional<u64> page_index = {});
+    WindowConfiguration configuration_for_new_window() const;
     void open_new_tab();
     void open_new_window();
     void focus_location_editor();
