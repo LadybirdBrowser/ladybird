@@ -645,7 +645,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     toolbar_layout->setSpacing(6);
     toolbar_layout->setContentsMargins(TOOLBAR_HORIZONTAL_MARGIN, TOOLBAR_VERTICAL_MARGIN, TOOLBAR_HORIZONTAL_MARGIN, TOOLBAR_VERTICAL_MARGIN);
 
-    m_location_edit = new LocationEdit(this);
+    m_location_edit = new LocationEdit(this, m_window->is_private());
     m_bookmarks_bar = new BookmarksBar(this);
     m_loading_animation_timer = new QTimer(this);
     m_loading_animation_timer->setInterval(80);

@@ -94,9 +94,9 @@ static constexpr int LOCATION_TRAILING_ACTION_HEIGHT = 23;
 static constexpr int LOCATION_PILL_HEIGHT = 22;
 static constexpr int LOCATION_PILL_HORIZONTAL_PADDING = 18;
 
-LocationEdit::LocationEdit(QWidget* parent)
+LocationEdit::LocationEdit(QWidget* parent, WebView::IsPrivate is_private)
     : QLineEdit(parent)
-    , m_omnibox(WebView::IsPrivate::No)
+    , m_omnibox(is_private)
     , m_autocomplete(new Autocomplete(this))
 {
     setObjectName("LadybirdLocationEdit");

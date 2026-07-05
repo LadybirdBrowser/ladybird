@@ -8,6 +8,7 @@
 #pragma once
 
 #include <LibWebView/Omnibox.h>
+#include <LibWebView/PrivateBrowsing.h>
 #include <LibWebView/Settings.h>
 
 #include <QLineEdit>
@@ -31,7 +32,7 @@ class LocationEdit final
     Q_OBJECT
 
 public:
-    explicit LocationEdit(QWidget*);
+    LocationEdit(QWidget*, WebView::IsPrivate);
 
     void set_trailing_action(QAction*);
     QAction* trailing_action() const;
