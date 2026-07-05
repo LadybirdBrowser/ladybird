@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NumericLimits.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
@@ -53,6 +54,15 @@ GC::Ref<ArrayBuffer> ArrayBuffer::create(Realm& realm, DataBlock block)
     auto array_buffer = realm.create<ArrayBuffer>(static_cast<ByteBuffer*>(nullptr), is_shared, prototype_for_shared_state(realm, is_shared));
     array_buffer->set_data_block(move(block));
     return array_buffer;
+}
+
+GC::Ref<ArrayBuffer> ArrayBuffer::create(Realm& realm, Core::AnonymousBuffer anonymous_buffer)
+{
+    // AD-HOC: Reconstruct a shared, fixed-length SharedArrayBuffer over already-mapped cross-process shared memory
+    //         (used when deserializing a SharedArrayBuffer whose backing was transferred by file descriptor).
+    // NB: create(realm, DataBlock) already accounts for the external memory via set_data_block() — so, unlike the
+    //     ByteBuffer overload above (which sets m_data_block through the constructor), we must not did_allocate again.
+    return create(realm, DataBlock { DataBlock::SharedBackingStore { move(anonymous_buffer) }, DataBlock::Shared::Yes });
 }
 
 ArrayBuffer::ArrayBuffer(DataBlock::OwnedBackingStore buffer, DataBlock::Shared is_shared, Object& prototype)
@@ -161,6 +171,25 @@ static ThrowCompletionOr<DataBlock> create_shared_byte_data_block(VM& vm, size_t
 {
     if (!capacity.has_value())
         capacity = size;
+
+    // AD-HOC: A fixed-length shared Data Block is backed by cross-process shared memory (Core::AnonymousBuffer) — so
+    //         that the SharedArrayBuffer is genuinely shared across agents in different processes, rather than copied.
+    //         Fresh anonymous shared memory is zero-filled by the OS. Growable shared Data Blocks (capacity > size)
+    //         still use process-local storage (for now).
+    if (*capacity == size && size > 0) {
+        // AD-HOC: Cap the shared allocation — so one SharedArrayBuffer can't reserve an absurd amount of address space
+        //         in every agent that maps it. Chromium caps its shared-memory regions at INT_MAX; match that (the fd
+        //         transport also carries the size as a u32).
+        if (size > static_cast<size_t>(NumericLimits<i32>::max()))
+            return vm.throw_completion<RangeError>(ErrorType::InvalidLength, "shared array buffer");
+
+        // Seal the fixed-length shared memfd against resizing: A compromised agent holding the transferred fd must not
+        // be able to shrink it, and SIGBUS its same-origin siblings.
+        auto anonymous_buffer = Core::AnonymousBuffer::create_with_size(size, /* seal_immutable_size */ true);
+        if (anonymous_buffer.is_error())
+            return vm.throw_completion<RangeError>(ErrorType::NotEnoughMemoryToAllocate, size);
+        return DataBlock { DataBlock::SharedBackingStore { anonymous_buffer.release_value() }, DataBlock::Shared::Yes };
+    }
 
     // 1. Let db be a new Shared Data Block value consisting of size bytes. If it is impossible to create such a Shared Data Block, throw a RangeError exception.
     auto data_block = DataBlock::OwnedBackingStore::create_zeroed_with_capacity(size, *capacity);

@@ -1,0 +1,2 @@
+port2 saw initial: 1
+after port2 writes 2, port1 view sees: 2

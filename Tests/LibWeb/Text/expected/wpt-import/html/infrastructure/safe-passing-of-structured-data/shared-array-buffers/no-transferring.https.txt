@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Trying to transfer a SharedArrayBuffer to this window throws
+Pass	Trying to transfer a SharedArrayBuffer to a worker throws
+Pass	Trying to transfer a SharedArrayBuffer through a MessagePort throws

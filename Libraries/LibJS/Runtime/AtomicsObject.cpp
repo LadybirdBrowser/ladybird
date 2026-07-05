@@ -25,6 +25,16 @@
 #include <LibJS/Runtime/Value.h>
 #include <LibJS/Runtime/ValueInlines.h>
 
+// Cross-process SharedArrayBuffer atomicity relies on the hardware atomics used here (in AtomicsObject and in
+// ArrayBuffer's get/set/get-modify-set paths) being lock-free. A non-lock-free atomic falls back to a process-local
+// lock table — which can't synchronize the separate processes that host different agents. So, shared updates would be
+// silently lost. Every platform for which we currently build provides lock-free, naturally-aligned 1/2/4/8-byte
+// atomics; assert that — so any future port to a platform for which that isn't true won't end up quietly break SAB.
+static_assert(__atomic_always_lock_free(sizeof(u8), static_cast<u8 const*>(nullptr)));
+static_assert(__atomic_always_lock_free(sizeof(u16), static_cast<u16 const*>(nullptr)));
+static_assert(__atomic_always_lock_free(sizeof(u32), static_cast<u32 const*>(nullptr)));
+static_assert(__atomic_always_lock_free(sizeof(u64), static_cast<u64 const*>(nullptr)));
+
 namespace JS {
 
 GC_DEFINE_ALLOCATOR(AtomicsObject);
@@ -236,18 +246,23 @@ static ThrowCompletionOr<Value> perform_atomic_operation(VM& vm, TypedArrayBase&
     auto index = vm.argument(1);
     auto value = vm.argument(2);
 
-    auto operation_wrapper = [&, operation = forward<AtomicFunction>(operation)](ByteBuffer x_bytes, ByteBuffer y_bytes) -> ByteBuffer {
+    auto operation_wrapper = [&, operation = forward<AtomicFunction>(operation)](Bytes x_bytes, ReadonlyBytes y_bytes) -> ByteBuffer {
         if constexpr (IsFloatingPoint<T>) {
             (void)operation;
             VERIFY_NOT_REACHED();
         } else {
             using U = Conditional<IsSame<ClampedU8, T>, u8, T>;
 
-            auto* x = reinterpret_cast<U*>(x_bytes.data());
-            auto* y = reinterpret_cast<U*>(y_bytes.data());
-            operation(x, *y);
+            // x_bytes aliases the live (possibly shared cross-agent) buffer bytes. Perform the atomic read-modify-write
+            // directly on them, and return the value that was read.
+            auto* x = reinterpret_cast<U volatile*>(x_bytes.data());
+            U y;
+            __builtin_memcpy(&y, y_bytes.data(), sizeof(U));
+            U read_value = operation(x, y);
 
-            return x_bytes;
+            auto result_bytes = MUST(ByteBuffer::create_uninitialized(sizeof(U)));
+            __builtin_memcpy(result_bytes.data(), &read_value, sizeof(U));
+            return result_bytes;
         }
     };
 
@@ -366,30 +381,31 @@ static ThrowCompletionOr<Value> atomic_compare_exchange_impl(VM& vm, TypedArrayB
     auto replacement_bytes = MUST(ByteBuffer::create_uninitialized(sizeof(T)));
     numeric_to_raw_bytes<T>(vm, replacement, is_little_endian, replacement_bytes);
 
-    // FIXME: Implement SharedArrayBuffer case.
     // 12. If IsSharedArrayBuffer(buffer) is true, then
     //     a. Let rawBytesRead be AtomicCompareExchangeInSharedBlock(block, byteIndexInBuffer, elementSize, expectedBytes, replacementBytes).
     // 13. Else,
-
-    // a. Let rawBytesRead be a List of length elementSize whose elements are the sequence of elementSize bytes starting with block[byteIndexInBuffer].
-    auto raw_bytes_read = MUST(ByteBuffer::create_uninitialized(sizeof(T)));
-    buffer->copy_to(byte_index_in_buffer, raw_bytes_read);
-
-    // b. If ByteListEqual(rawBytesRead, expectedBytes) is true, then
-    //    i. Store the individual bytes of replacementBytes into block, starting at block[byteIndexInBuffer].
+    //     a. Let rawBytesRead be a List of length elementSize whose elements are the sequence of elementSize bytes starting with block[byteIndexInBuffer].
+    //     b. If ByteListEqual(rawBytesRead, expectedBytes) is true, then
+    //        i. Store the individual bytes of replacementBytes into block, starting at block[byteIndexInBuffer].
+    // AD-HOC: A single sequentially-consistent compare-exchange on the live block implements both branches: for a
+    //         shared block, it's the required atomic operation (step 12.a); for a non-shared block, there's no
+    //         concurrency — so it's equivalent to the plain read-compare-store (steps 13.a-b).
     if constexpr (IsFloatingPoint<T>) {
         VERIFY_NOT_REACHED();
     } else {
         using U = Conditional<IsSame<ClampedU8, T>, u8, T>;
 
-        auto* v = reinterpret_cast<U*>(buffer->data_at(byte_index_in_buffer));
+        // Compare-and-exchange directly on the live (possibly shared cross-agent) block. On a mismatch,
+        // atomic_compare_exchange_strong writes the observed value back into expected — so expected_bytes ends up
+        // holding rawBytesRead: the value actually seen by the atomic operation.
+        auto* v = reinterpret_cast<U volatile*>(buffer->data_at(byte_index_in_buffer));
         auto* e = reinterpret_cast<U*>(expected_bytes.data());
         auto* r = reinterpret_cast<U*>(replacement_bytes.data());
         (void)AK::atomic_compare_exchange_strong(v, *e, *r);
     }
 
     // 14. Return RawBytesToNumeric(elementType, rawBytesRead, isLittleEndian).
-    return raw_bytes_to_numeric<T>(vm, raw_bytes_read, is_little_endian);
+    return raw_bytes_to_numeric<T>(vm, expected_bytes, is_little_endian);
 }
 
 // 25.4.6 Atomics.compareExchange ( typedArray, index, expectedValue, replacementValue ), https://tc39.es/ecma262/#sec-atomics.compareexchange
