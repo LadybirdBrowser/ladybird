@@ -7,6 +7,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/Window.h>
@@ -146,6 +147,15 @@ CanUseCrossOriginIsolatedAPIs WindowEnvironmentSettingsObject::cross_origin_isol
     // FIXME: Return true if both of the following hold, and false otherwise:
     //          1. realm's agent cluster's cross-origin-isolation mode is "concrete", and
     //          2. window's associated Document is allowed to use the "cross-origin-isolated" feature.
+    // AD-HOC: Until we track an agent cluster's cross-origin-isolation mode (point 1) or the "cross-origin-isolated"
+    //         feature (point 2), we approximate this from the associated Document's cross-origin opener policy: It is
+    //         "same-origin-plus-COEP" exactly when the document was served (in a secure context) with COOP:same-origin
+    //         and COEP:require-corp — the condition for cross-origin isolation.
+    // NB: This can be called before the window's document is associated (e.g., via time coarsening during setup) — so,
+    //     we guard against a null document here.
+    auto document = m_window ? m_window->associated_document_if_any() : nullptr;
+    if (document && document->opener_policy().value == OpenerPolicyValue::SameOriginPlusCOEP)
+        return CanUseCrossOriginIsolatedAPIs::Yes;
     return CanUseCrossOriginIsolatedAPIs::No;
 }
 

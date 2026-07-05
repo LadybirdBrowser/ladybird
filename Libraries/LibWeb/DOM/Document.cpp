@@ -458,6 +458,7 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     document->set_origin(navigation_params.origin);
     document->set_browsing_context(browsing_context);
     document->m_policy_container = navigation_params.policy_container;
+    document->set_opener_policy(navigation_params.opener_policy);
     document->m_active_sandboxing_flag_set = navigation_params.final_sandboxing_flag_set;
     document->m_navigation_id = navigation_params.id;
     document->set_load_timing_info(load_timing_info);

@@ -1,0 +1,3 @@
+crossOriginIsolated: true
+typeof SharedArrayBuffer: function
+SharedArrayBuffer serialization threw: false
