@@ -9,5 +9,10 @@ SaveLayer@0
   CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,10 800x60]
   CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,10 60x60]
   FillPath@1 path_bounding_rect=[0,10 60x60]
-  DrawGlyphRun@1 rect=[5,15 50x50] translation=[-25,43] color=rgb(0, 0, 0)
+  Save@1
+    AddClipRect@1 rect=[5,15 50x50]
+    DrawGlyphRun@1 rect=[5,15 50x50] translation=[5,23] color=rgb(0, 0, 0)
+    DrawGlyphRun@1 rect=[5,15 50x50] translation=[5,33] color=rgb(0, 0, 0)
+    DrawGlyphRun@1 rect=[5,15 50x50] translation=[5,43] color=rgb(0, 0, 0)
+  Restore@1
 Restore@0
