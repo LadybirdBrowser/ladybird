@@ -6,6 +6,7 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/ScopeGuard.h>
 #include <AK/TemporaryChange.h>
 #include <LibCore/EventLoop.h>
 #include <LibJS/Runtime/VM.h>
@@ -90,6 +91,16 @@ void EventLoop::spin_until(GC::Ref<GC::Function<bool()>> goal_condition)
     auto& vm = this->vm();
     vm.save_execution_context_stack();
     vm.clear_execution_context_stack();
+
+    // AD-HOC: spin_until may be invoked synchronously in a microtask checkpoint (e.g., sync XHR from an async function
+    //         resumed after 'await'; its continuation runs as a microtask). Because performing a microtask checkpoint
+    //         is non-reentrant, the microtasks the spun operation depends on (e.g., reading to completion the fetch
+    //         response body's stream) would never run, deadlocking the spin. spin_until establishes a nested event-loop
+    //         context (it saves and clears the JavaScript execution context stack above, and pumps tasks and microtask
+    //         checkpoints below). So, let microtask checkpoints run during the spin, restoring the flag on the way out.
+    auto was_performing_a_microtask_checkpoint = m_performing_a_microtask_checkpoint;
+    m_performing_a_microtask_checkpoint = false;
+    ScopeGuard restore_microtask_checkpoint_state = [&] { m_performing_a_microtask_checkpoint = was_performing_a_microtask_checkpoint; };
 
     // 5. Perform a microtask checkpoint.
     perform_a_microtask_checkpoint();

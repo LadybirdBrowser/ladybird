@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A sync XHR performed from within a microtask (here, an async function resumed after await) must not deadlock.
+    // Reading the response body to completion needs microtasks to run — and performing a microtask checkpoint is
+    // non-reentrant. So, spinning the event loop for the synchronous send must still let microtask checkpoints run.
+    asyncTest(async (done) => {
+        await Promise.resolve();
+
+        const xhr = new XMLHttpRequest();
+        xhr.open("GET", "data:text/plain,hello", false);
+        xhr.send();
+
+        println("status=" + xhr.status + " response=" + xhr.responseText);
+        done();
+    });
+</script>
