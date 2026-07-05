@@ -4186,6 +4186,7 @@ bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_conf
 
     Painting::ScrollStateSnapshot scroll_state_snapshot { document_paintable->scroll_state_snapshot() };
     if (should_record_display_list) {
+        m_compositor_display_list_visual_context_tree_version = display_list->compatible_visual_context_tree_version();
         compositor_context().update_display_list(*display_list, visual_context_tree.release_value(), move(resource_transaction), move(scroll_state_snapshot));
         document_paintable->did_update_visual_context_tree_in_compositor();
         m_display_list_resource_storage.retain_only(display_list_resources);
@@ -4194,6 +4195,7 @@ bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_conf
         m_compositor_display_list_paint_config = paint_config;
     } else {
         if (visual_context_tree_needs_compositor_update) {
+            VERIFY(document_paintable->visual_context_tree().version() == m_compositor_display_list_visual_context_tree_version);
             compositor_context().update_visual_context_tree(document_paintable->visual_context_tree());
             document_paintable->did_update_visual_context_tree_in_compositor();
         }
