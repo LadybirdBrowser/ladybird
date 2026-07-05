@@ -31,6 +31,9 @@ static void apply_element_style_invalidation_after_style_change(DOM::Element& el
     if (invalidate_descendant_slots && (invalidation.inherited_style_changed || invalidation.rebuild_layout_tree))
         Invalidation::invalidate_assigned_slottables_for_descendant_slots_after_inherited_style_change(element);
 
+    if (invalidation.update_accumulated_visual_context_values && !invalidation.rebuild_accumulated_visual_contexts)
+        element.document().schedule_accumulated_visual_context_value_update(element);
+
     if (invalidation.relayout)
         element.set_needs_layout_update(DOM::SetNeedsLayoutReason::StyleChange);
     if (invalidation.rebuild_layout_tree) {

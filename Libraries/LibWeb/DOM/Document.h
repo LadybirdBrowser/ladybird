@@ -939,6 +939,8 @@ public:
 
     void set_needs_accumulated_visual_contexts_update(bool);
     bool needs_accumulated_visual_contexts_update() const { return m_needs_accumulated_visual_contexts_update; }
+    void schedule_accumulated_visual_context_value_update(Element&);
+    void schedule_accumulated_visual_context_value_update(Layout::Node const&);
 
     virtual JS::Value named_item_value(FlyString const& name) const override;
     virtual Vector<FlyString> supported_property_names() const override;
@@ -1547,6 +1549,7 @@ private:
     bool m_design_mode_enabled { false };
 
     bool m_needs_accumulated_visual_contexts_update { false };
+    Vector<WeakPtr<Painting::PaintableBox>> m_paintable_boxes_needing_visual_context_value_update;
     bool m_needs_invalidation_of_elements_affected_by_has { false };
     RefPtr<Painting::HitTestDisplayList> m_hit_test_display_list;
     Optional<CSSPixelRect> m_caret_hit_test_debug_rect;

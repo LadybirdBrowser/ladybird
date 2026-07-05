@@ -135,6 +135,7 @@ public:
     WEB_API void reuse_version_from(AccumulatedVisualContextTree const&);
 
     AccumulatedVisualContextNode const& node_at(VisualContextIndex index) const { return m_nodes[index.value()]; }
+    AccumulatedVisualContextNode& node_at(VisualContextIndex index) { return m_nodes[index.value()]; }
     ReadonlySpan<AccumulatedVisualContextNode> nodes() const { return m_nodes.span(); }
 
     VisualContextIndex find_common_ancestor(VisualContextIndex a, VisualContextIndex b) const;

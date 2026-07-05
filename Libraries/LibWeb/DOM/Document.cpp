@@ -2110,8 +2110,21 @@ void Document::update_paint_and_hit_testing_properties_if_needed()
 
     if (m_needs_accumulated_visual_contexts_update) {
         m_needs_accumulated_visual_contexts_update = false;
+        m_paintable_boxes_needing_visual_context_value_update.clear_with_capacity();
         if (auto paintable = this->unsafe_paintable()) {
             paintable->assign_accumulated_visual_contexts();
+        }
+    } else if (!m_paintable_boxes_needing_visual_context_value_update.is_empty()) {
+        auto paintable_boxes = move(m_paintable_boxes_needing_visual_context_value_update);
+        if (auto paintable = this->unsafe_paintable()) {
+            for (auto const& weak_paintable_box : paintable_boxes) {
+                auto paintable_box = weak_paintable_box.strong_ref();
+                if (!paintable_box || !paintable->update_accumulated_visual_context_values(*paintable_box)) {
+                    // Structure changed after all; rebuild the whole tree.
+                    paintable->assign_accumulated_visual_contexts();
+                    break;
+                }
+            }
         }
     }
 }
@@ -8141,6 +8154,41 @@ void Document::set_needs_accumulated_visual_contexts_update(bool value)
     m_needs_accumulated_visual_contexts_update = value;
     if (value)
         set_needs_repaint(InvalidateDisplayList::No);
+}
+
+void Document::schedule_accumulated_visual_context_value_update(Layout::Node const& layout_node)
+{
+    // NB: A full rebuild is already pending and will refresh all node values anyway.
+    if (m_needs_accumulated_visual_contexts_update)
+        return;
+
+    // NB: Cap the queue in case it's never consumed (e.g. forced style updates in a document that never paints).
+    static constexpr size_t max_pending_visual_context_value_updates = 1024;
+    if (m_paintable_boxes_needing_visual_context_value_update.size() >= max_pending_visual_context_value_updates) {
+        m_paintable_boxes_needing_visual_context_value_update.clear();
+        set_needs_accumulated_visual_contexts_update(true);
+        return;
+    }
+
+    bool scheduled_any = false;
+    for (auto const& layout_node_paintable : layout_node.paintables()) {
+        if (auto* paintable_box = as_if<Painting::PaintableBox>(*layout_node_paintable)) {
+            m_paintable_boxes_needing_visual_context_value_update.append(*paintable_box);
+            scheduled_any = true;
+        }
+    }
+    if (scheduled_any)
+        set_needs_repaint(InvalidateDisplayList::No);
+}
+
+void Document::schedule_accumulated_visual_context_value_update(Element& element)
+{
+    if (auto* layout_node = element.unsafe_layout_node())
+        schedule_accumulated_visual_context_value_update(*layout_node);
+    element.for_each_synthetic_pseudo_element([&](CSS::PseudoElement, SyntheticPseudoElement const& pseudo_element) {
+        if (auto* pseudo_element_layout_node = pseudo_element.unsafe_layout_node())
+            schedule_accumulated_visual_context_value_update(*pseudo_element_layout_node);
+    });
 }
 
 void Document::set_needs_to_record_display_list()

@@ -135,6 +135,33 @@ static bool accumulated_visual_context_change_requires_repaint(CSS::PropertyID p
     return false;
 }
 
+// Whether this change only affects values carried by existing accumulated visual context nodes, so they can be
+// patched in place. Presence flips (e.g. transform none <-> non-none) change the tree structure and which boxes
+// establish abs/fixed positioning containing blocks, and must rebuild instead.
+// NB: Must only include properties whose data update_accumulated_visual_context_values() recomputes.
+static bool accumulated_visual_context_change_is_value_only(CSS::PropertyID property_id, StyleValue const* old_value, StyleValue const* new_value)
+{
+    switch (property_id) {
+    case CSS::PropertyID::TransformOrigin:
+    case CSS::PropertyID::PerspectiveOrigin:
+        // Origins never affect node presence.
+        return true;
+    case CSS::PropertyID::Transform:
+    case CSS::PropertyID::Translate:
+    case CSS::PropertyID::Rotate:
+    case CSS::PropertyID::Scale:
+    case CSS::PropertyID::Opacity:
+    case CSS::PropertyID::Filter:
+    case CSS::PropertyID::MixBlendMode:
+    case CSS::PropertyID::Perspective:
+        // Value-only when the property contributes a node both before and after the change.
+        return is_stacking_context_creating_value(property_id, old_value)
+            && is_stacking_context_creating_value(property_id, new_value);
+    default:
+        return false;
+    }
+}
+
 RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::PropertyID property_id, StyleValue const* old_value, StyleValue const* new_value)
 {
     RequiredInvalidationAfterStyleChange invalidation;
@@ -212,7 +239,10 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
     invalidation.repaint = true;
 
     if (CSS::property_affects_accumulated_visual_contexts(property_id)) {
-        invalidation.rebuild_accumulated_visual_contexts = true;
+        if (accumulated_visual_context_change_is_value_only(property_id, old_value, new_value))
+            invalidation.update_accumulated_visual_context_values = true;
+        else
+            invalidation.rebuild_accumulated_visual_contexts = true;
         if (!accumulated_visual_context_change_requires_repaint(property_id, old_value, new_value)
             && !invalidation.rebuild_stacking_context_tree
             && !invalidation.relayout

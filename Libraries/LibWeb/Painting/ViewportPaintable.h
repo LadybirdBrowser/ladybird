@@ -31,6 +31,7 @@ public:
     void refresh_scroll_state();
 
     void assign_accumulated_visual_contexts();
+    bool update_accumulated_visual_context_values(PaintableBox&);
     void update_visual_viewport_accumulated_visual_context();
     bool visual_context_tree_needs_compositor_update() const { return m_visual_context_tree_needs_compositor_update; }
     void did_update_visual_context_tree_in_compositor() { m_visual_context_tree_needs_compositor_update = false; }

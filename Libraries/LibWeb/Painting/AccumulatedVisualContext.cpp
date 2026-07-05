@@ -29,6 +29,7 @@
 namespace Web::Painting {
 
 AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaintable&);
+bool update_accumulated_visual_context_values(ViewportPaintable&, PaintableBox&);
 void update_visual_viewport_accumulated_visual_context(ViewportPaintable&);
 
 bool ClipData::contains(DevicePixelPoint point) const
@@ -275,6 +276,34 @@ static Optional<ClipPathData> compute_basic_shape_clip_path_data(PaintableBox co
     return ClipPathData { move(device_path), device_bounding_rect, fill_rule };
 }
 
+static Optional<PerspectiveData> compute_perspective_data(PaintableBox const& paintable_box, CSS::ComputedValues const& computed_values, float scale)
+{
+    auto perspective_matrix = compute_perspective_matrix(paintable_box, computed_values);
+    if (!perspective_matrix.has_value())
+        return {};
+    return PerspectiveData { scale_matrix_for_device_pixels(*perspective_matrix, scale) };
+}
+
+// NB: Resolves the box's filter as a side effect, since the effects data embeds the resolved gfx filter.
+static Optional<EffectsData> compute_effects_data(PaintableBox& box, double pixel_ratio)
+{
+    auto const& computed_values = box.computed_values();
+    if (computed_values.filter().has_filters())
+        box.set_filter(resolve_css_filter(computed_values.filter(), box));
+    else
+        box.set_filter({});
+
+    auto gfx_filter = to_gfx_filter(box.filter(), pixel_ratio);
+    EffectsData effects {
+        computed_values.opacity(),
+        mix_blend_mode_to_compositing_and_blending_operator(computed_values.mix_blend_mode()),
+        move(gfx_filter)
+    };
+    if (!effects.needs_layer())
+        return {};
+    return effects;
+}
+
 AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaintable& viewport_paintable)
 {
     auto& document = viewport_paintable.document();
@@ -285,19 +314,6 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
 
     auto append_node = [&](VisualContextIndex parent_index, VisualContextData data) -> VisualContextIndex {
         return visual_context_tree.append(move(data), parent_index);
-    };
-
-    auto make_effects_data = [&](PaintableBox const& box) -> Optional<EffectsData> {
-        auto const& computed_values = box.computed_values();
-        auto gfx_filter = to_gfx_filter(box.filter(), pixel_ratio);
-        EffectsData effects {
-            computed_values.opacity(),
-            mix_blend_mode_to_compositing_and_blending_operator(computed_values.mix_blend_mode()),
-            move(gfx_filter)
-        };
-        if (!effects.needs_layer())
-            return {};
-        return effects;
     };
 
     auto visual_viewport_context_index = VISUAL_VIEWPORT_NODE_INDEX;
@@ -315,12 +331,7 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
     };
 
     auto build_paintable_box = [&](auto& self, PaintableBox& paintable_box, DescendantVisualContexts inherited_contexts) -> void {
-        // Resolve filters before make_effects_data reads them.
-        auto const& paintable_box_computed_values = paintable_box.computed_values();
-        if (paintable_box_computed_values.filter().has_filters())
-            paintable_box.set_filter(resolve_css_filter(paintable_box_computed_values.filter(), paintable_box));
-        else
-            paintable_box.set_filter({});
+        auto first_visual_context_node_index = visual_context_tree.nodes().size();
 
         VisualContextIndex inherited_state;
 
@@ -392,7 +403,7 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
 
         auto const& computed_values = paintable_box.computed_values();
 
-        if (auto effects = make_effects_data(paintable_box); effects.has_value())
+        if (auto effects = compute_effects_data(paintable_box, pixel_ratio); effects.has_value())
             append_to_own_and_positioned_descendant_contexts(effects.value());
 
         if (auto transform_data = compute_transform(paintable_box, computed_values, pixel_ratio); transform_data.has_value()) {
@@ -460,10 +471,8 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
         // Build state for descendants: own state + perspective + clip + scroll.
         VisualContextIndex state_for_descendants = own_state;
 
-        if (auto perspective_matrix = compute_perspective_matrix(paintable_box, computed_values); perspective_matrix.has_value()) {
-            auto scaled_matrix = scale_matrix_for_device_pixels(*perspective_matrix, scale);
-            state_for_descendants = append_node(state_for_descendants, PerspectiveData { scaled_matrix });
-        }
+        if (auto perspective_data = compute_perspective_data(paintable_box, computed_values, scale); perspective_data.has_value())
+            state_for_descendants = append_node(state_for_descendants, *perspective_data);
 
         if (auto clip_data = compute_clip_data(paintable_box, computed_values, converter); clip_data.has_value())
             state_for_descendants = append_node(state_for_descendants, clip_data.value());
@@ -475,6 +484,7 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
         }
 
         paintable_box.set_accumulated_visual_context_for_descendants(state_for_descendants);
+        paintable_box.set_visual_context_node_range(first_visual_context_node_index, visual_context_tree.nodes().size());
         if (paintable_box.layout_node().establishes_an_absolute_positioning_containing_block())
             state_for_absolute_position_descendants = state_for_descendants;
         if (paintable_box.layout_node().establishes_a_fixed_positioning_containing_block())
@@ -502,6 +512,57 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
     });
 
     return visual_context_tree;
+}
+
+// Patches the transform/effects/perspective values of the box's existing visual context nodes in place.
+// Returns false if the box's node structure no longer matches; the caller must then do a full rebuild.
+bool update_accumulated_visual_context_values(ViewportPaintable& viewport_paintable, PaintableBox& paintable_box)
+{
+    auto& visual_context_tree = viewport_paintable.visual_context_tree();
+    auto begin = paintable_box.visual_context_nodes_begin();
+    auto end = paintable_box.visual_context_nodes_end();
+    if (end > visual_context_tree.nodes().size())
+        return false;
+
+    auto pixel_ratio = viewport_paintable.document().page().client().device_pixels_per_css_pixel();
+    auto const& computed_values = paintable_box.computed_values();
+
+    auto effects = compute_effects_data(paintable_box, pixel_ratio);
+    auto transform = compute_transform(paintable_box, computed_values, pixel_ratio);
+    auto perspective = compute_perspective_data(paintable_box, computed_values, static_cast<float>(pixel_ratio));
+
+    paintable_box.set_has_non_invertible_css_transform(transform.has_value() && !transform->matrix.is_invertible());
+
+    bool found_transform = false;
+    bool found_effects = false;
+    bool found_perspective = false;
+    for (size_t i = begin; i < end; ++i) {
+        auto& node = visual_context_tree.node_at(VisualContextIndex { i });
+        if (auto* transform_data = node.data.get_pointer<TransformData>()) {
+            if (!transform.has_value())
+                return false;
+            *transform_data = *transform;
+            found_transform = true;
+        } else if (auto* effects_data = node.data.get_pointer<EffectsData>()) {
+            if (!effects.has_value())
+                return false;
+            *effects_data = *effects;
+            found_effects = true;
+        } else if (auto* perspective_data = node.data.get_pointer<PerspectiveData>()) {
+            if (!perspective.has_value())
+                return false;
+            *perspective_data = *perspective;
+            found_perspective = true;
+        }
+    }
+
+    if (transform.has_value() != found_transform)
+        return false;
+    if (effects.has_value() != found_effects)
+        return false;
+    if (perspective.has_value() != found_perspective)
+        return false;
+    return true;
 }
 
 void update_visual_viewport_accumulated_visual_context(ViewportPaintable& viewport_paintable)

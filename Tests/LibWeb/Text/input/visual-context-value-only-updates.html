@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<!-- Value-only transform/opacity changes patch the accumulated visual context tree in place instead of
+     rebuilding it. Verify geometry queries across a sequence of value-only and structural changes. -->
+<style>
+    #box {
+        width: 100px;
+        height: 100px;
+        background-color: skyblue;
+        margin: 50px;
+    }
+</style>
+<script src="include.js"></script>
+<div id="box"><div id="child" style="width: 50px; height: 50px; transform: inherit"></div></div>
+<script>
+    test(() => {
+        const box = document.getElementById('box');
+        // NB: Print at the end: printing mutates the DOM, dirtying layout, which would force full tree
+        //     rebuilds instead of exercising the in-place value updates.
+        const lines = [];
+        const print_rect = label => {
+            const rect = box.getBoundingClientRect();
+            lines.push(`${label}: x=${rect.x}, y=${rect.y}, width=${rect.width}, height=${rect.height}`);
+        };
+
+        // Build the initial tree with a transform node present.
+        box.style.transform = 'translate(50px, 30px)';
+        print_rect('initial transform');
+
+        // Value-only change: patches the transform node in place.
+        box.style.transform = 'translate(200px, 10px)';
+        print_rect('patched transform');
+
+        // Structural change: adding a translate where there was none.
+        box.style.translate = '5px 5px';
+        print_rect('added translate');
+
+        // Value-only changes via the individual transform properties.
+        box.style.translate = '30px 10px';
+        print_rect('patched translate');
+        box.style.rotate = '10deg';
+        box.style.scale = '2';
+        print_rect('added rotate and scale');
+        box.style.rotate = '0deg';
+        box.style.scale = '0.5';
+        print_rect('patched rotate and scale');
+        box.style.rotate = '';
+        box.style.scale = '';
+
+        // Value-only change to transform-origin combined with a rotation.
+        box.style.transform = 'rotate(90deg)';
+        box.style.transformOrigin = '0 0';
+        print_rect('patched transform-origin');
+
+        // Structural change: removing all transforms drops the transform node and rebuilds the tree.
+        box.style.transform = 'none';
+        box.style.translate = 'none';
+        box.style.transformOrigin = '';
+        print_rect('transform removed');
+
+        // Structural change: opacity < 1 adds an effects node.
+        box.style.opacity = '0.5';
+        print_rect('opacity 0.5');
+
+        // Value-only change: patches the effects node in place.
+        box.style.opacity = '0.25';
+        print_rect('opacity 0.25');
+
+        // Structural change: opacity back to 1 removes the effects node.
+        box.style.opacity = '1';
+        print_rect('opacity 1');
+
+        // Filter and mix-blend-mode changes exercise the effects node without affecting geometry.
+        box.style.filter = 'blur(2px)';
+        print_rect('added filter');
+        box.style.filter = 'blur(4px)';
+        box.style.mixBlendMode = 'multiply';
+        print_rect('patched filter, added blend mode');
+        box.style.mixBlendMode = 'screen';
+        print_rect('patched blend mode');
+        box.style.filter = '';
+        box.style.mixBlendMode = '';
+
+        // Value-only transform patches driven by a paused animation.
+        const animation = box.animate(
+            [{ transform: 'translateX(0px)' }, { transform: 'translateX(100px)' }],
+            { duration: 1000, fill: 'forwards' });
+        animation.pause();
+        animation.currentTime = 500;
+        print_rect('animation at 50%');
+        animation.currentTime = 1000;
+        print_rect('animation at 100%');
+        animation.cancel();
+
+        // A parent animation must also patch descendants whose values change through inheritance.
+        const child = document.getElementById('child');
+        const parent_animation = box.animate(
+            [{ transform: 'translateX(10px)' }, { transform: 'translateX(200px)' }],
+            { duration: 1000, fill: 'forwards' });
+        parent_animation.pause();
+        parent_animation.currentTime = 500;
+        let rect = child.getBoundingClientRect();
+        lines.push(`inherited transform at 50%: x=${rect.x}, y=${rect.y}`);
+        parent_animation.currentTime = 1000;
+        rect = child.getBoundingClientRect();
+        lines.push(`inherited transform at 100%: x=${rect.x}, y=${rect.y}`);
+
+        for (const line of lines)
+            println(line);
+    });
+</script>

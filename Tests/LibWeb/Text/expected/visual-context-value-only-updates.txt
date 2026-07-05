@@ -1,0 +1,18 @@
+initial transform: x=108, y=80, width=100, height=100
+patched transform: x=258, y=60, width=100, height=100
+added translate: x=263, y=65, width=100, height=100
+patched translate: x=288, y=70, width=100, height=100
+added rotate and scale: x=412.609375, y=83.3125, width=231.6875, height=231.6875
+patched rotate and scale: x=213, y=90, width=50, height=50
+patched transform-origin: x=-12, y=60, width=100, height=100
+transform removed: x=58, y=50, width=100, height=100
+opacity 0.5: x=58, y=50, width=100, height=100
+opacity 0.25: x=58, y=50, width=100, height=100
+opacity 1: x=58, y=50, width=100, height=100
+added filter: x=58, y=50, width=100, height=100
+patched filter, added blend mode: x=58, y=50, width=100, height=100
+patched blend mode: x=58, y=50, width=100, height=100
+animation at 50%: x=108, y=50, width=100, height=100
+animation at 100%: x=158, y=50, width=100, height=100
+inherited transform at 50%: x=268, y=50
+inherited transform at 100%: x=458, y=50

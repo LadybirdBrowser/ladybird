@@ -880,6 +880,10 @@ AnimationUpdateContext::~AnimationUpdateContext()
                 CSS::Invalidation::invalidate_assigned_slottables_for_descendant_slots_after_inherited_style_change(target);
                 invalidated_assigned_slottables_for_descendant_slots = true;
             }
+            // NB: Descendant invalidations are merged into one, so value-only visual context updates must be
+            //     scheduled here, for each affected descendant.
+            if (element_invalidation.update_accumulated_visual_context_values && !element_invalidation.rebuild_accumulated_visual_contexts)
+                element.document().schedule_accumulated_visual_context_value_update(element);
             invalidation |= element_invalidation;
             return TraversalDecision::Continue;
         });
@@ -904,8 +908,18 @@ AnimationUpdateContext::~AnimationUpdateContext()
                 target->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::KeyframeEffect);
             }
         }
-        if (invalidation.rebuild_accumulated_visual_contexts)
+        if (invalidation.rebuild_accumulated_visual_contexts) {
             element.document().set_needs_accumulated_visual_contexts_update(true);
+        } else if (invalidation.update_accumulated_visual_context_values) {
+            // NB: Element-reference pseudo elements (e.g. ::placeholder) are not synthetic, so schedule their
+            //     layout node directly instead of going through the owning element.
+            if (element.pseudo_element().has_value()) {
+                if (auto pseudo_element_node = target->pseudo_element_unsafe_layout_node(element.pseudo_element().value()))
+                    element.document().schedule_accumulated_visual_context_value_update(*pseudo_element_node);
+            } else {
+                element.document().schedule_accumulated_visual_context_value_update(target);
+            }
+        }
 
         if (invalidation.repaint) {
             target->set_needs_repaint();

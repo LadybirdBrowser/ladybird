@@ -27,6 +27,7 @@
 namespace Web::Painting {
 
 AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaintable&);
+bool update_accumulated_visual_context_values(ViewportPaintable&, PaintableBox&);
 void update_visual_viewport_accumulated_visual_context(ViewportPaintable&);
 
 NonnullRefPtr<ViewportPaintable> ViewportPaintable::create(Layout::Viewport const& layout_viewport)
@@ -231,6 +232,18 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
     }
     m_visual_context_tree = move(visual_context_tree);
     m_visual_context_tree_needs_compositor_update = true;
+}
+
+bool ViewportPaintable::update_accumulated_visual_context_values(PaintableBox& paintable_box)
+{
+    if (!m_visual_context_tree.has_value())
+        return false;
+    if (m_force_incompatible_visual_context_tree_rebuild_for_testing)
+        return false;
+    if (!Painting::update_accumulated_visual_context_values(*this, paintable_box))
+        return false;
+    m_visual_context_tree_needs_compositor_update = true;
+    return true;
 }
 
 void ViewportPaintable::update_visual_viewport_accumulated_visual_context()
