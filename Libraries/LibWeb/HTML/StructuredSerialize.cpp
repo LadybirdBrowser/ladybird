@@ -16,6 +16,7 @@
 #include <AK/StdLibExtras.h>
 #include <AK/String.h>
 #include <AK/UnicodeUtils.h>
+#include <LibCore/AnonymousBuffer.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
 #include <LibGC/Heap.h>
@@ -1212,6 +1213,9 @@ static WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, StructuredSe
             //           FIXME: [[AgentCluster]]: the surrounding agent's agent cluster }.
             // To share with a same-process target, stash the source buffer in the side table. The byte copy keeps the
             // wire format self-contained for records that cross a process boundary.
+            // AD-HOC: A growable SharedArrayBuffer isn't backed by cross-process shared memory (its storage is
+            //         process-local) — so only a same-process target can share it. A record that crosses a process
+            //         boundary hands the peer a copy.
             data_holder.encode(ValueTag::GrowableSharedArrayBuffer);
             data_holder.encode(data_holder.add_shared_array_buffer(array_buffer));
             data_holder.encode(MUST(array_buffer.copy_to_byte_buffer()));
@@ -1221,11 +1225,24 @@ static WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, StructuredSe
             //           [[ArrayBufferByteLength]]: value.[[ArrayBufferByteLength]],
             //           FIXME: [[AgentCluster]]: the surrounding agent's agent cluster }.
             // To share (rather than copy) [[ArrayBufferData]] with a same-process target, stash the source buffer in the
-            // record's side table and encode its index. The byte copy below keeps the wire format self-contained for
-            // records that cross a process boundary, which arrive with an empty side table.
+            // record's side table and encode its index. A record that crosses a process boundary arrives with an empty
+            // side table — and shares through the file-descriptor side list below instead, or falls back to a byte copy.
             data_holder.encode(ValueTag::SharedArrayBuffer);
             data_holder.encode(data_holder.add_shared_array_buffer(array_buffer));
-            data_holder.encode(MUST(array_buffer.copy_to_byte_buffer()));
+            // AD-HOC: When backed by cross-process shared memory and a side list is available (the messaging path),
+            //         transfer the buffer by appending it to shared_buffers, and encoding its index. That lets the file
+            //         descriptor survive structured clone, whose main record is bytes-only, so an agent in another
+            //         process references the same [[ArrayBufferData]]. Without a side list (e.g., serialization for
+            //         storage) or a shared backing (e.g., a zero-length buffer), fall back to copying the bytes.
+            auto shared_buffer = array_buffer.shared_buffer();
+            auto can_share = shared_buffer.has_value() && data_holder.supports_shared_buffers();
+            data_holder.encode(can_share);
+            if (can_share) {
+                data_holder.encode(static_cast<u32>(data_holder.shared_buffers().size()));
+                data_holder.shared_buffers().append(shared_buffer.release_value());
+            } else {
+                data_holder.encode(MUST(array_buffer.copy_to_byte_buffer()));
+            }
         }
     }
     // 2. Otherwise:
@@ -1661,6 +1678,11 @@ static Optional<JS::DataBlock> data_block_sharing_storage_with(JS::ArrayBuffer& 
         return JS::DataBlock { JS::DataBlock::ExternalPrimitiveStorage { external->owner, external->handle, byte_length }, JS::DataBlock::Shared::Yes };
     }
 
+    // AD-HOC: A fixed-length shared block backed by cross-process shared memory is aliased by referencing the same
+    //         shared object — so the clone shares its bytes, and can itself be shared with an agent in another process.
+    if (auto const* shared = source_block.byte_buffer.get_pointer<JS::DataBlock::SharedBackingStore>())
+        return JS::DataBlock { JS::DataBlock::SharedBackingStore { shared->buffer }, JS::DataBlock::Shared::Yes };
+
     if (auto const* owned = source_block.byte_buffer.get_pointer<JS::DataBlock::OwnedBackingStore>()) {
         // Zero-length buffers have no backing storage to share.
         if (!owned->handle().is_valid())
@@ -1805,6 +1827,19 @@ public:
             // 2. Otherwise, set value to a new SharedArrayBuffer object in targetRealm whose [[ArrayBufferData]] internal slot value is serialized.[[ArrayBufferData]]
             //    and whose [[ArrayBufferByteLength]] internal slot value is serialized.[[ArrayBufferByteLength]].
             auto side_table_index = TRY(decode<u32>());
+
+            // AD-HOC: When the backing was transferred as cross-process shared memory, map it from the side list by
+            //         index — so both agents reference the same bytes.
+            auto is_shared_backed = TRY(decode<bool>());
+            if (is_shared_backed) {
+                auto index = TRY(decode<u32>());
+                auto* shared_buffers = m_serialized.shared_buffers();
+                if (!shared_buffers || index >= shared_buffers->size())
+                    return data_clone_error_from_serialization_error(realm, AK::Error::from_string_literal("SharedArrayBuffer side-list index out of range"));
+                value = JS::ArrayBuffer::create(realm, shared_buffers->at(index));
+                break;
+            }
+
             auto buffer = TRY(decode<ByteBuffer>());
 
             auto shared_array_buffers = m_serialized.shared_array_buffers();
@@ -1815,11 +1850,8 @@ public:
                 }
             }
 
-            // FIXME: A record that crossed a process boundary arrives with an empty side table, so we fall back to
-            //        copying the bytes even though the spec expects a SharedArrayBuffer to share memory anywhere
-            //        within its agent cluster. Ladybird runs same-agent-cluster dedicated workers in separate
-            //        processes, so throwing "DataCloneError" here would regress window<->worker messaging harder
-            //        than copying does; real cross-process sharing needs shared-memory-backed storage.
+            // A buffer with no cross-process shared memory to share (a zero-length one, e.g.) whose record crossed a
+            // process boundary arrives with an empty side table — so it's reconstructed from the byte copy.
             value = JS::ArrayBuffer::create(realm, move(buffer), JS::DataBlock::Shared::Yes);
             break;
         }
@@ -2162,6 +2194,7 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
 
     // 3. Let serialized be ? StructuredSerializeInternal(value, false, memory).
     auto serialized_writer = StructuredSerializeWriter::create_ipc();
+    serialized_writer.enable_shared_buffers();
     TRY(structured_serialize_internal(vm, serialized_writer, value, false, memory));
     auto serialized_record = serialized_writer.take_ipc_record();
 
@@ -2242,7 +2275,7 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
     }
 
     // 6. Return { [[Serialized]]: serialized, [[TransferDataHolders]]: transferDataHolders }.
-    return SerializedTransferRecord { .serialized = move(serialized_record), .transfer_data_holders = move(transfer_data_holders) };
+    return SerializedTransferRecord { .serialized = move(serialized_record), .transfer_data_holders = move(transfer_data_holders), .shared_buffers = serialized_writer.take_shared_buffers() };
 }
 
 static bool is_transferable_interface_exposed_on_target_realm(TransferType name, JS::Realm& realm)
@@ -2296,7 +2329,7 @@ WebIDL::ExceptionOr<DeserializedTransferRecord> structured_deserialize_with_tran
     }
 
     // 4. Let deserialized be ? StructuredDeserialize(serializeWithTransferResult.[[Serialized]], targetRealm, memory).
-    auto deserialized = TRY(structured_deserialize(vm, serialize_with_transfer_result.serialized, target_realm, memory));
+    auto deserialized = TRY(structured_deserialize(vm, serialize_with_transfer_result.serialized, target_realm, memory, &serialize_with_transfer_result.shared_buffers));
 
     // 5. Return { [[Deserialized]]: deserialized, [[TransferredValues]]: transferredValues }.
     return DeserializedTransferRecord { .deserialized = deserialized, .transferred_values = move(transferred_values) };
@@ -2387,7 +2420,7 @@ WebIDL::ExceptionOr<void> structured_serialize_internal(JS::VM& vm, StructuredSe
 }
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#structureddeserialize
-WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM& vm, IPCSerializationRecord const& serialized, JS::Realm& target_realm, Optional<DeserializationMemory> memory)
+WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM& vm, IPCSerializationRecord const& serialized, JS::Realm& target_realm, Optional<DeserializationMemory> memory, Vector<Core::AnonymousBuffer>* shared_buffers)
 {
     TemporaryExecutionContext execution_context { target_realm };
 
@@ -2395,6 +2428,8 @@ WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM& vm, IPCSerializati
         memory = DeserializationMemory {};
 
     StructuredSerializeReader decoder { serialized };
+    if (shared_buffers)
+        decoder.set_shared_buffers(*shared_buffers);
     return structured_deserialize_internal(vm, decoder, target_realm, *memory);
 }
 
@@ -2597,6 +2632,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::SerializedTransferRecord const
 {
     TRY(encoder.encode(record.serialized));
     TRY(encoder.encode(record.transfer_data_holders));
+    TRY(encoder.encode(record.shared_buffers));
     return {};
 }
 
@@ -2605,8 +2641,9 @@ ErrorOr<Web::HTML::SerializedTransferRecord> decode(Decoder& decoder)
 {
     auto serialized = TRY(decoder.decode<Web::HTML::IPCSerializationRecord>());
     auto transfer_data_holders = TRY(decoder.decode<Vector<Web::HTML::TransferDataEncoder>>());
+    auto shared_buffers = TRY(decoder.decode<Vector<Core::AnonymousBuffer>>());
 
-    return Web::HTML::SerializedTransferRecord { move(serialized), move(transfer_data_holders) };
+    return Web::HTML::SerializedTransferRecord { move(serialized), move(transfer_data_holders), move(shared_buffers) };
 }
 
 }

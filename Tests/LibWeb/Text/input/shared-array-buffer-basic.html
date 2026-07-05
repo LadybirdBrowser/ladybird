@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const sab = new SharedArrayBuffer(8);
+        const view = new Int32Array(sab);
+        view[0] = 42;
+        Atomics.store(view, 1, 7);
+        println("byteLength: " + sab.byteLength);
+        println("view[0]: " + view[0]);
+        println("Atomics.load view[1]: " + Atomics.load(view, 1));
+    });
+</script>

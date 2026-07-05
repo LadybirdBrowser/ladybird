@@ -13,10 +13,12 @@
 #include <LibIPC/Message.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibJS/Runtime/SharedArrayBufferConstructor.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibTest/TestCase.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 
 // NOTE: These tests use the persistent main-thread VM, so they must not share a
@@ -41,6 +43,16 @@ static JS::Realm& target_realm()
 static GC::Ref<JS::ArrayBuffer> make_shared_array_buffer(JS::Realm& realm, ReadonlyBytes contents)
 {
     auto buffer = MUST(JS::ArrayBuffer::create(realm, contents.size(), JS::DataBlock::Shared::Yes));
+    buffer->overwrite(0, contents.data(), contents.size());
+    return buffer;
+}
+
+// The SharedArrayBuffer constructor's path: A fixed-length shared Data Block is backed by cross-process shared memory,
+// unlike the process-local storage that ArrayBuffer::create(Realm&, size_t, Shared) allocates above.
+static GC::Ref<JS::ArrayBuffer> make_shared_memory_backed_array_buffer(JS::Realm& realm, ReadonlyBytes contents)
+{
+    Web::HTML::TemporaryExecutionContext execution_context { realm };
+    auto buffer = MUST(JS::allocate_shared_array_buffer(realm.vm(), *realm.intrinsics().shared_array_buffer_constructor(), contents.size()));
     buffer->overwrite(0, contents.data(), contents.size());
     return buffer;
 }
@@ -99,6 +111,30 @@ TEST_CASE(same_process_clone_aliases_the_backing_store)
 
     auto const& external = clone.data_block().byte_buffer.get<JS::DataBlock::ExternalPrimitiveStorage>();
     EXPECT(external.owner.ptr() == static_cast<GC::Cell*>(source.ptr()));
+
+    source->overwrite(0, "S", 1);
+    auto clone_contents = contents_of(clone);
+    EXPECT_EQ(clone_contents[0], static_cast<u8>('S'));
+    clone.overwrite(1, "C", 1);
+    auto source_contents = contents_of(*source);
+    EXPECT_EQ(source_contents[1], static_cast<u8>('C'));
+}
+
+TEST_CASE(shared_memory_backed_clone_references_the_same_shared_object)
+{
+    auto source = make_shared_memory_backed_array_buffer(source_realm(), "shared memory"sv.bytes());
+    EXPECT(source->shared_buffer().has_value());
+
+    auto& clone = as_array_buffer(deserialize(serialize_same_agent(JS::Value { source.ptr() }), target_realm()));
+    EXPECT(clone.is_shared_array_buffer());
+    EXPECT_EQ(clone.byte_length(), source->byte_length());
+    EXPECT(&clone != source.ptr());
+    EXPECT(clone.shares_storage_with(*source));
+
+    // The clone references the source's shared object, rather than a process-local alias of it — so it can itself
+    // be shared with an agent in another process.
+    EXPECT(clone.shared_buffer().has_value());
+    EXPECT_EQ(clone.shared_buffer()->fd(), source->shared_buffer()->fd());
 
     source->overwrite(0, "S", 1);
     auto clone_contents = contents_of(clone);
