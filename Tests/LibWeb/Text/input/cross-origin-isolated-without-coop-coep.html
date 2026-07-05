@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        // Without COOP + COEP a document is not cross-origin isolated.
+        println("crossOriginIsolated: " + self.crossOriginIsolated);
+
+        // Serializing a SharedArrayBuffer throws when not cross-origin isolated. Construct it outside the try — so a
+        // constructor failure can't masquerade as the serialization failure we're checking for.
+        const sab = new SharedArrayBuffer(8);
+        let errorName = "(did not throw)";
+        try {
+            new MessageChannel().port1.postMessage(sab);
+        } catch (e) {
+            errorName = e.name;
+        }
+        println("SharedArrayBuffer serialization threw: " + errorName);
+    });
+</script>
