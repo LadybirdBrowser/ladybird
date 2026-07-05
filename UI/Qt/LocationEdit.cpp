@@ -158,7 +158,9 @@ LocationEdit::LocationEdit(QWidget* parent)
 
         if (display.selection_start.has_value()) {
             auto selection_start = qstring_offset_for_byte_offset(display.text, *display.selection_start);
-            setSelection(selection_start, static_cast<int>(display_text.length()) - selection_start);
+            auto selection_length = static_cast<int>(display_text.length()) - selection_start;
+            setCursorPosition(static_cast<int>(display_text.length()));
+            cursorBackward(true, selection_length);
         } else {
             deselect();
             setCursorPosition(static_cast<int>(display_text.length()));
@@ -222,7 +224,7 @@ LocationEdit::LocationEdit(QWidget* parent)
         // A selection reaching the end of the text (an inline completion, select-all on focus) still
         // counts as "at the end": replacing it appends, and completions may be applied over it.
         bool at_end = new_position == text().length()
-            && (!hasSelectedText() || selectionEnd() == text().length());
+            || (hasSelectedText() && selectionEnd() == text().length());
         m_omnibox.cursor_moved(at_end);
     });
 
