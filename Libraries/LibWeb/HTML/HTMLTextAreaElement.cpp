@@ -413,6 +413,8 @@ static GC::Ref<CSS::CSSStyleProperties> placeholder_style_when_visible()
                 width: 100%;
                 overflow: hidden;
                 margin-inline-start: -100%;
+                pointer-events: none;
+                user-select: none;
             )~~~"sv);
     }
     return *style;

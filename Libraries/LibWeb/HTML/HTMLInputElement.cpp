@@ -885,6 +885,8 @@ static GC::Ref<CSS::CSSStyleProperties> placeholder_style_when_visible()
                 text-overflow: clip;
                 white-space: nowrap;
                 margin-inline-start: -100%;
+                pointer-events: none;
+                user-select: none;
             )~~~"sv);
     }
     return *style;
