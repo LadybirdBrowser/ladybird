@@ -244,11 +244,34 @@ ErrorOr<int> anon_create([[maybe_unused]] size_t size, [[maybe_unused]] int opti
     if (fd < 0)
         return Error::from_errno(errno);
 
-    if (::ftruncate(fd, size) < 0) {
+    int truncate_result;
+    do {
+        truncate_result = ::ftruncate(fd, size);
+    } while (truncate_result < 0 && errno == EINTR);
+    if (truncate_result < 0) {
         auto saved_errno = errno;
         TRY(close(fd));
         return Error::from_errno(saved_errno);
     }
+
+    // FIXME: Sealing is enforced only on Linux, via the memfd F_SEAL_* seals below. On macOS, the flag is
+    //        accepted, but the fd stays resizable (ftruncate remains possible). SAB backing relies on this seal to stop
+    //        a transferred fd from being shrunk under a peer. POSIX shared memory has no equivalent seal — so a macOS
+    //        equivalent would require implementing backing of the block with a Mach memory entry instead of an shm fd.
+#if defined(AK_OS_LINUX)
+    // Seal a fixed-size shared fd against resizing: A peer process holding the transferred fd must not be able to
+    // ftruncate it smaller, and SIGBUS siblings that touch the now-missing pages. Writes stay allowed on purpose (no
+    // F_SEAL_WRITE); the shared memory must remain writable. F_SEAL_SEAL is deliberately NOT set: it would block any
+    // later F_ADD_SEALS, and AllowSealing::Yes promises callers that the fd stays sealable. Leaving it off costs
+    // nothing, because a seal can never be removed once applied.
+    if (allow_sealing == AllowSealing::Yes) {
+        if (::fcntl(fd, F_ADD_SEALS, F_SEAL_SHRINK | F_SEAL_GROW) < 0) {
+            auto saved_errno = errno;
+            TRY(close(fd));
+            return Error::from_errno(saved_errno);
+        }
+    }
+#endif
 
     return fd;
 }
