@@ -3219,6 +3219,21 @@ bool HTMLInputElement::is_single_line() const
 
 bool HTMLInputElement::has_activation_behavior() const
 {
+    // https://html.spec.whatwg.org/multipage/input.html#the-input-element:activation-behaviour
+    // Input activation runs this element's input activation behavior, if any,
+    // and then popover target activation.
+    // https://html.spec.whatwg.org/multipage/input.html#button-state-(type=button)
+    // Button-state inputs have no input activation behavior.
+    //
+    // NB: Per spec, input elements have activation behavior even when those
+    //     steps are a no-op. However, making a no-op input button the
+    //     activation target prevents activation behavior on ancestor anchors.
+    //     For compatibility with other browsers, let plain input buttons yield
+    //     to ancestors.
+    if (type_state() == TypeAttributeState::Button
+        && !PopoverTargetAttributes::get_the_popover_target_element(const_cast<HTMLInputElement&>(*this)))
+        return false;
+
     return true;
 }
 

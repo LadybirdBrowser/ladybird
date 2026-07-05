@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="popover" popover>Popover</div>
+<input id="button" type="button" popovertarget="popover" value="Open popover">
+<script>
+    test(() => {
+        document.getElementById("button").dispatchEvent(new MouseEvent("click", {
+            bubbles: true,
+            cancelable: true,
+            composed: true,
+        }));
+        println(`popover open: ${document.getElementById("popover").matches(":popover-open")}`);
+    });
+</script>

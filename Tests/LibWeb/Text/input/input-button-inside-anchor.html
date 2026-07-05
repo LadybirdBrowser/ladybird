@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    function linkActivated() {
+        println("link activated");
+        window.done();
+    }
+</script>
+<a href="javascript:linkActivated()"><input id="button" type="button" value="Click me"></a>
+<script>
+    asyncTest((done) => {
+        window.done = done;
+        document.getElementById("button").dispatchEvent(new MouseEvent("click", {
+            bubbles: true,
+            cancelable: true,
+            composed: true,
+        }));
+    });
+</script>
