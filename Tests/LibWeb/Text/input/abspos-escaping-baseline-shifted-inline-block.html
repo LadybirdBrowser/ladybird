@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #outer {
+        position: relative;
+        width: 300px;
+        height: 200px;
+        font-size: 0;
+        text-align: right;
+        background-color: magenta;
+    }
+    #tall {
+        display: inline-block;
+        width: 20px;
+        height: 100px;
+        background-color: orange;
+    }
+    #short {
+        display: inline-block;
+        width: 50px;
+        height: 20px;
+        background-color: lightblue;
+    }
+    #abs {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        background-color: lawngreen;
+    }
+</style>
+<div id="outer">
+    <span id="tall"></span><span id="short"><div id="abs"></div></span>
+</div>
+<script>
+    // #abs escapes its non-positioned inline-block parent (#short) up to the
+    // relative-positioned #outer. #short sits on a line that is right-aligned
+    // (horizontal shift) and baseline-aligned next to a taller sibling
+    // (vertical shift), and both shifts are applied to the line's fragments
+    // after the fragment offsets have been copied into the inline-block's
+    // used values. The static position of #abs is the top-left corner of
+    // #short's content box, so #abs must end up exactly at #short's position.
+    test(() => {
+        const outerRect = document.getElementById("outer").getBoundingClientRect();
+        const shortRect = document.getElementById("short").getBoundingClientRect();
+        const absRect = document.getElementById("abs").getBoundingClientRect();
+        println(`short offset: ${shortRect.x - outerRect.x},${shortRect.y - outerRect.y}`);
+        println(`abs offset: ${absRect.x - outerRect.x},${absRect.y - outerRect.y}`);
+        println(`abs position matches short position: ${absRect.x === shortRect.x && absRect.y === shortRect.y}`);
+    });
+</script>
