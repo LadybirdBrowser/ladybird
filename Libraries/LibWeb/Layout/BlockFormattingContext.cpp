@@ -542,9 +542,9 @@ void BlockFormattingContext::rebuild_float_bands()
 
     for (auto& floating_box : m_floats) {
         floating_box->margin_box_rect_in_root_coordinate_space = margin_box_rect_in_ancestor_coordinate_space(floating_box->used_values, root());
-        auto const* containing_block = floating_box->used_values.containing_block_used_values();
+        auto const* containing_block = floating_box->used_values.node().containing_block();
         VERIFY(containing_block);
-        auto containing_block_rect_in_root = content_box_rect_in_ancestor_coordinate_space(*containing_block, root());
+        auto containing_block_rect_in_root = content_box_rect_in_ancestor_coordinate_space(m_state.get(*containing_block), root());
         add_float_to_bands(*floating_box, containing_block_rect_in_root);
     }
 }
@@ -565,9 +565,9 @@ void BlockFormattingContext::avoid_float_intrusions(Box const& box, AvailableSpa
     while (true) {
         auto border_box_in_root_rect = content_box_rect_in_ancestor_coordinate_space(box_state, root());
         border_box_in_root_rect.translate_by(-box_state.border_box_left(), -box_state.border_box_top());
-        auto const* containing_block = box_state.containing_block_used_values();
+        auto const* containing_block = box.containing_block();
         VERIFY(containing_block);
-        auto containing_block_rect_in_root = content_box_rect_in_ancestor_coordinate_space(*containing_block, root());
+        auto containing_block_rect_in_root = content_box_rect_in_ancestor_coordinate_space(m_state.get(*containing_block), root());
         containing_block_rect_in_root.set_y(border_box_in_root_rect.y());
         containing_block_rect_in_root.set_height(box_state.border_box_height());
         auto const& band = band_at(border_box_in_root_rect.y());
@@ -759,7 +759,9 @@ void BlockFormattingContext::resolve_used_height_if_treated_as_auto(Box const& b
         auto margins = box_state.margin_top + box_state.margin_bottom;
 
         // 2. Let size be the size of the initial containing block in the block flow direction minus margins.
-        auto size = box_state.containing_block_used_values()->content_height() - margins;
+        auto const* containing_block = box.containing_block();
+        VERIFY(containing_block);
+        auto size = m_state.get(*containing_block).content_height() - margins;
 
         // 3. Return the bigger value of size and the normal border box size the element would have
         //    according to the CSS specification.
@@ -790,7 +792,9 @@ void BlockFormattingContext::resolve_used_height_if_treated_as_auto(Box const& b
             auto margins = box_state.margin_top + box_state.margin_bottom;
 
             // 2. Let size be the size of element's parent element's content box in the block flow direction minus margins.
-            auto size = box_state.containing_block_used_values()->content_height() - margins;
+            auto const* containing_block = box.containing_block();
+            VERIFY(containing_block);
+            auto size = m_state.get(*containing_block).content_height() - margins;
 
             // 3. Return the bigger value of size and the normal border box size the element would have
             //    according to the CSS specification.
@@ -987,7 +991,8 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         if (!m_state.has_subtree_root()
             && document_element && document_element->unsafe_layout_node()
             && box.is_inclusive_ancestor_of(*document_element->unsafe_layout_node())) {
-            return m_state.get_mutable(box);
+            if (auto* existing_state = m_state.try_get_mutable(box))
+                return *existing_state;
         }
         return m_state.create(box, layout_input.containing_block_constraints.percentage_basis_width, layout_input.containing_block_constraints.percentage_basis_height);
     }();

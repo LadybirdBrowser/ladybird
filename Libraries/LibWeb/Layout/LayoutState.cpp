@@ -95,22 +95,14 @@ LayoutState::UsedValues& LayoutState::create(NodeWithStyle const& node, Optional
 
     VERIFY(!m_subtree_root || m_subtree_root == &node || m_subtree_root->is_inclusive_ancestor_of(node));
 
-    UsedValues const* containing_block_used_values = nullptr;
-    if (m_subtree_root == &node) {
-        // For the subtree root, ancestor values are not available in the throwaway state.
-        containing_block_used_values = try_get(*node.containing_block());
-    } else if (!node.is_viewport()) {
-        containing_block_used_values = &ensure_used_values_for(*node.containing_block());
-    }
-
     auto& used_values = m_used_values_store.allocate(index);
-    used_values.set_node(node, containing_block_used_values, percentage_basis_width, percentage_basis_height);
+    used_values.set_node(node, percentage_basis_width, percentage_basis_height);
 
     if (auto const* list_item_box = as_if<ListItemBox>(node); list_item_box && list_item_box->marker()) {
         auto const& marker = *list_item_box->marker();
         if (!m_used_values_store.get(marker.layout_index())) {
             auto& marker_used_values = m_used_values_store.allocate(marker.layout_index());
-            marker_used_values.set_node(marker, &used_values,
+            marker_used_values.set_node(marker,
                 used_values.has_definite_width() ? Optional<CSSPixels> { used_values.content_width() } : Optional<CSSPixels> {},
                 used_values.has_definite_height() ? Optional<CSSPixels> { used_values.content_height() } : Optional<CSSPixels> {});
         }
@@ -124,7 +116,7 @@ LayoutState::UsedValues& LayoutState::populate_from_paintable(NodeWithStyle cons
     VERIFY(m_subtree_root);
     auto index = node.layout_index();
 
-    // NOTE: We skip set_node() here since it performs size resolution that requires a containing block,
+    // NOTE: We skip set_node() here since it performs size resolution that requires percentage bases,
     //       and materialize_from_paintable() overwrites all computed sizes immediately after.
     auto& used_values = m_used_values_store.allocate(index);
     used_values.m_node = &node;
@@ -140,31 +132,7 @@ LayoutState::UsedValues& LayoutState::populate_node_from(LayoutState const& sour
 
     auto& values = m_used_values_store.allocate(index);
     values = source.get(node);
-    values.m_containing_block_used_values = nullptr;
     return values;
-}
-
-LayoutState::UsedValues& LayoutState::ensure_used_values_for(NodeWithStyle const& node)
-{
-    auto index = node.layout_index();
-
-    if (auto* used_values = m_used_values_store.get(index))
-        return *used_values;
-
-    // During subtree layout, only the subtree root and nodes inside the subtree are allowed.
-    VERIFY(!m_subtree_root || m_subtree_root == &node || m_subtree_root->is_inclusive_ancestor_of(node));
-
-    UsedValues const* containing_block_used_values = nullptr;
-    if (m_subtree_root == &node) {
-        // For the subtree root, ancestor values are not available in the throwaway state.
-        containing_block_used_values = try_get(*node.containing_block());
-    } else if (!node.is_viewport()) {
-        containing_block_used_values = &ensure_used_values_for(*node.containing_block());
-    }
-
-    auto& used_values = m_used_values_store.allocate(index);
-    used_values.set_node(node, containing_block_used_values, {}, {});
-    return used_values;
 }
 
 LayoutState::UsedValues const* LayoutState::try_get(NodeWithStyle const& node) const
@@ -183,6 +151,15 @@ LayoutState::UsedValues const* LayoutState::try_get(Node const& node) const
     if (!node_with_style)
         return nullptr;
     return try_get(*node_with_style);
+}
+
+CSSPixelPoint LayoutState::cumulative_offset(UsedValues const& used_values) const
+{
+    if (used_values.m_cumulative_offset.has_value())
+        return *used_values.m_cumulative_offset;
+    if (auto const* containing_block = used_values.node().containing_block())
+        return cumulative_offset(get(*containing_block)) + used_values.offset;
+    return used_values.offset;
 }
 
 // https://drafts.csswg.org/css-overflow-3/#scrollable-overflow-region
@@ -893,7 +870,6 @@ LayoutState::UsedValues& LayoutState::UsedValues::operator=(UsedValues const& ot
     containing_line_box_fragment = other.containing_line_box_fragment;
 
     m_node = other.m_node;
-    m_containing_block_used_values = other.m_containing_block_used_values;
     m_cumulative_offset = other.m_cumulative_offset;
     m_content_width = other.m_content_width;
     m_content_height = other.m_content_height;
@@ -908,10 +884,9 @@ LayoutState::UsedValues& LayoutState::UsedValues::operator=(UsedValues const& ot
     return *this;
 }
 
-void LayoutState::UsedValues::set_node(NodeWithStyle const& node, UsedValues const* containing_block_used_values, Optional<CSSPixels> percentage_basis_width, Optional<CSSPixels> percentage_basis_height)
+void LayoutState::UsedValues::set_node(NodeWithStyle const& node, Optional<CSSPixels> percentage_basis_width, Optional<CSSPixels> percentage_basis_height)
 {
     m_node = &node;
-    m_containing_block_used_values = containing_block_used_values;
 
     // NOTE: In the code below, we decide if `node` has definite width and/or height.
     //       This attempts to cover all the *general* cases where CSS considers sizes to be definite.
