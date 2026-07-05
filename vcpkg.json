@@ -382,7 +382,7 @@
     },
     {
       "name": "mimalloc",
-      "version": "2.2.7#0"
+      "version": "3.3.2#0"
     },
     {
       "name": "mman",

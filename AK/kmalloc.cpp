@@ -127,7 +127,7 @@ static mi_heap_t* heap_for_partition(HeapPartition partition)
 {
     switch (partition) {
     case HeapPartition::General:
-        return mi_heap_get_default();
+        return mi_heap_main();
     case HeapPartition::ArrayBuffer:
         static mi_heap_t* array_buffer_heap = mi_heap_new();
         return array_buffer_heap;

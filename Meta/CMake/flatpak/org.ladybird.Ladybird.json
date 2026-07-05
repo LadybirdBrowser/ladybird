@@ -701,7 +701,7 @@
         {
           "type": "git",
           "url": "https://github.com/microsoft/mimalloc.git",
-          "tag": "v2.2.7"
+          "tag": "v3.3.2"
         }
       ],
       "config-opts": [
