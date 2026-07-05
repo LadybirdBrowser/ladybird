@@ -569,53 +569,6 @@ void HistoryStore::update_favicon(URL::URL const& url, String const& favicon_bas
     m_storage->update_favicon(*normalized_url, favicon_base64_png);
 }
 
-void HistoryStore::record_closed_tab(URL::URL const& url, UnixDateTime closed_at)
-{
-    m_recently_closed_entries.empend(RecentlyClosedEntry {
-        .urls = { url },
-        .was_window = false,
-        .active_tab_index = 0,
-        .closed_time = closed_at,
-    });
-}
-
-void HistoryStore::record_closed_window(Vector<URL::URL> urls, size_t active_tab_index, UnixDateTime closed_at)
-{
-    if (urls.is_empty())
-        return;
-
-    m_recently_closed_entries.empend(RecentlyClosedEntry {
-        .urls = move(urls),
-        .was_window = true,
-        .active_tab_index = 0,
-        .closed_time = closed_at,
-    });
-
-    auto& entry = m_recently_closed_entries.last();
-    entry.active_tab_index = active_tab_index < entry.urls.size() ? active_tab_index : entry.urls.size() - 1;
-}
-
-bool HistoryStore::has_recently_closed_entries() const
-{
-    return !m_recently_closed_entries.is_empty();
-}
-
-Optional<RecentlyClosedEntry const&> HistoryStore::most_recently_closed_entry() const
-{
-    if (m_recently_closed_entries.is_empty())
-        return {};
-
-    return m_recently_closed_entries.last();
-}
-
-Optional<RecentlyClosedEntry> HistoryStore::pop_most_recently_closed_entry()
-{
-    if (m_recently_closed_entries.is_empty())
-        return {};
-
-    return m_recently_closed_entries.take_last();
-}
-
 Optional<HistoryEntry> HistoryStore::entry_for_url(URL::URL const& url)
 {
     if (m_is_disabled)
@@ -775,9 +728,6 @@ void HistoryStore::remove_entries_accessed_since(UnixDateTime since)
         m_storage->name(),
         since.seconds_since_epoch());
     m_storage->remove_entries_accessed_since(since);
-    m_recently_closed_entries.remove_all_matching([&](auto const& entry) {
-        return entry.closed_time >= since;
-    });
 }
 
 void HistoryStore::TransientStorage::record_visit(String const& url, Optional<String> const& title, UnixDateTime visited_at, HistoryVisitTransition transition)
