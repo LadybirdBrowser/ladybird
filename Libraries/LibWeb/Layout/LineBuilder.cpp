@@ -10,7 +10,7 @@
 
 namespace Web::Layout {
 
-LineBuilder::LineBuilder(InlineFormattingContext& context, LayoutState& layout_state, LayoutState::UsedValues& containing_block_used_values, CSS::Direction direction, CSS::WritingMode writing_mode)
+LineBuilder::LineBuilder(InlineFormattingContext& context, LayoutState& layout_state, LayoutState::UsedValues& containing_block_used_values, CSSPixels containing_block_width, CSS::Direction direction, CSS::WritingMode writing_mode)
     : m_context(context)
     , m_layout_state(layout_state)
     , m_containing_block_used_values(containing_block_used_values)
@@ -18,7 +18,7 @@ LineBuilder::LineBuilder(InlineFormattingContext& context, LayoutState& layout_s
     , m_writing_mode(writing_mode)
 {
     auto text_indent = m_context.containing_block().computed_values().text_indent();
-    m_text_indent = text_indent.length_percentage.to_px(m_containing_block_used_values.content_width());
+    m_text_indent = text_indent.length_percentage.to_px(containing_block_width);
     m_text_indent_each_line = text_indent.each_line;
     m_text_indent_hanging = text_indent.hanging;
     begin_new_line(false);

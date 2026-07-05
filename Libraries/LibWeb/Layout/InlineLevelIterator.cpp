@@ -61,21 +61,23 @@ void InlineLevelIterator::enter_node_with_box_model_metrics(Layout::NodeWithStyl
 
     auto const& computed_values = node.computed_values();
 
-    used_values.margin_top = computed_values.margin().top().to_px_or_zero(m_containing_block_used_values.content_width());
-    used_values.margin_bottom = computed_values.margin().bottom().to_px_or_zero(m_containing_block_used_values.content_width());
+    auto containing_block_width = m_layout_input.containing_block_constraints.percentage_basis_width.value_or(0);
 
-    used_values.margin_left = computed_values.margin().left().to_px_or_zero(m_containing_block_used_values.content_width());
+    used_values.margin_top = computed_values.margin().top().to_px_or_zero(containing_block_width);
+    used_values.margin_bottom = computed_values.margin().bottom().to_px_or_zero(containing_block_width);
+
+    used_values.margin_left = computed_values.margin().left().to_px_or_zero(containing_block_width);
     used_values.border_left = computed_values.border_left().width;
-    used_values.padding_left = computed_values.padding().left().to_px_or_zero(m_containing_block_used_values.content_width());
+    used_values.padding_left = computed_values.padding().left().to_px_or_zero(containing_block_width);
 
-    used_values.margin_right = computed_values.margin().right().to_px_or_zero(m_containing_block_used_values.content_width());
+    used_values.margin_right = computed_values.margin().right().to_px_or_zero(containing_block_width);
     used_values.border_right = computed_values.border_right().width;
-    used_values.padding_right = computed_values.padding().right().to_px_or_zero(m_containing_block_used_values.content_width());
+    used_values.padding_right = computed_values.padding().right().to_px_or_zero(containing_block_width);
 
     used_values.border_top = computed_values.border_top().width;
     used_values.border_bottom = computed_values.border_bottom().width;
-    used_values.padding_bottom = computed_values.padding().bottom().to_px_or_zero(m_containing_block_used_values.content_width());
-    used_values.padding_top = computed_values.padding().top().to_px_or_zero(m_containing_block_used_values.content_width());
+    used_values.padding_bottom = computed_values.padding().bottom().to_px_or_zero(containing_block_width);
+    used_values.padding_top = computed_values.padding().top().to_px_or_zero(containing_block_width);
 
     m_extra_leading_metrics->margin += used_values.margin_left;
     m_extra_leading_metrics->border += used_values.border_left;

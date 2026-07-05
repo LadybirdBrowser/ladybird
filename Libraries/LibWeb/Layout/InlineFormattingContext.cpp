@@ -351,7 +351,8 @@ void InlineFormattingContext::generate_line_boxes()
     auto writing_mode = m_context_box.computed_values().writing_mode();
 
     InlineLevelIterator iterator(*this, m_state, containing_block(), m_containing_block_used_values, *m_layout_input, m_layout_mode);
-    LineBuilder line_builder(*this, m_state, m_containing_block_used_values, direction, writing_mode);
+    auto containing_block_width = m_layout_input->containing_block_constraints.percentage_basis_width.value_or(0);
+    LineBuilder line_builder(*this, m_state, m_containing_block_used_values, containing_block_width, direction, writing_mode);
 
     // NOTE: When we ignore collapsible whitespace chunks at the start of a line,
     //       we have to remember how much start margin, border and padding that chunk had
@@ -518,7 +519,8 @@ void InlineFormattingContext::generate_line_boxes()
 
                     if (box->display_before_box_type_transformation().is_block_outside()) {
                         auto block_position = marker.preceded_by_in_flow_content ? line_box.bottom() : marker.offset().y();
-                        static_position_rect.rect = { { 0, block_position }, { m_containing_block_used_values.content_width(), 0 } };
+                        auto containing_block_width = m_layout_input->containing_block_constraints.percentage_basis_width.value_or(0);
+                        static_position_rect.rect = { { 0, block_position }, { containing_block_width, 0 } };
                     } else {
                         static_position_rect.rect = { marker.offset(), { 0, 0 } };
                     }

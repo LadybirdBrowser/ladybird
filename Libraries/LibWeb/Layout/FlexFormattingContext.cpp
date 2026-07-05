@@ -320,7 +320,8 @@ bool FlexFormattingContext::is_direction_reverse() const
 
 void FlexFormattingContext::populate_specified_margins(FlexItem& item, CSS::FlexDirection) const
 {
-    auto width_of_containing_block = m_flex_container_state.content_width();
+    // Percentages on flex item box-model metrics resolve against the flex container's inline size.
+    auto width_of_containing_block = m_item_percentage_bases.percentage_basis_width.value_or(0);
 
     item.used_values.padding_left = item.box.computed_values().padding().left().to_px_or_zero(width_of_containing_block);
     item.used_values.padding_right = item.box.computed_values().padding().right().to_px_or_zero(width_of_containing_block);

@@ -759,9 +759,7 @@ void BlockFormattingContext::resolve_used_height_if_treated_as_auto(Box const& b
         auto margins = box_state.margin_top + box_state.margin_bottom;
 
         // 2. Let size be the size of the initial containing block in the block flow direction minus margins.
-        auto const* containing_block = box.containing_block();
-        VERIFY(containing_block);
-        auto size = m_state.get(*containing_block).content_height() - margins;
+        auto size = containing_block_constraints.percentage_basis_height.value_or(0) - margins;
 
         // 3. Return the bigger value of size and the normal border box size the element would have
         //    according to the CSS specification.
@@ -792,9 +790,7 @@ void BlockFormattingContext::resolve_used_height_if_treated_as_auto(Box const& b
             auto margins = box_state.margin_top + box_state.margin_bottom;
 
             // 2. Let size be the size of element's parent element's content box in the block flow direction minus margins.
-            auto const* containing_block = box.containing_block();
-            VERIFY(containing_block);
-            auto size = m_state.get(*containing_block).content_height() - margins;
+            auto size = containing_block_constraints.percentage_basis_height.value_or(0) - margins;
 
             // 3. Return the bigger value of size and the normal border box size the element would have
             //    according to the CSS specification.

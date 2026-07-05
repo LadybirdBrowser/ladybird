@@ -15,7 +15,7 @@ class LineBuilder {
     AK_MAKE_NONMOVABLE(LineBuilder);
 
 public:
-    LineBuilder(InlineFormattingContext&, LayoutState&, LayoutState::UsedValues& containing_block_used_values, CSS::Direction, CSS::WritingMode);
+    LineBuilder(InlineFormattingContext&, LayoutState&, LayoutState::UsedValues& containing_block_used_values, CSSPixels containing_block_width, CSS::Direction, CSS::WritingMode);
 
     enum class ForcedBreak {
         No,
