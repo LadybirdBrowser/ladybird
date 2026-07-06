@@ -159,6 +159,18 @@ ErrorOr<AddressInfoVector> getaddrinfo(char const* nodename, char const* servnam
 CORE_API ErrorOr<ByteString> getcwd();
 CORE_API ErrorOr<void> chdir(StringView path);
 CORE_API ErrorOr<bool> isatty(int fd);
+
+struct TerminalSize {
+    size_t columns { 0 };
+    size_t rows { 0 };
+};
+
+// Queries the size of the terminal the given fd refers to.
+CORE_API ErrorOr<TerminalSize> terminal_size(int fd);
+
+// Makes the terminal the given fd refers to interpret ANSI escape sequences. This is a no-op on POSIX, where
+// terminals interpret escape sequences natively; on Windows it must be called before writing them to a console.
+CORE_API ErrorOr<void> enable_ansi_escape_sequence_processing(int fd);
 CORE_API unsigned hardware_concurrency();
 CORE_API u64 physical_memory_bytes();
 CORE_API ErrorOr<ByteString> current_executable_path();

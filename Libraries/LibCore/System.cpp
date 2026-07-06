@@ -446,6 +446,20 @@ ErrorOr<bool> isatty(int fd)
     return rc == 1;
 }
 
+ErrorOr<TerminalSize> terminal_size(int fd)
+{
+    struct winsize ws {};
+    if (::ioctl(fd, TIOCGWINSZ, &ws) < 0)
+        return Error::from_syscall("ioctl"sv, errno);
+    return TerminalSize { ws.ws_col, ws.ws_row };
+}
+
+ErrorOr<void> enable_ansi_escape_sequence_processing(int)
+{
+    // POSIX terminals interpret escape sequences natively.
+    return {};
+}
+
 ErrorOr<void> link(StringView old_path, StringView new_path)
 {
     ByteString old_path_string = old_path;

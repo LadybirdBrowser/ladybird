@@ -1400,8 +1400,10 @@ static int initialize_console_settings()
         return 0;
     }
 
-    // Set the output code page to UTF-8 to support Emoji and other Unicode characters
-    (void)SetConsoleOutputCP(CP_UTF8);
+    // Switch the output code page to UTF-8 to support Emoji and other Unicode characters. The shared helper
+    // saves the console's original code page so windows_shutdown() can restore it; this static initializer
+    // runs before windows_init(), so the save must happen here.
+    use_utf8_console_output();
 
     return 0;
 }

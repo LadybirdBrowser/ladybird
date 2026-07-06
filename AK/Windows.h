@@ -138,14 +138,35 @@ inline void override_crt_invalid_parameter_handler()
     _set_invalid_parameter_handler(invalid_parameter_handler);
 }
 
+inline UINT& saved_console_output_code_page()
+{
+    static UINT code_page = 0;
+    return code_page;
+}
+
+inline void use_utf8_console_output()
+{
+    // All Ladybird output is UTF-8; make consoles interpret it as such. The code page is a property of the console
+    // itself and outlives this process, so the original one is restored in windows_shutdown(). Save it only once:
+    // this runs both from AK/Format.cpp's static initializer and from windows_init(), and a later run would
+    // overwrite the saved value with the already-switched CP_UTF8.
+    if (saved_console_output_code_page() == 0)
+        saved_console_output_code_page() = GetConsoleOutputCP();
+    if (saved_console_output_code_page() != 0)
+        SetConsoleOutputCP(CP_UTF8);
+}
+
 inline void windows_init()
 {
     initiate_wsa();
     override_crt_invalid_parameter_handler();
+    use_utf8_console_output();
 }
 
 inline void windows_shutdown()
 {
+    if (saved_console_output_code_page() != 0 && saved_console_output_code_page() != CP_UTF8)
+        SetConsoleOutputCP(saved_console_output_code_page());
     terminate_wsa();
 }
 #endif
