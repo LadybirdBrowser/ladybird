@@ -7,7 +7,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.flex-item> at [12,72] flex-item [0+1+0 27.15625 0+1+0] [0+1+60 18 120+1+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 3, rect: [12,72 27.15625x18] baseline: 13.796875
+          frag 0 from TextNode start: 0, length: 3, rect: [12,72 27.15625x16] baseline: 12.796875
               "foo"
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline

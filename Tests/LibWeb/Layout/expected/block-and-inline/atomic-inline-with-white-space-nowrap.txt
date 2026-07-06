@@ -1,19 +1,19 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 34 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 37.15625 0+0+754.84375] [8+0+0 18 0+0+8] children: not-inline
-      BlockContainer <div> at [8,8] [0+0+0 37.15625 0+0+0] [0+0+0 18 0+0+0] children: inline
-        frag 0 from TextNode start: 0, length: 3, rect: [8,8 27.15625x18] baseline: 13.796875
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 37.15625 0+0+754.84375] [8+0+0 16 0+0+8] children: not-inline
+      BlockContainer <div> at [8,8] [0+0+0 37.15625 0+0+0] [0+0+0 16 0+0+0] children: inline
+        frag 0 from TextNode start: 0, length: 3, rect: [8,8 27.15625x16] baseline: 12.796875
             "foo"
-        frag 1 from ImageBox start: 0, length: 0, rect: [35.15625,11 10x10] baseline: 10
+        frag 1 from ImageBox start: 0, length: 0, rect: [35.15625,10 10x10] baseline: 10
         TextNode <#text> (not painted)
-        ImageBox <img> at [35.15625,11] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+        ImageBox <img> at [35.15625,10] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
         TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x34]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 37.15625x18]
-      PaintableWithLines (BlockContainer<DIV>) [8,8 37.15625x18]
-        ImagePaintable (ImageBox<IMG>) [35.15625,11 10x10]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x32]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 37.15625x16]
+      PaintableWithLines (BlockContainer<DIV>) [8,8 37.15625x16]
+        ImagePaintable (ImageBox<IMG>) [35.15625,10 10x10]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x34] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x32] (z-index: auto)

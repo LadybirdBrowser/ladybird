@@ -5,19 +5,19 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.grid-item.item-1> at [271.328125,12] [0+1+0 100 0+1+0] [0+1+0 100 0+1+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [271.328125,12 7.9375x23] baseline: 17.5
+          frag 0 from TextNode start: 0, length: 1, rect: [271.328125,12 7.9375x20] baseline: 16
               "1"
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.grid-item.item-2> at [530.65625,12] [0+1+0 100 0+1+0] [0+1+0 100 0+1+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [530.65625,12 11.015625x23] baseline: 17.5
+          frag 0 from TextNode start: 0, length: 1, rect: [530.65625,12 11.015625x20] baseline: 16
               "2"
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.grid-item.item-3> at [12,12] [0+1+0 100 0+1+0] [0+1+0 100 0+1+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [12,12 11.375x23] baseline: 17.5
+          frag 0 from TextNode start: 0, length: 1, rect: [12,12 11.375x20] baseline: 16
               "3"
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline

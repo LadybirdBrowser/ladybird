@@ -1,0 +1,22 @@
+<!DOCTYPE html><html><head>
+<style>
+    @font-face {
+        font-family: TallMetrics;
+        src: url("../../Assets/NotoSansEthiopic.woff2");
+    }
+    body {
+        margin: 0;
+    }
+    #tall {
+        font-family: TallMetrics;
+        font-size: 16px;
+        line-height: normal;
+    }
+</style>
+</head><body>
+<!-- line-height: normal must be derived from the first available font's metrics
+     (ascent + descent + line gap), not a fixed multiple of font-size. Noto Sans
+     Ethiopic has tall metrics, so its normal line box is 22px tall at 16px, rather
+     than the 18px a hardcoded 1.15 * font-size would produce. -->
+<div id="tall">Tall metrics</div>
+</body></html>

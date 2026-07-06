@@ -1,9 +1,9 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 116 0+0+0] [BFC] children: not-inline
     Box <body.outer> at [8,8] flex-container(column) [8+0+0 400 0+0+392] [8+0+0 100 0+0+8] [FFC] children: not-inline
-      Box <div.inner> at [8,8] flex-container(row) flex-item [0+0+0 400 0+0+0] [0+0+0 18 0+0+0] [FFC] children: not-inline
-        BlockContainer <(anonymous)> at [8,8] flex-item [0+0+0 348.609375 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 40, rect: [8,8 348.609375x18] baseline: 13.796875
+      Box <div.inner> at [8,8] flex-container(row) flex-item [0+0+0 400 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
+        BlockContainer <(anonymous)> at [8,8] flex-item [0+0+0 348.609375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 40, rect: [8,8 348.609375x16] baseline: 12.796875
               "The orange box should have a snug height"
           TextNode <#text> (not painted)
       BlockContainer <(anonymous)> (not painted) [BFC] children: inline
@@ -12,8 +12,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x116]
     Paintable (Box<BODY>.outer) [8,8 400x100]
-      Paintable (Box<DIV>.inner) [8,8 400x18]
-        PaintableWithLines (BlockContainer(anonymous)) [8,8 348.609375x18]
+      Paintable (Box<DIV>.inner) [8,8 400x16]
+        PaintableWithLines (BlockContainer(anonymous)) [8,8 348.609375x16]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x116] (z-index: auto)

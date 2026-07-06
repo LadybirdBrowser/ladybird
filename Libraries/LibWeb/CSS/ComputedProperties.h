@@ -57,8 +57,6 @@ enum class AnimatedPropertyResultOfTransition : u8 {
 
 class WEB_API ComputedProperties final : public RefCounted<ComputedProperties> {
 public:
-    static constexpr double normal_line_height_scale = 1.15;
-
     ~ComputedProperties();
 
     enum class WithAnimationsApplied {
@@ -87,7 +85,7 @@ public:
         bool font_metrics_depend_on_viewport_metrics() const { return m_font_metrics_depend_on_viewport_metrics; }
         Display display() const { return style().display(); }
         StyleValue const& property(PropertyID property_id, WithAnimationsApplied with_animations_applied = WithAnimationsApplied::Yes) const { return style().property(property_id, with_animations_applied); }
-        [[nodiscard]] CSSPixels line_height() const { return style().line_height(); }
+        [[nodiscard]] CSSPixels line_height(FontComputer const& font_computer) const { return style().line_height(font_computer); }
         ValueComparingNonnullRefPtr<Gfx::Font const> first_available_computed_font(FontComputer const& font_computer) const { return style().first_available_computed_font(font_computer); }
 
         void set_has_pseudo_element_styles(u64);
@@ -314,7 +312,8 @@ public:
 
     MathStyle math_style() const;
     int math_depth() const;
-    [[nodiscard]] CSSPixels line_height() const;
+    [[nodiscard]] static CSSPixels normal_line_height(Gfx::FontPixelMetrics const&);
+    [[nodiscard]] CSSPixels line_height(FontComputer const&) const;
     [[nodiscard]] CSSPixels font_size() const;
     double font_weight() const;
     Percentage font_width() const;

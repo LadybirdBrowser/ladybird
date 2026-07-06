@@ -1,53 +1,53 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 98 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 82 0+0+8] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 89 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 73 0+0+8] children: not-inline
       BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
-      BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
-        frag 0 from TextNode start: 0, length: 1, rect: [8,8 11.5625x18] baseline: 13.796875
+      BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+        frag 0 from TextNode start: 0, length: 1, rect: [8,8 11.5625x16] baseline: 12.796875
             "X"
         TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,26] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+      BlockContainer <(anonymous)> at [8,24] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
-      BlockContainer <div> at [8,26] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        frag 0 from TextNode start: 0, length: 1, rect: [8,26 0x0] baseline: 0.296875
+      BlockContainer <div> at [8,24] [0+0+0 784 0+0+0] [0+0+0 1 0+0+0] children: inline
+        frag 0 from TextNode start: 0, length: 1, rect: [8,24 0x1] baseline: 0.796875
             "X"
         TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,26] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+      BlockContainer <(anonymous)> at [8,25] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
-      BlockContainer <div> at [8,26] [0+0+0 784 0+0+0] [0+0+0 9 0+0+0] children: inline
-        frag 0 from TextNode start: 0, length: 1, rect: [8,26 5.78125x9] baseline: 6.90625
+      BlockContainer <div> at [8,25] [0+0+0 784 0+0+0] [0+0+0 8 0+0+0] children: inline
+        frag 0 from TextNode start: 0, length: 1, rect: [8,25 5.78125x8] baseline: 6.40625
             "X"
         TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,35] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+      BlockContainer <(anonymous)> at [8,33] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
-      BlockContainer <div> at [8,35] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
-        frag 0 from TextNode start: 0, length: 1, rect: [8,35 11.5625x18] baseline: 13.796875
+      BlockContainer <div> at [8,33] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+        frag 0 from TextNode start: 0, length: 1, rect: [8,33 11.5625x16] baseline: 12.796875
             "X"
         TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,53] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+      BlockContainer <(anonymous)> at [8,49] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
-      BlockContainer <div> at [8,53] [0+0+0 784 0+0+0] [0+0+0 37 0+0+0] children: inline
-        frag 0 from TextNode start: 0, length: 1, rect: [8,53 23.125x37] baseline: 28.09375
+      BlockContainer <div> at [8,49] [0+0+0 784 0+0+0] [0+0+0 32 0+0+0] children: inline
+        frag 0 from TextNode start: 0, length: 1, rect: [8,49 23.125x32] baseline: 25.59375
             "X"
         TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,90] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+      BlockContainer <(anonymous)> at [8,81] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x98]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x82]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x89]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x73]
       PaintableWithLines (BlockContainer(anonymous)) [8,8 784x0]
-      PaintableWithLines (BlockContainer<DIV>) [8,8 784x18]
-      PaintableWithLines (BlockContainer(anonymous)) [8,26 784x0]
-      PaintableWithLines (BlockContainer<DIV>) [8,26 784x0]
-      PaintableWithLines (BlockContainer(anonymous)) [8,26 784x0]
-      PaintableWithLines (BlockContainer<DIV>) [8,26 784x9]
-      PaintableWithLines (BlockContainer(anonymous)) [8,35 784x0]
-      PaintableWithLines (BlockContainer<DIV>) [8,35 784x18]
-      PaintableWithLines (BlockContainer(anonymous)) [8,53 784x0]
-      PaintableWithLines (BlockContainer<DIV>) [8,53 784x37]
-      PaintableWithLines (BlockContainer(anonymous)) [8,90 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,8 784x16]
+      PaintableWithLines (BlockContainer(anonymous)) [8,24 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,24 784x1]
+      PaintableWithLines (BlockContainer(anonymous)) [8,25 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,25 784x8]
+      PaintableWithLines (BlockContainer(anonymous)) [8,33 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,33 784x16]
+      PaintableWithLines (BlockContainer(anonymous)) [8,49 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,49 784x32]
+      PaintableWithLines (BlockContainer(anonymous)) [8,81 784x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x98] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x89] (z-index: auto)

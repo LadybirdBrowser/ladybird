@@ -1,18 +1,18 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 70 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 54 0+0+8] children: inline
-      frag 0 from BlockContainer start: 0, length: 0, rect: [8,44 44.6875x18] baseline: 13.796875
-      frag 1 from BlockContainer start: 0, length: 0, rect: [52.6875,8 27.640625x54] baseline: 49.796875
-      BlockContainer <div> at [8,44] inline-block [0+0+0 44.6875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
-        frag 0 from TextNode start: 0, length: 5, rect: [8,44 44.6875x18] baseline: 13.796875
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 64 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 48 0+0+8] children: inline
+      frag 0 from BlockContainer start: 0, length: 0, rect: [8,40 44.6875x16] baseline: 12.796875
+      frag 1 from BlockContainer start: 0, length: 0, rect: [52.6875,8 27.640625x48] baseline: 44.796875
+      BlockContainer <div> at [8,40] inline-block [0+0+0 44.6875 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 5, rect: [8,40 44.6875x16] baseline: 12.796875
             "short"
         TextNode <#text> (not painted)
-      BlockContainer <div> at [52.6875,8] inline-block [0+0+0 27.640625 0+0+0] [0+0+0 54 0+0+0] [BFC] children: inline
-        frag 0 from TextNode start: 0, length: 3, rect: [52.6875,8 27.15625x18] baseline: 13.796875
+      BlockContainer <div> at [52.6875,8] inline-block [0+0+0 27.640625 0+0+0] [0+0+0 48 0+0+0] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 3, rect: [52.6875,8 27.15625x16] baseline: 12.796875
             "foo"
-        frag 1 from TextNode start: 0, length: 3, rect: [52.6875,26 27.640625x18] baseline: 13.796875
+        frag 1 from TextNode start: 0, length: 3, rect: [52.6875,24 27.640625x16] baseline: 12.796875
             "bar"
-        frag 2 from TextNode start: 0, length: 3, rect: [52.6875,44 27.203125x18] baseline: 13.796875
+        frag 2 from TextNode start: 0, length: 3, rect: [52.6875,40 27.203125x16] baseline: 12.796875
             "baz"
         TextNode <#text> (not painted)
         BreakNode <br> (not painted)
@@ -22,10 +22,10 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x70]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x54]
-      PaintableWithLines (BlockContainer<DIV>) [8,44 44.6875x18]
-      PaintableWithLines (BlockContainer<DIV>) [52.6875,8 27.640625x54]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x64]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x48]
+      PaintableWithLines (BlockContainer<DIV>) [8,40 44.6875x16]
+      PaintableWithLines (BlockContainer<DIV>) [52.6875,8 27.640625x48]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x70] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x64] (z-index: auto)

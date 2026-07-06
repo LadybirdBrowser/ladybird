@@ -1,1 +1,1 @@
-Bounding Client Rect: top=50, left=10, width=500, height=58
+Bounding Client Rect: top=50, left=10, width=500, height=56

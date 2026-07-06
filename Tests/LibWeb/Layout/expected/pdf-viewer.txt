@@ -17,7 +17,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               BlockContainer <(anonymous)> at [0,0] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
                 TextNode <#text> (not painted)
               BlockContainer <div#toolbarContainer> at [1,2] positioned [0+0+1 798 1+0+0] [0+0+2 28 2+0+0] children: inline
-                frag 0 from Box start: 0, length: 0, rect: [1,2 798x28] baseline: 27.796875
+                frag 0 from Box start: 0, length: 0, rect: [1,2 798x28] baseline: 26.796875
                 TextNode <#text> (not painted)
                 Box <div#toolbarViewer.toolbarHorizontalGroup> at [1,2] flex-container(row) [0+0+0 798 0+0+0] [0+0+0 28 0+0+0] [FFC] children: not-inline
                   BlockContainer <(anonymous)> (not painted) [BFC] children: inline
@@ -31,9 +31,9 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                       BlockContainer <(anonymous)> (not painted) [BFC] children: inline
                         TextNode <#text> (not painted)
                       BlockContainer <span> at [31,16] flex-item [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
-                        frag 0 from TextNode start: 0, length: 6, rect: [31,16 56.34375x18] baseline: 13.796875
+                        frag 0 from TextNode start: 0, length: 6, rect: [31,16 56.34375x16] baseline: 12.796875
                             "Manage"
-                        frag 1 from TextNode start: 7, length: 5, rect: [31,34 44.390625x18] baseline: 13.796875
+                        frag 1 from TextNode start: 7, length: 5, rect: [31,32 44.390625x16] baseline: 12.796875
                             "pages"
                         TextNode <#text> (not painted)
                       BlockContainer <(anonymous)> (not painted) [BFC] children: inline
@@ -54,7 +54,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
                           TextNode <#text> (not painted)
                         BlockContainer <span> at [91,16] flex-item [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
-                          frag 0 from TextNode start: 0, length: 4, rect: [91,16 34.578125x18] baseline: 13.796875
+                          frag 0 from TextNode start: 0, length: 4, rect: [91,16 34.578125x16] baseline: 12.796875
                               "Find"
                           TextNode <#text> (not painted)
                         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
@@ -74,7 +74,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
                           TextNode <#text> (not painted)
                         BlockContainer <span> at [120,16] flex-item [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
-                          frag 0 from TextNode start: 0, length: 8, rect: [120,16 71.3125x18] baseline: 13.796875
+                          frag 0 from TextNode start: 0, length: 8, rect: [120,16 71.3125x16] baseline: 12.796875
                               "Previous"
                           TextNode <#text> (not painted)
                         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
@@ -90,7 +90,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
                           TextNode <#text> (not painted)
                         BlockContainer <span> at [151,16] flex-item [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
-                          frag 0 from TextNode start: 0, length: 4, rect: [151,16 35.5625x18] baseline: 13.796875
+                          frag 0 from TextNode start: 0, length: 4, rect: [151,16 35.5625x16] baseline: 12.796875
                               "Next"
                           TextNode <#text> (not painted)
                         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
@@ -139,9 +139,9 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
                           TextNode <#text> (not painted)
                         BlockContainer <span> at [335.9375,16] flex-item [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
-                          frag 0 from TextNode start: 0, length: 4, rect: [335.9375,16 45.53125x18] baseline: 13.796875
+                          frag 0 from TextNode start: 0, length: 4, rect: [335.9375,16 45.53125x16] baseline: 12.796875
                               "Zoom"
-                          frag 1 from TextNode start: 5, length: 3, rect: [335.9375,34 28.109375x18] baseline: 13.796875
+                          frag 1 from TextNode start: 5, length: 3, rect: [335.9375,32 28.109375x16] baseline: 12.796875
                               "Out"
                           TextNode <#text> (not painted)
                         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
@@ -157,9 +157,9 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
                           TextNode <#text> (not painted)
                         BlockContainer <span> at [366.9375,16] flex-item [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
-                          frag 0 from TextNode start: 0, length: 4, rect: [366.9375,16 45.53125x18] baseline: 13.796875
+                          frag 0 from TextNode start: 0, length: 4, rect: [366.9375,16 45.53125x16] baseline: 12.796875
                               "Zoom"
-                          frag 1 from TextNode start: 5, length: 2, rect: [366.9375,34 14.203125x18] baseline: 13.796875
+                          frag 1 from TextNode start: 5, length: 2, rect: [366.9375,32 14.203125x16] baseline: 12.796875
                               "In"
                           TextNode <#text> (not painted)
                         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
@@ -173,8 +173,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                         TextNode <#text> (not painted)
                       BlockContainer <select#scaleSelect> at [379.9375,3] flex-item [0+0+6 102.484375 38+0+0] [0+0+1 25 2+0+0] [BFC] children: not-inline
                         Box <div> at [379.9375,3] positioned flex-container(row) [0+0+0 102.484375 0+0+0] [0+0+0 25 0+0+0] [FFC] children: not-inline
-                          BlockContainer <div> at [379.9375,8.5] flex-item [0+0+0 102.484375 0+0+0] [0+0+0 14 0+0+0] [BFC] children: inline
-                            frag 0 from TextNode start: 0, length: 14, rect: [379.9375,8.5 102.484375x14] baseline: 10.59375
+                          BlockContainer <div> at [379.9375,9.5] flex-item [0+0+0 102.484375 0+0+0] [0+0+0 12 0+0+0] [BFC] children: inline
+                            frag 0 from TextNode start: 0, length: 14, rect: [379.9375,9.5 102.484375x12] baseline: 9.59375
                                 "Automatic Zoom"
                             TextNode <#text> (not painted)
                       BlockContainer <(anonymous)> (not painted) [BFC] children: inline
@@ -202,7 +202,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                           BlockContainer <(anonymous)> (not painted) [BFC] children: inline
                             TextNode <#text> (not painted)
                           BlockContainer <span> at [607,16] flex-item [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
-                            frag 0 from TextNode start: 0, length: 9, rect: [607,16 66.171875x18] baseline: 13.796875
+                            frag 0 from TextNode start: 0, length: 9, rect: [607,16 66.171875x16] baseline: 12.796875
                                 "Highlight"
                             TextNode <#text> (not painted)
                           BlockContainer <(anonymous)> (not painted) [BFC] children: inline
@@ -221,7 +221,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                           BlockContainer <(anonymous)> (not painted) [BFC] children: inline
                             TextNode <#text> (not painted)
                           BlockContainer <span> at [636,16] flex-item [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
-                            frag 0 from TextNode start: 0, length: 4, rect: [636,16 37.578125x18] baseline: 13.796875
+                            frag 0 from TextNode start: 0, length: 4, rect: [636,16 37.578125x16] baseline: 12.796875
                                 "Text"
                             TextNode <#text> (not painted)
                           BlockContainer <(anonymous)> (not painted) [BFC] children: inline
@@ -240,7 +240,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                           BlockContainer <(anonymous)> (not painted) [BFC] children: inline
                             TextNode <#text> (not painted)
                           BlockContainer <span> at [665,16] flex-item [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
-                            frag 0 from TextNode start: 0, length: 4, rect: [665,16 40.53125x18] baseline: 13.796875
+                            frag 0 from TextNode start: 0, length: 4, rect: [665,16 40.53125x16] baseline: 12.796875
                                 "Draw"
                             TextNode <#text> (not painted)
                           BlockContainer <(anonymous)> (not painted) [BFC] children: inline
@@ -259,13 +259,13 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                           BlockContainer <(anonymous)> (not painted) [BFC] children: inline
                             TextNode <#text> (not painted)
                           BlockContainer <span> at [694,16] flex-item [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
-                            frag 0 from TextNode start: 0, length: 3, rect: [694,16 29.984375x18] baseline: 13.796875
+                            frag 0 from TextNode start: 0, length: 3, rect: [694,16 29.984375x16] baseline: 12.796875
                                 "Add"
-                            frag 1 from TextNode start: 4, length: 2, rect: [694,34 19.1875x18] baseline: 13.796875
+                            frag 1 from TextNode start: 4, length: 2, rect: [694,32 19.1875x16] baseline: 12.796875
                                 "or"
-                            frag 2 from TextNode start: 7, length: 4, rect: [694,52 28x18] baseline: 13.796875
+                            frag 2 from TextNode start: 7, length: 4, rect: [694,48 28x16] baseline: 12.796875
                                 "edit"
-                            frag 3 from TextNode start: 12, length: 6, rect: [694,70 51.734375x18] baseline: 13.796875
+                            frag 3 from TextNode start: 12, length: 6, rect: [694,64 51.734375x16] baseline: 12.796875
                                 "images"
                             TextNode <#text> (not painted)
                           BlockContainer <(anonymous)> (not painted) [BFC] children: inline
@@ -289,7 +289,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
                           TextNode <#text> (not painted)
                         BlockContainer <span> at [729,16] flex-item [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
-                          frag 0 from TextNode start: 0, length: 5, rect: [729,16 41.390625x18] baseline: 13.796875
+                          frag 0 from TextNode start: 0, length: 5, rect: [729,16 41.390625x16] baseline: 12.796875
                               "Print"
                           TextNode <#text> (not painted)
                         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
@@ -302,7 +302,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
                           TextNode <#text> (not painted)
                         BlockContainer <span> at [758,16] flex-item [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
-                          frag 0 from TextNode start: 0, length: 4, rect: [758,16 38.234375x18] baseline: 13.796875
+                          frag 0 from TextNode start: 0, length: 4, rect: [758,16 38.234375x16] baseline: 12.796875
                               "Save"
                           TextNode <#text> (not painted)
                         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
@@ -323,7 +323,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
                           TextNode <#text> (not painted)
                         BlockContainer <span> at [793,16] flex-item [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
-                          frag 0 from TextNode start: 0, length: 5, rect: [793,16 46.59375x18] baseline: 13.796875
+                          frag 0 from TextNode start: 0, length: 5, rect: [793,16 46.59375x16] baseline: 12.796875
                               "Tools"
                           TextNode <#text> (not painted)
                         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
@@ -399,22 +399,22 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
                   Paintable (Box<DIV>#toolbarViewerLeft.toolbarHorizontalGroup) [9,2 240.359375x28]
                     Paintable (Box<BUTTON>#viewsManagerToggleButton.toolbarButton) [9,2 28x28]
                       PaintableWithLines (BlockContainer(anonymous)) [15,8 16x16]
-                      PaintableWithLines (BlockContainer<SPAN>) [31,16 0x0] overflow: [31,16 56.34375x36]
+                      PaintableWithLines (BlockContainer<SPAN>) [31,16 0x0] overflow: [31,16 56.34375x32]
                     PaintableWithLines (BlockContainer<DIV>.toolbarButtonSpacer) [38,15.5 30x1]
                     PaintableWithLines (BlockContainer<DIV>.toolbarButtonWithContainer) [69,2 28x28]
                       PaintableWithLines (BlockContainer(anonymous)) [69,2 28x0]
                       Paintable (Box<BUTTON>#viewFindButton.toolbarButton) [69,2 28x28]
                         PaintableWithLines (BlockContainer(anonymous)) [75,8 16x16]
-                        PaintableWithLines (BlockContainer<SPAN>) [91,16 0x0] overflow: [91,16 34.578125x18]
+                        PaintableWithLines (BlockContainer<SPAN>) [91,16 0x0] overflow: [91,16 34.578125x16]
                       PaintableWithLines (BlockContainer(anonymous)) [69,30 28x0]
                     Paintable (Box<DIV>.toolbarHorizontalGroup.hiddenSmallView) [98,2 59x28]
                       Paintable (Box<BUTTON>#previous.toolbarButton) [98,2 28x28]
                         PaintableWithLines (BlockContainer(anonymous)) [104,8 16x16]
-                        PaintableWithLines (BlockContainer<SPAN>) [120,16 0x0] overflow: [120,16 71.3125x18]
+                        PaintableWithLines (BlockContainer<SPAN>) [120,16 0x0] overflow: [120,16 71.3125x16]
                       PaintableWithLines (BlockContainer<DIV>.splitToolbarButtonSeparator) [127,7.328125 1x17.359375]
                       Paintable (Box<BUTTON>#next.toolbarButton) [129,2 28x28]
                         PaintableWithLines (BlockContainer(anonymous)) [135,8 16x16]
-                        PaintableWithLines (BlockContainer<SPAN>) [151,16 0x0] overflow: [151,16 35.5625x18]
+                        PaintableWithLines (BlockContainer<SPAN>) [151,16 0x0] overflow: [151,16 35.5625x16]
                     Paintable (Box<DIV>.toolbarHorizontalGroup) [158,2 91.359375x28]
                       Paintable (Box<SPAN>.loadingInput.start.toolbarHorizontalGroup) [158,2 56x28]
                         PaintableWithLines (TextInputBox<INPUT>#pageNumber.toolbarField) [158,3 56x26]
@@ -427,15 +427,15 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
                     Paintable (Box<DIV>.toolbarHorizontalGroup) [313.9375,2 59x28]
                       Paintable (Box<BUTTON>#zoomOutButton.toolbarButton) [313.9375,2 28x28]
                         PaintableWithLines (BlockContainer(anonymous)) [319.9375,8 16x16]
-                        PaintableWithLines (BlockContainer<SPAN>) [335.9375,16 0x0] overflow: [335.9375,16 45.53125x36]
+                        PaintableWithLines (BlockContainer<SPAN>) [335.9375,16 0x0] overflow: [335.9375,16 45.53125x32]
                       PaintableWithLines (BlockContainer<DIV>.splitToolbarButtonSeparator) [342.9375,7.328125 1x17.359375]
                       Paintable (Box<BUTTON>#zoomInButton.toolbarButton) [344.9375,2 28x28]
                         PaintableWithLines (BlockContainer(anonymous)) [350.9375,8 16x16]
-                        PaintableWithLines (BlockContainer<SPAN>) [366.9375,16 0x0] overflow: [366.9375,16 45.53125x36]
+                        PaintableWithLines (BlockContainer<SPAN>) [366.9375,16 0x0] overflow: [366.9375,16 45.53125x32]
                     Paintable (Box<SPAN>#scaleSelectContainer.dropdownToolbarButton) [373.9375,2 146.484375x28]
                       PaintableWithLines (BlockContainer<SELECT>#scaleSelect) [373.9375,2 146.484375x28]
                         Paintable (Box<DIV>) [379.9375,3 102.484375x25]
-                          PaintableWithLines (BlockContainer<DIV>) [379.9375,8.5 102.484375x14]
+                          PaintableWithLines (BlockContainer<DIV>) [379.9375,9.5 102.484375x12]
                       PaintableWithLines (BlockContainer(anonymous)) [500.421875,8 16x16]
                   Paintable (Box<DIV>#toolbarViewerRight.toolbarHorizontalGroup) [585,2 214x28]
                     Paintable (Box<DIV>#editorModeButtons.toolbarHorizontalGroup) [585,2 115x28]
@@ -443,40 +443,40 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
                         PaintableWithLines (BlockContainer(anonymous)) [585,2 28x0]
                         Paintable (Box<BUTTON>#editorHighlightButton.toolbarButton) [585,2 28x28]
                           PaintableWithLines (BlockContainer(anonymous)) [591,8 16x16]
-                          PaintableWithLines (BlockContainer<SPAN>) [607,16 0x0] overflow: [607,16 66.171875x18]
+                          PaintableWithLines (BlockContainer<SPAN>) [607,16 0x0] overflow: [607,16 66.171875x16]
                         PaintableWithLines (BlockContainer(anonymous)) [585,30 28x0]
                       PaintableWithLines (BlockContainer<DIV>#editorFreeText.toolbarButtonWithContainer) [614,2 28x28]
                         PaintableWithLines (BlockContainer(anonymous)) [614,2 28x0]
                         Paintable (Box<BUTTON>#editorFreeTextButton.toolbarButton) [614,2 28x28]
                           PaintableWithLines (BlockContainer(anonymous)) [620,8 16x16]
-                          PaintableWithLines (BlockContainer<SPAN>) [636,16 0x0] overflow: [636,16 37.578125x18]
+                          PaintableWithLines (BlockContainer<SPAN>) [636,16 0x0] overflow: [636,16 37.578125x16]
                         PaintableWithLines (BlockContainer(anonymous)) [614,30 28x0]
                       PaintableWithLines (BlockContainer<DIV>#editorInk.toolbarButtonWithContainer) [643,2 28x28]
                         PaintableWithLines (BlockContainer(anonymous)) [643,2 28x0]
                         Paintable (Box<BUTTON>#editorInkButton.toolbarButton) [643,2 28x28]
                           PaintableWithLines (BlockContainer(anonymous)) [649,8 16x16]
-                          PaintableWithLines (BlockContainer<SPAN>) [665,16 0x0] overflow: [665,16 40.53125x18]
+                          PaintableWithLines (BlockContainer<SPAN>) [665,16 0x0] overflow: [665,16 40.53125x16]
                         PaintableWithLines (BlockContainer(anonymous)) [643,30 28x0]
                       PaintableWithLines (BlockContainer<DIV>#editorStamp.toolbarButtonWithContainer) [672,2 28x28]
                         PaintableWithLines (BlockContainer(anonymous)) [672,2 28x0]
                         Paintable (Box<BUTTON>#editorStampButton.toolbarButton) [672,2 28x28]
                           PaintableWithLines (BlockContainer(anonymous)) [678,8 16x16]
-                          PaintableWithLines (BlockContainer<SPAN>) [694,16 0x0] overflow: [694,16 51.734375x72]
+                          PaintableWithLines (BlockContainer<SPAN>) [694,16 0x0] overflow: [694,16 51.734375x64]
                         PaintableWithLines (BlockContainer(anonymous)) [672,30 28x0]
                     PaintableWithLines (BlockContainer<DIV>#editorModeSeparator.verticalToolbarSeparator) [703,4.8125 1x22.390625]
                     Paintable (Box<DIV>.toolbarHorizontalGroup.hiddenMediumView) [707,2 57x28]
                       Paintable (Box<BUTTON>#printButton.toolbarButton) [707,2 28x28]
                         PaintableWithLines (BlockContainer(anonymous)) [713,8 16x16]
-                        PaintableWithLines (BlockContainer<SPAN>) [729,16 0x0] overflow: [729,16 41.390625x18]
+                        PaintableWithLines (BlockContainer<SPAN>) [729,16 0x0] overflow: [729,16 41.390625x16]
                       Paintable (Box<BUTTON>#downloadButton.toolbarButton) [736,2 28x28]
                         PaintableWithLines (BlockContainer(anonymous)) [742,8 16x16]
-                        PaintableWithLines (BlockContainer<SPAN>) [758,16 0x0] overflow: [758,16 38.234375x18]
+                        PaintableWithLines (BlockContainer<SPAN>) [758,16 0x0] overflow: [758,16 38.234375x16]
                     PaintableWithLines (BlockContainer<DIV>.verticalToolbarSeparator.hiddenMediumView) [767,4.8125 1x22.390625]
                     PaintableWithLines (BlockContainer<DIV>#secondaryToolbarToggle.toolbarButtonWithContainer) [771,2 28x28]
                       PaintableWithLines (BlockContainer(anonymous)) [771,2 28x0]
                       Paintable (Box<BUTTON>#secondaryToolbarToggleButton.toolbarButton) [771,2 28x28]
                         PaintableWithLines (BlockContainer(anonymous)) [777,8 16x16]
-                        PaintableWithLines (BlockContainer<SPAN>) [793,16 0x0] overflow: [793,16 46.59375x18]
+                        PaintableWithLines (BlockContainer<SPAN>) [793,16 0x0] overflow: [793,16 46.59375x16]
                       PaintableWithLines (BlockContainer(anonymous)) [771,30 28x0]
               PaintableWithLines (BlockContainer(anonymous)) [0,32 800x0]
             PaintableWithLines (BlockContainer<DIV>#viewerContainer) [0,32 800x568]

@@ -5,25 +5,25 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.grid-item> at [58,58] [0+0+0 50 0+0+0] [0+0+0 50 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [58,58 6.34375x18] baseline: 13.796875
+          frag 0 from TextNode start: 0, length: 1, rect: [58,58 6.34375x16] baseline: 12.796875
               "1"
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.grid-item> at [128,58] [0+0+0 100 0+0+0] [0+0+0 50 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [128,58 8.8125x18] baseline: 13.796875
+          frag 0 from TextNode start: 0, length: 1, rect: [128,58 8.8125x16] baseline: 12.796875
               "2"
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.grid-item> at [58,128] [0+0+0 50 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [58,128 9.09375x18] baseline: 13.796875
+          frag 0 from TextNode start: 0, length: 1, rect: [58,128 9.09375x16] baseline: 12.796875
               "3"
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.grid-item> at [128,128] [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [128,128 7.75x18] baseline: 13.796875
+          frag 0 from TextNode start: 0, length: 1, rect: [128,128 7.75x16] baseline: 12.796875
               "4"
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline

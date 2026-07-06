@@ -5,25 +5,25 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div> at [23,23] [0+0+5 232.234375 5+0+0] [0+0+5 170 5+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 28, rect: [23,23 232.234375x18] baseline: 13.796875
+          frag 0 from TextNode start: 0, length: 28, rect: [23,23 232.234375x16] baseline: 12.796875
               "Item as wide as the content."
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div> at [270.234375,23] [0+0+5 290 5+0+0] [0+0+5 170 5+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 1, length: 34, rect: [270.234375,23 278.625x18] baseline: 13.796875
+          frag 0 from TextNode start: 1, length: 34, rect: [270.234375,23 278.625x16] baseline: 12.796875
               "Item with more text in it. Because"
-          frag 1 from TextNode start: 36, length: 33, rect: [270.234375,41 274.53125x18] baseline: 13.796875
+          frag 1 from TextNode start: 36, length: 33, rect: [270.234375,39 274.53125x16] baseline: 12.796875
               "the contents of it are wider than"
-          frag 2 from TextNode start: 70, length: 35, rect: [270.234375,59 289.90625x18] baseline: 13.796875
+          frag 2 from TextNode start: 70, length: 35, rect: [270.234375,55 289.90625x16] baseline: 12.796875
               "the maximum width, it is clamped at"
-          frag 3 from TextNode start: 106, length: 11, rect: [270.234375,77 86.609375x18] baseline: 13.796875
+          frag 3 from TextNode start: 106, length: 11, rect: [270.234375,71 86.609375x16] baseline: 12.796875
               "300 pixels."
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div> at [575.234375,23] [0+0+5 201.765625 5+0+0] [0+0+5 170 5+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 13, rect: [575.234375,23 102.53125x18] baseline: 13.796875
+          frag 0 from TextNode start: 0, length: 13, rect: [575.234375,23 102.53125x16] baseline: 12.796875
               "Flexible item"
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline

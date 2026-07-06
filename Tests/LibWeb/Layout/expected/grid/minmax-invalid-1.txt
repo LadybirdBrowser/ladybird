@@ -1,22 +1,22 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 52 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 36 0+0+8] children: not-inline
-      Box <div.container> at [8,8] [0+0+0 784 0+0+0] [0+0+0 36 0+0+0] [GFC] children: not-inline
-        BlockContainer <div.one> at [8,8] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [8,8 6.34375x18] baseline: 13.796875
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 48 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 32 0+0+8] children: not-inline
+      Box <div.container> at [8,8] [0+0+0 784 0+0+0] [0+0+0 32 0+0+0] [GFC] children: not-inline
+        BlockContainer <div.one> at [8,8] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [8,8 6.34375x16] baseline: 12.796875
               "1"
           TextNode <#text> (not painted)
-        BlockContainer <div.two> at [8,26] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [8,26 8.8125x18] baseline: 13.796875
+        BlockContainer <div.two> at [8,24] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [8,24 8.8125x16] baseline: 12.796875
               "2"
           TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x52]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x36]
-      Paintable (Box<DIV>.container) [8,8 784x36]
-        PaintableWithLines (BlockContainer<DIV>.one) [8,8 784x18]
-        PaintableWithLines (BlockContainer<DIV>.two) [8,26 784x18]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x48]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x32]
+      Paintable (Box<DIV>.container) [8,8 784x32]
+        PaintableWithLines (BlockContainer<DIV>.one) [8,8 784x16]
+        PaintableWithLines (BlockContainer<DIV>.two) [8,24 784x16]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x52] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x48] (z-index: auto)

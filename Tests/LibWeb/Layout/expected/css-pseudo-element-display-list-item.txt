@@ -1,27 +1,27 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 52 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 36 0+0+8] children: not-inline
-      BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 36 0+0+0] children: not-inline
-        BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
-          frag 0 from TextNode start: 0, length: 11, rect: [8,8 83.265625x18] baseline: 13.796875
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 48 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 32 0+0+8] children: not-inline
+      BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 32 0+0+0] children: not-inline
+        BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 11, rect: [8,8 83.265625x16] baseline: 12.796875
               "Filler text"
           TextNode <#text> (not painted)
-        ListItemBox <(anonymous)> at [24,26] [16+0+0 768 0+0+0] [0+0+0 18 0+0+0] children: inline
-          frag 0 from GeneratedTextNode start: 0, length: 11, rect: [24,26 88.703125x18] baseline: 13.796875
+        ListItemBox <(anonymous)> at [24,24] [16+0+0 768 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from GeneratedTextNode start: 0, length: 11, rect: [24,24 88.703125x16] baseline: 12.796875
               "Filler Text"
-          ListItemMarkerBox <(anonymous)> at [10,32] [0+0+0 6 0+0+0] [0+0+0 6 0+0+0] children: not-inline
+          ListItemMarkerBox <(anonymous)> at [10,29] [0+0+0 6 0+0+0] [0+0+0 6 0+0+0] children: not-inline
           GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,44] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+      BlockContainer <(anonymous)> at [8,40] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x52]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x36]
-      PaintableWithLines (BlockContainer<DIV>) [8,8 784x36]
-        PaintableWithLines (BlockContainer(anonymous)) [8,8 784x18]
-        PaintableWithLines (ListItemBox(anonymous)) [24,26 768x18]
-          MarkerPaintable (ListItemMarkerBox(anonymous)) [10,32 6x6]
-      PaintableWithLines (BlockContainer(anonymous)) [8,44 784x0]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x48]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x32]
+      PaintableWithLines (BlockContainer<DIV>) [8,8 784x32]
+        PaintableWithLines (BlockContainer(anonymous)) [8,8 784x16]
+        PaintableWithLines (ListItemBox(anonymous)) [24,24 768x16]
+          MarkerPaintable (ListItemMarkerBox(anonymous)) [10,29 6x6]
+      PaintableWithLines (BlockContainer(anonymous)) [8,40 784x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x52] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x48] (z-index: auto)

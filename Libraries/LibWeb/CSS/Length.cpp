@@ -269,8 +269,8 @@ Length::ResolutionContext Length::ResolutionContext::for_element(DOM::AbstractEl
 
     return Length::ResolutionContext {
         .viewport_rect = element.element().navigable()->viewport_rect(),
-        .font_metrics = { element.computed_properties()->font_size(), element.computed_properties()->first_available_computed_font(element.document().font_computer())->pixel_metrics(), element.computed_properties()->line_height() },
-        .root_font_metrics = { root_element->computed_properties()->font_size(), root_element->computed_properties()->first_available_computed_font(element.document().font_computer())->pixel_metrics(), element.computed_properties()->line_height() },
+        .font_metrics = { element.computed_properties()->font_size(), element.computed_properties()->first_available_computed_font(element.document().font_computer())->pixel_metrics(), element.computed_properties()->line_height(element.document().font_computer()) },
+        .root_font_metrics = { root_element->computed_properties()->font_size(), root_element->computed_properties()->first_available_computed_font(element.document().font_computer())->pixel_metrics(), element.computed_properties()->line_height(element.document().font_computer()) },
         .font_metrics_depend_on_viewport_metrics = element.computed_properties()->font_metrics_depend_on_viewport_metrics(),
         .root_font_metrics_depend_on_viewport_metrics = root_element->computed_properties()->font_metrics_depend_on_viewport_metrics(),
         .subject_inline_axis_is_horizontal = inline_axis_is_horizontal(element.computed_properties()->writing_mode()),

@@ -1,18 +1,18 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 34 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 18 0+0+8] children: inline
-      frag 0 from TextNode start: 0, length: 2, rect: [60.15625,8 19.234375x18] baseline: 13.796875
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 16 0+0+8] children: inline
+      frag 0 from TextNode start: 0, length: 2, rect: [60.15625,8 19.234375x16] baseline: 12.796875
           "bu"
-      InlineNode <span#inline-margin> at [8,8] [0+0+0 27.15625 0+0+25] [0+0+0 18 0+0+0]
-        frag 0 from TextNode start: 0, length: 3, rect: [8,8 27.15625x18] baseline: 13.796875
+      InlineNode <span#inline-margin> at [8,8] [0+0+0 27.15625 0+0+25] [0+0+0 16 0+0+0]
+        frag 0 from TextNode start: 0, length: 3, rect: [8,8 27.15625x16] baseline: 12.796875
             "foo"
         TextNode <#text> (not painted)
       TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x34]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x18]
-      PaintableWithLines (InlineNode<SPAN>#inline-margin) [8,8 27.15625x18]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x32]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x16]
+      PaintableWithLines (InlineNode<SPAN>#inline-margin) [8,8 27.15625x16]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x34] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x32] (z-index: auto)

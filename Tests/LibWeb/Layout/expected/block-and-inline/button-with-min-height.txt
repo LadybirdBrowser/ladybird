@@ -4,8 +4,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       frag 0 from BlockContainer start: 0, length: 0, rect: [13,10 143.515625x96] baseline: 54.796875
       BlockContainer <button> at [13,10] inline-block [0+1+4 143.515625 4+1+0] [0+1+1 96 1+1+0] [BFC] children: not-inline
         BlockContainer <(anonymous)> at [13,10] flex-container(column) [0+0+0 143.515625 0+0+0] [0+0+0 96 0+0+0] [FFC] children: not-inline
-          BlockContainer <(anonymous)> at [13,49] flex-item [0+0+0 143.515625 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 19, rect: [13,49 143.515625x18] baseline: 13.796875
+          BlockContainer <(anonymous)> at [13,50] flex-item [0+0+0 143.515625 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 19, rect: [13,50 143.515625x16] baseline: 12.796875
                 "Middle-aligned text"
             TextNode <#text> (not painted)
       TextNode <#text> (not painted)
@@ -15,7 +15,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x100]
       PaintableWithLines (BlockContainer<BUTTON>) [8,8 153.515625x100]
         PaintableWithLines (BlockContainer(anonymous)) [13,10 143.515625x96]
-          PaintableWithLines (BlockContainer(anonymous)) [13,49 143.515625x18]
+          PaintableWithLines (BlockContainer(anonymous)) [13,50 143.515625x16]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x116] (z-index: auto)

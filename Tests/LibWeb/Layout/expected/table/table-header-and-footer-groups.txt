@@ -4,14 +4,14 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       Box <body.table> at [10,10] table-box [0+1+0 300 0+1+0] [0+1+0 200 0+1+0] [TFC] children: not-inline
         Box <div.bottom> at [10,10] table-footer-group [0+0+0 300 0+0+0] [0+0+0 100 0+0+0] children: inline
           Box <(anonymous)> at [10,10] table-row [0+0+0 300 0+0+0] [0+0+0 100 0+0+0] children: inline
-            BlockContainer <(anonymous)> at [10,10] table-cell [0+0+0 300 0+0+0] [0+0+0 18 82+0+0] [BFC] children: inline
-              frag 0 from TextNode start: 0, length: 6, rect: [10,10 56.109375x18] baseline: 13.796875
+            BlockContainer <(anonymous)> at [10,10] table-cell [0+0+0 300 0+0+0] [0+0+0 16 84+0+0] [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 6, rect: [10,10 56.109375x16] baseline: 12.796875
                   "bottom"
               TextNode <#text> (not painted)
         Box <div.top> at [10,110] table-header-group [0+0+0 300 0+0+0] [0+0+0 100 0+0+0] children: inline
           Box <(anonymous)> at [10,110] table-row [0+0+0 300 0+0+0] [0+0+0 100 0+0+0] children: inline
-            BlockContainer <(anonymous)> at [10,110] table-cell [0+0+0 300 0+0+0] [0+0+0 18 82+0+0] [BFC] children: inline
-              frag 0 from TextNode start: 0, length: 3, rect: [10,110 26.640625x18] baseline: 13.796875
+            BlockContainer <(anonymous)> at [10,110] table-cell [0+0+0 300 0+0+0] [0+0+0 16 84+0+0] [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 3, rect: [10,110 26.640625x16] baseline: 12.796875
                   "top"
               TextNode <#text> (not painted)
 

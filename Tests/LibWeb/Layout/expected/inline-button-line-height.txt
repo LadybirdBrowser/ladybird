@@ -64,19 +64,19 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           BlockContainer <(anonymous)> (not painted) [BFC] children: inline
             TextNode <#text> (not painted)
         BlockContainer <(anonymous)> at [8,197] [0+0+0 300 0+0+0] [0+0+0 154 0+0+0] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [119,257 20x23] baseline: 17.5
+          frag 0 from TextNode start: 0, length: 1, rect: [119,259 20x20] baseline: 16
               " "
-          frag 1 from TextNode start: 0, length: 1, rect: [128,315 20x23] baseline: 17.5
+          frag 1 from TextNode start: 0, length: 1, rect: [128,317 20x20] baseline: 16
               " "
           TextNode <#text> (not painted)
           InlineNode <a> at [15,199] [0+0+0 157 0+0+0] [0+0+0 44 0+0+0]
             frag 0 from BlockContainer start: 0, length: 0, rect: [15,199 157x44] baseline: 30
             BlockContainer <input.radios--input> at [15,199] inline-block [0+2+5 157 5+2+0] [0+2+0 44 0+2+0] [BFC] children: not-inline
               BlockContainer <(anonymous)> at [15,199] flex-container(column) [0+0+0 157 0+0+0] [0+0+0 44 0+0+0] [FFC] children: not-inline
-                BlockContainer <(anonymous)> at [15,209.5] flex-item [0+0+0 157 0+0+0] [0+0+0 23 0+0+0] [BFC] children: inline
-                  frag 0 from BlockContainer start: 0, length: 0, rect: [15,209.5 420x23] baseline: 17.5
-                  BlockContainer <span> at [15,209.5] inline-block [0+0+0 420 0+0+0] [0+0+0 23 0+0+0] [BFC] children: inline
-                    frag 0 from TextNode start: 0, length: 21, rect: [15,209.5 420x23] baseline: 17.5
+                BlockContainer <(anonymous)> at [15,211] flex-item [0+0+0 157 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+                  frag 0 from BlockContainer start: 0, length: 0, rect: [15,211 420x20] baseline: 16
+                  BlockContainer <span> at [15,211] inline-block [0+0+0 420 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+                    frag 0 from TextNode start: 0, length: 21, rect: [15,211 420x20] baseline: 16
                         "100ml Limited Edition"
                     TextNode <#text> (not painted)
           TextNode <#text> (not painted)
@@ -84,10 +84,10 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             frag 0 from BlockContainer start: 0, length: 0, rect: [15,247 97x44] baseline: 30
             BlockContainer <input.radios--input> at [15,247] inline-block [0+2+5 97 5+2+0] [0+2+0 44 0+2+0] [BFC] children: not-inline
               BlockContainer <(anonymous)> at [15,247] flex-container(column) [0+0+0 97 0+0+0] [0+0+0 44 0+0+0] [FFC] children: not-inline
-                BlockContainer <(anonymous)> at [15,257.5] flex-item [0+0+0 97 0+0+0] [0+0+0 23 0+0+0] [BFC] children: inline
-                  frag 0 from BlockContainer start: 0, length: 0, rect: [15,257.5 240x23] baseline: 17.5
-                  BlockContainer <span> at [15,257.5] inline-block [0+0+0 240 0+0+0] [0+0+0 23 0+0+0] [BFC] children: inline
-                    frag 0 from TextNode start: 0, length: 12, rect: [15,257.5 240x23] baseline: 17.5
+                BlockContainer <(anonymous)> at [15,259] flex-item [0+0+0 97 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+                  frag 0 from BlockContainer start: 0, length: 0, rect: [15,259 240x20] baseline: 16
+                  BlockContainer <span> at [15,259] inline-block [0+0+0 240 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+                    frag 0 from TextNode start: 0, length: 12, rect: [15,259 240x20] baseline: 16
                         "Coffret 30ml"
                     TextNode <#text> (not painted)
           TextNode <#text> (not painted)
@@ -95,10 +95,10 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             frag 0 from BlockContainer start: 0, length: 0, rect: [146,247 97x44] baseline: 30
             BlockContainer <input.radios--input> at [146,247] inline-block [0+2+5 97 5+2+0] [0+2+0 44 0+2+0] [BFC] children: not-inline
               BlockContainer <(anonymous)> at [146,247] flex-container(column) [0+0+0 97 0+0+0] [0+0+0 44 0+0+0] [FFC] children: not-inline
-                BlockContainer <(anonymous)> at [146,257.5] flex-item [0+0+0 97 0+0+0] [0+0+0 23 0+0+0] [BFC] children: inline
-                  frag 0 from BlockContainer start: 0, length: 0, rect: [146,257.5 240x23] baseline: 17.5
-                  BlockContainer <span> at [146,257.5] inline-block [0+0+0 240 0+0+0] [0+0+0 23 0+0+0] [BFC] children: inline
-                    frag 0 from TextNode start: 0, length: 12, rect: [146,257.5 240x23] baseline: 17.5
+                BlockContainer <(anonymous)> at [146,259] flex-item [0+0+0 97 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+                  frag 0 from BlockContainer start: 0, length: 0, rect: [146,259 240x20] baseline: 16
+                  BlockContainer <span> at [146,259] inline-block [0+0+0 240 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+                    frag 0 from TextNode start: 0, length: 12, rect: [146,259 240x20] baseline: 16
                         "Coffret 50ml"
                     TextNode <#text> (not painted)
           TextNode <#text> (not painted)
@@ -106,10 +106,10 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             frag 0 from BlockContainer start: 0, length: 0, rect: [15,305 106x44] baseline: 40
             BlockContainer <input.radios--input> at [15,305] inline-block [0+2+5 106 5+2+0] [10+2+0 44 0+2+0] [BFC] children: not-inline
               BlockContainer <(anonymous)> at [15,305] flex-container(column) [0+0+0 106 0+0+0] [0+0+0 44 0+0+0] [FFC] children: not-inline
-                BlockContainer <(anonymous)> at [15,315.5] flex-item [0+0+0 106 0+0+0] [0+0+0 23 0+0+0] [BFC] children: inline
-                  frag 0 from BlockContainer start: 0, length: 0, rect: [15,315.5 260x23] baseline: 17.5
-                  BlockContainer <span> at [15,315.5] inline-block [0+0+0 260 0+0+0] [0+0+0 23 0+0+0] [BFC] children: inline
-                    frag 0 from TextNode start: 0, length: 13, rect: [15,315.5 260x23] baseline: 17.5
+                BlockContainer <(anonymous)> at [15,317] flex-item [0+0+0 106 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+                  frag 0 from BlockContainer start: 0, length: 0, rect: [15,317 260x20] baseline: 16
+                  BlockContainer <span> at [15,317] inline-block [0+0+0 260 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+                    frag 0 from TextNode start: 0, length: 13, rect: [15,317 260x20] baseline: 16
                         "Coffret 100ml"
                     TextNode <#text> (not painted)
           TextNode <#text> (not painted)
@@ -117,10 +117,10 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             frag 0 from BlockContainer start: 0, length: 0, rect: [155,305 135x44] baseline: 40
             BlockContainer <input.radios--input> at [155,305] inline-block [0+2+5 135 5+2+0] [10+2+0 44 0+2+0] [BFC] children: not-inline
               BlockContainer <(anonymous)> at [155,305] flex-container(column) [0+0+0 135 0+0+0] [0+0+0 44 0+0+0] [FFC] children: not-inline
-                BlockContainer <(anonymous)> at [155,315.5] flex-item [0+0+0 135 0+0+0] [0+0+0 23 0+0+0] [BFC] children: inline
-                  frag 0 from BlockContainer start: 0, length: 0, rect: [155,315.5 320x23] baseline: 17.5
-                  BlockContainer <span> at [155,315.5] inline-block [0+0+0 320 0+0+0] [0+0+0 23 0+0+0] [BFC] children: inline
-                    frag 0 from TextNode start: 0, length: 16, rect: [155,315.5 320x23] baseline: 17.5
+                BlockContainer <(anonymous)> at [155,317] flex-item [0+0+0 135 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+                  frag 0 from BlockContainer start: 0, length: 0, rect: [155,317 320x20] baseline: 16
+                  BlockContainer <span> at [155,317] inline-block [0+0+0 320 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+                    frag 0 from TextNode start: 0, length: 16, rect: [155,317 320x20] baseline: 16
                         "Lait corps 200ml"
                     TextNode <#text> (not painted)
           TextNode <#text> (not painted)
@@ -149,28 +149,28 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
           PaintableWithLines (InlineNode<A>) [15,199 157x44]
             PaintableWithLines (BlockContainer<INPUT>.radios--input) [8,197 171x48]
               PaintableWithLines (BlockContainer(anonymous)) [15,199 157x44]
-                PaintableWithLines (BlockContainer(anonymous)) [15,209.5 157x23]
-                  PaintableWithLines (BlockContainer<SPAN>) [15,209.5 420x23]
+                PaintableWithLines (BlockContainer(anonymous)) [15,211 157x20]
+                  PaintableWithLines (BlockContainer<SPAN>) [15,211 420x20]
           PaintableWithLines (InlineNode<A>) [15,247 97x44]
             PaintableWithLines (BlockContainer<INPUT>.radios--input) [8,245 111x48]
               PaintableWithLines (BlockContainer(anonymous)) [15,247 97x44]
-                PaintableWithLines (BlockContainer(anonymous)) [15,257.5 97x23]
-                  PaintableWithLines (BlockContainer<SPAN>) [15,257.5 240x23]
+                PaintableWithLines (BlockContainer(anonymous)) [15,259 97x20]
+                  PaintableWithLines (BlockContainer<SPAN>) [15,259 240x20]
           PaintableWithLines (InlineNode<A>) [146,247 97x44]
             PaintableWithLines (BlockContainer<INPUT>.radios--input) [139,245 111x48]
               PaintableWithLines (BlockContainer(anonymous)) [146,247 97x44]
-                PaintableWithLines (BlockContainer(anonymous)) [146,257.5 97x23]
-                  PaintableWithLines (BlockContainer<SPAN>) [146,257.5 240x23]
+                PaintableWithLines (BlockContainer(anonymous)) [146,259 97x20]
+                  PaintableWithLines (BlockContainer<SPAN>) [146,259 240x20]
           PaintableWithLines (InlineNode<A>) [15,305 106x44]
             PaintableWithLines (BlockContainer<INPUT>.radios--input) [8,303 120x48]
               PaintableWithLines (BlockContainer(anonymous)) [15,305 106x44]
-                PaintableWithLines (BlockContainer(anonymous)) [15,315.5 106x23]
-                  PaintableWithLines (BlockContainer<SPAN>) [15,315.5 260x23]
+                PaintableWithLines (BlockContainer(anonymous)) [15,317 106x20]
+                  PaintableWithLines (BlockContainer<SPAN>) [15,317 260x20]
           PaintableWithLines (InlineNode<A>) [155,305 135x44]
             PaintableWithLines (BlockContainer<INPUT>.radios--input) [148,303 149x48]
               PaintableWithLines (BlockContainer(anonymous)) [155,305 135x44]
-                PaintableWithLines (BlockContainer(anonymous)) [155,315.5 135x23]
-                  PaintableWithLines (BlockContainer<SPAN>) [155,315.5 320x23]
+                PaintableWithLines (BlockContainer(anonymous)) [155,317 135x20]
+                  PaintableWithLines (BlockContainer<SPAN>) [155,317 320x20]
       PaintableWithLines (BlockContainer(anonymous)) [8,351 784x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

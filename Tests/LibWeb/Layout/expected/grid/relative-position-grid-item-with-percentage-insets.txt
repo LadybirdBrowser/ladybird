@@ -5,29 +5,29 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         Box <div.grid-item> at [20,20] flex-container(row) [0+1+10 123 10+1+0] [0+1+10 123 10+1+0] [FFC] children: not-inline
-          BlockContainer <(anonymous)> at [58.140625,72.5] flex-item [0+0+0 46.71875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 6, rect: [58.140625,72.5 46.71875x18] baseline: 13.796875
+          BlockContainer <(anonymous)> at [58.140625,73.5] flex-item [0+0+0 46.71875 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 6, rect: [58.140625,73.5 46.71875x16] baseline: 12.796875
                 "Item 1"
             TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         Box <div.grid-item.relative-item> at [247.5,97.5] positioned flex-container(row) [0+1+10 123 10+1+0] [0+1+10 123 10+1+0] [FFC] children: not-inline
-          BlockContainer <(anonymous)> at [284.40625,150] flex-item [0+0+0 49.1875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 6, rect: [284.40625,150 49.1875x18] baseline: 13.796875
+          BlockContainer <(anonymous)> at [284.40625,151] flex-item [0+0+0 49.1875 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 6, rect: [284.40625,151 49.1875x16] baseline: 12.796875
                 "Item 2"
             TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         Box <div.grid-item> at [20,175] flex-container(row) [0+1+10 123 10+1+0] [0+1+10 123 10+1+0] [FFC] children: not-inline
-          BlockContainer <(anonymous)> at [56.765625,227.5] flex-item [0+0+0 49.46875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 6, rect: [56.765625,227.5 49.46875x18] baseline: 13.796875
+          BlockContainer <(anonymous)> at [56.765625,228.5] flex-item [0+0+0 49.46875 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 6, rect: [56.765625,228.5 49.46875x16] baseline: 12.796875
                 "Item 3"
             TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         Box <div.grid-item> at [175,175] flex-container(row) [0+1+10 123 10+1+0] [0+1+10 123 10+1+0] [FFC] children: not-inline
-          BlockContainer <(anonymous)> at [212.4375,227.5] flex-item [0+0+0 48.125 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 6, rect: [212.4375,227.5 48.125x18] baseline: 13.796875
+          BlockContainer <(anonymous)> at [212.4375,228.5] flex-item [0+0+0 48.125 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 6, rect: [212.4375,228.5 48.125x16] baseline: 12.796875
                 "Item 4"
             TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
@@ -40,13 +40,13 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x302]
       Paintable (Box<DIV>.grid-container) [8,8 302x302]
         Paintable (Box<DIV>.grid-item) [9,9 145x145]
-          PaintableWithLines (BlockContainer(anonymous)) [58.140625,72.5 46.71875x18]
+          PaintableWithLines (BlockContainer(anonymous)) [58.140625,73.5 46.71875x16]
         Paintable (Box<DIV>.grid-item.relative-item) [236.5,86.5 145x145]
-          PaintableWithLines (BlockContainer(anonymous)) [284.40625,150 49.1875x18]
+          PaintableWithLines (BlockContainer(anonymous)) [284.40625,151 49.1875x16]
         Paintable (Box<DIV>.grid-item) [9,164 145x145]
-          PaintableWithLines (BlockContainer(anonymous)) [56.765625,227.5 49.46875x18]
+          PaintableWithLines (BlockContainer(anonymous)) [56.765625,228.5 49.46875x16]
         Paintable (Box<DIV>.grid-item) [164,164 145x145]
-          PaintableWithLines (BlockContainer(anonymous)) [212.4375,227.5 48.125x18]
+          PaintableWithLines (BlockContainer(anonymous)) [212.4375,228.5 48.125x16]
       PaintableWithLines (BlockContainer(anonymous)) [8,310 784x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

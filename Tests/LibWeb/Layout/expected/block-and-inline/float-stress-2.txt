@@ -4,11 +4,11 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <div#page> at [50,50] [0+0+50 750 0+0+0] [0+0+50 0 0+0+0] children: not-inline
         BlockContainer <div#content_box> at [50,50] floating [0+0+0 400 0+0+0] [0+0+0 150 0+0+0] [BFC] children: inline
           BlockContainer <article.first> at [50,50] floating [0+0+0 300 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 5, rect: [50,50 36.03125x18] baseline: 13.796875
+            frag 0 from TextNode start: 0, length: 5, rect: [50,50 36.03125x16] baseline: 12.796875
                 "first"
             TextNode <#text> (not painted)
           BlockContainer <article.second> at [50,150] floating [0+0+0 200 0+0+0] [0+0+0 50 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 6, rect: [50,150 54.78125x18] baseline: 13.796875
+            frag 0 from TextNode start: 0, length: 6, rect: [50,150 54.78125x16] baseline: 12.796875
                 "second"
             TextNode <#text> (not painted)
           TextNode <#text> (not painted)

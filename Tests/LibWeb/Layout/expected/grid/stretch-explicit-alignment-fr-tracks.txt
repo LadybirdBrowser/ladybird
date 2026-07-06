@@ -5,15 +5,15 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.item> at [12,12] [0+1+0 98 0+1+0] [0+1+0 98 0+1+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 7, rect: [12,12 58.796875x18] baseline: 13.796875
+          frag 0 from TextNode start: 0, length: 7, rect: [12,12 58.796875x16] baseline: 12.796875
               "stretch"
-          frag 1 from TextNode start: 8, length: 4, rect: [12,30 35.984375x18] baseline: 13.796875
+          frag 1 from TextNode start: 8, length: 4, rect: [12,28 35.984375x16] baseline: 12.796875
               "both"
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.item> at [112,12] [0+1+0 198 0+1+0] [0+1+0 98 0+1+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 16, rect: [112,12 123.75x18] baseline: 13.796875
+          frag 0 from TextNode start: 0, length: 16, rect: [112,12 123.75x16] baseline: 12.796875
               "explicit stretch"
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline

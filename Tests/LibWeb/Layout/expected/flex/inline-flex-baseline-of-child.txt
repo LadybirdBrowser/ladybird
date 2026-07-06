@@ -2,22 +2,22 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [1,1] [0+1+0 798 0+1+0] [0+1+0 106 0+1+0] [BFC] children: not-inline
     BlockContainer <body> at [10,10] [8+1+0 780 0+1+8] [8+1+0 88 0+1+8] children: not-inline
       BlockContainer <div> at [11,11] [0+1+0 778 0+1+0] [0+1+0 86 0+1+0] children: inline
-        frag 0 from Box start: 0, length: 0, rect: [12,32 180x64] baseline: 14.796875
-        frag 1 from Box start: 0, length: 0, rect: [194,32 180x64] baseline: 34.796875
-        frag 2 from Box start: 0, length: 0, rect: [376,32 180x64] baseline: 14.796875
+        frag 0 from Box start: 0, length: 0, rect: [12,32 180x64] baseline: 13.796875
+        frag 1 from Box start: 0, length: 0, rect: [194,32 180x64] baseline: 33.796875
+        frag 2 from Box start: 0, length: 0, rect: [376,32 180x64] baseline: 13.796875
         Box <span> at [12,32] flex-container(row) [0+1+0 180 0+1+0] [0+1+0 64 0+1+0] [FFC] children: not-inline
           BlockContainer <(anonymous)> at [12,32] flex-item [0+0+0 6.34375 0+0+0] [0+0+0 64 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 1, rect: [12,32 6.34375x18] baseline: 13.796875
+            frag 0 from TextNode start: 0, length: 1, rect: [12,32 6.34375x16] baseline: 12.796875
                 "1"
             TextNode <#text> (not painted)
         Box <span> at [194,32] flex-container(row) [0+1+0 180 0+1+0] [20+1+0 64 0+1+0] [FFC] children: not-inline
           BlockContainer <(anonymous)> at [194,32] flex-item [0+0+0 8.8125 0+0+0] [0+0+0 64 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 1, rect: [194,32 8.8125x18] baseline: 13.796875
+            frag 0 from TextNode start: 0, length: 1, rect: [194,32 8.8125x16] baseline: 12.796875
                 "2"
             TextNode <#text> (not painted)
         Box <span> at [376,32] flex-container(row) [0+1+0 180 0+1+0] [0+1+0 64 0+1+0] [FFC] children: not-inline
           BlockContainer <(anonymous)> at [376,32] flex-item [0+0+0 9.09375 0+0+0] [0+0+0 64 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 1, rect: [376,32 9.09375x18] baseline: 13.796875
+            frag 0 from TextNode start: 0, length: 1, rect: [376,32 9.09375x16] baseline: 12.796875
                 "3"
             TextNode <#text> (not painted)
       BlockContainer <(anonymous)> at [10,98] [0+0+0 780 0+0+0] [0+0+0 0 0+0+0] children: inline

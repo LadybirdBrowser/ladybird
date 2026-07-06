@@ -4,13 +4,13 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       TableWrapper <(anonymous)> at [8,8] [0+0+0 200 0+0+584] [0+0+0 300 0+0+0] [BFC] children: not-inline
         Box <div.table> at [8,8] table-box [0+0+0 200 0+0+0] [0+0+0 300 0+0+0] [TFC] children: not-inline
           Box <div.row.a> at [8,8] table-row [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] children: not-inline
-            BlockContainer <div.cell> at [8,8] table-cell [0+0+0 200 0+0+0] [0+0+0 18 82+0+0] [BFC] children: inline
-              frag 0 from TextNode start: 0, length: 1, rect: [8,8 9.34375x18] baseline: 13.796875
+            BlockContainer <div.cell> at [8,8] table-cell [0+0+0 200 0+0+0] [0+0+0 16 84+0+0] [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 1, rect: [8,8 9.34375x16] baseline: 12.796875
                   "a"
               TextNode <#text> (not painted)
           Box <div.row.b> at [8,108] table-row [0+0+0 200 0+0+0] [0+0+0 200 0+0+0] children: not-inline
-            BlockContainer <div.cell> at [8,108] table-cell [0+0+0 200 0+0+0] [0+0+0 18 182+0+0] [BFC] children: inline
-              frag 0 from TextNode start: 0, length: 1, rect: [8,108 9.46875x18] baseline: 13.796875
+            BlockContainer <div.cell> at [8,108] table-cell [0+0+0 200 0+0+0] [0+0+0 16 184+0+0] [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 1, rect: [8,108 9.46875x16] baseline: 12.796875
                   "b"
               TextNode <#text> (not painted)
 

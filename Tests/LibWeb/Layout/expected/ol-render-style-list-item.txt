@@ -1,98 +1,98 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 208 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,16] [8+0+0 784 0+0+8] [8+0+0 176 0+0+16] children: not-inline
-      BlockContainer <ol> at [48,16] [0+0+40 744 0+0+0] [16+0+0 176 0+0+16] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 192 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,16] [8+0+0 784 0+0+8] [8+0+0 160 0+0+16] children: not-inline
+      BlockContainer <ol> at [48,16] [0+0+40 744 0+0+0] [16+0+0 160 0+0+16] children: not-inline
         BlockContainer <(anonymous)> at [48,16] [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text> (not painted)
-        ListItemBox <li> at [48,16] [0+0+0 744 0+0+0] [0+0+0 18 0+0+0] children: inline
-          frag 0 from TextNode start: 0, length: 3, rect: [48,16 29.8125x18] baseline: 13.796875
+        ListItemBox <li> at [48,16] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 3, rect: [48,16 29.8125x16] baseline: 12.796875
               "One"
-          ListItemMarkerBox <(anonymous)> at [29,17] [0+0+0 18.6875 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+          ListItemMarkerBox <(anonymous)> at [29,16] [0+0+0 18.6875 0+0+0] [0+0+0 16 0+0+0] children: not-inline
           TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [48,34] [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
+        BlockContainer <(anonymous)> at [48,32] [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text> (not painted)
-        ListItemBox <li> at [48,34] [0+0+0 744 0+0+0] [0+0+0 18 0+0+0] children: inline
-          frag 0 from TextNode start: 0, length: 10, rect: [48,34 90.796875x18] baseline: 13.796875
+        ListItemBox <li> at [48,32] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 10, rect: [48,32 90.796875x16] baseline: 12.796875
               "Twenty-two"
-          ListItemMarkerBox <(anonymous)> at [18,35] [0+0+0 29.96875 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+          ListItemMarkerBox <(anonymous)> at [18,32] [0+0+0 29.96875 0+0+0] [0+0+0 16 0+0+0] children: not-inline
           TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [48,52] [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
+        BlockContainer <(anonymous)> at [48,48] [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text> (not painted)
-        ListItemBox <div> at [48,52] [0+0+0 744 0+0+0] [0+0+0 18 0+0+0] children: inline
-          frag 0 from TextNode start: 0, length: 12, rect: [48,52 104.78125x18] baseline: 13.796875
+        ListItemBox <div> at [48,48] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 12, rect: [48,48 104.78125x16] baseline: 12.796875
               "Twenty-three"
-          ListItemMarkerBox <(anonymous)> at [18,53] [0+0+0 30.25 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+          ListItemMarkerBox <(anonymous)> at [18,48] [0+0+0 30.25 0+0+0] [0+0+0 16 0+0+0] children: not-inline
           TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [48,70] [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
+        BlockContainer <(anonymous)> at [48,64] [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text> (not painted)
-        ListItemBox <li> at [48,70] [0+0+0 744 0+0+0] [0+0+0 18 0+0+0] children: inline
-          frag 0 from TextNode start: 0, length: 11, rect: [48,70 97.75x18] baseline: 13.796875
+        ListItemBox <li> at [48,64] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 11, rect: [48,64 97.75x16] baseline: 12.796875
               "Twenty-four"
-          ListItemMarkerBox <(anonymous)> at [19,71] [0+0+0 28.90625 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+          ListItemMarkerBox <(anonymous)> at [19,64] [0+0+0 28.90625 0+0+0] [0+0+0 16 0+0+0] children: not-inline
           TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [48,88] [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
+        BlockContainer <(anonymous)> at [48,80] [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text> (not painted)
-        ListItemBox <p> at [48,104] [0+0+0 744 0+0+0] [16+0+0 18 0+0+16] children: inline
-          frag 0 from TextNode start: 0, length: 11, rect: [48,104 90.28125x18] baseline: 13.796875
+        ListItemBox <p> at [48,96] [0+0+0 744 0+0+0] [16+0+0 16 0+0+16] children: inline
+          frag 0 from TextNode start: 0, length: 11, rect: [48,96 90.28125x16] baseline: 12.796875
               "Twenty-five"
-          ListItemMarkerBox <(anonymous)> at [18,105] [0+0+0 29.609375 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+          ListItemMarkerBox <(anonymous)> at [18,96] [0+0+0 29.609375 0+0+0] [0+0+0 16 0+0+0] children: not-inline
           TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [48,138] [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
+        BlockContainer <(anonymous)> at [48,128] [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text> (not painted)
-        ListItemBox <li> at [48,138] [0+0+0 744 0+0+0] [0+0+0 18 0+0+0] children: inline
-          frag 0 from TextNode start: 0, length: 10, rect: [48,138 85.96875x18] baseline: 13.796875
+        ListItemBox <li> at [48,128] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 10, rect: [48,128 85.96875x16] baseline: 12.796875
               "Twenty-six"
-          ListItemMarkerBox <(anonymous)> at [18,139] [0+0+0 29.890625 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+          ListItemMarkerBox <(anonymous)> at [18,128] [0+0+0 29.890625 0+0+0] [0+0+0 16 0+0+0] children: not-inline
           TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [48,156] [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
+        BlockContainer <(anonymous)> at [48,144] [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text> (not painted)
-        ListItemBox <span> at [48,156] [0+0+0 744 0+0+0] [0+0+0 18 0+0+0] children: inline
-          frag 0 from TextNode start: 0, length: 12, rect: [48,156 106.953125x18] baseline: 13.796875
+        ListItemBox <span> at [48,144] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 12, rect: [48,144 106.953125x16] baseline: 12.796875
               "Twenty-seven"
-          ListItemMarkerBox <(anonymous)> at [18,157] [0+0+0 29.875 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+          ListItemMarkerBox <(anonymous)> at [18,144] [0+0+0 29.875 0+0+0] [0+0+0 16 0+0+0] children: not-inline
           TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [48,174] [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
+        BlockContainer <(anonymous)> at [48,160] [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text> (not painted)
-        ListItemBox <li> at [48,174] [0+0+0 744 0+0+0] [0+0+0 18 0+0+0] children: inline
-          frag 0 from TextNode start: 0, length: 12, rect: [48,174 99.359375x18] baseline: 13.796875
+        ListItemBox <li> at [48,160] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 12, rect: [48,160 99.359375x16] baseline: 12.796875
               "Twenty-eight"
-          ListItemMarkerBox <(anonymous)> at [17,175] [0+0+0 30.640625 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+          ListItemMarkerBox <(anonymous)> at [17,160] [0+0+0 30.640625 0+0+0] [0+0+0 16 0+0+0] children: not-inline
           TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [48,192] [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
+        BlockContainer <(anonymous)> at [48,176] [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,208] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+      BlockContainer <(anonymous)> at [8,192] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x208]
-    PaintableWithLines (BlockContainer<BODY>) [8,16 784x176]
-      PaintableWithLines (BlockContainer<OL>) [8,16 784x176]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x192]
+    PaintableWithLines (BlockContainer<BODY>) [8,16 784x160]
+      PaintableWithLines (BlockContainer<OL>) [8,16 784x160]
         PaintableWithLines (BlockContainer(anonymous)) [48,16 744x0]
-        PaintableWithLines (ListItemBox<LI>) [48,16 744x18]
-          MarkerPaintable (ListItemMarkerBox(anonymous)) [29,17 18.6875x16]
-        PaintableWithLines (BlockContainer(anonymous)) [48,34 744x0]
-        PaintableWithLines (ListItemBox<LI>) [48,34 744x18]
-          MarkerPaintable (ListItemMarkerBox(anonymous)) [18,35 29.96875x16]
-        PaintableWithLines (BlockContainer(anonymous)) [48,52 744x0]
-        PaintableWithLines (ListItemBox<DIV>) [48,52 744x18]
-          MarkerPaintable (ListItemMarkerBox(anonymous)) [18,53 30.25x16]
-        PaintableWithLines (BlockContainer(anonymous)) [48,70 744x0]
-        PaintableWithLines (ListItemBox<LI>) [48,70 744x18]
-          MarkerPaintable (ListItemMarkerBox(anonymous)) [19,71 28.90625x16]
-        PaintableWithLines (BlockContainer(anonymous)) [48,88 744x0]
-        PaintableWithLines (ListItemBox<P>) [48,104 744x18]
-          MarkerPaintable (ListItemMarkerBox(anonymous)) [18,105 29.609375x16]
-        PaintableWithLines (BlockContainer(anonymous)) [48,138 744x0]
-        PaintableWithLines (ListItemBox<LI>) [48,138 744x18]
-          MarkerPaintable (ListItemMarkerBox(anonymous)) [18,139 29.890625x16]
-        PaintableWithLines (BlockContainer(anonymous)) [48,156 744x0]
-        PaintableWithLines (ListItemBox<SPAN>) [48,156 744x18]
-          MarkerPaintable (ListItemMarkerBox(anonymous)) [18,157 29.875x16]
-        PaintableWithLines (BlockContainer(anonymous)) [48,174 744x0]
-        PaintableWithLines (ListItemBox<LI>) [48,174 744x18]
-          MarkerPaintable (ListItemMarkerBox(anonymous)) [17,175 30.640625x16]
-        PaintableWithLines (BlockContainer(anonymous)) [48,192 744x0]
-      PaintableWithLines (BlockContainer(anonymous)) [8,208 784x0]
+        PaintableWithLines (ListItemBox<LI>) [48,16 744x16]
+          MarkerPaintable (ListItemMarkerBox(anonymous)) [29,16 18.6875x16]
+        PaintableWithLines (BlockContainer(anonymous)) [48,32 744x0]
+        PaintableWithLines (ListItemBox<LI>) [48,32 744x16]
+          MarkerPaintable (ListItemMarkerBox(anonymous)) [18,32 29.96875x16]
+        PaintableWithLines (BlockContainer(anonymous)) [48,48 744x0]
+        PaintableWithLines (ListItemBox<DIV>) [48,48 744x16]
+          MarkerPaintable (ListItemMarkerBox(anonymous)) [18,48 30.25x16]
+        PaintableWithLines (BlockContainer(anonymous)) [48,64 744x0]
+        PaintableWithLines (ListItemBox<LI>) [48,64 744x16]
+          MarkerPaintable (ListItemMarkerBox(anonymous)) [19,64 28.90625x16]
+        PaintableWithLines (BlockContainer(anonymous)) [48,80 744x0]
+        PaintableWithLines (ListItemBox<P>) [48,96 744x16]
+          MarkerPaintable (ListItemMarkerBox(anonymous)) [18,96 29.609375x16]
+        PaintableWithLines (BlockContainer(anonymous)) [48,128 744x0]
+        PaintableWithLines (ListItemBox<LI>) [48,128 744x16]
+          MarkerPaintable (ListItemMarkerBox(anonymous)) [18,128 29.890625x16]
+        PaintableWithLines (BlockContainer(anonymous)) [48,144 744x0]
+        PaintableWithLines (ListItemBox<SPAN>) [48,144 744x16]
+          MarkerPaintable (ListItemMarkerBox(anonymous)) [18,144 29.875x16]
+        PaintableWithLines (BlockContainer(anonymous)) [48,160 744x0]
+        PaintableWithLines (ListItemBox<LI>) [48,160 744x16]
+          MarkerPaintable (ListItemMarkerBox(anonymous)) [17,160 30.640625x16]
+        PaintableWithLines (BlockContainer(anonymous)) [48,176 744x0]
+      PaintableWithLines (BlockContainer(anonymous)) [8,192 784x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x208] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x192] (z-index: auto)

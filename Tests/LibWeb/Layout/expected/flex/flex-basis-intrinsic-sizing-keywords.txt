@@ -1,38 +1,38 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 70 0+0+0] [BFC] children: not-inline
-    Box <body> at [8,8] flex-container(row) [8+0+0 784 0+0+8] [8+0+0 54 0+0+8] [FFC] children: not-inline
-      BlockContainer <div.min-content> at [8,8] flex-item [0+0+0 27.640625 0+0+0] [0+0+0 54 0+0+0] [BFC] children: inline
-        frag 0 from TextNode start: 0, length: 3, rect: [8,8 27.15625x18] baseline: 13.796875
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 64 0+0+0] [BFC] children: not-inline
+    Box <body> at [8,8] flex-container(row) [8+0+0 784 0+0+8] [8+0+0 48 0+0+8] [FFC] children: not-inline
+      BlockContainer <div.min-content> at [8,8] flex-item [0+0+0 27.640625 0+0+0] [0+0+0 48 0+0+0] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 3, rect: [8,8 27.15625x16] baseline: 12.796875
             "foo"
-        frag 1 from TextNode start: 4, length: 3, rect: [8,26 27.640625x18] baseline: 13.796875
+        frag 1 from TextNode start: 4, length: 3, rect: [8,24 27.640625x16] baseline: 12.796875
             "bar"
-        frag 2 from TextNode start: 8, length: 3, rect: [8,44 27.203125x18] baseline: 13.796875
+        frag 2 from TextNode start: 8, length: 3, rect: [8,40 27.203125x16] baseline: 12.796875
             "baz"
         TextNode <#text> (not painted)
-      BlockContainer <div.max-content> at [35.640625,8] flex-item [0+0+0 98 0+0+0] [0+0+0 54 0+0+0] [BFC] children: inline
-        frag 0 from TextNode start: 0, length: 11, rect: [35.640625,8 98x18] baseline: 13.796875
+      BlockContainer <div.max-content> at [35.640625,8] flex-item [0+0+0 98 0+0+0] [0+0+0 48 0+0+0] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 11, rect: [35.640625,8 98x16] baseline: 12.796875
             "foo bar baz"
         TextNode <#text> (not painted)
-      BlockContainer <div.fit-content> at [133.640625,8] flex-item [0+0+0 98 0+0+0] [0+0+0 54 0+0+0] [BFC] children: inline
-        frag 0 from TextNode start: 0, length: 11, rect: [133.640625,8 98x18] baseline: 13.796875
+      BlockContainer <div.fit-content> at [133.640625,8] flex-item [0+0+0 98 0+0+0] [0+0+0 48 0+0+0] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 11, rect: [133.640625,8 98x16] baseline: 12.796875
             "foo bar baz"
         TextNode <#text> (not painted)
-      BlockContainer <div.auto> at [231.640625,8] flex-item [0+0+0 0 0+0+0] [0+0+0 54 0+0+0] [BFC] children: inline
-        frag 0 from TextNode start: 0, length: 3, rect: [231.640625,8 27.15625x18] baseline: 13.796875
+      BlockContainer <div.auto> at [231.640625,8] flex-item [0+0+0 0 0+0+0] [0+0+0 48 0+0+0] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 3, rect: [231.640625,8 27.15625x16] baseline: 12.796875
             "foo"
-        frag 1 from TextNode start: 4, length: 3, rect: [231.640625,26 27.640625x18] baseline: 13.796875
+        frag 1 from TextNode start: 4, length: 3, rect: [231.640625,24 27.640625x16] baseline: 12.796875
             "bar"
-        frag 2 from TextNode start: 8, length: 3, rect: [231.640625,44 27.203125x18] baseline: 13.796875
+        frag 2 from TextNode start: 8, length: 3, rect: [231.640625,40 27.203125x16] baseline: 12.796875
             "baz"
         TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x70]
-    Paintable (Box<BODY>) [8,8 784x54]
-      PaintableWithLines (BlockContainer<DIV>.min-content) [8,8 27.640625x54]
-      PaintableWithLines (BlockContainer<DIV>.max-content) [35.640625,8 98x54]
-      PaintableWithLines (BlockContainer<DIV>.fit-content) [133.640625,8 98x54]
-      PaintableWithLines (BlockContainer<DIV>.auto) [231.640625,8 0x54]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x64]
+    Paintable (Box<BODY>) [8,8 784x48]
+      PaintableWithLines (BlockContainer<DIV>.min-content) [8,8 27.640625x48]
+      PaintableWithLines (BlockContainer<DIV>.max-content) [35.640625,8 98x48]
+      PaintableWithLines (BlockContainer<DIV>.fit-content) [133.640625,8 98x48]
+      PaintableWithLines (BlockContainer<DIV>.auto) [231.640625,8 0x48]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x70] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x64] (z-index: auto)

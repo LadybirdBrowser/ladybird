@@ -1,9 +1,9 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 66 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 50 0+0+8] children: inline
-      frag 0 from BlockContainer start: 0, length: 0, rect: [18,18 30x30] baseline: 23.796875
+      frag 0 from BlockContainer start: 0, length: 0, rect: [18,18 30x30] baseline: 22.796875
       BlockContainer <div.min-width> at [18,18] inline-block [0+0+10 30 10+0+0] [0+0+10 30 10+0+0] [BFC] children: inline
-        frag 0 from TextNode start: 0, length: 1, rect: [18,18 6.34375x18] baseline: 13.796875
+        frag 0 from TextNode start: 0, length: 1, rect: [18,18 6.34375x16] baseline: 12.796875
             "1"
         TextNode <#text> (not painted)
 

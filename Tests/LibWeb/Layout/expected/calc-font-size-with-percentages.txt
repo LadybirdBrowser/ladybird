@@ -1,17 +1,17 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 126 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 110 0+0+8] children: not-inline
-      BlockContainer <div.test> at [8,8] [0+0+0 784 0+0+0] [0+0+0 110 0+0+0] children: inline
-        frag 0 from TextNode start: 0, length: 20, rect: [8,8 500.8125x55] baseline: 41.890625
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 112 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 96 0+0+8] children: not-inline
+      BlockContainer <div.test> at [8,8] [0+0+0 784 0+0+0] [0+0+0 96 0+0+0] children: inline
+        frag 0 from TextNode start: 0, length: 20, rect: [8,8 500.8125x48] baseline: 38.390625
             "i resolved enough of"
-        frag 1 from TextNode start: 21, length: 16, rect: [8,63 406.40625x55] baseline: 41.890625
+        frag 1 from TextNode start: 21, length: 16, rect: [8,56 406.40625x48] baseline: 38.390625
             "percentages, no?"
         TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x126]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x110]
-      PaintableWithLines (BlockContainer<DIV>.test) [8,8 784x110]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x112]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x96]
+      PaintableWithLines (BlockContainer<DIV>.test) [8,8 784x96]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x126] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x112] (z-index: auto)

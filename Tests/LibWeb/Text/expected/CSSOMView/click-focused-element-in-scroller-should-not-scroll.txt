@@ -1,2 +1,2 @@
-scrollTop before click: 342
-scrollTop after click: 342
+scrollTop before click: 340
+scrollTop after click: 340

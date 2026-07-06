@@ -1,18 +1,18 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 477 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 461 0+0+8] children: not-inline
-      BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 23 0+0+0] children: inline
-        frag 0 from TextNode start: 0, length: 40, rect: [8,8 391.796875x23] baseline: 17.5
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 456 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 440 0+0+8] children: not-inline
+      BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 20 0+0+0] children: inline
+        frag 0 from TextNode start: 0, length: 40, rect: [8,8 391.796875x20] baseline: 16
             "Variable set by inline style of element:"
         TextNode <#text> (not painted)
         BreakNode <br> (not painted)
         TextNode <#text> (not painted)
-      BlockContainer <div.a> at [8,31] [0+0+0 784 0+0+0] [0+0+0 100 0+0+0] children: inline
-        frag 0 from BlockContainer start: 0, length: 0, rect: [8,31 200x100] baseline: 100
-        BlockContainer <(anonymous)> at [8,31] inline-block [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
+      BlockContainer <div.a> at [8,28] [0+0+0 784 0+0+0] [0+0+0 100 0+0+0] children: inline
+        frag 0 from BlockContainer start: 0, length: 0, rect: [8,28 200x100] baseline: 100
+        BlockContainer <(anonymous)> at [8,28] inline-block [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
           GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,131] [0+0+0 784 0+0+0] [0+0+0 69 0+0+0] children: inline
-        frag 0 from TextNode start: 1, length: 42, rect: [8,177 441.40625x23] baseline: 17.5
+      BlockContainer <(anonymous)> at [8,128] [0+0+0 784 0+0+0] [0+0+0 60 0+0+0] children: inline
+        frag 0 from TextNode start: 1, length: 42, rect: [8,168 441.40625x20] baseline: 16
             "Variable set by CSS rule matching element:"
         TextNode <#text> (not painted)
         BreakNode <br> (not painted)
@@ -20,12 +20,12 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         TextNode <#text> (not painted)
         BreakNode <br> (not painted)
         TextNode <#text> (not painted)
-      BlockContainer <div.b> at [8,200] [0+0+0 784 0+0+0] [0+0+0 100 0+0+0] children: inline
-        frag 0 from BlockContainer start: 0, length: 0, rect: [8,200 200x100] baseline: 100
-        BlockContainer <(anonymous)> at [8,200] inline-block [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
+      BlockContainer <div.b> at [8,188] [0+0+0 784 0+0+0] [0+0+0 100 0+0+0] children: inline
+        frag 0 from BlockContainer start: 0, length: 0, rect: [8,188 200x100] baseline: 100
+        BlockContainer <(anonymous)> at [8,188] inline-block [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
           GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,300] [0+0+0 784 0+0+0] [0+0+0 69 0+0+0] children: inline
-        frag 0 from TextNode start: 1, length: 49, rect: [8,346 520.765625x23] baseline: 17.5
+      BlockContainer <(anonymous)> at [8,288] [0+0+0 784 0+0+0] [0+0+0 60 0+0+0] children: inline
+        frag 0 from TextNode start: 1, length: 49, rect: [8,328 520.765625x20] baseline: 16
             "Variable set by CSS rule matching pseudo element:"
         TextNode <#text> (not painted)
         BreakNode <br> (not painted)
@@ -33,26 +33,26 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         TextNode <#text> (not painted)
         BreakNode <br> (not painted)
         TextNode <#text> (not painted)
-      BlockContainer <div.c> at [8,369] [0+0+0 784 0+0+0] [0+0+0 100 0+0+0] children: inline
-        frag 0 from BlockContainer start: 0, length: 0, rect: [8,369 200x100] baseline: 100
-        BlockContainer <(anonymous)> at [8,369] inline-block [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
+      BlockContainer <div.c> at [8,348] [0+0+0 784 0+0+0] [0+0+0 100 0+0+0] children: inline
+        frag 0 from BlockContainer start: 0, length: 0, rect: [8,348 200x100] baseline: 100
+        BlockContainer <(anonymous)> at [8,348] inline-block [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
           GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,469] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+      BlockContainer <(anonymous)> at [8,448] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x477]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x461]
-      PaintableWithLines (BlockContainer(anonymous)) [8,8 784x23]
-      PaintableWithLines (BlockContainer<DIV>.a) [8,31 784x100]
-        PaintableWithLines (BlockContainer(anonymous)) [8,31 200x100]
-      PaintableWithLines (BlockContainer(anonymous)) [8,131 784x69]
-      PaintableWithLines (BlockContainer<DIV>.b) [8,200 784x100]
-        PaintableWithLines (BlockContainer(anonymous)) [8,200 200x100]
-      PaintableWithLines (BlockContainer(anonymous)) [8,300 784x69]
-      PaintableWithLines (BlockContainer<DIV>.c) [8,369 784x100]
-        PaintableWithLines (BlockContainer(anonymous)) [8,369 200x100]
-      PaintableWithLines (BlockContainer(anonymous)) [8,469 784x0]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x456]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x440]
+      PaintableWithLines (BlockContainer(anonymous)) [8,8 784x20]
+      PaintableWithLines (BlockContainer<DIV>.a) [8,28 784x100]
+        PaintableWithLines (BlockContainer(anonymous)) [8,28 200x100]
+      PaintableWithLines (BlockContainer(anonymous)) [8,128 784x60]
+      PaintableWithLines (BlockContainer<DIV>.b) [8,188 784x100]
+        PaintableWithLines (BlockContainer(anonymous)) [8,188 200x100]
+      PaintableWithLines (BlockContainer(anonymous)) [8,288 784x60]
+      PaintableWithLines (BlockContainer<DIV>.c) [8,348 784x100]
+        PaintableWithLines (BlockContainer(anonymous)) [8,348 200x100]
+      PaintableWithLines (BlockContainer(anonymous)) [8,448 784x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x477] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x456] (z-index: auto)

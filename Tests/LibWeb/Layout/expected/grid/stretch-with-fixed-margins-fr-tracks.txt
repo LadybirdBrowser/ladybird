@@ -5,29 +5,29 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.item> at [12,12] [0+1+0 98 0+1+0] [0+1+0 98 0+1+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 9, rect: [12,12 80.078125x18] baseline: 13.796875
+          frag 0 from TextNode start: 0, length: 9, rect: [12,12 80.078125x16] baseline: 12.796875
               "no margin"
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.item.with-margin> at [122,22] [10+1+0 78 0+1+10] [10+1+0 78 0+1+10] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 4, rect: [122,22 35.0625x18] baseline: 13.796875
+          frag 0 from TextNode start: 0, length: 4, rect: [122,22 35.0625x16] baseline: 12.796875
               "10px"
-          frag 1 from TextNode start: 5, length: 6, rect: [122,40 52.109375x18] baseline: 13.796875
+          frag 1 from TextNode start: 5, length: 6, rect: [122,38 52.109375x16] baseline: 12.796875
               "margin"
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.item.with-horizontal-margin> at [17,112] [5+1+0 78 0+1+15] [0+1+0 98 0+1+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [17,112 9.296875x18] baseline: 13.796875
+          frag 0 from TextNode start: 0, length: 1, rect: [17,112 9.296875x16] baseline: 12.796875
               "h"
-          frag 1 from TextNode start: 2, length: 7, rect: [17,130 61.453125x18] baseline: 13.796875
+          frag 1 from TextNode start: 2, length: 7, rect: [17,128 61.453125x16] baseline: 12.796875
               "margins"
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.item.with-vertical-margin> at [112,120] [0+1+0 98 0+1+0] [8+1+0 78 0+1+12] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 9, rect: [112,120 77.65625x18] baseline: 13.796875
+          frag 0 from TextNode start: 0, length: 9, rect: [112,120 77.65625x16] baseline: 12.796875
               "v margins"
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline

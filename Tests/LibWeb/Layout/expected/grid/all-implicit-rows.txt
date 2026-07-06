@@ -5,25 +5,25 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.grid-item> at [8,8] [0+0+0 392.140625 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [8,8 6.34375x18] baseline: 13.796875
+          frag 0 from TextNode start: 0, length: 1, rect: [8,8 6.34375x16] baseline: 12.796875
               "1"
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.grid-item> at [400.140625,8] [0+0+0 391.859375 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [400.140625,8 8.8125x18] baseline: 13.796875
+          frag 0 from TextNode start: 0, length: 1, rect: [400.140625,8 8.8125x16] baseline: 12.796875
               "2"
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.grid-item> at [8,108] [0+0+0 392.140625 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [8,108 9.09375x18] baseline: 13.796875
+          frag 0 from TextNode start: 0, length: 1, rect: [8,108 9.09375x16] baseline: 12.796875
               "3"
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.grid-item> at [400.140625,108] [0+0+0 391.859375 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [400.140625,108 7.75x18] baseline: 13.796875
+          frag 0 from TextNode start: 0, length: 1, rect: [400.140625,108 7.75x16] baseline: 12.796875
               "4"
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline

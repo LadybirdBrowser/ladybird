@@ -8,7 +8,7 @@ SaveLayer@0
   CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x41]
   CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 784x20]
   CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 100x20]
-  FillRect@1 rect=[8,8 1x18] color=rgb(0, 0, 0)
+  FillRect@1 rect=[8,8 1x16] color=rgb(0, 0, 0)
   FillPath@1 path_bounding_rect=[6,6 104x24]
 Restore@0
 

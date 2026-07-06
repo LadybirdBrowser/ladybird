@@ -1,49 +1,49 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 118 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 102 0+0+8] children: not-inline
-      TableWrapper <(anonymous)> at [8,8] [0+0+0 615.65625 0+0+168.34375] [0+0+0 102 0+0+0] [BFC] children: not-inline
-        Box <table> at [9,9] table-box [0+1+0 613.65625 0+1+0] [0+1+0 100 0+1+0] [TFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 106 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 90 0+0+8] children: not-inline
+      TableWrapper <(anonymous)> at [8,8] [0+0+0 615.65625 0+0+168.34375] [0+0+0 90 0+0+0] [BFC] children: not-inline
+        Box <table> at [9,9] table-box [0+1+0 613.65625 0+1+0] [0+1+0 88 0+1+0] [TFC] children: not-inline
           BlockContainer <(anonymous)> (not painted) children: inline
             TextNode <#text> (not painted)
-          Box <tbody> at [9,9] table-row-group [0+0+0 613.65625 0+0+0] [0+0+0 100 0+0+0] children: not-inline
-            Box <tr> at [9,9] table-row [0+0+0 613.65625 0+0+0] [0+0+0 50 0+0+0] children: not-inline
-              BlockContainer <td> at [11,11] table-cell [0+1+1 349.90625 1+1+0] [0+1+1 46 1+1+0] [BFC] children: inline
-                frag 0 from TextNode start: 0, length: 13, rect: [11,11 273.984375x46] baseline: 35
+          Box <tbody> at [9,9] table-row-group [0+0+0 613.65625 0+0+0] [0+0+0 88 0+0+0] children: not-inline
+            Box <tr> at [9,9] table-row [0+0+0 613.65625 0+0+0] [0+0+0 44 0+0+0] children: not-inline
+              BlockContainer <td> at [11,11] table-cell [0+1+1 349.90625 1+1+0] [0+1+1 40 1+1+0] [BFC] children: inline
+                frag 0 from TextNode start: 0, length: 13, rect: [11,11 273.984375x40] baseline: 32
                     "Text baseline"
                 TextNode <#text> (not painted)
-              BlockContainer <td.small-text> at [364.90625,37] table-cell [0+1+1 255.75 1+1+0] [0+1+27 12 9+1+0] [BFC] children: inline
-                frag 0 from TextNode start: 0, length: 12, rect: [364.90625,37 62.28125x12] baseline: 9
+              BlockContainer <td.small-text> at [364.90625,35] table-cell [0+1+1 255.75 1+1+0] [0+1+25 10 7+1+0] [BFC] children: inline
+                frag 0 from TextNode start: 0, length: 12, rect: [364.90625,35 62.28125x10] baseline: 8
                     "Smaller text"
                 TextNode <#text> (not painted)
             BlockContainer <(anonymous)> (not painted) children: inline
               TextNode <#text> (not painted)
-            Box <tr> at [9,59] table-row [0+0+0 613.65625 0+0+0] [0+0+0 50 0+0+0] children: not-inline
-              BlockContainer <td> at [11,61] table-cell [0+1+1 349.90625 1+1+0] [0+1+1 46 1+1+0] [BFC] children: inline
-                frag 0 from TextNode start: 0, length: 16, rect: [11,61 349.90625x46] baseline: 35
+            Box <tr> at [9,53] table-row [0+0+0 613.65625 0+0+0] [0+0+0 44 0+0+0] children: not-inline
+              BlockContainer <td> at [11,55] table-cell [0+1+1 349.90625 1+1+0] [0+1+1 40 1+1+0] [BFC] children: inline
+                frag 0 from TextNode start: 0, length: 16, rect: [11,55 349.90625x40] baseline: 32
                     "Another baseline"
                 TextNode <#text> (not painted)
-              BlockContainer <td> at [364.90625,61] table-cell [0+1+1 255.75 1+1+0] [0+1+1 46 1+1+0] [BFC] children: inline
-                frag 0 from TextNode start: 0, length: 12, rect: [364.90625,61 255.75x46] baseline: 35
+              BlockContainer <td> at [364.90625,55] table-cell [0+1+1 255.75 1+1+0] [0+1+1 40 1+1+0] [BFC] children: inline
+                frag 0 from TextNode start: 0, length: 12, rect: [364.90625,55 255.75x40] baseline: 32
                     "Regular text"
                 TextNode <#text> (not painted)
             BlockContainer <(anonymous)> (not painted) children: inline
               TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,110] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+      BlockContainer <(anonymous)> at [8,98] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x118]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x102]
-      PaintableWithLines (TableWrapper(anonymous)) [8,8 615.65625x102]
-        Paintable (Box<TABLE>) [8,8 615.65625x102]
-          Paintable (Box<TBODY>) [9,9 613.65625x100]
-            Paintable (Box<TR>) [9,9 613.65625x50]
-              PaintableWithLines (BlockContainer<TD>) [9,9 353.90625x50]
-              PaintableWithLines (BlockContainer<TD>.small-text) [362.90625,9 259.75x50]
-            Paintable (Box<TR>) [9,59 613.65625x50]
-              PaintableWithLines (BlockContainer<TD>) [9,59 353.90625x50]
-              PaintableWithLines (BlockContainer<TD>) [362.90625,59 259.75x50]
-      PaintableWithLines (BlockContainer(anonymous)) [8,110 784x0]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x106]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x90]
+      PaintableWithLines (TableWrapper(anonymous)) [8,8 615.65625x90]
+        Paintable (Box<TABLE>) [8,8 615.65625x90]
+          Paintable (Box<TBODY>) [9,9 613.65625x88]
+            Paintable (Box<TR>) [9,9 613.65625x44]
+              PaintableWithLines (BlockContainer<TD>) [9,9 353.90625x44]
+              PaintableWithLines (BlockContainer<TD>.small-text) [362.90625,9 259.75x44]
+            Paintable (Box<TR>) [9,53 613.65625x44]
+              PaintableWithLines (BlockContainer<TD>) [9,53 353.90625x44]
+              PaintableWithLines (BlockContainer<TD>) [362.90625,53 259.75x44]
+      PaintableWithLines (BlockContainer(anonymous)) [8,98 784x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x118] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x106] (z-index: auto)

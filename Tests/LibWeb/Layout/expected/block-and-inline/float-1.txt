@@ -1,17 +1,17 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 358 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 342 0+0+8] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 320 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 304 0+0+8] children: not-inline
       BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
       BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
         BlockContainer <div#lefty> at [8,8] floating [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [8,8 10.859375x18] baseline: 13.796875
+          frag 0 from TextNode start: 0, length: 1, rect: [8,8 10.859375x16] baseline: 12.796875
               "L"
           TextNode <#text> (not painted)
         TextNode <#text> (not painted)
         BlockContainer <div#righty> at [742,8] floating [0+0+0 50 0+0+0] [0+0+0 50 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [742,8 13.6875x18] baseline: 13.796875
+          frag 0 from TextNode start: 0, length: 1, rect: [742,8 13.6875x16] baseline: 12.796875
               "R"
           TextNode <#text> (not painted)
         TextNode <#text> (not painted)
@@ -20,12 +20,12 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
         BlockContainer <div#lefty2> at [108,8] floating [0+0+0 80 0+0+0] [0+0+0 80 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 2, rect: [108,8 19.671875x18] baseline: 13.796875
+          frag 0 from TextNode start: 0, length: 2, rect: [108,8 19.671875x16] baseline: 12.796875
               "L2"
           TextNode <#text> (not painted)
         TextNode <#text> (not painted)
         BlockContainer <div#righty2> at [712,8] floating [0+0+0 30 0+0+0] [0+0+0 30 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 2, rect: [712,8 22.5x18] baseline: 13.796875
+          frag 0 from TextNode start: 0, length: 2, rect: [712,8 22.5x16] baseline: 12.796875
               "R2"
           TextNode <#text> (not painted)
         TextNode <#text> (not painted)
@@ -34,71 +34,69 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
         BlockContainer <div#lefty3> at [188,8] floating [0+0+0 40 0+0+0] [0+0+0 40 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 2, rect: [188,8 19.953125x18] baseline: 13.796875
+          frag 0 from TextNode start: 0, length: 2, rect: [188,8 19.953125x16] baseline: 12.796875
               "L3"
           TextNode <#text> (not painted)
         TextNode <#text> (not painted)
         BlockContainer <div#righty3> at [692,8] floating [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 2, rect: [692,8 22.78125x18] baseline: 13.796875
+          frag 0 from TextNode start: 0, length: 2, rect: [692,8 22.78125x16] baseline: 12.796875
               "R3"
           TextNode <#text> (not painted)
         TextNode <#text> (not painted)
       BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
-      BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 342 0+0+0] children: inline
-        frag 0 from TextNode start: 5, length: 47, rect: [228,8 414.5625x18] baseline: 13.796875
+      BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 304 0+0+0] children: inline
+        frag 0 from TextNode start: 5, length: 47, rect: [228,8 414.5625x16] baseline: 12.796875
             "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"
-        frag 1 from TextNode start: 53, length: 47, rect: [228,26 414.5625x18] baseline: 13.796875
+        frag 1 from TextNode start: 53, length: 47, rect: [228,24 414.5625x16] baseline: 12.796875
             "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"
-        frag 2 from TextNode start: 101, length: 53, rect: [228,44 466.90625x18] baseline: 13.796875
+        frag 2 from TextNode start: 101, length: 53, rect: [228,40 466.90625x16] baseline: 12.796875
             "lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem"
-        frag 3 from TextNode start: 155, length: 65, rect: [188,62 573.5x18] baseline: 13.796875
+        frag 3 from TextNode start: 155, length: 59, rect: [188,56 520.203125x16] baseline: 12.796875
+            "ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem"
+        frag 4 from TextNode start: 215, length: 65, rect: [188,72 573.5x16] baseline: 12.796875
             "ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum"
-        frag 4 from TextNode start: 221, length: 60, rect: [188,80 528.203125x18] baseline: 13.796875
-            "lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum "
-        frag 5 from TextNode start: 285, length: 5, rect: [716.203125,80 44.34375x18] baseline: 13.796875
-            "lorem"
-        frag 6 from TextNode start: 291, length: 77, rect: [108,98 679.140625x18] baseline: 13.796875
+        frag 5 from TextNode start: 285, length: 77, rect: [108,88 678.1875x16] baseline: 12.796875
+            "lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem"
+        frag 6 from TextNode start: 363, length: 77, rect: [108,104 679.140625x16] baseline: 12.796875
             "ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum"
-        frag 7 from TextNode start: 369, length: 89, rect: [8,116 783.828125x18] baseline: 13.796875
+        frag 7 from TextNode start: 441, length: 89, rect: [8,120 783.828125x16] baseline: 12.796875
             "lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem"
-        frag 8 from TextNode start: 459, length: 83, rect: [8,134 731.484375x18] baseline: 13.796875
+        frag 8 from TextNode start: 531, length: 30, rect: [8,136 264.578125x16] baseline: 12.796875
+            "ipsum lorem ipsum lorem ipsum "
+        frag 9 from TextNode start: 565, length: 53, rect: [272.578125,136 466.90625x16] baseline: 12.796875
+            "lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem"
+        frag 10 from TextNode start: 619, length: 83, rect: [8,152 731.484375x16] baseline: 12.796875
             "ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem"
-        frag 9 from TextNode start: 543, length: 18, rect: [8,152 158.9375x18] baseline: 13.796875
-            "ipsum lorem ipsum "
-        frag 10 from TextNode start: 565, length: 65, rect: [166.9375,152 572.546875x18] baseline: 13.796875
-            "lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem"
-        frag 11 from TextNode start: 631, length: 83, rect: [8,170 731.484375x18] baseline: 13.796875
+        frag 11 from TextNode start: 703, length: 83, rect: [8,168 731.484375x16] baseline: 12.796875
             "ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem"
-        frag 12 from TextNode start: 715, length: 83, rect: [8,188 731.484375x18] baseline: 13.796875
+        frag 12 from TextNode start: 787, length: 54, rect: [8,184 475.859375x16] baseline: 12.796875
+            "ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum "
+        frag 13 from TextNode start: 845, length: 29, rect: [483.859375,184 255.625x16] baseline: 12.796875
+            "lorem ipsum lorem ipsum lorem"
+        frag 14 from TextNode start: 875, length: 83, rect: [8,200 731.484375x16] baseline: 12.796875
             "ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem"
-        frag 13 from TextNode start: 799, length: 42, rect: [8,206 370.21875x18] baseline: 13.796875
-            "ipsum lorem ipsum lorem ipsum lorem ipsum "
-        frag 14 from TextNode start: 845, length: 41, rect: [378.21875,206 361.265625x18] baseline: 13.796875
-            "lorem ipsum lorem ipsum lorem ipsum lorem"
-        frag 15 from TextNode start: 887, length: 83, rect: [8,224 731.484375x18] baseline: 13.796875
+        frag 15 from TextNode start: 959, length: 83, rect: [8,216 731.484375x16] baseline: 12.796875
             "ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem"
-        frag 16 from TextNode start: 971, length: 83, rect: [8,242 731.484375x18] baseline: 13.796875
+        frag 16 from TextNode start: 1043, length: 78, rect: [8,232 687.140625x16] baseline: 12.796875
+            "ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum "
+        frag 17 from TextNode start: 1125, length: 5, rect: [695.140625,232 44.34375x16] baseline: 12.796875
+            "lorem"
+        frag 18 from TextNode start: 1131, length: 83, rect: [8,248 731.484375x16] baseline: 12.796875
             "ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem"
-        frag 17 from TextNode start: 1055, length: 66, rect: [8,260 581.5x18] baseline: 13.796875
-            "ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum "
-        frag 18 from TextNode start: 1125, length: 17, rect: [589.5,260 149.984375x18] baseline: 13.796875
-            "lorem ipsum lorem"
-        frag 19 from TextNode start: 1143, length: 83, rect: [8,278 731.484375x18] baseline: 13.796875
+        frag 19 from TextNode start: 1215, length: 83, rect: [8,264 731.484375x16] baseline: 12.796875
             "ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem"
-        frag 20 from TextNode start: 1227, length: 83, rect: [8,296 731.484375x18] baseline: 13.796875
+        frag 20 from TextNode start: 1299, length: 83, rect: [8,280 731.484375x16] baseline: 12.796875
             "ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem"
-        frag 21 from TextNode start: 1311, length: 83, rect: [8,314 731.484375x18] baseline: 13.796875
-            "ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem"
-        frag 22 from TextNode start: 1395, length: 5, rect: [8,332 45.296875x18] baseline: 13.796875
-            "ipsum"
+        frag 21 from TextNode start: 1383, length: 17, rect: [8,296 150.9375x16] baseline: 12.796875
+            "ipsum lorem ipsum"
         TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,350] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+      BlockContainer <(anonymous)> at [8,312] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x358]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x342]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x320]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x304]
       PaintableWithLines (BlockContainer(anonymous)) [8,8 784x0]
       PaintableWithLines (BlockContainer<DIV>) [8,8 784x0]
         PaintableWithLines (BlockContainer<DIV>#lefty) [8,8 100x100]
@@ -112,8 +110,8 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
         PaintableWithLines (BlockContainer<DIV>#lefty3) [188,8 40x40]
         PaintableWithLines (BlockContainer<DIV>#righty3) [692,8 20x20]
       PaintableWithLines (BlockContainer(anonymous)) [8,8 784x0]
-      PaintableWithLines (BlockContainer<DIV>) [8,8 784x342]
-      PaintableWithLines (BlockContainer(anonymous)) [8,350 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,8 784x304]
+      PaintableWithLines (BlockContainer(anonymous)) [8,312 784x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x358] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x320] (z-index: auto)

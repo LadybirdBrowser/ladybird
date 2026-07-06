@@ -5,25 +5,25 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.item> at [12,12] [0+1+0 98 0+1+0] [0+1+0 98 0+1+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [12,12 6.34375x18] baseline: 13.796875
+          frag 0 from TextNode start: 0, length: 1, rect: [12,12 6.34375x16] baseline: 12.796875
               "1"
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.item> at [112,12] [0+1+0 98 0+1+0] [0+1+0 98 0+1+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [112,12 8.8125x18] baseline: 13.796875
+          frag 0 from TextNode start: 0, length: 1, rect: [112,12 8.8125x16] baseline: 12.796875
               "2"
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.item> at [12,112] [0+1+0 98 0+1+0] [0+1+0 98 0+1+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [12,112 9.09375x18] baseline: 13.796875
+          frag 0 from TextNode start: 0, length: 1, rect: [12,112 9.09375x16] baseline: 12.796875
               "3"
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.item> at [112,112] [0+1+0 98 0+1+0] [0+1+0 98 0+1+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [112,112 7.75x18] baseline: 13.796875
+          frag 0 from TextNode start: 0, length: 1, rect: [112,112 7.75x16] baseline: 12.796875
               "4"
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline

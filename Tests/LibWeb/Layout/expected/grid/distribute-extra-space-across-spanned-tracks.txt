@@ -1,39 +1,39 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 34 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 18 0+0+8] children: not-inline
-      Box <div.grid> at [8,8] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] [GFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 16 0+0+8] children: not-inline
+      Box <div.grid> at [8,8] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] [GFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
-        BlockContainer <div.right> at [400,8] [0+0+0 392 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [400,8 9.34375x18] baseline: 13.796875
+        BlockContainer <div.right> at [400,8] [0+0+0 392 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [400,8 9.34375x16] baseline: 12.796875
               "a"
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
-        BlockContainer <div.left> at [8,8] [0+0+0 392 0+0+0] [0+0+0 18 0+0+0] [BFC] children: not-inline
+        BlockContainer <div.left> at [8,8] [0+0+0 392 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
           BlockContainer <(anonymous)> at [8,8] [0+0+0 392 0+0+0] [0+0+0 0 0+0+0] children: inline
             TextNode <#text> (not painted)
-          BlockContainer <div.inner> at [8,8] [0+0+0 392 0+0+0] [0+0+0 18 0+0+0] children: inline
-            frag 0 from TextNode start: 0, length: 1, rect: [8,8 9.46875x18] baseline: 13.796875
+          BlockContainer <div.inner> at [8,8] [0+0+0 392 0+0+0] [0+0+0 16 0+0+0] children: inline
+            frag 0 from TextNode start: 0, length: 1, rect: [8,8 9.46875x16] baseline: 12.796875
                 "b"
             TextNode <#text> (not painted)
-          BlockContainer <(anonymous)> at [8,26] [0+0+0 392 0+0+0] [0+0+0 0 0+0+0] children: inline
+          BlockContainer <(anonymous)> at [8,24] [0+0+0 392 0+0+0] [0+0+0 0 0+0+0] children: inline
             TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,26] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+      BlockContainer <(anonymous)> at [8,24] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x34]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x18]
-      Paintable (Box<DIV>.grid) [8,8 784x18]
-        PaintableWithLines (BlockContainer<DIV>.right) [400,8 392x18]
-        PaintableWithLines (BlockContainer<DIV>.left) [8,8 392x18]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x32]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x16]
+      Paintable (Box<DIV>.grid) [8,8 784x16]
+        PaintableWithLines (BlockContainer<DIV>.right) [400,8 392x16]
+        PaintableWithLines (BlockContainer<DIV>.left) [8,8 392x16]
           PaintableWithLines (BlockContainer(anonymous)) [8,8 392x0]
-          PaintableWithLines (BlockContainer<DIV>.inner) [8,8 392x18]
-          PaintableWithLines (BlockContainer(anonymous)) [8,26 392x0]
-      PaintableWithLines (BlockContainer(anonymous)) [8,26 784x0]
+          PaintableWithLines (BlockContainer<DIV>.inner) [8,8 392x16]
+          PaintableWithLines (BlockContainer(anonymous)) [8,24 392x0]
+      PaintableWithLines (BlockContainer(anonymous)) [8,24 784x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x34] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x32] (z-index: auto)

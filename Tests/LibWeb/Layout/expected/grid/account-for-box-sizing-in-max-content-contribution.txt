@@ -3,7 +3,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 50 0+0+8] children: not-inline
       Box <div.container> at [8,8] [0+0+0 784 0+0+0] [0+0+0 50 0+0+0] [GFC] children: not-inline
         BlockContainer <div.item> at [18,18] [0+0+10 764 10+0+0] [0+0+10 30 10+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 31, rect: [18,18 255.71875x18] baseline: 13.796875
+          frag 0 from TextNode start: 0, length: 31, rect: [18,18 255.71875x16] baseline: 12.796875
               "There should be no red visible."
           TextNode <#text> (not painted)
 

@@ -2317,7 +2317,7 @@ Length::FontMetrics StyleComputer::calculate_root_element_font_metrics(ComputedP
     auto font_pixel_metrics = style.first_available_computed_font(document().font_computer())->pixel_metrics();
     Length::FontMetrics font_metrics { m_default_font_metrics.font_size, font_pixel_metrics, InitialValues::line_height() };
     font_metrics.font_size = root_value.as_length().length().to_px(viewport_rect(), font_metrics, font_metrics);
-    font_metrics.line_height = style.line_height();
+    font_metrics.line_height = style.line_height(document().font_computer());
 
     return font_metrics;
 }
@@ -2479,7 +2479,7 @@ ComputationContext StyleComputer::make_computation_context_for_property(Property
         auto line_height_font_metrics = Length::FontMetrics {
             style.font_size(),
             style.first_available_computed_font(document().font_computer())->pixel_metrics(),
-            inheritance_parent.has_value() ? inheritance_parent->computed_properties()->line_height() : InitialValues::line_height()
+            inheritance_parent.has_value() ? inheritance_parent->computed_properties()->line_height(document().font_computer()) : InitialValues::line_height()
         };
 
         return {
@@ -2506,7 +2506,7 @@ ComputationContext StyleComputer::make_computation_context_for_property(Property
                 .font_metrics = {
                     style.font_size(),
                     style.first_available_computed_font(document().font_computer())->pixel_metrics(),
-                    style.line_height() },
+                    style.line_height(document().font_computer()) },
                 .root_font_metrics = m_root_element_font_metrics,
                 .font_metrics_depend_on_viewport_metrics = style.font_metrics_depend_on_viewport_metrics(),
                 .root_font_metrics_depend_on_viewport_metrics = abstract_element.has_value() && abstract_element->element().is_html_html_element() ? style.font_metrics_depend_on_viewport_metrics() : m_root_element_font_metrics_depend_on_viewport_metrics,
@@ -3049,7 +3049,7 @@ RefPtr<StyleValue const> StyleComputer::recascade_font_size_if_needed(DOM::Abstr
         auto inherited_line_height = ancestor.element_to_inherit_style_from()
                                          .map([&](auto&& parent_element) {
                                              inherited_font_metrics_depend_on_viewport_metrics = parent_element.computed_properties()->font_metrics_depend_on_viewport_metrics();
-                                             return parent_element.computed_properties()->line_height();
+                                             return parent_element.computed_properties()->line_height(document().font_computer());
                                          })
                                          .value_or(InitialValues::line_height());
 

@@ -4,8 +4,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       Box <div.outer> at [8,8] flex-container(column) flex-item [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] [FFC] children: not-inline
         BlockContainer <div.upper> at [8,8] flex-item [0+0+0 200 0+0+0] [0+0+0 200 0+0+0] [BFC] children: not-inline
           BlockContainer <div.spacer> at [8,8] [0+0+0 200 0+0+0] [0+0+0 200 0+0+0] children: not-inline
-        BlockContainer <div.lower> at [8,208] flex-item [0+0+0 200 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 3, rect: [8,208 26.953125x18] baseline: 13.796875
+        BlockContainer <div.lower> at [8,208] flex-item [0+0+0 200 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 3, rect: [8,208 26.953125x16] baseline: 12.796875
               "whf"
           TextNode <#text> (not painted)
 
@@ -15,7 +15,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       Paintable (Box<DIV>.outer) [8,8 200x100]
         PaintableWithLines (BlockContainer<DIV>.upper) [8,8 200x200]
           PaintableWithLines (BlockContainer<DIV>.spacer) [8,8 200x200]
-        PaintableWithLines (BlockContainer<DIV>.lower) [8,208 200x18]
+        PaintableWithLines (BlockContainer<DIV>.lower) [8,208 200x16]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x116] (z-index: auto)

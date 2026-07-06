@@ -5,15 +5,15 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div> at [18,117] [0+0+0 200 0+0+0] [0+0+0 150 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 5, length: 1, rect: [18,117 11.5625x18] baseline: 13.796875
+          frag 0 from TextNode start: 5, length: 1, rect: [18,117 11.5625x16] baseline: 12.796875
               "X"
-          frag 1 from TextNode start: 0, length: 2, rect: [18,135 23.125x18] baseline: 13.796875
+          frag 1 from TextNode start: 0, length: 2, rect: [18,133 23.125x16] baseline: 12.796875
               "XX"
           TextNode <#text> (not painted)
           BreakNode <br> (not painted)
           TextNode <#text> (not painted)
-          BlockContainer <div.abspos> at [41.125,135] positioned [0+0+0 23.125 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 2, rect: [41.125,135 23.125x18] baseline: 13.796875
+          BlockContainer <div.abspos> at [41.125,133] positioned [0+0+0 23.125 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 2, rect: [41.125,133 23.125x16] baseline: 12.796875
                 "XX"
             TextNode <#text> (not painted)
           TextNode <#text> (not painted)
@@ -27,7 +27,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x521]
       Paintable (Box<DIV>.grid) [12,8 559x521]
         PaintableWithLines (BlockContainer<DIV>) [18,117 200x150]
-          PaintableWithLines (BlockContainer<DIV>.abspos) [41.125,135 23.125x18]
+          PaintableWithLines (BlockContainer<DIV>.abspos) [41.125,133 23.125x16]
       PaintableWithLines (BlockContainer(anonymous)) [8,532 784x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

@@ -3,8 +3,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 0 0+0+8] children: not-inline
       Box <div.gfc> at [8,8] positioned [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [GFC] children: not-inline
         BlockContainer <div.grid-item> at [408,8] [0+0+0 400 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-          BlockContainer <div.abspos> at [408,8] positioned [0+0+0 100 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 5, rect: [408,8 39.78125x18] baseline: 13.796875
+          BlockContainer <div.abspos> at [408,8] positioned [0+0+0 100 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 5, rect: [408,8 39.78125x16] baseline: 12.796875
                 "Hello"
             TextNode <#text> (not painted)
 
@@ -13,7 +13,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 808x608]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x0]
       Paintable (Box<DIV>.gfc) [8,8 800x600]
         PaintableWithLines (BlockContainer<DIV>.grid-item) [408,8 400x600]
-          PaintableWithLines (BlockContainer<DIV>.abspos) [408,8 100x18]
+          PaintableWithLines (BlockContainer<DIV>.abspos) [408,8 100x16]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x16] (z-index: auto)

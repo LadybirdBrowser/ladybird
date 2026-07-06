@@ -1,4 +1,4 @@
 before: 0
-after: 80
+after: 60
 hidden before: 0
 hidden after: 0

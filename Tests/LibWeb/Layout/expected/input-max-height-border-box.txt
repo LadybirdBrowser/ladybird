@@ -1,20 +1,20 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 50 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 34 0+0+8] children: inline
-      frag 0 from TextInputBox start: 0, length: 0, rect: [12,22 60x6] baseline: 20
-      TextInputBox <input> at [12,22] inline-block [0+4+0 60 0+4+0] [0+4+10 6 10+4+0] [BFC] children: not-inline
-        Box <div> at [12,22] flex-container(row) [0+0+0 60 0+0+0] [0+0+0 6 0+0+0] [FFC] children: not-inline
-          BlockContainer <div> at [12,22] flex-item [0+0+0 60 0+0+0] [0+0+0 6 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 0, rect: [12,22 0x6] baseline: 4.5
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 49 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 33 0+0+8] children: inline
+      frag 0 from TextInputBox start: 0, length: 0, rect: [12,22 60x5] baseline: 19
+      TextInputBox <input> at [12,22] inline-block [0+4+0 60 0+4+0] [0+4+10 5 10+4+0] [BFC] children: not-inline
+        Box <div> at [12,22] flex-container(row) [0+0+0 60 0+0+0] [0+0+0 5 0+0+0] [FFC] children: not-inline
+          BlockContainer <div> at [12,22] flex-item [0+0+0 60 0+0+0] [0+0+0 5 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 0, rect: [12,22 0x5] baseline: 4
             TextNode <#text> (not painted)
       TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x50]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x34]
-      PaintableWithLines (TextInputBox<INPUT>) [8,8 68x34]
-        Paintable (Box<DIV>) [12,22 60x6]
-          PaintableWithLines (BlockContainer<DIV>) [12,22 60x6]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x49]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x33]
+      PaintableWithLines (TextInputBox<INPUT>) [8,8 68x33]
+        Paintable (Box<DIV>) [12,22 60x5]
+          PaintableWithLines (BlockContainer<DIV>) [12,22 60x5]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x50] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x49] (z-index: auto)
