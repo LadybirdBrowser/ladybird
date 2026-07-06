@@ -528,7 +528,7 @@ bool Application::activate_tab_with_url(URL::URL const& url) const
 void Application::open_url_in_new_window(URL::URL const& url)
 {
     auto is_private = m_active_window ? m_active_window->is_private() : WebView::IsPrivate::No;
-    this->new_window({ url }, {}, BrowserWindow::IsPopupWindow::No, is_private);
+    this->new_window({ url }, configuration_for_new_window(), BrowserWindow::IsPopupWindow::No, is_private);
 }
 
 Optional<ByteString> Application::ask_user_for_download_path(ByteString const& file) const
