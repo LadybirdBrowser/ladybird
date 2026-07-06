@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    /* A :has() selector with a featureless argument that cannot be affected by
+       pseudo-class state changes. It must not cause :active state changes to
+       fall back to whole-subtree style invalidation. */
+    .featureless-has-hook:has(:not(.missing)) {
+        color: rgb(9, 9, 9);
+    }
+
+    #active-target {
+        display: block;
+        width: 80px;
+        height: 40px;
+        color: black;
+    }
+
+    #active-target:active {
+        color: rgb(1, 2, 3);
+    }
+</style>
+<div class="featureless-has-hook">hook</div>
+<div id="big"></div>
+<button id="active-target">target</button>
+<script>
+    test(() => {
+        const big = document.getElementById("big");
+        for (let i = 0; i < 500; ++i) {
+            const leaf = document.createElement("span");
+            leaf.textContent = `leaf ${i}`;
+            big.appendChild(leaf);
+        }
+
+        const activeTarget = document.getElementById("active-target");
+        const rect = activeTarget.getBoundingClientRect();
+        const x = Math.floor(rect.left + rect.width / 2);
+        const y = Math.floor(rect.top + rect.height / 2);
+
+        internals.mouseMove(x, y);
+        internals.updateStyle();
+        internals.resetStyleInvalidationCounters();
+
+        internals.clickAndHold(x, y);
+        internals.updateStyle();
+
+        println(`active color: ${getComputedStyle(activeTarget).color}`);
+
+        const counters = internals.getStyleInvalidationCounters();
+        if (counters.elementStyleRecomputations < 50)
+            println("PASS: :active state change stayed targeted");
+        else
+            println(`FAIL: :active state change recomputed ${counters.elementStyleRecomputations} elements`);
+
+        internals.mouseUp(x, y);
+    });
+</script>

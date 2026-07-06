@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #active-container {
+        color: rgb(0, 0, 0);
+    }
+
+    #active-container:has(:active) {
+        color: rgb(1, 2, 3);
+    }
+
+    #active-target {
+        display: block;
+        width: 80px;
+        height: 40px;
+    }
+
+    #open-container {
+        color: rgb(0, 0, 0);
+    }
+
+    #open-container:has(:open) {
+        color: rgb(4, 5, 6);
+    }
+</style>
+<div id="active-container">
+    <button id="active-target">target</button>
+</div>
+<div id="open-container">
+    <details id="toggle"><summary>summary</summary>content</details>
+</div>
+<script>
+    test(() => {
+        const activeContainer = document.getElementById("active-container");
+        const activeTarget = document.getElementById("active-target");
+        const rect = activeTarget.getBoundingClientRect();
+        const x = Math.floor(rect.left + rect.width / 2);
+        const y = Math.floor(rect.top + rect.height / 2);
+
+        println(`before mousedown: ${getComputedStyle(activeContainer).color}`);
+
+        internals.clickAndHold(x, y);
+        internals.updateStyle();
+        println(`during mousedown: ${getComputedStyle(activeContainer).color}`);
+
+        internals.mouseUp(x, y);
+        internals.updateStyle();
+        println(`after mouseup: ${getComputedStyle(activeContainer).color}`);
+
+        const openContainer = document.getElementById("open-container");
+        const toggle = document.getElementById("toggle");
+
+        println(`before open: ${getComputedStyle(openContainer).color}`);
+
+        toggle.setAttribute("open", "");
+        internals.updateStyle();
+        println(`open: ${getComputedStyle(openContainer).color}`);
+
+        toggle.removeAttribute("open");
+        internals.updateStyle();
+        println(`closed: ${getComputedStyle(openContainer).color}`);
+    });
+</script>

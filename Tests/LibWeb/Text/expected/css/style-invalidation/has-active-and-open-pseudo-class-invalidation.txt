@@ -1,0 +1,6 @@
+before mousedown: rgb(0, 0, 0)
+during mousedown: rgb(1, 2, 3)
+after mouseup: rgb(0, 0, 0)
+before open: rgb(0, 0, 0)
+open: rgb(4, 5, 6)
+closed: rgb(0, 0, 0)
