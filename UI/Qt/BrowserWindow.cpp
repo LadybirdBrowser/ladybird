@@ -391,6 +391,9 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     menuBar()->addMenu(m_bookmarks_menu);
 
     m_history_menu = create_application_menu(*this, application.history_menu());
+    QObject::connect(m_history_menu, &QMenu::aboutToShow, this, [this] {
+        update_history_menu(*m_history_menu, m_current_tab ? &m_current_tab->view() : nullptr);
+    });
     m_hamburger_menu->addMenu(m_history_menu);
     menuBar()->addMenu(m_history_menu);
 

@@ -214,7 +214,12 @@ public:
         view_menu->addMenu(create_application_menu(*view_menu, application.motion_menu()));
 
         m_application_menu_bar->addMenu(bookmarks_menu());
-        m_application_menu_bar->addMenu(create_application_menu(*m_application_menu_bar, application.history_menu()));
+
+        m_history_menu = create_application_menu(*m_application_menu_bar, application.history_menu());
+        QObject::connect(m_history_menu, &QMenu::aboutToShow, m_application_menu_bar, [this] {
+            update_history_menu(*m_history_menu, Application::the().active_tab() ? &Application::the().active_tab()->view() : nullptr);
+        });
+        m_application_menu_bar->addMenu(m_history_menu);
 
         auto* help_menu = m_application_menu_bar->addMenu("&Help");
         help_menu->addAction(create_application_action(*help_menu, application.open_about_page_action(), IncludeActionIcon::No));
@@ -273,6 +278,7 @@ private:
 #if defined(AK_OS_MACOS)
     QMenuBar* m_application_menu_bar { nullptr };
     QMenu* m_bookmarks_menu { nullptr };
+    QMenu* m_history_menu { nullptr };
     QMenu* m_inspect_menu { nullptr };
     QMenu* m_debug_menu { nullptr };
     QAction* m_reopen_recently_closed_tab_action { nullptr };
