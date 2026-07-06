@@ -180,9 +180,7 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
     // NOTE: If the text-transform property changes, it may affect layout. Furthermore, since the
     //       Layout::TextNode caches the post-transform text, we have to update the layout tree.
     if (property_id == CSS::PropertyID::TextTransform) {
-        invalidation.rebuild_layout_tree = true;
-        invalidation.relayout = true;
-        invalidation.repaint = true;
+        invalidation.ensure_at_least(InvalidationLevel::RebuildLayoutTree);
         return invalidation;
     }
 
@@ -194,7 +192,7 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
     }
 
     if (AK::first_is_one_of(property_id, CSS::PropertyID::CounterReset, CSS::PropertyID::CounterSet, CSS::PropertyID::CounterIncrement)) {
-        invalidation.rebuild_layout_tree = true;
+        invalidation.ensure_at_least(InvalidationLevel::RebuildLayoutTree);
         return invalidation;
     }
 
@@ -205,11 +203,11 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
     if (property_id == CSS::PropertyID::Visibility) {
         // We don't need to relayout if the visibility changes from visible to hidden or vice versa. Only collapse requires relayout.
         if ((old_value && old_value->to_keyword() == CSS::Keyword::Collapse) != (new_value && new_value->to_keyword() == CSS::Keyword::Collapse))
-            invalidation.relayout = true;
+            invalidation.ensure_at_least(InvalidationLevel::Relayout);
         // Of course, we still have to repaint on any visibility change.
-        invalidation.repaint = true;
+        invalidation.ensure_at_least(InvalidationLevel::Repaint);
     } else if (CSS::property_affects_layout(property_id)) {
-        invalidation.relayout = true;
+        invalidation.ensure_at_least(InvalidationLevel::Relayout);
     }
 
     if (CSS::property_affects_stacking_context(property_id)) {
@@ -225,32 +223,31 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
         // causing it to be painted from both step 8 (m_positioned_descendants) and
         // step 9 (m_children with z >= 1), resulting in double painting.
         if (property_id == CSS::PropertyID::ZIndex) {
-            invalidation.rebuild_stacking_context_tree = true;
+            invalidation.set_needs_stacking_context_tree_rebuild();
         } else {
             // OPTIMIZATION: Only rebuild stacking context tree when property crosses from a neutral value (doesn't create
             //               stacking context) to a creating value or vice versa.
             bool old_creates = is_stacking_context_creating_value(property_id, old_value);
             bool new_creates = is_stacking_context_creating_value(property_id, new_value);
             if (old_creates != new_creates) {
-                invalidation.rebuild_stacking_context_tree = true;
+                invalidation.set_needs_stacking_context_tree_rebuild();
             }
         }
     }
-    invalidation.repaint = true;
 
+    bool needs_repaint = true;
     if (CSS::property_affects_accumulated_visual_contexts(property_id)) {
         if (accumulated_visual_context_change_is_value_only(property_id, old_value, new_value))
-            invalidation.update_accumulated_visual_context_values = true;
+            invalidation.ensure_at_least(AccumulatedVisualContextInvalidation::UpdateValues);
         else
-            invalidation.rebuild_accumulated_visual_contexts = true;
+            invalidation.ensure_at_least(AccumulatedVisualContextInvalidation::Rebuild);
         if (!accumulated_visual_context_change_requires_repaint(property_id, old_value, new_value)
-            && !invalidation.rebuild_stacking_context_tree
-            && !invalidation.relayout
-            && !invalidation.rebuild_layout_tree
-            && !invalidation.recompute_descendant_styles
-            && !invalidation.inherited_style_changed)
-            invalidation.repaint = false;
+            && !invalidation.needs_repaint()
+            && !invalidation.recompute_descendant_styles)
+            needs_repaint = false;
     }
+    if (needs_repaint)
+        invalidation.ensure_at_least(InvalidationLevel::Repaint);
 
     return invalidation;
 }

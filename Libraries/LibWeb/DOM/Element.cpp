@@ -934,7 +934,7 @@ static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(C
     CSS::RequiredInvalidationAfterStyleChange invalidation;
 
     if (old_style.computed_font_list(font_computer) != new_style.computed_font_list(font_computer))
-        invalidation.relayout = true;
+        invalidation.ensure_at_least(CSS::InvalidationLevel::Relayout);
 
     for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
         auto property_id = static_cast<CSS::PropertyID>(i);
@@ -956,11 +956,8 @@ static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(C
 
         // NB: We only propagate content to computed values for relevant elements so if the old layout node doesn't
         //     have a value for content we know it isn't a relevant element and invalidation isn't required.
-        if (old_content.has_value() && old_content->counter_style_dependencies != new_style.content(abstract_element, 0).content_data.counter_style_dependencies) {
-            invalidation.rebuild_layout_tree = true;
-            invalidation.relayout = true;
-            invalidation.repaint = true;
-        }
+        if (old_content.has_value() && old_content->counter_style_dependencies != new_style.content(abstract_element, 0).content_data.counter_style_dependencies)
+            invalidation.ensure_at_least(CSS::InvalidationLevel::RebuildLayoutTree);
 
         auto const& old_list_style_type = old_computed_values.list_style_type();
 
@@ -971,11 +968,8 @@ static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(C
                 ValueComparingRefPtr<CSS::CounterStyle const> old_counter_style = old_list_style_type.get<RefPtr<CSS::CounterStyle const>>();
                 ValueComparingRefPtr<CSS::CounterStyle const> new_counter_style = new_list_style_type.get<RefPtr<CSS::CounterStyle const>>();
 
-                if (old_counter_style != new_counter_style) {
-                    invalidation.rebuild_layout_tree = true;
-                    invalidation.relayout = true;
-                    invalidation.repaint = true;
-                }
+                if (old_counter_style != new_counter_style)
+                    invalidation.ensure_at_least(CSS::InvalidationLevel::RebuildLayoutTree);
             }
         }
     }
@@ -1042,12 +1036,12 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
 
 void Element::apply_computed_style_to_layout_node_if_needed(CSS::RequiredInvalidationAfterStyleChange const& invalidation)
 {
-    if (invalidation.rebuild_layout_tree || !unsafe_layout_node())
+    if (invalidation.needs_layout_tree_rebuild() || !unsafe_layout_node())
         return;
 
     // If we're keeping the layout tree, we can just apply the new style to the existing layout tree.
     unsafe_layout_node()->apply_style(*m_computed_properties);
-    if (invalidation.repaint)
+    if (invalidation.needs_repaint())
         set_needs_repaint();
 
     // Do the same for pseudo-elements.
@@ -1058,7 +1052,7 @@ void Element::apply_computed_style_to_layout_node_if_needed(CSS::RequiredInvalid
 
         if (auto node_with_style = pseudo_element.unsafe_layout_node()) {
             node_with_style->apply_style(*pseudo_element_style);
-            if (invalidation.repaint && node_with_style->first_paintable())
+            if (invalidation.needs_repaint() && node_with_style->first_paintable())
                 node_with_style->first_paintable()->set_needs_repaint();
         }
     });

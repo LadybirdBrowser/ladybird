@@ -28,15 +28,15 @@ static void apply_element_style_invalidation_after_style_change(DOM::Element& el
 {
     if (invalidate_assigned_slottables)
         Invalidation::invalidate_assigned_slottables_after_slot_style_change(element);
-    if (invalidate_descendant_slots && (invalidation.inherited_style_changed || invalidation.rebuild_layout_tree))
+    if (invalidate_descendant_slots && (invalidation.inherited_style_changed || invalidation.needs_layout_tree_rebuild()))
         Invalidation::invalidate_assigned_slottables_for_descendant_slots_after_inherited_style_change(element);
 
-    if (invalidation.update_accumulated_visual_context_values && !invalidation.rebuild_accumulated_visual_contexts)
+    if (invalidation.accumulated_visual_contexts() == AccumulatedVisualContextInvalidation::UpdateValues)
         element.document().schedule_accumulated_visual_context_value_update(element);
 
-    if (invalidation.relayout)
+    if (invalidation.needs_relayout())
         element.set_needs_layout_update(DOM::SetNeedsLayoutReason::StyleChange);
-    if (invalidation.rebuild_layout_tree) {
+    if (invalidation.needs_layout_tree_rebuild()) {
         // Mark the parent to handle display changes to/from contents correctly.
         if (auto parent_element = element.parent_element())
             parent_element->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::StyleChange);
@@ -49,14 +49,11 @@ static void apply_element_style_invalidation_after_style_change(DOM::Element& el
 
 static void apply_document_style_invalidation_after_style_change(DOM::Document& document, RequiredInvalidationAfterStyleChange const& invalidation)
 {
-    if (invalidation.repaint
-        || invalidation.rebuild_stacking_context_tree
-        || invalidation.relayout
-        || invalidation.rebuild_layout_tree)
+    if (invalidation.needs_repaint())
         document.set_needs_to_record_display_list();
-    if (invalidation.rebuild_accumulated_visual_contexts)
+    if (invalidation.accumulated_visual_contexts() == AccumulatedVisualContextInvalidation::Rebuild)
         document.set_needs_accumulated_visual_contexts_update(true);
-    if (invalidation.rebuild_stacking_context_tree)
+    if (invalidation.needs_stacking_context_tree_rebuild())
         document.invalidate_stacking_context_tree();
 }
 
@@ -189,7 +186,7 @@ static void enter_style_update_frame(StyleUpdateFrame& frame, StyleComputer& sty
         frame.children_need_inherited_style_update |= frame.needs_inherited_style_update;
     // NB: When display changes to/from flex/grid/contents, children may need to be blockified or un-blockified.
     //     This requires a full style recompute, not just inherited style update.
-    frame.children_need_full_style_recompute = frame.node_invalidation.rebuild_layout_tree;
+    frame.children_need_full_style_recompute = frame.node_invalidation.needs_layout_tree_rebuild();
     frame.descendant_style_recompute_needed = frame.ancestor_needs_descendant_style_recompute || frame.node_invalidation.recompute_descendant_styles;
 
     // OPTIMIZATION: Descendants of a display:none element are not rendered and their computed style is not observable
@@ -539,7 +536,7 @@ ComputedProperties const* update_style_for_element(DOM::Document& document, DOM:
             descendant_style_recompute_needed = false;
         }
 
-        if (did_change_custom_properties || invalidation.rebuild_layout_tree)
+        if (did_change_custom_properties || invalidation.needs_layout_tree_rebuild())
             descendant_style_recompute_needed = true;
 
         if (i > 1) {

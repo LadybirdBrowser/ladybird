@@ -859,7 +859,7 @@ AnimationUpdateContext::~AnimationUpdateContext()
         bool invalidated_assigned_slottables_for_descendant_slots = false;
         if (!element.pseudo_element().has_value()) {
             CSS::Invalidation::invalidate_assigned_slottables_after_slot_style_change(target);
-            if (invalidation.inherited_style_changed || invalidation.rebuild_layout_tree) {
+            if (invalidation.inherited_style_changed || invalidation.needs_layout_tree_rebuild()) {
                 CSS::Invalidation::invalidate_assigned_slottables_for_descendant_slots_after_inherited_style_change(target);
                 invalidated_assigned_slottables_for_descendant_slots = true;
             }
@@ -876,13 +876,13 @@ AnimationUpdateContext::~AnimationUpdateContext()
                 return TraversalDecision::SkipChildrenAndContinue;
             CSS::Invalidation::invalidate_assigned_slottables_after_slot_style_change(element);
             if (!invalidated_assigned_slottables_for_descendant_slots
-                && (element_invalidation.inherited_style_changed || element_invalidation.rebuild_layout_tree)) {
+                && (element_invalidation.inherited_style_changed || element_invalidation.needs_layout_tree_rebuild())) {
                 CSS::Invalidation::invalidate_assigned_slottables_for_descendant_slots_after_inherited_style_change(target);
                 invalidated_assigned_slottables_for_descendant_slots = true;
             }
             // NB: Descendant invalidations are merged into one, so value-only visual context updates must be
             //     scheduled here, for each affected descendant.
-            if (element_invalidation.update_accumulated_visual_context_values && !element_invalidation.rebuild_accumulated_visual_contexts)
+            if (element_invalidation.accumulated_visual_contexts() == CSS::AccumulatedVisualContextInvalidation::UpdateValues)
                 element.document().schedule_accumulated_visual_context_value_update(element);
             invalidation |= element_invalidation;
             return TraversalDecision::Continue;
@@ -897,9 +897,9 @@ AnimationUpdateContext::~AnimationUpdateContext()
                 pseudo_element_node->apply_style(*style);
         }
 
-        if (invalidation.relayout)
+        if (invalidation.needs_relayout())
             target->set_needs_layout_update(DOM::SetNeedsLayoutReason::KeyframeEffect);
-        if (invalidation.rebuild_layout_tree) {
+        if (invalidation.needs_layout_tree_rebuild()) {
             // We mark layout tree for rebuild starting from parent element to correctly invalidate
             // "display" property change to/from "contents" value.
             if (auto parent_element = target->parent_element()) {
@@ -908,9 +908,9 @@ AnimationUpdateContext::~AnimationUpdateContext()
                 target->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::KeyframeEffect);
             }
         }
-        if (invalidation.rebuild_accumulated_visual_contexts) {
+        if (invalidation.accumulated_visual_contexts() == CSS::AccumulatedVisualContextInvalidation::Rebuild) {
             element.document().set_needs_accumulated_visual_contexts_update(true);
-        } else if (invalidation.update_accumulated_visual_context_values) {
+        } else if (invalidation.accumulated_visual_contexts() == CSS::AccumulatedVisualContextInvalidation::UpdateValues) {
             // NB: Element-reference pseudo elements (e.g. ::placeholder) are not synthetic, so schedule their
             //     layout node directly instead of going through the owning element.
             if (element.pseudo_element().has_value()) {
@@ -921,10 +921,10 @@ AnimationUpdateContext::~AnimationUpdateContext()
             }
         }
 
-        if (invalidation.repaint) {
+        if (invalidation.needs_repaint()) {
             target->set_needs_repaint();
         }
-        if (invalidation.rebuild_stacking_context_tree)
+        if (invalidation.needs_stacking_context_tree_rebuild())
             element.document().invalidate_stacking_context_tree();
     }
 }
