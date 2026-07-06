@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<!-- Percentage-height table cells get a second inside layout once the final table
+     height is known. That relayout runs in the same layout state as the first pass,
+     so it must not trip the create-once used values invariant for the cells'
+     descendants, whether in-flow or absolutely positioned. -->
+<table style="height: 100px">
+    <tr>
+        <td style="height: 100%">
+            <div>in-flow block child</div>
+            <div style="position: relative">
+                <img style="position: absolute">
+            </div>
+        </td>
+    </tr>
+</table>
+<script>
+    document.body.offsetHeight;
+</script>

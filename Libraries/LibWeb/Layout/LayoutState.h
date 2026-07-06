@@ -98,6 +98,18 @@ public:
         return page->entries[index & PageMask];
     }
 
+    void remove(u32 index)
+    {
+        auto page_index = index >> PageBits;
+        if (page_index >= m_pages.size())
+            return;
+        auto& page = m_pages[page_index];
+        if (!page)
+            return;
+        // NB: The entry is only unlinked here; its destructor runs when the allocator is destroyed.
+        page->entries[index & PageMask] = nullptr;
+    }
+
     T& allocate(u32 index)
     {
         auto page_index = index >> PageBits;
@@ -395,6 +407,10 @@ struct LayoutState {
     UsedValues const& get(NodeWithStyle const&) const;
 
     UsedValues& create(NodeWithStyle const&, Optional<CSSPixels> percentage_basis_width, Optional<CSSPixels> percentage_basis_height);
+
+    // Discards used values created for the descendants of `root` by an earlier layout pass, so an
+    // intentional second layout of the subtree can create them anew.
+    void discard_used_values_for_descendants(Box const& root);
 
     UsedValues& populate_from_paintable(NodeWithStyle const&, Painting::Paintable const&);
     UsedValues& populate_node_from(LayoutState const& source, NodeWithStyle const& node);

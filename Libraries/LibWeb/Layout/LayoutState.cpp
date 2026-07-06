@@ -111,6 +111,15 @@ LayoutState::UsedValues& LayoutState::create(NodeWithStyle const& node, Optional
     return used_values;
 }
 
+void LayoutState::discard_used_values_for_descendants(Box const& root)
+{
+    root.for_each_in_subtree([&](auto const& descendant) {
+        if (auto const* node_with_style = as_if<NodeWithStyle>(descendant))
+            m_used_values_store.remove(node_with_style->layout_index());
+        return TraversalDecision::Continue;
+    });
+}
+
 LayoutState::UsedValues& LayoutState::populate_from_paintable(NodeWithStyle const& node, Painting::Paintable const& paintable)
 {
     VERIFY(m_subtree_root);

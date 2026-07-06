@@ -1119,6 +1119,9 @@ void TableFormattingContext::compute_table_height()
         }
 
         cell_state.set_content_width(span_width - cell_state.border_box_left() - cell_state.border_box_right() + (cell.column_span - 1) * border_spacing_horizontal());
+        // This is the second inside layout of this cell in the same layout state: its descendants
+        // already have used values from the first pass, so discard them before creating them anew.
+        m_state.discard_used_values_for_descendants(cell.box);
         if (auto independent_formatting_context = layout_inside(cell.box, m_layout_mode, LayoutInput { cell_state.available_inner_space_or_constraints_from(*m_available_space) })) {
             independent_formatting_context->parent_context_did_dimension_child_root_box();
         }
