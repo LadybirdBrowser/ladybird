@@ -5736,6 +5736,23 @@ NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(ParsingPa
     return parser.resolve_unresolved_style_value(abstract_element, guarded_contexts, property, unresolved);
 }
 
+// If a component value sequence is a single CSS-wide keyword (inherit/initial/unset/revert/revert-layer),
+// returns that keyword.
+static Optional<Keyword> single_css_wide_keyword(Vector<ComponentValue> const& values)
+{
+    TokenStream tokens { values };
+    tokens.discard_whitespace();
+    if (!tokens.has_next_token())
+        return {};
+    auto const& token = tokens.consume_a_token();
+    tokens.discard_whitespace();
+    if (tokens.has_next_token() || !token.is(Token::Type::Ident))
+        return {};
+    if (!is_css_wide_keyword(token.token().ident()))
+        return {};
+    return keyword_from_string(token.token().ident());
+}
+
 // https://drafts.csswg.org/css-values-5/#property-replacement
 NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(DOM::AbstractElement element, GuardedSubstitutionContexts& guarded_contexts, PropertyNameAndID const& property, UnresolvedStyleValue const& unresolved)
 {
@@ -5766,6 +5783,14 @@ NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(DOM::Abst
     // NB: Custom properties have no grammar as such, so we skip this step for them.
     // FIXME: Parse according to @property syntax once we support that.
     if (property.is_custom_property()) {
+        // A CSS-wide keyword produced by substitution (e.g. as a var() fallback) is surfaced as the keyword itself
+        // rather than as literal tokens, so that custom property resolution applies its inherit/initial/unset/revert
+        // meaning instead of storing the raw "inherit"/etc. text.
+        if (unresolved.contains_arbitrary_substitution_function()) {
+            if (auto keyword = single_css_wide_keyword(result); keyword.has_value())
+                return KeywordStyleValue::create(keyword.value());
+        }
+
         auto contains_attr_tainted_values = result.first_matching([](auto const& component_value) { return component_value.contains_attr_tainted_value(); }).has_value();
         auto source_text_mode = unresolved.contains_arbitrary_substitution_function() && !contains_attr_tainted_values
             ? UnresolvedStyleValue::SourceTextMode::TrimLeading

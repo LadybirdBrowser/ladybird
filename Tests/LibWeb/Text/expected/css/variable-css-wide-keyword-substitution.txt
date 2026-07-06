@@ -1,0 +1,7 @@
+substituted inherit, no ancestor -> empty: true
+substituted inherit, no ancestor -> outer var() falls back (red): true
+substituted inherit inherits ancestor value: true
+substituted inherit inherits ancestor value -> color green: true
+substituted initial -> empty: true
+substituted initial -> outer var() falls back (green): true
+non-keyword substitution preserved: true

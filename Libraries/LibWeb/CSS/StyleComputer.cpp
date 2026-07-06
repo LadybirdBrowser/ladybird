@@ -3621,6 +3621,16 @@ static NonnullRefPtr<StyleValue const> compute_value_of_custom_property_impl(DOM
         auto parsing_params = Parser::ParsingParams { document };
         parsing_params.computed_style_for_custom_property_resolution = computed_style_for_custom_property_resolution;
         resolved_value = Parser::Parser::resolve_unresolved_style_value(parsing_params, abstract_element, PropertyNameAndID::from_name(name).release_value(), unresolved, guarded_contexts);
+
+        // A CSS-wide keyword produced by substitution takes on that keyword's meaning for the custom property,
+        // exactly as a literally-specified one would (handled above before substitution).
+        if (resolved_value->is_initial())
+            return document.custom_property_initial_value(name);
+        if (resolved_value->is_inherit())
+            return compute_inherited_custom_property_value(abstract_element, name, guarded_contexts);
+        if (resolved_value->is_unset())
+            return registration.has_value() && !registration->inherit ? document.custom_property_initial_value(name) : compute_inherited_custom_property_value(abstract_element, name, guarded_contexts);
+        // FIXME: Implement reverting custom properties for is_revert() / is_revert_layer().
     }
 
     auto invalid_custom_property_fallback_value = [&](NonnullRefPtr<StyleValue const> invalid_value) {

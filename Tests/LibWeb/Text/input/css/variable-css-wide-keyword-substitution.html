@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<div id="parent" style="--inherited: green">
+    <div id="empty" style="--x: var(--undefined, inherit); color: var(--x, red)">text</div>
+    <div id="inherits-real" style="--inherited: var(--undefined, inherit); color: var(--inherited, red)">text</div>
+    <div id="initial" style="--y: var(--undefined, initial); color: var(--y, green)">text</div>
+    <div id="not-keyword" style="--z: var(--undefined, blue); color: var(--z, red)">text</div>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const read = (id, prop) => getComputedStyle(document.getElementById(id)).getPropertyValue(prop);
+
+        // A CSS-wide keyword produced by substitution (as a var() fallback) keeps its keyword meaning.
+        // `inherit` with no ancestor value resolves empty, so the outer var() falls back.
+        println("substituted inherit, no ancestor -> empty: " + (read("empty", "--x") === ""));
+        println("substituted inherit, no ancestor -> outer var() falls back (red): " +
+            (read("empty", "color") === "rgb(255, 0, 0)"));
+
+        // `inherit` with an ancestor value actually inherits that value (not guaranteed-invalid).
+        println("substituted inherit inherits ancestor value: " +
+            (read("inherits-real", "--inherited").trim() === "green"));
+        println("substituted inherit inherits ancestor value -> color green: " +
+            (read("inherits-real", "color") === "rgb(0, 128, 0)"));
+
+        // `initial` on an unregistered custom property is guaranteed-invalid, so the outer var() falls back.
+        println("substituted initial -> empty: " + (read("initial", "--y") === ""));
+        println("substituted initial -> outer var() falls back (green): " +
+            (read("initial", "color") === "rgb(0, 128, 0)"));
+
+        // A non-keyword substituted value is preserved.
+        println("non-keyword substitution preserved: " + (read("not-keyword", "--z").trim() === "blue"));
+    });
+</script>
