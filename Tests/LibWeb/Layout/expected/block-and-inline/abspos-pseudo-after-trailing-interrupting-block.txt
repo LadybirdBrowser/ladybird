@@ -1,17 +1,16 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 30 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 30 0+0+0] children: not-inline
-      BlockContainer <div.rel> at [0,0] positioned [0+0+0 800 0+0+0] [0+0+0 30 0+0+0] children: not-inline
-        BlockContainer <(anonymous)> at [0,0] [0+0+0 800 0+0+0] [0+0+0 30 0+0+0] children: inline
-          InlineNode <span> at [0,0] [0+0+0 10 0+0+0] [0+0+0 20 0+0+0]
-            frag 0 from TextNode start: 0, length: 1, rect: [0,0 10x20] baseline: 13
-                "a"
-            frag 0 from BlockContainer start: 0, length: 0, rect: [0,20 800x10] baseline: 0
+      BlockContainer <div.rel> at [0,0] positioned [0+0+0 800 0+0+0] [0+0+0 30 0+0+0] children: inline
+        InlineNode <span> at [0,0] [0+0+0 10 0+0+0] [0+0+0 20 0+0+0]
+          frag 0 from TextNode start: 0, length: 1, rect: [0,0 10x20] baseline: 13
+              "a"
+          frag 0 from BlockContainer start: 0, length: 0, rect: [0,20 800x10] baseline: 0
+          TextNode <#text> (not painted)
+          BlockContainer <div> at [0,20] [0+0+0 800 0+0+0] [0+0+0 10 0+0+0] children: inline
+            frag 0 from TextNode start: 0, length: 5, rect: [0,20 50x20] baseline: 13
+                "block"
             TextNode <#text> (not painted)
-            BlockContainer <div> at [0,20] [0+0+0 800 0+0+0] [0+0+0 10 0+0+0] children: inline
-              frag 0 from TextNode start: 0, length: 5, rect: [0,20 50x20] baseline: 13
-                  "block"
-              TextNode <#text> (not painted)
         BlockContainer <(anonymous)> at [0,30] positioned [0+0+0 10 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
           frag 0 from GeneratedTextNode start: 0, length: 1, rect: [0,30 10x20] baseline: 13
               "X"
@@ -23,15 +22,14 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x30]
     PaintableWithLines (BlockContainer<BODY>) [0,0 800x30]
       PaintableWithLines (BlockContainer<DIV>.rel) [0,0 800x30]
-        PaintableWithLines (BlockContainer(anonymous)) [0,0 800x30]
-          PaintableWithLines (InlineNode<SPAN>) [0,0 10x20]
+        PaintableWithLines (InlineNode<SPAN>) [0,0 10x20]
 
-          PaintableWithLines (InlineNode<SPAN>) [0,20 0x0]
-            PaintableWithLines (BlockContainer<DIV>) [0,20 800x10]
-          PaintableWithLines (InlineNode<SPAN>) [0,0 10x20]
+        PaintableWithLines (InlineNode<SPAN>) [0,20 0x0]
+          PaintableWithLines (BlockContainer<DIV>) [0,20 800x10]
+        PaintableWithLines (InlineNode<SPAN>) [0,0 10x20]
 
-          PaintableWithLines (InlineNode<SPAN>) [0,20 0x0]
-            PaintableWithLines (BlockContainer<DIV>) [0,20 800x10]
+        PaintableWithLines (InlineNode<SPAN>) [0,20 0x0]
+          PaintableWithLines (BlockContainer<DIV>) [0,20 800x10]
         PaintableWithLines (BlockContainer(anonymous)) [0,30 10x20]
       PaintableWithLines (BlockContainer(anonymous)) [0,30 800x0]
 

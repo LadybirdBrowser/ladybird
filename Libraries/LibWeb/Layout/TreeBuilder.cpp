@@ -107,7 +107,7 @@ static Layout::Node& insertion_parent_for_inline_node(Layout::NodeWithStyle& lay
     return last_child_creating_anonymous_wrapper_if_needed(layout_parent);
 }
 
-static Layout::Node& insertion_parent_for_block_node(Layout::NodeWithStyle& layout_parent, Layout::Node& layout_node)
+static Layout::Node& insertion_parent_for_block_node(Layout::NodeWithStyle& layout_parent, Layout::Node& layout_node, TreeBuilder::AppendOrPrepend mode)
 {
     // Inline is fine for in-flow block children (interrupting blocks) and for out-of-flow children;
     // the inline formatting context emits items for both.
@@ -123,10 +123,13 @@ static Layout::Node& insertion_parent_for_block_node(Layout::NodeWithStyle& layo
     if (!has_inline_or_in_flow_block_children(*new_parent))
         return *new_parent;
 
-    // If the block is out-of-flow and is not a pseudo element,
-    if (layout_node.is_out_of_flow() && !layout_node.is_generated_for_pseudo_element()) {
-        // And the parent's last child is an anonymous block, join that anonymous block.
-        if (!new_parent->display().is_flex_inside()
+    // If the block is out-of-flow,
+    if (layout_node.is_out_of_flow()) {
+        // And we're appending while the parent's last child is an anonymous block, join that
+        // anonymous block. Prepended boxes (e.g. an absolutely positioned ::before) belong at the
+        // very start of the parent, not at the start of its trailing inline run.
+        if (mode == TreeBuilder::AppendOrPrepend::Append
+            && !new_parent->display().is_flex_inside()
             && !new_parent->display().is_grid_inside()
             && !new_parent->last_child()->is_generated_for_pseudo_element()
             && new_parent->last_child()->is_anonymous()
@@ -165,7 +168,7 @@ void TreeBuilder::insert_node_into_inline_or_block_ancestor(Layout::Node& node, 
     auto& nearest_insertion_ancestor = *m_ancestor_stack.last();
 
     auto& insertion_point = display.is_inline_outside() ? insertion_parent_for_inline_node(nearest_insertion_ancestor)
-                                                        : insertion_parent_for_block_node(nearest_insertion_ancestor, node);
+                                                        : insertion_parent_for_block_node(nearest_insertion_ancestor, node, mode);
 
     if (mode == AppendOrPrepend::Prepend)
         insertion_point.prepend_child(node);

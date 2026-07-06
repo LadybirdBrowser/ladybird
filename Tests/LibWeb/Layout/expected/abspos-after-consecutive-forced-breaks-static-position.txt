@@ -4,13 +4,12 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <ul> at [0,0] [0+0+0 800 0+0+0] [0+0+0 40 0+0+0] children: not-inline
         BlockContainer <(anonymous)> at [0,0] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text> (not painted)
-        ListItemBox <li> at [0,0] positioned [0+0+0 100 0+0+700] [0+0+0 40 0+0+0] children: not-inline
-          BlockContainer <(anonymous)> at [0,0] [0+0+0 100 0+0+0] [0+0+0 40 0+0+0] children: inline
-            frag 0 from TextNode start: 0, length: 3, rect: [0,0 30x20] baseline: 13
-                "XXX"
-            TextNode <#text> (not painted)
-            BreakNode <br> (not painted)
-            BreakNode <br> (not painted)
+        ListItemBox <li> at [0,0] positioned [0+0+0 100 0+0+700] [0+0+0 40 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 3, rect: [0,0 30x20] baseline: 13
+              "XXX"
+          TextNode <#text> (not painted)
+          BreakNode <br> (not painted)
+          BreakNode <br> (not painted)
           BlockContainer <(anonymous)> at [0,40] positioned [0+0+0 10 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
             frag 0 from GeneratedTextNode start: 0, length: 1, rect: [0,40 10x20] baseline: 13
                 "X"
@@ -26,7 +25,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       PaintableWithLines (BlockContainer<UL>) [0,0 800x40]
         PaintableWithLines (BlockContainer(anonymous)) [0,0 800x0]
         PaintableWithLines (ListItemBox<LI>) [0,0 100x40]
-          PaintableWithLines (BlockContainer(anonymous)) [0,0 100x40]
           PaintableWithLines (BlockContainer(anonymous)) [0,40 10x20]
         PaintableWithLines (BlockContainer(anonymous)) [0,40 800x0]
       PaintableWithLines (BlockContainer(anonymous)) [0,40 800x0]
