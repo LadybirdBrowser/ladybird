@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLObjectElement.h>
@@ -32,7 +33,11 @@ CSS::SizeWithAspectRatio NavigableContainerViewport::natural_size() const
         if (auto const* root = content_document->document_element();
             root && root->is_svg_svg_element()) {
 
-            auto metrics = SVG::SVGSVGElement::negotiate_natural_metrics(static_cast<SVG::SVGSVGElement const&>(*root));
+            auto const& svg_root = as<SVG::SVGSVGElement>(*root);
+            auto resolution_context = svg_root.layout_node()
+                ? CSS::Length::ResolutionContext::for_layout_node(*svg_root.layout_node())
+                : CSS::Length::ResolutionContext::for_document(*content_document);
+            auto metrics = SVG::SVGSVGElement::negotiate_natural_metrics(svg_root, resolution_context);
             return { metrics.width, metrics.height, metrics.aspect_ratio };
         }
     }
