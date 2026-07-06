@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        font: 16px/24px Arial;
+        margin: 0;
+    }
+
+    .container {
+        border: 1px solid black;
+        margin: 20px;
+        width: 320px;
+    }
+
+    .nowrap {
+        white-space: nowrap;
+    }
+
+    .relative {
+        position: relative;
+    }
+
+    .overlay {
+        block-size: 100%;
+        inline-size: 100%;
+        inset-block-start: 0;
+        inset-inline-start: 0;
+        position: absolute;
+        z-index: 1;
+    }
+
+    button {
+        display: inline-block;
+        height: 20px;
+        padding: 0;
+        vertical-align: text-top;
+        width: 115px;
+    }
+</style>
+<div class="container">
+    This is a long inline text run which should wrap before the overlay pill and
+    put the pill onto a later line after enough words.<span class="nowrap"><span
+        class="relative"><span>&nbsp;</span><a class="overlay" href="#"></a><button>Oxford +1</button></span></span>
+</div>
+<script>
+    test(() => {
+        const overlay = document.querySelector(".overlay");
+        const button = document.querySelector("button");
+        const overlayRect = overlay.getBoundingClientRect();
+        const buttonRect = button.getBoundingClientRect();
+
+        println(`Overlay starts near button: ${overlayRect.top >= buttonRect.top - 2}`);
+        println(`Overlay height does not span previous lines: ${overlayRect.height < 40}`);
+
+        const hitAboveButton = document.elementFromPoint(
+            buttonRect.left + buttonRect.width / 2,
+            buttonRect.top - 40
+        );
+        println(`Point above button does not hit overlay: ${hitAboveButton !== overlay}`);
+    });
+</script>

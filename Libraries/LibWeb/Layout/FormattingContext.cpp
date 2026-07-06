@@ -1649,8 +1649,69 @@ static Optional<CSSPixelRect> compute_inline_containing_block_rect(InlineNode co
         return {};
 
     Optional<CSSPixelRect> bounding_rect;
-    auto union_rect = [&](CSSPixelRect const& rect) {
-        bounding_rect = bounding_rect.has_value() ? bounding_rect->united(rect) : rect;
+    Optional<CSSPixelRect> empty_bounding_rect;
+    auto union_rect = [](Optional<CSSPixelRect>& destination, CSSPixelRect const& rect) {
+        if (!destination.has_value()) {
+            destination = rect;
+            return;
+        }
+        auto left = min(destination->left(), rect.left());
+        auto top = min(destination->top(), rect.top());
+        auto right = max(destination->right(), rect.right());
+        auto bottom = max(destination->bottom(), rect.bottom());
+        destination = CSSPixelRect { left, top, right - left, bottom - top };
+    };
+    auto add_fragment_rect = [&](CSSPixelRect const& rect) {
+        if (rect.is_empty()) {
+            union_rect(empty_bounding_rect, rect);
+            return;
+        }
+        union_rect(bounding_rect, rect);
+    };
+    auto make_physical_rect = [](CSS::WritingMode writing_mode, CSSPixels inline_start, CSSPixels block_start, CSSPixels inline_size, CSSPixels block_size) {
+        if (writing_mode == CSS::WritingMode::HorizontalTb)
+            return CSSPixelRect { { inline_start, block_start }, { inline_size, block_size } };
+        return CSSPixelRect { { block_start, inline_start }, { block_size, inline_size } };
+    };
+    auto add_atomic_inline_fragment_rect = [&](Box const& box_child, LayoutState::UsedValues const& child_used_values) {
+        if (!child_used_values.containing_line_box_fragment.has_value())
+            return;
+
+        auto const* containing_block = box_child.containing_block();
+        auto const* containing_block_used_values = containing_block ? state.try_get(*containing_block) : nullptr;
+        auto const* abspos_containing_block_used_values = state.try_get(abspos_containing_block);
+        if (!containing_block_used_values || !abspos_containing_block_used_values)
+            return;
+
+        auto const& containing_line_box_fragment = child_used_values.containing_line_box_fragment.value();
+        if (containing_line_box_fragment.line_box_index >= containing_block_used_values->line_boxes.size())
+            return;
+
+        auto const& line_box = containing_block_used_values->line_boxes[containing_line_box_fragment.line_box_index];
+        if (containing_line_box_fragment.fragment_index >= line_box.fragments().size())
+            return;
+
+        auto const& fragment = line_box.fragments()[containing_line_box_fragment.fragment_index];
+        auto const containing_block_offset = state.cumulative_offset(*containing_block_used_values)
+            - state.cumulative_offset(*abspos_containing_block_used_values);
+        auto const writing_mode = fragment.writing_mode();
+        auto const is_horizontal = writing_mode == CSS::WritingMode::HorizontalTb;
+        auto const inline_axis_border_box_start = fragment.inline_offset() - (is_horizontal ? child_used_values.border_box_left() : child_used_values.border_box_top());
+        auto const inline_axis_border_box_extent = is_horizontal
+            ? child_used_values.border_box_width()
+            : child_used_values.border_box_height();
+        auto const block_axis_line_height = inline_node.computed_values().line_height();
+        auto const block_axis_start = [&] {
+            if (box_child.computed_values().block_axis_is_reverse())
+                return fragment.block_offset() + child_used_values.border_box_right() - block_axis_line_height;
+            return fragment.block_offset() - (is_horizontal ? child_used_values.border_box_top() : child_used_values.border_box_left());
+        }();
+        add_fragment_rect(make_physical_rect(writing_mode,
+            inline_axis_border_box_start,
+            block_axis_start,
+            inline_axis_border_box_extent,
+            block_axis_line_height)
+                .translated(containing_block_offset));
     };
 
     // Walk outer_block's subtree in pre-order, threading the running offset from
@@ -1663,8 +1724,11 @@ static Optional<CSSPixelRect> compute_inline_containing_block_rect(InlineNode co
         if (used_values && !used_values->line_boxes.is_empty()) {
             for (auto const& line_box : used_values->line_boxes) {
                 for (auto const& fragment : line_box.fragments()) {
-                    if (auto const* dom = fragment.layout_node().dom_node(); dom && inline_dom_node->is_inclusive_ancestor_of(*dom))
-                        union_rect({ fragment.offset() + offset, fragment.size() });
+                    if (fragment.is_atomic_inline())
+                        continue;
+                    if (auto const* dom = fragment.layout_node().dom_node(); dom && inline_dom_node->is_inclusive_ancestor_of(*dom)) {
+                        add_fragment_rect({ fragment.offset() + offset, fragment.size() });
+                    }
                 }
             }
         }
@@ -1679,6 +1743,11 @@ static Optional<CSSPixelRect> compute_inline_containing_block_rect(InlineNode co
                 auto const* dom = box_child->dom_node();
                 if (!dom || !inline_dom_node->is_inclusive_ancestor_of(*dom))
                     continue;
+                if (box_child->is_atomic_inline()) {
+                    if (child_used_values)
+                        add_atomic_inline_fragment_rect(*box_child, *child_used_values);
+                    continue;
+                }
                 // child_offset addresses the box's content area; the border-box origin sits
                 // (border-left + padding-left, border-top + padding-top) before that.
                 if (child_used_values) {
@@ -1686,7 +1755,7 @@ static Optional<CSSPixelRect> compute_inline_containing_block_rect(InlineNode co
                         child_used_values->border_left + child_used_values->padding_left,
                         child_used_values->border_top + child_used_values->padding_top,
                     };
-                    union_rect({ border_box_origin, { child_used_values->border_box_width(), child_used_values->border_box_height() } });
+                    add_fragment_rect({ border_box_origin, { child_used_values->border_box_width(), child_used_values->border_box_height() } });
                 }
             }
             self(*child, child_offset);
@@ -1700,6 +1769,8 @@ static Optional<CSSPixelRect> compute_inline_containing_block_rect(InlineNode co
     }
     walk(*outer_block, outer_offset);
 
+    if (!bounding_rect.has_value())
+        bounding_rect = empty_bounding_rect;
     if (!bounding_rect.has_value())
         return {};
 

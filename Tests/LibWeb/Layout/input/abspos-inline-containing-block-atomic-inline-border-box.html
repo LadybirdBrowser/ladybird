@@ -1,0 +1,118 @@
+<!doctype html><style>
+    * {
+        box-sizing: content-box;
+    }
+    body {
+        margin: 0;
+        position: absolute;
+        width: 400px;
+        height: 400px;
+        font: 20px SerenitySans;
+        line-height: 20px;
+    }
+    .case {
+        margin: 20px;
+        line-height: 20px;
+    }
+    .host {
+        position: relative;
+    }
+    .large-line-height {
+        line-height: 30px;
+    }
+    .vertical {
+        writing-mode: vertical-rl;
+    }
+    .vertical-lr {
+        writing-mode: vertical-lr;
+    }
+    .sideways {
+        writing-mode: sideways-rl;
+    }
+    .sideways-lr {
+        writing-mode: sideways-lr;
+    }
+    .large-sibling {
+        font-size: 40px;
+        line-height: 60px;
+    }
+    .atomic {
+        display: inline-block;
+        vertical-align: top;
+    }
+    .baseline {
+        vertical-align: baseline;
+    }
+    .middle {
+        vertical-align: middle;
+    }
+    .zero-host {
+        position: relative;
+        line-height: 0;
+    }
+    .empty-padded {
+        width: 0;
+        height: 0;
+        padding: 6px 10px;
+        border: 4px solid black;
+    }
+    .border-only {
+        width: 0;
+        height: 0;
+        border: 5px solid black;
+    }
+    .sized-padded {
+        width: 12px;
+        height: 8px;
+        padding: 3px 7px;
+        border: 2px solid black;
+    }
+    .mixed {
+        width: 6px;
+        height: 10px;
+        padding: 2px 4px;
+        border: 3px solid black;
+    }
+    .tall {
+        width: 8px;
+        height: 40px;
+        border: 2px solid black;
+    }
+    .asymmetric {
+        width: 0;
+        height: 8px;
+        padding: 3px 1px 7px 9px;
+        border-width: 2px 6px 4px 8px;
+        border-style: solid;
+        border-color: black;
+    }
+    .overlay {
+        position: absolute;
+        inset: 0;
+        background: orange;
+    }
+    .percentage {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        background: orange;
+    }
+</style><body>
+    <div class="case"><span class="host"><span class="atomic empty-padded"></span><span class="overlay"></span></span></div>
+    <div class="case"><span class="host"><span class="atomic border-only"></span><span class="overlay"></span></span></div>
+    <div class="case"><span class="host"><span class="atomic sized-padded"></span><span class="percentage"></span></span></div>
+    <div class="case"><span class="host">x<span class="atomic mixed"></span><span class="overlay"></span></span></div>
+    <div class="case"><span class="host"><span class="atomic tall"></span><span class="overlay"></span></span></div>
+    <div class="case"><span class="host large-line-height"><span class="atomic border-only"></span><span class="overlay"></span></span></div>
+    <div class="case"><span class="large-sibling">T</span><span class="host"><span class="atomic baseline border-only"></span><span class="overlay"></span></span></div>
+    <div class="case vertical"><span class="host"><span class="atomic border-only"></span><span class="overlay"></span></span></div>
+    <div class="case vertical"><span class="host"><span class="atomic sized-padded"></span><span class="percentage"></span></span></div>
+    <div class="case vertical"><span class="host large-line-height"><span class="atomic border-only"></span><span class="overlay"></span></span></div>
+    <div class="case vertical-lr"><span class="host"><span class="atomic sized-padded"></span><span class="overlay"></span></span></div>
+    <div class="case vertical"><span class="host"><span class="atomic baseline border-only"></span><span class="overlay"></span></span></div>
+    <div class="case vertical"><span class="host"><span class="atomic middle border-only"></span><span class="overlay"></span></span></div>
+    <div class="case"><span class="host"><span class="atomic middle border-only"></span><span class="overlay"></span></span></div>
+    <div class="case"><span class="zero-host">first<br>second<span class="overlay"></span></span></div>
+    <div class="case sideways"><span class="host"><span class="atomic asymmetric"></span><span class="overlay"></span></span></div>
+    <div class="case sideways-lr"><span class="host"><span class="atomic asymmetric"></span><span class="overlay"></span></span></div>
+    <div class="case sideways"><span class="host large-line-height"><span class="atomic asymmetric"></span><span class="overlay"></span></span></div>
