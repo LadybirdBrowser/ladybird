@@ -2060,12 +2060,7 @@ void ViewImplementation::initialize_context_menus()
     m_navigate_forward_action->set_enabled(false);
 
     m_toggle_bookmark_action = Action::create("Toggle Bookmark"sv, ActionID::ToggleBookmarkViaToolbar, [this]() {
-        auto& bookmark_store = Application::bookmark_store();
-
-        if (auto bookmark = bookmark_store.find_bookmark_by_url(url()); bookmark.has_value())
-            bookmark_store.remove_item(bookmark->id);
-        else
-            bookmark_store.add_bookmark(url(), title().to_utf8(), favicon_base64_png());
+        Application::the().toggle_bookmark_for_view(*this);
     });
     update_bookmark_action();
 

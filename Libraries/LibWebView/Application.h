@@ -205,6 +205,7 @@ public:
     Menu& bookmarks_bar_context_menu() { return *m_bookmarks_bar_context_menu; }
     Menu& bookmark_context_menu() { return *m_bookmark_context_menu; }
     Menu& bookmark_folder_context_menu() { return *m_bookmark_folder_context_menu; }
+    void toggle_bookmark_for_view(ViewImplementation&);
 
     Menu& history_menu() { return *m_history_menu; }
 
@@ -246,8 +247,14 @@ protected:
     };
     virtual Optional<BookmarkID> bookmark_item_id_for_context_menu() const { return {}; }
 
+    struct AddBookmarkDialogResult {
+        BookmarkItem::Bookmark bookmark;
+        Optional<String> target_folder_id;
+    };
+    using AddBookmarkPromise = Core::Promise<AddBookmarkDialogResult>;
+    virtual NonnullRefPtr<AddBookmarkPromise> display_add_bookmark_dialog(Optional<String const&> target_folder_id = {}) const;
+
     using BookmarkPromise = Core::Promise<BookmarkItem::Bookmark>;
-    virtual NonnullRefPtr<BookmarkPromise> display_add_bookmark_dialog() const;
     virtual NonnullRefPtr<BookmarkPromise> display_edit_bookmark_dialog([[maybe_unused]] BookmarkItem::Bookmark const& current_bookmark) const;
 
     using BookmarkFolderPromise = Core::Promise<BookmarkItem::Folder>;

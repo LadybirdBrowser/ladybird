@@ -22,6 +22,7 @@
 
 #include <QAction>
 #include <QClipboard>
+#include <QComboBox>
 #include <QDesktopServices>
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -34,6 +35,7 @@
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QMimeData>
+#include <QSizePolicy>
 #include <QStandardPaths>
 #include <QTimer>
 
@@ -738,38 +740,77 @@ Optional<Application::BookmarkID> Application::bookmark_item_id_for_context_menu
     return {};
 }
 
-template<typename PromiseType>
+static void add_bookmark_folder_options(QComboBox& folder_combo, ReadonlySpan<WebView::BookmarkItem> items, QString const& prefix, Optional<String const&> selected_folder_id)
+{
+    for (auto const& item : items) {
+        if (!item.is_folder())
+            continue;
+
+        auto title = qstring_from_ak_string(item.folder().title.value_or("(no title)"_string));
+        auto path = prefix.isEmpty() ? title : QString("%1 / %2").arg(prefix, title);
+        folder_combo.addItem(path, qstring_from_ak_string(item.id));
+        if (selected_folder_id.has_value() && item.id == *selected_folder_id)
+            folder_combo.setCurrentIndex(folder_combo.count() - 1);
+
+        add_bookmark_folder_options(folder_combo, item.folder().children, path, selected_folder_id);
+    }
+}
+
+template<typename PromiseType, typename ResolveCallback>
 static NonnullRefPtr<PromiseType> display_add_or_edit_bookmark_dialog(
     QWidget* parent,
     QString const& dialog_title,
     Optional<URL::URL const&> current_url,
-    Optional<String const&> current_title)
+    Optional<String const&> current_title,
+    Optional<String> current_favicon,
+    ResolveCallback resolve_bookmark,
+    bool show_folder_picker,
+    Optional<String const&> selected_folder_id = {})
 {
     auto promise = PromiseType::construct();
 
     auto* dialog = new QDialog(parent);
-    dialog->resize(400, dialog->height());
+    dialog->resize(500, dialog->height());
     dialog->setWindowTitle(dialog_title);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
 
     auto* url_edit = new QLineEdit(dialog);
     auto* title_edit = new QLineEdit(dialog);
+    url_edit->setMinimumWidth(320);
+    url_edit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    title_edit->setMinimumWidth(320);
+    title_edit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    QComboBox* folder_combo = nullptr;
 
     if (current_url.has_value())
         url_edit->setText(qstring_from_ak_string(current_url->serialize()));
     if (current_title.has_value())
         title_edit->setText(qstring_from_ak_string(*current_title));
 
+    if (show_folder_picker) {
+        folder_combo = new QComboBox(dialog);
+        folder_combo->setMinimumWidth(320);
+        folder_combo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        folder_combo->addItem("Bookmarks", QString {});
+        add_bookmark_folder_options(*folder_combo, WebView::Application::bookmark_store().root_items(), {}, selected_folder_id);
+    }
+
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, dialog);
     QObject::connect(buttons, &QDialogButtonBox::accepted, dialog, &QDialog::accept);
     QObject::connect(buttons, &QDialogButtonBox::rejected, dialog, &QDialog::reject);
 
     auto* layout = new QFormLayout(dialog);
+    layout->setContentsMargins(32, 28, 32, 28);
+    layout->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+    layout->setHorizontalSpacing(16);
+    layout->setVerticalSpacing(14);
     layout->addRow("URL:", url_edit);
     layout->addRow("Title:", title_edit);
+    if (folder_combo)
+        layout->addRow("Folder:", folder_combo);
     layout->addRow(buttons);
 
-    QObject::connect(dialog, &QDialog::finished, [promise, url_edit = QPointer { url_edit }, title_edit = QPointer { title_edit }](auto result) {
+    QObject::connect(dialog, &QDialog::finished, [promise, current_favicon = move(current_favicon), resolve_bookmark = move(resolve_bookmark), url_edit = QPointer { url_edit }, title_edit = QPointer { title_edit }, folder_combo = QPointer { folder_combo }](auto result) mutable {
         if (result != QDialog::Accepted || !url_edit || !title_edit) {
             promise->reject(Error::from_errno(ECANCELED));
             return;
@@ -785,33 +826,56 @@ static NonnullRefPtr<PromiseType> display_add_or_edit_bookmark_dialog(
         if (auto title_text = ak_string_from_qstring(title_edit->text()); !title_text.is_empty())
             title = move(title_text);
 
-        promise->resolve(WebView::BookmarkItem::Bookmark {
+        Optional<String> target_folder_id;
+        if (folder_combo) {
+            auto target_folder_id_text = ak_string_from_qstring(folder_combo->currentData().toString());
+            if (!target_folder_id_text.is_empty())
+                target_folder_id = move(target_folder_id_text);
+        }
+
+        WebView::BookmarkItem::Bookmark bookmark {
             .url = url.release_value(),
             .title = move(title),
-            .favicon_base64_png = {},
-        });
+            .favicon_base64_png = move(current_favicon),
+        };
+        resolve_bookmark(*promise, move(bookmark), move(target_folder_id));
     });
 
     dialog->open();
     return promise;
 }
 
-NonnullRefPtr<Application::BookmarkPromise> Application::display_add_bookmark_dialog() const
+NonnullRefPtr<Application::AddBookmarkPromise> Application::display_add_bookmark_dialog(Optional<String const&> target_folder_id) const
 {
     Optional<URL::URL> current_url;
     Optional<String> current_title;
+    Optional<String> current_favicon;
 
     if (auto view = active_web_view(); view.has_value()) {
         current_url = view->url();
         current_title = view->title().to_utf8();
+        current_favicon = view->favicon_base64_png();
     }
 
-    return display_add_or_edit_bookmark_dialog<BookmarkPromise>(active_tab(), "Add Bookmark", current_url, current_title);
+    return display_add_or_edit_bookmark_dialog<AddBookmarkPromise>(
+        active_tab(), "Add Bookmark", current_url, current_title, current_favicon,
+        [](AddBookmarkPromise& promise, WebView::BookmarkItem::Bookmark bookmark, Optional<String> target_folder_id) {
+            promise.resolve(AddBookmarkDialogResult {
+                .bookmark = move(bookmark),
+                .target_folder_id = move(target_folder_id),
+            });
+        },
+        true, target_folder_id);
 }
 
 NonnullRefPtr<Application::BookmarkPromise> Application::display_edit_bookmark_dialog(WebView::BookmarkItem::Bookmark const& current_bookmark) const
 {
-    return display_add_or_edit_bookmark_dialog<BookmarkPromise>(active_tab(), "Edit Bookmark", current_bookmark.url, current_bookmark.title);
+    return display_add_or_edit_bookmark_dialog<BookmarkPromise>(
+        active_tab(), "Edit Bookmark", current_bookmark.url, current_bookmark.title, current_bookmark.favicon_base64_png,
+        [](BookmarkPromise& promise, WebView::BookmarkItem::Bookmark bookmark, Optional<String>) {
+            promise.resolve(move(bookmark));
+        },
+        false);
 }
 
 template<typename PromiseType>
