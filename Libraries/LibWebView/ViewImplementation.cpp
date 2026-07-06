@@ -2110,6 +2110,12 @@ void ViewImplementation::initialize_context_menus()
     m_open_in_new_window_action = Action::create("Open in New Window"sv, ActionID::OpenInNewWindow, [this]() {
         Application::the().open_url_in_new_window(m_context_menu_url);
     });
+    m_download_linked_file_action = Action::create("Download Linked File"sv, ActionID::DownloadLinkedFile, [this]() {
+        download_context_menu_url(PromptForPath::No);
+    });
+    m_download_linked_file_as_action = Action::create("Download Linked File As..."sv, ActionID::DownloadLinkedFileAs, [this]() {
+        download_context_menu_url(PromptForPath::Yes);
+    });
     m_copy_url_action = Action::create("Copy URL"sv, ActionID::CopyURL, [this]() {
         Application::the().insert_clipboard_entry({ url_text_to_copy(m_context_menu_url), "text/plain"_string });
     });
@@ -2118,11 +2124,7 @@ void ViewImplementation::initialize_context_menus()
         load(m_context_menu_url);
     });
     m_save_image_action = Action::create("Save Image As..."sv, ActionID::SaveImage, [this]() {
-        auto download_path = Application::the().path_for_downloaded_file(m_context_menu_url.basename());
-        if (download_path.is_error())
-            return;
-
-        Application::the().file_downloader().download_file(m_context_menu_url, download_path.release_value(), is_private());
+        download_context_menu_url(PromptForPath::Yes);
     });
     m_copy_image_action = Action::create("Copy Image"sv, ActionID::CopyImage, [this]() {
         if (!m_image_context_menu_bitmap.has_value())
@@ -2193,6 +2195,10 @@ void ViewImplementation::initialize_context_menus()
     m_link_context_menu = Menu::create("Link Context Menu"sv);
     m_link_context_menu->add_action(*m_open_in_new_tab_action);
     m_link_context_menu->add_action(*m_open_in_new_window_action);
+    m_link_context_menu->add_separator();
+    m_link_context_menu->add_action(*m_download_linked_file_action);
+    m_link_context_menu->add_action(*m_download_linked_file_as_action);
+    m_link_context_menu->add_separator();
     m_link_context_menu->add_action(*m_copy_url_action);
 
     m_image_context_menu = Menu::create("Image Context Menu"sv);
@@ -2266,6 +2272,17 @@ void ViewImplementation::did_request_link_context_menu(Badge<WebContentClient>, 
 
     if (m_link_context_menu->on_activation)
         m_link_context_menu->on_activation(to_widget_position(content_position));
+}
+
+void ViewImplementation::download_context_menu_url(PromptForPath prompt_for_path)
+{
+    auto download_path = prompt_for_path == PromptForPath::Yes
+        ? Application::the().path_for_downloaded_file(m_context_menu_url.basename())
+        : Application::the().default_path_for_downloaded_file(m_context_menu_url.basename());
+    if (download_path.is_error())
+        return;
+
+    Application::the().file_downloader().download_file(m_context_menu_url, download_path.release_value(), is_private());
 }
 
 void ViewImplementation::did_request_image_context_menu(Badge<WebContentClient>, Gfx::IntPoint content_position, URL::URL url, Optional<Gfx::ShareableBitmap> bitmap)

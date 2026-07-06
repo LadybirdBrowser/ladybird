@@ -454,6 +454,11 @@ protected:
     void update_bookmark_action();
 
     void initialize_context_menus();
+    enum class PromptForPath : u8 {
+        No,
+        Yes,
+    };
+    void download_context_menu_url(PromptForPath);
 
     struct SharedBitmap {
         i32 id { -1 };
@@ -502,6 +507,8 @@ protected:
 
     RefPtr<Action> m_open_in_new_tab_action;
     RefPtr<Action> m_open_in_new_window_action;
+    RefPtr<Action> m_download_linked_file_action;
+    RefPtr<Action> m_download_linked_file_as_action;
     RefPtr<Action> m_copy_url_action;
     URL::URL m_context_menu_url;
 
