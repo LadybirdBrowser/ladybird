@@ -422,10 +422,12 @@ static bool pseudo_class_can_be_used_as_has_invalidation_feature(PseudoClass pse
         PseudoClass::AnyLink,
         PseudoClass::LocalLink,
         PseudoClass::Hover,
+        PseudoClass::Active,
         PseudoClass::Focus,
         PseudoClass::FocusVisible,
         PseudoClass::FocusWithin,
-        PseudoClass::Target);
+        PseudoClass::Target,
+        PseudoClass::Open);
 }
 
 static void collect_properties_used_in_has(Selector::SimpleSelector const& selector, StyleInvalidationData& style_invalidation_data, Optional<HasInvalidationMetadata> metadata)

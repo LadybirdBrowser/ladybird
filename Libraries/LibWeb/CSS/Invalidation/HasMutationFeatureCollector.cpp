@@ -87,25 +87,6 @@ bool HasMutationFeatureCollector::subtree_has_feature_used_in_has_selector(DOM::
     return found;
 }
 
-bool element_has_feature_used_in_has_selector(DOM::Element const& element, PseudoClass changed_pseudo_class,
-    StyleScope const& style_scope)
-{
-    if (!style_scope.may_have_has_selectors())
-        return false;
-
-    auto const& data = style_scope.style_invalidation_data();
-
-    HasMutationFeatureCollector collector { data };
-    if (!collector.has_any_metadata())
-        return true;
-    if (data.has_selectors_sensitive_to_featureless_subtree_changes)
-        return true;
-    if (data.pseudo_classes_used_in_has_selectors.contains(changed_pseudo_class))
-        return true;
-
-    return collector.element_has_feature_used_in_has_selector(element);
-}
-
 bool subtree_has_feature_used_in_has_selector(DOM::Node& node, StyleScope const& style_scope)
 {
     auto const& data = style_scope.style_invalidation_data();

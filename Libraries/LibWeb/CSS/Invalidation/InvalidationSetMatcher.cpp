@@ -12,6 +12,8 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Text.h>
+#include <LibWeb/HTML/HTMLDetailsElement.h>
+#include <LibWeb/HTML/HTMLDialogElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
@@ -186,6 +188,9 @@ bool element_matches_any_invalidation_set_property(DOM::Element const& element, 
                 return element.matches_focus_within_pseudo_class();
             case PseudoClass::Active:
                 return element.is_being_activated();
+            case PseudoClass::Open:
+                return is<HTML::HTMLDetailsElement>(element) || is<HTML::HTMLDialogElement>(element)
+                    || is<HTML::HTMLSelectElement>(element) || is<HTML::HTMLInputElement>(element);
             case PseudoClass::Target:
                 return element.document().target_element() == &element;
             case PseudoClass::FirstChild:

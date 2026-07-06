@@ -5,7 +5,6 @@
  */
 
 #include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
-#include <LibWeb/CSS/Invalidation/HasMutationFeatureCollector.h>
 #include <LibWeb/CSS/InvalidationSet.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/StyleInvalidationReason.h>
@@ -15,16 +14,9 @@ namespace Web::CSS::Invalidation {
 static void invalidate_style_after_pseudo_class_state_change(DOM::Element& element, DOM::StyleInvalidationReason reason,
     PseudoClass pseudo_class)
 {
-    bool may_affect_has_selectors = false;
-    element.for_each_style_scope_which_may_observe_the_node([&](StyleScope& scope) {
-        if (element_has_feature_used_in_has_selector(element, pseudo_class, scope))
-            may_affect_has_selectors = true;
-    });
-    if (may_affect_has_selectors) {
-        element.invalidate_style(reason);
-        return;
-    }
-
+    // NB: Rules observing this pseudo-class through :has() are handled by the property-based invalidation path, which
+    //     consults the :has() metadata recorded for feature pseudo-classes. Both :active and :open are feature
+    //     pseudo-classes, so no coarse fallback is needed here.
     Vector<InvalidationSet::Property, 1> pseudo_class_properties {
         { .type = InvalidationSet::Property::Type::PseudoClass, .value = pseudo_class },
     };
