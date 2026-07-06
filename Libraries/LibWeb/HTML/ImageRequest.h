@@ -59,6 +59,9 @@ public:
 
     GC::Ptr<SharedResourceRequest const> shared_resource_request() const { return m_shared_resource_request; }
 
+    [[nodiscard]] bool was_aborted() const { return m_was_aborted; }
+    void set_was_aborted() { m_was_aborted = true; }
+
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
 private:
@@ -87,6 +90,11 @@ private:
     Optional<Gfx::FloatSize> m_preferred_density_corrected_dimensions;
 
     GC::Ptr<SharedResourceRequest> m_shared_resource_request;
+
+    // NB: Set when "abort the image request" is performed on this image request. Since our fetches happen through
+    //     a SharedResourceRequest that may be used by others, we don't abort the fetch itself; instead, fetch
+    //     callbacks use this flag to discard their work for aborted requests.
+    bool m_was_aborted { false };
 };
 
 // https://html.spec.whatwg.org/multipage/images.html#abort-the-image-request

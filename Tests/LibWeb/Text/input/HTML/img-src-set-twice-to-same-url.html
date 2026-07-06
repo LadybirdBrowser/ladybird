@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Test that setting img.src to the same URL twice, with a microtask boundary in
+    // between, still loads and presents the image. The second "update the image data"
+    // returns early because the pending request already has the same URL (step 14), so
+    // the pending request's fetch callbacks must not be treated as stale even though a
+    // newer instance of the algorithm was started. This happens on real sites when a
+    // click on a <label> wrapping a color swatch runs the same src-swapping handler
+    // twice (once for the click on the label, once for the synthesized click on the
+    // labeled control).
+    asyncTest((done) => {
+        let img = document.createElement("img");
+        document.body.appendChild(img);
+
+        // 1x1 red PNG.
+        img.onload = () => {
+            img.onload = () => {
+                println(`naturalWidth: ${img.naturalWidth}`);
+                println(`naturalHeight: ${img.naturalHeight}`);
+                println(`complete: ${img.complete}`);
+                done();
+            };
+            img.onerror = () => {
+                println("FAIL: error event fired");
+                done();
+            };
+
+            // 2x1 blue PNG, set twice: the first set starts a fetch for the pending
+            // request; the second set (after the first set's microtask has run) must
+            // leave that in-flight request working.
+            const url = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAB7QOjdAAAADUlEQVR4nGNgYPgPRAAFAgH/wSuWnwAAAABJRU5ErkJggg==";
+            img.src = url;
+            queueMicrotask(() => {
+                img.src = url;
+            });
+        };
+        img.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwADhQGAWjR9awAAAABJRU5ErkJggg==";
+    });
+</script>

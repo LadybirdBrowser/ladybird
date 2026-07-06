@@ -866,7 +866,7 @@ after_step_7:
         if (delay_load_event)
             m_load_event_delayer.emplace(document());
 
-        add_callbacks_to_image_request(*image_request, maybe_omit_events, *url_string, previous_url, update_the_image_data_count);
+        add_callbacks_to_image_request(*image_request, maybe_omit_events, *url_string, previous_url);
 
         // AD-HOC: If the image request is already available or fetching, no need to start another fetch.
         if (image_request->is_available() || image_request->is_fetching())
@@ -911,11 +911,11 @@ after_step_7:
     }));
 }
 
-void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> image_request, bool maybe_omit_events, String const& url_string, String const& previous_url, u64 update_the_image_data_count)
+void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> image_request, bool maybe_omit_events, String const& url_string, String const& previous_url)
 {
     image_request->add_callbacks(
-        [this, image_request, maybe_omit_events, url_string, previous_url, update_the_image_data_count]() {
-            batching_dispatcher().enqueue(GC::create_function(realm().heap(), [this, image_request, maybe_omit_events, url_string, previous_url, update_the_image_data_count] {
+        [this, image_request, maybe_omit_events, url_string, previous_url]() {
+            batching_dispatcher().enqueue(GC::create_function(realm().heap(), [this, image_request, maybe_omit_events, url_string, previous_url] {
                 // AD-HOC: Bail out if the document became inactive (e.g. iframe removed or navigated)
                 //         between when the fetch completed and when this batched callback runs.
                 if (!document().is_fully_active()) {
@@ -923,9 +923,12 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
                     return;
                 }
 
-                // AD-HOC: If another instance of update_the_image_data was started after the one that initiated this
-                //         request, this callback is stale. Bail out to avoid corrupting the state of the newer request.
-                if (update_the_image_data_count != m_update_the_image_data_count) {
+                // AD-HOC: If this image request was aborted, or the element has since moved on to a different
+                //         request, this callback is stale. Bail out to avoid corrupting the state of a newer
+                //         request. Note that a newer instance of update_the_image_data may have run and left
+                //         this request in place (e.g. when the src attribute is set to the same URL twice in a
+                //         row); the callback is then still responsible for finishing the load.
+                if (image_request->was_aborted() || (image_request != m_current_request && image_request != m_pending_request)) {
                     m_load_event_delayer.clear();
                     return;
                 }
@@ -968,7 +971,7 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
                 m_load_event_delayer.clear();
             }));
         },
-        [this, image_request, maybe_omit_events, url_string, previous_url, update_the_image_data_count]() {
+        [this, image_request, maybe_omit_events, url_string, previous_url]() {
             // AD-HOC: Bail out if the document became inactive (e.g. iframe removed or navigated)
             //         between when the fetch completed and when this failure callback runs.
             if (!document().is_fully_active()) {
@@ -978,9 +981,12 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
 
             // The image data is not in a supported file format;
 
-            // AD-HOC: If another instance of update_the_image_data was started after the one that initiated this
-            //         request, this callback is stale. Bail out to avoid corrupting the state of the newer request.
-            if (update_the_image_data_count != m_update_the_image_data_count) {
+            // AD-HOC: If this image request was aborted, or the element has since moved on to a different
+            //         request, this callback is stale. Bail out to avoid corrupting the state of a newer
+            //         request. Note that a newer instance of update_the_image_data may have run and left
+            //         this request in place (e.g. when the src attribute is set to the same URL twice in a
+            //         row); the callback is then still responsible for finishing the load.
+            if (image_request->was_aborted() || (image_request != m_current_request && image_request != m_pending_request)) {
                 m_load_event_delayer.clear();
                 return;
             }
