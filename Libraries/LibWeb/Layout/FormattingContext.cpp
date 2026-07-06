@@ -2316,9 +2316,20 @@ void FormattingContext::layout_absolutely_positioned_element(Box& box)
     auto const* static_position_cb = box.static_position_containing_block();
     auto actual_containing_block = box.containing_block();
     if (static_position_cb && static_position_cb != actual_containing_block) {
-        auto offset = m_state.cumulative_offset(m_state.get(*static_position_cb))
-            - m_state.cumulative_offset(m_state.get(*actual_containing_block));
-        static_position += offset;
+        // The offset between the static position containing block and the actual containing block only depends on
+        // boxes at or below the point where their containing block chains merge. Accumulate offsets up to that
+        // point instead of comparing ICB-relative offsets: containing blocks above the merge point may be outside
+        // the scope of the current layout (e.g. during intrinsic sizing) and have no used values at all.
+        auto const* merge_point = static_position_cb;
+        while (merge_point != actual_containing_block && !merge_point->is_ancestor_of(*actual_containing_block))
+            merge_point = merge_point->containing_block();
+        auto offset_relative_to_merge_point = [&](Box const& descendant) {
+            CSSPixelPoint offset;
+            for (auto const* node = &descendant; node != merge_point; node = node->containing_block())
+                offset += m_state.get(*node).offset;
+            return offset;
+        };
+        static_position += offset_relative_to_merge_point(*static_position_cb) - offset_relative_to_merge_point(*actual_containing_block);
     }
 
     // Horizontal axis

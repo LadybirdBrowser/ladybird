@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<!-- The float triggers intrinsic width measurement with a throwaway layout state.
+     Inside it, the inline-level flex container gets definite used sizes before its
+     inside is laid out, so its flex item insides are laid out in Normal mode,
+     including the abspos box whose static position containing block (the wrapper)
+     differs from its actual containing block (the positioned flex item). Computing
+     the offset between the two must not walk containing blocks above the measured
+     float, since they have no used values in the throwaway state. -->
+<style>
+    #float {
+        float: left;
+    }
+
+    #inline-flex {
+        display: inline-flex;
+    }
+
+    #positioned-item {
+        display: flex;
+        position: relative;
+    }
+
+    #abspos {
+        position: absolute;
+    }
+</style>
+<div id="float">
+    <div id="inline-flex">
+        <div id="positioned-item">
+            <div id="wrapper">
+                <div id="abspos"></div>
+                <div>content</div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    document.body.offsetHeight;
+</script>
