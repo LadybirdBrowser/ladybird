@@ -258,11 +258,13 @@ protected:
     virtual NonnullRefPtr<BookmarkPromise> display_edit_bookmark_dialog([[maybe_unused]] BookmarkItem::Bookmark const& current_bookmark) const;
 
     using BookmarkFolderPromise = Core::Promise<BookmarkItem::Folder>;
-    virtual NonnullRefPtr<BookmarkFolderPromise> display_add_bookmark_folder_dialog() const;
+    virtual NonnullRefPtr<BookmarkFolderPromise> display_add_bookmark_folder_dialog(Optional<String const&> default_title = {}) const;
     virtual NonnullRefPtr<BookmarkFolderPromise> display_edit_bookmark_folder_dialog([[maybe_unused]] BookmarkItem::Folder const& current_folder) const;
+    virtual String suggested_bookmark_all_tabs_folder_title() const;
 
     virtual void on_devtools_enabled() const;
     virtual void on_devtools_disabled() const;
+    virtual Vector<BookmarkItem::Bookmark> bookmarks_for_all_tabs() const { return {}; }
 
     Main::Arguments& arguments() { return m_arguments; }
 

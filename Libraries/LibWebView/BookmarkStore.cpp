@@ -280,7 +280,7 @@ void BookmarkStore::add_bookmark(URL::URL url, Optional<String> title, Optional<
     notify_observers();
 }
 
-void BookmarkStore::add_folder(Optional<String> title, Optional<String const&> target_folder_id)
+String BookmarkStore::add_folder(Optional<String> title, Optional<String const&> target_folder_id)
 {
     BookmarkItem item {
         .id = generate_random_uuid(),
@@ -292,10 +292,12 @@ void BookmarkStore::add_folder(Optional<String> title, Optional<String const&> t
         },
     };
 
+    auto id = item.id;
     find_target_folder(m_items, target_folder_id).append(move(item));
 
     persist_bookmarks();
     notify_observers();
+    return id;
 }
 
 void BookmarkStore::import_items(JsonArray const& items_array)

@@ -1696,6 +1696,20 @@ void Application::initialize_actions()
     m_bookmarks_menu->add_action(*m_toggle_bookmark_action);
     update_bookmark_action_for_current_web_view();
 
+    m_bookmarks_menu->add_action(Action::create("Bookmark All Tabs..."sv, ActionID::AddBookmarkAllTabs, [this]() {
+        auto bookmarks = bookmarks_for_all_tabs();
+        if (bookmarks.is_empty())
+            return;
+
+        auto default_title = suggested_bookmark_all_tabs_folder_title();
+        display_add_bookmark_folder_dialog(default_title)
+            ->when_resolved([this, bookmarks = move(bookmarks)](BookmarkItem::Folder folder) mutable {
+                auto folder_id = m_bookmark_store.add_folder(move(folder.title));
+                for (auto& bookmark : bookmarks)
+                    m_bookmark_store.add_bookmark(move(bookmark.url), move(bookmark.title), move(bookmark.favicon_base64_png), folder_id);
+            });
+    }));
+
     m_toggle_bookmark_bar_action = Action::create_checkable("Show Bookmarks Bar"sv, ActionID::ToggleBookmarksBar, [this]() {
         m_settings.set_show_bookmarks_bar(!m_settings.show_bookmarks_bar());
     });
@@ -2032,7 +2046,7 @@ NonnullRefPtr<Application::BookmarkPromise> Application::display_edit_bookmark_d
     return create_unsupported_rejection<BookmarkPromise>();
 }
 
-NonnullRefPtr<Application::BookmarkFolderPromise> Application::display_add_bookmark_folder_dialog() const
+NonnullRefPtr<Application::BookmarkFolderPromise> Application::display_add_bookmark_folder_dialog(Optional<String const&>) const
 {
     return create_unsupported_rejection<BookmarkFolderPromise>();
 }
@@ -2040,6 +2054,11 @@ NonnullRefPtr<Application::BookmarkFolderPromise> Application::display_add_bookm
 NonnullRefPtr<Application::BookmarkFolderPromise> Application::display_edit_bookmark_folder_dialog(BookmarkItem::Folder const&) const
 {
     return create_unsupported_rejection<BookmarkFolderPromise>();
+}
+
+String Application::suggested_bookmark_all_tabs_folder_title() const
+{
+    return "Saved Tabs"_string;
 }
 
 ErrorOr<void> Application::toggle_devtools_enabled()

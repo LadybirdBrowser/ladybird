@@ -115,6 +115,13 @@ public:
     QAction& new_window_action() const { return *m_new_window_action; }
     QAction& find_action() const { return *m_find_in_page_action; }
 
+    template<typename Callback>
+    void for_each_tab(Callback&& callback)
+    {
+        for (int i = 0; i < m_tabs_container->count(); ++i)
+            callback(*m_tabs_container->tab(i));
+    }
+
     void update_tabs_display();
 
     void rebuild_bookmarks_menu();
@@ -185,13 +192,6 @@ private:
     void update_appkit_window_resizability();
     bool should_draw_window_border() const;
     void update_window_border();
-
-    template<typename Callback>
-    void for_each_tab(Callback&& callback)
-    {
-        for (int i = 0; i < m_tabs_container->count(); ++i)
-            callback(*m_tabs_container->tab(i));
-    }
 
     void initialize_tab_buttons(Tab*);
     void create_menu_bar_window_controls();

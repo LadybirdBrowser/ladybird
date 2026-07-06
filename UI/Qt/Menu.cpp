@@ -197,6 +197,9 @@ static void initialize_native_control(WebView::Action& action, QAction& qaction,
         if (include_action_icon == IncludeActionIcon::Yes)
             qaction.setIcon(create_chrome_icon(action.engaged() ? ChromeIcon::StarFilled : ChromeIcon::Star, palette));
         break;
+    case WebView::ActionID::AddBookmarkAllTabs:
+        qaction.setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_D));
+        break;
     case WebView::ActionID::ToggleBookmarksBar:
         qaction.setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_B));
         break;

@@ -67,7 +67,7 @@ public:
     void import_items(JsonArray const& items_array);
 
     void add_bookmark(URL::URL url, Optional<String> title, Optional<String> favicon_base64, Optional<String const&> target_folder_id = {});
-    void add_folder(Optional<String> title, Optional<String const&> target_folder_id = {});
+    String add_folder(Optional<String> title, Optional<String const&> target_folder_id = {});
 
     void edit_bookmark(StringView id, URL::URL url, Optional<String> title);
     void edit_folder(StringView id, Optional<String> title);

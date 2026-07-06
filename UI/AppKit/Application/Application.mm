@@ -378,10 +378,10 @@ static NonnullRefPtr<PromiseType> display_add_or_edit_bookmark_folder_dialog(
     return promise;
 }
 
-NonnullRefPtr<Application::BookmarkFolderPromise> Application::display_add_bookmark_folder_dialog() const
+NonnullRefPtr<Application::BookmarkFolderPromise> Application::display_add_bookmark_folder_dialog(Optional<String const&> default_title) const
 {
     ApplicationDelegate* delegate = [NSApp delegate];
-    return display_add_or_edit_bookmark_folder_dialog<BookmarkFolderPromise>([delegate activeTab], @"Add Folder", {});
+    return display_add_or_edit_bookmark_folder_dialog<BookmarkFolderPromise>([delegate activeTab], @"Add Folder", default_title);
 }
 
 NonnullRefPtr<Application::BookmarkFolderPromise> Application::display_edit_bookmark_folder_dialog(WebView::BookmarkItem::Folder const& current_folder) const

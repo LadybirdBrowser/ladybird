@@ -37,7 +37,7 @@ private:
     virtual Optional<BookmarkID> bookmark_item_id_for_context_menu() const override;
     virtual NonnullRefPtr<AddBookmarkPromise> display_add_bookmark_dialog(Optional<String const&> target_folder_id = {}) const override;
     virtual NonnullRefPtr<BookmarkPromise> display_edit_bookmark_dialog(WebView::BookmarkItem::Bookmark const& current_bookmark) const override;
-    virtual NonnullRefPtr<BookmarkFolderPromise> display_add_bookmark_folder_dialog() const override;
+    virtual NonnullRefPtr<BookmarkFolderPromise> display_add_bookmark_folder_dialog(Optional<String const&> default_title = {}) const override;
     virtual NonnullRefPtr<BookmarkFolderPromise> display_edit_bookmark_folder_dialog(WebView::BookmarkItem::Folder const& current_folder) const override;
 
     virtual void on_devtools_enabled() const override;

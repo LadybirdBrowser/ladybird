@@ -23,6 +23,7 @@
 #include <QAction>
 #include <QClipboard>
 #include <QComboBox>
+#include <QDate>
 #include <QDesktopServices>
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -740,6 +741,24 @@ Optional<Application::BookmarkID> Application::bookmark_item_id_for_context_menu
     return {};
 }
 
+Vector<WebView::BookmarkItem::Bookmark> Application::bookmarks_for_all_tabs() const
+{
+    Vector<WebView::BookmarkItem::Bookmark> bookmarks;
+
+    if (!m_active_window)
+        return bookmarks;
+
+    m_active_window->for_each_tab([&](Tab& tab) {
+        bookmarks.append(WebView::BookmarkItem::Bookmark {
+            .url = tab.view().url(),
+            .title = tab.title().isEmpty() ? Optional<String> {} : ak_string_from_qstring(tab.title()),
+            .favicon_base64_png = tab.view().favicon_base64_png(),
+        });
+    });
+
+    return bookmarks;
+}
+
 static void add_bookmark_folder_options(QComboBox& folder_combo, ReadonlySpan<WebView::BookmarkItem> items, QString const& prefix, Optional<String const&> selected_folder_id)
 {
     for (auto const& item : items) {
@@ -892,6 +911,8 @@ static NonnullRefPtr<PromiseType> display_add_or_edit_bookmark_folder_dialog(
     dialog->setAttribute(Qt::WA_DeleteOnClose);
 
     auto* title_edit = new QLineEdit(dialog);
+    title_edit->setMinimumWidth(320);
+    title_edit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     if (current_title.has_value())
         title_edit->setText(qstring_from_ak_string(*current_title));
 
@@ -900,6 +921,10 @@ static NonnullRefPtr<PromiseType> display_add_or_edit_bookmark_folder_dialog(
     QObject::connect(buttons, &QDialogButtonBox::rejected, dialog, &QDialog::reject);
 
     auto* layout = new QFormLayout(dialog);
+    layout->setContentsMargins(32, 28, 32, 28);
+    layout->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+    layout->setHorizontalSpacing(16);
+    layout->setVerticalSpacing(14);
     layout->addRow("Title:", title_edit);
     layout->addRow(buttons);
 
@@ -923,14 +948,20 @@ static NonnullRefPtr<PromiseType> display_add_or_edit_bookmark_folder_dialog(
     return promise;
 }
 
-NonnullRefPtr<Application::BookmarkFolderPromise> Application::display_add_bookmark_folder_dialog() const
+NonnullRefPtr<Application::BookmarkFolderPromise> Application::display_add_bookmark_folder_dialog(Optional<String const&> default_title) const
 {
-    return display_add_or_edit_bookmark_folder_dialog<BookmarkFolderPromise>(active_tab(), "Add Folder", {});
+    return display_add_or_edit_bookmark_folder_dialog<BookmarkFolderPromise>(active_tab(), "Add Folder", default_title);
 }
 
 NonnullRefPtr<Application::BookmarkFolderPromise> Application::display_edit_bookmark_folder_dialog(WebView::BookmarkItem::Folder const& current_folder) const
 {
     return display_add_or_edit_bookmark_folder_dialog<BookmarkFolderPromise>(active_tab(), "Edit Folder", current_folder.title);
+}
+
+String Application::suggested_bookmark_all_tabs_folder_title() const
+{
+    auto title = QString("Saved Tabs %1").arg(QDate::currentDate().toString(Qt::ISODate));
+    return ak_string_from_qstring(title);
 }
 
 void Application::on_devtools_enabled() const
