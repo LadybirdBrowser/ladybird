@@ -225,13 +225,6 @@ struct LayoutState {
 
         Optional<LineBoxFragmentCoordinate> containing_line_box_fragment;
 
-        void set_inline_end_static_position_rect(StaticPositionRect const& static_position_rect) { ensure_rare_data().inline_end_static_position_rect = static_position_rect; }
-        Optional<StaticPositionRect> const& inline_end_static_position_rect() const
-        {
-            static Optional<StaticPositionRect> const empty;
-            return m_rare ? m_rare->inline_end_static_position_rect : empty;
-        }
-
         void add_floating_descendant(Box const& box) { ensure_rare_data().floating_descendants.set(&box); }
         HashTable<Box const*> const& floating_descendants() const
         {
@@ -357,7 +350,6 @@ struct LayoutState {
             Optional<Painting::Paintable::BordersDataWithElementKind> override_borders_data;
             Optional<Painting::SVGGraphicsPaintable::ComputedTransforms> computed_svg_transforms;
             Optional<StaticPositionRect> static_position_rect;
-            Optional<StaticPositionRect> inline_end_static_position_rect;
         };
 
         RareData& ensure_rare_data()
