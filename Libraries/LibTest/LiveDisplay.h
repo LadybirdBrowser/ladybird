@@ -13,34 +13,39 @@
 #include <AK/StringBuilder.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
+#include <LibCore/System.h>
 
 #include <fcntl.h>
 #include <stdio.h>
 
-#if !defined(AK_OS_WINDOWS)
-#    include <sys/ioctl.h>
+#if defined(AK_OS_WINDOWS)
+#    include <io.h>
+#else
 #    include <unistd.h>
 #endif
 
 namespace Test {
 
-inline bool stdout_is_tty()
+// Returns the given stdio stream's fd in the form Core::System expects. (The CRT's fileno() namespace differs
+// from the native handle namespace on Windows, so fileno() alone is not usable with Core::System there.)
+inline int system_fd_for_stream(FILE* stream)
 {
 #if defined(AK_OS_WINDOWS)
-    return false;
+    return to_fd(reinterpret_cast<void*>(_get_osfhandle(fileno(stream))));
 #else
-    return isatty(STDOUT_FILENO);
+    return fileno(stream);
 #endif
+}
+
+inline bool stdout_is_tty()
+{
+    return Core::System::isatty(system_fd_for_stream(stdout)).value_or(false);
 }
 
 inline size_t query_terminal_width(int fd, size_t fallback = 80)
 {
-#if !defined(AK_OS_WINDOWS)
-    struct winsize ws;
-    if (ioctl(fd, TIOCGWINSZ, &ws) == 0 && ws.ws_col > 0)
-        return ws.ws_col;
-#endif
-    (void)fd;
+    if (auto size = Core::System::terminal_size(fd); !size.is_error() && size.value().columns > 0)
+        return size.value().columns;
     return fallback;
 }
 
@@ -173,23 +178,20 @@ public:
 
     bool begin(Options options)
     {
-#if defined(AK_OS_WINDOWS)
-        (void)options;
-        return false;
-#else
         if (m_active)
             return false;
 
         m_reserved_lines = options.reserved_lines;
         m_log_file_path = move(options.log_file_path);
 
+        // NOTE: This deliberately uses stdio-level fds (fileno() et al), which also exist on Windows as CRT fds.
         if (!m_log_file_path.is_empty()) {
             int log_fd = ::open(m_log_file_path.characters(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
             if (log_fd < 0)
                 return false;
 
-            m_saved_stdout_fd = dup(STDOUT_FILENO);
-            m_saved_stderr_fd = dup(STDERR_FILENO);
+            m_saved_stdout_fd = dup(fileno(stdout));
+            m_saved_stderr_fd = dup(fileno(stderr));
             if (m_saved_stdout_fd < 0 || m_saved_stderr_fd < 0) {
                 close(log_fd);
                 return false;
@@ -197,8 +199,8 @@ public:
 
             (void)fflush(stdout);
             (void)fflush(stderr);
-            (void)dup2(log_fd, STDOUT_FILENO);
-            (void)dup2(log_fd, STDERR_FILENO);
+            (void)dup2(log_fd, fileno(stdout));
+            (void)dup2(log_fd, fileno(stderr));
             close(log_fd);
 
             int display_fd = dup(m_saved_stdout_fd);
@@ -214,6 +216,7 @@ public:
             m_output = stdout;
         }
 
+        (void)Core::System::enable_ansi_escape_sequence_processing(system_fd_for_stream(m_output));
         refresh_terminal_width();
 
         for (size_t i = 0; i < m_reserved_lines; ++i)
@@ -222,12 +225,10 @@ public:
 
         m_active = true;
         return true;
-#endif
     }
 
     void end()
     {
-#if !defined(AK_OS_WINDOWS)
         if (!m_active)
             return;
 
@@ -242,12 +243,12 @@ public:
             (void)fflush(stdout);
             (void)fflush(stderr);
             if (m_saved_stdout_fd >= 0) {
-                (void)dup2(m_saved_stdout_fd, STDOUT_FILENO);
+                (void)dup2(m_saved_stdout_fd, fileno(stdout));
                 close(m_saved_stdout_fd);
                 m_saved_stdout_fd = -1;
             }
             if (m_saved_stderr_fd >= 0) {
-                (void)dup2(m_saved_stderr_fd, STDERR_FILENO);
+                (void)dup2(m_saved_stderr_fd, fileno(stderr));
                 close(m_saved_stderr_fd);
                 m_saved_stderr_fd = -1;
             }
@@ -257,7 +258,6 @@ public:
             m_output = nullptr;
         }
         m_active = false;
-#endif
     }
 
     bool is_active() const { return m_active; }
@@ -270,12 +270,7 @@ public:
 
     void refresh_terminal_width()
     {
-#if !defined(AK_OS_WINDOWS)
-        int fd = m_output ? fileno(m_output) : STDOUT_FILENO;
-#else
-        int fd = 0; // Not actually used.
-#endif
-        m_terminal_width = query_terminal_width(fd);
+        m_terminal_width = query_terminal_width(system_fd_for_stream(m_output ? m_output : stdout));
     }
 
     // Erase the reserved display area, leaving the cursor at the top of it.
@@ -294,6 +289,9 @@ public:
     {
         if (!m_active || !m_output)
             return;
+
+        // Track terminal resizes; unlike POSIX (SIGWINCH), Windows has no resize notification to hook instead.
+        refresh_terminal_width();
 
         StringBuilder builder;
         for (size_t i = 0; i < m_reserved_lines; ++i)
@@ -369,9 +367,7 @@ private:
     size_t m_terminal_width { 80 };
     FILE* m_output { nullptr };
     int m_saved_stdout_fd { -1 };
-#if !defined(AK_OS_WINDOWS)
     int m_saved_stderr_fd { -1 };
-#endif
     ByteString m_log_file_path;
 };
 

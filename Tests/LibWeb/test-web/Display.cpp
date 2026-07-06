@@ -13,6 +13,7 @@
 #include <AK/StringBuilder.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
+#include <LibCore/System.h>
 #include <LibCore/Timer.h>
 #include <LibDiff/Format.h>
 #include <LibDiff/Generator.h>
@@ -20,7 +21,6 @@
 
 #ifndef AK_OS_WINDOWS
 #    include <signal.h>
-#    include <sys/ioctl.h>
 #    include <unistd.h>
 #endif
 
@@ -52,11 +52,8 @@ void Display::begin_run()
         return;
 
     size_t terminal_rows = 24;
-#ifndef AK_OS_WINDOWS
-    struct winsize ws;
-    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0 && ws.ws_row > 0)
-        terminal_rows = ws.ws_row;
-#endif
+    if (auto size = Core::System::terminal_size(::Test::system_fd_for_stream(stdout)); !size.is_error() && size.value().rows > 0)
+        terminal_rows = size.value().rows;
     s_display_rows = AK::clamp(
         AK::saturating_sub(terminal_rows, LIVE_DISPLAY_TERMINAL_HEADROOM),
         LIVE_DISPLAY_STATUS_LINES + 1,
