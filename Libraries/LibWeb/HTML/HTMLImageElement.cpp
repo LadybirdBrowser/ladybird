@@ -38,6 +38,7 @@
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
 #include <LibWeb/HTML/SupportedImageTypes.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/ImageBox.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Painting/Paintable.h>
@@ -1365,7 +1366,10 @@ Optional<ImageSourceAndPixelDensity> HTMLImageElement::select_an_image_source()
         return {};
 
     // 3. Return the result of selecting an image from el's source set.
-    return m_source_set.select_an_image_source();
+    auto device_pixel_ratio = 1.0;
+    if (auto window = document().window())
+        device_pixel_ratio = window->device_pixel_ratio();
+    return m_source_set.select_an_image_source(device_pixel_ratio);
 }
 
 void HTMLImageElement::set_source_set(SourceSet source_set)

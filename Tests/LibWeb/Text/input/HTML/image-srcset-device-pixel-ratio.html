@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        function basename(url) {
+            return url.substring(url.lastIndexOf("/") + 1);
+        }
+
+        function selectedSourceAt(dpr) {
+            return new Promise((resolve) => {
+                internals.setDevicePixelRatio(dpr);
+                const img = document.createElement("img");
+                img.srcset =
+                    "../../../Assets/120.png?density=1 1x, " +
+                    "../../../Assets/120.png?density=2 2x, " +
+                    "../../../Assets/120.png?density=3 3x";
+                img.onload = () => {
+                    resolve(basename(img.currentSrc));
+                    img.remove();
+                };
+                document.body.appendChild(img);
+            });
+        }
+
+        println("At 1x: " + (await selectedSourceAt(1)));
+        println("At 2x: " + (await selectedSourceAt(2)));
+        println("At 3x: " + (await selectedSourceAt(3)));
+        done();
+    });
+</script>

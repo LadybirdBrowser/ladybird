@@ -34,7 +34,7 @@ static double pixel_density(ImageSource const& image_source)
 }
 
 // https://html.spec.whatwg.org/multipage/images.html#select-an-image-source-from-a-source-set
-ImageSourceAndPixelDensity SourceSet::select_an_image_source()
+ImageSourceAndPixelDensity SourceSet::select_an_image_source(double device_pixel_ratio)
 {
     // 1. If an entry b in sourceSet has the same associated pixel density descriptor as an earlier entry a in sourceSet,
     //    then remove entry b.
@@ -52,14 +52,15 @@ ImageSourceAndPixelDensity SourceSet::select_an_image_source()
     }
 
     // 2. In an implementation-defined manner, choose one image source from sourceSet. Let selectedSource be this choice.
-    //    In our case, select the lowest density greater than 1, otherwise the greatest density available.
+    //    NB: Match other engines by selecting the lowest density that is at least the display's device pixel ratio,
+    //        otherwise the greatest density available.
     // 3. Return selectedSource and its associated pixel density.
 
     quick_sort(unique_pixel_density_sources, [](auto& a, auto& b) {
         return pixel_density(a) < pixel_density(b);
     });
     for (auto const& source : unique_pixel_density_sources) {
-        if (pixel_density(source) >= 1) {
+        if (pixel_density(source) >= device_pixel_ratio) {
             return { source, pixel_density(source) };
         }
     }

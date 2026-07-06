@@ -1,0 +1,3 @@
+At 1x: 120.png?density=1
+At 2x: 120.png?density=2
+At 3x: 120.png?density=3

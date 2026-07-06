@@ -39,7 +39,7 @@ struct SourceSet {
     [[nodiscard]] bool is_empty() const;
 
     // https://html.spec.whatwg.org/multipage/images.html#select-an-image-source-from-a-source-set
-    [[nodiscard]] ImageSourceAndPixelDensity select_an_image_source();
+    [[nodiscard]] ImageSourceAndPixelDensity select_an_image_source(double device_pixel_ratio);
 
     // https://html.spec.whatwg.org/multipage/images.html#normalise-the-source-densities
     void normalize_source_densities(DOM::Element const&);
