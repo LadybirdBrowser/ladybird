@@ -134,17 +134,21 @@ void SVGSVGElement::update_fallback_view_box_for_svg_as_image()
     Optional<double> width;
     Optional<double> height;
 
+    auto resolution_context = layout_node()
+        ? CSS::Length::ResolutionContext::for_layout_node(*layout_node())
+        : CSS::Length::ResolutionContext::for_document(document());
+
     auto width_attribute = get_attribute_value(SVG::AttributeNames::width);
     auto parsing_context = CSS::Parser::ParsingParams { document(), CSS::Parser::ParsingMode::SVGPresentationAttribute };
     if (auto width_value = parse_css_value(parsing_context, width_attribute, CSS::PropertyID::Width)) {
-        if (width_value->is_length() && width_value->as_length().length().is_absolute())
-            width = width_value->as_length().length().absolute_length_to_px().to_double();
+        if (width_value->is_length())
+            width = width_value->as_length().length().to_px(resolution_context).to_double();
     }
 
     auto height_attribute = get_attribute_value(SVG::AttributeNames::height);
     if (auto height_value = parse_css_value(parsing_context, height_attribute, CSS::PropertyID::Height)) {
-        if (height_value->is_length() && height_value->as_length().length().is_absolute())
-            height = height_value->as_length().length().absolute_length_to_px().to_double();
+        if (height_value->is_length())
+            height = height_value->as_length().length().to_px(resolution_context).to_double();
     }
 
     if (width.has_value() && width.value() > 0 && height.has_value() && height.value() > 0) {
