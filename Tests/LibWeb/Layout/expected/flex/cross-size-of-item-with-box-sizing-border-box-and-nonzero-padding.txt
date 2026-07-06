@@ -22,7 +22,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x250]
     PaintableWithLines (BlockContainer<BODY>) [9,9 782x232]
-      PaintableBox (Box<DIV>.outer.flex.flex-wrap) [10,10 780x230]
+      Paintable (Box<DIV>.outer.flex.flex-wrap) [10,10 780x230]
         PaintableWithLines (BlockContainer<DIV>.inner) [11,11 778x228]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

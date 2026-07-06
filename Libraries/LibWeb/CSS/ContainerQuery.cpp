@@ -27,7 +27,7 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/Paintable.h>
 
 namespace Web::CSS {
 
@@ -82,7 +82,7 @@ bool size_feature_type_is_range(SizeFeatureID id)
     VERIFY_NOT_REACHED();
 }
 
-static FeatureValue size_feature_value_for_query_container(SizeFeatureID id, Painting::PaintableBox const& paintable_box)
+static FeatureValue size_feature_value_for_query_container(SizeFeatureID id, Painting::Paintable const& paintable_box)
 {
     auto width = paintable_box.content_width();
     auto height = paintable_box.content_height();

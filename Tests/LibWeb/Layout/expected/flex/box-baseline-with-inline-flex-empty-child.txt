@@ -11,7 +11,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x48.203125]
     PaintableWithLines (BlockContainer<BODY>) [9,9 782x30.203125]
       PaintableWithLines (BlockContainer<DIV>.first) [10,10 780x28.203125]
-        PaintableBox (Box<SPAN>.second) [11,11 22x22]
+        Paintable (Box<SPAN>.second) [11,11 22x22]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [1,1 798x46.203125] (z-index: auto)

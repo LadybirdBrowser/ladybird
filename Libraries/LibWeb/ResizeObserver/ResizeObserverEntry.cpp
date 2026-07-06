@@ -9,7 +9,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/ResizeObserverEntry.h>
 #include <LibWeb/DOM/Element.h>
-#include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/ResizeObserver/ResizeObserverEntry.h>
 
 namespace Web::ResizeObserver {

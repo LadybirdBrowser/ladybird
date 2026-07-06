@@ -1549,7 +1549,7 @@ private:
     bool m_design_mode_enabled { false };
 
     bool m_needs_accumulated_visual_contexts_update { false };
-    Vector<WeakPtr<Painting::PaintableBox>> m_paintable_boxes_needing_visual_context_value_update;
+    Vector<WeakPtr<Painting::Paintable>> m_paintable_boxes_needing_visual_context_value_update;
     bool m_needs_invalidation_of_elements_affected_by_has { false };
     RefPtr<Painting::HitTestDisplayList> m_hit_test_display_list;
     Optional<CSSPixelRect> m_caret_hit_test_debug_rect;

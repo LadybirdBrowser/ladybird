@@ -17,8 +17,8 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x36]
       PaintableWithLines (BlockContainer<DIV>.wrapper) [8,8 784x36]
         PaintableWithLines (TableWrapper(anonymous)) [108,8 584x36]
-          PaintableBox (Box<DIV>.box) [108,8 584x36]
-            PaintableBox (Box(anonymous)) [108,8 584x36]
+          Paintable (Box<DIV>.box) [108,8 584x36]
+            Paintable (Box(anonymous)) [108,8 584x36]
               PaintableWithLines (BlockContainer<DIV>.cell) [108,8 584x36]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

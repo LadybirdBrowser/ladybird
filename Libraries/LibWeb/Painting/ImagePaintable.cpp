@@ -74,7 +74,7 @@ NonnullRefPtr<ImagePaintable> ImagePaintable::create(Layout::ImageBox const& lay
 }
 
 ImagePaintable::ImagePaintable(Layout::Box const& layout_box, Layout::ImageProvider const& image_provider, bool renders_as_alt_text, String alt_text, bool is_svg_image)
-    : PaintableBox(layout_box)
+    : Paintable(layout_box)
     , m_renders_as_alt_text(renders_as_alt_text)
     , m_alt_text(move(alt_text))
     , m_image_provider(image_provider)
@@ -84,7 +84,7 @@ ImagePaintable::ImagePaintable(Layout::Box const& layout_box, Layout::ImageProvi
 
 void ImagePaintable::reset_for_relayout()
 {
-    PaintableBox::reset_for_relayout();
+    Paintable::reset_for_relayout();
 
     if (!m_is_svg_image) {
         m_renders_as_alt_text = !m_image_provider.is_image_available();
@@ -100,7 +100,7 @@ void ImagePaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
     if (!is_visible())
         return;
 
-    PaintableBox::paint(context, phase);
+    Paintable::paint(context, phase);
 
     if (phase == PaintPhase::Foreground) {
         auto image_rect = absolute_rect();

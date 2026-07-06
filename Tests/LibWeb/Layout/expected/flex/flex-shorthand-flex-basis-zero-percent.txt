@@ -27,14 +27,14 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x128]
     PaintableWithLines (BlockContainer<BODY>) [9,9 782x110]
-      PaintableBox (Box<DIV>.flex) [10,10 502x54]
+      Paintable (Box<DIV>.flex) [10,10 502x54]
         PaintableWithLines (BlockContainer(anonymous)) [11,11 36.84375x52]
-        PaintableBox (Box<DIV>.item.one) [47.84375,11 463.15625x52]
+        Paintable (Box<DIV>.item.one) [47.84375,11 463.15625x52]
           PaintableWithLines (BlockContainer(anonymous)) [48.84375,12 55.359375x50]
       PaintableWithLines (BlockContainer(anonymous)) [10,64 780x0]
-      PaintableBox (Box<DIV>.flex) [10,64 502x54]
+      Paintable (Box<DIV>.flex) [10,64 502x54]
         PaintableWithLines (BlockContainer(anonymous)) [11,65 36.84375x52]
-        PaintableBox (Box<DIV>.item.two) [47.84375,65 463.15625x52]
+        Paintable (Box<DIV>.item.two) [47.84375,65 463.15625x52]
           PaintableWithLines (BlockContainer(anonymous)) [48.84375,66 55.359375x50]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

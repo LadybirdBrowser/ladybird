@@ -7,7 +7,7 @@
 #include <LibGC/WeakInlines.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Page/ElementResizeAction.h>
-#include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/ResizeHandle.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/MouseButton.h>
@@ -15,12 +15,12 @@
 
 namespace Web::Painting {
 
-NonnullRefPtr<ResizeHandle> ResizeHandle::create(PaintableBox& paintable_box)
+NonnullRefPtr<ResizeHandle> ResizeHandle::create(Paintable& paintable_box)
 {
     return adopt_ref(*new ResizeHandle(paintable_box));
 }
 
-ResizeHandle::ResizeHandle(PaintableBox& paintable_box)
+ResizeHandle::ResizeHandle(Paintable& paintable_box)
     : m_paintable_box(paintable_box)
     , m_element(as<DOM::Element>(*paintable_box.dom_node()))
 {

@@ -31,8 +31,8 @@ class WEB_API Box : public NodeWithStyleAndBoxModelMetrics {
     GC_DECLARE_ALLOCATOR(Box);
 
 public:
-    RefPtr<Painting::PaintableBox const> paintable_box() const;
-    RefPtr<Painting::PaintableBox> paintable_box();
+    RefPtr<Painting::Paintable const> paintable_box() const;
+    RefPtr<Painting::Paintable> paintable_box();
 
     // https://www.w3.org/TR/css-images-3/#natural-dimensions
     virtual CSS::SizeWithAspectRatio natural_size() const { return {}; }

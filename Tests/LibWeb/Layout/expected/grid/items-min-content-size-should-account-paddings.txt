@@ -11,8 +11,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x134]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x118]
-      PaintableBox (Box<DIV>.cta-banner) [8,8 784x118]
-        PaintableBox (Box<DIV>.w-layout-grid) [8,8 470.4375x118]
+      Paintable (Box<DIV>.cta-banner) [8,8 784x118]
+        Paintable (Box<DIV>.w-layout-grid) [8,8 470.4375x118]
           PaintableWithLines (BlockContainer<DIV>.button) [8,8 235.21875x118]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

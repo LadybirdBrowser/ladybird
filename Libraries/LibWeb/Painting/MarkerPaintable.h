@@ -7,11 +7,11 @@
 #pragma once
 
 #include <LibWeb/Layout/ListItemMarkerBox.h>
-#include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/Paintable.h>
 
 namespace Web::Painting {
 
-class MarkerPaintable final : public PaintableBox {
+class MarkerPaintable final : public Paintable {
 public:
     static NonnullRefPtr<MarkerPaintable> create(Layout::ListItemMarkerBox const&);
     virtual StringView class_name() const override { return "MarkerPaintable"sv; }

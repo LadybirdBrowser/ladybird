@@ -7,11 +7,11 @@
 #pragma once
 
 #include <LibWeb/Layout/CanvasBox.h>
-#include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/Paintable.h>
 
 namespace Web::Painting {
 
-class CanvasPaintable final : public PaintableBox {
+class CanvasPaintable final : public Paintable {
 public:
     static NonnullRefPtr<CanvasPaintable> create(Layout::CanvasBox const&);
     virtual StringView class_name() const override { return "CanvasPaintable"sv; }

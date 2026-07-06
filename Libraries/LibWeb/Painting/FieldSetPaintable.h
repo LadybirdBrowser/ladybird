@@ -7,11 +7,11 @@
 #pragma once
 
 #include <LibWeb/Forward.h>
-#include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/Paintable.h>
 
 namespace Web::Painting {
 
-class FieldSetPaintable final : public PaintableBox {
+class FieldSetPaintable final : public Paintable {
 public:
     static NonnullRefPtr<FieldSetPaintable> create(Layout::FieldSetBox const&);
     virtual StringView class_name() const override { return "FieldSetPaintable"sv; }

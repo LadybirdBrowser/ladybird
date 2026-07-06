@@ -7,11 +7,11 @@
 #pragma once
 
 #include <LibWeb/Forward.h>
-#include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/Paintable.h>
 
 namespace Web::Painting {
 
-class CheckBoxPaintable final : public PaintableBox {
+class CheckBoxPaintable final : public Paintable {
 public:
     static NonnullRefPtr<CheckBoxPaintable> create(Layout::CheckBox const&);
     virtual StringView class_name() const override { return "CheckBoxPaintable"sv; }

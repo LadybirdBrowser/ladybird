@@ -48,7 +48,7 @@
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
 #include <LibWeb/Painting/NavigableContainerViewportPaintable.h>
-#include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/EventNames.h>
@@ -545,11 +545,7 @@ static CSSPixelPoint compute_mouse_event_offset(CSSPixelPoint position, Painting
     // return the x-coordinate of the position where the event occurred,
     // ignoring the transforms that apply to the element and its ancestors,
     CSSPixelPoint offset_position = position;
-    if (auto const* paintable_box = as_if<Painting::PaintableBox>(paintable)) {
-        offset_position = paintable_box->inverse_transform_point(position);
-    } else if (auto containing_block = paintable.containing_block()) {
-        offset_position = containing_block->inverse_transform_point(position);
-    }
+    offset_position = paintable.inverse_transform_point(position);
 
     // relative to the origin of the padding edge of the target node
     auto const top_left_of_layout_node = paintable.box_type_agnostic_position();
@@ -654,8 +650,8 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
                 || (wheel_delta_x > 0 && visual_viewport->offset_left() < visual_viewport_max_x);
             auto visual_viewport_can_scroll_vertically = (wheel_delta_y < 0 && visual_viewport->offset_top() > 0)
                 || (wheel_delta_y > 0 && visual_viewport->offset_top() < visual_viewport_max_y);
-            auto viewport_wheel_delta_x = document->paintable_box()->could_be_scrolled_by_wheel_event(Painting::PaintableBox::ScrollDirection::Horizontal) || visual_viewport_can_scroll_horizontally ? wheel_delta_x : 0;
-            auto viewport_wheel_delta_y = document->paintable_box()->could_be_scrolled_by_wheel_event(Painting::PaintableBox::ScrollDirection::Vertical) || visual_viewport_can_scroll_vertically ? wheel_delta_y : 0;
+            auto viewport_wheel_delta_x = document->paintable_box()->could_be_scrolled_by_wheel_event(Painting::Paintable::ScrollDirection::Horizontal) || visual_viewport_can_scroll_horizontally ? wheel_delta_x : 0;
+            auto viewport_wheel_delta_y = document->paintable_box()->could_be_scrolled_by_wheel_event(Painting::Paintable::ScrollDirection::Vertical) || visual_viewport_can_scroll_vertically ? wheel_delta_y : 0;
 
             if (viewport_wheel_delta_x != 0 || viewport_wheel_delta_y != 0) {
                 auto viewport_scroll_position_before = CSSPixelPoint { CSSPixels(document->visual_viewport()->page_left()), CSSPixels(document->visual_viewport()->page_top()) };
@@ -2577,14 +2573,14 @@ void EventHandler::update_cursor(RefPtr<Painting::Paintable> paintable, GC::Ptr<
     set_page_cursor(m_navigable->page(), cursor);
 }
 
-RefPtr<Painting::PaintableBox> EventHandler::paint_root()
+RefPtr<Painting::Paintable> EventHandler::paint_root()
 {
     if (!m_navigable->active_document())
         return nullptr;
     return m_navigable->active_document()->paintable_box();
 }
 
-RefPtr<Painting::PaintableBox const> EventHandler::paint_root() const
+RefPtr<Painting::Paintable const> EventHandler::paint_root() const
 {
     if (!m_navigable->active_document())
         return nullptr;

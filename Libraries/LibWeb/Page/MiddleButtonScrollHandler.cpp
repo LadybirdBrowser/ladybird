@@ -10,7 +10,6 @@
 #include <LibWeb/Page/AutoScrollHandler.h>
 #include <LibWeb/Page/MiddleButtonScrollHandler.h>
 #include <LibWeb/Painting/Paintable.h>
-#include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 
 namespace Web {
@@ -46,8 +45,8 @@ GC::Ptr<DOM::Element> MiddleButtonScrollHandler::find_scrollable_ancestor(DOM::D
 {
     // AutoScrollHandler::find_scrollable_ancestor begins with the paintable's containing block. For middle mouse
     // scrolling, we want to include the paintable itself. This allows clicking in dead space to being scrolling.
-    if (auto* paintable_box = as_if<Painting::PaintableBox>(paintable); paintable_box && paintable_box->could_be_scrolled_by_wheel_event()) {
-        if (auto* element = as_if<DOM::Element>(paintable_box->dom_node().ptr()))
+    if (paintable.could_be_scrolled_by_wheel_event()) {
+        if (auto* element = as_if<DOM::Element>(paintable.dom_node().ptr()))
             return element;
     }
 

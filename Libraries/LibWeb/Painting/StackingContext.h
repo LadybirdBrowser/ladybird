@@ -26,12 +26,12 @@ class WEB_API StackingContext final
 public:
     AK_ALLOC_WITH_KMALLOC_PARTITION(HeapPartition::Painting);
 
-    static NonnullRefPtr<StackingContext> create(PaintableBox&, RefPtr<StackingContext> parent, size_t index_in_tree_order);
+    static NonnullRefPtr<StackingContext> create(Paintable&, RefPtr<StackingContext> parent, size_t index_in_tree_order);
 
     RefPtr<StackingContext> parent() { return m_parent.strong_ref(); }
     RefPtr<StackingContext const> parent() const { return m_parent.strong_ref(); }
 
-    PaintableBox const& paintable_box() const
+    Paintable const& paintable_box() const
     {
         auto paintable = m_paintable.strong_ref();
         VERIFY(paintable);
@@ -47,7 +47,7 @@ public:
 
     static void paint_node_as_stacking_context(Paintable const&, DisplayListRecordingContext&);
     static void paint_descendants(DisplayListRecordingContext&, Paintable const&, StackingContextPaintPhase);
-    static void paint_svg(DisplayListRecordingContext&, PaintableBox const&, PaintPhase);
+    static void paint_svg(DisplayListRecordingContext&, Paintable const&, PaintPhase);
     void paint(DisplayListRecordingContext&) const;
 
     void dump(StringBuilder&, int indent = 0) const;
@@ -57,16 +57,16 @@ public:
     void set_last_paint_generation_id(u64 generation_id);
 
 private:
-    StackingContext(PaintableBox&, RefPtr<StackingContext> parent, size_t index_in_tree_order);
+    StackingContext(Paintable&, RefPtr<StackingContext> parent, size_t index_in_tree_order);
 
-    WeakPtr<PaintableBox> m_paintable;
+    WeakPtr<Paintable> m_paintable;
     WeakPtr<StackingContext> m_parent;
     Vector<NonnullRefPtr<StackingContext>> m_children;
     size_t m_index_in_tree_order { 0 };
     Optional<u64> m_last_paint_generation_id;
 
-    Vector<WeakPtr<PaintableBox>> m_positioned_descendants_and_stacking_contexts_with_stack_level_0;
-    Vector<WeakPtr<PaintableBox>> m_non_positioned_floating_descendants;
+    Vector<WeakPtr<Paintable>> m_positioned_descendants_and_stacking_contexts_with_stack_level_0;
+    Vector<WeakPtr<Paintable>> m_non_positioned_floating_descendants;
     bool m_contains_inline_or_replaced_descendants { false };
 
     static void paint_child(DisplayListRecordingContext&, StackingContext const&);

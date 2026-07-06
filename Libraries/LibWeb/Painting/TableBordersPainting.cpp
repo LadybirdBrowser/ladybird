@@ -9,7 +9,7 @@
 #include <AK/Traits.h>
 #include <LibWeb/Layout/TableFormattingContext.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
-#include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/TableBordersPainting.h>
 
 struct CellCoordinates {
@@ -33,9 +33,9 @@ struct Traits<CellCoordinates> : public DefaultTraits<CellCoordinates> {
 
 namespace Web::Painting {
 
-static void collect_cell_boxes(Vector<PaintableBox const&>& cell_boxes, PaintableBox const& table_paintable)
+static void collect_cell_boxes(Vector<Paintable const&>& cell_boxes, Paintable const& table_paintable)
 {
-    table_paintable.for_each_child_of_type<PaintableBox>([&](auto& child) {
+    table_paintable.for_each_child_of_type<Paintable>([&](auto& child) {
         if (child.display().is_table_cell()) {
             cell_boxes.append(child);
         } else {
@@ -58,7 +58,7 @@ struct DeviceBorderData {
 
 struct DeviceBorderDataWithElementKind {
     DeviceBorderData border_data;
-    Painting::PaintableBox::ConflictingElementKind element_kind { Painting::PaintableBox::ConflictingElementKind::Cell };
+    Painting::Paintable::ConflictingElementKind element_kind { Painting::Paintable::ConflictingElementKind::Cell };
 };
 
 struct DeviceBordersDataWithElementKind {
@@ -76,12 +76,12 @@ struct BorderEdgePaintingInfo {
     Optional<size_t> column;
 };
 
-static Optional<size_t> row_index_for_element_kind(size_t index, Painting::PaintableBox::ConflictingElementKind element_kind)
+static Optional<size_t> row_index_for_element_kind(size_t index, Painting::Paintable::ConflictingElementKind element_kind)
 {
     switch (element_kind) {
-    case Painting::PaintableBox::ConflictingElementKind::Cell:
-    case Painting::PaintableBox::ConflictingElementKind::Row:
-    case Painting::PaintableBox::ConflictingElementKind::RowGroup: {
+    case Painting::Paintable::ConflictingElementKind::Cell:
+    case Painting::Paintable::ConflictingElementKind::Row:
+    case Painting::Paintable::ConflictingElementKind::RowGroup: {
         return index;
     }
     default:
@@ -89,12 +89,12 @@ static Optional<size_t> row_index_for_element_kind(size_t index, Painting::Paint
     }
 }
 
-static Optional<size_t> column_index_for_element_kind(size_t index, Painting::PaintableBox::ConflictingElementKind element_kind)
+static Optional<size_t> column_index_for_element_kind(size_t index, Painting::Paintable::ConflictingElementKind element_kind)
 {
     switch (element_kind) {
-    case Painting::PaintableBox::ConflictingElementKind::Cell:
-    case Painting::PaintableBox::ConflictingElementKind::Column:
-    case Painting::PaintableBox::ConflictingElementKind::ColumnGroup: {
+    case Painting::Paintable::ConflictingElementKind::Cell:
+    case Painting::Paintable::ConflictingElementKind::Column:
+    case Painting::Paintable::ConflictingElementKind::ColumnGroup: {
         return index;
     }
     default:
@@ -297,7 +297,7 @@ static void paint_collected_edges(DisplayListRecordingContext& context, Vector<B
     }
 }
 
-static HashMap<CellCoordinates, DevicePixelRect> snap_cells_to_device_coordinates(HashMap<CellCoordinates, RefPtr<PaintableBox const>> const& cell_coordinates_to_box, size_t row_count, size_t column_count, DisplayListRecordingContext const& context)
+static HashMap<CellCoordinates, DevicePixelRect> snap_cells_to_device_coordinates(HashMap<CellCoordinates, RefPtr<Paintable const>> const& cell_coordinates_to_box, size_t row_count, size_t column_count, DisplayListRecordingContext const& context)
 {
     Vector<DevicePixels> y_line_start_coordinates;
     Vector<DevicePixels> y_line_end_coordinates;
@@ -333,7 +333,7 @@ static HashMap<CellCoordinates, DevicePixelRect> snap_cells_to_device_coordinate
     return cell_coordinates_to_device_rect;
 }
 
-static DeviceBorderDataWithElementKind device_border_data_from_css_border_data(Painting::PaintableBox::BorderDataWithElementKind const& border_data_with_element_kind, DisplayListRecordingContext const& context)
+static DeviceBorderDataWithElementKind device_border_data_from_css_border_data(Painting::Paintable::BorderDataWithElementKind const& border_data_with_element_kind, DisplayListRecordingContext const& context)
 {
     return DeviceBorderDataWithElementKind {
         .border_data = {
@@ -345,9 +345,9 @@ static DeviceBorderDataWithElementKind device_border_data_from_css_border_data(P
     };
 }
 
-static void paint_separate_cell_borders(PaintableBox const& cell_box, HashMap<CellCoordinates, DevicePixelRect> const& cell_coordinates_to_device_rect, DisplayListRecordingContext& context)
+static void paint_separate_cell_borders(Paintable const& cell_box, HashMap<CellCoordinates, DevicePixelRect> const& cell_coordinates_to_device_rect, DisplayListRecordingContext& context)
 {
-    auto borders_data = cell_box.override_borders_data().has_value() ? PaintableBox::remove_element_kind_from_borders_data(cell_box.override_borders_data().value()) : BordersData {
+    auto borders_data = cell_box.override_borders_data().has_value() ? Paintable::remove_element_kind_from_borders_data(cell_box.override_borders_data().value()) : BordersData {
         .top = cell_box.box_model().border.top == 0 ? CSS::BorderData() : cell_box.computed_values().border_top(),
         .right = cell_box.box_model().border.right == 0 ? CSS::BorderData() : cell_box.computed_values().border_right(),
         .bottom = cell_box.box_model().border.bottom == 0 ? CSS::BorderData() : cell_box.computed_values().border_bottom(),
@@ -357,14 +357,14 @@ static void paint_separate_cell_borders(PaintableBox const& cell_box, HashMap<Ce
     paint_all_borders(context.display_list_recorder(), cell_rect, cell_box.normalized_border_radii_data().as_corners(context.device_pixel_converter()), borders_data.to_device_pixels(context));
 }
 
-void paint_table_borders(DisplayListRecordingContext& context, PaintableBox const& table_paintable)
+void paint_table_borders(DisplayListRecordingContext& context, Paintable const& table_paintable)
 {
     // Partial implementation of painting according to the collapsing border model:
     // https://www.w3.org/TR/CSS22/tables.html#collapsing-borders
-    Vector<PaintableBox const&> cell_boxes;
+    Vector<Paintable const&> cell_boxes;
     collect_cell_boxes(cell_boxes, table_paintable);
     Vector<BorderEdgePaintingInfo> border_edge_painting_info_list;
-    HashMap<CellCoordinates, RefPtr<PaintableBox const>> cell_coordinates_to_box;
+    HashMap<CellCoordinates, RefPtr<Paintable const>> cell_coordinates_to_box;
     size_t row_count = 0;
     size_t column_count = 0;
     for (auto const& cell_box : cell_boxes) {
@@ -383,11 +383,11 @@ void paint_table_borders(DisplayListRecordingContext& context, PaintableBox cons
             paint_separate_cell_borders(cell_box, cell_coordinates_to_device_rect, context);
             continue;
         }
-        auto css_borders_data = cell_box.override_borders_data().has_value() ? cell_box.override_borders_data().value() : PaintableBox::BordersDataWithElementKind {
-            .top = { .border_data = cell_box.box_model().border.top == 0 ? CSS::BorderData() : cell_box.computed_values().border_top(), .element_kind = PaintableBox::ConflictingElementKind::Cell },
-            .right = { .border_data = cell_box.box_model().border.right == 0 ? CSS::BorderData() : cell_box.computed_values().border_right(), .element_kind = PaintableBox::ConflictingElementKind::Cell },
-            .bottom = { .border_data = cell_box.box_model().border.bottom == 0 ? CSS::BorderData() : cell_box.computed_values().border_bottom(), .element_kind = PaintableBox::ConflictingElementKind::Cell },
-            .left = { .border_data = cell_box.box_model().border.left == 0 ? CSS::BorderData() : cell_box.computed_values().border_left(), .element_kind = PaintableBox::ConflictingElementKind::Cell },
+        auto css_borders_data = cell_box.override_borders_data().has_value() ? cell_box.override_borders_data().value() : Paintable::BordersDataWithElementKind {
+            .top = { .border_data = cell_box.box_model().border.top == 0 ? CSS::BorderData() : cell_box.computed_values().border_top(), .element_kind = Paintable::ConflictingElementKind::Cell },
+            .right = { .border_data = cell_box.box_model().border.right == 0 ? CSS::BorderData() : cell_box.computed_values().border_right(), .element_kind = Paintable::ConflictingElementKind::Cell },
+            .bottom = { .border_data = cell_box.box_model().border.bottom == 0 ? CSS::BorderData() : cell_box.computed_values().border_bottom(), .element_kind = Paintable::ConflictingElementKind::Cell },
+            .left = { .border_data = cell_box.box_model().border.left == 0 ? CSS::BorderData() : cell_box.computed_values().border_left(), .element_kind = Paintable::ConflictingElementKind::Cell },
         };
         DeviceBordersDataWithElementKind borders_data = {
             .top = device_border_data_from_css_border_data(css_borders_data.top, context),
@@ -435,7 +435,7 @@ void paint_table_borders(DisplayListRecordingContext& context, PaintableBox cons
         if (!top_left && !top_right && !bottom_left && !bottom_right) {
             continue;
         } else {
-            auto borders_data = cell_box.override_borders_data().has_value() ? PaintableBox::remove_element_kind_from_borders_data(cell_box.override_borders_data().value()) : BordersData {
+            auto borders_data = cell_box.override_borders_data().has_value() ? Paintable::remove_element_kind_from_borders_data(cell_box.override_borders_data().value()) : BordersData {
                 .top = cell_box.box_model().border.top == 0 ? CSS::BorderData() : cell_box.computed_values().border_top(),
                 .right = cell_box.box_model().border.right == 0 ? CSS::BorderData() : cell_box.computed_values().border_right(),
                 .bottom = cell_box.box_model().border.bottom == 0 ? CSS::BorderData() : cell_box.computed_values().border_bottom(),

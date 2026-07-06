@@ -10,7 +10,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x20]
     PaintableWithLines (BlockContainer<BODY>) [9,9 782x2]
-      PaintableBox (Box<NAV>) [10,10 312.453125x22]
+      Paintable (Box<NAV>) [10,10 312.453125x22]
         PaintableWithLines (BlockContainer<DIV>.item) [11,11 310.453125x20]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

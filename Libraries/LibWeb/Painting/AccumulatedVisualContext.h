@@ -30,7 +30,7 @@ class ComputedValues;
 
 namespace Web::Painting {
 
-class PaintableBox;
+class Paintable;
 class ScrollStateSnapshot;
 
 AK_TYPEDEF_DISTINCT_ORDERED_ID(size_t, VisualContextIndex);
@@ -102,7 +102,7 @@ struct AnchorScrollShift {
 
 using VisualContextData = Variant<ScrollData, ClipData, TransformData, PerspectiveData, ClipPathData, EffectsData, ScrollCompensation, AnchorScrollShift>;
 
-Optional<TransformData> compute_transform(PaintableBox const&, CSS::ComputedValues const&, double pixel_ratio);
+Optional<TransformData> compute_transform(Paintable const&, CSS::ComputedValues const&, double pixel_ratio);
 
 struct AccumulatedVisualContextNode {
     VisualContextData data;

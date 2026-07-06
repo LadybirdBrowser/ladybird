@@ -11,7 +11,7 @@
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/FormattingContext.h>
 #include <LibWeb/Layout/TableWrapper.h>
-#include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/Paintable.h>
 
 namespace Web::Layout {
 
@@ -42,20 +42,20 @@ CSS::SizeWithAspectRatio Box::auto_content_box_size() const
 
 RefPtr<Painting::Paintable> Box::create_paintable() const
 {
-    return Painting::PaintableBox::create(*this);
+    return Painting::Paintable::create(*this);
 }
 
-RefPtr<Painting::PaintableBox> Box::paintable_box()
+RefPtr<Painting::Paintable> Box::paintable_box()
 {
     if (auto paintable = Node::first_paintable())
-        return static_cast<Painting::PaintableBox&>(*paintable);
+        return static_cast<Painting::Paintable&>(*paintable);
     return nullptr;
 }
 
-RefPtr<Painting::PaintableBox const> Box::paintable_box() const
+RefPtr<Painting::Paintable const> Box::paintable_box() const
 {
     if (auto paintable = Node::first_paintable())
-        return static_cast<Painting::PaintableBox const&>(*paintable);
+        return static_cast<Painting::Paintable const&>(*paintable);
     return nullptr;
 }
 

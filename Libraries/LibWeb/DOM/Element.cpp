@@ -121,7 +121,7 @@
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
-#include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
@@ -1656,7 +1656,7 @@ GC::Ref<Geometry::DOMRectList> Element::get_client_rects_for_bindings() const
     return Geometry::DOMRectList::create(realm(), move(rects));
 }
 
-static void append_transformed_border_box_rect(Vector<CSSPixelRect>& rects, Painting::PaintableBox const& paintable_box)
+static void append_transformed_border_box_rect(Vector<CSSPixelRect>& rects, Painting::Paintable const& paintable_box)
 {
     auto absolute_rect = paintable_box.absolute_border_box_rect();
     rects.append(paintable_box.transform_rect_to_viewport(absolute_rect, Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No));

@@ -17,13 +17,13 @@ NonnullRefPtr<SVGSVGPaintable> SVGSVGPaintable::create(Layout::SVGSVGBox const& 
 }
 
 SVGSVGPaintable::SVGSVGPaintable(Layout::SVGSVGBox const& layout_box)
-    : PaintableBox(layout_box)
+    : Paintable(layout_box)
 {
 }
 
-static void record_foreign_object_descendant_hit_test_items(DisplayListRecordingContext& context, PaintableBox const& paintable)
+static void record_foreign_object_descendant_hit_test_items(DisplayListRecordingContext& context, Paintable const& paintable)
 {
-    paintable.for_each_child_of_type<PaintableBox>([&](PaintableBox& child) {
+    paintable.for_each_child_of_type<Paintable>([&](Paintable& child) {
         child.record_hit_test_items(context, PaintPhase::Background);
         record_foreign_object_descendant_hit_test_items(context, child);
         child.record_hit_test_items(context, PaintPhase::Foreground);
@@ -32,7 +32,7 @@ static void record_foreign_object_descendant_hit_test_items(DisplayListRecording
     });
 }
 
-void SVGSVGPaintable::paint_svg_box(DisplayListRecordingContext& context, PaintableBox const& svg_box, PaintPhase phase)
+void SVGSVGPaintable::paint_svg_box(DisplayListRecordingContext& context, Paintable const& svg_box, PaintPhase phase)
 {
     context.display_list_recorder().set_accumulated_visual_context(svg_box.accumulated_visual_context_index());
 
@@ -86,12 +86,12 @@ void SVGSVGPaintable::paint_svg_box(DisplayListRecordingContext& context, Painta
     context.display_list_recorder().end_masks(masks);
 }
 
-void SVGSVGPaintable::paint_descendants(DisplayListRecordingContext& context, PaintableBox const& paintable, PaintPhase phase)
+void SVGSVGPaintable::paint_descendants(DisplayListRecordingContext& context, Paintable const& paintable, PaintPhase phase)
 {
     if (phase != PaintPhase::Foreground)
         return;
 
-    paintable.for_each_child_of_type<PaintableBox>([&](PaintableBox& child) {
+    paintable.for_each_child_of_type<Paintable>([&](Paintable& child) {
         paint_svg_box(context, child, phase);
         return IterationDecision::Continue;
     });

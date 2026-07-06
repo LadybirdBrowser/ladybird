@@ -147,7 +147,7 @@ private:
 
     struct ConflictingEdge {
         Node const* element { nullptr };
-        Painting::PaintableBox::ConflictingElementKind element_kind;
+        Painting::Paintable::ConflictingElementKind element_kind;
         ConflictingSide side;
         Optional<size_t> row;
         Optional<size_t> column;
@@ -156,7 +156,7 @@ private:
     static TableFormattingContext::ConflictingEdge const& winning_conflicting_edge(TableFormattingContext::ConflictingEdge const& a, TableFormattingContext::ConflictingEdge const& b);
 
     static CSS::BorderData const& border_data_conflicting_edge(ConflictingEdge const& conflicting_edge);
-    static Painting::PaintableBox::BorderDataWithElementKind const border_data_with_element_kind_from_conflicting_edge(ConflictingEdge const& conflicting_edge);
+    static Painting::Paintable::BorderDataWithElementKind const border_data_with_element_kind_from_conflicting_edge(ConflictingEdge const& conflicting_edge);
 
     class BorderConflictFinder {
     public:

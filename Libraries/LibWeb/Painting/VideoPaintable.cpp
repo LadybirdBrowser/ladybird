@@ -27,7 +27,7 @@ NonnullRefPtr<VideoPaintable> VideoPaintable::create(Layout::VideoBox const& lay
 }
 
 VideoPaintable::VideoPaintable(Layout::VideoBox const& layout_box)
-    : PaintableBox(layout_box)
+    : Paintable(layout_box)
 {
 }
 
@@ -36,7 +36,7 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
     if (!is_visible())
         return;
 
-    PaintableBox::paint(context, phase);
+    Paintable::paint(context, phase);
 
     if (phase != PaintPhase::Foreground)
         return;

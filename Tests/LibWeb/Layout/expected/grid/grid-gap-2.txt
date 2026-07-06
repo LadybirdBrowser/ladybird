@@ -14,7 +14,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x68]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x52]
-      PaintableBox (Box<DIV>.container) [8,8 784x52]
+      Paintable (Box<DIV>.container) [8,8 784x52]
         PaintableWithLines (BlockContainer<DIV>.item) [435.4375,8 356.5625x18]
         PaintableWithLines (BlockContainer<DIV>.item) [8,42 359.03125x18]
 

@@ -868,17 +868,16 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, WebView::DOMNodePropert
 
     auto serialize_layout = [&](Web::Layout::Node const* layout_node) {
         auto first_paintable = layout_node ? layout_node->first_paintable() : nullptr;
-        if (!layout_node || !layout_node->is_box() || !first_paintable || !first_paintable->is_paintable_box()) {
+        if (!layout_node || !layout_node->is_box() || !first_paintable) {
             return JsonObject {};
         }
 
-        auto const& paintable_box = as<Web::Painting::PaintableBox>(*first_paintable);
-        auto const& box_model = paintable_box.box_model();
+        auto const& box_model = first_paintable->box_model();
 
         JsonObject serialized;
 
-        serialized.set("width"sv, paintable_box.content_width().to_double());
-        serialized.set("height"sv, paintable_box.content_height().to_double());
+        serialized.set("width"sv, first_paintable->content_width().to_double());
+        serialized.set("height"sv, first_paintable->content_height().to_double());
 
         serialized.set("padding-top"sv, box_model.padding.top.to_double());
         serialized.set("padding-right"sv, box_model.padding.right.to_double());

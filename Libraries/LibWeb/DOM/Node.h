@@ -336,13 +336,13 @@ public:
     Layout::Node const* unsafe_layout_node() const { return m_layout_node.ptr(); }
     Layout::Node* unsafe_layout_node() { return m_layout_node.ptr(); }
 
-    RefPtr<Painting::PaintableBox const> paintable_box() const;
-    RefPtr<Painting::PaintableBox> paintable_box();
+    RefPtr<Painting::Paintable const> paintable_box() const;
+    RefPtr<Painting::Paintable> paintable_box();
     RefPtr<Painting::Paintable const> paintable() const;
     RefPtr<Painting::Paintable> paintable();
 
-    RefPtr<Painting::PaintableBox const> unsafe_paintable_box() const;
-    RefPtr<Painting::PaintableBox> unsafe_paintable_box();
+    RefPtr<Painting::Paintable const> unsafe_paintable_box() const;
+    RefPtr<Painting::Paintable> unsafe_paintable_box();
     RefPtr<Painting::Paintable const> unsafe_paintable() const;
     RefPtr<Painting::Paintable> unsafe_paintable();
 

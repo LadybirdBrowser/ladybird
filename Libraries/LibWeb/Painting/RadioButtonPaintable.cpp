@@ -21,7 +21,7 @@ NonnullRefPtr<RadioButtonPaintable> RadioButtonPaintable::create(Layout::RadioBu
 }
 
 RadioButtonPaintable::RadioButtonPaintable(Layout::RadioButton const& layout_box)
-    : PaintableBox(layout_box)
+    : Paintable(layout_box)
 {
 }
 
@@ -30,7 +30,7 @@ void RadioButtonPaintable::paint(DisplayListRecordingContext& context, PaintPhas
     if (!is_visible())
         return;
 
-    PaintableBox::paint(context, phase);
+    Paintable::paint(context, phase);
 
     if (phase != PaintPhase::Foreground)
         return;

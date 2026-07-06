@@ -11,16 +11,13 @@
 #include <LibGfx/TextLayout.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Painting/PaintableTypes.h>
 #include <LibWeb/Painting/ShadowData.h>
 #include <LibWeb/PixelUnits.h>
 
 namespace Web::Painting {
 
-struct LineBoxData {
-    size_t index { 0 };
-    CSSPixelRect rect;
-};
-
+class Paintable;
 class PaintableWithLines;
 
 class WEB_API PaintableFragment {
@@ -37,7 +34,7 @@ public:
         VERIFY(m_paintable_with_lines);
         return *m_paintable_with_lines;
     }
-    RefPtr<PaintableBox> containing_block_paintable() const;
+    RefPtr<Paintable> containing_block_paintable() const;
 
     // Interrupting block-level boxes (block-in-inline) are recorded as phantom fragments; most
     // fragment consumers (hit testing, render spans, client rects) must skip them.
@@ -65,7 +62,7 @@ public:
     Gfx::Orientation orientation() const;
 
     CSSPixelRect selection_rect() const;
-    CSSPixelRect range_rect(Paintable::SelectionState selection_state, size_t start_offset_in_code_units, size_t end_offset_in_code_units) const;
+    CSSPixelRect range_rect(SelectionState selection_state, size_t start_offset_in_code_units, size_t end_offset_in_code_units) const;
 
     struct SelectionOffsets {
         size_t start;
@@ -74,8 +71,8 @@ public:
     };
     Optional<SelectionOffsets> selection_offsets() const;
     Optional<SelectionOffsets> selection_range_for_text_control() const;
-    Paintable::SelectionState selection_state() const { return m_selection_state; }
-    void set_selection_state(Paintable::SelectionState);
+    SelectionState selection_state() const { return m_selection_state; }
+    void set_selection_state(SelectionState);
 
     struct TextDecorationData {
         Vector<CSS::TextDecorationLine> line;
@@ -106,7 +103,7 @@ public:
     bool has_trailing_whitespace() const { return m_has_trailing_whitespace; }
 
 private:
-    Optional<SelectionOffsets> compute_selection_offsets(Paintable::SelectionState, size_t start_offset_in_code_units, size_t end_offset_in_code_units) const;
+    Optional<SelectionOffsets> compute_selection_offsets(SelectionState, size_t start_offset_in_code_units, size_t end_offset_in_code_units) const;
 
     WeakPtr<Layout::Node const> m_layout_node;
     WeakPtr<PaintableWithLines const> m_paintable_with_lines;
@@ -121,7 +118,7 @@ private:
     CSSPixels m_baseline;
     CSSPixels m_text_decoration_thickness { 0 };
     CSS::WritingMode m_writing_mode;
-    Paintable::SelectionState m_selection_state { Paintable::SelectionState::None };
+    SelectionState m_selection_state { SelectionState::None };
     bool m_has_trailing_whitespace { false };
 };
 

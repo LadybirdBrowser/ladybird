@@ -39,8 +39,8 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       PaintableWithLines (BlockContainer(anonymous)) [8,8 784x0]
       PaintableWithLines (BlockContainer<DIV>) [8,8 784x150]
         SVGSVGPaintable (SVGSVGBox<svg>) [8,8 300x150]
-          PaintableBox (Box<use>) [8,8 0x0]
-            PaintableBox (Box<symbol>#braces) [8,8 0x0]
+          Paintable (Box<use>) [8,8 0x0]
+            Paintable (Box<symbol>#braces) [8,8 0x0]
               SVGGeometryPaintable (SVGGeometryBox<path>) [92.375,26.75 131.25x112.15625]
 
 )"sv;
@@ -67,7 +67,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       PaintableWithLines (BlockContainer(anonymous)) [8,8 784x0]
       PaintableWithLines (BlockContainer<DIV>) [8,8 784x150]
         SVGSVGPaintable (SVGSVGBox<svg>) [8,8 300x150]
-          PaintableBox (Box<use>) [8,8 0x0]
+          Paintable (Box<use>) [8,8 0x0]
 
 )"sv;
 
@@ -101,8 +101,8 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     EXPECT_EQ(StringView { hunk2 }, R"(@@ -26,6 +21,4 @@
        PaintableWithLines (BlockContainer<DIV>) [8,8 784x150]
          SVGSVGPaintable (SVGSVGBox<svg>) [8,8 300x150]
-           PaintableBox (Box<use>) [8,8 0x0]
--            PaintableBox (Box<symbol>#braces) [8,8 0x0]
+           Paintable (Box<use>) [8,8 0x0]
+-            Paintable (Box<symbol>#braces) [8,8 0x0]
 -              SVGGeometryPaintable (SVGGeometryBox<path>) [92.375,26.75 131.25x112.15625]
  
 )"sv);

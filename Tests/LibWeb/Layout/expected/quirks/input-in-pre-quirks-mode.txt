@@ -19,7 +19,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x610]
       PaintableWithLines (BlockContainer(anonymous)) [8,13 784x0]
       PaintableWithLines (BlockContainer<PRE>) [8,13 784x19]
         PaintableWithLines (TextInputBox<INPUT>) [8,13 166x19]
-          PaintableBox (Box<DIV>) [11,15 160x15]
+          Paintable (Box<DIV>) [11,15 160x15]
             PaintableWithLines (BlockContainer<DIV>) [11,15 160x15]
       PaintableWithLines (BlockContainer(anonymous)) [8,45 784x0]
 

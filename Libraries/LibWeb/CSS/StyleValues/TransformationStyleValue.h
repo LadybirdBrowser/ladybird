@@ -29,7 +29,7 @@ public:
     StyleValueVector const& values() const { return m_properties.values; }
 
     bool can_be_converted_to_matrix_without_reference_box() const;
-    FloatMatrix4x4 to_matrix(Optional<Painting::PaintableBox const&>) const;
+    FloatMatrix4x4 to_matrix(Optional<Painting::Paintable const&>) const;
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
     GC::Ptr<CSSTransformComponent> reify_a_transform_function(JS::Realm&) const;

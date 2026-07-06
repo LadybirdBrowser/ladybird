@@ -8,11 +8,11 @@
 
 #include <LibGfx/AntiAliasing.h>
 #include <LibWeb/Layout/SVGBox.h>
-#include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/Paintable.h>
 
 namespace Web::Painting {
 
-class SVGPaintable : public PaintableBox {
+class SVGPaintable : public Paintable {
 public:
     virtual StringView class_name() const override { return "SVGPaintable"sv; }
 

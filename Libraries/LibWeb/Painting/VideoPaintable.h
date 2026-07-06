@@ -8,11 +8,11 @@
 #pragma once
 
 #include <LibWeb/Forward.h>
-#include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/Paintable.h>
 
 namespace Web::Painting {
 
-class VideoPaintable final : public PaintableBox {
+class VideoPaintable final : public Paintable {
 public:
     static NonnullRefPtr<VideoPaintable> create(Layout::VideoBox const&);
     virtual StringView class_name() const override { return "VideoPaintable"sv; }

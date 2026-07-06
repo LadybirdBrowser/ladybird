@@ -9,9 +9,9 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x416]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x400]
-      PaintableBox (Box<DIV>.flex.row) [8,8 200x200]
+      Paintable (Box<DIV>.flex.row) [8,8 200x200]
         PaintableWithLines (BlockContainer<DIV>.item) [108,8 100x100]
-      PaintableBox (Box<DIV>.flex.column) [8,208 200x200]
+      Paintable (Box<DIV>.flex.column) [8,208 200x200]
         PaintableWithLines (BlockContainer<DIV>.item) [8,308 100x100]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

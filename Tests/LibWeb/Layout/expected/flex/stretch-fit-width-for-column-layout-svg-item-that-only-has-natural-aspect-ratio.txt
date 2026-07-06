@@ -8,7 +8,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x800]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x800]
-    PaintableBox (Box<BODY>) [8,8 784x784]
+    Paintable (Box<BODY>) [8,8 784x784]
       SVGSVGPaintable (SVGSVGBox<svg>) [8,8 784x784]
         SVGPathPaintable (SVGGeometryBox<rect>) [8,8 392x392]
 

@@ -195,7 +195,7 @@
 #include <LibWeb/Painting/DisplayListCommand.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
-#include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -1944,8 +1944,8 @@ void Document::update_layout(UpdateLayoutReason reason)
         }
 
         // Collect elements with content-visibility: auto. This is used in the HTML event loop to avoid traversing the whole tree every time.
-        Vector<WeakPtr<Painting::PaintableBox>> paintable_boxes_with_auto_content_visibility;
-        unsafe_paintable()->for_each_in_subtree_of_type<Painting::PaintableBox>([&](auto& paintable_box) {
+        Vector<WeakPtr<Painting::Paintable>> paintable_boxes_with_auto_content_visibility;
+        unsafe_paintable()->for_each_in_subtree_of_type<Painting::Paintable>([&](auto& paintable_box) {
             if (paintable_box.dom_node()
                 && paintable_box.dom_node()->is_element()
                 && paintable_box.computed_values().content_visibility() == CSS::ContentVisibility::Auto) {
@@ -2000,7 +2000,7 @@ void Document::clear_devtools_layout_inspection_data()
     if (!paintable)
         return;
 
-    paintable->for_each_in_subtree_of_type<Painting::PaintableBox>([](auto& paintable_box) {
+    paintable->for_each_in_subtree_of_type<Painting::Paintable>([](auto& paintable_box) {
         paintable_box.set_grid_layout_data(nullptr);
         paintable_box.set_flex_layout_data(nullptr);
         return TraversalDecision::Continue;
@@ -2423,7 +2423,7 @@ static CSSPixelPoint hover_event_page_offset(Optional<HoverEventData> const& hov
 // https://drafts.csswg.org/cssom-view/#dom-mouseevent-offsetx
 static CSSPixelPoint compute_mouse_event_offset(CSSPixelPoint position, Painting::Paintable const& paintable)
 {
-    auto inverse_transform_point = [](Painting::PaintableBox const& paintable_box, CSSPixelPoint position) -> Optional<CSSPixelPoint> {
+    auto inverse_transform_point = [](Painting::Paintable const& paintable_box, CSSPixelPoint position) -> Optional<CSSPixelPoint> {
         auto viewport_paintable = paintable_box.document().unsafe_paintable();
         if (!viewport_paintable || !viewport_paintable->has_visual_context_tree())
             return {};
@@ -2435,13 +2435,8 @@ static CSSPixelPoint compute_mouse_event_offset(CSSPixelPoint position, Painting
     };
 
     CSSPixelPoint offset_position = position;
-    if (auto const* paintable_box = as_if<Painting::PaintableBox>(paintable)) {
-        if (auto transformed_position = inverse_transform_point(*paintable_box, position); transformed_position.has_value())
-            offset_position = *transformed_position;
-    } else if (auto containing_block = paintable.containing_block()) {
-        if (auto transformed_position = inverse_transform_point(*containing_block, position); transformed_position.has_value())
-            offset_position = *transformed_position;
-    }
+    if (auto transformed_position = inverse_transform_point(paintable, position); transformed_position.has_value())
+        offset_position = *transformed_position;
 
     auto const top_left_of_layout_node = paintable.box_type_agnostic_position();
     return offset_position - top_left_of_layout_node;
@@ -5719,7 +5714,7 @@ void Document::queue_an_intersection_observer_entry(IntersectionObserver::Inters
 }
 
 // https://www.w3.org/TR/intersection-observer/#compute-the-intersection
-static CSSPixelRect compute_intersection(GC::Ref<Element> target, CSSPixelRect target_rect, IntersectionObserver::IntersectionObserver const& observer, RefPtr<Painting::PaintableBox> root_paintable, CSSPixelRect const& root_bounds)
+static CSSPixelRect compute_intersection(GC::Ref<Element> target, CSSPixelRect target_rect, IntersectionObserver::IntersectionObserver const& observer, RefPtr<Painting::Paintable> root_paintable, CSSPixelRect const& root_bounds)
 {
     // 1. Let intersectionRect be the result of getting the bounding box for target.
     auto intersection_rect = target_rect;
@@ -8060,7 +8055,7 @@ Optional<CSSPixelRect> Document::current_caret_rect()
     // Empty editable elements have no fragments; fall back to the padding-box corner.
     if (auto* node_with_style = as_if<Layout::NodeWithStyleAndBoxModelMetrics>(*layout_node)) {
         auto paintable = node_with_style->first_paintable();
-        if (auto const* box = as_if<Painting::PaintableBox>(paintable.ptr())) {
+        if (auto const* box = paintable.ptr()) {
             auto content_box = box->absolute_padding_box_rect();
             return to_viewport_rect(CSSPixelRect { content_box.x(), content_box.y(), 1, node_with_style->computed_values().line_height() });
         }
@@ -8174,10 +8169,8 @@ void Document::schedule_accumulated_visual_context_value_update(Layout::Node con
 
     bool scheduled_any = false;
     for (auto const& layout_node_paintable : layout_node.paintables()) {
-        if (auto* paintable_box = as_if<Painting::PaintableBox>(*layout_node_paintable)) {
-            m_paintable_boxes_needing_visual_context_value_update.append(*paintable_box);
-            scheduled_any = true;
-        }
+        m_paintable_boxes_needing_visual_context_value_update.append(*layout_node_paintable);
+        scheduled_any = true;
     }
     if (scheduled_any)
         set_needs_repaint(InvalidateDisplayList::No);
@@ -8263,7 +8256,7 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
         if (!flexbox_highlight.node)
             continue;
         auto paintable = flexbox_highlight.node->paintable();
-        auto const* paintable_box = as_if<Painting::PaintableBox>(paintable.ptr());
+        auto const* paintable_box = paintable.ptr();
         if (!paintable_box)
             continue;
         paintable_box->paint_flexbox_inspector_overlay(context, flexbox_highlight.options);
@@ -8273,7 +8266,7 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
         if (!grid_highlight.node)
             continue;
         auto paintable = grid_highlight.node->paintable();
-        auto const* paintable_box = as_if<Painting::PaintableBox>(paintable.ptr());
+        auto const* paintable_box = paintable.ptr();
         if (!paintable_box)
             continue;
         paintable_box->paint_grid_inspector_overlay(context, grid_highlight.options);
@@ -8744,8 +8737,8 @@ String Document::dump_display_list()
     if (!display_list)
         return "No display list"_string;
 
-    HashMap<size_t, RefPtr<Painting::PaintableBox const>> context_id_to_paintable;
-    viewport_paintable->for_each_in_inclusive_subtree_of_type<Painting::PaintableBox>([&](auto const& paintable_box) {
+    HashMap<size_t, RefPtr<Painting::Paintable const>> context_id_to_paintable;
+    viewport_paintable->for_each_in_inclusive_subtree_of_type<Painting::Paintable>([&](auto const& paintable_box) {
         auto visual_context_index = paintable_box.accumulated_visual_context_index();
         (void)context_id_to_paintable.try_set(visual_context_index.value(), paintable_box);
         return TraversalDecision::Continue;

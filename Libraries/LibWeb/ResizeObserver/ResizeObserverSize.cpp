@@ -8,7 +8,7 @@
 #include <LibWeb/Bindings/ResizeObserverSize.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Window.h>
-#include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/ResizeObserver/ResizeObserverSize.h>
 
 namespace Web::ResizeObserver {

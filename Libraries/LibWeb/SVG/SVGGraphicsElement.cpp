@@ -16,7 +16,7 @@
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/PaintStyle.h>
-#include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/SVGForeignObjectPaintable.h>
 #include <LibWeb/Painting/SVGGraphicsPaintable.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>

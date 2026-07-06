@@ -31,7 +31,7 @@ public:
     void refresh_scroll_state();
 
     void assign_accumulated_visual_contexts();
-    bool update_accumulated_visual_context_values(PaintableBox&);
+    bool update_accumulated_visual_context_values(Paintable&);
     void update_visual_viewport_accumulated_visual_context();
     bool visual_context_tree_needs_compositor_update() const { return m_visual_context_tree_needs_compositor_update; }
     void did_update_visual_context_tree_in_compositor() { m_visual_context_tree_needs_compositor_update = false; }
@@ -49,8 +49,8 @@ public:
     ScrollState const& scroll_state() const { return m_scroll_state; }
     ScrollStateSnapshot const& scroll_state_snapshot() const { return m_scroll_state_snapshot; }
 
-    void set_paintable_boxes_with_auto_content_visibility(Vector<WeakPtr<PaintableBox>> paintable_boxes) { m_paintable_boxes_with_auto_content_visibility = move(paintable_boxes); }
-    Vector<WeakPtr<PaintableBox>> const& paintable_boxes_with_auto_content_visibility() const { return m_paintable_boxes_with_auto_content_visibility; }
+    void set_paintable_boxes_with_auto_content_visibility(Vector<WeakPtr<Paintable>> paintable_boxes) { m_paintable_boxes_with_auto_content_visibility = move(paintable_boxes); }
+    Vector<WeakPtr<Paintable>> const& paintable_boxes_with_auto_content_visibility() const { return m_paintable_boxes_with_auto_content_visibility; }
 
     AccumulatedVisualContextTree const& visual_context_tree() const
     {
@@ -74,7 +74,7 @@ private:
     ScrollStateSnapshot m_scroll_state_snapshot;
     bool m_needs_to_refresh_scroll_state { true };
 
-    Vector<WeakPtr<PaintableBox>> m_paintable_boxes_with_auto_content_visibility;
+    Vector<WeakPtr<Paintable>> m_paintable_boxes_with_auto_content_visibility;
 
     Optional<AccumulatedVisualContextTree> m_visual_context_tree;
     bool m_visual_context_tree_needs_compositor_update { false };

@@ -12,6 +12,6 @@
 
 namespace Web::Painting {
 
-Gfx::IntRect get_replaced_box_painting_area(PaintableBox const& paintable, DisplayListRecordingContext const& context, CSS::ObjectFit object_fit, Gfx::IntSize content_size);
+Gfx::IntRect get_replaced_box_painting_area(Paintable const& paintable, DisplayListRecordingContext const& context, CSS::ObjectFit object_fit, Gfx::IntSize content_size);
 
 }

@@ -9,12 +9,12 @@
 
 #include <AK/AllOf.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableFragment.h>
 
 namespace Web::Painting {
 
-class PaintableWithLines : public PaintableBox {
+class PaintableWithLines : public Paintable {
 public:
     static NonnullRefPtr<PaintableWithLines> create(Layout::BlockContainer const&);
     static NonnullRefPtr<PaintableWithLines> create(Layout::InlineNode const&, size_t line_index);

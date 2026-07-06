@@ -26,7 +26,7 @@ SVGGraphicsPaintable::SVGGraphicsPaintable(Layout::SVGGraphicsBox const& layout_
 
 void SVGGraphicsPaintable::reset_for_relayout()
 {
-    PaintableBox::reset_for_relayout();
+    Paintable::reset_for_relayout();
     m_computed_transforms = {};
 }
 

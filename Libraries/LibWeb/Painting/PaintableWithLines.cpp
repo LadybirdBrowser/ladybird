@@ -47,12 +47,12 @@ NonnullRefPtr<PaintableWithLines> PaintableWithLines::create(Layout::InlineNode 
 }
 
 PaintableWithLines::PaintableWithLines(Layout::BlockContainer const& layout_box)
-    : PaintableBox(layout_box)
+    : Paintable(layout_box)
 {
 }
 
 PaintableWithLines::PaintableWithLines(Layout::InlineNode const& inline_node, size_t line_index)
-    : PaintableBox(inline_node)
+    : Paintable(inline_node)
     , m_line_index(line_index)
 {
 }
@@ -63,7 +63,7 @@ PaintableWithLines::~PaintableWithLines()
 
 void PaintableWithLines::reset_for_relayout()
 {
-    PaintableBox::reset_for_relayout();
+    Paintable::reset_for_relayout();
     m_fragments.clear();
 }
 
@@ -80,7 +80,7 @@ void PaintableWithLines::paint_text_fragment_debug_highlight(DisplayListRecordin
 
 void PaintableWithLines::record_hit_test_items(DisplayListRecordingContext& context, PaintPhase phase) const
 {
-    PaintableBox::record_hit_test_items(context, phase);
+    Paintable::record_hit_test_items(context, phase);
 
     if (phase != PaintPhase::Foreground)
         return;
@@ -166,7 +166,7 @@ void PaintableWithLines::paint(DisplayListRecordingContext& context, PaintPhase 
     if (is<Layout::InlineNode>(layout_node()) && has_only_block_level_fragments())
         return;
 
-    PaintableBox::paint(context, phase);
+    Paintable::paint(context, phase);
 
     if (phase == PaintPhase::Foreground) {
         resolve_text_fragment_properties(*this);

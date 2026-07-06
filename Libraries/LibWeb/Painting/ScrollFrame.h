@@ -34,9 +34,9 @@ struct StickyConstraints {
 class ScrollFrame {
 public:
     ScrollFrame() = default;
-    ScrollFrame(PaintableBox const& paintable_box, bool sticky, ScrollFrameIndex parent_index);
+    ScrollFrame(Paintable const& paintable_box, bool sticky, ScrollFrameIndex parent_index);
 
-    PaintableBox const& paintable_box() const;
+    Paintable const& paintable_box() const;
 
     bool is_sticky() const { return m_sticky; }
 
@@ -57,7 +57,7 @@ private:
     friend class ScrollState;
     friend class ScrollStateSnapshot;
 
-    WeakPtr<PaintableBox> m_paintable_box;
+    WeakPtr<Paintable> m_paintable_box;
     bool m_sticky { false };
     ScrollFrameIndex m_parent_index;
     CSSPixelPoint m_own_offset;

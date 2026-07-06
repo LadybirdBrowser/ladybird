@@ -14,7 +14,7 @@
 namespace Web::Painting {
 
 SVGPaintable::SVGPaintable(Layout::SVGBox const& layout_box)
-    : PaintableBox(layout_box)
+    : Paintable(layout_box)
 {
 }
 
@@ -41,7 +41,7 @@ Optional<CSSPixelRect> SVGPaintable::clip_path_geometry_bounds(Gfx::AffineTransf
     // which paint can be applied. Thus, a point is inside the clipping path if it is inside any of the
     // children of the clipPath.
     Gfx::BoundingBox<CSSPixels> bounding_box;
-    for_each_child_of_type<PaintableBox>([&](PaintableBox& child) {
+    for_each_child_of_type<Paintable>([&](Paintable& child) {
         auto const* svg_paintable = as_if<SVGPaintable>(child);
         if (!svg_paintable)
             return IterationDecision::Continue;
@@ -70,7 +70,7 @@ CSSPixelRect SVGPaintable::compute_absolute_rect() const
         }
         return rect;
     }
-    return PaintableBox::compute_absolute_rect();
+    return Paintable::compute_absolute_rect();
 }
 
 Gfx::ShouldAntiAlias SVGPaintable::should_anti_alias() const

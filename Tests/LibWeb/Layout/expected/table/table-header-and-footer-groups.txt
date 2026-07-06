@@ -18,12 +18,12 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x220]
     PaintableWithLines (TableWrapper(anonymous)) [9,9 302x202]
-      PaintableBox (Box<BODY>.table) [9,9 302x202]
-        PaintableBox (Box<DIV>.bottom) [10,10 300x100]
-          PaintableBox (Box(anonymous)) [10,10 300x100]
+      Paintable (Box<BODY>.table) [9,9 302x202]
+        Paintable (Box<DIV>.bottom) [10,10 300x100]
+          Paintable (Box(anonymous)) [10,10 300x100]
             PaintableWithLines (BlockContainer(anonymous)) [10,10 300x100]
-        PaintableBox (Box<DIV>.top) [10,110 300x100]
-          PaintableBox (Box(anonymous)) [10,110 300x100]
+        Paintable (Box<DIV>.top) [10,110 300x100]
+          Paintable (Box(anonymous)) [10,110 300x100]
             PaintableWithLines (BlockContainer(anonymous)) [10,110 300x100]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

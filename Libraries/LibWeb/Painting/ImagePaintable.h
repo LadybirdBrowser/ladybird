@@ -8,11 +8,11 @@
 
 #include <LibWeb/Layout/ImageBox.h>
 #include <LibWeb/Layout/SVGImageBox.h>
-#include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/Paintable.h>
 
 namespace Web::Painting {
 
-class ImagePaintable final : public PaintableBox {
+class ImagePaintable final : public Paintable {
 public:
     static NonnullRefPtr<ImagePaintable> create(Layout::ImageBox const& layout_box);
     static NonnullRefPtr<ImagePaintable> create(Layout::SVGImageBox const& layout_box);

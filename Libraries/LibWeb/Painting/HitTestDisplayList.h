@@ -36,11 +36,11 @@ class WEB_API HitTestDisplayList : public RefCounted<HitTestDisplayList> {
 public:
     static NonnullRefPtr<HitTestDisplayList> create(u64 visual_context_tree_version);
 
-    void append_box(PaintableBox const&, Paintable& target, CSSPixelRect, VisualContextIndex, BorderRadiiData);
+    void append_box(Paintable const&, Paintable& target, CSSPixelRect, VisualContextIndex, BorderRadiiData);
     void append_svg_path(Paintable& target, Gfx::Path, Gfx::WindingRule, CSSPixelRect bounding_box, VisualContextIndex);
     void append_text_fragment(PaintableFragment const&, VisualContextIndex);
     void append_empty_editable(PaintableWithLines const&, CSSPixelRect, VisualContextIndex);
-    void append_chrome_widget(PaintableBox const&, ChromeWidget&, VisualContextIndex);
+    void append_chrome_widget(Paintable const&, ChromeWidget&, VisualContextIndex);
 
     u64 visual_context_tree_version() const { return m_visual_context_tree_version; }
     [[nodiscard]] Optional<HitTestResult> hit_test(CSSPixelPoint, HitTestType, ViewportPaintable const&, double device_pixels_per_css_pixel, ChromeMetrics const&) const;

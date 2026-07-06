@@ -3,7 +3,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [8,8] [8+0+0 184 0+0+8] [8+0+0 0 0+0+8] [BFC] children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableBox (Box<HTML>) [0,0 800x16]
+  Paintable (Box<HTML>) [0,0 800x16]
     PaintableWithLines (BlockContainer<BODY>) [8,8 184x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

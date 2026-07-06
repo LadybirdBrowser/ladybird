@@ -9,7 +9,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Viewport.h>
-#include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/Paintable.h>
 
 namespace Web::Animations {
 
@@ -135,7 +135,7 @@ static Optional<ScrollOffsetData> compute_scroll_offset_data(Variant<GC::Ptr<DOM
     if (!layout_node || !layout_node->is_scroll_container())
         return {};
 
-    auto const& paintable_box = propagated_source.visit([](auto const& source) -> RefPtr<Painting::PaintableBox const> { return source->unsafe_paintable_box(); });
+    auto const& paintable_box = propagated_source.visit([](auto const& source) -> RefPtr<Painting::Paintable const> { return source->unsafe_paintable_box(); });
 
     if (!paintable_box || !paintable_box->has_scrollable_overflow())
         return {};

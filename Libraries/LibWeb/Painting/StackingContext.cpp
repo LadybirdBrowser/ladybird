@@ -18,7 +18,7 @@
 #include <LibWeb/Painting/BackgroundPainting.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
-#include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
 #include <LibWeb/Painting/StackingContext.h>
@@ -31,32 +31,27 @@ static void paint_node(Paintable const& paintable, DisplayListRecordingContext& 
 {
     TemporaryChange save_nesting_level(context.display_list_recorder().m_save_nesting_level, 0);
 
-    RefPtr<PaintableBox const> paintable_box = as_if<PaintableBox>(paintable);
+    // Text fragments in a PaintableWithLines are content of the block container.
+    // They need the descendants' visual context, not the element's own visual context.
+    if (is<PaintableWithLines>(paintable) && phase == PaintPhase::Foreground)
+        context.display_list_recorder().set_accumulated_visual_context(paintable.accumulated_visual_context_for_descendants_index());
+    else
+        context.display_list_recorder().set_accumulated_visual_context(paintable.accumulated_visual_context_index());
 
-    if (paintable_box) {
-        // Text fragments in a PaintableWithLines are content of the block container.
-        // They need the descendants' visual context, not the element's own visual context.
-        if (is<PaintableWithLines>(paintable) && phase == PaintPhase::Foreground)
-            context.display_list_recorder().set_accumulated_visual_context(paintable_box->accumulated_visual_context_for_descendants_index());
-        else
-            context.display_list_recorder().set_accumulated_visual_context(paintable_box->accumulated_visual_context_index());
-    }
+    paintable.record_hit_test_items(context, phase);
 
-    if (paintable_box)
-        paintable_box->record_hit_test_items(context, phase);
-
-    bool const skip_cache = !paintable_box || context.should_show_line_box_borders() || paintable_box->fixed_background_visual_context().has_value();
-    if (!skip_cache && paintable_box->has_cached_commands(phase)) {
-        context.display_list_recorder().replay_cached_commands(paintable_box->cached_commands(phase));
+    bool const skip_cache = context.should_show_line_box_borders() || paintable.fixed_background_visual_context().has_value();
+    if (!skip_cache && paintable.has_cached_commands(phase)) {
+        context.display_list_recorder().replay_cached_commands(paintable.cached_commands(phase));
     } else if (!skip_cache) {
         auto capture = context.display_list_recorder().begin_command_capture();
         if (phase == PaintPhase::Background)
-            paintable_box->record_async_scrolling_metadata(context);
+            paintable.record_async_scrolling_metadata(context);
         paintable.paint(context, phase);
-        paintable_box->set_cached_commands(phase, capture.take());
+        paintable.set_cached_commands(phase, capture.take());
     } else {
-        if (paintable_box && phase == PaintPhase::Background)
-            paintable_box->record_async_scrolling_metadata(context);
+        if (phase == PaintPhase::Background)
+            paintable.record_async_scrolling_metadata(context);
         paintable.paint(context, phase);
     }
 
@@ -65,7 +60,7 @@ static void paint_node(Paintable const& paintable, DisplayListRecordingContext& 
     VERIFY(context.display_list_recorder().m_save_nesting_level == 0);
 }
 
-NonnullRefPtr<StackingContext> StackingContext::create(PaintableBox& paintable, RefPtr<StackingContext> parent, size_t index_in_tree_order)
+NonnullRefPtr<StackingContext> StackingContext::create(Paintable& paintable, RefPtr<StackingContext> parent, size_t index_in_tree_order)
 {
     auto stacking_context = adopt_ref(*new StackingContext(paintable, parent, index_in_tree_order));
     if (parent)
@@ -73,7 +68,7 @@ NonnullRefPtr<StackingContext> StackingContext::create(PaintableBox& paintable, 
     return stacking_context;
 }
 
-StackingContext::StackingContext(PaintableBox& paintable, RefPtr<StackingContext> parent, size_t index_in_tree_order)
+StackingContext::StackingContext(Paintable& paintable, RefPtr<StackingContext> parent, size_t index_in_tree_order)
     : m_paintable(paintable)
     , m_parent(parent)
     , m_index_in_tree_order(index_in_tree_order)
@@ -162,7 +157,7 @@ static void paint_inline_level_non_positioned_descendant(DisplayListRecordingCon
 void StackingContext::paint_node_as_stacking_context(Paintable const& paintable, DisplayListRecordingContext& context)
 {
     if (paintable.is_svg_svg_paintable()) {
-        paint_svg(context, static_cast<PaintableBox const&>(paintable), PaintPhase::Foreground);
+        paint_svg(context, static_cast<Paintable const&>(paintable), PaintPhase::Foreground);
         return;
     }
 
@@ -177,7 +172,7 @@ void StackingContext::paint_node_as_stacking_context(Paintable const& paintable,
     paint_node(paintable, context, PaintPhase::Overlay);
 }
 
-void StackingContext::paint_svg(DisplayListRecordingContext& context, PaintableBox const& paintable, PaintPhase phase)
+void StackingContext::paint_svg(DisplayListRecordingContext& context, Paintable const& paintable, PaintPhase phase)
 {
     if (phase != PaintPhase::Foreground)
         return;
@@ -201,7 +196,7 @@ void StackingContext::paint_descendants(DisplayListRecordingContext& context, Pa
             return IterationDecision::Continue;
 
         if (child.is_svg_svg_paintable()) {
-            paint_svg(context, static_cast<PaintableBox const&>(child), to_paint_phase(phase));
+            paint_svg(context, static_cast<Paintable const&>(child), to_paint_phase(phase));
             return IterationDecision::Continue;
         }
 

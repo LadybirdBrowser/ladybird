@@ -27,7 +27,7 @@
 namespace Web::Painting {
 
 AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaintable&);
-bool update_accumulated_visual_context_values(ViewportPaintable&, PaintableBox&);
+bool update_accumulated_visual_context_values(ViewportPaintable&, Paintable&);
 void update_visual_viewport_accumulated_visual_context(ViewportPaintable&);
 
 NonnullRefPtr<ViewportPaintable> ViewportPaintable::create(Layout::Viewport const& layout_viewport)
@@ -112,7 +112,7 @@ void ViewportPaintable::build_stacking_context_tree()
     set_stacking_context(StackingContext::create(*this, nullptr, 0));
 
     size_t index_in_tree_order = 1;
-    for_each_in_subtree_of_type<PaintableBox>([&](auto& paintable_box) {
+    for_each_in_subtree_of_type<Paintable>([&](auto& paintable_box) {
         paintable_box.invalidate_stacking_context();
         auto parent_context = paintable_box.enclosing_stacking_context();
         auto establishes_stacking_context = paintable_box.layout_node().establishes_stacking_context();
@@ -144,15 +144,15 @@ void ViewportPaintable::paint_all_phases(DisplayListRecordingContext& context)
 
 void ViewportPaintable::assign_scroll_frames()
 {
-    auto precompute_sticky_constraints = [&](ScrollFrameIndex sticky_frame_index, PaintableBox const& paintable_box) {
+    auto precompute_sticky_constraints = [&](ScrollFrameIndex sticky_frame_index, Paintable const& paintable_box) {
         auto nearest_scrolling_ancestor_index = m_scroll_state.nearest_scrolling_ancestor(sticky_frame_index);
         if (!nearest_scrolling_ancestor_index.value())
             return;
 
         auto const& scroll_ancestor_paintable = m_scroll_state.frame_at(nearest_scrolling_ancestor_index).paintable_box();
-        RefPtr<PaintableBox const> scroll_ancestor_paintable_ref = scroll_ancestor_paintable;
+        RefPtr<Paintable const> scroll_ancestor_paintable_ref = scroll_ancestor_paintable;
         auto sticky_border_box_rect = paintable_box.absolute_border_box_rect();
-        RefPtr<PaintableBox const> containing_block_of_sticky = paintable_box.containing_block();
+        RefPtr<Paintable const> containing_block_of_sticky = paintable_box.containing_block();
 
         CSSPixelRect containing_block_region;
         bool needs_parent_offset_adjustment = false;
@@ -174,7 +174,7 @@ void ViewportPaintable::assign_scroll_frames()
         });
     };
 
-    for_each_in_inclusive_subtree_of_type<PaintableBox>([&](auto& paintable_box) {
+    for_each_in_inclusive_subtree_of_type<Paintable>([&](auto& paintable_box) {
         ScrollFrameIndex sticky_scroll_frame_index;
         if (paintable_box.is_sticky_position() && paintable_box.has_sticky_insets()) {
             auto parent_index = paintable_box.nearest_scroll_frame_index();
@@ -204,9 +204,7 @@ void ViewportPaintable::assign_scroll_frames()
 
         for (auto block = paintable.containing_block(); block; block = block->containing_block()) {
             if (auto index = block->own_scroll_frame_index(); index.value()) {
-                if (auto* paintable_box = as_if<PaintableBox>(paintable))
-                    paintable_box->set_enclosing_scroll_frame_index(index);
-
+                paintable.set_enclosing_scroll_frame_index(index);
                 return TraversalDecision::Continue;
             }
             if (block->is_fixed_position()) {
@@ -234,7 +232,7 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
     m_visual_context_tree_needs_compositor_update = true;
 }
 
-bool ViewportPaintable::update_accumulated_visual_context_values(PaintableBox& paintable_box)
+bool ViewportPaintable::update_accumulated_visual_context_values(Paintable& paintable_box)
 {
     if (!m_visual_context_tree.has_value())
         return false;

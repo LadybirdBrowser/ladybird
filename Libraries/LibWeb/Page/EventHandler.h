@@ -148,8 +148,8 @@ private:
     void handle_gamepad_updated(SDL_JoystickID);
     void handle_gamepad_disconnected(SDL_JoystickID);
 
-    RefPtr<Painting::PaintableBox> paint_root();
-    RefPtr<Painting::PaintableBox const> paint_root() const;
+    RefPtr<Painting::Paintable> paint_root();
+    RefPtr<Painting::Paintable const> paint_root() const;
     Unicode::Segmenter& word_segmenter();
 
     GC::Ref<HTML::LocalNavigable> m_navigable;

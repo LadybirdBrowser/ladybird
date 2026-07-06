@@ -6,7 +6,7 @@
 
 #include <LibWeb/HTML/HTMLAudioElement.h>
 #include <LibWeb/Layout/AudioBox.h>
-#include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/Paintable.h>
 
 namespace Web::Layout {
 
@@ -33,7 +33,7 @@ bool AudioBox::can_have_children() const
 
 RefPtr<Painting::Paintable> AudioBox::create_paintable() const
 {
-    return Painting::PaintableBox::create(*this);
+    return Painting::Paintable::create(*this);
 }
 
 }

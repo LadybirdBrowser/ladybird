@@ -89,7 +89,7 @@ static BackgroundBox get_box(CSS::BackgroundBox box_clip, BackgroundBox border_b
 }
 
 // https://www.w3.org/TR/css-backgrounds-3/#backgrounds
-void paint_background(DisplayListRecordingContext& context, PaintableBox const& paintable_box, CSS::ImageRendering image_rendering, ResolvedBackground const& resolved_background, BorderRadiiData const& border_radii)
+void paint_background(DisplayListRecordingContext& context, Paintable const& paintable_box, CSS::ImageRendering image_rendering, ResolvedBackground const& resolved_background, BorderRadiiData const& border_radii)
 {
     auto& display_list_recorder = context.display_list_recorder();
 
@@ -422,7 +422,7 @@ void paint_background(DisplayListRecordingContext& context, PaintableBox const& 
     }
 }
 
-ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> const& layers, PaintableBox const& paintable_box, Color background_color, CSS::BackgroundBox background_color_clip, CSSPixelRect const& border_rect, BorderRadiiData const& border_radii)
+ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> const& layers, Paintable const& paintable_box, Color background_color, CSS::BackgroundBox background_color_clip, CSSPixelRect const& border_rect, BorderRadiiData const& border_radii)
 {
     BackgroundBox border_box {
         border_rect,

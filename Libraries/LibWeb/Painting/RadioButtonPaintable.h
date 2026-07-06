@@ -7,11 +7,11 @@
 #pragma once
 
 #include <LibWeb/Forward.h>
-#include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/Paintable.h>
 
 namespace Web::Painting {
 
-class RadioButtonPaintable final : public PaintableBox {
+class RadioButtonPaintable final : public Paintable {
 public:
     static NonnullRefPtr<RadioButtonPaintable> create(Layout::RadioButton const&);
     virtual StringView class_name() const override { return "RadioButtonPaintable"sv; }

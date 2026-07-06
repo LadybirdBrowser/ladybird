@@ -43,7 +43,7 @@
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
 #include <LibWeb/SVG/SVGFilterElement.h>
 #include <LibWeb/SVG/SVGForeignObjectElement.h>
@@ -69,10 +69,8 @@ Node::~Node()
 
 static void invalidate_paint_caches(Node& node)
 {
-    for (auto& paintable : node.paintables()) {
-        if (auto* paintable_box = as_if<Painting::PaintableBox>(*paintable))
-            paintable_box->invalidate_paint_cache();
-    }
+    for (auto& paintable : node.paintables())
+        paintable->invalidate_paint_cache();
 }
 
 void Node::prepare_for_detach_from_layout_tree()

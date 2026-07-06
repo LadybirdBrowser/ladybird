@@ -7,15 +7,15 @@
 #pragma once
 
 #include <LibWeb/Painting/ChromeWidget.h>
-#include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/Paintable.h>
 
 namespace Web::Painting {
 
 class Scrollbar final : public ChromeWidget {
 public:
-    static NonnullRefPtr<Scrollbar> create(PaintableBox&, PaintableBox::ScrollDirection);
+    static NonnullRefPtr<Scrollbar> create(Paintable&, Paintable::ScrollDirection);
 
-    PaintableBox::ScrollDirection direction() const { return m_direction; }
+    Paintable::ScrollDirection direction() const { return m_direction; }
     bool is_enlarged() const { return m_hovered || m_thumb_grab_position.has_value(); }
 
     virtual bool contains(CSSPixelPoint position, ChromeMetrics const&) const override;
@@ -25,15 +25,15 @@ public:
     virtual void mouse_leave() override;
 
 private:
-    Scrollbar(PaintableBox&, PaintableBox::ScrollDirection);
+    Scrollbar(Paintable&, Paintable::ScrollDirection);
 
     MouseAction mouse_down(CSSPixelPoint, unsigned button);
     MouseAction mouse_move(CSSPixelPoint);
     MouseAction mouse_up(CSSPixelPoint, unsigned button);
     bool scroll_to_mouse_position(CSSPixelPoint);
 
-    WeakPtr<PaintableBox> m_paintable_box;
-    PaintableBox::ScrollDirection m_direction;
+    WeakPtr<Paintable> m_paintable_box;
+    Paintable::ScrollDirection m_direction;
     bool m_hovered { false };
     Optional<CSSPixels> m_thumb_grab_position;
 };

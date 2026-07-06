@@ -5,8 +5,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x216]
-    PaintableBox (Box<BODY>) [8,8 784x200]
-      PaintableBox (Box<SECTION>) [8,8 784x200]
+    Paintable (Box<BODY>) [8,8 784x200]
+      Paintable (Box<SECTION>) [8,8 784x200]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x216] (z-index: auto)

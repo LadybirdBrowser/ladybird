@@ -6,7 +6,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x116]
-    PaintableBox (Box<BODY>) [8,8 100x100]
+    Paintable (Box<BODY>) [8,8 100x100]
       SVGSVGPaintable (SVGSVGBox<svg>) [8,8 100x100]
         SVGPathPaintable (SVGGeometryBox<rect>) [8,8 100x100]
 

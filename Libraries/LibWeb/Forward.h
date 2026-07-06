@@ -1041,7 +1041,7 @@ class CheckBoxPaintable;
 class FieldSetPaintable;
 class MediaPaintable;
 class Paintable;
-class PaintableBox;
+class Paintable;
 class PaintableWithLines;
 class ScrollStateSnapshot;
 class StackingContext;

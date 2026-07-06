@@ -7,11 +7,11 @@
 #pragma once
 
 #include <LibWeb/Layout/NavigableContainerViewport.h>
-#include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/Paintable.h>
 
 namespace Web::Painting {
 
-class NavigableContainerViewportPaintable final : public PaintableBox {
+class NavigableContainerViewportPaintable final : public Paintable {
 public:
     virtual bool is_navigable_container_viewport_paintable() const override { return true; }
 

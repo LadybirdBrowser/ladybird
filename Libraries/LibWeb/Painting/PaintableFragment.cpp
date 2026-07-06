@@ -13,7 +13,7 @@
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
-#include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
 
 namespace Web::Painting {
@@ -67,7 +67,7 @@ void PaintableFragment::set_selection_state(Paintable::SelectionState state)
     auto& paintable_with_lines = const_cast<PaintableWithLines&>(this->paintable_with_lines());
     paintable_with_lines.invalidate_paint_cache();
     for (auto ancestor = paintable_with_lines.parent(); ancestor; ancestor = ancestor->parent()) {
-        if (auto* ancestor_box = as_if<PaintableBox>(ancestor.ptr()))
+        if (auto* ancestor_box = ancestor.ptr())
             ancestor_box->invalidate_paint_cache();
     }
 }
@@ -88,7 +88,7 @@ CSSPixelRect const PaintableFragment::absolute_line_box_rect() const
     return rect;
 }
 
-RefPtr<PaintableBox> PaintableFragment::containing_block_paintable() const
+RefPtr<Paintable> PaintableFragment::containing_block_paintable() const
 {
     if (auto paintable = layout_node().first_paintable())
         return paintable->containing_block();

@@ -10,6 +10,6 @@
 
 namespace Web::Painting {
 
-WEB_API void paint_table_borders(DisplayListRecordingContext&, PaintableBox const& table_paintable);
+WEB_API void paint_table_borders(DisplayListRecordingContext&, Paintable const& table_paintable);
 
 }

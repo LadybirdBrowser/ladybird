@@ -18,7 +18,7 @@ NonnullRefPtr<MarkerPaintable> MarkerPaintable::create(Layout::ListItemMarkerBox
 }
 
 MarkerPaintable::MarkerPaintable(Layout::ListItemMarkerBox const& layout_box)
-    : PaintableBox(layout_box)
+    : Paintable(layout_box)
 {
 }
 
@@ -35,7 +35,7 @@ void MarkerPaintable::paint(DisplayListRecordingContext& context, PaintPhase pha
         return;
 
     if (phase == PaintPhase::Overlay)
-        PaintableBox::paint(context, phase);
+        Paintable::paint(context, phase);
     if (phase != PaintPhase::Foreground)
         return;
 

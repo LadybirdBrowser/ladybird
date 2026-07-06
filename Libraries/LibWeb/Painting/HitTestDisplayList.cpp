@@ -193,7 +193,7 @@ CSSPixelRect HitTestDisplayList::caret_line_rect_for_item(Item const& item) cons
     return rect;
 }
 
-void HitTestDisplayList::append_box(PaintableBox const& paintable_box, Paintable& target, CSSPixelRect rect, VisualContextIndex visual_context_index, BorderRadiiData border_radii)
+void HitTestDisplayList::append_box(Paintable const& paintable_box, Paintable& target, CSSPixelRect rect, VisualContextIndex visual_context_index, BorderRadiiData border_radii)
 {
     Optional<size_t> caret_line_index;
     Optional<CSSPixelRect> caret_line_rect;
@@ -294,12 +294,12 @@ void HitTestDisplayList::append_empty_editable(PaintableWithLines const& paintab
     add_item_to_caret_items(item_index);
 }
 
-void HitTestDisplayList::append_chrome_widget(PaintableBox const& paintable_box, ChromeWidget& chrome_widget, VisualContextIndex visual_context_index)
+void HitTestDisplayList::append_chrome_widget(Paintable const& paintable_box, ChromeWidget& chrome_widget, VisualContextIndex visual_context_index)
 {
     auto item_index = m_items.size();
     m_items.append({
         .kind = ItemKind::ChromeWidget,
-        .paintable = const_cast<PaintableBox&>(paintable_box),
+        .paintable = const_cast<Paintable&>(paintable_box),
         .chrome_widget = chrome_widget,
         .text_fragment = nullptr,
         .rect = {},
@@ -365,7 +365,7 @@ bool HitTestDisplayList::item_can_produce_caret_position(Item const& item) const
     case ItemKind::EmptyEditable:
         return item.paintable->dom_node();
     case ItemKind::Box: {
-        auto const* paintable_box = as_if<PaintableBox>(item.paintable.ptr());
+        auto const* paintable_box = item.paintable.ptr();
         if (paintable_box && paintable_box->effective_z_index().value_or(0) < 0)
             return false;
         return item.paintable->dom_node()

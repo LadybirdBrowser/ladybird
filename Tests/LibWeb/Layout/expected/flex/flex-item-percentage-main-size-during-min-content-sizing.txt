@@ -6,8 +6,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableBox (Box<HTML>) [0,0 60x50]
-    PaintableBox (Box<BODY>) [8,3 44x44]
+  Paintable (Box<HTML>) [0,0 60x50]
+    Paintable (Box<BODY>) [8,3 44x44]
       ImagePaintable (ImageBox<IMG>) [8,3 44x44]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

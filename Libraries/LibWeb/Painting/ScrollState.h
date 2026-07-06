@@ -48,14 +48,14 @@ public:
         m_scroll_frames.empend(); // Sentinel at index 0
     }
 
-    ScrollFrameIndex create_scroll_frame_for(PaintableBox const& paintable_box, ScrollFrameIndex parent)
+    ScrollFrameIndex create_scroll_frame_for(Paintable const& paintable_box, ScrollFrameIndex parent)
     {
         auto index = ScrollFrameIndex { m_scroll_frames.size() };
         m_scroll_frames.empend(paintable_box, false, parent);
         return index;
     }
 
-    ScrollFrameIndex create_sticky_frame_for(PaintableBox const& paintable_box, ScrollFrameIndex parent)
+    ScrollFrameIndex create_sticky_frame_for(Paintable const& paintable_box, ScrollFrameIndex parent)
     {
         auto index = ScrollFrameIndex { m_scroll_frames.size() };
         m_scroll_frames.empend(paintable_box, true, parent);

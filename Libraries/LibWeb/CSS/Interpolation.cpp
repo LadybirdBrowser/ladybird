@@ -46,7 +46,7 @@
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Layout/Node.h>
-#include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/Paintable.h>
 
 namespace Web::CSS {
 
@@ -1242,7 +1242,7 @@ RefPtr<StyleValue const> interpolate_transform(DOM::Element& element, Calculatio
         default:
             generic_function = TransformFunction::Matrix3d;
             // NB: Called during animation interpolation.
-            auto paintable_box = [&] -> Optional<Painting::PaintableBox const&> {
+            auto paintable_box = [&] -> Optional<Painting::Paintable const&> {
                 if (auto box = element.unsafe_paintable_box())
                     return *box;
                 return {};
@@ -1345,9 +1345,9 @@ RefPtr<StyleValue const> interpolate_transform(DOM::Element& element, Calculatio
     //     matrices as described in § 11 Interpolation of Matrices, append the result to Vresult, and cease
     //     iterating over Va and Vb.
     // NB: Called during animation interpolation.
-    Optional<Painting::PaintableBox const&> paintable_box;
+    Optional<Painting::Paintable const&> paintable_box;
     auto paintable = element.unsafe_paintable();
-    if (auto const* box = as_if<Painting::PaintableBox>(paintable.ptr()))
+    if (auto const* box = paintable.ptr())
         paintable_box = *box;
 
     auto post_multiply_remaining_transformations = [&paintable_box](size_t start_index, Vector<NonnullRefPtr<TransformationStyleValue const>> const& transformations) -> Optional<FloatMatrix4x4> {

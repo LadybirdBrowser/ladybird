@@ -17,7 +17,7 @@ NonnullRefPtr<FieldSetPaintable> FieldSetPaintable::create(Layout::FieldSetBox c
 }
 
 FieldSetPaintable::FieldSetPaintable(Layout::FieldSetBox const& layout_box)
-    : PaintableBox(layout_box)
+    : Paintable(layout_box)
 {
 }
 
@@ -68,7 +68,7 @@ void FieldSetPaintable::paint_background(DisplayListRecordingContext& context) c
     auto& recorder = context.display_list_recorder();
     recorder.save();
     recorder.add_clip_rect(context.rounded_device_rect(visual_border_box_rect()).to_type<int>());
-    PaintableBox::paint_background(context);
+    Paintable::paint_background(context);
     recorder.restore();
 }
 
@@ -78,13 +78,13 @@ void FieldSetPaintable::paint(DisplayListRecordingContext& context, PaintPhase p
         return;
 
     if (phase != PaintPhase::Border) {
-        PaintableBox::paint(context, phase);
+        Paintable::paint(context, phase);
         return;
     }
 
     auto legend = layout_box().rendered_legend();
     if (!legend) {
-        PaintableBox::paint(context, phase);
+        Paintable::paint(context, phase);
         return;
     }
 

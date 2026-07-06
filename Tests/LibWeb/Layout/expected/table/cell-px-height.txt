@@ -8,8 +8,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x116]
     PaintableWithLines (TableWrapper(anonymous)) [8,8 102x100]
-      PaintableBox (Box<BODY>) [8,8 102x100]
-        PaintableBox (Box<DIV>.row) [8,8 102x100]
+      Paintable (Box<BODY>) [8,8 102x100]
+        Paintable (Box<DIV>.row) [8,8 102x100]
           PaintableWithLines (BlockContainer<DIV>.cell) [8,8 102x100]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

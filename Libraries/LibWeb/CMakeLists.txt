@@ -893,7 +893,6 @@ set(SOURCES
     Painting/MarkerPaintable.cpp
     Painting/NavigableContainerViewportPaintable.cpp
     Painting/Paintable.cpp
-    Painting/PaintableBox.cpp
     Painting/PaintStyle.cpp
     Painting/PaintableFragment.cpp
     Painting/PaintableWithLines.cpp

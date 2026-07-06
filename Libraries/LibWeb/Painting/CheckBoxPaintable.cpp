@@ -40,7 +40,7 @@ CheckBoxPaintable::create(Layout::CheckBox const& layout_box)
 }
 
 CheckBoxPaintable::CheckBoxPaintable(Layout::CheckBox const& layout_box)
-    : PaintableBox(layout_box)
+    : Paintable(layout_box)
 {
 }
 
@@ -49,7 +49,7 @@ void CheckBoxPaintable::paint(DisplayListRecordingContext& context, PaintPhase p
     if (!is_visible())
         return;
 
-    PaintableBox::paint(context, phase);
+    Paintable::paint(context, phase);
 
     if (phase != PaintPhase::Foreground)
         return;

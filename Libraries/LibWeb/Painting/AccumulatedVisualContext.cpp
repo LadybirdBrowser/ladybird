@@ -21,7 +21,6 @@
 #include <LibWeb/Painting/Blending.h>
 #include <LibWeb/Painting/DevicePixelConverter.h>
 #include <LibWeb/Painting/Paintable.h>
-#include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/ResolvedCSSFilter.h>
 #include <LibWeb/Painting/ScrollState.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
@@ -29,7 +28,7 @@
 namespace Web::Painting {
 
 AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaintable&);
-bool update_accumulated_visual_context_values(ViewportPaintable&, PaintableBox&);
+bool update_accumulated_visual_context_values(ViewportPaintable&, Paintable&);
 void update_visual_viewport_accumulated_visual_context(ViewportPaintable&);
 
 bool ClipData::contains(DevicePixelPoint point) const
@@ -107,7 +106,7 @@ static TransformData visual_viewport_transform_data(DOM::Document& document)
 }
 
 // https://drafts.csswg.org/css-transforms-2/#ctm
-Optional<TransformData> compute_transform(PaintableBox const& paintable_box, CSS::ComputedValues const& computed_values, double pixel_ratio)
+Optional<TransformData> compute_transform(Paintable const& paintable_box, CSS::ComputedValues const& computed_values, double pixel_ratio)
 {
     if (!paintable_box.has_css_transform())
         return {};
@@ -152,7 +151,7 @@ Optional<TransformData> compute_transform(PaintableBox const& paintable_box, CSS
 }
 
 // https://drafts.csswg.org/css-transforms-2/#perspective-matrix
-static Optional<Gfx::FloatMatrix4x4> compute_perspective_matrix(PaintableBox const& paintable_box, CSS::ComputedValues const& computed_values)
+static Optional<Gfx::FloatMatrix4x4> compute_perspective_matrix(Paintable const& paintable_box, CSS::ComputedValues const& computed_values)
 {
     if (!paintable_box.layout_node().is_transformable())
         return {};
@@ -184,7 +183,7 @@ static Optional<Gfx::FloatMatrix4x4> compute_perspective_matrix(PaintableBox con
     return perspective_matrix * Gfx::translation_matrix(Vector3 { -computed_x, -computed_y, 0.f });
 }
 
-static Optional<ClipData> compute_clip_data(PaintableBox const& paintable_box, CSS::ComputedValues const& computed_values, DevicePixelConverter const& converter)
+static Optional<ClipData> compute_clip_data(Paintable const& paintable_box, CSS::ComputedValues const& computed_values, DevicePixelConverter const& converter)
 {
     auto overflow_x = computed_values.overflow_x();
     auto overflow_y = computed_values.overflow_y();
@@ -239,14 +238,14 @@ static Optional<ClipData> compute_clip_data(PaintableBox const& paintable_box, C
         // - However, when one of 'overflow-x' or 'overflow-y' computes to 'clip' and the other computes to 'visible', the
         //   clipping region is not rounded.
         // FIXME: Adjust the border radii for the overflow-clip-margin case. (see https://drafts.csswg.org/css-overflow-4/#valdef-overflow-clip-margin-length-0 )
-        auto radii = (overflow_x != CSS::Overflow::Visible && overflow_y != CSS::Overflow::Visible) ? paintable_box.normalized_border_radii_data(PaintableBox::ShrinkRadiiForBorders::Yes) : BorderRadiiData {};
+        auto radii = (overflow_x != CSS::Overflow::Visible && overflow_y != CSS::Overflow::Visible) ? paintable_box.normalized_border_radii_data(Paintable::ShrinkRadiiForBorders::Yes) : BorderRadiiData {};
         return ClipData { converter.rounded_device_rect(clip_rect), radii.as_corners(converter) };
     }
 
     return {};
 }
 
-static Optional<ClipData> compute_css_clip_data(PaintableBox const& paintable_box, DevicePixelConverter const& converter)
+static Optional<ClipData> compute_css_clip_data(Paintable const& paintable_box, DevicePixelConverter const& converter)
 {
     if (auto css_clip = paintable_box.get_clip_rect(); css_clip.has_value()) {
         auto effective_rect = effective_css_clip_rect(*css_clip);
@@ -255,7 +254,7 @@ static Optional<ClipData> compute_css_clip_data(PaintableBox const& paintable_bo
     return {};
 }
 
-static Optional<ClipPathData> compute_basic_shape_clip_path_data(PaintableBox const& paintable_box, CSS::ComputedValues const& computed_values, DevicePixelConverter const& converter, float scale)
+static Optional<ClipPathData> compute_basic_shape_clip_path_data(Paintable const& paintable_box, CSS::ComputedValues const& computed_values, DevicePixelConverter const& converter, float scale)
 {
     // FIXME: Support other geometry boxes. See: https://drafts.fxtf.org/css-masking/#typedef-geometry-box
     auto const& clip_path = computed_values.clip_path();
@@ -276,7 +275,7 @@ static Optional<ClipPathData> compute_basic_shape_clip_path_data(PaintableBox co
     return ClipPathData { move(device_path), device_bounding_rect, fill_rule };
 }
 
-static Optional<PerspectiveData> compute_perspective_data(PaintableBox const& paintable_box, CSS::ComputedValues const& computed_values, float scale)
+static Optional<PerspectiveData> compute_perspective_data(Paintable const& paintable_box, CSS::ComputedValues const& computed_values, float scale)
 {
     auto perspective_matrix = compute_perspective_matrix(paintable_box, computed_values);
     if (!perspective_matrix.has_value())
@@ -285,7 +284,7 @@ static Optional<PerspectiveData> compute_perspective_data(PaintableBox const& pa
 }
 
 // NB: Resolves the box's filter as a side effect, since the effects data embeds the resolved gfx filter.
-static Optional<EffectsData> compute_effects_data(PaintableBox& box, double pixel_ratio)
+static Optional<EffectsData> compute_effects_data(Paintable& box, double pixel_ratio)
 {
     auto const& computed_values = box.computed_values();
     if (computed_values.filter().has_filters())
@@ -330,7 +329,7 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
         VisualContextIndex fixed_position;
     };
 
-    auto build_paintable_box = [&](auto& self, PaintableBox& paintable_box, DescendantVisualContexts inherited_contexts) -> void {
+    auto build_paintable_box = [&](auto& self, Paintable& paintable_box, DescendantVisualContexts inherited_contexts) -> void {
         auto first_visual_context_node_index = visual_context_tree.nodes().size();
 
         VisualContextIndex inherited_state;
@@ -495,7 +494,7 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
             state_for_absolute_position_descendants,
             state_for_fixed_position_descendants,
         };
-        paintable_box.for_each_child_of_type<PaintableBox>([&](PaintableBox& child) {
+        paintable_box.for_each_child_of_type<Paintable>([&](Paintable& child) {
             self(self, child, child_contexts);
             return IterationDecision::Continue;
         });
@@ -506,7 +505,7 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
         viewport_state_for_descendants,
         visual_viewport_context_index,
     };
-    viewport_paintable.for_each_child_of_type<PaintableBox>([&](PaintableBox& child) {
+    viewport_paintable.for_each_child_of_type<Paintable>([&](Paintable& child) {
         build_paintable_box(build_paintable_box, child, viewport_contexts);
         return IterationDecision::Continue;
     });
@@ -516,7 +515,7 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
 
 // Patches the transform/effects/perspective values of the box's existing visual context nodes in place.
 // Returns false if the box's node structure no longer matches; the caller must then do a full rebuild.
-bool update_accumulated_visual_context_values(ViewportPaintable& viewport_paintable, PaintableBox& paintable_box)
+bool update_accumulated_visual_context_values(ViewportPaintable& viewport_paintable, Paintable& paintable_box)
 {
     auto& visual_context_tree = viewport_paintable.visual_context_tree();
     auto begin = paintable_box.visual_context_nodes_begin();

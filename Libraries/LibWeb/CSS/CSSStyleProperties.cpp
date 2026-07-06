@@ -37,7 +37,7 @@
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxModelMetrics.h>
-#include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/Paintable.h>
 
 namespace Web::CSS {
 
@@ -766,11 +766,11 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         return nullptr;
     }
 
-    auto used_value_for_property = [&layout_node, property_id](Function<CSSPixels(Painting::PaintableBox const&)>&& used_value_getter) -> Optional<CSSPixels> {
+    auto used_value_for_property = [&layout_node, property_id](Function<CSSPixels(Painting::Paintable const&)>&& used_value_getter) -> Optional<CSSPixels> {
         auto const& display = layout_node.computed_values().display();
         if (!display.is_none() && !display.is_contents()) {
             auto first_paintable = layout_node.first_paintable();
-            if (auto const* paintable_box = as_if<Painting::PaintableBox>(first_paintable.ptr()))
+            if (auto const* paintable_box = first_paintable.ptr())
                 return used_value_getter(*paintable_box);
             if (first_paintable)
                 dbgln("FIXME: Support getting used value for property `{}` on {}", string_from_property_id(property_id), layout_node.debug_description());
@@ -779,7 +779,7 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
     };
 
     auto used_size_for_property = [&layout_node, &used_value_for_property]<typename ContentBoxGetter, typename BorderBoxGetter>(ContentBoxGetter content_box_getter, BorderBoxGetter border_box_getter) -> Optional<CSSPixels> {
-        return used_value_for_property([&layout_node, content_box_getter, border_box_getter](Painting::PaintableBox const& paintable_box) {
+        return used_value_for_property([&layout_node, content_box_getter, border_box_getter](Painting::Paintable const& paintable_box) {
             if (layout_node.computed_values().box_sizing() == BoxSizing::BorderBox)
                 return border_box_getter(paintable_box);
             return content_box_getter(paintable_box);
@@ -789,7 +789,7 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
     auto& element = owner_node()->element();
     auto pseudo_element = owner_node()->pseudo_element();
 
-    auto used_value_for_inset = [&layout_node, used_value_for_property](LengthPercentageOrAuto const& start_side, LengthPercentageOrAuto const& end_side, Function<CSSPixels(Painting::PaintableBox const&)>&& used_value_getter) -> Optional<CSSPixels> {
+    auto used_value_for_inset = [&layout_node, used_value_for_property](LengthPercentageOrAuto const& start_side, LengthPercentageOrAuto const& end_side, Function<CSSPixels(Painting::Paintable const&)>&& used_value_getter) -> Optional<CSSPixels> {
         if (!layout_node.is_positioned())
             return {};
 
@@ -999,7 +999,7 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         // 2. Post-multiply all <transform-function>s in <transform-list> to transform.
         auto first_paintable = layout_node.first_paintable();
         VERIFY(first_paintable);
-        auto const& paintable_box = as<Painting::PaintableBox const>(*first_paintable);
+        auto const& paintable_box = *first_paintable;
         for (auto const& transformation : transformations) {
             transform = transform * transformation->to_matrix(paintable_box);
         }
@@ -1132,12 +1132,12 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         // For grid-template-columns and grid-template-rows the resolved value is the used value.
         // https://www.w3.org/TR/css-grid-2/#resolved-track-list-standalone
         if (property_id == PropertyID::GridTemplateColumns) {
-            if (auto first_paintable = layout_node.first_paintable(); auto const* paintable_box = as_if<Painting::PaintableBox>(first_paintable.ptr())) {
+            if (auto first_paintable = layout_node.first_paintable(); auto const* paintable_box = first_paintable.ptr()) {
                 if (auto used_values_for_grid_template_columns = paintable_box->used_values_for_grid_template_columns())
                     return used_values_for_grid_template_columns;
             }
         } else if (property_id == PropertyID::GridTemplateRows) {
-            if (auto first_paintable = layout_node.first_paintable(); auto const* paintable_box = as_if<Painting::PaintableBox>(first_paintable.ptr())) {
+            if (auto first_paintable = layout_node.first_paintable(); auto const* paintable_box = first_paintable.ptr()) {
                 if (auto used_values_for_grid_template_rows = paintable_box->used_values_for_grid_template_rows())
                     return used_values_for_grid_template_rows;
             }

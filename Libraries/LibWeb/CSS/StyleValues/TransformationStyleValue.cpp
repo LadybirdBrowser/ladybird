@@ -32,7 +32,7 @@
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
-#include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/Paintable.h>
 
 namespace Web::CSS {
 
@@ -134,7 +134,7 @@ bool TransformationStyleValue::can_be_converted_to_matrix_without_reference_box(
     return true;
 }
 
-FloatMatrix4x4 TransformationStyleValue::to_matrix(Optional<Painting::PaintableBox const&> paintable_box) const
+FloatMatrix4x4 TransformationStyleValue::to_matrix(Optional<Painting::Paintable const&> paintable_box) const
 {
     auto count = m_properties.values.size();
     auto function_metadata = transform_function_metadata(m_properties.transform_function);

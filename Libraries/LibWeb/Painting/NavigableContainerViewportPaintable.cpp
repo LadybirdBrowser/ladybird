@@ -22,7 +22,7 @@ NonnullRefPtr<NavigableContainerViewportPaintable> NavigableContainerViewportPai
 }
 
 NavigableContainerViewportPaintable::NavigableContainerViewportPaintable(Layout::NavigableContainerViewport const& layout_box)
-    : PaintableBox(layout_box)
+    : Paintable(layout_box)
 {
 }
 
@@ -31,7 +31,7 @@ void NavigableContainerViewportPaintable::paint(DisplayListRecordingContext& con
     if (!is_visible())
         return;
 
-    PaintableBox::paint(context, phase);
+    Paintable::paint(context, phase);
 
     if (phase == PaintPhase::Foreground) {
         auto absolute_rect = this->absolute_rect();
