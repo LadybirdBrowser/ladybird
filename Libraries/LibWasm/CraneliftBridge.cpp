@@ -1184,8 +1184,9 @@ static void try_cranelift_compile_batch(Vector<BatchInput>& batch)
 #elif defined(AK_OS_MACOS)
     // macOS lacks memfd_create; use shm_open + shm_unlink for an anonymous fd.
     char shm_name[] = "/libwasm-cranelift-XXXXXX";
-    arc4random_buf(shm_name + 21, 6);
-    for (int i = 21; i < 27; ++i)
+    constexpr size_t shm_suffix_offset = sizeof("/libwasm-cranelift-") - 1;
+    arc4random_buf(shm_name + shm_suffix_offset, 6);
+    for (size_t i = shm_suffix_offset; i < shm_suffix_offset + 6; ++i)
         shm_name[i] = 'A' + (static_cast<unsigned char>(shm_name[i]) % 26);
     int fd = shm_open(shm_name, O_RDWR | O_CREAT | O_EXCL, 0600);
     if (fd < 0)
