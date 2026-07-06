@@ -1,0 +1,34 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        font: 16px SerenitySans, sans-serif;
+    }
+
+    a {
+        line-height: 0;
+    }
+</style>
+<div><a href="#">Repository link</a></div>
+<script>
+    test(() => {
+        document.body.offsetWidth;
+
+        const anchor = document.querySelector("a");
+        const rect = anchor.getBoundingClientRect();
+        println(`anchor rect has height: ${rect.height > 0}`);
+
+        const x = rect.x + rect.width / 2;
+        const y = rect.y + rect.height / 2;
+        println(`element from point: ${document.elementFromPoint(x, y).localName}`);
+
+        let clickTarget = null;
+        document.addEventListener("click", event => {
+            event.preventDefault();
+            clickTarget = event.target;
+        });
+        internals.click(x, y);
+        println(`click target: ${clickTarget.localName}`);
+    });
+</script>

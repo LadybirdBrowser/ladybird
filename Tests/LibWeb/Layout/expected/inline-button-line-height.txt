@@ -14,7 +14,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             BlockContainer <(anonymous)> (not painted) [BFC] children: inline
               TextNode <#text> (not painted)
             BlockContainer <label.radios--value-button> at [40,10] flex-item [0+2+16 120 16+2+0] [0+2+0 43 0+2+0] [BFC] children: inline
-              frag 0 from TextNode start: 0, length: 6, rect: [40,10 120x43] baseline: 27.5
+              frag 0 from TextNode start: 0, length: 6, rect: [40,21.5 120x20] baseline: 16
                   "100 ML"
               TextNode <#text> (not painted)
             BlockContainer <(anonymous)> (not painted) [BFC] children: inline
@@ -28,7 +28,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             BlockContainer <(anonymous)> (not painted) [BFC] children: inline
               TextNode <#text> (not painted)
             BlockContainer <label.radios--value-button> at [40,73] flex-item [0+2+16 100 16+2+0] [0+2+0 43 0+2+0] [BFC] children: inline
-              frag 0 from TextNode start: 0, length: 5, rect: [40,73 100x43] baseline: 27.5
+              frag 0 from TextNode start: 0, length: 5, rect: [40,84.5 100x20] baseline: 16
                   "50 ML"
               TextNode <#text> (not painted)
             BlockContainer <(anonymous)> (not painted) [BFC] children: inline
@@ -42,7 +42,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             BlockContainer <(anonymous)> (not painted) [BFC] children: inline
               TextNode <#text> (not painted)
             BlockContainer <label.radios--value-button> at [40,136] flex-item [0+2+16 100 16+2+0] [0+2+0 43 0+2+0] [BFC] children: inline
-              frag 0 from TextNode start: 0, length: 5, rect: [40,136 100x43] baseline: 27.5
+              frag 0 from TextNode start: 0, length: 5, rect: [40,147.5 100x20] baseline: 16
                   "30 ML"
               TextNode <#text> (not painted)
             BlockContainer <(anonymous)> (not painted) [BFC] children: inline
@@ -56,7 +56,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             BlockContainer <(anonymous)> (not painted) [BFC] children: inline
               TextNode <#text> (not painted)
             BlockContainer <label.radios--value-button> at [196,136] flex-item [0+2+16 80 16+2+0] [0+2+0 43 0+2+0] [BFC] children: inline
-              frag 0 from TextNode start: 0, length: 4, rect: [196,136 80x43] baseline: 27.5
+              frag 0 from TextNode start: 0, length: 4, rect: [196,147.5 80x20] baseline: 16
                   "15ML"
               TextNode <#text> (not painted)
             BlockContainer <(anonymous)> (not painted) [BFC] children: inline

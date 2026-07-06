@@ -2,9 +2,9 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 42 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
       BlockContainer <div.outer> at [1,1] floating [0+1+0 132.140625 0+1+0] [0+1+0 40 0+1+0] [BFC] children: inline
-        frag 0 from TextNode start: 0, length: 1, rect: [101,1 9.703125x20] baseline: 14.796875
+        frag 0 from TextNode start: 0, length: 1, rect: [101,3 9.703125x16] baseline: 12.796875
             "x"
-        frag 1 from TextNode start: 0, length: 16, rect: [1,21 132.140625x20] baseline: 14.796875
+        frag 1 from TextNode start: 0, length: 16, rect: [1,23 132.140625x16] baseline: 12.796875
             "abcdefghijklmnop"
         BlockContainer <div.inner-float> at [1,1] floating [0+0+0 100 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
         TextNode <#text> (not painted)

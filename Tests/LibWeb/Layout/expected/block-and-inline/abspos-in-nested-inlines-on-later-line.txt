@@ -2,19 +2,19 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 40 0+0+0] children: not-inline
       BlockContainer <div> at [0,0] [0+0+0 800 0+0+0] [0+0+0 40 0+0+0] children: inline
-        frag 0 from TextNode start: 0, length: 5, rect: [0,0 50x20] baseline: 13
+        frag 0 from TextNode start: 0, length: 5, rect: [0,5 50x10] baseline: 8
             "line1"
         TextNode <#text> (not painted)
         BreakNode <br> (not painted)
         InlineNode <span> at [0,0] [0+0+0 0 0+0+0] [0+0+0 20 0+0+0]
-          InlineNode <i> at [0,20] [0+0+0 40 0+0+0] [0+0+0 20 0+0+0]
-            frag 0 from TextNode start: 0, length: 2, rect: [0,20 20x20] baseline: 13
+          InlineNode <i> at [0,25] [0+0+0 40 0+0+0] [0+0+0 10 0+0+0]
+            frag 0 from TextNode start: 0, length: 2, rect: [0,25 20x10] baseline: 8
                 "ab"
-            frag 1 from TextNode start: 0, length: 2, rect: [20,20 20x20] baseline: 13
+            frag 1 from TextNode start: 0, length: 2, rect: [20,25 20x10] baseline: 8
                 "cd"
             TextNode <#text> (not painted)
             BlockContainer <b> at [20,20] positioned [0+0+0 10 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
-              frag 0 from TextNode start: 0, length: 1, rect: [20,20 10x20] baseline: 13
+              frag 0 from TextNode start: 0, length: 1, rect: [20,25 10x10] baseline: 8
                   "X"
               TextNode <#text> (not painted)
             TextNode <#text> (not painted)
@@ -26,7 +26,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [0,0 800x40]
       PaintableWithLines (BlockContainer<DIV>) [0,0 800x40]
         PaintableWithLines (InlineNode<SPAN>) [0,0 0x20]
-          PaintableWithLines (InlineNode<I>) [0,20 40x20]
+          PaintableWithLines (InlineNode<I>) [0,25 40x10]
             PaintableWithLines (BlockContainer<B>) [20,20 10x20]
       PaintableWithLines (BlockContainer(anonymous)) [0,40 800x0]
 

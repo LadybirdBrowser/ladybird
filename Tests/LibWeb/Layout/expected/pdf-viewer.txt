@@ -109,7 +109,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                           Box <div> at [166,8] flex-container(row) [0+0+0 40 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
                             Box <div> at [166,8] flex-container(row) flex-item [0+0+0 40 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
                               BlockContainer <div> at [166,8] flex-item [0+0+0 40 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-                                frag 0 from TextNode start: 0, length: 1, rect: [201.234375,8 4.765625x16] baseline: 11.59375
+                                frag 0 from TextNode start: 0, length: 1, rect: [201.234375,10 4.765625x12] baseline: 9.59375
                                     "1"
                                 TextNode <#text> (not painted)
                         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
@@ -118,7 +118,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                         TextNode <#text> (not painted)
                       Box <span#numPages.toolbarLabel> at [220,2] flex-container(column) flex-item [2+0+3 23.359375 4+0+2] [2+0+0 28 0+0+2] [FFC] children: not-inline
                         BlockContainer <(anonymous)> at [220,9] flex-item [0+0+0 23.359375 0+0+0] [0+0+0 14 0+0+0] [BFC] children: inline
-                          frag 0 from TextNode start: 0, length: 6, rect: [220,9 23.359375x14] baseline: 10.59375
+                          frag 0 from TextNode start: 0, length: 6, rect: [220,10 23.359375x12] baseline: 9.59375
                               "of ⁨1⁩"
                           TextNode <#text> (not painted)
                       BlockContainer <(anonymous)> (not painted) [BFC] children: inline
@@ -351,7 +351,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                     CanvasBox <canvas> at [233.5,42] positioned [0+0+0 333 0+0+0] [0+0+0 133 0+0+0] children: not-inline
                   BlockContainer <div.textLayer> at [233.5,42] positioned [0+0+0 333 0+0+0] [0+0+0 133 0+0+0] [BFC] children: not-inline
                     BlockContainer <span> at [316.75,64.9375] positioned [0+0+0 121.046875 0+0+0] [0+0+0 23.328125 0+0+0] [BFC] children: inline
-                      frag 0 from TextNode start: 0, length: 9, rect: [316.75,64.9375 121.046875x23.328125] baseline: 18.65625
+                      frag 0 from TextNode start: 0, length: 9, rect: [316.75,64.609375 121.046875x24] baseline: 18.984375
                           "Hello PDF"
                       TextNode <#text> (not painted)
                     BlockContainer <div.endOfContent> at [233.5,175] positioned [0+0+0 333 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline

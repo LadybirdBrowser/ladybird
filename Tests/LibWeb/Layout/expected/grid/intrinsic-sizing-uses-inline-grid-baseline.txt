@@ -6,11 +6,11 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           TextNode <#text> (not painted)
         BlockContainer <div.item> at [0,0] flex-item [0+0+0 164.9375 0+0+0] [0+0+0 32 0+0+0] [BFC] children: inline
           frag 0 from Box start: 0, length: 0, rect: [13,1 48.203125x30] baseline: 20.203125
-          frag 1 from TextNode start: 0, length: 14, rect: [74.203125,5 90.734375x21] baseline: 14.703125
+          frag 1 from TextNode start: 0, length: 14, rect: [74.203125,8.5 90.734375x14] baseline: 11.203125
               " trailing text"
           Box <span.button> at [13,1] [0+1+12 48.203125 12+1+0] [0+1+0 30 0+1+0] [GFC] children: not-inline
             BlockContainer <(anonymous)> at [13,5.5] [0+0+0 48.203125 0+0+0] [0+0+0 21 0+0+0] [BFC] children: inline
-              frag 0 from TextNode start: 0, length: 7, rect: [13,5.5 48.203125x21] baseline: 14.703125
+              frag 0 from TextNode start: 0, length: 7, rect: [13,9 48.203125x14] baseline: 11.203125
                   "Filters"
               TextNode <#text> (not painted)
           TextNode <#text> (not painted)

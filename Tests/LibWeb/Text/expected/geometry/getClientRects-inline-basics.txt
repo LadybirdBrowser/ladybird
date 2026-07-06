@@ -1,11 +1,11 @@
 wrap: 3
-wrap[0]: 10,10 40x20
-wrap[1]: 10,30 40x20
-wrap[2]: 10,50 40x20
+wrap[0]: 10,15 40x10
+wrap[1]: 10,35 40x10
+wrap[2]: 10,55 40x10
 interrupted: 2
-interrupted[0]: 10,80 30x20
-interrupted[1]: 10,130 40x20
-interrupted bounding: 10,80 40x70
+interrupted[0]: 10,85 30x10
+interrupted[1]: 10,135 40x10
+interrupted bounding: 10,85 40x60
 only-block: 1
 only-block[0]: 10,160 0x0
 only-block bounding: 10,160 0x0

@@ -5,7 +5,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         Box <div> at [8,8] table-box [0+0+0 69.078125 0+0+0] [0+0+0 100 0+0+0] [TFC] children: inline
           Box <(anonymous)> at [8,8] table-row [0+0+0 69.078125 0+0+0] [0+0+0 100 0+0+0] children: inline
             BlockContainer <(anonymous)> at [8,8] table-cell [0+0+0 69.078125 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
-              frag 0 from TextNode start: 0, length: 5, rect: [8,8 69.078125x100] baseline: 59
+              frag 0 from TextNode start: 0, length: 5, rect: [8,43 69.078125x30] baseline: 24
                   "hello"
               TextNode <#text> (not painted)
 

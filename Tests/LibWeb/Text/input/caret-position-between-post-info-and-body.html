@@ -29,10 +29,9 @@
         document.body.offsetWidth;
 
         const timeRect = time.getBoundingClientRect();
-        const infoRect = info.getBoundingClientRect();
         const position = document.caretPositionFromPoint(
             Math.floor(timeRect.x + timeRect.width / 2),
-            Math.ceil(infoRect.bottom) + 1);
+            Math.ceil(timeRect.bottom) + 1);
 
         println(`caret below post info starts message: ${position.offsetNode === message.firstChild && position.offset === 0}`);
     });

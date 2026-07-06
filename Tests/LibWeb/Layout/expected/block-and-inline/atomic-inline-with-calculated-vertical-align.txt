@@ -1,7 +1,7 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 80 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 80 0+0+0] children: inline
-      frag 0 from TextNode start: 0, length: 12, rect: [0,0 104.15625x80] baseline: 44.796875
+      frag 0 from TextNode start: 0, length: 12, rect: [0,32 104.15625x16] baseline: 12.796875
           "Get in touch"
       frag 1 from BlockContainer start: 0, length: 0, rect: [104.15625,30 16x16] baseline: 16
       TextNode <#text> (not painted)

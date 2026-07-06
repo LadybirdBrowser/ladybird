@@ -50,11 +50,11 @@
         const statusElement = document.getElementById("status");
         const activeText = statusElement.nextSibling;
         const statusText = statusElement.firstChild;
-        const statusRect = statusElement.getBoundingClientRect();
+        const metaRect = document.getElementById("meta").getBoundingClientRect();
         const activeRect = textRect(activeText, "active");
         const aboveStatusLine = document.caretPositionFromPoint(
             Math.floor(activeRect.x + activeRect.width / 2),
-            Math.floor(statusRect.y) - 2);
+            Math.floor(metaRect.y) - 2);
 
         println(`above status line snaps to logical line start: ${aboveStatusLine.offsetNode === statusText && aboveStatusLine.offset === 0}`);
     });

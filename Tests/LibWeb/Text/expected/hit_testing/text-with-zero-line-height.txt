@@ -1,0 +1,3 @@
+anchor rect has height: true
+element from point: a
+click target: a

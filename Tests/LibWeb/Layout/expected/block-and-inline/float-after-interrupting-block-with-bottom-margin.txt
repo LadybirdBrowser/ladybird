@@ -4,10 +4,10 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <div> at [0,0] [0+0+0 800 0+0+0] [0+0+0 70 0+0+0] children: inline
         InlineNode <span> at [0,0] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0]
           frag 0 from BlockContainer start: 0, length: 0, rect: [0,0 800x10] baseline: 0
-          frag 0 from TextNode start: 0, length: 4, rect: [20,50 40x20] baseline: 13
+          frag 0 from TextNode start: 0, length: 4, rect: [20,55 40x10] baseline: 8
               "text"
           BlockContainer <div> at [0,0] [0+0+0 800 0+0+0] [0+0+0 10 0+0+40] children: inline
-            frag 0 from TextNode start: 0, length: 5, rect: [0,0 50x20] baseline: 13
+            frag 0 from TextNode start: 0, length: 5, rect: [0,5 50x10] baseline: 8
                 "block"
             TextNode <#text> (not painted)
           ImageBox <img> at [0,50] floating [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] children: not-inline
@@ -23,12 +23,12 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
           PaintableWithLines (BlockContainer<DIV>) [0,0 800x10]
           ImagePaintable (ImageBox<IMG>) [0,50 20x20]
 
-        PaintableWithLines (InlineNode<SPAN>) [20,50 40x20]
+        PaintableWithLines (InlineNode<SPAN>) [20,55 40x10]
         PaintableWithLines (InlineNode<SPAN>) [0,0 0x0]
           PaintableWithLines (BlockContainer<DIV>) [0,0 800x10]
           ImagePaintable (ImageBox<IMG>) [0,50 20x20]
 
-        PaintableWithLines (InlineNode<SPAN>) [20,50 40x20]
+        PaintableWithLines (InlineNode<SPAN>) [20,55 40x10]
       PaintableWithLines (BlockContainer(anonymous)) [0,70 800x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

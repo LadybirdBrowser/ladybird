@@ -49,8 +49,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <(anonymous)> at [0,284] [0+0+0 400 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
       BlockContainer <div.case> at [20,284] [20+0+0 360 0+0+20] [20+0+0 60 0+0+20] children: inline
-        InlineNode <span.large-sibling> at [20,284] [0+0+0 30.75 0+0+0] [0+0+0 60 0+0+0]
-          frag 0 from TextNode start: 0, length: 1, rect: [20,284 30.75x60] baseline: 42
+        InlineNode <span.large-sibling> at [20,294] [0+0+0 30.75 0+0+0] [0+0+0 40 0+0+0]
+          frag 0 from TextNode start: 0, length: 1, rect: [20,294 30.75x40] baseline: 32
               "T"
           TextNode <#text> (not painted)
         InlineNode <span.host> at [55.75,321] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0]
@@ -109,15 +109,15 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <(anonymous)> at [0,624] [0+0+0 400 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
       BlockContainer <div.case> at [20,624] [20+0+0 360 0+0+20] [20+0+0 40 0+0+20] children: inline
-        InlineNode <span.zero-host> at [20,634] [0+0+0 45.046875 0+0+0] [0+0+0 0 0+0+0]
-          frag 0 from TextNode start: 0, length: 5, rect: [20,634 45.046875x0] baseline: 6
+        InlineNode <span.zero-host> at [20,624] [0+0+0 45.046875 0+0+0] [0+0+0 20 0+0+0]
+          frag 0 from TextNode start: 0, length: 5, rect: [20,624 45.046875x20] baseline: 16
               "first"
-          frag 0 from TextNode start: 0, length: 6, rect: [20,654 68.5x0] baseline: 6
+          frag 0 from TextNode start: 0, length: 6, rect: [20,644 68.5x20] baseline: 16
               "second"
           TextNode <#text> (not painted)
           BreakNode <br> (not painted)
           TextNode <#text> (not painted)
-          BlockContainer <span.overlay> at [20,634] positioned [0+0+0 68.5 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+          BlockContainer <span.overlay> at [20,624] positioned [0+0+0 68.5 0+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
       BlockContainer <(anonymous)> at [0,684] [0+0+0 400 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
       BlockContainer <div.case.sideways> at [20,684] [20+0+0 360 0+0+20] [20+0+0 24 0+0+20] children: inline
@@ -177,7 +177,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x808]
           PaintableWithLines (BlockContainer<SPAN>.overlay) [20,244 10x30]
       PaintableWithLines (BlockContainer(anonymous)) [0,284 400x0]
       PaintableWithLines (BlockContainer<DIV>.case) [20,284 360x60]
-        PaintableWithLines (InlineNode<SPAN>.large-sibling) [20,284 30.75x60]
+        PaintableWithLines (InlineNode<SPAN>.large-sibling) [20,294 30.75x40]
         PaintableWithLines (InlineNode<SPAN>.host) [55.75,321 0x0]
           PaintableWithLines (BlockContainer<SPAN>.atomic.baseline.border-only) [50.75,316 10x10]
           PaintableWithLines (BlockContainer<SPAN>.overlay) [50.75,316 10x20]
@@ -218,14 +218,14 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x808]
           PaintableWithLines (BlockContainer<SPAN>.overlay) [20,589 10x20]
       PaintableWithLines (BlockContainer(anonymous)) [0,624 400x0]
       PaintableWithLines (BlockContainer<DIV>.case) [20,624 360x40]
-        PaintableWithLines (InlineNode<SPAN>.zero-host) [20,634 45.046875x0]
-          PaintableWithLines (BlockContainer<SPAN>.overlay) [20,634 68.5x20]
+        PaintableWithLines (InlineNode<SPAN>.zero-host) [20,624 45.046875x20]
+          PaintableWithLines (BlockContainer<SPAN>.overlay) [20,624 68.5x40]
 
-        PaintableWithLines (InlineNode<SPAN>.zero-host) [20,654 68.5x0]
-        PaintableWithLines (InlineNode<SPAN>.zero-host) [20,634 45.046875x0]
-          PaintableWithLines (BlockContainer<SPAN>.overlay) [20,634 68.5x20]
+        PaintableWithLines (InlineNode<SPAN>.zero-host) [20,644 68.5x20]
+        PaintableWithLines (InlineNode<SPAN>.zero-host) [20,624 45.046875x20]
+          PaintableWithLines (BlockContainer<SPAN>.overlay) [20,624 68.5x40]
 
-        PaintableWithLines (InlineNode<SPAN>.zero-host) [20,654 68.5x0]
+        PaintableWithLines (InlineNode<SPAN>.zero-host) [20,644 68.5x20]
       PaintableWithLines (BlockContainer(anonymous)) [0,684 400x0]
       PaintableWithLines (BlockContainer<DIV>.case.sideways) [20,684 360x24]
         PaintableWithLines (InlineNode<SPAN>.host) [361,701 8x0]
