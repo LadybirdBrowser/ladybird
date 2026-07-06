@@ -232,18 +232,25 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
     m_mousedown_visual_viewport_position = visual_viewport_position;
 
     auto coordinates = compute_mouse_event_coordinates(visual_viewport_position, viewport_position, *paintable, *layout_node);
-    if (!dispatch_a_pointer_event_for_a_device_that_supports_hover(PointerEventType::PointerDown, *node, chrome_widget, coordinates, screen_position, {}, button, buttons, modifiers, click_count))
-        return EventResult::Cancelled;
+    auto dispatch_result = dispatch_a_pointer_event_for_a_device_that_supports_hover(PointerEventType::PointerDown, *node, chrome_widget, coordinates, screen_position, {}, button, buttons, modifiers, click_count);
+
+    bool is_context_menu_trigger = button == UIEvents::MouseButton::Secondary;
+#if defined(AK_OS_MACOS)
+    is_context_menu_trigger |= button == UIEvents::MouseButton::Primary && (modifiers & UIEvents::KeyModifier::Mod_Ctrl) != 0;
+#endif
 
     // FIXME: The spec allows this to be fired following mousedown or mouseup. The native behavior on Windows is to
     //        do so in mouseup, so we should make this configurable by the UI.
-    if (button == UIEvents::MouseButton::Secondary)
+    // NB: The contextmenu event is dispatched even if the page cancelled the pointerdown or mousedown event,
+    //     matching other engines. The page can still suppress the native context menu by cancelling the
+    //     contextmenu event itself.
+    if (is_context_menu_trigger && dispatch_result != PointerEventDispatchResult::SwallowedByChromeWidget)
         maybe_show_context_menu(*node, coordinates, screen_position, viewport_position, buttons, modifiers);
-#if defined(AK_OS_MACOS)
-    else if (button == UIEvents::MouseButton::Primary && (modifiers & UIEvents::KeyModifier::Mod_Ctrl) != 0)
-        maybe_show_context_menu(*node, coordinates, screen_position, viewport_position, buttons, modifiers);
-#endif
-    else
+
+    if (dispatch_result != PointerEventDispatchResult::RunDefaultActions)
+        return EventResult::Cancelled;
+
+    if (!is_context_menu_trigger)
         m_mousedown_target_is_drag_candidate = button == UIEvents::MouseButton::Primary;
 
     // NB: Dispatching an event may have disturbed the world.
@@ -388,7 +395,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
             auto movement = compute_mouse_event_movement(screen_position);
             m_mousemove_previous_screen_position = screen_position;
 
-            if (!dispatch_a_pointer_event_for_a_device_that_supports_hover(PointerEventType::PointerMove, *node, chrome_widget, coordinates, screen_position, movement, UIEvents::MouseButton::Primary, buttons, modifiers))
+            if (dispatch_a_pointer_event_for_a_device_that_supports_hover(PointerEventType::PointerMove, *node, chrome_widget, coordinates, screen_position, movement, UIEvents::MouseButton::Primary, buttons, modifiers) != PointerEventDispatchResult::RunDefaultActions)
                 return EventResult::Cancelled;
         }
     } else if (m_mousedown_target) {
@@ -399,7 +406,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
         auto movement = compute_mouse_event_movement(screen_position);
         m_mousemove_previous_screen_position = screen_position;
 
-        if (!dispatch_a_pointer_event_for_a_device_that_supports_hover(PointerEventType::PointerMove, document->html_element(), nullptr, coordinates, screen_position, movement, UIEvents::MouseButton::Primary, buttons, modifiers))
+        if (dispatch_a_pointer_event_for_a_device_that_supports_hover(PointerEventType::PointerMove, document->html_element(), nullptr, coordinates, screen_position, movement, UIEvents::MouseButton::Primary, buttons, modifiers) != PointerEventDispatchResult::RunDefaultActions)
             return EventResult::Cancelled;
     }
 
@@ -2262,7 +2269,7 @@ static void set_node_and_ancestors_being_activated(DOM::Node* node, bool activat
 }
 
 // https://w3c.github.io/pointerevents/#mapping-for-devices-that-support-hover
-bool EventHandler::dispatch_a_pointer_event_for_a_device_that_supports_hover(PointerEventType type, GC::Ptr<DOM::Node> node, RefPtr<Painting::ChromeWidget> chrome_widget, MouseEventCoordinates const& coordinates, CSSPixelPoint screen_position, CSSPixelPoint movement, unsigned button, unsigned buttons, unsigned modifiers, int click_count)
+EventHandler::PointerEventDispatchResult EventHandler::dispatch_a_pointer_event_for_a_device_that_supports_hover(PointerEventType type, GC::Ptr<DOM::Node> node, RefPtr<Painting::ChromeWidget> chrome_widget, MouseEventCoordinates const& coordinates, CSSPixelPoint screen_position, CSSPixelPoint movement, unsigned button, unsigned buttons, unsigned modifiers, int click_count)
 {
     auto& document = *m_navigable->active_document();
     auto& realm = document.realm();
@@ -2314,7 +2321,7 @@ bool EventHandler::dispatch_a_pointer_event_for_a_device_that_supports_hover(Poi
     if (chrome_widget || m_captured_chrome_widget)
         document.update_layout(DOM::UpdateLayoutReason::EventHandlerDispatchChromeWidgetEvent);
     if (!dispatch_chrome_widget_pointer_event(chrome_widget, pointer_event_name, button, coordinates.visual_viewport_position))
-        return false;
+        return PointerEventDispatchResult::SwallowedByChromeWidget;
 
     // FIXME: This will be moved to the click event and need to track the targets of the pointerdown and pointerup events.
     //        https://github.com/w3c/pointerevents/pull/460
@@ -2358,7 +2365,7 @@ bool EventHandler::dispatch_a_pointer_event_for_a_device_that_supports_hover(Poi
     if (type == PointerEventType::PointerUp || type == PointerEventType::PointerCancel)
         m_prevent_mouse_event = false;
 
-    return run_default_activation_behavior;
+    return run_default_activation_behavior ? PointerEventDispatchResult::RunDefaultActions : PointerEventDispatchResult::CancelledByPage;
 }
 
 void EventHandler::track_the_effective_position_of_the_legacy_mouse_pointer(GC::Ptr<DOM::Node> target, Optional<DOM::HoverEventData> hover_event_data)

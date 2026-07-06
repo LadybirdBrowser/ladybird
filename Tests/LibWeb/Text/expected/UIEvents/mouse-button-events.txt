@@ -31,10 +31,12 @@ auxclick target=#target button=2 detail=1
 > single right click with mousedown default behavior prevented
 pointerdown target=#target button=2 detail=0
 mousedown target=#target button=2 detail=1
+contextmenu target=#target button=2 detail=0
 pointerup target=#target button=2 detail=0
 mouseup target=#target button=2 detail=1
 auxclick target=#target button=2 detail=1
 > single right click with pointerdown default behavior prevented
 pointerdown target=#target button=2 detail=0
+contextmenu target=#target button=2 detail=0
 pointerup target=#target button=2 detail=0
 auxclick target=#target button=2 detail=1
