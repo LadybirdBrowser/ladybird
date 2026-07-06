@@ -378,15 +378,22 @@ void EventLoopImplementationWindows::wake()
 
 static int notifier_type_to_network_event(NotificationType type)
 {
-    switch (type) {
-    case NotificationType::Read:
-        return FD_READ | FD_CLOSE | FD_ACCEPT;
-    case NotificationType::Write:
-        return FD_WRITE;
-    default:
+    // NotificationType is a bitmask (e.g. HangUp | Error), so translate each set bit.
+    int events = 0;
+    if (has_flag(type, NotificationType::Read))
+        events |= FD_READ | FD_CLOSE | FD_ACCEPT;
+    if (has_flag(type, NotificationType::Write))
+        events |= FD_WRITE | FD_CONNECT;
+    // WSAEventSelect has no separate error event; socket errors surface as FD_CLOSE.
+    if (has_flag(type, NotificationType::HangUp) || has_flag(type, NotificationType::Error))
+        events |= FD_CLOSE;
+
+    if (!events) {
         dbgln("This notification type is not implemented: {}", (int)type);
         VERIFY_NOT_REACHED();
     }
+
+    return events;
 }
 
 void EventLoopManagerWindows::register_notifier(Notifier& notifier)
