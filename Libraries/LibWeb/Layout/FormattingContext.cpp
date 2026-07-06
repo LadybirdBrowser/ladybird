@@ -2996,27 +2996,6 @@ bool FormattingContext::can_skip_is_anonymous_text_run(Box& box)
     return false;
 }
 
-Box const* FormattingContext::box_child_to_derive_baseline_from(Box const& box, BaselineSet baseline_set) const
-{
-    if (!box.has_children() || box.children_are_inline())
-        return nullptr;
-    // Find the first/last in-flow child that has a baseline (either directly via line boxes, or via its descendants).
-    auto deriving_first_baseline = baseline_set == BaselineSet::First;
-    for (auto child = deriving_first_baseline ? box.first_child() : box.last_child(); child;
-        child = deriving_first_baseline ? child->next_sibling() : child->previous_sibling()) {
-        auto const* child_box = as_if<Box>(*child);
-        if (!child_box)
-            continue;
-        if (child_box->is_out_of_flow(*this))
-            continue;
-        if (auto const* child_state = m_state.try_get(*child_box); child_state && !child_state->line_boxes.is_empty())
-            return child_box;
-        if (box_child_to_derive_baseline_from(*child_box, baseline_set))
-            return child_box;
-    }
-    return nullptr;
-}
-
 void FormattingContext::compute_and_store_baselines(LayoutState::UsedValues& used_values) const
 {
     // NOTE: This may run more than once for the same UsedValues (e.g. table cells are laid out twice),
@@ -3051,6 +3030,14 @@ void FormattingContext::compute_and_store_baselines(LayoutState::UsedValues& use
         return;
 
     // Derive baselines from the first/last in-flow child that has a baseline set of its own.
+    // https://drafts.csswg.org/css-flexbox-1/#flex-baselines
+    // Otherwise, if the flex container has at least one flex item, the flex container's first/last main-axis baseline
+    // set is generated from the alignment baseline of the startmost/endmost flex item.
+    // https://drafts.csswg.org/css-grid-1/#grid-baselines
+    // Otherwise, the grid container's first (last) baseline set is generated from the alignment baseline of the first
+    // (last) grid item in row-major grid order.
+    // FIXME: This does not yet select the spec-defined startmost/endmost flex item, or the first/last grid item in
+    //        row-major grid order.
     auto baseline_from_children = [&](BaselineSet baseline_set) -> Optional<CSSPixels> {
         auto deriving_first_baseline = baseline_set == BaselineSet::First;
         for (auto child = deriving_first_baseline ? box.first_child() : box.last_child(); child;
@@ -3128,51 +3115,17 @@ CSSPixels FormattingContext::box_baseline(Box const& box, BaselineSet baseline_s
     bool has_visible_overflow = overflow_x == CSS::Overflow::Visible && overflow_y == CSS::Overflow::Visible;
     bool derive_baseline_from_content = baseline_set == BaselineSet::First || is_flex_or_grid_container || has_visible_overflow;
 
-    if (derive_baseline_from_content && !box_state.line_boxes.is_empty()) {
-        auto baseline_for_line_box = [&](LineBox const& line_box) {
-            if (!line_box.has_block_level_box()) {
-                auto line_box_top = line_box.bottom() - line_box.block_length();
-                return box_state.margin_box_top() + line_box_top + line_box.baseline();
-            }
-
-            VERIFY(line_box.fragments().size() == 1);
-            auto const& block_child = as<Box>(line_box.fragments().first().layout_node());
-            auto const& block_child_state = m_state.get(block_child);
-            auto child_offset_from_margin_edge = block_child_state.offset.y() - block_child_state.margin_box_top();
-            return box_state.margin_box_top() + child_offset_from_margin_edge + box_baseline(block_child, baseline_set);
-        };
-
-        if (baseline_set == BaselineSet::First) {
-            auto line_box = box_state.line_boxes.first_matching([](auto& line_box) { return !line_box.is_empty(); });
-            return baseline_for_line_box(line_box.value_or(box_state.line_boxes.first()));
-        }
-
-        auto line_box = box_state.line_boxes.last_matching([](auto& line_box) { return !line_box.is_empty(); });
-        return baseline_for_line_box(line_box.value_or(box_state.line_boxes.last()));
-    }
-
-    // Derive baseline from block children if this box derives its baseline from its content.
-    // https://drafts.csswg.org/css-flexbox-1/#flex-baselines
-    // Otherwise, if the flex container has at least one flex item, the flex container's first/last main-axis baseline
-    // set is generated from the alignment baseline of the startmost/endmost flex item.
-    // https://drafts.csswg.org/css-grid-1/#grid-baselines
-    // Otherwise, the grid container's first (last) baseline set is generated from the alignment baseline of the first
-    // (last) grid item in row-major grid order.
-    // FIXME: This does not yet select the spec-defined startmost/endmost flex item, or the first/last grid item in
-    //        row-major grid order.
-    // AD-HOC: We also derive baseline from children for <input> elements. Per the HTML spec, inputs have
-    //         `overflow: clip !important`, so CSS2 says to use bottom margin edge. However, the internal shadow tree
-    //         baseline should determine the control's baseline for proper alignment with adjacent text.
+    // AD-HOC: We also use the content-derived baseline for <input> elements with block children. Per the HTML spec,
+    //         inputs have `overflow: clip !important`, so CSS2 says to use bottom margin edge. However, the internal
+    //         shadow tree baseline should determine the control's baseline for proper alignment with adjacent text.
     //         https://html.spec.whatwg.org/multipage/rendering.html#form-controls
-    if (auto const* child_box = box_child_to_derive_baseline_from(box, baseline_set)) {
-        if (derive_baseline_from_content || is<HTML::HTMLInputElement>(box.dom_node())) {
-            auto const& child_box_state = m_state.get(*child_box);
-            auto child_offset_from_margin_edge = child_box_state.offset.y() - child_box_state.margin_box_top();
-            return box_state.margin_box_top() + child_offset_from_margin_edge + box_baseline(*child_box, baseline_set);
-        }
-    }
+    bool input_derives_from_children = is<HTML::HTMLInputElement>(box.dom_node()) && !box.children_are_inline();
 
-    // If none of the children have a baseline set, the bottom margin edge of the box is used.
+    auto const& content_baseline = baseline_set == BaselineSet::First ? box_state.first_baseline : box_state.last_baseline;
+    if (content_baseline.has_value() && (derive_baseline_from_content || input_derives_from_children))
+        return box_state.margin_box_top() + *content_baseline;
+
+    // If the box has no baseline set, the bottom margin edge of the box is used.
     return box_state.margin_box_height();
 }
 

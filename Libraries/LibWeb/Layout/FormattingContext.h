@@ -256,8 +256,6 @@ protected:
 
     [[nodiscard]] Optional<CSSPixels> compute_auto_height_for_absolutely_positioned_element(Box const&, AvailableSpace const&, ContainingBlockConstraints const&, BeforeOrAfterInsideLayout) const;
 
-    [[nodiscard]] Box const* box_child_to_derive_baseline_from(Box const&, BaselineSet) const;
-
     Type m_type {};
     LayoutMode m_layout_mode;
 
