@@ -1562,6 +1562,15 @@ void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_el
         return height;
     };
 
+    // Intrinsic (fit-content/min-content/max-content) heights depend on the box's own used width,
+    // which was already resolved above, not on the width of the containing block. Absolutely
+    // positioned boxes routinely have a used width narrower than their containing block (e.g. a
+    // fixed-position dialog sized to 400px inside a 1300px viewport), and measuring their content
+    // at the containing block width lets text that should wrap stay on one line, underestimating
+    // the height. Feed the box's own width to the intrinsic-height calculations.
+    auto available_space_for_intrinsic_height = available_space;
+    available_space_for_intrinsic_height.width = AvailableSize::make_definite(state.content_width());
+
     // Compute the height based on box type and CSS properties:
     // https://www.w3.org/TR/css-sizing-3/#box-sizing
     auto used_height = try_compute_height([&] -> CSS::LengthOrAuto {
@@ -1569,14 +1578,14 @@ void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_el
             return CSS::Length::make_px(compute_table_box_height_inside_table_wrapper(box, available_space, containing_block_constraints));
         if (should_treat_height_as_auto(box, available_space, containing_block_constraints))
             return CSS::LengthOrAuto::make_auto();
-        return CSS::Length::make_px(calculate_inner_height(box, available_space, box.computed_values().height(), containing_block_constraints));
+        return CSS::Length::make_px(calculate_inner_height(box, available_space_for_intrinsic_height, box.computed_values().height(), containing_block_constraints));
     }());
 
     // If the tentative used height is greater than 'max-height', the rules above are applied again,
     // but this time using the computed value of 'max-height' as the computed value for 'height'.
     auto const& computed_max_height = box.computed_values().max_height();
     if (!used_height.is_auto() && !computed_max_height.is_none()) {
-        auto max_height = calculate_inner_height(box, available_space, computed_max_height, containing_block_constraints);
+        auto max_height = calculate_inner_height(box, available_space_for_intrinsic_height, computed_max_height, containing_block_constraints);
         if (used_height.to_px_or_zero() > max_height)
             used_height = try_compute_height(CSS::Length::make_px(max_height));
     }
@@ -1585,7 +1594,7 @@ void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_el
     // but this time using the value of 'min-height' as the computed value for 'height'.
     auto const& computed_min_height = box.computed_values().min_height();
     if (!used_height.is_auto() && !computed_min_height.is_auto()) {
-        auto min_height = calculate_inner_height(box, available_space, computed_min_height, containing_block_constraints);
+        auto min_height = calculate_inner_height(box, available_space_for_intrinsic_height, computed_min_height, containing_block_constraints);
         if (used_height.to_px_or_zero() < min_height)
             used_height = try_compute_height(CSS::Length::make_px(min_height));
     }
