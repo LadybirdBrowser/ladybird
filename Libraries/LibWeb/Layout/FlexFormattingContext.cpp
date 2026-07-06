@@ -259,6 +259,8 @@ void FlexFormattingContext::run(LayoutInput const& layout_input)
         }
 
         resolve_baseline_aligned_items();
+
+        compute_and_store_baselines(m_flex_container_state);
     }
 
     if (m_state.should_collect_devtools_layout_data())

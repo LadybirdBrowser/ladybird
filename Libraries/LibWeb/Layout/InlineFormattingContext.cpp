@@ -88,6 +88,8 @@ void InlineFormattingContext::run(LayoutInput const& layout_input)
     //       This ensures that any floated boxes are taken into account.
     m_automatic_content_width = parent().greatest_child_width(containing_block());
     m_automatic_content_height = content_height;
+
+    compute_and_store_baselines(m_containing_block_used_values);
 }
 
 void InlineFormattingContext::dimension_box_on_line(Box const& box, LayoutMode layout_mode)

@@ -1899,6 +1899,19 @@ void TableFormattingContext::run(LayoutInput const& layout_input)
     // A visual representation of this model can be found at https://www.w3.org/TR/css-tables-3/images/table_container.png
     m_state.get_mutable(table_box()).margin_bottom += total_captions_height;
 
+    // Derive baselines for the table internals bottom-up (rows, then row groups, then the table box)
+    // now that all offsets are final, so the table exports its baseline to outside consumers
+    // (e.g. an inline-table participating in a line box).
+    for (auto& row : m_rows)
+        compute_and_store_baselines(m_state.get_mutable(row.box));
+    table_box().for_each_child_of_type<Box>([&](Box const& child) {
+        auto const& display = child.display();
+        if (display.is_table_row_group() || display.is_table_header_group() || display.is_table_footer_group())
+            compute_and_store_baselines(m_state.get_mutable(child));
+        return IterationDecision::Continue;
+    });
+    compute_and_store_baselines(m_state.get_mutable(table_box()));
+
     m_automatic_content_height = m_table_height;
 }
 

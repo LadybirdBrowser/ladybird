@@ -3017,6 +3017,64 @@ Box const* FormattingContext::box_child_to_derive_baseline_from(Box const& box, 
     return nullptr;
 }
 
+void FormattingContext::compute_and_store_baselines(LayoutState::UsedValues& used_values) const
+{
+    // NOTE: This may run more than once for the same UsedValues (e.g. table cells are laid out twice),
+    //       so reset both baselines before deriving them anew.
+    used_values.first_baseline = {};
+    used_values.last_baseline = {};
+
+    auto const& box = as<Box>(used_values.node());
+
+    if (!used_values.line_boxes.is_empty()) {
+        auto baseline_for_line_box = [&](LineBox const& line_box, BaselineSet baseline_set) -> CSSPixels {
+            if (!line_box.has_block_level_box()) {
+                auto line_box_top = line_box.bottom() - line_box.block_length();
+                return line_box_top + line_box.baseline();
+            }
+
+            VERIFY(line_box.fragments().size() == 1);
+            auto const& block_child = as<Box>(line_box.fragments().first().layout_node());
+            auto const& block_child_state = m_state.get(block_child);
+            auto child_offset_from_margin_edge = block_child_state.offset.y() - block_child_state.margin_box_top();
+            return child_offset_from_margin_edge + box_baseline(block_child, baseline_set);
+        };
+
+        auto first_line_box = used_values.line_boxes.first_matching([](auto& line_box) { return !line_box.is_empty(); });
+        used_values.first_baseline = baseline_for_line_box(first_line_box.value_or(used_values.line_boxes.first()), BaselineSet::First);
+        auto last_line_box = used_values.line_boxes.last_matching([](auto& line_box) { return !line_box.is_empty(); });
+        used_values.last_baseline = baseline_for_line_box(last_line_box.value_or(used_values.line_boxes.last()), BaselineSet::Last);
+        return;
+    }
+
+    if (!box.has_children() || box.children_are_inline())
+        return;
+
+    // Derive baselines from the first/last in-flow child that has a baseline set of its own.
+    auto baseline_from_children = [&](BaselineSet baseline_set) -> Optional<CSSPixels> {
+        auto deriving_first_baseline = baseline_set == BaselineSet::First;
+        for (auto child = deriving_first_baseline ? box.first_child() : box.last_child(); child;
+            child = deriving_first_baseline ? child->next_sibling() : child->previous_sibling()) {
+            auto const* child_box = as_if<Box>(*child);
+            if (!child_box)
+                continue;
+            if (child_box->is_out_of_flow(*this))
+                continue;
+            auto const* child_state = m_state.try_get(*child_box);
+            if (!child_state)
+                continue;
+            auto const& child_baseline = deriving_first_baseline ? child_state->first_baseline : child_state->last_baseline;
+            if (!child_baseline.has_value())
+                continue;
+            auto child_offset_from_margin_edge = child_state->offset.y() - child_state->margin_box_top();
+            return child_offset_from_margin_edge + box_baseline(*child_box, baseline_set);
+        }
+        return {};
+    };
+    used_values.first_baseline = baseline_from_children(BaselineSet::First);
+    used_values.last_baseline = baseline_from_children(BaselineSet::Last);
+}
+
 CSSPixels FormattingContext::box_baseline(Box const& box, BaselineSet baseline_set) const
 {
     auto const& box_state = m_state.get(box);

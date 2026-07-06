@@ -2910,6 +2910,8 @@ void GridFormattingContext::run(LayoutInput const& layout_input)
             independent_formatting_context->parent_context_did_dimension_child_root_box();
     }
 
+    compute_and_store_baselines(m_state.get_mutable(grid_container()));
+
     auto serialize_standalone_axis = [](auto const& tracks, auto const& lines) {
         CSS::GridTrackSizeList result;
         for (size_t i = 0; i < lines.size(); ++i) {

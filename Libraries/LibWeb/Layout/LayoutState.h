@@ -216,6 +216,13 @@ struct LayoutState {
 
         Vector<LineBox> line_boxes;
 
+        // Baselines of this box's in-flow content, relative to the box's content-box top edge.
+        // Populated eagerly by the formatting context that lays out this box's children.
+        // An empty Optional means the box has no baseline set (https://drafts.csswg.org/css-align-3/#baseline-export);
+        // consumers synthesize a baseline from the margin box instead.
+        Optional<CSSPixels> first_baseline;
+        Optional<CSSPixels> last_baseline;
+
         CSSPixels margin_box_left() const { return margin_left + border_left_collapsed() + padding_left; }
         CSSPixels margin_box_right() const { return margin_right + border_right_collapsed() + padding_right; }
         CSSPixels margin_box_top() const { return margin_top + border_top_collapsed() + padding_top; }

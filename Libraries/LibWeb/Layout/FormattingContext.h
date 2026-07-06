@@ -173,6 +173,7 @@ public:
     [[nodiscard]] CSSPixelRect content_box_rect(LayoutState::UsedValues const&) const;
     [[nodiscard]] CSSPixelRect content_box_rect_in_ancestor_coordinate_space(LayoutState::UsedValues const&, Box const& ancestor_box) const;
     [[nodiscard]] CSSPixels box_baseline(Box const&, BaselineSet) const;
+    void compute_and_store_baselines(LayoutState::UsedValues&) const;
 
     [[nodiscard]] CSSPixels calculate_stretch_fit_width(Box const&, AvailableSize const&) const;
     [[nodiscard]] CSSPixels calculate_stretch_fit_height(Box const&, AvailableSize const&) const;

@@ -150,6 +150,10 @@ void BlockFormattingContext::run(LayoutInput const& layout_input)
             m_state.get_mutable(*child_box).margin_bottom = m_margin_state.current_collapsed_margin();
             break;
         }
+
+        // The margin reassignment above changed a child's margin box, which the root's baselines may
+        // have been derived from (a scroll container child exports its bottom margin edge), so re-derive them.
+        compute_and_store_baselines(m_state.get_mutable(root()));
     }
 }
 
@@ -1239,6 +1243,8 @@ void BlockFormattingContext::layout_block_level_children(BlockContainer const& b
             block_container_state.set_content_height(bottom_of_lowest_margin_box);
         }
     }
+
+    compute_and_store_baselines(m_state.get_mutable(block_container));
 }
 
 // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
@@ -1311,6 +1317,8 @@ void BlockFormattingContext::layout_fieldset_with_rendered_legend(FieldSetBox co
     auto fieldset_border_box_top_in_content = -(fieldset_state.border_top + fieldset_state.padding_top);
     auto legend_content_y = fieldset_border_box_top_in_content + legend_border_box_centering_offset + legend_state.border_box_top();
     legend_state.set_content_y(legend_content_y);
+
+    compute_and_store_baselines(fieldset_state);
 }
 
 void BlockFormattingContext::resolve_vertical_box_model_metrics(Box const& box, CSSPixels width_of_containing_block)

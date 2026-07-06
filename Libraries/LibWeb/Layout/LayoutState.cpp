@@ -934,6 +934,8 @@ LayoutState::UsedValues& LayoutState::UsedValues::operator=(UsedValues const& ot
     inset_top = other.inset_top;
     inset_bottom = other.inset_bottom;
     line_boxes = other.line_boxes;
+    first_baseline = other.first_baseline;
+    last_baseline = other.last_baseline;
     containing_line_box_fragment = other.containing_line_box_fragment;
 
     m_node = other.m_node;
