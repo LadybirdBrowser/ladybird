@@ -43,5 +43,17 @@ body {
         println("> single right click with contextmenu default behavior prevented");
         target.addEventListener('contextmenu', e => e.preventDefault());
         internals.click(50, 50, 1, internals.BUTTON_RIGHT);
+
+        const preventDefault = e => e.preventDefault();
+
+        println("> single right click with mousedown default behavior prevented");
+        target.addEventListener('mousedown', preventDefault);
+        internals.click(50, 50, 1, internals.BUTTON_RIGHT);
+        target.removeEventListener('mousedown', preventDefault);
+
+        println("> single right click with pointerdown default behavior prevented");
+        target.addEventListener('pointerdown', preventDefault);
+        internals.click(50, 50, 1, internals.BUTTON_RIGHT);
+        target.removeEventListener('pointerdown', preventDefault);
     });
 </script>
