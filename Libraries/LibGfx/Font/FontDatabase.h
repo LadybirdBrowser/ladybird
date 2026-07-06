@@ -52,6 +52,9 @@ public:
     void for_each_typeface_with_family_name(FlyString const& family_name, Function<void(Typeface const&)>);
     [[nodiscard]] StringView system_font_provider_name() const;
 
+    void set_force_freetype_rasterization(bool force) { m_force_freetype_rasterization = force; }
+    [[nodiscard]] bool force_freetype_rasterization() const { return m_force_freetype_rasterization; }
+
     static ErrorOr<Vector<String>> font_directories();
 
 private:
@@ -59,6 +62,7 @@ private:
     ~FontDatabase() = default;
 
     OwnPtr<SystemFontProvider> m_system_font_provider;
+    bool m_force_freetype_rasterization { false };
 
     struct CodePointFallbackEntry {
         FlyString family_name;

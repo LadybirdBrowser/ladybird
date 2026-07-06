@@ -21,6 +21,7 @@
 #if defined(AK_OS_ANDROID)
 #    include <ports/SkFontMgr_android.h>
 #elif defined(AK_OS_WINDOWS)
+#    include <ports/SkFontMgr_empty.h>
 #    include <ports/SkTypeface_win.h>
 #else
 #    include <ports/SkFontMgr_fontconfig.h>
@@ -89,7 +90,10 @@ static SkFontMgr& font_manager()
 #if defined(AK_OS_ANDROID)
         font_manager = SkFontMgr_New_Android(nullptr);
 #elif defined(AK_OS_WINDOWS)
-        font_manager = SkFontMgr_New_DirectWrite();
+        if (Gfx::FontDatabase::the().force_freetype_rasterization())
+            font_manager = SkFontMgr_New_Custom_Empty();
+        else
+            font_manager = SkFontMgr_New_DirectWrite();
 #else
         if (!font_manager) {
             font_manager = SkFontMgr_New_FontConfig(nullptr, SkFontScanner_Make_FreeType());
