@@ -231,6 +231,7 @@ private:
     [[nodiscard]] CSSPixels calculate_max_content_main_size(FlexItem const&) const;
     [[nodiscard]] CSSPixels calculate_min_content_cross_size(FlexItem const&) const;
     [[nodiscard]] CSSPixels calculate_max_content_cross_size(FlexItem const&) const;
+    [[nodiscard]] Optional<CSSPixels> cross_size_transferred_from_definite_main_size(FlexItem const&) const;
 
     [[nodiscard]] CSSPixels calculate_fit_content_main_size(FlexItem const&) const;
     [[nodiscard]] CSSPixels calculate_fit_content_cross_size(FlexItem const&) const;
