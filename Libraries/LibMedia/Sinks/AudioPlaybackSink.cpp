@@ -154,6 +154,10 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                     if (output_thread_data->m_seek_id != seek_id_at_pull)
                         continue;
                     output_thread_data->m_last_pull_status = status;
+                    if (status == PipelineStatus::HaveData && output_block.end_frame_index() <= output_thread_data->m_next_frame_to_play) {
+                        output_thread_data->m_waiting_for_upstream_data = false;
+                        continue;
+                    }
                     if (status == PipelineStatus::EndOfStream) {
                         VERIFY(output_block.is_empty());
                         VERIFY(output_thread_data->m_sample_specification.is_valid());
