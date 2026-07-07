@@ -1,0 +1,30 @@
+Harness status: OK
+
+Found 25 tests
+
+25 Pass
+Pass	CSS Transitions: property <display> from [none] to [flex] at (-0.3) should be [flex]
+Pass	CSS Transitions: property <display> from [none] to [flex] at (0) should be [flex]
+Pass	CSS Transitions: property <display> from [none] to [flex] at (0.3) should be [flex]
+Pass	CSS Transitions: property <display> from [none] to [flex] at (0.5) should be [flex]
+Pass	CSS Transitions: property <display> from [none] to [flex] at (0.6) should be [flex]
+Pass	CSS Transitions: property <display> from [none] to [flex] at (1) should be [flex]
+Pass	CSS Transitions: property <display> from [none] to [flex] at (1.5) should be [flex]
+Pass	CSS Transitions: property <display> from [flex] to [none] at (-1) should be [flex]
+Pass	CSS Transitions: property <display> from [flex] to [none] at (0) should be [flex]
+Pass	CSS Transitions: property <display> from [flex] to [none] at (0.3) should be [flex]
+Pass	CSS Transitions: property <display> from [flex] to [none] at (0.5) should be [flex]
+Pass	CSS Transitions: property <display> from [flex] to [none] at (0.7) should be [flex]
+Pass	CSS Transitions: property <display> from [flex] to [none] at (1) should be [none]
+Pass	CSS Animations: property <display> from [none] to [flex] at (-1) should be [none]
+Pass	CSS Animations: property <display> from [none] to [flex] at (0) should be [none]
+Pass	CSS Animations: property <display> from [none] to [flex] at (0.3) should be [flex]
+Pass	CSS Animations: property <display> from [none] to [flex] at (0.5) should be [flex]
+Pass	CSS Animations: property <display> from [none] to [flex] at (1) should be [flex]
+Pass	CSS Animations: property <display> from [none] to [flex] at (2) should be [flex]
+Pass	Web Animations: property <display> from [none] to [flex] at (-1) should be [none]
+Pass	Web Animations: property <display> from [none] to [flex] at (0) should be [none]
+Pass	Web Animations: property <display> from [none] to [flex] at (0.3) should be [flex]
+Pass	Web Animations: property <display> from [none] to [flex] at (0.5) should be [flex]
+Pass	Web Animations: property <display> from [none] to [flex] at (1) should be [flex]
+Pass	Web Animations: property <display> from [none] to [flex] at (2) should be [flex]

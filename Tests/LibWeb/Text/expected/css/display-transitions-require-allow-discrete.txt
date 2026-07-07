@@ -1,0 +1,4 @@
+display without allow-discrete: none
+transitions on display without allow-discrete: 0
+content-visibility without allow-discrete: hidden
+transitions on content-visibility without allow-discrete: 0

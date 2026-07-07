@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<meta name="assert" content="display: none is animatable with a non-none underlying value">
+<title>display interpolation</title>
+<link rel="help" href="https://www.w3.org/TR/CSS2/visuren.html#display-prop">
+<link rel="help" href="https://www.w3.org/TR/css-animations-2/#owning-element-section">
+<meta name="assert" content="display supports animation">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<body>
+  <script>
+    /* none -> non-none: not allowed, since animations/transitions can't start when display is none. */
+    test_not_animatable({
+      property: 'display',
+      behavior: 'allow-discrete',
+      from: 'none',
+      to: 'flex',
+      underlying: 'none',
+      target_names: ['CSS Transitions']
+    });
+    /* non-none -> none: allowed. Value will remain non-none until transition finishes */
+    test_interpolation({
+      property: 'display',
+      behavior: 'allow-discrete',
+      from: 'flex',
+      to: 'none',
+      underlying: 'flex',
+      target_names: ['CSS Transitions']
+    }, [
+      { at: -1, expect: "flex" },
+      { at: 0, expect: "flex" },
+      { at: 0.3, expect: "flex" },
+      { at: 0.5, expect: "flex" },
+      { at: 0.7, expect: "flex" }, /* prefers the non-none value */
+      { at: 1, expect: "none" },
+    ]);
+    test_interpolation({
+      property: 'display',
+      from: 'none',
+      to: 'flex',
+      underlying: 'block',
+      target_names: ['CSS Animations', 'Web Animations']
+    }, [
+      { at: -1, expect: "none" },
+      { at: 0, expect: "none" },
+      { at: 0.3, expect: "flex" }, /* prefers the non-none value */
+      { at: 0.5, expect: "flex" },
+      { at: 1, expect: "flex" },
+      { at: 2, expect: "flex" }
+    ]);
+  </script>
+</body>

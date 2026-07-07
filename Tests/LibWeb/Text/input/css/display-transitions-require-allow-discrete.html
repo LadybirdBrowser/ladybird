@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #plain-display, #plain-content-visibility {
+        transition: all 1s;
+    }
+</style>
+<div id="plain-display"></div>
+<div id="plain-content-visibility"></div>
+<script>
+    test(() => {
+        const plainDisplay = document.getElementById("plain-display");
+        getComputedStyle(plainDisplay).display;
+        plainDisplay.style.display = "none";
+        println("display without allow-discrete: " + getComputedStyle(plainDisplay).display);
+        println("transitions on display without allow-discrete: " + plainDisplay.getAnimations().length);
+
+        const plainContentVisibility = document.getElementById("plain-content-visibility");
+        getComputedStyle(plainContentVisibility).contentVisibility;
+        plainContentVisibility.style.contentVisibility = "hidden";
+        println("content-visibility without allow-discrete: " + getComputedStyle(plainContentVisibility).contentVisibility);
+        println("transitions on content-visibility without allow-discrete: " + plainContentVisibility.getAnimations().length);
+    });
+</script>

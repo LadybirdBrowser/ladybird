@@ -722,6 +722,8 @@ ValueComparingRefPtr<StyleValue const> interpolate_property(DOM::Element& elemen
             auto to_is_hidden = to->to_keyword() == Keyword::Hidden;
 
             if (from_is_hidden || to_is_hidden) {
+                if (allow_discrete == AllowDiscrete::No)
+                    return {};
                 auto non_hidden_value = from_is_hidden ? to : from;
                 if (delta <= 0)
                     return from;
@@ -748,6 +750,8 @@ ValueComparingRefPtr<StyleValue const> interpolate_property(DOM::Element& elemen
             auto to_is_none = to->as_display().display().is_none();
 
             if (from_is_none || to_is_none) {
+                if (allow_discrete == AllowDiscrete::No)
+                    return {};
                 auto non_none_value = from_is_none ? to : from;
                 if (delta <= 0)
                     return from;
