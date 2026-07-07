@@ -139,6 +139,104 @@ test((test) => {
     assert_false(container_element instanceof WrongNewElement);
 }, 'insertAdjacentHTML should use the element\'s registry even when the registry is null');
 
+test((test) => {
+    const registry = new CustomElementRegistry;
+    class ScopedNewElement extends HTMLElement { };
+    registry.define('new-element', ScopedNewElement);
+
+    const template = document.createElement('template', {customElementRegistry: registry});
+    assert_equals(template.customElementRegistry, registry);
+
+    const range = document.createRange();
+    range.selectNodeContents(template);
+    const fragment = range.createContextualFragment('<new-element><new-element></new-element></new-element>');
+    const outer_element = fragment.querySelector('new-element');
+    const inner_element = outer_element.querySelector('new-element');
+    assert_equals(outer_element.customElementRegistry, null);
+    assert_false(outer_element instanceof ScopedNewElement);
+    assert_false(outer_element instanceof WrongNewElement);
+    assert_equals(inner_element.customElementRegistry, null);
+    assert_false(inner_element instanceof ScopedNewElement);
+    assert_false(inner_element instanceof WrongNewElement);
+}, 'createContextualFragment on a range inside a template should use null registry even when the template has a scoped registry');
+
+test((test) => {
+    const registry = new CustomElementRegistry;
+    class ScopedNewElement extends HTMLElement { };
+    registry.define('new-element', ScopedNewElement);
+
+    const div = document.createElement('div', {customElementRegistry: registry});
+    assert_equals(div.customElementRegistry, registry);
+
+    const range = document.createRange();
+    range.selectNodeContents(div);
+    const fragment = range.createContextualFragment('<new-element><new-element></new-element></new-element>');
+    const outer_element = fragment.querySelector('new-element');
+    const inner_element = outer_element.querySelector('new-element');
+    assert_equals(outer_element.customElementRegistry, registry);
+    assert_true(outer_element instanceof ScopedNewElement);
+    assert_false(outer_element instanceof WrongNewElement);
+    assert_equals(inner_element.customElementRegistry, registry);
+    assert_true(inner_element instanceof ScopedNewElement);
+    assert_false(inner_element instanceof WrongNewElement);
+}, 'createContextualFragment on a range inside an element with scoped registry should use the scoped registry of the element');
+
+test((test) => {
+    const registry = new CustomElementRegistry;
+    class ScopedNewElement extends HTMLElement { };
+    registry.define('new-element', ScopedNewElement);
+
+    const div = document.createElement('div', {customElementRegistry: registry});
+    document.body.append(div);
+    test.add_cleanup(() => div.remove());
+
+    assert_equals(div.customElementRegistry, registry);
+    div.insertAdjacentHTML('beforebegin', '<new-element></new-element>');
+    const sibling = div.previousSibling;
+    test.add_cleanup(() => sibling.remove());
+    assert_equals(sibling.customElementRegistry, customElements,
+        'sibling inserted via beforebegin should use parent\'s registry, not the element\'s');
+    assert_false(sibling instanceof ScopedNewElement,
+        'sibling should not be upgraded by the element\'s scoped registry');
+}, 'insertAdjacentHTML with beforebegin should use the containing scope\'s registry');
+
+test((test) => {
+    const registry = new CustomElementRegistry;
+    class ScopedNewElement extends HTMLElement { };
+    registry.define('new-element', ScopedNewElement);
+
+    const div = document.createElement('div', {customElementRegistry: registry});
+    document.body.append(div);
+    test.add_cleanup(() => div.remove());
+
+    assert_equals(div.customElementRegistry, registry);
+    div.insertAdjacentHTML('afterend', '<new-element></new-element>');
+    const sibling = div.nextSibling;
+    test.add_cleanup(() => sibling.remove());
+    assert_equals(sibling.customElementRegistry, customElements,
+        'sibling inserted via afterend should use parent\'s registry, not the element\'s');
+    assert_false(sibling instanceof ScopedNewElement,
+        'sibling should not be upgraded by the element\'s scoped registry');
+}, 'insertAdjacentHTML with afterend should use the containing scope\'s registry');
+
+test((test) => {
+    const registry = new CustomElementRegistry;
+    class ScopedNewElement extends HTMLElement { };
+    registry.define('new-element', ScopedNewElement);
+
+    const div = document.createElement('div', {customElementRegistry: registry});
+    document.body.append(div);
+
+    assert_equals(div.customElementRegistry, registry);
+    div.outerHTML = '<new-element></new-element>';
+    const replacement = document.body.lastElementChild;
+    test.add_cleanup(() => replacement.remove());
+    assert_equals(replacement.customElementRegistry, customElements,
+        'replacement via outerHTML should use parent\'s registry, not the replaced element\'s');
+    assert_false(replacement instanceof ScopedNewElement,
+        'replacement should not be upgraded by the replaced element\'s scoped registry');
+}, 'outerHTML setter should use the parent scope\'s registry, not the replaced element\'s');
+
 </script>
 </body>
 </html>
