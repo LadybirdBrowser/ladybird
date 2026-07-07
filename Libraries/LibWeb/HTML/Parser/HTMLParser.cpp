@@ -1702,7 +1702,8 @@ Optional<Color> parse_legacy_color_value(Utf16View string)
 }
 
 // https://html.spec.whatwg.org/multipage/rendering.html#tables-2
-RefPtr<CSS::StyleValue const> parse_table_child_element_align_value(StringView string_view)
+template<typename StringType>
+static RefPtr<CSS::StyleValue const> parse_table_child_element_align_value_impl(StringType string_view)
 {
     // The thead, tbody, tfoot, tr, td, and th elements, when they have an align attribute whose value is an ASCII
     // case-insensitive match for either the string "center" or the string "middle", are expected to center text within
@@ -1732,10 +1733,14 @@ RefPtr<CSS::StyleValue const> parse_table_child_element_align_value(StringView s
     return nullptr;
 }
 
+RefPtr<CSS::StyleValue const> parse_table_child_element_align_value(StringView string_view)
+{
+    return parse_table_child_element_align_value_impl(string_view);
+}
+
 RefPtr<CSS::StyleValue const> parse_table_child_element_align_value(Utf16View string)
 {
-    auto string_utf8 = string.to_utf8_but_should_be_ported_to_utf16();
-    return parse_table_child_element_align_value(string_utf8.bytes_as_string_view());
+    return parse_table_child_element_align_value_impl(string);
 }
 
 JS::Realm& HTMLParser::realm()
