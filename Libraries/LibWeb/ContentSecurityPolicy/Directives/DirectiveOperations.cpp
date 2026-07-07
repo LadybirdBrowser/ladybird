@@ -868,8 +868,8 @@ enum class NonceableResult {
 
             // 2. If attribute’s value contains an ASCII case-insensitive match for "<script" or "<style", return
             //    "Not Nonceable".
-            auto attribute_value = attribute->value().to_utf8_but_should_be_ported_to_utf16();
-            if (attribute_value.contains("<script"sv, CaseSensitivity::CaseInsensitive) || attribute_value.contains("<style"sv, CaseSensitivity::CaseInsensitive))
+            auto attribute_value = attribute->value();
+            if (attribute_value.find_code_unit_offset_ignoring_case("<script"sv).has_value() || attribute_value.find_code_unit_offset_ignoring_case("<style"sv).has_value())
                 return NonceableResult::NotNonceable;
         }
     }
