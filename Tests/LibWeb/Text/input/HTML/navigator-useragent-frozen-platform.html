@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // Servers sniff the parenthesized platform token of the User-Agent string and only
+        // recognize the frozen tokens sent by major browsers. An unrecognized token gets us
+        // served degraded or broken content (e.g. the Instagram login page), so the token
+        // must be one of the well-known frozen values regardless of the actual platform.
+        const frozenPlatforms = [
+            "Macintosh; Intel Mac OS X 10_15_7",
+            "Windows NT 10.0; Win64; x64",
+            "X11; Linux x86_64",
+            "Linux; Android 10",
+            "iPhone; CPU iPhone OS 17_5 like Mac OS X",
+        ];
+
+        const match = navigator.userAgent.match(/^Mozilla\/5\.0 \(([^)]*)\) Ladybird\//);
+        if (!match) {
+            println(`FAIL: unexpected User-Agent shape: ${navigator.userAgent}`);
+            return;
+        }
+
+        if (frozenPlatforms.includes(match[1]))
+            println("PASS");
+        else
+            println(`FAIL: unrecognized platform token: ${match[1]}`);
+    });
+</script>
