@@ -75,6 +75,8 @@ private:
     // https://html.spec.whatwg.org/multipage/media.html#the-video-element:dimension-attributes
     virtual bool supports_dimension_attributes() const override { return true; }
 
+    virtual bool is_html_video_element() const override { return true; }
+
     virtual RefPtr<Layout::Node> create_layout_node(CSS::ComputedProperties const&) override;
 
     WebIDL::ExceptionOr<void> determine_element_poster_frame(Optional<String> const& poster);
@@ -89,5 +91,22 @@ private:
     GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
 };
+
+}
+
+namespace Web::DOM {
+
+template<>
+inline bool Node::fast_is<HTML::HTMLVideoElement>() const { return is_html_video_element(); }
+
+}
+
+namespace JS {
+
+template<>
+inline bool Object::fast_is<Web::HTML::HTMLVideoElement>() const
+{
+    return is_dom_node() && static_cast<Web::DOM::Node const&>(*this).is_html_video_element();
+}
 
 }

@@ -53,6 +53,8 @@ protected:
 private:
     virtual void finalize() override;
 
+    virtual bool is_svg_image_element() const override { return true; }
+
     virtual RefPtr<Layout::Node> create_layout_node(CSS::ComputedProperties const&) override;
     virtual void decoded_image_data_did_update() override { set_needs_repaint(); }
 
@@ -66,5 +68,22 @@ private:
     GC::Ptr<HTML::SharedResourceRequest> m_resource_request;
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
 };
+
+}
+
+namespace Web::DOM {
+
+template<>
+inline bool Node::fast_is<SVG::SVGImageElement>() const { return is_svg_image_element(); }
+
+}
+
+namespace JS {
+
+template<>
+inline bool Object::fast_is<Web::SVG::SVGImageElement>() const
+{
+    return is_dom_node() && static_cast<Web::DOM::Node const&>(*this).is_svg_image_element();
+}
 
 }

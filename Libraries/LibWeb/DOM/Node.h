@@ -158,6 +158,7 @@ public:
     virtual bool is_svg_gradient_element() const { return false; }
     virtual bool is_svg_pattern_element() const { return false; }
     virtual bool is_svg_clip_path_element() const { return false; }
+    virtual bool is_svg_image_element() const { return false; }
     virtual bool is_svg_text_content_element() const { return false; }
 
     bool in_a_document_tree() const;
@@ -202,8 +203,10 @@ public:
     virtual bool is_html_slot_element() const { return false; }
     virtual bool is_html_embed_element() const { return false; }
     virtual bool is_html_object_element() const { return false; }
+    virtual bool is_html_canvas_element() const { return false; }
     virtual bool is_html_form_element() const { return false; }
     virtual bool is_html_image_element() const { return false; }
+    virtual bool is_html_video_element() const { return false; }
     virtual bool is_html_iframe_element() const { return false; }
     virtual bool is_html_div_element() const { return false; }
     virtual bool is_html_span_element() const { return false; }

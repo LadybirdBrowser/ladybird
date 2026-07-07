@@ -74,6 +74,8 @@ private:
     virtual void finalize() override;
     virtual void visit_edges(Cell::Visitor&) override;
 
+    virtual bool is_html_canvas_element() const override { return true; }
+
     virtual bool is_presentational_hint(FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
 
@@ -89,5 +91,22 @@ private:
     Variant<GC::Ref<HTML::CanvasRenderingContext2D>, GC::Ref<WebGL::WebGLRenderingContext>, GC::Ref<WebGL::WebGL2RenderingContext>, Empty> m_context;
     bool m_canvas_content_dirty { false };
 };
+
+}
+
+namespace Web::DOM {
+
+template<>
+inline bool Node::fast_is<HTML::HTMLCanvasElement>() const { return is_html_canvas_element(); }
+
+}
+
+namespace JS {
+
+template<>
+inline bool Object::fast_is<Web::HTML::HTMLCanvasElement>() const
+{
+    return is_dom_node() && static_cast<Web::DOM::Node const&>(*this).is_html_canvas_element();
+}
 
 }
