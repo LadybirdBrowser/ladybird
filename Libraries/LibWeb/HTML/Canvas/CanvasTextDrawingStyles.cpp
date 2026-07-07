@@ -97,11 +97,9 @@ void CanvasTextDrawingStyles<CanvasType>::set_font(StringView font)
     Optional<DOM::AbstractElement> inheritance_parent;
 
     if constexpr (SameAs<CanvasType, HTML::HTMLCanvasElement>) {
-        canvas_element.document().update_style_if_needed_for_element(DOM::AbstractElement { canvas_element });
+        canvas_element.document().update_style_for_element(DOM::AbstractElement { canvas_element });
 
         if (canvas_element.navigable() && canvas_element.is_connected()) {
-            VERIFY(canvas_element.computed_properties());
-
             // NOTE: Since we can't set a math depth directly here we always use the inherited value for the computed value
             computed_math_depth = canvas_element.computed_properties()->math_depth();
 

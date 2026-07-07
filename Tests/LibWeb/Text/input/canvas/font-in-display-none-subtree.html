@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<div id="hidden" style="display: none; font-size: 16px"></div>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        // Let the initial full style pass settle so the display:none subtree is clean.
+        // After this, an incremental style update skips descent into display:none, so a
+        // freshly-inserted canvas there never gets eagerly-computed style.
+        await animationFrame();
+        await animationFrame();
+
+        // Insert a canvas into the already-settled display:none subtree. Its computed
+        // properties stay null until set_font resolves them on demand, which used to crash.
+        const canvas = document.createElement("canvas");
+        document.getElementById("hidden").appendChild(canvas);
+        const ctx = canvas.getContext("2d");
+
+        // Absolute size: must not crash and round-trips.
+        ctx.font = "24px serif";
+        println(ctx.font);
+
+        // Relative units resolve against the canvas's inherited computed font-size (16px).
+        ctx.font = "2em monospace";
+        println(ctx.font);
+    });
+</script>
