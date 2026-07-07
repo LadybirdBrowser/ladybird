@@ -2,13 +2,13 @@
 [Exposed=Window]
 interface DOMTokenList {
     readonly attribute unsigned long length;
-    getter DOMString? item(unsigned long index);
-    boolean contains(DOMString token);
-    [CEReactions] undefined add(DOMString... tokens);
-    [CEReactions] undefined remove(DOMString... tokens);
-    [CEReactions] boolean toggle(DOMString token, optional boolean force);
-    [CEReactions] boolean replace(DOMString token, DOMString newToken);
-    boolean supports(DOMString token);
-    [CEReactions] stringifier attribute DOMString value;
-    iterable<DOMString>;
+    getter Utf16DOMString? item(unsigned long index);
+    boolean contains(Utf16DOMString token);
+    [CEReactions] undefined add(Utf16DOMString... tokens);
+    [CEReactions] undefined remove(Utf16DOMString... tokens);
+    [CEReactions] boolean toggle(Utf16DOMString token, optional boolean force);
+    [CEReactions] boolean replace(Utf16DOMString token, Utf16DOMString newToken);
+    boolean supports(Utf16DOMString token);
+    [CEReactions] stringifier attribute Utf16DOMString value;
+    iterable<Utf16DOMString>;
 };

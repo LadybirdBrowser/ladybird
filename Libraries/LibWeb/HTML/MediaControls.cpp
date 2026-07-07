@@ -63,8 +63,8 @@ void MediaControls::create_shadow_tree()
 
     m_dom = MediaControlsDOM(document, *shadow_root, is_video ? MediaControlsDOM::Options::Video : MediaControlsDOM::Options::None);
 
-    static NeverDestroyed<Vector<String>> video_class { Vector<String> { "video"_string } };
-    static NeverDestroyed<Vector<String>> audio_class { Vector<String> { "audio"_string } };
+    static NeverDestroyed<Vector<Utf16String>> video_class { Vector<Utf16String> { "video"_utf16 } };
+    static NeverDestroyed<Vector<Utf16String>> audio_class { Vector<Utf16String> { "audio"_utf16 } };
     if (is_video)
         MUST(m_dom->container->class_list()->add(*video_class));
     else
@@ -502,7 +502,7 @@ void MediaControls::update_play_pause_icon()
         return m_media_element->paused();
     }();
 
-    static String s_playing_class = "playing"_string;
+    static Utf16String s_playing_class = "playing"_utf16;
     MUST(m_dom->play_pause_icon->class_list()->toggle(s_playing_class, !paused));
 }
 
@@ -539,7 +539,7 @@ void MediaControls::update_timeline()
 
     while (m_buffered_ranges.size() < range_count) {
         auto range = MUST(DOM::create_element(m_media_element->document(), HTML::TagNames::div, Namespace::HTML));
-        static String const& timeline_buffered_class = *new String("timeline-buffered"_string);
+        static Utf16String const& timeline_buffered_class = *new Utf16String("timeline-buffered"_utf16);
         MUST(range->class_list()->toggle(timeline_buffered_class, true));
         MUST(range->style_for_bindings()->set_property(CSS::PropertyID::Display, "block"sv));
         m_dom->timeline_track->insert_before(range, nullptr);
@@ -633,10 +633,10 @@ void MediaControls::update_volume_and_mute_indicator()
         return MuteIconState::Empty;
     }();
 
-    static auto icon_class = [](MuteIconState state) -> Vector<String> const& {
-        static NeverDestroyed<Vector<String>> no_volume_class;
-        static NeverDestroyed<Vector<String>> low_volume_class { Vector<String> { "low"_string } };
-        static NeverDestroyed<Vector<String>> high_volume_class { Vector<String> { "high"_string } };
+    static auto icon_class = [](MuteIconState state) -> Vector<Utf16String> const& {
+        static NeverDestroyed<Vector<Utf16String>> no_volume_class;
+        static NeverDestroyed<Vector<Utf16String>> low_volume_class { Vector<Utf16String> { "low"_utf16 } };
+        static NeverDestroyed<Vector<Utf16String>> high_volume_class { Vector<Utf16String> { "high"_utf16 } };
 
         switch (state) {
         case MuteIconState::Empty:
@@ -656,12 +656,12 @@ void MediaControls::update_volume_and_mute_indicator()
     }
 
     if (muted != m_was_muted) {
-        MUST(m_dom->mute_button->class_list()->toggle("muted"_string, muted));
+        MUST(m_dom->mute_button->class_list()->toggle("muted"_utf16, muted));
         m_was_muted = muted;
     }
 
     if (has_audio != m_had_audio) {
-        MUST(m_dom->volume_area->class_list()->toggle("hidden"_string, !has_audio));
+        MUST(m_dom->volume_area->class_list()->toggle("hidden"_utf16, !has_audio));
         m_had_audio = has_audio;
     }
 }
@@ -671,7 +671,7 @@ void MediaControls::update_fullscreen_icon()
     if (!m_dom->fullscreen_icon)
         return;
 
-    static String const& fullscreen_class = *new String("fullscreen"_string);
+    static Utf16String const& fullscreen_class = *new Utf16String("fullscreen"_utf16);
 
     VERIFY(m_media_element);
 
@@ -699,9 +699,9 @@ bool MediaControls::should_show_placeholder() const
     return video_element.current_representation() != HTMLVideoElement::Representation::VideoFrame;
 }
 
-static Vector<String> const& visible_class()
+static Vector<Utf16String> const& visible_class()
 {
-    static NeverDestroyed<Vector<String>> visible_class { Vector<String> { "visible"_string } };
+    static NeverDestroyed<Vector<Utf16String>> visible_class { Vector<Utf16String> { "visible"_utf16 } };
     return *visible_class;
 }
 
