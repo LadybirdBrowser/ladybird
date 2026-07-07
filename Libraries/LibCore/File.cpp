@@ -209,6 +209,11 @@ ErrorOr<void> File::truncate(size_t length)
     return System::ftruncate(m_fd, length);
 }
 
+ErrorOr<struct stat> File::stat() const
+{
+    return System::fstat(m_fd);
+}
+
 #if !defined(AK_OS_WINDOWS)
 ErrorOr<void> File::set_blocking(bool enabled)
 {

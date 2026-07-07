@@ -19,7 +19,6 @@
 #include <LibFileSystem/FileSystem.h>
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
-#include <fcntl.h>
 
 #include <AK/Windows.h>
 
@@ -135,8 +134,7 @@ TEST_CASE(file_buffered_write_and_seek)
 
 TEST_CASE(file_adopt_fd)
 {
-    int rc = TRY_OR_FAIL(Core::System::open("./long_lines.txt"sv, O_RDONLY));
-    EXPECT(rc >= 0);
+    int rc = TRY_OR_FAIL(Core::File::open("./long_lines.txt"sv, Core::File::OpenMode::Read))->leak_fd();
 
     auto file = TRY_OR_FAIL(Core::File::adopt_fd(rc, Core::File::OpenMode::Read));
 

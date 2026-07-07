@@ -79,7 +79,8 @@ void maybe_attach_on_fail_fast_timeout(pid_t pid)
     outln("- Press Enter to continue shutdown + exit"sv);
     outln("- Type 'gdb' then Enter to attach with gdb first"sv);
     outln("- Type 'lldb' then Enter to attach with lldb first"sv);
-    MUST(Core::System::write(1, "> "sv.bytes()));
+    out("> "sv);
+    (void)fflush(stdout);
 
     auto standard_input_or_error = Core::File::standard_input();
     if (standard_input_or_error.is_error())

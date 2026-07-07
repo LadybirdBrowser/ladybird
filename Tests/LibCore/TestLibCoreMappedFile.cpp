@@ -12,9 +12,7 @@
 #include <LibCore/ImmutableBytes.h>
 #include <LibCore/MappedFile.h>
 #include <LibCore/StandardPaths.h>
-#include <LibCore/System.h>
 #include <LibTest/TestCase.h>
-#include <fcntl.h>
 
 TEST_CASE(mapped_file_open)
 {
@@ -110,8 +108,7 @@ BENCHMARK_CASE(file_tell)
 
 TEST_CASE(mapped_file_adopt_fd)
 {
-    int rc = TRY_OR_FAIL(Core::System::open("./long_lines.txt"sv, O_RDONLY));
-    EXPECT(rc >= 0);
+    int rc = TRY_OR_FAIL(Core::File::open("./long_lines.txt"sv, Core::File::OpenMode::Read))->leak_fd();
 
     auto file = TRY_OR_FAIL(Core::MappedFile::map_from_fd_and_close(rc, "./long_lines.txt"sv));
 
@@ -131,8 +128,7 @@ TEST_CASE(mapped_file_adopt_fd)
 
 TEST_CASE(mapped_file_adopt_fd_range)
 {
-    int rc = TRY_OR_FAIL(Core::System::open("./long_lines.txt"sv, O_RDONLY));
-    EXPECT(rc >= 0);
+    int rc = TRY_OR_FAIL(Core::File::open("./long_lines.txt"sv, Core::File::OpenMode::Read))->leak_fd();
 
     auto file = TRY_OR_FAIL(Core::MappedFile::map_from_fd_range_and_close(rc, "./long_lines.txt"sv, 500, 16));
 
@@ -147,8 +143,7 @@ TEST_CASE(mapped_file_adopt_fd_range)
 
 TEST_CASE(mapped_file_adopt_empty_fd_range)
 {
-    int rc = TRY_OR_FAIL(Core::System::open("./long_lines.txt"sv, O_RDONLY));
-    EXPECT(rc >= 0);
+    int rc = TRY_OR_FAIL(Core::File::open("./long_lines.txt"sv, Core::File::OpenMode::Read))->leak_fd();
 
     auto file = TRY_OR_FAIL(Core::MappedFile::map_from_fd_range_and_close(rc, "./long_lines.txt"sv, 500, 0));
 
@@ -159,8 +154,7 @@ TEST_CASE(mapped_file_adopt_empty_fd_range)
 
 TEST_CASE(mapped_file_adopt_invalid_fd_range)
 {
-    int rc = TRY_OR_FAIL(Core::System::open("./long_lines.txt"sv, O_RDONLY));
-    EXPECT(rc >= 0);
+    int rc = TRY_OR_FAIL(Core::File::open("./long_lines.txt"sv, Core::File::OpenMode::Read))->leak_fd();
 
     auto maybe_file = Core::MappedFile::map_from_fd_range_and_close(rc, "./long_lines.txt"sv, 8700, 16);
     EXPECT(maybe_file.is_error());
@@ -169,8 +163,7 @@ TEST_CASE(mapped_file_adopt_invalid_fd_range)
 
 TEST_CASE(immutable_bytes_from_mapped_file_range)
 {
-    int rc = TRY_OR_FAIL(Core::System::open("./long_lines.txt"sv, O_RDONLY));
-    EXPECT(rc >= 0);
+    int rc = TRY_OR_FAIL(Core::File::open("./long_lines.txt"sv, Core::File::OpenMode::Read))->leak_fd();
 
     auto bytes = TRY_OR_FAIL(Core::ImmutableBytes::map_from_fd_range_and_close(rc, "./long_lines.txt"sv, 500, 16));
 

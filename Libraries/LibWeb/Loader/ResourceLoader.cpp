@@ -271,12 +271,6 @@ void ResourceLoader::handle_file_load_request(LoadRequest& request, FileHandler 
             return;
         }
 
-        auto st_or_error = Core::System::fstat(fd);
-        if (st_or_error.is_error()) {
-            on_error(ByteString::formatted("{}", st_or_error.error()));
-            return;
-        }
-
         auto maybe_file = Core::File::adopt_fd(fd, Core::File::OpenMode::Read);
         if (maybe_file.is_error()) {
             on_error(ByteString::formatted("{}", maybe_file.error()));
@@ -284,6 +278,12 @@ void ResourceLoader::handle_file_load_request(LoadRequest& request, FileHandler 
         }
 
         auto file = maybe_file.release_value();
+
+        auto st_or_error = file->stat();
+        if (st_or_error.is_error()) {
+            on_error(ByteString::formatted("{}", st_or_error.error()));
+            return;
+        }
         auto maybe_data = file->read_until_eof();
         if (maybe_data.is_error()) {
             on_error(ByteString::formatted("{}", maybe_data.error()));

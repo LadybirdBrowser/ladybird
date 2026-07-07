@@ -12,6 +12,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Stream.h>
 #include <LibCore/Export.h>
+#include <sys/stat.h>
 
 namespace Core {
 
@@ -67,6 +68,8 @@ public:
     virtual ErrorOr<size_t> seek(i64 offset, SeekMode) override;
     virtual ErrorOr<size_t> tell() const override;
     virtual ErrorOr<void> truncate(size_t length) override;
+
+    ErrorOr<struct stat> stat() const;
 
 #if !defined(AK_OS_WINDOWS)
     // Sets the blocking mode of the file. If blocking mode is disabled, reads
