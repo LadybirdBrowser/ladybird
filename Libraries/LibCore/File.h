@@ -14,6 +14,16 @@
 #include <LibCore/Export.h>
 #include <sys/stat.h>
 
+#ifdef AK_OS_WINDOWS
+// The CRT's <sys/stat.h> lacks the POSIX file-type classification macros.
+#    ifndef S_ISDIR
+#        define S_ISDIR(mode) (((mode) & S_IFMT) == S_IFDIR)
+#    endif
+#    ifndef S_ISREG
+#        define S_ISREG(mode) (((mode) & S_IFMT) == S_IFREG)
+#    endif
+#endif
+
 namespace Core {
 
 class CORE_API File final : public SeekableStream {
@@ -71,6 +81,9 @@ public:
 
     ErrorOr<struct stat> stat() const;
 
+    static ErrorOr<struct stat> stat(StringView path);
+    static ErrorOr<struct stat> fstat(int fd);
+
 #if !defined(AK_OS_WINDOWS)
     // Sets the blocking mode of the file. If blocking mode is disabled, reads
     // will fail with EAGAIN when there's no data available to read, and writes
@@ -97,7 +110,10 @@ public:
             close();
     }
 
+#if !defined(AK_OS_WINDOWS)
+    // Translates an OpenMode into O_* flags; only meaningful for the POSIX backend.
     static int open_mode_to_options(OpenMode mode);
+#endif
 
 private:
     File(OpenMode mode, ShouldCloseFileDescriptor should_close = ShouldCloseFileDescriptor::Yes)

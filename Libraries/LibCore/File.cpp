@@ -67,88 +67,12 @@ ErrorOr<NonnullOwnPtr<File>> File::open_file_or_standard_stream(StringView filen
     }
 }
 
-int File::open_mode_to_options(OpenMode mode)
-{
-    int flags = 0;
-    if (has_flag(mode, OpenMode::ReadWrite)) {
-        flags |= O_RDWR | O_CREAT;
-    } else if (has_flag(mode, OpenMode::Read)) {
-        flags |= O_RDONLY;
-    } else if (has_flag(mode, OpenMode::Write)) {
-        flags |= O_WRONLY | O_CREAT;
-        bool should_truncate = !has_any_flag(mode, OpenMode::Append | OpenMode::MustBeNew);
-        if (should_truncate)
-            flags |= O_TRUNC;
-    }
-
-    if (has_flag(mode, OpenMode::Append))
-        flags |= O_APPEND;
-    if (has_flag(mode, OpenMode::Truncate))
-        flags |= O_TRUNC;
-    if (has_flag(mode, OpenMode::MustBeNew))
-        flags |= O_EXCL;
-    if (!has_flag(mode, OpenMode::KeepOnExec))
-        flags |= O_CLOEXEC;
-    if (has_flag(mode, OpenMode::Nonblocking)) {
-#if !defined(AK_OS_WINDOWS)
-        flags |= O_NONBLOCK;
-#else
-        dbgln("Core::File::OpenMode::Nonblocking is not implemented");
-        VERIFY_NOT_REACHED();
-#endif
-    }
-
-    // Some open modes, like `ReadWrite` imply the ability to create the file if it doesn't exist.
-    // Certain applications may not want this privilege, and for compatibility reasons, this is
-    // the easiest way to add this option.
-    if (has_flag(mode, OpenMode::DontCreate))
-        flags &= ~O_CREAT;
-
-    return flags;
-}
-
-ErrorOr<void> File::open_path(StringView filename, mode_t permissions)
-{
-    VERIFY(m_fd == -1);
-    auto flags = open_mode_to_options(m_mode);
-
-    m_fd = TRY(System::open(filename, flags, permissions));
-    return {};
-}
-
-ErrorOr<Bytes> File::read_some(Bytes buffer)
-{
-    if (!has_flag(m_mode, OpenMode::Read)) {
-        // NOTE: POSIX says that if the fd is not open for reading, the call
-        //       will return EBADF. Since we already know whether we can or
-        //       can't read the file, let's avoid a syscall.
-        return Error::from_errno(EBADF);
-    }
-
-    auto nread = TRY(System::read(m_fd, buffer));
-    m_last_read_was_eof = nread == 0;
-    m_file_offset += nread;
-    return buffer.trim(nread);
-}
-
 ErrorOr<ByteBuffer> File::read_until_eof(size_t block_size)
 {
     // Note: This is used as a heuristic, it's not valid for devices or virtual files.
-    auto const potential_file_size = TRY(System::fstat(m_fd)).st_size;
+    auto const potential_file_size = TRY(stat()).st_size;
 
     return read_until_eof_impl(block_size, potential_file_size);
-}
-
-ErrorOr<size_t> File::write_some(ReadonlyBytes buffer)
-{
-    if (!has_flag(m_mode, OpenMode::Write)) {
-        // NOTE: Same deal as Read.
-        return Error::from_errno(EBADF);
-    }
-
-    auto nwritten = TRY(System::write(m_fd, buffer));
-    m_file_offset += nwritten;
-    return nwritten;
 }
 
 bool File::is_eof() const { return m_last_read_was_eof; }
@@ -172,60 +96,9 @@ void File::close()
     m_fd = -1;
 }
 
-ErrorOr<size_t> File::seek(i64 offset, SeekMode mode)
-{
-    int syscall_mode;
-    switch (mode) {
-    case SeekMode::SetPosition:
-        syscall_mode = SEEK_SET;
-        break;
-    case SeekMode::FromCurrentPosition:
-        syscall_mode = SEEK_CUR;
-        break;
-    case SeekMode::FromEndPosition:
-        syscall_mode = SEEK_END;
-        break;
-    default:
-        VERIFY_NOT_REACHED();
-    }
-
-    size_t seek_result = TRY(System::lseek(m_fd, offset, syscall_mode));
-    m_file_offset = seek_result;
-    m_last_read_was_eof = false;
-    return seek_result;
-}
-
 ErrorOr<size_t> File::tell() const
 {
     return m_file_offset;
 }
-
-ErrorOr<void> File::truncate(size_t length)
-{
-    if (length > static_cast<size_t>(NumericLimits<off_t>::max()))
-        return Error::from_string_literal("Length is larger than the maximum supported length");
-
-    m_file_offset = min(length, m_file_offset);
-    return System::ftruncate(m_fd, length);
-}
-
-ErrorOr<struct stat> File::stat() const
-{
-    return System::fstat(m_fd);
-}
-
-#if !defined(AK_OS_WINDOWS)
-ErrorOr<void> File::set_blocking(bool enabled)
-{
-    // NOTE: This assumes the fd is actually a socket (FIONBIO), which is only coherent on POSIX,
-    //       where fds are interchangeable; on Windows a file HANDLE is never a SOCKET, so this
-    //       method is POSIX-only. Some systems also don't support changing the blocking state of
-    //       certain POSIX objects (message queues, pipes, etc) after their creation.
-    //       Therefore, this method shouldn't be used in Lagom.
-    // https://github.com/SerenityOS/serenity/pull/18965#discussion_r1207951840
-    int value = enabled ? 0 : 1;
-    return System::ioctl(fd(), FIONBIO, &value);
-}
-#endif
 
 }

@@ -32,6 +32,7 @@ if (WIN32)
     list(APPEND SOURCES
         AnonymousBufferWindows.cpp
         EventLoopImplementationWindows.cpp
+        FileWindows.cpp
         LocalServerWindows.cpp
         MappedFileWindows.cpp
         ProcessWindows.cpp
@@ -45,6 +46,7 @@ else()
     list(APPEND SOURCES
         AnonymousBuffer.cpp
         EventLoopImplementationUnix.cpp
+        FilePosix.cpp
         LocalServer.cpp
         MappedFile.cpp
         Process.cpp
