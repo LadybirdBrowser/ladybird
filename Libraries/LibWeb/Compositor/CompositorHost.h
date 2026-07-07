@@ -67,6 +67,10 @@ public:
 
     OwnPtr<CompositorContextHandle> create_context(CompositorContextId);
 
+    Painting::Canvas2DCommandStream& canvas_2d_stream() { return *m_canvas_2d_stream; }
+    void flush_canvas_2d_stream();
+    void discard_canvas_2d_stream();
+
     virtual RefPtr<WebGL::RemoteWebGLTransport> create_webgl_transport() = 0;
     virtual RefPtr<HTML::RemoteCanvas2DTransport> create_canvas_2d_transport() = 0;
 
@@ -90,7 +94,13 @@ public:
     virtual void request_screenshot(CompositorContextId, NonnullRefPtr<Gfx::PaintingSurface>, Function<void()>&& callback) = 0;
 
 protected:
-    CompositorHost() = default;
+    CompositorHost();
+
+    // Drains the stream, but only when the message can actually be delivered.
+    virtual void send_canvas_2d_stream(Painting::Canvas2DCommandStream&) = 0;
+
+private:
+    NonnullRefPtr<Painting::Canvas2DCommandStream> m_canvas_2d_stream;
 };
 
 }

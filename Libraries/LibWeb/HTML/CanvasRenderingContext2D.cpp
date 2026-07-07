@@ -53,6 +53,7 @@
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/Canvas2DCommandStream.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/SVG/SVGImageElement.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -228,11 +229,14 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::draw_image_internal(CanvasIm
         scaling_mode = Gfx::ScalingMode::BilinearMipmap;
     }
 
-    if (auto* canvas_command_list = this->canvas_command_list()) {
-        if (auto const* source_canvas = image.get_pointer<GC::Ref<HTMLCanvasElement>>()) {
-            (*source_canvas)->ensure_backing_storage();
-            (*source_canvas)->prepare_for_compositing();
-            if (auto source_canvas_id = (*source_canvas)->canvas_id(); source_canvas_id.has_value()) {
+    if (auto const* source_canvas = image.get_pointer<GC::Ref<HTMLCanvasElement>>()) {
+        (*source_canvas)->ensure_backing_storage();
+        (*source_canvas)->prepare_for_compositing();
+        if (auto source_canvas_id = (*source_canvas)->canvas_id(); source_canvas_id.has_value()) {
+            // NOTE: Fetch the command list only after presenting the source canvas;
+            //       presenting mutates the shared command stream and would invalidate
+            //       a previously obtained list.
+            if (auto* canvas_command_list = this->canvas_command_list()) {
                 canvas_command_list->append(Gfx::CanvasCommands::DrawCanvas {
                     .source_canvas_id = source_canvas_id->value(),
                     .dst_rect = destination_rect,
@@ -243,20 +247,24 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::draw_image_internal(CanvasIm
                     .compositing_and_blending_operator = drawing_state().current_compositing_and_blending_operator,
                 });
                 did_draw(destination_rect);
-                flush_recorded_commands(CommitCommands::No);
-
-                // 7. If image is not origin-clean, then set the CanvasRenderingContext2D's origin-clean flag to false.
-                if (image_is_not_origin_clean(image))
-                    m_origin_clean = false;
-
-                return {};
+                m_transport->flush_shared_stream();
             }
-        }
 
-        auto frame = canvas_image_source_frame(image);
-        if (!frame.has_value())
+            // 7. If image is not origin-clean, then set the CanvasRenderingContext2D's origin-clean flag to false.
+            if (image_is_not_origin_clean(image))
+                m_origin_clean = false;
+
             return {};
+        }
+    }
 
+    auto frame = canvas_image_source_frame(image);
+    if (!frame.has_value())
+        return {};
+
+    // NOTE: As above, the readback fallback inside canvas_image_source_frame() may
+    //       flush the shared command stream, so the list is fetched only afterwards.
+    if (auto* canvas_command_list = this->canvas_command_list()) {
         canvas_command_list->append(Gfx::CanvasCommands::DrawBitmap {
             .frame = *frame,
             .dst_rect = destination_rect,
@@ -290,9 +298,10 @@ Gfx::CanvasCommandList* CanvasRenderingContext2D::canvas_command_list()
     ensure_backing_storage();
     if (!has_backing_storage())
         return nullptr;
-    if (m_commands.size() >= max_pending_canvas_commands)
-        flush_recorded_commands(CommitCommands::No);
-    return &m_commands;
+    auto& stream = m_transport->shared_stream();
+    if (stream.total_command_count() >= max_pending_canvas_commands)
+        m_transport->flush_shared_stream();
+    return &stream.commands_for(*m_transport->canvas_id());
 }
 
 bool CanvasRenderingContext2D::ensure_remote_canvas_context()
@@ -317,30 +326,11 @@ bool CanvasRenderingContext2D::ensure_remote_canvas_context()
     return true;
 }
 
-void CanvasRenderingContext2D::flush_recorded_commands(CommitCommands commit)
-{
-    if (!m_transport)
-        return;
-
-    bool const should_commit = commit == CommitCommands::Yes;
-    if (m_commands.is_empty()) {
-        if (!should_commit || !m_has_uncommitted_remote_commands)
-            return;
-        m_transport->update_commands(m_commands, true);
-        m_has_uncommitted_remote_commands = false;
-        return;
-    }
-
-    auto commands = move(m_commands);
-    m_transport->update_commands(commands, should_commit);
-    m_has_uncommitted_remote_commands = !should_commit;
-}
-
 RefPtr<Gfx::Bitmap> CanvasRenderingContext2D::read_pixels(Gfx::IntRect const& rect)
 {
     if (!has_backing_storage())
         return nullptr;
-    flush_recorded_commands(CommitCommands::No);
+    m_transport->flush_shared_stream();
     return m_transport->read_back_pixels(rect);
 }
 
@@ -354,7 +344,10 @@ void CanvasRenderingContext2D::set_size(Gfx::IntSize const& size)
 
 void CanvasRenderingContext2D::prepare_for_compositing()
 {
-    flush_recorded_commands(CommitCommands::Yes);
+    if (!has_backing_storage())
+        return;
+    m_transport->shared_stream().record_present(*m_transport->canvas_id());
+    m_transport->flush_shared_stream();
 }
 
 Optional<Painting::CanvasId> CanvasRenderingContext2D::canvas_id() const
@@ -382,7 +375,7 @@ void CanvasRenderingContext2D::notify_backing_storage_lost()
         // 3. Set context's context lost to true.
         set_context_lost(true);
 
-        // AD-HOC: Drop recorded-but-unflushed draw commands; they targeted the lost storage.
+        // AD-HOC: Release the remote context backing the lost storage.
         discard_backing_storage();
 
         // 4. Reset the rendering context to its default state given context.
@@ -424,9 +417,11 @@ void CanvasRenderingContext2D::ensure_backing_storage()
 
 void CanvasRenderingContext2D::discard_backing_storage()
 {
-    m_commands = {};
-    m_has_uncommitted_remote_commands = false;
     if (m_transport) {
+        // Flush the shared stream before destroying the context: it may still
+        // hold commands targeting this canvas, and DrawCanvas commands from
+        // other canvases referencing it, which must replay while it is alive.
+        m_transport->flush_shared_stream();
         m_transport->destroy_context();
         m_transport = nullptr;
     }

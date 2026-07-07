@@ -6,6 +6,7 @@
 
 #include <LibGfx/PaintingSurface.h>
 #include <LibWeb/Compositor/CompositorHost.h>
+#include <LibWeb/Painting/Canvas2DCommandStream.h>
 #include <LibWeb/Painting/DisplayList.h>
 
 namespace Web::Compositor {
@@ -92,11 +93,28 @@ void CompositorContextHandle::request_screenshot(NonnullRefPtr<Gfx::PaintingSurf
     m_host.request_screenshot(m_context_id, move(target_surface), move(callback));
 }
 
+CompositorHost::CompositorHost()
+    : m_canvas_2d_stream(adopt_ref(*new Painting::Canvas2DCommandStream()))
+{
+}
+
 CompositorHost::~CompositorHost() = default;
 
 OwnPtr<CompositorContextHandle> CompositorHost::create_context(CompositorContextId context_id)
 {
     return adopt_own(*new CompositorContextHandle(*this, context_id));
+}
+
+void CompositorHost::flush_canvas_2d_stream()
+{
+    if (m_canvas_2d_stream->is_empty())
+        return;
+    send_canvas_2d_stream(*m_canvas_2d_stream);
+}
+
+void CompositorHost::discard_canvas_2d_stream()
+{
+    (void)m_canvas_2d_stream->take_segments();
 }
 
 }

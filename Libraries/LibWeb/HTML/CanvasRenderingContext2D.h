@@ -179,21 +179,13 @@ private:
     void paint_shadow_for_fill_internal(Gfx::Path const&, Gfx::WindingRule);
     void paint_shadow_for_stroke_internal(Gfx::Path const&, Gfx::Path::CapStyle, Gfx::Path::JoinStyle, Vector<float> const&);
 
-    enum class CommitCommands {
-        No,
-        Yes,
-    };
-    void flush_recorded_commands(CommitCommands);
-
     bool ensure_remote_canvas_context();
 
     bool has_backing_storage() const { return m_transport != nullptr; }
 
     GC::Ref<HTMLCanvasElement> m_element;
 
-    Gfx::CanvasCommandList m_commands;
     RefPtr<RemoteCanvas2DTransport> m_transport;
-    bool m_has_uncommitted_remote_commands { false };
 
     // https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-origin-clean
     bool m_origin_clean { true };

@@ -23,7 +23,9 @@ public:
     virtual bool create_context(Gfx::IntSize, bool alpha) = 0;
     virtual Optional<Painting::CanvasId> canvas_id() const = 0;
     virtual void destroy_context() = 0;
-    virtual void update_commands(Gfx::CanvasCommandList const&, bool commit) = 0;
+
+    virtual Painting::Canvas2DCommandStream& shared_stream() = 0;
+    virtual void flush_shared_stream() = 0;
 
     virtual RefPtr<Gfx::Bitmap> read_back_pixels(Gfx::IntRect const&) = 0;
 };

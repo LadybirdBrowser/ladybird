@@ -24,6 +24,7 @@
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/CSS/StyleSheetList.h>
+#include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/DOM/CharacterData.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -329,6 +330,12 @@ void PageClient::compositor_process_lost()
 
 void PageClient::compositor_process_reconnected()
 {
+    // Drop canvas commands recorded for the previous Compositor process: the
+    // new process allocates canvas ids from scratch, so flushing stale
+    // segments could target the wrong canvas.
+    if (auto* compositor_host = m_owner.compositor_host())
+        compositor_host->discard_canvas_2d_stream();
+
     page().top_level_traversable()->repaint_after_compositor_process_reconnect();
     page().notify_all_canvas_elements_of_lost_backing_storage();
     page().prepare_canvas_contexts_for_compositing();

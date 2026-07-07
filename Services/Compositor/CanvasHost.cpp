@@ -123,33 +123,24 @@ void CanvasHost::present_canvas_2d_context(Web::Painting::CanvasId canvas_id, Ca
     context.has_uncommitted_commands = false;
 }
 
-void CanvasHost::play_canvas_2d_segment(Web::Painting::CanvasId canvas_id, Gfx::CanvasCommandList const& commands, bool present)
-{
-    // The canvas may have been destroyed while these commands were pending in
-    // WebContent, so a missing context is not a protocol violation.
-    auto* context = this->context(canvas_id);
-    auto* canvas_context = context ? context->get_pointer<Canvas2DContext>() : nullptr;
-    if (!canvas_context)
-        return;
-
-    if (!commands.is_empty()) {
-        canvas_context->command_player->play(commands);
-        canvas_context->has_uncommitted_commands = true;
-    }
-
-    if (present && canvas_context->has_uncommitted_commands)
-        present_canvas_2d_context(canvas_id, *canvas_context);
-}
-
-void CanvasHost::execute_canvas_2d_commands(Web::Painting::CanvasId canvas_id, Gfx::CanvasCommandList const& commands, bool commit)
-{
-    play_canvas_2d_segment(canvas_id, commands, commit);
-}
-
 void CanvasHost::execute_canvas_2d_stream(Vector<Web::Painting::Canvas2DCommandStreamSegment> const& segments)
 {
-    for (auto const& segment : segments)
-        play_canvas_2d_segment(segment.canvas_id, segment.commands, segment.present);
+    for (auto const& segment : segments) {
+        // The canvas may have been destroyed while this segment was pending in
+        // WebContent, so a missing context is not a protocol violation.
+        auto* context = this->context(segment.canvas_id);
+        auto* canvas_context = context ? context->get_pointer<Canvas2DContext>() : nullptr;
+        if (!canvas_context)
+            continue;
+
+        if (!segment.commands.is_empty()) {
+            canvas_context->command_player->play(segment.commands);
+            canvas_context->has_uncommitted_commands = true;
+        }
+
+        if (segment.present && canvas_context->has_uncommitted_commands)
+            present_canvas_2d_context(segment.canvas_id, *canvas_context);
+    }
 }
 
 void CanvasHost::execute_webgl_commands(Web::Painting::CanvasId canvas_id, ReadonlyBytes commands, Vector<Gfx::DecodedImageFrame> const& bitmaps)

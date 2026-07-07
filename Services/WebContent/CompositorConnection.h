@@ -22,6 +22,7 @@
 #include <LibWeb/Compositor/Types.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
+#include <LibWeb/Painting/Canvas2DCommandStream.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/ScrollState.h>
@@ -46,7 +47,7 @@ public:
     void update_video_frame(Web::Compositor::CompositorContextId, Web::Painting::VideoFrameResourceId, NonnullRefPtr<Media::VideoFrame const> const&);
     void clear_video_frame(Web::Compositor::CompositorContextId, Web::Painting::VideoFrameResourceId);
     Optional<Web::Painting::CanvasId> create_canvas_2d_context(Gfx::IntSize, bool alpha);
-    void update_canvas_2d_commands(Web::Painting::CanvasId, Gfx::CanvasCommandList const&, bool commit);
+    void update_canvas_2d_stream(Web::Painting::Canvas2DCommandStream&);
     void destroy_canvas_context(Web::Painting::CanvasId);
     Gfx::ShareableBitmap get_canvas_pixels(Web::Painting::CanvasId, Gfx::IntRect);
     void invalidate_wheel_event_listener_state(Web::Compositor::CompositorContextId, u64 generation);

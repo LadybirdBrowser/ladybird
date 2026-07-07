@@ -11,6 +11,7 @@
 #include <LibMedia/VideoFrame.h>
 #include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/HTML/Canvas/RemoteCanvas2DTransport.h>
+#include <LibWeb/Painting/Canvas2DCommandStream.h>
 #include <LibWeb/WebGL/RemoteWebGLTransport.h>
 #include <WebContent/CompositorConnection.h>
 #include <WebContent/ConnectionFromClient.h>
@@ -99,8 +100,9 @@ private:
 
 class WebContentRemoteCanvas2DTransport final : public Web::HTML::RemoteCanvas2DTransport {
 public:
-    explicit WebContentRemoteCanvas2DTransport(NonnullRefPtr<CompositorConnection> connection)
+    WebContentRemoteCanvas2DTransport(NonnullRefPtr<CompositorConnection> connection, NonnullRefPtr<Web::Painting::Canvas2DCommandStream> stream)
         : m_connection(move(connection))
+        , m_stream(move(stream))
     {
     }
 
@@ -128,11 +130,14 @@ private:
         m_canvas_id.clear();
     }
 
-    virtual void update_commands(Gfx::CanvasCommandList const& commands, bool commit) override
+    virtual Web::Painting::Canvas2DCommandStream& shared_stream() override
     {
-        if (!m_canvas_id.has_value())
-            return;
-        m_connection->update_canvas_2d_commands(*m_canvas_id, commands, commit);
+        return *m_stream;
+    }
+
+    virtual void flush_shared_stream() override
+    {
+        m_connection->update_canvas_2d_stream(*m_stream);
     }
 
     virtual RefPtr<Gfx::Bitmap> read_back_pixels(Gfx::IntRect const& rect) override
@@ -146,6 +151,7 @@ private:
     }
 
     NonnullRefPtr<CompositorConnection> m_connection;
+    NonnullRefPtr<Web::Painting::Canvas2DCommandStream> m_stream;
     Optional<Web::Painting::CanvasId> m_canvas_id;
 };
 
@@ -167,8 +173,14 @@ private:
     virtual RefPtr<Web::HTML::RemoteCanvas2DTransport> create_canvas_2d_transport() override
     {
         if (auto* connection = compositor_connection())
-            return adopt_ref(*new WebContentRemoteCanvas2DTransport(*connection));
+            return adopt_ref(*new WebContentRemoteCanvas2DTransport(*connection, canvas_2d_stream()));
         return nullptr;
+    }
+
+    virtual void send_canvas_2d_stream(Web::Painting::Canvas2DCommandStream& stream) override
+    {
+        if (auto* connection = compositor_connection())
+            connection->update_canvas_2d_stream(stream);
     }
 
     virtual void destroy_context(Web::Compositor::CompositorContextId context_id) override

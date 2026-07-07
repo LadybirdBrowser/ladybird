@@ -51,7 +51,6 @@ public:
     void destroy_context(Web::Painting::CanvasId);
     bool has_context(Web::Painting::CanvasId) const;
 
-    void execute_canvas_2d_commands(Web::Painting::CanvasId, Gfx::CanvasCommandList const&, bool commit);
     void execute_canvas_2d_stream(Vector<Web::Painting::Canvas2DCommandStreamSegment> const&);
     void execute_webgl_commands(Web::Painting::CanvasId, ReadonlyBytes, Vector<Gfx::DecodedImageFrame> const&);
     ErrorOr<ByteBuffer> execute_webgl_sync_call(Web::Painting::CanvasId, ByteBuffer request);
@@ -74,7 +73,6 @@ private:
     OwnPtr<Gfx::CanvasCommandPlayer> create_2d_command_player(Gfx::IntSize, bool alpha);
     static HostWebGLContext& as_webgl(Context&);
     void present_canvas_2d_context(Web::Painting::CanvasId, Canvas2DContext&);
-    void play_canvas_2d_segment(Web::Painting::CanvasId, Gfx::CanvasCommandList const&, bool present);
 
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
     Web::Painting::CanvasSurfaceRegistry& m_canvas_surface_registry;

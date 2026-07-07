@@ -114,12 +114,15 @@ Optional<Web::Painting::CanvasId> CompositorConnection::create_canvas_2d_context
     return response->canvas_id();
 }
 
-void CompositorConnection::update_canvas_2d_commands(Web::Painting::CanvasId canvas_id, Gfx::CanvasCommandList const& commands, bool commit)
+void CompositorConnection::update_canvas_2d_stream(Web::Painting::Canvas2DCommandStream& stream)
 {
-    if (!can_send_message_to_compositor())
+    // The stream is drained only here, and only when the message can actually
+    // be delivered: a flush through a connection that has been lost must leave
+    // the segments in place for whoever flushes through a live one.
+    if (stream.is_empty() || !can_send_message_to_compositor())
         return;
 
-    auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateCanvas2dCommands::static_encode(canvas_id, commands, commit));
+    auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateCanvas2dStream::static_encode(stream.take_segments()));
     if (post_message(encoded_message).is_error())
         did_lose_compositor();
 }
