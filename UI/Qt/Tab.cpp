@@ -523,6 +523,23 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     tab_layout->addWidget(m_view);
     tab_layout->addWidget(m_find_in_page);
 
+    m_navigate_back_action = create_application_action(*this, view().navigate_back_action());
+    m_navigate_forward_action = create_application_action(*this, view().navigate_forward_action());
+    m_reload_action = create_application_action(*this, application.reload_action());
+    m_toggle_vertical_tabs_expanded_action = create_application_action(*this, application.toggle_vertical_tabs_expanded_action());
+    m_open_downloads_page_action = create_application_action(*this, application.open_downloads_page_action());
+
+    m_downloads_button = new DownloadsButton(m_toolbar);
+    m_downloads_button->setText("Downloads");
+    m_downloads_button->setAutoRaise(true);
+    m_downloads_button->setFocusPolicy(Qt::NoFocus);
+    m_downloads_button->setIconSize({ 20, 20 });
+    m_downloads_button->setFixedSize(36, 36);
+    m_downloads_button->setVisible(m_open_downloads_page_action->isVisible());
+    QObject::connect(m_downloads_button, &QToolButton::clicked, this, [this] {
+        show_downloads_popover();
+    });
+
     m_private_badge = new QLabel("Private", m_toolbar);
     m_private_badge->setObjectName("LadybirdPrivateBadge");
     m_private_badge->setAlignment(Qt::AlignCenter);
@@ -541,12 +558,6 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_hamburger_button->setPopupMode(QToolButton::InstantPopup);
     m_hamburger_button->setMenu(&m_window->hamburger_menu());
     connect_hamburger_menu();
-
-    m_navigate_back_action = create_application_action(*this, view().navigate_back_action());
-    m_navigate_forward_action = create_application_action(*this, view().navigate_forward_action());
-    m_reload_action = create_application_action(*this, application.reload_action());
-    m_toggle_vertical_tabs_expanded_action = create_application_action(*this, application.toggle_vertical_tabs_expanded_action());
-    m_open_downloads_page_action = create_application_action(*this, application.open_downloads_page_action());
 
     m_toolbar_window_controls_separator = new QWidget(m_toolbar);
     m_toolbar_window_controls_separator->setObjectName("LadybirdToolbarWindowControlsSeparator");
@@ -607,21 +618,13 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_location_edit->set_zoom_action(create_application_action(*m_location_edit, view().reset_zoom_action(), IncludeActionIcon::No));
     location_edit_layout->addWidget(m_location_edit);
     toolbar_layout->addWidget(location_edit_container, 1);
-    toolbar_layout->addWidget(m_private_badge, 0, Qt::AlignVCenter);
     m_right_toggle_vertical_tabs_expanded_button = create_toolbar_button(*m_toolbar, *m_toggle_vertical_tabs_expanded_action);
     toolbar_layout->addWidget(m_right_toggle_vertical_tabs_expanded_button, 0, Qt::AlignTop);
-    m_downloads_button = new DownloadsButton(m_toolbar);
-    m_downloads_button->setText("Downloads");
-    m_downloads_button->setAutoRaise(true);
-    m_downloads_button->setFocusPolicy(Qt::NoFocus);
-    m_downloads_button->setIconSize({ 20, 20 });
-    m_downloads_button->setFixedSize(36, 36);
-    m_downloads_button->setVisible(m_open_downloads_page_action->isVisible());
-    QObject::connect(m_downloads_button, &QToolButton::clicked, this, [this] {
-        show_downloads_popover();
-    });
+
     toolbar_layout->addWidget(m_downloads_button, 0, Qt::AlignTop);
+    toolbar_layout->addWidget(m_private_badge, 0, Qt::AlignVCenter);
     toolbar_layout->addWidget(m_hamburger_button, 0, Qt::AlignTop);
+
     if (use_right_custom_window_controls()) {
         toolbar_layout->addWidget(m_toolbar_window_controls_separator, 0, Qt::AlignVCenter);
         toolbar_layout->addWidget(m_toolbar_window_controls, 0, Qt::AlignVCenter);
