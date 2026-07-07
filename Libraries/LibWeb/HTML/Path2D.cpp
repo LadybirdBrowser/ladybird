@@ -40,7 +40,7 @@ Path2D::Path2D(JS::Realm& realm, Optional<Variant<GC::Ref<Path2D>, String>> cons
     }
 
     // 4. Let svgPath be the result of parsing and interpreting path according to SVG 2's rules for path data. [SVG]
-    auto path_instructions = SVG::AttributeParser::parse_path_data(path->get<String>());
+    auto path_instructions = SVG::AttributeParser::parse_path_data(Utf16String::from_utf8(path->get<String>()));
     auto svg_path = path_instructions.to_gfx_path();
 
     if (!svg_path.is_empty()) {

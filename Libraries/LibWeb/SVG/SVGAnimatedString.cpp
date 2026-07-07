@@ -44,7 +44,7 @@ void SVGAnimatedString::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGAnimatedString__baseVal
-String SVGAnimatedString::base_val() const
+Utf16String SVGAnimatedString::base_val() const
 {
     // On getting baseVal or animVal, the following steps are run:
     // 1. If the reflected attribute is not present, then:
@@ -53,19 +53,19 @@ String SVGAnimatedString::base_val() const
         //    and that attribute is present, then return its value.
         if (m_deprecated_reflected_attribute.has_value()) {
             if (auto attribute = m_element->get_attribute_ns(m_deprecated_reflected_attribute->namespace_(), m_deprecated_reflected_attribute->local_name()); attribute.has_value())
-                return attribute.release_value().to_utf8_but_should_be_ported_to_utf16();
+                return attribute.release_value();
         }
 
         // 2. Otherwise, if the reflected attribute has an initial value, then return it.
         if (m_initial_value.has_value())
-            return m_initial_value.value().to_string();
+            return Utf16String::from_utf8(m_initial_value.value());
 
         // 3. Otherwise, return the empty string.
         return {};
     }
 
     // 2. Otherwise, the reflected attribute is present. Return its value.
-    return m_element->get_attribute_ns(m_reflected_attribute.namespace_(), m_reflected_attribute.local_name()).value().to_utf8_but_should_be_ported_to_utf16();
+    return m_element->get_attribute_ns(m_reflected_attribute.namespace_(), m_reflected_attribute.local_name()).value();
 }
 
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGAnimatedString__baseVal

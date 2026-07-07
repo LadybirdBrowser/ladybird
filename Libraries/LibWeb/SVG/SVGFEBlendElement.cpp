@@ -43,11 +43,43 @@ void SVGFEBlendElement::attribute_changed(FlyString const& name, Optional<Utf16S
         auto parse_mix_blend_mode = [](Optional<Utf16String> const& value) -> Optional<CSS::MixBlendMode> {
             if (!value.has_value())
                 return {};
-            auto value_utf8 = value->to_utf8_but_should_be_ported_to_utf16();
-            auto keyword = CSS::keyword_from_string(value_utf8.bytes_as_string_view());
-            if (!keyword.has_value())
-                return {};
-            return CSS::keyword_to_mix_blend_mode(*keyword);
+            if (*value == "normal"sv)
+                return CSS::MixBlendMode::Normal;
+            if (*value == "multiply"sv)
+                return CSS::MixBlendMode::Multiply;
+            if (*value == "screen"sv)
+                return CSS::MixBlendMode::Screen;
+            if (*value == "overlay"sv)
+                return CSS::MixBlendMode::Overlay;
+            if (*value == "darken"sv)
+                return CSS::MixBlendMode::Darken;
+            if (*value == "lighten"sv)
+                return CSS::MixBlendMode::Lighten;
+            if (*value == "color-dodge"sv)
+                return CSS::MixBlendMode::ColorDodge;
+            if (*value == "color-burn"sv)
+                return CSS::MixBlendMode::ColorBurn;
+            if (*value == "hard-light"sv)
+                return CSS::MixBlendMode::HardLight;
+            if (*value == "soft-light"sv)
+                return CSS::MixBlendMode::SoftLight;
+            if (*value == "difference"sv)
+                return CSS::MixBlendMode::Difference;
+            if (*value == "exclusion"sv)
+                return CSS::MixBlendMode::Exclusion;
+            if (*value == "hue"sv)
+                return CSS::MixBlendMode::Hue;
+            if (*value == "saturation"sv)
+                return CSS::MixBlendMode::Saturation;
+            if (*value == "color"sv)
+                return CSS::MixBlendMode::Color;
+            if (*value == "luminosity"sv)
+                return CSS::MixBlendMode::Luminosity;
+            if (*value == "plus-darker"sv)
+                return CSS::MixBlendMode::PlusDarker;
+            if (*value == "plus-lighter"sv)
+                return CSS::MixBlendMode::PlusLighter;
+            return {};
         };
 
         m_mode = parse_mix_blend_mode(new_value);

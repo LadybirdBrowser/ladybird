@@ -44,7 +44,7 @@ GC::Ref<SVGAnimatedEnumeration> SVGFEColorMatrixElement::type() const
     // https://www.w3.org/TR/filter-effects-1/#InterfaceSVGFEColorMatrixElement
     // Map the 'type' attribute to the IDL enumeration values.
     // Defaults to MATRIX when omitted.
-    auto type_attribute = attribute(AttributeNames::type).value_or({}).to_utf8_but_should_be_ported_to_utf16();
+    auto type_attribute = attribute(AttributeNames::type).value_or({});
 
     u16 enum_value = SVGFEColorMatrixElement::SVG_FECOLORMATRIX_TYPE_UNKNOWN;
     if (type_attribute.is_empty() || type_attribute.equals_ignoring_ascii_case("matrix"sv))

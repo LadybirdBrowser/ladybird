@@ -80,7 +80,7 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
         Gfx::InterpolationColorSpace color_space { Gfx::InterpolationColorSpace::SRGB };
     };
 
-    HashMap<String, FilterResult> result_map;
+    HashMap<Utf16String, FilterResult> result_map;
     FilterResult root;
 
     auto operating_color_space = [](DOM::Element const& element) {
@@ -103,7 +103,7 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
     };
 
     // https://www.w3.org/TR/filter-effects-1/#element-attrdef-filter-primitive-in
-    auto resolve_input = [&](String const& name) -> FilterResult {
+    auto resolve_input = [&](Utf16View name) -> FilterResult {
         // FIXME: Add missing inputs (BackgroundImage, BackgroundAlpha, FillPaint and StrokePaint).
         if (name == "SourceGraphic"sv)
             return { {}, Gfx::InterpolationColorSpace::SRGB };
@@ -123,7 +123,7 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
         return root;
     };
 
-    auto resolve_input_in_color_space = [&](String const& name, Gfx::InterpolationColorSpace destination_color_space) {
+    auto resolve_input_in_color_space = [&](Utf16View name, Gfx::InterpolationColorSpace destination_color_space) {
         return convert_to_color_space(resolve_input(name), destination_color_space);
     };
 
@@ -216,8 +216,8 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
             auto in_attr = colormatrix_primitive->in1()->base_val();
             auto input = resolve_input_in_color_space(in_attr, operating_space);
 
-            auto type_value = colormatrix_primitive->attribute(AttributeNames::type).value_or({}).to_utf8_but_should_be_ported_to_utf16();
-            auto values_value = colormatrix_primitive->attribute(AttributeNames::values).value_or({}).to_utf8_but_should_be_ported_to_utf16();
+            auto type_value = colormatrix_primitive->attribute(AttributeNames::type).value_or({});
+            auto values_value = colormatrix_primitive->attribute(AttributeNames::values).value_or({});
 
             // Default type is "matrix" per spec.
             if (type_value.is_empty() || type_value.equals_ignoring_ascii_case("matrix"sv)) {
@@ -225,12 +225,12 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
                 float matrix[20] = { 0 };
                 size_t count = 0;
 
-                StringView sv = values_value;
+                Utf16View sv = values_value;
                 auto skip_leading_whitespace = [&] {
-                    sv = sv.trim_whitespace(AK::TrimMode::Left);
+                    sv = sv.trim_ascii_whitespace(AK::TrimMode::Left);
                 };
                 auto consume_comma_and_whitespace = [&] {
-                    if (!sv.is_empty() && sv[0] == ',')
+                    if (!sv.is_empty() && sv.code_unit_at(0) == ',')
                         sv = sv.substring_view(1);
                     skip_leading_whitespace();
                 };

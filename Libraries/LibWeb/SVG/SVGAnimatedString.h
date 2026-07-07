@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <AK/Utf16String.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/QualifiedName.h>
 #include <LibWeb/Export.h>
@@ -22,7 +23,7 @@ public:
     [[nodiscard]] static GC::Ref<SVGAnimatedString> create(JS::Realm&, GC::Ref<SVGElement> element, DOM::QualifiedName reflected_attribute, Optional<DOM::QualifiedName> deprecated_reflected_attribute = {}, Optional<FlyString> initial_value = {});
     virtual ~SVGAnimatedString() override;
 
-    String base_val() const;
+    Utf16String base_val() const;
     void set_base_val(String const& base_val);
 
 private:

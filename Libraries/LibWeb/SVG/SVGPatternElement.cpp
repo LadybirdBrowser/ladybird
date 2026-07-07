@@ -56,7 +56,7 @@ void SVGPatternElement::attribute_changed(FlyString const& name, Optional<Utf16S
     } else if (name == AttributeNames::patternContentUnits) {
         m_pattern_content_units = AttributeParser::parse_units(value.value_or({}));
     } else if (name == AttributeNames::patternTransform) {
-        if (auto transform_list = AttributeParser::parse_transform(value.value_or({}).to_utf8_but_should_be_ported_to_utf16()); transform_list.has_value()) {
+        if (auto transform_list = AttributeParser::parse_transform(value.value_or({})); transform_list.has_value()) {
             m_pattern_transform = transform_from_transform_list(*transform_list);
         } else {
             m_pattern_transform = {};

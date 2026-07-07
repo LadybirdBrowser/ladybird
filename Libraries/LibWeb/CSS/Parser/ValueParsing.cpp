@@ -4329,7 +4329,7 @@ RefPtr<StyleValue const> Parser::parse_basic_shape_value(TokenStream<ComponentVa
 
         if (!maybe_string.is(Token::Type::String) || path_argument_tokens.has_next_token())
             return nullptr;
-        auto path_data = SVG::AttributeParser::parse_path_data(maybe_string.token().string().to_string());
+        auto path_data = SVG::AttributeParser::parse_path_data(Utf16String::from_utf8(maybe_string.token().string().to_string()));
         if (path_data.instructions().is_empty())
             return nullptr;
 

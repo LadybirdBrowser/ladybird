@@ -50,7 +50,7 @@ void SVGGraphicsElement::attribute_changed(FlyString const& name, Optional<Utf16
     Base::attribute_changed(name, old_value, value, namespace_);
 
     if (name == "transform"sv) {
-        auto transform_list = AttributeParser::parse_transform(value.value_or({}).to_utf8_but_should_be_ported_to_utf16());
+        auto transform_list = AttributeParser::parse_transform(value.value_or({}));
         if (transform_list.has_value())
             m_transform = transform_from_transform_list(*transform_list);
         set_needs_layout_update(DOM::SetNeedsLayoutReason::SVGGraphicsElementTransformChange);

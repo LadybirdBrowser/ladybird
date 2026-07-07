@@ -32,7 +32,7 @@ void SVGPolygonElement::attribute_changed(FlyString const& name, Optional<Utf16S
     Base::attribute_changed(name, old_value, value, namespace_);
 
     if (name == SVG::AttributeNames::points) {
-        m_points = AttributeParser::parse_points(value.value_or({}).to_utf8_but_should_be_ported_to_utf16());
+        m_points = AttributeParser::parse_points(value.value_or({}));
         set_needs_layout_update(DOM::SetNeedsLayoutReason::StyleChange);
     }
 }

@@ -79,8 +79,7 @@ void SVGUseElement::adopted_from(DOM::Document& old_document)
     if (!href.has_value())
         return;
 
-    auto href_utf8 = href->to_utf8_but_should_be_ported_to_utf16();
-    m_href = document().url().complete_url(href_utf8.bytes_as_string_view());
+    m_href = document().encoding_parse_url(*href);
     if (!m_href.has_value())
         return;
 
@@ -201,8 +200,7 @@ void SVGUseElement::process_the_url(Optional<Utf16String> const& href)
     // it with the document base URL. If all parts other than the target fragment are equal, this is
     // a same-document URL reference, and processing the URL must continue as indicated in Identifying
     // the target element with the current document as the referenced document.
-    auto href_utf8 = href.value_or({}).to_utf8_but_should_be_ported_to_utf16();
-    m_href = document().url().complete_url(href_utf8.bytes_as_string_view());
+    m_href = document().encoding_parse_url(href.value_or({}));
     if (!m_href.has_value())
         return;
 
