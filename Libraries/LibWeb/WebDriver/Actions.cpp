@@ -176,7 +176,7 @@ static CSSPixelPoint get_parent_offset(HTML::BrowsingContext const& browsing_con
 }
 
 // https://w3c.github.io/webdriver/#dfn-get-coordinates-relative-to-an-origin
-static ErrorOr<CSSPixelPoint, WebDriver::Error> get_coordinates_relative_to_origin(PointerInputSource const& source, HTML::BrowsingContext const& browsing_context, CSSPixelPoint offset, CSSPixelRect viewport, ActionObject::Origin const& origin, ActionsOptions const& actions_options)
+static ErrorOr<CSSPixelPoint, WebDriver::Error> get_coordinates_relative_to_origin(PointerInputSource const* source, HTML::BrowsingContext const& browsing_context, CSSPixelPoint offset, CSSPixelRect viewport, ActionObject::Origin const& origin, ActionsOptions const& actions_options)
 {
     // FIXME: Spec-issue: If the browsing context is that of a subframe, we need to get its offset relative to the top
     //        frame, rather than its own frame.
@@ -195,10 +195,13 @@ static ErrorOr<CSSPixelPoint, WebDriver::Error> get_coordinates_relative_to_orig
 
             // "pointer"
             case ActionObject::OriginType::Pointer:
+                // NB: Scroll actions reject a pointer origin at processing time, so source is always non-null here.
+                VERIFY(source);
+
                 // 1. Let start x be equal to the x property of source.
                 // 2. Let start y be equal to the y property of source.
                 // 3. Let x equal start x + x offset and y equal start y + y offset.
-                return source.position.translated(offset);
+                return source->position.translated(offset);
             }
 
             VERIFY_NOT_REACHED();
@@ -1259,7 +1262,7 @@ static ErrorOr<void, WebDriver::Error> dispatch_pointer_move_action(ActionObject
     // 3. Let origin be equal to the origin property of action object.
     // 4. Let (x, y) be the result of trying to get coordinates relative to an origin with source, x offset, y offset,
     //    origin, browsing context, and actions options.
-    auto coordinates = TRY(get_coordinates_relative_to_origin(source, browsing_context, action_object.position, viewport, action_object.origin, actions_options));
+    auto coordinates = TRY(get_coordinates_relative_to_origin(&source, browsing_context, action_object.position, viewport, action_object.origin, actions_options));
 
     // 5. If x is less than 0 or greater than the width of the viewport in CSS pixels, then return error with error code move target out of bounds.
     if (coordinates.x() < 0 || coordinates.x() > viewport.width())
@@ -1290,6 +1293,50 @@ static ErrorOr<void, WebDriver::Error> dispatch_pointer_move_action(ActionObject
     TRY(perform_pointer_move(action_object, source, global_key_state, browsing_context, duration, coordinates));
 
     // 19. Return success with data null.
+    return {};
+}
+
+// https://w3c.github.io/webdriver/#dfn-dispatch-a-scroll-action
+static ErrorOr<void, WebDriver::Error> dispatch_scroll_action(ActionObject::ScrollFields const& action_object, GlobalKeyState const& global_key_state, AK::Duration tick_duration, HTML::BrowsingContext& browsing_context, ActionsOptions const& actions_options)
+{
+    auto viewport = browsing_context.page().top_level_traversable()->viewport_rect();
+
+    // 1. Let x offset be equal to the x property of action object.
+    // 2. Let y offset be equal to the y property of action object.
+    CSSPixelPoint offset { action_object.x, action_object.y };
+
+    // 3. Let origin be equal to the origin property of action object.
+    // 4. Let (x, y) be the result of trying to get coordinates relative to an origin with source, x offset, y offset,
+    //    origin, browsing context, and actions options.
+    auto coordinates = TRY(get_coordinates_relative_to_origin(nullptr, browsing_context, offset, viewport, action_object.origin, actions_options));
+
+    // 5. If x is less than 0 or greater than the width of the viewport in CSS pixels, then return error with error
+    //    code move target out of bounds.
+    if (coordinates.x() < 0 || coordinates.x() > viewport.width())
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::MoveTargetOutOfBounds, MUST(String::formatted("Coordinates {} are out of bounds", coordinates)));
+
+    // 6. If y is less than 0 or greater than the height of the viewport in CSS pixels, then return error with error
+    //    code move target out of bounds.
+    if (coordinates.y() < 0 || coordinates.y() > viewport.height())
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::MoveTargetOutOfBounds, MUST(String::formatted("Coordinates {} are out of bounds", coordinates)));
+
+    // 7. Let delta x be equal to the deltaX property of action object.
+    // 8. Let delta y be equal to the deltaY property of action object.
+    // 9. Let duration be equal to action object's duration property if it is not undefined, or tick duration otherwise.
+    [[maybe_unused]] auto duration = action_object.duration.value_or(tick_duration);
+
+    // FIXME: 10. If duration is greater than 0 and inside any implementation-defined bounds, asynchronously wait for
+    //            an implementation defined amount of time to pass.
+
+    // 11. Perform implementation-specific action dispatch steps on browsing context equivalent to scrolling by delta x
+    //     and delta y at viewport x coordinate x, viewport y coordinate y. Set ctrlKey, shiftKey, altKey, and metaKey
+    //     equal to the corresponding items in global key state. The scroll may be performed as a series of increments,
+    //     but the total scroll applied at the end of duration milliseconds must be delta x and delta y, and after each
+    //     increment the sum of the applied deltas must not be greater than delta x and delta y.
+    auto position = browsing_context.page().css_to_device_point(coordinates);
+    browsing_context.page().handle_mousewheel(position, position, 0, 0, global_key_state.modifiers(), static_cast<double>(action_object.delta_x), static_cast<double>(action_object.delta_y));
+
+    // 12. Return success with data null.
     return {};
 }
 
@@ -1475,7 +1522,8 @@ ErrorOr<void, WebDriver::Error> dispatch_tick_actions(InputState& input_state, R
         case ActionObject::Subtype::PointerCancel:
             return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "Pointer cancel events not implemented"sv);
         case ActionObject::Subtype::Scroll:
-            return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "Scroll events not implemented"sv);
+            TRY(dispatch_scroll_action(action_object.scroll_fields(), global_key_state, tick_duration, browsing_context, actions_options));
+            break;
         }
 
         // 9. If subtype is "keyDown", append a copy of action object with the subtype property changed to "keyUp" to
