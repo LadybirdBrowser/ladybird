@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<textarea id="textarea" rows="8" cols="20">hello hello hello jello jello jello
+next line
+
+after empty</textarea>
+<script>
+test(() => {
+    // Dragging a selection that started inside the textarea must keep tracking the mouse after
+    // it leaves the textarea: below the textarea selects to the end, above selects to the start,
+    // and past the end of a line selects to that line's end.
+    const report = label => {
+        println(`${label}: start=${textarea.selectionStart} end=${textarea.selectionEnd}`);
+    };
+    const rect = textarea.getBoundingClientRect();
+    const contentX = rect.left + 3;
+    const lineCenterY = line => rect.top + 3 + line * 13 + 6.5;
+
+    internals.mouseDown(contentX + 30, lineCenterY(0));
+    internals.mouseMove(contentX + 60, lineCenterY(0));
+    report("Drag within first visual line");
+
+    internals.mouseMove(rect.right + 100, lineCenterY(2));
+    report("Drag to the right of third visual line");
+
+    internals.mouseMove(rect.right + 100, rect.bottom + 50);
+    report("Drag below the textarea");
+
+    internals.mouseMove(rect.left - 60, rect.top - 30);
+    report("Drag above the textarea");
+
+    internals.mouseUp(rect.left - 60, rect.top - 30);
+    report("After mouseup outside");
+});
+</script>

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<textarea id="textarea" rows="8" cols="20">hello hello hello jello jello jello
+next line
+
+after empty</textarea>
+<script>
+test(() => {
+    // The first logical line soft-wraps after the space at offset 23:
+    //   "hello hello hello jello"  [0,23)  + the wrap space at 23
+    //   "jello jello"              [24,35)
+    // The wrap space belongs to the first visual line: from offset 23 the cursor can step right
+    // over the space to offset 24 and remain on the first visual line. Home/End/Up/Down from
+    // that position must then operate on the first visual line, not the second.
+    const report = label => {
+        println(`${label}: start=${textarea.selectionStart} end=${textarea.selectionEnd}`);
+    };
+    const sendKey = (name, modifiers) => {
+        textarea.getBoundingClientRect();
+        internals.sendKey(textarea, name, modifiers);
+    };
+
+    textarea.focus();
+
+    textarea.setSelectionRange(23, 23);
+    sendKey("Right");
+    report("Right over the wrap space");
+
+    sendKey("Down");
+    report("Down after stepping over the wrap space");
+
+    textarea.setSelectionRange(23, 23);
+    sendKey("Right");
+    sendKey("End");
+    report("End after stepping over the wrap space");
+
+    textarea.setSelectionRange(23, 23);
+    sendKey("Right");
+    sendKey("Home");
+    report("Home after stepping over the wrap space");
+
+    textarea.setSelectionRange(23, 23);
+    sendKey("Right");
+    sendKey("Left");
+    report("Left back over the wrap space");
+
+    // Home on the second visual line lands on offset 24 as well, but on the second line: Down
+    // must go to the third visual line.
+    textarea.setSelectionRange(30, 30);
+    sendKey("Home");
+    sendKey("Down");
+    report("Down after Home on second visual line");
+
+    textarea.setSelectionRange(23, 23);
+    sendKey("Right", internals.MOD_SHIFT);
+    report("Shift+Right selects the wrap space");
+});
+</script>

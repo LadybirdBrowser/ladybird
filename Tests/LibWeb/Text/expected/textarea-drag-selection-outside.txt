@@ -1,0 +1,5 @@
+Drag within first visual line: start=5 end=10
+Drag to the right of third visual line: start=5 end=10
+Drag below the textarea: start=5 end=10
+Drag above the textarea: start=5 end=10
+After mouseup outside: start=5 end=10
