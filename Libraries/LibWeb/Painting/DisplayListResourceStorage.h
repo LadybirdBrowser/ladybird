@@ -58,6 +58,7 @@ struct DisplayListVideoFrameResource {
 
 struct DisplayListStoredImageFrameResource;
 struct DisplayListCachedSkiaImageResource;
+struct DisplayListCachedNestedRasterResource;
 
 struct DisplayListResource {
     DisplayListResource(NonnullRefPtr<DisplayList>, AccumulatedVisualContextTree);
@@ -112,6 +113,9 @@ public:
     sk_sp<SkImage> skia_image_for_image_frame(ImageFrameResourceId, RefPtr<Gfx::SkiaBackendContext> const&) const;
     sk_sp<SkImage> cached_skia_image_for_display_list(DisplayListResourceId, Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&) const;
     void set_cached_skia_image_for_display_list(DisplayListResourceId, Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&, sk_sp<SkImage>) const;
+    sk_sp<SkImage> cached_nested_display_list_raster(DisplayListResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect visible_rect_in_list_space, Gfx::IntRect& raster_rect_in_list_space) const;
+    void add_cached_nested_display_list_raster(DisplayListResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect rect_in_list_space, sk_sp<SkImage>) const;
+    bool should_cache_nested_display_list_raster(DisplayListResourceId) const;
     RefPtr<Media::VideoFrame const> video_frame(VideoFrameResourceId id) const { return m_video_frames.get(id.value()).value(); }
     DisplayListResource const& display_list_resource(DisplayListResourceId id) const { return m_display_lists.get(id.value()).value(); }
     DisplayList const& display_list(DisplayListResourceId id) const { return *display_list_resource(id).display_list; }
@@ -119,12 +123,14 @@ public:
 
 private:
     void collect_referenced_resources(ReadonlyBytes command_bytes, DisplayListResourceSet&) const;
+    bool nested_display_list_requires_direct_replay(DisplayListResourceId, HashTable<u64>& visited_display_lists) const;
 
     HashMap<u64, NonnullRefPtr<Gfx::Font const>> m_fonts;
     HashMap<u64, NonnullOwnPtr<DisplayListStoredImageFrameResource>> m_image_frames;
     HashMap<u64, RefPtr<Media::VideoFrame const>> m_video_frames;
     HashMap<u64, DisplayListResource> m_display_lists;
     mutable HashMap<u64, NonnullOwnPtr<DisplayListCachedSkiaImageResource>> m_display_list_cached_skia_images;
+    mutable HashMap<u64, NonnullOwnPtr<DisplayListCachedNestedRasterResource>> m_display_list_cached_nested_rasters;
 
     HashMap<u64, size_t> m_font_cache_reference_counts;
     HashMap<u64, size_t> m_image_frame_cache_reference_counts;

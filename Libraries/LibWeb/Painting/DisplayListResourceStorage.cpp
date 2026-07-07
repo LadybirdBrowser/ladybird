@@ -42,6 +42,39 @@ struct DisplayListCachedSkiaImageResource {
     sk_sp<SkImage> image;
 };
 
+struct DisplayListCachedNestedRasterResource {
+    explicit DisplayListCachedNestedRasterResource(RefPtr<Gfx::SkiaBackendContext> skia_backend_context)
+        : skia_backend_context(move(skia_backend_context))
+    {
+    }
+
+    struct Raster {
+        Gfx::IntRect rect_in_list_space;
+        sk_sp<SkImage> image;
+        MonotonicTime last_used { MonotonicTime::now() };
+
+        size_t byte_size() const { return static_cast<size_t>(rect_in_list_space.width()) * rect_in_list_space.height() * 4; }
+    };
+
+    size_t total_byte_size() const
+    {
+        size_t total = 0;
+        for (auto const& raster : rasters)
+            total += raster.byte_size();
+        return total;
+    }
+
+    RefPtr<Gfx::SkiaBackendContext> skia_backend_context;
+    Optional<bool> requires_direct_replay;
+    bool was_painted { false };
+
+    // The same display list can be painted at several places in one frame (repeated SVG images, atlas-style
+    // lists painted in many small slices), each with its own visible sub-rectangle, so a single list keeps a
+    // bounded set of rasters, most recently used first.
+    static constexpr size_t max_rasters = 32;
+    Vector<Raster> rasters;
+};
+
 static sk_sp<SkImage> create_skia_image(Gfx::DecodedImageFrame const& frame, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
 {
     auto raster_image = Gfx::sk_image_from_bitmap(frame.bitmap(), frame.color_space());
@@ -182,6 +215,151 @@ sk_sp<SkImage> DisplayListResourceStorage::cached_skia_image_for_display_list(Di
 void DisplayListResourceStorage::set_cached_skia_image_for_display_list(DisplayListResourceId id, Gfx::IntSize tile_size, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, sk_sp<SkImage> image) const
 {
     m_display_list_cached_skia_images.set(id.value(), make<DisplayListCachedSkiaImageResource>(tile_size, skia_backend_context, move(image)));
+}
+
+sk_sp<SkImage> DisplayListResourceStorage::cached_nested_display_list_raster(DisplayListResourceId id, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, Gfx::IntRect visible_rect_in_list_space, Gfx::IntRect& raster_rect_in_list_space) const
+{
+    auto cached_resource = m_display_list_cached_nested_rasters.find(id.value());
+    if (cached_resource == m_display_list_cached_nested_rasters.end())
+        return nullptr;
+
+    auto& resource = *cached_resource->value;
+    if (resource.skia_backend_context.ptr() != skia_backend_context.ptr())
+        return nullptr;
+
+    for (size_t i = 0; i < resource.rasters.size(); ++i) {
+        if (!resource.rasters[i].rect_in_list_space.contains(visible_rect_in_list_space))
+            continue;
+        if (i != 0) {
+            auto raster = move(resource.rasters[i]);
+            resource.rasters.remove(i);
+            resource.rasters.prepend(move(raster));
+        }
+        resource.rasters.first().last_used = MonotonicTime::now();
+        raster_rect_in_list_space = resource.rasters.first().rect_in_list_space;
+        return resource.rasters.first().image;
+    }
+    return {};
+}
+
+void DisplayListResourceStorage::add_cached_nested_display_list_raster(DisplayListResourceId id, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, Gfx::IntRect rect_in_list_space, sk_sp<SkImage> image) const
+{
+    VERIFY(image);
+    auto& resource = *m_display_list_cached_nested_rasters.ensure(id.value(), [&] {
+        return make<DisplayListCachedNestedRasterResource>(skia_backend_context);
+    });
+
+    if (resource.skia_backend_context.ptr() != skia_backend_context.ptr()) {
+        resource.rasters.clear();
+        resource.skia_backend_context = skia_backend_context;
+    }
+
+    // When the budget is exceeded, evict rasters that are not part of the active working set (not used
+    // recently). If everything is recently used, the live working set genuinely exceeds the budget; then skip
+    // caching this raster instead of evicting hot entries, so an oversized page degrades to direct replay for
+    // the overflow instead of thrashing the whole cache. Additions are rare by design, so the total is simply
+    // recomputed here instead of being tracked incrementally.
+    constexpr size_t max_nested_raster_cache_bytes = 512 * MiB;
+    auto total_bytes = static_cast<size_t>(rect_in_list_space.width()) * rect_in_list_space.height() * 4;
+    for (auto const& it : m_display_list_cached_nested_rasters)
+        total_bytes += it.value->total_byte_size();
+    if (total_bytes > max_nested_raster_cache_bytes) {
+        auto now = MonotonicTime::now();
+        for (auto& it : m_display_list_cached_nested_rasters) {
+            it.value->rasters.remove_all_matching([&](auto const& raster) {
+                if (now - raster.last_used < AK::Duration::from_milliseconds(250))
+                    return false;
+                total_bytes -= raster.byte_size();
+                return true;
+            });
+        }
+        if (total_bytes > max_nested_raster_cache_bytes)
+            return;
+    }
+
+    if (resource.rasters.size() == DisplayListCachedNestedRasterResource::max_rasters)
+        resource.rasters.take_last();
+    resource.rasters.prepend({ rect_in_list_space, move(image) });
+}
+
+bool DisplayListResourceStorage::should_cache_nested_display_list_raster(DisplayListResourceId id) const
+{
+    // Only rasterize a list that has been painted before: content that is re-recorded for every update gets a
+    // fresh id each time and would waste a full rasterization per recording, while anything replayed more than
+    // once converges to cache hits after its second paint.
+    auto& resource = *m_display_list_cached_nested_rasters.ensure(id.value(), [&] {
+        return make<DisplayListCachedNestedRasterResource>(nullptr);
+    });
+    if (!exchange(resource.was_painted, true))
+        return false;
+    HashTable<u64> visited_display_lists;
+    return !nested_display_list_requires_direct_replay(id, visited_display_lists);
+}
+
+// Determines whether reusing a rasterization of the display list can produce different pixels than replaying it
+// in place on every frame. That is the case when a destination-reading operation (a non-normal blend mode or a
+// backdrop filter) can see canvas content painted before the display list began, or when the list draws live
+// content that changes underneath its immutable command stream (video frames are updated in place under a stable
+// resource id, canvas surfaces and composited child contexts are resolved at replay time). Destination-reading
+// operations enclosed in a save layer recorded within the list only ever read within-list content, so they do
+// not require direct replay. The verdict is intrinsic to the list and memoized alongside its cached rasters.
+bool DisplayListResourceStorage::nested_display_list_requires_direct_replay(DisplayListResourceId id, HashTable<u64>& visited_display_lists) const
+{
+    auto& resource = *m_display_list_cached_nested_rasters.ensure(id.value(), [&] {
+        return make<DisplayListCachedNestedRasterResource>(nullptr);
+    });
+    if (resource.requires_direct_replay.has_value())
+        return *resource.requires_direct_replay;
+
+    visited_display_lists.set(id.value());
+    auto const& list_resource = display_list_resource(id);
+
+    bool requires_direct_replay = false;
+    for (auto const& node : list_resource.visual_context_tree.nodes()) {
+        if (auto const* effects = node.data.get_pointer<EffectsData>(); effects && effects->blend_mode != Gfx::CompositingAndBlendingOperator::Normal)
+            requires_direct_replay = true;
+    }
+
+    Vector<bool, 32> save_stack_entry_is_layer;
+    u64 layer_depth = 0;
+    DisplayList::for_each_command_header(list_resource.display_list->command_bytes(), [&](DisplayListCommandHeader const& header, ReadonlyBytes payload) {
+        if (requires_direct_replay)
+            return;
+        visit_display_list_command(header.type, payload, [&](auto const& command) {
+            using Command = RemoveCVReference<decltype(command)>;
+            if constexpr (IsSame<Command, Save>) {
+                save_stack_entry_is_layer.append(false);
+            } else if constexpr (IsSame<Command, SaveLayer>) {
+                save_stack_entry_is_layer.append(true);
+                ++layer_depth;
+            } else if constexpr (IsSame<Command, ApplyEffects>) {
+                if (layer_depth == 0 && command.compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal)
+                    requires_direct_replay = true;
+                save_stack_entry_is_layer.append(true);
+                ++layer_depth;
+            } else if constexpr (IsSame<Command, Restore>) {
+                if (!save_stack_entry_is_layer.is_empty() && save_stack_entry_is_layer.take_last())
+                    --layer_depth;
+            } else if constexpr (IsSame<Command, ApplyBackdropFilter>) {
+                if (layer_depth == 0 && command.has_backdrop_filter)
+                    requires_direct_replay = true;
+            } else if constexpr (IsSame<Command, DrawVideoFrame> || IsSame<Command, DrawCanvas> || IsSame<Command, DrawCompositedContext>) {
+                requires_direct_replay = true;
+            } else if constexpr (IsSame<Command, PaintNestedDisplayList>) {
+                // NB: A nested list's live content matters at any depth, and its unisolated destination reads
+                //     matter when this command is not enclosed in a layer; recursing unconditionally is slightly
+                //     conservative for the latter. Pattern tile display lists are always rasterized into
+                //     standalone surfaces and cannot read the destination, so they are not followed.
+                if (visited_display_lists.set(command.display_list_id.value()) == HashSetResult::InsertedNewEntry) {
+                    if (m_display_lists.contains(command.display_list_id.value()))
+                        requires_direct_replay = nested_display_list_requires_direct_replay(command.display_list_id, visited_display_lists);
+                }
+            }
+        });
+    });
+
+    resource.requires_direct_replay = requires_direct_replay;
+    return requires_direct_replay;
 }
 
 static ReadonlyBytes inline_data(ReadonlyBytes payload, DisplayListDataSpan span)
@@ -364,6 +542,8 @@ void DisplayListResourceStorage::apply_transaction(DisplayListResourceTransactio
         m_display_lists.remove(id.value());
     for (auto id : transaction.display_list_ids_to_remove)
         m_display_list_cached_skia_images.remove(id.value());
+    for (auto id : transaction.display_list_ids_to_remove)
+        m_display_list_cached_nested_rasters.remove(id.value());
 }
 
 void DisplayListResourceStorage::retain_only(DisplayListResourceSet const& resource_set)
@@ -386,6 +566,10 @@ void DisplayListResourceStorage::retain_only(DisplayListResourceSet const& resou
             && !m_display_list_cache_reference_counts.contains(id);
     });
     m_display_list_cached_skia_images.remove_all_matching([&](auto id, auto const&) {
+        return !resource_set.display_lists.contains(DisplayListResourceId { id })
+            && !m_display_list_cache_reference_counts.contains(id);
+    });
+    m_display_list_cached_nested_rasters.remove_all_matching([&](auto id, auto const&) {
         return !resource_set.display_lists.contains(DisplayListResourceId { id })
             && !m_display_list_cache_reference_counts.contains(id);
     });
