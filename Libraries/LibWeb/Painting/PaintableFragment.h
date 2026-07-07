@@ -14,6 +14,7 @@
 #include <LibWeb/Painting/PaintableTypes.h>
 #include <LibWeb/Painting/ShadowData.h>
 #include <LibWeb/PixelUnits.h>
+#include <LibWeb/TextAffinity.h>
 
 namespace Web::Painting {
 
@@ -46,6 +47,21 @@ public:
     size_t dom_start_offset_in_node() const { return m_dom_start_offset_in_node; }
     size_t dom_end_offset_in_node() const { return m_dom_start_offset_in_node + m_length_in_code_units; }
 
+    // Whitespace stripped from the end of this fragment (e.g. the space at a soft wrap point). Caret positions
+    // inside it render at the end of this fragment's line, hanging past the fragment's text.
+    size_t trailing_whitespace_length_in_code_units() const { return m_trailing_whitespace_length_in_code_units; }
+    size_t dom_end_offset_with_trailing_whitespace() const { return dom_end_offset_in_node() + m_trailing_whitespace_length_in_code_units; }
+
+    // How a caret at the given offset relates to this fragment.
+    enum class CaretMatch : u8 {
+        None,
+        Direct,
+        // The offset sits at this fragment's whitespace-extended end with Downstream affinity; a later fragment
+        // starting exactly at the offset takes precedence.
+        SoftWrapFallback,
+    };
+    CaretMatch caret_match(size_t offset, TextAffinity) const;
+
     CSSPixels baseline() const { return m_baseline; }
     CSSPixelPoint offset() const { return m_offset; }
     void set_offset(CSSPixelPoint offset) { m_offset = offset; }
@@ -67,7 +83,6 @@ public:
     struct SelectionOffsets {
         size_t start;
         size_t end;
-        bool include_trailing_whitespace { false };
     };
     Optional<SelectionOffsets> selection_offsets() const;
     Optional<SelectionOffsets> selection_range_for_text_control() const;
@@ -100,10 +115,9 @@ public:
     CSSPixels text_decoration_thickness() const { return m_text_decoration_thickness; }
     void set_text_decoration_thickness(CSSPixels thickness) { m_text_decoration_thickness = thickness; }
 
-    bool has_trailing_whitespace() const { return m_has_trailing_whitespace; }
-
 private:
     Optional<SelectionOffsets> compute_selection_offsets(SelectionState, size_t start_offset_in_code_units, size_t end_offset_in_code_units) const;
+    CSSPixelRect rect_for_selection_offsets(SelectionOffsets const&) const;
 
     WeakPtr<Layout::Node const> m_layout_node;
     WeakPtr<PaintableWithLines const> m_paintable_with_lines;
@@ -119,7 +133,7 @@ private:
     CSSPixels m_text_decoration_thickness { 0 };
     CSS::WritingMode m_writing_mode;
     SelectionState m_selection_state { SelectionState::None };
-    bool m_has_trailing_whitespace { false };
+    u32 m_trailing_whitespace_length_in_code_units { 0 };
 };
 
 }

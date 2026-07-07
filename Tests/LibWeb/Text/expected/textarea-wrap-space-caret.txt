@@ -1,7 +1,14 @@
 Right over the wrap space: start=24 end=24
-Down after stepping over the wrap space: start=36 end=36
-End after stepping over the wrap space: start=35 end=35
-Home after stepping over the wrap space: start=24 end=24
+Down after stepping over the wrap space: start=35 end=35
+End after stepping over the wrap space: start=24 end=24
+Home after stepping over the wrap space: start=0 end=0
 Left back over the wrap space: start=23 end=23
 Down after Home on second visual line: start=36 end=36
 Shift+Right selects the wrap space: start=23 end=24
+Right twice from before the wrap space: start=24 end=24
+Down from start of second visual line: start=36 end=36
+Right three times from before the wrap space: start=25 end=25
+Left after Right twice: start=24 end=24
+End after stepping back to end of first visual line: start=24 end=24
+Left from start of second visual line: start=24 end=24
+Left again over the wrap space: start=23 end=23

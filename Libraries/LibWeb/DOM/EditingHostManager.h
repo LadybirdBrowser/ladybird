@@ -26,8 +26,9 @@ public:
     virtual void handle_delete(FlyString const& input_type, DispatchInputEvent = DispatchInputEvent::Yes) override;
     virtual EventResult handle_return_key(FlyString const& ui_input_type) override;
     virtual void select_all() override;
-    virtual void set_selection_anchor(GC::Ref<DOM::Node>, size_t offset) override;
-    virtual void set_selection_focus(GC::Ref<DOM::Node>, size_t offset) override;
+    // NB: Contenteditable selection does not track text affinity yet.
+    virtual void set_selection_anchor(GC::Ref<DOM::Node>, size_t offset, TextAffinity = TextAffinity::Downstream) override;
+    virtual void set_selection_focus(GC::Ref<DOM::Node>, size_t offset, TextAffinity = TextAffinity::Downstream) override;
     virtual void move_cursor_to_start(CollapseSelection) override;
     virtual void move_cursor_to_end(CollapseSelection) override;
     virtual void increment_cursor_position_offset(CollapseSelection) override;

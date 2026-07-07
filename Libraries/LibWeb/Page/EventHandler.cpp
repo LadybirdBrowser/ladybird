@@ -2140,9 +2140,9 @@ bool EventHandler::initiate_character_selection(DOM::Document& document, Paintin
         m_mouse_selection_target = active_target;
 
         if (shift_held)
-            active_target->set_selection_focus(*hit_node, index);
+            active_target->set_selection_focus(*hit_node, index, caret_position.affinity);
         else
-            active_target->set_selection_anchor(*hit_node, index);
+            active_target->set_selection_anchor(*hit_node, index, caret_position.affinity);
     } else {
         m_mouse_selection_target = nullptr;
 
@@ -2374,7 +2374,13 @@ void EventHandler::apply_mouse_selection(CSSPixelPoint visual_viewport_position)
     if (m_mouse_selection_target) {
         if (anchor_offset.has_value())
             m_mouse_selection_target->set_selection_anchor(anchor_node ? *anchor_node : *focus_node, anchor_offset.value());
-        m_mouse_selection_target->set_selection_focus(*focus_node, focus_index);
+        // The hit test affinity only applies when the focus is exactly the hit position; word and paragraph selection
+        // modes override the focus with segment boundaries.
+        auto focus_affinity = m_selection_mode == SelectionMode::Character
+                && focus_node == caret_position->boundary.node && focus_index == caret_position->boundary.offset
+            ? caret_position->affinity
+            : TextAffinity::Downstream;
+        m_mouse_selection_target->set_selection_focus(*focus_node, focus_index, focus_affinity);
     } else {
         if (auto selection = document.get_selection()) {
             auto selection_anchor_node = anchor_node ? anchor_node : selection->anchor_node();

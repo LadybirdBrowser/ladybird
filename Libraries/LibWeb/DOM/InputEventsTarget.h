@@ -10,6 +10,7 @@
 #include <LibGC/Ptr.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Page/EventResult.h>
+#include <LibWeb/TextAffinity.h>
 
 namespace Web {
 
@@ -28,8 +29,8 @@ public:
     virtual void handle_delete(FlyString const& input_type, DispatchInputEvent = DispatchInputEvent::Yes) = 0;
 
     virtual void select_all() = 0;
-    virtual void set_selection_anchor(GC::Ref<DOM::Node>, size_t offset) = 0;
-    virtual void set_selection_focus(GC::Ref<DOM::Node>, size_t offset) = 0;
+    virtual void set_selection_anchor(GC::Ref<DOM::Node>, size_t offset, TextAffinity = TextAffinity::Downstream) = 0;
+    virtual void set_selection_focus(GC::Ref<DOM::Node>, size_t offset, TextAffinity = TextAffinity::Downstream) = 0;
     enum class CollapseSelection {
         No,
         Yes,

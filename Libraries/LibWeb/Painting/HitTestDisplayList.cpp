@@ -573,16 +573,23 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_for_item(Item const& 
             case CaretPositionType::Before:
                 return fragment.dom_start_offset_in_node();
             case CaretPositionType::After:
-                return fragment.dom_end_offset_in_node();
+                return fragment.dom_end_offset_with_trailing_whitespace();
             case CaretPositionType::Closest:
                 return fragment.index_in_node_for_point(local_point);
             }
             VERIFY_NOT_REACHED();
         }();
 
+        // A position at the fragment's whitespace-extended end may coincide with the start of the next fragment;
+        // Upstream affinity keeps it rendering on this fragment's line.
+        auto affinity = index_in_node >= fragment.dom_end_offset_in_node() && index_in_node == fragment.dom_end_offset_with_trailing_whitespace()
+            ? TextAffinity::Upstream
+            : TextAffinity::Downstream;
+
         return CaretPosition {
             .paintable = item.paintable,
             .boundary = { const_cast<DOM::Node&>(*fragment_dom_node), static_cast<WebIDL::UnsignedLong>(index_in_node) },
+            .affinity = affinity,
             .debug_rect = fragment.range_rect(Paintable::SelectionState::StartAndEnd, index_in_node, index_in_node),
         };
     }

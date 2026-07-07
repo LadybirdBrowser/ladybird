@@ -10,26 +10,44 @@
 #include <AK/Optional.h>
 #include <AK/Vector.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/TextAffinity.h>
 
 namespace Web {
 
 // A visual line of a text node: a run of text that is rendered on a single line box, delimited by soft wraps and/or
 // preserved newline characters. Lines with no rendered text (such as the line between two consecutive newlines) have
-// no fragments.
+// no fragments. Whitespace hanging at a soft wrap point is part of the line it trails, between end_offset and
+// end_offset_with_trailing_whitespace.
 struct VisualLine {
     size_t start_offset { 0 };
     size_t end_offset { 0 };
+    size_t end_offset_with_trailing_whitespace { 0 };
     Vector<Painting::PaintableFragment const*, 1> fragments;
 };
 
 // NB: Layout must be up to date when calling this.
 Vector<VisualLine> collect_visual_lines(DOM::Text const&);
 
-Optional<size_t> compute_cursor_position_on_next_line(DOM::Text const&, size_t current_offset);
-Optional<size_t> compute_cursor_position_on_previous_line(DOM::Text const&, size_t current_offset);
+// A cursor position produced by caret navigation: the affinity determines which line the offset renders on when the
+// offset sits exactly at a soft wrap boundary.
+struct CursorLinePosition {
+    size_t offset { 0 };
+    TextAffinity affinity { TextAffinity::Downstream };
+};
 
-size_t find_visual_line_start(DOM::Text const&, size_t offset);
-size_t find_visual_line_end(DOM::Text const&, size_t offset);
+Optional<CursorLinePosition> compute_cursor_position_on_next_line(DOM::Text const&, size_t current_offset, TextAffinity);
+Optional<CursorLinePosition> compute_cursor_position_on_previous_line(DOM::Text const&, size_t current_offset, TextAffinity);
+
+// One cursor step right or left. At a soft wrap boundary, the same offset has two visual positions (the end of the
+// earlier line and the start of the next); stepping visits both before moving to the adjacent grapheme.
+Optional<CursorLinePosition> compute_cursor_position_on_next_character(DOM::Text const&, size_t current_offset, TextAffinity);
+Optional<CursorLinePosition> compute_cursor_position_on_previous_character(DOM::Text const&, size_t current_offset, TextAffinity);
+
+size_t find_visual_line_start(DOM::Text const&, size_t offset, TextAffinity);
+CursorLinePosition find_visual_line_end(DOM::Text const&, size_t offset, TextAffinity);
+
+// The last text position of the visual line containing the offset, before any whitespace hanging at a soft wrap.
+size_t find_visual_line_text_end(DOM::Text const&, size_t offset, TextAffinity);
 
 bool white_space_preserves_newlines(Layout::TextNode const&);
 

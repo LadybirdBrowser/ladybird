@@ -700,15 +700,19 @@ void Selection::move_offset_to_next_line(bool collapse_selection)
     if (!text_node)
         return;
 
-    auto new_offset = compute_cursor_position_on_next_line(*text_node, focus_offset());
-    if (!new_offset.has_value())
+    // NB: Selection does not track text affinity yet, so positions that require Upstream affinity to render on the
+    //     expected line (inside whitespace hanging at a soft wrap) are stepped back to the line's text end.
+    auto new_position = compute_cursor_position_on_next_line(*text_node, focus_offset(), TextAffinity::Downstream);
+    if (!new_position.has_value())
         return;
+    if (new_position->affinity == TextAffinity::Upstream)
+        new_position->offset = find_visual_line_text_end(*text_node, new_position->offset, TextAffinity::Upstream);
 
     if (collapse_selection) {
-        MUST(collapse(text_node, *new_offset));
+        MUST(collapse(text_node, new_position->offset));
         m_document->reset_cursor_blink_cycle();
     } else {
-        MUST(set_base_and_extent(*text_node, anchor_offset(), *text_node, *new_offset));
+        MUST(set_base_and_extent(*text_node, anchor_offset(), *text_node, new_position->offset));
     }
     scroll_focus_into_view();
 }
@@ -719,15 +723,19 @@ void Selection::move_offset_to_previous_line(bool collapse_selection)
     if (!text_node)
         return;
 
-    auto new_offset = compute_cursor_position_on_previous_line(*text_node, focus_offset());
-    if (!new_offset.has_value())
+    // NB: Selection does not track text affinity yet, so positions that require Upstream affinity to render on the
+    //     expected line (inside whitespace hanging at a soft wrap) are stepped back to the line's text end.
+    auto new_position = compute_cursor_position_on_previous_line(*text_node, focus_offset(), TextAffinity::Downstream);
+    if (!new_position.has_value())
         return;
+    if (new_position->affinity == TextAffinity::Upstream)
+        new_position->offset = find_visual_line_text_end(*text_node, new_position->offset, TextAffinity::Upstream);
 
     if (collapse_selection) {
-        MUST(collapse(text_node, *new_offset));
+        MUST(collapse(text_node, new_position->offset));
         m_document->reset_cursor_blink_cycle();
     } else {
-        MUST(set_base_and_extent(*text_node, anchor_offset(), *text_node, *new_offset));
+        MUST(set_base_and_extent(*text_node, anchor_offset(), *text_node, new_position->offset));
     }
     scroll_focus_into_view();
 }

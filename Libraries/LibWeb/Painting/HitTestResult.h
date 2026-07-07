@@ -14,6 +14,7 @@
 #include <LibWeb/DOM/AbstractRange.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/PixelUnits.h>
+#include <LibWeb/TextAffinity.h>
 
 namespace Web::Painting {
 
@@ -40,6 +41,7 @@ struct HitTestResult {
 struct CaretPosition {
     NonnullRefPtr<Paintable> paintable;
     DOM::BoundaryPoint boundary;
+    TextAffinity affinity { TextAffinity::Downstream };
     Optional<DOM::BoundaryPoint> secondary_boundary {};
     Optional<CSSPixelRect> debug_rect {};
 };

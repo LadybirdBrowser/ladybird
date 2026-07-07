@@ -259,8 +259,8 @@ public:
     virtual void handle_insert(FlyString const& input_type, Utf16String const&) override;
     virtual void handle_delete(FlyString const& input_type, DispatchInputEvent = DispatchInputEvent::Yes) override;
     virtual void select_all() override;
-    virtual void set_selection_anchor(GC::Ref<DOM::Node>, size_t offset) override;
-    virtual void set_selection_focus(GC::Ref<DOM::Node>, size_t offset) override;
+    virtual void set_selection_anchor(GC::Ref<DOM::Node>, size_t offset, TextAffinity = TextAffinity::Downstream) override;
+    virtual void set_selection_focus(GC::Ref<DOM::Node>, size_t offset, TextAffinity = TextAffinity::Downstream) override;
     virtual void move_cursor_to_start(CollapseSelection) override;
     virtual void move_cursor_to_end(CollapseSelection) override;
     void move_cursor_to_start_of_current_line(CollapseSelection);
@@ -281,7 +281,8 @@ protected:
 private:
     virtual GC::Ref<JS::Cell> as_cell() override;
 
-    void collapse_selection_to_offset(size_t);
+    void collapse_selection_to_offset(size_t, TextAffinity = TextAffinity::Downstream);
+    void move_selection_end_to(size_t offset, TextAffinity, CollapseSelection);
     void scroll_cursor_into_view();
     void selection_was_changed(SelectionSource);
 
@@ -289,6 +290,9 @@ private:
     WebIDL::UnsignedLong m_selection_start { 0 };
     WebIDL::UnsignedLong m_selection_end { 0 };
     SelectionDirection m_selection_direction { SelectionDirection::None };
+
+    // Disambiguates which visual line the selection end renders on when it sits at a soft wrap boundary.
+    TextAffinity m_selection_end_affinity { TextAffinity::Downstream };
 
     // https://w3c.github.io/selection-api/#dfn-has-scheduled-selectionchange-event
     bool m_has_scheduled_selectionchange_event { false };

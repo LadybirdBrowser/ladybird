@@ -116,33 +116,33 @@ void PaintableWithLines::record_hit_test_items(DisplayListRecordingContext& cont
     }
 }
 
-void PaintableWithLines::record_empty_line_caret_items(HitTestDisplayList& hit_test_display_list, VisualContextIndex visual_context_index) const
+Vector<PaintableWithLines::EmptyLineCaretTarget> PaintableWithLines::empty_line_caret_targets() const
 {
     if (m_fragments.is_empty())
-        return;
+        return {};
 
     // Line boxes without fragments (e.g. the blank line between two consecutive newlines in a textarea) produce no
-    // hit test items of their own. When all fragments belong to a single text node with preserved newlines, we can
-    // derive the caret offset of each empty line and record caret targets for them.
+    // fragments to hit test or paint a caret in. When all fragments belong to a single text node with preserved
+    // newlines, we can derive the caret offset of each empty line and compute caret targets for them.
     auto const* text_layout_node = as_if<Layout::TextNode>(m_fragments.first().layout_node());
     if (!text_layout_node)
-        return;
+        return {};
     if (!white_space_preserves_newlines(*text_layout_node))
-        return;
+        return {};
 
     // FIXME: Support vertical writing modes.
     if (computed_values().writing_mode() != CSS::WritingMode::HorizontalTb)
-        return;
+        return {};
 
     auto const* dom_text = text_layout_node->dom_text();
     if (!dom_text)
-        return;
+        return {};
     if (!text_contains_empty_visual_line_positions(dom_text->data().utf16_view()))
-        return;
+        return {};
 
     for (auto const& fragment : m_fragments) {
         if (&fragment.layout_node() != text_layout_node)
-            return;
+            return {};
     }
 
     auto lines = collect_visual_lines(*dom_text);
@@ -150,7 +150,7 @@ void PaintableWithLines::record_empty_line_caret_items(HitTestDisplayList& hit_t
     // The interpolation below requires visual lines to correspond 1:1 to this block's line boxes.
     for (size_t i = 0; i < lines.size(); ++i) {
         if (!lines[i].fragments.is_empty() && lines[i].fragments.first()->line_box_data().index != i)
-            return;
+            return {};
     }
 
     // For each line, the index of the closest fragment-backed line before/after it.
@@ -175,6 +175,7 @@ void PaintableWithLines::record_empty_line_caret_items(HitTestDisplayList& hit_t
         return lines[index].fragments.first()->absolute_line_box_rect();
     };
 
+    Vector<EmptyLineCaretTarget> targets;
     auto content_rect = absolute_rect();
     for (size_t i = 0; i < lines.size(); ++i) {
         if (!lines[i].fragments.is_empty())
@@ -203,11 +204,34 @@ void PaintableWithLines::record_empty_line_caret_items(HitTestDisplayList& hit_t
             line_rect = { content_rect.x(), next_rect.top() - next_rect.height() * steps, content_rect.width(), next_rect.height() };
         } else {
             // NB: Unreachable; m_fragments is non-empty, so at least one line has fragments.
-            return;
+            return targets;
         }
 
-        hit_test_display_list.append_empty_line(m_fragments.first(), lines[i].start_offset, i, line_rect, visual_context_index);
+        targets.append({ lines[i].start_offset, i, line_rect });
     }
+    return targets;
+}
+
+// A cursor on a line box with no fragments (e.g. a blank line in a textarea) has no fragment to position itself in;
+// it is placed at the start of the empty line.
+Optional<CSSPixelRect> PaintableWithLines::empty_line_caret_rect(DOM::Position const& position) const
+{
+    if (m_fragments.is_empty())
+        return {};
+    auto const* text_layout_node = as_if<Layout::TextNode>(m_fragments.first().layout_node());
+    if (!text_layout_node || position.node() != text_layout_node->dom_text())
+        return {};
+    for (auto const& target : empty_line_caret_targets()) {
+        if (target.offset == position.offset())
+            return target.rect;
+    }
+    return {};
+}
+
+void PaintableWithLines::record_empty_line_caret_items(HitTestDisplayList& hit_test_display_list, VisualContextIndex visual_context_index) const
+{
+    for (auto const& target : empty_line_caret_targets())
+        hit_test_display_list.append_empty_line(m_fragments.first(), target.offset, target.line_box_index, target.rect, visual_context_index);
 }
 
 static void resolve_text_fragment_properties(PaintableWithLines const& paintable_with_lines)
@@ -330,7 +354,7 @@ void compute_render_spans(PaintableFragment const& fragment, Vector<PaintableFra
         return;
     }
 
-    auto [selection_start, selection_end, _] = *selection_offsets;
+    auto [selection_start, selection_end] = *selection_offsets;
     auto selection_style = Paintable::selection_style_for_node(*text_node, text_node->dom_text());
     auto selection_text_color = selection_style.text_color.value_or(text_color);
 
@@ -430,16 +454,25 @@ void paint_text_fragment(DisplayListRecordingContext& context, PaintableFragment
 
 Optional<PaintableFragment const&> PaintableWithLines::fragment_at_position(DOM::Position const& position) const
 {
-    return m_fragments.first_matching([&](auto const& fragment) {
+    PaintableFragment const* fallback_fragment = nullptr;
+    for (auto const& fragment : m_fragments) {
         auto const* text_node = as_if<Layout::TextNode>(fragment.layout_node());
-        if (!text_node || !text_node->dom_text())
-            return false;
-        if (position.offset() < fragment.dom_start_offset_in_node())
-            return false;
-        if (position.offset() > fragment.dom_end_offset_in_node())
-            return false;
-        return position.node() == text_node->dom_text();
-    });
+        if (!text_node || position.node() != text_node->dom_text())
+            continue;
+        switch (fragment.caret_match(position.offset(), position.affinity())) {
+        case PaintableFragment::CaretMatch::None:
+            continue;
+        case PaintableFragment::CaretMatch::SoftWrapFallback:
+            if (!fallback_fragment)
+                fallback_fragment = &fragment;
+            continue;
+        case PaintableFragment::CaretMatch::Direct:
+            return fragment;
+        }
+    }
+    if (fallback_fragment)
+        return *fallback_fragment;
+    return {};
 }
 
 void PaintableWithLines::paint_cursor(DisplayListRecordingContext& context) const
@@ -468,6 +501,9 @@ void PaintableWithLines::paint_cursor(DisplayListRecordingContext& context) cons
     if (fragment.has_value()) {
         caret_color = fragment->layout_node().computed_values().caret_color();
         cursor_rect = fragment->range_rect(SelectionState::StartAndEnd, cursor_position->offset(), cursor_position->offset());
+    } else if (auto empty_line_rect = empty_line_caret_rect(*cursor_position); empty_line_rect.has_value()) {
+        caret_color = m_fragments.first().layout_node().computed_values().caret_color();
+        cursor_rect = { empty_line_rect->x(), empty_line_rect->y(), 1, empty_line_rect->height() };
     } else {
         // Empty editable elements have no fragments, but should still draw a cursor.
         if (cursor_position->node() != dom_node)

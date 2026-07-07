@@ -54,5 +54,35 @@ test(() => {
     textarea.setSelectionRange(23, 23);
     sendKey("Right", internals.MOD_SHIFT);
     report("Shift+Right selects the wrap space");
+
+    // The offset after the wrap space has two visual positions: the end of the first visual line and the start of
+    // the second. Left/Right must step through both without skipping either.
+    textarea.setSelectionRange(23, 23);
+    sendKey("Right");
+    sendKey("Right");
+    report("Right twice from before the wrap space");
+    sendKey("Down");
+    report("Down from start of second visual line");
+
+    textarea.setSelectionRange(23, 23);
+    sendKey("Right");
+    sendKey("Right");
+    sendKey("Right");
+    report("Right three times from before the wrap space");
+
+    textarea.setSelectionRange(23, 23);
+    sendKey("Right");
+    sendKey("Right");
+    sendKey("Left");
+    report("Left after Right twice");
+    sendKey("End");
+    report("End after stepping back to end of first visual line");
+
+    textarea.setSelectionRange(30, 30);
+    sendKey("Home");
+    sendKey("Left");
+    report("Left from start of second visual line");
+    sendKey("Left");
+    report("Left again over the wrap space");
 });
 </script>

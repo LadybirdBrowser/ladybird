@@ -379,7 +379,7 @@ void Paintable::set_selection_state(SelectionState state)
     invalidate_paint_cache();
 }
 
-void Paintable::scroll_text_offset_into_view(DOM::Text const& text, size_t offset)
+void Paintable::scroll_text_offset_into_view(DOM::Text const& text, size_t offset, TextAffinity affinity)
 {
     auto scroll_to_cursor = [&](PaintableFragment const& fragment) {
         auto cursor_rect = fragment.range_rect(SelectionState::StartAndEnd, offset, offset);
@@ -391,13 +391,25 @@ void Paintable::scroll_text_offset_into_view(DOM::Text const& text, size_t offse
         }
     };
 
+    PaintableFragment const* fallback_fragment = nullptr;
     Layout::TextOffsetMapping mapping { text };
     mapping.for_each_paintable_fragment([&](PaintableFragment const& fragment) {
-        if (offset < fragment.dom_start_offset_in_node() || offset > fragment.dom_end_offset_in_node())
+        switch (fragment.caret_match(offset, affinity)) {
+        case PaintableFragment::CaretMatch::None:
             return TraversalDecision::Continue;
-        scroll_to_cursor(fragment);
-        return TraversalDecision::Break;
+        case PaintableFragment::CaretMatch::SoftWrapFallback:
+            if (!fallback_fragment)
+                fallback_fragment = &fragment;
+            return TraversalDecision::Continue;
+        case PaintableFragment::CaretMatch::Direct:
+            fallback_fragment = nullptr;
+            scroll_to_cursor(fragment);
+            return TraversalDecision::Break;
+        }
+        VERIFY_NOT_REACHED();
     });
+    if (fallback_fragment)
+        scroll_to_cursor(*fallback_fragment);
 }
 
 void Paintable::scroll_ancestor_to_offset_into_view(size_t offset)

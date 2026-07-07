@@ -1,5 +1,5 @@
 Click at start of second visual line: start=24 end=24
-Click far past end of first visual line: start=23 end=23
+Click far past end of first visual line: start=24 end=24
 Click far past end of second visual line: start=35 end=35
 Click far past end of third visual line: start=45 end=45
 Click just past end of third visual line: start=45 end=45

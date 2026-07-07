@@ -58,6 +58,15 @@ private:
 
     Optional<PaintableFragment const&> fragment_at_position(DOM::Position const&) const;
     void paint_cursor(DisplayListRecordingContext&) const;
+    Optional<CSSPixelRect> empty_line_caret_rect(DOM::Position const&) const;
+
+    // A caret target for a line box with no fragments (e.g. a blank line in a textarea).
+    struct EmptyLineCaretTarget {
+        size_t offset { 0 };
+        size_t line_box_index { 0 };
+        CSSPixelRect rect;
+    };
+    Vector<EmptyLineCaretTarget> empty_line_caret_targets() const;
     void record_empty_line_caret_items(HitTestDisplayList&, VisualContextIndex) const;
 
     Vector<PaintableFragment> m_fragments;

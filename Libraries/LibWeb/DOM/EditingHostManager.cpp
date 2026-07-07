@@ -59,14 +59,14 @@ void EditingHostManager::select_all()
     MUST(selection->set_base_and_extent(*selection->anchor_node(), 0, *selection->focus_node(), selection->focus_node()->length()));
 }
 
-void EditingHostManager::set_selection_anchor(GC::Ref<DOM::Node> anchor_node, size_t anchor_offset)
+void EditingHostManager::set_selection_anchor(GC::Ref<DOM::Node> anchor_node, size_t anchor_offset, TextAffinity)
 {
     auto selection = m_document->get_selection();
     MUST(selection->collapse(*anchor_node, anchor_offset));
     m_document->reset_cursor_blink_cycle();
 }
 
-void EditingHostManager::set_selection_focus(GC::Ref<DOM::Node> focus_node, size_t focus_offset)
+void EditingHostManager::set_selection_focus(GC::Ref<DOM::Node> focus_node, size_t focus_offset, TextAffinity)
 {
     if (!m_active_contenteditable_element || !m_active_contenteditable_element->is_ancestor_of(*focus_node))
         return;

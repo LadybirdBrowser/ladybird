@@ -37,6 +37,7 @@
 #include <LibWeb/Painting/ShadowData.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/RefCountedTreeNode.h>
+#include <LibWeb/TextAffinity.h>
 
 namespace Web::Painting {
 
@@ -116,7 +117,7 @@ public:
 
     CSSPixelPoint box_type_agnostic_position() const;
 
-    static void scroll_text_offset_into_view(DOM::Text const&, size_t offset);
+    static void scroll_text_offset_into_view(DOM::Text const&, size_t offset, TextAffinity = TextAffinity::Downstream);
     void scroll_ancestor_to_offset_into_view(size_t offset);
 
     using SelectionState = Painting::SelectionState;

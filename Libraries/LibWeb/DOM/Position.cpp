@@ -14,9 +14,10 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(Position);
 
-Position::Position(GC::Ref<Node> node, unsigned offset)
+Position::Position(GC::Ref<Node> node, unsigned offset, TextAffinity affinity)
     : m_node(node)
     , m_offset(offset)
+    , m_affinity(affinity)
 {
 }
 
