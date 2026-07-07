@@ -440,10 +440,10 @@ String HTMLFormElement::action_from_form_element(GC::Ref<HTMLElement> element) c
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#form-submission-attributes:attr-fs-method-2
-static HTMLFormElement::MethodAttributeState method_attribute_to_method_state(StringView method)
+static HTMLFormElement::MethodAttributeState method_attribute_to_method_state(Utf16View method)
 {
 #define __ENUMERATE_FORM_METHOD_ATTRIBUTE(keyword, state) \
-    if (#keyword##sv.equals_ignoring_ascii_case(method))  \
+    if (method.equals_ignoring_ascii_case(#keyword##sv))  \
         return HTMLFormElement::MethodAttributeState::state;
     ENUMERATE_FORM_METHOD_ATTRIBUTES
 #undef __ENUMERATE_FORM_METHOD_ATTRIBUTE
@@ -462,24 +462,21 @@ HTMLFormElement::MethodAttributeState HTMLFormElement::method_state_from_form_el
         if (auto maybe_formmethod = element->attribute(AttributeNames::formmethod); maybe_formmethod.has_value()) {
             // NOTE: `formmethod` is the same as `method`, except that it has no missing value default.
             //       This is handled by not calling `method_attribute_to_method_state` in the first place if there is no `formmethod` attribute.
-            auto formmethod = maybe_formmethod->to_utf8_but_should_be_ported_to_utf16();
-            return method_attribute_to_method_state(formmethod.bytes_as_string_view());
+            return method_attribute_to_method_state(*maybe_formmethod);
         }
     }
 
-    if (auto maybe_method = attribute(AttributeNames::method); maybe_method.has_value()) {
-        auto method = maybe_method->to_utf8_but_should_be_ported_to_utf16();
-        return method_attribute_to_method_state(method.bytes_as_string_view());
-    }
+    if (auto maybe_method = attribute(AttributeNames::method); maybe_method.has_value())
+        return method_attribute_to_method_state(*maybe_method);
 
     return MethodAttributeState::GET;
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#form-submission-attributes:attr-fs-enctype-2
-static HTMLFormElement::EncodingTypeAttributeState encoding_type_attribute_to_encoding_type_state(StringView encoding_type)
+static HTMLFormElement::EncodingTypeAttributeState encoding_type_attribute_to_encoding_type_state(Utf16View encoding_type)
 {
 #define __ENUMERATE_FORM_METHOD_ENCODING_TYPE(keyword, state)  \
-    if (keyword##sv.equals_ignoring_ascii_case(encoding_type)) \
+    if (encoding_type.equals_ignoring_ascii_case(keyword##sv)) \
         return HTMLFormElement::EncodingTypeAttributeState::state;
     ENUMERATE_FORM_METHOD_ENCODING_TYPES
 #undef __ENUMERATE_FORM_METHOD_ENCODING_TYPE
@@ -499,17 +496,28 @@ HTMLFormElement::EncodingTypeAttributeState HTMLFormElement::encoding_type_state
             // NOTE: `formenctype` is the same as `enctype`, except that it has nomissing value default.
             //       This is handled by not calling `encoding_type_attribute_to_encoding_type_state` in the first place if there is no
             //       `formenctype` attribute.
-            auto form_encoding_type = formenctype->to_utf8_but_should_be_ported_to_utf16();
-            return encoding_type_attribute_to_encoding_type_state(form_encoding_type.bytes_as_string_view());
+            return encoding_type_attribute_to_encoding_type_state(*formenctype);
         }
     }
 
-    if (auto maybe_enctype = attribute(AttributeNames::enctype); maybe_enctype.has_value()) {
-        auto encoding_type = maybe_enctype->to_utf8_but_should_be_ported_to_utf16();
-        return encoding_type_attribute_to_encoding_type_state(encoding_type.bytes_as_string_view());
-    }
+    if (auto maybe_enctype = attribute(AttributeNames::enctype); maybe_enctype.has_value())
+        return encoding_type_attribute_to_encoding_type_state(*maybe_enctype);
 
     return EncodingTypeAttributeState::FormUrlEncoded;
+}
+
+static bool has_link_type(Utf16View input, Utf16View link_type)
+{
+    size_t start = 0;
+    for (size_t i = 0; i <= input.length_in_code_units(); ++i) {
+        if (i != input.length_in_code_units() && !Infra::is_ascii_whitespace(input.code_unit_at(i)))
+            continue;
+
+        if (i > start && input.substring_view(start, i - start).equals_ignoring_ascii_case(link_type))
+            return true;
+        start = i + 1;
+    }
+    return false;
 }
 
 static bool is_form_control(DOM::Element const& element, HTMLFormElement const& form)
@@ -970,9 +978,7 @@ void HTMLFormElement::plan_to_navigate_to(URL::URL url, Variant<Empty, String, P
     ReferrerPolicy::ReferrerPolicy referrer_policy = ReferrerPolicy::ReferrerPolicy::EmptyString;
 
     // 2. If the form element's link types include the noreferrer keyword, then set referrerPolicy to "no-referrer".
-    auto rel = get_attribute_value(HTML::AttributeNames::rel).to_lowercase().to_utf8_but_should_be_ported_to_utf16();
-    auto link_types = rel.bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
-    if (link_types.contains_slow("noreferrer"sv))
+    if (has_link_type(get_attribute_value(HTML::AttributeNames::rel), u"noreferrer"sv))
         referrer_policy = ReferrerPolicy::ReferrerPolicy::NoReferrer;
 
     // 3. If the form has a non-null planned navigation, remove it from its task queue.
