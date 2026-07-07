@@ -676,8 +676,8 @@ GC::Ref<TextTrack> HTMLMediaElement::add_text_track(Bindings::TextTrackKind kind
     //    label to label, its text track language to language, its text track readiness state to the text track loaded
     //    state, its text track mode to the text track hidden mode, and its text track list of cues to an empty list.
     text_track->set_kind(kind);
-    text_track->set_label(label);
-    text_track->set_language(language);
+    text_track->set_label(Utf16String::from_utf8(label));
+    text_track->set_language(Utf16String::from_utf8(language));
     text_track->set_readiness_state(TextTrack::ReadinessState::Loaded);
     text_track->set_mode(Bindings::TextTrackMode::Hidden);
     // FIXME: set text track list of cues to an empty list

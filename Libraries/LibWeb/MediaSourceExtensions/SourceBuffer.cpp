@@ -661,13 +661,13 @@ void SourceBuffer::on_first_initialization_segment_processed(InitializationSegme
                 auto new_text_track = realm.create<HTML::TextTrack>(realm);
                 // 3. Generate a unique ID and assign it to the id property on new text track.
                 auto unique_id = m_media_source->next_track_id();
-                new_text_track->set_id(unique_id.to_utf8());
+                new_text_track->set_id(unique_id);
 
                 // 4. Assign text language to the language property on new text track.
-                new_text_track->set_language(text_language.to_utf8());
+                new_text_track->set_language(text_language);
 
                 // 5. Assign text label to the label property on new text track.
-                new_text_track->set_label(text_label.to_utf8());
+                new_text_track->set_label(text_label);
 
                 // 6. Assign current text kind to the kind property on new text track.
                 new_text_track->set_kind(media_track_kind_to_text_track_kind(current_text_kind));

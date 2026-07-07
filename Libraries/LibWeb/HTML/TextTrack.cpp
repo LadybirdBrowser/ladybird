@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/CharacterTypes.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/EventNames.h>
@@ -50,36 +51,36 @@ void TextTrack::set_kind(Bindings::TextTrackKind kind)
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-texttrack-label
-String TextTrack::label()
+Utf16String const& TextTrack::label()
 {
     return m_label;
 }
 
-void TextTrack::set_label(String label)
+void TextTrack::set_label(Utf16String label)
 {
-    m_label = label;
+    m_label = move(label);
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-texttrack-language
-String TextTrack::language()
+Utf16String const& TextTrack::language()
 {
     return m_language;
 }
 
-void TextTrack::set_language(String language)
+void TextTrack::set_language(Utf16String language)
 {
-    m_language = language;
+    m_language = move(language);
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-texttrack-id
-String TextTrack::id()
+Utf16String const& TextTrack::id()
 {
     return m_id;
 }
 
-void TextTrack::set_id(String id)
+void TextTrack::set_id(Utf16String id)
 {
-    m_id = id;
+    m_id = move(id);
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-texttrack-mode
@@ -127,23 +128,36 @@ void TextTrack::unregister_observer(Badge<TextTrackObserver>, TextTrackObserver&
     VERIFY(was_removed);
 }
 
-Bindings::TextTrackKind text_track_kind_from_string(String value)
+static bool equals_ignoring_ascii_case(Utf16View string, StringView ascii_string)
+{
+    if (string.length_in_code_units() != ascii_string.length())
+        return false;
+
+    for (size_t i = 0; i < string.length_in_code_units(); ++i) {
+        if (AK::to_ascii_lowercase(string.code_unit_at(i)) != AK::to_ascii_lowercase(ascii_string[i]))
+            return false;
+    }
+
+    return true;
+}
+
+Bindings::TextTrackKind text_track_kind_from_string(Utf16View value)
 {
     // https://html.spec.whatwg.org/multipage/media.html#attr-track-kind
 
-    if (value.is_empty() || value.equals_ignoring_ascii_case("subtitles"sv)) {
+    if (value.is_empty() || equals_ignoring_ascii_case(value, "subtitles"sv)) {
         return Bindings::TextTrackKind::Subtitles;
     }
-    if (value.equals_ignoring_ascii_case("captions"sv)) {
+    if (equals_ignoring_ascii_case(value, "captions"sv)) {
         return Bindings::TextTrackKind::Captions;
     }
-    if (value.equals_ignoring_ascii_case("descriptions"sv)) {
+    if (equals_ignoring_ascii_case(value, "descriptions"sv)) {
         return Bindings::TextTrackKind::Descriptions;
     }
-    if (value.equals_ignoring_ascii_case("chapters"sv)) {
+    if (equals_ignoring_ascii_case(value, "chapters"sv)) {
         return Bindings::TextTrackKind::Chapters;
     }
-    if (value.equals_ignoring_ascii_case("metadata"sv)) {
+    if (equals_ignoring_ascii_case(value, "metadata"sv)) {
         return Bindings::TextTrackKind::Metadata;
     }
 

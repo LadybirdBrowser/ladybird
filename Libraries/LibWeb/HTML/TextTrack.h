@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/TextTrack.h>
@@ -35,14 +36,14 @@ public:
     Bindings::TextTrackKind kind();
     void set_kind(Bindings::TextTrackKind);
 
-    String label();
-    void set_label(String);
+    Utf16String const& label();
+    void set_label(Utf16String);
 
-    String language();
-    void set_language(String);
+    Utf16String const& language();
+    void set_language(Utf16String);
 
-    String id();
-    void set_id(String);
+    Utf16String const& id();
+    void set_id(Utf16String);
 
     Bindings::TextTrackMode mode();
     void set_mode(Bindings::TextTrackMode);
@@ -63,10 +64,10 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 
     Bindings::TextTrackKind m_kind { Bindings::TextTrackKind::Subtitles };
-    String m_label {};
-    String m_language {};
+    Utf16String m_label {};
+    Utf16String m_language {};
 
-    String m_id {};
+    Utf16String m_id {};
 
     Bindings::TextTrackMode m_mode { Bindings::TextTrackMode::Disabled };
 
@@ -75,6 +76,6 @@ private:
     HashTable<GC::Ref<TextTrackObserver>> m_observers;
 };
 
-Bindings::TextTrackKind text_track_kind_from_string(String);
+Bindings::TextTrackKind text_track_kind_from_string(Utf16View);
 
 }
