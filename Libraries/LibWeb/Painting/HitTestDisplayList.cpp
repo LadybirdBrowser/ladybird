@@ -241,18 +241,25 @@ void HitTestDisplayList::append_svg_path(Paintable& target, Gfx::Path path, Gfx:
     add_item_to_spatial_index(item_index);
 }
 
-void HitTestDisplayList::append_text_fragment(PaintableFragment const& fragment, VisualContextIndex visual_context_index)
+static bool text_fragment_is_hit_testable(PaintableFragment const& fragment)
 {
     auto const* text_node = as_if<Layout::TextNode>(fragment.layout_node());
     if (!text_node)
-        return;
+        return false;
 
     auto const& computed_values = text_node->computed_values();
     if (computed_values.visibility() != CSS::Visibility::Visible || computed_values.opacity() == 0)
-        return;
+        return false;
     if (auto const* node = text_node->dom_text(); node && node->is_inert())
-        return;
+        return false;
     if (computed_values.pointer_events() == CSS::PointerEvents::None)
+        return false;
+    return true;
+}
+
+void HitTestDisplayList::append_text_fragment(PaintableFragment const& fragment, VisualContextIndex visual_context_index)
+{
+    if (!text_fragment_is_hit_testable(fragment))
         return;
 
     auto& fragment_paintable = const_cast<PaintableWithLines&>(fragment.paintable_with_lines());
@@ -271,6 +278,32 @@ void HitTestDisplayList::append_text_fragment(PaintableFragment const& fragment,
         .border_radii = {},
     });
     add_item_to_spatial_index(item_index);
+    add_item_to_caret_items(item_index);
+}
+
+void HitTestDisplayList::append_empty_line(PaintableFragment const& sibling_fragment, size_t caret_offset, size_t line_box_index, CSSPixelRect line_rect, VisualContextIndex visual_context_index)
+{
+    if (!text_fragment_is_hit_testable(sibling_fragment))
+        return;
+
+    auto& fragment_paintable = const_cast<PaintableWithLines&>(sibling_fragment.paintable_with_lines());
+    auto item_index = m_items.size();
+    m_items.append({
+        .kind = ItemKind::EmptyLine,
+        .paintable = fragment_paintable,
+        .chrome_widget = {},
+        .text_fragment = &sibling_fragment,
+        .caret_offset = caret_offset,
+        // NB: Empty lines are only reachable through caret lines, never through regular hit testing, so they are
+        //     recorded with an empty rect and stay out of the spatial index.
+        .rect = {},
+        .caret_rect = line_rect,
+        .caret_line_index = line_box_index,
+        .caret_line_rect = line_rect,
+        .block_container_margin_rect = absolute_margin_box_rect_for_containing_block(sibling_fragment),
+        .visual_context_index = visual_context_index,
+        .border_radii = {},
+    });
     add_item_to_caret_items(item_index);
 }
 
@@ -361,6 +394,7 @@ bool HitTestDisplayList::item_can_produce_caret_position(Item const& item) const
 {
     switch (item.kind) {
     case ItemKind::TextFragment:
+    case ItemKind::EmptyLine:
         return item.text_fragment && item.text_fragment->layout_node().dom_node();
     case ItemKind::EmptyEditable:
         return item.paintable->dom_node();
@@ -402,7 +436,7 @@ void HitTestDisplayList::add_item_to_caret_items(size_t item_index)
             && !item.caret_line_index.has_value()
             && rects_overlap_in_block_axis(line.rect, item.caret_rect, writing_mode);
         auto containing_block_for_item = [](Item const& item) -> Layout::Box const* {
-            if (item.kind == ItemKind::TextFragment && item.text_fragment)
+            if ((item.kind == ItemKind::TextFragment || item.kind == ItemKind::EmptyLine) && item.text_fragment)
                 return item.text_fragment->layout_node().containing_block();
             return item.paintable->layout_node().containing_block();
         };
@@ -453,6 +487,9 @@ bool HitTestDisplayList::item_contains(Item const& item, CSSPixelPoint local_poi
         return item.rect.contains(local_point) && item.path->contains(local_point.to_type<float>(), item.winding_rule);
     case ItemKind::TextFragment:
         return item.rect.contains(local_point);
+    case ItemKind::EmptyLine:
+        // Empty lines are caret targets only; they never contain a point for regular hit testing.
+        return false;
     case ItemKind::EmptyEditable:
         return item.rect.contains(local_point);
     case ItemKind::ChromeWidget:
@@ -470,6 +507,7 @@ DOM::Node const* HitTestDisplayList::item_dom_node(Item const& item) const
     case ItemKind::ChromeWidget:
         return item.paintable->dom_node();
     case ItemKind::TextFragment:
+    case ItemKind::EmptyLine:
         return item.text_fragment ? item.text_fragment->layout_node().dom_node() : nullptr;
     }
     VERIFY_NOT_REACHED();
@@ -477,7 +515,7 @@ DOM::Node const* HitTestDisplayList::item_dom_node(Item const& item) const
 
 DOM::Node const* HitTestDisplayList::event_dispatch_dom_node_for_item(Item const& item) const
 {
-    if (item.kind == ItemKind::TextFragment)
+    if (item.kind == ItemKind::TextFragment || item.kind == ItemKind::EmptyLine)
         return item_dom_node(item);
 
     for (auto const* current = item.paintable.ptr(); current; current = current->parent()) {
@@ -506,6 +544,9 @@ HitTestResult HitTestDisplayList::hit_test_result_for_item(Item const& item, CSS
             .dom_node_override = const_cast<DOM::Node*>(item_dom_node(item)),
             .index_in_node = item.text_fragment->index_in_node_for_point(local_point),
         };
+    case ItemKind::EmptyLine:
+        // NB: Not reachable through regular hit testing; see item_contains().
+        return HitTestResult { .paintable = item.paintable };
     case ItemKind::EmptyEditable:
         return HitTestResult {
             .paintable = item.paintable,
@@ -543,6 +584,17 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_for_item(Item const& 
             .paintable = item.paintable,
             .boundary = { const_cast<DOM::Node&>(*fragment_dom_node), static_cast<WebIDL::UnsignedLong>(index_in_node) },
             .debug_rect = fragment.range_rect(Paintable::SelectionState::StartAndEnd, index_in_node, index_in_node),
+        };
+    }
+    case ItemKind::EmptyLine: {
+        auto const* dom_node = item_dom_node(item);
+        if (!dom_node)
+            return {};
+        // An empty line has a single caret position regardless of where on the line the point is.
+        return CaretPosition {
+            .paintable = item.paintable,
+            .boundary = { const_cast<DOM::Node&>(*dom_node), static_cast<WebIDL::UnsignedLong>(item.caret_offset) },
+            .debug_rect = item.caret_rect,
         };
     }
     case ItemKind::EmptyEditable: {
@@ -804,6 +856,7 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
         CSSPixels inline_distance { CSSPixels::max() };
         Optional<CSSPixelRect> block_container_margin_rect;
         bool is_before_point { false };
+        bool contains_point_in_block_axis { false };
     };
 
     auto line_after_point_is_better_candidate = [](CSSPixels block_start_distance, CSSPixels inline_distance, CSSPixels closest_block_start_distance, CSSPixels closest_inline_distance) {
@@ -835,14 +888,31 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
             auto block_distance = block_axis_distance_to_line_rect(line.rect, *local_point, writing_mode);
             auto block_coordinate = block_axis_coordinate(*local_point, writing_mode);
             auto inline_distance = inline_axis_distance_to_rect(line.rect, *local_point, writing_mode);
-            if (!closest_line.index.has_value()
-                || caret_line_is_better_candidate(block_distance, inline_distance, closest_line.block_distance, closest_line.inline_distance, caret_line_block_axis_compare_slop)) {
+            auto contains_point_in_block_axis = block_coordinate >= block_axis_start(line.rect, writing_mode)
+                && block_coordinate < block_axis_end(line.rect, writing_mode);
+            auto is_better_candidate = [&] {
+                if (!closest_line.index.has_value())
+                    return true;
+                // Between lines of the same block container, a line whose block-axis range contains the point always
+                // beats lines that do not, even if those are closer in the inline axis. This keeps clicks past the
+                // end of a line's text on that line. Lines from different block containers (like adjacent table
+                // cells) keep the distance-based comparison, so that drags slightly below a row's text are not
+                // captured by a taller sibling line.
+                auto same_block_container = line.block_container_margin_rect.has_value()
+                    && closest_line.block_container_margin_rect.has_value()
+                    && *line.block_container_margin_rect == *closest_line.block_container_margin_rect;
+                if (same_block_container && contains_point_in_block_axis != closest_line.contains_point_in_block_axis)
+                    return contains_point_in_block_axis;
+                return caret_line_is_better_candidate(block_distance, inline_distance, closest_line.block_distance, closest_line.inline_distance, caret_line_block_axis_compare_slop);
+            }();
+            if (is_better_candidate) {
                 closest_line.index = line_index;
                 closest_line.local_point = local_point;
                 closest_line.block_distance = block_distance;
                 closest_line.inline_distance = inline_distance;
                 closest_line.block_container_margin_rect = line.block_container_margin_rect;
                 closest_line.is_before_point = block_axis_end(line.rect, writing_mode) < block_coordinate;
+                closest_line.contains_point_in_block_axis = contains_point_in_block_axis;
             }
 
             if (block_axis_end(line.rect, writing_mode) < block_coordinate
@@ -875,6 +945,7 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
         }
 
         if (mode == CaretPositionMode::SelectionStart
+            && !closest_line.contains_point_in_block_axis
             && closest_line_before_point.index.has_value()
             && closest_line.index != closest_line_before_point.index
             && closest_line_before_point.block_distance <= caret_item_block_axis_compare_slop)

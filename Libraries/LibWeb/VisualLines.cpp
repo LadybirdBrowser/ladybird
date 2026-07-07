@@ -17,10 +17,23 @@
 
 namespace Web {
 
-static bool white_space_preserves_newlines(Layout::TextNode const& layout_node)
+bool white_space_preserves_newlines(Layout::TextNode const& layout_node)
 {
     return first_is_one_of(layout_node.computed_values().white_space_collapse(),
         CSS::WhiteSpaceCollapse::Preserve, CSS::WhiteSpaceCollapse::PreserveBreaks);
+}
+
+bool text_contains_empty_visual_line_positions(Utf16View const& text)
+{
+    auto length = text.length_in_code_units();
+    for (size_t i = 0; i < length; ++i) {
+        if (text.code_unit_at(i) != '\n')
+            continue;
+        auto position = i + 1;
+        if (position == length || text.code_unit_at(position) == '\n')
+            return true;
+    }
+    return false;
 }
 
 Vector<VisualLine> collect_visual_lines(DOM::Text const& dom_node)

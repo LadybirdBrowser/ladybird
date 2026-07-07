@@ -14,6 +14,8 @@
 
 namespace Web::Painting {
 
+class HitTestDisplayList;
+
 class PaintableWithLines : public Paintable {
 public:
     static NonnullRefPtr<PaintableWithLines> create(Layout::BlockContainer const&);
@@ -56,6 +58,7 @@ private:
 
     Optional<PaintableFragment const&> fragment_at_position(DOM::Position const&) const;
     void paint_cursor(DisplayListRecordingContext&) const;
+    void record_empty_line_caret_items(HitTestDisplayList&, VisualContextIndex) const;
 
     Vector<PaintableFragment> m_fragments;
 

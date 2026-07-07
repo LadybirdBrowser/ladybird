@@ -31,4 +31,10 @@ Optional<size_t> compute_cursor_position_on_previous_line(DOM::Text const&, size
 size_t find_visual_line_start(DOM::Text const&, size_t offset);
 size_t find_visual_line_end(DOM::Text const&, size_t offset);
 
+bool white_space_preserves_newlines(Layout::TextNode const&);
+
+// Whether any position in the text renders as an empty visual line (between two consecutive newlines, or after a
+// newline at the very end of the text), assuming newlines are preserved.
+bool text_contains_empty_visual_line_positions(Utf16View const&);
+
 }

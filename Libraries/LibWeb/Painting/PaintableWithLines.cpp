@@ -22,6 +22,7 @@
 #include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/Painting/ShadowPainting.h>
 #include <LibWeb/Painting/StackingContext.h>
+#include <LibWeb/VisualLines.h>
 
 namespace Web::Painting {
 
@@ -105,11 +106,107 @@ void PaintableWithLines::record_hit_test_items(DisplayListRecordingContext& cont
         hit_test_display_list->append_text_fragment(fragment, accumulated_visual_context_for_descendants_index());
     }
 
+    record_empty_line_caret_items(*hit_test_display_list, accumulated_visual_context_for_descendants_index());
+
     if (stacking_context()
         && is_inline()
         && is_visible()
         && visible_for_hit_testing()) {
         hit_test_display_list->append_box(*this, const_cast<PaintableWithLines&>(*this), absolute_border_box_rect(), accumulated_visual_context_index(), border_radii_data());
+    }
+}
+
+void PaintableWithLines::record_empty_line_caret_items(HitTestDisplayList& hit_test_display_list, VisualContextIndex visual_context_index) const
+{
+    if (m_fragments.is_empty())
+        return;
+
+    // Line boxes without fragments (e.g. the blank line between two consecutive newlines in a textarea) produce no
+    // hit test items of their own. When all fragments belong to a single text node with preserved newlines, we can
+    // derive the caret offset of each empty line and record caret targets for them.
+    auto const* text_layout_node = as_if<Layout::TextNode>(m_fragments.first().layout_node());
+    if (!text_layout_node)
+        return;
+    if (!white_space_preserves_newlines(*text_layout_node))
+        return;
+
+    // FIXME: Support vertical writing modes.
+    if (computed_values().writing_mode() != CSS::WritingMode::HorizontalTb)
+        return;
+
+    auto const* dom_text = text_layout_node->dom_text();
+    if (!dom_text)
+        return;
+    if (!text_contains_empty_visual_line_positions(dom_text->data().utf16_view()))
+        return;
+
+    for (auto const& fragment : m_fragments) {
+        if (&fragment.layout_node() != text_layout_node)
+            return;
+    }
+
+    auto lines = collect_visual_lines(*dom_text);
+
+    // The interpolation below requires visual lines to correspond 1:1 to this block's line boxes.
+    for (size_t i = 0; i < lines.size(); ++i) {
+        if (!lines[i].fragments.is_empty() && lines[i].fragments.first()->line_box_data().index != i)
+            return;
+    }
+
+    // For each line, the index of the closest fragment-backed line before/after it.
+    Vector<Optional<size_t>> previous_fragment_line;
+    previous_fragment_line.resize(lines.size());
+    Vector<Optional<size_t>> next_fragment_line;
+    next_fragment_line.resize(lines.size());
+    Optional<size_t> last_seen;
+    for (size_t i = 0; i < lines.size(); ++i) {
+        previous_fragment_line[i] = last_seen;
+        if (!lines[i].fragments.is_empty())
+            last_seen = i;
+    }
+    last_seen = {};
+    for (size_t i = lines.size(); i-- > 0;) {
+        next_fragment_line[i] = last_seen;
+        if (!lines[i].fragments.is_empty())
+            last_seen = i;
+    }
+
+    auto line_box_rect_for_line = [&](size_t index) {
+        return lines[index].fragments.first()->absolute_line_box_rect();
+    };
+
+    auto content_rect = absolute_rect();
+    for (size_t i = 0; i < lines.size(); ++i) {
+        if (!lines[i].fragments.is_empty())
+            continue;
+
+        auto previous_line = previous_fragment_line[i];
+        auto next_line = next_fragment_line[i];
+
+        // Empty line boxes are not retained after layout, so interpolate each empty line's rect from its
+        // fragment-backed neighbors. Consecutive empty lines share their gap evenly.
+        CSSPixelRect line_rect;
+        if (previous_line.has_value() && next_line.has_value()) {
+            auto previous_rect = line_box_rect_for_line(*previous_line);
+            auto next_rect = line_box_rect_for_line(*next_line);
+            auto count = static_cast<int>(*next_line - *previous_line - 1);
+            auto position_in_gap = static_cast<int>(i - *previous_line - 1);
+            auto line_height = (next_rect.top() - previous_rect.bottom()) / count;
+            line_rect = { content_rect.x(), previous_rect.bottom() + line_height * position_in_gap, content_rect.width(), line_height };
+        } else if (previous_line.has_value()) {
+            auto previous_rect = line_box_rect_for_line(*previous_line);
+            auto steps = static_cast<int>(i - *previous_line);
+            line_rect = { content_rect.x(), previous_rect.bottom() + previous_rect.height() * (steps - 1), content_rect.width(), previous_rect.height() };
+        } else if (next_line.has_value()) {
+            auto next_rect = line_box_rect_for_line(*next_line);
+            auto steps = static_cast<int>(*next_line - i);
+            line_rect = { content_rect.x(), next_rect.top() - next_rect.height() * steps, content_rect.width(), next_rect.height() };
+        } else {
+            // NB: Unreachable; m_fragments is non-empty, so at least one line has fragments.
+            return;
+        }
+
+        hit_test_display_list.append_empty_line(m_fragments.first(), lines[i].start_offset, i, line_rect, visual_context_index);
     }
 }
 
