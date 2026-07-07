@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="editor" contenteditable style="width: 150px">hello hello hello jello jello jello mello mello mello</div>
+<script>
+test(() => {
+    // The editor soft-wraps into three visual lines:
+    //   "hello hello hello"  [0,17)  + the collapsed wrap space at 17
+    //   "jello jello jello"  [18,35) + the collapsed wrap space at 35
+    //   "mello mello mello"  [36,53)
+    // Like in a textarea, the offset after a wrap space has two visual positions (the end of the
+    // earlier line and the start of the next), and Left/Right must step through both.
+    const text = editor.firstChild;
+    const sel = getSelection();
+    const report = label => {
+        println(`${label}: focus=${sel.focusOffset} anchor=${sel.anchorOffset}`);
+    };
+    const sendKey = (name, modifiers) => {
+        editor.getBoundingClientRect();
+        internals.sendKey(editor, name, modifiers);
+    };
+
+    sel.collapse(text, 17);
+    sendKey("Right");
+    report("Right over the wrap space");
+    sendKey("Down");
+    report("Down from end of first visual line");
+
+    sel.collapse(text, 17);
+    sendKey("Right");
+    sendKey("Right");
+    report("Right twice from before the wrap space");
+    sendKey("Down");
+    report("Down from start of second visual line");
+
+    sel.collapse(text, 17);
+    sendKey("Right");
+    sendKey("Right");
+    sendKey("Right");
+    report("Right three times from before the wrap space");
+
+    sel.collapse(text, 18);
+    sendKey("Left");
+    report("Left from start of second visual line");
+    sendKey("Down");
+    report("Down after stepping back to end of first visual line");
+    sendKey("Left");
+    report("Left again over the wrap space");
+
+    sel.collapse(text, 17);
+    sendKey("Right", internals.MOD_SHIFT);
+    report("Shift+Right selects the wrap space");
+});
+</script>
