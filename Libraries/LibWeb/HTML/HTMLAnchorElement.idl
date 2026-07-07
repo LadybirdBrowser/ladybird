@@ -4,9 +4,9 @@ interface HTMLAnchorElement : HTMLElement {
 
     [HTMLConstructor] constructor();
 
-    [CEReactions, Reflect] attribute DOMString download;
+    [CEReactions, Reflect] attribute Utf16DOMString download;
     [CEReactions, Reflect] attribute USVString ping;
-    [CEReactions, Reflect] attribute DOMString rel;
+    [CEReactions, Reflect] attribute Utf16DOMString rel;
     [SameObject, PutForwards=value] readonly attribute DOMTokenList relList;
 
     [CEReactions] attribute Utf16DOMString text;

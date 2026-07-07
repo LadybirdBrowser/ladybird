@@ -32,15 +32,15 @@ interface HTMLLinkElement : HTMLElement {
 
     [HTMLConstructor] constructor();
 
-    [CEReactions, Reflect, URL] attribute USVString href;
+    [CEReactions, Reflect, URL] attribute Utf16USVString href;
     [CEReactions, Reflect=crossorigin, Enumerated=CORSSettingsAttribute] attribute DOMString? crossOrigin;
-    [CEReactions, Reflect] attribute DOMString rel;
+    [CEReactions, Reflect] attribute Utf16DOMString rel;
     [CEReactions, Reflect, Enumerated=PotentialDestination] attribute DOMString as;
     [SameObject, PutForwards=value] readonly attribute DOMTokenList relList;
     [CEReactions] attribute DOMString media;
     [CEReactions, Reflect] attribute DOMString integrity;
     [CEReactions, Reflect] attribute DOMString hreflang;
-    [CEReactions, Reflect] attribute DOMString type;
+    [CEReactions, Reflect] attribute Utf16DOMString type;
     [SameObject, PutForwards=value] readonly attribute DOMTokenList sizes;
     [CEReactions, Reflect=imagesrcset] attribute USVString imageSrcset;
     [CEReactions, Reflect=imagesizes] attribute DOMString imageSizes;

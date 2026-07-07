@@ -12,7 +12,7 @@ interface HTMLImageElement : HTMLElement {
 
     [HTMLConstructor] constructor();
 
-    [CEReactions, Reflect] attribute DOMString alt;
+    [CEReactions, Reflect] attribute Utf16DOMString alt;
     [CEReactions, Reflect, URL] attribute USVString src;
     [CEReactions, Reflect] attribute DOMString srcset;
     [CEReactions, Reflect] attribute DOMString sizes;

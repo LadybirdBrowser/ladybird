@@ -30,9 +30,12 @@ public:
     virtual void inserted() override;
     virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root) override;
 
-    String rel() const { return get_attribute_value(HTML::AttributeNames::rel).to_utf8_but_should_be_ported_to_utf16(); }
-    String type() const { return get_attribute_value(HTML::AttributeNames::type).to_utf8_but_should_be_ported_to_utf16(); }
-    String href() const { return get_attribute_value(HTML::AttributeNames::href).to_utf8_but_should_be_ported_to_utf16(); }
+    Utf16String rel() const { return get_attribute_value(HTML::AttributeNames::rel); }
+    void set_rel(Utf16String const& value) { set_attribute_value(HTML::AttributeNames::rel, value); }
+    Utf16String type() const { return get_attribute_value(HTML::AttributeNames::type); }
+    void set_type(Utf16String const& value) { set_attribute_value(HTML::AttributeNames::type, value); }
+    Utf16String href() const { return get_attribute_value(HTML::AttributeNames::href); }
+    void set_href(Utf16String const& value) { set_attribute_value(HTML::AttributeNames::href, value); }
 
     GC::Ref<DOM::DOMTokenList> rel_list();
     GC::Ref<DOM::DOMTokenList> sizes();

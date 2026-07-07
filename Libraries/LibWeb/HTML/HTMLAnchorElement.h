@@ -22,8 +22,11 @@ public:
 
     virtual Optional<URL::Origin> extract_an_origin() const override { return hyperlink_element_utils_extract_an_origin(); }
 
-    String rel() const { return get_attribute_value(HTML::AttributeNames::rel).to_utf8_but_should_be_ported_to_utf16(); }
-    String download() const { return get_attribute_value(HTML::AttributeNames::download).to_utf8_but_should_be_ported_to_utf16(); }
+    Utf16String rel() const { return get_attribute_value(HTML::AttributeNames::rel); }
+    void set_rel(Utf16String const& rel) { set_attribute_value(HTML::AttributeNames::rel, rel); }
+
+    Utf16String download() const { return get_attribute_value(HTML::AttributeNames::download); }
+    void set_download(Utf16String const& download) { set_attribute_value(HTML::AttributeNames::download, download); }
 
     GC::Ref<DOM::DOMTokenList> rel_list();
 

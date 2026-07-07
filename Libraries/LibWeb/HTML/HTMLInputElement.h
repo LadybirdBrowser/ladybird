@@ -78,7 +78,8 @@ public:
     TypeAttributeState type_state() const { return m_type; }
     void set_type(String const&);
 
-    String default_value() const { return get_attribute_value(HTML::AttributeNames::value).to_utf8_but_should_be_ported_to_utf16(); }
+    Utf16String default_value() const { return get_attribute_value(HTML::AttributeNames::value); }
+    void set_default_value(Utf16String const& value) { set_attribute_value(HTML::AttributeNames::value, value); }
 
     Utf16String value() const;
     virtual Utf16String form_value() const override { return value(); }

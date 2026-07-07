@@ -49,7 +49,8 @@ public:
         return {};
     }
 
-    String alt() const { return get_attribute_value(HTML::AttributeNames::alt).to_utf8_but_should_be_ported_to_utf16(); }
+    Utf16String alt() const { return get_attribute_value(HTML::AttributeNames::alt); }
+    void set_alt(Utf16String const& alt) { set_attribute_value(HTML::AttributeNames::alt, alt); }
 
     WebIDL::UnsignedLong width() const;
     void set_width(WebIDL::UnsignedLong);
