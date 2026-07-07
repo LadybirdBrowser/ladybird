@@ -15,18 +15,18 @@
 namespace Web::HTML {
 
 WEB_API Optional<i32> parse_integer(StringView string);
-Optional<i32> parse_integer(Utf16View string);
+WEB_API Optional<i32> parse_integer(Utf16View string);
 Optional<StringView> parse_integer_digits(StringView string);
 
 WEB_API Optional<u32> parse_non_negative_integer(StringView string);
-Optional<u32> parse_non_negative_integer(Utf16View string);
+WEB_API Optional<u32> parse_non_negative_integer(Utf16View string);
 Optional<StringView> parse_non_negative_integer_digits(StringView string);
 
 Optional<double> parse_floating_point_number(StringView string);
-Optional<double> parse_floating_point_number(Utf16View string);
+WEB_API Optional<double> parse_floating_point_number(Utf16View string);
 
 WEB_API bool is_valid_floating_point_number(StringView string);
-bool is_valid_floating_point_number(Utf16View string);
+WEB_API bool is_valid_floating_point_number(Utf16View string);
 
 WEB_API WebIDL::ExceptionOr<String> convert_non_negative_integer_to_string(JS::Realm&, WebIDL::Long);
 

@@ -6,6 +6,7 @@
 
 #include <LibTest/TestCase.h>
 
+#include <AK/Utf16String.h>
 #include <LibWeb/HTML/Numbers.h>
 
 TEST_CASE(parse_integer)
@@ -130,4 +131,43 @@ TEST_CASE(parse_non_negative_integer)
     EXPECT(!Web::HTML::is_valid_floating_point_number("\r1"sv));
     EXPECT(!Web::HTML::is_valid_floating_point_number(" 1"sv));
     EXPECT(!Web::HTML::is_valid_floating_point_number("1trailing junk"sv));
+}
+
+TEST_CASE(parse_numbers_from_utf16)
+{
+    auto integer_string = Utf16String::from_utf8(" 456foo"sv);
+    auto integer_value = Web::HTML::parse_integer(integer_string);
+    EXPECT(integer_value.has_value());
+    EXPECT_EQ(integer_value.value(), 456);
+
+    integer_string = Utf16String::from_utf8("foo456"sv);
+    integer_value = Web::HTML::parse_integer(integer_string);
+    EXPECT(!integer_value.has_value());
+
+    integer_string = Utf16String::from_utf8("１２3"sv);
+    integer_value = Web::HTML::parse_integer(integer_string);
+    EXPECT(!integer_value.has_value());
+
+    auto non_negative_integer_string = Utf16String::from_utf8("+123foo"sv);
+    auto non_negative_integer_value = Web::HTML::parse_non_negative_integer(non_negative_integer_string);
+    EXPECT(non_negative_integer_value.has_value());
+    EXPECT_EQ(non_negative_integer_value.value(), 123u);
+
+    non_negative_integer_string = Utf16String::from_utf8("-123"sv);
+    non_negative_integer_value = Web::HTML::parse_non_negative_integer(non_negative_integer_string);
+    EXPECT(!non_negative_integer_value.has_value());
+
+    auto floating_point_string = Utf16String::from_utf8(" 1.25e2suffix"sv);
+    auto floating_point_value = Web::HTML::parse_floating_point_number(floating_point_string);
+    EXPECT(floating_point_value.has_value());
+    EXPECT_EQ(floating_point_value.value(), 125);
+
+    floating_point_string = Utf16String::from_utf8("1.25e2"sv);
+    EXPECT(Web::HTML::is_valid_floating_point_number(floating_point_string));
+
+    floating_point_string = Utf16String::from_utf8("1.25e"sv);
+    EXPECT(!Web::HTML::is_valid_floating_point_number(floating_point_string));
+
+    floating_point_string = Utf16String::from_utf8("１.25"sv);
+    EXPECT(!Web::HTML::is_valid_floating_point_number(floating_point_string));
 }
