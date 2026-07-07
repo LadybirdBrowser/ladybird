@@ -5,7 +5,7 @@ interface HTMLOptionElement : HTMLElement {
 
     [CEReactions, Reflect] attribute boolean disabled;
     readonly attribute HTMLFormElement? form;
-    [CEReactions] attribute DOMString label;
+    [CEReactions] attribute Utf16DOMString label;
     [CEReactions, Reflect=selected] attribute boolean defaultSelected;
     attribute boolean selected;
     [CEReactions] attribute Utf16DOMString value;

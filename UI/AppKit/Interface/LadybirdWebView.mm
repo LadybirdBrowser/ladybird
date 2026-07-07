@@ -837,8 +837,9 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
         self.select_dropdown.minimumWidth = minimum_width;
 
         auto add_menu_item = [self](Web::HTML::SelectItemOption const& item_option, bool in_option_group) {
+            auto label = in_option_group ? Utf16String::formatted("    {}", item_option.label) : item_option.label;
             NSMenuItem* menuItem = [[NSMenuItem alloc]
-                initWithTitle:Ladybird::string_to_ns_string(in_option_group ? MUST(String::formatted("    {}", item_option.label)) : item_option.label)
+                initWithTitle:Ladybird::utf16_string_to_ns_string(label)
                        action:item_option.disabled ? nil : @selector(selectDropdownAction:)
                 keyEquivalent:@""];
             menuItem.representedObject = [NSNumber numberWithUnsignedInt:item_option.id];
@@ -850,7 +851,7 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
             if (item.has<Web::HTML::SelectItemOptionGroup>()) {
                 auto const& item_option_group = item.get<Web::HTML::SelectItemOptionGroup>();
                 NSMenuItem* subtitle = [[NSMenuItem alloc]
-                    initWithTitle:Ladybird::string_to_ns_string(item_option_group.label)
+                    initWithTitle:Ladybird::utf16_string_to_ns_string(item_option_group.label)
                            action:nil
                     keyEquivalent:@""];
                 [self.select_dropdown addItem:subtitle];

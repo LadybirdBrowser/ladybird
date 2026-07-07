@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibIPC/Forward.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/HTMLOptionElement.h>
@@ -18,12 +18,12 @@ struct SelectItemOption {
     bool selected { false };
     bool disabled { false };
     GC::Ptr<HTMLOptionElement> option_element {};
-    String label {};
-    String value {};
+    Utf16String label {};
+    Utf16String value {};
 };
 
 struct SelectItemOptionGroup {
-    String label = {};
+    Utf16String label = {};
     Vector<SelectItemOption> items = {};
 };
 

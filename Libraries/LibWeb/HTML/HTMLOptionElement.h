@@ -31,8 +31,8 @@ public:
     Utf16String text() const;
     void set_text(Utf16String const&);
 
-    [[nodiscard]] String label() const;
-    void set_label(String const&);
+    [[nodiscard]] Utf16String label() const;
+    void set_label(Utf16String const&);
 
     int index() const;
 

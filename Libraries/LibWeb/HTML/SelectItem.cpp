@@ -23,8 +23,8 @@ template<>
 ErrorOr<Web::HTML::SelectItemOption> IPC::decode(Decoder& decoder)
 {
     auto id = TRY(decoder.decode<u32>());
-    auto label = TRY(decoder.decode<String>());
-    auto value = TRY(decoder.decode<String>());
+    auto label = TRY(decoder.decode<Utf16String>());
+    auto value = TRY(decoder.decode<Utf16String>());
     auto selected = TRY(decoder.decode<bool>());
     auto disabled = TRY(decoder.decode<bool>());
     return Web::HTML::SelectItemOption { id, selected, disabled, {}, move(label), move(value) };
@@ -41,7 +41,7 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::SelectItemOptionGroup con
 template<>
 ErrorOr<Web::HTML::SelectItemOptionGroup> IPC::decode(Decoder& decoder)
 {
-    auto label = TRY(decoder.decode<String>());
+    auto label = TRY(decoder.decode<Utf16String>());
     auto items = TRY(decoder.decode<Vector<Web::HTML::SelectItemOption>>());
     return Web::HTML::SelectItemOptionGroup { move(label), move(items) };
 }
