@@ -1128,6 +1128,15 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
         });
     }
 
+    // NB: Elements inside a display:none subtree keep their last computed style without being recomputed, so
+    //     crossing the display:none boundary must update those styles for all descendants.
+    if (old_computed_properties && old_computed_properties->display().is_none() != m_computed_properties->display().is_none()) {
+        if (m_computed_properties->display().is_none())
+            set_in_display_none_subtree_on_descendant_styles();
+        else if (!m_computed_properties->in_display_none_subtree())
+            mark_descendants_with_stale_styles_for_style_update();
+    }
+
     invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, had_list_marker, old_computed_properties.ptr());
 
     if (invalidation.is_none()) {
@@ -1138,6 +1147,41 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
     apply_computed_style_to_layout_node_if_needed(invalidation);
 
     return invalidation;
+}
+
+void Element::set_in_display_none_subtree_on_descendant_styles()
+{
+    for_each_shadow_including_descendant([](auto& node) {
+        auto* element = as_if<Element>(node);
+        if (!element)
+            return TraversalDecision::Continue;
+        auto const& style = element->m_computed_properties;
+        if (!style)
+            return TraversalDecision::SkipChildrenAndContinue;
+        if (style->in_display_none_subtree())
+            return TraversalDecision::SkipChildrenAndContinue;
+        style->set_in_display_none_subtree(Badge<Element> {});
+        element->for_each_synthetic_pseudo_element([](CSS::PseudoElement, SyntheticPseudoElement& pseudo_element) {
+            pseudo_element.set_computed_properties_in_display_none_subtree();
+        });
+        return TraversalDecision::Continue;
+    });
+}
+
+void Element::mark_descendants_with_stale_styles_for_style_update()
+{
+    for_each_shadow_including_descendant([](auto& node) {
+        auto* element = as_if<Element>(node);
+        if (!element)
+            return TraversalDecision::Continue;
+        auto const& style = element->m_computed_properties;
+        if (!style)
+            return TraversalDecision::SkipChildrenAndContinue;
+        if (style->display().is_none())
+            return TraversalDecision::SkipChildrenAndContinue;
+        element->set_needs_style_update(true);
+        return TraversalDecision::Continue;
+    });
 }
 
 CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style(ScheduleAnimationUpdate schedule_animation_update)

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #revealed-element {
+        opacity: 0;
+        display: none;
+        transition: opacity 100s linear;
+    }
+    .shown #revealed-element {
+        opacity: 1;
+        display: block;
+    }
+
+    #hidden-subtree {
+        display: none;
+    }
+    .shown #hidden-subtree {
+        display: block;
+    }
+
+    #descendant {
+        opacity: 0;
+        transition: opacity 100s linear;
+    }
+    .shown #descendant {
+        opacity: 1;
+    }
+
+    #control {
+        opacity: 0;
+        transition: opacity 100s linear;
+    }
+    .shown #control {
+        opacity: 1;
+    }
+</style>
+<div id="container">
+    <div id="revealed-element"></div>
+    <div id="hidden-subtree">
+        <div id="descendant"></div>
+    </div>
+    <div id="control"></div>
+</div>
+<script>
+    test(() => {
+        const revealedElement = document.getElementById("revealed-element");
+        const descendant = document.getElementById("descendant");
+        const control = document.getElementById("control");
+
+        // Resolve the before-change style.
+        getComputedStyle(revealedElement).opacity;
+        getComputedStyle(descendant).opacity;
+        getComputedStyle(control).opacity;
+
+        document.getElementById("container").classList.add("shown");
+
+        println(`opacity of element revealed from display none: ${getComputedStyle(revealedElement).opacity}`);
+        println(`animations on element revealed from display none: ${revealedElement.getAnimations().length}`);
+        println(`opacity of descendant of revealed subtree: ${getComputedStyle(descendant).opacity}`);
+        println(`animations on descendant of revealed subtree: ${descendant.getAnimations().length}`);
+        getComputedStyle(control).opacity;
+        println(`animations on element rendered throughout: ${control.getAnimations().length}`);
+    });
+</script>

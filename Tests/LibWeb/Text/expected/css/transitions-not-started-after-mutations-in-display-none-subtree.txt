@@ -1,0 +1,6 @@
+opacity of descendant mutated while hidden: 0
+animations on descendant mutated while hidden: 0
+opacity read while hidden: 0
+animations on descendant read while hidden: 0
+animations on descendant mutated after reveal: 1
+animations on descendant mutated while being hidden: 0

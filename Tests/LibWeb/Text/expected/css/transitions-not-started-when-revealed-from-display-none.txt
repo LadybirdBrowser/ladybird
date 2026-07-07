@@ -1,0 +1,5 @@
+opacity of element revealed from display none: 1
+animations on element revealed from display none: 0
+opacity of descendant of revealed subtree: 1
+animations on descendant of revealed subtree: 0
+animations on element rendered throughout: 1

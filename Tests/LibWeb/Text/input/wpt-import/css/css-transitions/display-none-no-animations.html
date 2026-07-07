@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<link rel=help href="mailto:jarhar@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<div id=target>target</div>
+<style>
+#target {
+  display: none;
+  transition: 1s;
+  color: red;
+}
+#target.animated {
+  transition: 1s;
+  color: green;
+}
+</style>
+
+<script>
+test(() => {
+  target.addEventListener('transitionstart', () => {
+    assert_unreached('transitionstart should not be fired.');
+  });
+  target.classList.add('animated');
+  assert_equals(target.getAnimations().length, 0,
+    'There should not be any animations running.');
+}, 'Transitions and animations should not occur on display:none elements.');
+</script>

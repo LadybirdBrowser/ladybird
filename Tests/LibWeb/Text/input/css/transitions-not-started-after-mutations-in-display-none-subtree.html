@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .grandchild {
+        opacity: 1;
+        transition: opacity 0.5s linear;
+    }
+</style>
+<div id="container1"><div><div class="grandchild" id="g1"></div></div></div>
+<div id="container2"><div><div class="grandchild" id="g2"></div></div></div>
+<div id="container3"><div><div class="grandchild" id="g3"></div></div></div>
+<div id="container4"><div><div class="grandchild" id="g4"></div></div></div>
+<script>
+    asyncTest(async done => {
+        const nextFrame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+        // Resolve the before-change style for all elements while they are rendered.
+        getComputedStyle(g1).opacity;
+        await nextFrame();
+
+        // A property changed on a descendant while its subtree was hidden must not transition when revealed.
+        container1.style.display = "none";
+        await nextFrame();
+        g1.style.opacity = "0";
+        await nextFrame();
+        container1.style.display = "block";
+        await nextFrame();
+        println("opacity of descendant mutated while hidden: " + getComputedStyle(g1).opacity);
+        println("animations on descendant mutated while hidden: " + g1.getAnimations().length);
+
+        // Reading the computed style of a mutated descendant while still hidden must not start a transition and
+        // must observe the new value.
+        container2.style.display = "none";
+        await nextFrame();
+        g2.style.opacity = "0";
+        await nextFrame();
+        println("opacity read while hidden: " + getComputedStyle(g2).opacity);
+        println("animations on descendant read while hidden: " + g2.getAnimations().length);
+
+        // A property changed after the subtree was hidden and revealed again must still transition.
+        container3.style.display = "none";
+        await nextFrame();
+        container3.style.display = "block";
+        await nextFrame();
+        g3.style.opacity = "0";
+        await nextFrame();
+        println("animations on descendant mutated after reveal: " + g3.getAnimations().length);
+
+        // A property changed in the same style change event that hides the subtree must not transition.
+        container4.style.display = "none";
+        g4.style.opacity = "0";
+        await nextFrame();
+        println("animations on descendant mutated while being hidden: " + g4.getAnimations().length);
+
+        done();
+    });
+</script>

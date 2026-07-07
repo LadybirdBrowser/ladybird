@@ -687,6 +687,8 @@ private:
     void exit_fullscreen_on_element_removal();
     CSS::RequiredInvalidationAfterStyleChange recompute_pseudo_element_styles(bool& did_change_custom_properties, bool had_list_marker, CSS::ComputedProperties const* old_originating_style);
     void apply_computed_style_to_layout_node_if_needed(CSS::RequiredInvalidationAfterStyleChange const&);
+    void set_in_display_none_subtree_on_descendant_styles();
+    void mark_descendants_with_stale_styles_for_style_update();
 
     WebIDL::ExceptionOr<GC::Ptr<Node>> insert_adjacent(StringView where, GC::Ref<Node> node);
 

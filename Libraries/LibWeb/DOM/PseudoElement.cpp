@@ -56,6 +56,12 @@ void SyntheticPseudoElement::set_computed_properties(RefPtr<CSS::ComputedPropert
     m_computed_properties = value;
 }
 
+void SyntheticPseudoElement::set_computed_properties_in_display_none_subtree()
+{
+    if (m_computed_properties)
+        m_computed_properties->set_in_display_none_subtree(Badge<SyntheticPseudoElement> {});
+}
+
 RefPtr<CSS::CustomPropertyData const> SyntheticPseudoElement::custom_property_data() const
 {
     if (!m_custom_property_data)

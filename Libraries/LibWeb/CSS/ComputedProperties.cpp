@@ -85,8 +85,10 @@ ComputedProperties::Builder::Builder(ComputedProperties const& style)
     m_data->raw_cascaded_font_size = style.data().raw_cascaded_font_size;
     m_depends_on_viewport_metrics = style.depends_on_viewport_metrics();
     m_font_metrics_depend_on_viewport_metrics = style.font_metrics_depend_on_viewport_metrics();
+    m_in_display_none_subtree = style.in_display_none_subtree();
     m_style->m_depends_on_viewport_metrics = m_depends_on_viewport_metrics;
     m_style->m_font_metrics_depend_on_viewport_metrics = m_font_metrics_depend_on_viewport_metrics;
+    m_style->m_in_display_none_subtree = m_in_display_none_subtree;
     if (style.m_animated_properties)
         m_style->m_animated_properties = adopt_ref(*new AnimatedProperties(*style.m_animated_properties));
 }
@@ -95,6 +97,7 @@ NonnullRefPtr<ComputedProperties> ComputedProperties::Builder::build() &&
 {
     m_style->m_depends_on_viewport_metrics = m_depends_on_viewport_metrics;
     m_style->m_font_metrics_depend_on_viewport_metrics = m_font_metrics_depend_on_viewport_metrics;
+    m_style->m_in_display_none_subtree = m_in_display_none_subtree;
     return move(m_style);
 }
 
@@ -282,6 +285,12 @@ void ComputedProperties::Builder::set_font_metrics_depend_on_viewport_metrics()
 {
     m_font_metrics_depend_on_viewport_metrics = true;
     m_style->m_font_metrics_depend_on_viewport_metrics = true;
+}
+
+void ComputedProperties::Builder::set_in_display_none_subtree()
+{
+    m_in_display_none_subtree = true;
+    m_style->m_in_display_none_subtree = true;
 }
 
 void ComputedProperties::set_depends_on_viewport_metrics(Badge<StyleComputer>)

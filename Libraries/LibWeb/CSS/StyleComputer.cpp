@@ -3302,12 +3302,29 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
     if (!abstract_element.pseudo_element().has_value())
         abstract_element.element().adjust_computed_style(builder);
 
+    bool parent_style_in_display_none_subtree = false;
+    if (auto parent = abstract_element.element_to_inherit_style_from(); parent.has_value()) {
+        if (auto parent_style = parent->computed_properties())
+            parent_style_in_display_none_subtree = parent_style->in_display_none_subtree();
+    }
+
     // Transition declarations [css-transitions-1]
     // Theoretically this should be part of the cascade, but it works with computed values, which we don't have until now.
     compute_transitioned_properties(computed_style, abstract_element);
     if (auto previous_style = abstract_element.computed_properties()) {
-        start_needed_transitions(*previous_style, builder, abstract_element);
+        // https://drafts.csswg.org/css-transitions-2/#defining-before-change-style
+        // In Level 1 of this specification, transitions can only start during a style change event for elements which
+        // have a defined before-change style established by the previous style change event. That means a transition
+        // could not be started on an element that was not being rendered for the previous style change event.
+        // FIXME: If an element does not have a before-change style for a given style change event, the starting style
+        //        is used instead of the before-change style to compare with the after-change style to start
+        //        transitions.
+        if (!previous_style->in_display_none_subtree() && !parent_style_in_display_none_subtree)
+            start_needed_transitions(*previous_style, builder, abstract_element);
     }
+
+    if (parent_style_in_display_none_subtree || builder.display().is_none())
+        builder.set_in_display_none_subtree();
 
     return CSS::ComputedProperties::create(move(builder));
 }

@@ -93,6 +93,7 @@ public:
         void set_property_inherited(PropertyID, Inherited);
         void set_depends_on_viewport_metrics();
         void set_font_metrics_depend_on_viewport_metrics();
+        void set_in_display_none_subtree();
         void set_has_pseudo_element_style(PseudoElement);
 
         void set_property(PropertyID, NonnullRefPtr<StyleValue const> value, Inherited = Inherited::No, Important = Important::No);
@@ -118,6 +119,7 @@ public:
         NonnullRefPtr<ComputedProperties> m_style;
         bool m_depends_on_viewport_metrics { false };
         bool m_font_metrics_depend_on_viewport_metrics { false };
+        bool m_in_display_none_subtree { false };
     };
 
     static NonnullRefPtr<ComputedProperties> create(Builder&&);
@@ -146,6 +148,10 @@ public:
     bool is_animated_property_result_of_transition(PropertyID property_id) const;
     bool depends_on_viewport_metrics() const { return m_depends_on_viewport_metrics; }
     bool font_metrics_depend_on_viewport_metrics() const { return m_font_metrics_depend_on_viewport_metrics; }
+    // Whether the element this style was computed for has computed display none, or is a descendant of one that does.
+    bool in_display_none_subtree() const { return m_in_display_none_subtree; }
+    void set_in_display_none_subtree(Badge<DOM::Element>) { m_in_display_none_subtree = true; }
+    void set_in_display_none_subtree(Badge<DOM::SyntheticPseudoElement>) { m_in_display_none_subtree = true; }
     bool has_pseudo_element_style(PseudoElement) const;
     void set_depends_on_viewport_metrics(Badge<StyleComputer>);
     void set_font_metrics_depend_on_viewport_metrics(Badge<StyleComputer>);
@@ -371,6 +377,7 @@ private:
     RefPtr<AnimatedProperties> m_animated_properties;
     bool m_depends_on_viewport_metrics { false };
     bool m_font_metrics_depend_on_viewport_metrics { false };
+    bool m_in_display_none_subtree { false };
 
     mutable RefPtr<Gfx::FontCascadeList const> m_cached_computed_font_list;
     mutable RefPtr<Gfx::Font const> m_cached_first_available_computed_font;
