@@ -2282,7 +2282,7 @@ void ViewImplementation::download_context_menu_url(PromptForPath prompt_for_path
     if (download_path.is_error())
         return;
 
-    Application::the().file_downloader().download_file(m_context_menu_url, download_path.release_value(), is_private());
+    Application::the().file_downloader().download_file(is_private(), m_context_menu_url, download_path.release_value());
 }
 
 void ViewImplementation::did_request_image_context_menu(Badge<WebContentClient>, Gfx::IntPoint content_position, URL::URL url, Optional<Gfx::ShareableBitmap> bitmap)

@@ -621,7 +621,7 @@ Messages::WebContentClient::DidStartDownloadWithoutRequestResponse WebContentCli
         return { Optional<u64> {} };
 
     auto& file_downloader = Application::the().file_downloader();
-    auto download_id = file_downloader.start_download(url, destination.release_value(), total_size);
+    auto download_id = file_downloader.start_download(is_private(), url, destination.release_value(), total_size);
     if (!is_download_in_progress(file_downloader, download_id))
         return { Optional<u64> {} };
 
@@ -647,7 +647,7 @@ Messages::WebContentClient::DidStartDownloadResponse WebContentClient::did_start
         return { Optional<u64> {} };
 
     auto& file_downloader = Application::the().file_downloader();
-    auto download_id = file_downloader.adopt_download(url, destination.release_value(), total_size, request_server_client_id, request_server_request_id, initial_data.bytes());
+    auto download_id = file_downloader.adopt_download(is_private(), url, destination.release_value(), total_size, request_server_client_id, request_server_request_id, initial_data.bytes());
     if (!is_download_in_progress(file_downloader, download_id))
         return { Optional<u64> {} };
 

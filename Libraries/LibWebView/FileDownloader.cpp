@@ -67,9 +67,9 @@ static String status_to_error_string(Optional<Requests::NetworkError> const& net
     return MUST(String::formatted("Received error response code {} while downloading file", *response_code));
 }
 
-u64 FileDownloader::download_file(URL::URL const& url, LexicalPath destination, IsPrivate is_private)
+u64 FileDownloader::download_file(IsPrivate is_private, URL::URL const& url, LexicalPath destination)
 {
-    auto download_id = start_download(url, move(destination));
+    auto download_id = start_download(is_private, url, move(destination));
     auto* active = active_download(download_id);
     if (!active)
         return download_id;
@@ -91,9 +91,9 @@ u64 FileDownloader::download_file(URL::URL const& url, LexicalPath destination, 
     return download_id;
 }
 
-u64 FileDownloader::adopt_download(URL::URL const& url, LexicalPath destination, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ReadonlyBytes initial_data)
+u64 FileDownloader::adopt_download(IsPrivate is_private, URL::URL const& url, LexicalPath destination, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ReadonlyBytes initial_data)
 {
-    auto download_id = start_download(url, move(destination), total_size);
+    auto download_id = start_download(is_private, url, move(destination), total_size);
     auto* active = active_download(download_id);
     if (!active)
         return download_id;
@@ -160,12 +160,13 @@ void FileDownloader::attach_request_to_download(u64 download_id, NonnullRefPtr<R
         });
 }
 
-u64 FileDownloader::start_download(URL::URL const& url, LexicalPath destination, Optional<u64> total_size)
+u64 FileDownloader::start_download(IsPrivate is_private, URL::URL const& url, LexicalPath destination, Optional<u64> total_size)
 {
     auto download_id = m_next_download_id++;
 
     m_downloads.append(Download {
         .id = download_id,
+        .is_private = is_private,
         .url = url,
         .destination = move(destination),
         .total_size = total_size,
