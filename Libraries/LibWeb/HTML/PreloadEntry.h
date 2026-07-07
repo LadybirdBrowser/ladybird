@@ -41,7 +41,7 @@ struct PreloadKey {
 PreloadKey create_a_preload_key(Fetch::Infrastructure::Request const&);
 
 // https://html.spec.whatwg.org/multipage/links.html#translate-a-preload-destination
-Variant<Empty, Optional<Fetch::Infrastructure::Request::Destination>> translate_a_preload_destination(Optional<String> const& destination);
+Variant<Empty, Optional<Fetch::Infrastructure::Request::Destination>> translate_a_preload_destination(Optional<Utf16String> const& destination);
 
 // https://html.spec.whatwg.org/multipage/links.html#preload-entry
 class PreloadEntry final : public JS::Cell {

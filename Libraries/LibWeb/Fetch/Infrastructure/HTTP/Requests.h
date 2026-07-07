@@ -525,6 +525,7 @@ private:
 
 WEB_API StringView request_destination_to_string(Request::Destination);
 Optional<Request::Destination> translate_potential_destination(StringView potential_destination);
+Optional<Request::Destination> translate_potential_destination(Utf16View potential_destination);
 bool destination_is_script_like(Request::Destination);
 
 WEB_API StringView request_mode_to_string(Request::Mode);

@@ -35,7 +35,7 @@ PreloadKey create_a_preload_key(Fetch::Infrastructure::Request const& request)
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#translate-a-preload-destination
-Variant<Empty, Optional<Fetch::Infrastructure::Request::Destination>> translate_a_preload_destination(Optional<String> const& destination)
+Variant<Empty, Optional<Fetch::Infrastructure::Request::Destination>> translate_a_preload_destination(Optional<Utf16String> const& destination)
 {
     // 1. If destination is not "fetch", "font", "image", "script", "style", or "track", then return null.
     if (!destination.has_value() || !destination->is_one_of("fetch"sv, "font"sv, "image"sv, "script"sv, "style"sv, "track"sv))

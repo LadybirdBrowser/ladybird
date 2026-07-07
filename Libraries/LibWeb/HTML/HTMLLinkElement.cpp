@@ -536,8 +536,7 @@ void HTMLLinkElement::fetch_and_process_linked_preload_resource()
     auto options = create_link_options();
 
     // 3. Let destination be the result of translating the keyword representing the state of el's as attribute.
-    auto as_attribute = get_attribute(HTML::AttributeNames::as).map([](auto const& value) { return value.to_utf8_but_should_be_ported_to_utf16(); });
-    auto destination = translate_a_preload_destination(as_attribute);
+    auto destination = translate_a_preload_destination(get_attribute(HTML::AttributeNames::as));
 
     // 4. If destination is null, then return.
     if (destination.has<Empty>())
