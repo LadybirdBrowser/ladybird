@@ -1389,9 +1389,8 @@ bool HTMLImageElement::allows_auto_sizes() const
     auto sizes = attribute(HTML::AttributeNames::sizes);
     if (!sizes.has_value())
         return false;
-    auto sizes_utf8 = sizes->to_utf8_but_should_be_ported_to_utf16();
-    return sizes_utf8.equals_ignoring_ascii_case("auto"sv)
-        || sizes_utf8.bytes_as_string_view().starts_with("auto,"sv, AK::CaseSensitivity::CaseInsensitive);
+    return sizes->equals_ignoring_ascii_case("auto"sv)
+        || (sizes->length_in_code_units() >= 5 && sizes->substring_view(0, 5).equals_ignoring_ascii_case("auto,"sv));
 }
 
 GC::Ptr<DecodedImageData> HTMLImageElement::decoded_image_data() const
