@@ -125,6 +125,13 @@ Color highlight(PreferredColorScheme)
     return Color(61, 174, 233, 128);
 }
 
+Color inactive_highlight(PreferredColorScheme scheme)
+{
+    if (scheme == PreferredColorScheme::Dark)
+        return Color(0x60, 0x60, 0x60);
+    return Color(0xd4, 0xd4, 0xd4);
+}
+
 Color highlight_text(PreferredColorScheme scheme)
 {
     if (scheme == PreferredColorScheme::Dark) {

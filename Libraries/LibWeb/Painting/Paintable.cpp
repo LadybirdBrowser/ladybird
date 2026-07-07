@@ -285,15 +285,20 @@ Paintable::SelectionStyle Paintable::selection_style() const
 
 Paintable::SelectionStyle Paintable::selection_style_for_node(Layout::Node const& layout_node, GC::Ptr<DOM::Node const> node)
 {
+    // Selections render in a muted color while the window does not have focus.
+    auto navigable = layout_node.document().navigable();
+    auto window_is_active = navigable && navigable->is_focused();
+
     auto default_style_for_color_scheme = [&](CSS::PreferredColorScheme color_scheme, bool use_palette_for_normal_color_scheme = true) {
         auto palette = layout_node.document().page().palette();
         auto palette_color_scheme = palette.is_dark() ? CSS::PreferredColorScheme::Dark : CSS::PreferredColorScheme::Light;
-        if (color_scheme == palette_color_scheme || use_palette_for_normal_color_scheme)
-            return SelectionStyle { CSS::SystemColor::transform_selection_background_color(palette.selection()) };
+        if (color_scheme == palette_color_scheme || use_palette_for_normal_color_scheme) {
+            auto background = window_is_active ? palette.selection() : palette.inactive_selection();
+            return SelectionStyle { CSS::SystemColor::transform_selection_background_color(background) };
+        }
 
-        return SelectionStyle {
-            CSS::SystemColor::transform_selection_background_color(CSS::SystemColor::highlight(color_scheme))
-        };
+        auto background = window_is_active ? CSS::SystemColor::highlight(color_scheme) : CSS::SystemColor::inactive_highlight(color_scheme);
+        return SelectionStyle { CSS::SystemColor::transform_selection_background_color(background) };
     };
 
     // For text nodes, check the parent element since text nodes don't have computed properties.
