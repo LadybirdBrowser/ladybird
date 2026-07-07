@@ -52,6 +52,8 @@ namespace Web::Painting {
 
 class AccumulatedVisualContextTree;
 class BackingStore;
+class Canvas2DCommandStream;
+struct Canvas2DCommandStreamSegment;
 class ChromeWidget;
 class CanvasSurfaceRegistry;
 class DevicePixelConverter;

@@ -877,6 +877,7 @@ set(SOURCES
     Painting/BorderRadiusCornerClipper.cpp
     Painting/BordersData.cpp
     Painting/BoxModelMetrics.cpp
+    Painting/Canvas2DCommandStream.cpp
     Painting/CanvasPaintable.cpp
     Painting/CheckBoxPaintable.cpp
     Painting/DisplayList.cpp
