@@ -84,6 +84,17 @@ inline struct SystemApi {
 #    include <io.h>
 #    include <stdlib.h>
 
+// Cached SYSTEM_INFO::dwAllocationGranularity — the required alignment for MapViewOfFile offsets.
+inline size_t system_allocation_granularity()
+{
+    static size_t granularity = [] {
+        SYSTEM_INFO system_info {};
+        GetSystemInfo(&system_info);
+        return static_cast<size_t>(system_info.dwAllocationGranularity);
+    }();
+    return granularity;
+}
+
 inline void initiate_wsa()
 {
     WSADATA wsa;
