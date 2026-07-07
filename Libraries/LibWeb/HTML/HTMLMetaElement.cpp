@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/CharacterTypes.h>
 #include <AK/GenericLexer.h>
 #include <LibWeb/Bindings/HTMLMetaElement.h>
 #include <LibWeb/Bindings/Intrinsics.h>
@@ -24,6 +25,19 @@
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(HTMLMetaElement);
+
+static bool equals_ignoring_ascii_case(Utf16View string, StringView ascii_string)
+{
+    if (string.length_in_code_units() != ascii_string.length())
+        return false;
+
+    for (size_t i = 0; i < string.length_in_code_units(); ++i) {
+        if (AK::to_ascii_lowercase(string.code_unit_at(i)) != AK::to_ascii_lowercase(ascii_string[i]))
+            return false;
+    }
+
+    return true;
+}
 
 HTMLMetaElement::HTMLMetaElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
@@ -90,18 +104,17 @@ void HTMLMetaElement::update_referrer_policy()
         return;
 
     // 4. Let value be the value of element's content attribute, converted to ASCII lowercase.
-    auto content_utf8 = content->to_utf8_but_should_be_ported_to_utf16();
-    auto value = content_utf8.bytes_as_string_view();
+    auto value = content->utf16_view();
 
     // 5. If value is one of the values given in the first column of the following table, then set value to the value given in the second column:
     ReferrerPolicy::ReferrerPolicy policy;
-    if (value.equals_ignoring_ascii_case("never"sv))
+    if (equals_ignoring_ascii_case(value, "never"sv))
         policy = ReferrerPolicy::ReferrerPolicy::NoReferrer;
-    else if (value.equals_ignoring_ascii_case("default"sv))
+    else if (equals_ignoring_ascii_case(value, "default"sv))
         policy = ReferrerPolicy::DEFAULT_REFERRER_POLICY;
-    else if (value.equals_ignoring_ascii_case("always"sv))
+    else if (equals_ignoring_ascii_case(value, "always"sv))
         policy = ReferrerPolicy::ReferrerPolicy::UnsafeURL;
-    else if (value.equals_ignoring_ascii_case("origin-when-crossorigin"sv))
+    else if (equals_ignoring_ascii_case(value, "origin-when-crossorigin"sv))
         policy = ReferrerPolicy::ReferrerPolicy::OriginWhenCrossOrigin;
     // 6. If value is a referrer policy, then...
     else if (auto parsed_policy = ReferrerPolicy::from_string(value); parsed_policy.has_value())
