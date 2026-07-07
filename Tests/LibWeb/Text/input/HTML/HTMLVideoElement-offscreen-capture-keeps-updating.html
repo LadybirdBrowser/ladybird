@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<canvas id="canvas" width="16" height="16"></canvas>
+<script>
+    // An unattached <video> is never painted, so only capturing it keeps its video sink updating.
+    // Play it while capturing off-screen and confirm the presented frame advances (the clip resizes 320->640).
+    asyncTest(async done => {
+        const video = document.createElement("video");
+        video.src = "../../../Assets/resize-320x240-640x480.webm";
+        await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
+
+        const context = document.getElementById("canvas").getContext("2d");
+        let capturing = true;
+        function captureFrame() {
+            if (!capturing)
+                return;
+            context.drawImage(video, 0, 0);
+            requestAnimationFrame(captureFrame);
+        }
+        captureFrame();
+
+        await video.play();
+
+        await new Promise(resolve => {
+            const checkResized = () => {
+                if (video.videoWidth === 640) {
+                    video.removeEventListener("resize", checkResized);
+                    resolve();
+                }
+            };
+            video.addEventListener("resize", checkResized);
+            checkResized();
+        });
+        capturing = false;
+
+        println(`videoWidth advanced to ${video.videoWidth}`);
+        done();
+    });
+</script>
