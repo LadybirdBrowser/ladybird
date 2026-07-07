@@ -34,6 +34,14 @@ OwnPtr<Gfx::CanvasCommandPlayer> CanvasHost::create_2d_command_player(Gfx::IntSi
 
     auto format = alpha ? Gfx::BitmapFormat::BGRA8888 : Gfx::BitmapFormat::BGRx8888;
     auto player = make<Gfx::CanvasCommandPlayer>(m_skia_backend_context, size, format, Gfx::AlphaType::Premultiplied, [this](u64 canvas_id) -> Gfx::PaintingSurface const* {
+        // A 2D source resolves to its live draw surface: the shared command
+        // stream replays in recording order, so at this point the surface holds
+        // exactly the commands recorded before the referencing DrawCanvas.
+        if (auto* context = this->context(Web::Painting::CanvasId { canvas_id })) {
+            if (auto* canvas_context = context->get_pointer<Canvas2DContext>())
+                return canvas_context->command_player->surface().ptr();
+        }
+        // WebGL sources are presented separately and resolve via the registry.
         return m_canvas_surface_registry.canvas_surface(Web::Painting::CanvasId { canvas_id });
     });
 
