@@ -1393,14 +1393,41 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#current-dimension-value
-static RefPtr<CSS::StyleValue const> parse_current_dimension_value(float value, Utf8View input, Utf8View::Iterator position)
+static size_t code_unit_length(StringView string)
+{
+    return string.length();
+}
+
+static size_t code_unit_length(Utf16View string)
+{
+    return string.length_in_code_units();
+}
+
+static u32 code_unit_at(StringView string, size_t index)
+{
+    return string[index];
+}
+
+static u32 code_unit_at(Utf16View string, size_t index)
+{
+    return string.code_unit_at(index);
+}
+
+template<typename StringType>
+static bool is_eof(StringType string, size_t position)
+{
+    return position >= code_unit_length(string);
+}
+
+template<typename StringType>
+static RefPtr<CSS::StyleValue const> parse_current_dimension_value(float value, StringType input, size_t position)
 {
     // 1. If position is past the end of input, then return value as a length.
-    if (position == input.end())
+    if (is_eof(input, position))
         return CSS::LengthStyleValue::create(CSS::Length::make_px(CSSPixels::nearest_value_for(value)));
 
     // 2. If the code point at position within input is U+0025 (%), then return value as a percentage.
-    if (*position == '%')
+    if (code_unit_at(input, position) == '%')
         return CSS::PercentageStyleValue::create(CSS::Percentage(value));
 
     // 3. Return value as a length.
@@ -1408,30 +1435,27 @@ static RefPtr<CSS::StyleValue const> parse_current_dimension_value(float value, 
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-dimension-values
-RefPtr<CSS::StyleValue const> parse_dimension_value(StringView string)
+template<typename StringType>
+static RefPtr<CSS::StyleValue const> parse_dimension_value_impl(StringType input)
 {
     // 1. Let input be the string being parsed.
-    auto input = Utf8View(string);
-    if (!input.validate())
-        return nullptr;
-
     // 2. Let position be a position variable for input, initially pointing at the start of input.
-    auto position = input.begin();
+    size_t position = 0;
 
     // 3. Skip ASCII whitespace within input given position.
-    while (position != input.end() && Infra::is_ascii_whitespace(*position))
+    while (!is_eof(input, position) && Infra::is_ascii_whitespace(code_unit_at(input, position)))
         ++position;
 
     // 4. If position is past the end of input or the code point at position within input is not an ASCII digit,
     //    then return failure.
-    if (position == input.end() || !is_ascii_digit(*position))
+    if (is_eof(input, position) || !is_ascii_digit(code_unit_at(input, position)))
         return nullptr;
 
     // 5. Collect a sequence of code points that are ASCII digits from input given position,
     //    and interpret the resulting sequence as a base-ten integer. Let value be that number.
     StringBuilder number_string;
-    while (position != input.end() && is_ascii_digit(*position)) {
-        number_string.append(*position);
+    while (!is_eof(input, position) && is_ascii_digit(code_unit_at(input, position))) {
+        number_string.append(code_unit_at(input, position));
         ++position;
     }
     auto integer_value = number_string.string_view().to_number<double>();
@@ -1439,17 +1463,17 @@ RefPtr<CSS::StyleValue const> parse_dimension_value(StringView string)
     float value = min(*integer_value, CSSPixels::max_dimension_value);
 
     // 6. If position is past the end of input, then return value as a length.
-    if (position == input.end())
+    if (is_eof(input, position))
         return CSS::LengthStyleValue::create(CSS::Length::make_px(CSSPixels(value)));
 
     // 7. If the code point at position within input is U+002E (.), then:
-    if (*position == '.') {
+    if (code_unit_at(input, position) == '.') {
         // 1. Advance position by 1.
         ++position;
 
         // 2. If position is past the end of input or the code point at position within input is not an ASCII digit,
         //    then return the current dimension value with value, input, and position.
-        if (position == input.end() || !is_ascii_digit(*position))
+        if (is_eof(input, position) || !is_ascii_digit(code_unit_at(input, position)))
             return parse_current_dimension_value(value, input, position);
 
         // 3. Let divisor have the value 1.
@@ -1462,17 +1486,17 @@ RefPtr<CSS::StyleValue const> parse_dimension_value(StringView string)
 
             // 2. Add the value of the code point at position within input,
             //    interpreted as a base-ten digit (0..9) and divided by divisor, to value.
-            value += (*position - '0') / divisor;
+            value += (code_unit_at(input, position) - '0') / divisor;
 
             // 3. Advance position by 1.
             ++position;
 
             // 4. If position is past the end of input, then return value as a length.
-            if (position == input.end())
+            if (is_eof(input, position))
                 return CSS::LengthStyleValue::create(CSS::Length::make_px(CSSPixels::nearest_value_for(value)));
 
             // 5. If the code point at position within input is not an ASCII digit, then break.
-            if (!is_ascii_digit(*position))
+            if (!is_ascii_digit(code_unit_at(input, position)))
                 break;
         }
     }
@@ -1481,14 +1505,23 @@ RefPtr<CSS::StyleValue const> parse_dimension_value(StringView string)
     return parse_current_dimension_value(value, input, position);
 }
 
+RefPtr<CSS::StyleValue const> parse_dimension_value(StringView string)
+{
+    auto input = Utf8View(string);
+    if (!input.validate())
+        return nullptr;
+
+    return parse_dimension_value_impl(string);
+}
+
 RefPtr<CSS::StyleValue const> parse_dimension_value(Utf16View string)
 {
-    auto utf8_string = string.to_utf8_but_should_be_ported_to_utf16();
-    return parse_dimension_value(utf8_string.bytes_as_string_view());
+    return parse_dimension_value_impl(string);
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-non-zero-dimension-values
-RefPtr<CSS::StyleValue const> parse_nonzero_dimension_value(StringView string)
+template<typename StringType>
+static RefPtr<CSS::StyleValue const> parse_nonzero_dimension_value_impl(StringType string)
 {
     // 1. Let input be the string being parsed.
     // 2. Let value be the result of parsing input using the rules for parsing dimension values.
@@ -1509,10 +1542,14 @@ RefPtr<CSS::StyleValue const> parse_nonzero_dimension_value(StringView string)
     return value;
 }
 
+RefPtr<CSS::StyleValue const> parse_nonzero_dimension_value(StringView string)
+{
+    return parse_nonzero_dimension_value_impl(string);
+}
+
 RefPtr<CSS::StyleValue const> parse_nonzero_dimension_value(Utf16View string)
 {
-    auto string_utf8 = string.to_utf8_but_should_be_ported_to_utf16();
-    return parse_nonzero_dimension_value(string_utf8.bytes_as_string_view());
+    return parse_nonzero_dimension_value_impl(string);
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-a-legacy-colour-value
