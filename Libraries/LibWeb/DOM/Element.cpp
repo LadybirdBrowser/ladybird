@@ -297,16 +297,27 @@ HTML::TokenizedFeature::NoOpener Element::get_an_elements_noopener(URL::URL cons
 {
     // To get an element's noopener, given an a, area, or form element element, a URL record url, and a string target,
     // perform the following steps. They return a boolean.
-    auto rel = get_attribute_value(HTML::AttributeNames::rel).to_lowercase().to_utf8_but_should_be_ported_to_utf16();
-    auto link_types = rel.bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
+    auto link_types = get_attribute_value(HTML::AttributeNames::rel);
+    auto has_link_type = [&](Utf16View link_type) {
+        size_t start = 0;
+        for (size_t i = 0; i <= link_types.length_in_code_units(); ++i) {
+            if (i != link_types.length_in_code_units() && !Infra::is_ascii_whitespace(link_types.code_unit_at(i)))
+                continue;
+
+            if (i > start && link_types.substring_view(start, i - start).equals_ignoring_ascii_case(link_type))
+                return true;
+            start = i + 1;
+        }
+        return false;
+    };
 
     // 1. If element's link types include the noopener or noreferrer keyword, then return true.
-    if (link_types.contains_slow("noopener"sv) || link_types.contains_slow("noreferrer"sv))
+    if (has_link_type(u"noopener"sv) || has_link_type(u"noreferrer"sv))
         return HTML::TokenizedFeature::NoOpener::Yes;
 
     // 2. If element's link types do not include the opener keyword and
     //    target is an ASCII case-insensitive match for "_blank", then return true.
-    if (!link_types.contains_slow("opener"sv) && target.equals_ignoring_ascii_case("_blank"sv))
+    if (!has_link_type(u"opener"sv) && target.equals_ignoring_ascii_case("_blank"sv))
         return HTML::TokenizedFeature::NoOpener::Yes;
 
     // 3. If url's blob URL entry is not null:
