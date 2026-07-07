@@ -80,8 +80,11 @@ ErrorOr<struct stat> fstatat(int fd, StringView path, int flags);
 ErrorOr<int> openat(int fd, StringView path, int options, mode_t mode = 0);
 #endif
 CORE_API ErrorOr<int> fcntl(int fd, int command, ...);
+#if !defined(AK_OS_WINDOWS)
+// POSIX-only: Windows code maps files through Core::MappedFile's native backend.
 ErrorOr<void*> mmap(void* address, size_t, int protection, int flags, int fd, off_t, size_t alignment = 0, StringView name = {});
 ErrorOr<void> munmap(void* address, size_t);
+#endif
 CORE_API ErrorOr<void*> reserve_address_space(size_t size);
 CORE_API ErrorOr<void> commit_memory(void* address, size_t size);
 CORE_API ErrorOr<void> decommit_memory(void* address, size_t size);

@@ -13,12 +13,13 @@
 
 #include <AK/Array.h>
 #include <AK/ByteString.h>
+#include <AK/Checked.h>
 #include <AK/ScopeGuard.h>
+#include <LibCore/MappedFile.h>
 #include <LibCore/Process.h>
 #include <LibCore/SocketAddress.h>
 #include <LibCore/System.h>
 #include <direct.h>
-#include <sys/mman.h>
 
 #include <AK/Windows.h>
 #include <ws2tcpip.h>
@@ -174,25 +175,6 @@ ErrorOr<void> rename(StringView old_path, StringView new_path)
     ByteString new_path_string = new_path;
     if (!MoveFileExA(old_path_string.characters(), new_path_string.characters(), MOVEFILE_REPLACE_EXISTING))
         return Error::from_windows_error();
-    return {};
-}
-
-ErrorOr<void*> mmap(void* address, size_t size, int protection, int flags, int file_handle, off_t offset, size_t alignment, StringView)
-{
-    // custom alignment is not supported
-    VERIFY(!alignment);
-    int fd = _open_osfhandle(TRY(dup(file_handle)), 0);
-    ScopeGuard guard = [&] { _close(fd); };
-    void* ptr = ::mmap(address, size, protection, flags, fd, offset);
-    if (ptr == MAP_FAILED)
-        return Error::from_syscall("mmap"sv, errno);
-    return ptr;
-}
-
-ErrorOr<void> munmap(void* address, size_t size)
-{
-    if (::munmap(address, size) < 0)
-        return Error::from_syscall("munmap"sv, errno);
     return {};
 }
 
@@ -450,22 +432,11 @@ ErrorOr<size_t> transfer_file_through_socket(int source_fd, int target_fd, size_
     // FIXME: We could use TransmitFile (https://learn.microsoft.com/en-us/windows/win32/api/mswsock/nf-mswsock-transmitfile)
     //        here. But in order to transmit a subset of the file, we have to use overlapped IO.
 
-    static auto allocation_granularity = []() {
-        SYSTEM_INFO system_info {};
-        GetSystemInfo(&system_info);
+    if (!AK::is_within_range<off_t>(source_offset))
+        return Error::from_errno(EOVERFLOW);
 
-        return system_info.dwAllocationGranularity;
-    }();
-
-    // MapViewOfFile requires the offset to be aligned to the system allocation granularity, so we must handle that here.
-    auto aligned_source_offset = (source_offset / allocation_granularity) * allocation_granularity;
-    auto offset_adjustment = source_offset - aligned_source_offset;
-    auto mapped_source_length = source_length + offset_adjustment;
-
-    auto* mapped = TRY(mmap(nullptr, mapped_source_length, PROT_READ, MAP_SHARED, source_fd, aligned_source_offset));
-    ScopeGuard guard { [&]() { (void)munmap(mapped, mapped_source_length); } };
-
-    return send(target_fd, { static_cast<u8*>(mapped) + offset_adjustment, source_length }, 0);
+    auto mapped_file = TRY(MappedFile::map_from_fd_range_and_close(TRY(dup(source_fd)), {}, static_cast<off_t>(source_offset), source_length));
+    return send(target_fd, mapped_file->bytes(), 0);
 }
 
 }
