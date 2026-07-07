@@ -67,6 +67,12 @@ public:
 
     [[noreturn]] static void terminate_immediately(int status);
 
+    enum class TerminationMode {
+        Graceful,
+        Forceful,
+    };
+    static ErrorOr<void> terminate_process(pid_t, TerminationMode);
+
     static void wait_for_debugger_and_break();
     static ErrorOr<bool> is_being_debugged();
 

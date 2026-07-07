@@ -6,9 +6,8 @@
 
 #include <AK/String.h>
 #include <LibCore/EventLoop.h>
-#include <LibCore/System.h>
+#include <LibCore/Process.h>
 #include <LibWebView/ProcessManager.h>
-#include <signal.h>
 
 namespace WebView {
 
@@ -148,13 +147,8 @@ void ProcessManager::force_exit_after_timeout(pid_t pid, int timeout_ms)
         if (!process.has_value())
             return;
 
-#if defined(AK_OS_WINDOWS)
-        constexpr auto signal = SIGTERM;
-#else
-        constexpr auto signal = SIGKILL;
-#endif
         dbgln("Force-killing unresponsive {} process {}", process_name_from_type(process->type()), pid);
-        auto result = Core::System::kill(pid, signal);
+        auto result = Core::Process::terminate_process(pid, Core::Process::TerminationMode::Forceful);
         if (result.is_error())
             dbgln("Failed to force-kill process {}: {}", pid, result.error());
     });

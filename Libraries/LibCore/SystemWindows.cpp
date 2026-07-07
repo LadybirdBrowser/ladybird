@@ -405,25 +405,6 @@ ErrorOr<AddressInfoVector> getaddrinfo(char const* nodename, char const* servnam
     return AddressInfoVector { move(addresses), results };
 }
 
-ErrorOr<void> kill(pid_t pid, int signal)
-{
-    if (signal == SIGTERM) {
-        if (!EnumWindows([](HWND hwnd, LPARAM l_param) -> BOOL {
-                DWORD window_pid = 0;
-                GetWindowThreadProcessId(hwnd, &window_pid);
-                if (window_pid == static_cast<DWORD>(l_param)) {
-                    PostMessage(hwnd, WM_CLOSE, 0, 0);
-                }
-                return TRUE;
-            },
-                pid))
-            return Error::from_windows_error();
-    } else {
-        return Error::from_string_literal("Unsupported signal value");
-    }
-    return {};
-}
-
 ErrorOr<size_t> transfer_file_through_socket(int source_fd, int target_fd, size_t source_offset, size_t source_length)
 {
     // FIXME: We could use TransmitFile (https://learn.microsoft.com/en-us/windows/win32/api/mswsock/nf-mswsock-transmitfile)

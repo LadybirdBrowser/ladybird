@@ -264,6 +264,11 @@ void Process::terminate_immediately(int status)
     VERIFY_NOT_REACHED();
 }
 
+ErrorOr<void> Process::terminate_process(pid_t pid, TerminationMode mode)
+{
+    return System::kill(pid, mode == TerminationMode::Graceful ? SIGTERM : SIGKILL);
+}
+
 ErrorOr<String> Process::get_name()
 {
 #if defined(AK_OS_SERENITY)

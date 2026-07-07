@@ -9,6 +9,7 @@
  */
 
 #include <AK/Assertions.h>
+#include <AK/ScopeGuard.h>
 #include <AK/String.h>
 #include <AK/Utf16View.h>
 #include <AK/Vector.h>
@@ -106,6 +107,33 @@ void Process::terminate_immediately(int status)
     // DLL detach notifications and the other ExitProcess() teardown paths.
     TerminateProcess(GetCurrentProcess(), static_cast<UINT>(status));
     VERIFY_NOT_REACHED();
+}
+
+ErrorOr<void> Process::terminate_process(pid_t pid, TerminationMode mode)
+{
+    if (mode == TerminationMode::Graceful) {
+        // There is no SIGTERM equivalent on Windows; the closest honest approximation is
+        // asking every top-level window of the process to close. Console or windowless
+        // processes will not observe this.
+        if (!EnumWindows([](HWND hwnd, LPARAM l_param) -> BOOL {
+                DWORD window_pid = 0;
+                GetWindowThreadProcessId(hwnd, &window_pid);
+                if (window_pid == static_cast<DWORD>(l_param))
+                    PostMessage(hwnd, WM_CLOSE, 0, 0);
+                return TRUE;
+            },
+                pid))
+            return Error::from_windows_error();
+        return {};
+    }
+
+    HANDLE handle = OpenProcess(PROCESS_TERMINATE, FALSE, static_cast<DWORD>(pid));
+    if (!handle)
+        return Error::from_windows_error();
+    ScopeGuard close_handle = [&] { CloseHandle(handle); };
+    if (!TerminateProcess(handle, 1))
+        return Error::from_windows_error();
+    return {};
 }
 
 // Get the full path of the executable file of the current process

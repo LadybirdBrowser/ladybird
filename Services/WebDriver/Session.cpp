@@ -20,6 +20,7 @@
 #    include <LibIPC/TransportBootstrapMach.h>
 #    include <LibWebView/Utilities.h>
 #endif
+#include <LibCore/Process.h>
 #include <LibCore/System.h>
 #include <LibCore/Timer.h>
 #include <LibFileSystem/FileSystem.h>
@@ -224,7 +225,7 @@ void Session::close()
     m_pending_connections.clear();
 
     if (m_browser_process.has_value())
-        MUST(Core::System::kill(m_browser_process->pid(), SIGTERM));
+        MUST(Core::Process::terminate_process(m_browser_process->pid(), Core::Process::TerminationMode::Graceful));
 
 #if defined(AK_OS_MACOS)
     m_web_content_mach_port_server = nullptr;
