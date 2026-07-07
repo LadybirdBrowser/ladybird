@@ -307,7 +307,7 @@ private:
     double step_base() const;
     WebIDL::ExceptionOr<void> step_up_or_down(bool is_down, WebIDL::Long n);
 
-    static TypeAttributeState parse_type_attribute(StringView);
+    static TypeAttributeState parse_type_attribute(Utf16View);
 
     Utf16String button_label() const;
 

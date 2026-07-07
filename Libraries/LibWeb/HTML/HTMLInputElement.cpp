@@ -1563,7 +1563,7 @@ void HTMLInputElement::form_associated_element_attribute_changed(FlyString const
             m_dirty_checkedness = false;
         }
     } else if (name == HTML::AttributeNames::type) {
-        auto new_type_attribute_state = parse_type_attribute(value.value_or({}).to_utf8_but_should_be_ported_to_utf16());
+        auto new_type_attribute_state = parse_type_attribute(value.value_or({}));
         type_attribute_changed(m_type, new_type_attribute_state);
 
         // https://html.spec.whatwg.org/multipage/input.html#image-button-state-(type=image):the-input-element-4
@@ -1771,7 +1771,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::handle_src_attribute(String const& v
     return {};
 }
 
-HTMLInputElement::TypeAttributeState HTMLInputElement::parse_type_attribute(StringView type)
+HTMLInputElement::TypeAttributeState HTMLInputElement::parse_type_attribute(Utf16View type)
 {
 #define __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE(keyword, state) \
     if (type.equals_ignoring_ascii_case(keyword##sv))         \
