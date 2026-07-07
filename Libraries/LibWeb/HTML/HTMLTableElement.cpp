@@ -60,15 +60,9 @@ void HTMLTableElement::adjust_computed_style(CSS::ComputedProperties::Builder& s
         style.set_property(CSS::PropertyID::TextAlign, CSS::KeywordStyleValue::create(CSS::Keyword::Start));
 }
 
-static unsigned parse_border(StringView value)
+static unsigned parse_border(Utf16View value)
 {
-    return value.to_number<unsigned>().value_or(0);
-}
-
-static unsigned parse_border(Utf16String const& value)
-{
-    auto value_utf8 = value.to_utf8_but_should_be_ported_to_utf16();
-    return parse_border(value_utf8.bytes_as_string_view());
+    return parse_non_negative_integer(value).value_or(0);
 }
 
 bool HTMLTableElement::is_presentational_hint(FlyString const& name) const
@@ -515,7 +509,7 @@ WebIDL::ExceptionOr<void> HTMLTableElement::delete_row(WebIDL::Long index)
 
 unsigned int HTMLTableElement::border() const
 {
-    return parse_border(get_attribute_value(HTML::AttributeNames::border).to_utf8_but_should_be_ported_to_utf16());
+    return parse_border(get_attribute_value(HTML::AttributeNames::border));
 }
 
 Optional<u32> HTMLTableElement::cellpadding() const
