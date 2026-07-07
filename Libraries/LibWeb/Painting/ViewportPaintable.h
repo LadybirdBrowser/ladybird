@@ -42,6 +42,10 @@ public:
     void recompute_selection_states(DOM::Range&);
     void reset_selection_states();
 
+    // Throws away all cached paint output and schedules a repaint. For rare events that change how everything
+    // renders, such as the window focus state changing.
+    void invalidate_all_cached_paint();
+
     bool handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned, double wheel_delta_x, double wheel_delta_y) override;
 
     void set_needs_to_refresh_scroll_state(bool value) { m_needs_to_refresh_scroll_state = value; }

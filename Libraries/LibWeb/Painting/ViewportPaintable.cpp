@@ -254,6 +254,15 @@ void ViewportPaintable::update_visual_viewport_accumulated_visual_context()
     m_visual_context_tree_needs_compositor_update = true;
 }
 
+void ViewportPaintable::invalidate_all_cached_paint()
+{
+    for_each_in_inclusive_subtree([](auto& paintable) {
+        paintable.invalidate_paint_cache();
+        return TraversalDecision::Continue;
+    });
+    set_needs_repaint();
+}
+
 void ViewportPaintable::refresh_scroll_state()
 {
     if (!m_needs_to_refresh_scroll_state)
