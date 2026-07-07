@@ -21,6 +21,7 @@ Optional<StringView> parse_integer_digits(StringView string);
 WEB_API Optional<u32> parse_non_negative_integer(StringView string);
 WEB_API Optional<u32> parse_non_negative_integer(Utf16View string);
 Optional<StringView> parse_non_negative_integer_digits(StringView string);
+Optional<Utf16View> parse_non_negative_integer_digits(Utf16View string);
 
 Optional<double> parse_floating_point_number(StringView string);
 WEB_API Optional<double> parse_floating_point_number(Utf16View string);

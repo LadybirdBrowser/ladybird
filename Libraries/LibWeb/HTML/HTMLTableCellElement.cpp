@@ -129,8 +129,7 @@ WebIDL::UnsignedLong HTMLTableCellElement::col_span() const
     if (!col_span_attribute.has_value())
         return 1;
 
-    auto col_span_attribute_utf8 = col_span_attribute->to_utf8_but_should_be_ported_to_utf16();
-    auto optional_value_digits = Web::HTML::parse_non_negative_integer_digits(col_span_attribute_utf8.bytes_as_string_view());
+    auto optional_value_digits = Web::HTML::parse_non_negative_integer_digits(*col_span_attribute);
 
     if (!optional_value_digits.has_value())
         return 1;
@@ -170,8 +169,7 @@ WebIDL::UnsignedLong HTMLTableCellElement::row_span() const
     if (!row_span_attribute.has_value())
         return 1;
 
-    auto row_span_attribute_utf8 = row_span_attribute->to_utf8_but_should_be_ported_to_utf16();
-    auto optional_value_digits = Web::HTML::parse_non_negative_integer_digits(row_span_attribute_utf8.bytes_as_string_view());
+    auto optional_value_digits = Web::HTML::parse_non_negative_integer_digits(*row_span_attribute);
     if (!optional_value_digits.has_value())
         return 1;
 

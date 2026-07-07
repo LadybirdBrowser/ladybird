@@ -134,6 +134,12 @@ Optional<StringView> parse_non_negative_integer_digits(StringView string)
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-non-negative-integers
+Optional<Utf16View> parse_non_negative_integer_digits(Utf16View string)
+{
+    return parse_non_negative_integer_digits_impl(string);
+}
+
+// https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-non-negative-integers
 Optional<u32> parse_non_negative_integer(StringView string)
 {
     auto optional_digits = parse_non_negative_integer_digits(string);
