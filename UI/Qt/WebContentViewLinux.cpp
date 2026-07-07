@@ -16,6 +16,7 @@
 
 #include <QByteArrayList>
 #include <QCursor>
+#include <QTimer>
 #include <QVersionNumber>
 #include <QVulkanInstance>
 #include <QVulkanWindow>
@@ -806,9 +807,8 @@ struct WebContentView::VulkanWindowRenderer final : public QVulkanWindowRenderer
             && m_renderer.prepare(m_window)
             && m_renderer.can_render(*paintable->shared_image_buffer);
         if (!can_render) {
-            m_view.set_vulkan_window_container_visible(false);
-            m_view.update();
             m_window.frameReady();
+            m_view.fall_back_to_bitmap_rendering();
             return;
         }
 
@@ -846,11 +846,9 @@ struct WebContentView::VulkanWindowRenderer final : public QVulkanWindowRenderer
         bool rendered = m_renderer.render(command_buffer, *paintable->shared_image_buffer, paintable->bitmap_size, target_size);
 
         vkCmdEndRenderPass(command_buffer);
-        if (!rendered) {
-            m_view.set_vulkan_window_container_visible(false);
-            m_view.update();
-        }
         m_window.frameReady();
+        if (!rendered)
+            m_view.fall_back_to_bitmap_rendering();
     }
 
     WebContentView& m_view;
@@ -913,6 +911,18 @@ void WebContentView::set_vulkan_window_container_visible(bool visible)
 {
     if (m_vulkan_window_container)
         set_native_window_container_visible(*this, *m_vulkan_window_container, visible);
+}
+
+void WebContentView::fall_back_to_bitmap_rendering()
+{
+    // This may be invoked from within QVulkanWindow's startNextFrame(), i.e. while a frame is in flight. Hiding the
+    // container synchronously destroys the window's swap chain and nulls out its Vulkan function pointers before Qt's
+    // endFrame() finishes presenting the current frame, which crashes inside Qt. Defer the hide to the next event loop
+    // iteration so the in-flight frame first completes on a valid swap chain.
+    QTimer::singleShot(0, this, [this]() {
+        set_vulkan_window_container_visible(false);
+        update();
+    });
 }
 
 void WebContentView::destroy_vulkan_window()

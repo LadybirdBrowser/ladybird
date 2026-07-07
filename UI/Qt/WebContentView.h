@@ -192,6 +192,7 @@ private:
     void set_vulkan_window_cursor(QCursor const&);
     bool handle_vulkan_window_event(QEvent*);
     void set_vulkan_window_container_visible(bool);
+    void fall_back_to_bitmap_rendering();
 
     VulkanWindow* m_vulkan_window { nullptr };
     QWidget* m_vulkan_window_container { nullptr };
