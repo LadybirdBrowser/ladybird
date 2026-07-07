@@ -89,7 +89,7 @@ Vector<DOMStringMap::NameValuePair> DOMStringMap::get_name_value_pairs() const
             builder.append(current_character);
         }
 
-        list.append({ MUST(builder.to_string()), value.to_utf8_but_should_be_ported_to_utf16() });
+        list.append({ MUST(builder.to_string()), value });
     });
 
     // 4. Return list.
@@ -110,7 +110,7 @@ Vector<FlyString> DOMStringMap::supported_property_names() const
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-domstringmap-nameditem
-String DOMStringMap::determine_value_of_named_property(FlyString const& name) const
+Utf16String DOMStringMap::determine_value_of_named_property(FlyString const& name) const
 {
     // To determine the value of a named property name for a DOMStringMap, return the value component of the name-value pair whose name component is name in the list returned from getting the
     // DOMStringMap's name-value pairs.
@@ -130,7 +130,7 @@ WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_new_named_property(String c
 {
     // NOTE: Since PlatformObject does not know the type of value, we must convert it ourselves.
     //       The type of `value` is `DOMString`.
-    auto value = TRY(unconverted_value.to_utf16_string(vm())).to_utf8_but_should_be_ported_to_utf16();
+    auto value = TRY(unconverted_value.to_utf16_string(vm()));
 
     StringBuilder builder;
 
@@ -208,7 +208,7 @@ WebIDL::ExceptionOr<Bindings::PlatformObject::DidDeletionFail> DOMStringMap::del
 
 JS::Value DOMStringMap::named_item_value(FlyString const& name) const
 {
-    return JS::PrimitiveString::create(vm(), Utf16String::from_utf8(determine_value_of_named_property(name)));
+    return JS::PrimitiveString::create(vm(), determine_value_of_named_property(name));
 }
 
 }

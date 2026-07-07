@@ -143,7 +143,7 @@ public:
     GC::Ptr<DOM::Element> placeholder_element() { return m_placeholder_element; }
     GC::Ptr<DOM::Element const> placeholder_element() const { return m_placeholder_element; }
 
-    Optional<String> placeholder_value() const;
+    Optional<Utf16String> placeholder_value() const;
 
 private:
     HTMLTextAreaElement(DOM::Document&, DOM::QualifiedName);

@@ -20,8 +20,8 @@ public:
     String href() const;
     void set_href(String);
 
-    String target() const;
-    void set_target(String);
+    Utf16String target() const;
+    void set_target(Utf16String);
 
 protected:
     // ^HyperlinkElementUtils

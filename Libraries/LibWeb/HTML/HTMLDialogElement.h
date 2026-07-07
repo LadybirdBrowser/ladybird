@@ -29,18 +29,18 @@ public:
         return meets_focusable_area_rendering_requirements();
     }
 
-    String return_value() const;
-    void set_return_value(String);
+    Utf16String return_value() const;
+    void set_return_value(Utf16String);
 
     static WebIDL::ExceptionOr<void> show_a_modal_dialog(HTMLDialogElement&, GC::Ptr<DOM::Element> source);
 
-    void close_the_dialog(Optional<String> result, GC::Ptr<DOM::Element> source);
-    void request_close_the_dialog(Optional<String> return_value, GC::Ptr<DOM::Element> source);
+    void close_the_dialog(Optional<Utf16String> result, GC::Ptr<DOM::Element> source);
+    void request_close_the_dialog(Optional<Utf16String> return_value, GC::Ptr<DOM::Element> source);
 
     WebIDL::ExceptionOr<void> show();
     WebIDL::ExceptionOr<void> show_modal();
-    void close(Optional<String> return_value);
-    void request_close(Optional<String> return_value);
+    void close(Optional<Utf16String> return_value);
+    void request_close(Optional<Utf16String> return_value);
 
     static void light_dismiss_open_dialogs(UIEvents::PointerEvent const&, GC::Ptr<DOM::Node>);
 
@@ -50,8 +50,8 @@ public:
     bool is_modal() const { return m_is_modal; }
     void set_is_modal(bool);
 
-    bool is_valid_command(String&) override;
-    void command_steps(DOM::Element&, String&) override;
+    bool is_valid_command(Utf16String const&) override;
+    void command_steps(DOM::Element&, Utf16String const&) override;
 
 private:
     HTMLDialogElement(DOM::Document&, DOM::QualifiedName);
@@ -72,9 +72,9 @@ private:
 
     static GC::Ptr<HTMLDialogElement> nearest_clicked_dialog(UIEvents::PointerEvent const&, GC::Ptr<DOM::Node>);
 
-    String m_return_value;
+    Utf16String m_return_value;
     bool m_is_modal { false };
-    Optional<String> m_request_close_return_value;
+    Optional<Utf16String> m_request_close_return_value;
     GC::Ptr<DOM::Element> m_request_close_source_element;
     GC::Ptr<CloseWatcher> m_close_watcher;
 

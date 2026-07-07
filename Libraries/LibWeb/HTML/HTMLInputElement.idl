@@ -27,7 +27,7 @@ interface HTMLInputElement : HTMLElement {
     [CEReactions, Reflect] attribute boolean multiple;
     [CEReactions, Reflect] attribute DOMString name;
     [CEReactions, Reflect] attribute DOMString pattern;
-    [CEReactions, Reflect] attribute DOMString placeholder;
+    [CEReactions, Reflect] attribute Utf16DOMString placeholder;
     [CEReactions, Reflect=readonly] attribute boolean readOnly;
     [CEReactions, Reflect] attribute boolean required;
     [CEReactions] attribute unsigned long size;

@@ -20,8 +20,8 @@ public:
 
     virtual ~RadioNodeList() override;
 
-    FlyString value() const;
-    void set_value(FlyString const&);
+    Utf16String value() const;
+    void set_value(Utf16String const&);
 
 protected:
     virtual void initialize(JS::Realm&) override;

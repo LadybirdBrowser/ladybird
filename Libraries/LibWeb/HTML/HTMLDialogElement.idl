@@ -12,11 +12,11 @@ interface HTMLDialogElement : HTMLElement {
     [HTMLConstructor] constructor();
 
     [CEReactions, Reflect] attribute boolean open;
-    attribute DOMString returnValue;
+    attribute Utf16DOMString returnValue;
     [CEReactions, Reflect=closedby, Enumerated=ClosedByAttribute] attribute DOMString closedBy;
     [CEReactions] undefined show();
     [CEReactions] undefined showModal();
-    [CEReactions] undefined close(optional DOMString returnValue);
-    [CEReactions] undefined requestClose(optional DOMString returnValue);
+    [CEReactions] undefined close(optional Utf16DOMString returnValue);
+    [CEReactions] undefined requestClose(optional Utf16DOMString returnValue);
 
 };

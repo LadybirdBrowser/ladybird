@@ -116,7 +116,7 @@ Utf16String HTMLOptionElement::value() const
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-option-value
 void HTMLOptionElement::set_value(Utf16String const& value)
 {
-    set_attribute_value(HTML::AttributeNames::value, value.to_utf8_but_should_be_ported_to_utf16());
+    set_attribute_value(HTML::AttributeNames::value, value);
 }
 
 static void concatenate_descendants_text_content(DOM::Node const* node, Utf16StringBuilder& builder)

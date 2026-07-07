@@ -22,7 +22,7 @@ public:
 
     virtual ~DOMStringMap() override;
 
-    String determine_value_of_named_property(FlyString const&) const;
+    Utf16String determine_value_of_named_property(FlyString const&) const;
 
     virtual WebIDL::ExceptionOr<void> set_value_of_new_named_property(String const&, JS::Value) override;
     virtual WebIDL::ExceptionOr<void> set_value_of_existing_named_property(String const&, JS::Value) override;
@@ -41,7 +41,7 @@ private:
 
     struct NameValuePair {
         FlyString name;
-        String value;
+        Utf16String value;
     };
 
     Vector<NameValuePair> get_name_value_pairs() const;

@@ -717,13 +717,13 @@ Utf16String HTMLInputElement::value() const
     VERIFY_NOT_REACHED();
 }
 
-Optional<String> HTMLInputElement::optional_value() const
+Optional<Utf16String> HTMLInputElement::optional_value() const
 {
     switch (m_type) {
     // https://html.spec.whatwg.org/multipage/input.html#submit-button-state-(type=submit):concept-fe-optional-value
     case TypeAttributeState::SubmitButton:
         // The element's optional value is the value of the element's value attribute, if there is one; otherwise null.
-        return get_attribute(AttributeNames::value).map([](auto const& value) { return value.to_utf8_but_should_be_ported_to_utf16(); });
+        return get_attribute(AttributeNames::value);
     default:
         VERIFY_NOT_REACHED();
     }
@@ -1032,11 +1032,11 @@ static bool is_allowed_to_have_placeholder(HTML::HTMLInputElement::TypeAttribute
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#attr-input-placeholder
-String HTMLInputElement::placeholder() const
+Utf16String HTMLInputElement::placeholder() const
 {
     auto maybe_placeholder = get_attribute(HTML::AttributeNames::placeholder);
     if (!maybe_placeholder.has_value())
-        return String {};
+        return {};
     auto placeholder = *maybe_placeholder;
 
     // The attribute, if specified, must have a value that contains no U+000A LINE FEED (LF) or U+000D CARRIAGE RETURN (CR) characters.
@@ -1045,11 +1045,11 @@ String HTMLInputElement::placeholder() const
         if (c != '\r' && c != '\n')
             builder.append_code_point(c);
     }
-    return builder.to_string().to_utf8_but_should_be_ported_to_utf16();
+    return builder.to_string();
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#attr-input-placeholder
-Optional<String> HTMLInputElement::placeholder_value() const
+Optional<Utf16String> HTMLInputElement::placeholder_value() const
 {
     if (!m_text_node || !m_text_node->data().is_empty())
         return {};
@@ -1200,7 +1200,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
     MUST(text_container->append_child(*m_placeholder_element));
     m_placeholder_element->set_associated_shadow_host_pseudo_element(CSS::PseudoElement::Placeholder);
 
-    m_placeholder_text_node = realm().create<DOM::Text>(document(), Utf16String::from_utf8(placeholder()));
+    m_placeholder_text_node = realm().create<DOM::Text>(document(), placeholder());
     MUST(m_placeholder_element->append_child(*m_placeholder_text_node));
 
     if (type_state() == TypeAttributeState::Number) {
@@ -1596,7 +1596,7 @@ void HTMLInputElement::form_associated_element_attribute_changed(FlyString const
         }
     } else if (name == HTML::AttributeNames::placeholder) {
         if (m_placeholder_text_node) {
-            m_placeholder_text_node->set_data(Utf16String::from_utf8(placeholder()));
+            m_placeholder_text_node->set_data(placeholder());
             update_placeholder_visibility();
         }
     } else if (name == HTML::AttributeNames::src) {

@@ -11,7 +11,7 @@ interface HTMLTextAreaElement : HTMLElement {
     [CEReactions] attribute long maxLength;
     [CEReactions] attribute long minLength;
     [CEReactions, Reflect] attribute DOMString name;
-    [CEReactions, Reflect] attribute DOMString placeholder;
+    [CEReactions, Reflect] attribute Utf16DOMString placeholder;
     [CEReactions, Reflect=readonly] attribute boolean readOnly;
     [CEReactions, Reflect] attribute boolean required;
     [CEReactions] attribute unsigned long rows;

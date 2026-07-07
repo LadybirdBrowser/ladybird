@@ -3,10 +3,10 @@
 interface CommandEvent : Event {
     constructor(DOMString type, optional CommandEventInit eventInitDict = {});
     readonly attribute Element? source;
-    readonly attribute DOMString command;
+    readonly attribute Utf16DOMString command;
 };
 
 dictionary CommandEventInit : EventInit {
     Element? source = null;
-    DOMString command = "";
+    Utf16DOMString command = "";
 };

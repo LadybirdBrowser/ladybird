@@ -45,7 +45,7 @@ static HTMLInputElement const* radio_button(DOM::Node const& node)
 }
 
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#dom-radionodelist-value
-FlyString RadioNodeList::value() const
+Utf16String RadioNodeList::value() const
 {
     // 1. Let element be the first element in tree order represented by the RadioNodeList object that is an input element whose type
     //    attribute is in the Radio Button state and whose checkedness is true. Otherwise, let it be null.
@@ -59,21 +59,21 @@ FlyString RadioNodeList::value() const
 
     // 2. If element is null, return the empty string.
     if (!element)
-        return String {};
+        return {};
 
     // 3. If element is an element with no value attribute, return the string "on".
     // 4. Otherwise, return the value of element's value attribute.
-    return element->get_attribute(AttributeNames::value).value_or("on"_utf16).to_utf8_but_should_be_ported_to_utf16();
+    return element->get_attribute(AttributeNames::value).value_or("on"_utf16);
 }
 
-void RadioNodeList::set_value(FlyString const& value)
+void RadioNodeList::set_value(Utf16String const& value)
 {
     HTMLInputElement* element = nullptr;
 
     // 1. If the new value is the string "on": let element be the first element in tree order represented by the RadioNodeList object
     //    that is an input element whose type attribute is in the Radio Button state and whose value content attribute is either absent,
     //    or present and equal to the new value, if any. If no such element exists, then instead let element be null.
-    if (value == "on"sv) {
+    if (value == u"on"sv) {
         element = as<HTMLInputElement>(first_matching([&value](auto const& node) {
             auto const* button = radio_button(node);
             if (!button)

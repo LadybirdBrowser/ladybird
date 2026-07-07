@@ -211,7 +211,7 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
             return {};
 
         // 3. Let result be null.
-        Optional<String> result;
+        Optional<Utf16String> result;
 
         // 4. If submitter is an input element whose type attribute is in the Image Button state, then:
         if (is<HTMLInputElement>(*submitter)) {
@@ -222,7 +222,7 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
                 auto [x, y] = input_element.selected_coordinate();
 
                 // 2. Set result to the concatenation of x, ",", and y.
-                result = MUST(String::formatted("{},{}", x, y));
+                result = Utf16String::formatted("{},{}", x, y);
             }
         }
 

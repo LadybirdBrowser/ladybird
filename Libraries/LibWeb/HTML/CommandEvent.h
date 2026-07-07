@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibWeb/Bindings/CommandEvent.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Event.h>
@@ -23,7 +23,7 @@ public:
     static WebIDL::ExceptionOr<GC::Ref<CommandEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::CommandEventInit const&);
 
     // https://html.spec.whatwg.org/multipage/interaction.html#dom-commandevent-command
-    String const& command() const { return m_command; }
+    Utf16String const& command() const { return m_command; }
 
     // https://html.spec.whatwg.org/multipage/interaction.html#dom-commandevent-source
     GC::Ptr<DOM::Element> source() const { return as<DOM::Element>(retarget(m_source, current_target())); }
@@ -36,7 +36,7 @@ private:
     void initialize(JS::Realm&) override;
 
     GC::Ptr<DOM::Element> m_source;
-    String m_command;
+    Utf16String m_command;
 };
 
 }

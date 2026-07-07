@@ -270,7 +270,7 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show_a_modal_dialog(HTMLDialogEleme
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#dom-dialog-close
-void HTMLDialogElement::close(Optional<String> return_value)
+void HTMLDialogElement::close(Optional<Utf16String> return_value)
 {
     // 1. If returnValue is not given, then set it to null.
     // 2. Close the dialog this with returnValue and null.
@@ -278,7 +278,7 @@ void HTMLDialogElement::close(Optional<String> return_value)
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#dom-dialog-requestclose
-void HTMLDialogElement::request_close(Optional<String> return_value)
+void HTMLDialogElement::request_close(Optional<Utf16String> return_value)
 {
     // 1. If returnValue is not given, then set it to null.
     // 2. Request to close the dialog this with returnValue and null.
@@ -286,7 +286,7 @@ void HTMLDialogElement::request_close(Optional<String> return_value)
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#dialog-request-close
-void HTMLDialogElement::request_close_the_dialog(Optional<String> return_value, GC::Ptr<DOM::Element> source)
+void HTMLDialogElement::request_close_the_dialog(Optional<Utf16String> return_value, GC::Ptr<DOM::Element> source)
 {
     // 1. If this does not have an open attribute, then return.
     if (!has_attribute(AttributeNames::open))
@@ -316,19 +316,19 @@ void HTMLDialogElement::request_close_the_dialog(Optional<String> return_value, 
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#dom-dialog-returnvalue
-String HTMLDialogElement::return_value() const
+Utf16String HTMLDialogElement::return_value() const
 {
     return m_return_value;
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#dom-dialog-returnvalue
-void HTMLDialogElement::set_return_value(String return_value)
+void HTMLDialogElement::set_return_value(Utf16String return_value)
 {
     m_return_value = move(return_value);
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#close-the-dialog
-void HTMLDialogElement::close_the_dialog(Optional<String> result, GC::Ptr<DOM::Element> source)
+void HTMLDialogElement::close_the_dialog(Optional<Utf16String> result, GC::Ptr<DOM::Element> source)
 {
     // 1. If subject does not have an open attribute, then return.
     if (!has_attribute(AttributeNames::open))
@@ -519,10 +519,10 @@ void HTMLDialogElement::set_is_modal(bool is_modal)
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#the-dialog-element:is-valid-command-steps
-bool HTMLDialogElement::is_valid_command(String& command)
+bool HTMLDialogElement::is_valid_command(Utf16String const& command)
 {
     // 1. If command is in the Close state, the Request Close state, or the Show Modal state, then return true.
-    if (command == "close" || command == "request-close" || command == "show-modal")
+    if (command == u"close"sv || command == u"request-close"sv || command == u"show-modal"sv)
         return true;
 
     // 2. Return false.
@@ -530,7 +530,7 @@ bool HTMLDialogElement::is_valid_command(String& command)
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#the-dialog-element:command-steps
-void HTMLDialogElement::command_steps(DOM::Element& source, String& command)
+void HTMLDialogElement::command_steps(DOM::Element& source, Utf16String const& command)
 {
     // 1. If element is in the popover showing state, then return.
     if (popover_visibility_state() == PopoverVisibilityState::Showing) {
@@ -539,21 +539,21 @@ void HTMLDialogElement::command_steps(DOM::Element& source, String& command)
 
     // 2. If command is in the Close state and element has an open attribute,
     //    then close the dialog given element with source's optional value and source.
-    if (command == "close" && has_attribute(AttributeNames::open)) {
+    if (command == u"close"sv && has_attribute(AttributeNames::open)) {
         auto const optional_value = as<FormAssociatedElement>(source).optional_value();
         close_the_dialog(optional_value, source);
     }
 
     // 3. If command is in the Request Close state and element has an open attribute,
     //    then request to close the dialog element with source's optional value and source.
-    if (command == "request-close" && has_attribute(AttributeNames::open)) {
+    if (command == u"request-close"sv && has_attribute(AttributeNames::open)) {
         auto const optional_value = as<FormAssociatedElement>(source).optional_value();
         request_close_the_dialog(optional_value, source);
     }
 
     // 4. If command is the Show Modal state and element does not have an open attribute,
     //    then show a modal dialog given element and source.
-    if (command == "show-modal" && !has_attribute(AttributeNames::open)) {
+    if (command == u"show-modal"sv && !has_attribute(AttributeNames::open)) {
         MUST(show_a_modal_dialog(*this, source));
     }
 }

@@ -183,7 +183,7 @@ HTML::HTMLElement const* Node::enclosing_html_element_with_attribute(FlyString c
     return nullptr;
 }
 
-Optional<String> Node::alternative_text() const
+Optional<Utf16String> Node::alternative_text() const
 {
     return {};
 }

@@ -79,15 +79,15 @@ void HTMLHyperlinkElementUtils::update_href()
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-a-target
-String HTMLHyperlinkElementUtils::target() const
+Utf16String HTMLHyperlinkElementUtils::target() const
 {
-    return hyperlink_element_utils_element().get_attribute_value(HTML::AttributeNames::target).to_utf8_but_should_be_ported_to_utf16();
+    return hyperlink_element_utils_element().get_attribute_value(HTML::AttributeNames::target);
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-a-target
-void HTMLHyperlinkElementUtils::set_target(String value)
+void HTMLHyperlinkElementUtils::set_target(Utf16String value)
 {
-    hyperlink_element_utils_element().set_attribute_value(HTML::AttributeNames::target, value);
+    hyperlink_element_utils_element().set_attribute_value(HTML::AttributeNames::target, move(value));
 }
 
 }

@@ -263,7 +263,7 @@ public:
 
     String base_uri() const;
 
-    virtual Optional<String> alternative_text() const;
+    virtual Optional<Utf16String> alternative_text() const;
 
     Utf16String descendant_text_content() const;
     Optional<Utf16String> text_content() const;

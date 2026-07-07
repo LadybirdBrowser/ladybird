@@ -76,13 +76,13 @@ public:
 
     Utf16String value() const;
     virtual Utf16String form_value() const override { return value(); }
-    virtual Optional<String> optional_value() const override;
+    virtual Optional<Utf16String> optional_value() const override;
 
     virtual bool has_activation_behavior() const override;
     virtual void activation_behavior(DOM::Event const&) override;
 
-    String command() const;
-    void set_command(String const&);
+    Utf16String command() const;
+    void set_command(Utf16String const&);
 
     GC::Ptr<DOM::Element> command_for_element() { return m_command_for_element; }
     void set_command_for_element(GC::Ptr<DOM::Element> value) { m_command_for_element = value; }

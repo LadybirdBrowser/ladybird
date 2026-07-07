@@ -83,7 +83,7 @@ public:
 
     Utf16String value() const;
     virtual Utf16String form_value() const override { return value(); }
-    virtual Optional<String> optional_value() const override;
+    virtual Optional<Utf16String> optional_value() const override;
     WebIDL::ExceptionOr<void> set_value(Utf16String const&);
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
@@ -99,8 +99,8 @@ public:
     void commit_pending_changes();
     bool has_uncommitted_changes() { return m_has_uncommitted_changes; }
 
-    String placeholder() const;
-    Optional<String> placeholder_value() const;
+    Utf16String placeholder() const;
+    Optional<Utf16String> placeholder_value() const;
 
     bool checked() const { return m_checked; }
     void set_checked(bool);

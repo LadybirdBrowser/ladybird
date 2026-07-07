@@ -184,8 +184,8 @@ public:
     bool draggable() const;
     void set_draggable(bool draggable);
 
-    virtual bool is_valid_command(String&) { return false; }
-    virtual void command_steps(DOM::Element&, String&) { }
+    virtual bool is_valid_command(Utf16String const&) { return false; }
+    virtual void command_steps(DOM::Element&, Utf16String const&) { }
 
     bool is_form_associated_custom_element() const;
 

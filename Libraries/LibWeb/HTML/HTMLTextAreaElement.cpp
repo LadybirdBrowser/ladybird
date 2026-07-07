@@ -528,13 +528,13 @@ bool HTMLTextAreaElement::is_mutable() const
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#attr-textarea-placeholder
-Optional<String> HTMLTextAreaElement::placeholder_value() const
+Optional<Utf16String> HTMLTextAreaElement::placeholder_value() const
 {
     if (!m_text_node || !m_text_node->data().is_empty())
         return {};
     if (!has_attribute(HTML::AttributeNames::placeholder))
         return {};
-    return get_attribute_value(HTML::AttributeNames::placeholder).to_utf8_but_should_be_ported_to_utf16();
+    return get_attribute_value(HTML::AttributeNames::placeholder);
 }
 
 RefPtr<Layout::Node> HTMLTextAreaElement::create_layout_node(CSS::ComputedProperties const& style)
