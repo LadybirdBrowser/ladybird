@@ -14,6 +14,7 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Time.h>
+#include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
@@ -529,5 +530,6 @@ WEB_API StringView request_mode_to_string(Request::Mode);
 WEB_API FlyString initiator_type_to_string(Request::InitiatorType);
 
 Optional<Request::Priority> request_priority_from_string(StringView);
+Optional<Request::Priority> request_priority_from_string(Utf16String const&);
 
 }

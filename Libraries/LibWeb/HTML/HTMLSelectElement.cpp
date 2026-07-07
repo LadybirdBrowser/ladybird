@@ -589,7 +589,7 @@ void HTMLSelectElement::show_the_picker_if_applicable()
                             option_group_items.append(SelectItemOption { id_counter++, option_element->selected(), option_element->disabled(), option_element, MUST(Infra::strip_and_collapse_whitespace(option_element->label())), option_element->value().to_utf8_but_should_be_ported_to_utf16() });
                     }
                 }
-                m_select_items.append(SelectItemOptionGroup { opt_group_element->get_attribute(AttributeNames::label).value_or(String {}), option_group_items });
+                m_select_items.append(SelectItemOptionGroup { opt_group_element->get_attribute(AttributeNames::label).value_or({}).to_utf8_but_should_be_ported_to_utf16(), option_group_items });
             }
         }
 
@@ -682,7 +682,7 @@ void HTMLSelectElement::form_associated_element_was_inserted()
     create_shadow_tree_if_needed();
 }
 
-void HTMLSelectElement::form_associated_element_attribute_changed(FlyString const& name, Optional<String> const&, Optional<String> const& value, Optional<FlyString> const&)
+void HTMLSelectElement::form_associated_element_attribute_changed(FlyString const& name, Optional<Utf16String> const&, Optional<Utf16String> const& value, Optional<FlyString> const&)
 {
     if (name == HTML::AttributeNames::multiple) {
         // If the multiple attribute is absent then update the selectedness of the option elements.

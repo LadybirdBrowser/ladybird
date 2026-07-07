@@ -23,7 +23,7 @@ public:
 protected:
     void initialize(JS::Realm&);
     void visit_edges(JS::Cell::Visitor&);
-    void attribute_changed(DOM::Element& element, FlyString const& name, Optional<String> const& value);
+    void attribute_changed(DOM::Element& element, FlyString const& name, Optional<Utf16String> const& value);
 
 private:
     Optional<ViewBox> m_view_box;

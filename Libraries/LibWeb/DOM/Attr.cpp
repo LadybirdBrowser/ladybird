@@ -20,14 +20,24 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(Attr);
 
-GC::Ref<Attr> Attr::create(Document& document, FlyString local_name, String value, Element* owner_element)
+GC::Ref<Attr> Attr::create(Document& document, FlyString local_name, Utf16String value, Element* owner_element)
 {
     return document.realm().create<Attr>(document, QualifiedName(move(local_name), Optional<FlyString> {}, Optional<FlyString> {}), move(value), owner_element);
 }
 
-GC::Ref<Attr> Attr::create(Document& document, QualifiedName qualified_name, String value, Element* owner_element)
+GC::Ref<Attr> Attr::create(Document& document, FlyString local_name, String const& value, Element* owner_element)
+{
+    return create(document, move(local_name), Utf16String::from_utf8(value), owner_element);
+}
+
+GC::Ref<Attr> Attr::create(Document& document, QualifiedName qualified_name, Utf16String value, Element* owner_element)
 {
     return document.realm().create<Attr>(document, move(qualified_name), move(value), owner_element);
+}
+
+GC::Ref<Attr> Attr::create(Document& document, QualifiedName qualified_name, String const& value, Element* owner_element)
+{
+    return create(document, move(qualified_name), Utf16String::from_utf8(value), owner_element);
 }
 
 GC::Ref<Attr> Attr::clone(Document& document) const
@@ -35,7 +45,7 @@ GC::Ref<Attr> Attr::clone(Document& document) const
     return realm().create<Attr>(document, m_qualified_name, m_value, nullptr);
 }
 
-Attr::Attr(Document& document, QualifiedName qualified_name, String value, Element* owner_element)
+Attr::Attr(Document& document, QualifiedName qualified_name, Utf16String value, Element* owner_element)
     : Node(document, NodeType::ATTRIBUTE_NODE)
     , m_qualified_name(move(qualified_name))
     , m_value(move(value))
@@ -71,7 +81,7 @@ void Attr::set_owner_element(Element* owner_element)
 }
 
 // https://dom.spec.whatwg.org/#set-an-existing-attribute-value
-WebIDL::ExceptionOr<void> Attr::set_value(String value)
+WebIDL::ExceptionOr<void> Attr::set_value(Utf16String value)
 {
     // 1. If attribute’s element is null, then set attribute’s value to value and return.
     if (!owner_element()) {
@@ -88,22 +98,27 @@ WebIDL::ExceptionOr<void> Attr::set_value(String value)
         local_name(),
         namespace_uri().has_value() ? Utf16String::from_utf8(namespace_uri().value()) : Optional<Utf16String>(),
         element,
-        Utf16String::from_utf8(value)));
+        value));
 
     // 4. If attribute’s element is null, then set attribute’s value to verifiedValue, and return.
     if (!owner_element()) {
-        m_value = verified_value.to_utf8_but_should_be_ported_to_utf16();
+        m_value = verified_value;
         return {};
     }
 
     // 5. Change attribute to verifiedValue.
-    change_attribute(verified_value.to_utf8_but_should_be_ported_to_utf16());
+    change_attribute(verified_value);
 
     return {};
 }
 
+WebIDL::ExceptionOr<void> Attr::set_value(String value)
+{
+    return set_value(Utf16String::from_utf8(value));
+}
+
 // https://dom.spec.whatwg.org/#concept-element-attributes-change
-void Attr::change_attribute(String value)
+void Attr::change_attribute(Utf16String value)
 {
     // 1. Let oldValue be attribute’s value.
     auto old_value = move(m_value);
@@ -116,7 +131,7 @@ void Attr::change_attribute(String value)
 }
 
 // https://dom.spec.whatwg.org/#handle-attribute-changes
-void Attr::handle_attribute_changes(Element& element, Optional<String> const& old_value, Optional<String> const& new_value)
+void Attr::handle_attribute_changes(Element& element, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value)
 {
     // 1. Queue a mutation record of "attributes" for element with attribute’s local name, attribute’s namespace, oldValue, « », « », null, and null.
     element.queue_mutation_record(MutationType::attributes, local_name(), namespace_uri(), old_value, {}, {}, nullptr, nullptr);
@@ -128,8 +143,8 @@ void Attr::handle_attribute_changes(Element& element, Optional<String> const& ol
 
         GC::RootVector<JS::Value> arguments;
         arguments.append(JS::PrimitiveString::create(vm, Utf16FlyString::from_utf8(local_name())));
-        arguments.append(!old_value.has_value() ? JS::js_null() : JS::PrimitiveString::create(vm, Utf16String::from_utf8(old_value.value())));
-        arguments.append(!new_value.has_value() ? JS::js_null() : JS::PrimitiveString::create(vm, Utf16String::from_utf8(new_value.value())));
+        arguments.append(!old_value.has_value() ? JS::js_null() : JS::PrimitiveString::create(vm, old_value.value()));
+        arguments.append(!new_value.has_value() ? JS::js_null() : JS::PrimitiveString::create(vm, new_value.value()));
         arguments.append(!namespace_uri().has_value() ? JS::js_null() : JS::PrimitiveString::create(vm, Utf16FlyString::from_utf8(namespace_uri().value())));
 
         element.enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::attributeChangedCallback, move(arguments));

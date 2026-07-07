@@ -27,7 +27,7 @@ public:
 
 protected:
     void visit_edges(JS::Cell::Visitor&);
-    void associated_attribute_changed(FlyString const& name, Optional<String> const& value, Optional<FlyString> const& namespace_);
+    void associated_attribute_changed(FlyString const& name, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_);
 
 private:
     GC::Ptr<DOM::Element> m_popover_target_element;

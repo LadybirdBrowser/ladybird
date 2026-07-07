@@ -30,4 +30,10 @@ bool is_supported_image_type(StringView type)
         || type.equals_ignoring_ascii_case("image/svg+xml"sv);
 }
 
+bool is_supported_image_type(Utf16String const& type)
+{
+    auto utf8_type = type.to_utf8_but_should_be_ported_to_utf16();
+    return is_supported_image_type(utf8_type.bytes_as_string_view());
+}
+
 }

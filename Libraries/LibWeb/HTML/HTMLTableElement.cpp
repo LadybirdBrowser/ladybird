@@ -65,6 +65,12 @@ static unsigned parse_border(StringView value)
     return value.to_number<unsigned>().value_or(0);
 }
 
+static unsigned parse_border(Utf16String const& value)
+{
+    auto value_utf8 = value.to_utf8_but_should_be_ported_to_utf16();
+    return parse_border(value_utf8.bytes_as_string_view());
+}
+
 bool HTMLTableElement::is_presentational_hint(FlyString const& name) const
 {
     if (Base::is_presentational_hint(name))
@@ -154,7 +160,7 @@ void HTMLTableElement::apply_presentational_hints(Vector<CSS::StyleProperty>& pr
     });
 }
 
-void HTMLTableElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void HTMLTableElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
@@ -509,7 +515,7 @@ WebIDL::ExceptionOr<void> HTMLTableElement::delete_row(WebIDL::Long index)
 
 unsigned int HTMLTableElement::border() const
 {
-    return parse_border(get_attribute_value(HTML::AttributeNames::border));
+    return parse_border(get_attribute_value(HTML::AttributeNames::border).to_utf8_but_should_be_ported_to_utf16());
 }
 
 Optional<u32> HTMLTableElement::cellpadding() const

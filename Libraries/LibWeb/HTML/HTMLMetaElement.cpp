@@ -51,7 +51,7 @@ Optional<HTMLMetaElement::HttpEquivAttributeState> HTMLMetaElement::http_equiv_s
     return OptionalNone {};
 }
 
-void HTMLMetaElement::update_metadata(Optional<String> const& old_name)
+void HTMLMetaElement::update_metadata(Optional<Utf16String> const& old_name)
 {
     if (name().has_value()) {
         if (name()->equals_ignoring_ascii_case("theme-color"sv)) {
@@ -90,7 +90,8 @@ void HTMLMetaElement::update_referrer_policy()
         return;
 
     // 4. Let value be the value of element's content attribute, converted to ASCII lowercase.
-    auto value = content->bytes_as_string_view();
+    auto content_utf8 = content->to_utf8_but_should_be_ported_to_utf16();
+    auto value = content_utf8.bytes_as_string_view();
 
     // 5. If value is one of the values given in the first column of the following table, then set value to the value given in the second column:
     ReferrerPolicy::ReferrerPolicy policy;
@@ -143,9 +144,10 @@ void HTMLMetaElement::inserted()
             auto input = get_attribute_value(AttributeNames::content);
             if (input.is_empty())
                 break;
+            auto input_utf8 = input.to_utf8_but_should_be_ported_to_utf16();
 
             // 3. Run the shared declarative refresh steps with the meta element's node document, input, and the meta element.
-            document().shared_declarative_refresh_steps(input, this);
+            document().shared_declarative_refresh_steps(input_utf8.bytes_as_string_view(), this);
             break;
         }
         case HttpEquivAttributeState::SetCookie:
@@ -169,10 +171,11 @@ void HTMLMetaElement::inserted()
             auto content = get_attribute_value(AttributeNames::content);
             if (content.contains(","sv))
                 break;
+            auto content_utf8 = content.to_utf8_but_should_be_ported_to_utf16();
 
             // 3. Let input be the value of the element's content attribute.
             // 4. Let position point at the first character of input.
-            GenericLexer lexer { content };
+            GenericLexer lexer { content_utf8.bytes_as_string_view() };
 
             // 5. Skip ASCII whitespace within input given position.
             lexer.ignore_while(Web::Infra::is_ascii_whitespace);
@@ -202,12 +205,13 @@ void HTMLMetaElement::inserted()
             auto input = get_attribute_value(AttributeNames::content);
             if (input.is_empty())
                 break;
+            auto input_utf8 = input.to_utf8_but_should_be_ported_to_utf16();
 
             // 3. Let policy be the result of executing Content Security Policy's parse a serialized Content Security
             //    Policy algorithm on the meta element's content attribute's value, with a source of "meta", and a
             //    disposition of "enforce".
             auto& realm = this->realm();
-            auto policy = ContentSecurityPolicy::Policy::parse_a_serialized_csp(realm.heap(), input, ContentSecurityPolicy::Policy::Source::Meta, ContentSecurityPolicy::Policy::Disposition::Enforce);
+            auto policy = ContentSecurityPolicy::Policy::parse_a_serialized_csp(realm.heap(), input_utf8, ContentSecurityPolicy::Policy::Source::Meta, ContentSecurityPolicy::Policy::Disposition::Enforce);
 
             // 4. Remove all occurrences of the report-uri, frame-ancestors, and sandbox directives from policy.
             policy->remove_directive({}, ContentSecurityPolicy::Directives::Names::ReportUri);
@@ -236,7 +240,7 @@ void HTMLMetaElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ance
     update_metadata();
 }
 
-void HTMLMetaElement::attribute_changed(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void HTMLMetaElement::attribute_changed(FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(local_name, old_value, value, namespace_);
     if (local_name == HTML::AttributeNames::name) {

@@ -19,7 +19,7 @@ SVGComponentTransferFunctionElement::SVGComponentTransferFunctionElement(DOM::Do
 }
 
 // https://drafts.fxtf.org/filter-effects-1/#element-attrdef-fecomponenttransfer-type
-static SVGComponentTransferFunctionElement::Type parse_type(Optional<String> const& value)
+static SVGComponentTransferFunctionElement::Type parse_type(Optional<Utf16String> const& value)
 {
     if (value == "identity"sv)
         return SVGComponentTransferFunctionElement::Type::Identity;
@@ -35,8 +35,8 @@ static SVGComponentTransferFunctionElement::Type parse_type(Optional<String> con
     return SVGComponentTransferFunctionElement::Type::Unknown;
 }
 
-void SVGComponentTransferFunctionElement::attribute_changed(FlyString const& name, Optional<String> const& old_value,
-    Optional<String> const& value, Optional<FlyString> const& namespace_)
+void SVGComponentTransferFunctionElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value,
+    Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 

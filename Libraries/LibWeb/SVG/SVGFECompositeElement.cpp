@@ -35,7 +35,7 @@ void SVGFECompositeElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_k4);
 }
 
-static SVGFECompositeElement::CompositingOperator string_to_compositing_operator(StringView string)
+static SVGFECompositeElement::CompositingOperator string_to_compositing_operator(Utf16View string)
 {
     if (string == "over"sv)
         return SVGFECompositeElement::CompositingOperator::Over;
@@ -52,12 +52,12 @@ static SVGFECompositeElement::CompositingOperator string_to_compositing_operator
     return SVGFECompositeElement::CompositingOperator::Unknown;
 }
 
-void SVGFECompositeElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& new_value, Optional<FlyString> const& namespace_)
+void SVGFECompositeElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, new_value, namespace_);
 
     if (name == SVG::AttributeNames::operator_) {
-        auto parse_compositing_operator = [](Optional<String> const& value) -> Optional<CompositingOperator> {
+        auto parse_compositing_operator = [](Optional<Utf16String> const& value) -> Optional<CompositingOperator> {
             if (!value.has_value())
                 return {};
             return string_to_compositing_operator(*value);

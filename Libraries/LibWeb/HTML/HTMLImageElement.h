@@ -40,16 +40,16 @@ public:
     // ^FormAssociatedElement
     virtual bool is_form_associated_element() const override { return true; }
 
-    virtual void form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
+    virtual void form_associated_element_attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_) override;
 
     Optional<String> alternative_text() const override
     {
         if (auto alt = get_attribute(HTML::AttributeNames::alt); alt.has_value())
-            return alt.release_value();
+            return alt.release_value().to_utf8_but_should_be_ported_to_utf16();
         return {};
     }
 
-    String alt() const { return get_attribute_value(HTML::AttributeNames::alt); }
+    String alt() const { return get_attribute_value(HTML::AttributeNames::alt).to_utf8_but_should_be_ported_to_utf16(); }
 
     WebIDL::UnsignedLong width() const;
     void set_width(WebIDL::UnsignedLong);

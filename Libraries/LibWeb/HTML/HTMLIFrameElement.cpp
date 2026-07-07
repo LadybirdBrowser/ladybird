@@ -53,13 +53,13 @@ void HTMLIFrameElement::adjust_computed_style(CSS::ComputedProperties::Builder& 
         style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::None)));
 }
 
-void HTMLIFrameElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void HTMLIFrameElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
     if (name == HTML::AttributeNames::sandbox) {
         if (m_sandbox)
-            m_sandbox->associated_attribute_changed(value.value_or(String {}));
+            m_sandbox->associated_attribute_changed(value.value_or({}));
     }
 
     // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-iframe-element:process-the-iframe-attributes-2
@@ -81,7 +81,7 @@ void HTMLIFrameElement::attribute_changed(FlyString const& name, Optional<String
         // agent must empty the iframe element's iframe sandboxing flag set.
         if (name == AttributeNames::sandbox) {
             if (value.has_value()) {
-                m_iframe_sandboxing_flag_set = parse_a_sandboxing_directive(value.value());
+                m_iframe_sandboxing_flag_set = parse_a_sandboxing_directive(value->to_utf8_but_should_be_ported_to_utf16());
             } else {
                 m_iframe_sandboxing_flag_set = {};
             }
@@ -111,7 +111,7 @@ void HTMLIFrameElement::post_connection()
     // 1. If insertedNode has a sandbox attribute, then parse the sandboxing directive given the attribute's
     //    value and insertedNode's iframe sandboxing flag set.
     if (auto sandbox = attribute(AttributeNames::sandbox); sandbox.has_value())
-        m_iframe_sandboxing_flag_set = parse_a_sandboxing_directive(sandbox.value());
+        m_iframe_sandboxing_flag_set = parse_a_sandboxing_directive(sandbox->to_utf8_but_should_be_ported_to_utf16());
 
     // 2. Create a new child navigable for insertedNode.
     create_new_child_navigable();
@@ -336,7 +336,7 @@ TrustedTypes::TrustedHTMLOrString HTMLIFrameElement::srcdoc()
     //    local name, and this.
     // 2. If attribute is null, then return the empty string.
     // 3. Return attribute's value.
-    return Utf16String::from_utf8(get_attribute_value(AttributeNames::srcdoc));
+    return get_attribute_value(AttributeNames::srcdoc);
 }
 
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#dom-iframe-srcdoc

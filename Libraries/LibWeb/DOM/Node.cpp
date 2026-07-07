@@ -216,7 +216,7 @@ Optional<Utf16String> Node::text_content() const
 
     // If Attr node, return this's value.
     if (auto const* attribute = as_if<Attr>(*this))
-        return Utf16String::from_utf8(attribute->value());
+        return attribute->value();
 
     // Otherwise, return null
     return {};
@@ -245,7 +245,7 @@ WebIDL::ExceptionOr<void> Node::set_text_content(Optional<Utf16String> const& ma
 
     // If Attr, set an existing attribute value with this and the given value.
     else if (auto* attribute = as_if<Attr>(*this)) {
-        TRY(attribute->set_value(content.to_utf8_but_should_be_ported_to_utf16()));
+        TRY(attribute->set_value(content));
     }
 
     // Otherwise, do nothing.
@@ -380,7 +380,7 @@ Optional<String> Node::node_value() const
 
     // If Attr, return this’s value.
     if (auto* attr = as_if<Attr>(this)) {
-        return attr->value();
+        return attr->value().to_utf8_but_should_be_ported_to_utf16();
     }
 
     // If CharacterData, return this’s data.
@@ -401,7 +401,7 @@ WebIDL::ExceptionOr<void> Node::set_node_value(Optional<String> const& maybe_val
 
     // If Attr, set an existing attribute value with this and the given value.
     if (auto* attr = as_if<Attr>(this)) {
-        TRY(attr->set_value(move(value)));
+        TRY(attr->set_value(Utf16String::from_utf8(value)));
     } else if (auto* character_data = as_if<CharacterData>(this)) {
         // If CharacterData, replace data with node this, offset 0, count this’s length, and data the given value.
         character_data->set_data(Utf16String::from_utf8(value));
@@ -2100,8 +2100,8 @@ void Node::serialize_tree_as_json(JsonObjectSerializer<StringBuilder>& object) c
 
         if (element->has_attributes()) {
             auto attributes = MUST(object.add_object("attributes"sv));
-            element->for_each_attribute([&attributes](auto& name, auto& value) {
-                MUST(attributes.add(name, value));
+            element->for_each_attribute([&attributes](FlyString const& name, Utf16String const& value) {
+                MUST(attributes.add(name, value.to_utf8_but_should_be_ported_to_utf16()));
             });
             MUST(attributes.finish());
         }
@@ -2503,7 +2503,7 @@ Optional<String> Node::locate_a_namespace(Optional<String> const& prefix) const
                     if ((attr.prefix() == "xmlns" && attr.local_name() == prefix) || (!prefix.has_value() && !attr.prefix().has_value() && attr.local_name() == "xmlns")) {
                         auto value = attr.value();
                         if (!value.is_empty())
-                            return value;
+                            return value.to_utf8_but_should_be_ported_to_utf16();
 
                         return {};
                     }
@@ -2782,7 +2782,7 @@ RefPtr<Painting::Paintable> Node::unsafe_paintable_box()
 }
 
 // https://dom.spec.whatwg.org/#queue-a-mutation-record
-void Node::queue_mutation_record(FlyString const& type, Optional<FlyString> const& attribute_name, Optional<FlyString> const& attribute_namespace, Optional<String> const& old_value, Vector<GC::Root<Node>> added_nodes, Vector<GC::Root<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling)
+void Node::queue_mutation_record(FlyString const& type, Optional<FlyString> const& attribute_name, Optional<FlyString> const& attribute_namespace, Optional<Utf16String> const& old_value, Vector<GC::Root<Node>> added_nodes, Vector<GC::Root<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling)
 {
     auto& document = this->document();
     auto& page = document.page();
@@ -2793,7 +2793,7 @@ void Node::queue_mutation_record(FlyString const& type, Optional<FlyString> cons
 
     // 1. Let interestedObservers be an empty map.
     // mutationObserver -> mappedOldValue
-    OrderedHashMap<MutationObserver*, Optional<String>> interested_observers;
+    OrderedHashMap<MutationObserver*, Optional<Utf16String>> interested_observers;
 
     // 2. Let nodes be the inclusive ancestors of target.
     // 3. For each node of nodes, and then for each registered of node’s registered observer list:
@@ -3173,7 +3173,7 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
         // use alt attribute, even if its value is the empty string.
         // See also https://wpt.fyi/results/accname/name/comp_tooltip.tentative.html.
         if (is<HTML::HTMLImageElement>(*element) && element->has_attribute(HTML::AttributeNames::alt))
-            return element->get_attribute(HTML::AttributeNames::alt).value();
+            return element->get_attribute(HTML::AttributeNames::alt).value().to_utf8_but_should_be_ported_to_utf16();
 
         // https://w3c.github.io/svg-aam/#mapping_additional_nd
         Optional<String> title_element_text;
@@ -3190,7 +3190,7 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
             // If the current node is a link, and there was no child title element, but it has an xlink:title attribute,
             // return the value of that attribute.
             if (auto title_attribute = element->get_attribute_ns(Namespace::XLink, XLink::AttributeNames::title); title_attribute.has_value())
-                return title_attribute.release_value();
+                return title_attribute.release_value().to_utf8_but_should_be_ported_to_utf16();
         }
 
         // https://w3c.github.io/html-aam/#table-element-accessible-name-computation
@@ -3222,13 +3222,13 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
                 || input.type_state() == HTML::HTMLInputElement::TypeAttributeState::SubmitButton
                 || input.type_state() == HTML::HTMLInputElement::TypeAttributeState::ResetButton)
                 if (auto value = input.get_attribute(HTML::AttributeNames::value); value.has_value())
-                    return value.release_value();
+                    return value.release_value().to_utf8_but_should_be_ported_to_utf16();
 
             // https://w3c.github.io/html-aam/#input-type-image-accessible-name-computation
             // 3. Otherwise use alt attribute if present and its value is not the empty string.
             if (input.type_state() == HTML::HTMLInputElement::TypeAttributeState::ImageButton)
                 if (auto alt = element->get_attribute(HTML::AttributeNames::alt); alt.has_value())
-                    return alt.release_value();
+                    return alt.release_value().to_utf8_but_should_be_ported_to_utf16();
         }
 
         // F. Name From Content: Otherwise, if the current node's role allows name from content, or if the current node

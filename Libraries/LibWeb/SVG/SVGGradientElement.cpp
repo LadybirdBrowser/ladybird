@@ -21,16 +21,16 @@ SVGGradientElement::SVGGradientElement(DOM::Document& document, DOM::QualifiedNa
 {
 }
 
-void SVGGradientElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void SVGGradientElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
     if (name == AttributeNames::gradientUnits) {
-        m_gradient_units = AttributeParser::parse_units(value.value_or(String {}));
+        m_gradient_units = AttributeParser::parse_units(value.value_or({}));
     } else if (name == AttributeNames::spreadMethod) {
-        m_spread_method = AttributeParser::parse_spread_method(value.value_or(String {}));
+        m_spread_method = AttributeParser::parse_spread_method(value.value_or({}).to_utf8_but_should_be_ported_to_utf16());
     } else if (name == AttributeNames::gradientTransform) {
-        if (auto transform_list = AttributeParser::parse_transform(value.value_or(String {})); transform_list.has_value()) {
+        if (auto transform_list = AttributeParser::parse_transform(value.value_or({}).to_utf8_but_should_be_ported_to_utf16()); transform_list.has_value()) {
             m_gradient_transform = transform_from_transform_list(*transform_list);
         } else {
             m_gradient_transform = {};

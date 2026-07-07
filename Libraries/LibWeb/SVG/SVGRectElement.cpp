@@ -28,22 +28,22 @@ void SVGRectElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-void SVGRectElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void SVGRectElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
     if (name == SVG::AttributeNames::x) {
-        m_x = AttributeParser::parse_number_percentage(value.value_or(String {}));
+        m_x = AttributeParser::parse_number_percentage(value.value_or({}));
     } else if (name == SVG::AttributeNames::y) {
-        m_y = AttributeParser::parse_number_percentage(value.value_or(String {}));
+        m_y = AttributeParser::parse_number_percentage(value.value_or({}));
     } else if (name == SVG::AttributeNames::width) {
-        m_width = AttributeParser::parse_number_percentage(value.value_or(String {}));
+        m_width = AttributeParser::parse_number_percentage(value.value_or({}));
     } else if (name == SVG::AttributeNames::height) {
-        m_height = AttributeParser::parse_number_percentage(value.value_or(String {}));
+        m_height = AttributeParser::parse_number_percentage(value.value_or({}));
     } else if (name == SVG::AttributeNames::rx) {
-        m_radius_x = AttributeParser::parse_number_percentage(value.value_or(String {}));
+        m_radius_x = AttributeParser::parse_number_percentage(value.value_or({}));
     } else if (name == SVG::AttributeNames::ry) {
-        m_radius_y = AttributeParser::parse_number_percentage(value.value_or(String {}));
+        m_radius_y = AttributeParser::parse_number_percentage(value.value_or({}));
     }
 }
 

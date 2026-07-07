@@ -1210,7 +1210,7 @@ static void collect_pending_has_invalidation_features_from_element(PendingHasInv
     for (auto const& class_name : element.class_names())
         features.class_names.set(class_name);
 
-    element.for_each_attribute([&](FlyString const& name, String const&) {
+    element.for_each_attribute([&](FlyString const& name, auto const&) {
         features.attribute_names.set(name);
         if (element.namespace_uri() != Namespace::HTML)
             features.attribute_names.set(name.to_ascii_lowercase());

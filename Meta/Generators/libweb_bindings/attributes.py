@@ -253,6 +253,7 @@ def write_attribute_getter(
         }}
     }}"""
     elif is_reflected_usv_string:
+        includes.add("AK/Utf16String.h")
         includes.add("LibWeb/Infra/Strings.h")
         getter_steps = f"""// If a reflected IDL attribute has the type USVString:
     // 1. Let element be the result of running this's get the element.
@@ -262,7 +263,7 @@ def write_attribute_getter(
     // 3. Let attributeDefinition be the attribute definition of element's content attribute whose namespace is null and local name is the reflected content attribute name.
 
     // 5. Return contentAttributeValue, converted to a scalar value string.
-    String R;
+    Utf16String R;
     if (content_attribute_value.has_value())
         R = MUST(Infra::convert_to_scalar_value_string(*content_attribute_value));"""
         if "URL" in attribute.extended_attributes:
@@ -284,7 +285,7 @@ def write_attribute_getter(
         if (url_string.has_value())
             R = url_string.release_value();
         else
-            R = MUST(Infra::convert_to_scalar_value_string(*content_attribute_value));
+            R = MUST(Infra::convert_to_scalar_value_string(*content_attribute_value)).to_utf8_but_should_be_ported_to_utf16();
     }}"""
     elif is_reflected and attribute.type.name == "DOMString" and "Enumerated" in attribute.extended_attributes:
         includes.add("AK/Array.h")
@@ -299,7 +300,9 @@ def write_attribute_getter(
         if attribute.type.nullable:
             getter_steps = f"""// If a reflected IDL attribute is an enumerated attribute:
     // 1. Let contentAttributeValue be the result of running this's get the content attribute.
-    auto R = idl_object->attribute("{reflected_attribute_name(attribute)}"_fly_string);
+    auto R = idl_object->attribute("{reflected_attribute_name(attribute)}"_fly_string).map([](auto const& value) {{
+        return value.to_utf8_but_should_be_ported_to_utf16();
+    }});
 
     // 3. If contentAttributeValue is an ASCII case-insensitive match for one of the keywords, then return that keyword's canonical keyword.
     Array valid_values {{ {valid_values} }};
@@ -320,7 +323,9 @@ def write_attribute_getter(
         else:
             getter_steps = f"""// If a reflected IDL attribute is an enumerated attribute:
     // 1. Let contentAttributeValue be the result of running this's get the content attribute.
-    auto content_attribute_value = idl_object->attribute("{reflected_attribute_name(attribute)}"_fly_string);
+    auto content_attribute_value = idl_object->attribute("{reflected_attribute_name(attribute)}"_fly_string).map([](auto const& value) {{
+        return value.to_utf8_but_should_be_ported_to_utf16();
+    }});
 
     // 2. If contentAttributeValue is null, then set contentAttributeValue to the missing value default.
     auto R = content_attribute_value.value_or("{missing_value_default}"_string);

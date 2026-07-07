@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibGfx/Color.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/DOM/FragmentSerializationMode.h>
@@ -176,8 +177,12 @@ private:
 };
 
 RefPtr<CSS::StyleValue const> parse_dimension_value(StringView);
+RefPtr<CSS::StyleValue const> parse_dimension_value(Utf16View);
 RefPtr<CSS::StyleValue const> parse_nonzero_dimension_value(StringView);
+RefPtr<CSS::StyleValue const> parse_nonzero_dimension_value(Utf16View);
 Optional<Color> parse_legacy_color_value(StringView);
+Optional<Color> parse_legacy_color_value(Utf16View);
 RefPtr<CSS::StyleValue const> parse_table_child_element_align_value(StringView);
+RefPtr<CSS::StyleValue const> parse_table_child_element_align_value(Utf16View);
 
 }

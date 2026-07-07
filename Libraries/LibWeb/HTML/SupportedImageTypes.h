@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/StringView.h>
+#include <AK/Utf16String.h>
 
 namespace Web::HTML {
 
@@ -14,5 +15,6 @@ namespace Web::HTML {
 // is known to support. The list is currently hard-coded; eventually it should
 // be derived from the registered image decoders.
 bool is_supported_image_type(StringView type);
+bool is_supported_image_type(Utf16String const& type);
 
 }

@@ -53,7 +53,7 @@ String SVGAnimatedString::base_val() const
         //    and that attribute is present, then return its value.
         if (m_deprecated_reflected_attribute.has_value()) {
             if (auto attribute = m_element->get_attribute_ns(m_deprecated_reflected_attribute->namespace_(), m_deprecated_reflected_attribute->local_name()); attribute.has_value())
-                return attribute.release_value();
+                return attribute.release_value().to_utf8_but_should_be_ported_to_utf16();
         }
 
         // 2. Otherwise, if the reflected attribute has an initial value, then return it.
@@ -65,7 +65,7 @@ String SVGAnimatedString::base_val() const
     }
 
     // 2. Otherwise, the reflected attribute is present. Return its value.
-    return m_element->get_attribute_ns(m_reflected_attribute.namespace_(), m_reflected_attribute.local_name()).value();
+    return m_element->get_attribute_ns(m_reflected_attribute.namespace_(), m_reflected_attribute.local_name()).value().to_utf8_but_should_be_ported_to_utf16();
 }
 
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGAnimatedString__baseVal

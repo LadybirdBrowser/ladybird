@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibWeb/Layout/ImageBox.h>
 #include <LibWeb/Layout/SVGImageBox.h>
 #include <LibWeb/Painting/Paintable.h>
@@ -22,10 +23,10 @@ public:
     virtual void reset_for_relayout() override;
 
 private:
-    ImagePaintable(Layout::Box const& layout_box, Layout::ImageProvider const& image_provider, bool renders_as_alt_text, String alt_text, bool is_svg_image);
+    ImagePaintable(Layout::Box const& layout_box, Layout::ImageProvider const& image_provider, bool renders_as_alt_text, Utf16String alt_text, bool is_svg_image);
 
     bool m_renders_as_alt_text { false };
-    String m_alt_text;
+    Utf16String m_alt_text;
 
     Layout::ImageProvider const& m_image_provider;
 

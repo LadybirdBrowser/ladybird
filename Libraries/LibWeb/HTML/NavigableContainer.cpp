@@ -210,7 +210,7 @@ Optional<URL::URL> NavigableContainer::shared_attribute_processing_steps_for_ifr
     auto src_attribute_value = get_attribute_value(HTML::AttributeNames::src);
     if (!src_attribute_value.is_empty()) {
         // 1. Let maybeURL be the result of encoding-parsing a URL given that attribute's value, relative to element's node document.
-        auto maybe_url = document().encoding_parse_url(src_attribute_value);
+        auto maybe_url = document().encoding_parse_url(src_attribute_value.to_utf8_but_should_be_ported_to_utf16());
 
         // 2. If maybeURL is not failure, then set url to maybeURL.
         if (maybe_url.has_value())
@@ -246,7 +246,7 @@ Optional<URL::URL> NavigableContainer::shared_attribute_processing_steps_for_ifr
 }
 
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#navigate-an-iframe-or-frame
-void NavigableContainer::navigate_an_iframe_or_frame(URL::URL url, ReferrerPolicy::ReferrerPolicy referrer_policy, Optional<String> srcdoc_string, InitialInsertion initial_insertion)
+void NavigableContainer::navigate_an_iframe_or_frame(URL::URL url, ReferrerPolicy::ReferrerPolicy referrer_policy, Optional<Utf16String> srcdoc_string, InitialInsertion initial_insertion)
 {
     // 1. Let historyHandling be "auto".
     auto history_handling = Bindings::NavigationHistoryBehavior::Auto;
@@ -274,7 +274,7 @@ void NavigableContainer::navigate_an_iframe_or_frame(URL::URL url, ReferrerPolic
     //    initialInsertion.
     Variant<Empty, String, POSTResource> document_resource = Empty {};
     if (srcdoc_string.has_value())
-        document_resource = srcdoc_string.value();
+        document_resource = srcdoc_string->to_utf8_but_should_be_ported_to_utf16();
 
     MUST(m_content_navigable->navigate({
         .url = move(url),

@@ -38,7 +38,7 @@ void SVGFEImageElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_resource_request);
 }
 
-void SVGFEImageElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void SVGFEImageElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
@@ -54,7 +54,7 @@ void SVGFEImageElement::attribute_changed(FlyString const& name, Optional<String
     }
 }
 
-void SVGFEImageElement::process_href(Optional<String> const& href)
+void SVGFEImageElement::process_href(Optional<Utf16String> const& href)
 {
     if (!href.has_value()) {
         m_href = {};

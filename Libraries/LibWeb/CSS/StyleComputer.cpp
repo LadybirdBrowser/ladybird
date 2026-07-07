@@ -2142,8 +2142,9 @@ static JsonObject serialize_devtools_inline_style(DOM::Document const& document,
     serialized_rule.set("className"sv, 100);
     serialized_rule.set("cssText"sv, declaration.serialized());
     if (authored_text.has_value()) {
-        serialized_rule.set("authoredText"sv, *authored_text);
-        serialized_rule.set("declarations"sv, serialize_devtools_style_declarations(document, parse_devtools_style_declarations(document, authored_text->bytes_as_string_view())));
+        auto authored_text_utf8 = authored_text->to_utf8_but_should_be_ported_to_utf16();
+        serialized_rule.set("authoredText"sv, authored_text_utf8);
+        serialized_rule.set("declarations"sv, serialize_devtools_style_declarations(document, parse_devtools_style_declarations(document, authored_text_utf8.bytes_as_string_view())));
     } else {
         serialized_rule.set("authoredText"sv, declaration.serialized());
         serialized_rule.set("declarations"sv, serialize_devtools_style_declarations(document, declaration));

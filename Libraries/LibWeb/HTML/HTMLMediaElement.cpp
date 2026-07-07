@@ -184,7 +184,7 @@ void HTMLMediaElement::visit_edges(Cell::Visitor& visitor)
         m_controls->visit_edges(visitor);
 }
 
-void HTMLMediaElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void HTMLMediaElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
@@ -829,7 +829,7 @@ public:
         //    empty string, then end the synchronous section, and jump down to the failed with elements step below.
         String candidate_src;
         if (auto maybe_src = m_candidate->get_attribute(HTML::AttributeNames::src); maybe_src.has_value())
-            candidate_src = *maybe_src;
+            candidate_src = maybe_src->to_utf8_but_should_be_ported_to_utf16();
 
         if (candidate_src.is_empty()) {
             failed_with_elements();

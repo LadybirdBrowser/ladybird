@@ -66,7 +66,7 @@ public:
 protected:
     explicit EventTarget(JS::Realm&, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
 
-    void element_event_handler_attribute_changed(FlyString const& local_name, Optional<String> const& value);
+    void element_event_handler_attribute_changed(FlyString const& local_name, Optional<Utf16String> const& value);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

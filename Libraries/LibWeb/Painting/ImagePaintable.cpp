@@ -18,7 +18,7 @@
 
 namespace Web::Painting {
 
-static void paint_alt_text(DisplayListRecordingContext& context, Layout::Node const& layout_node, Gfx::IntRect const& content_rect, String const& alt_text, Color color)
+static void paint_alt_text(DisplayListRecordingContext& context, Layout::Node const& layout_node, Gfx::IntRect const& content_rect, Utf16String const& alt_text, Color color)
 {
     auto const& font = layout_node.font(context);
     auto const metrics = font.pixel_metrics();
@@ -37,7 +37,7 @@ static void paint_alt_text(DisplayListRecordingContext& context, Layout::Node co
         line = {};
     };
 
-    Utf16String::from_utf8(alt_text).for_each_split_view(' ', SplitBehavior::Nothing, [&](Utf16View const& word) {
+    alt_text.for_each_split_view(' ', SplitBehavior::Nothing, [&](Utf16View const& word) {
         Utf16StringBuilder builder;
         builder.append(line);
         if (!line.is_empty())
@@ -62,18 +62,18 @@ static void paint_alt_text(DisplayListRecordingContext& context, Layout::Node co
 
 NonnullRefPtr<ImagePaintable> ImagePaintable::create(Layout::SVGImageBox const& layout_box)
 {
-    return adopt_ref(*new ImagePaintable(layout_box, layout_box.dom_node(), false, String {}, true));
+    return adopt_ref(*new ImagePaintable(layout_box, layout_box.dom_node(), false, Utf16String {}, true));
 }
 
 NonnullRefPtr<ImagePaintable> ImagePaintable::create(Layout::ImageBox const& layout_box)
 {
-    String alt;
+    Utf16String alt;
     if (auto element = layout_box.dom_node())
         alt = element->get_attribute_value(HTML::AttributeNames::alt);
     return adopt_ref(*new ImagePaintable(layout_box, layout_box.image_provider(), layout_box.renders_as_alt_text(), move(alt), false));
 }
 
-ImagePaintable::ImagePaintable(Layout::Box const& layout_box, Layout::ImageProvider const& image_provider, bool renders_as_alt_text, String alt_text, bool is_svg_image)
+ImagePaintable::ImagePaintable(Layout::Box const& layout_box, Layout::ImageProvider const& image_provider, bool renders_as_alt_text, Utf16String alt_text, bool is_svg_image)
     : Paintable(layout_box)
     , m_renders_as_alt_text(renders_as_alt_text)
     , m_alt_text(move(alt_text))

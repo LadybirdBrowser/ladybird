@@ -42,7 +42,8 @@ static xmlNodePtr mirror_node(xmlDocPtr doc, DOM::Node const& node)
         for (size_t i = 0; i < element.attribute_list_size(); ++i) {
             auto const& attribute = *element.attributes()->item(i);
             ByteString attr_name = attribute.name().bytes_as_string_view();
-            ByteString attr_value = attribute.value().bytes_as_string_view();
+            auto attr_value_string = attribute.value().to_utf8_but_should_be_ported_to_utf16();
+            ByteString attr_value = attr_value_string.bytes_as_string_view();
             auto* attr = xmlSetProp(xml_element, bit_cast<xmlChar const*>(attr_name.characters()), bit_cast<xmlChar const*>(attr_value.characters()));
             attr->_private = bit_cast<void*>(&attribute);
 

@@ -714,7 +714,7 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Opt
     // 11. Append each attribute in the given token to element.
     token.for_each_attribute([&](auto const& attribute) {
         DOM::QualifiedName qualified_name { attribute.local_name, attribute.prefix, attribute.namespace_ };
-        auto dom_attribute = realm().create<DOM::Attr>(*document, move(qualified_name), attribute.value, element);
+        auto dom_attribute = realm().create<DOM::Attr>(*document, move(qualified_name), Utf16String::from_utf8(attribute.value), element);
         element->append_attribute(dom_attribute);
         return IterationDecision::Continue;
     });
@@ -997,12 +997,15 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> HTMLParser::parse_html_fragment
     if (context_namespace_ffi == RustFfiHtmlNamespace::Other && context_namespace.has_value())
         context_namespace_uri = context_namespace->bytes_as_string_view();
     Vector<RustFfiHtmlParserAttribute> context_attributes;
+    Vector<String> attribute_values;
     if (auto attributes = context_element.attributes()) {
         context_attributes.ensure_capacity(attributes->length());
+        attribute_values.ensure_capacity(attributes->length());
         for (size_t i = 0; i < attributes->length(); ++i) {
             auto const* attribute = attributes->item(i);
             auto local_name = attribute->local_name().bytes_as_string_view();
-            auto value = attribute->value().bytes_as_string_view();
+            attribute_values.unchecked_append(attribute->value().to_utf8_but_should_be_ported_to_utf16());
+            auto value = attribute_values.last().bytes_as_string_view();
             auto prefix = attribute->prefix().map([](auto const& prefix) { return prefix.bytes_as_string_view(); });
             context_attributes.unchecked_append({
                 reinterpret_cast<u8 const*>(local_name.characters_without_null_termination()),
@@ -1187,7 +1190,8 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
             }
 
             builder.append("=\""sv);
-            builder.append(escape_string(attribute.value().code_points(), AttributeMode::Yes));
+            auto attribute_value_utf8 = attribute.value().to_utf8_but_should_be_ported_to_utf16();
+            builder.append(escape_string(attribute_value_utf8.code_points(), AttributeMode::Yes));
             builder.append('"');
         });
 
@@ -1477,6 +1481,12 @@ RefPtr<CSS::StyleValue const> parse_dimension_value(StringView string)
     return parse_current_dimension_value(value, input, position);
 }
 
+RefPtr<CSS::StyleValue const> parse_dimension_value(Utf16View string)
+{
+    auto utf8_string = string.to_utf8_but_should_be_ported_to_utf16();
+    return parse_dimension_value(utf8_string.bytes_as_string_view());
+}
+
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-non-zero-dimension-values
 RefPtr<CSS::StyleValue const> parse_nonzero_dimension_value(StringView string)
 {
@@ -1497,6 +1507,12 @@ RefPtr<CSS::StyleValue const> parse_nonzero_dimension_value(StringView string)
     // 5. If value is a percentage, return value as a percentage.
     // 6. Return value as a length.
     return value;
+}
+
+RefPtr<CSS::StyleValue const> parse_nonzero_dimension_value(Utf16View string)
+{
+    auto string_utf8 = string.to_utf8_but_should_be_ported_to_utf16();
+    return parse_nonzero_dimension_value(string_utf8.bytes_as_string_view());
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-a-legacy-colour-value
@@ -1642,6 +1658,12 @@ Optional<Color> parse_legacy_color_value(StringView string_view)
     return result;
 }
 
+Optional<Color> parse_legacy_color_value(Utf16View string)
+{
+    auto string_utf8 = string.to_utf8_but_should_be_ported_to_utf16();
+    return parse_legacy_color_value(string_utf8.bytes_as_string_view());
+}
+
 // https://html.spec.whatwg.org/multipage/rendering.html#tables-2
 RefPtr<CSS::StyleValue const> parse_table_child_element_align_value(StringView string_view)
 {
@@ -1671,6 +1693,12 @@ RefPtr<CSS::StyleValue const> parse_table_child_element_align_value(StringView s
         return CSS::KeywordStyleValue::create(CSS::Keyword::Justify);
 
     return nullptr;
+}
+
+RefPtr<CSS::StyleValue const> parse_table_child_element_align_value(Utf16View string)
+{
+    auto string_utf8 = string.to_utf8_but_should_be_ported_to_utf16();
+    return parse_table_child_element_align_value(string_utf8.bytes_as_string_view());
 }
 
 JS::Realm& HTMLParser::realm()

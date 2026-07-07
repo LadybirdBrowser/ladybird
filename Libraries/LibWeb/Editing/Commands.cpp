@@ -549,9 +549,9 @@ bool command_font_size_action(DOM::Document& document, Utf16String const& value)
 
     // 2. If value is not a valid floating point number, and would not be a valid floating point number if a single
     //    leading "+" character were stripped, return false.
-    if (!HTML::is_valid_floating_point_number(resulting_value.to_utf8_but_should_be_ported_to_utf16())) {
+    if (!HTML::is_valid_floating_point_number(resulting_value)) {
         if (!resulting_value.starts_with('+')
-            || !HTML::is_valid_floating_point_number(resulting_value.substring_view(1).to_utf8_but_should_be_ported_to_utf16()))
+            || !HTML::is_valid_floating_point_number(resulting_value.substring_view(1)))
             return false;
     }
 
@@ -572,7 +572,7 @@ bool command_font_size_action(DOM::Document& document, Utf16String const& value)
     // NOTE: This is the default set in step 3.
 
     // 6. Apply the rules for parsing non-negative integers to value, and let number be the result.
-    i64 number = HTML::parse_non_negative_integer(resulting_value.to_utf8_but_should_be_ported_to_utf16()).release_value();
+    i64 number = HTML::parse_non_negative_integer(resulting_value).release_value();
 
     // 7. If mode is "relative-plus", add three to number.
     if (mode == FontSizeMode::RelativePlus)
@@ -1737,7 +1737,7 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16String const&
     auto new_container = MUST(DOM::create_element(document, new_container_name, Namespace::HTML));
 
     // 23. Copy all attributes of container to new container.
-    container_element.for_each_attribute([&new_container](FlyString const& name, String const& value) {
+    container_element.for_each_attribute([&new_container](FlyString const& name, Utf16String const& value) {
         new_container->set_attribute_value(name, value);
     });
 

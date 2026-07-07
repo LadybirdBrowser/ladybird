@@ -194,12 +194,13 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
     auto attribute_value = element.element().get_attribute(attribute_name);
     if (!attribute_value.has_value())
         return failure();
+    auto attribute_value_utf8 = attribute_value->to_utf8_but_should_be_ported_to_utf16();
 
     // 4. If syntax is the keyword number or an <attr-unit> value, parse attr value against <attr-type>.
     //    If that succeeds, return the result; otherwise, jump to the last step (labeled FAILURE).
     // NOTE: No parsing or modification of any kind is performed on the value.
     auto parse_as_number = [&]() -> RefPtr<NumberStyleValue const> {
-        auto parser = Parser::create(ParsingParams { element.element().document() }, attribute_value.value());
+        auto parser = Parser::create(ParsingParams { element.element().document() }, attribute_value_utf8);
         auto unsubstituted_values = parser.parse_as_list_of_component_values();
         auto syntax_node = TypeSyntaxNode::create("number"_fly_string);
         auto parsed_value = parse_with_a_syntax(ParsingParams { element.document() }, unsubstituted_values, *syntax_node);
@@ -255,13 +256,13 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
             [](Empty) { return true; },
             [](RawStringKeyword) { return true; },
             [](auto&) { return false; })) {
-        return mark_as_attr_tainted({ Token::create_string(*attribute_value) });
+        return mark_as_attr_tainted({ Token::create_string(MUST(FlyString::from_utf8(attribute_value_utf8.bytes_as_string_view()))) });
     }
 
     // 6. Substitute arbitrary substitution functions in attr value, with «"attribute", attr name» as the substitution
     //    context, then parse with a <syntax> attr value, with syntax and el. If that succeeds, return the result;
     //    otherwise, jump to the last step (labeled FAILURE).
-    auto parser = Parser::create(ParsingParams { element.element().document() }, attribute_value.value());
+    auto parser = Parser::create(ParsingParams { element.element().document() }, attribute_value_utf8);
     auto unsubstituted_values = parser.parse_as_list_of_component_values();
     auto substituted_values = substitute_arbitrary_substitution_functions(element, guarded_contexts, replacement_context, unsubstituted_values,
         SubstitutionContext { SubstitutionContext::DependencyType::Attribute, attribute_name.to_string() });

@@ -101,7 +101,7 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
 
     // 4. Queue a mutation record of "characterData" for node with null, null, node’s data, « », « », null, and null.
     // NOTE: We do this later so that the mutation observer may notify UI clients of this node's new value.
-    queue_mutation_record(MutationType::characterData, {}, {}, old_data.to_utf8_but_should_be_ported_to_utf16(), {}, {}, nullptr, nullptr);
+    queue_mutation_record(MutationType::characterData, {}, {}, old_data, {}, {}, nullptr, nullptr);
 
     GC::Ptr<Range> selection_range_to_preserve;
     if (m_data == old_data && document().preserve_selection_offsets_during_identical_character_data_replacement()) {

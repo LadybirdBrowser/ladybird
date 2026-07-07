@@ -308,20 +308,25 @@ static Vector<ExportedPart> parse_exportparts_attribute(Element const& element)
     if (!exportparts.has_value())
         return result;
 
-    exportparts->code_points().for_each_split_view([](u32 c) { return c == ','; }, SplitBehavior::Nothing, [&](Utf8View mapping) {
-        auto trimmed = mapping.as_string().trim_whitespace();
+    exportparts->for_each_split_view(',', SplitBehavior::Nothing, [&](Utf16View mapping) {
+        auto trimmed = mapping.trim_ascii_whitespace();
         if (trimmed.is_empty())
-            return;
+            return IterationDecision::Continue;
 
         auto parts = trimmed.split_view(':', SplitBehavior::KeepEmpty);
         if (parts.size() == 1) {
-            auto name = MUST(FlyString::from_utf8(parts[0].trim_whitespace()));
+            auto name_utf8 = parts[0].trim_ascii_whitespace().to_utf8_but_should_be_ported_to_utf16();
+            auto name = MUST(FlyString::from_utf8(name_utf8.bytes_as_string_view()));
             result.append({ name, name });
         } else if (parts.size() == 2) {
-            auto inner_name = MUST(FlyString::from_utf8(parts[0].trim_whitespace()));
-            auto outer_name = MUST(FlyString::from_utf8(parts[1].trim_whitespace()));
+            auto inner_name_utf8 = parts[0].trim_ascii_whitespace().to_utf8_but_should_be_ported_to_utf16();
+            auto inner_name = MUST(FlyString::from_utf8(inner_name_utf8.bytes_as_string_view()));
+            auto outer_name_utf8 = parts[1].trim_ascii_whitespace().to_utf8_but_should_be_ported_to_utf16();
+            auto outer_name = MUST(FlyString::from_utf8(outer_name_utf8.bytes_as_string_view()));
             result.append({ inner_name, outer_name });
-        } });
+        }
+        return IterationDecision::Continue;
+    });
 
     return result;
 }

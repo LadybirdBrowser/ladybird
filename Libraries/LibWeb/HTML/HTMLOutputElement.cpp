@@ -32,11 +32,11 @@ void HTMLOutputElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_html_for);
 }
 
-void HTMLOutputElement::form_associated_element_attribute_changed(FlyString const& name, Optional<String> const&, Optional<String> const& value, Optional<FlyString> const&)
+void HTMLOutputElement::form_associated_element_attribute_changed(FlyString const& name, Optional<Utf16String> const&, Optional<Utf16String> const& value, Optional<FlyString> const&)
 {
     if (name == HTML::AttributeNames::for_) {
         if (m_html_for)
-            m_html_for->associated_attribute_changed(value.value_or(String {}));
+            m_html_for->associated_attribute_changed(value.value_or({}));
     }
 }
 

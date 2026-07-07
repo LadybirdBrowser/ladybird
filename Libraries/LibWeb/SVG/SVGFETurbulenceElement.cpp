@@ -74,7 +74,7 @@ GC::Ref<SVGAnimatedNumber> SVGFETurbulenceElement::seed()
 }
 
 // https://drafts.csswg.org/filter-effects/#element-attrdef-feturbulence-stitchtiles
-static SVGFETurbulenceElement::StitchType parse_stitch_tiles(String const& value)
+static SVGFETurbulenceElement::StitchType parse_stitch_tiles(Utf16View value)
 {
     if (value == "stitch"sv)
         return SVGFETurbulenceElement::StitchType::Stitch;
@@ -94,7 +94,7 @@ GC::Ref<SVGAnimatedEnumeration> SVGFETurbulenceElement::stitch_tiles()
 }
 
 // https://drafts.csswg.org/filter-effects/#element-attrdef-feturbulence-type
-static SVGFETurbulenceElement::TurbulenceType parse_turbulence_type(String const& value)
+static SVGFETurbulenceElement::TurbulenceType parse_turbulence_type(Utf16View value)
 {
     if (value == "turbulence"sv)
         return SVGFETurbulenceElement::TurbulenceType::Turbulence;

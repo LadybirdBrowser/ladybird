@@ -18,7 +18,7 @@ class SVGEllipseElement final : public SVGGeometryElement {
 public:
     virtual ~SVGEllipseElement() override = default;
 
-    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
+    virtual void attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_) override;
 
     virtual Gfx::Path get_path(CSSPixelSize viewport_size) override;
 

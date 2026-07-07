@@ -74,7 +74,7 @@ public:
     virtual WebIDL::ExceptionOr<void> cloned(Node&, bool) const override;
 
     virtual void form_associated_element_was_inserted() override;
-    virtual void form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
+    virtual void form_associated_element_attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_) override;
 
     virtual void children_changed(ChildrenChangedMetadata const&) override;
 

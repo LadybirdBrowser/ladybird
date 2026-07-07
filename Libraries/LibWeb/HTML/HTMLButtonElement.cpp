@@ -99,7 +99,7 @@ void HTMLButtonElement::set_type_for_bindings(String const& type)
     set_attribute_value(HTML::AttributeNames::type, type);
 }
 
-void HTMLButtonElement::form_associated_element_attribute_changed(FlyString const& name, Optional<String> const&, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void HTMLButtonElement::form_associated_element_attribute_changed(FlyString const& name, Optional<Utf16String> const&, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     PopoverTargetAttributes::associated_attribute_changed(name, value, namespace_);
 }
@@ -139,14 +139,17 @@ bool HTMLButtonElement::is_submit_button() const
 Utf16String HTMLButtonElement::value() const
 {
     // The element's value is the value of the element's value attribute, if there is one; otherwise the empty string.
-    return Utf16String::from_utf8(attribute(AttributeNames::value).value_or(String {}));
+    return attribute(AttributeNames::value).value_or({});
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-button-element:concept-fe-optional-value
 Optional<String> HTMLButtonElement::optional_value() const
 {
     // The element's optional value is the value of the element's value attribute, if there is one; otherwise null.
-    return attribute(AttributeNames::value);
+    auto value = attribute(AttributeNames::value);
+    if (!value.has_value())
+        return {};
+    return value->to_utf8_but_should_be_ported_to_utf16();
 }
 
 bool HTMLButtonElement::has_activation_behavior() const
@@ -322,15 +325,15 @@ String HTMLButtonElement::command() const
 
     // 2. If command is in the Custom state, then return command's value.
     //    A custom command keyword is a string that starts with "--".
-    if (command.has_value() && command.value().starts_with_bytes("--"sv)) {
-        return command.value();
+    if (command.has_value() && command.value().starts_with("--"sv)) {
+        return command.value().to_utf8_but_should_be_ported_to_utf16();
     }
 
     // NOTE: Steps are re-ordered a bit.
 
     // 4. Return the keyword corresponding to the value of command.return
     if (command.has_value()) {
-        auto command_value = command.value();
+        auto command_value = command.value().to_utf8_but_should_be_ported_to_utf16();
         for (auto const& value : valid_values) {
             if (value.equals_ignoring_ascii_case(command_value)) {
                 return value;

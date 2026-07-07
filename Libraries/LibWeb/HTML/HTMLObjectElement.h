@@ -29,13 +29,13 @@ class HTMLObjectElement final
 public:
     virtual ~HTMLObjectElement() override;
 
-    virtual void form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
+    virtual void form_associated_element_attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_) override;
     virtual void form_associated_element_was_removed(DOM::Node*) override;
 
     String data() const;
     void set_data(String const& data);
 
-    String type() const { return get_attribute_value(HTML::AttributeNames::type); }
+    String type() const { return get_attribute_value(HTML::AttributeNames::type).to_utf8_but_should_be_ported_to_utf16(); }
 
     // ^FormAssociatedElement
     virtual bool is_form_associated_element() const override { return true; }

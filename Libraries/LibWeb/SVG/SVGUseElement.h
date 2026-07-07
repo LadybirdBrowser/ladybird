@@ -8,6 +8,7 @@
 
 #include <AK/FlyString.h>
 #include <AK/IntrusiveList.h>
+#include <AK/Utf16String.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/SVG/SVGAnimatedLength.h>
@@ -27,7 +28,7 @@ public:
 
     virtual ~SVGUseElement() override = default;
 
-    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
+    virtual void attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_) override;
 
     void svg_element_changed(SVGElement&);
     void svg_element_changed_before_document_complete(SVGElement&);
@@ -58,8 +59,8 @@ private:
 
     virtual RefPtr<Layout::Node> create_layout_node(CSS::ComputedProperties const&) override;
 
-    void process_the_url(Optional<String> const& href);
-    Optional<String> href_value() const;
+    void process_the_url(Optional<Utf16String> const& href);
+    Optional<Utf16String> href_value() const;
 
     static Optional<FlyString> parse_id_from_href(StringView);
 

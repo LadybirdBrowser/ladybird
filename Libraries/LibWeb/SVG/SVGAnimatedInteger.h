@@ -48,7 +48,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;
 
-    WebIDL::Long parse_value_or_initial(StringView) const;
+    WebIDL::Long parse_value_or_initial(Utf16View) const;
     WebIDL::Long get_base_or_anim_value() const;
 
     GC::Ref<SVGElement> m_element;

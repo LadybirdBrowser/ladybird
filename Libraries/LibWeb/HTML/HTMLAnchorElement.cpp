@@ -40,7 +40,7 @@ void HTMLAnchorElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_rel_list);
 }
 
-void HTMLAnchorElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void HTMLAnchorElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
@@ -48,7 +48,7 @@ void HTMLAnchorElement::attribute_changed(FlyString const& name, Optional<String
         set_the_url();
     } else if (name == HTML::AttributeNames::rel) {
         if (m_rel_list)
-            m_rel_list->associated_attribute_changed(value.value_or(String {}));
+            m_rel_list->associated_attribute_changed(value.value_or({}));
     }
 }
 

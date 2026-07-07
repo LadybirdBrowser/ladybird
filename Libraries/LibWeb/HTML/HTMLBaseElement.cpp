@@ -57,7 +57,7 @@ void HTMLBaseElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ance
         first_base_element_with_href_in_document->set_the_frozen_base_url(old_base_url);
 }
 
-void HTMLBaseElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void HTMLBaseElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
@@ -81,8 +81,9 @@ void HTMLBaseElement::set_the_frozen_base_url(URL::URL const& old_base_url)
     auto& document = this->document();
 
     // 2. Let urlRecord be the result of parsing the value of element's href content attribute with document's fallback base URL, and document's character encoding. (Thus, the base element isn't affected by itself.)
-    auto href = get_attribute_value(AttributeNames::href);
-    auto url_record = document.fallback_base_url().complete_url(href);
+    auto href = get_attribute_value(AttributeNames::href).to_utf8_but_should_be_ported_to_utf16();
+    auto encoding = document.encoding_or_default();
+    auto url_record = DOMURL::parse(href, document.fallback_base_url(), encoding.bytes_as_string_view());
 
     // 3. If any of the following are true:
     //    - urlRecord is failure;
@@ -111,7 +112,7 @@ String HTMLBaseElement::href() const
     auto const& document = this->document();
 
     // 2. Let url be the value of the href attribute of this element, if it has one, and the empty string otherwise.
-    auto url = attribute(AttributeNames::href).value_or(String {});
+    auto url = attribute(AttributeNames::href).value_or({}).to_utf8_but_should_be_ported_to_utf16();
 
     // 3. Let urlRecord be the result of parsing url with document's fallback base URL, and document's character encoding. (Thus, the base element isn't affected by other base elements or itself.)
     auto encoding = document.encoding_or_default();

@@ -52,18 +52,18 @@ void HTMLTrackElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_fetch_controller);
 }
 
-void HTMLTrackElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void HTMLTrackElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
     // https://html.spec.whatwg.org/multipage/media.html#sourcing-out-of-band-text-tracks
     // As the kind, label, and srclang attributes are set, changed, or removed, the text track must update accordingly, as per the definitions above.
     if (name.equals_ignoring_ascii_case(HTML::AttributeNames::kind)) {
-        m_track->set_kind(text_track_kind_from_string(value.value_or({})));
+        m_track->set_kind(text_track_kind_from_string(value.value_or({}).to_utf8_but_should_be_ported_to_utf16()));
     } else if (name.equals_ignoring_ascii_case(HTML::AttributeNames::label)) {
-        m_track->set_label(value.value_or({}));
+        m_track->set_label(value.value_or({}).to_utf8_but_should_be_ported_to_utf16());
     } else if (name.equals_ignoring_ascii_case(HTML::AttributeNames::srclang)) {
-        m_track->set_language(value.value_or({}));
+        m_track->set_language(value.value_or({}).to_utf8_but_should_be_ported_to_utf16());
     } else if (name.equals_ignoring_ascii_case(HTML::AttributeNames::src)) {
         // https://html.spec.whatwg.org/multipage/media.html#sourcing-out-of-band-text-tracks:attr-track-src
         // FIXME: Whenever a track element has its src attribute set, changed, or removed, the user agent must immediately empty the element's text track's text track list of cues.
@@ -88,7 +88,7 @@ void HTMLTrackElement::attribute_changed(FlyString const& name, Optional<String>
     // https://html.spec.whatwg.org/multipage/media.html#dom-texttrack-id
     // For tracks that correspond to track elements, the track's identifier is the value of the element's id attribute, if any.
     if (name.equals_ignoring_ascii_case(HTML::AttributeNames::id)) {
-        m_track->set_id(value.value_or({}));
+        m_track->set_id(value.value_or({}).to_utf8_but_should_be_ported_to_utf16());
     }
 }
 

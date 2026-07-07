@@ -49,7 +49,7 @@ void SVGScriptElement::adopted_from(DOM::Document& old_document)
         m_document_load_event_delayer.emplace(document());
 }
 
-void SVGScriptElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void SVGScriptElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
     if (name == SVG::AttributeNames::href || name == SVG::AttributeNames::type) {
@@ -93,8 +93,9 @@ void SVGScriptElement::process_the_script_element()
     // FIXME: Support type="module" scripts
     auto maybe_script_type = attribute(SVG::AttributeNames::type);
     if (maybe_script_type.has_value() && !maybe_script_type->is_empty()) {
-        auto script_type = MUST(maybe_script_type->to_ascii_lowercase().trim_ascii_whitespace());
-        if (!MimeSniff::is_javascript_mime_type_essence_match(script_type)) {
+        auto script_type = maybe_script_type->to_ascii_lowercase().trim_ascii_whitespace();
+        auto script_type_utf8 = script_type.to_utf8_but_should_be_ported_to_utf16();
+        if (!MimeSniff::is_javascript_mime_type_essence_match(script_type_utf8.bytes_as_string_view())) {
             dbgln("SVGScriptElement: Unsupported script type: {}", *maybe_script_type);
             return;
         }

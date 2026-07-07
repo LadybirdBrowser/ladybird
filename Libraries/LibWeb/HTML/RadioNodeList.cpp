@@ -63,7 +63,7 @@ FlyString RadioNodeList::value() const
 
     // 3. If element is an element with no value attribute, return the string "on".
     // 4. Otherwise, return the value of element's value attribute.
-    return element->get_attribute(AttributeNames::value).value_or("on"_string);
+    return element->get_attribute(AttributeNames::value).value_or("on"_utf16).to_utf8_but_should_be_ported_to_utf16();
 }
 
 void RadioNodeList::set_value(FlyString const& value)

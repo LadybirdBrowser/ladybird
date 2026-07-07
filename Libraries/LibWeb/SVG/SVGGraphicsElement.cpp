@@ -45,12 +45,12 @@ void SVGGraphicsElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-void SVGGraphicsElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void SVGGraphicsElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
     if (name == "transform"sv) {
-        auto transform_list = AttributeParser::parse_transform(value.value_or(String {}));
+        auto transform_list = AttributeParser::parse_transform(value.value_or({}).to_utf8_but_should_be_ported_to_utf16());
         if (transform_list.has_value())
             m_transform = transform_from_transform_list(*transform_list);
         set_needs_layout_update(DOM::SetNeedsLayoutReason::SVGGraphicsElementTransformChange);

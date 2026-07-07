@@ -141,7 +141,7 @@ void HTMLLinkElement::set_media(String media)
 
 String HTMLLinkElement::media() const
 {
-    return attribute(HTML::AttributeNames::media).value_or(String {});
+    return attribute(HTML::AttributeNames::media).value_or({}).to_utf8_but_should_be_ported_to_utf16();
 }
 
 // https://drafts.csswg.org/cssom/#dom-linkstyle-sheet
@@ -165,14 +165,14 @@ bool HTMLLinkElement::has_icon_keyword() const
     return m_relationship & Relationship::Icon;
 }
 
-void HTMLLinkElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void HTMLLinkElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
     // https://html.spec.whatwg.org/multipage/semantics.html#processing-the-type-attribute:attr-link-type
     if (name == HTML::AttributeNames::type) {
         if (value.has_value())
-            m_mime_type = value->to_ascii_lowercase();
+            m_mime_type = value->to_ascii_lowercase().to_utf8_but_should_be_ported_to_utf16();
         else {
             m_mime_type = {};
         }
@@ -185,7 +185,7 @@ void HTMLLinkElement::attribute_changed(FlyString const& name, Optional<String> 
     if (name == HTML::AttributeNames::rel) {
         m_relationship = 0;
         // Keywords are always ASCII case-insensitive, and must be compared as such.
-        auto lowercased_value = value.value_or(String {}).to_ascii_lowercase();
+        auto lowercased_value = value.value_or({}).to_ascii_lowercase().to_utf8_but_should_be_ported_to_utf16();
         // To determine which link types apply to a link, a, area, or form element,
         // the element's rel attribute must be split on ASCII whitespace.
         // The resulting tokens are the keywords for the link types that apply to that element.
@@ -206,7 +206,7 @@ void HTMLLinkElement::attribute_changed(FlyString const& name, Optional<String> 
         }
 
         if (m_rel_list)
-            m_rel_list->associated_attribute_changed(value.value_or(String {}));
+            m_rel_list->associated_attribute_changed(value.value_or({}));
     }
 
     // https://html.spec.whatwg.org/multipage/semantics.html#the-link-element:explicitly-enabled
@@ -219,7 +219,7 @@ void HTMLLinkElement::attribute_changed(FlyString const& name, Optional<String> 
             document_or_shadow_root_style_sheets().remove_a_css_style_sheet(*m_loaded_style_sheet);
             m_loaded_style_sheet = nullptr;
         } else if (name == HTML::AttributeNames::media) {
-            m_loaded_style_sheet->set_media(value.value_or(String {}));
+            m_loaded_style_sheet->set_media(value.value_or({}).to_utf8_but_should_be_ported_to_utf16());
         }
     }
 
@@ -310,7 +310,7 @@ GC::Ref<HTMLLinkElement::LinkProcessingOptions> HTMLLinkElement::create_link_opt
 
         // referrer policy
         //     the state of el's referrerpolicy content attribute
-        ReferrerPolicy::from_string(get_attribute(AttributeNames::referrerpolicy).value_or({})).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString),
+        ReferrerPolicy::from_string(get_attribute(AttributeNames::referrerpolicy).value_or({}).to_utf8_but_should_be_ported_to_utf16()).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString),
 
         // FIXME: source set
         //     el's source set
@@ -345,15 +345,15 @@ GC::Ref<HTMLLinkElement::LinkProcessingOptions> HTMLLinkElement::create_link_opt
 
     // 3. If el has an href attribute, then set options's href to the value of el's href attribute.
     if (auto maybe_href = get_attribute(AttributeNames::href); maybe_href.has_value())
-        options->href = maybe_href.value();
+        options->href = maybe_href->to_utf8_but_should_be_ported_to_utf16();
 
     // 4. If el has an integrity attribute, then set options's integrity to the value of el's integrity content attribute.
     if (auto maybe_integrity = get_attribute(AttributeNames::integrity); maybe_integrity.has_value())
-        options->integrity = maybe_integrity.value();
+        options->integrity = maybe_integrity->to_utf8_but_should_be_ported_to_utf16();
 
     // 5. If el has a type attribute, then set options's type to the value of el's type attribute.
     if (auto maybe_type = get_attribute(AttributeNames::type); maybe_type.has_value())
-        options->type = maybe_type.value();
+        options->type = maybe_type->to_utf8_but_should_be_ported_to_utf16();
 
     // FIXME: 6. Assert: options's href is not the empty string, or options's source set is not null.
     //           A link element with neither an href or an imagesrcset does not represent a link.
@@ -536,7 +536,8 @@ void HTMLLinkElement::fetch_and_process_linked_preload_resource()
     auto options = create_link_options();
 
     // 3. Let destination be the result of translating the keyword representing the state of el's as attribute.
-    auto destination = translate_a_preload_destination(get_attribute(HTML::AttributeNames::as));
+    auto as_attribute = get_attribute(HTML::AttributeNames::as).map([](auto const& value) { return value.to_utf8_but_should_be_ported_to_utf16(); });
+    auto destination = translate_a_preload_destination(as_attribute);
 
     // 4. If destination is null, then return.
     if (destination.has<Empty>())
@@ -882,8 +883,10 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
         //     1. If the element has a charset attribute, get an encoding from that attribute's value. If that succeeds, return the resulting encoding. [ENCODING]
         //     2. Otherwise, return the document's character encoding. [DOM]
         Optional<StringView> environment_encoding;
-        if (auto charset = attribute(HTML::AttributeNames::charset); charset.has_value())
-            environment_encoding = TextCodec::get_standardized_encoding(charset.release_value());
+        if (auto charset = attribute(HTML::AttributeNames::charset); charset.has_value()) {
+            auto charset_value = charset->to_utf8_but_should_be_ported_to_utf16();
+            environment_encoding = TextCodec::get_standardized_encoding(charset_value.bytes_as_string_view());
+        }
 
         if (!environment_encoding.has_value() && document().encoding().has_value())
             environment_encoding = document().encoding().value();
@@ -898,8 +901,8 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
                 maybe_decoded_string.release_value(),
                 "text/css"_string,
                 this,
-                attribute(HTML::AttributeNames::media).value_or({}),
-                in_a_document_tree() ? attribute(HTML::AttributeNames::title).value_or({}) : String {},
+                attribute(HTML::AttributeNames::media).value_or({}).to_utf8_but_should_be_ported_to_utf16(),
+                in_a_document_tree() ? attribute(HTML::AttributeNames::title).value_or({}).to_utf8_but_should_be_ported_to_utf16() : String {},
                 (m_relationship & Relationship::Alternate && !m_explicitly_enabled) ? CSS::StyleSheetList::Alternate::Yes : CSS::StyleSheetList::Alternate::No,
                 CSS::StyleSheetList::OriginClean::Yes,
                 response.url_list().first(),

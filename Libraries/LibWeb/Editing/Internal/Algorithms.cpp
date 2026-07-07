@@ -1132,7 +1132,7 @@ Optional<Utf16String> effective_command_value(GC::Ptr<DOM::Node> node, FlyString
             return {};
 
         // 3. Return the value of node's href attribute.
-        return Utf16String::from_utf8_without_validation(node_as_element()->get_attribute_value(HTML::AttributeNames::href));
+        return node_as_element()->get_attribute_value(HTML::AttributeNames::href);
     }
 
     // 4. If command is "backColor" or "hiliteColor":
@@ -2703,6 +2703,7 @@ void justify_the_selection(DOM::Document& document, JustifyAlignment alignment)
             }
             VERIFY_NOT_REACHED();
         }());
+        auto alignment_keyword_utf16 = Utf16String::from_utf8(alignment_keyword);
 
         wrap(
             sublist,
@@ -2711,7 +2712,7 @@ void justify_the_selection(DOM::Document& document, JustifyAlignment alignment)
                     return false;
                 GC::Ref<DOM::Element> element = static_cast<DOM::Element&>(*sibling);
                 u8 number_of_matching_attributes = 0;
-                if (element->get_attribute_value(HTML::AttributeNames::align).equals_ignoring_ascii_case(alignment_keyword))
+                if (element->get_attribute_value(HTML::AttributeNames::align).equals_ignoring_ascii_case(alignment_keyword_utf16))
                     ++number_of_matching_attributes;
                 if (element->has_attribute(HTML::AttributeNames::style) && element->inline_style()
                     && element->inline_style()->length() == 1) {
@@ -3795,7 +3796,7 @@ GC::Ref<DOM::Element> set_the_tag_name(GC::Ref<DOM::Element> element, FlyString 
     element->parent()->insert_before(replacement_element, element);
 
     // 5. Copy all attributes of element to replacement element, in order.
-    element->for_each_attribute([&replacement_element](FlyString const& name, String const& value) {
+    element->for_each_attribute([&replacement_element](FlyString const& name, Utf16String const& value) {
         replacement_element->set_attribute_value(name, value);
     });
 
@@ -3826,7 +3827,7 @@ Optional<Utf16String> specified_command_value(GC::Ref<DOM::Element> element, Fly
         // 1. If element is an a element and has an href attribute, return the value of that attribute.
         auto href_attribute = element->get_attribute(HTML::AttributeNames::href);
         if (href_attribute.has_value())
-            return Utf16String::from_utf8_without_validation(href_attribute.release_value());
+            return href_attribute.release_value();
 
         // 2. Return null.
         return {};

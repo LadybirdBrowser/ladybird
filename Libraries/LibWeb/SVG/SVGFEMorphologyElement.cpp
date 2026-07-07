@@ -32,7 +32,7 @@ void SVGFEMorphologyElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_radius_y);
 }
 
-void SVGFEMorphologyElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& new_value, Optional<FlyString> const& namespace_)
+void SVGFEMorphologyElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, new_value, namespace_);
 

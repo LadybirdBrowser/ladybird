@@ -649,18 +649,19 @@ static inline void for_each_matching_attribute(CSS::Selector::SimpleSelector::At
 static bool matches_single_attribute(CSS::Selector::SimpleSelector::Attribute const& attribute_selector, DOM::Attr const& attribute, CaseSensitivity case_sensitivity)
 {
     auto const case_insensitive_match = case_sensitivity == CaseSensitivity::CaseInsensitive;
+    auto element_attr_value = attribute.value().to_utf8_but_should_be_ported_to_utf16();
 
     switch (attribute_selector.match_type) {
     case CSS::Selector::SimpleSelector::Attribute::MatchType::ExactValueMatch:
         return case_insensitive_match
-            ? attribute.value().equals_ignoring_ascii_case(attribute_selector.value)
-            : attribute.value() == attribute_selector.value;
+            ? element_attr_value.equals_ignoring_ascii_case(attribute_selector.value)
+            : element_attr_value == attribute_selector.value;
     case CSS::Selector::SimpleSelector::Attribute::MatchType::ContainsWord: {
         if (attribute_selector.value.is_empty()) {
             // This selector is always false is match value is empty.
             return false;
         }
-        auto const view = attribute.value().bytes_as_string_view().split_view(' ');
+        auto const view = element_attr_value.bytes_as_string_view().split_view(' ');
         return view.contains([&](auto const& value) {
             return case_insensitive_match ? value.equals_ignoring_ascii_case(attribute_selector.value)
                                           : value == attribute_selector.value;
@@ -668,13 +669,12 @@ static bool matches_single_attribute(CSS::Selector::SimpleSelector::Attribute co
     }
     case CSS::Selector::SimpleSelector::Attribute::MatchType::ContainsString:
         return !attribute_selector.value.is_empty()
-            && attribute.value().contains(attribute_selector.value, case_sensitivity);
+            && element_attr_value.contains(attribute_selector.value, case_sensitivity);
     case CSS::Selector::SimpleSelector::Attribute::MatchType::StartsWithSegment: {
         // https://www.w3.org/TR/CSS2/selector.html#attribute-selectors
         // [att|=val]
         // Represents an element with the att attribute, its value either being exactly "val" or beginning with "val" immediately followed by "-" (U+002D).
 
-        auto const& element_attr_value = attribute.value();
         if (element_attr_value.is_empty()) {
             // If the attribute value on element is empty, the selector is true
             // if the match value is also empty and false otherwise.
@@ -699,10 +699,10 @@ static bool matches_single_attribute(CSS::Selector::SimpleSelector::Attribute co
     }
     case CSS::Selector::SimpleSelector::Attribute::MatchType::StartsWithString:
         return !attribute_selector.value.is_empty()
-            && attribute.value().bytes_as_string_view().starts_with(attribute_selector.value, case_sensitivity);
+            && element_attr_value.bytes_as_string_view().starts_with(attribute_selector.value, case_sensitivity);
     case CSS::Selector::SimpleSelector::Attribute::MatchType::EndsWithString:
         return !attribute_selector.value.is_empty()
-            && attribute.value().bytes_as_string_view().ends_with(attribute_selector.value, case_sensitivity);
+            && element_attr_value.bytes_as_string_view().ends_with(attribute_selector.value, case_sensitivity);
     case CSS::Selector::SimpleSelector::Attribute::MatchType::HasAttribute:
         return true;
     }

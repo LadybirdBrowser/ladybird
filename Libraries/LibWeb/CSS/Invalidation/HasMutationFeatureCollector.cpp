@@ -46,7 +46,7 @@ bool HasMutationFeatureCollector::element_has_feature_used_in_has_selector(DOM::
             return true;
     }
     bool attribute_used_in_has = false;
-    element.for_each_attribute([&](FlyString const& name, String const&) {
+    element.for_each_attribute([&](FlyString const& name, auto const&) {
         if (m_data.attribute_names_used_in_has_selectors.contains(name))
             attribute_used_in_has = true;
         if (element.namespace_uri() != Namespace::HTML

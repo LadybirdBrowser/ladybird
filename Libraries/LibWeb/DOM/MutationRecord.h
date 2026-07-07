@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <AK/Utf16String.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 
 namespace Web::DOM {
@@ -17,7 +18,7 @@ class MutationRecord : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(MutationRecord);
 
 public:
-    [[nodiscard]] static GC::Ref<MutationRecord> create(JS::Realm&, FlyString const& type, Node const& target, NodeList& added_nodes, NodeList& removed_nodes, Node* previous_sibling, Node* next_sibling, Optional<String> const& attribute_name, Optional<String> const& attribute_namespace, Optional<String> const& old_value);
+    [[nodiscard]] static GC::Ref<MutationRecord> create(JS::Realm&, FlyString const& type, Node const& target, NodeList& added_nodes, NodeList& removed_nodes, Node* previous_sibling, Node* next_sibling, Optional<String> const& attribute_name, Optional<String> const& attribute_namespace, Optional<Utf16String> const& old_value);
 
     virtual ~MutationRecord() override;
 
@@ -29,10 +30,10 @@ public:
     Node const* next_sibling() const { return m_next_sibling; }
     Optional<String> const& attribute_name() const { return m_attribute_name; }
     Optional<String> const& attribute_namespace() const { return m_attribute_namespace; }
-    Optional<String> const& old_value() const { return m_old_value; }
+    Optional<Utf16String> const& old_value() const { return m_old_value; }
 
 private:
-    MutationRecord(JS::Realm& realm, FlyString const& type, Node const& target, NodeList& added_nodes, NodeList& removed_nodes, Node* previous_sibling, Node* next_sibling, Optional<String> const& attribute_name, Optional<String> const& attribute_namespace, Optional<String> const& old_value);
+    MutationRecord(JS::Realm& realm, FlyString const& type, Node const& target, NodeList& added_nodes, NodeList& removed_nodes, Node* previous_sibling, Node* next_sibling, Optional<String> const& attribute_name, Optional<String> const& attribute_namespace, Optional<Utf16String> const& old_value);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -45,7 +46,7 @@ private:
     GC::Ptr<Node> m_next_sibling;
     Optional<String> m_attribute_name;
     Optional<String> m_attribute_namespace;
-    Optional<String> m_old_value;
+    Optional<Utf16String> m_old_value;
 };
 
 }

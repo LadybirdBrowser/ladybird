@@ -126,6 +126,12 @@ static bool prefix_is_in_prefix_map(FlyString const& prefix, HashMap<Optional<Fl
     return candidates_list_iterator->value.contains_slow(prefix);
 }
 
+static FlyString attribute_value_as_fly_string(Utf16View value)
+{
+    auto value_utf8 = value.to_utf8_but_should_be_ported_to_utf16();
+    return MUST(FlyString::from_utf8(value_utf8.bytes_as_string_view()));
+}
+
 WebIDL::ExceptionOr<String> serialize_node_to_xml_string_impl(GC::Ref<DOM::Node const> root, Optional<FlyString>& namespace_, HashMap<Optional<FlyString>, Vector<Optional<FlyString>>>& namespace_prefix_map, u64& prefix_index, RequireWellFormed require_well_formed);
 
 // https://w3c.github.io/DOM-Parsing/#dfn-xml-serialization
@@ -259,7 +265,7 @@ static Optional<FlyString> record_namespace_information(DOM::Element const& elem
             // 1. If attribute prefix is null, then attr is a default namespace declaration. Set the default namespace attr value to attr's value and stop running these steps,
             //    returning to Main to visit the next attribute.
             if (!attribute_prefix.has_value()) {
-                default_namespace_attribute_value = attribute->value();
+                default_namespace_attribute_value = attribute_value_as_fly_string(attribute->value());
                 continue;
             }
 
@@ -268,7 +274,7 @@ static Optional<FlyString> record_namespace_information(DOM::Element const& elem
             auto const& prefix_definition = attribute->local_name();
 
             // 2. Let namespace definition be the value of attr's value.
-            Optional<FlyString> namespace_definition = attribute->value();
+            Optional<FlyString> namespace_definition = attribute_value_as_fly_string(attribute->value());
 
             // 3. If namespace definition is the XML namespace, then stop running these steps, and return to Main to visit the next attribute.
             if (namespace_definition == Namespace::XML)
@@ -317,6 +323,19 @@ static WebIDL::ExceptionOr<String> serialize_an_attribute_value(Optional<FlyStri
     final_attribute_value = MUST(final_attribute_value.replace("<"sv, "&lt;"sv, ReplaceMode::All));
 
     // 4. ">" with "&gt;"
+    final_attribute_value = MUST(final_attribute_value.replace(">"sv, "&gt;"sv, ReplaceMode::All));
+
+    return final_attribute_value;
+}
+
+static WebIDL::ExceptionOr<String> serialize_an_attribute_value(Utf16View attribute_value, [[maybe_unused]] RequireWellFormed require_well_formed)
+{
+    // FIXME: If the require well-formed flag is set, reject characters that are not matched by the XML Char production.
+    auto final_attribute_value = attribute_value.to_utf8_but_should_be_ported_to_utf16();
+
+    final_attribute_value = MUST(final_attribute_value.replace("&"sv, "&amp;"sv, ReplaceMode::All));
+    final_attribute_value = MUST(final_attribute_value.replace("\""sv, "&quot;"sv, ReplaceMode::All));
+    final_attribute_value = MUST(final_attribute_value.replace("<"sv, "&lt;"sv, ReplaceMode::All));
     final_attribute_value = MUST(final_attribute_value.replace(">"sv, "&gt;"sv, ReplaceMode::All));
 
     return final_attribute_value;
@@ -377,9 +396,11 @@ static WebIDL::ExceptionOr<String> serialize_element_attributes(DOM::Element con
 
             // 2. If the value of attribute namespace is the XMLNS namespace, then run these steps:
             if (attribute_namespace == Namespace::XMLNS) {
+                auto attribute_value_namespace = attribute_value_as_fly_string(attribute->value());
+
                 // 1. If any of the following are true, then stop running these steps and goto Loop to visit the next attribute:
                 // - the attr's value is the XML namespace;
-                if (attribute->value() == Namespace::XML)
+                if (attribute_value_namespace == Namespace::XML)
                     continue;
 
                 // - the attr's prefix is null and the ignore namespace definition attribute flag is true (the Element's default namespace attribute should be skipped);
@@ -394,18 +415,18 @@ static WebIDL::ExceptionOr<String> serialize_element_attributes(DOM::Element con
                         continue;
 
                     // - the attr's localName is present in the local prefixes map but the value of the key does not match attr's value
-                    if (name_in_local_prefix_map_iterator->value != attribute->value())
+                    if (name_in_local_prefix_map_iterator->value != attribute_value_namespace)
                         continue;
                 }
 
                 // and furthermore that the attr's localName (as the prefix to find) is found in the namespace prefix map given the namespace consisting of the attr's value
                 // (the current namespace prefix definition was exactly defined previously--on an ancestor element not the current element whose attributes are being processed).
-                if (prefix_is_in_prefix_map(attribute->local_name(), namespace_prefix_map, attribute->value()))
+                if (prefix_is_in_prefix_map(attribute->local_name(), namespace_prefix_map, attribute_value_namespace))
                     continue;
 
                 // 2. If the require well-formed flag is set (its value is true), and the value of attr's value attribute matches the XMLNS namespace,
                 //    then throw an exception; the serialization of this attribute would produce invalid XML because the XMLNS namespace is reserved and cannot be applied as an element's namespace via XML parsing.
-                if (require_well_formed == RequireWellFormed::Yes && attribute->value() == Namespace::XMLNS)
+                if (require_well_formed == RequireWellFormed::Yes && attribute_value_namespace == Namespace::XMLNS)
                     return WebIDL::InvalidStateError::create(realm, "The XMLNS namespace cannot be used as an element's namespace"_utf16);
 
                 // 3. If the require well-formed flag is set (its value is true), and the value of attr's value attribute is the empty string,

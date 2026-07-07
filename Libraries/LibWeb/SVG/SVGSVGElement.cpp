@@ -60,9 +60,9 @@ RefPtr<CSS::StyleValue const> SVGSVGElement::width_style_value_from_attribute() 
     auto width_attribute = attribute(SVG::AttributeNames::width);
 
     RefPtr<CSS::StyleValue const> result;
-    if (auto width_value = parse_css_value(parsing_context, width_attribute.value_or(String {}), CSS::PropertyID::Width)) {
+    if (auto width_value = parse_css_value(parsing_context, width_attribute.value_or({}).to_utf8_but_should_be_ported_to_utf16(), CSS::PropertyID::Width)) {
         result = width_value.release_nonnull();
-    } else if (width_attribute == "") {
+    } else if (width_attribute == ""sv) {
         // If the `width` attribute is an empty string, it defaults to 100%.
         // This matches WebKit and Blink, but not Firefox. The spec is unclear.
         // FIXME: Figure out what to do here.
@@ -82,9 +82,9 @@ RefPtr<CSS::StyleValue const> SVGSVGElement::height_style_value_from_attribute()
     auto height_attribute = attribute(SVG::AttributeNames::height);
 
     RefPtr<CSS::StyleValue const> result;
-    if (auto height_value = parse_css_value(parsing_context, height_attribute.value_or(String {}), CSS::PropertyID::Height)) {
+    if (auto height_value = parse_css_value(parsing_context, height_attribute.value_or({}).to_utf8_but_should_be_ported_to_utf16(), CSS::PropertyID::Height)) {
         result = height_value.release_nonnull();
-    } else if (height_attribute == "") {
+    } else if (height_attribute == ""sv) {
         // If the `height` attribute is an empty string, it defaults to 100%.
         // This matches WebKit and Blink, but not Firefox. The spec is unclear.
         // FIXME: Figure out what to do here.
@@ -95,7 +95,7 @@ RefPtr<CSS::StyleValue const> SVGSVGElement::height_style_value_from_attribute()
     return result;
 }
 
-void SVGSVGElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void SVGSVGElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
     SVGFitToViewBox::attribute_changed(*this, name, value);

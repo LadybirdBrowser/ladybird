@@ -217,7 +217,7 @@ void Element::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://dom.spec.whatwg.org/#dom-element-getattribute
-Optional<String> Element::get_attribute(FlyString const& name) const
+Optional<Utf16String> Element::get_attribute(FlyString const& name) const
 {
     // 1. Let attr be the result of getting an attribute given qualifiedName and this.
     if (!m_attributes)
@@ -233,7 +233,7 @@ Optional<String> Element::get_attribute(FlyString const& name) const
 }
 
 // https://dom.spec.whatwg.org/#dom-element-getattributens
-Optional<String> Element::get_attribute_ns(Optional<FlyString> const& namespace_, FlyString const& name) const
+Optional<Utf16String> Element::get_attribute_ns(Optional<FlyString> const& namespace_, FlyString const& name) const
 {
     // 1. Let attr be the result of getting an attribute given namespace, localName, and this.
     if (!m_attributes)
@@ -249,7 +249,7 @@ Optional<String> Element::get_attribute_ns(Optional<FlyString> const& namespace_
 }
 
 // https://dom.spec.whatwg.org/#concept-element-attributes-get-value
-String Element::get_attribute_value(FlyString const& local_name, Optional<FlyString> const& namespace_) const
+Utf16String Element::get_attribute_value(FlyString const& local_name, Optional<FlyString> const& namespace_) const
 {
     // 1. Let attr be the result of getting an attribute given namespace, localName, and element.
     if (!m_attributes)
@@ -258,7 +258,7 @@ String Element::get_attribute_value(FlyString const& local_name, Optional<FlyStr
 
     // 2. If attr is null, then return the empty string.
     if (!attribute)
-        return String {};
+        return {};
 
     // 3. Return attr’s value.
     return attribute->value();
@@ -273,12 +273,14 @@ String Element::get_an_elements_target(Optional<String> target) const
     if (!target.has_value()) {
         // 1. If element has a target attribute, then set target to that attribute's value.
         if (auto maybe_target = attribute(HTML::AttributeNames::target); maybe_target.has_value()) {
-            target = maybe_target.release_value();
+            target = maybe_target.release_value().to_utf8_but_should_be_ported_to_utf16();
         }
         // 2. Otherwise, if element's node document contains a base element with a target attribute,
         //    set target to the value of the target attribute of the first such base element.
         else if (auto base_element = document().first_base_element_with_target_in_tree_order()) {
-            target = base_element->attribute(HTML::AttributeNames::target);
+            target = base_element->attribute(HTML::AttributeNames::target).map([](auto const& value) {
+                return value.to_utf8_but_should_be_ported_to_utf16();
+            });
         }
     }
 
@@ -295,7 +297,7 @@ HTML::TokenizedFeature::NoOpener Element::get_an_elements_noopener(URL::URL cons
 {
     // To get an element's noopener, given an a, area, or form element element, a URL record url, and a string target,
     // perform the following steps. They return a boolean.
-    auto rel = MUST(get_attribute_value(HTML::AttributeNames::rel).to_lowercase());
+    auto rel = get_attribute_value(HTML::AttributeNames::rel).to_lowercase().to_utf8_but_should_be_ported_to_utf16();
     auto link_types = rel.bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
 
     // 1. If element's link types include the noopener or noreferrer keyword, then return true.
@@ -352,7 +354,7 @@ void Element::follow_the_hyperlink(Optional<String> hyperlink_suffix, HTML::User
         target_attribute_value = get_an_elements_target();
 
     // 4. Let urlRecord be the result of encoding-parsing a URL given subject's href attribute value, relative to subject's node document.
-    auto url_record = document().encoding_parse_url(get_attribute_value(HTML::AttributeNames::href));
+    auto url_record = document().encoding_parse_url(get_attribute_value(HTML::AttributeNames::href).to_utf8_but_should_be_ported_to_utf16());
 
     // 5. If urlRecord is failure, then return.
     if (!url_record.has_value())
@@ -377,7 +379,7 @@ void Element::follow_the_hyperlink(Optional<String> hyperlink_suffix, HTML::User
         url_string = MUST(String::formatted("{}{}", url_string, *hyperlink_suffix));
 
     // 11. Let referrerPolicy be the current state of subject's referrerpolicy content attribute.
-    auto referrer_policy = ReferrerPolicy::from_string(attribute(HTML::AttributeNames::referrerpolicy).value_or({})).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
+    auto referrer_policy = ReferrerPolicy::from_string(attribute(HTML::AttributeNames::referrerpolicy).value_or({}).to_utf8_but_should_be_ported_to_utf16()).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
 
     // FIXME: 12. If subject's link types includes the noreferrer keyword, then set referrerPolicy to "no-referrer".
 
@@ -426,13 +428,13 @@ WebIDL::ExceptionOr<void> Element::set_attribute_for_bindings(FlyString qualifie
 
     // 5. If attribute is non-null, then change attribute to verifiedValue and return.
     if (attribute) {
-        attribute->change_attribute(verified_value.to_utf8_but_should_be_ported_to_utf16());
+        attribute->change_attribute(verified_value);
         return {};
     }
 
     // 6. Set attribute to a new attribute whose local name is qualifiedName, value is verifiedValue,
     //    and node document is this’s node document.
-    attribute = Attr::create(document(), qualified_name, verified_value.to_utf8_but_should_be_ported_to_utf16());
+    attribute = Attr::create(document(), qualified_name, verified_value);
 
     // 7. Append attribute to this.
     m_attributes->append_attribute(*attribute);
@@ -574,13 +576,13 @@ WebIDL::ExceptionOr<void> Element::set_attribute_ns_for_bindings(Optional<FlyStr
         value));
 
     // 3. Set an attribute value for this using localName, verifiedValue, and also prefix and namespace.
-    set_attribute_value(extracted_qualified_name.local_name(), verified_value.to_utf8_but_should_be_ported_to_utf16(), extracted_qualified_name.prefix(), extracted_qualified_name.namespace_());
+    set_attribute_value(extracted_qualified_name.local_name(), verified_value, extracted_qualified_name.prefix(), extracted_qualified_name.namespace_());
 
     return {};
 }
 
 // https://dom.spec.whatwg.org/#concept-element-attributes-append
-void Element::append_attribute(FlyString const& name, String const& value)
+void Element::append_attribute(FlyString const& name, Utf16String const& value)
 {
     attributes()->append_attribute(Attr::create(document(), name, value));
 }
@@ -592,7 +594,7 @@ void Element::append_attribute(Attr& attribute)
 }
 
 // https://dom.spec.whatwg.org/#concept-element-attributes-set-value
-void Element::set_attribute_value(FlyString const& local_name, String const& value, Optional<FlyString> const& prefix, Optional<FlyString> const& namespace_)
+void Element::set_attribute_value(FlyString const& local_name, Utf16String const& value, Optional<FlyString> const& prefix, Optional<FlyString> const& namespace_)
 {
     // 1. Let attribute be the result of getting an attribute given namespace, localName, and element.
     auto* attribute = attributes()->get_attribute_ns(namespace_, local_name);
@@ -691,7 +693,7 @@ WebIDL::ExceptionOr<bool> Element::toggle_attribute(FlyString const& name, Optio
         // 1. If force is not given or is true, create an attribute whose local name is qualifiedName, value is the empty
         //    string, and node document is this’s node document, then append this attribute to this, and then return true.
         if (!force.has_value() || force.value()) {
-            auto new_attribute = Attr::create(document(), insert_as_lowercase ? name.to_ascii_lowercase() : name.to_string(), String {});
+            auto new_attribute = Attr::create(document(), insert_as_lowercase ? name.to_ascii_lowercase() : name.to_string(), Utf16String {});
             m_attributes->append_attribute(new_attribute);
 
             return true;
@@ -750,8 +752,10 @@ GC::Ptr<DOM::Element> Element::get_the_attribute_associated_element(FlyString co
     //     * candidate's root is the same as element's root;
     //     * candidate's ID is contentAttributeValue; and
     //     * candidate implements T.
-    if (content_attribute_value.has_value())
-        return element.document().get_element_by_id(*content_attribute_value);
+    if (content_attribute_value.has_value()) {
+        auto content_attribute_value_utf8 = content_attribute_value->to_utf8_but_should_be_ported_to_utf16();
+        return element.document().get_element_by_id(MUST(FlyString::from_utf8(content_attribute_value_utf8.bytes_as_string_view())));
+    }
 
     // 5. If no such element exists, then return null.
     // 6. Return null.
@@ -789,7 +793,8 @@ Optional<GC::RootVector<GC::Ref<DOM::Element>>> Element::get_the_attribute_assoc
             return {};
 
         // 3. Let tokens be contentAttributeValue, split on ASCII whitespace.
-        auto tokens = content_attribute_value->bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
+        auto content_attribute_value_utf8 = content_attribute_value->to_utf8_but_should_be_ported_to_utf16();
+        auto tokens = content_attribute_value_utf8.bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
 
         // 4. For each id of tokens:
         for (auto id : tokens) {
@@ -910,12 +915,16 @@ void Element::apply_presentational_hints(Vector<CSS::StyleProperty>& properties)
     }
 }
 
-void Element::run_attribute_change_steps(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void Element::run_attribute_change_steps(FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     attribute_changed(local_name, old_value, value, namespace_);
 
     if (old_value != value) {
-        CSS::Invalidation::invalidate_style_after_attribute_change(*this, local_name, old_value, value);
+        CSS::Invalidation::invalidate_style_after_attribute_change(
+            *this,
+            local_name,
+            old_value.map([](auto const& value) { return value.to_utf8_but_should_be_ported_to_utf16(); }),
+            value.map([](auto const& value) { return value.to_utf8_but_should_be_ported_to_utf16(); }));
         if (local_name == HTML::AttributeNames::id || local_name == HTML::AttributeNames::class_)
             invalidate_content_blocker_style_if_needed(*this);
         document().bump_dom_tree_version();
@@ -3244,7 +3253,10 @@ GC::Ref<WebIDL::Promise> Element::scroll_into_view(Optional<Variant<bool, Bindin
 #define __ENUMERATE_ARIA_ATTRIBUTE(name, attribute)                  \
     Optional<String> Element::name() const                           \
     {                                                                \
-        return get_attribute(ARIA::AttributeNames::name);            \
+        auto value = get_attribute(ARIA::AttributeNames::name);      \
+        if (!value.has_value())                                      \
+            return {};                                               \
+        return value->to_utf8_but_should_be_ported_to_utf16();       \
     }                                                                \
                                                                      \
     void Element::set_##name(Optional<String> const& value)          \
@@ -3507,7 +3519,7 @@ JS::ThrowCompletionOr<void> Element::upgrade_element(GC::Ref<HTML::CustomElement
 
         arguments.append(JS::PrimitiveString::create(vm, Utf16FlyString::from_utf8(attribute->local_name())));
         arguments.append(JS::js_null());
-        arguments.append(JS::PrimitiveString::create(vm, Utf16String::from_utf8(attribute->value())));
+        arguments.append(JS::PrimitiveString::create(vm, attribute->value()));
         arguments.append(attribute->namespace_uri().has_value() ? JS::PrimitiveString::create(vm, Utf16FlyString::from_utf8(attribute->namespace_uri().value())) : JS::js_null());
 
         enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::attributeChangedCallback, move(arguments));
@@ -3653,8 +3665,11 @@ Optional<String> Element::locate_a_namespace_prefix(Optional<String> const& name
     if (auto attributes = this->attributes()) {
         for (size_t i = 0; i < attributes->length(); ++i) {
             auto& attr = *attributes->item(i);
-            if (attr.prefix() == "xmlns" && attr.value() == namespace_)
-                return attr.local_name().to_string();
+            if (attr.prefix() == "xmlns" && namespace_.has_value()) {
+                auto value_utf8 = attr.value().to_utf8_but_should_be_ported_to_utf16();
+                if (value_utf8.bytes_as_string_view() == namespace_->bytes_as_string_view())
+                    return attr.local_name().to_string();
+            }
         }
     }
 
@@ -3682,7 +3697,7 @@ void Element::for_each_attribute(Function<void(Attr const&)> callback) const
         callback(*m_attributes->item(i));
 }
 
-void Element::for_each_attribute(Function<void(FlyString const&, String const&)> callback) const
+void Element::for_each_attribute(Function<void(FlyString const&, Utf16String const&)> callback) const
 {
     for_each_attribute([&callback](Attr const& attr) {
         callback(attr.name(), attr.value());
@@ -4594,7 +4609,7 @@ static void prefetch_inline_style_image_resources(CSS::CSSStyleProperties const&
 }
 
 // https://dom.spec.whatwg.org/#concept-element-attributes-change-ext
-void Element::attribute_changed(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void Element::attribute_changed(FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     // AD-HOC: Everything below requires that there is no namespace, so return early if there is one.
     if (namespace_.has_value())
@@ -4608,19 +4623,21 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
             return;
 
         // 2. If value is null and oldValue is the empty string, then return.
-        if (!value.has_value() && old_value == String {})
+        if (!value.has_value() && old_value == Utf16String {})
             return;
 
         // 3. If value is the empty string and oldValue is null, then return.
-        if (value == String {} && !old_value.has_value())
+        if (value == Utf16String {} && !old_value.has_value())
             return;
 
         // 4. If value is null or the empty string, then set element’s name to the empty string.
         if (!value.has_value() || value->is_empty())
             set_slottable_name({});
         // 5. Otherwise, set element’s name to value.
-        else
-            set_slottable_name(*value);
+        else {
+            auto value_utf8 = value->to_utf8_but_should_be_ported_to_utf16();
+            set_slottable_name(MUST(FlyString::from_utf8(value_utf8.bytes_as_string_view())));
+        }
 
         // 6. If element is assigned, then run assign slottables for element’s assigned slot.
         if (auto assigned_slot = assigned_slot_internal())
@@ -4631,25 +4648,28 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
         return;
     }
 
-    auto value_or_empty = value.value_or(String {});
+    auto value_or_empty = value.value_or({});
+    auto value_or_empty_utf8 = value_or_empty.to_utf8_but_should_be_ported_to_utf16();
 
     if (local_name == HTML::AttributeNames::id) {
         if (value_or_empty.is_empty())
             m_id = {};
         else
-            m_id = value_or_empty;
+            m_id = MUST(FlyString::from_utf8(value_or_empty_utf8.bytes_as_string_view()));
 
         if (is_connected()) {
             Optional<FlyString> old_value_fly_string;
-            if (old_value.has_value())
-                old_value_fly_string = *old_value;
+            if (old_value.has_value()) {
+                auto old_value_utf8 = old_value->to_utf8_but_should_be_ported_to_utf16();
+                old_value_fly_string = MUST(FlyString::from_utf8(old_value_utf8.bytes_as_string_view()));
+            }
             document().element_id_changed({}, *this, old_value_fly_string);
         }
     } else if (local_name == HTML::AttributeNames::name) {
         if (value_or_empty.is_empty())
             m_name = {};
         else
-            m_name = value_or_empty;
+            m_name = MUST(FlyString::from_utf8(value_or_empty_utf8.bytes_as_string_view()));
 
         if (is_connected())
             document().element_name_changed({}, *this);
@@ -4657,7 +4677,7 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
         if (value_or_empty.is_empty()) {
             m_classes.clear();
         } else {
-            auto new_classes = value_or_empty.bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
+            auto new_classes = value_or_empty_utf8.bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
             m_classes.clear();
             m_classes.ensure_capacity(new_classes.size());
             for (auto& new_class : new_classes) {
@@ -4672,7 +4692,7 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
             return;
         if (!m_inline_style)
             m_inline_style = CSS::CSSStyleProperties::create_element_inline_style({ *this }, {}, {});
-        m_inline_style->set_declarations_from_text(value.value_or(""_string));
+        m_inline_style->set_declarations_from_text(value.value_or({}).to_utf8_but_should_be_ported_to_utf16());
         prefetch_inline_style_image_resources(*m_inline_style, document());
         set_needs_style_update(true);
     } else if (local_name == HTML::AttributeNames::dir || local_name == HTML::AttributeNames::lang) {
@@ -4695,7 +4715,7 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
     } else if (local_name == HTML::AttributeNames::part) {
         m_parts.clear();
         if (!value_or_empty.is_empty()) {
-            auto new_parts = value_or_empty.bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
+            auto new_parts = value_or_empty_utf8.bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
             m_parts.clear();
             m_parts.ensure_capacity(new_parts.size());
             for (auto& new_part : new_parts)
@@ -4824,14 +4844,14 @@ Optional<String> Element::lang() const
         //      Use the value of that attribute.
         auto maybe_xml_lang = get_attribute_ns(Namespace::XML, HTML::AttributeNames::lang);
         if (maybe_xml_lang.has_value())
-            return maybe_xml_lang.release_value();
+            return maybe_xml_lang.release_value().to_utf8_but_should_be_ported_to_utf16();
 
         // 2. If the node is an HTML element or an element in the SVG namespace, and it has a lang in no namespace attribute set
         //      Use the value of that attribute.
         if (is_html_element() || namespace_uri() == Namespace::SVG) {
             auto maybe_lang = get_attribute(HTML::AttributeNames::lang);
             if (maybe_lang.has_value())
-                return maybe_lang.release_value();
+                return maybe_lang.release_value().to_utf8_but_should_be_ported_to_utf16();
         }
 
         // 3. If the node's parent is a shadow root

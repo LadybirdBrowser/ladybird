@@ -119,7 +119,7 @@ private:
     virtual bool is_supported_property_name(FlyString const&) const override;
     virtual Vector<FlyString> supported_property_names() const override;
 
-    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
+    virtual void attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_) override;
 
     ErrorOr<String> pick_an_encoding() const;
 

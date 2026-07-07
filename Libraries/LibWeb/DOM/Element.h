@@ -128,11 +128,11 @@ public:
     bool has_attribute_ns(Optional<FlyString> const& namespace_, FlyString const& name) const;
     bool has_attributes() const;
 
-    Optional<String> attribute(FlyString const& name) const { return get_attribute(name); }
+    Optional<Utf16String> attribute(FlyString const& name) const { return get_attribute(name); }
 
-    Optional<String> get_attribute(FlyString const& name) const;
-    Optional<String> get_attribute_ns(Optional<FlyString> const& namespace_, FlyString const& name) const;
-    String get_attribute_value(FlyString const& local_name, Optional<FlyString> const& namespace_ = {}) const;
+    Optional<Utf16String> get_attribute(FlyString const& name) const;
+    Optional<Utf16String> get_attribute_ns(Optional<FlyString> const& namespace_, FlyString const& name) const;
+    Utf16String get_attribute_value(FlyString const& local_name, Optional<FlyString> const& namespace_ = {}) const;
 
     String get_an_elements_target(Optional<String> target = {}) const;
     HTML::TokenizedFeature::NoOpener get_an_elements_noopener(URL::URL const& url, StringView target) const;
@@ -148,11 +148,21 @@ public:
     WebIDL::ExceptionOr<void> set_attribute_for_bindings(FlyString qualified_name, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, String> const& value);
 
     WebIDL::ExceptionOr<void> set_attribute_ns_for_bindings(Optional<FlyString> const& namespace_, FlyString const& qualified_name, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> const& value);
-    void set_attribute_value(FlyString const& local_name, String const& value, Optional<FlyString> const& prefix = {}, Optional<FlyString> const& namespace_ = {});
+    void set_attribute_value(FlyString const& local_name, Utf16String const& value, Optional<FlyString> const& prefix = {}, Optional<FlyString> const& namespace_ = {});
+    void set_attribute_value(FlyString const& local_name, String const& value, Optional<FlyString> const& prefix = {}, Optional<FlyString> const& namespace_ = {})
+    {
+        set_attribute_value(local_name, Utf16String::from_utf8(value), prefix, namespace_);
+    }
+    void set_attribute_value(FlyString const& local_name, StringView value, Optional<FlyString> const& prefix = {}, Optional<FlyString> const& namespace_ = {})
+    {
+        set_attribute_value(local_name, Utf16String::from_utf8(value), prefix, namespace_);
+    }
     WebIDL::ExceptionOr<GC::Ptr<Attr>> set_attribute_node_for_bindings(Attr&);
     WebIDL::ExceptionOr<GC::Ptr<Attr>> set_attribute_node_ns_for_bindings(Attr&);
 
-    void append_attribute(FlyString const& name, String const& value);
+    void append_attribute(FlyString const& name, Utf16String const& value);
+    void append_attribute(FlyString const& name, String const& value) { append_attribute(name, Utf16String::from_utf8(value)); }
+    void append_attribute(FlyString const& name, StringView value) { append_attribute(name, Utf16String::from_utf8(value)); }
     void append_attribute(Attr&);
     void remove_attribute(FlyString const& name);
     void remove_attribute_ns(Optional<FlyString> const& namespace_, FlyString const& name);
@@ -192,7 +202,7 @@ public:
     void for_each_attribute(Function<void(Attr&)>);
     void for_each_attribute(Function<void(Attr const&)>) const;
 
-    void for_each_attribute(Function<void(FlyString const&, String const&)>) const;
+    void for_each_attribute(Function<void(FlyString const&, Utf16String const&)>) const;
 
     bool has_class(FlyString const&, CaseSensitivity = CaseSensitivity::CaseSensitive) const;
     Vector<FlyString> const& class_names() const { return m_classes; }
@@ -203,7 +213,7 @@ public:
     virtual bool is_presentational_hint(FlyString const&) const { return false; }
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const;
 
-    void run_attribute_change_steps(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_);
+    void run_attribute_change_steps(FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_);
 
     CSS::RequiredInvalidationAfterStyleChange recompute_style(bool& did_change_custom_properties);
     CSS::RequiredInvalidationAfterStyleChange recompute_inherited_style(ScheduleAnimationUpdate = ScheduleAnimationUpdate::No);
@@ -667,7 +677,7 @@ protected:
     virtual i32 default_tab_index_value() const;
 
     // https://dom.spec.whatwg.org/#concept-element-attributes-change-ext
-    MUST_UPCALL virtual void attribute_changed(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_);
+    MUST_UPCALL virtual void attribute_changed(FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_);
 
     virtual void computed_properties_changed() { }
 

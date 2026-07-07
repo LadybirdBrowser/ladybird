@@ -76,7 +76,12 @@ class WEB_API HTMLElement
 public:
     virtual ~HTMLElement() override;
 
-    Optional<String> title() const { return attribute(HTML::AttributeNames::title); }
+    Optional<String> title() const
+    {
+        return attribute(HTML::AttributeNames::title).map([](auto const& value) {
+            return value.to_utf8_but_should_be_ported_to_utf16();
+        });
+    }
 
     bool translate() const;
     void set_translate(bool);
@@ -195,7 +200,7 @@ protected:
 
     virtual void initialize(JS::Realm&) override;
 
-    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
+    virtual void attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_) override;
     virtual WebIDL::ExceptionOr<void> cloned(DOM::Node&, bool) const override;
     virtual void inserted() override;
 
@@ -225,7 +230,7 @@ private:
 
     void queue_a_popover_toggle_event_task(String old_state, String new_state, GC::Ptr<HTMLElement> source);
 
-    static Optional<String> popover_value_to_state(Optional<String> value);
+    static Optional<String> popover_value_to_state(Optional<Utf16String> const& value);
     void hide_popover_stack_until(Vector<GC::Ref<HTMLElement>> const& popover_list, FocusPreviousElement focus_previous_element, FireEvents fire_events);
     GC::Ptr<HTMLElement> nearest_inclusive_open_popover();
     GC::Ptr<HTMLElement> nearest_inclusive_target_popover();

@@ -59,7 +59,7 @@ void SVGFilterElement::visit_edges(Cell::Visitor& visitor)
     SVGURIReferenceMixin::visit_edges(visitor);
 }
 
-void SVGFilterElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void SVGFilterElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
@@ -216,8 +216,8 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
             auto in_attr = colormatrix_primitive->in1()->base_val();
             auto input = resolve_input_in_color_space(in_attr, operating_space);
 
-            auto type_value = colormatrix_primitive->attribute(AttributeNames::type).value_or(String {});
-            auto values_value = colormatrix_primitive->attribute(AttributeNames::values).value_or(String {});
+            auto type_value = colormatrix_primitive->attribute(AttributeNames::type).value_or({}).to_utf8_but_should_be_ported_to_utf16();
+            auto values_value = colormatrix_primitive->attribute(AttributeNames::values).value_or({}).to_utf8_but_should_be_ported_to_utf16();
 
             // Default type is "matrix" per spec.
             if (type_value.is_empty() || type_value.equals_ignoring_ascii_case("matrix"sv)) {

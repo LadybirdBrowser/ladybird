@@ -34,14 +34,14 @@ RefPtr<Layout::Node> SVGMaskElement::create_layout_node(CSS::ComputedProperties 
     return nullptr;
 }
 
-void SVGMaskElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void SVGMaskElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
     if (name == AttributeNames::maskUnits) {
-        m_mask_units = AttributeParser::parse_units(value.value_or(String {}));
+        m_mask_units = AttributeParser::parse_units(value.value_or({}));
     } else if (name == AttributeNames::maskContentUnits) {
-        m_mask_content_units = AttributeParser::parse_units(value.value_or(String {}));
+        m_mask_content_units = AttributeParser::parse_units(value.value_or({}));
     }
 }
 

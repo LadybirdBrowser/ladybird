@@ -129,7 +129,8 @@ WebIDL::UnsignedLong HTMLTableCellElement::col_span() const
     if (!col_span_attribute.has_value())
         return 1;
 
-    auto optional_value_digits = Web::HTML::parse_non_negative_integer_digits(*col_span_attribute);
+    auto col_span_attribute_utf8 = col_span_attribute->to_utf8_but_should_be_ported_to_utf16();
+    auto optional_value_digits = Web::HTML::parse_non_negative_integer_digits(col_span_attribute_utf8.bytes_as_string_view());
 
     if (!optional_value_digits.has_value())
         return 1;
@@ -169,7 +170,8 @@ WebIDL::UnsignedLong HTMLTableCellElement::row_span() const
     if (!row_span_attribute.has_value())
         return 1;
 
-    auto optional_value_digits = Web::HTML::parse_non_negative_integer_digits(*row_span_attribute);
+    auto row_span_attribute_utf8 = row_span_attribute->to_utf8_but_should_be_ported_to_utf16();
+    auto optional_value_digits = Web::HTML::parse_non_negative_integer_digits(row_span_attribute_utf8.bytes_as_string_view());
     if (!optional_value_digits.has_value())
         return 1;
 
@@ -217,10 +219,10 @@ Optional<ARIA::Role> HTMLTableCellElement::default_role() const
             // tests at https://wpt.fyi/results/html-aam/table-roles.html require doing these ancestor checks — and
             // implementing them causes the behavior to match that of other engines.
             // https://w3c.github.io/html-aam/#el-th-columnheader
-            if (get_attribute(HTML::AttributeNames::scope) == "columnheader" || ancestor->local_name() == TagNames::thead)
+            if (get_attribute(HTML::AttributeNames::scope) == "columnheader"sv || ancestor->local_name() == TagNames::thead)
                 return ARIA::Role::columnheader;
             // https://w3c.github.io/html-aam/#el-th-rowheader
-            if (get_attribute(HTML::AttributeNames::scope) == "rowheader" || ancestor->local_name() == TagNames::tbody)
+            if (get_attribute(HTML::AttributeNames::scope) == "rowheader"sv || ancestor->local_name() == TagNames::tbody)
                 return ARIA::Role::rowheader;
         }
     }

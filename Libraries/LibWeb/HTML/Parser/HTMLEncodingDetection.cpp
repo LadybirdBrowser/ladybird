@@ -344,7 +344,7 @@ Optional<ByteString> run_prescan_byte_stream_algorithm(DOM::Document& document, 
                 //    * If the attribute's name is "http-equiv"
                 if (attribute_name == AttributeNames::http_equiv) {
                     // If the attribute's value is "content-type", then set got pragma to true.
-                    got_pragma = attribute->value() == "content-type";
+                    got_pragma = attribute->value() == "content-type"sv;
                 }
 
                 //    * If the attribute's name is "content"
@@ -363,7 +363,8 @@ Optional<ByteString> run_prescan_byte_stream_algorithm(DOM::Document& document, 
                 else if (attribute_name == AttributeNames::charset) {
                     // Let charset be the result of getting an encoding from the attribute's value, and set need pragma
                     // to false.
-                    auto maybe_charset = TextCodec::get_standardized_encoding(attribute->value());
+                    auto charset_value = attribute->value().to_utf8_but_should_be_ported_to_utf16();
+                    auto maybe_charset = TextCodec::get_standardized_encoding(charset_value);
                     if (maybe_charset.has_value()) {
                         charset = Optional<ByteString> { maybe_charset };
                         need_pragma = { false };

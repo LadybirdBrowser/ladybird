@@ -78,7 +78,7 @@ public:
     TypeAttributeState type_state() const { return m_type; }
     void set_type(String const&);
 
-    String default_value() const { return get_attribute_value(HTML::AttributeNames::value); }
+    String default_value() const { return get_attribute_value(HTML::AttributeNames::value).to_utf8_but_should_be_ported_to_utf16(); }
 
     Utf16String value() const;
     virtual Utf16String form_value() const override { return value(); }
@@ -193,7 +193,7 @@ public:
     virtual void clear_algorithm() override;
 
     virtual void form_associated_element_was_inserted() override;
-    virtual void form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
+    virtual void form_associated_element_attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_) override;
 
     virtual WebIDL::ExceptionOr<void> cloned(Node&, bool) const override;
 

@@ -64,7 +64,7 @@ CSS::SizeWithAspectRatio ImageBox::natural_size() const
         };
     }
 
-    String alt;
+    Utf16String alt;
     if (auto element = dom_node())
         alt = element->get_attribute_value(HTML::AttributeNames::alt);
     if (alt.is_empty())
@@ -72,7 +72,7 @@ CSS::SizeWithAspectRatio ImageBox::natural_size() const
 
     auto font = Platform::FontPlugin::the().default_font(12);
     CSSPixels alt_text_width = m_cached_alt_text_width.ensure([&] {
-        return CSSPixels::nearest_value_for(font->width(Utf16String::from_utf8(alt)));
+        return CSSPixels::nearest_value_for(font->width(alt));
     });
     auto width = alt_text_width + 16;
     auto height = CSSPixels::nearest_value_for(font->pixel_size()) + 16;

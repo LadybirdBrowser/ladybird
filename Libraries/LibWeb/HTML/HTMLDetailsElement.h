@@ -33,7 +33,7 @@ private:
 
     virtual void inserted() override;
     virtual void children_changed(ChildrenChangedMetadata const&) override;
-    virtual void attribute_changed(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
+    virtual void attribute_changed(FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_) override;
 
     void queue_a_details_toggle_event_task(String old_state, String new_state);
     void ensure_details_exclusivity_by_closing_other_elements_if_needed();

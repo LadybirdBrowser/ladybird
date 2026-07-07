@@ -1543,7 +1543,7 @@ void Document::respond_to_base_url_changes(URL::URL const& old_document_url, URL
         if (!element || !element->matches_link_pseudo_class())
             return TraversalDecision::Continue;
 
-        auto href = element->get_attribute_value(HTML::AttributeNames::href);
+        auto href = element->get_attribute_value(HTML::AttributeNames::href).to_utf8_but_should_be_ported_to_utf16();
         auto old_target_url = DOMURL::parse(href, old_base_url, encoding);
         auto new_target_url = base_url_unchanged ? old_target_url : DOMURL::parse(href, new_base_url, encoding);
 
@@ -1633,6 +1633,12 @@ Optional<URL::URL> Document::encoding_parse_url(StringView url) const
     return DOMURL::parse(url, base_url, encoding);
 }
 
+Optional<URL::URL> Document::encoding_parse_url(Utf16View url) const
+{
+    auto url_utf8 = url.to_utf8_but_should_be_ported_to_utf16();
+    return encoding_parse_url(url_utf8.bytes_as_string_view());
+}
+
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#encoding-parsing-and-serializing-a-url
 Optional<String> Document::encoding_parse_and_serialize_url(StringView url) const
 {
@@ -1645,6 +1651,12 @@ Optional<String> Document::encoding_parse_and_serialize_url(StringView url) cons
 
     // 3. Return the result of applying the URL serializer to url.
     return parsed_url->serialize();
+}
+
+Optional<String> Document::encoding_parse_and_serialize_url(Utf16String const& url) const
+{
+    auto url_utf8 = url.to_utf8_but_should_be_ported_to_utf16();
+    return encoding_parse_and_serialize_url(url_utf8.bytes_as_string_view());
 }
 
 void Document::invalidate_layout_tree(InvalidateLayoutTreeReason reason)
@@ -2220,7 +2232,8 @@ void Document::obtain_theme_color()
             }
 
             // 2. Let value be the result of stripping leading and trailing ASCII whitespace from the value of element's content attribute.
-            auto value = content->bytes_as_string_view().trim(Infra::ASCII_WHITESPACE);
+            auto content_utf8 = content->to_utf8_but_should_be_ported_to_utf16();
+            auto value = content_utf8.bytes_as_string_view().trim(Infra::ASCII_WHITESPACE);
 
             // 3. Let color be the result of parsing value.
             auto css_value = parse_css_value(context, value, CSS::PropertyID::Color);
@@ -3985,7 +3998,7 @@ bool Document::is_cookie_averse() const
 String Document::fg_color() const
 {
     if (auto* body_element = body(); body_element && !is<HTML::HTMLFrameSetElement>(*body_element))
-        return body_element->get_attribute_value(HTML::AttributeNames::text);
+        return body_element->get_attribute_value(HTML::AttributeNames::text).to_utf8_but_should_be_ported_to_utf16();
     return ""_string;
 }
 
@@ -3998,7 +4011,7 @@ void Document::set_fg_color(String const& value)
 String Document::link_color() const
 {
     if (auto* body_element = body(); body_element && !is<HTML::HTMLFrameSetElement>(*body_element))
-        return body_element->get_attribute_value(HTML::AttributeNames::link);
+        return body_element->get_attribute_value(HTML::AttributeNames::link).to_utf8_but_should_be_ported_to_utf16();
     return ""_string;
 }
 
@@ -4011,7 +4024,7 @@ void Document::set_link_color(String const& value)
 String Document::vlink_color() const
 {
     if (auto* body_element = body(); body_element && !is<HTML::HTMLFrameSetElement>(*body_element))
-        return body_element->get_attribute_value(HTML::AttributeNames::vlink);
+        return body_element->get_attribute_value(HTML::AttributeNames::vlink).to_utf8_but_should_be_ported_to_utf16();
     return ""_string;
 }
 
@@ -4024,7 +4037,7 @@ void Document::set_vlink_color(String const& value)
 String Document::alink_color() const
 {
     if (auto* body_element = body(); body_element && !is<HTML::HTMLFrameSetElement>(*body_element))
-        return body_element->get_attribute_value(HTML::AttributeNames::alink);
+        return body_element->get_attribute_value(HTML::AttributeNames::alink).to_utf8_but_should_be_ported_to_utf16();
     return ""_string;
 }
 
@@ -4037,7 +4050,7 @@ void Document::set_alink_color(String const& value)
 String Document::bg_color() const
 {
     if (auto* body_element = body(); body_element && !is<HTML::HTMLFrameSetElement>(*body_element))
-        return body_element->get_attribute_value(HTML::AttributeNames::bgcolor);
+        return body_element->get_attribute_value(HTML::AttributeNames::bgcolor).to_utf8_but_should_be_ported_to_utf16();
     return ""_string;
 }
 

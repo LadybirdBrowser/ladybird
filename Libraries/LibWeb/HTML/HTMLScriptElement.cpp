@@ -64,14 +64,14 @@ void HTMLScriptElement::adopted_from(DOM::Document& old_document)
         m_document_load_event_delayer.emplace(document());
 }
 
-void HTMLScriptElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void HTMLScriptElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
     if (name == HTML::AttributeNames::crossorigin) {
         m_crossorigin = cors_setting_attribute_from_keyword(value);
     } else if (name == HTML::AttributeNames::referrerpolicy) {
-        m_referrer_policy = ReferrerPolicy::from_string(value.value_or(""_string)).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
+        m_referrer_policy = ReferrerPolicy::from_string(value.value_or({})).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
     } else if (name == HTML::AttributeNames::src) {
         // https://html.spec.whatwg.org/multipage/scripting.html#script-processing-model:concept-element-attributes-change-ext
         // 1. If namespace is not null, then return.
@@ -166,7 +166,7 @@ void HTMLScriptElement::execute_script()
             document->set_current_script({}, nullptr);
 
         if (m_from_an_external_file)
-            dbgln_if(HTML_SCRIPT_DEBUG, "HTMLScriptElement: Running script {}", attribute(HTML::AttributeNames::src).value_or(String {}));
+            dbgln_if(HTML_SCRIPT_DEBUG, "HTMLScriptElement: Running script {}", attribute(HTML::AttributeNames::src).value_or({}).to_utf8_but_should_be_ported_to_utf16());
         else
             dbgln_if(HTML_SCRIPT_DEBUG, "HTMLScriptElement: Running inline script");
 
@@ -253,12 +253,12 @@ void HTMLScriptElement::prepare_script()
     // Otherwise, if el has a type attribute,
     else if (maybe_type_attribute.has_value()) {
         // then let the script block's type string be the value of that attribute with leading and trailing ASCII whitespace stripped.
-        script_block_type = MUST(maybe_type_attribute->trim(Infra::ASCII_WHITESPACE));
+        script_block_type = maybe_type_attribute->trim(Infra::ASCII_WHITESPACE).to_utf8_but_should_be_ported_to_utf16();
     }
     // Otherwise, el has a non-empty language attribute;
     else if (maybe_language_attribute.has_value() && !maybe_language_attribute->is_empty()) {
         // let the script block's type string be the concatenation of "text/" and the value of el's language attribute.
-        script_block_type = MUST(String::formatted("text/{}", maybe_language_attribute.value()));
+        script_block_type = MUST(String::formatted("text/{}", maybe_language_attribute->to_utf8_but_should_be_ported_to_utf16()));
     }
 
     // 10. If the script block's type string is a JavaScript MIME type essence match,
@@ -332,18 +332,18 @@ void HTMLScriptElement::prepare_script()
         auto event = get_attribute_value(HTML::AttributeNames::event);
 
         // 3. Strip leading and trailing ASCII whitespace from event and for.
-        for_ = MUST(for_.trim(Infra::ASCII_WHITESPACE));
-        event = MUST(event.trim(Infra::ASCII_WHITESPACE));
+        for_ = for_.trim(Infra::ASCII_WHITESPACE);
+        event = event.trim(Infra::ASCII_WHITESPACE);
 
         // 4. If for is not an ASCII case-insensitive match for the string "window", then return.
-        if (!for_.equals_ignoring_ascii_case("window"sv)) {
+        if (!for_.equals_ignoring_ascii_case("window"_utf16)) {
             dbgln("HTMLScriptElement: Refusing to run classic script because the provided 'for' attribute is not equal to 'window'");
             return;
         }
 
         // 5. If event is not an ASCII case-insensitive match for either the string "onload" or the string "onload()", then return.
-        if (!event.equals_ignoring_ascii_case("onload"sv)
-            && !event.equals_ignoring_ascii_case("onload()"sv)) {
+        if (!event.equals_ignoring_ascii_case("onload"_utf16)
+            && !event.equals_ignoring_ascii_case("onload()"_utf16)) {
             dbgln("HTMLScriptElement: Refusing to run classic script because the provided 'event' attribute is not equal to 'onload' or 'onload()'");
             return;
         }
@@ -354,7 +354,8 @@ void HTMLScriptElement::prepare_script()
     Optional<String> encoding;
 
     if (has_attribute(HTML::AttributeNames::charset)) {
-        auto charset = TextCodec::get_standardized_encoding(get_attribute_value(HTML::AttributeNames::charset));
+        auto charset_value = get_attribute_value(HTML::AttributeNames::charset).to_utf8_but_should_be_ported_to_utf16();
+        auto charset = TextCodec::get_standardized_encoding(charset_value);
         if (charset.has_value())
             encoding = String::from_utf8(*charset).release_value_but_fixme_should_propagate_errors();
     }
@@ -378,7 +379,7 @@ void HTMLScriptElement::prepare_script()
     //     Otherwise, let integrity metadata be the empty string.
     String integrity_metadata;
     if (auto maybe_integrity = attribute(HTML::AttributeNames::integrity); maybe_integrity.has_value()) {
-        integrity_metadata = *maybe_integrity;
+        integrity_metadata = maybe_integrity->to_utf8_but_should_be_ported_to_utf16();
     }
 
     // 29. Let referrer policy be the current state of el's referrerpolicy content attribute.
@@ -436,7 +437,7 @@ void HTMLScriptElement::prepare_script()
         m_from_an_external_file = true;
 
         // 5. Let url be the result of encoding-parsing a URL given src, relative to el's node document.
-        auto url = document().encoding_parse_url(src);
+        auto url = document().encoding_parse_url(src.to_utf8_but_should_be_ported_to_utf16());
 
         // 6. If url is failure, then queue an element task on the DOM manipulation task source given el to fire an event named error at el, and return.
         if (!url.has_value()) {
@@ -720,7 +721,7 @@ TrustedTypes::TrustedScriptURLOrString HTMLScriptElement::src() const
     auto const& raw = *maybe_src;
 
     // 4. Let urlString be the result of encoding-parsing-and-serializing a URL given contentAttributeValue, relative to element's node document.
-    auto url_string = document().encoding_parse_and_serialize_url(raw);
+    auto url_string = document().encoding_parse_and_serialize_url(raw.to_utf8_but_should_be_ported_to_utf16());
 
     // 5. If urlString is not failure, then return urlString.
     if (url_string.has_value())

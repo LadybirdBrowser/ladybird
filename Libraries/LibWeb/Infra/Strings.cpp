@@ -157,6 +157,19 @@ ErrorOr<String> convert_to_scalar_value_string(StringView string)
     return scalar_value_builder.to_string();
 }
 
+// https://infra.spec.whatwg.org/#scalar-value-string
+ErrorOr<Utf16String> convert_to_scalar_value_string(Utf16View string)
+{
+    // To convert a string into a scalar value string, replace any surrogates with U+FFFD.
+    Utf16StringBuilder scalar_value_builder;
+    for (u32 code_point : string) {
+        if (is_unicode_surrogate(code_point))
+            code_point = 0xFFFD;
+        scalar_value_builder.append_code_point(code_point);
+    }
+    return scalar_value_builder.to_string();
+}
+
 // https://infra.spec.whatwg.org/#code-unit-less-than
 bool code_unit_less_than(StringView a, StringView b)
 {

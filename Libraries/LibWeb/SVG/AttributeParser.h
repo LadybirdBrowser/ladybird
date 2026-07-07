@@ -142,15 +142,20 @@ public:
     static Optional<float> parse_coordinate(StringView input);
     static Optional<float> parse_length(StringView input);
     static Optional<i32> parse_integer(StringView input);
+    static Optional<i32> parse_integer(Utf16View input);
     static Optional<NumberPercentage> parse_number_percentage(StringView input);
+    static Optional<NumberPercentage> parse_number_percentage(Utf16View input);
     static Optional<float> parse_positive_length(StringView input);
     static Vector<Gfx::FloatPoint> parse_points(StringView input);
     static Path parse_path_data(StringView input);
+    static Path parse_path_data(Utf16View input);
     static Optional<Vector<Transform>> parse_transform(StringView input);
     static Optional<PreserveAspectRatio> parse_preserve_aspect_ratio(StringView input);
     static Optional<SVGUnits> parse_units(StringView input);
+    static Optional<SVGUnits> parse_units(Utf16View input);
     static Optional<SpreadMethod> parse_spread_method(StringView input);
     static Vector<float> parse_table_values(StringView);
+    static Vector<float> parse_table_values(Utf16View);
     static Optional<ViewBox> parse_viewbox(StringView input);
 
 private:

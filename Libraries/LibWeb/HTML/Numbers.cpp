@@ -67,6 +67,12 @@ Optional<i32> parse_integer(StringView string)
     return optional_digits->to_number<i32>(TrimWhitespace::No);
 }
 
+Optional<i32> parse_integer(Utf16View string)
+{
+    auto string_utf8 = string.to_utf8_but_should_be_ported_to_utf16();
+    return parse_integer(string_utf8.bytes_as_string_view());
+}
+
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-non-negative-integers
 Optional<StringView> parse_non_negative_integer_digits(StringView string)
 {
@@ -103,6 +109,13 @@ Optional<u32> parse_non_negative_integer(StringView string)
         return {};
 
     return static_cast<u32>(optional_value.value());
+}
+
+// https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-non-negative-integers
+Optional<u32> parse_non_negative_integer(Utf16View string)
+{
+    auto string_utf8 = string.to_utf8_but_should_be_ported_to_utf16();
+    return parse_non_negative_integer(string_utf8.bytes_as_string_view());
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-floating-point-number-values
@@ -308,12 +321,10 @@ conversion:
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-floating-point-number-values
-Optional<double> parse_floating_point_number(Utf16String const& string)
+Optional<double> parse_floating_point_number(Utf16View string)
 {
-    // FIXME: Implement a UTF-16 GenericLexer.
-    if (!string.has_ascii_storage())
-        return {};
-    return parse_floating_point_number(string.ascii_view());
+    auto string_utf8 = string.to_utf8_but_should_be_ported_to_utf16();
+    return parse_floating_point_number(string_utf8.bytes_as_string_view());
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-floating-point-number
@@ -350,12 +361,10 @@ bool is_valid_floating_point_number(StringView string)
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-floating-point-number
-bool is_valid_floating_point_number(Utf16String const& string)
+bool is_valid_floating_point_number(Utf16View string)
 {
-    // FIXME: Implement a UTF-16 GenericLexer.
-    if (!string.has_ascii_storage())
-        return false;
-    return is_valid_floating_point_number(string.ascii_view());
+    auto string_utf8 = string.to_utf8_but_should_be_ported_to_utf16();
+    return is_valid_floating_point_number(string_utf8.bytes_as_string_view());
 }
 
 WebIDL::ExceptionOr<String> convert_non_negative_integer_to_string(JS::Realm& realm, WebIDL::Long value)

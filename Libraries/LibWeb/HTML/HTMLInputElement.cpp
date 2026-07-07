@@ -287,7 +287,7 @@ Optional<regex::ECMAScriptRegex> HTMLInputElement::compiled_pattern_regular_expr
         return {};
 
     // 2. Let pattern be the value of the pattern attribute of the element.
-    auto pattern = Utf16String::from_utf8(maybe_pattern.release_value());
+    auto pattern = maybe_pattern.release_value();
 
     // 3. Let regexpCompletion be RegExpCreate(pattern, "v").
     regex::ECMAScriptCompileFlags compile_flags {};
@@ -344,7 +344,7 @@ FileFilter HTMLInputElement::parse_accept_attribute() const
 
     // If specified, the attribute must consist of a set of comma-separated tokens, each of which must be an ASCII
     // case-insensitive match for one of the following:
-    auto accept = get_attribute_value(HTML::AttributeNames::accept);
+    auto accept = get_attribute_value(HTML::AttributeNames::accept).to_utf8_but_should_be_ported_to_utf16();
 
     accept.bytes_as_string_view().for_each_split_view(',', SplitBehavior::Nothing, [&](StringView value) {
         // The string "audio/*"
@@ -695,14 +695,14 @@ Utf16String HTMLInputElement::value() const
     case ValueAttributeMode::Default:
         // On getting, if the element has a value content attribute, return that attribute's value; otherwise, return
         // the empty string.
-        return Utf16String::from_utf8(get_attribute_value(AttributeNames::value));
+        return get_attribute_value(AttributeNames::value);
 
     // https://html.spec.whatwg.org/multipage/input.html#dom-input-value-default-on
     case ValueAttributeMode::DefaultOn:
         // On getting, if the element has a value content attribute, return that attribute's value; otherwise, return
         // the string "on".
         if (auto value = get_attribute(AttributeNames::value); value.has_value())
-            return Utf16String::from_utf8(*value);
+            return value.release_value();
         return "on"_utf16;
 
     // https://html.spec.whatwg.org/multipage/input.html#dom-input-value-filename
@@ -723,7 +723,7 @@ Optional<String> HTMLInputElement::optional_value() const
     // https://html.spec.whatwg.org/multipage/input.html#submit-button-state-(type=submit):concept-fe-optional-value
     case TypeAttributeState::SubmitButton:
         // The element's optional value is the value of the element's value attribute, if there is one; otherwise null.
-        return get_attribute(AttributeNames::value);
+        return get_attribute(AttributeNames::value).map([](auto const& value) { return value.to_utf8_but_should_be_ported_to_utf16(); });
     default:
         VERIFY_NOT_REACHED();
     }
@@ -914,7 +914,7 @@ void HTMLInputElement::update_placeholder_visibility()
 
 Utf16String HTMLInputElement::button_label() const
 {
-    auto label = get_attribute(HTML::AttributeNames::value).map([](auto const& label) { return Utf16String::from_utf8(label); });
+    auto label = get_attribute(HTML::AttributeNames::value);
 
     if (!label.has_value()) {
         if (type_state() == TypeAttributeState::ResetButton) {
@@ -1040,12 +1040,12 @@ String HTMLInputElement::placeholder() const
     auto placeholder = *maybe_placeholder;
 
     // The attribute, if specified, must have a value that contains no U+000A LINE FEED (LF) or U+000D CARRIAGE RETURN (CR) characters.
-    StringBuilder builder;
-    for (auto c : placeholder.bytes_as_string_view()) {
+    Utf16StringBuilder builder;
+    for (auto c : placeholder) {
         if (c != '\r' && c != '\n')
-            builder.append(c);
+            builder.append_code_point(c);
     }
-    return MUST(builder.to_string());
+    return builder.to_string().to_utf8_but_should_be_ported_to_utf16();
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#attr-input-placeholder
@@ -1549,7 +1549,7 @@ void HTMLInputElement::did_lose_focus()
     commit_pending_changes();
 }
 
-void HTMLInputElement::form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void HTMLInputElement::form_associated_element_attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     PopoverTargetAttributes::associated_attribute_changed(name, value, namespace_);
 
@@ -1563,15 +1563,18 @@ void HTMLInputElement::form_associated_element_attribute_changed(FlyString const
             m_dirty_checkedness = false;
         }
     } else if (name == HTML::AttributeNames::type) {
-        auto new_type_attribute_state = parse_type_attribute(value.value_or(String {}));
+        auto new_type_attribute_state = parse_type_attribute(value.value_or({}).to_utf8_but_should_be_ported_to_utf16());
         type_attribute_changed(m_type, new_type_attribute_state);
 
         // https://html.spec.whatwg.org/multipage/input.html#image-button-state-(type=image):the-input-element-4
         // the input element's type attribute is changed back to the Image Button state, and the src attribute is present,
         // and its value has changed since the last time the type attribute was in the Image Button state
         if (type_state() == TypeAttributeState::ImageButton) {
-            if (auto src = attribute(AttributeNames::src); src.has_value() && src != m_last_src_value)
-                handle_src_attribute(*src).release_value_but_fixme_should_propagate_errors();
+            if (auto src = attribute(AttributeNames::src); src.has_value()) {
+                auto src_value = src->to_utf8_but_should_be_ported_to_utf16();
+                if (src_value != m_last_src_value)
+                    handle_src_attribute(src_value).release_value_but_fixme_should_propagate_errors();
+            }
         }
 
     } else if (name == HTML::AttributeNames::value) {
@@ -1579,7 +1582,7 @@ void HTMLInputElement::form_associated_element_attribute_changed(FlyString const
             auto old_value = move(m_value);
 
             if (value.has_value())
-                m_value = value_sanitization_algorithm(Utf16String::from_utf8(*value));
+                m_value = value_sanitization_algorithm(*value);
             else
                 m_value = {};
 
@@ -1597,7 +1600,7 @@ void HTMLInputElement::form_associated_element_attribute_changed(FlyString const
             update_placeholder_visibility();
         }
     } else if (name == HTML::AttributeNames::src) {
-        handle_src_attribute(value.value_or({})).release_value_but_fixme_should_propagate_errors();
+        handle_src_attribute(value.value_or({}).to_utf8_but_should_be_ported_to_utf16()).release_value_but_fixme_should_propagate_errors();
     } else if (name == HTML::AttributeNames::alt) {
         if (unsafe_layout_node() && type_state() == TypeAttributeState::ImageButton)
             did_update_alt_text(as<Layout::ImageBox>(*unsafe_layout_node()));
@@ -1643,7 +1646,7 @@ void HTMLInputElement::type_attribute_changed(TypeAttributeState old_state, Type
     //    then set the value of the element to the value of the value content attribute, if there is one, or the empty string
     //    otherwise, and then set the control's dirty value flag to false.
     else if (old_value_attribute_mode != ValueAttributeMode::Value && new_value_attribute_mode == ValueAttributeMode::Value) {
-        m_value = Utf16String::from_utf8(attribute(HTML::AttributeNames::value).value_or({}));
+        m_value = attribute(HTML::AttributeNames::value).value_or({});
         m_dirty_value = false;
     }
 
@@ -2005,7 +2008,7 @@ void HTMLInputElement::reset_algorithm()
 
     // set the value of the element to the value of the value content attribute, if there is one, or the empty string otherwise,
     auto old_value = move(m_value);
-    m_value = Utf16String::from_utf8(get_attribute_value(AttributeNames::value));
+    m_value = get_attribute_value(AttributeNames::value);
 
     // set the checkedness of the element to true if the element has a checked content attribute and false if it does not,
     m_checked = has_attribute(AttributeNames::checked);
@@ -2522,10 +2525,8 @@ Optional<double> HTMLInputElement::convert_string_to_number(StringView input) co
 // https://html.spec.whatwg.org/multipage/input.html#concept-input-value-string-number
 Optional<double> HTMLInputElement::convert_string_to_number(Utf16String const& input) const
 {
-    // FIXME: Implement a UTF-16 GenericLexer.
-    if (!input.has_ascii_storage())
-        return {};
-    return convert_string_to_number(input.ascii_view());
+    auto input_utf8 = input.to_utf8_but_should_be_ported_to_utf16();
+    return convert_string_to_number(input_utf8.bytes_as_string_view());
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#month-state-(type=month):concept-input-value-number-string
@@ -2724,10 +2725,8 @@ WebIDL::ExceptionOr<GC::Ptr<JS::Date>> HTMLInputElement::convert_string_to_date(
 // https://html.spec.whatwg.org/multipage/input.html#concept-input-value-string-date
 WebIDL::ExceptionOr<GC::Ptr<JS::Date>> HTMLInputElement::convert_string_to_date(Utf16String const& input) const
 {
-    // FIXME: Implement a UTF-16 GenericLexer.
-    if (!input.has_ascii_storage())
-        return nullptr;
-    return convert_string_to_date(input.ascii_view());
+    auto input_utf8 = input.to_utf8_but_should_be_ported_to_utf16();
+    return convert_string_to_date(input_utf8.bytes_as_string_view());
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#concept-input-value-date-string

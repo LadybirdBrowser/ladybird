@@ -36,18 +36,22 @@ WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> create_password_credential(JS::
         // 2. Let name be the value of field’s name attribute.
         // 3. If formData’s has() method returns false when executed on name, then skip to the next field.
         auto name = field->attribute(HTML::AttributeNames::name);
-        if (!name.has_value() || !form_data->has(name.value()))
+        if (!name.has_value())
+            continue;
+        auto name_string = name->to_utf8_but_should_be_ported_to_utf16();
+        if (!form_data->has(name_string))
             continue;
 
         // 4. If field’s autocomplete attribute’s value contains one or more autofill detail tokens (tokens), then:
         // 1. For each token in tokens:
-        for (auto tokens = field->attribute(HTML::AttributeNames::autocomplete); auto& token : MUST(tokens->split(' '))) {
+        auto autocomplete_attribute = field->attribute(HTML::AttributeNames::autocomplete).value().to_utf8_but_should_be_ported_to_utf16();
+        for (auto& token : MUST(autocomplete_attribute.split(' '))) {
             // 1. If token is an ASCII case-insensitive match for one of the following strings, run the associated steps:
             //    - "new-password"
             //       Set data’s password member’s value to the result of executing formData’s get() method on name,
             //       and newPasswordObserved to true.
             if (token.equals_ignoring_ascii_case("new-password"sv)) {
-                if (auto password = form_data->get(name.value()); password.has<String>()) {
+                if (auto password = form_data->get(name_string); password.has<String>()) {
                     data.password = password.get<String>();
                     new_password_observed = true;
                 }
@@ -58,30 +62,30 @@ WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> create_password_credential(JS::
             //       Note: By checking that newPasswordObserved is false, new-password fields take precedence over
             //             current-password fields.
             if (!new_password_observed && token.equals_ignoring_ascii_case("current-password"sv)) {
-                if (auto password = form_data->get(name.value()); password.has<String>())
+                if (auto password = form_data->get(name_string); password.has<String>())
                     data.password = password.get<String>();
             }
             //    - "photo"
             //      Set data’s iconURL member’s value to the result of executing formData’s get() method on name.
             if (token.equals_ignoring_ascii_case("photo"sv)) {
-                if (auto photo = form_data->get(name.value()); photo.has<String>())
+                if (auto photo = form_data->get(name_string); photo.has<String>())
                     data.icon_url = photo.get<String>();
             }
             //    - "name"
             //    - "nickname"
             //      Set data’s name member’s value to the result of executing formData’s get() method on name.
             if (token.equals_ignoring_ascii_case("name"sv)) {
-                if (auto name_ = form_data->get(name.value()); name_.has<String>())
+                if (auto name_ = form_data->get(name_string); name_.has<String>())
                     data.name = name_.get<String>();
             }
             if (token.equals_ignoring_ascii_case("nickname"sv)) {
-                if (auto nickname = form_data->get(name.value()); nickname.has<String>())
+                if (auto nickname = form_data->get(name_string); nickname.has<String>())
                     data.name = nickname.get<String>();
             }
             //    - "username"
             //      Set data’s id member’s value to the result of executing formData’s get() method on name.
             if (token.equals_ignoring_ascii_case("username"sv)) {
-                if (auto username = form_data->get(name.value()); username.has<String>()) {
+                if (auto username = form_data->get(name_string); username.has<String>()) {
                     auto id = username.get<String>();
                     data.id = id;
                 }

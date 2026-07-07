@@ -81,11 +81,23 @@ RefPtr<CSS::StyleValue const> parse_css_value(CSS::Parser::ParsingParams const& 
     return CSS::Parser::Parser::create(context, string).parse_as_css_value(property_id);
 }
 
+RefPtr<CSS::StyleValue const> parse_css_value(CSS::Parser::ParsingParams const& context, Utf16String const& string, CSS::PropertyID property_id)
+{
+    auto utf8_string = string.to_utf8_but_should_be_ported_to_utf16();
+    return parse_css_value(context, utf8_string.bytes_as_string_view(), property_id);
+}
+
 RefPtr<CSS::StyleValue const> parse_css_type(CSS::Parser::ParsingParams const& context, StringView string, CSS::ValueType value_type)
 {
     if (string.is_empty())
         return nullptr;
     return CSS::Parser::Parser::create(context, string).parse_as_type(value_type);
+}
+
+RefPtr<CSS::StyleValue const> parse_css_type(CSS::Parser::ParsingParams const& context, Utf16String const& string, CSS::ValueType value_type)
+{
+    auto utf8_string = string.to_utf8_but_should_be_ported_to_utf16();
+    return parse_css_type(context, utf8_string.bytes_as_string_view(), value_type);
 }
 
 RefPtr<CSS::StyleValue const> parse_css_descriptor(CSS::Parser::ParsingParams const& parsing_params, CSS::AtRuleID at_rule_id, CSS::DescriptorNameAndID const& descriptor_name_and_id, StringView string)
@@ -129,6 +141,12 @@ Optional<CSS::Selector::PseudoElementSelector> parse_pseudo_element_selector(CSS
 RefPtr<CSS::MediaQuery> parse_media_query(CSS::Parser::ParsingParams const& context, StringView string)
 {
     return CSS::Parser::Parser::create(context, string).parse_as_media_query();
+}
+
+RefPtr<CSS::MediaQuery> parse_media_query(CSS::Parser::ParsingParams const& context, Utf16String const& string)
+{
+    auto utf8_string = string.to_utf8_but_should_be_ported_to_utf16();
+    return parse_media_query(context, utf8_string.bytes_as_string_view());
 }
 
 Vector<NonnullRefPtr<CSS::MediaQuery>> parse_media_query_list(CSS::Parser::ParsingParams const& context, StringView string)

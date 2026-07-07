@@ -209,7 +209,7 @@ WebIDL::ExceptionOr<GC::Ptr<Attr>> NamedNodeMap::set_attribute(Attr& attribute)
         attribute.local_name(),
         attribute.namespace_uri().has_value() ? Utf16String::from_utf8(attribute.namespace_uri().value()) : Optional<Utf16String>(),
         associated_element(),
-        Utf16String::from_utf8(attribute.value())));
+        attribute.value()));
 
     // 2. If attr’s element is neither null nor element, throw an "InUseAttributeError" DOMException.
     if ((attribute.owner_element() != nullptr) && (attribute.owner_element() != &associated_element()))
@@ -224,7 +224,7 @@ WebIDL::ExceptionOr<GC::Ptr<Attr>> NamedNodeMap::set_attribute(Attr& attribute)
         return &attribute;
 
     // 5. Set attr’s value to verifiedValue.
-    TRY(attribute.set_value(verifiedValue.to_utf8_but_should_be_ported_to_utf16()));
+    TRY(attribute.set_value(verifiedValue));
 
     // 6. If oldAttr is non-null, then replace oldAttr with attr.
     if (old_attribute) {

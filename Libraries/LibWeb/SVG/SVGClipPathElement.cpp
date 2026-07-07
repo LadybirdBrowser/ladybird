@@ -29,12 +29,12 @@ void SVGClipPathElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-void SVGClipPathElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void SVGClipPathElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
     if (name == AttributeNames::clipPathUnits)
-        m_clip_path_units = AttributeParser::parse_units(value.value_or(String {}));
+        m_clip_path_units = AttributeParser::parse_units(value.value_or({}));
 }
 
 RefPtr<Layout::Node> SVGClipPathElement::create_layout_node(CSS::ComputedProperties const&)

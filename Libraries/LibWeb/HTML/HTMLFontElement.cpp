@@ -98,6 +98,12 @@ Optional<CSS::Keyword> HTMLFontElement::parse_legacy_font_size(StringView string
     }
 }
 
+Optional<CSS::Keyword> HTMLFontElement::parse_legacy_font_size(Utf16String const& string)
+{
+    auto string_utf8 = string.to_utf8_but_should_be_ported_to_utf16();
+    return parse_legacy_font_size(string_utf8.bytes_as_string_view());
+}
+
 HTMLFontElement::HTMLFontElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
 {

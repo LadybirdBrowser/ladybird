@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <AK/WeakPtr.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/QualifiedName.h>
@@ -19,8 +20,10 @@ class WEB_API Attr final : public Node {
     GC_DECLARE_ALLOCATOR(Attr);
 
 public:
-    [[nodiscard]] static GC::Ref<Attr> create(Document&, QualifiedName, String value = {}, Element* = nullptr);
-    [[nodiscard]] static GC::Ref<Attr> create(Document&, FlyString local_name, String value = {}, Element* = nullptr);
+    [[nodiscard]] static GC::Ref<Attr> create(Document&, QualifiedName, Utf16String value = {}, Element* = nullptr);
+    [[nodiscard]] static GC::Ref<Attr> create(Document&, QualifiedName, String const& value, Element* = nullptr);
+    [[nodiscard]] static GC::Ref<Attr> create(Document&, FlyString local_name, Utf16String value = {}, Element* = nullptr);
+    [[nodiscard]] static GC::Ref<Attr> create(Document&, FlyString local_name, String const& value, Element* = nullptr);
     GC::Ref<Attr> clone(Document&) const;
 
     virtual ~Attr() override = default;
@@ -32,9 +35,10 @@ public:
     FlyString const& local_name() const { return m_qualified_name.local_name(); }
     FlyString const& name() const { return m_qualified_name.as_string(); }
 
-    String const& value() const { return m_value; }
+    Utf16String const& value() const { return m_value; }
+    WebIDL::ExceptionOr<void> set_value(Utf16String value);
     WebIDL::ExceptionOr<void> set_value(String value);
-    void change_attribute(String value);
+    void change_attribute(Utf16String value);
 
     Element* owner_element();
     Element const* owner_element() const;
@@ -43,16 +47,16 @@ public:
     // Always returns true: https://dom.spec.whatwg.org/#dom-attr-specified
     constexpr bool specified() const { return true; }
 
-    void handle_attribute_changes(Element&, Optional<String> const& old_value, Optional<String> const& new_value);
+    void handle_attribute_changes(Element&, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value);
 
 private:
-    Attr(Document&, QualifiedName, String value, Element*);
+    Attr(Document&, QualifiedName, Utf16String value, Element*);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     QualifiedName m_qualified_name;
-    String m_value;
+    Utf16String m_value;
     GC::Ptr<Element> m_owner_element;
 };
 

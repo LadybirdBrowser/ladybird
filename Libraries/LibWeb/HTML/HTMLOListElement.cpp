@@ -31,7 +31,7 @@ void HTMLOListElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-void HTMLOListElement::attribute_changed(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void HTMLOListElement::attribute_changed(FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(local_name, old_value, value, namespace_);
 
@@ -46,7 +46,7 @@ void HTMLOListElement::attribute_changed(FlyString const& local_name, Optional<S
 WebIDL::Long HTMLOListElement::start()
 {
     // The start IDL attribute must reflect the content attribute of the same name, with a default value of 1.
-    auto content_attribute_value = get_attribute(AttributeNames::start).value_or("1"_string);
+    auto content_attribute_value = get_attribute(AttributeNames::start).value_or("1"_utf16);
     if (auto maybe_number = HTML::parse_integer(content_attribute_value); maybe_number.has_value())
         return *maybe_number;
     return 1;

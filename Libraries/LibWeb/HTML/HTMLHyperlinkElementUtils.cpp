@@ -34,7 +34,7 @@ void HTMLHyperlinkElementUtils::set_the_url()
     }
 
     // 3. Let url be the result of encoding-parsing a URL given this element's href content attribute's value, relative to this element's node document.
-    auto url = element.document().encoding_parse_url(*href_content_attribute);
+    auto url = element.document().encoding_parse_url(href_content_attribute->to_utf8_but_should_be_ported_to_utf16());
 
     // 4. If url is not failure, then set this element's url to url.
     if (url.has_value())
@@ -57,7 +57,7 @@ String HTMLHyperlinkElementUtils::href() const
 
     // 4. Otherwise, if url is null, return this element's href content attribute's value.
     if (!url.has_value())
-        return href_content_attribute.release_value();
+        return href_content_attribute.release_value().to_utf8_but_should_be_ported_to_utf16();
 
     // 5. Return url, serialized.
     return url->serialize();
@@ -81,7 +81,7 @@ void HTMLHyperlinkElementUtils::update_href()
 // https://html.spec.whatwg.org/multipage/links.html#dom-a-target
 String HTMLHyperlinkElementUtils::target() const
 {
-    return hyperlink_element_utils_element().get_attribute_value(HTML::AttributeNames::target);
+    return hyperlink_element_utils_element().get_attribute_value(HTML::AttributeNames::target).to_utf8_but_should_be_ported_to_utf16();
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-a-target

@@ -104,7 +104,7 @@ size_t DOMTokenList::external_memory_size() const
 }
 
 // https://dom.spec.whatwg.org/#ref-for-domtokenlist%E2%91%A0%E2%91%A1
-void DOMTokenList::associated_attribute_changed(StringView value)
+void DOMTokenList::associated_attribute_changed(Utf16String const& value)
 {
     // 1. If localName is set’s attribute name, namespace is null, and value is null, then empty token set.
     // 2. Otherwise, if localName is set’s attribute name and namespace is null, then set set’s token set to value,
@@ -113,7 +113,7 @@ void DOMTokenList::associated_attribute_changed(StringView value)
     m_token_set.clear();
     if (value.is_empty())
         return;
-    m_token_set = parse_ordered_set(value);
+    m_token_set = parse_ordered_set(value.to_utf8_but_should_be_ported_to_utf16());
 }
 
 // https://dom.spec.whatwg.org/#dom-domtokenlist-item
@@ -297,7 +297,7 @@ String DOMTokenList::serialize_ordered_set() const
 // https://dom.spec.whatwg.org/#dom-domtokenlist-value
 String DOMTokenList::value() const
 {
-    return m_associated_element->get_attribute_value(m_associated_attribute);
+    return m_associated_element->get_attribute_value(m_associated_attribute).to_utf8_but_should_be_ported_to_utf16();
 }
 
 // https://dom.spec.whatwg.org/#ref-for-concept-element-attributes-set-value%E2%91%A2

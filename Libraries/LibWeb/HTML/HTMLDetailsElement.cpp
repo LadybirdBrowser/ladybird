@@ -57,7 +57,7 @@ void HTMLDetailsElement::inserted()
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#the-details-element:concept-element-attributes-change-ext
-void HTMLDetailsElement::attribute_changed(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void HTMLDetailsElement::attribute_changed(FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(local_name, old_value, value, namespace_);
 
@@ -144,7 +144,7 @@ void HTMLDetailsElement::queue_a_details_toggle_event_task(String old_state, Str
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#details-name-group
 template<typename Callback>
-void for_each_element_in_details_name_group(HTMLDetailsElement& details, FlyString const& name, Callback&& callback)
+void for_each_element_in_details_name_group(HTMLDetailsElement& details, Utf16String const& name, Callback&& callback)
 {
     // The details name group that contains a details element a also contains all the other details elements b that
     // fulfill all of the following conditions:

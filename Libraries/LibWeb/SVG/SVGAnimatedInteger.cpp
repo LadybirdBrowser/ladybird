@@ -66,7 +66,7 @@ void SVGAnimatedInteger::set_base_val(WebIDL::Long new_value)
         // 1. Let current be the value of the reflected attribute (using the attribute's initial value if it is not
         //    present or invalid).
         auto current = m_element->get_attribute_value(m_reflected_attribute.local_name(), m_reflected_attribute.namespace_());
-        auto current_values = MUST(current.split(' '));
+        auto current_values = current.split_view(' ', SplitBehavior::Nothing);
 
         // 2. Let first be the first integer in current.
         auto first = current_values.size() > 0 ? parse_value_or_initial(current_values[0]) : m_initial_value;
@@ -112,7 +112,7 @@ WebIDL::Long SVGAnimatedInteger::anim_val() const
     return get_base_or_anim_value();
 }
 
-WebIDL::Long SVGAnimatedInteger::parse_value_or_initial(StringView number_value) const
+WebIDL::Long SVGAnimatedInteger::parse_value_or_initial(Utf16View number_value) const
 {
     auto value = AttributeParser::parse_integer(number_value);
     if (!value.has_value())
@@ -130,7 +130,7 @@ WebIDL::Long SVGAnimatedInteger::get_base_or_anim_value() const
     // 2. If the reflected attribute is defined to take an integer followed by an optional second integer, then:
     if (m_supports_second_value == SupportsSecondValue::Yes) {
         // 1. If this SVGAnimatedInteger object reflects the first integer, then return the first value in value.
-        auto values = MUST(value.split(' '));
+        auto values = value.split_view(' ', SplitBehavior::Nothing);
         if (values.is_empty())
             return m_initial_value;
         if (m_value_represented == ValueRepresented::First)

@@ -79,7 +79,8 @@ void SVGUseElement::adopted_from(DOM::Document& old_document)
     if (!href.has_value())
         return;
 
-    m_href = document().url().complete_url(href.value());
+    auto href_utf8 = href->to_utf8_but_should_be_ported_to_utf16();
+    m_href = document().url().complete_url(href_utf8.bytes_as_string_view());
     if (!m_href.has_value())
         return;
 
@@ -170,22 +171,22 @@ void SVGUseElement::unregister_for_referenced_element_changes()
     document().unregister_svg_use_element({}, *this);
 }
 
-void SVGUseElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void SVGUseElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
     // https://svgwg.org/svg2-draft/struct.html#UseLayout
     if (name == SVG::AttributeNames::x) {
-        m_x = AttributeParser::parse_number_percentage(value.value_or(String {}));
+        m_x = AttributeParser::parse_number_percentage(value.value_or({}));
     } else if (name == SVG::AttributeNames::y) {
-        m_y = AttributeParser::parse_number_percentage(value.value_or(String {}));
+        m_y = AttributeParser::parse_number_percentage(value.value_or({}));
     } else if (name == SVG::AttributeNames::href || name == "xlink:href"_fly_string) {
         // When the ‘href’ attribute is set (or, in the absence of an ‘href’ attribute, an ‘xlink:href’ attribute), the user agent must process the URL.
         process_the_url(value);
     }
 }
 
-Optional<String> SVGUseElement::href_value() const
+Optional<Utf16String> SVGUseElement::href_value() const
 {
     if (auto href = get_attribute_ns(OptionalNone {}, AttributeNames::href); href.has_value())
         return href;
@@ -193,14 +194,15 @@ Optional<String> SVGUseElement::href_value() const
 }
 
 // https://www.w3.org/TR/SVG2/linking.html#processingURL
-void SVGUseElement::process_the_url(Optional<String> const& href)
+void SVGUseElement::process_the_url(Optional<Utf16String> const& href)
 {
     // In all other cases, the URL is for a resource to be used in this SVG document. The user agent
     // must parse the URL to separate out the target fragment from the rest of the URL, and compare
     // it with the document base URL. If all parts other than the target fragment are equal, this is
     // a same-document URL reference, and processing the URL must continue as indicated in Identifying
     // the target element with the current document as the referenced document.
-    m_href = document().url().complete_url(href.value_or(String {}));
+    auto href_utf8 = href.value_or({}).to_utf8_but_should_be_ported_to_utf16();
+    m_href = document().url().complete_url(href_utf8.bytes_as_string_view());
     if (!m_href.has_value())
         return;
 
@@ -265,7 +267,8 @@ void SVGUseElement::svg_element_removed(SVGElement& svg_element)
     }
 
     auto id = String::from_utf8_with_replacement_character(URL::percent_decode(*m_href->fragment()), String::WithBOMHandling::No);
-    if (AK::StringUtils::matches(svg_element.get_attribute_value("id"_fly_string), id)) {
+    auto id_attribute = svg_element.get_attribute_value("id"_fly_string).to_utf8_but_should_be_ported_to_utf16();
+    if (AK::StringUtils::matches(id_attribute.bytes_as_string_view(), id)) {
         shadow_root()->remove_all_children();
     }
 }

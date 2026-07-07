@@ -39,7 +39,7 @@ void SVGAElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_target);
 }
 
-void SVGAElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void SVGAElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
@@ -47,7 +47,7 @@ void SVGAElement::attribute_changed(FlyString const& name, Optional<String> cons
         CSS::Invalidation::invalidate_style_after_hyperlink_state_change(*this);
     if (name == HTML::AttributeNames::rel) {
         if (m_rel_list)
-            m_rel_list->associated_attribute_changed(value.value_or(String {}));
+            m_rel_list->associated_attribute_changed(value.value_or({}));
     }
 }
 

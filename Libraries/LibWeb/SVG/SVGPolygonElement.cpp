@@ -27,12 +27,12 @@ void SVGPolygonElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-void SVGPolygonElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void SVGPolygonElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
     if (name == SVG::AttributeNames::points) {
-        m_points = AttributeParser::parse_points(value.value_or(String {}));
+        m_points = AttributeParser::parse_points(value.value_or({}).to_utf8_but_should_be_ported_to_utf16());
         set_needs_layout_update(DOM::SetNeedsLayoutReason::StyleChange);
     }
 }

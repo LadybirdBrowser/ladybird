@@ -23,13 +23,13 @@ void SVGFitToViewBox::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_view_box_for_bindings);
 }
 
-void SVGFitToViewBox::attribute_changed(DOM::Element& element, FlyString const& name, Optional<String> const& value)
+void SVGFitToViewBox::attribute_changed(DOM::Element& element, FlyString const& name, Optional<Utf16String> const& value)
 {
     if (name.equals_ignoring_ascii_case(SVG::AttributeNames::viewBox)) {
         if (!value.has_value()) {
             m_view_box_for_bindings->set_nulled(true);
         } else {
-            m_view_box = AttributeParser::parse_viewbox(value.value_or(String {}));
+            m_view_box = AttributeParser::parse_viewbox(value.value_or({}).to_utf8_but_should_be_ported_to_utf16());
             m_view_box_for_bindings->set_nulled(!m_view_box.has_value());
             if (m_view_box.has_value()) {
                 m_view_box_for_bindings->set_base_val(Gfx::DoubleRect { m_view_box->min_x, m_view_box->min_y, m_view_box->width, m_view_box->height });
@@ -38,7 +38,7 @@ void SVGFitToViewBox::attribute_changed(DOM::Element& element, FlyString const& 
         }
         element.set_needs_layout_update(DOM::SetNeedsLayoutReason::SVGViewBoxChange);
     } else if (name.equals_ignoring_ascii_case(SVG::AttributeNames::preserveAspectRatio)) {
-        m_preserve_aspect_ratio = AttributeParser::parse_preserve_aspect_ratio(value.value_or(String {}));
+        m_preserve_aspect_ratio = AttributeParser::parse_preserve_aspect_ratio(value.value_or({}).to_utf8_but_should_be_ported_to_utf16());
         element.set_needs_layout_update(DOM::SetNeedsLayoutReason::SVGViewBoxChange);
     }
 }

@@ -30,9 +30,9 @@ public:
     virtual void inserted() override;
     virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root) override;
 
-    String rel() const { return get_attribute_value(HTML::AttributeNames::rel); }
-    String type() const { return get_attribute_value(HTML::AttributeNames::type); }
-    String href() const { return get_attribute_value(HTML::AttributeNames::href); }
+    String rel() const { return get_attribute_value(HTML::AttributeNames::rel).to_utf8_but_should_be_ported_to_utf16(); }
+    String type() const { return get_attribute_value(HTML::AttributeNames::type).to_utf8_but_should_be_ported_to_utf16(); }
+    String href() const { return get_attribute_value(HTML::AttributeNames::href).to_utf8_but_should_be_ported_to_utf16(); }
 
     GC::Ref<DOM::DOMTokenList> rel_list();
     GC::Ref<DOM::DOMTokenList> sizes();
@@ -146,7 +146,7 @@ private:
     virtual bool is_html_link_element() const override { return true; }
 
     // ^HTMLElement
-    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
+    virtual void attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_) override;
     virtual bool contributes_a_script_blocking_style_sheet() const final;
     virtual bool is_implicitly_potentially_render_blocking() const override;
 

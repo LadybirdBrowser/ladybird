@@ -12,6 +12,7 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
+#include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
@@ -28,7 +29,7 @@ public:
     [[nodiscard]] static GC::Ref<DOMTokenList> create(Element& associated_element, FlyString associated_attribute);
     ~DOMTokenList() = default;
 
-    void associated_attribute_changed(StringView value);
+    void associated_attribute_changed(Utf16String const& value);
 
     virtual Optional<JS::Value> item_value(size_t index) const override;
 

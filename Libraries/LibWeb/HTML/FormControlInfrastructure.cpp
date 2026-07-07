@@ -236,7 +236,7 @@ WebIDL::ExceptionOr<Optional<GC::ConservativeVector<XHR::FormDataEntry>>> constr
         // 11. If the element has a dirname attribute, that attribute's value is not the empty string, and the element is an auto-directionality form-associated element:
         if (auto attribute = control->get_attribute(HTML::AttributeNames::dirname); attribute.has_value() && !attribute.value().is_empty() && control->is_auto_directionality_form_associated_element()) {
             // 1. Let dirname be the value of the element's dirname attribute.
-            String const& dirname = attribute.value();
+            auto dirname = attribute.value().to_utf8_but_should_be_ported_to_utf16();
 
             // 2. Let dir be the string "ltr" if the directionality of the element is 'ltr', and "rtl" otherwise (i.e., when the directionality of the element is 'rtl').
             String dir = MUST((control->directionality() == DOM::Element::Directionality::Ltr) ? String::from_utf8("ltr"sv) : String::from_utf8("rtl"sv));

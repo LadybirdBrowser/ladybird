@@ -33,7 +33,7 @@ AutocompleteElement::AutofillMantle AutocompleteElement::get_autofill_mantle() c
 
 Vector<String> AutocompleteElement::autocomplete_tokens() const
 {
-    auto autocomplete_value = autocomplete_element_to_html_element().attribute(AttributeNames::autocomplete).value_or({});
+    auto autocomplete_value = autocomplete_element_to_html_element().attribute(AttributeNames::autocomplete).value_or({}).to_utf8_but_should_be_ported_to_utf16();
 
     Vector<String> autocomplete_tokens;
     for (auto& token : autocomplete_value.bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace))
@@ -164,7 +164,7 @@ AutocompleteElement::AttributeDetails AutocompleteElement::parse_autocomplete_at
         auto const* form = as<FormAssociatedElement const>(autocomplete_element_to_html_element()).form();
 
         // 35. If form is not null and form's autocomplete attribute is in the off state, then set the element's autofill field name to "off".
-        if (form && form->attribute(AttributeNames::autocomplete) == idl_enum_to_string(Bindings::Autocomplete::Off)) {
+        if (form && form->attribute(AttributeNames::autocomplete) == "off"sv) {
             attr_details.field_name = "off"_string;
         }
         // Otherwise, set the element's autofill field name to "on".

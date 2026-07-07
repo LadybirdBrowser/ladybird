@@ -64,7 +64,7 @@ GC::Ref<SVGAnimatedNumber> SVGFEDisplacementMapElement::scale()
 }
 
 // https://drafts.csswg.org/filter-effects/#element-attrdef-fedisplacementmap-xchannelselector
-static SVGFEDisplacementMapElement::ChannelSelector parse_channel_selector(String const& value)
+static SVGFEDisplacementMapElement::ChannelSelector parse_channel_selector(Utf16View value)
 {
     if (value == "R"sv)
         return SVGFEDisplacementMapElement::ChannelSelector::Red;

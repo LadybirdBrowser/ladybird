@@ -54,7 +54,7 @@ void HTMLOrSVGOrMathMLElement<ElementBase>::blur()
 
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#dom-noncedelement-nonce
 template<typename ElementBase>
-void HTMLOrSVGOrMathMLElement<ElementBase>::attribute_changed(FlyString const& local_name, Optional<String> const&, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void HTMLOrSVGOrMathMLElement<ElementBase>::attribute_changed(FlyString const& local_name, Optional<Utf16String> const&, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     // 1. If element does not include HTMLOrSVGOrMathMLElement, then return.
     // 2. If localName is not nonce or namespace is not null, then return.
@@ -68,7 +68,7 @@ void HTMLOrSVGOrMathMLElement<ElementBase>::attribute_changed(FlyString const& l
 
     // 4. Otherwise, set element's [[CryptographicNonce]] to value.
     else {
-        m_cryptographic_nonce = value.value();
+        m_cryptographic_nonce = value->to_utf8_but_should_be_ported_to_utf16();
     }
 }
 
@@ -106,7 +106,7 @@ void HTMLOrSVGOrMathMLElement<ElementBase>::inserted()
         auto nonce = m_cryptographic_nonce;
 
         // 2.2. Set an attribute value for element using "nonce" and the empty string.
-        element.set_attribute_value(HTML::AttributeNames::nonce, {});
+        element.set_attribute_value(HTML::AttributeNames::nonce, Utf16String {});
 
         // 2.3. Set element's [[CryptographicNonce]] to nonce.
         m_cryptographic_nonce = nonce;

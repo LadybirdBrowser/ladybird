@@ -45,7 +45,7 @@ void SVGSymbolElement::adjust_computed_style(CSS::ComputedProperties::Builder& c
     }
 }
 
-void SVGSymbolElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void SVGSymbolElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
     SVGFitToViewBox::attribute_changed(*this, name, value);

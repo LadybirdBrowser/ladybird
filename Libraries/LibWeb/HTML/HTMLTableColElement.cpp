@@ -33,7 +33,8 @@ WebIDL::UnsignedLong HTMLTableColElement::span() const
 {
     // The span IDL attribute must reflect the content attribute of the same name. It is clamped to the range [1, 1000], and its default value is 1.
     if (auto span_string = get_attribute(HTML::AttributeNames::span); span_string.has_value()) {
-        if (auto span_digits = parse_non_negative_integer_digits(*span_string); span_digits.has_value()) {
+        auto span_string_utf8 = span_string->to_utf8_but_should_be_ported_to_utf16();
+        if (auto span_digits = parse_non_negative_integer_digits(span_string_utf8.bytes_as_string_view()); span_digits.has_value()) {
             auto span = span_digits->to_number<i64>();
             // NOTE: If span has no value at this point, the value must be larger than NumericLimits<i64>::max(), so return the maximum value of 1000.
             if (!span.has_value())

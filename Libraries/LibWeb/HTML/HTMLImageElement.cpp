@@ -263,7 +263,7 @@ void HTMLImageElement::apply_presentational_hints(Vector<CSS::StyleProperty>& pr
     });
 }
 
-void HTMLImageElement::form_associated_element_attribute_changed(FlyString const& name, Optional<String> const&, Optional<String> const& value, Optional<FlyString> const&)
+void HTMLImageElement::form_associated_element_attribute_changed(FlyString const& name, Optional<Utf16String> const&, Optional<Utf16String> const& value, Optional<FlyString> const&)
 {
     if (name == HTML::AttributeNames::crossorigin) {
         m_cors_setting = cors_setting_attribute_from_keyword(value);
@@ -641,7 +641,7 @@ void HTMLImageElement::update_the_image_data_impl(bool restart_animations, bool 
     //    and set selected pixel density to 1.0.
     auto maybe_src_attribute = attribute(HTML::AttributeNames::src);
     if (!uses_srcset_or_picture() && maybe_src_attribute.has_value() && !maybe_src_attribute.value().is_empty()) {
-        selected_source = maybe_src_attribute.release_value();
+        selected_source = maybe_src_attribute.release_value().to_utf8_but_should_be_ported_to_utf16();
         selected_pixel_density = 1.0f;
     }
 
@@ -1261,37 +1261,37 @@ static void update_the_source_set(DOM::Element& element)
             // 4. If el is an img element that has a srcset attribute, then set srcset to that attribute's value.
             if (is<HTMLImageElement>(element)) {
                 if (auto srcset_value = element.attribute(HTML::AttributeNames::srcset); srcset_value.has_value())
-                    srcset = srcset_value.release_value();
+                    srcset = srcset_value.release_value().to_utf8_but_should_be_ported_to_utf16();
             }
 
             // 5. Otherwise, if el is a link element that has an imagesrcset attribute, then set srcset to that attribute's value.
             else if (is<HTMLLinkElement>(element)) {
                 if (auto imagesrcset_value = element.attribute(HTML::AttributeNames::imagesrcset); imagesrcset_value.has_value())
-                    srcset = imagesrcset_value.release_value();
+                    srcset = imagesrcset_value.release_value().to_utf8_but_should_be_ported_to_utf16();
             }
 
             // 6. If el is an img element that has a sizes attribute, then set sizes to that attribute's value.
             if (is<HTMLImageElement>(element)) {
                 if (auto sizes_value = element.attribute(HTML::AttributeNames::sizes); sizes_value.has_value())
-                    sizes = sizes_value.release_value();
+                    sizes = sizes_value.release_value().to_utf8_but_should_be_ported_to_utf16();
             }
 
             // 7. Otherwise, if el is a link element that has an imagesizes attribute, then set sizes to that attribute's value.
             else if (is<HTMLLinkElement>(element)) {
                 if (auto imagesizes_value = element.attribute(HTML::AttributeNames::imagesizes); imagesizes_value.has_value())
-                    sizes = imagesizes_value.release_value();
+                    sizes = imagesizes_value.release_value().to_utf8_but_should_be_ported_to_utf16();
             }
 
             // 8. If el is an img element that has a src attribute, then set default source to that attribute's value.
             if (is<HTMLImageElement>(element)) {
                 if (auto src_value = element.attribute(HTML::AttributeNames::src); src_value.has_value())
-                    default_source = src_value.release_value();
+                    default_source = src_value.release_value().to_utf8_but_should_be_ported_to_utf16();
             }
 
             // 9. Otherwise, if el is a link element that has an href attribute, then set default source to that attribute's value.
             else if (is<HTMLLinkElement>(element)) {
                 if (auto href_value = element.attribute(HTML::AttributeNames::href); href_value.has_value())
-                    default_source = href_value.release_value();
+                    default_source = href_value.release_value().to_utf8_but_should_be_ported_to_utf16();
             }
 
             // 10. Set el's source set to the result of creating a source set given default source, srcset, sizes, and img.
@@ -1312,7 +1312,8 @@ static void update_the_source_set(DOM::Element& element)
             continue;
 
         // 4. Parse child's srcset attribute and let source set be the returned source set.
-        auto source_set = parse_a_srcset_attribute(child->get_attribute_value(HTML::AttributeNames::srcset));
+        auto srcset = child->get_attribute_value(HTML::AttributeNames::srcset).to_utf8_but_should_be_ported_to_utf16();
+        auto source_set = parse_a_srcset_attribute(srcset.bytes_as_string_view());
 
         // 5. If source set has zero image sources, continue to the next child.
         if (source_set.is_empty())
@@ -1328,7 +1329,8 @@ static void update_the_source_set(DOM::Element& element)
         }
 
         // 7. Parse child's sizes attribute with img, and let source set's source size be the returned value.
-        source_set.m_source_size = parse_a_sizes_attribute(element, child->get_attribute_value(HTML::AttributeNames::sizes), img);
+        auto sizes = child->get_attribute_value(HTML::AttributeNames::sizes).to_utf8_but_should_be_ported_to_utf16();
+        source_set.m_source_size = parse_a_sizes_attribute(element, sizes.bytes_as_string_view(), img);
 
         // 8. If child has a type attribute, and its value is an unknown or unsupported MIME type, continue to the next child.
         if (child->has_attribute(HTML::AttributeNames::type)) {
@@ -1385,9 +1387,11 @@ bool HTMLImageElement::allows_auto_sizes() const
     if (lazy_loading_attribute() != LazyLoading::Lazy)
         return false;
     auto sizes = attribute(HTML::AttributeNames::sizes);
-    return sizes.has_value()
-        && (sizes->equals_ignoring_ascii_case("auto"sv)
-            || sizes->starts_with_bytes("auto,"sv, AK::CaseSensitivity::CaseInsensitive));
+    if (!sizes.has_value())
+        return false;
+    auto sizes_utf8 = sizes->to_utf8_but_should_be_ported_to_utf16();
+    return sizes_utf8.equals_ignoring_ascii_case("auto"sv)
+        || sizes_utf8.bytes_as_string_view().starts_with("auto,"sv, AK::CaseSensitivity::CaseInsensitive);
 }
 
 GC::Ptr<DecodedImageData> HTMLImageElement::decoded_image_data() const

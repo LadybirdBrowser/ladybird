@@ -728,7 +728,7 @@ int HTMLElement::offset_height() const
     return round(box->absolute_united_border_box_rect().height()).to_int();
 }
 
-void HTMLElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void HTMLElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
     HTMLOrSVGOrMathMLElement::attribute_changed(name, old_value, value, namespace_);
@@ -1137,15 +1137,15 @@ WebIDL::ExceptionOr<GC::Ref<ElementInternals>> HTMLElement::attach_internals()
     return { internals };
 }
 
-Optional<String> HTMLElement::popover_value_to_state(Optional<String> value)
+Optional<String> HTMLElement::popover_value_to_state(Optional<Utf16String> const& value)
 {
     if (!value.has_value())
         return {};
 
-    if (value.value().is_empty() || value.value().equals_ignoring_ascii_case("auto"sv))
+    if (value->is_empty() || value->equals_ignoring_ascii_case("auto"sv))
         return "auto"_string;
 
-    if (value.value().equals_ignoring_ascii_case("hint"sv))
+    if (value->equals_ignoring_ascii_case("hint"sv))
         return "hint"_string;
 
     return "manual"_string;
@@ -2143,14 +2143,14 @@ String HTMLElement::access_key_label() const
     // NB: We mimic Chromium here and treat the attribute value as a single key rather than splitting on whitespace.
     //     The spec says to split on whitespace and try each token, but no browser besides IE/Edge implemented that.
     //     If there is more than one code point, no access key is assigned. https://github.com/whatwg/html/issues/3769
-    if (access_key->code_points().length() > 1)
+    if (access_key->length_in_code_points() > 1)
         return String {};
 
     // FIXME: 3.2. If the value does not correspond to a key on the system's keyboard, then skip the remainder of these steps for this value.
     // FIXME: 3.3. If the user agent can find a mix of zero or more modifier keys that, combined with the key that corresponds to
     //             the value given in the attribute, can be used as the access key, then the user agent may assign that combination
     //             of keys as the element's assigned access key and return.
-    return *access_key;
+    return access_key->to_utf8_but_should_be_ported_to_utf16();
 
     // 4. Fallback: Optionally, the user agent may assign a key combination of its choosing as the element's assigned access key
     //    and then return.
@@ -2335,7 +2335,8 @@ HTMLElement::AutocapitalizationHint HTMLElement::own_autocapitalization_hint() c
     auto maybe_autocapitalize_attribute = attribute(HTML::AttributeNames::autocapitalize);
 
     if (maybe_autocapitalize_attribute.has_value() && !maybe_autocapitalize_attribute.value().is_empty()) {
-        auto autocapitalize_attribute_string_view = maybe_autocapitalize_attribute.value().bytes_as_string_view();
+        auto autocapitalize_attribute = maybe_autocapitalize_attribute->to_utf8_but_should_be_ported_to_utf16();
+        auto autocapitalize_attribute_string_view = autocapitalize_attribute.bytes_as_string_view();
 
         if (autocapitalize_attribute_string_view.is_one_of_ignoring_ascii_case("off"sv, "none"sv))
             return AutocapitalizationHint::None;
@@ -2404,8 +2405,8 @@ HTMLElement::AutocorrectionState HTMLElement::used_autocorrection_state() const
 
     // The attribute's invalid value default and missing value default are both the On state.
 
-    auto autocorrect_attribute_state = [](Optional<String> attribute) {
-        if (attribute.has_value() && attribute.value().equals_ignoring_ascii_case("off"sv))
+    auto autocorrect_attribute_state = [](Optional<Utf16String> const& attribute) {
+        if (attribute.has_value() && attribute->equals_ignoring_ascii_case("off"sv))
             return AutocorrectionState::Off;
 
         return AutocorrectionState::On;

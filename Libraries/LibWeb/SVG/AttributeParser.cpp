@@ -10,6 +10,7 @@
 #include <AK/GenericShorthands.h>
 #include <AK/StringBuilder.h>
 #include <AK/StringConversions.h>
+#include <AK/Utf16View.h>
 #include <LibWeb/SVG/AttributeParser.h>
 
 namespace Web::SVG {
@@ -39,6 +40,12 @@ Path AttributeParser::parse_path_data(StringView input)
         return Path { {} };
     }
     return Path { move(parser.m_instructions) };
+}
+
+Path AttributeParser::parse_path_data(Utf16View input)
+{
+    auto input_utf8 = input.to_utf8_but_should_be_ported_to_utf16();
+    return parse_path_data(input_utf8.bytes_as_string_view());
 }
 
 Optional<float> AttributeParser::parse_coordinate(StringView input)
@@ -82,6 +89,12 @@ Optional<i32> AttributeParser::parse_integer(StringView input)
     return {};
 }
 
+Optional<i32> AttributeParser::parse_integer(Utf16View input)
+{
+    auto input_utf8 = input.to_utf8_but_should_be_ported_to_utf16();
+    return parse_integer(input_utf8.bytes_as_string_view());
+}
+
 float NumberPercentage::resolve_relative_to(float length) const
 {
     if (!m_is_percentage)
@@ -105,6 +118,12 @@ Optional<NumberPercentage> AttributeParser::parse_number_percentage(StringView i
         return NumberPercentage(number_or_error.value(), is_percentage);
 
     return {};
+}
+
+Optional<NumberPercentage> AttributeParser::parse_number_percentage(Utf16View input)
+{
+    auto input_utf8 = input.to_utf8_but_should_be_ported_to_utf16();
+    return parse_number_percentage(input_utf8.bytes_as_string_view());
 }
 
 Optional<float> AttributeParser::parse_positive_length(StringView input)
@@ -568,6 +587,12 @@ Optional<SVGUnits> AttributeParser::parse_units(StringView input)
     return {};
 }
 
+Optional<SVGUnits> AttributeParser::parse_units(Utf16View input)
+{
+    auto input_utf8 = input.to_utf8_but_should_be_ported_to_utf16();
+    return parse_units(input_utf8.bytes_as_string_view());
+}
+
 // https://svgwg.org/svg2-draft/pservers.html#RadialGradientElementSpreadMethodAttribute
 Optional<SpreadMethod> AttributeParser::parse_spread_method(StringView input)
 {
@@ -602,6 +627,12 @@ Vector<float> AttributeParser::parse_table_values(StringView input)
     }
 
     return table_values;
+}
+
+Vector<float> AttributeParser::parse_table_values(Utf16View input)
+{
+    auto input_utf8 = input.to_utf8_but_should_be_ported_to_utf16();
+    return parse_table_values(input_utf8.bytes_as_string_view());
 }
 
 // https://drafts.csswg.org/css-transforms/#svg-syntax

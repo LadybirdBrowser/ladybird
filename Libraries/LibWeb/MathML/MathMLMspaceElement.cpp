@@ -60,7 +60,9 @@ void MathMLMspaceElement::apply_presentational_hints(Vector<CSS::StyleProperty>&
     auto depth_value = parse_non_percentage_value(AttributeNames::depth);
 
     if (height_value && depth_value) {
-        auto height_string = MUST(String::formatted("calc({} + {})", attribute(AttributeNames::height).value(), attribute(AttributeNames::depth).value()));
+        auto height_attribute = attribute(AttributeNames::height).value().to_utf8_but_should_be_ported_to_utf16();
+        auto depth_attribute = attribute(AttributeNames::depth).value().to_utf8_but_should_be_ported_to_utf16();
+        auto height_string = MUST(String::formatted("calc({} + {})", height_attribute, depth_attribute));
         if (auto height_value = parse_css_type(parsing_params, height_string, CSS::ValueType::Length))
             properties.append({ .property_id = CSS::PropertyID::Height, .value = height_value.release_nonnull() });
     } else if (height_value) {

@@ -17,7 +17,12 @@ class HTMLLabelElement final : public HTMLElement {
 public:
     virtual ~HTMLLabelElement() override;
 
-    Optional<String> for_() const { return attribute(HTML::AttributeNames::for_); }
+    Optional<String> for_() const
+    {
+        return attribute(HTML::AttributeNames::for_).map([](auto const& value) {
+            return value.to_utf8_but_should_be_ported_to_utf16();
+        });
+    }
 
     GC::Ptr<HTMLElement> control() const;
     GC::Ptr<HTMLFormElement> form() const;

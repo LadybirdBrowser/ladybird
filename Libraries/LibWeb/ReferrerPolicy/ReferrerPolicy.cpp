@@ -56,4 +56,10 @@ Optional<ReferrerPolicy> from_string(StringView string)
     return {};
 }
 
+Optional<ReferrerPolicy> from_string(Utf16String const& string)
+{
+    auto utf8_string = string.to_utf8_but_should_be_ported_to_utf16();
+    return from_string(utf8_string.bytes_as_string_view());
+}
+
 }

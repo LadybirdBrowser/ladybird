@@ -96,7 +96,7 @@ void HTMLSourceElement::removed_from(IsSubtreeRoot is_subtree_root, DOM::Node* o
 // https://html.spec.whatwg.org/multipage/images.html#relevant-mutations
 // "The element's parent is a picture element and a source element that is a previous sibling has
 //  its srcset, sizes, media, type, width or height attributes set, changed, or removed."
-void HTMLSourceElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void HTMLSourceElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 

@@ -6,6 +6,7 @@
 
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/SVGTextPathElement.h>
+#include <LibWeb/CSS/URL.h>
 #include <LibWeb/Layout/SVGTextPathBox.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/SVGLength.h>
@@ -20,12 +21,12 @@ SVGTextPathElement::SVGTextPathElement(DOM::Document& document, DOM::QualifiedNa
 {
 }
 
-void SVGTextPathElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void SVGTextPathElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
     if (name == SVG::AttributeNames::startOffset)
-        m_start_offset = AttributeParser::parse_number_percentage(value.value_or(String {}));
+        m_start_offset = AttributeParser::parse_number_percentage(value.value_or({}));
 }
 
 GC::Ptr<SVGGeometryElement const> SVGTextPathElement::path_or_shape() const
@@ -33,7 +34,8 @@ GC::Ptr<SVGGeometryElement const> SVGTextPathElement::path_or_shape() const
     auto href = has_attribute(AttributeNames::href) ? get_attribute(AttributeNames::href) : get_attribute(AttributeNames::xlink_href);
     if (!href.has_value())
         return {};
-    return try_resolve_url_to<SVGGeometryElement const>(*href);
+    auto href_utf8 = href->to_utf8_but_should_be_ported_to_utf16();
+    return try_resolve_url_to<SVGGeometryElement const>(CSS::URL { href_utf8 });
 }
 
 // https://svgwg.org/svg2-draft/text.html#TextPathElementStartOffsetAttribute

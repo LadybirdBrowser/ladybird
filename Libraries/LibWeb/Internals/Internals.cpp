@@ -144,13 +144,12 @@ WebIDL::ExceptionOr<void> Internals::load_reference_test_metadata()
         auto content = as<DOM::Element>(fuzzy_node)->get_attribute_value(HTML::AttributeNames::content);
 
         JsonObject fuzzy_configuration;
-        if (content.contains(':')) {
-            auto content_parts = MUST(content.split_limit(':', 2));
-            auto reference_url = document->encoding_parse_url(content_parts[0]);
+        if (auto colon_offset = content.find_code_unit_offset(':'); colon_offset.has_value()) {
+            auto reference_url = document->encoding_parse_url(content.substring_view(0, *colon_offset));
             fuzzy_configuration.set("reference"sv, reference_url->to_string());
-            content = content_parts[1];
+            content = Utf16String::from_utf16(content.substring_view(*colon_offset + 1));
         }
-        fuzzy_configuration.set("content"sv, content);
+        fuzzy_configuration.set("content"sv, content.to_utf8_but_should_be_ported_to_utf16());
 
         fuzzy_configurations.must_append(fuzzy_configuration);
     }

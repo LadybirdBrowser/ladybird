@@ -67,7 +67,7 @@ void HTMLVideoElement::adopted_from(DOM::Document& old_document)
         m_load_event_delayer.emplace(document());
 }
 
-void HTMLVideoElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void HTMLVideoElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
@@ -198,7 +198,7 @@ Optional<CSSPixelSize> HTMLVideoElement::natural_element_size() const
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#attr-video-poster
-WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optional<String> const& poster)
+WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optional<Utf16String> const& poster)
 {
     auto& realm = this->realm();
     auto& vm = realm.vm();

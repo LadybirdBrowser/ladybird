@@ -267,7 +267,7 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
     //     formtarget attribute value.
     if (auto* form_associated_element = as_if<FormAssociatedElement>(*submitter); form_associated_element && form_associated_element->is_submit_button()) {
         if (auto formtarget_attribute = submitter->attribute(AttributeNames::formtarget); formtarget_attribute.has_value()) {
-            form_target = formtarget_attribute.release_value();
+            form_target = formtarget_attribute.release_value().to_utf8_but_should_be_ported_to_utf16();
         }
     }
 
@@ -430,11 +430,11 @@ String HTMLFormElement::action_from_form_element(GC::Ref<HTMLElement> element) c
     auto const* form_associated_element = as_if<FormAssociatedElement const>(*element);
     if (form_associated_element && form_associated_element->is_submit_button()) {
         if (auto maybe_attribute = element->attribute(AttributeNames::formaction); maybe_attribute.has_value())
-            return maybe_attribute.release_value();
+            return maybe_attribute.release_value().to_utf8_but_should_be_ported_to_utf16();
     }
 
     if (auto maybe_attribute = attribute(AttributeNames::action); maybe_attribute.has_value())
-        return maybe_attribute.release_value();
+        return maybe_attribute.release_value().to_utf8_but_should_be_ported_to_utf16();
 
     return String {};
 }
@@ -462,12 +462,14 @@ HTMLFormElement::MethodAttributeState HTMLFormElement::method_state_from_form_el
         if (auto maybe_formmethod = element->attribute(AttributeNames::formmethod); maybe_formmethod.has_value()) {
             // NOTE: `formmethod` is the same as `method`, except that it has no missing value default.
             //       This is handled by not calling `method_attribute_to_method_state` in the first place if there is no `formmethod` attribute.
-            return method_attribute_to_method_state(maybe_formmethod.value());
+            auto formmethod = maybe_formmethod->to_utf8_but_should_be_ported_to_utf16();
+            return method_attribute_to_method_state(formmethod.bytes_as_string_view());
         }
     }
 
     if (auto maybe_method = attribute(AttributeNames::method); maybe_method.has_value()) {
-        return method_attribute_to_method_state(maybe_method.value());
+        auto method = maybe_method->to_utf8_but_should_be_ported_to_utf16();
+        return method_attribute_to_method_state(method.bytes_as_string_view());
     }
 
     return MethodAttributeState::GET;
@@ -497,12 +499,15 @@ HTMLFormElement::EncodingTypeAttributeState HTMLFormElement::encoding_type_state
             // NOTE: `formenctype` is the same as `enctype`, except that it has nomissing value default.
             //       This is handled by not calling `encoding_type_attribute_to_encoding_type_state` in the first place if there is no
             //       `formenctype` attribute.
-            return encoding_type_attribute_to_encoding_type_state(formenctype.value());
+            auto form_encoding_type = formenctype->to_utf8_but_should_be_ported_to_utf16();
+            return encoding_type_attribute_to_encoding_type_state(form_encoding_type.bytes_as_string_view());
         }
     }
 
-    if (auto maybe_enctype = attribute(AttributeNames::enctype); maybe_enctype.has_value())
-        return encoding_type_attribute_to_encoding_type_state(maybe_enctype.value());
+    if (auto maybe_enctype = attribute(AttributeNames::enctype); maybe_enctype.has_value()) {
+        auto encoding_type = maybe_enctype->to_utf8_but_should_be_ported_to_utf16();
+        return encoding_type_attribute_to_encoding_type_state(encoding_type.bytes_as_string_view());
+    }
 
     return EncodingTypeAttributeState::FormUrlEncoded;
 }
@@ -691,13 +696,13 @@ void HTMLFormElement::set_action(String const& value)
     set_attribute_value(AttributeNames::action, value);
 }
 
-void HTMLFormElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void HTMLFormElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
     if (name == HTML::AttributeNames::rel) {
         if (m_rel_list)
-            m_rel_list->associated_attribute_changed(value.value_or(String {}));
+            m_rel_list->associated_attribute_changed(value.value_or({}));
     }
 }
 
@@ -710,7 +715,7 @@ ErrorOr<String> HTMLFormElement::pick_an_encoding() const
     // 2. If the form element has an accept-charset attribute, set encoding to the return value of running these substeps:
     if (auto maybe_input = attribute(AttributeNames::accept_charset); maybe_input.has_value()) {
         // 1. Let input be the value of the form element's accept-charset attribute.
-        auto input = maybe_input.release_value();
+        auto input = maybe_input.release_value().to_utf8_but_should_be_ported_to_utf16();
 
         // 2. Let candidate encoding labels be the result of splitting input on ASCII whitespace.
         auto candidate_encoding_labels = input.bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
@@ -965,7 +970,7 @@ void HTMLFormElement::plan_to_navigate_to(URL::URL url, Variant<Empty, String, P
     ReferrerPolicy::ReferrerPolicy referrer_policy = ReferrerPolicy::ReferrerPolicy::EmptyString;
 
     // 2. If the form element's link types include the noreferrer keyword, then set referrerPolicy to "no-referrer".
-    auto rel = MUST(get_attribute_value(HTML::AttributeNames::rel).to_lowercase());
+    auto rel = get_attribute_value(HTML::AttributeNames::rel).to_lowercase().to_utf8_but_should_be_ported_to_utf16();
     auto link_types = rel.bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
     if (link_types.contains_slow("noreferrer"sv))
         referrer_policy = ReferrerPolicy::ReferrerPolicy::NoReferrer;

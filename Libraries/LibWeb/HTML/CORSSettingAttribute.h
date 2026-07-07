@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/Optional.h>
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 
 namespace Web::HTML {
@@ -19,7 +19,7 @@ enum class CORSSettingAttribute {
     UseCredentials
 };
 
-[[nodiscard]] CORSSettingAttribute cors_setting_attribute_from_keyword(Optional<String> const& keyword);
+[[nodiscard]] CORSSettingAttribute cors_setting_attribute_from_keyword(Optional<Utf16String> const& keyword);
 [[nodiscard]] Fetch::Infrastructure::Request::CredentialsMode cors_settings_attribute_credentials_mode(CORSSettingAttribute);
 
 }

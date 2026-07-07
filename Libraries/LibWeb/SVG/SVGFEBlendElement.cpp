@@ -35,15 +35,16 @@ void SVGFEBlendElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_in2);
 }
 
-void SVGFEBlendElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& new_value, Optional<FlyString> const& namespace_)
+void SVGFEBlendElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, new_value, namespace_);
 
     if (name == SVG::AttributeNames::mode) {
-        auto parse_mix_blend_mode = [](Optional<String> const& value) -> Optional<CSS::MixBlendMode> {
+        auto parse_mix_blend_mode = [](Optional<Utf16String> const& value) -> Optional<CSS::MixBlendMode> {
             if (!value.has_value())
                 return {};
-            auto keyword = CSS::keyword_from_string(*value);
+            auto value_utf8 = value->to_utf8_but_should_be_ported_to_utf16();
+            auto keyword = CSS::keyword_from_string(value_utf8.bytes_as_string_view());
             if (!keyword.has_value())
                 return {};
             return CSS::keyword_to_mix_blend_mode(*keyword);

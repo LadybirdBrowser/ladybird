@@ -39,11 +39,11 @@ void StyleElementBase::update_a_style_block_for_dynamic_change()
     update_a_style_block();
 }
 
-void StyleElementBase::style_element_attribute_changed(FlyString const& name, Optional<String> const& value)
+void StyleElementBase::style_element_attribute_changed(FlyString const& name, Optional<Utf16String> const& value)
 {
     if (name == HTML::AttributeNames::media) {
         if (auto* sheet = this->sheet()) {
-            sheet->set_media(value.value_or({}));
+            sheet->set_media(value.value_or({}).to_utf8_but_should_be_ported_to_utf16());
             associated_style_sheet_media_attribute_changed();
         }
     } else if (name == HTML::AttributeNames::type) {
@@ -93,7 +93,7 @@ void StyleElementBase::update_a_style_block(UpdateSource update_source)
 
     // 4. If element's type attribute is present and its value is neither the empty string nor an ASCII case-insensitive match for "text/css", then return.
     auto type_attribute = style_element.attribute(HTML::AttributeNames::type);
-    if (type_attribute.has_value() && !type_attribute->is_empty() && !type_attribute->bytes_as_string_view().equals_ignoring_ascii_case("text/css"sv))
+    if (type_attribute.has_value() && !type_attribute->is_empty() && !type_attribute->equals_ignoring_ascii_case("text/css"sv))
         return;
 
     // 5. If the Should element's inline behavior be blocked by Content Security Policy? algorithm returns "Blocked" when executed upon the style element, "style", and the style element's child text content, then return. [CSP]
@@ -126,9 +126,9 @@ void StyleElementBase::update_a_style_block(UpdateSource update_source)
         style_element.text_content().value_or({}).to_utf8_but_should_be_ported_to_utf16(),
         "text/css"_string,
         &style_element,
-        style_element.attribute(HTML::AttributeNames::media).value_or({}),
+        style_element.attribute(HTML::AttributeNames::media).value_or({}).to_utf8_but_should_be_ported_to_utf16(),
         style_element.in_a_document_tree()
-            ? style_element.attribute(HTML::AttributeNames::title).value_or({})
+            ? style_element.attribute(HTML::AttributeNames::title).value_or({}).to_utf8_but_should_be_ported_to_utf16()
             : String {},
         CSS::StyleSheetList::Alternate::No,
         CSS::StyleSheetList::OriginClean::Yes,

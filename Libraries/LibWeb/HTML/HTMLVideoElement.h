@@ -70,7 +70,7 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void adopted_from(DOM::Document&) override;
 
-    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
+    virtual void attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_) override;
 
     // https://html.spec.whatwg.org/multipage/media.html#the-video-element:dimension-attributes
     virtual bool supports_dimension_attributes() const override { return true; }
@@ -79,7 +79,7 @@ private:
 
     virtual RefPtr<Layout::Node> create_layout_node(CSS::ComputedProperties const&) override;
 
-    WebIDL::ExceptionOr<void> determine_element_poster_frame(Optional<String> const& poster);
+    WebIDL::ExceptionOr<void> determine_element_poster_frame(Optional<Utf16String> const& poster);
 
     GC::Ptr<HTML::VideoTrack> m_video_track;
     VideoFrame m_current_frame;

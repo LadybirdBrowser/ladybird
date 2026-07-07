@@ -89,7 +89,7 @@ Vector<DOMStringMap::NameValuePair> DOMStringMap::get_name_value_pairs() const
             builder.append(current_character);
         }
 
-        list.append({ MUST(builder.to_string()), value });
+        list.append({ MUST(builder.to_string()), value.to_utf8_but_should_be_ported_to_utf16() });
     });
 
     // 4. Return list.

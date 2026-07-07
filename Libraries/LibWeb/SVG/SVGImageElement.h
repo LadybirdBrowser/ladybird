@@ -28,7 +28,7 @@ public:
 
     virtual ~SVGImageElement() override;
 
-    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
+    virtual void attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_) override;
 
     GC::Ref<SVG::SVGAnimatedLength> x();
     GC::Ref<SVG::SVGAnimatedLength> y();
@@ -47,7 +47,7 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void adopted_from(DOM::Document&) override;
 
-    void process_the_url(Optional<String> const& href);
+    void process_the_url(Optional<Utf16String> const& href);
     void fetch_the_document(URL::URL const& url);
 
 private:

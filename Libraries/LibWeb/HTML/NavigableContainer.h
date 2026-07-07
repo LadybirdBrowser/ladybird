@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/InitialInsertion.h>
@@ -52,7 +53,7 @@ protected:
     Optional<URL::URL> shared_attribute_processing_steps_for_iframe_and_frame(InitialInsertion initial_insertion);
 
     // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#navigate-an-iframe-or-frame
-    void navigate_an_iframe_or_frame(URL::URL url, ReferrerPolicy::ReferrerPolicy referrer_policy, Optional<String> srcdoc_string = {}, InitialInsertion = InitialInsertion::No);
+    void navigate_an_iframe_or_frame(URL::URL url, ReferrerPolicy::ReferrerPolicy referrer_policy, Optional<Utf16String> srcdoc_string = {}, InitialInsertion = InitialInsertion::No);
 
     void create_new_child_navigable();
 

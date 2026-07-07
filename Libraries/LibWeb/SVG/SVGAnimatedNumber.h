@@ -47,7 +47,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;
 
-    float parse_value_or_initial(StringView) const;
+    float parse_value_or_initial(Utf16View) const;
     float get_base_or_anim_value() const;
 
     GC::Ref<SVGElement> m_element;

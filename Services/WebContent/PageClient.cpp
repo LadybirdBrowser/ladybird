@@ -1215,7 +1215,12 @@ void PageClient::page_did_mutate_dom(FlyString const& type, Web::DOM::Node const
         VERIFY(attribute_name.has_value());
 
         auto const& element = as<Web::DOM::Element>(target);
-        mutation = WebView::AttributeMutation { *attribute_name, element.attribute(*attribute_name) };
+        mutation = WebView::AttributeMutation {
+            *attribute_name,
+            element.attribute(*attribute_name).map([](auto const& value) {
+                return value.to_utf8_but_should_be_ported_to_utf16();
+            })
+        };
     } else if (type == Web::DOM::MutationType::characterData) {
         auto const& character_data = as<Web::DOM::CharacterData>(target);
         mutation = WebView::CharacterDataMutation { character_data.data().to_utf8_but_should_be_ported_to_utf16() };
