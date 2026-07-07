@@ -3995,66 +3995,66 @@ bool Document::is_cookie_averse() const
     return false;
 }
 
-String Document::fg_color() const
+Utf16String Document::fg_color() const
 {
     if (auto* body_element = body(); body_element && !is<HTML::HTMLFrameSetElement>(*body_element))
-        return body_element->get_attribute_value(HTML::AttributeNames::text).to_utf8_but_should_be_ported_to_utf16();
-    return ""_string;
+        return body_element->get_attribute_value(HTML::AttributeNames::text);
+    return {};
 }
 
-void Document::set_fg_color(String const& value)
+void Document::set_fg_color(Utf16String const& value)
 {
     if (auto* body_element = body(); body_element && !is<HTML::HTMLFrameSetElement>(*body_element))
         body_element->set_attribute_value(HTML::AttributeNames::text, value);
 }
 
-String Document::link_color() const
+Utf16String Document::link_color() const
 {
     if (auto* body_element = body(); body_element && !is<HTML::HTMLFrameSetElement>(*body_element))
-        return body_element->get_attribute_value(HTML::AttributeNames::link).to_utf8_but_should_be_ported_to_utf16();
-    return ""_string;
+        return body_element->get_attribute_value(HTML::AttributeNames::link);
+    return {};
 }
 
-void Document::set_link_color(String const& value)
+void Document::set_link_color(Utf16String const& value)
 {
     if (auto* body_element = body(); body_element && !is<HTML::HTMLFrameSetElement>(*body_element))
         body_element->set_attribute_value(HTML::AttributeNames::link, value);
 }
 
-String Document::vlink_color() const
+Utf16String Document::vlink_color() const
 {
     if (auto* body_element = body(); body_element && !is<HTML::HTMLFrameSetElement>(*body_element))
-        return body_element->get_attribute_value(HTML::AttributeNames::vlink).to_utf8_but_should_be_ported_to_utf16();
-    return ""_string;
+        return body_element->get_attribute_value(HTML::AttributeNames::vlink);
+    return {};
 }
 
-void Document::set_vlink_color(String const& value)
+void Document::set_vlink_color(Utf16String const& value)
 {
     if (auto* body_element = body(); body_element && !is<HTML::HTMLFrameSetElement>(*body_element))
         body_element->set_attribute_value(HTML::AttributeNames::vlink, value);
 }
 
-String Document::alink_color() const
+Utf16String Document::alink_color() const
 {
     if (auto* body_element = body(); body_element && !is<HTML::HTMLFrameSetElement>(*body_element))
-        return body_element->get_attribute_value(HTML::AttributeNames::alink).to_utf8_but_should_be_ported_to_utf16();
-    return ""_string;
+        return body_element->get_attribute_value(HTML::AttributeNames::alink);
+    return {};
 }
 
-void Document::set_alink_color(String const& value)
+void Document::set_alink_color(Utf16String const& value)
 {
     if (auto* body_element = body(); body_element && !is<HTML::HTMLFrameSetElement>(*body_element))
         body_element->set_attribute_value(HTML::AttributeNames::alink, value);
 }
 
-String Document::bg_color() const
+Utf16String Document::bg_color() const
 {
     if (auto* body_element = body(); body_element && !is<HTML::HTMLFrameSetElement>(*body_element))
-        return body_element->get_attribute_value(HTML::AttributeNames::bgcolor).to_utf8_but_should_be_ported_to_utf16();
-    return ""_string;
+        return body_element->get_attribute_value(HTML::AttributeNames::bgcolor);
+    return {};
 }
 
-void Document::set_bg_color(String const& value)
+void Document::set_bg_color(Utf16String const& value)
 {
     if (auto* body_element = body(); body_element && !is<HTML::HTMLFrameSetElement>(*body_element))
         body_element->set_attribute_value(HTML::AttributeNames::bgcolor, value);

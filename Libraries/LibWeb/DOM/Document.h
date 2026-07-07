@@ -250,20 +250,20 @@ public:
     void set_cookie_version_index(Core::SharedVersionIndex cookie_version_index) { m_cookie_version_index = cookie_version_index; }
     void reset_cookie_version() { m_cookie_version = Core::INVALID_SHARED_VERSION; }
 
-    String fg_color() const;
-    void set_fg_color(String const&);
+    Utf16String fg_color() const;
+    void set_fg_color(Utf16String const&);
 
-    String link_color() const;
-    void set_link_color(String const&);
+    Utf16String link_color() const;
+    void set_link_color(Utf16String const&);
 
-    String vlink_color() const;
-    void set_vlink_color(String const&);
+    Utf16String vlink_color() const;
+    void set_vlink_color(Utf16String const&);
 
-    String alink_color() const;
-    void set_alink_color(String const&);
+    Utf16String alink_color() const;
+    void set_alink_color(Utf16String const&);
 
-    String bg_color() const;
-    void set_bg_color(String const&);
+    Utf16String bg_color() const;
+    void set_bg_color(Utf16String const&);
 
     String referrer() const;
     void set_referrer(String);

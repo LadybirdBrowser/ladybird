@@ -32,11 +32,11 @@ interface Document : Node {
     attribute DOMString cookie;
 
     // https://html.spec.whatwg.org/multipage/obsolete.html#Document-partial
-    [CEReactions, LegacyNullToEmptyString] attribute DOMString fgColor;
-    [CEReactions, LegacyNullToEmptyString] attribute DOMString linkColor;
-    [CEReactions, LegacyNullToEmptyString] attribute DOMString vlinkColor;
-    [CEReactions, LegacyNullToEmptyString] attribute DOMString alinkColor;
-    [CEReactions, LegacyNullToEmptyString] attribute DOMString bgColor;
+    [CEReactions, LegacyNullToEmptyString] attribute Utf16DOMString fgColor;
+    [CEReactions, LegacyNullToEmptyString] attribute Utf16DOMString linkColor;
+    [CEReactions, LegacyNullToEmptyString] attribute Utf16DOMString vlinkColor;
+    [CEReactions, LegacyNullToEmptyString] attribute Utf16DOMString alinkColor;
+    [CEReactions, LegacyNullToEmptyString] attribute Utf16DOMString bgColor;
 
     readonly attribute USVString referrer;
 
