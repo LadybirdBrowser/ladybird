@@ -63,10 +63,11 @@ private:
     virtual Core::EventLoop& create_platform_event_loop() override;
 
     virtual Optional<WebView::ViewImplementation&> active_web_view() const override;
+    virtual bool activate_tab_with_url(URL::URL const&) const override;
+
     virtual Optional<WebView::ViewImplementation&> open_blank_new_tab(Web::HTML::ActivateTab) const override;
     virtual void open_url_in_new_tab(URL::URL const&, Web::HTML::ActivateTab) const override;
-    virtual bool activate_tab_with_url(URL::URL const&) const override;
-    virtual void open_url_in_new_window(URL::URL const& url) override;
+    virtual void open_url_in_new_window(URL::URL const&, WebView::IsPrivate) override;
 
     virtual Optional<ByteString> ask_user_for_download_path(ByteString const& file) const override;
     virtual void display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const override;
@@ -83,6 +84,8 @@ private:
 
     virtual bool supports_vertical_tabs() const override { return true; }
     virtual bool supports_server_side_window_decorations() const override { return true; }
+    virtual bool supports_private_browsing_windows() const override { return true; }
+
     virtual Vector<WebView::BookmarkItem::Bookmark> bookmarks_for_all_tabs() const override;
     virtual void update_tabs_display() const override;
 

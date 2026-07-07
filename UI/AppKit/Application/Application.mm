@@ -61,7 +61,7 @@ Optional<WebView::ViewImplementation&> Application::open_blank_new_tab(Web::HTML
     return [[tab web_view] view];
 }
 
-void Application::open_url_in_new_window(URL::URL const& url)
+void Application::open_url_in_new_window(URL::URL const& url, WebView::IsPrivate)
 {
     ApplicationDelegate* delegate = [NSApp delegate];
     (void)[delegate createNewTab:url fromTab:nil activateTab:Web::HTML::ActivateTab::Yes];

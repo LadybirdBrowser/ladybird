@@ -516,6 +516,13 @@ Optional<WebView::ViewImplementation&> Application::active_web_view() const
     return {};
 }
 
+bool Application::activate_tab_with_url(URL::URL const& url) const
+{
+    if (!m_active_window)
+        return false;
+    return m_active_window->activate_tab_with_url(url);
+}
+
 Optional<WebView::ViewImplementation&> Application::open_blank_new_tab(Web::HTML::ActivateTab activate_tab) const
 {
     if (!m_active_window) {
@@ -539,17 +546,9 @@ void Application::open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTa
     active_window().new_tab_from_url(url, activate_tab);
 }
 
-bool Application::activate_tab_with_url(URL::URL const& url) const
+void Application::open_url_in_new_window(URL::URL const& url, WebView::IsPrivate is_private)
 {
-    if (!m_active_window)
-        return false;
-    return m_active_window->activate_tab_with_url(url);
-}
-
-void Application::open_url_in_new_window(URL::URL const& url)
-{
-    auto is_private = m_active_window ? m_active_window->is_private() : WebView::IsPrivate::No;
-    this->new_window({ url }, configuration_for_new_window(), BrowserWindow::IsPopupWindow::No, is_private);
+    new_window({ url }, configuration_for_new_window(), BrowserWindow::IsPopupWindow::No, is_private);
 }
 
 Optional<ByteString> Application::ask_user_for_download_path(ByteString const& file) const

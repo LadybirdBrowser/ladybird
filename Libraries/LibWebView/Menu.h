@@ -67,6 +67,7 @@ enum class ActionID {
 
     OpenInNewTab,
     OpenInNewWindow,
+    OpenInNewPrivateWindow,
     DownloadLinkedFile,
     DownloadLinkedFileAs,
     CopyURL,

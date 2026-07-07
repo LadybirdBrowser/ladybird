@@ -76,6 +76,7 @@ public:
 
     virtual bool supports_vertical_tabs() const { return false; }
     virtual bool supports_server_side_window_decorations() const { return false; }
+    virtual bool supports_private_browsing_windows() const { return false; }
     void tab_settings_changed(Badge<ApplicationSettingsObserver>);
 
     static BookmarkStore& bookmark_store() { return the().m_bookmark_store; }
@@ -119,13 +120,15 @@ public:
     void notify_compositor_presented_bitmap_ready_to_paint(Web::Compositor::CompositorContextId, i32 bitmap_id);
 
     virtual Optional<ViewImplementation&> active_web_view() const { return {}; }
-    virtual Optional<ViewImplementation&> open_blank_new_tab(Web::HTML::ActivateTab) const { return {}; }
     virtual bool activate_tab_with_url(URL::URL const&) const { return false; }
+
+    virtual Optional<ViewImplementation&> open_blank_new_tab(Web::HTML::ActivateTab) const { return {}; }
     virtual void open_url_in_new_tab(URL::URL const&, Web::HTML::ActivateTab) const;
+    virtual void open_url_in_new_window(URL::URL const&, IsPrivate) { }
+
     void open_bookmark_in_new_tab(String const& bookmark_id, Web::HTML::ActivateTab) const;
 
     Main::Arguments const& command_line_arguments() const { return m_arguments; }
-    virtual void open_url_in_new_window(URL::URL const& url);
 
     void add_child_process(Process&&);
 

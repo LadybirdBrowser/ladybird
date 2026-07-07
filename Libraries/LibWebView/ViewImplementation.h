@@ -507,6 +507,7 @@ protected:
 
     RefPtr<Action> m_open_in_new_tab_action;
     RefPtr<Action> m_open_in_new_window_action;
+    RefPtr<Action> m_open_in_new_private_window_action;
     RefPtr<Action> m_download_linked_file_action;
     RefPtr<Action> m_download_linked_file_as_action;
     RefPtr<Action> m_copy_url_action;

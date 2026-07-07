@@ -583,11 +583,6 @@ void Application::open_bookmark_in_new_tab(String const& bookmark_id, Web::HTML:
         open_url_in_new_tab(bookmark->bookmark().url, activate_tab);
 }
 
-void Application::open_url_in_new_window(URL::URL const& url)
-{
-    dbgln("open_url_in_new_window() is unsupported on this platform (url: {})", url);
-}
-
 ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(Optional<ViewImplementation&> view, IsPrivate is_private, u64 initial_page_id)
 {
     auto request_server_handle = TRY(connect_new_request_server_client(is_private));

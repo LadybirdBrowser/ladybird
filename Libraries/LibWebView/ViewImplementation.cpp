@@ -2108,9 +2108,16 @@ void ViewImplementation::initialize_context_menus()
     m_open_in_new_tab_action = Action::create("Open in New Tab"sv, ActionID::OpenInNewTab, [this]() {
         Application::the().open_url_in_new_tab(m_context_menu_url, Web::HTML::ActivateTab::No);
     });
-    m_open_in_new_window_action = Action::create("Open in New Window"sv, ActionID::OpenInNewWindow, [this]() {
-        Application::the().open_url_in_new_window(m_context_menu_url);
-    });
+    if (m_is_private == IsPrivate::No) {
+        m_open_in_new_window_action = Action::create("Open in New Window"sv, ActionID::OpenInNewWindow, [this]() {
+            Application::the().open_url_in_new_window(m_context_menu_url, IsPrivate::No);
+        });
+    }
+    if (application.supports_private_browsing_windows()) {
+        m_open_in_new_private_window_action = Action::create("Open in New Private Window"sv, ActionID::OpenInNewPrivateWindow, [this]() {
+            Application::the().open_url_in_new_window(m_context_menu_url, IsPrivate::Yes);
+        });
+    }
     m_download_linked_file_action = Action::create("Download Linked File"sv, ActionID::DownloadLinkedFile, [this]() {
         download_context_menu_url(PromptForPath::No);
     });
@@ -2195,7 +2202,10 @@ void ViewImplementation::initialize_context_menus()
 
     m_link_context_menu = Menu::create("Link Context Menu"sv);
     m_link_context_menu->add_action(*m_open_in_new_tab_action);
-    m_link_context_menu->add_action(*m_open_in_new_window_action);
+    if (m_open_in_new_window_action)
+        m_link_context_menu->add_action(*m_open_in_new_window_action);
+    if (m_open_in_new_private_window_action)
+        m_link_context_menu->add_action(*m_open_in_new_private_window_action);
     m_link_context_menu->add_separator();
     m_link_context_menu->add_action(*m_download_linked_file_action);
     m_link_context_menu->add_action(*m_download_linked_file_as_action);
