@@ -1,0 +1,1 @@
+needsRepaint after mouse move: true

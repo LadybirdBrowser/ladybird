@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<div id="box" style="width: 100px; height: 100px;"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // Mutating the DOM schedules a repaint and makes the cached hit-test display list stale.
+        const span = document.createElement("span");
+        span.textContent = "x";
+        document.body.appendChild(span);
+
+        // Hit testing from mouse movement rebuilds the hit-test display list. This must not
+        // consume the pending repaint, otherwise the next rendering update presents nothing.
+        internals.mouseMove(50, 50);
+
+        println(`needsRepaint after mouse move: ${internals.needsRepaint}`);
+    });
+</script>

@@ -4279,7 +4279,6 @@ bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_conf
     if (!has_compositor_context())
         return false;
 
-    m_needs_repaint = false;
     auto document = active_document();
     if (!document)
         return false;
@@ -4360,6 +4359,8 @@ void LocalNavigable::paint_next_frame()
     };
     if (should_defer_main_thread_present_for_async_scroll())
         return;
+
+    m_needs_repaint = false;
 
     if (!record_display_list_and_scroll_state(paint_config))
         return;
