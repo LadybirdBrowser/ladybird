@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Missing properties in middle keyframes</title>
+        <link rel="help" href="https://drafts.csswg.org/css-animations/#keyframes">
+        <link rel="author" title="Simon Wülker" href="simon.wuelker@arcor.de">
+        <meta name="assert" content="CSS animation correctly when some keyframes don't declare all properties">
+        <script src="../../resources/testharness.js"></script>
+        <script src="../../resources/testharnessreport.js"></script>
+        <script src="../../web-animations/testcommon.js"></script>
+        <style type="text/css" media="screen">
+            @keyframes move-left {
+                0% {
+                    margin-left: 0px;
+                    opacity: 0;
+                }
+                25% {
+                    opacity: 1;
+                }
+                50% {
+                    // We evaluate the state of the animation here
+                }
+                75% {
+                    opacity: 0;
+                }
+                100% {
+                    margin-left: 100px;
+                    opacity: 1;
+                }
+            }
+
+            .box {
+                position: relative;
+                width: 100px;
+                height: 100px;
+                background-color: green;
+            }
+        </style>
+    </head>
+<body>
+    <div class="box" id="box1"></div>
+    <script>
+    promise_test(async t => {
+        box1.style.animation = "move-left 1s -10s linear 0.5 normal forwards paused";
+        assert_equals(getComputedStyle(box1).opacity, "0.5");
+        assert_equals(getComputedStyle(box1).marginLeft, "50px");
+    }, "Animation interpolates correctly when some keyframes don't declare all values");
+    </script>
+</body>
+</html>

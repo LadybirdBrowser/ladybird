@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<title>Missing properties in first keyframe</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+<link rel="help" href="https://www.w3.org/TR/web-animations-1/#the-effect-value-of-a-keyframe-animation-effect">
+<meta name="assert"
+      content="CSS animation correctly interpolates from neutral keyframe">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../web-animations/testcommon.js"></script>
+<style type="text/css" media="screen">
+  body {
+    margin: 0;
+  }
+
+  .box {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    left: 0;
+    background-color: green;
+  }
+
+  #box1 {
+    left: 200px;
+    animation: move-left 2s paused linear;
+  }
+
+  #box2 {
+    transform: translateX(200px);
+    animation: move-transform 2s paused linear;
+  }
+
+  @keyframes move-left {
+    0% {
+      opacity: 1;
+    }
+    25% {
+      opacity: 1;
+    }
+    50% {
+      left: 0;
+      opacity: 1;
+    }
+    100% {
+      left: 0;
+      opacity: 0;
+    }
+  }
+
+  @keyframes move-transform {
+    0% {
+      opacity: 1;
+    }
+    25% {
+      opacity: 1;
+    }
+    50% {
+      transform: translateX(0);
+      opacity: 1;
+    }
+    100% {
+      transform: translateX(0);
+      opacity: 0;
+    }
+  }
+</style>
+<body>
+  <div class="box" id="box1"></div>
+  <div class="box" id="box2"></div>
+</body>
+<script>
+  promise_test(async t => {
+    document.getAnimations().forEach(anim => {
+      anim.currentTime = 500;
+    });
+    assert_equals(getComputedStyle(box1).left, "100px");
+    assert_matrix_equals(
+        getComputedStyle(box2).transform,
+        'matrix(1, 0, 0, 1, 100, 0)');
+  }, 'Missing property values in the first keyframe are correctly ' +
+     'interpolated from a neutral keyframe value');
+</script>
+</html>

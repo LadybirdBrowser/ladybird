@@ -1062,56 +1062,64 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
 
     double progress = round(output_progress.value() * 100.0 * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor);
     // FIXME: Support progress values outside the range of i64.
-    i64 key = 0;
+    i64 current_key = 0;
     if (progress > NumericLimits<i64>::max()) {
-        key = NumericLimits<i64>::max();
+        current_key = NumericLimits<i64>::max();
     } else if (progress < NumericLimits<i64>::min()) {
-        key = NumericLimits<i64>::min();
+        current_key = NumericLimits<i64>::min();
     } else {
-        key = static_cast<i64>(progress);
+        current_key = static_cast<i64>(progress);
     }
-    auto keyframe_start_it = [&] {
-        if (output_progress.value() <= 0) {
-            return keyframes.begin();
-        }
-        auto potential_match = keyframes.find_largest_not_above_iterator(key);
-        auto next = potential_match;
-        ++next;
-        if (next.is_end()) {
-            --potential_match;
-        }
-        return potential_match;
-    }();
-    auto keyframe_start = static_cast<i64>(keyframe_start_it.key());
-    auto keyframe_values = *keyframe_start_it;
 
-    auto keyframe_end_it = ++keyframe_start_it;
-    VERIFY(!keyframe_end_it.is_end());
-    auto keyframe_end = static_cast<i64>(keyframe_end_it.key());
-    auto keyframe_end_values = *keyframe_end_it;
-
-    auto progress_in_keyframe = (progress - keyframe_start) / static_cast<double>(keyframe_end - keyframe_start);
+    // Each property is animated using its property-specific keyframes, so two properties in the same animation may be
+    // interpolated across different intervals.
+    // Collect the keyframes in ascending offset order, and index for each physical longhand the keyframes that specify
+    // it, so that the interval endpoints can be found separately for every property.
+    LogicalAliasMappingContext const logical_alias_mapping_context { computed_properties.writing_mode(), computed_properties.direction() };
+    struct KeyframeInfo {
+        i64 key { 0 };
+        Animations::KeyframeEffect::KeyFrameSet::ResolvedKeyFrame const* frame { nullptr };
+    };
+    Vector<KeyframeInfo> ordered_keyframes;
+    ordered_keyframes.ensure_capacity(keyframes.size());
+    HashMap<PropertyID, Vector<size_t>> keyframes_specifying_property;
+    for (auto it = keyframes.begin(); it != keyframes.end(); ++it) {
+        auto keyframe_index = ordered_keyframes.size();
+        auto add_physical_longhand = [&](PropertyID longhand_id) {
+            auto physical_longhand_id = map_logical_alias_to_physical_property(longhand_id, logical_alias_mapping_context);
+            auto& specifying_keyframes = keyframes_specifying_property.ensure(physical_longhand_id);
+            if (specifying_keyframes.is_empty() || specifying_keyframes.last() != keyframe_index)
+                specifying_keyframes.append(keyframe_index);
+        };
+        for (auto const& [property_id, value] : it->properties) {
+            value.visit(
+                [&](Animations::KeyframeEffect::KeyFrameSet::UseInitial) { add_physical_longhand(property_id); },
+                [&](NonnullRefPtr<StyleValue const> const& keyframe_value) {
+                    for_each_property_expanding_shorthands(property_id, *keyframe_value, [&](PropertyID longhand_id, StyleValue const&) {
+                        add_physical_longhand(longhand_id);
+                    });
+                });
+        }
+        ordered_keyframes.append({ static_cast<i64>(it.key()), &*it });
+    }
 
     // https://drafts.csswg.org/css-animations-1/#animation-timing-function
     // Apply the per-keyframe easing to the interval progress. The easing on a keyframe applies to the
     // interval from that keyframe to the next. If the keyframe doesn't specify an easing, use the
     // animation's default easing (from the animation-timing-function property).
-    auto resolved_easing = keyframe_values.easing.visit(
-        [](Empty) -> Optional<CSS::EasingFunction> { return {}; },
-        [](CSS::EasingFunction const& easing) -> Optional<CSS::EasingFunction> { return easing; },
-        [&](NonnullRefPtr<CSS::StyleValue const> const& value) -> Optional<CSS::EasingFunction> {
-            return resolve_keyframe_easing(*value, abstract_element);
-        });
-    if (resolved_easing.has_value()) {
-        progress_in_keyframe = resolved_easing->evaluate_at(progress_in_keyframe, false);
-    } else if (animation->is_css_animation()) {
-        progress_in_keyframe = static_cast<CSSAnimation const&>(*animation).default_easing().evaluate_at(progress_in_keyframe, false);
-    }
-
-    if constexpr (LIBWEB_CSS_ANIMATION_DEBUG) {
-        auto valid_properties = keyframe_values.properties.size();
-        dbgln("Animation {} contains {} properties to interpolate, progress = {}%", animation->id(), valid_properties, progress_in_keyframe * 100);
-    }
+    auto apply_keyframe_easing = [&](auto const& keyframe_easing, double interval_progress) {
+        auto resolved_easing = keyframe_easing.visit(
+            [](Empty) -> Optional<CSS::EasingFunction> { return {}; },
+            [](CSS::EasingFunction const& easing) -> Optional<CSS::EasingFunction> { return easing; },
+            [&](NonnullRefPtr<CSS::StyleValue const> const& value) -> Optional<CSS::EasingFunction> {
+                return resolve_keyframe_easing(*value, abstract_element);
+            });
+        if (resolved_easing.has_value())
+            return resolved_easing->evaluate_at(interval_progress, false);
+        if (animation->is_css_animation())
+            return static_cast<CSSAnimation const&>(*animation).default_easing().evaluate_at(interval_progress, false);
+        return interval_progress;
+    };
 
     // FIXME: Follow https://drafts.csswg.org/web-animations-1/#ref-for-computed-keyframes in whatever the right place is.
     auto compute_keyframe_values = [&computed_properties, &abstract_element, builder, this](auto const& keyframe_values) {
@@ -1261,10 +1269,6 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
         return result;
     };
 
-    VERIFY(computation_context_cache_is_empty());
-    HashMap<PropertyID, RefPtr<StyleValue const>> computed_start_values = compute_keyframe_values(keyframe_values);
-    HashMap<PropertyID, RefPtr<StyleValue const>> computed_end_values = compute_keyframe_values(keyframe_end_values);
-    clear_computation_context_caches();
     auto to_composite_operation = [&](Bindings::CompositeOperationOrAuto composite_operation_or_auto) {
         switch (composite_operation_or_auto) {
         case Bindings::CompositeOperationOrAuto::Accumulate:
@@ -1281,23 +1285,49 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
 
     auto is_result_of_transition = animation->is_css_transition() ? AnimatedPropertyResultOfTransition::Yes : AnimatedPropertyResultOfTransition::No;
 
-    auto start_composite_operation = to_composite_operation(keyframe_values.composite);
-    auto end_composite_operation = to_composite_operation(keyframe_end_values.composite);
+    Vector<HashMap<PropertyID, RefPtr<StyleValue const>>> keyframe_computed_values;
+    keyframe_computed_values.resize(ordered_keyframes.size());
+    auto computed_values_for_keyframe = [&](size_t index) -> HashMap<PropertyID, RefPtr<StyleValue const>> const& {
+        if (keyframe_computed_values[index].is_empty())
+            keyframe_computed_values[index] = compute_keyframe_values(*ordered_keyframes[index].frame);
+        return keyframe_computed_values[index];
+    };
 
-    for (auto const& it : computed_start_values) {
-        auto resolved_start_property = it.value;
-        RefPtr resolved_end_property = computed_end_values.get(it.key).value_or(nullptr);
+    VERIFY(computation_context_cache_is_empty());
+
+    for (auto const& [property_id, specifying_keyframes] : keyframes_specifying_property) {
+        // A property is usually specified by at least the initial and final keyframes, but a value that stays
+        // unresolved may leave a property with only one specifying keyframe. Such a property cannot be interpolated, so skip it.
+        if (specifying_keyframes.size() < 2)
+            continue;
+
+        auto start_keyframe = specifying_keyframes[0];
+        auto end_keyframe = specifying_keyframes[1];
+        for (size_t next = 2; next < specifying_keyframes.size(); ++next) {
+            if (current_key < ordered_keyframes[end_keyframe].key)
+                break;
+            start_keyframe = end_keyframe;
+            end_keyframe = specifying_keyframes[next];
+        }
+
+        auto start_key = ordered_keyframes[start_keyframe].key;
+        auto end_key = ordered_keyframes[end_keyframe].key;
+        double interval_progress = (static_cast<double>(current_key) - start_key) / static_cast<double>(end_key - start_key);
+        interval_progress = apply_keyframe_easing(ordered_keyframes[start_keyframe].frame->easing, interval_progress);
+
+        RefPtr<StyleValue const> resolved_start_property = computed_values_for_keyframe(start_keyframe).get(property_id).value_or(nullptr);
+        RefPtr<StyleValue const> resolved_end_property = computed_values_for_keyframe(end_keyframe).get(property_id).value_or(nullptr);
 
         if (!resolved_end_property) {
             if (resolved_start_property) {
-                computed_properties.set_animated_property(Badge<StyleComputer> {}, it.key, *resolved_start_property, is_result_of_transition);
-                dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "No end property for property {}, using {}", string_from_property_id(it.key), resolved_start_property->to_string(SerializationMode::Normal));
+                computed_properties.set_animated_property(Badge<StyleComputer> {}, property_id, *resolved_start_property, is_result_of_transition);
+                dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "No end property for property {}, using {}", string_from_property_id(property_id), resolved_start_property->to_string(SerializationMode::Normal));
             }
             continue;
         }
 
         if (resolved_end_property && !resolved_start_property)
-            resolved_start_property = property_initial_value(it.key);
+            resolved_start_property = property_initial_value(property_id);
 
         if (!resolved_start_property || !resolved_end_property)
             continue;
@@ -1307,26 +1337,28 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
 
         // OPTIMIZATION: Values resulting from animations other than CSS transitions are overridden by important
         //               properties so there's no need to calculate them
-        if (!animation->is_css_transition() && computed_properties.is_property_important(it.key)) {
+        if (!animation->is_css_transition() && computed_properties.is_property_important(property_id)) {
             continue;
         }
 
-        auto const& underlying_value = computed_properties.property(it.key);
-        if (auto composited_start_value = composite_value(it.key, underlying_value, start, start_composite_operation))
+        auto const& underlying_value = computed_properties.property(property_id);
+        if (auto composited_start_value = composite_value(property_id, underlying_value, start, to_composite_operation(ordered_keyframes[start_keyframe].frame->composite)))
             start = *composited_start_value;
 
-        if (auto composited_end_value = composite_value(it.key, underlying_value, end, end_composite_operation))
+        if (auto composited_end_value = composite_value(property_id, underlying_value, end, to_composite_operation(ordered_keyframes[end_keyframe].frame->composite)))
             end = *composited_end_value;
 
-        if (auto next_value = interpolate_property(*effect->target(), it.key, *start, *end, progress_in_keyframe, AllowDiscrete::Yes)) {
-            dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "Interpolated value for property {} at {}: {} -> {} = {}", string_from_property_id(it.key), progress_in_keyframe, start->to_string(SerializationMode::Normal), end->to_string(SerializationMode::Normal), next_value->to_string(SerializationMode::Normal));
-            computed_properties.set_animated_property(Badge<StyleComputer> {}, it.key, *next_value, is_result_of_transition);
+        if (auto next_value = interpolate_property(*effect->target(), property_id, *start, *end, interval_progress, AllowDiscrete::Yes)) {
+            dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "Interpolated value for property {} at {}: {} -> {} = {}", string_from_property_id(property_id), interval_progress, start->to_string(SerializationMode::Normal), end->to_string(SerializationMode::Normal), next_value->to_string(SerializationMode::Normal));
+            computed_properties.set_animated_property(Badge<StyleComputer> {}, property_id, *next_value, is_result_of_transition);
         } else {
             // If interpolate_property() fails, the element should not be rendered
-            dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "Interpolated value for property {} at {}: {} -> {} is invalid", string_from_property_id(it.key), progress_in_keyframe, start->to_string(SerializationMode::Normal), end->to_string(SerializationMode::Normal));
+            dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "Interpolated value for property {} at {}: {} -> {} is invalid", string_from_property_id(property_id), interval_progress, start->to_string(SerializationMode::Normal), end->to_string(SerializationMode::Normal));
             computed_properties.set_animated_property(Badge<StyleComputer> {}, PropertyID::Visibility, KeywordStyleValue::create(Keyword::Hidden), is_result_of_transition);
         }
     }
+
+    clear_computation_context_caches();
 }
 
 void StyleComputer::process_animation_definitions(ComputedProperties const& computed_properties, CascadedProperties const& cascaded_properties, DOM::AbstractElement& abstract_element) const
