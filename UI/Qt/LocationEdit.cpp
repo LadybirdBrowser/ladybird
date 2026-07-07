@@ -381,6 +381,7 @@ void LocationEdit::keyPressEvent(QKeyEvent* event)
         if (m_url.has_value())
             setText(serialized_url());
         clearFocus();
+        emit focus_return_requested();
         return;
     }
 

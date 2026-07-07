@@ -44,6 +44,9 @@ public:
     void set_url_is_hidden(bool);
     void show_autocomplete();
 
+signals:
+    void focus_return_requested();
+
 private:
     virtual void changeEvent(QEvent* event) override;
     virtual void focusInEvent(QFocusEvent* event) override;

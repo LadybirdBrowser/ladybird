@@ -746,6 +746,9 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     };
 
     QObject::connect(m_location_edit, &QLineEdit::returnPressed, this, &Tab::location_edit_return_pressed);
+    QObject::connect(m_location_edit, &LocationEdit::focus_return_requested, this, [this] {
+        view().setFocus();
+    });
 
     view().on_title_change = [this](auto const& title) {
         m_title = qstring_from_utf16_string(title);
