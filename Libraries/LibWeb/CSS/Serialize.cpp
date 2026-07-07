@@ -116,6 +116,35 @@ void serialize_a_string(StringBuilder& builder, StringView string)
     builder.append('"');
 }
 
+void serialize_a_string(StringBuilder& builder, Utf16View string)
+{
+    // To serialize a string means to create a string represented by '"' (U+0022), followed by the result
+    // of applying the rules below to each character of the given string, followed by '"' (U+0022):
+    builder.append('"');
+
+    for (auto character : string) {
+        // If the character is NULL (U+0000), then the REPLACEMENT CHARACTER (U+FFFD).
+        if (character == 0) {
+            builder.append_code_point(0xFFFD);
+            continue;
+        }
+        // If the character is in the range [\1-\1f] (U+0001 to U+001F) or is U+007F, the character escaped as code point.
+        if ((character >= 0x0001 && character <= 0x001F) || (character == 0x007F)) {
+            escape_a_character_as_code_point(builder, character);
+            continue;
+        }
+        // If the character is '"' (U+0022) or "\" (U+005C), the escaped character.
+        if (character == 0x0022 || character == 0x005C) {
+            escape_a_character(builder, character);
+            continue;
+        }
+        // Otherwise, the character itself.
+        builder.append_code_point(character);
+    }
+
+    builder.append('"');
+}
+
 // https://www.w3.org/TR/cssom-1/#serialize-a-url
 void serialize_a_url(StringBuilder& builder, StringView url)
 {
@@ -179,6 +208,13 @@ String serialize_an_identifier(StringView ident)
 }
 
 String serialize_a_string(StringView string)
+{
+    StringBuilder builder;
+    serialize_a_string(builder, string);
+    return builder.to_string_without_validation();
+}
+
+String serialize_a_string(Utf16View string)
 {
     StringBuilder builder;
     serialize_a_string(builder, string);

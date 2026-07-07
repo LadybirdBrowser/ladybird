@@ -10,6 +10,7 @@
 #include <AK/StringBuilder.h>
 #include <AK/StringView.h>
 #include <AK/Utf16StringBuilder.h>
+#include <AK/Utf16View.h>
 #include <AK/Vector.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Font/UnicodeRange.h>
@@ -24,6 +25,7 @@ void escape_a_character_as_code_point(StringBuilder&, u32 character);
 WEB_API void serialize_an_identifier(StringBuilder&, StringView ident);
 WEB_API void serialize_an_identifier(StringBuilder&, Utf16View ident);
 void serialize_a_string(StringBuilder&, StringView string);
+void serialize_a_string(StringBuilder&, Utf16View string);
 WEB_API void serialize_a_url(StringBuilder&, StringView url);
 void serialize_unicode_ranges(StringBuilder&, Vector<Gfx::UnicodeRange> const& unicode_ranges);
 WEB_API void serialize_a_number(StringBuilder&, double value);
@@ -31,6 +33,7 @@ WEB_API void serialize_a_number(Utf16StringBuilder&, double value);
 
 String serialize_an_identifier(StringView ident);
 String serialize_a_string(StringView string);
+String serialize_a_string(Utf16View string);
 String serialize_a_url(StringView url);
 String serialize_a_number(double value);
 

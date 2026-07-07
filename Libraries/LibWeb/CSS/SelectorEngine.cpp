@@ -649,27 +649,29 @@ static inline void for_each_matching_attribute(CSS::Selector::SimpleSelector::At
 static bool matches_single_attribute(CSS::Selector::SimpleSelector::Attribute const& attribute_selector, DOM::Attr const& attribute, CaseSensitivity case_sensitivity)
 {
     auto const case_insensitive_match = case_sensitivity == CaseSensitivity::CaseInsensitive;
-    auto element_attr_value = attribute.value().to_utf8_but_should_be_ported_to_utf16();
+    auto element_attr_value = attribute.value().utf16_view();
+    auto selector_attr_value = attribute_selector.value.utf16_view();
 
     switch (attribute_selector.match_type) {
     case CSS::Selector::SimpleSelector::Attribute::MatchType::ExactValueMatch:
         return case_insensitive_match
-            ? element_attr_value.equals_ignoring_ascii_case(attribute_selector.value)
-            : element_attr_value == attribute_selector.value;
+            ? element_attr_value.equals_ignoring_ascii_case(selector_attr_value)
+            : element_attr_value == selector_attr_value;
     case CSS::Selector::SimpleSelector::Attribute::MatchType::ContainsWord: {
         if (attribute_selector.value.is_empty()) {
             // This selector is always false is match value is empty.
             return false;
         }
-        auto const view = element_attr_value.bytes_as_string_view().split_view(' ');
+        auto const view = element_attr_value.split_view(' ', SplitBehavior::Nothing);
         return view.contains([&](auto const& value) {
-            return case_insensitive_match ? value.equals_ignoring_ascii_case(attribute_selector.value)
-                                          : value == attribute_selector.value;
+            return case_insensitive_match ? value.equals_ignoring_ascii_case(selector_attr_value)
+                                          : value == selector_attr_value;
         });
     }
     case CSS::Selector::SimpleSelector::Attribute::MatchType::ContainsString:
         return !attribute_selector.value.is_empty()
-            && element_attr_value.contains(attribute_selector.value, case_sensitivity);
+            && (case_insensitive_match ? element_attr_value.find_code_unit_offset_ignoring_case(selector_attr_value).has_value()
+                                       : element_attr_value.contains(selector_attr_value));
     case CSS::Selector::SimpleSelector::Attribute::MatchType::StartsWithSegment: {
         // https://www.w3.org/TR/CSS2/selector.html#attribute-selectors
         // [att|=val]
@@ -684,25 +686,32 @@ static bool matches_single_attribute(CSS::Selector::SimpleSelector::Attribute co
             return false;
         }
 
-        auto element_attribute_length = element_attr_value.bytes_as_string_view().length();
-        auto attribute_length = attribute_selector.value.bytes_as_string_view().length();
+        auto element_attribute_length = element_attr_value.length_in_code_units();
+        auto attribute_length = selector_attr_value.length_in_code_units();
         if (element_attribute_length < attribute_length)
             return false;
 
         if (attribute_length == element_attribute_length) {
             return case_insensitive_match
-                ? element_attr_value.equals_ignoring_ascii_case(attribute_selector.value)
-                : element_attr_value == attribute_selector.value;
+                ? element_attr_value.equals_ignoring_ascii_case(selector_attr_value)
+                : element_attr_value == selector_attr_value;
         }
 
-        return element_attr_value.starts_with_bytes(attribute_selector.value, case_insensitive_match ? CaseSensitivity::CaseInsensitive : CaseSensitivity::CaseSensitive) && element_attr_value.bytes_as_string_view()[attribute_length] == '-';
+        return (case_insensitive_match ? element_attr_value.substring_view(0, attribute_length).equals_ignoring_ascii_case(selector_attr_value)
+                                       : element_attr_value.starts_with(selector_attr_value))
+            && element_attr_value.code_unit_at(attribute_length) == '-';
     }
     case CSS::Selector::SimpleSelector::Attribute::MatchType::StartsWithString:
         return !attribute_selector.value.is_empty()
-            && element_attr_value.bytes_as_string_view().starts_with(attribute_selector.value, case_sensitivity);
+            && selector_attr_value.length_in_code_units() <= element_attr_value.length_in_code_units()
+            && (case_insensitive_match ? element_attr_value.substring_view(0, selector_attr_value.length_in_code_units()).equals_ignoring_ascii_case(selector_attr_value)
+                                       : element_attr_value.starts_with(selector_attr_value));
     case CSS::Selector::SimpleSelector::Attribute::MatchType::EndsWithString:
         return !attribute_selector.value.is_empty()
-            && element_attr_value.bytes_as_string_view().ends_with(attribute_selector.value, case_sensitivity);
+            && selector_attr_value.length_in_code_units() <= element_attr_value.length_in_code_units()
+            && (case_insensitive_match
+                    ? element_attr_value.substring_view(element_attr_value.length_in_code_units() - selector_attr_value.length_in_code_units()).equals_ignoring_ascii_case(selector_attr_value)
+                    : element_attr_value.ends_with(selector_attr_value));
     case CSS::Selector::SimpleSelector::Attribute::MatchType::HasAttribute:
         return true;
     }

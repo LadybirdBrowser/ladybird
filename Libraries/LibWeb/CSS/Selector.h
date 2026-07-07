@@ -10,6 +10,7 @@
 #include <AK/FlyString.h>
 #include <AK/RefCounted.h>
 #include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/CSS/Keyword.h>
@@ -160,7 +161,7 @@ public:
             };
             MatchType match_type;
             QualifiedName qualified_name;
-            String value {};
+            Utf16String value {};
             CaseType case_type;
         };
 
