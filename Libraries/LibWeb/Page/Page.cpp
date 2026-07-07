@@ -716,6 +716,12 @@ void Page::prepare_canvas_contexts_for_compositing()
     for_each_canvas_element([](auto& canvas_element) {
         canvas_element.prepare_for_compositing();
     });
+
+    // Preparing only records commands and present markers into the shared
+    // canvas command stream; flush it here so canvases reach the Compositor
+    // even when nothing else repaints this rendering update.
+    if (has_compositor_host())
+        compositor_host().flush_canvas_2d_stream();
 }
 
 void Page::notify_all_canvas_elements_of_lost_backing_storage()

@@ -34,6 +34,9 @@ void CompositorContextHandle::stop_presenting_to_client()
 
 void CompositorContextHandle::update_display_list(NonnullRefPtr<Painting::DisplayList> display_list, Painting::AccumulatedVisualContextTree visual_context_tree, Painting::DisplayListResourceTransaction&& resource_transaction, Painting::ScrollStateSnapshot&& scroll_state_snapshot)
 {
+    // Pending canvas commands (and present markers) must reach the Compositor
+    // before a display list that samples the presented canvas surfaces.
+    m_host.flush_canvas_2d_stream();
     m_host.update_display_list(m_context_id, move(display_list), move(visual_context_tree), move(resource_transaction), move(scroll_state_snapshot));
 }
 
@@ -85,11 +88,13 @@ void CompositorContextHandle::viewport_size_updated(Gfx::IntSize viewport_size, 
 
 void CompositorContextHandle::present_frame(Gfx::IntRect viewport_rect)
 {
+    m_host.flush_canvas_2d_stream();
     m_host.present_frame(m_context_id, viewport_rect);
 }
 
 void CompositorContextHandle::request_screenshot(NonnullRefPtr<Gfx::PaintingSurface> target_surface, Function<void()>&& callback)
 {
+    m_host.flush_canvas_2d_stream();
     m_host.request_screenshot(m_context_id, move(target_surface), move(callback));
 }
 

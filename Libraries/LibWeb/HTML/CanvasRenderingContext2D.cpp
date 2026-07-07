@@ -230,12 +230,17 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::draw_image_internal(CanvasIm
     }
 
     if (auto const* source_canvas = image.get_pointer<GC::Ref<HTMLCanvasElement>>()) {
+        // A 2D source needs no eager synchronization: its recorded commands
+        // precede this DrawCanvas in the shared ordered stream, so the replay
+        // sees them by construction. WebGL frames are presented by a separate
+        // message and the source's registry surface is its live drawing buffer,
+        // so present the source now and flush the DrawCanvas right after it,
+        // before a later WebGL frame can overtake the reference.
+        bool const source_is_2d = (*source_canvas)->canvas_rendering_context_2d() != nullptr;
         (*source_canvas)->ensure_backing_storage();
-        (*source_canvas)->prepare_for_compositing();
+        if (!source_is_2d)
+            (*source_canvas)->prepare_for_compositing();
         if (auto source_canvas_id = (*source_canvas)->canvas_id(); source_canvas_id.has_value()) {
-            // NOTE: Fetch the command list only after presenting the source canvas;
-            //       presenting mutates the shared command stream and would invalidate
-            //       a previously obtained list.
             if (auto* canvas_command_list = this->canvas_command_list()) {
                 canvas_command_list->append(Gfx::CanvasCommands::DrawCanvas {
                     .source_canvas_id = source_canvas_id->value(),
@@ -247,7 +252,8 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::draw_image_internal(CanvasIm
                     .compositing_and_blending_operator = drawing_state().current_compositing_and_blending_operator,
                 });
                 did_draw(destination_rect);
-                m_transport->flush_shared_stream();
+                if (!source_is_2d)
+                    m_transport->flush_shared_stream();
             }
 
             // 7. If image is not origin-clean, then set the CanvasRenderingContext2D's origin-clean flag to false.
@@ -262,8 +268,8 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::draw_image_internal(CanvasIm
     if (!frame.has_value())
         return {};
 
-    // NOTE: As above, the readback fallback inside canvas_image_source_frame() may
-    //       flush the shared command stream, so the list is fetched only afterwards.
+    // NOTE: The readback fallback inside canvas_image_source_frame() may flush the
+    //       shared command stream, so the command list is fetched only afterwards.
     if (auto* canvas_command_list = this->canvas_command_list()) {
         canvas_command_list->append(Gfx::CanvasCommands::DrawBitmap {
             .frame = *frame,
@@ -347,7 +353,6 @@ void CanvasRenderingContext2D::prepare_for_compositing()
     if (!has_backing_storage())
         return;
     m_transport->shared_stream().record_present(*m_transport->canvas_id());
-    m_transport->flush_shared_stream();
 }
 
 Optional<Painting::CanvasId> CanvasRenderingContext2D::canvas_id() const
