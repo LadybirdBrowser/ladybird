@@ -123,12 +123,11 @@ void MathMLElement::apply_presentational_hints(Vector<CSS::StyleProperty>& prope
             // In that case the user agent is expected to treat the scriptlevel attribute as a presentational hint
             // setting the element's math-depth property to the corresponding value. More precisely, +<U>, -<U> and <U>
             // are respectively mapped to add(<U>) add(<-U>) and <U>.
-            auto value_utf8 = value.to_utf8_but_should_be_ported_to_utf16();
-            if (Optional<StringView> parsed_value = HTML::parse_integer_digits(value_utf8.bytes_as_string_view()); parsed_value.has_value()) {
+            if (Optional<Utf16View> parsed_value = HTML::parse_integer_digits(value); parsed_value.has_value()) {
                 auto string_value = parsed_value.value();
                 if (auto integer_value = parsed_value->to_number<i32>(TrimWhitespace::No); integer_value.has_value()) {
                     auto style_value = [&]() -> NonnullRefPtr<CSS::StyleValue const> {
-                        if (string_value[0] == '+' || string_value[0] == '-')
+                        if (string_value.code_unit_at(0) == '+' || string_value.code_unit_at(0) == '-')
                             return CSS::FunctionStyleValue::create("add"_fly_string, CSS::IntegerStyleValue::create(integer_value.release_value()));
 
                         return CSS::IntegerStyleValue::create(integer_value.release_value());

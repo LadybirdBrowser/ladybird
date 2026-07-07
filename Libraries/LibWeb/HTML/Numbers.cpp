@@ -86,6 +86,12 @@ Optional<StringView> parse_integer_digits(StringView string)
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-integers
+Optional<Utf16View> parse_integer_digits(Utf16View string)
+{
+    return parse_integer_digits_impl(string);
+}
+
+// https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-integers
 Optional<i32> parse_integer(StringView string)
 {
     auto optional_digits = parse_integer_digits(string);

@@ -17,6 +17,7 @@ namespace Web::HTML {
 WEB_API Optional<i32> parse_integer(StringView string);
 WEB_API Optional<i32> parse_integer(Utf16View string);
 Optional<StringView> parse_integer_digits(StringView string);
+Optional<Utf16View> parse_integer_digits(Utf16View string);
 
 WEB_API Optional<u32> parse_non_negative_integer(StringView string);
 WEB_API Optional<u32> parse_non_negative_integer(Utf16View string);
