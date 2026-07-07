@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body><canvas id=c width=2 height=2></canvas>
+<script>
+    test(() => {
+        const ctx = c.getContext('2d');
+        const check = (buf, r, g, b, a) =>
+            println(buf.data[0] === r && buf.data[1] === g && buf.data[2] === b && buf.data[3] === a ? "PASS" : "FAIL " + buf.data);
+
+        // putImageData replaces the destination pixels (a copy), so a fully transparent source
+        // pixel must overwrite an opaque destination pixel rather than compositing over it.
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, 2, 2);
+        const transparent = ctx.createImageData(2, 2); // all zeroes: transparent black
+        ctx.putImageData(transparent, 0, 0);
+        check(ctx.getImageData(0, 0, 1, 1), 0, 0, 0, 0);
+
+        // The dirty-rectangle form replaces pixels the same way.
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, 2, 2);
+        ctx.putImageData(transparent, 0, 0, 0, 0, 2, 2);
+        check(ctx.getImageData(0, 0, 1, 1), 0, 0, 0, 0);
+
+        // An opaque source pixel also replaces the destination.
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, 2, 2);
+        const black = new ImageData(new Uint8ClampedArray([0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255]), 2, 2);
+        ctx.putImageData(black, 0, 0);
+        check(ctx.getImageData(0, 0, 1, 1), 0, 0, 0, 255);
+    });
+</script>

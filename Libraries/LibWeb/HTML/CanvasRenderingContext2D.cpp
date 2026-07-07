@@ -864,11 +864,15 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::put_pixels_from_an_image_dat
         __builtin_memcpy(bitmap_snapshot->scanline(y), source_bitmap->scanline(source_rect.y() + y) + source_rect.x(), static_cast<size_t>(source_rect.width()) * sizeof(Gfx::RawPixel));
     canvas_command_list.append(Gfx::CanvasCommands::Save {});
     canvas_command_list.append(Gfx::CanvasCommands::SetTransform { .transform = {} });
+    // NB: Step 7 sets each destination pixel to the source pixel: putImageData replaces the pixels (including their
+    //     alpha), rather than compositing them. Use the Copy operator — so a transparent source pixel overwrites an
+    //     opaque destination pixel, rather than leaving it unchanged.
     canvas_command_list.append(Gfx::CanvasCommands::DrawBitmap {
         .frame = Gfx::DecodedImageFrame { *bitmap_snapshot, Gfx::AlphaType::Unpremultiplied },
         .dst_rect = dst_rect,
         .src_rect = bitmap_snapshot->rect(),
         .filter = {},
+        .compositing_and_blending_operator = Gfx::CompositingAndBlendingOperator::Copy,
     });
     canvas_command_list.append(Gfx::CanvasCommands::Restore {});
 
