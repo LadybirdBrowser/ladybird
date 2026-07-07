@@ -115,9 +115,11 @@ GC::Ptr<HTMLElement> HTMLLabelElement::control() const
     // and there is an element in the tree whose ID is equal to the value of the for attribute,
     // and the first such element in tree order is a labelable element, then that element is the
     // label element's labeled control.
-    if (for_().has_value()) {
+    if (auto for_attribute = for_(); for_attribute.has_value()) {
         root().for_each_in_inclusive_subtree_of_type<HTMLElement>([&](auto& element) {
-            if (element.id() == *for_() && element.is_labelable()) {
+            if (element.id().has_value()
+                && Utf16String::from_utf8(element.id()->bytes_as_string_view()) == *for_attribute
+                && element.is_labelable()) {
                 control = &const_cast<HTMLElement&>(element);
                 return TraversalDecision::Break;
             }
