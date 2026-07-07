@@ -96,6 +96,8 @@ interface Internals {
 
     readonly attribute boolean headless;
 
+    readonly attribute boolean needsRepaint;
+
     DOMString dumpDisplayList();
     DOMString dumpAccessibilityTree();
     DOMString dumpLayoutTree(Node node);

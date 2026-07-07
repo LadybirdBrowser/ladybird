@@ -635,6 +635,11 @@ bool Internals::headless()
     return page().client().is_headless();
 }
 
+bool Internals::needs_repaint()
+{
+    return page().top_level_traversable()->needs_repaint();
+}
+
 String Internals::dump_display_list()
 {
     return window().associated_document().dump_display_list();

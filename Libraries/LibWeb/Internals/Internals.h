@@ -107,6 +107,8 @@ public:
 
     bool headless();
 
+    bool needs_repaint();
+
     String dump_display_list();
     String dump_accessibility_tree();
     String dump_layout_tree(GC::Ref<DOM::Node>);
