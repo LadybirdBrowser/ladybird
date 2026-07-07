@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .red {
+        color: rgb(255, 0, 0);
+    }
+    .highlight span {
+        background-color: rgb(255, 255, 0);
+    }
+    .detached-red .detached-target {
+        color: rgb(255, 0, 0);
+    }
+    .detached-blue .detached-target {
+        color: rgb(0, 0, 255);
+    }
+    #blue {
+        color: rgb(0, 0, 255);
+    }
+    [data-green] {
+        color: rgb(0, 128, 0);
+    }
+    my-element:defined {
+        color: rgb(128, 0, 128);
+    }
+    div:has(> .flag) {
+        outline-color: rgb(1, 2, 3);
+    }
+</style>
+<div id="host"></div>
+<script>
+    customElements.define("my-element", class extends HTMLElement {});
+
+    test(() => {
+        const host = document.getElementById("host");
+
+        // Settle any pending style work, then reset the counters.
+        getComputedStyle(host).color;
+        internals.resetStyleInvalidationCounters();
+
+        // Mutating disconnected elements should not schedule any style invalidation.
+        const tree = document.createElement("div");
+        for (let i = 0; i < 10; ++i) {
+            const child = document.createElement("span");
+            child.className = "red";
+            child.setAttribute("data-green", "");
+            child.removeAttribute("data-green");
+            tree.appendChild(child);
+        }
+        tree.firstChild.id = "blue";
+        tree.firstChild.className = "";
+        const custom = document.createElement("my-element");
+        tree.appendChild(custom);
+
+        // Adding these classes schedules a descendant invalidation plan for ".highlight span" and :has()
+        // ancestor bookkeeping for "div:has(> .flag)", even though nothing in the disconnected tree has
+        // computed style.
+        internals.resetStyleInvalidationCounters();
+        tree.className = "highlight";
+        tree.children[3].className = "flag";
+        getComputedStyle(host).backgroundColor;
+
+        const counters = internals.getStyleInvalidationCounters();
+        println(`invalidations after disconnected mutations: ${counters.styleInvalidations}`);
+        println(`:has() metadata candidates after disconnected mutations: ${counters.hasInvalidationMetadataCandidates}`);
+
+        // Once inserted, all the mutations made while disconnected must still be reflected in computed style.
+        host.appendChild(tree);
+        println(`.highlight span background: ${getComputedStyle(tree.children[1]).backgroundColor}`);
+        println(`div:has(> .flag) outline color: ${getComputedStyle(tree).outlineColor}`);
+        println(`.red child color: ${getComputedStyle(tree.children[1]).color}`);
+        println(`#blue child color: ${getComputedStyle(tree.firstChild).color}`);
+        println(`custom element :defined color: ${getComputedStyle(custom).color}`);
+
+        // And mutations after insertion must invalidate as usual.
+        tree.children[2].className = "";
+        println(`un-classed child color: ${getComputedStyle(tree.children[2]).color}`);
+
+        const detachedTree = document.createElement("div");
+        detachedTree.className = "detached-red";
+        const detachedChild = document.createElement("span");
+        detachedChild.className = "detached-target";
+        detachedTree.appendChild(detachedChild);
+        host.appendChild(detachedTree);
+        println(`detached child initial color: ${detachedChild.computedStyleMap().get("color")}`);
+
+        detachedTree.remove();
+        detachedChild.style.color = "rgb(0, 128, 0)";
+        println(`detached child inline color: ${detachedChild.computedStyleMap().get("color")}`);
+
+        detachedChild.style.color = "";
+        detachedTree.className = "detached-blue";
+        println(`detached child ancestor class color: ${detachedChild.computedStyleMap().get("color")}`);
+    });
+</script>

@@ -1,0 +1,11 @@
+invalidations after disconnected mutations: 0
+:has() metadata candidates after disconnected mutations: 0
+.highlight span background: rgb(255, 255, 0)
+div:has(> .flag) outline color: rgb(1, 2, 3)
+.red child color: rgb(255, 0, 0)
+#blue child color: rgb(0, 0, 255)
+custom element :defined color: rgb(128, 0, 128)
+un-classed child color: rgb(0, 0, 0)
+detached child initial color: rgb(255, 0, 0)
+detached child inline color: rgb(0, 128, 0)
+detached child ancestor class color: rgb(0, 0, 255)
