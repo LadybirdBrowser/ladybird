@@ -63,6 +63,7 @@ public:
     void append_download_data(u64 id, ReadonlyBytes);
     void finish_download(u64 id);
     void cancel_active_downloads();
+    void cancel_private_downloads();
     void cancel_download(u64 id);
     void fail_download(u64 id, String);
     Vector<u64> prune_inactive_downloads();

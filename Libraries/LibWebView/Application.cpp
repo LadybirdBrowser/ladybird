@@ -655,6 +655,12 @@ void Application::maybe_close_private_browsing_session()
     m_private_browsing_session = nullptr;
 }
 
+void Application::reset_private_browsing_session()
+{
+    m_file_downloader.cancel_private_downloads();
+    m_private_browsing_session = nullptr;
+}
+
 Web::Compositor::CompositorContextId Application::allocate_compositor_context_id()
 {
     VERIFY(m_next_page_or_compositor_context_id > 0);

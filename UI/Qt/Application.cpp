@@ -394,6 +394,18 @@ void Application::open_new_window(WebView::IsPrivate is_private)
     new_window({ WebView::Application::settings().new_tab_page_url() }, configuration_for_new_window(), BrowserWindow::IsPopupWindow::No, is_private);
 }
 
+void Application::restart_private_browsing_session()
+{
+    WebView::Application::the().reset_private_browsing_session();
+
+    for (auto* widget : QApplication::topLevelWidgets()) {
+        if (auto* window = as_if<BrowserWindow>(widget); window && window->is_private() == WebView::IsPrivate::Yes)
+            window->close();
+    }
+
+    open_new_window(WebView::IsPrivate::Yes);
+}
+
 void Application::focus_location_editor()
 {
     if (!m_active_window) {

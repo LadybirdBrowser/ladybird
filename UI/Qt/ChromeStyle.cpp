@@ -336,8 +336,12 @@ QString toolbar_container_style_sheet(QPalette const& palette)
     auto disabled_text = style_sheet_color(chrome_muted_text(palette));
     auto close_hover = style_sheet_color(chrome_destructive_hover());
     auto close_text = style_sheet_color(chrome_destructive_text());
-    auto badge_surface = style_sheet_color(dark ? QColor(0x19, 0x0c, 0x4a) : QColor(0xe0, 0xd4, 0xff));
-    auto badge_border = style_sheet_color(dark ? QColor(0x9c, 0x90, 0xc8) : QColor(0x6c, 0x5f, 0x93));
+    auto badge_surface_color = dark ? QColor(0x19, 0x0c, 0x4a) : QColor(0xe0, 0xd4, 0xff);
+    auto badge_border_color = dark ? QColor(0x9c, 0x90, 0xc8) : QColor(0x6c, 0x5f, 0x93);
+    auto badge_surface = style_sheet_color(badge_surface_color);
+    auto badge_border = style_sheet_color(badge_border_color);
+    auto badge_surface_hover = style_sheet_color(mix(badge_surface_color, badge_border_color, dark ? 0.28 : 0.22));
+    auto badge_surface_pressed = style_sheet_color(mix(badge_surface_color, badge_border_color, dark ? 0.45 : 0.38));
 
     return qformatted(R"(
 QWidget#LadybirdToolbarContainer {{
@@ -382,13 +386,21 @@ QWidget#LadybirdNavigationToolbar QToolButton::menu-indicator {{
     image: none;
 }}
 
-QLabel#LadybirdPrivateBadge {{
+QPushButton#LadybirdPrivateBadge {{
     color: {5};
     background: {10};
     border: 1px solid {11};
     border-radius: 10px;
-    padding: 0 8px;
+    padding: 0 10px;
     font-weight: 600;
+}}
+
+QPushButton#LadybirdPrivateBadge:hover {{
+    background: {12};
+}}
+
+QPushButton#LadybirdPrivateBadge:pressed {{
+    background: {13};
 }}
 
 QWidget#LadybirdToolbarWindowControlsSeparator {{
@@ -433,7 +445,7 @@ QWidget#LadybirdNavigationToolbar QToolButton#LadybirdCloseWindowButton[pressedO
     background: transparent;
 }}
 )",
-        background, surface_hover, surface_pressed, control_border, separator, text, disabled_text, close_hover, close_text, window_controls_separator, badge_surface, badge_border);
+        background, surface_hover, surface_pressed, control_border, separator, text, disabled_text, close_hover, close_text, window_controls_separator, badge_surface, badge_border, badge_surface_hover, badge_surface_pressed);
 }
 
 QString menu_bar_style_sheet(QPalette const& palette)
@@ -1013,6 +1025,76 @@ QProgressBar#LadybirdDownloadProgress::chunk {{
 }}
 )",
         surface, recessed_surface, hover_surface, border, text, muted_text, accent);
+}
+
+QString private_session_popover_style_sheet(QPalette const& palette)
+{
+    auto text = ChromeStyle::style_sheet_color(ChromeStyle::chrome_text(palette));
+    auto surface = ChromeStyle::style_sheet_color(ChromeStyle::chrome_surface(palette));
+    auto border = ChromeStyle::style_sheet_color(ChromeStyle::chrome_border(palette));
+    auto muted_text = ChromeStyle::style_sheet_color(ChromeStyle::chrome_muted_text(palette));
+    auto control_border = ChromeStyle::style_sheet_color(ChromeStyle::chrome_control_border(palette));
+    auto hover_surface = ChromeStyle::style_sheet_color(ChromeStyle::chrome_surface_hover(palette));
+    auto pressed_surface = ChromeStyle::style_sheet_color(ChromeStyle::chrome_surface_pressed(palette));
+
+    auto accent = ChromeStyle::chrome_accent(palette);
+    auto accent_color = ChromeStyle::style_sheet_color(accent);
+    auto accent_hover = ChromeStyle::style_sheet_color(ChromeStyle::mix(accent, QColor(Qt::black), 0.12));
+    auto accent_pressed = ChromeStyle::style_sheet_color(ChromeStyle::mix(accent, QColor(Qt::black), 0.22));
+
+    return qformatted(R"(
+QFrame#LadybirdPrivateSessionPopover {{
+    color: {0};
+    background: {1};
+    border: 1px solid {2};
+    border-radius: 8px;
+}}
+
+QLabel#LadybirdPrivateSessionPopoverTitle {{
+    color: {0};
+    font-weight: 600;
+}}
+
+QLabel#LadybirdPrivateSessionPopoverBody {{
+    color: {3};
+}}
+
+QPushButton#LadybirdPrivateSessionCancelButton {{
+    color: {0};
+    background: {1};
+    border: 1px solid {4};
+    border-radius: 6px;
+    padding: 5px 12px;
+}}
+
+QPushButton#LadybirdPrivateSessionCancelButton:hover {{
+    background: {5};
+}}
+
+QPushButton#LadybirdPrivateSessionCancelButton:pressed {{
+    background: {6};
+}}
+
+QPushButton#LadybirdPrivateSessionRestartButton {{
+    color: #ffffff;
+    background: {7};
+    border: 1px solid {7};
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-weight: 600;
+}}
+
+QPushButton#LadybirdPrivateSessionRestartButton:hover {{
+    background: {8};
+    border-color: {8};
+}}
+
+QPushButton#LadybirdPrivateSessionRestartButton:pressed {{
+    background: {9};
+    border-color: {9};
+}}
+)",
+        text, surface, border, muted_text, control_border, hover_surface, pressed_surface, accent_color, accent_hover, accent_pressed);
 }
 
 }

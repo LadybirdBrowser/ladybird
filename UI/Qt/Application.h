@@ -39,6 +39,7 @@ public:
     WindowConfiguration configuration_for_new_window() const;
     void open_new_tab();
     void open_new_window(WebView::IsPrivate);
+    void restart_private_browsing_session();
     void focus_location_editor();
     void reopen_recently_closed_tab();
     void open_file();

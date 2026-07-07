@@ -19,6 +19,7 @@
 #include <QLabel>
 #include <QMenu>
 #include <QPointer>
+#include <QPushButton>
 #include <QToolButton>
 #include <QWidget>
 
@@ -28,6 +29,7 @@ namespace Ladybird {
 class BrowserWindow;
 enum class ChromeIcon;
 class DownloadsPopover;
+class PrivateSessionPopover;
 class WindowControlButton;
 
 class HyperlinkLabel final : public QLabel {
@@ -122,6 +124,8 @@ private:
     void update_downloads_popover();
     void show_downloads_popover();
     void position_downloads_popover();
+    void show_private_session_popover();
+    void position_private_session_popover();
     void set_loading(bool);
     void update_tab_icon();
     int tab_index();
@@ -142,10 +146,11 @@ private:
     WindowControlButton* m_maximize_window_button { nullptr };
     WindowControlButton* m_close_window_button { nullptr };
     BookmarksBar* m_bookmarks_bar { nullptr };
-    QLabel* m_private_badge { nullptr };
+    QPushButton* m_private_badge { nullptr };
     QToolButton* m_hamburger_button { nullptr };
     QToolButton* m_downloads_button { nullptr };
     QPointer<DownloadsPopover> m_downloads_popover;
+    QPointer<PrivateSessionPopover> m_private_session_popover;
     LocationEdit* m_location_edit { nullptr };
     WebContentView* m_view { nullptr };
     FindInPageWidget* m_find_in_page { nullptr };

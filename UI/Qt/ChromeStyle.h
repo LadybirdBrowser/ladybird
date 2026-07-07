@@ -40,5 +40,6 @@ QString devtools_banner_style_sheet(QPalette const&);
 QString tab_widget_style_sheet(QPalette const&);
 QString autocomplete_popup_style_sheet(QPalette const&);
 QString downloads_popover_style_sheet(QPalette const&);
+QString private_session_popover_style_sheet(QPalette const&);
 
 }

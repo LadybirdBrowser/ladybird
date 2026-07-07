@@ -315,6 +315,24 @@ void FileDownloader::cancel_active_downloads()
         cancel_download(id);
 }
 
+void FileDownloader::cancel_private_downloads()
+{
+    for (size_t i = m_downloads.size(); i > 0; --i) {
+        auto const& download = m_downloads[i - 1];
+
+        if (download.status != DownloadStatus::InProgress)
+            continue;
+        if (download.is_private == IsPrivate::No)
+            continue;
+
+        auto id = download.id;
+        cancel_download(id);
+
+        m_downloads.remove(i - 1);
+        notify_download_removed(id);
+    }
+}
+
 void FileDownloader::cancel_download(u64 id)
 {
     auto* download = mutable_download_or_null(id);

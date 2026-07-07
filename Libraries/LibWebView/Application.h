@@ -104,6 +104,7 @@ public:
     u64 allocate_page_id();
 
     void maybe_close_private_browsing_session();
+    void reset_private_browsing_session();
 
     Web::Compositor::CompositorContextId allocate_compositor_context_id();
     ErrorOr<void> connect_web_content_to_compositor(WebContentClient&);
