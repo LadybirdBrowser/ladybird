@@ -16,6 +16,7 @@
 
 #include <QByteArrayList>
 #include <QCursor>
+#include <QGuiApplication>
 #include <QRegion>
 #include <QTimer>
 #include <QVersionNumber>
@@ -951,6 +952,11 @@ void WebContentView::create_vulkan_window()
     m_vulkan_window_container->hide();
 
     install_native_window_container_focus_forwarding(*this, *m_vulkan_window, *m_vulkan_window_container);
+}
+
+bool WebContentView::vulkan_window_has_native_focus() const
+{
+    return m_vulkan_window && QGuiApplication::focusWindow() == m_vulkan_window;
 }
 
 void WebContentView::set_vulkan_window_container_visible(bool visible)

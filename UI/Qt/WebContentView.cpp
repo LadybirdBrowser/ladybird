@@ -702,12 +702,28 @@ void WebContentView::dropEvent(QDropEvent* event)
 
 void WebContentView::focusInEvent(QFocusEvent*)
 {
-    client().async_set_has_focus(m_client_state.page_index, true);
+    update_page_focus();
 }
 
 void WebContentView::focusOutEvent(QFocusEvent*)
 {
-    client().async_set_has_focus(m_client_state.page_index, false);
+    update_page_focus();
+}
+
+void WebContentView::update_page_focus()
+{
+    // Focus can move between this widget, the native window container, and the embedded native window in bursts of
+    // events whose order is not meaningful (e.g. the container reports losing focus after native focus has already
+    // moved to the embedded window). Instead of trusting individual events, evaluate the resulting focus state once
+    // the burst has settled.
+    QTimer::singleShot(0, this, [this] {
+        auto focused = hasFocus();
+#ifdef LADYBIRD_QT_USE_VULKAN_WINDOW
+        if (!focused)
+            focused = vulkan_window_has_native_focus();
+#endif
+        client().async_set_has_focus(m_client_state.page_index, focused);
+    });
 }
 
 Optional<WebContentView::Paintable> WebContentView::current_paintable() const
@@ -1147,6 +1163,9 @@ bool WebContentView::event(QEvent* event)
         event->accept();
         return true;
     }
+
+    if (event->type() == QEvent::ActivationChange)
+        update_page_focus();
 
     return WebContentViewBase::event(event);
 }

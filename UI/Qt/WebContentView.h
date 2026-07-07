@@ -85,6 +85,7 @@ public:
     virtual void hideEvent(QHideEvent*) override;
     virtual void focusInEvent(QFocusEvent*) override;
     virtual void focusOutEvent(QFocusEvent*) override;
+    void update_page_focus();
     virtual bool event(QEvent*) override;
 
     void set_viewport_rect(Gfx::IntRect);
@@ -194,6 +195,7 @@ private:
     void update_vulkan_window_geometry();
     void set_vulkan_window_cursor(QCursor const&);
     bool handle_vulkan_window_event(QEvent*);
+    bool vulkan_window_has_native_focus() const;
     void set_vulkan_window_container_visible(bool);
     void fall_back_to_bitmap_rendering();
 
