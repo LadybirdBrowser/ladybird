@@ -16,6 +16,7 @@
 #include <LibCore/TCPServer.h>
 #include <LibCore/Timer.h>
 #include <LibCore/UDPServer.h>
+#include <LibFileSystem/FileSystem.h>
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
 #include <fcntl.h>
@@ -343,8 +344,8 @@ TEST_CASE(local_socket_read)
     Core::EventLoop event_loop;
 
     auto socket_path = ByteString::formatted("{}/{}", Core::StandardPaths::tempfile_directory(), "test-socket"sv);
-    if (!Core::System::stat(socket_path).is_error())
-        TRY_OR_FAIL(Core::System::unlink(socket_path));
+    if (FileSystem::exists(socket_path))
+        TRY_OR_FAIL(FileSystem::remove(socket_path, FileSystem::RecursionMode::Disallowed));
 
     auto local_server = Core::LocalServer::construct();
     EXPECT(local_server->listen(socket_path));
@@ -395,8 +396,8 @@ TEST_CASE(local_socket_write)
     Core::EventLoop event_loop;
 
     auto socket_path = ByteString::formatted("{}/{}", Core::StandardPaths::tempfile_directory(), "test-socket"sv);
-    if (!Core::System::stat(socket_path).is_error())
-        TRY_OR_FAIL(Core::System::unlink(socket_path));
+    if (FileSystem::exists(socket_path))
+        TRY_OR_FAIL(FileSystem::remove(socket_path, FileSystem::RecursionMode::Disallowed));
 
     auto local_server = Core::LocalServer::construct();
     EXPECT(local_server->listen(socket_path));

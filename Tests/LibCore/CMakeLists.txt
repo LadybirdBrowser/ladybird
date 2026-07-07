@@ -23,7 +23,7 @@ endforeach()
 
 target_link_libraries(TestLibCoreDirectory PRIVATE LibFileSystem)
 target_link_libraries(TestLibCorePromise PRIVATE LibSync LibThreading)
-target_link_libraries(TestLibCoreStream PRIVATE LibSync LibThreading)
+target_link_libraries(TestLibCoreStream PRIVATE LibFileSystem LibSync LibThreading)
 
 if(NOT WIN32)
     # These tests use the .txt files in the current directory

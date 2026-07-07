@@ -231,7 +231,7 @@ ErrorOr<void> CacheEntryWriter::flush_impl(NonnullRefPtr<HeaderList> request_hea
 
     TRY(m_file->flush_buffer());
     m_file.clear();
-    TRY(Core::System::rename(m_temporary_path->string(), m_path->string()));
+    TRY(FileSystem::move_file(m_path->string(), m_temporary_path->string()));
     remove_temporary_file.disarm();
 
     int body_fd = -1;

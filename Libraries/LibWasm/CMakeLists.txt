@@ -39,7 +39,7 @@ else()
 endif()
 
 ladybird_lib(LibWasm wasm EXPLICIT_SYMBOL_EXPORT)
-target_link_libraries(LibWasm PRIVATE LibCore PUBLIC LibSync LibGC)
+target_link_libraries(LibWasm PRIVATE LibCore LibFileSystem PUBLIC LibSync LibGC)
 
 target_compile_definitions(LibWasm PRIVATE
     WASM_COMPILED_FAULT_RECOVERY_SUPPORTED=${WASM_COMPILED_FAULT_RECOVERY_SUPPORTED}

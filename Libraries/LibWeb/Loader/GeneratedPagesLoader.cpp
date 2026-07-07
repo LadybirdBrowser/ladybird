@@ -39,11 +39,13 @@ ErrorOr<String> load_file_directory_page(URL::URL const& url)
         names.append(dt.next_path());
     quick_sort(names);
 
+    auto directory = TRY(Core::Directory::create(lexical_path, Core::Directory::CreateDirectories::No));
+
     StringBuilder contents;
     contents.append("<table>"sv);
     for (auto& name : names) {
         auto path = lexical_path.append(name);
-        auto maybe_st = Core::System::stat(path.string());
+        auto maybe_st = directory.stat(name);
         if (!maybe_st.is_error()) {
             auto st = maybe_st.release_value();
             auto is_directory = S_ISDIR(st.st_mode);

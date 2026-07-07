@@ -10,6 +10,7 @@
 #include <LibCore/Socket.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
+#include <LibFileSystem/FileSystem.h>
 #include <LibWebView/Process.h>
 
 #include <fcntl.h>
@@ -113,7 +114,7 @@ ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process(C
 
 ErrorOr<Optional<pid_t>> Process::get_process_pid(StringView process_name, StringView pid_path)
 {
-    if (Core::System::stat(pid_path).is_error())
+    if (!FileSystem::exists(pid_path))
         return OptionalNone {};
 
     Optional<pid_t> pid;
@@ -135,7 +136,7 @@ ErrorOr<Optional<pid_t>> Process::get_process_pid(StringView process_name, Strin
 
     if (!pid.has_value()) {
         warnln("{} PID file '{}' exists, but with an invalid PID", process_name, pid_path);
-        TRY(Core::System::unlink(pid_path));
+        TRY(FileSystem::remove(pid_path, FileSystem::RecursionMode::Disallowed));
         return OptionalNone {};
     }
 
@@ -160,7 +161,7 @@ ErrorOr<Optional<pid_t>> Process::get_process_pid(StringView process_name, Strin
 
     if (process_not_found) {
         warnln("{} PID file '{}' exists with PID {}, but process cannot be found", process_name, pid_path, *pid);
-        TRY(Core::System::unlink(pid_path));
+        TRY(FileSystem::remove(pid_path, FileSystem::RecursionMode::Disallowed));
         return OptionalNone {};
     }
 
@@ -170,8 +171,8 @@ ErrorOr<Optional<pid_t>> Process::get_process_pid(StringView process_name, Strin
 // This is heavily based on how SystemServer's Service creates its socket.
 ErrorOr<int> Process::create_ipc_socket(ByteString const& socket_path)
 {
-    if (!Core::System::stat(socket_path).is_error())
-        TRY(Core::System::unlink(socket_path));
+    if (FileSystem::exists(socket_path))
+        TRY(FileSystem::remove(socket_path, FileSystem::RecursionMode::Disallowed));
 
 #if defined(AK_OS_WINDOWS)
     auto socket_fd = TRY(Core::System::socket(AF_LOCAL, SOCK_STREAM, 0));

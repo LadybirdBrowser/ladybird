@@ -11,6 +11,7 @@
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibCrypto/Hash/SHA2.h>
+#include <LibFileSystem/FileSystem.h>
 #include <LibJS/Bytecode/Instruction.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/GlobalObject.h>
@@ -940,7 +941,7 @@ TEST_CASE(bytecode_cache_materializes_from_mapped_blob)
     auto test_data = create_bytecode_cache_blob("let f = function mapped() { return 'hello'; }; f();"_string);
     auto path = ByteString::formatted("{}/bytecode-cache-test-{}.blob", Core::StandardPaths::tempfile_directory(), Core::System::getpid());
     ScopeGuard remove_file = [&] {
-        (void)Core::System::unlink(path);
+        (void)FileSystem::remove(path, FileSystem::RecursionMode::Disallowed);
     };
 
     {

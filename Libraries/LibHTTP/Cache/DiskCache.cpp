@@ -279,7 +279,7 @@ ErrorOr<bool> DiskCache::store_associated_data(URL::URL const& url, StringView m
         TRY(file->write_until_depleted(data));
     }
 
-    TRY(Core::System::rename(temporary_path.string(), path.string()));
+    TRY(FileSystem::move_file(path.string(), temporary_path.string()));
     remove_temporary_file.disarm();
     m_index.update_associated_data_size(cache_key, *vary_key, TRY(compute_associated_data_size(m_cache_directory, cache_key, *vary_key)));
     remove_entries_exceeding_cache_limit();

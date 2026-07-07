@@ -13,6 +13,7 @@
 #include <CraneliftFFI.h>
 #include <LibCore/Process.h>
 #include <LibCore/System.h>
+#include <LibFileSystem/FileSystem.h>
 #include <LibWasm/AbstractMachine/BytecodeInterpreter.h>
 #include <LibWasm/AbstractMachine/Configuration.h>
 #include <LibWasm/Printer/Printer.h>
@@ -1121,7 +1122,7 @@ static StringView resolve_cranelift_compiler_path()
     // Lookup order: LADYBIRD_CRANELIFT_COMPILER, compile-time path, sibling-of-self.
     static NeverDestroyed<ByteString> s_path = []() -> ByteString {
         auto file_exists = [](ByteString const& path) {
-            return !Core::System::stat(path).is_error();
+            return FileSystem::exists(path);
         };
 
         if (auto const* env = getenv("LADYBIRD_CRANELIFT_COMPILER"); env && *env) {

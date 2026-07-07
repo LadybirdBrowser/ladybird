@@ -13,7 +13,7 @@
 #include <AK/StringBuilder.h>
 #include <AK/Vector.h>
 #include <LibCore/Directory.h>
-#include <LibCore/System.h>
+#include <LibFileSystem/FileSystem.h>
 #include <LibGfx/Color.h>
 
 namespace TestWeb {
@@ -40,9 +40,9 @@ ErrorOr<bool> CaptureFile::transfer_to_output_file()
     if (m_writer_path.is_empty())
         return false;
 
-    (void)Core::System::unlink(m_destination_path);
+    (void)FileSystem::remove(m_destination_path, FileSystem::RecursionMode::Disallowed);
     ScopeGuard cleanup = [&] {
-        (void)Core::System::unlink(m_writer_path);
+        (void)FileSystem::remove(m_writer_path, FileSystem::RecursionMode::Disallowed);
         m_writer_path = {};
         m_destination_path = {};
     };
