@@ -243,7 +243,7 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
 
     // 13. If action is the empty string, let action be the URL of the form document.
     if (action.is_empty())
-        action = form_document->url_string();
+        action = Utf16String::from_utf8(form_document->url_string());
 
     // 14. Let parsed action be the result of encoding-parsing a URL given action, relative to submitter's node document.
     auto parsed_action = submitter->document().encoding_parse_url(action);
@@ -261,13 +261,13 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
     auto encoding_type = encoding_type_state_from_form_element(submitter);
 
     // 18. Let formTarget be null.
-    Optional<String> form_target;
+    Optional<Utf16String> form_target;
 
     // 19. If the submitter element is a submit button and it has a formtarget attribute, then set formTarget to the
     //     formtarget attribute value.
     if (auto* form_associated_element = as_if<FormAssociatedElement>(*submitter); form_associated_element && form_associated_element->is_submit_button()) {
         if (auto formtarget_attribute = submitter->attribute(AttributeNames::formtarget); formtarget_attribute.has_value()) {
-            form_target = formtarget_attribute.release_value().to_utf8_but_should_be_ported_to_utf16();
+            form_target = formtarget_attribute.release_value();
         }
     }
 
@@ -279,7 +279,8 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
 
     // 22. Let targetNavigable be the first return value of applying the rules for choosing a navigable given target,
     //     form's node navigable, and noopener.
-    auto target_navigable = form_document->navigable()->choose_a_navigable(target, no_opener).navigable;
+    auto target_utf8 = target.to_utf8();
+    auto target_navigable = form_document->navigable()->choose_a_navigable(target_utf8, no_opener).navigable;
 
     // 23. If targetNavigable is null, then return.
     if (!target_navigable) {
@@ -422,7 +423,7 @@ void HTMLFormElement::remove_associated_element(Badge<FormAssociatedElement>, HT
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-fs-action
-String HTMLFormElement::action_from_form_element(GC::Ref<HTMLElement> element) const
+Utf16String HTMLFormElement::action_from_form_element(GC::Ref<HTMLElement> element) const
 {
     // The action of an element is the value of the element's formaction attribute, if the element is a submit button
     // and has such an attribute, or the value of its form owner's action attribute, if it has one, or else the empty
@@ -430,13 +431,13 @@ String HTMLFormElement::action_from_form_element(GC::Ref<HTMLElement> element) c
     auto const* form_associated_element = as_if<FormAssociatedElement const>(*element);
     if (form_associated_element && form_associated_element->is_submit_button()) {
         if (auto maybe_attribute = element->attribute(AttributeNames::formaction); maybe_attribute.has_value())
-            return maybe_attribute.release_value().to_utf8_but_should_be_ported_to_utf16();
+            return maybe_attribute.release_value();
     }
 
     if (auto maybe_attribute = attribute(AttributeNames::action); maybe_attribute.has_value())
-        return maybe_attribute.release_value().to_utf8_but_should_be_ported_to_utf16();
+        return maybe_attribute.release_value();
 
-    return String {};
+    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#form-submission-attributes:attr-fs-method-2

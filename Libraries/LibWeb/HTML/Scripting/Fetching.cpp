@@ -1021,7 +1021,7 @@ WebIDL::ExceptionOr<void> fetch_worklet_module_worker_script_graph(URL::URL cons
     //    credentials mode is credentialsMode, referrer policy is the empty string, and fetch priority is "auto".
     // FIXME: credentialsMode
     auto options = ScriptFetchOptions {
-        .cryptographic_nonce = String {},
+        .cryptographic_nonce = {},
         .integrity_metadata = String {},
         .parser_metadata = Fetch::Infrastructure::Request::ParserMetadata::NotParserInserted,
         .credentials_mode = Fetch::Infrastructure::Request::CredentialsMode::SameOrigin,

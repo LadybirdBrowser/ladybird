@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/HTML/DOMStringMap.h>
@@ -18,8 +19,8 @@ public:
     [[nodiscard]] GC::Ref<DOMStringMap> dataset();
 
     // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#dom-noncedelement-nonce
-    String const& nonce() const { return m_cryptographic_nonce; }
-    void set_nonce(String const& nonce) { m_cryptographic_nonce = nonce; }
+    Utf16String const& nonce() const { return m_cryptographic_nonce; }
+    void set_nonce(Utf16String const& nonce) { m_cryptographic_nonce = nonce; }
 
     void focus();
     void blur();
@@ -34,7 +35,7 @@ protected:
     GC::Ptr<DOMStringMap> m_dataset;
 
     // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#cryptographicnonce
-    String m_cryptographic_nonce;
+    Utf16String m_cryptographic_nonce;
 };
 
 }

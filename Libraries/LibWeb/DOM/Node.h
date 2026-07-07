@@ -483,8 +483,8 @@ public:
         return nullptr;
     }
 
-    ErrorOr<String> accessible_name(Document const&, ShouldComputeRole = ShouldComputeRole::Yes) const;
-    ErrorOr<String> accessible_description(Document const&) const;
+    ErrorOr<Utf16String> accessible_name(Document const&, ShouldComputeRole = ShouldComputeRole::Yes) const;
+    ErrorOr<Utf16String> accessible_description(Document const&) const;
 
     Optional<String> locate_a_namespace(Optional<String> const& prefix) const;
     Optional<String> lookup_namespace_uri(Optional<String> prefix) const;
@@ -536,7 +536,7 @@ protected:
 
     void build_accessibility_tree(AccessibilityTreeNode& parent);
 
-    ErrorOr<String> name_or_description(NameOrDescription, Document const&, HashTable<UniqueNodeID>&, IsDescendant = IsDescendant::No, ShouldComputeRole = ShouldComputeRole::Yes) const;
+    ErrorOr<Utf16String> name_or_description(NameOrDescription, Document const&, HashTable<UniqueNodeID>&, IsDescendant = IsDescendant::No, ShouldComputeRole = ShouldComputeRole::Yes) const;
 
 private:
     void queue_tree_mutation_record(Vector<GC::Root<Node>> added_nodes, Vector<GC::Root<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling);

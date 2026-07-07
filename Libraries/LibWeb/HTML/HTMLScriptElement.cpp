@@ -764,7 +764,7 @@ WebIDL::ExceptionOr<void> HTMLScriptElement::set_src(TrustedTypes::TrustedScript
         TrustedTypes::Script.to_string()));
 
     // 2. Set this’s src content attribute to value.
-    set_attribute_value(AttributeNames::src, value.to_utf8_but_should_be_ported_to_utf16());
+    set_attribute_value(AttributeNames::src, value);
     return {};
 }
 

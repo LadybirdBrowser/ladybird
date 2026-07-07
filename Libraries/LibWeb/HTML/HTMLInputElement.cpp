@@ -344,9 +344,9 @@ FileFilter HTMLInputElement::parse_accept_attribute() const
 
     // If specified, the attribute must consist of a set of comma-separated tokens, each of which must be an ASCII
     // case-insensitive match for one of the following:
-    auto accept = get_attribute_value(HTML::AttributeNames::accept).to_utf8_but_should_be_ported_to_utf16();
+    auto accept = get_attribute_value(HTML::AttributeNames::accept);
 
-    accept.bytes_as_string_view().for_each_split_view(',', SplitBehavior::Nothing, [&](StringView value) {
+    accept.for_each_split_view(',', SplitBehavior::Nothing, [&](Utf16View value) {
         // The string "audio/*"
         //     Indicates that sound files are accepted.
         if (value.equals_ignoring_ascii_case("audio/*"sv))
@@ -365,12 +365,14 @@ FileFilter HTMLInputElement::parse_accept_attribute() const
         // A valid MIME type string with no parameters
         //     Indicates that files of the specified type are accepted.
         else if (auto mime_type = MimeSniff::MimeType::parse(value); mime_type.has_value() && mime_type->parameters().is_empty())
-            filter.add_filter(FileFilter::MimeType { mime_type->essence() });
+            filter.add_filter(FileFilter::MimeType { Utf16String::from_utf8(mime_type->essence()) });
 
         // A string whose first character is a U+002E FULL STOP character (.)
         //     Indicates that files with the specified file extension are accepted.
         else if (value.starts_with('.'))
-            filter.add_filter(FileFilter::Extension { MUST(String::from_utf8(value.substring_view(1))) });
+            filter.add_filter(FileFilter::Extension { Utf16String::from_utf16(value.substring_view(1)) });
+
+        return IterationDecision::Continue;
     });
 
     return filter;
@@ -1390,16 +1392,16 @@ void HTMLInputElement::create_range_input_shadow_tree()
             auto key_value = MUST(vm.argument(0).get(vm, "key"_utf16_fly_string));
             if (!key_value.is_string())
                 return JS::js_undefined();
-            auto key = key_value.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
+            auto key = key_value.as_string().utf16_string_view();
 
-            if (key == "ArrowLeft" || key == "ArrowDown")
+            if (key == "ArrowLeft"_utf16 || key == "ArrowDown"_utf16)
                 MUST(step_down());
-            if (key == "PageDown")
+            if (key == "PageDown"_utf16)
                 MUST(step_down(10));
 
-            if (key == "ArrowRight" || key == "ArrowUp")
+            if (key == "ArrowRight"_utf16 || key == "ArrowUp"_utf16)
                 MUST(step_up());
-            if (key == "PageUp")
+            if (key == "PageUp"_utf16)
                 MUST(step_up(10));
 
             user_interaction_did_change_input_value();
@@ -1571,9 +1573,8 @@ void HTMLInputElement::form_associated_element_attribute_changed(FlyString const
         // and its value has changed since the last time the type attribute was in the Image Button state
         if (type_state() == TypeAttributeState::ImageButton) {
             if (auto src = attribute(AttributeNames::src); src.has_value()) {
-                auto src_value = src->to_utf8_but_should_be_ported_to_utf16();
-                if (src_value != m_last_src_value)
-                    handle_src_attribute(src_value).release_value_but_fixme_should_propagate_errors();
+                if (*src != m_last_src_value)
+                    handle_src_attribute(*src).release_value_but_fixme_should_propagate_errors();
             }
         }
 
@@ -1600,7 +1601,7 @@ void HTMLInputElement::form_associated_element_attribute_changed(FlyString const
             update_placeholder_visibility();
         }
     } else if (name == HTML::AttributeNames::src) {
-        handle_src_attribute(value.value_or({}).to_utf8_but_should_be_ported_to_utf16()).release_value_but_fixme_should_propagate_errors();
+        handle_src_attribute(value.value_or({})).release_value_but_fixme_should_propagate_errors();
     } else if (name == HTML::AttributeNames::alt) {
         if (unsafe_layout_node() && type_state() == TypeAttributeState::ImageButton)
             did_update_alt_text(as<Layout::ImageBox>(*unsafe_layout_node()));
@@ -1707,7 +1708,7 @@ void HTMLInputElement::signal_a_type_change()
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#attr-input-src
-WebIDL::ExceptionOr<void> HTMLInputElement::handle_src_attribute(String const& value)
+WebIDL::ExceptionOr<void> HTMLInputElement::handle_src_attribute(Utf16String const& value)
 {
     auto& realm = this->realm();
     auto& vm = realm.vm();
@@ -2422,7 +2423,7 @@ void HTMLInputElement::set_width(WebIDL::UnsignedLong value)
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#month-state-(type=month):concept-input-value-string-number
-static Optional<double> convert_month_string_to_number(StringView input)
+static Optional<double> convert_month_string_to_number(Utf16View input)
 {
     // The algorithm to convert a string to a number, given a string input, is as follows: If parsing a month from input
     // results in an error, then return an error; otherwise, return the number of months between January 1970 and the
@@ -2434,7 +2435,7 @@ static Optional<double> convert_month_string_to_number(StringView input)
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#week-state-(type=week):concept-input-value-string-number
-static Optional<double> convert_week_string_to_number(StringView input)
+static Optional<double> convert_week_string_to_number(Utf16View input)
 {
     // The algorithm to convert a string to a number, given a string input, is as follows: If parsing a week
     // string from input results in an error, then return an error; otherwise, return the number of
@@ -2448,7 +2449,7 @@ static Optional<double> convert_week_string_to_number(StringView input)
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#date-state-(type=date):concept-input-value-number-string
-static Optional<double> convert_date_string_to_number(StringView input)
+static Optional<double> convert_date_string_to_number(Utf16View input)
 {
     // The algorithm to convert a string to a number, given a string input, is as follows: If parsing a date
     // from input results in an error, then return an error; otherwise, return the number of milliseconds
@@ -2464,7 +2465,7 @@ static Optional<double> convert_date_string_to_number(StringView input)
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#local-date-and-time-state-(type=datetime-local):parse-a-local-date-and-time-string-2
-static Optional<double> convert_local_date_and_time_string_to_number(StringView input)
+static Optional<double> convert_local_date_and_time_string_to_number(Utf16View input)
 {
     // The algorithm to convert a string to a number, given a string input, is as follows: If parsing a date and time
     // from input results in an error, then return an error; otherwise, return the number of milliseconds elapsed from
@@ -2482,7 +2483,7 @@ static Optional<double> convert_local_date_and_time_string_to_number(StringView 
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#time-state-(type=time):concept-input-value-string-number
-Optional<double> HTMLInputElement::convert_time_string_to_number(StringView input) const
+Optional<double> HTMLInputElement::convert_time_string_to_number(Utf16View input) const
 {
     // The algorithm to convert a string to a number, given a string input, is as follows: If parsing a time from input
     // results in an error, then return an error; otherwise, return the number of milliseconds elapsed from midnight to
@@ -2494,7 +2495,7 @@ Optional<double> HTMLInputElement::convert_time_string_to_number(StringView inpu
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#concept-input-value-string-number
-Optional<double> HTMLInputElement::convert_string_to_number(StringView input) const
+Optional<double> HTMLInputElement::convert_string_to_number(Utf16View input) const
 {
     // https://html.spec.whatwg.org/multipage/input.html#number-state-(type=number):concept-input-value-string-number
     if (type_state() == TypeAttributeState::Number)
@@ -2520,13 +2521,6 @@ Optional<double> HTMLInputElement::convert_string_to_number(StringView input) co
         return convert_local_date_and_time_string_to_number(input);
 
     return {};
-}
-
-// https://html.spec.whatwg.org/multipage/input.html#concept-input-value-string-number
-Optional<double> HTMLInputElement::convert_string_to_number(Utf16String const& input) const
-{
-    auto input_utf8 = input.to_utf8_but_should_be_ported_to_utf16();
-    return convert_string_to_number(input_utf8.bytes_as_string_view());
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#month-state-(type=month):concept-input-value-number-string
@@ -2668,7 +2662,7 @@ Utf16String HTMLInputElement::convert_number_to_string(double input) const
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#concept-input-value-string-date
-WebIDL::ExceptionOr<GC::Ptr<JS::Date>> HTMLInputElement::convert_string_to_date(StringView input) const
+WebIDL::ExceptionOr<GC::Ptr<JS::Date>> HTMLInputElement::convert_string_to_date(Utf16View input) const
 {
     // https://html.spec.whatwg.org/multipage/input.html#date-state-(type=date):concept-input-value-string-date
     if (type_state() == TypeAttributeState::Date) {
@@ -2720,13 +2714,6 @@ WebIDL::ExceptionOr<GC::Ptr<JS::Date>> HTMLInputElement::convert_string_to_date(
 
     dbgln("HTMLInputElement::convert_string_to_date() not implemented for input type {}", type());
     return nullptr;
-}
-
-// https://html.spec.whatwg.org/multipage/input.html#concept-input-value-string-date
-WebIDL::ExceptionOr<GC::Ptr<JS::Date>> HTMLInputElement::convert_string_to_date(Utf16String const& input) const
-{
-    auto input_utf8 = input.to_utf8_but_should_be_ported_to_utf16();
-    return convert_string_to_date(input_utf8.bytes_as_string_view());
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#concept-input-value-date-string

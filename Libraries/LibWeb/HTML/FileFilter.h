@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibIPC/Forward.h>
@@ -23,12 +23,12 @@ struct FileFilter {
 
     struct MimeType {
         bool operator==(MimeType const&) const = default;
-        String value;
+        Utf16String value;
     };
 
     struct Extension {
         bool operator==(Extension const&) const = default;
-        String value;
+        Utf16String value;
     };
 
     using FilterType = Variant<FileType, MimeType, Extension>;

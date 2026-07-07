@@ -2124,7 +2124,7 @@ void HTMLElement::moved_from(IsSubtreeRoot is_subtree_root, GC::Ptr<DOM::Node> o
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-accesskeylabel
-String HTMLElement::access_key_label() const
+Utf16String HTMLElement::access_key_label() const
 {
     // The accessKeyLabel IDL attribute must return a string that represents the element's assigned access key, if any.
     // If the element does not have one, then the IDL attribute must return the empty string.
@@ -2135,7 +2135,7 @@ String HTMLElement::access_key_label() const
     // 1. If the element has no accesskey attribute, then skip to the fallback step below.
     auto access_key = get_attribute(HTML::AttributeNames::accesskey);
     if (!access_key.has_value() || access_key->is_empty())
-        return String {};
+        return {};
 
     // 2. Otherwise, split the attribute's value on ASCII whitespace, and let keys be the resulting tokens.
     // 3. For each value in keys in turn, in the order the tokens appeared in the attribute's value, run the following substeps:
@@ -2144,13 +2144,13 @@ String HTMLElement::access_key_label() const
     //     The spec says to split on whitespace and try each token, but no browser besides IE/Edge implemented that.
     //     If there is more than one code point, no access key is assigned. https://github.com/whatwg/html/issues/3769
     if (access_key->length_in_code_points() > 1)
-        return String {};
+        return {};
 
     // FIXME: 3.2. If the value does not correspond to a key on the system's keyboard, then skip the remainder of these steps for this value.
     // FIXME: 3.3. If the user agent can find a mix of zero or more modifier keys that, combined with the key that corresponds to
     //             the value given in the attribute, can be used as the access key, then the user agent may assign that combination
     //             of keys as the element's assigned access key and return.
-    return access_key->to_utf8_but_should_be_ported_to_utf16();
+    return access_key.release_value();
 
     // 4. Fallback: Optionally, the user agent may assign a key combination of its choosing as the element's assigned access key
     //    and then return.
@@ -2262,7 +2262,7 @@ void HTMLElement::set_spellcheck(bool spellcheck)
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-writingsuggestions
-String HTMLElement::writing_suggestions() const
+Utf16String HTMLElement::writing_suggestions() const
 {
     // The writingsuggestions content attribute is an enumerated attribute with the following keywords and states:
     // Keyword            | State | Brief description
@@ -2280,19 +2280,19 @@ String HTMLElement::writing_suggestions() const
     auto maybe_writing_suggestions_attribute = attribute(HTML::AttributeNames::writingsuggestions);
 
     if (maybe_writing_suggestions_attribute.has_value() && maybe_writing_suggestions_attribute.value().equals_ignoring_ascii_case("false"sv))
-        return "false"_string;
+        return "false"_utf16;
 
     // 2. If element's writingsuggestions content attribute is in the Default state, element has a parent element, and the computed writing suggestions value of element's parent element is "false", then return "false".
-    if (!maybe_writing_suggestions_attribute.has_value() && first_ancestor_of_type<HTMLElement>() && first_ancestor_of_type<HTMLElement>()->writing_suggestions() == "false"sv) {
-        return "false"_string;
+    if (!maybe_writing_suggestions_attribute.has_value() && first_ancestor_of_type<HTMLElement>() && first_ancestor_of_type<HTMLElement>()->writing_suggestions() == "false"_utf16) {
+        return "false"_utf16;
     }
 
     // 3. Return "true".
-    return "true"_string;
+    return "true"_utf16;
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-writingsuggestions
-void HTMLElement::set_writing_suggestions(String const& given_value)
+void HTMLElement::set_writing_suggestions(Utf16String const& given_value)
 {
     // 1. Set this's writingsuggestions content attribute to the given value.
     set_attribute_value(HTML::AttributeNames::writingsuggestions, given_value);
@@ -2335,16 +2335,14 @@ HTMLElement::AutocapitalizationHint HTMLElement::own_autocapitalization_hint() c
     auto maybe_autocapitalize_attribute = attribute(HTML::AttributeNames::autocapitalize);
 
     if (maybe_autocapitalize_attribute.has_value() && !maybe_autocapitalize_attribute.value().is_empty()) {
-        auto autocapitalize_attribute = maybe_autocapitalize_attribute->to_utf8_but_should_be_ported_to_utf16();
-        auto autocapitalize_attribute_string_view = autocapitalize_attribute.bytes_as_string_view();
-
-        if (autocapitalize_attribute_string_view.is_one_of_ignoring_ascii_case("off"sv, "none"sv))
+        if (maybe_autocapitalize_attribute->equals_ignoring_ascii_case("off"sv)
+            || maybe_autocapitalize_attribute->equals_ignoring_ascii_case("none"sv))
             return AutocapitalizationHint::None;
 
-        if (autocapitalize_attribute_string_view.equals_ignoring_ascii_case("words"sv))
+        if (maybe_autocapitalize_attribute->equals_ignoring_ascii_case("words"sv))
             return AutocapitalizationHint::Words;
 
-        if (autocapitalize_attribute_string_view.equals_ignoring_ascii_case("characters"sv))
+        if (maybe_autocapitalize_attribute->equals_ignoring_ascii_case("characters"sv))
             return AutocapitalizationHint::Characters;
 
         return AutocapitalizationHint::Sentences;
@@ -2361,7 +2359,7 @@ HTMLElement::AutocapitalizationHint HTMLElement::own_autocapitalization_hint() c
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#attr-autocapitalize
-String HTMLElement::autocapitalize() const
+Utf16String HTMLElement::autocapitalize() const
 {
     // The autocapitalize getter steps are to:
     // 1. Let state be the own autocapitalization hint of this.
@@ -2373,21 +2371,21 @@ String HTMLElement::autocapitalize() const
     // 5. Return the keyword value corresponding to state.
     switch (state) {
     case AutocapitalizationHint::Default:
-        return String {};
+        return {};
     case AutocapitalizationHint::None:
-        return "none"_string;
+        return "none"_utf16;
     case AutocapitalizationHint::Sentences:
-        return "sentences"_string;
+        return "sentences"_utf16;
     case AutocapitalizationHint::Words:
-        return "words"_string;
+        return "words"_utf16;
     case AutocapitalizationHint::Characters:
-        return "characters"_string;
+        return "characters"_utf16;
     }
 
     VERIFY_NOT_REACHED();
 }
 
-void HTMLElement::set_autocapitalize(String const& given_value)
+void HTMLElement::set_autocapitalize(Utf16String const& given_value)
 {
     // The autocapitalize setter steps are to set the autocapitalize content attribute to the given value.
     set_attribute_value(HTML::AttributeNames::autocapitalize, given_value);

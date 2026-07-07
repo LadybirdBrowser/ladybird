@@ -14,12 +14,12 @@ interface HTMLElement : Element {
     [CEReactions] attribute (boolean or unrestricted double or DOMString)? hidden;
     [Reflect, CEReactions] attribute boolean inert;
     undefined click();
-    [Reflect=accesskey, CEReactions] attribute DOMString accessKey;
-    readonly attribute DOMString accessKeyLabel;
+    [Reflect=accesskey, CEReactions] attribute Utf16DOMString accessKey;
+    readonly attribute Utf16DOMString accessKeyLabel;
     [CEReactions] attribute boolean draggable;
     [CEReactions] attribute boolean spellcheck;
-    [CEReactions] attribute DOMString writingSuggestions;
-    [CEReactions] attribute DOMString autocapitalize;
+    [CEReactions] attribute Utf16DOMString writingSuggestions;
+    [CEReactions] attribute Utf16DOMString autocapitalize;
     [CEReactions] attribute boolean autocorrect;
 
     [LegacyNullToEmptyString, CEReactions] attribute Utf16DOMString innerText;

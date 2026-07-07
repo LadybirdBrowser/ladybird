@@ -172,7 +172,7 @@ void HTMLLinkElement::attribute_changed(FlyString const& name, Optional<Utf16Str
     // https://html.spec.whatwg.org/multipage/semantics.html#processing-the-type-attribute:attr-link-type
     if (name == HTML::AttributeNames::type) {
         if (value.has_value())
-            m_mime_type = value->to_ascii_lowercase().to_utf8_but_should_be_ported_to_utf16();
+            m_mime_type = value->to_ascii_lowercase();
         else {
             m_mime_type = {};
         }
@@ -360,7 +360,7 @@ GC::Ref<HTMLLinkElement::LinkProcessingOptions> HTMLLinkElement::create_link_opt
 
     // 5. If el has a type attribute, then set options's type to the value of el's type attribute.
     if (auto maybe_type = get_attribute(AttributeNames::type); maybe_type.has_value())
-        options->type = maybe_type->to_utf8_but_should_be_ported_to_utf16();
+        options->type = maybe_type.release_value();
 
     // FIXME: 6. Assert: options's href is not the empty string, or options's source set is not null.
     //           A link element with neither an href or an imagesrcset does not represent a link.
@@ -653,7 +653,7 @@ void HTMLLinkElement::preconnect(LinkProcessingOptions const& options)
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#match-preload-type
-static bool type_matches_destination(StringView type, Optional<Fetch::Infrastructure::Request::Destination> destination)
+static bool type_matches_destination(Utf16View type, Optional<Fetch::Infrastructure::Request::Destination> destination)
 {
     using enum Fetch::Infrastructure::Request::Destination;
 
@@ -841,12 +841,12 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
     auto extracted_mime_type = Fetch::Infrastructure::extract_mime_type(response.header_list());
     if (extracted_mime_type.has_value()) {
         if (!mime_type_string.has_value())
-            mime_type_string = extracted_mime_type->essence();
+            mime_type_string = Utf16String::from_utf8(extracted_mime_type->essence());
         if (auto charset = extracted_mime_type->parameters().get("charset"sv); charset.has_value())
             mime_type_charset = charset.value();
     }
 
-    if (mime_type_string.has_value() && mime_type_string != "text/css"sv)
+    if (mime_type_string.has_value() && mime_type_string != "text/css"_utf16)
         success = false;
 
     // 2. If el no longer creates an external resource link that contributes to the styling processing model, or
@@ -1097,7 +1097,7 @@ HTMLLinkElement::LinkProcessingOptions::LinkProcessingOptions(
     GC::Ref<HTML::EnvironmentSettingsObject> environment,
     GC::Ref<HTML::PolicyContainer> policy_container,
     GC::Ptr<Web::DOM::Document> document,
-    String cryptographic_nonce_metadata,
+    Utf16String cryptographic_nonce_metadata,
     Fetch::Infrastructure::Request::Priority fetch_priority)
     : cryptographic_nonce_metadata(move(cryptographic_nonce_metadata))
     , crossorigin(crossorigin)

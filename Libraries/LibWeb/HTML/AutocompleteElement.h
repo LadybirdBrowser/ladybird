@@ -28,7 +28,7 @@ public:
     };
     AutofillMantle get_autofill_mantle() const;
 
-    Vector<String> autocomplete_tokens() const;
+    Vector<Utf16String> autocomplete_tokens() const;
     String autocomplete() const;
     void set_autocomplete(String const&);
 

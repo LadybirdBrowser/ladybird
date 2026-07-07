@@ -897,11 +897,11 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
                     accepted_file_filters.append(qformatted("{} ({})", title, extensions.join(" ")));
                 },
                 [&](Web::HTML::FileFilter::MimeType const& filter) {
-                    if (auto mime_type = mime_database.mimeTypeForName(qstring_from_ak_string(filter.value)); mime_type.isValid())
+                    if (auto mime_type = mime_database.mimeTypeForName(qstring_from_utf16_string(filter.value)); mime_type.isValid())
                         accepted_file_filters.append(mime_type.filterString());
                 },
                 [&](Web::HTML::FileFilter::Extension const& filter) {
-                    accepted_file_filters.append(qformatted("*.{}", filter.value));
+                    accepted_file_filters.append(qformatted("*.{}", qstring_from_utf16_string(filter.value)));
                 });
         }
 

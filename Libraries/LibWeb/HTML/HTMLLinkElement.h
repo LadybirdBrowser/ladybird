@@ -74,7 +74,7 @@ private:
             GC::Ref<HTML::EnvironmentSettingsObject> environment,
             GC::Ref<HTML::PolicyContainer> policy_container,
             GC::Ptr<Web::DOM::Document> document,
-            String cryptographic_nonce_metadata,
+            Utf16String cryptographic_nonce_metadata,
             Fetch::Infrastructure::Request::Priority fetch_priority);
 
         virtual void visit_edges(Cell::Visitor& visitor) override;
@@ -89,11 +89,11 @@ private:
         String integrity;
 
         // type (default the empty string)
-        String type;
+        Utf16String type;
 
         // cryptographic nonce metadata (default the empty string)
         //     A string
-        String cryptographic_nonce_metadata;
+        Utf16String cryptographic_nonce_metadata;
 
         // destination (default the empty string)
         //     A destination type.
@@ -207,7 +207,7 @@ private:
 
     bool m_was_enabled_when_created_by_parser { false };
 
-    Optional<String> m_mime_type;
+    Optional<Utf16String> m_mime_type;
 
     GC::Weak<DOM::Document> m_parser_document;
 };

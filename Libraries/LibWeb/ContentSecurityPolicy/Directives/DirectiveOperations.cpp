@@ -629,7 +629,7 @@ MatchResult does_response_match_source_list(GC::Ref<Fetch::Infrastructure::Respo
 }
 
 // https://w3c.github.io/webappsec-csp/#match-nonce-to-source-list
-MatchResult does_nonce_match_source_list(String const& nonce, Vector<String> const& source_list)
+MatchResult does_nonce_match_source_list(Utf16View nonce, Vector<String> const& source_list)
 {
     // 1. Assert: source list is not null.
     // Already done by only accept references.
@@ -912,7 +912,7 @@ MatchResult does_element_match_source_list_for_type_and_source(GC::Ptr<DOM::Elem
                 VERIFY(element);
                 VERIFY(is<HTML::HTMLElement>(element.ptr()) || is<SVG::SVGElement>(element.ptr()));
 
-                String element_nonce;
+                Utf16String element_nonce;
                 if (auto* html_element = as_if<HTML::HTMLElement>(element.ptr())) {
                     element_nonce = html_element->nonce();
                 } else {
@@ -920,7 +920,7 @@ MatchResult does_element_match_source_list_for_type_and_source(GC::Ptr<DOM::Elem
                     element_nonce = svg_element.nonce();
                 }
 
-                if (nonce_source_parse_result->base64_value == element_nonce)
+                if (element_nonce == nonce_source_parse_result->base64_value.value())
                     return MatchResult::Matches;
             }
         }

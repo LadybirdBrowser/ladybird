@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
@@ -31,7 +32,7 @@ WEB_API PerformTheFetchHook create_perform_the_fetch_hook(GC::Heap& heap, Functi
 // https://html.spec.whatwg.org/multipage/webappapis.html#script-fetch-options
 struct ScriptFetchOptions {
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-script-fetch-options-nonce
-    String cryptographic_nonce {};
+    Utf16String cryptographic_nonce {};
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-script-fetch-options-integrity
     String integrity_metadata {};

@@ -31,13 +31,21 @@ AutocompleteElement::AutofillMantle AutocompleteElement::get_autofill_mantle() c
     return AutofillMantle::Expectation;
 }
 
-Vector<String> AutocompleteElement::autocomplete_tokens() const
+Vector<Utf16String> AutocompleteElement::autocomplete_tokens() const
 {
-    auto autocomplete_value = autocomplete_element_to_html_element().attribute(AttributeNames::autocomplete).value_or({}).to_utf8_but_should_be_ported_to_utf16();
+    auto autocomplete_value = autocomplete_element_to_html_element().attribute(AttributeNames::autocomplete).value_or({});
 
-    Vector<String> autocomplete_tokens;
-    for (auto& token : autocomplete_value.bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace))
-        autocomplete_tokens.append(MUST(String::from_utf8(token)));
+    Vector<Utf16String> autocomplete_tokens;
+    auto autocomplete_value_view = autocomplete_value.utf16_view();
+    size_t start = 0;
+    for (size_t i = 0; i <= autocomplete_value_view.length_in_code_units(); ++i) {
+        if (i != autocomplete_value_view.length_in_code_units() && !Infra::is_ascii_whitespace(autocomplete_value_view.code_unit_at(i)))
+            continue;
+
+        if (i > start)
+            autocomplete_tokens.append(Utf16String::from_utf16(autocomplete_value_view.substring_view(start, i - start)));
+        start = i + 1;
+    }
     return autocomplete_tokens;
 }
 
@@ -68,7 +76,7 @@ struct CategoryAndMaximumTokens {
 };
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#determine-a-field's-category
-static CategoryAndMaximumTokens determine_a_field_category(StringView const& field)
+static CategoryAndMaximumTokens determine_a_field_category(Utf16View const& field)
 {
 #define CASE_CATEGORY(token, maximum_number_of_tokens, category) \
     if (field.equals_ignoring_ascii_case(token))                 \
@@ -79,63 +87,63 @@ static CategoryAndMaximumTokens determine_a_field_category(StringView const& fie
     // 2. Otherwise, let maximum tokens and category be the values of the cells in the second
     //    and third columns of that row respectively.
     // 3. Return the pair (category, maximum tokens).
-    CASE_CATEGORY("off"sv, 1, Off);
-    CASE_CATEGORY("on"sv, 1, Automatic);
-    CASE_CATEGORY("name"sv, 3, Normal);
-    CASE_CATEGORY("honorific-prefix"sv, 3, Normal);
-    CASE_CATEGORY("given-name"sv, 3, Normal);
-    CASE_CATEGORY("additional-name"sv, 3, Normal);
-    CASE_CATEGORY("family-name"sv, 3, Normal);
-    CASE_CATEGORY("honorific-suffix"sv, 3, Normal);
-    CASE_CATEGORY("nickname"sv, 3, Normal);
-    CASE_CATEGORY("organization-title"sv, 3, Normal);
-    CASE_CATEGORY("username"sv, 3, Normal);
-    CASE_CATEGORY("new-password"sv, 3, Normal);
-    CASE_CATEGORY("current-password"sv, 3, Normal);
-    CASE_CATEGORY("one-time-code"sv, 3, Normal);
-    CASE_CATEGORY("organization"sv, 3, Normal);
-    CASE_CATEGORY("street-address"sv, 3, Normal);
-    CASE_CATEGORY("address-line1"sv, 3, Normal);
-    CASE_CATEGORY("address-line2"sv, 3, Normal);
-    CASE_CATEGORY("address-line3"sv, 3, Normal);
-    CASE_CATEGORY("address-level4"sv, 3, Normal);
-    CASE_CATEGORY("address-level3"sv, 3, Normal);
-    CASE_CATEGORY("address-level2"sv, 3, Normal);
-    CASE_CATEGORY("address-level1"sv, 3, Normal);
-    CASE_CATEGORY("country"sv, 3, Normal);
-    CASE_CATEGORY("country-name"sv, 3, Normal);
-    CASE_CATEGORY("postal-code"sv, 3, Normal);
-    CASE_CATEGORY("cc-name"sv, 3, Normal);
-    CASE_CATEGORY("cc-given-name"sv, 3, Normal);
-    CASE_CATEGORY("cc-additional-name"sv, 3, Normal);
-    CASE_CATEGORY("cc-family-name"sv, 3, Normal);
-    CASE_CATEGORY("cc-number"sv, 3, Normal);
-    CASE_CATEGORY("cc-exp"sv, 3, Normal);
-    CASE_CATEGORY("cc-exp-month"sv, 3, Normal);
-    CASE_CATEGORY("cc-exp-year"sv, 3, Normal);
-    CASE_CATEGORY("cc-csc"sv, 3, Normal);
-    CASE_CATEGORY("cc-type"sv, 3, Normal);
-    CASE_CATEGORY("transaction-currency"sv, 3, Normal);
-    CASE_CATEGORY("transaction-amount"sv, 3, Normal);
-    CASE_CATEGORY("language"sv, 3, Normal);
-    CASE_CATEGORY("bday"sv, 3, Normal);
-    CASE_CATEGORY("bday-day"sv, 3, Normal);
-    CASE_CATEGORY("bday-month"sv, 3, Normal);
-    CASE_CATEGORY("bday-year"sv, 3, Normal);
-    CASE_CATEGORY("sex"sv, 3, Normal);
-    CASE_CATEGORY("url"sv, 3, Normal);
-    CASE_CATEGORY("photo"sv, 3, Normal);
-    CASE_CATEGORY("tel"sv, 4, Contact);
-    CASE_CATEGORY("tel-country-code"sv, 4, Contact);
-    CASE_CATEGORY("tel-national"sv, 4, Contact);
-    CASE_CATEGORY("tel-area-code"sv, 4, Contact);
-    CASE_CATEGORY("tel-local"sv, 4, Contact);
-    CASE_CATEGORY("tel-local-prefix"sv, 4, Contact);
-    CASE_CATEGORY("tel-local-suffix"sv, 4, Contact);
-    CASE_CATEGORY("tel-extension"sv, 4, Contact);
-    CASE_CATEGORY("email"sv, 4, Contact);
-    CASE_CATEGORY("impp"sv, 4, Contact);
-    CASE_CATEGORY("webauthn"sv, 5, Credential);
+    CASE_CATEGORY(u"off"sv, 1, Off);
+    CASE_CATEGORY(u"on"sv, 1, Automatic);
+    CASE_CATEGORY(u"name"sv, 3, Normal);
+    CASE_CATEGORY(u"honorific-prefix"sv, 3, Normal);
+    CASE_CATEGORY(u"given-name"sv, 3, Normal);
+    CASE_CATEGORY(u"additional-name"sv, 3, Normal);
+    CASE_CATEGORY(u"family-name"sv, 3, Normal);
+    CASE_CATEGORY(u"honorific-suffix"sv, 3, Normal);
+    CASE_CATEGORY(u"nickname"sv, 3, Normal);
+    CASE_CATEGORY(u"organization-title"sv, 3, Normal);
+    CASE_CATEGORY(u"username"sv, 3, Normal);
+    CASE_CATEGORY(u"new-password"sv, 3, Normal);
+    CASE_CATEGORY(u"current-password"sv, 3, Normal);
+    CASE_CATEGORY(u"one-time-code"sv, 3, Normal);
+    CASE_CATEGORY(u"organization"sv, 3, Normal);
+    CASE_CATEGORY(u"street-address"sv, 3, Normal);
+    CASE_CATEGORY(u"address-line1"sv, 3, Normal);
+    CASE_CATEGORY(u"address-line2"sv, 3, Normal);
+    CASE_CATEGORY(u"address-line3"sv, 3, Normal);
+    CASE_CATEGORY(u"address-level4"sv, 3, Normal);
+    CASE_CATEGORY(u"address-level3"sv, 3, Normal);
+    CASE_CATEGORY(u"address-level2"sv, 3, Normal);
+    CASE_CATEGORY(u"address-level1"sv, 3, Normal);
+    CASE_CATEGORY(u"country"sv, 3, Normal);
+    CASE_CATEGORY(u"country-name"sv, 3, Normal);
+    CASE_CATEGORY(u"postal-code"sv, 3, Normal);
+    CASE_CATEGORY(u"cc-name"sv, 3, Normal);
+    CASE_CATEGORY(u"cc-given-name"sv, 3, Normal);
+    CASE_CATEGORY(u"cc-additional-name"sv, 3, Normal);
+    CASE_CATEGORY(u"cc-family-name"sv, 3, Normal);
+    CASE_CATEGORY(u"cc-number"sv, 3, Normal);
+    CASE_CATEGORY(u"cc-exp"sv, 3, Normal);
+    CASE_CATEGORY(u"cc-exp-month"sv, 3, Normal);
+    CASE_CATEGORY(u"cc-exp-year"sv, 3, Normal);
+    CASE_CATEGORY(u"cc-csc"sv, 3, Normal);
+    CASE_CATEGORY(u"cc-type"sv, 3, Normal);
+    CASE_CATEGORY(u"transaction-currency"sv, 3, Normal);
+    CASE_CATEGORY(u"transaction-amount"sv, 3, Normal);
+    CASE_CATEGORY(u"language"sv, 3, Normal);
+    CASE_CATEGORY(u"bday"sv, 3, Normal);
+    CASE_CATEGORY(u"bday-day"sv, 3, Normal);
+    CASE_CATEGORY(u"bday-month"sv, 3, Normal);
+    CASE_CATEGORY(u"bday-year"sv, 3, Normal);
+    CASE_CATEGORY(u"sex"sv, 3, Normal);
+    CASE_CATEGORY(u"url"sv, 3, Normal);
+    CASE_CATEGORY(u"photo"sv, 3, Normal);
+    CASE_CATEGORY(u"tel"sv, 4, Contact);
+    CASE_CATEGORY(u"tel-country-code"sv, 4, Contact);
+    CASE_CATEGORY(u"tel-national"sv, 4, Contact);
+    CASE_CATEGORY(u"tel-area-code"sv, 4, Contact);
+    CASE_CATEGORY(u"tel-local"sv, 4, Contact);
+    CASE_CATEGORY(u"tel-local-prefix"sv, 4, Contact);
+    CASE_CATEGORY(u"tel-local-suffix"sv, 4, Contact);
+    CASE_CATEGORY(u"tel-extension"sv, 4, Contact);
+    CASE_CATEGORY(u"email"sv, 4, Contact);
+    CASE_CATEGORY(u"impp"sv, 4, Contact);
+    CASE_CATEGORY(u"webauthn"sv, 5, Credential);
 
 #undef CASE_CATEGORY
 
@@ -251,10 +259,10 @@ AutocompleteElement::AttributeDetails AutocompleteElement::parse_autocomplete_at
         attr_details.scope = scope_tokens;
 
         // 29. Set the element's autofill field name to field.
-        attr_details.field_name = field;
+        attr_details.field_name = field.to_utf8();
 
         // 30. Set the element's IDL-exposed autofill value to IDL value.
-        attr_details.value = idl_value;
+        attr_details.value = idl_value.to_utf8();
 
         // 31. Return.
         return attr_details;
@@ -262,7 +270,7 @@ AutocompleteElement::AttributeDetails AutocompleteElement::parse_autocomplete_at
 
     // 16. If category is Credential and the indexth token in tokens is an ASCII case-insensitive match for "webauthn",
     //     then run the substeps that follow:
-    if (category == Category::Credential && tokens[index].equals_ignoring_ascii_case("webauthn"sv)) {
+    if (category == Category::Credential && tokens[index].equals_ignoring_ascii_case(u"webauthn"sv)) {
         // 1. Set credential type to "webauthn".
         credential_type = "webauthn"_string;
 
@@ -288,7 +296,7 @@ AutocompleteElement::AttributeDetails AutocompleteElement::parse_autocomplete_at
             return step_default();
 
         // 7. Set IDL value to the concatenation of the indexth token in tokens, a U+0020 SPACE character, and the previous value of IDL value.
-        idl_value = MUST(String::formatted("{} {}", tokens[index], idl_value));
+        idl_value = Utf16String::formatted("{} {}", tokens[index], idl_value);
     }
 
     // 17. If the indexth token in tokens is the first entry, then skip to the step labeled done.
@@ -300,18 +308,19 @@ AutocompleteElement::AttributeDetails AutocompleteElement::parse_autocomplete_at
 
     // 19. If category is Contact and the indexth token in tokens is an ASCII case-insensitive match for one of the strings in the following list,
     //     then run the substeps that follow:
-    if (category == Category::Contact && tokens[index].to_ascii_lowercase().is_one_of("home", "work", "mobile", "fax", "pager")) {
+    if (category == Category::Contact && tokens[index].to_ascii_lowercase().is_one_of(u"home"sv, u"work"sv, u"mobile"sv, u"fax"sv, u"pager"sv)) {
         // 1. Let contact be the matching string from the list above.
         auto contact = tokens[index].to_ascii_lowercase();
+        auto contact_utf8 = contact.to_utf8();
 
         // 2. Insert contact at the start of scope tokens.
-        scope_tokens.prepend(contact);
+        scope_tokens.prepend(contact_utf8);
 
         // 3. Add contact to hint tokens.
-        hint_tokens.set(contact);
+        hint_tokens.set(contact_utf8);
 
         // 4. Let IDL value be the concatenation of contact, a U+0020 SPACE character, and the previous value of IDL value.
-        idl_value = MUST(String::formatted("{} {}", contact, idl_value));
+        idl_value = Utf16String::formatted("{} {}", contact, idl_value);
 
         // 5. If the indexth entry in tokens is the first entry, then skip to the step labeled done.
         if (index == 0)
@@ -323,18 +332,19 @@ AutocompleteElement::AttributeDetails AutocompleteElement::parse_autocomplete_at
 
     // 20. If the indexth token in tokens is an ASCII case-insensitive match for one of the strings in the following list,
     //     then run the substeps that follow:
-    if (tokens[index].to_ascii_lowercase().is_one_of("shipping", "billing")) {
+    if (tokens[index].to_ascii_lowercase().is_one_of(u"shipping"sv, u"billing"sv)) {
         // 1. Let mode be the matching string from the list above.
         auto mode = tokens[index].to_ascii_lowercase();
+        auto mode_utf8 = mode.to_utf8();
 
         // 2. Insert mode at the start of scope tokens.
-        scope_tokens.prepend(mode);
+        scope_tokens.prepend(mode_utf8);
 
         // 3. Add mode to hint tokens.
-        hint_tokens.set(mode);
+        hint_tokens.set(mode_utf8);
 
         // 4. Let IDL value be the concatenation of mode, a U+0020 SPACE character, and the previous value of IDL value.
-        idl_value = MUST(String::formatted("{} {}", mode, idl_value));
+        idl_value = Utf16String::formatted("{} {}", mode, idl_value);
 
         // 5. If the indexth entry in tokens is the first entry, then skip to the step labeled done.
         if (index == 0)
@@ -350,17 +360,18 @@ AutocompleteElement::AttributeDetails AutocompleteElement::parse_autocomplete_at
 
     // 22. If the first eight characters of the indexth token in tokens are not an ASCII case-insensitive match for the string "section-",
     //     then jump to the step labeled default.
-    if (!tokens[index].to_ascii_lowercase().starts_with_bytes("section-"sv))
+    if (!tokens[index].to_ascii_lowercase().starts_with(u"section-"sv))
         return step_default();
 
     // 23. Let section be the indexth token in tokens, converted to ASCII lowercase.
     auto section = tokens[index].to_ascii_lowercase();
+    auto section_utf8 = section.to_utf8();
 
     // 24. Insert section at the start of scope tokens.
-    scope_tokens.prepend(section);
+    scope_tokens.prepend(section_utf8);
 
     // 25. Let IDL value be the concatenation of section, a U+0020 SPACE character, and the previous value of IDL value.
-    idl_value = MUST(String::formatted("{} {}", section, idl_value));
+    idl_value = Utf16String::formatted("{} {}", section, idl_value);
 
     return step_done();
 }

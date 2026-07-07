@@ -9,6 +9,7 @@
 
 #include <AK/HashMap.h>
 #include <AK/String.h>
+#include <AK/Utf16View.h>
 #include <LibWeb/Export.h>
 
 namespace Web::MimeSniff {
@@ -41,6 +42,7 @@ class WEB_API MimeType {
 public:
     [[nodiscard]] static MimeType create(String type, String subtype);
     [[nodiscard]] static Optional<MimeType> parse(StringView);
+    [[nodiscard]] static Optional<MimeType> parse(Utf16View);
 
     MimeType(MimeType const&);
     MimeType& operator=(MimeType const&);

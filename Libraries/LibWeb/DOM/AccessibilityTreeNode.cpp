@@ -39,9 +39,9 @@ void AccessibilityTreeNode::serialize_tree_as_json(JsonObjectSerializer<StringBu
             bool has_role = role.has_value() && !ARIA::is_abstract_role(*role);
 
             auto name = MUST(element->accessible_name(document));
-            MUST(object.add("name"sv, name));
+            MUST(object.add("name"sv, name.to_utf8()));
             auto description = MUST(element->accessible_description(document));
-            MUST(object.add("description"sv, description));
+            MUST(object.add("description"sv, description.to_utf8()));
 
             if (has_role)
                 MUST(object.add("role"sv, ARIA::role_name(*role)));

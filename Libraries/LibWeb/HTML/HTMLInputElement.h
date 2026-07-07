@@ -291,13 +291,11 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void adopted_from(DOM::Document&) override;
 
-    Optional<double> convert_time_string_to_number(StringView input) const;
-    Optional<double> convert_string_to_number(StringView input) const;
-    Optional<double> convert_string_to_number(Utf16String const& input) const;
+    Optional<double> convert_time_string_to_number(Utf16View input) const;
+    Optional<double> convert_string_to_number(Utf16View input) const;
     Utf16String convert_number_to_string(double input) const;
 
-    WebIDL::ExceptionOr<GC::Ptr<JS::Date>> convert_string_to_date(StringView input) const;
-    WebIDL::ExceptionOr<GC::Ptr<JS::Date>> convert_string_to_date(Utf16String const& input) const;
+    WebIDL::ExceptionOr<GC::Ptr<JS::Date>> convert_string_to_date(Utf16View input) const;
     Utf16String convert_date_to_string(GC::Ref<JS::Date> input) const;
 
     Optional<double> min() const;
@@ -322,7 +320,7 @@ private:
     WebIDL::ExceptionOr<void> run_input_activation_behavior(DOM::Event const&);
 
     void handle_maxlength_attribute();
-    WebIDL::ExceptionOr<void> handle_src_attribute(String const& value);
+    WebIDL::ExceptionOr<void> handle_src_attribute(Utf16String const& value);
 
     void user_interaction_did_change_input_value(FlyString const& input_type = {}, Optional<Utf16String> const& data = {});
 
@@ -396,7 +394,7 @@ private:
     TypeAttributeState m_type { TypeAttributeState::Text };
     Utf16String m_value;
 
-    String m_last_src_value;
+    Utf16String m_last_src_value;
 
     bool m_has_uncommitted_changes { false };
 

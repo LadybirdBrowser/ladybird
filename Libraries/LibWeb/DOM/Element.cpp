@@ -265,7 +265,7 @@ Utf16String Element::get_attribute_value(FlyString const& local_name, Optional<F
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#get-an-element's-target
-String Element::get_an_elements_target(Optional<String> target) const
+Utf16String Element::get_an_elements_target(Optional<Utf16String> target) const
 {
     // To get an element's target, given an a, area, or form element element, and an optional string-or-null target (default null), run these steps:
 
@@ -273,27 +273,25 @@ String Element::get_an_elements_target(Optional<String> target) const
     if (!target.has_value()) {
         // 1. If element has a target attribute, then set target to that attribute's value.
         if (auto maybe_target = attribute(HTML::AttributeNames::target); maybe_target.has_value()) {
-            target = maybe_target.release_value().to_utf8_but_should_be_ported_to_utf16();
+            target = maybe_target.release_value();
         }
         // 2. Otherwise, if element's node document contains a base element with a target attribute,
         //    set target to the value of the target attribute of the first such base element.
         else if (auto base_element = document().first_base_element_with_target_in_tree_order()) {
-            target = base_element->attribute(HTML::AttributeNames::target).map([](auto const& value) {
-                return value.to_utf8_but_should_be_ported_to_utf16();
-            });
+            target = base_element->attribute(HTML::AttributeNames::target);
         }
     }
 
     // 2. If target is not null, and contains an ASCII tab or newline and a U+003C (<), then set target to "_blank".
-    if (target.has_value() && target->bytes_as_string_view().contains("\t\n\r"sv) && target->contains('<'))
-        target = "_blank"_string;
+    if (target.has_value() && target->contains(u"\t\n\r"sv) && target->contains('<'))
+        target = "_blank"_utf16;
 
     // 3. Return target.
     return target.value_or({});
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#get-an-element's-noopener
-HTML::TokenizedFeature::NoOpener Element::get_an_elements_noopener(URL::URL const& url, StringView target) const
+HTML::TokenizedFeature::NoOpener Element::get_an_elements_noopener(URL::URL const& url, Utf16View target) const
 {
     // To get an element's noopener, given an a, area, or form element element, a URL record url, and a string target,
     // perform the following steps. They return a boolean.
@@ -358,7 +356,7 @@ void Element::follow_the_hyperlink(Optional<String> hyperlink_suffix, HTML::User
         return;
 
     // 2. Let targetAttributeValue be the empty string.
-    String target_attribute_value;
+    Utf16String target_attribute_value;
 
     // 3. If subject is an a or area element, then set targetAttributeValue to the result of getting an element's target given subject.
     if (is_html_anchor_element() || is_html_area_element() || is_svg_a_element())
@@ -376,7 +374,8 @@ void Element::follow_the_hyperlink(Optional<String> hyperlink_suffix, HTML::User
 
     // 7. Let targetNavigable be the first return value of applying the rules for choosing a navigable given
     //    targetAttributeValue, subject's node navigable, and noopener.
-    auto target_navigable = document().navigable()->choose_a_navigable(target_attribute_value, noopener).navigable;
+    auto target_attribute_value_utf8 = target_attribute_value.to_utf8();
+    auto target_navigable = document().navigable()->choose_a_navigable(target_attribute_value_utf8, noopener).navigable;
 
     // 8. If targetNavigable is null, then return.
     if (!target_navigable)

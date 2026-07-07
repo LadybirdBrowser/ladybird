@@ -6,10 +6,19 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Utf16String.h>
 #include <LibTest/TestCase.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 
 #include <LibWeb/MimeSniff/Resource.h>
+
+TEST_CASE(parse_mime_type_from_utf16)
+{
+    auto mime_type = Web::MimeSniff::MimeType::parse(" TEXT/HTML ; Charset=\"UTF-8\" "_utf16).release_value();
+
+    EXPECT_EQ("text/html"sv, mime_type.essence());
+    EXPECT_EQ("UTF-8"sv, mime_type.parameters().get("charset"_string).value());
+}
 
 TEST_CASE(determine_computed_mime_type_given_no_sniff_is_set)
 {

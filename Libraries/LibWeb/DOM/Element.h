@@ -134,8 +134,8 @@ public:
     Optional<Utf16String> get_attribute_ns(Optional<FlyString> const& namespace_, FlyString const& name) const;
     Utf16String get_attribute_value(FlyString const& local_name, Optional<FlyString> const& namespace_ = {}) const;
 
-    String get_an_elements_target(Optional<String> target = {}) const;
-    HTML::TokenizedFeature::NoOpener get_an_elements_noopener(URL::URL const& url, StringView target) const;
+    Utf16String get_an_elements_target(Optional<Utf16String> target = {}) const;
+    HTML::TokenizedFeature::NoOpener get_an_elements_noopener(URL::URL const& url, Utf16View target) const;
 
     bool cannot_navigate() const;
 

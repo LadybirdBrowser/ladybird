@@ -576,7 +576,7 @@ String Internals::get_computed_role(DOM::Element& element)
 String Internals::get_computed_label(DOM::Element& element)
 {
     auto& active_document = window().associated_document();
-    return MUST(element.accessible_name(active_document));
+    return MUST(element.accessible_name(active_document)).to_utf8();
 }
 
 String Internals::get_computed_aria_level(DOM::Element& element)

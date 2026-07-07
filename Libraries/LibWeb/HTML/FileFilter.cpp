@@ -28,7 +28,7 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::FileFilter::MimeType cons
 template<>
 ErrorOr<Web::HTML::FileFilter::MimeType> IPC::decode(Decoder& decoder)
 {
-    auto value = TRY(decoder.decode<String>());
+    auto value = TRY(decoder.decode<Utf16String>());
     return Web::HTML::FileFilter::MimeType { move(value) };
 }
 
@@ -42,7 +42,7 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::FileFilter::Extension con
 template<>
 ErrorOr<Web::HTML::FileFilter::Extension> IPC::decode(Decoder& decoder)
 {
-    auto value = TRY(decoder.decode<String>());
+    auto value = TRY(decoder.decode<Utf16String>());
     return Web::HTML::FileFilter::Extension { move(value) };
 }
 

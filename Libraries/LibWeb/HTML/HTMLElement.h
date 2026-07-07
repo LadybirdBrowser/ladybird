@@ -76,12 +76,7 @@ class WEB_API HTMLElement
 public:
     virtual ~HTMLElement() override;
 
-    Optional<String> title() const
-    {
-        return attribute(HTML::AttributeNames::title).map([](auto const& value) {
-            return value.to_utf8_but_should_be_ported_to_utf16();
-        });
-    }
+    Optional<Utf16String> title() const { return attribute(HTML::AttributeNames::title); }
 
     bool translate() const;
     void set_translate(bool);
@@ -113,13 +108,13 @@ public:
 
     void click();
 
-    [[nodiscard]] String access_key_label() const;
+    [[nodiscard]] Utf16String access_key_label() const;
 
     bool spellcheck() const;
     void set_spellcheck(bool);
 
-    String writing_suggestions() const;
-    void set_writing_suggestions(String const&);
+    Utf16String writing_suggestions() const;
+    void set_writing_suggestions(Utf16String const&);
 
     enum class AutocapitalizationHint {
         Default,
@@ -130,8 +125,8 @@ public:
     };
 
     AutocapitalizationHint own_autocapitalization_hint() const;
-    String autocapitalize() const;
-    void set_autocapitalize(String const&);
+    Utf16String autocapitalize() const;
+    void set_autocapitalize(Utf16String const&);
 
     enum class AutocorrectionState {
         On,

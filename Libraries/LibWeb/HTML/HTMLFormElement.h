@@ -35,7 +35,7 @@ class HTMLFormElement final : public HTMLElement {
 public:
     virtual ~HTMLFormElement() override;
 
-    String action_from_form_element(GC::Ref<HTMLElement> element) const;
+    Utf16String action_from_form_element(GC::Ref<HTMLElement> element) const;
 
     enum class MethodAttributeState {
 #define __ENUMERATE_FORM_METHOD_ATTRIBUTE(_, state) state,

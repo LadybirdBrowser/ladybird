@@ -68,7 +68,7 @@ void HTMLOrSVGOrMathMLElement<ElementBase>::attribute_changed(FlyString const& l
 
     // 4. Otherwise, set element's [[CryptographicNonce]] to value.
     else {
-        m_cryptographic_nonce = value->to_utf8_but_should_be_ported_to_utf16();
+        m_cryptographic_nonce = *value;
     }
 }
 

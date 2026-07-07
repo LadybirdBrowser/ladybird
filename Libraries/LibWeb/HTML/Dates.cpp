@@ -243,13 +243,13 @@ bool is_valid_time_string(Utf16View const& value)
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#parse-a-month-component
-static Optional<YearAndMonth> parse_a_month_component(GenericLexer& input)
+static Optional<YearAndMonth> parse_a_month_component(Utf16GenericLexer& input)
 {
     // 1. Collect a sequence of code points that are ASCII digits from input given position. If the collected sequence is
     //    not at least four characters long, then fail. Otherwise, interpret the resulting sequence as a base-ten integer.
     //    Let year be that number.
     auto year_string = input.consume_while(is_ascii_digit);
-    if (year_string.length() < 4)
+    if (year_string.length_in_code_units() < 4)
         return {};
     auto maybe_year = year_string.to_number<u32>();
     if (!maybe_year.has_value())
@@ -269,7 +269,7 @@ static Optional<YearAndMonth> parse_a_month_component(GenericLexer& input)
     //    exactly two characters long, then fail. Otherwise, interpret the resulting sequence as a base-ten integer. Let month
     //    be that number.
     auto month_string = input.consume_while(is_ascii_digit);
-    if (month_string.length() != 2)
+    if (month_string.length_in_code_units() != 2)
         return {};
     auto month = month_string.to_number<u32>().value();
 
@@ -282,11 +282,11 @@ static Optional<YearAndMonth> parse_a_month_component(GenericLexer& input)
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#parse-a-month-string
-Optional<YearAndMonth> parse_a_month_string(StringView input_view)
+Optional<YearAndMonth> parse_a_month_string(Utf16View input_view)
 {
     // 1. Let input be the string being parsed.
     // 2. Let position be a pointer into input, initially pointing at the start of the string.
-    GenericLexer input { input_view };
+    Utf16GenericLexer input { input_view };
 
     // 3. Parse a month component to obtain year and month. If this returns nothing, then fail.
     auto year_and_month = parse_a_month_component(input);
@@ -307,17 +307,17 @@ i32 number_of_months_since_unix_epoch(YearAndMonth year_and_month)
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#parse-a-week-string
-Optional<WeekYearAndWeek> parse_a_week_string(StringView input_view)
+Optional<WeekYearAndWeek> parse_a_week_string(Utf16View input_view)
 {
     // 1. Let input be the string being parsed.
     // 2. Let position be a pointer into input, initially pointing at the start of the string.
-    GenericLexer input { input_view };
+    Utf16GenericLexer input { input_view };
 
     // 3. Collect a sequence of code points that are ASCII digits from input given position. If the collected sequence is
     //    not at least four characters long, then fail. Otherwise, interpret the resulting sequence as a base-ten integer.
     //    Let year be that number.
     auto year_string = input.consume_while(is_ascii_digit);
-    if (year_string.length() < 4)
+    if (year_string.length_in_code_units() < 4)
         return {};
     auto maybe_year = year_string.to_number<u32>();
     if (!maybe_year.has_value())
@@ -342,7 +342,7 @@ Optional<WeekYearAndWeek> parse_a_week_string(StringView input_view)
     //    exactly two characters long, then fail. Otherwise, interpret the resulting sequence as a base-ten integer. Let week
     //    be that number.
     auto week_string = input.consume_while(is_ascii_digit);
-    if (week_string.length() != 2)
+    if (week_string.length_in_code_units() != 2)
         return {};
     auto week = week_string.to_number<u32>().value();
 
@@ -362,7 +362,7 @@ Optional<WeekYearAndWeek> parse_a_week_string(StringView input_view)
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#parse-a-date-component
-static Optional<YearMonthDay> parse_a_date_component(GenericLexer& input)
+static Optional<YearMonthDay> parse_a_date_component(Utf16GenericLexer& input)
 {
     // 1. Parse a month component to obtain year and month. If this returns nothing, then fail.
     auto maybe_month_component = parse_a_month_component(input);
@@ -382,7 +382,7 @@ static Optional<YearMonthDay> parse_a_date_component(GenericLexer& input)
     //    exactly two characters long, then fail. Otherwise, interpret the resulting sequence as a base-ten integer. Let day
     //    be that number.
     auto day_string = input.consume_while(is_ascii_digit);
-    if (day_string.length() != 2)
+    if (day_string.length_in_code_units() != 2)
         return {};
     auto day = day_string.to_number<u32>().value();
 
@@ -395,11 +395,11 @@ static Optional<YearMonthDay> parse_a_date_component(GenericLexer& input)
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#parse-a-date-string
-Optional<YearMonthDay> parse_a_date_string(StringView input_view)
+Optional<YearMonthDay> parse_a_date_string(Utf16View input_view)
 {
     // 1. Let input be the string being parsed.
     // 2. Let position be a pointer into input, initially pointing at the start of the string.
-    GenericLexer input { input_view };
+    Utf16GenericLexer input { input_view };
 
     // 3. Parse a date component to obtain year, month, and day. If this returns nothing, then fail.
     auto year_month_day = parse_a_date_component(input);
@@ -416,13 +416,13 @@ Optional<YearMonthDay> parse_a_date_string(StringView input_view)
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#parse-a-time-component
-static Optional<HourMinuteSecond> parse_a_time_component(GenericLexer& input)
+static Optional<HourMinuteSecond> parse_a_time_component(Utf16GenericLexer& input)
 {
     // 1. Collect a sequence of code points that are ASCII digits from input given position. If the collected sequence
     //    is not exactly two characters long, then fail.  Otherwise, interpret the resulting sequence as a base-ten
     //    integer. Let hour be that number.
     auto hour_string = input.consume_while(is_ascii_digit);
-    if (hour_string.length() != 2)
+    if (hour_string.length_in_code_units() != 2)
         return {};
     auto maybe_hour = hour_string.to_number<i32>();
     if (!maybe_hour.has_value())
@@ -442,7 +442,7 @@ static Optional<HourMinuteSecond> parse_a_time_component(GenericLexer& input)
     //    is not exactly two characters long, then fail. Otherwise, interpret the resulting sequence as a base-ten integer.
     //    Let minute be that number.
     auto minute_string = input.consume_while(is_ascii_digit);
-    if (minute_string.length() != 2)
+    if (minute_string.length_in_code_units() != 2)
         return {};
     auto maybe_minute = minute_string.to_number<i32>();
     if (!maybe_minute.has_value())
@@ -469,11 +469,16 @@ static Optional<HourMinuteSecond> parse_a_time_component(GenericLexer& input)
         auto second_string = input.consume_while([](auto ch) { return is_ascii_digit(ch) || ch == '.'; });
         // If the collected sequence is three characters long, or if it is longer than three characters long and the third
         // character is not a U+002E FULL STOP character, or if it has more than one U+002E FULL STOP character, then fail.
-        if (second_string.length() == 3)
+        if (second_string.length_in_code_units() == 3)
             return {};
-        if (second_string.length() > 3 && second_string[2] != '.')
+        if (second_string.length_in_code_units() > 3 && second_string.code_unit_at(2) != '.')
             return {};
-        if (second_string.find_all("."sv).size() > 1)
+        size_t full_stop_count = 0;
+        for (size_t i = 0; i < second_string.length_in_code_units(); ++i) {
+            if (second_string.code_unit_at(i) == '.')
+                ++full_stop_count;
+        }
+        if (full_stop_count > 1)
             return {};
         // Otherwise, interpret the resulting sequence as a base-ten number (possibly with a fractional part). Set second
         // to that number.
@@ -492,11 +497,11 @@ static Optional<HourMinuteSecond> parse_a_time_component(GenericLexer& input)
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#parse-a-time-string
-WebIDL::ExceptionOr<GC::Ref<JS::Date>> parse_time_string(JS::Realm& realm, StringView value)
+WebIDL::ExceptionOr<GC::Ref<JS::Date>> parse_time_string(JS::Realm& realm, Utf16View value)
 {
     // 1. Let input be the string being parsed.
     // 2. Let position be a pointer into input, initially pointing at the start of the string.
-    GenericLexer input { value };
+    Utf16GenericLexer input { value };
 
     // 3. Parse a time component to obtain hour, minute, and second. If this returns nothing, then fail.
     auto hour_minute_second = parse_a_time_component(input);
@@ -513,11 +518,11 @@ WebIDL::ExceptionOr<GC::Ref<JS::Date>> parse_time_string(JS::Realm& realm, Strin
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#parse-a-local-date-and-time-string
-Optional<DateAndTime> parse_a_local_date_and_time_string(StringView input_view)
+Optional<DateAndTime> parse_a_local_date_and_time_string(Utf16View input_view)
 {
     // 1. Let input be the string being parsed.
     // 2. Let position be a pointer into input, initially pointing at the start of the string.
-    GenericLexer input { input_view };
+    Utf16GenericLexer input { input_view };
     // 3. Parse a date component to obtain year, month, and day. If this returns nothing, then fail.
     auto year_month_day = parse_a_date_component(input);
     if (!year_month_day.has_value())

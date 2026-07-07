@@ -783,14 +783,14 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
                     }
                 },
                 [&](Web::HTML::FileFilter::MimeType const& filter) {
-                    auto* ns_mime_type = Ladybird::string_to_ns_string(filter.value);
+                    auto* ns_mime_type = Ladybird::utf16_string_to_ns_string(filter.value);
 
                     if (auto* ut_type = [UTType typeWithMIMEType:ns_mime_type]) {
                         [accepted_file_filters addObject:ut_type];
                     }
                 },
                 [&](Web::HTML::FileFilter::Extension const& filter) {
-                    auto* ns_extension = Ladybird::string_to_ns_string(filter.value);
+                    auto* ns_extension = Ladybird::utf16_string_to_ns_string(filter.value);
 
                     if (auto* ut_type = [UTType typeWithFilenameExtension:ns_extension]) {
                         [accepted_file_filters addObject:ut_type];

@@ -21,19 +21,19 @@ bool is_valid_date_string(Utf16View const& value);
 bool is_valid_local_date_and_time_string(Utf16View const& value);
 Utf16String normalize_local_date_and_time_string(Utf16String const& value);
 bool is_valid_time_string(Utf16View const& value);
-WebIDL::ExceptionOr<GC::Ref<JS::Date>> parse_time_string(JS::Realm& realm, StringView value);
+WebIDL::ExceptionOr<GC::Ref<JS::Date>> parse_time_string(JS::Realm& realm, Utf16View value);
 
 struct YearAndMonth {
     u32 year;
     u32 month;
 };
-Optional<YearAndMonth> parse_a_month_string(StringView);
+Optional<YearAndMonth> parse_a_month_string(Utf16View);
 
 struct WeekYearAndWeek {
     u32 week_year;
     u32 week;
 };
-Optional<WeekYearAndWeek> parse_a_week_string(StringView);
+Optional<WeekYearAndWeek> parse_a_week_string(Utf16View);
 
 struct YearMonthDay {
     u32 year;
@@ -52,9 +52,9 @@ struct DateAndTime {
     HourMinuteSecond time;
 };
 
-Optional<YearMonthDay> parse_a_date_string(StringView);
+Optional<YearMonthDay> parse_a_date_string(Utf16View);
 
-Optional<DateAndTime> parse_a_local_date_and_time_string(StringView);
+Optional<DateAndTime> parse_a_local_date_and_time_string(Utf16View);
 
 i32 number_of_months_since_unix_epoch(YearAndMonth);
 
