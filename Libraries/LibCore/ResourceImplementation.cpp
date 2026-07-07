@@ -6,9 +6,9 @@
 
 #include <AK/NeverDestroyed.h>
 #include <LibCore/DirIterator.h>
+#include <LibCore/File.h>
 #include <LibCore/ResourceImplementation.h>
 #include <LibCore/ResourceImplementationFile.h>
-#include <LibCore/System.h>
 
 namespace Core {
 
@@ -57,7 +57,7 @@ ErrorOr<NonnullRefPtr<Resource>> ResourceImplementation::load_from_uri(StringVie
     if (uri.starts_with(file_scheme)) {
         auto path = uri.substring_view(file_scheme.length());
         auto utf8_path = TRY(String::from_utf8(path));
-        auto st = TRY(System::stat(utf8_path));
+        auto st = TRY(File::stat(utf8_path));
         if (S_ISDIR(st.st_mode))
             return adopt_ref(*new Resource(utf8_path, Resource::Scheme::File, Resource::DirectoryTag {}, st.st_mtime));
         auto mapped_file = TRY(MappedFile::map(path));

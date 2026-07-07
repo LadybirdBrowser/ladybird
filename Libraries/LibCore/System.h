@@ -61,68 +61,81 @@ struct sockaddr;
 
 namespace Core::System {
 
-#if !defined(AK_OS_MACOS) && !defined(AK_OS_HAIKU)
+#if !defined(AK_OS_WINDOWS)
+
+#    if !defined(AK_OS_MACOS) && !defined(AK_OS_HAIKU)
 ErrorOr<int> accept4(int sockfd, struct sockaddr*, socklen_t*, int flags);
-#endif
+#    endif
 
 ErrorOr<void> sigaction(int signal, struct sigaction const* action, struct sigaction* old_action);
-#if defined(AK_OS_SOLARIS)
+#    if defined(AK_OS_SOLARIS)
 CORE_API ErrorOr<SIG_TYP> signal(int signal, SIG_TYP handler);
-#elif defined(AK_OS_BSD_GENERIC)
+#    elif defined(AK_OS_BSD_GENERIC)
 CORE_API ErrorOr<sig_t> signal(int signal, sig_t handler);
-#else
+#    else
 CORE_API ErrorOr<sighandler_t> signal(int signal, sighandler_t handler);
-#endif
+#    endif
 CORE_API ErrorOr<struct stat> fstat(int fd);
-#if !defined(AK_OS_WINDOWS)
-// There are no fd-relative path APIs on Windows; use path-based operations instead.
 ErrorOr<struct stat> fstatat(int fd, StringView path, int flags);
 ErrorOr<int> openat(int fd, StringView path, int options, mode_t mode = 0);
-#endif
 CORE_API ErrorOr<int> fcntl(int fd, int command, ...);
-#if !defined(AK_OS_WINDOWS)
-// POSIX-only: Windows code maps files through Core::MappedFile's native backend.
 ErrorOr<void*> mmap(void* address, size_t, int protection, int flags, int fd, off_t, size_t alignment = 0, StringView name = {});
 ErrorOr<void> munmap(void* address, size_t);
-#endif
-CORE_API ErrorOr<void*> reserve_address_space(size_t size);
-CORE_API ErrorOr<void> commit_memory(void* address, size_t size);
-CORE_API ErrorOr<void> decommit_memory(void* address, size_t size);
-CORE_API ErrorOr<void> release_address_space(void* address, size_t size);
 ErrorOr<int> anon_create(size_t size, int options);
 CORE_API ErrorOr<int> open(StringView path, int options, mode_t mode = 0);
-CORE_API ErrorOr<void> close(int fd);
 ErrorOr<void> ftruncate(int fd, off_t length);
 CORE_API ErrorOr<struct stat> stat(StringView path);
 CORE_API ErrorOr<struct stat> lstat(StringView path);
 CORE_API ErrorOr<size_t> read(int fd, Bytes buffer);
 CORE_API ErrorOr<size_t> write(int fd, ReadonlyBytes buffer);
-CORE_API ErrorOr<int> dup(int source_fd);
 ErrorOr<int> dup2(int source_fd, int destination_fd);
-CORE_API ErrorOr<ByteString> getcwd();
-#if !defined(AK_OS_WINDOWS)
-// POSIX-only: the Windows emulation silently assumed the fd was a socket.
-// Use set_socket_blocking() (or the socket classes) for portable code.
 CORE_API ErrorOr<void> ioctl(int fd, unsigned request, ...);
-#endif
 ErrorOr<struct termios> tcgetattr(int fd);
 ErrorOr<void> tcsetattr(int fd, int optional_actions, struct termios const&);
 CORE_API ErrorOr<void> chmod(StringView pathname, mode_t mode);
 ErrorOr<off_t> lseek(int fd, off_t, int whence);
-
-CORE_API ErrorOr<bool> isatty(int fd);
 CORE_API ErrorOr<void> link(StringView old_path, StringView new_path);
 CORE_API ErrorOr<void> symlink(StringView target, StringView link_path);
 CORE_API ErrorOr<void> mkdir(StringView path, mode_t);
-CORE_API ErrorOr<void> chdir(StringView path);
 CORE_API ErrorOr<void> rmdir(StringView path);
 CORE_API ErrorOr<int> mkstemp(Span<char> pattern);
 CORE_API ErrorOr<void> fchmod(int fd, mode_t mode);
 CORE_API ErrorOr<void> rename(StringView old_path, StringView new_path);
 CORE_API ErrorOr<void> unlink(StringView path);
 CORE_API ErrorOr<void> utimensat(int fd, StringView path, struct timespec const times[2], int flag);
-CORE_API ErrorOr<Array<int, 2>> pipe2(int flags);
+CORE_API ErrorOr<void> access(StringView pathname, int mode, int flags = 0);
+ErrorOr<ByteString> readlink(StringView pathname);
+CORE_API ErrorOr<int> poll(Span<struct pollfd>, int timeout);
+// Use Core::Process::terminate_process() in portable code.
+CORE_API ErrorOr<void> kill(pid_t, int signal);
+CORE_API ErrorOr<void> chown(StringView pathname, uid_t uid, gid_t gid);
+ErrorOr<pid_t> posix_spawn(StringView path, posix_spawn_file_actions_t const* file_actions, posix_spawnattr_t const* attr, char* const arguments[], char* const envp[]);
+ErrorOr<pid_t> posix_spawnp(StringView path, posix_spawn_file_actions_t* const file_actions, posix_spawnattr_t* const attr, char* const arguments[], char* const envp[]);
 
+struct WaitPidResult {
+    pid_t pid;
+    int status;
+};
+CORE_API ErrorOr<WaitPidResult> waitpid(pid_t waitee, int options = 0);
+CORE_API ErrorOr<void> fchown(int fd, uid_t, gid_t);
+
+ErrorOr<rlimit> get_resource_limits(int resource);
+CORE_API ErrorOr<void> set_resource_limits(int resource, rlim_t limit);
+
+#endif
+
+CORE_API ErrorOr<void*> reserve_address_space(size_t size);
+CORE_API ErrorOr<void> commit_memory(void* address, size_t size);
+CORE_API ErrorOr<void> decommit_memory(void* address, size_t size);
+CORE_API ErrorOr<void> release_address_space(void* address, size_t size);
+
+CORE_API ErrorOr<void> close(int fd);
+CORE_API ErrorOr<int> dup(int source_fd);
+CORE_API ErrorOr<Array<int, 2>> pipe2(int flags);
+CORE_API ErrorOr<void> set_close_on_exec(int fd, bool enabled);
+CORE_API bool is_socket(int fd);
+
+// The socket section is portable: Winsock *is* the BSD socket API.
 CORE_API ErrorOr<int> socket(int domain, int type, int protocol);
 CORE_API ErrorOr<void> bind(int sockfd, struct sockaddr const*, socklen_t);
 CORE_API ErrorOr<void> listen(int sockfd, int backlog);
@@ -140,42 +153,17 @@ ErrorOr<void> getsockname(int sockfd, struct sockaddr*, socklen_t*);
 ErrorOr<void> getpeername(int sockfd, struct sockaddr*, socklen_t*);
 CORE_API ErrorOr<void> socketpair(int domain, int type, int protocol, int sv[2]);
 CORE_API ErrorOr<void> set_socket_blocking(int socket, bool enabled);
-
-CORE_API ErrorOr<void> access(StringView pathname, int mode, int flags = 0);
-ErrorOr<ByteString> readlink(StringView pathname);
-CORE_API ErrorOr<int> poll(Span<struct pollfd>, int timeout);
-
-#if !defined(AK_OS_WINDOWS)
-// POSIX-only: use Core::Process::terminate_process() in portable code.
-CORE_API ErrorOr<void> kill(pid_t, int signal);
-CORE_API ErrorOr<void> chown(StringView pathname, uid_t uid, gid_t gid);
-ErrorOr<pid_t> posix_spawn(StringView path, posix_spawn_file_actions_t const* file_actions, posix_spawnattr_t const* attr, char* const arguments[], char* const envp[]);
-ErrorOr<pid_t> posix_spawnp(StringView path, posix_spawn_file_actions_t* const file_actions, posix_spawnattr_t* const attr, char* const arguments[], char* const envp[]);
-
-struct WaitPidResult {
-    pid_t pid;
-    int status;
-};
-CORE_API ErrorOr<WaitPidResult> waitpid(pid_t waitee, int options = 0);
-CORE_API ErrorOr<void> fchown(int fd, uid_t, gid_t);
-#endif
-
 ErrorOr<AddressInfoVector> getaddrinfo(char const* nodename, char const* servname, struct addrinfo const& hints);
 
+// Process and miscellaneous helpers; operation-named, native on all platforms.
+CORE_API ErrorOr<ByteString> getcwd();
+CORE_API ErrorOr<void> chdir(StringView path);
+CORE_API ErrorOr<bool> isatty(int fd);
 CORE_API unsigned hardware_concurrency();
 CORE_API u64 physical_memory_bytes();
-
 CORE_API ErrorOr<ByteString> current_executable_path();
-
-#if !defined(AK_OS_WINDOWS)
-ErrorOr<rlimit> get_resource_limits(int resource);
-CORE_API ErrorOr<void> set_resource_limits(int resource, rlim_t limit);
-#endif
-
 CORE_API int getpid();
-CORE_API bool is_socket(int fd);
 CORE_API ErrorOr<void> sleep_ms(u32 milliseconds);
-CORE_API ErrorOr<void> set_close_on_exec(int fd, bool enabled);
 
 CORE_API ErrorOr<size_t> transfer_file_through_socket(int source_fd, int target_fd, size_t source_offset, size_t source_length);
 

@@ -14,7 +14,6 @@
 #include <AK/Array.h>
 #include <AK/ByteString.h>
 #include <AK/Checked.h>
-#include <AK/ScopeGuard.h>
 #include <LibCore/MappedFile.h>
 #include <LibCore/Process.h>
 #include <LibCore/SocketAddress.h>
@@ -28,16 +27,6 @@ namespace Core::System {
 
 int windows_socketpair(SOCKET socks[2], int make_overlapped);
 
-ErrorOr<int> open(StringView path, int options, mode_t mode)
-{
-    ByteString str = path;
-    int fd = _open(str.characters(), options | O_BINARY | _O_OBTAIN_DIR, mode);
-    if (fd < 0)
-        return Error::from_syscall("open"sv, errno);
-    ScopeGuard guard = [&] { _close(fd); };
-    return dup(_get_osfhandle(fd));
-}
-
 ErrorOr<void> close(int handle)
 {
     if (is_socket(handle)) {
@@ -48,53 +37,6 @@ ErrorOr<void> close(int handle)
             return Error::from_windows_error();
     }
     return {};
-}
-
-ErrorOr<size_t> read(int handle, Bytes buffer)
-{
-    DWORD n_read = 0;
-    if (!ReadFile(to_handle(handle), buffer.data(), buffer.size(), &n_read, NULL))
-        return Error::from_windows_error();
-    return n_read;
-}
-
-ErrorOr<size_t> write(int handle, ReadonlyBytes buffer)
-{
-    DWORD n_written = 0;
-    if (!WriteFile(to_handle(handle), buffer.data(), buffer.size(), &n_written, NULL))
-        return Error::from_windows_error();
-    return n_written;
-}
-
-ErrorOr<off_t> lseek(int handle, off_t offset, int origin)
-{
-    static_assert(FILE_BEGIN == SEEK_SET && FILE_CURRENT == SEEK_CUR && FILE_END == SEEK_END, "SetFilePointerEx origin values are incompatible with lseek");
-    LARGE_INTEGER new_pointer = {};
-    if (!SetFilePointerEx(to_handle(handle), { .QuadPart = offset }, &new_pointer, origin))
-        return Error::from_windows_error();
-    return new_pointer.QuadPart;
-}
-
-ErrorOr<void> ftruncate(int handle, off_t length)
-{
-    auto position = TRY(lseek(handle, 0, SEEK_CUR));
-    ScopeGuard restore_position = [&] { MUST(lseek(handle, position, SEEK_SET)); };
-
-    TRY(lseek(handle, length, SEEK_SET));
-
-    if (!SetEndOfFile(to_handle(handle)))
-        return Error::from_windows_error();
-    return {};
-}
-
-ErrorOr<struct stat> fstat(int handle)
-{
-    struct stat st = {};
-    int fd = _open_osfhandle(TRY(dup(handle)), 0);
-    ScopeGuard guard = [&] { _close(fd); };
-    if (::fstat(fd, &st) < 0)
-        return Error::from_syscall("fstat"sv, errno);
-    return st;
 }
 
 ErrorOr<void> set_socket_blocking(int socket, bool enabled)
@@ -121,57 +63,6 @@ ErrorOr<void> chdir(StringView path)
     ByteString path_string = path;
     if (::_chdir(path_string.characters()) < 0)
         return Error::from_syscall("chdir"sv, errno);
-    return {};
-}
-
-ErrorOr<struct stat> stat(StringView path)
-{
-    struct stat st = {};
-    ByteString path_string = path;
-    if (::stat(path_string.characters(), &st) < 0)
-        return Error::from_syscall("stat"sv, errno);
-    return st;
-}
-
-ErrorOr<void> rmdir(StringView path)
-{
-    ByteString path_string = path;
-    if (_rmdir(path_string.characters()) < 0)
-        return Error::from_syscall("rmdir"sv, errno);
-    return {};
-}
-
-ErrorOr<void> unlink(StringView path)
-{
-    ByteString path_string = path;
-    if (_unlink(path_string.characters()) < 0)
-        return Error::from_syscall("unlink"sv, errno);
-    return {};
-}
-
-ErrorOr<void> link(StringView old_path, StringView new_path)
-{
-    ByteString old_path_string = old_path;
-    ByteString new_path_string = new_path;
-    if (!CreateHardLinkA(new_path_string.characters(), old_path_string.characters(), nullptr))
-        return Error::from_windows_error();
-    return {};
-}
-
-ErrorOr<void> mkdir(StringView path, mode_t)
-{
-    ByteString str = path;
-    if (_mkdir(str.characters()) < 0)
-        return Error::from_syscall("mkdir"sv, errno);
-    return {};
-}
-
-ErrorOr<void> rename(StringView old_path, StringView new_path)
-{
-    ByteString old_path_string = old_path;
-    ByteString new_path_string = new_path;
-    if (!MoveFileExA(old_path_string.characters(), new_path_string.characters(), MOVEFILE_REPLACE_EXISTING))
-        return Error::from_windows_error();
     return {};
 }
 

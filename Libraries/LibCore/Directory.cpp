@@ -7,6 +7,10 @@
 #include <LibCore/Directory.h>
 #include <LibCore/System.h>
 
+#ifdef AK_OS_WINDOWS
+#    include <AK/Windows.h>
+#endif
+
 namespace Core {
 
 // We assume that the fd is a valid directory.
@@ -41,7 +45,7 @@ ErrorOr<void> Directory::chown(uid_t uid, gid_t gid)
 
 ErrorOr<bool> Directory::is_valid_directory(int fd)
 {
-    auto stat = TRY(System::fstat(fd));
+    auto stat = TRY(File::fstat(fd));
     return stat.st_mode & S_IFDIR;
 }
 
@@ -62,9 +66,12 @@ ErrorOr<Directory> Directory::create(LexicalPath path, CreateDirectories create_
 {
     if (create_directories == CreateDirectories::Yes)
         TRY(ensure_directory(path, creation_mode));
-    // FIXME: doesn't work on Linux probably
-    auto fd = TRY(System::open(path.string(), O_CLOEXEC));
-    return adopt_fd(fd, move(path));
+    // Validate before leaking the fd out of the File, so that failure (e.g. ENOTDIR
+    // for an existing regular file) doesn't leak it.
+    auto file = TRY(File::open(path.string(), File::OpenMode::Read));
+    if (!TRY(is_valid_directory(file->fd())))
+        return Error::from_errno(ENOTDIR);
+    return Directory { file->leak_fd(), move(path) };
 }
 
 ErrorOr<void> Directory::ensure_directory(LexicalPath const& path, mode_t creation_mode)
@@ -74,11 +81,17 @@ ErrorOr<void> Directory::ensure_directory(LexicalPath const& path, mode_t creati
 
     TRY(ensure_directory(path.parent(), creation_mode));
 
-    auto return_value = System::mkdir(path.string(), creation_mode);
     // We don't care if the directory already exists.
+#ifdef AK_OS_WINDOWS
+    // NOTE: Windows directories have no POSIX permission bits; creation_mode is ignored.
+    auto wide_path = TRY(to_wide_string(path.string()));
+    if (!CreateDirectoryW(wide_path.data(), nullptr) && GetLastError() != ERROR_ALREADY_EXISTS)
+        return Error::from_windows_error();
+#else
+    auto return_value = System::mkdir(path.string(), creation_mode);
     if (return_value.is_error() && return_value.error().code() != EEXIST)
         return return_value;
-
+#endif
     return {};
 }
 
@@ -91,7 +104,7 @@ ErrorOr<NonnullOwnPtr<File>> Directory::open(StringView filename, File::OpenMode
 
 ErrorOr<struct stat> Directory::stat(StringView filename) const
 {
-    return System::stat(LexicalPath::join(m_path.string(), filename).string());
+    return File::stat(LexicalPath::join(m_path.string(), filename).string());
 }
 #else
 ErrorOr<NonnullOwnPtr<File>> Directory::open(StringView filename, File::OpenMode mode) const
@@ -110,7 +123,7 @@ ErrorOr<struct stat> Directory::stat(StringView filename) const
 
 ErrorOr<struct stat> Directory::stat() const
 {
-    return System::fstat(m_directory_fd);
+    return File::fstat(m_directory_fd);
 }
 
 ErrorOr<void> Directory::for_each_entry(DirIterator::Flags flags, Core::Directory::ForEachEntryCallback callback)

@@ -7,9 +7,9 @@
 #include <AK/LexicalPath.h>
 #include <AK/StringView.h>
 #include <LibCore/DirIterator.h>
+#include <LibCore/File.h>
 #include <LibCore/Resource.h>
 #include <LibCore/ResourceImplementationFile.h>
-#include <LibCore/System.h>
 
 namespace Core {
 
@@ -27,7 +27,7 @@ ErrorOr<NonnullRefPtr<Resource>> ResourceImplementationFile::load_from_resource_
     auto path = TRY(String::from_utf8(uri.substring_view(resource_scheme.length())));
     auto full_path = TRY(String::from_byte_string(LexicalPath::join(m_base_directory, path).string()));
 
-    auto st = TRY(System::stat(full_path));
+    auto st = TRY(File::stat(full_path));
 
     if (S_ISDIR(st.st_mode))
         return make_directory_resource(move(path), st.st_mtime);
