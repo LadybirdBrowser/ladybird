@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const a = document.createElement("canvas");
+        a.width = a.height = 50;
+        const ctxA = a.getContext("2d");
+        const b = document.createElement("canvas");
+        b.width = b.height = 50;
+        const ctxB = b.getContext("2d");
+
+        // B must capture A's state at drawImage time, not A's final state,
+        // even though nothing forces a flush between these calls.
+        ctxA.fillStyle = "red";
+        ctxA.fillRect(0, 0, 50, 50);
+        ctxB.drawImage(a, 0, 0);
+        ctxA.fillStyle = "blue";
+        ctxA.fillRect(0, 0, 50, 50);
+
+        const pixelB = ctxB.getImageData(25, 25, 1, 1).data;
+        println(`B sampled A's intermediate state (red): ${pixelB[0] === 255 && pixelB[1] === 0 && pixelB[2] === 0}`);
+        const pixelA = ctxA.getImageData(25, 25, 1, 1).data;
+        println(`A has its final state (blue): ${pixelA[0] === 0 && pixelA[1] === 0 && pixelA[2] === 255}`);
+    });
+</script>

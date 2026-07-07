@@ -1,0 +1,2 @@
+B kept A's pre-resize content (red): true
+A was reset to transparent black: true

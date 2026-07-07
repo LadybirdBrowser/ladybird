@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const c = document.createElement("canvas");
+        c.width = c.height = 100;
+        const ctx = c.getContext("2d");
+
+        // Left half blue, right half red, then copy the whole bitmap onto
+        // itself shifted right by 50. drawImage must sample the current
+        // content, so the right half becomes blue.
+        ctx.fillStyle = "red";
+        ctx.fillRect(0, 0, 100, 100);
+        ctx.fillStyle = "blue";
+        ctx.fillRect(0, 0, 50, 100);
+        ctx.drawImage(c, 50, 0);
+
+        const right = ctx.getImageData(75, 50, 1, 1).data;
+        println(`right half received the pre-draw left half (blue): ${right[0] === 0 && right[1] === 0 && right[2] === 255}`);
+        const left = ctx.getImageData(25, 50, 1, 1).data;
+        println(`left half is untouched (blue): ${left[0] === 0 && left[1] === 0 && left[2] === 255}`);
+    });
+</script>

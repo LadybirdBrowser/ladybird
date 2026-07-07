@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const a = document.createElement("canvas");
+        a.width = a.height = 50;
+        const ctxA = a.getContext("2d");
+        const b = document.createElement("canvas");
+        b.width = b.height = 50;
+        const ctxB = b.getContext("2d");
+
+        // Resizing A resets its backing storage. B's pending drawImage must
+        // still see A's old content, recorded before the reset.
+        ctxA.fillStyle = "red";
+        ctxA.fillRect(0, 0, 50, 50);
+        ctxB.drawImage(a, 0, 0);
+        a.width = a.width;
+
+        const pixelB = ctxB.getImageData(25, 25, 1, 1).data;
+        println(`B kept A's pre-resize content (red): ${pixelB[0] === 255 && pixelB[1] === 0 && pixelB[2] === 0}`);
+        const pixelA = ctxA.getImageData(25, 25, 1, 1).data;
+        println(`A was reset to transparent black: ${pixelA[0] === 0 && pixelA[1] === 0 && pixelA[2] === 0 && pixelA[3] === 0}`);
+    });
+</script>

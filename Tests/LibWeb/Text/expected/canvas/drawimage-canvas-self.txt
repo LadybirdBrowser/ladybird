@@ -1,0 +1,2 @@
+right half received the pre-draw left half (blue): true
+left half is untouched (blue): true

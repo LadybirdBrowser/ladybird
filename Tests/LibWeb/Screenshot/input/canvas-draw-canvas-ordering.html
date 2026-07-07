@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<style>
+    * {
+        margin: 0;
+        /* Hide the scrollbar. */
+        overflow: hidden;
+    }
+
+    body {
+        background-color: white;
+    }
+
+    canvas {
+        display: block;
+    }
+</style>
+<body>
+<canvas id="a" width="200" height="150"></canvas>
+<canvas id="b" width="200" height="150"></canvas>
+</body>
+<script>
+    // The composited frame must show B with A's intermediate (red) content
+    // and A with its final (blue) content.
+    const ctxA = a.getContext("2d");
+    const ctxB = b.getContext("2d");
+    ctxA.fillStyle = "red";
+    ctxA.fillRect(0, 0, 200, 150);
+    ctxB.drawImage(a, 0, 0);
+    ctxA.fillStyle = "blue";
+    ctxA.fillRect(0, 0, 200, 150);
+</script>

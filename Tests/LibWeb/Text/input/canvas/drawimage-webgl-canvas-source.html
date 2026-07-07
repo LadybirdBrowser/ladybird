@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const glCanvas = document.createElement("canvas");
+        glCanvas.width = glCanvas.height = 50;
+        const gl = glCanvas.getContext("webgl");
+        const b = document.createElement("canvas");
+        b.width = b.height = 50;
+        const ctxB = b.getContext("2d");
+
+        // The 2D canvas must capture the WebGL frame as it was at drawImage
+        // time, not a frame rendered afterwards.
+        gl.clearColor(1, 0, 0, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        ctxB.drawImage(glCanvas, 0, 0);
+        gl.clearColor(0, 0, 1, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        const pixelB = ctxB.getImageData(25, 25, 1, 1).data;
+        println(`B sampled the WebGL frame at drawImage time (red): ${pixelB[0] === 255 && pixelB[1] === 0 && pixelB[2] === 0}`);
+    });
+</script>
