@@ -63,6 +63,7 @@ TEXTCODEC_API Optional<Decoder&> decoder_for_exact_name(StringView encoding);
 
 TEXTCODEC_API Optional<Decoder&> decoder_for(StringView encoding);
 TEXTCODEC_API Optional<StringView> get_standardized_encoding(StringView encoding);
+TEXTCODEC_API Optional<StringView> get_standardized_encoding(Utf16View encoding);
 
 // This returns the appropriate Unicode decoder for the sniffed BOM or nothing if there is no appropriate decoder.
 TEXTCODEC_API Optional<Decoder&> bom_sniff_to_decoder(StringView);

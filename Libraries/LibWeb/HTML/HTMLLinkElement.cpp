@@ -889,10 +889,8 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
         //     1. If the element has a charset attribute, get an encoding from that attribute's value. If that succeeds, return the resulting encoding. [ENCODING]
         //     2. Otherwise, return the document's character encoding. [DOM]
         Optional<StringView> environment_encoding;
-        if (auto charset = attribute(HTML::AttributeNames::charset); charset.has_value()) {
-            auto charset_value = charset->to_utf8_but_should_be_ported_to_utf16();
-            environment_encoding = TextCodec::get_standardized_encoding(charset_value.bytes_as_string_view());
-        }
+        if (auto charset = attribute(HTML::AttributeNames::charset); charset.has_value())
+            environment_encoding = TextCodec::get_standardized_encoding(*charset);
 
         if (!environment_encoding.has_value() && document().encoding().has_value())
             environment_encoding = document().encoding().value();

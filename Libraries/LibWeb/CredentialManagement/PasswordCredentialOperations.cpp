@@ -44,8 +44,8 @@ WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> create_password_credential(JS::
 
         // 4. If field’s autocomplete attribute’s value contains one or more autofill detail tokens (tokens), then:
         // 1. For each token in tokens:
-        auto autocomplete_attribute = field->attribute(HTML::AttributeNames::autocomplete).value().to_utf8_but_should_be_ported_to_utf16();
-        for (auto& token : MUST(autocomplete_attribute.split(' '))) {
+        auto autocomplete_attribute = field->attribute(HTML::AttributeNames::autocomplete).value();
+        for (auto token : autocomplete_attribute.split_view(' ', SplitBehavior::Nothing)) {
             // 1. If token is an ASCII case-insensitive match for one of the following strings, run the associated steps:
             //    - "new-password"
             //       Set data’s password member’s value to the result of executing formData’s get() method on name,

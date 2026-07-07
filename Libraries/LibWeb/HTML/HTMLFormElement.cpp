@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/GenericLexer.h>
 #include <AK/QuickSort.h>
 #include <AK/StringBuilder.h>
 #include <LibTextCodec/Decoder.h>
@@ -724,10 +725,20 @@ ErrorOr<String> HTMLFormElement::pick_an_encoding() const
     // 2. If the form element has an accept-charset attribute, set encoding to the return value of running these substeps:
     if (auto maybe_input = attribute(AttributeNames::accept_charset); maybe_input.has_value()) {
         // 1. Let input be the value of the form element's accept-charset attribute.
-        auto input = maybe_input.release_value().to_utf8_but_should_be_ported_to_utf16();
+        auto input = maybe_input.release_value();
 
         // 2. Let candidate encoding labels be the result of splitting input on ASCII whitespace.
-        auto candidate_encoding_labels = input.bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
+        auto is_ascii_whitespace = [](char16_t code_unit) {
+            return Infra::is_ascii_whitespace(code_unit);
+        };
+        Utf16GenericLexer lexer { input };
+        Vector<Utf16View> candidate_encoding_labels;
+        while (!lexer.is_eof()) {
+            lexer.ignore_while(is_ascii_whitespace);
+            auto token = lexer.consume_until(is_ascii_whitespace);
+            if (!token.is_empty())
+                TRY(candidate_encoding_labels.try_append(token));
+        }
 
         // 3. Let candidate encodings be an empty list of character encodings.
         Vector<StringView> candidate_encodings;

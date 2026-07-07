@@ -885,7 +885,7 @@ enum class NonceableResult {
 }
 
 // https://w3c.github.io/webappsec-csp/#match-element-to-source-list
-MatchResult does_element_match_source_list_for_type_and_source(GC::Ptr<DOM::Element const> element, Vector<String> const& source_list, Directive::InlineType type, String const& source)
+MatchResult does_element_match_source_list_for_type_and_source(GC::Ptr<DOM::Element const> element, Vector<String> const& source_list, Directive::InlineType type, Utf16View source)
 {
     // Spec Note: Regardless of the encoding of the document, source will be converted to UTF-8 before applying any
     //            hashing algorithms.
@@ -946,9 +946,10 @@ MatchResult does_element_match_source_list_for_type_and_source(GC::Ptr<DOM::Elem
         // 1. Set source to the result of executing UTF-8 encode on the result of executing JavaScript string
         //    converting on source.
         auto converted_source = MUST(Infra::convert_to_scalar_value_string(source));
+        auto converted_source_utf8 = converted_source.to_utf8(AllowLonelySurrogates::No);
 
-        // NOTE: converted_source is already UTF-8 encoded.
-        auto converted_source_bytes = converted_source.bytes();
+        // NOTE: converted_source_utf8 is already UTF-8 encoded.
+        auto converted_source_bytes = converted_source_utf8.bytes();
 
         // 2. For each expression of list:
         for (auto const& expression : source_list) {

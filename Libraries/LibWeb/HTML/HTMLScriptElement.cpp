@@ -7,6 +7,7 @@
 
 #include <AK/Debug.h>
 #include <AK/StringBuilder.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/HTMLScriptElement.h>
 #include <LibWeb/Bindings/Intrinsics.h>
@@ -226,7 +227,6 @@ void HTMLScriptElement::prepare_script()
 
     // 6. Let source text be el’s script text value.
     auto source_text = m_script_text;
-    auto source_text_utf8 = source_text.to_utf8_but_should_be_ported_to_utf16();
 
     // 7. If el has no src attribute, and source text is the empty string, then return.
     if (!has_attribute(HTML::AttributeNames::src) && source_text.is_empty()) {
@@ -241,24 +241,28 @@ void HTMLScriptElement::prepare_script()
     //    - el has a type attribute whose value is the empty string;
     //    - el has no type attribute but it has a language attribute and that attribute's value is the empty string; or
     //    - el has neither a type attribute nor a language attribute
-    String script_block_type;
+    Utf16String script_block_type;
     auto maybe_type_attribute = attribute(HTML::AttributeNames::type);
     auto maybe_language_attribute = attribute(HTML::AttributeNames::language);
     if ((maybe_type_attribute.has_value() && maybe_type_attribute->is_empty())
         || (!maybe_type_attribute.has_value() && maybe_language_attribute.has_value() && maybe_language_attribute->is_empty())
         || (!maybe_type_attribute.has_value() && !maybe_language_attribute.has_value())) {
         // then let the script block's type string for this script element be "text/javascript".
-        script_block_type = "text/javascript"_string;
+        script_block_type = "text/javascript"_utf16;
     }
     // Otherwise, if el has a type attribute,
     else if (maybe_type_attribute.has_value()) {
         // then let the script block's type string be the value of that attribute with leading and trailing ASCII whitespace stripped.
-        script_block_type = maybe_type_attribute->trim(Infra::ASCII_WHITESPACE).to_utf8_but_should_be_ported_to_utf16();
+        auto trimmed_type_attribute = maybe_type_attribute->trim(Infra::ASCII_WHITESPACE);
+        script_block_type = trimmed_type_attribute;
     }
     // Otherwise, el has a non-empty language attribute;
     else if (maybe_language_attribute.has_value() && !maybe_language_attribute->is_empty()) {
         // let the script block's type string be the concatenation of "text/" and the value of el's language attribute.
-        script_block_type = MUST(String::formatted("text/{}", maybe_language_attribute->to_utf8_but_should_be_ported_to_utf16()));
+        Utf16StringBuilder builder;
+        builder.append("text/"sv);
+        builder.append(*maybe_language_attribute);
+        script_block_type = builder.to_string();
     }
 
     // 10. If the script block's type string is a JavaScript MIME type essence match,
@@ -318,7 +322,7 @@ void HTMLScriptElement::prepare_script()
     // 22. If el does not have a src content attribute, and the Should element's inline behavior be blocked by Content
     //     Security Policy? algorithm returns "Blocked" when given el, cspType, and source text, then return [CSP]
     if (!has_attribute(AttributeNames::src)
-        && ContentSecurityPolicy::should_elements_inline_type_behavior_be_blocked_by_content_security_policy(realm(), *this, ContentSecurityPolicy::Directives::Directive::InlineType::Script, source_text_utf8) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
+        && ContentSecurityPolicy::should_elements_inline_type_behavior_be_blocked_by_content_security_policy(realm(), *this, ContentSecurityPolicy::Directives::Directive::InlineType::Script, source_text) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
         dbgln("HTMLScriptElement: Refusing to run inline script because it violates the Content Security Policy.");
         return;
     }
@@ -354,8 +358,7 @@ void HTMLScriptElement::prepare_script()
     Optional<String> encoding;
 
     if (has_attribute(HTML::AttributeNames::charset)) {
-        auto charset_value = get_attribute_value(HTML::AttributeNames::charset).to_utf8_but_should_be_ported_to_utf16();
-        auto charset = TextCodec::get_standardized_encoding(charset_value);
+        auto charset = TextCodec::get_standardized_encoding(get_attribute_value(HTML::AttributeNames::charset));
         if (charset.has_value())
             encoding = String::from_utf8(*charset).release_value_but_fixme_should_propagate_errors();
     }
@@ -507,7 +510,7 @@ void HTMLScriptElement::prepare_script()
         if (m_script_type == ScriptType::Classic) {
             // 1. Let script be the result of creating a classic script using source text, settings object, base URL, and options.
             // FIXME: Pass options.
-            auto script = ClassicScript::create(m_document->url().to_byte_string(), source_text_utf8, settings_object, base_url, m_source_line_number, ClassicScript::MutedErrors::No, ScriptRegistry::IsInlineSource::Yes);
+            auto script = ClassicScript::create(m_document->url().to_byte_string(), source_text, settings_object, base_url, m_source_line_number, ClassicScript::MutedErrors::No, ScriptRegistry::IsInlineSource::Yes);
 
             // 2. Mark as ready el given script.
             mark_as_ready(Result(move(script)));

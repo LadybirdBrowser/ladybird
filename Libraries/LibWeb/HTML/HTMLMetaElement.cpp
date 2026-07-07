@@ -157,10 +157,9 @@ void HTMLMetaElement::inserted()
             auto input = get_attribute_value(AttributeNames::content);
             if (input.is_empty())
                 break;
-            auto input_utf8 = input.to_utf8_but_should_be_ported_to_utf16();
 
             // 3. Run the shared declarative refresh steps with the meta element's node document, input, and the meta element.
-            document().shared_declarative_refresh_steps(input_utf8.bytes_as_string_view(), this);
+            document().shared_declarative_refresh_steps(input, this);
             break;
         }
         case HttpEquivAttributeState::SetCookie:

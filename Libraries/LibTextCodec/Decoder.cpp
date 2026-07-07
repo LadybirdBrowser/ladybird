@@ -287,6 +287,25 @@ Optional<StringView> get_standardized_encoding(StringView encoding)
     return standardized_encoding;
 }
 
+Optional<StringView> get_standardized_encoding(Utf16View encoding)
+{
+    if (!encoding.is_ascii()) {
+        dbgln("TextCodec: Unrecognized encoding: {}", encoding);
+        return {};
+    }
+
+    if (encoding.has_ascii_storage()) {
+        auto ascii = encoding.ascii_span();
+        return get_standardized_encoding(StringView { ascii.data(), ascii.size() });
+    }
+
+    StringBuilder builder;
+    for (auto code_point : encoding)
+        builder.append(static_cast<char>(code_point));
+    auto ascii_string = builder.to_string_without_validation();
+    return get_standardized_encoding(ascii_string.bytes_as_string_view());
+}
+
 // https://encoding.spec.whatwg.org/#bom-sniff
 Optional<Decoder&> bom_sniff_to_decoder(StringView input)
 {

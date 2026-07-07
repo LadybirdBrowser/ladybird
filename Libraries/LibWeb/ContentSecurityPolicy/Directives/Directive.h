@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <AK/Utf16View.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
@@ -65,7 +66,7 @@ public:
     //    executed during § 4.2.3 Should element’s inline type behavior be blocked by Content Security Policy? and
     //    during § 4.2.4 Should navigation request of type be blocked by Content Security Policy? for javascript:
     //    requests. This algorithm returns "Allowed" unless otherwise specified.
-    virtual Result inline_check(GC::Heap&, GC::Ptr<DOM::Element const>, InlineType, GC::Ref<Policy const>, String const&) const { return Result::Allowed; }
+    virtual Result inline_check(GC::Heap&, GC::Ptr<DOM::Element const>, InlineType, GC::Ref<Policy const>, Utf16View) const { return Result::Allowed; }
 
     // https://w3c.github.io/webappsec-csp/#directive-initialization
     // 4. An initialization, which takes a Document or global object and a policy as arguments. This algorithm is

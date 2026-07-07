@@ -20,12 +20,35 @@
 
 namespace Web::MimeSniff {
 
+static bool equals_ignoring_ascii_case(Utf16View string, StringView ascii_string)
+{
+    if (string.length_in_code_units() != ascii_string.length())
+        return false;
+
+    for (size_t i = 0; i < string.length_in_code_units(); ++i) {
+        if (AK::to_ascii_lowercase(string.code_unit_at(i)) != AK::to_ascii_lowercase(ascii_string[i]))
+            return false;
+    }
+
+    return true;
+}
+
 // https://mimesniff.spec.whatwg.org/#javascript-mime-type-essence-match
 bool is_javascript_mime_type_essence_match(StringView string)
 {
     // A string is a JavaScript MIME type essence match if it is an ASCII case-insensitive match for one of the JavaScript MIME type essence strings.
     for (auto const& javascript_essence : s_javascript_mime_type_essence_strings) {
         if (string.equals_ignoring_ascii_case(javascript_essence))
+            return true;
+    }
+    return false;
+}
+
+bool is_javascript_mime_type_essence_match(Utf16View string)
+{
+    // A string is a JavaScript MIME type essence match if it is an ASCII case-insensitive match for one of the JavaScript MIME type essence strings.
+    for (auto const& javascript_essence : s_javascript_mime_type_essence_strings) {
+        if (equals_ignoring_ascii_case(string, javascript_essence))
             return true;
     }
     return false;

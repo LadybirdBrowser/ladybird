@@ -10,6 +10,7 @@
 #include <AK/JsonObjectSerializer.h>
 #include <AK/JsonValue.h>
 #include <AK/Math.h>
+#include <AK/Utf16String.h>
 #include <LibCore/Process.h>
 #include <LibCore/Timer.h>
 #include <LibDevTools/IndexedDBSerialization.h>
@@ -1403,7 +1404,8 @@ void PageClient::run_javascript(StringView js_source)
     // Let script be the result of creating a classic script given scriptSource, settings, baseURL, and the default classic script fetch options.
     // FIXME: This doesn't pass in "default classic script fetch options"
     // FIXME: What should the filename be here?
-    auto script = Web::HTML::ClassicScript::create("(client connection run_javascript)", js_source, settings, move(base_url));
+    auto script_source = Utf16String::from_utf8(js_source);
+    auto script = Web::HTML::ClassicScript::create("(client connection run_javascript)", script_source, settings, move(base_url));
 
     // Let evaluationStatus be the result of running the classic script script.
     auto evaluation_status = script->run();

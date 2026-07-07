@@ -7,6 +7,7 @@
  */
 
 #include <AK/NeverDestroyed.h>
+#include <AK/Utf16String.h>
 #include <AK/Utf16StringBuilder.h>
 #include <AK/Variant.h>
 #include <LibCore/Timer.h>
@@ -2944,7 +2945,8 @@ GC::Ptr<DOM::Document> LocalNavigable::evaluate_javascript_url(URL::URL const& u
     auto encoded_script_source = url_string.bytes_as_string_view().substring_view(11);
 
     // 3. Let scriptSource be the UTF-8 decoding of the percent-decoding of encodedScriptSource.
-    auto script_source = URL::percent_decode(encoded_script_source);
+    auto percent_decoded_script_source = URL::percent_decode(encoded_script_source);
+    auto script_source = Utf16String::from_utf8(percent_decoded_script_source.view());
 
     // 4. Let settings be targetNavigable's active document's relevant settings object.
     auto& settings = active_document()->relevant_settings_object();

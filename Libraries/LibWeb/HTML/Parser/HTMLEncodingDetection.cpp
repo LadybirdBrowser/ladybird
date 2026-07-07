@@ -363,8 +363,7 @@ Optional<ByteString> run_prescan_byte_stream_algorithm(DOM::Document& document, 
                 else if (attribute_name == AttributeNames::charset) {
                     // Let charset be the result of getting an encoding from the attribute's value, and set need pragma
                     // to false.
-                    auto charset_value = attribute->value().to_utf8_but_should_be_ported_to_utf16();
-                    auto maybe_charset = TextCodec::get_standardized_encoding(charset_value);
+                    auto maybe_charset = TextCodec::get_standardized_encoding(attribute->value());
                     if (maybe_charset.has_value()) {
                         charset = Optional<ByteString> { maybe_charset };
                         need_pragma = { false };

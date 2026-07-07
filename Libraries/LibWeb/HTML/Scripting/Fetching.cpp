@@ -901,7 +901,7 @@ WebIDL::ExceptionOr<void> fetch_classic_worker_script(URL::URL const& url, Envir
         // 4. Let sourceText be the result of UTF-8 decoding bodyBytes.
         auto decoder = TextCodec::decoder_for("UTF-8"sv);
         VERIFY(decoder.has_value());
-        auto source_text = TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, body_bytes_view(body_bytes)).release_value_but_fixme_should_propagate_errors();
+        auto source_text = decode_source_text_to_utf16(*decoder, body_bytes_view(body_bytes)).release_value_but_fixme_should_propagate_errors();
 
         // 5. Let script be the result of creating a classic script using sourceText, settingsObject,
         //    response's URL, and the default classic script fetch options.
@@ -991,7 +991,7 @@ WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_scri
     // 8. Let sourceText be the result of UTF-8 decoding bodyBytes.
     auto decoder = TextCodec::decoder_for("UTF-8"sv);
     VERIFY(decoder.has_value());
-    auto source_text = TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, body_bytes_view(body_bytes)).release_value_but_fixme_should_propagate_errors();
+    auto source_text = decode_source_text_to_utf16(*decoder, body_bytes_view(body_bytes)).release_value_but_fixme_should_propagate_errors();
 
     // 9. Let mutedErrors be true if response was CORS-cross-origin, and false otherwise.
     auto muted_errors = response->is_cors_cross_origin() ? ClassicScript::MutedErrors::Yes : ClassicScript::MutedErrors::No;

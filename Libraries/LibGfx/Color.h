@@ -416,6 +416,7 @@ public:
     static Optional<Color> from_string(StringView);
     static Optional<Color> from_utf16_string(Utf16View const&);
     static Optional<Color> from_named_css_color_string(StringView);
+    static Optional<Color> from_named_css_color_string(Utf16View const&);
 
     constexpr HSV to_hsv() const
     {

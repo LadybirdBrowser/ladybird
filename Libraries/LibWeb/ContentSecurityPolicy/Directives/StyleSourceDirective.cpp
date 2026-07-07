@@ -69,7 +69,7 @@ Directive::Result StyleSourceDirective::post_request_check(GC::Heap&, GC::Ref<Fe
 }
 
 // https://w3c.github.io/webappsec-csp/#style-src-inline
-Directive::Result StyleSourceDirective::inline_check(GC::Heap&, GC::Ptr<DOM::Element const> element, InlineType type, GC::Ref<Policy const> policy, String const& source) const
+Directive::Result StyleSourceDirective::inline_check(GC::Heap&, GC::Ptr<DOM::Element const> element, InlineType type, GC::Ref<Policy const> policy, Utf16View source) const
 {
     // 1. Let name be the result of executing § 6.8.2 Get the effective directive for inline checks on type.
     auto name = get_the_effective_directive_for_inline_checks(type);

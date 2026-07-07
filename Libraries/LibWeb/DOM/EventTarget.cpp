@@ -819,7 +819,7 @@ void EventTarget::element_event_handler_attribute_changed(FlyString const& local
     // 5. Otherwise:
     //  1. If the Should element's inline behavior be blocked by Content Security Policy? algorithm returns "Blocked" when executed upon element, "script attribute", and value, then return. [CSP]
     auto& this_as_element = as<DOM::Element>(*this);
-    if (ContentSecurityPolicy::should_elements_inline_type_behavior_be_blocked_by_content_security_policy(realm(), this_as_element, ContentSecurityPolicy::Directives::Directive::InlineType::ScriptAttribute, value->to_utf8_but_should_be_ported_to_utf16()) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
+    if (ContentSecurityPolicy::should_elements_inline_type_behavior_be_blocked_by_content_security_policy(realm(), this_as_element, ContentSecurityPolicy::Directives::Directive::InlineType::ScriptAttribute, *value) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
         dbgln("EventTarget: Refusing to add inline event handler as it violates the Content Security Policy.");
         return;
     }

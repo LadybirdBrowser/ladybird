@@ -10,6 +10,7 @@
 #include <AK/AnyOf.h>
 #include <AK/Debug.h>
 #include <AK/FFIHelpers.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
@@ -1697,8 +1698,149 @@ Optional<Color> parse_legacy_color_value(StringView string_view)
 
 Optional<Color> parse_legacy_color_value(Utf16View string)
 {
-    auto string_utf8 = string.to_utf8_but_should_be_ported_to_utf16();
-    return parse_legacy_color_value(string_utf8.bytes_as_string_view());
+    // 1. If input is the empty string, then return failure.
+    if (string.is_empty())
+        return {};
+
+    // 2. Strip leading and trailing ASCII whitespace from input.
+    auto input = Utf16String::from_utf16(string.trim(Infra::ASCII_WHITESPACE));
+
+    // 3. If input is an ASCII case-insensitive match for "transparent", then return failure.
+    if (input.equals_ignoring_ascii_case("transparent"sv))
+        return {};
+
+    // 4. If input is an ASCII case-insensitive match for one of the named colors, then return the CSS color corresponding to that keyword. [CSSCOLOR]
+    if (auto const color = Color::from_named_css_color_string(input.utf16_view()); color.has_value())
+        return color;
+
+    auto hex_nibble_to_u8 = [](u16 nibble) -> u8 {
+        if (nibble >= '0' && nibble <= '9')
+            return nibble - '0';
+        if (nibble >= 'a' && nibble <= 'f')
+            return nibble - 'a' + 10;
+        return nibble - 'A' + 10;
+    };
+
+    // 5. If input's code point length is four, and the first character in input is U+0023 (#), and the last three characters of input are all ASCII hex digits, then:
+    if (input.length_in_code_units() == 4
+        && input.code_unit_at(0) == '#'
+        && is_ascii_hex_digit(input.code_unit_at(1))
+        && is_ascii_hex_digit(input.code_unit_at(2))
+        && is_ascii_hex_digit(input.code_unit_at(3))) {
+        // 1. Let result be a CSS color.
+        Color result;
+        result.set_alpha(0xFF);
+
+        // 2. Interpret the second character of input as a hexadecimal digit; let the red component of result be the resulting number multiplied by 17.
+        result.set_red(hex_nibble_to_u8(input.code_unit_at(1)) * 17);
+
+        // 3. Interpret the third character of input as a hexadecimal digit; let the green component of result be the resulting number multiplied by 17.
+        result.set_green(hex_nibble_to_u8(input.code_unit_at(2)) * 17);
+
+        // 4. Interpret the fourth character of input as a hexadecimal digit; let the blue component of result be the resulting number multiplied by 17.
+        result.set_blue(hex_nibble_to_u8(input.code_unit_at(3)) * 17);
+
+        // 5. Return result.
+        return result;
+    }
+
+    // 6. Replace any code points greater than U+FFFF in input (i.e., any characters that are not in the basic multilingual plane) with "00".
+    auto replace_non_basic_multilingual_code_points = [](Utf16View string) -> Utf16String {
+        Utf16StringBuilder builder;
+        for (auto code_point : string) {
+            if (code_point > 0xFFFF)
+                builder.append("00"sv);
+            else
+                builder.append_code_point(code_point);
+        }
+        return builder.to_string();
+    };
+    input = replace_non_basic_multilingual_code_points(input);
+
+    // 7. If input's code point length is greater than 128, truncate input, leaving only the first 128 characters.
+    if (input.length_in_code_units() > 128)
+        input = Utf16String::from_utf16(input.utf16_view().substring_view(0, 128));
+
+    // 8. If the first character in input is U+0023 (#), then remove it.
+    if (input.code_unit_at(0) == '#')
+        input = Utf16String::from_utf16(input.utf16_view().substring_view(1));
+
+    // 9. Replace any character in input that is not an ASCII hex digit with U+0030 (0).
+    auto replace_non_ascii_hex = [](Utf16View string) -> Utf16String {
+        Utf16StringBuilder builder;
+        for (auto code_point : string) {
+            if (is_ascii_hex_digit(code_point))
+                builder.append_code_point(code_point);
+            else
+                builder.append_code_point('0');
+        }
+        return builder.to_string();
+    };
+    input = replace_non_ascii_hex(input);
+
+    // 10. While input's code point length is zero or not a multiple of three, append U+0030 (0) to input.
+    Utf16StringBuilder builder;
+    builder.append(input);
+    while (builder.length_in_code_units() == 0 || (builder.length_in_code_units() % 3 != 0))
+        builder.append_code_point('0');
+    input = builder.to_string();
+
+    // 11. Split input into three strings of equal code point length, to obtain three components. Let length be the code point length that all of those components have (one third the code point length of input).
+    auto length = input.length_in_code_units() / 3;
+    auto first_component = input.utf16_view().substring_view(0, length);
+    auto second_component = input.utf16_view().substring_view(length, length);
+    auto third_component = input.utf16_view().substring_view(length * 2, length);
+
+    // 12. If length is greater than 8, then remove the leading length-8 characters in each component, and let length be 8.
+    if (length > 8) {
+        first_component = first_component.substring_view(length - 8);
+        second_component = second_component.substring_view(length - 8);
+        third_component = third_component.substring_view(length - 8);
+        length = 8;
+    }
+
+    // 13. While length is greater than two and the first character in each component is U+0030 (0), remove that character and reduce length by one.
+    while (length > 2
+        && first_component.code_unit_at(0) == '0'
+        && second_component.code_unit_at(0) == '0'
+        && third_component.code_unit_at(0) == '0') {
+        --length;
+        first_component = first_component.substring_view(1);
+        second_component = second_component.substring_view(1);
+        third_component = third_component.substring_view(1);
+    }
+
+    // 14. If length is still greater than two, truncate each component, leaving only the first two characters in each.
+    if (length > 2) {
+        first_component = first_component.substring_view(0, 2);
+        second_component = second_component.substring_view(0, 2);
+        third_component = third_component.substring_view(0, 2);
+    }
+
+    auto to_hex = [&](Utf16View string) -> u8 {
+        if (length == 1) {
+            return hex_nibble_to_u8(string.code_unit_at(0));
+        }
+        auto nib1 = hex_nibble_to_u8(string.code_unit_at(0));
+        auto nib2 = hex_nibble_to_u8(string.code_unit_at(1));
+        return nib1 << 4 | nib2;
+    };
+
+    // 15. Let result be a CSS color.
+    Color result;
+    result.set_alpha(0xFF);
+
+    // 16. Interpret the first component as a hexadecimal number; let the red component of result be the resulting number.
+    result.set_red(to_hex(first_component));
+
+    // 17. Interpret the second component as a hexadecimal number; let the green component of result be the resulting number.
+    result.set_green(to_hex(second_component));
+
+    // 18. Interpret the third component as a hexadecimal number; let the blue component of result be the resulting number.
+    result.set_blue(to_hex(third_component));
+
+    // 19. Return result.
+    return result;
 }
 
 // https://html.spec.whatwg.org/multipage/rendering.html#tables-2

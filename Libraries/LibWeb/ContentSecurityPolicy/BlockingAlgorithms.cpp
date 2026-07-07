@@ -291,7 +291,8 @@ Directives::Directive::Result should_navigation_request_of_type_be_blocked_by_co
                 //        spec operation to serialize the URL.
                 auto& realm = navigation_request->client()->realm();
                 auto serialized_url = navigation_request->current_url().to_string();
-                if (directive->inline_check(realm.heap(), nullptr, Directives::Directive::InlineType::Navigation, policy, serialized_url) == Directives::Directive::Result::Allowed)
+                auto serialized_url_as_utf16 = Utf16String::from_utf8(serialized_url);
+                if (directive->inline_check(realm.heap(), nullptr, Directives::Directive::InlineType::Navigation, policy, serialized_url_as_utf16) == Directives::Directive::Result::Allowed)
                     continue;
 
                 // 3. Otherwise, let violation be the result of executing § 2.4.1 Create a violation object for global,
@@ -396,7 +397,7 @@ Directives::Directive::Result should_navigation_response_to_navigation_request_o
 }
 
 // https://w3c.github.io/webappsec-csp/#should-block-inline
-Directives::Directive::Result should_elements_inline_type_behavior_be_blocked_by_content_security_policy(JS::Realm& realm, GC::Ref<DOM::Element> element, Directives::Directive::InlineType type, String const& source)
+Directives::Directive::Result should_elements_inline_type_behavior_be_blocked_by_content_security_policy(JS::Realm& realm, GC::Ref<DOM::Element> element, Directives::Directive::InlineType type, Utf16View source)
 {
     // Spec Note: The valid values for type are "script", "script attribute", "style", and "style attribute".
     VERIFY(type == Directives::Directive::InlineType::Script || type == Directives::Directive::InlineType::ScriptAttribute || type == Directives::Directive::InlineType::Style || type == Directives::Directive::InlineType::StyleAttribute);
@@ -444,9 +445,8 @@ Directives::Directive::Result should_elements_inline_type_behavior_be_blocked_by
             });
 
             if (!maybe_report_sample.is_end()) {
-                Utf8View source_view { source };
-                auto sample = source_view.unicode_substring_view(0, min(source_view.length(), 40));
-                violation->set_sample(String::from_utf8_without_validation(sample.as_string().bytes()));
+                auto sample = source.unicode_substring_view(0, min(source.length_in_code_points(), 40));
+                violation->set_sample(MUST(sample.to_utf8()));
             }
 
             // 7. Execute § 5.5 Report a violation on violation.
@@ -598,7 +598,7 @@ JS::ThrowCompletionOr<void> ensure_csp_does_not_block_string_compilation(JS::Rea
 
                 if (!maybe_report_sample.is_end()) {
                     auto source_view = source_string.substring_view(0, min(source_string.length_in_code_units(), 40));
-                    violation->set_sample(source_view.to_utf8_but_should_be_ported_to_utf16());
+                    violation->set_sample(MUST(source_view.to_utf8()));
                 }
 
                 // 4. Execute § 5.5 Report a violation on violation.

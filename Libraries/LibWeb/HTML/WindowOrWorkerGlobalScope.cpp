@@ -665,7 +665,7 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
                 // 8. Let script be the result of creating a classic script given handler, settings object, base URL, and fetch options.
                 // FIXME: Pass fetch options.
                 auto basename = base_url.basename();
-                auto script = ClassicScript::create(basename, source, settings_object, move(base_url));
+                auto script = ClassicScript::create(basename, source_utf16, settings_object, move(base_url));
 
                 // 9. Run the classic script script.
                 (void)script->run();

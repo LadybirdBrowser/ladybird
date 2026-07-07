@@ -509,7 +509,8 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     // 17. If navigationParams's response has a `Refresh` header, then:
     if (auto maybe_refresh = navigation_params.response->header_list()->get("Refresh"sv); maybe_refresh.has_value()) {
         // 1. Let value be the isomorphic decoding of the value of the header.
-        auto value = TextCodec::isomorphic_decode(maybe_refresh.value());
+        auto decoded_value = TextCodec::isomorphic_decode(maybe_refresh.value());
+        auto value = Utf16String::from_utf8(decoded_value.bytes_as_string_view());
 
         // 2. Run the shared declarative refresh steps with document and value.
         document->shared_declarative_refresh_steps(value, nullptr);
@@ -5997,14 +5998,14 @@ void Document::stop_intersection_observing_a_lazy_loading_element(Element& eleme
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#shared-declarative-refresh-steps
-void Document::shared_declarative_refresh_steps(StringView input, GC::Ptr<HTML::HTMLMetaElement const> meta_element)
+void Document::shared_declarative_refresh_steps(Utf16View input, GC::Ptr<HTML::HTMLMetaElement const> meta_element)
 {
     // 1. If document's will declaratively refresh is true, then return.
     if (m_will_declaratively_refresh)
         return;
 
     // 2. Let position point at the first code point of input.
-    GenericLexer lexer(input);
+    Utf16GenericLexer lexer(input);
 
     // 3. Skip ASCII whitespace within input given position.
     lexer.ignore_while(Infra::is_ascii_whitespace);
@@ -6095,7 +6096,7 @@ void Document::shared_declarative_refresh_steps(StringView input, GC::Ptr<HTML::
         // 8. Skip quotes: If the code point in input pointed to by position is U+0027 (') or U+0022 ("), then let
         //    quote be that code point, and advance position to the next code point. Otherwise, let quote be the empty
         //    string.
-        Optional<char> quote;
+        Optional<u16> quote;
         if (lexer.peek() == '\'' || lexer.peek() == '"')
             quote = lexer.consume();
 

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16View.h>
 #include <LibJS/Script.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -25,7 +26,7 @@ public:
         No,
         Yes,
     };
-    static GC::Ref<ClassicScript> create(ByteString filename, StringView source, EnvironmentSettingsObject&, URL::URL base_url, size_t source_line_number = 1, MutedErrors = MutedErrors::No, ScriptRegistry::IsInlineSource = ScriptRegistry::IsInlineSource::No);
+    static GC::Ref<ClassicScript> create(ByteString filename, Utf16View source, EnvironmentSettingsObject&, URL::URL base_url, size_t source_line_number = 1, MutedErrors = MutedErrors::No, ScriptRegistry::IsInlineSource = ScriptRegistry::IsInlineSource::No);
     static GC::Ref<ClassicScript> create_from_pre_parsed(ByteString filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject&, URL::URL base_url, JS::FFI::ParsedProgram* parsed, MutedErrors = MutedErrors::No);
     static GC::Ref<ClassicScript> create_from_pre_compiled(ByteString filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject&, URL::URL base_url, JS::FFI::CompiledProgram* compiled, MutedErrors = MutedErrors::No);
     static GC::Ref<ClassicScript> create_from_bytecode_cache(ByteString filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject&, URL::URL base_url, NonnullRefPtr<JS::RustIntegration::DecodedBytecodeCache>, MutedErrors = MutedErrors::No);

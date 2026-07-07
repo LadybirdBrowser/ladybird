@@ -8,6 +8,7 @@
 
 #include <AK/Assertions.h>
 #include <AK/ByteString.h>
+#include <AK/CharacterTypes.h>
 #include <AK/Optional.h>
 #include <AK/StringConversions.h>
 #include <AK/Utf16String.h>
@@ -40,6 +41,24 @@ char nth_digit(u32 value, u8 digit)
     }
 
     return '0' + value % 10;
+}
+
+static bool color_name_matches(StringView string, StringView name)
+{
+    return string.equals_ignoring_ascii_case(name);
+}
+
+static bool color_name_matches(Utf16View const& string, StringView name)
+{
+    if (string.length_in_code_units() != name.length())
+        return false;
+
+    for (size_t i = 0; i < string.length_in_code_units(); ++i) {
+        if (AK::to_ascii_lowercase(string.code_unit_at(i)) != AK::to_ascii_lowercase(name[i]))
+            return false;
+    }
+
+    return true;
 }
 
 Array<char, 4> format_to_8bit_compatible(u8 value)
@@ -224,7 +243,8 @@ static Optional<Color> parse_rgba_color(StringView string)
     return Color(*r, *g, *b, a);
 }
 
-Optional<Color> Color::from_named_css_color_string(StringView string)
+template<typename StringType>
+static Optional<Color> color_from_named_css_color_string(StringType const& string)
 {
     if (string.is_empty())
         return {};
@@ -390,11 +410,21 @@ Optional<Color> Color::from_named_css_color_string(StringView string)
     };
 
     for (auto const& web_color : web_colors) {
-        if (string.equals_ignoring_ascii_case(web_color.name))
+        if (color_name_matches(string, web_color.name))
             return Color::from_bgrx(web_color.color);
     }
 
     return {};
+}
+
+Optional<Color> Color::from_named_css_color_string(StringView string)
+{
+    return color_from_named_css_color_string(string);
+}
+
+Optional<Color> Color::from_named_css_color_string(Utf16View const& string)
+{
+    return color_from_named_css_color_string(string);
 }
 
 static Optional<Color> hex_string_to_color(StringView string)
