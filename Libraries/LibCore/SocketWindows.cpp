@@ -118,7 +118,8 @@ ErrorOr<size_t> PosixSocketHelper::pending_bytes() const
     }
 
     u_long value = 0;
-    TRY(System::ioctl(m_fd, FIONREAD, &value));
+    if (::ioctlsocket(m_fd, FIONREAD, &value) == SOCKET_ERROR)
+        return Error::from_windows_error();
     return value;
 }
 

@@ -525,6 +525,12 @@ ErrorOr<int> socket(int domain, int type, int protocol)
     return fd;
 }
 
+ErrorOr<void> set_socket_blocking(int socket, bool enabled)
+{
+    int value = enabled ? 0 : 1;
+    return ioctl(socket, FIONBIO, &value);
+}
+
 ErrorOr<void> bind(int sockfd, struct sockaddr const* address, socklen_t address_length)
 {
     if (::bind(sockfd, address, address_length) < 0)

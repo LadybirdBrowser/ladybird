@@ -100,7 +100,11 @@ CORE_API ErrorOr<size_t> write(int fd, ReadonlyBytes buffer);
 CORE_API ErrorOr<int> dup(int source_fd);
 ErrorOr<int> dup2(int source_fd, int destination_fd);
 CORE_API ErrorOr<ByteString> getcwd();
+#if !defined(AK_OS_WINDOWS)
+// POSIX-only: the Windows emulation silently assumed the fd was a socket.
+// Use set_socket_blocking() (or the socket classes) for portable code.
 CORE_API ErrorOr<void> ioctl(int fd, unsigned request, ...);
+#endif
 ErrorOr<struct termios> tcgetattr(int fd);
 ErrorOr<void> tcsetattr(int fd, int optional_actions, struct termios const&);
 CORE_API ErrorOr<void> chmod(StringView pathname, mode_t mode);
@@ -135,6 +139,7 @@ CORE_API ErrorOr<void> setsockopt(int sockfd, int level, int option, void const*
 ErrorOr<void> getsockname(int sockfd, struct sockaddr*, socklen_t*);
 ErrorOr<void> getpeername(int sockfd, struct sockaddr*, socklen_t*);
 CORE_API ErrorOr<void> socketpair(int domain, int type, int protocol, int sv[2]);
+CORE_API ErrorOr<void> set_socket_blocking(int socket, bool enabled);
 
 CORE_API ErrorOr<void> access(StringView pathname, int mode, int flags = 0);
 ErrorOr<ByteString> readlink(StringView pathname);

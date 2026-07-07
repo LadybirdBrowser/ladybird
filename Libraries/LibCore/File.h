@@ -68,12 +68,14 @@ public:
     virtual ErrorOr<size_t> tell() const override;
     virtual ErrorOr<void> truncate(size_t length) override;
 
+#if !defined(AK_OS_WINDOWS)
     // Sets the blocking mode of the file. If blocking mode is disabled, reads
     // will fail with EAGAIN when there's no data available to read, and writes
     // will fail with EAGAIN when the data cannot be written without blocking
     // (due to the send buffer being full, for example).
     // See also Socket::set_blocking.
     ErrorOr<void> set_blocking(bool enabled);
+#endif
 
     int leak_fd()
     {

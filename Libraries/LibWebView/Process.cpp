@@ -175,8 +175,7 @@ ErrorOr<int> Process::create_ipc_socket(ByteString const& socket_path)
 
 #if defined(AK_OS_WINDOWS)
     auto socket_fd = TRY(Core::System::socket(AF_LOCAL, SOCK_STREAM, 0));
-    int option = 1;
-    TRY(Core::System::ioctl(socket_fd, FIONBIO, &option));
+    TRY(Core::System::set_socket_blocking(socket_fd, false));
     if (SetHandleInformation(to_handle(socket_fd), HANDLE_FLAG_INHERIT, 0) == 0)
         return Error::from_windows_error();
 #else

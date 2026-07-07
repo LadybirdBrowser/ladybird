@@ -97,13 +97,10 @@ ErrorOr<struct stat> fstat(int handle)
     return st;
 }
 
-ErrorOr<void> ioctl(int fd, unsigned request, ...)
+ErrorOr<void> set_socket_blocking(int socket, bool enabled)
 {
-    va_list ap;
-    va_start(ap, request);
-    u_long* arg = va_arg(ap, u_long*);
-    va_end(ap);
-    if (::ioctlsocket(fd, request, arg) == SOCKET_ERROR)
+    u_long value = enabled ? 0 : 1;
+    if (::ioctlsocket(socket, FIONBIO, &value) == SOCKET_ERROR)
         return Error::from_windows_error();
     return {};
 }
