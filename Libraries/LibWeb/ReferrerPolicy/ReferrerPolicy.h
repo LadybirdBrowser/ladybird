@@ -9,6 +9,7 @@
 #include <AK/Optional.h>
 #include <AK/StringView.h>
 #include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 
 namespace Web::ReferrerPolicy {
 
@@ -31,6 +32,7 @@ constexpr auto DEFAULT_REFERRER_POLICY = ReferrerPolicy::StrictOriginWhenCrossOr
 
 StringView to_string(ReferrerPolicy);
 Optional<ReferrerPolicy> from_string(StringView);
+Optional<ReferrerPolicy> from_string(Utf16View);
 Optional<ReferrerPolicy> from_string(Utf16String const&);
 
 }

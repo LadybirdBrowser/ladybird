@@ -310,7 +310,7 @@ GC::Ref<HTMLLinkElement::LinkProcessingOptions> HTMLLinkElement::create_link_opt
 
         // referrer policy
         //     the state of el's referrerpolicy content attribute
-        ReferrerPolicy::from_string(get_attribute(AttributeNames::referrerpolicy).value_or({}).to_utf8_but_should_be_ported_to_utf16()).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString),
+        ReferrerPolicy::from_string(get_attribute(AttributeNames::referrerpolicy).value_or({})).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString),
 
         // FIXME: source set
         //     el's source set

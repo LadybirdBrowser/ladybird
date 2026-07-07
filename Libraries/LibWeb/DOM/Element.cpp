@@ -379,7 +379,7 @@ void Element::follow_the_hyperlink(Optional<String> hyperlink_suffix, HTML::User
         url_string = MUST(String::formatted("{}{}", url_string, *hyperlink_suffix));
 
     // 11. Let referrerPolicy be the current state of subject's referrerpolicy content attribute.
-    auto referrer_policy = ReferrerPolicy::from_string(attribute(HTML::AttributeNames::referrerpolicy).value_or({}).to_utf8_but_should_be_ported_to_utf16()).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
+    auto referrer_policy = ReferrerPolicy::from_string(attribute(HTML::AttributeNames::referrerpolicy).value_or({})).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
 
     // FIXME: 12. If subject's link types includes the noreferrer keyword, then set referrerPolicy to "no-referrer".
 
