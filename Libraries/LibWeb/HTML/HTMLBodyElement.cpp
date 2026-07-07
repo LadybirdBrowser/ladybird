@@ -135,7 +135,7 @@ void HTMLBodyElement::attribute_changed(FlyString const& name, Optional<Utf16Str
     } else if (name == HTML::AttributeNames::background) {
         // https://html.spec.whatwg.org/multipage/rendering.html#the-page:attr-background
         m_background_style_value = nullptr;
-        if (auto maybe_background_url = document().encoding_parse_url(value.value_or({}).to_utf8_but_should_be_ported_to_utf16()); maybe_background_url.has_value()) {
+        if (auto maybe_background_url = document().encoding_parse_url(value.value_or({})); maybe_background_url.has_value()) {
             m_background_style_value = CSS::ImageStyleValue::create(maybe_background_url.value());
         }
     }

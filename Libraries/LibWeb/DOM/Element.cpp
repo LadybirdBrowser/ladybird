@@ -354,7 +354,7 @@ void Element::follow_the_hyperlink(Optional<String> hyperlink_suffix, HTML::User
         target_attribute_value = get_an_elements_target();
 
     // 4. Let urlRecord be the result of encoding-parsing a URL given subject's href attribute value, relative to subject's node document.
-    auto url_record = document().encoding_parse_url(get_attribute_value(HTML::AttributeNames::href).to_utf8_but_should_be_ported_to_utf16());
+    auto url_record = document().encoding_parse_url(get_attribute_value(HTML::AttributeNames::href));
 
     // 5. If urlRecord is failure, then return.
     if (!url_record.has_value())

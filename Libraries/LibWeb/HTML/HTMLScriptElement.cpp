@@ -437,7 +437,7 @@ void HTMLScriptElement::prepare_script()
         m_from_an_external_file = true;
 
         // 5. Let url be the result of encoding-parsing a URL given src, relative to el's node document.
-        auto url = document().encoding_parse_url(src.to_utf8_but_should_be_ported_to_utf16());
+        auto url = document().encoding_parse_url(src);
 
         // 6. If url is failure, then queue an element task on the DOM manipulation task source given el to fire an event named error at el, and return.
         if (!url.has_value()) {
@@ -721,7 +721,7 @@ TrustedTypes::TrustedScriptURLOrString HTMLScriptElement::src() const
     auto const& raw = *maybe_src;
 
     // 4. Let urlString be the result of encoding-parsing-and-serializing a URL given contentAttributeValue, relative to element's node document.
-    auto url_string = document().encoding_parse_and_serialize_url(raw.to_utf8_but_should_be_ported_to_utf16());
+    auto url_string = document().encoding_parse_and_serialize_url(raw);
 
     // 5. If urlString is not failure, then return urlString.
     if (url_string.has_value())

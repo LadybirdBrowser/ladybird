@@ -62,7 +62,7 @@ void MathMLAnchorElement::set_the_url()
 
     // 2. Let url be the result of encoding-parsing a URL given this element's href content attribute's value, relative
     //    to this element's node document.
-    auto url = document().encoding_parse_url(get_attribute_value(MathML::AttributeNames::href).to_utf8_but_should_be_ported_to_utf16());
+    auto url = document().encoding_parse_url(get_attribute_value(MathML::AttributeNames::href));
 
     // 3. If url is not failure, then set this's url to url.
     if (url.has_value())

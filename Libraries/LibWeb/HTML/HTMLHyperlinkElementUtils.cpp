@@ -34,7 +34,7 @@ void HTMLHyperlinkElementUtils::set_the_url()
     }
 
     // 3. Let url be the result of encoding-parsing a URL given this element's href content attribute's value, relative to this element's node document.
-    auto url = element.document().encoding_parse_url(href_content_attribute->to_utf8_but_should_be_ported_to_utf16());
+    auto url = element.document().encoding_parse_url(*href_content_attribute);
 
     // 4. If url is not failure, then set this element's url to url.
     if (url.has_value())
