@@ -72,10 +72,27 @@ void invalidate_node_style(DOM::Node& node, DOM::StyleInvalidationReason reason)
     mark_ancestors_as_having_child_needing_style_update(node);
 }
 
+static DOM::Node& disconnected_tree_root(DOM::Node& node)
+{
+    auto* root = &node;
+    while (auto* parent = root->parent_or_shadow_host())
+        root = parent;
+    return *root;
+}
+
 void invalidate_node_style_for_properties(DOM::Node& node, DOM::StyleInvalidationReason reason, Vector<CSS::InvalidationSet::Property> const& properties, DOM::StyleInvalidationOptions options)
 {
     if (node.is_character_data())
         return;
+
+    // OPTIMIZATION: A disconnected mutation cannot affect connected style. Avoid selector invalidation work and :has()
+    //               metadata collection for detached mutations, but keep the detached tree root dirty so CSSOM style
+    //               reads can refresh any cached computed properties.
+    if (!node.is_connected()) {
+        auto& root = disconnected_tree_root(node);
+        root.set_entire_subtree_needs_style_update(true);
+        return;
+    }
 
     auto& style_scope = node.style_scope();
 

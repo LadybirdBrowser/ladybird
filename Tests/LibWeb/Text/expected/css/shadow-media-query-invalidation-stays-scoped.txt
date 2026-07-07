@@ -1,2 +1,2 @@
 Target color: rgb(0, 128, 0)
-PASS: shadow media query invalidation stayed scoped (13 invalidations)
+PASS: shadow media query invalidation stayed scoped (12 invalidations)
