@@ -13,7 +13,9 @@
 
 #include <AK/Assertions.h>
 #include <AK/Diagnostics.h>
+#include <AK/Error.h>
 #include <AK/Platform.h>
+#include <AK/Vector.h>
 
 #ifdef AK_OS_WINDOWS
 #    define timeval dummy_timeval
@@ -83,6 +85,23 @@ inline struct SystemApi {
 #    pragma comment(lib, "ws2_32.lib")
 #    include <io.h>
 #    include <stdlib.h>
+
+// Converts UTF-8 text to a null-terminated UTF-16 string for use with wide-char Win32 APIs.
+inline ErrorOr<Vector<wchar_t>> to_wide_string(StringView utf8)
+{
+    int length = 0;
+    if (!utf8.is_empty()) {
+        length = MultiByteToWideChar(CP_UTF8, 0, utf8.characters_without_null_termination(), static_cast<int>(utf8.length()), nullptr, 0);
+        if (length == 0)
+            return Error::from_windows_error();
+    }
+
+    Vector<wchar_t> result;
+    TRY(result.try_resize(length + 1));
+    if (length > 0)
+        MultiByteToWideChar(CP_UTF8, 0, utf8.characters_without_null_termination(), static_cast<int>(utf8.length()), result.data(), length);
+    return result;
+}
 
 // Cached SYSTEM_INFO::dwAllocationGranularity — the required alignment for MapViewOfFile offsets.
 inline size_t system_allocation_granularity()

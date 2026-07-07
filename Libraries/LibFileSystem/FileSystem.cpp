@@ -12,7 +12,7 @@
 #include <LibFileSystem/FileSystem.h>
 
 #if defined(AK_OS_WINDOWS)
-#    include <windows.h>
+#    include <AK/Windows.h>
 #else
 #    include <sys/statvfs.h>
 
@@ -333,6 +333,20 @@ bool can_delete_or_move(StringView path)
     return user_id == 0 || directory_stat.st_uid == user_id || stat_or_empty(path).st_uid == user_id;
 }
 #endif // !AK_OS_WINDOWS
+
+#ifdef AK_OS_WINDOWS
+ErrorOr<void> move_file(StringView destination_path, StringView source_path, PreserveMode)
+{
+    // NOTE: Unlike POSIX rename(), MoveFileExW is not guaranteed to replace an existing
+    //       destination atomically. MOVEFILE_COPY_ALLOWED provides the cross-volume
+    //       copy-and-delete fallback that the POSIX implementation does by hand.
+    auto wide_source_path = TRY(to_wide_string(source_path));
+    auto wide_destination_path = TRY(to_wide_string(destination_path));
+    if (!MoveFileExW(wide_source_path.data(), wide_destination_path.data(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED))
+        return Error::from_windows_error();
+    return {};
+}
+#endif
 
 ErrorOr<void> remove(StringView path, RecursionMode mode)
 {
