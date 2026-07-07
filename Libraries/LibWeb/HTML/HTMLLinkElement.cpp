@@ -183,26 +183,33 @@ void HTMLLinkElement::attribute_changed(FlyString const& name, Optional<Utf16Str
     // 4.6.7 Link types - https://html.spec.whatwg.org/multipage/links.html#linkTypes
     auto old_relationship = m_relationship;
     if (name == HTML::AttributeNames::rel) {
-        m_relationship = 0;
-        // Keywords are always ASCII case-insensitive, and must be compared as such.
-        auto lowercased_value = value.value_or({}).to_ascii_lowercase().to_utf8_but_should_be_ported_to_utf16();
         // To determine which link types apply to a link, a, area, or form element,
         // the element's rel attribute must be split on ASCII whitespace.
         // The resulting tokens are the keywords for the link types that apply to that element.
-        auto parts = lowercased_value.bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
-        for (auto& part : parts) {
-            if (part == "stylesheet"sv)
-                m_relationship |= Relationship::Stylesheet;
-            else if (part == "alternate"sv)
-                m_relationship |= Relationship::Alternate;
-            else if (part == "preload"sv)
-                m_relationship |= Relationship::Preload;
-            else if (part == "dns-prefetch"sv)
-                m_relationship |= Relationship::DNSPrefetch;
-            else if (part == "preconnect"sv)
-                m_relationship |= Relationship::Preconnect;
-            else if (part == "icon"sv)
-                m_relationship |= Relationship::Icon;
+        m_relationship = 0;
+        auto link_types = value.value_or({});
+        size_t start = 0;
+        for (size_t i = 0; i <= link_types.length_in_code_units(); ++i) {
+            if (i != link_types.length_in_code_units() && !Infra::is_ascii_whitespace(link_types.code_unit_at(i)))
+                continue;
+
+            if (i > start) {
+                auto token = link_types.substring_view(start, i - start);
+                if (token.equals_ignoring_ascii_case("stylesheet"sv))
+                    m_relationship |= Relationship::Stylesheet;
+                else if (token.equals_ignoring_ascii_case("alternate"sv))
+                    m_relationship |= Relationship::Alternate;
+                else if (token.equals_ignoring_ascii_case("preload"sv))
+                    m_relationship |= Relationship::Preload;
+                else if (token.equals_ignoring_ascii_case("dns-prefetch"sv))
+                    m_relationship |= Relationship::DNSPrefetch;
+                else if (token.equals_ignoring_ascii_case("preconnect"sv))
+                    m_relationship |= Relationship::Preconnect;
+                else if (token.equals_ignoring_ascii_case("icon"sv))
+                    m_relationship |= Relationship::Icon;
+            }
+
+            start = i + 1;
         }
 
         if (m_rel_list)
