@@ -71,7 +71,7 @@ public:
     void set_preferred_color_scheme(Web::CSS::PreferredColorScheme);
     void set_preferred_contrast(Web::CSS::PreferredContrast);
     void set_preferred_motion(Web::CSS::PreferredMotion);
-    void set_has_focus(bool);
+    virtual void set_has_focus(bool) override;
     void set_window_handle(String);
     void did_start_webdriver_navigation(URL::URL const&);
     struct WebDriverHistoryTraversalResult {

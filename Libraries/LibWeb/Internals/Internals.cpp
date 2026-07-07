@@ -874,6 +874,11 @@ void Internals::set_preferred_color_scheme(StringView color_scheme)
     document.set_needs_media_query_evaluation();
 }
 
+void Internals::set_page_focus(bool has_focus)
+{
+    page().client().set_has_focus(has_focus);
+}
+
 String Internals::canvas_color_scheme()
 {
     auto& document = window().associated_document();

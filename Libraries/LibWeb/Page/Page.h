@@ -436,6 +436,7 @@ public:
     virtual Page const& page() const = 0;
     virtual bool is_connection_open() const = 0;
     virtual bool has_focus() const { return true; }
+    virtual void set_has_focus([[maybe_unused]] bool has_focus) { }
     virtual bool has_active_devtools_client() const { return false; }
     // In Ladybird, Remote currently implies replacing the WebContent process.
     virtual NavigationProcessDecision decide_navigation_process(

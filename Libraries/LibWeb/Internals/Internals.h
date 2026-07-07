@@ -139,6 +139,7 @@ public:
     void reset_style_invalidation_counters();
     void update_style();
     void set_preferred_color_scheme(StringView color_scheme);
+    void set_page_focus(bool has_focus);
     String canvas_color_scheme();
     bool style_sheet_may_have_has_selectors(CSS::CSSStyleSheet&);
     WebIDL::ExceptionOr<JS::Object*> image_animation_state_for_url(String const& url);

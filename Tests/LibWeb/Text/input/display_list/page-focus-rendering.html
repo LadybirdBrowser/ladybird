@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+body {
+    margin: 0;
+    font: 16px monospace;
+}
+</style>
+<textarea id="ta" rows="1" cols="8">abc</textarea>
+<div id="txt">def</div>
+<script>
+test(() => {
+    // The focus ring, the text caret, and selection highlights all depend on the window focus
+    // state: losing focus must hide the ring and caret and repaint selections in the inactive
+    // selection color, and regaining focus must restore all of them.
+    ta.focus();
+    ta.setSelectionRange(1, 3);
+    getSelection().selectAllChildren(txt);
+
+    const focused = internals.dumpDisplayList();
+    internals.setPageFocus(false);
+    const unfocused = internals.dumpDisplayList();
+    internals.setPageFocus(true);
+    const focused_again = internals.dumpDisplayList();
+
+    // Collapse the textarea selection to also cover the caret across focus changes.
+    ta.setSelectionRange(2, 2);
+    getSelection().removeAllRanges();
+    const caret_focused = internals.dumpDisplayList();
+    internals.setPageFocus(false);
+    const caret_unfocused = internals.dumpDisplayList();
+    internals.setPageFocus(true);
+    const caret_focused_again = internals.dumpDisplayList();
+
+    println("-- focused --");
+    println(focused);
+    println("-- unfocused --");
+    println(unfocused);
+    println("-- focused again --");
+    println(focused_again);
+    println("-- caret, focused --");
+    println(caret_focused);
+    println("-- caret, unfocused --");
+    println(caret_unfocused);
+    println("-- caret, focused again --");
+    println(caret_focused_again);
+});
+</script>
