@@ -675,7 +675,7 @@ Vector<size_t, 8> AccumulatedVisualContextTree::build_ancestor_chain(VisualConte
     return chain;
 }
 
-Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_test(VisualContextIndex index, Gfx::FloatPoint screen_point, ScrollStateSnapshot const& scroll_state) const
+Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_test(VisualContextIndex index, Gfx::FloatPoint screen_point, ScrollStateSnapshot const& scroll_state, ClipBehavior clip_behavior) const
 {
     auto chain = build_ancestor_chain(index);
 
@@ -708,6 +708,8 @@ Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_
                 return point;
             },
             [&](ClipData const& clip) -> Optional<Gfx::FloatPoint> {
+                if (clip_behavior == ClipBehavior::Ignore)
+                    return point;
                 // NOTE: The clip rect is in absolute device-pixel coordinates. After inverse-transforming, `point`
                 //       is also in device-pixel coordinates, so we compare them directly.
                 if (!clip.contains(point.to_type<int>().to_type<DevicePixels>()))
@@ -715,6 +717,8 @@ Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_
                 return point;
             },
             [&](ClipPathData const& clip_path) -> Optional<Gfx::FloatPoint> {
+                if (clip_behavior == ClipBehavior::Ignore)
+                    return point;
                 // NOTE: The clip path is in absolute device-pixel coordinates. After inverse-transforming, `point`
                 //       is also in device-pixel coordinates, so we compare them directly.
                 if (!clip_path.bounding_rect.contains(point.to_type<int>().to_type<DevicePixels>()))

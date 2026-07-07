@@ -118,6 +118,13 @@ public:
         Yes,
     };
 
+    enum class ClipBehavior {
+        Respect,
+        // Transform the point without rejecting it against clip rects and clip paths. Used when searching for the
+        // closest caret position within a scope the point may lie entirely outside of.
+        Ignore,
+    };
+
     static WEB_API AccumulatedVisualContextTree create();
     static WEB_API AccumulatedVisualContextTree create(TransformData visual_viewport_transform);
 
@@ -139,7 +146,7 @@ public:
     ReadonlySpan<AccumulatedVisualContextNode> nodes() const { return m_nodes.span(); }
 
     VisualContextIndex find_common_ancestor(VisualContextIndex a, VisualContextIndex b) const;
-    Optional<Gfx::FloatPoint> transform_point_for_hit_test(VisualContextIndex, Gfx::FloatPoint, ScrollStateSnapshot const&) const;
+    Optional<Gfx::FloatPoint> transform_point_for_hit_test(VisualContextIndex, Gfx::FloatPoint, ScrollStateSnapshot const&, ClipBehavior = ClipBehavior::Respect) const;
     Gfx::FloatPoint inverse_transform_point(VisualContextIndex, Gfx::FloatPoint) const;
     Gfx::FloatRect transform_rect_to_viewport(VisualContextIndex, Gfx::FloatRect const&, ScrollStateSnapshot const&, IncludeVisualViewportTransform = IncludeVisualViewportTransform::Yes) const;
     void dump(VisualContextIndex, StringBuilder&) const;

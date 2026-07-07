@@ -1177,6 +1177,11 @@ void FormAssociatedTextControlElement::select_all()
     selection_was_changed(SelectionSource::UI);
 }
 
+GC::Ptr<DOM::Node> FormAssociatedTextControlElement::mouse_selection_scope()
+{
+    return form_associated_element_to_text_node();
+}
+
 void FormAssociatedTextControlElement::set_selection_anchor(GC::Ref<DOM::Node> anchor_node, size_t anchor_offset, TextAffinity affinity)
 {
     auto editing_host_manager = text_control_to_html_element().document().editing_host_manager();

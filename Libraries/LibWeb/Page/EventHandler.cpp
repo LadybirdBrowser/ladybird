@@ -2291,7 +2291,14 @@ void EventHandler::update_mouse_selection(CSSPixelPoint visual_viewport_position
 void EventHandler::apply_mouse_selection(CSSPixelPoint visual_viewport_position)
 {
     auto& document = *m_navigable->active_document();
-    auto caret_position = document.caret_position_from_point_for_selection(visual_viewport_position);
+
+    // Selection driven through an input events target (a text control or editing host) is constrained to that
+    // target's scope, so the selection keeps tracking the mouse after it leaves the target.
+    DOM::Node const* constraint_scope = nullptr;
+    if (m_mouse_selection_target)
+        constraint_scope = m_mouse_selection_target->mouse_selection_scope();
+
+    auto caret_position = document.caret_position_from_point_for_selection(visual_viewport_position, constraint_scope);
     if (!caret_position.has_value())
         return;
 

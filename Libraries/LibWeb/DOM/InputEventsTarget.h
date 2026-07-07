@@ -28,6 +28,10 @@ public:
     };
     virtual void handle_delete(FlyString const& input_type, DispatchInputEvent = DispatchInputEvent::Yes) = 0;
 
+    // The node that mouse-driven selection through this target is constrained to (e.g. the text node inside a text
+    // control, or the active editing host). Dragging outside it snaps the selection focus to its closest position.
+    virtual GC::Ptr<DOM::Node> mouse_selection_scope() = 0;
+
     virtual void select_all() = 0;
     virtual void set_selection_anchor(GC::Ref<DOM::Node>, size_t offset, TextAffinity = TextAffinity::Downstream) = 0;
     virtual void set_selection_focus(GC::Ref<DOM::Node>, size_t offset, TextAffinity = TextAffinity::Downstream) = 0;

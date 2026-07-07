@@ -460,11 +460,11 @@ void HitTestDisplayList::add_item_to_caret_items(size_t item_index)
     });
 }
 
-Optional<CSSPixelPoint> HitTestDisplayList::local_point_for_visual_context(VisualContextIndex visual_context_index, CSSPixelPoint point, ViewportPaintable const& viewport_paintable, double device_pixels_per_css_pixel) const
+Optional<CSSPixelPoint> HitTestDisplayList::local_point_for_visual_context(VisualContextIndex visual_context_index, CSSPixelPoint point, ViewportPaintable const& viewport_paintable, double device_pixels_per_css_pixel, AccumulatedVisualContextTree::ClipBehavior clip_behavior) const
 {
     auto pixel_ratio = static_cast<float>(device_pixels_per_css_pixel);
     auto const& visual_context_tree = viewport_paintable.visual_context_tree();
-    auto result = visual_context_tree.transform_point_for_hit_test(visual_context_index, point.to_type<float>() * pixel_ratio, viewport_paintable.scroll_state_snapshot());
+    auto result = visual_context_tree.transform_point_for_hit_test(visual_context_index, point.to_type<float>() * pixel_ratio, viewport_paintable.scroll_state_snapshot(), clip_behavior);
     if (!result.has_value())
         return {};
     return (*result / pixel_ratio).to_type<CSSPixels>();
@@ -793,7 +793,7 @@ void HitTestDisplayList::find_items_in_list(Vector<size_t> const& item_indices, 
     }
 }
 
-Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPoint point, ViewportPaintable const& viewport_paintable, double device_pixels_per_css_pixel, ChromeMetrics const& chrome_metrics, CaretPositionMode mode) const
+Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPoint point, ViewportPaintable const& viewport_paintable, double device_pixels_per_css_pixel, ChromeMetrics const& chrome_metrics, CaretPositionMode mode, DOM::Node const* constraint_scope) const
 {
     if (m_visual_context_tree_version != viewport_paintable.visual_context_tree().version())
         return {};
@@ -830,13 +830,20 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
             topmost_hit_item_local_point = local_point;
     }
 
+    // A constrained search only accepts direct hits inside the constraint scope.
+    if (constraint_scope && topmost_item_index.has_value()) {
+        auto const* item_node = item_dom_node(m_items[*topmost_item_index]);
+        if (!item_node || !constraint_scope->is_inclusive_ancestor_of(*item_node))
+            topmost_item_index = {};
+    }
+
     // Direct caret hits win unless another non-caret item is visibly on top of them.
     auto topmost_caret_item_matches_hit_item = [&] {
         return topmost_hit_item_index.has_value()
             && *topmost_item_index == *topmost_hit_item_index
             && item_is_direct_caret_target(m_items[*topmost_item_index]);
     };
-    if (topmost_item_index.has_value() && (!topmost_hit_item_index.has_value() || topmost_caret_item_matches_hit_item())) {
+    if (topmost_item_index.has_value() && (constraint_scope || !topmost_hit_item_index.has_value() || topmost_caret_item_matches_hit_item())) {
         VERIFY(topmost_item_local_point.has_value());
         if (auto caret_position = caret_position_for_item(m_items[*topmost_item_index], *topmost_item_local_point); caret_position.has_value()) {
             auto const& item = m_items[*topmost_item_index];
@@ -849,7 +856,9 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
     // If the point is over a non-caret item, only consider caret lines inside that item's event-dispatch node first.
     // This prevents overlays or side content from snapping the caret to unrelated nearby text.
     DOM::Node const* line_scope_dom_node = nullptr;
-    if (topmost_hit_item_index.has_value()) {
+    if (constraint_scope) {
+        line_scope_dom_node = constraint_scope;
+    } else if (topmost_hit_item_index.has_value()) {
         auto const& topmost_hit_item = m_items[*topmost_hit_item_index];
         if (!item_can_produce_caret_position(topmost_hit_item) || !item_is_direct_caret_target(topmost_hit_item))
             line_scope_dom_node = event_dispatch_dom_node_for_item(topmost_hit_item);
@@ -875,6 +884,10 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
         return block_start_distance < closest_block_start_distance;
     };
 
+    // A constrained search must find a line even when the point is outside the scope's clipped area (e.g. dragging
+    // a selection outside a textarea), so it transforms points without rejecting them against clips.
+    auto clip_behavior = constraint_scope ? AccumulatedVisualContextTree::ClipBehavior::Ignore : AccumulatedVisualContextTree::ClipBehavior::Respect;
+
     auto find_closest_line = [&](DOM::Node const* scope_dom_node) {
         ClosestLine closest_line;
         ClosestLine closest_line_after_point;
@@ -885,7 +898,7 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
             if (scope_dom_node && !line_contains_descendant_of(line, *scope_dom_node))
                 continue;
 
-            auto local_point = local_point_for_visual_context(line.visual_context_index, point, viewport_paintable, device_pixels_per_css_pixel);
+            auto local_point = local_point_for_visual_context(line.visual_context_index, point, viewport_paintable, device_pixels_per_css_pixel, clip_behavior);
             if (!local_point.has_value())
                 continue;
 
@@ -983,7 +996,7 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
     };
 
     auto closest_line = find_closest_line(line_scope_dom_node);
-    if (line_scope_dom_node) {
+    if (line_scope_dom_node && !constraint_scope) {
         // The scoped search is only a guard against unrelated nearby content. If there is a plainly closer line
         // outside the scope, use it instead.
         auto unscoped_closest_line = find_closest_line(nullptr);
@@ -994,7 +1007,7 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
     }
 
     if (!closest_line.index.has_value()) {
-        if (topmost_hit_item_index.has_value()) {
+        if (!constraint_scope && topmost_hit_item_index.has_value()) {
             auto const& item = m_items[*topmost_hit_item_index];
             auto caret_position = caret_position_for_hit_container(item);
             if (caret_position.has_value() && caret_position->debug_rect.has_value())
@@ -1010,7 +1023,7 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
     if (caret_position->debug_rect.has_value())
         caret_position->debug_rect = viewport_rect_for_item(m_items[m_caret_item_indices[m_caret_lines[*closest_line.index].first_caret_item_index]], *caret_position->debug_rect, viewport_paintable, device_pixels_per_css_pixel);
 
-    if (topmost_hit_item_index.has_value()) {
+    if (!constraint_scope && topmost_hit_item_index.has_value()) {
         auto const& topmost_hit_item = m_items[*topmost_hit_item_index];
         if (auto const* topmost_hit_dom_node = event_dispatch_dom_node_for_item(topmost_hit_item); topmost_hit_dom_node && !topmost_hit_dom_node->is_inclusive_ancestor_of(*caret_position->boundary.node)) {
             if (item_can_produce_caret_position(topmost_hit_item) && item_is_direct_caret_target(topmost_hit_item)) {
