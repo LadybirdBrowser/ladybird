@@ -74,7 +74,11 @@ CORE_API ErrorOr<sig_t> signal(int signal, sig_t handler);
 CORE_API ErrorOr<sighandler_t> signal(int signal, sighandler_t handler);
 #endif
 CORE_API ErrorOr<struct stat> fstat(int fd);
+#if !defined(AK_OS_WINDOWS)
+// There are no fd-relative path APIs on Windows; use path-based operations instead.
 ErrorOr<struct stat> fstatat(int fd, StringView path, int flags);
+ErrorOr<int> openat(int fd, StringView path, int options, mode_t mode = 0);
+#endif
 CORE_API ErrorOr<int> fcntl(int fd, int command, ...);
 ErrorOr<void*> mmap(void* address, size_t, int protection, int flags, int fd, off_t, size_t alignment = 0, StringView name = {});
 ErrorOr<void> munmap(void* address, size_t);
@@ -84,7 +88,6 @@ CORE_API ErrorOr<void> decommit_memory(void* address, size_t size);
 CORE_API ErrorOr<void> release_address_space(void* address, size_t size);
 ErrorOr<int> anon_create(size_t size, int options);
 CORE_API ErrorOr<int> open(StringView path, int options, mode_t mode = 0);
-ErrorOr<int> openat(int fd, StringView path, int options, mode_t mode = 0);
 CORE_API ErrorOr<void> close(int fd);
 ErrorOr<void> ftruncate(int fd, off_t length);
 CORE_API ErrorOr<struct stat> stat(StringView path);

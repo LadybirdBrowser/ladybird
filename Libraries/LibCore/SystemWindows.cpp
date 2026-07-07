@@ -177,18 +177,6 @@ ErrorOr<void> rename(StringView old_path, StringView new_path)
     return {};
 }
 
-ErrorOr<int> openat(int, StringView, int, mode_t)
-{
-    dbgln("Core::System::openat() is not implemented");
-    VERIFY_NOT_REACHED();
-}
-
-ErrorOr<struct stat> fstatat(int, StringView, int)
-{
-    dbgln("Core::System::fstatat() is not implemented");
-    VERIFY_NOT_REACHED();
-}
-
 ErrorOr<void*> mmap(void* address, size_t size, int protection, int flags, int file_handle, off_t offset, size_t alignment, StringView)
 {
     // custom alignment is not supported

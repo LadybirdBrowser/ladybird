@@ -82,16 +82,31 @@ ErrorOr<void> Directory::ensure_directory(LexicalPath const& path, mode_t creati
     return {};
 }
 
+#ifdef AK_OS_WINDOWS
 ErrorOr<NonnullOwnPtr<File>> Directory::open(StringView filename, File::OpenMode mode) const
 {
-    auto fd = TRY(System::openat(m_directory_fd, filename, File::open_mode_to_options(mode)));
+    // Windows has no fd-relative file APIs, so open by joined path instead.
+    return File::open(LexicalPath::join(m_path.string(), filename).string(), mode);
+}
+
+ErrorOr<struct stat> Directory::stat(StringView filename) const
+{
+    return System::stat(LexicalPath::join(m_path.string(), filename).string());
+}
+#else
+ErrorOr<NonnullOwnPtr<File>> Directory::open(StringView filename, File::OpenMode mode) const
+{
+    // NOTE: openat()'s creation mode defaulted to 0, which made files created through
+    //       Directory::open() unreadable and unwritable; use the same default as File::open().
+    auto fd = TRY(System::openat(m_directory_fd, filename, File::open_mode_to_options(mode), 0644));
     return File::adopt_fd(fd, mode);
 }
 
-ErrorOr<struct stat> Directory::stat(StringView filename, int flags) const
+ErrorOr<struct stat> Directory::stat(StringView filename) const
 {
-    return System::fstatat(m_directory_fd, filename, flags);
+    return System::fstatat(m_directory_fd, filename, 0);
 }
+#endif
 
 ErrorOr<struct stat> Directory::stat() const
 {

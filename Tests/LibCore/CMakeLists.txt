@@ -2,6 +2,7 @@ set(TEST_SOURCES
     TestLibCoreAnonymousBuffer.cpp
     TestLibCoreArgsParser.cpp
     TestLibCoreDeferredInvoke.cpp
+    TestLibCoreDirectory.cpp
     TestLibCoreEventLoop.cpp
     TestLibCoreMappedFile.cpp
     TestLibCoreMimeType.cpp
@@ -20,6 +21,7 @@ foreach(source IN LISTS TEST_SOURCES)
     ladybird_test("${source}" LibCore)
 endforeach()
 
+target_link_libraries(TestLibCoreDirectory PRIVATE LibFileSystem)
 target_link_libraries(TestLibCorePromise PRIVATE LibSync LibThreading)
 target_link_libraries(TestLibCoreStream PRIVATE LibSync LibThreading)
 
