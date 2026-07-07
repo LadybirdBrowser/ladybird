@@ -8,6 +8,7 @@
 
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/TextAffinity.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Selection {
@@ -64,6 +65,11 @@ public:
     // Non-standard
     GC::Ptr<DOM::Position> cursor_position() const;
 
+    // Non-standard: which visual line the focus renders on when it sits at a soft wrap boundary. Reset to
+    // Downstream by every selection mutation; internal caret navigation assigns it after moving.
+    TextAffinity focus_affinity() const { return m_focus_affinity; }
+    void set_focus_affinity(TextAffinity affinity) { m_focus_affinity = affinity; }
+
     // Non-standard
     void scroll_focus_into_view();
     void move_offset_to_next_character(bool collapse_selection);
@@ -88,6 +94,7 @@ private:
 
     GC::Ref<DOM::Document> m_document;
     Direction m_direction { Direction::Directionless };
+    TextAffinity m_focus_affinity { TextAffinity::Downstream };
 };
 
 }

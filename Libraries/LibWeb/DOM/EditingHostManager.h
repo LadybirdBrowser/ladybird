@@ -27,7 +27,6 @@ public:
     virtual EventResult handle_return_key(FlyString const& ui_input_type) override;
     virtual GC::Ptr<DOM::Node> mouse_selection_scope() override { return m_active_contenteditable_element; }
     virtual void select_all() override;
-    // NB: Contenteditable selection does not track text affinity yet.
     virtual void set_selection_anchor(GC::Ref<DOM::Node>, size_t offset, TextAffinity = TextAffinity::Downstream) override;
     virtual void set_selection_focus(GC::Ref<DOM::Node>, size_t offset, TextAffinity = TextAffinity::Downstream) override;
     virtual void move_cursor_to_start(CollapseSelection) override;

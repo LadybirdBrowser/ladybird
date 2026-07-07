@@ -46,9 +46,6 @@ Optional<CursorLinePosition> compute_cursor_position_on_previous_character(DOM::
 size_t find_visual_line_start(DOM::Text const&, size_t offset, TextAffinity);
 CursorLinePosition find_visual_line_end(DOM::Text const&, size_t offset, TextAffinity);
 
-// The last text position of the visual line containing the offset, before any whitespace hanging at a soft wrap.
-size_t find_visual_line_text_end(DOM::Text const&, size_t offset, TextAffinity);
-
 bool white_space_preserves_newlines(Layout::TextNode const&);
 
 // Whether any position in the text renders as an empty visual line (between two consecutive newlines, or after a

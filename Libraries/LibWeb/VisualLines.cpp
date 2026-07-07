@@ -277,13 +277,4 @@ CursorLinePosition find_visual_line_end(DOM::Text const& dom_node, size_t offset
     return CursorLinePosition { find_line_end(dom_node.data().utf16_view(), offset), TextAffinity::Downstream };
 }
 
-size_t find_visual_line_text_end(DOM::Text const& dom_node, size_t offset, TextAffinity affinity)
-{
-    auto lines = visual_lines_with_up_to_date_layout(dom_node);
-    if (auto line_index = visual_line_index_for_offset(lines, offset, affinity); line_index.has_value())
-        return lines[*line_index].end_offset;
-
-    return find_line_end(dom_node.data().utf16_view(), offset);
-}
-
 }

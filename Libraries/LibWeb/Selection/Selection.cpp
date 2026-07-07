@@ -561,6 +561,7 @@ void Selection::set_range(GC::Ptr<DOM::Range> range)
         old_range->set_associated_selection({}, nullptr);
 
     m_range = range;
+    m_focus_affinity = TextAffinity::Downstream;
 
     if (range)
         range->set_associated_selection({}, this);
@@ -590,7 +591,7 @@ GC::Ptr<DOM::Position> Selection::cursor_position() const
     if (!m_range || !is_collapsed())
         return nullptr;
 
-    return DOM::Position::create(m_document->realm(), *m_range->start_container(), m_range->start_offset());
+    return DOM::Position::create(m_document->realm(), *m_range->start_container(), m_range->start_offset(), m_focus_affinity);
 }
 
 // FIXME: The offset adjustment algorithms below do not handle moving over multiple DOM nodes. For example, if we have:
@@ -609,13 +610,15 @@ void Selection::move_offset_to_next_character(bool collapse_selection)
         m_document->reset_cursor_blink_cycle();
     }
     // Otherwise, move forward if possible
-    else if (auto offset = text_node->grapheme_segmenter().next_boundary(focus_offset()); offset.has_value()) {
+    else if (auto new_position = compute_cursor_position_on_next_character(*text_node, focus_offset(), m_focus_affinity); new_position.has_value()) {
         if (collapse_selection) {
-            MUST(collapse(text_node, *offset));
+            MUST(collapse(text_node, new_position->offset));
             m_document->reset_cursor_blink_cycle();
         } else {
-            MUST(set_base_and_extent(*text_node, anchor_offset(), *text_node, *offset));
+            MUST(set_base_and_extent(*text_node, anchor_offset(), *text_node, new_position->offset));
         }
+        m_focus_affinity = new_position->affinity;
+        m_document->set_cursor_position_needs_repaint();
     }
     scroll_focus_into_view();
 }
@@ -632,13 +635,15 @@ void Selection::move_offset_to_previous_character(bool collapse_selection)
         m_document->reset_cursor_blink_cycle();
     }
     // Otherwise, move backward if possible
-    else if (auto offset = text_node->grapheme_segmenter().previous_boundary(focus_offset()); offset.has_value()) {
+    else if (auto new_position = compute_cursor_position_on_previous_character(*text_node, focus_offset(), m_focus_affinity); new_position.has_value()) {
         if (collapse_selection) {
-            MUST(collapse(text_node, *offset));
+            MUST(collapse(text_node, new_position->offset));
             m_document->reset_cursor_blink_cycle();
         } else {
-            MUST(set_base_and_extent(*text_node, anchor_offset(), *text_node, *offset));
+            MUST(set_base_and_extent(*text_node, anchor_offset(), *text_node, new_position->offset));
         }
+        m_focus_affinity = new_position->affinity;
+        m_document->set_cursor_position_needs_repaint();
     }
     scroll_focus_into_view();
 }
@@ -700,13 +705,9 @@ void Selection::move_offset_to_next_line(bool collapse_selection)
     if (!text_node)
         return;
 
-    // NB: Selection does not track text affinity yet, so positions that require Upstream affinity to render on the
-    //     expected line (inside whitespace hanging at a soft wrap) are stepped back to the line's text end.
-    auto new_position = compute_cursor_position_on_next_line(*text_node, focus_offset(), TextAffinity::Downstream);
+    auto new_position = compute_cursor_position_on_next_line(*text_node, focus_offset(), m_focus_affinity);
     if (!new_position.has_value())
         return;
-    if (new_position->affinity == TextAffinity::Upstream)
-        new_position->offset = find_visual_line_text_end(*text_node, new_position->offset, TextAffinity::Upstream);
 
     if (collapse_selection) {
         MUST(collapse(text_node, new_position->offset));
@@ -714,6 +715,7 @@ void Selection::move_offset_to_next_line(bool collapse_selection)
     } else {
         MUST(set_base_and_extent(*text_node, anchor_offset(), *text_node, new_position->offset));
     }
+    m_focus_affinity = new_position->affinity;
     scroll_focus_into_view();
 }
 
@@ -723,13 +725,9 @@ void Selection::move_offset_to_previous_line(bool collapse_selection)
     if (!text_node)
         return;
 
-    // NB: Selection does not track text affinity yet, so positions that require Upstream affinity to render on the
-    //     expected line (inside whitespace hanging at a soft wrap) are stepped back to the line's text end.
-    auto new_position = compute_cursor_position_on_previous_line(*text_node, focus_offset(), TextAffinity::Downstream);
+    auto new_position = compute_cursor_position_on_previous_line(*text_node, focus_offset(), m_focus_affinity);
     if (!new_position.has_value())
         return;
-    if (new_position->affinity == TextAffinity::Upstream)
-        new_position->offset = find_visual_line_text_end(*text_node, new_position->offset, TextAffinity::Upstream);
 
     if (collapse_selection) {
         MUST(collapse(text_node, new_position->offset));
@@ -737,6 +735,7 @@ void Selection::move_offset_to_previous_line(bool collapse_selection)
     } else {
         MUST(set_base_and_extent(*text_node, anchor_offset(), *text_node, new_position->offset));
     }
+    m_focus_affinity = new_position->affinity;
     scroll_focus_into_view();
 }
 
@@ -749,7 +748,7 @@ void Selection::scroll_focus_into_view()
     m_document->update_layout(DOM::UpdateLayoutReason::ScrollCursorIntoView);
 
     if (auto* text = as_if<DOM::Text>(*focus)) {
-        Painting::Paintable::scroll_text_offset_into_view(*text, focus_offset());
+        Painting::Paintable::scroll_text_offset_into_view(*text, focus_offset(), m_focus_affinity);
         return;
     }
 

@@ -1,9 +1,9 @@
 Right over the wrap space: focus=18 anchor=18
 Down from end of first visual line: focus=36 anchor=36
-Right twice from before the wrap space: focus=19 anchor=19
-Down from start of second visual line: focus=37 anchor=37
-Right three times from before the wrap space: focus=20 anchor=20
-Left from start of second visual line: focus=17 anchor=17
-Down after stepping back to end of first visual line: focus=35 anchor=35
-Left again over the wrap space: focus=34 anchor=34
+Right twice from before the wrap space: focus=18 anchor=18
+Down from start of second visual line: focus=36 anchor=36
+Right three times from before the wrap space: focus=19 anchor=19
+Left from start of second visual line: focus=18 anchor=18
+Down after stepping back to end of first visual line: focus=36 anchor=36
+Left again over the wrap space: focus=35 anchor=35
 Shift+Right selects the wrap space: focus=18 anchor=17
