@@ -5,6 +5,7 @@
  */
 
 #include <AK/Array.h>
+#include <AK/CharacterTypes.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibTextCodec/Encoder.h>
@@ -565,10 +566,33 @@ Optional<Request::Priority> request_priority_from_string(StringView string)
     return {};
 }
 
+static bool equals_ignoring_ascii_case(Utf16View string, StringView ascii_string)
+{
+    if (string.length_in_code_units() != ascii_string.length())
+        return false;
+
+    for (size_t i = 0; i < string.length_in_code_units(); ++i) {
+        if (AK::to_ascii_lowercase(string.code_unit_at(i)) != AK::to_ascii_lowercase(ascii_string[i]))
+            return false;
+    }
+
+    return true;
+}
+
+Optional<Request::Priority> request_priority_from_string(Utf16View string)
+{
+    if (equals_ignoring_ascii_case(string, "high"sv))
+        return Request::Priority::High;
+    if (equals_ignoring_ascii_case(string, "low"sv))
+        return Request::Priority::Low;
+    if (equals_ignoring_ascii_case(string, "auto"sv))
+        return Request::Priority::Auto;
+    return {};
+}
+
 Optional<Request::Priority> request_priority_from_string(Utf16String const& string)
 {
-    auto utf8_string = string.to_utf8_but_should_be_ported_to_utf16();
-    return request_priority_from_string(utf8_string.bytes_as_string_view());
+    return request_priority_from_string(string.utf16_view());
 }
 
 }
