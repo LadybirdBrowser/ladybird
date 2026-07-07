@@ -58,8 +58,9 @@ Optional<ViewImplementation&> ViewImplementation::find_view_by_id(u64 id)
     return {};
 }
 
-ViewImplementation::ViewImplementation()
-    : m_document_cookie_version_buffer(Core::create_shared_version_buffer())
+ViewImplementation::ViewImplementation(IsPrivate is_private)
+    : m_is_private(is_private)
+    , m_document_cookie_version_buffer(Core::create_shared_version_buffer())
     , m_view_id(s_view_count++)
 {
     all_views().set(m_view_id, this);

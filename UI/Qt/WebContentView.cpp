@@ -69,6 +69,7 @@ static QWidget* initial_web_content_view_parent([[maybe_unused]] QWidget* window
 
 WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient> parent_client, size_t page_index, WebContentViewInitialState initial_state)
     : WebContentViewBase(initial_web_content_view_parent(window))
+    , WebView::ViewImplementation(initial_state.is_private)
 {
 #ifdef LADYBIRD_QT_USE_METAL_RHI_WIDGET
     // Keep the QRhiWidget out of the top-level QWidget backing store. If it is
@@ -94,7 +95,6 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
 #endif
 
     m_device_pixel_ratio = devicePixelRatio();
-    m_is_private = initial_state.is_private;
     m_maximum_frames_per_second = initial_state.maximum_frames_per_second;
     m_display_id = initial_state.display_id;
 

@@ -393,7 +393,7 @@ protected:
     static constexpr auto ZOOM_MAX_LEVEL = 5.0;
     static constexpr auto ZOOM_STEP = 0.1;
 
-    ViewImplementation();
+    explicit ViewImplementation(IsPrivate = IsPrivate::No);
 
     u64 page_id() const;
 
