@@ -155,10 +155,8 @@ void SVGDecodedImageData::prune_cached_display_list_resources() const
     auto& resource_storage = m_document->navigable()->display_list_resource_storage();
 
     Painting::DisplayListResourceSet retained_resources;
-    for (auto const& cached_display_list : m_cached_display_lists) {
-        retained_resources.include(
-            resource_storage.collect_referenced_resources(*cached_display_list.value.display_list));
-    }
+    for (auto const& cached_display_list : m_cached_display_lists)
+        retained_resources.include(cached_display_list.value.referenced_resources);
     resource_storage.retain_only(retained_resources);
 }
 
@@ -167,8 +165,7 @@ Optional<Painting::DisplayListResource> SVGDecodedImageData::record_display_list
     auto& resource_storage = m_document->navigable()->display_list_resource_storage();
 
     if (auto it = m_cached_display_lists.find(size); it != m_cached_display_lists.end()) {
-        auto referenced_resources = resource_storage.collect_referenced_resources(*it->value.display_list);
-        copy_referenced_resources_to(destination_resource_storage, resource_storage, referenced_resources);
+        copy_referenced_resources_to(destination_resource_storage, resource_storage, it->value.referenced_resources);
         return Painting::DisplayListResource { *it->value.display_list, it->value.visual_context_tree };
     }
 
@@ -195,7 +192,7 @@ Optional<Painting::DisplayListResource> SVGDecodedImageData::record_display_list
     VERIFY(document_paintable);
     auto visual_context_tree = document_paintable->visual_context_tree();
     auto display_list_resource = Painting::DisplayListResource { *display_list, visual_context_tree };
-    m_cached_display_lists.set(size, CachedDisplayList { NonnullRefPtr<Painting::DisplayList> { *display_list }, move(visual_context_tree) });
+    m_cached_display_lists.set(size, CachedDisplayList { NonnullRefPtr<Painting::DisplayList> { *display_list }, move(visual_context_tree), move(referenced_resources) });
     prune_cached_display_list_resources();
     return display_list_resource;
 }

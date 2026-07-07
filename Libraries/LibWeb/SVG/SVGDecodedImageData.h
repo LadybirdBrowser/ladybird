@@ -58,6 +58,8 @@ private:
     struct CachedDisplayList {
         NonnullRefPtr<Painting::DisplayList> display_list;
         Painting::AccumulatedVisualContextTree visual_context_tree;
+        // Precomputed by collect_referenced_resources(); the display list is immutable, so this never changes.
+        Painting::DisplayListResourceSet referenced_resources;
     };
     mutable HashMap<Gfx::IntSize, CachedDisplayList> m_cached_display_lists;
 
