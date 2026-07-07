@@ -42,6 +42,7 @@ private:
     virtual void showEvent(QShowEvent*) override;
     virtual void hideEvent(QHideEvent*) override;
 
+    void close_bar();
     void find_text_changed();
     void update_chrome_style();
 

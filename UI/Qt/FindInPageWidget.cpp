@@ -78,7 +78,7 @@ FindInPageWidget::FindInPageWidget(Tab* tab, WebContentView* content_view)
     m_exit_button->setToolTip("Close Search Bar");
     m_exit_button->setFlat(true);
     connect(m_exit_button, &QPushButton::clicked, this, [this] {
-        setVisible(false);
+        close_bar();
     });
 
     m_match_case = new QCheckBox(this);
@@ -143,7 +143,7 @@ void FindInPageWidget::keyPressEvent(QKeyEvent* event)
 {
     switch (event->key()) {
     case Qt::Key_Escape:
-        setVisible(false);
+        close_bar();
         break;
     case Qt::Key_Return:
         if (event->modifiers().testFlag(Qt::ShiftModifier))
@@ -155,6 +155,12 @@ void FindInPageWidget::keyPressEvent(QKeyEvent* event)
         event->ignore();
         break;
     }
+}
+
+void FindInPageWidget::close_bar()
+{
+    setVisible(false);
+    m_content_view->setFocus();
 }
 
 void FindInPageWidget::focusInEvent(QFocusEvent* event)
