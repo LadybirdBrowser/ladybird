@@ -12,9 +12,9 @@
 
 namespace WebView {
 
-CanonicalNavigable::CanonicalNavigable(String id, String parent_id, RefPtr<WebContentClient> reporting_client, u64 reporting_page_id)
-    : m_id(move(id))
-    , m_parent_id(move(parent_id))
+CanonicalNavigable::CanonicalNavigable(Web::HTML::NavigableId id, Optional<Web::HTML::NavigableId> parent_id, RefPtr<WebContentClient> reporting_client, u64 reporting_page_id)
+    : m_id(id)
+    , m_parent_id(parent_id)
     , m_reporting_client(move(reporting_client))
     , m_reporting_page_id(reporting_page_id)
 {

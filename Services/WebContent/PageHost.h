@@ -13,6 +13,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/OwnPtr.h>
 #include <LibGC/Root.h>
+#include <LibWeb/HTML/NavigableId.h>
 #include <WebContent/Forward.h>
 
 namespace Web {
@@ -35,10 +36,11 @@ public:
     static NonnullOwnPtr<PageHost> create(ConnectionFromClient& client) { return adopt_own(*new PageHost(client)); }
     virtual ~PageHost();
 
-    void initialize(u64 initial_page_id);
+    void initialize(u64 initial_page_id, Web::HTML::NavigableId root_navigable_id, Web::HTML::NavigableIdAllocator);
     Optional<PageClient&> page(u64 page_id);
-    PageClient& create_page(u64 page_id);
+    PageClient& create_page(u64 page_id, Optional<Web::HTML::NavigableId> pending_root_navigable_id = {});
     void remove_page(Badge<PageClient>, u64 page_id);
+    Web::HTML::NavigableId allocate_navigable_id();
 
     ConnectionFromClient& client() const { return m_client; }
     void ensure_compositor_host();
@@ -53,6 +55,7 @@ private:
     ConnectionFromClient& m_client;
     OwnPtr<Web::Compositor::CompositorHost> m_compositor_host;
     HashMap<u64, GC::Root<PageClient>> m_pages;
+    Optional<Web::HTML::NavigableIdAllocator> m_navigable_id_allocator;
 };
 
 }

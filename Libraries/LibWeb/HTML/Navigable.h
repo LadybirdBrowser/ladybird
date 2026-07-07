@@ -12,6 +12,7 @@
 #include <LibURL/URL.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/NavigableId.h>
 
 namespace Web::HTML {
 
@@ -23,7 +24,7 @@ public:
     virtual ~Navigable() override;
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-id
-    String const& id() const { return m_id; }
+    NavigableId id() const { return m_id; }
 
     GC::Ptr<Navigable> parent() const { return m_parent; }
 
@@ -37,13 +38,13 @@ public:
 
 protected:
     Navigable() = default;
-    void set_id(String id) { m_id = move(id); }
+    void set_id(NavigableId id) { m_id = id; }
     void set_parent(GC::Ptr<Navigable> parent) { m_parent = parent; }
 
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
-    String m_id;
+    NavigableId m_id;
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-parent
     GC::Ptr<Navigable> m_parent;

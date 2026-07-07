@@ -17,6 +17,7 @@
 #include <AK/Vector.h>
 #include <AK/Weakable.h>
 #include <LibURL/URL.h>
+#include <LibWeb/HTML/NavigableId.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
@@ -37,13 +38,14 @@ public:
         Optional<u64> remote_page_id;
     };
 
-    CanonicalNavigable(String id, String parent_id, RefPtr<WebContentClient> reporting_client, u64 reporting_page_id);
+    CanonicalNavigable(Web::HTML::NavigableId id, Optional<Web::HTML::NavigableId> parent_id, RefPtr<WebContentClient> reporting_client, u64 reporting_page_id);
     virtual ~CanonicalNavigable();
 
     virtual bool is_top_level_traversable() const { return false; }
 
-    String const& id() const { return m_id; }
-    String const& parent_id() const { return m_parent_id; }
+    Web::HTML::NavigableId id() const { return m_id; }
+    Optional<Web::HTML::NavigableId> parent_id() const { return m_parent_id; }
+    void set_id(Web::HTML::NavigableId id) { m_id = id; }
 
     // The WebContent process and page whose document tree contains this frame. When the
     // frame is local, this process also hosts the frame's active document.
@@ -83,8 +85,8 @@ public:
     bool has_matching_pending_navigation(URL::URL const&, HostLocality) const;
 
 private:
-    String m_id;
-    String m_parent_id;
+    Web::HTML::NavigableId m_id;
+    Optional<Web::HTML::NavigableId> m_parent_id;
     RefPtr<WebContentClient> m_reporting_client;
     u64 m_reporting_page_id { 0 };
     CanonicalNavigable* m_parent { nullptr };

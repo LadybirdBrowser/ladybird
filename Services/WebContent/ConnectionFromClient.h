@@ -71,7 +71,7 @@ private:
     Optional<PageClient const&> page(u64 index, SourceLocation = SourceLocation::current()) const;
 
     virtual Messages::WebContentServer::InitTransportResponse init_transport(int peer_pid) override;
-    virtual void initialize(u64 initial_page_id) override;
+    virtual void initialize(u64 initial_page_id, Web::HTML::NavigableId root_navigable_id, Web::HTML::NavigableIdAllocator navigable_id_allocator) override;
     virtual void close_server() override;
     virtual Messages::WebContentServer::GetWindowHandleResponse get_window_handle(u64 page_id) override;
     virtual void set_window_handle(u64 page_id, String handle) override;
@@ -92,9 +92,9 @@ private:
     virtual void load_html_with_url(u64 page_id, ByteString, URL::URL) override;
     virtual void reload(u64 page_id) override;
     virtual void cancel_download(u64 page_id, u64 download_id) override;
-    virtual void run_iframe_load_event_steps(u64 page_id, String frame_id) override;
+    virtual void run_iframe_load_event_steps(u64 page_id, Web::HTML::NavigableId frame_id) override;
     virtual void set_page_parent_context(u64 page_id, Optional<Web::Compositor::CompositorContextId>) override;
-    virtual void set_remote_child_frame_compositor_context(u64 page_id, String frame_id, Optional<Web::Compositor::CompositorContextId>) override;
+    virtual void set_remote_child_frame_compositor_context(u64 page_id, Web::HTML::NavigableId frame_id, Optional<Web::Compositor::CompositorContextId>) override;
     virtual void traverse_the_history_to_step(u64 page_id, i32 step) override;
     virtual void check_if_traverse_history_step_is_canceled(u64 page_id, u64 request_id, i32 step) override;
     virtual void set_top_level_session_history(u64 page_id, Vector<Web::HTML::SessionHistoryEntryDescriptor>, size_t current_top_level_entry_index, bool allow_reconstructing_current_entry) override;

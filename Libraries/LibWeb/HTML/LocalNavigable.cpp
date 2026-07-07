@@ -739,8 +739,7 @@ void LocalNavigable::set_current_session_history_entry(RefPtr<SessionHistoryEntr
 // https://html.spec.whatwg.org/multipage/document-sequences.html#initialize-the-navigable
 void LocalNavigable::initialize_navigable(NonnullRefPtr<DocumentState> document_state, GC::Ptr<LocalNavigable> parent, GC::Ref<DOM::Document> document)
 {
-    static int next_id = 0;
-    set_id(String::number(next_id++));
+    set_id(page().client().allocate_navigable_id());
 
     // 1. Assert: documentState's document is non-null.
     // NOTE: DocumentState no longer owns the document; it is passed separately and owned by the LocalNavigable.
@@ -2621,7 +2620,7 @@ void LocalNavigable::begin_navigation(NavigateParams params)
                 auto& page_client = active_browsing_context()->page().client();
                 auto is_top_level_navigation = is_top_level_traversable();
                 auto target = is_top_level_navigation ? NavigationTarget::TopLevel : NavigationTarget::IFrame;
-                auto frame_id = is_top_level_navigation ? Optional<String> {} : Optional<String> { id() };
+                auto frame_id = is_top_level_navigation ? Optional<NavigableId> {} : Optional<NavigableId> { id() };
                 auto process_decision = page_client.decide_navigation_process(this->active_document()->url(), url, target, move(frame_id));
                 if (process_decision == NavigationProcessDecision::Remote && is_top_level_navigation) {
                     page_client.request_new_process_for_navigation(url, document_resource, history_handling);

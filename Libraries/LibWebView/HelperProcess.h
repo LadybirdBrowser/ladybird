@@ -12,6 +12,7 @@
 #include <LibImageDecoderClient/Client.h>
 #include <LibRequests/RequestClient.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/HTML/NavigableId.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/PrivateBrowsing.h>
 #include <LibWebView/WebContentClient.h>
@@ -19,7 +20,7 @@
 
 namespace WebView {
 
-WEBVIEW_API ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(IsPrivate, u64 initial_page_id);
+WEBVIEW_API ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(IsPrivate, u64 initial_page_id, Web::HTML::NavigableId root_navigable_id);
 
 WEBVIEW_API ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_image_decoder_process();
 WEBVIEW_API ErrorOr<NonnullRefPtr<WebView::CompositorClient>> launch_compositor_process();

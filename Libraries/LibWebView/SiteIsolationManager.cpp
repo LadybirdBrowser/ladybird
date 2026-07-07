@@ -30,7 +30,7 @@ static URL::URL embedding_page_url_for_child_frame_navigation(CanonicalNavigable
     return fallback_url;
 }
 
-Web::NavigationProcessDecision SiteIsolationManager::decide_navigation_process(WebContentClient& parent_client, u64 page_id, Optional<String> frame_id, URL::URL current_url, URL::URL target_url, Web::NavigationTarget target)
+Web::NavigationProcessDecision SiteIsolationManager::decide_navigation_process(WebContentClient& parent_client, u64 page_id, Optional<Web::HTML::NavigableId> frame_id, URL::URL current_url, URL::URL target_url, Web::NavigationTarget target)
 {
     Optional<CanonicalNavigable&> child_frame;
     if (target == Web::NavigationTarget::IFrame && frame_id.has_value())
@@ -163,7 +163,7 @@ HashMap<pid_t, pid_t> SiteIsolationManager::remote_frame_process_embedders() con
     return embedders;
 }
 
-void SiteIsolationManager::transition_child_frame_to_remote(WebContentClient& parent_client, u64 page_id, StringView frame_id, NonnullRefPtr<WebContentClient> remote_client, u64 remote_page_id)
+void SiteIsolationManager::transition_child_frame_to_remote(WebContentClient& parent_client, u64 page_id, Web::HTML::NavigableId frame_id, NonnullRefPtr<WebContentClient> remote_client, u64 remote_page_id)
 {
     auto child_frame = parent_client.child_frame(page_id, frame_id);
     if (!child_frame.has_value())

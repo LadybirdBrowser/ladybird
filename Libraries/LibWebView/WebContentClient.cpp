@@ -73,10 +73,11 @@ static bool is_download_in_progress(FileDownloader const& file_downloader, u64 d
     return download.has_value() && download->status == FileDownloader::DownloadStatus::InProgress;
 }
 
-WebContentClient::WebContentClient(NonnullOwnPtr<IPC::Transport> transport, IsPrivate is_private, u64 initial_page_id)
+WebContentClient::WebContentClient(NonnullOwnPtr<IPC::Transport> transport, IsPrivate is_private, u64 initial_page_id, Web::HTML::NavigableId root_navigable_id)
     : IPC::ConnectionToServer<WebContentClientEndpoint, WebContentServerEndpoint>(*this, move(transport))
     , m_is_private(is_private)
     , m_initial_page_id(initial_page_id)
+    , m_root_navigable_id(root_navigable_id)
 {
     VERIFY(m_initial_page_id > 0);
     clients().set(this);
@@ -163,6 +164,7 @@ void WebContentClient::assign_view(Badge<Application>, ViewImplementation& view)
     VERIFY(m_views.is_empty());
     VERIFY(view.is_private() == m_is_private);
     view.m_client_state.page_index = m_initial_page_id;
+    view.traversable().set_id(m_root_navigable_id);
     m_views.set(m_initial_page_id, view);
 }
 
@@ -274,13 +276,13 @@ CanonicalNavigable* WebContentClient::navigable_for_page(u64 page_id)
     return nullptr;
 }
 
-Optional<CanonicalNavigable&> WebContentClient::child_frame(u64 page_id, StringView frame_id)
+Optional<CanonicalNavigable&> WebContentClient::child_frame(u64 page_id, Web::HTML::NavigableId frame_id)
 {
     auto* host = navigable_for_page(page_id);
     if (!host)
         return {};
 
-    return host->top_level_traversable().find(page_id, frame_id);
+    return host->top_level_traversable().find(frame_id);
 }
 
 void WebContentClient::close_server_if_unused()
@@ -475,12 +477,12 @@ void WebContentClient::did_request_new_process_for_navigation(u64 page_id, URL::
         view->create_new_process_for_cross_site_navigation(url, move(document_resource), history_handling);
 }
 
-Messages::WebContentClient::DecideNavigationProcessResponse WebContentClient::decide_navigation_process(u64 page_id, Optional<String> frame_id, URL::URL current_url, URL::URL target_url, Web::NavigationTarget target)
+Messages::WebContentClient::DecideNavigationProcessResponse WebContentClient::decide_navigation_process(u64 page_id, Optional<Web::HTML::NavigableId> frame_id, URL::URL current_url, URL::URL target_url, Web::NavigationTarget target)
 {
     return SiteIsolationManager::the().decide_navigation_process(*this, page_id, move(frame_id), move(current_url), move(target_url), target);
 }
 
-void WebContentClient::did_request_new_process_for_child_frame_navigation(u64 page_id, String frame_id, URL::URL url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, Web::Bindings::NavigationHistoryBehavior history_handling)
+void WebContentClient::did_request_new_process_for_child_frame_navigation(u64 page_id, Web::HTML::NavigableId frame_id, URL::URL url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, Web::Bindings::NavigationHistoryBehavior history_handling)
 {
     auto child_frame = this->child_frame(page_id, frame_id);
     if (!child_frame.has_value())
@@ -488,7 +490,7 @@ void WebContentClient::did_request_new_process_for_child_frame_navigation(u64 pa
     if (!child_frame->has_matching_pending_navigation(url, CanonicalNavigable::HostLocality::Remote))
         return;
 
-    auto remote_process_or_error = Application::the().launch_child_frame_web_content_process(m_is_private);
+    auto remote_process_or_error = Application::the().launch_child_frame_web_content_process(m_is_private, frame_id);
     if (remote_process_or_error.is_error()) {
         warnln("Unable to create WebContent process for child frame navigation: {}", remote_process_or_error.error());
         child_frame->clear_pending_navigation();
@@ -514,7 +516,7 @@ void WebContentClient::did_request_new_process_for_child_frame_navigation(u64 pa
     SiteIsolationManager::the().transition_child_frame_to_remote(*this, page_id, frame_id, move(remote_client), remote_page_id);
 }
 
-void WebContentClient::did_create_child_frame(u64 page_id, String parent_frame_id, String frame_id)
+void WebContentClient::did_create_child_frame(u64 page_id, Web::HTML::NavigableId parent_frame_id, Web::HTML::NavigableId frame_id)
 {
     auto* host = navigable_for_page(page_id);
     if (!host)
@@ -523,13 +525,13 @@ void WebContentClient::did_create_child_frame(u64 page_id, String parent_frame_i
     host->top_level_traversable().insert(*this, page_id, move(parent_frame_id), move(frame_id), *host);
 }
 
-void WebContentClient::did_update_child_frame_viewport(u64 page_id, String frame_id, Web::DevicePixelRect viewport_rect, double device_pixel_ratio)
+void WebContentClient::did_update_child_frame_viewport(u64 page_id, Web::HTML::NavigableId frame_id, Web::DevicePixelRect viewport_rect, double device_pixel_ratio)
 {
     if (auto child_frame = this->child_frame(page_id, frame_id); child_frame.has_value())
         child_frame->set_viewport(viewport_rect, device_pixel_ratio);
 }
 
-void WebContentClient::did_commit_child_frame_navigation(u64 page_id, String frame_id, URL::URL url)
+void WebContentClient::did_commit_child_frame_navigation(u64 page_id, Web::HTML::NavigableId frame_id, URL::URL url)
 {
     auto child_frame = this->child_frame(page_id, frame_id);
     if (!child_frame.has_value())
@@ -541,7 +543,7 @@ void WebContentClient::did_commit_child_frame_navigation(u64 page_id, String fra
     child_frame->did_commit_navigation(move(url));
 }
 
-void WebContentClient::did_destroy_child_frame(u64 page_id, String frame_id)
+void WebContentClient::did_destroy_child_frame(u64 page_id, Web::HTML::NavigableId frame_id)
 {
     if (auto child_frame = this->child_frame(page_id, frame_id); child_frame.has_value())
         SiteIsolationManager::the().remove_child_frame_subtree(*child_frame);

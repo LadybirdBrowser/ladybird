@@ -108,7 +108,7 @@ static JsonArray history_json_nested_histories(Vector<Web::HTML::SessionHistoryN
             serialized_entries.must_append(history_json_entry(entry));
 
         JsonObject serialized_nested_history;
-        serialized_nested_history.set("id"sv, nested_history.id);
+        serialized_nested_history.set("id"sv, MUST(String::formatted("{}", nested_history.id)));
         serialized_nested_history.set("entries"sv, move(serialized_entries));
         serialized_nested_histories.must_append(move(serialized_nested_history));
     }

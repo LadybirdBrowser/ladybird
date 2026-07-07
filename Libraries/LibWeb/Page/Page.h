@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <AK/Assertions.h>
 #include <AK/ByteBuffer.h>
 #include <AK/JsonValue.h>
 #include <AK/Queue.h>
@@ -44,6 +45,7 @@
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWeb/HTML/ColorPickerUpdateState.h>
 #include <LibWeb/HTML/FileFilter.h>
+#include <LibWeb/HTML/NavigableId.h>
 #include <LibWeb/HTML/POSTResource.h>
 #include <LibWeb/HTML/Scripting/ScriptRegistry.h>
 #include <LibWeb/HTML/SelectItem.h>
@@ -440,17 +442,17 @@ public:
         [[maybe_unused]] URL::URL const& current_url,
         [[maybe_unused]] URL::URL const& target_url,
         [[maybe_unused]] NavigationTarget target = NavigationTarget::TopLevel,
-        [[maybe_unused]] Optional<String> frame_id = {}) const
+        [[maybe_unused]] Optional<HTML::NavigableId> frame_id = {}) const
     {
         return NavigationProcessDecision::Local;
     }
     virtual void request_new_process_for_navigation(URL::URL const&, Variant<Empty, String, HTML::POSTResource>, Bindings::NavigationHistoryBehavior) { }
-    virtual void request_new_process_for_child_frame_navigation(String const&, URL::URL const&, Variant<Empty, String, HTML::POSTResource>, Bindings::NavigationHistoryBehavior) { }
-    virtual void page_did_create_child_frame(String const&, String const&) { }
-    virtual void page_did_update_child_frame_viewport(String const&, CSSPixelRect) { }
-    virtual void page_did_commit_child_frame_navigation(String const&, URL::URL const&) { }
-    virtual void page_did_destroy_child_frame(String const&) { }
-    virtual Optional<Compositor::CompositorContextId> compositor_context_id_for_remote_child_frame(String const&) const { return {}; }
+    virtual void request_new_process_for_child_frame_navigation(HTML::NavigableId, URL::URL const&, Variant<Empty, String, HTML::POSTResource>, Bindings::NavigationHistoryBehavior) { }
+    virtual void page_did_create_child_frame(HTML::NavigableId, HTML::NavigableId) { }
+    virtual void page_did_update_child_frame_viewport(HTML::NavigableId, CSSPixelRect) { }
+    virtual void page_did_commit_child_frame_navigation(HTML::NavigableId, URL::URL const&) { }
+    virtual void page_did_destroy_child_frame(HTML::NavigableId) { }
+    virtual Optional<Compositor::CompositorContextId> compositor_context_id_for_remote_child_frame(HTML::NavigableId) const { return {}; }
     virtual String dump_site_isolation_process_tree_for_testing() { return {}; }
     virtual Gfx::Palette palette() const = 0;
     virtual DevicePixelRect screen_rect() const = 0;
@@ -468,6 +470,10 @@ public:
     {
         if (page_presentation_registration == Compositor::PagePresentationRegistration::Yes)
             return Compositor::compositor_context_id_for_page(id());
+        VERIFY_NOT_REACHED();
+    }
+    virtual HTML::NavigableId allocate_navigable_id()
+    {
         VERIFY_NOT_REACHED();
     }
     virtual void request_frame() = 0;

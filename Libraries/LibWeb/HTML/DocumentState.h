@@ -13,6 +13,7 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/NavigableId.h>
 #include <LibWeb/HTML/POSTResource.h>
 #include <LibWeb/HTML/SerializedPolicyContainer.h>
 #include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
@@ -26,7 +27,7 @@ public:
     ~DocumentState();
 
     struct NestedHistory {
-        String id;
+        NavigableId id;
         Vector<NonnullRefPtr<SessionHistoryEntry>> entries;
     };
 

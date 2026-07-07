@@ -87,6 +87,7 @@ public:
     GC::Weak<SVGDecodedImageData> m_svg_image_data;
 
     virtual u64 id() const override { VERIFY_NOT_REACHED(); }
+    virtual HTML::NavigableId allocate_navigable_id() override { return m_host_page->client().allocate_navigable_id(); }
     virtual Page& page() override { return *m_svg_page; }
     virtual Page const& page() const override { return *m_svg_page; }
     virtual bool is_connection_open() const override { return false; }

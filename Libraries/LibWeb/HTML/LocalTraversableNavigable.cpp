@@ -240,12 +240,24 @@ static void populate_nested_histories_from_ui_process(DocumentState& document_st
 {
     auto& nested_histories = document_state.nested_histories();
     if (nested_histories.size() == nested_history_descriptors.size()) {
-        // NB: The UI process keeps session history across WebContent process
-        //     swaps, but nested history ids are process-local navigable ids. When
-        //     rebuilding history for an already-loaded document, preserve the live
-        //     ids created by the new WebContent process.
-        for (size_t i = 0; i < nested_history_descriptors.size(); ++i)
-            nested_history_descriptors[i].id = nested_histories[i].id;
+        // FIXME: This is temporary glue for the current load-then-seed ordering.
+        //        A replacement WebContent process can create live child navigables
+        //        before the UI process sends its canonical session-history tree.
+        //        Now that nested history ids are canonical NavigableIds, the UI id
+        //        must win; retarget the already-created child to match it. The
+        //        longer-term model should avoid creating a distinct temporary id
+        //        for a child the UI process already knows about.
+        for (size_t i = 0; i < nested_history_descriptors.size(); ++i) {
+            auto previous_id = nested_histories[i].id;
+            auto canonical_id = nested_history_descriptors[i].id;
+            if (previous_id == canonical_id)
+                continue;
+
+            for (auto& navigable : all_local_navigables()) {
+                if (navigable->id() == previous_id)
+                    navigable->set_id_for_session_history_reconstruction(canonical_id);
+            }
+        }
     }
     nested_histories.clear();
     nested_histories.ensure_capacity(nested_history_descriptors.size());

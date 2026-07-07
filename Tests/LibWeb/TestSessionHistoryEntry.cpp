@@ -7,7 +7,13 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
+#include <LibWeb/HTML/NavigableId.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
+
+static Web::HTML::NavigableId frame_1_id()
+{
+    return { 1, 1 };
+}
 
 static URL::URL parse_url(StringView url)
 {
@@ -31,7 +37,7 @@ TEST_CASE(post_load_seed_match_allows_ui_owned_nested_histories)
     nested_entry.step = 1;
     nested_entry.url = parse_url("https://frame.example/"sv);
     seed_descriptor.document_state.nested_histories.append({
-        .id = MUST(String::from_utf8("frame-1"sv)),
+        .id = frame_1_id(),
         .entries = { move(nested_entry) },
     });
 
@@ -50,7 +56,7 @@ TEST_CASE(descriptor_creation_preserves_nested_history_with_only_pending_entries
     pending_child_entry->set_document_state(Web::HTML::DocumentState::create());
 
     top_level_document_state->nested_histories().append({
-        .id = MUST(String::from_utf8("frame-1"sv)),
+        .id = frame_1_id(),
         .entries = { pending_child_entry },
     });
 
@@ -63,6 +69,6 @@ TEST_CASE(descriptor_creation_preserves_nested_history_with_only_pending_entries
     auto descriptor = Web::HTML::create_session_history_entry_descriptor(top_level_entry, creation_state);
 
     EXPECT_EQ(descriptor.document_state.nested_histories.size(), 1u);
-    EXPECT_EQ(descriptor.document_state.nested_histories[0].id, "frame-1"sv);
+    EXPECT_EQ(descriptor.document_state.nested_histories[0].id, frame_1_id());
     EXPECT(descriptor.document_state.nested_histories[0].entries.is_empty());
 }

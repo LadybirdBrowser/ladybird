@@ -29,9 +29,9 @@ public:
         Web::DevicePixelRect viewport_rect;
     };
 
-    Web::NavigationProcessDecision decide_navigation_process(WebContentClient&, u64 page_id, Optional<String> frame_id, URL::URL current_url, URL::URL target_url, Web::NavigationTarget);
+    Web::NavigationProcessDecision decide_navigation_process(WebContentClient&, u64 page_id, Optional<Web::HTML::NavigableId> frame_id, URL::URL current_url, URL::URL target_url, Web::NavigationTarget);
 
-    void transition_child_frame_to_remote(WebContentClient& parent_client, u64 page_id, StringView frame_id, NonnullRefPtr<WebContentClient>, u64 remote_page_id);
+    void transition_child_frame_to_remote(WebContentClient& parent_client, u64 page_id, Web::HTML::NavigableId frame_id, NonnullRefPtr<WebContentClient>, u64 remote_page_id);
     void transition_child_frame_to_local(CanonicalNavigable&);
 
     void remove_child_frame_subtree(CanonicalNavigable&);

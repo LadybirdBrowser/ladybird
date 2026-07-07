@@ -119,9 +119,9 @@ Messages::WebContentServer::InitTransportResponse ConnectionFromClient::init_tra
     VERIFY_NOT_REACHED();
 }
 
-void ConnectionFromClient::initialize(u64 initial_page_id)
+void ConnectionFromClient::initialize(u64 initial_page_id, Web::HTML::NavigableId root_navigable_id, Web::HTML::NavigableIdAllocator navigable_id_allocator)
 {
-    m_page_host->initialize(initial_page_id);
+    m_page_host->initialize(initial_page_id, root_navigable_id, navigable_id_allocator);
 }
 
 void ConnectionFromClient::set_page_parent_context(u64 page_id, Optional<Web::Compositor::CompositorContextId> parent_context_id)
@@ -136,13 +136,13 @@ void ConnectionFromClient::set_page_parent_context(u64 page_id, Optional<Web::Co
     compositor_context.set_parent_context(parent_context_id);
 }
 
-void ConnectionFromClient::set_remote_child_frame_compositor_context(u64 page_id, String frame_id, Optional<Web::Compositor::CompositorContextId> context_id)
+void ConnectionFromClient::set_remote_child_frame_compositor_context(u64 page_id, Web::HTML::NavigableId frame_id, Optional<Web::Compositor::CompositorContextId> context_id)
 {
     if (auto page = this->page(page_id); page.has_value())
-        page->set_remote_child_frame_compositor_context(move(frame_id), context_id);
+        page->set_remote_child_frame_compositor_context(frame_id, context_id);
 }
 
-void ConnectionFromClient::run_iframe_load_event_steps(u64 page_id, String frame_id)
+void ConnectionFromClient::run_iframe_load_event_steps(u64 page_id, Web::HTML::NavigableId frame_id)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->run_iframe_load_event_steps(frame_id);

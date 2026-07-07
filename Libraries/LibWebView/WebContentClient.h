@@ -29,6 +29,7 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/FileFilter.h>
+#include <LibWeb/HTML/NavigableId.h>
 #include <LibWeb/HTML/Scripting/ScriptRegistry.h>
 #include <LibWeb/HTML/SelectItem.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
@@ -61,7 +62,7 @@ public:
     static size_t client_count() { return clients().size(); }
     static Optional<WebContentClient&> client_for_compositor_context_id(Web::Compositor::CompositorContextId);
 
-    WebContentClient(NonnullOwnPtr<IPC::Transport>, IsPrivate, u64 initial_page_id);
+    WebContentClient(NonnullOwnPtr<IPC::Transport>, IsPrivate, u64 initial_page_id, Web::HTML::NavigableId root_navigable_id);
     ~WebContentClient();
 
     IsPrivate is_private() const { return m_is_private; }
@@ -83,7 +84,7 @@ public:
     CanonicalNavigable* embedded_page_host(u64 page_id);
     CanonicalNavigable* navigable_for_page(u64 page_id);
 
-    Optional<CanonicalNavigable&> child_frame(u64 page_id, StringView frame_id);
+    Optional<CanonicalNavigable&> child_frame(u64 page_id, Web::HTML::NavigableId frame_id);
 
     bool has_views() const { return !m_views.is_empty(); }
 
@@ -117,13 +118,13 @@ private:
 
     virtual Messages::WebContentClient::AllocateCompositorContextIdResponse allocate_compositor_context_id(u64 page_id, Web::Compositor::PagePresentationRegistration) override;
     virtual void did_destroy_compositor_context(Web::Compositor::CompositorContextId) override;
-    virtual Messages::WebContentClient::DecideNavigationProcessResponse decide_navigation_process(u64 page_id, Optional<String> frame_id, URL::URL current_url, URL::URL target_url, Web::NavigationTarget) override;
+    virtual Messages::WebContentClient::DecideNavigationProcessResponse decide_navigation_process(u64 page_id, Optional<Web::HTML::NavigableId> frame_id, URL::URL current_url, URL::URL target_url, Web::NavigationTarget) override;
     virtual void did_request_new_process_for_navigation(u64 page_id, URL::URL url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, Web::Bindings::NavigationHistoryBehavior history_handling) override;
-    virtual void did_request_new_process_for_child_frame_navigation(u64 page_id, String frame_id, URL::URL url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, Web::Bindings::NavigationHistoryBehavior history_handling) override;
-    virtual void did_create_child_frame(u64 page_id, String parent_frame_id, String frame_id) override;
-    virtual void did_update_child_frame_viewport(u64 page_id, String frame_id, Web::DevicePixelRect viewport_rect, double device_pixel_ratio) override;
-    virtual void did_commit_child_frame_navigation(u64 page_id, String frame_id, URL::URL url) override;
-    virtual void did_destroy_child_frame(u64 page_id, String frame_id) override;
+    virtual void did_request_new_process_for_child_frame_navigation(u64 page_id, Web::HTML::NavigableId frame_id, URL::URL url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, Web::Bindings::NavigationHistoryBehavior history_handling) override;
+    virtual void did_create_child_frame(u64 page_id, Web::HTML::NavigableId parent_frame_id, Web::HTML::NavigableId frame_id) override;
+    virtual void did_update_child_frame_viewport(u64 page_id, Web::HTML::NavigableId frame_id, Web::DevicePixelRect viewport_rect, double device_pixel_ratio) override;
+    virtual void did_commit_child_frame_navigation(u64 page_id, Web::HTML::NavigableId frame_id, URL::URL url) override;
+    virtual void did_destroy_child_frame(u64 page_id, Web::HTML::NavigableId frame_id) override;
     virtual void did_start_webdriver_navigation(u64 page_id, URL::URL url) override;
     virtual void did_finish_loading(u64 page_id, URL::URL) override;
     virtual void did_request_refresh(u64 page_id) override;
@@ -270,6 +271,7 @@ private:
     HashMap<u64, String> m_history_recorded_urls_for_current_load;
     Optional<i32> m_compositor_connection_id;
     u64 m_initial_page_id { 0 };
+    Web::HTML::NavigableId m_root_navigable_id;
 
     ProcessHandle m_process_handle;
     RefPtr<Core::Timer> m_detached_page_close_timer;

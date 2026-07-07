@@ -6,13 +6,25 @@
 
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
+#include <LibWeb/HTML/NavigableId.h>
 #include <LibWebView/HistoryDebug.h>
 #include <LibWebView/SessionHistory.h>
+
+static Web::HTML::NavigableId navigable_id(StringView id)
+{
+    if (id == "frame-1"sv)
+        return { 1, 1 };
+    if (id == "frame"sv)
+        return { 1, 2 };
+    if (id == "1"sv)
+        return { 2, 1 };
+    VERIFY_NOT_REACHED();
+}
 
 static Web::HTML::SessionHistoryNestedHistoryDescriptor nested_history(StringView id, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries)
 {
     return {
-        .id = MUST(String::from_utf8(id)),
+        .id = navigable_id(id),
         .entries = move(entries),
     };
 }
@@ -203,7 +215,7 @@ static void expect_step_to_restore(Optional<i32> step, i32 expected_step)
 static void expect_nested_history(Web::HTML::SessionHistoryEntryDescriptor const& entry, size_t index, StringView expected_id, size_t expected_size)
 {
     VERIFY(index < entry.document_state.nested_histories.size());
-    EXPECT_EQ(entry.document_state.nested_histories[index].id, MUST(String::from_utf8(expected_id)));
+    EXPECT_EQ(entry.document_state.nested_histories[index].id, navigable_id(expected_id));
     EXPECT_EQ(entry.document_state.nested_histories[index].entries.size(), expected_size);
 }
 
@@ -1640,7 +1652,7 @@ TEST_CASE(history_log_entries_marks_current_entries_steps_and_reload_pending)
     EXPECT_EQ(history_log_entries(history), ByteString { "entries=[0:0:https://a.example/, *1:1:https://b.example/ "
                                                          "document_state={id=0, resource=post}, 2:2:https://c.example/ "
                                                          "document_state={id=1, reload_pending=true, target_name=main} "
-                                                         "nested={frame=[3:https://frame.example/]}] "
+                                                         "nested={1:2=[3:https://frame.example/]}] "
                                                          "used_steps=[0:0, *1:1, 2:2, 3:3]"sv });
 
     auto current_entry = history.current_entry();
@@ -1672,7 +1684,7 @@ TEST_CASE(history_log_entries_marks_nested_histories)
 
     EXPECT_EQ(history_log_entries(history), ByteString { "entries=[0:0:https://a.example/, *1:1:https://b.example/ "
                                                          "document_state={id=1, target_name=main} "
-                                                         "nested={frame=[2:https://frame.example/]}] "
+                                                         "nested={1:2=[2:https://frame.example/]}] "
                                                          "used_steps=[0:0, 1:1, *2:2]"sv });
 }
 

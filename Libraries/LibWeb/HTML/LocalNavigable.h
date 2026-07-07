@@ -73,6 +73,7 @@ public:
     using NavigationParamsVariant = Variant<NullOrError, GC::Ref<NavigationParams>, GC::Ref<NonFetchSchemeNavigationParams>>;
 
     void initialize_navigable(NonnullRefPtr<DocumentState> document_state, GC::Ptr<LocalNavigable> parent, GC::Ref<DOM::Document> document);
+    void set_id_for_session_history_reconstruction(NavigableId id) { set_id(id); }
 
     void register_navigation_observer(Badge<NavigationObserver>, NavigationObserver&);
     void unregister_navigation_observer(Badge<NavigationObserver>, NavigationObserver&);
