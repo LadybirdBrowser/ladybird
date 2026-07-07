@@ -1102,12 +1102,13 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     auto arrow_key_scroll_distance = 100;
     auto page_scroll_distance = document->window()->inner_height() - (document->window()->outer_height() - document->window()->inner_height());
 
+    auto const modifiers_without_keypad = modifiers & ~UIEvents::Mod_Keypad;
     switch (key) {
     case UIEvents::KeyCode::Key_Up:
     case UIEvents::KeyCode::Key_Down:
-        if (modifiers && modifiers != UIEvents::KeyModifier::Mod_PlatformCtrl)
+        if (modifiers_without_keypad && modifiers_without_keypad != UIEvents::KeyModifier::Mod_PlatformCtrl)
             break;
-        if (modifiers) {
+        if (modifiers_without_keypad) {
             if (key == UIEvents::KeyCode::Key_Up)
                 document->scroll_to_the_beginning_of_the_document();
             else
@@ -1119,19 +1120,19 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     case UIEvents::KeyCode::Key_Left:
     case UIEvents::KeyCode::Key_Right:
 #if defined(AK_OS_MACOS)
-        if (modifiers && modifiers != UIEvents::KeyModifier::Mod_Super)
+        if (modifiers_without_keypad && modifiers_without_keypad != UIEvents::KeyModifier::Mod_Super)
 #else
-        if (modifiers && modifiers != UIEvents::KeyModifier::Mod_Alt)
+        if (modifiers_without_keypad && modifiers_without_keypad != UIEvents::KeyModifier::Mod_Alt)
 #endif
             break;
-        if (modifiers)
+        if (modifiers_without_keypad)
             document->page().traverse_the_history_by_delta(key == UIEvents::KeyCode::Key_Left ? -1 : 1);
         else
             document->window()->scroll_by(key == UIEvents::KeyCode::Key_Left ? -arrow_key_scroll_distance : arrow_key_scroll_distance, 0);
         return EventResult::Handled;
     case UIEvents::KeyCode::Key_PageUp:
     case UIEvents::KeyCode::Key_PageDown:
-        if (modifiers != UIEvents::KeyModifier::Mod_None)
+        if (modifiers_without_keypad != UIEvents::KeyModifier::Mod_None)
             break;
         document->window()->scroll_by(0, key == UIEvents::KeyCode::Key_PageUp ? -page_scroll_distance : page_scroll_distance);
         return EventResult::Handled;

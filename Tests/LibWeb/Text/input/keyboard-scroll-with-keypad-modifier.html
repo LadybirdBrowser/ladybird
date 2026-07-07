@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+
+    div {
+        height: 2000px;
+    }
+</style>
+<div></div>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        println(`before: ${window.scrollY}`);
+        internals.sendKey(document.body, "Down", internals.MOD_KEYPAD);
+        println(`after: ${window.scrollY}`);
+    });
+</script>
