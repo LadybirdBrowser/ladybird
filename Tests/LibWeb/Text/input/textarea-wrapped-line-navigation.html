@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<textarea id="textarea" rows="8" cols="20">hello hello hello jello jello jello
+next line
+
+after empty</textarea>
+<script>
+test(() => {
+    // The textarea soft-wraps its first logical line into two visual lines:
+    //   "hello hello hello jello"  [0,23)
+    //   "jello jello"              [24,35)
+    // followed by "next line" [36,45), an empty line at offset 46, and "after empty" [47,58).
+    // Up/Down/Home/End must navigate these visual lines, not the logical (newline-separated) ones.
+    const report = label => {
+        println(`${label}: start=${textarea.selectionStart} end=${textarea.selectionEnd}`);
+    };
+
+    // Force a layout before each key so cursor movement does not depend on when the last
+    // rendering update ran.
+    const sendKey = (name, modifiers) => {
+        textarea.getBoundingClientRect();
+        internals.sendKey(textarea, name, modifiers);
+    };
+
+    textarea.focus();
+
+    textarea.setSelectionRange(0, 0);
+    sendKey("Down");
+    report("Down from offset 0");
+
+    textarea.setSelectionRange(24, 24);
+    sendKey("Up");
+    report("Up from start of second visual line");
+
+    textarea.setSelectionRange(30, 30);
+    sendKey("Down");
+    report("Down from middle of second visual line");
+
+    textarea.setSelectionRange(40, 40);
+    sendKey("Up");
+    report("Up from middle of third visual line");
+
+    textarea.setSelectionRange(45, 45);
+    sendKey("Down");
+    report("Down from end of third visual line");
+
+    textarea.setSelectionRange(46, 46);
+    sendKey("Down");
+    report("Down from empty line");
+
+    textarea.setSelectionRange(46, 46);
+    sendKey("Up");
+    report("Up from empty line");
+
+    textarea.setSelectionRange(50, 50);
+    sendKey("Up");
+    report("Up from last line");
+
+    textarea.setSelectionRange(0, 0);
+    sendKey("End");
+    report("End on first visual line");
+
+    textarea.setSelectionRange(30, 30);
+    sendKey("Home");
+    report("Home on second visual line");
+
+    textarea.setSelectionRange(30, 30);
+    sendKey("End");
+    report("End on second visual line");
+
+    textarea.setSelectionRange(40, 40);
+    sendKey("Home");
+    report("Home on third visual line");
+
+    textarea.setSelectionRange(40, 40);
+    sendKey("End");
+    report("End on third visual line");
+
+    textarea.setSelectionRange(46, 46);
+    sendKey("Home");
+    report("Home on empty line");
+
+    textarea.setSelectionRange(46, 46);
+    sendKey("End");
+    report("End on empty line");
+
+    textarea.setSelectionRange(50, 50);
+    sendKey("End");
+    report("End on last line");
+
+    textarea.setSelectionRange(0, 0);
+    sendKey("Down", internals.MOD_SHIFT);
+    report("Shift+Down from offset 0");
+
+    textarea.setSelectionRange(0, 0);
+    sendKey("End", internals.MOD_SHIFT);
+    report("Shift+End on first visual line");
+});
+</script>

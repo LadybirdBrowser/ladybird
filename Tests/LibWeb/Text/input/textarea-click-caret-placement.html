@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<textarea id="textarea" rows="8" cols="20">hello hello hello jello jello jello
+next line
+
+after empty</textarea>
+<script>
+test(() => {
+    // The textarea soft-wraps its first logical line into two visual lines:
+    //   "hello hello hello jello"  [0,23)   visual line 0
+    //   "jello jello"              [24,35)  visual line 1
+    // followed by "next line" [36,45) on visual line 2, an empty line at offset 46 on
+    // visual line 3, and "after empty" [47,58) on visual line 4.
+    // Clicking within a visual line's Y range but past its text must place the caret at
+    // the end of that visual line, not on a neighboring line.
+    const rect = textarea.getBoundingClientRect();
+    // Content box starts after the textarea's 1px border and 2px padding; each line is 13px tall.
+    const contentX = rect.left + 3;
+    const lineCenterY = line => rect.top + 3 + line * 13 + 6.5;
+
+    const clickAt = (label, x, line) => {
+        internals.click(contentX + x, lineCenterY(line));
+        println(`${label}: start=${textarea.selectionStart} end=${textarea.selectionEnd}`);
+    };
+
+    clickAt("Click at start of second visual line", 1, 1);
+    clickAt("Click far past end of first visual line", 150, 0);
+    clickAt("Click far past end of second visual line", 150, 1);
+    clickAt("Click far past end of third visual line", 150, 2);
+    clickAt("Click just past end of third visual line", 60, 2);
+    clickAt("Click inside third visual line", 30, 2);
+    clickAt("Click on empty line", 30, 3);
+    clickAt("Click far past end of last line", 150, 4);
+});
+</script>
