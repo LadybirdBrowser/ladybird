@@ -954,4 +954,65 @@ QListView#LadybirdAutocompleteList {{
         surface, border, text);
 }
 
+QString downloads_popover_style_sheet(QPalette const& palette)
+{
+    auto surface = ChromeStyle::style_sheet_color(ChromeStyle::chrome_surface(palette));
+    auto recessed_surface = ChromeStyle::style_sheet_color(ChromeStyle::chrome_surface_recessed(palette));
+    auto hover_surface = ChromeStyle::style_sheet_color(ChromeStyle::chrome_surface_hover(palette));
+    auto border = ChromeStyle::style_sheet_color(ChromeStyle::chrome_border(palette));
+    auto text = ChromeStyle::style_sheet_color(ChromeStyle::chrome_text(palette));
+    auto muted_text = ChromeStyle::style_sheet_color(ChromeStyle::chrome_muted_text(palette));
+    auto accent = ChromeStyle::style_sheet_color(ChromeStyle::chrome_accent(palette));
+
+    return qformatted(R"(
+QFrame#LadybirdDownloadsPopover {{
+    color: {4};
+    background: {0};
+    border: 1px solid {3};
+    border-radius: 8px;
+}}
+
+QScrollArea#LadybirdDownloadsPopoverScroll,
+QWidget#LadybirdDownloadsPopoverRows {{
+    background: transparent;
+    border: 0;
+}}
+
+QLabel#LadybirdDownloadsPopoverTitle,
+QLabel#LadybirdDownloadFileName {{
+    color: {4};
+    font-weight: 600;
+}}
+
+QLabel#LadybirdDownloadStatus,
+QLabel#LadybirdDownloadsEmpty {{
+    color: {5};
+}}
+
+QFrame#LadybirdDownloadRow {{
+    background: {0};
+    border: 1px solid {3};
+    border-radius: 6px;
+}}
+
+QFrame#LadybirdDownloadRow:hover {{
+    background: {2};
+}}
+
+QProgressBar#LadybirdDownloadProgress {{
+    background: {1};
+    border: 0;
+    border-radius: 2px;
+    min-height: 4px;
+    max-height: 4px;
+}}
+
+QProgressBar#LadybirdDownloadProgress::chunk {{
+    background: {6};
+    border-radius: 2px;
+}}
+)",
+        surface, recessed_surface, hover_surface, border, text, muted_text, accent);
+}
+
 }
