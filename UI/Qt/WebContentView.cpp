@@ -455,6 +455,9 @@ static bool is_browser_reserved_shortcut(QKeyEvent const& event)
         return true;
 
 #if defined(AK_OS_MACOS)
+    if (modifiers == Qt::ControlModifier && key == Qt::Key_H)
+        return true;
+
     if (modifiers == Qt::MetaModifier && key == Qt::Key_Tab)
         return true;
 
