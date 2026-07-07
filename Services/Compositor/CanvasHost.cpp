@@ -10,6 +10,7 @@
 #include <LibGfx/CanvasCommandPlayer.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/SkiaBackendContext.h>
+#include <LibWeb/Painting/Canvas2DCommandStream.h>
 #include <LibWeb/Painting/CanvasSurfaceRegistry.h>
 
 namespace Compositor {
@@ -59,13 +60,6 @@ static NonnullRefPtr<Gfx::PaintingSurface> create_presented_canvas_surface(Gfx::
         source.skia_backend_context());
     copy_surface_contents(source, *surface);
     return surface;
-}
-
-CanvasHost::Canvas2DContext& CanvasHost::as_2d(Context& context)
-{
-    auto* canvas_context = context.get_pointer<Canvas2DContext>();
-    VERIFY(canvas_context);
-    return *canvas_context;
 }
 
 HostWebGLContext& CanvasHost::as_webgl(Context& context)
@@ -129,19 +123,33 @@ void CanvasHost::present_canvas_2d_context(Web::Painting::CanvasId canvas_id, Ca
     context.has_uncommitted_commands = false;
 }
 
-void CanvasHost::execute_canvas_2d_commands(Web::Painting::CanvasId canvas_id, Gfx::CanvasCommandList const& commands, bool commit)
+void CanvasHost::play_canvas_2d_segment(Web::Painting::CanvasId canvas_id, Gfx::CanvasCommandList const& commands, bool present)
 {
+    // The canvas may have been destroyed while these commands were pending in
+    // WebContent, so a missing context is not a protocol violation.
     auto* context = this->context(canvas_id);
-    VERIFY(context);
+    auto* canvas_context = context ? context->get_pointer<Canvas2DContext>() : nullptr;
+    if (!canvas_context)
+        return;
 
-    auto& canvas_context = as_2d(*context);
     if (!commands.is_empty()) {
-        canvas_context.command_player->play(commands);
-        canvas_context.has_uncommitted_commands = true;
+        canvas_context->command_player->play(commands);
+        canvas_context->has_uncommitted_commands = true;
     }
 
-    if (commit && canvas_context.has_uncommitted_commands)
-        present_canvas_2d_context(canvas_id, canvas_context);
+    if (present && canvas_context->has_uncommitted_commands)
+        present_canvas_2d_context(canvas_id, *canvas_context);
+}
+
+void CanvasHost::execute_canvas_2d_commands(Web::Painting::CanvasId canvas_id, Gfx::CanvasCommandList const& commands, bool commit)
+{
+    play_canvas_2d_segment(canvas_id, commands, commit);
+}
+
+void CanvasHost::execute_canvas_2d_stream(Vector<Web::Painting::Canvas2DCommandStreamSegment> const& segments)
+{
+    for (auto const& segment : segments)
+        play_canvas_2d_segment(segment.canvas_id, segment.commands, segment.present);
 }
 
 void CanvasHost::execute_webgl_commands(Web::Painting::CanvasId canvas_id, ReadonlyBytes commands, Vector<Gfx::DecodedImageFrame> const& bitmaps)

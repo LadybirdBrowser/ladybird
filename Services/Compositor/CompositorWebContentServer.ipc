@@ -11,6 +11,7 @@
 #include <LibWeb/Compositor/Types.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
+#include <LibWeb/Painting/Canvas2DCommandStream.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/ScrollState.h>
@@ -34,6 +35,7 @@ endpoint CompositorWebContentServer
 
     create_canvas_2d_context(Gfx::IntSize size, bool alpha) => (bool success, Web::Painting::CanvasId canvas_id)
     update_canvas_2d_commands(Web::Painting::CanvasId canvas_id, Gfx::CanvasCommandList commands, bool commit) =|
+    update_canvas_2d_stream(Vector<Web::Painting::Canvas2DCommandStreamSegment> segments) =|
     destroy_canvas_context(Web::Painting::CanvasId canvas_id) =|
     get_canvas_pixels(Web::Painting::CanvasId canvas_id, Gfx::IntRect rect) => (Gfx::ShareableBitmap pixels)
 

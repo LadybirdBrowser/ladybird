@@ -21,6 +21,7 @@
 #include <LibGfx/Forward.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibWeb/Compositor/Types.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/Painting/DisplayListResourceIds.h>
 #include <LibWeb/WebGL/Types.h>
 
@@ -51,6 +52,7 @@ public:
     bool has_context(Web::Painting::CanvasId) const;
 
     void execute_canvas_2d_commands(Web::Painting::CanvasId, Gfx::CanvasCommandList const&, bool commit);
+    void execute_canvas_2d_stream(Vector<Web::Painting::Canvas2DCommandStreamSegment> const&);
     void execute_webgl_commands(Web::Painting::CanvasId, ReadonlyBytes, Vector<Gfx::DecodedImageFrame> const&);
     ErrorOr<ByteBuffer> execute_webgl_sync_call(Web::Painting::CanvasId, ByteBuffer request);
     Web::WebGL::ReadPixelsResult webgl_read_pixels_robust_angle(Web::Painting::CanvasId, Web::WebGL::GLint x, Web::WebGL::GLint y, Web::WebGL::GLsizei width, Web::WebGL::GLsizei height, Web::WebGL::GLenum format, Web::WebGL::GLenum type, Web::WebGL::GLsizei buf_size, Core::AnonymousBuffer pixels);
@@ -70,9 +72,9 @@ private:
 
     Context* context(Web::Painting::CanvasId);
     OwnPtr<Gfx::CanvasCommandPlayer> create_2d_command_player(Gfx::IntSize, bool alpha);
-    static Canvas2DContext& as_2d(Context&);
     static HostWebGLContext& as_webgl(Context&);
     void present_canvas_2d_context(Web::Painting::CanvasId, Canvas2DContext&);
+    void play_canvas_2d_segment(Web::Painting::CanvasId, Gfx::CanvasCommandList const&, bool present);
 
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
     Web::Painting::CanvasSurfaceRegistry& m_canvas_surface_registry;

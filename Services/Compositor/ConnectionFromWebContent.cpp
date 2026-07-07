@@ -131,6 +131,11 @@ void ConnectionFromWebContent::update_canvas_2d_commands(Web::Painting::CanvasId
     m_canvas_host.execute_canvas_2d_commands(canvas_id, commands, commit);
 }
 
+void ConnectionFromWebContent::update_canvas_2d_stream(Vector<Web::Painting::Canvas2DCommandStreamSegment> segments)
+{
+    m_canvas_host.execute_canvas_2d_stream(segments);
+}
+
 void ConnectionFromWebContent::destroy_canvas_context(Web::Painting::CanvasId canvas_id)
 {
     m_canvas_host.destroy_context(canvas_id);
