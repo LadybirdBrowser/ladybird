@@ -1,18 +1,18 @@
-Down from offset 0: start=36 end=36
+Down from offset 0: start=24 end=24
 Up from start of second visual line: start=0 end=0
-Down from middle of second visual line: start=45 end=45
-Up from middle of third visual line: start=5 end=5
+Down from middle of second visual line: start=41 end=41
+Up from middle of third visual line: start=29 end=29
 Down from end of third visual line: start=46 end=46
 Down from empty line: start=47 end=47
 Up from empty line: start=36 end=36
 Up from last line: start=46 end=46
-End on first visual line: start=35 end=35
-Home on second visual line: start=0 end=0
+End on first visual line: start=23 end=23
+Home on second visual line: start=24 end=24
 End on second visual line: start=35 end=35
 Home on third visual line: start=36 end=36
 End on third visual line: start=45 end=45
 Home on empty line: start=46 end=46
 End on empty line: start=46 end=46
 End on last line: start=58 end=58
-Shift+Down from offset 0: start=0 end=36
-Shift+End on first visual line: start=0 end=35
+Shift+Down from offset 0: start=0 end=24
+Shift+End on first visual line: start=0 end=23

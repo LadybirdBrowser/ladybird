@@ -15,7 +15,6 @@
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/SelectionchangeEventDispatching.h>
-#include <LibWeb/GraphemeEdgeTracker.h>
 #include <LibWeb/HTML/CustomElements/CustomElementReactionNames.h>
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
@@ -35,6 +34,7 @@
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/UIEvents/InputTypes.h>
+#include <LibWeb/VisualLines.h>
 
 namespace Web::HTML {
 
@@ -1222,7 +1222,7 @@ void FormAssociatedTextControlElement::move_cursor_to_start_of_current_line(Coll
     auto text_node = form_associated_element_to_text_node();
     if (!text_node)
         return;
-    auto new_offset = find_line_start(text_node->data().utf16_view(), m_selection_end);
+    auto new_offset = find_visual_line_start(*text_node, m_selection_end);
     if (collapse == CollapseSelection::Yes) {
         collapse_selection_to_offset(new_offset);
     } else {
@@ -1236,7 +1236,7 @@ void FormAssociatedTextControlElement::move_cursor_to_end_of_current_line(Collap
     auto text_node = form_associated_element_to_text_node();
     if (!text_node)
         return;
-    auto new_offset = find_line_end(text_node->data().utf16_view(), m_selection_end);
+    auto new_offset = find_visual_line_end(*text_node, m_selection_end);
     if (collapse == CollapseSelection::Yes) {
         collapse_selection_to_offset(new_offset);
     } else {

@@ -77,9 +77,6 @@ private:
     float m_width_to_right_edge { 0 };
 };
 
-Optional<size_t> compute_cursor_position_on_next_line(DOM::Text const&, size_t current_offset);
-Optional<size_t> compute_cursor_position_on_previous_line(DOM::Text const&, size_t current_offset);
-
 size_t find_line_start(Utf16View const&, size_t offset);
 size_t find_line_end(Utf16View const&, size_t offset);
 

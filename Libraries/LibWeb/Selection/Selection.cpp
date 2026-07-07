@@ -13,10 +13,10 @@
 #include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
-#include <LibWeb/GraphemeEdgeTracker.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Selection/Selection.h>
+#include <LibWeb/VisualLines.h>
 
 namespace Web::Selection {
 

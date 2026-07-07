@@ -1045,6 +1045,7 @@ class FieldSetPaintable;
 class MediaPaintable;
 class Paintable;
 class Paintable;
+class PaintableFragment;
 class PaintableWithLines;
 class ScrollStateSnapshot;
 class StackingContext;

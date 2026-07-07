@@ -1098,6 +1098,7 @@ set(SOURCES
     UserTiming/PerformanceMark.cpp
     UserTiming/PerformanceMeasure.cpp
     ViewTransition/ViewTransition.cpp
+    VisualLines.cpp
     WebLocks/AbstractOperations.cpp
     WebLocks/Lock.cpp
     WebLocks/LockManager.cpp

@@ -90,6 +90,7 @@ enum class InvalidateLayoutTreeReason {
 #define ENUMERATE_UPDATE_LAYOUT_REASONS(X)   \
     X(AutoScrollSelection)                   \
     X(ChildDocumentStyleUpdate)              \
+    X(CursorLineNavigation)                  \
     X(Debugging)                             \
     X(DocumentElementFromPoint)              \
     X(DocumentElementsFromPoint)             \
