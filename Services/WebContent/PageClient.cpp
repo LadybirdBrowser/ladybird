@@ -155,6 +155,17 @@ void PageClient::set_has_focus(bool has_focus)
             document->reset_cursor_blink_cycle();
         document->set_cursor_position_needs_repaint();
     }
+
+    // The focus ring (outline: auto) is only painted while the window has focus, so the focused element must be
+    // repainted when that changes.
+    if (auto focused_document = page().focused_navigable().active_document()) {
+        if (auto focused_area = focused_document->focused_area()) {
+            if (auto* layout_node = focused_area->unsafe_layout_node()) {
+                for (auto& paintable : layout_node->paintables())
+                    paintable->set_needs_repaint();
+            }
+        }
+    }
 }
 
 void PageClient::set_window_handle(String window_handle)
