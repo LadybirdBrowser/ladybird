@@ -1377,6 +1377,9 @@ void Node::add_paintable(RefPtr<Painting::Paintable> paintable)
 
 void Node::clear_paintables()
 {
+    if (!m_paintable.is_empty())
+        document().invalidate_stacking_context_tree();
+
     invalidate_paint_caches(*this);
     for (auto& paintable : m_paintable) {
         if (paintable->parent())
