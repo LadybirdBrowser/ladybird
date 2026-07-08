@@ -149,7 +149,7 @@ WebIDL::ExceptionOr<void> Internals::load_reference_test_metadata()
             fuzzy_configuration.set("reference"sv, reference_url->to_string());
             content = Utf16String::from_utf16(content.substring_view(*colon_offset + 1));
         }
-        fuzzy_configuration.set("content"sv, content.to_utf8_but_should_be_ported_to_utf16());
+        fuzzy_configuration.set("content"sv, content.to_utf8());
 
         fuzzy_configurations.must_append(fuzzy_configuration);
     }

@@ -34,7 +34,7 @@ GC::Ptr<SVGGeometryElement const> SVGTextPathElement::path_or_shape() const
     auto href = has_attribute(AttributeNames::href) ? get_attribute(AttributeNames::href) : get_attribute(AttributeNames::xlink_href);
     if (!href.has_value())
         return {};
-    auto href_utf8 = href->to_utf8_but_should_be_ported_to_utf16();
+    auto href_utf8 = href->to_utf8();
     return try_resolve_url_to<SVGGeometryElement const>(CSS::URL { href_utf8 });
 }
 

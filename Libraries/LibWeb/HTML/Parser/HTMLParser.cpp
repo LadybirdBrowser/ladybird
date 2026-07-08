@@ -998,15 +998,15 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> HTMLParser::parse_html_fragment
     if (context_namespace_ffi == RustFfiHtmlNamespace::Other && context_namespace.has_value())
         context_namespace_uri = context_namespace->bytes_as_string_view();
     Vector<RustFfiHtmlParserAttribute> context_attributes;
-    Vector<String> attribute_values;
+    Vector<String> attribute_values_utf8;
     if (auto attributes = context_element.attributes()) {
         context_attributes.ensure_capacity(attributes->length());
-        attribute_values.ensure_capacity(attributes->length());
+        attribute_values_utf8.ensure_capacity(attributes->length());
         for (size_t i = 0; i < attributes->length(); ++i) {
             auto const* attribute = attributes->item(i);
             auto local_name = attribute->local_name().bytes_as_string_view();
-            attribute_values.unchecked_append(attribute->value().to_utf8_but_should_be_ported_to_utf16());
-            auto value = attribute_values.last().bytes_as_string_view();
+            attribute_values_utf8.unchecked_append(attribute->value().to_utf8());
+            auto value = attribute_values_utf8.last().bytes_as_string_view();
             auto prefix = attribute->prefix().map([](auto const& prefix) { return prefix.bytes_as_string_view(); });
             context_attributes.unchecked_append({
                 reinterpret_cast<u8 const*>(local_name.characters_without_null_termination()),

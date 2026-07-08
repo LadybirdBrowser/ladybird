@@ -265,8 +265,8 @@ void SVGUseElement::svg_element_removed(SVGElement& svg_element)
     }
 
     auto id = String::from_utf8_with_replacement_character(URL::percent_decode(*m_href->fragment()), String::WithBOMHandling::No);
-    auto id_attribute = svg_element.get_attribute_value("id"_fly_string).to_utf8_but_should_be_ported_to_utf16();
-    if (AK::StringUtils::matches(id_attribute.bytes_as_string_view(), id)) {
+    auto id_attribute_utf8 = svg_element.get_attribute_value("id"_fly_string).to_utf8();
+    if (AK::StringUtils::matches(id_attribute_utf8.bytes_as_string_view(), id)) {
         shadow_root()->remove_all_children();
     }
 }

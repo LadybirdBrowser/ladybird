@@ -3688,14 +3688,12 @@ Optional<String> Element::locate_a_namespace_prefix(Optional<String> const& name
         return this->prefix()->to_string();
 
     // 2. If element has an attribute whose namespace prefix is "xmlns" and value is namespace, then return element’s first such attribute’s local name.
-    if (auto attributes = this->attributes()) {
+    if (auto attributes = this->attributes(); attributes && namespace_.has_value()) {
+        auto namespace_utf16 = Utf16String::from_utf8(*namespace_);
         for (size_t i = 0; i < attributes->length(); ++i) {
             auto& attr = *attributes->item(i);
-            if (attr.prefix() == "xmlns" && namespace_.has_value()) {
-                auto value_utf8 = attr.value().to_utf8_but_should_be_ported_to_utf16();
-                if (value_utf8.bytes_as_string_view() == namespace_->bytes_as_string_view())
-                    return attr.local_name().to_string();
-            }
+            if (attr.prefix() == "xmlns" && attr.value() == namespace_utf16)
+                return attr.local_name().to_string();
         }
     }
 

@@ -38,8 +38,8 @@ WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> create_password_credential(JS::
         auto name = field->attribute(HTML::AttributeNames::name);
         if (!name.has_value())
             continue;
-        auto name_string = name->to_utf8_but_should_be_ported_to_utf16();
-        if (!form_data->has(name_string))
+        auto name_utf8 = name->to_utf8();
+        if (!form_data->has(name_utf8))
             continue;
 
         // 4. If field’s autocomplete attribute’s value contains one or more autofill detail tokens (tokens), then:
@@ -51,7 +51,7 @@ WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> create_password_credential(JS::
             //       Set data’s password member’s value to the result of executing formData’s get() method on name,
             //       and newPasswordObserved to true.
             if (token.equals_ignoring_ascii_case("new-password"sv)) {
-                if (auto password = form_data->get(name_string); password.has<String>()) {
+                if (auto password = form_data->get(name_utf8); password.has<String>()) {
                     data.password = password.get<String>();
                     new_password_observed = true;
                 }
@@ -62,30 +62,30 @@ WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> create_password_credential(JS::
             //       Note: By checking that newPasswordObserved is false, new-password fields take precedence over
             //             current-password fields.
             if (!new_password_observed && token.equals_ignoring_ascii_case("current-password"sv)) {
-                if (auto password = form_data->get(name_string); password.has<String>())
+                if (auto password = form_data->get(name_utf8); password.has<String>())
                     data.password = password.get<String>();
             }
             //    - "photo"
             //      Set data’s iconURL member’s value to the result of executing formData’s get() method on name.
             if (token.equals_ignoring_ascii_case("photo"sv)) {
-                if (auto photo = form_data->get(name_string); photo.has<String>())
+                if (auto photo = form_data->get(name_utf8); photo.has<String>())
                     data.icon_url = photo.get<String>();
             }
             //    - "name"
             //    - "nickname"
             //      Set data’s name member’s value to the result of executing formData’s get() method on name.
             if (token.equals_ignoring_ascii_case("name"sv)) {
-                if (auto name_ = form_data->get(name_string); name_.has<String>())
+                if (auto name_ = form_data->get(name_utf8); name_.has<String>())
                     data.name = name_.get<String>();
             }
             if (token.equals_ignoring_ascii_case("nickname"sv)) {
-                if (auto nickname = form_data->get(name_string); nickname.has<String>())
+                if (auto nickname = form_data->get(name_utf8); nickname.has<String>())
                     data.name = nickname.get<String>();
             }
             //    - "username"
             //      Set data’s id member’s value to the result of executing formData’s get() method on name.
             if (token.equals_ignoring_ascii_case("username"sv)) {
-                if (auto username = form_data->get(name_string); username.has<String>()) {
+                if (auto username = form_data->get(name_utf8); username.has<String>()) {
                     auto id = username.get<String>();
                     data.id = id;
                 }

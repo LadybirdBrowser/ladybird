@@ -128,7 +128,7 @@ static bool prefix_is_in_prefix_map(FlyString const& prefix, HashMap<Optional<Fl
 
 static FlyString attribute_value_as_fly_string(Utf16View value)
 {
-    auto value_utf8 = value.to_utf8_but_should_be_ported_to_utf16();
+    auto value_utf8 = MUST(value.to_utf8());
     return MUST(FlyString::from_utf8(value_utf8.bytes_as_string_view()));
 }
 

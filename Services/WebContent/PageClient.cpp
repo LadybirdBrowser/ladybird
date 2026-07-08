@@ -1219,7 +1219,7 @@ void PageClient::page_did_mutate_dom(FlyString const& type, Web::DOM::Node const
         mutation = WebView::AttributeMutation {
             *attribute_name,
             element.attribute(*attribute_name).map([](auto const& value) {
-                return value.to_utf8_but_should_be_ported_to_utf16();
+                return value.to_utf8();
             })
         };
     } else if (type == Web::DOM::MutationType::characterData) {

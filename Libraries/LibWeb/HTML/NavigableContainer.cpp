@@ -274,7 +274,7 @@ void NavigableContainer::navigate_an_iframe_or_frame(URL::URL url, ReferrerPolic
     //    initialInsertion.
     Variant<Empty, String, POSTResource> document_resource = Empty {};
     if (srcdoc_string.has_value())
-        document_resource = srcdoc_string->to_utf8_but_should_be_ported_to_utf16();
+        document_resource = srcdoc_string->to_utf8();
 
     MUST(m_content_navigable->navigate({
         .url = move(url),

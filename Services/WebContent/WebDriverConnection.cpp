@@ -1444,7 +1444,7 @@ Messages::WebDriverClient::GetElementAttributeResponse WebDriverConnection::get_
         else {
             // The result of getting an attribute by name name.
             if (auto attr = element->get_attribute(name); attr.has_value())
-                result = attr.release_value().to_utf8_but_should_be_ported_to_utf16();
+                result = attr.release_value().to_utf8();
         }
 
         // 5. Return success with data result.

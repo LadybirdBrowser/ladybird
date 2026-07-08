@@ -2101,7 +2101,7 @@ void Node::serialize_tree_as_json(JsonObjectSerializer<StringBuilder>& object) c
         if (element->has_attributes()) {
             auto attributes = MUST(object.add_object("attributes"sv));
             element->for_each_attribute([&attributes](FlyString const& name, Utf16String const& value) {
-                MUST(attributes.add(name, value.to_utf8_but_should_be_ported_to_utf16()));
+                MUST(attributes.add(name, value.to_utf8()));
             });
             MUST(attributes.finish());
         }
@@ -2503,7 +2503,7 @@ Optional<String> Node::locate_a_namespace(Optional<String> const& prefix) const
                     if ((attr.prefix() == "xmlns" && attr.local_name() == prefix) || (!prefix.has_value() && !attr.prefix().has_value() && attr.local_name() == "xmlns")) {
                         auto value = attr.value();
                         if (!value.is_empty())
-                            return value.to_utf8_but_should_be_ported_to_utf16();
+                            return value.to_utf8();
 
                         return {};
                     }
