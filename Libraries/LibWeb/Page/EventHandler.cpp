@@ -69,6 +69,105 @@ namespace Web {
     if (auto event_result = (expression); event_result == EventResult::Cancelled) \
         return event_result;
 
+static GC::Ptr<DOM::Node> associated_descendant_editing_host(DOM::Node& node)
+{
+    if (node.is_editing_host())
+        return node;
+    if (node.is_editable()) {
+        auto editing_host = node.editing_host();
+        return editing_host && editing_host->is_editing_host() ? editing_host : nullptr;
+    }
+
+    for (auto* ancestor = &node; ancestor; ancestor = ancestor->parent_or_shadow_host()) {
+        GC::Ptr<DOM::Node> editing_host;
+        bool has_multiple_editing_hosts = false;
+        ancestor->for_each_in_subtree([&](GC::Ref<DOM::Node> descendant) {
+            if (!descendant->is_editing_host())
+                return TraversalDecision::Continue;
+            if (editing_host) {
+                has_multiple_editing_hosts = true;
+                return TraversalDecision::Break;
+            }
+            editing_host = descendant;
+            return TraversalDecision::Continue;
+        });
+
+        if (editing_host && !has_multiple_editing_hosts)
+            return editing_host;
+        if (ancestor != &node && ancestor->is_focusable())
+            break;
+    }
+
+    return nullptr;
+}
+
+static GC::Ptr<DOM::Node> first_editable_leaf_descendant(DOM::Node& root)
+{
+    GC::Ptr<DOM::Node> result;
+    root.for_each_in_subtree([&](GC::Ref<DOM::Node> descendant) {
+        if (descendant->is_uninteresting_whitespace_node())
+            return TraversalDecision::Continue;
+        if (!descendant->is_editable())
+            return TraversalDecision::Continue;
+
+        bool has_editable_descendant = false;
+        descendant->for_each_in_subtree([&](GC::Ref<DOM::Node> child) {
+            if (child.ptr() == descendant.ptr())
+                return TraversalDecision::Continue;
+            if (child->is_uninteresting_whitespace_node())
+                return TraversalDecision::Continue;
+            if (!child->is_editable())
+                return TraversalDecision::Continue;
+            has_editable_descendant = true;
+            return TraversalDecision::Break;
+        });
+        if (has_editable_descendant)
+            return TraversalDecision::Continue;
+
+        result = descendant;
+        return TraversalDecision::Break;
+    });
+    return result;
+}
+
+static Optional<Painting::CaretPosition> caret_position_from_editable_hit_node(DOM::Node& hit_node)
+{
+    GC::Ptr<DOM::Node> boundary_node;
+    if (hit_node.is_editable_or_editing_host())
+        boundary_node = hit_node;
+    else if (auto editing_host = associated_descendant_editing_host(hit_node)) {
+        boundary_node = first_editable_leaf_descendant(*editing_host);
+        if (!boundary_node)
+            boundary_node = editing_host;
+    } else {
+        return {};
+    }
+
+    auto paintable = boundary_node->paintable();
+    if (!paintable)
+        paintable = hit_node.paintable();
+    if (!paintable)
+        return {};
+
+    return Painting::CaretPosition {
+        .paintable = *paintable,
+        .boundary = { *boundary_node, 0 },
+    };
+}
+
+static bool should_use_caret_position_from_editable_hit_node(Optional<Painting::CaretPosition> const& caret_position, DOM::Node& hit_node, DOM::Node& editing_host)
+{
+    if (!hit_node.is_inclusive_descendant_of(editing_host))
+        return true;
+    if (!caret_position.has_value())
+        return true;
+    if (!caret_position->boundary.node->is_inclusive_descendant_of(editing_host))
+        return true;
+    if (caret_position->boundary.node.ptr() == &editing_host && first_editable_leaf_descendant(editing_host))
+        return true;
+    return false;
+}
+
 EventHandler::EventHandler(Badge<HTML::LocalNavigable>, HTML::LocalNavigable& navigable)
     : m_navigable(navigable)
     , m_drag_and_drop_event_handler(make<DragAndDropEventHandler>())
@@ -1618,7 +1717,17 @@ void EventHandler::run_mousedown_default_actions(DOM::Document& document, CSSPix
     // focusable area with focus trigger set to "click".
     // NOTE: Note that focusing is not an activation behavior, i.e. calling the click() method on an element or
     //       dispatching a synthetic click event on it won't cause the element to get focused.
-    if (auto focus_candidate = focus_candidate_for_position(viewport_position))
+    GC::Ptr<DOM::Node> editable_hit_node_before_focus;
+    if (auto hit_before_focus = document.hit_test(visual_viewport_position, Painting::HitTestType::Exact); hit_before_focus.has_value()) {
+        if (auto* hit_node = hit_before_focus->dom_node())
+            editable_hit_node_before_focus = *hit_node;
+    }
+    auto editing_host_before_focus = editable_hit_node_before_focus ? associated_descendant_editing_host(*editable_hit_node_before_focus) : nullptr;
+
+    auto focus_candidate = editing_host_before_focus;
+    if (!focus_candidate)
+        focus_candidate = focus_candidate_for_position(viewport_position);
+    if (focus_candidate)
         HTML::run_focusing_steps(focus_candidate, nullptr, HTML::FocusTrigger::Click);
     else if (auto focused_area = document.focused_area())
         HTML::run_unfocusing_steps(focused_area);
@@ -1630,6 +1739,10 @@ void EventHandler::run_mousedown_default_actions(DOM::Document& document, CSSPix
 
     // NB: Now we can do selection with a caret-position hit test.
     auto caret_position = document.caret_position_from_point_for_selection_start(visual_viewport_position);
+    if (editable_hit_node_before_focus && editing_host_before_focus && should_use_caret_position_from_editable_hit_node(caret_position, *editable_hit_node_before_focus, *editing_host_before_focus)) {
+        if (editable_hit_node_before_focus)
+            caret_position = caret_position_from_editable_hit_node(*editable_hit_node_before_focus);
+    }
     if (!caret_position.has_value())
         return;
 
