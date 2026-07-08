@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="target"></div>
+<script>
+    test(() => {
+        internals.dumpDisplayList();
+
+        target.appendChild(document.createElement("div"));
+        internals.setPageFocus(false);
+
+        println("PASS");
+    });
+</script>

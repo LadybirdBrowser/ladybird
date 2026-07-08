@@ -158,7 +158,9 @@ void PageClient::set_has_focus(bool has_focus)
     // nothing painted before the change can be reused; repaint every document in the traversable.
     Function<void(Web::HTML::LocalNavigable&)> invalidate_cached_paint_recursively = [&](Web::HTML::LocalNavigable& navigable) {
         if (auto navigable_document = navigable.active_document()) {
-            if (auto viewport_paintable = navigable_document->paintable())
+            // Focus changes can arrive while layout is invalidated. We only need to invalidate cached paint
+            // on the current paintable tree here, without requiring layout to be up to date first.
+            if (auto viewport_paintable = navigable_document->unsafe_paintable())
                 viewport_paintable->invalidate_all_cached_paint();
         }
         for (auto& child_navigable : navigable.child_navigables())
