@@ -2552,7 +2552,11 @@ ScrollbarColorData ComputedProperties::scrollbar_color(Layout::NodeWithStyle con
         auto& scrollbar_color_value = value.as_scrollbar_color();
         auto thumb_color = scrollbar_color_value.thumb_color()->to_color(ColorResolutionContext::for_layout_node_with_style(layout_node)).value();
         auto track_color = scrollbar_color_value.track_color()->to_color(ColorResolutionContext::for_layout_node_with_style(layout_node)).value();
-        return { thumb_color, track_color };
+        return {
+            .thumb_color = thumb_color,
+            .track_color = track_color,
+            .is_auto = false,
+        };
     }
 
     return {};

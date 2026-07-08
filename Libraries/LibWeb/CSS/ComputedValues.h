@@ -105,6 +105,7 @@ struct ContainerType {
 struct ScrollbarColorData {
     Color thumb_color { Color::Transparent };
     Color track_color { Color::Transparent };
+    bool is_auto { true };
 };
 
 struct TextIndentData {
@@ -311,6 +312,7 @@ public:
         return ScrollbarColorData {
             .thumb_color = Color(Color::NamedColor::DarkGray).with_alpha(192),
             .track_color = Color(Color::NamedColor::WarmGray).with_alpha(192),
+            .is_auto = true,
         };
     }
     static ScrollbarWidth scrollbar_width() { return ScrollbarWidth::Auto; }

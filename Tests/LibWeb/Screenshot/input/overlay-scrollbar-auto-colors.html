@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<meta name="fuzzy" content="maxDifference=0-2;totalPixels=0-600">
+<style>
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        padding: 20px;
+        background: white;
+    }
+
+    .row {
+        display: flex;
+        gap: 24px;
+    }
+
+    .scroller {
+        width: 96px;
+        height: 140px;
+        overflow: scroll;
+    }
+
+    .content {
+        width: 180px;
+        height: 300px;
+    }
+
+    .light,
+    .light .content {
+        background: rgb(244, 241, 232);
+    }
+
+    .dark,
+    .dark .content {
+        background: rgb(74, 88, 98);
+    }
+
+    .custom,
+    .custom .content {
+        background: rgb(74, 88, 98);
+    }
+
+    .custom {
+        scrollbar-color: rgb(47, 99, 255) transparent;
+    }
+</style>
+<div class="row">
+    <div class="scroller light"><div class="content"></div></div>
+    <div class="scroller dark"><div class="content"></div></div>
+    <div class="scroller custom"><div class="content"></div></div>
+</div>
