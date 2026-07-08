@@ -3812,6 +3812,30 @@ static bool matches_subject_pseudo_class_bucket(PseudoClass pseudo_class, DOM::E
     }
 }
 
+static NonnullRefPtr<StyleValue const> resolve_css_wide_keyword_for_custom_property(Optional<CustomPropertyRegistration const&> registration, DOM::AbstractElement const& element, Utf16FlyString const& name, NonnullRefPtr<StyleValue const> keyword_value)
+{
+    if (keyword_value->is_initial())
+        return initial_custom_property_value(registration, element.document());
+
+    if (keyword_value->is_inherit())
+        return inherited_custom_property_value(registration, element, name);
+
+    // Unset is the same as inherit for inherited properties, and by default all unregistered custom properties inherit.
+    if (keyword_value->is_unset())
+        return registration.has_value() && !registration->inherit ? initial_custom_property_value(registration, element.document()) : inherited_custom_property_value(registration, element, name);
+
+    if (keyword_value->is_revert()) {
+        // FIXME: Implement reverting custom properties.
+        return keyword_value;
+    }
+    if (keyword_value->is_revert_layer()) {
+        // FIXME: Implement reverting custom properties.
+        return keyword_value;
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
 NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(ComputedProperties const* computed_style_for_custom_property_resolution, DOM::AbstractElement abstract_element, Utf16FlyString const& name, Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts) const
 {
     // https://drafts.csswg.org/css-variables/#propdef-
@@ -3821,26 +3845,10 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(
     auto registration = document.get_registered_custom_property(name);
 
     auto value = abstract_element.get_custom_property(name);
-    if (!value || value->is_initial())
-        return initial_custom_property_value(registration, document);
+    auto resolved_value = value ? value.release_nonnull() : initial_custom_property_value(registration, document);
 
-    if (value->is_inherit())
-        return inherited_custom_property_value(registration, abstract_element, name);
-
-    // Unset is the same as inherit for inherited properties, and by default all unregistered custom properties inherit.
-    if (value->is_unset())
-        return registration.has_value() && !registration->inherit ? initial_custom_property_value(registration, document) : inherited_custom_property_value(registration, abstract_element, name);
-
-    if (value->is_revert()) {
-        // FIXME: Implement reverting custom properties.
-        return value.release_nonnull();
-    }
-    if (value->is_revert_layer()) {
-        // FIXME: Implement reverting custom properties.
-        return value.release_nonnull();
-    }
-
-    NonnullRefPtr<StyleValue const> resolved_value = value.release_nonnull();
+    if (resolved_value->is_css_wide_keyword())
+        return resolve_css_wide_keyword_for_custom_property(registration, abstract_element, name, move(resolved_value));
 
     if (resolved_value->is_unresolved() && resolved_value->as_unresolved().contains_arbitrary_substitution_function()) {
         auto& unresolved = resolved_value->as_unresolved();
@@ -3851,13 +3859,8 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(
 
         // A CSS-wide keyword produced by substitution takes on that keyword's meaning for the custom property,
         // exactly as a literally-specified one would (handled above before substitution).
-        if (resolved_value->is_initial())
-            return initial_custom_property_value(registration, document);
-        if (resolved_value->is_inherit())
-            return inherited_custom_property_value(registration, abstract_element, name);
-        if (resolved_value->is_unset())
-            return registration.has_value() && !registration->inherit ? initial_custom_property_value(registration, document) : inherited_custom_property_value(registration, abstract_element, name);
-        // FIXME: Implement reverting custom properties for is_revert() / is_revert_layer().
+        if (resolved_value->is_css_wide_keyword())
+            return resolve_css_wide_keyword_for_custom_property(registration, abstract_element, name, move(resolved_value));
     }
 
     auto invalid_custom_property_fallback_value = [&](NonnullRefPtr<StyleValue const> invalid_value) {
