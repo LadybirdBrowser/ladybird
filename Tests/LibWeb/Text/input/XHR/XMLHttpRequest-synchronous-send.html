@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // While a sync XHR send() is blocked, the event loop is paused: It must not run tasks or perform microtask
+    // checkpoints. The fetch still has to complete and deliver its response while send() is blocked.
+    asyncTest(done => {
+        const dataXhr = new XMLHttpRequest();
+        dataXhr.open("GET", "data:text/plain,hello", false);
+        dataXhr.send();
+        println(`data: status=${dataXhr.status} responseText=${dataXhr.responseText}`);
+
+        httpTestServer()
+            .createEcho("GET", "/xhr-synchronous-send", {
+                status: 200,
+                headers: {
+                    "Access-Control-Allow-Origin": "*",
+                    "Content-Type": "text/plain",
+                },
+                body: "hello over http",
+            })
+            .then(url => {
+                // Perform the synchronous send() from a task, not from within a microtask.
+                setTimeout(() => {
+                    const httpXhr = new XMLHttpRequest();
+                    httpXhr.open("GET", url, false);
+                    httpXhr.send();
+                    println(`http: status=${httpXhr.status} responseText=${httpXhr.responseText}`);
+                    done();
+                });
+            });
+    });
+</script>
