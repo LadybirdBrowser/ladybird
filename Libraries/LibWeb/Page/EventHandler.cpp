@@ -37,6 +37,7 @@
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/Navigator.h>
 #include <LibWeb/HTML/PaintConfig.h>
+#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Layout/TextOffsetMapping.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/AutoScrollHandler.h>
@@ -1389,8 +1390,12 @@ EventResult EventHandler::handle_paste(Utf16String const& text)
     if (!target)
         return EventResult::Dropped;
 
-    FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::insertFromPaste, m_navigable, text));
-    target->handle_insert(UIEvents::InputTypes::insertFromPaste, text);
+    // Clipboard text can contain CRLF or lone CR line breaks (e.g. from the system clipboard); normalize them to
+    // newlines like other browsers, so that no raw carriage returns end up in the document.
+    auto normalized_text = Infra::normalize_newlines(text);
+
+    FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::insertFromPaste, m_navigable, normalized_text));
+    target->handle_insert(UIEvents::InputTypes::insertFromPaste, normalized_text);
 
     return EventResult::Handled;
 }

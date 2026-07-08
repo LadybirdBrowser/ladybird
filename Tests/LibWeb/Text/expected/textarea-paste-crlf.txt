@@ -1,4 +1,4 @@
 value="one\ntwo\nthree\n"
 value.length=14 textLength=14 selectionStart=14
-End on first line: start=4 end=4
-Right from end of first line's text: start=5 end=5
+End on first line: start=3 end=3
+Right from end of first line's text: start=4 end=4
