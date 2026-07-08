@@ -45,7 +45,7 @@ def main():
     compiler_parser.add_argument("--cxx", required=False, default=default_cxx)
     compiler_parser.add_argument("--jobs", "-j", required=False)
     compiler_parser.add_argument(
-        "--gui", required=False, type=GUIFramework.from_string, choices=platform.valid_gui_frameworks()
+        "--gui", "--ui", required=False, type=GUIFramework.from_string, choices=platform.valid_gui_frameworks()
     )
 
     target_parser = argparse.ArgumentParser(add_help=False)
