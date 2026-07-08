@@ -235,6 +235,7 @@ public:
     //         dom_tree_version() to understand whether either the DOM tree structure or contents were changed.
     u64 character_data_version() const { return m_character_data_version; }
     void bump_character_data_version() { ++m_character_data_version; }
+    bool preserve_selection_offsets_during_identical_character_data_replacement() const { return m_preserve_selection_offsets_during_identical_character_data_replacement; }
 
     WebIDL::ExceptionOr<void> populate_with_html_head_and_body();
 
@@ -1613,6 +1614,7 @@ private:
     GC::Ref<EditingHostManager> m_editing_host_manager;
 
     bool m_inside_exec_command { false };
+    bool m_preserve_selection_offsets_during_identical_character_data_replacement { false };
 
     // https://w3c.github.io/editing/docs/execCommand/#default-single-line-container-name
     FlyString m_default_single_line_container_name { HTML::TagNames::div };

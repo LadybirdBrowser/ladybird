@@ -16,6 +16,7 @@ GC::Ref<InputEvent> InputEvent::create_from_platform_event(JS::Realm& realm, Fly
 {
     auto event = realm.create<InputEvent>(realm, event_name, event_init, target_ranges);
     event->set_bubbles(true);
+    event->set_composed(true);
     if (event_name == "beforeinput"_fly_string) {
         event->set_cancelable(true);
     }
