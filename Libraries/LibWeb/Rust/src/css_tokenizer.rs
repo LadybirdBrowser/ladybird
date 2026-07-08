@@ -67,7 +67,7 @@ pub struct CssToken {
     pub number_type: CssNumberType,
     pub number_value: f64,
     pub delim: u32,
-    pub value_ptr: *const u8,
+    pub value_ptr: *const u16,
     pub value_len: usize,
     pub original_source_ptr: *const u8,
     pub original_source_len: usize,
@@ -132,10 +132,11 @@ impl Token {
         }
     }
 
-    pub(crate) fn as_ffi(&self, filtered_input: &str) -> CssToken {
+    pub(crate) fn as_ffi(&self, filtered_input: &str, value: &[u16]) -> CssToken {
         let original_source =
             &filtered_input.as_bytes()[self.original_source_range.start..self.original_source_range.end];
         let (original_source_ptr, original_source_len) = bytes_parts(original_source);
+        let (value_ptr, value_len) = utf16_parts(value);
 
         let mut css_token = CssToken {
             token_type: CssTokenType::Invalid,
@@ -143,8 +144,8 @@ impl Token {
             number_type: CssNumberType::Number,
             number_value: 0.0,
             delim: 0,
-            value_ptr: ptr::null(),
-            value_len: 0,
+            value_ptr,
+            value_len,
             original_source_ptr,
             original_source_len,
             start_line: self.range.start.line,
@@ -155,31 +156,25 @@ impl Token {
 
         match &self.token_type {
             TokenType::EndOfFile => css_token.token_type = CssTokenType::EndOfFile,
-            TokenType::Ident { value } => {
+            TokenType::Ident { .. } => {
                 css_token.token_type = CssTokenType::Ident;
-                (css_token.value_ptr, css_token.value_len) = string_parts(value);
             }
-            TokenType::Function { name } => {
+            TokenType::Function { .. } => {
                 css_token.token_type = CssTokenType::Function;
-                (css_token.value_ptr, css_token.value_len) = string_parts(name);
             }
-            TokenType::AtKeyword { name } => {
+            TokenType::AtKeyword { .. } => {
                 css_token.token_type = CssTokenType::AtKeyword;
-                (css_token.value_ptr, css_token.value_len) = string_parts(name);
             }
-            TokenType::Hash { hash_type, value } => {
+            TokenType::Hash { hash_type, .. } => {
                 css_token.token_type = CssTokenType::Hash;
                 css_token.hash_type = *hash_type;
-                (css_token.value_ptr, css_token.value_len) = string_parts(value);
             }
-            TokenType::String { value } => {
+            TokenType::String { .. } => {
                 css_token.token_type = CssTokenType::String;
-                (css_token.value_ptr, css_token.value_len) = string_parts(value);
             }
             TokenType::BadString => css_token.token_type = CssTokenType::BadString,
-            TokenType::Url { value } => {
+            TokenType::Url { .. } => {
                 css_token.token_type = CssTokenType::Url;
-                (css_token.value_ptr, css_token.value_len) = string_parts(value);
             }
             TokenType::BadUrl => css_token.token_type = CssTokenType::BadUrl,
             TokenType::Delim { value } => {
@@ -196,11 +191,10 @@ impl Token {
                 css_token.number_type = number.number_type;
                 css_token.number_value = number.value;
             }
-            TokenType::Dimension { number, unit } => {
+            TokenType::Dimension { number, .. } => {
                 css_token.token_type = CssTokenType::Dimension;
                 css_token.number_type = number.number_type;
                 css_token.number_value = number.value;
-                (css_token.value_ptr, css_token.value_len) = string_parts(unit);
             }
             TokenType::Whitespace => css_token.token_type = CssTokenType::Whitespace,
             TokenType::Cdo => css_token.token_type = CssTokenType::CDO,
@@ -217,6 +211,19 @@ impl Token {
         }
 
         css_token
+    }
+
+    pub(crate) fn value_as_utf16(&self) -> Vec<u16> {
+        match &self.token_type {
+            TokenType::Ident { value }
+            | TokenType::Function { name: value }
+            | TokenType::AtKeyword { name: value }
+            | TokenType::Hash { value, .. }
+            | TokenType::String { value }
+            | TokenType::Url { value }
+            | TokenType::Dimension { unit: value, .. } => value.encode_utf16().collect(),
+            _ => Vec::new(),
+        }
     }
 }
 
@@ -1138,15 +1145,19 @@ impl<'a> Tokenizer<'a> {
     }
 }
 
-fn string_parts(string: &str) -> (*const u8, usize) {
-    bytes_parts(string.as_bytes())
-}
-
 fn bytes_parts(bytes: &[u8]) -> (*const u8, usize) {
     if bytes.is_empty() {
         (ptr::null(), 0)
     } else {
         (bytes.as_ptr(), bytes.len())
+    }
+}
+
+fn utf16_parts(code_units: &[u16]) -> (*const u16, usize) {
+    if code_units.is_empty() {
+        (ptr::null(), 0)
+    } else {
+        (code_units.as_ptr(), code_units.len())
     }
 }
 
