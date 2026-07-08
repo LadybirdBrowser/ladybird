@@ -2631,7 +2631,7 @@ GC::Ptr<DOM::Node> LocalTraversableNavigable::currently_focused_area()
     while (candidate->focused_area()
         && is<NavigableContainer>(candidate->focused_area().ptr())
         && as<NavigableContainer>(*candidate->focused_area()).content_navigable()) {
-        candidate = as<NavigableContainer>(*candidate->focused_area()).content_navigable()->active_document();
+        candidate = as<LocalNavigable>(*as<NavigableContainer>(*candidate->focused_area()).content_navigable()).active_document();
     }
 
     // 4. If candidate's focused area is non-null, set candidate to candidate's focused area.

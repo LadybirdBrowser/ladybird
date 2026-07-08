@@ -468,7 +468,7 @@ void HTMLObjectElement::run_object_representation_handler_steps(Fetch::Infrastru
         // If response's URL does not match about:blank, then navigate the element's content navigable to response's URL
         // using the element's node document, with historyHandling set to "replace".
         if (response.url().has_value() && !url_matches_about_blank(*response.url())) {
-            MUST(m_content_navigable->navigate({
+            MUST(as<HTML::LocalNavigable>(*m_content_navigable).navigate({
                 .url = *response.url(),
                 .source_document = document(),
                 .history_handling = Bindings::NavigationHistoryBehavior::Replace,

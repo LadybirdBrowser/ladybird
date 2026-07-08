@@ -1182,7 +1182,7 @@ static void append_grid_layouts_for_node_and_frame_descendants(Web::DOM::Node& r
         if (!content_navigable)
             return Web::TraversalDecision::Continue;
 
-        auto content_document = content_navigable->active_document();
+        auto content_document = as<Web::HTML::LocalNavigable>(*content_navigable).active_document();
         if (!content_document)
             return Web::TraversalDecision::Continue;
 

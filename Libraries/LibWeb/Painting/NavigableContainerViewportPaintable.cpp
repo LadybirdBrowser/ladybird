@@ -41,19 +41,20 @@ void NavigableContainerViewportPaintable::paint(DisplayListRecordingContext& con
         auto const& navigable_container = this->navigable_container();
         auto content_navigable = navigable_container.content_navigable();
         VERIFY(content_navigable);
-        if (content_navigable->has_been_destroyed())
+        auto& local_navigable = as<HTML::LocalNavigable>(*content_navigable);
+        if (local_navigable.has_been_destroyed())
             return;
 
         auto context_id = document().page().client().compositor_context_id_for_remote_child_frame(content_navigable->id());
         if (!context_id.has_value()) {
-            if (!content_navigable->has_compositor_context())
+            if (!local_navigable.has_compositor_context())
                 return;
 
             auto* hosted_document = const_cast<DOM::Document*>(navigable_container.content_document_without_origin_check());
             if (hosted_document && hosted_document->is_render_blocked())
                 return;
 
-            context_id = content_navigable->compositor_context().id();
+            context_id = local_navigable.compositor_context().id();
         }
 
         context.display_list_recorder().save();
@@ -65,7 +66,7 @@ void NavigableContainerViewportPaintable::paint(DisplayListRecordingContext& con
         context.display_list_recorder().restore();
 
         if constexpr (HIGHLIGHT_FOCUSED_FRAME_DEBUG) {
-            if (content_navigable->is_focused()) {
+            if (local_navigable.is_focused()) {
                 context.display_list_recorder().draw_rect(clip_rect.to_type<int>(), Color::Cyan);
             }
         }

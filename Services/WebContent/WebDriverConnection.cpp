@@ -848,7 +848,7 @@ Messages::WebDriverClient::SwitchToFrameResponse WebDriverConnection::switch_to_
 
             // 5. Set the current browsing context with session and element's content navigable's active browsing context.
             auto& navigable_container = static_cast<Web::HTML::NavigableContainer&>(*element);
-            set_current_browsing_context(*navigable_container.content_navigable()->active_browsing_context());
+            set_current_browsing_context(*as<Web::HTML::LocalNavigable>(*navigable_container.content_navigable()).active_browsing_context());
 
             async_driver_execution_complete(JsonValue {});
         });

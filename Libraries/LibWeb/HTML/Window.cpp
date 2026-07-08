@@ -52,6 +52,7 @@
 #include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLObjectElement.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/Location.h>
 #include <LibWeb/HTML/MessageEvent.h>
@@ -1968,9 +1969,10 @@ JS::Value Window::named_item_value(FlyString const& name) const
         // 1. Let container be the first navigable container in window's associated Document's descendants whose content navigable is in objects.
         GC::Ptr<NavigableContainer> container = nullptr;
         mutable_this.associated_document().for_each_in_subtree_of_type<HTML::NavigableContainer>([&](HTML::NavigableContainer& navigable_container) {
-            if (!navigable_container.content_navigable())
+            auto content_navigable = navigable_container.content_navigable();
+            if (!content_navigable)
                 return TraversalDecision::Continue;
-            if (objects.navigables.contains_slow(GC::Ref { *navigable_container.content_navigable() })) {
+            if (objects.navigables.contains_slow(GC::Ref { as<LocalNavigable>(*content_navigable) })) {
                 container = navigable_container;
                 return TraversalDecision::Break;
             }

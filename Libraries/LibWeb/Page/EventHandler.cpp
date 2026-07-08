@@ -219,7 +219,7 @@ static Optional<EventResult> dispatch_event_to_nested_navigable(Painting::Painta
     if (auto* navigable_paintable = as_if<Painting::NavigableContainerViewportPaintable>(paintable)) {
         auto position = navigable_paintable->transform_to_local_coordinates(viewport_position) - navigable_paintable->absolute_rect().location();
         if (auto content_navigable = as_if<HTML::NavigableContainer>(*node)->content_navigable()) {
-            return dispatch(content_navigable->event_handler(), position);
+            return dispatch(as<HTML::LocalNavigable>(*content_navigable).event_handler(), position);
         }
         return EventResult::Dropped;
     }
@@ -1514,7 +1514,7 @@ EventResult EventHandler::fire_keyboard_event(FlyString const& event_name, HTML:
         if (is<HTML::NavigableContainer>(*focused_area)) {
             auto& navigable_container = as<HTML::NavigableContainer>(*focused_area);
             if (navigable_container.content_navigable())
-                return fire_keyboard_event(event_name, *navigable_container.content_navigable(), key, modifiers, code_point, repeat);
+                return fire_keyboard_event(event_name, as<HTML::LocalNavigable>(*navigable_container.content_navigable()), key, modifiers, code_point, repeat);
         }
 
         auto event = UIEvents::KeyboardEvent::create_from_platform_event(document->realm(), event_name, key, modifiers, code_point, repeat);
@@ -1553,7 +1553,7 @@ EventResult EventHandler::input_event(FlyString const& event_name, FlyString con
         if (is<HTML::NavigableContainer>(*focused_area)) {
             auto& navigable_container = as<HTML::NavigableContainer>(*focused_area);
             if (navigable_container.content_navigable())
-                return input_event(event_name, input_type, *navigable_container.content_navigable(), move(code_point_or_string));
+                return input_event(event_name, input_type, as<HTML::LocalNavigable>(*navigable_container.content_navigable()), move(code_point_or_string));
         }
 
         auto event = UIEvents::InputEvent::create_from_platform_event(document->realm(), event_name, input_event_init, target_ranges_for_input_event(*document, input_type));

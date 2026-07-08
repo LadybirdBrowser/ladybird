@@ -223,9 +223,7 @@ void run_iframe_load_event_steps(HTMLIFrameElement& element)
         return;
     }
 
-    // 2. Let childDocument be element's content navigable's active document.
-    [[maybe_unused]] auto child_document = element.content_navigable()->active_document();
-
+    // FIXME: 2. Let childDocument be element's content navigable's active document.
     // FIXME: 3. If childDocument has its mute iframe load flag set, then return.
 
     // 4. If element's pending resource-timing start time is not null:

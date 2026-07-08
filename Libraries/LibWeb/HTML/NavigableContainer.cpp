@@ -149,7 +149,7 @@ DOM::Document const* NavigableContainer::content_document() const
         return nullptr;
 
     // 2. Let document be container's content navigable's active document.
-    auto document = m_content_navigable->active_document();
+    auto document = as<LocalNavigable>(*m_content_navigable).active_document();
 
     // AD-HOC: The active document can be null during navigation, after the old document
     //         has been destroyed but before the new document has been set.
@@ -169,7 +169,7 @@ DOM::Document const* NavigableContainer::content_document_without_origin_check()
     if (!m_content_navigable)
         return nullptr;
 
-    return m_content_navigable->active_document();
+    return as<LocalNavigable>(*m_content_navigable).active_document();
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content-other.html#dom-media-getsvgdocument
@@ -229,15 +229,16 @@ Optional<URL::URL> NavigableContainer::shared_attribute_processing_steps_for_ifr
     //         navigable's ongoing_navigation, causing the real navigation to be dropped when its populate completion
     //         callback checks ongoing_navigation != navigation_id. Non-blank src navigations must still be processed
     //         here, and will be queued by LocalNavigable::navigate() until the child navigable is ready for navigation.
+    auto& local_navigable = as<LocalNavigable>(*m_content_navigable);
+
     if (url_matches_about_blank(url) && initial_insertion == InitialInsertion::Yes
-        && (m_content_navigable->has_pending_navigations()
-            || !m_content_navigable->ongoing_navigation().has<Empty>())) {
+        && (local_navigable.has_pending_navigations() || !local_navigable.ongoing_navigation().has<Empty>())) {
         return {};
     }
 
     // 4. If url matches about:blank and initialInsertion is true, then perform the URL and history update steps given element's content navigable's active document and url.
     if (url_matches_about_blank(url) && initial_insertion == InitialInsertion::Yes) {
-        auto& document = *m_content_navigable->active_document();
+        auto& document = *local_navigable.active_document();
         perform_url_and_history_update_steps(document, url);
     }
 
@@ -255,7 +256,8 @@ void NavigableContainer::navigate_an_iframe_or_frame(URL::URL url, ReferrerPolic
     // AD-HOC: Only apply this check during initial insertion. For subsequent attribute-driven navigations,
     //         the previous document may have parsed and run scripts but not yet fired its load event;
     //         forcing "replace" in that case would incorrectly discard the history entry.
-    if (initial_insertion == InitialInsertion::Yes && m_content_navigable->active_document() && !m_content_navigable->active_document()->is_completely_loaded()) {
+    auto& local_navigable = as<LocalNavigable>(*m_content_navigable);
+    if (initial_insertion == InitialInsertion::Yes && local_navigable.active_document() && !local_navigable.active_document()->is_completely_loaded()) {
         history_handling = Bindings::NavigationHistoryBehavior::Replace;
     }
 
@@ -276,7 +278,7 @@ void NavigableContainer::navigate_an_iframe_or_frame(URL::URL url, ReferrerPolic
     if (srcdoc_string.has_value())
         document_resource = srcdoc_string.value();
 
-    MUST(m_content_navigable->navigate({
+    MUST(local_navigable.navigate({
         .url = move(url),
         .source_document = document(),
         .document_resource = document_resource,
@@ -301,33 +303,37 @@ void NavigableContainer::destroy_the_child_navigable()
     // Therefore, it is moved to run in afterAllDestruction callback of "destroy a document and its descendants"
     // when all queued tasks are done.
     // "Has been destroyed" flag is used instead to check whether navigable is already destroyed.
-    if (navigable->has_been_destroyed())
+    auto& local_navigable = as<LocalNavigable>(*navigable);
+
+    if (local_navigable.has_been_destroyed())
         return;
-    navigable->set_has_been_destroyed();
+    local_navigable.set_has_been_destroyed();
 
     // AD-HOC: Clear the navigable's "is delaying load events" flag.
     //         This removes the DocumentLoadEventDelayer on the parent document that was
     //         created when the navigable started loading (navigate algorithm step 15).
     //         Without this, the delayer lingers until GC collects the LocalNavigable, which can
     //         block the parent document's load event indefinitely.
-    navigable->set_delaying_load_events(false);
+    local_navigable.set_delaying_load_events(false);
 
     // AD-HOC: Clear the navigation load event guard that may have been set by
     //         finalize_a_cross_document_navigation. Without this, the guard's
     //         DocumentLoadEventDelayer on the parent document persists until GC,
     //         blocking the parent's load event indefinitely.
-    navigable->clear_navigation_load_event_guard();
+    local_navigable.clear_navigation_load_event_guard();
 
     // 4. Inform the navigation API about child navigable destruction given navigable.
-    navigable->inform_the_navigation_api_about_child_navigable_destruction();
+    local_navigable.inform_the_navigation_api_about_child_navigable_destruction();
 
     auto after_document_destruction = GC::create_function(heap(), [this, navigable] {
+        auto& local_navigable = as<LocalNavigable>(*navigable);
+
         // 3. Set container's content navigable to null.
         m_content_navigable = nullptr;
         document().schedule_html_parser_end_check();
 
         // Not in the spec:
-        navigable->remove_from_all_local_navigables();
+        local_navigable.remove_from_all_local_navigables();
 
         // 6. Let parentDocState be container's node navigable's active session history entry's document state.
         auto parent_doc_state = this->navigable()->active_session_history_entry()->document_state();
@@ -356,7 +362,7 @@ void NavigableContainer::destroy_the_child_navigable()
     //         container, we reach step 5 with navigable's active document already null. We
     //         treat the destroy step as a no-op in that case and proceed with the remaining
     //         post-destruction cleanup.
-    if (auto active_document = navigable->active_document())
+    if (auto active_document = local_navigable.active_document())
         active_document->destroy_a_document_and_its_descendants(after_document_destruction);
     else
         after_document_destruction->function()();
@@ -378,15 +384,17 @@ bool NavigableContainer::currently_delays_the_load_event() const
         return false;
 
     // - element's content navigable's active document is not ready for post-load tasks;
-    if (!m_content_navigable->active_document()->ready_for_post_load_tasks())
+    auto& local_navigable = as<LocalNavigable>(*m_content_navigable);
+
+    if (!local_navigable.active_document()->ready_for_post_load_tasks())
         return true;
 
     // - element's content navigable's is delaying load events is true; or
-    if (m_content_navigable->is_delaying_load_events())
+    if (local_navigable.is_delaying_load_events())
         return true;
 
     // - anything is delaying the load event of element's content navigable's active document.
-    if (m_content_navigable->active_document()->anything_is_delaying_the_load_event())
+    if (local_navigable.active_document()->anything_is_delaying_the_load_event())
         return true;
 
     return false;
@@ -396,7 +404,7 @@ bool NavigableContainer::content_navigable_has_session_history_entry_and_ready_f
 {
     if (!content_navigable())
         return false;
-    return m_content_navigable->has_session_history_entry_and_ready_for_navigation();
+    return as<LocalNavigable>(*m_content_navigable).has_session_history_entry_and_ready_for_navigation();
 }
 
 void NavigableContainer::set_potentially_delays_the_load_event(bool value)
@@ -408,9 +416,10 @@ void NavigableContainer::set_potentially_delays_the_load_event(bool value)
 
 void NavigableContainer::set_content_navigable_has_session_history_entry_and_ready_for_navigation()
 {
-    if (!content_navigable())
+    auto content_navigable = this->content_navigable();
+    if (!content_navigable)
         return;
-    content_navigable()->set_has_session_history_entry_and_ready_for_navigation();
+    as<LocalNavigable>(*content_navigable).set_has_session_history_entry_and_ready_for_navigation();
     document().schedule_html_parser_end_check();
 }
 

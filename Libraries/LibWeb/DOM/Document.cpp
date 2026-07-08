@@ -4356,7 +4356,7 @@ bool Document::has_focus() const
         auto focused_area = candidate->focused_area();
         if (auto* navigable_container = as_if<HTML::NavigableContainer>(focused_area.ptr())) {
             if (auto content_navigable = navigable_container->content_navigable()) {
-                candidate = content_navigable->active_document();
+                candidate = as<HTML::LocalNavigable>(*content_navigable).active_document();
                 continue;
             }
         }
@@ -4814,7 +4814,7 @@ Vector<GC::Root<HTML::LocalNavigable>> Document::descendant_navigables()
                 return TraversalDecision::Continue;
 
             // 2. Extend navigables with navigableContainer's content navigable's active document's inclusive descendant navigables.
-            auto document = navigable_container.content_navigable()->active_document();
+            auto document = as<HTML::LocalNavigable>(*navigable_container.content_navigable()).active_document();
             // AD-HOC: If the descendant navigable doesn't have an active document, just skip over it.
             if (!document)
                 return TraversalDecision::Continue;
@@ -5030,7 +5030,7 @@ void Document::destroy()
     // Not in the spec:
     for (auto& navigable_container : HTML::NavigableContainer::all_instances()) {
         if (&navigable_container->document() == this && navigable_container->content_navigable()) {
-            auto& child_navigable = *navigable_container->content_navigable();
+            auto& child_navigable = as<HTML::LocalNavigable>(*navigable_container->content_navigable());
             child_navigable.set_has_been_destroyed();
             child_navigable.remove_from_all_local_navigables();
         }
