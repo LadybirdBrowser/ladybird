@@ -402,7 +402,7 @@ void initialize_main_thread_vm(AgentType type)
             auto specifier = vm.argument(0);
 
             // 1. Set specifier to ? ToString(specifier).
-            auto specifier_string = TRY(specifier.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
+            auto specifier_string = TRY(specifier.to_utf16_string(vm));
 
             // 2. Let url be the result of resolving a module specifier given moduleScript and specifier.
             auto url = TRY(Bindings::throw_dom_exception_if_needed(vm, [&] {
@@ -499,7 +499,7 @@ void initialize_main_thread_vm(AgentType type)
 
                 // 2. Resolve a module specifier given referencingScript and moduleRequest.[[Specifier]], catching any
                 //    exceptions. If they throw an exception, let resolutionError be the thrown exception.
-                auto maybe_exception = HTML::resolve_module_specifier(referencing_script, module_request.module_specifier.view().to_utf8_but_should_be_ported_to_utf16());
+                auto maybe_exception = HTML::resolve_module_specifier(referencing_script, module_request.module_specifier.view());
 
                 // 3. If the previous step threw an exception, then:
                 if (maybe_exception.is_exception()) {
@@ -549,7 +549,7 @@ void initialize_main_thread_vm(AgentType type)
 
         // 8. Let url be the result of resolving a module specifier given referencingScript and moduleRequest.[[Specifier]],
         //    catching any exceptions. If they throw an exception, let resolutionError be the thrown exception.
-        auto url = HTML::resolve_module_specifier(referencing_script, module_request.module_specifier.view().to_utf8_but_should_be_ported_to_utf16());
+        auto url = HTML::resolve_module_specifier(referencing_script, module_request.module_specifier.view());
 
         // 9. If the previous step threw an exception, then:
         if (url.is_exception()) {

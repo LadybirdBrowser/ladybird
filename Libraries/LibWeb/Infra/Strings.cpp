@@ -115,6 +115,12 @@ bool is_code_unit_prefix(StringView potential_prefix_utf8, StringView input_utf8
     auto potential_prefix = Utf16String::from_utf8(potential_prefix_utf8);
     auto input = Utf16String::from_utf8(input_utf8);
 
+    return is_code_unit_prefix(potential_prefix.utf16_view(), input.utf16_view());
+}
+
+// https://infra.spec.whatwg.org/#code-unit-prefix
+bool is_code_unit_prefix(Utf16View potential_prefix, Utf16View input)
+{
     // 1. Let i be 0.
     size_t i = 0;
 

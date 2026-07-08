@@ -106,7 +106,7 @@ WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteStr
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#normalizing-a-specifier-key
-Optional<FlyString> normalize_specifier_key(JS::Realm& realm, FlyString specifier_key, URL::URL base_url)
+Optional<Utf16String> normalize_specifier_key(JS::Realm& realm, Utf16View specifier_key, URL::URL base_url)
 {
     // 1. If specifierKey is the empty string, then:
     if (specifier_key.is_empty()) {
@@ -115,18 +115,18 @@ Optional<FlyString> normalize_specifier_key(JS::Realm& realm, FlyString specifie
         console.output_debug_message(JS::Console::LogLevel::Warn, "Specifier keys may not be empty"sv);
 
         // 2. Return null.
-        return Optional<FlyString> {};
+        return {};
     }
 
     // 2. Let url be the result of resolving a URL-like module specifier, given specifierKey and baseURL.
-    auto url = resolve_url_like_module_specifier(specifier_key.to_string().to_byte_string(), base_url);
+    auto url = resolve_url_like_module_specifier(specifier_key, base_url);
 
     // 3. If url is not null, then return the serialization of url.
     if (url.has_value())
-        return url->serialize();
+        return Utf16String::from_utf8(url->serialize());
 
     // 4. Return specifierKey.
-    return specifier_key;
+    return Utf16String::from_utf16(specifier_key);
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#sorting-and-normalizing-a-module-specifier-map
@@ -144,7 +144,7 @@ WebIDL::ExceptionOr<ModuleSpecifierMap> sort_and_normalise_module_specifier_map(
         auto value = TRY(original_map.get(specifier_key.as_string()));
 
         // 1. Let normalizedSpecifierKey be the result of normalizing a specifier key given specifierKey and baseURL.
-        auto normalized_specifier_key = normalize_specifier_key(realm, specifier_key.as_string().view().to_utf8_but_should_be_ported_to_utf16(), base_url);
+        auto normalized_specifier_key = normalize_specifier_key(realm, specifier_key.as_string().view(), base_url);
 
         // 2. If normalizedSpecifierKey is null, then continue.
         if (!normalized_specifier_key.has_value())
@@ -157,14 +157,14 @@ WebIDL::ExceptionOr<ModuleSpecifierMap> sort_and_normalise_module_specifier_map(
             console.output_debug_message(JS::Console::LogLevel::Warn, "Addresses need to be strings"sv);
 
             // 2. Set normalized[normalizedSpecifierKey] to null.
-            normalized.set(normalized_specifier_key.value().to_string(), {});
+            normalized.set(normalized_specifier_key.release_value(), {});
 
             // 3. Continue.
             continue;
         }
 
         // 4. Let addressURL be the result of resolving a URL-like module specifier given value and baseURL.
-        auto address_url = resolve_url_like_module_specifier(value.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16(), base_url);
+        auto address_url = resolve_url_like_module_specifier(value.as_string().utf16_string_view(), base_url);
 
         // 5. If addressURL is null, then:
         if (!address_url.has_value()) {
@@ -173,7 +173,7 @@ WebIDL::ExceptionOr<ModuleSpecifierMap> sort_and_normalise_module_specifier_map(
             console.output_debug_message(JS::Console::LogLevel::Warn, "Address was invalid"sv);
 
             // 2. Set normalized[normalizedSpecifierKey] to null.
-            normalized.set(normalized_specifier_key.value().to_string(), {});
+            normalized.set(normalized_specifier_key.value(), {});
 
             // 3. Continue.
             continue;
@@ -187,14 +187,14 @@ WebIDL::ExceptionOr<ModuleSpecifierMap> sort_and_normalise_module_specifier_map(
                 MUST(String::formatted("An invalid address was given for the specifier key ({}); since specifierKey ends with a slash, the address needs to as well", specifier_key.as_string())));
 
             // 2. Set normalized[normalizedSpecifierKey] to null.
-            normalized.set(normalized_specifier_key.value().to_string(), {});
+            normalized.set(normalized_specifier_key.value(), {});
 
             // 3. Continue.
             continue;
         }
 
         // 7. Set normalized[normalizedSpecifierKey] to addressURL.
-        normalized.set(normalized_specifier_key.value().to_string(), address_url.value());
+        normalized.set(normalized_specifier_key.value(), address_url.value());
     }
 
     // 3. Return the result of sorting in descending order normalized, with an entry a being less than an entry b if a's key is code unit less than b's key.
@@ -220,7 +220,7 @@ WebIDL::ExceptionOr<HashMap<URL::URL, ModuleSpecifierMap>> sort_and_normalise_sc
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, String::formatted("The value of the scope with the prefix '{}' needs to be a JSON object.", scope_prefix.as_string()).release_value_but_fixme_should_propagate_errors() };
 
         // 2. Let scopePrefixURL be the result of URL parsing scopePrefix with baseURL.
-        auto scope_prefix_url = DOMURL::parse(scope_prefix.as_string().view().to_utf8_but_should_be_ported_to_utf16(), base_url);
+        auto scope_prefix_url = DOMURL::parse(scope_prefix.as_string().view(), base_url);
 
         // 3. If scopePrefixURL is failure, then:
         if (!scope_prefix_url.has_value()) {
@@ -257,7 +257,7 @@ WebIDL::ExceptionOr<ModuleIntegrityMap> normalize_module_integrity_map(JS::Realm
         auto value = TRY(original_map.get(key.as_string()));
 
         // 1. Let resolvedURL be the result of resolving a URL-like module specifier given key and baseURL.
-        auto resolved_url = resolve_url_like_module_specifier(key.as_string().view().to_utf8_but_should_be_ported_to_utf16(), base_url);
+        auto resolved_url = resolve_url_like_module_specifier(key.as_string().view(), base_url);
 
         // 2. If resolvedURL is null, then:
         if (!resolved_url.has_value()) {
@@ -339,17 +339,18 @@ void merge_existing_and_new_import_maps(Window& global, ImportMap& new_import_ma
         // 1. For each record of global's resolved module set:
         for (auto const& record : global.resolved_module_set()) {
             // 1. If scopePrefix is record's serialized base URL, or if scopePrefix ends with U+002F (/) and scopePrefix is a code unit prefix of record's serialized base URL, then:
-            if (scope_prefix.to_string() == record.serialized_base_url || (scope_prefix.to_string().ends_with('/') && record.serialized_base_url.has_value() && Infra::is_code_unit_prefix(scope_prefix.to_string(), *record.serialized_base_url))) {
+            auto serialized_scope_prefix = scope_prefix.serialize();
+            if (serialized_scope_prefix == record.serialized_base_url || (serialized_scope_prefix.ends_with('/') && record.serialized_base_url.has_value() && Infra::is_code_unit_prefix(serialized_scope_prefix, *record.serialized_base_url))) {
                 // 1. For each specifierKey → resolutionResult of scopeImports:
-                scope_imports.remove_all_matching([&](String const& specifier_key, Optional<URL::URL> const&) {
+                scope_imports.remove_all_matching([&](Utf16String const& specifier_key, Optional<URL::URL> const&) {
                     // 1. If specifierKey is record's specifier, or if all of the following conditions are true:
                     //      * specifierKey ends with U+002F (/);
                     //      * specifierKey is a code unit prefix of record's specifier;
                     //      * either record's specifier as a URL is null or is special,
                     //    then:
-                    if (specifier_key.bytes_as_string_view() == record.specifier
-                        || (specifier_key.ends_with('/')
-                            && Infra::is_code_unit_prefix(specifier_key, record.specifier)
+                    if (specifier_key == record.specifier
+                        || (specifier_key.utf16_view().ends_with('/')
+                            && Infra::is_code_unit_prefix(specifier_key.utf16_view(), record.specifier.utf16_view())
                             && record.specifier_is_null_or_url_like_that_is_special)) {
                         // 1. The user agent may report a warning to the console indicating the ignored rule. They
                         //    may choose to avoid reporting if the rule is identical to an existing one.
@@ -398,9 +399,9 @@ void merge_existing_and_new_import_maps(Window& global, ImportMap& new_import_ma
     // 6. For each record of global's resolved module set:
     for (auto const& record : global.resolved_module_set()) {
         // 1. For each specifier → url of newImportMapImports:
-        new_import_map_imports.remove_all_matching([&](String const& specifier, Optional<URL::URL> const&) {
+        new_import_map_imports.remove_all_matching([&](Utf16String const& specifier, Optional<URL::URL> const&) {
             // 1. If specifier starts with record's specifier, then:
-            if (specifier.bytes_as_string_view().starts_with(record.specifier)) {
+            if (specifier.utf16_view().starts_with(record.specifier.utf16_view())) {
                 // 1. The user agent may report a warning to the console indicating the ignored rule. They may choose to
                 //    avoid reporting if the rule is identical to an existing one.
                 auto& console = realm.intrinsics().console_object()->console();

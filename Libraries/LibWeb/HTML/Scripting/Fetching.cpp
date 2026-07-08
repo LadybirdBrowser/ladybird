@@ -416,10 +416,10 @@ ScriptFetchOptions default_script_fetch_options()
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#module-type-from-module-request
-String module_type_from_module_request(JS::ModuleRequest const& module_request)
+Utf16String module_type_from_module_request(JS::ModuleRequest const& module_request)
 {
     // 1. Let moduleType be "javascript-or-wasm".
-    String module_type = "javascript-or-wasm"_string;
+    auto module_type = "javascript-or-wasm"_utf16;
 
     // 2. If moduleRequest.[[Attributes]] has a Record entry such that entry.[[Key]] is "type", then:
     for (auto const& entry : module_request.attributes) {
@@ -427,11 +427,11 @@ String module_type_from_module_request(JS::ModuleRequest const& module_request)
             continue;
 
         // 1. If entry.[[Value]] is "javascript-or-wasm", then set moduleType to null.
-        if (entry.value == "javascript-or-wasm"_string)
-            module_type = ""_string; // FIXME: This should be null!
+        if (entry.value == "javascript-or-wasm"_utf16)
+            module_type = ""_utf16; // FIXME: This should be null!
         // 2. Otherwise, set moduleType to entry.[[Value]].
         else
-            module_type = entry.value.to_utf8_but_should_be_ported_to_utf16();
+            module_type = entry.value;
     }
 
     // 3. Return moduleType.
@@ -439,7 +439,7 @@ String module_type_from_module_request(JS::ModuleRequest const& module_request)
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#resolve-a-module-specifier
-WebIDL::ExceptionOr<URL::URL> resolve_module_specifier(Optional<Script&> referring_script, String const& specifier)
+WebIDL::ExceptionOr<URL::URL> resolve_module_specifier(Optional<Script&> referring_script, Utf16View specifier)
 {
     auto& vm = Bindings::main_thread_vm();
 
@@ -478,10 +478,10 @@ WebIDL::ExceptionOr<URL::URL> resolve_module_specifier(Optional<Script&> referri
     auto serialized_base_url = base_url->serialize();
 
     // 7. Let asURL be the result of resolving a URL-like module specifier given specifier and baseURL.
-    auto as_url = resolve_url_like_module_specifier(specifier.to_byte_string(), *base_url);
+    auto as_url = resolve_url_like_module_specifier(specifier, *base_url);
 
     // 8. Let normalizedSpecifier be the serialization of asURL, if asURL is non-null; otherwise, specifier.
-    auto normalized_specifier = as_url.has_value() ? as_url->serialize() : specifier;
+    auto normalized_specifier = as_url.has_value() ? Utf16String::from_utf8(as_url->serialize()) : Utf16String::from_utf16(specifier);
 
     // 9. Let result be a URL-or-null, initially null.
     Optional<URL::URL> result;
@@ -496,7 +496,7 @@ WebIDL::ExceptionOr<URL::URL> resolve_module_specifier(Optional<Script&> referri
         // 1. If scopePrefix is serializedBaseURL, or if scopePrefix ends with U+002F (/) and scopePrefix is a code unit prefix of serializedBaseURL, then:
         if (scope_prefix == serialized_base_url || (scope_prefix.ends_with('/') && Infra::is_code_unit_prefix(scope_prefix, serialized_base_url))) {
             // 1. Let scopeImportsMatch be the result of resolving an imports match given normalizedSpecifier, asURL, and scopeImports.
-            auto scope_imports_match = TRY(resolve_imports_match(normalized_specifier.to_byte_string(), as_url, scope_imports));
+            auto scope_imports_match = TRY(resolve_imports_match(normalized_specifier.utf16_view(), as_url, scope_imports));
 
             // 2. If scopeImportsMatch is not null, then set result to scopeImportsMatch, and break.
             if (scope_imports_match.has_value()) {
@@ -508,7 +508,7 @@ WebIDL::ExceptionOr<URL::URL> resolve_module_specifier(Optional<Script&> referri
 
     // 11. If result is null, set result to the result of resolving an imports match given normalizedSpecifier, asURL, and importMap's imports.
     if (!result.has_value())
-        result = TRY(resolve_imports_match(normalized_specifier.to_byte_string(), as_url, import_map.imports()));
+        result = TRY(resolve_imports_match(normalized_specifier.utf16_view(), as_url, import_map.imports()));
 
     // 12. If result is null, set it to asURL.
     // NOTE: By this point, if result was null, specifier wasn't remapped to anything by importMap, but it might have
@@ -530,12 +530,12 @@ WebIDL::ExceptionOr<URL::URL> resolve_module_specifier(Optional<Script&> referri
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#resolving-an-imports-match
-WebIDL::ExceptionOr<Optional<URL::URL>> resolve_imports_match(ByteString const& normalized_specifier, Optional<URL::URL> as_url, ModuleSpecifierMap const& specifier_map)
+WebIDL::ExceptionOr<Optional<URL::URL>> resolve_imports_match(Utf16View normalized_specifier, Optional<URL::URL> as_url, ModuleSpecifierMap const& specifier_map)
 {
     // 1. For each specifierKey → resolutionResult of specifierMap:
     for (auto const& [specifier_key, resolution_result] : specifier_map) {
         // 1. If specifierKey is normalizedSpecifier, then:
-        if (specifier_key.bytes_as_string_view() == normalized_specifier) {
+        if (specifier_key.utf16_view() == normalized_specifier) {
             // 1. If resolutionResult is null, then throw a TypeError indicating that resolution of specifierKey was blocked by a null entry.
             if (!resolution_result.has_value())
                 return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, String::formatted("Import resolution of '{}' was blocked by a null entry.", specifier_key).release_value_but_fixme_should_propagate_errors() };
@@ -548,7 +548,7 @@ WebIDL::ExceptionOr<Optional<URL::URL>> resolve_imports_match(ByteString const& 
         // 2. If all of the following are true:
         if (
             // - specifierKey ends with U+002F (/);
-            specifier_key.bytes_as_string_view().ends_with("/"sv) &&
+            specifier_key.utf16_view().ends_with('/') &&
             // - specifierKey is a code unit prefix of normalizedSpecifier; and
             Infra::is_code_unit_prefix(specifier_key, normalized_specifier) &&
             // - either asURL is null, or asURL is special,
@@ -562,7 +562,7 @@ WebIDL::ExceptionOr<Optional<URL::URL>> resolve_imports_match(ByteString const& 
             // 2. Assert: resolutionResult is a URL.
             // 3. Let afterPrefix be the portion of normalizedSpecifier after the initial specifierKey prefix.
             // FIXME: Clarify if this is meant by the portion after the initial specifierKey prefix.
-            auto after_prefix = normalized_specifier.substring(specifier_key.bytes_as_string_view().length());
+            auto after_prefix = normalized_specifier.substring_view(specifier_key.length_in_code_units());
 
             // 4. Assert: resolutionResult, serialized, ends with U+002F (/), as enforced during parsing.
             VERIFY(resolution_result->serialize().ends_with('/'));
@@ -593,7 +593,7 @@ WebIDL::ExceptionOr<Optional<URL::URL>> resolve_imports_match(ByteString const& 
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#resolving-a-url-like-module-specifier
-Optional<URL::URL> resolve_url_like_module_specifier(StringView specifier, URL::URL const& base_url)
+Optional<URL::URL> resolve_url_like_module_specifier(Utf16View specifier, URL::URL const& base_url)
 {
     // 1. If specifier starts with "/", "./", or "../", then:
     if (specifier.starts_with("/"sv) || specifier.starts_with("./"sv) || specifier.starts_with("../"sv)) {
@@ -1050,7 +1050,7 @@ WebIDL::ExceptionOr<void> fetch_worklet_module_worker_script_graph(URL::URL cons
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-destination-from-module-type
-Fetch::Infrastructure::Request::Destination fetch_destination_from_module_type(Fetch::Infrastructure::Request::Destination default_destination, ByteString const& module_type)
+Fetch::Infrastructure::Request::Destination fetch_destination_from_module_type(Fetch::Infrastructure::Request::Destination default_destination, Utf16View module_type)
 {
     // 1. If moduleType is "json", then return "json".
     if (module_type == "json"sv)
@@ -1078,7 +1078,7 @@ void fetch_single_module_script(JS::Realm& realm,
     OnFetchScriptComplete on_complete)
 {
     // 1. Let moduleType be "javascript-or-wasm".
-    String module_type = "javascript-or-wasm"_string;
+    Utf16String module_type = "javascript-or-wasm"_utf16;
 
     // 2. If moduleRequest was given, then set moduleType to the result of running the module type from module request steps given moduleRequest.
     if (module_request.has_value())
@@ -1094,8 +1094,8 @@ void fetch_single_module_script(JS::Realm& realm,
 
     // 5. If moduleMap[(url, moduleType)] is "fetching", wait in parallel until that entry's value changes,
     //    then queue a task on the networking task source to proceed with running the following steps.
-    if (module_map.is_fetching(url, module_type.to_byte_string())) {
-        module_map.wait_for_change(realm.heap(), url, module_type.to_byte_string(), [on_complete, &realm](auto entry) -> void {
+    if (module_map.is_fetching(url, module_type)) {
+        module_map.wait_for_change(realm.heap(), url, module_type, [on_complete, &realm](auto entry) -> void {
             HTML::queue_global_task(HTML::Task::Source::Networking, realm.global_object(), GC::create_function(realm.heap(), [on_complete, entry] {
                 // FIXME: This should run other steps, for now we just assume the script loaded.
                 VERIFY(entry.type == ModuleMap::EntryType::ModuleScript || entry.type == ModuleMap::EntryType::Failed);
@@ -1108,14 +1108,14 @@ void fetch_single_module_script(JS::Realm& realm,
     }
 
     // 6. If moduleMap[(url, moduleType)] exists, run onComplete given moduleMap[(url, moduleType)], and return.
-    auto entry = module_map.get(url, module_type.to_byte_string());
+    auto entry = module_map.get(url, module_type);
     if (entry.has_value()) {
         on_complete->function()(entry->module_script);
         return;
     }
 
     // 7. Set moduleMap[(url, moduleType)] to "fetching".
-    module_map.set(url, module_type.to_byte_string(), { ModuleMap::EntryType::Fetching, nullptr });
+    module_map.set(url, module_type, { ModuleMap::EntryType::Fetching, nullptr });
 
     // 8. Let request be a new request whose URL is url, mode is "cors", referrer is referrer, and client is fetchClient.
     auto request = Fetch::Infrastructure::Request::create(realm.vm());
@@ -1125,7 +1125,7 @@ void fetch_single_module_script(JS::Realm& realm,
     request->set_client(&fetch_client);
 
     // 9. Set request's destination to the result of running the fetch destination from module type steps given destination and moduleType.
-    request->set_destination(fetch_destination_from_module_type(destination, module_type.to_byte_string()));
+    request->set_destination(fetch_destination_from_module_type(destination, module_type.utf16_view()));
 
     // 10. If destination is "worker", "sharedworker", or "serviceworker", and isTopLevel is true, then set request's mode to "same-origin".
     if ((destination == Fetch::Infrastructure::Request::Destination::Worker || destination == Fetch::Infrastructure::Request::Destination::SharedWorker || destination == Fetch::Infrastructure::Request::Destination::ServiceWorker) && is_top_level == TopLevelModule::Yes)
@@ -1148,7 +1148,7 @@ void fetch_single_module_script(JS::Realm& realm,
         //    - response's status is not an ok status,
         if (body_bytes.has<Empty>() || body_bytes.has<Fetch::Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag>() || !Fetch::Infrastructure::is_ok_status(response->status())) {
             // then set moduleMap[(url, moduleType)] to null, run onComplete given null, and abort these steps.
-            module_map.set(url, module_type.to_byte_string(), { ModuleMap::EntryType::Failed, nullptr });
+            module_map.set(url, module_type, { ModuleMap::EntryType::Failed, nullptr });
             on_complete->function()(nullptr);
             return;
         }
@@ -1166,7 +1166,7 @@ void fetch_single_module_script(JS::Realm& realm,
         //     to the result of creating a WebAssembly module script given bodyBytes, moduleMapRealm, response's URL, and
         //     options.
         // FIXME: Pass options.
-        if (mime_type.has_value() && mime_type->essence() == "application/wasm"sv && module_type == "javascript-or-wasm") {
+        if (mime_type.has_value() && mime_type->essence() == "application/wasm"sv && module_type == "javascript-or-wasm"sv) {
             module_script = ModuleScript::create_a_webassembly_module_script(url.to_byte_string(), take_body_bytes_as_byte_buffer(body_bytes), settings_object, response->url().value_or({})).release_value_but_fixme_should_propagate_errors();
         }
 
@@ -1176,14 +1176,14 @@ void fetch_single_module_script(JS::Realm& realm,
             //    the result of creating a JavaScript module script given sourceText, moduleMapRealm, response's URL,
             //    and options.
             // FIXME: Pass options.
-            if (mime_type.has_value() && mime_type->is_javascript() && module_type == "javascript-or-wasm") {
+            if (mime_type.has_value() && mime_type->is_javascript() && module_type == "javascript-or-wasm"sv) {
                 auto decoder = TextCodec::decoder_for("UTF-8"sv);
                 VERIFY(decoder.has_value());
                 auto on_complete_root = GC::make_root(on_complete);
                 auto settings_root = GC::make_root(settings_object);
                 auto url_string = url.to_byte_string();
                 auto response_url = response->url().value_or({});
-                auto module_type_string = module_type.to_byte_string();
+                auto module_type_string = module_type;
                 auto source_byte_storage = body_bytes.get<Core::ImmutableBytes>();
                 auto source_bytes = source_byte_storage.bytes();
                 auto const& bytecode = internal_response->javascript_bytecode_cache();
@@ -1305,7 +1305,7 @@ void fetch_single_module_script(JS::Realm& realm,
 
             // 4. If the MIME type essence of mimeType is "text/css" and moduleType is "css", then set moduleScript to
             //    the result of creating a CSS module script given sourceText and settingsObject.
-            if (mime_type.has_value() && mime_type->essence() == "text/css"sv && module_type == "css") {
+            if (mime_type.has_value() && mime_type->essence() == "text/css"sv && module_type == "css"sv) {
                 auto decoder = TextCodec::decoder_for("UTF-8"sv);
                 VERIFY(decoder.has_value());
                 auto source_text = decode_source_text(*decoder, body_bytes_view(body_bytes)).release_value_but_fixme_should_propagate_errors();
@@ -1314,7 +1314,7 @@ void fetch_single_module_script(JS::Realm& realm,
 
             // 4. If mimeType is a JSON MIME type and moduleType is "json", then set moduleScript to the result of
             //    creating a JSON module script given sourceText and settingsObject.
-            if (mime_type.has_value() && mime_type->is_json() && module_type == "json") {
+            if (mime_type.has_value() && mime_type->is_json() && module_type == "json"sv) {
                 auto decoder = TextCodec::decoder_for("UTF-8"sv);
                 VERIFY(decoder.has_value());
                 auto source_text = decode_source_text_to_utf16(*decoder, body_bytes_view(body_bytes)).release_value_but_fixme_should_propagate_errors();
@@ -1323,7 +1323,7 @@ void fetch_single_module_script(JS::Realm& realm,
         }
 
         // 8. Set moduleMap[(url, moduleType)] to moduleScript, and run onComplete given moduleScript.
-        module_map.set(url, module_type.to_byte_string(), { ModuleMap::EntryType::ModuleScript, module_script });
+        module_map.set(url, module_type, { ModuleMap::EntryType::ModuleScript, module_script });
         on_complete->function()(module_script);
     };
 

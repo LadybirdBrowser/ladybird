@@ -11,6 +11,7 @@
 #include <AK/Function.h>
 #include <AK/IterationDecision.h>
 #include <AK/RefPtr.h>
+#include <AK/Utf16String.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/Bindings/IdleRequest.h>
 #include <LibWeb/Bindings/Intrinsics.h>
@@ -43,7 +44,7 @@ struct SpecifierResolution {
 
     // A specifier
     //     A string representing the specifier.
-    String specifier;
+    Utf16String specifier;
 
     // A specifier as a URL
     //     A URL-or-null that represents the URL in case of a URL-like module specifier.

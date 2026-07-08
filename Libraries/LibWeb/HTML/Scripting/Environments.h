@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibJS/Forward.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
@@ -214,9 +215,9 @@ void prepare_to_run_script(EnvironmentSettingsObject&);
 void clean_up_after_running_script(EnvironmentSettingsObject const&);
 WEB_API void prepare_to_run_callback(EnvironmentSettingsObject&);
 WEB_API void clean_up_after_running_callback(EnvironmentSettingsObject const&);
-WEB_API bool module_type_allowed(EnvironmentSettingsObject const&, StringView module_type);
+WEB_API bool module_type_allowed(EnvironmentSettingsObject const&, Utf16View module_type);
 
-WEB_API void add_module_to_resolved_module_set(EnvironmentSettingsObject&, String const& serialized_base_url, String const& normalized_specifier, Optional<URL::URL> const& as_url);
+WEB_API void add_module_to_resolved_module_set(EnvironmentSettingsObject&, String const& serialized_base_url, Utf16String const& normalized_specifier, Optional<URL::URL> const& as_url);
 
 WEB_API EnvironmentSettingsObject& incumbent_settings_object();
 WEB_API JS::Realm& incumbent_realm();
