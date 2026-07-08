@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const mediaPath = `/echo/HTMLMediaElement-preload-none-${crypto.randomUUID()}.mp3`;
+    document.write(`<audio id="audio" preload="none" controls src="${mediaPath}"></audio>`);
+
+    asyncTest(done => {
+        const audio = document.getElementById("audio");
+
+        window.addEventListener("load", async () => {
+            println("load event fired");
+            println(`audio.networkState: ${audio.networkState}`);
+            println(`audio.networkState is NETWORK_IDLE: ${audio.networkState === HTMLMediaElement.NETWORK_IDLE}`);
+            println(`audio.readyState is HAVE_NOTHING: ${audio.readyState === HTMLMediaElement.HAVE_NOTHING}`);
+
+            const response = await fetch(`/recorded-request-headers${mediaPath}`);
+            println(`server saw no media request: ${response.status === 404}`);
+
+            const errorPromise = new Promise(resolve => {
+                audio.addEventListener("error", resolve, { once: true });
+            });
+            audio.preload = "metadata";
+            await errorPromise;
+
+            println("error event fired after preload change");
+            const responseAfterPreloadChange = await fetch(`/recorded-request-headers${mediaPath}`);
+            println(`server saw media request after preload change: ${responseAfterPreloadChange.status === 200}`);
+            done();
+        });
+    });
+</script>

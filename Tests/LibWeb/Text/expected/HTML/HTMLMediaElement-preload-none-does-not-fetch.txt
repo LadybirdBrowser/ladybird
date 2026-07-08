@@ -1,0 +1,7 @@
+load event fired
+audio.networkState: 1
+audio.networkState is NETWORK_IDLE: true
+audio.readyState is HAVE_NOTHING: true
+server saw no media request: true
+error event fired after preload change
+server saw media request after preload change: true
