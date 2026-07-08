@@ -35,7 +35,7 @@ static ErrorOr<Core::Process> launch_process(StringView application, ReadonlySpa
     return result;
 }
 
-static Vector<ByteString> create_arguments(ByteString const& webdriver_endpoint, bool headless, bool expose_experimental_interfaces, bool force_cpu_painting, bool disable_sandbox, Optional<StringView> debug_process, Optional<StringView> default_time_zone)
+static Vector<ByteString> create_arguments(ByteString const& webdriver_endpoint, bool headless, bool expose_experimental_interfaces, bool force_cpu_painting, bool disable_sandbox, Optional<StringView> debug_process, Optional<StringView> default_time_zone, Optional<StringView> resource_substitution_map_path)
 {
     Vector<ByteString> arguments;
 #if defined(AK_OS_MACOS)
@@ -71,6 +71,9 @@ static Vector<ByteString> create_arguments(ByteString const& webdriver_endpoint,
     if (default_time_zone.has_value())
         arguments.append(ByteString::formatted("--default-time-zone={}", default_time_zone.value()));
 
+    if (resource_substitution_map_path.has_value())
+        arguments.append(ByteString::formatted("--resource-map={}", resource_substitution_map_path.value()));
+
     // FIXME: WebDriver does not yet handle the WebContent process switch brought by site isolation.
     if (!Core::Environment::has("LADYBIRD_WEBDRIVER_ENABLE_SITE_ISOLATION"sv))
         arguments.append("--site-isolation=disable"sv);
@@ -97,6 +100,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool headless = false;
     Optional<StringView> debug_process;
     Optional<StringView> default_time_zone;
+    Optional<StringView> resource_substitution_map_path;
 
     Core::ArgsParser args_parser;
     args_parser.add_option(listen_address, "IP address to listen on", "listen-address", 'l', "listen_address");
@@ -108,6 +112,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(debug_process, "Wait for a debugger to attach to the given process name (WebContent, RequestServer, etc.)", "debug-process", 0, "process-name");
     args_parser.add_option(headless, "Launch browser without a graphical interface", "headless");
     args_parser.add_option(default_time_zone, "Default time zone", "default-time-zone", 0, "time-zone-id");
+    args_parser.add_option(resource_substitution_map_path, "Path to JSON file mapping URLs to local files", "resource-map", 0, "path");
     args_parser.parse(arguments);
 
     auto ipv4_address = IPv4Address::from_string(listen_address);
@@ -150,7 +155,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         }
 
         auto launch_browser_callback = [&](ByteString const& webdriver_endpoint, bool headless) {
-            auto arguments = create_arguments(webdriver_endpoint, headless, expose_experimental_interfaces, force_cpu_painting, disable_sandbox, debug_process, default_time_zone);
+            auto arguments = create_arguments(webdriver_endpoint, headless, expose_experimental_interfaces, force_cpu_painting, disable_sandbox, debug_process, default_time_zone, resource_substitution_map_path);
             return launch_process("Ladybird"sv, arguments.span());
         };
 
