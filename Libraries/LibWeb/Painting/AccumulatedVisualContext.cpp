@@ -108,13 +108,13 @@ static TransformData visual_viewport_transform_data(DOM::Document& document)
     return TransformData { matrix, { 0.f, 0.f } };
 }
 
-static Optional<Gfx::AffineTransform> svg_to_css_pixels_transform(PaintableBox const& paintable_box)
+static Optional<Gfx::AffineTransform> svg_to_css_pixels_transform(Paintable const& paintable)
 {
-    if (auto const* svg_graphics_paintable = as_if<SVGGraphicsPaintable>(paintable_box))
+    if (auto const* svg_graphics_paintable = as_if<SVGGraphicsPaintable>(paintable))
         return svg_graphics_paintable->computed_transforms().svg_to_css_pixels_transform();
-    if (auto const* svg_foreign_object_paintable = as_if<SVGForeignObjectPaintable>(paintable_box))
+    if (auto const* svg_foreign_object_paintable = as_if<SVGForeignObjectPaintable>(paintable))
         return svg_foreign_object_paintable->computed_transforms().svg_to_css_pixels_transform();
-    if (auto const* svg_svg_paintable = as_if<SVGSVGPaintable>(paintable_box))
+    if (auto const* svg_svg_paintable = as_if<SVGSVGPaintable>(paintable))
         return svg_svg_paintable->computed_transforms().svg_to_css_pixels_transform();
     return {};
 }
