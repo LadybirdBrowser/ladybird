@@ -136,7 +136,7 @@ void HTMLLinkElement::set_media(String media)
 {
     set_attribute_value(HTML::AttributeNames::media, media);
     if (auto sheet = m_loaded_style_sheet)
-        sheet->set_media(move(media));
+        sheet->set_media(media.bytes_as_string_view());
 }
 
 String HTMLLinkElement::media() const
@@ -226,7 +226,7 @@ void HTMLLinkElement::attribute_changed(FlyString const& name, Optional<Utf16Str
             document_or_shadow_root_style_sheets().remove_a_css_style_sheet(*m_loaded_style_sheet);
             m_loaded_style_sheet = nullptr;
         } else if (name == HTML::AttributeNames::media) {
-            m_loaded_style_sheet->set_media(value.value_or({}).to_utf8_but_should_be_ported_to_utf16());
+            m_loaded_style_sheet->set_media(value.value_or({}));
         }
     }
 
@@ -905,8 +905,8 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
                 maybe_decoded_string.release_value(),
                 "text/css"_string,
                 this,
-                attribute(HTML::AttributeNames::media).value_or({}).to_utf8_but_should_be_ported_to_utf16(),
-                in_a_document_tree() ? attribute(HTML::AttributeNames::title).value_or({}).to_utf8_but_should_be_ported_to_utf16() : String {},
+                attribute(HTML::AttributeNames::media).value_or({}),
+                in_a_document_tree() ? attribute(HTML::AttributeNames::title).value_or({}) : Utf16String {},
                 (m_relationship & Relationship::Alternate && !m_explicitly_enabled) ? CSS::StyleSheetList::Alternate::Yes : CSS::StyleSheetList::Alternate::No,
                 CSS::StyleSheetList::OriginClean::Yes,
                 response.url_list().first(),

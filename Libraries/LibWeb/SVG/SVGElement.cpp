@@ -170,9 +170,9 @@ bool SVGElement::should_include_in_accessibility_tree() const
     // https://w3c.github.io/svg-aam/#include_elements
     // TODO: Add support for the SVG tabindex attribute, and include a check for it here.
     return has_title_or_desc
-        || (aria_label().has_value() && !aria_label()->bytes_as_string_view().trim_whitespace().is_empty())
-        || (aria_labelled_by().has_value() && !aria_labelled_by()->bytes_as_string_view().trim_whitespace().is_empty())
-        || (aria_described_by().has_value() && !aria_described_by()->bytes_as_string_view().trim_whitespace().is_empty())
+        || (aria_label().has_value() && !aria_label()->utf16_view().trim_ascii_whitespace().is_empty())
+        || (aria_labelled_by().has_value() && !aria_labelled_by()->utf16_view().trim_ascii_whitespace().is_empty())
+        || (aria_described_by().has_value() && !aria_described_by()->utf16_view().trim_ascii_whitespace().is_empty())
         || (role.has_value() && ARIA::is_abstract_role(role.value()) && role != ARIA::Role::none && role != ARIA::Role::presentation);
 }
 

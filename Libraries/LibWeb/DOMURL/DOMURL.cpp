@@ -482,6 +482,12 @@ Optional<URL::URL> parse(StringView input, Optional<URL::URL const&> base_url, O
     return url.release_value();
 }
 
+Optional<URL::URL> parse(Utf16View input, Optional<URL::URL const&> base_url, Optional<StringView> encoding)
+{
+    auto input_utf8 = input.to_utf8_but_should_be_ported_to_utf16();
+    return parse(input_utf8.bytes_as_string_view(), base_url, encoding);
+}
+
 // FIXME: At time of writing, still open spec MR: https://github.com/whatwg/url/pull/892
 Optional<URL::Origin> DOMURL::extract_an_origin() const
 {

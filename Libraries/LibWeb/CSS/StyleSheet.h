@@ -32,9 +32,9 @@ public:
     Optional<::URL::URL> location() const { return m_location; }
     void set_location(Optional<::URL::URL> location) { m_location = move(location); }
 
-    String title() const { return m_title; }
-    Optional<String> title_for_bindings() const;
-    void set_title(String title) { m_title = move(title); }
+    Utf16String const& title() const { return m_title; }
+    Optional<Utf16String> title_for_bindings() const;
+    void set_title(Utf16String title) { m_title = move(title); }
 
     void set_type(String type) { m_type_string = move(type); }
 
@@ -43,7 +43,12 @@ public:
         return m_media;
     }
 
-    void set_media(String media)
+    void set_media(Utf16View media)
+    {
+        m_media->set_media_text(media);
+    }
+
+    void set_media(StringView media)
     {
         m_media->set_media_text(media);
     }
@@ -73,7 +78,7 @@ private:
     GC::Ptr<CSSStyleSheet> m_parent_style_sheet;
 
     Optional<::URL::URL> m_location;
-    String m_title;
+    Utf16String m_title;
     String m_type_string;
 
     bool m_disabled { false };

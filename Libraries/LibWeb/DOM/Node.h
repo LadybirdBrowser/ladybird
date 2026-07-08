@@ -12,6 +12,7 @@
 #include <AK/GenericShorthands.h>
 #include <AK/RefPtr.h>
 #include <AK/TypeCasts.h>
+#include <AK/Utf16View.h>
 #include <AK/Vector.h>
 #include <LibWeb/Bindings/Node.h>
 #include <LibWeb/CSS/InvalidationSet.h>
@@ -548,7 +549,7 @@ private:
     void remove_child_impl(GC::Ref<Node>);
     void clear_layout_node_paintables();
 
-    static Optional<StringView> first_valid_id(StringView, Document const&);
+    static Optional<Utf16View> first_valid_id(Utf16View, Document const&);
 
     GC::Ptr<NodeList> m_child_nodes;
 };

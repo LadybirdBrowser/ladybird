@@ -67,6 +67,12 @@ void MediaList::set_media_text(StringView text)
     m_media = parse_media_query_list(Parser::ParsingParams { realm() }, text);
 }
 
+void MediaList::set_media_text(Utf16View text)
+{
+    auto text_utf8 = text.to_utf8_but_should_be_ported_to_utf16();
+    set_media_text(text_utf8.bytes_as_string_view());
+}
+
 // https://www.w3.org/TR/cssom-1/#dom-medialist-item
 Optional<String> MediaList::item(u32 index) const
 {

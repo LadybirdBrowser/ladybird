@@ -6,8 +6,8 @@
 
 #include <AK/FlyString.h>
 #include <AK/Optional.h>
-#include <AK/String.h>
-#include <AK/StringView.h>
+#include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <AK/Vector.h>
 #include <LibWeb/CSS/Invalidation/AttributeInvalidator.h>
 #include <LibWeb/CSS/InvalidationSet.h>
@@ -21,11 +21,31 @@
 
 namespace Web::CSS::Invalidation {
 
+template<typename Callback>
+static void for_each_ascii_whitespace_separated_token(Utf16View input, Callback callback)
+{
+    size_t start = 0;
+    for (size_t i = 0; i <= input.length_in_code_units(); ++i) {
+        if (i != input.length_in_code_units() && !Infra::is_ascii_whitespace(input.code_unit_at(i)))
+            continue;
+
+        if (i > start)
+            callback(input.substring_view(start, i - start));
+        start = i + 1;
+    }
+}
+
+static FlyString fly_string_from_utf16(Utf16View value)
+{
+    auto utf8_value = MUST(value.to_utf8());
+    return MUST(FlyString::from_utf8(utf8_value.bytes_as_string_view()));
+}
+
 void invalidate_style_after_attribute_change(
     DOM::Element& element,
     FlyString const& attribute_name,
-    Optional<String> const& old_value,
-    Optional<String> const& new_value)
+    Optional<Utf16String> const& old_value,
+    Optional<Utf16String> const& new_value)
 {
     Vector<InvalidationSet::Property, 1> changed_properties;
     DOM::StyleInvalidationOptions style_invalidation_options;
@@ -35,25 +55,25 @@ void invalidate_style_after_attribute_change(
     if (attribute_name == HTML::AttributeNames::style) {
         style_invalidation_options.invalidate_self = true;
     } else if (attribute_name == HTML::AttributeNames::class_) {
-        Vector<StringView> old_classes;
-        Vector<StringView> new_classes;
+        Vector<Utf16View> old_classes;
+        Vector<Utf16View> new_classes;
         if (old_value.has_value())
-            old_classes = old_value->bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
+            for_each_ascii_whitespace_separated_token(old_value->utf16_view(), [&](auto class_) { old_classes.append(class_); });
         if (new_value.has_value())
-            new_classes = new_value->bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
+            for_each_ascii_whitespace_separated_token(new_value->utf16_view(), [&](auto class_) { new_classes.append(class_); });
         for (auto& old_class : old_classes) {
             if (!new_classes.contains_slow(old_class))
-                changed_properties.append({ .type = InvalidationSet::Property::Type::Class, .value = FlyString::from_utf8_without_validation(old_class.bytes()) });
+                changed_properties.append({ .type = InvalidationSet::Property::Type::Class, .value = fly_string_from_utf16(old_class) });
         }
         for (auto& new_class : new_classes) {
             if (!old_classes.contains_slow(new_class))
-                changed_properties.append({ .type = InvalidationSet::Property::Type::Class, .value = FlyString::from_utf8_without_validation(new_class.bytes()) });
+                changed_properties.append({ .type = InvalidationSet::Property::Type::Class, .value = fly_string_from_utf16(new_class) });
         }
     } else if (attribute_name == HTML::AttributeNames::id) {
         if (old_value.has_value())
-            changed_properties.append({ .type = InvalidationSet::Property::Type::Id, .value = FlyString(old_value.value()) });
+            changed_properties.append({ .type = InvalidationSet::Property::Type::Id, .value = fly_string_from_utf16(old_value->utf16_view()) });
         if (new_value.has_value())
-            changed_properties.append({ .type = InvalidationSet::Property::Type::Id, .value = FlyString(new_value.value()) });
+            changed_properties.append({ .type = InvalidationSet::Property::Type::Id, .value = fly_string_from_utf16(new_value->utf16_view()) });
     } else if (attribute_name == HTML::AttributeNames::disabled) {
         changed_properties.append({ .type = InvalidationSet::Property::Type::PseudoClass, .value = PseudoClass::Disabled });
         changed_properties.append({ .type = InvalidationSet::Property::Type::PseudoClass, .value = PseudoClass::Enabled });

@@ -81,7 +81,7 @@ void HTMLBaseElement::set_the_frozen_base_url(URL::URL const& old_base_url)
     auto& document = this->document();
 
     // 2. Let urlRecord be the result of parsing the value of element's href content attribute with document's fallback base URL, and document's character encoding. (Thus, the base element isn't affected by itself.)
-    auto href = get_attribute_value(AttributeNames::href).to_utf8_but_should_be_ported_to_utf16();
+    auto href = get_attribute_value(AttributeNames::href);
     auto encoding = document.encoding_or_default();
     auto url_record = DOMURL::parse(href, document.fallback_base_url(), encoding.bytes_as_string_view());
 
@@ -112,7 +112,7 @@ String HTMLBaseElement::href() const
     auto const& document = this->document();
 
     // 2. Let url be the value of the href attribute of this element, if it has one, and the empty string otherwise.
-    auto url = attribute(AttributeNames::href).value_or({}).to_utf8_but_should_be_ported_to_utf16();
+    auto url = attribute(AttributeNames::href).value_or({});
 
     // 3. Let urlRecord be the result of parsing url with document's fallback base URL, and document's character encoding. (Thus, the base element isn't affected by other base elements or itself.)
     auto encoding = document.encoding_or_default();
@@ -120,7 +120,7 @@ String HTMLBaseElement::href() const
 
     // 4. If urlRecord is failure, return url.
     if (!url_record.has_value())
-        return url;
+        return url.to_utf8_but_should_be_ported_to_utf16();
 
     // 5. Return the serialization of urlRecord.
     return url_record->to_string();

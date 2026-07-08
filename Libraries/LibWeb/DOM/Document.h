@@ -571,8 +571,8 @@ public:
     String const& content_type() const { return m_content_type; }
     void set_content_type(String content_type) { m_content_type = move(content_type); }
 
-    Optional<String> const& pragma_set_default_language() const { return m_pragma_set_default_language; }
-    void set_pragma_set_default_language(String language) { m_pragma_set_default_language = move(language); }
+    Optional<Utf16String> const& pragma_set_default_language() const { return m_pragma_set_default_language; }
+    void set_pragma_set_default_language(Utf16String language) { m_pragma_set_default_language = move(language); }
     Optional<String> const& http_content_language() const { return m_http_content_language; }
 
     bool has_encoding() const { return m_encoding.has_value(); }
@@ -1354,7 +1354,7 @@ private:
     //            browsing context.
     HTML::DocumentReadyState m_readiness { HTML::DocumentReadyState::Complete };
     String m_content_type { "application/xml"_string };
-    Optional<String> m_pragma_set_default_language;
+    Optional<Utf16String> m_pragma_set_default_language;
     Optional<String> m_http_content_language;
     Optional<String> m_encoding;
 

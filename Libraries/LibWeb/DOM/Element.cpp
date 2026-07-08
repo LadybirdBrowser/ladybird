@@ -933,8 +933,8 @@ void Element::run_attribute_change_steps(FlyString const& local_name, Optional<U
         CSS::Invalidation::invalidate_style_after_attribute_change(
             *this,
             local_name,
-            old_value.map([](auto const& value) { return value.to_utf8_but_should_be_ported_to_utf16(); }),
-            value.map([](auto const& value) { return value.to_utf8_but_should_be_ported_to_utf16(); }));
+            old_value,
+            value);
         if (local_name == HTML::AttributeNames::id || local_name == HTML::AttributeNames::class_)
             invalidate_content_blocker_style_if_needed(*this);
         document().bump_dom_tree_version();
@@ -3260,21 +3260,18 @@ GC::Ref<WebIDL::Promise> Element::scroll_into_view(Optional<Variant<bool, Bindin
     return scroll_promise;
 }
 
-#define __ENUMERATE_ARIA_ATTRIBUTE(name, attribute)                  \
-    Optional<String> Element::name() const                           \
-    {                                                                \
-        auto value = get_attribute(ARIA::AttributeNames::name);      \
-        if (!value.has_value())                                      \
-            return {};                                               \
-        return value->to_utf8_but_should_be_ported_to_utf16();       \
-    }                                                                \
-                                                                     \
-    void Element::set_##name(Optional<String> const& value)          \
-    {                                                                \
-        if (value.has_value())                                       \
-            set_attribute_value(ARIA::AttributeNames::name, *value); \
-        else                                                         \
-            remove_attribute(ARIA::AttributeNames::name);            \
+#define __ENUMERATE_ARIA_ATTRIBUTE(name, attribute)                         \
+    Optional<Utf16String> Element::name() const                             \
+    {                                                                       \
+        return get_attribute(ARIA::AttributeNames::name);                   \
+    }                                                                       \
+                                                                            \
+    void Element::set_##name(Optional<Utf16String> const& value)            \
+    {                                                                       \
+        if (value.has_value())                                              \
+            set_attribute_value(ARIA::AttributeNames::name, value.value()); \
+        else                                                                \
+            remove_attribute(ARIA::AttributeNames::name);                   \
     }
 ENUMERATE_ARIA_ATTRIBUTES
 #undef __ENUMERATE_ARIA_ATTRIBUTE
@@ -3286,8 +3283,11 @@ bool Element::is_hidden() const
     if (layout_node()->computed_values().visibility() == CSS::Visibility::Hidden || layout_node()->computed_values().visibility() == CSS::Visibility::Collapse || layout_node()->computed_values().content_visibility() == CSS::ContentVisibility::Hidden)
         return true;
     for (ParentNode const* self_or_ancestor = this; self_or_ancestor; self_or_ancestor = self_or_ancestor->parent_or_shadow_host()) {
-        if (self_or_ancestor->is_element() && static_cast<DOM::Element const*>(self_or_ancestor)->aria_hidden() == "true")
-            return true;
+        if (self_or_ancestor->is_element()) {
+            auto aria_hidden = static_cast<DOM::Element const*>(self_or_ancestor)->aria_hidden();
+            if (aria_hidden.has_value() && aria_hidden->utf16_view() == u"true"sv)
+                return true;
+        }
     }
     return false;
 }
@@ -3307,7 +3307,7 @@ bool Element::is_referenced() const
     if (id().has_value()) {
         root().for_each_in_subtree_of_type<HTML::HTMLElement>([&](auto& element) {
             auto aria_data = MUST(Web::ARIA::AriaData::build_data(element));
-            if (aria_data->aria_labelled_by_or_default().contains_slow(id().value())) {
+            if (aria_data->aria_labelled_by_or_default().contains_slow(Utf16String::from_utf8(id().value()))) {
                 is_referenced = true;
                 return TraversalDecision::Break;
             }
@@ -3378,7 +3378,8 @@ bool Element::include_in_accessibility_tree() const
     // Elements that have an explicit role or a global WAI-ARIA attribute and do not have aria-hidden set to true. (See Excluding Elements in the Accessibility Tree for additional guidance on aria-hidden.)
     // NOTE: The spec says only explicit roles count, but playing around in other browsers, this does not seem to be true in practice (for example button elements are always exposed with their implicit role if none is set)
     //       This issue https://github.com/w3c/aria/issues/1851 seeks clarification on this point
-    if ((role_or_default().has_value() || has_global_aria_attribute()) && aria_hidden() != "true")
+    auto aria_hidden = this->aria_hidden();
+    if ((role_or_default().has_value() || has_global_aria_attribute()) && (!aria_hidden.has_value() || aria_hidden->utf16_view() != u"true"sv))
         return true;
 
     // TODO: Elements that are not hidden and have an ID that is referenced by another element via a WAI-ARIA property.
@@ -4318,9 +4319,10 @@ i32 Element::ordinal_value()
     return m_ordinal_value.value_or(1);
 }
 
-bool Element::id_reference_exists(String const& id_reference) const
+bool Element::id_reference_exists(Utf16String const& id_reference) const
 {
-    return document().get_element_by_id(id_reference);
+    auto id_reference_string = id_reference.to_utf8();
+    return document().get_element_by_id(MUST(FlyString::from_utf8(id_reference_string.bytes_as_string_view())));
 }
 
 void Element::register_intersection_observer(Badge<IntersectionObserver::IntersectionObserver>, GC::Ref<IntersectionObserver::IntersectionObserver> observer)
@@ -4879,7 +4881,7 @@ Optional<Utf16String> Element::lang() const
         // 5. Otherwise
         //      - If there is a pragma-set default language set, then that is the language of the node.
         if (document().pragma_set_default_language().has_value()) {
-            return Utf16String::from_utf8(document().pragma_set_default_language().value_or({}));
+            return document().pragma_set_default_language().value_or({});
         }
 
         //      - If there is no pragma-set default language set, then language information from a higher-level protocol (such as HTTP),

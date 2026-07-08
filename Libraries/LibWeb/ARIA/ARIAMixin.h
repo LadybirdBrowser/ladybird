@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibWeb/ARIA/AriaData.h>
 #include <LibWeb/ARIA/AttributeNames.h>
@@ -33,8 +34,8 @@ public:
     virtual ~ARIAMixin();
 
 #define __ENUMERATE_ARIA_ATTRIBUTE(name, attribute) \
-    virtual Optional<String> name() const = 0;      \
-    virtual void set_##name(Optional<String> const&) = 0;
+    virtual Optional<Utf16String> name() const = 0; \
+    virtual void set_##name(Optional<Utf16String> const&) = 0;
     ENUMERATE_ARIA_ATTRIBUTES
 #undef __ENUMERATE_ARIA_ATTRIBUTE
 
@@ -56,10 +57,10 @@ public:
     bool has_global_aria_attribute() const;
 
     // https://www.w3.org/TR/wai-aria-1.2/#valuetype_idref
-    Optional<String> parse_id_reference(Optional<String> const&) const;
+    Optional<Utf16String> parse_id_reference(Optional<Utf16String> const&) const;
 
     // https://www.w3.org/TR/wai-aria-1.2/#valuetype_idref_list
-    Vector<String> parse_id_reference_list(Optional<String> const&) const;
+    Vector<Utf16String> parse_id_reference_list(Optional<Utf16String> const&) const;
 
 #define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute) \
     GC::Ptr<DOM::Element> attribute() const;                         \
@@ -81,7 +82,7 @@ protected:
 
     void visit_edges(GC::Cell::Visitor&);
 
-    virtual bool id_reference_exists(String const&) const = 0;
+    virtual bool id_reference_exists(Utf16String const&) const = 0;
 
 private:
 #define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute) \

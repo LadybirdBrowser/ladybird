@@ -1544,7 +1544,7 @@ void Document::respond_to_base_url_changes(URL::URL const& old_document_url, URL
         if (!element || !element->matches_link_pseudo_class())
             return TraversalDecision::Continue;
 
-        auto href = element->get_attribute_value(HTML::AttributeNames::href).to_utf8_but_should_be_ported_to_utf16();
+        auto href = element->get_attribute_value(HTML::AttributeNames::href);
         auto old_target_url = DOMURL::parse(href, old_base_url, encoding);
         auto new_target_url = base_url_unchanged ? old_target_url : DOMURL::parse(href, new_base_url, encoding);
 
@@ -1636,8 +1636,8 @@ Optional<URL::URL> Document::encoding_parse_url(StringView url) const
 
 Optional<URL::URL> Document::encoding_parse_url(Utf16View url) const
 {
-    auto url_utf8 = url.to_utf8_but_should_be_ported_to_utf16();
-    return encoding_parse_url(url_utf8.bytes_as_string_view());
+    auto encoding = encoding_or_default();
+    return DOMURL::parse(url, base_url(), encoding);
 }
 
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#encoding-parsing-and-serializing-a-url
@@ -1656,8 +1656,10 @@ Optional<String> Document::encoding_parse_and_serialize_url(StringView url) cons
 
 Optional<String> Document::encoding_parse_and_serialize_url(Utf16String const& url) const
 {
-    auto url_utf8 = url.to_utf8_but_should_be_ported_to_utf16();
-    return encoding_parse_and_serialize_url(url_utf8.bytes_as_string_view());
+    auto parsed_url = encoding_parse_url(url);
+    if (!parsed_url.has_value())
+        return {};
+    return parsed_url->serialize();
 }
 
 void Document::invalidate_layout_tree(InvalidateLayoutTreeReason reason)

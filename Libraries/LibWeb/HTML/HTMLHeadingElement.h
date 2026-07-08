@@ -27,13 +27,13 @@ public:
 
     WebIDL::UnsignedLong heading_level() const;
 
-    virtual Optional<String> aria_level() const override
+    virtual Optional<Utf16String> aria_level() const override
     {
         if (auto const attr = get_attribute(ARIA::AttributeNames::aria_level); attr.has_value())
-            return attr->to_utf8_but_should_be_ported_to_utf16();
+            return attr;
 
         // Implicit defaults to the number in the element's tag name.
-        return MUST(local_name().to_string().substring_from_byte_offset(1));
+        return Utf16String::from_utf8(MUST(local_name().to_string().substring_from_byte_offset(1)));
     }
 
 private:

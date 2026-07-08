@@ -26,6 +26,7 @@ public:
 
     String media_text() const;
     void set_media_text(StringView);
+    void set_media_text(Utf16View);
     size_t length() const { return m_media.size(); }
     Optional<String> item(u32 index) const;
     void append_medium(StringView);

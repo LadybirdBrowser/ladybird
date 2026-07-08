@@ -32,6 +32,16 @@ Optional<Role> role_from_string(StringView role_name)
     return {};
 }
 
+Optional<Role> role_from_string(Utf16View role_name)
+{
+#define __ENUMERATE_ARIA_ROLE(name, attribute)               \
+    if (role_name.equals_ignoring_ascii_case(attribute##sv)) \
+        return Role::name;
+    ENUMERATE_ARIA_ROLES
+#undef __ENUMERATE_ARIA_ROLE
+    return {};
+}
+
 // https://www.w3.org/TR/wai-aria-1.2/#abstract_roles
 bool is_abstract_role(Role role)
 {

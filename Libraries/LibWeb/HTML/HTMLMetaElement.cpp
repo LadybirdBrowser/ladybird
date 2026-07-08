@@ -183,26 +183,29 @@ void HTMLMetaElement::inserted()
             auto content = get_attribute_value(AttributeNames::content);
             if (content.contains(","sv))
                 break;
-            auto content_utf8 = content.to_utf8_but_should_be_ported_to_utf16();
 
             // 3. Let input be the value of the element's content attribute.
             // 4. Let position point at the first character of input.
-            GenericLexer lexer { content_utf8.bytes_as_string_view() };
+            auto input = content.utf16_view();
+            size_t position = 0;
 
             // 5. Skip ASCII whitespace within input given position.
-            lexer.ignore_while(Web::Infra::is_ascii_whitespace);
+            while (position < input.length_in_code_units() && Web::Infra::is_ascii_whitespace(input.code_unit_at(position)))
+                ++position;
 
             // 6. Collect a sequence of code points that are not ASCII whitespace from input given position.
             // 7. Let candidate be the string that resulted from the previous step.
-            auto candidate = lexer.consume_until(Web::Infra::is_ascii_whitespace);
+            auto candidate_start = position;
+            while (position < input.length_in_code_units() && !Web::Infra::is_ascii_whitespace(input.code_unit_at(position)))
+                ++position;
+            auto candidate = input.substring_view(candidate_start, position - candidate_start);
 
             // 8. If candidate is the empty string, return.
             if (candidate.is_empty())
                 break;
 
             // 9. Set the pragma-set default language to candidate.
-            auto language = String::from_utf8_without_validation(candidate.bytes());
-            document().set_pragma_set_default_language(language);
+            document().set_pragma_set_default_language(Utf16String::from_utf16(candidate));
             document().document_element()->invalidate_lang_value();
             break;
         }

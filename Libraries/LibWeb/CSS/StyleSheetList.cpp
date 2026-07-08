@@ -53,8 +53,8 @@ void StyleSheetList::add_a_css_style_sheet(CSS::CSSStyleSheet& sheet)
     // HTML specification says that the title element must be specified with a non-empty value for alternative style sheets.
     // See: https://html.spec.whatwg.org/multipage/links.html#the-link-is-an-alternative-stylesheet
     if ((sheet.title().is_empty() && !sheet.is_alternate())
-        || (!m_last_css_style_sheet_set_name.has_value() && sheet.title().equals_ignoring_case(m_preferred_css_style_sheet_set_name))
-        || (m_last_css_style_sheet_set_name.has_value() && sheet.title().equals_ignoring_case(m_last_css_style_sheet_set_name.value()))) {
+        || (!m_last_css_style_sheet_set_name.has_value() && sheet.title().equals_ignoring_ascii_case(m_preferred_css_style_sheet_set_name))
+        || (m_last_css_style_sheet_set_name.has_value() && sheet.title().equals_ignoring_ascii_case(m_last_css_style_sheet_set_name.value()))) {
         sheet.set_disabled(false);
         return;
     }
@@ -64,7 +64,7 @@ void StyleSheetList::add_a_css_style_sheet(CSS::CSSStyleSheet& sheet)
 }
 
 // https://www.w3.org/TR/cssom/#create-a-css-style-sheet
-GC::Ref<CSSStyleSheet> StyleSheetList::create_a_css_style_sheet(String const& css_text, String type, DOM::Element* owner_node, String media, String title, Alternate alternate, OriginClean origin_clean, Optional<::URL::URL> location, CSSStyleSheet* parent_style_sheet, CSSRule* owner_rule)
+GC::Ref<CSSStyleSheet> StyleSheetList::create_a_css_style_sheet(String const& css_text, String type, DOM::Element* owner_node, Utf16View media, Utf16String title, Alternate alternate, OriginClean origin_clean, Optional<::URL::URL> location, CSSStyleSheet* parent_style_sheet, CSSRule* owner_rule)
 {
     // 1. Create a new CSS style sheet object and set its properties as specified.
     // AD-HOC: The spec never tells us when to parse this style sheet, but the most logical place is here.

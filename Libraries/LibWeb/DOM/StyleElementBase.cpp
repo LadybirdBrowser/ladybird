@@ -43,7 +43,7 @@ void StyleElementBase::style_element_attribute_changed(FlyString const& name, Op
 {
     if (name == HTML::AttributeNames::media) {
         if (auto* sheet = this->sheet()) {
-            sheet->set_media(value.value_or({}).to_utf8_but_should_be_ported_to_utf16());
+            sheet->set_media(value.value_or({}));
             associated_style_sheet_media_attribute_changed();
         }
     } else if (name == HTML::AttributeNames::type) {
@@ -126,10 +126,10 @@ void StyleElementBase::update_a_style_block(UpdateSource update_source)
         style_element.text_content().value_or({}).to_utf8_but_should_be_ported_to_utf16(),
         "text/css"_string,
         &style_element,
-        style_element.attribute(HTML::AttributeNames::media).value_or({}).to_utf8_but_should_be_ported_to_utf16(),
+        style_element.attribute(HTML::AttributeNames::media).value_or({}),
         style_element.in_a_document_tree()
-            ? style_element.attribute(HTML::AttributeNames::title).value_or({}).to_utf8_but_should_be_ported_to_utf16()
-            : String {},
+            ? style_element.attribute(HTML::AttributeNames::title).value_or({})
+            : Utf16String {},
         CSS::StyleSheetList::Alternate::No,
         CSS::StyleSheetList::OriginClean::Yes,
         {},

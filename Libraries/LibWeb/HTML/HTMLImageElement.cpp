@@ -1250,48 +1250,48 @@ static void update_the_source_set(DOM::Element& element)
         // 1. If child is el:
         if (child == &element) {
             // 1. Let default source be the empty string.
-            String default_source;
+            Utf16String default_source;
 
             // 2. Let srcset be the empty string.
-            String srcset;
+            Utf16String srcset;
 
             // 3. Let sizes be the empty string.
-            String sizes;
+            Utf16String sizes;
 
             // 4. If el is an img element that has a srcset attribute, then set srcset to that attribute's value.
             if (is<HTMLImageElement>(element)) {
                 if (auto srcset_value = element.attribute(HTML::AttributeNames::srcset); srcset_value.has_value())
-                    srcset = srcset_value.release_value().to_utf8_but_should_be_ported_to_utf16();
+                    srcset = srcset_value.release_value();
             }
 
             // 5. Otherwise, if el is a link element that has an imagesrcset attribute, then set srcset to that attribute's value.
             else if (is<HTMLLinkElement>(element)) {
                 if (auto imagesrcset_value = element.attribute(HTML::AttributeNames::imagesrcset); imagesrcset_value.has_value())
-                    srcset = imagesrcset_value.release_value().to_utf8_but_should_be_ported_to_utf16();
+                    srcset = imagesrcset_value.release_value();
             }
 
             // 6. If el is an img element that has a sizes attribute, then set sizes to that attribute's value.
             if (is<HTMLImageElement>(element)) {
                 if (auto sizes_value = element.attribute(HTML::AttributeNames::sizes); sizes_value.has_value())
-                    sizes = sizes_value.release_value().to_utf8_but_should_be_ported_to_utf16();
+                    sizes = sizes_value.release_value();
             }
 
             // 7. Otherwise, if el is a link element that has an imagesizes attribute, then set sizes to that attribute's value.
             else if (is<HTMLLinkElement>(element)) {
                 if (auto imagesizes_value = element.attribute(HTML::AttributeNames::imagesizes); imagesizes_value.has_value())
-                    sizes = imagesizes_value.release_value().to_utf8_but_should_be_ported_to_utf16();
+                    sizes = imagesizes_value.release_value();
             }
 
             // 8. If el is an img element that has a src attribute, then set default source to that attribute's value.
             if (is<HTMLImageElement>(element)) {
                 if (auto src_value = element.attribute(HTML::AttributeNames::src); src_value.has_value())
-                    default_source = src_value.release_value().to_utf8_but_should_be_ported_to_utf16();
+                    default_source = src_value.release_value();
             }
 
             // 9. Otherwise, if el is a link element that has an href attribute, then set default source to that attribute's value.
             else if (is<HTMLLinkElement>(element)) {
                 if (auto href_value = element.attribute(HTML::AttributeNames::href); href_value.has_value())
-                    default_source = href_value.release_value().to_utf8_but_should_be_ported_to_utf16();
+                    default_source = href_value.release_value();
             }
 
             // 10. Set el's source set to the result of creating a source set given default source, srcset, sizes, and img.
@@ -1312,8 +1312,7 @@ static void update_the_source_set(DOM::Element& element)
             continue;
 
         // 4. Parse child's srcset attribute and let source set be the returned source set.
-        auto srcset = child->get_attribute_value(HTML::AttributeNames::srcset).to_utf8_but_should_be_ported_to_utf16();
-        auto source_set = parse_a_srcset_attribute(srcset.bytes_as_string_view());
+        auto source_set = parse_a_srcset_attribute(child->get_attribute_value(HTML::AttributeNames::srcset));
 
         // 5. If source set has zero image sources, continue to the next child.
         if (source_set.is_empty())
@@ -1329,8 +1328,7 @@ static void update_the_source_set(DOM::Element& element)
         }
 
         // 7. Parse child's sizes attribute with img, and let source set's source size be the returned value.
-        auto sizes = child->get_attribute_value(HTML::AttributeNames::sizes).to_utf8_but_should_be_ported_to_utf16();
-        source_set.m_source_size = parse_a_sizes_attribute(element, sizes.bytes_as_string_view(), img);
+        source_set.m_source_size = parse_a_sizes_attribute(element, child->get_attribute_value(HTML::AttributeNames::sizes), img);
 
         // 8. If child has a type attribute, and its value is an unknown or unsupported MIME type, continue to the next child.
         if (child->has_attribute(HTML::AttributeNames::type)) {

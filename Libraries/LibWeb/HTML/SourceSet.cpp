@@ -7,6 +7,7 @@
 #include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/QuickSort.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/DOM/Document.h>
@@ -68,7 +69,7 @@ ImageSourceAndPixelDensity SourceSet::select_an_image_source(double device_pixel
     return { unique_pixel_density_sources.last(), pixel_density(unique_pixel_density_sources.last()) };
 }
 
-static StringView collect_a_sequence_of_code_points(Function<bool(u32 code_point)> condition, StringView input, size_t& position)
+static Utf16View collect_a_sequence_of_code_points(Function<bool(u32 code_point)> condition, Utf16View input, size_t& position)
 {
     // 1. Let result be the empty string.
     // 2. While position doesn’t point past the end of input and the code point at position within input meets the condition condition:
@@ -77,13 +78,13 @@ static StringView collect_a_sequence_of_code_points(Function<bool(u32 code_point
     // 3. Return result.
 
     size_t start = position;
-    while (position < input.length() && condition(input[position]))
+    while (position < input.length_in_code_units() && condition(input.code_unit_at(position)))
         ++position;
     return input.substring_view(start, position - start);
 }
 
 // https://html.spec.whatwg.org/multipage/images.html#parse-a-srcset-attribute
-SourceSet parse_a_srcset_attribute(StringView input)
+SourceSet parse_a_srcset_attribute(Utf16View input)
 {
     // 1. Let input be the value passed to this algorithm.
 
@@ -107,7 +108,7 @@ splitting_loop:
         input, position);
 
     // 5. If position is past the end of input, return candidates.
-    if (position >= input.length()) {
+    if (position >= input.length_in_code_units()) {
         return candidates;
     }
 
@@ -117,13 +118,13 @@ splitting_loop:
         input, position);
 
     // 7. Let descriptors be a new empty list.
-    Vector<String> descriptors;
+    Vector<Utf16String> descriptors;
 
     // 8. If url ends with U+002C (,), then:
     if (url.ends_with(',')) {
         // 1. Remove all trailing U+002C COMMA characters from url. If this removed more than one character, that is a parse error.
         while (url.ends_with(','))
-            url = url.substring_view(0, url.length() - 1);
+            url = url.substring_view(0, url.length_in_code_units() - 1);
     }
     // Otherwise:
     else {
@@ -133,7 +134,7 @@ splitting_loop:
             input, position);
 
         // 2. Let current descriptor be the empty string.
-        StringBuilder current_descriptor;
+        Utf16StringBuilder current_descriptor;
 
         enum class State {
             InDescriptor,
@@ -147,8 +148,8 @@ splitting_loop:
         //    For the purpose of this step, "EOF" is a special character representing that position is past the end of input.
         for (;;) {
             Optional<u32> c;
-            if (position < input.length()) {
-                c = input[position];
+            if (position < input.length_in_code_units()) {
+                c = input.code_unit_at(position);
             }
 
             switch (state) {
@@ -160,7 +161,7 @@ splitting_loop:
                 if (c.has_value() && Infra::is_ascii_whitespace(c.value())) {
                     // If current descriptor is not empty, append current descriptor to descriptors and let current descriptor be the empty string.
                     if (!current_descriptor.is_empty()) {
-                        descriptors.append(current_descriptor.to_string().release_value_but_fixme_should_propagate_errors());
+                        descriptors.append(current_descriptor.to_string());
                     }
                     // Set state to after descriptor.
                     state = State::AfterDescriptor;
@@ -172,7 +173,7 @@ splitting_loop:
 
                     // If current descriptor is not empty, append current descriptor to descriptors.
                     if (!current_descriptor.is_empty()) {
-                        descriptors.append(current_descriptor.to_string().release_value_but_fixme_should_propagate_errors());
+                        descriptors.append(current_descriptor.to_string());
                     }
 
                     // Jump to the step labeled descriptor parser.
@@ -182,7 +183,7 @@ splitting_loop:
                 // U+0028 LEFT PARENTHESIS (()
                 else if (c.has_value() && c.value() == '(') {
                     // Append c to current descriptor.
-                    current_descriptor.try_append_code_point(c.value()).release_value_but_fixme_should_propagate_errors();
+                    current_descriptor.append_code_unit(c.value());
 
                     // Set state to in parens.
                     state = State::InParens;
@@ -191,7 +192,7 @@ splitting_loop:
                 else if (!c.has_value()) {
                     // If current descriptor is not empty, append current descriptor to descriptors.
                     if (!current_descriptor.is_empty()) {
-                        descriptors.append(current_descriptor.to_string().release_value_but_fixme_should_propagate_errors());
+                        descriptors.append(current_descriptor.to_string());
                     }
 
                     // Jump to the step labeled descriptor parser.
@@ -200,7 +201,7 @@ splitting_loop:
                 // Anything else
                 else {
                     // Append c to current descriptor.
-                    current_descriptor.try_append_code_point(c.value()).release_value_but_fixme_should_propagate_errors();
+                    current_descriptor.append_code_unit(c.value());
                 }
                 break;
 
@@ -210,14 +211,14 @@ splitting_loop:
                 // U+0029 RIGHT PARENTHESIS ())
                 if (c.has_value() && c.value() == ')') {
                     // Append c to current descriptor.
-                    current_descriptor.try_append_code_point(c.value()).release_value_but_fixme_should_propagate_errors();
+                    current_descriptor.append_code_unit(c.value());
                     // Set state to in descriptor.
                     state = State::InDescriptor;
                 }
                 // EOF
                 else if (!c.has_value()) {
                     // Append current descriptor to descriptors.
-                    descriptors.append(current_descriptor.to_string().release_value_but_fixme_should_propagate_errors());
+                    descriptors.append(current_descriptor.to_string());
 
                     // Jump to the step labeled descriptor parser.
                     goto descriptor_parser;
@@ -225,7 +226,7 @@ splitting_loop:
                 // Anything else
                 else {
                     // Append c to current descriptor.
-                    current_descriptor.try_append_code_point(c.value()).release_value_but_fixme_should_propagate_errors();
+                    current_descriptor.append_code_unit(c.value());
                 }
                 break;
 
@@ -269,8 +270,9 @@ descriptor_parser:
 
     // 13. For each descriptor in descriptors, run the appropriate set of steps from the following list:
     for (auto& descriptor : descriptors) {
-        auto last_character = descriptor.bytes_as_string_view().bytes().last();
-        auto descriptor_without_last_character = descriptor.bytes_as_string_view().substring_view(0, descriptor.bytes_as_string_view().length() - 1);
+        auto descriptor_view = descriptor.utf16_view();
+        auto last_character = descriptor_view.code_unit_at(descriptor_view.length_in_code_units() - 1);
+        auto descriptor_without_last_character = descriptor_view.substring_view(0, descriptor_view.length_in_code_units() - 1);
 
         auto as_int = descriptor_without_last_character.to_number<i32>();
         auto as_float = descriptor_without_last_character.to_number<float>();
@@ -329,7 +331,7 @@ descriptor_parser:
     //     Otherwise, there is a parse error.
     if (!error) {
         ImageSource source;
-        source.url = String::from_utf8(url).release_value_but_fixme_should_propagate_errors();
+        source.url = url.to_utf8_but_should_be_ported_to_utf16();
         if (width.has_value())
             source.descriptor = ImageSource::WidthDescriptorValue { width.value() };
         else if (density.has_value())
@@ -342,14 +344,15 @@ descriptor_parser:
 }
 
 // https://html.spec.whatwg.org/multipage/images.html#parse-a-sizes-attribute
-NonnullRefPtr<CSS::StyleValue const> parse_a_sizes_attribute(DOM::Element const& element, StringView sizes, HTML::HTMLImageElement const* img)
+NonnullRefPtr<CSS::StyleValue const> parse_a_sizes_attribute(DOM::Element const& element, Utf16View sizes, HTML::HTMLImageElement const* img)
 {
-    auto css_parser = CSS::Parser::Parser::create(CSS::Parser::ParsingParams { element.document() }, sizes);
+    auto sizes_utf8 = sizes.to_utf8_but_should_be_ported_to_utf16();
+    auto css_parser = CSS::Parser::Parser::create(CSS::Parser::ParsingParams { element.document() }, sizes_utf8.bytes_as_string_view());
     return css_parser.parse_as_sizes_attribute(element, img);
 }
 
 // https://html.spec.whatwg.org/multipage/images.html#create-a-source-set
-SourceSet SourceSet::create(DOM::Element const& element, String const& default_source, String const& srcset, String const& sizes, HTML::HTMLImageElement const* img)
+SourceSet SourceSet::create(DOM::Element const& element, Utf16View default_source, Utf16View srcset, Utf16View sizes, HTML::HTMLImageElement const* img)
 {
     // When asked to create a source set given a string default source, a string srcset, a string sizes, and an element or null img:
 
@@ -378,7 +381,7 @@ SourceSet SourceSet::create(DOM::Element const& element, String const& default_s
                 contains_image_source_with_width_descriptor = true;
         }
         if (!contains_image_source_with_pixel_density_descriptor_value_of_1 && !contains_image_source_with_width_descriptor)
-            source_set.m_sources.append({ .url = default_source, .descriptor = {} });
+            source_set.m_sources.append({ .url = default_source.to_utf8_but_should_be_ported_to_utf16(), .descriptor = {} });
     }
 
     // 5. Normalize the source densities of source set.

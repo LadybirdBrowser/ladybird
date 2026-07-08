@@ -2947,6 +2947,19 @@ void Node::build_accessibility_tree(AccessibilityTreeNode& parent)
 }
 
 // https://www.w3.org/TR/accname-1.2/#mapping_additional_nd_te
+static void for_each_ascii_whitespace_separated_token(Utf16View input, Function<IterationDecision(Utf16View)> const& callback)
+{
+    size_t start = 0;
+    for (size_t i = 0; i <= input.length_in_code_units(); ++i) {
+        if (i != input.length_in_code_units() && !Infra::is_ascii_whitespace(input.code_unit_at(i)))
+            continue;
+
+        if (i > start && callback(input.substring_view(start, i - start)) == IterationDecision::Break)
+            return;
+        start = i + 1;
+    }
+}
+
 ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Document const& document, HashTable<UniqueNodeID>& visited_nodes, IsDescendant is_descendant, ShouldComputeRole should_compute_role) const
 {
     // The text alternative for a given element is computed as follows:
@@ -3014,25 +3027,32 @@ ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Documen
             // i. Set the accumulated text to the empty string.
             total_accumulated_text.clear();
 
-            Vector<StringView> id_list;
+            Vector<Utf16View> id_list;
             if (target == NameOrDescription::Name) {
-                id_list = aria_labelled_by->bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
+                for_each_ascii_whitespace_separated_token(aria_labelled_by->utf16_view(), [&](auto id) {
+                    id_list.append(id);
+                    return IterationDecision::Continue;
+                });
             } else {
-                id_list = aria_described_by->bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
+                for_each_ascii_whitespace_separated_token(aria_described_by->utf16_view(), [&](auto id) {
+                    id_list.append(id);
+                    return IterationDecision::Continue;
+                });
             }
 
             // ii. For each IDREF:
             for (auto const& id_ref : id_list) {
-                auto node = document.get_element_by_id(MUST(FlyString::from_utf8(id_ref)));
+                auto id_ref_string = MUST(id_ref.to_utf8());
+                auto node = document.get_element_by_id(MUST(FlyString::from_utf8(id_ref_string.bytes_as_string_view())));
                 if (!node)
                     continue;
                 // AD-HOC: The “For each IDREF” substep in the spec doesn’t seem to explicitly require the following
                 // check for an aria-label value; but the “div group explicitly labelledby self and heading” subtest at
                 // https://wpt.fyi/results/accname/name/comp_labelledby.html won’t pass unless we do this check.
                 // https://github.com/w3c/aria/issues/2388
-                if (target == NameOrDescription::Name && node->aria_label().has_value() && !node->aria_label()->is_empty() && !node->aria_label()->bytes_as_string_view().is_whitespace()) {
+                if (target == NameOrDescription::Name && node->aria_label().has_value() && !node->aria_label()->is_empty() && !node->aria_label()->is_ascii_whitespace()) {
                     total_accumulated_text.append_ascii(' ');
-                    total_accumulated_text.append(Utf16String::from_utf8(node->aria_label().value()));
+                    total_accumulated_text.append(node->aria_label().value());
                 }
                 if (visited_nodes.contains(node->unique_id()))
                     continue;
@@ -3052,8 +3072,8 @@ ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Documen
             // falls back to aria-label” subtest at https://wpt.fyi/results/accname/name/comp_labelledby.html won’t pass
             // unless we do this check.
             // https://github.com/w3c/aria/issues/2388
-            if (total_accumulated_text.view().is_ascii_whitespace() && target == NameOrDescription::Name && element->aria_label().has_value() && !element->aria_label()->is_empty() && !element->aria_label()->bytes_as_string_view().is_whitespace())
-                return Utf16String::from_utf8(element->aria_label().release_value());
+            if (total_accumulated_text.view().is_ascii_whitespace() && target == NameOrDescription::Name && element->aria_label().has_value() && !element->aria_label()->is_empty() && !element->aria_label()->is_ascii_whitespace())
+                return element->aria_label().release_value();
             return total_accumulated_text.to_string();
         }
 
@@ -3065,11 +3085,11 @@ ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Documen
         // necessitate doing so, and the “input with label for association is superceded by aria-label” subtest at
         // https://wpt.fyi/results/accname/name/comp_label.html won’t pass unless we do this reordering.
         // Spec PR: https://github.com/w3c/aria/pull/2377
-        if (target == NameOrDescription::Name && element->aria_label().has_value() && !element->aria_label()->is_empty() && !element->aria_label()->bytes_as_string_view().is_whitespace()) {
+        if (target == NameOrDescription::Name && element->aria_label().has_value() && !element->aria_label()->is_empty() && !element->aria_label()->is_ascii_whitespace()) {
             // TODO: - If traversal of the current node is due to recursion and the current node is an embedded control as defined in step 2E, ignore aria-label and skip to rule 2E.
             // https://github.com/w3c/aria/pull/2385 and https://github.com/w3c/accname/issues/173
             if (!element->is_html_slot_element())
-                return Utf16String::from_utf8(element->aria_label().value());
+                return element->aria_label().value();
         }
 
         // C. Embedded Control: Otherwise, if the current node is a control embedded within the label (e.g. any element
@@ -3132,7 +3152,8 @@ ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Documen
                                 if (child->is_element()) {
                                     auto const& element = static_cast<DOM::Element const&>(*child);
                                     auto role = element.role_or_default();
-                                    if (role == ARIA::Role::option && element.aria_selected() == "true")
+                                    auto aria_selected = element.aria_selected();
+                                    if (role == ARIA::Role::option && aria_selected.has_value() && aria_selected->utf16_view() == u"true"sv)
                                         builder.append(element.text_content().value());
                                 }
                             }
@@ -3143,10 +3164,10 @@ ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Documen
                             // iii. Range: If the embedded control has role range (e.g., a spinbutton or slider):
                             // a. If the aria-valuetext property is present, return its value,
                             if (aria_valuetext.has_value())
-                                builder.append(Utf16String::from_utf8(aria_valuetext.value()));
+                                builder.append(aria_valuetext.value());
                             // b. Otherwise, if the aria-valuenow property is present, return its value
                             else if (aria_valuenow.has_value())
-                                builder.append(Utf16String::from_utf8(aria_valuenow.value()));
+                                builder.append(aria_valuenow.value());
                             // c. Otherwise, use the value as specified by a host language attribute.
                             else if (is<HTML::HTMLInputElement>(*node)) {
                                 auto const& element = static_cast<HTML::HTMLInputElement const&>(*node);
@@ -3410,9 +3431,14 @@ ErrorOr<Utf16String> Node::accessible_description(Document const& document) cons
 
     HashTable<UniqueNodeID> visited_nodes;
     Utf16StringBuilder builder;
-    auto id_list = described_by->bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
-    for (auto const& id : id_list) {
-        if (auto description_element = document.get_element_by_id(MUST(FlyString::from_utf8(id)))) {
+    Vector<Utf16View> id_list;
+    for_each_ascii_whitespace_separated_token(described_by->utf16_view(), [&](auto id) {
+        id_list.append(id);
+        return IterationDecision::Continue;
+    });
+    for (auto id : id_list) {
+        auto id_string = MUST(id.to_utf8());
+        if (auto description_element = document.get_element_by_id(MUST(FlyString::from_utf8(id_string.bytes_as_string_view())))) {
             auto description = TRY(
                 description_element->name_or_description(NameOrDescription::Description, document,
                     visited_nodes));
@@ -3429,13 +3455,19 @@ ErrorOr<Utf16String> Node::accessible_description(Document const& document) cons
     return builder.to_string();
 }
 
-Optional<StringView> Node::first_valid_id(StringView value, Document const& document)
+Optional<Utf16View> Node::first_valid_id(Utf16View value, Document const& document)
 {
-    auto id_list = value.split_view_if(Infra::is_ascii_whitespace);
-    for (auto const& id : id_list) {
-        if (document.get_element_by_id(MUST(FlyString::from_utf8(id))))
-            return id;
-    }
+    Optional<Utf16View> first_id;
+    for_each_ascii_whitespace_separated_token(value, [&](auto id) {
+        auto id_string = MUST(id.to_utf8());
+        if (document.get_element_by_id(MUST(FlyString::from_utf8(id_string.bytes_as_string_view())))) {
+            first_id = id;
+            return IterationDecision::Break;
+        }
+        return IterationDecision::Continue;
+    });
+    if (first_id.has_value())
+        return first_id;
     return {};
 }
 

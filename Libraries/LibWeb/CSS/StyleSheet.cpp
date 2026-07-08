@@ -31,7 +31,7 @@ void StyleSheet::visit_edges(Cell::Visitor& visitor)
 size_t StyleSheet::external_memory_size() const
 {
     auto size = Base::external_memory_size();
-    size = JS::saturating_add_external_memory_size(size, JS::string_external_memory_size(m_title));
+    size = JS::saturating_add_external_memory_size(size, JS::utf16_string_external_memory_size(m_title));
     size = JS::saturating_add_external_memory_size(size, JS::string_external_memory_size(m_type_string));
     return size;
 }
@@ -54,7 +54,7 @@ void StyleSheet::set_parent_css_style_sheet(CSSStyleSheet* parent)
 }
 
 // https://drafts.csswg.org/cssom/#dom-stylesheet-title
-Optional<String> StyleSheet::title_for_bindings() const
+Optional<Utf16String> StyleSheet::title_for_bindings() const
 {
     // The title attribute must return the title or null if title is the empty string.
     if (m_title.is_empty())

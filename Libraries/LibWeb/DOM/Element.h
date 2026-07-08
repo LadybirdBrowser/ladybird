@@ -440,9 +440,9 @@ public:
     GC::Ref<WebIDL::Promise> scroll_into_view(Optional<Variant<bool, Bindings::ScrollIntoViewOptions>> = {});
 
     // https://www.w3.org/TR/wai-aria-1.2/#ARIAMixin
-#define __ENUMERATE_ARIA_ATTRIBUTE(name, attribute) \
-    virtual Optional<String> name() const override; \
-    virtual void set_##name(Optional<String> const& value) override;
+#define __ENUMERATE_ARIA_ATTRIBUTE(name, attribute)      \
+    virtual Optional<Utf16String> name() const override; \
+    virtual void set_##name(Optional<Utf16String> const& value) override;
     ENUMERATE_ARIA_ATTRIBUTES
 #undef __ENUMERATE_ARIA_ATTRIBUTE
 
@@ -684,7 +684,7 @@ protected:
 
     virtual void visit_edges(Cell::Visitor&) override;
 
-    virtual bool id_reference_exists(String const&) const override;
+    virtual bool id_reference_exists(Utf16String const&) const override;
 
     CustomElementState custom_element_state() const { return m_custom_element_state; }
     GC::Ptr<HTML::CustomElementDefinition> custom_element_definition() const { return m_custom_element_definition; }

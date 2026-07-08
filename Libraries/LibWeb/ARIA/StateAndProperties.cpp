@@ -9,11 +9,16 @@
 
 namespace Web::ARIA {
 
+static String serialize_aria_string(Utf16String const& value)
+{
+    return value.to_utf8();
+}
+
 ErrorOr<String> state_or_property_to_string_value(StateAndProperties state_or_property, AriaData const& aria_data, DefaultValueType default_value)
 {
     switch (state_or_property) {
     case StateAndProperties::AriaActiveDescendant: {
-        return aria_data.aria_active_descendant_or_default().value_or(String {});
+        return serialize_aria_string(aria_data.aria_active_descendant_or_default().value_or(Utf16String {}));
     }
     case StateAndProperties::AriaAtomic: {
         bool value;
@@ -38,9 +43,9 @@ ErrorOr<String> state_or_property_to_string_value(StateAndProperties state_or_pr
         VERIFY_NOT_REACHED();
     }
     case StateAndProperties::AriaBrailleLabel:
-        return aria_data.aria_braille_label_or_default();
+        return serialize_aria_string(aria_data.aria_braille_label_or_default());
     case StateAndProperties::AriaBrailleRoleDescription:
-        return aria_data.aria_braille_role_description_or_default();
+        return serialize_aria_string(aria_data.aria_braille_role_description_or_default());
     case StateAndProperties::AriaBusy:
         return String::from_utf8(aria_data.aria_busy_or_default() ? "true"sv : "false"sv);
     case StateAndProperties::AriaChecked:
@@ -50,7 +55,7 @@ ErrorOr<String> state_or_property_to_string_value(StateAndProperties state_or_pr
     case StateAndProperties::AriaColIndex:
         return ARIA::optional_integer_to_string(aria_data.aria_col_index_or_default());
     case StateAndProperties::AriaColIndexText:
-        return aria_data.aria_col_index_text_or_default();
+        return serialize_aria_string(aria_data.aria_col_index_text_or_default());
     case StateAndProperties::AriaColSpan:
         return ARIA::optional_integer_to_string(aria_data.aria_col_span_or_default());
     case StateAndProperties::AriaControls:
@@ -78,9 +83,9 @@ ErrorOr<String> state_or_property_to_string_value(StateAndProperties state_or_pr
     case StateAndProperties::AriaDescribedBy:
         return id_reference_list_to_string(aria_data.aria_described_by_or_default());
     case StateAndProperties::AriaDescription:
-        return aria_data.aria_description_or_default();
+        return serialize_aria_string(aria_data.aria_description_or_default());
     case StateAndProperties::AriaDetails: {
-        return aria_data.aria_details_or_default().value_or(String {});
+        return serialize_aria_string(aria_data.aria_details_or_default().value_or(Utf16String {}));
     }
     case StateAndProperties::AriaDisabled:
         return aria_data.aria_disabled_or_default() ? "true"_string : "false"_string;
@@ -119,7 +124,7 @@ ErrorOr<String> state_or_property_to_string_value(StateAndProperties state_or_pr
         return builder.to_string();
     }
     case StateAndProperties::AriaErrorMessage: {
-        return aria_data.aria_error_message_or_default().value_or(String {});
+        return serialize_aria_string(aria_data.aria_error_message_or_default().value_or(Utf16String {}));
     }
     case StateAndProperties::AriaExpanded:
         return ARIA::optional_bool_to_string(aria_data.aria_expanded_or_default());
@@ -164,9 +169,9 @@ ErrorOr<String> state_or_property_to_string_value(StateAndProperties state_or_pr
         VERIFY_NOT_REACHED();
     }
     case StateAndProperties::AriaKeyShortcuts:
-        return aria_data.aria_key_shortcuts_or_default();
+        return serialize_aria_string(aria_data.aria_key_shortcuts_or_default());
     case StateAndProperties::AriaLabel:
-        return aria_data.aria_label_or_default();
+        return serialize_aria_string(aria_data.aria_label_or_default());
     case StateAndProperties::AriaLabelledBy:
         return id_reference_list_to_string(aria_data.aria_labelled_by_or_default());
     case StateAndProperties::AriaLevel:
@@ -214,7 +219,7 @@ ErrorOr<String> state_or_property_to_string_value(StateAndProperties state_or_pr
     case StateAndProperties::AriaOwns:
         return id_reference_list_to_string(aria_data.aria_owns_or_default());
     case StateAndProperties::AriaPlaceholder:
-        return aria_data.aria_placeholder_or_default();
+        return serialize_aria_string(aria_data.aria_placeholder_or_default());
     case StateAndProperties::AriaPosInSet:
         return ARIA::optional_integer_to_string(aria_data.aria_pos_in_set_or_default());
     case StateAndProperties::AriaPressed:
@@ -255,13 +260,13 @@ ErrorOr<String> state_or_property_to_string_value(StateAndProperties state_or_pr
     case StateAndProperties::AriaRequired:
         return String::from_utf8(aria_data.aria_required_or_default() ? "true"sv : "false"sv);
     case StateAndProperties::AriaRoleDescription:
-        return aria_data.aria_role_description_or_default();
+        return serialize_aria_string(aria_data.aria_role_description_or_default());
     case StateAndProperties::AriaRowCount:
         return ARIA::optional_integer_to_string(aria_data.aria_row_count_or_default());
     case StateAndProperties::AriaRowIndex:
         return ARIA::optional_integer_to_string(aria_data.aria_row_index_or_default());
     case StateAndProperties::AriaRowIndexText:
-        return aria_data.aria_row_index_text_or_default();
+        return serialize_aria_string(aria_data.aria_row_index_text_or_default());
     case StateAndProperties::AriaRowSpan:
         return ARIA::optional_integer_to_string(aria_data.aria_row_span_or_default());
     case StateAndProperties::AriaSelected:
@@ -295,7 +300,7 @@ ErrorOr<String> state_or_property_to_string_value(StateAndProperties state_or_pr
     case StateAndProperties::AriaValueNow:
         return ARIA::optional_number_to_string(aria_data.aria_value_now_or_default());
     case StateAndProperties::AriaValueText:
-        return aria_data.aria_value_text_or_default();
+        return serialize_aria_string(aria_data.aria_value_text_or_default());
     }
     VERIFY_NOT_REACHED();
 }
@@ -338,15 +343,16 @@ ErrorOr<String> optional_number_to_string(Optional<f64> value)
     return String::number(value.value());
 }
 
-ErrorOr<String> id_reference_list_to_string(Vector<String> const& value)
+ErrorOr<String> id_reference_list_to_string(Vector<Utf16String> const& value)
 {
     StringBuilder builder;
     for (auto const& id : value) {
+        auto serialized_id = serialize_aria_string(id);
         if (builder.is_empty()) {
-            builder.append(id);
+            builder.append(serialized_id);
         } else {
             builder.append(" "sv);
-            builder.append(id);
+            builder.append(serialized_id);
         }
     }
     return builder.to_string();
