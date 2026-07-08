@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, the Ladybird developers.
+ * Copyright (c) 2024-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */

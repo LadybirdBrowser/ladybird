@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (c) 2025, The Ladybird contributors
+# Copyright (c) 2026-present, the Ladybird developers.
 #
 # SPDX-License-Identifier: BSD-2-Clause
 

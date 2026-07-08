@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2022, Ali Mohammad Pur <mpfard@serenityos.org>
- * Copyright (c) 2026, the Ladybird developers.
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */

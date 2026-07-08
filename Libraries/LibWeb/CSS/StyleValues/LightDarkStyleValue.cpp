@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Ladybird contributors
+ * Copyright (c) 2025-present, the Ladybird developers.
  * Copyright (c) 2026, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause

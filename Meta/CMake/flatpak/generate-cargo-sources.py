@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-# Copyright (c) 2026, Ladybird developers
+
+# Copyright (c) 2026-present, the Ladybird developers.
+#
 # SPDX-License-Identifier: BSD-2-Clause
 
 # Generate cargo-sources.json for Flatpak builds from Cargo.lock.
