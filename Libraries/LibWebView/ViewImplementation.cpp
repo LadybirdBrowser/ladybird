@@ -119,7 +119,6 @@ void ViewImplementation::set_url(URL::URL url)
 
     auto previous_host = current_host();
     m_url = move(url);
-    m_top_level_traversable.did_commit_navigation(m_url);
     update_bookmark_action();
 
     if (current_host() != previous_host)

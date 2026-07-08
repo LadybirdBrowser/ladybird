@@ -5544,7 +5544,7 @@ void Document::make_active()
     if (current_navigable && current_navigable->is_top_level_traversable()) {
         page().client().page_did_change_active_document_in_top_level_browsing_context(*this);
     } else if (current_navigable) {
-        page().client().page_did_commit_child_frame_navigation(current_navigable->id(), url(), current_navigable->replicated_state());
+        page().client().page_did_commit_child_frame_navigation(current_navigable->id(), current_navigable->replicated_state());
     }
 
     // 3. Set window's relevant settings object's execution ready flag.

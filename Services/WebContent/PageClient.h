@@ -156,7 +156,7 @@ private:
     virtual void request_new_process_for_child_frame_navigation(Web::HTML::NavigableId frame_id, URL::URL const&, Variant<Empty, String, Web::HTML::POSTResource>, Web::Bindings::NavigationHistoryBehavior) override;
     virtual void page_did_create_child_frame(Web::HTML::NavigableId parent_frame_id, Web::HTML::NavigableId frame_id, Web::HTML::ReplicatedNavigableState const&) override;
     virtual void page_did_update_child_frame_viewport(Web::HTML::NavigableId frame_id, Web::CSSPixelRect) override;
-    virtual void page_did_commit_child_frame_navigation(Web::HTML::NavigableId frame_id, URL::URL const&, Web::HTML::ReplicatedNavigableState const&) override;
+    virtual void page_did_commit_child_frame_navigation(Web::HTML::NavigableId frame_id, Web::HTML::ReplicatedNavigableState const&) override;
     virtual void page_did_destroy_child_frame(Web::HTML::NavigableId frame_id) override;
     virtual Optional<Web::Compositor::CompositorContextId> compositor_context_id_for_remote_child_frame(Web::HTML::NavigableId) const override;
     virtual String dump_site_isolation_process_tree_for_testing() override;

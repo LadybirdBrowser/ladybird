@@ -532,7 +532,7 @@ void WebContentClient::did_update_child_frame_viewport(u64 page_id, Web::HTML::N
         child_frame->set_viewport(viewport_rect, device_pixel_ratio);
 }
 
-void WebContentClient::did_commit_child_frame_navigation(u64 page_id, Web::HTML::NavigableId frame_id, URL::URL url, Web::HTML::ReplicatedNavigableState replicated_state)
+void WebContentClient::did_commit_child_frame_navigation(u64 page_id, Web::HTML::NavigableId frame_id, Web::HTML::ReplicatedNavigableState replicated_state)
 {
     auto child_frame = this->child_frame(page_id, frame_id);
     if (!child_frame.has_value())
@@ -541,8 +541,7 @@ void WebContentClient::did_commit_child_frame_navigation(u64 page_id, Web::HTML:
     if (child_frame->has_remote_host())
         SiteIsolationManager::the().transition_child_frame_to_local(*child_frame);
 
-    child_frame->set_replicated_state(move(replicated_state));
-    child_frame->did_commit_navigation(move(url));
+    child_frame->did_commit_navigation(move(replicated_state));
 }
 
 void WebContentClient::did_change_top_level_active_document(u64 page_id, Web::HTML::ReplicatedNavigableState replicated_state)
@@ -551,7 +550,7 @@ void WebContentClient::did_change_top_level_active_document(u64 page_id, Web::HT
     if (!navigable)
         return;
 
-    navigable->set_replicated_state(move(replicated_state));
+    navigable->did_commit_navigation(move(replicated_state));
 }
 
 void WebContentClient::did_destroy_child_frame(u64 page_id, Web::HTML::NavigableId frame_id)
@@ -735,8 +734,6 @@ void WebContentClient::did_finish_loading(u64 page_id, URL::URL url)
             if (listener.on_load_finish)
                 listener.on_load_finish(client_url);
         }
-    } else if (auto* child_frame = embedded_page_host(page_id)) {
-        child_frame->did_commit_navigation(url);
     }
 }
 
@@ -834,7 +831,6 @@ void WebContentClient::did_change_url(u64 page_id, URL::URL url)
         if (view->on_url_change)
             view->on_url_change(url);
     } else if (auto* child_frame = embedded_page_host(page_id)) {
-        child_frame->did_commit_navigation(url);
         child_frame->reporting_client().async_run_iframe_load_event_steps(child_frame->reporting_page_id(), child_frame->id());
     }
 }

@@ -124,7 +124,7 @@ private:
     virtual void did_request_new_process_for_child_frame_navigation(u64 page_id, Web::HTML::NavigableId frame_id, URL::URL url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, Web::Bindings::NavigationHistoryBehavior history_handling) override;
     virtual void did_create_child_frame(u64 page_id, Web::HTML::NavigableId parent_frame_id, Web::HTML::NavigableId frame_id, Web::HTML::ReplicatedNavigableState replicated_state) override;
     virtual void did_update_child_frame_viewport(u64 page_id, Web::HTML::NavigableId frame_id, Web::DevicePixelRect viewport_rect, double device_pixel_ratio) override;
-    virtual void did_commit_child_frame_navigation(u64 page_id, Web::HTML::NavigableId frame_id, URL::URL url, Web::HTML::ReplicatedNavigableState replicated_state) override;
+    virtual void did_commit_child_frame_navigation(u64 page_id, Web::HTML::NavigableId frame_id, Web::HTML::ReplicatedNavigableState replicated_state) override;
     virtual void did_change_top_level_active_document(u64 page_id, Web::HTML::ReplicatedNavigableState replicated_state) override;
     virtual void did_destroy_child_frame(u64 page_id, Web::HTML::NavigableId frame_id) override;
     virtual void did_start_webdriver_navigation(u64 page_id, URL::URL url) override;

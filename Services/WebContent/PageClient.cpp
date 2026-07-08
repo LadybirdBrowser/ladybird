@@ -225,9 +225,9 @@ void PageClient::page_did_update_child_frame_viewport(Web::HTML::NavigableId fra
     client().async_did_update_child_frame_viewport(m_id, frame_id, page().css_to_device_rect(viewport_rect), page().client().device_pixel_ratio());
 }
 
-void PageClient::page_did_commit_child_frame_navigation(Web::HTML::NavigableId frame_id, URL::URL const& url, Web::HTML::ReplicatedNavigableState const& replicated_state)
+void PageClient::page_did_commit_child_frame_navigation(Web::HTML::NavigableId frame_id, Web::HTML::ReplicatedNavigableState const& replicated_state)
 {
-    client().async_did_commit_child_frame_navigation(m_id, frame_id, url, replicated_state);
+    client().async_did_commit_child_frame_navigation(m_id, frame_id, replicated_state);
 }
 
 void PageClient::page_did_destroy_child_frame(Web::HTML::NavigableId frame_id)

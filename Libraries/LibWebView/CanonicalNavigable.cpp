@@ -153,21 +153,10 @@ void CanonicalNavigable::set_replicated_state(Web::HTML::ReplicatedNavigableStat
     m_replicated_state = move(state);
 }
 
-void CanonicalNavigable::did_commit_navigation(URL::URL url)
+void CanonicalNavigable::did_commit_navigation(Web::HTML::ReplicatedNavigableState replicated_state)
 {
-    m_last_committed_url = move(url);
+    set_replicated_state(move(replicated_state));
     m_pending_navigation.clear();
-}
-
-Optional<URL::URL> CanonicalNavigable::document_url() const
-{
-    if (m_last_committed_url.has_value())
-        return m_last_committed_url;
-
-    if (m_pending_navigation.has_value())
-        return m_pending_navigation->target_url;
-
-    return {};
 }
 
 void CanonicalNavigable::record_pending_navigation(URL::URL const& url, HostLocality target_locality, Optional<u64> remote_page_id)

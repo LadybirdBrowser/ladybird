@@ -451,7 +451,7 @@ public:
     virtual void request_new_process_for_child_frame_navigation(HTML::NavigableId, URL::URL const&, Variant<Empty, String, HTML::POSTResource>, Bindings::NavigationHistoryBehavior) { }
     virtual void page_did_create_child_frame(HTML::NavigableId, HTML::NavigableId, HTML::ReplicatedNavigableState const&) { }
     virtual void page_did_update_child_frame_viewport(HTML::NavigableId, CSSPixelRect) { }
-    virtual void page_did_commit_child_frame_navigation(HTML::NavigableId, URL::URL const&, HTML::ReplicatedNavigableState const&) { }
+    virtual void page_did_commit_child_frame_navigation(HTML::NavigableId, HTML::ReplicatedNavigableState const&) { }
     virtual void page_did_destroy_child_frame(HTML::NavigableId) { }
     virtual Optional<Compositor::CompositorContextId> compositor_context_id_for_remote_child_frame(HTML::NavigableId) const { return {}; }
     virtual String dump_site_isolation_process_tree_for_testing() { return {}; }

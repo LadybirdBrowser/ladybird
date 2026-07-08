@@ -22,16 +22,6 @@ SiteIsolationManager& SiteIsolationManager::the()
     return manager;
 }
 
-static URL::URL embedding_page_url_for_child_frame_navigation(CanonicalNavigable const& child_frame, URL::URL const& fallback_url)
-{
-    if (auto const* parent = child_frame.parent()) {
-        if (auto url = parent->document_url(); url.has_value())
-            return *url;
-    }
-
-    return fallback_url;
-}
-
 bool SiteIsolationManager::navigation_requires_process_swap(URL::URL const& current_url, URL::URL const& target_url, Web::NavigationTarget target) const
 {
     if (site_isolation_mode() == SiteIsolationMode::Disabled)
@@ -59,16 +49,32 @@ bool SiteIsolationManager::navigation_requires_process_swap(URL::URL const& curr
     return !current_url.origin().is_same_site(target_url.origin());
 }
 
+bool SiteIsolationManager::child_frame_navigation_requires_process_swap(CanonicalNavigable const& child_frame, URL::URL const& current_url, URL::URL const& target_url) const
+{
+    if (site_isolation_mode() != SiteIsolationMode::IFrame)
+        return false;
+
+    // Use origin-based same-site checks for HTTP(S). about:blank, srcdoc, and data: need the initiator origin, so fall
+    // back to using a URL decision for now.
+    if (Web::Fetch::Infrastructure::is_http_or_https_scheme(target_url.scheme())) {
+        if (auto const* parent_frame = child_frame.parent(); parent_frame && parent_frame->replicated_state().has_value())
+            return !parent_frame->replicated_state()->active_document_origin.is_same_site(target_url.origin());
+    }
+
+    return navigation_requires_process_swap(current_url, target_url, Web::NavigationTarget::IFrame);
+}
+
 Web::NavigationProcessDecision SiteIsolationManager::decide_navigation_process(WebContentClient& parent_client, u64 page_id, Optional<Web::HTML::NavigableId> frame_id, URL::URL current_url, URL::URL target_url, Web::NavigationTarget target)
 {
     Optional<CanonicalNavigable&> child_frame;
     if (target == Web::NavigationTarget::IFrame && frame_id.has_value())
         child_frame = parent_client.child_frame(page_id, *frame_id);
 
-    if (child_frame.has_value())
-        current_url = embedding_page_url_for_child_frame_navigation(*child_frame, current_url);
+    auto requires_process_swap = child_frame.has_value()
+        ? child_frame_navigation_requires_process_swap(*child_frame, current_url, target_url)
+        : navigation_requires_process_swap(current_url, target_url, target);
 
-    auto decision = navigation_requires_process_swap(current_url, target_url, target)
+    auto decision = requires_process_swap
         ? Web::NavigationProcessDecision::Remote
         : Web::NavigationProcessDecision::Local;
 

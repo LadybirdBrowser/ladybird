@@ -81,8 +81,7 @@ public:
     Optional<Web::HTML::ReplicatedNavigableState> const& replicated_state() const { return m_replicated_state; }
     void set_replicated_state(Web::HTML::ReplicatedNavigableState);
 
-    void did_commit_navigation(URL::URL);
-    Optional<URL::URL> document_url() const;
+    void did_commit_navigation(Web::HTML::ReplicatedNavigableState);
 
     void record_pending_navigation(URL::URL const&, HostLocality, Optional<u64> remote_page_id = {});
     void clear_pending_navigation() { m_pending_navigation.clear(); }
@@ -97,7 +96,6 @@ private:
     Vector<NonnullOwnPtr<CanonicalNavigable>> m_children;
 
     Optional<Web::HTML::ReplicatedNavigableState> m_replicated_state;
-    Optional<URL::URL> m_last_committed_url;
     Optional<PendingNavigation> m_pending_navigation;
     Optional<Web::DevicePixelRect> m_viewport_rect;
     double m_device_pixel_ratio { 1 };

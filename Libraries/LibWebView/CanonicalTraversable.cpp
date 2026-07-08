@@ -516,6 +516,10 @@ HistoryTraversalDecision CanonicalTraversable::traverse_the_history_by_delta(int
     if (!target.has_value())
         return { .outcome = { .status = HistoryTraversalStatus::NoEntry } };
 
+    // FIXME: This pre-flight prediction exists only because WebContent applies the history step itself, so the UI must
+    //        choose between delegating the traversal to the current process and driving a cross-process load before
+    //        sending anything. Once the UI process owns apply-the-history-step and issues per-navigable load commands,
+    //        placement is decided per command and this prediction goes away.
     auto will_replace_web_content_process = SiteIsolationManager::the().navigation_requires_process_swap(current_url, target->target_top_level_entry->url);
     auto pending_traversal = PendingSessionHistoryTraversal {
         .target_step = target->target_step,
