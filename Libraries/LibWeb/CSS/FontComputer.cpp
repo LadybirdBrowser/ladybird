@@ -653,6 +653,10 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_v
     // NB: @font-feature-values can't apply to the default font since it's not loaded from CSS
     auto default_font = Platform::FontPlugin::the().default_font(font_size_in_pt, variation, font_feature_data.to_shape_features({}));
     if (font_list->is_empty()) {
+        if (auto fallback_font_list = find_font(Platform::FontPlugin::the().generic_font_name(Platform::GenericFont::UiSansSerif, weight, slope)))
+            font_list->extend(*fallback_font_list);
+    }
+    if (font_list->is_empty()) {
         // This is needed to make sure we check default font before reaching to emojis.
         font_list->add(*default_font);
     }

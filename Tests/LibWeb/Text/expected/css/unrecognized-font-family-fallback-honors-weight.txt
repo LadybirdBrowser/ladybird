@@ -1,0 +1,2 @@
+unrecognized-family bold matches sans-serif bold: true
+unrecognized-family bold matches the registered bold face: true

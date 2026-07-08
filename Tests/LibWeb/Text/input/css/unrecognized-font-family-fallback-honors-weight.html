@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const fontData = await fetch("../../../Assets/Lato-Bold.ttf").then(response => response.arrayBuffer());
+        const face = new FontFace("SerenitySans", fontData, { weight: "bold" });
+        document.fonts.add(face);
+        await face.loaded;
+
+        const measureWidth = (fontFamily, fontWeight) => {
+            const span = document.createElement("span");
+            span.style.fontFamily = fontFamily;
+            span.style.fontWeight = fontWeight;
+            span.style.fontSize = "40px";
+            span.textContent = "Strong";
+            document.body.appendChild(span);
+            return span.offsetWidth;
+        };
+
+        const unrecognizedBold = measureWidth("non-existent-font", "bold");
+        const sansSerifBold = measureWidth("sans-serif", "bold");
+        const directBold = measureWidth("SerenitySans", "bold");
+
+        println(`unrecognized-family bold matches sans-serif bold: ${unrecognizedBold === sansSerifBold}`);
+        println(`unrecognized-family bold matches the registered bold face: ${unrecognizedBold === directBold}`);
+    });
+</script>
