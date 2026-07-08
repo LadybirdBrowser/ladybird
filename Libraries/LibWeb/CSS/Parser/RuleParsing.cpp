@@ -749,6 +749,11 @@ GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
 
         PropertiesAndCustomProperties properties;
         qualified_rule.for_each_as_declaration_list("keyframe"_fly_string, [&](auto const& declaration) {
+            // https://drafts.csswg.org/css-animations-1/#keyframes
+            // None of the properties [in the <keyframe-block>'s <declaration-list>] interact with the cascade (so
+            // using !important on them is invalid and will cause the property to be ignored).
+            if (declaration.important == Important::Yes)
+                return;
             extract_property(declaration, properties);
         });
         auto style = CSSStyleProperties::create(realm(), move(properties.properties), move(properties.custom_properties));

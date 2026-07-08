@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Cascade: Important vs. Animations</title>
+  <link rel="author" title="David Burns" href="http://www.theautomatedtester.co.uk">
+  <link rel="author" title="Elika J. Etemad" href="http://fantasai.inkedblade.net/contact">
+  <link rel="help" href="https://drafts.csswg.org/css-cascade/#importance">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-cascade/important-prop-ref.html">
+  <meta name="assert" content="Test passes if normal rules are overridden by animations, important rules override animations, and !important declarations are ignored in animations.">
+  <style>
+  @keyframes override {
+    from, to {
+      background: #f00; color: green;
+      border-color: green; border-color: red !important;
+    }
+  }
+
+  .square {
+    color:#00f;
+    animation: override 1s infinite;
+    width: 80px;
+    height: 80px;
+    border: 10px solid red;
+    text-align: center;
+  }
+  div {
+    background-color:green !important;
+    color: red;
+  }
+  </style>
+</head>
+<body>
+  <p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+
+  <div class="square green">FAIL</div>
+
+</body>
+</html>
