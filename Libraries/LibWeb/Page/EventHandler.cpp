@@ -1908,6 +1908,8 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCo
 
             m_navigable->page().did_request_media_context_menu(media_element.unique_id(), top_level_viewport_position, "", modifiers, menu);
         } else {
+            select_context_menu_text(document, coordinates.visual_viewport_position);
+
             auto for_input_events_target = document->active_input_events_target() ? ContextMenuForInputEventsTarget::Yes : ContextMenuForInputEventsTarget::No;
             m_navigable->page().client().page_did_request_context_menu(top_level_viewport_position, for_input_events_target);
         }
@@ -2275,6 +2277,41 @@ bool EventHandler::initiate_paragraph_selection(DOM::Document& document, Paintin
 
     m_selection_mode = SelectionMode::Paragraph;
     return true;
+}
+
+bool EventHandler::select_context_menu_text(DOM::Document& document, CSSPixelPoint visual_viewport_position)
+{
+    auto caret_position = document.caret_position_from_point_for_selection_start(visual_viewport_position);
+    if (!caret_position.has_value())
+        return false;
+
+    auto is_inside_current_selection = [](DOM::Document& document, Painting::CaretPosition const& caret_position) {
+        auto selection = document.get_selection();
+        if (!selection || selection->is_collapsed())
+            return false;
+
+        auto range = selection->range();
+        if (!range)
+            return false;
+
+        auto position = range->compare_point(caret_position.boundary.node, caret_position.boundary.offset);
+        if (position.is_error())
+            return false;
+
+        return position.value() == 0;
+    };
+
+    if (is_inside_current_selection(document, *caret_position))
+        return false;
+
+    auto user_select = user_select_used_value_for_caret_position(*caret_position);
+    if (user_select == CSS::UserSelect::None)
+        return false;
+
+    auto selected_text = initiate_word_selection(document, *caret_position, user_select);
+    if (selected_text)
+        stop_updating_selection();
+    return selected_text;
 }
 
 void EventHandler::update_mouse_selection(CSSPixelPoint visual_viewport_position)

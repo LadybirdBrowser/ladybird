@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        font: 20px SerenitySans, sans-serif;
+        line-height: 32px;
+    }
+</style>
+<div id="word">ordinary</div>
+<div id="prevented">prevented</div>
+<div id="existing">existing selection</div>
+<div id="other">other target</div>
+<img id="image" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" style="width: 20px; height: 20px;">
+<div id="none" style="user-select: none;">hidden.org</div>
+<script>
+    function rightClick(element) {
+        const rect = element.getBoundingClientRect();
+        internals.click(rect.left + 8, rect.top + rect.height / 2, 1, internals.BUTTON_RIGHT);
+    }
+
+    function selectedText() {
+        return internals.selectedTextForClipboard();
+    }
+
+    test(() => {
+        rightClick(word);
+        println(`plain word: "${selectedText()}"`);
+
+        getSelection().removeAllRanges();
+        prevented.addEventListener("contextmenu", event => event.preventDefault());
+        rightClick(prevented);
+        println(`canceled context menu: "${selectedText()}"`);
+
+        const range = document.createRange();
+        range.setStart(existing.firstChild, 0);
+        range.setEnd(existing.firstChild, 8);
+        getSelection().removeAllRanges();
+        getSelection().addRange(range);
+        rightClick(existing);
+        println(`existing selection preserved: "${selectedText()}"`);
+
+        getSelection().removeAllRanges();
+        getSelection().addRange(range);
+        rightClick(other);
+        println(`existing selection replaced: "${selectedText()}"`);
+
+        getSelection().removeAllRanges();
+        getSelection().addRange(range);
+        rightClick(image);
+        println(`image preserves selection: "${selectedText()}"`);
+
+        getSelection().removeAllRanges();
+        rightClick(none);
+        println(`user-select none: "${selectedText()}"`);
+    });
+</script>

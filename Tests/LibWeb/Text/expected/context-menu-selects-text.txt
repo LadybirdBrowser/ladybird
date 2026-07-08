@@ -1,0 +1,6 @@
+plain word: "ordinary"
+canceled context menu: ""
+existing selection preserved: "existing"
+existing selection replaced: "other"
+image preserves selection: "existing"
+user-select none: ""
