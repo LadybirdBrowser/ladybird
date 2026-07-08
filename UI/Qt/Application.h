@@ -63,6 +63,7 @@ private:
     virtual Core::EventLoop& create_platform_event_loop() override;
 
     virtual Optional<WebView::ViewImplementation&> active_web_view() const override;
+    virtual Vector<WebView::ViewImplementation&> active_window_web_views() const override;
     virtual bool activate_tab_with_url(URL::URL const&) const override;
 
     virtual Optional<WebView::ViewImplementation&> open_blank_new_tab(Web::HTML::ActivateTab) const override;
@@ -86,7 +87,6 @@ private:
     virtual bool supports_server_side_window_decorations() const override { return true; }
     virtual bool supports_private_browsing_windows() const override { return true; }
 
-    virtual Vector<WebView::BookmarkItem::Bookmark> bookmarks_for_all_tabs() const override;
     virtual void update_tabs_display() const override;
 
     virtual void rebuild_bookmarks_menu() const override;
@@ -96,7 +96,6 @@ private:
     virtual NonnullRefPtr<BookmarkPromise> display_edit_bookmark_dialog(WebView::BookmarkItem::Bookmark const& current_bookmark) const override;
     virtual NonnullRefPtr<BookmarkFolderPromise> display_add_bookmark_folder_dialog(Optional<String const&> default_title = {}) const override;
     virtual NonnullRefPtr<BookmarkFolderPromise> display_edit_bookmark_folder_dialog(WebView::BookmarkItem::Folder const& current_folder) const override;
-    virtual String suggested_bookmark_all_tabs_folder_title() const override;
 
     virtual void on_devtools_enabled() const override;
     virtual void on_devtools_disabled() const override;

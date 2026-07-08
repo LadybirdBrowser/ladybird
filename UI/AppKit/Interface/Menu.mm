@@ -265,6 +265,10 @@ static void initialize_native_icon(WebView::Action& action, id control)
     case WebView::ActionID::ToggleBookmark:
         [control setKeyEquivalent:@"d"];
         break;
+    case WebView::ActionID::AddBookmarkAllTabs:
+        set_control_image(control, @"square.badge.plus");
+        [control setKeyEquivalent:@"D"];
+        break;
     case WebView::ActionID::ToggleBookmarksBar:
         set_control_image(control, @"line.horizontal.star.fill.line.horizontal");
         [control setKeyEquivalent:@"B"];

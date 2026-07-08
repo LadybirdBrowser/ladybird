@@ -142,6 +142,7 @@ public:
     void notify_compositor_presented_bitmap_ready_to_paint(Web::Compositor::CompositorContextId, i32 bitmap_id);
 
     virtual Optional<ViewImplementation&> active_web_view() const { return {}; }
+    virtual Vector<ViewImplementation&> active_window_web_views() const { return {}; }
     virtual bool activate_tab_with_url(URL::URL const&) const { return false; }
 
     virtual Optional<ViewImplementation&> open_blank_new_tab(Web::HTML::ActivateTab) const { return {}; }
@@ -262,8 +263,6 @@ protected:
     virtual void update_tabs_display() const { }
 
     virtual void rebuild_bookmarks_menu() const { }
-    virtual String suggested_bookmark_all_tabs_folder_title() const;
-    virtual Vector<BookmarkItem::Bookmark> bookmarks_for_all_tabs() const { return {}; }
 
     virtual void on_recently_closed_entries_changed() const { }
 
@@ -295,6 +294,8 @@ private:
         Optional<String const&> target_folder_id;
     };
     void create_bookmark_menu_items(Optional<MenuData> = {});
+
+    Vector<BookmarkItem::Bookmark> bookmarks_for_all_tabs_in_current_window() const;
 
     virtual Vector<DevTools::TabDescription> tab_list() const override;
     virtual Vector<DevTools::CSSProperty> css_property_list() const override;

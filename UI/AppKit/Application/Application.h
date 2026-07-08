@@ -21,6 +21,8 @@ private:
     virtual Core::EventLoop& create_platform_event_loop() override;
 
     virtual Optional<WebView::ViewImplementation&> active_web_view() const override;
+    virtual Vector<WebView::ViewImplementation&> active_window_web_views() const override;
+
     virtual Optional<WebView::ViewImplementation&> open_blank_new_tab(Web::HTML::ActivateTab) const override;
     virtual void open_url_in_new_window(URL::URL const&, WebView::IsPrivate) override;
 

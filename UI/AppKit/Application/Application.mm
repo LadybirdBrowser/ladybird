@@ -47,6 +47,31 @@ Optional<WebView::ViewImplementation&> Application::active_web_view() const
     return {};
 }
 
+Vector<WebView::ViewImplementation&> Application::active_window_web_views() const
+{
+    Vector<WebView::ViewImplementation&> web_views;
+
+    auto add_window = [&](id window) {
+        if ([window isKindOfClass:[Tab class]])
+            web_views.append([[(Tab*)window web_view] view]);
+    };
+
+    auto* active_window = [NSApp keyWindow];
+    if (!active_window)
+        return {};
+
+    auto* tab_group = [active_window tabGroup];
+    if (!tab_group) {
+        add_window(active_window);
+        return web_views;
+    }
+
+    for (id window in [tab_group windows])
+        add_window(window);
+
+    return web_views;
+}
+
 Optional<WebView::ViewImplementation&> Application::open_blank_new_tab(Web::HTML::ActivateTab activate_tab) const
 {
     ApplicationDelegate* delegate = [NSApp delegate];

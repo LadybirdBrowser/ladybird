@@ -23,7 +23,6 @@
 #include <QAction>
 #include <QClipboard>
 #include <QComboBox>
-#include <QDate>
 #include <QDesktopServices>
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -516,6 +515,17 @@ Optional<WebView::ViewImplementation&> Application::active_web_view() const
     return {};
 }
 
+Vector<WebView::ViewImplementation&> Application::active_window_web_views() const
+{
+    if (!m_active_window)
+        return {};
+
+    Vector<WebView::ViewImplementation&> web_views;
+    m_active_window->for_each_tab([&](Tab& tab) { web_views.append(tab.view()); });
+
+    return web_views;
+}
+
 bool Application::activate_tab_with_url(URL::URL const& url) const
 {
     if (!m_active_window)
@@ -752,24 +762,6 @@ Optional<Application::BookmarkID> Application::bookmark_item_id_for_context_menu
     return {};
 }
 
-Vector<WebView::BookmarkItem::Bookmark> Application::bookmarks_for_all_tabs() const
-{
-    Vector<WebView::BookmarkItem::Bookmark> bookmarks;
-
-    if (!m_active_window)
-        return bookmarks;
-
-    m_active_window->for_each_tab([&](Tab& tab) {
-        bookmarks.append(WebView::BookmarkItem::Bookmark {
-            .url = tab.view().url(),
-            .title = tab.title().isEmpty() ? Optional<String> {} : ak_string_from_qstring(tab.title()),
-            .favicon_base64_png = tab.view().favicon_base64_png(),
-        });
-    });
-
-    return bookmarks;
-}
-
 static void add_bookmark_folder_options(QComboBox& folder_combo, ReadonlySpan<WebView::BookmarkItem> items, QString const& prefix, Optional<String const&> selected_folder_id)
 {
     for (auto const& item : items) {
@@ -967,12 +959,6 @@ NonnullRefPtr<Application::BookmarkFolderPromise> Application::display_add_bookm
 NonnullRefPtr<Application::BookmarkFolderPromise> Application::display_edit_bookmark_folder_dialog(WebView::BookmarkItem::Folder const& current_folder) const
 {
     return display_add_or_edit_bookmark_folder_dialog<BookmarkFolderPromise>(active_tab(), "Edit Folder", current_folder.title);
-}
-
-String Application::suggested_bookmark_all_tabs_folder_title() const
-{
-    auto title = QString("Saved Tabs %1").arg(QDate::currentDate().toString(Qt::ISODate));
-    return ak_string_from_qstring(title);
 }
 
 void Application::on_devtools_enabled() const

@@ -1707,11 +1707,11 @@ void Application::initialize_actions()
     update_bookmark_action_for_current_web_view();
 
     m_bookmarks_menu->add_action(Action::create("Bookmark All Tabs..."sv, ActionID::AddBookmarkAllTabs, [this]() {
-        auto bookmarks = bookmarks_for_all_tabs();
+        auto bookmarks = bookmarks_for_all_tabs_in_current_window();
         if (bookmarks.is_empty())
             return;
 
-        auto default_title = suggested_bookmark_all_tabs_folder_title();
+        auto default_title = MUST(UnixDateTime::now().to_string("Saved Tabs %Y-%m-%d"sv));
         display_add_bookmark_folder_dialog(default_title)
             ->when_resolved([this, bookmarks = move(bookmarks)](BookmarkItem::Folder folder) mutable {
                 auto folder_id = m_bookmark_store.add_folder(move(folder.title));
@@ -1948,6 +1948,21 @@ void Application::create_bookmark_menu_items(Optional<MenuData> data)
     }
 }
 
+Vector<BookmarkItem::Bookmark> Application::bookmarks_for_all_tabs_in_current_window() const
+{
+    Vector<WebView::BookmarkItem::Bookmark> bookmarks;
+
+    for (auto& view : active_window_web_views()) {
+        bookmarks.append(WebView::BookmarkItem::Bookmark {
+            .url = view.url(),
+            .title = view.title().is_empty() ? Optional<String> {} : view.title().to_utf8(),
+            .favicon_base64_png = view.favicon_base64_png(),
+        });
+    }
+
+    return bookmarks;
+}
+
 template<typename T>
 static NonnullRefPtr<T> create_unsupported_rejection()
 {
@@ -1974,11 +1989,6 @@ NonnullRefPtr<Application::BookmarkFolderPromise> Application::display_add_bookm
 NonnullRefPtr<Application::BookmarkFolderPromise> Application::display_edit_bookmark_folder_dialog(BookmarkItem::Folder const&) const
 {
     return create_unsupported_rejection<BookmarkFolderPromise>();
-}
-
-String Application::suggested_bookmark_all_tabs_folder_title() const
-{
-    return "Saved Tabs"_string;
 }
 
 ErrorOr<void> Application::toggle_devtools_enabled()
