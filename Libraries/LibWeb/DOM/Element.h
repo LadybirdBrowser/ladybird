@@ -132,6 +132,7 @@ public:
     Optional<Utf16String> attribute(FlyString const& name) const { return get_attribute(name); }
 
     Optional<Utf16String> get_attribute(FlyString const& name) const;
+    Optional<Utf16String> get_attribute(Utf16FlyString const& name) const;
     Optional<Utf16String> get_attribute_ns(Optional<FlyString> const& namespace_, FlyString const& name) const;
     Utf16String get_attribute_value(FlyString const& local_name, Optional<FlyString> const& namespace_ = {}) const;
 

@@ -245,6 +245,27 @@ Optional<Utf16String> Element::get_attribute(FlyString const& name) const
     return attribute->value();
 }
 
+Optional<Utf16String> Element::get_attribute(Utf16FlyString const& name) const
+{
+    if (!m_attributes)
+        return {};
+
+    Utf16FlyString const* effective_name = &name;
+    Utf16FlyString lowercase_name;
+    if (namespace_uri() == Namespace::HTML && document().is_html_document()) {
+        lowercase_name = name.to_ascii_lowercase();
+        effective_name = &lowercase_name;
+    }
+
+    for (size_t i = 0; i < m_attributes->length(); ++i) {
+        auto const* attribute = m_attributes->item(i);
+        if (effective_name->view() == attribute->name().bytes_as_string_view())
+            return attribute->value();
+    }
+
+    return {};
+}
+
 // https://dom.spec.whatwg.org/#dom-element-getattributens
 Optional<Utf16String> Element::get_attribute_ns(Optional<FlyString> const& namespace_, FlyString const& name) const
 {

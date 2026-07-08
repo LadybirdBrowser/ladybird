@@ -196,8 +196,7 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
 
     // 3. If attr name exists as an attribute on el, let attr value be its value; otherwise jump to the last step (labeled FAILURE).
     // FIXME: Attribute namespaces
-    auto attribute_name_utf8 = MUST(attribute_name.view().to_utf8());
-    auto attribute_value = element.element().get_attribute(MUST(FlyString::from_utf8(attribute_name_utf8.bytes_as_string_view())));
+    auto attribute_value = element.element().get_attribute(attribute_name);
     if (!attribute_value.has_value())
         return failure();
 
