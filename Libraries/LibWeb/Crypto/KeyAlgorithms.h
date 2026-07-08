@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibWeb/Crypto/CryptoAlgorithms.h>
@@ -25,8 +25,9 @@ public:
     static GC::Ref<KeyAlgorithm> create(JS::Realm&);
     virtual ~KeyAlgorithm() override = default;
 
-    String const& name() const { return m_name; }
-    void set_name(String name) { m_name = move(name); }
+    Utf16String const& name() const { return m_name; }
+    void set_name(Utf16String name) { m_name = move(name); }
+    void set_name(StringView name) { m_name = Utf16String::from_ascii_without_validation(name.bytes()); }
 
     JS::Realm& realm() const { return m_realm; }
 
@@ -39,7 +40,7 @@ protected:
 private:
     JS_DECLARE_NATIVE_FUNCTION(name_getter);
 
-    String m_name;
+    Utf16String m_name;
     GC::Ref<JS::Realm> m_realm;
 };
 

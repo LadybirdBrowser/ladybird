@@ -84,13 +84,14 @@ struct RegisteredAlgorithm {
     NonnullOwnPtr<AlgorithmMethods> (*create_methods)(JS::Realm&) = nullptr;
     JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> (*parameter_from_value)(JS::VM&, JS::Value) = nullptr;
 };
-using SupportedAlgorithmsMap = HashMap<String, HashMap<String, RegisteredAlgorithm, AK::ASCIICaseInsensitiveStringTraits>>;
+using RegisteredAlgorithms = HashMap<Utf16String, RegisteredAlgorithm>;
+using SupportedAlgorithmsMap = HashMap<String, RegisteredAlgorithms>;
 
 static SupportedAlgorithmsMap& supported_algorithms_internal();
 static SupportedAlgorithmsMap const& supported_algorithms();
 
 template<typename Methods, typename Param = AlgorithmParams>
-static void define_an_algorithm(String op, String algorithm);
+static void define_an_algorithm(String op, StringView algorithm);
 
 GC_DEFINE_ALLOCATOR(SubtleCrypto);
 
@@ -118,11 +119,11 @@ WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> normalize_an_algorithm(JS::
     auto& vm = realm.vm();
 
     // If alg is an instance of a DOMString:
-    if (algorithm.has<String>()) {
+    if (algorithm.has<Utf16String>()) {
         // Return the result of running the normalize an algorithm algorithm,
         // with the alg set to a new Algorithm dictionary whose name attribute is alg, and with the op set to op.
         auto dictionary = JS::Object::create(realm, realm.intrinsics().object_prototype());
-        TRY(dictionary->create_data_property("name"_utf16_fly_string, JS::PrimitiveString::create(vm, Utf16String::from_utf8(algorithm.get<String>()))));
+        TRY(dictionary->create_data_property("name"_utf16_fly_string, JS::PrimitiveString::create(vm, algorithm.get<Utf16String>())));
         return normalize_an_algorithm(realm, dictionary, operation);
     }
 
@@ -145,18 +146,24 @@ WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> normalize_an_algorithm(JS::
     }
 
     // 4. Let algName be the value of the name attribute of initialAlg.
-    auto algorithm_name = TRY(initial_algorithm.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
+    auto algorithm_name = TRY(initial_algorithm.to_utf16_string(vm));
 
     RegisteredAlgorithm desired_type;
 
     // 5. If registeredAlgorithms contains a key that is a case-insensitive string match for algName:
-    if (auto it = registered_algorithms.find(algorithm_name); it != registered_algorithms.end()) {
+    for (auto const& entry : registered_algorithms) {
+        if (!entry.key.equals_ignoring_ascii_case(algorithm_name))
+            continue;
+
         // 1. Set algName to the value of the matching key.
-        algorithm_name = it->key;
+        algorithm_name = entry.key;
 
         // 2. Let desiredType be the IDL dictionary type stored at algName in registeredAlgorithms.
-        desired_type = it->value;
-    } else {
+        desired_type = entry.value;
+        break;
+    }
+
+    if (!desired_type.create_methods) {
         // Otherwise:
         // Return a new NotSupportedError and terminate this algorithm.
         return WebIDL::NotSupportedError::create(realm, Utf16String::formatted("Algorithm '{}' is not supported for operation '{}'", algorithm_name, operation));
@@ -1806,7 +1813,7 @@ SupportedAlgorithmsMap const& supported_algorithms()
 
 // https://w3c.github.io/webcrypto/#concept-define-an-algorithm
 template<typename Methods, typename Param>
-void define_an_algorithm(AK::String op, AK::String algorithm)
+void define_an_algorithm(AK::String op, StringView algorithm)
 {
     auto& internal_object = supported_algorithms_internal();
 
@@ -1816,7 +1823,7 @@ void define_an_algorithm(AK::String op, AK::String algorithm)
     auto registered_algorithms = maybe_registered_algorithms.value();
 
     // 2. Set the alg key of registeredAlgorithms to the IDL dictionary type type.
-    registered_algorithms.set(algorithm, RegisteredAlgorithm { &Methods::create, &Param::from_value });
+    registered_algorithms.set(Utf16String::from_ascii_without_validation(algorithm.bytes()), RegisteredAlgorithm { &Methods::create, &Param::from_value });
     internal_object.set(op, registered_algorithms);
 }
 

@@ -59,7 +59,7 @@ JS_DEFINE_NATIVE_FUNCTION(KeyAlgorithm::name_getter)
 {
     auto* impl = TRY(impl_from<KeyAlgorithm>(vm, "KeyAlgorithm"sv));
     auto name = TRY(Bindings::throw_dom_exception_if_needed(vm, [&] { return impl->name(); }));
-    return JS::PrimitiveString::create(vm, Utf16String::from_utf8(name));
+    return JS::PrimitiveString::create(vm, name);
 }
 
 void KeyAlgorithm::visit_edges(Visitor& visitor)
@@ -151,7 +151,7 @@ GC::Ref<RsaHashedKeyAlgorithm> RsaHashedKeyAlgorithm::create(JS::Realm& realm)
 
 RsaHashedKeyAlgorithm::RsaHashedKeyAlgorithm(JS::Realm& realm)
     : RsaKeyAlgorithm(realm)
-    , m_hash(String {})
+    , m_hash(Utf16String {})
 {
 }
 
@@ -167,7 +167,7 @@ JS_DEFINE_NATIVE_FUNCTION(RsaHashedKeyAlgorithm::hash_getter)
     auto* impl = TRY(impl_from<RsaHashedKeyAlgorithm>(vm, "RsaHashedKeyAlgorithm"sv));
     auto hash = TRY(Bindings::throw_dom_exception_if_needed(vm, [&] { return impl->hash(); }));
     return hash.visit(
-        [&](String const& hash_string) -> JS::Value {
+        [&](Utf16String const& hash_string) -> JS::Value {
             auto& realm = *vm.current_realm();
             auto object = KeyAlgorithm::create(realm);
             object->set_name(hash_string);

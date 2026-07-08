@@ -57,7 +57,7 @@ public:
     void set_usages(Vector<Bindings::KeyUsage>);
 
     InternalKeyData const& handle() const { return m_key_data; }
-    String const& algorithm_name() const;
+    Utf16String const& algorithm_name() const;
 
     virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) override;
     virtual WebIDL::ExceptionOr<void> deserialization_steps(HTML::TransferDataDecoder&, HTML::DeserializationMemory&) override;
@@ -77,7 +77,7 @@ private:
 
     Vector<Bindings::KeyUsage> m_usages;
     InternalKeyData m_key_data; // [[handle]]
-    mutable String m_algorithm_name;
+    mutable Utf16String m_algorithm_name;
 };
 
 // https://w3c.github.io/webcrypto/#ref-for-dfn-CryptoKeyPair-2

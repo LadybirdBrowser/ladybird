@@ -1,7 +1,7 @@
-typedef (object or DOMString) AlgorithmIdentifier;
+typedef (object or Utf16DOMString) AlgorithmIdentifier;
 
 dictionary Algorithm {
-    required DOMString name;
+    required Utf16DOMString name;
 };
 
 // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat

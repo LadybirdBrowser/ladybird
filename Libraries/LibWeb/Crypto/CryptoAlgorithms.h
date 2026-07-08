@@ -23,7 +23,7 @@
 
 namespace Web::Crypto {
 
-using AlgorithmIdentifier = Variant<GC::Ref<JS::Object>, String>;
+using AlgorithmIdentifier = Variant<GC::Ref<JS::Object>, Utf16String>;
 using NamedCurve = Utf16String;
 using KeyDataType = FlattenVariant<WebIDL::BufferSourceVariant, Variant<JsonWebKey>>;
 
@@ -46,13 +46,13 @@ struct EncapsulatedBits {
 struct HashAlgorithmIdentifier : public AlgorithmIdentifier {
     using AlgorithmIdentifier::AlgorithmIdentifier;
 
-    JS::ThrowCompletionOr<String> name(JS::VM& vm) const
+    JS::ThrowCompletionOr<Utf16String> name(JS::VM& vm) const
     {
         auto value = visit(
-            [](String const& name) -> JS::ThrowCompletionOr<String> { return name; },
-            [&](GC::Root<JS::Object> const& obj) -> JS::ThrowCompletionOr<String> {
+            [](Utf16String const& name) -> JS::ThrowCompletionOr<Utf16String> { return name; },
+            [&](GC::Root<JS::Object> const& obj) -> JS::ThrowCompletionOr<Utf16String> {
                 auto name_property = TRY(obj->get("name"_utf16_fly_string));
-                return TRY(name_property.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
+                return TRY(name_property.to_utf16_string(vm));
             });
 
         return value;
@@ -68,7 +68,7 @@ struct AlgorithmParams {
 
     // NOTE: this is initialized when normalizing the algorithm name as the spec requests.
     //       It must not be set in `from_value`.
-    String name;
+    Utf16String name;
 
     static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::VM&, JS::Value);
 };

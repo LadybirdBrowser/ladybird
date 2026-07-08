@@ -111,48 +111,48 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> deserialize_key_algorithm(HTML::Transfe
     switch (tag) {
     case KeyAlgorithmTag::KeyAlgorithm: {
         auto algorithm = KeyAlgorithm::create(realm);
-        algorithm->set_name(decoder.decode<String>());
+        algorithm->set_name(decoder.decode<Utf16String>());
         return algorithm;
     }
     case KeyAlgorithmTag::RsaKeyAlgorithm: {
         auto algorithm = RsaKeyAlgorithm::create(realm);
-        algorithm->set_name(decoder.decode<String>());
+        algorithm->set_name(decoder.decode<Utf16String>());
         algorithm->set_modulus_length(decoder.decode<u32>());
         TRY(algorithm->set_public_exponent(TRY(decoder.decode_unsigned_big_integer(realm))));
         return algorithm;
     }
     case KeyAlgorithmTag::RsaHashedKeyAlgorithm: {
         auto algorithm = RsaHashedKeyAlgorithm::create(realm);
-        algorithm->set_name(decoder.decode<String>());
+        algorithm->set_name(decoder.decode<Utf16String>());
         algorithm->set_modulus_length(decoder.decode<u32>());
         TRY(algorithm->set_public_exponent(TRY(decoder.decode_unsigned_big_integer(realm))));
-        algorithm->set_hash(decoder.decode<String>());
+        algorithm->set_hash(decoder.decode<Utf16String>());
         return algorithm;
     }
     case KeyAlgorithmTag::EcKeyAlgorithm: {
         auto algorithm = EcKeyAlgorithm::create(realm);
-        algorithm->set_name(decoder.decode<String>());
+        algorithm->set_name(decoder.decode<Utf16String>());
         algorithm->set_named_curve(decoder.decode<Utf16String>());
         return algorithm;
     }
     case KeyAlgorithmTag::AesKeyAlgorithm: {
         auto algorithm = AesKeyAlgorithm::create(realm);
-        algorithm->set_name(decoder.decode<String>());
+        algorithm->set_name(decoder.decode<Utf16String>());
         algorithm->set_length(decoder.decode<u16>());
         return algorithm;
     }
     case KeyAlgorithmTag::HmacKeyAlgorithm: {
         auto algorithm = HmacKeyAlgorithm::create(realm);
-        algorithm->set_name(decoder.decode<String>());
+        algorithm->set_name(decoder.decode<Utf16String>());
         auto hash = KeyAlgorithm::create(realm);
-        hash->set_name(decoder.decode<String>());
+        hash->set_name(decoder.decode<Utf16String>());
         algorithm->set_hash(hash);
         algorithm->set_length(decoder.decode<WebIDL::UnsignedLong>());
         return algorithm;
     }
     case KeyAlgorithmTag::KmacKeyAlgorithm: {
         auto algorithm = KmacKeyAlgorithm::create(realm);
-        algorithm->set_name(decoder.decode<String>());
+        algorithm->set_name(decoder.decode<Utf16String>());
         algorithm->set_length(decoder.decode<WebIDL::UnsignedLong>());
         return algorithm;
     }
@@ -389,11 +389,11 @@ void CryptoKey::set_usages(Vector<Bindings::KeyUsage> usages)
     });
 }
 
-String const& CryptoKey::algorithm_name() const
+Utf16String const& CryptoKey::algorithm_name() const
 {
     if (m_algorithm_name.is_empty()) {
         auto name = MUST(m_algorithm_cached->get("name"_utf16_fly_string));
-        m_algorithm_name = MUST(name.to_utf16_string(vm())).to_utf8_but_should_be_ported_to_utf16();
+        m_algorithm_name = MUST(name.to_utf16_string(vm()));
     }
     return m_algorithm_name;
 }
