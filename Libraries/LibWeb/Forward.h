@@ -885,7 +885,7 @@ class XMLSerializer;
 
 enum class AllowMultipleFiles;
 enum class RequireWellFormed;
-enum class SandboxingFlagSet;
+enum class SandboxingFlagSet : u32;
 
 struct Agent;
 struct BroadcastChannelMessage;
