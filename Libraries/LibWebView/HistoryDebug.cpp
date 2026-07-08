@@ -123,7 +123,7 @@ JsonObject history_json_entry(Web::HTML::SessionHistoryEntryDescriptor const& en
     serialized.set("documentStateId"sv, entry.document_state.id);
     serialized.set("resource"sv, document_state_resource_type(entry.document_state.resource));
     serialized.set("reloadPending"sv, entry.document_state.reload_pending);
-    serialized.set("targetName"sv, entry.document_state.navigable_target_name);
+    serialized.set("targetName"sv, entry.document_state.navigable_target_name.to_utf8());
     serialized.set("scrollRestoration"sv, scroll_restoration_mode_to_string(entry.scroll_restoration_mode));
     serialized.set("scrollPosition"sv, history_json_scroll_position_data(entry.scroll_position_data));
     serialized.set("nestedHistories"sv, history_json_nested_histories(entry.document_state.nested_histories));
