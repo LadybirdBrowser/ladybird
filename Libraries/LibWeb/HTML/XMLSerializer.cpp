@@ -54,7 +54,7 @@ WebIDL::ExceptionOr<String> XMLSerializer::serialize_to_string(GC::Ref<DOM::Node
 }
 
 // https://w3c.github.io/DOM-Parsing/#dfn-add
-static void add_prefix_to_namespace_prefix_map(HashMap<Optional<FlyString>, Vector<Optional<FlyString>>>& prefix_map, Optional<FlyString> const& prefix, Optional<FlyString> const& namespace_)
+static void add_prefix_to_namespace_prefix_map(HashMap<Optional<Utf16FlyString>, Vector<Optional<FlyString>>>& prefix_map, Optional<FlyString> const& prefix, Optional<Utf16FlyString> const& namespace_)
 {
     // 1. Let candidates list be the result of retrieving a list from map where there exists a key in map that matches the value of ns or if there is no such key, then let candidates list be null.
     auto candidates_list_iterator = prefix_map.find(namespace_);
@@ -72,7 +72,7 @@ static void add_prefix_to_namespace_prefix_map(HashMap<Optional<FlyString>, Vect
 }
 
 // https://w3c.github.io/DOM-Parsing/#dfn-retrieving-a-preferred-prefix-string
-static Optional<FlyString> retrieve_a_preferred_prefix_string(Optional<FlyString> const& preferred_prefix, HashMap<Optional<FlyString>, Vector<Optional<FlyString>>> const& namespace_prefix_map, Optional<FlyString> const& namespace_)
+static Optional<FlyString> retrieve_a_preferred_prefix_string(Optional<FlyString> const& preferred_prefix, HashMap<Optional<Utf16FlyString>, Vector<Optional<FlyString>>> const& namespace_prefix_map, Optional<Utf16FlyString> const& namespace_)
 {
     // 1. Let candidates list be the result of retrieving a list from map where there exists a key in map that matches the value of ns or if there is no such key,
     //    then stop running these steps, and return the null value.
@@ -98,7 +98,7 @@ static Optional<FlyString> retrieve_a_preferred_prefix_string(Optional<FlyString
 }
 
 // https://w3c.github.io/DOM-Parsing/#dfn-generating-a-prefix
-static FlyString generate_a_prefix(HashMap<Optional<FlyString>, Vector<Optional<FlyString>>>& namespace_prefix_map, Optional<FlyString> const& new_namespace, u64& prefix_index)
+static FlyString generate_a_prefix(HashMap<Optional<Utf16FlyString>, Vector<Optional<FlyString>>>& namespace_prefix_map, Optional<Utf16FlyString> const& new_namespace, u64& prefix_index)
 {
     // 1. Let generated prefix be the concatenation of the string "ns" and the current numerical value of prefix index.
     auto generated_prefix = FlyString(MUST(String::formatted("ns{}", prefix_index)));
@@ -114,7 +114,7 @@ static FlyString generate_a_prefix(HashMap<Optional<FlyString>, Vector<Optional<
 }
 
 // https://w3c.github.io/DOM-Parsing/#dfn-found
-static bool prefix_is_in_prefix_map(FlyString const& prefix, HashMap<Optional<FlyString>, Vector<Optional<FlyString>>> const& namespace_prefix_map, Optional<FlyString> const& namespace_)
+static bool prefix_is_in_prefix_map(FlyString const& prefix, HashMap<Optional<Utf16FlyString>, Vector<Optional<FlyString>>> const& namespace_prefix_map, Optional<Utf16FlyString> const& namespace_)
 {
     // 1. Let candidates list be the result of retrieving a list from map where there exists a key in map that matches the value of ns
     //    or if there is no such key, then stop running these steps, and return false.
@@ -126,13 +126,24 @@ static bool prefix_is_in_prefix_map(FlyString const& prefix, HashMap<Optional<Fl
     return candidates_list_iterator->value.contains_slow(prefix);
 }
 
-static FlyString attribute_value_as_fly_string(Utf16View value)
+static Utf16FlyString namespace_uri_as_utf16(FlyString const& namespace_uri)
 {
-    auto value_utf8 = MUST(value.to_utf8());
-    return MUST(FlyString::from_utf8(value_utf8.bytes_as_string_view()));
+    return Utf16FlyString::from_fly_string(namespace_uri);
 }
 
-WebIDL::ExceptionOr<String> serialize_node_to_xml_string_impl(GC::Ref<DOM::Node const> root, Optional<FlyString>& namespace_, HashMap<Optional<FlyString>, Vector<Optional<FlyString>>>& namespace_prefix_map, u64& prefix_index, RequireWellFormed require_well_formed);
+static Optional<Utf16FlyString> namespace_uri_as_utf16(Optional<FlyString> const& namespace_uri)
+{
+    if (!namespace_uri.has_value())
+        return {};
+    return namespace_uri_as_utf16(*namespace_uri);
+}
+
+static Utf16FlyString attribute_value_as_namespace_uri(Utf16View value)
+{
+    return Utf16FlyString::from_utf16(value);
+}
+
+WebIDL::ExceptionOr<String> serialize_node_to_xml_string_impl(GC::Ref<DOM::Node const> root, Optional<Utf16FlyString>& namespace_, HashMap<Optional<Utf16FlyString>, Vector<Optional<FlyString>>>& namespace_prefix_map, u64& prefix_index, RequireWellFormed require_well_formed);
 
 // https://w3c.github.io/DOM-Parsing/#dfn-xml-serialization
 WebIDL::ExceptionOr<String> serialize_node_to_xml_string(GC::Ref<DOM::Node const> root, RequireWellFormed require_well_formed)
@@ -140,13 +151,13 @@ WebIDL::ExceptionOr<String> serialize_node_to_xml_string(GC::Ref<DOM::Node const
     // 1. Let namespace be a context namespace with value null. The context namespace tracks the XML serialization algorithm's current default namespace.
     //    The context namespace is changed when either an Element Node has a default namespace declaration, or the algorithm generates a default namespace declaration
     //    for the Element Node to match its own namespace. The algorithm assumes no namespace (null) to start.
-    Optional<FlyString> namespace_;
+    Optional<Utf16FlyString> namespace_;
 
     // 2. Let prefix map be a new namespace prefix map.
-    HashMap<Optional<FlyString>, Vector<Optional<FlyString>>> prefix_map;
+    HashMap<Optional<Utf16FlyString>, Vector<Optional<FlyString>>> prefix_map;
 
     // 3. Add the XML namespace with prefix value "xml" to prefix map.
-    add_prefix_to_namespace_prefix_map(prefix_map, "xml"_fly_string, Namespace::XML);
+    add_prefix_to_namespace_prefix_map(prefix_map, "xml"_fly_string, namespace_uri_as_utf16(Namespace::XML));
 
     // 4. Let prefix index be a generated namespace prefix index with value 1. The generated namespace prefix index is used to generate a new unique prefix value
     //    when no suitable existing namespace prefix is available to serialize a node's namespaceURI (or the namespaceURI of one of node's attributes).
@@ -159,17 +170,17 @@ WebIDL::ExceptionOr<String> serialize_node_to_xml_string(GC::Ref<DOM::Node const
     return serialize_node_to_xml_string_impl(root, namespace_, prefix_map, prefix_index, require_well_formed);
 }
 
-static WebIDL::ExceptionOr<String> serialize_element(DOM::Element const& element, Optional<FlyString>& namespace_, HashMap<Optional<FlyString>, Vector<Optional<FlyString>>>& namespace_prefix_map, u64& prefix_index, RequireWellFormed require_well_formed);
-static WebIDL::ExceptionOr<String> serialize_document(DOM::Document const& document, Optional<FlyString>& namespace_, HashMap<Optional<FlyString>, Vector<Optional<FlyString>>>& namespace_prefix_map, u64& prefix_index, RequireWellFormed require_well_formed);
+static WebIDL::ExceptionOr<String> serialize_element(DOM::Element const& element, Optional<Utf16FlyString>& namespace_, HashMap<Optional<Utf16FlyString>, Vector<Optional<FlyString>>>& namespace_prefix_map, u64& prefix_index, RequireWellFormed require_well_formed);
+static WebIDL::ExceptionOr<String> serialize_document(DOM::Document const& document, Optional<Utf16FlyString>& namespace_, HashMap<Optional<Utf16FlyString>, Vector<Optional<FlyString>>>& namespace_prefix_map, u64& prefix_index, RequireWellFormed require_well_formed);
 static WebIDL::ExceptionOr<String> serialize_comment(DOM::Comment const& comment, RequireWellFormed require_well_formed);
 static WebIDL::ExceptionOr<String> serialize_text(DOM::Text const& text, RequireWellFormed require_well_formed);
-static WebIDL::ExceptionOr<String> serialize_document_fragment(DOM::DocumentFragment const& document_fragment, Optional<FlyString>& namespace_, HashMap<Optional<FlyString>, Vector<Optional<FlyString>>>& namespace_prefix_map, u64& prefix_index, RequireWellFormed require_well_formed);
+static WebIDL::ExceptionOr<String> serialize_document_fragment(DOM::DocumentFragment const& document_fragment, Optional<Utf16FlyString>& namespace_, HashMap<Optional<Utf16FlyString>, Vector<Optional<FlyString>>>& namespace_prefix_map, u64& prefix_index, RequireWellFormed require_well_formed);
 static WebIDL::ExceptionOr<String> serialize_document_type(DOM::DocumentType const& document_type, RequireWellFormed require_well_formed);
 static WebIDL::ExceptionOr<String> serialize_processing_instruction(DOM::ProcessingInstruction const& processing_instruction, RequireWellFormed require_well_formed);
 static WebIDL::ExceptionOr<String> serialize_cdata_section(DOM::CDATASection const& cdata_section, RequireWellFormed require_well_formed);
 
 // https://w3c.github.io/DOM-Parsing/#dfn-xml-serialization-algorithm
-WebIDL::ExceptionOr<String> serialize_node_to_xml_string_impl(GC::Ref<DOM::Node const> root, Optional<FlyString>& namespace_, HashMap<Optional<FlyString>, Vector<Optional<FlyString>>>& namespace_prefix_map, u64& prefix_index, RequireWellFormed require_well_formed)
+WebIDL::ExceptionOr<String> serialize_node_to_xml_string_impl(GC::Ref<DOM::Node const> root, Optional<Utf16FlyString>& namespace_, HashMap<Optional<Utf16FlyString>, Vector<Optional<FlyString>>>& namespace_prefix_map, u64& prefix_index, RequireWellFormed require_well_formed)
 {
     // Each of the following algorithms for producing an XML serialization of a DOM node take as input a node to serialize and the following arguments:
     // - A context namespace namespace
@@ -244,10 +255,10 @@ WebIDL::ExceptionOr<String> serialize_node_to_xml_string_impl(GC::Ref<DOM::Node 
 }
 
 // https://w3c.github.io/DOM-Parsing/#dfn-recording-the-namespace-information
-static Optional<FlyString> record_namespace_information(DOM::Element const& element, HashMap<Optional<FlyString>, Vector<Optional<FlyString>>>& namespace_prefix_map, HashMap<FlyString, Optional<FlyString>>& local_prefix_map)
+static Optional<Utf16FlyString> record_namespace_information(DOM::Element const& element, HashMap<Optional<Utf16FlyString>, Vector<Optional<FlyString>>>& namespace_prefix_map, HashMap<FlyString, Optional<Utf16FlyString>>& local_prefix_map)
 {
     // 1. Let default namespace attr value be null.
-    Optional<FlyString> default_namespace_attribute_value;
+    Optional<Utf16FlyString> default_namespace_attribute_value;
 
     // 2. Main: For each attribute attr in element's attributes, in the order they are specified in the element's attribute list:
     for (size_t attribute_index = 0; attribute_index < element.attributes()->length(); ++attribute_index) {
@@ -265,7 +276,7 @@ static Optional<FlyString> record_namespace_information(DOM::Element const& elem
             // 1. If attribute prefix is null, then attr is a default namespace declaration. Set the default namespace attr value to attr's value and stop running these steps,
             //    returning to Main to visit the next attribute.
             if (!attribute_prefix.has_value()) {
-                default_namespace_attribute_value = attribute_value_as_fly_string(attribute->value());
+                default_namespace_attribute_value = attribute_value_as_namespace_uri(attribute->value());
                 continue;
             }
 
@@ -274,10 +285,10 @@ static Optional<FlyString> record_namespace_information(DOM::Element const& elem
             auto const& prefix_definition = attribute->local_name();
 
             // 2. Let namespace definition be the value of attr's value.
-            Optional<FlyString> namespace_definition = attribute_value_as_fly_string(attribute->value());
+            Optional<Utf16FlyString> namespace_definition = attribute_value_as_namespace_uri(attribute->value());
 
             // 3. If namespace definition is the XML namespace, then stop running these steps, and return to Main to visit the next attribute.
-            if (namespace_definition == Namespace::XML)
+            if (namespace_definition == namespace_uri_as_utf16(Namespace::XML))
                 continue;
 
             // 4. If namespace definition is the empty string (the declarative form of having no namespace), then let namespace definition be null instead.
@@ -292,7 +303,7 @@ static Optional<FlyString> record_namespace_information(DOM::Element const& elem
             add_prefix_to_namespace_prefix_map(namespace_prefix_map, prefix_definition, namespace_definition);
 
             // 7. Add the value of prefix definition as a new key to the local prefixes map, with the namespace definition as the key's value replacing the value of null with the empty string if applicable.
-            local_prefix_map.set(prefix_definition, namespace_definition.value_or(FlyString {}));
+            local_prefix_map.set(prefix_definition, namespace_definition.value_or({}));
         }
     }
 
@@ -328,6 +339,16 @@ static WebIDL::ExceptionOr<String> serialize_an_attribute_value(Optional<FlyStri
     return final_attribute_value;
 }
 
+static WebIDL::ExceptionOr<String> serialize_an_attribute_value(Utf16View attribute_value, RequireWellFormed require_well_formed);
+
+static WebIDL::ExceptionOr<String> serialize_an_attribute_value(Optional<Utf16FlyString> const& attribute_value, [[maybe_unused]] RequireWellFormed require_well_formed)
+{
+    // FIXME: If the require well-formed flag is set, reject characters that are not matched by the XML Char production.
+    if (!attribute_value.has_value())
+        return String {};
+    return serialize_an_attribute_value(attribute_value->view(), require_well_formed);
+}
+
 static WebIDL::ExceptionOr<String> serialize_an_attribute_value(Utf16View attribute_value, [[maybe_unused]] RequireWellFormed require_well_formed)
 {
     // FIXME: If the require well-formed flag is set, reject characters that are not matched by the XML Char production.
@@ -354,7 +375,7 @@ struct LocalNameSetEntry {
 };
 
 // https://w3c.github.io/DOM-Parsing/#dfn-xml-serialization-of-the-attributes
-static WebIDL::ExceptionOr<String> serialize_element_attributes(DOM::Element const& element, HashMap<Optional<FlyString>, Vector<Optional<FlyString>>>& namespace_prefix_map, u64& prefix_index, HashMap<FlyString, Optional<FlyString>> const& local_prefixes_map, bool ignore_namespace_definition_attribute, RequireWellFormed require_well_formed)
+static WebIDL::ExceptionOr<String> serialize_element_attributes(DOM::Element const& element, HashMap<Optional<Utf16FlyString>, Vector<Optional<FlyString>>>& namespace_prefix_map, u64& prefix_index, HashMap<FlyString, Optional<Utf16FlyString>> const& local_prefixes_map, bool ignore_namespace_definition_attribute, RequireWellFormed require_well_formed)
 {
     auto& realm = element.realm();
 
@@ -392,6 +413,7 @@ static WebIDL::ExceptionOr<String> serialize_element_attributes(DOM::Element con
 
         // 3. Let attribute namespace be the value of attr's namespaceURI value.
         auto const& attribute_namespace = attribute->namespace_uri();
+        auto attribute_namespace_for_map = namespace_uri_as_utf16(attribute_namespace);
 
         // 4. Let candidate prefix be null.
         Optional<FlyString> candidate_prefix;
@@ -399,15 +421,15 @@ static WebIDL::ExceptionOr<String> serialize_element_attributes(DOM::Element con
         // 5. If attribute namespace is not null, then run these sub-steps:
         if (attribute_namespace.has_value()) {
             // 1. Let candidate prefix be the result of retrieving a preferred prefix string from map given namespace attribute namespace with preferred prefix being attr's prefix value.
-            candidate_prefix = retrieve_a_preferred_prefix_string(attribute->prefix(), namespace_prefix_map, attribute->namespace_uri());
+            candidate_prefix = retrieve_a_preferred_prefix_string(attribute->prefix(), namespace_prefix_map, attribute_namespace_for_map);
 
             // 2. If the value of attribute namespace is the XMLNS namespace, then run these steps:
             if (attribute_namespace == Namespace::XMLNS) {
-                auto attribute_value_namespace = attribute_value_as_fly_string(attribute->value());
+                auto attribute_value_namespace = attribute_value_as_namespace_uri(attribute->value());
 
                 // 1. If any of the following are true, then stop running these steps and goto Loop to visit the next attribute:
                 // - the attr's value is the XML namespace;
-                if (attribute_value_namespace == Namespace::XML)
+                if (attribute_value_namespace == namespace_uri_as_utf16(Namespace::XML))
                     continue;
 
                 // - the attr's prefix is null and the ignore namespace definition attribute flag is true (the Element's default namespace attribute should be skipped);
@@ -433,7 +455,7 @@ static WebIDL::ExceptionOr<String> serialize_element_attributes(DOM::Element con
 
                 // 2. If the require well-formed flag is set (its value is true), and the value of attr's value attribute matches the XMLNS namespace,
                 //    then throw an exception; the serialization of this attribute would produce invalid XML because the XMLNS namespace is reserved and cannot be applied as an element's namespace via XML parsing.
-                if (require_well_formed == RequireWellFormed::Yes && attribute_value_namespace == Namespace::XMLNS)
+                if (require_well_formed == RequireWellFormed::Yes && attribute_value_namespace == namespace_uri_as_utf16(Namespace::XMLNS))
                     return WebIDL::InvalidStateError::create(realm, "The XMLNS namespace cannot be used as an element's namespace"_utf16);
 
                 // 3. If the require well-formed flag is set (its value is true), and the value of attr's value attribute is the empty string,
@@ -449,7 +471,7 @@ static WebIDL::ExceptionOr<String> serialize_element_attributes(DOM::Element con
             // 3. Otherwise, the attribute namespace in not the XMLNS namespace. Run these steps:
             else {
                 // 1. Let candidate prefix be the result of generating a prefix providing map, attribute namespace, and prefix index as input.
-                candidate_prefix = generate_a_prefix(namespace_prefix_map, attribute->namespace_uri(), prefix_index);
+                candidate_prefix = generate_a_prefix(namespace_prefix_map, attribute_namespace_for_map, prefix_index);
 
                 // 2. Append the following to result, in the order listed:
                 // 1. " " (U+0020 SPACE);
@@ -498,7 +520,7 @@ static WebIDL::ExceptionOr<String> serialize_element_attributes(DOM::Element con
         result.append("=\""sv);
 
         // 3. The result of serializing an attribute value given attr's value attribute and the require well-formed flag as input;
-        result.append(TRY(serialize_an_attribute_value(attribute->value(), require_well_formed)));
+        result.append(TRY(serialize_an_attribute_value(attribute->value().utf16_view(), require_well_formed)));
 
         // 4. """ (U+0022 QUOTATION MARK).
         result.append('"');
@@ -509,7 +531,7 @@ static WebIDL::ExceptionOr<String> serialize_element_attributes(DOM::Element con
 }
 
 // https://w3c.github.io/DOM-Parsing/#xml-serializing-an-element-node
-static WebIDL::ExceptionOr<String> serialize_element(DOM::Element const& element, Optional<FlyString>& namespace_, HashMap<Optional<FlyString>, Vector<Optional<FlyString>>>& namespace_prefix_map, u64& prefix_index, RequireWellFormed require_well_formed)
+static WebIDL::ExceptionOr<String> serialize_element(DOM::Element const& element, Optional<Utf16FlyString>& namespace_, HashMap<Optional<Utf16FlyString>, Vector<Optional<FlyString>>>& namespace_prefix_map, u64& prefix_index, RequireWellFormed require_well_formed)
 {
     auto& realm = element.realm();
 
@@ -536,7 +558,7 @@ static WebIDL::ExceptionOr<String> serialize_element(DOM::Element const& element
     bool ignore_namespace_definition_attribute = false;
 
     // 6. Given prefix map, copy a namespace prefix map and let map be the result.
-    HashMap<Optional<FlyString>, Vector<Optional<FlyString>>> map;
+    HashMap<Optional<Utf16FlyString>, Vector<Optional<FlyString>>> map;
 
     // https://w3c.github.io/DOM-Parsing/#dfn-copy-a-namespace-prefix-map
     // NOTE: This is only used here.
@@ -547,7 +569,7 @@ static WebIDL::ExceptionOr<String> serialize_element(DOM::Element const& element
 
     // 7. Let local prefixes map be an empty map. The map has unique Node prefix strings as its keys, with corresponding namespaceURI Node values
     //    as the map's key values (in this map, the null namespace is represented by the empty string).
-    HashMap<FlyString, Optional<FlyString>> local_prefixes_map;
+    HashMap<FlyString, Optional<Utf16FlyString>> local_prefixes_map;
 
     // 8. Let local default namespace be the result of recording the namespace information for node given map and local prefixes map.
     auto local_default_namespace = record_namespace_information(element, map, local_prefixes_map);
@@ -556,7 +578,8 @@ static WebIDL::ExceptionOr<String> serialize_element(DOM::Element const& element
     auto inherited_ns = namespace_;
 
     // 10. Let ns be the value of node's namespaceURI attribute.
-    auto const& ns = element.namespace_uri();
+    auto ns = namespace_uri_as_utf16(element.namespace_uri());
+    auto html_namespace = namespace_uri_as_utf16(Namespace::HTML);
 
     // 11. If inherited ns is equal to ns, then:
     if (inherited_ns == ns) {
@@ -565,7 +588,7 @@ static WebIDL::ExceptionOr<String> serialize_element(DOM::Element const& element
             ignore_namespace_definition_attribute = true;
 
         // 2. If ns is the XML namespace, then append to qualified name the concatenation of the string "xml:" and the value of node's localName.
-        if (ns == Namespace::XML)
+        if (ns == namespace_uri_as_utf16(Namespace::XML))
             qualified_name.appendff("xml:{}", element.local_name());
 
         // 3. Otherwise, append to qualified name the value of node's localName.
@@ -602,7 +625,7 @@ static WebIDL::ExceptionOr<String> serialize_element(DOM::Element const& element
             // 2. If the local default namespace is not null (there exists a locally-defined default namespace declaration attribute) and its value is not the XML namespace,
             //   then let inherited ns get the value of local default namespace unless the local default namespace is the empty string in which case let it get null
             //   (the context namespace is changed to the declared default, rather than this node's own namespace).
-            if (local_default_namespace.has_value() && local_default_namespace.value() != Namespace::XML) {
+            if (local_default_namespace.has_value() && local_default_namespace.value() != namespace_uri_as_utf16(Namespace::XML)) {
                 if (!local_default_namespace.value().is_empty())
                     inherited_ns = local_default_namespace.value();
                 else
@@ -700,7 +723,7 @@ static WebIDL::ExceptionOr<String> serialize_element(DOM::Element const& element
     // 14. If ns is the HTML namespace, and the node's list of children is empty, and the node's localName matches any one of the following void elements:
     //    "area", "base", "basefont", "bgsound", "br", "col", "embed", "frame", "hr", "img", "input", "keygen", "link", "menuitem", "meta", "param", "source", "track", "wbr";
     //    then append the following to markup, in the order listed:
-    if (ns == Namespace::HTML && !element.has_children() && element.local_name().is_one_of(HTML::TagNames::area, HTML::TagNames::base, HTML::TagNames::basefont, HTML::TagNames::bgsound, HTML::TagNames::br, HTML::TagNames::col, HTML::TagNames::embed, HTML::TagNames::frame, HTML::TagNames::hr, HTML::TagNames::img, HTML::TagNames::input, HTML::TagNames::keygen, HTML::TagNames::link, HTML::TagNames::menuitem, HTML::TagNames::meta, HTML::TagNames::param, HTML::TagNames::source, HTML::TagNames::track, HTML::TagNames::wbr)) {
+    if (ns == html_namespace && !element.has_children() && element.local_name().is_one_of(HTML::TagNames::area, HTML::TagNames::base, HTML::TagNames::basefont, HTML::TagNames::bgsound, HTML::TagNames::br, HTML::TagNames::col, HTML::TagNames::embed, HTML::TagNames::frame, HTML::TagNames::hr, HTML::TagNames::img, HTML::TagNames::input, HTML::TagNames::keygen, HTML::TagNames::link, HTML::TagNames::menuitem, HTML::TagNames::meta, HTML::TagNames::param, HTML::TagNames::source, HTML::TagNames::track, HTML::TagNames::wbr)) {
         // 1. " " (U+0020 SPACE);
         // 2. "/" (U+002F SOLIDUS).
         markup.append(" /"sv);
@@ -710,7 +733,7 @@ static WebIDL::ExceptionOr<String> serialize_element(DOM::Element const& element
     }
 
     // 15. If ns is not the HTML namespace, and the node's list of children is empty, then append "/" (U+002F SOLIDUS) to markup and set the skip end tag flag to true.
-    if (ns != Namespace::HTML && !element.has_children()) {
+    if (ns != html_namespace && !element.has_children()) {
         markup.append('/');
         skip_end_tag = true;
     }
@@ -723,7 +746,7 @@ static WebIDL::ExceptionOr<String> serialize_element(DOM::Element const& element
         return MUST(markup.to_string());
 
     // 18. If ns is the HTML namespace, and the node's localName matches the string "template", then this is a template element.
-    if (ns == Namespace::HTML && element.local_name() == HTML::TagNames::template_) {
+    if (ns == html_namespace && element.local_name() == HTML::TagNames::template_) {
         // Append to markup the result of XML serializing a DocumentFragment node given the template element's template contents (a DocumentFragment), providing inherited ns, map, prefix index, and the require well-formed flag.
         auto const& template_element = as<HTML::HTMLTemplateElement>(element);
         markup.append(TRY(serialize_document_fragment(template_element.content(), inherited_ns, map, prefix_index, require_well_formed)));
@@ -750,7 +773,7 @@ static WebIDL::ExceptionOr<String> serialize_element(DOM::Element const& element
 }
 
 // https://w3c.github.io/DOM-Parsing/#xml-serializing-a-document-node
-static WebIDL::ExceptionOr<String> serialize_document(DOM::Document const& document, Optional<FlyString>& namespace_, HashMap<Optional<FlyString>, Vector<Optional<FlyString>>>& namespace_prefix_map, u64& prefix_index, RequireWellFormed require_well_formed)
+static WebIDL::ExceptionOr<String> serialize_document(DOM::Document const& document, Optional<Utf16FlyString>& namespace_, HashMap<Optional<Utf16FlyString>, Vector<Optional<FlyString>>>& namespace_prefix_map, u64& prefix_index, RequireWellFormed require_well_formed)
 {
     // If the require well-formed flag is set (its value is true), and this node has no documentElement (the documentElement attribute's value is null),
     // then throw an exception; the serialization of this node would not be a well-formed document.
@@ -810,23 +833,27 @@ static WebIDL::ExceptionOr<String> serialize_text(DOM::Text const& text, Require
     }
 
     // 2. Let markup be the value of node's data.
-    auto markup = text.data();
-
     // 3. Replace any occurrences of "&" in markup by "&amp;".
-    markup = markup.replace("&"sv, "&amp;"sv, ReplaceMode::All);
-
     // 4. Replace any occurrences of "<" in markup by "&lt;".
-    markup = markup.replace("<"sv, "&lt;"sv, ReplaceMode::All);
-
     // 5. Replace any occurrences of ">" in markup by "&gt;".
-    markup = markup.replace(">"sv, "&gt;"sv, ReplaceMode::All);
+    StringBuilder markup;
+    for (auto code_point : text.data()) {
+        if (code_point == '&')
+            markup.append("&amp;"sv);
+        else if (code_point == '<')
+            markup.append("&lt;"sv);
+        else if (code_point == '>')
+            markup.append("&gt;"sv);
+        else
+            markup.append_code_point(code_point);
+    }
 
     // 6. Return the value of markup.
-    return markup.to_utf8_but_should_be_ported_to_utf16();
+    return markup.to_string_without_validation();
 }
 
 // https://w3c.github.io/DOM-Parsing/#xml-serializing-a-documentfragment-node
-static WebIDL::ExceptionOr<String> serialize_document_fragment(DOM::DocumentFragment const& document_fragment, Optional<FlyString>& namespace_, HashMap<Optional<FlyString>, Vector<Optional<FlyString>>>& namespace_prefix_map, u64& prefix_index, RequireWellFormed require_well_formed)
+static WebIDL::ExceptionOr<String> serialize_document_fragment(DOM::DocumentFragment const& document_fragment, Optional<Utf16FlyString>& namespace_, HashMap<Optional<Utf16FlyString>, Vector<Optional<FlyString>>>& namespace_prefix_map, u64& prefix_index, RequireWellFormed require_well_formed)
 {
     // 1. Let markup the empty string.
     StringBuilder markup;
