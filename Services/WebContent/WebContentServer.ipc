@@ -136,6 +136,7 @@ endpoint WebContentServer
 
     get_selected_text(u64 page_id) => (ByteString selection)
     get_selected_text_for_lookup(u64 page_id) => (Optional<WebView::DictionaryLookup> lookup)
+    select_word_for_dictionary_lookup(u64 page_id, Web::DevicePixelPoint position) => (bool selected)
     cut_selected_text(u64 page_id) => (ByteString selection)
     select_all(u64 page_id) =|
     paste(u64 page_id, Utf16String text) =|

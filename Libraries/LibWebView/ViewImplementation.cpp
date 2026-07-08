@@ -649,6 +649,12 @@ bool ViewImplementation::look_up_selected_text_at(Gfx::IntPoint widget_position)
         return false;
 
     auto lookup = selected_text_for_dictionary_lookup();
+    if (!lookup.has_value()) {
+        if (!client().select_word_for_dictionary_lookup(page_id(), to_content_position(widget_position).to_type<Web::DevicePixels>()))
+            return false;
+
+        lookup = selected_text_for_dictionary_lookup();
+    }
     if (!lookup.has_value())
         return false;
 

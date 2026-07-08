@@ -342,6 +342,13 @@ EventResult Page::handle_mouseleave()
     return top_level_traversable()->event_handler().handle_mouseleave();
 }
 
+#if defined(AK_OS_MACOS)
+bool Page::select_word_for_dictionary_lookup(DevicePixelPoint position)
+{
+    return top_level_traversable()->event_handler().select_word_for_dictionary_lookup(device_to_css_point(position));
+}
+#endif
+
 UniqueNodeID Page::node_id_at_position(DevicePixelPoint position)
 {
     auto node = top_level_traversable()->event_handler().target_node_for_mouse_position(device_to_css_point(position));

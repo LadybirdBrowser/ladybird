@@ -422,6 +422,9 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
 
         if (delta.x().abs() >= DRAG_THRESHOLD || delta.y().abs() >= DRAG_THRESHOLD) {
             auto result = handle_drag_and_drop_event(DragEvent::Type::DragStart, visual_viewport_position, screen_position, UIEvents::MouseButton::Primary, buttons, modifiers, {});
+#if defined(AK_OS_MACOS)
+            bool should_start_selection_from_preserved_mousedown = m_mousedown_preserved_selection && result != EventResult::Handled;
+#endif
 
             if (result == EventResult::Handled) {
                 set_page_cursor(m_navigable->page(), Gfx::StandardCursor::Drag);
@@ -439,6 +442,11 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
             document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseMove);
             if (!paint_root())
                 return EventResult::Accepted;
+
+#if defined(AK_OS_MACOS)
+            if (should_start_selection_from_preserved_mousedown)
+                start_selection_from_preserved_mousedown(*document);
+#endif
         }
     }
 
@@ -1734,6 +1742,10 @@ GC::Ptr<DOM::Node> EventHandler::focus_candidate_for_position(CSSPixelPoint visu
     return focus_dom_node;
 }
 
+#if defined(AK_OS_MACOS)
+static bool selection_contains_position(DOM::Document&, Painting::CaretPosition const&);
+#endif
+
 void EventHandler::run_mousedown_default_actions(DOM::Document& document, CSSPixelPoint visual_viewport_position, CSSPixelPoint viewport_position, unsigned button, unsigned modifiers, int click_count)
 {
     if (m_middle_button_scroll_handler) {
@@ -1769,6 +1781,46 @@ void EventHandler::run_mousedown_default_actions(DOM::Document& document, CSSPix
         return;
 #endif
 
+    auto caret_position = prepare_mouse_selection(document, visual_viewport_position, viewport_position);
+    if (!caret_position.has_value())
+        return;
+
+    // https://drafts.csswg.org/css-ui/#valdef-user-select-none
+    // Attempting to start a selection in an element where user-select is none, such as by clicking in it or starting a
+    // drag in it, must not cause a pre-existing selection to become unselected or to be affected in any way.
+    auto user_select = user_select_used_value_for_caret_position(*caret_position);
+    if (user_select == CSS::UserSelect::None)
+        return;
+
+#if defined(AK_OS_MACOS)
+    if (click_count == 1 && !(modifiers & UIEvents::KeyModifier::Mod_Shift) && selection_contains_position(document, *caret_position)) {
+        m_mousedown_preserved_selection = true;
+        return;
+    }
+#endif
+
+    auto selection_started = [&] {
+        if (click_count == 3)
+            return initiate_paragraph_selection(document, *caret_position, user_select);
+        if (click_count == 2)
+            return initiate_word_selection(document, *caret_position, user_select);
+
+        return initiate_character_selection(document, *caret_position, user_select, modifiers & UIEvents::KeyModifier::Mod_Shift);
+    }();
+    if (!selection_started)
+        return;
+    VERIFY(m_selection_mode != SelectionMode::None);
+
+    if (auto container = AutoScrollHandler::find_scrollable_ancestor(*caret_position->paintable))
+        m_auto_scroll_handler = make<AutoScrollHandler>(m_navigable, *container);
+}
+
+Optional<Painting::CaretPosition> EventHandler::prepare_mouse_selection(DOM::Document& document, CSSPixelPoint visual_viewport_position, CSSPixelPoint viewport_position)
+{
+    document.update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseDown);
+    if (!paint_root())
+        return {};
+
     // https://html.spec.whatwg.org/multipage/interaction.html#data-model:click-focusable-5
     // When a user activates a click focusable focusable area, the user agent must run the focusing steps on that
     // focusable area with focus trigger set to "click".
@@ -1792,7 +1844,7 @@ void EventHandler::run_mousedown_default_actions(DOM::Document& document, CSSPix
     // NB: Focusing may have invalidated layout.
     document.update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseDown);
     if (!paint_root())
-        return;
+        return {};
 
     // NB: Now we can do selection with a caret-position hit test.
     auto caret_position = document.caret_position_from_point_for_selection_start(visual_viewport_position);
@@ -1801,30 +1853,120 @@ void EventHandler::run_mousedown_default_actions(DOM::Document& document, CSSPix
             caret_position = caret_position_from_editable_hit_node(*editable_hit_node_before_focus);
     }
     if (!caret_position.has_value())
+        return {};
+
+    return caret_position;
+}
+
+#if defined(AK_OS_MACOS)
+bool EventHandler::select_word_for_dictionary_lookup(CSSPixelPoint visual_viewport_position)
+{
+    auto document = m_navigable->active_document();
+    if (!document)
+        return false;
+
+    document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseDown);
+    if (!paint_root())
+        return false;
+
+    auto result = target_for_mouse_position(visual_viewport_position);
+    if (!result.has_value())
+        return false;
+
+    if (auto dispatch_result = dispatch_event_to_nested_navigable(*result->paintable, visual_viewport_position, [](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
+            return event_handler.select_word_for_dictionary_lookup(position) ? EventResult::Handled : EventResult::Dropped;
+        });
+        dispatch_result.has_value()) {
+        return *dispatch_result == EventResult::Handled;
+    }
+
+    auto viewport_position = document->visual_viewport()->map_to_layout_viewport(visual_viewport_position);
+    return select_word_at_position(*document, visual_viewport_position, viewport_position);
+}
+
+static bool form_control_selection_contains_position(InputEventsTarget& target, Painting::CaretPosition const& caret_position)
+{
+    auto cell = target.as_cell();
+    if (!is<DOM::Node>(*cell))
+        return false;
+
+    auto& node = as<DOM::Node>(*cell);
+    auto const* form_control = as_if<HTML::FormAssociatedTextControlElement>(node);
+    if (!form_control)
+        return false;
+
+    auto selection_start = form_control->selection_start();
+    auto selection_end = form_control->selection_end();
+    return selection_start != selection_end
+        && caret_position.boundary.offset >= selection_start
+        && caret_position.boundary.offset <= selection_end;
+}
+
+static bool selection_contains_position(DOM::Document& document, Painting::CaretPosition const& caret_position)
+{
+    if (auto* target = document.active_input_events_target(&*caret_position.boundary.node)) {
+        if (form_control_selection_contains_position(*target, caret_position))
+            return true;
+    }
+
+    auto selection = document.get_selection();
+    if (!selection || selection->is_collapsed())
+        return false;
+
+    auto range = selection->range();
+    if (!range)
+        return false;
+
+    auto contains_position = range->is_point_in_range(*caret_position.boundary.node, caret_position.boundary.offset);
+    if (contains_position.is_error())
+        return false;
+
+    return contains_position.value();
+}
+
+bool EventHandler::select_word_at_position(DOM::Document& document, CSSPixelPoint visual_viewport_position, CSSPixelPoint viewport_position)
+{
+    auto caret_position = prepare_mouse_selection(document, visual_viewport_position, viewport_position);
+    if (!caret_position.has_value())
+        return false;
+
+    if (selection_contains_position(document, *caret_position))
+        return true;
+
+    auto user_select = user_select_used_value_for_caret_position(*caret_position);
+    if (user_select == CSS::UserSelect::None)
+        return false;
+
+    if (initiate_word_selection(document, *caret_position, user_select)) {
+        stop_updating_selection();
+        return true;
+    }
+    return false;
+}
+
+void EventHandler::start_selection_from_preserved_mousedown(DOM::Document& document)
+{
+    m_mousedown_preserved_selection = false;
+
+    if (!m_mousedown_visual_viewport_position.has_value())
         return;
 
-    // https://drafts.csswg.org/css-ui/#valdef-user-select-none
-    // Attempting to start a selection in an element where user-select is none, such as by clicking in it or starting a
-    // drag in it, must not cause a pre-existing selection to become unselected or to be affected in any way.
+    auto viewport_position = document.visual_viewport()->map_to_layout_viewport(*m_mousedown_visual_viewport_position);
+    auto caret_position = prepare_mouse_selection(document, *m_mousedown_visual_viewport_position, viewport_position);
+    if (!caret_position.has_value())
+        return;
+
     auto user_select = user_select_used_value_for_caret_position(*caret_position);
     if (user_select == CSS::UserSelect::None)
         return;
 
-    auto selection_started = [&] {
-        if (click_count == 3)
-            return initiate_paragraph_selection(document, *caret_position, user_select);
-        if (click_count == 2)
-            return initiate_word_selection(document, *caret_position, user_select);
-
-        return initiate_character_selection(document, *caret_position, user_select, modifiers & UIEvents::KeyModifier::Mod_Shift);
-    }();
-    if (!selection_started)
+    if (!initiate_character_selection(document, *caret_position, user_select, false))
         return;
-    VERIFY(m_selection_mode != SelectionMode::None);
 
     if (auto container = AutoScrollHandler::find_scrollable_ancestor(*caret_position->paintable))
         m_auto_scroll_handler = make<AutoScrollHandler>(m_navigable, *container);
 }
+#endif
 
 void EventHandler::run_activation_behavior(GC::Ref<DOM::Node> node, unsigned button, unsigned modifiers)
 {
@@ -2521,6 +2663,9 @@ void EventHandler::clear_mousedown_tracking()
     m_mousedown_visual_viewport_position = {};
     m_mousedown_click_count = 0;
     m_mousedown_target_is_drag_candidate = false;
+#if defined(AK_OS_MACOS)
+    m_mousedown_preserved_selection = false;
+#endif
 }
 
 void EventHandler::stop_updating_selection()

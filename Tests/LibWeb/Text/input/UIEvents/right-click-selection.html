@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<style>
+body {
+    margin: 0;
+    font: 16px Arial;
+}
+</style>
+<div id="target"><span id="alpha">alpha</span> <span id="beta">beta</span> gamma</div>
+<script src="../include.js"></script>
+<script>
+    function clickCenter(element) {
+        const rect = element.getBoundingClientRect();
+        internals.click(rect.left + rect.width / 2, rect.top + rect.height / 2, 1, internals.BUTTON_RIGHT);
+    }
+
+    function center(element) {
+        const rect = element.getBoundingClientRect();
+        return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    }
+
+    function selectAlphaBeta() {
+        getSelection().removeAllRanges();
+
+        const range = document.createRange();
+        range.setStart(alpha.firstChild, 0);
+        range.setEnd(beta.firstChild, beta.firstChild.length);
+        getSelection().addRange(range);
+    }
+
+    test(() => {
+        clickCenter(alpha);
+
+        const selection = getSelection().toString();
+        println(selection === "" || selection === "alpha"
+            ? "PASS: right-click selection matches platform behavior"
+            : `FAIL: expected either no selection or "alpha", got "${selection}"`);
+
+        selectAlphaBeta();
+        clickCenter(beta);
+
+        println(getSelection().toString() === "alpha beta"
+            ? "PASS: right-click preserves existing selection"
+            : `FAIL: expected existing selection, got "${getSelection()}"`);
+
+        selectAlphaBeta();
+        const betaCenter = center(beta);
+        internals.mouseDown(betaCenter.x, betaCenter.y);
+
+        println(!navigator.platform.includes("Mac") || getSelection().toString() === "alpha beta"
+            ? "PASS: primary mousedown preserves existing selection on macOS"
+            : `FAIL: expected existing selection, got "${getSelection()}"`);
+
+        internals.mouseUp(betaCenter.x, betaCenter.y);
+    });
+</script>

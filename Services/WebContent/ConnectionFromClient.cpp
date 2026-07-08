@@ -2117,6 +2117,18 @@ Messages::WebContentServer::GetSelectedTextForLookupResponse ConnectionFromClien
     };
 }
 
+Messages::WebContentServer::SelectWordForDictionaryLookupResponse ConnectionFromClient::select_word_for_dictionary_lookup(u64 page_id, Web::DevicePixelPoint position)
+{
+#if defined(AK_OS_MACOS)
+    if (auto page = this->page(page_id); page.has_value())
+        return page->page().select_word_for_dictionary_lookup(position);
+#else
+    (void)page_id;
+    (void)position;
+#endif
+    return false;
+}
+
 Messages::WebContentServer::CutSelectedTextResponse ConnectionFromClient::cut_selected_text(u64 page_id)
 {
     if (auto page = this->page(page_id); page.has_value())

@@ -1,0 +1,3 @@
+PASS: right-click selection matches platform behavior
+PASS: right-click preserves existing selection
+PASS: primary mousedown preserves existing selection on macOS

@@ -130,6 +130,9 @@ public:
     EventResult handle_mousedown(DevicePixelPoint, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count);
     EventResult handle_mousemove(DevicePixelPoint, DevicePixelPoint screen_position, unsigned buttons, unsigned modifiers);
     EventResult handle_mouseleave();
+#if defined(AK_OS_MACOS)
+    bool select_word_for_dictionary_lookup(DevicePixelPoint);
+#endif
     UniqueNodeID node_id_at_position(DevicePixelPoint);
     EventResult handle_mousewheel(DevicePixelPoint, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y, bool async_scroll_performed_default_action = false, Optional<AsyncScrollOperation>* async_scroll_operation = nullptr);
 
