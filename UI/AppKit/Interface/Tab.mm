@@ -356,7 +356,8 @@ static NSImage* tab_loading_spinner_icon(NSUInteger frame)
 
     auto* controller = [delegate createNewTab:url
                                       fromTab:self
-                                  activateTab:activate_tab];
+                                  activateTab:activate_tab
+                                  tabLocation:TabLocation::end()];
 
     auto* tab = (Tab*)[controller window];
     return [[tab web_view] handle];

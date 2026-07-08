@@ -61,10 +61,24 @@ Optional<WebView::ViewImplementation&> Application::open_blank_new_tab(Web::HTML
     return [[tab web_view] view];
 }
 
+void Application::open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTab activate_tab) const
+{
+    ApplicationDelegate* delegate = [NSApp delegate];
+    auto* active_tab = [delegate activeTab];
+
+    (void)[delegate createNewTab:url
+                         fromTab:active_tab
+                     activateTab:activate_tab
+                     tabLocation:TabLocation::after_tab(active_tab)];
+}
+
 void Application::open_url_in_new_window(URL::URL const& url, WebView::IsPrivate)
 {
     ApplicationDelegate* delegate = [NSApp delegate];
-    (void)[delegate createNewTab:url fromTab:nil activateTab:Web::HTML::ActivateTab::Yes];
+    (void)[delegate createNewTab:url
+                         fromTab:nil
+                     activateTab:Web::HTML::ActivateTab::Yes
+                     tabLocation:TabLocation::end()];
 }
 
 Optional<ByteString> Application::ask_user_for_download_path(ByteString const& file) const

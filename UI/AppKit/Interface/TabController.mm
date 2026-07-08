@@ -940,7 +940,8 @@ private:
 
     [delegate createNewTab:WebView::Application::settings().new_tab_page_url()
                    fromTab:[self tab]
-               activateTab:Web::HTML::ActivateTab::Yes];
+               activateTab:Web::HTML::ActivateTab::Yes
+               tabLocation:TabLocation::end()];
 
     self.tab.titlebarAppearsTransparent = YES;
 }

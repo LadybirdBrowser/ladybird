@@ -29,7 +29,8 @@ static void open_urls_from_client(Vector<URL::URL> const& urls, WebView::NewWind
 
         auto* controller = [delegate createNewTab:url
                                           fromTab:tab
-                                      activateTab:activate_tab];
+                                      activateTab:activate_tab
+                                      tabLocation:TabLocation::end()];
 
         tab = (Tab*)[controller window];
     }

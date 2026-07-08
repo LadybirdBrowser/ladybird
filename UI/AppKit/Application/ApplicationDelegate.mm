@@ -84,8 +84,13 @@
 - (TabController*)createNewTab:(Optional<URL::URL> const&)url
                        fromTab:(Tab*)tab
                    activateTab:(Web::HTML::ActivateTab)activate_tab
+                   tabLocation:(TabLocation)tab_location
 {
-    auto* controller = [self createNewTab:activate_tab fromTab:tab];
+    auto* controller = [[TabController alloc] init];
+    [self initializeTabController:controller
+                      activateTab:activate_tab
+                          fromTab:tab
+                      tabLocation:tab_location];
 
     if (url.has_value()) {
         [controller loadURL:*url];
@@ -194,7 +199,8 @@
 {
     [self createNewTab:WebView::Application::settings().new_tab_page_url()
                fromTab:nil
-           activateTab:Web::HTML::ActivateTab::Yes];
+           activateTab:Web::HTML::ActivateTab::Yes
+           tabLocation:TabLocation::end()];
 }
 
 - (nonnull TabController*)createChildTab:(Web::HTML::ActivateTab)activate_tab
@@ -213,14 +219,43 @@
                     activateTab:(Web::HTML::ActivateTab)activate_tab
                         fromTab:(nullable Tab*)tab
 {
+    [self initializeTabController:controller
+                      activateTab:activate_tab
+                          fromTab:tab
+                      tabLocation:TabLocation::end()];
+}
+
+- (void)initializeTabController:(TabController*)controller
+                    activateTab:(Web::HTML::ActivateTab)activate_tab
+                        fromTab:(nullable Tab*)tab
+                    tabLocation:(TabLocation)tab_location
+{
+    Optional<NSUInteger> insertion_index;
+    NSWindowTabGroup* tab_group = nil;
+
+    auto* tab_for_location = tab_location.is_after_tab() ? tab_location.tab() : tab;
+    if (tab_for_location) {
+        tab_group = [tab_for_location tabGroup];
+
+        if (tab_location.is_after_tab()) {
+            auto* windows = [tab_group windows];
+            auto tab_index = [windows indexOfObject:tab_for_location];
+            if (tab_index != NSNotFound)
+                insertion_index = tab_index + 1;
+        }
+    }
+
     [controller showWindow:nil];
 
-    if (tab) {
-        [[tab tabGroup] addWindow:controller.window];
+    if (tab_for_location) {
+        if (insertion_index.has_value())
+            [tab_group insertWindow:controller.window atIndex:insertion_index.value()];
+        else
+            [tab_group addWindow:controller.window];
 
         // FIXME: Can we create the tabbed window above without it becoming active in the first place?
         if (activate_tab == Web::HTML::ActivateTab::No) {
-            [tab orderFront:nil];
+            [tab_for_location orderFront:nil];
         }
     }
 
@@ -406,7 +441,8 @@
 
         auto* controller = [self createNewTab:url
                                       fromTab:tab
-                                  activateTab:activate_tab];
+                                  activateTab:activate_tab
+                                  tabLocation:TabLocation::end()];
 
         tab = (Tab*)[controller window];
     }
