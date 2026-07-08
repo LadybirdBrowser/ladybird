@@ -43,10 +43,12 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Node.h>
+#include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
+#include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/HTML/AutoplaySettings.h>
 #include <LibWeb/HTML/BroadcastChannel.h>
 #include <LibWeb/HTML/BrowsingContext.h>
@@ -64,6 +66,7 @@
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Layout/FlexLayoutData.h>
 #include <LibWeb/Layout/GridLayoutData.h>
+#include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/ContentBlocker.h>
 #include <LibWeb/Loader/ProxyMappings.h>
@@ -74,7 +77,9 @@
 #include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
+#include <LibWeb/Selection/Selection.h>
 #include <LibWebView/Attribute.h>
+#include <LibWebView/DictionaryLookup.h>
 #include <LibWebView/ViewImplementation.h>
 #include <WebContent/CompositorConnection.h>
 #include <WebContent/ConnectionFromClient.h>
@@ -2029,6 +2034,87 @@ Messages::WebContentServer::GetSelectedTextResponse ConnectionFromClient::get_se
     if (auto page = this->page(page_id); page.has_value())
         return page->page().focused_navigable().selected_text().to_byte_string();
     return ByteString {};
+}
+
+static WebView::DictionaryLookupTextStyle dictionary_lookup_text_style_from_layout_node(Web::Layout::Node const& layout_node, double zoom_level)
+{
+    auto const& font = layout_node.first_available_font();
+    return {
+        .font_family = font.family().to_string(),
+        .ui_point_size = font.pixel_size() * static_cast<float>(zoom_level),
+        .weight = font.weight(),
+        .slope = font.slope(),
+    };
+}
+
+static Web::Layout::Node const* layout_node_for_dictionary_lookup(Web::DOM::Node const& node)
+{
+    for (auto const* current = &node; current; current = current->parent_or_shadow_host_node()) {
+        auto const* layout_node = current->layout_node();
+        if (layout_node && layout_node->has_style_or_parent_with_style())
+            return layout_node;
+    }
+
+    return nullptr;
+}
+
+static Optional<Gfx::IntPoint> dictionary_lookup_baseline_origin_for_range(Web::DOM::Range& range, Web::Page& page, Web::Layout::Node const& layout_node)
+{
+    auto& document = range.start_container()->document();
+    auto navigable = document.navigable();
+    if (!navigable)
+        return {};
+
+    auto to_top_level_viewport_point = [&](Web::CSSPixelPoint point) {
+        auto scroll_offset = navigable->viewport_scroll_offset();
+        Web::CSSPixelPoint viewport_point { point.x() - scroll_offset.x(), point.y() - scroll_offset.y() };
+        return navigable->to_top_level_position(viewport_point);
+    };
+
+    auto rect = range.get_bounding_client_rect();
+    if (rect->width() <= 0 || rect->height() <= 0)
+        return {};
+
+    auto const& font = layout_node.first_available_font();
+    Web::CSSPixelPoint baseline_origin {
+        Web::CSSPixels::nearest_value_for(rect->x()),
+        Web::CSSPixels::nearest_value_for(rect->y() + font.pixel_metrics().ascent),
+    };
+    return page.css_to_device_point(to_top_level_viewport_point(baseline_origin)).to_type<int>();
+}
+
+Messages::WebContentServer::GetSelectedTextForLookupResponse ConnectionFromClient::get_selected_text_for_lookup(u64 page_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return Optional<WebView::DictionaryLookup> {};
+
+    auto& navigable = page->page().focused_navigable();
+    auto text = navigable.selected_text();
+    if (text.is_empty())
+        return Optional<WebView::DictionaryLookup> {};
+
+    auto document = navigable.active_document();
+    auto range = document ? document->get_selection()->range() : nullptr;
+    auto const* layout_node = range ? layout_node_for_dictionary_lookup(range->start_container()) : nullptr;
+    if (!layout_node && document) {
+        if (auto active_element = document->active_element())
+            layout_node = layout_node_for_dictionary_lookup(*active_element);
+    }
+
+    Optional<WebView::DictionaryLookupTextStyle> style;
+    Optional<Gfx::IntPoint> baseline_origin;
+    if (layout_node) {
+        style = dictionary_lookup_text_style_from_layout_node(*layout_node, navigable.page().client().zoom_level());
+        if (range)
+            baseline_origin = dictionary_lookup_baseline_origin_for_range(*range, page->page(), *layout_node);
+    }
+
+    return WebView::DictionaryLookup {
+        .text = move(text),
+        .style = move(style),
+        .baseline_origin = baseline_origin,
+    };
 }
 
 Messages::WebContentServer::CutSelectedTextResponse ConnectionFromClient::cut_selected_text(u64 page_id)

@@ -255,6 +255,7 @@ static void initialize_native_icon(WebView::Action& action, id control)
         [control setKeyEquivalent:@"a"];
         break;
 
+    case WebView::ActionID::LookUpSelectedText:
     case WebView::ActionID::SearchSelectedText:
         set_control_image(control, @"magnifyingglass");
         break;

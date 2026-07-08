@@ -9,6 +9,7 @@ set(SOURCES
     CompositorClient.cpp
     ConsoleOutput.cpp
     CookieJar.cpp
+    DictionaryLookup.cpp
     DOMNodeProperties.cpp
     DownloadPresentation.cpp
     FileDownloader.cpp

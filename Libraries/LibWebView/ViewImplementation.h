@@ -46,6 +46,7 @@
 #include <LibWebView/BookmarkStore.h>
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/DOMNodeProperties.h>
+#include <LibWebView/DictionaryLookup.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/PageInfo.h>
 #include <LibWebView/PrivateBrowsing.h>
@@ -150,6 +151,8 @@ public:
     ByteString selected_text();
     ByteString cut_selected_text();
     Optional<String> selected_text_with_whitespace_collapsed();
+    Optional<DictionaryLookup> selected_text_for_dictionary_lookup();
+    bool look_up_selected_text_at(Gfx::IntPoint widget_position);
     void select_all();
     void find_in_page(String const& query, CaseSensitivity = CaseSensitivity::CaseInsensitive);
     void find_in_page_next_match();
@@ -308,6 +311,7 @@ public:
     void remove_navigation_listener(u64 listener_id);
 
     Function<void(ByteString const& path, i32)> on_request_file;
+    Function<void(DictionaryLookup const&, Gfx::IntPoint)> on_request_dictionary_lookup;
     Function<void(Gfx::Bitmap const&)> on_favicon_change;
     Function<void(Gfx::Cursor const&)> on_cursor_change;
     Function<void(Gfx::IntPoint, ByteString const&)> on_request_tooltip_override;
@@ -460,6 +464,7 @@ protected:
     void update_bookmark_action();
 
     void initialize_context_menus();
+    void update_look_up_selected_text_action(Optional<DictionaryLookup> const& lookup, Gfx::IntPoint content_position);
     enum class PromptForPath : u8 {
         No,
         Yes,
@@ -509,6 +514,10 @@ protected:
     RefPtr<Action> m_toggle_bookmark_action;
 
     RefPtr<Action> m_reset_zoom_action;
+
+    RefPtr<Action> m_look_up_selected_text_action;
+    Optional<DictionaryLookup> m_look_up;
+    Gfx::IntPoint m_look_up_position;
 
     RefPtr<Action> m_search_selected_text_action;
     Optional<String> m_search_text;

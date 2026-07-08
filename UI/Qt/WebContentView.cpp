@@ -137,6 +137,12 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
         update_cursor(cursor);
     };
 
+#ifdef AK_OS_MACOS
+    on_request_dictionary_lookup = [this](auto const& lookup, auto position) {
+        show_appkit_dictionary_lookup(*this, lookup, position);
+    };
+#endif
+
     on_request_tooltip_override = [this](auto position, auto const& tooltip) {
         m_tooltip_override = true;
         if (m_tooltip_hover_timer.isActive())

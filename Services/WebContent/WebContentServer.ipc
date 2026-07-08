@@ -27,6 +27,7 @@
 #include <LibWeb/WebDriver/ExecuteScript.h>
 #include <LibWeb/WebDriver/Response.h>
 #include <LibWebView/Attribute.h>
+#include <LibWebView/DictionaryLookup.h>
 #include <LibWebView/DOMNodeProperties.h>
 #include <LibWebView/PageInfo.h>
 #include <LibWebView/Settings.h>
@@ -134,6 +135,7 @@ endpoint WebContentServer
     request_internal_page_info(u64 page_id, WebView::PageInfoType type) =|
 
     get_selected_text(u64 page_id) => (ByteString selection)
+    get_selected_text_for_lookup(u64 page_id) => (Optional<WebView::DictionaryLookup> lookup)
     cut_selected_text(u64 page_id) => (ByteString selection)
     select_all(u64 page_id) =|
     paste(u64 page_id, Utf16String text) =|

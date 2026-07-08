@@ -6,6 +6,8 @@
 
 #include <UI/Qt/MacWindow.h>
 
+#include <LibGfx/Color.h>
+#include <LibGfx/Point.h>
 #include <QAbstractNativeEventFilter>
 #include <QColor>
 #include <QCoreApplication>
@@ -13,9 +15,11 @@
 #include <QPointer>
 #include <QRect>
 #include <QWidget>
+#include <UI/Qt/WebContentView.h>
 
 #import <Cocoa/Cocoa.h>
 #import <QuartzCore/QuartzCore.h>
+#import <UI/AppKit/Utilities/DictionaryLookup.h>
 #import <objc/runtime.h>
 
 @interface LadybirdWindowControlHoverTracker : NSObject
@@ -65,6 +69,20 @@
 namespace Ladybird {
 
 static NSEvent* s_latest_window_drag_event;
+static NSInteger s_last_pressure_stage;
+
+static Gfx::Color ns_color_to_gfx_color(NSColor* color)
+{
+    auto* rgb_color = [color colorUsingColorSpace:NSColorSpace.genericRGBColorSpace];
+    if (rgb_color != nil)
+        return {
+            static_cast<u8>([rgb_color redComponent] * 255),
+            static_cast<u8>([rgb_color greenComponent] * 255),
+            static_cast<u8>([rgb_color blueComponent] * 255),
+            static_cast<u8>([rgb_color alphaComponent] * 255)
+        };
+    return {};
+}
 
 static bool is_window_drag_on_gesture_enabled()
 {
@@ -110,6 +128,94 @@ static bool should_start_window_drag_for_gesture(NSEvent* event)
     return true;
 }
 
+static NSPoint widget_position_to_ns_point(QWidget& widget, Gfx::IntPoint position)
+{
+    auto* view = reinterpret_cast<NSView*>(widget.winId());
+    if (!view)
+        return {};
+
+    auto device_pixel_ratio = widget.devicePixelRatioF();
+    auto point = NSMakePoint(position.x() / device_pixel_ratio, position.y() / device_pixel_ratio);
+    if (![view isFlipped])
+        point.y = NSHeight(view.bounds) - point.y;
+    return point;
+}
+
+static Optional<Gfx::IntPoint> widget_position_for_appkit_event(QWidget& widget, NSEvent* event)
+{
+    auto* view = reinterpret_cast<NSView*>(widget.winId());
+    if (!view || !event.window)
+        return {};
+
+    auto point = [view convertPoint:event.locationInWindow fromView:nil];
+    if (![view isFlipped])
+        point.y = NSHeight(view.bounds) - point.y;
+
+    auto device_pixel_ratio = widget.devicePixelRatioF();
+    return Gfx::IntPoint {
+        static_cast<int>(point.x * device_pixel_ratio),
+        static_cast<int>(point.y * device_pixel_ratio),
+    };
+}
+
+static WebContentView* web_content_view_for_appkit_event(NSEvent* event)
+{
+    if (!event.window)
+        return nullptr;
+
+    auto* content_view = event.window.contentView;
+    if (!content_view)
+        return nullptr;
+
+    auto point = [content_view convertPoint:event.locationInWindow fromView:nil];
+    for (auto* view = [content_view hitTest:point]; view; view = view.superview) {
+        auto* widget = QWidget::find(reinterpret_cast<WId>(view));
+        if (!widget)
+            continue;
+        if (auto* web_content_view = qobject_cast<WebContentView*>(widget))
+            return web_content_view;
+    }
+
+    return nullptr;
+}
+
+static bool should_perform_dictionary_lookup_for_event(NSEvent* event)
+{
+    if (!event)
+        return false;
+
+    switch (event.type) {
+    case NSEventTypeQuickLook:
+        return true;
+    case NSEventTypePressure: {
+        auto stage = event.stage;
+        auto should_lookup = s_last_pressure_stage == 1
+            && stage == 2
+            && [[NSUserDefaults standardUserDefaults] integerForKey:@"com.apple.trackpad.forceClick"] == 1;
+        s_last_pressure_stage = stage;
+        return should_lookup;
+    }
+    default:
+        return false;
+    }
+}
+
+static bool perform_dictionary_lookup_for_event(NSEvent* event)
+{
+    if (!should_perform_dictionary_lookup_for_event(event))
+        return false;
+
+    auto* view = web_content_view_for_appkit_event(event);
+    if (!view)
+        return false;
+
+    auto position = widget_position_for_appkit_event(*view, event);
+    if (!position.has_value())
+        return false;
+
+    return view->look_up_selected_text_at(*position);
+}
+
 class LadybirdAppKitEventCaptureFilter final : public QAbstractNativeEventFilter {
 public:
     virtual bool nativeEventFilter(QByteArray const& event_type, void* message, qintptr*) override
@@ -118,6 +224,9 @@ public:
             return false;
 
         auto* event = static_cast<NSEvent*>(message);
+        if (perform_dictionary_lookup_for_event(event))
+            return true;
+
         if (should_start_window_drag_for_gesture(event)) {
             [event.window performWindowDragWithEvent:event];
             return true;
@@ -262,6 +371,22 @@ bool start_appkit_window_drag(QWidget& widget)
 
     [window performWindowDragWithEvent:event];
     return true;
+}
+
+void show_appkit_dictionary_lookup(QWidget& widget, WebView::DictionaryLookup const& lookup, Gfx::IntPoint position)
+{
+    auto* view = reinterpret_cast<NSView*>(widget.winId());
+    show_dictionary_lookup(view, lookup, widget_position_to_ns_point(widget, position));
+}
+
+Gfx::Color appkit_web_inactive_selection_color()
+{
+    return ns_color_to_gfx_color([NSColor unemphasizedSelectedTextBackgroundColor]);
+}
+
+Gfx::Color appkit_web_inactive_selection_text_color()
+{
+    return ns_color_to_gfx_color([NSColor unemphasizedSelectedTextColor]);
 }
 
 }

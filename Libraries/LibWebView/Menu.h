@@ -36,6 +36,7 @@ enum class ActionID {
     Paste,
     SelectAll,
 
+    LookUpSelectedText,
     SearchSelectedText,
 
     TakeVisibleScreenshot,

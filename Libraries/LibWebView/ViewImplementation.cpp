@@ -629,6 +629,34 @@ Optional<String> ViewImplementation::selected_text_with_whitespace_collapsed()
     return selected_text;
 }
 
+Optional<DictionaryLookup> ViewImplementation::selected_text_for_dictionary_lookup()
+{
+    auto lookup = client().get_selected_text_for_lookup(page_id());
+    if (!lookup.has_value())
+        return {};
+
+    auto selected_text = MUST(Web::Infra::strip_and_collapse_whitespace(lookup->text));
+    if (selected_text.is_empty())
+        return {};
+
+    lookup->text = move(selected_text);
+    return lookup;
+}
+
+bool ViewImplementation::look_up_selected_text_at(Gfx::IntPoint widget_position)
+{
+    if (!on_request_dictionary_lookup)
+        return false;
+
+    auto lookup = selected_text_for_dictionary_lookup();
+    if (!lookup.has_value())
+        return false;
+
+    auto lookup_position = lookup->baseline_origin.has_value() ? to_widget_position(*lookup->baseline_origin) : widget_position;
+    on_request_dictionary_lookup(*lookup, lookup_position);
+    return true;
+}
+
 void ViewImplementation::select_all()
 {
     client().async_select_all(page_id());
@@ -2099,6 +2127,14 @@ void ViewImplementation::initialize_context_menus()
     });
     m_search_selected_text_action->set_visible(false);
 
+    m_look_up_selected_text_action = Action::create("Look Up"sv, ActionID::LookUpSelectedText, [this] {
+        if (!m_look_up.has_value() || !on_request_dictionary_lookup)
+            return;
+
+        on_request_dictionary_lookup(*m_look_up, m_look_up_position);
+    });
+    m_look_up_selected_text_action->set_visible(false);
+
     auto take_and_save_screenshot = [this](auto type) {
         take_screenshot(type)
             ->when_resolved([](auto const& path) {
@@ -2214,6 +2250,7 @@ void ViewImplementation::initialize_context_menus()
     };
 
     m_page_context_menu = Menu::create("Page Context Menu"sv);
+    m_page_context_menu->add_action(*m_look_up_selected_text_action);
     m_page_context_menu->add_action(*m_navigate_back_action);
     m_page_context_menu->add_action(*m_navigate_forward_action);
     m_page_context_menu->add_action(application.reload_action());
@@ -2228,6 +2265,7 @@ void ViewImplementation::initialize_context_menus()
     m_page_context_menu->add_action(application.view_source_action());
 
     m_link_context_menu = Menu::create("Link Context Menu"sv);
+    m_link_context_menu->add_action(*m_look_up_selected_text_action);
     add_open_url_actions(*m_link_context_menu);
     m_link_context_menu->add_separator();
     m_link_context_menu->add_action(*m_download_linked_file_action);
@@ -2236,6 +2274,7 @@ void ViewImplementation::initialize_context_menus()
     m_link_context_menu->add_action(*m_copy_url_action);
 
     m_selected_text_link_context_menu = Menu::create("Selected Text Link Context Menu"sv);
+    m_selected_text_link_context_menu->add_action(*m_look_up_selected_text_action);
     add_open_url_actions(*m_selected_text_link_context_menu);
     m_selected_text_link_context_menu->add_separator();
     add_text_edit_actions(*m_selected_text_link_context_menu);
@@ -2243,6 +2282,7 @@ void ViewImplementation::initialize_context_menus()
     m_selected_text_link_context_menu->add_action(*m_search_selected_text_action);
 
     m_image_context_menu = Menu::create("Image Context Menu"sv);
+    m_image_context_menu->add_action(*m_look_up_selected_text_action);
     m_image_context_menu->add_action(*m_open_image_action);
     m_image_context_menu->add_action(*m_open_in_new_tab_action);
     m_image_context_menu->add_separator();
@@ -2252,6 +2292,7 @@ void ViewImplementation::initialize_context_menus()
     m_image_context_menu->add_action(*m_copy_url_action);
 
     m_media_context_menu = Menu::create("Media Context Menu"sv);
+    m_media_context_menu->add_action(*m_look_up_selected_text_action);
     m_media_context_menu->add_action(*m_media_play_action);
     m_media_context_menu->add_action(*m_media_pause_action);
     m_media_context_menu->add_action(*m_media_mute_action);
@@ -2385,14 +2426,28 @@ void ViewImplementation::initialize_context_menus()
     m_bookmark_folder_context_menu->add_action(add_bookmark_folder_action);
 }
 
+void ViewImplementation::update_look_up_selected_text_action(Optional<DictionaryLookup> const& lookup, Gfx::IntPoint content_position)
+{
+    m_look_up = on_request_dictionary_lookup ? lookup : OptionalNone {};
+    m_look_up_position = to_widget_position(content_position);
+    if (m_look_up.has_value() && m_look_up->baseline_origin.has_value())
+        m_look_up_position = to_widget_position(*m_look_up->baseline_origin);
+    m_look_up_selected_text_action->set_visible(m_look_up.has_value());
+}
+
 void ViewImplementation::did_request_page_context_menu(Badge<WebContentClient>, Gfx::IntPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target)
 {
     auto& cut_selection_action = Application::the().cut_selection_action();
     cut_selection_action.set_visible(for_input_events_target == Web::ContextMenuForInputEventsTarget::Yes);
 
     auto const& search_engine = Application::settings().search_engine();
-    m_search_text = search_engine.has_value() ? selected_text_with_whitespace_collapsed() : OptionalNone {};
-    auto selected_text_url = url_from_text(selected_text());
+    auto lookup = on_request_dictionary_lookup ? selected_text_for_dictionary_lookup() : OptionalNone {};
+    auto selected_text = lookup.map([](auto const& lookup) { return lookup.text; });
+    if (!selected_text.has_value())
+        selected_text = selected_text_with_whitespace_collapsed();
+    m_search_text = search_engine.has_value() ? selected_text : OptionalNone {};
+    auto selected_text_url = selected_text.has_value() ? url_from_text(*selected_text) : OptionalNone {};
+    update_look_up_selected_text_action(lookup, content_position);
 
     ScopeGuard guard { [&]() {
         cut_selection_action.set_visible(true);
@@ -2420,6 +2475,7 @@ void ViewImplementation::did_request_page_context_menu(Badge<WebContentClient>, 
 void ViewImplementation::did_request_link_context_menu(Badge<WebContentClient>, Gfx::IntPoint content_position, URL::URL url)
 {
     m_context_menu_url = move(url);
+    update_look_up_selected_text_action(on_request_dictionary_lookup ? selected_text_for_dictionary_lookup() : OptionalNone {}, content_position);
 
     m_open_in_new_tab_action->set_text("Open in New Tab"sv);
 
@@ -2454,6 +2510,7 @@ void ViewImplementation::did_request_image_context_menu(Badge<WebContentClient>,
 {
     m_context_menu_url = move(url);
     m_image_context_menu_bitmap = move(bitmap);
+    update_look_up_selected_text_action(on_request_dictionary_lookup ? selected_text_for_dictionary_lookup() : OptionalNone {}, content_position);
 
     m_open_in_new_tab_action->set_text("Open Image in New Tab"sv);
     m_copy_url_action->set_text("Copy Image URL"sv);
@@ -2467,6 +2524,7 @@ void ViewImplementation::did_request_image_context_menu(Badge<WebContentClient>,
 void ViewImplementation::did_request_media_context_menu(Badge<WebContentClient>, Gfx::IntPoint content_position, Web::Page::MediaContextMenu menu)
 {
     m_context_menu_url = move(menu.media_url);
+    update_look_up_selected_text_action(on_request_dictionary_lookup ? selected_text_for_dictionary_lookup() : OptionalNone {}, content_position);
 
     m_open_in_new_tab_action->set_text(menu.is_video ? "Open Video in New Tab"sv : "Open Audio in new Tab"sv);
     m_copy_url_action->set_text(menu.is_video ? "Copy Video URL"sv : "Copy Audio URL"sv);

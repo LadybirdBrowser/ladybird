@@ -19,6 +19,7 @@
 #import <QuartzCore/CAMetalLayer.h>
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 #import <Utilities/Conversions.h>
+#import <Utilities/DictionaryLookup.h>
 
 #if !__has_feature(objc_arc)
 #    error "This project requires ARC"
@@ -101,6 +102,8 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
     // key is pressed. Instead, we only receive an event that the modifier flags have changed, and we must determine for
     // ourselves whether the modifier key was pressed or released.
     NSEventModifierFlags m_modifier_flags;
+
+    NSInteger m_last_pressure_stage;
 }
 
 @property (nonatomic, weak) id<LadybirdWebViewObserver> observer;
@@ -209,6 +212,7 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
         [self addGestureRecognizer:self.pinch_recognizer];
 
         m_modifier_flags = 0;
+        m_last_pressure_stage = 0;
     }
 
     return self;
@@ -459,6 +463,15 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
                 [self.observer onCreateNewTab:urls[i] activateTab:Web::HTML::ActivateTab::No];
             }
         }
+    };
+
+    m_web_view_bridge->on_request_dictionary_lookup = [weak_self](auto const& lookup, auto position) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
+
+        Ladybird::show_dictionary_lookup(self, lookup, Ladybird::gfx_point_to_ns_point(position));
     };
 
     m_web_view_bridge->on_cursor_change = [weak_self](auto cursor) {
@@ -1172,6 +1185,25 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
     // The origin of a NSScrollView is the lower-left corner, with the y-axis extending upwards. Instead,
     // we want the origin to be the top-left corner, with the y-axis extending downward.
     return YES;
+}
+
+- (void)quickLookWithEvent:(NSEvent*)event
+{
+    auto position = Ladybird::ns_point_to_gfx_point([self convertPoint:[event locationInWindow] fromView:nil]);
+    if (!m_web_view_bridge->look_up_selected_text_at(position))
+        [super quickLookWithEvent:event];
+}
+
+- (void)pressureChangeWithEvent:(NSEvent*)event
+{
+    auto stage = [event stage];
+    if (m_last_pressure_stage == 1 && stage == 2) {
+        auto* user_defaults = [NSUserDefaults standardUserDefaults];
+        if ([user_defaults integerForKey:@"com.apple.trackpad.forceClick"] == 1)
+            [self quickLookWithEvent:event];
+    }
+
+    m_last_pressure_stage = stage;
 }
 
 - (void)mouseExited:(NSEvent*)event

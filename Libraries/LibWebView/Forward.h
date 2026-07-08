@@ -40,6 +40,8 @@ struct BookmarkItem;
 struct BrowserOptions;
 struct ConsoleOutput;
 struct CookieStorageKey;
+struct DictionaryLookup;
+struct DictionaryLookupTextStyle;
 struct DOMNodeProperties;
 struct Mutation;
 struct ProcessHandle;
