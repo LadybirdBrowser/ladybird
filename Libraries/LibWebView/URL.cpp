@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/CharacterTypes.h>
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
 #include <LibFileSystem/FileSystem.h>
@@ -78,6 +79,18 @@ Optional<URL::URL> sanitize_url(StringView location, Optional<SearchEngine> cons
 bool location_looks_like_url(StringView location, AppendTLD append_tld)
 {
     return sanitize_url(location, {}, append_tld).has_value();
+}
+
+Optional<URL::URL> url_from_text(StringView text)
+{
+    auto trimmed_text = text.trim_whitespace();
+    if (trimmed_text.is_empty() || trimmed_text.is_whitespace())
+        return {};
+
+    if (trimmed_text.starts_with('.') || trimmed_text.starts_with('/'))
+        return {};
+
+    return sanitize_url(trimmed_text);
 }
 
 static String normalized_web_url_for_autocomplete_comparison(URL::URL const& url)

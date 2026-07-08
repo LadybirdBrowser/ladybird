@@ -2308,10 +2308,73 @@ bool EventHandler::select_context_menu_text(DOM::Document& document, CSSPixelPoi
     if (user_select == CSS::UserSelect::None)
         return false;
 
-    auto selected_text = initiate_word_selection(document, *caret_position, user_select);
+    auto selected_text = select_context_menu_url_token(document, *caret_position, user_select)
+        || initiate_word_selection(document, *caret_position, user_select);
     if (selected_text)
         stop_updating_selection();
     return selected_text;
+}
+
+bool EventHandler::select_context_menu_url_token(DOM::Document& document, Painting::CaretPosition const& caret_position, CSS::UserSelect user_select)
+{
+    auto* hit_node = as_if<DOM::Text>(*caret_position.boundary.node);
+    if (!hit_node)
+        return false;
+
+    if (hit_node->is_password_input())
+        return false;
+
+    auto const& text = hit_node->data();
+    auto length = text.length_in_code_units();
+    auto hit_index = min(caret_position.boundary.offset, length);
+    if (length == 0)
+        return false;
+
+    auto is_url_code_unit = [](char16_t code_unit) {
+        if (code_unit > 0x7f)
+            return false;
+        if (is_ascii_space(code_unit))
+            return false;
+        return !first_is_one_of(code_unit, '"', '\'', '`', '<', '>');
+    };
+
+    auto is_url_leading_punctuation = [](char16_t code_unit) {
+        return first_is_one_of(code_unit, '"', '\'', '`', '(', '[', '{', '<');
+    };
+
+    auto is_url_trailing_punctuation = [](char16_t code_unit) {
+        return first_is_one_of(code_unit, '"', '\'', '`', '.', ',', ';', ':', '!', '?', ')', ']', '}', '>');
+    };
+
+    size_t token_start = hit_index;
+    while (token_start > 0 && is_url_code_unit(text.code_unit_at(token_start - 1)))
+        --token_start;
+
+    size_t token_end = hit_index;
+    while (token_end < length && is_url_code_unit(text.code_unit_at(token_end)))
+        ++token_end;
+
+    while (token_start < token_end && is_url_leading_punctuation(text.code_unit_at(token_start)))
+        ++token_start;
+    while (token_end > token_start && is_url_trailing_punctuation(text.code_unit_at(token_end - 1)))
+        --token_end;
+
+    if (token_start == token_end)
+        return false;
+
+    constexpr auto url_punctuation = Array<u32, 4> { '.', ':', '/', '@' };
+    if (!text.substring_view(token_start, token_end - token_start).contains_any_of(url_punctuation))
+        return false;
+
+    if (auto* target = document.active_input_events_target(hit_node)) {
+        target->set_selection_anchor(*hit_node, token_start);
+        target->set_selection_focus(*hit_node, token_end);
+    } else if (auto selection = document.get_selection()) {
+        set_user_selection(hit_node, token_start, hit_node, token_end, selection, user_select);
+        document.set_needs_repaint(Badge<EventHandler> {});
+    }
+
+    return true;
 }
 
 void EventHandler::update_mouse_selection(CSSPixelPoint visual_viewport_position)

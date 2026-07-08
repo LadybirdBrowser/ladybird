@@ -1,4 +1,5 @@
 plain word: "ordinary"
+url token: "ladybird.org/path?x=1"
 canceled context menu: ""
 existing selection preserved: "existing"
 existing selection replaced: "other"

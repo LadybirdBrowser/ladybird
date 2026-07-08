@@ -118,6 +118,7 @@ private:
     bool initiate_word_selection(DOM::Document&, Painting::CaretPosition const&, CSS::UserSelect);
     bool initiate_paragraph_selection(DOM::Document&, Painting::CaretPosition const&, CSS::UserSelect);
     bool select_context_menu_text(DOM::Document&, CSSPixelPoint visual_viewport_position);
+    bool select_context_menu_url_token(DOM::Document&, Painting::CaretPosition const&, CSS::UserSelect);
 
     void update_mouse_selection(CSSPixelPoint visual_viewport_position);
     void apply_mouse_selection(CSSPixelPoint visual_viewport_position);

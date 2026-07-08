@@ -60,6 +60,18 @@ static void expect_location_does_not_look_like_url(StringView location, WebView:
     EXPECT(!WebView::location_looks_like_url(location, append_tld));
 }
 
+static void expect_context_menu_text_url(StringView text, StringView expected_url)
+{
+    auto url = WebView::url_from_text(text);
+    EXPECT(url.has_value());
+    EXPECT_EQ(url->to_string(), expected_url);
+}
+
+static void expect_context_menu_text_not_url(StringView text)
+{
+    EXPECT(!WebView::url_from_text(text).has_value());
+}
+
 static void expect_autocomplete_urls_match(StringView left, StringView right)
 {
     EXPECT(WebView::autocomplete_urls_match(left, right));
@@ -264,6 +276,21 @@ TEST_CASE(location_looks_like_url)
     expect_location_does_not_look_like_url("example.def"sv);
 
     expect_location_looks_like_url("example"sv, WebView::AppendTLD::Yes);
+}
+
+TEST_CASE(context_menu_url_text)
+{
+    expect_context_menu_text_url("ladybird.org"sv, "https://ladybird.org/"sv);
+    expect_context_menu_text_url("www.ladybird.org/path?x=1"sv, "https://www.ladybird.org/path?x=1"sv);
+    expect_context_menu_text_url("localhost:8000"sv, "https://localhost:8000/"sv);
+    expect_context_menu_text_url("https://ladybird.org"sv, "https://ladybird.org/"sv);
+
+    expect_context_menu_text_not_url("ladybird"sv);
+    expect_context_menu_text_not_url("ladybird org"sv);
+    expect_context_menu_text_not_url("ladybird.org hello"sv);
+    expect_context_menu_text_not_url("./Meta/ladybird.py"sv);
+    expect_context_menu_text_not_url("../ladybird.org"sv);
+    expect_context_menu_text_not_url("/tmp/ladybird.org"sv);
 }
 
 TEST_CASE(autocomplete_url_matching)

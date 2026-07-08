@@ -368,6 +368,7 @@ public:
 
     Menu& page_context_menu() { return *m_page_context_menu; }
     Menu& link_context_menu() { return *m_link_context_menu; }
+    Menu& selected_text_link_context_menu() { return *m_selected_text_link_context_menu; }
     Menu& image_context_menu() { return *m_image_context_menu; }
     Menu& media_context_menu() { return *m_media_context_menu; }
 
@@ -490,6 +491,7 @@ protected:
 
     RefPtr<Menu> m_page_context_menu;
     RefPtr<Menu> m_link_context_menu;
+    RefPtr<Menu> m_selected_text_link_context_menu;
     RefPtr<Menu> m_image_context_menu;
     RefPtr<Menu> m_media_context_menu;
 

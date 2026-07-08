@@ -7,6 +7,7 @@
     }
 </style>
 <div id="word">ordinary</div>
+<div id="url">ladybird.org/path?x=1</div>
 <div id="prevented">prevented</div>
 <div id="existing">existing selection</div>
 <div id="other">other target</div>
@@ -25,6 +26,10 @@
     test(() => {
         rightClick(word);
         println(`plain word: "${selectedText()}"`);
+
+        getSelection().removeAllRanges();
+        rightClick(url);
+        println(`url token: "${selectedText()}"`);
 
         getSelection().removeAllRanges();
         prevented.addEventListener("contextmenu", event => event.preventDefault());

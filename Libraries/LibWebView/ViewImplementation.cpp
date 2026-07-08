@@ -2199,15 +2199,27 @@ void ViewImplementation::initialize_context_menus()
         client().async_toggle_media_fullscreen_state(page_id());
     });
 
+    auto add_open_url_actions = [this](Menu& menu) {
+        menu.add_action(*m_open_in_new_tab_action);
+        if (m_open_in_new_window_action)
+            menu.add_action(*m_open_in_new_window_action);
+        if (m_open_in_new_private_window_action)
+            menu.add_action(*m_open_in_new_private_window_action);
+    };
+
+    auto add_text_edit_actions = [&application](Menu& menu) {
+        menu.add_action(application.cut_selection_action());
+        menu.add_action(application.copy_selection_action());
+        menu.add_action(application.paste_action());
+        menu.add_action(application.select_all_action());
+    };
+
     m_page_context_menu = Menu::create("Page Context Menu"sv);
     m_page_context_menu->add_action(*m_navigate_back_action);
     m_page_context_menu->add_action(*m_navigate_forward_action);
     m_page_context_menu->add_action(application.reload_action());
     m_page_context_menu->add_separator();
-    m_page_context_menu->add_action(application.cut_selection_action());
-    m_page_context_menu->add_action(application.copy_selection_action());
-    m_page_context_menu->add_action(application.paste_action());
-    m_page_context_menu->add_action(application.select_all_action());
+    add_text_edit_actions(*m_page_context_menu);
     m_page_context_menu->add_separator();
     m_page_context_menu->add_action(*m_search_selected_text_action);
     m_page_context_menu->add_separator();
@@ -2217,16 +2229,19 @@ void ViewImplementation::initialize_context_menus()
     m_page_context_menu->add_action(application.view_source_action());
 
     m_link_context_menu = Menu::create("Link Context Menu"sv);
-    m_link_context_menu->add_action(*m_open_in_new_tab_action);
-    if (m_open_in_new_window_action)
-        m_link_context_menu->add_action(*m_open_in_new_window_action);
-    if (m_open_in_new_private_window_action)
-        m_link_context_menu->add_action(*m_open_in_new_private_window_action);
+    add_open_url_actions(*m_link_context_menu);
     m_link_context_menu->add_separator();
     m_link_context_menu->add_action(*m_download_linked_file_action);
     m_link_context_menu->add_action(*m_download_linked_file_as_action);
     m_link_context_menu->add_separator();
     m_link_context_menu->add_action(*m_copy_url_action);
+
+    m_selected_text_link_context_menu = Menu::create("Selected Text Link Context Menu"sv);
+    add_open_url_actions(*m_selected_text_link_context_menu);
+    m_selected_text_link_context_menu->add_separator();
+    add_text_edit_actions(*m_selected_text_link_context_menu);
+    m_selected_text_link_context_menu->add_separator();
+    m_selected_text_link_context_menu->add_action(*m_search_selected_text_action);
 
     m_image_context_menu = Menu::create("Image Context Menu"sv);
     m_image_context_menu->add_action(*m_open_image_action);
@@ -2262,6 +2277,7 @@ void ViewImplementation::did_request_page_context_menu(Badge<WebContentClient>, 
 
     auto const& search_engine = Application::settings().search_engine();
     m_search_text = search_engine.has_value() ? selected_text_with_whitespace_collapsed() : OptionalNone {};
+    auto selected_text_url = url_from_text(selected_text());
 
     ScopeGuard guard { [&]() {
         cut_selection_action.set_visible(true);
@@ -2273,6 +2289,13 @@ void ViewImplementation::did_request_page_context_menu(Badge<WebContentClient>, 
         m_search_selected_text_action->set_visible(true);
     } else {
         m_search_selected_text_action->set_visible(false);
+    }
+
+    if (selected_text_url.has_value() && m_selected_text_link_context_menu->on_activation) {
+        m_context_menu_url = selected_text_url.release_value();
+        m_open_in_new_tab_action->set_text("Open in New Tab"sv);
+        m_selected_text_link_context_menu->on_activation(to_widget_position(content_position));
+        return;
     }
 
     if (m_page_context_menu->on_activation)
