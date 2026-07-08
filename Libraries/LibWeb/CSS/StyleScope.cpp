@@ -161,6 +161,14 @@ StyleCache& StyleScope::ensure_style_cache() const
 void StyleScope::build_rule_cache()
 {
     auto& style_cache = ensure_style_cache();
+
+    // OPTIMIZATION: If ensure_style_cache() returned the shared single-constructed-sheet cache and another
+    //               scope has already populated it, its contents are valid for this scope as well: the cache
+    //               only depends on the sheet and document-wide state, and any change to either invalidates
+    //               the shared cache itself (see CSSStyleSheet::invalidate_shared_style_cache()).
+    if (style_cache.rule_cache)
+        return;
+
     style_cache.rule_cache = make<StyleRuleCache>();
     populate_rule_cache(*style_cache.rule_cache);
 }
@@ -187,6 +195,12 @@ void StyleScope::populate_rule_cache(StyleRuleCache& rule_cache)
 void StyleScope::build_style_invalidation_data()
 {
     auto& style_cache = ensure_style_cache();
+
+    // OPTIMIZATION: Same as in build_rule_cache(): a shared cache populated by another scope using the
+    //               same single constructed sheet is valid for this scope as well.
+    if (style_cache.style_invalidation_data)
+        return;
+
     style_cache.style_invalidation_data = make<StyleInvalidationData>();
     populate_style_invalidation_data(*style_cache.style_invalidation_data);
     style_cache.style_invalidation_data->did_finish_building();
