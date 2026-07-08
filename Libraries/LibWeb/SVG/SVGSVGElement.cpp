@@ -134,9 +134,7 @@ void SVGSVGElement::update_fallback_view_box_for_svg_as_image()
     Optional<double> width;
     Optional<double> height;
 
-    auto resolution_context = layout_node()
-        ? CSS::Length::ResolutionContext::for_layout_node(*layout_node())
-        : CSS::Length::ResolutionContext::for_document(document());
+    auto resolution_context = CSS::Length::ResolutionContext::for_document(document());
 
     auto width_attribute = get_attribute_value(SVG::AttributeNames::width);
     auto parsing_context = CSS::Parser::ParsingParams { document(), CSS::Parser::ParsingMode::SVGPresentationAttribute };
