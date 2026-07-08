@@ -5,7 +5,7 @@
  */
 
 #include <LibWebView/CanonicalTraversable.h>
-#include <LibWebView/SiteIsolation.h>
+#include <LibWebView/SiteIsolationManager.h>
 #include <LibWebView/WebContentClient.h>
 
 namespace WebView {
@@ -516,7 +516,7 @@ HistoryTraversalDecision CanonicalTraversable::traverse_the_history_by_delta(int
     if (!target.has_value())
         return { .outcome = { .status = HistoryTraversalStatus::NoEntry } };
 
-    auto will_replace_web_content_process = !is_url_suitable_for_same_process_navigation(current_url, target->target_top_level_entry->url);
+    auto will_replace_web_content_process = SiteIsolationManager::the().navigation_requires_process_swap(current_url, target->target_top_level_entry->url);
     auto pending_traversal = PendingSessionHistoryTraversal {
         .target_step = target->target_step,
         .target_step_index = target->target_step_index,
@@ -582,7 +582,7 @@ URL::URL CanonicalTraversable::prepare_to_load_session_history_traversal_target_
             .target_step = target.target_step,
             .target_step_index = target.target_step_index,
             .will_change_top_level_entry = target.changes_top_level_entry,
-            .will_replace_web_content_process = !is_url_suitable_for_same_process_navigation(current_url, target.target_top_level_entry->url),
+            .will_replace_web_content_process = SiteIsolationManager::the().navigation_requires_process_swap(current_url, target.target_top_level_entry->url),
             .stage = PendingSessionHistoryTraversal::Stage::LoadingEntryFromUIProcess,
             .on_cancelation_check_complete = nullptr,
         };

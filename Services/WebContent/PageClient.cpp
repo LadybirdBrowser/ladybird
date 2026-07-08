@@ -47,7 +47,6 @@
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
 #include <LibWeb/WebIDL/Promise.h>
-#include <LibWebView/SiteIsolation.h>
 #include <LibWebView/ViewImplementation.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/DevToolsConsoleClient.h>
@@ -200,12 +199,7 @@ Web::HTML::NavigableId PageClient::allocate_navigable_id()
 
 Web::NavigationProcessDecision PageClient::decide_navigation_process(URL::URL const& current_url, URL::URL const& target_url, Web::NavigationTarget target, Optional<Web::HTML::NavigableId> frame_id) const
 {
-    if (target != Web::NavigationTarget::TopLevel)
-        return client().decide_navigation_process(m_id, move(frame_id), current_url, target_url, target);
-
-    return WebView::is_url_suitable_for_same_process_navigation(current_url, target_url, Web::NavigationTarget::TopLevel)
-        ? Web::NavigationProcessDecision::Local
-        : Web::NavigationProcessDecision::Remote;
+    return client().decide_navigation_process(m_id, move(frame_id), current_url, target_url, target);
 }
 
 void PageClient::request_new_process_for_navigation(URL::URL const& url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, Web::Bindings::NavigationHistoryBehavior history_handling)
