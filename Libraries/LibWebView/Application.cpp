@@ -583,6 +583,12 @@ void Application::open_bookmark_in_new_tab(String const& bookmark_id, Web::HTML:
         open_url_in_new_tab(bookmark->bookmark().url, activate_tab);
 }
 
+void Application::open_bookmark_in_new_window(String const& bookmark_id, IsPrivate is_private)
+{
+    if (auto bookmark = m_bookmark_store.find_item_by_id(bookmark_id); bookmark.has_value() && bookmark->is_bookmark())
+        open_url_in_new_window(bookmark->bookmark().url, is_private);
+}
+
 ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(Optional<ViewImplementation&> view, IsPrivate is_private, u64 initial_page_id, Optional<Web::HTML::NavigableId> root_navigable_id)
 {
     auto request_server_handle = TRY(connect_new_request_server_client(is_private));

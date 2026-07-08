@@ -2290,6 +2290,23 @@ void ViewImplementation::initialize_context_menus()
         if (auto bookmark_id = application.bookmark_item_id_for_context_menu(); bookmark_id.has_value())
             application.open_bookmark_in_new_tab(bookmark_id->id, Web::HTML::ActivateTab::Yes);
     }));
+    if (m_is_private == IsPrivate::No) {
+        m_bookmark_context_menu->add_action(Action::create("Open in New Window"sv, ActionID::OpenInNewWindow, []() {
+            auto& application = Application::the();
+
+            if (auto bookmark_id = application.bookmark_item_id_for_context_menu(); bookmark_id.has_value())
+                application.open_bookmark_in_new_window(bookmark_id->id, IsPrivate::No);
+        }));
+    }
+    if (application.supports_private_browsing_windows()) {
+        m_bookmark_context_menu->add_action(Action::create("Open in New Private Window"sv, ActionID::OpenInNewPrivateWindow, []() {
+            auto& application = Application::the();
+
+            if (auto bookmark_id = application.bookmark_item_id_for_context_menu(); bookmark_id.has_value())
+                application.open_bookmark_in_new_window(bookmark_id->id, IsPrivate::Yes);
+        }));
+    }
+    m_bookmark_context_menu->add_separator();
     m_bookmark_context_menu->add_action(Action::create("Copy URL"sv, ActionID::CopyURL, []() {
         auto& application = Application::the();
 

@@ -150,6 +150,7 @@ public:
     virtual void open_url_in_new_window(URL::URL const&, IsPrivate) { }
 
     void open_bookmark_in_new_tab(String const& bookmark_id, Web::HTML::ActivateTab) const;
+    void open_bookmark_in_new_window(String const& bookmark_id, IsPrivate);
 
     Main::Arguments const& command_line_arguments() const { return m_arguments; }
 
