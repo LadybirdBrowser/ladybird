@@ -148,10 +148,14 @@ DecoderErrorOr<CodedFrame> MatroskaDemuxer::get_next_sample_for_track(Track cons
     //        Matroska should make a RefPtr<ByteBuffer>, probably.
     auto& status = get_track_status(track);
 
-    if (!status.block.has_value() || status.frame_index >= status.frames.size()) {
+    if (!status.block.has_value() || (!status.frames.is_empty() && status.frame_index >= status.frames.size())) {
         status.block = TRY(status.iterator.next_block());
-        status.frames = TRY(status.iterator.get_frames(status.block.value()));
+        status.frames.clear();
         status.frame_index = 0;
+    }
+    if (status.frames.is_empty()) {
+        status.frames = TRY(status.iterator.get_frames(status.block.value()));
+        VERIFY(!status.frames.is_empty());
     }
 
     VERIFY(status.block.has_value());
