@@ -1597,6 +1597,17 @@ JS::Value count_the_records_in_a_range(RecordSource source, GC::Ref<IDBKeyRange>
     return JS::Value(count);
 }
 
+// AD-HOC: The spec deserializes stored records infallibly, but a record read back from storage can be
+//         corrupt or written by a newer format version, so treat failure as the "error occurs while
+//         reading the value from the underlying storage" case: a "NotReadableError" DOMException.
+static WebIDL::ExceptionOr<JS::Value> deserialize_a_stored_record(JS::Realm& realm, HTML::StorageSerializationRecord const& serialized)
+{
+    auto value = HTML::structured_deserialize(realm.vm(), serialized, realm);
+    if (value.is_exception())
+        return WebIDL::NotReadableError::create(realm, "Stored value could not be read"_utf16);
+    return value;
+}
+
 // https://w3c.github.io/IndexedDB/#retrieve-a-value-from-an-object-store
 WebIDL::ExceptionOr<JS::Value> retrieve_a_value_from_an_object_store(JS::Realm& realm, GC::Ref<ObjectStore> store, GC::Ref<IDBKeyRange> range)
 {
@@ -1611,11 +1622,11 @@ WebIDL::ExceptionOr<JS::Value> retrieve_a_value_from_an_object_store(JS::Realm& 
     auto const& serialized = *record->value;
 
     // 4. Return ! StructuredDeserialize(serialized, targetRealm).
-    return MUST(HTML::structured_deserialize(realm.vm(), serialized, realm));
+    return deserialize_a_stored_record(realm, serialized);
 }
 
 // https://w3c.github.io/IndexedDB/#iterate-a-cursor
-GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor, GC::Ptr<Key> key, GC::Ptr<Key> primary_key, u64 count)
+WebIDL::ExceptionOr<GC::Ptr<IDBCursor>> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor, GC::Ptr<Key> key, GC::Ptr<Key> primary_key, u64 count)
 {
     // 1. Let source be cursor’s source.
     auto source = cursor->internal_source();
@@ -1950,7 +1961,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
             });
 
         // 2. Set cursor’s value to ! StructuredDeserialize(serialized, targetRealm)
-        cursor->set_value(MUST(HTML::structured_deserialize(realm.vm(), serialized, realm)));
+        cursor->set_value(TRY(deserialize_a_stored_record(realm, serialized)));
     }
 
     // 14. Set cursor’s got value flag to true.
@@ -1990,7 +2001,7 @@ JS::Value retrieve_a_key_from_an_object_store(JS::Realm& realm, GC::Ref<ObjectSt
 }
 
 // https://w3c.github.io/IndexedDB/#retrieve-multiple-values-from-an-object-store
-GC::Ref<JS::Array> retrieve_multiple_values_from_an_object_store(JS::Realm& realm, GC::Ref<ObjectStore> store, GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count)
+WebIDL::ExceptionOr<GC::Ref<JS::Array>> retrieve_multiple_values_from_an_object_store(JS::Realm& realm, GC::Ref<ObjectStore> store, GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count)
 {
     // 1. If count is not given or is 0 (zero), let count be infinity.
     if (count.has_value() && *count == 0)
@@ -2010,7 +2021,7 @@ GC::Ref<JS::Array> retrieve_multiple_values_from_an_object_store(JS::Realm& real
         auto const& serialized = *record.value;
 
         // 2. Let entry be ! StructuredDeserialize(serialized, targetRealm).
-        auto entry = MUST(HTML::structured_deserialize(realm.vm(), serialized, realm));
+        auto entry = TRY(deserialize_a_stored_record(realm, serialized));
 
         // 3. Append entry to list.
         MUST(list->create_data_property_or_throw(i, entry));
@@ -2021,7 +2032,7 @@ GC::Ref<JS::Array> retrieve_multiple_values_from_an_object_store(JS::Realm& real
 }
 
 // https://pr-preview.s3.amazonaws.com/w3c/IndexedDB/pull/461.html#retrieve-multiple-items-from-an-object-store
-GC::Ref<JS::Array> retrieve_multiple_items_from_an_object_store(JS::Realm& realm, GC::Ref<ObjectStore> store, GC::Ref<IDBKeyRange> range, RecordKind kind, Bindings::IDBCursorDirection direction, Optional<WebIDL::UnsignedLong> count)
+WebIDL::ExceptionOr<GC::Ref<JS::Array>> retrieve_multiple_items_from_an_object_store(JS::Realm& realm, GC::Ref<ObjectStore> store, GC::Ref<IDBKeyRange> range, RecordKind kind, Bindings::IDBCursorDirection direction, Optional<WebIDL::UnsignedLong> count)
 {
     // 1. If count is not given or is 0 (zero), let count be infinity.
     if (count.has_value() && *count == 0)
@@ -2061,7 +2072,7 @@ GC::Ref<JS::Array> retrieve_multiple_items_from_an_object_store(JS::Realm& realm
             auto const& serialized = *record.value;
 
             // 2. Let value be ! StructuredDeserialize(serialized, targetRealm).
-            auto entry = MUST(HTML::structured_deserialize(realm.vm(), serialized, realm));
+            auto entry = TRY(deserialize_a_stored_record(realm, serialized));
 
             // 3. Append entry to list.
             MUST(list->create_data_property_or_throw(i, entry));
@@ -2075,7 +2086,7 @@ GC::Ref<JS::Array> retrieve_multiple_items_from_an_object_store(JS::Realm& realm
             auto const& serialized = *record.value;
 
             // 3. Let value be ! StructuredDeserialize(serialized, targetRealm).
-            auto value = MUST(HTML::structured_deserialize(realm.vm(), serialized, realm));
+            auto value = TRY(deserialize_a_stored_record(realm, serialized));
 
             // 4. Let record snapshot be a new record snapshot with its key set to key, value set to value, and primary key set to key.
             auto record_snapshot = IDBRecord::create(realm, key, value, key);
@@ -2120,7 +2131,7 @@ GC::Ref<JS::Array> retrieve_multiple_keys_from_an_object_store(JS::Realm& realm,
 }
 
 // https://w3c.github.io/IndexedDB/#retrieve-a-referenced-value-from-an-index
-JS::Value retrieve_a_referenced_value_from_an_index(JS::Realm& realm, GC::Ref<Index> index, GC::Ref<IDBKeyRange> range)
+WebIDL::ExceptionOr<JS::Value> retrieve_a_referenced_value_from_an_index(JS::Realm& realm, GC::Ref<Index> index, GC::Ref<IDBKeyRange> range)
 {
     // 1. Let record be the first record in index’s list of records whose key is in range, if any.
     auto record = index->first_in_range(range);
@@ -2133,7 +2144,7 @@ JS::Value retrieve_a_referenced_value_from_an_index(JS::Realm& realm, GC::Ref<In
     auto serialized = index->referenced_value(*record);
 
     // 4. Return ! StructuredDeserialize(serialized, targetRealm).
-    return MUST(HTML::structured_deserialize(realm.vm(), serialized, realm));
+    return deserialize_a_stored_record(realm, serialized);
 }
 
 // https://w3c.github.io/IndexedDB/#retrieve-a-value-from-an-index
@@ -2151,7 +2162,7 @@ JS::Value retrieve_a_value_from_an_index(JS::Realm& realm, GC::Ref<Index> index,
 }
 
 // https://w3c.github.io/IndexedDB/#retrieve-multiple-referenced-values-from-an-index
-GC::Ref<JS::Array> retrieve_multiple_referenced_values_from_an_index(JS::Realm& realm, GC::Ref<Index> index, GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count)
+WebIDL::ExceptionOr<GC::Ref<JS::Array>> retrieve_multiple_referenced_values_from_an_index(JS::Realm& realm, GC::Ref<Index> index, GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count)
 {
     // 1. If count is not given or is 0 (zero), let count be infinity.
     if (count.has_value() && *count == 0)
@@ -2171,7 +2182,7 @@ GC::Ref<JS::Array> retrieve_multiple_referenced_values_from_an_index(JS::Realm& 
         auto serialized = index->referenced_value(record);
 
         // 2. Let entry be ! StructuredDeserialize(serialized, targetRealm).
-        auto entry = MUST(HTML::structured_deserialize(realm.vm(), serialized, realm));
+        auto entry = TRY(deserialize_a_stored_record(realm, serialized));
 
         // 3. Append entry to list.
         MUST(list->create_data_property_or_throw(i, entry));
@@ -2287,7 +2298,7 @@ bool is_a_potentially_valid_key_range(JS::Realm& realm, JS::Value value)
 }
 
 // https://pr-preview.s3.amazonaws.com/w3c/IndexedDB/pull/461.html#retrieve-multiple-items-from-an-index
-GC::Ref<JS::Array> retrieve_multiple_items_from_an_index(JS::Realm& target_realm, GC::Ref<Index> index, GC::Ref<IDBKeyRange> range, RecordKind kind, Bindings::IDBCursorDirection direction, Optional<WebIDL::UnsignedLong> count)
+WebIDL::ExceptionOr<GC::Ref<JS::Array>> retrieve_multiple_items_from_an_index(JS::Realm& target_realm, GC::Ref<Index> index, GC::Ref<IDBKeyRange> range, RecordKind kind, Bindings::IDBCursorDirection direction, Optional<WebIDL::UnsignedLong> count)
 {
     // 1. If count is not given or is 0 (zero), let count be infinity.
     if (count.has_value() && *count == 0)
@@ -2405,7 +2416,7 @@ GC::Ref<JS::Array> retrieve_multiple_items_from_an_index(JS::Realm& target_realm
             auto serialized = index->referenced_value(record);
 
             // 2. Let value be ! StructuredDeserialize(serialized, targetRealm).
-            auto value = MUST(HTML::structured_deserialize(target_realm.vm(), serialized, target_realm));
+            auto value = TRY(deserialize_a_stored_record(target_realm, serialized));
 
             // 3. Append value to list.
             MUST(list->create_data_property_or_throw(i, value));
@@ -2424,7 +2435,7 @@ GC::Ref<JS::Array> retrieve_multiple_items_from_an_index(JS::Realm& target_realm
             auto serialized = index->referenced_value(record);
 
             // 4. Let value be ! StructuredDeserialize(serialized, targetRealm).
-            auto value = MUST(HTML::structured_deserialize(target_realm.vm(), serialized, target_realm));
+            auto value = TRY(deserialize_a_stored_record(target_realm, serialized));
 
             // 5. Let record snapshot be a new record snapshot with its key set to index key, value set to value, and primary key set to key.
             auto record_snapshot = IDBRecord::create(target_realm, index_key, value, key);
@@ -2513,14 +2524,14 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> create_a_request_to_retrieve_multiple_i
         [&](GC::Ref<Index> index) {
             return GC::create_function(realm.heap(),
                 [&realm, index, range, kind, direction, count]() -> WebIDL::ExceptionOr<JS::Value> {
-                    return retrieve_multiple_items_from_an_index(realm, index, GC::Ref(*range), kind, direction, count);
+                    return TRY(retrieve_multiple_items_from_an_index(realm, index, GC::Ref(*range), kind, direction, count));
                 });
         },
         // 12. Else set operation to retrieve multiple items from an object store with targetRealm, source, range, kind, direction, and count if given.
         [&](GC::Ref<ObjectStore> object_store) {
             return GC::create_function(realm.heap(),
                 [&realm, object_store, range, kind, direction, count]() -> WebIDL::ExceptionOr<JS::Value> {
-                    return retrieve_multiple_items_from_an_object_store(realm, object_store, GC::Ref(*range), kind, direction, count);
+                    return TRY(retrieve_multiple_items_from_an_object_store(realm, object_store, GC::Ref(*range), kind, direction, count));
                 });
         });
 

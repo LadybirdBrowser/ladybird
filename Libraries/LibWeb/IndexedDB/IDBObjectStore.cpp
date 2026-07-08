@@ -475,7 +475,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::open_cursor(Optional<JS
 
     // 7. Let operation be an algorithm to run iterate a cursor with the current Realm record and cursor.
     auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [&realm, cursor] -> WebIDL::ExceptionOr<JS::Value> {
-        return WebIDL::ExceptionOr<JS::Value>(iterate_a_cursor(realm, cursor));
+        return TRY(iterate_a_cursor(realm, cursor));
     });
 
     // 8. Let request be the result of running asynchronously execute a request with this and operation.
@@ -628,7 +628,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::open_key_cursor(Optiona
 
     // 7. Let operation be an algorithm to run iterate a cursor with the current Realm record and cursor.
     auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [&realm, cursor] -> WebIDL::ExceptionOr<JS::Value> {
-        return WebIDL::ExceptionOr<JS::Value>(iterate_a_cursor(realm, cursor));
+        return TRY(iterate_a_cursor(realm, cursor));
     });
 
     // 8. Let request be the result of running asynchronously execute a request with this and operation.

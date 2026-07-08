@@ -179,7 +179,7 @@ WebIDL::ExceptionOr<void> IDBCursor::continue_(Optional<JS::Value> key)
 
     // 10. Let operation be an algorithm to run iterate a cursor with the current Realm record, this, and key (if given).
     auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [this, &realm, key_value] -> WebIDL::ExceptionOr<JS::Value> {
-        return WebIDL::ExceptionOr<JS::Value>(iterate_a_cursor(realm, *this, key_value));
+        return TRY(iterate_a_cursor(realm, *this, key_value));
     });
 
     // 11. Run asynchronously execute a request with this’s source handle, operation, and request.
@@ -248,7 +248,7 @@ WebIDL::ExceptionOr<void> IDBCursor::advance(WebIDL::UnsignedLong count)
 
     // 10. Let operation be an algorithm to run iterate a cursor with the current Realm record, this, and count.
     auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [this, &realm, count] -> WebIDL::ExceptionOr<JS::Value> {
-        return WebIDL::ExceptionOr<JS::Value>(iterate_a_cursor(realm, *this, nullptr, nullptr, count));
+        return TRY(iterate_a_cursor(realm, *this, nullptr, nullptr, count));
     });
 
     // 11. Run asynchronously execute a request with this’s source handle, operation, and request.
@@ -336,7 +336,7 @@ WebIDL::ExceptionOr<void> IDBCursor::continue_primary_key(JS::Value key_param, J
 
     // 21. Let operation be an algorithm to run iterate a cursor with the current Realm record, this, key, and primaryKey.
     auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [this, &realm, key, primary_key] -> WebIDL::ExceptionOr<JS::Value> {
-        return WebIDL::ExceptionOr<JS::Value>(iterate_a_cursor(realm, *this, key, primary_key));
+        return TRY(iterate_a_cursor(realm, *this, key, primary_key));
     });
 
     // 22. Run asynchronously execute a request with this’s source handle, operation, and request.
