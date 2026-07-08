@@ -7,11 +7,14 @@
 #include <LibWebView/Application.h>
 #include <LibWebView/BookmarkStore.h>
 #include <LibWebView/Menu.h>
+#include <LibWebView/ViewImplementation.h>
 
 #import <Interface/BookmarkFolder.h>
 #import <Interface/BookmarksBar.h>
 #import <Interface/Event.h>
+#import <Interface/LadybirdWebView.h>
 #import <Interface/Menu.h>
+#import <Interface/Tab.h>
 #import <Utilities/Conversions.h>
 
 #if !__has_feature(objc_arc)
@@ -44,6 +47,8 @@ static Optional<WebView::Menu&> find_bookmark_folder_by_id(WebView::Menu& menu, 
 
 @interface BookmarksBar ()
 
+@property (nonatomic, weak) Tab* tab;
+
 @property (nonatomic, strong) NSStackView* bookmark_items;
 @property (nonatomic, strong) BookmarkFolderPopover* bookmark_folder_popover;
 @property (nonatomic, weak) NSButton* active_bookmark_folder_button;
@@ -67,9 +72,11 @@ static Optional<WebView::Menu&> find_bookmark_folder_by_id(WebView::Menu& menu, 
 @synthesize bookmark_context_menu = _bookmark_context_menu;
 @synthesize bookmark_folder_context_menu = _bookmark_folder_context_menu;
 
-- (instancetype)init
+- (instancetype)init:(Tab*)tab
 {
     if (self = [super init]) {
+        self.tab = tab;
+
         self.bookmark_items = [[NSStackView alloc] init];
         [self.bookmark_items setOrientation:NSUserInterfaceLayoutOrientationHorizontal];
         [self.bookmark_items setSpacing:BOOKMARK_ITEM_SPACING];
@@ -384,21 +391,21 @@ static Optional<WebView::Menu&> find_bookmark_folder_by_id(WebView::Menu& menu, 
 - (NSMenu*)bookmarks_bar_context_menu
 {
     if (!_bookmarks_bar_context_menu)
-        _bookmarks_bar_context_menu = Ladybird::create_application_menu(WebView::Application::the().bookmarks_bar_context_menu());
+        _bookmarks_bar_context_menu = Ladybird::create_application_menu([self view].bookmarks_bar_context_menu());
     return _bookmarks_bar_context_menu;
 }
 
 - (NSMenu*)bookmark_context_menu
 {
     if (!_bookmark_context_menu)
-        _bookmark_context_menu = Ladybird::create_application_menu(WebView::Application::the().bookmark_context_menu());
+        _bookmark_context_menu = Ladybird::create_application_menu([self view].bookmark_context_menu());
     return _bookmark_context_menu;
 }
 
 - (NSMenu*)bookmark_folder_context_menu
 {
     if (!_bookmark_folder_context_menu)
-        _bookmark_folder_context_menu = Ladybird::create_application_menu(WebView::Application::the().bookmark_folder_context_menu());
+        _bookmark_folder_context_menu = Ladybird::create_application_menu([self view].bookmark_folder_context_menu());
     return _bookmark_folder_context_menu;
 }
 
@@ -427,6 +434,11 @@ static Optional<WebView::Menu&> find_bookmark_folder_by_id(WebView::Menu& menu, 
 
     [self.overflow_button setHidden:!has_overflow];
     self.overflow_menu = nil;
+}
+
+- (WebView::ViewImplementation&)view
+{
+    return [[self.tab web_view] view];
 }
 
 @end

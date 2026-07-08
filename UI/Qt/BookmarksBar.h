@@ -14,11 +14,13 @@
 
 namespace Ladybird {
 
+class Tab;
+
 class BookmarksBar final : public QToolBar {
     Q_OBJECT
 
 public:
-    explicit BookmarksBar(QWidget* parent = nullptr);
+    explicit BookmarksBar(Tab* parent);
 
     void rebuild();
 
@@ -40,6 +42,8 @@ private:
     QMenu& bookmarks_bar_context_menu();
     QMenu& bookmark_context_menu();
     QMenu& bookmark_folder_context_menu();
+
+    Tab* m_tab { nullptr };
 
     QMenu* m_bookmarks_bar_context_menu { nullptr };
     QMenu* m_bookmark_context_menu { nullptr };

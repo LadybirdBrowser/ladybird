@@ -371,6 +371,10 @@ public:
     Menu& image_context_menu() { return *m_image_context_menu; }
     Menu& media_context_menu() { return *m_media_context_menu; }
 
+    Menu& bookmarks_bar_context_menu() { return *m_bookmarks_bar_context_menu; }
+    Menu& bookmark_context_menu() { return *m_bookmark_context_menu; }
+    Menu& bookmark_folder_context_menu() { return *m_bookmark_folder_context_menu; }
+
     void did_request_page_context_menu(Badge<WebContentClient>, Gfx::IntPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target);
     void did_request_link_context_menu(Badge<WebContentClient>, Gfx::IntPoint content_position, URL::URL url);
     void did_request_image_context_menu(Badge<WebContentClient>, Gfx::IntPoint content_position, URL::URL url, Optional<Gfx::ShareableBitmap> bitmap);
@@ -492,6 +496,10 @@ protected:
     RefPtr<Menu> m_link_context_menu;
     RefPtr<Menu> m_image_context_menu;
     RefPtr<Menu> m_media_context_menu;
+
+    RefPtr<Menu> m_bookmarks_bar_context_menu;
+    RefPtr<Menu> m_bookmark_context_menu;
+    RefPtr<Menu> m_bookmark_folder_context_menu;
 
     RefPtr<Action> m_navigate_back_action;
     RefPtr<Action> m_navigate_forward_action;

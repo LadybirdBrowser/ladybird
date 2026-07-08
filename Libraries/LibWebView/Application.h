@@ -84,7 +84,27 @@ public:
     void update_bookmark_action_for_current_web_view();
     void bookmarks_changed(Badge<ApplicationBookmarkStoreObserver>);
     void show_bookmarks_bar_changed(Badge<ApplicationSettingsObserver>);
+
+    struct BookmarkID {
+        String id;
+        Optional<String> target_folder_id;
+    };
+    virtual Optional<BookmarkID> bookmark_item_id_for_context_menu() const { return {}; }
     virtual void show_bookmark_context_menu(Gfx::IntPoint, Optional<BookmarkItem const&>, [[maybe_unused]] Optional<String const&> target_folder_id) { }
+
+    struct AddBookmarkDialogResult {
+        BookmarkItem::Bookmark bookmark;
+        Optional<String> target_folder_id;
+    };
+    using AddBookmarkPromise = Core::Promise<AddBookmarkDialogResult>;
+    virtual NonnullRefPtr<AddBookmarkPromise> display_add_bookmark_dialog(Optional<String const&> target_folder_id = {}) const;
+
+    using BookmarkPromise = Core::Promise<BookmarkItem::Bookmark>;
+    virtual NonnullRefPtr<BookmarkPromise> display_edit_bookmark_dialog([[maybe_unused]] BookmarkItem::Bookmark const& current_bookmark) const;
+
+    using BookmarkFolderPromise = Core::Promise<BookmarkItem::Folder>;
+    virtual NonnullRefPtr<BookmarkFolderPromise> display_add_bookmark_folder_dialog(Optional<String const&> default_title = {}) const;
+    virtual NonnullRefPtr<BookmarkFolderPromise> display_edit_bookmark_folder_dialog([[maybe_unused]] BookmarkItem::Folder const& current_folder) const;
 
     static HistoryStore& history_store(IsPrivate);
     static CookieJar& cookie_jar(IsPrivate);
@@ -208,9 +228,6 @@ public:
     Action& toggle_menu_bar_action() { return *m_toggle_menu_bar_action; }
 
     Menu& bookmarks_menu() { return *m_bookmarks_menu; }
-    Menu& bookmarks_bar_context_menu() { return *m_bookmarks_bar_context_menu; }
-    Menu& bookmark_context_menu() { return *m_bookmark_context_menu; }
-    Menu& bookmark_folder_context_menu() { return *m_bookmark_folder_context_menu; }
     void toggle_bookmark_for_view(ViewImplementation&);
 
     Menu& history_menu() { return *m_history_menu; }
@@ -245,32 +262,13 @@ protected:
     virtual void update_tabs_display() const { }
 
     virtual void rebuild_bookmarks_menu() const { }
-    virtual void on_recently_closed_entries_changed() const { }
-
-    struct BookmarkID {
-        String id;
-        Optional<String> target_folder_id;
-    };
-    virtual Optional<BookmarkID> bookmark_item_id_for_context_menu() const { return {}; }
-
-    struct AddBookmarkDialogResult {
-        BookmarkItem::Bookmark bookmark;
-        Optional<String> target_folder_id;
-    };
-    using AddBookmarkPromise = Core::Promise<AddBookmarkDialogResult>;
-    virtual NonnullRefPtr<AddBookmarkPromise> display_add_bookmark_dialog(Optional<String const&> target_folder_id = {}) const;
-
-    using BookmarkPromise = Core::Promise<BookmarkItem::Bookmark>;
-    virtual NonnullRefPtr<BookmarkPromise> display_edit_bookmark_dialog([[maybe_unused]] BookmarkItem::Bookmark const& current_bookmark) const;
-
-    using BookmarkFolderPromise = Core::Promise<BookmarkItem::Folder>;
-    virtual NonnullRefPtr<BookmarkFolderPromise> display_add_bookmark_folder_dialog(Optional<String const&> default_title = {}) const;
-    virtual NonnullRefPtr<BookmarkFolderPromise> display_edit_bookmark_folder_dialog([[maybe_unused]] BookmarkItem::Folder const& current_folder) const;
     virtual String suggested_bookmark_all_tabs_folder_title() const;
+    virtual Vector<BookmarkItem::Bookmark> bookmarks_for_all_tabs() const { return {}; }
+
+    virtual void on_recently_closed_entries_changed() const { }
 
     virtual void on_devtools_enabled() const;
     virtual void on_devtools_disabled() const;
-    virtual Vector<BookmarkItem::Bookmark> bookmarks_for_all_tabs() const { return {}; }
 
     Main::Arguments& arguments() { return m_arguments; }
 
@@ -445,10 +443,6 @@ private:
     RefPtr<Action> m_toggle_bookmark_action;
     RefPtr<Action> m_toggle_bookmark_bar_action;
     size_t m_bookmarks_menu_static_size { 0 };
-
-    RefPtr<Menu> m_bookmarks_bar_context_menu;
-    RefPtr<Menu> m_bookmark_context_menu;
-    RefPtr<Menu> m_bookmark_folder_context_menu;
 
     RefPtr<Menu> m_history_menu;
 

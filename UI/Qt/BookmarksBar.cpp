@@ -12,6 +12,7 @@
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/Menu.h>
 #include <UI/Qt/StringUtils.h>
+#include <UI/Qt/Tab.h>
 
 #include <QAction>
 #include <QEvent>
@@ -169,8 +170,9 @@ static void install_menu_event_filter(QObject* filter, QMenu* menu)
     }
 }
 
-BookmarksBar::BookmarksBar(QWidget* parent)
+BookmarksBar::BookmarksBar(Tab* parent)
     : QToolBar(parent)
+    , m_tab(parent)
 {
     setObjectName("LadybirdBookmarksBar");
     setIconSize({ BOOKMARK_BUTTON_ICON_SIZE, BOOKMARK_BUTTON_ICON_SIZE });
@@ -382,9 +384,9 @@ bool BookmarksBar::handle_right_mouse_click(QMouseEvent* event, QObject* item)
         QMenu context_menu(menu);
 
         if (m_selected_bookmark_menu_item_type == "bookmark")
-            repopulate_application_menu(context_menu, context_menu, WebView::Application::the().bookmark_context_menu());
+            repopulate_application_menu(context_menu, context_menu, m_tab->view().bookmark_context_menu());
         else if (m_selected_bookmark_menu_item_type == "folder")
-            repopulate_application_menu(context_menu, context_menu, WebView::Application::the().bookmark_folder_context_menu());
+            repopulate_application_menu(context_menu, context_menu, m_tab->view().bookmark_folder_context_menu());
 
         if (!context_menu.isEmpty() && context_menu.exec(event->globalPosition().toPoint()))
             menu->close();
@@ -405,21 +407,21 @@ void BookmarksBar::extract_item_properties(QObject* item)
 QMenu& BookmarksBar::bookmarks_bar_context_menu()
 {
     if (!m_bookmarks_bar_context_menu)
-        m_bookmarks_bar_context_menu = create_application_menu(*this, WebView::Application::the().bookmarks_bar_context_menu());
+        m_bookmarks_bar_context_menu = create_application_menu(*this, m_tab->view().bookmarks_bar_context_menu());
     return *m_bookmarks_bar_context_menu;
 }
 
 QMenu& BookmarksBar::bookmark_context_menu()
 {
     if (!m_bookmark_context_menu)
-        m_bookmark_context_menu = create_application_menu(*this, WebView::Application::the().bookmark_context_menu());
+        m_bookmark_context_menu = create_application_menu(*this, m_tab->view().bookmark_context_menu());
     return *m_bookmark_context_menu;
 }
 
 QMenu& BookmarksBar::bookmark_folder_context_menu()
 {
     if (!m_bookmark_folder_context_menu)
-        m_bookmark_folder_context_menu = create_application_menu(*this, WebView::Application::the().bookmark_folder_context_menu());
+        m_bookmark_folder_context_menu = create_application_menu(*this, m_tab->view().bookmark_folder_context_menu());
     return *m_bookmark_folder_context_menu;
 }
 

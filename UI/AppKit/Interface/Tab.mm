@@ -147,7 +147,7 @@ static NSImage* tab_loading_spinner_icon(NSUInteger frame)
 
         m_settings_observer = make<TabSettingsObserver>(self);
 
-        auto* bookmarks_bar = [[BookmarksBar alloc] init];
+        auto* bookmarks_bar = [[BookmarksBar alloc] init:self];
         self.bookmarks_bar_controller = [[NSTitlebarAccessoryViewController alloc] init];
         [self.bookmarks_bar_controller setView:bookmarks_bar];
         [self.bookmarks_bar_controller setLayoutAttribute:NSLayoutAttributeBottom];
