@@ -1,0 +1,10 @@
+beforeinput composed: true
+input composed: true
+activeElement: editor
+editor text: a
+block text: a
+selection anchor: #text
+selection anchor offset: 1
+beforeinput target ranges: 0-0, 1-1, 2-2, 3-3, 3-4, 2-3, 1-2
+input types: insertText, insertText, insertText, insertText
+input selection offsets: 1, 2, 3, 4

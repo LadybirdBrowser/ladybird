@@ -21,7 +21,11 @@ public:
 
     virtual void handle_insert(FlyString const& input_type, Utf16String const&) = 0;
     virtual EventResult handle_return_key(FlyString const& input_type) = 0;
-    virtual void handle_delete(FlyString const& input_type) = 0;
+    enum class DispatchInputEvent {
+        No,
+        Yes,
+    };
+    virtual void handle_delete(FlyString const& input_type, DispatchInputEvent = DispatchInputEvent::Yes) = 0;
 
     virtual void select_all() = 0;
     virtual void set_selection_anchor(GC::Ref<DOM::Node>, size_t offset) = 0;

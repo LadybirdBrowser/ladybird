@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #wrapper {
+        margin: 20px;
+        position: relative;
+        width: 300px;
+        height: 80px;
+    }
+
+    #placeholder {
+        position: absolute;
+        inset: 0;
+        color: gray;
+        z-index: 1;
+    }
+
+    #editor {
+        position: absolute;
+        inset: 0;
+        outline: none;
+        white-space: pre-wrap;
+    }
+
+    #editor.focused {
+        transform: translateY(120px);
+    }
+</style>
+<div id="wrapper">
+    <div id="placeholder">Placeholder</div>
+    <div id="editor" contenteditable="true" tabindex="0">
+        <div id="contents">
+            <div id="block"></div>
+        </div>
+    </div>
+</div>
+<script>
+    asyncTest(async done => {
+        const beforeInputTargetRanges = [];
+        const inputSelectionOffsets = [];
+        const inputTypes = [];
+        editor.addEventListener("beforeinput", event => {
+            const range = event.getTargetRanges()[0];
+            beforeInputTargetRanges.push(`${range.startOffset}-${range.endOffset}`);
+            if (beforeInputTargetRanges.length === 1)
+                println(`beforeinput composed: ${event.composed}`);
+        });
+        editor.addEventListener("input", event => {
+            inputTypes.push(event.inputType);
+            inputSelectionOffsets.push(getSelection().anchorOffset);
+            if (inputSelectionOffsets.length === 1)
+                println(`input composed: ${event.composed}`);
+
+            if (block.firstChild)
+                block.firstChild.data = block.textContent;
+        });
+
+        editor.addEventListener("keydown", event => {
+            if (event.key === "Backspace")
+                event.preventDefault();
+        });
+
+        editor.addEventListener("focus", () => {
+            editor.classList.add("focused");
+        });
+
+        internals.click(40, 40);
+        await animationFrame();
+
+        for (const character of "abcd") {
+            internals.sendText(editor, character);
+        }
+        for (let i = 0; i < 3; ++i) {
+            internals.sendKey(editor, "Backspace");
+        }
+        await animationFrame();
+
+        const selection = getSelection();
+        println(`activeElement: ${document.activeElement.id}`);
+        println(`editor text: ${editor.textContent.trim()}`);
+        println(`block text: ${block.textContent.trim()}`);
+        println(`selection anchor: ${selection.anchorNode.nodeType === Node.TEXT_NODE ? "#text" : selection.anchorNode.id}`);
+        println(`selection anchor offset: ${selection.anchorOffset}`);
+        println(`beforeinput target ranges: ${beforeInputTargetRanges.join(", ")}`);
+        println(`input types: ${inputTypes.join(", ")}`);
+        println(`input selection offsets: ${inputSelectionOffsets.join(", ")}`);
+        done();
+    });
+</script>

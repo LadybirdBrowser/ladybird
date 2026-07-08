@@ -257,7 +257,7 @@ public:
     virtual GC::Ptr<DOM::Element> text_control_scroll_container() = 0;
 
     virtual void handle_insert(FlyString const& input_type, Utf16String const&) override;
-    virtual void handle_delete(FlyString const& input_type) override;
+    virtual void handle_delete(FlyString const& input_type, DispatchInputEvent = DispatchInputEvent::Yes) override;
     virtual void select_all() override;
     virtual void set_selection_anchor(GC::Ref<DOM::Node>, size_t offset) override;
     virtual void set_selection_focus(GC::Ref<DOM::Node>, size_t offset) override;
