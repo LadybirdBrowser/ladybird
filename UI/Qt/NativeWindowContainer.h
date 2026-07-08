@@ -7,6 +7,7 @@
 #pragma once
 
 class QWidget;
+class QWindow;
 
 namespace Ladybird {
 
@@ -14,6 +15,6 @@ namespace Ladybird {
 // consistent: The container is the host's focus proxy only while it's visible.
 void set_native_window_container_visible(QWidget& host, QWidget& container, bool visible);
 
-void install_native_window_container_focus_forwarding(QWidget& host, QWidget& container);
+void install_native_window_container_focus_forwarding(QWidget& host, QWindow& native_window, QWidget& container);
 
 }
