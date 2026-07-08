@@ -68,7 +68,7 @@ void ImageRequest::set_state(State state)
     m_state = state;
 }
 
-void ImageRequest::set_current_url(JS::Realm& realm, String url)
+void ImageRequest::set_current_url(JS::Realm& realm, Utf16String url)
 {
     m_current_url = move(url);
 

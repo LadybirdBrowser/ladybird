@@ -5,7 +5,7 @@ interface HTMLObjectElement : HTMLElement {
     [HTMLConstructor] constructor();
 
     [CEReactions, URL] attribute USVString data;
-    [CEReactions, Reflect] attribute DOMString type;
+    [CEReactions, Reflect] attribute Utf16DOMString type;
     [CEReactions, Reflect] attribute DOMString name;
     readonly attribute HTMLFormElement? form;
     [CEReactions, Reflect] attribute DOMString width;

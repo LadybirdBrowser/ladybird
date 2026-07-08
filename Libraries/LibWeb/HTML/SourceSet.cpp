@@ -331,7 +331,7 @@ descriptor_parser:
     //     Otherwise, there is a parse error.
     if (!error) {
         ImageSource source;
-        source.url = url.to_utf8_but_should_be_ported_to_utf16();
+        source.url = Utf16String::from_utf16(url);
         if (width.has_value())
             source.descriptor = ImageSource::WidthDescriptorValue { width.value() };
         else if (density.has_value())
@@ -381,7 +381,7 @@ SourceSet SourceSet::create(DOM::Element const& element, Utf16View default_sourc
                 contains_image_source_with_width_descriptor = true;
         }
         if (!contains_image_source_with_pixel_density_descriptor_value_of_1 && !contains_image_source_with_width_descriptor)
-            source_set.m_sources.append({ .url = default_source.to_utf8_but_should_be_ported_to_utf16(), .descriptor = {} });
+            source_set.m_sources.append({ .url = Utf16String::from_utf16(default_source), .descriptor = {} });
     }
 
     // 5. Normalize the source densities of source set.

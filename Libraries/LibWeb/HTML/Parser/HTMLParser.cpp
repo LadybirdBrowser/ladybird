@@ -1191,8 +1191,7 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
             }
 
             builder.append("=\""sv);
-            auto attribute_value_utf8 = attribute.value().to_utf8_but_should_be_ported_to_utf16();
-            builder.append(escape_string(attribute_value_utf8.code_points(), AttributeMode::Yes));
+            builder.append(escape_string(attribute.value().utf16_view(), AttributeMode::Yes));
             builder.append('"');
         });
 

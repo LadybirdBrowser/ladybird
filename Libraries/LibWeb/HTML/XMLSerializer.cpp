@@ -331,14 +331,21 @@ static WebIDL::ExceptionOr<String> serialize_an_attribute_value(Optional<FlyStri
 static WebIDL::ExceptionOr<String> serialize_an_attribute_value(Utf16View attribute_value, [[maybe_unused]] RequireWellFormed require_well_formed)
 {
     // FIXME: If the require well-formed flag is set, reject characters that are not matched by the XML Char production.
-    auto final_attribute_value = attribute_value.to_utf8_but_should_be_ported_to_utf16();
+    StringBuilder final_attribute_value;
+    for (auto code_point : attribute_value) {
+        if (code_point == '&')
+            final_attribute_value.append("&amp;"sv);
+        else if (code_point == '"')
+            final_attribute_value.append("&quot;"sv);
+        else if (code_point == '<')
+            final_attribute_value.append("&lt;"sv);
+        else if (code_point == '>')
+            final_attribute_value.append("&gt;"sv);
+        else
+            final_attribute_value.append_code_point(code_point);
+    }
 
-    final_attribute_value = MUST(final_attribute_value.replace("&"sv, "&amp;"sv, ReplaceMode::All));
-    final_attribute_value = MUST(final_attribute_value.replace("\""sv, "&quot;"sv, ReplaceMode::All));
-    final_attribute_value = MUST(final_attribute_value.replace("<"sv, "&lt;"sv, ReplaceMode::All));
-    final_attribute_value = MUST(final_attribute_value.replace(">"sv, "&gt;"sv, ReplaceMode::All));
-
-    return final_attribute_value;
+    return final_attribute_value.to_string_without_validation();
 }
 
 struct LocalNameSetEntry {

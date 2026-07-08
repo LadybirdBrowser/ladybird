@@ -35,7 +35,7 @@ public:
     String data() const;
     void set_data(String const& data);
 
-    String type() const { return get_attribute_value(HTML::AttributeNames::type).to_utf8_but_should_be_ported_to_utf16(); }
+    Utf16String type() const { return get_attribute_value(HTML::AttributeNames::type); }
 
     // ^FormAssociatedElement
     virtual bool is_form_associated_element() const override { return true; }

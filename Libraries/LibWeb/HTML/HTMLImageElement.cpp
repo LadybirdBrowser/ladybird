@@ -447,7 +447,7 @@ bool HTMLImageElement::complete() const
 String HTMLImageElement::current_src() const
 {
     // The currentSrc IDL attribute must return the img element's current request's current URL.
-    return m_current_request->current_url();
+    return m_current_request->current_url().to_utf8();
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-decode
@@ -632,7 +632,7 @@ void HTMLImageElement::update_the_image_data_impl(bool restart_animations, bool 
     auto previous_url = m_current_request->current_url();
 
     // 4. Let selected source be null and selected pixel density be undefined.
-    Optional<String> selected_source;
+    Optional<Utf16String> selected_source;
     Optional<float> selected_pixel_density;
 
     // 5. If the element does not use srcset or picture
@@ -641,7 +641,7 @@ void HTMLImageElement::update_the_image_data_impl(bool restart_animations, bool 
     //    and set selected pixel density to 1.0.
     auto maybe_src_attribute = attribute(HTML::AttributeNames::src);
     if (!uses_srcset_or_picture() && maybe_src_attribute.has_value() && !maybe_src_attribute.value().is_empty()) {
-        selected_source = maybe_src_attribute.release_value().to_utf8_but_should_be_ported_to_utf16();
+        selected_source = maybe_src_attribute.release_value();
         selected_pixel_density = 1.0f;
     }
 
@@ -705,13 +705,13 @@ void HTMLImageElement::update_the_image_data_impl(bool restart_animations, bool 
                     restart_the_animation();
 
                 // 2. Set the current request's current URL to urlString.
-                m_current_request->set_current_url(document().realm(), *url_string);
+                m_current_request->set_current_url(document().realm(), Utf16String::from_utf8(*url_string));
 
                 set_needs_style_update(true);
                 set_needs_layout_update_or_repaint_after_image_data_change(*this, DOM::SetNeedsLayoutReason::HTMLImageElementUpdateTheImageData);
 
                 // 3. If maybe omit events is not set or previousURL is not equal to urlString, then fire an event named load at the img element.
-                if (!maybe_omit_events || previous_url != url_string)
+                if (!maybe_omit_events || previous_url != Utf16String::from_utf8(*url_string))
                     dispatch_event(DOM::Event::create(realm(), HTML::EventNames::load));
             });
 
@@ -764,14 +764,14 @@ after_step_7:
                 }
 
                 // 1. Change the current request's current URL to the empty string.
-                m_current_request->set_current_url(document().realm(), String {});
+                m_current_request->set_current_url(document().realm(), {});
 
                 // 2. If all of the following conditions are true:
                 //    - the element has a src attribute or it uses srcset or picture; and
                 //    - maybe omit events is not set or previousURL is not the empty string
                 if (
                     (has_attribute(HTML::AttributeNames::src) || uses_srcset_or_picture())
-                    && (!maybe_omit_events || m_current_request->current_url() != ""sv)) {
+                    && (!maybe_omit_events || !m_current_request->current_url().is_empty())) {
                     dispatch_event(DOM::Event::create(realm(), HTML::EventNames::error));
                 }
             });
@@ -818,12 +818,14 @@ after_step_7:
         }
 
         // 14. If the pending request is not null and urlString is the same as the pending request's current URL, then return.
-        if (m_pending_request && url_string == m_pending_request->current_url())
+        auto utf16_url_string = Utf16String::from_utf8(*url_string);
+
+        if (m_pending_request && utf16_url_string == m_pending_request->current_url())
             return;
 
         // 15. If urlString is the same as the current request's current URL and the current request's state is
         //     partially available:
-        if (url_string == m_current_request->current_url() && m_current_request->state() == ImageRequest::State::PartiallyAvailable) {
+        if (utf16_url_string == m_current_request->current_url() && m_current_request->state() == ImageRequest::State::PartiallyAvailable) {
             // 1. Abort the image request for the pending request.
             abort_the_image_request(realm(), m_pending_request);
 
@@ -847,7 +849,7 @@ after_step_7:
 
         // 17. Set image request to a new image request whose current URL is urlString.
         auto image_request = ImageRequest::create(document().realm(), document().page());
-        image_request->set_current_url(document().realm(), *url_string);
+        image_request->set_current_url(document().realm(), move(utf16_url_string));
 
         // 18. If the current request's state is unavailable or broken, then set the current request to image request.
         //     Otherwise, set the pending request to image request.
@@ -912,11 +914,12 @@ after_step_7:
     }));
 }
 
-void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> image_request, bool maybe_omit_events, String const& url_string, String const& previous_url)
+void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> image_request, bool maybe_omit_events, String const& url_string, Utf16String const& previous_url)
 {
+    auto utf16_url_string = Utf16String::from_utf8(url_string);
     image_request->add_callbacks(
-        [this, image_request, maybe_omit_events, url_string, previous_url]() {
-            batching_dispatcher().enqueue(GC::create_function(realm().heap(), [this, image_request, maybe_omit_events, url_string, previous_url] {
+        [this, image_request, maybe_omit_events, url_string, utf16_url_string, previous_url]() {
+            batching_dispatcher().enqueue(GC::create_function(realm().heap(), [this, image_request, maybe_omit_events, url_string, utf16_url_string, previous_url] {
                 // AD-HOC: Bail out if the document became inactive (e.g. iframe removed or navigated)
                 //         between when the fetch completed and when this batched callback runs.
                 if (!document().is_fully_active()) {
@@ -966,13 +969,13 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
                 set_needs_layout_update_or_repaint_after_image_data_change(*this, DOM::SetNeedsLayoutReason::HTMLImageElementUpdateTheImageData);
 
                 // 4. If maybe omit events is not set or previousURL is not equal to urlString, then fire an event named load at the img element.
-                if (!maybe_omit_events || previous_url != url_string)
+                if (!maybe_omit_events || previous_url != utf16_url_string)
                     dispatch_event(DOM::Event::create(realm(), HTML::EventNames::load));
 
                 m_load_event_delayer.clear();
             }));
         },
-        [this, image_request, maybe_omit_events, url_string, previous_url]() {
+        [this, image_request, maybe_omit_events, utf16_url_string, previous_url]() {
             // AD-HOC: Bail out if the document became inactive (e.g. iframe removed or navigated)
             //         between when the fetch completed and when this failure callback runs.
             if (!document().is_fully_active()) {
@@ -1007,7 +1010,7 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
             // and then, if maybe omit events is not set or previousURL is not equal to urlString,
             // queue an element task on the DOM manipulation task source given the img element
             // to fire an event named error at the img element.
-            if (!maybe_omit_events || previous_url != url_string)
+            if (!maybe_omit_events || previous_url != utf16_url_string)
                 dispatch_event(DOM::Event::create(realm(), HTML::EventNames::error));
 
             m_load_event_delayer.clear();
@@ -1042,7 +1045,7 @@ void HTMLImageElement::react_to_changes_in_the_environment()
 
     // 3. ⌛ Let selected source and selected pixel density be the URL and pixel density
     //       that results from selecting an image source, respectively.
-    Optional<String> selected_source;
+    Optional<Utf16String> selected_source;
     Optional<float> pixel_density;
     if (auto result = select_an_image_source(); result.has_value()) {
         selected_source = result.value().source.url;
@@ -1083,14 +1086,14 @@ void HTMLImageElement::react_to_changes_in_the_environment()
 
     // 12. ⌛ Let image request be a new image request whose current URL is urlString
     auto image_request = ImageRequest::create(document().realm(), document().page());
-    image_request->set_current_url(document().realm(), *url_string);
+    image_request->set_current_url(document().realm(), Utf16String::from_utf8(*url_string));
 
     // 13. ⌛ Set the element's pending request to image request.
     m_pending_request = image_request;
 
     // FIXME: 14. End the synchronous section, continuing the remaining steps in parallel.
 
-    auto step_16 = [this](String const& selected_source, GC::Ref<ImageRequest> image_request, ListOfAvailableImages::Key const& key, GC::Ref<DecodedImageData> image_data) {
+    auto step_16 = [this](Utf16String const& selected_source, GC::Ref<ImageRequest> image_request, ListOfAvailableImages::Key const& key, GC::Ref<DecodedImageData> image_data) {
         // 16. Queue an element task on the DOM manipulation task source given the img element and the following steps:
         queue_an_element_task(HTML::Task::Source::DOMManipulation, [this, selected_source, image_request, key, image_data] {
             // 1. FIXME: If the img element has experienced relevant mutations since this algorithm started, then set the pending request to null and abort these steps.

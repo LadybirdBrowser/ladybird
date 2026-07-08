@@ -8,6 +8,7 @@
 
 #include <AK/Error.h>
 #include <AK/OwnPtr.h>
+#include <AK/Utf16String.h>
 #include <LibGC/Root.h>
 #include <LibGfx/Size.h>
 #include <LibURL/URL.h>
@@ -39,8 +40,8 @@ public:
     State state() const;
     void set_state(State);
 
-    String const& current_url() const { return m_current_url; }
-    void set_current_url(JS::Realm&, String);
+    Utf16String const& current_url() const { return m_current_url; }
+    void set_current_url(JS::Realm&, Utf16String);
 
     [[nodiscard]] GC::Ptr<DecodedImageData> image_data() const;
     void set_image_data(GC::Ptr<DecodedImageData>);
@@ -75,7 +76,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/images.html#img-req-url
     // An image request's current URL is initially the empty string.
-    String m_current_url;
+    Utf16String m_current_url;
 
     // https://html.spec.whatwg.org/multipage/images.html#img-req-data
     GC::Ptr<DecodedImageData> m_image_data;

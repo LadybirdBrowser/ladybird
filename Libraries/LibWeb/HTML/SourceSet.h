@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
@@ -23,7 +24,7 @@ struct ImageSource {
         CSSPixels value { 0 };
     };
 
-    String url;
+    Utf16String url;
     Variant<Empty, PixelDensityDescriptorValue, WidthDescriptorValue> descriptor;
 };
 

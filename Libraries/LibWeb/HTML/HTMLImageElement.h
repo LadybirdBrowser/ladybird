@@ -9,6 +9,7 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/OwnPtr.h>
+#include <AK/Utf16String.h>
 #include <LibGC/Function.h>
 #include <LibGfx/Forward.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
@@ -135,7 +136,7 @@ private:
 
     void handle_successful_fetch(URL::URL const&, StringView mime_type, ImageRequest&, ByteBuffer, bool maybe_omit_events, URL::URL const& previous_url);
     void handle_failed_fetch();
-    void add_callbacks_to_image_request(GC::Ref<ImageRequest>, bool maybe_omit_events, String const& url_string, String const& previous_url);
+    void add_callbacks_to_image_request(GC::Ref<ImageRequest>, bool maybe_omit_events, String const& url_string, Utf16String const& previous_url);
 
     virtual void decoded_image_data_did_update() override { set_needs_repaint(); }
 
@@ -147,7 +148,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/images.html#last-selected-source
     // Each img element has a last selected source, which must initially be null.
-    Optional<String> m_last_selected_source;
+    Optional<Utf16String> m_last_selected_source;
 
     // https://html.spec.whatwg.org/multipage/images.html#current-request
     GC::Ptr<ImageRequest> m_current_request;

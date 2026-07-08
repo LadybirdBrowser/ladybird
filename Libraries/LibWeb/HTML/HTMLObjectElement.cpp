@@ -414,8 +414,8 @@ void HTMLObjectElement::resource_did_load(Fetch::Infrastructure::Response const&
         else if (auto type = this->type(); !type.is_empty() && (type != "application/octet-stream"sv)) {
             // 1. If the attribute's value is a type that starts with "image/" that is not also an XML MIME type, then
             //    let the resource type be the type specified in that type attribute.
-            if (type.starts_with_bytes("image/"sv)) {
-                auto parsed_type = MimeSniff::MimeType::parse(type);
+            if (type.starts_with(u"image/"sv)) {
+                auto parsed_type = MimeSniff::MimeType::parse(type.to_utf8());
 
                 if (parsed_type.has_value() && !parsed_type->is_xml())
                     resource_type = move(parsed_type);
