@@ -60,15 +60,6 @@ vcpkg_not_linux = [
     "pthread",
 ]
 
-# List of libraries that are behind vcpkg manifest features and only
-# installed for specific GUI frameworks (e.g. GTK), not the Qt flatpak.
-vcpkg_feature_only = [
-    "gtk",
-    "libadwaita",
-    "wayland",
-    "wayland-protocols",
-]
-
 
 class DepMatch(Enum):
     Match = (0,)
@@ -204,7 +195,7 @@ def check_vcpkg_vs_flatpak_versioning():
                     flatpak.append(name)
 
         # Remove excluded dependencies from the vcpkg list
-        for name in flatpak_runtime_libs + vcpkg_not_linux + vcpkg_feature_only:
+        for name in flatpak_runtime_libs + vcpkg_not_linux:
             if name in vcpkg:
                 del vcpkg[name]
 

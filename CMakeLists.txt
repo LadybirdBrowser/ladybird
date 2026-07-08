@@ -14,15 +14,9 @@ if (APPLE AND NOT CMAKE_OSX_DEPLOYMENT_TARGET)
     set(CMAKE_OSX_DEPLOYMENT_TARGET 14.0)
 endif()
 
-include("Meta/CMake/gui_framework.cmake")
-
 # Pass additional information to vcpkg if we are using it.
 if (CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg.cmake$")
     set(CMAKE_PROJECT_ladybird_INCLUDE_BEFORE "Meta/CMake/vcpkg/generate_vcpkg_toolchain_variables.cmake")
-    if (LADYBIRD_GUI_FRAMEWORK STREQUAL "Qt" OR LADYBIRD_GUI_FRAMEWORK STREQUAL "Gtk")
-        string(TOLOWER "${LADYBIRD_GUI_FRAMEWORK}" framework_feature)
-        set(VCPKG_MANIFEST_FEATURES "${framework_feature}" CACHE STRING "" FORCE)
-    endif()
 endif()
 
 if (APPLE AND NOT CMAKE_OSX_SYSROOT)
@@ -30,10 +24,10 @@ if (APPLE AND NOT CMAKE_OSX_SYSROOT)
 endif()
 
 project(ladybird
-        VERSION 0.1.0
-        LANGUAGES C CXX
-        DESCRIPTION "Ladybird Web Browser"
-        HOMEPAGE_URL "https://ladybird.org"
+    VERSION 0.1.0
+    LANGUAGES C CXX
+    DESCRIPTION "Ladybird Web Browser"
+    HOMEPAGE_URL "https://ladybird.org"
 )
 
 if (ANDROID OR IOS)

@@ -1,3 +1,4 @@
+include(cmake/GUIFramework.cmake)
 include(cmake/ResourceFiles.cmake)
 
 function(create_ladybird_bundle target_name)
