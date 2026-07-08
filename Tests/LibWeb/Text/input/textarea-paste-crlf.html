@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<textarea id="textarea" rows="8" cols="20"></textarea>
+<script>
+test(() => {
+    // Pasted text with CRLF or lone CR line breaks must be normalized to newlines. Without
+    // normalization, raw carriage returns end up in the control's text node: the API value hides
+    // them, but cursor movement counts them and layout renders them as glyphs.
+    const report = label => {
+        println(`${label}: start=${textarea.selectionStart} end=${textarea.selectionEnd}`);
+    };
+    const sendKey = (name, modifiers) => {
+        textarea.getBoundingClientRect();
+        internals.sendKey(textarea, name, modifiers);
+    };
+
+    textarea.focus();
+    internals.paste(textarea, "one\r\ntwo\rthree\n");
+    println(`value=${JSON.stringify(textarea.value)}`);
+    println(`value.length=${textarea.value.length} textLength=${textarea.textLength} selectionStart=${textarea.selectionStart}`);
+
+    textarea.setSelectionRange(0, 0);
+    sendKey("End");
+    report("End on first line");
+
+    textarea.setSelectionRange(3, 3);
+    sendKey("Right");
+    report("Right from end of first line's text");
+});
+</script>
