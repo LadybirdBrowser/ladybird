@@ -21,6 +21,8 @@ GOOD_LICENSE_HEADER_PATTERN = re.compile(
     + " \\*/\n"
     + "\n"
 )
+COPYRIGHT_HEADER_PATTERN = re.compile("^/\\*\n(?:(?! \\*/\n).)*Copyright(?:(?! \\*/\n).)* \\*/\n", re.DOTALL)
+GOOD_LADYBIRD_COPYRIGHT_PATTERN = re.compile("^ \\* Copyright \\(c\\) [0-9]{4}-present, the Ladybird developers\\.$")
 LICENSE_HEADER_CHECK_EXCLUDES = {
     "AK/Checked.h",
     "AK/Function.h",
@@ -89,8 +91,21 @@ def find_matching_prefix(filename, prefix_list):
     return matching_prefixes[0] if matching_prefixes else None
 
 
+def find_bad_ladybird_copyright_lines(file_content):
+    license_header_match = COPYRIGHT_HEADER_PATTERN.search(file_content)
+    if license_header_match is None:
+        return []
+
+    return [
+        line
+        for line in license_header_match.group(0).splitlines()
+        if "Copyright" in line and "Ladybird" in line and GOOD_LADYBIRD_COPYRIGHT_PATTERN.match(line) is None
+    ]
+
+
 def run():
     errors_license = []
+    errors_ladybird_copyright = {}
     errors_pragma_once_bad = []
     errors_pragma_once_missing = []
     errors_include_libc = []
@@ -106,6 +121,9 @@ def run():
         if not is_in_prefix_list(filename, LICENSE_HEADER_CHECK_EXCLUDES):
             if not GOOD_LICENSE_HEADER_PATTERN.search(file_content):
                 errors_license.append(filename)
+        bad_ladybird_copyright_lines = find_bad_ladybird_copyright_lines(file_content)
+        if bad_ladybird_copyright_lines:
+            errors_ladybird_copyright[filename] = bad_ladybird_copyright_lines
         if filename.endswith(".rs"):
             continue
         if filename.endswith(".h"):
@@ -153,6 +171,12 @@ def run():
     have_errors = False
     if errors_license:
         print("Files with bad licenses:", " ".join(errors_license))
+        have_errors = True
+    if errors_ladybird_copyright:
+        for file in errors_ladybird_copyright:
+            print(f"{file} contains non-standard Ladybird copyright header lines:")
+            for line in errors_ladybird_copyright[file]:
+                print(f"  {line}")
         have_errors = True
     if errors_pragma_once_missing:
         print("Files without #pragma once:", " ".join(errors_pragma_once_missing))
