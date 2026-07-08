@@ -16,6 +16,7 @@
 #include <LibWeb/Layout/LayoutState.h>
 #include <LibWeb/Layout/ListItemBox.h>
 #include <LibWeb/Layout/ListItemMarkerBox.h>
+#include <LibWeb/Layout/SVGSVGBox.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
@@ -261,6 +262,16 @@ static CSSPixelRect measure_scrollable_overflow(Box const& box, ContainedBoxesMa
     auto const paintable_absolute_padding_box = paintable_box.absolute_padding_box_rect();
     auto const paintable_absolute_content_box = paintable_box.absolute_rect();
     auto scrollable_overflow_rect = paintable_absolute_padding_box;
+
+    // Replaced SVG viewports clip their content
+    if (is<SVGSVGBox>(box)) {
+        const_cast<Painting::Paintable&>(paintable_box).set_overflow_data({
+            .scrollable_overflow_rect = scrollable_overflow_rect,
+            .has_scrollable_overflow = false,
+        });
+        return scrollable_overflow_rect;
+    }
+
     auto overflow_directions = physical_overflow_directions(box);
     auto content_overflows_content_box_in_x_axis = false;
     auto content_overflows_content_box_in_y_axis = false;
