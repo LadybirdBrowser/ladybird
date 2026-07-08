@@ -168,6 +168,7 @@ private:
     QMenu* m_context_menu { nullptr };
     QMenu* m_page_context_menu { nullptr };
     QMenu* m_link_context_menu { nullptr };
+    QMenu* m_selected_text_link_context_menu { nullptr };
     QMenu* m_image_context_menu { nullptr };
     QMenu* m_media_context_menu { nullptr };
     QMenu* m_select_dropdown { nullptr };
