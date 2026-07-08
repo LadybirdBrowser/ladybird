@@ -45,6 +45,12 @@ static bool fly_string_equals_utf16(FlyString const& fly_string, Utf16View utf16
     return utf16_string == fly_string.bytes_as_string_view();
 }
 
+template<typename... Names>
+static bool fly_string_is_one_of_utf16(Utf16View utf16_string, Names const&... names)
+{
+    return (fly_string_equals_utf16(names, utf16_string) || ...);
+}
+
 static u32 salted_tag_name_hash(FlyString const& tag_name)
 {
     return CSS::ancestor_filter_hash_for_tag_name(tag_name.ascii_case_insensitive_hash());
@@ -629,15 +635,20 @@ static inline void for_each_matching_attribute(CSS::Selector::SimpleSelector::At
     // "In keeping with the Namespaces in the XML recommendation, default namespaces do not apply to attributes,
     //  therefore attribute selectors without a namespace component apply only to attributes that have no namespace (equivalent to "|attr")"
     case CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Default:
-    case CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::None:
+    case CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::None: {
+        auto const& name_to_match = element.document().is_html_document() && element.namespace_uri() == Namespace::HTML
+            ? qualified_name.name.lowercase_name
+            : attribute_name;
         for (auto i = 0u; i < element.attributes()->length(); ++i) {
             auto const* attr = element.attributes()->item(i);
-            if (!attr->namespace_uri().has_value() && fly_string_equals_utf16(attr->name(), attribute_name)) {
+            bool matches = !attr->namespace_uri().has_value() && fly_string_equals_utf16(attr->local_name(), name_to_match);
+            if (matches) {
                 (void)process_attribute(*attr);
                 break;
             }
         }
         return;
+    }
     case CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Any: {
         // When comparing the name part of a CSS attribute selector to the names of attributes on HTML elements in HTML
         // documents, the name part of the CSS attribute selector must first be converted to ASCII lowercase. The same
@@ -645,11 +656,12 @@ static inline void for_each_matching_attribute(CSS::Selector::SimpleSelector::At
         // comparison is case-sensitive.
         // https://html.spec.whatwg.org/multipage/semantics-other.html#case-sensitivity-of-selectors
         bool const case_insensitive = element.document().is_html_document() && element.namespace_uri() == Namespace::HTML;
+        auto const& name_to_match = case_insensitive ? qualified_name.name.lowercase_name : attribute_name;
 
         for (auto i = 0u; i < element.attributes()->length(); ++i) {
             auto const* attr = element.attributes()->item(i);
             bool matches = case_insensitive
-                ? attribute_name.equals_ignoring_ascii_case(attr->local_name().bytes_as_string_view())
+                ? fly_string_equals_utf16(attr->local_name(), name_to_match)
                 : fly_string_equals_utf16(attr->local_name(), attribute_name);
             if (matches) {
                 if (process_attribute(*attr) == IterationDecision::Break)
@@ -766,7 +778,8 @@ static inline bool matches_attribute(CSS::Selector::SimpleSelector::Attribute co
             if (element.document().is_html_document()
                 && element.namespace_uri() == Namespace::HTML
                 && attribute.qualified_name.namespace_type == CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Default
-                && attribute_name.is_one_of(
+                && fly_string_is_one_of_utf16(
+                    attribute_name,
                     HTML::AttributeNames::accept, HTML::AttributeNames::accept_charset, HTML::AttributeNames::align,
                     HTML::AttributeNames::alink, HTML::AttributeNames::axis, HTML::AttributeNames::bgcolor, HTML::AttributeNames::charset,
                     HTML::AttributeNames::checked, HTML::AttributeNames::clear, HTML::AttributeNames::codetype, HTML::AttributeNames::color,

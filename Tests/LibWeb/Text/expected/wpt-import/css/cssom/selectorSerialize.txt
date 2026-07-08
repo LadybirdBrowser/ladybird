@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 23 tests
 
-20 Pass
-3 Fail
+21 Pass
+2 Fail
 Pass	:nth-child serialization produces canonical form
 Pass	single universal selector shows '*' when serialized.
 Pass	single type (simple) selector in the sequence of simple selectors that is not a universal selector
@@ -17,7 +17,7 @@ Pass	single pseudo (simple) selector "nth-of-child" which accepts arguments in t
 Pass	single pseudo (simple) selector ":nth-last-of-type" which accepts arguments in the sequence of simple selectors that is not a universal selector
 Pass	single pseudo (simple) selector ":not" which accepts arguments in the sequence of simple selectors that is not a universal selector
 Pass	escaped character in attribute name
-Fail	escaped character as code point in attribute name
+Pass	escaped character as code point in attribute name
 Pass	escaped character (@) in attribute name
 Pass	escaped character in attribute name with any namespace
 Pass	escaped character in attribute prefix
