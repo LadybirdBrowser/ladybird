@@ -9,12 +9,14 @@
 #include <AK/String.h>
 #include <LibIPC/Forward.h>
 #include <LibURL/Origin.h>
+#include <LibURL/URL.h>
 #include <LibWeb/Export.h>
 
 namespace Web::HTML {
 
 struct ReplicatedNavigableState {
     String target_name;
+    URL::URL active_document_url;
     URL::Origin active_document_origin;
     bool active_document_is_fully_active { false };
 };

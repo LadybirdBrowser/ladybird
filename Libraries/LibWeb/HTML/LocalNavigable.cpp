@@ -940,6 +940,17 @@ Optional<URL::Origin> LocalNavigable::active_document_origin() const
     return m_active_document->origin();
 }
 
+ReplicatedNavigableState LocalNavigable::replicated_state() const
+{
+    VERIFY(m_active_document);
+    return {
+        .target_name = target_name(),
+        .active_document_url = m_active_document->url(),
+        .active_document_origin = m_active_document->origin(),
+        .active_document_is_fully_active = m_active_document->is_fully_active(),
+    };
+}
+
 Optional<UniqueNodeID> LocalNavigable::active_document_id() const
 {
     if (!m_active_document)

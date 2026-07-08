@@ -221,9 +221,9 @@ void PageClient::request_new_process_for_child_frame_navigation(Web::HTML::Navig
     client().async_did_request_new_process_for_child_frame_navigation(m_id, frame_id, url, move(document_resource), history_handling);
 }
 
-void PageClient::page_did_create_child_frame(Web::HTML::NavigableId parent_frame_id, Web::HTML::NavigableId frame_id)
+void PageClient::page_did_create_child_frame(Web::HTML::NavigableId parent_frame_id, Web::HTML::NavigableId frame_id, Web::HTML::ReplicatedNavigableState const& replicated_state)
 {
-    client().async_did_create_child_frame(m_id, parent_frame_id, frame_id);
+    client().async_did_create_child_frame(m_id, parent_frame_id, frame_id, replicated_state);
 }
 
 void PageClient::page_did_update_child_frame_viewport(Web::HTML::NavigableId frame_id, Web::CSSPixelRect viewport_rect)
@@ -231,9 +231,9 @@ void PageClient::page_did_update_child_frame_viewport(Web::HTML::NavigableId fra
     client().async_did_update_child_frame_viewport(m_id, frame_id, page().css_to_device_rect(viewport_rect), page().client().device_pixel_ratio());
 }
 
-void PageClient::page_did_commit_child_frame_navigation(Web::HTML::NavigableId frame_id, URL::URL const& url)
+void PageClient::page_did_commit_child_frame_navigation(Web::HTML::NavigableId frame_id, URL::URL const& url, Web::HTML::ReplicatedNavigableState const& replicated_state)
 {
-    client().async_did_commit_child_frame_navigation(m_id, frame_id, url);
+    client().async_did_commit_child_frame_navigation(m_id, frame_id, url, replicated_state);
 }
 
 void PageClient::page_did_destroy_child_frame(Web::HTML::NavigableId frame_id)
@@ -557,6 +557,9 @@ void PageClient::page_did_change_active_document_in_top_level_browsing_context(W
     auto& realm = document.realm();
 
     clear_pending_dom_mutations();
+
+    if (auto navigable = document.navigable())
+        client().async_did_change_top_level_active_document(m_id, navigable->replicated_state());
 
     if (m_web_ui && &m_web_ui->document() != &document)
         m_web_ui.clear();

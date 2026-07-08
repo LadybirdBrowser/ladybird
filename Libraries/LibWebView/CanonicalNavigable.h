@@ -18,6 +18,7 @@
 #include <AK/Weakable.h>
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/NavigableId.h>
+#include <LibWeb/HTML/ReplicatedNavigableState.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
@@ -77,6 +78,9 @@ public:
     double device_pixel_ratio() const { return m_device_pixel_ratio; }
     void set_viewport(Web::DevicePixelRect, double device_pixel_ratio);
 
+    Optional<Web::HTML::ReplicatedNavigableState> const& replicated_state() const { return m_replicated_state; }
+    void set_replicated_state(Web::HTML::ReplicatedNavigableState);
+
     void did_commit_navigation(URL::URL);
     Optional<URL::URL> document_url() const;
 
@@ -92,6 +96,7 @@ private:
     CanonicalNavigable* m_parent { nullptr };
     Vector<NonnullOwnPtr<CanonicalNavigable>> m_children;
 
+    Optional<Web::HTML::ReplicatedNavigableState> m_replicated_state;
     Optional<URL::URL> m_last_committed_url;
     Optional<PendingNavigation> m_pending_navigation;
     Optional<Web::DevicePixelRect> m_viewport_rect;

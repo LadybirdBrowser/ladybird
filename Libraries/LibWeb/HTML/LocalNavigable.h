@@ -27,6 +27,7 @@
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/POSTResource.h>
 #include <LibWeb/HTML/PaintConfig.h>
+#include <LibWeb/HTML/ReplicatedNavigableState.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/SourceSnapshotParams.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
@@ -112,6 +113,7 @@ public:
 
     virtual Optional<URL::URL> active_document_url() const override;
     virtual Optional<URL::Origin> active_document_origin() const override;
+    ReplicatedNavigableState replicated_state() const;
 
     RefPtr<SessionHistoryEntry> get_the_target_history_entry(int target_step) const;
     RefPtr<SessionHistoryEntry> get_the_target_history_entry_if_present(int target_step) const;

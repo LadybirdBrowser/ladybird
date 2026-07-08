@@ -148,6 +148,11 @@ void CanonicalNavigable::set_viewport(Web::DevicePixelRect viewport_rect, double
     }
 }
 
+void CanonicalNavigable::set_replicated_state(Web::HTML::ReplicatedNavigableState state)
+{
+    m_replicated_state = move(state);
+}
+
 void CanonicalNavigable::did_commit_navigation(URL::URL url)
 {
     m_last_committed_url = move(url);
