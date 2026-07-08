@@ -30,7 +30,7 @@ interface Node : EventTarget {
     readonly attribute Node? previousSibling;
     readonly attribute Node? nextSibling;
 
-    [CEReactions] attribute DOMString? nodeValue;
+    [CEReactions] attribute Utf16DOMString? nodeValue;
     [CEReactions] attribute Utf16DOMString? textContent;
     [CEReactions] undefined normalize();
 

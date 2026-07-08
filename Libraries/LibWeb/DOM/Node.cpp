@@ -374,18 +374,18 @@ WebIDL::ExceptionOr<void> Node::normalize()
 }
 
 // https://dom.spec.whatwg.org/#dom-node-nodevalue
-Optional<String> Node::node_value() const
+Optional<Utf16String> Node::node_value() const
 {
     // The nodeValue getter steps are to return the following, switching on the interface this implements:
 
     // If Attr, return this’s value.
     if (auto* attr = as_if<Attr>(this)) {
-        return attr->value().to_utf8_but_should_be_ported_to_utf16();
+        return attr->value();
     }
 
     // If CharacterData, return this’s data.
     if (auto* character_data = as_if<CharacterData>(this)) {
-        return character_data->data().to_utf8_but_should_be_ported_to_utf16();
+        return character_data->data();
     }
 
     // Otherwise, return null.
@@ -393,18 +393,18 @@ Optional<String> Node::node_value() const
 }
 
 // https://dom.spec.whatwg.org/#ref-for-dom-node-nodevalue%E2%91%A0
-WebIDL::ExceptionOr<void> Node::set_node_value(Optional<String> const& maybe_value)
+WebIDL::ExceptionOr<void> Node::set_node_value(Optional<Utf16String> const& maybe_value)
 {
     // The nodeValue setter steps are to, if the given value is null, act as if it was the empty string instead,
     // and then do as described below, switching on the interface this implements:
-    auto value = maybe_value.value_or(String {});
+    auto value = maybe_value.value_or({});
 
     // If Attr, set an existing attribute value with this and the given value.
     if (auto* attr = as_if<Attr>(this)) {
-        TRY(attr->set_value(Utf16String::from_utf8(value)));
+        TRY(attr->set_value(value));
     } else if (auto* character_data = as_if<CharacterData>(this)) {
         // If CharacterData, replace data with node this, offset 0, count this’s length, and data the given value.
-        character_data->set_data(Utf16String::from_utf8(value));
+        character_data->set_data(value);
     }
 
     // Otherwise, do nothing.

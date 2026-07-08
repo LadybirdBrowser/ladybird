@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const element = document.createElement("div");
+        const attribute = document.createAttribute("data-value");
+
+        attribute.value = "café-𝌆";
+        element.setAttributeNode(attribute);
+        println(element.getAttribute("data-value"));
+        println(attribute.nodeValue);
+
+        attribute.nodeValue = "東京-𝌆";
+        println(attribute.value);
+        println(element.getAttribute("data-value"));
+
+        const text = document.createTextNode("café-𝌆");
+        println(text.nodeValue);
+
+        text.nodeValue = "東京-𝌆";
+        println(text.data);
+    });
+</script>

@@ -5,7 +5,7 @@ interface Attr : Node {
     readonly attribute DOMString? prefix;
     readonly attribute DOMString localName;
     readonly attribute DOMString name;
-    [CEReactions] attribute DOMString value;
+    [CEReactions] attribute Utf16DOMString value;
 
     readonly attribute Element? ownerElement;
 
