@@ -146,19 +146,27 @@ static void queue_networking_task(GC::Ref<GC::Function<void()>> steps)
 // https://fetch.spec.whatwg.org/#ref-for-in-parallel④
 void FetchedDataReceiver::queue_delivery_task(JS::Realm& realm)
 {
+    // AD-HOC: These tasks stand in for in-parallel steps, which a paused event loop doesn't stop — and a sync XHR
+    //         send() keeps it paused for as long as it waits for exactly these bytes (see the parallel-queue path in
+    //         fetch_response_handover()). So, while it's paused, deliver straight from the network callback instead.
+    //         Any bytes a queued task was to deliver go along; that task then finds nothing left to do.
+    if (HTML::main_thread_event_loop().execution_paused()) {
+        deliver_pending_bytes(realm);
+        return;
+    }
+
     if (m_delivery_task_queued)
         return;
     m_delivery_task_queued = true;
 
     queue_networking_task(GC::create_function(heap(), [this, &realm]() {
+        m_delivery_task_queued = false;
         deliver_pending_bytes(realm);
     }));
 }
 
 void FetchedDataReceiver::deliver_pending_bytes(JS::Realm& realm)
 {
-    m_delivery_task_queued = false;
-
     auto bytes = move(m_pending_bytes);
     m_pending_bytes = {};
     if (!bytes.is_empty())
@@ -174,7 +182,12 @@ void FetchedDataReceiver::deliver_pending_bytes(JS::Realm& realm)
 
     // The close goes through the queue too, so it lands behind whatever the consumer queued in reaction to the
     // bytes above, the way it does when a network completion trails the last data.
+    // AD-HOC: Except while the event loop is paused; see queue_delivery_task().
     if (m_network_complete) {
+        if (HTML::main_thread_event_loop().execution_paused()) {
+            close_stream(realm);
+            return;
+        }
         queue_networking_task(GC::create_function(heap(), [this, &realm]() {
             close_stream(realm);
         }));
