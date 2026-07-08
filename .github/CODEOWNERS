@@ -6,7 +6,6 @@
 /Libraries/LibTimeZone @trflynn89
 /Libraries/LibUnicode @trflynn89
 /Libraries/LibWasm @alimpfard
-/Libraries/LibWeb/CSS @AtkinsSJ
 /Libraries/LibWeb/WebAssembly @alimpfard
 /Libraries/LibWeb/WebDriver @trflynn89
 /Libraries/LibXML @alimpfard
