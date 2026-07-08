@@ -46,15 +46,15 @@ void SVGCircleElement::apply_presentational_hints(Vector<CSS::StyleProperty>& pr
     auto parsing_context = CSS::Parser::ParsingParams { document(), CSS::Parser::ParsingMode::SVGPresentationAttribute };
 
     auto cx_attribute = attribute(SVG::AttributeNames::cx);
-    if (auto cx_value = parse_css_value(parsing_context, cx_attribute.value_or({}).to_utf8_but_should_be_ported_to_utf16(), CSS::PropertyID::Cx))
+    if (auto cx_value = parse_css_value(parsing_context, cx_attribute.value_or({}), CSS::PropertyID::Cx))
         properties.append({ .property_id = CSS::PropertyID::Cx, .value = cx_value.release_nonnull() });
 
     auto cy_attribute = attribute(SVG::AttributeNames::cy);
-    if (auto cy_value = parse_css_value(parsing_context, cy_attribute.value_or({}).to_utf8_but_should_be_ported_to_utf16(), CSS::PropertyID::Cy))
+    if (auto cy_value = parse_css_value(parsing_context, cy_attribute.value_or({}), CSS::PropertyID::Cy))
         properties.append({ .property_id = CSS::PropertyID::Cy, .value = cy_value.release_nonnull() });
 
     auto r_attribute = attribute(SVG::AttributeNames::r);
-    if (auto r_value = parse_css_value(parsing_context, r_attribute.value_or({}).to_utf8_but_should_be_ported_to_utf16(), CSS::PropertyID::R))
+    if (auto r_value = parse_css_value(parsing_context, r_attribute.value_or({}), CSS::PropertyID::R))
         properties.append({ .property_id = CSS::PropertyID::R, .value = r_value.release_nonnull() });
 }
 

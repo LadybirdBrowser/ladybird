@@ -81,7 +81,7 @@ RefPtr<CSS::StyleValue const> parse_css_value(CSS::Parser::ParsingParams const& 
     return CSS::Parser::Parser::create(context, string).parse_as_css_value(property_id);
 }
 
-RefPtr<CSS::StyleValue const> parse_css_value(CSS::Parser::ParsingParams const& context, Utf16String const& string, CSS::PropertyID property_id)
+RefPtr<CSS::StyleValue const> parse_css_value(CSS::Parser::ParsingParams const& context, Utf16View string, CSS::PropertyID property_id)
 {
     auto utf8_string = string.to_utf8_but_should_be_ported_to_utf16();
     return parse_css_value(context, utf8_string.bytes_as_string_view(), property_id);
@@ -94,7 +94,7 @@ RefPtr<CSS::StyleValue const> parse_css_type(CSS::Parser::ParsingParams const& c
     return CSS::Parser::Parser::create(context, string).parse_as_type(value_type);
 }
 
-RefPtr<CSS::StyleValue const> parse_css_type(CSS::Parser::ParsingParams const& context, Utf16String const& string, CSS::ValueType value_type)
+RefPtr<CSS::StyleValue const> parse_css_type(CSS::Parser::ParsingParams const& context, Utf16View string, CSS::ValueType value_type)
 {
     auto utf8_string = string.to_utf8_but_should_be_ported_to_utf16();
     return parse_css_type(context, utf8_string.bytes_as_string_view(), value_type);
@@ -143,7 +143,7 @@ RefPtr<CSS::MediaQuery> parse_media_query(CSS::Parser::ParsingParams const& cont
     return CSS::Parser::Parser::create(context, string).parse_as_media_query();
 }
 
-RefPtr<CSS::MediaQuery> parse_media_query(CSS::Parser::ParsingParams const& context, Utf16String const& string)
+RefPtr<CSS::MediaQuery> parse_media_query(CSS::Parser::ParsingParams const& context, Utf16View string)
 {
     auto utf8_string = string.to_utf8_but_should_be_ported_to_utf16();
     return parse_media_query(context, utf8_string.bytes_as_string_view());

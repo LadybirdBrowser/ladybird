@@ -60,7 +60,7 @@ RefPtr<CSS::StyleValue const> SVGSVGElement::width_style_value_from_attribute() 
     auto width_attribute = attribute(SVG::AttributeNames::width);
 
     RefPtr<CSS::StyleValue const> result;
-    if (auto width_value = parse_css_value(parsing_context, width_attribute.value_or({}).to_utf8_but_should_be_ported_to_utf16(), CSS::PropertyID::Width)) {
+    if (auto width_value = parse_css_value(parsing_context, width_attribute.value_or({}), CSS::PropertyID::Width)) {
         result = width_value.release_nonnull();
     } else if (width_attribute == ""sv) {
         // If the `width` attribute is an empty string, it defaults to 100%.
@@ -82,7 +82,7 @@ RefPtr<CSS::StyleValue const> SVGSVGElement::height_style_value_from_attribute()
     auto height_attribute = attribute(SVG::AttributeNames::height);
 
     RefPtr<CSS::StyleValue const> result;
-    if (auto height_value = parse_css_value(parsing_context, height_attribute.value_or({}).to_utf8_but_should_be_ported_to_utf16(), CSS::PropertyID::Height)) {
+    if (auto height_value = parse_css_value(parsing_context, height_attribute.value_or({}), CSS::PropertyID::Height)) {
         result = height_value.release_nonnull();
     } else if (height_attribute == ""sv) {
         // If the `height` attribute is an empty string, it defaults to 100%.
