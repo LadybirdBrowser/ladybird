@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/Weak.h>
@@ -18,7 +18,7 @@ class SlotRegistry {
 public:
     void add(HTML::HTMLSlotElement&);
     void remove(HTML::HTMLSlotElement&);
-    GC::Ptr<HTML::HTMLSlotElement> first_slot_with_name(FlyString const& name) const;
+    GC::Ptr<HTML::HTMLSlotElement> first_slot_with_name(Utf16FlyString const& name) const;
 
     template<typename Callback>
     void for_each_slot(Callback callback)

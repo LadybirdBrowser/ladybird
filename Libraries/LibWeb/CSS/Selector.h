@@ -10,6 +10,7 @@
 #include <AK/FlyString.h>
 #include <AK/RefCounted.h>
 #include <AK/String.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
@@ -32,7 +33,7 @@ public:
             bool is_universal { false };
             FlyString value {};
         };
-        using IdentList = Vector<FlyString>;
+        using IdentList = Vector<Utf16FlyString>;
 
         using Value = Variant<Empty, PTNameSelector, NonnullRefPtr<Selector>, IdentList>;
 

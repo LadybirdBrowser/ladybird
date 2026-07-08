@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Variant.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
@@ -25,8 +25,8 @@ public:
 
     virtual Node& slottable_as_node() = 0;
 
-    FlyString const& slottable_name() const { return m_name; } // Not called `name` to distinguish from `Element::name`.
-    void set_slottable_name(FlyString name) { m_name = move(name); }
+    Utf16FlyString const& slottable_name() const { return m_name; } // Not called `name` to distinguish from `Element::name`.
+    void set_slottable_name(Utf16FlyString name) { m_name = move(name); }
 
     GC::Ptr<HTML::HTMLSlotElement> assigned_slot();
 
@@ -41,7 +41,7 @@ protected:
 
 private:
     // https://dom.spec.whatwg.org/#slotable-name
-    FlyString m_name;
+    Utf16FlyString m_name;
 
     // https://dom.spec.whatwg.org/#slotable-assigned-slot
     GC::Ptr<HTML::HTMLSlotElement> m_assigned_slot;

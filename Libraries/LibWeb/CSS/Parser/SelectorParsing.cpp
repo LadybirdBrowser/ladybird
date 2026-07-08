@@ -1066,7 +1066,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_element_simp
                         });
                         return ParseError::SyntaxError;
                     }
-                    idents.append(function_tokens.consume_a_token().token().ident());
+                    idents.append(Utf16FlyString::from_utf8(function_tokens.consume_a_token().token().ident()));
                     function_tokens.discard_whitespace();
                 }
                 value = move(idents);

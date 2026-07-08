@@ -143,11 +143,11 @@ void HTMLSlotElement::attribute_changed(FlyString const& local_name, Optional<Ut
             return;
 
         // 2. If value is null and oldValue is the empty string, then return.
-        if (!value.has_value() && old_value == String {})
+        if (!value.has_value() && old_value == Utf16String {})
             return;
 
         // 3. If value is the empty string and oldValue is null, then return.
-        if (value == String {} && !old_value.has_value())
+        if (value == Utf16String {} && !old_value.has_value())
             return;
 
         // OPTIMIZATION: Update the slot registry before changing the name.
@@ -159,10 +159,8 @@ void HTMLSlotElement::attribute_changed(FlyString const& local_name, Optional<Ut
         if (!value.has_value())
             set_slot_name({});
         // 5. Otherwise, set element’s name to value.
-        else {
-            auto value_utf8 = value->to_utf8_but_should_be_ported_to_utf16();
-            set_slot_name(MUST(FlyString::from_utf8(value_utf8.bytes_as_string_view())));
-        }
+        else
+            set_slot_name(*value);
 
         // OPTIMIZATION: Register the slot with its new name.
         if (shadow_root)

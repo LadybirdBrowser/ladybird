@@ -4644,10 +4644,8 @@ void Element::attribute_changed(FlyString const& local_name, Optional<Utf16Strin
         if (!value.has_value() || value->is_empty())
             set_slottable_name({});
         // 5. Otherwise, set element’s name to value.
-        else {
-            auto value_utf8 = value->to_utf8_but_should_be_ported_to_utf16();
-            set_slottable_name(MUST(FlyString::from_utf8(value_utf8.bytes_as_string_view())));
-        }
+        else
+            set_slottable_name(*value);
 
         // 6. If element is assigned, then run assign slottables for element’s assigned slot.
         if (auto assigned_slot = assigned_slot_internal())
@@ -4725,11 +4723,15 @@ void Element::attribute_changed(FlyString const& local_name, Optional<Utf16Strin
     } else if (local_name == HTML::AttributeNames::part) {
         m_parts.clear();
         if (!value_or_empty.is_empty()) {
-            auto new_parts = value_or_empty_utf8.bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
-            m_parts.clear();
-            m_parts.ensure_capacity(new_parts.size());
-            for (auto& new_part : new_parts)
-                m_parts.unchecked_append(MUST(FlyString::from_utf8(new_part)));
+            auto new_parts = value_or_empty.utf16_view();
+            size_t start = 0;
+            for (size_t i = 0; i <= new_parts.length_in_code_units(); ++i) {
+                if (i != new_parts.length_in_code_units() && !Infra::is_ascii_whitespace(new_parts.code_unit_at(i)))
+                    continue;
+                if (i > start)
+                    m_parts.append(Utf16FlyString::from_utf16(new_parts.substring_view(start, i - start)));
+                start = i + 1;
+            }
         }
         if (m_part_list)
             m_part_list->associated_attribute_changed(value_or_empty);

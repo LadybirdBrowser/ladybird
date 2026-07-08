@@ -275,7 +275,7 @@ void ShadowRoot::unregister_slot(HTML::HTMLSlotElement& slot)
         m_slot_registry->remove(slot);
 }
 
-GC::Ptr<HTML::HTMLSlotElement> ShadowRoot::first_slot_with_name(FlyString const& name) const
+GC::Ptr<HTML::HTMLSlotElement> ShadowRoot::first_slot_with_name(Utf16FlyString const& name) const
 {
     if (!m_slot_registry)
         return nullptr;
@@ -297,8 +297,8 @@ ShadowRoot::PartElementMap const& ShadowRoot::part_element_map() const
 // https://drafts.csswg.org/css-shadow-1/#exportparts
 // Parse the exportparts attribute into a list of (inner_name, outer_name) pairs.
 struct ExportedPart {
-    FlyString inner_name;
-    FlyString outer_name;
+    Utf16FlyString inner_name;
+    Utf16FlyString outer_name;
 };
 
 static Vector<ExportedPart> parse_exportparts_attribute(Element const& element)
@@ -315,14 +315,11 @@ static Vector<ExportedPart> parse_exportparts_attribute(Element const& element)
 
         auto parts = trimmed.split_view(':', SplitBehavior::KeepEmpty);
         if (parts.size() == 1) {
-            auto name_utf8 = parts[0].trim_ascii_whitespace().to_utf8_but_should_be_ported_to_utf16();
-            auto name = MUST(FlyString::from_utf8(name_utf8.bytes_as_string_view()));
+            auto name = Utf16FlyString::from_utf16(parts[0].trim_ascii_whitespace());
             result.append({ name, name });
         } else if (parts.size() == 2) {
-            auto inner_name_utf8 = parts[0].trim_ascii_whitespace().to_utf8_but_should_be_ported_to_utf16();
-            auto inner_name = MUST(FlyString::from_utf8(inner_name_utf8.bytes_as_string_view()));
-            auto outer_name_utf8 = parts[1].trim_ascii_whitespace().to_utf8_but_should_be_ported_to_utf16();
-            auto outer_name = MUST(FlyString::from_utf8(outer_name_utf8.bytes_as_string_view()));
+            auto inner_name = Utf16FlyString::from_utf16(parts[0].trim_ascii_whitespace());
+            auto outer_name = Utf16FlyString::from_utf16(parts[1].trim_ascii_whitespace());
             result.append({ inner_name, outer_name });
         }
         return IterationDecision::Continue;

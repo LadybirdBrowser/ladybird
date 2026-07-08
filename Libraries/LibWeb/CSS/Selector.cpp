@@ -546,7 +546,7 @@ String Selector::PseudoElementSelector::serialize() const
                 if (!first)
                     builder.append(' ');
                 first = false;
-                builder.append(serialize_an_identifier(ident));
+                serialize_an_identifier(builder, ident);
             }
             builder.append(')');
         },

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/Bindings/ShadowRoot.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/DOM/AnchorNameMap.h>
@@ -93,12 +94,12 @@ public:
             m_slot_registry->for_each_slot(callback);
     }
 
-    GC::Ptr<HTML::HTMLSlotElement> first_slot_with_name(FlyString const& name) const;
+    GC::Ptr<HTML::HTMLSlotElement> first_slot_with_name(Utf16FlyString const& name) const;
 
     CSS::StyleScope const& style_scope() const { return m_style_scope; }
     CSS::StyleScope& style_scope() { return m_style_scope; }
 
-    using PartElementMap = HashMap<FlyString, OrderedHashTable<AbstractElement>>;
+    using PartElementMap = HashMap<Utf16FlyString, OrderedHashTable<AbstractElement>>;
     PartElementMap const& part_element_map() const;
 
     GC::Ptr<HTML::CustomElementRegistry> custom_element_registry() const;

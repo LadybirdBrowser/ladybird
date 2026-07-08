@@ -9,6 +9,7 @@
 #include <AK/Badge.h>
 #include <AK/Concepts.h>
 #include <AK/Optional.h>
+#include <AK/Utf16FlyString.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/ARIA/ARIAMixin.h>
 #include <LibWeb/Animations/Animatable.h>
@@ -184,7 +185,7 @@ public:
 
     GC::Ref<DOMTokenList> class_list();
     GC::Ref<DOMTokenList> part_list();
-    ReadonlySpan<FlyString> part_names() const { return m_parts; }
+    ReadonlySpan<Utf16FlyString> part_names() const { return m_parts; }
 
     WebIDL::ExceptionOr<GC::Ref<ShadowRoot>> attach_shadow(Bindings::ShadowRootInit const&);
     WebIDL::ExceptionOr<void> attach_a_shadow_root(Bindings::ShadowRootMode mode, bool clonable, bool serializable, bool delegates_focus, Bindings::SlotAssignmentMode slot_assignment, GC::Ptr<HTML::CustomElementRegistry> registry);
@@ -737,7 +738,7 @@ private:
     Optional<CSS::PseudoElement> m_associated_shadow_host_pseudo_element;
 
     Vector<FlyString> m_classes;
-    Vector<FlyString> m_parts;
+    Vector<Utf16FlyString> m_parts;
     Optional<Dir> m_dir;
 
     Optional<FlyString> m_id;

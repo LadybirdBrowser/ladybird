@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const host = document.createElement("div");
+        const child = document.createElement("span");
+        const slotName = "café-𝌆";
+
+        child.setAttribute("slot", slotName);
+        host.appendChild(child);
+        host.attachShadow({ mode: "open" }).innerHTML = `<slot id="slot" name="${slotName}"></slot>`;
+        document.body.appendChild(host);
+
+        println(child.assignedSlot === host.shadowRoot.getElementById("slot"));
+
+        const mutatedSlot = document.createElement("slot");
+        mutatedSlot.name = "other";
+        host.shadowRoot.replaceChildren(mutatedSlot);
+        println(child.assignedSlot);
+
+        mutatedSlot.name = slotName;
+        println(child.assignedSlot === mutatedSlot);
+
+        child.setAttribute("slot", "other");
+        println(child.assignedSlot);
+
+        child.setAttribute("slot", slotName);
+        println(child.assignedSlot === mutatedSlot);
+    });
+</script>

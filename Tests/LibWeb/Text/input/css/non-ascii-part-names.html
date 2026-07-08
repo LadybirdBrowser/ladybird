@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<style>
+    x-direct::part(café-𝌆) {
+        color: rgb(1, 2, 3);
+    }
+
+    x-outer::part(forwarded-𝌆) {
+        background-color: rgb(4, 5, 6);
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const directHost = document.createElement("x-direct");
+        const directPart = document.createElement("span");
+        directPart.part = "café-𝌆";
+        directHost.attachShadow({ mode: "open" }).append(directPart);
+        document.body.append(directHost);
+
+        println(getComputedStyle(directPart).color);
+
+        const outerHost = document.createElement("x-outer");
+        const innerHost = document.createElement("x-inner");
+        const forwardedPart = document.createElement("span");
+        innerHost.setAttribute("exportparts", "café-𝌆: forwarded-𝌆");
+        innerHost.attachShadow({ mode: "open" }).append(forwardedPart);
+        forwardedPart.part = "café-𝌆";
+        outerHost.attachShadow({ mode: "open" }).append(innerHost);
+        document.body.append(outerHost);
+
+        println(getComputedStyle(forwardedPart).backgroundColor);
+
+        innerHost.setAttribute("exportparts", "other");
+        println(getComputedStyle(forwardedPart).backgroundColor);
+    });
+</script>
