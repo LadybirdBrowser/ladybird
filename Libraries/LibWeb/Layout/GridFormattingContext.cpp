@@ -15,6 +15,20 @@
 
 namespace Web::Layout {
 
+static Utf16FlyString make_implicit_grid_line_name(Utf16View name, StringView suffix)
+{
+    Utf16StringBuilder builder;
+    builder.append(name);
+    builder.append_ascii(suffix);
+    auto line_name = builder.to_string();
+    return Utf16FlyString::from_utf16(line_name.utf16_view());
+}
+
+static Utf16FlyString make_implicit_grid_line_name(String const& name, StringView suffix)
+{
+    return make_implicit_grid_line_name(Utf16String::from_utf8(name), suffix);
+}
+
 // https://drafts.csswg.org/css-grid/#overlarge-grids
 // Since memory is limited, UAs may clamp the possible size of the implicit grid to be within a UA-defined limit
 // (which should accommodate lines in the range [-10000, 10000]), dropping all lines outside that limit. If a grid item
@@ -1962,10 +1976,10 @@ void GridFormattingContext::build_grid_areas()
     // naming the row-start and column-start lines of the named grid area, and two named foo-end, naming the row-end
     // and column-end lines of the named grid area.
     for (auto const& [name, area] : grid_template_areas.areas) {
-        m_column_lines[area.column_start].append({ .name = MUST(String::formatted("{}-start", name)), .implicit = true });
-        m_column_lines[area.column_end].append({ .name = MUST(String::formatted("{}-end", name)), .implicit = true });
-        m_row_lines[area.row_start].append({ .name = MUST(String::formatted("{}-start", name)), .implicit = true });
-        m_row_lines[area.row_end].append({ .name = MUST(String::formatted("{}-end", name)), .implicit = true });
+        m_column_lines[area.column_start].append({ .name = make_implicit_grid_line_name(name, "-start"sv), .implicit = true });
+        m_column_lines[area.column_end].append({ .name = make_implicit_grid_line_name(name, "-end"sv), .implicit = true });
+        m_row_lines[area.row_start].append({ .name = make_implicit_grid_line_name(name, "-start"sv), .implicit = true });
+        m_row_lines[area.row_end].append({ .name = make_implicit_grid_line_name(name, "-end"sv), .implicit = true });
     }
 }
 
@@ -2562,7 +2576,7 @@ void GridFormattingContext::save_grid_layout_data()
             line.negative_number = negative_line_number_for_index(i, explicit_start_line_index, explicit_line_count);
 
             for (auto const& line_name : lines[i])
-                line.names.append(line_name.name.to_string());
+                line.names.append(MUST(line_name.name.view().to_utf8()));
 
             result.lines.append(move(line));
 
@@ -3228,18 +3242,18 @@ void GridFormattingContext::init_grid_lines(GridDimension dimension)
                     if (!line_name.implicit)
                         return {};
 
-                    auto line_name_view = line_name.name.bytes_as_string_view();
+                    auto line_name_view = line_name.name.view();
                     auto constexpr start_suffix = "-start"sv;
                     auto constexpr end_suffix = "-end"sv;
                     if (line_name_view.ends_with(start_suffix)) {
                         return AreaLineName {
-                            .area_name = MUST(String::from_utf8(line_name_view.substring_view(0, line_name_view.length() - start_suffix.length()))),
+                            .area_name = MUST(line_name_view.substring_view(0, line_name_view.length_in_code_units() - start_suffix.length()).to_utf8()),
                             .is_start = true,
                         };
                     }
                     if (line_name_view.ends_with(end_suffix)) {
                         return AreaLineName {
-                            .area_name = MUST(String::from_utf8(line_name_view.substring_view(0, line_name_view.length() - end_suffix.length()))),
+                            .area_name = MUST(line_name_view.substring_view(0, line_name_view.length_in_code_units() - end_suffix.length()).to_utf8()),
                             .is_start = false,
                         };
                     }
@@ -3308,10 +3322,10 @@ void GridFormattingContext::init_grid_lines(GridDimension dimension)
                     auto start_line_index = max(area_start, subgrid_start) - subgrid_start;
                     auto end_line_index = min(area_end, subgrid_end) - subgrid_start;
                     if (start_line_index >= 0 && static_cast<size_t>(start_line_index) < lines.size()) {
-                        lines[start_line_index].append({ .name = MUST(String::formatted("{}-start", area_name)), .implicit = true });
+                        lines[start_line_index].append({ .name = make_implicit_grid_line_name(area_name, "-start"sv), .implicit = true });
                     }
                     if (end_line_index >= 0 && static_cast<size_t>(end_line_index) < lines.size()) {
-                        lines[end_line_index].append({ .name = MUST(String::formatted("{}-end", area_name)), .implicit = true });
+                        lines[end_line_index].append({ .name = make_implicit_grid_line_name(area_name, "-end"sv), .implicit = true });
                     }
                 }
             }

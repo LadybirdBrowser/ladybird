@@ -221,6 +221,7 @@ def write_header_file(out: TextIO, pseudo_elements_data: dict) -> None:
 
 #include <AK/Optional.h>
 #include <AK/StringView.h>
+#include <AK/Utf16View.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Export.h>
 
@@ -244,8 +245,8 @@ constexpr PseudoElement last_synthetic_pseudo_element = PseudoElement::{title_ca
 constexpr PseudoElement first_element_reference_pseudo_element = PseudoElement::{title_casify(element_reference_pseudo_elements[0])};
 constexpr PseudoElement last_element_reference_pseudo_element = PseudoElement::{title_casify(element_reference_pseudo_elements[-1])};
 
-Optional<PseudoElement> pseudo_element_from_string(StringView);
-Optional<PseudoElement> aliased_pseudo_element_from_string(StringView);
+Optional<PseudoElement> pseudo_element_from_string(Utf16View);
+Optional<PseudoElement> aliased_pseudo_element_from_string(Utf16View);
 WEB_API StringView pseudo_element_name(PseudoElement);
 
 bool is_has_allowed_pseudo_element(PseudoElement);
@@ -280,7 +281,7 @@ def write_implementation_file(out: TextIO, pseudo_elements_data: dict) -> None:
 
 namespace Web::CSS {
 
-Optional<PseudoElement> pseudo_element_from_string(StringView string)
+Optional<PseudoElement> pseudo_element_from_string(Utf16View string)
 {
 """)
 
@@ -297,7 +298,7 @@ Optional<PseudoElement> pseudo_element_from_string(StringView string)
     return {};
 }
 
-Optional<PseudoElement> aliased_pseudo_element_from_string(StringView string)
+Optional<PseudoElement> aliased_pseudo_element_from_string(Utf16View string)
 {
 """)
 

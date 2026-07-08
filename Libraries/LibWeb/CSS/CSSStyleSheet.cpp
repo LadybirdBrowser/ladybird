@@ -576,7 +576,7 @@ bool CSSStyleSheet::evaluate_media_queries(DOM::Document const& document, Functi
     return any_media_queries_changed_match_state;
 }
 
-Optional<FlyString> CSSStyleSheet::default_namespace() const
+Optional<Utf16FlyString> CSSStyleSheet::default_namespace() const
 {
     if (m_default_namespace_rule)
         return m_default_namespace_rule->namespace_uri();
@@ -584,9 +584,9 @@ Optional<FlyString> CSSStyleSheet::default_namespace() const
     return {};
 }
 
-HashTable<FlyString> CSSStyleSheet::declared_namespaces() const
+HashTable<Utf16FlyString> CSSStyleSheet::declared_namespaces() const
 {
-    HashTable<FlyString> declared_namespaces;
+    HashTable<Utf16FlyString> declared_namespaces;
 
     for (auto namespace_ : m_namespace_rules.keys()) {
         declared_namespaces.set(namespace_);
@@ -595,7 +595,7 @@ HashTable<FlyString> CSSStyleSheet::declared_namespaces() const
     return declared_namespaces;
 }
 
-Optional<FlyString> CSSStyleSheet::namespace_uri(StringView namespace_prefix) const
+Optional<Utf16FlyString> CSSStyleSheet::namespace_uri(Utf16View namespace_prefix) const
 {
     return m_namespace_rules.get(namespace_prefix)
         .map([](GC::Ptr<CSSNamespaceRule> namespace_) {

@@ -36,7 +36,7 @@ Token Token::create(Type type, String original_source_text)
     return token;
 }
 
-Token Token::create_ident(FlyString ident, String original_source_text)
+Token Token::create_ident(Utf16FlyString ident, String original_source_text)
 {
     Token token;
     token.m_type = Type::Ident;
@@ -45,7 +45,7 @@ Token Token::create_ident(FlyString ident, String original_source_text)
     return token;
 }
 
-Token Token::create_function(FlyString name, String original_source_text)
+Token Token::create_function(Utf16FlyString name, String original_source_text)
 {
     Token token;
     token.m_type = Type::Function;
@@ -54,7 +54,7 @@ Token Token::create_function(FlyString name, String original_source_text)
     return token;
 }
 
-Token Token::create_at_keyword(FlyString name, String original_source_text)
+Token Token::create_at_keyword(Utf16FlyString name, String original_source_text)
 {
     Token token;
     token.m_type = Type::AtKeyword;
@@ -63,7 +63,7 @@ Token Token::create_at_keyword(FlyString name, String original_source_text)
     return token;
 }
 
-Token Token::create_hash(FlyString value, HashType hash_type, String original_source_text)
+Token Token::create_hash(Utf16FlyString value, HashType hash_type, String original_source_text)
 {
     Token token;
     token.m_type = Type::Hash;
@@ -72,7 +72,7 @@ Token Token::create_hash(FlyString value, HashType hash_type, String original_so
     return token;
 }
 
-Token Token::create_string(FlyString value, String original_source_text)
+Token Token::create_string(Utf16FlyString value, String original_source_text)
 {
     Token token;
     token.m_type = Type::String;
@@ -81,7 +81,7 @@ Token Token::create_string(FlyString value, String original_source_text)
     return token;
 }
 
-Token Token::create_url(FlyString url, String original_source_text)
+Token Token::create_url(Utf16FlyString url, String original_source_text)
 {
     Token token;
     token.m_type = Type::Url;
@@ -243,28 +243,28 @@ String Token::to_debug_string() const
         break;
     case Type::Ident:
         builder.append("Ident(value="sv);
-        append_quoted_string(builder, ident().bytes_as_string_view());
+        append_quoted_string(builder, MUST(ident().view().to_utf8()));
         has_type_specific_fields = true;
         break;
     case Type::Function:
         builder.append("Function(value="sv);
-        append_quoted_string(builder, function().bytes_as_string_view());
+        append_quoted_string(builder, MUST(function().view().to_utf8()));
         has_type_specific_fields = true;
         break;
     case Type::AtKeyword:
         builder.append("AtKeyword(value="sv);
-        append_quoted_string(builder, at_keyword().bytes_as_string_view());
+        append_quoted_string(builder, MUST(at_keyword().view().to_utf8()));
         has_type_specific_fields = true;
         break;
     case Type::Hash:
         builder.append("Hash(value="sv);
-        append_quoted_string(builder, hash_value().bytes_as_string_view());
+        append_quoted_string(builder, MUST(hash_value().view().to_utf8()));
         builder.appendff(", hash_type={}", hash_type_name(hash_type()));
         has_type_specific_fields = true;
         break;
     case Type::String:
         builder.append("String(value="sv);
-        append_quoted_string(builder, string().bytes_as_string_view());
+        append_quoted_string(builder, MUST(string().view().to_utf8()));
         has_type_specific_fields = true;
         break;
     case Type::BadString:
@@ -272,7 +272,7 @@ String Token::to_debug_string() const
         break;
     case Type::Url:
         builder.append("Url(value="sv);
-        append_quoted_string(builder, url().bytes_as_string_view());
+        append_quoted_string(builder, MUST(url().view().to_utf8()));
         has_type_specific_fields = true;
         break;
     case Type::BadUrl:
@@ -422,9 +422,9 @@ void Token::set_position_range(Badge<Tokenizer, RustTokenizer>, SourcePosition s
     m_end_position = end;
 }
 
-FlyString const& Token::string_value() const
+Utf16FlyString const& Token::string_value() const
 {
-    return m_value.get<FlyString>();
+    return m_value.get<Utf16FlyString>();
 }
 
 Number const& Token::number_value_for_type() const

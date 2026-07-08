@@ -5,6 +5,7 @@
  */
 
 #include <AK/CharacterTypes.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibWeb/Bindings/DOMStringMap.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Document.h>
@@ -60,24 +61,26 @@ Vector<DOMStringMap::NameValuePair> DOMStringMap::get_name_value_pairs() const
         if (!name.bytes_as_string_view().starts_with("data-"sv))
             return;
 
-        auto name_after_starting_data = name.bytes_as_string_view().substring_view(5);
+        auto name_after_starting_data = Utf16String::from_utf8(name.bytes_as_string_view().substring_view(5));
+        auto name_after_starting_data_view = name_after_starting_data.utf16_view();
 
-        for (auto character : name_after_starting_data) {
+        for (size_t character_index = 0; character_index < name_after_starting_data_view.length_in_code_units(); ++character_index) {
+            auto character = name_after_starting_data_view.code_unit_at(character_index);
             if (is_ascii_upper_alpha(character))
                 return;
         }
 
         // 3. For each name in list, for each U+002D HYPHEN-MINUS character (-) in the name that is followed by an ASCII lower alpha, remove the U+002D HYPHEN-MINUS character (-) and replace the character
         //    that followed it by the same character converted to ASCII uppercase.
-        StringBuilder builder;
-        for (size_t character_index = 0; character_index < name_after_starting_data.length(); ++character_index) {
-            auto current_character = name_after_starting_data[character_index];
+        Utf16StringBuilder builder;
+        for (size_t character_index = 0; character_index < name_after_starting_data_view.length_in_code_units(); ++character_index) {
+            auto current_character = name_after_starting_data_view.code_unit_at(character_index);
 
-            if (character_index + 1 < name_after_starting_data.length() && current_character == '-') {
-                auto next_character = name_after_starting_data[character_index + 1];
+            if (character_index + 1 < name_after_starting_data_view.length_in_code_units() && current_character == '-') {
+                auto next_character = name_after_starting_data_view.code_unit_at(character_index + 1);
 
                 if (is_ascii_lower_alpha(next_character)) {
-                    builder.append(to_ascii_uppercase(next_character));
+                    builder.append_code_unit(to_ascii_uppercase(next_character));
 
                     // Skip the next character
                     ++character_index;
@@ -86,10 +89,11 @@ Vector<DOMStringMap::NameValuePair> DOMStringMap::get_name_value_pairs() const
                 }
             }
 
-            builder.append(current_character);
+            builder.append_code_unit(current_character);
         }
 
-        list.append({ MUST(builder.to_string()), value });
+        auto property_name = builder.to_string();
+        list.append({ Utf16FlyString { property_name }, value });
     });
 
     // 4. Return list.
@@ -98,10 +102,10 @@ Vector<DOMStringMap::NameValuePair> DOMStringMap::get_name_value_pairs() const
 
 // https://html.spec.whatwg.org/multipage/dom.html#concept-domstringmap-pairs
 // NOTE: There isn't a direct link to this, so the link is to one of the algorithms above it.
-Vector<FlyString> DOMStringMap::supported_property_names() const
+Vector<Utf16FlyString> DOMStringMap::supported_property_names() const
 {
     // The supported property names on a DOMStringMap object at any instant are the names of each pair returned from getting the DOMStringMap's name-value pairs at that instant, in the order returned.
-    Vector<FlyString> names;
+    Vector<Utf16FlyString> names;
     auto name_value_pairs = get_name_value_pairs();
     for (auto& name_value_pair : name_value_pairs) {
         names.append(name_value_pair.name);
@@ -110,13 +114,13 @@ Vector<FlyString> DOMStringMap::supported_property_names() const
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-domstringmap-nameditem
-Utf16String DOMStringMap::determine_value_of_named_property(FlyString const& name) const
+Utf16String DOMStringMap::determine_value_of_named_property(Utf16FlyString const& name) const
 {
     // To determine the value of a named property name for a DOMStringMap, return the value component of the name-value pair whose name component is name in the list returned from getting the
     // DOMStringMap's name-value pairs.
     auto name_value_pairs = get_name_value_pairs();
     auto optional_value = name_value_pairs.first_matching([&name](NameValuePair const& name_value_pair) {
-        return name_value_pair.name == name;
+        return name == name_value_pair.name;
     });
 
     // NOTE: determine_value_of_named_property is only called if `name` is in supported_property_names.
@@ -126,41 +130,42 @@ Utf16String DOMStringMap::determine_value_of_named_property(FlyString const& nam
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-domstringmap-setitem
-WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_new_named_property(String const& name, JS::Value unconverted_value)
+WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_new_named_property(Utf16FlyString const& name, JS::Value unconverted_value)
 {
     // NOTE: Since PlatformObject does not know the type of value, we must convert it ourselves.
     //       The type of `value` is `DOMString`.
     auto value = TRY(unconverted_value.to_utf16_string(vm()));
 
-    StringBuilder builder;
+    Utf16StringBuilder builder;
 
     // 3. Insert the string data- at the front of name.
     // NOTE: This is done out of order because StringBuilder doesn't have prepend.
-    builder.append("data-"sv);
+    builder.append("data-"_utf16);
 
-    auto name_view = name.bytes_as_string_view();
+    auto name_view = name.view();
 
-    for (size_t character_index = 0; character_index < name_view.length(); ++character_index) {
+    for (size_t character_index = 0; character_index < name_view.length_in_code_units(); ++character_index) {
         // 1. If name contains a U+002D HYPHEN-MINUS character (-) followed by an ASCII lower alpha, then throw a "SyntaxError" DOMException.
-        auto current_character = name_view[character_index];
+        auto current_character = name_view.code_unit_at(character_index);
 
-        if (current_character == '-' && character_index + 1 < name_view.length()) {
-            auto next_character = name_view[character_index + 1];
+        if (current_character == '-' && character_index + 1 < name_view.length_in_code_units()) {
+            auto next_character = name_view.code_unit_at(character_index + 1);
             if (is_ascii_lower_alpha(next_character))
                 return WebIDL::SyntaxError::create(realm(), "Name cannot contain a '-' followed by a lowercase character."_utf16);
         }
 
         // 2. For each ASCII upper alpha in name, insert a U+002D HYPHEN-MINUS character (-) before the character and replace the character with the same character converted to ASCII lowercase.
         if (is_ascii_upper_alpha(current_character)) {
-            builder.append('-');
-            builder.append(to_ascii_lowercase(current_character));
+            builder.append_ascii('-');
+            builder.append_code_unit(to_ascii_lowercase(current_character));
             continue;
         }
 
-        builder.append(current_character);
+        builder.append_code_unit(current_character);
     }
 
-    auto data_name = MUST(builder.to_string());
+    auto data_name_utf16 = builder.to_string();
+    auto data_name = MUST(data_name_utf16.utf16_view().to_utf8());
 
     // 4. If name is not a valid attribute local name, then throw an "InvalidCharacterError" DOMException.
     if (!DOM::is_valid_attribute_local_name(data_name))
@@ -173,40 +178,41 @@ WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_new_named_property(String c
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-domstringmap-setitem
-WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_existing_named_property(String const& name, JS::Value value)
+WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_existing_named_property(Utf16FlyString const& name, JS::Value value)
 {
     return set_value_of_new_named_property(name, value);
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-domstringmap-removeitem
-WebIDL::ExceptionOr<Bindings::PlatformObject::DidDeletionFail> DOMStringMap::delete_value(String const& name)
+WebIDL::ExceptionOr<Bindings::PlatformObject::DidDeletionFail> DOMStringMap::delete_value(Utf16FlyString const& name)
 {
-    StringBuilder builder;
+    Utf16StringBuilder builder;
 
     // 2. Insert the string data- at the front of name.
     // NOTE: This is done out of order because StringBuilder doesn't have prepend.
-    builder.append("data-"sv);
+    builder.append("data-"_utf16);
 
-    for (auto character : name.bytes_as_string_view()) {
+    for (auto character : name.view()) {
         // 1. For each ASCII upper alpha in name, insert a U+002D HYPHEN-MINUS character (-) before the character and replace the character with the same character converted to ASCII lowercase.
         if (is_ascii_upper_alpha(character)) {
-            builder.append('-');
-            builder.append(to_ascii_lowercase(character));
+            builder.append_ascii('-');
+            builder.append_code_unit(to_ascii_lowercase(character));
             continue;
         }
 
-        builder.append(character);
+        builder.append_code_point(character);
     }
 
     // Remove an attribute by name given name and the DOMStringMap's associated element.
-    auto data_name = MUST(builder.to_string());
+    auto data_name_utf16 = builder.to_string();
+    auto data_name = MUST(data_name_utf16.utf16_view().to_utf8());
     m_associated_element->remove_attribute(data_name);
 
     // The spec doesn't have the step. This indicates that the deletion was successful.
     return DidDeletionFail::No;
 }
 
-JS::Value DOMStringMap::named_item_value(FlyString const& name) const
+JS::Value DOMStringMap::named_item_value(Utf16FlyString const& name) const
 {
     return JS::PrimitiveString::create(vm(), determine_value_of_named_property(name));
 }

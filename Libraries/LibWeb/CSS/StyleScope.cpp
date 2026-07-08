@@ -812,7 +812,7 @@ void StyleScope::build_counter_style_cache()
 
     m_registered_counter_styles.clear_with_capacity();
 
-    HashMap<FlyString, CSS::CounterStyleDefinition> counter_style_definitions;
+    HashMap<Utf16FlyString, CSS::CounterStyleDefinition> counter_style_definitions;
 
     auto const define_complex_predefined_counter_styles = [&]() {
         // https://drafts.csswg.org/css-counter-styles-3/#complex-predefined-counters
@@ -826,13 +826,13 @@ void StyleScope::build_counter_style_cache()
         // For this system, the name is "ethiopic-numeric", the range is 1 infinite, the suffix is "/ " (U+002F SOLIDUS
         // followed by a U+0020 SPACE), and the rest of the descriptors have their initial value.
         counter_style_definitions.set(
-            "ethiopic-numeric"_fly_string,
+            "ethiopic-numeric"_utf16_fly_string,
             CSS::CounterStyleDefinition::create(
-                "ethiopic-numeric"_fly_string,
+                "ethiopic-numeric"_utf16_fly_string,
                 CSS::CounterStyleAlgorithmOrExtends { CSS::EthiopicNumericCounterStyleAlgorithm {} },
                 {},
                 {},
-                "/ "_fly_string,
+                "/ "_utf16_fly_string,
                 Vector<CSS::CounterStyleRangeEntry> { { 1, AK::NumericLimits<i32>::max() } },
                 {},
                 {}));
@@ -853,142 +853,142 @@ void StyleScope::build_counter_style_cache()
         // https://drafts.csswg.org/css-counter-styles-3/#simp-chinese-informal
         // simp-chinese-informal
         counter_style_definitions.set(
-            "simp-chinese-informal"_fly_string,
+            "simp-chinese-informal"_utf16_fly_string,
             CSS::CounterStyleDefinition::create(
-                "simp-chinese-informal"_fly_string,
+                "simp-chinese-informal"_utf16_fly_string,
                 CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::SimpChineseInformal } },
-                CSS::CounterStyleNegativeSign { "\U00008D1F"_fly_string, ""_fly_string },
+                CSS::CounterStyleNegativeSign { "\U00008D1F"_utf16_fly_string, ""_utf16_fly_string },
                 {},
-                "\U00003001"_fly_string,
+                "\U00003001"_utf16_fly_string,
                 extended_cjk_range,
-                "cjk-decimal"_fly_string,
+                "cjk-decimal"_utf16_fly_string,
                 {}));
 
         // https://drafts.csswg.org/css-counter-styles-3/#simp-chinese-formal
         // simp-chinese-formal
         counter_style_definitions.set(
-            "simp-chinese-formal"_fly_string,
+            "simp-chinese-formal"_utf16_fly_string,
             CSS::CounterStyleDefinition::create(
-                "simp-chinese-formal"_fly_string,
+                "simp-chinese-formal"_utf16_fly_string,
                 CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::SimpChineseFormal } },
-                CSS::CounterStyleNegativeSign { "\U00008D1F"_fly_string, ""_fly_string },
+                CSS::CounterStyleNegativeSign { "\U00008D1F"_utf16_fly_string, ""_utf16_fly_string },
                 {},
-                "\U00003001"_fly_string,
+                "\U00003001"_utf16_fly_string,
                 extended_cjk_range,
-                "cjk-decimal"_fly_string,
+                "cjk-decimal"_utf16_fly_string,
                 {}));
 
         // https://drafts.csswg.org/css-counter-styles-3/#trad-chinese-informal
         // trad-chinese-informal
         counter_style_definitions.set(
-            "trad-chinese-informal"_fly_string,
+            "trad-chinese-informal"_utf16_fly_string,
             CSS::CounterStyleDefinition::create(
-                "trad-chinese-informal"_fly_string,
+                "trad-chinese-informal"_utf16_fly_string,
                 CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::TradChineseInformal } },
-                CSS::CounterStyleNegativeSign { "\U00008CA0"_fly_string, ""_fly_string },
+                CSS::CounterStyleNegativeSign { "\U00008CA0"_utf16_fly_string, ""_utf16_fly_string },
                 {},
-                "\U00003001"_fly_string,
+                "\U00003001"_utf16_fly_string,
                 extended_cjk_range,
-                "cjk-decimal"_fly_string,
+                "cjk-decimal"_utf16_fly_string,
                 {}));
 
         // https://drafts.csswg.org/css-counter-styles-3/#trad-chinese-formal
         // trad-chinese-formal
         counter_style_definitions.set(
-            "trad-chinese-formal"_fly_string,
+            "trad-chinese-formal"_utf16_fly_string,
             CSS::CounterStyleDefinition::create(
-                "trad-chinese-formal"_fly_string,
+                "trad-chinese-formal"_utf16_fly_string,
                 CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::TradChineseFormal } },
-                CSS::CounterStyleNegativeSign { "\U00008CA0"_fly_string, ""_fly_string },
+                CSS::CounterStyleNegativeSign { "\U00008CA0"_utf16_fly_string, ""_utf16_fly_string },
                 {},
-                "\U00003001"_fly_string,
+                "\U00003001"_utf16_fly_string,
                 extended_cjk_range,
-                "cjk-decimal"_fly_string,
+                "cjk-decimal"_utf16_fly_string,
                 {}));
 
         // https://drafts.csswg.org/css-counter-styles-3/#cjk-ideographic
         // cjk-ideographic
         // This counter style is identical to trad-chinese-informal. (It exists for legacy reasons.)
         counter_style_definitions.set(
-            "cjk-ideographic"_fly_string,
+            "cjk-ideographic"_utf16_fly_string,
             CSS::CounterStyleDefinition::create(
-                "cjk-ideographic"_fly_string,
+                "cjk-ideographic"_utf16_fly_string,
                 CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::TradChineseInformal } },
-                CSS::CounterStyleNegativeSign { "\U00008CA0"_fly_string, ""_fly_string },
+                CSS::CounterStyleNegativeSign { "\U00008CA0"_utf16_fly_string, ""_utf16_fly_string },
                 {},
-                "\U00003001"_fly_string,
+                "\U00003001"_utf16_fly_string,
                 extended_cjk_range,
-                "cjk-decimal"_fly_string,
+                "cjk-decimal"_utf16_fly_string,
                 {}));
 
         // https://drafts.csswg.org/css-counter-styles-3/#japanese-informal
         // japanese-informal
         counter_style_definitions.set(
-            "japanese-informal"_fly_string,
+            "japanese-informal"_utf16_fly_string,
             CSS::CounterStyleDefinition::create(
-                "japanese-informal"_fly_string,
+                "japanese-informal"_utf16_fly_string,
                 CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::JapaneseInformal } },
-                CSS::CounterStyleNegativeSign { "\U000030DE\U000030A4\U000030CA\U000030B9"_fly_string, ""_fly_string },
+                CSS::CounterStyleNegativeSign { "\U000030DE\U000030A4\U000030CA\U000030B9"_utf16_fly_string, ""_utf16_fly_string },
                 {},
-                "\U00003001"_fly_string,
+                "\U00003001"_utf16_fly_string,
                 extended_cjk_range,
-                "cjk-decimal"_fly_string,
+                "cjk-decimal"_utf16_fly_string,
                 {}));
 
         // https://drafts.csswg.org/css-counter-styles-3/#japanese-formal
         // japanese-formal
         counter_style_definitions.set(
-            "japanese-formal"_fly_string,
+            "japanese-formal"_utf16_fly_string,
             CSS::CounterStyleDefinition::create(
-                "japanese-formal"_fly_string,
+                "japanese-formal"_utf16_fly_string,
                 CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::JapaneseFormal } },
-                CSS::CounterStyleNegativeSign { "\U000030DE\U000030A4\U000030CA\U000030B9"_fly_string, ""_fly_string },
+                CSS::CounterStyleNegativeSign { "\U000030DE\U000030A4\U000030CA\U000030B9"_utf16_fly_string, ""_utf16_fly_string },
                 {},
-                "\U00003001"_fly_string,
+                "\U00003001"_utf16_fly_string,
                 extended_cjk_range,
-                "cjk-decimal"_fly_string,
+                "cjk-decimal"_utf16_fly_string,
                 {}));
 
         // https://drafts.csswg.org/css-counter-styles-3/#korean-hangul-formal
         // korean-hangul-formal
         counter_style_definitions.set(
-            "korean-hangul-formal"_fly_string,
+            "korean-hangul-formal"_utf16_fly_string,
             CSS::CounterStyleDefinition::create(
-                "korean-hangul-formal"_fly_string,
+                "korean-hangul-formal"_utf16_fly_string,
                 CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::KoreanHangulFormal } },
-                CSS::CounterStyleNegativeSign { "\U0000B9C8\U0000C774\U0000B108\U0000C2A4 "_fly_string, ""_fly_string },
+                CSS::CounterStyleNegativeSign { "\U0000B9C8\U0000C774\U0000B108\U0000C2A4 "_utf16_fly_string, ""_utf16_fly_string },
                 {},
-                ", "_fly_string,
+                ", "_utf16_fly_string,
                 extended_cjk_range,
-                "cjk-decimal"_fly_string,
+                "cjk-decimal"_utf16_fly_string,
                 {}));
 
         // https://drafts.csswg.org/css-counter-styles-3/#korean-hanja-informal
         // korean-hanja-informal
         counter_style_definitions.set(
-            "korean-hanja-informal"_fly_string,
+            "korean-hanja-informal"_utf16_fly_string,
             CSS::CounterStyleDefinition::create(
-                "korean-hanja-informal"_fly_string,
+                "korean-hanja-informal"_utf16_fly_string,
                 CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::KoreanHanjaInformal } },
-                CSS::CounterStyleNegativeSign { "\U0000B9C8\U0000C774\U0000B108\U0000C2A4 "_fly_string, ""_fly_string },
+                CSS::CounterStyleNegativeSign { "\U0000B9C8\U0000C774\U0000B108\U0000C2A4 "_utf16_fly_string, ""_utf16_fly_string },
                 {},
-                ", "_fly_string,
+                ", "_utf16_fly_string,
                 extended_cjk_range,
-                "cjk-decimal"_fly_string,
+                "cjk-decimal"_utf16_fly_string,
                 {}));
 
         // https://drafts.csswg.org/css-counter-styles-3/#korean-hanja-formal
         // korean-hanja-formal
         counter_style_definitions.set(
-            "korean-hanja-formal"_fly_string,
+            "korean-hanja-formal"_utf16_fly_string,
             CSS::CounterStyleDefinition::create(
-                "korean-hanja-formal"_fly_string,
+                "korean-hanja-formal"_utf16_fly_string,
                 CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::KoreanHanjaFormal } },
-                CSS::CounterStyleNegativeSign { "\U0000B9C8\U0000C774\U0000B108\U0000C2A4 "_fly_string, ""_fly_string },
+                CSS::CounterStyleNegativeSign { "\U0000B9C8\U0000C774\U0000B108\U0000C2A4 "_utf16_fly_string, ""_utf16_fly_string },
                 {},
-                ", "_fly_string,
+                ", "_utf16_fly_string,
                 extended_cjk_range,
-                "cjk-decimal"_fly_string,
+                "cjk-decimal"_utf16_fly_string,
                 {}));
     };
 
@@ -1013,10 +1013,10 @@ void StyleScope::build_counter_style_cache()
 
     for_each_stylesheet(CSS::CascadeOrigin::Author, collect_counter_style_definitions);
 
-    VERIFY(!m_node->is_document() || counter_style_definitions.contains("decimal"_fly_string));
+    VERIFY(!m_node->is_document() || counter_style_definitions.contains("decimal"_utf16_fly_string));
 
-    auto const is_part_of_extends_cycle = [&](FlyString const& counter_style_name) {
-        HashTable<FlyString> visited;
+    auto const is_part_of_extends_cycle = [&](Utf16FlyString const& counter_style_name) {
+        HashTable<Utf16FlyString> visited;
         auto current_counter_style_name = counter_style_name;
 
         while (true) {
@@ -1059,7 +1059,7 @@ void StyleScope::build_counter_style_cache()
 
         if (is_part_of_extends_cycle(name)) {
             auto copied = definition;
-            copied.set_algorithm(CSS::CounterStyleSystemStyleValue::Extends { "decimal"_fly_string });
+            copied.set_algorithm(CSS::CounterStyleSystemStyleValue::Extends { "decimal"_utf16_fly_string });
             extending_counter_styles.append(copied);
         } else {
             extending_counter_styles.append(definition);
@@ -1072,7 +1072,8 @@ void StyleScope::build_counter_style_cache()
             auto const& definition = extending_counter_styles.at(i);
             auto extends = definition.algorithm().get<CSS::CounterStyleSystemStyleValue::Extends>();
 
-            if (!m_registered_counter_styles.contains(extends.name) && counter_style_definitions.contains(extends.name))
+            auto const& extends_name = extends.name;
+            if (!m_registered_counter_styles.contains(extends_name) && counter_style_definitions.contains(extends_name))
                 continue;
 
             m_registered_counter_styles.set(definition.name(), CSS::CounterStyle::from_counter_style_definition(definition, *this));
@@ -1200,9 +1201,9 @@ static void merge_pending_has_invalidation_mutation_features(PendingHasInvalidat
 
 static void collect_pending_has_invalidation_features_from_element(PendingHasInvalidationMutationFeatures& features, DOM::Element const& element)
 {
-    features.tag_names.set(element.local_name());
+    features.tag_names.set(Utf16FlyString::from_fly_string(element.local_name()));
     if (element.namespace_uri() != Namespace::HTML)
-        features.tag_names.set(element.lowercased_local_name());
+        features.tag_names.set(Utf16FlyString::from_fly_string(element.lowercased_local_name()));
 
     if (auto id = element.id(); id.has_value())
         features.ids.set(*id);
@@ -1211,9 +1212,9 @@ static void collect_pending_has_invalidation_features_from_element(PendingHasInv
         features.class_names.set(class_name);
 
     element.for_each_attribute([&](FlyString const& name, auto const&) {
-        features.attribute_names.set(name);
+        features.attribute_names.set(Utf16FlyString::from_fly_string(name));
         if (element.namespace_uri() != Namespace::HTML)
-            features.attribute_names.set(name.to_ascii_lowercase());
+            features.attribute_names.set(Utf16FlyString::from_fly_string(name.to_ascii_lowercase()));
     });
 }
 
@@ -1259,10 +1260,10 @@ static PendingHasInvalidationMutationFeatures collect_pending_has_invalidation_m
     for (auto const& property : properties) {
         switch (property.type) {
         case InvalidationSet::Property::Type::Class:
-            features.class_names.set(property.name());
+            features.class_names.set(property.class_name());
             break;
         case InvalidationSet::Property::Type::Id:
-            features.ids.set(property.name());
+            features.ids.set(property.id());
             break;
         case InvalidationSet::Property::Type::TagName:
             features.tag_names.set(property.name());
@@ -1308,7 +1309,7 @@ void StyleScope::record_pending_has_invalidation_mutation_features(GC::Ref<DOM::
     document().set_needs_invalidation_of_elements_affected_by_has();
 }
 
-RefPtr<CSS::CounterStyle const> StyleScope::get_registered_counter_style(FlyString const& name) const
+RefPtr<CSS::CounterStyle const> StyleScope::get_registered_counter_style(Utf16FlyString const& name) const
 {
     if (m_needs_counter_style_cache_update && !m_is_doing_counter_style_cache_update)
         const_cast<StyleScope*>(this)->build_counter_style_cache();

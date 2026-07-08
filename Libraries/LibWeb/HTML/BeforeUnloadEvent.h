@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <AK/Utf16String.h>
 #include <LibWeb/DOM/Event.h>
 
 namespace Web::HTML {
@@ -22,13 +23,13 @@ public:
 
     virtual ~BeforeUnloadEvent() override;
 
-    String const& return_value() const { return m_return_value; }
-    void set_return_value(String const& return_value) { m_return_value = return_value; }
+    Utf16String const& return_value() const { return m_return_value; }
+    void set_return_value(Utf16String return_value) { m_return_value = move(return_value); }
 
 private:
     virtual void initialize(JS::Realm&) override;
 
-    String m_return_value;
+    Utf16String m_return_value;
 };
 
 }

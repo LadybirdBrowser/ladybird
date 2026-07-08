@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/CSS/PercentageOr.h>
 #include <LibWeb/CSS/StyleValues/AbstractNonMathCalcFunctionStyleValue.h>
 
@@ -15,7 +15,7 @@ namespace Web::CSS {
 // https://drafts.csswg.org/css-anchor-position-1/#funcdef-anchor
 class AnchorStyleValue final : public AbstractNonMathCalcFunctionStyleValue {
 public:
-    static ValueComparingNonnullRefPtr<AnchorStyleValue const> create(Optional<FlyString> const& anchor_name,
+    static ValueComparingNonnullRefPtr<AnchorStyleValue const> create(Optional<Utf16FlyString> const& anchor_name,
         ValueComparingNonnullRefPtr<StyleValue const> const& anchor_side,
         ValueComparingRefPtr<StyleValue const> const& fallback_value);
     virtual ~AnchorStyleValue() override = default;
@@ -27,7 +27,7 @@ public:
 
     virtual bool is_computationally_independent() const override { return true; }
 
-    Optional<FlyString const&> anchor_name() const { return m_properties.anchor_name; }
+    Optional<Utf16FlyString const&> anchor_name() const { return m_properties.anchor_name; }
     ValueComparingNonnullRefPtr<StyleValue const> anchor_side() const
     {
         return m_properties.anchor_side;
@@ -38,10 +38,10 @@ public:
     }
 
 private:
-    AnchorStyleValue(Optional<FlyString> const& anchor_name, ValueComparingNonnullRefPtr<StyleValue const> const& anchor_side, ValueComparingRefPtr<StyleValue const> const& fallback_value);
+    AnchorStyleValue(Optional<Utf16FlyString> const& anchor_name, ValueComparingNonnullRefPtr<StyleValue const> const& anchor_side, ValueComparingRefPtr<StyleValue const> const& fallback_value);
 
     struct Properties {
-        Optional<FlyString> anchor_name;
+        Optional<Utf16FlyString> anchor_name;
         ValueComparingNonnullRefPtr<StyleValue const> anchor_side;
         ValueComparingRefPtr<StyleValue const> fallback_value;
         bool operator==(Properties const&) const = default;

@@ -1477,7 +1477,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
         //    ownerDocument of node, then set the face attribute of new parent to new value.
         if (command == CommandNames::fontName) {
             new_parent = MUST(DOM::create_element(document, HTML::TagNames::font, Namespace::HTML));
-            new_parent->set_attribute_value(HTML::AttributeNames::face, new_value.value().to_utf8_but_should_be_ported_to_utf16());
+            new_parent->set_attribute_value(HTML::AttributeNames::face, new_value.value());
         }
     }
 
@@ -1487,7 +1487,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
         new_parent = MUST(DOM::create_element(document, HTML::TagNames::a, Namespace::HTML));
 
         // 2. Set the href attribute of new parent to new value.
-        new_parent->set_attribute_value(HTML::AttributeNames::href, new_value.value().to_utf8_but_should_be_ported_to_utf16());
+        new_parent->set_attribute_value(HTML::AttributeNames::href, new_value.value());
 
         // 3. Let ancestor be node's parent.
         GC::Ptr<DOM::Node> ancestor = node->parent();
@@ -1548,7 +1548,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
         auto const& command_definition = find_command_definition(command);
         if (command_definition->relevant_css_property.has_value()) {
             auto inline_style = new_parent->style_for_bindings();
-            MUST(inline_style->set_property(command_definition->relevant_css_property.value(), new_value.value().to_utf8_but_should_be_ported_to_utf16()));
+            MUST(inline_style->set_property(command_definition->relevant_css_property.value(), new_value.value()));
         }
     }
 
@@ -2102,6 +2102,37 @@ bool is_extraneous_line_break(GC::Ref<DOM::Node> node)
     // FIXME: implement more cases that would cause removing a <br> not to have any effect on the layout.
 
     return false;
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#formattable-block-name
+Optional<FlyString const&> formattable_block_name_from_utf16(Utf16View local_name)
+{
+    // A formattable block name is "address", "dd", "div", "dt", "h1", "h2", "h3", "h4", "h5", "h6", "p", or "pre".
+    if (local_name == "address"sv)
+        return HTML::TagNames::address;
+    if (local_name == "dd"sv)
+        return HTML::TagNames::dd;
+    if (local_name == "div"sv)
+        return HTML::TagNames::div;
+    if (local_name == "dt"sv)
+        return HTML::TagNames::dt;
+    if (local_name == "h1"sv)
+        return HTML::TagNames::h1;
+    if (local_name == "h2"sv)
+        return HTML::TagNames::h2;
+    if (local_name == "h3"sv)
+        return HTML::TagNames::h3;
+    if (local_name == "h4"sv)
+        return HTML::TagNames::h4;
+    if (local_name == "h5"sv)
+        return HTML::TagNames::h5;
+    if (local_name == "h6"sv)
+        return HTML::TagNames::h6;
+    if (local_name == "p"sv)
+        return HTML::TagNames::p;
+    if (local_name == "pre"sv)
+        return HTML::TagNames::pre;
+    return {};
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#formattable-block-name
@@ -3285,7 +3316,7 @@ Vector<RecordedOverride> record_current_states_and_values(DOM::Document const& d
     // 6. For each command in the list "fontName", "foreColor", "hiliteColor", in order: add (command, command's value)
     //    to overrides.
     for (auto const& command : { CommandNames::fontName, CommandNames::foreColor, CommandNames::hiliteColor })
-        overrides.empend(command, Utf16String::from_utf8_without_validation(MUST(node->document().query_command_value(command))));
+        overrides.empend(command, MUST(node->document().query_command_value(command)));
 
     // 7. Add ("fontSize", node's effective command value for "fontSize") to overrides.
     effective_value = effective_command_value(node, CommandNames::fontSize);
@@ -4654,11 +4685,11 @@ CSSPixels font_size_to_pixel_size(Utf16View const& font_size)
     }
 
     // Try to map the font size directly to a keyword (e.g. medium or x-large)
-    auto keyword = CSS::keyword_from_string(font_size.to_utf8_but_should_be_ported_to_utf16());
+    auto keyword = CSS::keyword_from_string(font_size);
 
     // If that failed, try to interpret it as a legacy font size (e.g. 1 through 7)
     if (!keyword.has_value())
-        keyword = HTML::HTMLFontElement::parse_legacy_font_size(font_size.to_utf8_but_should_be_ported_to_utf16());
+        keyword = HTML::HTMLFontElement::parse_legacy_font_size(font_size);
 
     // If that also failed, give up
     auto pixel_size = CSS::StyleComputer::default_user_font_size();

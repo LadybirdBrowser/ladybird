@@ -435,12 +435,12 @@ static void collect_properties_used_in_has(Selector::SimpleSelector const& selec
     switch (selector.type) {
     case Selector::SimpleSelector::Type::Id: {
         if (metadata.has_value())
-            append_has_invalidation_metadata(style_invalidation_data.ids_used_in_has_selectors, selector.name(), *metadata);
+            append_has_invalidation_metadata(style_invalidation_data.ids_used_in_has_selectors, selector.id_name(), *metadata);
         break;
     }
     case Selector::SimpleSelector::Type::Class: {
         if (metadata.has_value())
-            append_has_invalidation_metadata(style_invalidation_data.class_names_used_in_has_selectors, selector.name(), *metadata);
+            append_has_invalidation_metadata(style_invalidation_data.class_names_used_in_has_selectors, selector.class_name(), *metadata);
         break;
     }
     case Selector::SimpleSelector::Type::Attribute: {
@@ -592,10 +592,10 @@ static void collect_guard_properties_for_simple_selector(Selector::SimpleSelecto
 {
     switch (selector.type) {
     case Selector::SimpleSelector::Type::Class:
-        property_set.set_needs_invalidate_class(selector.name());
+        property_set.set_needs_invalidate_class(selector.class_name());
         break;
     case Selector::SimpleSelector::Type::Id:
-        property_set.set_needs_invalidate_id(selector.name());
+        property_set.set_needs_invalidate_id(selector.id_name());
         break;
     case Selector::SimpleSelector::Type::TagName:
         property_set.set_needs_invalidate_tag_name(selector.qualified_name().name.lowercase_name);
@@ -725,10 +725,10 @@ static void build_invalidation_sets_for_simple_selector_impl(Selector::SimpleSel
 {
     switch (selector.type) {
     case Selector::SimpleSelector::Type::Class:
-        invalidation_set.set_needs_invalidate_class(selector.name());
+        invalidation_set.set_needs_invalidate_class(selector.class_name());
         break;
     case Selector::SimpleSelector::Type::Id:
-        invalidation_set.set_needs_invalidate_id(selector.name());
+        invalidation_set.set_needs_invalidate_id(selector.id_name());
         break;
     case Selector::SimpleSelector::Type::TagName:
         invalidation_set.set_needs_invalidate_tag_name(selector.qualified_name().name.lowercase_name);

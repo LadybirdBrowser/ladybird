@@ -9,6 +9,8 @@
 
 #include <AK/FlyString.h>
 #include <AK/HashMap.h>
+#include <AK/Utf16FlyString.h>
+#include <AK/Utf16View.h>
 #include <LibGfx/ShapeFeature.h>
 #include <LibWeb/Forward.h>
 
@@ -23,11 +25,11 @@ enum class FontFeatureValueType : u8 {
     Annotation,
 };
 
-Optional<FontFeatureValueType> font_feature_value_type_from_string(FlyString const&);
+Optional<FontFeatureValueType> font_feature_value_type_from_string(Utf16View);
 
 struct FontFeatureValueKey {
     FontFeatureValueType type;
-    FlyString name;
+    Utf16FlyString name;
 
     bool operator==(FontFeatureValueKey const&) const = default;
 };

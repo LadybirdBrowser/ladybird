@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16FlyString.h>
 #include <LibJS/Runtime/Set.h>
 #include <LibJS/Runtime/SetIterator.h>
 #include <LibWeb/Bindings/CustomStateSet.h>
@@ -23,7 +24,7 @@ public:
     virtual ~CustomStateSet() override = default;
 
     GC::Ref<JS::Set> set_entries() const { return m_set_entries; }
-    bool has_state(FlyString const&) const;
+    bool has_state(Utf16FlyString const&) const;
 
     void on_set_modified_from_js(Badge<Bindings::CustomStateSetPrototype>);
 

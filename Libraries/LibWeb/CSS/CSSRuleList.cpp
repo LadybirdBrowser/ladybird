@@ -62,7 +62,7 @@ size_t CSSRuleList::external_memory_size() const
 
 // AD-HOC: The spec doesn't include a declared_namespaces parameter, but we need it to handle parsing of namespaced selectors.
 // https://drafts.csswg.org/cssom/#insert-a-css-rule
-WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<StringView, CSSRule*> rule, u32 index, Nested nested, HashTable<FlyString> const& declared_namespaces)
+WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<StringView, CSSRule*> rule, u32 index, Nested nested, HashTable<Utf16FlyString> const& declared_namespaces)
 {
     // 1. Set length to the number of items in list.
     auto length = m_rules.size();

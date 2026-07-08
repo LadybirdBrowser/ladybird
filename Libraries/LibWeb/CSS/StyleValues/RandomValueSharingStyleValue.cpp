@@ -5,6 +5,7 @@
  */
 
 #include "RandomValueSharingStyleValue.h"
+#include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/DOM/Document.h>
@@ -65,7 +66,7 @@ void RandomValueSharingStyleValue::serialize(StringBuilder& builder, Serializati
 
     bool first = true;
     if (!m_is_auto) {
-        builder.appendff("{}", m_name.value());
+        builder.append(serialize_an_identifier(m_name.value()));
         first = false;
     }
 

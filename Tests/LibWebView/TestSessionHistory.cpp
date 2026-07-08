@@ -99,7 +99,7 @@ static Web::HTML::SessionHistoryEntryDescriptor entry(i32 step, StringView url, 
     auto entry = create_test_entry(step, parse_url(url));
     entry.document_state.id = document_state_id;
     entry.document_state.ever_populated = true;
-    entry.document_state.navigable_target_name = MUST(String::from_utf8(navigable_target_name));
+    entry.document_state.navigable_target_name = Utf16String::from_utf8(navigable_target_name);
     return entry;
 }
 
@@ -109,7 +109,7 @@ static Web::HTML::SessionHistoryEntryDescriptor entry_with_reload_pending(i32 st
     entry.document_state.id = document_state_id;
     entry.document_state.reload_pending = true;
     entry.document_state.ever_populated = true;
-    entry.document_state.navigable_target_name = MUST(String::from_utf8(navigable_target_name));
+    entry.document_state.navigable_target_name = Utf16String::from_utf8(navigable_target_name);
     entry.document_state.nested_histories = move(nested_histories);
     return entry;
 }
@@ -136,7 +136,7 @@ static Web::HTML::SessionHistoryEntryDescriptor entry(i32 step, StringView url, 
     auto entry = create_test_entry(step, parse_url(url));
     entry.document_state.id = document_state_id;
     entry.document_state.ever_populated = true;
-    entry.document_state.navigable_target_name = MUST(String::from_utf8(navigable_target_name));
+    entry.document_state.navigable_target_name = Utf16String::from_utf8(navigable_target_name);
     entry.document_state.nested_histories = move(nested_histories);
     return entry;
 }
@@ -174,7 +174,7 @@ static void expect_entry_state(Web::HTML::SessionHistoryEntryDescriptor const& e
 static void expect_entry_document_state(Web::HTML::SessionHistoryEntryDescriptor const& entry, u64 expected_document_state_id, StringView expected_navigable_target_name)
 {
     EXPECT_EQ(entry.document_state.id, expected_document_state_id);
-    EXPECT_EQ(entry.document_state.navigable_target_name, MUST(String::from_utf8(expected_navigable_target_name)));
+    EXPECT_EQ(entry.document_state.navigable_target_name, Utf16String::from_utf8(expected_navigable_target_name));
 }
 
 static void expect_entry_viewport_scroll_position(Web::HTML::SessionHistoryEntryDescriptor const& entry, Web::CSSPixelPoint expected_viewport_scroll_position)

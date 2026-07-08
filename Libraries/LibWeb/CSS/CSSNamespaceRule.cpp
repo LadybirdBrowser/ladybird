@@ -18,14 +18,14 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSNamespaceRule);
 
-CSSNamespaceRule::CSSNamespaceRule(JS::Realm& realm, Optional<FlyString> prefix, FlyString namespace_uri)
+CSSNamespaceRule::CSSNamespaceRule(JS::Realm& realm, Optional<Utf16FlyString> prefix, Utf16FlyString namespace_uri)
     : CSSRule(realm, Type::Namespace)
     , m_namespace_uri(move(namespace_uri))
-    , m_prefix(prefix.value_or(""_fly_string))
+    , m_prefix(prefix.value_or(""_utf16_fly_string))
 {
 }
 
-GC::Ref<CSSNamespaceRule> CSSNamespaceRule::create(JS::Realm& realm, Optional<FlyString> prefix, FlyString namespace_uri)
+GC::Ref<CSSNamespaceRule> CSSNamespaceRule::create(JS::Realm& realm, Optional<Utf16FlyString> prefix, Utf16FlyString namespace_uri)
 {
     return realm.create<CSSNamespaceRule>(realm, move(prefix), move(namespace_uri));
 }

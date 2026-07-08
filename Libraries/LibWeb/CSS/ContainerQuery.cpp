@@ -37,7 +37,7 @@
 
 namespace Web::CSS {
 
-Optional<SizeFeatureID> size_feature_id_from_string(StringView name)
+Optional<SizeFeatureID> size_feature_id_from_string(Utf16View name)
 {
     if (name.equals_ignoring_ascii_case("aspect-ratio"sv))
         return SizeFeatureID::AspectRatio;
@@ -390,7 +390,7 @@ static Optional<StyleRangeComparableValue> evaluate_style_range_value(StyleFeatu
                 return {};
 
             if (guarded_contexts.has_value()) {
-                if (guarded_contexts->mark_existing_as_cyclic({ Parser::SubstitutionContext::DependencyType::Property, property.to_string() }))
+                if (guarded_contexts->mark_existing_as_cyclic({ Parser::SubstitutionContext::DependencyType::Property, property.name().to_utf16_string() }))
                     return {};
             }
 
@@ -489,7 +489,7 @@ MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& con
     Optional<Keyword> query_css_wide_keyword;
 
     if (guarded_contexts.has_value()) {
-        if (guarded_contexts->mark_existing_as_cyclic({ Parser::SubstitutionContext::DependencyType::Property, property.to_string() }))
+        if (guarded_contexts->mark_existing_as_cyclic({ Parser::SubstitutionContext::DependencyType::Property, property.name().to_utf16_string() }))
             return MatchResult::False;
     }
 
@@ -693,7 +693,7 @@ static bool container_satisfies_requirements(DOM::Element const& element, Contai
 }
 
 // https://drafts.csswg.org/css-conditional-5/#container-rule
-MatchResult ContainerQuery::evaluate(DOM::AbstractElement const& element, Optional<FlyString> const& container_name) const
+MatchResult ContainerQuery::evaluate(DOM::AbstractElement const& element, Optional<Utf16FlyString> const& container_name) const
 {
     // If the <container-query> contains unknown or unsupported container features, no query container will be selected
     // for that <container-condition>.
@@ -736,7 +736,7 @@ void ContainerQuery::dump(StringBuilder& builder, int indent_levels) const
     m_condition->dump(builder, indent_levels + 1);
 }
 
-bool container_name_matches(DOM::Element const& element, Optional<FlyString> const& container_name)
+bool container_name_matches(DOM::Element const& element, Optional<Utf16FlyString> const& container_name)
 {
     if (!container_name.has_value())
         return true;

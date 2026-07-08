@@ -8,6 +8,7 @@
 #include <AK/Debug.h>
 #include <AK/SourceLocation.h>
 #include <AK/StringConversions.h>
+#include <AK/Utf16StringBuilder.h>
 #include <AK/Utf8View.h>
 #include <AK/Vector.h>
 #include <LibTextCodec/Decoder.h>
@@ -547,7 +548,7 @@ double Tokenizer::convert_a_string_to_a_number(StringView string)
 }
 
 // https://www.w3.org/TR/css-syntax-3/#consume-name
-FlyString Tokenizer::consume_an_ident_sequence()
+Utf16FlyString Tokenizer::consume_an_ident_sequence()
 {
     // This section describes how to consume an ident sequence from a stream of code points.
     // It returns a string containing the largest name that can be formed from adjacent
@@ -559,7 +560,7 @@ FlyString Tokenizer::consume_an_ident_sequence()
     // calling this algorithm.
 
     // Let result initially be an empty string.
-    StringBuilder result;
+    Utf16StringBuilder result;
 
     // Repeatedly consume the next input code point from the stream:
     for (;;) {
@@ -588,7 +589,7 @@ FlyString Tokenizer::consume_an_ident_sequence()
         break;
     }
 
-    return result.to_fly_string_without_validation();
+    return Utf16FlyString::from_utf16(result.view());
 }
 
 // https://www.w3.org/TR/css-syntax-3/#consume-url-token
@@ -604,7 +605,7 @@ Token Tokenizer::consume_a_url_token(size_t start_byte_offset)
     // shouldn’t be called directly otherwise.
 
     // 1. Initially create a <url-token> with its value set to the empty string.
-    StringBuilder builder;
+    Utf16StringBuilder builder;
 
     // 2. Consume as much whitespace as possible.
     consume_as_much_whitespace_as_possible();
@@ -616,14 +617,14 @@ Token Tokenizer::consume_a_url_token(size_t start_byte_offset)
         // U+0029 RIGHT PARENTHESIS ())
         if (is_right_paren(input)) {
             // Return the <url-token>.
-            return Token::create_url(builder.to_fly_string_without_validation(), input_since(start_byte_offset));
+            return Token::create_url(Utf16FlyString::from_utf16(builder.view()), input_since(start_byte_offset));
         }
 
         // EOF
         if (is_eof(input)) {
             // This is a parse error. Return the <url-token>.
             log_parse_error();
-            return Token::create_url(builder.to_fly_string_without_validation(), input_since(start_byte_offset));
+            return Token::create_url(Utf16FlyString::from_utf16(builder.view()), input_since(start_byte_offset));
         }
 
         // whitespace
@@ -637,13 +638,13 @@ Token Tokenizer::consume_a_url_token(size_t start_byte_offset)
 
             if (is_right_paren(input)) {
                 (void)next_code_point();
-                return Token::create_url(builder.to_fly_string_without_validation(), input_since(start_byte_offset));
+                return Token::create_url(Utf16FlyString::from_utf16(builder.view()), input_since(start_byte_offset));
             }
 
             if (is_eof(input)) {
                 (void)next_code_point();
                 log_parse_error();
-                return Token::create_url(builder.to_fly_string_without_validation(), input_since(start_byte_offset));
+                return Token::create_url(Utf16FlyString::from_utf16(builder.view()), input_since(start_byte_offset));
             }
 
             // otherwise, consume the remnants of a bad url, create a <bad-url-token>, and return it.
@@ -751,7 +752,8 @@ Token Tokenizer::consume_a_numeric_token()
         // NOTE: We intentionally store this in the `value`, to save space.
 
         // 3. Return the <dimension-token>.
-        return Token::create_dimension(number, move(unit), input_since(start_byte_offset));
+        auto unit_string = MUST(unit.view().to_utf8());
+        return Token::create_dimension(number, MUST(FlyString::from_utf8(unit_string.bytes_as_string_view())), input_since(start_byte_offset));
     }
 
     // Otherwise, if the next input code point is U+0025 PERCENTAGE SIGN (%), consume it.
@@ -888,7 +890,7 @@ Token Tokenizer::consume_string_token(u32 ending_code_point)
 
     // Initially create a <string-token> with its value set to the empty string.
     auto original_source_text_start_byte_offset_including_quotation_mark = current_byte_offset() - 1;
-    StringBuilder builder;
+    Utf16StringBuilder builder;
 
     // Repeatedly consume the next input code point from the stream:
     for (;;) {
@@ -897,14 +899,14 @@ Token Tokenizer::consume_string_token(u32 ending_code_point)
         // ending code point
         if (input == ending_code_point) {
             // Return the <string-token>.
-            return Token::create_string(builder.to_fly_string_without_validation(), input_since(original_source_text_start_byte_offset_including_quotation_mark));
+            return Token::create_string(Utf16FlyString::from_utf16(builder.view()), input_since(original_source_text_start_byte_offset_including_quotation_mark));
         }
 
         // EOF
         if (is_eof(input)) {
             // This is a parse error. Return the <string-token>.
             log_parse_error();
-            return Token::create_string(builder.to_fly_string_without_validation(), input_since(original_source_text_start_byte_offset_including_quotation_mark));
+            return Token::create_string(Utf16FlyString::from_utf16(builder.view()), input_since(original_source_text_start_byte_offset_including_quotation_mark));
         }
 
         // newline

@@ -73,8 +73,8 @@ static WebIDL::ExceptionOr<KeyframeType<AL>> process_a_keyframe_like_object(JS::
         return double_value;
     };
 
-    Function<WebIDL::ExceptionOr<String>(JS::Value)> to_string = [&vm](JS::Value value) -> WebIDL::ExceptionOr<String> {
-        return TRY(value.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
+    Function<WebIDL::ExceptionOr<Utf16String>(JS::Value)> to_string = [&vm](JS::Value value) -> WebIDL::ExceptionOr<Utf16String> {
+        return TRY(value.to_utf16_string(vm));
     };
 
     Function<WebIDL::ExceptionOr<Bindings::CompositeOperationOrAuto>(JS::Value)> to_composite_operation = [&vm](JS::Value value) -> WebIDL::ExceptionOr<Bindings::CompositeOperationOrAuto> {
@@ -120,10 +120,10 @@ static WebIDL::ExceptionOr<KeyframeType<AL>> process_a_keyframe_like_object(JS::
 
         auto easing_maybe_list = TRY(convert_value_to_maybe_list(realm, easing, to_string));
         easing_maybe_list.visit(
-            [&](String const& value) {
+            [&](Utf16String const& value) {
                 keyframe_output.easing = EasingValue { value };
             },
-            [&](Vector<String> const& values) {
+            [&](Vector<Utf16String> const& values) {
                 Vector<EasingValue> easing_values;
                 for (auto& easing_value : values)
                     easing_values.append(easing_value);
@@ -152,13 +152,13 @@ static WebIDL::ExceptionOr<KeyframeType<AL>> process_a_keyframe_like_object(JS::
     //    <custom-property-name> production.
     auto input_properties = TRY(keyframe_object.enumerable_own_property_names(JS::Object::PropertyKind::Key));
 
-    Vector<String> animation_properties;
+    Vector<Utf16FlyString> animation_properties;
 
     for (auto const& input_property : input_properties) {
         if (!input_property.is_string())
             continue;
 
-        auto name = input_property.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
+        auto name = Utf16FlyString::from_utf16(input_property.as_string().utf16_string_view());
 
         // Handle the two special cases
         if (name == "cssFloat"sv || name == "cssOffset"sv) {
@@ -179,10 +179,10 @@ static WebIDL::ExceptionOr<KeyframeType<AL>> process_a_keyframe_like_object(JS::
         // 1. Let raw value be the result of calling the [[Get]] internal method on keyframe input, with property name
         //    as the property key and keyframe input as the receiver.
         // 2. Check the completion record of raw value.
-        JS::PropertyKey key { Utf16FlyString::from_utf8(property_name), JS::PropertyKey::StringMayBeNumber::No };
+        JS::PropertyKey key { property_name, JS::PropertyKey::StringMayBeNumber::No };
         auto raw_value = TRY(keyframe_object.get(key));
 
-        using PropertyValuesType = Conditional<AL == AllowLists::Yes, Vector<String>, String>;
+        using PropertyValuesType = Conditional<AL == AllowLists::Yes, Vector<Utf16String>, Utf16String>;
         PropertyValuesType property_values;
 
         // 3. Convert raw value to a DOMString or sequence of DOMStrings property values as follows:
@@ -195,16 +195,16 @@ static WebIDL::ExceptionOr<KeyframeType<AL>> process_a_keyframe_like_object(JS::
 
             // If property values is a single DOMString, replace property values with a sequence of DOMStrings with the
             // original value of property values as the only element.
-            if (intermediate_property_values.has<String>())
-                property_values = Vector { intermediate_property_values.get<String>() };
+            if (intermediate_property_values.has<Utf16String>())
+                property_values = Vector { intermediate_property_values.get<Utf16String>() };
             else
-                property_values = intermediate_property_values.get<Vector<String>>();
+                property_values = intermediate_property_values.get<Vector<Utf16String>>();
         }
         // -> Otherwise,
         else {
             // Let property values be the result of converting raw value to a DOMString using the procedure for
             // converting an ECMAScript value to a DOMString [WEBIDL].
-            property_values = TRY(raw_value.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
+            property_values = TRY(raw_value.to_utf16_string(vm));
         }
 
         // 4. Calculate the normalized property name as the result of applying the IDL attribute name to animation
@@ -445,7 +445,7 @@ static WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_a_keyframes_argument(JS
         // 8. If easings is an empty sequence, let it be a sequence of length one containing the single value "linear",
         //    i.e. « "linear" ».
         if (easings.is_empty())
-            easings.append("linear"_string);
+            easings.append("linear"_utf16);
 
         // 9. If easings has fewer items than processed keyframes, repeat the elements in easings successively starting
         //    from the beginning of the list until easings has as many items as processed keyframes.
@@ -550,7 +550,7 @@ static WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_a_keyframes_argument(JS
         //    syntax defined for the easing member of the EffectTiming dictionary.
         //
         //    If parsing the "easing" property fails, throw a TypeError and abort this procedure.
-        auto easing_string = keyframe.easing.get<String>();
+        auto easing_string = keyframe.easing.get<Utf16String>();
         auto easing_value = AnimationEffect::parse_easing_string(easing_string);
 
         if (!easing_value.has_value())
@@ -562,7 +562,7 @@ static WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_a_keyframes_argument(JS
     // 9. Parse each of the values in unused easings using the CSS syntax defined for easing member of the EffectTiming
     //    interface, and if any of the values fail to parse, throw a TypeError and abort this procedure.
     for (auto& unused_easing : unused_easings) {
-        auto easing_string = unused_easing.get<String>();
+        auto easing_string = unused_easing.get<Utf16String>();
         auto easing_value = AnimationEffect::parse_easing_string(easing_string);
         if (!easing_value.has_value())
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Invalid animation easing value: \"{}\"", easing_string)) };

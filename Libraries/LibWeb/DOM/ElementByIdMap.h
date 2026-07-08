@@ -14,10 +14,10 @@ namespace Web::DOM {
 
 class ElementByIdMap {
 public:
-    void add(FlyString const& element_id, Element&);
-    void remove(FlyString const& element_id, Element&);
-    GC::Ptr<Element> get(FlyString const& element_id, Node const& scope_root) const;
-    void for_each_element_with_id(StringView element_id, Node const& scope_root, Function<void(Element&)> callback) const;
+    void add(Utf16FlyString const& element_id, Element&);
+    void remove(Utf16FlyString const& element_id, Element&);
+    GC::Ptr<Element> get(Utf16FlyString const& element_id, Node const& scope_root) const;
+    void for_each_element_with_id(Utf16FlyString const& element_id, Node const& scope_root, Function<void(Element&)> callback) const;
 
     template<typename Callback>
     void for_each_id(Callback callback)
@@ -31,7 +31,7 @@ private:
         GC::Weak<Element> cached_first_element;
         Vector<GC::Weak<Element>> elements;
     };
-    mutable HashMap<FlyString, MapEntry> m_map;
+    mutable HashMap<Utf16FlyString, MapEntry> m_map;
 };
 
 }

@@ -6,11 +6,11 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/OwnPtr.h>
 #include <AK/RefCounted.h>
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/CSS/BooleanExpression.h>
 #include <LibWeb/CSS/FeatureQuery.h>
 #include <LibWeb/CSS/MediaFeatureID.h>
@@ -51,7 +51,7 @@ public:
         Screen,
     };
     struct MediaType {
-        FlyString name;
+        Utf16FlyString name;
         Optional<KnownMediaType> known_type;
     };
 
@@ -69,7 +69,7 @@ private:
 
     // https://www.w3.org/TR/mediaqueries-4/#mq-not
     bool m_negated { false };
-    MediaType m_media_type { .name = "all"_fly_string, .known_type = KnownMediaType::All };
+    MediaType m_media_type { .name = "all"_utf16_fly_string, .known_type = KnownMediaType::All };
     OwnPtr<BooleanExpression> m_media_condition { nullptr };
 
     // Cached value, updated by evaluate()
@@ -79,6 +79,7 @@ private:
 String serialize_a_media_query_list(Vector<NonnullRefPtr<MediaQuery>> const&);
 
 Optional<MediaQuery::KnownMediaType> media_type_from_string(StringView);
+Optional<MediaQuery::KnownMediaType> media_type_from_string(Utf16View);
 StringView to_string(MediaQuery::KnownMediaType);
 
 }

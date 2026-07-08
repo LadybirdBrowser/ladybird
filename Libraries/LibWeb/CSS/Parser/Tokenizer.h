@@ -91,7 +91,7 @@ private:
     [[nodiscard]] Token consume_an_ident_like_token();
     [[nodiscard]] Number consume_a_number();
     [[nodiscard]] double convert_a_string_to_a_number(StringView);
-    [[nodiscard]] FlyString consume_an_ident_sequence();
+    [[nodiscard]] Utf16FlyString consume_an_ident_sequence();
     [[nodiscard]] u32 consume_escaped_code_point();
     [[nodiscard]] Token consume_a_url_token(size_t start_byte_offset);
     void consume_the_remnants_of_a_bad_url();

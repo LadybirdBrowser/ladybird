@@ -861,7 +861,7 @@ void Internals::update_style()
 
 void Internals::set_preferred_color_scheme(StringView color_scheme)
 {
-    auto preferred_color_scheme = CSS::preferred_color_scheme_from_string(color_scheme);
+    auto preferred_color_scheme = CSS::preferred_color_scheme_from_string(Utf16String::from_utf8(color_scheme));
 
     Optional<CSS::PreferredColorScheme> preferred_color_scheme_override;
     if (preferred_color_scheme != CSS::PreferredColorScheme::Auto)

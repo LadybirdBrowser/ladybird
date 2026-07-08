@@ -11,6 +11,7 @@
 #include <AK/Function.h>
 #include <AK/IterationDecision.h>
 #include <AK/RefPtr.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/Bindings/IdleRequest.h>
@@ -260,10 +261,10 @@ public:
     static void set_internals_object_exposed(bool);
     static bool is_internals_object_exposed();
 
-    [[nodiscard]] OrderedHashMap<FlyString, GC::Ref<LocalNavigable>> document_tree_child_navigable_target_name_property_set();
+    [[nodiscard]] OrderedHashMap<Utf16FlyString, GC::Ref<LocalNavigable>> document_tree_child_navigable_target_name_property_set();
 
-    [[nodiscard]] Vector<FlyString> supported_property_names() const override;
-    [[nodiscard]] JS::Value named_item_value(FlyString const&) const override;
+    [[nodiscard]] Vector<Utf16FlyString> supported_property_names() const override;
+    [[nodiscard]] JS::Value named_item_value(Utf16FlyString const&) const override;
 
     bool find(String const& string);
 
@@ -291,7 +292,7 @@ private:
         Vector<GC::Ref<LocalNavigable>> navigables;
         Vector<GC::Ref<DOM::Element>> elements;
     };
-    NamedObjects named_objects(StringView name);
+    NamedObjects named_objects(Utf16FlyString const& name);
 
     WebIDL::ExceptionOr<void> window_post_message_steps(JS::Value, Bindings::WindowPostMessageOptions const&);
 

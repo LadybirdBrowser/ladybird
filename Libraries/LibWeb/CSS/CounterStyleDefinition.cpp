@@ -69,7 +69,7 @@ Optional<CounterStyleDefinition> CounterStyleDefinition::from_counter_style_rule
         rule.prefix_style_value() ? Optional<CounterStyleSymbol> { string_from_style_value(*rule.prefix_style_value()) } : Optional<CounterStyleSymbol> {},
         rule.suffix_style_value() ? Optional<CounterStyleSymbol> { string_from_style_value(*rule.suffix_style_value()) } : Optional<CounterStyleSymbol> {},
         rule.range_style_value() ? Variant<Empty, AutoRange, Vector<CounterStyleRangeEntry>> { resolve_range(*rule.range_style_value(), computation_context) } : Variant<Empty, AutoRange, Vector<CounterStyleRangeEntry>> {},
-        rule.fallback_style_value() ? Optional<FlyString> { string_from_style_value(*rule.fallback_style_value()) } : Optional<FlyString> {},
+        rule.fallback_style_value() ? Optional<Utf16FlyString> { string_from_style_value(*rule.fallback_style_value()) } : Optional<Utf16FlyString> {},
         rule.pad_style_value() ? Optional<CounterStylePad> { resolve_pad(*rule.pad_style_value(), computation_context) } : Optional<CounterStylePad> {});
 }
 
@@ -188,7 +188,7 @@ CounterStyleNegativeSign CounterStyleDefinition::resolve_negative_sign(NonnullRe
 
     return {
         .prefix = string_from_style_value(negative_entries[0]),
-        .suffix = negative_entries.size() > 1 ? string_from_style_value(negative_entries[1]) : ""_fly_string,
+        .suffix = negative_entries.size() > 1 ? string_from_style_value(negative_entries[1]) : ""_utf16_fly_string,
     };
 }
 

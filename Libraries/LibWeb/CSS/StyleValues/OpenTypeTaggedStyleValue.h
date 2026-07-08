@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -20,13 +20,14 @@ public:
         FontFeatureSettings,
         FontVariationSettings,
     };
-    static ValueComparingNonnullRefPtr<OpenTypeTaggedStyleValue const> create(Mode mode, FlyString tag, ValueComparingNonnullRefPtr<StyleValue const> value)
+    static ValueComparingNonnullRefPtr<OpenTypeTaggedStyleValue const> create(Mode mode, Utf16FlyString tag, ValueComparingNonnullRefPtr<StyleValue const> value)
     {
         return adopt_ref(*new (nothrow) OpenTypeTaggedStyleValue(mode, move(tag), move(value)));
     }
     virtual ~OpenTypeTaggedStyleValue() override = default;
 
-    FlyString const& tag() const { return m_tag; }
+    Utf16FlyString const& tag() const { return m_tag; }
+    FlyString tag_as_fly_string() const;
     ValueComparingNonnullRefPtr<StyleValue const> const& value() const { return m_value; }
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
@@ -38,7 +39,7 @@ public:
     virtual bool is_computationally_independent() const override { return m_value->is_computationally_independent(); }
 
 private:
-    explicit OpenTypeTaggedStyleValue(Mode mode, FlyString tag, ValueComparingNonnullRefPtr<StyleValue const> value)
+    explicit OpenTypeTaggedStyleValue(Mode mode, Utf16FlyString tag, ValueComparingNonnullRefPtr<StyleValue const> value)
         : StyleValueWithDefaultOperators(Type::OpenTypeTagged)
         , m_mode(mode)
         , m_tag(move(tag))
@@ -47,7 +48,7 @@ private:
     }
 
     Mode m_mode;
-    FlyString m_tag;
+    Utf16FlyString m_tag;
     ValueComparingNonnullRefPtr<StyleValue const> m_value;
 };
 

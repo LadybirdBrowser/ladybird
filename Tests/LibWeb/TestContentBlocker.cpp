@@ -92,8 +92,8 @@ TEST_CASE(disable_filtering)
 
     auto& blocker = make_blocker(move(rules));
     blocker.set_filtering_enabled(false);
-    Vector<String> classes = { "ad"_string };
-    Vector<String> ids;
+    Vector<Utf16FlyString> classes = { "ad"_utf16_fly_string };
+    Vector<Utf16FlyString> ids;
 
     EXPECT(!blocker.is_filtered(url("https://example.com"sv)));
     EXPECT(!blocker.is_filtered(url("http://example.com/ads"sv)));
@@ -247,8 +247,8 @@ TEST_CASE(cosmetic_style_sheet)
     };
 
     auto& blocker = make_blocker(move(rules));
-    Vector<String> classes = { "generic-ad"_string };
-    Vector<String> ids = { "generic-sponsor"_string };
+    Vector<Utf16FlyString> classes = { "generic-ad"_utf16_fly_string };
+    Vector<Utf16FlyString> ids = { "generic-sponsor"_utf16_fly_string };
 
     auto style_sheet = blocker.cosmetic_style_sheet_for_url(url("https://example.com/"sv), classes, ids);
 
@@ -269,10 +269,10 @@ TEST_CASE(generic_cosmetic_selector_lists_match_later_selectors)
     };
 
     auto& blocker = make_blocker(move(rules));
-    Vector<String> classes = { "second-ad-class"_string };
-    Vector<String> ids = { "second-ad-id"_string };
-    Vector<String> no_classes;
-    Vector<String> no_ids;
+    Vector<Utf16FlyString> classes = { "second-ad-class"_utf16_fly_string };
+    Vector<Utf16FlyString> ids = { "second-ad-id"_utf16_fly_string };
+    Vector<Utf16FlyString> no_classes;
+    Vector<Utf16FlyString> no_ids;
 
     auto style_sheet = blocker.cosmetic_style_sheet_for_url(url("https://example.com/"sv), classes, ids);
     auto style_sheet_without_class_or_id_hints = blocker.cosmetic_style_sheet_for_url(url("https://example.com/"sv), no_classes, no_ids);

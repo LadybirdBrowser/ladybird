@@ -102,9 +102,10 @@ Optional<Vector<ColorStopListElement>> Parser::parse_color_stop_list(TokenStream
     return color_stops;
 }
 
-static StringView consume_if_starts_with(StringView str, StringView start, auto found_callback)
+static Utf16View consume_if_starts_with(Utf16View str, StringView start, auto found_callback)
 {
-    if (str.starts_with(start, CaseSensitivity::CaseInsensitive)) {
+    if (str.length_in_code_units() >= start.length()
+        && str.substring_view(0, start.length()).equals_ignoring_ascii_case(start)) {
         found_callback();
         return str.substring_view(start.length());
     }
@@ -153,13 +154,13 @@ RefPtr<LinearGradientStyleValue const> Parser::parse_linear_gradient_function(To
     GradientRepeating repeating_gradient = GradientRepeating::No;
     GradientType gradient_type { GradientType::Standard };
 
-    auto function_name = component_value.function().name.bytes_as_string_view();
+    auto function_name = component_value.function().name.view();
 
     function_name = consume_if_starts_with(function_name, "-webkit-"sv, [&] {
         gradient_type = GradientType::WebKit;
     });
 
-    auto context_guard = push_temporary_value_parsing_context(FunctionContext { function_name });
+    auto context_guard = push_temporary_value_parsing_context(FunctionContext { Utf16FlyString::from_utf16(function_name) });
 
     function_name = consume_if_starts_with(function_name, "repeating-"sv, [&] {
         repeating_gradient = GradientRepeating::Yes;
@@ -181,7 +182,7 @@ RefPtr<LinearGradientStyleValue const> Parser::parse_linear_gradient_function(To
         ? SideOrCorner::Bottom
         : SideOrCorner::Top;
 
-    auto to_side = [](StringView value) -> Optional<SideOrCorner> {
+    auto to_side = [](Utf16View value) -> Optional<SideOrCorner> {
         if (value.equals_ignoring_ascii_case("top"sv))
             return SideOrCorner::Top;
         if (value.equals_ignoring_ascii_case("bottom"sv))
@@ -288,8 +289,8 @@ RefPtr<ConicGradientStyleValue const> Parser::parse_conic_gradient_function(Toke
 
     GradientRepeating repeating_gradient = GradientRepeating::No;
 
-    auto function_name = component_value.function().name.bytes_as_string_view();
-    auto context_guard = push_temporary_value_parsing_context(FunctionContext { function_name });
+    auto function_name = component_value.function().name.view();
+    auto context_guard = push_temporary_value_parsing_context(FunctionContext { Utf16FlyString::from_utf16(function_name) });
 
     function_name = consume_if_starts_with(function_name, "repeating-"sv, [&] {
         repeating_gradient = GradientRepeating::Yes;
@@ -386,8 +387,8 @@ RefPtr<RadialGradientStyleValue const> Parser::parse_radial_gradient_function(To
 
     auto repeating_gradient = GradientRepeating::No;
 
-    auto function_name = component_value.function().name.bytes_as_string_view();
-    auto context_guard = push_temporary_value_parsing_context(FunctionContext { function_name });
+    auto function_name = component_value.function().name.view();
+    auto context_guard = push_temporary_value_parsing_context(FunctionContext { Utf16FlyString::from_utf16(function_name) });
 
     function_name = consume_if_starts_with(function_name, "repeating-"sv, [&] {
         repeating_gradient = GradientRepeating::Yes;

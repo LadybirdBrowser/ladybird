@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Vector.h>
 #include <LibTest/TestCase.h>
 #include <LibWeb/CSS/Parser/TokenStream.h>
@@ -14,7 +14,7 @@ namespace Web::CSS::Parser {
 TEST_CASE(basic)
 {
     Vector<Token> tokens {
-        Token::create_ident("hello"_fly_string),
+        Token::create_ident("hello"_utf16_fly_string),
     };
 
     TokenStream stream { tokens };
@@ -29,7 +29,7 @@ TEST_CASE(basic)
     EXPECT_EQ(stream.remaining_token_count(), 1u);
     // Check what the token is
     EXPECT(next.is(Token::Type::Ident));
-    EXPECT_EQ(next.ident(), "hello"_fly_string);
+    EXPECT_EQ(next.ident(), "hello"_utf16_fly_string);
 
     // consume_a_token() does consume it
     auto const& consumed = stream.consume_a_token();
@@ -38,7 +38,7 @@ TEST_CASE(basic)
     EXPECT_EQ(stream.remaining_token_count(), 0u);
     // Check what the token is
     EXPECT(consumed.is(Token::Type::Ident));
-    EXPECT_EQ(consumed.ident(), "hello"_fly_string);
+    EXPECT_EQ(consumed.ident(), "hello"_utf16_fly_string);
 
     // Now, any further tokens should be EOF
     EXPECT(stream.next_token().is(Token::Type::EndOfFile));
@@ -48,13 +48,13 @@ TEST_CASE(basic)
 TEST_CASE(marks)
 {
     Vector<Token> tokens {
-        Token::create_ident("a"_fly_string),
-        Token::create_ident("b"_fly_string),
-        Token::create_ident("c"_fly_string),
-        Token::create_ident("d"_fly_string),
-        Token::create_ident("e"_fly_string),
-        Token::create_ident("f"_fly_string),
-        Token::create_ident("g"_fly_string),
+        Token::create_ident("a"_utf16_fly_string),
+        Token::create_ident("b"_utf16_fly_string),
+        Token::create_ident("c"_utf16_fly_string),
+        Token::create_ident("d"_utf16_fly_string),
+        Token::create_ident("e"_utf16_fly_string),
+        Token::create_ident("f"_utf16_fly_string),
+        Token::create_ident("g"_utf16_fly_string),
     };
     TokenStream stream { tokens };
 

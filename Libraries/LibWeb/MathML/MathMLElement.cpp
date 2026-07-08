@@ -128,7 +128,7 @@ void MathMLElement::apply_presentational_hints(Vector<CSS::StyleProperty>& prope
                 if (auto integer_value = parsed_value->to_number<i32>(TrimWhitespace::No); integer_value.has_value()) {
                     auto style_value = [&]() -> NonnullRefPtr<CSS::StyleValue const> {
                         if (string_value.code_unit_at(0) == '+' || string_value.code_unit_at(0) == '-')
-                            return CSS::FunctionStyleValue::create("add"_fly_string, CSS::IntegerStyleValue::create(integer_value.release_value()));
+                            return CSS::FunctionStyleValue::create("add"_utf16_fly_string, CSS::IntegerStyleValue::create(integer_value.release_value()));
 
                         return CSS::IntegerStyleValue::create(integer_value.release_value());
                     }();

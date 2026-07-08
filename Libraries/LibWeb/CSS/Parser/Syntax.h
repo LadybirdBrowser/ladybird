@@ -6,10 +6,10 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/OwnPtr.h>
 #include <AK/String.h>
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
@@ -72,13 +72,13 @@ private:
 // 'foo'
 class IdentSyntaxNode final : public SyntaxNode {
 public:
-    static NonnullRefPtr<IdentSyntaxNode> create(FlyString ident, CaseSensitivity case_sensitivity)
+    static NonnullRefPtr<IdentSyntaxNode> create(Utf16FlyString ident, CaseSensitivity case_sensitivity)
     {
         return adopt_ref(*new IdentSyntaxNode(move(ident), case_sensitivity));
     }
 
     virtual ~IdentSyntaxNode() override;
-    FlyString const& ident() const { return m_ident; }
+    Utf16FlyString const& ident() const { return m_ident; }
     CaseSensitivity case_sensitivity() const { return m_case_sensitivity; }
 
     virtual String to_string() const override;
@@ -87,18 +87,18 @@ public:
     virtual void dump(StringBuilder&, int indent) const override;
 
 private:
-    IdentSyntaxNode(FlyString, CaseSensitivity);
-    FlyString m_ident;
+    IdentSyntaxNode(Utf16FlyString, CaseSensitivity);
+    Utf16FlyString m_ident;
     CaseSensitivity m_case_sensitivity;
 };
 
 // '<foo>'
 class TypeSyntaxNode final : public SyntaxNode {
 public:
-    static NonnullRefPtr<TypeSyntaxNode> create(FlyString type_name);
+    static NonnullRefPtr<TypeSyntaxNode> create(Utf16FlyString type_name);
     virtual ~TypeSyntaxNode() override;
 
-    FlyString const& type_name() const { return m_type_name; }
+    Utf16FlyString const& type_name() const { return m_type_name; }
     Optional<ValueType> const& value_type() const { return m_value_type; }
 
     virtual String to_string() const override;
@@ -107,8 +107,8 @@ public:
     virtual void dump(StringBuilder&, int indent) const override;
 
 private:
-    TypeSyntaxNode(FlyString type_name, Optional<ValueType> value_type);
-    FlyString m_type_name;
+    TypeSyntaxNode(Utf16FlyString type_name, Optional<ValueType> value_type);
+    Utf16FlyString m_type_name;
     Optional<ValueType> m_value_type;
 };
 

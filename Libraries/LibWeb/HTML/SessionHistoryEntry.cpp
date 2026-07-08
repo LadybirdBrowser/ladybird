@@ -433,7 +433,7 @@ ErrorOr<Web::HTML::SessionHistoryDocumentStateDescriptor> IPC::decode(Decoder& d
     auto resource = TRY(decoder.decode<Variant<Empty, String, Web::HTML::POSTResource>>());
     auto reload_pending = TRY(decoder.decode<bool>());
     auto ever_populated = TRY(decoder.decode<bool>());
-    auto navigable_target_name = TRY(decoder.decode<String>());
+    auto navigable_target_name = TRY(decoder.decode<Utf16String>());
     auto nested_histories = TRY(decoder.decode<Vector<Web::HTML::SessionHistoryNestedHistoryDescriptor>>());
 
     return Web::HTML::SessionHistoryDocumentStateDescriptor {

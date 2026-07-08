@@ -35,7 +35,13 @@ void HTMLFormControlsCollection::initialize(JS::Realm& realm)
 }
 
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#dom-htmlformcontrolscollection-nameditem
-Variant<Empty, GC::Ref<DOM::Element>, GC::Ref<RadioNodeList>> HTMLFormControlsCollection::named_item_or_radio_node_list(FlyString const& name) const
+Variant<Empty, GC::Ref<DOM::Element>, GC::Ref<RadioNodeList>> HTMLFormControlsCollection::named_item_or_radio_node_list(Utf16String const& name) const
+{
+    return named_item_or_radio_node_list(Utf16FlyString::from_utf16(name.utf16_view()));
+}
+
+// https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#dom-htmlformcontrolscollection-nameditem
+Variant<Empty, GC::Ref<DOM::Element>, GC::Ref<RadioNodeList>> HTMLFormControlsCollection::named_item_or_radio_node_list(Utf16FlyString const& name) const
 {
     // 1. If name is the empty string, return null and stop the algorithm.
     if (name.is_empty())
@@ -77,7 +83,7 @@ Variant<Empty, GC::Ref<DOM::Element>, GC::Ref<RadioNodeList>> HTMLFormControlsCo
     });
 }
 
-JS::Value HTMLFormControlsCollection::named_item_value(FlyString const& name) const
+JS::Value HTMLFormControlsCollection::named_item_value(Utf16FlyString const& name) const
 {
     return named_item_or_radio_node_list(name).visit(
         [](Empty) -> JS::Value { return JS::js_undefined(); },

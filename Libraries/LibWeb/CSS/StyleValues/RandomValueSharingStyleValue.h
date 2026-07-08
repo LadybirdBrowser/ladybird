@@ -6,12 +6,13 @@
 
 #pragma once
 
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
 
 struct RandomCachingKey {
-    FlyString name;
+    Utf16FlyString name;
     Optional<Web::UniqueNodeID> element_id;
 };
 
@@ -22,12 +23,12 @@ public:
         return adopt_ref(*new (nothrow) RandomValueSharingStyleValue(fixed_value, false, {}, false));
     }
 
-    static ValueComparingNonnullRefPtr<RandomValueSharingStyleValue const> create_auto(FlyString name, bool element_shared)
+    static ValueComparingNonnullRefPtr<RandomValueSharingStyleValue const> create_auto(Utf16FlyString name, bool element_shared)
     {
         return adopt_ref(*new (nothrow) RandomValueSharingStyleValue({}, true, move(name), element_shared));
     }
 
-    static ValueComparingNonnullRefPtr<RandomValueSharingStyleValue const> create_dashed_ident(FlyString name, bool element_shared)
+    static ValueComparingNonnullRefPtr<RandomValueSharingStyleValue const> create_dashed_ident(Utf16FlyString name, bool element_shared)
     {
         return adopt_ref(*new (nothrow) RandomValueSharingStyleValue({}, false, move(name), element_shared));
     }
@@ -51,7 +52,7 @@ public:
     virtual bool is_computationally_independent() const override { return !m_fixed_value || m_fixed_value->is_computationally_independent(); }
 
 private:
-    explicit RandomValueSharingStyleValue(RefPtr<StyleValue const> fixed_value, bool is_auto, Optional<FlyString> name, bool element_shared)
+    explicit RandomValueSharingStyleValue(RefPtr<StyleValue const> fixed_value, bool is_auto, Optional<Utf16FlyString> name, bool element_shared)
         : StyleValueWithDefaultOperators(Type::RandomValueSharing)
         , m_fixed_value(move(fixed_value))
         , m_is_auto(is_auto)
@@ -62,7 +63,7 @@ private:
 
     ValueComparingRefPtr<StyleValue const> m_fixed_value;
     bool m_is_auto;
-    Optional<FlyString> m_name;
+    Optional<Utf16FlyString> m_name;
     bool m_element_shared;
 };
 

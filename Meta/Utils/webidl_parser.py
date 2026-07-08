@@ -691,7 +691,7 @@ class Parser:
                 special_operation = self.parse_special_operation("getter", extended_attributes)
                 identifier_type = special_operation.identifier_type
 
-                if identifier_type.name == "DOMString" and not identifier_type.nullable:
+                if identifier_type.name in ("DOMString", "Utf16DOMString") and not identifier_type.nullable:
                     interface.named_property_getter = special_operation
                 elif identifier_type.name == "unsigned long" and not identifier_type.nullable:
                     interface.indexed_property_getter = special_operation
@@ -705,7 +705,7 @@ class Parser:
                 special_operation = self.parse_special_operation("setter", extended_attributes)
                 identifier_type = special_operation.identifier_type
 
-                if identifier_type.name == "DOMString" and not identifier_type.nullable:
+                if identifier_type.name in ("DOMString", "Utf16DOMString") and not identifier_type.nullable:
                     interface.named_property_setter = special_operation
                 elif identifier_type.name == "unsigned long" and not identifier_type.nullable:
                     interface.indexed_property_setter = special_operation
@@ -719,7 +719,7 @@ class Parser:
                 special_operation = self.parse_special_operation("deleter", extended_attributes)
                 identifier_type = special_operation.identifier_type
 
-                if identifier_type.name == "DOMString" and not identifier_type.nullable:
+                if identifier_type.name in ("DOMString", "Utf16DOMString") and not identifier_type.nullable:
                     interface.named_property_deleter = special_operation
                 else:
                     self.raise_parse_error(f"named property deleter must use DOMString, got '{identifier_type}'")

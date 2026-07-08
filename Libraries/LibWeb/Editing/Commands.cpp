@@ -675,7 +675,8 @@ bool command_format_block_action(DOM::Document& document, Utf16String const& val
     resulting_value = resulting_value.to_ascii_lowercase();
 
     // 3. If value is not a formattable block name, return false.
-    if (!is_formattable_block_name(resulting_value.to_utf8_but_should_be_ported_to_utf16()))
+    auto local_name = formattable_block_name_from_utf16(resulting_value);
+    if (!local_name.has_value())
         return false;
 
     // 4. Block-extend the active range, and let new range be the result.
@@ -796,7 +797,7 @@ bool command_format_block_action(DOM::Document& document, Utf16String const& val
                 auto const* html_element = as_if<HTML::HTMLElement>(*sibling);
                 return html_element && html_element->local_name() == resulting_value && !html_element->has_attributes();
             },
-            [&] { return MUST(DOM::create_element(document, resulting_value.to_utf8_but_should_be_ported_to_utf16(), Namespace::HTML)); });
+            [&] { return MUST(DOM::create_element(document, *local_name, Namespace::HTML)); });
         if (result)
             fix_disallowed_ancestors_of_node(*result);
     }
@@ -1360,7 +1361,7 @@ bool command_insert_image_action(DOM::Document& document, Utf16String const& val
     auto img = MUST(DOM::create_element(document, HTML::TagNames::img, Namespace::HTML));
 
     // 7. Run setAttribute("src", value) on img.
-    img->set_attribute_value(HTML::AttributeNames::src, value.to_utf8_but_should_be_ported_to_utf16());
+    img->set_attribute_value(HTML::AttributeNames::src, value);
 
     // 8. Run insertNode(img) on range.
     MUST(range->insert_node(img));

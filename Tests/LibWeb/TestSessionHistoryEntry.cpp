@@ -29,7 +29,7 @@ TEST_CASE(post_load_seed_match_allows_ui_owned_nested_histories)
     live_descriptor.url = parse_url("https://a.example/"sv);
     live_descriptor.document_state.id = 1;
     live_descriptor.document_state.ever_populated = true;
-    live_descriptor.document_state.navigable_target_name = MUST(String::from_utf8("main"sv));
+    live_descriptor.document_state.navigable_target_name = Utf16String::from_utf8("main"sv);
 
     auto seed_descriptor = live_descriptor;
 

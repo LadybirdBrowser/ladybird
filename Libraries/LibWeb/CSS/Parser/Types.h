@@ -6,9 +6,9 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
 #include <AK/Function.h>
 #include <AK/OwnPtr.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibWeb/CSS/Parser/Token.h>
@@ -29,7 +29,7 @@ using DeclarationVisitor = AK::Function<void(Declaration const&)>;
 
 // https://drafts.csswg.org/css-syntax/#ref-for-at-rule%E2%91%A0%E2%91%A1
 struct AtRule {
-    FlyString name;
+    Utf16FlyString name;
     Vector<ComponentValue> prelude;
     Vector<RuleOrListOfDeclarations> child_rules_and_lists_of_declarations;
     bool is_block_rule { false };
@@ -54,7 +54,7 @@ struct QualifiedRule {
 
 // https://drafts.csswg.org/css-syntax/#declaration
 struct Declaration {
-    FlyString name;
+    Utf16FlyString name;
     Vector<ComponentValue> value;
     Important important = Important::No;
     Optional<String> original_value_text = {};
@@ -114,7 +114,7 @@ struct SimpleBlock {
 
 // https://drafts.csswg.org/css-syntax/#function
 struct Function {
-    FlyString name;
+    Utf16FlyString name;
     Vector<ComponentValue> value;
     ComponentValueToken name_token = {};
     ComponentValueToken end_token = {};

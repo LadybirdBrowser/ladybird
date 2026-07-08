@@ -30,6 +30,11 @@ JS::Realm& PlatformObject::realm() const
     return shape().realm();
 }
 
+static Utf16FlyString property_key_to_utf16_fly_string(JS::PropertyKey const& property_key)
+{
+    return Utf16FlyString { property_key.to_utf16_string() };
+}
+
 // https://webidl.spec.whatwg.org/#dfn-named-property-visibility
 JS::ThrowCompletionOr<bool> PlatformObject::is_named_property_exposed_on_object(JS::PropertyKey const& property_key) const
 {
@@ -40,8 +45,8 @@ JS::ThrowCompletionOr<bool> PlatformObject::is_named_property_exposed_on_object(
         return false;
 
     // 1. If P is not a supported property name of O, then return false.
-    // NOTE: This is in it's own variable to enforce the type.
-    if (!is_supported_property_name(property_key.to_utf16_string().to_utf8_but_should_be_ported_to_utf16()))
+    auto property_name = property_key_to_utf16_fly_string(property_key);
+    if (!is_supported_property_name(property_name))
         return false;
 
     // 2. If O has an own property named P, then return false.
@@ -117,14 +122,13 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> PlatformObject::legacy_p
     if (m_legacy_platform_object_flags->supports_named_properties && ignore_named_props == IgnoreNamedProps::No) {
         // 1. If the result of running the named property visibility algorithm with property name P and object O is true, then:
         if (TRY(is_named_property_exposed_on_object(property_name))) {
-            // FIXME: It's unfortunate that this is done twice, once in is_named_property_exposed_on_object and here.
-            auto property_name_string = property_name.to_utf16_string().to_utf8_but_should_be_ported_to_utf16();
+            auto property_name_utf16 = property_key_to_utf16_fly_string(property_name);
 
             // 1. Let operation be the operation used to declare the named property getter.
             // 2. Let value be an uninitialized variable.
             // 3. If operation was defined without an identifier, then set value to the result of performing the steps listed in the interface description to determine the value of a named property with P as the name.
             // 4. Otherwise, operation was defined with an identifier. Set value to the result of performing the method steps of operation with O as this and « P » as the argument values.
-            auto value = named_item_value(property_name_string);
+            auto value = named_item_value(property_name_utf16);
 
             // 5. Let desc be a newly created Property Descriptor with no fields.
             JS::PropertyDescriptor descriptor;
@@ -179,7 +183,7 @@ WebIDL::ExceptionOr<void> PlatformObject::invoke_indexed_property_setter(JS::Pro
 }
 
 // https://webidl.spec.whatwg.org/#invoke-named-setter
-WebIDL::ExceptionOr<void> PlatformObject::invoke_named_property_setter(FlyString const& property_name, JS::Value value)
+WebIDL::ExceptionOr<void> PlatformObject::invoke_named_property_setter(Utf16FlyString const& property_name, JS::Value value)
 {
     // 1. Let creating be true if P is not a supported property name, and false otherwise.
     bool creating = !is_supported_property_name(property_name);
@@ -193,14 +197,14 @@ WebIDL::ExceptionOr<void> PlatformObject::invoke_named_property_setter(FlyString
     if (!m_legacy_platform_object_flags->named_property_setter_has_identifier) {
         // 1. If creating is true, then perform the steps listed in the interface description to set the value of a new named property with P as the name and value as the value.
         if (creating)
-            return set_value_of_new_named_property(property_name.to_string(), value);
+            return set_value_of_new_named_property(property_name, value);
 
         // 2. Otherwise, creating is false. Perform the steps listed in the interface description to set the value of an existing named property with P as the name and value as the value.
-        return set_value_of_existing_named_property(property_name.to_string(), value);
+        return set_value_of_existing_named_property(property_name, value);
     }
 
     // 6. Otherwise, operation was defined with an identifier. Perform the method steps of operation with O as this and « P, value » as the argument values.
-    return set_value_of_named_property(property_name.to_string(), value);
+    return set_value_of_named_property(property_name, value);
 }
 
 // https://webidl.spec.whatwg.org/#legacy-platform-object-getownproperty
@@ -237,7 +241,7 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_set(JS::PropertyKey const& 
         // NB: A PropertyKey containing a number is a String (it can only be a String or a Symbol, the number representation is an optimization).
         if (m_legacy_platform_object_flags->has_named_property_setter && (property_name.is_string() || property_name.is_number())) {
             // 1. Invoke the named property setter on O with P and V.
-            TRY(throw_dom_exception_if_needed(vm, [&] { return invoke_named_property_setter(property_name.to_utf16_string().to_utf8_but_should_be_ported_to_utf16(), value); }));
+            TRY(throw_dom_exception_if_needed(vm, [&] { return invoke_named_property_setter(property_key_to_utf16_fly_string(property_name), value); }));
 
             // 2. Return true.
             return true;
@@ -284,10 +288,10 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_define_own_property(JS::Pro
     // NB: A PropertyKey containing a number is a String (it can only be a String or a Symbol, the number representation is an optimization).
     // FIXME: Check if P is not an unforgeable property name of O
     if (m_legacy_platform_object_flags->supports_named_properties && !m_legacy_platform_object_flags->has_global_interface_extended_attribute && (property_name.is_string() || property_name.is_number())) {
-        auto const property_name_as_string = property_name.to_utf16_string().to_utf8_but_should_be_ported_to_utf16();
+        auto const property_name_utf16 = property_key_to_utf16_fly_string(property_name);
 
         // 1. Let creating be true if P is not a supported property name, and false otherwise.
-        bool creating = !is_supported_property_name(property_name_as_string);
+        bool creating = !is_supported_property_name(property_name_utf16);
 
         // 2. If O implements an interface with the [LegacyOverrideBuiltIns] extended attribute or O does not have an own property named P, then:
         // NOTE: Own property lookup has to be done manually instead of using Object::has_own_property, as that would use the overridden internal_get_own_property.
@@ -310,7 +314,7 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_define_own_property(JS::Pro
                     return false;
 
                 // 2. Invoke the named property setter on O with P and Desc.[[Value]].
-                TRY(throw_dom_exception_if_needed(vm, [&] { return invoke_named_property_setter(property_name_as_string, property_descriptor.value.value()); }));
+                TRY(throw_dom_exception_if_needed(vm, [&] { return invoke_named_property_setter(property_name_utf16, property_descriptor.value.value()); }));
 
                 // 3. Return true.
                 return true;
@@ -353,7 +357,7 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_delete(JS::PropertyKey cons
             return false;
 
         // FIXME: It's unfortunate that this is done twice, once in is_named_property_exposed_on_object and here.
-        auto property_name_string = property_name.to_utf16_string().to_utf8_but_should_be_ported_to_utf16();
+        auto property_name_utf16 = property_key_to_utf16_fly_string(property_name);
 
         // 2. Let operation be the operation used to declare the named property deleter.
         // 3. If operation was defined without an identifier, then:
@@ -362,7 +366,7 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_delete(JS::PropertyKey cons
         // 4. Otherwise, operation was defined with an identifier:
         //    1. Perform method steps of operation with O as this and « P » as the argument values.
         //    2. If operation was declared with a return type of boolean and the steps returned false, then return false.
-        auto did_deletion_fail = TRY(throw_dom_exception_if_needed(vm, [&] { return delete_value(property_name_string); }));
+        auto did_deletion_fail = TRY(throw_dom_exception_if_needed(vm, [&] { return delete_value(property_name_utf16); }));
         if (!m_legacy_platform_object_flags->named_property_deleter_has_identifier)
             VERIFY(did_deletion_fail != DidDeletionFail::NotRelevant);
 
@@ -425,8 +429,8 @@ JS::ThrowCompletionOr<GC::RootVector<JS::Value>> PlatformObject::internal_own_pr
     // 3. If O supports named properties, then for each P of O’s supported property names that is visible according to the named property visibility algorithm, append P to keys.
     if (m_legacy_platform_object_flags->supports_named_properties) {
         for (auto& named_property : supported_property_names()) {
-            if (TRY(is_named_property_exposed_on_object(Utf16FlyString::from_utf8(named_property))))
-                keys.append(JS::PrimitiveString::create(vm, Utf16FlyString::from_utf8(named_property)));
+            if (TRY(is_named_property_exposed_on_object(named_property)))
+                keys.append(JS::PrimitiveString::create(vm, named_property));
         }
     }
 
@@ -449,17 +453,17 @@ JS::ThrowCompletionOr<GC::RootVector<JS::Value>> PlatformObject::internal_own_pr
     return { move(keys) };
 }
 
-WebIDL::ExceptionOr<void> PlatformObject::set_value_of_new_named_property(String const&, JS::Value)
+WebIDL::ExceptionOr<void> PlatformObject::set_value_of_new_named_property(Utf16FlyString const&, JS::Value)
 {
     VERIFY_NOT_REACHED();
 }
 
-WebIDL::ExceptionOr<void> PlatformObject::set_value_of_existing_named_property(String const&, JS::Value)
+WebIDL::ExceptionOr<void> PlatformObject::set_value_of_existing_named_property(Utf16FlyString const&, JS::Value)
 {
     VERIFY_NOT_REACHED();
 }
 
-WebIDL::ExceptionOr<void> PlatformObject::set_value_of_named_property(String const&, JS::Value)
+WebIDL::ExceptionOr<void> PlatformObject::set_value_of_named_property(Utf16FlyString const&, JS::Value)
 {
     VERIFY_NOT_REACHED();
 }
@@ -479,7 +483,7 @@ WebIDL::ExceptionOr<void> PlatformObject::set_value_of_indexed_property(u32, JS:
     VERIFY_NOT_REACHED();
 }
 
-WebIDL::ExceptionOr<PlatformObject::DidDeletionFail> PlatformObject::delete_value(String const&)
+WebIDL::ExceptionOr<PlatformObject::DidDeletionFail> PlatformObject::delete_value(Utf16FlyString const&)
 {
     VERIFY_NOT_REACHED();
 }
@@ -489,17 +493,17 @@ Optional<JS::Value> PlatformObject::item_value(size_t) const
     return {};
 }
 
-JS::Value PlatformObject::named_item_value(FlyString const&) const
+JS::Value PlatformObject::named_item_value(Utf16FlyString const&) const
 {
     return JS::js_undefined();
 }
 
-Vector<FlyString> PlatformObject::supported_property_names() const
+Vector<Utf16FlyString> PlatformObject::supported_property_names() const
 {
     return {};
 }
 
-bool PlatformObject::is_supported_property_name(FlyString const& name) const
+bool PlatformObject::is_supported_property_name(Utf16FlyString const& name) const
 {
     return supported_property_names().contains_slow(name);
 }

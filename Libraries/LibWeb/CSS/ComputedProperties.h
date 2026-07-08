@@ -133,7 +133,7 @@ public:
         }
     }
 
-    void for_each_anchor_name(Function<void(FlyString const&)>) const;
+    void for_each_anchor_name(Function<void(Utf16FlyString const&)>) const;
 
     HashMap<PropertyID, NonnullRefPtr<StyleValue const>> const& animated_property_values() const;
     RefPtr<AnimatedProperties const> animated_properties_snapshot() const;
@@ -162,7 +162,7 @@ public:
     HashMap<PropertyID, StyleValueVector> assemble_coordinated_value_list(PropertyID base_property_id, Vector<PropertyID> const& property_ids) const;
     ColorInterpolation color_interpolation() const;
     ColorInterpolation color_interpolation_filters() const;
-    PreferredColorScheme color_scheme(PreferredColorScheme, Optional<Vector<String> const&> document_supported_schemes) const;
+    PreferredColorScheme color_scheme(PreferredColorScheme, Optional<Vector<Utf16FlyString> const&> document_supported_schemes) const;
     TextAnchor text_anchor() const;
     Optional<BaselineMetric> dominant_baseline() const;
     TextAlign text_align() const;
@@ -268,10 +268,10 @@ public:
     Isolation isolation() const;
     TouchActionData touch_action() const;
     Containment contain() const;
-    Vector<FlyString> container_name() const;
+    Vector<Utf16FlyString> container_name() const;
     ContainerType container_type() const;
     MixBlendMode mix_blend_mode() const;
-    Optional<FlyString> view_transition_name() const;
+    Optional<Utf16FlyString> view_transition_name() const;
     Vector<AnimationProperties> animations(DOM::AbstractElement const&) const;
     Vector<TransitionProperties> transitions() const;
 

@@ -21,7 +21,7 @@ static void expect_first_token_is_ident(Vector<Token> const& tokens, StringView 
     EXPECT(!tokens.is_empty());
     auto const& token = tokens.first();
     EXPECT(token.is(Token::Type::Ident));
-    EXPECT_EQ(token.ident(), FlyString::from_utf8_without_validation(expected_ident.bytes()));
+    EXPECT_EQ(token.ident(), Utf16FlyString::from_utf8_without_validation(expected_ident));
     EXPECT_EQ(token.original_source_text(), expected_source);
 }
 

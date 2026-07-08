@@ -355,7 +355,7 @@ WebIDL::ExceptionOr<bool> Document::query_command_supported(FlyString const& com
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#querycommandvalue()
-WebIDL::ExceptionOr<String> Document::query_command_value(FlyString const& command)
+WebIDL::ExceptionOr<Utf16String> Document::query_command_value(FlyString const& command)
 {
     // AD-HOC: This is not directly mentioned in the spec, but all major browsers limit editing API calls to HTML documents
     if (!is_html_document())
@@ -364,25 +364,25 @@ WebIDL::ExceptionOr<String> Document::query_command_value(FlyString const& comma
     // 1. If command is not supported or has no value, return the empty string.
     auto optional_command = Editing::find_command_definition(command);
     if (!optional_command.has_value())
-        return String {};
+        return Utf16String {};
     auto const& command_definition = optional_command.release_value();
     auto value_override = command_value_override(command_definition.command);
     if (!command_definition.value && !value_override.has_value())
-        return String {};
+        return Utf16String {};
 
     // 2. If command is "fontSize" and its value override is set, convert the value override to an
     //    integer number of pixels and return the legacy font size for the result.
     if (command_definition.command == Editing::CommandNames::fontSize && value_override.has_value()) {
         auto pixel_size = Editing::font_size_to_pixel_size(value_override.release_value());
-        return Editing::legacy_font_size(pixel_size.to_int()).to_utf8_but_should_be_ported_to_utf16();
+        return Editing::legacy_font_size(pixel_size.to_int());
     }
 
     // 3. If the value override for command is set, return it.
     if (value_override.has_value())
-        return value_override.release_value().to_utf8_but_should_be_ported_to_utf16();
+        return value_override.release_value();
 
     // 4. Return command's value.
-    return command_definition.value(*this).to_utf8_but_should_be_ported_to_utf16();
+    return command_definition.value(*this);
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#value-override

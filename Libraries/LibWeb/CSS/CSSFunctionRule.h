@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/CSS/CSSGroupingRule.h>
 #include <LibWeb/CSS/Parser/Syntax.h>
 
@@ -14,7 +15,7 @@ namespace Web::CSS {
 // NB: We use this struct internally instead of just using FunctionParameter so we can store the values in more
 //     convenient types (i.e. not just strings)
 struct FunctionParameterInternal {
-    FlyString name;
+    Utf16FlyString name;
     NonnullRefPtr<Parser::SyntaxNode> type;
     Optional<Vector<Parser::ComponentValue>> default_value;
 
@@ -23,7 +24,7 @@ struct FunctionParameterInternal {
 
 // https://drafts.csswg.org/css-mixins-1/#dictdef-functionparameter
 struct FunctionParameter {
-    FlyString name;
+    String name;
     String type;
     Optional<String> default_value;
 
@@ -36,21 +37,21 @@ class CSSFunctionRule : public CSSGroupingRule {
     GC_DECLARE_ALLOCATOR(CSSFunctionRule);
 
 public:
-    static GC::Ref<CSSFunctionRule> create(JS::Realm&, CSSRuleList&, FlyString name, Vector<FunctionParameterInternal> parameters, NonnullRefPtr<Parser::SyntaxNode> return_type);
+    static GC::Ref<CSSFunctionRule> create(JS::Realm&, CSSRuleList&, Utf16FlyString name, Vector<FunctionParameterInternal> parameters, NonnullRefPtr<Parser::SyntaxNode> return_type);
     virtual ~CSSFunctionRule() override = default;
 
     virtual void initialize(JS::Realm&) override;
 
-    FlyString name() const { return m_name; }
+    String name() const;
     Vector<FunctionParameter> get_parameters() const;
     String return_type() const;
 
     String serialized() const override;
 
 private:
-    CSSFunctionRule(JS::Realm&, CSSRuleList&, FlyString name, Vector<FunctionParameterInternal> parameters, NonnullRefPtr<Parser::SyntaxNode> return_type);
+    CSSFunctionRule(JS::Realm&, CSSRuleList&, Utf16FlyString name, Vector<FunctionParameterInternal> parameters, NonnullRefPtr<Parser::SyntaxNode> return_type);
 
-    FlyString m_name;
+    Utf16FlyString m_name;
     Vector<FunctionParameterInternal> m_parameters;
     NonnullRefPtr<Parser::SyntaxNode> m_return_type;
 };

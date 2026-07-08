@@ -12,6 +12,8 @@
 #include <AK/OwnPtr.h>
 #include <AK/String.h>
 #include <AK/Tuple.h>
+#include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <LibCore/Forward.h>
 #include <LibWeb/Bindings/Navigation.h>
 #include <LibWeb/Compositor/CompositorHost.h>
@@ -122,7 +124,7 @@ public:
     void restore_persisted_state_from_session_history_entry(SessionHistoryEntry const&);
     void restore_scroll_position_data(SessionHistoryEntry const&);
 
-    virtual String target_name() const override;
+    virtual Utf16String target_name() const override;
 
     GC::Ptr<NavigableContainer> container() const;
     GC::Ptr<DOM::Document> container_document() const;
@@ -140,7 +142,7 @@ public:
 
     ChosenNavigable choose_a_navigable(StringView name, TokenizedFeature::NoOpener no_opener, ActivateTab = ActivateTab::Yes, Optional<TokenizedFeature::Map const&> window_features = {});
 
-    GC::Ptr<LocalNavigable> find_a_navigable_by_target_name(StringView name);
+    GC::Ptr<LocalNavigable> find_a_navigable_by_target_name(Utf16View name);
 
     enum class Traversal {
         Tag
@@ -167,7 +169,7 @@ public:
         Optional<URL::Origin> origin,
         Variant<SerializedPolicyContainer, DocumentState::Client> history_policy_container,
         Optional<URL::URL> about_base_url,
-        String navigable_target_name,
+        Utf16String navigable_target_name,
         bool reload_pending,
         bool ever_populated,
         GC::Ref<SourceSnapshotParams> source_snapshot_params,

@@ -36,6 +36,7 @@ def write_header_file(out: TextIO, pseudo_classes_data: dict) -> None:
 
 #include <AK/Optional.h>
 #include <AK/StringView.h>
+#include <AK/Utf16View.h>
 
 namespace Web::CSS {
 
@@ -51,7 +52,7 @@ enum class PseudoClass {
     __Count,
 };
 
-Optional<PseudoClass> pseudo_class_from_string(StringView);
+Optional<PseudoClass> pseudo_class_from_string(Utf16View);
 StringView pseudo_class_name(PseudoClass);
 
 struct PseudoClassMetadata {
@@ -83,7 +84,7 @@ def write_implementation_file(out: TextIO, pseudo_classes_data: dict) -> None:
 
 namespace Web::CSS {
 
-Optional<PseudoClass> pseudo_class_from_string(StringView string)
+Optional<PseudoClass> pseudo_class_from_string(Utf16View string)
 {
 """)
 

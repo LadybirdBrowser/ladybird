@@ -13,6 +13,7 @@
 #include <AK/Optional.h>
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/Animations/KeyframeEffect.h>
@@ -34,7 +35,7 @@ struct MatchingRule {
     GC::Ptr<CSSStyleSheet const> sheet;
     GC::Ptr<CSSContainerRule const> container_rule;
     GC::Ptr<CSSRule const> scope_rule; // Either CSSScopeRule or CSSImportRule
-    Optional<FlyString> default_namespace;
+    Optional<Utf16FlyString> default_namespace;
     Selector const& selector;
     size_t selector_index { 0 };
     size_t style_sheet_index { 0 };
@@ -66,10 +67,10 @@ enum class AncestorHashBuckets {
 };
 
 struct RuleCache {
-    HashMap<FlyString, Vector<MatchingRule>> rules_by_id;
-    HashMap<FlyString, Vector<MatchingRule>> rules_by_class;
-    HashMap<FlyString, Vector<MatchingRule>> rules_by_tag_name;
-    HashMap<FlyString, Vector<MatchingRule>, AK::ASCIICaseInsensitiveFlyStringTraits> rules_by_attribute_name;
+    HashMap<Utf16FlyString, Vector<MatchingRule>> rules_by_id;
+    HashMap<Utf16FlyString, Vector<MatchingRule>> rules_by_class;
+    HashMap<Utf16FlyString, Vector<MatchingRule>> rules_by_tag_name;
+    HashMap<Utf16FlyString, Vector<MatchingRule>> rules_by_attribute_name;
     Array<Vector<MatchingRule>, to_underlying(PseudoClass::__Count)> rules_by_subject_pseudo_class;
     HashMap<u32, Vector<MatchingRule>> rules_by_ancestor_hash;
     Vector<MatchingRule> root_rules;
@@ -78,10 +79,10 @@ struct RuleCache {
     Vector<MatchingRule> other_rules;
 
     struct PseudoElementRules {
-        HashMap<FlyString, Vector<MatchingRule>> rules_by_id;
-        HashMap<FlyString, Vector<MatchingRule>> rules_by_class;
-        HashMap<FlyString, Vector<MatchingRule>> rules_by_tag_name;
-        HashMap<FlyString, Vector<MatchingRule>, AK::ASCIICaseInsensitiveFlyStringTraits> rules_by_attribute_name;
+        HashMap<Utf16FlyString, Vector<MatchingRule>> rules_by_id;
+        HashMap<Utf16FlyString, Vector<MatchingRule>> rules_by_class;
+        HashMap<Utf16FlyString, Vector<MatchingRule>> rules_by_tag_name;
+        HashMap<Utf16FlyString, Vector<MatchingRule>> rules_by_attribute_name;
         Array<Vector<MatchingRule>, to_underlying(PseudoClass::__Count)> rules_by_subject_pseudo_class;
         HashMap<u32, Vector<MatchingRule>> rules_by_ancestor_hash;
         Vector<MatchingRule> root_rules;
@@ -89,7 +90,7 @@ struct RuleCache {
     };
     Array<PseudoElementRules, to_underlying(CSS::PseudoElement::KnownPseudoElementCount)> rules_by_pseudo_element;
 
-    HashMap<FlyString, NonnullRefPtr<Animations::KeyframeEffect::KeyFrameSet>> rules_by_animation_keyframes;
+    HashMap<Utf16FlyString, NonnullRefPtr<Animations::KeyframeEffect::KeyFrameSet>> rules_by_animation_keyframes;
 
     u32 next_multi_bucket_rule_index { 0 };
 
@@ -134,10 +135,10 @@ struct PendingHasInvalidationMutationFeatures {
     bool is_conservative { false };
     bool may_affect_sibling_relationships { false };
     bool may_affect_pseudo_classes { false };
-    HashTable<FlyString> tag_names;
-    HashTable<FlyString> ids;
-    HashTable<FlyString> class_names;
-    HashTable<FlyString> attribute_names;
+    HashTable<Utf16FlyString> tag_names;
+    HashTable<Utf16FlyString> ids;
+    HashTable<Utf16FlyString> class_names;
+    HashTable<Utf16FlyString> attribute_names;
     HashTable<PseudoClass> pseudo_classes;
 };
 
@@ -192,7 +193,7 @@ public:
 
     void invalidate_counter_style_cache();
     void build_counter_style_cache();
-    RefPtr<CSS::CounterStyle const> get_registered_counter_style(FlyString const& name) const;
+    RefPtr<CSS::CounterStyle const> get_registered_counter_style(Utf16FlyString const& name) const;
 
     void schedule_ancestors_style_invalidation_due_to_presence_of_has(GC::Ref<DOM::Node>);
     void record_conservative_pending_has_invalidation(GC::Ref<DOM::Node>, bool may_affect_sibling_relationships);
@@ -215,7 +216,7 @@ public:
 
     bool m_needs_counter_style_cache_update : 1 { true };
     bool m_is_doing_counter_style_cache_update : 1 { false };
-    HashMap<FlyString, NonnullRefPtr<CSS::CounterStyle const>> m_registered_counter_styles;
+    HashMap<Utf16FlyString, NonnullRefPtr<CSS::CounterStyle const>> m_registered_counter_styles;
 
     GC::Ref<DOM::Node> m_node;
 };

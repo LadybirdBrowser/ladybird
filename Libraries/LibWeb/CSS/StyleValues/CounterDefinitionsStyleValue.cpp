@@ -19,9 +19,9 @@ void CounterDefinitionsStyleValue::serialize(StringBuilder& builder, Serializati
             builder.append(' ');
 
         if (counter_definition.is_reversed)
-            builder.appendff("reversed({})", counter_definition.name);
+            builder.appendff("reversed({})", serialize_an_identifier(counter_definition.name));
         else
-            builder.append(counter_definition.name);
+            builder.append(serialize_an_identifier(counter_definition.name));
 
         if (counter_definition.value) {
             builder.append(' ');

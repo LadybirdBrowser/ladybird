@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16View.h>
 #include <LibGfx/Font/Typeface.h>
 #include <LibGfx/FontCascadeList.h>
 #include <LibURL/URL.h>
@@ -155,8 +156,10 @@ private:
 };
 
 bool font_format_is_supported(FlyString const& name);
+bool font_format_is_supported(Utf16View name);
 
 bool font_tech_is_supported(FontTech);
 bool font_tech_is_supported(FlyString const& name);
+bool font_tech_is_supported(Utf16View name);
 
 }

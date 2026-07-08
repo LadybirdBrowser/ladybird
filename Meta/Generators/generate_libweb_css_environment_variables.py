@@ -36,6 +36,7 @@ def write_header_file(out: TextIO, environment_variables: dict) -> None:
 
 #include <AK/Optional.h>
 #include <AK/StringView.h>
+#include <AK/Utf16View.h>
 #include <LibWeb/CSS/ValueType.h>
 
 namespace Web::CSS {{
@@ -50,6 +51,7 @@ enum class EnvironmentVariable : {underlying_type} {{
 };
 
 Optional<EnvironmentVariable> environment_variable_from_string(StringView);
+Optional<EnvironmentVariable> environment_variable_from_string(Utf16View);
 StringView to_string(EnvironmentVariable);
 
 ValueType environment_variable_type(EnvironmentVariable);
@@ -65,6 +67,20 @@ def write_implementation_file(out: TextIO, environment_variables: dict) -> None:
 namespace Web::CSS {
 
 Optional<EnvironmentVariable> environment_variable_from_string(StringView string)
+{
+""")
+    for name in environment_variables:
+        out.write(f"""
+    if (string.equals_ignoring_ascii_case("{name}"sv))
+        return EnvironmentVariable::{title_casify(name)};
+""")
+
+    out.write("""
+
+    return {};
+}
+
+Optional<EnvironmentVariable> environment_variable_from_string(Utf16View string)
 {
 """)
     for name in environment_variables:

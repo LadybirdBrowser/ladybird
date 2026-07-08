@@ -25,7 +25,7 @@ interface SVGSVGElement : SVGGraphicsElement {
     [NewObject] SVGTransform createSVGTransform();
     [FIXME, NewObject] SVGTransform createSVGTransformFromMatrix(optional DOMMatrix2DInit matrix = {});
 
-    Element? getElementById(DOMString elementId);
+    Element? getElementById(Utf16DOMString elementId);
 
     // Deprecated methods that have no effect when called,
     // but which are kept for compatibility reasons.

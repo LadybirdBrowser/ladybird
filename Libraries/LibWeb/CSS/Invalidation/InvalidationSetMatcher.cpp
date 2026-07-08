@@ -23,14 +23,24 @@
 
 namespace Web::CSS::Invalidation {
 
+static bool element_has_attribute(DOM::Element const& element, Utf16FlyString const& name)
+{
+    bool found = false;
+    element.for_each_attribute([&](FlyString const& attribute_name, auto const&) {
+        if (name.view() == attribute_name.bytes_as_string_view())
+            found = true;
+    });
+    return found;
+}
+
 static bool element_may_have_attribute_matching_selector(DOM::Element const& element, Selector::SimpleSelector::Attribute const& attribute)
 {
     auto const& attribute_name = attribute.qualified_name.name.name;
-    if (element.has_attribute(attribute_name))
+    if (element_has_attribute(element, attribute_name))
         return true;
 
     auto const& lowercase_attribute_name = attribute.qualified_name.name.lowercase_name;
-    return lowercase_attribute_name != attribute_name && element.has_attribute(lowercase_attribute_name);
+    return lowercase_attribute_name != attribute_name && element_has_attribute(element, lowercase_attribute_name);
 }
 
 static bool compound_may_match_element_impl(DOM::Element const& element, Selector::CompoundSelector const& compound_selector, Optional<PseudoClass> ignored_pseudo_class, bool in_selector_list_argument)
@@ -47,17 +57,17 @@ static bool compound_may_match_element_impl(DOM::Element const& element, Selecto
                 return false;
             break;
         case Selector::SimpleSelector::Type::TagName:
-            if (element.lowercased_local_name() != simple_selector.qualified_name().name.lowercase_name)
+            if (simple_selector.qualified_name().name.lowercase_name.view() != element.lowercased_local_name().bytes_as_string_view())
                 return false;
             break;
         case Selector::SimpleSelector::Type::Id: {
             auto id = element.id();
-            if (!id.has_value() || *id != simple_selector.name())
+            if (!id.has_value() || *id != simple_selector.id_name())
                 return false;
             break;
         }
         case Selector::SimpleSelector::Type::Class:
-            if (!element.class_names().contains_slow(simple_selector.name()))
+            if (!element.class_names().contains_slow(simple_selector.class_name()))
                 return false;
             break;
         case Selector::SimpleSelector::Type::Attribute:
@@ -109,14 +119,14 @@ bool element_matches_any_invalidation_set_property(DOM::Element const& element, 
             auto case_sensitivity = CaseSensitivity::CaseSensitive;
             if (element.document().in_quirks_mode())
                 case_sensitivity = CaseSensitivity::CaseInsensitive;
-            return element.has_class(property.name(), case_sensitivity);
+            return element.has_class(property.class_name(), case_sensitivity);
         }
         case InvalidationSet::Property::Type::Id:
-            return element.id() == property.name();
+            return element.id() == property.id();
         case InvalidationSet::Property::Type::TagName:
-            return element.lowercased_local_name() == property.name();
+            return property.name().view() == element.lowercased_local_name().bytes_as_string_view();
         case InvalidationSet::Property::Type::Attribute:
-            return element.has_attribute(property.name()) || element.has_removed_attribute_for_style_invalidation(property.name());
+            return element_has_attribute(element, property.name()) || element.has_removed_attribute_for_style_invalidation(property.name());
         case InvalidationSet::Property::Type::PseudoClass: {
             switch (property.value.get<PseudoClass>()) {
             case PseudoClass::Has:

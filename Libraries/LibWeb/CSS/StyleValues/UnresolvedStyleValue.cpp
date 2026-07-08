@@ -136,7 +136,7 @@ static GC::Ptr<CSSVariableReferenceValue> reify_a_var_reference(JS::Realm& realm
     // 1. Let object be a new CSSVariableReferenceValue.
 
     // 2. Set object’s variable internal slot to the serialization of the <custom-ident> providing the variable name.
-    FlyString variable = maybe_variable.token().ident();
+    auto variable = maybe_variable.token().ident();
 
     // 3. If var has a fallback value, set object’s fallback internal slot to the result of reifying the fallback’s
     //    component values. Otherwise, set it to null.

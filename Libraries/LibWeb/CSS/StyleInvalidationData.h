@@ -10,6 +10,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/OwnPtr.h>
 #include <AK/RefCounted.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Vector.h>
 #include <LibWeb/CSS/InvalidationSet.h>
 #include <LibWeb/CSS/Selector.h>
@@ -127,10 +128,10 @@ struct StyleInvalidationData;
 void build_invalidation_sets_for_simple_selector(Selector::SimpleSelector const&, InvalidationSet&, ExcludePropertiesNestedInNotPseudoClass, StyleInvalidationData&, InsideNthChildPseudoClass);
 
 struct StyleInvalidationData {
-    HashMap<FlyString, Vector<HasInvalidationMetadata>> ids_used_in_has_selectors;
-    HashMap<FlyString, Vector<HasInvalidationMetadata>> class_names_used_in_has_selectors;
-    HashMap<FlyString, Vector<HasInvalidationMetadata>> attribute_names_used_in_has_selectors;
-    HashMap<FlyString, Vector<HasInvalidationMetadata>> tag_names_used_in_has_selectors;
+    HashMap<Utf16FlyString, Vector<HasInvalidationMetadata>> ids_used_in_has_selectors;
+    HashMap<Utf16FlyString, Vector<HasInvalidationMetadata>> class_names_used_in_has_selectors;
+    HashMap<Utf16FlyString, Vector<HasInvalidationMetadata>> attribute_names_used_in_has_selectors;
+    HashMap<Utf16FlyString, Vector<HasInvalidationMetadata>> tag_names_used_in_has_selectors;
     HashMap<PseudoClass, Vector<HasInvalidationMetadata>> pseudo_classes_used_in_has_selectors;
     bool has_selectors_sensitive_to_featureless_subtree_changes { false };
 

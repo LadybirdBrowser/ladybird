@@ -40,22 +40,37 @@
 
 namespace Web::SelectorEngine {
 
+static bool fly_string_equals_utf16(FlyString const& fly_string, Utf16View utf16_string)
+{
+    return utf16_string == fly_string.bytes_as_string_view();
+}
+
 static u32 salted_tag_name_hash(FlyString const& tag_name)
 {
     return CSS::ancestor_filter_hash_for_tag_name(tag_name.ascii_case_insensitive_hash());
 }
 
-static u32 salted_id_hash(FlyString const& id)
+static u32 salted_tag_name_hash(Utf16FlyString const& tag_name)
+{
+    return CSS::ancestor_filter_hash_for_tag_name(tag_name.ascii_case_insensitive_hash());
+}
+
+static u32 salted_id_hash(Utf16FlyString const& id)
 {
     return CSS::ancestor_filter_hash_for_id(id.hash());
 }
 
-static u32 salted_class_hash(FlyString const& class_name)
+static u32 salted_class_hash(Utf16FlyString const& class_name)
 {
     return CSS::ancestor_filter_hash_for_class(class_name.hash());
 }
 
 static u32 salted_attribute_hash(FlyString const& attribute_name)
+{
+    return CSS::ancestor_filter_hash_for_attribute(attribute_name.ascii_case_insensitive_hash());
+}
+
+static u32 salted_attribute_hash(Utf16FlyString const& attribute_name)
 {
     return CSS::ancestor_filter_hash_for_attribute(attribute_name.ascii_case_insensitive_hash());
 }
@@ -78,6 +93,13 @@ bool HasFastRejectFilter::may_contain(u32 hash) const
 
 static bool fast_matches_simple_selector(CSS::Selector::SimpleSelector const& simple_selector, DOM::Element const& element, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context);
 static bool fast_matches_compound_selector(CSS::Selector::CompoundSelector const& compound_selector, DOM::Element const& element, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context);
+
+static bool is_excluded_attribute_for_has_filter(Utf16FlyString const& name)
+{
+    return name == "class"sv
+        || name == "id"sv
+        || name == "style"sv;
+}
 
 static bool is_excluded_attribute_for_has_filter(FlyString const& name)
 {
@@ -136,12 +158,12 @@ static void collect_has_fast_reject_hashes(CSS::Selector::SimpleSelector const& 
         hashes.append(salted_tag_name_hash(simple_selector.qualified_name().name.lowercase_name));
         break;
     case CSS::Selector::SimpleSelector::Type::Id:
-        hashes.append(salted_id_hash(simple_selector.name()));
+        hashes.append(salted_id_hash(simple_selector.id_name()));
         break;
     case CSS::Selector::SimpleSelector::Type::Class:
         if (in_quirks_mode)
             break;
-        hashes.append(salted_class_hash(simple_selector.name()));
+        hashes.append(salted_class_hash(simple_selector.class_name()));
         break;
     case CSS::Selector::SimpleSelector::Type::Attribute: {
         auto const& name = simple_selector.attribute().qualified_name.name.lowercase_name;
@@ -608,8 +630,13 @@ static inline void for_each_matching_attribute(CSS::Selector::SimpleSelector::At
     //  therefore attribute selectors without a namespace component apply only to attributes that have no namespace (equivalent to "|attr")"
     case CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Default:
     case CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::None:
-        if (auto const* attribute = element.attributes()->get_attribute(attribute_name))
-            (void)process_attribute(*attribute);
+        for (auto i = 0u; i < element.attributes()->length(); ++i) {
+            auto const* attr = element.attributes()->item(i);
+            if (!attr->namespace_uri().has_value() && fly_string_equals_utf16(attr->name(), attribute_name)) {
+                (void)process_attribute(*attr);
+                break;
+            }
+        }
         return;
     case CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Any: {
         // When comparing the name part of a CSS attribute selector to the names of attributes on HTML elements in HTML
@@ -622,8 +649,8 @@ static inline void for_each_matching_attribute(CSS::Selector::SimpleSelector::At
         for (auto i = 0u; i < element.attributes()->length(); ++i) {
             auto const* attr = element.attributes()->item(i);
             bool matches = case_insensitive
-                ? attr->local_name().equals_ignoring_ascii_case(attribute_name)
-                : attr->local_name() == attribute_name;
+                ? attribute_name.equals_ignoring_ascii_case(attr->local_name().bytes_as_string_view())
+                : fly_string_equals_utf16(attr->local_name(), attribute_name);
             if (matches) {
                 if (process_attribute(*attr) == IterationDecision::Break)
                     break;
@@ -638,8 +665,15 @@ static inline void for_each_matching_attribute(CSS::Selector::SimpleSelector::At
         if (!selector_namespace.has_value())
             return;
 
-        if (auto const* attribute = element.attributes()->get_attribute_ns(selector_namespace, attribute_name))
-            (void)process_attribute(*attribute);
+        for (auto i = 0u; i < element.attributes()->length(); ++i) {
+            auto const* attr = element.attributes()->item(i);
+            if (attr->namespace_uri().has_value()
+                && selector_namespace->view() == attr->namespace_uri()->bytes_as_string_view()
+                && fly_string_equals_utf16(attr->local_name(), attribute_name)) {
+                (void)process_attribute(*attr);
+                break;
+            }
+        }
         return;
     }
     VERIFY_NOT_REACHED();
@@ -1560,7 +1594,8 @@ static ALWAYS_INLINE bool matches_namespace(
         if (!style_sheet_for_rule || !style_sheet_for_rule->default_namespace_rule())
             return true;
         // "Otherwise it is equivalent to ns|E where ns is the default namespace."
-        return element.namespace_uri() == style_sheet_for_rule->default_namespace_rule()->namespace_uri();
+        return element.namespace_uri().has_value()
+            && style_sheet_for_rule->default_namespace_rule()->namespace_uri().view() == element.namespace_uri()->bytes_as_string_view();
     case CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::None:
         // "elements with name E without a namespace"
         return !element.namespace_uri().has_value();
@@ -1583,7 +1618,9 @@ static ALWAYS_INLINE bool matches_namespace(
         if (selector_namespace.has_value() && selector_namespace.value().is_empty())
             return !element.namespace_uri().has_value();
 
-        return selector_namespace.has_value() && selector_namespace.value() == element.namespace_uri();
+        return selector_namespace.has_value()
+            && element.namespace_uri().has_value()
+            && selector_namespace->view() == element.namespace_uri()->bytes_as_string_view();
     }
     VERIFY_NOT_REACHED();
 }
@@ -1730,9 +1767,9 @@ static inline bool matches_simple_selector(CSS::Selector::SimpleSelector const& 
         if (component.type == CSS::Selector::SimpleSelector::Type::TagName) {
             // See https://html.spec.whatwg.org/multipage/semantics-other.html#case-sensitivity-of-selectors
             if (target_element.document().document_type() == DOM::Document::Type::HTML && target_element.namespace_uri() == Namespace::HTML) {
-                if (qualified_name.name.lowercase_name != target_element.local_name())
+                if (!fly_string_equals_utf16(target_element.local_name(), qualified_name.name.lowercase_name))
                     return false;
-            } else if (!qualified_name.name.name.equals_ignoring_ascii_case(target_element.local_name())) {
+            } else if (!qualified_name.name.name.equals_ignoring_ascii_case(target_element.local_name().bytes_as_string_view())) {
                 return false;
             }
         }
@@ -1742,14 +1779,14 @@ static inline bool matches_simple_selector(CSS::Selector::SimpleSelector const& 
     case CSS::Selector::SimpleSelector::Type::Id:
         if (target.pseudo_element().has_value())
             return false;
-        return component.name() == target.element().id();
+        return target.element().id() == component.id_name();
     case CSS::Selector::SimpleSelector::Type::Class: {
         if (target.pseudo_element().has_value())
             return false;
         // Class selectors are matched case insensitively in quirks mode.
         // See: https://drafts.csswg.org/selectors-4/#class-html
         auto case_sensitivity = target.document().in_quirks_mode() ? CaseSensitivity::CaseInsensitive : CaseSensitivity::CaseSensitive;
-        return target.element().has_class(component.name(), case_sensitivity);
+        return target.element().has_class(component.class_name(), case_sensitivity);
     }
     case CSS::Selector::SimpleSelector::Type::Attribute:
         if (target.pseudo_element().has_value())
@@ -1943,9 +1980,9 @@ static bool fast_matches_simple_selector(CSS::Selector::SimpleSelector const& si
         // same selector when compared to other elements must be compared according to its original case. In both cases, to match the values must be identical to each other (and therefore
         // the comparison is case sensitive).
         if (element.namespace_uri() == Namespace::HTML && element.document().document_type() == DOM::Document::Type::HTML) {
-            if (simple_selector.qualified_name().name.lowercase_name != element.local_name())
+            if (!fly_string_equals_utf16(element.local_name(), simple_selector.qualified_name().name.lowercase_name))
                 return false;
-        } else if (simple_selector.qualified_name().name.name != element.local_name()) {
+        } else if (!fly_string_equals_utf16(element.local_name(), simple_selector.qualified_name().name.name)) {
             // NOTE: Any other elements are either SVG, XHTML or MathML, all of which are case-sensitive.
             return false;
         }
@@ -1954,10 +1991,10 @@ static bool fast_matches_simple_selector(CSS::Selector::SimpleSelector const& si
         // Class selectors are matched case insensitively in quirks mode.
         // See: https://drafts.csswg.org/selectors-4/#class-html
         auto case_sensitivity = element.document().in_quirks_mode() ? CaseSensitivity::CaseInsensitive : CaseSensitivity::CaseSensitive;
-        return element.has_class(simple_selector.name(), case_sensitivity);
+        return element.has_class(simple_selector.class_name(), case_sensitivity);
     }
     case CSS::Selector::SimpleSelector::Type::Id:
-        return simple_selector.name() == element.id();
+        return element.id() == simple_selector.id_name();
     case CSS::Selector::SimpleSelector::Type::Attribute:
         return matches_attribute(simple_selector.attribute(), context.style_sheet_for_rule, element);
     case CSS::Selector::SimpleSelector::Type::PseudoClass:

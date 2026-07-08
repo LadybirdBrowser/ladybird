@@ -8,6 +8,7 @@
 
 #include <AK/FlyString.h>
 #include <AK/RefPtr.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/CSS/Selector.h>
@@ -129,6 +130,6 @@ void invalidate_root_for_keyframes_rules_in_sheet(DOM::Node& root, CSSStyleSheet
 
 // Dirty only the elements (and pseudo-elements) under `root` that already reference `animation_name`. When `root` is
 // a shadow root, the walk also fans out to the shadow host side if active rules in the same scope can match there.
-void invalidate_root_for_keyframes_rule(DOM::Node& root, FlyString const& animation_name);
+void invalidate_root_for_keyframes_rule(DOM::Node& root, Utf16FlyString const& animation_name);
 
 }

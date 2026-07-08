@@ -213,12 +213,27 @@ WebIDL::ExceptionOr<void> ParentNode::move_before(GC::Ref<Node> node, GC::Ptr<No
 }
 
 // https://dom.spec.whatwg.org/#dom-document-getelementsbyclassname
-GC::Ref<HTMLCollection> ParentNode::get_elements_by_class_name(StringView class_names)
+GC::Ref<HTMLCollection> ParentNode::get_elements_by_class_name(Utf16String const& class_names)
 {
-    Vector<FlyString> list_of_class_names;
-    for (auto& name : class_names.split_view_if(Infra::is_ascii_whitespace)) {
-        list_of_class_names.append(FlyString::from_utf8(name).release_value_but_fixme_should_propagate_errors());
+    Vector<Utf16FlyString> list_of_class_names;
+    auto class_names_view = class_names.utf16_view();
+    Optional<size_t> token_start;
+    for (size_t i = 0; i < class_names_view.length_in_code_units(); ++i) {
+        if (Infra::is_ascii_whitespace(class_names_view.code_unit_at(i))) {
+            if (token_start.has_value()) {
+                list_of_class_names.append(Utf16FlyString::from_utf16(class_names_view.substring_view(*token_start, i - *token_start)));
+                token_start = {};
+            }
+            continue;
+        }
+
+        if (!token_start.has_value())
+            token_start = i;
     }
+
+    if (token_start.has_value())
+        list_of_class_names.append(Utf16FlyString::from_utf16(class_names_view.substring_view(*token_start)));
+
     return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [list_of_class_names = move(list_of_class_names), quirks_mode = document().in_quirks_mode()](Element const& element) {
         for (auto& name : list_of_class_names) {
             if (!element.has_class(name, quirks_mode ? CaseSensitivity::CaseInsensitive : CaseSensitivity::CaseSensitive))
@@ -228,7 +243,7 @@ GC::Ref<HTMLCollection> ParentNode::get_elements_by_class_name(StringView class_
     });
 }
 
-GC::Ptr<Element> ParentNode::get_element_by_id(FlyString const& id) const
+GC::Ptr<Element> ParentNode::get_element_by_id(Utf16FlyString const& id) const
 {
     if (is_connected()) {
         // For connected document and shadow root we have a cache that allows fast lookup.
@@ -255,6 +270,16 @@ GC::Ptr<Element> ParentNode::get_element_by_id(FlyString const& id) const
         return TraversalDecision::Continue;
     });
     return found_element;
+}
+
+GC::Ptr<Element> ParentNode::get_element_by_id(Utf16View id) const
+{
+    return get_element_by_id(Utf16FlyString::from_utf16(id));
+}
+
+GC::Ptr<Element> ParentNode::get_element_by_id(Utf16String const& id) const
+{
+    return get_element_by_id(id.utf16_view());
 }
 
 }

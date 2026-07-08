@@ -643,7 +643,7 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_v
         if (family->is_keyword()) {
             other_font_list = find_generic_font(family->to_keyword());
         } else {
-            other_font_list = find_font(string_from_style_value(family));
+            other_font_list = find_font(legacy_fly_string_from_style_value(family));
         }
 
         if (other_font_list)
@@ -702,7 +702,7 @@ static bool style_value_references_font_family(StyleValue const& font_family_val
         if (item->is_keyword())
             continue; // Skip generic keywords (monospace, serif, etc.)
 
-        FlyString item_family_name = string_from_style_value(*item);
+        auto item_family_name = legacy_fly_string_from_style_value(*item);
 
         if (item_family_name.equals_ignoring_ascii_case(family_name))
             return true;

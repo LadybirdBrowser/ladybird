@@ -6,13 +6,13 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
 
 struct CounterDefinition {
-    FlyString name;
+    Utf16FlyString name;
     bool is_reversed;
     ValueComparingRefPtr<StyleValue const> value;
 };

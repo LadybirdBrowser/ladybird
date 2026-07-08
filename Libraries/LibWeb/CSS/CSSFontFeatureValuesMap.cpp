@@ -29,6 +29,11 @@ CSSFontFeatureValuesMap::CSSFontFeatureValuesMap(JS::Realm& realm, size_t max_va
 
 WebIDL::ExceptionOr<void> CSSFontFeatureValuesMap::set(String const& feature_value_name, Variant<u32, Vector<u32>> const& values)
 {
+    return set(Utf16String::from_utf8(feature_value_name), values);
+}
+
+WebIDL::ExceptionOr<void> CSSFontFeatureValuesMap::set(Utf16String const& feature_value_name, Variant<u32, Vector<u32>> const& values)
+{
     // https://drafts.csswg.org/css-fonts-4/#cssfontfeaturevaluesmap
     // The CSSFontFeatureValuesMap interface uses the default map class methods but the set method has different
     // behavior. It takes a sequence of unsigned integers and associates it with a given featureValueName. The method
@@ -56,7 +61,7 @@ WebIDL::ExceptionOr<void> CSSFontFeatureValuesMap::set(String const& feature_val
     for (auto const& value : value_vector)
         wrapped_values.append(JS::Value { value });
 
-    m_map_entries->map_set(JS::PrimitiveString::create(vm(), Utf16String::from_utf8(feature_value_name)), JS::Array::create_from(realm(), wrapped_values.span()));
+    m_map_entries->map_set(JS::PrimitiveString::create(vm(), feature_value_name), JS::Array::create_from(realm(), wrapped_values.span()));
 
     m_parent_rule->clear_caches();
 
@@ -68,12 +73,12 @@ void CSSFontFeatureValuesMap::on_map_modified_from_js(Badge<Bindings::CSSFontFea
     m_parent_rule->clear_caches();
 }
 
-OrderedHashMap<FlyString, Vector<u32>> CSSFontFeatureValuesMap::to_ordered_hash_map() const
+OrderedHashMap<Utf16FlyString, Vector<u32>> CSSFontFeatureValuesMap::to_ordered_hash_map() const
 {
-    OrderedHashMap<FlyString, Vector<u32>> result;
+    OrderedHashMap<Utf16FlyString, Vector<u32>> result;
 
     for (auto entry : *m_map_entries) {
-        auto key = MUST(entry.key.to_utf16_string(vm())).to_utf8_but_should_be_ported_to_utf16();
+        auto key = Utf16FlyString { MUST(entry.key.to_utf16_string(vm())) };
 
         auto const& array = as<JS::Array>(entry.value.as_object());
         auto array_length = MUST(MUST(array.get(vm().names.length)).to_length(vm()));

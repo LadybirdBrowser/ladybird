@@ -154,12 +154,6 @@ static void invalidate_content_blocker_style_if_needed(Element& element)
     element.document().page().invalidate_user_style();
 }
 
-static FlyString fly_string_from_utf16(Utf16View value)
-{
-    auto value_utf8 = MUST(value.to_utf8());
-    return MUST(FlyString::from_utf8(value_utf8.bytes_as_string_view()));
-}
-
 static void for_each_ascii_whitespace_separated_token(Utf16View input, Function<IterationDecision(Utf16View)> const& callback)
 {
     size_t start = 0;
@@ -782,7 +776,7 @@ GC::Ptr<DOM::Element> Element::get_the_attribute_associated_element(FlyString co
     //     * candidate's ID is contentAttributeValue; and
     //     * candidate implements T.
     if (content_attribute_value.has_value())
-        return element.document().get_element_by_id(fly_string_from_utf16(content_attribute_value->utf16_view()));
+        return element.document().get_element_by_id(content_attribute_value->utf16_view());
 
     // 5. If no such element exists, then return null.
     // 6. Return null.
@@ -826,7 +820,7 @@ Optional<GC::RootVector<GC::Ref<DOM::Element>>> Element::get_the_attribute_assoc
             //     * candidate's root is the same as element's root;
             //     * candidate's ID is id; and
             //     * candidate implements T.
-            auto candidate = element.document().get_element_by_id(fly_string_from_utf16(id));
+            auto candidate = element.document().get_element_by_id(id);
 
             // 2. If no such element exists, then continue.
             if (!candidate)
@@ -1138,11 +1132,11 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
             ? as<ShadowRoot>(root()).anchor_name_map()
             : document().anchor_name_map();
         if (m_computed_properties) {
-            m_computed_properties->for_each_anchor_name([&](FlyString const& name) {
+            m_computed_properties->for_each_anchor_name([&](Utf16FlyString const& name) {
                 anchor_names.unregister_name(name, *this);
             });
         }
-        new_computed_properties->for_each_anchor_name([&](FlyString const& name) {
+        new_computed_properties->for_each_anchor_name([&](Utf16FlyString const& name) {
             anchor_names.register_name(name, *this);
         });
     }
@@ -1910,7 +1904,7 @@ void Element::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, No
             auto& anchor_names = is<ShadowRoot>(old_root)
                 ? as<ShadowRoot>(old_root).anchor_name_map()
                 : document().anchor_name_map();
-            m_computed_properties->for_each_anchor_name([&](FlyString const& name) {
+            m_computed_properties->for_each_anchor_name([&](Utf16FlyString const& name) {
                 anchor_names.unregister_name(name, *this);
             });
         }
@@ -3322,7 +3316,7 @@ bool Element::is_referenced() const
     if (id().has_value()) {
         root().for_each_in_subtree_of_type<HTML::HTMLElement>([&](auto& element) {
             auto aria_data = MUST(Web::ARIA::AriaData::build_data(element));
-            if (aria_data->aria_labelled_by_or_default().contains_slow(Utf16String::from_utf8(id().value()))) {
+            if (aria_data->aria_labelled_by_or_default().contains_slow(id().value().to_utf16_string())) {
                 is_referenced = true;
                 return TraversalDecision::Break;
             }
@@ -3503,7 +3497,7 @@ void Element::enqueue_a_custom_element_callback_reaction(FlyString const& callba
         VERIFY(!arguments.is_empty());
         auto& attribute_name_value = arguments.first();
         VERIFY(attribute_name_value.is_string());
-        auto attribute_name = attribute_name_value.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
+        auto attribute_name = attribute_name_value.as_string().utf16_string();
 
         // 2. If definition's observed attributes does not contain attributeName, then return.
         if (!definition->observed_attributes().contains_slow(attribute_name))
@@ -4334,8 +4328,7 @@ i32 Element::ordinal_value()
 
 bool Element::id_reference_exists(Utf16String const& id_reference) const
 {
-    auto id_reference_string = id_reference.to_utf8();
-    return document().get_element_by_id(MUST(FlyString::from_utf8(id_reference_string.bytes_as_string_view())));
+    return document().get_element_by_id(id_reference.utf16_view());
 }
 
 void Element::register_intersection_observer(Badge<IntersectionObserver::IntersectionObserver>, GC::Ref<IntersectionObserver::IntersectionObserver> observer)
@@ -4677,19 +4670,19 @@ void Element::attribute_changed(FlyString const& local_name, Optional<Utf16Strin
         if (value_or_empty.is_empty())
             m_id = {};
         else
-            m_id = fly_string_from_utf16(value_or_empty.utf16_view());
+            m_id = Utf16FlyString::from_utf16(value_or_empty.utf16_view());
 
         if (is_connected()) {
-            Optional<FlyString> old_value_fly_string;
+            Optional<Utf16FlyString> old_id;
             if (old_value.has_value())
-                old_value_fly_string = fly_string_from_utf16(old_value->utf16_view());
-            document().element_id_changed({}, *this, old_value_fly_string);
+                old_id = Utf16FlyString::from_utf16(old_value->utf16_view());
+            document().element_id_changed({}, *this, old_id);
         }
     } else if (local_name == HTML::AttributeNames::name) {
         if (value_or_empty.is_empty())
             m_name = {};
         else
-            m_name = fly_string_from_utf16(value_or_empty.utf16_view());
+            m_name = Utf16FlyString::from_utf16(value_or_empty.utf16_view());
 
         if (is_connected())
             document().element_name_changed({}, *this);
@@ -4699,7 +4692,7 @@ void Element::attribute_changed(FlyString const& local_name, Optional<Utf16Strin
         } else {
             m_classes.clear();
             for_each_ascii_whitespace_separated_token(value_or_empty.utf16_view(), [&](auto new_class) {
-                m_classes.append(fly_string_from_utf16(new_class));
+                m_classes.append(Utf16FlyString::from_utf16(new_class));
                 return IterationDecision::Continue;
             });
         }
@@ -4977,7 +4970,7 @@ bool Element::meets_focusable_area_rendering_requirements() const
 }
 
 // https://drafts.csswg.org/css-view-transitions-1/#document-scoped-view-transition-name
-Optional<FlyString> Element::document_scoped_view_transition_name()
+Optional<Utf16FlyString> Element::document_scoped_view_transition_name()
 {
     // To get the document-scoped view transition name for an Element element:
 
@@ -5068,7 +5061,7 @@ void Element::play_or_cancel_animations_after_display_property_change()
 
     auto has_inclusive_ancestor_with_display_none_ignoring_animations = this->has_inclusive_ancestor_with_display_none_ignoring_animations();
 
-    auto play_or_cancel_depending_on_display = [&](HashMap<FlyString, GC::Ref<CSS::CSSAnimation>>& animations) {
+    auto play_or_cancel_depending_on_display = [&](HashMap<Utf16FlyString, GC::Ref<CSS::CSSAnimation>>& animations) {
         for (auto& [_, animation] : animations) {
             if (has_inclusive_ancestor_with_display_none_ignoring_animations) {
                 animation->cancel();

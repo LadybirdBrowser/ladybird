@@ -54,14 +54,14 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> AudioConstructor::construct(FunctionO
     TRY(WebIDL::set_prototype_from_new_target<HTMLAudioElementPrototype>(vm, new_target, "HTMLAudioElement"_fly_string, *audio));
 
     // 3. Set an attribute value for audio using "preload" and "auto".
-    audio->set_attribute_value(HTML::AttributeNames::preload, "auto"_string);
+    audio->set_attribute_value(HTML::AttributeNames::preload, "auto"_utf16);
 
     auto src_value = vm.argument(0);
 
     // 4. If src is given, then set an attribute value for audio using "src" and src.
     //    (This will cause the user agent to invoke the object's resource selection algorithm before returning.)
     if (!src_value.is_undefined()) {
-        auto src = TRY(src_value.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
+        auto src = TRY(src_value.to_utf16_string(vm));
         audio->set_attribute_value(HTML::AttributeNames::src, move(src));
     }
 

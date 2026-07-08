@@ -36,6 +36,7 @@ public:
     Optional<StyleProperty const&> custom_property(Utf16FlyString const& custom_property_name) const;
 
     WebIDL::ExceptionOr<void> set_property(PropertyID, StringView css_text, StringView priority = ""sv);
+    WebIDL::ExceptionOr<void> set_property(PropertyID, Utf16View css_text, StringView priority = ""sv);
     WebIDL::ExceptionOr<String> remove_property(PropertyID);
 
     virtual WebIDL::ExceptionOr<void> set_property(Utf16FlyString const& property_name, StringView css_text, StringView priority) override;
@@ -76,7 +77,8 @@ private:
     RefPtr<StyleValue const> style_value_for_computed_property(Layout::NodeWithStyle const&, PropertyID) const;
     Optional<StyleProperty> get_property_internal(PropertyNameAndID const&) const;
     Optional<StyleProperty> get_direct_property(PropertyNameAndID const&) const;
-    WebIDL::ExceptionOr<void> set_property_internal(PropertyNameAndID const&, StringView css_text, StringView priority);
+    template<typename StringViewType>
+    WebIDL::ExceptionOr<void> set_property_internal(PropertyNameAndID const&, StringViewType css_text, StringView priority);
     WebIDL::ExceptionOr<String> remove_property_internal(Optional<PropertyNameAndID> const&);
 
     bool set_a_css_declaration(PropertyID, NonnullRefPtr<StyleValue const>, Important);

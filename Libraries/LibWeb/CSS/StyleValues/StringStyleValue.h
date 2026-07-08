@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/CSS/Parser/ComponentValue.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
@@ -15,13 +15,13 @@ namespace Web::CSS {
 
 class StringStyleValue : public StyleValueWithDefaultOperators<StringStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<StringStyleValue const> create(FlyString const& string)
+    static ValueComparingNonnullRefPtr<StringStyleValue const> create(Utf16FlyString string)
     {
-        return adopt_ref(*new (nothrow) StringStyleValue(string));
+        return adopt_ref(*new (nothrow) StringStyleValue(move(string)));
     }
     virtual ~StringStyleValue() override = default;
 
-    FlyString const& string_value() const { return m_string; }
+    Utf16FlyString const& string_value() const { return m_string; }
     virtual void serialize(StringBuilder& builder, SerializationMode) const override { builder.append(serialize_a_string(m_string)); }
     virtual Vector<Parser::ComponentValue> tokenize() const override
     {
@@ -33,13 +33,13 @@ public:
     virtual bool is_computationally_independent() const override { return true; }
 
 private:
-    explicit StringStyleValue(FlyString const& string)
+    explicit StringStyleValue(Utf16FlyString string)
         : StyleValueWithDefaultOperators(Type::String)
-        , m_string(string)
+        , m_string(move(string))
     {
     }
 
-    FlyString m_string;
+    Utf16FlyString m_string;
 };
 
 }

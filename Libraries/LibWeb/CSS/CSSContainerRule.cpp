@@ -97,9 +97,9 @@ bool CSSContainerRule::condition_matches() const
     VERIFY_NOT_REACHED();
 }
 
-static bool has_ancestor_container_with_name(DOM::AbstractElement const& element, FlyString const& container_name)
+static bool has_ancestor_container_with_name(DOM::AbstractElement const& element, Utf16FlyString const& container_name)
 {
-    Optional<FlyString> optional_container_name { container_name };
+    Optional<Utf16FlyString> optional_container_name { container_name };
     for (auto* container = element.element().flat_tree_parent_element(); container; container = container->flat_tree_parent_element()) {
         if (container_name_matches(*container, optional_container_name))
             return true;

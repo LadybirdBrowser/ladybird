@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16View.h>
 #include <LibJS/Runtime/MapIterator.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/CSSFontFeatureValuesMap.h>
@@ -22,7 +23,7 @@ class CSSFontFeatureValuesRule final : public CSSRule {
 public:
     static GC::Ref<CSSFontFeatureValuesRule> create(JS::Realm&, Vector<FlyString> font_families);
 
-    static bool is_font_feature_value_type_at_keyword(FlyString const&);
+    static bool is_font_feature_value_type_at_keyword(Utf16View);
 
     FlyString font_family() const;
     void set_font_family(FlyString const&);

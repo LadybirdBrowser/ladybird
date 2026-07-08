@@ -65,7 +65,7 @@ interface Element : Node {
 
     HTMLCollection getElementsByTagName([FlyString] DOMString tagName);
     HTMLCollection getElementsByTagNameNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
-    HTMLCollection getElementsByClassName(DOMString className);
+    HTMLCollection getElementsByClassName(Utf16DOMString className);
 
     [CEReactions] Element? insertAdjacentElement(DOMString where, Element element); // legacy
     undefined insertAdjacentText(DOMString where, Utf16DOMString data); // legacy

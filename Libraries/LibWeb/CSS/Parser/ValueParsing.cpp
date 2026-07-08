@@ -225,7 +225,7 @@ RefPtr<StyleValue const> Parser::parse_family_name_value(TokenStream<ComponentVa
     tokens.discard_whitespace();
 
     // <family-name> = <string> | <custom-ident>+
-    Vector<String> parts;
+    Vector<Utf16FlyString> parts;
     while (tokens.has_next_token()) {
         auto const& peek = tokens.next_token();
 
@@ -243,7 +243,7 @@ RefPtr<StyleValue const> Parser::parse_family_name_value(TokenStream<ComponentVa
         //         isn't a CSS-wide keyword, see https://github.com/w3c/csswg-drafts/issues/13692
         if (peek.is(Token::Type::Ident)) {
             auto ident = tokens.consume_a_token().token().ident();
-            parts.append(ident.to_string());
+            parts.append(ident);
             tokens.discard_whitespace();
             continue;
         }
@@ -263,7 +263,14 @@ RefPtr<StyleValue const> Parser::parse_family_name_value(TokenStream<ComponentVa
             return nullptr;
     }
 
-    auto complete_name = MUST(String::join(' ', parts));
+    Utf16StringBuilder builder;
+    for (auto const& part : parts) {
+        if (!builder.is_empty())
+            builder.append_ascii(' ');
+        builder.append(part);
+    }
+    auto complete_name_string = builder.to_string();
+    auto complete_name = Utf16FlyString::from_utf16(complete_name_string.utf16_view());
 
     transaction.commit();
     return CustomIdentStyleValue::create(complete_name);
@@ -720,7 +727,7 @@ RefPtr<StyleValue const> Parser::parse_anchor(TokenStream<ComponentValue>& token
 
     auto argument_tokens = TokenStream { function_token.function().value };
     auto context_guard = push_temporary_value_parsing_context(FunctionContext { function_token.function().name });
-    Optional<FlyString> anchor_name;
+    Optional<Utf16FlyString> anchor_name;
     RefPtr<StyleValue const> anchor_side_value;
     RefPtr<StyleValue const> fallback_value;
     for (auto i = 0; i < 2; ++i) {
@@ -843,7 +850,7 @@ RefPtr<StyleValue const> Parser::parse_anchor_size(TokenStream<ComponentValue>& 
     auto context_guard = push_temporary_value_parsing_context(FunctionContext { function_token.function().name });
     auto argument_tokens = TokenStream { function_token.function().value };
 
-    Optional<FlyString> anchor_name;
+    Optional<Utf16FlyString> anchor_name;
     Optional<AnchorSize> anchor_size;
     ValueComparingRefPtr<StyleValue const> fallback_value;
 
@@ -1349,7 +1356,7 @@ RefPtr<FunctionStyleValue const> Parser::parse_scroll_function_value(TokenStream
     }
 
     transaction.commit();
-    return FunctionStyleValue::create("scroll"_fly_string, TupleStyleValue::create(move(tuple)));
+    return FunctionStyleValue::create("scroll"_utf16_fly_string, TupleStyleValue::create(move(tuple)));
 }
 
 // https://drafts.csswg.org/scroll-animations-1/#funcdef-view
@@ -1361,7 +1368,7 @@ RefPtr<FunctionStyleValue const> Parser::parse_view_function_value(TokenStream<C
     if (!function_token.is_function("view"sv))
         return nullptr;
 
-    auto context_guard = push_temporary_value_parsing_context(FunctionContext { "view"sv });
+    auto context_guard = push_temporary_value_parsing_context(FunctionContext { "view"_utf16_fly_string });
 
     StyleValueTuple tuple;
     tuple.resize_with_default_value(2, nullptr);
@@ -1407,7 +1414,7 @@ RefPtr<FunctionStyleValue const> Parser::parse_view_function_value(TokenStream<C
     }
 
     transaction.commit();
-    return FunctionStyleValue::create("view"_fly_string, TupleStyleValue::create(move(tuple)));
+    return FunctionStyleValue::create("view"_utf16_fly_string, TupleStyleValue::create(move(tuple)));
 }
 
 // https://www.w3.org/TR/CSS2/visufx.html#value-def-shape
@@ -1418,7 +1425,7 @@ RefPtr<StyleValue const> Parser::parse_rect_value(TokenStream<ComponentValue>& t
     if (!function_token.is_function("rect"sv))
         return nullptr;
 
-    auto context_guard = push_temporary_value_parsing_context(FunctionContext { "rect"sv });
+    auto context_guard = push_temporary_value_parsing_context(FunctionContext { "rect"_utf16_fly_string });
 
     StyleValueVector params;
     params.ensure_capacity(4);
@@ -2086,7 +2093,7 @@ RefPtr<StyleValue const> Parser::parse_color_function(TokenStream<ComponentValue
     if (!color_type_from_color_function_name(color_space).has_value())
         return {};
 
-    bool is_xyz_space = first_is_one_of(color_space.to_ascii_lowercase(), "xyz"sv, "xyz-d50"sv, "xyz-d65"sv);
+    bool is_xyz_space = color_space.is_one_of_ignoring_ascii_case("xyz"sv, "xyz-d50"sv, "xyz-d65"sv);
     auto relative_color_context_guard = push_relative_color_parsing_context(origin_color,
         is_xyz_space ? Array { ChannelKeyword::X, ChannelKeyword::Y, ChannelKeyword::Z } : Array { ChannelKeyword::R, ChannelKeyword::G, ChannelKeyword::B });
 
@@ -2345,7 +2352,7 @@ RefPtr<StyleValue const> Parser::parse_color_value(TokenStream<ComponentValue>& 
     if (component_value.is(Token::Type::Ident)) {
         auto ident = component_value.token().ident();
 
-        auto color = Color::from_string(ident);
+        auto color = Color::from_utf16_string(ident);
         if (color.has_value()) {
             transaction.commit();
             return ColorStyleValue::create_from_color(color.release_value(), ColorSyntax::Legacy, ident);
@@ -2424,7 +2431,7 @@ RefPtr<StyleValue const> Parser::parse_color_value(TokenStream<ComponentValue>& 
             else {
                 if (!cv.is(Token::Type::Ident))
                     return {};
-                serialization = cv.token().ident().to_string();
+                serialization = MUST(cv.token().ident().view().to_utf8());
             }
 
             // 4. If serialization does not consist of three or six characters, return an error.
@@ -2509,7 +2516,7 @@ RefPtr<StyleValue const> Parser::parse_corner_shape_value(TokenStream<ComponentV
 // https://drafts.csswg.org/css-lists-3/#counter-functions
 RefPtr<StyleValue const> Parser::parse_counter_value(TokenStream<ComponentValue>& tokens)
 {
-    auto parse_counter_name = [this](TokenStream<ComponentValue>& tokens) -> Optional<FlyString> {
+    auto parse_counter_name = [this](TokenStream<ComponentValue>& tokens) -> Optional<Utf16FlyString> {
         // https://drafts.csswg.org/css-lists-3/#typedef-counter-name
         // Counters are referred to in CSS syntax using the <counter-name> type, which represents
         // their name as a <custom-ident>. A <counter-name> name cannot match the keyword none;
@@ -2570,7 +2577,7 @@ RefPtr<StyleValue const> Parser::parse_counter_value(TokenStream<ComponentValue>
                 return nullptr;
         } else {
             // In both cases, if the <counter-style> argument is omitted it defaults to `decimal`.
-            counter_style = CounterStyleStyleValue::create("decimal"_fly_string);
+            counter_style = CounterStyleStyleValue::create("decimal"_utf16_fly_string);
         }
 
         transaction.commit();
@@ -2607,7 +2614,7 @@ RefPtr<StyleValue const> Parser::parse_counter_value(TokenStream<ComponentValue>
                 return nullptr;
         } else {
             // In both cases, if the <counter-style> argument is omitted it defaults to `decimal`.
-            counter_style = CounterStyleStyleValue::create("decimal"_fly_string);
+            counter_style = CounterStyleStyleValue::create("decimal"_utf16_fly_string);
         }
 
         transaction.commit();
@@ -2618,7 +2625,7 @@ RefPtr<StyleValue const> Parser::parse_counter_value(TokenStream<ComponentValue>
 }
 
 // https://drafts.csswg.org/css-counter-styles-3/#typedef-counter-style-name
-Optional<FlyString> Parser::parse_counter_style_name(TokenStream<ComponentValue>& tokens)
+Optional<Utf16FlyString> Parser::parse_counter_style_name(TokenStream<ComponentValue>& tokens)
 {
     // <counter-style-name> is a <custom-ident> that is not an ASCII case-insensitive match for none.
     auto transaction = tokens.begin_transaction();
@@ -2678,7 +2685,7 @@ RefPtr<StyleValue const> Parser::parse_counter_style_value(TokenStream<Component
         // [ <string> | <image> ]+
         // FIXME: In line with <symbol> we don't support <image> here - we may need to revisit this if other browsers
         //        implement it.
-        Vector<FlyString> symbols;
+        Vector<Utf16FlyString> symbols;
         while (argument_tokens.has_next_token()) {
             auto maybe_string = parse_string_value(argument_tokens);
 
@@ -2819,7 +2826,7 @@ RefPtr<ImageSetStyleValue const> Parser::parse_image_set_function(TokenStream<Co
 
         RefPtr<AbstractImageStyleValue const> image;
         if (option_tokens.next_token().is(Token::Type::String)) {
-            auto url = URL { option_tokens.consume_a_token().token().string().to_string() };
+            auto url = URL { option_tokens.consume_a_token().token().string() };
             image = ImageStyleValue::create(url, style_resource_base_url);
         } else {
             image = parse_image_value(option_tokens, AllowImageSet::No);
@@ -2847,7 +2854,7 @@ RefPtr<ImageSetStyleValue const> Parser::parse_image_set_function(TokenStream<Co
                 type_tokens.discard_whitespace();
                 if (!type_tokens.next_token().is(Token::Type::String))
                     return nullptr;
-                type = type_tokens.consume_a_token().token().string().to_string();
+                type = MUST(type_tokens.consume_a_token().token().string().view().to_utf8());
                 type_tokens.discard_whitespace();
                 if (!type_tokens.is_empty())
                     return nullptr;
@@ -3388,7 +3395,7 @@ Optional<URL> Parser::parse_url_function(TokenStream<ComponentValue>& tokens)
     // <url-token>
     if (component_value.is(Token::Type::Url)) {
         transaction.commit();
-        return URL { component_value.token().url().to_string() };
+        return URL { component_value.token().url() };
     }
 
     // <url()> = url( <string> <url-modifier>* )
@@ -3487,7 +3494,7 @@ Optional<URL> Parser::parse_url_function(TokenStream<ComponentValue>& tokens)
         });
 
         transaction.commit();
-        return URL { url_string.token().string().to_string(), function_type, move(request_url_modifiers) };
+        return URL { url_string.token().string(), function_type, move(request_url_modifiers) };
     }
 
     return {};
@@ -3676,7 +3683,7 @@ RefPtr<StyleValue const> Parser::parse_fit_content_value(TokenStream<ComponentVa
         return nullptr;
 
     transaction.commit();
-    return FunctionStyleValue::create("fit-content"_fly_string, length_percentage_value.release_nonnull());
+    return FunctionStyleValue::create("fit-content"_utf16_fly_string, length_percentage_value.release_nonnull());
 }
 
 RefPtr<StyleValue const> Parser::parse_font_style_value(TokenStream<ComponentValue>& tokens)
@@ -3765,7 +3772,7 @@ RefPtr<StyleValue const> Parser::parse_font_variant_alternates_value(TokenStream
                 return nullptr;
 
             transaction.commit();
-            stylistic = FunctionStyleValue::create("stylistic"_fly_string, StyleValueList::create(move(feature_value_names), StyleValueList::Separator::Comma));
+            stylistic = FunctionStyleValue::create("stylistic"_utf16_fly_string, StyleValueList::create(move(feature_value_names), StyleValueList::Separator::Comma));
             continue;
         }
 
@@ -3775,7 +3782,7 @@ RefPtr<StyleValue const> Parser::parse_font_variant_alternates_value(TokenStream
                 return nullptr;
 
             transaction.commit();
-            styleset = FunctionStyleValue::create("styleset"_fly_string, StyleValueList::create(move(feature_value_names), StyleValueList::Separator::Comma));
+            styleset = FunctionStyleValue::create("styleset"_utf16_fly_string, StyleValueList::create(move(feature_value_names), StyleValueList::Separator::Comma));
             continue;
         }
 
@@ -3785,7 +3792,7 @@ RefPtr<StyleValue const> Parser::parse_font_variant_alternates_value(TokenStream
                 return nullptr;
 
             transaction.commit();
-            character_variant = FunctionStyleValue::create("character-variant"_fly_string, StyleValueList::create(move(feature_value_names), StyleValueList::Separator::Comma));
+            character_variant = FunctionStyleValue::create("character-variant"_utf16_fly_string, StyleValueList::create(move(feature_value_names), StyleValueList::Separator::Comma));
             continue;
         }
 
@@ -3795,7 +3802,7 @@ RefPtr<StyleValue const> Parser::parse_font_variant_alternates_value(TokenStream
                 return nullptr;
 
             transaction.commit();
-            swash = FunctionStyleValue::create("swash"_fly_string, StyleValueList::create(move(feature_value_names), StyleValueList::Separator::Comma));
+            swash = FunctionStyleValue::create("swash"_utf16_fly_string, StyleValueList::create(move(feature_value_names), StyleValueList::Separator::Comma));
             continue;
         }
 
@@ -3805,7 +3812,7 @@ RefPtr<StyleValue const> Parser::parse_font_variant_alternates_value(TokenStream
                 return nullptr;
 
             transaction.commit();
-            ornaments = FunctionStyleValue::create("ornaments"_fly_string, StyleValueList::create(move(feature_value_names), StyleValueList::Separator::Comma));
+            ornaments = FunctionStyleValue::create("ornaments"_utf16_fly_string, StyleValueList::create(move(feature_value_names), StyleValueList::Separator::Comma));
             continue;
         }
 
@@ -3815,7 +3822,7 @@ RefPtr<StyleValue const> Parser::parse_font_variant_alternates_value(TokenStream
                 return nullptr;
 
             transaction.commit();
-            annotation = FunctionStyleValue::create("annotation"_fly_string, StyleValueList::create(move(feature_value_names), StyleValueList::Separator::Comma));
+            annotation = FunctionStyleValue::create("annotation"_utf16_fly_string, StyleValueList::create(move(feature_value_names), StyleValueList::Separator::Comma));
             continue;
         }
 
@@ -4027,7 +4034,7 @@ RefPtr<StyleValue const> Parser::parse_basic_shape_value(TokenStream<ComponentVa
     if (!component_value.is_function())
         return nullptr;
 
-    auto function_name = component_value.function().name.bytes_as_string_view();
+    auto function_name = component_value.function().name;
     auto context_guard = push_temporary_value_parsing_context(FunctionContext { function_name });
 
     auto parse_fill_rule_argument = [](Vector<ComponentValue> const& component_values) -> Optional<Gfx::WindingRule> {
@@ -4329,7 +4336,7 @@ RefPtr<StyleValue const> Parser::parse_basic_shape_value(TokenStream<ComponentVa
 
         if (!maybe_string.is(Token::Type::String) || path_argument_tokens.has_next_token())
             return nullptr;
-        auto path_data = SVG::AttributeParser::parse_path_data(Utf16String::from_utf8(maybe_string.token().string().to_string()));
+        auto path_data = SVG::AttributeParser::parse_path_data(maybe_string.token().string().to_utf16_string());
         if (path_data.instructions().is_empty())
             return nullptr;
 
@@ -4372,7 +4379,7 @@ RefPtr<StyleValue const> Parser::parse_builtin_value(TokenStream<ComponentValue>
 }
 
 // https://www.w3.org/TR/css-values-4/#custom-idents
-Optional<FlyString> Parser::parse_custom_ident(TokenStream<ComponentValue>& tokens, ReadonlySpan<StringView> blacklist)
+Optional<Utf16FlyString> Parser::parse_custom_ident(TokenStream<ComponentValue>& tokens, ReadonlySpan<StringView> blacklist)
 {
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
@@ -4428,7 +4435,7 @@ RefPtr<RandomValueSharingStyleValue const> Parser::parse_random_value_sharing(To
 
     // [ [ auto | <dashed-ident> ] || element-shared ]
     bool has_explicit_auto = false;
-    Optional<FlyString> dashed_ident;
+    Optional<Utf16FlyString> dashed_ident;
     bool element_shared = false;
 
     while (tokens.has_next_token()) {
@@ -4474,13 +4481,13 @@ RefPtr<RandomValueSharingStyleValue const> Parser::parse_random_value_sharing(To
 }
 
 // https://drafts.csswg.org/css-values-4/#typedef-dashed-ident
-Optional<FlyString> Parser::parse_dashed_ident(TokenStream<ComponentValue>& tokens)
+Optional<Utf16FlyString> Parser::parse_dashed_ident(TokenStream<ComponentValue>& tokens)
 {
     // The <dashed-ident> production is a <custom-ident>, with all the case-sensitivity that implies, with the
     // additional restriction that it must start with two dashes (U+002D HYPHEN-MINUS).
     auto transaction = tokens.begin_transaction();
     auto custom_ident = parse_custom_ident(tokens, {});
-    if (!custom_ident.has_value() || !custom_ident->starts_with_bytes("--"sv))
+    if (!custom_ident.has_value() || !custom_ident->starts_with("--"sv))
         return {};
     transaction.commit();
     return custom_ident;
@@ -4860,7 +4867,7 @@ Optional<ExplicitGridTrack> Parser::parse_grid_track_size(TokenStream<ComponentV
             if (function_tokens.has_next_token())
                 return {};
             transaction.commit();
-            return ExplicitGridTrack(GridSize(FunctionStyleValue::create("fit-content"_fly_string, maybe_length_percentage.release_nonnull())));
+            return ExplicitGridTrack(GridSize(FunctionStyleValue::create("fit-content"_utf16_fly_string, maybe_length_percentage.release_nonnull())));
         }
     }
 
@@ -5035,7 +5042,7 @@ RefPtr<GridTrackPlacementStyleValue const> Parser::parse_grid_track_placement(To
             if (parsed_custom_ident.has_value())
                 return nullptr;
 
-            parsed_custom_ident = maybe_parsed_custom_ident->to_string();
+            parsed_custom_ident = MUST(maybe_parsed_custom_ident->view().to_utf8());
             tokens.discard_whitespace();
             continue;
         }
@@ -5537,7 +5544,8 @@ RefPtr<StringStyleValue const> Parser::parse_opentype_tag_value(TokenStream<Comp
     if (string_value == nullptr)
         return nullptr;
 
-    auto string = string_value->string_value().bytes_as_string_view();
+    auto string_storage = MUST(string_value->string_value().view().to_utf8());
+    auto string = string_storage.bytes_as_string_view();
     if (string.length() != 4)
         return nullptr;
     for (char c : string) {
@@ -5588,7 +5596,7 @@ RefPtr<FontSourceStyleValue const> Parser::parse_font_source_value(TokenStream<C
         TokenStream format_tokens { function.value };
         format_tokens.discard_whitespace();
         auto const& format_name_token = format_tokens.consume_a_token();
-        FlyString format_name;
+        Utf16FlyString format_name;
         if (format_name_token.is(Token::Type::Ident)) {
             format_name = format_name_token.token().ident();
         } else if (format_name_token.is(Token::Type::String)) {
@@ -5604,26 +5612,26 @@ RefPtr<FontSourceStyleValue const> Parser::parse_font_source_value(TokenStream<C
             // format("truetype-variations")   -> format(truetype) tech(variations)
             // format("opentype-variations")   -> format(opentype) tech(variations)
             if (name_string.equals_ignoring_ascii_case("woff2"sv)) {
-                format_name = "woff2"_fly_string;
+                format_name = "woff2"_utf16_fly_string;
             } else if (name_string.equals_ignoring_ascii_case("woff"sv)) {
-                format_name = "woff"_fly_string;
+                format_name = "woff"_utf16_fly_string;
             } else if (name_string.equals_ignoring_ascii_case("truetype"sv)) {
-                format_name = "truetype"_fly_string;
+                format_name = "truetype"_utf16_fly_string;
             } else if (name_string.equals_ignoring_ascii_case("opentype"sv)) {
-                format_name = "opentype"_fly_string;
+                format_name = "opentype"_utf16_fly_string;
             } else if (name_string.equals_ignoring_ascii_case("collection"sv)) {
-                format_name = "collection"_fly_string;
+                format_name = "collection"_utf16_fly_string;
             } else if (name_string.equals_ignoring_ascii_case("woff2-variations"sv)) {
-                format_name = "woff2"_fly_string;
+                format_name = "woff2"_utf16_fly_string;
                 tech.append(FontTech::Variations);
             } else if (name_string.equals_ignoring_ascii_case("woff-variations"sv)) {
-                format_name = "woff"_fly_string;
+                format_name = "woff"_utf16_fly_string;
                 tech.append(FontTech::Variations);
             } else if (name_string.equals_ignoring_ascii_case("truetype-variations"sv)) {
-                format_name = "truetype"_fly_string;
+                format_name = "truetype"_utf16_fly_string;
                 tech.append(FontTech::Variations);
             } else if (name_string.equals_ignoring_ascii_case("opentype-variations"sv)) {
-                format_name = "opentype"_fly_string;
+                format_name = "opentype"_utf16_fly_string;
                 tech.append(FontTech::Variations);
             } else {
                 ErrorReporter::the().report(InvalidValueError {
@@ -5661,7 +5669,8 @@ RefPtr<FontSourceStyleValue const> Parser::parse_font_source_value(TokenStream<C
             return nullptr;
         }
 
-        format = move(format_name);
+        auto format_name_utf8 = MUST(format_name.view().to_utf8());
+        format = MUST(FlyString::from_utf8(format_name_utf8.bytes_as_string_view()));
     }
 
     tokens.discard_whitespace();
@@ -5748,9 +5757,10 @@ static Optional<Keyword> single_css_wide_keyword(Vector<ComponentValue> const& v
     tokens.discard_whitespace();
     if (tokens.has_next_token() || !token.is(Token::Type::Ident))
         return {};
-    if (!is_css_wide_keyword(token.token().ident()))
+    auto keyword = keyword_from_string(token.token().ident());
+    if (!keyword.has_value() || !is_css_wide_keyword(*keyword))
         return {};
-    return keyword_from_string(token.token().ident());
+    return keyword;
 }
 
 // https://drafts.csswg.org/css-values-5/#property-replacement
@@ -5773,7 +5783,7 @@ NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(DOM::Abst
     auto replacement_context = ArbitrarySubstitutionReplacementContext {
         .computed_style_for_custom_property_resolution = m_computed_style_for_custom_property_resolution,
     };
-    auto result = substitute_arbitrary_substitution_functions(element, guarded_contexts, replacement_context, unresolved.values(), SubstitutionContext { SubstitutionContext::DependencyType::Property, property.to_string() });
+    auto result = substitute_arbitrary_substitution_functions(element, guarded_contexts, replacement_context, unresolved.values(), SubstitutionContext { SubstitutionContext::DependencyType::Property, property.name().to_utf16_string() });
 
     // 2. If result contains the guaranteed-invalid value, prop is invalid at computed-value time; return.
     if (contains_guaranteed_invalid_value(result))

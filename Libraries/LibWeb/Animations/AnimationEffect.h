@@ -59,6 +59,7 @@ class AnimationEffect : public Bindings::PlatformObject {
 
 public:
     static Optional<CSS::EasingFunction> parse_easing_string(StringView value);
+    static Optional<CSS::EasingFunction> parse_easing_string(Utf16View value);
 
     Bindings::EffectTiming get_timing() const;
     Bindings::ComputedEffectTiming get_computed_timing() const;

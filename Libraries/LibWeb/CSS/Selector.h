@@ -31,7 +31,7 @@ public:
     public:
         struct PTNameSelector {
             bool is_universal { false };
-            FlyString value {};
+            Utf16FlyString value {};
         };
         using IdentList = Vector<Utf16FlyString>;
 
@@ -44,7 +44,7 @@ public:
             VERIFY(is_known_pseudo_element_type(type));
         }
 
-        PseudoElementSelector(PseudoElement type, String name, Value value = {})
+        PseudoElementSelector(PseudoElement type, Utf16FlyString name, Value value = {})
             : m_type(type)
             , m_name(move(name))
             , m_value(move(value))
@@ -71,7 +71,7 @@ public:
 
     private:
         PseudoElement m_type;
-        String m_name;
+        Utf16FlyString m_name;
         Value m_value;
     };
 
@@ -112,7 +112,7 @@ public:
             // Used by :dir()
             struct Ident {
                 Keyword keyword;
-                FlyString string_value;
+                Utf16FlyString string_value;
             };
             Optional<Ident> ident {};
 
@@ -121,14 +121,32 @@ public:
         };
 
         struct Name {
-            Name(FlyString n)
+            Name(Utf16FlyString n)
                 : name(move(n))
                 , lowercase_name(name.to_ascii_lowercase())
             {
             }
 
-            FlyString name;
-            FlyString lowercase_name;
+            Utf16FlyString name;
+            Utf16FlyString lowercase_name;
+        };
+
+        struct Id {
+            Id(Utf16FlyString n)
+                : name(move(n))
+            {
+            }
+
+            Utf16FlyString name;
+        };
+
+        struct ClassName {
+            ClassName(Utf16FlyString n)
+                : name(move(n))
+            {
+            }
+
+            Utf16FlyString name;
         };
 
         // Equivalent to `<wq-name>`
@@ -141,7 +159,7 @@ public:
                 Named,   // `ns|E`
             };
             NamespaceType namespace_type { NamespaceType::Default };
-            FlyString namespace_ {};
+            Utf16FlyString namespace_ {};
             Name name;
         };
 
@@ -171,7 +189,7 @@ public:
         };
 
         Type type;
-        Variant<Empty, Attribute, PseudoClassSelector, PseudoElementSelector, Name, QualifiedName, Invalid> value {};
+        Variant<Empty, Attribute, PseudoClassSelector, PseudoElementSelector, Name, Id, ClassName, QualifiedName, Invalid> value {};
 
         Attribute const& attribute() const { return value.get<Attribute>(); }
         Attribute& attribute() { return value.get<Attribute>(); }
@@ -180,10 +198,14 @@ public:
         PseudoElementSelector const& pseudo_element() const { return value.get<PseudoElementSelector>(); }
         PseudoElementSelector& pseudo_element() { return value.get<PseudoElementSelector>(); }
 
-        FlyString const& name() const { return value.get<Name>().name; }
-        FlyString& name() { return value.get<Name>().name; }
-        FlyString const& lowercase_name() const { return value.get<Name>().lowercase_name; }
-        FlyString& lowercase_name() { return value.get<Name>().lowercase_name; }
+        Utf16FlyString const& name() const { return value.get<Name>().name; }
+        Utf16FlyString& name() { return value.get<Name>().name; }
+        Utf16FlyString const& id_name() const { return value.get<Id>().name; }
+        Utf16FlyString& id_name() { return value.get<Id>().name; }
+        Utf16FlyString const& class_name() const { return value.get<ClassName>().name; }
+        Utf16FlyString& class_name() { return value.get<ClassName>().name; }
+        Utf16FlyString const& lowercase_name() const { return value.get<Name>().lowercase_name; }
+        Utf16FlyString& lowercase_name() { return value.get<Name>().lowercase_name; }
         QualifiedName const& qualified_name() const { return value.get<QualifiedName>(); }
         QualifiedName& qualified_name() { return value.get<QualifiedName>(); }
 

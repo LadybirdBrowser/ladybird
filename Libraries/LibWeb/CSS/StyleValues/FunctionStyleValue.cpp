@@ -20,7 +20,7 @@ ValueComparingNonnullRefPtr<StyleValue const> FunctionStyleValue::absolutized(Co
 
 void FunctionStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    builder.append(m_name);
+    builder.append(m_name.view());
     builder.append('(');
     m_value->serialize(builder, mode);
     builder.append(')');

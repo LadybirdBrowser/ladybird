@@ -19,23 +19,23 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSKeywordValue);
 
-GC::Ref<CSSKeywordValue> CSSKeywordValue::create(JS::Realm& realm, FlyString value)
+GC::Ref<CSSKeywordValue> CSSKeywordValue::create(JS::Realm& realm, Utf16FlyString value)
 {
     return realm.create<CSSKeywordValue>(realm, move(value));
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-csskeywordvalue-csskeywordvalue
-WebIDL::ExceptionOr<GC::Ref<CSSKeywordValue>> CSSKeywordValue::construct_impl(JS::Realm& realm, FlyString value)
+WebIDL::ExceptionOr<GC::Ref<CSSKeywordValue>> CSSKeywordValue::construct_impl(JS::Realm& realm, Utf16String value)
 {
     // 1. If value is an empty string, throw a TypeError.
     if (value.is_empty())
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot create a CSSKeywordValue with an empty string as the value"sv };
 
     // 2. Otherwise, return a new CSSKeywordValue with its value internal slot set to value.
-    return CSSKeywordValue::create(realm, move(value));
+    return CSSKeywordValue::create(realm, Utf16FlyString { move(value) });
 }
 
-CSSKeywordValue::CSSKeywordValue(JS::Realm& realm, FlyString value)
+CSSKeywordValue::CSSKeywordValue(JS::Realm& realm, Utf16FlyString value)
     : CSSStyleValue(realm)
     , m_value(move(value))
 {
@@ -48,14 +48,14 @@ void CSSKeywordValue::initialize(JS::Realm& realm)
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-csskeywordvalue-value
-WebIDL::ExceptionOr<void> CSSKeywordValue::set_value(FlyString value)
+WebIDL::ExceptionOr<void> CSSKeywordValue::set_value(Utf16String value)
 {
     // 1. If value is an empty string, throw a TypeError.
     if (value.is_empty())
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot set CSSKeywordValue.value to an empty string"sv };
 
     // 2. Otherwise, set this’s value internal slot, to value.
-    m_value = move(value);
+    m_value = Utf16FlyString { move(value) };
     return {};
 }
 
@@ -86,7 +86,7 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSKeywordValue::create_an_
         // identifier.
         // If case-folding rules are in effect normally for that <ident> (such as Auto matching the keyword auto
         // specified in the grammar for width), they apply to this comparison as well.
-        if (is_css_wide_keyword(m_value))
+        if (auto keyword = keyword_from_string(m_value); keyword.has_value() && is_css_wide_keyword(*keyword))
             return true;
         if (property.is_custom_property()) {
             // FIXME: If this is a registered custom property, check if that allows the keyword.
@@ -106,7 +106,7 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSKeywordValue::create_an_
 
     //     Return the value.
     if (auto keyword = keyword_from_string(m_value); keyword.has_value()) {
-        if (!is_css_wide_keyword(m_value)) {
+        if (!is_css_wide_keyword(*keyword)) {
             // NB: Non-css-wide keyword `display` values are represented internally by DisplayStyleValue, not KeywordStyleValue.
             if (property.id() == PropertyID::Display)
                 return DisplayStyleValue::create(Display::from_keyword(keyword.release_value()));
@@ -128,8 +128,8 @@ GC::Ref<CSSKeywordValue> rectify_a_keywordish_value(JS::Realm& realm, CSSKeyword
         },
 
         // 2. If val is a DOMString, return a new CSSKeywordValue with its value internal slot set to val.
-        [&realm](FlyString const& value) -> GC::Ref<CSSKeywordValue> {
-            return CSSKeywordValue::create(realm, value);
+        [&realm](Utf16String const& value) -> GC::Ref<CSSKeywordValue> {
+            return CSSKeywordValue::create(realm, Utf16FlyString { value });
         });
 }
 

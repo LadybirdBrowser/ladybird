@@ -27,13 +27,13 @@ class NamedViewTransitionPseudoElement
     GC_CELL(NamedViewTransitionPseudoElement, DOM::SyntheticPseudoElementTreeNode);
     GC_DECLARE_ALLOCATOR(NamedViewTransitionPseudoElement);
 
-    NamedViewTransitionPseudoElement(CSS::PseudoElement, FlyString);
+    NamedViewTransitionPseudoElement(CSS::PseudoElement, Utf16FlyString);
 
     CSS::PseudoElement m_type;
 
     // Several of the view transition pseudo-elements are named view transition pseudo-elements, which are
     // functional tree-abiding view transition pseudo-elements associated with a view transition name.
-    FlyString m_view_transition_name;
+    Utf16FlyString m_view_transition_name;
 };
 
 // https://drafts.csswg.org/css-view-transitions-1/#::view-transition-old
@@ -43,7 +43,7 @@ class ReplacedNamedViewTransitionPseudoElement
     GC_CELL(ReplacedNamedViewTransitionPseudoElement, NamedViewTransitionPseudoElement);
     GC_DECLARE_ALLOCATOR(ReplacedNamedViewTransitionPseudoElement);
 
-    ReplacedNamedViewTransitionPseudoElement(CSS::PseudoElement, FlyString, Optional<Gfx::DecodedImageFrame>);
+    ReplacedNamedViewTransitionPseudoElement(CSS::PseudoElement, Utf16FlyString, Optional<Gfx::DecodedImageFrame>);
 
     Optional<Gfx::DecodedImageFrame> m_content;
 };
@@ -146,7 +146,7 @@ private:
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
     // https://drafts.csswg.org/css-view-transitions-1/#viewtransition-named-elements
-    HashMap<FlyString, GC::Ptr<CapturedElement>> m_named_elements = {};
+    HashMap<Utf16FlyString, GC::Ptr<CapturedElement>> m_named_elements = {};
 
     // https://drafts.csswg.org/css-view-transitions-1/#viewtransition-phase
     Phase m_phase = Phase::PendingCapture;

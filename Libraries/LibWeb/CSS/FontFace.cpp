@@ -444,7 +444,7 @@ WebIDL::ExceptionOr<void> FontFace::set_family(String const& string)
 
 void FontFace::set_family_impl(NonnullRefPtr<StyleValue const> const& value)
 {
-    m_family = string_from_style_value(value).to_string();
+    m_family = MUST(string_from_style_value(value).view().to_utf8());
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-style
@@ -846,7 +846,8 @@ void FontFace::remove_from_set(FontFaceSet& set)
     m_containing_sets.remove(set);
 }
 
-bool font_format_is_supported(FlyString const& name)
+template<typename Name>
+static bool font_format_is_supported_impl(Name const& name)
 {
     // https://drafts.csswg.org/css-fonts-4/#font-format-definitions
     if (name.equals_ignoring_ascii_case("collection"sv))
@@ -864,6 +865,16 @@ bool font_format_is_supported(FlyString const& name)
     if (name.equals_ignoring_ascii_case("woff2"sv))
         return Gfx::font_format_is_supported(Gfx::FontFormat::WOFF2);
     return false;
+}
+
+bool font_format_is_supported(FlyString const& name)
+{
+    return font_format_is_supported_impl(name);
+}
+
+bool font_format_is_supported(Utf16View name)
+{
+    return font_format_is_supported_impl(name);
 }
 
 bool font_tech_is_supported(FontTech font_tech)
@@ -899,7 +910,8 @@ bool font_tech_is_supported(FontTech font_tech)
     return false;
 }
 
-bool font_tech_is_supported(FlyString const& name)
+template<typename Name>
+static bool font_tech_is_supported_impl(Name const& name)
 {
     if (auto keyword = keyword_from_string(name); keyword.has_value()) {
         if (auto font_tech = keyword_to_font_tech(*keyword); font_tech.has_value()) {
@@ -907,6 +919,16 @@ bool font_tech_is_supported(FlyString const& name)
         }
     }
     return false;
+}
+
+bool font_tech_is_supported(FlyString const& name)
+{
+    return font_tech_is_supported_impl(name);
+}
+
+bool font_tech_is_supported(Utf16View name)
+{
+    return font_tech_is_supported_impl(name);
 }
 
 }

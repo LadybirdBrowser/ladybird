@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/CSS/CSSRule.h>
 
 namespace Web::CSS::Parser {
@@ -32,6 +32,6 @@ enum class RuleContext : u8 {
     Margin,
 };
 RuleContext rule_context_type_for_rule(CSSRule::Type);
-RuleContext rule_context_type_for_at_rule(FlyString const&);
+RuleContext rule_context_type_for_at_rule(Utf16FlyString const&);
 
 }

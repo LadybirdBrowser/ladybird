@@ -853,7 +853,8 @@ String Window::name() const
         return String {};
 
     // 2. Return this's navigable's target name.
-    return navigable()->target_name();
+    auto target_name = navigable()->target_name();
+    return MUST(target_name.utf16_view().to_utf8());
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#apis-for-creating-and-navigating-browsing-contexts-by-name:dom-name
@@ -864,7 +865,7 @@ void Window::set_name(String const& name)
         return;
 
     // 2. Set this's navigable's active session history entry's document state's navigable target name to the given value.
-    navigable()->active_session_history_entry()->document_state()->set_navigable_target_name(name);
+    navigable()->active_session_history_entry()->document_state()->set_navigable_target_name(Utf16String::from_utf8(name));
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-status
@@ -1865,7 +1866,7 @@ GC::Ref<CustomElementRegistry> Window::custom_elements()
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#document-tree-child-navigable-target-name-property-set
-OrderedHashMap<FlyString, GC::Ref<LocalNavigable>> Window::document_tree_child_navigable_target_name_property_set()
+OrderedHashMap<Utf16FlyString, GC::Ref<LocalNavigable>> Window::document_tree_child_navigable_target_name_property_set()
 {
     // The document-tree child navigable target name property set of a Window object window is the return value of running these steps:
 
@@ -1873,12 +1874,13 @@ OrderedHashMap<FlyString, GC::Ref<LocalNavigable>> Window::document_tree_child_n
     auto children = associated_document().document_tree_child_navigables();
 
     // 2. Let firstNamedChildren be an empty ordered set.
-    OrderedHashMap<FlyString, GC::Ref<LocalNavigable>> first_named_children;
+    OrderedHashMap<Utf16FlyString, GC::Ref<LocalNavigable>> first_named_children;
 
     // 3. For each navigable of children:
     for (auto const& navigable : children) {
         // 1. Let name be navigable's target name.
-        auto const& name = navigable->target_name();
+        auto target_name = navigable->target_name();
+        auto name = Utf16FlyString::from_utf16(target_name.utf16_view());
 
         // 2. If name is the empty string, then continue.
         if (name.is_empty())
@@ -1893,7 +1895,7 @@ OrderedHashMap<FlyString, GC::Ref<LocalNavigable>> Window::document_tree_child_n
     }
 
     // 4. Let names be an empty ordered set.
-    OrderedHashMap<FlyString, GC::Ref<LocalNavigable>> names;
+    OrderedHashMap<Utf16FlyString, GC::Ref<LocalNavigable>> names;
 
     // 5. For each navigable of firstNamedChildren:
     for (auto const& [name, navigable] : first_named_children) {
@@ -1920,7 +1922,7 @@ OrderedHashMap<FlyString, GC::Ref<LocalNavigable>> Window::document_tree_child_n
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#named-access-on-the-window-object
-Vector<FlyString> Window::supported_property_names() const
+Vector<Utf16FlyString> Window::supported_property_names() const
 {
     // FIXME: Make the const-correctness of the methods this method calls less cowboy.
     auto& mutable_this = const_cast<Window&>(*this);
@@ -1929,7 +1931,7 @@ Vector<FlyString> Window::supported_property_names() const
     // The supported property names of a Window object window at any moment consist of the following,
     // in tree order according to the element that contributed them, ignoring later duplicates:
 
-    HashTable<FlyString> property_names;
+    HashTable<Utf16FlyString> property_names;
 
     // - window's document-tree child navigable target name property set;
     auto child_navigable_property_set = mutable_this.document_tree_child_navigable_target_name_property_set();
@@ -1948,11 +1950,15 @@ Vector<FlyString> Window::supported_property_names() const
         property_names.set(id, AK::HashSetExistingEntryBehavior::Keep);
     });
 
-    return property_names.values();
+    Vector<Utf16FlyString> result;
+    result.ensure_capacity(property_names.size());
+    for (auto const& property_name : property_names)
+        result.append(property_name);
+    return result;
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#named-access-on-the-window-object
-JS::Value Window::named_item_value(FlyString const& name) const
+JS::Value Window::named_item_value(Utf16FlyString const& name) const
 {
     // FIXME: Make the const-correctness of the methods this method calls less cowboy.
     auto& mutable_this = const_cast<Window&>(*this);
@@ -1996,18 +2002,18 @@ JS::Value Window::named_item_value(FlyString const& name) const
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-nameditem-filter
-Window::NamedObjects Window::named_objects(StringView name)
+Window::NamedObjects Window::named_objects(Utf16FlyString const& name)
 {
     // NOTE: Since the Window interface has the [Global] extended attribute, its named properties
     //       follow the rules for named properties objects rather than legacy platform objects.
 
     // Named objects of Window object window with the name name, for the purposes of the above algorithm, consist of the following:
     NamedObjects objects;
-
     // document-tree child navigables of window's associated Document whose target name is name;
     auto children = associated_document().document_tree_child_navigables();
     for (auto& navigable : children) {
-        if (navigable->target_name() == name) {
+        auto target_name = navigable->target_name();
+        if (name == target_name.utf16_view()) {
             objects.navigables.append(*navigable);
         }
     }

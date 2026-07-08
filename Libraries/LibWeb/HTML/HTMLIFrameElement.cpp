@@ -352,7 +352,7 @@ WebIDL::ExceptionOr<void> HTMLIFrameElement::set_srcdoc(TrustedTypes::TrustedHTM
         TrustedTypes::Script.to_string()));
 
     // 2. Set an attribute value given this, srcdoc's local name, and compliantString.
-    set_attribute_value(AttributeNames::srcdoc, compliant_string.to_utf8_but_should_be_ported_to_utf16());
+    set_attribute_value(AttributeNames::srcdoc, compliant_string);
     return {};
 }
 

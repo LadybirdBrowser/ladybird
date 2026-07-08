@@ -118,7 +118,7 @@ GC::Ptr<HTMLElement> HTMLLabelElement::control() const
     if (auto for_attribute = for_(); for_attribute.has_value()) {
         root().for_each_in_inclusive_subtree_of_type<HTMLElement>([&](auto& element) {
             if (element.id().has_value()
-                && Utf16String::from_utf8(element.id()->bytes_as_string_view()) == *for_attribute
+                && element.id()->view() == for_attribute->utf16_view()
                 && element.is_labelable()) {
                 control = &const_cast<HTMLElement&>(element);
                 return TraversalDecision::Break;

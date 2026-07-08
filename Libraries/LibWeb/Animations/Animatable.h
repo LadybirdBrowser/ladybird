@@ -10,6 +10,7 @@
 
 #include <AK/FlyString.h>
 #include <AK/HashMap.h>
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/Bindings/Animatable.h>
 #include <LibWeb/Export.h>
@@ -50,9 +51,9 @@ public:
 
     void set_has_css_defined_animations();
     bool has_css_defined_animations() const;
-    HashMap<FlyString, GC::Ref<CSS::CSSAnimation>>* css_defined_animations(Optional<CSS::PseudoElement>);
-    void add_css_animation(FlyString name, Optional<CSS::PseudoElement>, GC::Ref<CSS::CSSAnimation>);
-    void remove_css_animation(FlyString name, Optional<CSS::PseudoElement>);
+    HashMap<Utf16FlyString, GC::Ref<CSS::CSSAnimation>>* css_defined_animations(Optional<CSS::PseudoElement>);
+    void add_css_animation(Utf16FlyString name, Optional<CSS::PseudoElement>, GC::Ref<CSS::CSSAnimation>);
+    void remove_css_animation(Utf16FlyString name, Optional<CSS::PseudoElement>);
 
     void add_transitioned_properties(Optional<CSS::PseudoElement>, Vector<CSS::TransitionProperties> const& transitions);
     Vector<CSS::PropertyID> property_ids_with_matching_transition_property_entry(Optional<CSS::PseudoElement>) const;
@@ -74,7 +75,7 @@ private:
         bool is_sorted_by_composite_order { true };
         bool has_css_defined_animations { false };
 
-        mutable Array<OwnPtr<HashMap<FlyString, GC::Ref<CSS::CSSAnimation>>>, to_underlying(CSS::PseudoElement::KnownPseudoElementCount) + 1> css_defined_animations;
+        mutable Array<OwnPtr<HashMap<Utf16FlyString, GC::Ref<CSS::CSSAnimation>>>, to_underlying(CSS::PseudoElement::KnownPseudoElementCount) + 1> css_defined_animations;
         mutable Array<OwnPtr<Transition>, to_underlying(CSS::PseudoElement::KnownPseudoElementCount) + 1> transitions;
 
         ~Impl();

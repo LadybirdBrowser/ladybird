@@ -48,10 +48,10 @@ private:
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // ^PlatformObject
-    virtual JS::Value named_item_value(FlyString const&) const override;
-    virtual WebIDL::ExceptionOr<DidDeletionFail> delete_value(String const&) override;
-    virtual Vector<FlyString> supported_property_names() const override;
-    virtual WebIDL::ExceptionOr<void> set_value_of_named_property(String const& key, JS::Value value) override;
+    virtual JS::Value named_item_value(Utf16FlyString const&) const override;
+    virtual WebIDL::ExceptionOr<DidDeletionFail> delete_value(Utf16FlyString const&) override;
+    virtual Vector<Utf16FlyString> supported_property_names() const override;
+    virtual WebIDL::ExceptionOr<void> set_value_of_named_property(Utf16FlyString const& key, JS::Value value) override;
 
     void reorder();
     void broadcast(Optional<String> const& key, Optional<String> const& old_value, Optional<String> const& new_value);

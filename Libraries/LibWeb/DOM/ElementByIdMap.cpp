@@ -8,7 +8,7 @@
 
 namespace Web::DOM {
 
-void ElementByIdMap::add(FlyString const& element_id, Element& element)
+void ElementByIdMap::add(Utf16FlyString const& element_id, Element& element)
 {
     auto& entry = m_map.ensure(element_id, [] { return MapEntry {}; });
 
@@ -26,7 +26,7 @@ void ElementByIdMap::add(FlyString const& element_id, Element& element)
     }
 }
 
-void ElementByIdMap::remove(FlyString const& element_id, Element& element)
+void ElementByIdMap::remove(Utf16FlyString const& element_id, Element& element)
 {
     auto it = m_map.find(element_id);
     if (it == m_map.end())
@@ -46,7 +46,7 @@ void ElementByIdMap::remove(FlyString const& element_id, Element& element)
         entry.cached_first_element = {};
 }
 
-GC::Ptr<Element> ElementByIdMap::get(FlyString const& element_id, Node const& scope_root) const
+GC::Ptr<Element> ElementByIdMap::get(Utf16FlyString const& element_id, Node const& scope_root) const
 {
     auto maybe_entry = m_map.get(element_id);
     if (!maybe_entry.has_value())
@@ -71,7 +71,7 @@ GC::Ptr<Element> ElementByIdMap::get(FlyString const& element_id, Node const& sc
     return first_element;
 }
 
-void ElementByIdMap::for_each_element_with_id(StringView element_id, Node const& scope_root, Function<void(Element&)> callback) const
+void ElementByIdMap::for_each_element_with_id(Utf16FlyString const& element_id, Node const& scope_root, Function<void(Element&)> callback) const
 {
     auto maybe_entry = m_map.get(element_id);
     if (!maybe_entry.has_value())

@@ -111,7 +111,7 @@ enum ErrorType {
 #undef __JS_ENUMERATE
 };
 
-static ErrorType error_name_to_type(StringView name)
+static ErrorType error_name_to_type(Utf16View name)
 {
 #define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, ArrayType) \
     if (name == #ClassName##sv)                                                          \
@@ -395,7 +395,7 @@ public:
                 // 2. If name is not one of "Error", "EvalError", "RangeError", "ReferenceError", "SyntaxError", "TypeError", or "URIError", then set name to "Error".
                 auto type = ErrorType::Error;
                 if (name.is_string())
-                    type = error_name_to_type(name.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16());
+                    type = error_name_to_type(name.as_string().utf16_string_view());
 
                 // 3. Let valueMessageDesc be ? value.[[GetOwnProperty]]("message").
                 auto value_message_descriptor = TRY(object->internal_get_own_property(m_vm.names.message));

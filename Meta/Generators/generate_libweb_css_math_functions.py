@@ -47,6 +47,7 @@ def write_header_file(out: TextIO, functions_data: dict) -> None:
 
 #include <AK/Optional.h>
 #include <AK/StringView.h>
+#include <AK/Utf16View.h>
 
 namespace Web::CSS {
 
@@ -61,6 +62,7 @@ enum class MathFunction {
 };
 
 Optional<MathFunction> math_function_from_string(StringView);
+Optional<MathFunction> math_function_from_string(Utf16View);
 """)
     out.write("    \n")
     out.write("""}
@@ -81,6 +83,22 @@ def write_implementation_file(out: TextIO, functions_data: dict) -> None:
 namespace Web::CSS {
 
 Optional<MathFunction> math_function_from_string(StringView name)
+{
+    if (name.equals_ignoring_ascii_case("calc"sv))
+        return MathFunction::Calc;
+""")
+
+    for name in functions_data:
+        out.write(f"""
+    if (name.equals_ignoring_ascii_case("{name}"sv))
+        return MathFunction::{title_casify(name)};
+""")
+
+    out.write("""
+    return {};
+}
+
+Optional<MathFunction> math_function_from_string(Utf16View name)
 {
     if (name.equals_ignoring_ascii_case("calc"sv))
         return MathFunction::Calc;

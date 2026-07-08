@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16FlyString.h>
 #include <AK/Weakable.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibURL/Origin.h>
@@ -87,19 +88,19 @@ protected:
     JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> legacy_platform_object_get_own_property(JS::PropertyKey const&, IgnoreNamedProps ignore_named_props) const;
 
     virtual Optional<JS::Value> item_value(size_t index) const;
-    virtual JS::Value named_item_value(FlyString const& name) const;
-    virtual Vector<FlyString> supported_property_names() const;
-    virtual bool is_supported_property_name(FlyString const&) const;
+    virtual JS::Value named_item_value(Utf16FlyString const& name) const;
+    virtual Vector<Utf16FlyString> supported_property_names() const;
+    virtual bool is_supported_property_name(Utf16FlyString const&) const;
     bool is_supported_property_index(u32) const;
 
     // NOTE: These will crash if you make has_named_property_setter return true but do not override these methods.
     // NOTE: This is only used if named_property_setter_has_identifier returns false, otherwise set_value_of_named_property is used instead.
-    virtual WebIDL::ExceptionOr<void> set_value_of_new_named_property(String const&, JS::Value);
-    virtual WebIDL::ExceptionOr<void> set_value_of_existing_named_property(String const&, JS::Value);
+    virtual WebIDL::ExceptionOr<void> set_value_of_new_named_property(Utf16FlyString const&, JS::Value);
+    virtual WebIDL::ExceptionOr<void> set_value_of_existing_named_property(Utf16FlyString const&, JS::Value);
 
     // NOTE: These will crash if you make has_named_property_setter return true but do not override these methods.
     // NOTE: This is only used if you make named_property_setter_has_identifier return true, otherwise set_value_of_{new,existing}_named_property is used instead.
-    virtual WebIDL::ExceptionOr<void> set_value_of_named_property(String const&, JS::Value);
+    virtual WebIDL::ExceptionOr<void> set_value_of_named_property(Utf16FlyString const&, JS::Value);
 
     // NOTE: These will crash if you make has_indexed_property_setter return true but do not override these methods.
     // NOTE: This is only used if indexed_property_setter_has_identifier returns false, otherwise set_value_of_indexed_property is used instead.
@@ -119,13 +120,13 @@ protected:
     };
 
     // NOTE: This will crash if you make has_named_property_deleter return true but do not override this method.
-    virtual WebIDL::ExceptionOr<DidDeletionFail> delete_value(String const&);
+    virtual WebIDL::ExceptionOr<DidDeletionFail> delete_value(Utf16FlyString const&);
 
     virtual bool eligible_for_own_property_enumeration_fast_path() const override final { return false; }
 
 private:
     WebIDL::ExceptionOr<void> invoke_indexed_property_setter(JS::PropertyKey const&, JS::Value);
-    WebIDL::ExceptionOr<void> invoke_named_property_setter(FlyString const&, JS::Value);
+    WebIDL::ExceptionOr<void> invoke_named_property_setter(Utf16FlyString const&, JS::Value);
 };
 
 }

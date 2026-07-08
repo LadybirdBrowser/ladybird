@@ -1957,7 +1957,7 @@ void FormattingContext::resolve_anchor_insets(Box& box) const
     // FIXME: An element possible anchor is an acceptable anchor element for an absolutely positioned element positioned
     //        el if all of the following are true:
     //        - possible anchor is laid out strictly before positioned el [...]
-    auto target_anchor_box = [&](FlyString const& anchor_name) -> Box* {
+    auto target_anchor_box = [&](Utf16FlyString const& anchor_name) -> Box* {
         auto anchor_element = element->document().element_by_anchor_name(anchor_name, *element);
         if (!anchor_element)
             return nullptr;
@@ -1980,11 +1980,12 @@ void FormattingContext::resolve_anchor_insets(Box& box) const
     // FIXME: Implement remembered scroll offsets. Anchor references are currently always resolved as if all scroll
     //        containers were at their initial scroll position.
     auto resolve_anchor_rect = [&](CSS::AnchorStyleValue const& anchor) -> Optional<CSSPixelRect> {
-        auto const& name = anchor.anchor_name().has_value() ? anchor.anchor_name() : default_anchor_name;
-        if (!name.has_value())
+        auto const* name = anchor.anchor_name().has_value() ? &anchor.anchor_name().value() : default_anchor_name.has_value() ? &default_anchor_name.value()
+                                                                                                                              : nullptr;
+        if (!name)
             return {};
 
-        auto const* anchor_box = target_anchor_box(name.value());
+        auto const* anchor_box = target_anchor_box(*name);
         if (!anchor_box)
             return {};
 
@@ -2115,8 +2116,9 @@ void FormattingContext::resolve_anchor_insets(Box& box) const
         if (!default_anchor_box)
             return;
 
-        auto const& name = anchor.anchor_name().has_value() ? anchor.anchor_name() : default_anchor_name;
-        auto const* anchor_box = name.has_value() ? target_anchor_box(name.value()) : nullptr;
+        auto const* name = anchor.anchor_name().has_value() ? &anchor.anchor_name().value() : default_anchor_name.has_value() ? &default_anchor_name.value()
+                                                                                                                              : nullptr;
+        auto const* anchor_box = name ? target_anchor_box(*name) : nullptr;
         if (!anchor_box)
             return;
         if (anchor_box != default_anchor_box

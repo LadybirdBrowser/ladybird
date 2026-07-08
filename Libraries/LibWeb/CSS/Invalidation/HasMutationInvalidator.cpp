@@ -173,11 +173,11 @@ static bool selector_may_match_mutation_features(Selector const& selector, Pendi
                     break;
                 case Selector::SimpleSelector::Type::Id:
                     saw_concrete_feature = true;
-                    concrete_feature_found_in_mutation_subtree |= mutation_features.ids.contains(simple_selector.name());
+                    concrete_feature_found_in_mutation_subtree |= mutation_features.ids.contains(simple_selector.id_name());
                     break;
                 case Selector::SimpleSelector::Type::Class:
                     saw_concrete_feature = true;
-                    concrete_feature_found_in_mutation_subtree |= mutation_features.class_names.contains(simple_selector.name());
+                    concrete_feature_found_in_mutation_subtree |= mutation_features.class_names.contains(simple_selector.class_name());
                     break;
                 case Selector::SimpleSelector::Type::Attribute:
                     saw_concrete_feature = true;

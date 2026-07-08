@@ -856,7 +856,7 @@ ResolvedCSSFilter resolve_css_filter(CSS::Filter const& computed_filter, Paintab
                 auto fragment_or_error = url_string.substring_from_byte_offset(1);
                 if (fragment_or_error.is_error())
                     return;
-                auto maybe_filter = paintable_box.document().get_element_by_id(fragment_or_error.value());
+                auto maybe_filter = paintable_box.document().get_element_by_id(Utf16String::from_utf8(fragment_or_error.value()));
                 if (!maybe_filter)
                     return;
                 if (auto* filter_element = as_if<SVG::SVGFilterElement>(*maybe_filter)) {

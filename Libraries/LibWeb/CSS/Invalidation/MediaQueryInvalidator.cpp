@@ -17,7 +17,7 @@ namespace Web::CSS::Invalidation {
 
 struct MediaQueryRuleInvalidation {
     StyleSheetInvalidationSet style_sheet_invalidation_set;
-    Vector<FlyString> keyframes_animation_names;
+    Vector<Utf16FlyString> keyframes_animation_names;
 
     void add_rule(CSSRule const& rule)
     {

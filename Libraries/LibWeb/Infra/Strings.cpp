@@ -52,16 +52,15 @@ Utf16String normalize_newlines(Utf16String const& string)
     if (!string.contains('\r'))
         return string;
 
-    // FIXME: Implement a UTF-16 GenericLexer.
     Utf16StringBuilder builder(string.length_in_code_units());
+    Utf16GenericLexer lexer { string.utf16_view() };
 
-    for (size_t i = 0; i < string.length_in_code_units(); ++i) {
-        if (auto code_unit = string.code_unit_at(i); code_unit == '\r') {
-            if (i + 1 < string.length_in_code_units() && string.code_unit_at(i + 1) == '\n')
-                ++i;
+    while (!lexer.is_eof()) {
+        builder.append(lexer.consume_until('\r'));
+
+        if (lexer.peek() == '\r') {
+            lexer.ignore(1 + static_cast<size_t>(lexer.peek(1) == '\n'));
             builder.append_ascii('\n');
-        } else {
-            builder.append_code_unit(code_unit);
         }
     }
 

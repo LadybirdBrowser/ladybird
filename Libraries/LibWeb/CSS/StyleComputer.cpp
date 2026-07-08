@@ -110,7 +110,7 @@ static void for_each_element_hash(DOM::Element const& element, auto callback)
 {
     callback(ancestor_filter_hash_for_tag_name(element.local_name().ascii_case_insensitive_hash()));
     if (element.id().has_value())
-        callback(ancestor_filter_hash_for_id(element.id().value().hash()));
+        callback(ancestor_filter_hash_for_id(element.id()->hash()));
     for (auto const& class_ : element.class_names())
         callback(ancestor_filter_hash_for_class(class_.hash()));
     element.for_each_attribute([&](auto& attribute) {
@@ -225,8 +225,10 @@ RuleCache const* StyleComputer::rule_cache_for_cascade_origin(CascadeOrigin casc
 [[nodiscard]] static bool filter_namespace_rule(Optional<FlyString> const& element_namespace_uri, MatchingRule const& rule)
 {
     // FIXME: Filter out non-default namespace using prefixes
-    if (rule.default_namespace.has_value() && element_namespace_uri != rule.default_namespace)
-        return false;
+    if (rule.default_namespace.has_value()) {
+        if (!element_namespace_uri.has_value() || rule.default_namespace->view() != element_namespace_uri->bytes_as_string_view())
+            return false;
+    }
     return true;
 }
 
@@ -260,9 +262,9 @@ Vector<HasInvalidationMetadata> const* StyleComputer::has_invalidation_metadata_
 
     switch (property.type) {
     case InvalidationSet::Property::Type::Id:
-        return return_bucket_if_present(style_invalidation_data.ids_used_in_has_selectors, property.name());
+        return return_bucket_if_present(style_invalidation_data.ids_used_in_has_selectors, property.id());
     case InvalidationSet::Property::Type::Class:
-        return return_bucket_if_present(style_invalidation_data.class_names_used_in_has_selectors, property.name());
+        return return_bucket_if_present(style_invalidation_data.class_names_used_in_has_selectors, property.class_name());
     case InvalidationSet::Property::Type::Attribute:
         return return_bucket_if_present(style_invalidation_data.attribute_names_used_in_has_selectors, property.name());
     case InvalidationSet::Property::Type::TagName:
@@ -445,10 +447,10 @@ struct ParentFilterHashCollector {
         Vector<u32> hashes;
         switch (simple_selector.type) {
         case Selector::SimpleSelector::Type::Id:
-            hashes.append(ancestor_filter_hash_for_id(simple_selector.name().hash()));
+            hashes.append(ancestor_filter_hash_for_id(simple_selector.id_name().hash()));
             break;
         case Selector::SimpleSelector::Type::Class:
-            hashes.append(ancestor_filter_hash_for_class(simple_selector.name().hash()));
+            hashes.append(ancestor_filter_hash_for_class(simple_selector.class_name().hash()));
             break;
         case Selector::SimpleSelector::Type::TagName:
             hashes.append(ancestor_filter_hash_for_tag_name(simple_selector.qualified_name().name.lowercase_name.hash()));
@@ -1373,14 +1375,15 @@ void StyleComputer::process_animation_definitions(ComputedProperties const& comp
     if (!element_animations)
         return;
 
-    HashTable<FlyString> defined_animation_names;
+    HashTable<Utf16FlyString> defined_animation_names;
 
     for (auto const& animation_properties : animation_definitions) {
-        defined_animation_names.set(animation_properties.name);
+        auto const& animation_name = animation_properties.name;
+        defined_animation_names.set(animation_name);
 
         auto find_keyframes = [&](GC::Ptr<DOM::ShadowRoot const> shadow_root) -> RefPtr<Animations::KeyframeEffect::KeyFrameSet const> {
             if (auto const* rule_cache = rule_cache_for_cascade_origin(CascadeOrigin::Author, {}, shadow_root)) {
-                if (auto keyframe_set = rule_cache->rules_by_animation_keyframes.get(animation_properties.name); keyframe_set.has_value())
+                if (auto keyframe_set = rule_cache->rules_by_animation_keyframes.get(animation_name); keyframe_set.has_value())
                     return keyframe_set.value();
             }
             return {};
@@ -1894,13 +1897,13 @@ static JsonArray serialize_devtools_style_declarations(DOM::Document const& docu
 
     for (auto const& declaration : declarations) {
         bool inherits = declaration.is_custom_property
-            ? custom_property_inherits(document, Utf16FlyString::from_utf8(declaration.name))
-            : PropertyNameAndID::from_name(Utf16FlyString::from_utf8(declaration.name))
+            ? custom_property_inherits(document, declaration.name)
+            : PropertyNameAndID::from_name(declaration.name)
                   .map([](auto const& property) { return !property.is_custom_property() && is_inherited_property(property.id()); })
                   .value_or(false);
 
         serialized_declarations.must_append(serialize_devtools_style_declaration(
-            declaration.name.to_string(),
+            MUST(declaration.name.view().to_utf8()),
             declaration.value,
             declaration.important,
             declaration.is_custom_property ? IsCustomProperty::Yes : IsCustomProperty::No,
@@ -3320,7 +3323,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
 
 struct SimplifiedSelectorForBucketing {
     CSS::Selector::SimpleSelector::Type type;
-    FlyString name;
+    Utf16FlyString name;
 };
 
 static Optional<SimplifiedSelectorForBucketing> bucket_for_is_or_where_selector(CSS::Selector::SimpleSelector const&);
@@ -3435,18 +3438,20 @@ static Optional<SimplifiedSelectorForBucketing> bucket_for_compound_selector(CSS
 {
     Optional<SimplifiedSelectorForBucketing> attribute_bucket;
     for (auto const& simple_selector : compound_selector.simple_selectors.in_reverse()) {
-        if (simple_selector.type == CSS::Selector::SimpleSelector::Type::Class
-            || simple_selector.type == CSS::Selector::SimpleSelector::Type::Id) {
-            return SimplifiedSelectorForBucketing { simple_selector.type, simple_selector.name() };
+        if (simple_selector.type == CSS::Selector::SimpleSelector::Type::Id) {
+            return SimplifiedSelectorForBucketing { .type = simple_selector.type, .name = simple_selector.id_name() };
+        }
+        if (simple_selector.type == CSS::Selector::SimpleSelector::Type::Class) {
+            return SimplifiedSelectorForBucketing { .type = simple_selector.type, .name = simple_selector.class_name() };
         }
 
         if (simple_selector.type == CSS::Selector::SimpleSelector::Type::TagName) {
-            return SimplifiedSelectorForBucketing { simple_selector.type, simple_selector.qualified_name().name.lowercase_name };
+            return SimplifiedSelectorForBucketing { .type = simple_selector.type, .name = simple_selector.qualified_name().name.lowercase_name };
         }
 
         if (simple_selector.type == CSS::Selector::SimpleSelector::Type::Attribute) {
             if (!attribute_bucket.has_value())
-                attribute_bucket = SimplifiedSelectorForBucketing { simple_selector.type, simple_selector.attribute().qualified_name.name.lowercase_name };
+                attribute_bucket = SimplifiedSelectorForBucketing { .type = simple_selector.type, .name = simple_selector.attribute().qualified_name.name.lowercase_name };
             continue;
         }
 
@@ -3483,7 +3488,7 @@ static Optional<SimplifiedSelectorForBucketing> bucket_for_is_or_where_selector(
             common_bucket = bucket.release_value();
             continue;
         }
-        if (common_bucket->type != bucket->type || common_bucket->name != bucket->name)
+        if (!simplified_selectors_for_bucketing_are_equal(*common_bucket, *bucket))
             return {};
     }
     return common_bucket;
@@ -3976,7 +3981,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_feature_tag_value_li
         return absolutized_value;
 
     auto const& value_list = absolutized_value->as_value_list();
-    OrderedHashMap<FlyString, NonnullRefPtr<OpenTypeTaggedStyleValue const>> axis_tags_map;
+    OrderedHashMap<Utf16FlyString, NonnullRefPtr<OpenTypeTaggedStyleValue const>> axis_tags_map;
     for (size_t i = 0; i < value_list.values().size(); i++) {
         auto const& axis_tag = value_list.values().at(i)->as_open_type_tagged();
         axis_tags_map.set(axis_tag.tag(), axis_tag);
@@ -4491,19 +4496,19 @@ static void add_rule_to_rule_buckets(RuleBuckets& rule_buckets, MatchingRule con
 {
     // NOTE: We traverse the simple selectors in reverse order to make sure that class/ID buckets are preferred over tag buckets
     //       in the common case of div.foo or div#foo selectors.
-    auto add_to_id_bucket = [&](FlyString const& name) {
+    auto add_to_id_bucket = [&](Utf16FlyString const& name) {
         rule_buckets.rules_by_id.ensure(name).append(matching_rule);
     };
 
-    auto add_to_class_bucket = [&](FlyString const& name) {
+    auto add_to_class_bucket = [&](Utf16FlyString const& name) {
         rule_buckets.rules_by_class.ensure(name).append(matching_rule);
     };
 
-    auto add_to_tag_name_bucket = [&](FlyString const& name) {
+    auto add_to_tag_name_bucket = [&](Utf16FlyString const& name) {
         rule_buckets.rules_by_tag_name.ensure(name).append(matching_rule);
     };
 
-    auto add_to_attribute_bucket = [&](FlyString const& name) {
+    auto add_to_attribute_bucket = [&](Utf16FlyString const& name) {
         rule_buckets.rules_by_attribute_name.ensure(name).append(matching_rule);
     };
 
@@ -4521,11 +4526,11 @@ static void add_rule_to_rule_buckets(RuleBuckets& rule_buckets, MatchingRule con
 
     for (auto const& simple_selector : bucket_compound_selector.simple_selectors.in_reverse()) {
         if (simple_selector.type == Selector::SimpleSelector::Type::Id) {
-            add_to_id_bucket(simple_selector.name());
+            add_to_id_bucket(simple_selector.id_name());
             return;
         }
         if (simple_selector.type == Selector::SimpleSelector::Type::Class) {
-            add_to_class_bucket(simple_selector.name());
+            add_to_class_bucket(simple_selector.class_name());
             return;
         }
         if (simple_selector.type == Selector::SimpleSelector::Type::TagName) {
@@ -4602,7 +4607,8 @@ static IterationDecision for_each_matching_rule_bucket(DOM::AbstractElement abst
                 return IterationDecision::Break;
         }
     }
-    if (auto it = rule_buckets.rules_by_tag_name.find(abstract_element.element().lowercased_local_name()); it != rule_buckets.rules_by_tag_name.end()) {
+    auto lowercased_local_name = Utf16FlyString::from_fly_string(abstract_element.element().lowercased_local_name());
+    if (auto it = rule_buckets.rules_by_tag_name.find(lowercased_local_name); it != rule_buckets.rules_by_tag_name.end()) {
         if (callback(it->value) == IterationDecision::Break)
             return IterationDecision::Break;
     }
@@ -4614,7 +4620,8 @@ static IterationDecision for_each_matching_rule_bucket(DOM::AbstractElement abst
 
     IterationDecision decision = IterationDecision::Continue;
     abstract_element.element().for_each_attribute([&](auto& name, auto&) {
-        if (auto it = rule_buckets.rules_by_attribute_name.find(name); it != rule_buckets.rules_by_attribute_name.end()) {
+        auto attribute_name = Utf16FlyString::from_fly_string(name);
+        if (auto it = rule_buckets.rules_by_attribute_name.find(attribute_name); it != rule_buckets.rules_by_attribute_name.end()) {
             decision = callback(it->value);
         }
     });

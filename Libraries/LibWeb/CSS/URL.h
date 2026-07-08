@@ -8,6 +8,8 @@
 
 #include <AK/FlyString.h>
 #include <AK/String.h>
+#include <AK/Utf16FlyString.h>
+#include <AK/Utf16View.h>
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/Export.h>
@@ -25,7 +27,7 @@ public:
     };
 
     static RequestURLModifier create_cross_origin(CrossOriginModifierValue);
-    static RequestURLModifier create_integrity(FlyString);
+    static RequestURLModifier create_integrity(Utf16FlyString);
     static RequestURLModifier create_referrer_policy(ReferrerPolicyModifierValue);
 
     ~RequestURLModifier() = default;
@@ -35,7 +37,7 @@ public:
     bool operator==(RequestURLModifier const&) const;
 
 private:
-    using Value = Variant<CrossOriginModifierValue, ReferrerPolicyModifierValue, FlyString>;
+    using Value = Variant<CrossOriginModifierValue, ReferrerPolicyModifierValue, Utf16FlyString>;
     RequestURLModifier(Type, Value);
 
     Type m_type;
@@ -51,6 +53,7 @@ public:
     };
 
     URL(String url, Type = Type::Url, Vector<RequestURLModifier> = {});
+    URL(Utf16View url, Type = Type::Url, Vector<RequestURLModifier> = {});
 
     String const& url() const { return m_url; }
     Type type() const { return m_type; }

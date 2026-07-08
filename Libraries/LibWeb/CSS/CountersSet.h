@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
 #include <AK/Optional.h>
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/Forward.h>
 
@@ -20,7 +20,7 @@ using CounterValue = i32;
 
 // https://drafts.csswg.org/css-lists-3/#counter
 struct Counter {
-    FlyString name;
+    Utf16FlyString name;
     DOM::AbstractElement originating_element; // "creator"
     bool reversed { false };
     Optional<CounterValue> value;
@@ -32,13 +32,13 @@ public:
     CountersSet() = default;
     ~CountersSet() = default;
 
-    Counter& instantiate_a_counter(FlyString name, DOM::AbstractElement const&, bool reversed, Optional<CounterValue>);
-    void set_a_counter(FlyString name, DOM::AbstractElement const&, CounterValue value);
-    void increment_a_counter(FlyString name, DOM::AbstractElement const&, CounterValue amount);
+    Counter& instantiate_a_counter(Utf16FlyString name, DOM::AbstractElement const&, bool reversed, Optional<CounterValue>);
+    void set_a_counter(Utf16FlyString name, DOM::AbstractElement const&, CounterValue value);
+    void increment_a_counter(Utf16FlyString name, DOM::AbstractElement const&, CounterValue amount);
     void append_copy(Counter const&);
 
-    Optional<Counter&> last_counter_with_name(FlyString const& name);
-    Optional<Counter&> counter_with_same_name_and_creator(FlyString const& name, DOM::AbstractElement const&);
+    Optional<Counter&> last_counter_with_name(Utf16FlyString const& name);
+    Optional<Counter&> counter_with_same_name_and_creator(Utf16FlyString const& name, DOM::AbstractElement const&);
 
     Vector<Counter> const& counters() const { return m_counters; }
     bool is_empty() const { return m_counters.is_empty(); }

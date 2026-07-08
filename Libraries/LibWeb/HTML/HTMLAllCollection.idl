@@ -2,8 +2,8 @@
 interface HTMLAllCollection {
     readonly attribute unsigned long length;
     getter Element (unsigned long index);
-    getter (HTMLCollection or Element)? namedItem([FlyString] DOMString name);
-    (HTMLCollection or Element)? item(optional [FlyString] DOMString nameOrIndex);
+    getter (HTMLCollection or Element)? namedItem(Utf16DOMString name);
+    (HTMLCollection or Element)? item(optional Utf16DOMString nameOrIndex);
 
     // Note: HTMLAllCollection objects have a custom [[Call]] internal method and an [[IsHTMLDDA]] internal slot.
 };

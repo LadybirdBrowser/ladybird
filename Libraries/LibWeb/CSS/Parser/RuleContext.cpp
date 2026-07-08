@@ -55,7 +55,7 @@ RuleContext rule_context_type_for_rule(CSSRule::Type rule_type)
     VERIFY_NOT_REACHED();
 }
 
-RuleContext rule_context_type_for_at_rule(FlyString const& name)
+RuleContext rule_context_type_for_at_rule(Utf16FlyString const& name)
 {
     if (name.equals_ignoring_ascii_case("media"sv))
         return RuleContext::AtMedia;

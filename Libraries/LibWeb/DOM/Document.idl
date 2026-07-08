@@ -41,11 +41,11 @@ interface Document : Node {
     readonly attribute USVString referrer;
 
 
-    Element? getElementById(DOMString id);
+    Element? getElementById(Utf16DOMString id);
     NodeList getElementsByName([FlyString] DOMString name);
     HTMLCollection getElementsByTagName([FlyString] DOMString tagName);
     HTMLCollection getElementsByTagNameNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
-    HTMLCollection getElementsByClassName(DOMString className);
+    HTMLCollection getElementsByClassName(Utf16DOMString className);
 
     [SameObject] readonly attribute HTMLCollection applets;
     [SameObject] readonly attribute HTMLCollection anchors;
@@ -119,7 +119,7 @@ interface Document : Node {
     boolean queryCommandIndeterm(DOMString commandId);
     boolean queryCommandState(DOMString commandId);
     boolean queryCommandSupported(DOMString commandId);
-    DOMString queryCommandValue(DOMString commandId);
+    Utf16DOMString queryCommandValue(DOMString commandId);
 
     // special event handler IDL attributes that only apply to Document objects
     [LegacyLenientThis] attribute EventHandler onreadystatechange;

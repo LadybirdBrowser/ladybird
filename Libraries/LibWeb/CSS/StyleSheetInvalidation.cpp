@@ -678,7 +678,7 @@ static void for_each_tree_affected_by_shadow_root_stylesheet_change(
     }
 }
 
-static bool style_value_references_animation_name(StyleValue const& value, FlyString const& animation_name)
+static bool style_value_references_animation_name(StyleValue const& value, Utf16FlyString const& animation_name)
 {
     if (value.is_custom_ident())
         return value.as_custom_ident().custom_ident() == animation_name;
@@ -698,7 +698,7 @@ static bool style_value_references_animation_name(StyleValue const& value, FlySt
     return false;
 }
 
-static bool element_or_pseudo_references_animation_name(DOM::Element const& element, FlyString const& animation_name)
+static bool element_or_pseudo_references_animation_name(DOM::Element const& element, Utf16FlyString const& animation_name)
 {
     auto references_animation_name_in_properties = [&](CSS::ComputedProperties const& computed_properties) {
         return style_value_references_animation_name(computed_properties.property(PropertyID::AnimationName), animation_name);
@@ -719,7 +719,7 @@ static bool element_or_pseudo_references_animation_name(DOM::Element const& elem
     return synthetic_pseudo_element_references_animation_name;
 }
 
-static void invalidate_elements_affected_by_inserted_keyframes_rule(DOM::Node& root, FlyString const& animation_name)
+static void invalidate_elements_affected_by_inserted_keyframes_rule(DOM::Node& root, Utf16FlyString const& animation_name)
 {
     auto invalidate_matching_element = [&](DOM::Element& element) {
         // A new @keyframes rule only matters for elements or pseudo-elements that were already referencing the
@@ -874,7 +874,7 @@ void invalidate_style_for_style_sheet_owners(CSSStyleSheet const& style_sheet, D
     });
 }
 
-void invalidate_root_for_keyframes_rule(DOM::Node& root, FlyString const& animation_name)
+void invalidate_root_for_keyframes_rule(DOM::Node& root, Utf16FlyString const& animation_name)
 {
     // Shadow-scoped keyframes can still affect elements outside the shadow subtree when an active rule in the same
     // scope sets `animation-name` via :host or ::slotted(...). Mirror the fan-out used by the per-rule helper so the

@@ -804,7 +804,7 @@ RefPtr<StyleValue const> Parser::parse_color_scheme_value(TokenStream<ComponentV
     }
 
     bool only = false;
-    Vector<String> schemes;
+    Vector<Utf16FlyString> schemes;
 
     // only? && (..)
     {
@@ -827,10 +827,10 @@ RefPtr<StyleValue const> Parser::parse_color_scheme_value(TokenStream<ComponentV
         if (!ident)
             return {};
 
-        if (ident->custom_ident() == "only"_fly_string)
+        if (ident->custom_ident() == "only"_utf16_fly_string)
             break;
 
-        schemes.append(ident->custom_ident().to_string());
+        schemes.append(ident->custom_ident());
         tokens.discard_whitespace();
         transaction.commit();
     }
@@ -2693,7 +2693,7 @@ RefPtr<StyleValue const> Parser::parse_font_language_override_value(TokenStream<
             });
             return nullptr;
         }
-        auto length = string_value.bytes().size();
+        auto length = string_value.length_in_code_units();
         if (length == 0) {
             ErrorReporter::the().report(InvalidPropertyError {
                 .rule_name = "style"_fly_string,
@@ -2722,7 +2722,7 @@ RefPtr<StyleValue const> Parser::parse_font_language_override_value(TokenStream<
             return nullptr;
         }
         // We're expected to always serialize without any trailing spaces, so remove them now for convenience.
-        auto trimmed = string_value.bytes_as_string_view().trim_whitespace(TrimMode::Right);
+        auto trimmed = string_value.view().trim_ascii_whitespace(TrimMode::Right);
         if (trimmed.is_empty()) {
             ErrorReporter::the().report(InvalidPropertyError {
                 .rule_name = "style"_fly_string,
@@ -2733,8 +2733,8 @@ RefPtr<StyleValue const> Parser::parse_font_language_override_value(TokenStream<
             return nullptr;
         }
         transaction.commit();
-        if (trimmed != string_value.bytes_as_string_view())
-            return StringStyleValue::create(FlyString::from_utf8_without_validation(trimmed.bytes()));
+        if (trimmed != string_value.view())
+            return StringStyleValue::create(Utf16FlyString { Utf16String::from_utf16(trimmed) });
         return string;
     }
 
@@ -3327,7 +3327,7 @@ RefPtr<StyleValue const> Parser::parse_math_depth_value(TokenStream<ComponentVal
                 return nullptr;
             tokens.discard_a_token(); // add()
             transaction.commit();
-            return FunctionStyleValue::create("add"_fly_string, integer_value.release_nonnull());
+            return FunctionStyleValue::create("add"_utf16_fly_string, integer_value.release_nonnull());
         }
         return nullptr;
     }
@@ -5159,9 +5159,9 @@ RefPtr<StyleValue const> Parser::parse_grid_template_areas_value(TokenStream<Com
         return code_point == '.';
     };
 
-    auto consume_while = [](Utf8CodePointIterator& code_points, AK::Function<bool(u32)> predicate) {
+    auto consume_while = [](AK::Utf16CodePointIterator& code_points, AK::Utf16CodePointIterator const& end, AK::Function<bool(u32)> predicate) {
         StringBuilder builder;
-        while (!code_points.done() && predicate(*code_points)) {
+        while (code_points != end && predicate(*code_points)) {
             builder.append_code_point(*code_points);
             ++code_points;
         }
@@ -5175,17 +5175,18 @@ RefPtr<StyleValue const> Parser::parse_grid_template_areas_value(TokenStream<Com
     tokens.discard_whitespace();
     while (tokens.has_next_token() && tokens.next_token().is(Token::Type::String)) {
         Vector<String> grid_area_columns;
-        auto string = tokens.consume_a_token().token().string().code_points();
+        auto string = tokens.consume_a_token().token().string().view();
         auto code_points = string.begin();
+        auto code_points_end = string.end();
 
-        while (!code_points.done()) {
+        while (code_points != code_points_end) {
             if (is_whitespace(*code_points)) {
-                consume_while(code_points, is_whitespace);
+                consume_while(code_points, code_points_end, is_whitespace);
             } else if (is_full_stop(*code_points)) {
-                consume_while(code_points, *is_full_stop);
+                consume_while(code_points, code_points_end, *is_full_stop);
                 grid_area_columns.append("."_string);
             } else if (is_ident_code_point(*code_points)) {
-                auto token = consume_while(code_points, is_ident_code_point);
+                auto token = consume_while(code_points, code_points_end, is_ident_code_point);
                 grid_area_columns.append(move(token));
             } else {
                 return nullptr;

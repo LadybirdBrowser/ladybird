@@ -15,7 +15,7 @@ namespace Web::CSS {
 void CounterStyleStyleValue::serialize(StringBuilder& builder, SerializationMode) const
 {
     m_value.visit(
-        [&](FlyString const& name) {
+        [&](Utf16FlyString const& name) {
             builder.append(name);
         },
         [&](SymbolsFunction const& symbols_function) {
@@ -35,27 +35,28 @@ void CounterStyleStyleValue::serialize(StringBuilder& builder, SerializationMode
 RefPtr<CounterStyle const> CounterStyleStyleValue::resolve_counter_style(StyleScope const& style_scope) const
 {
     return m_value.visit(
-        [&](FlyString const& name) -> RefPtr<CounterStyle const> {
+        [&](Utf16FlyString const& name) -> RefPtr<CounterStyle const> {
             return style_scope.get_registered_counter_style(name);
         },
         [&](SymbolsFunction const& symbols_function) -> RefPtr<CounterStyle const> {
             // https://drafts.csswg.org/css-counter-styles-3/#symbols-function
 
             auto algorithm = [&]() -> CounterStyleAlgorithm {
+                auto symbols = symbols_function.symbols;
                 // The counter style’s algorithm is constructed by consulting the previous chapter using the provided
                 // system — or symbolic if the system was omitted — and the provided <string>s and <image>s as the value
                 // of the symbols property. If the system is fixed, the first symbol value is 1.
                 switch (symbols_function.type) {
                 case SymbolsType::Cyclic:
-                    return GenericCounterStyleAlgorithm { CounterStyleSystem::Cyclic, symbols_function.symbols };
+                    return GenericCounterStyleAlgorithm { CounterStyleSystem::Cyclic, move(symbols) };
                 case SymbolsType::Numeric:
-                    return GenericCounterStyleAlgorithm { CounterStyleSystem::Numeric, symbols_function.symbols };
+                    return GenericCounterStyleAlgorithm { CounterStyleSystem::Numeric, move(symbols) };
                 case SymbolsType::Alphabetic:
-                    return GenericCounterStyleAlgorithm { CounterStyleSystem::Alphabetic, symbols_function.symbols };
+                    return GenericCounterStyleAlgorithm { CounterStyleSystem::Alphabetic, move(symbols) };
                 case SymbolsType::Symbolic:
-                    return GenericCounterStyleAlgorithm { CounterStyleSystem::Symbolic, symbols_function.symbols };
+                    return GenericCounterStyleAlgorithm { CounterStyleSystem::Symbolic, move(symbols) };
                 case SymbolsType::Fixed:
-                    return FixedCounterStyleAlgorithm { .first_symbol = 1, .symbol_list = symbols_function.symbols };
+                    return FixedCounterStyleAlgorithm { .first_symbol = 1, .symbol_list = move(symbols) };
                 }
 
                 VERIFY_NOT_REACHED();
@@ -69,14 +70,14 @@ RefPtr<CounterStyle const> CounterStyleStyleValue::resolve_counter_style(StyleSc
             auto definition = CounterStyleDefinition::create(
                 // NB: We use empty string instead of no name for simplicity - this doesn't clash with
                 //     <counter-style-name> since that is a <custom-ident> which can't be an empty string.
-                ""_fly_string,
+                ""_utf16_fly_string,
                 algorithm,
-                CounterStyleNegativeSign { "-"_fly_string, ""_fly_string },
-                ""_fly_string,
-                " "_fly_string,
+                CounterStyleNegativeSign { "-"_utf16_fly_string, ""_utf16_fly_string },
+                ""_utf16_fly_string,
+                " "_utf16_fly_string,
                 AutoRange {},
-                "decimal"_fly_string,
-                CounterStylePad { 0, ""_fly_string });
+                "decimal"_utf16_fly_string,
+                CounterStylePad { 0, ""_utf16_fly_string });
 
             // NB: We don't need to pass registered counter styles here since we don't rely on extension.
             return CounterStyle::from_counter_style_definition(definition, style_scope);

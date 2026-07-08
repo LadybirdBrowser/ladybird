@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibIPC/Forward.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
@@ -15,7 +15,7 @@
 namespace Web::HTML {
 
 struct ReplicatedNavigableState {
-    String target_name;
+    Utf16String target_name;
     URL::URL active_document_url;
     URL::Origin active_document_origin;
     bool active_document_is_fully_active { false };

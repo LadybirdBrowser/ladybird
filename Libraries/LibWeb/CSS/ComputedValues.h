@@ -10,6 +10,7 @@
 #include <AK/FlyString.h>
 #include <AK/HashMap.h>
 #include <AK/Optional.h>
+#include <AK/Utf16FlyString.h>
 #include <LibGfx/FontCascadeList.h>
 #include <LibGfx/InterpolationColorSpace.h>
 #include <LibGfx/ScalingMode.h>
@@ -62,7 +63,7 @@ struct QuotesData {
         Auto,
         Specified,
     } type;
-    Vector<Array<FlyString, 2>> strings {};
+    Vector<Array<Utf16FlyString, 2>> strings {};
 };
 
 struct Position {
@@ -192,7 +193,7 @@ public:
     static TextAlign text_align() { return TextAlign::Start; }
     static TextJustify text_justify() { return TextJustify::Auto; }
     static Positioning position() { return Positioning::Static; }
-    static Optional<FlyString> position_anchor() { return {}; }
+    static Optional<Utf16FlyString> position_anchor() { return {}; }
     static TextDecorationLine text_decoration_line() { return TextDecorationLine::None; }
     static TextDecorationSkipInk text_decoration_skip_ink() { return TextDecorationSkipInk::Auto; }
     static TextDecorationStyle text_decoration_style() { return TextDecorationStyle::Solid; }
@@ -288,7 +289,7 @@ public:
     static UserSelect user_select() { return UserSelect::Auto; }
     static Isolation isolation() { return Isolation::Auto; }
     static Containment contain() { return {}; }
-    static Vector<FlyString> container_name() { return {}; }
+    static Vector<Utf16FlyString> container_name() { return {}; }
     static ContainerType container_type() { return {}; }
     static MixBlendMode mix_blend_mode() { return MixBlendMode::Normal; }
     static Optional<int> z_index() { return OptionalNone(); }
@@ -513,7 +514,7 @@ struct ContentData {
 };
 
 struct CounterData {
-    FlyString name;
+    Utf16FlyString name;
     bool is_reversed;
     Optional<CounterValue> value;
 };
@@ -616,7 +617,7 @@ public:
     TextOverflow text_overflow() const { return m_noninherited.text_overflow; }
     Vector<ShadowData> const& text_shadow() const { return m_inherited.text_shadow; }
     Positioning position() const { return m_noninherited.position; }
-    Optional<FlyString> const& position_anchor() const { return m_noninherited.position_anchor; }
+    Optional<Utf16FlyString> const& position_anchor() const { return m_noninherited.position_anchor; }
     WhiteSpaceCollapse white_space_collapse() const { return m_inherited.white_space_collapse; }
     WhiteSpaceTrimData white_space_trim() const { return m_noninherited.white_space_trim; }
     WordBreak word_break() const { return m_inherited.word_break; }
@@ -707,10 +708,10 @@ public:
     UserSelect user_select() const { return m_noninherited.user_select; }
     Isolation isolation() const { return m_noninherited.isolation; }
     Containment const& contain() const { return m_noninherited.contain; }
-    Vector<FlyString> const& container_name() const { return m_noninherited.container_name; }
+    Vector<Utf16FlyString> const& container_name() const { return m_noninherited.container_name; }
     ContainerType const& container_type() const { return m_noninherited.container_type; }
     MixBlendMode mix_blend_mode() const { return m_noninherited.mix_blend_mode; }
-    Optional<FlyString> view_transition_name() const { return m_noninherited.view_transition_name; }
+    Optional<Utf16FlyString> view_transition_name() const { return m_noninherited.view_transition_name; }
     TouchActionData touch_action() const { return m_noninherited.touch_action; }
     ShapeRendering shape_rendering() const { return m_noninherited.shape_rendering; }
 
@@ -893,7 +894,7 @@ protected:
         Clear clear { InitialValues::clear() };
         TextOverflow text_overflow { InitialValues::text_overflow() };
         Positioning position { InitialValues::position() };
-        Optional<FlyString> position_anchor { InitialValues::position_anchor() };
+        Optional<Utf16FlyString> position_anchor { InitialValues::position_anchor() };
         Optional<int> z_index;
         Display display_before_box_type_transformation { InitialValues::display() };
         Clip clip { InitialValues::clip() };
@@ -983,12 +984,12 @@ protected:
         UserSelect user_select { InitialValues::user_select() };
         Isolation isolation { InitialValues::isolation() };
         Containment contain { InitialValues::contain() };
-        Vector<FlyString> container_name { InitialValues::container_name() };
+        Vector<Utf16FlyString> container_name { InitialValues::container_name() };
         ContainerType container_type { InitialValues::container_type() };
         MixBlendMode mix_blend_mode { InitialValues::mix_blend_mode() };
         WhiteSpaceTrimData white_space_trim;
         Position object_position { InitialValues::object_position() };
-        Optional<FlyString> view_transition_name;
+        Optional<Utf16FlyString> view_transition_name;
         TouchActionData touch_action;
         MaskType mask_type { InitialValues::mask_type() };
         ScrollbarWidth scrollbar_width { InitialValues::scrollbar_width() };
@@ -1075,7 +1076,7 @@ public:
     void set_text_underline_position(TextUnderlinePosition value) { m_inherited.text_underline_position = value; }
     void set_webkit_text_fill_color(Color value) { m_inherited.webkit_text_fill_color = value; }
     void set_position(Positioning position) { m_noninherited.position = position; }
-    void set_position_anchor(Optional<FlyString> value) { m_noninherited.position_anchor = move(value); }
+    void set_position_anchor(Optional<Utf16FlyString> value) { m_noninherited.position_anchor = move(value); }
     void set_white_space_collapse(WhiteSpaceCollapse value) { m_inherited.white_space_collapse = value; }
     void set_white_space_trim(WhiteSpaceTrimData value) { m_noninherited.white_space_trim = value; }
     void set_word_spacing(CSSPixels value) { m_inherited.word_spacing = value; }
@@ -1189,10 +1190,10 @@ public:
     void set_user_select(UserSelect value) { m_noninherited.user_select = value; }
     void set_isolation(Isolation value) { m_noninherited.isolation = value; }
     void set_contain(Containment value) { m_noninherited.contain = move(value); }
-    void set_container_name(Vector<FlyString> value) { m_noninherited.container_name = move(value); }
+    void set_container_name(Vector<Utf16FlyString> value) { m_noninherited.container_name = move(value); }
     void set_container_type(ContainerType value) { m_noninherited.container_type = move(value); }
     void set_mix_blend_mode(MixBlendMode value) { m_noninherited.mix_blend_mode = value; }
-    void set_view_transition_name(Optional<FlyString> value) { m_noninherited.view_transition_name = move(value); }
+    void set_view_transition_name(Optional<Utf16FlyString> value) { m_noninherited.view_transition_name = move(value); }
     void set_touch_action(TouchActionData value) { m_noninherited.touch_action = value; }
 
     void set_fill(Optional<SVGPaint> value) { m_inherited.fill = move(value); }

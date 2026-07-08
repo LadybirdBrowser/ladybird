@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/CSS/CounterStyleDefinition.h>
 #include <LibWeb/CSS/Enums.h>
 
@@ -19,21 +19,21 @@ public:
     static NonnullRefPtr<CounterStyle const> disc();
     static NonnullRefPtr<CounterStyle const> from_counter_style_definition(CounterStyleDefinition const&, StyleScope const&);
 
-    static NonnullRefPtr<CounterStyle const> create(FlyString name, CounterStyleAlgorithm algorithm, CounterStyleNegativeSign negative_sign, FlyString prefix, FlyString suffix, Vector<CounterStyleRangeEntry> range, Optional<FlyString> fallback, CounterStylePad pad)
+    static NonnullRefPtr<CounterStyle const> create(Utf16FlyString name, CounterStyleAlgorithm algorithm, CounterStyleNegativeSign negative_sign, Utf16FlyString prefix, Utf16FlyString suffix, Vector<CounterStyleRangeEntry> range, Optional<Utf16FlyString> fallback, CounterStylePad pad)
     {
         // NB: All counter styles apart from 'decimal' must have a fallback.
-        VERIFY(fallback.has_value() || name == "decimal"_fly_string);
+        VERIFY(fallback.has_value() || name == "decimal"_utf16_fly_string);
 
         return adopt_ref(*new (nothrow) CounterStyle(move(name), move(algorithm), move(negative_sign), move(prefix), move(suffix), move(range), move(fallback), move(pad)));
     }
 
-    FlyString const& name() const { return m_name; }
+    Utf16FlyString const& name() const { return m_name; }
     CounterStyleAlgorithm const& algorithm() const { return m_algorithm; }
     CounterStyleNegativeSign const& negative_sign() const { return m_negative_sign; }
-    FlyString const& prefix() const { return m_prefix; }
-    FlyString const& suffix() const { return m_suffix; }
+    Utf16FlyString const& prefix() const { return m_prefix; }
+    Utf16FlyString const& suffix() const { return m_suffix; }
     Vector<CounterStyleRangeEntry> const& range() const { return m_range; }
-    Optional<FlyString> const& fallback() const { return m_fallback; }
+    Optional<Utf16FlyString> const& fallback() const { return m_fallback; }
     CounterStylePad const& pad() const { return m_pad; }
 
     Optional<String> generate_an_initial_representation_for_the_counter_value(i64 value) const;
@@ -43,7 +43,7 @@ public:
     virtual ~CounterStyle() = default;
 
 private:
-    CounterStyle(FlyString name, CounterStyleAlgorithm algorithm, CounterStyleNegativeSign negative_sign, FlyString prefix, FlyString suffix, Vector<CounterStyleRangeEntry> range, Optional<FlyString> fallback, CounterStylePad pad)
+    CounterStyle(Utf16FlyString name, CounterStyleAlgorithm algorithm, CounterStyleNegativeSign negative_sign, Utf16FlyString prefix, Utf16FlyString suffix, Vector<CounterStyleRangeEntry> range, Optional<Utf16FlyString> fallback, CounterStylePad pad)
         : m_name(move(name))
         , m_algorithm(move(algorithm))
         , m_negative_sign(move(negative_sign))
@@ -57,7 +57,7 @@ private:
 
     // Counter styles are composed of:
     // a name, to identify the style
-    FlyString m_name;
+    Utf16FlyString m_name;
 
     // an algorithm, which transforms integer counter values into a basic string representation
     CounterStyleAlgorithm m_algorithm;
@@ -66,10 +66,10 @@ private:
     CounterStyleNegativeSign m_negative_sign;
 
     // a prefix, to prepend to the representation
-    FlyString m_prefix;
+    Utf16FlyString m_prefix;
 
     // a suffix to append to the representation
-    FlyString m_suffix;
+    Utf16FlyString m_suffix;
 
     // a range, which limits the values that a counter style handles
     Vector<CounterStyleRangeEntry> m_range;
@@ -78,7 +78,7 @@ private:
 
     // and a fallback style, to render the representation with when the counter value is outside the counter style’s
     // range or the counter style otherwise can’t render the counter value
-    Optional<FlyString> m_fallback;
+    Optional<Utf16FlyString> m_fallback;
 
     // AD-HOC: We store the `pad` descriptor here as well to have everything in one place
     CounterStylePad m_pad;

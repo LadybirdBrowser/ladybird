@@ -207,10 +207,10 @@ void Selector::collect_ancestor_hashes()
             Vector<u32> hashes;
             switch (simple_selector.type) {
             case SimpleSelector::Type::Id:
-                hashes.append(ancestor_filter_hash_for_id(simple_selector.name().hash()));
+                hashes.append(ancestor_filter_hash_for_id(simple_selector.id_name().hash()));
                 break;
             case SimpleSelector::Type::Class:
-                hashes.append(ancestor_filter_hash_for_class(simple_selector.name().hash()));
+                hashes.append(ancestor_filter_hash_for_class(simple_selector.class_name().hash()));
                 break;
             case SimpleSelector::Type::TagName:
                 hashes.append(ancestor_filter_hash_for_tag_name(simple_selector.qualified_name().name.lowercase_name.hash()));
@@ -520,7 +520,7 @@ String Selector::PseudoElementSelector::serialize() const
     builder.append("::"sv);
 
     if (!m_name.is_empty()) {
-        builder.append(m_name);
+        builder.append(m_name.view());
     } else {
         builder.append(pseudo_element_name(m_type));
     }
@@ -536,7 +536,7 @@ String Selector::PseudoElementSelector::serialize() const
             if (pt_name_selector.is_universal)
                 builder.append('*');
             else
-                builder.append(pt_name_selector.value);
+                builder.append(pt_name_selector.value.view());
             builder.append(')');
         },
         [&builder](IdentList const& ident_list) {
@@ -655,13 +655,13 @@ String Selector::SimpleSelector::serialize() const
     case Selector::SimpleSelector::Type::Class:
         // Append a "." (U+002E), followed by the serialization of the class name as an identifier to s.
         s.append('.');
-        serialize_an_identifier(s, name());
+        serialize_an_identifier(s, class_name().view());
         break;
 
     case Selector::SimpleSelector::Type::Id:
         // Append a "#" (U+0023), followed by the serialization of the ID as an identifier to s.
         s.append('#');
-        serialize_an_identifier(s, name());
+        serialize_an_identifier(s, id_name().view());
         break;
 
     case Selector::SimpleSelector::Type::PseudoClass: {

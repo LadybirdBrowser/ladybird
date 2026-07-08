@@ -15,12 +15,12 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSMarginRule);
 
-GC::Ref<CSSMarginRule> CSSMarginRule::create(JS::Realm& realm, FlyString name, GC::Ref<CSSStyleProperties> style)
+GC::Ref<CSSMarginRule> CSSMarginRule::create(JS::Realm& realm, Utf16FlyString name, GC::Ref<CSSStyleProperties> style)
 {
     return realm.create<CSSMarginRule>(realm, move(name), style);
 }
 
-CSSMarginRule::CSSMarginRule(JS::Realm& realm, FlyString name, GC::Ref<CSSStyleProperties> style)
+CSSMarginRule::CSSMarginRule(JS::Realm& realm, Utf16FlyString name, GC::Ref<CSSStyleProperties> style)
     : CSSRule(realm, Type::Margin)
     , m_name(name.to_ascii_lowercase())
     , m_style(style)
@@ -32,6 +32,11 @@ void CSSMarginRule::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSMarginRule);
     Base::initialize(realm);
+}
+
+String CSSMarginRule::name() const
+{
+    return MUST(m_name.view().to_utf8());
 }
 
 String CSSMarginRule::serialized() const
@@ -64,7 +69,7 @@ void CSSMarginRule::dump(StringBuilder& builder, int indent_levels) const
 }
 
 // https://drafts.csswg.org/css-page-3/#syntax-page-selector
-bool is_margin_rule_name(StringView name)
+bool is_margin_rule_name(Utf16View name)
 {
     return name.equals_ignoring_ascii_case("top-left-corner"sv)
         || name.equals_ignoring_ascii_case("top-left"sv)

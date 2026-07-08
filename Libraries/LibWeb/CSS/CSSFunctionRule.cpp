@@ -19,7 +19,7 @@ FunctionParameter FunctionParameter::from_internal_function_parameter(FunctionPa
     return {
         // name
         // The name of the function parameter.
-        internal.name,
+        MUST(internal.name.view().to_utf8()),
 
         // type
         // The type of the function parameter, represented as a syntax string, or "*" if the parameter has no type.
@@ -89,17 +89,22 @@ void FunctionParameterInternal::serialize(StringBuilder& builder) const
     }
 }
 
-GC::Ref<CSSFunctionRule> CSSFunctionRule::create(JS::Realm& realm, CSSRuleList& rules, FlyString name, Vector<FunctionParameterInternal> parameters, NonnullRefPtr<Parser::SyntaxNode> return_type)
+GC::Ref<CSSFunctionRule> CSSFunctionRule::create(JS::Realm& realm, CSSRuleList& rules, Utf16FlyString name, Vector<FunctionParameterInternal> parameters, NonnullRefPtr<Parser::SyntaxNode> return_type)
 {
     return realm.create<CSSFunctionRule>(realm, rules, move(name), move(parameters), move(return_type));
 }
 
-CSSFunctionRule::CSSFunctionRule(JS::Realm& realm, CSSRuleList& rules, FlyString name, Vector<FunctionParameterInternal> parameters, NonnullRefPtr<Parser::SyntaxNode> return_type)
+CSSFunctionRule::CSSFunctionRule(JS::Realm& realm, CSSRuleList& rules, Utf16FlyString name, Vector<FunctionParameterInternal> parameters, NonnullRefPtr<Parser::SyntaxNode> return_type)
     : CSSGroupingRule(realm, rules, Type::Function)
     , m_name(move(name))
     , m_parameters(move(parameters))
     , m_return_type(move(return_type))
 {
+}
+
+String CSSFunctionRule::name() const
+{
+    return MUST(m_name.view().to_utf8());
 }
 
 void CSSFunctionRule::initialize(JS::Realm& realm)

@@ -18,6 +18,11 @@ URL::URL(String url, Type type, Vector<RequestURLModifier> request_url_modifiers
 {
 }
 
+URL::URL(Utf16View url, Type type, Vector<RequestURLModifier> request_url_modifiers)
+    : URL(MUST(url.to_utf8()), type, move(request_url_modifiers))
+{
+}
+
 // https://drafts.csswg.org/cssom-1/#serialize-a-url
 String URL::to_string() const
 {
@@ -52,7 +57,7 @@ RequestURLModifier RequestURLModifier::create_cross_origin(CrossOriginModifierVa
     return RequestURLModifier { Type::CrossOrigin, value };
 }
 
-RequestURLModifier RequestURLModifier::create_integrity(FlyString value)
+RequestURLModifier RequestURLModifier::create_integrity(Utf16FlyString value)
 {
     return RequestURLModifier { Type::Integrity, move(value) };
 }
@@ -93,7 +98,7 @@ void RequestURLModifier::modify_request(GC::Ref<Fetch::Infrastructure::Request> 
 
         // The URL request modifier steps for this modifier given request req are to set request’s integrity metadata to
         // the given <string>.
-        request->set_integrity_metadata(m_value.get<FlyString>().to_string());
+        request->set_integrity_metadata(MUST(m_value.get<Utf16FlyString>().view().to_utf8()));
         break;
     }
     case Type::ReferrerPolicy: {
@@ -133,7 +138,7 @@ String RequestURLModifier::to_string() const
     case Type::CrossOrigin:
         return MUST(String::formatted("cross-origin({})", CSS::to_string(m_value.get<CrossOriginModifierValue>())));
     case Type::Integrity:
-        return MUST(String::formatted("integrity({})", serialize_a_string(m_value.get<FlyString>())));
+        return MUST(String::formatted("integrity({})", serialize_a_string(m_value.get<Utf16FlyString>())));
     case Type::ReferrerPolicy:
         return MUST(String::formatted("referrer-policy({})", CSS::to_string(m_value.get<ReferrerPolicyModifierValue>())));
     }

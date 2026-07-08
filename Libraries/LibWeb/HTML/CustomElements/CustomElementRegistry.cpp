@@ -67,7 +67,7 @@ static JS::ThrowCompletionOr<GC::Ref<WebIDL::CallbackType>> convert_value_to_cal
 }
 
 // https://webidl.spec.whatwg.org/#es-sequence
-static JS::ThrowCompletionOr<Vector<String>> convert_value_to_sequence_of_strings(JS::VM& vm, JS::Value value)
+static JS::ThrowCompletionOr<Vector<Utf16String>> convert_value_to_sequence_of_strings(JS::VM& vm, JS::Value value)
 {
     // FIXME: De-duplicate this from the IDL generator.
     // An ECMAScript value V is converted to an IDL sequence<T> value as follows:
@@ -91,7 +91,7 @@ static JS::ThrowCompletionOr<Vector<String>> convert_value_to_sequence_of_string
     auto iterator = TRY(JS::get_iterator_from_method(vm, value, *method));
 
     // 2. Initialize i to be 0.
-    Vector<String> sequence_of_strings;
+    Vector<Utf16String> sequence_of_strings;
 
     // 3. Repeat
     for (;;) {
@@ -114,7 +114,7 @@ static JS::ThrowCompletionOr<Vector<String>> convert_value_to_sequence_of_string
 
         // 2. Let x be ? ToString(V).
         // 3. Return the IDL DOMString value that represents the same sequence of code units as the one the ECMAScript String value x represents.
-        auto string_value = TRY(next_item.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
+        auto string_value = TRY(next_item.to_utf16_string(vm));
 
         sequence_of_strings.append(move(string_value));
 
@@ -196,7 +196,7 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
     bool disable_shadow = false;
 
     // 13. Let observedAttributes be an empty sequence<DOMString>.
-    Vector<String> observed_attributes;
+    Vector<Utf16String> observed_attributes;
 
     // 14. Run the following steps while catching any exceptions:
     OrderedHashMap<FlyString, GC::Root<WebIDL::CallbackType>> lifecycle_callbacks;
@@ -246,7 +246,7 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
         }
 
         // 6. Let disabledFeatures be an empty sequence<DOMString>.
-        Vector<String> disabled_features;
+        Vector<Utf16String> disabled_features;
 
         // 7. Let disabledFeaturesIterable be ? Get(constructor, "disabledFeatures").
         auto disabled_features_iterable = TRY(constructor->callback->get(vm.names.disabledFeatures));
@@ -257,10 +257,10 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
             disabled_features = TRY(convert_value_to_sequence_of_strings(vm, disabled_features_iterable));
 
         // 9. If disabledFeatures contains "internals", then set disableInternals to true.
-        disable_internals = disabled_features.contains_slow("internals"sv);
+        disable_internals = disabled_features.contains_slow("internals"_utf16);
 
         // 10. If disabledFeatures contains "shadow", then set disableShadow to true.
-        disable_shadow = disabled_features.contains_slow("shadow"sv);
+        disable_shadow = disabled_features.contains_slow("shadow"_utf16);
 
         // 11. Let formAssociatedValue be ? Get( constructor, "formAssociated").
         auto form_associated_value = TRY(constructor->callback->get(vm.names.formAssociated));

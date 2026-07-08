@@ -10,6 +10,7 @@
 #include <AK/Optional.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
+#include <AK/Utf16View.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 
 namespace Web::CSS {
@@ -48,5 +49,6 @@ struct ColorFunctionDescriptor {
 ColorFunctionDescriptor const& color_function_descriptor_for(ColorStyleValue::ColorType);
 
 Optional<ColorStyleValue::ColorType> color_type_from_color_function_name(StringView);
+Optional<ColorStyleValue::ColorType> color_type_from_color_function_name(Utf16View);
 
 }

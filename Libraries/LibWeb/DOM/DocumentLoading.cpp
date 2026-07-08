@@ -100,7 +100,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_html_document(HTML::Navi
         && navigation_params.response->body()->length().value_or(0) == 0) {
         TRY(document->populate_with_html_head_and_body());
         if (navigation_params.navigable && navigation_params.navigable->is_top_level_traversable())
-            document->set_supported_color_schemes({ "light"_string, "dark"_string });
+            document->set_supported_color_schemes({ "light"_utf16_fly_string, "dark"_utf16_fly_string });
         HTML::HTMLParser::the_end(document);
     }
 

@@ -390,9 +390,9 @@ public:
     Optional<Color> visited_link_color() const;
     void set_visited_link_color(Color);
 
-    Optional<Vector<String> const&> supported_color_schemes() const;
-    void set_supported_color_schemes(Vector<String>);
-    void set_supported_color_schemes(Optional<Vector<String>>);
+    Optional<Vector<Utf16FlyString> const&> supported_color_schemes() const;
+    void set_supported_color_schemes(Vector<Utf16FlyString>);
+    void set_supported_color_schemes(Optional<Vector<Utf16FlyString>>);
     void obtain_supported_color_schemes();
 
     void obtain_theme_color();
@@ -787,7 +787,7 @@ public:
     WebIDL::ExceptionOr<bool> query_command_indeterm(FlyString const& command);
     WebIDL::ExceptionOr<bool> query_command_state(FlyString const& command);
     WebIDL::ExceptionOr<bool> query_command_supported(FlyString const& command);
-    WebIDL::ExceptionOr<String> query_command_value(FlyString const& command);
+    WebIDL::ExceptionOr<Utf16String> query_command_value(FlyString const& command);
 
     WebIDL::ExceptionOr<GC::Ref<XPath::XPathExpression>> create_expression(String const& expression, GC::Ptr<XPath::XPathNSResolver> resolver = nullptr);
     WebIDL::ExceptionOr<GC::Ref<XPath::XPathResult>> evaluate(String const& expression, DOM::Node const& context_node, GC::Ptr<XPath::XPathNSResolver> resolver = nullptr, WebIDL::UnsignedShort type = 0, GC::Ptr<XPath::XPathResult> result = nullptr);
@@ -886,7 +886,7 @@ public:
     RefPtr<HTML::SessionHistoryEntry> latest_entry() const { return m_latest_entry; }
     void set_latest_entry(RefPtr<HTML::SessionHistoryEntry>);
 
-    void element_id_changed(Badge<DOM::Element>, GC::Ref<DOM::Element> element, Optional<FlyString> old_id);
+    void element_id_changed(Badge<DOM::Element>, GC::Ref<DOM::Element> element, Optional<Utf16FlyString> old_id);
     void element_with_id_was_added(Badge<DOM::Element>, GC::Ref<DOM::Element> element);
     void element_with_id_was_removed(Badge<DOM::Element>, GC::Ref<DOM::Element> element);
     void element_name_changed(Badge<DOM::Element>, GC::Ref<DOM::Element> element);
@@ -895,7 +895,7 @@ public:
 
     // https://drafts.csswg.org/css-anchor-position-1/#determining
     AnchorNameMap& anchor_name_map() { return m_anchor_name_map; }
-    GC::Ptr<Element> element_by_anchor_name(FlyString const& name, Node const& querying_node) const;
+    GC::Ptr<Element> element_by_anchor_name(Utf16FlyString const& name, Node const& querying_node) const;
 
     void add_form_associated_element_with_form_attribute(HTML::FormAssociatedElement&);
     void remove_form_associated_element_with_form_attribute(HTML::FormAssociatedElement&);
@@ -952,8 +952,8 @@ public:
     void schedule_accumulated_visual_context_value_update(Element&);
     void schedule_accumulated_visual_context_value_update(Layout::Node const&);
 
-    virtual JS::Value named_item_value(FlyString const& name) const override;
-    virtual Vector<FlyString> supported_property_names() const override;
+    virtual JS::Value named_item_value(Utf16FlyString const& name) const override;
+    virtual Vector<Utf16FlyString> supported_property_names() const override;
     Vector<GC::Ref<DOM::Element>> const& potentially_named_elements() const { return m_potentially_named_elements; }
 
     void gather_active_observations_at_depth(size_t depth);
@@ -1173,7 +1173,7 @@ public:
     CSS::StyleScope& style_scope() { return m_style_scope; }
     String const& content_blocker_style_sheet();
     void invalidate_content_blocker_style_sheet();
-    bool content_blocker_style_sheet_may_need_refresh_for_class_or_id(FlyString const* id, ReadonlySpan<FlyString> class_names);
+    bool content_blocker_style_sheet_may_need_refresh_for_class_or_id(Utf16FlyString const* id, ReadonlySpan<Utf16FlyString> class_names);
 
     void exit_pointer_lock();
 
@@ -1231,7 +1231,7 @@ private:
     void queue_intersection_observer_task();
     void queue_an_intersection_observer_entry(IntersectionObserver::IntersectionObserver&, HighResolutionTime::DOMHighResTimeStamp time, GC::Ref<Geometry::DOMRectReadOnly> root_bounds, GC::Ref<Geometry::DOMRectReadOnly> bounding_client_rect, GC::Ref<Geometry::DOMRectReadOnly> intersection_rect, bool is_intersecting, double intersection_ratio, GC::Ref<Element> target);
 
-    Element* find_a_potential_indicated_element(FlyString const& fragment) const;
+    Element* find_a_potential_indicated_element(Utf16String const& fragment) const;
 
     void dispatch_events_for_transition(GC::Ref<CSS::CSSTransition>);
 
@@ -1298,7 +1298,7 @@ private:
     Optional<Color> m_active_link_color;
     Optional<Color> m_visited_link_color;
 
-    Optional<Vector<String>> m_supported_color_schemes;
+    Optional<Vector<Utf16FlyString>> m_supported_color_schemes;
 
     GC::Ptr<HTML::HTMLParser> m_parser;
     bool m_active_parser_was_aborted { false };
@@ -1575,8 +1575,8 @@ private:
 
     Optional<String> m_content_blocker_style_sheet;
     // Class/id tokens already covered by the cached content blocker stylesheet.
-    HashTable<FlyString> m_content_blocker_style_sheet_checked_classes;
-    HashTable<FlyString> m_content_blocker_style_sheet_checked_ids;
+    HashTable<Utf16FlyString> m_content_blocker_style_sheet_checked_classes;
+    HashTable<Utf16FlyString> m_content_blocker_style_sheet_checked_ids;
 
     Optional<AK::UnixDateTime> m_last_modified;
 

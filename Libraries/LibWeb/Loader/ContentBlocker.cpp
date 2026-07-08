@@ -84,11 +84,11 @@ static String take_rust_string(ContentBlocking::FFI::ContentBlockerString rust_s
     return maybe_string.release_value();
 }
 
-static ErrorOr<String> join_lines(ReadonlySpan<String> lines)
+static ErrorOr<String> join_lines(ReadonlySpan<Utf16FlyString> lines)
 {
     StringBuilder builder;
     for (auto const& line : lines) {
-        builder.append(line);
+        builder.append(TRY(line.view().to_utf8()));
         builder.append('\n');
     }
     return builder.to_string();
@@ -203,7 +203,7 @@ String ContentBlocker::cosmetic_style_sheet_for_url(URL::URL const& url) const
     return cosmetic_style_sheet_for_url(url, {}, {});
 }
 
-String ContentBlocker::cosmetic_style_sheet_for_url(URL::URL const& url, ReadonlySpan<String> classes, ReadonlySpan<String> ids) const
+String ContentBlocker::cosmetic_style_sheet_for_url(URL::URL const& url, ReadonlySpan<Utf16FlyString> classes, ReadonlySpan<Utf16FlyString> ids) const
 {
     if (!filtering_enabled() || !m_engine || !m_has_cosmetic_rules)
         return {};
@@ -230,7 +230,7 @@ String ContentBlocker::cosmetic_style_sheet_for_url(URL::URL const& url, Readonl
         ids_bytes.length()));
 }
 
-bool ContentBlocker::has_generic_cosmetic_selectors_for_url(URL::URL const& url, ReadonlySpan<String> classes, ReadonlySpan<String> ids) const
+bool ContentBlocker::has_generic_cosmetic_selectors_for_url(URL::URL const& url, ReadonlySpan<Utf16FlyString> classes, ReadonlySpan<Utf16FlyString> ids) const
 {
     if (!filtering_enabled() || !m_engine || !m_has_cosmetic_rules)
         return false;

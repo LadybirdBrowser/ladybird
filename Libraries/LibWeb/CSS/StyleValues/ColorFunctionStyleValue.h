@@ -8,8 +8,8 @@
 #pragma once
 
 #include <AK/Array.h>
-#include <AK/FlyString.h>
 #include <AK/Optional.h>
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/CSS/ColorFunctionDescriptor.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ComputationContext.h>
@@ -25,14 +25,14 @@ public:
         ValueComparingNonnullRefPtr<StyleValue const> c3,
         ValueComparingRefPtr<StyleValue const> alpha = {},
         ColorSyntax = ColorSyntax::Modern,
-        Optional<FlyString> name = {},
+        Optional<Utf16FlyString> name = {},
         ValueComparingRefPtr<StyleValue const> origin_color = {});
 
     virtual ~ColorFunctionStyleValue() override = default;
 
     StyleValue const& channel(size_t index) const { return *m_channels[index]; }
     ValueComparingRefPtr<StyleValue const> alpha() const { return m_alpha; }
-    Optional<FlyString> const& name() const { return m_name; }
+    Optional<Utf16FlyString> const& name() const { return m_name; }
     ValueComparingRefPtr<StyleValue const> origin_color() const { return m_origin_color; }
 
     ColorFunctionDescriptor const& descriptor() const { return color_function_descriptor_for(*color_type()); }
@@ -75,7 +75,7 @@ private:
         ValueComparingNonnullRefPtr<StyleValue const> c3,
         ValueComparingRefPtr<StyleValue const> alpha,
         ColorSyntax color_syntax,
-        Optional<FlyString> name,
+        Optional<Utf16FlyString> name,
         ValueComparingRefPtr<StyleValue const> origin_color)
         : ColorStyleValue(color_type, color_syntax)
         , m_channels { move(c1), move(c2), move(c3) }
@@ -87,7 +87,7 @@ private:
 
     Array<ValueComparingNonnullRefPtr<StyleValue const>, 3> m_channels;
     ValueComparingRefPtr<StyleValue const> m_alpha;
-    Optional<FlyString> m_name;
+    Optional<Utf16FlyString> m_name;
     ValueComparingRefPtr<StyleValue const> m_origin_color;
 };
 

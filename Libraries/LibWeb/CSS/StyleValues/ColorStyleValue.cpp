@@ -20,7 +20,7 @@
 
 namespace Web::CSS {
 
-ValueComparingNonnullRefPtr<ColorStyleValue const> ColorStyleValue::create_from_color(Color color, ColorSyntax color_syntax, Optional<FlyString> name)
+ValueComparingNonnullRefPtr<ColorStyleValue const> ColorStyleValue::create_from_color(Color color, ColorSyntax color_syntax, Optional<Utf16FlyString> name)
 {
     return ColorFunctionStyleValue::create(
         ColorType::RGB,

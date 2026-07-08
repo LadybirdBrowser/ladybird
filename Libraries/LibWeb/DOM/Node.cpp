@@ -3042,8 +3042,7 @@ ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Documen
 
             // ii. For each IDREF:
             for (auto const& id_ref : id_list) {
-                auto id_ref_string = MUST(id_ref.to_utf8());
-                auto node = document.get_element_by_id(MUST(FlyString::from_utf8(id_ref_string.bytes_as_string_view())));
+                auto node = document.get_element_by_id(id_ref);
                 if (!node)
                     continue;
                 // AD-HOC: The “For each IDREF” substep in the spec doesn’t seem to explicitly require the following
@@ -3437,8 +3436,7 @@ ErrorOr<Utf16String> Node::accessible_description(Document const& document) cons
         return IterationDecision::Continue;
     });
     for (auto id : id_list) {
-        auto id_string = MUST(id.to_utf8());
-        if (auto description_element = document.get_element_by_id(MUST(FlyString::from_utf8(id_string.bytes_as_string_view())))) {
+        if (auto description_element = document.get_element_by_id(id)) {
             auto description = TRY(
                 description_element->name_or_description(NameOrDescription::Description, document,
                     visited_nodes));
@@ -3459,8 +3457,7 @@ Optional<Utf16View> Node::first_valid_id(Utf16View value, Document const& docume
 {
     Optional<Utf16View> first_id;
     for_each_ascii_whitespace_separated_token(value, [&](auto id) {
-        auto id_string = MUST(id.to_utf8());
-        if (document.get_element_by_id(MUST(FlyString::from_utf8(id_string.bytes_as_string_view())))) {
+        if (document.get_element_by_id(id)) {
             first_id = id;
             return IterationDecision::Break;
         }

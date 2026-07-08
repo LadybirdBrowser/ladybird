@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/StringView.h>
+#include <AK/Utf16View.h>
 #include <LibWeb/CSS/ValueType.h>
 
 namespace Web::CSS {
 
-Optional<ValueType> value_type_from_string(StringView string)
+Optional<ValueType> value_type_from_string(Utf16View string)
 {
     if (string.equals_ignoring_ascii_case("anchor-size"sv))
         return ValueType::AnchorSize;

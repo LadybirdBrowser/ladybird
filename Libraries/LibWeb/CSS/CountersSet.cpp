@@ -20,7 +20,7 @@ void CountersSet::visit_edges(GC::Cell::Visitor& visitor)
 }
 
 // https://drafts.csswg.org/css-lists-3/#instantiate-counter
-Counter& CountersSet::instantiate_a_counter(FlyString name, DOM::AbstractElement const& element, bool reversed, Optional<CounterValue> value)
+Counter& CountersSet::instantiate_a_counter(Utf16FlyString name, DOM::AbstractElement const& element, bool reversed, Optional<CounterValue> value)
 {
     // 1. Let counters be element’s CSS counters set.
 
@@ -54,7 +54,7 @@ Counter& CountersSet::instantiate_a_counter(FlyString name, DOM::AbstractElement
 }
 
 // https://drafts.csswg.org/css-lists-3/#propdef-counter-set
-void CountersSet::set_a_counter(FlyString name, DOM::AbstractElement const& element, CounterValue value)
+void CountersSet::set_a_counter(Utf16FlyString name, DOM::AbstractElement const& element, CounterValue value)
 {
     if (auto existing_counter = last_counter_with_name(name); existing_counter.has_value()) {
         existing_counter->value = value;
@@ -69,7 +69,7 @@ void CountersSet::set_a_counter(FlyString name, DOM::AbstractElement const& elem
 }
 
 // https://drafts.csswg.org/css-lists-3/#propdef-counter-increment
-void CountersSet::increment_a_counter(FlyString name, DOM::AbstractElement const& element, CounterValue amount)
+void CountersSet::increment_a_counter(Utf16FlyString name, DOM::AbstractElement const& element, CounterValue amount)
 {
     if (auto existing_counter = last_counter_with_name(name); existing_counter.has_value()) {
         // FIXME: How should we handle existing counters with no value? Can that happen?
@@ -85,7 +85,7 @@ void CountersSet::increment_a_counter(FlyString name, DOM::AbstractElement const
     counter.value = saturating_add(*counter.value, amount);
 }
 
-Optional<Counter&> CountersSet::last_counter_with_name(FlyString const& name)
+Optional<Counter&> CountersSet::last_counter_with_name(Utf16FlyString const& name)
 {
     for (auto& counter : m_counters.in_reverse()) {
         if (counter.name == name)
@@ -94,7 +94,7 @@ Optional<Counter&> CountersSet::last_counter_with_name(FlyString const& name)
     return {};
 }
 
-Optional<Counter&> CountersSet::counter_with_same_name_and_creator(FlyString const& name, DOM::AbstractElement const& element)
+Optional<Counter&> CountersSet::counter_with_same_name_and_creator(Utf16FlyString const& name, DOM::AbstractElement const& element)
 {
     return m_counters.first_matching([&](auto& it) {
         return it.name == name && it.originating_element == element;
@@ -210,7 +210,7 @@ String CountersSet::dump() const
     StringBuilder builder;
     builder.append("{\n"sv);
     for (auto const& counter : m_counters) {
-        builder.appendff("    {} ({}) = {}\n", counter.name, counter.originating_element.debug_description(), counter.value);
+        builder.appendff("    {} ({}) = {}\n", MUST(counter.name.view().to_utf8()), counter.originating_element.debug_description(), counter.value);
     }
     builder.append('}');
     return builder.to_string_without_validation();

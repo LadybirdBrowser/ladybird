@@ -78,11 +78,11 @@ void NavigableContainer::create_new_child_navigable()
     auto [browsing_context, document] = BrowsingContext::create_a_new_browsing_context_and_document(page, this->document(), *this, *group);
 
     // 4. Let targetName be null.
-    Optional<String> target_name;
+    Optional<Utf16String> target_name;
 
     // 5. If element has a name content attribute, then set targetName to the value of that attribute.
     if (name().has_value())
-        target_name = name().value().to_string();
+        target_name = name().value().to_utf16_string();
 
     // 6. Let documentState be a new document state, with
     //  - document: document

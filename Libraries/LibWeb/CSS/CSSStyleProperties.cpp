@@ -212,7 +212,8 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property(Utf16FlyString const&
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-setproperty
-WebIDL::ExceptionOr<void> CSSStyleProperties::set_property_internal(PropertyNameAndID const& property, StringView value, StringView priority)
+template<typename StringViewType>
+WebIDL::ExceptionOr<void> CSSStyleProperties::set_property_internal(PropertyNameAndID const& property, StringViewType value, StringView priority)
 {
     // NB: Steps 1 and 2 only apply to the IDL method that invokes this.
 
@@ -289,6 +290,11 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property(PropertyID property_i
     return set_property_internal(PropertyNameAndID::from_id(property_id), css_text, priority);
 }
 
+WebIDL::ExceptionOr<void> CSSStyleProperties::set_property(PropertyID property_id, Utf16View css_text, StringView priority)
+{
+    return set_property_internal(PropertyNameAndID::from_id(property_id), css_text, priority);
+}
+
 static NonnullRefPtr<StyleValue const> style_value_for_css_pixels(CSSPixels css_pixels)
 {
     return LengthStyleValue::create(Length::make_px(css_pixels));
@@ -332,7 +338,7 @@ static NonnullRefPtr<StyleValue const> style_value_for_size(Size const& size)
         return KeywordStyleValue::create(Keyword::MaxContent);
     if (size.is_fit_content()) {
         if (auto available_space = size.fit_content_available_space(); available_space.has_value())
-            return FunctionStyleValue::create("fit-content"_fly_string, style_value_for_length_percentage(available_space.release_value()));
+            return FunctionStyleValue::create("fit-content"_utf16_fly_string, style_value_for_length_percentage(available_space.release_value()));
         return KeywordStyleValue::create(Keyword::FitContent);
     }
     TODO();

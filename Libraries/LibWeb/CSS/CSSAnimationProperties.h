@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
 #include <AK/String.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Variant.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/CSS/ComputedValues.h>
@@ -25,7 +25,7 @@ struct AnimationProperties {
     double delay;
     AnimationFillMode fill_mode;
     AnimationComposition composition;
-    FlyString name;
+    Utf16FlyString name;
     GC::Ptr<Animations::AnimationTimeline> timeline;
 };
 

@@ -463,7 +463,7 @@ LengthBox ComputedProperties::length_box(PropertyID left_id, PropertyID top_id, 
     };
 }
 
-void ComputedProperties::for_each_anchor_name(Function<void(FlyString const&)> callback) const
+void ComputedProperties::for_each_anchor_name(Function<void(Utf16FlyString const&)> callback) const
 {
     auto const& value = property(PropertyID::AnchorName);
     if (value.is_custom_ident()) {
@@ -535,7 +535,7 @@ ColorInterpolation ComputedProperties::color_interpolation_filters() const
 }
 
 // https://drafts.csswg.org/css-color-adjust-1/#determine-the-used-color-scheme
-PreferredColorScheme ComputedProperties::color_scheme(PreferredColorScheme preferred_scheme, Optional<Vector<String> const&> document_supported_schemes) const
+PreferredColorScheme ComputedProperties::color_scheme(PreferredColorScheme preferred_scheme, Optional<Vector<Utf16FlyString> const&> document_supported_schemes) const
 {
     // To determine the used color scheme of an element:
     auto const& scheme_value = property(PropertyID::ColorScheme).as_color_scheme();
@@ -543,7 +543,7 @@ PreferredColorScheme ComputedProperties::color_scheme(PreferredColorScheme prefe
     // 1. If the user’s preferred color scheme, as indicated by the prefers-color-scheme media feature,
     //    is present among the listed color schemes, and is supported by the user agent,
     //    that’s the element’s used color scheme.
-    if (preferred_scheme != PreferredColorScheme::Auto && scheme_value.schemes().contains_slow(preferred_color_scheme_to_string(preferred_scheme)))
+    if (preferred_scheme != PreferredColorScheme::Auto && scheme_value.schemes().contains_slow(preferred_color_scheme_to_utf16_fly_string(preferred_scheme)))
         return preferred_scheme;
 
     // 2. Otherwise, if the user has indicated an overriding preference for their chosen color scheme,
@@ -561,7 +561,7 @@ PreferredColorScheme ComputedProperties::color_scheme(PreferredColorScheme prefe
     // 4. Otherwise, the used color scheme is the browser default. (Same as normal.)
     // `normal` indicates that the element supports the page’s supported color schemes, if they are set
     if (document_supported_schemes.has_value()) {
-        if (preferred_scheme != PreferredColorScheme::Auto && document_supported_schemes->contains_slow(preferred_color_scheme_to_string(preferred_scheme)))
+        if (preferred_scheme != PreferredColorScheme::Auto && document_supported_schemes->contains_slow(preferred_color_scheme_to_utf16_fly_string(preferred_scheme)))
             return preferred_scheme;
 
         auto document_first_supported = document_supported_schemes->first_matching([](auto scheme) { return preferred_color_scheme_from_string(scheme) != PreferredColorScheme::Auto; });
@@ -1457,13 +1457,13 @@ ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(
     auto get_quote_string = [&](bool open, auto depth) {
         switch (quotes_data.type) {
         case QuotesData::Type::None:
-            return FlyString {};
+            return Utf16FlyString {};
         case QuotesData::Type::Auto:
             // FIXME: "A typographically appropriate used value for quotes is automatically chosen by the UA
             //        based on the content language of the element and/or its parent."
             if (open)
-                return depth == 0 ? "“"_fly_string : "‘"_fly_string;
-            return depth == 0 ? "”"_fly_string : "’"_fly_string;
+                return depth == 0 ? u"“"_utf16_fly_string : u"‘"_utf16_fly_string;
+            return depth == 0 ? u"”"_utf16_fly_string : u"’"_utf16_fly_string;
         case QuotesData::Type::Specified:
             // If the depth is greater than the number of pairs, the last pair is repeated.
             auto& level = quotes_data.strings[min(depth, quotes_data.strings.size() - 1)];
@@ -1479,11 +1479,11 @@ ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(
 
         for (auto const& item : content_style_value.content().values()) {
             if (item->is_string()) {
-                content_data.data.append(item->as_string().string_value().to_string());
+                content_data.data.append(MUST(item->as_string().string_value().view().to_utf8()));
             } else if (item->is_keyword()) {
                 switch (item->to_keyword()) {
                 case Keyword::OpenQuote:
-                    content_data.data.append(get_quote_string(true, quote_nesting_level++).to_string());
+                    content_data.data.append(MUST(get_quote_string(true, quote_nesting_level++).view().to_utf8()));
                     break;
                 case Keyword::CloseQuote:
                     // A 'close-quote' or 'no-close-quote' that would make the depth negative is in error and is ignored
@@ -1492,7 +1492,7 @@ ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(
                     // - https://www.w3.org/TR/CSS21/generate.html#quotes-insert
                     // (This is missing from the CONTENT-3 spec.)
                     if (quote_nesting_level > 0)
-                        content_data.data.append(get_quote_string(false, --quote_nesting_level).to_string());
+                        content_data.data.append(MUST(get_quote_string(false, --quote_nesting_level).view().to_utf8()));
                     break;
                 case Keyword::NoOpenQuote:
                     quote_nesting_level++;
@@ -1522,7 +1522,7 @@ ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(
             StringBuilder alt_text_builder;
             for (auto const& item : alt_text->values()) {
                 if (item->is_string()) {
-                    alt_text_builder.append(item->as_string().string_value());
+                    alt_text_builder.append(item->as_string().string_value().view());
                 } else if (item->is_counter()) {
                     content_data.counter_style_dependencies.append(item->as_counter().counter_style()->as_counter_style().resolve_counter_style(element_reference.style_scope()));
                     alt_text_builder.append(item->as_counter().resolve(element_reference));
@@ -1655,7 +1655,7 @@ ListStyleType ComputedProperties::list_style_type(StyleScope const& style_scope)
         return Empty {};
 
     if (value.is_string())
-        return value.as_string().string_value().to_string();
+        return MUST(value.as_string().string_value().view().to_utf8());
 
     return value.as_counter_style().resolve_counter_style(style_scope);
 }
@@ -1770,8 +1770,10 @@ FontKerning ComputedProperties::font_kerning() const
 Optional<FlyString> ComputedProperties::font_language_override() const
 {
     auto const& value = property(PropertyID::FontLanguageOverride);
-    if (value.is_string())
-        return value.as_string().string_value();
+    if (value.is_string()) {
+        auto string = MUST(value.as_string().string_value().view().to_utf8());
+        return MUST(FlyString::from_utf8(string.bytes_as_string_view()));
+    }
     return {};
 }
 
@@ -1939,7 +1941,7 @@ HashMap<FlyString, u8> ComputedProperties::font_feature_settings() const
         for (auto const& tag_value : feature_tags) {
             auto const& feature_tag = tag_value->as_open_type_tagged();
 
-            result.set(feature_tag.tag(), int_from_style_value(feature_tag.value()));
+            result.set(feature_tag.tag_as_fly_string(), int_from_style_value(feature_tag.value()));
         }
         return result;
     }
@@ -1961,7 +1963,7 @@ HashMap<FlyString, double> ComputedProperties::font_variation_settings() const
         for (auto const& tag_value : axis_tags) {
             auto const& axis_tag = tag_value->as_open_type_tagged();
 
-            result.set(axis_tag.tag(), number_from_style_value(axis_tag.value(), {}));
+            result.set(axis_tag.tag_as_fly_string(), number_from_style_value(axis_tag.value(), {}));
         }
         return result;
     }
@@ -2208,13 +2210,13 @@ Containment ComputedProperties::contain() const
     return containment;
 }
 
-Vector<FlyString> ComputedProperties::container_name() const
+Vector<Utf16FlyString> ComputedProperties::container_name() const
 {
     auto const& value = property(PropertyID::ContainerName);
     if (value.to_keyword() == Keyword::None)
         return {};
 
-    Vector<FlyString> names;
+    Vector<Utf16FlyString> names;
 
     if (value.is_value_list()) {
         auto& values = value.as_value_list().values();
@@ -2265,7 +2267,7 @@ MixBlendMode ComputedProperties::mix_blend_mode() const
     return keyword_to_mix_blend_mode(value.to_keyword()).release_value();
 }
 
-Optional<FlyString> ComputedProperties::view_transition_name() const
+Optional<Utf16FlyString> ComputedProperties::view_transition_name() const
 {
     auto const& value = property(PropertyID::ViewTransitionName);
     if (value.is_custom_ident())
@@ -2350,7 +2352,7 @@ Vector<AnimationProperties> ComputedProperties::animations(DOM::AbstractElement 
         auto delay = Time::from_style_value(animation_delay_style_value, {}).to_milliseconds();
         auto fill_mode = keyword_to_animation_fill_mode(animation_fill_mode_style_value->to_keyword()).value();
         auto composition = keyword_to_animation_composition(animation_composition_style_value->to_keyword()).value();
-        auto name = string_from_style_value(animation_name_style_value);
+        auto const& name = string_from_style_value(animation_name_style_value);
 
         // https://drafts.csswg.org/css-animations-2/#animation-timeline
         auto const& timeline = [&]() -> GC::Ptr<Animations::AnimationTimeline> {
@@ -2372,7 +2374,7 @@ Vector<AnimationProperties> ComputedProperties::animations(DOM::AbstractElement 
             // <scroll()>
             // Use the scroll progress timeline indicated by the given scroll() function. See Scroll-driven Animations
             // § 2.2.1 The scroll() notation.
-            if (animation_timeline_style_value->is_function() && animation_timeline_style_value->as_function().name() == "scroll"_fly_string) {
+            if (animation_timeline_style_value->is_function() && animation_timeline_style_value->as_function().name() == "scroll"_utf16_fly_string) {
                 auto const& arguments = animation_timeline_style_value->as_function().value()->as_tuple().tuple();
 
                 auto const& scroller = arguments[TupleStyleValue::Indices::ScrollFunction::Scroller]

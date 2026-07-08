@@ -20,7 +20,7 @@
 
 namespace Web::CSS {
 
-CounterStyleValue::CounterStyleValue(CounterFunction function, FlyString counter_name, ValueComparingNonnullRefPtr<StyleValue const> counter_style, FlyString join_string)
+CounterStyleValue::CounterStyleValue(CounterFunction function, Utf16FlyString counter_name, ValueComparingNonnullRefPtr<StyleValue const> counter_style, Utf16FlyString join_string)
     : StyleValueWithDefaultOperators(Type::Counter)
     , m_properties {
         .function = function,
@@ -64,7 +64,7 @@ String CounterStyleValue::resolve(DOM::AbstractElement& element_reference) const
         auto const& style_scope = element_reference.style_scope();
         auto counter_string = generate_a_counter_representation(m_properties.counter_style->as_counter_style().resolve_counter_style(style_scope), style_scope, counter.value.value_or(0));
         if (!stb.is_empty())
-            stb.append(m_properties.join_string);
+            stb.append(MUST(m_properties.join_string.view().to_utf8()));
         stb.append(counter_string);
     }
     return stb.to_string_without_validation();
@@ -90,7 +90,7 @@ void CounterStyleValue::serialize(StringBuilder& builder, SerializationMode mode
     Vector<RefPtr<StyleValue const>> list;
     list.append(CustomIdentStyleValue::create(m_properties.counter_name));
     if (m_properties.function == CounterFunction::Counters)
-        list.append(StringStyleValue::create(m_properties.join_string.to_string()));
+        list.append(StringStyleValue::create(m_properties.join_string));
     if (m_properties.counter_style->to_string(mode) != "decimal"sv)
         list.append(m_properties.counter_style);
 

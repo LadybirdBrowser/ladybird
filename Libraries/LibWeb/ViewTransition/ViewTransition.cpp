@@ -29,13 +29,13 @@ GC_DEFINE_ALLOCATOR(ReplacedNamedViewTransitionPseudoElement);
 GC_DEFINE_ALLOCATOR(CapturedElement);
 GC_DEFINE_ALLOCATOR(ViewTransition);
 
-NamedViewTransitionPseudoElement::NamedViewTransitionPseudoElement(CSS::PseudoElement type, FlyString view_transition_name)
+NamedViewTransitionPseudoElement::NamedViewTransitionPseudoElement(CSS::PseudoElement type, Utf16FlyString view_transition_name)
     : m_type(type)
     , m_view_transition_name(view_transition_name)
 {
 }
 
-ReplacedNamedViewTransitionPseudoElement::ReplacedNamedViewTransitionPseudoElement(CSS::PseudoElement type, FlyString view_transition_name, Optional<Gfx::DecodedImageFrame> content = {})
+ReplacedNamedViewTransitionPseudoElement::ReplacedNamedViewTransitionPseudoElement(CSS::PseudoElement type, Utf16FlyString view_transition_name, Optional<Gfx::DecodedImageFrame> content = {})
     : NamedViewTransitionPseudoElement(type, view_transition_name)
 {
     m_content = content;
@@ -230,7 +230,7 @@ ErrorOr<void> ViewTransition::capture_the_old_state()
     auto& named_elements = m_named_elements;
 
     // 3. Let usedTransitionNames be a new set of strings.
-    auto used_transition_names = AK::OrderedHashTable<FlyString>();
+    auto used_transition_names = AK::OrderedHashTable<Utf16FlyString>();
 
     // 4. Let captureElements be a new list of elements.
     auto capture_elements = AK::Vector<DOM::Element&>();
@@ -368,7 +368,7 @@ ErrorOr<void> ViewTransition::capture_the_new_state()
     // NOTE: We just use m_named_elements
 
     // 3. Let usedTransitionNames be a new set of strings.
-    auto used_transition_names = AK::OrderedHashTable<FlyString>();
+    auto used_transition_names = AK::OrderedHashTable<Utf16FlyString>();
 
     // 4. For each element of every element that is connected, and has a node document equal to document, in paint
     //    order:

@@ -11,6 +11,7 @@
 #include <AK/Forward.h>
 #include <AK/HashTable.h>
 #include <AK/Traits.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Variant.h>
 #include <LibWeb/CSS/PseudoClass.h>
 
@@ -30,9 +31,11 @@ public:
         };
 
         Type type;
-        Variant<FlyString, PseudoClass, Empty> value { Empty {} };
+        Variant<Utf16FlyString, PseudoClass, Empty> value { Empty {} };
 
-        FlyString const& name() const { return value.get<FlyString>(); }
+        Utf16FlyString const& name() const { return value.get<Utf16FlyString>(); }
+        Utf16FlyString const& id() const { return value.get<Utf16FlyString>(); }
+        Utf16FlyString const& class_name() const { return value.get<Utf16FlyString>(); }
 
         bool operator==(Property const& other) const = default;
     };
@@ -55,19 +58,19 @@ public:
 
     bool operator==(InvalidationSet const& other) const;
 
-    void set_needs_invalidate_class(FlyString const& name)
+    void set_needs_invalidate_class(Utf16FlyString const& name)
     {
         add_property({ Property::Type::Class, name });
     }
-    void set_needs_invalidate_id(FlyString const& name)
+    void set_needs_invalidate_id(Utf16FlyString const& name)
     {
         add_property({ Property::Type::Id, name });
     }
-    void set_needs_invalidate_tag_name(FlyString const& name)
+    void set_needs_invalidate_tag_name(Utf16FlyString const& name)
     {
         add_property({ Property::Type::TagName, name });
     }
-    void set_needs_invalidate_attribute(FlyString const& name)
+    void set_needs_invalidate_attribute(Utf16FlyString const& name)
     {
         add_property({ Property::Type::Attribute, name });
     }

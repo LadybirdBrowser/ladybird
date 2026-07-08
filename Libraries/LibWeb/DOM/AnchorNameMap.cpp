@@ -9,7 +9,7 @@
 
 namespace Web::DOM {
 
-void AnchorNameMap::register_name(FlyString const& name, GC::Ref<Element> element)
+void AnchorNameMap::register_name(Utf16FlyString const& name, GC::Ref<Element> element)
 {
     auto& elements = m_map.ensure(name);
     if (elements.contains_slow(element))
@@ -25,7 +25,7 @@ void AnchorNameMap::register_name(FlyString const& name, GC::Ref<Element> elemen
         elements.append(element);
 }
 
-void AnchorNameMap::unregister_name(FlyString const& name, GC::Ref<Element> element)
+void AnchorNameMap::unregister_name(Utf16FlyString const& name, GC::Ref<Element> element)
 {
     auto it = m_map.find(name);
     if (it == m_map.end())
@@ -35,7 +35,7 @@ void AnchorNameMap::unregister_name(FlyString const& name, GC::Ref<Element> elem
         m_map.remove(it);
 }
 
-GC::Ptr<Element> AnchorNameMap::element_by_name(FlyString const& name) const
+GC::Ptr<Element> AnchorNameMap::element_by_name(Utf16FlyString const& name) const
 {
     auto it = m_map.find(name);
     if (it == m_map.end() || it->value.is_empty())

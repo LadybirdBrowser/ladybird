@@ -30,8 +30,8 @@ def write_header_file(out: TextIO, media_feature_data: dict) -> None:
     underlying_type = underlying_type_for_enum(len(media_feature_data))
     out.write(f"""#pragma once
 
-#include <AK/StringView.h>
 #include <AK/Traits.h>
+#include <AK/Utf16View.h>
 #include <LibWeb/CSS/Keyword.h>
 #include <LibWeb/CSS/QueryValueType.h>
 
@@ -46,7 +46,7 @@ enum class MediaFeatureID : {underlying_type} {{""")
     out.write("""
 };
 
-Optional<MediaFeatureID> media_feature_id_from_string(StringView);
+Optional<MediaFeatureID> media_feature_id_from_string(Utf16View);
 StringView string_from_media_feature_id(MediaFeatureID);
 
 bool media_feature_type_is_range(MediaFeatureID);
@@ -66,7 +66,7 @@ def write_implementation_file(out: TextIO, media_feature_data: dict) -> None:
 
 namespace Web::CSS {
 
-Optional<MediaFeatureID> media_feature_id_from_string(StringView string)
+Optional<MediaFeatureID> media_feature_id_from_string(Utf16View string)
 {""")
 
     for name in media_feature_data:

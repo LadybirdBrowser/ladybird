@@ -786,6 +786,24 @@ Optional<CSS::EasingFunction> AnimationEffect::parse_easing_string(StringView va
     return {};
 }
 
+Optional<CSS::EasingFunction> AnimationEffect::parse_easing_string(Utf16View value)
+{
+    if (auto style_value = parse_css_value(CSS::Parser::ParsingParams(), value, CSS::PropertyID::AnimationTimingFunction)) {
+        if (style_value->is_unresolved() || style_value->is_css_wide_keyword())
+            return {};
+
+        auto easing_values = style_value->as_value_list().values();
+
+        if (easing_values.size() != 1)
+            return {};
+
+        // FIXME: We should absolutize the style value to resolve relative lengths within calcs
+        return CSS::EasingFunction::from_style_value(easing_values[0]);
+    }
+
+    return {};
+}
+
 AnimationEffect::AnimationEffect(JS::Realm& realm)
     : Bindings::PlatformObject(realm)
 {

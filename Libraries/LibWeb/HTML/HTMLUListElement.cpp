@@ -46,11 +46,11 @@ void HTMLUListElement::apply_presentational_hints(Vector<CSS::StyleProperty>& pr
             if (value.equals_ignoring_ascii_case("none"sv)) {
                 properties.append({ .property_id = CSS::PropertyID::ListStyleType, .value = CSS::KeywordStyleValue::create(CSS::Keyword::None) });
             } else if (value.equals_ignoring_ascii_case("disc"sv)) {
-                properties.append({ .property_id = CSS::PropertyID::ListStyleType, .value = CSS::CounterStyleStyleValue::create("disc"_fly_string) });
+                properties.append({ .property_id = CSS::PropertyID::ListStyleType, .value = CSS::CounterStyleStyleValue::create("disc"_utf16_fly_string) });
             } else if (value.equals_ignoring_ascii_case("circle"sv)) {
-                properties.append({ .property_id = CSS::PropertyID::ListStyleType, .value = CSS::CounterStyleStyleValue::create("circle"_fly_string) });
+                properties.append({ .property_id = CSS::PropertyID::ListStyleType, .value = CSS::CounterStyleStyleValue::create("circle"_utf16_fly_string) });
             } else if (value.equals_ignoring_ascii_case("square"sv)) {
-                properties.append({ .property_id = CSS::PropertyID::ListStyleType, .value = CSS::CounterStyleStyleValue::create("square"_fly_string) });
+                properties.append({ .property_id = CSS::PropertyID::ListStyleType, .value = CSS::CounterStyleStyleValue::create("square"_utf16_fly_string) });
             }
         }
     });

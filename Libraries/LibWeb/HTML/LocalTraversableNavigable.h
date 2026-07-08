@@ -36,7 +36,7 @@ class WEB_API LocalTraversableNavigable final : public LocalNavigable {
     GC_DECLARE_ALLOCATOR(LocalTraversableNavigable);
 
 public:
-    static GC::Ref<LocalTraversableNavigable> create_a_new_top_level_traversable(GC::Ref<Page>, GC::Ptr<BrowsingContext> opener, String target_name);
+    static GC::Ref<LocalTraversableNavigable> create_a_new_top_level_traversable(GC::Ref<Page>, GC::Ptr<BrowsingContext> opener, Utf16String target_name);
     static GC::Ref<LocalTraversableNavigable> create_a_fresh_top_level_traversable(GC::Ref<Page>, URL::URL const& initial_navigation_url, Variant<Empty, String, POSTResource> = Empty {});
 
     virtual ~LocalTraversableNavigable() override;

@@ -44,13 +44,13 @@ void UniversalSyntaxNode::dump(StringBuilder& builder, int indent) const
     builder.appendff("{: >{}}Universal\n", "", indent);
 }
 
-NonnullRefPtr<TypeSyntaxNode> TypeSyntaxNode::create(FlyString type_name)
+NonnullRefPtr<TypeSyntaxNode> TypeSyntaxNode::create(Utf16FlyString type_name)
 {
     auto value_type = value_type_from_string(type_name);
     return adopt_ref(*new TypeSyntaxNode(move(type_name), move(value_type)));
 }
 
-TypeSyntaxNode::TypeSyntaxNode(FlyString type_name, Optional<ValueType> value_type)
+TypeSyntaxNode::TypeSyntaxNode(Utf16FlyString type_name, Optional<ValueType> value_type)
     : SyntaxNode(NodeType::Type)
     , m_type_name(move(type_name))
     , m_value_type(move(value_type))
@@ -83,7 +83,7 @@ void TypeSyntaxNode::dump(StringBuilder& builder, int indent) const
     builder.appendff("{: >{}}Type: {}\n", "", indent, m_type_name);
 }
 
-IdentSyntaxNode::IdentSyntaxNode(FlyString ident, CaseSensitivity case_sensitivity)
+IdentSyntaxNode::IdentSyntaxNode(Utf16FlyString ident, CaseSensitivity case_sensitivity)
     : SyntaxNode(NodeType::Ident)
     , m_ident(move(ident))
     , m_case_sensitivity(case_sensitivity)

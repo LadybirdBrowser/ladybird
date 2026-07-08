@@ -92,9 +92,9 @@ Optional<Painting::PaintStyle> SVGGraphicsElement::stroke_paint_style(SVGPaintCo
 GC::Ptr<DOM::Element> SVGGraphicsElement::resolve_url_to_element(CSS::URL const& url) const
 {
     // FIXME: Complete and use the entire URL, not just the fragment.
-    Optional<FlyString> fragment;
+    Optional<Utf16String> fragment;
     if (auto fragment_offset = url.url().find_byte_offset('#'); fragment_offset.has_value()) {
-        fragment = MUST(url.url().substring_from_byte_offset_with_shared_superstring(fragment_offset.value() + 1));
+        fragment = Utf16String::from_utf8(MUST(url.url().substring_from_byte_offset_with_shared_superstring(fragment_offset.value() + 1)));
     }
     if (!fragment.has_value())
         return {};

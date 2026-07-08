@@ -239,7 +239,7 @@ static WebIDL::ExceptionOr<GC::Ref<JS::Set>> find_matching_font_faces(JS::Realm&
             continue;
 
         // FIXME: The matching below is super basic. We currently just match font family names by their string value.
-        auto font_family_name = string_from_style_value(font_family);
+        auto font_family_name = legacy_fly_string_from_style_value(font_family);
 
         for (auto font_face_value : *available_font_faces) {
             auto& font_face = as<FontFace>(font_face_value.as_object());

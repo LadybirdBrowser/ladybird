@@ -6,18 +6,19 @@
 
 #pragma once
 
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
 
 class FunctionStyleValue : public StyleValueWithDefaultOperators<FunctionStyleValue> {
 public:
-    static NonnullRefPtr<FunctionStyleValue> create(FlyString name, NonnullRefPtr<StyleValue const> value)
+    static NonnullRefPtr<FunctionStyleValue> create(Utf16FlyString name, NonnullRefPtr<StyleValue const> value)
     {
         return adopt_ref(*new FunctionStyleValue(move(name), move(value)));
     }
 
-    FlyString const& name() const { return m_name; }
+    Utf16FlyString const& name() const { return m_name; }
     NonnullRefPtr<StyleValue const> const& value() const { return m_value; }
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
@@ -28,7 +29,7 @@ public:
     virtual bool is_computationally_independent() const override { return m_value->is_computationally_independent(); }
 
 private:
-    FunctionStyleValue(FlyString name, NonnullRefPtr<StyleValue const> value)
+    FunctionStyleValue(Utf16FlyString name, NonnullRefPtr<StyleValue const> value)
         : StyleValueWithDefaultOperators(Type::Function)
         , m_name(move(name))
         , m_value(move(value))
@@ -37,7 +38,7 @@ private:
 
     virtual ~FunctionStyleValue() override = default;
 
-    FlyString m_name;
+    Utf16FlyString m_name;
     ValueComparingNonnullRefPtr<StyleValue const> m_value;
 };
 

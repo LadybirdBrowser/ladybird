@@ -10,6 +10,7 @@
 
 #include <AK/FlyString.h>
 #include <AK/HashMap.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Vector.h>
 #include <LibWeb/CSS/PercentageOr.h>
 #include <LibWeb/CSS/Size.h>
@@ -76,7 +77,7 @@ private:
 };
 
 struct GridLineName {
-    FlyString name;
+    Utf16FlyString name;
     bool implicit { false };
     bool adopted_from_parent_grid { false };
 
@@ -103,7 +104,7 @@ struct GridTemplateAreas {
 
 class GridLineNames {
 public:
-    void append(FlyString const& name) { m_names.append({ name }); }
+    void append(Utf16FlyString const& name) { m_names.append({ name }); }
     bool is_empty() const { return m_names.is_empty(); }
     auto const& names() const& { return m_names; }
 

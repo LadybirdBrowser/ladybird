@@ -23,9 +23,15 @@ GC::Ref<CSSFontFeatureValuesRule> CSSFontFeatureValuesRule::create(JS::Realm& re
     return realm.create<CSSFontFeatureValuesRule>(realm, move(font_families));
 }
 
-bool CSSFontFeatureValuesRule::is_font_feature_value_type_at_keyword(FlyString const& keyword)
+bool CSSFontFeatureValuesRule::is_font_feature_value_type_at_keyword(Utf16View keyword)
 {
-    return first_is_one_of(keyword, "stylistic", "historical-forms", "styleset", "character-variant", "swash", "ornaments", "annotation");
+    return keyword.equals_ignoring_ascii_case("stylistic"sv)
+        || keyword.equals_ignoring_ascii_case("historical-forms"sv)
+        || keyword.equals_ignoring_ascii_case("styleset"sv)
+        || keyword.equals_ignoring_ascii_case("character-variant"sv)
+        || keyword.equals_ignoring_ascii_case("swash"sv)
+        || keyword.equals_ignoring_ascii_case("ornaments"sv)
+        || keyword.equals_ignoring_ascii_case("annotation"sv);
 }
 
 CSSFontFeatureValuesRule::CSSFontFeatureValuesRule(JS::Realm& realm, Vector<FlyString> font_families)

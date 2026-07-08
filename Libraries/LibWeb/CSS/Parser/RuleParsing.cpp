@@ -280,7 +280,7 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
 
     Optional<URL> url = parse_url_function(tokens);
     if (!url.has_value() && tokens.next_token().is(Token::Type::String))
-        url = URL { tokens.consume_a_token().token().string().to_string() };
+        url = URL { MUST(tokens.consume_a_token().token().string().view().to_utf8()) };
 
     if (!url.has_value()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
@@ -477,7 +477,8 @@ Optional<FlyString> Parser::parse_layer_name(TokenStream<ComponentValue>& tokens
 
     // "The CSS-wide keywords are reserved for future use, and cause the rule to be invalid at parse time if used as an <ident> in the <layer-name>."
     auto is_valid_layer_name_part = [](auto& token) {
-        return token.is(Token::Type::Ident) && !is_css_wide_keyword(token.token().ident());
+        auto keyword = token.is(Token::Type::Ident) ? keyword_from_string(token.token().ident()) : Optional<Keyword> {};
+        return token.is(Token::Type::Ident) && (!keyword.has_value() || !is_css_wide_keyword(*keyword));
     };
 
     auto transaction = tokens.begin_transaction();
@@ -792,18 +793,18 @@ GC::Ptr<CSSNamespaceRule> Parser::convert_to_namespace_rule(AtRule const& rule)
 
     tokens.discard_whitespace();
 
-    Optional<FlyString> prefix = {};
+    Optional<Utf16FlyString> prefix = {};
     if (tokens.next_token().is(Token::Type::Ident)) {
         prefix = tokens.consume_a_token().token().ident();
         tokens.discard_whitespace();
     }
 
-    FlyString namespace_uri;
+    Utf16FlyString namespace_uri;
     if (auto url = parse_url_function(tokens); url.has_value()) {
         // "A URI string parsed from the URI syntax must be treated as a literal string: as with the STRING syntax, no
         // URI-specific normalization is applied."
         // https://drafts.csswg.org/css-namespaces/#syntax
-        namespace_uri = url->url();
+        namespace_uri = Utf16FlyString::from_utf8(url->url());
     } else if (auto& url_token = tokens.consume_a_token(); url_token.is(Token::Type::String)) {
         namespace_uri = url_token.token().string();
     } else {
@@ -949,9 +950,9 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
         return {};
     }
 
-    auto name = Utf16FlyString::from_utf8(name_token.ident());
+    auto name = name_token.ident();
 
-    Optional<FlyString> syntax_maybe;
+    Optional<Utf16FlyString> syntax_maybe;
     Optional<bool> inherits_maybe;
     RefPtr<StyleValue const> initial_value_maybe;
 
@@ -1399,7 +1400,7 @@ Optional<Vector<FlyString>> Parser::parse_comma_separated_family_name_list(Token
             return {};
         }
 
-        family_names.append(string_from_style_value(family_name.release_nonnull()));
+        family_names.append(legacy_fly_string_from_style_value(family_name.release_nonnull()));
     }
 
     return family_names;
@@ -1515,7 +1516,7 @@ GC::Ptr<CSSFontFeatureValuesRule> Parser::convert_to_font_feature_values_rule(At
                     return;
                 }
 
-                MUST(feature_values_map->set(declaration.name.to_string(), move(values)));
+                MUST(feature_values_map->set(declaration.name.to_utf16_string(), move(values)));
             });
         },
         [&](Declaration const&) {
@@ -1580,7 +1581,7 @@ Optional<Parser::FunctionPrelude> Parser::parse_function_prelude(TokenStream<Com
 
     // The <function-token> production must start with two dashes (U+002D HYPHEN-MINUS), similar to <dashed-ident>, or
     // else the definition is invalid.
-    if (!function_name.starts_with_bytes("--"sv)) {
+    if (!function_name.starts_with("--"sv)) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
             .rule_name = "@function"_fly_string,
             .prelude = tokens.dump_string(),

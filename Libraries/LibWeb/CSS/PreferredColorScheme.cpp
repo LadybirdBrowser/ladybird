@@ -8,7 +8,7 @@
 
 namespace Web::CSS {
 
-PreferredColorScheme preferred_color_scheme_from_string(StringView value)
+PreferredColorScheme preferred_color_scheme_from_string(Utf16View value)
 {
     if (value.equals_ignoring_ascii_case("light"sv))
         return PreferredColorScheme::Light;
@@ -26,6 +26,19 @@ StringView preferred_color_scheme_to_string(PreferredColorScheme value)
         return "dark"sv;
     case PreferredColorScheme::Auto:
         return "auto"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+Utf16FlyString preferred_color_scheme_to_utf16_fly_string(PreferredColorScheme value)
+{
+    switch (value) {
+    case PreferredColorScheme::Light:
+        return "light"_utf16_fly_string;
+    case PreferredColorScheme::Dark:
+        return "dark"_utf16_fly_string;
+    case PreferredColorScheme::Auto:
+        return "auto"_utf16_fly_string;
     }
     VERIFY_NOT_REACHED();
 }

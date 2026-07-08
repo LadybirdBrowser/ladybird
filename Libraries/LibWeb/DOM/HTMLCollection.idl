@@ -3,5 +3,5 @@
 interface HTMLCollection {
     readonly attribute unsigned long length;
     getter Element? item(unsigned long index);
-    getter Element? namedItem(DOMString name);
+    getter Element? namedItem(Utf16DOMString name);
 };

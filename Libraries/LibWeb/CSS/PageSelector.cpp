@@ -8,7 +8,7 @@
 
 namespace Web::CSS {
 
-Optional<PagePseudoClass> page_pseudo_class_from_string(StringView input)
+Optional<PagePseudoClass> page_pseudo_class_from_string(Utf16View input)
 {
     if (input.equals_ignoring_ascii_case("blank"sv))
         return PagePseudoClass::Blank;
@@ -36,7 +36,7 @@ StringView to_string(PagePseudoClass pseudo_class)
     VERIFY_NOT_REACHED();
 }
 
-PageSelector::PageSelector(Optional<FlyString> name, Vector<PagePseudoClass> pseudo_classes)
+PageSelector::PageSelector(Optional<Utf16FlyString> name, Vector<PagePseudoClass> pseudo_classes)
     : m_name(move(name))
     , m_pseudo_classes(move(pseudo_classes))
 {

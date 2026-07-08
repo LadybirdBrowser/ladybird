@@ -35,12 +35,6 @@ static void for_each_ascii_whitespace_separated_token(Utf16View input, Callback 
     }
 }
 
-static FlyString fly_string_from_utf16(Utf16View value)
-{
-    auto utf8_value = MUST(value.to_utf8());
-    return MUST(FlyString::from_utf8(utf8_value.bytes_as_string_view()));
-}
-
 void invalidate_style_after_attribute_change(
     DOM::Element& element,
     FlyString const& attribute_name,
@@ -63,17 +57,17 @@ void invalidate_style_after_attribute_change(
             for_each_ascii_whitespace_separated_token(new_value->utf16_view(), [&](auto class_) { new_classes.append(class_); });
         for (auto& old_class : old_classes) {
             if (!new_classes.contains_slow(old_class))
-                changed_properties.append({ .type = InvalidationSet::Property::Type::Class, .value = fly_string_from_utf16(old_class) });
+                changed_properties.append({ .type = InvalidationSet::Property::Type::Class, .value = Utf16FlyString::from_utf16(old_class) });
         }
         for (auto& new_class : new_classes) {
             if (!old_classes.contains_slow(new_class))
-                changed_properties.append({ .type = InvalidationSet::Property::Type::Class, .value = fly_string_from_utf16(new_class) });
+                changed_properties.append({ .type = InvalidationSet::Property::Type::Class, .value = Utf16FlyString::from_utf16(new_class) });
         }
     } else if (attribute_name == HTML::AttributeNames::id) {
         if (old_value.has_value())
-            changed_properties.append({ .type = InvalidationSet::Property::Type::Id, .value = fly_string_from_utf16(old_value->utf16_view()) });
+            changed_properties.append({ .type = InvalidationSet::Property::Type::Id, .value = Utf16FlyString::from_utf16(old_value->utf16_view()) });
         if (new_value.has_value())
-            changed_properties.append({ .type = InvalidationSet::Property::Type::Id, .value = fly_string_from_utf16(new_value->utf16_view()) });
+            changed_properties.append({ .type = InvalidationSet::Property::Type::Id, .value = Utf16FlyString::from_utf16(new_value->utf16_view()) });
     } else if (attribute_name == HTML::AttributeNames::disabled) {
         changed_properties.append({ .type = InvalidationSet::Property::Type::PseudoClass, .value = PseudoClass::Disabled });
         changed_properties.append({ .type = InvalidationSet::Property::Type::PseudoClass, .value = PseudoClass::Enabled });
@@ -86,10 +80,11 @@ void invalidate_style_after_attribute_change(
         changed_properties.append({ .type = InvalidationSet::Property::Type::PseudoClass, .value = PseudoClass::Optional });
     }
 
+    auto attribute_name_for_invalidation = Utf16FlyString::from_fly_string(attribute_name);
     if (!new_value.has_value())
-        element.remember_removed_attribute_for_style_invalidation(attribute_name);
+        element.remember_removed_attribute_for_style_invalidation(attribute_name_for_invalidation);
 
-    changed_properties.append({ .type = InvalidationSet::Property::Type::Attribute, .value = attribute_name });
+    changed_properties.append({ .type = InvalidationSet::Property::Type::Attribute, .value = move(attribute_name_for_invalidation) });
     element.invalidate_style(DOM::StyleInvalidationReason::ElementAttributeChange, changed_properties, style_invalidation_options);
 
     // If this element hosts a shadow root whose stylesheets have :host()-matching rules, the shadow tree's computed

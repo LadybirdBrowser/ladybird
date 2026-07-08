@@ -25,9 +25,9 @@ public:
     [[nodiscard]] static GC::Ref<NamedNodeMap> create(Element&);
     ~NamedNodeMap() = default;
 
-    virtual Vector<FlyString> supported_property_names() const override;
+    virtual Vector<Utf16FlyString> supported_property_names() const override;
     virtual Optional<JS::Value> item_value(size_t index) const override;
-    virtual JS::Value named_item_value(FlyString const& name) const override;
+    virtual JS::Value named_item_value(Utf16FlyString const& name) const override;
 
     size_t length() const { return m_attributes.size(); }
     bool is_empty() const { return m_attributes.is_empty(); }

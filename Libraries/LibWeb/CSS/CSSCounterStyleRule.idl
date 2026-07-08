@@ -1,7 +1,7 @@
 // https://drafts.csswg.org/css-counter-styles/#the-csscounterstylerule-interface
 [Exposed=Window]
 interface CSSCounterStyleRule : CSSRule {
-    attribute CSSOMString name;
+    attribute Utf16CSSOMString name;
     attribute CSSOMString system;
     attribute CSSOMString symbols;
     attribute CSSOMString additiveSymbols;

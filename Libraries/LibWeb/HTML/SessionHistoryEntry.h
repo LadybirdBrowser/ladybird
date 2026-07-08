@@ -12,6 +12,7 @@
 #include <AK/RefPtr.h>
 #include <AK/String.h>
 #include <AK/Types.h>
+#include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Export.h>
@@ -56,7 +57,7 @@ struct SessionHistoryDocumentStateDescriptor {
     Variant<Empty, String, POSTResource> resource;
     bool reload_pending { false };
     bool ever_populated { false };
-    String navigable_target_name;
+    Utf16String navigable_target_name;
     Vector<SessionHistoryNestedHistoryDescriptor> nested_histories;
 };
 

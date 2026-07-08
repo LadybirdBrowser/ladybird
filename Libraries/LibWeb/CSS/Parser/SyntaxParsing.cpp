@@ -106,7 +106,7 @@ RefPtr<SyntaxNode> parse_syntax_component(TokenStream<ComponentValue>& tokens, L
 
         if (ident_token.is_ident("transform-list"sv) && end_token.is_delim('>')) {
             transform_list_transaction.commit();
-            return TypeSyntaxNode::create("transform-list"_fly_string);
+            return TypeSyntaxNode::create("transform-list"_utf16_fly_string);
         }
     }
 

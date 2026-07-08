@@ -24,7 +24,7 @@ template<>
 ErrorOr<Web::HTML::ReplicatedNavigableState> decode(Decoder& decoder)
 {
     return Web::HTML::ReplicatedNavigableState {
-        .target_name = TRY(decoder.decode<String>()),
+        .target_name = TRY(decoder.decode<Utf16String>()),
         .active_document_url = TRY(decoder.decode<URL::URL>()),
         .active_document_origin = TRY(decoder.decode<URL::Origin>()),
         .active_document_is_fully_active = TRY(decoder.decode<bool>()),

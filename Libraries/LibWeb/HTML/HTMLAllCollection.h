@@ -29,14 +29,15 @@ public:
     virtual ~HTMLAllCollection() override;
 
     size_t length() const;
-    Variant<GC::Ref<DOM::HTMLCollection>, GC::Ref<DOM::Element>, Empty> item(Optional<FlyString> const& name_or_index) const;
-    Variant<GC::Ref<DOM::HTMLCollection>, GC::Ref<DOM::Element>, Empty> named_item(FlyString const& name) const;
+    Variant<GC::Ref<DOM::HTMLCollection>, GC::Ref<DOM::Element>, Empty> item(Optional<Utf16String> const& name_or_index) const;
+    Variant<GC::Ref<DOM::HTMLCollection>, GC::Ref<DOM::Element>, Empty> named_item(Utf16String const& name) const;
+    Variant<GC::Ref<DOM::HTMLCollection>, GC::Ref<DOM::Element>, Empty> named_item(Utf16FlyString const& name) const;
 
     GC::RootVector<GC::Ref<DOM::Element>> collect_matching_elements() const;
 
     virtual Optional<JS::Value> item_value(size_t index) const override;
-    virtual JS::Value named_item_value(FlyString const& name) const override;
-    virtual Vector<FlyString> supported_property_names() const override;
+    virtual JS::Value named_item_value(Utf16FlyString const& name) const override;
+    virtual Vector<Utf16FlyString> supported_property_names() const override;
 
 protected:
     HTMLAllCollection(DOM::ParentNode& root, Scope, ESCAPING Function<bool(DOM::Element const&)> filter);
@@ -46,7 +47,7 @@ protected:
     virtual bool is_htmldda() const override { return true; }
 
 private:
-    Variant<GC::Ref<DOM::HTMLCollection>, GC::Ref<DOM::Element>, Empty> get_the_all_named_elements(FlyString const& name) const;
+    Variant<GC::Ref<DOM::HTMLCollection>, GC::Ref<DOM::Element>, Empty> get_the_all_named_elements(Utf16FlyString const& name) const;
     GC::Ptr<DOM::Element> get_the_all_indexed_element(u32 index) const;
     Variant<GC::Ref<DOM::HTMLCollection>, GC::Ref<DOM::Element>, Empty> get_the_all_indexed_or_named_elements(JS::PropertyKey const& name_or_index) const;
 

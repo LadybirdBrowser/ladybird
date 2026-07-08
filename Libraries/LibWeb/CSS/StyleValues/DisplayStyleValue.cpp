@@ -18,7 +18,7 @@ ValueComparingNonnullRefPtr<DisplayStyleValue const> DisplayStyleValue::create(D
 GC::Ref<CSSStyleValue> DisplayStyleValue::reify(JS::Realm& realm, Utf16FlyString const& associated_property) const
 {
     if (auto keyword = m_display.to_keyword(); keyword.has_value())
-        return CSSKeywordValue::create(realm, FlyString::from_utf8_without_validation(string_from_keyword(keyword.value()).bytes()));
+        return CSSKeywordValue::create(realm, utf16_fly_string_from_keyword(keyword.value()));
 
     return CSSStyleValue::create(realm, associated_property, *this);
 }

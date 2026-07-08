@@ -20,12 +20,12 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSCounterStyleRule);
 
-GC::Ref<CSSCounterStyleRule> CSSCounterStyleRule::create(JS::Realm& realm, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range, RefPtr<StyleValue const> pad, RefPtr<StyleValue const> fallback, RefPtr<StyleValue const> symbols, RefPtr<StyleValue const> additive_symbols, RefPtr<StyleValue const> speak_as)
+GC::Ref<CSSCounterStyleRule> CSSCounterStyleRule::create(JS::Realm& realm, Utf16FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range, RefPtr<StyleValue const> pad, RefPtr<StyleValue const> fallback, RefPtr<StyleValue const> symbols, RefPtr<StyleValue const> additive_symbols, RefPtr<StyleValue const> speak_as)
 {
     return realm.create<CSSCounterStyleRule>(realm, name, move(system), move(negative), move(prefix), move(suffix), move(range), move(pad), move(fallback), move(symbols), move(additive_symbols), move(speak_as));
 }
 
-CSSCounterStyleRule::CSSCounterStyleRule(JS::Realm& realm, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range, RefPtr<StyleValue const> pad, RefPtr<StyleValue const> fallback, RefPtr<StyleValue const> symbols, RefPtr<StyleValue const> additive_symbols, RefPtr<StyleValue const> speak_as)
+CSSCounterStyleRule::CSSCounterStyleRule(JS::Realm& realm, Utf16FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range, RefPtr<StyleValue const> pad, RefPtr<StyleValue const> fallback, RefPtr<StyleValue const> symbols, RefPtr<StyleValue const> additive_symbols, RefPtr<StyleValue const> speak_as)
     : CSSRule(realm, Type::CounterStyle)
     , m_name(move(name))
     , m_system(move(system))
@@ -110,8 +110,12 @@ String CSSCounterStyleRule::serialized() const
     return MUST(builder.to_string());
 }
 
-// https://drafts.csswg.org/css-counter-styles-3/#dom-csscounterstylerule-name
-void CSSCounterStyleRule::set_name(FlyString name)
+void CSSCounterStyleRule::set_name(Utf16String const& name)
+{
+    set_name(Utf16FlyString { name });
+}
+
+void CSSCounterStyleRule::set_name(Utf16FlyString name)
 {
     // On setting the name attribute, run the following steps:
 

@@ -235,7 +235,7 @@ double number_from_style_value(NonnullRefPtr<StyleValue const> const& style_valu
     VERIFY_NOT_REACHED();
 }
 
-FlyString const& string_from_style_value(NonnullRefPtr<StyleValue const> const& style_value)
+Utf16FlyString const& string_from_style_value(NonnullRefPtr<StyleValue const> const& style_value)
 {
     if (style_value->is_string())
         return style_value->as_string().string_value();
@@ -244,6 +244,13 @@ FlyString const& string_from_style_value(NonnullRefPtr<StyleValue const> const& 
         return style_value->as_custom_ident().custom_ident();
 
     VERIFY_NOT_REACHED();
+}
+
+FlyString legacy_fly_string_from_style_value(NonnullRefPtr<StyleValue const> const& style_value)
+{
+    auto const& string = string_from_style_value(style_value);
+    auto string_as_utf8 = MUST(string.view().to_utf8());
+    return MUST(FlyString::from_utf8(string_as_utf8.bytes_as_string_view()));
 }
 
 Keyword StyleValue::to_keyword() const

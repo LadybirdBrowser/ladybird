@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
 #include <AK/Optional.h>
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/CSS/CSSConditionRule.h>
 #include <LibWeb/Forward.h>
 
@@ -26,7 +26,7 @@ class CSSContainerRule final : public CSSConditionRule {
 
 public:
     struct Condition {
-        Optional<FlyString> container_name;
+        Optional<Utf16FlyString> container_name;
         RefPtr<ContainerQuery> container_query;
     };
     [[nodiscard]] static GC::Ref<CSSContainerRule> create(JS::Realm&, Vector<Condition>&&, CSSRuleList&);

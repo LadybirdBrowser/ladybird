@@ -29,7 +29,7 @@ static void expect_dumps_equal(Vector<ComponentValue> const& lhs_values, Vector<
         EXPECT_EQ(lhs->dump(), rhs->dump());
 }
 
-#define TYPE_TOKENS(name) Token::create_delim('<'), Token::create_ident(name ""_fly_string), Token::create_delim('>')
+#define TYPE_TOKENS(name) Token::create_delim('<'), Token::create_ident(name ""_utf16_fly_string), Token::create_delim('>')
 
 TEST_CASE(single_universal)
 {
@@ -38,7 +38,7 @@ TEST_CASE(single_universal)
 
 TEST_CASE(single_ident)
 {
-    compare_parsed_syntax_dump_to_string(Vector<ComponentValue> { Token::create_ident("thing"_fly_string) }, "Ident: thing\n"sv);
+    compare_parsed_syntax_dump_to_string(Vector<ComponentValue> { Token::create_ident("thing"_utf16_fly_string) }, "Ident: thing\n"sv);
 }
 
 TEST_CASE(single_type)
@@ -62,11 +62,11 @@ TEST_CASE(single_type)
 TEST_CASE(multiple_keywords)
 {
     compare_parsed_syntax_dump_to_string(Vector<ComponentValue> {
-                                             Token::create_ident("well"_fly_string),
+                                             Token::create_ident("well"_utf16_fly_string),
                                              Token::create_delim('|'),
-                                             Token::create_ident("hello"_fly_string),
+                                             Token::create_ident("hello"_utf16_fly_string),
                                              Token::create_delim('|'),
-                                             Token::create_ident("friends"_fly_string) },
+                                             Token::create_ident("friends"_utf16_fly_string) },
         R"~~~(Alternatives:
   Ident: well
   Ident: hello
@@ -93,7 +93,7 @@ TEST_CASE(repeated_with_commas)
 TEST_CASE(complex)
 {
     compare_parsed_syntax_dump_to_string(Vector<ComponentValue> {
-                                             Token::create_ident("well"_fly_string),
+                                             Token::create_ident("well"_utf16_fly_string),
                                              Token::create_delim('|'),
                                              TYPE_TOKENS("number"), Token::create_delim('+'),
                                              Token::create_delim('|'),
@@ -111,15 +111,15 @@ TEST_CASE(syntax_string)
 {
     // A single string token's contents are parsed as if it was unquoted
 
-    expect_dumps_equal(Vector<ComponentValue> { TYPE_TOKENS("number") }, Vector<ComponentValue> { Token::create_string("<number>"_fly_string) });
+    expect_dumps_equal(Vector<ComponentValue> { TYPE_TOKENS("number") }, Vector<ComponentValue> { Token::create_string("<number>"_utf16_fly_string) });
 
     expect_dumps_equal(Vector<ComponentValue> {
-                           Token::create_ident("well"_fly_string),
+                           Token::create_ident("well"_utf16_fly_string),
                            Token::create_delim('|'),
                            TYPE_TOKENS("number"), Token::create_delim('+'),
                            Token::create_delim('|'),
                            TYPE_TOKENS("string"), Token::create_delim('#') },
-        Vector<ComponentValue> { Token::create_string("well | <number>+ | <string>#"_fly_string) });
+        Vector<ComponentValue> { Token::create_string("well | <number>+ | <string>#"_utf16_fly_string) });
 }
 
 TEST_CASE(invalid)
@@ -131,8 +131,8 @@ TEST_CASE(invalid)
     EXPECT(!parse_as_syntax(Vector<ComponentValue> { Token::create(Token::Type::Invalid) }));
 
     // Incomplete
-    EXPECT(!parse_as_syntax(Vector<ComponentValue> { Token::create_delim('<'), Token::create_ident("number"_fly_string) }));
-    EXPECT(!parse_as_syntax(Vector<ComponentValue> { Token::create_ident("thing"_fly_string), Token::create_delim('|') }));
+    EXPECT(!parse_as_syntax(Vector<ComponentValue> { Token::create_delim('<'), Token::create_ident("number"_utf16_fly_string) }));
+    EXPECT(!parse_as_syntax(Vector<ComponentValue> { Token::create_ident("thing"_utf16_fly_string), Token::create_delim('|') }));
 
     // '*' is only allowed on its own
     EXPECT(!parse_as_syntax(Vector<ComponentValue> { Token::create_delim('*'), Token::create_delim('|'), Token::create_delim('*') }));
@@ -146,7 +146,7 @@ TEST_CASE(invalid)
 
     // <syntax> doesn't allow multiple types/keywords without a combinator
     EXPECT(!parse_as_syntax(Vector<ComponentValue> { TYPE_TOKENS("number"), Token::create_whitespace(), TYPE_TOKENS("integer") }));
-    EXPECT(!parse_as_syntax(Vector<ComponentValue> { Token::create_ident("thingy"_fly_string), Token::create_whitespace(), Token::create_ident("whatsit"_fly_string) }));
+    EXPECT(!parse_as_syntax(Vector<ComponentValue> { Token::create_ident("thingy"_utf16_fly_string), Token::create_whitespace(), Token::create_ident("whatsit"_utf16_fly_string) }));
 
     // Whitespace isn't allowed between a type and its multiplier
     EXPECT(!parse_as_syntax(Vector<ComponentValue> { TYPE_TOKENS("number"), Token::create_whitespace(), Token::create_delim('+') }));

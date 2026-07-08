@@ -25,7 +25,7 @@ ValueComparingNonnullRefPtr<ColorFunctionStyleValue const> ColorFunctionStyleVal
     ValueComparingNonnullRefPtr<StyleValue const> c3,
     ValueComparingRefPtr<StyleValue const> alpha,
     ColorSyntax color_syntax,
-    Optional<FlyString> name,
+    Optional<Utf16FlyString> name,
     ValueComparingRefPtr<StyleValue const> origin_color)
 {
     auto const& descriptor = color_function_descriptor_for(color_type);
@@ -421,8 +421,7 @@ void ColorFunctionStyleValue::serialize(StringBuilder& builder, SerializationMod
 
     if (descriptor.serialization_behavior == SerializationBehavior::SrgbLegacy || descriptor.serialization_behavior == SerializationBehavior::SrgbModern) {
         if (mode != SerializationMode::ResolvedValue && m_name.has_value()) {
-            for (auto c : m_name->bytes_as_string_view())
-                builder.append(AK::to_ascii_lowercase(c));
+            builder.append(MUST(m_name->to_ascii_lowercase().view().to_utf8()));
             return;
         }
         // sRGB-equivalent shortcut: serialize via Color::serialize_a_srgb_value when the color resolves cleanly.

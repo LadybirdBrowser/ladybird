@@ -7,7 +7,8 @@
 #pragma once
 
 #include <AK/Span.h>
-#include <AK/String.h>
+#include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS::Parser {
@@ -20,8 +21,8 @@ struct SubstitutionContext {
         Function,
     };
     DependencyType dependency_type;
-    String first;
-    Optional<String> second {};
+    Utf16String first;
+    Optional<Utf16String> second {};
 
     bool is_cyclic { false };
 
@@ -50,7 +51,7 @@ enum class ArbitrarySubstitutionFunction : u8 {
     Inherit,
     Var,
 };
-[[nodiscard]] Optional<ArbitrarySubstitutionFunction> to_arbitrary_substitution_function(FlyString const& name);
+[[nodiscard]] Optional<ArbitrarySubstitutionFunction> to_arbitrary_substitution_function(Utf16View name);
 
 bool contains_guaranteed_invalid_value(ReadonlySpan<ComponentValue>);
 bool contains_attr_tainted_value(ReadonlySpan<ComponentValue>);

@@ -48,7 +48,7 @@ WebIDL::ExceptionOr<u32> CSSGroupingRule::insert_rule(StringView rule, u32 index
 {
     // The insertRule(rule, index) method must return the result of invoking insert a CSS rule rule into the child CSS
     // rules at index, with the nested flag set.
-    HashTable<FlyString> declared_namespaces;
+    HashTable<Utf16FlyString> declared_namespaces;
     if (auto* sheet = parent_style_sheet())
         declared_namespaces = sheet->declared_namespaces();
     TRY(m_rules->insert_a_css_rule(rule, index, CSSRuleList::Nested::Yes, declared_namespaces));

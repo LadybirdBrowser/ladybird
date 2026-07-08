@@ -66,7 +66,7 @@ void HTMLCollection::remove_dead_cells(Badge<GC::Heap>)
         return !heap().is_live_heap_block(block) || element->state() != Cell::State::Live || !element->is_marked();
     });
     if (m_cached_name_to_element_mappings) {
-        m_cached_name_to_element_mappings->remove_all_matching([&](FlyString const&, GC::RawPtr<Element> const& element) {
+        m_cached_name_to_element_mappings->remove_all_matching([&](Utf16FlyString const&, GC::RawPtr<Element> const& element) {
             auto* block = GC::HeapBlock::from_cell(element);
             return !heap().is_live_heap_block(block) || element->state() != Cell::State::Live || !element->is_marked();
         });
@@ -78,7 +78,7 @@ void HTMLCollection::update_name_to_element_mappings_if_needed() const
     update_cache_if_needed();
     if (m_cached_name_to_element_mappings)
         return;
-    m_cached_name_to_element_mappings = make<OrderedHashMap<FlyString, GC::RawPtr<Element>>>();
+    m_cached_name_to_element_mappings = make<OrderedHashMap<Utf16FlyString, GC::RawPtr<Element>>>();
     for (auto const& element : m_cached_elements) {
         // 1. If element has an ID which is not in result, append element’s ID to result.
         if (auto const& id = element->id(); id.has_value()) {
@@ -154,7 +154,13 @@ Element* HTMLCollection::item(size_t index) const
 }
 
 // https://dom.spec.whatwg.org/#dom-htmlcollection-nameditem-key
-Element* HTMLCollection::named_item(FlyString const& key) const
+Element* HTMLCollection::named_item(Utf16String const& key) const
+{
+    return named_item(Utf16FlyString::from_utf16(key.utf16_view()));
+}
+
+// https://dom.spec.whatwg.org/#dom-htmlcollection-nameditem-key
+Element* HTMLCollection::named_item(Utf16FlyString const& key) const
 {
     // 1. If key is the empty string, return null.
     if (key.is_empty())
@@ -167,17 +173,17 @@ Element* HTMLCollection::named_item(FlyString const& key) const
 }
 
 // https://dom.spec.whatwg.org/#ref-for-dfn-supported-property-names
-bool HTMLCollection::is_supported_property_name(FlyString const& name) const
+bool HTMLCollection::is_supported_property_name(Utf16FlyString const& name) const
 {
     update_name_to_element_mappings_if_needed();
     return m_cached_name_to_element_mappings->contains(name);
 }
 
 // https://dom.spec.whatwg.org/#ref-for-dfn-supported-property-names
-Vector<FlyString> HTMLCollection::supported_property_names() const
+Vector<Utf16FlyString> HTMLCollection::supported_property_names() const
 {
     // 1. Let result be an empty list.
-    Vector<FlyString> result;
+    Vector<Utf16FlyString> result;
 
     // 2. For each element represented by the collection, in tree order:
     update_name_to_element_mappings_if_needed();
@@ -197,7 +203,7 @@ Optional<JS::Value> HTMLCollection::item_value(size_t index) const
     return element;
 }
 
-JS::Value HTMLCollection::named_item_value(FlyString const& name) const
+JS::Value HTMLCollection::named_item_value(Utf16FlyString const& name) const
 {
     auto* element = named_item(name);
     if (!element)

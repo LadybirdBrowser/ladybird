@@ -774,24 +774,26 @@ static ErrorOr<Vector<DOMURL::QueryParam>> convert_to_list_of_name_value_pairs(G
     for (auto const& entry : entry_list) {
         // 1. Let name be entry's name, with every occurrence of U+000D (CR) not followed by U+000A (LF), and every occurrence of U+000A (LF)
         //    not preceded by U+000D (CR), replaced by a string consisting of U+000D (CR) and U+000A (LF).
-        auto name = TRY(normalize_line_breaks(entry.name));
+        auto name = TRY(normalize_line_breaks(entry.name.utf16_view()));
 
         // 2. If entry's value is a File object, then let value be entry's value's name. Otherwise, let value be entry's value.
-        String value;
+        Utf16String value;
         entry.value.visit(
             [&value](GC::Ref<FileAPI::File> file) {
-                value = file->name();
+                value = Utf16String::from_utf8(file->name());
             },
-            [&value](String const& string) {
+            [&value](Utf16String const& string) {
                 value = string;
             });
 
         // 3. Replace every occurrence of U+000D (CR) not followed by U+000A (LF), and every occurrence of
         //    U+000A (LF) not preceded by U+000D (CR), in value, by a string consisting of U+000D (CR) and U+000A (LF).
-        auto normalized_value = TRY(normalize_line_breaks(value));
+        auto normalized_value = TRY(normalize_line_breaks(value.utf16_view()));
 
         // 4. Append to list a new name-value pair whose name is name and whose value is value.
-        TRY(list.try_append(DOMURL::QueryParam { .name = move(name), .value = move(normalized_value) }));
+        TRY(list.try_append(DOMURL::QueryParam {
+            .name = TRY(name.utf16_view().to_utf8()),
+            .value = TRY(normalized_value.utf16_view().to_utf8()) }));
     }
 
     // 3. Return list.
@@ -1034,7 +1036,7 @@ Optional<JS::Value> HTMLFormElement::item_value(size_t index) const
     return {};
 }
 
-bool HTMLFormElement::is_supported_property_name(FlyString const& name) const
+bool HTMLFormElement::is_supported_property_name(Utf16FlyString const& name) const
 {
     // NB: This is a simplified version of ::supported_property_names() that does not require sorting or allocations.
     for (auto const& candidate : m_associated_elements) {
@@ -1048,14 +1050,14 @@ bool HTMLFormElement::is_supported_property_name(FlyString const& name) const
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#the-form-element:supported-property-names
-Vector<FlyString> HTMLFormElement::supported_property_names() const
+Vector<Utf16FlyString> HTMLFormElement::supported_property_names() const
 {
     // The supported property names consist of the names obtained from the following algorithm, in the order obtained from this algorithm:
 
     // 1. Let sourced names be an initially empty ordered list of tuples consisting of a string, an element, a source,
     //    where the source is either id, name, or past, and, if the source is past, an age.
     struct SourcedName {
-        FlyString name;
+        Utf16FlyString name;
         GC::Ptr<DOM::Element const> element;
         enum class Source {
             Id,
@@ -1123,18 +1125,22 @@ Vector<FlyString> HTMLFormElement::supported_property_names() const
     // 6. Remove any entries in sourced names that have the empty string as their name.
     // 7. Remove any entries in sourced names that have the same name as an earlier entry in the map.
     // 8. Return the list of names from sourced names, maintaining their relative order.
-    OrderedHashTable<FlyString> names;
+    OrderedHashTable<Utf16FlyString> names;
     names.ensure_capacity(sourced_names.size());
     for (auto const& entry : sourced_names) {
         if (entry.name.is_empty())
             continue;
         names.set(entry.name, AK::HashSetExistingEntryBehavior::Keep);
     }
-    return names.values();
+    Vector<Utf16FlyString> result;
+    result.ensure_capacity(names.size());
+    for (auto const& name : names)
+        result.append(name);
+    return result;
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#dom-form-nameditem
-JS::Value HTMLFormElement::named_item_value(FlyString const& name) const
+JS::Value HTMLFormElement::named_item_value(Utf16FlyString const& name) const
 {
     auto& realm = this->realm();
     auto& root = as<ParentNode>(this->root());

@@ -133,11 +133,12 @@ GC::Ptr<SVGGradientElement const> SVGGradientElement::linked_gradient(GC::RootHa
         auto id = url->fragment();
         if (!id.has_value() || id->is_empty())
             return {};
+        auto id_as_utf16 = Utf16String::from_utf8(id.value());
         GC::Ptr<DOM::Element> element;
         if (auto containing_shadow = containing_shadow_root())
-            element = containing_shadow->get_element_by_id(id.value());
+            element = containing_shadow->get_element_by_id(id_as_utf16);
         if (!element)
-            element = document().get_element_by_id(id.value());
+            element = document().get_element_by_id(id_as_utf16);
         if (!element)
             return {};
         if (element == this)

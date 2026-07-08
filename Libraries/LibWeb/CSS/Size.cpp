@@ -101,7 +101,7 @@ Size Size::from_style_value(NonnullRefPtr<StyleValue const> const& value)
             VERIFY_NOT_REACHED();
         }
     }
-    if (value->is_function() && value->as_function().name() == "fit-content"_fly_string)
+    if (value->is_function() && value->as_function().name() == "fit-content"_utf16_fly_string)
         return Size::make_fit_content(LengthPercentage::from_style_value(value->as_function().value()));
 
     if (value->is_calculated())

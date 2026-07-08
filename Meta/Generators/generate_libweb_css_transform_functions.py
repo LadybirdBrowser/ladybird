@@ -36,6 +36,7 @@ def write_header_file(out: TextIO, transforms_data: dict) -> None:
 
 #include <AK/Optional.h>
 #include <AK/StringView.h>
+#include <AK/Utf16View.h>
 #include <AK/Vector.h>
 
 namespace Web::CSS {
@@ -48,6 +49,7 @@ namespace Web::CSS {
     out.write("};\n")
 
     out.write("Optional<TransformFunction> transform_function_from_string(StringView);\n")
+    out.write("Optional<TransformFunction> transform_function_from_string(Utf16View);\n")
     out.write("StringView to_string(TransformFunction);\n")
 
     out.write("""
@@ -82,6 +84,19 @@ def write_implementation_file(out: TextIO, transforms_data: dict) -> None:
 namespace Web::CSS {
 
 Optional<TransformFunction> transform_function_from_string(StringView name)
+{
+""")
+    for name in transforms_data:
+        out.write(f"""
+    if (name.equals_ignoring_ascii_case("{name}"sv))
+        return TransformFunction::{title_casify_transform_function(name)};
+""")
+
+    out.write("""
+    return {};
+}
+
+Optional<TransformFunction> transform_function_from_string(Utf16View name)
 {
 """)
     for name in transforms_data:

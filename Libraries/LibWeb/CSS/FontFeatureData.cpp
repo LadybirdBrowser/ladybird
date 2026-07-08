@@ -10,19 +10,19 @@
 
 namespace Web::CSS {
 
-Optional<FontFeatureValueType> font_feature_value_type_from_string(FlyString const& string)
+Optional<FontFeatureValueType> font_feature_value_type_from_string(Utf16View string)
 {
-    if (string == "stylistic"_fly_string)
+    if (string == "stylistic"sv)
         return FontFeatureValueType::Stylistic;
-    if (string == "styleset"_fly_string)
+    if (string == "styleset"sv)
         return FontFeatureValueType::Styleset;
-    if (string == "character-variant"_fly_string)
+    if (string == "character-variant"sv)
         return FontFeatureValueType::CharacterVariant;
-    if (string == "swash"_fly_string)
+    if (string == "swash"sv)
         return FontFeatureValueType::Swash;
-    if (string == "ornaments"_fly_string)
+    if (string == "ornaments"sv)
         return FontFeatureValueType::Ornaments;
-    if (string == "annotation"_fly_string)
+    if (string == "annotation"sv)
         return FontFeatureValueType::Annotation;
 
     return {};

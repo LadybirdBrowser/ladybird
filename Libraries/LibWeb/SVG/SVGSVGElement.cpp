@@ -115,7 +115,7 @@ void SVGSVGElement::children_changed(ChildrenChangedMetadata const&)
     // FIXME: Add support for all types of SVG fragment identifier.
     //        See: https://svgwg.org/svg2-draft/linking.html#LinksIntoSVG
     if (auto url = document().url(); url.fragment().has_value()) {
-        if (auto referenced_element = get_element_by_id(*url.fragment())) {
+        if (auto referenced_element = get_element_by_id(Utf16String::from_utf8(*url.fragment()))) {
             if (auto* view_element = as_if<SVGViewElement>(*referenced_element)) {
                 set_active_view_element(*view_element);
                 return;

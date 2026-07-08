@@ -271,7 +271,7 @@ namespace AK {
 unsigned Traits<Web::CSS::InvalidationSet::Property>::hash(Web::CSS::InvalidationSet::Property const& invalidation_set_property)
 {
     auto value_hash = invalidation_set_property.value.visit(
-        [](FlyString const& value) -> int { return value.hash(); },
+        [](Utf16FlyString const& value) -> int { return value.hash(); },
         [](Web::CSS::PseudoClass const& value) -> int { return to_underlying(value); },
         [](Empty) -> int { return 0; });
     return pair_int_hash(to_underlying(invalidation_set_property.type), value_hash);
@@ -286,21 +286,21 @@ ErrorOr<void> Formatter<Web::CSS::InvalidationSet::Property>::format(FormatBuild
     }
     case Web::CSS::InvalidationSet::Property::Type::Class: {
         TRY(builder.put_string("."sv));
-        TRY(builder.put_string(invalidation_set_property.name()));
+        TRY(builder.put_string(invalidation_set_property.class_name().view()));
         return {};
     }
     case Web::CSS::InvalidationSet::Property::Type::Id: {
         TRY(builder.put_string("#"sv));
-        TRY(builder.put_string(invalidation_set_property.name()));
+        TRY(builder.put_string(invalidation_set_property.id().view()));
         return {};
     }
     case Web::CSS::InvalidationSet::Property::Type::TagName: {
-        TRY(builder.put_string(invalidation_set_property.name()));
+        TRY(builder.put_string(invalidation_set_property.name().view()));
         return {};
     }
     case Web::CSS::InvalidationSet::Property::Type::Attribute: {
         TRY(builder.put_string("["sv));
-        TRY(builder.put_string(invalidation_set_property.name()));
+        TRY(builder.put_string(invalidation_set_property.name().view()));
         TRY(builder.put_string("]"sv));
         return {};
     }

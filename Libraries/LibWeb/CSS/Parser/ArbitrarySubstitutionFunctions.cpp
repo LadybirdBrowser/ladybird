@@ -37,6 +37,8 @@ String SubstitutionContext::to_string() const
         }
         VERIFY_NOT_REACHED();
     }();
+    auto first = this->first.to_utf8();
+    auto second = this->second.has_value() ? this->second->to_utf8() : String {};
     return MUST(String::formatted("{} {} {}", type_name, first, second));
 }
 
@@ -72,7 +74,7 @@ bool GuardedSubstitutionContexts::mark_existing_as_cyclic(SubstitutionContext co
     return false;
 }
 
-Optional<ArbitrarySubstitutionFunction> to_arbitrary_substitution_function(FlyString const& name)
+Optional<ArbitrarySubstitutionFunction> to_arbitrary_substitution_function(Utf16View name)
 {
     if (name.equals_ignoring_ascii_case("attr"sv))
         return ArbitrarySubstitutionFunction::Attr;
@@ -123,7 +125,7 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
     auto const& first_argument = declaration_value_list.first();
     auto const second_argument = declaration_value_list.get(1);
 
-    FlyString attribute_name;
+    Utf16FlyString attribute_name;
 
     struct RawStringKeyword { };
     struct NumberKeyword { };
@@ -163,14 +165,17 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
     // <attr-type> = type( <syntax> ) | raw-string | number | <attr-unit>
     if (first_argument_tokens.next_token().is(Token::Type::Ident)) {
         auto const& syntax_ident = first_argument_tokens.next_token().token().ident();
+        auto syntax_ident_string = syntax_ident.to_utf16_string();
         if (syntax_ident.equals_ignoring_ascii_case("raw-string"sv)) {
             first_argument_tokens.discard_a_token(); // raw-string
             syntax = RawStringKeyword {};
         } else if (syntax_ident.equals_ignoring_ascii_case("number"sv)) {
             first_argument_tokens.discard_a_token(); // number
             syntax = NumberKeyword {};
-        } else if (dimension_for_unit(syntax_ident).has_value()) {
-            syntax = AttrUnit { first_argument_tokens.consume_a_token().token().ident() };
+        } else if (syntax_ident.is_ascii() && dimension_for_unit(syntax_ident_string.ascii_view()).has_value()) {
+            auto unit = first_argument_tokens.consume_a_token().token().ident();
+            auto unit_utf8 = MUST(unit.view().to_utf8());
+            syntax = AttrUnit { MUST(FlyString::from_utf8(unit_utf8.bytes_as_string_view())) };
         } else {
             return failure();
         }
@@ -191,7 +196,8 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
 
     // 3. If attr name exists as an attribute on el, let attr value be its value; otherwise jump to the last step (labeled FAILURE).
     // FIXME: Attribute namespaces
-    auto attribute_value = element.element().get_attribute(attribute_name);
+    auto attribute_name_utf8 = MUST(attribute_name.view().to_utf8());
+    auto attribute_value = element.element().get_attribute(MUST(FlyString::from_utf8(attribute_name_utf8.bytes_as_string_view())));
     if (!attribute_value.has_value())
         return failure();
 
@@ -201,7 +207,7 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
     auto parse_as_number = [&]() -> RefPtr<NumberStyleValue const> {
         auto parser = Parser::create(ParsingParams { element.element().document() }, attribute_value->utf16_view());
         auto unsubstituted_values = parser.parse_as_list_of_component_values();
-        auto syntax_node = TypeSyntaxNode::create("number"_fly_string);
+        auto syntax_node = TypeSyntaxNode::create("number"_utf16_fly_string);
         auto parsed_value = parse_with_a_syntax(ParsingParams { element.document() }, unsubstituted_values, *syntax_node);
         if (parsed_value->is_guaranteed_invalid())
             return {};
@@ -255,8 +261,7 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
             [](Empty) { return true; },
             [](RawStringKeyword) { return true; },
             [](auto&) { return false; })) {
-        auto attribute_value_utf8 = attribute_value->to_utf8();
-        return mark_as_attr_tainted({ Token::create_string(MUST(FlyString::from_utf8(attribute_value_utf8.bytes_as_string_view()))) });
+        return mark_as_attr_tainted({ Token::create_string(Utf16FlyString::from_utf16(attribute_value->utf16_view())) });
     }
 
     // 6. Substitute arbitrary substitution functions in attr value, with «"attribute", attr name» as the substitution
@@ -265,7 +270,7 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
     auto parser = Parser::create(ParsingParams { element.element().document() }, attribute_value->utf16_view());
     auto unsubstituted_values = parser.parse_as_list_of_component_values();
     auto substituted_values = substitute_arbitrary_substitution_functions(element, guarded_contexts, replacement_context, unsubstituted_values,
-        SubstitutionContext { SubstitutionContext::DependencyType::Attribute, attribute_name.to_string() });
+        SubstitutionContext { SubstitutionContext::DependencyType::Attribute, attribute_name.to_utf16_string() });
 
     auto parsed_value = parse_with_a_syntax(ParsingParams { element.document() }, substituted_values, *syntax.get<NonnullRefPtr<SyntaxNode>>());
     if (parsed_value->is_guaranteed_invalid())
@@ -407,7 +412,7 @@ static Vector<ComponentValue> replace_an_inherit_function(DOM::AbstractElement& 
     //    does not contain the guaranteed-invalid value, return that inherited value.
     if (name_token.is(Token::Type::Ident) && is_a_custom_property_name_string(name_token.token().ident()) && first_argument_tokens.is_empty()) {
         if (auto element_to_inherit_style_from = element.element_to_inherit_style_from(); element_to_inherit_style_from.has_value()) {
-            if (auto const& inherited_value = element_to_inherit_style_from->get_custom_property(Utf16FlyString::from_utf8(name_token.token().ident()))) {
+            if (auto const& inherited_value = element_to_inherit_style_from->get_custom_property(name_token.token().ident())) {
                 auto inherited_value_tokens = inherited_value->tokenize();
                 if (!contains_guaranteed_invalid_value(inherited_value_tokens))
                     return inherited_value_tokens;
@@ -449,7 +454,7 @@ static Vector<ComponentValue> replace_a_var_function(DOM::AbstractElement& eleme
         result = { ComponentValue { GuaranteedInvalidValue {} } };
     } else {
         // Look up the value of the custom property
-        auto custom_property_name = Utf16FlyString::from_utf8(name_token.token().ident());
+        auto custom_property_name = name_token.token().ident();
         RefPtr<StyleValue const> custom_property_value;
         if (auto const* computed_style = replacement_context.computed_style_for_custom_property_resolution)
             custom_property_value = element.document().style_computer().compute_value_of_custom_property(*computed_style, element, custom_property_name, guarded_contexts);

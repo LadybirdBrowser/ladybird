@@ -18,7 +18,7 @@ NonnullRefPtr<MediaQuery> MediaQuery::create_not_all()
     auto media_query = new MediaQuery;
     media_query->m_negated = true;
     media_query->m_media_type = {
-        .name = "all"_fly_string,
+        .name = "all"_utf16_fly_string,
         .known_type = KnownMediaType::All,
     };
 
@@ -146,6 +146,17 @@ String serialize_a_media_query_list(Vector<NonnullRefPtr<MediaQuery>> const& med
 }
 
 Optional<MediaQuery::KnownMediaType> media_type_from_string(StringView name)
+{
+    if (name.equals_ignoring_ascii_case("all"sv))
+        return MediaQuery::KnownMediaType::All;
+    if (name.equals_ignoring_ascii_case("print"sv))
+        return MediaQuery::KnownMediaType::Print;
+    if (name.equals_ignoring_ascii_case("screen"sv))
+        return MediaQuery::KnownMediaType::Screen;
+    return {};
+}
+
+Optional<MediaQuery::KnownMediaType> media_type_from_string(Utf16View name)
 {
     if (name.equals_ignoring_ascii_case("all"sv))
         return MediaQuery::KnownMediaType::All;

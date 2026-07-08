@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/RefCounted.h>
+#include <AK/Utf16String.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Export.h>
@@ -68,8 +69,8 @@ public:
     [[nodiscard]] bool ever_populated() const { return m_ever_populated; }
     void set_ever_populated(bool ever_populated) { m_ever_populated = ever_populated; }
 
-    [[nodiscard]] String navigable_target_name() const { return m_navigable_target_name; }
-    void set_navigable_target_name(String navigable_target_name) { m_navigable_target_name = navigable_target_name; }
+    [[nodiscard]] Utf16String navigable_target_name() const { return m_navigable_target_name; }
+    void set_navigable_target_name(Utf16String navigable_target_name) { m_navigable_target_name = move(navigable_target_name); }
 
 private:
     DocumentState();
@@ -110,7 +111,7 @@ private:
     bool m_ever_populated { false };
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#document-state-nav-target-name
-    String m_navigable_target_name;
+    Utf16String m_navigable_target_name;
 };
 
 }

@@ -111,25 +111,31 @@ size_t HTMLAllCollection::length() const
 }
 
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#dom-htmlallcollection-item
-Variant<GC::Ref<DOM::HTMLCollection>, GC::Ref<DOM::Element>, Empty> HTMLAllCollection::item(Optional<FlyString> const& name_or_index) const
+Variant<GC::Ref<DOM::HTMLCollection>, GC::Ref<DOM::Element>, Empty> HTMLAllCollection::item(Optional<Utf16String> const& name_or_index) const
 {
     // 1. If nameOrIndex was not provided, return null.
     if (!name_or_index.has_value())
         return Empty {};
 
     // 2. Return the result of getting the "all"-indexed or named element(s) from this, given nameOrIndex.
-    return get_the_all_indexed_or_named_elements(Utf16FlyString::from_utf8(name_or_index.value()));
+    return get_the_all_indexed_or_named_elements(Utf16FlyString::from_utf16(name_or_index->utf16_view()));
 }
 
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#dom-htmlallcollection-nameditem
-Variant<GC::Ref<DOM::HTMLCollection>, GC::Ref<DOM::Element>, Empty> HTMLAllCollection::named_item(FlyString const& name) const
+Variant<GC::Ref<DOM::HTMLCollection>, GC::Ref<DOM::Element>, Empty> HTMLAllCollection::named_item(Utf16String const& name) const
+{
+    return named_item(Utf16FlyString::from_utf16(name.utf16_view()));
+}
+
+// https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#dom-htmlallcollection-nameditem
+Variant<GC::Ref<DOM::HTMLCollection>, GC::Ref<DOM::Element>, Empty> HTMLAllCollection::named_item(Utf16FlyString const& name) const
 {
     // The namedItem(name) method steps are to return the result of getting the "all"-named element(s) from this given name.
     return get_the_all_named_elements(name);
 }
 
 // https://dom.spec.whatwg.org/#ref-for-dfn-supported-property-names
-Vector<FlyString> HTMLAllCollection::supported_property_names() const
+Vector<Utf16FlyString> HTMLAllCollection::supported_property_names() const
 {
     // The supported property names consist of the non-empty values of all the id attributes of all the
     // elements represented by the collection, and the non-empty values of all the name attributes of
@@ -137,28 +143,32 @@ Vector<FlyString> HTMLAllCollection::supported_property_names() const
     // with the id of an element preceding its name if it contributes both, they differ from each other, and
     // neither is the duplicate of an earlier entry.
 
-    Vector<FlyString> result;
+    Vector<Utf16FlyString> names;
     auto elements = collect_matching_elements();
 
     for (auto const& element : elements) {
         if (auto const& id = element->id(); id.has_value() && !id->is_empty()) {
-            if (!result.contains_slow(id.value()))
-                result.append(id.value());
+            if (!names.contains_slow(id.value()))
+                names.append(id.value());
         }
 
         if (is_all_named_element(*element) && element->name().has_value() && !element->name()->is_empty()) {
             auto name = element->name().value();
-            if (!name.is_empty() && !result.contains_slow(name))
-                result.append(move(name));
+            if (!name.is_empty() && !names.contains_slow(name))
+                names.append(move(name));
         }
     }
 
     // 3. Return result.
+    Vector<Utf16FlyString> result;
+    result.ensure_capacity(names.size());
+    for (auto const& name : names)
+        result.append(name);
     return result;
 }
 
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#concept-get-all-named
-Variant<GC::Ref<DOM::HTMLCollection>, GC::Ref<DOM::Element>, Empty> HTMLAllCollection::get_the_all_named_elements(FlyString const& name) const
+Variant<GC::Ref<DOM::HTMLCollection>, GC::Ref<DOM::Element>, Empty> HTMLAllCollection::get_the_all_named_elements(Utf16FlyString const& name) const
 {
     // 1. If name is the empty string, return null.
     if (name.is_empty())
@@ -211,7 +221,7 @@ Variant<GC::Ref<DOM::HTMLCollection>, GC::Ref<DOM::Element>, Empty> HTMLAllColle
     }
 
     // 2. Return the result of getting the "all"-named element(s) from collection given nameOrIndex.
-    return get_the_all_named_elements(name_or_index.as_string().view().to_utf8_but_should_be_ported_to_utf16());
+    return get_the_all_named_elements(Utf16FlyString::from_utf16(name_or_index.as_string().view()));
 }
 
 Optional<JS::Value> HTMLAllCollection::item_value(size_t index) const
@@ -221,7 +231,7 @@ Optional<JS::Value> HTMLAllCollection::item_value(size_t index) const
     return {};
 }
 
-JS::Value HTMLAllCollection::named_item_value(FlyString const& name) const
+JS::Value HTMLAllCollection::named_item_value(Utf16FlyString const& name) const
 {
     return named_item(name).visit(
         [](Empty) -> JS::Value { return JS::js_undefined(); },

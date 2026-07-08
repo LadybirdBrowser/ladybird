@@ -165,7 +165,7 @@ public:
         m_length_in_code_units |= 1uz << Detail::UTF16_FLAG;
     }
 
-    consteval Utf16View(StringView string)
+    constexpr Utf16View(StringView string)
         : m_string { .ascii = string.characters_without_null_termination() }
         , m_length_in_code_units(string.length())
     {
@@ -183,6 +183,29 @@ public:
     Utf16String to_ascii_lowercase() const;
     Utf16String to_ascii_uppercase() const;
     Utf16String to_ascii_titlecase() const;
+
+    [[nodiscard]] u32 ascii_case_insensitive_hash() const
+    {
+        if (has_ascii_storage())
+            return case_insensitive_string_hash(reinterpret_cast<char const*>(bytes().data()), bytes().size());
+
+        auto to_lowercase = [](char16_t code_unit) -> u32 {
+            if (code_unit >= 'A' && code_unit <= 'Z')
+                return static_cast<u32>(code_unit) + 0x20;
+            return static_cast<u32>(code_unit);
+        };
+
+        u32 hash = 0;
+        for (auto code_unit : utf16_span()) {
+            hash += to_lowercase(code_unit);
+            hash += (hash << 10);
+            hash ^= (hash >> 6);
+        }
+        hash += hash << 3;
+        hash ^= hash >> 11;
+        hash += hash << 15;
+        return hash;
+    }
 
     [[nodiscard]] constexpr bool has_ascii_storage() const { return m_length_in_code_units >> Detail::UTF16_FLAG == 0; }
 
@@ -305,6 +328,21 @@ public:
         }
 
         return true;
+    }
+
+    [[nodiscard]] bool equals_ignoring_ascii_case(StringView other) const
+    {
+        Utf8View other_utf8 { other };
+
+        auto this_it = begin();
+        auto other_it = other_utf8.begin();
+
+        for (; this_it != end() && other_it != other_utf8.end(); ++this_it, ++other_it) {
+            if (AK::to_ascii_lowercase(*this_it) != AK::to_ascii_lowercase(*other_it))
+                return false;
+        }
+
+        return this_it == end() && other_it == other_utf8.end();
     }
 
     template<typename... Ts>
@@ -582,6 +620,36 @@ public:
             return false;
 
         return substring_view(0, needle_length) == needle;
+    }
+
+    [[nodiscard]] bool starts_with(StringView needle) const
+    {
+        Utf8View needle_utf8 { needle };
+
+        auto this_it = begin();
+        auto needle_it = needle_utf8.begin();
+
+        for (; needle_it != needle_utf8.end(); ++this_it, ++needle_it) {
+            if (this_it == end() || *this_it != *needle_it)
+                return false;
+        }
+
+        return true;
+    }
+
+    [[nodiscard]] bool starts_with_ignoring_ascii_case(StringView needle) const
+    {
+        Utf8View needle_utf8 { needle };
+
+        auto this_it = begin();
+        auto needle_it = needle_utf8.begin();
+
+        for (; needle_it != needle_utf8.end(); ++this_it, ++needle_it) {
+            if (this_it == end() || AK::to_ascii_lowercase(*this_it) != AK::to_ascii_lowercase(*needle_it))
+                return false;
+        }
+
+        return true;
     }
 
     [[nodiscard]] constexpr bool ends_with(char16_t needle) const

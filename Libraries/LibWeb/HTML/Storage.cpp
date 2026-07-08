@@ -263,20 +263,20 @@ void Storage::broadcast(Optional<String> const& key, Optional<String> const& old
     }
 }
 
-Vector<FlyString> Storage::supported_property_names() const
+Vector<Utf16FlyString> Storage::supported_property_names() const
 {
     // The supported property names on a Storage object storage are the result of running get the keys on storage's map.
-    Vector<FlyString> names;
+    Vector<Utf16FlyString> names;
     auto keys = m_storage_bottle->keys();
     names.ensure_capacity(keys.size());
     for (auto const& key : keys)
-        names.unchecked_append(key);
+        names.unchecked_append(Utf16FlyString::from_utf8(key));
     return names;
 }
 
-JS::Value Storage::named_item_value(FlyString const& name) const
+JS::Value Storage::named_item_value(Utf16FlyString const& name) const
 {
-    auto value = get_item(String(name));
+    auto value = get_item(MUST(name.view().to_utf8()));
     if (!value.has_value())
         // AD-HOC: Spec leaves open to a description at: https://html.spec.whatwg.org/multipage/webstorage.html#the-storage-interface
         // However correct behavior expected here: https://github.com/whatwg/html/issues/8684
@@ -284,18 +284,18 @@ JS::Value Storage::named_item_value(FlyString const& name) const
     return JS::PrimitiveString::create(vm(), Utf16String::from_utf8(value.release_value()));
 }
 
-WebIDL::ExceptionOr<Bindings::PlatformObject::DidDeletionFail> Storage::delete_value(String const& name)
+WebIDL::ExceptionOr<Bindings::PlatformObject::DidDeletionFail> Storage::delete_value(Utf16FlyString const& name)
 {
-    remove_item(name);
+    remove_item(MUST(name.view().to_utf8()));
     return DidDeletionFail::NotRelevant;
 }
 
-WebIDL::ExceptionOr<void> Storage::set_value_of_named_property(String const& key, JS::Value unconverted_value)
+WebIDL::ExceptionOr<void> Storage::set_value_of_named_property(Utf16FlyString const& key, JS::Value unconverted_value)
 {
     // NOTE: Since PlatformObject does not know the type of value, we must convert it ourselves.
     //       The type of `value` is `DOMString`.
-    auto value = TRY(unconverted_value.to_utf16_string(vm())).to_utf8_but_should_be_ported_to_utf16();
-    return set_item(key, value);
+    auto value = TRY(unconverted_value.to_utf16_string(vm()));
+    return set_item(MUST(key.view().to_utf8()), MUST(value.utf16_view().to_utf8()));
 }
 
 void Storage::dump() const

@@ -35,7 +35,7 @@ void MimeTypeArray::initialize(JS::Realm& realm)
 }
 
 // https://html.spec.whatwg.org/multipage/system-state.html#pdf-viewing-support:support-named-properties-2
-Vector<FlyString> MimeTypeArray::supported_property_names() const
+Vector<Utf16FlyString> MimeTypeArray::supported_property_names() const
 {
     // The MimeTypeArray interface supports named properties. If the user agent's PDF viewer supported is true, then they are the PDF viewer mime types. Otherwise, they are the empty list.
     auto const& window = as<HTML::Window>(HTML::relevant_global_object(*this));
@@ -43,9 +43,9 @@ Vector<FlyString> MimeTypeArray::supported_property_names() const
         return {};
 
     // https://html.spec.whatwg.org/multipage/system-state.html#pdf-viewer-mime-types
-    static NeverDestroyed<Vector<FlyString>> mime_types { Vector<FlyString> {
-        "application/pdf"_fly_string,
-        "text/pdf"_fly_string,
+    static NeverDestroyed<Vector<Utf16FlyString>> mime_types { Vector<Utf16FlyString> {
+        "application/pdf"_utf16_fly_string,
+        "text/pdf"_utf16_fly_string,
     } };
 
     return *mime_types;
@@ -98,12 +98,17 @@ Optional<JS::Value> MimeTypeArray::item_value(size_t index) const
     return return_value.ptr();
 }
 
-JS::Value MimeTypeArray::named_item_value(FlyString const& name) const
+JS::Value MimeTypeArray::named_item_value(Utf16FlyString const& name) const
 {
-    auto return_value = named_item(name);
-    if (!return_value)
-        return JS::js_null();
-    return return_value.ptr();
+    auto& window = as<HTML::Window>(HTML::relevant_global_object(*this));
+    auto mime_types = window.pdf_viewer_mime_type_objects();
+
+    for (auto& mime_type : mime_types) {
+        if (name == mime_type->type().bytes_as_string_view())
+            return mime_type.ptr();
+    }
+
+    return JS::js_null();
 }
 
 }

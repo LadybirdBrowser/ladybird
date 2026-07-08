@@ -432,7 +432,7 @@ MultipartParsingErrorOr<GC::ConservativeVector<XHR::FormDataEntry>> parse_multip
             return MultipartParsingError { MUST(String::formatted("Expected CRLF at position {}", lexer.tell())) };
 
         // 10. If filename is not null:
-        Optional<XHR::FormDataEntryValue> value;
+        Optional<XHR::FormDataEntry::Value> value;
         if (header.filename.has_value()) {
             // 1. If contentType is null, set contentType to "text/plain".
             if (!header.content_type.has_value())
@@ -453,14 +453,14 @@ MultipartParsingErrorOr<GC::ConservativeVector<XHR::FormDataEntry>> parse_multip
         // 11. Otherwise:
         else {
             // 1. Let value be the UTF-8 decoding without BOM of body.
-            value = String::from_utf8_with_replacement_character(body, String::WithBOMHandling::No);
+            value = Utf16String::from_utf8_with_replacement_character(body, Utf16String::WithBOMHandling::No);
         }
 
         // 12. Assert: name is a scalar value string and value is either a scalar value string or a File object.
         VERIFY(header.name.has_value() && value.has_value());
 
         // 13. Create an entry with name and value, and append it to entry list.
-        entry_list.empend(header.name.release_value(), value.release_value());
+        entry_list.empend(Utf16String::from_utf8(header.name.release_value()), value.release_value());
     }
 }
 

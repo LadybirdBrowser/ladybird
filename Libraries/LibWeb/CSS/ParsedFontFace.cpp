@@ -33,7 +33,7 @@ Vector<ParsedFontFace::Source> ParsedFontFace::sources_from_style_value(StyleVal
     auto add_source = [&sources](FontSourceStyleValue const& font_source) {
         font_source.source().visit(
             [&](FontSourceStyleValue::Local const& local) {
-                sources.empend(string_from_style_value(local.name), OptionalNone {}, Vector<FontTech> {});
+                sources.empend(legacy_fly_string_from_style_value(local.name), OptionalNone {}, Vector<FontTech> {});
             },
             [&](URL const& url) {
                 sources.empend(url, font_source.format(), font_source.tech());
@@ -66,7 +66,7 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
 
     FlyString font_family;
     if (auto value = descriptors.descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontFamily)))
-        font_family = string_from_style_value(*value);
+        font_family = legacy_fly_string_from_style_value(*value);
 
     ComputationContext computation_context {
         .length_resolution_context = Length::ResolutionContext::for_document(*descriptors.parent_rule()->parent_style_sheet()->owning_document())
@@ -155,14 +155,18 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
 
     Optional<FlyString> font_named_instance;
     if (auto value = descriptors.descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontNamedInstance))) {
-        if (value->is_string())
-            font_named_instance = value->as_string().string_value();
+        if (value->is_string()) {
+            auto string = MUST(value->as_string().string_value().view().to_utf8());
+            font_named_instance = MUST(FlyString::from_utf8(string.bytes_as_string_view()));
+        }
     }
 
     Optional<FlyString> font_language_override;
     if (auto value = descriptors.descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontLanguageOverride))) {
-        if (value->is_string())
-            font_language_override = value->as_string().string_value();
+        if (value->is_string()) {
+            auto string = MUST(value->as_string().string_value().view().to_utf8());
+            font_language_override = MUST(FlyString::from_utf8(string.bytes_as_string_view()));
+        }
     }
 
     Optional<OrderedHashMap<FlyString, i32>> font_feature_settings;
@@ -177,7 +181,7 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
                 auto const& feature_tag = feature_tag_style_value->as_open_type_tagged();
 
                 // FIXME: We should absolutize feature_tag.value() in case there are relative lengths
-                settings.set(feature_tag.tag(), int_from_style_value(feature_tag.value()));
+                settings.set(feature_tag.tag_as_fly_string(), int_from_style_value(feature_tag.value()));
             }
             font_feature_settings = move(settings);
         }
@@ -194,7 +198,7 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
 
             // FIXME: Absolutize these values to handle relative lengths within calcs
             for (auto const& variation_tag : variation_tags)
-                settings.set(variation_tag->as_open_type_tagged().tag(), number_from_style_value(variation_tag->as_open_type_tagged().value(), {}));
+                settings.set(variation_tag->as_open_type_tagged().tag_as_fly_string(), number_from_style_value(variation_tag->as_open_type_tagged().value(), {}));
 
             font_variation_settings = move(settings);
         }

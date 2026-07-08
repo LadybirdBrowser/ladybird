@@ -286,7 +286,7 @@ bool Animatable::has_css_defined_animations() const
     return m_impl->has_css_defined_animations;
 }
 
-HashMap<FlyString, GC::Ref<CSS::CSSAnimation>>* Animatable::css_defined_animations(Optional<CSS::PseudoElement> pseudo_element)
+HashMap<Utf16FlyString, GC::Ref<CSS::CSSAnimation>>* Animatable::css_defined_animations(Optional<CSS::PseudoElement> pseudo_element)
 {
     auto& impl = ensure_impl();
 
@@ -298,7 +298,7 @@ HashMap<FlyString, GC::Ref<CSS::CSSAnimation>>* Animatable::css_defined_animatio
                      .value_or(0);
 
     if (!impl.css_defined_animations[index])
-        impl.css_defined_animations[index] = make<HashMap<FlyString, GC::Ref<CSS::CSSAnimation>>>();
+        impl.css_defined_animations[index] = make<HashMap<Utf16FlyString, GC::Ref<CSS::CSSAnimation>>>();
 
     return impl.css_defined_animations[index];
 }

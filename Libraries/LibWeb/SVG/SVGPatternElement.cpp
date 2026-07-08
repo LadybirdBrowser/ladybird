@@ -87,7 +87,7 @@ GC::Ptr<SVGPatternElement const> SVGPatternElement::linked_pattern(GC::RootHashT
     if (!id.has_value() || id->is_empty())
         return {};
 
-    auto element = document().get_element_by_id(id.value());
+    auto element = document().get_element_by_id(Utf16String::from_utf8(id.value()));
     if (!element)
         return {};
 

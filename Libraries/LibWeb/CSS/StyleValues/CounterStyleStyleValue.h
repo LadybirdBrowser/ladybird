@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -15,12 +16,12 @@ class CounterStyleStyleValue : public StyleValueWithDefaultOperators<CounterStyl
 public:
     struct SymbolsFunction {
         SymbolsType type;
-        Vector<FlyString> symbols;
+        Vector<Utf16FlyString> symbols;
 
         bool operator==(SymbolsFunction const& other) const = default;
     };
 
-    static ValueComparingNonnullRefPtr<CounterStyleStyleValue const> create(Variant<FlyString, SymbolsFunction> value)
+    static ValueComparingNonnullRefPtr<CounterStyleStyleValue const> create(Variant<Utf16FlyString, SymbolsFunction> value)
     {
         return adopt_ref(*new (nothrow) CounterStyleStyleValue(move(value)));
     }
@@ -36,13 +37,13 @@ public:
     virtual bool is_computationally_independent() const override { return true; }
 
 private:
-    explicit CounterStyleStyleValue(Variant<FlyString, SymbolsFunction> value)
+    explicit CounterStyleStyleValue(Variant<Utf16FlyString, SymbolsFunction> value)
         : StyleValueWithDefaultOperators(Type::CounterStyle)
         , m_value(move(value))
     {
     }
 
-    Variant<FlyString, SymbolsFunction> m_value;
+    Variant<Utf16FlyString, SymbolsFunction> m_value;
 };
 
 }

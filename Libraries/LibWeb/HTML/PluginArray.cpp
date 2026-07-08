@@ -41,7 +41,7 @@ void PluginArray::refresh() const
 }
 
 // https://html.spec.whatwg.org/multipage/system-state.html#pdf-viewing-support:support-named-properties
-Vector<FlyString> PluginArray::supported_property_names() const
+Vector<Utf16FlyString> PluginArray::supported_property_names() const
 {
     // The PluginArray interface supports named properties. If the user agent's PDF viewer supported is true, then they are the PDF viewer plugin names. Otherwise, they are the empty list.
     auto const& window = as<HTML::Window>(HTML::relevant_global_object(*this));
@@ -49,12 +49,12 @@ Vector<FlyString> PluginArray::supported_property_names() const
         return {};
 
     // https://html.spec.whatwg.org/multipage/system-state.html#pdf-viewer-plugin-names
-    static NeverDestroyed<Vector<FlyString>> plugin_names { Vector<FlyString> {
-        "PDF Viewer"_fly_string,
-        "Chrome PDF Viewer"_fly_string,
-        "Chromium PDF Viewer"_fly_string,
-        "Microsoft Edge PDF Viewer"_fly_string,
-        "WebKit built-in PDF"_fly_string,
+    static NeverDestroyed<Vector<Utf16FlyString>> plugin_names { Vector<Utf16FlyString> {
+        "PDF Viewer"_utf16_fly_string,
+        "Chrome PDF Viewer"_utf16_fly_string,
+        "Chromium PDF Viewer"_utf16_fly_string,
+        "Microsoft Edge PDF Viewer"_utf16_fly_string,
+        "WebKit built-in PDF"_utf16_fly_string,
     } };
 
     return *plugin_names;
@@ -107,12 +107,17 @@ Optional<JS::Value> PluginArray::item_value(size_t index) const
     return return_value.ptr();
 }
 
-JS::Value PluginArray::named_item_value(FlyString const& name) const
+JS::Value PluginArray::named_item_value(Utf16FlyString const& name) const
 {
-    auto return_value = named_item(name);
-    if (!return_value)
-        return JS::js_null();
-    return return_value.ptr();
+    auto& window = as<HTML::Window>(HTML::relevant_global_object(*this));
+    auto plugins = window.pdf_viewer_plugin_objects();
+
+    for (auto& plugin : plugins) {
+        if (name == plugin->name().bytes_as_string_view())
+            return plugin.ptr();
+    }
+
+    return JS::js_null();
 }
 
 }

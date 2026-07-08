@@ -23,6 +23,7 @@ public:
     static Utf16FlyString from_utf8(StringView);
     static Utf16FlyString from_utf8(String const& string) { return from_utf8_without_validation(string); }
     static Utf16FlyString from_utf8(FlyString const& string) { return from_utf8_without_validation(string); }
+    static Utf16FlyString from_fly_string(FlyString const& string) { return from_utf8_without_validation(string); }
     static Utf16FlyString from_utf8_without_validation(StringView);
     static Utf16FlyString from_utf8_but_should_be_ported_to_utf16(StringView string) { return from_utf8_without_validation(string); }
 
@@ -110,6 +111,10 @@ public:
     }
 
     [[nodiscard]] ALWAYS_INLINE bool equals_ignoring_ascii_case(Utf16View const& other) const { return m_data.equals_ignoring_ascii_case(other); }
+    [[nodiscard]] ALWAYS_INLINE bool equals_ignoring_ascii_case(StringView other) const { return view().equals_ignoring_ascii_case(other); }
+
+    [[nodiscard]] ALWAYS_INLINE bool starts_with(StringView string) const { return view().starts_with(string); }
+    [[nodiscard]] ALWAYS_INLINE bool starts_with_ignoring_ascii_case(StringView string) const { return view().starts_with_ignoring_ascii_case(string); }
 
     template<typename... Ts>
     [[nodiscard]] ALWAYS_INLINE bool is_one_of(Ts&&... strings) const
@@ -124,6 +129,7 @@ public:
     }
 
     [[nodiscard]] ALWAYS_INLINE u32 hash() const { return m_data.hash(); }
+    [[nodiscard]] ALWAYS_INLINE u32 ascii_case_insensitive_hash() const { return view().ascii_case_insensitive_hash(); }
     [[nodiscard]] ALWAYS_INLINE bool is_empty() const { return m_data.is_empty(); }
     [[nodiscard]] ALWAYS_INLINE bool is_ascii() const { return m_data.is_ascii(); }
 

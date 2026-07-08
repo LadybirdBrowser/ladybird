@@ -16,7 +16,7 @@
 
 namespace Web::Animations {
 
-using EasingValue = Variant<String, CSS::EasingFunction>;
+using EasingValue = Variant<Utf16String, CSS::EasingFunction>;
 
 Bindings::CompositeOperation css_animation_composition_to_bindings_composite_operation(CSS::AnimationComposition composition);
 Bindings::CompositeOperationOrAuto css_animation_composition_to_bindings_composite_operation_or_auto(CSS::AnimationComposition composition);
@@ -29,16 +29,16 @@ struct BasePropertyIndexedKeyframe {
     Variant<EasingValue, Vector<EasingValue>> easing { Vector<EasingValue> {} };
     Variant<Bindings::CompositeOperationOrAuto, Vector<Bindings::CompositeOperationOrAuto>> composite { Vector<Bindings::CompositeOperationOrAuto> {} };
 
-    HashMap<String, Vector<String>> properties {};
+    HashMap<Utf16FlyString, Vector<Utf16String>> properties {};
 };
 
 // https://www.w3.org/TR/web-animations-1/#dictdef-basekeyframe
 struct BaseKeyframe {
-    using UnparsedProperties = HashMap<String, String>;
+    using UnparsedProperties = HashMap<Utf16FlyString, Utf16String>;
     using ParsedProperties = HashMap<CSS::PropertyID, NonnullRefPtr<CSS::StyleValue const>>;
 
     Optional<double> offset {};
-    EasingValue easing { "linear"_string };
+    EasingValue easing { "linear"_utf16 };
     Bindings::CompositeOperationOrAuto composite { Bindings::CompositeOperationOrAuto::Auto };
 
     Optional<double> computed_offset {};

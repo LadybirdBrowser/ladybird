@@ -174,10 +174,10 @@ Optional<JS::Value> HTMLSelectElement::item_value(size_t index) const
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-select-nameditem
-HTMLOptionElement* HTMLSelectElement::named_item(FlyString const& name)
+HTMLOptionElement* HTMLSelectElement::named_item(Utf16String const& name)
 {
     // The namedItem(name) method must return the value returned by the method of the same name on the options collection, when invoked with the same argument.
-    return as<HTMLOptionElement>(const_cast<HTMLOptionsCollection&>(*options()).named_item(name));
+    return as<HTMLOptionElement>(const_cast<HTMLOptionsCollection&>(*options()).named_item(Utf16FlyString::from_utf16(name.utf16_view())));
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-select-add

@@ -39,19 +39,19 @@ void SVGElement::initialize(JS::Realm& realm)
 }
 
 struct NamedPropertyID {
-    NamedPropertyID(CSS::PropertyID property_id, FlyString name, Vector<FlyString> supported_elements = {})
+    NamedPropertyID(CSS::PropertyID property_id, Utf16FlyString name, Vector<FlyString> supported_elements = {})
         : id(property_id)
         , name(move(name))
         , supported_elements(move(supported_elements))
     {
     }
     NamedPropertyID(CSS::PropertyID property_id, Vector<FlyString> supported_elements = {})
-        : NamedPropertyID(property_id, CSS::string_from_property_id(property_id).to_utf16_string().to_utf8_but_should_be_ported_to_utf16(), move(supported_elements))
+        : NamedPropertyID(property_id, CSS::string_from_property_id(property_id).to_utf16_string(), move(supported_elements))
     {
     }
 
     CSS::PropertyID id;
-    FlyString name;
+    Utf16FlyString name;
     Vector<FlyString> supported_elements;
 };
 
@@ -83,7 +83,7 @@ static ReadonlySpan<NamedPropertyID> attribute_style_properties()
         NamedPropertyID(CSS::PropertyID::FontStyle),
         NamedPropertyID(CSS::PropertyID::FontVariant),
         NamedPropertyID(CSS::PropertyID::FontWeight),
-        NamedPropertyID(CSS::PropertyID::FontWidth, "font-stretch"_fly_string),
+        NamedPropertyID(CSS::PropertyID::FontWidth, "font-stretch"_utf16_fly_string),
         NamedPropertyID(CSS::PropertyID::Height, { SVG::TagNames::foreignObject, SVG::TagNames::image, SVG::TagNames::rect, SVG::TagNames::svg, SVG::TagNames::symbol, SVG::TagNames::use }),
         NamedPropertyID(CSS::PropertyID::ImageRendering),
         NamedPropertyID(CSS::PropertyID::LetterSpacing),
@@ -111,8 +111,8 @@ static ReadonlySpan<NamedPropertyID> attribute_style_properties()
         NamedPropertyID(CSS::PropertyID::TextDecoration),
         NamedPropertyID(CSS::PropertyID::TextRendering),
         NamedPropertyID(CSS::PropertyID::TextOverflow),
-        NamedPropertyID(CSS::PropertyID::Transform, SVG::AttributeNames::gradientTransform, { SVG::TagNames::linearGradient, SVG::TagNames::radialGradient }),
-        NamedPropertyID(CSS::PropertyID::Transform, SVG::AttributeNames::patternTransform, { SVG::TagNames::pattern }),
+        NamedPropertyID(CSS::PropertyID::Transform, "gradientTransform"_utf16_fly_string, { SVG::TagNames::linearGradient, SVG::TagNames::radialGradient }),
+        NamedPropertyID(CSS::PropertyID::Transform, "patternTransform"_utf16_fly_string, { SVG::TagNames::pattern }),
         NamedPropertyID(CSS::PropertyID::TransformOrigin),
         NamedPropertyID(CSS::PropertyID::UnicodeBidi),
         NamedPropertyID(CSS::PropertyID::Visibility),
@@ -131,7 +131,7 @@ bool SVGElement::is_presentational_hint(FlyString const& name) const
     if (Base::is_presentational_hint(name))
         return true;
 
-    return any_of(attribute_style_properties(), [&](auto& property) { return name.equals_ignoring_ascii_case(property.name); });
+    return any_of(attribute_style_properties(), [&](auto& property) { return property.name.equals_ignoring_ascii_case(name.bytes_as_string_view()); });
 }
 
 void SVGElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
@@ -140,7 +140,7 @@ void SVGElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properti
     CSS::Parser::ParsingParams parsing_context { document(), CSS::Parser::ParsingMode::SVGPresentationAttribute };
     for_each_attribute([&](auto& name, auto& value) {
         for (auto& property : attribute_style_properties()) {
-            if (!name.equals_ignoring_ascii_case(property.name))
+            if (!property.name.equals_ignoring_ascii_case(name.bytes_as_string_view()))
                 continue;
             if (!property.supported_elements.is_empty() && !property.supported_elements.contains_slow(local_name()))
                 continue;

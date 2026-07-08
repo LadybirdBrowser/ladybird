@@ -282,7 +282,7 @@ GC::Ptr<DOM::Element> SVGUseElement::referenced_element() const
 
     if (is_referenced_element_same_document()) {
         auto id = String::from_utf8_with_replacement_character(URL::percent_decode(*m_href->fragment()), String::WithBOMHandling::No);
-        return document().get_element_by_id(id);
+        return document().get_element_by_id(Utf16String::from_utf8(id));
     }
 
     if (!m_resource_request)
@@ -292,7 +292,7 @@ GC::Ptr<DOM::Element> SVGUseElement::referenced_element() const
     if (!data || !is<SVG::SVGDecodedImageData>(*data))
         return nullptr;
 
-    return as<SVG::SVGDecodedImageData>(*data).svg_document().get_element_by_id(*m_href->fragment());
+    return as<SVG::SVGDecodedImageData>(*data).svg_document().get_element_by_id(Utf16String::from_utf8(*m_href->fragment()));
 }
 
 // https://svgwg.org/svg2-draft/linking.html#processingURL-fetch

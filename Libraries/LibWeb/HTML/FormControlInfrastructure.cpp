@@ -6,6 +6,7 @@
 
 #include <AK/GenericLexer.h>
 #include <AK/Random.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/HTML/FormControlInfrastructure.h>
 #include <LibWeb/HTML/FormDataEvent.h>
@@ -18,21 +19,15 @@
 
 namespace Web::HTML {
 
-// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#create-an-entry
-WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry(JS::Realm& realm, String const& name, Variant<GC::Ref<FileAPI::Blob>, String> const& value, Optional<String> const& filename)
+static WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry_with_scalar_name(JS::Realm& realm, Utf16String entry_name, Variant<GC::Ref<FileAPI::Blob>, Utf16String> const& value, Optional<String> const& filename)
 {
-    auto& vm = realm.vm();
-
-    // 1. Set name to the result of converting name into a scalar value string.
-    auto entry_name = TRY_OR_THROW_OOM(vm, Infra::convert_to_scalar_value_string(name));
-
     auto entry_value = TRY(value.visit(
         // 2. If value is a string, then set value to the result of converting value into a scalar value string.
-        [&](String const& string) -> WebIDL::ExceptionOr<Variant<GC::Ref<FileAPI::File>, String>> {
-            return TRY_OR_THROW_OOM(vm, Infra::convert_to_scalar_value_string(string));
+        [&](Utf16String const& string) -> WebIDL::ExceptionOr<XHR::FormDataEntry::Value> {
+            return TRY_OR_THROW_OOM(realm.vm(), Infra::convert_to_scalar_value_string(string.utf16_view()));
         },
         // 3. Otherwise:
-        [&](GC::Ref<FileAPI::Blob> blob) -> WebIDL::ExceptionOr<Variant<GC::Ref<FileAPI::File>, String>> {
+        [&](GC::Ref<FileAPI::Blob> blob) -> WebIDL::ExceptionOr<XHR::FormDataEntry::Value> {
             // 1. If value is not a File object, then set value to a new File object, representing the same bytes, whose
             //    name attribute value is "blob".
             if (!is<FileAPI::File>(*blob)) {
@@ -62,6 +57,28 @@ WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry(JS::Realm& realm, String co
     };
 }
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#create-an-entry
+WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry(JS::Realm& realm, String const& name, Variant<GC::Ref<FileAPI::Blob>, String> const& value, Optional<String> const& filename)
+{
+    // 1. Set name to the result of converting name into a scalar value string.
+    auto entry_name = Utf16String::from_utf8(TRY_OR_THROW_OOM(realm.vm(), Infra::convert_to_scalar_value_string(name)));
+    return create_entry(realm, entry_name.utf16_view(), value.visit([](String const& string) -> Variant<GC::Ref<FileAPI::Blob>, Utf16String> { return Utf16String::from_utf8(string); }, [](GC::Ref<FileAPI::Blob> blob) -> Variant<GC::Ref<FileAPI::Blob>, Utf16String> { return blob; }),
+        filename);
+}
+
+WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry(JS::Realm& realm, Utf16View name, Variant<GC::Ref<FileAPI::Blob>, String> const& value, Optional<String> const& filename)
+{
+    return create_entry(realm, name, value.visit([](String const& string) -> Variant<GC::Ref<FileAPI::Blob>, Utf16String> { return Utf16String::from_utf8(string); }, [](GC::Ref<FileAPI::Blob> blob) -> Variant<GC::Ref<FileAPI::Blob>, Utf16String> { return blob; }),
+        filename);
+}
+
+WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry(JS::Realm& realm, Utf16View name, Variant<GC::Ref<FileAPI::Blob>, Utf16String> const& value, Optional<String> const& filename)
+{
+    // 1. Set name to the result of converting name into a scalar value string.
+    auto entry_name = TRY_OR_THROW_OOM(realm.vm(), Infra::convert_to_scalar_value_string(name));
+    return create_entry_with_scalar_name(realm, move(entry_name), value, filename);
+}
+
 // https://html.spec.whatwg.org/multipage/custom-elements.html#face-entry-construction
 static WebIDL::ExceptionOr<void> construct_face_entry(JS::Realm& realm, GC::Ref<HTMLElement const> form_associated_custom_element, GC::ConservativeVector<XHR::FormDataEntry>& entry_list)
 {
@@ -87,18 +104,18 @@ static WebIDL::ExceptionOr<void> construct_face_entry(JS::Realm& realm, GC::Ref<
 
     auto name = form_associated_custom_element->name().value();
     auto entry_submission_value = submission_value.visit(
-        [](GC::Ref<FileAPI::File> file) -> Variant<GC::Ref<FileAPI::Blob>, String> {
+        [](GC::Ref<FileAPI::File> file) -> Variant<GC::Ref<FileAPI::Blob>, Utf16String> {
             return GC::Ref<FileAPI::Blob> { file };
         },
-        [](String const& string) -> Variant<GC::Ref<FileAPI::Blob>, String> {
-            return string;
+        [](String const& string) -> Variant<GC::Ref<FileAPI::Blob>, Utf16String> {
+            return Utf16String::from_utf8(string);
         },
-        [](auto&) -> Variant<GC::Ref<FileAPI::Blob>, String> {
+        [](auto&) -> Variant<GC::Ref<FileAPI::Blob>, Utf16String> {
             // The other types were handled above.
             VERIFY_NOT_REACHED();
         });
 
-    auto entry = TRY(create_entry(realm, name.to_string(), entry_submission_value));
+    auto entry = TRY(create_entry(realm, name.view(), entry_submission_value));
     entry_list.append(entry);
     return {};
 }
@@ -188,7 +205,7 @@ WebIDL::ExceptionOr<Optional<GC::ConservativeVector<XHR::FormDataEntry>>> constr
         if (auto* select_element = as_if<HTMLSelectElement>(*control)) {
             for (auto const& option_element : select_element->list_of_options()) {
                 if (option_element->selected() && !option_element->disabled()) {
-                    entry_list.append(TRY(create_entry(realm, name.to_string(), option_element->value().to_utf8_but_should_be_ported_to_utf16())));
+                    entry_list.append(TRY(create_entry(realm, name.view(), option_element->value())));
                 }
             }
         }
@@ -201,7 +218,7 @@ WebIDL::ExceptionOr<Optional<GC::ConservativeVector<XHR::FormDataEntry>>> constr
 
             // 2. Create an entry with name and value, and append it to entry list.
             auto checkbox_or_radio_element_name = checkbox_or_radio_element->name();
-            entry_list.append(TRY(create_entry(realm, checkbox_or_radio_element_name->to_string(), value.to_utf8_but_should_be_ported_to_utf16())));
+            entry_list.append(TRY(create_entry(realm, checkbox_or_radio_element_name->view(), value)));
         }
         // 8. Otherwise, if the field element is an input element whose type attribute is in the File Upload state, then:
         else if (auto* file_element = as_if<HTMLInputElement>(*control); file_element && file_element->type_state() == HTMLInputElement::TypeAttributeState::FileUpload) {
@@ -210,13 +227,13 @@ WebIDL::ExceptionOr<Optional<GC::ConservativeVector<XHR::FormDataEntry>>> constr
                 Bindings::FilePropertyBag options {};
                 options.type = "application/octet-stream"_string;
                 auto file = TRY(FileAPI::File::create(realm, {}, String {}, options));
-                entry_list.append(TRY(create_entry(realm, name.to_string(), GC::Ref<FileAPI::Blob> { file })));
+                entry_list.append(TRY(create_entry(realm, name.view(), Variant<GC::Ref<FileAPI::Blob>, Utf16String> { GC::Ref<FileAPI::Blob> { file } })));
             }
             // 2. Otherwise, for each file in selected files, create an entry with name and a File object representing the file, and append it to entry list.
             else {
                 for (size_t i = 0; i < file_element->files()->length(); i++) {
                     auto file = GC::Ref { *file_element->files()->item(i) };
-                    entry_list.append(TRY(create_entry(realm, name.to_string(), GC::Ref<FileAPI::Blob> { file })));
+                    entry_list.append(TRY(create_entry(realm, name.view(), Variant<GC::Ref<FileAPI::Blob>, Utf16String> { GC::Ref<FileAPI::Blob> { file } })));
                 }
             }
         }
@@ -226,17 +243,17 @@ WebIDL::ExceptionOr<Optional<GC::ConservativeVector<XHR::FormDataEntry>>> constr
             auto charset = encoding.has_value() ? encoding.value() : "UTF-8"_string;
 
             // 2. Create an entry with name and charset, and append it to entry list.
-            entry_list.append(TRY(create_entry(realm, name.to_string(), charset)));
+            entry_list.append(TRY(create_entry(realm, name.view(), charset)));
         }
         // 10. Otherwise, create an entry with name and the value of the field element, and append it to entry list.
         else {
-            entry_list.append(TRY(create_entry(realm, name.to_string(), control_as_form_associated_element.form_value().to_utf8_but_should_be_ported_to_utf16())));
+            entry_list.append(TRY(create_entry(realm, name.view(), control_as_form_associated_element.form_value())));
         }
 
         // 11. If the element has a dirname attribute, that attribute's value is not the empty string, and the element is an auto-directionality form-associated element:
         if (auto attribute = control->get_attribute(HTML::AttributeNames::dirname); attribute.has_value() && !attribute.value().is_empty() && control->is_auto_directionality_form_associated_element()) {
             // 1. Let dirname be the value of the element's dirname attribute.
-            auto dirname = attribute.value().to_utf8();
+            auto dirname = attribute.value();
 
             // 2. Let dir be the string "ltr" if the directionality of the element is 'ltr', and "rtl" otherwise (i.e., when the directionality of the element is 'rtl').
             String dir = MUST((control->directionality() == DOM::Element::Directionality::Ltr) ? String::from_utf8("ltr"sv) : String::from_utf8("rtl"sv));
@@ -261,21 +278,30 @@ WebIDL::ExceptionOr<Optional<GC::ConservativeVector<XHR::FormDataEntry>>> constr
     return form_data->entry_list();
 }
 
-ErrorOr<String> normalize_line_breaks(StringView value)
+ErrorOr<Utf16String> normalize_line_breaks(Utf16View value)
 {
     // Replace every occurrence of U+000D (CR) not followed by U+000A (LF), and every occurrence of U+000A (LF) not
     // preceded by U+000D (CR) by a string consisting of a U+000D (CR) and U+000A (LF).
-    StringBuilder builder;
-    GenericLexer lexer { value };
-    while (!lexer.is_eof()) {
-        TRY(builder.try_append(lexer.consume_until(is_any_of("\r\n"sv))));
-        if ((lexer.peek() == '\r' && lexer.peek(1) != '\n') || lexer.peek() == '\n') {
-            TRY(builder.try_append("\r\n"sv));
-            lexer.ignore(1);
-        } else {
-            lexer.ignore(2);
+    Utf16StringBuilder builder { value.length_in_code_units() };
+    size_t chunk_start = 0;
+    for (size_t i = 0; i < value.length_in_code_units();) {
+        auto code_unit = value.code_unit_at(i);
+        if (code_unit != '\r' && code_unit != '\n') {
+            ++i;
+            continue;
         }
+
+        builder.append(value.substring_view(chunk_start, i - chunk_start));
+        if ((code_unit == '\r' && (i + 1 == value.length_in_code_units() || value.code_unit_at(i + 1) != '\n')) || code_unit == '\n') {
+            builder.append("\r\n"_utf16);
+            ++i;
+        } else {
+            builder.append(value.substring_view(i, 2));
+            i += 2;
+        }
+        chunk_start = i;
     }
+    builder.append(value.substring_view(chunk_start));
     return builder.to_string();
 }
 
@@ -311,9 +337,9 @@ ErrorOr<SerializedFormData> serialize_to_multipart_form_data(GC::ConservativeVec
         TRY(builder.try_append(TRY(String::formatted("--{}\r\n", boundary))));
 
         // Replace every occurrence of U+000D (CR) not followed by U+000A (LF), and every occurrence of U+000A (LF) not preceded by U+000D (CR) by a string consisting of a U+000D (CR) and U+000A (LF).
-        auto normalized_name = TRY(normalize_line_breaks(entry.name));
+        auto normalized_name = TRY(normalize_line_breaks(entry.name.utf16_view()));
         // For field names replace any 0x0A (LF) bytes with the byte sequence `%0A`, 0x0D (CR) with `%0D` and 0x22 (") with `%22`
-        auto escaped_name = TRY(escape_line_feed_carriage_return_double_quote(normalized_name));
+        auto escaped_name = TRY(escape_line_feed_carriage_return_double_quote(TRY(normalized_name.utf16_view().to_utf8())));
 
         TRY(entry.value.visit(
             [&](GC::Ref<FileAPI::File> file) -> ErrorOr<void> {
@@ -333,12 +359,12 @@ ErrorOr<SerializedFormData> serialize_to_multipart_form_data(GC::ConservativeVec
                 TRY(builder.try_append("\r\n"sv));
                 return {};
             },
-            [&](String const& string) -> ErrorOr<void> {
+            [&](Utf16String const& string) -> ErrorOr<void> {
                 // Replace every occurrence of U+000D (CR) not followed by U+000A (LF), and every occurrence of U+000A (LF) not preceded by U+000D (CR) by a string consisting of a U+000D (CR) and U+000A (LF).
-                auto normalized_value = TRY(normalize_line_breaks(string));
+                auto normalized_value = TRY(normalize_line_breaks(string.utf16_view()));
                 // Add a `Content-Disposition` header with a `name` set to entry's name.
                 TRY(builder.try_append(TRY(String::formatted("Content-Disposition: form-data; name=\"{}\"\r\n\r\n", escaped_name))));
-                TRY(builder.try_append(TRY(String::formatted("{}\r\n", normalized_value))));
+                TRY(builder.try_append(TRY(String::formatted("{}\r\n", TRY(normalized_value.utf16_view().to_utf8())))));
                 return {};
             }));
     }

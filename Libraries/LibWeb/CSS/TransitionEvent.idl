@@ -2,13 +2,13 @@
 [Exposed=Window]
 interface TransitionEvent : Event {
     constructor(CSSOMString type, optional TransitionEventInit transitionEventInitDict = {});
-    readonly attribute CSSOMString propertyName;
+    readonly attribute Utf16CSSOMString propertyName;
     readonly attribute double elapsedTime;
-    readonly attribute CSSOMString pseudoElement;
+    readonly attribute Utf16CSSOMString pseudoElement;
 };
 
 dictionary TransitionEventInit : EventInit {
-    CSSOMString propertyName = "";
+    Utf16CSSOMString propertyName = "";
     double elapsedTime = 0.0;
-    CSSOMString pseudoElement = "";
+    Utf16CSSOMString pseudoElement = "";
 };

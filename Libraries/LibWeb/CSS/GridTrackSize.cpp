@@ -8,6 +8,7 @@
 
 #include "GridTrackSize.h"
 #include <AK/String.h>
+#include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/Size.h>
 #include <LibWeb/CSS/StyleValues/FunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
@@ -58,7 +59,7 @@ bool GridSize::is_fit_content() const
     if (m_value->to_keyword() == Keyword::FitContent)
         return true;
 
-    if (m_value->is_function() && m_value->as_function().name() == "fit-content"_fly_string)
+    if (m_value->is_function() && m_value->as_function().name() == "fit-content"_utf16_fly_string)
         return true;
 
     return false;
@@ -222,7 +223,7 @@ void GridLineNames::serialize(StringBuilder& builder) const
     for (size_t i = 0; i < m_names.size(); ++i) {
         if (i > 0)
             builder.append(" "sv);
-        builder.append(m_names[i].name);
+        builder.append(serialize_an_identifier(m_names[i].name));
     }
     builder.append("]"sv);
 }

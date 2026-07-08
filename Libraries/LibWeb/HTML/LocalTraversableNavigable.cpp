@@ -78,7 +78,7 @@ BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document(
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-top-level-traversable
-GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_level_traversable(GC::Ref<Page> page, GC::Ptr<HTML::BrowsingContext> opener, String target_name)
+GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_level_traversable(GC::Ref<Page> page, GC::Ptr<HTML::BrowsingContext> opener, Utf16String target_name)
 {
     auto& vm = Bindings::main_thread_vm();
     page->ensure_compositor_host();
@@ -1373,7 +1373,7 @@ void ApplyHistoryStepState::process_continuations()
                 if (navigable->parent() == nullptr
                     && !(resolved_document->browsing_context()->is_auxiliary() && resolved_document->browsing_context()->opener_browsing_context() != nullptr)
                     && target_entry->document_state()->origin() != old_origin) {
-                    target_entry->document_state()->set_navigable_target_name(String {});
+                    target_entry->document_state()->set_navigable_target_name(Utf16String {});
                 }
             }
 

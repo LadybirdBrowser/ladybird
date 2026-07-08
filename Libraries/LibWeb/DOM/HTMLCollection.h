@@ -39,14 +39,15 @@ public:
 
     size_t length() const;
     Element* item(size_t index) const;
-    Element* named_item(FlyString const& key) const;
+    Element* named_item(Utf16String const& key) const;
+    Element* named_item(Utf16FlyString const& key) const;
 
     GC::RootVector<GC::Ref<Element>> collect_matching_elements() const;
 
     virtual Optional<JS::Value> item_value(size_t index) const override;
-    virtual JS::Value named_item_value(FlyString const& name) const override;
-    virtual Vector<FlyString> supported_property_names() const override;
-    virtual bool is_supported_property_name(FlyString const&) const override;
+    virtual JS::Value named_item_value(Utf16FlyString const& name) const override;
+    virtual Vector<Utf16FlyString> supported_property_names() const override;
+    virtual bool is_supported_property_name(Utf16FlyString const&) const override;
 
 protected:
     HTMLCollection(ParentNode& root, Scope, ESCAPING Function<bool(Element const&)> filter, ESCAPING Function<bool(Element const&, Element const&)> sort = nullptr);
@@ -66,7 +67,7 @@ private:
 
     mutable u64 m_cached_dom_tree_version { 0 };
     mutable Vector<GC::RawPtr<Element>> m_cached_elements;
-    mutable OwnPtr<OrderedHashMap<FlyString, GC::RawPtr<Element>>> m_cached_name_to_element_mappings;
+    mutable OwnPtr<OrderedHashMap<Utf16FlyString, GC::RawPtr<Element>>> m_cached_name_to_element_mappings;
 
     GC::Ref<ParentNode> m_root;
     Function<bool(Element const&)> m_filter;

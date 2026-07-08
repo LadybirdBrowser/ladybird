@@ -19,6 +19,17 @@ namespace Web::XHR {
 
 GC_DEFINE_ALLOCATOR(FormData);
 
+static FormDataEntryValue form_data_entry_value_for_bindings(FormDataEntry::Value const& value)
+{
+    return value.visit(
+        [](GC::Ref<FileAPI::File> file) -> FormDataEntryValue {
+            return file;
+        },
+        [](Utf16String const& string) -> FormDataEntryValue {
+            return MUST(string.utf16_view().to_utf8());
+        });
+}
+
 // https://xhr.spec.whatwg.org/#dom-formdata
 WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::construct_impl(JS::Realm& realm, GC::Ptr<HTML::HTMLFormElement> form, GC::Ptr<HTML::HTMLElement> submitter)
 {
@@ -65,7 +76,7 @@ WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::create(JS::Realm& realm, Vector
     GC::ConservativeVector<FormDataEntry> list;
     list.ensure_capacity(entry_list.size());
     for (auto& entry : entry_list)
-        list.unchecked_append({ .name = move(entry.name), .value = move(entry.value) });
+        list.unchecked_append({ .name = Utf16String::from_utf8(entry.name), .value = Utf16String::from_utf8(entry.value) });
 
     return construct_impl(realm, move(list));
 }
@@ -128,34 +139,40 @@ WebIDL::ExceptionOr<void> FormData::append_impl(String const& name, Variant<GC::
 // https://xhr.spec.whatwg.org/#dom-formdata-delete
 void FormData::delete_(String const& name)
 {
+    auto name_utf16 = Utf16String::from_utf8(name);
+
     // The delete(name) method steps are to remove all entries whose name is name from this’s entry list.
-    m_entry_list.remove_all_matching([&name](FormDataEntry const& entry) {
-        return entry.name == name;
+    m_entry_list.remove_all_matching([&name_utf16](FormDataEntry const& entry) {
+        return entry.name == name_utf16;
     });
 }
 
 // https://xhr.spec.whatwg.org/#dom-formdata-get
 Variant<GC::Ref<FileAPI::File>, String, Empty> FormData::get(String const& name)
 {
+    auto name_utf16 = Utf16String::from_utf8(name);
+
     // 1. If there is no entry whose name is name in this’s entry list, then return null.
-    auto entry_iterator = m_entry_list.find_if([&name](FormDataEntry const& entry) {
-        return entry.name == name;
+    auto entry_iterator = m_entry_list.find_if([&name_utf16](FormDataEntry const& entry) {
+        return entry.name == name_utf16;
     });
     if (entry_iterator.is_end())
         return Empty {};
     // 2. Return the value of the first entry whose name is name from this’s entry list.
-    return entry_iterator->value;
+    return form_data_entry_value_for_bindings(entry_iterator->value);
 }
 
 // https://xhr.spec.whatwg.org/#dom-formdata-getall
 WebIDL::ExceptionOr<Vector<FormDataEntryValue>> FormData::get_all(String const& name)
 {
+    auto name_utf16 = Utf16String::from_utf8(name);
+
     // 1. If there is no entry whose name is name in this’s entry list, then return the empty list.
     // 2. Return the values of all entries whose name is name, in order, from this’s entry list.
     Vector<FormDataEntryValue> values;
     for (auto const& entry : m_entry_list) {
-        if (entry.name == name)
-            TRY_OR_THROW_OOM(vm(), values.try_append(entry.value));
+        if (entry.name == name_utf16)
+            TRY_OR_THROW_OOM(vm(), values.try_append(form_data_entry_value_for_bindings(entry.value)));
     }
     return values;
 }
@@ -163,9 +180,11 @@ WebIDL::ExceptionOr<Vector<FormDataEntryValue>> FormData::get_all(String const& 
 // https://xhr.spec.whatwg.org/#dom-formdata-has
 bool FormData::has(String const& name)
 {
+    auto name_utf16 = Utf16String::from_utf8(name);
+
     // The has(name) method steps are to return true if there is an entry whose name is name in this’s entry list; otherwise false.
-    return !m_entry_list.find_if([&name](auto& entry) {
-                            return entry.name == name;
+    return !m_entry_list.find_if([&name_utf16](auto& entry) {
+                            return entry.name == name_utf16;
                         })
                 .is_end();
 }
@@ -198,16 +217,17 @@ WebIDL::ExceptionOr<void> FormData::set_impl(String const& name, Variant<GC::Ref
     // 1. Let value be value if given; otherwise blobValue.
     // 2. Let entry be the result of creating an entry with name, value, and filename if given.
     auto entry = TRY(HTML::create_entry(realm, name, value, filename));
+    auto name_utf16 = Utf16String::from_utf8(name);
 
-    auto existing = m_entry_list.find_if([&name](auto& entry) {
-        return entry.name == name;
+    auto existing = m_entry_list.find_if([&name_utf16](auto& entry) {
+        return entry.name == name_utf16;
     });
 
     // 3. If there are entries in this’s entry list whose name is name, then replace the first such entry with entry and remove the others.
     if (!existing.is_end()) {
         existing->value = entry.value;
-        m_entry_list.remove_all_matching([&name, &existing](auto& entry) {
-            return &entry != &*existing && entry.name == name;
+        m_entry_list.remove_all_matching([&name_utf16, &existing](auto& entry) {
+            return &entry != &*existing && entry.name == name_utf16;
         });
     }
     // 4. Otherwise, append entry to this’s entry list.
@@ -222,7 +242,7 @@ JS::ThrowCompletionOr<void> FormData::for_each(ForEachCallback callback)
 {
     for (auto i = 0u; i < m_entry_list.size(); ++i) {
         auto& entry = m_entry_list[i];
-        TRY(callback(entry.name, entry.value));
+        TRY(callback(MUST(entry.name.utf16_view().to_utf8()), form_data_entry_value_for_bindings(entry.value)));
     }
 
     return {};

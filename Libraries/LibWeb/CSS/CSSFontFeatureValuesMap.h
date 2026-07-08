@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16FlyString.h>
 #include <LibJS/Runtime/MapIterator.h>
 #include <LibWeb/Bindings/CSSFontFeatureValuesMap.h>
 #include <LibWeb/Bindings/PlatformObject.h>
@@ -23,10 +24,11 @@ public:
     GC::Ref<JS::Map> map_entries() { return m_map_entries; }
 
     WebIDL::ExceptionOr<void> set(String const& feature_value_name, Variant<u32, Vector<u32>> const& values);
+    WebIDL::ExceptionOr<void> set(Utf16String const& feature_value_name, Variant<u32, Vector<u32>> const& values);
 
     void on_map_modified_from_js(Badge<Bindings::CSSFontFeatureValuesMapPrototype>);
 
-    OrderedHashMap<FlyString, Vector<u32>> to_ordered_hash_map() const;
+    OrderedHashMap<Utf16FlyString, Vector<u32>> to_ordered_hash_map() const;
 
 private:
     CSSFontFeatureValuesMap(JS::Realm&, size_t max_value_count, GC::Ref<CSSFontFeatureValuesRule> parent_rule);

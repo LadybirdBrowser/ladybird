@@ -434,7 +434,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
 
 Optional<Descriptor> Parser::convert_to_descriptor(AtRuleID at_rule_id, Declaration const& declaration)
 {
-    auto descriptor_name_and_id = DescriptorNameAndID::from_name(at_rule_id, Utf16FlyString::from_utf8(declaration.name));
+    auto descriptor_name_and_id = DescriptorNameAndID::from_name(at_rule_id, declaration.name);
     if (!descriptor_name_and_id.has_value())
         return {};
 

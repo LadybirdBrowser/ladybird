@@ -9,6 +9,7 @@
 #pragma once
 
 #include <AK/Function.h>
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/Parser/RuleContext.h>
@@ -58,7 +59,7 @@ public:
         No,
         Yes,
     };
-    WebIDL::ExceptionOr<unsigned> insert_a_css_rule(Variant<StringView, CSSRule*>, u32 index, Nested, HashTable<FlyString> const& declared_namespaces);
+    WebIDL::ExceptionOr<unsigned> insert_a_css_rule(Variant<StringView, CSSRule*>, u32 index, Nested, HashTable<Utf16FlyString> const& declared_namespaces);
 
     void for_each_effective_rule(TraversalOrder, Function<void(CSSRule const&)> const& callback) const;
     // Returns whether the match state of any media queries changed after evaluation.

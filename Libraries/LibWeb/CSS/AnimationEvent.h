@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibWeb/Bindings/AnimationEvent.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/Event.h>
@@ -23,9 +24,9 @@ public:
 
     virtual ~AnimationEvent() override = default;
 
-    FlyString const& animation_name() const { return m_animation_name; }
+    Utf16String const& animation_name() const { return m_animation_name; }
     double elapsed_time() const { return m_elapsed_time; }
-    FlyString const& pseudo_element() const { return m_pseudo_element; }
+    Utf16String const& pseudo_element() const { return m_pseudo_element; }
 
 private:
     AnimationEvent(JS::Realm&, FlyString const& type, Bindings::AnimationEventInit const& event_init);
@@ -33,13 +34,13 @@ private:
     virtual void initialize(JS::Realm&) override;
 
     // https://www.w3.org/TR/css-animations-1/#dom-animationevent-animationname
-    FlyString m_animation_name {};
+    Utf16String m_animation_name {};
 
     // https://www.w3.org/TR/css-animations-1/#dom-animationevent-elapsedtime
     double m_elapsed_time { 0.0 };
 
     // https://www.w3.org/TR/css-animations-1/#dom-animationevent-pseudoelement
-    FlyString m_pseudo_element {};
+    Utf16String m_pseudo_element {};
 };
 
 }

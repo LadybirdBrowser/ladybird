@@ -241,12 +241,12 @@ static OwnPtr<Feature> parse_query_feature(TokenStream<ComponentValue>& inner_to
                 return FeatureName<FeatureID> { FeatureNameType::Normal, id.value() };
             }
 
-            if (allow_min_max_prefix && (name.starts_with_bytes("min-"sv, CaseSensitivity::CaseInsensitive) || name.starts_with_bytes("max-"sv, CaseSensitivity::CaseInsensitive))) {
-                auto adjusted_name = name.bytes_as_string_view().substring_view(4);
+            if (allow_min_max_prefix && (name.starts_with_ignoring_ascii_case("min-"sv) || name.starts_with_ignoring_ascii_case("max-"sv))) {
+                auto adjusted_name = name.view().substring_view(4);
                 if (auto id = feature_name_from_string(adjusted_name); id.has_value() && allows_range_syntax(id.value())) {
                     transaction.commit();
                     return FeatureName<FeatureID> {
-                        name.starts_with_bytes("min-"sv, CaseSensitivity::CaseInsensitive) ? FeatureNameType::Min : FeatureNameType::Max,
+                        name.starts_with_ignoring_ascii_case("min-"sv) ? FeatureNameType::Min : FeatureNameType::Max,
                         id.value()
                     };
                 }
@@ -418,7 +418,7 @@ OwnPtr<MediaFeature> Parser::parse_media_feature(TokenStream<ComponentValue>& in
 {
     return parse_query_feature<MediaFeature, MediaFeatureID>(
         inner_tokens,
-        [](StringView name) { return media_feature_id_from_string(name); },
+        [](Utf16View name) { return media_feature_id_from_string(name); },
         [this](MediaFeatureID id, auto& tokens) { return parse_media_feature_value(id, tokens); },
         [](MediaFeatureID id) { return media_feature_type_is_range(id); });
 }
@@ -428,7 +428,7 @@ OwnPtr<SizeFeature> Parser::parse_size_feature(TokenStream<ComponentValue>& inne
 {
     return parse_query_feature<SizeFeature, SizeFeatureID>(
         inner_tokens,
-        [](StringView name) { return size_feature_id_from_string(name); },
+        [](Utf16View name) { return size_feature_id_from_string(name); },
         [this](SizeFeatureID id, auto& tokens) { return parse_size_feature_value(id, tokens); },
         [](SizeFeatureID id) { return size_feature_type_is_range(id); });
 }

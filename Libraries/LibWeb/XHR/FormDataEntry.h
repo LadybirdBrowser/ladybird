@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <LibGC/Root.h>
 #include <LibWeb/Forward.h>
@@ -17,8 +18,10 @@ namespace Web::XHR {
 using FormDataEntryValue = Variant<GC::Ref<FileAPI::File>, String>;
 
 struct FormDataEntry {
-    String name;
-    FormDataEntryValue value;
+    using Value = Variant<GC::Ref<FileAPI::File>, Utf16String>;
+
+    Utf16String name;
+    Value value;
 };
 
 }

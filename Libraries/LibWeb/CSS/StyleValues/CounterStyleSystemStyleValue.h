@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -22,7 +23,7 @@ public:
         return adopt_ref(*new CounterStyleSystemStyleValue(Fixed { move(first_symbol) }));
     }
 
-    NonnullRefPtr<StyleValue const> static create_extends(FlyString name)
+    NonnullRefPtr<StyleValue const> static create_extends(Utf16FlyString name)
     {
         return adopt_ref(*new CounterStyleSystemStyleValue(Extends { move(name) }));
     }
@@ -41,7 +42,7 @@ public:
     };
 
     struct Extends {
-        FlyString name;
+        Utf16FlyString name;
         bool operator==(Extends const&) const = default;
     };
 

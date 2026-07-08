@@ -92,7 +92,7 @@ public:
     bool matches() const { return m_matches; }
     ContainerQueryFeatureRequirements const& feature_requirements() const { return m_feature_requirements; }
     bool contains_size_feature() const { return m_feature_requirements.contains_size_feature(); }
-    MatchResult evaluate(DOM::AbstractElement const&, Optional<FlyString> const& container_name) const;
+    MatchResult evaluate(DOM::AbstractElement const&, Optional<Utf16FlyString> const& container_name) const;
     String to_string() const;
 
     void dump(StringBuilder&, int indent_levels = 0) const;
@@ -105,9 +105,9 @@ private:
     bool m_matches { false };
 };
 
-Optional<SizeFeatureID> size_feature_id_from_string(StringView);
+Optional<SizeFeatureID> size_feature_id_from_string(Utf16View);
 StringView string_from_size_feature_id(SizeFeatureID);
 bool size_feature_type_is_range(SizeFeatureID);
-bool container_name_matches(DOM::Element const&, Optional<FlyString> const& container_name);
+bool container_name_matches(DOM::Element const&, Optional<Utf16FlyString> const& container_name);
 
 }

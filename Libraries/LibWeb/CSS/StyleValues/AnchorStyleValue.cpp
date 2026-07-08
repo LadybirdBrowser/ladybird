@@ -5,20 +5,21 @@
  */
 
 #include <LibWeb/CSS/CalculationResolutionContext.h>
+#include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/AnchorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 
 namespace Web::CSS {
 
 ValueComparingNonnullRefPtr<AnchorStyleValue const> AnchorStyleValue::create(
-    Optional<FlyString> const& anchor_name,
+    Optional<Utf16FlyString> const& anchor_name,
     ValueComparingNonnullRefPtr<StyleValue const> const& anchor_side,
     ValueComparingRefPtr<StyleValue const> const& fallback_value)
 {
     return adopt_ref(*new (nothrow) AnchorStyleValue(anchor_name, anchor_side, fallback_value));
 }
 
-AnchorStyleValue::AnchorStyleValue(Optional<FlyString> const& anchor_name,
+AnchorStyleValue::AnchorStyleValue(Optional<Utf16FlyString> const& anchor_name,
     ValueComparingNonnullRefPtr<StyleValue const> const& anchor_side,
     ValueComparingRefPtr<StyleValue const> const& fallback_value)
     : AbstractNonMathCalcFunctionStyleValue(Type::Anchor)
@@ -31,7 +32,7 @@ void AnchorStyleValue::serialize(StringBuilder& builder, SerializationMode seria
     builder.append("anchor("sv);
 
     if (anchor_name().has_value())
-        builder.append(anchor_name().value());
+        builder.append(serialize_an_identifier(anchor_name().value()));
 
     if (anchor_name().has_value())
         builder.append(' ');

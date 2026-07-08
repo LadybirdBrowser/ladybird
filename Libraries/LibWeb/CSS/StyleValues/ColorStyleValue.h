@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
 #include <LibGfx/Color.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
@@ -22,7 +22,7 @@ enum class ColorSyntax : u8 {
 
 class ColorStyleValue : public StyleValue {
 public:
-    static ValueComparingNonnullRefPtr<ColorStyleValue const> create_from_color(Color color, ColorSyntax color_syntax, Optional<FlyString> name = {});
+    static ValueComparingNonnullRefPtr<ColorStyleValue const> create_from_color(Color color, ColorSyntax color_syntax, Optional<Utf16FlyString> name = {});
     virtual ~ColorStyleValue() override = default;
 
     virtual bool has_color() const override { return true; }
