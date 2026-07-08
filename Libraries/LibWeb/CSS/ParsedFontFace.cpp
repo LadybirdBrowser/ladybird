@@ -153,52 +153,48 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
     if (auto value = descriptors.descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontDisplay)))
         font_display = keyword_to_font_display(value->to_keyword()).value_or(FontDisplay::Auto);
 
-    Optional<FlyString> font_named_instance;
+    Optional<Utf16FlyString> font_named_instance;
     if (auto value = descriptors.descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontNamedInstance))) {
-        if (value->is_string()) {
-            auto string = MUST(value->as_string().string_value().view().to_utf8());
-            font_named_instance = MUST(FlyString::from_utf8(string.bytes_as_string_view()));
-        }
+        if (value->is_string())
+            font_named_instance = value->as_string().string_value();
     }
 
-    Optional<FlyString> font_language_override;
+    Optional<Utf16FlyString> font_language_override;
     if (auto value = descriptors.descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontLanguageOverride))) {
-        if (value->is_string()) {
-            auto string = MUST(value->as_string().string_value().view().to_utf8());
-            font_language_override = MUST(FlyString::from_utf8(string.bytes_as_string_view()));
-        }
+        if (value->is_string())
+            font_language_override = value->as_string().string_value();
     }
 
-    Optional<OrderedHashMap<FlyString, i32>> font_feature_settings;
+    Optional<OrderedHashMap<Utf16FlyString, i32>> font_feature_settings;
     if (auto value = descriptors.descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontFeatureSettings))) {
         if (value->to_keyword() == Keyword::Normal) {
             font_feature_settings.clear();
         } else if (value->is_value_list()) {
             auto const& feature_tags = value->as_value_list().values();
-            OrderedHashMap<FlyString, i32> settings;
+            OrderedHashMap<Utf16FlyString, i32> settings;
             settings.ensure_capacity(feature_tags.size());
             for (auto const& feature_tag_style_value : feature_tags) {
                 auto const& feature_tag = feature_tag_style_value->as_open_type_tagged();
 
                 // FIXME: We should absolutize feature_tag.value() in case there are relative lengths
-                settings.set(feature_tag.tag_as_fly_string(), int_from_style_value(feature_tag.value()));
+                settings.set(feature_tag.tag(), int_from_style_value(feature_tag.value()));
             }
             font_feature_settings = move(settings);
         }
     }
 
-    Optional<OrderedHashMap<FlyString, double>> font_variation_settings;
+    Optional<OrderedHashMap<Utf16FlyString, double>> font_variation_settings;
     if (auto value = descriptors.descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontVariationSettings))) {
         if (value->to_keyword() == Keyword::Normal) {
             font_variation_settings.clear();
         } else if (value->is_value_list()) {
             auto const& variation_tags = value->as_value_list().values();
-            OrderedHashMap<FlyString, double> settings;
+            OrderedHashMap<Utf16FlyString, double> settings;
             settings.ensure_capacity(variation_tags.size());
 
             // FIXME: Absolutize these values to handle relative lengths within calcs
             for (auto const& variation_tag : variation_tags)
-                settings.set(variation_tag->as_open_type_tagged().tag_as_fly_string(), number_from_style_value(variation_tag->as_open_type_tagged().value(), {}));
+                settings.set(variation_tag->as_open_type_tagged().tag(), number_from_style_value(variation_tag->as_open_type_tagged().value(), {}));
 
             font_variation_settings = move(settings);
         }
@@ -223,7 +219,7 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
     };
 }
 
-ParsedFontFace::ParsedFontFace(GC::Ref<CSSRule> parent_rule, FlyString font_family, Optional<FontWeightRange> weight, Optional<int> slope, Optional<int> width, Vector<Source> sources, Vector<Gfx::UnicodeRange> unicode_ranges, Optional<Percentage> ascent_override, Optional<Percentage> descent_override, Optional<Percentage> line_gap_override, FontDisplay font_display, Optional<FlyString> font_named_instance, Optional<FlyString> font_language_override, Optional<OrderedHashMap<FlyString, i32>> font_feature_settings, Optional<OrderedHashMap<FlyString, double>> font_variation_settings)
+ParsedFontFace::ParsedFontFace(GC::Ref<CSSRule> parent_rule, FlyString font_family, Optional<FontWeightRange> weight, Optional<int> slope, Optional<int> width, Vector<Source> sources, Vector<Gfx::UnicodeRange> unicode_ranges, Optional<Percentage> ascent_override, Optional<Percentage> descent_override, Optional<Percentage> line_gap_override, FontDisplay font_display, Optional<Utf16FlyString> font_named_instance, Optional<Utf16FlyString> font_language_override, Optional<OrderedHashMap<Utf16FlyString, i32>> font_feature_settings, Optional<OrderedHashMap<Utf16FlyString, double>> font_variation_settings)
     : m_parent_rule(parent_rule)
     , m_font_family(move(font_family))
     , m_font_named_instance(move(font_named_instance))
@@ -236,7 +232,7 @@ ParsedFontFace::ParsedFontFace(GC::Ref<CSSRule> parent_rule, FlyString font_fami
     , m_descent_override(move(descent_override))
     , m_line_gap_override(move(line_gap_override))
     , m_font_display(font_display)
-    , m_font_language_override(font_language_override)
+    , m_font_language_override(move(font_language_override))
     , m_font_feature_settings(move(font_feature_settings))
     , m_font_variation_settings(move(font_variation_settings))
 {

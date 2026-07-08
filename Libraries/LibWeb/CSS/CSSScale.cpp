@@ -45,7 +45,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSScale>> CSSScale::construct_impl(JS::Realm& realm
     // 5. If z was not passed, set this’s z internal slot to a new unit value of (1, "number"), and set this’s is2D internal slot to true.
     Is2D is_2d = Is2D::No;
     if (!rectified_z.has_value()) {
-        rectified_z = CSSUnitValue::create(realm, 1, "number"_fly_string);
+        rectified_z = CSSUnitValue::create(realm, 1, "number"_utf16_fly_string);
         is_2d = Is2D::Yes;
     }
     auto this_ = CSSScale::create(realm, is_2d, rectified_x, rectified_y, rectified_z.release_value());
@@ -150,13 +150,13 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSScale::to_matrix() const
     auto matrix = Geometry::DOMMatrix::create(realm());
 
     // NB: to() throws a TypeError if the conversion can't be done.
-    auto x = TRY(m_x->to("number"_fly_string))->value();
-    auto y = TRY(m_y->to("number"_fly_string))->value();
+    auto x = TRY(m_x->to("number"_utf16_fly_string))->value();
+    auto y = TRY(m_y->to("number"_utf16_fly_string))->value();
 
     if (is_2d())
         return matrix->scale_self(x, y, {}, {}, {}, {});
 
-    auto z = TRY(m_z->to("number"_fly_string))->value();
+    auto z = TRY(m_z->to("number"_utf16_fly_string))->value();
     return matrix->scale_self(x, y, z, {}, {}, {});
 }
 

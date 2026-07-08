@@ -27,7 +27,6 @@ public:
     virtual ~OpenTypeTaggedStyleValue() override = default;
 
     Utf16FlyString const& tag() const { return m_tag; }
-    FlyString tag_as_fly_string() const;
     ValueComparingNonnullRefPtr<StyleValue const> const& value() const { return m_value; }
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;

@@ -24,7 +24,7 @@ public:
 
     Frequency const& frequency() const { return m_frequency; }
     virtual double raw_value() const override { return m_frequency.raw_value(); }
-    virtual FlyString unit_name() const override { return m_frequency.unit_name(); }
+    virtual Utf16FlyString unit_name() const override { return m_frequency.unit_name(); }
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 

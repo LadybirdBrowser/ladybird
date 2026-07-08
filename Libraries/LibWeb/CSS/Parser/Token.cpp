@@ -117,7 +117,7 @@ Token Token::create_percentage(Number value, String original_source_text)
     return token;
 }
 
-Token Token::create_dimension(Number value, FlyString unit, String original_source_text)
+Token Token::create_dimension(Number value, Utf16FlyString unit, String original_source_text)
 {
     Token token;
     token.m_type = Type::Dimension;
@@ -171,7 +171,9 @@ String Token::to_string() const
     case Type::Percentage:
         return MUST(String::formatted("{}%", m_value.get<Number>().value()));
     case Type::Dimension:
-        return MUST(String::formatted("{}{}", m_value.get<DimensionValue>().number.value(), dimension_unit()));
+        builder.appendff("{}", m_value.get<DimensionValue>().number.value());
+        builder.append(MUST(dimension_unit().view().to_utf8()));
+        return builder.to_string_without_validation();
     case Type::Whitespace:
         return " "_string;
     case Type::CDO:
@@ -294,7 +296,7 @@ String Token::to_debug_string() const
         break;
     case Type::Dimension:
         builder.appendff("Dimension(value={}, number_type={}, unit=", dimension_value(), number_type_name(m_value.get<DimensionValue>().number.type()));
-        append_quoted_string(builder, dimension_unit().bytes_as_string_view());
+        append_quoted_string(builder, MUST(dimension_unit().view().to_utf8()));
         has_type_specific_fields = true;
         break;
     case Type::Whitespace:

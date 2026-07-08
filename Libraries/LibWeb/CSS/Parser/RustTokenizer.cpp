@@ -160,7 +160,7 @@ Token RustTokenizer::token_from_ffi(FFI::CssToken const& ffi_token)
     case FFI::CssTokenType::Dimension:
         token = Token::create_dimension(
             Number { css_number_type_from_ffi(ffi_token.number_type), ffi_token.number_value },
-            ffi_fly_string(ffi_token.value_ptr, ffi_token.value_len),
+            move(payload),
             move(original_source_text));
         break;
     case FFI::CssTokenType::Whitespace:

@@ -5583,7 +5583,7 @@ RefPtr<FontSourceStyleValue const> Parser::parse_font_source_value(TokenStream<C
     if (!url.has_value())
         return nullptr;
 
-    Optional<FlyString> format;
+    Optional<Utf16FlyString> format;
     Vector<FontTech> tech;
 
     tokens.discard_whitespace();
@@ -5669,8 +5669,7 @@ RefPtr<FontSourceStyleValue const> Parser::parse_font_source_value(TokenStream<C
             return nullptr;
         }
 
-        auto format_name_utf8 = MUST(format_name.view().to_utf8());
-        format = MUST(FlyString::from_utf8(format_name_utf8.bytes_as_string_view()));
+        format = move(format_name);
     }
 
     tokens.discard_whitespace();

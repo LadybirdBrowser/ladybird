@@ -1767,13 +1767,11 @@ FontKerning ComputedProperties::font_kerning() const
     return keyword_to_font_kerning(value.to_keyword()).release_value();
 }
 
-Optional<FlyString> ComputedProperties::font_language_override() const
+Optional<Utf16FlyString> ComputedProperties::font_language_override() const
 {
     auto const& value = property(PropertyID::FontLanguageOverride);
-    if (value.is_string()) {
-        auto string = MUST(value.as_string().string_value().view().to_utf8());
-        return MUST(FlyString::from_utf8(string.bytes_as_string_view()));
-    }
+    if (value.is_string())
+        return value.as_string().string_value();
     return {};
 }
 
@@ -1927,7 +1925,7 @@ FontVariantPosition ComputedProperties::font_variant_position() const
     return keyword_to_font_variant_position(value.to_keyword()).release_value();
 }
 
-HashMap<FlyString, u8> ComputedProperties::font_feature_settings() const
+HashMap<Utf16FlyString, u8> ComputedProperties::font_feature_settings() const
 {
     auto const& value = property(PropertyID::FontFeatureSettings);
 
@@ -1936,12 +1934,12 @@ HashMap<FlyString, u8> ComputedProperties::font_feature_settings() const
 
     if (value.is_value_list()) {
         auto const& feature_tags = value.as_value_list().values();
-        HashMap<FlyString, u8> result;
+        HashMap<Utf16FlyString, u8> result;
         result.ensure_capacity(feature_tags.size());
         for (auto const& tag_value : feature_tags) {
             auto const& feature_tag = tag_value->as_open_type_tagged();
 
-            result.set(feature_tag.tag_as_fly_string(), int_from_style_value(feature_tag.value()));
+            result.set(feature_tag.tag(), int_from_style_value(feature_tag.value()));
         }
         return result;
     }
@@ -1949,7 +1947,7 @@ HashMap<FlyString, u8> ComputedProperties::font_feature_settings() const
     return {};
 }
 
-HashMap<FlyString, double> ComputedProperties::font_variation_settings() const
+HashMap<Utf16FlyString, double> ComputedProperties::font_variation_settings() const
 {
     auto const& value = property(PropertyID::FontVariationSettings);
 
@@ -1958,12 +1956,12 @@ HashMap<FlyString, double> ComputedProperties::font_variation_settings() const
 
     if (value.is_value_list()) {
         auto const& axis_tags = value.as_value_list().values();
-        HashMap<FlyString, double> result;
+        HashMap<Utf16FlyString, double> result;
         result.ensure_capacity(axis_tags.size());
         for (auto const& tag_value : axis_tags) {
             auto const& axis_tag = tag_value->as_open_type_tagged();
 
-            result.set(axis_tag.tag_as_fly_string(), number_from_style_value(axis_tag.value(), {}));
+            result.set(axis_tag.tag(), number_from_style_value(axis_tag.value(), {}));
         }
         return result;
     }

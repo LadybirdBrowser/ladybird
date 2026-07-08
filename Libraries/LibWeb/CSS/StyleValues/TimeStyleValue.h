@@ -24,7 +24,7 @@ public:
 
     Time const& time() const { return m_time; }
     virtual double raw_value() const override { return m_time.raw_value(); }
-    virtual FlyString unit_name() const override { return m_time.unit_name(); }
+    virtual Utf16FlyString unit_name() const override { return m_time.unit_name(); }
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 

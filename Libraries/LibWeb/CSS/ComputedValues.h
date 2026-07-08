@@ -790,8 +790,8 @@ public:
     Gfx::FontCascadeList const& font_list() const { return *m_inherited.font_list; }
     CSSPixels font_size() const { return m_inherited.font_size; }
     double font_weight() const { return m_inherited.font_weight; }
-    Optional<FlyString> font_language_override() const { return m_inherited.font_language_override; }
-    HashMap<FlyString, double> font_variation_settings() const { return m_inherited.font_variation_settings; }
+    Optional<Utf16FlyString> font_language_override() const { return m_inherited.font_language_override; }
+    HashMap<Utf16FlyString, double> font_variation_settings() const { return m_inherited.font_variation_settings; }
     CSSPixels line_height() const { return m_inherited.line_height; }
 
     Color outline_color() const { return m_noninherited.outline_color; }
@@ -825,8 +825,8 @@ protected:
         CSSPixels font_size { InitialValues::font_size() };
         RefPtr<Gfx::FontCascadeList const> font_list {};
         double font_weight { InitialValues::font_weight() };
-        Optional<FlyString> font_language_override;
-        HashMap<FlyString, double> font_variation_settings;
+        Optional<Utf16FlyString> font_language_override;
+        HashMap<Utf16FlyString, double> font_variation_settings;
         CSSPixels line_height { InitialValues::line_height() };
         BorderCollapse border_collapse { InitialValues::border_collapse() };
         CaptionSide caption_side { InitialValues::caption_side() };
@@ -1035,8 +1035,8 @@ public:
     void set_font_list(NonnullRefPtr<Gfx::FontCascadeList const> font_list) { m_inherited.font_list = move(font_list); }
     void set_font_size(CSSPixels font_size) { m_inherited.font_size = font_size; }
     void set_font_weight(double font_weight) { m_inherited.font_weight = font_weight; }
-    void set_font_language_override(Optional<FlyString> font_language_override) { m_inherited.font_language_override = move(font_language_override); }
-    void set_font_variation_settings(HashMap<FlyString, double> value) { m_inherited.font_variation_settings = move(value); }
+    void set_font_language_override(Optional<Utf16FlyString> font_language_override) { m_inherited.font_language_override = move(font_language_override); }
+    void set_font_variation_settings(HashMap<Utf16FlyString, double> value) { m_inherited.font_variation_settings = move(value); }
     void set_line_height(CSSPixels line_height) { m_inherited.line_height = line_height; }
     void set_border_spacing_horizontal(CSSPixels border_spacing_horizontal) { m_inherited.border_spacing_horizontal = move(border_spacing_horizontal); }
     void set_border_spacing_vertical(CSSPixels border_spacing_vertical) { m_inherited.border_spacing_vertical = move(border_spacing_vertical); }

@@ -130,7 +130,7 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
     struct RawStringKeyword { };
     struct NumberKeyword { };
     struct AttrUnit {
-        FlyString name;
+        Utf16FlyString name;
     };
     Variant<Empty, NonnullRefPtr<SyntaxNode>, RawStringKeyword, NumberKeyword, AttrUnit> syntax;
 
@@ -165,23 +165,21 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
     // <attr-type> = type( <syntax> ) | raw-string | number | <attr-unit>
     if (first_argument_tokens.next_token().is(Token::Type::Ident)) {
         auto const& syntax_ident = first_argument_tokens.next_token().token().ident();
-        auto syntax_ident_string = syntax_ident.to_utf16_string();
         if (syntax_ident.equals_ignoring_ascii_case("raw-string"sv)) {
             first_argument_tokens.discard_a_token(); // raw-string
             syntax = RawStringKeyword {};
         } else if (syntax_ident.equals_ignoring_ascii_case("number"sv)) {
             first_argument_tokens.discard_a_token(); // number
             syntax = NumberKeyword {};
-        } else if (syntax_ident.is_ascii() && dimension_for_unit(syntax_ident_string.ascii_view()).has_value()) {
+        } else if (dimension_for_unit(syntax_ident.view()).has_value()) {
             auto unit = first_argument_tokens.consume_a_token().token().ident();
-            auto unit_utf8 = MUST(unit.view().to_utf8());
-            syntax = AttrUnit { MUST(FlyString::from_utf8(unit_utf8.bytes_as_string_view())) };
+            syntax = AttrUnit { unit };
         } else {
             return failure();
         }
     } else if (first_argument_tokens.next_token().is_delim('%')) {
         first_argument_tokens.discard_a_token(); // %
-        syntax = AttrUnit { "%"_fly_string };
+        syntax = AttrUnit { "%"_utf16_fly_string };
     } else if (first_argument_tokens.next_token().is_function("type"sv)) {
         auto const& type_function = first_argument_tokens.consume_a_token().function();
         if (auto parsed_syntax = parse_as_syntax(type_function.value)) {
@@ -241,7 +239,7 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
             auto parsed_number = parse_as_number();
             if (!parsed_number)
                 return {};
-            if (attr_unit.name == "%"_fly_string)
+            if (attr_unit.name == "%"_utf16_fly_string)
                 return Vector<ComponentValue> { Token::create_percentage(Number { Number::Type::Number, parsed_number->number() }) };
             return Vector<ComponentValue> { Token::create_dimension(parsed_number->number(), attr_unit.name) };
         },

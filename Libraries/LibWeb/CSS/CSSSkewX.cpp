@@ -85,7 +85,7 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSSkewX::to_matrix() const
     auto matrix = Geometry::DOMMatrix::create(realm());
 
     // NB: to() throws a TypeError if the conversion can't be done.
-    auto ax_rad = TRY(m_ax->to("rad"_fly_string))->value();
+    auto ax_rad = TRY(m_ax->to("rad"_utf16_fly_string))->value();
     matrix->set_m21(tanf(ax_rad));
 
     // 2. Return matrix.

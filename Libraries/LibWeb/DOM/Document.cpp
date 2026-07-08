@@ -8880,7 +8880,7 @@ Optional<Vector<CSS::Parser::ComponentValue>> Document::environment_variable_val
         if (!indices.is_empty())
             return invalid();
         return Vector {
-            CSS::Parser::ComponentValue { CSS::Parser::Token::create_dimension(0, "px"_fly_string) }
+            CSS::Parser::ComponentValue { CSS::Parser::Token::create_dimension(0, "px"_utf16_fly_string) }
         };
     case CSS::EnvironmentVariable::ViewportSegmentBottom:
     case CSS::EnvironmentVariable::ViewportSegmentHeight:

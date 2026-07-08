@@ -27,7 +27,7 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSUnitValue);
 
-GC::Ref<CSSUnitValue> CSSUnitValue::create(JS::Realm& realm, double value, FlyString unit)
+GC::Ref<CSSUnitValue> CSSUnitValue::create(JS::Realm& realm, double value, Utf16FlyString unit)
 {
     // The type of a CSSUnitValue is the result of creating a type from its unit internal slot.
     // https://drafts.css-houdini.org/css-typed-om-1/#type-of-a-cssunitvalue
@@ -45,7 +45,7 @@ GC::Ptr<CSSUnitValue> CSSUnitValue::create_from_sum_value_item(JS::Realm& realm,
     // 2. If item has no entries in its unit map, return a new CSSUnitValue whose unit internal slot is set to
     //    "number", and whose value internal slot is set to item’s value.
     if (item.unit_map.is_empty())
-        return CSSUnitValue::create(realm, item.value, "number"_fly_string);
+        return CSSUnitValue::create(realm, item.value, "number"_utf16_fly_string);
 
     // 3. Otherwise, item has a single entry in its unit map. If that entry’s value is anything other than 1, return
     //    failure.
@@ -59,18 +59,19 @@ GC::Ptr<CSSUnitValue> CSSUnitValue::create_from_sum_value_item(JS::Realm& realm,
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssunitvalue-cssunitvalue
-WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> CSSUnitValue::construct_impl(JS::Realm& realm, double value, FlyString unit)
+WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> CSSUnitValue::construct_impl(JS::Realm& realm, double value, Utf16String unit)
 {
     // 1. If creating a type from unit returns failure, throw a TypeError and abort this algorithm.
-    auto numeric_type = NumericType::create_from_unit(unit);
+    auto fly_unit = Utf16FlyString { move(unit) };
+    auto numeric_type = NumericType::create_from_unit(fly_unit);
     if (!numeric_type.has_value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Cannot create CSSUnitValue with unrecognized unit '{}'", unit)) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot create CSSUnitValue with unrecognized unit"sv };
 
     // 2. Return a new CSSUnitValue with its value internal slot set to value and its unit set to unit.
-    return realm.create<CSSUnitValue>(realm, value, move(unit), numeric_type.release_value());
+    return realm.create<CSSUnitValue>(realm, value, move(fly_unit), numeric_type.release_value());
 }
 
-CSSUnitValue::CSSUnitValue(JS::Realm& realm, double value, FlyString unit, NumericType type)
+CSSUnitValue::CSSUnitValue(JS::Realm& realm, double value, Utf16FlyString unit, NumericType type)
     : CSSNumericValue(realm, move(type))
     , m_value(value)
     // AD-HOC: WPT expects the unit to be lowercase but this doesn't seem to be specified anywhere.
@@ -114,18 +115,18 @@ void CSSUnitValue::serialize_unit_value(Utf16StringBuilder& builder, Optional<do
 
     // 3. If unit is:
     // -> "number"
-    if (m_unit == "number"_fly_string) {
+    if (m_unit == "number"_utf16_fly_string) {
         // Do nothing.
     }
     // -> "percent"
-    else if (m_unit == "percent"_fly_string) {
+    else if (m_unit == "percent"_utf16_fly_string) {
         // Append "%" to s.
         builder.append_ascii('%');
     }
     // -> anything else
     else {
         // Append unit to s.
-        builder.append_ascii(m_unit.to_ascii_lowercase().bytes_as_string_view());
+        builder.append(m_unit.to_ascii_lowercase());
     }
 
     if (needs_calc_wrapper)
@@ -135,7 +136,7 @@ void CSSUnitValue::serialize_unit_value(Utf16StringBuilder& builder, Optional<do
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#convert-a-cssunitvalue
-GC::Ptr<CSSUnitValue> CSSUnitValue::converted_to_unit(FlyString const& unit) const
+GC::Ptr<CSSUnitValue> CSSUnitValue::converted_to_unit(Utf16FlyString const& unit) const
 {
     // 1. Let old unit be the value of this’s unit internal slot, and old value be the value of this’s value internal
     //    slot.
@@ -293,19 +294,19 @@ Optional<SumValue> CSSUnitValue::create_a_sum_value() const
     }
 
     // 3. If unit is "number", return «(value, «[ ]»)».
-    if (unit == "number"_fly_string)
+    if (unit == "number"_utf16_fly_string)
         return SumValue { SumValueItem { value, {} } };
 
     // 4. Otherwise, return «(value, «[unit → 1]»)».
     return SumValue { SumValueItem { value, { { unit, 1 } } } };
 }
 
-static Optional<CalculationNode::NumericValue> create_numeric_value(double value, FlyString const& unit)
+static Optional<CalculationNode::NumericValue> create_numeric_value(double value, Utf16FlyString const& unit)
 {
-    if (unit == "number"_fly_string)
+    if (unit == "number"_utf16_fly_string)
         return Number { Number::Type::Number, value };
 
-    if (unit == "percent"_fly_string)
+    if (unit == "percent"_utf16_fly_string)
         return Percentage { value };
 
     if (auto dimension_type = dimension_for_unit(unit); dimension_type.has_value()) {
@@ -343,9 +344,9 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSUnitValue::create_an_int
     // NB: We store all custom properties as UnresolvedStyleValue, so we always need to create one here.
     if (perform_type_check == PerformTypeCheck::Yes && property.is_custom_property()) {
         auto token = [this]() {
-            if (m_unit == "number"_fly_string)
+            if (m_unit == "number"_utf16_fly_string)
                 return Parser::Token::create_number(Number { Number::Type::Number, m_value });
-            if (m_unit == "percent"_fly_string)
+            if (m_unit == "percent"_utf16_fly_string)
                 return Parser::Token::create_percentage(Number { Number::Type::Number, m_value });
             return Parser::Token::create_dimension(m_value, m_unit);
         }();
@@ -361,7 +362,7 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSUnitValue::create_an_int
 
     auto value = create_numeric_value(m_value, m_unit);
     if (!value.has_value()) {
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unrecognized unit '{}'.", m_unit)) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Unrecognized unit."sv };
     }
 
     if (perform_type_check == PerformTypeCheck::No) {
@@ -479,7 +480,7 @@ WebIDL::ExceptionOr<NonnullRefPtr<CalculationNode const>> CSSUnitValue::create_c
 {
     auto value = create_numeric_value(m_value, m_unit);
     if (!value.has_value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to create calculation node from `{}{}`.", m_value, m_unit)) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Unable to create calculation node."sv };
 
     return NumericCalculationNode::create(value.release_value(), context);
 }

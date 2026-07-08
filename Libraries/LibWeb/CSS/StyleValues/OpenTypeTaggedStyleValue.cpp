@@ -39,12 +39,6 @@ void OpenTypeTaggedStyleValue::serialize(StringBuilder& builder, SerializationMo
     }
 }
 
-FlyString OpenTypeTaggedStyleValue::tag_as_fly_string() const
-{
-    auto tag_as_utf8 = MUST(m_tag.view().to_utf8());
-    return MUST(FlyString::from_utf8(tag_as_utf8.bytes_as_string_view()));
-}
-
 bool OpenTypeTaggedStyleValue::properties_equal(OpenTypeTaggedStyleValue const& other) const
 {
     return other.tag() == tag() && other.value() == value();

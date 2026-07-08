@@ -346,7 +346,7 @@ Optional<Vector<CSS::LengthPercentage>> IntersectionObserver::parse_a_margin(JS:
 
     // 4. If there are zero elements in tokens, set tokens to ["0px"].
     if (tokens.size() == 0) {
-        tokens.append(CSS::Parser::Token::create_dimension(0, "px"_fly_string));
+        tokens.append(CSS::Parser::Token::create_dimension(0, "px"_utf16_fly_string));
     }
 
     // 5. Replace each token in tokens:

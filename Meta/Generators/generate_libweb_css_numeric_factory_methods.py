@@ -49,7 +49,7 @@ GC::Ref<CSSUnitValue> percent(JS::VM&, WebIDL::Double value);
 
 def write_implementation_file(out: TextIO, units_data: dict) -> None:
     out.write("""
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/GeneratedCSSNumericFactoryMethods.h>
@@ -57,7 +57,7 @@ def write_implementation_file(out: TextIO, units_data: dict) -> None:
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#numeric-factory
-inline GC::Ref<CSSUnitValue> numeric_factory(JS::VM& vm, WebIDL::Double value, FlyString unit)
+inline GC::Ref<CSSUnitValue> numeric_factory(JS::VM& vm, WebIDL::Double value, Utf16FlyString unit)
 {
     // All of the above methods must, when called with a double value, return a new CSSUnitValue whose value internal
     // slot is set to value and whose unit internal slot is set to the name of the method as defined here.
@@ -66,12 +66,12 @@ inline GC::Ref<CSSUnitValue> numeric_factory(JS::VM& vm, WebIDL::Double value, F
 
 GC::Ref<CSSUnitValue> number(JS::VM& vm, WebIDL::Double value)
 {
-    return numeric_factory(vm, value, "number"_fly_string);
+    return numeric_factory(vm, value, "number"_utf16_fly_string);
 }
 
 GC::Ref<CSSUnitValue> percent(JS::VM& vm, WebIDL::Double value)
 {
-    return numeric_factory(vm, value, "percent"_fly_string);
+    return numeric_factory(vm, value, "percent"_utf16_fly_string);
 }
 
 """)
@@ -84,7 +84,7 @@ GC::Ref<CSSUnitValue> percent(JS::VM& vm, WebIDL::Double value)
             out.write(f"""
 GC::Ref<CSSUnitValue> {unit_acceptable_cpp}(JS::VM& vm, WebIDL::Double value)
 {{
-    return numeric_factory(vm, value, "{unit_name}"_fly_string);
+    return numeric_factory(vm, value, "{unit_name}"_utf16_fly_string);
 }}
 """)
 

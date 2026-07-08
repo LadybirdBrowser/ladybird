@@ -799,15 +799,38 @@ GC::Ptr<CSSNamespaceRule> Parser::convert_to_namespace_rule(AtRule const& rule)
         tokens.discard_whitespace();
     }
 
-    Utf16FlyString namespace_uri;
-    if (auto url = parse_url_function(tokens); url.has_value()) {
+    auto parse_namespace_uri = [&]() -> Optional<Utf16FlyString> {
+        auto transaction = tokens.begin_transaction();
+        auto const& component_value = tokens.consume_a_token();
+
         // "A URI string parsed from the URI syntax must be treated as a literal string: as with the STRING syntax, no
         // URI-specific normalization is applied."
         // https://drafts.csswg.org/css-namespaces/#syntax
-        namespace_uri = Utf16FlyString::from_utf8(url->url());
-    } else if (auto& url_token = tokens.consume_a_token(); url_token.is(Token::Type::String)) {
-        namespace_uri = url_token.token().string();
-    } else {
+        if (component_value.is(Token::Type::Url)) {
+            transaction.commit();
+            return component_value.token().url();
+        }
+
+        if (component_value.is(Token::Type::String)) {
+            transaction.commit();
+            return component_value.token().string();
+        }
+
+        if (component_value.is_function("url"sv)) {
+            TokenStream url_tokens { component_value.function().value };
+            url_tokens.discard_whitespace();
+            auto const& url_string = url_tokens.consume_a_token();
+            url_tokens.discard_whitespace();
+            if (!url_string.is(Token::Type::String) || url_tokens.has_next_token())
+                return {};
+            transaction.commit();
+            return url_string.token().string();
+        }
+
+        return {};
+    }();
+
+    if (!parse_namespace_uri.has_value()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
             .rule_name = "@namespace"_fly_string,
             .prelude = tokens.dump_string(),
@@ -815,6 +838,8 @@ GC::Ptr<CSSNamespaceRule> Parser::convert_to_namespace_rule(AtRule const& rule)
         });
         return {};
     }
+
+    auto namespace_uri = parse_namespace_uri.release_value();
 
     tokens.discard_whitespace();
     if (tokens.has_next_token()) {

@@ -34,7 +34,7 @@ GC::Ref<CSSStyleValue> IntegerStyleValue::reify(JS::Realm& realm, Utf16FlyString
         if (auto property_id = property_id_from_string(associated_property_string.ascii_view()); property_id.has_value()
             && *property_id != PropertyID::Custom
             && property_accepts_type(*property_id, ValueType::Length)) {
-            return CSSUnitValue::create(realm, 0, "px"_fly_string);
+            return CSSUnitValue::create(realm, 0, "px"_utf16_fly_string);
         }
     }
 
@@ -43,7 +43,7 @@ GC::Ref<CSSStyleValue> IntegerStyleValue::reify(JS::Realm& realm, Utf16FlyString
     //    <dimension>.
     //    If the value being reified is a computed value, the unit used must be the appropriate canonical unit for the
     //    value’s type, with the numeric value scaled accordingly.
-    return CSSUnitValue::create(realm, m_value, "number"_fly_string);
+    return CSSUnitValue::create(realm, m_value, "number"_utf16_fly_string);
 }
 
 }

@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
+#include <AK/Utf16String.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibWeb/Bindings/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
@@ -47,7 +48,8 @@ public:
     bool equals_for_bindings(ReadonlySpan<CSSNumberish>) const;
     virtual bool is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const = 0;
 
-    WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> to(FlyString const& unit) const;
+    WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> to(Utf16String const& unit) const;
+    WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> to(Utf16FlyString const& unit) const;
 
     CSSNumberish negate();
     WebIDL::ExceptionOr<CSSNumberish> invert();
@@ -73,6 +75,6 @@ protected:
     NumericType m_type;
 };
 
-GC::Ref<CSSNumericValue> rectify_a_numberish_value(JS::Realm&, CSSNumberish const&, Optional<FlyString> unit = {});
+GC::Ref<CSSNumericValue> rectify_a_numberish_value(JS::Realm&, CSSNumberish const&, Optional<Utf16FlyString> unit = {});
 
 }

@@ -57,7 +57,7 @@ public:
 
     double raw_value() const { return m_value; }
     LengthUnit unit() const { return m_unit; }
-    FlyString unit_name() const { return CSS::to_string(m_unit); }
+    Utf16FlyString unit_name() const { return CSS::to_string(m_unit); }
 
     struct ResolutionContext {
         [[nodiscard]] static ResolutionContext for_document(DOM::Document const&);

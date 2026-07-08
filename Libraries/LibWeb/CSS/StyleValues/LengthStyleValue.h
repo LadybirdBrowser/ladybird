@@ -22,7 +22,7 @@ public:
 
     Length const& length() const { return m_length; }
     virtual double raw_value() const override { return m_length.raw_value(); }
-    virtual FlyString unit_name() const override { return m_length.unit_name(); }
+    virtual Utf16FlyString unit_name() const override { return m_length.unit_name(); }
 
     virtual void serialize(StringBuilder& builder, SerializationMode mode) const override { m_length.serialize(builder, mode); }
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;

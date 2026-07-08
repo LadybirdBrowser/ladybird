@@ -45,7 +45,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSTranslate>> CSSTranslate::construct_impl(JS::Real
     Is2D is_2d = Is2D::No;
     if (!z) {
         is_2d = Is2D::Yes;
-        z = CSSUnitValue::create(realm, 0, "px"_fly_string);
+        z = CSSUnitValue::create(realm, 0, "px"_utf16_fly_string);
     }
     auto this_ = realm.create<CSSTranslate>(realm, is_2d, x, y, z.as_nonnull());
 
@@ -141,10 +141,10 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSTranslate::to_matrix() cons
     auto matrix = Geometry::DOMMatrix::create(realm());
 
     // NB: to() throws a TypeError if the conversion can't be done.
-    matrix->set_m41(TRY(m_x->to("px"_fly_string))->value());
-    matrix->set_m42(TRY(m_y->to("px"_fly_string))->value());
+    matrix->set_m41(TRY(m_x->to("px"_utf16_fly_string))->value());
+    matrix->set_m42(TRY(m_y->to("px"_utf16_fly_string))->value());
     if (!is_2d())
-        matrix->set_m43(TRY(m_z->to("px"_fly_string))->value());
+        matrix->set_m43(TRY(m_z->to("px"_utf16_fly_string))->value());
 
     // 2. Return matrix.
     return matrix;

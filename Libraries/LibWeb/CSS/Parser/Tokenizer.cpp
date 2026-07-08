@@ -752,8 +752,7 @@ Token Tokenizer::consume_a_numeric_token()
         // NOTE: We intentionally store this in the `value`, to save space.
 
         // 3. Return the <dimension-token>.
-        auto unit_string = MUST(unit.view().to_utf8());
-        return Token::create_dimension(number, MUST(FlyString::from_utf8(unit_string.bytes_as_string_view())), input_since(start_byte_offset));
+        return Token::create_dimension(number, unit, input_since(start_byte_offset));
     }
 
     // Otherwise, if the next input code point is U+0025 PERCENTAGE SIGN (%), consume it.

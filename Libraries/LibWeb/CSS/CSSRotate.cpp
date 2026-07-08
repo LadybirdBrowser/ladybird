@@ -35,9 +35,9 @@ WebIDL::ExceptionOr<GC::Ref<CSSRotate>> CSSRotate::construct_impl(JS::Realm& rea
     //    values of (0, "number"), its z internal slot set to a new unit value of (1, "number"), and its is2D internal
     //    slot set to true.
     return realm.create<CSSRotate>(realm, Is2D::Yes,
-        CSSUnitValue::create(realm, 0, "number"_fly_string),
-        CSSUnitValue::create(realm, 0, "number"_fly_string),
-        CSSUnitValue::create(realm, 1, "number"_fly_string),
+        CSSUnitValue::create(realm, 0, "number"_utf16_fly_string),
+        CSSUnitValue::create(realm, 0, "number"_utf16_fly_string),
+        CSSUnitValue::create(realm, 1, "number"_utf16_fly_string),
         angle);
 }
 
@@ -160,14 +160,14 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSRotate::to_matrix() const
     auto matrix = Geometry::DOMMatrix::create(realm());
 
     // NB: to() throws a TypeError if the conversion can't be done.
-    auto angle = TRY(m_angle->to("deg"_fly_string))->value();
+    auto angle = TRY(m_angle->to("deg"_utf16_fly_string))->value();
 
     if (is_2d())
         return matrix->rotate_axis_angle_self(0, 0, 1, angle);
 
-    auto x = TRY(m_x->to("number"_fly_string))->value();
-    auto y = TRY(m_y->to("number"_fly_string))->value();
-    auto z = TRY(m_z->to("number"_fly_string))->value();
+    auto x = TRY(m_x->to("number"_utf16_fly_string))->value();
+    auto y = TRY(m_y->to("number"_utf16_fly_string))->value();
+    auto z = TRY(m_z->to("number"_utf16_fly_string))->value();
 
     return matrix->rotate_axis_angle_self(x, y, z, angle);
 }

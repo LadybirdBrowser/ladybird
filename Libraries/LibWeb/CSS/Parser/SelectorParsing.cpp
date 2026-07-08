@@ -1266,16 +1266,6 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
         return value.is(Token::Type::Delim) && (value.token().delim() == '+' || value.token().delim() == '-');
     };
 
-    auto is_series_of_1_or_more_ascii_digits = [](StringView string) -> bool {
-        if (string.is_empty())
-            return false;
-        for (auto character : string) {
-            if (!is_ascii_digit(character))
-                return false;
-        }
-        return true;
-    };
-
     auto is_series_of_1_or_more_digits = [](Utf16View string) -> bool {
         if (string.is_empty())
             return false;
@@ -1307,8 +1297,8 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
     auto is_ndashdigit_dimension = [&](ComponentValue const& value) -> bool {
         return value.is(Token::Type::Dimension)
             && value.token().is_integer()
-            && value.token().dimension_unit().starts_with_bytes("n-"sv, CaseSensitivity::CaseInsensitive)
-            && is_series_of_1_or_more_ascii_digits(value.token().dimension_unit().bytes_as_string_view().substring_view(2));
+            && value.token().dimension_unit().starts_with_ignoring_ascii_case("n-"sv)
+            && is_series_of_1_or_more_digits(value.token().dimension_unit().view().substring_view(2));
     };
 
     // <ndashdigit-ident> is an <ident-token> whose value is an ASCII case-insensitive match for "n-*", where "*" is a
@@ -1417,7 +1407,7 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
     if (is_ndashdigit_dimension(values.next_token())) {
         auto const& dimension = values.consume_a_token().token();
         int a = dimension.dimension_value_int();
-        auto maybe_b = dimension.dimension_unit().bytes_as_string_view().substring_view(1).to_number<int>();
+        auto maybe_b = dimension.dimension_unit().view().substring_view(1).to_number<int>();
         if (maybe_b.has_value()) {
             transaction.commit();
             return Selector::SimpleSelector::ANPlusBPattern { a, maybe_b.value() };

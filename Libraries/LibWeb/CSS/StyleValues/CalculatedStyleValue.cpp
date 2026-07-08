@@ -404,12 +404,12 @@ static Vector<NonnullRefPtr<CalculationNode const>> sort_a_calculations_children
     }
 
     quick_sort(dimensions, [](NonnullRefPtr<CalculationNode const> const& a, NonnullRefPtr<CalculationNode const> const& b) {
-        auto get_unit = [](NonnullRefPtr<CalculationNode const> const& node) -> FlyString {
+        auto get_unit = [](NonnullRefPtr<CalculationNode const> const& node) -> Utf16FlyString {
             auto const& numeric_node = static_cast<NumericCalculationNode const&>(*node);
             return numeric_node.value().visit(
-                [](Number const&) -> FlyString { VERIFY_NOT_REACHED(); },
-                [](Percentage const&) -> FlyString { VERIFY_NOT_REACHED(); },
-                [](auto const& dimension) -> FlyString { return dimension.unit_name(); });
+                [](Number const&) -> Utf16FlyString { VERIFY_NOT_REACHED(); },
+                [](Percentage const&) -> Utf16FlyString { VERIFY_NOT_REACHED(); },
+                [](auto const& dimension) -> Utf16FlyString { return dimension.unit_name(); });
         };
 
         auto a_unit = get_unit(a);
@@ -908,8 +908,8 @@ bool NumericCalculationNode::is_computationally_independent() const
 GC::Ptr<CSSNumericValue> NumericCalculationNode::reify(JS::Realm& realm) const
 {
     return m_value.visit(
-        [&realm](Number const& number) { return CSSUnitValue::create(realm, number.value(), "number"_fly_string); },
-        [&realm](Percentage const& percentage) { return CSSUnitValue::create(realm, percentage.value(), "percent"_fly_string); },
+        [&realm](Number const& number) { return CSSUnitValue::create(realm, number.value(), "number"_utf16_fly_string); },
+        [&realm](Percentage const& percentage) { return CSSUnitValue::create(realm, percentage.value(), "percent"_utf16_fly_string); },
         [&realm](auto const& dimension) { return CSSUnitValue::create(realm, dimension.raw_value(), dimension.unit_name()); });
 }
 

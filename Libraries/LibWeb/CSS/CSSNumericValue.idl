@@ -33,7 +33,7 @@ interface CSSNumericValue : CSSStyleValue {
 
     [ImplementedAs=equals_for_bindings] boolean equals(CSSNumberish... value);
 
-    CSSUnitValue to(USVString unit);
+    CSSUnitValue to(Utf16USVString unit);
     // FIXME: CSSMathSum toSum(USVString... units);
     [ImplementedAs=type_for_bindings] CSSNumericType type();
 

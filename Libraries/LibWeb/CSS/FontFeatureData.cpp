@@ -10,6 +10,22 @@
 
 namespace Web::CSS {
 
+Optional<Gfx::FourCC> open_type_tag_to_four_cc(Utf16FlyString const& tag)
+{
+    if (tag.length_in_code_units() != 4)
+        return {};
+
+    char code_units[4];
+    for (size_t i = 0; i < 4; ++i) {
+        auto code_unit = tag.code_unit_at(i);
+        if (code_unit > 0x7f)
+            return {};
+        code_units[i] = static_cast<char>(code_unit);
+    }
+
+    return Gfx::FourCC(code_units);
+}
+
 Optional<FontFeatureValueType> font_feature_value_type_from_string(Utf16View string)
 {
     if (string == "stylistic"sv)
@@ -30,19 +46,19 @@ Optional<FontFeatureValueType> font_feature_value_type_from_string(Utf16View str
 
 Gfx::ShapeFeatures FontFeatureData::to_shape_features(HashMap<FontFeatureValueKey, Vector<u32>> const& font_feature_values) const
 {
-    HashMap<FlyString, u8> merged_features;
+    HashMap<Utf16FlyString, u8> merged_features;
 
     auto font_variant_features = [&]() {
-        HashMap<FlyString, u8> features;
+        HashMap<Utf16FlyString, u8> features;
 
         // 6.4 https://drafts.csswg.org/css-fonts/#font-variant-ligatures-prop
 
         auto disable_all_ligatures = [&]() {
-            features.set("liga"_fly_string, 0);
-            features.set("clig"_fly_string, 0);
-            features.set("dlig"_fly_string, 0);
-            features.set("hlig"_fly_string, 0);
-            features.set("calt"_fly_string, 0);
+            features.set("liga"_utf16_fly_string, 0);
+            features.set("clig"_utf16_fly_string, 0);
+            features.set("dlig"_utf16_fly_string, 0);
+            features.set("hlig"_utf16_fly_string, 0);
+            features.set("calt"_utf16_fly_string, 0);
         };
 
         if (font_variant_ligatures.has_value()) {
@@ -55,13 +71,13 @@ Gfx::ShapeFeatures FontFeatureData::to_shape_features(HashMap<FontFeatureValueKe
                     switch (ligature.common.value()) {
                     case CommonLigValue::CommonLigatures:
                         // Enables display of common ligatures (OpenType features: liga, clig).
-                        features.set("liga"_fly_string, 1);
-                        features.set("clig"_fly_string, 1);
+                        features.set("liga"_utf16_fly_string, 1);
+                        features.set("clig"_utf16_fly_string, 1);
                         break;
                     case CommonLigValue::NoCommonLigatures:
                         // Disables display of common ligatures (OpenType features: liga, clig).
-                        features.set("liga"_fly_string, 0);
-                        features.set("clig"_fly_string, 0);
+                        features.set("liga"_utf16_fly_string, 0);
+                        features.set("clig"_utf16_fly_string, 0);
                         break;
                     }
                 }
@@ -69,11 +85,11 @@ Gfx::ShapeFeatures FontFeatureData::to_shape_features(HashMap<FontFeatureValueKe
                     switch (ligature.discretionary.value()) {
                     case DiscretionaryLigValue::DiscretionaryLigatures:
                         // Enables display of discretionary ligatures (OpenType feature: dlig).
-                        features.set("dlig"_fly_string, 1);
+                        features.set("dlig"_utf16_fly_string, 1);
                         break;
                     case DiscretionaryLigValue::NoDiscretionaryLigatures:
                         // Disables display of discretionary ligatures (OpenType feature: dlig).
-                        features.set("dlig"_fly_string, 0);
+                        features.set("dlig"_utf16_fly_string, 0);
                         break;
                     }
                 }
@@ -82,11 +98,11 @@ Gfx::ShapeFeatures FontFeatureData::to_shape_features(HashMap<FontFeatureValueKe
                     switch (ligature.historical.value()) {
                     case HistoricalLigValue::HistoricalLigatures:
                         // Enables display of historical ligatures (OpenType feature: hlig).
-                        features.set("hlig"_fly_string, 1);
+                        features.set("hlig"_utf16_fly_string, 1);
                         break;
                     case HistoricalLigValue::NoHistoricalLigatures:
                         // Disables display of historical ligatures (OpenType feature: hlig).
-                        features.set("hlig"_fly_string, 0);
+                        features.set("hlig"_utf16_fly_string, 0);
                         break;
                     }
                 }
@@ -95,11 +111,11 @@ Gfx::ShapeFeatures FontFeatureData::to_shape_features(HashMap<FontFeatureValueKe
                     switch (ligature.contextual.value()) {
                     case ContextualAltValue::Contextual:
                         // Enables display of contextual ligatures (OpenType feature: calt).
-                        features.set("calt"_fly_string, 1);
+                        features.set("calt"_utf16_fly_string, 1);
                         break;
                     case ContextualAltValue::NoContextual:
                         // Disables display of contextual ligatures (OpenType feature: calt).
-                        features.set("calt"_fly_string, 0);
+                        features.set("calt"_utf16_fly_string, 0);
                         break;
                     }
                 }
@@ -109,8 +125,8 @@ Gfx::ShapeFeatures FontFeatureData::to_shape_features(HashMap<FontFeatureValueKe
             disable_all_ligatures();
         } else {
             // A value of normal specifies that common default features are enabled, as described in detail in the next section.
-            features.set("liga"_fly_string, 1);
-            features.set("clig"_fly_string, 1);
+            features.set("liga"_utf16_fly_string, 1);
+            features.set("clig"_utf16_fly_string, 1);
         }
 
         // 6.5 https://drafts.csswg.org/css-fonts/#font-variant-position-prop
@@ -120,11 +136,11 @@ Gfx::ShapeFeatures FontFeatureData::to_shape_features(HashMap<FontFeatureValueKe
             break;
         case FontVariantPosition::Sub:
             // Enables display of subscripts (OpenType feature: subs).
-            features.set("subs"_fly_string, 1);
+            features.set("subs"_utf16_fly_string, 1);
             break;
         case FontVariantPosition::Super:
             // Enables display of superscripts (OpenType feature: sups).
-            features.set("sups"_fly_string, 1);
+            features.set("sups"_utf16_fly_string, 1);
             break;
         default:
             break;
@@ -137,29 +153,29 @@ Gfx::ShapeFeatures FontFeatureData::to_shape_features(HashMap<FontFeatureValueKe
             break;
         case FontVariantCaps::SmallCaps:
             // Enables display of small capitals (OpenType feature: smcp). Small-caps glyphs typically use the form of uppercase letters but are reduced to the size of lowercase letters.
-            features.set("smcp"_fly_string, 1);
+            features.set("smcp"_utf16_fly_string, 1);
             break;
         case FontVariantCaps::AllSmallCaps:
             // Enables display of small capitals for both upper and lowercase letters (OpenType features: c2sc, smcp).
-            features.set("c2sc"_fly_string, 1);
-            features.set("smcp"_fly_string, 1);
+            features.set("c2sc"_utf16_fly_string, 1);
+            features.set("smcp"_utf16_fly_string, 1);
             break;
         case FontVariantCaps::PetiteCaps:
             // Enables display of petite capitals (OpenType feature: pcap).
-            features.set("pcap"_fly_string, 1);
+            features.set("pcap"_utf16_fly_string, 1);
             break;
         case FontVariantCaps::AllPetiteCaps:
             // Enables display of petite capitals for both upper and lowercase letters (OpenType features: c2pc, pcap).
-            features.set("c2pc"_fly_string, 1);
-            features.set("pcap"_fly_string, 1);
+            features.set("c2pc"_utf16_fly_string, 1);
+            features.set("pcap"_utf16_fly_string, 1);
             break;
         case FontVariantCaps::Unicase:
             // Enables display of mixture of small capitals for uppercase letters with normal lowercase letters (OpenType feature: unic).
-            features.set("unic"_fly_string, 1);
+            features.set("unic"_utf16_fly_string, 1);
             break;
         case FontVariantCaps::TitlingCaps:
             // Enables display of titling capitals (OpenType feature: titl).
-            features.set("titl"_fly_string, 1);
+            features.set("titl"_utf16_fly_string, 1);
             break;
         default:
             break;
@@ -170,35 +186,35 @@ Gfx::ShapeFeatures FontFeatureData::to_shape_features(HashMap<FontFeatureValueKe
             auto numeric = font_variant_numeric.value();
             if (numeric.figure == NumericFigureValue::OldstyleNums) {
                 // Enables display of old-style numerals (OpenType feature: onum).
-                features.set("onum"_fly_string, 1);
+                features.set("onum"_utf16_fly_string, 1);
             } else if (numeric.figure == NumericFigureValue::LiningNums) {
                 // Enables display of lining numerals (OpenType feature: lnum).
-                features.set("lnum"_fly_string, 1);
+                features.set("lnum"_utf16_fly_string, 1);
             }
 
             if (numeric.spacing == NumericSpacingValue::ProportionalNums) {
                 // Enables display of proportional numerals (OpenType feature: pnum).
-                features.set("pnum"_fly_string, 1);
+                features.set("pnum"_utf16_fly_string, 1);
             } else if (numeric.spacing == NumericSpacingValue::TabularNums) {
                 // Enables display of tabular numerals (OpenType feature: tnum).
-                features.set("tnum"_fly_string, 1);
+                features.set("tnum"_utf16_fly_string, 1);
             }
 
             if (numeric.fraction == NumericFractionValue::DiagonalFractions) {
                 // Enables display of diagonal fractions (OpenType feature: frac).
-                features.set("frac"_fly_string, 1);
+                features.set("frac"_utf16_fly_string, 1);
             } else if (numeric.fraction == NumericFractionValue::StackedFractions) {
                 // Enables display of stacked fractions (OpenType feature: afrc).
-                features.set("afrc"_fly_string, 1);
+                features.set("afrc"_utf16_fly_string, 1);
             }
 
             if (numeric.ordinal) {
                 // Enables display of letter forms used with ordinal numbers (OpenType feature: ordn).
-                features.set("ordn"_fly_string, 1);
+                features.set("ordn"_utf16_fly_string, 1);
             }
             if (numeric.slashed_zero) {
                 // Enables display of slashed zeros (OpenType feature: zero).
-                features.set("zero"_fly_string, 1);
+                features.set("zero"_utf16_fly_string, 1);
             }
         }
 
@@ -208,7 +224,7 @@ Gfx::ShapeFeatures FontFeatureData::to_shape_features(HashMap<FontFeatureValueKe
             auto alternates = font_variant_alternates.value();
             if (alternates.historical_forms) {
                 // Enables display of historical forms (OpenType feature: hist).
-                features.set("hist"_fly_string, 1);
+                features.set("hist"_utf16_fly_string, 1);
             }
 
             for (auto const& key : alternates.font_feature_value_entries) {
@@ -224,7 +240,7 @@ Gfx::ShapeFeatures FontFeatureData::to_shape_features(HashMap<FontFeatureValueKe
                 case FontFeatureValueType::Stylistic: {
                     // Enables display of stylistic alternates (font specific, OpenType feature: salt <feature-index>).
                     // stylistic(<feature-value-name>)
-                    features.set("salt"_fly_string, values[0]);
+                    features.set("salt"_utf16_fly_string, values[0]);
                     break;
                 }
                 case FontFeatureValueType::Styleset: {
@@ -240,7 +256,7 @@ Gfx::ShapeFeatures FontFeatureData::to_shape_features(HashMap<FontFeatureValueKe
                         if (value > 99 || value == 0)
                             continue;
 
-                        features.set(MUST(String::formatted("ss{:02}", value)), 1);
+                        features.set(Utf16String::formatted("ss{:02}", value), 1);
                     }
 
                     break;
@@ -262,26 +278,26 @@ Gfx::ShapeFeatures FontFeatureData::to_shape_features(HashMap<FontFeatureValueKe
 
                     auto const value = values.size() > 1 ? values[1] : 1;
 
-                    features.set(MUST(String::formatted("cv{:02}", feature)), value);
+                    features.set(Utf16String::formatted("cv{:02}", feature), value);
                     break;
                 }
                 case FontFeatureValueType::Swash: {
                     // Enables display of swash glyphs (font specific, OpenType feature: swsh <feature-index>,
                     // cswh <feature-index>).
-                    features.set("swsh"_fly_string, values[0]);
-                    features.set("cswh"_fly_string, values[0]);
+                    features.set("swsh"_utf16_fly_string, values[0]);
+                    features.set("cswh"_utf16_fly_string, values[0]);
                     break;
                 }
                 case FontFeatureValueType::Ornaments: {
                     // Enables replacement of default glyphs with ornaments, if provided in the font (font specific,
                     // OpenType feature: ornm <feature-index>).
-                    features.set("ornm"_fly_string, values[0]);
+                    features.set("ornm"_utf16_fly_string, values[0]);
                     break;
                 }
                 case FontFeatureValueType::Annotation: {
                     // annotation(<feature-value-name>)
                     // Enables display of alternate annotation forms (font specific, OpenType feature: nalt <feature-index>).
-                    features.set("nalt"_fly_string, values[0]);
+                    features.set("nalt"_utf16_fly_string, values[0]);
                     break;
                 }
                 }
@@ -295,27 +311,27 @@ Gfx::ShapeFeatures FontFeatureData::to_shape_features(HashMap<FontFeatureValueKe
                 switch (east_asian.variant.value()) {
                 case EastAsianVariant::Jis78:
                     // Enables display of JIS78 forms (OpenType feature: jp78).
-                    features.set("jp78"_fly_string, 1);
+                    features.set("jp78"_utf16_fly_string, 1);
                     break;
                 case EastAsianVariant::Jis83:
                     // Enables display of JIS83 forms (OpenType feature: jp83).
-                    features.set("jp83"_fly_string, 1);
+                    features.set("jp83"_utf16_fly_string, 1);
                     break;
                 case EastAsianVariant::Jis90:
                     // Enables display of JIS90 forms (OpenType feature: jp90).
-                    features.set("jp90"_fly_string, 1);
+                    features.set("jp90"_utf16_fly_string, 1);
                     break;
                 case EastAsianVariant::Jis04:
                     // Enables display of JIS04 forms (OpenType feature: jp04).
-                    features.set("jp04"_fly_string, 1);
+                    features.set("jp04"_utf16_fly_string, 1);
                     break;
                 case EastAsianVariant::Simplified:
                     // Enables display of simplified forms (OpenType feature: smpl).
-                    features.set("smpl"_fly_string, 1);
+                    features.set("smpl"_utf16_fly_string, 1);
                     break;
                 case EastAsianVariant::Traditional:
                     // Enables display of traditional forms (OpenType feature: trad).
-                    features.set("trad"_fly_string, 1);
+                    features.set("trad"_utf16_fly_string, 1);
                     break;
                 }
             }
@@ -323,17 +339,17 @@ Gfx::ShapeFeatures FontFeatureData::to_shape_features(HashMap<FontFeatureValueKe
                 switch (east_asian.width.value()) {
                 case EastAsianWidth::FullWidth:
                     // Enables display of full-width forms (OpenType feature: fwid).
-                    features.set("fwid"_fly_string, 1);
+                    features.set("fwid"_utf16_fly_string, 1);
                     break;
                 case EastAsianWidth::ProportionalWidth:
                     // Enables display of proportional-width forms (OpenType feature: pwid).
-                    features.set("pwid"_fly_string, 1);
+                    features.set("pwid"_utf16_fly_string, 1);
                     break;
                 }
             }
             if (east_asian.ruby) {
                 // Enables display of ruby forms (OpenType feature: ruby).
-                features.set("ruby"_fly_string, 1);
+                features.set("ruby"_utf16_fly_string, 1);
             }
         }
 
@@ -341,13 +357,13 @@ Gfx::ShapeFeatures FontFeatureData::to_shape_features(HashMap<FontFeatureValueKe
         switch (font_kerning) {
         case FontKerning::Auto:
             // AD-HOC: Disable kerning if font-kerning is set to normal and text rendering is set to optimize speed.
-            features.set("kern"_fly_string, text_rendering != TextRendering::Optimizespeed ? 1 : 0);
+            features.set("kern"_utf16_fly_string, text_rendering != TextRendering::Optimizespeed ? 1 : 0);
             break;
         case FontKerning::Normal:
-            features.set("kern"_fly_string, 1);
+            features.set("kern"_utf16_fly_string, 1);
             break;
         case FontKerning::None:
-            features.set("kern"_fly_string, 0);
+            features.set("kern"_utf16_fly_string, 0);
             break;
         default:
             break;
@@ -413,8 +429,10 @@ Gfx::ShapeFeatures FontFeatureData::to_shape_features(HashMap<FontFeatureValueKe
     shape_features.ensure_capacity(merged_features.size());
 
     for (auto& it : merged_features) {
-        auto key_string_view = it.key.bytes_as_string_view();
-        shape_features.unchecked_append({ { key_string_view[0], key_string_view[1], key_string_view[2], key_string_view[3] }, static_cast<u32>(it.value) });
+        auto tag = open_type_tag_to_four_cc(it.key);
+        if (!tag.has_value())
+            continue;
+        shape_features.unchecked_append({ { tag->cc[0], tag->cc[1], tag->cc[2], tag->cc[3] }, static_cast<u32>(it.value) });
     }
 
     return shape_features;

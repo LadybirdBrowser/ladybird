@@ -9,11 +9,12 @@
 #include <AK/Array.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS {
 
-using UnitMap = HashMap<FlyString, i32>;
+using UnitMap = HashMap<Utf16FlyString, i32>;
 UnitMap product_of_two_unit_maps(UnitMap const&, UnitMap const&);
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-type
@@ -54,7 +55,7 @@ public:
         VERIFY_NOT_REACHED();
     }
 
-    static Optional<NumericType> create_from_unit(FlyString const& unit);
+    static Optional<NumericType> create_from_unit(Utf16FlyString const& unit);
     static Optional<NumericType> create_from_unit_map(UnitMap const&);
     NumericType() = default;
     NumericType(BaseType type, i32 power)

@@ -121,7 +121,7 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSPerspective::to_matrix() co
     TRY(m_length.visit(
         [&matrix](GC::Ref<CSSNumericValue> const& numeric_value) -> WebIDL::ExceptionOr<void> {
             // NB: to() throws a TypeError if the conversion can't be done.
-            auto distance = TRY(numeric_value->to("px"_fly_string))->value();
+            auto distance = TRY(numeric_value->to("px"_utf16_fly_string))->value();
             matrix->set_m34(-1 / max(distance, 1));
             return {};
         },

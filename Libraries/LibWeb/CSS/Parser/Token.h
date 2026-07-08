@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Variant.h>
 #include <LibWeb/CSS/Number.h>
@@ -76,8 +75,8 @@ public:
     static Token create_delim(u32 delim, String original_source_text = {});
     static Token create_number(Number value, String original_source_text = {});
     static Token create_percentage(Number value, String original_source_text = {});
-    static Token create_dimension(Number value, FlyString unit, String original_source_text = {});
-    static Token create_dimension(double value, FlyString unit, String original_source_text = {})
+    static Token create_dimension(Number value, Utf16FlyString unit, String original_source_text = {});
+    static Token create_dimension(double value, Utf16FlyString unit, String original_source_text = {})
     {
         return create_dimension(Number { Number::Type::Number, value }, move(unit), move(original_source_text));
     }
@@ -156,7 +155,7 @@ public:
         return m_value.get<Number>().integer_value();
     }
 
-    FlyString const& dimension_unit() const
+    Utf16FlyString const& dimension_unit() const
     {
         VERIFY(m_type == Type::Dimension);
         return m_value.get<DimensionValue>().unit;
@@ -201,7 +200,7 @@ private:
 
     struct DimensionValue {
         Number number;
-        FlyString unit;
+        Utf16FlyString unit;
 
         bool operator==(DimensionValue const&) const = default;
     };

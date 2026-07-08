@@ -31,8 +31,9 @@ def write_header_file(out: TextIO, dimensions_data: dict) -> None:
     out.write("""
 #pragma once
 
-#include <AK/FlyString.h>
 #include <AK/Optional.h>
+#include <AK/Utf16FlyString.h>
+#include <AK/Utf16View.h>
 
 namespace Web::CSS {
 """)
@@ -44,7 +45,7 @@ namespace Web::CSS {
     out.write("""
 };
 
-Optional<DimensionType> dimension_for_unit(StringView);
+Optional<DimensionType> dimension_for_unit(Utf16View);
 """)
 
     for dimension_name, units in dimensions_data.items():
@@ -61,8 +62,8 @@ enum class {name_titlecase}Unit : {unit_enum_type} {{
         out.write(f"""
 }};
 constexpr {name_titlecase}Unit canonical_{name_snakecase}_unit() {{ return {name_titlecase}Unit::{canonical}; }}
-Optional<{name_titlecase}Unit> string_to_{name_snakecase}_unit(StringView);
-FlyString to_string({name_titlecase}Unit);
+Optional<{name_titlecase}Unit> string_to_{name_snakecase}_unit(Utf16View);
+Utf16FlyString to_string({name_titlecase}Unit);
 bool units_are_compatible({name_titlecase}Unit, {name_titlecase}Unit);
 double ratio_between_units({name_titlecase}Unit, {name_titlecase}Unit);
 """)
@@ -89,7 +90,7 @@ def write_implementation_file(out: TextIO, dimensions_data: dict) -> None:
 
 namespace Web::CSS {
 
-Optional<DimensionType> dimension_for_unit(StringView unit_name)
+Optional<DimensionType> dimension_for_unit(Utf16View unit_name)
 {
 """)
 
@@ -118,7 +119,7 @@ Optional<DimensionType> dimension_for_unit(StringView unit_name)
         canonical = title_casify(canonical_unit_name(units))
 
         out.write(f"""
-Optional<{name_titlecase}Unit> string_to_{name_snakecase}_unit(StringView unit_name)
+Optional<{name_titlecase}Unit> string_to_{name_snakecase}_unit(Utf16View unit_name)
 {{
 """)
         for unit_name in units:
@@ -130,14 +131,14 @@ Optional<{name_titlecase}Unit> string_to_{name_snakecase}_unit(StringView unit_n
     return {{}};
 }}
 
-FlyString to_string({name_titlecase}Unit value)
+Utf16FlyString to_string({name_titlecase}Unit value)
 {{
     switch (value) {{""")
 
         for unit_name in units:
             out.write(f"""
     case {name_titlecase}Unit::{title_casify(unit_name)}:
-        return "{unit_name}"_fly_string;""")
+        return "{unit_name}"_utf16_fly_string;""")
 
         out.write(f"""
     default:

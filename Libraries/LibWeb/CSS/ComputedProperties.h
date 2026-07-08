@@ -243,9 +243,9 @@ public:
     Optional<FontVariantNumeric> font_variant_numeric() const;
     FontVariantPosition font_variant_position() const;
     FontKerning font_kerning() const;
-    Optional<FlyString> font_language_override() const;
-    HashMap<FlyString, u8> font_feature_settings() const;
-    HashMap<FlyString, double> font_variation_settings() const;
+    Optional<Utf16FlyString> font_language_override() const;
+    HashMap<Utf16FlyString, u8> font_feature_settings() const;
+    HashMap<Utf16FlyString, double> font_variation_settings() const;
     GridTrackSizeList grid_auto_columns() const;
     GridTrackSizeList grid_auto_rows() const;
     GridTrackSizeList grid_template_columns() const;

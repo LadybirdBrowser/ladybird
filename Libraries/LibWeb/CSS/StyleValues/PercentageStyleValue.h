@@ -24,7 +24,7 @@ public:
 
     Percentage const& percentage() const { return m_percentage; }
     virtual double raw_value() const override { return m_percentage.value(); }
-    virtual FlyString unit_name() const override { return "percent"_fly_string; }
+    virtual Utf16FlyString unit_name() const override { return "percent"_utf16_fly_string; }
 
     virtual void serialize(StringBuilder& builder, SerializationMode) const override { builder.append(m_percentage.to_string()); }
 

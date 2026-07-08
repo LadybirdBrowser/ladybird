@@ -469,10 +469,10 @@ GC::Ptr<CSSTransformComponent> TransformationStyleValue::reify_a_transform_funct
     auto reify_numeric_argument = [&](size_t index) {
         return GC::Ref { as<CSSNumericValue>(*m_properties.values[index]->reify(realm, {})) };
     };
-    auto reify_0 = [&] { return CSSUnitValue::create(realm, 0, "number"_fly_string); };
-    auto reify_1 = [&] { return CSSUnitValue::create(realm, 1, "number"_fly_string); };
-    auto reify_0px = [&] { return CSSUnitValue::create(realm, 0, "px"_fly_string); };
-    auto reify_0deg = [&] { return CSSUnitValue::create(realm, 0, "deg"_fly_string); };
+    auto reify_0 = [&] { return CSSUnitValue::create(realm, 0, "number"_utf16_fly_string); };
+    auto reify_1 = [&] { return CSSUnitValue::create(realm, 1, "number"_utf16_fly_string); };
+    auto reify_0px = [&] { return CSSUnitValue::create(realm, 0, "px"_utf16_fly_string); };
+    auto reify_0deg = [&] { return CSSUnitValue::create(realm, 0, "deg"_utf16_fly_string); };
 
     // To reify a <transform-function> func, perform the appropriate set of steps below, based on func:
     switch (m_properties.transform_function) {

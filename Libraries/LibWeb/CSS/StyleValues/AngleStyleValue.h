@@ -24,7 +24,7 @@ public:
 
     Angle const& angle() const { return m_angle; }
     virtual double raw_value() const override { return m_angle.raw_value(); }
-    virtual FlyString unit_name() const override { return m_angle.unit_name(); }
+    virtual Utf16FlyString unit_name() const override { return m_angle.unit_name(); }
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 

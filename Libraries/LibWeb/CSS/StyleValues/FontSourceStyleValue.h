@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/URL.h>
 
@@ -19,14 +19,14 @@ public:
     };
     using Source = Variant<Local, URL>;
 
-    static ValueComparingNonnullRefPtr<FontSourceStyleValue const> create(Source source, Optional<FlyString> format, Vector<FontTech> tech)
+    static ValueComparingNonnullRefPtr<FontSourceStyleValue const> create(Source source, Optional<Utf16FlyString> format, Vector<FontTech> tech)
     {
         return adopt_ref(*new (nothrow) FontSourceStyleValue(move(source), move(format), move(tech)));
     }
     virtual ~FontSourceStyleValue() override;
 
     Source const& source() const { return m_source; }
-    Optional<FlyString> const& format() const { return m_format; }
+    Optional<Utf16FlyString> const& format() const { return m_format; }
     Vector<FontTech> const& tech() const { return m_tech; }
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
@@ -36,10 +36,10 @@ public:
     virtual bool is_computationally_independent() const override { return true; }
 
 private:
-    FontSourceStyleValue(Source source, Optional<FlyString> format, Vector<FontTech> tech);
+    FontSourceStyleValue(Source source, Optional<Utf16FlyString> format, Vector<FontTech> tech);
 
     Source m_source;
-    Optional<FlyString> m_format;
+    Optional<Utf16FlyString> m_format;
     Vector<FontTech> m_tech;
 };
 

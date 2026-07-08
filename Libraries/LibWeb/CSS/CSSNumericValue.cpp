@@ -185,7 +185,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::mul(ReadonlySpan<
         Optional<size_t> non_number_unit_index;
         for (size_t i = 0; i < values.size(); ++i) {
             auto unit = as<CSSUnitValue>(*values[i]).unit();
-            if (unit == "number"sv)
+            if (unit == "number"_utf16_fly_string)
                 continue;
             if (non_number_unit_index.has_value()) {
                 multiple_units_found = true;
@@ -197,7 +197,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::mul(ReadonlySpan<
             double product = 1;
             for (auto& value : values)
                 product *= as<CSSUnitValue>(*value).value();
-            auto unit = non_number_unit_index.has_value() ? as<CSSUnitValue>(*values[*non_number_unit_index]).unit() : "number"_fly_string;
+            auto unit = non_number_unit_index.has_value() ? as<CSSUnitValue>(*values[*non_number_unit_index]).unit() : "number"_utf16_fly_string;
             return CSSUnitValue::create(realm, product, unit);
         }
     }
@@ -229,14 +229,14 @@ WebIDL::ExceptionOr<CSSNumberish> CSSNumericValue::invert()
         return CSSNumberish { GC::Ref<CSSNumericValue> { invert->value() } };
 
     // 2. If this is a CSSUnitValue object with unit internal slot set to "number":
-    if (auto* unit_value = as_if<CSSUnitValue>(*this); unit_value && unit_value->unit() == "number"sv) {
+    if (auto* unit_value = as_if<CSSUnitValue>(*this); unit_value && unit_value->unit() == "number"_utf16_fly_string) {
         // 1. If this’s value internal slot is set to 0 or -0, throw a RangeError.
         if (unit_value->value() == 0 || unit_value->value() == -0)
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Zero has no multiplicative inverse"sv };
 
         // 2. Else return a new CSSUnitValue with the unit internal slot set to "number", and a value internal slot set
         //    to 1 divided by this’s {CSSUnitValue/value}} internal slot.
-        return CSSNumberish { GC::Ref<CSSNumericValue> { CSSUnitValue::create(realm(), 1.0 / unit_value->value(), "number"_fly_string) } };
+        return CSSNumberish { GC::Ref<CSSNumericValue> { CSSUnitValue::create(realm(), 1.0 / unit_value->value(), "number"_utf16_fly_string) } };
     }
 
     // 3. Otherwise, return a new CSSMathInvert object whose value internal slot is set to this.
@@ -321,7 +321,12 @@ bool CSSNumericValue::equals_for_bindings(ReadonlySpan<CSSNumberish> values) con
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-to
-WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> CSSNumericValue::to(FlyString const& unit) const
+WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> CSSNumericValue::to(Utf16String const& unit) const
+{
+    return to(Utf16FlyString { unit });
+}
+
+WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> CSSNumericValue::to(Utf16FlyString const& unit) const
 {
     // The to(unit) method converts an existing CSSNumericValue this into another one with the specified unit, if
     // possible. When called, it must perform the following steps:
@@ -347,7 +352,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> CSSNumericValue::to(FlyString const& 
 
     auto converted_item = item->converted_to_unit(unit);
     if (!converted_item)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to convert input '{}' to unit '{}'", MUST(to_string()), unit)) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Unable to convert input to requested unit"sv };
 
     // 4. Return item.
     return converted_item.as_nonnull();
@@ -426,7 +431,7 @@ Utf16String CSSNumericValue::to_string(SerializationParams const& params) const
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#rectify-a-numberish-value
-GC::Ref<CSSNumericValue> rectify_a_numberish_value(JS::Realm& realm, CSSNumberish const& numberish, Optional<FlyString> unit)
+GC::Ref<CSSNumericValue> rectify_a_numberish_value(JS::Realm& realm, CSSNumberish const& numberish, Optional<Utf16FlyString> unit)
 {
     // To rectify a numberish value num, optionally to a given unit unit (defaulting to "number"), perform the following steps:
     return numberish.visit(
@@ -437,7 +442,7 @@ GC::Ref<CSSNumericValue> rectify_a_numberish_value(JS::Realm& realm, CSSNumberis
         // 2. If num is a double, return a new CSSUnitValue with its value internal slot set to num and its unit
         //    internal slot set to unit.
         [&realm, &unit](double num) -> GC::Ref<CSSNumericValue> {
-            return CSSUnitValue::create(realm, num, unit.value_or("number"_fly_string));
+            return CSSUnitValue::create(realm, num, unit.value_or("number"_utf16_fly_string));
         });
 }
 
@@ -474,9 +479,9 @@ static WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> reify_a_numeric_value(JS::R
     //    value’s type, with the numeric value scaled accordingly.
     // NB: The computed value part is irrelevant here, I think.
     if (numeric_value.is(Parser::Token::Type::Number))
-        return CSSUnitValue::create(realm, numeric_value.token().number_value(), "number"_fly_string);
+        return CSSUnitValue::create(realm, numeric_value.token().number_value(), "number"_utf16_fly_string);
     if (numeric_value.is(Parser::Token::Type::Percentage))
-        return CSSUnitValue::create(realm, numeric_value.token().percentage(), "percent"_fly_string);
+        return CSSUnitValue::create(realm, numeric_value.token().percentage(), "percent"_utf16_fly_string);
     VERIFY(numeric_value.is(Parser::Token::Type::Dimension));
     return CSSUnitValue::create(realm, numeric_value.token().dimension_value(), numeric_value.token().dimension_unit());
 }

@@ -10,7 +10,7 @@
 
 namespace Web::CSS {
 
-FontSourceStyleValue::FontSourceStyleValue(Source source, Optional<FlyString> format, Vector<FontTech> tech)
+FontSourceStyleValue::FontSourceStyleValue(Source source, Optional<Utf16FlyString> format, Vector<FontTech> tech)
     : StyleValueWithDefaultOperators(Type::FontSource)
     , m_source(move(source))
     , m_format(move(format))
