@@ -11,6 +11,7 @@
 #pragma once
 
 #include <AK/ByteString.h>
+#include <AK/Utf16FlyString.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGfx/FontCascadeList.h>
 #include <LibWeb/CSS/Fetch.h>
@@ -32,7 +33,7 @@ struct FontWeightRange {
 };
 
 struct FontFaceKey {
-    FlyString family_name;
+    Utf16FlyString family_name;
     FontWeightRange weight;
     int slope { 0 };
     int width { 100 };
@@ -64,7 +65,7 @@ class FontLoader final : public GC::Cell {
     GC_DECLARE_ALLOCATOR(FontLoader);
 
 public:
-    FontLoader(FontComputer&, RuleOrDeclaration, FlyString family_name, Vector<Gfx::UnicodeRange> unicode_ranges, Vector<URL> urls, GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> on_load = {});
+    FontLoader(FontComputer&, RuleOrDeclaration, Utf16FlyString family_name, Vector<Gfx::UnicodeRange> unicode_ranges, Vector<URL> urls, GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> on_load = {});
 
     virtual ~FontLoader();
 
@@ -75,7 +76,7 @@ public:
 
     bool is_loading() const;
 
-    FlyString family_name() const { return m_family_name; }
+    Utf16FlyString family_name() const { return m_family_name; }
 
     void subscribe(GC::Ref<GC::Function<void(RefPtr<Gfx::Typeface const>)>>);
 
@@ -88,7 +89,7 @@ private:
 
     GC::Ref<FontComputer> m_font_computer;
     RuleOrDeclaration m_rule_or_declaration;
-    FlyString m_family_name;
+    Utf16FlyString m_family_name;
     Vector<Gfx::UnicodeRange> m_unicode_ranges;
     RefPtr<Gfx::Typeface const> m_typeface;
     Vector<URL> m_urls;
@@ -114,9 +115,9 @@ public:
 
     Gfx::Font const& initial_font() const;
 
-    void clear_computed_font_cache(FlyString const& family_name);
-    void clear_font_feature_values_cache(FlyString const& family_name);
-    void did_load_font(FlyString const& family_name);
+    void clear_computed_font_cache(Utf16FlyString const& family_name);
+    void clear_font_feature_values_cache(Utf16FlyString const& family_name);
+    void did_load_font(Utf16FlyString const& family_name);
 
     void register_font_face(GC::Ref<FontFace>);
     void unregister_font_face(GC::Ref<FontFace>);
@@ -135,9 +136,9 @@ private:
     RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_ascending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, Gfx::FontVariationSettings const& variations, FontFeatureData const& font_feature_data, HashMap<FontFeatureValueKey, Vector<u32>> const& font_feature_values, bool inclusive) const;
     RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_descending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, Gfx::FontVariationSettings const& variations, FontFeatureData const& font_feature_data, HashMap<FontFeatureValueKey, Vector<u32>> const& font_feature_values, bool inclusive) const;
     NonnullRefPtr<Gfx::FontCascadeList const> compute_font_for_style_values_impl(StyleValue const& font_family, CSSPixels const& font_size, int font_slope, double font_weight, Percentage const& font_width, FontOpticalSizing font_optical_sizing, HashMap<Utf16FlyString, double> const& font_variation_settings, FontFeatureData const& font_feature_data) const;
-    RefPtr<Gfx::FontCascadeList const> font_matching_algorithm(FlyString const& family_name, int weight, Percentage const& font_width, int slope, float font_size_in_pt, Gfx::FontVariationSettings const& variations, FontFeatureData const& font_feature_data, HashMap<FontFeatureValueKey, Vector<u32>> const& font_feature_values) const;
+    RefPtr<Gfx::FontCascadeList const> font_matching_algorithm(Utf16FlyString const& family_name, int weight, Percentage const& font_width, int slope, float font_size_in_pt, Gfx::FontVariationSettings const& variations, FontFeatureData const& font_feature_data, HashMap<FontFeatureValueKey, Vector<u32>> const& font_feature_values) const;
 
-    HashMap<FontFeatureValueKey, Vector<u32>> const& font_feature_values_for_family(FlyString const& family_name) const;
+    HashMap<FontFeatureValueKey, Vector<u32>> const& font_feature_values_for_family(Utf16FlyString const& family_name) const;
 
     GC::Ref<DOM::Document> m_document;
 
@@ -145,7 +146,7 @@ private:
     HashMap<String, GC::Ref<FontLoader>> m_loaders_by_url;
 
     mutable HashMap<ComputedFontCacheKey, NonnullRefPtr<Gfx::FontCascadeList const>> m_computed_font_cache;
-    mutable HashMap<FlyString, HashMap<FontFeatureValueKey, Vector<u32>>> m_font_feature_values_cache;
+    mutable HashMap<Utf16FlyString, HashMap<FontFeatureValueKey, Vector<u32>>> m_font_feature_values_cache;
 };
 
 }

@@ -1398,9 +1398,9 @@ GC::Ptr<CSSFontFaceRule> Parser::convert_to_font_face_rule(AtRule const& rule)
     return CSSFontFaceRule::create(realm(), CSSFontFaceDescriptors::create(realm(), descriptors.release_descriptors()));
 }
 
-Optional<Vector<FlyString>> Parser::parse_comma_separated_family_name_list(TokenStream<ComponentValue>& tokens)
+Optional<Vector<Utf16FlyString>> Parser::parse_comma_separated_family_name_list(TokenStream<ComponentValue>& tokens)
 {
-    Vector<FlyString> family_names;
+    Vector<Utf16FlyString> family_names;
     auto comma_separated_families = parse_a_comma_separated_list_of_component_values(tokens);
 
     if (comma_separated_families.is_empty()) {
@@ -1425,7 +1425,7 @@ Optional<Vector<FlyString>> Parser::parse_comma_separated_family_name_list(Token
             return {};
         }
 
-        family_names.append(legacy_fly_string_from_style_value(family_name.release_nonnull()));
+        family_names.append(string_from_style_value(family_name.release_nonnull()));
     }
 
     return family_names;

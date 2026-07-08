@@ -218,7 +218,6 @@ struct StyleValueWithDefaultOperators : public StyleValue {
 i32 int_from_style_value(NonnullRefPtr<StyleValue const> const& style_value);
 double number_from_style_value(NonnullRefPtr<StyleValue const> const& style_value, Optional<double> percentage_basis);
 Utf16FlyString const& string_from_style_value(NonnullRefPtr<StyleValue const> const& style_value);
-FlyString legacy_fly_string_from_style_value(NonnullRefPtr<StyleValue const> const& style_value);
 
 }
 

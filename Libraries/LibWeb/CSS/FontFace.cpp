@@ -444,7 +444,7 @@ WebIDL::ExceptionOr<void> FontFace::set_family(String const& string)
 
 void FontFace::set_family_impl(NonnullRefPtr<StyleValue const> const& value)
 {
-    m_family = MUST(string_from_style_value(value).view().to_utf8());
+    m_family = string_from_style_value(value);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-style
@@ -577,7 +577,7 @@ WebIDL::ExceptionOr<void> FontFace::set_unicode_range(String const& string)
 
     if (should_be_registered_with_font_computer()) {
         if (auto font_computer = this->font_computer(); font_computer.has_value())
-            font_computer->did_load_font(FlyString(m_family));
+            font_computer->did_load_font(m_family);
     }
 
     return {};

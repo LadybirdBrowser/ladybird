@@ -20,7 +20,7 @@ namespace Web::CSS {
 class ParsedFontFace {
 public:
     struct Source {
-        Variant<FlyString, URL> local_or_url;
+        Variant<Utf16FlyString, URL> local_or_url;
         Optional<Utf16FlyString> format;
         Vector<FontTech> tech;
     };
@@ -28,14 +28,14 @@ public:
     static Vector<Source> sources_from_style_value(StyleValue const&);
     static ParsedFontFace from_descriptors(CSSFontFaceDescriptors const&);
 
-    ParsedFontFace(GC::Ref<CSSRule> parent_rule, FlyString font_family, Optional<FontWeightRange> weight, Optional<int> slope, Optional<int> width, Vector<Source> sources, Vector<Gfx::UnicodeRange> unicode_ranges, Optional<Percentage> ascent_override, Optional<Percentage> descent_override, Optional<Percentage> line_gap_override, FontDisplay font_display, Optional<Utf16FlyString> font_named_instance, Optional<Utf16FlyString> font_language_override, Optional<OrderedHashMap<Utf16FlyString, i32>> font_feature_settings, Optional<OrderedHashMap<Utf16FlyString, double>> font_variation_settings);
+    ParsedFontFace(GC::Ref<CSSRule> parent_rule, Utf16FlyString font_family, Optional<FontWeightRange> weight, Optional<int> slope, Optional<int> width, Vector<Source> sources, Vector<Gfx::UnicodeRange> unicode_ranges, Optional<Percentage> ascent_override, Optional<Percentage> descent_override, Optional<Percentage> line_gap_override, FontDisplay font_display, Optional<Utf16FlyString> font_named_instance, Optional<Utf16FlyString> font_language_override, Optional<OrderedHashMap<Utf16FlyString, i32>> font_feature_settings, Optional<OrderedHashMap<Utf16FlyString, double>> font_variation_settings);
     ~ParsedFontFace() = default;
 
     GC::Ref<CSSRule> parent_rule() const { return m_parent_rule; }
     Optional<Percentage> ascent_override() const { return m_ascent_override; }
     Optional<Percentage> descent_override() const { return m_descent_override; }
     FontDisplay font_display() const { return m_font_display; }
-    FlyString const& font_family() const { return m_font_family; }
+    Utf16FlyString const& font_family() const { return m_font_family; }
     Optional<OrderedHashMap<Utf16FlyString, i32>> font_feature_settings() const { return m_font_feature_settings; }
     Optional<Utf16FlyString> font_language_override() const { return m_font_language_override; }
     Optional<Utf16FlyString> font_named_instance() const { return m_font_named_instance; }
@@ -49,7 +49,7 @@ public:
 
 private:
     GC::Ref<CSSRule> m_parent_rule;
-    FlyString m_font_family;
+    Utf16FlyString m_font_family;
     Optional<Utf16FlyString> m_font_named_instance;
     Optional<FontWeightRange> m_weight;
     Optional<int> m_slope;

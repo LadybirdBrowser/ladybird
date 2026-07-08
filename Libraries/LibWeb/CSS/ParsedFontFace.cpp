@@ -33,7 +33,7 @@ Vector<ParsedFontFace::Source> ParsedFontFace::sources_from_style_value(StyleVal
     auto add_source = [&sources](FontSourceStyleValue const& font_source) {
         font_source.source().visit(
             [&](FontSourceStyleValue::Local const& local) {
-                sources.empend(legacy_fly_string_from_style_value(local.name), OptionalNone {}, Vector<FontTech> {});
+                sources.empend(string_from_style_value(local.name), OptionalNone {}, Vector<FontTech> {});
             },
             [&](URL const& url) {
                 sources.empend(url, font_source.format(), font_source.tech());
@@ -64,9 +64,9 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
         return {};
     };
 
-    FlyString font_family;
+    Utf16FlyString font_family;
     if (auto value = descriptors.descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontFamily)))
-        font_family = legacy_fly_string_from_style_value(*value);
+        font_family = string_from_style_value(*value);
 
     ComputationContext computation_context {
         .length_resolution_context = Length::ResolutionContext::for_document(*descriptors.parent_rule()->parent_style_sheet()->owning_document())
@@ -219,7 +219,7 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
     };
 }
 
-ParsedFontFace::ParsedFontFace(GC::Ref<CSSRule> parent_rule, FlyString font_family, Optional<FontWeightRange> weight, Optional<int> slope, Optional<int> width, Vector<Source> sources, Vector<Gfx::UnicodeRange> unicode_ranges, Optional<Percentage> ascent_override, Optional<Percentage> descent_override, Optional<Percentage> line_gap_override, FontDisplay font_display, Optional<Utf16FlyString> font_named_instance, Optional<Utf16FlyString> font_language_override, Optional<OrderedHashMap<Utf16FlyString, i32>> font_feature_settings, Optional<OrderedHashMap<Utf16FlyString, double>> font_variation_settings)
+ParsedFontFace::ParsedFontFace(GC::Ref<CSSRule> parent_rule, Utf16FlyString font_family, Optional<FontWeightRange> weight, Optional<int> slope, Optional<int> width, Vector<Source> sources, Vector<Gfx::UnicodeRange> unicode_ranges, Optional<Percentage> ascent_override, Optional<Percentage> descent_override, Optional<Percentage> line_gap_override, FontDisplay font_display, Optional<Utf16FlyString> font_named_instance, Optional<Utf16FlyString> font_language_override, Optional<OrderedHashMap<Utf16FlyString, i32>> font_feature_settings, Optional<OrderedHashMap<Utf16FlyString, double>> font_variation_settings)
     : m_parent_rule(parent_rule)
     , m_font_family(move(font_family))
     , m_font_named_instance(move(font_named_instance))

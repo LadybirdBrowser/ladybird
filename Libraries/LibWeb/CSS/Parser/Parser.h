@@ -309,7 +309,7 @@ private:
         Yes,
     };
     Optional<FlyString> parse_layer_name(TokenStream<ComponentValue>&, AllowBlankLayerName);
-    Optional<Vector<FlyString>> parse_comma_separated_family_name_list(TokenStream<ComponentValue>&);
+    Optional<Vector<Utf16FlyString>> parse_comma_separated_family_name_list(TokenStream<ComponentValue>&);
 
     struct FunctionPrelude {
         Utf16FlyString name;
