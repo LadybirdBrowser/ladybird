@@ -1,0 +1,1 @@
+SecurityError: Can't access property 'a-recaptcha' on cross-origin object

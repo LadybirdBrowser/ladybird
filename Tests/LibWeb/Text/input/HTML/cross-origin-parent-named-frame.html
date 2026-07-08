@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe name="a-recaptcha"></iframe>
+<script>
+    asyncTest(done => {
+        const namedFrame = document.querySelector("iframe");
+        const callerFrame = document.createElement("iframe");
+
+        function waitForMessage(predicate) {
+            return new Promise(resolve => {
+                window.addEventListener("message", function listener(event) {
+                    if (!predicate(event.data))
+                        return;
+                    window.removeEventListener("message", listener);
+                    resolve(event.data);
+                });
+            });
+        }
+
+        namedFrame.src = "data:text/html,<script>parent.postMessage('named-ready', '*')<" + "/script>";
+
+        waitForMessage(data => data === "named-ready").then(() => {
+            const script = `
+                let result = "FAIL";
+                try {
+                    const namedFrame = parent.frames["a-recaptcha"];
+                    result = namedFrame === parent.frames[0] ? "PASS" : "FAIL: wrong WindowProxy";
+                } catch (e) {
+                    result = e.name + ": " + e.message;
+                }
+                parent.postMessage(result, "*");
+            `;
+
+            callerFrame.src = "data:text/html,<script>" + encodeURIComponent(script) + "<" + "/script>";
+            document.body.append(callerFrame);
+            return waitForMessage(data => data !== "named-ready");
+        }).then(result => {
+            println(result);
+            done();
+        });
+    });
+</script>
