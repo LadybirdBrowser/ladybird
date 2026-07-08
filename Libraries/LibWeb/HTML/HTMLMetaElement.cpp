@@ -220,13 +220,12 @@ void HTMLMetaElement::inserted()
             auto input = get_attribute_value(AttributeNames::content);
             if (input.is_empty())
                 break;
-            auto input_utf8 = input.to_utf8_but_should_be_ported_to_utf16();
 
             // 3. Let policy be the result of executing Content Security Policy's parse a serialized Content Security
             //    Policy algorithm on the meta element's content attribute's value, with a source of "meta", and a
             //    disposition of "enforce".
             auto& realm = this->realm();
-            auto policy = ContentSecurityPolicy::Policy::parse_a_serialized_csp(realm.heap(), input_utf8, ContentSecurityPolicy::Policy::Source::Meta, ContentSecurityPolicy::Policy::Disposition::Enforce);
+            auto policy = ContentSecurityPolicy::Policy::parse_a_serialized_csp(realm.heap(), input.utf16_view(), ContentSecurityPolicy::Policy::Source::Meta, ContentSecurityPolicy::Policy::Disposition::Enforce);
 
             // 4. Remove all occurrences of the report-uri, frame-ancestors, and sandbox directives from policy.
             policy->remove_directive({}, ContentSecurityPolicy::Directives::Names::ReportUri);

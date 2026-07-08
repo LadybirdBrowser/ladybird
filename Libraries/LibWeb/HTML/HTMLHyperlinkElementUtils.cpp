@@ -42,7 +42,7 @@ void HTMLHyperlinkElementUtils::set_the_url()
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-href
-String HTMLHyperlinkElementUtils::href() const
+Utf16String HTMLHyperlinkElementUtils::href() const
 {
     // 1. Reinitialize url.
     reinitialize_url();
@@ -53,21 +53,21 @@ String HTMLHyperlinkElementUtils::href() const
     // 3. If url is null and this element has no href content attribute, return the empty string.
     auto href_content_attribute = hyperlink_element_utils_element().attribute(HTML::AttributeNames::href);
     if (!url.has_value() && !href_content_attribute.has_value())
-        return String {};
+        return {};
 
     // 4. Otherwise, if url is null, return this element's href content attribute's value.
     if (!url.has_value())
-        return href_content_attribute.release_value().to_utf8_but_should_be_ported_to_utf16();
+        return href_content_attribute.release_value();
 
     // 5. Return url, serialized.
-    return url->serialize();
+    return Utf16String::from_utf8(url->serialize());
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-href
-void HTMLHyperlinkElementUtils::set_href(String href)
+void HTMLHyperlinkElementUtils::set_href(Utf16String const& href)
 {
     // The href attribute's setter must set this element's href content attribute's value to the given value.
-    hyperlink_element_utils_element().set_attribute_value(HTML::AttributeNames::href, move(href));
+    hyperlink_element_utils_element().set_attribute_value(HTML::AttributeNames::href, href);
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#update-href

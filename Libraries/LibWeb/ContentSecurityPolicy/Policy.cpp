@@ -88,6 +88,12 @@ GC::Ref<Policy> Policy::parse_a_serialized_csp(GC::Heap& heap, Variant<ByteStrin
     return policy;
 }
 
+GC::Ref<Policy> Policy::parse_a_serialized_csp(GC::Heap& heap, Utf16View serialized, Source source, Disposition disposition)
+{
+    auto serialized_utf8 = MUST(serialized.to_utf8());
+    return parse_a_serialized_csp(heap, serialized_utf8, source, disposition);
+}
+
 // https://w3c.github.io/webappsec-csp/#abstract-opdef-parse-a-responses-content-security-policies
 GC::Ref<PolicyList> Policy::parse_a_responses_content_security_policies(GC::Heap& heap, GC::Ref<Fetch::Infrastructure::Response const> response)
 {

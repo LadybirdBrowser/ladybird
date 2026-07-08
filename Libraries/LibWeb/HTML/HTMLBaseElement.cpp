@@ -106,7 +106,7 @@ void HTMLBaseElement::set_the_frozen_base_url(URL::URL const& old_base_url)
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#dom-base-href
-String HTMLBaseElement::href() const
+Utf16String HTMLBaseElement::href() const
 {
     // 1. Let document be element's node document.
     auto const& document = this->document();
@@ -120,14 +120,14 @@ String HTMLBaseElement::href() const
 
     // 4. If urlRecord is failure, return url.
     if (!url_record.has_value())
-        return url.to_utf8_but_should_be_ported_to_utf16();
+        return url;
 
     // 5. Return the serialization of urlRecord.
-    return url_record->to_string();
+    return Utf16String::from_utf8(url_record->to_string());
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#dom-base-href
-void HTMLBaseElement::set_href(String const& href)
+void HTMLBaseElement::set_href(Utf16String const& href)
 {
     // The href IDL attribute, on setting, must set the href content attribute to the given new value.
     set_attribute_value(AttributeNames::href, href);

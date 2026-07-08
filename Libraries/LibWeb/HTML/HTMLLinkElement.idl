@@ -37,7 +37,7 @@ interface HTMLLinkElement : HTMLElement {
     [CEReactions, Reflect] attribute Utf16DOMString rel;
     [CEReactions, Reflect, Enumerated=PotentialDestination] attribute DOMString as;
     [SameObject, PutForwards=value] readonly attribute DOMTokenList relList;
-    [CEReactions] attribute DOMString media;
+    [CEReactions] attribute Utf16DOMString media;
     [CEReactions, Reflect] attribute DOMString integrity;
     [CEReactions, Reflect] attribute DOMString hreflang;
     [CEReactions, Reflect] attribute Utf16DOMString type;

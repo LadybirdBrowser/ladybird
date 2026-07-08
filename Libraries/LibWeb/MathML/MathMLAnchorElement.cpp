@@ -27,7 +27,7 @@ void MathMLAnchorElement::initialize(JS::Realm& realm)
 }
 
 // https://w3c.github.io/mathml-core/#dom-mathmlanchorelement-href
-String MathMLAnchorElement::href() const
+Utf16String MathMLAnchorElement::href() const
 {
     // The href getter steps are:
 
@@ -41,16 +41,16 @@ String MathMLAnchorElement::href() const
 
     // 4. Otherwise, if url is null, then return this's href content attribute's value.
     else if (!m_url.has_value())
-        return get_attribute_value(MathML::AttributeNames::href).to_utf8_but_should_be_ported_to_utf16();
+        return get_attribute_value(MathML::AttributeNames::href);
 
     // 5. Return url, serialized.
-    return m_url->serialize();
+    return Utf16String::from_utf8(m_url->serialize());
 }
 
 // https://w3c.github.io/mathml-core/#dom-mathmlanchorelement-href
-void MathMLAnchorElement::set_href(String href)
+void MathMLAnchorElement::set_href(Utf16String const& href)
 {
-    set_attribute_value(HTML::AttributeNames::href, move(href));
+    set_attribute_value(HTML::AttributeNames::href, href);
 }
 
 // https://w3c.github.io/mathml-core/#dfn-set-the-url

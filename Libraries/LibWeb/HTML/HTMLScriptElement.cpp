@@ -382,7 +382,7 @@ void HTMLScriptElement::prepare_script()
     //     Otherwise, let integrity metadata be the empty string.
     String integrity_metadata;
     if (auto maybe_integrity = attribute(HTML::AttributeNames::integrity); maybe_integrity.has_value()) {
-        integrity_metadata = maybe_integrity->to_utf8_but_should_be_ported_to_utf16();
+        integrity_metadata = maybe_integrity->to_utf8();
     }
 
     // 29. Let referrer policy be the current state of el's referrerpolicy content attribute.

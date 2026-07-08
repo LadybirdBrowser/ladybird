@@ -132,16 +132,16 @@ GC::Ref<DOM::DOMTokenList> HTMLLinkElement::sizes()
     return *m_sizes;
 }
 
-void HTMLLinkElement::set_media(String media)
+void HTMLLinkElement::set_media(Utf16String const& media)
 {
     set_attribute_value(HTML::AttributeNames::media, media);
     if (auto sheet = m_loaded_style_sheet)
-        sheet->set_media(media.bytes_as_string_view());
+        sheet->set_media(media.utf16_view());
 }
 
-String HTMLLinkElement::media() const
+Utf16String HTMLLinkElement::media() const
 {
-    return attribute(HTML::AttributeNames::media).value_or({}).to_utf8_but_should_be_ported_to_utf16();
+    return get_attribute_value(HTML::AttributeNames::media);
 }
 
 // https://drafts.csswg.org/cssom/#dom-linkstyle-sheet
@@ -352,11 +352,11 @@ GC::Ref<HTMLLinkElement::LinkProcessingOptions> HTMLLinkElement::create_link_opt
 
     // 3. If el has an href attribute, then set options's href to the value of el's href attribute.
     if (auto maybe_href = get_attribute(AttributeNames::href); maybe_href.has_value())
-        options->href = maybe_href->to_utf8_but_should_be_ported_to_utf16();
+        options->href = maybe_href.release_value();
 
     // 4. If el has an integrity attribute, then set options's integrity to the value of el's integrity content attribute.
     if (auto maybe_integrity = get_attribute(AttributeNames::integrity); maybe_integrity.has_value())
-        options->integrity = maybe_integrity->to_utf8_but_should_be_ported_to_utf16();
+        options->integrity = maybe_integrity->to_utf8();
 
     // 5. If el has a type attribute, then set options's type to the value of el's type attribute.
     if (auto maybe_type = get_attribute(AttributeNames::type); maybe_type.has_value())
@@ -380,7 +380,7 @@ GC::Ptr<Fetch::Infrastructure::Request> HTMLLinkElement::create_link_request(HTM
     // 3. Let url be the result of encoding-parsing a URL given options's href, relative to options's base URL.
     // FIXME: Spec issue: We should be parsing this URL relative to a document or environment settings object.
     //        https://github.com/whatwg/html/issues/9715
-    auto url = DOMURL::parse(options.href, options.base_url);
+    auto url = DOMURL::parse(options.href.utf16_view(), options.base_url);
 
     // 4. If url is failure, then return null.
     if (!url.has_value())
@@ -629,7 +629,7 @@ void HTMLLinkElement::preconnect(LinkProcessingOptions const& options)
     // 2. Let url be the result of encoding-parsing a URL given options's href, relative to options's base URL.
     // FIXME: Spec issue: We should be parsing this URL relative to a document or environment settings object.
     //        https://github.com/whatwg/html/issues/9715
-    auto url = DOMURL::parse(options.href, options.base_url);
+    auto url = DOMURL::parse(options.href.utf16_view(), options.base_url);
 
     // 3. If url is failure, then return.
     if (!url.has_value())

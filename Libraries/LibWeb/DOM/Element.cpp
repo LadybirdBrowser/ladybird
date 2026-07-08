@@ -154,6 +154,25 @@ static void invalidate_content_blocker_style_if_needed(Element& element)
     element.document().page().invalidate_user_style();
 }
 
+static FlyString fly_string_from_utf16(Utf16View value)
+{
+    auto value_utf8 = MUST(value.to_utf8());
+    return MUST(FlyString::from_utf8(value_utf8.bytes_as_string_view()));
+}
+
+static void for_each_ascii_whitespace_separated_token(Utf16View input, Function<IterationDecision(Utf16View)> const& callback)
+{
+    size_t start = 0;
+    for (size_t i = 0; i <= input.length_in_code_units(); ++i) {
+        if (i != input.length_in_code_units() && !Infra::is_ascii_whitespace(input.code_unit_at(i)))
+            continue;
+
+        if (i > start && callback(input.substring_view(start, i - start)) == IterationDecision::Break)
+            return;
+        start = i + 1;
+    }
+}
+
 Element::Element(Document& document, DOM::QualifiedName qualified_name)
     : ParentNode(document, NodeType::ELEMENT_NODE)
     , m_qualified_name(move(qualified_name))
@@ -762,10 +781,8 @@ GC::Ptr<DOM::Element> Element::get_the_attribute_associated_element(FlyString co
     //     * candidate's root is the same as element's root;
     //     * candidate's ID is contentAttributeValue; and
     //     * candidate implements T.
-    if (content_attribute_value.has_value()) {
-        auto content_attribute_value_utf8 = content_attribute_value->to_utf8_but_should_be_ported_to_utf16();
-        return element.document().get_element_by_id(MUST(FlyString::from_utf8(content_attribute_value_utf8.bytes_as_string_view())));
-    }
+    if (content_attribute_value.has_value())
+        return element.document().get_element_by_id(fly_string_from_utf16(content_attribute_value->utf16_view()));
 
     // 5. If no such element exists, then return null.
     // 6. Return null.
@@ -803,24 +820,22 @@ Optional<GC::RootVector<GC::Ref<DOM::Element>>> Element::get_the_attribute_assoc
             return {};
 
         // 3. Let tokens be contentAttributeValue, split on ASCII whitespace.
-        auto content_attribute_value_utf8 = content_attribute_value->to_utf8_but_should_be_ported_to_utf16();
-        auto tokens = content_attribute_value_utf8.bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
-
-        // 4. For each id of tokens:
-        for (auto id : tokens) {
+        for_each_ascii_whitespace_separated_token(content_attribute_value->utf16_view(), [&](auto id) {
+            // 4. For each id of tokens:
             // 1. Let candidate be the first element, in tree order, that meets the following criteria:
             //     * candidate's root is the same as element's root;
             //     * candidate's ID is id; and
             //     * candidate implements T.
-            auto candidate = element.document().get_element_by_id(MUST(FlyString::from_utf8(id)));
+            auto candidate = element.document().get_element_by_id(fly_string_from_utf16(id));
 
             // 2. If no such element exists, then continue.
             if (!candidate)
-                continue;
+                return IterationDecision::Continue;
 
             // 3. Append candidate to elements.
             elements.append(*candidate);
-        }
+            return IterationDecision::Continue;
+        });
     }
 
     // 5. Return elements.
@@ -4659,27 +4674,24 @@ void Element::attribute_changed(FlyString const& local_name, Optional<Utf16Strin
     }
 
     auto value_or_empty = value.value_or({});
-    auto value_or_empty_utf8 = value_or_empty.to_utf8_but_should_be_ported_to_utf16();
 
     if (local_name == HTML::AttributeNames::id) {
         if (value_or_empty.is_empty())
             m_id = {};
         else
-            m_id = MUST(FlyString::from_utf8(value_or_empty_utf8.bytes_as_string_view()));
+            m_id = fly_string_from_utf16(value_or_empty.utf16_view());
 
         if (is_connected()) {
             Optional<FlyString> old_value_fly_string;
-            if (old_value.has_value()) {
-                auto old_value_utf8 = old_value->to_utf8_but_should_be_ported_to_utf16();
-                old_value_fly_string = MUST(FlyString::from_utf8(old_value_utf8.bytes_as_string_view()));
-            }
+            if (old_value.has_value())
+                old_value_fly_string = fly_string_from_utf16(old_value->utf16_view());
             document().element_id_changed({}, *this, old_value_fly_string);
         }
     } else if (local_name == HTML::AttributeNames::name) {
         if (value_or_empty.is_empty())
             m_name = {};
         else
-            m_name = MUST(FlyString::from_utf8(value_or_empty_utf8.bytes_as_string_view()));
+            m_name = fly_string_from_utf16(value_or_empty.utf16_view());
 
         if (is_connected())
             document().element_name_changed({}, *this);
@@ -4687,12 +4699,11 @@ void Element::attribute_changed(FlyString const& local_name, Optional<Utf16Strin
         if (value_or_empty.is_empty()) {
             m_classes.clear();
         } else {
-            auto new_classes = value_or_empty_utf8.bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
             m_classes.clear();
-            m_classes.ensure_capacity(new_classes.size());
-            for (auto& new_class : new_classes) {
-                m_classes.unchecked_append(FlyString::from_utf8(new_class).release_value_but_fixme_should_propagate_errors());
-            }
+            for_each_ascii_whitespace_separated_token(value_or_empty.utf16_view(), [&](auto new_class) {
+                m_classes.append(fly_string_from_utf16(new_class));
+                return IterationDecision::Continue;
+            });
         }
         if (m_class_list)
             m_class_list->associated_attribute_changed(value_or_empty);

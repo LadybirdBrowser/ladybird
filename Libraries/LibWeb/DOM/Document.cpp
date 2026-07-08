@@ -2235,8 +2235,7 @@ void Document::obtain_theme_color()
             }
 
             // 2. Let value be the result of stripping leading and trailing ASCII whitespace from the value of element's content attribute.
-            auto content_utf8 = content->to_utf8_but_should_be_ported_to_utf16();
-            auto value = content_utf8.bytes_as_string_view().trim(Infra::ASCII_WHITESPACE);
+            auto value = content->utf16_view().trim(Infra::ASCII_WHITESPACE);
 
             // 3. Let color be the result of parsing value.
             auto css_value = parse_css_value(context, value, CSS::PropertyID::Color);

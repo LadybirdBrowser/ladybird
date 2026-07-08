@@ -17,8 +17,8 @@ class HTMLBaseElement final : public HTMLElement {
 public:
     virtual ~HTMLBaseElement() override;
 
-    String href() const;
-    void set_href(String const& href);
+    Utf16String href() const;
+    void set_href(Utf16String const& href);
 
     URL::URL const& frozen_base_url() const { return m_frozen_base_url; }
 

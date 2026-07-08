@@ -20,8 +20,8 @@ class MathMLAnchorElement final
 public:
     virtual ~MathMLAnchorElement() override;
 
-    String href() const;
-    void set_href(String);
+    Utf16String href() const;
+    void set_href(Utf16String const&);
 
 private:
     MathMLAnchorElement(DOM::Document&, DOM::QualifiedName);

@@ -827,9 +827,9 @@ public:
     {
         // 2. ⌛ Process candidate: If candidate does not have a src attribute, or if its src attribute's value is the
         //    empty string, then end the synchronous section, and jump down to the failed with elements step below.
-        String candidate_src;
+        Utf16String candidate_src;
         if (auto maybe_src = m_candidate->get_attribute(HTML::AttributeNames::src); maybe_src.has_value())
-            candidate_src = maybe_src->to_utf8_but_should_be_ported_to_utf16();
+            candidate_src = maybe_src.release_value();
 
         if (candidate_src.is_empty()) {
             failed_with_elements();

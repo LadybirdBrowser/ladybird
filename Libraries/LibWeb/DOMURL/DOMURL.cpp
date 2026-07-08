@@ -484,7 +484,7 @@ Optional<URL::URL> parse(StringView input, Optional<URL::URL const&> base_url, O
 
 Optional<URL::URL> parse(Utf16View input, Optional<URL::URL const&> base_url, Optional<StringView> encoding)
 {
-    auto input_utf8 = input.to_utf8_but_should_be_ported_to_utf16();
+    auto input_utf8 = MUST(input.to_utf8());
     return parse(input_utf8.bytes_as_string_view(), base_url, encoding);
 }
 
