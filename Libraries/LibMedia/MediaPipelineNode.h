@@ -12,7 +12,8 @@ namespace Media {
 
 class MediaPipelineNode : public AtomicRefCounted<MediaPipelineNode> {
 public:
-    virtual ~MediaPipelineNode() = default;
+    // GCC false-positives -Wfree-nonheap-object when a virtually-derived subclass is deleted through a thunk.
+    AK_IGNORE_DIAGNOSTIC("-Wfree-nonheap-object", virtual ~MediaPipelineNode() = default;)
 };
 
 }
