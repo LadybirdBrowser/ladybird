@@ -486,7 +486,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         new_child_tab(Web::HTML::ActivateTab::Yes, *parent_tab, AK::move(page_index));
     } else {
         for (size_t i = 0; i < initial_urls.size(); ++i) {
-            new_tab_from_url(initial_urls[i], (i == 0) ? Web::HTML::ActivateTab::Yes : Web::HTML::ActivateTab::No);
+            new_tab_from_url(initial_urls[i], (i == 0) ? Web::HTML::ActivateTab::Yes : Web::HTML::ActivateTab::No, TabLocation::end());
         }
     }
 
@@ -556,9 +556,9 @@ void BrowserWindow::on_devtools_disabled()
     m_devtools_banner->hide();
 }
 
-Tab& BrowserWindow::new_tab_from_url(URL::URL const& url, Web::HTML::ActivateTab activate_tab)
+Tab& BrowserWindow::new_tab_from_url(URL::URL const& url, Web::HTML::ActivateTab activate_tab, TabLocation location)
 {
-    auto& tab = create_new_tab(activate_tab);
+    auto& tab = create_new_tab(activate_tab, location);
     tab.navigate(url);
     return tab;
 }
@@ -571,7 +571,7 @@ Tab& BrowserWindow::new_child_tab(Web::HTML::ActivateTab activate_tab, Tab& pare
 Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab, Tab& parent, Optional<u64> page_index)
 {
     if (!page_index.has_value())
-        return create_new_tab(activate_tab);
+        return create_new_tab(activate_tab, TabLocation::end());
 
     auto* tab = new Tab(this, parent.view().client(), page_index.value());
 
@@ -598,7 +598,7 @@ bool BrowserWindow::uses_client_side_decorations()
     return !WebView::Application::settings().config_variable_as_bool(WebView::ConfigVariableID::UseServerSideWindowDecorations);
 }
 
-Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab)
+Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab, TabLocation location)
 {
     auto* tab = new Tab(this);
 
@@ -606,7 +606,25 @@ Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab)
         set_current_tab(tab);
     }
 
-    m_tabs_container->add_tab(tab, "New Tab");
+    switch (location.kind()) {
+    case TabLocation::Kind::End:
+        m_tabs_container->add_tab(tab, "New Tab");
+        break;
+    case TabLocation::Kind::AfterCurrentTab:
+        m_tabs_container->insert_tab(m_tabs_container->current_index() + 1, tab, "New Tab");
+        break;
+    case TabLocation::Kind::AfterTab: {
+        auto insertion_index = m_tabs_container->count();
+        if (auto* source_tab = location.tab(); source_tab) {
+            auto source_tab_index = tab_index(source_tab);
+            if (source_tab_index != -1)
+                insertion_index = source_tab_index + 1;
+        }
+        m_tabs_container->insert_tab(insertion_index, tab, "New Tab");
+        break;
+    }
+    }
+
     if (activate_tab == Web::HTML::ActivateTab::Yes)
         m_tabs_container->set_current_tab(tab);
 
@@ -626,7 +644,7 @@ void BrowserWindow::initialize_tab(Tab* tab)
         m_current_tab->navigate(ak_url_from_qurl(urls[0]));
 
         for (qsizetype i = 1; i < urls.size(); ++i)
-            new_tab_from_url(ak_url_from_qurl(urls[i]), Web::HTML::ActivateTab::No);
+            new_tab_from_url(ak_url_from_qurl(urls[i]), Web::HTML::ActivateTab::No, TabLocation::end());
     });
 
     tab->view().on_new_web_view = [this, tab](auto activate_tab, Web::HTML::WebViewHints hints, Optional<u64> page_index) {

@@ -82,7 +82,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
             auto& window = *app->active_window_if_any();
             for (size_t i = 0; i < urls.size(); ++i) {
-                window.new_tab_from_url(urls[i], (i == 0) ? Web::HTML::ActivateTab::Yes : Web::HTML::ActivateTab::No);
+                window.new_tab_from_url(urls[i], (i == 0) ? Web::HTML::ActivateTab::Yes : Web::HTML::ActivateTab::No, Ladybird::BrowserWindow::TabLocation::end());
             }
             window.show();
             window.activateWindow();

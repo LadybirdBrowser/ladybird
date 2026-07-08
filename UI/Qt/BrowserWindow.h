@@ -94,6 +94,34 @@ public:
         No,
         Yes,
     };
+    class TabLocation {
+        friend class BrowserWindow;
+
+    private:
+        enum class Kind {
+            End,
+            AfterCurrentTab,
+            AfterTab,
+        };
+
+    public:
+        static TabLocation end() { return { Kind::End, nullptr }; }
+        static TabLocation after_current_tab() { return { Kind::AfterCurrentTab, nullptr }; }
+        static TabLocation after_tab(Tab& tab) { return { Kind::AfterTab, &tab }; }
+
+    private:
+        Kind kind() const { return m_kind; }
+        Tab* tab() const { return m_tab; }
+
+        TabLocation(Kind kind, Tab* tab)
+            : m_kind(kind)
+            , m_tab(tab)
+        {
+        }
+
+        Kind m_kind;
+        Tab* m_tab { nullptr };
+    };
 
     BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window = IsPopupWindow::No, WebView::IsPrivate = WebView::IsPrivate::No, Tab* parent_tab = nullptr, Optional<u64> page_index = {});
     virtual ~BrowserWindow() override;
@@ -104,7 +132,7 @@ public:
     int tab_count() { return m_tabs_container->count(); }
     int tab_index(Tab*);
 
-    Tab& create_new_tab(Web::HTML::ActivateTab activate_tab);
+    Tab& create_new_tab(Web::HTML::ActivateTab activate_tab, TabLocation);
     Tab* current_tab() const { return m_current_tab; }
     bool activate_tab_with_url(URL::URL const&);
     FullscreenMode& fullscreen_mode();
@@ -144,7 +172,7 @@ public slots:
     void tab_title_changed(int index, QString const&);
     void tab_favicon_changed(int index, QIcon const& icon);
     void tab_audio_play_state_changed(int index, Web::HTML::AudioPlayState);
-    Tab& new_tab_from_url(URL::URL const&, Web::HTML::ActivateTab);
+    Tab& new_tab_from_url(URL::URL const&, Web::HTML::ActivateTab, TabLocation);
     Tab& new_child_tab(Web::HTML::ActivateTab, Tab& parent, Optional<u64> page_index);
     void activate_tab(int index);
     bool definitely_close_tab(int index);

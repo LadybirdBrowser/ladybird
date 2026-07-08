@@ -383,7 +383,7 @@ void Application::open_new_tab()
         return;
     }
 
-    auto& tab = m_active_window->new_tab_from_url(WebView::Application::settings().new_tab_page_url(), Web::HTML::ActivateTab::Yes);
+    auto& tab = m_active_window->new_tab_from_url(WebView::Application::settings().new_tab_page_url(), Web::HTML::ActivateTab::Yes, BrowserWindow::TabLocation::end());
     tab.set_url_is_hidden(true);
     tab.focus_location_editor();
 }
@@ -425,10 +425,12 @@ void Application::reopen_recently_closed_tab()
             auto& window = new_window(recently_closed_entry->urls);
             window.activate_tab(static_cast<int>(recently_closed_entry->active_tab_index));
         } else if (!recently_closed_entry->urls.is_empty()) {
-            if (!m_active_window || m_active_window->is_private() == WebView::IsPrivate::Yes)
+            if (!m_active_window || m_active_window->is_private() == WebView::IsPrivate::Yes) {
                 new_window({ recently_closed_entry->urls[0] });
-            else
-                m_active_window->new_tab_from_url(recently_closed_entry->urls[0], Web::HTML::ActivateTab::Yes);
+            } else {
+                // FIXME: Reopen the tab in its previous location.
+                m_active_window->new_tab_from_url(recently_closed_entry->urls[0], Web::HTML::ActivateTab::Yes, BrowserWindow::TabLocation::end());
+            }
         }
     }
     update_reopen_recently_closed_actions();
@@ -532,7 +534,7 @@ Optional<WebView::ViewImplementation&> Application::open_blank_new_tab(Web::HTML
         return {};
     }
 
-    auto& tab = active_window().create_new_tab(activate_tab);
+    auto& tab = active_window().create_new_tab(activate_tab, BrowserWindow::TabLocation::end());
     return tab.view();
 }
 
@@ -543,7 +545,7 @@ void Application::open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTa
         return;
     }
 
-    active_window().new_tab_from_url(url, activate_tab);
+    active_window().new_tab_from_url(url, activate_tab, BrowserWindow::TabLocation::after_current_tab());
 }
 
 void Application::open_url_in_new_window(URL::URL const& url, WebView::IsPrivate is_private)
