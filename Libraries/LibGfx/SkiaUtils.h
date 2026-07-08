@@ -145,4 +145,8 @@ sk_sp<SkBlender> to_skia_blender(Gfx::CompositingAndBlendingOperator compositing
 // must keep `bitmap` alive for as long as the SkImage (or anything derived from it) is in use.
 sk_sp<SkImage> sk_image_from_bitmap(Bitmap const& bitmap, ColorSpace const& color_space);
 
+// Hands the source bitmap's pixel storage to the returned SkImage without copying: the image
+// holds a reference to the bitmap and drops it on destruction.
+sk_sp<SkImage> sk_image_adopting_bitmap(NonnullRefPtr<Bitmap> bitmap, ColorSpace const& color_space);
+
 }
