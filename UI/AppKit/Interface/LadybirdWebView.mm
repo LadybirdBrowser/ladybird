@@ -106,6 +106,7 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
 @property (nonatomic, weak) id<LadybirdWebViewObserver> observer;
 @property (nonatomic, strong) NSMenu* page_context_menu;
 @property (nonatomic, strong) NSMenu* link_context_menu;
+@property (nonatomic, strong) NSMenu* selected_text_link_context_menu;
 @property (nonatomic, strong) NSMenu* image_context_menu;
 @property (nonatomic, strong) NSMenu* media_context_menu;
 @property (nonatomic, strong) NSMenu* select_dropdown;
@@ -191,6 +192,7 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
 
         self.page_context_menu = Ladybird::create_context_menu(self, [self view].page_context_menu());
         self.link_context_menu = Ladybird::create_context_menu(self, [self view].link_context_menu());
+        self.selected_text_link_context_menu = Ladybird::create_context_menu(self, [self view].selected_text_link_context_menu());
         self.image_context_menu = Ladybird::create_context_menu(self, [self view].image_context_menu());
         self.media_context_menu = Ladybird::create_context_menu(self, [self view].media_context_menu());
 
