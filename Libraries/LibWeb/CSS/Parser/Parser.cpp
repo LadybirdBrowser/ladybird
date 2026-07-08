@@ -76,6 +76,12 @@ Parser Parser::create(ParsingParams const& context, StringView input, StringView
     return Parser { context, move(tokens) };
 }
 
+Parser Parser::create(ParsingParams const& context, Utf16View input)
+{
+    auto utf8_input = MUST(input.to_utf8());
+    return Parser::create(context, utf8_input.bytes_as_string_view());
+}
+
 Parser::Parser(ParsingParams const& context, Vector<Token> tokens)
     : m_document(context.document)
     , m_realm(context.realm)
@@ -1842,6 +1848,16 @@ Vector<DevToolsStyleDeclaration> Parser::parse_as_devtools_property_declaration_
 }
 
 Vector<DevToolsStyleDeclaration> parse_css_declaration_block_for_devtools(ParsingParams const& parsing_params, StringView declaration_block)
+{
+    auto devtools_parsing_params = parsing_params;
+    if (devtools_parsing_params.rule_context.is_empty())
+        devtools_parsing_params.rule_context.append(RuleContext::Style);
+
+    auto parser = Parser::create(devtools_parsing_params, declaration_block);
+    return parser.parse_as_devtools_property_declaration_block();
+}
+
+Vector<DevToolsStyleDeclaration> parse_css_declaration_block_for_devtools(ParsingParams const& parsing_params, Utf16View declaration_block)
 {
     auto devtools_parsing_params = parsing_params;
     if (devtools_parsing_params.rule_context.is_empty())

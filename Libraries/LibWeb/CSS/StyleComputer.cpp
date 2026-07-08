@@ -1917,6 +1917,11 @@ static Vector<Parser::DevToolsStyleDeclaration> parse_devtools_style_declaration
     return Parser::parse_css_declaration_block_for_devtools(Parser::ParsingParams(document), declaration_block);
 }
 
+static Vector<Parser::DevToolsStyleDeclaration> parse_devtools_style_declarations(DOM::Document const& document, Utf16View declaration_block)
+{
+    return Parser::parse_css_declaration_block_for_devtools(Parser::ParsingParams(document), declaration_block);
+}
+
 static Optional<size_t> source_offset_for_line_and_column(StringView source, SourcePosition const& position)
 {
     size_t line = 0;
@@ -2142,9 +2147,9 @@ static JsonObject serialize_devtools_inline_style(DOM::Document const& document,
     serialized_rule.set("className"sv, 100);
     serialized_rule.set("cssText"sv, declaration.serialized());
     if (authored_text.has_value()) {
-        auto authored_text_utf8 = authored_text->to_utf8_but_should_be_ported_to_utf16();
+        auto authored_text_utf8 = authored_text->to_utf8();
         serialized_rule.set("authoredText"sv, authored_text_utf8);
-        serialized_rule.set("declarations"sv, serialize_devtools_style_declarations(document, parse_devtools_style_declarations(document, authored_text_utf8.bytes_as_string_view())));
+        serialized_rule.set("declarations"sv, serialize_devtools_style_declarations(document, parse_devtools_style_declarations(document, authored_text->utf16_view())));
     } else {
         serialized_rule.set("authoredText"sv, declaration.serialized());
         serialized_rule.set("declarations"sv, serialize_devtools_style_declarations(document, declaration));

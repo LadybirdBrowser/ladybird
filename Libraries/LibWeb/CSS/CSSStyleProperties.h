@@ -65,6 +65,7 @@ public:
     virtual WebIDL::ExceptionOr<void> set_css_text(StringView) override;
 
     void set_declarations_from_text(StringView);
+    void set_declarations_from_text(Utf16View);
 
 private:
     CSSStyleProperties(JS::Realm&, Computed, Readonly, Vector<StyleProperty> properties, OrderedHashMap<Utf16FlyString, StyleProperty> custom_properties, Optional<DOM::AbstractElement>);

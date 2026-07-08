@@ -4702,7 +4702,7 @@ void Element::attribute_changed(FlyString const& local_name, Optional<Utf16Strin
             return;
         if (!m_inline_style)
             m_inline_style = CSS::CSSStyleProperties::create_element_inline_style({ *this }, {}, {});
-        m_inline_style->set_declarations_from_text(value.value_or({}).to_utf8_but_should_be_ported_to_utf16());
+        m_inline_style->set_declarations_from_text(value.value_or({}));
         prefetch_inline_style_image_resources(*m_inline_style, document());
         set_needs_style_update(true);
     } else if (local_name == HTML::AttributeNames::dir || local_name == HTML::AttributeNames::lang) {
