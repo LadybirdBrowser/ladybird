@@ -1147,6 +1147,20 @@ void ViewImplementation::did_change_audio_play_state(Badge<WebContentClient>, We
         on_audio_play_state_changed(m_audio_play_state);
 }
 
+void ViewImplementation::reset_page_media_state()
+{
+    auto const should_notify_audio_play_state_changed = m_audio_play_state != Web::HTML::AudioPlayState::Paused
+        || m_number_of_elements_playing_audio != 0
+        || m_mute_state != Web::HTML::MuteState::Unmuted;
+
+    m_audio_play_state = Web::HTML::AudioPlayState::Paused;
+    m_number_of_elements_playing_audio = 0;
+    m_mute_state = Web::HTML::MuteState::Unmuted;
+
+    if (should_notify_audio_play_state_changed && on_audio_play_state_changed)
+        on_audio_play_state_changed(m_audio_play_state);
+}
+
 static Optional<size_t> current_top_level_history_entry_index_for_step(Vector<Web::HTML::SessionHistoryEntryDescriptor> const&, Optional<i32> current_step);
 
 void ViewImplementation::apply_web_content_session_history_update(WebContentSessionHistoryUpdateResult const& update)
@@ -1808,6 +1822,8 @@ void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_err
     }
 
     ++m_crash_count;
+    reset_page_media_state();
+
     constexpr size_t max_reasonable_crash_count = 5U;
     if (m_crash_count >= max_reasonable_crash_count) {
         if (!headless_mode) {

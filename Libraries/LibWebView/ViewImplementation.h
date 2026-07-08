@@ -436,6 +436,7 @@ protected:
         Yes,
     };
     virtual void initialize_client(CreateNewClient = CreateNewClient::Yes);
+    void reset_page_media_state();
 
     enum class LoadErrorPage {
         No,
