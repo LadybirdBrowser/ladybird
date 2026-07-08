@@ -107,7 +107,7 @@ public:
             SelectorList argument_selector_list {};
 
             // Used for :lang(en-gb,dk)
-            Vector<FlyString> languages {};
+            Vector<Utf16FlyString> languages {};
 
             // Used by :dir()
             struct Ident {

@@ -1366,7 +1366,7 @@ static ThrowCompletionOr<Utf16String> transform_case(VM& vm, Utf16String const& 
     auto match = Intl::lookup_matching_locale_by_prefix({ { requested_locale } });
 
     // 6. If match is not undefined, let locale be match.[[locale]]; else let locale be "und".
-    auto locale = match.has_value() ? match->locale.utf16_view().bytes() : "und"sv;
+    auto locale = match.has_value() ? match->locale.utf16_view() : u"und"sv;
 
     // 7. Let codePoints be StringToCodePoints(S).
 

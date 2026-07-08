@@ -830,7 +830,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_class_simple
             };
         }
         case PseudoClassMetadata::ParameterType::LanguageRanges: {
-            Vector<FlyString> languages;
+            Vector<Utf16FlyString> languages;
             auto function_token_stream = TokenStream(pseudo_function.value);
             auto language_token_lists = parse_a_comma_separated_list_of_component_values(function_token_stream);
 
@@ -848,7 +848,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_class_simple
                 }
 
                 auto language_string = language_token.is(Token::Type::String) ? language_token.token().string() : language_token.token().ident();
-                languages.append(language_string);
+                languages.append(Utf16FlyString::from_utf8(language_string));
 
                 language_token_stream.discard_whitespace();
                 if (language_token_stream.has_next_token()) {

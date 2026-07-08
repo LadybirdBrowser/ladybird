@@ -118,7 +118,7 @@ private:
     struct TextForRenderingCacheKey {
         CSS::TextTransform text_transform { CSS::TextTransform::None };
         CSS::WhiteSpaceCollapse white_space_collapse { CSS::WhiteSpaceCollapse::Collapse };
-        Optional<String> lang;
+        Optional<Utf16String> lang;
         bool is_password_input { false };
         size_t dom_start_offset { 0 };
         size_t dom_length { 0 };

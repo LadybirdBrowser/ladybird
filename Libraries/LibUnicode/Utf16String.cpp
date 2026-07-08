@@ -15,14 +15,14 @@
 
 namespace AK {
 
-Utf16String Utf16String::to_lowercase(Optional<StringView> const& locale) const
+Utf16String Utf16String::to_lowercase(Optional<Utf16View> const& locale) const
 {
     if (has_ascii_storage() && !locale.has_value())
         return to_ascii_lowercase();
 
     Optional<Unicode::LocaleData&> locale_data;
     if (locale.has_value())
-        locale_data = Unicode::LocaleData::for_locale(*locale);
+        locale_data = Unicode::LocaleData::for_locale(locale->bytes());
 
     auto icu_string = Unicode::icu_string(*this);
     locale_data.has_value() ? icu_string.toLower(locale_data->locale()) : icu_string.toLower();
@@ -30,14 +30,14 @@ Utf16String Utf16String::to_lowercase(Optional<StringView> const& locale) const
     return Unicode::icu_string_to_utf16_string(icu_string);
 }
 
-Utf16String Utf16String::to_uppercase(Optional<StringView> const& locale) const
+Utf16String Utf16String::to_uppercase(Optional<Utf16View> const& locale) const
 {
     if (has_ascii_storage() && !locale.has_value())
         return to_ascii_uppercase();
 
     Optional<Unicode::LocaleData&> locale_data;
     if (locale.has_value())
-        locale_data = Unicode::LocaleData::for_locale(*locale);
+        locale_data = Unicode::LocaleData::for_locale(locale->bytes());
 
     auto icu_string = Unicode::icu_string(*this);
     locale_data.has_value() ? icu_string.toUpper(locale_data->locale()) : icu_string.toUpper();
@@ -45,11 +45,11 @@ Utf16String Utf16String::to_uppercase(Optional<StringView> const& locale) const
     return Unicode::icu_string_to_utf16_string(icu_string);
 }
 
-Utf16String Utf16String::to_titlecase(Optional<StringView> const& locale, TrailingCodePointTransformation trailing_code_point_transformation) const
+Utf16String Utf16String::to_titlecase(Optional<Utf16View> const& locale, TrailingCodePointTransformation trailing_code_point_transformation) const
 {
     Optional<Unicode::LocaleData&> locale_data;
     if (locale.has_value())
-        locale_data = Unicode::LocaleData::for_locale(*locale);
+        locale_data = Unicode::LocaleData::for_locale(locale->bytes());
 
     u32 options = 0;
     if (trailing_code_point_transformation == TrailingCodePointTransformation::PreserveExisting)

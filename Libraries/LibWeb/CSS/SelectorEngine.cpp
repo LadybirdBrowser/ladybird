@@ -353,8 +353,7 @@ static inline GC::Ptr<DOM::Node const> traverse_up(DOM::AbstractElement const& n
 }
 
 // https://www.rfc-editor.org/rfc/rfc4647.html#section-3.3.2
-// NB: Language tags only use ASCII characters, so we can get away with using StringView.
-static bool language_range_matches_tag(StringView language_range, StringView language_tag)
+static bool language_range_matches_tag(Utf16View language_range, Utf16View language_tag)
 {
     // 1. Split both the extended language range and the language tag being compared into a list of subtags by
     //    dividing on the hyphen (%x2D) character.
@@ -363,8 +362,8 @@ static bool language_range_matches_tag(StringView language_range, StringView lan
 
     //    Two subtags match if either they are the same when compared case-insensitively or the language range's subtag
     //    is the wildcard '*'.
-    auto subtags_match = [](StringView language_range_subtag, StringView language_subtag) {
-        return language_range_subtag == "*"sv
+    auto subtags_match = [](Utf16View language_range_subtag, Utf16View language_subtag) {
+        return language_range_subtag == u"*"sv
             || language_range_subtag.equals_ignoring_ascii_case(language_subtag);
     };
 
@@ -382,7 +381,7 @@ static bool language_range_matches_tag(StringView language_range, StringView lan
     while (!range_subtag.is_end()) {
         // A. If the subtag currently being examined in the range is the wildcard ('*'), move to the next subtag in
         //    the range and continue with the loop.
-        if (*range_subtag == "*"sv) {
+        if (*range_subtag == u"*"sv) {
             ++range_subtag;
             continue;
         }
@@ -401,7 +400,7 @@ static bool language_range_matches_tag(StringView language_range, StringView lan
 
         // D. Else, if the language tag's subtag is a "singleton" (a single letter or digit, which includes the
         //    private-use subtag 'x') the match fails.
-        if (tag_subtag->length() == 1 && is_ascii_alphanumeric((*tag_subtag)[0])) {
+        if (tag_subtag->length_in_code_units() == 1 && is_ascii_alphanumeric(tag_subtag->code_unit_at(0))) {
             return false;
         }
 
@@ -414,7 +413,7 @@ static bool language_range_matches_tag(StringView language_range, StringView lan
 }
 
 // https://drafts.csswg.org/selectors-4/#the-lang-pseudo
-static inline bool matches_lang_pseudo_class(DOM::Element const& element, Vector<FlyString> const& languages)
+static inline bool matches_lang_pseudo_class(DOM::Element const& element, Vector<Utf16FlyString> const& languages)
 {
     auto maybe_element_language = element.lang();
     if (!maybe_element_language.has_value())

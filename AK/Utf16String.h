@@ -152,9 +152,9 @@ public:
     String to_well_formed_utf8() const;
 
     // These methods require linking LibUnicode.
-    Utf16String to_lowercase(Optional<StringView> const& locale = {}) const;
-    Utf16String to_uppercase(Optional<StringView> const& locale = {}) const;
-    Utf16String to_titlecase(Optional<StringView> const& locale = {}, TrailingCodePointTransformation trailing_code_point_transformation = TrailingCodePointTransformation::Lowercase) const;
+    Utf16String to_lowercase(Optional<Utf16View> const& locale = {}) const;
+    Utf16String to_uppercase(Optional<Utf16View> const& locale = {}) const;
+    Utf16String to_titlecase(Optional<Utf16View> const& locale = {}, TrailingCodePointTransformation trailing_code_point_transformation = TrailingCodePointTransformation::Lowercase) const;
     Utf16String to_casefold() const;
     Utf16String to_fullwidth() const;
 

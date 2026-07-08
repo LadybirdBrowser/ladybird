@@ -315,7 +315,7 @@ static Utf16String apply_math_auto_text_transform(Utf16String const& string)
     return builder.to_string();
 }
 
-static Utf16String apply_text_transform(Utf16String const& string, CSS::TextTransform text_transform, Optional<StringView> const& locale)
+static Utf16String apply_text_transform(Utf16String const& string, CSS::TextTransform text_transform, Optional<Utf16View> const& locale)
 {
     switch (text_transform) {
     case CSS::TextTransform::Uppercase:
@@ -341,7 +341,7 @@ static Utf16String apply_text_transform(Utf16String const& string, CSS::TextTran
 TextNode::TextForRenderingCacheKey TextNode::create_text_for_rendering_cache_key() const
 {
     auto text_transform = computed_values().text_transform();
-    Optional<String> lang;
+    Optional<Utf16String> lang;
     if (first_is_one_of(text_transform, CSS::TextTransform::Uppercase, CSS::TextTransform::Lowercase, CSS::TextTransform::Capitalize)) {
         if (auto parent_element = parent_element_for_text_transform())
             lang = parent_element->lang();
@@ -394,7 +394,7 @@ Utf16String TextNode::compute_text_for_rendering(TextForRenderingCacheKey const&
     // FIXME: This can generate more code points than there were before; we need to find a better way to map the
     //        resulting paintable fragments' offsets into the original text node data.
     //        See: https://github.com/LadybirdBrowser/ladybird/issues/6177
-    auto const lang = cache_key.lang.has_value() ? Optional<StringView> { cache_key.lang->bytes_as_string_view() } : Optional<StringView> {};
+    auto const lang = cache_key.lang.has_value() ? Optional<Utf16View> { cache_key.lang->utf16_view() } : Optional<Utf16View> {};
     auto text = apply_text_transform(text_data, cache_key.text_transform, lang);
     if (cache_key.dom_start_offset > 0 || cache_key.dom_length < text_data.length_in_code_units())
         text = Utf16String::from_utf16(text.utf16_view().substring_view(cache_key.dom_start_offset, cache_key.dom_length));

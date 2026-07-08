@@ -142,7 +142,7 @@ public:
 
     void follow_the_hyperlink(Optional<String> hyperlink_suffix, HTML::UserNavigationInvolvement = HTML::UserNavigationInvolvement::None);
 
-    Optional<String> lang() const;
+    Optional<Utf16String> lang() const;
     void invalidate_lang_value();
 
     WebIDL::ExceptionOr<void> set_attribute_for_bindings(FlyString qualified_name, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> const& value);
@@ -805,7 +805,7 @@ private:
     // https://html.spec.whatwg.org/multipage/grouping-content.html#ordinal-value
     Optional<i32> m_ordinal_value;
 
-    mutable Optional<String> m_lang_value;
+    mutable Optional<Utf16String> m_lang_value;
 
     // https://w3c.github.io/webappsec-csp/#is-element-nonceable
     // AD-HOC: We need to know the element had a duplicate attribute when it was created from the HTML parser.

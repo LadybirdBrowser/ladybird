@@ -4849,21 +4849,21 @@ void Element::set_counters_set(OwnPtr<CSS::CountersSet>&& counters_set)
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#the-lang-and-xml:lang-attributes
-Optional<String> Element::lang() const
+Optional<Utf16String> Element::lang() const
 {
-    auto determine_lang_attribute = [&]() -> String {
+    auto determine_lang_attribute = [&]() -> Utf16String {
         // 1. If the node is an element that has a lang attribute in the XML namespace set
         //      Use the value of that attribute.
         auto maybe_xml_lang = get_attribute_ns(Namespace::XML, HTML::AttributeNames::lang);
         if (maybe_xml_lang.has_value())
-            return maybe_xml_lang.release_value().to_utf8_but_should_be_ported_to_utf16();
+            return maybe_xml_lang.release_value();
 
         // 2. If the node is an HTML element or an element in the SVG namespace, and it has a lang in no namespace attribute set
         //      Use the value of that attribute.
         if (is_html_element() || namespace_uri() == Namespace::SVG) {
             auto maybe_lang = get_attribute(HTML::AttributeNames::lang);
             if (maybe_lang.has_value())
-                return maybe_lang.release_value().to_utf8_but_should_be_ported_to_utf16();
+                return maybe_lang.release_value();
         }
 
         // 3. If the node's parent is a shadow root
@@ -4879,12 +4879,12 @@ Optional<String> Element::lang() const
         // 5. Otherwise
         //      - If there is a pragma-set default language set, then that is the language of the node.
         if (document().pragma_set_default_language().has_value()) {
-            return document().pragma_set_default_language().value_or({});
+            return Utf16String::from_utf8(document().pragma_set_default_language().value_or({}));
         }
 
         //      - If there is no pragma-set default language set, then language information from a higher-level protocol (such as HTTP),
         if (document().http_content_language().has_value()) {
-            return document().http_content_language().value_or({});
+            return Utf16String::from_utf8(document().http_content_language().value_or({}));
         }
 
         //        if any, must be used as the final fallback language instead.

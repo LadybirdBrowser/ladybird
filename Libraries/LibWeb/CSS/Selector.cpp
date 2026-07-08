@@ -718,7 +718,11 @@ String Selector::SimpleSelector::serialize() const
                 break;
             case PseudoClassMetadata::ParameterType::LanguageRanges:
                 // The serialization of a comma-separated list of each argument’s serialization as a string, preserving relative order.
-                s.join(", "sv, pseudo_class.languages);
+                for (size_t i = 0; i < pseudo_class.languages.size(); ++i) {
+                    if (i > 0)
+                        s.append(", "sv);
+                    s.append(pseudo_class.languages[i].view());
+                }
                 break;
             case PseudoClassMetadata::ParameterType::LevelList:
                 // AD-HOC: not in the spec.
