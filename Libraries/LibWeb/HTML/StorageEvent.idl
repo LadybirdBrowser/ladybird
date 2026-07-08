@@ -3,20 +3,20 @@
 interface StorageEvent : Event {
     constructor(DOMString type, optional StorageEventInit eventInitDict = {});
 
-    readonly attribute DOMString? key;
-    readonly attribute DOMString? oldValue;
-    readonly attribute DOMString? newValue;
+    readonly attribute Utf16DOMString? key;
+    readonly attribute Utf16DOMString? oldValue;
+    readonly attribute Utf16DOMString? newValue;
     readonly attribute USVString url;
     readonly attribute Storage? storageArea;
 
-    undefined initStorageEvent(DOMString type, optional boolean bubbles = false, optional boolean cancelable = false, optional DOMString? key = null, optional DOMString? oldValue = null, optional DOMString? newValue = null, optional USVString url = "", optional Storage? storageArea = null);
+    undefined initStorageEvent(DOMString type, optional boolean bubbles = false, optional boolean cancelable = false, optional Utf16DOMString? key = null, optional Utf16DOMString? oldValue = null, optional Utf16DOMString? newValue = null, optional USVString url = "", optional Storage? storageArea = null);
 };
 
 // https://html.spec.whatwg.org/multipage/webstorage.html#storageeventinit
 dictionary StorageEventInit : EventInit {
-    DOMString? key = null;
-    DOMString? oldValue = null;
-    DOMString? newValue = null;
+    Utf16DOMString? key = null;
+    Utf16DOMString? oldValue = null;
+    Utf16DOMString? newValue = null;
     USVString url = "";
     Storage? storageArea = null;
 };

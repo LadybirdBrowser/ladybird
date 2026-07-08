@@ -19,6 +19,22 @@ GC_DEFINE_ALLOCATOR(LocalStorageBottle);
 GC_DEFINE_ALLOCATOR(SessionStorageBottle);
 GC_DEFINE_ALLOCATOR(StorageBucket);
 
+static String storage_string_to_ipc_string(Utf16String const& string)
+{
+    return MUST(string.utf16_view().to_utf8());
+}
+
+static Utf16String storage_string_from_ipc_string(String const& string)
+{
+    return Utf16String::from_utf8(string);
+}
+
+static size_t storage_quota_size(Utf16String const& string)
+{
+    auto utf8_string = MUST(string.utf16_view().to_utf8());
+    return utf8_string.bytes().size();
+}
+
 void StorageBucket::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
@@ -110,19 +126,24 @@ size_t LocalStorageBottle::size() const
     return m_page->client().page_did_request_storage_keys(m_endpoint_type, m_storage_key.to_string()).size();
 }
 
-Vector<String> LocalStorageBottle::keys() const
+Vector<Utf16String> LocalStorageBottle::keys() const
 {
-    return m_page->client().page_did_request_storage_keys(m_endpoint_type, m_storage_key.to_string());
+    auto keys = m_page->client().page_did_request_storage_keys(m_endpoint_type, m_storage_key.to_string());
+    Vector<Utf16String> utf16_keys;
+    utf16_keys.ensure_capacity(keys.size());
+    for (auto const& key : keys)
+        utf16_keys.unchecked_append(storage_string_from_ipc_string(key));
+    return utf16_keys;
 }
 
-Optional<String> LocalStorageBottle::get(String const& key) const
+Optional<Utf16String> LocalStorageBottle::get(Utf16String const& key) const
 {
-    return m_page->client().page_did_request_storage_item(m_endpoint_type, m_storage_key.to_string(), key);
+    return m_page->client().page_did_request_storage_item(m_endpoint_type, m_storage_key.to_string(), storage_string_to_ipc_string(key)).map(storage_string_from_ipc_string);
 }
 
-WebView::StorageSetResult LocalStorageBottle::set(String const& key, String const& value)
+StorageSetResult LocalStorageBottle::set(Utf16String const& key, Utf16String const& value)
 {
-    return m_page->client().page_did_set_storage_item(m_endpoint_type, m_storage_key.to_string(), key, value);
+    return m_page->client().page_did_set_storage_item(m_endpoint_type, m_storage_key.to_string(), storage_string_to_ipc_string(key), storage_string_to_ipc_string(value)).visit([](WebView::StorageOperationError error) -> StorageSetResult { return error; }, [](Optional<String> old_value) -> StorageSetResult { return old_value.map(storage_string_from_ipc_string); });
 }
 
 void LocalStorageBottle::clear()
@@ -130,9 +151,9 @@ void LocalStorageBottle::clear()
     m_page->client().page_did_clear_storage(m_endpoint_type, m_storage_key.to_string());
 }
 
-void LocalStorageBottle::remove(String const& key)
+void LocalStorageBottle::remove(Utf16String const& key)
 {
-    m_page->client().page_did_remove_storage_item(m_endpoint_type, m_storage_key.to_string(), key);
+    m_page->client().page_did_remove_storage_item(m_endpoint_type, m_storage_key.to_string(), storage_string_to_ipc_string(key));
 }
 
 size_t SessionStorageBottle::size() const
@@ -140,19 +161,19 @@ size_t SessionStorageBottle::size() const
     return m_map.size();
 }
 
-Vector<String> SessionStorageBottle::keys() const
+Vector<Utf16String> SessionStorageBottle::keys() const
 {
     return m_map.keys();
 }
 
-Optional<String> SessionStorageBottle::get(String const& key) const
+Optional<Utf16String> SessionStorageBottle::get(Utf16String const& key) const
 {
     if (auto value = m_map.get(key); value.has_value())
         return value.value();
     return OptionalNone {};
 }
 
-WebView::StorageSetResult SessionStorageBottle::set(String const& key, String const& value)
+StorageSetResult SessionStorageBottle::set(Utf16String const& key, Utf16String const& value)
 {
     auto old_value = get(key);
 
@@ -160,11 +181,11 @@ WebView::StorageSetResult SessionStorageBottle::set(String const& key, String co
         size_t current_size = 0;
         for (auto const& [existing_key, existing_value] : m_map) {
             if (existing_key != key) {
-                current_size += existing_key.bytes().size();
-                current_size += existing_value.bytes().size();
+                current_size += storage_quota_size(existing_key);
+                current_size += storage_quota_size(existing_value);
             }
         }
-        size_t new_size = key.bytes().size() + value.bytes().size();
+        size_t new_size = storage_quota_size(key) + storage_quota_size(value);
         if (current_size + new_size > m_quota.value())
             return WebView::StorageOperationError::QuotaExceededError;
     }
@@ -178,7 +199,7 @@ void SessionStorageBottle::clear()
     m_map.clear();
 }
 
-void SessionStorageBottle::remove(String const& key)
+void SessionStorageBottle::remove(Utf16String const& key)
 {
     m_map.remove(key);
 }

@@ -23,6 +23,13 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(Storage);
 
+static Optional<String> storage_string_to_ipc_string(Optional<Utf16String> const& string)
+{
+    if (!string.has_value())
+        return {};
+    return MUST(string->utf16_view().to_utf8());
+}
+
 GC::Ref<Storage> Storage::create(JS::Realm& realm, Type type, GC::Ref<StorageAPI::StorageBottle> storage_bottle)
 {
     return realm.create<Storage>(realm, type, move(storage_bottle));
@@ -67,7 +74,7 @@ size_t Storage::length() const
 }
 
 // https://html.spec.whatwg.org/multipage/webstorage.html#dom-storage-key
-Optional<String> Storage::key(size_t index)
+Optional<Utf16String> Storage::key(size_t index)
 {
     // 1. If index is greater than or equal to this's map's size, then return null.
     // 2. Let keys be the result of running get the keys on this's map.
@@ -82,7 +89,7 @@ Optional<String> Storage::key(size_t index)
 }
 
 // https://html.spec.whatwg.org/multipage/webstorage.html#dom-storage-getitem
-Optional<String> Storage::get_item(String const& key) const
+Optional<Utf16String> Storage::get_item(Utf16String const& key) const
 {
     // 1. If this's map[key] does not exist, then return null.
     // 2. Return this's map[key].
@@ -90,7 +97,7 @@ Optional<String> Storage::get_item(String const& key) const
 }
 
 // https://html.spec.whatwg.org/multipage/webstorage.html#dom-storage-setitem
-WebIDL::ExceptionOr<void> Storage::set_item(String const& key, String const& value)
+WebIDL::ExceptionOr<void> Storage::set_item(Utf16String const& key, Utf16String const& value)
 {
     // 1. Let oldValue be null.
     // 2. Let reorder be true.
@@ -108,7 +115,7 @@ WebIDL::ExceptionOr<void> Storage::set_item(String const& key, String const& val
     if (result.has<WebView::StorageOperationError>())
         return WebIDL::QuotaExceededError::create(realm(), Utf16String::formatted("Unable to store more than {} bytes in storage", *m_storage_bottle->quota()));
 
-    auto old_value = result.get<Optional<String>>();
+    auto old_value = result.get<Optional<Utf16String>>();
 
     if (old_value.has_value()) {
         if (old_value.value() == value)
@@ -128,7 +135,7 @@ WebIDL::ExceptionOr<void> Storage::set_item(String const& key, String const& val
 }
 
 // https://html.spec.whatwg.org/multipage/webstorage.html#dom-storage-removeitem
-void Storage::remove_item(String const& key)
+void Storage::remove_item(Utf16String const& key)
 {
     // 1. If this's map[key] does not exist, then return.
     // 2. Set oldValue to this's map[key].
@@ -183,7 +190,7 @@ static GC::Ptr<Storage> obtain_storage_for_window(Window& window, Storage::Type 
 }
 
 // https://html.spec.whatwg.org/multipage/webstorage.html#concept-storage-broadcast
-void Storage::broadcast(Optional<String> const& key, Optional<String> const& old_value, Optional<String> const& new_value)
+void Storage::broadcast(Optional<Utf16String> const& key, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value)
 {
     auto& realm = this->realm();
 
@@ -195,7 +202,7 @@ void Storage::broadcast(Optional<String> const& key, Optional<String> const& old
         auto storage_endpoint = type() == Type::Local
             ? StorageAPI::StorageEndpointType::LocalStorage
             : StorageAPI::StorageEndpointType::SessionStorage;
-        this_document.page().client().page_did_broadcast_storage_change(storage_endpoint, this_document.url().serialize(), key, old_value, new_value);
+        this_document.page().client().page_did_broadcast_storage_change(storage_endpoint, this_document.url().serialize(), storage_string_to_ipc_string(key), storage_string_to_ipc_string(old_value), storage_string_to_ipc_string(new_value));
     }
 
     // 2. Let url be the serialization of thisDocument's URL.
@@ -270,23 +277,23 @@ Vector<Utf16FlyString> Storage::supported_property_names() const
     auto keys = m_storage_bottle->keys();
     names.ensure_capacity(keys.size());
     for (auto const& key : keys)
-        names.unchecked_append(Utf16FlyString::from_utf8(key));
+        names.unchecked_append(key);
     return names;
 }
 
 JS::Value Storage::named_item_value(Utf16FlyString const& name) const
 {
-    auto value = get_item(MUST(name.view().to_utf8()));
+    auto value = get_item(name.to_utf16_string());
     if (!value.has_value())
         // AD-HOC: Spec leaves open to a description at: https://html.spec.whatwg.org/multipage/webstorage.html#the-storage-interface
         // However correct behavior expected here: https://github.com/whatwg/html/issues/8684
         return JS::js_undefined();
-    return JS::PrimitiveString::create(vm(), Utf16String::from_utf8(value.release_value()));
+    return JS::PrimitiveString::create(vm(), value.release_value());
 }
 
 WebIDL::ExceptionOr<Bindings::PlatformObject::DidDeletionFail> Storage::delete_value(Utf16FlyString const& name)
 {
-    remove_item(MUST(name.view().to_utf8()));
+    remove_item(name.to_utf16_string());
     return DidDeletionFail::NotRelevant;
 }
 
@@ -295,7 +302,7 @@ WebIDL::ExceptionOr<void> Storage::set_value_of_named_property(Utf16FlyString co
     // NOTE: Since PlatformObject does not know the type of value, we must convert it ourselves.
     //       The type of `value` is `DOMString`.
     auto value = TRY(unconverted_value.to_utf16_string(vm()));
-    return set_item(MUST(key.view().to_utf8()), MUST(value.utf16_view().to_utf8()));
+    return set_item(key.to_utf16_string(), value);
 }
 
 void Storage::dump() const

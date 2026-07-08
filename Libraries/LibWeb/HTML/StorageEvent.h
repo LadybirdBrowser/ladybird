@@ -8,6 +8,7 @@
 
 #include <AK/FlyString.h>
 #include <AK/Optional.h>
+#include <AK/Utf16String.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/Bindings/StorageEvent.h>
 #include <LibWeb/DOM/Event.h>
@@ -25,18 +26,18 @@ public:
 
     virtual ~StorageEvent() override;
 
-    Optional<String> const& key() const { return m_key; }
-    Optional<String> const& old_value() const { return m_old_value; }
-    Optional<String> const& new_value() const { return m_new_value; }
+    Optional<Utf16String> const& key() const { return m_key; }
+    Optional<Utf16String> const& old_value() const { return m_old_value; }
+    Optional<Utf16String> const& new_value() const { return m_new_value; }
     String const& url() const { return m_url; }
     GC::Ptr<Storage const> storage_area() const { return m_storage_area; }
 
     void init_storage_event(String const& type,
         bool bubbles = false,
         bool cancelable = false,
-        Optional<String> const& key = {},
-        Optional<String> const& old_value = {},
-        Optional<String> const& new_value = {},
+        Optional<Utf16String> const& key = {},
+        Optional<Utf16String> const& old_value = {},
+        Optional<Utf16String> const& new_value = {},
         String const& url = {},
         GC::Ptr<Storage> storage_area = {});
 
@@ -47,9 +48,9 @@ protected:
 private:
     StorageEvent(JS::Realm&, FlyString const& event_name, Bindings::StorageEventInit const& event_init);
 
-    Optional<String> m_key;
-    Optional<String> m_old_value;
-    Optional<String> m_new_value;
+    Optional<Utf16String> m_key;
+    Optional<Utf16String> m_old_value;
+    Optional<Utf16String> m_new_value;
     String m_url;
     GC::Ptr<Storage> m_storage_area;
 };

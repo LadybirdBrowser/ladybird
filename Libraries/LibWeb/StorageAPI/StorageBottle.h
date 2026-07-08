@@ -9,6 +9,7 @@
 
 #include <AK/HashMap.h>
 #include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Page/Page.h>
@@ -18,6 +19,8 @@
 #include <LibWebView/StorageSetResult.h>
 
 namespace Web::StorageAPI {
+
+using StorageSetResult = Variant<WebView::StorageOperationError, Optional<Utf16String>>;
 
 // https://storage.spec.whatwg.org/#storage-bottle
 class StorageBottle : public GC::Cell {
@@ -32,11 +35,11 @@ public:
     GC::Ref<StorageBottle> proxy() { return *this; }
 
     virtual size_t size() const = 0;
-    virtual Vector<String> keys() const = 0;
-    virtual Optional<String> get(String const&) const = 0;
-    virtual WebView::StorageSetResult set(String const& key, String const& value) = 0;
+    virtual Vector<Utf16String> keys() const = 0;
+    virtual Optional<Utf16String> get(Utf16String const&) const = 0;
+    virtual StorageSetResult set(Utf16String const& key, Utf16String const& value) = 0;
     virtual void clear() = 0;
-    virtual void remove(String const&) = 0;
+    virtual void remove(Utf16String const&) = 0;
 
     Optional<u64> quota() const { return m_quota; }
 
@@ -60,11 +63,11 @@ public:
     }
 
     virtual size_t size() const override;
-    virtual Vector<String> keys() const override;
-    virtual Optional<String> get(String const&) const override;
-    virtual WebView::StorageSetResult set(String const& key, String const& value) override;
+    virtual Vector<Utf16String> keys() const override;
+    virtual Optional<Utf16String> get(Utf16String const&) const override;
+    virtual StorageSetResult set(Utf16String const& key, Utf16String const& value) override;
     virtual void clear() override;
-    virtual void remove(String const&) override;
+    virtual void remove(Utf16String const&) override;
 
     virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
@@ -93,11 +96,11 @@ public:
     }
 
     virtual size_t size() const override;
-    virtual Vector<String> keys() const override;
-    virtual Optional<String> get(String const&) const override;
-    virtual WebView::StorageSetResult set(String const& key, String const& value) override;
+    virtual Vector<Utf16String> keys() const override;
+    virtual Optional<Utf16String> get(Utf16String const&) const override;
+    virtual StorageSetResult set(Utf16String const& key, Utf16String const& value) override;
     virtual void clear() override;
-    virtual void remove(String const&) override;
+    virtual void remove(Utf16String const&) override;
 
     void copy_map_from(SessionStorageBottle const&);
 
@@ -108,7 +111,7 @@ private:
     }
 
     // A storage bottle has a map, which is initially an empty map
-    OrderedHashMap<String, String> m_map;
+    OrderedHashMap<Utf16String, Utf16String> m_map;
 };
 
 using BottleMap = Array<GC::Ptr<StorageBottle>, to_underlying(StorageEndpointType::Count)>;

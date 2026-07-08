@@ -3,10 +3,10 @@
 interface Storage {
 
     readonly attribute unsigned long length;
-    DOMString? key(unsigned long index);
-    getter DOMString? getItem(DOMString key);
-    setter undefined setItem(DOMString key, DOMString value);
-    deleter undefined removeItem(DOMString key);
+    Utf16DOMString? key(unsigned long index);
+    getter Utf16DOMString? getItem(Utf16DOMString key);
+    setter undefined setItem(Utf16DOMString key, Utf16DOMString value);
+    deleter undefined removeItem(Utf16DOMString key);
     undefined clear();
 
 };

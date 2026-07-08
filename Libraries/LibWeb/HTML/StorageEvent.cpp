@@ -32,9 +32,9 @@ void StorageEvent::init_storage_event(
     String const& type,
     bool bubbles,
     bool cancelable,
-    Optional<String> const& key,
-    Optional<String> const& old_value,
-    Optional<String> const& new_value,
+    Optional<Utf16String> const& key,
+    Optional<Utf16String> const& old_value,
+    Optional<Utf16String> const& new_value,
     String const& url,
     GC::Ptr<Storage> storage_area)
 {
