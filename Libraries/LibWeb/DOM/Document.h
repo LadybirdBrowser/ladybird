@@ -146,6 +146,7 @@ enum class InvalidateLayoutTreeReason {
     X(NavigableSelectedText)                 \
     X(NavigableViewportScroll)               \
     X(NodeNameOrDescription)                 \
+    X(ParserLoadEventDelay)                  \
     X(RangeGetClientRects)                   \
     X(ResolvedCSSStyleDeclarationProperty)   \
     X(SVGDecodedImageDataRender)             \

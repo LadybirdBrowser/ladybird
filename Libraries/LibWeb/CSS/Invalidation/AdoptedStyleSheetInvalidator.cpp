@@ -16,7 +16,6 @@ namespace Web::CSS::Invalidation {
 void invalidate_style_after_adopting_style_sheet(DOM::Node& document_or_shadow_root, CSSStyleSheet& style_sheet)
 {
     style_sheet.add_owning_document_or_shadow_root(document_or_shadow_root);
-    style_sheet.load_pending_image_resources(document_or_shadow_root.document());
 
     // Evaluate the sheet's media queries before the next style update so the cascade can see its rules. Otherwise the
     // rule cache may be rebuilt (e.g. via a :has() invalidation pass) before Document::evaluate_media_rules has a

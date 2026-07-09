@@ -133,7 +133,7 @@ private:
 
     GC::Ref<Node> root() const;
 
-    void update_associated_selection();
+    void update_associated_selection(bool should_reset_selection_states = false);
 
     enum class StartOrEnd {
         Start,

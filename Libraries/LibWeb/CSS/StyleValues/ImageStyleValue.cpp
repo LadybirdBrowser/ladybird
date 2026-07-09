@@ -230,10 +230,8 @@ void ImageStyleValue::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)
     m_parent_style_sheet_origin_clean.clear();
     m_should_absolutize_url_for_computed_value = false;
 
-    if (style_sheet) {
+    if (style_sheet)
         update_style_sheet_resource_context(*style_sheet);
-        style_sheet->register_pending_image_value(*this);
-    }
 }
 
 void ImageStyleValue::update_style_sheet_resource_context(CSSStyleSheet const& style_sheet)

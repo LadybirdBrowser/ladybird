@@ -106,11 +106,12 @@ void Range::visit_edges(Cell::Visitor& visitor)
 
 void Range::set_associated_selection(Badge<Selection::Selection>, GC::Ptr<Selection::Selection> selection)
 {
+    auto should_reset_selection_states = m_associated_selection && !selection;
     m_associated_selection = selection;
-    update_associated_selection();
+    update_associated_selection(should_reset_selection_states);
 }
 
-void Range::update_associated_selection()
+void Range::update_associated_selection(bool should_reset_selection_states)
 {
     auto& document = m_start_container->document();
 
@@ -118,7 +119,7 @@ void Range::update_associated_selection()
     if (auto viewport = document.unsafe_paintable()) {
         if (m_associated_selection)
             viewport->recompute_selection_states(*this);
-        else
+        else if (should_reset_selection_states)
             viewport->reset_selection_states();
         viewport->set_needs_repaint();
     }

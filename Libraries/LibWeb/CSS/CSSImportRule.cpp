@@ -253,12 +253,6 @@ void CSSImportRule::set_style_sheet(GC::Ref<CSSStyleSheet> style_sheet)
             m_style_sheet->add_owning_document_or_shadow_root(*owning_document_or_shadow_root);
     }
 
-    auto document = m_style_sheet->owning_document();
-    if (!document && m_parent_style_sheet)
-        document = m_parent_style_sheet->owning_document();
-    if (document)
-        m_style_sheet->load_pending_image_resources(*document);
-
     m_style_sheet->invalidate_owners(DOM::StyleInvalidationReason::CSSImportRule);
 }
 

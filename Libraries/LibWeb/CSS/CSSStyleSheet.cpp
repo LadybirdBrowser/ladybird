@@ -156,7 +156,6 @@ size_t CSSStyleSheet::external_memory_size() const
     size = JS::saturating_add_external_memory_size(size, JS::vector_external_memory_size(m_import_rules));
     size = JS::saturating_add_external_memory_size(size, JS::hash_table_external_memory_size(m_owning_documents_or_shadow_roots));
     size = JS::saturating_add_external_memory_size(size, JS::vector_external_memory_size(m_critical_subresources));
-    size = JS::saturating_add_external_memory_size(size, JS::vector_external_memory_size(m_pending_image_values));
     return size;
 }
 
@@ -420,7 +419,6 @@ void CSSStyleSheet::set_disabled(bool disabled)
         if (document) {
             evaluate_media_queries(*document);
             document->font_computer().load_fonts_from_sheet(*this);
-            load_pending_image_resources(*document);
         }
     } else if (document) {
         document->font_computer().unload_fonts_from_sheet(*this);
@@ -528,20 +526,6 @@ GC::Ptr<DOM::Document> CSSStyleSheet::owning_document() const
         return element->document();
 
     return nullptr;
-}
-
-void CSSStyleSheet::load_pending_image_resources(DOM::Document& document)
-{
-    if (disabled())
-        return;
-
-    auto pending = move(m_pending_image_values);
-    for (auto const& weak_image_value : pending) {
-        if (auto* image_value = weak_image_value.ptr()) {
-            image_value->update_style_sheet_resource_context(*this);
-            image_value->load_any_resources(document);
-        }
-    }
 }
 
 bool CSSStyleSheet::evaluate_media_queries(DOM::Document const& document)

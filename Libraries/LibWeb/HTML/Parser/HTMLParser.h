@@ -171,6 +171,7 @@ private:
 
     Phase m_phase { Phase::WaitingForDeferredScripts };
     bool m_check_pending { false };
+    bool m_did_update_layout_for_load_event_delay { false };
 
     GC::Ref<DOM::Document> m_document;
     GC::Ptr<HTMLParser> m_parser;
