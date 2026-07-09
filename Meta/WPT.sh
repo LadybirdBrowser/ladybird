@@ -573,7 +573,7 @@ run_wpt_chunked() {
             run \
             --this-chunk="$((i + 1))" \
             --total-chunks="$procs" \
-            --chunk-type=hash \
+            --chunk-type=id_hash \
             -f \
             --browser-version="1.0-$(ladybird_git_hash)"
             --processes="$concurrency" \
