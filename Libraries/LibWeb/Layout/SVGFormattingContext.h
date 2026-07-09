@@ -43,7 +43,6 @@ private:
     Optional<CSSPixels> m_quirks_mode_percentage_basis_height {};
     Gfx::AffineTransform m_current_viewbox_transform {};
     CSSPixelSize m_viewport_size {};
-    CSSPixelPoint m_svg_offset {};
     Gfx::FloatPoint m_current_text_position {};
 };
 
