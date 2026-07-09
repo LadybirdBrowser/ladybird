@@ -3141,17 +3141,18 @@ void Document::adopt_node(Node& node)
 // https://dom.spec.whatwg.org/#dom-document-adoptnode
 WebIDL::ExceptionOr<GC::Ref<Node>> Document::adopt_node_binding(GC::Ref<Node> node)
 {
+    // 1. If node is a document, then throw a "NotSupportedError" DOMException.
     if (is<Document>(*node))
         return WebIDL::NotSupportedError::create(realm(), "Cannot adopt a document into a document"_utf16);
 
+    // 2. If node is a shadow root, then throw a "HierarchyRequestError" DOMException.
     if (is<ShadowRoot>(*node))
         return WebIDL::HierarchyRequestError::create(realm(), "Cannot adopt a shadow root into a document"_utf16);
 
-    if (auto* fragment = as_if<DocumentFragment>(*node); fragment && fragment->host())
-        return node;
-
+    // 3. Adopt node into this.
     adopt_node(*node);
 
+    // 4. Return node.
     return node;
 }
 
