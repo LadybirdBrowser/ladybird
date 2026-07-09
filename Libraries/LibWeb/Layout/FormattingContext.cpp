@@ -214,6 +214,11 @@ FormattingContext::FormattingContext(Type type, LayoutMode layout_mode, LayoutSt
 
 FormattingContext::~FormattingContext() = default;
 
+void FormattingContext::place_child(Box const& child, CSSPixelPoint content_offset)
+{
+    m_state.get_mutable(child).place(content_offset);
+}
+
 bool FormattingContext::computed_height_establishes_definite_containing_block_height(CSS::Size const& computed_height)
 {
     // A resolved used height is not always a definite containing block height.
@@ -634,7 +639,7 @@ CSSPixels FormattingContext::compute_auto_height_for_block_formatting_context_ro
             if (!child_box_state)
                 return IterationDecision::Continue;
 
-            CSSPixels child_box_bottom = child_box_state->offset.y() + child_box_state->content_height() + child_box_state->margin_box_bottom();
+            CSSPixels child_box_bottom = child_box_state->content_offset().y() + child_box_state->content_height() + child_box_state->margin_box_bottom();
 
             if (!bottom.has_value() || child_box_bottom > bottom.value())
                 bottom = child_box_bottom;
@@ -1742,7 +1747,7 @@ static Optional<CSSPixelRect> compute_inline_containing_block_rect(InlineNode co
             if (child->is_absolutely_positioned() || child->is_floating())
                 continue;
             auto const* child_used_values = state.try_get(*child);
-            auto child_offset = child_used_values ? offset + child_used_values->offset : offset;
+            auto child_offset = child_used_values ? offset + child_used_values->content_offset() : offset;
             auto const* box_child = as_if<Box>(child.ptr());
             if (box_child && !box_child->is_anonymous()) {
                 auto const* dom = box_child->dom_node();
@@ -1770,7 +1775,7 @@ static Optional<CSSPixelRect> compute_inline_containing_block_rect(InlineNode co
     CSSPixelPoint outer_offset;
     for (Node const* ancestor = outer_block; ancestor && ancestor != &abspos_containing_block; ancestor = ancestor->parent()) {
         if (auto const* used_values = state.try_get(*ancestor))
-            outer_offset.translate_by(used_values->offset);
+            outer_offset.translate_by(used_values->content_offset());
     }
     walk(*outer_block, outer_offset);
 
@@ -2333,7 +2338,7 @@ void FormattingContext::layout_absolutely_positioned_element(Box& box)
         auto offset_relative_to_merge_point = [&](Box const& descendant) {
             CSSPixelPoint offset;
             for (auto const* node = &descendant; node != merge_point; node = node->containing_block())
-                offset += m_state.get(*node).offset;
+                offset += m_state.get(*node).content_offset();
             return offset;
         };
         static_position += offset_relative_to_merge_point(*static_position_cb) - offset_relative_to_merge_point(*actual_containing_block);
@@ -2353,7 +2358,7 @@ void FormattingContext::layout_absolutely_positioned_element(Box& box)
 
     used_offset.translate_by(box_state.margin_box_left(), box_state.margin_box_top());
 
-    box_state.set_content_offset(used_offset);
+    place_child(box, used_offset);
 
     if (independent_formatting_context)
         independent_formatting_context->parent_context_did_dimension_child_root_box();
@@ -3022,7 +3027,7 @@ void FormattingContext::compute_and_store_baselines(LayoutState::UsedValues& use
             VERIFY(line_box.fragments().size() == 1);
             auto const& block_child = as<Box>(line_box.fragments().first().layout_node());
             auto const& block_child_state = m_state.get(block_child);
-            auto child_offset_from_margin_edge = block_child_state.offset.y() - block_child_state.margin_box_top();
+            auto child_offset_from_margin_edge = block_child_state.content_offset().y() - block_child_state.margin_box_top();
             return child_offset_from_margin_edge + box_baseline(block_child, baseline_set);
         };
 
@@ -3060,7 +3065,7 @@ void FormattingContext::compute_and_store_baselines(LayoutState::UsedValues& use
             auto const& child_baseline = deriving_first_baseline ? child_state->first_baseline : child_state->last_baseline;
             if (!child_baseline.has_value())
                 continue;
-            auto child_offset_from_margin_edge = child_state->offset.y() - child_state->margin_box_top();
+            auto child_offset_from_margin_edge = child_state->content_offset().y() - child_state->margin_box_top();
             return child_offset_from_margin_edge + box_baseline(*child_box, baseline_set);
         }
         return {};
@@ -3157,7 +3162,7 @@ CSSPixelRect FormattingContext::content_box_rect(Box const& box) const
 
 CSSPixelRect FormattingContext::content_box_rect(LayoutState::UsedValues const& used_values) const
 {
-    return CSSPixelRect { used_values.offset, used_values.content_size() };
+    return CSSPixelRect { used_values.content_offset(), used_values.content_size() };
 }
 
 CSSPixelRect FormattingContext::content_box_rect_in_ancestor_coordinate_space(LayoutState::UsedValues const& used_values, Box const& ancestor_box) const
@@ -3166,7 +3171,7 @@ CSSPixelRect FormattingContext::content_box_rect_in_ancestor_coordinate_space(La
     for (auto const* current = &used_values; current;) {
         if (&current->node() == &ancestor_box)
             return rect;
-        rect.translate_by(current->offset);
+        rect.translate_by(current->content_offset());
         auto const* containing_block = current->node().containing_block();
         if (!containing_block)
             break;
@@ -3182,7 +3187,7 @@ CSSPixelRect FormattingContext::margin_box_rect_in_ancestor_coordinate_space(Lay
     for (auto const* current = &used_values; current;) {
         if (&current->node() == &ancestor_box)
             return rect;
-        rect.translate_by(current->offset);
+        rect.translate_by(current->content_offset());
         auto const* containing_block = current->node().containing_block();
         if (!containing_block)
             break;

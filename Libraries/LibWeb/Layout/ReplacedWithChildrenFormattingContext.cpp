@@ -47,7 +47,7 @@ void ReplacedWithChildrenFormattingContext::run(LayoutInput const& layout_input)
     auto wrapper_constraints = constraints_for_child_context(root_state, layout_input.containing_block_constraints);
     auto& wrapper_state = m_state.create(*wrapper, wrapper_constraints.percentage_basis_width, wrapper_constraints.percentage_basis_height);
     wrapper_state.set_content_width(content_width);
-    wrapper_state.set_content_offset({ 0, 0 });
+    place_child(*wrapper, { 0, 0 });
 
     auto bfc = make<BlockFormattingContext>(m_state, m_layout_mode, *wrapper, this);
     bfc->run(LayoutInput { child_available_space, wrapper_constraints });

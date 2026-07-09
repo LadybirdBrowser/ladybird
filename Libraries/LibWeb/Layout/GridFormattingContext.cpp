@@ -2904,7 +2904,7 @@ void GridFormattingContext::run(LayoutInput const& layout_input)
             table_wrapper_grid_area_size = grid_area_size;
         }
         CSSPixelPoint margin_offset = { grid_item.used_values.margin_box_left(), grid_item.used_values.margin_box_top() };
-        grid_item.used_values.set_content_offset(grid_area_rect.top_left() + margin_offset);
+        place_child(grid_item.box, grid_area_rect.top_left() + margin_offset);
         compute_inset(grid_item.box, grid_area_rect.size());
 
         auto available_space_for_children = AvailableSpace(AvailableSize::make_definite(grid_item.used_values.content_width()), AvailableSize::make_definite(grid_item.used_values.content_height()));

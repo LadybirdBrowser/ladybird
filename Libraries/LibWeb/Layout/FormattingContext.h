@@ -154,6 +154,8 @@ public:
 
     virtual void parent_context_did_dimension_child_root_box() { }
 
+    void place_child(Box const& child, CSSPixelPoint content_offset);
+
     CSSPixels calculate_min_content_width(Layout::Box const&, ContainingBlockConstraints const&) const;
     CSSPixels calculate_max_content_width(Layout::Box const&, ContainingBlockConstraints const&) const;
     CSSPixels calculate_min_content_height(Layout::Box const&, CSSPixels width, ContainingBlockConstraints const&) const;

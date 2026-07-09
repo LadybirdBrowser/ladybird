@@ -168,8 +168,8 @@ CSSPixelPoint LayoutState::cumulative_offset(UsedValues const& used_values) cons
     if (used_values.m_cumulative_offset.has_value())
         return *used_values.m_cumulative_offset;
     if (auto const* containing_block = used_values.node().containing_block())
-        return cumulative_offset(get(*containing_block)) + used_values.offset;
-    return used_values.offset;
+        return cumulative_offset(get(*containing_block)) + used_values.content_offset();
+    return used_values.content_offset();
 }
 
 // https://drafts.csswg.org/css-overflow-3/#scrollable-overflow-region
@@ -649,7 +649,7 @@ void LayoutState::commit(Box& root)
         if (auto* paintable_box = paintable.ptr()) {
             transfer_box_model_metrics(paintable_box->box_model(), used_values);
 
-            paintable_box->set_offset(used_values.offset);
+            paintable_box->set_offset(used_values.content_offset());
             paintable_box->set_content_size(used_values.content_width(), used_values.content_height());
             if (used_values.override_borders_data().has_value())
                 paintable_box->set_override_borders_data(used_values.override_borders_data().value());
@@ -779,13 +779,13 @@ void LayoutState::commit(Box& root)
                 if (containing_line_box_fragment.fragment_index < line_box.fragments().size())
                     offset = line_box.fragments()[containing_line_box_fragment.fragment_index].offset();
                 else
-                    offset = used_values.offset;
+                    offset = used_values.content_offset();
             } else {
-                offset = used_values.offset;
+                offset = used_values.content_offset();
             }
         } else {
             // Not an atomic inline, much simpler case.
-            offset = used_values.offset;
+            offset = used_values.content_offset();
         }
 
         // Apply relative position inset if appropriate.
@@ -925,7 +925,7 @@ LayoutState::UsedValues& LayoutState::UsedValues::operator=(UsedValues const& ot
     if (this == &other)
         return *this;
 
-    offset = other.offset;
+    m_content_offset = other.m_content_offset;
     width_constraint = other.width_constraint;
     height_constraint = other.height_constraint;
     margin_left = other.margin_left;
@@ -955,7 +955,6 @@ LayoutState::UsedValues& LayoutState::UsedValues::operator=(UsedValues const& ot
     m_content_height = other.m_content_height;
     m_has_definite_width = other.m_has_definite_width;
     m_has_definite_height = other.m_has_definite_height;
-
     if (other.m_rare)
         m_rare = make<RareData>(*other.m_rare);
     else
@@ -1095,7 +1094,7 @@ void LayoutState::UsedValues::materialize_from_paintable(Painting::Paintable con
     m_has_definite_width = true;
     m_has_definite_height = true;
 
-    set_content_offset(paintable.offset());
+    m_content_offset = paintable.offset();
     m_cumulative_offset = paintable.absolute_rect().location();
 
     margin_left = box_model.margin.left;

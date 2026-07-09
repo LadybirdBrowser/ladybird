@@ -186,8 +186,8 @@ void LineBuilder::append_block_level_box(Box const& box, CSSPixels block_bottom,
 
     // The fragment stores logical (inline/block) coordinates, while the box state carries physical ones.
     auto is_horizontal = m_writing_mode == CSS::WritingMode::HorizontalTb;
-    auto inline_offset = is_horizontal ? box_state.offset.x() : box_state.offset.y();
-    auto block_offset = is_horizontal ? box_state.offset.y() : box_state.offset.x();
+    auto inline_offset = is_horizontal ? box_state.content_offset().x() : box_state.content_offset().y();
+    auto block_offset = is_horizontal ? box_state.content_offset().y() : box_state.content_offset().x();
     auto inline_length = is_horizontal ? box_state.content_width() : box_state.content_height();
     auto block_length = is_horizontal ? box_state.content_height() : box_state.content_width();
 

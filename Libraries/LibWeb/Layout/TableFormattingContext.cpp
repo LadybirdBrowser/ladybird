@@ -61,7 +61,7 @@ CSSPixels TableFormattingContext::run_caption_layout(CSS::CaptionSide phase, Ava
                 CSSPixelPoint caption_offset { caption_state.border_box_left(), 0 };
                 if (phase == CSS::CaptionSide::Bottom)
                     caption_offset.set_y(m_state.get(table_box()).margin_box_height() + caption_state.margin_box_top());
-                m_state.get_mutable(child_box).set_content_offset(caption_offset);
+                place_child(child_box, caption_offset);
                 caption_was_positioned_before_inside_layout = true;
             }
 
@@ -80,7 +80,7 @@ CSSPixels TableFormattingContext::run_caption_layout(CSS::CaptionSide phase, Ava
         if (phase == CSS::CaptionSide::Top) {
             m_pending_table_box_content_offset_in_wrapper.set_y(caption_state.content_height() + caption_state.margin_box_bottom());
         } else if (!caption_was_positioned_before_inside_layout) {
-            m_state.get_mutable(child_box).set_content_offset({ caption_state.offset.x(), m_state.get(table_box()).margin_box_height() + caption_state.margin_box_top() });
+            place_child(child_box, { caption_state.border_box_left(), m_state.get(table_box()).margin_box_height() + caption_state.margin_box_top() });
         }
         caption_height += caption_state.margin_box_height();
     }
@@ -1246,7 +1246,7 @@ void TableFormattingContext::position_row_boxes()
 
         row_state.set_content_height(row.final_height);
         row_state.set_content_width(row_width);
-        row_state.set_content_offset({ row_left_offset, row_top_offset });
+        place_child(row.box, { row_left_offset, row_top_offset });
         if (!row.is_collapsed)
             row_top_offset += row_state.content_height() + border_spacing_vertical();
     }
@@ -1258,7 +1258,7 @@ void TableFormattingContext::position_row_boxes()
         CSSPixels row_group_width = 0;
 
         auto& row_group_box_state = m_state.get_mutable(row_group_box);
-        row_group_box_state.set_content_offset({ row_group_left_offset, row_group_top_offset });
+        place_child(row_group_box, { row_group_left_offset, row_group_top_offset });
 
         int num_rows = 0;
         TableGrid::for_each_child_box_matching(row_group_box, TableGrid::is_table_row, [&](auto& row) {
@@ -1352,10 +1352,10 @@ void TableFormattingContext::position_cell_boxes()
         // - for top: the height reserved for top captions (including margins), if any
         // - the padding-left/padding-top and border-left-width/border-top-width of the table
         // FIXME: Account for visibility.
-        auto cell_offset = row_state.offset.translated(
+        auto cell_offset = row_state.content_offset().translated(
             cell_state.border_box_left() + m_columns[cell.column_index].left_offset + cell.column_index * border_spacing_horizontal(),
             cell_state.border_box_top());
-        cell_state.set_content_offset(cell_offset);
+        place_child(cell.box, cell_offset);
     }
 }
 

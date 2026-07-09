@@ -262,9 +262,9 @@ void FlexFormattingContext::run(LayoutInput const& layout_input)
 
         for (auto& item : m_flex_items) {
             if (main_axis_is_horizontal())
-                item.used_values.set_content_offset({ item.main_offset, item.cross_offset });
+                place_child(item.box, { item.main_offset, item.cross_offset });
             else
-                item.used_values.set_content_offset({ item.cross_offset, item.main_offset });
+                place_child(item.box, { item.cross_offset, item.main_offset });
         }
 
         compute_and_store_baselines(m_flex_container_state);
