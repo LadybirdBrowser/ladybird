@@ -592,11 +592,12 @@ bool InlineFormattingContext::can_fit_new_line_at_block_offset(CSSPixels block_o
 
 Optional<CSSPixels> InlineFormattingContext::next_float_band_block_start_after(CSSPixels block_offset) const
 {
-    auto box_in_root_rect = content_box_rect_in_ancestor_coordinate_space(m_containing_block_used_values, parent().root());
-    auto next_band_start = parent().next_float_band_block_start_after(box_in_root_rect.y() + block_offset);
+    auto containing_block_y_in_root_now = content_box_rect_in_ancestor_coordinate_space(m_containing_block_used_values, parent().root()).y()
+        + parent().y_adjustment_from_pending_ancestor_top_margins(containing_block());
+    auto next_band_start = parent().next_float_band_block_start_after(containing_block_y_in_root_now + block_offset);
     if (!next_band_start.has_value())
         return {};
-    return next_band_start.value() - box_in_root_rect.y();
+    return next_band_start.value() - containing_block_y_in_root_now;
 }
 
 CSSPixels InlineFormattingContext::vertical_float_clearance() const
