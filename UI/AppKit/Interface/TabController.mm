@@ -566,7 +566,7 @@ private:
         m_fullscreen_should_restore_tab_bar = false;
 
         self.autocomplete = [[Autocomplete alloc] init:self withToolbarItem:self.location_toolbar_item];
-        m_omnibox = make<WebView::Omnibox>(WebView::IsPrivate::No);
+        m_omnibox = make<WebView::Omnibox>(m_is_private);
         m_downloads_observer = make<DownloadsObserver>(self);
 
         m_omnibox->on_display_change = [weak_self](WebView::Omnibox::Display const& display) {
