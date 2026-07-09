@@ -191,7 +191,7 @@ private:
     virtual void toggle_media_fullscreen_state(u64 page_id) override;
     virtual void toggle_media_controls_state(u64 page_id) override;
 
-    virtual void toggle_page_mute_state(u64 page_id) override;
+    virtual void set_page_mute_state(u64 page_id, Web::HTML::MuteState mute_state) override;
 
     virtual void set_user_style(u64 page_id, String) override;
 

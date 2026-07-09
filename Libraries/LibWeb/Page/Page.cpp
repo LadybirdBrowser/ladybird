@@ -810,9 +810,12 @@ void Page::toggle_media_controls_state()
         media_element->set_attribute_value(HTML::AttributeNames::controls, String {});
 }
 
-void Page::toggle_page_mute_state()
+void Page::set_page_mute_state(HTML::MuteState mute_state)
 {
-    m_mute_state = HTML::invert_mute_state(m_mute_state);
+    if (m_mute_state == mute_state)
+        return;
+
+    m_mute_state = mute_state;
 
     for_each_media_element([&](auto& media_element) {
         media_element.page_mute_state_changed({});

@@ -161,6 +161,8 @@ void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL c
         m_client_state.client->unregister_view(m_client_state.page_index);
     }
 
+    reset_page_media_state();
+
     initialize_client();
     VERIFY(m_client_state.client);
 
@@ -1120,7 +1122,7 @@ void ViewImplementation::retrieved_clipboard_entries(u64 request_id, ReadonlySpa
 void ViewImplementation::toggle_page_mute_state()
 {
     m_mute_state = Web::HTML::invert_mute_state(m_mute_state);
-    client().async_toggle_page_mute_state(page_id());
+    client().async_set_page_mute_state(page_id(), m_mute_state);
 }
 
 void ViewImplementation::did_change_audio_play_state(Badge<WebContentClient>, Web::HTML::AudioPlayState play_state)
@@ -1150,12 +1152,10 @@ void ViewImplementation::did_change_audio_play_state(Badge<WebContentClient>, We
 void ViewImplementation::reset_page_media_state()
 {
     auto const should_notify_audio_play_state_changed = m_audio_play_state != Web::HTML::AudioPlayState::Paused
-        || m_number_of_elements_playing_audio != 0
-        || m_mute_state != Web::HTML::MuteState::Unmuted;
+        || m_number_of_elements_playing_audio != 0;
 
     m_audio_play_state = Web::HTML::AudioPlayState::Paused;
     m_number_of_elements_playing_audio = 0;
-    m_mute_state = Web::HTML::MuteState::Unmuted;
 
     if (should_notify_audio_play_state_changed && on_audio_play_state_changed)
         on_audio_play_state_changed(m_audio_play_state);
@@ -1323,6 +1323,8 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
     auto compositor_context_id = client().compositor_context_id_for_page(m_client_state.page_index);
     Application::the().update_compositor_viewport(compositor_context_id, viewport_size().to_type<int>());
     client().async_set_document_cookie_version_buffer(m_client_state.page_index, m_document_cookie_version_buffer);
+
+    client().async_set_page_mute_state(m_client_state.page_index, m_mute_state);
 
     if (auto webdriver_endpoint = Application::browser_options().webdriver_endpoint; webdriver_endpoint.has_value())
         client().async_connect_to_webdriver(m_client_state.page_index, *webdriver_endpoint);

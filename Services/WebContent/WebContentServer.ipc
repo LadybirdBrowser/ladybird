@@ -12,6 +12,7 @@
 #include <LibWeb/CSS/PreferredMotion.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
+#include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWeb/HTML/AutoplayPolicy.h>
 #include <LibWeb/HTML/ColorPickerUpdateState.h>
 #include <LibWeb/HTML/BroadcastChannelMessage.h>
@@ -184,7 +185,7 @@ endpoint WebContentServer
     toggle_media_fullscreen_state(u64 page_id) =|
     toggle_media_controls_state(u64 page_id) =|
 
-    toggle_page_mute_state(u64 page_id) =|
+    set_page_mute_state(u64 page_id, Web::HTML::MuteState mute_state) =|
 
     set_user_style(u64 page_id, String source) =|
 
