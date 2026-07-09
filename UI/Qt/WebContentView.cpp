@@ -38,6 +38,7 @@
 #include <QCursor>
 #include <QGuiApplication>
 #include <QIcon>
+#include <QInputDevice>
 #include <QKeySequence>
 #include <QMimeData>
 #include <QMouseEvent>
@@ -53,6 +54,7 @@
 #include <QTextEdit>
 #include <QTimer>
 #include <QToolTip>
+#include <QWheelEvent>
 
 namespace Ladybird {
 
@@ -296,6 +298,35 @@ static Web::UIEvents::KeyModifier get_modifiers_from_qt_key_event(QKeyEvent cons
     if (event.modifiers().testFlag(Qt::KeypadModifier))
         modifiers |= Web::UIEvents::KeyModifier::Mod_Keypad;
     return modifiers;
+}
+
+static QPointF wheel_delta_from_angle_delta(QPoint angle_delta)
+{
+    static constexpr double wheel_delta_units_per_step = static_cast<double>(QWheelEvent::DefaultDeltasPerStep);
+    double delta_x = -static_cast<double>(angle_delta.x()) / wheel_delta_units_per_step;
+    double delta_y = static_cast<double>(angle_delta.y()) / wheel_delta_units_per_step;
+
+    static constexpr double scroll_step_size = 40;
+    auto step_x = delta_x * static_cast<double>(QApplication::wheelScrollLines());
+    auto step_y = delta_y * static_cast<double>(QApplication::wheelScrollLines());
+
+    return { step_x * scroll_step_size, step_y * scroll_step_size };
+}
+
+static QPointF wheel_delta_from_qt_event(QWheelEvent const& wheel_event)
+{
+    auto pixel_delta = -wheel_event.pixelDelta();
+    auto const* pointing_device = wheel_event.pointingDevice();
+    // NB: macOS can report a tiny pixel delta for mouse-wheel ticks. Use it only for touchpads so physical wheels
+    //     continue through the line-step conversion below.
+    if (!pixel_delta.isNull() && pointing_device && pointing_device->type() == QInputDevice::DeviceType::TouchPad)
+        return pixel_delta;
+
+    auto angle_delta = -wheel_event.angleDelta();
+    if (!angle_delta.isNull())
+        return wheel_delta_from_angle_delta(angle_delta);
+
+    return pixel_delta;
 }
 
 static Web::UIEvents::KeyCode get_keycode_from_qt_key_event(QKeyEvent const& event)
@@ -1274,22 +1305,9 @@ void WebContentView::enqueue_native_event(Web::MouseEvent::Type type, QSinglePoi
 
     if (type == Web::MouseEvent::Type::MouseWheel) {
         auto const& wheel_event = static_cast<QWheelEvent const&>(event);
-
-        if (auto pixel_delta = -wheel_event.pixelDelta(); !pixel_delta.isNull()) {
-            wheel_delta_x = pixel_delta.x();
-            wheel_delta_y = pixel_delta.y();
-        } else {
-            auto angle_delta = -wheel_event.angleDelta();
-            double delta_x = -static_cast<double>(angle_delta.x()) / 120.0;
-            double delta_y = static_cast<double>(angle_delta.y()) / 120.0;
-
-            static constexpr double scroll_step_size = 40;
-            auto step_x = delta_x * static_cast<double>(QApplication::wheelScrollLines());
-            auto step_y = delta_y * static_cast<double>(QApplication::wheelScrollLines());
-
-            wheel_delta_x = step_x * scroll_step_size;
-            wheel_delta_y = step_y * scroll_step_size;
-        }
+        auto wheel_delta = wheel_delta_from_qt_event(wheel_event);
+        wheel_delta_x = wheel_delta.x();
+        wheel_delta_y = wheel_delta.y();
     }
 
     enqueue_input_event(Web::MouseEvent { type, position, screen_position.to_type<Web::DevicePixels>(), button, buttons, modifiers, wheel_delta_x, wheel_delta_y, m_click_count, nullptr });
