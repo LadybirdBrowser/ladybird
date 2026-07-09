@@ -33,7 +33,6 @@ static NSString* const TOOLBAR_NAVIGATE_FORWARD_IDENTIFIER = @"ToolbarNavigateFo
 static NSString* const TOOLBAR_RELOAD_IDENTIFIER = @"ToolbarReloadIdentifier";
 static NSString* const TOOLBAR_LOCATION_IDENTIFIER = @"ToolbarLocationIdentifier";
 static NSString* const TOOLBAR_ZOOM_IDENTIFIER = @"ToolbarZoomIdentifier";
-static NSString* const TOOLBAR_BOOKMARK_IDENTIFIER = @"ToolbarBookmarkIdentifier";
 static NSString* const TOOLBAR_DOWNLOADS_IDENTIFIER = @"ToolbarDownloadsIdentifier";
 static NSString* const TOOLBAR_NEW_TAB_IDENTIFIER = @"ToolbarNewTabIdentifier";
 static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIdentifier";
@@ -586,7 +585,6 @@ static NSInteger autocomplete_suggestion_index(NSString* suggestion_text, Vector
 @property (nonatomic, strong) NSToolbarItem* reload_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* location_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* zoom_toolbar_item;
-@property (nonatomic, strong) NSToolbarItem* bookmark_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* downloads_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* new_tab_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* tab_overview_toolbar_item;
@@ -599,6 +597,7 @@ static NSInteger autocomplete_suggestion_index(NSString* suggestion_text, Vector
 
 @property (nonatomic, assign) NSLayoutConstraint* location_toolbar_item_width;
 
+- (LocationSearchField*)locationSearchField;
 - (NSString*)currentLocationFieldQuery;
 - (BOOL)applyInlineAutocompleteSuggestionText:(NSString*)suggestion_text
                                      forQuery:(NSString*)query;
@@ -648,7 +647,6 @@ private:
 @synthesize reload_toolbar_item = _reload_toolbar_item;
 @synthesize location_toolbar_item = _location_toolbar_item;
 @synthesize zoom_toolbar_item = _zoom_toolbar_item;
-@synthesize bookmark_toolbar_item = _bookmark_toolbar_item;
 @synthesize downloads_toolbar_item = _downloads_toolbar_item;
 @synthesize new_tab_toolbar_item = _new_tab_toolbar_item;
 @synthesize tab_overview_toolbar_item = _tab_overview_toolbar_item;
@@ -728,19 +726,19 @@ private:
 - (void)onLoadStart:(URL::URL const&)url isRedirect:(BOOL)isRedirect
 {
     [self setLocationFieldText:url.serialize()];
-    [(LocationSearchField*)[self.location_toolbar_item view] setFavicon:nil];
-    [(LocationSearchField*)[self.location_toolbar_item view] setLoading:YES];
+    [[self locationSearchField] setFavicon:nil];
+    [[self locationSearchField] setLoading:YES];
 }
 
 - (void)onLoadFinish:(URL::URL const&)url
 {
     (void)url;
-    [(LocationSearchField*)[self.location_toolbar_item view] setLoading:NO];
+    [[self locationSearchField] setLoading:NO];
 }
 
 - (void)onFaviconChange:(NSImage*)favicon
 {
-    [(LocationSearchField*)[self.location_toolbar_item view] setFavicon:favicon];
+    [[self locationSearchField] setFavicon:favicon];
 }
 
 - (void)onURLChange:(URL::URL const&)url
@@ -792,6 +790,11 @@ private:
 - (Tab*)tab
 {
     return (Tab*)[self window];
+}
+
+- (LocationSearchField*)locationSearchField
+{
+    return (LocationSearchField*)[self.location_toolbar_item view];
 }
 
 - (void)createNewTab:(id)sender
@@ -866,7 +869,7 @@ private:
                 attributes:highlight_attributes];
     }
 
-    auto* location_search_field = (LocationSearchField*)[self.location_toolbar_item view];
+    auto* location_search_field = [self locationSearchField];
     [location_search_field setAttributedStringValue:attributed_url];
     [location_search_field setShowsPageIcon:url_parts.has_value()];
 }
@@ -879,7 +882,7 @@ private:
 - (void)restoreLocationFieldForEditing
 {
     auto const& url = [[[self tab] web_view] view].url();
-    auto* location_search_field = (LocationSearchField*)[self.location_toolbar_item view];
+    auto* location_search_field = [self locationSearchField];
     if (![[location_search_field stringValue] isEqualToString:Ladybird::string_to_ns_string(WebView::url_for_display(url))])
         return;
 
@@ -897,7 +900,7 @@ private:
 
 - (NSString*)currentLocationFieldQuery
 {
-    auto* location_search_field = (LocationSearchField*)[self.location_toolbar_item view];
+    auto* location_search_field = [self locationSearchField];
     auto* editor = (NSTextView*)[location_search_field currentEditor];
 
     // Inline autocomplete mutates the field contents in place, so callers
@@ -924,7 +927,7 @@ private:
     if (m_is_applying_inline_autocomplete)
         return NSNotFound;
 
-    auto* location_search_field = (LocationSearchField*)[self.location_toolbar_item view];
+    auto* location_search_field = [self locationSearchField];
     auto* editor = (NSTextView*)[location_search_field currentEditor];
 
     if (editor == nil || [self.window firstResponder] != editor || [editor hasMarkedText])
@@ -1024,7 +1027,7 @@ private:
 - (void)applyLocationFieldInlineAutocompleteText:(NSString*)inline_text
                                         forQuery:(NSString*)query
 {
-    auto* location_search_field = (LocationSearchField*)[self.location_toolbar_item view];
+    auto* location_search_field = [self locationSearchField];
     auto* editor = (NSTextView*)[location_search_field currentEditor];
 
     if (editor == nil || [self.window firstResponder] != editor || [editor hasMarkedText])
@@ -1052,7 +1055,7 @@ private:
 
 - (void)restoreLocationFieldQuery
 {
-    auto* location_search_field = (LocationSearchField*)[self.location_toolbar_item view];
+    auto* location_search_field = [self locationSearchField];
     auto* editor = (NSTextView*)[location_search_field currentEditor];
 
     if (editor == nil || [self.window firstResponder] != editor || [editor hasMarkedText])
@@ -1320,18 +1323,6 @@ private:
     return _zoom_toolbar_item;
 }
 
-- (NSToolbarItem*)bookmark_toolbar_item
-{
-    if (!_bookmark_toolbar_item) {
-        auto* button = Ladybird::create_application_button([[[self tab] web_view] view].toggle_bookmark_action());
-
-        _bookmark_toolbar_item = [[NSToolbarItem alloc] initWithItemIdentifier:TOOLBAR_BOOKMARK_IDENTIFIER];
-        [_bookmark_toolbar_item setView:button];
-    }
-
-    return _bookmark_toolbar_item;
-}
-
 - (NSToolbarItem*)downloads_toolbar_item
 {
     if (!_downloads_toolbar_item) {
@@ -1400,7 +1391,6 @@ private:
             NSToolbarFlexibleSpaceItemIdentifier,
             TOOLBAR_RELOAD_IDENTIFIER,
             TOOLBAR_LOCATION_IDENTIFIER,
-            TOOLBAR_BOOKMARK_IDENTIFIER,
             TOOLBAR_ZOOM_IDENTIFIER,
             TOOLBAR_DOWNLOADS_IDENTIFIER,
             NSToolbarFlexibleSpaceItemIdentifier,
@@ -1424,6 +1414,9 @@ private:
 
     [self.window setToolbar:self.toolbar];
     [self.window setToolbarStyle:NSWindowToolbarStyleUnified];
+
+    auto& view = [[[self tab] web_view] view];
+    [[self locationSearchField] setBookmarkAction:view.toggle_bookmark_action()];
 
     [self.window makeKeyAndOrderFront:sender];
 
@@ -1604,9 +1597,6 @@ private:
     if ([identifier isEqual:TOOLBAR_ZOOM_IDENTIFIER]) {
         return self.zoom_toolbar_item;
     }
-    if ([identifier isEqual:TOOLBAR_BOOKMARK_IDENTIFIER]) {
-        return self.bookmark_toolbar_item;
-    }
     if ([identifier isEqual:TOOLBAR_DOWNLOADS_IDENTIFIER]) {
         return self.downloads_toolbar_item;
     }
@@ -1679,14 +1669,14 @@ private:
 
 - (void)controlTextDidEndEditing:(NSNotification*)notification
 {
-    auto* location_search_field = (LocationSearchField*)[self.location_toolbar_item view];
+    auto* location_search_field = [self locationSearchField];
     NSString* url_string = [[location_search_field stringValue] copy];
 
     // AppKit can send this while focus is still settling into the field
     // editor. Wait until the next turn so transient notifications do not
     // format the live editor contents as a non-editing URL.
     dispatch_async(dispatch_get_main_queue(), ^{
-        auto* location_search_field = (LocationSearchField*)[self.location_toolbar_item view];
+        auto* location_search_field = [self locationSearchField];
         auto* editor = (NSTextView*)[location_search_field currentEditor];
         if (editor != nil && [self.window firstResponder] == editor)
             return;
@@ -1705,7 +1695,7 @@ private:
     if (m_is_applying_inline_autocomplete)
         return;
 
-    [(LocationSearchField*)[self.location_toolbar_item view] setShowsPageIcon:NO];
+    [[self locationSearchField] setShowsPageIcon:NO];
 
     auto* query = [self currentLocationFieldQuery];
     if (m_should_suppress_inline_autocomplete_on_next_change) {

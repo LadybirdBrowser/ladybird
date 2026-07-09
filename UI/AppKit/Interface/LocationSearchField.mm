@@ -5,10 +5,14 @@
  */
 
 #import <Interface/LocationSearchField.h>
+#import <Interface/Menu.h>
 
 #if !__has_feature(objc_arc)
 #    error "This project requires ARC"
 #endif
+
+static constexpr CGFloat const BADGE_TRAILING_MARGIN = 6;
+static constexpr CGFloat const BADGE_BUTTON_SIZE = 22;
 
 static NSImage* location_field_globe_icon()
 {
@@ -21,7 +25,46 @@ static NSImage* location_field_globe_icon()
     return image;
 }
 
+@interface LocationSearchField ()
+
+- (CGFloat)trailingBadgeInset;
+- (void)badgeLayoutDidChange;
+
+@end
+
+@interface LocationFieldBadgeButton : NSButton
+@end
+
+@implementation LocationFieldBadgeButton
+
+- (void)setBordered:(BOOL)bordered
+{
+    // ActionObserver toggles bordered alongside visibility for toolbar buttons; in-field badges are always borderless.
+    [super setBordered:NO];
+}
+
+- (void)setHidden:(BOOL)hidden
+{
+    [super setHidden:hidden];
+    auto* location_search_field = (LocationSearchField*)[self superview];
+    if ([location_search_field isKindOfClass:[LocationSearchField class]])
+        [location_search_field badgeLayoutDidChange];
+}
+
+- (void)setTitle:(NSString*)title
+{
+    [super setTitle:title];
+    auto* location_search_field = (LocationSearchField*)[self superview];
+    if ([location_search_field isKindOfClass:[LocationSearchField class]])
+        [location_search_field badgeLayoutDidChange];
+}
+
+@end
+
 @interface LocationSearchFieldCell : NSSearchFieldCell
+
+- (NSRect)rectByApplyingTrailingBadgeInset:(NSRect)rect;
+
 @end
 
 @implementation LocationSearchFieldCell
@@ -29,6 +72,31 @@ static NSImage* location_field_globe_icon()
 - (NSRect)cancelButtonRectForBounds:(NSRect)rect
 {
     return NSZeroRect;
+}
+
+- (NSRect)searchTextRectForBounds:(NSRect)rect
+{
+    return [self rectByApplyingTrailingBadgeInset:[super searchTextRectForBounds:rect]];
+}
+
+- (NSRect)titleRectForBounds:(NSRect)rect
+{
+    return [self rectByApplyingTrailingBadgeInset:[super titleRectForBounds:rect]];
+}
+
+- (NSRect)rectByApplyingTrailingBadgeInset:(NSRect)rect
+{
+    if ([[self controlView] isKindOfClass:[LocationSearchField class]]) {
+        auto* location_search_field = (LocationSearchField*)[self controlView];
+        auto inset = [location_search_field trailingBadgeInset];
+
+        if (rect.size.width > inset)
+            rect.size.width -= inset;
+        else
+            rect.size.width = 0;
+    }
+
+    return rect;
 }
 
 @end
@@ -39,6 +107,7 @@ static NSImage* location_field_globe_icon()
     BOOL m_shows_page_icon;
     NSImage* m_favicon;
     NSProgressIndicator* m_loading_indicator;
+    NSButton* m_bookmark_button;
 }
 
 + (Class)cellClass
@@ -51,6 +120,9 @@ static NSImage* location_field_globe_icon()
     if (self = [super init]) {
         auto* cell = (NSSearchFieldCell*)[self cell];
         [cell setCancelButtonCell:nil];
+        [cell setScrollable:YES];
+        [cell setUsesSingleLineMode:YES];
+        [cell setLineBreakMode:NSLineBreakByClipping];
 
         m_loading_indicator = [[NSProgressIndicator alloc] init];
         [m_loading_indicator setStyle:NSProgressIndicatorStyleSpinning];
@@ -88,14 +160,21 @@ static NSImage* location_field_globe_icon()
 {
     [super layout];
 
+    auto bounds = [self bounds];
     auto* cell = (NSSearchFieldCell*)[self cell];
-    auto search_button_rect = [cell searchButtonRectForBounds:[self bounds]];
+    auto search_button_rect = [cell searchButtonRectForBounds:bounds];
     auto indicator_size = NSMakeSize(16, 16);
     [m_loading_indicator setFrame:NSMakeRect(
                                       NSMidX(search_button_rect) - indicator_size.width / 2,
                                       NSMidY(search_button_rect) - indicator_size.height / 2,
                                       indicator_size.width,
                                       indicator_size.height)];
+
+    auto badge_max_x = NSMaxX(bounds) - BADGE_TRAILING_MARGIN;
+    if ([self isBadgeVisible:m_bookmark_button]) {
+        auto y = NSMidY(bounds) - BADGE_BUTTON_SIZE / 2;
+        [m_bookmark_button setFrame:NSMakeRect(badge_max_x - BADGE_BUTTON_SIZE, y, BADGE_BUTTON_SIZE, BADGE_BUTTON_SIZE)];
+    }
 }
 
 - (void)setLoading:(BOOL)loading
@@ -129,6 +208,19 @@ static NSImage* location_field_globe_icon()
     [self updateLeadingIcon];
 }
 
+- (void)setBookmarkAction:(WebView::Action&)action
+{
+    if (m_bookmark_button != nil)
+        [m_bookmark_button removeFromSuperview];
+
+    m_bookmark_button = Ladybird::create_application_button(action, [LocationFieldBadgeButton class]);
+    [m_bookmark_button setBordered:NO];
+    [m_bookmark_button setImagePosition:NSImageOnly];
+    [m_bookmark_button setRefusesFirstResponder:YES];
+    [self addSubview:m_bookmark_button];
+    [self badgeLayoutDidChange];
+}
+
 - (void)updateLeadingIcon
 {
     auto* cell = (NSSearchFieldCell*)[self cell];
@@ -144,6 +236,34 @@ static NSImage* location_field_globe_icon()
     } else {
         [search_button setImage:location_field_globe_icon()];
     }
+}
+
+- (BOOL)isBadgeVisible:(NSButton*)button
+{
+    return button != nil && ![button isHidden];
+}
+
+- (CGFloat)trailingBadgeInset
+{
+    CGFloat inset = 0;
+    BOOL has_badge = NO;
+
+    if ([self isBadgeVisible:m_bookmark_button]) {
+        inset += BADGE_BUTTON_SIZE;
+        has_badge = YES;
+    }
+
+    if (has_badge)
+        inset += BADGE_TRAILING_MARGIN;
+
+    return inset;
+}
+
+- (void)badgeLayoutDidChange
+{
+    [self setNeedsLayout:YES];
+    [self setNeedsDisplay:YES];
+    [self layoutSubtreeIfNeeded];
 }
 
 // NSSearchField does not provide an intrinsic width, which causes an ambiguous layout warning when the toolbar auto-
