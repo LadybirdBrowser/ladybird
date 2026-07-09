@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 31 tests
 
-28 Pass
-3 Fail
+31 Pass
 Pass	If node is a host-including inclusive ancestor of parent, then throw a HierarchyRequestError DOMException.
 Pass	If node is not a DocumentFragment, DocumentType, Element, Text, ProcessingInstruction, or Comment node, then throw a HierarchyRequestError DOMException.
 Pass	If node is a Text node and parent is a document, then throw a HierarchyRequestError DOMException.
@@ -27,9 +26,9 @@ Pass	DocumentFragment.replaceChildren() without any argument, on a parent having
 Pass	DocumentFragment.replaceChildren() with null as an argument, on a parent having a child.
 Pass	DocumentFragment.replaceChildren() with one element and text as argument, on a parent having a child.
 Pass	DocumentFragment.replaceChildren() should move nodes in the right order
-Fail	Document.replaceChildren() with an element, replacing an existing doctype and element.
-Fail	Document.replaceChildren() with a DocumentFragment containing a single element, replacing an existing doctype and element.
-Fail	Document.replaceChildren() with a doctype, replacing an existing doctype and element.
+Pass	Document.replaceChildren() with an element, replacing an existing doctype and element.
+Pass	Document.replaceChildren() with a DocumentFragment containing a single element, replacing an existing doctype and element.
+Pass	Document.replaceChildren() with a doctype, replacing an existing doctype and element.
 Pass	Document.replaceChildren() without any argument, removing an existing doctype and element.
 Pass	Document.replaceChildren() with two elements throws a HierarchyRequestError.
 Pass	Document.replaceChildren() with text throws a HierarchyRequestError.

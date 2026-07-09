@@ -172,6 +172,7 @@ WebIDL::ExceptionOr<void> ParentNode::prepend(ReadonlySpan<Variant<GC::Ref<Node>
     return {};
 }
 
+// https://dom.spec.whatwg.org/#dom-parentnode-append
 WebIDL::ExceptionOr<void> ParentNode::append(ReadonlySpan<Variant<GC::Ref<Node>, Utf16String>> const& nodes)
 {
     // 1. Let node be the result of converting nodes into a node given nodes and this’s node document.
@@ -183,13 +184,14 @@ WebIDL::ExceptionOr<void> ParentNode::append(ReadonlySpan<Variant<GC::Ref<Node>,
     return {};
 }
 
+// https://dom.spec.whatwg.org/#dom-parentnode-replacechildren
 WebIDL::ExceptionOr<void> ParentNode::replace_children(ReadonlySpan<Variant<GC::Ref<Node>, Utf16String>> const& nodes)
 {
     // 1. Let node be the result of converting nodes into a node given nodes and this’s node document.
     auto node = TRY(convert_nodes_to_single_node(nodes, document()));
 
-    // 2. Ensure pre-insertion validity of node into this before null.
-    TRY(ensure_pre_insertion_validity(realm(), node, nullptr));
+    // 2. Ensure pre-insert validity given node, this, null, and this’s children.
+    TRY(ensure_pre_insert_validity(realm(), node, nullptr, ChildrenToExclude::AllChildren));
 
     // 3. Replace all with node within this.
     replace_all(*node);
