@@ -1062,16 +1062,8 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
         return;
     }
 
-    double progress = round(output_progress.value() * 100.0 * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor);
-    // FIXME: Support progress values outside the range of i64.
-    i64 current_key = 0;
-    if (progress > NumericLimits<i64>::max()) {
-        current_key = NumericLimits<i64>::max();
-    } else if (progress < NumericLimits<i64>::min()) {
-        current_key = NumericLimits<i64>::min();
-    } else {
-        current_key = static_cast<i64>(progress);
-    }
+    double current_key = output_progress.value() * 100.0 * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor;
+    current_key = clamp(current_key, static_cast<double>(NumericLimits<i64>::min()), static_cast<double>(NumericLimits<i64>::max()));
 
     // Each property is animated using its property-specific keyframes, so two properties in the same animation may be
     // interpolated across different intervals.
