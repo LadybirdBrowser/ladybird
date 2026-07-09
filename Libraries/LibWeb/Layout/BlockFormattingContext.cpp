@@ -27,6 +27,7 @@
 #include <LibWeb/Layout/ListItemMarkerBox.h>
 #include <LibWeb/Layout/ReplacedBox.h>
 #include <LibWeb/Layout/SVGSVGBox.h>
+#include <LibWeb/Layout/TableFormattingContext.h>
 #include <LibWeb/Layout/TableWrapper.h>
 #include <LibWeb/Layout/Viewport.h>
 
@@ -1165,8 +1166,17 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         }
     }
 
-    if (box_is_positioned_by_fieldset_layout || !box_opens_top_margin_group)
+    auto* table_formatting_context = independent_formatting_context && independent_formatting_context->type() == Type::Table
+        ? static_cast<TableFormattingContext*>(independent_formatting_context.ptr())
+        : nullptr;
+
+    if (box_is_positioned_by_fieldset_layout) {
         box_state.set_content_offset({ content_x, content_y });
+    } else if (table_formatting_context) {
+        table_formatting_context->set_pending_table_box_content_offset_in_wrapper({ content_x, content_y });
+    } else if (!box_opens_top_margin_group) {
+        box_state.set_content_offset({ content_x, content_y });
+    }
 
     AvailableSpace available_space_for_height_resolution = available_space;
     auto is_table_box = box.display().is_table_row() || box.display().is_table_row_group() || box.display().is_table_header_group() || box.display().is_table_footer_group() || box.display().is_table_cell() || box.display().is_table_caption();
@@ -1218,6 +1228,8 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         make_button_content_box_definite(box, available_space, layout_input.containing_block_constraints, measured_content_height);
 
         independent_formatting_context->run(layout_input.for_child_formatting_context(inner_available_space));
+        if (table_formatting_context)
+            box_state.set_content_offset(table_formatting_context->pending_table_box_content_offset_in_wrapper());
         if (is<TableWrapper>(block_container) && box.display().is_table_inside()) {
             box_state.margin_left = max(box_state.margin_left, 0);
             box_state.margin_right = max(box_state.margin_right, 0);
