@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 7 tests
+
+5 Pass
+2 Fail
+Pass	adoptNode() plain DocumentFragment (no host): adopts and returns it
+Fail	adoptNode() template.content: adopts fragment + children, returns it
+Fail	adoptNode() template.content into browsing-context document
+Pass	adoptNode() shadow root: throws HierarchyRequestError
+Pass	adoptNode() <template> element: content follows via template adopting steps
+Pass	adoptNode() nested <template> elements: all owner documents update
+Pass	appendChild() template.content: moves children, fragment ownerDocument stays
