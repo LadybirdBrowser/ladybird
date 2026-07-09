@@ -14,6 +14,7 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/PathFontProvider.h>
+#include <LibGfx/Font/SkiaFontProvider.h>
 #include <LibGfx/Font/Typeface.h>
 #include <LibGfx/Font/TypefaceSkia.h>
 #include <LibWeb/Platform/FontPlugin.h>
@@ -40,8 +41,11 @@ FontPlugin::FontPlugin(bool is_layout_test_mode, Gfx::SystemFontProvider* font_p
     if (is_layout_test_mode)
         Gfx::force_hinting_for_testing(Gfx::FontHintingStyle::Normal);
 
-    if (!font_provider)
-        font_provider = &static_cast<Gfx::PathFontProvider&>(Gfx::FontDatabase::the().install_system_font_provider(make<Gfx::PathFontProvider>()));
+    if (!font_provider) {
+        auto& skia_font_provider = static_cast<Gfx::SkiaFontProvider&>(Gfx::FontDatabase::the().install_system_font_provider(make<Gfx::SkiaFontProvider>()));
+        skia_font_provider.load_all_fonts_from_uri("resource://fonts"sv);
+        font_provider = &skia_font_provider;
+    }
     if (is<Gfx::PathFontProvider>(*font_provider)) {
         auto& path_font_provider = static_cast<Gfx::PathFontProvider&>(*font_provider);
         // Load anything we can find in the system's font directories
