@@ -97,6 +97,22 @@ void Application::open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTa
                      tabLocation:TabLocation::after_tab(active_tab)];
 }
 
+void Application::open_urls_in_new_tabs(ReadonlySpan<URL::URL> urls) const
+{
+    ApplicationDelegate* delegate = [NSApp delegate];
+    auto* active_tab = [delegate activeTab];
+    auto* previous_tab = active_tab;
+
+    for (auto const& url : urls) {
+        auto location = previous_tab ? TabLocation::after_tab(previous_tab) : TabLocation::end();
+        auto* controller = [delegate createNewTab:url
+                                          fromTab:active_tab
+                                      activateTab:Web::HTML::ActivateTab::No
+                                      tabLocation:location];
+        previous_tab = (Tab*)[controller window];
+    }
+}
+
 void Application::open_url_in_new_window(URL::URL const& url, WebView::IsPrivate)
 {
     ApplicationDelegate* delegate = [NSApp delegate];

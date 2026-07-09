@@ -2425,6 +2425,13 @@ void ViewImplementation::initialize_context_menus()
     m_bookmark_context_menu->add_action(add_bookmark_folder_action);
 
     m_bookmark_folder_context_menu = Menu::create("Bookmark Folder Context Menu"sv);
+    m_bookmark_folder_context_menu->add_action(Action::create("Open All in Tabs"sv, ActionID::OpenAllBookmarksInTabs, []() {
+        auto& application = Application::the();
+
+        if (auto bookmark_id = application.bookmark_item_id_for_context_menu(); bookmark_id.has_value())
+            application.open_bookmark_folder_in_new_tabs(bookmark_id->id);
+    }));
+    m_bookmark_folder_context_menu->add_separator();
     m_bookmark_folder_context_menu->add_action(Action::create("Edit Folder..."sv, ActionID::EditBookmarkFolder, []() {
         auto& application = Application::the();
 

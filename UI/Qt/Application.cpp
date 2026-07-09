@@ -630,6 +630,32 @@ void Application::open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTa
     active_window().new_tab_from_url(url, activate_tab, BrowserWindow::TabLocation::after_current_tab());
 }
 
+void Application::open_urls_in_new_tabs(ReadonlySpan<URL::URL> urls) const
+{
+    if (urls.is_empty())
+        return;
+
+    if (!m_active_window) {
+        Vector<URL::URL> initial_urls;
+        initial_urls.ensure_capacity(urls.size());
+        for (auto const& url : urls)
+            initial_urls.append(url);
+
+        const_cast<Application&>(*this).new_window(initial_urls);
+        return;
+    }
+
+    auto& window = active_window();
+    auto* previous_tab = window.current_tab();
+    for (auto const& url : urls) {
+        auto location = previous_tab
+            ? BrowserWindow::TabLocation::after_tab(*previous_tab)
+            : BrowserWindow::TabLocation::end();
+        auto& tab = window.new_tab_from_url(url, Web::HTML::ActivateTab::No, location);
+        previous_tab = &tab;
+    }
+}
+
 void Application::open_url_in_new_window(URL::URL const& url, WebView::IsPrivate is_private)
 {
     new_window({ url }, configuration_for_new_window(), BrowserWindow::IsPopupWindow::No, is_private);

@@ -577,10 +577,41 @@ void Application::open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTa
         view->load(url);
 }
 
+void Application::open_urls_in_new_tabs(ReadonlySpan<URL::URL> urls) const
+{
+    for (auto const& url : urls)
+        open_url_in_new_tab(url, Web::HTML::ActivateTab::No);
+}
+
 void Application::open_bookmark_in_new_tab(String const& bookmark_id, Web::HTML::ActivateTab activate_tab) const
 {
     if (auto bookmark = m_bookmark_store.find_item_by_id(bookmark_id); bookmark.has_value() && bookmark->is_bookmark())
         open_url_in_new_tab(bookmark->bookmark().url, activate_tab);
+}
+
+static void collect_bookmark_urls(BookmarkItem::Folder const& folder, Vector<URL::URL>& urls)
+{
+    for (auto const& child : folder.children) {
+        child.data.visit(
+            [&](BookmarkItem::Bookmark const& bookmark) {
+                urls.append(bookmark.url);
+            },
+            [&](BookmarkItem::Folder const& child_folder) {
+                collect_bookmark_urls(child_folder, urls);
+            });
+    }
+}
+
+void Application::open_bookmark_folder_in_new_tabs(String const& folder_id) const
+{
+    auto folder = m_bookmark_store.find_item_by_id(folder_id);
+    if (!folder.has_value() || !folder->is_folder())
+        return;
+
+    Vector<URL::URL> urls;
+    collect_bookmark_urls(folder->folder(), urls);
+
+    open_urls_in_new_tabs(urls);
 }
 
 void Application::open_bookmark_in_new_window(String const& bookmark_id, IsPrivate is_private)
