@@ -19,19 +19,27 @@ struct ContainingBlockConstraints {
 };
 
 struct LayoutInput {
-    explicit LayoutInput(AvailableSpace new_available_space, ContainingBlockConstraints new_containing_block_constraints = {})
+    explicit LayoutInput(AvailableSpace new_available_space, ContainingBlockConstraints new_containing_block_constraints = {}, Optional<CSSPixelPoint> new_content_box_position_in_bfc_root = {})
         : available_space(move(new_available_space))
         , containing_block_constraints(move(new_containing_block_constraints))
+        , content_box_position_in_bfc_root(new_content_box_position_in_bfc_root)
     {
     }
 
-    [[nodiscard]] LayoutInput with_available_space(AvailableSpace new_available_space) const
+    [[nodiscard]] LayoutInput for_child_formatting_context(AvailableSpace new_available_space) const
     {
         return LayoutInput { move(new_available_space), containing_block_constraints };
     }
 
+    [[nodiscard]] LayoutInput with_content_box_position_in_bfc_root(Optional<CSSPixelPoint> position) const
+    {
+        return LayoutInput { available_space, containing_block_constraints, position };
+    }
+
     AvailableSpace const available_space;
     ContainingBlockConstraints const containing_block_constraints;
+
+    Optional<CSSPixelPoint> const content_box_position_in_bfc_root;
 };
 
 }

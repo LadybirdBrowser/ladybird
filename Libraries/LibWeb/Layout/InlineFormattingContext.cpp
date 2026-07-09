@@ -41,9 +41,15 @@ BlockFormattingContext const& InlineFormattingContext::parent() const
     return static_cast<BlockFormattingContext const&>(*FormattingContext::parent());
 }
 
+FormattingContext::SpaceUsedByFloats InlineFormattingContext::intrusion_by_floats_into_containing_block(CSSPixels block_start, CSSPixels block_end) const
+{
+    auto containing_block_position_in_root_now = m_layout_input->content_box_position_in_bfc_root->translated(0, parent().y_adjustment_from_pending_ancestor_top_margins(containing_block()));
+    return parent().intrusion_by_floats_into_rect({ containing_block_position_in_root_now, m_containing_block_used_values.content_size() }, block_start, block_end);
+}
+
 CSSPixels InlineFormattingContext::leftmost_inline_offset_at(CSSPixels block_offset, CSSPixels line_height) const
 {
-    auto intrusions = parent().intrusion_by_floats_into_box(m_containing_block_used_values, block_offset, block_offset + line_height);
+    auto intrusions = intrusion_by_floats_into_containing_block(block_offset, block_offset + line_height);
     return intrusions.left;
 }
 
@@ -52,7 +58,7 @@ AvailableSize InlineFormattingContext::available_space_for_line(CSSPixels block_
     if (!m_available_space->width.is_definite())
         return m_available_space->width;
 
-    auto intrusions = parent().intrusion_by_floats_into_box(m_containing_block_used_values, block_offset, block_offset + line_height);
+    auto intrusions = intrusion_by_floats_into_containing_block(block_offset, block_offset + line_height);
     return AvailableSize::make_definite(m_available_space->width.to_px_or_zero() - intrusions.left - intrusions.right);
 }
 
@@ -118,7 +124,7 @@ void InlineFormattingContext::dimension_box_on_line(Box const& box, LayoutMode l
     if (box_is_sized_as_replaced_element(box, *m_available_space, box_constraints)) {
         box_state.set_content_width(compute_width_for_replaced_element(box, *m_available_space, box_constraints));
         box_state.set_content_height(compute_height_for_replaced_element(box, *m_available_space, box_constraints));
-        auto child_layout_input = m_layout_input->with_available_space(box_state.available_inner_space_or_constraints_from(*m_available_space));
+        auto child_layout_input = m_layout_input->for_child_formatting_context(box_state.available_inner_space_or_constraints_from(*m_available_space));
         auto independent_formatting_context = layout_inside(box, layout_mode, child_layout_input);
         if (independent_formatting_context)
             independent_formatting_context->parent_context_did_dimension_child_root_box();
@@ -187,7 +193,7 @@ void InlineFormattingContext::dimension_box_on_line(Box const& box, LayoutMode l
 
     make_button_content_box_definite(box, *m_available_space, box_constraints);
 
-    auto child_layout_input = m_layout_input->with_available_space(box_state.available_inner_space_or_constraints_from(*m_available_space));
+    auto child_layout_input = m_layout_input->for_child_formatting_context(box_state.available_inner_space_or_constraints_from(*m_available_space));
     auto independent_formatting_context = layout_inside(box, layout_mode, child_layout_input);
 
     if (should_treat_height_as_auto(box, *m_available_space, box_constraints)) {
@@ -402,7 +408,7 @@ void InlineFormattingContext::generate_line_boxes()
         case InlineLevelIterator::Item::Type::ForcedBreak: {
             line_builder.break_line(LineBuilder::ForcedBreak::Yes);
             if (item.node) {
-                auto introduce_clearance = parent().clear_floating_boxes(*item.node, *this);
+                auto introduce_clearance = parent().clear_floating_boxes(*item.node, *this, m_layout_input->content_box_position_in_bfc_root.value());
                 if (introduce_clearance == BlockFormattingContext::DidIntroduceClearance::Yes) {
                     line_builder.did_introduce_clearance(vertical_float_clearance());
                     parent().reset_margin_state();
@@ -454,7 +460,7 @@ void InlineFormattingContext::generate_line_boxes()
                 line_builder.commit_pending_margin_before_float();
                 if (!is<ListItemMarkerBox>(*box))
                     m_state.create(*box, m_layout_input->containing_block_constraints.percentage_basis_width, m_layout_input->containing_block_constraints.percentage_basis_height);
-                (void)parent().clear_floating_boxes(*item.node, *this);
+                (void)parent().clear_floating_boxes(*item.node, *this, m_layout_input->content_box_position_in_bfc_root.value());
                 // Even if this introduces clearance, we do NOT reset the margin state, because that is clearance
                 // between floats and does not contribute to the height of the Inline Formatting Context.
                 line_builder.set_unbreakable_run_width_interrupted_by_float(iterator.next_non_whitespace_sequence_width());
@@ -577,7 +583,7 @@ void InlineFormattingContext::generate_line_boxes()
 bool InlineFormattingContext::any_floats_intrude_in_block_range(CSSPixels block_start, CSSPixels block_end) const
 {
     // FIXME: Respect inline direction.
-    auto intrusions = parent().intrusion_by_floats_into_box(m_containing_block_used_values, block_start, block_end);
+    auto intrusions = intrusion_by_floats_into_containing_block(block_start, block_end);
     return intrusions.left > 0 || intrusions.right > 0;
 }
 
@@ -592,8 +598,7 @@ bool InlineFormattingContext::can_fit_new_line_at_block_offset(CSSPixels block_o
 
 Optional<CSSPixels> InlineFormattingContext::next_float_band_block_start_after(CSSPixels block_offset) const
 {
-    auto containing_block_y_in_root_now = content_box_rect_in_ancestor_coordinate_space(m_containing_block_used_values, parent().root()).y()
-        + parent().y_adjustment_from_pending_ancestor_top_margins(containing_block());
+    auto containing_block_y_in_root_now = m_layout_input->content_box_position_in_bfc_root->y() + parent().y_adjustment_from_pending_ancestor_top_margins(containing_block());
     auto next_band_start = parent().next_float_band_block_start_after(containing_block_y_in_root_now + block_offset);
     if (!next_band_start.has_value())
         return {};

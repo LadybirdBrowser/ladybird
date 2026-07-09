@@ -44,6 +44,8 @@ private:
     void apply_text_overflow_ellipsis(Vector<LineBox>&);
     void apply_justification_to_fragments(CSS::TextJustify, LineBox&, bool is_last_line);
 
+    [[nodiscard]] SpaceUsedByFloats intrusion_by_floats_into_containing_block(CSSPixels block_start, CSSPixels block_end) const;
+
     LayoutState::UsedValues& m_containing_block_used_values;
 
     Optional<AvailableSpace> m_available_space;

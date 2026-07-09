@@ -887,6 +887,7 @@ LayoutInput FormattingContext::layout_input_for_child_context(
     return LayoutInput {
         available_space,
         constraints_for_child_context(containing_block_used_values, containing_block_layout_input.containing_block_constraints),
+        containing_block_layout_input.content_box_position_in_bfc_root,
     };
 }
 

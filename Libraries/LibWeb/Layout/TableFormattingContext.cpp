@@ -52,7 +52,8 @@ CSSPixels TableFormattingContext::run_caption_layout(CSS::CaptionSide phase, Ava
             if (block_context) {
                 auto available_width = caption_available_space.width.to_px_or_zero();
                 block_context->resolve_vertical_box_model_metrics(child_box, available_width);
-                block_context->compute_width(child_box, caption_available_space, caption_constraints);
+                CSSPixelPoint caption_position_in_block_context {};
+                block_context->compute_width(child_box, caption_available_space, caption_constraints, caption_position_in_block_context);
                 inner_available_space = m_state.get(child_box).available_inner_space_or_constraints_from(caption_available_space);
             }
 
