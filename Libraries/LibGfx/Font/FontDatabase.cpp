@@ -45,6 +45,58 @@ StringView FontDatabase::system_font_provider_name() const
 
 FontDatabase::FontDatabase() = default;
 
+FontVariationSettings default_font_variation_settings(float point_size, unsigned weight, unsigned width)
+{
+    FontVariationSettings variation_settings;
+    variation_settings.set_weight(static_cast<float>(weight));
+    // NB: We use the pixel size for 'opsz'
+    variation_settings.set_optical_sizing(point_size / 0.75f);
+
+    switch (width) {
+    case FontWidth::UltraCondensed:
+        variation_settings.set_width(50);
+        break;
+    case FontWidth::ExtraCondensed:
+        variation_settings.set_width(62.5);
+        break;
+    case FontWidth::Condensed:
+        variation_settings.set_width(75);
+        break;
+    case FontWidth::SemiCondensed:
+        variation_settings.set_width(87.5);
+        break;
+    case FontWidth::Normal:
+        variation_settings.set_width(100);
+        break;
+    case FontWidth::SemiExpanded:
+        variation_settings.set_width(112.5);
+        break;
+    case FontWidth::Expanded:
+        variation_settings.set_width(125);
+        break;
+    case FontWidth::ExtraExpanded:
+        variation_settings.set_width(150);
+        break;
+    case FontWidth::UltraExpanded:
+        variation_settings.set_width(200);
+        break;
+    default:
+        VERIFY_NOT_REACHED();
+    }
+
+    return variation_settings;
+}
+
+ShapeFeatures default_shape_features()
+{
+    // NB: These shape features match those applied when all CSS properties are initial values
+    ShapeFeatures shape_features;
+    shape_features.append({ { 'c', 'l', 'i', 'g' }, 1 });
+    shape_features.append({ { 'k', 'e', 'r', 'n' }, 1 });
+    shape_features.append({ { 'l', 'i', 'g', 'a' }, 1 });
+    return shape_features;
+}
+
 RefPtr<Gfx::Font> FontDatabase::get(FlyString const& family, float point_size, unsigned weight, unsigned width, unsigned slope, Optional<FontVariationSettings> const& font_variation_settings, Optional<Gfx::ShapeFeatures> const& shape_features)
 {
     return m_system_font_provider->get_font(family, point_size, weight, width, slope, font_variation_settings, shape_features);
