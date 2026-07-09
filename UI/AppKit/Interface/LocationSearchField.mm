@@ -21,6 +21,18 @@ static NSImage* location_field_globe_icon()
     return image;
 }
 
+@interface LocationSearchFieldCell : NSSearchFieldCell
+@end
+
+@implementation LocationSearchFieldCell
+
+- (NSRect)cancelButtonRectForBounds:(NSRect)rect
+{
+    return NSZeroRect;
+}
+
+@end
+
 @implementation LocationSearchField
 {
     BOOL m_loading;
@@ -29,9 +41,17 @@ static NSImage* location_field_globe_icon()
     NSProgressIndicator* m_loading_indicator;
 }
 
++ (Class)cellClass
+{
+    return [LocationSearchFieldCell class];
+}
+
 - (instancetype)init
 {
     if (self = [super init]) {
+        auto* cell = (NSSearchFieldCell*)[self cell];
+        [cell setCancelButtonCell:nil];
+
         m_loading_indicator = [[NSProgressIndicator alloc] init];
         [m_loading_indicator setStyle:NSProgressIndicatorStyleSpinning];
         [m_loading_indicator setControlSize:NSControlSizeSmall];
