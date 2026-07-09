@@ -1,0 +1,37 @@
+Harness status: OK
+
+Found 31 tests
+
+28 Pass
+3 Fail
+Pass	If node is a host-including inclusive ancestor of parent, then throw a HierarchyRequestError DOMException.
+Pass	If node is not a DocumentFragment, DocumentType, Element, Text, ProcessingInstruction, or Comment node, then throw a HierarchyRequestError DOMException.
+Pass	If node is a Text node and parent is a document, then throw a HierarchyRequestError DOMException.
+Pass	If node is a doctype and parent is not a document, then throw a HierarchyRequestError DOMException.
+Pass	If node is a DocumentFragment with multiple elements and parent is a document, then throw a HierarchyRequestError DOMException.
+Pass	Element.replaceChildren() without any argument, on a parent having no child.
+Pass	Element.replaceChildren() with null as an argument, on a parent having no child.
+Pass	Element.replaceChildren() with undefined as an argument, on a parent having no child.
+Pass	Element.replaceChildren() with only text as an argument, on a parent having no child.
+Pass	Element.replaceChildren() with only one element as an argument, on a parent having no child.
+Pass	Element.replaceChildren() without any argument, on a parent having a child.
+Pass	Element.replaceChildren() with null as an argument, on a parent having a child.
+Pass	Element.replaceChildren() with one element and text as argument, on a parent having a child.
+Pass	Element.replaceChildren() should move nodes in the right order
+Pass	DocumentFragment.replaceChildren() without any argument, on a parent having no child.
+Pass	DocumentFragment.replaceChildren() with null as an argument, on a parent having no child.
+Pass	DocumentFragment.replaceChildren() with undefined as an argument, on a parent having no child.
+Pass	DocumentFragment.replaceChildren() with only text as an argument, on a parent having no child.
+Pass	DocumentFragment.replaceChildren() with only one element as an argument, on a parent having no child.
+Pass	DocumentFragment.replaceChildren() without any argument, on a parent having a child.
+Pass	DocumentFragment.replaceChildren() with null as an argument, on a parent having a child.
+Pass	DocumentFragment.replaceChildren() with one element and text as argument, on a parent having a child.
+Pass	DocumentFragment.replaceChildren() should move nodes in the right order
+Fail	Document.replaceChildren() with an element, replacing an existing doctype and element.
+Fail	Document.replaceChildren() with a DocumentFragment containing a single element, replacing an existing doctype and element.
+Fail	Document.replaceChildren() with a doctype, replacing an existing doctype and element.
+Pass	Document.replaceChildren() without any argument, removing an existing doctype and element.
+Pass	Document.replaceChildren() with two elements throws a HierarchyRequestError.
+Pass	Document.replaceChildren() with text throws a HierarchyRequestError.
+Pass	There should be a MutationRecord for the node removed from another parent node.
+Pass	There should be MutationRecords for the nodes removed from another parent node.
