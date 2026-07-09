@@ -277,7 +277,6 @@ static CGFloat autocomplete_visible_width(NSView* view)
 - (CGFloat)tableHeightForVisibleSuggestionCount:(size_t)visible_suggestion_count;
 - (void)rebuildRows;
 - (void)selectRow:(NSInteger)row notifyObserver:(BOOL)notify_observer;
-- (NSInteger)stepToSelectableRowFrom:(NSInteger)row direction:(NSInteger)direction;
 
 @end
 
@@ -345,7 +344,7 @@ static CGFloat autocomplete_visible_width(NSView* view)
 #pragma mark - Public methods
 
 - (void)showWithSuggestions:(Vector<WebView::AutocompleteSuggestion>)suggestions
-                selectedRow:(NSInteger)selected_row
+    selectedSuggestionIndex:(NSInteger)selected_suggestion_index
 {
     m_suggestions = move(suggestions);
     [self rebuildRows];
@@ -366,7 +365,12 @@ static CGFloat autocomplete_visible_width(NSView* view)
     else
         [self show];
 
-    auto table_row = [self tableRowForSuggestionIndex:selected_row];
+    [self setSelectedSuggestionIndex:selected_suggestion_index];
+}
+
+- (void)setSelectedSuggestionIndex:(NSInteger)selected_suggestion_index
+{
+    auto table_row = [self tableRowForSuggestionIndex:selected_suggestion_index];
     if (table_row == NSNotFound)
         [self clearSelection];
     else if (table_row != self.table_view.selectedRow) {
@@ -399,56 +403,13 @@ static CGFloat autocomplete_visible_width(NSView* view)
     [self.table_view deselectAll:nil];
 }
 
-- (Optional<String>)selectedSuggestion
-{
-    if (!self.popup_window.isVisible || self.table_view.numberOfRows == 0)
-        return {};
-
-    auto row = [self.table_view selectedRow];
-    if (![self isSelectableRow:row])
-        return {};
-
-    return m_suggestions[m_rows[row].suggestion_index].text;
-}
-
-- (BOOL)selectNextSuggestion
-{
-    if (self.table_view.numberOfRows == 0)
-        return NO;
-
-    if (!self.popup_window.isVisible) {
-        [self show];
-        if (auto row = [self stepToSelectableRowFrom:-1 direction:1]; row != NSNotFound)
-            [self selectRow:row notifyObserver:YES];
-        return YES;
-    }
-
-    if (auto row = [self stepToSelectableRowFrom:[self.table_view selectedRow] direction:1]; row != NSNotFound)
-        [self selectRow:row notifyObserver:YES];
-    return YES;
-}
-
-- (BOOL)selectPreviousSuggestion
-{
-    if (self.table_view.numberOfRows == 0)
-        return NO;
-
-    if (!self.popup_window.isVisible) {
-        [self show];
-        if (auto row = [self stepToSelectableRowFrom:0 direction:-1]; row != NSNotFound)
-            [self selectRow:row notifyObserver:YES];
-        return YES;
-    }
-
-    if (auto row = [self stepToSelectableRowFrom:[self.table_view selectedRow] direction:-1]; row != NSNotFound)
-        [self selectRow:row notifyObserver:YES];
-    return YES;
-}
-
 - (void)selectSuggestion:(id)sender
 {
-    if (auto suggestion = [self selectedSuggestion]; suggestion.has_value())
-        [self.observer onSelectedSuggestion:suggestion.release_value()];
+    auto row = [self.table_view selectedRow];
+    if (![self isSelectableRow:row])
+        return;
+
+    [self.observer onSelectedSuggestion:m_rows[row].suggestion_index];
 }
 
 #pragma mark - Private methods
@@ -523,26 +484,6 @@ static CGFloat autocomplete_visible_width(NSView* view)
     return ceil(total_height);
 }
 
-- (NSInteger)stepToSelectableRowFrom:(NSInteger)row direction:(NSInteger)direction
-{
-    if (self.table_view.numberOfRows == 0)
-        return NSNotFound;
-
-    auto candidate = row;
-    for (NSInteger attempt = 0; attempt < self.table_view.numberOfRows; ++attempt) {
-        candidate += direction;
-        if (candidate < 0)
-            candidate = self.table_view.numberOfRows - 1;
-        else if (candidate >= self.table_view.numberOfRows)
-            candidate = 0;
-
-        if ([self isSelectableRow:candidate])
-            return candidate;
-    }
-
-    return NSNotFound;
-}
-
 - (void)autocompleteTableViewHoveredRowChanged:(NSInteger)row
 {
     if (![self isSelectableRow:row])
@@ -608,8 +549,9 @@ static CGFloat autocomplete_visible_width(NSView* view)
     [self.table_view scrollRowToVisible:[self.table_view selectedRow]];
 
     if (notify_observer) {
-        if (auto suggestion = [self selectedSuggestion]; suggestion.has_value())
-            [self.observer onHighlightedSuggestion:suggestion.release_value()];
+        auto row = [self.table_view selectedRow];
+        if ([self isSelectableRow:row])
+            [self.observer onHighlightedSuggestion:m_rows[row].suggestion_index];
     }
 }
 

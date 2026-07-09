@@ -6,18 +6,15 @@
 
 #pragma once
 
-#include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibWebView/Autocomplete.h>
 
 #import <Cocoa/Cocoa.h>
 
-static constexpr auto MAXIMUM_VISIBLE_AUTOCOMPLETE_SUGGESTIONS = 8uz;
-
 @protocol AutocompleteObserver <NSObject>
 
-- (void)onSelectedSuggestion:(String)suggestion;
-- (void)onHighlightedSuggestion:(String)suggestion;
+- (void)onSelectedSuggestion:(NSUInteger)suggestion_index;
+- (void)onHighlightedSuggestion:(NSUInteger)suggestion_index;
 - (void)onAutocompleteDidClose;
 
 @end
@@ -28,14 +25,10 @@ static constexpr auto MAXIMUM_VISIBLE_AUTOCOMPLETE_SUGGESTIONS = 8uz;
      withToolbarItem:(NSToolbarItem*)toolbar_item;
 
 - (void)showWithSuggestions:(Vector<WebView::AutocompleteSuggestion>)suggestions
-                selectedRow:(NSInteger)selected_row;
+    selectedSuggestionIndex:(NSInteger)selected_suggestion_index;
+- (void)setSelectedSuggestionIndex:(NSInteger)selected_suggestion_index;
 - (void)clearSelection;
 - (BOOL)close;
 - (BOOL)isVisible;
-
-- (Optional<String>)selectedSuggestion;
-
-- (BOOL)selectNextSuggestion;
-- (BOOL)selectPreviousSuggestion;
 
 @end
