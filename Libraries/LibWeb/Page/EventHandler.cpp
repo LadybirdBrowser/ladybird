@@ -79,6 +79,10 @@ static GC::Ptr<DOM::Node> associated_descendant_editing_host(DOM::Node& node)
         return editing_host && editing_host->is_editing_host() ? editing_host : nullptr;
     }
 
+    Optional<CSSPixelRect> hit_node_rect;
+    if (auto paintable = node.paintable())
+        hit_node_rect = paintable->absolute_rect();
+
     for (auto* ancestor = &node; ancestor; ancestor = ancestor->parent_or_shadow_host()) {
         GC::Ptr<DOM::Node> editing_host;
         bool has_multiple_editing_hosts = false;
@@ -93,8 +97,15 @@ static GC::Ptr<DOM::Node> associated_descendant_editing_host(DOM::Node& node)
             return TraversalDecision::Continue;
         });
 
-        if (editing_host && !has_multiple_editing_hosts)
-            return editing_host;
+        if (editing_host && !has_multiple_editing_hosts) {
+            if (ancestor == &node)
+                return editing_host;
+            auto editing_host_paintable = editing_host->paintable();
+            if (hit_node_rect.has_value() && editing_host_paintable
+                && hit_node_rect->intersects(editing_host_paintable->absolute_rect()))
+                return editing_host;
+        }
+
         if (ancestor != &node && ancestor->is_focusable())
             break;
     }

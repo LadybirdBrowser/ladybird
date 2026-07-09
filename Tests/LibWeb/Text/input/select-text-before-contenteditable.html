@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+        font: 20px SerenitySans, sans-serif;
+    }
+
+    #post {
+        margin: 0;
+        width: 640px;
+    }
+
+    #editor {
+        margin-top: 40px;
+        min-height: 40px;
+        width: 640px;
+    }
+</style>
+<p id="post">Open source is a thankless job and maintainers deserve better</p>
+<div id="editor" contenteditable><p><br></p></div>
+<script>
+    test(() => {
+        document.body.offsetWidth;
+
+        const text = post.firstChild;
+        const range = document.createRange();
+
+        const startOffset = text.data.indexOf("source");
+        range.setStart(text, startOffset);
+        range.setEnd(text, startOffset + 1);
+        const startRect = range.getBoundingClientRect();
+
+        const endOffset = text.data.indexOf("maintainers") + "maintainers".length;
+        range.setStart(text, endOffset - 1);
+        range.setEnd(text, endOffset);
+        const endRect = range.getBoundingClientRect();
+
+        const y = startRect.y + startRect.height / 2;
+        internals.mouseDown(startRect.x + 1, y);
+        internals.mouseMove(endRect.right - 1, y);
+        internals.mouseUp(endRect.right - 1, y);
+
+        const selection = getSelection().toString();
+        println(`selected post text: ${selection.includes("source is a thankless job and maintainers")}`);
+        printElement(document.activeElement);
+    });
+</script>
