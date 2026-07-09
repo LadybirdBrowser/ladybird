@@ -19,6 +19,7 @@
 #import <Interface/LadybirdWebView.h>
 #import <Interface/LocationSearchField.h>
 #import <Interface/Menu.h>
+#import <Interface/Palette.h>
 #import <Interface/Tab.h>
 #import <Interface/TabController.h>
 #import <Utilities/Conversions.h>
@@ -32,9 +33,14 @@ static NSString* const TOOLBAR_NAVIGATE_BACK_IDENTIFIER = @"ToolbarNavigateBackI
 static NSString* const TOOLBAR_NAVIGATE_FORWARD_IDENTIFIER = @"ToolbarNavigateForwardIdentifier";
 static NSString* const TOOLBAR_RELOAD_IDENTIFIER = @"ToolbarReloadIdentifier";
 static NSString* const TOOLBAR_LOCATION_IDENTIFIER = @"ToolbarLocationIdentifier";
+static NSString* const TOOLBAR_PRIVATE_BROWSING_IDENTIFIER = @"ToolbarPrivateBrowsingIdentifier";
 static NSString* const TOOLBAR_DOWNLOADS_IDENTIFIER = @"ToolbarDownloadsIdentifier";
 static NSString* const TOOLBAR_NEW_TAB_IDENTIFIER = @"ToolbarNewTabIdentifier";
 static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIdentifier";
+
+static constexpr CGFloat PRIVATE_BROWSING_BADGE_HEIGHT = 22;
+static constexpr CGFloat PRIVATE_BROWSING_BADGE_HORIZONTAL_PADDING = 10;
+static constexpr CGFloat PRIVATE_BROWSING_BADGE_CORNER_RADIUS = 10;
 
 static constexpr CGFloat DOWNLOADS_POPOVER_WIDTH = 380;
 static constexpr CGFloat DOWNLOADS_POPOVER_HORIZONTAL_PADDING = 12;
@@ -84,6 +90,82 @@ static NSInteger ns_index_for_selected_suggestion(Optional<size_t> selected_sugg
         return NSNotFound;
     return static_cast<NSInteger>(*selected_suggestion);
 }
+
+@interface PrivateBrowsingBadgeButton : NSButton
+@end
+
+@implementation PrivateBrowsingBadgeButton
+
+- (instancetype)init
+{
+    if (self = [super init]) {
+        [self setTitle:@"Private"];
+        [self setBordered:NO];
+        [self setButtonType:NSButtonTypeMomentaryChange];
+        [self setFocusRingType:NSFocusRingTypeNone];
+        [self setAlignment:NSTextAlignmentCenter];
+        [self setFont:[NSFont systemFontOfSize:[NSFont smallSystemFontSize] weight:NSFontWeightSemibold]];
+        [self setToolTip:@""];
+        [self updateTitleAttributes];
+
+        [self setWantsLayer:YES];
+        [self layer].cornerRadius = PRIVATE_BROWSING_BADGE_CORNER_RADIUS;
+        [self layer].borderWidth = 1;
+        [self updateLayerColors];
+
+        [[self heightAnchor] constraintEqualToConstant:PRIVATE_BROWSING_BADGE_HEIGHT].active = YES;
+
+        [self setContentHuggingPriority:NSLayoutPriorityRequired
+                         forOrientation:NSLayoutConstraintOrientationHorizontal];
+        [self setContentHuggingPriority:NSLayoutPriorityRequired
+                         forOrientation:NSLayoutConstraintOrientationVertical];
+    }
+
+    return self;
+}
+
+- (NSSize)intrinsicContentSize
+{
+    auto* attributes = @{
+        NSFontAttributeName : [self font],
+    };
+    auto label_size = [[self title] sizeWithAttributes:attributes];
+    return NSMakeSize(label_size.width + (PRIVATE_BROWSING_BADGE_HORIZONTAL_PADDING * 2), PRIVATE_BROWSING_BADGE_HEIGHT);
+}
+
+- (void)viewDidChangeEffectiveAppearance
+{
+    [super viewDidChangeEffectiveAppearance];
+    [self updateTitleAttributes];
+    [self updateLayerColors];
+}
+
+- (void)updateTitleAttributes
+{
+    auto* attributes = @{
+        NSFontAttributeName : [self font],
+        NSForegroundColorAttributeName : [NSColor labelColor],
+    };
+    [self setAttributedTitle:[[NSAttributedString alloc] initWithString:@"Private"
+                                                             attributes:attributes]];
+}
+
+- (void)updateLayerColors
+{
+    auto is_dark = Ladybird::is_using_dark_system_theme();
+
+    auto* surface_color = is_dark
+        ? Ladybird::gfx_color_to_ns_color({ 0x19, 0x0c, 0x4a })
+        : Ladybird::gfx_color_to_ns_color({ 0xe0, 0xd4, 0xff });
+    auto* border_color = is_dark
+        ? Ladybird::gfx_color_to_ns_color({ 0x9c, 0x90, 0xc8 })
+        : Ladybird::gfx_color_to_ns_color({ 0x6c, 0x5f, 0x93 });
+
+    [self layer].backgroundColor = surface_color.CGColor;
+    [self layer].borderColor = border_color.CGColor;
+}
+
+@end
 
 @interface DownloadRowView : NSView
 
@@ -482,6 +564,7 @@ static NSInteger ns_index_for_selected_suggestion(Optional<size_t> selected_sugg
 @property (nonatomic, strong) NSToolbarItem* navigate_forward_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* reload_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* location_toolbar_item;
+@property (nonatomic, strong) NSToolbarItem* private_browsing_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* downloads_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* new_tab_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* tab_overview_toolbar_item;
@@ -537,6 +620,7 @@ private:
 @synthesize navigate_forward_toolbar_item = _navigate_forward_toolbar_item;
 @synthesize reload_toolbar_item = _reload_toolbar_item;
 @synthesize location_toolbar_item = _location_toolbar_item;
+@synthesize private_browsing_toolbar_item = _private_browsing_toolbar_item;
 @synthesize downloads_toolbar_item = _downloads_toolbar_item;
 @synthesize new_tab_toolbar_item = _new_tab_toolbar_item;
 @synthesize tab_overview_toolbar_item = _tab_overview_toolbar_item;
@@ -1120,6 +1204,20 @@ private:
     return _location_toolbar_item;
 }
 
+- (NSToolbarItem*)private_browsing_toolbar_item
+{
+    if (!_private_browsing_toolbar_item) {
+        auto* badge_button = [[PrivateBrowsingBadgeButton alloc] init];
+
+        _private_browsing_toolbar_item = [[NSToolbarItem alloc] initWithItemIdentifier:TOOLBAR_PRIVATE_BROWSING_IDENTIFIER];
+        [_private_browsing_toolbar_item setView:badge_button];
+        [_private_browsing_toolbar_item setLabel:@"Private Browsing"];
+        [_private_browsing_toolbar_item setPaletteLabel:@"Private Browsing"];
+    }
+
+    return _private_browsing_toolbar_item;
+}
+
 - (NSToolbarItem*)downloads_toolbar_item
 {
     if (!_downloads_toolbar_item) {
@@ -1182,17 +1280,32 @@ private:
 - (NSArray*)toolbar_identifiers
 {
     if (!_toolbar_identifiers) {
-        _toolbar_identifiers = @[
-            TOOLBAR_NAVIGATE_BACK_IDENTIFIER,
-            TOOLBAR_NAVIGATE_FORWARD_IDENTIFIER,
-            NSToolbarFlexibleSpaceItemIdentifier,
-            TOOLBAR_RELOAD_IDENTIFIER,
-            TOOLBAR_LOCATION_IDENTIFIER,
-            TOOLBAR_DOWNLOADS_IDENTIFIER,
-            NSToolbarFlexibleSpaceItemIdentifier,
-            TOOLBAR_NEW_TAB_IDENTIFIER,
-            TOOLBAR_TAB_OVERVIEW_IDENTIFIER,
-        ];
+        if (m_is_private == WebView::IsPrivate::Yes) {
+            _toolbar_identifiers = @[
+                TOOLBAR_NAVIGATE_BACK_IDENTIFIER,
+                TOOLBAR_NAVIGATE_FORWARD_IDENTIFIER,
+                NSToolbarFlexibleSpaceItemIdentifier,
+                TOOLBAR_RELOAD_IDENTIFIER,
+                TOOLBAR_LOCATION_IDENTIFIER,
+                TOOLBAR_PRIVATE_BROWSING_IDENTIFIER,
+                TOOLBAR_DOWNLOADS_IDENTIFIER,
+                NSToolbarFlexibleSpaceItemIdentifier,
+                TOOLBAR_NEW_TAB_IDENTIFIER,
+                TOOLBAR_TAB_OVERVIEW_IDENTIFIER,
+            ];
+        } else {
+            _toolbar_identifiers = @[
+                TOOLBAR_NAVIGATE_BACK_IDENTIFIER,
+                TOOLBAR_NAVIGATE_FORWARD_IDENTIFIER,
+                NSToolbarFlexibleSpaceItemIdentifier,
+                TOOLBAR_RELOAD_IDENTIFIER,
+                TOOLBAR_LOCATION_IDENTIFIER,
+                TOOLBAR_DOWNLOADS_IDENTIFIER,
+                NSToolbarFlexibleSpaceItemIdentifier,
+                TOOLBAR_NEW_TAB_IDENTIFIER,
+                TOOLBAR_TAB_OVERVIEW_IDENTIFIER,
+            ];
+        }
     }
 
     return _toolbar_identifiers;
@@ -1390,6 +1503,9 @@ private:
     }
     if ([identifier isEqual:TOOLBAR_LOCATION_IDENTIFIER]) {
         return self.location_toolbar_item;
+    }
+    if ([identifier isEqual:TOOLBAR_PRIVATE_BROWSING_IDENTIFIER]) {
+        return self.private_browsing_toolbar_item;
     }
     if ([identifier isEqual:TOOLBAR_DOWNLOADS_IDENTIFIER]) {
         return self.downloads_toolbar_item;
