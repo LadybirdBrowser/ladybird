@@ -374,10 +374,12 @@ void CSSStyleSheet::add_owning_document_or_shadow_root(DOM::Node& document_or_sh
     m_owning_documents_or_shadow_roots.set(document_or_shadow_root);
 
     // CSSOM's "add a CSS style sheet" steps bail out once the disabled flag is set, so ownership alone should not
-    // make a disabled sheet observable in the destination document. Delay CSS-connected font activation until the
-    // sheet actually becomes enabled.
-    if (!disabled() && this->owning_documents_or_shadow_roots().size() == 1)
+    // make a disabled sheet observable in the destination document. Delay its media-query evaluation and
+    // CSS-connected font activation until the sheet actually becomes enabled.
+    if (!disabled() && this->owning_documents_or_shadow_roots().size() == 1) {
+        evaluate_media_queries(document_or_shadow_root.document());
         document_or_shadow_root.document().font_computer().load_fonts_from_sheet(*this);
+    }
 
     for (auto const& import_rule : m_import_rules) {
         if (import_rule->loaded_style_sheet())

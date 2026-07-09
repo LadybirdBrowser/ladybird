@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/font-feature-values-within-grouping-rules-ref.html">
+<style>
+    @font-face {
+        font-family: FeatureFont;
+        src: url("wpt-import/css/css-fonts/support/fonts/FontWithFancyFeatures.otf");
+    }
+
+    @supports (display: block) {
+        @media screen {
+            @layer nested {
+                @font-feature-values FeatureFont {
+                    @stylistic {
+                        fancy: 1;
+                    }
+                }
+            }
+        }
+    }
+
+    @media not all {
+        @font-feature-values FeatureFont {
+            @stylistic {
+                fancy: 2;
+            }
+        }
+    }
+
+    p {
+        font-family: FeatureFont;
+        font-size: 2em;
+        font-variant-alternates: stylistic(fancy);
+    }
+</style>
+<p>Xnophijklmqrstuvwxyz</p>

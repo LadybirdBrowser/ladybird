@@ -1,0 +1,4 @@
+Nested face count: 2
+NestedMatchingMediaFont: unloaded
+NestedSupportsFont: unloaded
+Nested face count after removal: 0

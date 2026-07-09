@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<style id="font-rules">
+    @media not all {
+        @font-face {
+            font-family: NestedNonMatchingMediaFont;
+            src: url("does-not-exist-non-matching-media.woff");
+            unicode-range: U+FFFF;
+        }
+
+        @font-feature-values NestedNonMatchingMediaFont {
+            @styleset {
+                fancy: 1;
+            }
+        }
+    }
+
+    @media screen {
+        @font-face {
+            font-family: NestedMatchingMediaFont;
+            src: url("does-not-exist-matching-media.woff");
+            unicode-range: U+FFFF;
+        }
+    }
+
+    @supports (display: block) {
+        @layer nested {
+            @font-face {
+                font-family: NestedSupportsFont;
+                src: url("does-not-exist-supports.woff");
+                unicode-range: U+FFFF;
+            }
+
+            @font-feature-values NestedSupportsFont {
+                @styleset {
+                    fancy: 1;
+                }
+            }
+        }
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const nestedFaces = [...document.fonts]
+            .filter(face => face.family.startsWith("Nested"))
+            .sort((a, b) => a.family.localeCompare(b.family));
+
+        println(`Nested face count: ${nestedFaces.length}`);
+        for (const face of nestedFaces)
+            println(`${face.family}: ${face.status}`);
+
+        document.getElementById("font-rules").remove();
+        println(`Nested face count after removal: ${[...document.fonts].filter(face => face.family.startsWith("Nested")).length}`);
+    });
+</script>
