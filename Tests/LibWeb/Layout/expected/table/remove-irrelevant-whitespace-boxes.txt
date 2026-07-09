@@ -1,0 +1,39 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 30 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 30 0+0+0] children: not-inline
+      TableWrapper <(anonymous)> at [0,0] [0+0+0 20 0+0+780] [0+0+0 10 0+0+0] [BFC] children: not-inline
+        Box <div.table> at [0,0] table-box [0+0+0 20 0+0+0] [0+0+0 10 0+0+0] [TFC] children: not-inline
+          Box <div.row> at [0,0] table-row [0+0+0 20 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+            BlockContainer <div.cell> at [0,0] table-cell [0+0+0 20 0+0+0] [0+0+0 0 10+0+0] [BFC] children: not-inline
+      TableWrapper <(anonymous)> at [0,10] [0+0+0 20 0+0+780] [0+0+0 10 0+0+0] [BFC] children: not-inline
+        Box <div.table> at [0,10] table-box [0+0+0 20 0+0+0] [0+0+0 10 0+0+0] [TFC] children: not-inline
+          Box <div.group> at [0,10] table-row-group [0+0+0 20 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+            Box <div.row> at [0,10] table-row [0+0+0 20 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+              BlockContainer <div.cell> at [0,10] table-cell [0+0+0 20 0+0+0] [0+0+0 0 10+0+0] [BFC] children: not-inline
+      TableWrapper <(anonymous)> at [0,20] [0+0+0 20 0+0+780] [0+0+0 10 0+0+0] [BFC] children: not-inline
+        Box <div.table> at [0,20] table-box [0+0+0 20 0+0+0] [0+0+0 10 0+0+0] [TFC] children: not-inline
+          Box <div.row> at [0,20] table-row [0+0+0 20 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+            BlockContainer <div.cell> at [0,20] table-cell [0+0+0 20 0+0+0] [0+0+0 0 10+0+0] [BFC] children: not-inline
+      BlockContainer <(anonymous)> at [0,30] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x30]
+    PaintableWithLines (BlockContainer<BODY>) [0,0 800x30]
+      PaintableWithLines (TableWrapper(anonymous)) [0,0 20x10]
+        Paintable (Box<DIV>.table) [0,0 20x10]
+          Paintable (Box<DIV>.row) [0,0 20x10]
+            PaintableWithLines (BlockContainer<DIV>.cell) [0,0 20x10]
+      PaintableWithLines (TableWrapper(anonymous)) [0,10 20x10]
+        Paintable (Box<DIV>.table) [0,10 20x10]
+          Paintable (Box<DIV>.group) [0,10 20x10]
+            Paintable (Box<DIV>.row) [0,10 20x10]
+              PaintableWithLines (BlockContainer<DIV>.cell) [0,10 20x10]
+      PaintableWithLines (TableWrapper(anonymous)) [0,20 20x10]
+        Paintable (Box<DIV>.table) [0,20 20x10]
+          Paintable (Box<DIV>.row) [0,20 20x10]
+            PaintableWithLines (BlockContainer<DIV>.cell) [0,20 20x10]
+      PaintableWithLines (BlockContainer(anonymous)) [0,30 800x0]
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x30] (z-index: auto)

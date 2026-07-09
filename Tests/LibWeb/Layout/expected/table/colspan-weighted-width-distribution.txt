@@ -3,12 +3,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 42 0+0+8] children: not-inline
       TableWrapper <(anonymous)> at [8,8] [0+0+0 210 0+0+574] [0+0+0 42 0+0+0] [BFC] children: not-inline
         Box <table> at [9,9] table-box [0+1+0 208 0+1+0] [0+1+0 40 0+1+0] [TFC] children: not-inline
-          BlockContainer <(anonymous)> (not painted) children: inline
-            TextNode <#text> (not painted)
           Box <tbody> at [9,9] table-row-group [0+0+0 208 0+0+0] [0+0+0 40 0+0+0] children: not-inline
             Box <tr> at [9,9] table-row [0+0+0 208 0+0+0] [0+0+0 20 0+0+0] children: not-inline
-              BlockContainer <(anonymous)> (not painted) children: inline
-                TextNode <#text> (not painted)
               BlockContainer <td> at [11,11] table-cell [0+1+1 180 1+1+0] [0+1+1 16 1+1+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 1, rect: [93.859375,11 14.265625x16] baseline: 12.796875
                     "A"
@@ -19,21 +15,13 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                 frag 0 from TextNode start: 0, length: 1, rect: [200.328125,11 9.34375x16] baseline: 12.796875
                     "B"
                 TextNode <#text> (not painted)
-              BlockContainer <(anonymous)> (not painted) children: inline
-                TextNode <#text> (not painted)
             BlockContainer <(anonymous)> (not painted) children: inline
               TextNode <#text> (not painted)
             Box <tr> at [9,29] table-row [0+0+0 208 0+0+0] [0+0+0 20 0+0+0] children: not-inline
-              BlockContainer <(anonymous)> (not painted) children: inline
-                TextNode <#text> (not painted)
               BlockContainer <td> at [11,31] table-cell [0+1+1 204 1+1+0] [0+1+1 16 1+1+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 1, rect: [107.84375,31 10.3125x16] baseline: 12.796875
                     "C"
                 TextNode <#text> (not painted)
-              BlockContainer <(anonymous)> (not painted) children: inline
-                TextNode <#text> (not painted)
-            BlockContainer <(anonymous)> (not painted) children: inline
-              TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x58]

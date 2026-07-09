@@ -7,12 +7,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         TextNode <#text> (not painted)
       TableWrapper <(anonymous)> at [8,8] [0+0+0 39.3125 0+0+744.6875] [0+0+0 42 0+0+0] [BFC] children: not-inline
         Box <table> at [9,9] table-box [0+1+0 37.3125 0+1+0] [0+1+0 40 0+1+0] [TFC] children: not-inline
-          BlockContainer <(anonymous)> (not painted) children: inline
-            TextNode <#text> (not painted)
           Box <tbody> at [9,9] table-row-group [0+0+0 37.3125 0+0+0] [0+0+0 40 0+0+0] children: not-inline
             Box <tr> at [9,9] table-row [0+0+0 37.3125 0+0+0] [0+0+0 20 0+0+0] children: not-inline
-              BlockContainer <(anonymous)> (not painted) children: inline
-                TextNode <#text> (not painted)
               BlockContainer <td> at [11,11] table-cell [0+1+1 17.5625 1+1+0] [0+1+1 16 1+1+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 1, rect: [12.640625,11 14.265625x16] baseline: 12.796875
                     "A"
@@ -23,21 +19,13 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                 frag 0 from TextNode start: 0, length: 1, rect: [33.765625,11 9.34375x16] baseline: 12.796875
                     "B"
                 TextNode <#text> (not painted)
-              BlockContainer <(anonymous)> (not painted) children: inline
-                TextNode <#text> (not painted)
             BlockContainer <(anonymous)> (not painted) children: inline
               TextNode <#text> (not painted)
             Box <tr> at [9,29] table-row [0+0+0 37.3125 0+0+0] [0+0+0 20 0+0+0] children: not-inline
-              BlockContainer <(anonymous)> (not painted) children: inline
-                TextNode <#text> (not painted)
               BlockContainer <td> at [11,31] table-cell [0+1+1 33.3125 1+1+0] [0+1+1 16 1+1+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 3, rect: [11,31 33.3125x16] baseline: 12.796875
                     "CDE"
                 TextNode <#text> (not painted)
-              BlockContainer <(anonymous)> (not painted) children: inline
-                TextNode <#text> (not painted)
-            BlockContainer <(anonymous)> (not painted) children: inline
-              TextNode <#text> (not painted)
       BlockContainer <(anonymous)> at [8,50] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
 

@@ -3,12 +3,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 98 0+0+8] children: not-inline
       TableWrapper <(anonymous)> at [8,8] [0+0+0 200.328125 0+0+583.671875] [0+0+0 98 0+0+0] [BFC] children: not-inline
         Box <table> at [9,9] table-box [0+1+0 198.328125 0+1+0] [0+1+0 96 0+1+0] [TFC] children: not-inline
-          BlockContainer <(anonymous)> (not painted) children: inline
-            TextNode <#text> (not painted)
           Box <tbody> at [9,9] table-row-group [0+0+0 198.328125 0+0+0] [0+0+0 96 0+0+0] children: not-inline
             Box <tr> at [9,9] table-row [0+0+0 198.328125 0+0+0] [0+0+0 48 0+0+0] children: not-inline
-              BlockContainer <(anonymous)> (not painted) children: inline
-                TextNode <#text> (not painted)
               BlockContainer <td> at [25,25] table-cell [0+1+15 32.078125 15+1+0] [0+1+15 16 63+1+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 3, rect: [25,25 32.078125x16] baseline: 12.796875
                     "Top"
@@ -25,21 +21,13 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                 frag 0 from TextNode start: 0, length: 1, rect: [177.0625,25 14.265625x16] baseline: 12.796875
                     "A"
                 TextNode <#text> (not painted)
-              BlockContainer <(anonymous)> (not painted) children: inline
-                TextNode <#text> (not painted)
             BlockContainer <(anonymous)> (not painted) children: inline
               TextNode <#text> (not painted)
             Box <tr> at [9,57] table-row [0+0+0 198.328125 0+0+0] [0+0+0 48 0+0+0] children: not-inline
-              BlockContainer <(anonymous)> (not painted) children: inline
-                TextNode <#text> (not painted)
               BlockContainer <td> at [177.0625,73] table-cell [0+1+15 14.265625 15+1+0] [0+1+15 16 15+1+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 1, rect: [177.0625,73 9.34375x16] baseline: 12.796875
                     "B"
                 TextNode <#text> (not painted)
-              BlockContainer <(anonymous)> (not painted) children: inline
-                TextNode <#text> (not painted)
-            BlockContainer <(anonymous)> (not painted) children: inline
-              TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x114]

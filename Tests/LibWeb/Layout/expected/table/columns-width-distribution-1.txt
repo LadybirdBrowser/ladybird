@@ -3,8 +3,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 104 0+0+8] children: not-inline
       TableWrapper <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 104 0+0+0] [BFC] children: not-inline
         Box <table.ambox> at [9,9] table-box [0+1+0 782 0+1+0] [0+1+0 102 0+1+0] [TFC] children: not-inline
-          BlockContainer <(anonymous)> (not painted) children: inline
-            TextNode <#text> (not painted)
           Box <tbody> at [11,11] table-row-group [0+0+0 778 0+0+0] [0+0+0 98 0+0+0] children: not-inline
             Box <tr> at [11,11] table-row [0+0+0 778 0+0+0] [0+0+0 98 0+0+0] children: not-inline
               BlockContainer <td.mbox-image> at [12,35] table-cell [0+0+1 50 1+0+0] [0+0+24 50 24+0+0] [BFC] children: not-inline

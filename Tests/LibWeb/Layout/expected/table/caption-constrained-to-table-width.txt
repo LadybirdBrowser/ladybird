@@ -20,8 +20,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             frag 3 from TextNode start: 34, length: 5, rect: [9,161 39.796875x16] baseline: 12.796875
                 "width"
             TextNode <#text> (not painted)
-          BlockContainer <(anonymous)> (not painted) children: inline
-            TextNode <#text> (not painted)
       BlockContainer <(anonymous)> at [8,178] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
 

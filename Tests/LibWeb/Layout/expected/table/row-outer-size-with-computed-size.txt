@@ -3,12 +3,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 24 0+0+8] children: not-inline
       TableWrapper <(anonymous)> at [8,8] [0+0+0 49.21875 0+0+734.78125] [0+0+0 24 0+0+0] [BFC] children: not-inline
         Box <table> at [8,8] table-box [0+0+0 49.21875 0+0+0] [0+0+0 24 0+0+0] [TFC] children: not-inline
-          BlockContainer <(anonymous)> (not painted) children: inline
-            TextNode <#text> (not painted)
           Box <tbody> at [10,10] table-row-group [0+0+0 45.21875 0+0+0] [0+0+0 20 0+0+0] children: not-inline
             Box <tr> at [10,10] table-row [0+0+0 45.21875 0+0+0] [0+0+0 9 0+0+0] children: not-inline
-              BlockContainer <(anonymous)> (not painted) children: inline
-                TextNode <#text> (not painted)
               BlockContainer <td> at [11,14.5] table-cell [0+0+1 0 1+0+0] [0+0+4.5 0 4.5+0+0] [BFC] children: not-inline
               BlockContainer <(anonymous)> (not painted) children: inline
                 TextNode <#text> (not painted)
@@ -19,18 +15,10 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                       "Test"
                   TextNode <#text> (not painted)
                 TextNode <#text> (not painted)
-              BlockContainer <(anonymous)> (not painted) children: inline
-                TextNode <#text> (not painted)
             BlockContainer <(anonymous)> (not painted) children: inline
               TextNode <#text> (not painted)
             Box <tr> at [10,21] table-row [0+0+0 45.21875 0+0+0] [0+0+0 9 0+0+0] children: not-inline
-              BlockContainer <(anonymous)> (not painted) children: inline
-                TextNode <#text> (not painted)
               BlockContainer <td> at [11,25.5] table-cell [0+0+1 0 1+0+0] [0+0+4.5 0 4.5+0+0] [BFC] children: not-inline
-              BlockContainer <(anonymous)> (not painted) children: inline
-                TextNode <#text> (not painted)
-            BlockContainer <(anonymous)> (not painted) children: inline
-              TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x40]

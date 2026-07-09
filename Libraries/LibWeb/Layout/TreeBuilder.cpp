@@ -1288,6 +1288,45 @@ void TreeBuilder::fixup_tables(NodeWithStyle& root)
     missing_cells_fixup(table_root_boxes);
 }
 
+static bool is_first_or_last_child_with_table_non_root_sibling_if_any(Node const& node)
+{
+    auto is_table_non_root_box = [](Node const& node) {
+        auto const display = node.display();
+        return display.is_table_row()
+            || display.is_table_column()
+            || display.is_table_row_group()
+            || display.is_table_header_group()
+            || display.is_table_footer_group()
+            || display.is_table_column_group()
+            || display.is_table_cell()
+            || display.is_table_caption();
+    };
+
+    auto previous_sibling = node.previous_sibling();
+    auto next_sibling = node.next_sibling();
+    if (previous_sibling && next_sibling)
+        return false;
+
+    if (previous_sibling && !is_table_non_root_box(*previous_sibling))
+        return false;
+
+    if (next_sibling && !is_table_non_root_box(*next_sibling))
+        return false;
+
+    return true;
+}
+
+// https://drafts.csswg.org/css-tables-3/#tabular-container
+static bool is_tabular_container(Node const& node)
+{
+    auto const& display = node.display();
+    return display.is_table_inside()
+        || display.is_table_row()
+        || display.is_table_row_group()
+        || display.is_table_header_group()
+        || display.is_table_footer_group();
+}
+
 // https://drafts.csswg.org/css-tables-3/#fixup-algorithm
 // 1. Remove irrelevant boxes:
 void TreeBuilder::remove_irrelevant_boxes(NodeWithStyle& root)
@@ -1313,12 +1352,27 @@ void TreeBuilder::remove_irrelevant_boxes(NodeWithStyle& root)
         });
     });
 
-    // FIXME:
-    // 3. Anonymous inline boxes which contain only white space and are between two immediate siblings each of which is a table-non-root box.
+    // FIXME: 3. Anonymous inline boxes which contain only white space and are between two immediate siblings each of
+    //           which is a table-non-root box.
+
     // 4. Anonymous inline boxes which meet all of the following criteria:
     //    - they contain only white space
     //    - they are the first and/or last child of a tabular container
     //    - whose immediate sibling, if any, is a table-non-root box
+    root.for_each_in_inclusive_subtree_of_type<Box>([&](auto& box) {
+        auto* parent = box.parent();
+        if (!parent
+            || !is_tabular_container(*parent)
+            || !is_first_or_last_child_with_table_non_root_sibling_if_any(box)) {
+            return TraversalDecision::Continue;
+        }
+
+        if (is_ignorable_whitespace(box)) {
+            to_remove.append(box);
+            return TraversalDecision::SkipChildrenAndContinue;
+        }
+        return TraversalDecision::Continue;
+    });
 
     for (auto& box : to_remove)
         box->parent()->remove_child(*box);
