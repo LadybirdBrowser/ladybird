@@ -16,6 +16,10 @@
 #include <QCoreApplication>
 #include <QtGlobal>
 
+#if defined(AK_OS_MACOS)
+#    include <UI/Qt/MacWindow.h>
+#endif
+
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
 #    include <QStyleHints>
 #endif
@@ -68,7 +72,14 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
         app->on_open_file = [&](auto const& file_url) {
             if (auto* window = app->active_window_if_any()) {
-                window->view().load(file_url);
+                auto& view = window->view();
+                if (auto* tab = window->current_tab())
+                    tab->set_url_is_hidden(false);
+                view.load(file_url);
+#if defined(AK_OS_MACOS)
+                Ladybird::make_appkit_window_first_responder(view);
+#endif
+                view.setFocus();
                 return;
             }
             app->new_window({ file_url });
