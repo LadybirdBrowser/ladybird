@@ -56,14 +56,16 @@ static Optional<u64> display_id_for_screen(NSScreen* screen)
 static bool is_browser_reserved_key_equivalent(NSEvent* event)
 {
     auto modifiers = event.modifierFlags & (NSEventModifierFlagCommand | NSEventModifierFlagControl | NSEventModifierFlagOption | NSEventModifierFlagShift);
-    if (modifiers != NSEventModifierFlagCommand)
-        return false;
-
     auto* characters = [[event charactersIgnoringModifiers] lowercaseString];
     if ([characters length] != 1)
         return false;
 
     unichar character = [characters characterAtIndex:0];
+    if (modifiers == (NSEventModifierFlagCommand | NSEventModifierFlagShift))
+        return character == 'n';
+    if (modifiers != NSEventModifierFlagCommand)
+        return false;
+
     return character == 'l'
         || character == 'n'
         || character == 'q'

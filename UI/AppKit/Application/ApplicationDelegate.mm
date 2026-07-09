@@ -201,9 +201,20 @@
 
 - (void)createNewWindow:(id)sender
 {
+    [self openNewWindow:WebView::IsPrivate::No];
+}
+
+- (void)createNewPrivateWindow:(id)sender
+{
+    [self openNewWindow:WebView::IsPrivate::Yes];
+}
+
+- (void)openNewWindow:(WebView::IsPrivate)is_private
+{
+    // FIXME: Create a new tab page specific to private windows.
     [self createNewTab:WebView::Application::settings().new_tab_page_url()
                fromTab:nil
-             isPrivate:WebView::IsPrivate::No
+             isPrivate:is_private
            activateTab:Web::HTML::ActivateTab::Yes
            tabLocation:TabLocation::end()];
 }
@@ -312,6 +323,9 @@
     [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"New Window"
                                                 action:@selector(createNewWindow:)
                                          keyEquivalent:@"n"]];
+    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"New Private Window"
+                                                action:@selector(createNewPrivateWindow:)
+                                         keyEquivalent:@"N"]];
     [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"New Tab"
                                                 action:@selector(createNewTab:)
                                          keyEquivalent:@"t"]];
