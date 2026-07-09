@@ -42,6 +42,13 @@ static constexpr CGFloat PRIVATE_BROWSING_BADGE_HEIGHT = 22;
 static constexpr CGFloat PRIVATE_BROWSING_BADGE_HORIZONTAL_PADDING = 10;
 static constexpr CGFloat PRIVATE_BROWSING_BADGE_CORNER_RADIUS = 10;
 
+static constexpr CGFloat PRIVATE_SESSION_POPOVER_WIDTH = 320;
+static constexpr CGFloat PRIVATE_SESSION_POPOVER_HORIZONTAL_PADDING = 16;
+static constexpr CGFloat PRIVATE_SESSION_POPOVER_VERTICAL_PADDING = 14;
+static constexpr CGFloat PRIVATE_SESSION_POPOVER_SPACING = 10;
+static constexpr CGFloat PRIVATE_SESSION_POPOVER_BUTTON_SPACING = 8;
+static constexpr CGFloat PRIVATE_SESSION_POPOVER_CONTENT_WIDTH = PRIVATE_SESSION_POPOVER_WIDTH - (PRIVATE_SESSION_POPOVER_HORIZONTAL_PADDING * 2);
+
 static constexpr CGFloat DOWNLOADS_POPOVER_WIDTH = 380;
 static constexpr CGFloat DOWNLOADS_POPOVER_HORIZONTAL_PADDING = 12;
 static constexpr CGFloat DOWNLOADS_POPOVER_VERTICAL_PADDING = 12;
@@ -105,7 +112,7 @@ static NSInteger ns_index_for_selected_suggestion(Optional<size_t> selected_sugg
         [self setFocusRingType:NSFocusRingTypeNone];
         [self setAlignment:NSTextAlignmentCenter];
         [self setFont:[NSFont systemFontOfSize:[NSFont smallSystemFontSize] weight:NSFontWeightSemibold]];
-        [self setToolTip:@""];
+        [self setToolTip:@"Close all private windows and start a fresh private browsing session"];
         [self updateTitleAttributes];
 
         [self setWantsLayer:YES];
@@ -163,6 +170,92 @@ static NSInteger ns_index_for_selected_suggestion(Optional<size_t> selected_sugg
 
     [self layer].backgroundColor = surface_color.CGColor;
     [self layer].borderColor = border_color.CGColor;
+}
+
+@end
+
+@interface PrivateSessionPopoverViewController : NSViewController
+
+@property (nonatomic, copy) void (^onCancel)(void);
+@property (nonatomic, copy) void (^onConfirm)(void);
+
+@end
+
+@implementation PrivateSessionPopoverViewController
+
+- (void)loadView
+{
+    auto* stack = [[NSStackView alloc] initWithFrame:NSMakeRect(0, 0, PRIVATE_SESSION_POPOVER_WIDTH, 0)];
+    [stack setOrientation:NSUserInterfaceLayoutOrientationVertical];
+    [stack setSpacing:PRIVATE_SESSION_POPOVER_SPACING];
+    [stack setEdgeInsets:NSEdgeInsets {
+                             PRIVATE_SESSION_POPOVER_VERTICAL_PADDING,
+                             PRIVATE_SESSION_POPOVER_HORIZONTAL_PADDING,
+                             PRIVATE_SESSION_POPOVER_VERTICAL_PADDING,
+                             PRIVATE_SESSION_POPOVER_HORIZONTAL_PADDING,
+                         }];
+    [[stack widthAnchor] constraintEqualToConstant:PRIVATE_SESSION_POPOVER_WIDTH].active = YES;
+
+    auto* title_label = [NSTextField labelWithString:@"Start a fresh private session?"];
+    [title_label setFont:[NSFont boldSystemFontOfSize:[NSFont systemFontSize]]];
+    [title_label setLineBreakMode:NSLineBreakByWordWrapping];
+    [title_label setMaximumNumberOfLines:0];
+    [title_label setPreferredMaxLayoutWidth:PRIVATE_SESSION_POPOVER_CONTENT_WIDTH];
+    [[title_label widthAnchor] constraintEqualToConstant:PRIVATE_SESSION_POPOVER_CONTENT_WIDTH].active = YES;
+    [stack addArrangedSubview:title_label];
+
+    auto* body_label = [NSTextField labelWithString:@"This closes all private windows and deletes history and other site data from the current private browsing session."];
+    [body_label setTextColor:[NSColor secondaryLabelColor]];
+    [body_label setLineBreakMode:NSLineBreakByWordWrapping];
+    [body_label setMaximumNumberOfLines:0];
+    [body_label setPreferredMaxLayoutWidth:PRIVATE_SESSION_POPOVER_CONTENT_WIDTH];
+    [[body_label widthAnchor] constraintEqualToConstant:PRIVATE_SESSION_POPOVER_CONTENT_WIDTH].active = YES;
+    [stack addArrangedSubview:body_label];
+
+    auto* button_row = [[NSStackView alloc] init];
+    [button_row setOrientation:NSUserInterfaceLayoutOrientationHorizontal];
+    [button_row setSpacing:PRIVATE_SESSION_POPOVER_BUTTON_SPACING];
+
+    auto* spacer = [[NSView alloc] init];
+    [spacer setContentHuggingPriority:NSLayoutPriorityDefaultLow
+                       forOrientation:NSLayoutConstraintOrientationHorizontal];
+    [button_row addArrangedSubview:spacer];
+
+    auto* cancel_button = [NSButton buttonWithTitle:@"Cancel"
+                                             target:self
+                                             action:@selector(cancelPrivateSessionReset:)];
+    [cancel_button setBezelStyle:NSBezelStyleRounded];
+    [button_row addArrangedSubview:cancel_button];
+
+    auto* restart_button = [NSButton buttonWithTitle:@"Restart Private Session"
+                                              target:self
+                                              action:@selector(confirmPrivateSessionReset:)];
+    [restart_button setBezelStyle:NSBezelStyleRounded];
+    [restart_button setKeyEquivalent:@"\r"];
+    [button_row addArrangedSubview:restart_button];
+
+    [stack addArrangedSubview:button_row];
+    [self setView:stack];
+
+    [stack layoutSubtreeIfNeeded];
+    auto fitting_size = [stack fittingSize];
+    fitting_size.width = PRIVATE_SESSION_POPOVER_WIDTH;
+    [self setPreferredContentSize:fitting_size];
+}
+
+- (void)cancelPrivateSessionReset:(id)sender
+{
+    if (self.onCancel)
+        self.onCancel();
+}
+
+- (void)confirmPrivateSessionReset:(id)sender
+{
+    if (self.onCancel)
+        self.onCancel();
+
+    if (self.onConfirm)
+        self.onConfirm();
 }
 
 @end
@@ -568,6 +661,9 @@ static NSInteger ns_index_for_selected_suggestion(Optional<size_t> selected_sugg
 @property (nonatomic, strong) NSToolbarItem* downloads_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* new_tab_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* tab_overview_toolbar_item;
+
+@property (nonatomic, strong) NSPopover* private_session_popover;
+
 @property (nonatomic, strong) DownloadsButton* downloads_button;
 @property (nonatomic, strong) NSPopover* downloads_popover;
 
@@ -994,6 +1090,47 @@ private:
     self.tab.titlebarAppearsTransparent = YES;
 }
 
+- (void)showPrivateSessionPopover:(id)sender
+{
+    if (m_is_private == WebView::IsPrivate::No)
+        return;
+
+    if (!self.private_session_popover) {
+        auto* content_view_controller = [[PrivateSessionPopoverViewController alloc] init];
+        __weak TabController* weak_self = self;
+        [content_view_controller setOnCancel:^{
+            TabController* self = weak_self;
+            if (self != nil)
+                [self.private_session_popover close];
+        }];
+        [content_view_controller setOnConfirm:^{
+            TabController* self = weak_self;
+            if (self == nil)
+                return;
+
+            auto* delegate = (ApplicationDelegate*)[NSApp delegate];
+            [delegate restartPrivateBrowsingSession];
+        }];
+
+        self.private_session_popover = [[NSPopover alloc] init];
+        [self.private_session_popover setAnimates:YES];
+        [self.private_session_popover setBehavior:NSPopoverBehaviorTransient];
+        [self.private_session_popover setContentViewController:content_view_controller];
+    }
+
+    [self.private_session_popover showRelativeToToolbarItem:self.private_browsing_toolbar_item];
+}
+
+- (void)togglePrivateSessionPopover:(id)sender
+{
+    if (self.private_session_popover && [self.private_session_popover isShown]) {
+        [self.private_session_popover close];
+        return;
+    }
+
+    [self showPrivateSessionPopover:sender];
+}
+
 - (void)showDownloadsPopover:(id)sender
 {
     if (!self.downloads_button)
@@ -1208,6 +1345,8 @@ private:
 {
     if (!_private_browsing_toolbar_item) {
         auto* badge_button = [[PrivateBrowsingBadgeButton alloc] init];
+        [badge_button setTarget:self];
+        [badge_button setAction:@selector(togglePrivateSessionPopover:)];
 
         _private_browsing_toolbar_item = [[NSToolbarItem alloc] initWithItemIdentifier:TOOLBAR_PRIVATE_BROWSING_IDENTIFIER];
         [_private_browsing_toolbar_item setView:badge_button];

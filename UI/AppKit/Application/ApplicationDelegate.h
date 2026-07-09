@@ -66,6 +66,8 @@ private:
 - (void)removeTab:(nonnull TabController*)controller;
 - (NSUInteger)tabCount;
 
+- (void)restartPrivateBrowsingSession;
+
 - (void)rebuildBookmarksMenu;
 
 - (void)onDevtoolsEnabled;

@@ -151,6 +151,17 @@
     return self.managed_tabs.count;
 }
 
+- (void)restartPrivateBrowsingSession
+{
+    for (TabController* controller in [self.managed_tabs copy]) {
+        if ([controller isPrivate] == WebView::IsPrivate::Yes)
+            [[controller window] close];
+    }
+
+    WebView::Application::the().reset_private_browsing_session();
+    [self openNewWindow:WebView::IsPrivate::Yes];
+}
+
 - (void)rebuildBookmarksMenu
 {
     Ladybird::repopulate_application_menu(self.bookmarks_menu, WebView::Application::the().bookmarks_menu());
