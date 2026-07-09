@@ -24,6 +24,7 @@ add_executable(WebWorker main.cpp)
 
 if (LINUX)
     target_sources(WebWorker PRIVATE ../RendererSandboxLinux.cpp)
+    target_link_libraries(WebWorker PRIVATE Fontconfig::Fontconfig)
 elseif (APPLE)
     target_sources(WebWorker PRIVATE ../RendererSandboxMacOS.cpp)
 else()
