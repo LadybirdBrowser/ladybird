@@ -199,6 +199,13 @@ static inline AK::Duration time_units_to_duration(i64 time_units, AVRational con
     return AK::Duration::from_time_units(time_units, time_base.num, time_base.den);
 }
 
+static AK::Duration frame_duration_from_frame_rate(AVRational const& frame_rate)
+{
+    if (frame_rate.num <= 0 || frame_rate.den <= 0)
+        return AK::Duration::zero();
+    return AK::Duration::from_time_units(frame_rate.den, 1, frame_rate.num);
+}
+
 static inline i64 duration_to_time_units(AK::Duration duration, AVRational const& time_base)
 {
     VERIFY(time_base.num > 0);
@@ -520,9 +527,15 @@ DecoderErrorOr<CodedFrame> FFmpegDemuxer::get_next_sample_for_track(Track const&
             track_context.timestamp_offset = track_context.pending_timestamp_offset.release_value();
 
         auto flags = (packet.flags & AV_PKT_FLAG_KEY) != 0 ? FrameFlags::Keyframe : FrameFlags::None;
+        auto duration = time_units_to_duration(packet.duration, stream.time_base);
+        // FIXME: This is a hack to work around a bug in libavformat where the stts box of an MP4 track is ignored if
+        //        it also contains a ctts box. This should not be necessary when we move to our own MP4 demuxer.
+        if (duration.is_zero() && track.type() == TrackType::Video)
+            duration = frame_duration_from_frame_rate(av_guess_frame_rate(&format_context, &stream, nullptr));
+
         auto sample = CodedFrame(
             track_context.timestamp_offset + time_units_to_duration(packet.pts, stream.time_base),
-            time_units_to_duration(packet.duration, stream.time_base),
+            duration,
             flags,
             move(packet_data),
             auxiliary_data);

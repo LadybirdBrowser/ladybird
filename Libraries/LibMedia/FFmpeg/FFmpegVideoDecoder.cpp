@@ -106,19 +106,24 @@ FFmpegVideoDecoder::~FFmpegVideoDecoder()
     avcodec_free_context(&m_codec_context);
 }
 
-DecoderErrorOr<void> FFmpegVideoDecoder::receive_coded_data(AK::Duration timestamp, AK::Duration duration, ReadonlyBytes coded_data)
+DecoderErrorOr<void> FFmpegVideoDecoder::receive_coded_data(AK::Duration timestamp, AK::Duration duration, ReadonlyBytes coded_data, Optional<AK::Duration> decode_timestamp)
 {
     VERIFY(coded_data.size() < NumericLimits<int>::max());
 
     m_packet->data = const_cast<u8*>(coded_data.data());
     m_packet->size = static_cast<int>(coded_data.size());
     m_packet->pts = timestamp.to_microseconds();
-    m_packet->dts = m_packet->pts;
+    m_packet->dts = decode_timestamp.value_or(timestamp).to_microseconds();
     m_packet->duration = duration.to_microseconds();
+    auto packet_pts = m_packet->pts;
 
     auto result = avcodec_send_packet(m_codec_context, m_packet);
     switch (result) {
     case 0:
+        // Some FFmpeg decoders do not propagate packet duration to decoded frames, so
+        // remember the accepted packet duration by PTS and consume it on output.
+        if (!duration.is_zero())
+            m_frame_durations.set(packet_pts, duration);
         return {};
     case AVERROR(EAGAIN):
         return DecoderError::with_description(DecoderErrorCategory::NeedsMoreInput, "FFmpeg decoder cannot decode any more data until frames have been retrieved"sv);
@@ -215,6 +220,12 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> FFmpegVideoDecoder::get_decoded_frame(
 
         auto timestamp = AK::Duration::from_microseconds(m_frame->pts);
         auto duration = AK::Duration::from_microseconds(m_frame->duration);
+        if (duration.is_zero()) {
+            if (auto packet_duration = m_frame_durations.take(m_frame->pts); packet_duration.has_value())
+                duration = *packet_duration;
+        } else {
+            m_frame_durations.remove(m_frame->pts);
+        }
 
         auto yuv_data = DECODER_TRY_ALLOC(Gfx::YUVData::create(gfx_size, bit_depth, subsampling, cicp));
 
@@ -264,6 +275,7 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> FFmpegVideoDecoder::get_decoded_frame(
 
 void FFmpegVideoDecoder::flush()
 {
+    m_frame_durations.clear();
     avcodec_flush_buffers(m_codec_context);
 }
 

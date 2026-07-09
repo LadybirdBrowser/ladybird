@@ -5,6 +5,7 @@
  */
 
 #include <LibCore/EventLoop.h>
+#include <LibMedia/CodedVideoFrameData.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/FFmpeg/FFmpegVideoDecoder.h>
 #include <LibMedia/Sinks/VideoSink.h>
@@ -460,7 +461,8 @@ bool DecodedVideoProducer::ThreadData::handle_seek()
                 auto coded_frame = coded_frame_result.release_value();
                 dispatch_frame_end_time(coded_frame);
 
-                auto decode_result = m_decoder->receive_coded_data(coded_frame.timestamp(), coded_frame.duration(), coded_frame.data());
+                auto const& video_frame_data = coded_frame.auxiliary_data().get<CodedVideoFrameData>();
+                auto decode_result = m_decoder->receive_coded_data(coded_frame.timestamp(), coded_frame.duration(), coded_frame.data(), video_frame_data.decode_timestamp());
                 if (decode_result.is_error()) {
                     handle_error(decode_result.release_error());
                     return true;
@@ -545,7 +547,8 @@ void DecodedVideoProducer::ThreadData::push_data_and_decode_some_frames()
         auto coded_frame = sample_result.release_value();
         dispatch_frame_end_time(coded_frame);
 
-        auto decode_result = m_decoder->receive_coded_data(coded_frame.timestamp(), coded_frame.duration(), coded_frame.data());
+        auto const& video_frame_data = coded_frame.auxiliary_data().get<CodedVideoFrameData>();
+        auto decode_result = m_decoder->receive_coded_data(coded_frame.timestamp(), coded_frame.duration(), coded_frame.data(), video_frame_data.decode_timestamp());
         if (decode_result.is_error()) {
             set_halting_status_and_wait_for_seek(PipelineStatus::Error, decode_result.release_error());
             return;
