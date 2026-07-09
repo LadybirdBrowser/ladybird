@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<div id="target"></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const animation = target.animate(
+            { transform: ["translateX(0px)", "translateX(1000000px)"] },
+            4096
+        );
+        animation.pause();
+        animation.currentTime = 620;
+
+        println(getComputedStyle(target).transform);
+    });
+</script>
