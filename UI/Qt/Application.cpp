@@ -35,6 +35,7 @@
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QMimeData>
+#include <QPointer>
 #include <QSizePolicy>
 #include <QStandardPaths>
 #include <QTimer>
@@ -242,6 +243,19 @@ public:
         update_reopen_recently_closed_action();
         update_application_menu_bar_tab_menus();
     }
+
+    void create_dock_menu()
+    {
+        if (m_dock_menu)
+            return;
+
+        m_dock_menu = new QMenu(m_application_menu_bar);
+        QObject::connect(m_dock_menu, &QMenu::aboutToShow, this, [this] {
+            rebuild_dock_menu();
+        });
+        rebuild_dock_menu();
+        m_dock_menu->setAsDockMenu();
+    }
 #endif
 
 #if defined(AK_OS_MACOS)
@@ -270,6 +284,54 @@ public:
 
 private:
 #if defined(AK_OS_MACOS)
+    void rebuild_dock_menu()
+    {
+        m_dock_menu->clear();
+
+        auto* new_window_action = m_dock_menu->addAction("New Window");
+        QObject::connect(new_window_action, &QAction::triggered, m_dock_menu, [] {
+            Application::the().open_new_window(WebView::IsPrivate::No);
+        });
+
+        auto* new_private_window_action = m_dock_menu->addAction("New Private Window");
+        QObject::connect(new_private_window_action, &QAction::triggered, m_dock_menu, [] {
+            Application::the().open_new_window(WebView::IsPrivate::Yes);
+        });
+
+        bool added_window_separator = false;
+        for (auto* widget : QApplication::topLevelWidgets()) {
+            auto* window = as_if<BrowserWindow>(widget);
+            if (!window)
+                continue;
+
+            if (!added_window_separator) {
+                m_dock_menu->addSeparator();
+                added_window_separator = true;
+            }
+
+            auto title = window->windowTitle();
+            title.replace("&", "&&");
+            auto* action = m_dock_menu->addAction(title);
+            action->setCheckable(true);
+            action->setChecked(window == Application::the().active_window_if_any());
+
+            QPointer<BrowserWindow> window_pointer = window;
+            QObject::connect(action, &QAction::triggered, m_dock_menu, [window = window_pointer] {
+                if (!window)
+                    return;
+
+                if (window->isMinimized())
+                    window->showNormal();
+                else
+                    window->show();
+
+                window->raise();
+                window->activateWindow();
+                Application::the().set_active_window(*window);
+            });
+        }
+    }
+
     QAction* add_application_menu_action(QMenu& menu, QString const& text, QList<QKeySequence> shortcuts)
     {
         auto* action = new QAction(text, m_application_menu_bar);
@@ -290,6 +352,7 @@ private:
     QMenu* m_history_menu { nullptr };
     QMenu* m_inspect_menu { nullptr };
     QMenu* m_debug_menu { nullptr };
+    QMenu* m_dock_menu { nullptr };
     QAction* m_reopen_recently_closed_tab_action { nullptr };
 #endif
 };
@@ -495,8 +558,10 @@ bool Application::confirm_cancel_active_downloads(QWidget* parent)
 void Application::initialize_macos_application_menu()
 {
 #if defined(AK_OS_MACOS)
-    if (m_application)
+    if (m_application) {
         static_cast<LadybirdQApplication*>(m_application.ptr())->create_application_menu_bar();
+        static_cast<LadybirdQApplication*>(m_application.ptr())->create_dock_menu();
+    }
 #endif
 }
 
