@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+table {
+    width: 600px;
+}
+
+.narrow {
+    width: 80px;
+}
+
+.fixed {
+    table-layout: fixed;
+}
+
+tr {
+    height: 24px;
+}
+</style>
+<table class="fixed">
+    <tr id="fixed">
+        <td>one two three four five six seven eight nine ten</td>
+    </tr>
+</table>
+<table>
+    <tr id="auto">
+        <td>one two three four five six seven eight nine ten</td>
+    </tr>
+</table>
+<table class="fixed narrow">
+    <tr id="narrow-fixed">
+        <td>one two three four five six seven eight nine ten</td>
+    </tr>
+</table>
+<script>
+test(() => {
+    const fixedRow = document.getElementById("fixed").getBoundingClientRect();
+    const autoRow = document.getElementById("auto").getBoundingClientRect();
+    const narrowFixedRow = document.getElementById("narrow-fixed").getBoundingClientRect();
+    println(`fixed row height: ${fixedRow.height}`);
+    println(`auto row height: ${autoRow.height}`);
+    println(`narrow fixed row height: ${narrowFixedRow.height}`);
+});
+</script>

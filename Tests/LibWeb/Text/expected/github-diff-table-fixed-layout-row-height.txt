@@ -1,0 +1,3 @@
+fixed row height: 24
+auto row height: 24
+narrow fixed row height: 114

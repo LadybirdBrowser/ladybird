@@ -221,7 +221,6 @@ void TableFormattingContext::compute_cell_measures(RowMeasurement row_measuremen
 void TableFormattingContext::compute_outer_content_sizes()
 {
     auto containing_block_width = m_table_constraints.percentage_basis_width.value_or(0);
-    auto containing_block_height = m_table_constraints.percentage_basis_height.value_or(0);
 
     size_t column_index = 0;
     TableGrid::for_each_child_box_matching(table_box(), is_table_column_group, [&](auto& column_group_box) {
@@ -239,6 +238,13 @@ void TableFormattingContext::compute_outer_content_sizes()
             column_index += span;
         });
     });
+
+    initialize_row_content_sizes();
+}
+
+void TableFormattingContext::initialize_row_content_sizes()
+{
+    auto containing_block_height = m_table_constraints.percentage_basis_height.value_or(0);
 
     for (auto& row : m_rows) {
         auto const& computed_values = row.box.computed_values();
@@ -1027,6 +1033,14 @@ void TableFormattingContext::compute_table_height()
             cell_state.set_content_height(independent_formatting_context->automatic_content_height());
             independent_formatting_context->parent_context_did_dimension_child_root_box();
         }
+        if (m_needs_fixed_mode_row_measurement) {
+            auto const& computed_values = cell.box.computed_values();
+            auto min_height = computed_values.min_height().to_px(height_of_containing_block);
+            auto cell_intrinsic_height_offsets = cell_state.border_box_top() + cell_state.border_box_bottom();
+            auto measured_outer_height = max(cell_state.border_box_height(), min_height + cell_intrinsic_height_offsets);
+            cell.outer_min_height = measured_outer_height;
+            cell.outer_max_height = measured_outer_height;
+        }
 
         // https://drafts.csswg.org/css2/#height-layout
         // The baseline of a cell is the baseline of the first in-flow line box in the cell, or the first in-flow
@@ -1044,8 +1058,18 @@ void TableFormattingContext::compute_table_height()
             if (cell.row_span == 1) {
                 row.base_height = max(row.base_height, cell_state.border_box_height());
             }
-            row.base_height = max(row.base_height, m_rows[cell.row_index].min_size);
+            if (!m_needs_fixed_mode_row_measurement)
+                row.base_height = max(row.base_height, m_rows[cell.row_index].min_size);
             row.baseline = max(row.baseline, cell.baseline);
+        }
+    }
+
+    if (m_needs_fixed_mode_row_measurement) {
+        initialize_row_content_sizes();
+        compute_table_measures<Row>();
+        for (auto& row : m_rows) {
+            if (!row.is_collapsed)
+                row.base_height = max(row.base_height, row.min_size);
         }
     }
 
@@ -1811,10 +1835,22 @@ void TableFormattingContext::run_until_width_calculation(LayoutInput const& layo
     border_conflict_resolution();
 
     auto effective_row_measurement = row_measurement;
+    m_needs_fixed_mode_row_measurement = false;
     // OPTIMIZATION: Row intrinsic measurements are only needed when row height constraints or rowspans can affect
     //               the later row height distribution. Simple tables get their actual row heights from cell layout.
     if (effective_row_measurement == RowMeasurement::Include && can_skip_row_intrinsic_measurement())
         effective_row_measurement = RowMeasurement::Skip;
+    if (effective_row_measurement == RowMeasurement::Include && use_fixed_mode_layout()) {
+        // https://drafts.csswg.org/css-tables-3/#computing-column-measures
+        // For the purpose of measuring a column when laid out in fixed mode ... the min-content and max-content width
+        // of cells is considered zero.
+        //
+        // https://drafts.csswg.org/css-tables-3/#ROWMIN
+        // ROWMIN is defined as the sum of the minimum height of the rows after a first row layout pass.
+        // NB: So defer fixed-mode row measurement until after columns have their used widths.
+        effective_row_measurement = RowMeasurement::Skip;
+        m_needs_fixed_mode_row_measurement = true;
+    }
 
     // Compute the minimum width of each column.
     compute_cell_measures(effective_row_measurement);

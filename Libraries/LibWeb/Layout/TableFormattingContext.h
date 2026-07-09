@@ -45,6 +45,7 @@ private:
     CSSPixels compute_capmin();
     void compute_constrainedness();
     void compute_cell_measures(RowMeasurement);
+    void initialize_row_content_sizes();
     void compute_outer_content_sizes();
     template<class RowOrColumn>
     void initialize_table_measures();
@@ -87,6 +88,7 @@ private:
     CSSPixels m_automatic_content_height { 0 };
 
     Optional<AvailableSpace> m_available_space;
+    bool m_needs_fixed_mode_row_measurement { false };
 
     struct Column {
         CSSPixels left_offset { 0 };
