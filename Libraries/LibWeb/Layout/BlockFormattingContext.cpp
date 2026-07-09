@@ -571,16 +571,32 @@ void BlockFormattingContext::rebuild_float_bands()
         add_float_to_bands(*floating_box, floating_box->containing_block_rect_in_root_coordinate_space);
 }
 
+void BlockFormattingContext::update_lowest_floating_descendant_bottom_margin_edge()
+{
+    Optional<CSSPixels> lowest;
+    for (auto const& floating_box : m_floats) {
+        auto bottom_margin_edge = floating_box->margin_box_rect_in_root_coordinate_space.bottom();
+        if (!lowest.has_value() || bottom_margin_edge > *lowest)
+            lowest = bottom_margin_edge;
+    }
+    m_state.get_mutable(root()).set_lowest_floating_descendant_bottom_margin_edge(lowest);
+}
+
 void BlockFormattingContext::translate_floats_in_subtree(Box const& ancestor, CSSPixelPoint delta)
 {
-    if (delta.is_zero())
+    if (delta.is_zero() || m_floats.is_empty())
         return;
+    bool any_float_moved = false;
     for (auto& floating_box : m_floats) {
         if (!ancestor.is_ancestor_of(floating_box->box))
             continue;
         floating_box->margin_box_rect_in_root_coordinate_space.translate_by(delta);
         floating_box->containing_block_rect_in_root_coordinate_space.translate_by(delta);
+        any_float_moved = true;
     }
+    if (!any_float_moved)
+        return;
+    update_lowest_floating_descendant_bottom_margin_edge();
     rebuild_float_bands();
 }
 
@@ -1592,7 +1608,11 @@ void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer 
     floating_box.margin_box_rect_in_root_coordinate_space.set_x(margin_box_left_of_float_in_root(floating_box, containing_block_rect_in_root));
     add_float_to_bands(floating_box, containing_block_rect_in_root);
 
-    m_state.get_mutable(root()).add_floating_descendant(box);
+    auto& root_state = m_state.get_mutable(root());
+    auto bottom_margin_edge = m_floats.last()->margin_box_rect_in_root_coordinate_space.bottom();
+    auto lowest = root_state.lowest_floating_descendant_bottom_margin_edge();
+    if (!lowest.has_value() || bottom_margin_edge > *lowest)
+        root_state.set_lowest_floating_descendant_bottom_margin_edge(bottom_margin_edge);
 
     if (line_builder)
         line_builder->recalculate_available_space();

@@ -626,8 +626,7 @@ CSSPixels FormattingContext::compute_auto_height_for_block_formatting_context_ro
             if (child_box.is_absolutely_positioned())
                 return IterationDecision::Continue;
 
-            // FIXME: This doesn't look right.
-            if ((root.computed_values().overflow_y() == CSS::Overflow::Visible) && child_box.is_floating())
+            if (child_box.is_floating())
                 return IterationDecision::Continue;
 
             // Children that have not been laid out yet contribute nothing to the auto height.
@@ -647,13 +646,9 @@ CSSPixels FormattingContext::compute_auto_height_for_block_formatting_context_ro
     // In addition, if the element has any floating descendants
     // whose bottom margin edge is below the element's bottom content edge,
     // then the height is increased to include those edges.
-    for (auto floating_box : m_state.get(root).floating_descendants()) {
-        // NOTE: Floating box coordinates are relative to their own containing block,
-        //       which may or may not be the BFC root.
-        auto margin_box = margin_box_rect_in_ancestor_coordinate_space(*floating_box, root);
-        CSSPixels floating_box_bottom_margin_edge = margin_box.bottom();
-        if (!bottom.has_value() || floating_box_bottom_margin_edge > bottom.value())
-            bottom = floating_box_bottom_margin_edge;
+    if (auto lowest_float_bottom_margin_edge = m_state.get(root).lowest_floating_descendant_bottom_margin_edge(); lowest_float_bottom_margin_edge.has_value()) {
+        if (!bottom.has_value() || *lowest_float_bottom_margin_edge > bottom.value())
+            bottom = lowest_float_bottom_margin_edge;
     }
 
     return max(CSSPixels(0.0f), bottom.value_or(0) - top.value_or(0));

@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/BumpAllocator.h>
-#include <AK/HashTable.h>
 #include <AK/OwnPtr.h>
 #include <AK/kmalloc.h>
 #include <LibGfx/Path.h>
@@ -244,11 +243,12 @@ struct LayoutState {
 
         Optional<LineBoxFragmentCoordinate> containing_line_box_fragment;
 
-        void add_floating_descendant(Box const& box) { ensure_rare_data().floating_descendants.set(&box); }
-        HashTable<Box const*> const& floating_descendants() const
+        void set_lowest_floating_descendant_bottom_margin_edge(Optional<CSSPixels> bottom_margin_edge) { ensure_rare_data().lowest_floating_descendant_bottom_margin_edge = bottom_margin_edge; }
+        Optional<CSSPixels> lowest_floating_descendant_bottom_margin_edge() const
         {
-            static auto const& empty = *new HashTable<Box const*>;
-            return m_rare ? m_rare->floating_descendants : empty;
+            if (!m_rare)
+                return {};
+            return m_rare->lowest_floating_descendant_bottom_margin_edge;
         }
 
         void set_override_borders_data(Painting::Paintable::BordersDataWithElementKind const& override_borders_data) { ensure_rare_data().override_borders_data = override_borders_data; }
@@ -344,7 +344,7 @@ struct LayoutState {
 
             RareData() = default;
             RareData(RareData const& other)
-                : floating_descendants(other.floating_descendants)
+                : lowest_floating_descendant_bottom_margin_edge(other.lowest_floating_descendant_bottom_margin_edge)
                 , table_cell_coordinates(other.table_cell_coordinates)
                 , computed_svg_path(other.computed_svg_path)
                 , grid_template_columns(other.grid_template_columns)
@@ -359,7 +359,7 @@ struct LayoutState {
                     flex_layout_data = make<FlexLayoutData>(*other.flex_layout_data);
             }
 
-            HashTable<Box const*> floating_descendants;
+            Optional<CSSPixels> lowest_floating_descendant_bottom_margin_edge;
             Optional<Painting::Paintable::TableCellCoordinates> table_cell_coordinates;
             Optional<Gfx::Path> computed_svg_path;
             OwnPtr<GridLayoutData> grid_layout_data;

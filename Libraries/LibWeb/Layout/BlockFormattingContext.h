@@ -123,6 +123,7 @@ private:
 
     [[nodiscard]] CSSPixels compute_normal_flow_x(Box const& child_box, AvailableSpace const&, CSSPixelPoint content_position_in_root) const;
     void translate_floats_in_subtree(Box const& ancestor, CSSPixelPoint delta);
+    void update_lowest_floating_descendant_bottom_margin_edge();
 
     [[nodiscard]] CSSPixels border_box_left_of_box_avoiding_floats(Box const&, LayoutState::UsedValues const&, SpaceUsedByFloats const&) const;
 
