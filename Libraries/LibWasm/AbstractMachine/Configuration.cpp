@@ -102,8 +102,8 @@ Result Configuration::execute(Interpreter& interpreter)
     results.reverse();
 
     // If we reached here from a tailcall -> return, we might not have a label to pop (because the return already popped it)
-    if (!label_stack().is_empty())
-        label_stack().take_last();
+    if (label_stack().size() > frame().label_index())
+        label_stack().shrink(frame().label_index(), true);
 
     return Result { move(results) };
 }
