@@ -8,6 +8,9 @@
         target.appendChild(document.createElement("div"));
         internals.setPageFocus(false);
 
+        // Restore page focus — so later tests reusing this process don't inherit has_focus=false.
+        internals.setPageFocus(true);
+
         println("PASS");
     });
 </script>
