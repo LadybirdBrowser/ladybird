@@ -26,6 +26,52 @@ static constexpr CGFloat const BOOKMARK_ITEM_SPACING = 2;
 static constexpr CGFloat const BOOKMARK_LEADING_INSET = 8;
 static constexpr CGFloat const OVERFLOW_TRAILING_INSET = 4;
 
+@interface BookmarkBarButtonCell : NSButtonCell
+@end
+
+@implementation BookmarkBarButtonCell
+
+- (NSRect)drawTitle:(NSAttributedString*)title
+          withFrame:(NSRect)frame
+             inView:(NSView*)controlView
+{
+    if ([self shouldApplyIconTitleSpacing]) {
+        frame.origin.x += BOOKMARK_ITEM_SPACING;
+    }
+
+    return [super drawTitle:title withFrame:frame inView:controlView];
+}
+
+- (NSSize)cellSize
+{
+    auto size = [super cellSize];
+
+    if ([self shouldApplyIconTitleSpacing]) {
+        size.width += BOOKMARK_ITEM_SPACING;
+    }
+
+    return size;
+}
+
+- (BOOL)shouldApplyIconTitleSpacing
+{
+    return [self image] != nil && [[self title] length] > 0;
+}
+
+@end
+
+@interface BookmarkBarButton : NSButton
+@end
+
+@implementation BookmarkBarButton
+
++ (Class)cellClass
+{
+    return [BookmarkBarButtonCell class];
+}
+
+@end
+
 static Optional<WebView::Menu&> find_bookmark_folder_by_id(WebView::Menu& menu, StringView id)
 {
     for (auto& item : menu.items()) {
@@ -149,15 +195,16 @@ static Optional<WebView::Menu&> find_bookmark_folder_by_id(WebView::Menu& menu, 
                 if (bookmark->id() != WebView::ActionID::BookmarkItem)
                     return nil;
 
-                auto* button = Ladybird::create_application_button(bookmark);
+                auto* button = Ladybird::create_application_button(bookmark, [BookmarkBarButton class]);
                 set_button_properties(button, bookmark->text());
 
                 return button;
             },
             [&](NonnullRefPtr<WebView::Menu> const& folder) -> NSButton* {
-                auto* button = [NSButton buttonWithImage:[NSImage imageWithSystemSymbolName:@"folder" accessibilityDescription:@""]
-                                                  target:self
-                                                  action:@selector(openFolder:)];
+                auto* button = [[BookmarkBarButton alloc] init];
+                [button setImage:[NSImage imageWithSystemSymbolName:@"folder" accessibilityDescription:@""]];
+                [button setTarget:self];
+                [button setAction:@selector(openFolder:)];
                 set_button_properties(button, folder->title());
 
                 Ladybird::add_control_properties(button, *folder);
