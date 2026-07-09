@@ -91,7 +91,8 @@ void IncrementallyPopulatedStream::add_chunk_at(u64 offset, ReadonlyBytes data)
         next_chunk.data().bytes().copy_to(buffer.bytes().slice(next_chunk.offset() - chunk.offset()));
     }
 
-    begin_new_request_while_locked(chunk.end());
+    if (chunk.end() != new_chunk_end)
+        begin_new_request_while_locked(chunk.end());
     m_state_changed.broadcast();
 }
 
