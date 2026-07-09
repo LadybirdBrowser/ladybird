@@ -960,13 +960,15 @@ void Element::run_attribute_change_steps(FlyString const& local_name, Optional<U
     attribute_changed(local_name, old_value, value, namespace_);
 
     if (old_value != value) {
-        CSS::Invalidation::invalidate_style_after_attribute_change(
-            *this,
-            local_name,
-            old_value,
-            value);
-        if (local_name == HTML::AttributeNames::id || local_name == HTML::AttributeNames::class_)
-            invalidate_content_blocker_style_if_needed(*this);
+        if (!document().suppresses_attribute_style_invalidation()) {
+            CSS::Invalidation::invalidate_style_after_attribute_change(
+                *this,
+                local_name,
+                old_value,
+                value);
+            if (local_name == HTML::AttributeNames::id || local_name == HTML::AttributeNames::class_)
+                invalidate_content_blocker_style_if_needed(*this);
+        }
         document().bump_dom_tree_version();
     }
 }

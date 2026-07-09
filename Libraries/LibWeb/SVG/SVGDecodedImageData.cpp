@@ -73,9 +73,16 @@ ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(JS::Realm& rea
     auto& window = as<HTML::Window>(HTML::relevant_global_object(document));
     document->browsing_context()->window_proxy()->set_window(window);
 
-    XML::Parser parser(data, { .resolve_named_html_entity = resolve_named_html_entity });
-    XMLDocumentBuilder builder { document, XMLScriptingSupport::Disabled };
-    auto result = parser.parse_with_listener(builder);
+    auto result = [&] {
+        document->set_suppresses_attribute_style_invalidation(true);
+        ScopeGuard restore_attribute_style_invalidation = [&] {
+            document->set_suppresses_attribute_style_invalidation(false);
+        };
+
+        XML::Parser parser(data, { .resolve_named_html_entity = resolve_named_html_entity });
+        XMLDocumentBuilder builder { document, XMLScriptingSupport::Disabled };
+        return parser.parse_with_listener(builder);
+    }();
     if (result.is_error())
         dbgln("SVGDecodedImageData: Failed to parse SVG: {}", result.error());
 

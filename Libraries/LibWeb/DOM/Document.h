@@ -399,6 +399,8 @@ public:
 
     void update_style();
     void invalidate_style_for_viewport_change();
+    bool suppresses_attribute_style_invalidation() const { return m_suppresses_attribute_style_invalidation; }
+    void set_suppresses_attribute_style_invalidation(bool suppresses) { m_suppresses_attribute_style_invalidation = suppresses; }
     void update_style_if_needed_for_element(AbstractElement const&);
     using StyleUpdateMode = CSS::StyleUpdateMode;
     CSS::ComputedProperties const* update_style_for_element(AbstractElement const&);
@@ -1409,6 +1411,7 @@ private:
     Vector<GC::Weak<CSS::MediaQueryList>> m_media_query_lists;
 
     bool m_needs_full_style_update { false };
+    bool m_suppresses_attribute_style_invalidation { false };
     HashTable<GC::Ref<Element>> m_query_containers_needing_container_query_evaluation_after_layout;
     bool m_needs_full_layout_tree_update { false };
 
