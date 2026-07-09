@@ -8,6 +8,7 @@
 
 #include <AK/Optional.h>
 #include <LibGC/Weak.h>
+#include <LibGC/WeakHashSet.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/Page/Page.h>
@@ -47,6 +48,7 @@ private:
 
     RefPtr<Gfx::PaintingSurface> render_to_surface(Gfx::IntSize) const;
     void prune_cached_display_list_resources() const;
+    void append_cached_display_list_resources(Painting::DisplayListResourceSet&) const;
     void did_request_frame();
     void invalidate_cached_rendering();
 
@@ -86,7 +88,6 @@ public:
 
     GC::Ref<Page> m_host_page;
     GC::Ptr<Page> m_svg_page;
-    GC::Weak<SVGDecodedImageData> m_svg_image_data;
 
     virtual u64 id() const override { VERIFY_NOT_REACHED(); }
     virtual HTML::NavigableId allocate_navigable_id() override { return m_host_page->client().allocate_navigable_id(); }
@@ -109,6 +110,21 @@ public:
 
     virtual bool is_headless() const override { return m_host_page->client().is_headless(); }
 
+    void register_svg_image_data(SVGDecodedImageData&);
+    void prune_cached_display_list_resources() const;
+    HTML::Window& window() const;
+    void begin_recording_display_list() { ++m_display_list_recording_count; }
+    void end_recording_display_list();
+
+    GC::Ptr<SVGDecodedImageData> current_svg_image_data() const { return m_current_svg_image_data.ptr(); }
+    void set_current_svg_image_data(GC::Ptr<SVGDecodedImageData>);
+    void suppress_frame_requests() { ++m_frame_request_suppression_count; }
+    void unsuppress_frame_requests()
+    {
+        VERIFY(m_frame_request_suppression_count > 0);
+        --m_frame_request_suppression_count;
+    }
+
 private:
     explicit SVGPageClient(Page& host_page)
         : m_host_page(host_page)
@@ -118,6 +134,13 @@ private:
     virtual bool is_svg_page_client() const override { return true; }
 
     virtual void visit_edges(Visitor&) override;
+    void prune_cached_display_list_resources_now() const;
+
+    GC::WeakHashSet<SVGDecodedImageData> m_svg_image_data;
+    GC::Weak<SVGDecodedImageData> m_current_svg_image_data;
+    size_t m_frame_request_suppression_count { 0 };
+    size_t m_display_list_recording_count { 0 };
+    mutable bool m_has_pending_display_list_resource_prune { false };
 };
 
 }

@@ -5,8 +5,10 @@
  */
 
 #include <AK/Checked.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/NumericLimits.h>
 #include <AK/ScopeGuard.h>
+#include <LibGC/WeakHashMap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/PaintingSurface.h>
@@ -14,15 +16,10 @@
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
-#include <LibWeb/HTML/BrowsingContext.h>
-#include <LibWeb/HTML/DocumentState.h>
+#include <LibWeb/DOM/XMLDocument.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
-#include <LibWeb/HTML/NavigationParams.h>
-#include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Window.h>
-#include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
@@ -38,40 +35,82 @@ namespace Web::SVG {
 GC_DEFINE_ALLOCATOR(SVGDecodedImageData);
 GC_DEFINE_ALLOCATOR(SVGDecodedImageData::SVGPageClient);
 
-ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(JS::Realm& realm, GC::Ref<Page> host_page, URL::URL const& url, ReadonlyBytes data)
+static GC::WeakHashMap<Page, SVGDecodedImageData::SVGPageClient>& shared_svg_page_clients()
 {
-    auto page_client = SVGPageClient::create(Bindings::main_thread_vm(), host_page);
-    auto page = Page::create(Bindings::main_thread_vm(), *page_client);
+    static NeverDestroyed<GC::WeakHashMap<Page, SVGDecodedImageData::SVGPageClient>> page_clients;
+    return *page_clients;
+}
+
+static GC::Ref<SVGDecodedImageData::SVGPageClient> shared_svg_page_client_for_page(GC::Ref<Page> host_page)
+{
+    if (auto* page_client = shared_svg_page_clients().get(host_page))
+        return *page_client;
+
+    auto page_client = SVGDecodedImageData::SVGPageClient::create(Bindings::main_thread_vm(), host_page);
+    auto page = Page::create(Bindings::main_thread_vm(), page_client);
     page->set_is_scripting_enabled(false);
     page_client->m_svg_page = page.ptr();
-    page->set_top_level_traversable(Web::HTML::LocalTraversableNavigable::create_a_new_top_level_traversable(*page, nullptr, {}));
-    GC::Ref<HTML::LocalNavigable> navigable = page->top_level_traversable();
-    auto response = Fetch::Infrastructure::Response::create(navigable->vm());
-    response->url_list().append(url);
-    auto origin = URL::Origin::create_opaque();
-    auto navigation_params = navigable->heap().allocate<HTML::NavigationParams>(OptionalNone {},
-        navigable,
-        nullptr,
-        response,
-        nullptr,
-        nullptr,
-        HTML::OpenerPolicyEnforcementResult { .url = url, .origin = origin, .opener_policy = HTML::OpenerPolicy {} },
-        nullptr,
-        origin,
-        navigable->heap().allocate<HTML::PolicyContainer>(realm.heap()),
-        HTML::SandboxingFlagSet {},
-        ReferrerPolicy::ReferrerPolicy::EmptyString,
-        HTML::OpenerPolicy {},
-        OptionalNone {},
-        HTML::UserNavigationInvolvement::None);
+    page->set_top_level_traversable(HTML::LocalTraversableNavigable::create_a_new_top_level_traversable(page, nullptr, {}));
+    shared_svg_page_clients().set(host_page, page_client);
+    return page_client;
+}
 
-    // FIXME: Use LocalNavigable::navigate() instead of manually replacing the navigable's document.
-    auto document = MUST(DOM::Document::create_and_initialize(DOM::Document::Type::XML, "image/svg+xml"_string, navigation_params));
-    navigable->set_ongoing_navigation({});
-    navigable->active_document()->destroy();
-    navigable->set_active_document(document);
-    auto& window = as<HTML::Window>(HTML::relevant_global_object(document));
-    document->browsing_context()->window_proxy()->set_window(window);
+class ScopedSVGImageDocument {
+public:
+    enum class FrameRequests {
+        Suppress,
+        RouteToCurrentImage,
+    };
+
+    ScopedSVGImageDocument(SVGDecodedImageData::SVGPageClient& page_client, DOM::Document& document, FrameRequests frame_requests, GC::Ptr<SVGDecodedImageData> current_image_data = nullptr)
+        : m_page_client(page_client)
+        , m_navigable(page_client.page().top_level_traversable())
+        , m_window(page_client.window())
+        , m_previous_document(*m_navigable->active_document())
+        , m_previous_current_image_data(page_client.current_svg_image_data())
+        , m_should_unsuppress_frame_requests(frame_requests == FrameRequests::Suppress)
+    {
+        if (m_should_unsuppress_frame_requests)
+            m_page_client->suppress_frame_requests();
+        m_page_client->set_current_svg_image_data(current_image_data);
+
+        document.set_browsing_context(m_navigable->active_browsing_context());
+        document.set_window(*m_window);
+        m_window->set_associated_document(document);
+        m_navigable->set_active_document(document);
+    }
+
+    ~ScopedSVGImageDocument()
+    {
+        m_navigable->set_active_document(m_previous_document);
+        m_window->set_associated_document(m_previous_document);
+
+        m_page_client->set_current_svg_image_data(m_previous_current_image_data.ptr());
+        if (m_should_unsuppress_frame_requests)
+            m_page_client->unsuppress_frame_requests();
+    }
+
+private:
+    GC::Ref<SVGDecodedImageData::SVGPageClient> m_page_client;
+    GC::Ref<HTML::LocalTraversableNavigable> m_navigable;
+    GC::Ref<HTML::Window> m_window;
+    GC::Ref<DOM::Document> m_previous_document;
+    GC::Weak<SVGDecodedImageData> m_previous_current_image_data;
+    bool m_should_unsuppress_frame_requests { false };
+};
+
+ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(JS::Realm& realm, GC::Ref<Page> host_page, URL::URL const& url, ReadonlyBytes data)
+{
+    auto page_client = shared_svg_page_client_for_page(host_page);
+    auto& page = page_client->page();
+
+    auto& svg_realm = page.top_level_traversable()->active_document()->realm();
+    auto document = DOM::XMLDocument::create(svg_realm);
+    document->set_content_type("image/svg+xml"_string);
+    document->set_origin(URL::Origin::create_opaque());
+    document->set_url(url);
+
+    ScopedSVGImageDocument scoped_document { page_client, document, ScopedSVGImageDocument::FrameRequests::Suppress };
 
     auto result = [&] {
         document->set_suppresses_attribute_style_invalidation(true);
@@ -97,7 +136,7 @@ ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(JS::Realm& rea
         return Error::from_string_literal("SVGDecodedImageData: Invalid SVG input");
     }
     auto svg_image_data = realm.create<SVGDecodedImageData>(page, page_client, document, *svg_root);
-    page_client->m_svg_image_data = svg_image_data;
+    page_client->register_svg_image_data(svg_image_data);
     return svg_image_data;
 }
 
@@ -159,17 +198,20 @@ static void copy_referenced_resources_to(
 
 void SVGDecodedImageData::prune_cached_display_list_resources() const
 {
-    auto& resource_storage = m_document->navigable()->display_list_resource_storage();
+    m_page_client->prune_cached_display_list_resources();
+}
 
-    Painting::DisplayListResourceSet retained_resources;
+void SVGDecodedImageData::append_cached_display_list_resources(Painting::DisplayListResourceSet& retained_resources) const
+{
     for (auto const& cached_display_list : m_cached_display_lists)
         retained_resources.include(cached_display_list.value.referenced_resources);
-    resource_storage.retain_only(retained_resources);
 }
 
 Optional<Painting::DisplayListResource> SVGDecodedImageData::record_display_list(Gfx::IntSize size, Painting::DisplayListResourceStorage& destination_resource_storage) const
 {
-    auto& resource_storage = m_document->navigable()->display_list_resource_storage();
+    ScopedSVGImageDocument scoped_document { *m_page_client, *m_document, ScopedSVGImageDocument::FrameRequests::RouteToCurrentImage, const_cast<SVGDecodedImageData&>(*this) };
+    auto& navigable = *m_document->navigable();
+    auto& resource_storage = navigable.display_list_resource_storage();
 
     if (auto it = m_cached_display_lists.find(size); it != m_cached_display_lists.end()) {
         copy_referenced_resources_to(destination_resource_storage, resource_storage, it->value.referenced_resources);
@@ -182,12 +224,22 @@ Optional<Painting::DisplayListResource> SVGDecodedImageData::record_display_list
         prune_cached_display_list_resources();
     }
 
+    m_page_client->begin_recording_display_list();
+    ScopeGuard finish_recording_display_list = [&] {
+        m_page_client->end_recording_display_list();
+    };
+
     m_is_recording_display_list = true;
     ScopeGuard clear_recording_flag = [&] {
         m_is_recording_display_list = false;
     };
 
-    m_document->navigable()->set_viewport_size(size.to_type<CSSPixels>());
+    auto previous_viewport_size = navigable.viewport_size();
+    ScopeGuard restore_viewport_size = [&] {
+        navigable.set_viewport_size(previous_viewport_size);
+    };
+
+    navigable.set_viewport_size(size.to_type<CSSPixels>());
     m_document->update_layout(DOM::UpdateLayoutReason::SVGDecodedImageDataRender);
     auto display_list = m_document->record_display_list({}, resource_storage);
     if (!display_list)
@@ -206,8 +258,6 @@ Optional<Painting::DisplayListResource> SVGDecodedImageData::record_display_list
 
 RefPtr<Gfx::PaintingSurface> SVGDecodedImageData::render_to_surface(Gfx::IntSize size) const
 {
-    VERIFY(m_document->navigable());
-
     if (size.is_empty())
         return {};
 
@@ -261,6 +311,7 @@ Optional<Gfx::DecodedImageFrame> SVGDecodedImageData::default_frame(Gfx::IntSize
 Optional<CSSPixels> SVGDecodedImageData::intrinsic_width() const
 {
     // https://www.w3.org/TR/SVG2/coords.html#SizingSVGInCSS
+    ScopedSVGImageDocument scoped_document { *m_page_client, *m_document, ScopedSVGImageDocument::FrameRequests::RouteToCurrentImage, const_cast<SVGDecodedImageData&>(*this) };
     m_document->update_style();
     auto const root_element_style = m_root_element->computed_properties();
     VERIFY(root_element_style);
@@ -273,6 +324,7 @@ Optional<CSSPixels> SVGDecodedImageData::intrinsic_width() const
 Optional<CSSPixels> SVGDecodedImageData::intrinsic_height() const
 {
     // https://www.w3.org/TR/SVG2/coords.html#SizingSVGInCSS
+    ScopedSVGImageDocument scoped_document { *m_page_client, *m_document, ScopedSVGImageDocument::FrameRequests::RouteToCurrentImage, const_cast<SVGDecodedImageData&>(*this) };
     m_document->update_style();
     auto const root_element_style = m_root_element->computed_properties();
     VERIFY(root_element_style);
@@ -312,10 +364,66 @@ void SVGDecodedImageData::SVGPageClient::visit_edges(Visitor& visitor)
     visitor.visit(m_svg_page);
 }
 
+void SVGDecodedImageData::SVGPageClient::register_svg_image_data(SVGDecodedImageData& svg_image_data)
+{
+    m_svg_image_data.set(svg_image_data);
+}
+
+void SVGDecodedImageData::SVGPageClient::prune_cached_display_list_resources() const
+{
+    if (m_display_list_recording_count > 0) {
+        m_has_pending_display_list_resource_prune = true;
+        return;
+    }
+
+    prune_cached_display_list_resources_now();
+}
+
+void SVGDecodedImageData::SVGPageClient::prune_cached_display_list_resources_now() const
+{
+    Painting::DisplayListResourceSet retained_resources;
+    for (auto& svg_image_data : m_svg_image_data)
+        svg_image_data.append_cached_display_list_resources(retained_resources);
+
+    m_svg_page->top_level_traversable()->display_list_resource_storage().retain_only(retained_resources);
+}
+
+void SVGDecodedImageData::SVGPageClient::end_recording_display_list()
+{
+    VERIFY(m_display_list_recording_count > 0);
+    --m_display_list_recording_count;
+
+    if (m_display_list_recording_count > 0 || !m_has_pending_display_list_resource_prune)
+        return;
+
+    m_has_pending_display_list_resource_prune = false;
+    prune_cached_display_list_resources_now();
+}
+
+HTML::Window& SVGDecodedImageData::SVGPageClient::window() const
+{
+    auto window = m_svg_page->top_level_traversable()->active_window();
+    VERIFY(window);
+    return *window;
+}
+
+void SVGDecodedImageData::SVGPageClient::set_current_svg_image_data(GC::Ptr<SVGDecodedImageData> svg_image_data)
+{
+    m_current_svg_image_data = svg_image_data;
+}
+
 void SVGDecodedImageData::SVGPageClient::request_frame()
 {
-    if (auto svg_image_data = m_svg_image_data.ptr())
+    if (m_frame_request_suppression_count > 0)
+        return;
+
+    if (auto svg_image_data = m_current_svg_image_data.ptr()) {
         svg_image_data->did_request_frame();
+        return;
+    }
+
+    for (auto& svg_image_data : m_svg_image_data)
+        svg_image_data.did_request_frame();
 }
 
 void SVGDecodedImageData::did_request_frame()
