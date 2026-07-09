@@ -62,6 +62,8 @@ GC_DEFINE_ALLOCATOR(HTMLParser);
 GC_DEFINE_ALLOCATOR(HTMLParserEndState);
 
 static DOM::Node& node_from_html_parser_ffi(size_t);
+struct NodeAndOffset;
+static NodeAndOffset node_and_offset_from_html_parser_ffi(size_t, size_t);
 static HTMLParser& parser_from_html_parser_ffi(void*);
 static RustFfiHtmlNamespace namespace_to_html_parser_ffi(Optional<Utf16FlyString> const&);
 static RustFfiHtmlAttributeNamespace attribute_namespace_to_html_parser_ffi(Optional<Utf16FlyString> const&);
@@ -100,6 +102,8 @@ extern "C" void ladybird_html_parser_prepare_svg_script(void*, size_t, size_t);
 extern "C" void ladybird_html_parser_set_script_source_line(void*, size_t, size_t);
 extern "C" void ladybird_html_parser_mark_script_already_started(void*, size_t);
 extern "C" size_t ladybird_html_parser_parent_node(size_t);
+extern "C" size_t ladybird_html_parser_node_index(size_t);
+extern "C" size_t ladybird_html_parser_child_count(size_t);
 extern "C" size_t ladybird_html_parser_create_element(void*, size_t, RustFfiHtmlNamespace, u16 const*, size_t, u16 const*, size_t, RustFfiHtmlParserAttribute const*, size_t, bool, size_t, bool);
 extern "C" void ladybird_html_parser_append_child(size_t, size_t);
 extern "C" void ladybird_html_parser_insert_node(size_t, size_t, size_t, bool);
@@ -2104,6 +2108,24 @@ static DOM::Node& node_from_html_parser_ffi(size_t node)
     return *reinterpret_cast<DOM::Node*>(node);
 }
 
+struct NodeAndOffset {
+    GC::Ref<DOM::Node> node;
+    size_t offset;
+
+    DOM::Node* child_at_offset() const
+    {
+        VERIFY(offset <= node->child_count());
+        return node->child_at_index(offset);
+    }
+};
+
+static NodeAndOffset node_and_offset_from_html_parser_ffi(size_t node, size_t offset)
+{
+    auto& dom_node = node_from_html_parser_ffi(node);
+    VERIFY(offset <= dom_node.child_count());
+    return { dom_node, offset };
+}
+
 extern "C" size_t ladybird_html_parser_document_node(void* parser)
 {
     return reinterpret_cast<size_t>(&parser_from_html_parser_ffi(parser).document());
@@ -2141,26 +2163,24 @@ extern "C" size_t ladybird_html_parser_create_comment(void* parser, u8 const* da
     return reinterpret_cast<size_t>(comment.ptr());
 }
 
-extern "C" void ladybird_html_parser_insert_text(size_t parent, size_t before, u8 const* data_ptr, size_t data_len)
+extern "C" void ladybird_html_parser_insert_text(size_t parent, size_t offset, u8 const* data_ptr, size_t data_len)
 {
-    auto& parent_node = node_from_html_parser_ffi(parent);
+    auto insertion_location = node_and_offset_from_html_parser_ffi(parent, offset);
+    auto& parent_node = *insertion_location.node;
     if (parent_node.is_document())
         return;
 
     auto data = Utf16String::from_utf8(ffi_string(data_ptr, data_len));
-    if (before) {
-        auto& before_node = node_from_html_parser_ffi(before);
-        if (auto* previous_text = as_if<DOM::Text>(before_node.previous_sibling())) {
+    if (offset > 0) {
+        if (auto* previous_text = as_if<DOM::Text>(parent_node.child_at_index(offset - 1))) {
             (void)previous_text->append_data(data);
             return;
         }
-        auto text = parent_node.document().realm().create<DOM::Text>(parent_node.document(), data);
-        parent_node.insert_before(*text, &before_node);
-        return;
     }
 
-    if (auto* last_text = as_if<DOM::Text>(parent_node.last_child())) {
-        (void)last_text->append_data(data);
+    if (auto* before_node = insertion_location.child_at_offset()) {
+        auto text = parent_node.document().realm().create<DOM::Text>(parent_node.document(), data);
+        parent_node.insert_before(*text, before_node);
         return;
     }
 
@@ -2222,6 +2242,16 @@ extern "C" size_t ladybird_html_parser_parent_node(size_t node)
     return reinterpret_cast<size_t>(parent);
 }
 
+extern "C" size_t ladybird_html_parser_node_index(size_t node)
+{
+    return node_from_html_parser_ffi(node).index();
+}
+
+extern "C" size_t ladybird_html_parser_child_count(size_t node)
+{
+    return node_from_html_parser_ffi(node).child_count();
+}
+
 extern "C" size_t ladybird_html_parser_create_element(void* parser, size_t intended_parent, RustFfiHtmlNamespace namespace_, u16 const* namespace_uri_ptr, size_t namespace_uri_len, u16 const* local_name_ptr, size_t local_name_len, RustFfiHtmlParserAttribute const* attributes, size_t attribute_count, bool had_duplicate_attribute, size_t form_element, bool has_template_element_on_stack)
 {
     auto& html_parser = parser_from_html_parser_ffi(parser);
@@ -2255,20 +2285,19 @@ extern "C" void ladybird_html_parser_append_child(size_t parent, size_t child)
     MUST(node_from_html_parser_ffi(parent).append_child(node_from_html_parser_ffi(child)));
 }
 
-extern "C" void ladybird_html_parser_insert_node(size_t parent, size_t before, size_t child, bool queue_custom_element_reactions)
+extern "C" void ladybird_html_parser_insert_node(size_t parent, size_t offset, size_t child, bool queue_custom_element_reactions)
 {
-    auto& parent_node = node_from_html_parser_ffi(parent);
+    auto insertion_location = node_and_offset_from_html_parser_ffi(parent, offset);
+    auto& parent_node = *insertion_location.node;
     auto& child_node = node_from_html_parser_ffi(child);
     auto* child_element = as_if<DOM::Element>(child_node);
     if (queue_custom_element_reactions && child_element)
         relevant_similar_origin_window_agent(*child_element).custom_element_reactions_stack.element_queue_stack.append({});
 
-    if (!before) {
+    if (auto* before_node = insertion_location.child_at_offset())
+        parent_node.insert_before(child_node, before_node, false);
+    else
         MUST(parent_node.append_child(child_node));
-    } else {
-        auto& before_node = node_from_html_parser_ffi(before);
-        parent_node.insert_before(child_node, &before_node, false);
-    }
 
     if (queue_custom_element_reactions && child_element) {
         auto queue = relevant_similar_origin_window_agent(*child_element).custom_element_reactions_stack.element_queue_stack.take_last();

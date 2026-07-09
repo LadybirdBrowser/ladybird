@@ -116,7 +116,7 @@ unsafe extern "C" {
         system_id_len: usize,
     ) -> usize;
     fn ladybird_html_parser_create_comment(parser: *mut c_void, data_ptr: *const u8, data_len: usize) -> usize;
-    fn ladybird_html_parser_insert_text(parent: usize, before: usize, data_ptr: *const u8, data_len: usize);
+    fn ladybird_html_parser_insert_text(parent: usize, offset: usize, data_ptr: *const u8, data_len: usize);
     fn ladybird_html_parser_add_missing_attribute(
         element: usize,
         local_name_ptr: *const u16,
@@ -130,6 +130,8 @@ unsafe extern "C" {
     fn ladybird_html_parser_set_script_source_line(parser: *mut c_void, element: usize, source_line_number: usize);
     fn ladybird_html_parser_mark_script_already_started(parser: *mut c_void, element: usize);
     fn ladybird_html_parser_parent_node(node: usize) -> usize;
+    fn ladybird_html_parser_node_index(node: usize) -> usize;
+    fn ladybird_html_parser_child_count(node: usize) -> usize;
     fn ladybird_html_parser_create_element(
         parser: *mut c_void,
         intended_parent: usize,
@@ -147,7 +149,7 @@ unsafe extern "C" {
     fn ladybird_html_parser_append_child(parent: usize, child: usize);
     fn ladybird_html_parser_insert_node(
         parent: usize,
-        before: usize,
+        offset: usize,
         child: usize,
         queue_custom_element_reactions: bool,
     );
@@ -213,6 +215,12 @@ struct StackNode {
     namespace_uri: Option<String>,
     attributes: Vec<OwnedAttribute>,
     template_content: Option<usize>,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct AdjustedInsertionLocation {
+    parent: usize,
+    offset: usize,
 }
 
 struct FragmentParsingContext {
@@ -3024,9 +3032,9 @@ impl TreeBuilder {
     // https://html.spec.whatwg.org/multipage/parsing.html#insert-an-html-element
     fn insert_html_element_named(&mut self, name: &str, parent: usize) -> usize {
         self.flush_character_insertions();
-        let (adjusted_parent, adjusted_before) = self.appropriate_place_for_inserting_node(parent);
-        let element = self.create_element(adjusted_parent, RustFfiHtmlNamespace::Html, None, name, &[], false);
-        self.insert_parser_created_element(adjusted_parent, adjusted_before, element);
+        let adjusted_insertion_location = self.appropriate_place_for_inserting_node(parent);
+        let element = self.create_element(adjusted_insertion_location.parent, RustFfiHtmlNamespace::Html, None, name, &[], false);
+        self.insert_parser_created_element(adjusted_insertion_location, element);
         let template_content = if name == "template" {
             Some(self.template_content(element))
         } else {
@@ -3082,10 +3090,13 @@ impl TreeBuilder {
     ) -> usize {
         self.flush_character_insertions();
         // 1. Let the adjustedInsertionLocation be the appropriate place for inserting a node.
-        let (adjusted_parent, adjusted_before) = if before == 0 {
+        let adjusted_insertion_location = if before == 0 {
             self.appropriate_place_for_inserting_node(parent)
         } else {
-            (parent, before)
+            AdjustedInsertionLocation {
+                parent,
+                offset: self.node_index(before),
+            }
         };
         let attributes = attributes_from_token(token, namespace_);
         let owned_attributes = owned_attributes_from_token(token, namespace_);
@@ -3099,7 +3110,7 @@ impl TreeBuilder {
         // 2. Let element be the result of creating an element for the token given token, namespace, and the element in
         //    which the adjustedInsertionLocation finds itself.
         let element = self.create_element(
-            adjusted_parent,
+            adjusted_insertion_location.parent,
             namespace_,
             namespace_uri.as_deref(),
             local_name,
@@ -3117,7 +3128,7 @@ impl TreeBuilder {
         drop(attributes);
         // 3. If onlyAddToElementStack is false, then run insert an element at the adjusted insertion location with
         //    element.
-        self.insert_parser_created_element(adjusted_parent, adjusted_before, element);
+        self.insert_parser_created_element(adjusted_insertion_location, element);
         let template_content = if namespace_ == RustFfiHtmlNamespace::Html && local_name == "template" {
             Some(self.template_content(element))
         } else {
@@ -3141,9 +3152,9 @@ impl TreeBuilder {
         entry: &ActiveFormattingElement,
         parent: usize,
     ) -> usize {
-        let (adjusted_parent, adjusted_before) = self.appropriate_place_for_inserting_node(parent);
-        let element = self.create_html_element_for_active_formatting_element(entry, adjusted_parent);
-        self.insert_parser_created_element(adjusted_parent, adjusted_before, element);
+        let adjusted_insertion_location = self.appropriate_place_for_inserting_node(parent);
+        let element = self.create_html_element_for_active_formatting_element(entry, adjusted_insertion_location.parent);
+        self.insert_parser_created_element(adjusted_insertion_location, element);
         self.stack_of_open_elements.push(StackNode {
             handle: element,
             local_name: entry.local_name.clone(),
@@ -3277,18 +3288,33 @@ impl TreeBuilder {
         unsafe { ladybird_html_parser_append_child(parent, child) }
     }
 
-    fn insert_node(&mut self, parent: usize, before: usize, child: usize) {
-        unsafe { ladybird_html_parser_insert_node(parent, before, child, false) };
+    fn insert_node_at_insertion_location(&mut self, insertion_location: AdjustedInsertionLocation, child: usize) {
+        unsafe { ladybird_html_parser_insert_node(insertion_location.parent, insertion_location.offset, child, false) };
     }
 
     // https://html.spec.whatwg.org/multipage/parsing.html#insert-an-element-at-the-adjusted-insertion-location
-    fn insert_parser_created_element(&mut self, parent: usize, before: usize, child: usize) {
+    fn insert_parser_created_element(&mut self, insertion_location: AdjustedInsertionLocation, child: usize) {
         let queue_custom_element_reactions = !self.parsing_fragment;
-        unsafe { ladybird_html_parser_insert_node(parent, before, child, queue_custom_element_reactions) };
+        unsafe {
+            ladybird_html_parser_insert_node(
+                insertion_location.parent,
+                insertion_location.offset,
+                child,
+                queue_custom_element_reactions,
+            )
+        };
     }
 
     fn parent_node(&self, node: usize) -> usize {
         unsafe { ladybird_html_parser_parent_node(node) }
+    }
+
+    fn node_index(&self, node: usize) -> usize {
+        unsafe { ladybird_html_parser_node_index(node) }
+    }
+
+    fn child_count(&self, node: usize) -> usize {
+        unsafe { ladybird_html_parser_child_count(node) }
     }
 
     fn handle_element_popped(&mut self, element: usize) {
@@ -3340,11 +3366,10 @@ impl TreeBuilder {
     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inhead:attr-template-shadowrootmode
     fn try_to_start_declarative_shadow_root(&mut self, token: &Token) -> bool {
         // 6. Let the adjustedInsertionLocation be the appropriate place for inserting a node.
-        let (adjusted_insertion_location_parent, adjusted_insertion_location_before) =
-            self.appropriate_place_for_inserting_node(self.current_node_handle());
+        let adjusted_insertion_location = self.appropriate_place_for_inserting_node(self.current_node_handle());
 
         // 7. Let intendedParent be the element in which the adjustedInsertionLocation finds itself.
-        let intended_parent = adjusted_insertion_location_parent;
+        let intended_parent = adjusted_insertion_location.parent;
 
         // 8. Let document be intendedParent's node document.
 
@@ -3446,11 +3471,7 @@ impl TreeBuilder {
         // If an exception is thrown, then catch it and:
         if shadow_root == 0 {
             // 1. Insert an element at the adjusted insertion location with template.
-            self.insert_node(
-                adjusted_insertion_location_parent,
-                adjusted_insertion_location_before,
-                template,
-            );
+            self.insert_node_at_insertion_location(adjusted_insertion_location, template);
             // 2. The user agent may report an error to the developer console.
             // 3. Return.
             return true;
@@ -3548,12 +3569,19 @@ impl TreeBuilder {
         // AD-HOC: Coalesce consecutive character tokens before asking the host to insert text. The host still runs the
         // same DOM insertion logic for the adjusted insertion location.
         let data = std::mem::take(&mut self.pending_text);
-        let (parent, before) = self.appropriate_place_for_inserting_node(self.current_node_handle());
-        self.insert_text(parent, before, &data);
+        let insertion_location = self.appropriate_place_for_inserting_node(self.current_node_handle());
+        self.insert_text(insertion_location, &data);
     }
 
-    fn insert_text(&mut self, parent: usize, before: usize, data: &str) {
-        unsafe { ladybird_html_parser_insert_text(parent, before, data.as_ptr(), data.len()) }
+    fn insert_text(&mut self, insertion_location: AdjustedInsertionLocation, data: &str) {
+        unsafe {
+            ladybird_html_parser_insert_text(
+                insertion_location.parent,
+                insertion_location.offset,
+                data.as_ptr(),
+                data.len(),
+            )
+        }
     }
 
     fn add_missing_attributes_to_element(&mut self, element: usize, token: &Token) {
@@ -3826,11 +3854,14 @@ impl TreeBuilder {
     }
 
     // https://html.spec.whatwg.org/multipage/parsing.html#appropriate-place-for-inserting-a-node
-    fn appropriate_place_for_inserting_node(&self, target: usize) -> (usize, usize) {
+    fn appropriate_place_for_inserting_node(&self, target: usize) -> AdjustedInsertionLocation {
         // 1. If there was an override target specified, then let target be the override target.
         //    Otherwise, let target be the current node.
         let Some(target_node) = self.stack_of_open_elements.iter().find(|node| node.handle == target) else {
-            return (target, 0);
+            return AdjustedInsertionLocation {
+                parent: target,
+                offset: if target == 0 { 0 } else { self.child_count(target) },
+            };
         };
 
         // 2. Determine the adjusted insertion location using the first matching steps from the following list:
@@ -3864,17 +3895,21 @@ impl TreeBuilder {
                 && last_table_index.is_none_or(|table_index| template_index > table_index)
             {
                 let template = &self.stack_of_open_elements[template_index];
-                adjusted_insertion_location = (template.handle, 0);
+                adjusted_insertion_location = AdjustedInsertionLocation {
+                    parent: template.handle,
+                    offset: self.child_count(template.handle),
+                };
             } else {
                 match last_table_index {
                     // 4. If there is no last table, then let adjusted insertion location be inside the first element in
                     //    the stack of open elements (the html element), after its last child (if any), and abort these
                     //    steps. (fragment case)
                     None => {
-                        adjusted_insertion_location = (
-                            self.stack_of_open_elements.first().map(|node| node.handle).unwrap_or(0),
-                            0,
-                        );
+                        let parent = self.stack_of_open_elements.first().map(|node| node.handle).unwrap_or(0);
+                        adjusted_insertion_location = AdjustedInsertionLocation {
+                            parent,
+                            offset: self.child_count(parent),
+                        };
                     }
                     Some(table_index) => {
                         let table = self.stack_of_open_elements[table_index].handle;
@@ -3882,14 +3917,20 @@ impl TreeBuilder {
                         // 5. If last table has a parent node, then let adjusted insertion location be inside last table's
                         //    parent node, immediately before last table, and abort these steps.
                         if parent != 0 {
-                            adjusted_insertion_location = (parent, table);
+                            adjusted_insertion_location = AdjustedInsertionLocation {
+                                parent,
+                                offset: self.node_index(table),
+                            };
                         } else {
                             // 6. Let previous element be the element immediately above last table in the stack of open
                             //    elements.
                             let previous_element = &self.stack_of_open_elements[table_index - 1];
 
                             // 7. Let adjusted insertion location be inside previous element, after its last child (if any).
-                            adjusted_insertion_location = (previous_element.handle, 0);
+                            adjusted_insertion_location = AdjustedInsertionLocation {
+                                parent: previous_element.handle,
+                                offset: self.child_count(previous_element.handle),
+                            };
                         }
                     }
                 }
@@ -3902,7 +3943,10 @@ impl TreeBuilder {
         //   -> Otherwise
         else {
             // Let adjusted insertion location be inside target, after its last child (if any).
-            adjusted_insertion_location = (target_node.handle, 0);
+            adjusted_insertion_location = AdjustedInsertionLocation {
+                parent: target_node.handle,
+                offset: self.child_count(target_node.handle),
+            };
         }
 
         // 3. If the adjusted insertion location is inside a template element, let it instead be inside the template
@@ -3910,10 +3954,11 @@ impl TreeBuilder {
         if let Some(node) = self
             .stack_of_open_elements
             .iter()
-            .find(|node: &&StackNode| node.handle == adjusted_insertion_location.0)
+            .find(|node: &&StackNode| node.handle == adjusted_insertion_location.parent)
             && let Some(template_content) = node.template_content
         {
-            adjusted_insertion_location.0 = template_content;
+            adjusted_insertion_location.parent = template_content;
+            adjusted_insertion_location.offset = self.child_count(template_content);
         }
 
         // 4. Return the adjusted insertion location.
@@ -4212,8 +4257,8 @@ impl TreeBuilder {
 
             // 14. Insert whatever lastNode ended up being in the previous step at the appropriate place for inserting a node,
             //     but using commonAncestor as the override target.
-            let (parent, before) = self.appropriate_place_for_inserting_node(common_ancestor);
-            self.insert_node(parent, before, last_node);
+            let adjusted_insertion_location = self.appropriate_place_for_inserting_node(common_ancestor);
+            self.insert_node_at_insertion_location(adjusted_insertion_location, last_node);
 
             // 15. Create an element for the token for which formattingElement was created,
             //     in the HTML namespace, with furthestBlock as the intended parent.
