@@ -26,9 +26,9 @@ public:
     virtual CSSPixels automatic_content_width() const override;
     virtual CSSPixels automatic_content_height() const override;
 
-    bool box_should_avoid_floats_because_it_establishes_fc(Box const&);
+    bool box_should_avoid_floats_because_it_establishes_fc(Box const&) const;
     void compute_width(Box const&, AvailableSpace const&, ContainingBlockConstraints const& containing_block_constraints, CSSPixelPoint content_position_in_root);
-    void avoid_float_intrusions(Box const&, AvailableSpace const&, ContainingBlockConstraints const&);
+    [[nodiscard]] CSSPixels avoid_float_intrusions(Box const&, AvailableSpace const&, ContainingBlockConstraints const&, CSSPixels content_y, CSSPixelRect const& containing_block_rect_in_root);
 
     // https://www.w3.org/TR/css-display/#block-formatting-context-root
     BlockContainer const& root() const { return static_cast<BlockContainer const&>(context_box()); }
@@ -48,9 +48,6 @@ public:
     }
 
     [[nodiscard]] SpaceUsedByFloats available_inline_space(CSSPixels block_start_in_root, CSSPixels block_end_in_root) const;
-    [[nodiscard]] SpaceUsedByFloats intrusion_by_floats_into_box(Box const&, CSSPixels y_in_box) const;
-    [[nodiscard]] SpaceUsedByFloats intrusion_by_floats_into_box(LayoutState::UsedValues const&, CSSPixels y_in_box) const;
-    [[nodiscard]] SpaceUsedByFloats intrusion_by_floats_into_box(LayoutState::UsedValues const&, CSSPixels block_start_in_box, CSSPixels block_end_in_box) const;
     [[nodiscard]] SpaceUsedByFloats intrusion_by_floats_into_rect(CSSPixelRect const& box_in_root_rect, CSSPixels block_start_in_box, CSSPixels block_end_in_box) const;
     [[nodiscard]] Optional<CSSPixels> next_float_band_block_start_after(CSSPixels y_in_root) const;
 
@@ -124,8 +121,7 @@ private:
     void layout_inline_children(BlockContainer const&, LayoutInput const&, AvailableSpace const& available_space_for_children);
     void layout_fieldset_with_rendered_legend(FieldSetBox const&, LayoutInput const&);
 
-    void place_block_level_element_in_normal_flow_horizontally(Box const& child_box, AvailableSpace const&);
-    void place_block_level_element_in_normal_flow_vertically(Box const&, CSSPixels y);
+    [[nodiscard]] CSSPixels compute_normal_flow_x(Box const& child_box, AvailableSpace const&, CSSPixelPoint content_position_in_root) const;
     void translate_floats_in_subtree(Box const& ancestor, CSSPixelPoint delta);
 
     [[nodiscard]] CSSPixels border_box_left_of_box_avoiding_floats(Box const&, LayoutState::UsedValues const&, SpaceUsedByFloats const&) const;
@@ -158,7 +154,6 @@ private:
     [[nodiscard]] size_t band_index_at(CSSPixels y) const;
     [[nodiscard]] FloatBand const& band_at(CSSPixels y) const;
     [[nodiscard]] SpaceUsedByFloats intrusions_for_band_into_rect(FloatBand const&, CSSPixelRect const& rect_in_root) const;
-    [[nodiscard]] SpaceUsedByFloats available_inline_space_in_box(LayoutState::UsedValues const&, CSSPixels block_start_in_box, CSSPixels block_end_in_box) const;
     [[nodiscard]] CSSPixels greatest_child_width_in_rect(Box const&, CSSPixelRect const& box_in_root_rect) const;
     [[nodiscard]] FloatPlacement place_float(FloatSide, LayoutState::UsedValues const&, AvailableSpace const&, CSSPixelRect const& containing_block_rect_in_root, CSSPixels ceiling_in_root) const;
     void ensure_band_boundary(CSSPixels);
