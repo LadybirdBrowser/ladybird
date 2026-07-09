@@ -16,6 +16,7 @@
 - (void)setFavicon:(NSImage*)favicon;
 - (void)setShowsPageIcon:(BOOL)showsPageIcon;
 - (void)setBookmarkAction:(WebView::Action&)action;
+- (void)setZoomAction:(WebView::Action&)action;
 
 @property (nonatomic, copy) void (^willBeginEditing)(void);
 

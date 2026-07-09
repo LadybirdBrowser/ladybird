@@ -12,7 +12,10 @@
 #endif
 
 static constexpr CGFloat const BADGE_TRAILING_MARGIN = 6;
+static constexpr CGFloat const BADGE_GAP = 4;
 static constexpr CGFloat const BADGE_BUTTON_SIZE = 22;
+static constexpr CGFloat const ZOOM_PILL_HEIGHT = 18;
+static constexpr CGFloat const ZOOM_PILL_HORIZONTAL_PADDING = 12;
 
 static NSImage* location_field_globe_icon()
 {
@@ -108,6 +111,7 @@ static NSImage* location_field_globe_icon()
     NSImage* m_favicon;
     NSProgressIndicator* m_loading_indicator;
     NSButton* m_bookmark_button;
+    NSButton* m_zoom_button;
 }
 
 + (Class)cellClass
@@ -174,7 +178,20 @@ static NSImage* location_field_globe_icon()
     if ([self isBadgeVisible:m_bookmark_button]) {
         auto y = NSMidY(bounds) - BADGE_BUTTON_SIZE / 2;
         [m_bookmark_button setFrame:NSMakeRect(badge_max_x - BADGE_BUTTON_SIZE, y, BADGE_BUTTON_SIZE, BADGE_BUTTON_SIZE)];
+        badge_max_x = NSMinX([m_bookmark_button frame]) - BADGE_GAP;
     }
+
+    if ([self isBadgeVisible:m_zoom_button]) {
+        auto width = [self zoomButtonWidth];
+        auto y = NSMidY(bounds) - ZOOM_PILL_HEIGHT / 2;
+        [m_zoom_button setFrame:NSMakeRect(badge_max_x - width, y, width, ZOOM_PILL_HEIGHT)];
+    }
+}
+
+- (void)viewDidChangeEffectiveAppearance
+{
+    [super viewDidChangeEffectiveAppearance];
+    [self updateLayerColors];
 }
 
 - (void)setLoading:(BOOL)loading
@@ -221,6 +238,24 @@ static NSImage* location_field_globe_icon()
     [self badgeLayoutDidChange];
 }
 
+- (void)setZoomAction:(WebView::Action&)action
+{
+    if (m_zoom_button != nil)
+        [m_zoom_button removeFromSuperview];
+
+    m_zoom_button = Ladybird::create_application_button(action, [LocationFieldBadgeButton class]);
+    [m_zoom_button setBordered:NO];
+    [m_zoom_button setImagePosition:NSNoImage];
+    [m_zoom_button setFont:[NSFont monospacedDigitSystemFontOfSize:[NSFont smallSystemFontSize] weight:NSFontWeightRegular]];
+    [m_zoom_button setRefusesFirstResponder:YES];
+    [m_zoom_button setWantsLayer:YES];
+    [[m_zoom_button layer] setCornerRadius:ZOOM_PILL_HEIGHT / 2];
+    [[m_zoom_button layer] setMasksToBounds:YES];
+    [self updateLayerColors];
+    [self addSubview:m_zoom_button];
+    [self badgeLayoutDidChange];
+}
+
 - (void)updateLeadingIcon
 {
     auto* cell = (NSSearchFieldCell*)[self cell];
@@ -238,9 +273,25 @@ static NSImage* location_field_globe_icon()
     }
 }
 
+- (void)updateLayerColors
+{
+    [[m_zoom_button layer] setBackgroundColor:[NSColor quaternaryLabelColor].CGColor];
+}
+
 - (BOOL)isBadgeVisible:(NSButton*)button
 {
     return button != nil && ![button isHidden];
+}
+
+- (CGFloat)zoomButtonWidth
+{
+    NSDictionary* attributes = @{ NSFontAttributeName : [m_zoom_button font] };
+    auto* title = [m_zoom_button title];
+    auto width = [(title.length == 0 ? @"100%" : title) sizeWithAttributes:attributes].width;
+    auto reserved_text_width = [@"100%" sizeWithAttributes:attributes].width;
+    if (width < reserved_text_width)
+        width = reserved_text_width;
+    return ceil(width + ZOOM_PILL_HORIZONTAL_PADDING);
 }
 
 - (CGFloat)trailingBadgeInset
@@ -250,6 +301,13 @@ static NSImage* location_field_globe_icon()
 
     if ([self isBadgeVisible:m_bookmark_button]) {
         inset += BADGE_BUTTON_SIZE;
+        has_badge = YES;
+    }
+
+    if (m_zoom_button != nil) {
+        if (has_badge)
+            inset += BADGE_GAP;
+        inset += [self zoomButtonWidth];
         has_badge = YES;
     }
 

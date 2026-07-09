@@ -32,7 +32,6 @@ static NSString* const TOOLBAR_NAVIGATE_BACK_IDENTIFIER = @"ToolbarNavigateBackI
 static NSString* const TOOLBAR_NAVIGATE_FORWARD_IDENTIFIER = @"ToolbarNavigateForwardIdentifier";
 static NSString* const TOOLBAR_RELOAD_IDENTIFIER = @"ToolbarReloadIdentifier";
 static NSString* const TOOLBAR_LOCATION_IDENTIFIER = @"ToolbarLocationIdentifier";
-static NSString* const TOOLBAR_ZOOM_IDENTIFIER = @"ToolbarZoomIdentifier";
 static NSString* const TOOLBAR_DOWNLOADS_IDENTIFIER = @"ToolbarDownloadsIdentifier";
 static NSString* const TOOLBAR_NEW_TAB_IDENTIFIER = @"ToolbarNewTabIdentifier";
 static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIdentifier";
@@ -584,7 +583,6 @@ static NSInteger autocomplete_suggestion_index(NSString* suggestion_text, Vector
 @property (nonatomic, strong) NSToolbarItem* navigate_forward_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* reload_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* location_toolbar_item;
-@property (nonatomic, strong) NSToolbarItem* zoom_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* downloads_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* new_tab_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* tab_overview_toolbar_item;
@@ -646,7 +644,6 @@ private:
 @synthesize navigate_forward_toolbar_item = _navigate_forward_toolbar_item;
 @synthesize reload_toolbar_item = _reload_toolbar_item;
 @synthesize location_toolbar_item = _location_toolbar_item;
-@synthesize zoom_toolbar_item = _zoom_toolbar_item;
 @synthesize downloads_toolbar_item = _downloads_toolbar_item;
 @synthesize new_tab_toolbar_item = _new_tab_toolbar_item;
 @synthesize tab_overview_toolbar_item = _tab_overview_toolbar_item;
@@ -1043,6 +1040,7 @@ private:
     [location_search_field setStringValue:inline_text];
     [editor setString:inline_text];
     [editor setSelectedRange:completion_range];
+    [editor scrollRangeToVisible:NSMakeRange(query.length, 0)];
     m_is_applying_inline_autocomplete = false;
 }
 
@@ -1072,6 +1070,7 @@ private:
     [location_search_field setStringValue:query];
     [editor setString:query];
     [editor setSelectedRange:query_selection];
+    [editor scrollRangeToVisible:query_selection];
     m_is_applying_inline_autocomplete = false;
 }
 
@@ -1311,18 +1310,6 @@ private:
     return _location_toolbar_item;
 }
 
-- (NSToolbarItem*)zoom_toolbar_item
-{
-    if (!_zoom_toolbar_item) {
-        auto* button = Ladybird::create_application_button([[[self tab] web_view] view].reset_zoom_action());
-
-        _zoom_toolbar_item = [[NSToolbarItem alloc] initWithItemIdentifier:TOOLBAR_ZOOM_IDENTIFIER];
-        [_zoom_toolbar_item setView:button];
-    }
-
-    return _zoom_toolbar_item;
-}
-
 - (NSToolbarItem*)downloads_toolbar_item
 {
     if (!_downloads_toolbar_item) {
@@ -1391,7 +1378,6 @@ private:
             NSToolbarFlexibleSpaceItemIdentifier,
             TOOLBAR_RELOAD_IDENTIFIER,
             TOOLBAR_LOCATION_IDENTIFIER,
-            TOOLBAR_ZOOM_IDENTIFIER,
             TOOLBAR_DOWNLOADS_IDENTIFIER,
             NSToolbarFlexibleSpaceItemIdentifier,
             TOOLBAR_NEW_TAB_IDENTIFIER,
@@ -1417,6 +1403,7 @@ private:
 
     auto& view = [[[self tab] web_view] view];
     [[self locationSearchField] setBookmarkAction:view.toggle_bookmark_action()];
+    [[self locationSearchField] setZoomAction:view.reset_zoom_action()];
 
     [self.window makeKeyAndOrderFront:sender];
 
@@ -1593,9 +1580,6 @@ private:
     }
     if ([identifier isEqual:TOOLBAR_LOCATION_IDENTIFIER]) {
         return self.location_toolbar_item;
-    }
-    if ([identifier isEqual:TOOLBAR_ZOOM_IDENTIFIER]) {
-        return self.zoom_toolbar_item;
     }
     if ([identifier isEqual:TOOLBAR_DOWNLOADS_IDENTIFIER]) {
         return self.downloads_toolbar_item;
