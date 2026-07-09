@@ -14,6 +14,7 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/TextLayout.h>
+#include <LibUnicode/CharacterTypes.h>
 #include <core/SkFont.h>
 #include <core/SkTextBlob.h>
 #include <harfbuzz/hb.h>
@@ -56,7 +57,11 @@ void GlyphRun::ensure_text_blob(float scale) const
         return;
 
     auto sk_font = m_font->skia_font(scale);
-    auto glyph_count = m_glyphs.size();
+    size_t glyph_count = 0;
+    for (auto const& glyph : m_glyphs) {
+        if (glyph.should_paint)
+            ++glyph_count;
+    }
 
     m_cached_text_blob = make<CachedTextBlob>();
     m_cached_text_blob->scale = scale;
@@ -68,10 +73,14 @@ void GlyphRun::ensure_text_blob(float scale) const
     auto const& run = builder.allocRunPos(sk_font, glyph_count);
 
     float font_ascent = m_font->pixel_metrics().ascent;
-    for (size_t i = 0; i < glyph_count; ++i) {
-        run.glyphs[i] = m_glyphs[i].glyph_id;
-        run.pos[i * 2] = m_glyphs[i].position.x() * scale;
-        run.pos[i * 2 + 1] = (m_glyphs[i].position.y() + font_ascent) * scale;
+    size_t painted_glyph_index = 0;
+    for (auto const& glyph : m_glyphs) {
+        if (!glyph.should_paint)
+            continue;
+        run.glyphs[painted_glyph_index] = glyph.glyph_id;
+        run.pos[painted_glyph_index * 2] = glyph.position.x() * scale;
+        run.pos[painted_glyph_index * 2 + 1] = (glyph.position.y() + font_ascent) * scale;
+        ++painted_glyph_index;
     }
 
     m_cached_text_blob->blob = builder.make();
@@ -227,7 +236,15 @@ static NonnullOwnPtr<ShapedGlyphs> build_origin_relative_shape(Utf16View const& 
         return string.length_in_code_units() - starting_offset;
     };
 
+    auto should_paint_glyph = [&](auto index) {
+        auto starting_offset = glyph_info[index].cluster;
+        if (starting_offset >= string.length_in_code_units())
+            return true;
+        return !Unicode::code_point_has_default_ignorable_code_point_property(string.code_point_at(starting_offset));
+    };
+
     for (size_t i = 0; i < glyph_count; ++i) {
+        bool should_paint = should_paint_glyph(i);
         auto position = point
             - FloatPoint { 0, metrics.ascent }
             + FloatPoint { positions[i].x_offset, positions[i].y_offset } / text_shaping_resolution;
@@ -235,9 +252,13 @@ static NonnullOwnPtr<ShapedGlyphs> build_origin_relative_shape(Utf16View const& 
         glyphs.unchecked_append({
             .position = position,
             .length_in_code_units = glyph_length_in_code_units(i),
-            .glyph_width = positions[i].x_advance / text_shaping_resolution + letter_spacing,
+            .glyph_width = should_paint ? positions[i].x_advance / text_shaping_resolution + letter_spacing : 0,
             .glyph_id = glyph_info[i].codepoint,
+            .should_paint = should_paint,
         });
+
+        if (!should_paint)
+            continue;
 
         point += FloatPoint { positions[i].x_advance, positions[i].y_advance } / text_shaping_resolution;
 

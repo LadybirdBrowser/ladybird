@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/default-ignorable-code-points-not-painted-ref.html" />
+<style>
+body {
+    font: 24px Arial;
+}
+input, div {
+    box-sizing: border-box;
+    display: block;
+    width: 400px;
+    margin: 12px;
+    padding: 6px 8px;
+    font: inherit;
+}
+input::placeholder {
+    color: black;
+    opacity: 1;
+}
+</style>
+<input placeholder="Search in &#8296;r/programming&#8297;">
+<div>Search in &#8296;r/programming&#8297;</div>

@@ -35,6 +35,7 @@ bool code_point_has_property(u32 code_point, Property property, CaseSensitivity 
 bool code_point_has_emoji_property(u32 code_point);
 bool code_point_has_emoji_modifier_base_property(u32 code_point);
 bool code_point_has_emoji_presentation_property(u32 code_point);
+bool code_point_has_default_ignorable_code_point_property(u32 code_point);
 bool code_point_has_identifier_start_property(u32 code_point);
 bool code_point_has_identifier_continue_property(u32 code_point);
 bool code_point_has_regional_indicator_property(u32 code_point);

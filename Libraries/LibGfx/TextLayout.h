@@ -28,6 +28,7 @@ struct DrawGlyph {
     size_t length_in_code_units { 0 };
     float glyph_width { 0.0 };
     u32 glyph_id { 0 };
+    bool should_paint { true };
 };
 
 struct ShapedGlyphs {

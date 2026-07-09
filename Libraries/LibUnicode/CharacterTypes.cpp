@@ -268,6 +268,11 @@ bool code_point_has_emoji_presentation_property(u32 code_point)
     return code_point_has_property(code_point, UCHAR_EMOJI_PRESENTATION);
 }
 
+bool code_point_has_default_ignorable_code_point_property(u32 code_point)
+{
+    return code_point_has_property(code_point, UCHAR_DEFAULT_IGNORABLE_CODE_POINT);
+}
+
 bool code_point_has_identifier_start_property(u32 code_point)
 {
     return u_isIDStart(static_cast<UChar32>(code_point));
