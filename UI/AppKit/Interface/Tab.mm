@@ -135,8 +135,15 @@ static NSImage* tab_loading_spinner_icon(NSUInteger frame)
     auto window_rect = NSMakeRect(position_x, position_y, WINDOW_WIDTH, WINDOW_HEIGHT);
 
     if (self = [super initWithWebView:web_view windowRect:window_rect]) {
-        // Remember last window position
-        self.frameAutosaveName = @"window";
+        if ([self isPrivate] == WebView::IsPrivate::No) {
+            // Remember last window position.
+            self.frameAutosaveName = @"window";
+        } else {
+            // Adopt the last saved frame without persisting changes to it, and keep private windows out of window state
+            // restoration entirely.
+            [self setFrameUsingName:@"window"];
+            [self setRestorable:NO];
+        }
 
         self.favicon = [Tab defaultFavicon];
         self.title = @"New Tab";
