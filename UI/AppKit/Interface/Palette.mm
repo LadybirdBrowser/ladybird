@@ -41,8 +41,8 @@ Core::AnonymousBuffer create_system_palette()
     palette.set_flag(Gfx::FlagRole::IsDark, is_dark);
     palette.set_color(Gfx::ColorRole::Accent, ns_color_to_gfx_color([NSColor controlAccentColor]));
     palette.set_color(Gfx::ColorRole::Selection, WebView::macos_web_selection_color());
-    palette.set_color(Gfx::ColorRole::InactiveSelection, ns_color_to_gfx_color([NSColor unemphasizedSelectedTextBackgroundColor]));
-    palette.set_color(Gfx::ColorRole::InactiveSelectionText, ns_color_to_gfx_color([NSColor unemphasizedSelectedTextColor]));
+    palette.set_color(Gfx::ColorRole::InactiveSelection, WebView::macos_web_inactive_selection_color());
+    palette.set_color(Gfx::ColorRole::InactiveSelectionText, WebView::macos_web_inactive_selection_text_color());
     // FIXME: There are more system colors we currently don't use (https://developer.apple.com/documentation/appkit/nscolor/3000782-controlaccentcolor?language=objc)
 
     return theme;

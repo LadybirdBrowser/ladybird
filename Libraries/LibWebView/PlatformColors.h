@@ -12,5 +12,7 @@
 namespace WebView {
 
 WEBVIEW_API Gfx::Color macos_web_selection_color();
+WEBVIEW_API Gfx::Color macos_web_inactive_selection_color();
+WEBVIEW_API Gfx::Color macos_web_inactive_selection_text_color();
 
 }
