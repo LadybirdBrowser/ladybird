@@ -8,6 +8,7 @@
 
 #include <AK/Forward.h>
 #include <LibURL/URL.h>
+#include <LibWebView/PrivateBrowsing.h>
 
 #import <Cocoa/Cocoa.h>
 
@@ -15,9 +16,11 @@
 
 @interface TabController : NSWindowController <NSWindowDelegate>
 
-- (instancetype)init;
+- (instancetype)init:(WebView::IsPrivate)is_private;
 - (instancetype)initAsChild:(Tab*)parent
                   pageIndex:(u64)page_index;
+
+- (WebView::IsPrivate)isPrivate;
 
 - (void)loadURL:(URL::URL const&)url;
 

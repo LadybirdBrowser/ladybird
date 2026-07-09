@@ -91,8 +91,11 @@ void Application::open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTa
     ApplicationDelegate* delegate = [NSApp delegate];
     auto* active_tab = [delegate activeTab];
 
+    auto is_private = active_tab ? [active_tab isPrivate] : WebView::IsPrivate::No;
+
     (void)[delegate createNewTab:url
                          fromTab:active_tab
+                       isPrivate:is_private
                      activateTab:activate_tab
                      tabLocation:TabLocation::after_tab(active_tab)];
 }
@@ -103,21 +106,25 @@ void Application::open_urls_in_new_tabs(ReadonlySpan<URL::URL> urls) const
     auto* active_tab = [delegate activeTab];
     auto* previous_tab = active_tab;
 
+    auto is_private = active_tab ? [active_tab isPrivate] : WebView::IsPrivate::No;
+
     for (auto const& url : urls) {
         auto location = previous_tab ? TabLocation::after_tab(previous_tab) : TabLocation::end();
         auto* controller = [delegate createNewTab:url
                                           fromTab:active_tab
+                                        isPrivate:is_private
                                       activateTab:Web::HTML::ActivateTab::No
                                       tabLocation:location];
         previous_tab = (Tab*)[controller window];
     }
 }
 
-void Application::open_url_in_new_window(URL::URL const& url, WebView::IsPrivate)
+void Application::open_url_in_new_window(URL::URL const& url, WebView::IsPrivate is_private)
 {
     ApplicationDelegate* delegate = [NSApp delegate];
     (void)[delegate createNewTab:url
                          fromTab:nil
+                       isPrivate:is_private
                      activateTab:Web::HTML::ActivateTab::Yes
                      tabLocation:TabLocation::end()];
 }

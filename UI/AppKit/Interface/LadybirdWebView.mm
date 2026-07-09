@@ -138,8 +138,9 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
 @synthesize status_label = _status_label;
 
 - (instancetype)init:(id<LadybirdWebViewObserver>)observer
+           isPrivate:(WebView::IsPrivate)is_private
 {
-    if (self = [self initWebView:observer]) {
+    if (self = [self initWebView:observer isPrivate:is_private]) {
         m_web_view_bridge->initialize_client();
     }
 
@@ -155,7 +156,7 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
                      parent:(LadybirdWebView*)parent
                   pageIndex:(u64)page_index
 {
-    if (self = [self initWebView:observer]) {
+    if (self = [self initWebView:observer isPrivate:[parent view].is_private()]) {
         m_web_view_bridge->initialize_client_as_child(*parent->m_web_view_bridge, page_index);
     }
 
@@ -163,6 +164,7 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
 }
 
 - (instancetype)initWebView:(id<LadybirdWebViewObserver>)observer
+                  isPrivate:(WebView::IsPrivate)is_private
 {
     if (self = [super init]) {
         self.observer = observer;
@@ -187,7 +189,7 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
         auto maximum_frames_per_second = [[NSScreen mainScreen] maximumFramesPerSecond];
         auto display_id = display_id_for_screen([NSScreen mainScreen]);
 
-        m_web_view_bridge = MUST(Ladybird::WebViewBridge::create(move(screen_rects), device_pixel_ratio, maximum_frames_per_second, display_id));
+        m_web_view_bridge = MUST(Ladybird::WebViewBridge::create(is_private, move(screen_rects), device_pixel_ratio, maximum_frames_per_second, display_id));
         [self setWebViewCallbacks];
 
         [[NSNotificationCenter defaultCenter] addObserver:self

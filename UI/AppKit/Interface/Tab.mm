@@ -114,9 +114,9 @@ static NSImage* tab_loading_spinner_icon(NSUInteger frame)
     return default_favicon;
 }
 
-- (instancetype)init
+- (instancetype)init:(WebView::IsPrivate)is_private
 {
-    auto* web_view = [[LadybirdWebView alloc] init:self];
+    auto* web_view = [[LadybirdWebView alloc] init:self isPrivate:is_private];
     return [self initWithWebView:web_view];
 }
 
@@ -179,6 +179,11 @@ static NSImage* tab_loading_spinner_icon(NSUInteger frame)
 }
 
 #pragma mark - Public methods
+
+- (WebView::IsPrivate)isPrivate
+{
+    return [[self web_view] view].is_private();
+}
 
 - (void)find:(id)sender
 {
@@ -356,6 +361,7 @@ static NSImage* tab_loading_spinner_icon(NSUInteger frame)
 
     auto* controller = [delegate createNewTab:url
                                       fromTab:self
+                                    isPrivate:[self isPrivate]
                                   activateTab:activate_tab
                                   tabLocation:TabLocation::end()];
 

@@ -457,6 +457,7 @@ static NSInteger ns_index_for_selected_suggestion(Optional<size_t> selected_sugg
 
 @interface TabController () <NSToolbarDelegate, NSSearchFieldDelegate, AutocompleteObserver>
 {
+    WebView::IsPrivate m_is_private;
     u64 m_page_index;
 
     OwnPtr<WebView::Omnibox> m_omnibox;
@@ -540,7 +541,7 @@ private:
 @synthesize new_tab_toolbar_item = _new_tab_toolbar_item;
 @synthesize tab_overview_toolbar_item = _tab_overview_toolbar_item;
 
-- (instancetype)init
+- (instancetype)init:(WebView::IsPrivate)is_private
 {
     if (self = [super init]) {
         __weak TabController* weak_self = self;
@@ -556,7 +557,9 @@ private:
         [self.toolbar setAllowsUserCustomization:NO];
         [self.toolbar setSizeMode:NSToolbarSizeModeRegular];
 
+        m_is_private = is_private;
         m_page_index = 0;
+
         m_is_applying_omnibox_display = false;
         m_fullscreen_requested_for_web_content = false;
         m_fullscreen_exit_was_ui_initiated = true;
@@ -611,7 +614,7 @@ private:
 - (instancetype)initAsChild:(Tab*)parent
                   pageIndex:(u64)page_index
 {
-    if (self = [self init]) {
+    if (self = [self init:[parent isPrivate]]) {
         self.parent = parent;
 
         m_page_index = page_index;
@@ -624,6 +627,11 @@ private:
 }
 
 #pragma mark - Public methods
+
+- (WebView::IsPrivate)isPrivate
+{
+    return m_is_private;
+}
 
 - (void)loadURL:(URL::URL const&)url
 {
@@ -712,6 +720,7 @@ private:
 
     [delegate createNewTab:WebView::Application::settings().new_tab_page_url()
                    fromTab:[self tab]
+                 isPrivate:[[self tab] isPrivate]
                activateTab:Web::HTML::ActivateTab::Yes
                tabLocation:TabLocation::end()];
 
@@ -1195,7 +1204,7 @@ private:
 {
     self.window = self.parent
         ? [[Tab alloc] initAsChild:self.parent pageIndex:m_page_index]
-        : [[Tab alloc] init];
+        : [[Tab alloc] init:m_is_private];
 
     [self.window setDelegate:self];
 

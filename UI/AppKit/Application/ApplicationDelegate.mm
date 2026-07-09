@@ -73,7 +73,9 @@
 - (nonnull TabController*)createNewTab:(Web::HTML::ActivateTab)activate_tab
                                fromTab:(nullable Tab*)tab
 {
-    auto* controller = [[TabController alloc] init];
+    auto is_private = tab ? [tab isPrivate] : WebView::IsPrivate::No;
+    auto* controller = [[TabController alloc] init:is_private];
+
     [self initializeTabController:controller
                       activateTab:activate_tab
                           fromTab:tab];
@@ -83,10 +85,12 @@
 
 - (TabController*)createNewTab:(Optional<URL::URL> const&)url
                        fromTab:(Tab*)tab
+                     isPrivate:(WebView::IsPrivate)is_private
                    activateTab:(Web::HTML::ActivateTab)activate_tab
                    tabLocation:(TabLocation)tab_location
 {
-    auto* controller = [[TabController alloc] init];
+    auto* controller = [[TabController alloc] init:is_private];
+
     [self initializeTabController:controller
                       activateTab:activate_tab
                           fromTab:tab
@@ -199,6 +203,7 @@
 {
     [self createNewTab:WebView::Application::settings().new_tab_page_url()
                fromTab:nil
+             isPrivate:WebView::IsPrivate::No
            activateTab:Web::HTML::ActivateTab::Yes
            tabLocation:TabLocation::end()];
 }
@@ -441,6 +446,7 @@
 
         auto* controller = [self createNewTab:url
                                       fromTab:tab
+                                    isPrivate:WebView::IsPrivate::No
                                   activateTab:activate_tab
                                   tabLocation:TabLocation::end()];
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -20,13 +20,14 @@ static T scale_for_device(T size, double device_pixel_ratio)
     return size.template to_type<double>().scaled(device_pixel_ratio).template to_type<int>();
 }
 
-ErrorOr<NonnullOwnPtr<WebViewBridge>> WebViewBridge::create(Vector<Web::DevicePixelRect> screen_rects, double device_pixel_ratio, u64 maximum_frames_per_second, Optional<u64> display_id)
+ErrorOr<NonnullOwnPtr<WebViewBridge>> WebViewBridge::create(WebView::IsPrivate is_private, Vector<Web::DevicePixelRect> screen_rects, double device_pixel_ratio, u64 maximum_frames_per_second, Optional<u64> display_id)
 {
-    return adopt_nonnull_own_or_enomem(new (nothrow) WebViewBridge(move(screen_rects), device_pixel_ratio, maximum_frames_per_second, display_id));
+    return adopt_nonnull_own_or_enomem(new (nothrow) WebViewBridge(is_private, move(screen_rects), device_pixel_ratio, maximum_frames_per_second, display_id));
 }
 
-WebViewBridge::WebViewBridge(Vector<Web::DevicePixelRect> screen_rects, double device_pixel_ratio, u64 maximum_frames_per_second, Optional<u64> display_id)
-    : m_screen_rects(move(screen_rects))
+WebViewBridge::WebViewBridge(WebView::IsPrivate is_private, Vector<Web::DevicePixelRect> screen_rects, double device_pixel_ratio, u64 maximum_frames_per_second, Optional<u64> display_id)
+    : WebView::ViewImplementation(is_private)
+    , m_screen_rects(move(screen_rects))
 {
     m_device_pixel_ratio = device_pixel_ratio;
     m_display_id = display_id;

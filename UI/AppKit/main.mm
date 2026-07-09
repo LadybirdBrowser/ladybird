@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2023-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -29,6 +29,7 @@ static void open_urls_from_client(Vector<URL::URL> const& urls, WebView::NewWind
 
         auto* controller = [delegate createNewTab:url
                                           fromTab:tab
+                                        isPrivate:WebView::IsPrivate::No
                                       activateTab:activate_tab
                                       tabLocation:TabLocation::end()];
 

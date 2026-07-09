@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Types.h>
+#include <LibWebView/PrivateBrowsing.h>
 
 #import <Cocoa/Cocoa.h>
 #import <Interface/LadybirdWebViewWindow.h>
@@ -16,9 +17,11 @@
 
 @interface Tab : LadybirdWebViewWindow
 
-- (instancetype)init;
+- (instancetype)init:(WebView::IsPrivate)is_private;
 - (instancetype)initAsChild:(Tab*)parent
                   pageIndex:(u64)page_index;
+
+- (WebView::IsPrivate)isPrivate;
 
 - (BookmarksBar*)bookmarksBar;
 

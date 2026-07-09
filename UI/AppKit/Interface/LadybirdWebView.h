@@ -14,6 +14,7 @@
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWebView/Forward.h>
+#include <LibWebView/PrivateBrowsing.h>
 
 #import <Cocoa/Cocoa.h>
 
@@ -44,7 +45,8 @@
 
 @interface LadybirdWebView : NSView <NSMenuDelegate, NSTextInputClient>
 
-- (instancetype)init:(id<LadybirdWebViewObserver>)observer;
+- (instancetype)init:(id<LadybirdWebViewObserver>)observer
+           isPrivate:(WebView::IsPrivate)is_private;
 - (instancetype)initAsChild:(id<LadybirdWebViewObserver>)observer
                      parent:(LadybirdWebView*)parent
                   pageIndex:(u64)page_index;
