@@ -465,13 +465,12 @@ void Application::open_new_window(WebView::IsPrivate is_private)
 
 void Application::restart_private_browsing_session()
 {
-    WebView::Application::the().reset_private_browsing_session();
-
     for (auto* widget : QApplication::topLevelWidgets()) {
         if (auto* window = as_if<BrowserWindow>(widget); window && window->is_private() == WebView::IsPrivate::Yes)
             window->close();
     }
 
+    WebView::Application::the().reset_private_browsing_session();
     open_new_window(WebView::IsPrivate::Yes);
 }
 
