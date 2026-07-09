@@ -173,9 +173,10 @@ void BlockFormattingContext::parent_context_did_dimension_child_root_box()
     m_was_notified_after_parent_dimensioned_my_root_box = true;
 
     for (auto& floating_box : m_floats) {
+        auto content_y = floating_box->top_margin_edge + floating_box->used_values.margin_box_top();
         if (floating_box->side == FloatSide::Left) {
             // Left-side floats: offset_from_edge is from left edge (0) to left content edge of floating_box.
-            floating_box->used_values.set_content_x(floating_box->offset_from_edge);
+            floating_box->used_values.set_content_offset({ floating_box->offset_from_edge, content_y });
         } else {
             // Right-side floats: offset_from_edge is from right edge (float_containing_block_width) to the left content edge of floating_box.
             auto float_containing_block_width = [&] {
@@ -189,7 +190,7 @@ void BlockFormattingContext::parent_context_did_dimension_child_root_box()
                 }
                 VERIFY_NOT_REACHED();
             }();
-            floating_box->used_values.set_content_x(float_containing_block_width - floating_box->offset_from_edge);
+            floating_box->used_values.set_content_offset({ float_containing_block_width - floating_box->offset_from_edge, content_y });
         }
     }
 
@@ -1105,7 +1106,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         auto const y = m_y_offset_of_current_block_container.value();
         auto margin_top = m_margin_state.has_open_top_margin_group() ? 0 : m_margin_state.current_collapsed_margin();
         layout_floating_box(box, block_container, layout_input, margin_top + y);
-        bottom_of_lowest_margin_box = max(bottom_of_lowest_margin_box, box_state.offset.y() + box_state.content_height() + box_state.margin_box_bottom());
+        bottom_of_lowest_margin_box = max(bottom_of_lowest_margin_box, m_floats.last()->bottom_margin_edge);
         return;
     }
 
@@ -1590,9 +1591,10 @@ void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer 
 
     auto placement = place_float(side.value(), box_state, available_space, containing_block_rect_in_root_now, ceiling_in_root);
     auto content_y = placement.block_start - containing_block_rect_in_root_now.y() + box_state.margin_box_top();
-    box_state.set_content_y(content_y);
 
-    auto margin_box_rect_in_root = margin_box_rect_in_ancestor_coordinate_space(box_state, block_container).translated(containing_block_rect_in_root.location());
+    auto margin_box_rect_in_root = margin_box_rect(box_state)
+                                       .translated(0, content_y)
+                                       .translated(containing_block_rect_in_root.location());
     m_floats.append(adopt_own(*new FloatingBox {
         .box = box,
         .used_values = box_state,
@@ -1679,7 +1681,9 @@ void BlockFormattingContext::layout_list_item_marker(ListItemBox const& list_ite
         list_item_state.set_content_width(list_item_state.content_width() - marker_width - marker_distance);
     }
 
-    marker_state.set_content_offset({ round(marker_offset_x), round(marker_offset_y) });
+    // Animations can make `float` or `position` apply to ::marker.
+    if (!marker.is_floating() && !marker.is_absolutely_positioned())
+        marker_state.set_content_offset({ round(marker_offset_x), round(marker_offset_y) });
 
     if (marker.computed_values().line_height() > list_item_state.content_height())
         list_item_state.set_content_height(marker.computed_values().line_height());

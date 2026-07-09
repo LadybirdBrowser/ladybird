@@ -3136,7 +3136,7 @@ CSSPixels FormattingContext::box_baseline(Box const& box, BaselineSet baseline_s
     return box_state.margin_box_height();
 }
 
-[[nodiscard]] static CSSPixelRect margin_box_rect(LayoutState::UsedValues const& used_values)
+CSSPixelRect FormattingContext::margin_box_rect(LayoutState::UsedValues const& used_values)
 {
     return {
         {
