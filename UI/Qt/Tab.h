@@ -40,8 +40,9 @@ class HyperlinkLabel final : public QLabel {
 
 public:
     explicit HyperlinkLabel(QWidget* parent = nullptr)
-        : QLabel(parent)
+        : QLabel(parent, Qt::ToolTip | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint)
     {
+        setAttribute(Qt::WA_ShowWithoutActivating);
         setMouseTracking(true);
     }
 

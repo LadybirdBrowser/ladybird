@@ -1268,10 +1268,12 @@ void Tab::update_hover_label()
     if (m_find_in_page->isVisible())
         hover_label_height -= m_find_in_page->height();
 
-    if (m_hover_label->underMouse() && m_hover_label->x() == 0)
-        m_hover_label->move(width() / 2 + (width() / 2 - m_hover_label->width()), hover_label_height);
+    auto left_position = mapToGlobal(QPoint { 0, hover_label_height });
+
+    if (m_hover_label->underMouse() && m_hover_label->pos() == left_position)
+        m_hover_label->move(mapToGlobal(QPoint { width() - m_hover_label->width(), hover_label_height }));
     else
-        m_hover_label->move(0, hover_label_height);
+        m_hover_label->move(left_position);
 
     m_hover_label->raise();
 }
