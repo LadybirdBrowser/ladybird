@@ -429,6 +429,9 @@ Optional<PropertyID> property_id_from_string(Utf16View string)
     if (is_a_custom_property_name_string(string))
         return PropertyID::Custom;
 
+    if (string.has_ascii_storage())
+        return properties_table.get(StringView { string.bytes() });
+
     for (auto const& entry : properties_table) {
         if (string.equals_ignoring_ascii_case(entry.key))
             return entry.value;
