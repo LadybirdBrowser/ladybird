@@ -4547,6 +4547,24 @@ bool Document::anything_is_delaying_the_load_event() const
     return false;
 }
 
+bool Document::ready_to_fire_load_event()
+{
+    if (anything_is_delaying_the_load_event())
+        return false;
+
+    if (!m_did_update_layout_for_load_event_delay) {
+        // AD-HOC: Used CSS image resources are fetched lazily during layout. Force layout once
+        //         before firing the load event so newly discovered resources can delay it.
+        update_layout(UpdateLayoutReason::ParserLoadEventDelay);
+        m_did_update_layout_for_load_event_delay = true;
+
+        if (anything_is_delaying_the_load_event())
+            return false;
+    }
+
+    return true;
+}
+
 void Document::set_page_showing(bool page_showing)
 {
     if (m_page_showing == page_showing)
