@@ -21,6 +21,11 @@
 
 namespace Web::Painting {
 
+static CSSPixelSize to_css_pixel_size(Gfx::IntSize size)
+{
+    return CSSPixelSize { CSSPixels(size.width()), CSSPixels(size.height()) };
+}
+
 NonnullRefPtr<VideoPaintable> VideoPaintable::create(Layout::VideoBox const& layout_box)
 {
     return adopt_ref(*new VideoPaintable(layout_box));
@@ -54,7 +59,7 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
 
     auto paint_bitmap = [&](auto const& bitmap) {
         auto frame = Gfx::DecodedImageFrame { bitmap };
-        auto dst_rect = get_replaced_box_painting_area(*this, context, computed_values().object_fit(), bitmap.size());
+        auto dst_rect = get_replaced_box_painting_area(*this, context, computed_values().object_fit(), to_css_pixel_size(bitmap.size()));
         if (dst_rect.is_empty())
             return;
         auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), frame.size(), dst_rect.size());
@@ -74,7 +79,7 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
         else
             return;
 
-        auto dst_rect = get_replaced_box_painting_area(*this, context, computed_values().object_fit(), src_size);
+        auto dst_rect = get_replaced_box_painting_area(*this, context, computed_values().object_fit(), to_css_pixel_size(src_size));
         if (dst_rect.is_empty())
             return;
         auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), src_size, dst_rect.size());

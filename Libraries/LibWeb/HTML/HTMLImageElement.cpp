@@ -359,12 +359,33 @@ void HTMLImageElement::set_height(WebIDL::UnsignedLong height)
     set_attribute_value(HTML::AttributeNames::height, String::number(height));
 }
 
+static float current_pixel_density_or_default(ImageRequest const& image_request)
+{
+    auto density = image_request.current_pixel_density();
+    if (density <= 0)
+        return 1.0f;
+    return density;
+}
+
+static Optional<CSSPixels> density_correct_dimension(Optional<CSSPixels> dimension, float density)
+{
+    if (!dimension.has_value())
+        return {};
+    return CSSPixels::nearest_value_for(dimension->to_double() / density);
+}
+
+// https://html.spec.whatwg.org/multipage/images.html#density-corrected-intrinsic-width-and-height
+// To determine the density-corrected natural width and height of an img element img:
+// - Let density be img's current request's current pixel density.
+// - If the current request's preferred density-corrected dimensions are not null, divide those dimensions by density.
+// - Otherwise, divide the image's intrinsic width and intrinsic height by density.
+// The intrinsic ratio is not density-corrected, since dividing both dimensions by the same density leaves it unchanged.
+
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-naturalwidth
 unsigned HTMLImageElement::natural_width() const
 {
     // 1. If the image is not available, then return 0.
     // 2. Return the respective component of the image's density-corrected natural width and height, in CSS pixels. [CSS]
-    // FIXME: Implement density-corrected algorithm.
     if (auto width = intrinsic_width(); width.has_value() && *width > 0)
         return width->to_int();
     return 0;
@@ -375,7 +396,6 @@ unsigned HTMLImageElement::natural_height() const
 {
     // 1. If the image is not available, then return 0.
     // 2. Return the respective component of the image's density-corrected natural width and height, in CSS pixels. [CSS]
-    // FIXME: Implement density-corrected algorithm.
     if (auto height = intrinsic_height(); height.has_value() && *height > 0)
         return height->to_int();
     return 0;
@@ -850,6 +870,7 @@ after_step_7:
         // 17. Set image request to a new image request whose current URL is urlString.
         auto image_request = ImageRequest::create(document().realm(), document().page());
         image_request->set_current_url(document().realm(), move(utf16_url_string));
+        image_request->set_current_pixel_density(pixel_density.value_or(1.0f));
 
         // 18. If the current request's state is unavailable or broken, then set the current request to image request.
         //     Otherwise, set the pending request to image request.
@@ -1087,6 +1108,7 @@ void HTMLImageElement::react_to_changes_in_the_environment()
     // 12. ⌛ Let image request be a new image request whose current URL is urlString
     auto image_request = ImageRequest::create(document().realm(), document().page());
     image_request->set_current_url(document().realm(), Utf16String::from_utf8(*url_string));
+    image_request->set_current_pixel_density(pixel_density.value_or(1.0f));
 
     // 13. ⌛ Set the element's pending request to image request.
     m_pending_request = image_request;
@@ -1103,7 +1125,6 @@ void HTMLImageElement::react_to_changes_in_the_environment()
                 return;
 
             // 2. Set the img element's last selected source to selected source and the img element's current pixel density to selected pixel density.
-            // FIXME: pixel density
             m_last_selected_source = selected_source;
 
             // 3. Set the image request's state to completely available.
@@ -1399,6 +1420,50 @@ GC::Ptr<DecodedImageData> HTMLImageElement::decoded_image_data() const
     if (!m_current_request)
         return nullptr;
     return m_current_request->image_data();
+}
+
+Optional<CSSPixels> HTMLImageElement::intrinsic_width() const
+{
+    if (!m_current_request)
+        return {};
+
+    auto density = current_pixel_density_or_default(*m_current_request);
+    if (auto const& dimensions = m_current_request->preferred_density_corrected_dimensions(); dimensions.has_value())
+        return CSSPixels::nearest_value_for(dimensions->width() / density);
+
+    if (auto const& data = decoded_image_data())
+        return density_correct_dimension(data->intrinsic_width(), density);
+    return {};
+}
+
+Optional<CSSPixels> HTMLImageElement::intrinsic_height() const
+{
+    if (!m_current_request)
+        return {};
+
+    auto density = current_pixel_density_or_default(*m_current_request);
+    if (auto const& dimensions = m_current_request->preferred_density_corrected_dimensions(); dimensions.has_value())
+        return CSSPixels::nearest_value_for(dimensions->height() / density);
+
+    if (auto const& data = decoded_image_data())
+        return density_correct_dimension(data->intrinsic_height(), density);
+    return {};
+}
+
+Optional<CSSPixelFraction> HTMLImageElement::intrinsic_aspect_ratio() const
+{
+    if (!m_current_request)
+        return {};
+
+    if (auto const& dimensions = m_current_request->preferred_density_corrected_dimensions(); dimensions.has_value()) {
+        if (dimensions->width() > 0 && dimensions->height() > 0)
+            return CSSPixelFraction(dimensions->width(), dimensions->height());
+        return {};
+    }
+
+    if (auto const& data = decoded_image_data())
+        return data->intrinsic_aspect_ratio();
+    return {};
 }
 
 }

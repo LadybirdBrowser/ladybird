@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        internals.setDevicePixelRatio(2);
+
+        const img = document.createElement("img");
+        img.srcset = "../../../Assets/120.png?density=2 2x";
+        img.onload = () => {
+            println(`currentSrc: ${img.currentSrc.substring(img.currentSrc.lastIndexOf("/") + 1)}`);
+            println(`natural size: ${img.naturalWidth}x${img.naturalHeight}`);
+            println(`layout size: ${img.offsetWidth}x${img.offsetHeight}`);
+            done();
+        };
+        document.body.appendChild(img);
+    });
+</script>

@@ -12,7 +12,7 @@
 
 namespace Web::Painting {
 
-Gfx::IntRect get_replaced_box_painting_area(Paintable const& paintable, DisplayListRecordingContext const& context, CSS::ObjectFit object_fit, Gfx::IntSize content_size)
+Gfx::IntRect get_replaced_box_painting_area(Paintable const& paintable, DisplayListRecordingContext const& context, CSS::ObjectFit object_fit, CSSPixelSize content_size)
 {
     if (content_size.is_empty())
         return {};
@@ -23,7 +23,7 @@ Gfx::IntRect get_replaced_box_painting_area(Paintable const& paintable, DisplayL
 
     auto paintable_rect_device_pixels = context.rounded_device_rect(paintable_rect);
 
-    auto bitmap_aspect_ratio = CSSPixels(content_size.height()) / content_size.width();
+    auto bitmap_aspect_ratio = content_size.height() / content_size.width();
     auto image_aspect_ratio = paintable_rect.height() / paintable_rect.width();
 
     auto scale_x = CSSPixelFraction(1);
@@ -66,8 +66,8 @@ Gfx::IntRect get_replaced_box_painting_area(Paintable const& paintable, DisplayL
         break;
     }
 
-    auto scaled_bitmap_width = CSSPixels(content_size.width()) * scale_x;
-    auto scaled_bitmap_height = CSSPixels(content_size.height()) * scale_y;
+    auto scaled_bitmap_width = content_size.width() * scale_x;
+    auto scaled_bitmap_height = content_size.height() * scale_y;
 
     auto residual_horizontal = paintable_rect.width() - scaled_bitmap_width;
     auto residual_vertical = paintable_rect.height() - scaled_bitmap_height;

@@ -9,9 +9,10 @@
 #include <LibGfx/Forward.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/PixelUnits.h>
 
 namespace Web::Painting {
 
-Gfx::IntRect get_replaced_box_painting_area(Paintable const& paintable, DisplayListRecordingContext const& context, CSS::ObjectFit object_fit, Gfx::IntSize content_size);
+Gfx::IntRect get_replaced_box_painting_area(Paintable const&, DisplayListRecordingContext const&, CSS::ObjectFit, CSSPixelSize content_size);
 
 }

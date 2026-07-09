@@ -121,9 +121,7 @@ void ImagePaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
             // https://drafts.csswg.org/css-images/#the-object-fit
             auto object_fit = m_is_svg_image ? CSS::ObjectFit::Contain : computed_values().object_fit();
 
-            auto intrinsic_size = m_image_provider.intrinsic_size()
-                                      .map([](auto size) { return size.template to_type<int>(); })
-                                      .value_or(image_int_rect_device_pixels.size());
+            auto intrinsic_size = m_image_provider.intrinsic_size().value_or(image_rect.size());
 
             auto draw_rect = get_replaced_box_painting_area(*this, context, object_fit, intrinsic_size);
             if (!draw_rect.is_empty()) {

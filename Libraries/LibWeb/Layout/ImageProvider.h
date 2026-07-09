@@ -24,10 +24,10 @@ public:
 
     virtual GC::Ptr<HTML::DecodedImageData> decoded_image_data() const = 0;
 
-    Optional<CSSPixels> intrinsic_width() const;
-    Optional<CSSPixels> intrinsic_height() const;
+    virtual Optional<CSSPixels> intrinsic_width() const;
+    virtual Optional<CSSPixels> intrinsic_height() const;
     Optional<CSSPixelSize> intrinsic_size() const;
-    Optional<CSSPixelFraction> intrinsic_aspect_ratio() const;
+    virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const;
 
     Optional<Gfx::DecodedImageFrame> current_image_frame(Optional<Gfx::IntSize> size = {}) const;
     Optional<Gfx::DecodedImageFrame> default_image_frame(Optional<Gfx::IntSize> size = {}) const;
