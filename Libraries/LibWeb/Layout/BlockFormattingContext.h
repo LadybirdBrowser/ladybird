@@ -236,6 +236,8 @@ private:
 
     Optional<CSSPixels> m_y_offset_of_current_block_container;
 
+    Optional<CSSPixelPoint> m_pending_legend_flow_position;
+
     BlockMarginState m_margin_state;
 
     Vector<NonnullOwnPtr<FloatingBox>> m_floats;

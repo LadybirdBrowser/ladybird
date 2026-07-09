@@ -1171,7 +1171,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         : nullptr;
 
     if (box_is_positioned_by_fieldset_layout) {
-        box_state.set_content_offset({ content_x, content_y });
+        m_pending_legend_flow_position = CSSPixelPoint { content_x, content_y };
     } else if (table_formatting_context) {
         table_formatting_context->set_pending_table_box_content_offset_in_wrapper({ content_x, content_y });
     } else if (!box_opens_top_margin_group) {
@@ -1259,10 +1259,11 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
             auto final_content_y = introduce_clearance == DidIntroduceClearance::No
                 ? y + resolved_margin_top + box_state.border_box_top()
                 : content_y;
-            if (box_is_positioned_by_fieldset_layout)
-                box_state.set_content_y(final_content_y);
-            else
+            if (box_is_positioned_by_fieldset_layout) {
+                m_pending_legend_flow_position = CSSPixelPoint { content_x, final_content_y };
+            } else {
                 box_state.set_content_offset({ content_x, final_content_y });
+            }
             translate_floats_in_subtree(box, { 0, final_content_y - content_y });
         }
     }
@@ -1419,9 +1420,11 @@ void BlockFormattingContext::layout_fieldset_with_rendered_legend(FieldSetBox co
     auto legend_border_box_centering_offset = (effective_border - legend_state.border_box_height()) / 2;
     auto fieldset_border_box_top_in_content = -(fieldset_state.border_top + fieldset_state.padding_top);
     auto legend_content_y = fieldset_border_box_top_in_content + legend_border_box_centering_offset + legend_state.border_box_top();
-    auto legend_y_delta = legend_content_y - legend_state.offset.y();
-    legend_state.set_content_y(legend_content_y);
-    translate_floats_in_subtree(*legend, { 0, legend_y_delta });
+    if (auto legend_flow_position = m_pending_legend_flow_position; legend_flow_position.has_value()) {
+        m_pending_legend_flow_position = {};
+        legend_state.set_content_offset({ legend_flow_position->x(), legend_content_y });
+        translate_floats_in_subtree(*legend, { 0, legend_content_y - legend_flow_position->y() });
+    }
 
     compute_and_store_baselines(fieldset_state);
 }
