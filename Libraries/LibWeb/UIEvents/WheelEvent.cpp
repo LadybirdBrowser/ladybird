@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Math.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/WheelEvent.h>
 #include <LibWeb/HTML/EventNames.h>
@@ -17,12 +18,19 @@ namespace Web::UIEvents {
 
 GC_DEFINE_ALLOCATOR(WheelEvent);
 
+static WebIDL::Long legacy_wheel_delta_from_delta(double delta)
+{
+    return AK::clamp_to<WebIDL::Long>(-delta);
+}
+
 WheelEvent::WheelEvent(JS::Realm& realm, FlyString const& event_name, Bindings::WheelEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y)
     : MouseEvent(realm, event_name, event_init, page_x, page_y, offset_x, offset_y)
     , m_delta_x(event_init.delta_x)
     , m_delta_y(event_init.delta_y)
     , m_delta_z(event_init.delta_z)
     , m_delta_mode(event_init.delta_mode)
+    , m_wheel_delta_x(event_init.wheel_delta_x ? event_init.wheel_delta_x : legacy_wheel_delta_from_delta(event_init.delta_x))
+    , m_wheel_delta_y(event_init.wheel_delta_y ? event_init.wheel_delta_y : legacy_wheel_delta_from_delta(event_init.delta_y))
 {
 }
 

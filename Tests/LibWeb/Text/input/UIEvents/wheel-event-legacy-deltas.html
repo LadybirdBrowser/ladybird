@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        let wheelDeltaX = null;
+        let wheelDeltaY = null;
+        let wheelDelta = null;
+
+        window.addEventListener("wheel", event => {
+            wheelDeltaX = event.wheelDeltaX;
+            wheelDeltaY = event.wheelDeltaY;
+            wheelDelta = event.wheelDelta;
+            window.scrollBy(-event.wheelDeltaX, -event.wheelDeltaY);
+            event.preventDefault();
+        }, { passive: false });
+
+        await internals.wheel(50, 50, 0, 100);
+
+        println(`wheelDeltaX: ${wheelDeltaX}`);
+        println(`wheelDeltaY: ${wheelDeltaY}`);
+        println(`wheelDelta: ${wheelDelta}`);
+        println(`scrollY: ${window.scrollY}`);
+    });
+</script>

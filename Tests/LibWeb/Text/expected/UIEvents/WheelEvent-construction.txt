@@ -2,6 +2,9 @@ deltaX: 0
 deltaY: 0
 deltaZ: 0
 deltaMode: 0
+wheelDeltaX: 0
+wheelDeltaY: 0
+wheelDelta: 0
 view: null
 screenX: 0
 screenY: 0
@@ -16,6 +19,9 @@ deltaX: 10
 deltaY: 20
 deltaZ: 35
 deltaMode: 2
+wheelDeltaX: -10
+wheelDeltaY: -20
+wheelDelta: -20
 view: null
 screenX: 1
 screenY: 2
@@ -25,3 +31,20 @@ ctrlKey: true
 altKey: true
 shiftKey: false
 metaKey: true
+
+deltaX: 10
+deltaY: 20
+deltaZ: 0
+deltaMode: 0
+wheelDeltaX: 30
+wheelDeltaY: 40
+wheelDelta: 40
+view: null
+screenX: 0
+screenY: 0
+clientX: 0
+clientY: 0
+ctrlKey: false
+altKey: false
+shiftKey: false
+metaKey: false

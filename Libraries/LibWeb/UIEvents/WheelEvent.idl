@@ -12,6 +12,11 @@ interface WheelEvent : MouseEvent {
     readonly attribute double deltaY;
     readonly attribute double deltaZ;
     readonly attribute unsigned long deltaMode;
+
+    // Non-standard legacy MouseWheelEvent API replaced by standard WheelEvent API.
+    readonly attribute long wheelDeltaX;
+    readonly attribute long wheelDeltaY;
+    readonly attribute long wheelDelta;
 };
 
 // https://w3c.github.io/pointerevents/#idl-wheeleventinit
@@ -20,4 +25,8 @@ dictionary WheelEventInit : MouseEventInit {
     double deltaY = 0;
     double deltaZ = 0;
     unsigned long deltaMode = 0;
+
+    // Non-standard legacy members that we still support for backward compatibility.
+    long wheelDeltaX = 0;
+    long wheelDeltaY = 0;
 };

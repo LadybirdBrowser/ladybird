@@ -6,6 +6,9 @@
         println("deltaY: " + wheelEvent.deltaY);
         println("deltaZ: " + wheelEvent.deltaZ);
         println("deltaMode: " + wheelEvent.deltaMode);
+        println("wheelDeltaX: " + wheelEvent.wheelDeltaX);
+        println("wheelDeltaY: " + wheelEvent.wheelDeltaY);
+        println("wheelDelta: " + wheelEvent.wheelDelta);
         println("view: " + wheelEvent.view);
         println("screenX: " + wheelEvent.screenX);
         println("screenY: " + wheelEvent.screenY);
@@ -33,6 +36,13 @@
             altKey: true,
             shiftKey: false,
             metaKey: true,
+        }));
+        println('');
+        dumpWheelEvent(new WheelEvent('wheel', {
+            deltaX: 10,
+            deltaY: 20,
+            wheelDeltaX: 30,
+            wheelDeltaY: 40,
         }));
     });
 </script>
