@@ -116,6 +116,13 @@ public:
                 break;
 
             auto const& open_event = *static_cast<QFileOpenEvent const*>(event);
+            auto const qurl = open_event.url();
+            if (!qurl.isEmpty()) {
+                if (auto url = WebView::sanitize_url(ak_byte_string_from_qbytearray(qurl.toEncoded())); url.has_value())
+                    application.on_open_file(url.release_value());
+                break;
+            }
+
             auto file = ak_string_from_qstring(open_event.file());
 
             if (auto file_url = WebView::sanitize_url(file); file_url.has_value())
