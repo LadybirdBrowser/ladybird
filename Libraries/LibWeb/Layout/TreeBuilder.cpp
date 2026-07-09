@@ -73,6 +73,14 @@ static bool has_in_flow_block_children(Layout::Node const& layout_node)
     return false;
 }
 
+static bool is_out_of_flow_table_internal_child_of_table_root(Layout::NodeWithStyle const& parent, Layout::Node const& child)
+{
+    return parent.display().is_table_inside()
+        && !child.is_anonymous()
+        && child.is_out_of_flow()
+        && child.display_before_box_type_transformation().is_internal_table();
+}
+
 // The insertion_parent_for_*() functions maintain the invariant that the in-flow children of
 // block-level boxes must be either all block-level or all inline-level.
 
@@ -123,6 +131,11 @@ static Layout::Node& insertion_parent_for_block_node(Layout::NodeWithStyle& layo
     if (!has_inline_or_in_flow_block_children(*new_parent))
         return *new_parent;
 
+    // Table-internal boxes may have been blockified before insertion, but table fixup still needs to see them as
+    // direct table children instead of grouping them with neighboring table whitespace.
+    if (is_out_of_flow_table_internal_child_of_table_root(*new_parent, layout_node))
+        return *new_parent;
+
     // If the block is out-of-flow,
     if (layout_node.is_out_of_flow()) {
         // And we're appending while the parent's last child is an anonymous block, join that
@@ -151,6 +164,10 @@ static Layout::Node& insertion_parent_for_block_node(Layout::NodeWithStyle& layo
 
     for (auto child = new_parent->first_child(); child;) {
         auto next_child = child->next_sibling();
+        if (is_out_of_flow_table_internal_child_of_table_root(*new_parent, *child)) {
+            child = next_child;
+            continue;
+        }
         new_parent->remove_child(*child);
         wrapper->append_child(*child);
         child = next_child;
@@ -1393,9 +1410,22 @@ static bool is_table_track_group(CSS::Display display)
         || display.is_table_column_group();
 }
 
+static CSS::Display display_for_table_fixup(Node const& node)
+{
+    // https://drafts.csswg.org/css-tables-3/#fixup-algorithm
+    // For the purposes of these rules, out-of-flow elements are represented as inline elements of zero width and
+    // height. Their containing blocks are chosen accordingly.
+    //
+    // AD-HOC: Table-internal boxes can be blockified before fixup. Use the pre-transformation display for authored
+    // boxes so an out-of-flow table-header-group is still recognized as a proper table child during fixup.
+    if (!node.is_anonymous())
+        return node.display_before_box_type_transformation();
+    return node.display();
+}
+
 static bool is_proper_table_child(Node const& node)
 {
-    auto const display = node.display();
+    auto const display = display_for_table_fixup(node);
     return is_table_track_group(display) || is_table_track(display) || display.is_table_caption();
 }
 
@@ -1432,7 +1462,7 @@ static bool is_not_table_cell(Node const& node)
 
 static bool is_table_row_group_column_group_or_caption(Node const& node)
 {
-    auto const display = node.display();
+    auto const display = display_for_table_fixup(node);
     return is_table_track_group(display) || display.is_table_caption();
 }
 

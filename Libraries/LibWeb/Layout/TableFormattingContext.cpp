@@ -1807,8 +1807,20 @@ void TableFormattingContext::seed_table_participant_used_values(ContainingBlockC
         m_state.create(cell.box, participant_percentage_basis.percentage_basis_width, participant_percentage_basis.percentage_basis_height);
 
     for (auto child = table_box().first_child(); child; child = child->next_sibling()) {
-        if (child->display().is_table_caption())
-            m_state.create(as<Box>(*child), participant_percentage_basis.percentage_basis_width, participant_percentage_basis.percentage_basis_height);
+        auto* child_box = as_if<Box>(*child);
+        if (!child_box)
+            continue;
+
+        if (child_box->display().is_table_caption()) {
+            m_state.create(*child_box, participant_percentage_basis.percentage_basis_width, participant_percentage_basis.percentage_basis_height);
+            continue;
+        }
+
+        if (!child_box->is_absolutely_positioned() || m_state.try_get_mutable(*child_box))
+            continue;
+
+        auto& child_box_state = m_state.create(*child_box, participant_percentage_basis.percentage_basis_width, participant_percentage_basis.percentage_basis_height);
+        child_box_state.set_static_position_rect(calculate_static_position_rect(*child_box));
     }
 }
 
@@ -1877,7 +1889,7 @@ void TableFormattingContext::parent_context_did_dimension_child_root_box()
         return;
 
     context_box().for_each_in_subtree_of_type<Box const>([&](Layout::Box const& box) {
-        if (box.is_absolutely_positioned()) {
+        if (box.is_absolutely_positioned() && !m_state.try_get(box)) {
             // FIXME: calculate_static_position_rect() is not aware of how to correctly calculate static position for
             //        a box nested inside a table, but we need to set some value, so layout_absolutely_positioned_element()
             //        won't crash trying to access it.

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+table {
+    border-spacing: 0;
+    table-layout: fixed;
+    width: 600px;
+}
+
+thead {
+    position: absolute;
+}
+</style>
+<table>
+    <thead></thead>
+    <tr>
+        <td>a</td>
+        <td>b</td>
+        <td>c</td>
+        <td>d</td>
+    </tr>
+</table>
+<script>
+test(() => {
+    const table = document.querySelector("table").getBoundingClientRect();
+    const cells = [...document.querySelectorAll("td")].map(td => td.getBoundingClientRect().width);
+    println(`table width: ${table.width}`);
+    println(`cell widths: ${cells.join(", ")}`);
+    println(`cell width sum: ${cells.reduce((a, b) => a + b, 0)}`);
+});
+</script>
