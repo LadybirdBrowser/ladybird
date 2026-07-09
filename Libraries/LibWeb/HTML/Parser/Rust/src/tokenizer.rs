@@ -421,12 +421,24 @@ impl HtmlTokenizer {
         output
     }
 
-    pub fn parser_did_run(&mut self) {
-        if self.current_offset == 0
-            || self.current_offset != self.input.len()
-            || self.insertion_point.is_some_and(|insertion_point| insertion_point != 0)
+    fn can_discard_consumed_input(&self) -> bool {
+        if self.current_offset == 0 || self.current_offset != self.input.len() {
+            return false;
+        }
+
+        if self.insertion_point.is_some_and(|insertion_point| insertion_point != 0)
             || !self.old_insertion_points.is_empty()
         {
+            return false;
+        }
+
+        // Named character references can pause at the end of an open input stream with matcher state that still needs
+        // to backtrack through consumed input once more bytes arrive.
+        self.state != State::NamedCharacterReference
+    }
+
+    pub fn parser_did_run(&mut self) {
+        if !self.can_discard_consumed_input() {
             return;
         }
 
@@ -3244,5 +3256,40 @@ impl HtmlTokenizer {
                 self.reconsume(fallback_state);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn code_points(input: &str) -> Vec<u32> {
+        input.chars().map(|ch| ch as u32).collect()
+    }
+
+    #[test]
+    fn parser_does_not_compact_unresolved_named_character_reference() {
+        let mut tokenizer = HtmlTokenizer::new(code_points("<p a=\"&tw"));
+        tokenizer.set_input_stream_closed(false);
+
+        assert!(tokenizer.next_token(false, false).is_none());
+        assert_eq!(tokenizer.state, State::NamedCharacterReference);
+        assert_eq!(tokenizer.current_offset, tokenizer.input.len());
+
+        tokenizer.parser_did_run();
+        assert_eq!(tokenizer.current_offset, tokenizer.input.len());
+        assert_eq!(tokenizer.input, code_points("<p a=\"&tw"));
+
+        tokenizer.append_input(&code_points("s-checkout-success=4.1.0\">"));
+        tokenizer.set_input_stream_closed(true);
+
+        let token = tokenizer.next_token(false, false).expect("start tag token");
+        assert_eq!(token.token_type, TokenType::StartTag);
+
+        let TokenPayload::Tag { attributes, .. } = token.payload else {
+            panic!("expected tag token");
+        };
+        assert_eq!(attributes.len(), 1);
+        assert_eq!(attributes[0].value, "&tws-checkout-success=4.1.0");
     }
 }
