@@ -365,7 +365,8 @@ cleanup_run_dirs() {
 
         sudo_and_ask "" umount "$mount_path" || echo "Failed to unmount $mount_path"
     done
-    rm -fr "${BUILD_DIR}/wpt"
+    # Overlayfs can leave root-owned internal state in the workdir because we mount it via sudo.
+    sudo_and_ask "" rm -fr "${BUILD_DIR}/wpt"
 }
 
 cleanup_merge_dirs_and_infra() {
