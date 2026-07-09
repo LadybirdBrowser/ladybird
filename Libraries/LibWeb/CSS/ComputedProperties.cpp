@@ -1509,8 +1509,11 @@ ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(
             } else if (item->is_counter()) {
                 content_data.counter_style_dependencies.append(item->as_counter().counter_style()->as_counter_style().resolve_counter_style(element_reference.style_scope()));
                 content_data.data.append(item->as_counter().resolve(element_reference));
-            } else if (item->is_image()) {
-                content_data.data.append(NonnullRefPtr { const_cast<ImageStyleValue&>(item->as_image()) });
+            } else if (item->is_image() || item->is_image_set()) {
+                // https://drafts.csswg.org/css-content-3/#typedef-content-list
+                // https://drafts.csswg.org/css-images-4/#typedef-image
+                // <content-list> accepts <image>, and image-set() is an <image>.
+                content_data.data.append(NonnullRefPtr { const_cast<AbstractImageStyleValue&>(item->as_abstract_image()) });
             } else {
                 // TODO: Implement images, and other things.
                 dbgln("`{}` is not supported in `content` (yet?)", item->to_string(SerializationMode::Normal));

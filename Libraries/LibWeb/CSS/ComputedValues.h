@@ -508,7 +508,7 @@ struct ContentData {
         List,
     } type { Type::Normal };
 
-    Vector<Variant<String, NonnullRefPtr<ImageStyleValue>>> data;
+    Vector<Variant<String, NonnullRefPtr<AbstractImageStyleValue>>> data;
     Vector<ValueComparingRefPtr<CounterStyle const>> counter_style_dependencies;
     Optional<String> alt_text {};
 };

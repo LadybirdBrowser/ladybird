@@ -22,6 +22,8 @@
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleInvalidation.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ImageSetStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ParentNode.h>
@@ -186,21 +188,17 @@ void TreeBuilder::insert_node_into_inline_or_block_ancestor(Layout::Node& node, 
 }
 
 class GeneratedContentImageProvider final
-    : public ImageProvider
-    , public CSS::ImageStyleValue::Client {
+    : public ImageProvider {
 public:
-    virtual ~GeneratedContentImageProvider() override
-    {
-        unregister_image_style_value_client();
-    }
+    virtual ~GeneratedContentImageProvider() override = default;
 
     virtual void layout_node_was_detached() const override
     {
-        unregister_image_style_value_client();
+        m_image_client = nullptr;
         m_layout_node = nullptr;
     }
 
-    static NonnullOwnPtr<GeneratedContentImageProvider> create(DOM::Document& document, NonnullRefPtr<CSS::ImageStyleValue> image)
+    static NonnullOwnPtr<GeneratedContentImageProvider> create(DOM::Document& document, NonnullRefPtr<CSS::AbstractImageStyleValue> image)
     {
         return adopt_own(*new GeneratedContentImageProvider(document, move(image)));
     }
@@ -212,39 +210,87 @@ public:
 
     virtual GC::Ptr<HTML::DecodedImageData> decoded_image_data() const override
     {
-        if (auto document = this->document())
-            return m_image->image_data(*document);
+        if (auto document = m_document.ptr()) {
+            if (auto const* image = selected_image_style_value())
+                return image->image_data(*document);
+        }
         return nullptr;
     }
 
+    virtual Optional<CSSPixels> intrinsic_width() const override
+    {
+        if (auto document = m_document.ptr())
+            return m_image->natural_width(*document);
+        return {};
+    }
+
+    virtual Optional<CSSPixels> intrinsic_height() const override
+    {
+        if (auto document = m_document.ptr())
+            return m_image->natural_height(*document);
+        return {};
+    }
+
+    virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const override
+    {
+        if (auto document = m_document.ptr())
+            return m_image->natural_aspect_ratio(*document);
+        return {};
+    }
+
 private:
-    GeneratedContentImageProvider(DOM::Document& document, NonnullRefPtr<CSS::ImageStyleValue> image)
-        : Client(document, image)
+    class ImageClient final : public CSS::ImageStyleValue::Client {
+    public:
+        ImageClient(GeneratedContentImageProvider const& owner, DOM::Document& document, CSS::ImageStyleValue const& image)
+            : CSS::ImageStyleValue::Client(document, image)
+            , m_owner(owner)
+        {
+        }
+
+        virtual ~ImageClient() override
+        {
+            image_style_value_finalize();
+        }
+
+        virtual void image_style_value_did_update(CSS::ImageStyleValue&) override
+        {
+            if (!m_owner.m_layout_node)
+                return;
+            m_owner.m_layout_node->set_needs_layout_update(DOM::SetNeedsLayoutReason::GeneratedContentImageFinishedLoading);
+        }
+
+    private:
+        GeneratedContentImageProvider const& m_owner;
+    };
+
+    GeneratedContentImageProvider(DOM::Document& document, NonnullRefPtr<CSS::AbstractImageStyleValue> image)
+        : m_document(document)
         , m_image(move(image))
     {
+        if (auto const* image = selected_image_style_value())
+            m_image_client = make<ImageClient>(*this, document, *image);
     }
 
-    virtual void image_style_value_did_update(CSS::ImageStyleValue&) override
+    CSS::ImageStyleValue const* selected_image_style_value() const
     {
-        if (!m_layout_node)
-            return;
-        m_layout_node->set_needs_layout_update(DOM::SetNeedsLayoutReason::GeneratedContentImageFinishedLoading);
+        if (m_image->is_image())
+            return &m_image->as_image();
+
+        if (m_image->is_image_set()) {
+            if (auto const* selected_image = m_image->as_image_set().selected_image(); selected_image && selected_image->is_image())
+                return &selected_image->as_image();
+        }
+
+        return nullptr;
     }
 
-    void unregister_image_style_value_client() const
-    {
-        if (!m_registered_as_image_style_value_client)
-            return;
-        const_cast<GeneratedContentImageProvider&>(*this).image_style_value_finalize();
-        m_registered_as_image_style_value_client = false;
-    }
-
+    GC::Weak<DOM::Document> m_document;
     mutable WeakPtr<Layout::Node> m_layout_node;
-    NonnullRefPtr<CSS::ImageStyleValue> m_image;
-    mutable bool m_registered_as_image_style_value_client { true };
+    NonnullRefPtr<CSS::AbstractImageStyleValue> m_image;
+    mutable OwnPtr<ImageClient> m_image_client;
 };
 
-static NonnullRefPtr<ImageBox> create_content_image_box(DOM::Document& document, GC::Ptr<DOM::Element> element, CSS::ComputedProperties const& style, CSS::ImageStyleValue& image)
+static NonnullRefPtr<ImageBox> create_content_image_box(DOM::Document& document, GC::Ptr<DOM::Element> element, CSS::ComputedProperties const& style, CSS::AbstractImageStyleValue& image)
 {
     image.load_any_resources(document);
     auto image_provider = GeneratedContentImageProvider::create(document, image);
@@ -572,7 +618,7 @@ RefPtr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element&
                 if (auto const* string = item.get_pointer<String>()) {
                     layout_node = make_ref_counted<GeneratedTextNode>(document, Utf16String::from_utf8(*string));
                 } else {
-                    auto& image = *item.get<NonnullRefPtr<CSS::ImageStyleValue>>();
+                    auto& image = *item.get<NonnullRefPtr<CSS::AbstractImageStyleValue>>();
                     layout_node = create_content_image_box(document, nullptr, *pseudo_element_style, image);
                 }
                 layout_node->set_generated_for(pseudo_element, element);
@@ -597,11 +643,11 @@ RefPtr<NodeWithStyle> TreeBuilder::create_content_replacement_if_needed(DOM::Ele
 
     if (content.type != CSS::ContentData::Type::List
         || content.data.size() != 1
-        || !content.data.first().has<NonnullRefPtr<CSS::ImageStyleValue>>()) {
+        || !content.data.first().has<NonnullRefPtr<CSS::AbstractImageStyleValue>>()) {
         return {};
     }
 
-    auto& image = *content.data.first().get<NonnullRefPtr<CSS::ImageStyleValue>>();
+    auto& image = *content.data.first().get<NonnullRefPtr<CSS::AbstractImageStyleValue>>();
     return create_content_image_box(element.document(), element, style, image);
 }
 
