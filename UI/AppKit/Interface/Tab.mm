@@ -135,6 +135,10 @@ static NSImage* tab_loading_spinner_icon(NSUInteger frame)
     auto window_rect = NSMakeRect(position_x, position_y, WINDOW_WIDTH, WINDOW_HEIGHT);
 
     if (self = [super initWithWebView:web_view windowRect:window_rect]) {
+        [self setTabbingIdentifier:[self isPrivate] == WebView::IsPrivate::Yes
+                ? @"LadybirdPrivateBrowsing"
+                : @"LadybirdBrowsing"];
+
         if ([self isPrivate] == WebView::IsPrivate::No) {
             // Remember last window position.
             self.frameAutosaveName = @"window";

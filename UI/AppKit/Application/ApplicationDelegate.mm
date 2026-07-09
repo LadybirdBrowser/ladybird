@@ -250,6 +250,9 @@
     NSWindowTabGroup* tab_group = nil;
 
     auto* tab_for_location = tab_location.is_after_tab() ? tab_location.tab() : tab;
+    if (tab_for_location && [tab_for_location isPrivate] != [controller isPrivate])
+        tab_for_location = nil;
+
     if (tab_for_location) {
         tab_group = [tab_for_location tabGroup];
 
