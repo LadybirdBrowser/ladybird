@@ -146,6 +146,7 @@ private:
     void ensure_band_boundary(CSSPixels);
     void add_float_to_bands(FloatingBox const&, CSSPixelRect const& containing_block_rect_in_root);
     void rebuild_float_bands();
+    [[nodiscard]] CSSPixels margin_box_left_of_float_in_root(FloatingBox const&, CSSPixelRect const& containing_block_rect_in_root) const;
 
     class BlockMarginState {
     public:

@@ -549,8 +549,16 @@ void BlockFormattingContext::rebuild_float_bands()
         auto const* containing_block = floating_box->used_values.node().containing_block();
         VERIFY(containing_block);
         auto containing_block_rect_in_root = content_box_rect_in_ancestor_coordinate_space(m_state.get(*containing_block), root());
+        floating_box->margin_box_rect_in_root_coordinate_space.set_x(margin_box_left_of_float_in_root(*floating_box, containing_block_rect_in_root));
         add_float_to_bands(*floating_box, containing_block_rect_in_root);
     }
+}
+
+CSSPixels BlockFormattingContext::margin_box_left_of_float_in_root(FloatingBox const& floating_box, CSSPixelRect const& containing_block_rect_in_root) const
+{
+    if (floating_box.side == FloatSide::Left)
+        return containing_block_rect_in_root.x() + floating_box.offset_from_edge - floating_box.used_values.margin_box_left();
+    return containing_block_rect_in_root.right() - floating_box.offset_from_edge - floating_box.used_values.margin_box_left();
 }
 
 void BlockFormattingContext::avoid_float_intrusions(Box const& box, AvailableSpace const& available_space)
@@ -1490,7 +1498,9 @@ void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer 
         .margin_box_rect_in_root_coordinate_space = margin_box_rect_in_root,
         .percentage_basis_width = layout_input.containing_block_constraints.percentage_basis_width,
     }));
-    add_float_to_bands(*m_floats.last(), containing_block_rect_in_root);
+    auto& floating_box = *m_floats.last();
+    floating_box.margin_box_rect_in_root_coordinate_space.set_x(margin_box_left_of_float_in_root(floating_box, containing_block_rect_in_root));
+    add_float_to_bands(floating_box, containing_block_rect_in_root);
 
     m_state.get_mutable(root()).add_floating_descendant(box);
 
