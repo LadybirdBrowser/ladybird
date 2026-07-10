@@ -1,0 +1,4 @@
+modal: true
+computed display: block
+has box: false
+width: 0

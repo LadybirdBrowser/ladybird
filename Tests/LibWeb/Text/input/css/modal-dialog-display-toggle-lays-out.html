@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<style>
+    dialog#drawer {
+        position: fixed;
+        inset: 0;
+        width: 660px;
+        height: 100%;
+        margin: 0;
+    }
+</style>
+<dialog id="drawer">Drawer contents</dialog>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const drawer = document.getElementById("drawer");
+        drawer.showModal();
+
+        // Toggle display off and back on with a forced style/layout flush in between. When display
+        // comes back, the dialog's box must be regenerated even though top layer elements lay out
+        // as siblings of the root rather than under their DOM parent.
+        drawer.style.display = "none";
+        drawer.getBoundingClientRect();
+        drawer.style.display = "block";
+
+        const rect = drawer.getBoundingClientRect();
+        println("modal: " + drawer.matches(":modal"));
+        println("computed display: " + getComputedStyle(drawer).display);
+        println("has box: " + (rect.width > 0 && rect.height > 0));
+        println("width: " + rect.width);
+
+        done();
+    });
+</script>
