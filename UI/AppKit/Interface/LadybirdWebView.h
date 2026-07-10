@@ -32,7 +32,7 @@
 
 - (void)onURLChange:(URL::URL const&)url;
 - (void)onTitleChange:(Utf16String const&)title;
-- (void)onFaviconChange:(Gfx::Bitmap const&)bitmap;
+- (void)onFaviconChange:(Optional<Gfx::Bitmap const&>)bitmap;
 - (void)onAudioPlayStateChange:(Web::HTML::AudioPlayState)play_state;
 
 - (void)onEnterFullscreenWindow;

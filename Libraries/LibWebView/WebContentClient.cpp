@@ -597,6 +597,7 @@ void WebContentClient::did_start_loading(u64 page_id, URL::URL url, Variant<Empt
         view->did_start_navigation(url, move(document_resource), is_redirect, history_handling);
 
         view->set_url({}, url);
+        view->set_favicon({}, {});
 
         if (view->on_load_start)
             view->on_load_start(url, is_redirect);

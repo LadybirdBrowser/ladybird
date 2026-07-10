@@ -125,20 +125,22 @@ void ViewImplementation::set_url(URL::URL url)
         apply_zoom_for_current_host();
 }
 
-void ViewImplementation::set_favicon(Badge<WebContentClient>, Gfx::Bitmap const& favicon)
+void ViewImplementation::set_favicon(Badge<WebContentClient>, Optional<Gfx::Bitmap const&> favicon)
 {
     m_favicon_base64_png.clear();
 
-    if (auto favicon_png = Gfx::PNGWriter::encode(favicon); !favicon_png.is_error()) {
-        if (auto favicon_base64_png = encode_base64(favicon_png.value().bytes()); !favicon_base64_png.is_error())
-            m_favicon_base64_png = favicon_base64_png.release_value();
-    }
+    if (favicon.has_value()) {
+        if (auto favicon_png = Gfx::PNGWriter::encode(*favicon); !favicon_png.is_error()) {
+            if (auto favicon_base64_png = encode_base64(favicon_png.value().bytes()); !favicon_base64_png.is_error())
+                m_favicon_base64_png = favicon_base64_png.release_value();
+        }
 
-    if (m_favicon_base64_png.has_value()) {
-        if (m_is_private == IsPrivate::No)
-            Application::bookmark_store().update_favicon(m_url, *m_favicon_base64_png);
-        if (!m_should_suppress_history_for_current_load)
-            Application::history_store(m_is_private).update_favicon(m_url, *m_favicon_base64_png);
+        if (m_favicon_base64_png.has_value()) {
+            if (m_is_private == IsPrivate::No)
+                Application::bookmark_store().update_favicon(m_url, *m_favicon_base64_png);
+            if (!m_should_suppress_history_for_current_load)
+                Application::history_store(m_is_private).update_favicon(m_url, *m_favicon_base64_png);
+        }
     }
 
     if (on_favicon_change)

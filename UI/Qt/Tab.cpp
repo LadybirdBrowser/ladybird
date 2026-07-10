@@ -731,7 +731,6 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         m_title = url_serialized;
         update_tab_title();
 
-        m_favicon = {};
         set_loading(true);
 
         m_location_edit->set_url(url);
@@ -760,7 +759,13 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     };
 
     view().on_favicon_change = [this](auto const& bitmap) {
-        auto qimage = QImage(bitmap.scanline_u8(0), bitmap.width(), bitmap.height(), QImage::Format_ARGB32);
+        if (!bitmap.has_value()) {
+            m_favicon = {};
+            update_tab_icon();
+            return;
+        }
+
+        auto qimage = QImage(bitmap->scanline_u8(0), bitmap->width(), bitmap->height(), QImage::Format_ARGB32);
         if (qimage.isNull())
             return;
         auto qpixmap = QPixmap::fromImage(qimage);

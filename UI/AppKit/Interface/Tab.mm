@@ -409,11 +409,9 @@ static NSImage* tab_loading_spinner_icon(NSUInteger frame)
 - (void)onLoadStart:(URL::URL const&)url isRedirect:(BOOL)is_redirect
 {
     [self setPageTitle:Ladybird::string_to_ns_string(url.serialize())];
-    self.favicon = [Tab defaultFavicon];
     [self setTabLoading:YES];
     [self updateTabTitleAndFavicon];
 
-    [[self tabController] onFaviconChange:nil];
     [[self tabController] onLoadStart:url isRedirect:is_redirect];
 }
 
@@ -434,11 +432,18 @@ static NSImage* tab_loading_spinner_icon(NSUInteger frame)
     [self updateTabTitleAndFavicon];
 }
 
-- (void)onFaviconChange:(Gfx::Bitmap const&)bitmap
+- (void)onFaviconChange:(Optional<Gfx::Bitmap const&>)bitmap
 {
-    auto* favicon = Ladybird::gfx_bitmap_to_ns_image(bitmap);
-    [favicon setResizingMode:NSImageResizingModeStretch];
-    self.favicon = favicon;
+    NSImage* favicon = nil;
+
+    if (bitmap.has_value()) {
+        favicon = Ladybird::gfx_bitmap_to_ns_image(*bitmap);
+        [favicon setResizingMode:NSImageResizingModeStretch];
+        self.favicon = favicon;
+    } else {
+        self.favicon = [Tab defaultFavicon];
+    }
+
     [self updateTabTitleAndFavicon];
     [[self tabController] onFaviconChange:favicon];
 }

@@ -821,7 +821,6 @@ private:
 - (void)onLoadStart:(URL::URL const&)url isRedirect:(BOOL)isRedirect
 {
     [self setLocationFieldText:url.serialize()];
-    [[self locationSearchField] setFavicon:nil];
     [[self locationSearchField] setLoading:YES];
 }
 
