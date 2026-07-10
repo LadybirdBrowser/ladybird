@@ -6579,6 +6579,22 @@ void Document::update_animations_and_send_events(double timestamp)
     //    the previous step.
     for (auto const& event : events_to_dispatch)
         event.target->dispatch_event(event.event);
+
+    // AD-HOC: Nothing else re-requests a rendering update while time-driven animations are running, since
+    //         Document::set_needs_animated_style_update() only requests a frame when its flag flips from
+    //         false to true, and the flag is both set and cleared within the same rendering update.
+    //         Without this, animations only advance when unrelated tasks happen to schedule rendering
+    //         updates. Keep the frame pump going as long as some animation attached to a monotonically
+    //         increasing timeline is running.
+    for (auto const& animation : m_associated_animations) {
+        if (animation.play_state() != Bindings::AnimationPlayState::Running)
+            continue;
+        auto timeline = animation.timeline();
+        if (!timeline || !timeline->is_monotonically_increasing())
+            continue;
+        page().client().request_frame();
+        break;
+    }
 }
 
 // https://www.w3.org/TR/web-animations-1/#remove-replaced-animations
