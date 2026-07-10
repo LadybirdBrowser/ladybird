@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<style>
+@font-face {
+    font-family: TestFont;
+    src: url(../../../Assets/HashSans.woff) format("woff");
+}
+#victim {
+    font-family: sans-serif;
+    font-size: 20px;
+    width: 200px;
+    transition: width 0.05s;
+}
+#victim::after {
+    content: "x";
+    font-family: TestFont;
+    font-size: 32px;
+}
+#victim.on {
+    width: 300px;
+}
+</style>
+<div id="victim">Some text</div>
+<script src="../include.js"></script>
+<script>
+    // Running a transition on an element must not corrupt the style of the layout nodes generated for its
+    // pseudo-elements. This used to clobber the ::after box's font with the element's font, because the pseudo
+    // box (having no DOM node) was mistaken for an anonymous wrapper when propagating style after each
+    // animation update.
+    asyncTest(async (done) => {
+        await document.fonts.load("32px TestFont");
+        await document.fonts.ready;
+        const victim = document.getElementById("victim");
+        const widthOf = () => getComputedStyle(victim, "::after").width;
+        const widthBefore = widthOf();
+        const transitionDone = new Promise((resolve) => {
+            victim.addEventListener("transitionend", resolve);
+        });
+        victim.classList.add("on");
+        await transitionDone;
+        await new Promise(requestAnimationFrame);
+        const widthAfter = widthOf();
+        if (widthBefore === widthAfter)
+            println("PASS: ::after width is unchanged by the transition");
+        else
+            println("FAIL: ::after width was changed by the transition");
+        done();
+    });
+</script>

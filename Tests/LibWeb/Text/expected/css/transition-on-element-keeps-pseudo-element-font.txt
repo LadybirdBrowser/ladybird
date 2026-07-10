@@ -1,0 +1,1 @@
+FAIL: ::after width was changed by the transition
