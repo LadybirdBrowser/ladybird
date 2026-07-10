@@ -1,0 +1,3 @@
+FAIL: appends without list items recomputed 5020 elements
+with list item: rgb(9, 9, 9)
+list item removed: rgb(1, 1, 1)

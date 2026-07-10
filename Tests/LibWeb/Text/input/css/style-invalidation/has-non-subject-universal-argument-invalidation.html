@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../../include.js"></script>
+<style>
+    /* A universal selector in non-subject position inside a :has() argument.
+       With only descendant and child combinators, a mutation can only change
+       whether the argument matches when the mutated subtree contains an
+       element matching the subject compound (li here), so plain paragraph
+       appends must not restyle the wrapper subtree. */
+    #wrapper:has(* > li) span {
+        color: rgb(9, 9, 9);
+    }
+
+    span {
+        color: rgb(1, 1, 1);
+    }
+</style>
+<div id="wrapper">
+    <div id="big"></div>
+    <div id="stream"></div>
+</div>
+<script>
+    test(() => {
+        const big = document.getElementById("big");
+        for (let i = 0; i < 500; ++i) {
+            const leaf = document.createElement("span");
+            leaf.textContent = `leaf ${i}`;
+            big.appendChild(leaf);
+        }
+        const stream = document.getElementById("stream");
+        internals.updateStyle();
+        internals.resetStyleInvalidationCounters();
+
+        for (let i = 0; i < 10; ++i) {
+            const p = document.createElement("p");
+            p.textContent = `chunk ${i}`;
+            stream.appendChild(p);
+            internals.updateStyle();
+        }
+
+        const counters = internals.getStyleInvalidationCounters();
+        if (counters.elementStyleRecomputations < 100)
+            println("PASS: appends without list items stayed targeted");
+        else
+            println(`FAIL: appends without list items recomputed ${counters.elementStyleRecomputations} elements`);
+
+        // Inserting a subtree that does contain a list item must invalidate
+        // the anchor and apply the rule.
+        const wrapperDiv = document.createElement("div");
+        const ul = document.createElement("ul");
+        const li = document.createElement("li");
+        li.textContent = "item";
+        ul.appendChild(li);
+        wrapperDiv.appendChild(ul);
+        stream.appendChild(wrapperDiv);
+        println(`with list item: ${getComputedStyle(big.firstElementChild).color}`);
+
+        // Removing it must flip the rule back off.
+        wrapperDiv.remove();
+        println(`list item removed: ${getComputedStyle(big.firstElementChild).color}`);
+    });
+</script>
