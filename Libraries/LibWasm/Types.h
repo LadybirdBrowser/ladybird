@@ -1007,7 +1007,8 @@ struct CompiledInstructions {
     size_t max_call_rec_size = 0;
 
     u32 cranelift_result_arity = 0; // result count to hand to try_cranelift_compile(); only meaningful when cranelift_eligible.
-    u32 cranelift_local_count = 0;  // total locals (params + declared); lets Cranelift promote locals to SSA instead of memory. Only meaningful when cranelift_eligible.
+    u32 cranelift_local_count = 0;  // total locals (params + declared + inlined); lets Cranelift promote locals to SSA instead of memory. Only meaningful when cranelift_eligible.
+    u32 cranelift_inlined_locals = 0; // extra locals appended for inlined callee bodies (see try_compile_instructions); the frame is grown by this much in both interpreter and JIT paths.
 
     bool direct = false;                  // true if all dispatches contain handler_ptr, otherwise false and all contain instruction_opcode.
     bool cranelift_eligible = false;      // true if this expression cleared the Cranelift type/shape checks during validation.
@@ -1790,7 +1791,7 @@ private:
     size_t m_minimum_call_record_allocation_size { 0 };
 };
 
-CompiledInstructions try_compile_instructions(Expression const&, Span<FunctionType const> functions);
+CompiledInstructions try_compile_instructions(Expression const&, Span<FunctionType const> functions, Span<CodeSection::Func const* const> callee_bodies = {}, size_t current_function_index = 0, size_t caller_local_count = 0);
 ErrorOr<void, ValidationError> ensure_cranelift_compiled(Module&);
 WASM_API void start_cranelift_compilation(Module&);
 bool try_cranelift_compile(CompiledInstructions& compiled, u32 result_arity = 0);

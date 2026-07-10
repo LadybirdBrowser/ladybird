@@ -411,6 +411,9 @@ ErrorOr<void, ValidationError> Validator::validate(TableSection const& section)
 
 ErrorOr<void, ValidationError> Validator::validate(CodeSection const& section)
 {
+    Vector<CodeSection::Func const*> callee_bodies;
+    callee_bodies.resize(m_context.imported_function_count + section.functions().size());
+
     size_t index = m_context.imported_function_count;
     for (auto& entry : section.functions()) {
         auto function_index = index++;
@@ -445,9 +448,11 @@ ErrorOr<void, ValidationError> Validator::validate(CodeSection const& section)
 
         function_validator.push_frame(Frame { function_type, FrameKind::Function, (size_t)0 });
 
-        auto results = TRY(function_validator.validate(function.body(), function_type.results()));
+        auto results = TRY(function_validator.validate(function.body(), function_type.results(), callee_bodies.span(), function_index));
         if (results.result_types.size() != function_type.results().size())
             return Errors::invalid("function result"sv, function_type.results(), results.result_types);
+
+        callee_bodies[function_index] = &function;
 
         if (function.body().compiled_instructions.max_call_rec_size != 0) {
             size_t max_callee_locals = 0;
@@ -5084,7 +5089,7 @@ ErrorOr<void, ValidationError> Validator::validate(Instruction const& instructio
     }
 }
 
-ErrorOr<Validator::ExpressionTypeResult, ValidationError> Validator::validate(Expression const& expression, Vector<ValueType> const& result_types)
+ErrorOr<Validator::ExpressionTypeResult, ValidationError> Validator::validate(Expression const& expression, Vector<ValueType> const& result_types, Span<CodeSection::Func const* const> callee_bodies, size_t current_function_index)
 {
     if (m_frames.is_empty())
         m_frames.empend(FunctionType { {}, result_types }, FrameKind::Function, (size_t)0);
@@ -5113,7 +5118,7 @@ ErrorOr<Validator::ExpressionTypeResult, ValidationError> Validator::validate(Ex
     m_max_frame_size = 0;
 
     // Now that we're in happy land, try to compile the expression down to a list of labels to help dispatch.
-    expression.compiled_instructions = try_compile_instructions(expression, m_context.functions.span());
+    expression.compiled_instructions = try_compile_instructions(expression, m_context.functions.span(), callee_bodies, current_function_index, m_context.locals.size());
 
     if (expression.compiled_instructions.direct && !is_constant_expression) {
         bool has_unsupported_types = false;
@@ -5156,7 +5161,7 @@ ErrorOr<Validator::ExpressionTypeResult, ValidationError> Validator::validate(Ex
         if (!has_unsupported_types && result_types.size() <= 1) {
             expression.compiled_instructions.cranelift_eligible = true;
             expression.compiled_instructions.cranelift_result_arity = static_cast<u32>(result_types.size());
-            expression.compiled_instructions.cranelift_local_count = static_cast<u32>(m_context.locals.size());
+            expression.compiled_instructions.cranelift_local_count = static_cast<u32>(m_context.locals.size()) + expression.compiled_instructions.cranelift_inlined_locals;
             expression.compiled_instructions.cranelift_local_types.ensure_capacity(m_context.locals.size());
             for (auto& type : m_context.locals)
                 expression.compiled_instructions.cranelift_local_types.unchecked_append(to_underlying(type.kind()));

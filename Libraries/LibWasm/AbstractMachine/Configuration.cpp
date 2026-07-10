@@ -73,11 +73,14 @@ ErrorOr<void, Trap> Configuration::prepare_wasm_call(WasmFunction const& wasm_fu
     if (is_tailcall)
         unwind_impl();
 
-    arguments.ensure_capacity(arguments.size() + wasm_function.code().func().total_local_count());
+    auto inlined_locals = wasm_function.code().func().body().compiled_instructions.cranelift_inlined_locals;
+    arguments.ensure_capacity(arguments.size() + wasm_function.code().func().total_local_count() + inlined_locals);
     for (auto const& local : wasm_function.code().func().locals()) {
         for (size_t i = 0; i < local.n(); ++i)
             arguments.unchecked_append(Value(local.type()));
     }
+    for (u32 i = 0; i < inlined_locals; ++i)
+        arguments.unchecked_append(Value(ValueType { ValueType::I32 }));
 
     set_frame(
         is_tailcall ? IsTailcall::Yes : IsTailcall::No,

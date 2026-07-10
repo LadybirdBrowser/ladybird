@@ -6898,7 +6898,7 @@ Instruction& InstructionStorage::append(Instruction instruction)
     return slot.value();
 }
 
-CompiledInstructions try_compile_instructions(Expression const& expression, Span<FunctionType const> functions)
+CompiledInstructions try_compile_instructions(Expression const& expression, Span<FunctionType const> functions, Span<CodeSection::Func const* const> callee_bodies, size_t current_function_index, size_t caller_local_count)
 {
     CompiledInstructions result;
 
@@ -6939,7 +6939,188 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
         }
     };
 
+    auto callee_if_inlineable = [&](size_t func_index) -> CodeSection::Func const* {
+        if (func_index >= callee_bodies.size() || func_index >= current_function_index)
+            return nullptr; // import, forward reference, or self (cannot inline)
+
+        auto const* callee = callee_bodies[func_index];
+        if (!callee)
+            return nullptr;
+
+        auto const& ci = callee->body().compiled_instructions;
+        if (!ci.cranelift_eligible)
+            return nullptr;
+
+        if (callee->body().instructions().size() > 96) // Value arbitrarily chosen based on vibes.
+            return nullptr;
+
+        if (functions[func_index].results().size() > 1 || functions[func_index].parameters().size() > 8)
+            return nullptr;
+
+        for (auto const& local : callee->locals()) {
+            // Wasm semantics want locals to be zeroed on entry, but we're reusing locals across multiple inlined sites;
+            // we can't zero reference-typed locals without potentially dropping a live reference, so reject those callees.
+            if (local.type().is_reference())
+                return nullptr;
+        }
+        for (auto& gi : callee->body().instructions()) {
+            if (first_is_one_of(gi.opcode(), Instructions::call, Instructions::call_indirect))
+                return nullptr;
+        }
+        return callee;
+    };
+
+    size_t inlined_local_count = 0;
+    auto did_inline = false;
+    Vector<Instruction const*> expanded;
+    expanded.ensure_capacity(instruction_count);
+
+    Vector<size_t> wasm_ip_to_expanded;
+    wasm_ip_to_expanded.resize(expression.instructions().size());
+
+    Vector<size_t> caller_structured_positions;
+    auto append_caller = [&](Instruction const& insn) {
+        if (insn.arguments().has<Instruction::StructuredInstructionArgs>() || insn.arguments().has<Instruction::TryTableArgs>())
+            caller_structured_positions.append(expanded.size());
+        expanded.append(&insn);
+    };
+
+    auto is_local_op = [](OpCode op) { return first_is_one_of(op, Instructions::local_get, Instructions::local_set, Instructions::local_tee); };
+
+    size_t wasm_ip = 0;
     for (auto& instruction : expression.instructions()) {
+        wasm_ip_to_expanded[wasm_ip++] = expanded.size();
+        if (instruction.opcode() == Instructions::call) {
+            auto func_index = instruction.arguments().get<FunctionIndex>().value();
+            if (auto const* callee = callee_if_inlineable(func_index)) {
+                // Reuse a range above the caller's locals for the callee's locals, and remap all local accesses in the callee to that range,
+                // Currently the locals are allocated on the stack for up to 64 locals, so avoid inlining if the callee's locals would exceed that limit (with some headroom for the parameters).
+                size_t base = caller_local_count;
+                size_t g_params = functions[func_index].parameters().size();
+                size_t g_total = g_params + callee->total_local_count();
+                if (base + g_total > 56) {
+                    append_caller(instruction);
+                    continue;
+                }
+                for (size_t p = g_params; p-- > 0;)
+                    expanded.append(&append_extra_instruction(Instruction(Instructions::local_set, LocalIndex { static_cast<u32>(base + p) })));
+
+                // Zero-init all callee locals on "entry", note that we drop reference-typed locals above, so a normal zero-init is safe here.
+                for (size_t l = 0; l < callee->total_local_count(); ++l)
+                    expanded.append(&append_extra_instruction(Instructions::synthetic_local_seti32_const, LocalIndex { static_cast<u32>(base + g_params + l) }, static_cast<i32>(0)));
+
+                auto callee_cfg = false;
+                for (auto& gi : callee->body().instructions()) {
+                    if (first_is_one_of(gi.opcode(),
+                            Instructions::block, Instructions::loop, Instructions::if_, Instructions::return_,
+                            Instructions::br, Instructions::br_if, Instructions::br_table)) {
+                        callee_cfg = true;
+                        break;
+                    }
+                }
+
+                if (!callee_cfg) {
+                    for (auto& gi : callee->body().instructions()) {
+                        if (gi.opcode() == Instructions::synthetic_end_expression)
+                            continue; // drop the trailing function-end marker
+                        if (is_local_op(gi.opcode()))
+                            expanded.append(&append_extra_instruction(Instruction(gi.opcode(), LocalIndex { static_cast<u32>(gi.local_index().value() + base) })));
+                        else
+                            expanded.append(&gi);
+                    }
+                } else {
+                    // The function being inlined has some control flow, wrap it in a block and rewrite `return` to `br` out of the wrapper so that the inlined code can exit to the caller.
+                    auto block_type = functions[func_index].results().is_empty() ? BlockType {} : BlockType { functions[func_index].results()[0] };
+                    auto& wrapper = append_extra_instruction(Instruction(
+                        Instructions::block,
+                        Instruction::StructuredInstructionArgs {
+                            block_type,
+                            InstructionPointer { 0 },
+                            {},
+                            { static_cast<u32>(functions[func_index].results().size()), 0, false },
+                        }));
+                    expanded.append(&wrapper);
+
+                    Vector<size_t> g_ip_to_expanded;
+                    g_ip_to_expanded.resize(callee->body().instructions().size() + 1);
+                    Vector<size_t> g_structured_positions;
+                    int depth = 0;
+                    size_t g_idx = 0;
+                    for (auto& gi : callee->body().instructions()) {
+                        g_ip_to_expanded[g_idx++] = expanded.size();
+                        auto opc = gi.opcode();
+                        if (opc == Instructions::synthetic_end_expression)
+                            continue;
+                        if (opc == Instructions::return_) {
+                            expanded.append(&append_extra_instruction(Instruction(Instructions::br, Instruction::BranchArgs { LabelIndex { static_cast<u32>(depth) }, false })));
+                        } else if (first_is_one_of(opc, Instructions::block, Instructions::loop, Instructions::if_)) {
+                            ++depth;
+                            g_structured_positions.append(expanded.size());
+                            expanded.append(&gi);
+                        } else if (opc == Instructions::structured_end) {
+                            --depth;
+                            expanded.append(&gi);
+                        } else if (is_local_op(opc)) {
+                            expanded.append(&append_extra_instruction(Instruction(opc, LocalIndex { static_cast<u32>(gi.local_index().value() + base) })));
+                        } else {
+                            expanded.append(&gi);
+                        }
+                    }
+                    g_ip_to_expanded[g_idx] = expanded.size();
+                    auto& wrapper_end = append_extra_instruction(Instruction(Instructions::structured_end));
+                    auto wrapper_end_pos = expanded.size();
+                    expanded.append(&wrapper_end);
+                    wrapper.arguments() = Instruction::StructuredInstructionArgs {
+                        block_type,
+                        InstructionPointer { static_cast<u32>(wrapper_end_pos) },
+                        {},
+                        { static_cast<u32>(functions[func_index].results().size()), 0, false },
+                    };
+
+                    auto g_remap = [&](InstructionPointer ip) -> InstructionPointer {
+                        auto v = ip.value();
+                        return InstructionPointer { static_cast<u32>(v < g_ip_to_expanded.size() ? g_ip_to_expanded[v] : wrapper_end_pos) };
+                    };
+                    for (auto pos : g_structured_positions) {
+                        auto* sa = expanded[pos]->arguments().get_pointer<Instruction::StructuredInstructionArgs>();
+                        auto copy = *expanded[pos];
+                        auto new_else = sa->else_ip().map([&](InstructionPointer ip) { return g_remap(ip); });
+                        copy.arguments() = Instruction::StructuredInstructionArgs { sa->block_type, g_remap(sa->end_ip), new_else, sa->meta };
+                        expanded[pos] = &append_extra_instruction(move(copy));
+                    }
+                }
+                inlined_local_count = max(inlined_local_count, g_total);
+                did_inline = true;
+                continue;
+            }
+        }
+        append_caller(instruction);
+    }
+    result.cranelift_inlined_locals = static_cast<u32>(inlined_local_count);
+
+    // Regenerate all relative/IP-based structured instruction arguments to point into the new `expanded` vector.
+    if (did_inline) {
+        auto remap = [&](InstructionPointer ip) -> InstructionPointer {
+            auto v = ip.value();
+            return InstructionPointer { static_cast<u32>(v < wasm_ip_to_expanded.size() ? wasm_ip_to_expanded[v] : expanded.size()) };
+        };
+        for (auto i : caller_structured_positions) {
+            auto const* insn = expanded[i];
+            if (auto const* sa = insn->arguments().get_pointer<Instruction::StructuredInstructionArgs>()) {
+                auto copy = *insn;
+                auto new_else = sa->else_ip().map([&](InstructionPointer ip) { return remap(ip); });
+                copy.arguments() = Instruction::StructuredInstructionArgs { sa->block_type, remap(sa->end_ip), new_else, sa->meta };
+                expanded[i] = &append_extra_instruction(move(copy));
+            } else if (auto const* tta = insn->arguments().get_pointer<Instruction::TryTableArgs>()) {
+                auto copy = *insn;
+                copy.arguments() = Instruction::TryTableArgs { tta->block_type, remap(tta->end_ip), tta->catches(), tta->meta };
+                expanded[i] = &append_extra_instruction(move(copy));
+            }
+        }
+    }
+
+    for (auto const* instruction_ptr : expanded) {
+        auto& instruction = *instruction_ptr;
         if (instruction.opcode() == Instructions::call) {
             auto& function = functions[instruction.arguments().get<FunctionIndex>().value()];
             if (function.results().size() <= 1 && function.parameters().size() < 4) {

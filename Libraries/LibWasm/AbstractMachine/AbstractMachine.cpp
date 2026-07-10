@@ -512,7 +512,7 @@ Vector<CompiledFunctionEntry> const& ModuleInstance::compiled_fn_table(Store& st
         entry.first_insn = ci.dispatches[0].instruction;
         entry.expression = &wasm_fn->code().func().body();
         entry.module = &wasm_fn->module();
-        entry.total_local_count = static_cast<u32>(wasm_fn->code().func().total_local_count());
+        entry.total_local_count = static_cast<u32>(wasm_fn->code().func().total_local_count()) + ci.cranelift_inlined_locals;
         entry.arity = static_cast<u32>(wasm_fn->type().results().size());
         entry.max_call_rec_size = static_cast<u32>(ci.max_call_rec_size);
     }

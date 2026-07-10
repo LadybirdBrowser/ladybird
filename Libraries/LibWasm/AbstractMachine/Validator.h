@@ -323,7 +323,7 @@ public:
         Vector<StackEntry> result_types;
         bool is_constant { false };
     };
-    ErrorOr<ExpressionTypeResult, ValidationError> validate(Expression const&, Vector<ValueType> const&);
+    ErrorOr<ExpressionTypeResult, ValidationError> validate(Expression const&, Vector<ValueType> const&, Span<CodeSection::Func const* const> callee_bodies = {}, size_t current_function_index = 0);
     ErrorOr<void, ValidationError> validate(Instruction const& instruction, Stack& stack, bool& is_constant);
     template<u64 opcode>
     ErrorOr<void, ValidationError> validate_instruction(Instruction const&, Stack& stack, bool& is_constant);
