@@ -31,10 +31,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     if (wait_for_debugger)
         Core::Process::wait_for_debugger_and_break();
 
+    auto& event_loop = Core::EventLoop::initialize_for_current_thread();
+
     if (!disable_sandbox)
         TRY(ImageDecoder::apply_sandbox());
-
-    auto& event_loop = Core::EventLoop::initialize_for_current_thread();
 
     auto client = TRY(IPC::take_over_accepted_client_from_system_server<ImageDecoder::ConnectionFromClient>(mach_server_name));
 
