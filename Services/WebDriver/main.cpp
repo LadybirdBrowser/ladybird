@@ -35,7 +35,7 @@ static ErrorOr<Core::Process> launch_process(StringView application, ReadonlySpa
     return result;
 }
 
-static Vector<ByteString> create_arguments(ByteString const& webdriver_endpoint, bool headless, bool expose_experimental_interfaces, bool force_cpu_painting, bool disable_sandbox, Optional<StringView> debug_process, Optional<StringView> default_time_zone, Optional<StringView> resource_substitution_map_path)
+static Vector<ByteString> create_arguments(ByteString const& webdriver_endpoint, bool headless, bool expose_experimental_interfaces, bool expose_internals_object, bool force_cpu_painting, bool disable_sandbox, Optional<StringView> debug_process, Optional<StringView> default_time_zone, Optional<StringView> resource_substitution_map_path)
 {
     Vector<ByteString> arguments;
 #if defined(AK_OS_MACOS)
@@ -60,6 +60,8 @@ static Vector<ByteString> create_arguments(ByteString const& webdriver_endpoint,
     arguments.append("--disable-scrollbar-painting"sv);
     if (expose_experimental_interfaces)
         arguments.append("--expose-experimental-interfaces"sv);
+    if (expose_internals_object)
+        arguments.append("--expose-internals-object"sv);
     if (force_cpu_painting)
         arguments.append("--force-cpu-painting"sv);
     if (disable_sandbox)
@@ -95,6 +97,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto listen_address = "0.0.0.0"sv;
     int port = 8000;
     bool expose_experimental_interfaces = false;
+    bool expose_internals_object = false;
     bool force_cpu_painting = false;
     bool disable_sandbox = false;
     bool headless = false;
@@ -107,6 +110,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(port, "Port to listen on", "port", 'p', "port");
     args_parser.add_option(certificates, "Path to a certificate file", "certificate", 'C', "certificate");
     args_parser.add_option(expose_experimental_interfaces, "Expose experimental IDL interfaces", "expose-experimental-interfaces");
+    args_parser.add_option(expose_internals_object, "Expose internals object", "expose-internals-object");
     args_parser.add_option(force_cpu_painting, "Launch browser with GPU painting disabled", "force-cpu-painting");
     args_parser.add_option(disable_sandbox, "Launch browser with helper process sandboxing disabled", "disable-sandbox");
     args_parser.add_option(debug_process, "Wait for a debugger to attach to the given process name (WebContent, RequestServer, etc.)", "debug-process", 0, "process-name");
@@ -155,7 +159,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         }
 
         auto launch_browser_callback = [&](ByteString const& webdriver_endpoint, bool headless) {
-            auto arguments = create_arguments(webdriver_endpoint, headless, expose_experimental_interfaces, force_cpu_painting, disable_sandbox, debug_process, default_time_zone, resource_substitution_map_path);
+            auto arguments = create_arguments(webdriver_endpoint, headless, expose_experimental_interfaces, expose_internals_object, force_cpu_painting, disable_sandbox, debug_process, default_time_zone, resource_substitution_map_path);
             return launch_process("Ladybird"sv, arguments.span());
         };
 
