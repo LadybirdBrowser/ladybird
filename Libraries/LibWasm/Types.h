@@ -1791,7 +1791,7 @@ private:
     size_t m_minimum_call_record_allocation_size { 0 };
 };
 
-CompiledInstructions try_compile_instructions(Expression const&, Span<FunctionType const> functions, Span<CodeSection::Func const* const> callee_bodies = {}, size_t current_function_index = 0, size_t caller_local_count = 0);
+CompiledInstructions try_compile_instructions(Expression const&, Span<FunctionType const> functions, Span<CodeSection::Func const* const> callee_bodies = {}, size_t current_function_index = 0, size_t caller_local_count = 0, size_t imported_function_count = 0);
 ErrorOr<void, ValidationError> ensure_cranelift_compiled(Module&);
 WASM_API void start_cranelift_compilation(Module&);
 bool try_cranelift_compile(CompiledInstructions& compiled, u32 result_arity = 0);

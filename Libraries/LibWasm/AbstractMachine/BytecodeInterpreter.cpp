@@ -6898,7 +6898,7 @@ Instruction& InstructionStorage::append(Instruction instruction)
     return slot.value();
 }
 
-CompiledInstructions try_compile_instructions(Expression const& expression, Span<FunctionType const> functions, Span<CodeSection::Func const* const> callee_bodies, size_t current_function_index, size_t caller_local_count)
+CompiledInstructions try_compile_instructions(Expression const& expression, Span<FunctionType const> functions, Span<CodeSection::Func const* const> callee_bodies, size_t current_function_index, size_t caller_local_count, size_t imported_function_count)
 {
     CompiledInstructions result;
 
@@ -7122,13 +7122,15 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
     for (auto const* instruction_ptr : expanded) {
         auto& instruction = *instruction_ptr;
         if (instruction.opcode() == Instructions::call) {
-            auto& function = functions[instruction.arguments().get<FunctionIndex>().value()];
-            if (function.results().size() <= 1 && function.parameters().size() < 4) {
+            auto const call_func_index = instruction.arguments().get<FunctionIndex>().value();
+            auto& function = functions[call_func_index];
+            // Host calls all gather their arguments into a buffer, so reg-calling them is a net perf loss for all of them; force whatever we can to the call record path.
+            // Any remaining ones can still go through the regular call path, which is regardless faster than regcalling them.
+            bool const is_extern = call_func_index < imported_function_count;
+            if (!is_extern && function.results().size() <= 1 && function.parameters().size() < 4) {
                 pattern_state = InsnPatternState::Nothing;
                 OpCode op { static_cast<OpCode::Type>(Instructions::synthetic_call_00.value() + function.parameters().size() * 2 + function.results().size()) };
-                auto& extra_instruction = append_extra_instruction(
-                    op,
-                    instruction.arguments());
+                auto& extra_instruction = append_extra_instruction(op, instruction.arguments());
                 set_default_dispatch(extra_instruction);
                 continue;
             }

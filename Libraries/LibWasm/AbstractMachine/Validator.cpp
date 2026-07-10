@@ -5118,7 +5118,7 @@ ErrorOr<Validator::ExpressionTypeResult, ValidationError> Validator::validate(Ex
     m_max_frame_size = 0;
 
     // Now that we're in happy land, try to compile the expression down to a list of labels to help dispatch.
-    expression.compiled_instructions = try_compile_instructions(expression, m_context.functions.span(), callee_bodies, current_function_index, m_context.locals.size());
+    expression.compiled_instructions = try_compile_instructions(expression, m_context.functions.span(), callee_bodies, current_function_index, m_context.locals.size(), m_context.imported_function_count);
 
     if (expression.compiled_instructions.direct && !is_constant_expression) {
         bool has_unsupported_types = false;
