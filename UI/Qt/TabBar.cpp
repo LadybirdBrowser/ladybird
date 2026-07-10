@@ -908,7 +908,7 @@ void TabBar::mousePressEvent(QMouseEvent* event)
     }
 
     if (tab_layout() != TabLayout::Horizontal) {
-        if (pressed_tab >= 0) {
+        if (pressed_tab >= 0 && event->button() == Qt::LeftButton) {
             setCurrentIndex(pressed_tab);
         } else if (event->button() == Qt::LeftButton && start_window_move()) {
             event->accept();
