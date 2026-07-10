@@ -622,11 +622,11 @@ int GridFormattingContext::count_of_repeated_auto_fill_or_fit_tracks(GridDimensi
         } else {
             track_size = resolve_definite_track_size(track_sizing_function.grid_size(), *m_available_space);
         }
-        size_of_repeated_tracks += track_size;
+        // For the purpose of finding the number of auto-repeated tracks in a standalone axis, the UA must
+        // floor the track size to a UA-specified value to avoid division by zero. It is suggested that this
+        // floor be 1px.
+        size_of_repeated_tracks += max(track_size, CSSPixels(1));
     }
-
-    if (size_of_repeated_tracks == 0)
-        return 0;
 
     auto const& available_size = dimension == GridDimension::Column ? m_available_space->width : m_available_space->height;
     auto const& gap = dimension == GridDimension::Column ? grid_computed_values.column_gap() : grid_computed_values.row_gap();
@@ -643,10 +643,6 @@ int GridFormattingContext::count_of_repeated_auto_fill_or_fit_tracks(GridDimensi
     }
     // Otherwise, the specified track list repeats only once.
     return 1;
-
-    // For the purpose of finding the number of auto-repeated tracks in a standalone axis, the UA must
-    // floor the track size to a UA-specified value to avoid division by zero. It is suggested that this
-    // floor be 1px.
 }
 
 GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_position(Box const& child_box, GridDimension dimension)
@@ -1176,11 +1172,20 @@ void GridFormattingContext::initialize_gap_tracks(GridDimension dimension, Avail
 
     gap_tracks.ensure_capacity(grid_tracks.size() - 1);
 
+    // When a collapsed track's gutters collapse, they coincide exactly--the two gutters overlap so that their start
+    // and end edges coincide. If one side of a collapsed track does not have a gutter (e.g. if it is the first or
+    // last track of the implicit grid), then collapsing its gutters results in no gutter on either "side" of the
+    // collapsed track.
+    // NB: We model this by keeping the gutter that directly precedes each non-collapsed track (except the first such
+    //     track) and giving all other gutters a zero size.
+    bool seen_non_collapsed_track = false;
     for (size_t track_index = 0; track_index < grid_tracks.size(); track_index++) {
+        seen_non_collapsed_track |= !grid_tracks[track_index].is_collapsed;
         tracks_and_gaps.append(grid_tracks[track_index]);
 
         if (track_index != grid_tracks.size() - 1) {
-            gap_tracks.unchecked_append(GridTrack::create_gap(gap_size));
+            bool gutter_collapses = grid_tracks[track_index + 1].is_collapsed || !seen_non_collapsed_track;
+            gap_tracks.unchecked_append(GridTrack::create_gap(gutter_collapses ? CSSPixels(0) : gap_size));
             tracks_and_gaps.append(gap_tracks.last());
         }
     }
@@ -2672,9 +2677,12 @@ void GridFormattingContext::collapse_auto_fit_tracks_if_needed(GridDimension dim
         if (m_occupation_grid.is_occupied(dimension == GridDimension::Column ? track_index : 0, dimension == GridDimension::Row ? track_index : 0))
             continue;
 
-        // NOTE: A collapsed track is treated as having a fixed track sizing function of 0px
+        // A collapsed grid track is treated as having a fixed track sizing function of 0px, and the gutters on
+        // either side of it--including any space allotted through distributed alignment--collapse.
+        // NB: The gutter collapsing is handled by initialize_gap_tracks(), which runs after this.
         tracks[track_index].min_track_sizing_function = CSS::GridSize(CSS::LengthStyleValue::create(CSS::Length::make_px(0)));
         tracks[track_index].max_track_sizing_function = CSS::GridSize(CSS::LengthStyleValue::create(CSS::Length::make_px(0)));
+        tracks[track_index].is_collapsed = true;
     }
 }
 
@@ -2835,10 +2843,12 @@ void GridFormattingContext::run(LayoutInput const& layout_input)
 
     initialize_grid_tracks_for_columns_and_rows();
 
-    initialize_gap_tracks(available_space);
-
     collapse_auto_fit_tracks_if_needed(GridDimension::Column);
     collapse_auto_fit_tracks_if_needed(GridDimension::Row);
+
+    // NB: Gap tracks must be initialized after collapsing auto-fit tracks, since gutters next to collapsed tracks
+    //     collapse as well.
+    initialize_gap_tracks(available_space);
 
     // Do the first pass of resolving grid items box metrics to compute values that are independent of a track width
     resolve_items_box_metrics(GridDimension::Column);

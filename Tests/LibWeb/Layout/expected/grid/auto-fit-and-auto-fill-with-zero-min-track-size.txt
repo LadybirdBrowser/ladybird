@@ -1,57 +1,57 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 296 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 280 0+0+8] children: not-inline
-      Box <div.grid.fit> at [8,8] [0+0+0 530 0+0+254] [0+0+0 140 0+0+0] [GFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 96 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 80 0+0+8] children: not-inline
+      Box <div.grid.fit> at [8,8] [0+0+0 530 0+0+254] [0+0+0 40 0+0+0] [GFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
-        BlockContainer <div.item> at [8,8] [0+0+0 530 0+0+0] [0+0+0 40 0+0+0] [BFC] children: inline
+        BlockContainer <div.item> at [8,8] [0+0+0 170 0+0+0] [0+0+0 40 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 1, rect: [8,8 9.34375x16] baseline: 12.796875
               "a"
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
-        BlockContainer <div.item> at [8,58] [0+0+0 530 0+0+0] [0+0+0 40 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [8,58 9.46875x16] baseline: 12.796875
+        BlockContainer <div.item> at [188,8] [0+0+0 170 0+0+0] [0+0+0 40 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [188,8 9.46875x16] baseline: 12.796875
               "b"
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
-        BlockContainer <div.item> at [8,108] [0+0+0 530 0+0+0] [0+0+0 40 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [8,108 8.890625x16] baseline: 12.796875
+        BlockContainer <div.item> at [368,8] [0+0+0 170 0+0+0] [0+0+0 40 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [368,8 8.890625x16] baseline: 12.796875
               "c"
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,148] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+      BlockContainer <(anonymous)> at [8,48] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
-      Box <div.grid.fill> at [8,148] [0+0+0 530 0+0+254] [0+0+0 140 0+0+0] [GFC] children: not-inline
+      Box <div.grid.fill> at [8,48] [0+0+0 530 0+0+254] [0+0+0 40 0+0+0] [GFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
-        BlockContainer <div.item> at [8,148] [0+0+0 530 0+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
+        BlockContainer <div.item> at [8,48] [0+0+0 1.015625 0+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
-        BlockContainer <div.item> at [8,198] [0+0+0 530 0+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
+        BlockContainer <div.item> at [19.015625,48] [0+0+0 1.015625 0+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
-        BlockContainer <div.item> at [8,248] [0+0+0 530 0+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
+        BlockContainer <div.item> at [30.03125,48] [0+0+0 1.015625 0+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,288] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+      BlockContainer <(anonymous)> at [8,88] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x296]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x280]
-      Paintable (Box<DIV>.grid.fit) [8,8 530x140]
-        PaintableWithLines (BlockContainer<DIV>.item) [8,8 530x40]
-        PaintableWithLines (BlockContainer<DIV>.item) [8,58 530x40]
-        PaintableWithLines (BlockContainer<DIV>.item) [8,108 530x40]
-      PaintableWithLines (BlockContainer(anonymous)) [8,148 784x0]
-      Paintable (Box<DIV>.grid.fill) [8,148 530x140]
-        PaintableWithLines (BlockContainer<DIV>.item) [8,148 530x40]
-        PaintableWithLines (BlockContainer<DIV>.item) [8,198 530x40]
-        PaintableWithLines (BlockContainer<DIV>.item) [8,248 530x40]
-      PaintableWithLines (BlockContainer(anonymous)) [8,288 784x0]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x96]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x80]
+      Paintable (Box<DIV>.grid.fit) [8,8 530x40]
+        PaintableWithLines (BlockContainer<DIV>.item) [8,8 170x40]
+        PaintableWithLines (BlockContainer<DIV>.item) [188,8 170x40]
+        PaintableWithLines (BlockContainer<DIV>.item) [368,8 170x40]
+      PaintableWithLines (BlockContainer(anonymous)) [8,48 784x0]
+      Paintable (Box<DIV>.grid.fill) [8,48 530x40]
+        PaintableWithLines (BlockContainer<DIV>.item) [8,48 1.015625x40]
+        PaintableWithLines (BlockContainer<DIV>.item) [19.015625,48 1.015625x40]
+        PaintableWithLines (BlockContainer<DIV>.item) [30.03125,48 1.015625x40]
+      PaintableWithLines (BlockContainer(anonymous)) [8,88 784x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x296] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x96] (z-index: auto)
