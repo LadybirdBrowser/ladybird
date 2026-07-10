@@ -8,6 +8,7 @@
 #include <LibCore/System.h>
 #include <LibWeb/HTML/BroadcastChannel.h>
 #include <LibWeb/HTML/WorkerAgentParent.h>
+#include <LibWeb/Platform/FontPlugin.h>
 #include <WebWorker/ConnectionFromClient.h>
 #include <WebWorker/PageHost.h>
 #include <WebWorker/WorkerHost.h>
@@ -33,6 +34,11 @@ void ConnectionFromClient::connect_to_image_decoder(IPC::TransportHandle handle)
 {
     if (on_image_decoder_connection)
         on_image_decoder_connection(handle);
+}
+
+void ConnectionFromClient::set_system_font_family(String family)
+{
+    Web::Platform::FontPlugin::the().set_system_font_family(FlyString { family });
 }
 
 void ConnectionFromClient::close_worker()

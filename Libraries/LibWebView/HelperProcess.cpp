@@ -224,7 +224,10 @@ ErrorOr<NonnullRefPtr<WebWorkerClient>> launch_web_worker_process(Web::Bindings:
         arguments.append(server.value());
     }
 
-    return launch_server_process<WebWorkerClient>("WebWorker"sv, move(arguments), is_private, agent_id);
+    auto client = TRY(launch_server_process<WebWorkerClient>("WebWorker"sv, move(arguments), is_private, agent_id));
+    if (auto system_font_family = WebView::Application::the().system_font_family(); system_font_family.has_value())
+        client->async_set_system_font_family(system_font_family.release_value());
+    return client;
 }
 
 ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process()
