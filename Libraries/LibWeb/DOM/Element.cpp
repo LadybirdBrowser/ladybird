@@ -1072,6 +1072,22 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
     return invalidation;
 }
 
+void Element::set_needs_layout_tree_rebuild(SetNeedsLayoutTreeUpdateReason reason)
+{
+    // NB: We normally mark the parent element for the rebuild rather than this element itself, so that a "display"
+    //     change to or from "contents" is handled correctly: an element with display:contents generates no box of its
+    //     own, so its children's boxes have to be inserted into (or removed from) the parent's subtree.
+    //     Top layer elements (open modal dialogs, popovers, fullscreen elements) are the exception. They generate
+    //     boxes as siblings of the root, and a dedicated top layer pass in the layout tree builder recreates their
+    //     boxes based on the element's own needs-layout-tree-update flag; the DOM parent's subtree rebuild skips them
+    //     entirely. Mark the element itself in that case. This still propagates child-needs-layout-tree-update up to
+    //     the document, which is what makes the top layer pass run.
+    if (auto parent = parent_element(); parent && !rendered_in_top_layer())
+        parent->set_needs_layout_tree_update(true, reason);
+    else
+        set_needs_layout_tree_update(true, reason);
+}
+
 void Element::apply_computed_style_to_layout_node_if_needed(CSS::RequiredInvalidationAfterStyleChange const& invalidation)
 {
     if (invalidation.needs_layout_tree_rebuild() || !unsafe_layout_node())

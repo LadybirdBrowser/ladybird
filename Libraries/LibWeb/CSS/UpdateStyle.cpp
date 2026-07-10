@@ -36,13 +36,8 @@ static void apply_element_style_invalidation_after_style_change(DOM::Element& el
 
     if (invalidation.needs_relayout())
         element.set_needs_layout_update(DOM::SetNeedsLayoutReason::StyleChange);
-    if (invalidation.needs_layout_tree_rebuild()) {
-        // Mark the parent to handle display changes to/from contents correctly.
-        if (auto parent_element = element.parent_element())
-            parent_element->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::StyleChange);
-        else
-            element.set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::StyleChange);
-    }
+    if (invalidation.needs_layout_tree_rebuild())
+        element.set_needs_layout_tree_rebuild(DOM::SetNeedsLayoutTreeUpdateReason::StyleChange);
 
     element.set_needs_style_update(false);
 }

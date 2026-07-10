@@ -1,4 +1,4 @@
 modal: true
 computed display: block
-has box: false
-width: 0
+has box: true
+width: 698

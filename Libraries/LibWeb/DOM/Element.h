@@ -209,6 +209,8 @@ public:
     CSS::RequiredInvalidationAfterStyleChange recompute_style(bool& did_change_custom_properties);
     CSS::RequiredInvalidationAfterStyleChange recompute_inherited_style(ScheduleAnimationUpdate = ScheduleAnimationUpdate::No);
 
+    void set_needs_layout_tree_rebuild(SetNeedsLayoutTreeUpdateReason);
+
     Optional<CSS::PseudoElement> associated_shadow_host_pseudo_element() const { return m_associated_shadow_host_pseudo_element; }
     void set_associated_shadow_host_pseudo_element(CSS::PseudoElement pseudo_element);
 
