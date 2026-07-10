@@ -18,7 +18,7 @@ class HTMLParagraphElement final : public HTMLElement {
 public:
     virtual ~HTMLParagraphElement() override;
 
-    virtual bool is_presentational_hint(FlyString const&) const override;
+    virtual bool is_presentational_hint(Utf16FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
 
     // https://www.w3.org/TR/html-aria/#el-p

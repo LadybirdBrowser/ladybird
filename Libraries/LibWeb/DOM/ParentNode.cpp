@@ -97,10 +97,10 @@ GC::Ref<HTMLCollection> ParentNode::children()
 
 // https://dom.spec.whatwg.org/#concept-getelementsbytagname
 // NOTE: This method is only exposed on Document and Element, but is in ParentNode to prevent code duplication.
-GC::Ref<HTMLCollection> ParentNode::get_elements_by_tag_name(FlyString const& qualified_name)
+GC::Ref<HTMLCollection> ParentNode::get_elements_by_tag_name(Utf16FlyString const& qualified_name)
 {
     // 1. If qualifiedName is "*" (U+002A), return a HTMLCollection rooted at root, whose filter matches only descendant elements.
-    if (qualified_name == "*") {
+    if (qualified_name == "*"sv) {
         return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [](Element const&) {
             return true;
         });
@@ -108,7 +108,8 @@ GC::Ref<HTMLCollection> ParentNode::get_elements_by_tag_name(FlyString const& qu
 
     // 2. Otherwise, if root’s node document is an HTML document, return a HTMLCollection rooted at root, whose filter matches the following descendant elements:
     if (root().document().document_type() == Document::Type::HTML) {
-        FlyString qualified_name_in_ascii_lowercase = qualified_name.to_ascii_lowercase();
+        auto lowercase_qualified_name = qualified_name.view().to_ascii_lowercase();
+        auto qualified_name_in_ascii_lowercase = Utf16FlyString::from_utf16(lowercase_qualified_name.utf16_view());
         return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [qualified_name, qualified_name_in_ascii_lowercase](Element const& element) {
             // - Whose namespace is the HTML namespace and whose qualified name is qualifiedName, in ASCII lowercase.
             if (element.namespace_uri() == Namespace::HTML)
@@ -127,28 +128,28 @@ GC::Ref<HTMLCollection> ParentNode::get_elements_by_tag_name(FlyString const& qu
 
 // https://dom.spec.whatwg.org/#concept-getelementsbytagnamens
 // NOTE: This method is only exposed on Document and Element, but is in ParentNode to prevent code duplication.
-GC::Ref<HTMLCollection> ParentNode::get_elements_by_tag_name_ns(Optional<FlyString> namespace_, FlyString const& local_name)
+GC::Ref<HTMLCollection> ParentNode::get_elements_by_tag_name_ns(Optional<Utf16FlyString> namespace_, Utf16FlyString const& local_name)
 {
     // 1. If namespace is the empty string, set it to null.
-    if (namespace_ == FlyString {})
+    if (namespace_ == Utf16FlyString {})
         namespace_ = OptionalNone {};
 
     // 2. If both namespace and localName are "*" (U+002A), return a HTMLCollection rooted at root, whose filter matches descendant elements.
-    if (namespace_ == "*" && local_name == "*") {
+    if (namespace_ == "*"sv && local_name == "*"sv) {
         return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [](Element const&) {
             return true;
         });
     }
 
     // 3. Otherwise, if namespace is "*" (U+002A), return a HTMLCollection rooted at root, whose filter matches descendant elements whose local name is localName.
-    if (namespace_ == "*") {
+    if (namespace_ == "*"sv) {
         return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [local_name](Element const& element) {
             return element.local_name() == local_name;
         });
     }
 
     // 4. Otherwise, if localName is "*" (U+002A), return a HTMLCollection rooted at root, whose filter matches descendant elements whose namespace is namespace.
-    if (local_name == "*") {
+    if (local_name == "*"sv) {
         return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [namespace_](Element const& element) {
             return element.namespace_uri() == namespace_;
         });

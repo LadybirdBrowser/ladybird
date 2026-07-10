@@ -84,7 +84,7 @@ GC::Ptr<Plugin> PluginArray::item(u32 index) const
 }
 
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-pluginarray-nameditem
-GC::Ptr<Plugin> PluginArray::named_item(FlyString const& name) const
+GC::Ptr<Plugin> PluginArray::named_item(Utf16FlyString const& name) const
 {
     // 1. For each Plugin plugin of this's relevant global object's PDF viewer plugin objects: if plugin's name is name, then return plugin.
     auto& window = as<HTML::Window>(HTML::relevant_global_object(*this));
@@ -113,7 +113,7 @@ JS::Value PluginArray::named_item_value(Utf16FlyString const& name) const
     auto plugins = window.pdf_viewer_plugin_objects();
 
     for (auto& plugin : plugins) {
-        if (name == plugin->name().bytes_as_string_view())
+        if (name == plugin->name())
             return plugin.ptr();
     }
 

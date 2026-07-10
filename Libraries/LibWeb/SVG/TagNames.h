@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
 
 namespace Web::SVG::TagNames {
 
@@ -62,7 +62,7 @@ namespace Web::SVG::TagNames {
     __ENUMERATE_SVG_TAG(use, "use")                                 \
     __ENUMERATE_SVG_TAG(view, "view")
 
-#define __ENUMERATE_SVG_TAG(name, tag) extern FlyString const& name;
+#define __ENUMERATE_SVG_TAG(name, tag) extern Utf16FlyString const& name;
 ENUMERATE_SVG_TAGS
 #undef __ENUMERATE_SVG_TAG
 

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/DOM/CharacterData.h>
 
 namespace Web::DOM {
@@ -17,16 +18,16 @@ class ProcessingInstruction final : public CharacterData {
 public:
     virtual ~ProcessingInstruction() override = default;
 
-    virtual FlyString node_name() const override { return m_target; }
+    virtual Utf16FlyString node_name() const override { return m_target; }
 
-    String const& target() const { return m_target; }
+    Utf16FlyString const& target() const { return m_target; }
 
 private:
-    ProcessingInstruction(Document&, Utf16String data, String const& target);
+    ProcessingInstruction(Document&, Utf16String data, Utf16FlyString const& target);
 
     virtual void initialize(JS::Realm&) override;
 
-    String m_target;
+    Utf16FlyString m_target;
 };
 
 template<>

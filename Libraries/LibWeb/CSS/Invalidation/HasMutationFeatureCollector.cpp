@@ -32,12 +32,12 @@ bool HasMutationFeatureCollector::has_any_metadata() const
 
 bool HasMutationFeatureCollector::element_has_feature_used_in_has_selector(DOM::Element const& element) const
 {
-    if (m_data.tag_names_used_in_has_selectors.contains(Utf16FlyString::from_fly_string(element.local_name())))
+    if (m_data.tag_names_used_in_has_selectors.contains(element.local_name()))
         return true;
     // Selector metadata stores tag and attribute names lowercased. For non-HTML elements this is only a conservative
     // scheduling hint; the actual :has() match still uses selector matching with the element's namespace semantics.
     if (element.namespace_uri() != Namespace::HTML
-        && m_data.tag_names_used_in_has_selectors.contains(Utf16FlyString::from_fly_string(element.lowercased_local_name())))
+        && m_data.tag_names_used_in_has_selectors.contains(element.lowercased_local_name()))
         return true;
     if (auto id = element.id(); id.has_value() && m_data.ids_used_in_has_selectors.contains(*id))
         return true;
@@ -46,11 +46,11 @@ bool HasMutationFeatureCollector::element_has_feature_used_in_has_selector(DOM::
             return true;
     }
     bool attribute_used_in_has = false;
-    element.for_each_attribute([&](FlyString const& name, auto const&) {
-        if (m_data.attribute_names_used_in_has_selectors.contains(Utf16FlyString::from_fly_string(name)))
+    element.for_each_attribute([&](Utf16FlyString const& name, auto const&) {
+        if (m_data.attribute_names_used_in_has_selectors.contains(name))
             attribute_used_in_has = true;
         if (element.namespace_uri() != Namespace::HTML
-            && m_data.attribute_names_used_in_has_selectors.contains(Utf16FlyString::from_fly_string(name.to_ascii_lowercase())))
+            && m_data.attribute_names_used_in_has_selectors.contains(name.to_ascii_lowercase()))
             attribute_used_in_has = true;
     });
     if (attribute_used_in_has)

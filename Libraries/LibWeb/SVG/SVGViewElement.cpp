@@ -33,7 +33,7 @@ void SVGViewElement::visit_edges(Visitor& visitor)
     SVGFitToViewBox::visit_edges(visitor);
 }
 
-void SVGViewElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
+void SVGViewElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
     SVGFitToViewBox::attribute_changed(*this, name, value);

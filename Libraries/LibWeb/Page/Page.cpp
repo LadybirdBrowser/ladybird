@@ -803,7 +803,7 @@ void Page::toggle_media_loop_state()
     if (media_element->has_attribute(HTML::AttributeNames::loop))
         media_element->remove_attribute(HTML::AttributeNames::loop);
     else
-        media_element->set_attribute_value(HTML::AttributeNames::loop, String {});
+        media_element->set_attribute_value(HTML::AttributeNames::loop, Utf16String {});
 }
 
 void Page::toggle_media_fullscreen_state()
@@ -827,7 +827,7 @@ void Page::toggle_media_controls_state()
     if (media_element->has_attribute(HTML::AttributeNames::controls))
         media_element->remove_attribute(HTML::AttributeNames::controls);
     else
-        media_element->set_attribute_value(HTML::AttributeNames::controls, String {});
+        media_element->set_attribute_value(HTML::AttributeNames::controls, Utf16String {});
 }
 
 void Page::set_page_mute_state(HTML::MuteState mute_state)

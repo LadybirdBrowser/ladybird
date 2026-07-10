@@ -120,7 +120,7 @@ private:
     virtual void initialize(JS::Realm&) override;
 
     // ^Node
-    virtual FlyString node_name() const override { return "#shadow-root"_fly_string; }
+    virtual Utf16FlyString node_name() const override { return "#shadow-root"_utf16_fly_string; }
     virtual bool is_shadow_root() const final { return true; }
 
     void calculate_part_element_map();

@@ -65,17 +65,17 @@ void XMLDocumentBuilder::set_doctype(XML::Doctype doctype)
     }
 
     auto document_type = DOM::DocumentType::create(m_document);
-    auto name = MUST(AK::String::from_byte_string(doctype.type));
+    auto name = Utf16FlyString::from_utf8(doctype.type.view());
     document_type->set_name(name);
 
     if (doctype.external_id.has_value()) {
         auto external_id = doctype.external_id.release_value();
 
-        auto system_id = MUST(AK::String::from_byte_string(external_id.system_id.system_literal));
+        auto system_id = Utf16String::from_utf8(MUST(AK::String::from_byte_string(external_id.system_id.system_literal)));
         document_type->set_system_id(system_id);
 
         if (external_id.public_id.has_value()) {
-            auto public_id = MUST(AK::String::from_byte_string(external_id.public_id.release_value().public_literal));
+            auto public_id = Utf16String::from_utf8(MUST(AK::String::from_byte_string(external_id.public_id.release_value().public_literal)));
             document_type->set_public_id(public_id);
         }
     }
@@ -83,26 +83,25 @@ void XMLDocumentBuilder::set_doctype(XML::Doctype doctype)
     m_document->insert_before(document_type, m_document->first_child(), false);
 }
 
-void XMLDocumentBuilder::element_start(XML::Name const& name, OrderedHashMap<XML::Name, ByteString> const& attributes)
+void XMLDocumentBuilder::element_start(Utf16FlyString const& name, Vector<XML::ListenerAttribute> const& attributes)
 {
     if (m_has_error)
         return;
 
     Vector<NamespaceAndPrefix, 2> namespaces;
-    for (auto const& [name, value] : attributes) {
-        if (name == "xmlns"sv || name.starts_with("xmlns:"sv)) {
-            auto parts = name.split_limit(':', 2);
-            Optional<ByteString> prefix;
-            auto namespace_ = value;
-            if (parts.size() == 2) {
-                namespace_ = value;
-                prefix = parts[1];
+    for (auto const& attribute : attributes) {
+        if (attribute.name == "xmlns"sv || attribute.name.starts_with("xmlns:"sv)) {
+            Optional<Utf16FlyString> prefix;
+            auto namespace_ = Utf16FlyString::from_utf16(attribute.value.utf16_view());
+            auto colon_position = attribute.name.view().find_code_unit_offset(':');
+            if (colon_position.has_value()) {
+                prefix = Utf16FlyString::from_utf16(attribute.name.view().substring_view(*colon_position + 1));
             }
 
             if (namespaces.find_if([&](auto const& namespace_and_prefix) { return namespace_and_prefix.prefix == prefix; }) != namespaces.end())
                 continue;
 
-            namespaces.append({ FlyString(MUST(String::from_byte_string(namespace_))), prefix });
+            namespaces.append({ namespace_, prefix });
         }
     }
 
@@ -113,8 +112,11 @@ void XMLDocumentBuilder::element_start(XML::Name const& name, OrderedHashMap<XML
     }
 
     auto namespace_ = namespace_for_name(name);
+    Optional<Utf16FlyString> utf16_namespace;
+    if (namespace_.has_value())
+        utf16_namespace = *namespace_;
 
-    auto qualified_name_or_error = DOM::validate_and_extract(m_document->realm(), namespace_, FlyString(MUST(String::from_byte_string(name))), DOM::ValidationContext::Element);
+    auto qualified_name_or_error = DOM::validate_and_extract(m_document->realm(), utf16_namespace, name, DOM::ValidationContext::Element);
 
     if (qualified_name_or_error.is_error()) {
         m_has_error = true;
@@ -149,47 +151,47 @@ void XMLDocumentBuilder::element_start(XML::Name const& name, OrderedHashMap<XML
     }
 
     for (auto const& attribute : attributes) {
-        if (attribute.key == "xmlns" || attribute.key.starts_with("xmlns:"sv)) {
+        if (attribute.name == "xmlns"sv || attribute.name.starts_with("xmlns:"sv)) {
             // The prefix xmlns is used only to declare namespace bindings and is by definition bound to the namespace name http://www.w3.org/2000/xmlns/.
-            if (!attribute.key.is_one_of("xmlns:"sv, "xmlns:xmlns"sv)) {
-                auto maybe_extracted_qualified_name = validate_and_extract(node->realm(), Namespace::XMLNS, MUST(String::from_byte_string(attribute.key)), DOM::ValidationContext::Element);
+            if (!attribute.name.is_one_of("xmlns:"sv, "xmlns:xmlns"sv)) {
+                auto maybe_extracted_qualified_name = validate_and_extract(node->realm(), Namespace::XMLNS, attribute.name, DOM::ValidationContext::Element);
                 if (!maybe_extracted_qualified_name.is_error()) {
                     auto extracted_qualified_name = maybe_extracted_qualified_name.release_value();
-                    node->set_attribute_value(extracted_qualified_name.local_name(), MUST(String::from_byte_string(attribute.value)), extracted_qualified_name.prefix(), extracted_qualified_name.namespace_());
+                    node->set_attribute_value(extracted_qualified_name.local_name(), attribute.value, extracted_qualified_name.prefix(), extracted_qualified_name.namespace_());
                     continue;
                 }
             }
 
             m_has_error = true;
-        } else if (attribute.key.contains(':')) {
-            if (auto namespace_for_key = namespace_for_name(attribute.key); namespace_for_key.has_value()) {
-                auto maybe_extracted_qualified_name = validate_and_extract(node->realm(), namespace_for_key, MUST(String::from_byte_string(attribute.key)), DOM::ValidationContext::Element);
+        } else if (attribute.name.view().contains(':')) {
+            if (auto namespace_for_key = namespace_for_name(attribute.name); namespace_for_key.has_value()) {
+                auto maybe_extracted_qualified_name = validate_and_extract(node->realm(), *namespace_for_key, attribute.name, DOM::ValidationContext::Element);
                 if (!maybe_extracted_qualified_name.is_error()) {
                     auto extracted_qualified_name = maybe_extracted_qualified_name.release_value();
-                    node->set_attribute_value(extracted_qualified_name.local_name(), MUST(String::from_byte_string(attribute.value)), extracted_qualified_name.prefix(), extracted_qualified_name.namespace_());
+                    node->set_attribute_value(extracted_qualified_name.local_name(), attribute.value, extracted_qualified_name.prefix(), extracted_qualified_name.namespace_());
                     continue;
                 }
             }
 
-            if (attribute.key.starts_with("xml:"sv)) {
-                auto maybe_extracted_qualified_name = validate_and_extract(node->realm(), Namespace::XML, MUST(String::from_byte_string(attribute.key)), DOM::ValidationContext::Element);
+            if (attribute.name.starts_with("xml:"sv)) {
+                auto maybe_extracted_qualified_name = validate_and_extract(node->realm(), Namespace::XML, attribute.name, DOM::ValidationContext::Element);
                 if (!maybe_extracted_qualified_name.is_error()) {
                     auto extracted_qualified_name = maybe_extracted_qualified_name.release_value();
-                    node->set_attribute_value(extracted_qualified_name.local_name(), MUST(String::from_byte_string(attribute.value)), extracted_qualified_name.prefix(), extracted_qualified_name.namespace_());
+                    node->set_attribute_value(extracted_qualified_name.local_name(), attribute.value, extracted_qualified_name.prefix(), extracted_qualified_name.namespace_());
                     continue;
                 }
             }
 
             m_has_error = true;
         } else {
-            node->set_attribute_value(MUST(String::from_byte_string(attribute.key)), MUST(String::from_byte_string(attribute.value)));
+            node->set_attribute_value(attribute.name, attribute.value);
         }
     }
 
     m_current_node = node.ptr();
 }
 
-void XMLDocumentBuilder::element_end(XML::Name const& name)
+void XMLDocumentBuilder::element_end(Utf16FlyString const& name)
 {
     if (m_has_error)
         return;
@@ -280,12 +282,12 @@ void XMLDocumentBuilder::cdata_section(StringView data)
     MUST(m_current_node->append_child(section));
 }
 
-void XMLDocumentBuilder::processing_instruction(StringView target, StringView data)
+void XMLDocumentBuilder::processing_instruction(Utf16FlyString const& target, Utf16String const& data)
 {
     if (m_has_error || !m_current_node)
         return;
 
-    auto processing_instruction = MUST(m_document->create_processing_instruction(MUST(String::from_utf8(target)), Utf16String::from_utf8(data)));
+    auto processing_instruction = MUST(m_document->create_processing_instruction(target, data));
     MUST(m_current_node->append_child(processing_instruction));
 }
 
@@ -405,18 +407,19 @@ void XMLDocumentBuilder::document_end()
     m_document->set_ready_for_post_load_tasks(true);
 }
 
-Optional<FlyString> XMLDocumentBuilder::namespace_for_name(XML::Name const& name)
+Optional<Utf16FlyString> XMLDocumentBuilder::namespace_for_name(Utf16FlyString const& name)
 {
-    Optional<StringView> prefix;
+    Optional<Utf16FlyString> prefix;
 
-    auto parts = name.split_limit(':', 3);
-    if (parts.size() > 2)
-        return {};
-
-    if (parts.size() == 2) {
-        if (parts[0].is_empty() || parts[1].is_empty())
+    auto view = name.view();
+    auto first_colon_position = view.find_code_unit_offset(':');
+    if (first_colon_position.has_value()) {
+        if (view.find_code_unit_offset(':', *first_colon_position + 1).has_value())
             return {};
-        prefix = parts[0];
+
+        if (*first_colon_position == 0 || *first_colon_position == view.length_in_code_units() - 1)
+            return {};
+        prefix = Utf16FlyString::from_utf16(view.substring_view(0, *first_colon_position));
     }
 
     for (auto const& stack_entry : m_namespace_stack.in_reverse()) {

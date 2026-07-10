@@ -118,7 +118,7 @@ WebIDL::ExceptionOr<void> ShadowRoot::set_inner_html(TrustedTypes::TrustedHTMLOr
     VERIFY(context);
 
     // 3. Let fragment be the result of invoking the fragment parsing algorithm steps with context and compliantString.
-    auto fragment = TRY(context->parse_fragment(compliant_string.to_utf8_but_should_be_ported_to_utf16()));
+    auto fragment = TRY(context->parse_fragment(compliant_string.utf16_view()));
 
     // 4. Replace all with fragment within this.
     this->replace_all(fragment);
@@ -162,7 +162,7 @@ WebIDL::ExceptionOr<void> ShadowRoot::set_html_unsafe(TrustedTypes::TrustedHTMLO
         TrustedTypes::Script.to_string()));
 
     // 2. Unsafely set HTML given this, this's shadow host, and compliantHTML.
-    TRY(unsafely_set_html(*this->host(), compliant_html.to_utf8_but_should_be_ported_to_utf16()));
+    TRY(unsafely_set_html(*this->host(), compliant_html.utf16_view()));
 
     return {};
 }

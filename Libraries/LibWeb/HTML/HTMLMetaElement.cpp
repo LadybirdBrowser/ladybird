@@ -254,7 +254,7 @@ void HTMLMetaElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ance
     update_metadata();
 }
 
-void HTMLMetaElement::attribute_changed(FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
+void HTMLMetaElement::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(local_name, old_value, value, namespace_);
     if (local_name == HTML::AttributeNames::name) {

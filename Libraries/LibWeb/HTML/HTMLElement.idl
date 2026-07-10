@@ -8,7 +8,7 @@ interface HTMLElement : Element {
     [Reflect, CEReactions] attribute DOMString title;
     [Reflect, CEReactions] attribute DOMString lang;
     [CEReactions] attribute boolean translate;
-    [CEReactions] attribute DOMString dir;
+    [CEReactions] attribute Utf16DOMString dir;
 
     // user interaction
     [CEReactions] attribute (boolean or unrestricted double or DOMString)? hidden;
@@ -31,7 +31,7 @@ interface HTMLElement : Element {
     [ImplementedAs=show_popover_for_bindings] undefined showPopover(optional ShowPopoverOptions options = {});
     [ImplementedAs=hide_popover_for_bindings] undefined hidePopover();
     boolean togglePopover(optional (TogglePopoverOptions or boolean) options = {});
-    [CEReactions] attribute DOMString? popover;
+    [CEReactions] attribute Utf16DOMString? popover;
     
     // FIXME: Should be `[CEReactions, Reflect, ReflectRange=(0, 8)]`
     [CEReactions, Reflect, ReflectRange=(0, 8)] attribute unsigned long headingOffset;

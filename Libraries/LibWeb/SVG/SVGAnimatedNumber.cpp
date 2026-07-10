@@ -101,7 +101,7 @@ void SVGAnimatedNumber::set_base_val(float new_value)
     //    specific string that, if parsed as an <number> using CSS syntax, would return the value closest to the number
     //    (given the implementation's supported Precisionreal number precision), joined and separated by a single U+0020
     //    SPACE character.
-    auto new_attribute_value = MUST(String::join(' ', new_));
+    auto new_attribute_value = Utf16String::join(' ', new_);
     m_element->set_attribute_value(m_reflected_attribute.local_name(), new_attribute_value, m_reflected_attribute.prefix(), m_reflected_attribute.namespace_());
 }
 

@@ -78,9 +78,20 @@ pub enum RustFfiHtmlAttributeNamespace {
 
 #[repr(C)]
 pub struct RustFfiHtmlParserAttribute {
-    pub local_name_ptr: *const u8,
+    pub local_name_ptr: *const u16,
     pub local_name_len: usize,
-    pub prefix_ptr: *const u8,
+    pub prefix_ptr: *const u16,
+    pub prefix_len: usize,
+    pub namespace_: RustFfiHtmlAttributeNamespace,
+    pub value_ptr: *const u8,
+    pub value_len: usize,
+}
+
+#[repr(C)]
+pub struct RustFfiHtmlParserContextAttribute {
+    pub local_name_ptr: *const u16,
+    pub local_name_len: usize,
+    pub prefix_ptr: *const u16,
     pub prefix_len: usize,
     pub namespace_: RustFfiHtmlAttributeNamespace,
     pub value_ptr: *const u8,
@@ -97,7 +108,7 @@ unsafe extern "C" {
     fn ladybird_html_parser_visit_node(visitor: *mut c_void, node: usize);
     fn ladybird_html_parser_create_document_type(
         parser: *mut c_void,
-        name_ptr: *const u8,
+        name_ptr: *const u16,
         name_len: usize,
         public_id_ptr: *const u8,
         public_id_len: usize,
@@ -108,7 +119,7 @@ unsafe extern "C" {
     fn ladybird_html_parser_insert_text(parent: usize, before: usize, data_ptr: *const u8, data_len: usize);
     fn ladybird_html_parser_add_missing_attribute(
         element: usize,
-        local_name_ptr: *const u8,
+        local_name_ptr: *const u16,
         local_name_len: usize,
         value_ptr: *const u8,
         value_len: usize,
@@ -123,9 +134,9 @@ unsafe extern "C" {
         parser: *mut c_void,
         intended_parent: usize,
         namespace_: RustFfiHtmlNamespace,
-        namespace_uri_ptr: *const u8,
+        namespace_uri_ptr: *const u16,
         namespace_uri_len: usize,
-        local_name_ptr: *const u8,
+        local_name_ptr: *const u16,
         local_name_len: usize,
         attributes: *const RustFfiHtmlParserAttribute,
         attribute_count: usize,
@@ -3172,13 +3183,17 @@ impl TreeBuilder {
         // AD-HOC: DOM node construction stays on the C++ side of LibWeb, so this step crosses the FFI boundary.
         let form_element = self.form_element.unwrap_or(0);
         let has_template_element_on_stack = self.has_template_element_on_stack_of_open_elements();
+        let namespace_uri = namespace_uri.map(|namespace_uri| namespace_uri.encode_utf16().collect::<Vec<_>>());
+        let local_name = local_name.encode_utf16().collect::<Vec<_>>();
         unsafe {
             ladybird_html_parser_create_element(
                 self.host,
                 intended_parent,
                 namespace_,
-                namespace_uri.map_or(std::ptr::null(), |namespace_uri| namespace_uri.as_ptr()),
-                namespace_uri.map_or(0, |namespace_uri| namespace_uri.len()),
+                namespace_uri
+                    .as_ref()
+                    .map_or(std::ptr::null(), |namespace_uri| namespace_uri.as_ptr()),
+                namespace_uri.as_ref().map_or(0, |namespace_uri| namespace_uri.len()),
                 local_name.as_ptr(),
                 local_name.len(),
                 attributes.as_ptr(),
@@ -3236,6 +3251,7 @@ impl TreeBuilder {
     }
 
     fn create_document_type(&mut self, name: &str, public_id: &str, system_id: &str) -> usize {
+        let name = name.encode_utf16().collect::<Vec<_>>();
         unsafe {
             ladybird_html_parser_create_document_type(
                 self.host,
@@ -3541,7 +3557,10 @@ impl TreeBuilder {
             return;
         };
         for attribute in attributes {
-            let local_name = attribute.local_name_bytes();
+            let local_name = std::str::from_utf8(attribute.local_name_bytes())
+                .unwrap_or_default()
+                .encode_utf16()
+                .collect::<Vec<_>>();
             unsafe {
                 ladybird_html_parser_add_missing_attribute(
                     element,
@@ -4306,8 +4325,8 @@ impl TreeBuilder {
 }
 
 struct AttributeStorage {
-    local_name_bytes: Vec<Vec<u8>>,
-    prefix_bytes: Vec<Vec<u8>>,
+    local_name_code_units: Vec<Vec<u16>>,
+    prefix_code_units: Vec<Vec<u16>>,
     value_bytes: Vec<Vec<u8>>,
 }
 
@@ -4348,11 +4367,24 @@ unsafe fn string_from_ffi(ptr: *const u8, len: usize) -> String {
     String::from_utf8_lossy(bytes).to_string()
 }
 
-unsafe fn namespace_uri_from_ffi(namespace_: RustFfiHtmlNamespace, ptr: *const u8, len: usize) -> Option<String> {
+unsafe fn utf16_string_from_ffi(ptr: *const u16, len: usize) -> String {
+    if ptr.is_null() || len == 0 {
+        return String::new();
+    }
+
+    let code_units = unsafe { std::slice::from_raw_parts(ptr, len) };
+    String::from_utf16_lossy(code_units)
+}
+
+unsafe fn utf16_namespace_uri_from_ffi(
+    namespace_: RustFfiHtmlNamespace,
+    ptr: *const u16,
+    len: usize,
+) -> Option<String> {
     if namespace_ != RustFfiHtmlNamespace::Other || ptr.is_null() || len == 0 {
         return None;
     }
-    Some(unsafe { string_from_ffi(ptr, len) })
+    Some(unsafe { utf16_string_from_ffi(ptr, len) })
 }
 
 unsafe fn owned_attributes_from_ffi(
@@ -4367,11 +4399,35 @@ unsafe fn owned_attributes_from_ffi(
     attributes
         .iter()
         .map(|attribute| OwnedAttribute {
-            local_name: unsafe { string_from_ffi(attribute.local_name_ptr, attribute.local_name_len) },
+            local_name: unsafe { utf16_string_from_ffi(attribute.local_name_ptr, attribute.local_name_len) },
             prefix: if attribute.prefix_len == 0 {
                 None
             } else {
-                Some(unsafe { string_from_ffi(attribute.prefix_ptr, attribute.prefix_len) })
+                Some(unsafe { utf16_string_from_ffi(attribute.prefix_ptr, attribute.prefix_len) })
+            },
+            namespace_: attribute.namespace_,
+            value: unsafe { string_from_ffi(attribute.value_ptr, attribute.value_len) },
+        })
+        .collect()
+}
+
+unsafe fn owned_context_attributes_from_ffi(
+    attributes: *const RustFfiHtmlParserContextAttribute,
+    attribute_count: usize,
+) -> Vec<OwnedAttribute> {
+    if attributes.is_null() || attribute_count == 0 {
+        return Vec::new();
+    }
+
+    let attributes = unsafe { std::slice::from_raw_parts(attributes, attribute_count) };
+    attributes
+        .iter()
+        .map(|attribute| OwnedAttribute {
+            local_name: unsafe { utf16_string_from_ffi(attribute.local_name_ptr, attribute.local_name_len) },
+            prefix: if attribute.prefix_len == 0 {
+                None
+            } else {
+                Some(unsafe { utf16_string_from_ffi(attribute.prefix_ptr, attribute.prefix_len) })
             },
             namespace_: attribute.namespace_,
             value: unsafe { string_from_ffi(attribute.value_ptr, attribute.value_len) },
@@ -4401,29 +4457,31 @@ fn attributes_from_owned_attributes(
     attributes: &[OwnedAttribute],
 ) -> (Vec<RustFfiHtmlParserAttribute>, AttributeStorage) {
     let mut storage = AttributeStorage {
-        local_name_bytes: Vec::with_capacity(attributes.len()),
-        prefix_bytes: Vec::new(),
+        local_name_code_units: Vec::with_capacity(attributes.len()),
+        prefix_code_units: Vec::new(),
         value_bytes: Vec::with_capacity(attributes.len()),
     };
     let mut ffi_attributes = Vec::with_capacity(attributes.len());
 
     for attribute in attributes {
-        storage.local_name_bytes.push(attribute.local_name.as_bytes().to_vec());
+        storage
+            .local_name_code_units
+            .push(attribute.local_name.encode_utf16().collect());
         storage.value_bytes.push(attribute.value.as_bytes().to_vec());
 
-        let local_name_bytes = storage.local_name_bytes.last().unwrap();
+        let local_name_code_units = storage.local_name_code_units.last().unwrap();
         let (prefix_ptr, prefix_len) = match &attribute.prefix {
             Some(prefix) => {
-                storage.prefix_bytes.push(prefix.as_bytes().to_vec());
-                let prefix_bytes = storage.prefix_bytes.last().unwrap();
-                (prefix_bytes.as_ptr(), prefix_bytes.len())
+                storage.prefix_code_units.push(prefix.encode_utf16().collect());
+                let prefix_code_units = storage.prefix_code_units.last().unwrap();
+                (prefix_code_units.as_ptr(), prefix_code_units.len())
             }
             None => (std::ptr::null(), 0),
         };
         let value_bytes = storage.value_bytes.last().unwrap();
         ffi_attributes.push(RustFfiHtmlParserAttribute {
-            local_name_ptr: local_name_bytes.as_ptr(),
-            local_name_len: local_name_bytes.len(),
+            local_name_ptr: local_name_code_units.as_ptr(),
+            local_name_len: local_name_code_units.len(),
             prefix_ptr,
             prefix_len,
             namespace_: attribute.namespace_,
@@ -4440,8 +4498,8 @@ fn attributes_from_token(
     namespace_: RustFfiHtmlNamespace,
 ) -> (Vec<RustFfiHtmlParserAttribute>, AttributeStorage) {
     let mut storage = AttributeStorage {
-        local_name_bytes: Vec::new(),
-        prefix_bytes: Vec::new(),
+        local_name_code_units: Vec::new(),
+        prefix_code_units: Vec::new(),
         value_bytes: Vec::new(),
     };
     let mut attributes = Vec::new();
@@ -4453,30 +4511,30 @@ fn attributes_from_token(
         return (attributes, storage);
     };
 
-    storage.local_name_bytes.reserve(token_attributes.len());
+    storage.local_name_code_units.reserve(token_attributes.len());
     storage.value_bytes.reserve(token_attributes.len());
     attributes.reserve(token_attributes.len());
 
     for attribute in token_attributes {
         let adjusted_name = adjusted_foreign_attribute_name(attribute.local_name_bytes(), namespace_);
         storage
-            .local_name_bytes
-            .push(adjusted_name.local_name.as_bytes().to_vec());
+            .local_name_code_units
+            .push(adjusted_name.local_name.encode_utf16().collect());
         storage.value_bytes.push(attribute.value.as_bytes().to_vec());
 
-        let local_name_bytes = storage.local_name_bytes.last().unwrap();
+        let local_name_code_units = storage.local_name_code_units.last().unwrap();
         let (prefix_ptr, prefix_len) = match adjusted_name.prefix {
             Some(prefix) => {
-                storage.prefix_bytes.push(prefix.as_bytes().to_vec());
-                let prefix_bytes = storage.prefix_bytes.last().unwrap();
-                (prefix_bytes.as_ptr(), prefix_bytes.len())
+                storage.prefix_code_units.push(prefix.encode_utf16().collect());
+                let prefix_code_units = storage.prefix_code_units.last().unwrap();
+                (prefix_code_units.as_ptr(), prefix_code_units.len())
             }
             None => (std::ptr::null(), 0),
         };
         let value_bytes = storage.value_bytes.last().unwrap();
         attributes.push(RustFfiHtmlParserAttribute {
-            local_name_ptr: local_name_bytes.as_ptr(),
-            local_name_len: local_name_bytes.len(),
+            local_name_ptr: local_name_code_units.as_ptr(),
+            local_name_len: local_name_code_units.len(),
             prefix_ptr,
             prefix_len,
             namespace_: adjusted_name.namespace_,
@@ -5076,18 +5134,18 @@ pub extern "C" fn rust_html_parser_create() -> *mut RustFfiHtmlParserHandle {
 ///
 /// # Safety
 /// `handle` must be a valid pointer from `rust_html_parser_create`.
-/// `context_local_name_ptr` must point to `context_local_name_len` valid UTF-8 bytes.
+/// `context_local_name_ptr` must point to `context_local_name_len` valid UTF-16 code units.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_html_parser_begin_fragment(
     handle: *mut RustFfiHtmlParserHandle,
     root: usize,
     context_element: usize,
     context_namespace: RustFfiHtmlNamespace,
-    context_namespace_uri_ptr: *const u8,
+    context_namespace_uri_ptr: *const u16,
     context_namespace_uri_len: usize,
-    context_local_name_ptr: *const u8,
+    context_local_name_ptr: *const u16,
     context_local_name_len: usize,
-    context_attributes: *const RustFfiHtmlParserAttribute,
+    context_attributes: *const RustFfiHtmlParserContextAttribute,
     context_attribute_count: usize,
     document_quirks_mode: RustFfiHtmlQuirksMode,
     form_element: usize,
@@ -5099,12 +5157,12 @@ pub unsafe extern "C" fn rust_html_parser_begin_fragment(
     let context_local_name = if context_local_name_ptr.is_null() {
         String::new()
     } else {
-        let bytes = unsafe { std::slice::from_raw_parts(context_local_name_ptr, context_local_name_len) };
-        String::from_utf8_lossy(bytes).to_string()
+        unsafe { utf16_string_from_ffi(context_local_name_ptr, context_local_name_len) }
     };
-    let context_namespace_uri =
-        unsafe { namespace_uri_from_ffi(context_namespace, context_namespace_uri_ptr, context_namespace_uri_len) };
-    let context_attributes = unsafe { owned_attributes_from_ffi(context_attributes, context_attribute_count) };
+    let context_namespace_uri = unsafe {
+        utf16_namespace_uri_from_ffi(context_namespace, context_namespace_uri_ptr, context_namespace_uri_len)
+    };
+    let context_attributes = unsafe { owned_context_attributes_from_ffi(context_attributes, context_attribute_count) };
 
     let handle = unsafe { &mut *handle };
     handle.state.begin_fragment(FragmentParsingContext {

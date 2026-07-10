@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16FlyString.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibWeb/DOM/Comment.h>
 #include <LibWeb/DOM/ElementFactory.h>
@@ -32,20 +33,20 @@ public:
 private:
     virtual ErrorOr<void> set_source(ByteString) override;
     virtual void set_doctype(XML::Doctype) override;
-    virtual void element_start(XML::Name const& name, OrderedHashMap<XML::Name, ByteString> const& attributes) override;
-    virtual void element_end(XML::Name const& name) override;
+    virtual void element_start(Utf16FlyString const& name, Vector<XML::ListenerAttribute> const& attributes) override;
+    virtual void element_end(Utf16FlyString const& name) override;
     virtual void text(StringView data) override;
     virtual void comment(StringView data) override;
     virtual void cdata_section(StringView data) override;
-    virtual void processing_instruction(StringView target, StringView data) override;
+    virtual void processing_instruction(Utf16FlyString const& target, Utf16String const& data) override;
     virtual void document_end() override;
 
     struct NamespaceAndPrefix {
-        FlyString ns;
-        Optional<ByteString> prefix;
+        Utf16FlyString ns;
+        Optional<Utf16FlyString> prefix;
     };
 
-    Optional<FlyString> namespace_for_name(XML::Name const&);
+    Optional<Utf16FlyString> namespace_for_name(Utf16FlyString const&);
 
     GC::Ref<DOM::Document> m_document;
     GC::RootVector<GC::Ref<DOM::Node>> m_template_node_stack;

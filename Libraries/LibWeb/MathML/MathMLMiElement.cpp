@@ -20,7 +20,7 @@ MathMLMiElement::MathMLMiElement(DOM::Document& document, DOM::QualifiedName qua
 {
 }
 
-bool MathMLMiElement::is_presentational_hint(FlyString const& name) const
+bool MathMLMiElement::is_presentational_hint(Utf16FlyString const& name) const
 {
     if (Base::is_presentational_hint(name))
         return true;

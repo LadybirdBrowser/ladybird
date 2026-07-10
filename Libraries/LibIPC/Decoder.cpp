@@ -9,6 +9,7 @@
 #include <AK/IPv6Address.h>
 #include <AK/JsonValue.h>
 #include <AK/Types.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/Proxy.h>
@@ -45,6 +46,13 @@ ErrorOr<Utf16String> decode(Decoder& decoder)
     auto length_in_code_units = TRY(decoder.decode_size());
 
     return Utf16String::from_ipc_stream(decoder.stream(), length_in_code_units, is_ascii);
+}
+
+template<>
+ErrorOr<Utf16FlyString> decode(Decoder& decoder)
+{
+    auto string = TRY(decoder.decode<Utf16String>());
+    return Utf16FlyString::from_utf16(string.utf16_view());
 }
 
 template<>

@@ -6,11 +6,12 @@
 
 #include <AK/HashTable.h>
 #include <AK/NeverDestroyed.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibWeb/DOM/QualifiedName.h>
 
 namespace Web::DOM {
 
-static unsigned hash_impl(FlyString const& local_name, Optional<FlyString> const& prefix, Optional<FlyString> const& namespace_)
+static unsigned hash_impl(Utf16FlyString const& local_name, Optional<Utf16FlyString> const& prefix, Optional<Utf16FlyString> const& namespace_)
 {
     unsigned hash = local_name.hash();
     if (prefix.has_value())
@@ -40,7 +41,7 @@ static HashTable<QualifiedName::Impl*, ImplTraits>& impls()
     return *impls;
 }
 
-static NonnullRefPtr<QualifiedName::Impl> ensure_impl(FlyString const& local_name, Optional<FlyString> const& prefix, Optional<FlyString> const& namespace_)
+static NonnullRefPtr<QualifiedName::Impl> ensure_impl(Utf16FlyString const& local_name, Optional<Utf16FlyString> const& prefix, Optional<Utf16FlyString> const& namespace_)
 {
     unsigned hash = hash_impl(local_name, prefix, namespace_);
 
@@ -54,12 +55,12 @@ static NonnullRefPtr<QualifiedName::Impl> ensure_impl(FlyString const& local_nam
     return adopt_ref(*new QualifiedName::Impl(local_name, prefix, namespace_));
 }
 
-QualifiedName::QualifiedName(FlyString const& local_name, Optional<FlyString> const& prefix, Optional<FlyString> const& namespace_)
+QualifiedName::QualifiedName(Utf16FlyString const& local_name, Optional<Utf16FlyString> const& prefix, Optional<Utf16FlyString> const& namespace_)
     : m_impl(ensure_impl(local_name, prefix, namespace_))
 {
 }
 
-QualifiedName::Impl::Impl(FlyString const& a_local_name, Optional<FlyString> const& a_prefix, Optional<FlyString> const& a_namespace)
+QualifiedName::Impl::Impl(Utf16FlyString const& a_local_name, Optional<Utf16FlyString> const& a_prefix, Optional<Utf16FlyString> const& a_namespace)
     : local_name(a_local_name)
     , lowercased_local_name(local_name.to_ascii_lowercase())
     , prefix(a_prefix)
@@ -84,12 +85,16 @@ void QualifiedName::Impl::make_internal_string()
         return;
     }
 
-    as_string = MUST(String::formatted("{}:{}", prefix.value(), local_name));
+    Utf16StringBuilder builder;
+    builder.append(prefix->view());
+    builder.append_ascii(':');
+    builder.append(local_name.view());
+    as_string = builder.to_string();
 }
 
-void QualifiedName::set_prefix(Optional<FlyString> value)
+void QualifiedName::set_prefix(Optional<Utf16FlyString> value)
 {
-    m_impl->prefix = move(value);
+    m_impl = ensure_impl(m_impl->local_name, move(value), m_impl->namespace_);
 }
 
 }

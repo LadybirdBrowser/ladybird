@@ -4,7 +4,7 @@ interface HTMLSlotElement : HTMLElement {
 
     [HTMLConstructor] constructor();
 
-    [CEReactions, Reflect] attribute DOMString name;
+    [CEReactions, Reflect] attribute Utf16DOMString name;
     sequence<Node> assignedNodes(optional AssignedNodesOptions options = {});
     sequence<Element> assignedElements(optional AssignedNodesOptions options = {});
     undefined assign((Element or Text)... nodes);

@@ -20,10 +20,10 @@ class BroadcastChannel final : public DOM::EventTarget {
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    [[nodiscard]] static GC::Ref<BroadcastChannel> construct_impl(JS::Realm&, FlyString const& name);
+    [[nodiscard]] static GC::Ref<BroadcastChannel> construct_impl(JS::Realm&, Utf16FlyString const& name);
 
     // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-broadcastchannel-name
-    FlyString const& name() const
+    Utf16FlyString const& name() const
     {
         // The name getter steps are to return this's channel name.
         return m_channel_name;
@@ -43,14 +43,14 @@ public:
 private:
     friend class BroadcastChannelRepository;
 
-    BroadcastChannel(JS::Realm&, FlyString const& name);
+    BroadcastChannel(JS::Realm&, Utf16FlyString const& name);
 
     virtual void initialize(JS::Realm&) override;
     virtual void finalize() override;
 
     bool is_eligible_for_messaging() const;
 
-    FlyString m_channel_name;
+    Utf16FlyString m_channel_name;
     u64 m_channel_id { 0 };
     bool m_closed_flag { false };
 };

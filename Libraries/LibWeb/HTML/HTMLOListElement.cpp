@@ -31,7 +31,7 @@ void HTMLOListElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-void HTMLOListElement::attribute_changed(FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
+void HTMLOListElement::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(local_name, old_value, value, namespace_);
 
@@ -54,7 +54,7 @@ WebIDL::Long HTMLOListElement::start()
 
 void HTMLOListElement::set_start(WebIDL::Long start)
 {
-    set_attribute_value(AttributeNames::start, String::number(start));
+    set_attribute_value(AttributeNames::start, Utf16String::number(start));
 }
 
 // https://html.spec.whatwg.org/multipage/grouping-content.html#concept-ol-start
@@ -81,7 +81,7 @@ AK::Checked<i32> HTMLOListElement::starting_value() const
     return 1;
 }
 
-bool HTMLOListElement::is_presentational_hint(FlyString const& name) const
+bool HTMLOListElement::is_presentational_hint(Utf16FlyString const& name) const
 {
     if (Base::is_presentational_hint(name))
         return true;

@@ -1201,9 +1201,9 @@ static void merge_pending_has_invalidation_mutation_features(PendingHasInvalidat
 
 static void collect_pending_has_invalidation_features_from_element(PendingHasInvalidationMutationFeatures& features, DOM::Element const& element)
 {
-    features.tag_names.set(Utf16FlyString::from_fly_string(element.local_name()));
+    features.tag_names.set(element.local_name());
     if (element.namespace_uri() != Namespace::HTML)
-        features.tag_names.set(Utf16FlyString::from_fly_string(element.lowercased_local_name()));
+        features.tag_names.set(element.lowercased_local_name());
 
     if (auto id = element.id(); id.has_value())
         features.ids.set(*id);
@@ -1211,10 +1211,10 @@ static void collect_pending_has_invalidation_features_from_element(PendingHasInv
     for (auto const& class_name : element.class_names())
         features.class_names.set(class_name);
 
-    element.for_each_attribute([&](FlyString const& name, auto const&) {
-        features.attribute_names.set(Utf16FlyString::from_fly_string(name));
+    element.for_each_attribute([&](Utf16FlyString const& name, auto const&) {
+        features.attribute_names.set(name);
         if (element.namespace_uri() != Namespace::HTML)
-            features.attribute_names.set(Utf16FlyString::from_fly_string(name.to_ascii_lowercase()));
+            features.attribute_names.set(name.to_ascii_lowercase());
     });
 }
 

@@ -33,7 +33,7 @@ interface HTMLImageElement : HTMLElement {
     Promise<undefined> decode();
 
     // Obsolete
-    [CEReactions, Reflect] attribute DOMString name;
+    [CEReactions, Reflect] attribute Utf16DOMString name;
     [CEReactions, Reflect, URL] attribute USVString lowsrc;
     [CEReactions, Reflect] attribute DOMString align;
     [CEReactions, Reflect] attribute unsigned long hspace;

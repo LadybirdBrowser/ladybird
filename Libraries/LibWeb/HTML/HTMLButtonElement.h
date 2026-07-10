@@ -37,10 +37,10 @@ public:
     };
 
     TypeAttributeState type_state() const;
-    String type_for_bindings() const;
-    void set_type_for_bindings(String const&);
+    Utf16String type_for_bindings() const;
+    void set_type_for_bindings(Utf16String const&);
 
-    virtual void form_associated_element_attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_) override;
+    virtual void form_associated_element_attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
     // ^EventTarget
     // https://html.spec.whatwg.org/multipage/interaction.html#the-tabindex-attribute:the-button-element

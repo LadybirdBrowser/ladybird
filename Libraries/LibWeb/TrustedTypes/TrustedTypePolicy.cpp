@@ -355,7 +355,7 @@ WebIDL::ExceptionOr<Utf16String> get_trusted_type_compliant_string(TrustedTypeNa
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#validate-attribute-mutation
-WebIDL::ExceptionOr<Utf16String> get_trusted_types_compliant_attribute_value(FlyString const& attribute_name, Optional<Utf16String> attribute_ns, DOM::Element const& element, Variant<GC::Ref<TrustedHTML>, GC::Ref<TrustedScript>, GC::Ref<TrustedScriptURL>, Utf16String> const& new_value)
+WebIDL::ExceptionOr<Utf16String> get_trusted_types_compliant_attribute_value(Utf16FlyString const& attribute_name, Optional<Utf16FlyString> attribute_ns, DOM::Element const& element, Variant<GC::Ref<TrustedHTML>, GC::Ref<TrustedScript>, GC::Ref<TrustedScriptURL>, Utf16String> const& new_value)
 {
     // 1. If attributeNs is the empty string, set attributeNs to null.
     if (attribute_ns.has_value() && attribute_ns.value().is_empty())
@@ -367,9 +367,9 @@ WebIDL::ExceptionOr<Utf16String> get_trusted_types_compliant_attribute_value(Fly
     //    attributeNs
     auto const attribute_data = get_trusted_type_data_for_attribute(
         element_interface(
-            Utf16String::from_utf8(element.local_name()),
+            element.local_name(),
             element.namespace_uri().value_or(Namespace::HTML)),
-        Utf16String::from_utf8(attribute_name),
+        attribute_name,
         attribute_ns);
 
     // 3. If attributeData is null, then:
@@ -406,7 +406,7 @@ WebIDL::ExceptionOr<Utf16String> get_trusted_types_compliant_attribute_value(Fly
         Script.to_string());
 }
 
-ElementInterface element_interface(Utf16String const& local_name, FlyString const& element_ns)
+ElementInterface element_interface(Utf16FlyString const& local_name, Utf16FlyString const& element_ns)
 {
     // FIXME: We don't have a method in ElementFactory that can give us the interface name but these are all the cases
     // we care about in the table in get_trusted_type_data_for_attribute function

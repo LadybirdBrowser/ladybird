@@ -20,7 +20,7 @@ public:
 
     size_t length() const;
     GC::Ptr<MimeType> item(u32 index) const;
-    GC::Ptr<MimeType> named_item(FlyString const& name) const;
+    GC::Ptr<MimeType> named_item(Utf16FlyString const& name) const;
 
 private:
     MimeTypeArray(JS::Realm&);

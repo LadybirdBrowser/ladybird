@@ -94,7 +94,7 @@ void HTMLObjectElement::adopted_from(DOM::Document& old_document)
         delayer = DOM::DocumentLoadEventDelayer { document() };
 }
 
-void HTMLObjectElement::form_associated_element_attribute_changed(FlyString const& name, Optional<Utf16String> const&, Optional<Utf16String> const&, Optional<FlyString> const&)
+void HTMLObjectElement::form_associated_element_attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const&, Optional<Utf16String> const&, Optional<Utf16FlyString> const&)
 {
     // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-object-element
     // Whenever one of the following conditions occur:
@@ -116,7 +116,7 @@ void HTMLObjectElement::form_associated_element_was_removed(DOM::Node*)
     destroy_the_child_navigable();
 }
 
-bool HTMLObjectElement::is_presentational_hint(FlyString const& name) const
+bool HTMLObjectElement::is_presentational_hint(Utf16FlyString const& name) const
 {
     if (Base::is_presentational_hint(name))
         return true;
@@ -198,7 +198,7 @@ String HTMLObjectElement::data() const
     return maybe_url->to_string();
 }
 
-void HTMLObjectElement::set_data(String const& data)
+void HTMLObjectElement::set_data(Utf16String const& data)
 {
     set_attribute_value(HTML::AttributeNames::data, data);
 }

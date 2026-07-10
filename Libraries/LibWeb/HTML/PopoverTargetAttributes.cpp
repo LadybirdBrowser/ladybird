@@ -14,7 +14,7 @@
 
 namespace Web::HTML {
 
-void PopoverTargetAttributes::associated_attribute_changed(FlyString const& name, Optional<Utf16String> const&, Optional<FlyString> const& namespace_)
+void PopoverTargetAttributes::associated_attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const&, Optional<Utf16FlyString> const& namespace_)
 {
     // From: https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#reflecting-content-attributes-in-idl-attributess
     // For element reflected targets only: the following attribute change steps, given element, localName, oldValue, value, and namespace,

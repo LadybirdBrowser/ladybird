@@ -16,7 +16,7 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(Plugin);
 
-Plugin::Plugin(JS::Realm& realm, String name)
+Plugin::Plugin(JS::Realm& realm, Utf16FlyString name)
     : Bindings::PlatformObject(realm)
     , m_name(move(name))
 {
@@ -36,7 +36,7 @@ void Plugin::initialize(JS::Realm& realm)
 }
 
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-plugin-name
-String const& Plugin::name() const
+Utf16FlyString const& Plugin::name() const
 {
     // The Plugin interface's name getter steps are to return this's name.
     return m_name;
@@ -98,7 +98,7 @@ GC::Ptr<MimeType> Plugin::item(u32 index) const
     return nullptr;
 }
 
-GC::Ptr<MimeType> Plugin::named_item(FlyString const& name) const
+GC::Ptr<MimeType> Plugin::named_item(Utf16FlyString const& name) const
 {
     // 1. For each MimeType mimeType of this's relevant global object's PDF viewer mime type objects: if mimeType's type is name, then return mimeType.
     auto& window = as<HTML::Window>(HTML::relevant_global_object(*this));
@@ -127,7 +127,7 @@ JS::Value Plugin::named_item_value(Utf16FlyString const& name) const
     auto mime_types = window.pdf_viewer_mime_type_objects();
 
     for (auto& mime_type : mime_types) {
-        if (name == mime_type->type().bytes_as_string_view())
+        if (name == mime_type->type())
             return mime_type.ptr();
     }
 

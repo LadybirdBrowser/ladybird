@@ -52,7 +52,7 @@ static SVGFECompositeElement::CompositingOperator string_to_compositing_operator
     return SVGFECompositeElement::CompositingOperator::Unknown;
 }
 
-void SVGFECompositeElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value, Optional<FlyString> const& namespace_)
+void SVGFECompositeElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, new_value, namespace_);
 

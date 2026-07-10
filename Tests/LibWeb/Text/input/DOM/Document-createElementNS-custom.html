@@ -9,5 +9,8 @@
         printElement(document.createElementNS('http://www.w3.org/1999/xhtml', 'foo'));
         printElement(document.createElementNS('http://www.w3.org/2000/svg', 'foo'));
         printElement(document.createElementNS('http://www.w3.org/1998/Math/MathML', 'foo'));
+
+        customElements.define("x-foo", class extends HTMLElement {});
+        printElement(document.createElementNS('http://www.w3.org/1999/xhtml', 'p:x-foo'));
     });
 </script>

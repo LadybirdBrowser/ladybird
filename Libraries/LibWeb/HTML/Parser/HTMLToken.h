@@ -7,10 +7,11 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
 #include <AK/Function.h>
 #include <AK/OwnPtr.h>
 #include <AK/Types.h>
+#include <AK/Utf16FlyString.h>
+#include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibWeb/Export.h>
@@ -40,10 +41,10 @@ public:
     };
 
     struct Attribute {
-        Optional<FlyString> prefix;
-        FlyString local_name;
-        Optional<FlyString> namespace_;
-        String value;
+        Optional<Utf16FlyString> prefix;
+        Utf16FlyString local_name;
+        Optional<Utf16FlyString> namespace_;
+        Utf16String value;
         Position name_start_position;
         Position value_start_position;
         Position name_end_position;
@@ -52,7 +53,7 @@ public:
 
     struct DoctypeData {
         // NOTE: "Missing" is a distinct state from the empty string.
-        String name;
+        Utf16FlyString name;
         String public_identifier;
         String system_identifier;
         bool missing_name { true };
@@ -61,7 +62,7 @@ public:
         bool force_quirks { false };
     };
 
-    static HTMLToken make_start_tag(FlyString const& tag_name)
+    static HTMLToken make_start_tag(Utf16FlyString const& tag_name)
     {
         HTMLToken token { Type::StartTag };
         token.set_tag_name(tag_name);
@@ -120,13 +121,13 @@ public:
         m_comment_data = move(comment);
     }
 
-    FlyString const& tag_name() const
+    Utf16FlyString const& tag_name() const
     {
         VERIFY(is_start_tag() || is_end_tag());
         return m_string_data;
     }
 
-    void set_tag_name(FlyString name)
+    void set_tag_name(Utf16FlyString name)
     {
         VERIFY(is_start_tag() || is_end_tag());
         m_string_data = move(name);
@@ -170,14 +171,14 @@ public:
         }
     }
 
-    Optional<String> attribute(FlyString const& attribute_name) const
+    Optional<Utf16String> attribute(Utf16FlyString const& attribute_name) const
     {
         if (auto result = raw_attribute(attribute_name); result.has_value())
             return result->value;
         return {};
     }
 
-    Optional<Attribute const&> raw_attribute(FlyString const& attribute_name) const
+    Optional<Attribute const&> raw_attribute(Utf16FlyString const& attribute_name) const
     {
         VERIFY(is_start_tag() || is_end_tag());
 
@@ -191,7 +192,7 @@ public:
         return {};
     }
 
-    bool has_attribute(FlyString const& attribute_name) const
+    bool has_attribute(Utf16FlyString const& attribute_name) const
     {
         return attribute(attribute_name).has_value();
     }
@@ -258,7 +259,7 @@ private:
     bool m_had_duplicate_attribute { false };
 
     // Type::StartTag and Type::EndTag (tag name)
-    FlyString m_string_data;
+    Utf16FlyString m_string_data;
 
     // Type::Comment (comment data)
     String m_comment_data;

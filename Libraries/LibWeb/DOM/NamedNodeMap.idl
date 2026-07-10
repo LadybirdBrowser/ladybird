@@ -4,11 +4,11 @@ interface NamedNodeMap {
     readonly attribute unsigned long length;
 
     getter Attr? item(unsigned long index);
-    getter Attr? getNamedItem([FlyString] DOMString qualifiedName);
-    Attr? getNamedItemNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
+    getter Attr? getNamedItem([Utf16FlyString] Utf16DOMString qualifiedName);
+    Attr? getNamedItemNS([Utf16FlyString] Utf16DOMString? namespace, [Utf16FlyString] Utf16DOMString localName);
 
     [CEReactions] Attr? setNamedItem(Attr attr);
     [CEReactions] Attr? setNamedItemNS(Attr attr);
-    [CEReactions] Attr removeNamedItem([FlyString] DOMString qualifiedName);
-    [CEReactions] Attr removeNamedItemNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
+    [CEReactions] Attr removeNamedItem([Utf16FlyString] Utf16DOMString qualifiedName);
+    [CEReactions] Attr removeNamedItemNS([Utf16FlyString] Utf16DOMString? namespace, [Utf16FlyString] Utf16DOMString localName);
 };

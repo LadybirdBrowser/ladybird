@@ -140,7 +140,7 @@ bool command_default_paragraph_separator_action(DOM::Document& document, Utf16St
 Utf16String command_default_paragraph_separator_value(DOM::Document const& document)
 {
     // Return the context object's default single-line container name.
-    return Utf16String::from_utf8_without_validation(document.default_single_line_container_name().to_string());
+    return document.default_single_line_container_name().to_utf16_string();
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#the-delete-command
@@ -831,7 +831,7 @@ bool command_format_block_indeterminate(DOM::Document const& document)
         return false;
 
     // 5. Let type be null.
-    Optional<FlyString const&> type;
+    Optional<Utf16FlyString> type;
 
     // 6. For each node in node list:
     for (auto node : node_list) {
@@ -842,7 +842,7 @@ bool command_format_block_indeterminate(DOM::Document const& document)
             node = *node->parent();
 
         // 2. Let current type be the empty string.
-        FlyString current_type;
+        Utf16FlyString current_type;
 
         // 3. If node is an editable HTML element whose local name is a formattable block name, and node is not the
         //    ancestor of a prohibited paragraph child, set current type to node's local name.
@@ -908,7 +908,7 @@ Utf16String command_format_block_value(DOM::Document const& document)
             return TraversalDecision::Continue;
         });
         if (!is_ancestor_of_prohibited_paragraph_child)
-            return Utf16String::from_utf8(html_element->local_name().to_string().to_ascii_lowercase());
+            return html_element->local_name().to_ascii_lowercase().to_utf16_string();
     }
 
     // 6. Return the empty string.
@@ -1716,7 +1716,7 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16String const&
             && is<HTML::HTMLBRElement>(*new_line_range->start_container()));
 
     auto& container_element = as<DOM::Element>(*container);
-    auto new_container_name = [&] -> FlyString {
+    auto new_container_name = [&] -> Utf16FlyString {
         // 18. If the local name of container is "h1", "h2", "h3", "h4", "h5", or "h6", and end of line is true, let new
         //     container name be the default single-line container name.
         if (end_of_line && is_heading(container_element.local_name()))
@@ -1738,7 +1738,7 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16String const&
     auto new_container = MUST(DOM::create_element(document, new_container_name, Namespace::HTML));
 
     // 23. Copy all attributes of container to new container.
-    container_element.for_each_attribute([&new_container](FlyString const& name, Utf16String const& value) {
+    container_element.for_each_attribute([&new_container](Utf16FlyString const& name, Utf16String const& value) {
         new_container->set_attribute_value(name, value);
     });
 

@@ -9,13 +9,13 @@ interface TrustedTypePolicyFactory {
     readonly attribute TrustedHTML emptyHTML;
     readonly attribute TrustedScript emptyScript;
     Utf16DOMString? getAttributeType(
-        Utf16DOMString tagName,
-        Utf16DOMString attribute,
-        optional Utf16DOMString? elementNs = "",
-        optional Utf16DOMString? attrNs = "");
+        [Utf16FlyString] Utf16DOMString tagName,
+        [Utf16FlyString] Utf16DOMString attribute,
+        optional [Utf16FlyString] Utf16DOMString? elementNs = "",
+        optional [Utf16FlyString] Utf16DOMString? attrNs = "");
     Utf16DOMString? getPropertyType(
-        Utf16DOMString tagName,
-        Utf16DOMString property,
-        optional Utf16DOMString? elementNs = "");
+        [Utf16FlyString] Utf16DOMString tagName,
+        [Utf16FlyString] Utf16DOMString property,
+        optional [Utf16FlyString] Utf16DOMString? elementNs = "");
     readonly attribute TrustedTypePolicy? defaultPolicy;
 };

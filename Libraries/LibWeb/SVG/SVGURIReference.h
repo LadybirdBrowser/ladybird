@@ -36,7 +36,7 @@ public:
                 this_svg_element,
                 DOM::QualifiedName { AttributeNames::href, OptionalNone {}, OptionalNone {} },
                 supports_xlink_href == SupportsXLinkHref::Yes
-                    ? Optional<DOM::QualifiedName> { DOM::QualifiedName { AttributeNames::href, "xlink"_fly_string, Namespace::XLink } }
+                    ? Optional<DOM::QualifiedName> { DOM::QualifiedName { AttributeNames::href, "xlink"_utf16_fly_string, Namespace::XLink } }
                     : OptionalNone {});
         }
         return *m_href_animated_string;

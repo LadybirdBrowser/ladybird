@@ -992,7 +992,7 @@ void ViewImplementation::set_dom_node_text(Web::UniqueNodeID node_id, String con
     client().async_set_dom_node_text(page_id(), node_id, text);
 }
 
-void ViewImplementation::set_dom_node_tag(Web::UniqueNodeID node_id, String const& name)
+void ViewImplementation::set_dom_node_tag(Web::UniqueNodeID node_id, Utf16FlyString const& name)
 {
     client().async_set_dom_node_tag(page_id(), node_id, name);
 }
@@ -1002,7 +1002,7 @@ void ViewImplementation::add_dom_node_attributes(Web::UniqueNodeID node_id, Read
     client().async_add_dom_node_attributes(page_id(), node_id, attributes);
 }
 
-void ViewImplementation::replace_dom_node_attribute(Web::UniqueNodeID node_id, String const& name, ReadonlySpan<Attribute> replacement_attributes)
+void ViewImplementation::replace_dom_node_attribute(Web::UniqueNodeID node_id, Utf16FlyString const& name, ReadonlySpan<Attribute> replacement_attributes)
 {
     client().async_replace_dom_node_attribute(page_id(), node_id, name, replacement_attributes);
 }

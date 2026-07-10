@@ -65,7 +65,7 @@ void HTMLScriptElement::adopted_from(DOM::Document& old_document)
         m_document_load_event_delayer.emplace(document());
 }
 
-void HTMLScriptElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
+void HTMLScriptElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
@@ -854,7 +854,7 @@ void HTMLScriptElement::set_async(bool async)
 
     // 2. If the given value is true, then set this's async content attribute to the empty string.
     if (async) {
-        set_attribute_value(HTML::AttributeNames::async, ""_string);
+        set_attribute_value(HTML::AttributeNames::async, ""_utf16);
     }
     // 3. Otherwise, remove this's async content attribute.
     else {

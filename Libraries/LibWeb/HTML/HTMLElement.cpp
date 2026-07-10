@@ -97,27 +97,27 @@ void HTMLElement::set_translate(bool new_value)
     // On setting, it must set the content attribute's value to "yes" if the new value is true, and set the content
     // attribute's value to "no" otherwise.
     if (new_value)
-        set_attribute_value(HTML::AttributeNames::translate, "yes"_string);
+        set_attribute_value(HTML::AttributeNames::translate, "yes"_utf16);
     else
-        set_attribute_value(HTML::AttributeNames::translate, "no"_string);
+        set_attribute_value(HTML::AttributeNames::translate, "no"_utf16);
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-dir
-StringView HTMLElement::dir() const
+Utf16String HTMLElement::dir() const
 {
     // FIXME: This should probably be `Reflect` in the IDL.
     // The dir IDL attribute on an element must reflect the dir content attribute of that element, limited to only known values.
     auto dir = get_attribute_value(HTML::AttributeNames::dir);
 #define __ENUMERATE_HTML_ELEMENT_DIR_ATTRIBUTE(keyword) \
     if (dir.equals_ignoring_ascii_case(#keyword##sv))   \
-        return #keyword##sv;
+        return #keyword##_utf16;
     ENUMERATE_HTML_ELEMENT_DIR_ATTRIBUTES
 #undef __ENUMERATE_HTML_ELEMENT_DIR_ATTRIBUTE
 
     return {};
 }
 
-void HTMLElement::set_dir(String const& dir)
+void HTMLElement::set_dir(Utf16String const& dir)
 {
     set_attribute_value(HTML::AttributeNames::dir, dir);
 }
@@ -159,15 +159,15 @@ WebIDL::ExceptionOr<void> HTMLElement::set_content_editable(StringView content_e
         return {};
     }
     if (content_editable.equals_ignoring_ascii_case("true"sv)) {
-        set_attribute_value(HTML::AttributeNames::contenteditable, "true"_string);
+        set_attribute_value(HTML::AttributeNames::contenteditable, "true"_utf16);
         return {};
     }
     if (content_editable.equals_ignoring_ascii_case("plaintext-only"sv)) {
-        set_attribute_value(HTML::AttributeNames::contenteditable, "plaintext-only"_string);
+        set_attribute_value(HTML::AttributeNames::contenteditable, "plaintext-only"_utf16);
         return {};
     }
     if (content_editable.equals_ignoring_ascii_case("false"sv)) {
-        set_attribute_value(HTML::AttributeNames::contenteditable, "false"_string);
+        set_attribute_value(HTML::AttributeNames::contenteditable, "false"_utf16);
         return {};
     }
     return WebIDL::SyntaxError::create(realm(), "Invalid contentEditable value, must be 'true', 'false', 'plaintext-only' or 'inherit'"_utf16);
@@ -728,7 +728,7 @@ int HTMLElement::offset_height() const
     return round(box->absolute_united_border_box_rect().height()).to_int();
 }
 
-void HTMLElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
+void HTMLElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
     HTMLOrSVGOrMathMLElement::attribute_changed(name, old_value, value, namespace_);
@@ -765,9 +765,9 @@ void HTMLElement::attribute_changed(FlyString const& name, Optional<Utf16String>
     // 1. If namespace is not null, or localName is not the name of an event handler content attribute on element, then return.
     // FIXME: Add the namespace part once we support attribute namespaces.
 #undef __ENUMERATE
-#define __ENUMERATE(attribute_name, event_name)                     \
-    if (name == HTML::AttributeNames::attribute_name) {             \
-        element_event_handler_attribute_changed(event_name, value); \
+#define __ENUMERATE(attribute_name, event_name)               \
+    if (name == HTML::AttributeNames::attribute_name) {       \
+        element_event_handler_attribute_changed(name, value); \
     }
     ENUMERATE_GLOBAL_EVENT_HANDLERS(__ENUMERATE)
 #undef __ENUMERATE
@@ -909,7 +909,7 @@ void HTMLElement::set_hidden(Variant<bool, double, String, Empty> const& given_v
     if (given_value.has<String>()) {
         auto const& string = given_value.get<String>();
         if (string.equals_ignoring_ascii_case("until-found"sv)) {
-            set_attribute_value(HTML::AttributeNames::hidden, "until-found"_string);
+            set_attribute_value(HTML::AttributeNames::hidden, "until-found"_utf16);
             return;
         }
         // 3. Otherwise, if the given value is the empty string, then remove the hidden attribute.
@@ -940,7 +940,7 @@ void HTMLElement::set_hidden(Variant<bool, double, String, Empty> const& given_v
         return;
     }
     // 7. Otherwise, set the hidden attribute to the empty string.
-    set_attribute_value(HTML::AttributeNames::hidden, ""_string);
+    set_attribute_value(HTML::AttributeNames::hidden, ""_utf16);
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-click
@@ -1137,22 +1137,22 @@ WebIDL::ExceptionOr<GC::Ref<ElementInternals>> HTMLElement::attach_internals()
     return { internals };
 }
 
-Optional<String> HTMLElement::popover_value_to_state(Optional<Utf16String> const& value)
+Optional<Utf16String> HTMLElement::popover_value_to_state(Optional<Utf16String> const& value)
 {
     if (!value.has_value())
         return {};
 
     if (value->is_empty() || value->equals_ignoring_ascii_case("auto"sv))
-        return "auto"_string;
+        return "auto"_utf16;
 
     if (value->equals_ignoring_ascii_case("hint"sv))
-        return "hint"_string;
+        return "hint"_utf16;
 
-    return "manual"_string;
+    return "manual"_utf16;
 }
 
 // https://html.spec.whatwg.org/multipage/popover.html#dom-popover
-Optional<String> HTMLElement::popover() const
+Optional<Utf16String> HTMLElement::popover() const
 {
     // FIXME: This should probably be `Reflect` in the IDL.
     // The popover IDL attribute must reflect the popover attribute, limited to only known values.
@@ -1161,7 +1161,7 @@ Optional<String> HTMLElement::popover() const
 }
 
 // https://html.spec.whatwg.org/multipage/popover.html#dom-popover
-void HTMLElement::set_popover(Optional<String> value)
+void HTMLElement::set_popover(Optional<Utf16String> value)
 {
     // FIXME: This should probably be `Reflect` in the IDL.
     // The popover IDL attribute must reflect the popover attribute, limited to only known values.
@@ -1361,7 +1361,7 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
     }
 
     // 18. If originalType is auto or hint, then:
-    if (original_type.has_value() && original_type.value().is_one_of("auto", "hint")) {
+    if (original_type.has_value() && original_type.value().is_one_of("auto"sv, "hint"sv)) {
         // 1. Assert: stackToAppendTo is not null.
         VERIFY(stack_to_append_to != StackToAppendTo::Null);
 
@@ -1853,7 +1853,7 @@ GC::Ptr<HTMLElement> HTMLElement::nearest_inclusive_open_popover()
     // 2. While currentNode is not null:
     while (current_node) {
         // 1. If currentNode's popover attribute is in the Auto state or the Hint state, and currentNode's popover visibility state is showing, then return currentNode.
-        if (current_node->popover().has_value() && current_node->popover().value().is_one_of("auto", "hint") && current_node->popover_visibility_state() == PopoverVisibilityState::Showing)
+        if (current_node->popover().has_value() && current_node->popover().value().is_one_of("auto"sv, "hint"sv) && current_node->popover_visibility_state() == PopoverVisibilityState::Showing)
             return current_node;
 
         // 2. Set currentNode to currentNode's parent in the flat tree.
@@ -1879,7 +1879,7 @@ GC::Ptr<HTMLElement> HTMLElement::nearest_inclusive_target_popover()
 
         // 2. If targetPopover is not null and targetPopover's popover attribute is in the Auto state or the Hint state, and targetPopover's popover visibility state is showing, then return targetPopover.
         if (target_popover) {
-            if (target_popover->popover().has_value() && target_popover->popover().value().is_one_of("auto", "hint") && target_popover->popover_visibility_state() == PopoverVisibilityState::Showing)
+            if (target_popover->popover().has_value() && target_popover->popover().value().is_one_of("auto"sv, "hint"sv) && target_popover->popover_visibility_state() == PopoverVisibilityState::Showing)
                 return target_popover;
         }
 
@@ -2196,7 +2196,7 @@ bool HTMLElement::draggable() const
 
 void HTMLElement::set_draggable(bool draggable)
 {
-    set_attribute_value(HTML::AttributeNames::draggable, draggable ? "true"_string : "false"_string);
+    set_attribute_value(HTML::AttributeNames::draggable, draggable ? "true"_utf16 : "false"_utf16);
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-spellcheck
@@ -2256,9 +2256,9 @@ void HTMLElement::set_spellcheck(bool spellcheck)
 {
     // On setting, if the new value is true, then the element's spellcheck content attribute must be set to "true", otherwise it must be set to "false".
     if (spellcheck)
-        set_attribute_value(HTML::AttributeNames::spellcheck, "true"_string);
+        set_attribute_value(HTML::AttributeNames::spellcheck, "true"_utf16);
     else
-        set_attribute_value(HTML::AttributeNames::spellcheck, "false"_string);
+        set_attribute_value(HTML::AttributeNames::spellcheck, "false"_utf16);
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-writingsuggestions
@@ -2449,9 +2449,9 @@ void HTMLElement::set_autocorrect(bool given_value)
     // The setter steps are: if the given value is true, then the element's autocorrect attribute must be set to "on";
     // otherwise it must be set to "off".
     if (given_value)
-        set_attribute_value(HTML::AttributeNames::autocorrect, "on"_string);
+        set_attribute_value(HTML::AttributeNames::autocorrect, "on"_utf16);
     else
-        set_attribute_value(HTML::AttributeNames::autocorrect, "off"_string);
+        set_attribute_value(HTML::AttributeNames::autocorrect, "off"_utf16);
 }
 
 // https://html.spec.whatwg.org/multipage/sections.html#get-an-element's-computed-heading-level

@@ -25,31 +25,31 @@ dictionary PointerLockOptions {
 // https://dom.spec.whatwg.org/#element
 [Exposed=Window]
 interface Element : Node {
-    readonly attribute DOMString? namespaceURI;
-    readonly attribute DOMString? prefix;
-    readonly attribute DOMString localName;
-    readonly attribute DOMString tagName;
+    readonly attribute Utf16DOMString? namespaceURI;
+    readonly attribute Utf16DOMString? prefix;
+    readonly attribute Utf16DOMString localName;
+    readonly attribute Utf16DOMString tagName;
 
-    [Reflect, CEReactions] attribute DOMString id;
-    [Reflect=class, CEReactions] attribute DOMString className;
+    [Reflect, CEReactions] attribute Utf16DOMString id;
+    [Reflect=class, CEReactions] attribute Utf16DOMString className;
     [SameObject, PutForwards=value] readonly attribute DOMTokenList classList;
-    [Reflect, CEReactions, Unscopable] attribute DOMString slot;
+    [Reflect, CEReactions, Unscopable] attribute Utf16DOMString slot;
 
     boolean hasAttributes();
     [SameObject] readonly attribute NamedNodeMap attributes;
-    sequence<DOMString> getAttributeNames();
-    DOMString? getAttribute(DOMString qualifiedName);
-    DOMString? getAttributeNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
-    [CEReactions, ImplementedAs=set_attribute_for_bindings] undefined setAttribute(DOMString qualifiedName, (TrustedType or Utf16DOMString) value);
-    [CEReactions, ImplementedAs=set_attribute_ns_for_bindings] undefined setAttributeNS([FlyString] DOMString? namespace, [FlyString] DOMString qualifiedName, (TrustedType or Utf16DOMString) value);
-    [CEReactions] undefined removeAttribute([FlyString] DOMString qualifiedName);
-    [CEReactions] undefined removeAttributeNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
-    [CEReactions] boolean toggleAttribute(DOMString qualifiedName, optional boolean force);
-    boolean hasAttribute(DOMString qualifiedName);
-    boolean hasAttributeNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
+    sequence<[Utf16FlyString] Utf16DOMString> getAttributeNames();
+    DOMString? getAttribute([Utf16FlyString] Utf16DOMString qualifiedName);
+    DOMString? getAttributeNS([Utf16FlyString] Utf16DOMString? namespace, [Utf16FlyString] Utf16DOMString localName);
+    [CEReactions, ImplementedAs=set_attribute_for_bindings] undefined setAttribute([Utf16FlyString] Utf16DOMString qualifiedName, (TrustedType or Utf16DOMString) value);
+    [CEReactions, ImplementedAs=set_attribute_ns_for_bindings] undefined setAttributeNS([Utf16FlyString] Utf16DOMString? namespace, [Utf16FlyString] Utf16DOMString qualifiedName, (TrustedType or Utf16DOMString) value);
+    [CEReactions] undefined removeAttribute([Utf16FlyString] Utf16DOMString qualifiedName);
+    [CEReactions] undefined removeAttributeNS([Utf16FlyString] Utf16DOMString? namespace, [Utf16FlyString] Utf16DOMString localName);
+    [CEReactions] boolean toggleAttribute([Utf16FlyString] Utf16DOMString qualifiedName, optional boolean force);
+    boolean hasAttribute([Utf16FlyString] Utf16DOMString qualifiedName);
+    boolean hasAttributeNS([Utf16FlyString] Utf16DOMString? namespace, [Utf16FlyString] Utf16DOMString localName);
 
-    Attr? getAttributeNode([FlyString] DOMString qualifiedName);
-    Attr? getAttributeNodeNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
+    Attr? getAttributeNode([Utf16FlyString] Utf16DOMString qualifiedName);
+    Attr? getAttributeNodeNS([Utf16FlyString] Utf16DOMString? namespace, [Utf16FlyString] Utf16DOMString localName);
     [CEReactions, ImplementedAs=set_attribute_node_for_bindings] Attr? setAttributeNode(Attr attr);
     [CEReactions, ImplementedAs=set_attribute_node_ns_for_bindings] Attr? setAttributeNodeNS(Attr attr);
     [CEReactions] Attr removeAttributeNode(Attr attr);
@@ -63,8 +63,8 @@ interface Element : Node {
     Element? closest(DOMString selectors);
     [ImplementedAs=matches] boolean webkitMatchesSelector(DOMString selectors); // legacy alias of .matches
 
-    HTMLCollection getElementsByTagName([FlyString] DOMString tagName);
-    HTMLCollection getElementsByTagNameNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
+    HTMLCollection getElementsByTagName([Utf16FlyString] Utf16DOMString tagName);
+    HTMLCollection getElementsByTagNameNS([Utf16FlyString] Utf16DOMString? namespace, [Utf16FlyString] Utf16DOMString localName);
     HTMLCollection getElementsByClassName(Utf16DOMString className);
 
     [CEReactions] Element? insertAdjacentElement(DOMString where, Element element); // legacy

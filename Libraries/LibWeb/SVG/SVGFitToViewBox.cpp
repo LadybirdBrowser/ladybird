@@ -23,7 +23,7 @@ void SVGFitToViewBox::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_view_box_for_bindings);
 }
 
-void SVGFitToViewBox::attribute_changed(DOM::Element& element, FlyString const& name, Optional<Utf16String> const& value)
+void SVGFitToViewBox::attribute_changed(DOM::Element& element, Utf16FlyString const& name, Optional<Utf16String> const& value)
 {
     if (name.equals_ignoring_ascii_case(SVG::AttributeNames::viewBox)) {
         if (!value.has_value()) {

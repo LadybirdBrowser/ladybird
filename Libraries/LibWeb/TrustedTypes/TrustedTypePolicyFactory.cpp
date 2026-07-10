@@ -32,31 +32,32 @@ namespace Web::TrustedTypes {
 GC_DEFINE_ALLOCATOR(TrustedTypePolicyFactory);
 
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicyfactory-getattributetype
-Optional<Utf16String> TrustedTypePolicyFactory::get_attribute_type(Utf16String const& tag_name, Utf16String& attribute, Optional<Utf16String> element_ns, Optional<Utf16String> attr_ns)
+Optional<Utf16String> TrustedTypePolicyFactory::get_attribute_type(Utf16FlyString const& tag_name, Utf16FlyString const& attribute, Optional<Utf16FlyString> element_ns, Optional<Utf16FlyString> attr_ns)
 {
     // 1. Set localName to tagName in ASCII lowercase.
     auto const local_name = tag_name.to_ascii_lowercase();
 
     // 2. Set attribute to attribute in ASCII lowercase.
-    attribute = attribute.to_ascii_lowercase();
+    auto const attribute_local_name = attribute.to_ascii_lowercase();
 
     // 3. If elementNs is null or an empty string, set elementNs to HTML namespace.
     if (!element_ns.has_value() || element_ns.value().is_empty())
-        element_ns = Utf16String::from_utf8(Namespace::HTML);
+        element_ns = Namespace::HTML;
+    auto const element_namespace = element_ns.value();
 
     // 4. If attrNs is an empty string, set attrNs to null.
     if (attr_ns.has_value() && attr_ns.value().is_empty())
         attr_ns.clear();
 
     // 5. Let interface be the element interface for localName and elementNs.
-    auto const interface = element_interface(local_name, element_ns.value().to_utf8());
+    auto const interface = element_interface(local_name, element_namespace);
 
     // 6. Let expectedType be null.
     Optional<Utf16String> expected_type {};
 
     // 7. Set attributeData to the result of Get Trusted Type data for attribute algorithm,
     // with the following arguments, interface as element, attribute, attrNs
-    auto const attribute_data = get_trusted_type_data_for_attribute(interface, attribute, attr_ns);
+    auto const attribute_data = get_trusted_type_data_for_attribute(interface, attribute_local_name, attr_ns);
 
     // 8. If attributeData is not null, then set expectedType to the interface’s name of the value of the fourth member of attributeData.
     if (attribute_data.has_value()) {
@@ -68,22 +69,23 @@ Optional<Utf16String> TrustedTypePolicyFactory::get_attribute_type(Utf16String c
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicyfactory-getpropertytype
-Optional<Utf16String> TrustedTypePolicyFactory::get_property_type(Utf16String const& tag_name, Utf16String const& property, Optional<Utf16String> element_ns)
+Optional<Utf16String> TrustedTypePolicyFactory::get_property_type(Utf16FlyString const& tag_name, Utf16FlyString const& property, Optional<Utf16FlyString> element_ns)
 {
     // 1. Set localName to tagName in ASCII lowercase.
     auto const local_name = tag_name.to_ascii_lowercase();
 
     // 2. If elementNs is null or an empty string, set elementNs to HTML namespace.
     if (!element_ns.has_value() || element_ns.value().is_empty())
-        element_ns = Utf16String::from_utf8(Namespace::HTML);
+        element_ns = Namespace::HTML;
+    auto const element_namespace = element_ns.value();
 
     // FIXME: We don't have a method in ElementFactory that can give us the interface name but these are all the cases
     // we care about in the table in get_trusted_type_data_for_attribute function
     // 3. Let interface be the element interface for localName and elementNs.
     Utf16String interface;
-    if (local_name == HTML::TagNames::iframe && element_ns == Namespace::HTML) {
+    if (local_name == HTML::TagNames::iframe && element_namespace == Namespace::HTML) {
         interface = "HTMLIFrameElement"_utf16;
-    } else if (local_name == HTML::TagNames::script && element_ns == Namespace::HTML) {
+    } else if (local_name == HTML::TagNames::script && element_namespace == Namespace::HTML) {
         interface = "HTMLScriptElement"_utf16;
     } else {
         interface = "Element"_utf16;
@@ -297,7 +299,7 @@ ContentSecurityPolicy::Directives::Directive::Result TrustedTypePolicyFactory::s
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#get-trusted-type-data-for-attribute
-Optional<TrustedTypeData> get_trusted_type_data_for_attribute(ElementInterface const& element, Utf16String const& attribute, Optional<Utf16String> const& attribute_ns)
+Optional<TrustedTypeData> get_trusted_type_data_for_attribute(ElementInterface const& element, Utf16FlyString const& attribute, Optional<Utf16FlyString> const& attribute_ns)
 {
     // 1. Let data be null.
     Optional<TrustedTypeData const&> data {};
@@ -308,10 +310,10 @@ Optional<TrustedTypeData> get_trusted_type_data_for_attribute(ElementInterface c
     if (!attribute_ns.has_value()
         && (Namespace::HTML == element_ns || Namespace::SVG == element_ns || Namespace::MathML == element_ns)) {
 #undef __ENUMERATE
-#define __ENUMERATE(attribute_name, event_name)                                                                                                       \
-    if (attribute == HTML::AttributeNames::attribute_name) {                                                                                          \
-        /* 1. Return (Element, null, attribute, TrustedScript, "Element " + attribute). */                                                            \
-        return TrustedTypeData { "Element"_utf16, {}, attribute.to_utf8(), TrustedTypeName::TrustedScript, InjectionSink::Element_##attribute_name }; \
+#define __ENUMERATE(attribute_name, event_name)                                                                                                                        \
+    if (attribute == HTML::AttributeNames::attribute_name) {                                                                                                           \
+        /* 1. Return (Element, null, attribute, TrustedScript, "Element " + attribute). */                                                                             \
+        return TrustedTypeData { "Element"_utf16, {}, HTML::AttributeNames::attribute_name, TrustedTypeName::TrustedScript, InjectionSink::Element_##attribute_name }; \
     }
         ENUMERATE_GLOBAL_EVENT_HANDLERS(__ENUMERATE)
         ENUMERATE_WINDOW_EVENT_HANDLERS(__ENUMERATE)
@@ -322,7 +324,7 @@ Optional<TrustedTypeData> get_trusted_type_data_for_attribute(ElementInterface c
         { "HTMLIFrameElement"_utf16, {}, HTML::AttributeNames::srcdoc, TrustedTypeName::TrustedHTML, InjectionSink::HTMLIFrameElement_srcdoc },
         { "HTMLScriptElement"_utf16, {}, HTML::AttributeNames::src, TrustedTypeName::TrustedScriptURL, InjectionSink::HTMLScriptElement_src },
         { "SVGScriptElement"_utf16, {}, HTML::AttributeNames::href, TrustedTypeName::TrustedScriptURL, InjectionSink::SVGScriptElement_href },
-        { "SVGScriptElement"_utf16, Utf16String::from_utf8(Namespace::XLink), HTML::AttributeNames::href, TrustedTypeName::TrustedScriptURL, InjectionSink::SVGScriptElement_href },
+        { "SVGScriptElement"_utf16, Namespace::XLink, HTML::AttributeNames::href, TrustedTypeName::TrustedScriptURL, InjectionSink::SVGScriptElement_href },
     };
 
     // 3. Find the row in the following table, where element is in the first column, attributeNs is in the second column,

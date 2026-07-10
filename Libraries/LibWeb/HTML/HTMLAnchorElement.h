@@ -56,7 +56,7 @@ private:
     virtual void activation_behavior(Web::DOM::Event const&) override;
 
     // ^DOM::Element
-    virtual void attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_) override;
+    virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
     virtual i32 default_tab_index_value() const override;
 
     // ^HTML::HyperlinkElementUtils

@@ -40,20 +40,15 @@
 
 namespace Web::SelectorEngine {
 
-static bool fly_string_equals_utf16(FlyString const& fly_string, Utf16View utf16_string)
+static bool fly_string_equals_utf16(Utf16FlyString const& fly_string, Utf16View utf16_string)
 {
-    return utf16_string == fly_string.bytes_as_string_view();
+    return utf16_string == fly_string.view();
 }
 
 template<typename... Names>
 static bool fly_string_is_one_of_utf16(Utf16View utf16_string, Names const&... names)
 {
     return (fly_string_equals_utf16(names, utf16_string) || ...);
-}
-
-static u32 salted_tag_name_hash(FlyString const& tag_name)
-{
-    return CSS::ancestor_filter_hash_for_tag_name(tag_name.ascii_case_insensitive_hash());
 }
 
 static u32 salted_tag_name_hash(Utf16FlyString const& tag_name)
@@ -69,11 +64,6 @@ static u32 salted_id_hash(Utf16FlyString const& id)
 static u32 salted_class_hash(Utf16FlyString const& class_name)
 {
     return CSS::ancestor_filter_hash_for_class(class_name.hash());
-}
-
-static u32 salted_attribute_hash(FlyString const& attribute_name)
-{
-    return CSS::ancestor_filter_hash_for_attribute(attribute_name.ascii_case_insensitive_hash());
 }
 
 static u32 salted_attribute_hash(Utf16FlyString const& attribute_name)
@@ -105,13 +95,6 @@ static bool is_excluded_attribute_for_has_filter(Utf16FlyString const& name)
     return name == "class"sv
         || name == "id"sv
         || name == "style"sv;
-}
-
-static bool is_excluded_attribute_for_has_filter(FlyString const& name)
-{
-    return name == HTML::AttributeNames::class_
-        || name == HTML::AttributeNames::id
-        || name == HTML::AttributeNames::style;
 }
 
 static void add_element_identifier_hashes(HasFastRejectFilter& filter, DOM::Element const& element, MatchContext const& context)
@@ -680,7 +663,7 @@ static inline void for_each_matching_attribute(CSS::Selector::SimpleSelector::At
         for (auto i = 0u; i < element.attributes()->length(); ++i) {
             auto const* attr = element.attributes()->item(i);
             if (attr->namespace_uri().has_value()
-                && selector_namespace->view() == attr->namespace_uri()->bytes_as_string_view()
+                && fly_string_equals_utf16(*selector_namespace, attr->namespace_uri()->view())
                 && fly_string_equals_utf16(attr->local_name(), attribute_name)) {
                 (void)process_attribute(*attr);
                 break;
@@ -1608,7 +1591,7 @@ static ALWAYS_INLINE bool matches_namespace(
             return true;
         // "Otherwise it is equivalent to ns|E where ns is the default namespace."
         return element.namespace_uri().has_value()
-            && style_sheet_for_rule->default_namespace_rule()->namespace_uri().view() == element.namespace_uri()->bytes_as_string_view();
+            && fly_string_equals_utf16(style_sheet_for_rule->default_namespace_rule()->namespace_uri(), element.namespace_uri()->view());
     case CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::None:
         // "elements with name E without a namespace"
         return !element.namespace_uri().has_value();
@@ -1633,7 +1616,7 @@ static ALWAYS_INLINE bool matches_namespace(
 
         return selector_namespace.has_value()
             && element.namespace_uri().has_value()
-            && selector_namespace->view() == element.namespace_uri()->bytes_as_string_view();
+            && fly_string_equals_utf16(*selector_namespace, element.namespace_uri()->view());
     }
     VERIFY_NOT_REACHED();
 }
@@ -1782,7 +1765,7 @@ static inline bool matches_simple_selector(CSS::Selector::SimpleSelector const& 
             if (target_element.document().document_type() == DOM::Document::Type::HTML && target_element.namespace_uri() == Namespace::HTML) {
                 if (!fly_string_equals_utf16(target_element.local_name(), qualified_name.name.lowercase_name))
                     return false;
-            } else if (!qualified_name.name.name.equals_ignoring_ascii_case(target_element.local_name().bytes_as_string_view())) {
+            } else if (!qualified_name.name.name.equals_ignoring_ascii_case(target_element.local_name().view())) {
                 return false;
             }
         }

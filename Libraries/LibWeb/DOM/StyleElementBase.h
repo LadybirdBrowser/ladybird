@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/Badge.h>
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/Forward.h>
@@ -27,7 +28,7 @@ public:
     void associated_style_sheet_media_attribute_changed();
     void set_parser_document(Badge<HTML::HTMLParser>, GC::Ref<Document>);
     void did_pop_off_parser_stack_of_open_elements();
-    void style_element_attribute_changed(FlyString const&, Optional<Utf16String> const& value);
+    void style_element_attribute_changed(Utf16FlyString const&, Optional<Utf16String> const& value);
 
     CSS::CSSStyleSheet* sheet();
     CSS::CSSStyleSheet const* sheet() const;

@@ -10,6 +10,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/Layout/SVGGeometryBox.h>
+#include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/SVGPathElement.h>
 
 namespace Web::SVG {
@@ -27,11 +28,11 @@ void SVGPathElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-void SVGPathElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
+void SVGPathElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
-    if (name == "d") {
+    if (name == AttributeNames::d) {
         m_path = AttributeParser::parse_path_data(value.value_or({}));
         set_needs_layout_update(DOM::SetNeedsLayoutReason::StyleChange);
     }

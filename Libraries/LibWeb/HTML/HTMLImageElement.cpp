@@ -220,7 +220,7 @@ void HTMLImageElement::set_dimension_attribute_source(DOM::Element const* source
     }
 }
 
-bool HTMLImageElement::is_presentational_hint(FlyString const& name) const
+bool HTMLImageElement::is_presentational_hint(Utf16FlyString const& name) const
 {
     if (Base::is_presentational_hint(name))
         return true;
@@ -263,7 +263,7 @@ void HTMLImageElement::apply_presentational_hints(Vector<CSS::StyleProperty>& pr
     });
 }
 
-void HTMLImageElement::form_associated_element_attribute_changed(FlyString const& name, Optional<Utf16String> const&, Optional<Utf16String> const& value, Optional<FlyString> const&)
+void HTMLImageElement::form_associated_element_attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const&, Optional<Utf16String> const& value, Optional<Utf16FlyString> const&)
 {
     if (name == HTML::AttributeNames::crossorigin) {
         m_cors_setting = cors_setting_attribute_from_keyword(value);
@@ -325,7 +325,7 @@ void HTMLImageElement::set_width(WebIDL::UnsignedLong width)
 {
     if (width > 2147483647)
         width = 0;
-    set_attribute_value(HTML::AttributeNames::width, String::number(width));
+    set_attribute_value(HTML::AttributeNames::width, Utf16String::number(width));
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-height
@@ -356,7 +356,7 @@ void HTMLImageElement::set_height(WebIDL::UnsignedLong height)
 {
     if (height > 2147483647)
         height = 0;
-    set_attribute_value(HTML::AttributeNames::height, String::number(height));
+    set_attribute_value(HTML::AttributeNames::height, Utf16String::number(height));
 }
 
 static float current_pixel_density_or_default(ImageRequest const& image_request)

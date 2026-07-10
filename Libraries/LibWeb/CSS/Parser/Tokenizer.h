@@ -10,6 +10,7 @@
 #include <AK/Optional.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
+#include <AK/Utf16View.h>
 #include <AK/Utf8View.h>
 #include <LibWeb/CSS/Parser/Token.h>
 #include <LibWeb/Export.h>
@@ -66,6 +67,7 @@ public:
 class WEB_API Tokenizer {
 public:
     static Vector<Token> tokenize(StringView input, StringView encoding, TokenizerInput = TokenizerInput::DecodedText);
+    static Vector<Token> tokenize(Utf16View input);
 
     [[nodiscard]] static Token create_eof_token();
 

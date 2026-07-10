@@ -9,7 +9,7 @@
 namespace Web::MathML::AttributeNames {
 
 #define __ENUMERATE_MATHML_ATTRIBUTE(name, attribute) \
-    FlyString const& name = *new FlyString(attribute##_fly_string);
+    Utf16FlyString const& name = *new Utf16FlyString(attribute##_utf16_fly_string);
 ENUMERATE_MATHML_ATTRIBUTES
 #undef __ENUMERATE_MATHML_ATTRIBUTE
 

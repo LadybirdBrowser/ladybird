@@ -81,8 +81,8 @@ public:
     bool translate() const;
     void set_translate(bool);
 
-    StringView dir() const;
-    void set_dir(String const&);
+    Utf16String dir() const;
+    void set_dir(Utf16String const&);
 
     virtual bool is_focusable() const override;
     bool is_content_editable() const;
@@ -148,8 +148,8 @@ public:
 
     WebIDL::ExceptionOr<GC::Ref<ElementInternals>> attach_internals();
 
-    void set_popover(Optional<String> value);
-    Optional<String> popover() const;
+    void set_popover(Optional<Utf16String> value);
+    Optional<Utf16String> popover() const;
     Optional<String> opened_in_popover_mode() const { return m_opened_in_popover_mode; }
 
     virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root) override;
@@ -195,7 +195,7 @@ protected:
 
     virtual void initialize(JS::Realm&) override;
 
-    virtual void attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_) override;
+    virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
     virtual WebIDL::ExceptionOr<void> cloned(DOM::Node&, bool) const override;
     virtual void inserted() override;
 
@@ -225,7 +225,7 @@ private:
 
     void queue_a_popover_toggle_event_task(String old_state, String new_state, GC::Ptr<HTMLElement> source);
 
-    static Optional<String> popover_value_to_state(Optional<Utf16String> const& value);
+    static Optional<Utf16String> popover_value_to_state(Optional<Utf16String> const& value);
     void hide_popover_stack_until(Vector<GC::Ref<HTMLElement>> const& popover_list, FocusPreviousElement focus_previous_element, FireEvents fire_events);
     GC::Ptr<HTMLElement> nearest_inclusive_open_popover();
     GC::Ptr<HTMLElement> nearest_inclusive_target_popover();

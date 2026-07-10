@@ -176,7 +176,7 @@ HTML::HTMLElement const* Node::enclosing_html_element() const
     return first_ancestor_of_type<HTML::HTMLElement>();
 }
 
-HTML::HTMLElement const* Node::enclosing_html_element_with_attribute(FlyString const& attribute) const
+HTML::HTMLElement const* Node::enclosing_html_element_with_attribute(Utf16FlyString const& attribute) const
 {
     for (auto* node = this; node; node = node->parent()) {
         if (auto* html_element = as_if<HTML::HTMLElement>(*node); html_element && html_element->has_attribute(attribute))
@@ -2114,7 +2114,7 @@ IterationDecision Node::serialize_child_as_json(JsonArraySerializer<StringBuilde
 
 void Node::serialize_tree_as_json(JsonObjectSerializer<StringBuilder>& object) const
 {
-    MUST(object.add("name"sv, node_name()));
+    MUST(object.add("name"sv, node_name().view().to_utf8_but_should_be_ported_to_utf16()));
     MUST(object.add("id"sv, unique_id().value()));
     if (is_document()) {
         MUST(object.add("type"sv, "document"));
@@ -2123,12 +2123,12 @@ void Node::serialize_tree_as_json(JsonObjectSerializer<StringBuilder>& object) c
 
         auto const* element = static_cast<DOM::Element const*>(this);
         if (element->namespace_uri().has_value())
-            MUST(object.add("namespace"sv, element->namespace_uri().value()));
+            MUST(object.add("namespace"sv, element->namespace_uri()->view().to_utf8_but_should_be_ported_to_utf16()));
 
         if (element->has_attributes()) {
             auto attributes = MUST(object.add_object("attributes"sv));
-            element->for_each_attribute([&attributes](FlyString const& name, Utf16String const& value) {
-                MUST(attributes.add(name, value.to_utf8()));
+            element->for_each_attribute([&attributes](Utf16FlyString const& name, Utf16String const& value) {
+                MUST(attributes.add(name.view().to_utf8_but_should_be_ported_to_utf16(), value.to_utf8()));
             });
             MUST(attributes.finish());
         }
@@ -2307,7 +2307,7 @@ WebIDL::ExceptionOr<Utf16String> Node::serialize_fragment(HTML::RequireWellForme
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#unsafely-set-html
-WebIDL::ExceptionOr<void> Node::unsafely_set_html(Element& context_element, StringView html)
+WebIDL::ExceptionOr<void> Node::unsafely_set_html(Element& context_element, Utf16View html)
 {
     // 1. Let newChildren be the result of the HTML fragment parsing algorithm given contextElement, html, and true.
     auto new_children = TRY(HTML::HTMLParser::parse_html_fragment(context_element, html, HTML::HTMLParser::AllowDeclarativeShadowRoots::Yes));
@@ -2435,24 +2435,24 @@ bool Node::is_equal_node(Node const* other_node) const
     return true;
 }
 
-Vector<FlyString> Node::get_in_scope_prefixes() const
+Vector<Utf16FlyString> Node::get_in_scope_prefixes() const
 {
     // https://html.spec.whatwg.org/multipage/xhtml.html#parsing-xhtml-fragments
     // "A namespace prefix is in scope if the DOM lookupNamespaceURI() method on the element would return a non-null value for that prefix."
 
-    Vector<FlyString> prefixes;
-    HashTable<FlyString> seen_prefixes;
+    Vector<Utf16FlyString> prefixes;
+    HashTable<Utf16FlyString> seen_prefixes;
 
-    auto add_prefix = [&](FlyString const& prefix) {
+    auto add_prefix = [&](Utf16FlyString const& prefix) {
         if (!seen_prefixes.contains(prefix)) {
             prefixes.append(prefix);
             seen_prefixes.set(prefix);
-            VERIFY(lookup_namespace_uri(prefix.to_string()).has_value());
+            VERIFY(lookup_namespace_uri(prefix.to_utf16_string()).has_value());
         }
     };
 
-    add_prefix("xml"_fly_string);
-    add_prefix("xmlns"_fly_string);
+    add_prefix("xml"_utf16_fly_string);
+    add_prefix("xmlns"_utf16_fly_string);
 
     Element const* current = nullptr;
 
@@ -2468,8 +2468,10 @@ Vector<FlyString> Node::get_in_scope_prefixes() const
 
     while (current) {
         if (current->namespace_uri().has_value()) {
-            auto prefix = current->prefix().value_or(""_fly_string);
-            add_prefix(prefix);
+            auto prefix = current->prefix().has_value()
+                ? current->prefix().value()
+                : ""_utf16_fly_string;
+            add_prefix(move(prefix));
         }
 
         if (auto attributes = current->attributes()) {
@@ -2478,11 +2480,11 @@ Vector<FlyString> Node::get_in_scope_prefixes() const
                 if (attr->namespace_uri() != Web::Namespace::XMLNS)
                     continue;
 
-                Optional<FlyString> declared_prefix;
+                Optional<Utf16FlyString> declared_prefix;
 
-                if (!attr->prefix().has_value() && attr->local_name() == "xmlns"_fly_string) {
-                    declared_prefix = ""_fly_string;
-                } else if (attr->prefix() == "xmlns"_fly_string) {
+                if (!attr->prefix().has_value() && attr->local_name() == "xmlns"sv) {
+                    declared_prefix = ""_utf16_fly_string;
+                } else if (attr->prefix() == "xmlns"sv) {
                     declared_prefix = attr->local_name();
                 } else {
                     continue;
@@ -2501,24 +2503,26 @@ Vector<FlyString> Node::get_in_scope_prefixes() const
 }
 
 // https://dom.spec.whatwg.org/#locate-a-namespace
-Optional<String> Node::locate_a_namespace(Optional<String> const& prefix) const
+Optional<Utf16String> Node::locate_a_namespace(Optional<Utf16String> const& prefix) const
 {
     // To locate a namespace for a node using prefix, switch on the interface node implements:
 
     // Element
     if (is<Element>(*this)) {
         // 1. If prefix is "xml", then return the XML namespace.
-        if (prefix == "xml")
-            return Web::Namespace::XML.to_string();
+        if (prefix.has_value() && prefix->utf16_view() == "xml"sv)
+            return Web::Namespace::XML.to_utf16_string();
 
         // 2. If prefix is "xmlns", then return the XMLNS namespace.
-        if (prefix == "xmlns")
-            return Web::Namespace::XMLNS.to_string();
+        if (prefix.has_value() && prefix->utf16_view() == "xmlns"sv)
+            return Web::Namespace::XMLNS.to_utf16_string();
 
         // 3. If its namespace is non-null and its namespace prefix is prefix, then return namespace.
         auto& element = as<Element>(*this);
-        if (element.namespace_uri().has_value() && element.prefix() == prefix)
-            return element.namespace_uri()->to_string();
+        if (element.namespace_uri().has_value()
+            && element.prefix().has_value() == prefix.has_value()
+            && (!prefix.has_value() || element.prefix()->view() == prefix->utf16_view()))
+            return element.namespace_uri()->to_utf16_string();
 
         // 4. If it has an attribute whose namespace is the XMLNS namespace, namespace prefix is "xmlns", and local name is prefix,
         //    or if prefix is null and it has an attribute whose namespace is the XMLNS namespace, namespace prefix is null,
@@ -2527,10 +2531,10 @@ Optional<String> Node::locate_a_namespace(Optional<String> const& prefix) const
             for (size_t i = 0; i < attributes->length(); ++i) {
                 auto& attr = *attributes->item(i);
                 if (attr.namespace_uri() == Web::Namespace::XMLNS) {
-                    if ((attr.prefix() == "xmlns" && attr.local_name() == prefix) || (!prefix.has_value() && !attr.prefix().has_value() && attr.local_name() == "xmlns")) {
+                    if ((attr.prefix() == "xmlns"sv && prefix.has_value() && attr.local_name().view() == prefix->utf16_view()) || (!prefix.has_value() && !attr.prefix().has_value() && attr.local_name() == "xmlns"sv)) {
                         auto value = attr.value();
                         if (!value.is_empty())
-                            return value.to_utf8();
+                            return value;
 
                         return {};
                     }
@@ -2587,7 +2591,7 @@ Optional<String> Node::locate_a_namespace(Optional<String> const& prefix) const
 }
 
 // https://dom.spec.whatwg.org/#dom-node-lookupnamespaceuri
-Optional<String> Node::lookup_namespace_uri(Optional<String> prefix) const
+Optional<Utf16String> Node::lookup_namespace_uri(Optional<Utf16String> prefix) const
 {
     // 1. If prefix is the empty string, then set it to null.
     if (prefix.has_value() && prefix->is_empty())
@@ -2598,7 +2602,7 @@ Optional<String> Node::lookup_namespace_uri(Optional<String> prefix) const
 }
 
 // https://dom.spec.whatwg.org/#dom-node-lookupprefix
-Optional<String> Node::lookup_prefix(Optional<String> namespace_) const
+Optional<Utf16String> Node::lookup_prefix(Optional<Utf16String> namespace_) const
 {
     // 1. If namespace is null or the empty string, then return null.
     if (!namespace_.has_value() || namespace_->is_empty())
@@ -2649,7 +2653,7 @@ Optional<String> Node::lookup_prefix(Optional<String> namespace_) const
 }
 
 // https://dom.spec.whatwg.org/#dom-node-isdefaultnamespace
-bool Node::is_default_namespace(Optional<String> namespace_) const
+bool Node::is_default_namespace(Optional<Utf16String> namespace_) const
 {
     // 1. If namespace is the empty string, then set it to null.
     if (namespace_.has_value() && namespace_->is_empty())
@@ -2809,7 +2813,7 @@ RefPtr<Painting::Paintable> Node::unsafe_paintable_box()
 }
 
 // https://dom.spec.whatwg.org/#queue-a-mutation-record
-void Node::queue_mutation_record(FlyString const& type, Optional<FlyString> const& attribute_name, Optional<FlyString> const& attribute_namespace, Optional<Utf16String> const& old_value, Vector<GC::Root<Node>> added_nodes, Vector<GC::Root<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling)
+void Node::queue_mutation_record(FlyString const& type, Optional<Utf16FlyString> const& attribute_name, Optional<Utf16FlyString> const& attribute_namespace, Optional<Utf16String> const& old_value, Vector<GC::Root<Node>> added_nodes, Vector<GC::Root<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling)
 {
     auto& document = this->document();
     auto& page = document.page();
@@ -2840,7 +2844,7 @@ void Node::queue_mutation_record(FlyString const& type, Optional<FlyString> cons
             //    then:
             if (!(node != this && !options.subtree)
                 && !(type == MutationType::attributes && (!options.attributes.has_value() || !options.attributes.value()))
-                && !(type == MutationType::attributes && options.attribute_filter.has_value() && (attribute_namespace.has_value() || !options.attribute_filter->contains_slow(attribute_name.value_or(String {}))))
+                && !(type == MutationType::attributes && options.attribute_filter.has_value() && (attribute_namespace.has_value() || !attribute_name.has_value() || !options.attribute_filter->contains_slow(attribute_name.value())))
                 && !(type == MutationType::characterData && (!options.character_data.has_value() || !options.character_data.value()))
                 && !(type == MutationType::childList && !options.child_list)) {
                 // 1. Let mo be registered’s observer.
@@ -2861,14 +2865,6 @@ void Node::queue_mutation_record(FlyString const& type, Optional<FlyString> cons
     if (interested_observers.is_empty() && !page.listen_for_dom_mutations())
         return;
 
-    // FIXME: The MutationRecord constructor should take an Optional<FlyString> attribute name and namespace
-    Optional<String> string_attribute_name;
-    if (attribute_name.has_value())
-        string_attribute_name = attribute_name->to_string();
-    Optional<String> string_attribute_namespace;
-    if (attribute_namespace.has_value())
-        string_attribute_namespace = attribute_namespace->to_string();
-
     auto added_nodes_list = StaticNodeList::create(realm(), move(added_nodes));
     auto removed_nodes_list = StaticNodeList::create(realm(), move(removed_nodes));
 
@@ -2876,7 +2872,7 @@ void Node::queue_mutation_record(FlyString const& type, Optional<FlyString> cons
     for (auto& [observer, mapped_old_value] : interested_observers) {
         // 1. Let record be a new MutationRecord object with its type set to type, target set to target, attributeName set to name, attributeNamespace set to namespace, oldValue set to mappedOldValue,
         //    addedNodes set to addedNodes, removedNodes set to removedNodes, previousSibling set to previousSibling, and nextSibling set to nextSibling.
-        auto record = MutationRecord::create(realm(), type, *this, added_nodes_list, removed_nodes_list, previous_sibling, next_sibling, string_attribute_name, string_attribute_namespace, mapped_old_value);
+        auto record = MutationRecord::create(realm(), type, *this, added_nodes_list, removed_nodes_list, previous_sibling, next_sibling, attribute_name, attribute_namespace, mapped_old_value);
 
         // 2. Enqueue record to observer’s record queue.
         observer->enqueue_record({}, move(record));
@@ -2890,7 +2886,7 @@ void Node::queue_mutation_record(FlyString const& type, Optional<FlyString> cons
 
     // AD-HOC: Notify the UI if it is interested in DOM mutations (i.e. for DevTools).
     if (page.listen_for_dom_mutations())
-        page.client().page_did_mutate_dom(type, *this, added_nodes_list, removed_nodes_list, previous_sibling, next_sibling, string_attribute_name);
+        page.client().page_did_mutate_dom(type, *this, added_nodes_list, removed_nodes_list, previous_sibling, next_sibling, attribute_name);
 }
 
 // https://dom.spec.whatwg.org/#queue-a-tree-mutation-record

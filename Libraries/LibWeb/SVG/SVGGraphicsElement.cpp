@@ -22,6 +22,7 @@
 #include <LibWeb/Painting/SVGSVGPaintable.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/AttributeParser.h>
+#include <LibWeb/SVG/FragmentIdentifier.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
 #include <LibWeb/SVG/SVGGradientElement.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
@@ -45,11 +46,11 @@ void SVGGraphicsElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-void SVGGraphicsElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
+void SVGGraphicsElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
-    if (name == "transform"sv) {
+    if (name == AttributeNames::transform) {
         auto transform_list = AttributeParser::parse_transform(value.value_or({}));
         if (transform_list.has_value())
             m_transform = transform_from_transform_list(*transform_list);
@@ -92,18 +93,30 @@ Optional<Painting::PaintStyle> SVGGraphicsElement::stroke_paint_style(SVGPaintCo
 GC::Ptr<DOM::Element> SVGGraphicsElement::resolve_url_to_element(CSS::URL const& url) const
 {
     // FIXME: Complete and use the entire URL, not just the fragment.
-    Optional<Utf16String> fragment;
     if (auto fragment_offset = url.url().find_byte_offset('#'); fragment_offset.has_value()) {
-        fragment = Utf16String::from_utf8(MUST(url.url().substring_from_byte_offset_with_shared_superstring(fragment_offset.value() + 1)));
+        auto fragment_string = MUST(url.url().substring_from_byte_offset_with_shared_superstring(fragment_offset.value() + 1));
+        return resolve_fragment_identifier_to_element(decode_fragment_identifier(fragment_string));
     }
-    if (!fragment.has_value())
+
+    return {};
+}
+
+GC::Ptr<DOM::Element> SVGGraphicsElement::resolve_url_to_element(Utf16String const& url_string) const
+{
+    auto url = document().encoding_parse_url(url_string);
+    if (!url.has_value() || !url->fragment().has_value())
         return {};
-    if (auto element = document().get_element_by_id(*fragment))
+    return resolve_fragment_identifier_to_element(decode_fragment_identifier(*url->fragment()));
+}
+
+GC::Ptr<DOM::Element> SVGGraphicsElement::resolve_fragment_identifier_to_element(Utf16String const& fragment) const
+{
+    if (auto element = document().get_element_by_id(fragment))
         return element;
 
     auto containing_shadow = containing_shadow_root();
     if (containing_shadow) {
-        if (auto element = containing_shadow->get_element_by_id(*fragment))
+        if (auto element = containing_shadow->get_element_by_id(fragment))
             return element;
     }
 

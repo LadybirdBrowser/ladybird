@@ -20,7 +20,7 @@ MathMLMspaceElement::MathMLMspaceElement(DOM::Document& document, DOM::Qualified
 {
 }
 
-bool MathMLMspaceElement::is_presentational_hint(FlyString const& name) const
+bool MathMLMspaceElement::is_presentational_hint(Utf16FlyString const& name) const
 {
     if (Base::is_presentational_hint(name))
         return true;
@@ -33,7 +33,7 @@ void MathMLMspaceElement::apply_presentational_hints(Vector<CSS::StyleProperty>&
     // https://w3c.github.io/mathml-core/#attribute-mspace-width
     // The width, height, depth, if present, must have a value that is a valid <length-percentage>.
     CSS::Parser::ParsingParams parsing_params { document() };
-    auto parse_non_percentage_value = [&](FlyString const& attribute_name) -> RefPtr<CSS::StyleValue const> {
+    auto parse_non_percentage_value = [&](Utf16FlyString const& attribute_name) -> RefPtr<CSS::StyleValue const> {
         if (auto attribute = this->attribute(attribute_name); attribute.has_value()) {
             if (auto value = parse_css_type(parsing_params, attribute.value(), CSS::ValueType::Length))
                 return value;

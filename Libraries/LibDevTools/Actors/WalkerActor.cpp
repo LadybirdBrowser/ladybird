@@ -105,7 +105,7 @@ void WalkerActor::handle_message(Message const& message)
             return;
         }
 
-        devtools().delegate().set_dom_node_tag(dom_node->tab->description(), dom_node->identifier.id, *tag_name, default_async_handler(message));
+        devtools().delegate().set_dom_node_tag(dom_node->tab->description(), dom_node->identifier.id, Utf16FlyString::from_utf8(*tag_name), default_async_handler(message));
         return;
     }
 
@@ -964,10 +964,10 @@ JsonValue WalkerActor::serialize_mutations()
 
         mutation.mutation.visit(
             [&](WebView::AttributeMutation& mutation) {
-                serialized.set("attributeName"sv, move(mutation.attribute_name));
+                serialized.set("attributeName"sv, mutation.attribute_name.view().to_utf8_but_should_be_ported_to_utf16());
 
                 if (mutation.new_value.has_value())
-                    serialized.set("newValue"sv, mutation.new_value.release_value());
+                    serialized.set("newValue"sv, mutation.new_value.release_value().to_utf8_but_should_be_ported_to_utf16());
                 else
                     serialized.set("newValue"sv, JsonValue {});
             },

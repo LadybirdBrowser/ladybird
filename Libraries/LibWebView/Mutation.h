@@ -7,6 +7,8 @@
 #pragma once
 
 #include <AK/String.h>
+#include <AK/Utf16FlyString.h>
+#include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibIPC/Forward.h>
@@ -16,8 +18,8 @@
 namespace WebView {
 
 struct WEBVIEW_API AttributeMutation {
-    String attribute_name;
-    Optional<String> new_value;
+    Utf16FlyString attribute_name;
+    Optional<Utf16String> new_value;
 };
 
 struct WEBVIEW_API CharacterDataMutation {

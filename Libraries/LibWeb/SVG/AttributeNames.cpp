@@ -9,7 +9,7 @@
 namespace Web::SVG::AttributeNames {
 
 #define __ENUMERATE_SVG_ATTRIBUTE(name, attribute) \
-    FlyString const& name = *new FlyString(attribute##_fly_string);
+    Utf16FlyString const& name = *new Utf16FlyString(attribute##_utf16_fly_string);
 ENUMERATE_SVG_ATTRIBUTES
 #undef __ENUMERATE_SVG_ATTRIBUTE
 

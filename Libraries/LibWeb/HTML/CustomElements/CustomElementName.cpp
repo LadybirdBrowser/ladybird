@@ -5,14 +5,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Utf8View.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/CustomElements/CustomElementName.h>
 
 namespace Web::HTML {
 
-// https://html.spec.whatwg.org/multipage/custom-elements.html#valid-custom-element-name
-bool is_valid_custom_element_name(String const& name)
+bool is_valid_custom_element_name(Utf16View const& name)
 {
     // A string name is a valid custom element name if all of the following are true:
     // - name is a valid element local name;
@@ -20,15 +18,14 @@ bool is_valid_custom_element_name(String const& name)
         return false;
 
     // - name's 0th code point is an ASCII lower alpha;
-    auto code_points = Utf8View { name };
-    if (auto first = code_points.begin(); first.done() || !is_ascii_lower_alpha(*first))
+    if (auto first = name.begin(); !is_ascii_lower_alpha(*first))
         return false;
 
     // - name does not contain any ASCII upper alphas;
     // - name contains a U+002D (-); and
     bool contains_ascii_upper_alpha = false;
     bool contains_hyphen = false;
-    for (auto code_point : code_points) {
+    for (auto code_point : name) {
         if (is_ascii_upper_alpha(code_point)) {
             contains_ascii_upper_alpha = true;
             break;

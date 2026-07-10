@@ -21,7 +21,7 @@ HTMLDivElement::HTMLDivElement(DOM::Document& document, DOM::QualifiedName quali
 
 HTMLDivElement::~HTMLDivElement() = default;
 
-bool HTMLDivElement::is_presentational_hint(FlyString const& name) const
+bool HTMLDivElement::is_presentational_hint(Utf16FlyString const& name) const
 {
     if (Base::is_presentational_hint(name))
         return true;

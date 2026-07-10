@@ -4,31 +4,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/GenericLexer.h>
+#include <AK/Utf16String.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 
 namespace Web::HTML {
 
-//  https://html.spec.whatwg.org/multipage/browsers.html#parse-a-sandboxing-directive
-SandboxingFlagSet parse_a_sandboxing_directive(Variant<String, Vector<String>> input)
+static SandboxingFlagSet parse_sandboxing_directive_tokens(auto const& tokens)
 {
-    // 1. Split input on ASCII whitespace, to obtain tokens.
-    Vector<String> tokens;
-    if (input.has<String>()) {
-        auto lowercase_input = input.get<String>().to_ascii_lowercase();
-        auto token_views = lowercase_input.bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
-        tokens.ensure_capacity(token_views.size());
-        for (auto token : token_views) {
-            tokens.unchecked_append(MUST(String::from_utf8(token)));
-        }
-    } else {
-        auto const& pre_parsed_tokens = input.get<Vector<String>>();
-        tokens.ensure_capacity(pre_parsed_tokens.size());
-        for (auto const& token : pre_parsed_tokens) {
-            tokens.unchecked_append(token.to_ascii_lowercase());
-        }
-    }
-
     // 2. Let output be empty.
     SandboxingFlagSet output {};
 
@@ -115,6 +99,38 @@ SandboxingFlagSet parse_a_sandboxing_directive(Variant<String, Vector<String>> i
         output |= SandboxingFlagSet::SandboxedCustomProtocols;
 
     return output;
+}
+
+//  https://html.spec.whatwg.org/multipage/browsers.html#parse-a-sandboxing-directive
+SandboxingFlagSet parse_a_sandboxing_directive(Utf16View input)
+{
+    // 1. Split input on ASCII whitespace, to obtain tokens.
+    auto lowercase_input = input.to_ascii_lowercase();
+    Utf16GenericLexer lexer { lowercase_input.utf16_view() };
+    auto is_ascii_whitespace = [](char16_t code_unit) {
+        return Infra::is_ascii_whitespace(code_unit);
+    };
+
+    Vector<Utf16View> tokens;
+    while (!lexer.is_eof()) {
+        lexer.ignore_while(is_ascii_whitespace);
+        auto token = lexer.consume_until(is_ascii_whitespace);
+        if (!token.is_empty())
+            tokens.append(token);
+    }
+
+    return parse_sandboxing_directive_tokens(tokens);
+}
+
+SandboxingFlagSet parse_a_sandboxing_directive(Vector<String> const& pre_parsed_tokens)
+{
+    // FIXME: File spec issue that "parse a sandboxing directive" does not accept a set of tokens.
+    Vector<String> tokens;
+    tokens.ensure_capacity(pre_parsed_tokens.size());
+    for (auto const& token : pre_parsed_tokens)
+        tokens.unchecked_append(token.to_ascii_lowercase());
+
+    return parse_sandboxing_directive_tokens(tokens);
 }
 
 }

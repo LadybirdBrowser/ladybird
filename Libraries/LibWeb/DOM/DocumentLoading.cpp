@@ -354,25 +354,26 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_media_document(HTML::Nav
     TRY(document->head()->append_child(style_element));
 
     auto url_string = document->url_string();
+    auto url_utf16 = Utf16String::from_utf8(url_string);
     if (type.is_image()) {
         auto img_element = TRY(DOM::create_element(document, HTML::TagNames::img, Namespace::HTML));
-        img_element->set_attribute_value(HTML::AttributeNames::src, url_string);
+        img_element->set_attribute_value(HTML::AttributeNames::src, url_utf16);
         TRY(document->body()->append_child(img_element));
         TRY(insert_title(document, url_string));
 
     } else if (type.type() == "video"sv) {
         auto video_element = TRY(DOM::create_element(document, HTML::TagNames::video, Namespace::HTML));
-        video_element->set_attribute_value(HTML::AttributeNames::src, url_string);
-        video_element->set_attribute_value(HTML::AttributeNames::autoplay, String {});
-        video_element->set_attribute_value(HTML::AttributeNames::controls, String {});
+        video_element->set_attribute_value(HTML::AttributeNames::src, url_utf16);
+        video_element->set_attribute_value(HTML::AttributeNames::autoplay, Utf16String {});
+        video_element->set_attribute_value(HTML::AttributeNames::controls, Utf16String {});
         TRY(document->body()->append_child(video_element));
         TRY(insert_title(document, url_string));
 
     } else if (type.type() == "audio"sv) {
         auto audio_element = TRY(DOM::create_element(document, HTML::TagNames::audio, Namespace::HTML));
-        audio_element->set_attribute_value(HTML::AttributeNames::src, url_string);
-        audio_element->set_attribute_value(HTML::AttributeNames::autoplay, String {});
-        audio_element->set_attribute_value(HTML::AttributeNames::controls, String {});
+        audio_element->set_attribute_value(HTML::AttributeNames::src, url_utf16);
+        audio_element->set_attribute_value(HTML::AttributeNames::autoplay, Utf16String {});
+        audio_element->set_attribute_value(HTML::AttributeNames::controls, Utf16String {});
         TRY(document->body()->append_child(audio_element));
         TRY(insert_title(document, url_string));
 

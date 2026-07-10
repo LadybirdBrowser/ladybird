@@ -71,14 +71,14 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(DOMTokenList);
 
-GC::Ref<DOMTokenList> DOMTokenList::create(Element& associated_element, FlyString associated_attribute)
+GC::Ref<DOMTokenList> DOMTokenList::create(Element& associated_element, Utf16FlyString associated_attribute)
 {
     auto& realm = associated_element.realm();
     return realm.create<DOMTokenList>(associated_element, move(associated_attribute));
 }
 
 // https://dom.spec.whatwg.org/#ref-for-domtokenlist%E2%91%A0%E2%91%A2
-DOMTokenList::DOMTokenList(Element& associated_element, FlyString associated_attribute)
+DOMTokenList::DOMTokenList(Element& associated_element, Utf16FlyString associated_attribute)
     : Bindings::PlatformObject(associated_element.realm())
     , m_associated_element(associated_element)
     , m_associated_attribute(move(associated_attribute))
@@ -371,7 +371,7 @@ void DOMTokenList::run_update_steps()
         return;
 
     // 1. If get an attribute by namespace and local name given null, set’s attribute name, and set’s element returns null and set’s token set is empty, then return.
-    auto attribute = associated_element->get_attribute_ns({}, m_associated_attribute);
+    auto attribute = associated_element->get_attribute_ns(Optional<Utf16FlyString> {}, m_associated_attribute);
     if (!attribute.has_value() && m_token_set.is_empty())
         return;
 

@@ -53,7 +53,7 @@ void HTMLIFrameElement::adjust_computed_style(CSS::ComputedProperties::Builder& 
         style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::None)));
 }
 
-void HTMLIFrameElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
+void HTMLIFrameElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
@@ -81,7 +81,7 @@ void HTMLIFrameElement::attribute_changed(FlyString const& name, Optional<Utf16S
         // agent must empty the iframe element's iframe sandboxing flag set.
         if (name == AttributeNames::sandbox) {
             if (value.has_value()) {
-                m_iframe_sandboxing_flag_set = parse_a_sandboxing_directive(value->to_utf8_but_should_be_ported_to_utf16());
+                m_iframe_sandboxing_flag_set = parse_a_sandboxing_directive(value->utf16_view());
             } else {
                 m_iframe_sandboxing_flag_set = {};
             }
@@ -111,7 +111,7 @@ void HTMLIFrameElement::post_connection()
     // 1. If insertedNode has a sandbox attribute, then parse the sandboxing directive given the attribute's
     //    value and insertedNode's iframe sandboxing flag set.
     if (auto sandbox = attribute(AttributeNames::sandbox); sandbox.has_value())
-        m_iframe_sandboxing_flag_set = parse_a_sandboxing_directive(sandbox->to_utf8_but_should_be_ported_to_utf16());
+        m_iframe_sandboxing_flag_set = parse_a_sandboxing_directive(sandbox->utf16_view());
 
     // 2. Create a new child navigable for insertedNode.
     create_new_child_navigable();
@@ -274,7 +274,7 @@ i32 HTMLIFrameElement::default_tab_index_value() const
     return 0;
 }
 
-bool HTMLIFrameElement::is_presentational_hint(FlyString const& name) const
+bool HTMLIFrameElement::is_presentational_hint(Utf16FlyString const& name) const
 {
     if (Base::is_presentational_hint(name))
         return true;

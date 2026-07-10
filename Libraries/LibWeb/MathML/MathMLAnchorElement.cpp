@@ -74,7 +74,7 @@ void MathMLAnchorElement::update_href()
 {
     // To update href for a MathMLAnchorElement, set the element's href content attribute's value to the element's url,
     // serialized.
-    hyperlink_element_utils_element().set_attribute_value(MathML::AttributeNames::href, m_url->serialize());
+    hyperlink_element_utils_element().set_attribute_value(MathML::AttributeNames::href, Utf16String::from_utf8(m_url->serialize()));
 }
 
 }

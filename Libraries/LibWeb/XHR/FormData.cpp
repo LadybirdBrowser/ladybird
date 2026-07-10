@@ -26,7 +26,7 @@ static FormDataEntryValue form_data_entry_value_for_bindings(FormDataEntry::Valu
             return file;
         },
         [](Utf16String const& string) -> FormDataEntryValue {
-            return MUST(string.utf16_view().to_utf8());
+            return string;
         });
 }
 
@@ -108,13 +108,13 @@ void FormData::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://xhr.spec.whatwg.org/#dom-formdata-append
-WebIDL::ExceptionOr<void> FormData::append(String const& name, String const& value)
+WebIDL::ExceptionOr<void> FormData::append(Utf16String const& name, Utf16String const& value)
 {
     return append_impl(name, value);
 }
 
 // https://xhr.spec.whatwg.org/#dom-formdata-append-blob
-WebIDL::ExceptionOr<void> FormData::append(String const& name, GC::Ref<FileAPI::Blob> const& blob_value, Optional<String> const& filename)
+WebIDL::ExceptionOr<void> FormData::append(Utf16String const& name, GC::Ref<FileAPI::Blob> const& blob_value, Optional<String> const& filename)
 {
     auto inner_filename = filename.has_value() ? filename.value() : Optional<String> {};
     return append_impl(name, blob_value, inner_filename);
@@ -122,14 +122,14 @@ WebIDL::ExceptionOr<void> FormData::append(String const& name, GC::Ref<FileAPI::
 
 // https://xhr.spec.whatwg.org/#dom-formdata-append
 // https://xhr.spec.whatwg.org/#dom-formdata-append-blob
-WebIDL::ExceptionOr<void> FormData::append_impl(String const& name, Variant<GC::Ref<FileAPI::Blob>, String> const& value, Optional<String> const& filename)
+WebIDL::ExceptionOr<void> FormData::append_impl(Utf16String const& name, Variant<GC::Ref<FileAPI::Blob>, Utf16String> const& value, Optional<String> const& filename)
 {
     auto& realm = this->realm();
     auto& vm = realm.vm();
 
     // 1. Let value be value if given; otherwise blobValue.
     // 2. Let entry be the result of creating an entry with name, value, and filename if given.
-    auto entry = TRY(HTML::create_entry(realm, name, value, filename));
+    auto entry = TRY(HTML::create_entry(realm, name.utf16_view(), value, filename));
 
     // 3. Append entry to this’s entry list.
     TRY_OR_THROW_OOM(vm, m_entry_list.try_append(move(entry)));
@@ -137,24 +137,20 @@ WebIDL::ExceptionOr<void> FormData::append_impl(String const& name, Variant<GC::
 }
 
 // https://xhr.spec.whatwg.org/#dom-formdata-delete
-void FormData::delete_(String const& name)
+void FormData::delete_(Utf16String const& name)
 {
-    auto name_utf16 = Utf16String::from_utf8(name);
-
     // The delete(name) method steps are to remove all entries whose name is name from this’s entry list.
-    m_entry_list.remove_all_matching([&name_utf16](FormDataEntry const& entry) {
-        return entry.name == name_utf16;
+    m_entry_list.remove_all_matching([&name](FormDataEntry const& entry) {
+        return entry.name == name;
     });
 }
 
 // https://xhr.spec.whatwg.org/#dom-formdata-get
-Variant<GC::Ref<FileAPI::File>, String, Empty> FormData::get(String const& name)
+Variant<GC::Ref<FileAPI::File>, Utf16String, Empty> FormData::get(Utf16String const& name)
 {
-    auto name_utf16 = Utf16String::from_utf8(name);
-
     // 1. If there is no entry whose name is name in this’s entry list, then return null.
-    auto entry_iterator = m_entry_list.find_if([&name_utf16](FormDataEntry const& entry) {
-        return entry.name == name_utf16;
+    auto entry_iterator = m_entry_list.find_if([&name](FormDataEntry const& entry) {
+        return entry.name == name;
     });
     if (entry_iterator.is_end())
         return Empty {};
@@ -163,40 +159,36 @@ Variant<GC::Ref<FileAPI::File>, String, Empty> FormData::get(String const& name)
 }
 
 // https://xhr.spec.whatwg.org/#dom-formdata-getall
-WebIDL::ExceptionOr<Vector<FormDataEntryValue>> FormData::get_all(String const& name)
+WebIDL::ExceptionOr<Vector<FormDataEntryValue>> FormData::get_all(Utf16String const& name)
 {
-    auto name_utf16 = Utf16String::from_utf8(name);
-
     // 1. If there is no entry whose name is name in this’s entry list, then return the empty list.
     // 2. Return the values of all entries whose name is name, in order, from this’s entry list.
     Vector<FormDataEntryValue> values;
     for (auto const& entry : m_entry_list) {
-        if (entry.name == name_utf16)
+        if (entry.name == name)
             TRY_OR_THROW_OOM(vm(), values.try_append(form_data_entry_value_for_bindings(entry.value)));
     }
     return values;
 }
 
 // https://xhr.spec.whatwg.org/#dom-formdata-has
-bool FormData::has(String const& name)
+bool FormData::has(Utf16String const& name)
 {
-    auto name_utf16 = Utf16String::from_utf8(name);
-
     // The has(name) method steps are to return true if there is an entry whose name is name in this’s entry list; otherwise false.
-    return !m_entry_list.find_if([&name_utf16](auto& entry) {
-                            return entry.name == name_utf16;
+    return !m_entry_list.find_if([&name](auto& entry) {
+                            return entry.name == name;
                         })
                 .is_end();
 }
 
 // https://xhr.spec.whatwg.org/#dom-formdata-set
-WebIDL::ExceptionOr<void> FormData::set(String const& name, String const& value)
+WebIDL::ExceptionOr<void> FormData::set(Utf16String const& name, Utf16String const& value)
 {
     return set_impl(name, value);
 }
 
 // https://xhr.spec.whatwg.org/#dom-formdata-set-blob
-WebIDL::ExceptionOr<void> FormData::set(String const& name, GC::Ref<FileAPI::Blob> const& blob_value, Optional<String> const& filename)
+WebIDL::ExceptionOr<void> FormData::set(Utf16String const& name, GC::Ref<FileAPI::Blob> const& blob_value, Optional<String> const& filename)
 {
     auto inner_filename = filename.has_value() ? filename.value() : Optional<String> {};
     return set_impl(name, blob_value, inner_filename);
@@ -209,25 +201,24 @@ GC::ConservativeVector<FormDataEntry> FormData::entry_list() const
 
 // https://xhr.spec.whatwg.org/#dom-formdata-set
 // https://xhr.spec.whatwg.org/#dom-formdata-set-blob
-WebIDL::ExceptionOr<void> FormData::set_impl(String const& name, Variant<GC::Ref<FileAPI::Blob>, String> const& value, Optional<String> const& filename)
+WebIDL::ExceptionOr<void> FormData::set_impl(Utf16String const& name, Variant<GC::Ref<FileAPI::Blob>, Utf16String> const& value, Optional<String> const& filename)
 {
     auto& realm = this->realm();
     auto& vm = realm.vm();
 
     // 1. Let value be value if given; otherwise blobValue.
     // 2. Let entry be the result of creating an entry with name, value, and filename if given.
-    auto entry = TRY(HTML::create_entry(realm, name, value, filename));
-    auto name_utf16 = Utf16String::from_utf8(name);
+    auto entry = TRY(HTML::create_entry(realm, name.utf16_view(), value, filename));
 
-    auto existing = m_entry_list.find_if([&name_utf16](auto& entry) {
-        return entry.name == name_utf16;
+    auto existing = m_entry_list.find_if([&name](auto& entry) {
+        return entry.name == name;
     });
 
     // 3. If there are entries in this’s entry list whose name is name, then replace the first such entry with entry and remove the others.
     if (!existing.is_end()) {
         existing->value = entry.value;
-        m_entry_list.remove_all_matching([&name_utf16, &existing](auto& entry) {
-            return &entry != &*existing && entry.name == name_utf16;
+        m_entry_list.remove_all_matching([&name, &existing](auto& entry) {
+            return &entry != &*existing && entry.name == name;
         });
     }
     // 4. Otherwise, append entry to this’s entry list.
@@ -242,7 +233,7 @@ JS::ThrowCompletionOr<void> FormData::for_each(ForEachCallback callback)
 {
     for (auto i = 0u; i < m_entry_list.size(); ++i) {
         auto& entry = m_entry_list[i];
-        TRY(callback(MUST(entry.name.utf16_view().to_utf8()), form_data_entry_value_for_bindings(entry.value)));
+        TRY(callback(entry.name, form_data_entry_value_for_bindings(entry.value)));
     }
 
     return {};

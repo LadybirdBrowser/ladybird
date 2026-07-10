@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/AbstractWorker.h>
 #include <LibWeb/HTML/Window.h>
@@ -51,7 +52,7 @@ public:
 #undef __ENUMERATE
 
 protected:
-    Worker(JS::Realm&, String const&, Bindings::WorkerOptions const&);
+    Worker(JS::Realm&, Utf16String const&, Bindings::WorkerOptions const&);
 
     // ^AbstractWorker
     virtual DOM::EventTarget& this_event_target() override { return *this; }
@@ -60,7 +61,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    String m_script_url;
+    Utf16String m_script_url;
     Bindings::WorkerOptions m_options;
 
     GC::Ptr<MessagePort> m_outside_port;

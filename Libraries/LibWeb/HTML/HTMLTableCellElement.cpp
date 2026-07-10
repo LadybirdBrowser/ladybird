@@ -38,7 +38,7 @@ void HTMLTableCellElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-bool HTMLTableCellElement::is_presentational_hint(FlyString const& name) const
+bool HTMLTableCellElement::is_presentational_hint(Utf16FlyString const& name) const
 {
     if (Base::is_presentational_hint(name))
         return true;
@@ -156,7 +156,7 @@ void HTMLTableCellElement::set_col_span(WebIDL::UnsignedLong value)
 {
     if (value > 2147483647)
         value = 1;
-    set_attribute_value(HTML::AttributeNames::colspan, String::number(value));
+    set_attribute_value(HTML::AttributeNames::colspan, Utf16String::number(value));
 }
 
 // This implements step 9 in the spec here:
@@ -187,7 +187,7 @@ void HTMLTableCellElement::set_row_span(WebIDL::UnsignedLong value)
 {
     if (value > 2147483647)
         value = 1;
-    set_attribute_value(HTML::AttributeNames::rowspan, String::number(value));
+    set_attribute_value(HTML::AttributeNames::rowspan, Utf16String::number(value));
 }
 
 // https://html.spec.whatwg.org/multipage/tables.html#dom-tdth-cellindex

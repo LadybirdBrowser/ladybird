@@ -1,0 +1,15 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const doc = new DOMParser().parseFromString(`<root xmlns:ex="https://example.test/ns"></root>`, "application/xml");
+        doc.documentElement.innerHTML = `<ex:child data-name="cafe">touché</ex:child>`;
+
+        const child = doc.documentElement.firstChild;
+        println(child.localName);
+        println(child.prefix);
+        println(child.namespaceURI);
+        println(child.getAttribute("data-name"));
+        println(child.textContent);
+    });
+</script>

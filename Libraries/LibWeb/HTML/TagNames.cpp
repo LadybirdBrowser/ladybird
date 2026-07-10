@@ -9,7 +9,7 @@
 namespace Web::HTML::TagNames {
 
 #define __ENUMERATE_HTML_TAG(name, tag) \
-    FlyString const& name = *new FlyString(tag##_fly_string);
+    Utf16FlyString const& name = *new Utf16FlyString(tag##_utf16_fly_string);
 ENUMERATE_HTML_TAGS
 #undef __ENUMERATE_HTML_TAG
 

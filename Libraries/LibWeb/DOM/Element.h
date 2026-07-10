@@ -10,6 +10,7 @@
 #include <AK/Concepts.h>
 #include <AK/Optional.h>
 #include <AK/Utf16FlyString.h>
+#include <AK/Utf16View.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/ARIA/ARIAMixin.h>
 #include <LibWeb/Animations/Animatable.h>
@@ -105,36 +106,35 @@ public:
 
     virtual Node& slottable_as_node() override { return *this; }
 
-    FlyString const& qualified_name() const { return m_qualified_name.as_string(); }
-    FlyString const& html_uppercased_qualified_name() const;
+    Utf16FlyString const& qualified_name() const { return m_qualified_name.as_string(); }
+    Utf16FlyString const& html_uppercased_qualified_name() const;
 
-    virtual FlyString node_name() const final { return html_uppercased_qualified_name(); }
-    FlyString const& local_name() const { return m_qualified_name.local_name(); }
+    virtual Utf16FlyString node_name() const final { return html_uppercased_qualified_name(); }
+    Utf16FlyString const& local_name() const { return m_qualified_name.local_name(); }
 
-    FlyString const& lowercased_local_name() const { return m_qualified_name.lowercased_local_name(); }
-
-    // NOTE: This is for the JS bindings
-    FlyString const& tag_name() const { return html_uppercased_qualified_name(); }
-
-    Optional<FlyString> const& prefix() const { return m_qualified_name.prefix(); }
-
-    void set_prefix(Optional<FlyString> value);
-
-    Optional<String> locate_a_namespace_prefix(Optional<String> const& namespace_) const;
+    Utf16FlyString const& lowercased_local_name() const { return m_qualified_name.lowercased_local_name(); }
 
     // NOTE: This is for the JS bindings
-    Optional<FlyString> const& namespace_uri() const { return m_qualified_name.namespace_(); }
+    Utf16FlyString const& tag_name() const { return html_uppercased_qualified_name(); }
 
-    bool has_attribute(FlyString const& name) const;
-    bool has_attribute_ns(Optional<FlyString> const& namespace_, FlyString const& name) const;
+    Optional<Utf16FlyString> const& prefix() const { return m_qualified_name.prefix(); }
+
+    void set_prefix(Optional<Utf16FlyString> value);
+
+    Optional<Utf16String> locate_a_namespace_prefix(Optional<Utf16String> const& namespace_) const;
+
+    // NOTE: This is for the JS bindings
+    Optional<Utf16FlyString> const& namespace_uri() const { return m_qualified_name.namespace_(); }
+
+    bool has_attribute(Utf16FlyString const& name) const;
+    bool has_attribute_ns(Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& name) const;
     bool has_attributes() const;
 
-    Optional<Utf16String> attribute(FlyString const& name) const { return get_attribute(name); }
+    Optional<Utf16String> attribute(Utf16FlyString const& name) const { return get_attribute(name); }
 
-    Optional<Utf16String> get_attribute(FlyString const& name) const;
     Optional<Utf16String> get_attribute(Utf16FlyString const& name) const;
-    Optional<Utf16String> get_attribute_ns(Optional<FlyString> const& namespace_, FlyString const& name) const;
-    Utf16String get_attribute_value(FlyString const& local_name, Optional<FlyString> const& namespace_ = {}) const;
+    Optional<Utf16String> get_attribute_ns(Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& name) const;
+    Utf16String get_attribute_value(Utf16FlyString const& local_name, Optional<Utf16FlyString> const& namespace_ = {}) const;
 
     Utf16String get_an_elements_target(Optional<Utf16String> target = {}) const;
     HTML::TokenizedFeature::NoOpener get_an_elements_noopener(URL::URL const& url, Utf16View target) const;
@@ -146,43 +146,32 @@ public:
     Optional<Utf16String> lang() const;
     void invalidate_lang_value();
 
-    WebIDL::ExceptionOr<void> set_attribute_for_bindings(FlyString qualified_name, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> const& value);
-    WebIDL::ExceptionOr<void> set_attribute_for_bindings(FlyString qualified_name, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, String> const& value);
+    WebIDL::ExceptionOr<void> set_attribute_for_bindings(Utf16FlyString qualified_name, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> const& value);
 
-    WebIDL::ExceptionOr<void> set_attribute_ns_for_bindings(Optional<FlyString> const& namespace_, FlyString const& qualified_name, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> const& value);
-    void set_attribute_value(FlyString const& local_name, Utf16String const& value, Optional<FlyString> const& prefix = {}, Optional<FlyString> const& namespace_ = {});
-    void set_attribute_value(FlyString const& local_name, String const& value, Optional<FlyString> const& prefix = {}, Optional<FlyString> const& namespace_ = {})
-    {
-        set_attribute_value(local_name, Utf16String::from_utf8(value), prefix, namespace_);
-    }
-    void set_attribute_value(FlyString const& local_name, StringView value, Optional<FlyString> const& prefix = {}, Optional<FlyString> const& namespace_ = {})
-    {
-        set_attribute_value(local_name, Utf16String::from_utf8(value), prefix, namespace_);
-    }
+    WebIDL::ExceptionOr<void> set_attribute_ns_for_bindings(Optional<Utf16FlyString> namespace_, Utf16FlyString const& qualified_name, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> const& value);
+    void set_attribute_value(Utf16FlyString const& local_name, Utf16String const& value, Optional<Utf16FlyString> const& prefix = {}, Optional<Utf16FlyString> const& namespace_ = {});
     WebIDL::ExceptionOr<GC::Ptr<Attr>> set_attribute_node_for_bindings(Attr&);
     WebIDL::ExceptionOr<GC::Ptr<Attr>> set_attribute_node_ns_for_bindings(Attr&);
 
-    void append_attribute(FlyString const& name, Utf16String const& value);
-    void append_attribute(FlyString const& name, String const& value) { append_attribute(name, Utf16String::from_utf8(value)); }
-    void append_attribute(FlyString const& name, StringView value) { append_attribute(name, Utf16String::from_utf8(value)); }
+    void append_attribute(Utf16FlyString const& name, Utf16String const& value);
     void append_attribute(Attr&);
-    void remove_attribute(FlyString const& name);
-    void remove_attribute_ns(Optional<FlyString> const& namespace_, FlyString const& name);
+    void remove_attribute(Utf16FlyString const& name);
+    void remove_attribute_ns(Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& name);
     WebIDL::ExceptionOr<GC::Ref<Attr>> remove_attribute_node(GC::Ref<Attr>);
 
-    WebIDL::ExceptionOr<bool> toggle_attribute(FlyString const& name, Optional<bool> force);
+    WebIDL::ExceptionOr<bool> toggle_attribute(Utf16FlyString const& name, Optional<bool> force);
     size_t attribute_list_size() const;
 
     GC::Ptr<NamedNodeMap const> attributes() const;
     GC::Ptr<NamedNodeMap> attributes();
 
-    Vector<String> get_attribute_names() const;
+    Vector<Utf16FlyString> get_attribute_names() const;
 
-    GC::Ptr<Attr> get_attribute_node(FlyString const& name) const;
-    GC::Ptr<Attr> get_attribute_node_ns(Optional<FlyString> const& namespace_, FlyString const& name) const;
+    GC::Ptr<Attr> get_attribute_node(Utf16FlyString const& name) const;
+    GC::Ptr<Attr> get_attribute_node_ns(Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& name) const;
 
-    GC::Ptr<DOM::Element> get_the_attribute_associated_element(FlyString const& content_attribute, GC::Ptr<DOM::Element> explicitly_set_attribute_element) const;
-    Optional<GC::RootVector<GC::Ref<DOM::Element>>> get_the_attribute_associated_elements(FlyString const& content_attribute, Optional<Vector<GC::Weak<DOM::Element>> const&> explicitly_set_attribute_elements) const;
+    GC::Ptr<DOM::Element> get_the_attribute_associated_element(Utf16FlyString const& content_attribute, GC::Ptr<DOM::Element> explicitly_set_attribute_element) const;
+    Optional<GC::RootVector<GC::Ref<DOM::Element>>> get_the_attribute_associated_elements(Utf16FlyString const& content_attribute, Optional<Vector<GC::Weak<DOM::Element>> const&> explicitly_set_attribute_elements) const;
 
     GC::Ref<DOMTokenList> class_list();
     GC::Ref<DOMTokenList> part_list();
@@ -204,7 +193,7 @@ public:
     void for_each_attribute(Function<void(Attr&)>);
     void for_each_attribute(Function<void(Attr const&)>) const;
 
-    void for_each_attribute(Function<void(FlyString const&, Utf16String const&)>) const;
+    void for_each_attribute(Function<void(Utf16FlyString const&, Utf16String const&)>) const;
 
     bool has_class(Utf16FlyString const&, CaseSensitivity = CaseSensitivity::CaseSensitive) const;
     Vector<Utf16FlyString> const& class_names() const { return m_classes; }
@@ -212,10 +201,10 @@ public:
     // https://html.spec.whatwg.org/multipage/embedded-content-other.html#dimension-attributes
     virtual bool supports_dimension_attributes() const { return false; }
 
-    virtual bool is_presentational_hint(FlyString const&) const { return false; }
+    virtual bool is_presentational_hint(Utf16FlyString const&) const { return false; }
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const;
 
-    void run_attribute_change_steps(FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_);
+    void run_attribute_change_steps(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_);
 
     CSS::RequiredInvalidationAfterStyleChange recompute_style(bool& did_change_custom_properties);
     CSS::RequiredInvalidationAfterStyleChange recompute_inherited_style(ScheduleAnimationUpdate = ScheduleAnimationUpdate::No);
@@ -293,7 +282,7 @@ public:
     CSS::StyleSheetList& document_or_shadow_root_style_sheets();
     ElementByIdMap& document_or_shadow_root_element_by_id_map();
 
-    WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> parse_fragment(StringView markup, HTML::ParserScriptingMode = HTML::ParserScriptingMode::Inert);
+    WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> parse_fragment(Utf16View markup, HTML::ParserScriptingMode = HTML::ParserScriptingMode::Inert);
 
     [[nodiscard]] GC::Ptr<Element const> element_to_inherit_style_from(Optional<CSS::PseudoElement>) const;
 
@@ -461,7 +450,7 @@ public:
     bool has_referenced_and_hidden_ancestor() const;
 
     void enqueue_a_custom_element_upgrade_reaction(HTML::CustomElementDefinition& custom_element_definition);
-    void enqueue_a_custom_element_callback_reaction(FlyString const& callback_name, GC::RootVector<JS::Value> arguments);
+    void enqueue_a_custom_element_callback_reaction(Utf16FlyString const& callback_name, GC::RootVector<JS::Value> arguments);
 
     using CustomElementReactionQueue = Vector<Variant<CustomElementUpgradeReaction, CustomElementCallbackReaction>>;
     CustomElementReactionQueue* custom_element_reaction_queue() { return m_custom_element_reaction_queue; }
@@ -477,11 +466,11 @@ public:
     bool is_defined() const;
     bool is_custom() const;
 
-    Optional<String> const& is_value() const { return m_is_value; }
-    void set_is_value(Optional<String> const& is) { m_is_value = is; }
+    Optional<Utf16FlyString> const& is_value() const { return m_is_value; }
+    void set_is_value(Optional<Utf16FlyString> const& is) { m_is_value = is; }
 
     void set_custom_element_state(CustomElementState);
-    void setup_custom_element_from_constructor(HTML::CustomElementDefinition& custom_element_definition, Optional<String> const& is_value);
+    void setup_custom_element_from_constructor(HTML::CustomElementDefinition& custom_element_definition, Optional<Utf16FlyString> const& is_value);
 
     GC::Ref<WebIDL::Promise> scroll(Bindings::ScrollToOptions);
     GC::Ref<WebIDL::Promise> scroll(double x, double y);
@@ -679,7 +668,7 @@ protected:
     virtual i32 default_tab_index_value() const;
 
     // https://dom.spec.whatwg.org/#concept-element-attributes-change-ext
-    MUST_UPCALL virtual void attribute_changed(FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_);
+    MUST_UPCALL virtual void attribute_changed(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_);
 
     virtual void computed_properties_changed() { }
 
@@ -694,7 +683,7 @@ protected:
     void clear_element_reference_pseudo_elements();
 
 private:
-    FlyString make_html_uppercased_qualified_name() const;
+    Utf16FlyString make_html_uppercased_qualified_name() const;
 
     void exit_fullscreen_on_element_removal();
     CSS::RequiredInvalidationAfterStyleChange recompute_pseudo_element_styles(bool& did_change_custom_properties, bool had_list_marker, CSS::ComputedProperties const* old_originating_style);
@@ -720,7 +709,7 @@ private:
     void for_each_numbered_item_owned_by_list_owner(Callback callback);
 
     QualifiedName m_qualified_name;
-    mutable Optional<FlyString> m_html_uppercased_qualified_name;
+    mutable Optional<Utf16FlyString> m_html_uppercased_qualified_name;
 
     GC::Ptr<NamedNodeMap> m_attributes;
     GC::Ptr<CSS::CSSStyleProperties> m_inline_style;
@@ -759,7 +748,7 @@ private:
     GC::Ptr<HTML::CustomElementDefinition> m_custom_element_definition;
 
     // https://dom.spec.whatwg.org/#concept-element-is-value
-    Optional<String> m_is_value;
+    Optional<Utf16FlyString> m_is_value;
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#states-set
     GC::Ptr<HTML::CustomStateSet> m_custom_state_set;
@@ -857,15 +846,15 @@ inline bool Element::has_class(Utf16FlyString const& class_name, CaseSensitivity
     });
 }
 
-bool is_valid_namespace_prefix(FlyString const&);
-bool is_valid_attribute_local_name(FlyString const&);
-bool is_valid_element_local_name(FlyString const&);
+bool is_valid_namespace_prefix(Utf16FlyString const&);
+bool is_valid_attribute_local_name(Utf16FlyString const&);
+bool is_valid_element_local_name(Utf16View const&);
 
 enum class ValidationContext {
     Attribute,
     Element,
 };
-WebIDL::ExceptionOr<QualifiedName> validate_and_extract(JS::Realm&, Optional<FlyString> namespace_, FlyString const& qualified_name, ValidationContext context);
+WebIDL::ExceptionOr<QualifiedName> validate_and_extract(JS::Realm&, Optional<Utf16FlyString> namespace_, Utf16FlyString const& qualified_name, ValidationContext context);
 
 }
 

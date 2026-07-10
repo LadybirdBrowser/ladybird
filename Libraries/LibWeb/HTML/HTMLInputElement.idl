@@ -5,16 +5,16 @@ interface HTMLInputElement : HTMLElement {
 
     [CEReactions, Reflect] attribute DOMString accept;
     [CEReactions, Reflect] attribute DOMString alt;
-    [CEReactions] attribute DOMString autocomplete;
+    [CEReactions] attribute Utf16DOMString autocomplete;
     [CEReactions, Reflect=checked] attribute boolean defaultChecked;
     attribute boolean checked;
     [CEReactions, Reflect=dirname] attribute DOMString dirName;
     [CEReactions, Reflect] attribute boolean disabled;
     readonly attribute HTMLFormElement? form;
     attribute FileList? files;
-    [CEReactions] attribute USVString formAction;
-    [CEReactions, Reflect=formenctype, Enumerated=FormEnctypeAttribute] attribute DOMString formEnctype;
-    [CEReactions, Reflect=formmethod, Enumerated=FormMethodAttribute] attribute DOMString formMethod;
+    [CEReactions] attribute Utf16USVString formAction;
+    [CEReactions, Reflect=formenctype, Enumerated=FormEnctypeAttribute] attribute Utf16DOMString formEnctype;
+    [CEReactions, Reflect=formmethod, Enumerated=FormMethodAttribute] attribute Utf16DOMString formMethod;
     [CEReactions, Reflect=formnovalidate] attribute boolean formNoValidate;
     [CEReactions, Reflect=formtarget] attribute DOMString formTarget;
     [CEReactions] attribute unsigned long height;
@@ -25,7 +25,7 @@ interface HTMLInputElement : HTMLElement {
     [CEReactions, Reflect] attribute DOMString min;
     [CEReactions] attribute long minLength;
     [CEReactions, Reflect] attribute boolean multiple;
-    [CEReactions, Reflect] attribute DOMString name;
+    [CEReactions, Reflect] attribute Utf16DOMString name;
     [CEReactions, Reflect] attribute DOMString pattern;
     [CEReactions, Reflect] attribute Utf16DOMString placeholder;
     [CEReactions, Reflect=readonly] attribute boolean readOnly;
@@ -35,7 +35,7 @@ interface HTMLInputElement : HTMLElement {
     [CEReactions, Reflect] attribute DOMString step;
     // https://whatpr.org/html-attr-input-switch/9546/input.html#the-input-element:dom-input-switch
     [CEReactions, Reflect] attribute boolean switch;
-    [CEReactions] attribute DOMString type;
+    [CEReactions] attribute Utf16DOMString type;
     [CEReactions, Reflect=value] attribute Utf16DOMString defaultValue;
     [CEReactions, LegacyNullToEmptyString] attribute Utf16DOMString value;
     attribute object? valueAsDate;

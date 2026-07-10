@@ -25,7 +25,7 @@ class WEB_API SVGGraphicsElement : public SVGElement {
     WEB_PLATFORM_OBJECT(SVGGraphicsElement, SVGElement);
 
 public:
-    virtual void attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_) override;
+    virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
     Optional<Gfx::Color> fill_color() const;
     Optional<Gfx::Color> stroke_color() const;
@@ -85,6 +85,7 @@ protected:
     Gfx::AffineTransform m_transform = {};
 
     GC::Ptr<DOM::Element> resolve_url_to_element(CSS::URL const& url) const;
+    GC::Ptr<DOM::Element> resolve_url_to_element(Utf16String const& url) const;
 
     template<typename T>
     GC::Ptr<T> try_resolve_url_to(CSS::URL const& url) const
@@ -92,8 +93,15 @@ protected:
         return as_if<T>(resolve_url_to_element(url).ptr());
     }
 
+    template<typename T>
+    GC::Ptr<T> try_resolve_url_to(Utf16String const& url) const
+    {
+        return as_if<T>(resolve_url_to_element(url).ptr());
+    }
+
 private:
     virtual bool is_svg_graphics_element() const final { return true; }
+    GC::Ptr<DOM::Element> resolve_fragment_identifier_to_element(Utf16String const& fragment) const;
     float resolve_relative_to_viewport_size(CSS::LengthPercentage const& length_percentage) const;
 };
 

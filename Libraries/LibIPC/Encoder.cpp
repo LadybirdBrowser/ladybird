@@ -14,6 +14,7 @@
 #include <AK/NumericLimits.h>
 #include <AK/String.h>
 #include <AK/Time.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <LibCore/AnonymousBuffer.h>
@@ -62,6 +63,12 @@ template<>
 ErrorOr<void> encode(Encoder& encoder, Utf16String const& value)
 {
     return encoder.encode(value.utf16_view());
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Utf16FlyString const& value)
+{
+    return encoder.encode(value.view());
 }
 
 template<>

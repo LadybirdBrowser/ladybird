@@ -14,6 +14,7 @@
 #include <AK/LexicalPath.h>
 #include <AK/RefCounted.h>
 #include <AK/Time.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Vector.h>
 #include <LibCore/File.h>
 #include <LibCore/Process.h>
@@ -1434,16 +1435,18 @@ Messages::WebDriverClient::GetElementAttributeResponse WebDriverConnection::get_
         // 5. Let result be the result of the first matching condition:
         String result {};
 
+        auto const utf16_name = Utf16FlyString::from_utf8(name);
+
         // -> If name is a boolean attribute
-        if (Web::HTML::is_boolean_attribute(name)) {
+        if (Web::HTML::is_boolean_attribute(utf16_name)) {
             // "true" (string) if the element hasAttribute() with name, otherwise null.
-            if (element->has_attribute(name))
+            if (element->has_attribute(utf16_name))
                 result = "true"_string;
         }
         // -> Otherwise
         else {
             // The result of getting an attribute by name name.
-            if (auto attr = element->get_attribute(name); attr.has_value())
+            if (auto attr = element->get_attribute(utf16_name); attr.has_value())
                 result = attr.release_value().to_utf8();
         }
 
@@ -1565,7 +1568,7 @@ Messages::WebDriverClient::GetElementTagNameResponse WebDriverConnection::get_el
         auto qualified_name = element->local_name();
 
         // 5. Return success with data qualified name.
-        async_driver_execution_complete({ qualified_name.to_string() });
+        async_driver_execution_complete({ qualified_name.view().to_utf8_but_should_be_ported_to_utf16() });
     });
 
     return JsonValue {};
@@ -3043,7 +3046,9 @@ public:
         GC::Ref<GC::Timer> timer)
         : m_browsing_context(browsing_context)
         , m_location_strategy(location_strategy)
-        , m_selector(move(selector))
+        , m_selector(location_strategy == Web::WebDriver::LocationStrategy::TagName
+                  ? Variant<String, Utf16FlyString> { Utf16FlyString::from_utf8(selector) }
+                  : Variant<String, Utf16FlyString> { move(selector) })
         , m_get_start_node(get_start_node)
         , m_on_complete(on_complete)
         , m_timer(timer)
@@ -3106,7 +3111,7 @@ private:
     GC::Ref<Web::HTML::BrowsingContext const> m_browsing_context;
 
     Web::WebDriver::LocationStrategy m_location_strategy;
-    String m_selector;
+    Variant<String, Utf16FlyString> m_selector;
 
     WebDriverConnection::GetStartNode m_get_start_node;
     WebDriverConnection::OnFindComplete m_on_complete;

@@ -74,9 +74,9 @@ public:
 #undef __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE
     };
 
-    StringView type() const;
+    Utf16String type() const;
     TypeAttributeState type_state() const { return m_type; }
-    void set_type(String const&);
+    void set_type(Utf16String const&);
 
     Utf16String default_value() const { return get_attribute_value(HTML::AttributeNames::value); }
     void set_default_value(Utf16String const& value) { set_attribute_value(HTML::AttributeNames::value, value); }
@@ -194,7 +194,7 @@ public:
     virtual void clear_algorithm() override;
 
     virtual void form_associated_element_was_inserted() override;
-    virtual void form_associated_element_attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_) override;
+    virtual void form_associated_element_attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
     virtual WebIDL::ExceptionOr<void> cloned(Node&, bool) const override;
 
@@ -264,7 +264,7 @@ private:
     void type_attribute_changed(TypeAttributeState old_state, TypeAttributeState new_state);
     virtual void computed_properties_changed() override;
 
-    virtual bool is_presentational_hint(FlyString const&) const override;
+    virtual bool is_presentational_hint(Utf16FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
     virtual EventResult handle_return_key(FlyString const& ui_input_type) override;
 

@@ -5,7 +5,7 @@ interface HTMLFieldSetElement : HTMLElement {
 
     [CEReactions, Reflect] attribute boolean disabled;
     readonly attribute HTMLFormElement? form;
-    [CEReactions, Reflect] attribute DOMString name;
+    [CEReactions, Reflect] attribute Utf16DOMString name;
 
     readonly attribute DOMString type;
 

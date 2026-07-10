@@ -19,7 +19,7 @@ class HTMLHeadingElement final : public HTMLElement {
 public:
     virtual ~HTMLHeadingElement() override;
 
-    virtual bool is_presentational_hint(FlyString const&) const override;
+    virtual bool is_presentational_hint(Utf16FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
 
     // https://www.w3.org/TR/html-aria/#el-h1-h6
@@ -33,7 +33,7 @@ public:
             return attr;
 
         // Implicit defaults to the number in the element's tag name.
-        return Utf16String::from_utf8(MUST(local_name().to_string().substring_from_byte_offset(1)));
+        return Utf16String::formatted("{}", local_name().code_unit_at(1) - '0');
     }
 
 private:

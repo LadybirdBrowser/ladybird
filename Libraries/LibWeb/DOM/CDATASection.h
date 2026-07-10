@@ -19,7 +19,7 @@ public:
     virtual ~CDATASection() override;
 
     // ^Node
-    virtual FlyString node_name() const override { return "#cdata-section"_fly_string; }
+    virtual Utf16FlyString node_name() const override { return "#cdata-section"_utf16_fly_string; }
 
 private:
     CDATASection(Document&, Utf16String);

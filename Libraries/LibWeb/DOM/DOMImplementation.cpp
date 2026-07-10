@@ -49,7 +49,7 @@ void DOMImplementation::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://dom.spec.whatwg.org/#dom-domimplementation-createdocument
-WebIDL::ExceptionOr<GC::Ref<XMLDocument>> DOMImplementation::create_document(Optional<FlyString> const& namespace_, String const& qualified_name, GC::Ptr<DocumentType> doctype) const
+WebIDL::ExceptionOr<GC::Ref<XMLDocument>> DOMImplementation::create_document(Optional<Utf16FlyString> namespace_, Utf16FlyString const& qualified_name, GC::Ptr<DocumentType> doctype) const
 {
     // 1. Let document be a new XMLDocument
     auto xml_document = XMLDocument::create(realm());
@@ -104,7 +104,7 @@ GC::Ref<Document> DOMImplementation::create_html_document(Optional<Utf16String> 
 
     // 3. Append a new doctype, with "html" as its name and with its node document set to doc, to doc.
     auto doctype = realm().create<DocumentType>(html_document);
-    doctype->set_name("html"_string);
+    doctype->set_name(HTML::TagNames::html);
     MUST(html_document->append_child(*doctype));
 
     // 4. Append the result of creating an element given doc, "html", and the HTML namespace, to doc.
@@ -138,11 +138,11 @@ GC::Ref<Document> DOMImplementation::create_html_document(Optional<Utf16String> 
 }
 
 // https://dom.spec.whatwg.org/#dom-domimplementation-createdocumenttype
-WebIDL::ExceptionOr<GC::Ref<DocumentType>> DOMImplementation::create_document_type(String const& name, String const& public_id, String const& system_id)
+WebIDL::ExceptionOr<GC::Ref<DocumentType>> DOMImplementation::create_document_type(Utf16FlyString const& name, Utf16String const& public_id, Utf16String const& system_id)
 {
 
     // 1. If name is not a valid doctype name, then throw an "InvalidCharacterError" DOMException.
-    if (!is_valid_doctype_name(name))
+    if (!is_valid_doctype_name(name.view()))
         return WebIDL::InvalidCharacterError::create(realm(), "Invalid doctype name"_utf16);
 
     // 2. Return a new doctype, with name as its name, publicId as its public ID, and systemId as its system ID, and with its node document set to the associated document of this.

@@ -93,16 +93,16 @@ void dump_tree(StringBuilder& builder, DOM::Node const& node)
     for (int i = 0; i < indent; ++i)
         builder.append("  "sv);
     if (auto const* element = as_if<DOM::Element>(node)) {
-        auto namespace_prefix = [&] -> FlyString {
+        auto namespace_prefix = [&] -> Utf16FlyString {
             auto const& namespace_uri = element->namespace_uri();
-            if (!namespace_uri.has_value() || node.document().is_default_namespace(namespace_uri.value().to_string()))
-                return ""_fly_string;
+            if (!namespace_uri.has_value() || node.document().is_default_namespace(namespace_uri->to_utf16_string()))
+                return ""_utf16_fly_string;
             if (namespace_uri == Namespace::HTML)
-                return "html:"_fly_string;
+                return "html:"_utf16_fly_string;
             if (namespace_uri == Namespace::SVG)
-                return "svg:"_fly_string;
+                return "svg:"_utf16_fly_string;
             if (namespace_uri == Namespace::MathML)
-                return "mathml:"_fly_string;
+                return "mathml:"_utf16_fly_string;
             return *namespace_uri;
         }();
 
@@ -162,9 +162,9 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
     static size_t indent = 0;
     builder.append_repeated("  "sv, indent);
 
-    FlyString tag_name;
+    Utf16FlyString tag_name;
     if (layout_node.is_anonymous())
-        tag_name = "(anonymous)"_fly_string;
+        tag_name = "(anonymous)"_utf16_fly_string;
     else if (is<DOM::Element>(layout_node.dom_node()))
         tag_name = as<DOM::Element>(*layout_node.dom_node()).local_name();
     else

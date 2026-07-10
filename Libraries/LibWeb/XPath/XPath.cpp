@@ -36,18 +36,19 @@ static xmlNodePtr mirror_node(xmlDocPtr doc, DOM::Node const& node)
     }
     case DOM::NodeType::ELEMENT_NODE: {
         auto const& element = static_cast<DOM::Element const&>(node);
-        ByteString name = element.local_name().bytes_as_string_view();
+        auto name = element.local_name().view().to_utf8_but_should_be_ported_to_utf16().to_byte_string();
         auto* xml_element = xmlNewDocNode(doc, nullptr, bit_cast<xmlChar const*>(name.characters()), nullptr);
         xml_element->_private = bit_cast<void*>(&node);
         for (size_t i = 0; i < element.attribute_list_size(); ++i) {
             auto const& attribute = *element.attributes()->item(i);
-            ByteString attr_name = attribute.name().bytes_as_string_view();
+            auto attr_name_utf8 = attribute.name().view().to_utf8_but_should_be_ported_to_utf16();
+            ByteString attr_name = attr_name_utf8.bytes_as_string_view();
             auto attr_value_utf8 = attribute.value().to_utf8();
             ByteString attr_value = attr_value_utf8.bytes_as_string_view();
             auto* attr = xmlSetProp(xml_element, bit_cast<xmlChar const*>(attr_name.characters()), bit_cast<xmlChar const*>(attr_value.characters()));
             attr->_private = bit_cast<void*>(&attribute);
 
-            if (attribute.name() == "id") {
+            if (attribute.name() == "id"sv) {
                 xmlAddIDSafe(attr, bit_cast<xmlChar const*>(attr_value.characters()));
             }
         }
@@ -81,7 +82,8 @@ static xmlNodePtr mirror_node(xmlDocPtr doc, DOM::Node const& node)
     }
     case DOM::NodeType::PROCESSING_INSTRUCTION_NODE: {
         auto const& processing_instruction = static_cast<DOM::ProcessingInstruction const&>(node);
-        auto* xml_pi = xmlNewDocPI(doc, bit_cast<xmlChar const*>(processing_instruction.target().to_byte_string().characters()), bit_cast<xmlChar const*>(processing_instruction.data().to_byte_string().characters()));
+        auto target = processing_instruction.target().view().to_utf8_but_should_be_ported_to_utf16().to_byte_string();
+        auto* xml_pi = xmlNewDocPI(doc, bit_cast<xmlChar const*>(target.characters()), bit_cast<xmlChar const*>(processing_instruction.data().to_byte_string().characters()));
         xml_pi->_private = bit_cast<void*>(&node);
         return xml_pi;
     }

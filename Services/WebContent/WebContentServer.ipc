@@ -121,9 +121,9 @@ endpoint WebContentServer
     get_dom_node_outer_html(u64 page_id, Web::UniqueNodeID node_id) =|
     set_dom_node_outer_html(u64 page_id, Web::UniqueNodeID node_id, String html) =|
     set_dom_node_text(u64 page_id, Web::UniqueNodeID node_id, String text) =|
-    set_dom_node_tag(u64 page_id, Web::UniqueNodeID node_id, String name) =|
+    set_dom_node_tag(u64 page_id, Web::UniqueNodeID node_id, Utf16FlyString name) =|
     add_dom_node_attributes(u64 page_id, Web::UniqueNodeID node_id, Vector<WebView::Attribute> attributes) =|
-    replace_dom_node_attribute(u64 page_id, Web::UniqueNodeID node_id, String name, Vector<WebView::Attribute> replacement_attributes) =|
+    replace_dom_node_attribute(u64 page_id, Web::UniqueNodeID node_id, Utf16FlyString name, Vector<WebView::Attribute> replacement_attributes) =|
     create_child_element(u64 page_id, Web::UniqueNodeID node_id) =|
     create_child_text_node(u64 page_id, Web::UniqueNodeID node_id) =|
     insert_dom_node_before(u64 page_id, Web::UniqueNodeID node_id, Web::UniqueNodeID parent_node_id, Optional<Web::UniqueNodeID> sibling_node_id) =|

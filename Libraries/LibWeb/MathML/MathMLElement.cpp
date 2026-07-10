@@ -28,7 +28,7 @@ MathMLElement::MathMLElement(DOM::Document& document, DOM::QualifiedName qualifi
 {
 }
 
-void MathMLElement::attribute_changed(FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
+void MathMLElement::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(local_name, old_value, value, namespace_);
     HTMLOrSVGOrMathMLElement::attribute_changed(local_name, old_value, value, namespace_);
@@ -67,7 +67,7 @@ void MathMLElement::visit_edges(JS::Cell::Visitor& visitor)
     HTMLOrSVGOrMathMLElement::visit_edges(visitor);
 }
 
-bool MathMLElement::is_presentational_hint(FlyString const& name) const
+bool MathMLElement::is_presentational_hint(Utf16FlyString const& name) const
 {
     return first_is_one_of(name, AttributeNames::dir, AttributeNames::mathcolor, AttributeNames::mathbackground,
         AttributeNames::mathsize, AttributeNames::displaystyle, AttributeNames::scriptlevel);

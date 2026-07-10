@@ -14,7 +14,7 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(MimeType);
 
-MimeType::MimeType(JS::Realm& realm, String type)
+MimeType::MimeType(JS::Realm& realm, Utf16FlyString type)
     : Bindings::PlatformObject(realm)
     , m_type(move(type))
 {
@@ -29,7 +29,7 @@ void MimeType::initialize(JS::Realm& realm)
 }
 
 // https://html.spec.whatwg.org/multipage/system-state.html#concept-mimetype-type
-String const& MimeType::type() const
+Utf16FlyString const& MimeType::type() const
 {
     // The MimeType interface's type getter steps are to return this's type.
     return m_type;

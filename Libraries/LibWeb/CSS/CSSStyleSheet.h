@@ -123,8 +123,8 @@ public:
 
     bool disallow_modification() const { return m_disallow_modification; }
 
-    void set_source_text(String source) { m_source_text = move(source); }
-    Optional<String> source_text() const { return m_source_text; }
+    void set_source_text(Utf16String source) { m_source_text = move(source); }
+    Optional<Utf16String> source_text() const { return m_source_text; }
 
     void add_critical_subresource(Subresource&);
     void remove_critical_subresource(Subresource&);
@@ -146,7 +146,7 @@ private:
 
     Parser::ParsingParams make_parsing_params() const;
 
-    Optional<String> m_source_text;
+    Optional<Utf16String> m_source_text;
 
     GC::Ptr<CSSRuleList> m_rules;
     GC::Ptr<CSSNamespaceRule> m_default_namespace_rule;

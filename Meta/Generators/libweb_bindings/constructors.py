@@ -132,8 +132,8 @@ def write_html_constructor_steps(
         raise RuntimeError(f"Unsupported [HTMLConstructor] with parameters on '{interface.name}'")
 
     includes.add("AK/Optional.h")
-    includes.add("AK/String.h")
     includes.add("AK/TypeCasts.h")
+    includes.add("AK/Utf16FlyString.h")
     includes.add("LibGC/Ptr.h")
     includes.add("LibJS/Runtime/Error.h")
     includes.add("LibWeb/Bindings/MainThreadVM.h")
@@ -179,7 +179,7 @@ def write_html_constructor_steps(
         return vm.throw_completion<JS::TypeError>("There is no custom element definition assigned to the given constructor"_utf16);
 
     // 6. Let isValue be null.
-    Optional<String> is_value;
+    Optional<Utf16FlyString> is_value;
 
     // 7. If definition's local name is equal to definition's name (i.e., definition is for an autonomous custom element):
     if (definition->local_name() == definition->name()) {{

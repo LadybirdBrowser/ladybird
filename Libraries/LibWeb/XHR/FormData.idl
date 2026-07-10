@@ -1,17 +1,17 @@
-typedef (File or USVString) FormDataEntryValue;
+typedef (File or Utf16USVString) FormDataEntryValue;
 
 // https://xhr.spec.whatwg.org/#interface-formdata
 [Exposed=(Window,Worker)]
 interface FormData {
     constructor(optional HTMLFormElement form, optional HTMLElement? submitter = null);
 
-    undefined append(USVString name, USVString value);
-    undefined append(USVString name, Blob blobValue, optional USVString filename);
-    undefined delete(USVString name);
-    FormDataEntryValue? get(USVString name);
-    sequence<FormDataEntryValue> getAll(USVString name);
-    boolean has(USVString name);
-    undefined set(USVString name, USVString value);
-    undefined set(USVString name, Blob blobValue, optional USVString filename);
-    iterable<USVString, FormDataEntryValue>;
+    undefined append(Utf16USVString name, Utf16USVString value);
+    undefined append(Utf16USVString name, Blob blobValue, optional USVString filename);
+    undefined delete(Utf16USVString name);
+    FormDataEntryValue? get(Utf16USVString name);
+    sequence<FormDataEntryValue> getAll(Utf16USVString name);
+    boolean has(Utf16USVString name);
+    undefined set(Utf16USVString name, Utf16USVString value);
+    undefined set(Utf16USVString name, Blob blobValue, optional USVString filename);
+    iterable<Utf16USVString, FormDataEntryValue>;
 };

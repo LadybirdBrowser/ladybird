@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
 #include <AK/Optional.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
 
 namespace Web::DOM {
@@ -20,7 +20,7 @@ namespace Web::CSS::Invalidation {
 
 void invalidate_style_after_attribute_change(
     DOM::Element&,
-    FlyString const& attribute_name,
+    Utf16FlyString const& attribute_name,
     Optional<Utf16String> const& old_value,
     Optional<Utf16String> const& new_value);
 

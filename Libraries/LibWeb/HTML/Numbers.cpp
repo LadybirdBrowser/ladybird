@@ -450,11 +450,11 @@ bool is_valid_floating_point_number(Utf16View string)
     return is_valid_floating_point_number_impl(string);
 }
 
-WebIDL::ExceptionOr<String> convert_non_negative_integer_to_string(JS::Realm& realm, WebIDL::Long value)
+WebIDL::ExceptionOr<Utf16String> convert_non_negative_integer_to_string(JS::Realm& realm, WebIDL::Long value)
 {
     if (value < 0)
         return WebIDL::IndexSizeError::create(realm, "The attribute is limited to only non-negative numbers"_utf16);
-    return String::number(value);
+    return Utf16String::number(value);
 }
 
 }

@@ -34,7 +34,7 @@ RefPtr<Layout::Node> HTMLBRElement::create_layout_node(CSS::ComputedProperties c
     return make_ref_counted<Layout::BreakNode>(document(), *this, style);
 }
 
-bool HTMLBRElement::is_presentational_hint(FlyString const& name) const
+bool HTMLBRElement::is_presentational_hint(Utf16FlyString const& name) const
 {
     if (Base::is_presentational_hint(name))
         return true;

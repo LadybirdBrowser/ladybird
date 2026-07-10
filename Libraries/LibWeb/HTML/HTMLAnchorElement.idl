@@ -16,7 +16,7 @@ interface HTMLAnchorElement : HTMLElement {
     // Obsolete
     [CEReactions, Reflect] attribute DOMString coords;
     [CEReactions, Reflect] attribute DOMString charset;
-    [CEReactions, Reflect] attribute DOMString name;
+    [CEReactions, Reflect] attribute Utf16DOMString name;
     [CEReactions, Reflect] attribute DOMString rev;
     [CEReactions, Reflect] attribute DOMString shape;
 

@@ -35,7 +35,7 @@ void SVGFEBlendElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_in2);
 }
 
-void SVGFEBlendElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value, Optional<FlyString> const& namespace_)
+void SVGFEBlendElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, new_value, namespace_);
 

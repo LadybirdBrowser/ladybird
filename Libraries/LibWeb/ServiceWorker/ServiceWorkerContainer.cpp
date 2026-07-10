@@ -80,7 +80,7 @@ GC::Ref<WebIDL::Promise> ServiceWorkerContainer::register_(TrustedTypes::Trusted
 
     // 4. Let scriptURL be the result of parsing scriptURL with this's relevant settings object’s API base URL.
     auto base_url = HTML::relevant_settings_object(*this).api_base_url();
-    auto parsed_script_url = DOMURL::parse(compliant_script_url.to_utf8_but_should_be_ported_to_utf16(), base_url);
+    auto parsed_script_url = DOMURL::parse(compliant_script_url.utf16_view(), base_url);
 
     // 5. Let scopeURL be null.
     Optional<URL::URL> scope_url;

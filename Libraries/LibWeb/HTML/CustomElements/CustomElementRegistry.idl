@@ -3,10 +3,10 @@
 interface CustomElementRegistry {
     constructor();
 
-    [CEReactions] undefined define(DOMString name, CustomElementConstructor constructor, optional ElementDefinitionOptions options = {});
-    (CustomElementConstructor or undefined) get(DOMString name);
-    DOMString? getName(CustomElementConstructor constructor);
-    Promise<CustomElementConstructor> whenDefined(DOMString name);
+    [CEReactions] undefined define([Utf16FlyString] Utf16DOMString name, CustomElementConstructor constructor, optional ElementDefinitionOptions options = {});
+    (CustomElementConstructor or undefined) get([Utf16FlyString] Utf16DOMString name);
+    Utf16DOMString? getName(CustomElementConstructor constructor);
+    Promise<CustomElementConstructor> whenDefined([Utf16FlyString] Utf16DOMString name);
     [CEReactions] undefined upgrade(Node root);
     [CEReactions, ImplementedAs=initialize_for_bindings] undefined initialize(Node root);
 };
@@ -14,5 +14,5 @@ interface CustomElementRegistry {
 callback CustomElementConstructor = HTMLElement ();
 
 dictionary ElementDefinitionOptions {
-    DOMString extends;
+    [Utf16FlyString] Utf16DOMString extends;
 };

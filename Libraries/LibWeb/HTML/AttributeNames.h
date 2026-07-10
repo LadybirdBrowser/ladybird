@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/Export.h>
 
 namespace Web::HTML {
@@ -331,12 +331,12 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(wrap, "wrap")                                                       \
     __ENUMERATE_HTML_ATTRIBUTE(writingsuggestions, "writingsuggestions")
 
-#define __ENUMERATE_HTML_ATTRIBUTE(name, attribute) extern WEB_API FlyString const& name;
+#define __ENUMERATE_HTML_ATTRIBUTE(name, attribute) extern WEB_API Utf16FlyString const& name;
 ENUMERATE_HTML_ATTRIBUTES
 #undef __ENUMERATE_HTML_ATTRIBUTE
 
 }
 
-WEB_API bool is_boolean_attribute(FlyString const& attribute);
+WEB_API bool is_boolean_attribute(Utf16FlyString const& attribute);
 
 }

@@ -18,7 +18,7 @@ public:
     static WebIDL::ExceptionOr<GC::Ref<Comment>> construct_impl(JS::Realm&, Utf16String data);
     virtual ~Comment() override = default;
 
-    virtual FlyString node_name() const override { return "#comment"_fly_string; }
+    virtual Utf16FlyString node_name() const override { return "#comment"_utf16_fly_string; }
 
 private:
     Comment(Document&, Utf16String);

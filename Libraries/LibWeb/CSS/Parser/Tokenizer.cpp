@@ -233,6 +233,44 @@ Vector<Token> Tokenizer::tokenize(StringView input, StringView encoding, Tokeniz
     return tokenizer.tokenize();
 }
 
+Vector<Token> Tokenizer::tokenize(Utf16View input)
+{
+    StringBuilder builder { input.length_in_code_units() };
+    bool last_was_carriage_return = false;
+
+    for (auto code_point : input) {
+        if (code_point == '\r') {
+            if (last_was_carriage_return)
+                builder.append('\n');
+            else
+                last_was_carriage_return = true;
+            continue;
+        }
+
+        if (last_was_carriage_return)
+            builder.append('\n');
+
+        if (code_point == '\n') {
+            if (!last_was_carriage_return)
+                builder.append('\n');
+        } else if (code_point == '\f') {
+            builder.append('\n');
+        } else if (code_point == 0x00 || is_unicode_surrogate(code_point)) {
+            builder.append_code_point(REPLACEMENT_CHARACTER);
+        } else {
+            builder.append_code_point(code_point);
+        }
+
+        last_was_carriage_return = false;
+    }
+
+    if (last_was_carriage_return)
+        builder.append('\n');
+
+    Tokenizer tokenizer { builder.to_string_without_validation() };
+    return tokenizer.tokenize();
+}
+
 Tokenizer::Tokenizer(String decoded_input)
     : m_decoded_input(move(decoded_input))
     , m_utf8_view(m_decoded_input)

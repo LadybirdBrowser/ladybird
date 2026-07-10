@@ -48,7 +48,7 @@ void CSSStyleDeclaration::update_style_attribute()
     set_is_updating(true);
 
     // 5. Set an attribute value for owner node using "style" and the result of serializing declaration block.
-    owner_node()->element().set_attribute_value(HTML::AttributeNames::style, serialized());
+    owner_node()->element().set_attribute_value(HTML::AttributeNames::style, Utf16String::from_utf8(serialized()));
 
     // 6. Unset declaration block’s updating flag.
     set_is_updating(false);

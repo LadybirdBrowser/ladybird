@@ -42,9 +42,9 @@ interface Document : Node {
 
 
     Element? getElementById(Utf16DOMString id);
-    NodeList getElementsByName([FlyString] DOMString name);
-    HTMLCollection getElementsByTagName([FlyString] DOMString tagName);
-    HTMLCollection getElementsByTagNameNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
+    NodeList getElementsByName(Utf16DOMString name);
+    HTMLCollection getElementsByTagName([Utf16FlyString] Utf16DOMString tagName);
+    HTMLCollection getElementsByTagNameNS([Utf16FlyString] Utf16DOMString? namespace, [Utf16FlyString] Utf16DOMString localName);
     HTMLCollection getElementsByClassName(Utf16DOMString className);
 
     [SameObject] readonly attribute HTMLCollection applets;
@@ -62,16 +62,16 @@ interface Document : Node {
     undefined captureEvents();
     undefined releaseEvents();
 
-    [CEReactions, NewObject] Element createElement(DOMString tagName, optional (DOMString or ElementCreationOptions) options = {});
-    [CEReactions, NewObject] Element createElementNS([FlyString] DOMString? namespace, DOMString qualifiedName, optional (DOMString or ElementCreationOptions) options = {});
+    [CEReactions, NewObject] Element createElement([Utf16FlyString] Utf16DOMString tagName, optional ([Utf16FlyString] Utf16DOMString or ElementCreationOptions) options = {});
+    [CEReactions, NewObject] Element createElementNS([Utf16FlyString] Utf16DOMString? namespace, [Utf16FlyString] Utf16DOMString qualifiedName, optional ([Utf16FlyString] Utf16DOMString or ElementCreationOptions) options = {});
     DocumentFragment createDocumentFragment();
     Text createTextNode(Utf16DOMString data);
     [NewObject] CDATASection createCDATASection(Utf16DOMString data);
     Comment createComment(Utf16DOMString data);
-    [NewObject] ProcessingInstruction createProcessingInstruction(DOMString target, Utf16DOMString data);
+    [NewObject] ProcessingInstruction createProcessingInstruction([Utf16FlyString] Utf16DOMString target, Utf16DOMString data);
 
-    [NewObject] Attr createAttribute(DOMString localName);
-    [NewObject] Attr createAttributeNS([FlyString] DOMString? namespace, DOMString qualifiedName);
+    [NewObject] Attr createAttribute([Utf16FlyString] Utf16DOMString localName);
+    [NewObject] Attr createAttributeNS([Utf16FlyString] Utf16DOMString? namespace, [Utf16FlyString] Utf16DOMString qualifiedName);
 
     Range createRange();
     Event createEvent(DOMString interface);
@@ -83,7 +83,7 @@ interface Document : Node {
     readonly attribute DocumentType? doctype;
 
     readonly attribute Element? documentElement;
-    [CEReactions] attribute DOMString dir;
+    [CEReactions] attribute Utf16DOMString dir;
     [CEReactions] attribute HTMLElement? body;
     readonly attribute HTMLHeadElement? head;
     readonly attribute HTMLScriptElement? currentScript;
@@ -142,7 +142,7 @@ dictionary CaretPositionFromPointOptions {
 // https://dom.spec.whatwg.org/#dictdef-elementcreationoptions
 dictionary ElementCreationOptions {
     CustomElementRegistry? customElementRegistry;
-    DOMString is;
+    [Utf16FlyString] Utf16DOMString is;
 };
 
 // https://dom.spec.whatwg.org/#dictdef-importnodeoptions

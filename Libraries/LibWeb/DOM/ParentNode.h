@@ -30,8 +30,8 @@ public:
 
     GC::Ref<HTMLCollection> children();
 
-    GC::Ref<HTMLCollection> get_elements_by_tag_name(FlyString const&);
-    GC::Ref<HTMLCollection> get_elements_by_tag_name_ns(Optional<FlyString>, FlyString const&);
+    GC::Ref<HTMLCollection> get_elements_by_tag_name(Utf16FlyString const&);
+    GC::Ref<HTMLCollection> get_elements_by_tag_name_ns(Optional<Utf16FlyString>, Utf16FlyString const&);
 
     WebIDL::ExceptionOr<void> prepend(ReadonlySpan<Variant<GC::Ref<Node>, Utf16String>> const& nodes);
     WebIDL::ExceptionOr<void> append(ReadonlySpan<Variant<GC::Ref<Node>, Utf16String>> const& nodes);

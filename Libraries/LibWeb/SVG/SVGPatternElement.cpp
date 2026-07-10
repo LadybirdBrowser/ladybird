@@ -20,6 +20,7 @@
 #include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/AttributeParser.h>
+#include <LibWeb/SVG/FragmentIdentifier.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
 #include <LibWeb/SVG/SVGPatternElement.h>
 
@@ -46,7 +47,7 @@ void SVGPatternElement::visit_edges(Cell::Visitor& visitor)
     SVGFitToViewBox::visit_edges(visitor);
 }
 
-void SVGPatternElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
+void SVGPatternElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
     SVGFitToViewBox::attribute_changed(*this, name, value);
@@ -75,7 +76,7 @@ void SVGPatternElement::attribute_changed(FlyString const& name, Optional<Utf16S
 GC::Ptr<SVGPatternElement const> SVGPatternElement::linked_pattern(GC::RootHashTable<SVGPatternElement const*>& seen_patterns) const
 {
     // FIXME: This can only resolve same-document references. The spec allows cross-document references.
-    auto link = has_attribute(AttributeNames::href) ? get_attribute(AttributeNames::href) : get_attribute("xlink:href"_fly_string);
+    auto link = has_attribute(AttributeNames::href) ? get_attribute(AttributeNames::href) : get_attribute(AttributeNames::xlink_href);
     if (!link.has_value() || link->is_empty())
         return {};
 
@@ -87,7 +88,7 @@ GC::Ptr<SVGPatternElement const> SVGPatternElement::linked_pattern(GC::RootHashT
     if (!id.has_value() || id->is_empty())
         return {};
 
-    auto element = document().get_element_by_id(Utf16String::from_utf8(id.value()));
+    auto element = document().get_element_by_id(decode_fragment_identifier(id.value()));
     if (!element)
         return {};
 

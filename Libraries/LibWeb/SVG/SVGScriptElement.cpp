@@ -50,7 +50,7 @@ void SVGScriptElement::adopted_from(DOM::Document& old_document)
         m_document_load_event_delayer.emplace(document());
 }
 
-void SVGScriptElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
+void SVGScriptElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
     if (name == SVG::AttributeNames::href || name == SVG::AttributeNames::type) {
@@ -105,7 +105,7 @@ void SVGScriptElement::process_the_script_element()
     //    using the current value of the 'xlink:href' attribute is fetched. Further processing of the
     //    'script' element is dependent on the external script content, and will block here until the
     //    resource has been fetched or is determined to be an invalid IRI reference.
-    if (has_attribute(SVG::AttributeNames::href) || has_attribute_ns(Namespace::XLink.to_string(), SVG::AttributeNames::href)) {
+    if (has_attribute(SVG::AttributeNames::href) || has_attribute_ns(Namespace::XLink, SVG::AttributeNames::href)) {
         auto href_value = href()->base_val();
 
         auto maybe_script_url = document().encoding_parse_url(href_value);

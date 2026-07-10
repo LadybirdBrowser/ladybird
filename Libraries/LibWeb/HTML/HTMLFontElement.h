@@ -17,7 +17,7 @@ class HTMLFontElement final : public HTMLElement {
 public:
     virtual ~HTMLFontElement() override;
 
-    virtual bool is_presentational_hint(FlyString const&) const override;
+    virtual bool is_presentational_hint(Utf16FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
 
     static Optional<CSS::Keyword> parse_legacy_font_size(StringView);

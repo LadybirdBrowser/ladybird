@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/FlyString.h>
 #include <AK/Optional.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
@@ -37,7 +36,7 @@ static void for_each_ascii_whitespace_separated_token(Utf16View input, Callback 
 
 void invalidate_style_after_attribute_change(
     DOM::Element& element,
-    FlyString const& attribute_name,
+    Utf16FlyString const& attribute_name,
     Optional<Utf16String> const& old_value,
     Optional<Utf16String> const& new_value)
 {
@@ -80,7 +79,7 @@ void invalidate_style_after_attribute_change(
         changed_properties.append({ .type = InvalidationSet::Property::Type::PseudoClass, .value = PseudoClass::Optional });
     }
 
-    auto attribute_name_for_invalidation = Utf16FlyString::from_fly_string(attribute_name);
+    auto attribute_name_for_invalidation = attribute_name;
     if (!new_value.has_value())
         element.remember_removed_attribute_for_style_invalidation(attribute_name_for_invalidation);
 

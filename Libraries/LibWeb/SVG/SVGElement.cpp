@@ -39,20 +39,20 @@ void SVGElement::initialize(JS::Realm& realm)
 }
 
 struct NamedPropertyID {
-    NamedPropertyID(CSS::PropertyID property_id, Utf16FlyString name, Vector<FlyString> supported_elements = {})
+    NamedPropertyID(CSS::PropertyID property_id, Utf16FlyString name, Vector<Utf16FlyString> supported_elements = {})
         : id(property_id)
         , name(move(name))
         , supported_elements(move(supported_elements))
     {
     }
-    NamedPropertyID(CSS::PropertyID property_id, Vector<FlyString> supported_elements = {})
+    NamedPropertyID(CSS::PropertyID property_id, Vector<Utf16FlyString> supported_elements = {})
         : NamedPropertyID(property_id, CSS::string_from_property_id(property_id).to_utf16_string(), move(supported_elements))
     {
     }
 
     CSS::PropertyID id;
     Utf16FlyString name;
-    Vector<FlyString> supported_elements;
+    Vector<Utf16FlyString> supported_elements;
 };
 
 static ReadonlySpan<NamedPropertyID> attribute_style_properties()
@@ -126,12 +126,12 @@ static ReadonlySpan<NamedPropertyID> attribute_style_properties()
     return properties;
 }
 
-bool SVGElement::is_presentational_hint(FlyString const& name) const
+bool SVGElement::is_presentational_hint(Utf16FlyString const& name) const
 {
     if (Base::is_presentational_hint(name))
         return true;
 
-    return any_of(attribute_style_properties(), [&](auto& property) { return property.name.equals_ignoring_ascii_case(name.bytes_as_string_view()); });
+    return any_of(attribute_style_properties(), [&](auto& property) { return property.name.equals_ignoring_ascii_case(name); });
 }
 
 void SVGElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
@@ -140,7 +140,7 @@ void SVGElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properti
     CSS::Parser::ParsingParams parsing_context { document(), CSS::Parser::ParsingMode::SVGPresentationAttribute };
     for_each_attribute([&](auto& name, auto& value) {
         for (auto& property : attribute_style_properties()) {
-            if (!property.name.equals_ignoring_ascii_case(name.bytes_as_string_view()))
+            if (!property.name.equals_ignoring_ascii_case(name.view()))
                 continue;
             if (!property.supported_elements.is_empty() && !property.supported_elements.contains_slow(local_name()))
                 continue;
@@ -201,7 +201,7 @@ void SVGElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_class_name_animated_string);
 }
 
-void SVGElement::attribute_changed(FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
+void SVGElement::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(local_name, old_value, value, namespace_);
     HTMLOrSVGOrMathMLElement::attribute_changed(local_name, old_value, value, namespace_);

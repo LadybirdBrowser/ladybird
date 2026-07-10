@@ -10,6 +10,7 @@
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
+#include <AK/Utf16View.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/Parser/HTMLToken.h>
 
@@ -134,6 +135,7 @@ public:
     void close_input_stream();
     bool is_input_stream_closed() const { return m_input_stream_closed; }
     void insert_input_at_insertion_point(StringView input);
+    void insert_input_at_insertion_point(Utf16View input);
     void insert_eof();
 
     bool is_insertion_point_defined() const;

@@ -19,7 +19,7 @@ class SVGRadialGradientElement : public SVGGradientElement {
 public:
     virtual ~SVGRadialGradientElement() override = default;
 
-    virtual void attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_) override;
+    virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
     virtual Optional<Painting::PaintStyle> to_gfx_paint_style(SVGPaintContext const&) const override;
 

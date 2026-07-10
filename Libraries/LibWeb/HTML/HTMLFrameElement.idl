@@ -4,7 +4,7 @@ interface HTMLFrameElement : HTMLElement {
 
     [HTMLConstructor] constructor();
 
-    [CEReactions, Reflect] attribute DOMString name;
+    [CEReactions, Reflect] attribute Utf16DOMString name;
     [CEReactions, Reflect] attribute DOMString scrolling;
     [CEReactions, Reflect, URL] attribute USVString src;
     [CEReactions, Reflect=frameborder] attribute DOMString frameBorder;

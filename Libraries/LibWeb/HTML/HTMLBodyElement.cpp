@@ -43,7 +43,7 @@ void HTMLBodyElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-bool HTMLBodyElement::is_presentational_hint(FlyString const& name) const
+bool HTMLBodyElement::is_presentational_hint(Utf16FlyString const& name) const
 {
     if (Base::is_presentational_hint(name))
         return true;
@@ -113,7 +113,7 @@ void HTMLBodyElement::apply_presentational_hints(Vector<CSS::StyleProperty>& pro
     apply_margin_value(CSS::PropertyID::MarginRight, margin_right_value);
 }
 
-void HTMLBodyElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
+void HTMLBodyElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
@@ -141,9 +141,9 @@ void HTMLBodyElement::attribute_changed(FlyString const& name, Optional<Utf16Str
     }
 
 #undef __ENUMERATE
-#define __ENUMERATE(attribute_name, event_name)                     \
-    if (name == HTML::AttributeNames::attribute_name) {             \
-        element_event_handler_attribute_changed(event_name, value); \
+#define __ENUMERATE(attribute_name, event_name)               \
+    if (name == HTML::AttributeNames::attribute_name) {       \
+        element_event_handler_attribute_changed(name, value); \
     }
     ENUMERATE_WINDOW_EVENT_HANDLERS(__ENUMERATE)
 #undef __ENUMERATE

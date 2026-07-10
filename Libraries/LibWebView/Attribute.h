@@ -6,15 +6,16 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16FlyString.h>
+#include <AK/Utf16String.h>
 #include <LibIPC/Forward.h>
 #include <LibWebView/Forward.h>
 
 namespace WebView {
 
 struct WEBVIEW_API Attribute {
-    String name;
-    String value;
+    Utf16FlyString name;
+    Utf16String value;
 };
 
 }

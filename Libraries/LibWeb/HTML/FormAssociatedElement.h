@@ -104,7 +104,7 @@ public:
     virtual void clear_algorithm();
 
     String form_action() const;
-    void set_form_action(String const&);
+    void set_form_action(Utf16String const&);
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-reportvalidity
     bool report_validity();
@@ -154,12 +154,12 @@ protected:
     virtual void form_associated_element_was_inserted();
     virtual void form_associated_element_was_removed(DOM::Node*);
     virtual void form_associated_element_was_moved(GC::Ptr<DOM::Node>);
-    virtual void form_associated_element_attribute_changed(FlyString const&, Optional<Utf16String> const&, Optional<Utf16String> const&, Optional<FlyString> const&);
+    virtual void form_associated_element_attribute_changed(Utf16FlyString const&, Optional<Utf16String> const&, Optional<Utf16String> const&, Optional<Utf16FlyString> const&);
 
     void form_node_was_inserted();
     void form_node_was_removed();
     void form_node_was_moved();
-    void form_node_attribute_changed(FlyString const&, Optional<Utf16String> const&);
+    void form_node_attribute_changed(Utf16FlyString const&, Optional<Utf16String> const&);
 
     void visit_edges(JS::Cell::Visitor&);
 

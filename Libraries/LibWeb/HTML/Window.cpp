@@ -748,11 +748,11 @@ Vector<GC::Ref<Plugin>> Window::pdf_viewer_plugin_objects()
 
     if (m_pdf_viewer_plugin_objects.is_empty()) {
         // FIXME: Propagate errors.
-        m_pdf_viewer_plugin_objects.append(realm().create<Plugin>(realm(), "PDF Viewer"_string));
-        m_pdf_viewer_plugin_objects.append(realm().create<Plugin>(realm(), "Chrome PDF Viewer"_string));
-        m_pdf_viewer_plugin_objects.append(realm().create<Plugin>(realm(), "Chromium PDF Viewer"_string));
-        m_pdf_viewer_plugin_objects.append(realm().create<Plugin>(realm(), "Microsoft Edge PDF Viewer"_string));
-        m_pdf_viewer_plugin_objects.append(realm().create<Plugin>(realm(), "WebKit built-in PDF"_string));
+        m_pdf_viewer_plugin_objects.append(realm().create<Plugin>(realm(), "PDF Viewer"_utf16_fly_string));
+        m_pdf_viewer_plugin_objects.append(realm().create<Plugin>(realm(), "Chrome PDF Viewer"_utf16_fly_string));
+        m_pdf_viewer_plugin_objects.append(realm().create<Plugin>(realm(), "Chromium PDF Viewer"_utf16_fly_string));
+        m_pdf_viewer_plugin_objects.append(realm().create<Plugin>(realm(), "Microsoft Edge PDF Viewer"_utf16_fly_string));
+        m_pdf_viewer_plugin_objects.append(realm().create<Plugin>(realm(), "WebKit built-in PDF"_utf16_fly_string));
     }
 
     return m_pdf_viewer_plugin_objects;
@@ -770,8 +770,8 @@ Vector<GC::Ref<MimeType>> Window::pdf_viewer_mime_type_objects()
         return {};
 
     if (m_pdf_viewer_mime_type_objects.is_empty()) {
-        m_pdf_viewer_mime_type_objects.append(realm().create<MimeType>(realm(), "application/pdf"_string));
-        m_pdf_viewer_mime_type_objects.append(realm().create<MimeType>(realm(), "text/pdf"_string));
+        m_pdf_viewer_mime_type_objects.append(realm().create<MimeType>(realm(), "application/pdf"_utf16_fly_string));
+        m_pdf_viewer_mime_type_objects.append(realm().create<MimeType>(realm(), "text/pdf"_utf16_fly_string));
     }
 
     return m_pdf_viewer_mime_type_objects;

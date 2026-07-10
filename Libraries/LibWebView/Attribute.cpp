@@ -19,8 +19,8 @@ ErrorOr<void> IPC::encode(Encoder& encoder, WebView::Attribute const& attribute)
 template<>
 ErrorOr<WebView::Attribute> IPC::decode(Decoder& decoder)
 {
-    auto name = TRY(decoder.decode<String>());
-    auto value = TRY(decoder.decode<String>());
+    auto name = TRY(decoder.decode<Utf16FlyString>());
+    auto value = TRY(decoder.decode<Utf16String>());
 
     return WebView::Attribute { move(name), move(value) };
 }

@@ -28,7 +28,7 @@ void HTMLPreElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-bool HTMLPreElement::is_presentational_hint(FlyString const& name) const
+bool HTMLPreElement::is_presentational_hint(Utf16FlyString const& name) const
 {
     if (Base::is_presentational_hint(name))
         return true;

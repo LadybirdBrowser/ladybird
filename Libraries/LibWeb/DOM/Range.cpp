@@ -1345,7 +1345,7 @@ WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::create_contextual_fragment
     }
 
     // 7. Return the result of invoking the fragment parsing algorithm steps with element, compliantString, and Fragment.
-    return element->parse_fragment(compliant_string.to_utf8_but_should_be_ported_to_utf16(), HTML::ParserScriptingMode::Fragment);
+    return element->parse_fragment(compliant_string.utf16_view(), HTML::ParserScriptingMode::Fragment);
 }
 
 }

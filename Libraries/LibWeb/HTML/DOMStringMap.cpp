@@ -57,11 +57,11 @@ Vector<DOMStringMap::NameValuePair> DOMStringMap::get_name_value_pairs() const
     // 2. For each content attribute on the DOMStringMap's associated element whose first five characters are the string "data-" and whose remaining characters (if any) do not include any ASCII upper alphas,
     //    in the order that those attributes are listed in the element's attribute list, add a name-value pair to list whose name is the attribute's name with the first five characters removed and whose value
     //    is the attribute's value.
-    m_associated_element->for_each_attribute([&](auto& name, auto& value) {
-        if (!name.bytes_as_string_view().starts_with("data-"sv))
+    m_associated_element->for_each_attribute([&](Utf16FlyString const& name, auto const& value) {
+        if (!name.view().starts_with("data-"sv))
             return;
 
-        auto name_after_starting_data = Utf16String::from_utf8(name.bytes_as_string_view().substring_view(5));
+        auto name_after_starting_data = Utf16String::from_utf16(name.view().substring_view(5));
         auto name_after_starting_data_view = name_after_starting_data.utf16_view();
 
         for (size_t character_index = 0; character_index < name_after_starting_data_view.length_in_code_units(); ++character_index) {
@@ -164,8 +164,8 @@ WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_new_named_property(Utf16Fly
         builder.append_code_unit(current_character);
     }
 
-    auto data_name_utf16 = builder.to_string();
-    auto data_name = MUST(data_name_utf16.utf16_view().to_utf8());
+    auto data_name_string = builder.to_string();
+    auto data_name = Utf16FlyString::from_utf16(data_name_string.utf16_view());
 
     // 4. If name is not a valid attribute local name, then throw an "InvalidCharacterError" DOMException.
     if (!DOM::is_valid_attribute_local_name(data_name))
@@ -204,8 +204,8 @@ WebIDL::ExceptionOr<Bindings::PlatformObject::DidDeletionFail> DOMStringMap::del
     }
 
     // Remove an attribute by name given name and the DOMStringMap's associated element.
-    auto data_name_utf16 = builder.to_string();
-    auto data_name = MUST(data_name_utf16.utf16_view().to_utf8());
+    auto data_name_string = builder.to_string();
+    auto data_name = Utf16FlyString::from_utf16(data_name_string.utf16_view());
     m_associated_element->remove_attribute(data_name);
 
     // The spec doesn't have the step. This indicates that the deletion was successful.

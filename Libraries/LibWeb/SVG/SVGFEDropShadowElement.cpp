@@ -114,7 +114,7 @@ void SVGFEDropShadowElement::set_std_deviation(float std_deviation_x, float std_
     //
     // stdDeviationY
     //     The Y component of attribute stdDeviation.
-    set_attribute_value(AttributeNames::stdDeviation, MUST(String::formatted("{} {}", std_deviation_x, std_deviation_y)));
+    set_attribute_value(AttributeNames::stdDeviation, Utf16String::formatted("{} {}", std_deviation_x, std_deviation_y));
 }
 
 }

@@ -10,6 +10,7 @@
 #include <AK/JsonObjectSerializer.h>
 #include <AK/JsonValue.h>
 #include <AK/Math.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
 #include <LibCore/Process.h>
 #include <LibCore/Timer.h>
@@ -1213,7 +1214,7 @@ void PageClient::close_worker_agent(Web::HTML::WorkerAgentId agent_id, Web::HTML
     client().async_close_worker_agent(m_id, agent_id, owner_token);
 }
 
-void PageClient::page_did_mutate_dom(FlyString const& type, Web::DOM::Node const& target, Web::DOM::NodeList& added_nodes, Web::DOM::NodeList& removed_nodes, GC::Ptr<Web::DOM::Node>, GC::Ptr<Web::DOM::Node>, Optional<String> const& attribute_name)
+void PageClient::page_did_mutate_dom(FlyString const& type, Web::DOM::Node const& target, Web::DOM::NodeList& added_nodes, Web::DOM::NodeList& removed_nodes, GC::Ptr<Web::DOM::Node>, GC::Ptr<Web::DOM::Node>, Optional<Utf16FlyString> const& attribute_name)
 {
     Optional<WebView::Mutation::Type> mutation;
 
@@ -1223,9 +1224,7 @@ void PageClient::page_did_mutate_dom(FlyString const& type, Web::DOM::Node const
         auto const& element = as<Web::DOM::Element>(target);
         mutation = WebView::AttributeMutation {
             *attribute_name,
-            element.attribute(*attribute_name).map([](auto const& value) {
-                return value.to_utf8();
-            })
+            element.attribute(*attribute_name)
         };
     } else if (type == Web::DOM::MutationType::characterData) {
         auto const& character_data = as<Web::DOM::CharacterData>(target);

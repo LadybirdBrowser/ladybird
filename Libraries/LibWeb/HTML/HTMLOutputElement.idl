@@ -5,7 +5,7 @@ interface HTMLOutputElement : HTMLElement {
 
     [SameObject, PutForwards=value] readonly attribute DOMTokenList htmlFor;
     readonly attribute HTMLFormElement? form;
-    [CEReactions, Reflect] attribute DOMString name;
+    [CEReactions, Reflect] attribute Utf16DOMString name;
 
     readonly attribute DOMString type;
     [CEReactions] attribute Utf16DOMString defaultValue;

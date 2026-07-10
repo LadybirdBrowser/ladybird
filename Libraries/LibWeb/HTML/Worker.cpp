@@ -20,7 +20,7 @@ namespace Web::HTML {
 GC_DEFINE_ALLOCATOR(Worker);
 
 // https://html.spec.whatwg.org/multipage/workers.html#dedicated-workers-and-the-worker-interface
-Worker::Worker(JS::Realm& realm, String const& script_url, Bindings::WorkerOptions const& options)
+Worker::Worker(JS::Realm& realm, Utf16String const& script_url, Bindings::WorkerOptions const& options)
     : DOM::EventTarget(realm)
     , m_script_url(script_url)
     , m_options(options)
@@ -66,7 +66,7 @@ WebIDL::ExceptionOr<GC::Ref<Worker>> Worker::create(JS::Realm& realm, TrustedTyp
     auto& outside_settings = HTML::principal_realm_settings_object(realm);
 
     // 3. Let workerURL be the result of encoding-parsing a URL given compliantScriptURL, relative to outsideSettings.
-    auto worker_url = outside_settings.encoding_parse_url(compliant_script_url.to_utf8_but_should_be_ported_to_utf16());
+    auto worker_url = outside_settings.encoding_parse_url(compliant_script_url.utf16_view());
 
     // 4. If workerURL is failure, then throw a "SyntaxError" DOMException.
     if (!worker_url.has_value()) {
@@ -79,7 +79,7 @@ WebIDL::ExceptionOr<GC::Ref<Worker>> Worker::create(JS::Realm& realm, TrustedTyp
 
     // 8. Let worker be this.
     // AD-HOC: AD-HOC: We do this first so that we can use `this`.
-    auto worker = realm.create<Worker>(realm, compliant_script_url.to_utf8_but_should_be_ported_to_utf16(), options);
+    auto worker = realm.create<Worker>(realm, compliant_script_url, options);
 
     // 6. Set outsidePort's message event target to this.
     outside_port->set_worker_event_target(worker);

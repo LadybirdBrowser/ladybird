@@ -14,13 +14,13 @@ interface HTMLButtonElement : HTMLElement {
     [CEReactions, Reflect=commandfor] attribute Element? commandForElement;
     [CEReactions, Reflect] attribute boolean disabled;
     readonly attribute HTMLFormElement? form;
-    [CEReactions] attribute USVString formAction;
-    [CEReactions, Reflect=formenctype, Enumerated=FormEnctypeAttribute] attribute DOMString formEnctype;
-    [CEReactions, Reflect=formmethod, Enumerated=FormMethodAttribute] attribute DOMString formMethod;
+    [CEReactions] attribute Utf16USVString formAction;
+    [CEReactions, Reflect=formenctype, Enumerated=FormEnctypeAttribute] attribute Utf16DOMString formEnctype;
+    [CEReactions, Reflect=formmethod, Enumerated=FormMethodAttribute] attribute Utf16DOMString formMethod;
     [CEReactions, Reflect=formnovalidate] attribute boolean formNoValidate;
     [CEReactions, Reflect=formtarget] attribute DOMString formTarget;
-    [CEReactions, Reflect] attribute DOMString name;
-    [CEReactions, ImplementedAs=type_for_bindings, Enumerated=ButtonTypeState] attribute DOMString type;
+    [CEReactions, Reflect] attribute Utf16DOMString name;
+    [CEReactions, ImplementedAs=type_for_bindings, Enumerated=ButtonTypeState] attribute Utf16DOMString type;
     [CEReactions, Reflect] attribute DOMString value;
 
     readonly attribute boolean willValidate;

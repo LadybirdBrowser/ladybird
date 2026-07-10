@@ -189,7 +189,7 @@ void HTMLMediaElement::visit_edges(Cell::Visitor& visitor)
         m_screen_wake_lock->visit_edges(visitor);
 }
 
-void HTMLMediaElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
+void HTMLMediaElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 

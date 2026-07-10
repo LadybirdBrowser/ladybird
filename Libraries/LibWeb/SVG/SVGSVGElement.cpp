@@ -18,6 +18,7 @@
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/Layout/SVGSVGBox.h>
 #include <LibWeb/SVG/AttributeNames.h>
+#include <LibWeb/SVG/FragmentIdentifier.h>
 #include <LibWeb/SVG/SVGAnimatedRect.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 #include <LibWeb/SVG/SVGViewElement.h>
@@ -95,7 +96,7 @@ RefPtr<CSS::StyleValue const> SVGSVGElement::height_style_value_from_attribute()
     return result;
 }
 
-void SVGSVGElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
+void SVGSVGElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
     SVGFitToViewBox::attribute_changed(*this, name, value);
@@ -115,7 +116,7 @@ void SVGSVGElement::children_changed(ChildrenChangedMetadata const&)
     // FIXME: Add support for all types of SVG fragment identifier.
     //        See: https://svgwg.org/svg2-draft/linking.html#LinksIntoSVG
     if (auto url = document().url(); url.fragment().has_value()) {
-        if (auto referenced_element = get_element_by_id(Utf16String::from_utf8(*url.fragment()))) {
+        if (auto referenced_element = get_element_by_id(decode_fragment_identifier(*url.fragment()))) {
             if (auto* view_element = as_if<SVGViewElement>(*referenced_element)) {
                 set_active_view_element(*view_element);
                 return;

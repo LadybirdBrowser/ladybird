@@ -1469,7 +1469,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
 
                 // 2. Set the color attribute of new parent to the result of applying the rules for serializing simple color
                 //    values to new value (interpreted as a simple color).
-                new_parent->set_attribute_value(HTML::AttributeNames::color, new_value_color->to_string_without_alpha());
+                new_parent->set_attribute_value(HTML::AttributeNames::color, Utf16String::from_utf8(new_value_color->to_string_without_alpha()));
             }
         }
 
@@ -1520,7 +1520,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
         // * xx-large: 6
         // * xxx-large: 7
         auto size = font_sizes.first_index_of(new_value.value()).value() + 1;
-        new_parent->set_attribute_value(HTML::AttributeNames::size, String::number(size));
+        new_parent->set_attribute_value(HTML::AttributeNames::size, Utf16String::number(size));
     }
 
     // 13. If command is "subscript" or "superscript" and new value is "subscript", let new parent be the result of
@@ -1646,7 +1646,7 @@ void indent(Vector<GC::Ref<DOM::Node>> node_list)
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#allowed-child
-bool is_allowed_child_of_node(Variant<GC::Ref<DOM::Node>, FlyString> child, Variant<GC::Ref<DOM::Node>, FlyString> parent)
+bool is_allowed_child_of_node(Variant<GC::Ref<DOM::Node>, Utf16FlyString> child, Variant<GC::Ref<DOM::Node>, Utf16FlyString> parent)
 {
     GC::Ptr<DOM::Node> child_node;
     if (child.has<GC::Ref<DOM::Node>>())
@@ -1656,9 +1656,9 @@ bool is_allowed_child_of_node(Variant<GC::Ref<DOM::Node>, FlyString> child, Vari
     if (parent.has<GC::Ref<DOM::Node>>())
         parent_node = parent.get<GC::Ref<DOM::Node>>();
 
-    if (parent.has<FlyString>() || is<DOM::Element>(parent_node.ptr())) {
+    if (parent.has<Utf16FlyString>() || is<DOM::Element>(parent_node.ptr())) {
         auto parent_local_name = parent.visit(
-            [](FlyString local_name) { return local_name; },
+            [](Utf16FlyString local_name) { return local_name; },
             [](GC::Ref<DOM::Node> node) { return static_cast<DOM::Element&>(*node).local_name(); });
 
         // 1. If parent is "colgroup", "table", "tbody", "tfoot", "thead", "tr", or an HTML element with local name equal to
@@ -1673,7 +1673,7 @@ bool is_allowed_child_of_node(Variant<GC::Ref<DOM::Node>, FlyString> child, Vari
 
         // 2. If parent is "script", "style", "plaintext", or "xmp", or an HTML element with local name equal to one of
         //    those, and child is not a Text node, return false.
-        if ((child.has<FlyString>() || !is<DOM::Text>(child_node.ptr()))
+        if ((child.has<Utf16FlyString>() || !is<DOM::Text>(child_node.ptr()))
             && parent_local_name.is_one_of(HTML::TagNames::script, HTML::TagNames::style, HTML::TagNames::plaintext, HTML::TagNames::xmp))
             return false;
     }
@@ -1687,9 +1687,9 @@ bool is_allowed_child_of_node(Variant<GC::Ref<DOM::Node>, FlyString> child, Vari
         child = static_cast<DOM::Element&>(*child_node).local_name();
 
     // 5. If child is not a string, return true.
-    if (!child.has<FlyString>())
+    if (!child.has<Utf16FlyString>())
         return true;
-    auto child_local_name = child.get<FlyString>();
+    auto child_local_name = child.get<Utf16FlyString>();
 
     // 6. If parent is an HTML element:
     if (is<HTML::HTMLElement>(parent_node.ptr())) {
@@ -1737,9 +1737,9 @@ bool is_allowed_child_of_node(Variant<GC::Ref<DOM::Node>, FlyString> child, Vari
         return true;
 
     // 8. If parent is not a string, return false.
-    if (!parent.has<FlyString>())
+    if (!parent.has<Utf16FlyString>())
         return false;
-    auto parent_local_name = parent.get<FlyString>();
+    auto parent_local_name = parent.get<Utf16FlyString>();
 
     // 9. If parent is on the left-hand side of an entry on the following list, then return true if child is listed on
     //    the right-hand side of that entry, and false otherwise.
@@ -2105,7 +2105,7 @@ bool is_extraneous_line_break(GC::Ref<DOM::Node> node)
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#formattable-block-name
-Optional<FlyString const&> formattable_block_name_from_utf16(Utf16View local_name)
+Optional<Utf16FlyString const&> formattable_block_name_from_utf16(Utf16View local_name)
 {
     // A formattable block name is "address", "dd", "div", "dt", "h1", "h2", "h3", "h4", "h5", "h6", "p", or "pre".
     if (local_name == "address"sv)
@@ -2136,7 +2136,7 @@ Optional<FlyString const&> formattable_block_name_from_utf16(Utf16View local_nam
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#formattable-block-name
-bool is_formattable_block_name(FlyString const& local_name)
+bool is_formattable_block_name(Utf16FlyString const& local_name)
 {
     // A formattable block name is "address", "dd", "div", "dt", "h1", "h2", "h3", "h4", "h5", "h6", "p", or "pre".
     return local_name.is_one_of(HTML::TagNames::address, HTML::TagNames::dd, HTML::TagNames::div, HTML::TagNames::dt,
@@ -2211,7 +2211,7 @@ bool is_modifiable_element(GC::Ref<DOM::Node> node)
     auto has_no_attributes_except = [&](auto exclusions) {
         auto attribute_count = 0;
         html_element.for_each_attribute([&](DOM::Attr const& attribute) {
-            if (!exclusions.contains_slow(attribute.local_name()))
+            if (!any_of(exclusions, [&](auto const& exclusion) { return attribute.local_name() == exclusion; }))
                 ++attribute_count;
         });
         return attribute_count == 0;
@@ -2233,7 +2233,7 @@ bool is_modifiable_element(GC::Ref<DOM::Node> node)
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#name-of-an-element-with-inline-contents
-bool is_name_of_an_element_with_inline_contents(FlyString const& local_name)
+bool is_name_of_an_element_with_inline_contents(Utf16FlyString const& local_name)
 {
     // A name of an element with inline contents is "a", "abbr", "b", "bdi", "bdo", "cite", "code", "dfn", "em", "h1",
     // "h2", "h3", "h4", "h5", "h6", "i", "kbd", "mark", "p", "pre", "q", "rp", "rt", "ruby", "s", "samp", "small",
@@ -2306,7 +2306,7 @@ bool is_prohibited_paragraph_child(GC::Ref<DOM::Node> node)
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#prohibited-paragraph-child-name
-bool is_prohibited_paragraph_child_name(FlyString const& local_name)
+bool is_prohibited_paragraph_child_name(Utf16FlyString const& local_name)
 {
     // A prohibited paragraph child name is "address", "article", "aside", "blockquote", "caption", "center", "col",
     // "colgroup", "dd", "details", "dir", "div", "dl", "dt", "fieldset", "figcaption", "figure", "footer", "form",
@@ -3810,7 +3810,7 @@ void set_the_selections_value(DOM::Document& document, FlyString const& command,
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#set-the-tag-name
-GC::Ref<DOM::Element> set_the_tag_name(GC::Ref<DOM::Element> element, FlyString const& new_name)
+GC::Ref<DOM::Element> set_the_tag_name(GC::Ref<DOM::Element> element, Utf16FlyString const& new_name)
 {
     // 1. If element is an HTML element with local name equal to new name, return element.
     if (is<HTML::HTMLElement>(*element) && static_cast<DOM::Element&>(element).local_name() == new_name)
@@ -3821,13 +3821,13 @@ GC::Ref<DOM::Element> set_the_tag_name(GC::Ref<DOM::Element> element, FlyString 
         return element;
 
     // 3. Let replacement element be the result of calling createElement(new name) on the ownerDocument of element.
-    auto replacement_element = MUST(element->owner_document()->create_element(new_name.to_string(), Bindings::ElementCreationOptions {}));
+    auto replacement_element = MUST(element->owner_document()->create_element(new_name, Bindings::ElementCreationOptions {}));
 
     // 4. Insert replacement element into element's parent immediately before element.
     element->parent()->insert_before(replacement_element, element);
 
     // 5. Copy all attributes of element to replacement element, in order.
-    element->for_each_attribute([&replacement_element](FlyString const& name, Utf16String const& value) {
+    element->for_each_attribute([&replacement_element](Utf16FlyString const& name, Utf16String const& value) {
         replacement_element->set_attribute_value(name, value);
     });
 
@@ -4125,7 +4125,7 @@ Utf16String standard_inline_value(DOM::Document const& document, FlyString const
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#toggle-lists
-void toggle_lists(DOM::Document& document, FlyString const& tag_name)
+void toggle_lists(DOM::Document& document, Utf16FlyString const& tag_name)
 {
     VERIFY(first_is_one_of(tag_name, HTML::TagNames::ol, HTML::TagNames::ul));
 
@@ -4742,7 +4742,7 @@ bool has_visible_children(GC::Ref<DOM::Node> node)
     return has_visible_child;
 }
 
-bool is_heading(FlyString const& local_name)
+bool is_heading(Utf16FlyString const& local_name)
 {
     return local_name.is_one_of(
         HTML::TagNames::h1,

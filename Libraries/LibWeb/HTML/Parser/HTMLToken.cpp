@@ -87,7 +87,7 @@ void HTMLToken::normalize_attributes()
     // are never subsequently used by the parser, and are therefore effectively discarded. Removing the attribute
     // in this way does not change its status as the "current attribute" for the purposes of the tokenizer, however.
 
-    HashTable<FlyString> seen_attributes;
+    HashTable<Utf16FlyString> seen_attributes;
     auto* ptr = tag_attributes();
     if (!ptr)
         return;

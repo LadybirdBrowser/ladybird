@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
 #include <AK/IntrusiveList.h>
 #include <AK/Utf16String.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
@@ -28,7 +27,7 @@ public:
 
     virtual ~SVGUseElement() override = default;
 
-    virtual void attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_) override;
+    virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
     void svg_element_changed(SVGElement&);
     void svg_element_changed_before_document_complete(SVGElement&);
@@ -61,8 +60,6 @@ private:
 
     void process_the_url(Optional<Utf16String> const& href);
     Optional<Utf16String> href_value() const;
-
-    static Optional<FlyString> parse_id_from_href(StringView);
 
     GC::Ptr<DOM::Element> referenced_element() const;
 

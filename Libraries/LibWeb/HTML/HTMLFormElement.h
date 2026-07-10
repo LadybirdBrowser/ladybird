@@ -96,12 +96,12 @@ public:
     bool constructing_entry_list() const { return m_constructing_entry_list; }
     void set_constructing_entry_list(bool value) { m_constructing_entry_list = value; }
 
-    void set_method(String const&);
+    void set_method(Utf16String const&);
 
     GC::Ref<DOM::DOMTokenList> rel_list();
 
     String action() const;
-    void set_action(String const&);
+    void set_action(Utf16String const&);
 
     FormAssociatedElement* default_button() const;
 
@@ -119,7 +119,7 @@ private:
     virtual bool is_supported_property_name(Utf16FlyString const&) const override;
     virtual Vector<Utf16FlyString> supported_property_names() const override;
 
-    virtual void attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_) override;
+    virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
     ErrorOr<String> pick_an_encoding() const;
 

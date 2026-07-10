@@ -29,7 +29,7 @@ void SVGCircleElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-bool SVGCircleElement::is_presentational_hint(FlyString const& name) const
+bool SVGCircleElement::is_presentational_hint(Utf16FlyString const& name) const
 {
     if (Base::is_presentational_hint(name))
         return true;

@@ -4,7 +4,7 @@ interface HTMLMetaElement : HTMLElement {
 
     [HTMLConstructor] constructor();
 
-    [CEReactions, Reflect] attribute DOMString name;
+    [CEReactions, Reflect] attribute Utf16DOMString name;
     [CEReactions, Reflect=http-equiv] attribute DOMString httpEquiv;
     [CEReactions, Reflect] attribute DOMString content;
     [CEReactions, Reflect] attribute DOMString media;

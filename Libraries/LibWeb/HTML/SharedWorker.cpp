@@ -49,7 +49,7 @@ WebIDL::ExceptionOr<GC::Ref<SharedWorker>> SharedWorker::construct_impl(JS::Real
     auto& outside_settings = current_settings_object();
 
     // 4. Let urlRecord be the result of encoding-parsing a URL given compliantScriptURL, relative to outsideSettings.
-    auto url = outside_settings.encoding_parse_url(compliant_script_url.to_utf8_but_should_be_ported_to_utf16());
+    auto url = outside_settings.encoding_parse_url(compliant_script_url.utf16_view());
 
     // 5. If urlRecord is failure, then throw a "SyntaxError" DOMException.
     if (!url.has_value())

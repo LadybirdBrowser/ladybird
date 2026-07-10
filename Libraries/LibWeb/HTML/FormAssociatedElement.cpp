@@ -172,7 +172,7 @@ void FormAssociatedElement::form_node_was_moved()
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#association-of-controls-and-forms:category-listed-3
-void FormAssociatedElement::form_node_attribute_changed(FlyString const& name, Optional<Utf16String> const& value)
+void FormAssociatedElement::form_node_attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& value)
 {
     // When a listed form-associated element's form attribute is set, changed, or removed, then the user agent must
     // reset the form owner of that element.
@@ -281,7 +281,7 @@ void FormAssociatedElement::form_associated_element_was_moved(GC::Ptr<DOM::Node>
     update_face_disabled_state();
 }
 
-void FormAssociatedElement::form_associated_element_attribute_changed(FlyString const& name, Optional<Utf16String> const&, Optional<Utf16String> const&, Optional<FlyString> const&)
+void FormAssociatedElement::form_associated_element_attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const&, Optional<Utf16String> const&, Optional<Utf16FlyString> const&)
 {
     if (name == HTML::AttributeNames::disabled)
         update_face_disabled_state();
@@ -332,7 +332,7 @@ String FormAssociatedElement::form_action() const
     return {};
 }
 
-void FormAssociatedElement::set_form_action(String const& value)
+void FormAssociatedElement::set_form_action(Utf16String const& value)
 {
     auto& html_element = form_associated_element_to_html_element();
     html_element.set_attribute_value(HTML::AttributeNames::formaction, value);

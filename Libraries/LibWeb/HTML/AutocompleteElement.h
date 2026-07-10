@@ -29,8 +29,8 @@ public:
     AutofillMantle get_autofill_mantle() const;
 
     Vector<Utf16String> autocomplete_tokens() const;
-    String autocomplete() const;
-    void set_autocomplete(String const&);
+    Utf16String autocomplete() const;
+    void set_autocomplete(Utf16String const&);
 
     // Each input element to which the autocomplete attribute applies [...] has
     // an autofill hint set, an autofill scope, an autofill field name,
@@ -40,7 +40,7 @@ public:
         Vector<String> scope;
         String field_name;
         Optional<String> credential_type;
-        String value;
+        Utf16String value;
     };
     AttributeDetails parse_autocomplete_attribute() const;
 

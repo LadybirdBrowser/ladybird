@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16View.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/XML/XMLDocumentBuilder.h>
@@ -14,7 +15,7 @@ namespace Web {
 
 class XMLFragmentParser final {
 public:
-    static WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> parse_xml_fragment(DOM::Element& context, StringView markup);
+    static WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> parse_xml_fragment(DOM::Element& context, Utf16View markup);
 };
 
 }

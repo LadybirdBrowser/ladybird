@@ -149,7 +149,7 @@ private:
     virtual bool is_html_link_element() const override { return true; }
 
     // ^HTMLElement
-    virtual void attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_) override;
+    virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
     virtual bool contributes_a_script_blocking_style_sheet() const final;
     virtual bool is_implicitly_potentially_render_blocking() const override;
 

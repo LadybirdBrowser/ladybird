@@ -101,7 +101,7 @@ WebIDL::ExceptionOr<void> HTMLTableSectionElement::delete_row(WebIDL::Long index
     return {};
 }
 
-bool HTMLTableSectionElement::is_presentational_hint(FlyString const& name) const
+bool HTMLTableSectionElement::is_presentational_hint(Utf16FlyString const& name) const
 {
     if (Base::is_presentational_hint(name))
         return true;

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
 
 namespace Web::HTML::CustomElementReactionNames {
 
@@ -22,7 +22,7 @@ namespace Web::HTML::CustomElementReactionNames {
     __ENUMERATE_CUSTOM_ELEMENT_REACTION_NAME(formResetCallback)        \
     __ENUMERATE_CUSTOM_ELEMENT_REACTION_NAME(formStateRestoreCallback)
 
-#define __ENUMERATE_CUSTOM_ELEMENT_REACTION_NAME(name) extern FlyString const& name;
+#define __ENUMERATE_CUSTOM_ELEMENT_REACTION_NAME(name) extern Utf16FlyString const& name;
 ENUMERATE_CUSTOM_ELEMENT_REACTION_NAMES
 #undef __ENUMERATE_CUSTOM_ELEMENT_REACTION_NAME
 

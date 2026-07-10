@@ -75,7 +75,7 @@ GC::Ptr<MimeType> MimeTypeArray::item(u32 index) const
 }
 
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-mimetypearray-nameditem
-GC::Ptr<MimeType> MimeTypeArray::named_item(FlyString const& name) const
+GC::Ptr<MimeType> MimeTypeArray::named_item(Utf16FlyString const& name) const
 {
     // 1. For each MimeType mimeType of this's relevant global object's PDF viewer mime type objects: if mimeType's type is name, then return mimeType.
     auto& window = as<HTML::Window>(HTML::relevant_global_object(*this));
@@ -104,7 +104,7 @@ JS::Value MimeTypeArray::named_item_value(Utf16FlyString const& name) const
     auto mime_types = window.pdf_viewer_mime_type_objects();
 
     for (auto& mime_type : mime_types) {
-        if (name == mime_type->type().bytes_as_string_view())
+        if (name == mime_type->type())
             return mime_type.ptr();
     }
 

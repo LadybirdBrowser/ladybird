@@ -12,6 +12,6 @@ interface HTMLEmbedElement : HTMLElement {
 
     // Obsolete
     [CEReactions, Reflect] attribute DOMString align;
-    [CEReactions, Reflect] attribute DOMString name;
+    [CEReactions, Reflect] attribute Utf16DOMString name;
 
 };

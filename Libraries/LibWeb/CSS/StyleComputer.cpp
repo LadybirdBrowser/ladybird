@@ -222,11 +222,11 @@ RuleCache const* StyleComputer::rule_cache_for_cascade_origin(CascadeOrigin casc
     return rule_caches_by_layer->by_layer.get(*qualified_layer_name).value_or(nullptr);
 }
 
-[[nodiscard]] static bool filter_namespace_rule(Optional<FlyString> const& element_namespace_uri, MatchingRule const& rule)
+[[nodiscard]] static bool filter_namespace_rule(Optional<Utf16FlyString> const& element_namespace_uri, MatchingRule const& rule)
 {
     // FIXME: Filter out non-default namespace using prefixes
     if (rule.default_namespace.has_value()) {
-        if (!element_namespace_uri.has_value() || rule.default_namespace->view() != element_namespace_uri->bytes_as_string_view())
+        if (!element_namespace_uri.has_value() || element_namespace_uri->view() != rule.default_namespace->view())
             return false;
     }
     return true;
@@ -1434,7 +1434,7 @@ void StyleComputer::process_animation_definitions(ComputedProperties const& comp
     }
 }
 
-static void collect_dimension_attribute(Vector<StyleProperty>& properties, DOM::Element const& element, FlyString const& attribute_name, CSS::PropertyID property_id)
+static void collect_dimension_attribute(Vector<StyleProperty>& properties, DOM::Element const& element, Utf16FlyString const& attribute_name, CSS::PropertyID property_id)
 {
     auto attribute = element.attribute(attribute_name);
     if (!attribute.has_value())
@@ -1963,7 +1963,7 @@ static Optional<String> extract_css_declaration_block_from_source(CSSRule const&
     if (!source_text.has_value())
         return {};
 
-    auto const& source = *source_text;
+    auto source = source_text->to_utf8();
     auto source_view = source.bytes_as_string_view();
     auto const& source_location = rule.source_location();
     if (!source_location.has_value())
@@ -4616,7 +4616,7 @@ static IterationDecision for_each_matching_rule_bucket(DOM::AbstractElement abst
                 return IterationDecision::Break;
         }
     }
-    auto lowercased_local_name = Utf16FlyString::from_fly_string(abstract_element.element().lowercased_local_name());
+    auto lowercased_local_name = abstract_element.element().lowercased_local_name();
     if (auto it = rule_buckets.rules_by_tag_name.find(lowercased_local_name); it != rule_buckets.rules_by_tag_name.end()) {
         if (callback(it->value) == IterationDecision::Break)
             return IterationDecision::Break;
@@ -4628,9 +4628,8 @@ static IterationDecision for_each_matching_rule_bucket(DOM::AbstractElement abst
     }
 
     IterationDecision decision = IterationDecision::Continue;
-    abstract_element.element().for_each_attribute([&](auto& name, auto&) {
-        auto attribute_name = Utf16FlyString::from_fly_string(name);
-        if (auto it = rule_buckets.rules_by_attribute_name.find(attribute_name); it != rule_buckets.rules_by_attribute_name.end()) {
+    abstract_element.element().for_each_attribute([&](Utf16FlyString const& name, auto const&) {
+        if (auto it = rule_buckets.rules_by_attribute_name.find(name); it != rule_buckets.rules_by_attribute_name.end()) {
             decision = callback(it->value);
         }
     });

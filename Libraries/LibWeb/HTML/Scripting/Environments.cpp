@@ -251,6 +251,16 @@ Optional<URL::URL> EnvironmentSettingsObject::encoding_parse_url(StringView url)
     return DOMURL::parse(url, base_url, encoding);
 }
 
+Optional<URL::URL> EnvironmentSettingsObject::encoding_parse_url(Utf16View url)
+{
+    auto encoding = "UTF-8"_string;
+
+    if (is<HTML::Window>(global_object()))
+        encoding = static_cast<HTML::Window const&>(global_object()).associated_document().encoding_or_default();
+
+    return DOMURL::parse(url, api_base_url(), encoding);
+}
+
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#encoding-parsing-and-serializing-a-url
 Optional<String> EnvironmentSettingsObject::encoding_parse_and_serialize_url(StringView url)
 {

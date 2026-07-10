@@ -63,9 +63,25 @@ GC_DEFINE_ALLOCATOR(HTMLParserEndState);
 
 static DOM::Node& node_from_html_parser_ffi(size_t);
 static HTMLParser& parser_from_html_parser_ffi(void*);
-static RustFfiHtmlNamespace namespace_to_html_parser_ffi(Optional<FlyString> const&);
-static RustFfiHtmlAttributeNamespace attribute_namespace_to_html_parser_ffi(Optional<FlyString> const&);
+static RustFfiHtmlNamespace namespace_to_html_parser_ffi(Optional<Utf16FlyString> const&);
+static RustFfiHtmlAttributeNamespace attribute_namespace_to_html_parser_ffi(Optional<Utf16FlyString> const&);
 static RustFfiHtmlQuirksMode quirks_mode_to_html_parser_ffi(DOM::QuirksMode);
+
+static Vector<u16> utf16_code_units_for_ffi(Utf16View view)
+{
+    Vector<u16> code_units;
+    code_units.ensure_capacity(view.length_in_code_units());
+    for (size_t i = 0; i < view.length_in_code_units(); ++i)
+        code_units.unchecked_append(static_cast<u16>(view.code_unit_at(i)));
+    return code_units;
+}
+
+static Utf16FlyString utf16_fly_string_from_ffi(u16 const* ptr, size_t len)
+{
+    if (!ptr || len == 0)
+        return {};
+    return Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(ptr), len });
+}
 
 extern "C" void ladybird_html_parser_log_parse_error(void*, u8 const*, size_t);
 extern "C" void ladybird_html_parser_stop_parsing(void*);
@@ -74,17 +90,17 @@ extern "C" void ladybird_html_parser_visit_node(void*, size_t);
 extern "C" size_t ladybird_html_parser_document_node(void*);
 extern "C" size_t ladybird_html_parser_document_html_element(void*);
 extern "C" void ladybird_html_parser_set_document_quirks_mode(void*, RustFfiHtmlQuirksMode);
-extern "C" size_t ladybird_html_parser_create_document_type(void*, u8 const*, size_t, u8 const*, size_t, u8 const*, size_t);
+extern "C" size_t ladybird_html_parser_create_document_type(void*, u16 const*, size_t, u8 const*, size_t, u8 const*, size_t);
 extern "C" size_t ladybird_html_parser_create_comment(void*, u8 const*, size_t);
 extern "C" void ladybird_html_parser_insert_text(size_t, size_t, u8 const*, size_t);
-extern "C" void ladybird_html_parser_add_missing_attribute(size_t, u8 const*, size_t, u8 const*, size_t);
+extern "C" void ladybird_html_parser_add_missing_attribute(size_t, u16 const*, size_t, u8 const*, size_t);
 extern "C" void ladybird_html_parser_remove_node(size_t);
 extern "C" void ladybird_html_parser_handle_element_popped(size_t);
 extern "C" void ladybird_html_parser_prepare_svg_script(void*, size_t, size_t);
 extern "C" void ladybird_html_parser_set_script_source_line(void*, size_t, size_t);
 extern "C" void ladybird_html_parser_mark_script_already_started(void*, size_t);
 extern "C" size_t ladybird_html_parser_parent_node(size_t);
-extern "C" size_t ladybird_html_parser_create_element(void*, size_t, RustFfiHtmlNamespace, u8 const*, size_t, u8 const*, size_t, RustFfiHtmlParserAttribute const*, size_t, bool, size_t, bool);
+extern "C" size_t ladybird_html_parser_create_element(void*, size_t, RustFfiHtmlNamespace, u16 const*, size_t, u16 const*, size_t, RustFfiHtmlParserAttribute const*, size_t, bool, size_t, bool);
 extern "C" void ladybird_html_parser_append_child(size_t, size_t);
 extern "C" void ladybird_html_parser_insert_node(size_t, size_t, size_t, bool);
 extern "C" void ladybird_html_parser_move_all_children(size_t, size_t);
@@ -213,7 +229,7 @@ void HTMLParser::configure_element_created_by_rust_parser(DOM::Element& element)
         script_element.set_already_started(Badge<HTMLParser> {}, true);
 }
 
-GC::Ref<DOM::Element> HTMLParser::create_element_for_rust_parser(HTMLToken const& token, Optional<FlyString> const& namespace_, DOM::Node& intended_parent, bool had_duplicate_attribute, GC::Ptr<HTMLFormElement> form_element, bool has_template_element_on_stack)
+GC::Ref<DOM::Element> HTMLParser::create_element_for_rust_parser(HTMLToken const& token, Optional<Utf16FlyString> const& namespace_, DOM::Node& intended_parent, bool had_duplicate_attribute, GC::Ptr<HTMLFormElement> form_element, bool has_template_element_on_stack)
 {
     auto element = create_element_for(token, namespace_, intended_parent);
     configure_element_created_by_rust_parser(element);
@@ -646,7 +662,7 @@ void HTMLParserEndState::complete()
     m_document->set_ready_for_post_load_tasks(true);
 }
 // https://html.spec.whatwg.org/multipage/parsing.html#create-an-element-for-the-token
-GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Optional<FlyString> const& namespace_, DOM::Node& intended_parent)
+GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Optional<Utf16FlyString> const& namespace_, DOM::Node& intended_parent)
 {
     // 1. If the active speculative HTML parser is not null, then return the result of creating a speculative mock element given namespace, token's tag name, and token's attributes.
     // The active speculative HTML parser runs synchronously to completion, so it is null whenever the real parser
@@ -660,10 +676,12 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Opt
     GC::Ref<DOM::Document> document = intended_parent.document();
 
     // 4. Let localName be token's tag name.
-    auto const& local_name = token.tag_name();
+    auto local_name = token.tag_name();
 
     // 5. Let is be the value of the "is" attribute in token, if such an attribute exists; otherwise null.
-    auto is_value = token.attribute(AttributeNames::is);
+    Optional<Utf16FlyString> is_value;
+    if (auto is_attribute = token.attribute(AttributeNames::is); is_attribute.has_value())
+        is_value = Utf16FlyString::from_utf16(is_attribute->utf16_view());
 
     // 6. Let registry be the result of looking up a custom element registry given intendedParent.
     auto registry = look_up_a_custom_element_registry(intended_parent);
@@ -715,7 +733,7 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Opt
     // 11. Append each attribute in the given token to element.
     token.for_each_attribute([&](auto const& attribute) {
         DOM::QualifiedName qualified_name { attribute.local_name, attribute.prefix, attribute.namespace_ };
-        auto dom_attribute = realm().create<DOM::Attr>(*document, move(qualified_name), Utf16String::from_utf8(attribute.value), element);
+        auto dom_attribute = realm().create<DOM::Attr>(*document, move(qualified_name), attribute.value, element);
         element->append_attribute(dom_attribute);
         return IterationDecision::Continue;
     });
@@ -895,7 +913,7 @@ DOM::Document& HTMLParser::document()
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#parsing-html-fragments
-WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> HTMLParser::parse_html_fragment(DOM::Element& context_element, StringView markup, AllowDeclarativeShadowRoots allow_declarative_shadow_roots, ParserScriptingMode scripting_mode)
+WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> HTMLParser::parse_html_fragment(DOM::Element& context_element, Utf16View markup, AllowDeclarativeShadowRoots allow_declarative_shadow_roots, ParserScriptingMode scripting_mode)
 {
     // 1. Assert: scriptingMode is either Inert or Fragment.
     VERIFY(scripting_mode == HTML::ParserScriptingMode::Inert || scripting_mode == HTML::ParserScriptingMode::Fragment);
@@ -991,28 +1009,38 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> HTMLParser::parse_html_fragment
     if (!parser->m_form_element)
         parser->m_form_element = context_element.first_ancestor_of_type<HTMLFormElement>();
 
-    auto context_local_name = context_element.local_name().bytes_as_string_view();
+    auto context_local_name = utf16_code_units_for_ffi(context_element.local_name().view());
     auto context_namespace = context_element.namespace_uri();
     auto context_namespace_ffi = namespace_to_html_parser_ffi(context_namespace);
-    StringView context_namespace_uri;
-    if (context_namespace_ffi == RustFfiHtmlNamespace::Other && context_namespace.has_value())
-        context_namespace_uri = context_namespace->bytes_as_string_view();
-    Vector<RustFfiHtmlParserAttribute> context_attributes;
+    Vector<u16> context_namespace_uri;
+    if (context_namespace_ffi == RustFfiHtmlNamespace::Other && context_namespace.has_value()) {
+        context_namespace_uri = utf16_code_units_for_ffi(context_namespace->view());
+    }
+    Vector<RustFfiHtmlParserContextAttribute> context_attributes;
+    Vector<Vector<u16>> attribute_names;
+    Vector<Vector<u16>> attribute_prefixes;
     Vector<String> attribute_values_utf8;
     if (auto attributes = context_element.attributes()) {
         context_attributes.ensure_capacity(attributes->length());
+        attribute_names.ensure_capacity(attributes->length());
+        attribute_prefixes.ensure_capacity(attributes->length());
         attribute_values_utf8.ensure_capacity(attributes->length());
         for (size_t i = 0; i < attributes->length(); ++i) {
             auto const* attribute = attributes->item(i);
-            auto local_name = attribute->local_name().bytes_as_string_view();
+            attribute_names.unchecked_append(utf16_code_units_for_ffi(attribute->local_name().view()));
+            auto const& local_name = attribute_names.last();
             attribute_values_utf8.unchecked_append(attribute->value().to_utf8());
             auto value = attribute_values_utf8.last().bytes_as_string_view();
-            auto prefix = attribute->prefix().map([](auto const& prefix) { return prefix.bytes_as_string_view(); });
+            Vector<u16> const* prefix = nullptr;
+            if (attribute->prefix().has_value()) {
+                attribute_prefixes.unchecked_append(utf16_code_units_for_ffi(attribute->prefix()->view()));
+                prefix = &attribute_prefixes.last();
+            }
             context_attributes.unchecked_append({
-                reinterpret_cast<u8 const*>(local_name.characters_without_null_termination()),
-                local_name.length(),
-                prefix.has_value() ? reinterpret_cast<u8 const*>(prefix->characters_without_null_termination()) : nullptr,
-                prefix.has_value() ? prefix->length() : 0,
+                local_name.data(),
+                local_name.size(),
+                prefix ? prefix->data() : nullptr,
+                prefix ? prefix->size() : 0,
                 attribute_namespace_to_html_parser_ffi(attribute->namespace_uri()),
                 reinterpret_cast<u8 const*>(value.characters_without_null_termination()),
                 value.length(),
@@ -1024,10 +1052,10 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> HTMLParser::parse_html_fragment
         reinterpret_cast<size_t>(root.ptr()),
         reinterpret_cast<size_t>(&context_element),
         context_namespace_ffi,
-        reinterpret_cast<u8 const*>(context_namespace_uri.characters_without_null_termination()),
-        context_namespace_uri.length(),
-        reinterpret_cast<u8 const*>(context_local_name.characters_without_null_termination()),
-        context_local_name.length(),
+        context_namespace_uri.data(),
+        context_namespace_uri.size(),
+        context_local_name.data(),
+        context_local_name.size(),
         context_attributes.data(),
         context_attributes.size(),
         quirks_mode_to_html_parser_ffi(temp_document->mode()),
@@ -1074,9 +1102,10 @@ GC::Ref<HTMLParser> HTMLParser::create(DOM::Document& document, StringView input
     return document.realm().create<HTMLParser>(document, scripting_mode, input, encoding);
 }
 
-GC::Ref<HTMLParser> HTMLParser::create_for_decoded_string(DOM::Document& document, StringView input, ParserScriptingMode scripting_mode, StringView encoding)
+GC::Ref<HTMLParser> HTMLParser::create_for_decoded_string(DOM::Document& document, Utf16View input, ParserScriptingMode scripting_mode, StringView encoding)
 {
-    return document.realm().create<HTMLParser>(document, scripting_mode, input, encoding, HTMLTokenizer::InputType::DecodedString);
+    auto utf8_input = input.to_utf8_but_should_be_ported_to_utf16();
+    return document.realm().create<HTMLParser>(document, scripting_mode, utf8_input, encoding, HTMLTokenizer::InputType::DecodedString);
 }
 
 enum class AttributeMode {
@@ -1124,7 +1153,7 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
     auto serialize_element = [&](DOM::Element const& element) {
         // If current node is an element in the HTML namespace, the MathML namespace, or the SVG namespace, then let tagname be current node's local name.
         // Otherwise, let tagname be current node's qualified name.
-        FlyString tag_name;
+        Utf16FlyString tag_name;
 
         if (element.namespace_uri().has_value() && element.namespace_uri()->is_one_of(Namespace::HTML, Namespace::MathML, Namespace::SVG))
             tag_name = element.local_name();
@@ -1141,7 +1170,7 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
         // followed by a U+0022 QUOTATION MARK character (").
         if (element.is_value().has_value() && !element.has_attribute(AttributeNames::is)) {
             builder.append(" is=\""sv);
-            builder.append(escape_string(element.is_value().value().code_points(), AttributeMode::Yes));
+            builder.append(escape_string(element.is_value()->view(), AttributeMode::Yes));
             builder.append('"');
         }
 
@@ -1152,7 +1181,7 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
         // a U+0022 QUOTATION MARK character ("),
         // the attribute's value, escaped as described below in attribute mode,
         // and a second U+0022 QUOTATION MARK character (").
-        element.for_each_attribute([&](auto const& attribute) {
+        element.for_each_attribute([&](DOM::Attr const& attribute) {
             builder.append(' ');
 
             // An attribute's serialized name for the purposes of the previous paragraph must be determined as follows:
@@ -1168,7 +1197,7 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
                 builder.append(attribute.local_name());
             }
             // -> If the attribute is in the XMLNS namespace and the attribute's local name is xmlns:
-            else if (attribute.namespace_uri() == Namespace::XMLNS && attribute.local_name() == "xmlns") {
+            else if (attribute.namespace_uri() == Namespace::XMLNS && attribute.local_name() == "xmlns"sv) {
                 // The attribute's serialized name is the string "xmlns".
                 builder.append("xmlns"sv);
             }
@@ -1975,7 +2004,7 @@ extern "C" void ladybird_html_parser_visit_node(void* visitor, size_t node)
     static_cast<GC::Cell::Visitor*>(visitor)->visit(node_from_html_parser_ffi(node));
 }
 
-static Optional<FlyString> namespace_from_html_parser_ffi(RustFfiHtmlNamespace namespace_, u8 const* namespace_uri_ptr, size_t namespace_uri_len)
+static Optional<Utf16FlyString> namespace_from_html_parser_ffi(RustFfiHtmlNamespace namespace_, u16 const* namespace_uri_ptr, size_t namespace_uri_len)
 {
     switch (namespace_) {
     case RustFfiHtmlNamespace::Html:
@@ -1987,12 +2016,12 @@ static Optional<FlyString> namespace_from_html_parser_ffi(RustFfiHtmlNamespace n
     case RustFfiHtmlNamespace::Other:
         if (namespace_uri_len == 0)
             return {};
-        return ffi_fly_string(namespace_uri_ptr, namespace_uri_len);
+        return utf16_fly_string_from_ffi(namespace_uri_ptr, namespace_uri_len);
     }
     VERIFY_NOT_REACHED();
 }
 
-static Optional<FlyString> attribute_namespace_from_html_parser_ffi(RustFfiHtmlAttributeNamespace namespace_)
+static Optional<Utf16FlyString> attribute_namespace_from_html_parser_ffi(RustFfiHtmlAttributeNamespace namespace_)
 {
     switch (namespace_) {
     case RustFfiHtmlAttributeNamespace::None:
@@ -2011,7 +2040,7 @@ static Optional<FlyString> attribute_namespace_from_html_parser_ffi(RustFfiHtmlA
     VERIFY_NOT_REACHED();
 }
 
-static RustFfiHtmlAttributeNamespace attribute_namespace_to_html_parser_ffi(Optional<FlyString> const& namespace_)
+static RustFfiHtmlAttributeNamespace attribute_namespace_to_html_parser_ffi(Optional<Utf16FlyString> const& namespace_)
 {
     if (namespace_ == Namespace::XLink)
         return RustFfiHtmlAttributeNamespace::XLink;
@@ -2024,7 +2053,7 @@ static RustFfiHtmlAttributeNamespace attribute_namespace_to_html_parser_ffi(Opti
     return RustFfiHtmlAttributeNamespace::None;
 }
 
-static RustFfiHtmlNamespace namespace_to_html_parser_ffi(Optional<FlyString> const& namespace_)
+static RustFfiHtmlNamespace namespace_to_html_parser_ffi(Optional<Utf16FlyString> const& namespace_)
 {
     if (!namespace_.has_value())
         return RustFfiHtmlNamespace::Other;
@@ -2095,13 +2124,13 @@ extern "C" void ladybird_html_parser_set_document_quirks_mode(void* parser, Rust
         document.set_quirks_mode(quirks_mode_from_html_parser_ffi(mode));
 }
 
-extern "C" size_t ladybird_html_parser_create_document_type(void* parser, u8 const* name_ptr, size_t name_len, u8 const* public_id_ptr, size_t public_id_len, u8 const* system_id_ptr, size_t system_id_len)
+extern "C" size_t ladybird_html_parser_create_document_type(void* parser, u16 const* name_ptr, size_t name_len, u8 const* public_id_ptr, size_t public_id_len, u8 const* system_id_ptr, size_t system_id_len)
 {
     auto& html_parser = parser_from_html_parser_ffi(parser);
     auto document_type = html_parser.document().realm().create<DOM::DocumentType>(html_parser.document());
-    document_type->set_name(ffi_string(name_ptr, name_len));
-    document_type->set_public_id(ffi_string(public_id_ptr, public_id_len));
-    document_type->set_system_id(ffi_string(system_id_ptr, system_id_len));
+    document_type->set_name(utf16_fly_string_from_ffi(name_ptr, name_len));
+    document_type->set_public_id(Utf16String::from_utf8(ffi_string_view(public_id_ptr, public_id_len)));
+    document_type->set_system_id(Utf16String::from_utf8(ffi_string_view(system_id_ptr, system_id_len)));
     return reinterpret_cast<size_t>(document_type.ptr());
 }
 
@@ -2139,13 +2168,14 @@ extern "C" void ladybird_html_parser_insert_text(size_t parent, size_t before, u
     MUST(parent_node.append_child(*text));
 }
 
-extern "C" void ladybird_html_parser_add_missing_attribute(size_t element, u8 const* local_name_ptr, size_t local_name_len, u8 const* value_ptr, size_t value_len)
+extern "C" void ladybird_html_parser_add_missing_attribute(size_t element, u16 const* local_name_ptr, size_t local_name_len, u8 const* value_ptr, size_t value_len)
 {
     auto& dom_element = as<DOM::Element>(node_from_html_parser_ffi(element));
-    auto local_name = ffi_fly_string(local_name_ptr, local_name_len);
+    auto local_name = utf16_fly_string_from_ffi(local_name_ptr, local_name_len);
     if (dom_element.has_attribute(local_name))
         return;
-    dom_element.append_attribute(local_name, ffi_string(value_ptr, value_len));
+    auto value = Utf16String::from_utf8(ffi_string_view(value_ptr, value_len));
+    dom_element.append_attribute(local_name, value);
 }
 
 extern "C" void ladybird_html_parser_remove_node(size_t node)
@@ -2192,22 +2222,22 @@ extern "C" size_t ladybird_html_parser_parent_node(size_t node)
     return reinterpret_cast<size_t>(parent);
 }
 
-extern "C" size_t ladybird_html_parser_create_element(void* parser, size_t intended_parent, RustFfiHtmlNamespace namespace_, u8 const* namespace_uri_ptr, size_t namespace_uri_len, u8 const* local_name_ptr, size_t local_name_len, RustFfiHtmlParserAttribute const* attributes, size_t attribute_count, bool had_duplicate_attribute, size_t form_element, bool has_template_element_on_stack)
+extern "C" size_t ladybird_html_parser_create_element(void* parser, size_t intended_parent, RustFfiHtmlNamespace namespace_, u16 const* namespace_uri_ptr, size_t namespace_uri_len, u16 const* local_name_ptr, size_t local_name_len, RustFfiHtmlParserAttribute const* attributes, size_t attribute_count, bool had_duplicate_attribute, size_t form_element, bool has_template_element_on_stack)
 {
     auto& html_parser = parser_from_html_parser_ffi(parser);
-    auto local_name = ffi_fly_string(local_name_ptr, local_name_len);
+    auto local_name = utf16_fly_string_from_ffi(local_name_ptr, local_name_len);
     auto token = HTMLToken::make_start_tag(local_name);
 
     for (size_t i = 0; i < attribute_count; ++i) {
         auto const& attribute = attributes[i];
-        Optional<FlyString> prefix;
+        Optional<Utf16FlyString> prefix;
         if (attribute.prefix_len != 0)
-            prefix = ffi_fly_string(attribute.prefix_ptr, attribute.prefix_len);
+            prefix = utf16_fly_string_from_ffi(attribute.prefix_ptr, attribute.prefix_len);
         HTMLToken::Attribute token_attribute;
         token_attribute.prefix = move(prefix);
-        token_attribute.local_name = ffi_fly_string(attribute.local_name_ptr, attribute.local_name_len);
+        token_attribute.local_name = utf16_fly_string_from_ffi(attribute.local_name_ptr, attribute.local_name_len);
         token_attribute.namespace_ = attribute_namespace_from_html_parser_ffi(attribute.namespace_);
-        token_attribute.value = ffi_string(attribute.value_ptr, attribute.value_len);
+        token_attribute.value = Utf16String::from_utf8(ffi_string_view(attribute.value_ptr, attribute.value_len));
         token.add_attribute(move(token_attribute));
     }
 

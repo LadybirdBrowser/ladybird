@@ -862,8 +862,8 @@ enum class NonceableResult {
 
             // 1. If attribute’s name contains an ASCII case-insensitive match for "<script" or "<style", return
             //    "Not Nonceable".
-            auto attribute_name = attribute->name().to_string();
-            if (attribute_name.contains("<script"sv, CaseSensitivity::CaseInsensitive) || attribute_name.contains("<style"sv, CaseSensitivity::CaseInsensitive))
+            auto attribute_name = attribute->name().view();
+            if (attribute_name.find_code_unit_offset_ignoring_case("<script"sv).has_value() || attribute_name.find_code_unit_offset_ignoring_case("<style"sv).has_value())
                 return NonceableResult::NotNonceable;
 
             // 2. If attribute’s value contains an ASCII case-insensitive match for "<script" or "<style", return

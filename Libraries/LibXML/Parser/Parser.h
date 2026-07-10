@@ -14,6 +14,9 @@
 #include <AK/Optional.h>
 #include <AK/OwnPtr.h>
 #include <AK/String.h>
+#include <AK/Utf16FlyString.h>
+#include <AK/Utf16String.h>
+#include <AK/Vector.h>
 #include <LibXML/DOM/Document.h>
 #include <LibXML/DOM/DocumentTypeDeclaration.h>
 #include <LibXML/DOM/Node.h>
@@ -31,6 +34,11 @@ struct ParseError {
     Variant<ByteString, Expectation> error;
 };
 
+struct ListenerAttribute {
+    Utf16FlyString name;
+    Utf16String value;
+};
+
 struct Listener {
     virtual ~Listener() { }
 
@@ -38,11 +46,11 @@ struct Listener {
     virtual void set_doctype(XML::Doctype) { }
     virtual void document_start() { }
     virtual void document_end() { }
-    virtual void element_start(Name const&, OrderedHashMap<Name, ByteString> const&) { }
-    virtual void element_end(Name const&) { }
+    virtual void element_start(Utf16FlyString const&, Vector<ListenerAttribute> const&) { }
+    virtual void element_end(Utf16FlyString const&) { }
     virtual void text(StringView) { }
     virtual void cdata_section(StringView) { }
-    virtual void processing_instruction(StringView, StringView) { }
+    virtual void processing_instruction(Utf16FlyString const&, Utf16String const&) { }
     virtual void comment(StringView) { }
     virtual void error(ParseError const&) { }
 };

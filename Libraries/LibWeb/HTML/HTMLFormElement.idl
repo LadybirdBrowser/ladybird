@@ -52,12 +52,12 @@ interface HTMLFormElement : HTMLElement {
     [HTMLConstructor] constructor();
 
     [CEReactions, Reflect=accept-charset] attribute DOMString acceptCharset;
-    [CEReactions] attribute USVString action;
-    [CEReactions, Enumerated=Autocomplete, Reflect] attribute DOMString autocomplete;
-    [CEReactions, Enumerated=EnctypeAttribute, Reflect] attribute DOMString enctype;
-    [CEReactions, Enumerated=EnctypeAttribute, Reflect=enctype] attribute DOMString encoding;
-    [CEReactions, Enumerated=MethodAttribute, Reflect] attribute DOMString method;
-    [CEReactions, Reflect] attribute DOMString name;
+    [CEReactions] attribute Utf16USVString action;
+    [CEReactions, Enumerated=Autocomplete, Reflect] attribute Utf16DOMString autocomplete;
+    [CEReactions, Enumerated=EnctypeAttribute, Reflect] attribute Utf16DOMString enctype;
+    [CEReactions, Enumerated=EnctypeAttribute, Reflect=enctype] attribute Utf16DOMString encoding;
+    [CEReactions, Enumerated=MethodAttribute, Reflect] attribute Utf16DOMString method;
+    [CEReactions, Reflect] attribute Utf16DOMString name;
     [CEReactions, Reflect=novalidate] attribute boolean noValidate;
     [CEReactions, Reflect] attribute DOMString target;
     [CEReactions, Reflect] attribute DOMString rel;
@@ -66,7 +66,7 @@ interface HTMLFormElement : HTMLElement {
     [SameObject] readonly attribute HTMLFormControlsCollection elements;
     readonly attribute unsigned long length;
     getter Element (unsigned long index);
-    getter (RadioNodeList or Element) (DOMString name);
+    getter (RadioNodeList or Element) (Utf16DOMString name);
 
     undefined submit();
     undefined requestSubmit(optional HTMLElement? submitter = null);

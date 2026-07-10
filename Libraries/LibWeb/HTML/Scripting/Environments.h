@@ -118,6 +118,7 @@ public:
 
     Optional<URL::URL> parse_url(StringView);
     Optional<URL::URL> encoding_parse_url(StringView);
+    Optional<URL::URL> encoding_parse_url(Utf16View);
     Optional<String> encoding_parse_and_serialize_url(StringView);
 
     JS::Realm& realm();

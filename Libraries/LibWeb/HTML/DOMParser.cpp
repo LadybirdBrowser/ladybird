@@ -63,7 +63,7 @@ WebIDL::ExceptionOr<GC::Ref<DOM::Document>> DOMParser::parse_from_string(Trusted
         document->set_document_type(DOM::Document::Type::HTML);
 
         // 1. Parse HTML from a string given document and compliantString.
-        document->parse_html_from_a_string(compliant_string.to_utf8_but_should_be_ported_to_utf16());
+        document->parse_html_from_a_string(compliant_string.utf16_view());
     } else {
         // -> Otherwise
         document = DOM::Document::create(realm(), associated_document.url());
@@ -97,7 +97,7 @@ WebIDL::ExceptionOr<GC::Ref<DOM::Document>> DOMParser::parse_from_string(Trusted
             // 1. Assert: document has no child nodes.
             document->remove_all_children(true);
             // 2. Let root be the result of creating an element given document, "parsererror", and "http://www.mozilla.org/newlayout/xml/parsererror.xml".
-            auto root = DOM::create_element(*document, "parsererror"_fly_string, "http://www.mozilla.org/newlayout/xml/parsererror.xml"_fly_string).release_value_but_fixme_should_propagate_errors();
+            auto root = DOM::create_element(*document, "parsererror"_utf16_fly_string, "http://www.mozilla.org/newlayout/xml/parsererror.xml"_utf16_fly_string).release_value_but_fixme_should_propagate_errors();
             // FIXME: 3. Optionally, add attributes or children to root to describe the nature of the parsing error.
             // 4. Append root to document.
             MUST(document->append_child(*root));

@@ -75,7 +75,7 @@ void HTMLHyperlinkElementUtils::update_href()
 {
     // To update href for an HTMLAnchorElement or HTMLAreaElement element, set the element's href content attribute's
     // value to the element's url, serialized.
-    hyperlink_element_utils_element().set_attribute_value(HTML::AttributeNames::href, m_url->serialize());
+    hyperlink_element_utils_element().set_attribute_value(HTML::AttributeNames::href, Utf16String::from_utf8(m_url->serialize()));
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-a-target

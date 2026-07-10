@@ -57,7 +57,7 @@ void HTMLDetailsElement::inserted()
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#the-details-element:concept-element-attributes-change-ext
-void HTMLDetailsElement::attribute_changed(FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
+void HTMLDetailsElement::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(local_name, old_value, value, namespace_);
 
@@ -307,12 +307,12 @@ void HTMLDetailsElement::update_shadow_tree_style()
     if (has_attribute(HTML::AttributeNames::open)) {
         m_descendants_slot->set_attribute_value(HTML::AttributeNames::style, R"~~~(
             display: block;
-        )~~~"_string);
+        )~~~"_utf16);
     } else {
         m_descendants_slot->set_attribute_value(HTML::AttributeNames::style, R"~~~(
             display: block;
             content-visibility: hidden;
-        )~~~"_string);
+        )~~~"_utf16);
     }
 
     shadow_root()->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::DetailsElementOpenedOrClosed);

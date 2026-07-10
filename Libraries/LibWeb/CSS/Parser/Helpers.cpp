@@ -55,8 +55,22 @@ GC::Ref<CSS::CSSStyleSheet> parse_css_stylesheet(CSS::Parser::ParsingParams cons
         return style_sheet;
     }
     auto style_sheet = CSS::Parser::Parser::create(context, css).parse_as_css_stylesheet(location, move(media_list));
-    // FIXME: Avoid this copy
-    style_sheet->set_source_text(MUST(String::from_utf8(css)));
+    style_sheet->set_source_text(Utf16String::from_utf8(css));
+    return style_sheet;
+}
+
+GC::Ref<CSS::CSSStyleSheet> parse_css_stylesheet(CSS::Parser::ParsingParams const& context, Utf16View css, Optional<::URL::URL> location, GC::Ptr<CSS::MediaList> media_list)
+{
+    if (css.is_empty()) {
+        auto rule_list = CSS::CSSRuleList::create(*context.realm);
+        if (!media_list)
+            media_list = CSS::MediaList::create(*context.realm, {});
+        auto style_sheet = CSS::CSSStyleSheet::create(*context.realm, rule_list, *media_list, location);
+        style_sheet->set_source_text({});
+        return style_sheet;
+    }
+    auto style_sheet = CSS::Parser::Parser::create(context, css).parse_as_css_stylesheet(location, move(media_list));
+    style_sheet->set_source_text(Utf16String::from_utf16(css));
     return style_sheet;
 }
 

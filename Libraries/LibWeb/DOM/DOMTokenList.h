@@ -8,9 +8,9 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
 #include <AK/Optional.h>
 #include <AK/StringView.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibWeb/Bindings/PlatformObject.h>
@@ -25,7 +25,7 @@ class DOMTokenList final : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(DOMTokenList);
 
 public:
-    [[nodiscard]] static GC::Ref<DOMTokenList> create(Element& associated_element, FlyString associated_attribute);
+    [[nodiscard]] static GC::Ref<DOMTokenList> create(Element& associated_element, Utf16FlyString associated_attribute);
     ~DOMTokenList() = default;
 
     void associated_attribute_changed(Utf16String const& value);
@@ -44,7 +44,7 @@ public:
     void set_value(Utf16String const& value);
 
 private:
-    DOMTokenList(Element& associated_element, FlyString associated_attribute);
+    DOMTokenList(Element& associated_element, Utf16FlyString associated_attribute);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -60,15 +60,15 @@ private:
     Utf16String serialize_ordered_set() const;
 
     GC::Ref<Element> m_associated_element;
-    FlyString m_associated_attribute;
+    Utf16FlyString m_associated_attribute;
     Vector<Utf16String> m_token_set;
 };
 
 }
 
 struct SupportedTokenKey {
-    FlyString element_name;
-    FlyString attribute_name;
+    Utf16FlyString element_name;
+    Utf16FlyString attribute_name;
 
     constexpr bool operator==(SupportedTokenKey const& other) const = default;
 };

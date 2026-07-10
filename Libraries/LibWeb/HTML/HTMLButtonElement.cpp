@@ -64,12 +64,12 @@ HTMLButtonElement::TypeAttributeState HTMLButtonElement::type_state() const
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-button-type
-String HTMLButtonElement::type_for_bindings() const
+Utf16String HTMLButtonElement::type_for_bindings() const
 {
     // The type getter steps are:
     // 1. If this is a submit button, then return "submit".
     if (is_submit_button())
-        return "submit"_string;
+        return "submit"_utf16;
 
     // 2. Let state be this's type attribute.
     auto state = type_state();
@@ -79,13 +79,13 @@ String HTMLButtonElement::type_for_bindings() const
 
     // 4. If state is in the Auto state, then return "button".
     if (state == TypeAttributeState::Auto)
-        return "button"_string;
+        return "button"_utf16;
 
     // 5. Return the keyword value corresponding to state.
     switch (state) {
 #define __ENUMERATE_HTML_BUTTON_TYPE_ATTRIBUTE(keyword, state) \
     case TypeAttributeState::state:                            \
-        return #keyword##_string;
+        return #keyword##_utf16;
         ENUMERATE_HTML_BUTTON_TYPE_ATTRIBUTES
 #undef __ENUMERATE_HTML_BUTTON_TYPE_ATTRIBUTE
     }
@@ -93,13 +93,13 @@ String HTMLButtonElement::type_for_bindings() const
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-button-type
-void HTMLButtonElement::set_type_for_bindings(String const& type)
+void HTMLButtonElement::set_type_for_bindings(Utf16String const& type)
 {
     // The type setter steps are to set the type content attribute to the given value.
     set_attribute_value(HTML::AttributeNames::type, type);
 }
 
-void HTMLButtonElement::form_associated_element_attribute_changed(FlyString const& name, Optional<Utf16String> const&, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
+void HTMLButtonElement::form_associated_element_attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const&, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     PopoverTargetAttributes::associated_attribute_changed(name, value, namespace_);
 }

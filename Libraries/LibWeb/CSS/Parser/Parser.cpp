@@ -78,8 +78,8 @@ Parser Parser::create(ParsingParams const& context, StringView input, StringView
 
 Parser Parser::create(ParsingParams const& context, Utf16View input)
 {
-    auto utf8_input = MUST(input.to_utf8());
-    return Parser::create(context, utf8_input.bytes_as_string_view());
+    auto tokens = Tokenizer::tokenize(input);
+    return Parser { context, move(tokens) };
 }
 
 Parser::Parser(ParsingParams const& context, Vector<Token> tokens)

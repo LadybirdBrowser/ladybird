@@ -15,12 +15,12 @@ namespace Web::SVG {
 
 GC_DEFINE_ALLOCATOR(SVGAnimatedString);
 
-GC::Ref<SVGAnimatedString> SVGAnimatedString::create(JS::Realm& realm, GC::Ref<SVGElement> element, DOM::QualifiedName reflected_attribute, Optional<DOM::QualifiedName> deprecated_reflected_attribute, Optional<FlyString> initial_value)
+GC::Ref<SVGAnimatedString> SVGAnimatedString::create(JS::Realm& realm, GC::Ref<SVGElement> element, DOM::QualifiedName reflected_attribute, Optional<DOM::QualifiedName> deprecated_reflected_attribute, Optional<Utf16String> initial_value)
 {
     return realm.create<SVGAnimatedString>(realm, element, move(reflected_attribute), move(deprecated_reflected_attribute), move(initial_value));
 }
 
-SVGAnimatedString::SVGAnimatedString(JS::Realm& realm, GC::Ref<SVGElement> element, DOM::QualifiedName reflected_attribute, Optional<DOM::QualifiedName> deprecated_reflected_attribute, Optional<FlyString> initial_value)
+SVGAnimatedString::SVGAnimatedString(JS::Realm& realm, GC::Ref<SVGElement> element, DOM::QualifiedName reflected_attribute, Optional<DOM::QualifiedName> deprecated_reflected_attribute, Optional<Utf16String> initial_value)
     : Bindings::PlatformObject(realm)
     , m_element(element)
     , m_reflected_attribute(move(reflected_attribute))
@@ -58,7 +58,7 @@ Utf16String SVGAnimatedString::base_val() const
 
         // 2. Otherwise, if the reflected attribute has an initial value, then return it.
         if (m_initial_value.has_value())
-            return Utf16String::from_utf8(m_initial_value.value());
+            return m_initial_value.value();
 
         // 3. Otherwise, return the empty string.
         return {};
@@ -69,7 +69,7 @@ Utf16String SVGAnimatedString::base_val() const
 }
 
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGAnimatedString__baseVal
-void SVGAnimatedString::set_base_val(String const& base_val)
+void SVGAnimatedString::set_base_val(Utf16String const& base_val)
 {
     // 1. If the reflected attribute is not present, the SVGAnimatedString object is defined to additionally reflect
     //    a second, deprecated attribute, and that deprecated attribute is present, then set that deprecated attribute

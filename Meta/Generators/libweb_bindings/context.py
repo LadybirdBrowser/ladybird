@@ -243,6 +243,7 @@ class GenerationContext:
             return IDLUnionType(
                 [self.resolve_typedef(member_type) for member_type in resolved_type.member_types],
                 resolved_type.nullable,
+                resolved_type.extended_attributes,
             )
 
         if isinstance(resolved_type, IDLParameterizedType):
@@ -250,6 +251,7 @@ class GenerationContext:
                 resolved_type.name,
                 [self.resolve_typedef(parameter) for parameter in resolved_type.parameters],
                 resolved_type.nullable,
+                resolved_type.extended_attributes,
             )
 
         seen_types: set[IDLType] = set()
@@ -266,6 +268,7 @@ class GenerationContext:
                 return IDLUnionType(
                     [self.resolve_typedef(member_type) for member_type in resolved_type.member_types],
                     resolved_type.nullable,
+                    resolved_type.extended_attributes,
                 )
 
             if isinstance(resolved_type, IDLParameterizedType):
@@ -273,6 +276,7 @@ class GenerationContext:
                     resolved_type.name,
                     [self.resolve_typedef(parameter) for parameter in resolved_type.parameters],
                     resolved_type.nullable,
+                    resolved_type.extended_attributes,
                 )
 
         return resolved_type

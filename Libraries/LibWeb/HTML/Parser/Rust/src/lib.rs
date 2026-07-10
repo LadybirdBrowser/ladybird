@@ -24,24 +24,23 @@ pub struct RustFfiTokenizerHandle {
     pub(crate) tokenizer: HtmlTokenizer,
     /// Temporary storage for the last token's string data, kept alive
     /// so that pointers in RustFfiToken remain valid until the next call.
-    last_tag_name: Vec<u8>,
+    last_tag_name: Vec<u16>,
     last_comment: Vec<u8>,
     last_doctype_name: Vec<u8>,
     last_public_id: Vec<u8>,
     last_system_id: Vec<u8>,
     last_attributes: Vec<RustFfiAttribute>,
-    last_attr_names: Vec<Vec<u8>>,
+    last_attr_names: Vec<Vec<u16>>,
     last_attr_values: Vec<Vec<u8>>,
     last_unparsed_input: Vec<u8>,
 }
 
 /// C-compatible token representation.
 ///
-/// Pointer fields (`tag_name_ptr`, `comment_ptr`, doctype/attribute pointers)
-/// borrow into buffers owned by the `RustFfiTokenizerHandle` that produced this
-/// token. They remain valid only until the next call into the tokenizer for
-/// that handle (any of `next_token`, `insert_input`, `destroy`, etc.).
-/// Callers must consume the data before making the next call.
+/// Pointer fields borrow into buffers owned by the `RustFfiTokenizerHandle` that
+/// produced this token. They remain valid only until the next call into the
+/// tokenizer for that handle (any of `next_token`, `insert_input`, `destroy`,
+/// etc.). Callers must consume the data before making the next call.
 #[repr(C)]
 pub struct RustFfiToken {
     pub token_type: u8,
@@ -52,9 +51,9 @@ pub struct RustFfiToken {
     /// If nonzero, an interned tag-name id (1-based index into
     /// `interned_names::INTERNED_TAG_NAMES`). When set, `tag_name_ptr` /
     /// `tag_name_len` are unused and the C++ side uses its parallel
-    /// FlyString table directly.
+    /// Utf16FlyString table directly. Otherwise the pointer is UTF-16.
     pub tag_name_id: u16,
-    pub tag_name_ptr: *const u8,
+    pub tag_name_ptr: *const u16,
     pub tag_name_len: usize,
 
     pub comment_ptr: *const u8,
@@ -85,9 +84,9 @@ pub struct RustFfiToken {
 pub struct RustFfiAttribute {
     /// If nonzero, an interned attribute-name id (1-based index into
     /// `interned_names::INTERNED_ATTR_NAMES`). When set, `name_ptr` /
-    /// `name_len` are unused.
+    /// `name_len` are unused. Otherwise the pointer is UTF-16.
     pub name_id: u16,
-    pub name_ptr: *const u8,
+    pub name_ptr: *const u16,
     pub name_len: usize,
     pub value_ptr: *const u8,
     pub value_len: usize,
@@ -319,7 +318,7 @@ fn next_token_slow(
             // Tokenizer already resolved intern ids, so we trust tag_name_id.
             out.tag_name_id = tag_name_id;
             if tag_name_id == 0 {
-                handle.last_tag_name = tag_name.into_bytes();
+                handle.last_tag_name = tag_name.encode_utf16().collect();
                 out.tag_name_ptr = handle.last_tag_name.as_ptr();
                 out.tag_name_len = handle.last_tag_name.len();
             }
@@ -345,7 +344,7 @@ fn next_token_slow(
                     value_end_position,
                 } = attr;
                 if local_name_id == 0 {
-                    handle.last_attr_names.push(local_name.into_bytes());
+                    handle.last_attr_names.push(local_name.encode_utf16().collect());
                 } else {
                     // Keep the slot aligned with last_attr_values so index math stays valid.
                     handle.last_attr_names.push(Vec::new());

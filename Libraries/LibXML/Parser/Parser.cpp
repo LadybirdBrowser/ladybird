@@ -55,6 +55,35 @@ static StringView xml_char_to_string_view(xmlChar const* str)
     return StringView(reinterpret_cast<char const*>(str), strlen(reinterpret_cast<char const*>(str)));
 }
 
+static StringView xml_char_to_string_view(xmlChar const* str, int len)
+{
+    if (!str || len <= 0)
+        return {};
+    return StringView(reinterpret_cast<char const*>(str), static_cast<size_t>(len));
+}
+
+static Utf16FlyString xml_name_to_utf16_fly_string(xmlChar const* localname, xmlChar const* prefix)
+{
+    StringBuilder builder;
+    if (prefix) {
+        builder.append(xml_char_to_string_view(prefix));
+        builder.append(':');
+    }
+    builder.append(xml_char_to_string_view(localname));
+    return Utf16FlyString::from_utf8(builder.string_view());
+}
+
+static ByteString xml_name_to_byte_string(xmlChar const* localname, xmlChar const* prefix)
+{
+    StringBuilder builder;
+    if (prefix) {
+        builder.append(xml_char_to_string_view(prefix));
+        builder.append(':');
+    }
+    builder.append(xml_char_to_string_view(localname));
+    return builder.to_byte_string();
+}
+
 static bool is_known_xhtml_public_id(StringView public_id)
 {
     return public_id.is_one_of(
@@ -191,14 +220,47 @@ static void start_element_ns_handler(void* ctx, xmlChar const* localname, xmlCha
         return;
     }
 
-    StringBuilder name_builder;
-    if (prefix) {
-        name_builder.append(xml_char_to_string_view(prefix));
-        name_builder.append(':');
-    }
-    name_builder.append(xml_char_to_string_view(localname));
-    auto name = name_builder.to_byte_string();
+    if (context->listener) {
+        auto name = xml_name_to_utf16_fly_string(localname, prefix);
+        Vector<ListenerAttribute> attrs;
+        attrs.ensure_capacity(static_cast<size_t>(nb_namespaces + nb_attributes));
 
+        for (int i = 0; i < nb_namespaces; i++) {
+            auto* ns_prefix = namespaces[i * 2];
+            auto* ns_uri = namespaces[i * 2 + 1];
+
+            StringBuilder attr_name;
+            if (ns_prefix) {
+                attr_name.append("xmlns:"sv);
+                attr_name.append(xml_char_to_string_view(ns_prefix));
+            } else {
+                attr_name.append("xmlns"sv);
+            }
+
+            attrs.unchecked_append({
+                Utf16FlyString::from_utf8(attr_name.string_view()),
+                Utf16String::from_utf8(xml_char_to_string_view(ns_uri)),
+            });
+        }
+
+        for (int i = 0; i < nb_attributes; i++) {
+            auto* attr_localname = attributes[i * 5 + 0];
+            auto* attr_prefix = attributes[i * 5 + 1];
+            auto* value_begin = attributes[i * 5 + 3];
+            auto* value_end = attributes[i * 5 + 4];
+
+            auto value_len = static_cast<int>(value_end - value_begin);
+            attrs.unchecked_append({
+                xml_name_to_utf16_fly_string(attr_localname, attr_prefix),
+                Utf16String::from_utf8(xml_char_to_string_view(value_begin, value_len)),
+            });
+        }
+
+        context->listener->element_start(name, attrs);
+        return;
+    }
+
+    auto name = xml_name_to_byte_string(localname, prefix);
     OrderedHashMap<Name, ByteString> attrs;
 
     for (int i = 0; i < nb_namespaces; i++) {
@@ -233,26 +295,22 @@ static void start_element_ns_handler(void* ctx, xmlChar const* localname, xmlCha
         attrs.set(attr_name.to_byte_string(), value);
     }
 
-    if (context->listener) {
-        context->listener->element_start(name, attrs);
+    auto element = adopt_own(*new Node {
+        .offset = {},
+        .content = Node::Element { name, move(attrs), {} },
+        .parent = context->current_node,
+    });
+
+    auto* element_ptr = element.ptr();
+
+    if (context->current_node) {
+        VERIFY(context->current_node->is_element());
+        context->current_node->content.get<Node::Element>().children.append(move(element));
     } else {
-        auto element = adopt_own(*new Node {
-            .offset = {},
-            .content = Node::Element { name, move(attrs), {} },
-            .parent = context->current_node,
-        });
-
-        auto* element_ptr = element.ptr();
-
-        if (context->current_node) {
-            VERIFY(context->current_node->is_element());
-            context->current_node->content.get<Node::Element>().children.append(move(element));
-        } else {
-            context->root_node = move(element);
-        }
-
-        context->current_node = element_ptr;
+        context->root_node = move(element);
     }
+
+    context->current_node = element_ptr;
 }
 
 static void end_element_ns_handler(void* ctx, xmlChar const* localname, xmlChar const* prefix, xmlChar const*)
@@ -264,15 +322,8 @@ static void end_element_ns_handler(void* ctx, xmlChar const* localname, xmlChar 
 
     --context->depth;
 
-    StringBuilder name_builder;
-    if (prefix) {
-        name_builder.append(xml_char_to_string_view(prefix));
-        name_builder.append(':');
-    }
-    name_builder.append(xml_char_to_string_view(localname));
-    auto name = name_builder.to_byte_string();
-
     if (context->listener) {
+        auto name = xml_name_to_utf16_fly_string(localname, prefix);
         context->listener->element_end(name);
     } else if (context->current_node) {
         context->current_node = context->current_node->parent;
@@ -364,12 +415,13 @@ static void processing_instruction_handler(void* ctx, xmlChar const* target, xml
     if (parser_ctx->inSubset != 0)
         return;
 
-    auto target_str = xml_char_to_byte_string(target);
-    auto data_str = xml_char_to_byte_string(data);
-
     if (context->listener) {
+        auto target_str = Utf16FlyString::from_utf8(xml_char_to_string_view(target));
+        auto data_str = Utf16String::from_utf8(xml_char_to_string_view(data));
         context->listener->processing_instruction(target_str, data_str);
     } else {
+        auto target_str = xml_char_to_byte_string(target);
+        auto data_str = xml_char_to_byte_string(data);
         context->processing_instructions.set(target_str, data_str);
     }
 }

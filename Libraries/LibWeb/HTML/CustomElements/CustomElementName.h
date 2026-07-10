@@ -7,15 +7,16 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16FlyString.h>
+#include <AK/Utf16View.h>
 
 namespace Web::HTML {
 
-bool is_valid_custom_element_name(String const& name);
+bool is_valid_custom_element_name(Utf16View const& name);
 
-inline bool is_valid_custom_element_name(FlyString const& name)
+inline bool is_valid_custom_element_name(Utf16FlyString const& name)
 {
-    return is_valid_custom_element_name(name.to_string());
+    return is_valid_custom_element_name(name.view());
 }
 
 }

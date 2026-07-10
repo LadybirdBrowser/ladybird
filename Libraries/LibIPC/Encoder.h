@@ -11,6 +11,7 @@
 #include <AK/HashMap.h>
 #include <AK/IPv4Address.h>
 #include <AK/StdLibExtras.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Variant.h>
 #include <LibCore/Forward.h>
 #include <LibIPC/Attachment.h>
@@ -96,6 +97,9 @@ ErrorOr<void> encode(Encoder&, StringView const&);
 
 template<>
 ErrorOr<void> encode(Encoder&, Utf16String const&);
+
+template<>
+ErrorOr<void> encode(Encoder&, Utf16FlyString const&);
 
 template<>
 ErrorOr<void> encode(Encoder&, Utf16View const&);

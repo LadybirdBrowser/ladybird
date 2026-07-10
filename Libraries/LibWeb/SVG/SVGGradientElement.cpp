@@ -11,6 +11,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/SVG/AttributeNames.h>
+#include <LibWeb/SVG/FragmentIdentifier.h>
 #include <LibWeb/SVG/SVGGradientElement.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
 
@@ -21,7 +22,7 @@ SVGGradientElement::SVGGradientElement(DOM::Document& document, DOM::QualifiedNa
 {
 }
 
-void SVGGradientElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
+void SVGGradientElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
@@ -125,7 +126,7 @@ GC::Ptr<SVGGradientElement const> SVGGradientElement::linked_gradient(GC::RootHa
 {
     // FIXME: This entire function is an ad-hoc hack!
 
-    auto link = has_attribute(AttributeNames::href) ? get_attribute(AttributeNames::href) : get_attribute("xlink:href"_fly_string);
+    auto link = has_attribute(AttributeNames::href) ? get_attribute(AttributeNames::href) : get_attribute(AttributeNames::xlink_href);
     if (auto href = link; href.has_value() && !link->is_empty()) {
         auto url = document().encoding_parse_url(*href);
         if (!url.has_value())
@@ -133,7 +134,7 @@ GC::Ptr<SVGGradientElement const> SVGGradientElement::linked_gradient(GC::RootHa
         auto id = url->fragment();
         if (!id.has_value() || id->is_empty())
             return {};
-        auto id_as_utf16 = Utf16String::from_utf8(id.value());
+        auto id_as_utf16 = decode_fragment_identifier(id.value());
         GC::Ptr<DOM::Element> element;
         if (auto containing_shadow = containing_shadow_root())
             element = containing_shadow->get_element_by_id(id_as_utf16);

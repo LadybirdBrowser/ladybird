@@ -21,7 +21,7 @@ public:
     void refresh() const;
     size_t length() const;
     GC::Ptr<Plugin> item(u32 index) const;
-    GC::Ptr<Plugin> named_item(FlyString const& name) const;
+    GC::Ptr<Plugin> named_item(Utf16FlyString const& name) const;
 
 private:
     PluginArray(JS::Realm&);

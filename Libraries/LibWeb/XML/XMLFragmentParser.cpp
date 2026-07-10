@@ -15,7 +15,7 @@
 namespace Web {
 
 // https://html.spec.whatwg.org/multipage/xhtml.html#parsing-xhtml-fragments
-WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> XMLFragmentParser::parse_xml_fragment(DOM::Element& context, StringView input)
+WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> XMLFragmentParser::parse_xml_fragment(DOM::Element& context, Utf16View input)
 {
     // 1. Create a new XML parser.
     // NB: The feed will be used to create the parser below
@@ -36,14 +36,14 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> XMLFragmentParser::parse_xml_fr
     for (auto const& prefix : context.get_in_scope_prefixes()) {
         // NB: Skipping the empty prefix because it is handled specially
         // and the "xmlns" prefix because it is illegal to declare.
-        if (prefix.is_empty() || prefix == "xmlns"_fly_string)
+        if (prefix.is_empty() || prefix == "xmlns"sv)
             continue;
 
-        auto namespace_uri = context.lookup_namespace_uri(prefix.to_string()).value();
+        auto namespace_uri = context.lookup_namespace_uri(prefix.to_utf16_string()).value();
         VERIFY(!namespace_uri.is_empty());
 
         feed.append(" xmlns:"sv);
-        feed.append(prefix);
+        feed.append(prefix.view());
         feed.append("=\""sv);
         feed.append(namespace_uri);
         feed.append('"');
@@ -52,7 +52,7 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> XMLFragmentParser::parse_xml_fr
     auto default_namespace = context.locate_a_namespace({});
     if (default_namespace.has_value() && !default_namespace->is_empty()) {
         feed.append(" xmlns=\""sv);
-        feed.append(default_namespace.value());
+        feed.append(default_namespace->utf16_view());
         feed.append('"');
     }
     //  A namespace prefix is in scope if the DOM lookupNamespaceURI() method on the element would return a non-null value for that prefix.

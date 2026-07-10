@@ -49,14 +49,14 @@ Vector<Utf16String> AutocompleteElement::autocomplete_tokens() const
     return autocomplete_tokens;
 }
 
-String AutocompleteElement::autocomplete() const
+Utf16String AutocompleteElement::autocomplete() const
 {
     // The autocomplete IDL attribute, on getting, must return the element's IDL-exposed autofill value.
     auto details = parse_autocomplete_attribute();
     return details.value;
 }
 
-void AutocompleteElement::set_autocomplete(String const& value)
+void AutocompleteElement::set_autocomplete(Utf16String const& value)
 {
     // The autocomplete IDL attribute [...] on setting, must reflect the content attribute of the same name.
     autocomplete_element_to_html_element().set_attribute_value(AttributeNames::autocomplete, value);
@@ -222,7 +222,7 @@ AutocompleteElement::AttributeDetails AutocompleteElement::parse_autocomplete_at
     if (category == Category::Off) {
         attr_details.field_name = "off"_string;
         attr_details.hint_set = {};
-        attr_details.value = "off"_string;
+        attr_details.value = "off"_utf16;
         return attr_details;
     }
 
@@ -231,7 +231,7 @@ AutocompleteElement::AttributeDetails AutocompleteElement::parse_autocomplete_at
     if (category == Category::Automatic) {
         attr_details.field_name = "on"_string;
         attr_details.hint_set = {};
-        attr_details.value = "on"_string;
+        attr_details.value = "on"_utf16;
         return attr_details;
     }
 
@@ -262,7 +262,7 @@ AutocompleteElement::AttributeDetails AutocompleteElement::parse_autocomplete_at
         attr_details.field_name = field.to_utf8();
 
         // 30. Set the element's IDL-exposed autofill value to IDL value.
-        attr_details.value = idl_value.to_utf8();
+        attr_details.value = idl_value;
 
         // 31. Return.
         return attr_details;

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
 
 namespace Web::XLink::AttributeNames {
 
@@ -22,7 +22,7 @@ namespace Web::XLink::AttributeNames {
     __ENUMERATE_XLINK_ATTRIBUTE(to)      \
     __ENUMERATE_XLINK_ATTRIBUTE(type)
 
-#define __ENUMERATE_XLINK_ATTRIBUTE(name) extern FlyString name;
+#define __ENUMERATE_XLINK_ATTRIBUTE(name) extern Utf16FlyString name;
 ENUMERATE_XLINK_ATTRIBUTES
 #undef __ENUMERATE_XLINK_ATTRIBUTE
 

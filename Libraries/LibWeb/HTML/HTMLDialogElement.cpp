@@ -135,7 +135,7 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show()
     queue_a_dialog_toggle_event_task("closed"_string, "open"_string, nullptr);
 
     // 6. Add an open attribute to this, whose value is the empty string.
-    set_attribute_value(AttributeNames::open, String {});
+    set_attribute_value(AttributeNames::open, Utf16String {});
 
     // 7. Set this's previously focused element to the focused element.
     m_previously_focused_element = document().focused_area();
@@ -227,7 +227,7 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show_a_modal_dialog(HTMLDialogEleme
     subject.queue_a_dialog_toggle_event_task("closed"_string, "open"_string, source);
 
     // 11. Add an open attribute to subject, whose value is the empty string.
-    subject.set_attribute_value(AttributeNames::open, String {});
+    subject.set_attribute_value(AttributeNames::open, Utf16String {});
 
     // 12. Assert: subject's close watcher is not null.
     VERIFY(subject.m_close_watcher);
@@ -662,7 +662,7 @@ void HTMLDialogElement::inserted()
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#the-dialog-element:concept-element-attributes-change-ext
-void HTMLDialogElement::attribute_changed(FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
+void HTMLDialogElement::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(local_name, old_value, value, namespace_);
 

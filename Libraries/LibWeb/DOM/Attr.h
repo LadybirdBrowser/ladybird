@@ -21,23 +21,20 @@ class WEB_API Attr final : public Node {
 
 public:
     [[nodiscard]] static GC::Ref<Attr> create(Document&, QualifiedName, Utf16String value = {}, Element* = nullptr);
-    [[nodiscard]] static GC::Ref<Attr> create(Document&, QualifiedName, String const& value, Element* = nullptr);
-    [[nodiscard]] static GC::Ref<Attr> create(Document&, FlyString local_name, Utf16String value = {}, Element* = nullptr);
-    [[nodiscard]] static GC::Ref<Attr> create(Document&, FlyString local_name, String const& value, Element* = nullptr);
+    [[nodiscard]] static GC::Ref<Attr> create(Document&, Utf16FlyString local_name, Utf16String value = {}, Element* = nullptr);
     GC::Ref<Attr> clone(Document&) const;
 
     virtual ~Attr() override = default;
 
-    virtual FlyString node_name() const override { return name(); }
+    virtual Utf16FlyString node_name() const override { return m_qualified_name.as_string(); }
 
-    Optional<FlyString> const& namespace_uri() const { return m_qualified_name.namespace_(); }
-    Optional<FlyString> const& prefix() const { return m_qualified_name.prefix(); }
-    FlyString const& local_name() const { return m_qualified_name.local_name(); }
-    FlyString const& name() const { return m_qualified_name.as_string(); }
+    Optional<Utf16FlyString> const& namespace_uri() const { return m_qualified_name.namespace_(); }
+    Optional<Utf16FlyString> const& prefix() const { return m_qualified_name.prefix(); }
+    Utf16FlyString const& local_name() const { return m_qualified_name.local_name(); }
+    Utf16FlyString const& name() const { return m_qualified_name.as_string(); }
 
     Utf16String const& value() const { return m_value; }
     WebIDL::ExceptionOr<void> set_value(Utf16String value);
-    WebIDL::ExceptionOr<void> set_value(String value);
     void change_attribute(Utf16String value);
 
     Element* owner_element();

@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <AK/String.h>
 #include <AK/Types.h>
+#include <AK/Utf16String.h>
 #include <LibIPC/Forward.h>
 #include <LibURL/Origin.h>
 #include <LibWeb/Export.h>
@@ -18,7 +18,7 @@ namespace Web::HTML {
 
 struct WEB_API BroadcastChannelMessage {
     StorageAPI::StorageKey storage_key;
-    String channel_name;
+    Utf16String channel_name;
     URL::Origin source_origin;
     SerializationRecord serialized_message;
     pid_t source_process_id { -1 };

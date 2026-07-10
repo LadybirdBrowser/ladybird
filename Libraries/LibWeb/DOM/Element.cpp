@@ -230,21 +230,6 @@ void Element::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://dom.spec.whatwg.org/#dom-element-getattribute
-Optional<Utf16String> Element::get_attribute(FlyString const& name) const
-{
-    // 1. Let attr be the result of getting an attribute given qualifiedName and this.
-    if (!m_attributes)
-        return {};
-    auto const* attribute = m_attributes->get_attribute(name);
-
-    // 2. If attr is null, return null.
-    if (!attribute)
-        return {};
-
-    // 3. Return attr’s value.
-    return attribute->value();
-}
-
 Optional<Utf16String> Element::get_attribute(Utf16FlyString const& name) const
 {
     if (!m_attributes)
@@ -259,7 +244,7 @@ Optional<Utf16String> Element::get_attribute(Utf16FlyString const& name) const
 
     for (size_t i = 0; i < m_attributes->length(); ++i) {
         auto const* attribute = m_attributes->item(i);
-        if (effective_name->view() == attribute->name().bytes_as_string_view())
+        if (*effective_name == attribute->name())
             return attribute->value();
     }
 
@@ -267,7 +252,7 @@ Optional<Utf16String> Element::get_attribute(Utf16FlyString const& name) const
 }
 
 // https://dom.spec.whatwg.org/#dom-element-getattributens
-Optional<Utf16String> Element::get_attribute_ns(Optional<FlyString> const& namespace_, FlyString const& name) const
+Optional<Utf16String> Element::get_attribute_ns(Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& name) const
 {
     // 1. Let attr be the result of getting an attribute given namespace, localName, and this.
     if (!m_attributes)
@@ -283,7 +268,7 @@ Optional<Utf16String> Element::get_attribute_ns(Optional<FlyString> const& names
 }
 
 // https://dom.spec.whatwg.org/#concept-element-attributes-get-value
-Utf16String Element::get_attribute_value(FlyString const& local_name, Optional<FlyString> const& namespace_) const
+Utf16String Element::get_attribute_value(Utf16FlyString const& local_name, Optional<Utf16FlyString> const& namespace_) const
 {
     // 1. Let attr be the result of getting an attribute given namespace, localName, and element.
     if (!m_attributes)
@@ -434,7 +419,7 @@ void Element::follow_the_hyperlink(Optional<String> hyperlink_suffix, HTML::User
 }
 
 // https://dom.spec.whatwg.org/#dom-element-getattributenode
-GC::Ptr<Attr> Element::get_attribute_node(FlyString const& name) const
+GC::Ptr<Attr> Element::get_attribute_node(Utf16FlyString const& name) const
 {
     // The getAttributeNode(qualifiedName) method steps are to return the result of getting an attribute given qualifiedName and this.
     if (!m_attributes)
@@ -443,7 +428,7 @@ GC::Ptr<Attr> Element::get_attribute_node(FlyString const& name) const
 }
 
 // https://dom.spec.whatwg.org/#dom-element-getattributenodens
-GC::Ptr<Attr> Element::get_attribute_node_ns(Optional<FlyString> const& namespace_, FlyString const& name) const
+GC::Ptr<Attr> Element::get_attribute_node_ns(Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& name) const
 {
     // The getAttributeNodeNS(namespace, localName) method steps are to return the result of getting an attribute given namespace, localName, and this.
     if (!m_attributes)
@@ -452,7 +437,7 @@ GC::Ptr<Attr> Element::get_attribute_node_ns(Optional<FlyString> const& namespac
 }
 
 // https://dom.spec.whatwg.org/#dom-element-setattribute
-WebIDL::ExceptionOr<void> Element::set_attribute_for_bindings(FlyString qualified_name, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> const& value)
+WebIDL::ExceptionOr<void> Element::set_attribute_for_bindings(Utf16FlyString qualified_name, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> const& value)
 {
     // 1. If qualifiedName is not a valid attribute local name, then throw an "InvalidCharacterError" DOMException.
     if (!is_valid_attribute_local_name(qualified_name))
@@ -460,8 +445,10 @@ WebIDL::ExceptionOr<void> Element::set_attribute_for_bindings(FlyString qualifie
 
     // 2. If this is in the HTML namespace and its node document is an HTML document, then set qualifiedName to
     //    qualifiedName in ASCII lowercase.
-    if (namespace_uri() == Namespace::HTML && document().document_type() == Document::Type::HTML)
-        qualified_name = qualified_name.to_ascii_lowercase();
+    if (namespace_uri() == Namespace::HTML && document().document_type() == Document::Type::HTML) {
+        auto lowercase_qualified_name = qualified_name.view().to_ascii_lowercase();
+        qualified_name = Utf16FlyString::from_utf16(lowercase_qualified_name.utf16_view());
+    }
 
     // 3. Let verifiedValue be the result of calling get Trusted Types-compliant attribute value
     //    with qualifiedName, null, this, and value.
@@ -486,44 +473,34 @@ WebIDL::ExceptionOr<void> Element::set_attribute_for_bindings(FlyString qualifie
     return {};
 }
 
-// https://dom.spec.whatwg.org/#dom-element-setattribute
-WebIDL::ExceptionOr<void> Element::set_attribute_for_bindings(FlyString qualified_name, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, String> const& value)
-{
-    return set_attribute_for_bindings(move(qualified_name),
-        value.visit(
-            [](auto const& trusted_type) -> Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> { return trusted_type; },
-            [](String const& string) -> Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> { return Utf16String::from_utf8(string); }));
-}
-
 // https://dom.spec.whatwg.org/#valid-namespace-prefix
-bool is_valid_namespace_prefix(FlyString const& prefix)
+bool is_valid_namespace_prefix(Utf16FlyString const& prefix)
 {
     // A string is a valid namespace prefix if its length is at least 1 and it does not contain ASCII whitespace, U+0000 NULL, U+002F (/), or U+003E (>).
     constexpr Array<u32, 8> INVALID_NAMESPACE_PREFIX_CHARACTERS { '\t', '\n', '\f', '\r', ' ', '\0', '/', '>' };
-    return !prefix.is_empty() && !prefix.code_points().contains_any_of(INVALID_NAMESPACE_PREFIX_CHARACTERS);
+    return !prefix.is_empty() && !prefix.view().contains_any_of(INVALID_NAMESPACE_PREFIX_CHARACTERS);
 }
 
 // https://dom.spec.whatwg.org/#valid-attribute-local-name
-bool is_valid_attribute_local_name(FlyString const& local_name)
+bool is_valid_attribute_local_name(Utf16FlyString const& local_name)
 {
     // A string is a valid attribute local name if its length is at least 1 and it does not contain ASCII whitespace, U+0000 NULL, U+002F (/), U+003D (=), or U+003E (>).
     constexpr Array<u32, 9> INVALID_ATTRIBUTE_LOCAL_NAME_CHARACTERS { '\t', '\n', '\f', '\r', ' ', '\0', '/', '=', '>' };
-    return !local_name.is_empty() && !local_name.code_points().contains_any_of(INVALID_ATTRIBUTE_LOCAL_NAME_CHARACTERS);
+    return !local_name.is_empty() && !local_name.view().contains_any_of(INVALID_ATTRIBUTE_LOCAL_NAME_CHARACTERS);
 }
 
-// https://dom.spec.whatwg.org/#valid-element-local-name
-bool is_valid_element_local_name(FlyString const& name)
+bool is_valid_element_local_name(Utf16View const& name)
 {
     // 1. If name’s length is 0, then return false.
     if (name.is_empty())
         return false;
 
     // 2. If name’s 0th code point is an ASCII alpha, then:
-    auto first_code_point = *name.code_points().begin().peek();
+    auto first_code_point = *name.begin();
     if (is_ascii_alpha(first_code_point)) {
         // 1. If name contains ASCII whitespace, U+0000 NULL, U+002F (/), or U+003E (>), then return false.
         constexpr Array<u32, 8> INVALID_CHARACTERS { '\t', '\n', '\f', '\r', ' ', '\0', '/', '>' };
-        if (name.code_points().contains_any_of(INVALID_CHARACTERS))
+        if (name.contains_any_of(INVALID_CHARACTERS))
             return false;
 
         // 2. Return true.
@@ -535,7 +512,7 @@ bool is_valid_element_local_name(FlyString const& name)
         return false;
 
     // 4. If name’s subsequent code points, if any, are not ASCII alphas, ASCII digits, U+002D (-), U+002E (.), U+003A (:), U+005F (_), or in the range U+0080 to U+10FFFF, inclusive, then return false.
-    for (auto code_point : name.code_points().unicode_substring_view(1)) {
+    for (auto code_point : name.unicode_substring_view(1)) {
         if (!is_ascii_alpha(code_point) && !is_ascii_digit(code_point) && !first_is_one_of(code_point, 0X002Du, 0X002Eu, 0X003Au, 0X005Fu) && (code_point < 0x0080 || code_point > 0x10FFFF))
             return false;
     }
@@ -545,7 +522,7 @@ bool is_valid_element_local_name(FlyString const& name)
 }
 
 // https://dom.spec.whatwg.org/#validate-and-extract
-WebIDL::ExceptionOr<QualifiedName> validate_and_extract(JS::Realm& realm, Optional<FlyString> namespace_, FlyString const& qualified_name, ValidationContext context)
+WebIDL::ExceptionOr<QualifiedName> validate_and_extract(JS::Realm& realm, Optional<Utf16FlyString> namespace_, Utf16FlyString const& qualified_name, ValidationContext context)
 {
     // To validate and extract a namespace and qualifiedName, run these steps:
 
@@ -554,20 +531,20 @@ WebIDL::ExceptionOr<QualifiedName> validate_and_extract(JS::Realm& realm, Option
         namespace_ = {};
 
     // 2. Let prefix be null.
-    Optional<FlyString> prefix = {};
+    Optional<Utf16FlyString> prefix = {};
 
     // 3. Let localName be qualifiedName.
     auto local_name = qualified_name;
 
     // 4. If qualifiedName contains a U+003A (:):
-    auto qualified_name_view = qualified_name.bytes_as_string_view();
-    auto colon_position = qualified_name_view.find(':');
+    auto qualified_name_view = qualified_name.view();
+    auto colon_position = qualified_name_view.find_code_unit_offset(':');
     if (colon_position.has_value()) {
         // 1. Set prefix to the part of qualifiedName before the first U+003A (:).
-        prefix = MUST(FlyString::from_utf8(qualified_name_view.substring_view(0, *colon_position)));
+        prefix = Utf16FlyString::from_utf16(qualified_name_view.substring_view(0, *colon_position));
 
         // 2. Set localName to the part of qualifiedName after the first U+003A (:).
-        local_name = MUST(FlyString::from_utf8(qualified_name_view.substring_view(*colon_position + 1)));
+        local_name = Utf16FlyString::from_utf16(qualified_name_view.substring_view(*colon_position + 1));
 
         // 3. If prefix is not a valid namespace prefix, then throw an "InvalidCharacterError" DOMException.
         if (!is_valid_namespace_prefix(*prefix))
@@ -606,7 +583,7 @@ WebIDL::ExceptionOr<QualifiedName> validate_and_extract(JS::Realm& realm, Option
 }
 
 // https://dom.spec.whatwg.org/#dom-element-setattributens
-WebIDL::ExceptionOr<void> Element::set_attribute_ns_for_bindings(Optional<FlyString> const& namespace_, FlyString const& qualified_name, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> const& value)
+WebIDL::ExceptionOr<void> Element::set_attribute_ns_for_bindings(Optional<Utf16FlyString> namespace_, Utf16FlyString const& qualified_name, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> const& value)
 {
     // 1. Let (namespace, prefix, localName) be the result of validating and extracting namespace and qualifiedName given "attribute".
     auto extracted_qualified_name = TRY(validate_and_extract(realm(), namespace_, qualified_name, ValidationContext::Attribute));
@@ -615,7 +592,7 @@ WebIDL::ExceptionOr<void> Element::set_attribute_ns_for_bindings(Optional<FlyStr
     //    with localName, namespace, this, and value.
     auto const verified_value = TRY(TrustedTypes::get_trusted_types_compliant_attribute_value(
         extracted_qualified_name.local_name(),
-        extracted_qualified_name.namespace_().has_value() ? Utf16String::from_utf8(extracted_qualified_name.namespace_().value()) : Optional<Utf16String>(),
+        extracted_qualified_name.namespace_(),
         *this,
         value));
 
@@ -626,7 +603,7 @@ WebIDL::ExceptionOr<void> Element::set_attribute_ns_for_bindings(Optional<FlyStr
 }
 
 // https://dom.spec.whatwg.org/#concept-element-attributes-append
-void Element::append_attribute(FlyString const& name, Utf16String const& value)
+void Element::append_attribute(Utf16FlyString const& name, Utf16String const& value)
 {
     attributes()->append_attribute(Attr::create(document(), name, value));
 }
@@ -638,7 +615,7 @@ void Element::append_attribute(Attr& attribute)
 }
 
 // https://dom.spec.whatwg.org/#concept-element-attributes-set-value
-void Element::set_attribute_value(FlyString const& local_name, Utf16String const& value, Optional<FlyString> const& prefix, Optional<FlyString> const& namespace_)
+void Element::set_attribute_value(Utf16FlyString const& local_name, Utf16String const& value, Optional<Utf16FlyString> const& prefix, Optional<Utf16FlyString> const& namespace_)
 {
     // 1. Let attribute be the result of getting an attribute given namespace, localName, and element.
     auto* attribute = attributes()->get_attribute_ns(namespace_, local_name);
@@ -674,16 +651,24 @@ WebIDL::ExceptionOr<GC::Ptr<Attr>> Element::set_attribute_node_ns_for_bindings(A
 }
 
 // https://dom.spec.whatwg.org/#dom-element-removeattribute
-void Element::remove_attribute(FlyString const& name)
+void Element::remove_attribute(Utf16FlyString const& name)
 {
     // The removeAttribute(qualifiedName) method steps are to remove an attribute given qualifiedName and this, and then return undefined.
     if (!m_attributes)
         return;
-    m_attributes->remove_attribute(name);
+
+    Utf16FlyString const* effective_name = &name;
+    Utf16FlyString lowercase_name;
+    if (namespace_uri() == Namespace::HTML && document().is_html_document()) {
+        lowercase_name = name.to_ascii_lowercase();
+        effective_name = &lowercase_name;
+    }
+
+    m_attributes->remove_attribute(*effective_name);
 }
 
 // https://dom.spec.whatwg.org/#dom-element-removeattributens
-void Element::remove_attribute_ns(Optional<FlyString> const& namespace_, FlyString const& name)
+void Element::remove_attribute_ns(Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& name)
 {
     // The removeAttributeNS(namespace, localName) method steps are to remove an attribute given namespace, localName, and this, and then return undefined.
     if (!m_attributes)
@@ -698,46 +683,48 @@ WebIDL::ExceptionOr<GC::Ref<Attr>> Element::remove_attribute_node(GC::Ref<Attr> 
 }
 
 // https://dom.spec.whatwg.org/#dom-element-hasattribute
-bool Element::has_attribute(FlyString const& name) const
+bool Element::has_attribute(Utf16FlyString const& name) const
 {
-    if (!m_attributes)
-        return false;
-    return m_attributes->get_attribute(name) != nullptr;
+    return get_attribute(name).has_value();
 }
 
 // https://dom.spec.whatwg.org/#dom-element-hasattributens
-bool Element::has_attribute_ns(Optional<FlyString> const& namespace_, FlyString const& name) const
+bool Element::has_attribute_ns(Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& name) const
 {
     if (!m_attributes)
         return false;
 
     // 1. If namespace is the empty string, then set it to null.
     // 2. Return true if this has an attribute whose namespace is namespace and local name is localName; otherwise false.
-    if (namespace_ == FlyString {})
-        return m_attributes->get_attribute_ns(OptionalNone {}, name) != nullptr;
+    if (namespace_ == Utf16FlyString {})
+        return m_attributes->get_attribute_ns(Optional<Utf16FlyString> {}, name) != nullptr;
 
     return m_attributes->get_attribute_ns(namespace_, name) != nullptr;
 }
 
 // https://dom.spec.whatwg.org/#dom-element-toggleattribute
-WebIDL::ExceptionOr<bool> Element::toggle_attribute(FlyString const& name, Optional<bool> force)
+WebIDL::ExceptionOr<bool> Element::toggle_attribute(Utf16FlyString const& name, Optional<bool> force)
 {
     // 1. If qualifiedName is not a valid attribute local name, then throw an "InvalidCharacterError" DOMException.
     if (!is_valid_attribute_local_name(name))
         return WebIDL::InvalidCharacterError::create(realm(), "Attribute name must not be empty or contain invalid characters"_utf16);
 
     // 2. If this is in the HTML namespace and its node document is an HTML document, then set qualifiedName to qualifiedName in ASCII lowercase.
-    bool insert_as_lowercase = namespace_uri() == Namespace::HTML && document().document_type() == Document::Type::HTML;
+    auto effective_name = name;
+    if (namespace_uri() == Namespace::HTML && document().document_type() == Document::Type::HTML) {
+        auto lowercase_name = name.view().to_ascii_lowercase();
+        effective_name = Utf16FlyString::from_utf16(lowercase_name.utf16_view());
+    }
 
     // 3. Let attribute be the first attribute in this’s attribute list whose qualified name is qualifiedName, and null otherwise.
-    auto* attribute = attributes()->get_attribute(name);
+    auto* attribute = attributes()->get_attribute(effective_name);
 
     // 4. If attribute is null, then:
     if (!attribute) {
         // 1. If force is not given or is true, create an attribute whose local name is qualifiedName, value is the empty
         //    string, and node document is this’s node document, then append this attribute to this, and then return true.
         if (!force.has_value() || force.value()) {
-            auto new_attribute = Attr::create(document(), insert_as_lowercase ? name.to_ascii_lowercase() : name.to_string(), Utf16String {});
+            auto new_attribute = Attr::create(document(), effective_name, Utf16String {});
             m_attributes->append_attribute(new_attribute);
 
             return true;
@@ -749,7 +736,7 @@ WebIDL::ExceptionOr<bool> Element::toggle_attribute(FlyString const& name, Optio
 
     // 5. Otherwise, if force is not given or is false, remove an attribute given qualifiedName and this, and then return false.
     if (!force.has_value() || !force.value()) {
-        m_attributes->remove_attribute(name);
+        m_attributes->remove_attribute(effective_name);
         return false;
     }
 
@@ -758,21 +745,21 @@ WebIDL::ExceptionOr<bool> Element::toggle_attribute(FlyString const& name, Optio
 }
 
 // https://dom.spec.whatwg.org/#dom-element-getattributenames
-Vector<String> Element::get_attribute_names() const
+Vector<Utf16FlyString> Element::get_attribute_names() const
 {
     // The getAttributeNames() method steps are to return the qualified names of the attributes in this’s attribute list, in order; otherwise a new list.
     if (!m_attributes)
         return {};
-    Vector<String> names;
+    Vector<Utf16FlyString> names;
     for (size_t i = 0; i < m_attributes->length(); ++i) {
         auto const* attribute = m_attributes->item(i);
-        names.append(attribute->name().to_string());
+        names.append(attribute->name());
     }
     return names;
 }
 
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#attr-associated-element
-GC::Ptr<DOM::Element> Element::get_the_attribute_associated_element(FlyString const& content_attribute, GC::Ptr<DOM::Element> explicitly_set_attribute_element) const
+GC::Ptr<DOM::Element> Element::get_the_attribute_associated_element(Utf16FlyString const& content_attribute, GC::Ptr<DOM::Element> explicitly_set_attribute_element) const
 {
     // 1. Let element be the result of running reflectedTarget's get the element.
     auto const& element = *this;
@@ -805,7 +792,7 @@ GC::Ptr<DOM::Element> Element::get_the_attribute_associated_element(FlyString co
 }
 
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#attr-associated-elements
-Optional<GC::RootVector<GC::Ref<DOM::Element>>> Element::get_the_attribute_associated_elements(FlyString const& content_attribute, Optional<Vector<GC::Weak<DOM::Element>> const&> explicitly_set_attribute_elements) const
+Optional<GC::RootVector<GC::Ref<DOM::Element>>> Element::get_the_attribute_associated_elements(Utf16FlyString const& content_attribute, Optional<Vector<GC::Weak<DOM::Element>> const&> explicitly_set_attribute_elements) const
 {
     // 1. Let elements be an empty list.
     GC::RootVector<GC::Ref<DOM::Element>> elements;
@@ -859,7 +846,7 @@ Optional<GC::RootVector<GC::Ref<DOM::Element>>> Element::get_the_attribute_assoc
 
 RefPtr<Layout::Node> Element::create_layout_node(CSS::ComputedProperties const& style)
 {
-    if (local_name() == "noscript" && document().is_scripting_enabled())
+    if (local_name() == "noscript"sv && document().is_scripting_enabled())
         return nullptr;
 
     auto display = style.display();
@@ -955,7 +942,7 @@ void Element::apply_presentational_hints(Vector<CSS::StyleProperty>& properties)
     }
 }
 
-void Element::run_attribute_change_steps(FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
+void Element::run_attribute_change_steps(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     attribute_changed(local_name, old_value, value, namespace_);
 
@@ -1343,13 +1330,13 @@ GC::Ref<DOMTokenList> Element::part_list()
 }
 
 // https://dom.spec.whatwg.org/#valid-shadow-host-name
-static bool is_valid_shadow_host_name(FlyString const& name)
+static bool is_valid_shadow_host_name(Utf16FlyString const& name)
 {
     // A valid shadow host name is:
     // - a valid custom element name
     // - "article", "aside", "blockquote", "body", "div", "footer", "h1", "h2", "h3", "h4", "h5", "h6", "header", "main", "nav", "p", "section", or "span"
     if (!HTML::is_valid_custom_element_name(name)
-        && !name.is_one_of("article", "aside", "blockquote", "body", "div", "footer", "h1", "h2", "h3", "h4", "h5", "h6", "header", "main", "nav", "p", "section", "span")) {
+        && !name.is_one_of(HTML::TagNames::article, HTML::TagNames::aside, HTML::TagNames::blockquote, HTML::TagNames::body, HTML::TagNames::div, HTML::TagNames::footer, HTML::TagNames::h1, HTML::TagNames::h2, HTML::TagNames::h3, HTML::TagNames::h4, HTML::TagNames::h5, HTML::TagNames::h6, HTML::TagNames::header, HTML::TagNames::main, HTML::TagNames::nav, HTML::TagNames::p, HTML::TagNames::section, HTML::TagNames::span)) {
         return false;
     }
     return true;
@@ -1540,7 +1527,7 @@ WebIDL::ExceptionOr<void> Element::set_inner_html(TrustedTypes::TrustedHTMLOrStr
     DOM::Node* context = this;
 
     // 3. Let fragment be the result of invoking the fragment parsing algorithm steps with context and compliantString.
-    auto fragment = TRY(as<Element>(*context).parse_fragment(compliant_string.to_utf8_but_should_be_ported_to_utf16()));
+    auto fragment = TRY(as<Element>(*context).parse_fragment(compliant_string.utf16_view()));
 
     // 4. If context is a template element, then set context to the template element's template contents (a DocumentFragment).
     auto* template_element = as_if<HTML::HTMLTemplateElement>(*context);
@@ -1665,7 +1652,7 @@ void Element::set_inline_style(GC::Ptr<CSS::CSSStyleProperties> style)
 }
 
 // https://dom.spec.whatwg.org/#element-html-uppercased-qualified-name
-FlyString Element::make_html_uppercased_qualified_name() const
+Utf16FlyString Element::make_html_uppercased_qualified_name() const
 {
     // This is allowed by the spec: "User agents could optimize qualified name and HTML-uppercased qualified name by storing them in internal slots."
     if (namespace_uri() == Namespace::HTML && document().document_type() == Document::Type::HTML)
@@ -2300,7 +2287,7 @@ i32 Element::tab_index() const
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-tabindex
 void Element::set_tab_index(i32 tab_index)
 {
-    set_attribute_value(HTML::AttributeNames::tabindex, String::number(tab_index));
+    set_attribute_value(HTML::AttributeNames::tabindex, Utf16String::number(tab_index));
 }
 
 // https://drafts.csswg.org/cssom-view/#potentially-scrollable
@@ -2663,7 +2650,7 @@ bool Element::is_actually_disabled() const
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#fragment-parsing-algorithm-steps
-WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> Element::parse_fragment(StringView markup, HTML::ParserScriptingMode scripting_mode)
+WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> Element::parse_fragment(Utf16View markup, HTML::ParserScriptingMode scripting_mode)
 {
     // 1. Assert: scriptingMode is either Inert or Fragment.
     VERIFY(scripting_mode == HTML::ParserScriptingMode::Inert || scripting_mode == HTML::ParserScriptingMode::Fragment);
@@ -2725,7 +2712,7 @@ WebIDL::ExceptionOr<void> Element::set_outer_html(TrustedTypes::TrustedHTMLOrStr
         parent = TRY(create_element(document(), HTML::TagNames::body, Namespace::HTML));
 
     // 6. Let fragment be the result of invoking the fragment parsing algorithm steps given parent and compliantString.
-    auto fragment = TRY(as<Element>(*parent).parse_fragment(compliant_string.to_utf8_but_should_be_ported_to_utf16()));
+    auto fragment = TRY(as<Element>(*parent).parse_fragment(compliant_string.utf16_view()));
 
     // 6. Replace this with fragment within this's parent.
     TRY(this->parent()->replace_child(fragment, *this));
@@ -2786,7 +2773,7 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
     }
 
     // 5. Let fragment be the result of invoking the fragment parsing algorithm steps with context and compliantString.
-    auto fragment = TRY(as<Element>(*context).parse_fragment(compliant_string.to_utf8_but_should_be_ported_to_utf16()));
+    auto fragment = TRY(as<Element>(*context).parse_fragment(compliant_string.utf16_view()));
 
     // 6. Use the first matching item from this list:
 
@@ -3512,7 +3499,7 @@ void Element::enqueue_a_custom_element_upgrade_reaction(HTML::CustomElementDefin
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#enqueue-a-custom-element-callback-reaction
-void Element::enqueue_a_custom_element_callback_reaction(FlyString const& callback_name, GC::RootVector<JS::Value> arguments)
+void Element::enqueue_a_custom_element_callback_reaction(Utf16FlyString const& callback_name, GC::RootVector<JS::Value> arguments)
 {
     // 1. Let definition be element's custom element definition.
     auto& definition = m_custom_element_definition;
@@ -3564,7 +3551,7 @@ void Element::enqueue_a_custom_element_callback_reaction(FlyString const& callba
         VERIFY(!arguments.is_empty());
         auto& attribute_name_value = arguments.first();
         VERIFY(attribute_name_value.is_string());
-        auto attribute_name = attribute_name_value.as_string().utf16_string();
+        auto attribute_name = Utf16FlyString { attribute_name_value.as_string().utf16_string() };
 
         // 2. If definition's observed attributes does not contain attributeName, then return.
         if (!definition->observed_attributes().contains_slow(attribute_name))
@@ -3604,10 +3591,10 @@ JS::ThrowCompletionOr<void> Element::upgrade_element(GC::Ref<HTML::CustomElement
 
         GC::RootVector<JS::Value> arguments;
 
-        arguments.append(JS::PrimitiveString::create(vm, Utf16FlyString::from_utf8(attribute->local_name())));
+        arguments.append(JS::PrimitiveString::create(vm, attribute->local_name()));
         arguments.append(JS::js_null());
         arguments.append(JS::PrimitiveString::create(vm, attribute->value()));
-        arguments.append(attribute->namespace_uri().has_value() ? JS::PrimitiveString::create(vm, Utf16FlyString::from_utf8(attribute->namespace_uri().value())) : JS::js_null());
+        arguments.append(attribute->namespace_uri().has_value() ? JS::PrimitiveString::create(vm, attribute->namespace_uri().value()) : JS::js_null());
 
         enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::attributeChangedCallback, move(arguments));
     }
@@ -3724,7 +3711,7 @@ void Element::set_custom_element_state(CustomElementState state)
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#html-element-constructors
-void Element::setup_custom_element_from_constructor(HTML::CustomElementDefinition& custom_element_definition, Optional<String> const& is_value)
+void Element::setup_custom_element_from_constructor(HTML::CustomElementDefinition& custom_element_definition, Optional<Utf16FlyString> const& is_value)
 {
     // 7.6. Set element's custom element state to "custom".
     set_custom_element_state(CustomElementState::Custom);
@@ -3736,25 +3723,25 @@ void Element::setup_custom_element_from_constructor(HTML::CustomElementDefinitio
     m_is_value = is_value;
 }
 
-void Element::set_prefix(Optional<FlyString> value)
+void Element::set_prefix(Optional<Utf16FlyString> value)
 {
     m_qualified_name.set_prefix(move(value));
+    m_html_uppercased_qualified_name.clear();
 }
 
 // https://dom.spec.whatwg.org/#locate-a-namespace-prefix
-Optional<String> Element::locate_a_namespace_prefix(Optional<String> const& namespace_) const
+Optional<Utf16String> Element::locate_a_namespace_prefix(Optional<Utf16String> const& namespace_) const
 {
     // 1. If element’s namespace is namespace and its namespace prefix is non-null, then return its namespace prefix.
-    if (this->namespace_uri() == namespace_ && this->prefix().has_value())
-        return this->prefix()->to_string();
+    if (this->namespace_uri().has_value() && namespace_.has_value() && this->namespace_uri()->view() == namespace_->utf16_view() && this->prefix().has_value())
+        return this->prefix()->to_utf16_string();
 
     // 2. If element has an attribute whose namespace prefix is "xmlns" and value is namespace, then return element’s first such attribute’s local name.
     if (auto attributes = this->attributes(); attributes && namespace_.has_value()) {
-        auto namespace_utf16 = Utf16String::from_utf8(*namespace_);
         for (size_t i = 0; i < attributes->length(); ++i) {
             auto& attr = *attributes->item(i);
-            if (attr.prefix() == "xmlns" && attr.value() == namespace_utf16)
-                return attr.local_name().to_string();
+            if (attr.prefix() == "xmlns"sv && attr.value().utf16_view() == namespace_->utf16_view())
+                return attr.local_name().to_utf16_string();
         }
     }
 
@@ -3782,7 +3769,7 @@ void Element::for_each_attribute(Function<void(Attr const&)> callback) const
         callback(*m_attributes->item(i));
 }
 
-void Element::for_each_attribute(Function<void(FlyString const&, Utf16String const&)> callback) const
+void Element::for_each_attribute(Function<void(Utf16FlyString const&, Utf16String const&)> callback) const
 {
     for_each_attribute([&callback](Attr const& attr) {
         callback(attr.name(), attr.value());
@@ -4694,7 +4681,7 @@ static void prefetch_inline_style_image_resources(CSS::CSSStyleProperties const&
 }
 
 // https://dom.spec.whatwg.org/#concept-element-attributes-change-ext
-void Element::attribute_changed(FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
+void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     // AD-HOC: Everything below requires that there is no namespace, so return early if there is one.
     if (namespace_.has_value())
@@ -4895,7 +4882,7 @@ WebIDL::ExceptionOr<void> Element::set_html_unsafe(TrustedTypes::TrustedHTMLOrSt
         target = as<HTML::HTMLTemplateElement>(*this).content().ptr();
 
     // 3. Unsafe set HTML given target, this, and compliantHTML.
-    TRY(target->unsafely_set_html(*this, compliant_html.to_utf8_but_should_be_ported_to_utf16()));
+    TRY(target->unsafely_set_html(*this, compliant_html.utf16_view()));
 
     return {};
 }
@@ -5098,7 +5085,7 @@ GC::Ptr<NamedNodeMap const> Element::attributes() const
     return const_cast<Element&>(*this).attributes();
 }
 
-FlyString const& Element::html_uppercased_qualified_name() const
+Utf16FlyString const& Element::html_uppercased_qualified_name() const
 {
     return m_html_uppercased_qualified_name.ensure([&] { return make_html_uppercased_qualified_name(); });
 }

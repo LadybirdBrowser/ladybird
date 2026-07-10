@@ -200,9 +200,9 @@ public:
     void get_dom_node_outer_html(Web::UniqueNodeID node_id);
     void set_dom_node_outer_html(Web::UniqueNodeID node_id, String const& html);
     void set_dom_node_text(Web::UniqueNodeID node_id, String const& text);
-    void set_dom_node_tag(Web::UniqueNodeID node_id, String const& name);
+    void set_dom_node_tag(Web::UniqueNodeID node_id, Utf16FlyString const& name);
     void add_dom_node_attributes(Web::UniqueNodeID node_id, ReadonlySpan<Attribute> attributes);
-    void replace_dom_node_attribute(Web::UniqueNodeID node_id, String const& name, ReadonlySpan<Attribute> replacement_attributes);
+    void replace_dom_node_attribute(Web::UniqueNodeID node_id, Utf16FlyString const& name, ReadonlySpan<Attribute> replacement_attributes);
     void create_child_element(Web::UniqueNodeID node_id);
     void create_child_text_node(Web::UniqueNodeID node_id);
     void insert_dom_node_before(Web::UniqueNodeID node_id, Web::UniqueNodeID parent_node_id, Optional<Web::UniqueNodeID> sibling_node_id);

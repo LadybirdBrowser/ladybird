@@ -1,5 +1,5 @@
 // https://dom.spec.whatwg.org/#callbackdef-xpathnsresolver
 [Exposed=Window]
 callback interface XPathNSResolver {
-    DOMString? lookupNamespaceURI(DOMString? prefix);
+    Utf16DOMString? lookupNamespaceURI(Utf16DOMString? prefix);
 };

@@ -22,7 +22,7 @@ public:
 
     virtual ~DocumentFragment() override = default;
 
-    virtual FlyString node_name() const override { return "#document-fragment"_fly_string; }
+    virtual Utf16FlyString node_name() const override { return "#document-fragment"_utf16_fly_string; }
 
     Element* host() { return m_host.ptr(); }
     Element const* host() const { return m_host.ptr(); }

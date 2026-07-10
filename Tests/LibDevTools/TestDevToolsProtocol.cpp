@@ -1051,7 +1051,7 @@ public:
         callback(node_id);
     }
 
-    virtual void set_dom_node_tag(DevTools::TabDescription const&, Web::UniqueNodeID node_id, String const& tag_name, OnDOMNodeEditComplete callback) const override
+    virtual void set_dom_node_tag(DevTools::TabDescription const&, Web::UniqueNodeID node_id, Utf16FlyString const& tag_name, OnDOMNodeEditComplete callback) const override
     {
         ++set_dom_node_tag_call_count;
         last_edited_node = node_id;
@@ -1067,7 +1067,7 @@ public:
         callback(node_id);
     }
 
-    virtual void replace_dom_node_attribute(DevTools::TabDescription const&, Web::UniqueNodeID node_id, String const& attribute, ReadonlySpan<WebView::Attribute> attributes, OnDOMNodeEditComplete callback) const override
+    virtual void replace_dom_node_attribute(DevTools::TabDescription const&, Web::UniqueNodeID node_id, Utf16FlyString const& attribute, ReadonlySpan<WebView::Attribute> attributes, OnDOMNodeEditComplete callback) const override
     {
         ++replace_dom_node_attribute_call_count;
         last_edited_node = node_id;
@@ -1497,8 +1497,8 @@ public:
     mutable Optional<Web::UniqueNodeID> last_sibling_node;
     mutable Optional<String> last_html;
     mutable Optional<String> last_text;
-    mutable Optional<String> last_tag;
-    mutable Optional<String> last_attribute;
+    mutable Optional<Utf16FlyString> last_tag;
+    mutable Optional<Utf16FlyString> last_attribute;
     mutable size_t last_attribute_count { 0 };
     mutable Optional<Web::UniqueNodeID> last_resolved_url_node;
     mutable Optional<String> last_url_to_resolve;
@@ -3982,7 +3982,7 @@ TEST_CASE(inspector_walker_highlighter_layout_and_editing)
     attributes.set("class"sv, "updated"sv);
     mutation_target.set("attributes"sv, move(attributes));
 
-    WebView::Mutation mutation { "attributes"_string, 4, mutation_target.serialized(), WebView::AttributeMutation { "class"_string, "updated"_string } };
+    WebView::Mutation mutation { "attributes"_string, 4, mutation_target.serialized(), WebView::AttributeMutation { "class"_utf16_fly_string, "updated"_utf16 } };
     session->delegate.emit_mutation(move(mutation));
     EXPECT_EQ(client.read_message().get_string("type"sv).value(), "newMutations"sv);
 

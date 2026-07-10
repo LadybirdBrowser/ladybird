@@ -79,14 +79,14 @@ static BroadcastChannelRepository& broadcast_channel_repository()
 
 GC_DEFINE_ALLOCATOR(BroadcastChannel);
 
-GC::Ref<BroadcastChannel> BroadcastChannel::construct_impl(JS::Realm& realm, FlyString const& name)
+GC::Ref<BroadcastChannel> BroadcastChannel::construct_impl(JS::Realm& realm, Utf16FlyString const& name)
 {
     auto channel = realm.create<BroadcastChannel>(realm, name);
     broadcast_channel_repository().register_channel(channel);
     return channel;
 }
 
-BroadcastChannel::BroadcastChannel(JS::Realm& realm, FlyString const& name)
+BroadcastChannel::BroadcastChannel(JS::Realm& realm, Utf16FlyString const& name)
     : DOM::EventTarget(realm)
     , m_channel_name(name)
 {
@@ -147,7 +147,7 @@ WebIDL::ExceptionOr<void> BroadcastChannel::post_message(JS::Value message)
 
     BroadcastChannelMessage message_to_send {
         .storage_key = source_storage_key,
-        .channel_name = name().to_string(),
+        .channel_name = name().to_utf16_string(),
         .source_origin = source_origin,
         .serialized_message = serialized,
         .source_process_id = Core::System::getpid(),

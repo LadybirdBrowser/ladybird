@@ -30,18 +30,22 @@
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOM/IDLEventListener.h>
 #include <LibWeb/DOM/Node.h>
+#include <LibWeb/Gamepad/EventNames.h>
+#include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/BeforeUnloadEvent.h>
 #include <LibWeb/HTML/CloseWatcherManager.h>
 #include <LibWeb/HTML/ErrorEvent.h>
 #include <LibWeb/HTML/EventHandler.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
+#include <LibWeb/HTML/GlobalEventHandlers.h>
 #include <LibWeb/HTML/HTMLBodyElement.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/HTML/HTMLFrameSetElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTML/WindowEventHandlers.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/UIEvents/EventNames.h>
@@ -424,6 +428,19 @@ static EventTarget* determine_target_of_event_handler(EventTarget& event_target,
     return &as<EventTarget>(HTML::relevant_global_object(event_target_element.document()));
 }
 
+static Optional<FlyString> event_name_from_event_handler_attribute_local_name(Utf16FlyString const& local_name)
+{
+#undef __ENUMERATE
+#define __ENUMERATE(attribute_name, event_name)             \
+    if (local_name == HTML::AttributeNames::attribute_name) \
+        return event_name;
+    ENUMERATE_GLOBAL_EVENT_HANDLERS(__ENUMERATE)
+    ENUMERATE_WINDOW_EVENT_HANDLERS(__ENUMERATE)
+#undef __ENUMERATE
+
+    return {};
+}
+
 // https://html.spec.whatwg.org/multipage/webappapis.html#event-handler-attributes:event-handler-idl-attributes-2
 WebIDL::CallbackType* EventTarget::event_handler_attribute(FlyString const& name)
 {
@@ -798,13 +815,17 @@ JS::ThrowCompletionOr<void> EventTarget::process_event_handler_for_event(FlyStri
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#event-handler-attributes:concept-element-attributes-change-ext
-void EventTarget::element_event_handler_attribute_changed(FlyString const& local_name, Optional<Utf16String> const& value)
+void EventTarget::element_event_handler_attribute_changed(Utf16FlyString const& local_name, Optional<Utf16String> const& value)
 {
     // NOTE: Step 1 of this algorithm was handled in HTMLElement::attribute_changed.
 
+    auto event_name = event_name_from_event_handler_attribute_local_name(local_name);
+    if (!event_name.has_value())
+        return;
+
     // 2. Let eventTarget be the result of determining the target of an event handler given element and localName.
     // NOTE: element is `this`.
-    auto* event_target = determine_target_of_event_handler(*this, local_name);
+    auto* event_target = determine_target_of_event_handler(*this, *event_name);
 
     // 3. If eventTarget is null, then return.
     if (!event_target)
@@ -812,7 +833,7 @@ void EventTarget::element_event_handler_attribute_changed(FlyString const& local
 
     // 4. If value is null, then deactivate an event handler given eventTarget and localName.
     if (!value.has_value()) {
-        event_target->deactivate_event_handler(local_name);
+        event_target->deactivate_event_handler(*event_name);
         return;
     }
 
@@ -828,7 +849,7 @@ void EventTarget::element_event_handler_attribute_changed(FlyString const& local
     auto& handler_map = event_target->ensure_data().event_handler_map;
 
     //  3. Let eventHandler be handlerMap[localName].
-    auto event_handler_iterator = handler_map.find(local_name);
+    auto event_handler_iterator = handler_map.find(*event_name);
 
     //  FIXME: 4. Let location be the script location that triggered the execution of these steps.
 
@@ -841,9 +862,9 @@ void EventTarget::element_event_handler_attribute_changed(FlyString const& local
         auto new_event_handler = heap().allocate<HTML::EventHandler>(value->to_byte_string());
 
         //  6. Activate an event handler given eventTarget and name.
-        event_target->activate_event_handler(local_name, *new_event_handler);
+        event_target->activate_event_handler(*event_name, *new_event_handler);
 
-        handler_map.set(local_name, new_event_handler);
+        handler_map.set(*event_name, new_event_handler);
         return;
     }
 
@@ -851,7 +872,7 @@ void EventTarget::element_event_handler_attribute_changed(FlyString const& local
 
     //  6. Activate an event handler given eventTarget and name.
     event_handler->value = value->to_byte_string();
-    event_target->activate_event_handler(local_name, *event_handler);
+    event_target->activate_event_handler(*event_name, *event_handler);
 }
 
 bool EventTarget::dispatch_event(Event& event)

@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
 
 namespace Web::SVG::AttributeNames {
 
@@ -105,6 +105,7 @@ namespace Web::SVG::AttributeNames {
     __ENUMERATE_SVG_ATTRIBUTE(targetX, "targetX")                                       \
     __ENUMERATE_SVG_ATTRIBUTE(targetY, "targetY")                                       \
     __ENUMERATE_SVG_ATTRIBUTE(textLength, "textLength")                                 \
+    __ENUMERATE_SVG_ATTRIBUTE(transform, "transform")                                   \
     __ENUMERATE_SVG_ATTRIBUTE(type, "type")                                             \
     __ENUMERATE_SVG_ATTRIBUTE(values, "values")                                         \
     __ENUMERATE_SVG_ATTRIBUTE(version, "version")                                       \
@@ -123,7 +124,7 @@ namespace Web::SVG::AttributeNames {
     __ENUMERATE_SVG_ATTRIBUTE(yChannelSelector, "yChannelSelector")                     \
     __ENUMERATE_SVG_ATTRIBUTE(zoomAndPan, "zoomAndPan")
 
-#define __ENUMERATE_SVG_ATTRIBUTE(name, attribute) extern FlyString const& name;
+#define __ENUMERATE_SVG_ATTRIBUTE(name, attribute) extern Utf16FlyString const& name;
 ENUMERATE_SVG_ATTRIBUTES
 #undef __ENUMERATE_SVG_ATTRIBUTE
 

@@ -19,6 +19,7 @@
 #include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/String.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
@@ -309,7 +310,7 @@ public:
 
     Optional<String> get_style_sheet_source(CSS::StyleSheetIdentifier const&) const;
 
-    virtual FlyString node_name() const override { return "#document"_fly_string; }
+    virtual Utf16FlyString node_name() const override { return "#document"_utf16_fly_string; }
 
     void set_hovered_node(GC::Ptr<Node>, Optional<HoverEventData> = {});
     Node* hovered_node() { return m_hovered_node.ptr(); }
@@ -337,8 +338,8 @@ public:
     HTML::HTMLHeadElement* head();
     GC::Ptr<HTML::HTMLTitleElement> title_element();
 
-    StringView dir() const;
-    void set_dir(String const&);
+    Utf16String dir() const;
+    void set_dir(Utf16String const&);
 
     HTML::HTMLElement* body();
 
@@ -433,7 +434,7 @@ public:
     RefPtr<Painting::ViewportPaintable const> unsafe_paintable() const;
     RefPtr<Painting::ViewportPaintable> unsafe_paintable();
 
-    GC::Ref<NodeList> get_elements_by_name(FlyString const&);
+    GC::Ref<NodeList> get_elements_by_name(Utf16String const&);
 
     GC::Ref<HTMLCollection> applets();
     GC::Ref<HTMLCollection> anchors();
@@ -457,16 +458,16 @@ public:
 
     HTML::EnvironmentSettingsObject& relevant_settings_object() const;
 
-    WebIDL::ExceptionOr<GC::Ref<Element>> create_element(String const& local_name, Variant<String, Bindings::ElementCreationOptions> const& options);
-    WebIDL::ExceptionOr<GC::Ref<Element>> create_element_ns(Optional<FlyString> const& namespace_, String const& qualified_name, Variant<String, Bindings::ElementCreationOptions> const& options);
+    WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Utf16FlyString local_name, Variant<Utf16FlyString, Bindings::ElementCreationOptions> const& options);
+    WebIDL::ExceptionOr<GC::Ref<Element>> create_element_ns(Optional<Utf16FlyString> namespace_, Utf16FlyString const& qualified_name, Variant<Utf16FlyString, Bindings::ElementCreationOptions> const& options);
     GC::Ref<DocumentFragment> create_document_fragment();
     GC::Ref<Text> create_text_node(Utf16String data);
     WebIDL::ExceptionOr<GC::Ref<CDATASection>> create_cdata_section(Utf16String data);
     GC::Ref<Comment> create_comment(Utf16String data);
-    WebIDL::ExceptionOr<GC::Ref<ProcessingInstruction>> create_processing_instruction(String const& target, Utf16String data);
+    WebIDL::ExceptionOr<GC::Ref<ProcessingInstruction>> create_processing_instruction(Utf16FlyString const& target, Utf16String data);
 
-    WebIDL::ExceptionOr<GC::Ref<Attr>> create_attribute(String const& local_name);
-    WebIDL::ExceptionOr<GC::Ref<Attr>> create_attribute_ns(Optional<FlyString> const& namespace_, String const& qualified_name);
+    WebIDL::ExceptionOr<GC::Ref<Attr>> create_attribute(Utf16FlyString const& local_name);
+    WebIDL::ExceptionOr<GC::Ref<Attr>> create_attribute_ns(Optional<Utf16FlyString> namespace_, Utf16FlyString const& qualified_name);
 
     WebIDL::ExceptionOr<GC::Ref<Event>> create_event(StringView interface);
     GC::Ref<Range> create_range();
@@ -671,7 +672,7 @@ public:
     void set_temporary_document_for_fragment_parsing(Badge<HTML::HTMLParser>);
     [[nodiscard]] bool is_temporary_document_for_fragment_parsing() const { return m_temporary_document_for_fragment_parsing; }
 
-    static bool is_valid_name(String const&);
+    static bool is_valid_name(Utf16View const&);
 
     GC::Ref<NodeIterator> create_node_iterator(Node& root, unsigned what_to_show, GC::Ptr<NodeFilter>);
     GC::Ref<TreeWalker> create_tree_walker(Node& root, unsigned what_to_show, GC::Ptr<NodeFilter>);
@@ -1014,7 +1015,7 @@ public:
 
     Vector<GC::Root<Range>> find_matching_text(String const&, CaseSensitivity);
 
-    void parse_html_from_a_string(StringView);
+    void parse_html_from_a_string(Utf16View);
     static WebIDL::ExceptionOr<GC::Root<DOM::Document>> parse_html_unsafe(JS::VM&, TrustedTypes::TrustedHTMLOrString const&);
 
     void set_console_client(GC::Ptr<JS::ConsoleClient> console_client) { m_console_client = console_client; }
@@ -1095,8 +1096,8 @@ public:
     GC::Ref<EditingHostManager> editing_host_manager() const { return *m_editing_host_manager; }
 
     // https://w3c.github.io/editing/docs/execCommand/#default-single-line-container-name
-    FlyString const& default_single_line_container_name() const { return m_default_single_line_container_name; }
-    void set_default_single_line_container_name(FlyString const& name) { m_default_single_line_container_name = name; }
+    Utf16FlyString const& default_single_line_container_name() const { return m_default_single_line_container_name; }
+    void set_default_single_line_container_name(Utf16FlyString const& name) { m_default_single_line_container_name = name; }
 
     // https://w3c.github.io/editing/docs/execCommand/#css-styling-flag
     bool css_styling_flag() const { return m_css_styling_flag; }
@@ -1186,7 +1187,7 @@ public:
     void set_custom_element_registry(GC::Ptr<HTML::CustomElementRegistry> custom_element_registry) { m_custom_element_registry = custom_element_registry; }
     GC::Ptr<HTML::CustomElementRegistry> effective_global_custom_element_registry() const;
 
-    void upgrade_particular_elements(GC::Ref<HTML::CustomElementRegistry>, GC::Ref<HTML::CustomElementDefinition>, String local_name, Optional<String> name = {});
+    void upgrade_particular_elements(GC::Ref<HTML::CustomElementRegistry>, GC::Ref<HTML::CustomElementDefinition>, Utf16FlyString local_name, Optional<Utf16FlyString> name = {});
 
     Vector<URL::Origin> internal_ancestor_origin_objects_list_creation_steps(ReferrerPolicy::ReferrerPolicy) const;
     Optional<Vector<URL::Origin>>& internal_ancestor_origin_objects_list() { return m_internal_ancestor_origin_objects_list; }
@@ -1261,9 +1262,9 @@ private:
 
     struct RegistryAndIs {
         GC::Ptr<HTML::CustomElementRegistry> registry;
-        Optional<String> is;
+        Optional<Utf16FlyString> is;
     };
-    WebIDL::ExceptionOr<RegistryAndIs> flatten_element_creation_options(Variant<String, Bindings::ElementCreationOptions> const&) const;
+    WebIDL::ExceptionOr<RegistryAndIs> flatten_element_creation_options(Variant<Utf16FlyString, Bindings::ElementCreationOptions> const&) const;
 
     GC::Ref<Page> m_page;
     GC::Ptr<CSS::StyleComputer> m_style_computer;
@@ -1629,7 +1630,7 @@ private:
     bool m_preserve_selection_offsets_during_identical_character_data_replacement { false };
 
     // https://w3c.github.io/editing/docs/execCommand/#default-single-line-container-name
-    FlyString m_default_single_line_container_name { HTML::TagNames::div };
+    Utf16FlyString m_default_single_line_container_name { HTML::TagNames::div };
 
     // https://w3c.github.io/editing/docs/execCommand/#css-styling-flag
     bool m_css_styling_flag { false };

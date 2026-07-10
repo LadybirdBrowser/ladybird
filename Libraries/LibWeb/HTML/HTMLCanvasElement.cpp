@@ -77,7 +77,7 @@ void HTMLCanvasElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_context);
 }
 
-bool HTMLCanvasElement::is_presentational_hint(FlyString const& name) const
+bool HTMLCanvasElement::is_presentational_hint(Utf16FlyString const& name) const
 {
     if (Base::is_presentational_hint(name))
         return true;
@@ -217,7 +217,7 @@ void HTMLCanvasElement::set_width(unsigned value)
     if (value > 2147483647)
         value = 300;
 
-    set_attribute_value(HTML::AttributeNames::width, String::number(value));
+    set_attribute_value(HTML::AttributeNames::width, Utf16String::number(value));
     notify_context_about_canvas_size_change();
     reset_context_to_default_state();
 }
@@ -227,12 +227,12 @@ void HTMLCanvasElement::set_height(WebIDL::UnsignedLong value)
     if (value > 2147483647)
         value = 150;
 
-    set_attribute_value(HTML::AttributeNames::height, String::number(value));
+    set_attribute_value(HTML::AttributeNames::height, Utf16String::number(value));
     notify_context_about_canvas_size_change();
     reset_context_to_default_state();
 }
 
-void HTMLCanvasElement::attribute_changed(FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
+void HTMLCanvasElement::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(local_name, old_value, value, namespace_);
 

@@ -12,6 +12,7 @@
 #include <AK/GenericShorthands.h>
 #include <AK/RefPtr.h>
 #include <AK/TypeCasts.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Utf16View.h>
 #include <AK/Vector.h>
 #include <LibWeb/Bindings/Node.h>
@@ -260,7 +261,7 @@ public:
     GC::Ref<NodeList> child_nodes();
     Vector<GC::Root<Node>> children_as_vector() const;
 
-    virtual FlyString node_name() const = 0;
+    virtual Utf16FlyString node_name() const = 0;
 
     String base_uri() const;
 
@@ -284,7 +285,7 @@ public:
 
     HTML::HTMLAnchorElement const* enclosing_link_element() const;
     HTML::HTMLElement const* enclosing_html_element() const;
-    HTML::HTMLElement const* enclosing_html_element_with_attribute(FlyString const&) const;
+    HTML::HTMLElement const* enclosing_html_element_with_attribute(Utf16FlyString const&) const;
 
     Utf16String child_text_content() const;
 
@@ -425,7 +426,7 @@ public:
 
     WebIDL::ExceptionOr<Utf16String> serialize_fragment(HTML::RequireWellFormed, FragmentSerializationMode = FragmentSerializationMode::Inner) const;
 
-    WebIDL::ExceptionOr<void> unsafely_set_html(Element&, StringView);
+    WebIDL::ExceptionOr<void> unsafely_set_html(Element&, Utf16View);
 
     void replace_all(GC::Ptr<Node>);
     void string_replace_all(Utf16String);
@@ -446,7 +447,7 @@ public:
 
     void add_registered_observer(RegisteredObserver&);
 
-    void queue_mutation_record(FlyString const& type, Optional<FlyString> const& attribute_name, Optional<FlyString> const& attribute_namespace, Optional<Utf16String> const& old_value, Vector<GC::Root<Node>> added_nodes, Vector<GC::Root<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling);
+    void queue_mutation_record(FlyString const& type, Optional<Utf16FlyString> const& attribute_name, Optional<Utf16FlyString> const& attribute_namespace, Optional<Utf16String> const& old_value, Vector<GC::Root<Node>> added_nodes, Vector<GC::Root<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling);
 
     // https://dom.spec.whatwg.org/#concept-shadow-including-inclusive-descendant
     template<typename Callback>
@@ -492,11 +493,11 @@ public:
     ErrorOr<Utf16String> accessible_name(Document const&, ShouldComputeRole = ShouldComputeRole::Yes) const;
     ErrorOr<Utf16String> accessible_description(Document const&) const;
 
-    Optional<String> locate_a_namespace(Optional<String> const& prefix) const;
-    Optional<String> lookup_namespace_uri(Optional<String> prefix) const;
-    Optional<String> lookup_prefix(Optional<String> namespace_) const;
-    bool is_default_namespace(Optional<String> namespace_) const;
-    Vector<FlyString> get_in_scope_prefixes() const;
+    Optional<Utf16String> locate_a_namespace(Optional<Utf16String> const& prefix) const;
+    Optional<Utf16String> lookup_namespace_uri(Optional<Utf16String> prefix) const;
+    Optional<Utf16String> lookup_prefix(Optional<Utf16String> namespace_) const;
+    bool is_default_namespace(Optional<Utf16String> namespace_) const;
+    Vector<Utf16FlyString> get_in_scope_prefixes() const;
 
     bool is_inert() const;
 

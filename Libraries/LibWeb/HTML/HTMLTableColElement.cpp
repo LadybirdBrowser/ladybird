@@ -48,10 +48,10 @@ void HTMLTableColElement::set_span(unsigned int value)
 {
     if (value > 2147483647)
         value = 1;
-    set_attribute_value(HTML::AttributeNames::span, String::number(value));
+    set_attribute_value(HTML::AttributeNames::span, Utf16String::number(value));
 }
 
-bool HTMLTableColElement::is_presentational_hint(FlyString const& name) const
+bool HTMLTableColElement::is_presentational_hint(Utf16FlyString const& name) const
 {
     if (Base::is_presentational_hint(name))
         return true;

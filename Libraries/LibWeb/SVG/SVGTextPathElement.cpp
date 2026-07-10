@@ -4,9 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibURL/URL.h>
 #include <LibWeb/Bindings/SVGTextPathElement.h>
-#include <LibWeb/CSS/URL.h>
 #include <LibWeb/Layout/SVGTextPathBox.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/SVGLength.h>
@@ -21,7 +19,7 @@ SVGTextPathElement::SVGTextPathElement(DOM::Document& document, DOM::QualifiedNa
 {
 }
 
-void SVGTextPathElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
+void SVGTextPathElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
@@ -34,8 +32,7 @@ GC::Ptr<SVGGeometryElement const> SVGTextPathElement::path_or_shape() const
     auto href = has_attribute(AttributeNames::href) ? get_attribute(AttributeNames::href) : get_attribute(AttributeNames::xlink_href);
     if (!href.has_value())
         return {};
-    auto href_utf8 = href->to_utf8();
-    return try_resolve_url_to<SVGGeometryElement const>(CSS::URL { href_utf8 });
+    return try_resolve_url_to<SVGGeometryElement const>(*href);
 }
 
 // https://svgwg.org/svg2-draft/text.html#TextPathElementStartOffsetAttribute

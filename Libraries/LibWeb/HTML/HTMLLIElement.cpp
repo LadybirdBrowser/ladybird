@@ -29,7 +29,7 @@ void HTMLLIElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-void HTMLLIElement::attribute_changed(FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
+void HTMLLIElement::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(local_name, old_value, value, namespace_);
 
@@ -55,10 +55,10 @@ WebIDL::Long HTMLLIElement::value()
 
 void HTMLLIElement::set_value(WebIDL::Long value)
 {
-    set_attribute_value(AttributeNames::value, String::number(value));
+    set_attribute_value(AttributeNames::value, Utf16String::number(value));
 }
 
-bool HTMLLIElement::is_presentational_hint(FlyString const& name) const
+bool HTMLLIElement::is_presentational_hint(Utf16FlyString const& name) const
 {
     if (Base::is_presentational_hint(name))
         return true;

@@ -19,6 +19,7 @@
 #include <LibWeb/Layout/SVGGraphicsBox.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/SVG/AttributeNames.h>
+#include <LibWeb/SVG/FragmentIdentifier.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 #include <LibWeb/SVG/SVGSymbolElement.h>
@@ -170,7 +171,7 @@ void SVGUseElement::unregister_for_referenced_element_changes()
     document().unregister_svg_use_element({}, *this);
 }
 
-void SVGUseElement::attribute_changed(FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<FlyString> const& namespace_)
+void SVGUseElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
@@ -179,7 +180,7 @@ void SVGUseElement::attribute_changed(FlyString const& name, Optional<Utf16Strin
         m_x = AttributeParser::parse_number_percentage(value.value_or({}));
     } else if (name == SVG::AttributeNames::y) {
         m_y = AttributeParser::parse_number_percentage(value.value_or({}));
-    } else if (name == SVG::AttributeNames::href || name == "xlink:href"_fly_string) {
+    } else if (name == SVG::AttributeNames::href || name == SVG::AttributeNames::xlink_href) {
         // When the ‘href’ attribute is set (or, in the absence of an ‘href’ attribute, an ‘xlink:href’ attribute), the user agent must process the URL.
         process_the_url(value);
     }
@@ -187,7 +188,7 @@ void SVGUseElement::attribute_changed(FlyString const& name, Optional<Utf16Strin
 
 Optional<Utf16String> SVGUseElement::href_value() const
 {
-    if (auto href = get_attribute_ns(OptionalNone {}, AttributeNames::href); href.has_value())
+    if (auto href = get_attribute_ns(Optional<Utf16FlyString> {}, AttributeNames::href); href.has_value())
         return href;
     return get_attribute_ns(Namespace::XLink, AttributeNames::href);
 }
@@ -264,9 +265,8 @@ void SVGUseElement::svg_element_removed(SVGElement& svg_element)
         return;
     }
 
-    auto id = String::from_utf8_with_replacement_character(URL::percent_decode(*m_href->fragment()), String::WithBOMHandling::No);
-    auto id_attribute_utf8 = svg_element.get_attribute_value("id"_fly_string).to_utf8();
-    if (AK::StringUtils::matches(id_attribute_utf8.bytes_as_string_view(), id)) {
+    auto id = decode_fragment_identifier(*m_href->fragment());
+    if (svg_element.get_attribute_value("id"_utf16_fly_string) == id) {
         shadow_root()->remove_all_children();
     }
 }
@@ -281,8 +281,8 @@ GC::Ptr<DOM::Element> SVGUseElement::referenced_element() const
         return nullptr;
 
     if (is_referenced_element_same_document()) {
-        auto id = String::from_utf8_with_replacement_character(URL::percent_decode(*m_href->fragment()), String::WithBOMHandling::No);
-        return document().get_element_by_id(Utf16String::from_utf8(id));
+        auto id = decode_fragment_identifier(*m_href->fragment());
+        return document().get_element_by_id(id);
     }
 
     if (!m_resource_request)
@@ -292,7 +292,7 @@ GC::Ptr<DOM::Element> SVGUseElement::referenced_element() const
     if (!data || !is<SVG::SVGDecodedImageData>(*data))
         return nullptr;
 
-    return as<SVG::SVGDecodedImageData>(*data).svg_document().get_element_by_id(Utf16String::from_utf8(*m_href->fragment()));
+    return as<SVG::SVGDecodedImageData>(*data).svg_document().get_element_by_id(decode_fragment_identifier(*m_href->fragment()));
 }
 
 // https://svgwg.org/svg2-draft/linking.html#processingURL-fetch

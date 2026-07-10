@@ -30,7 +30,7 @@ void HTMLMarqueeElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-bool HTMLMarqueeElement::is_presentational_hint(FlyString const& name) const
+bool HTMLMarqueeElement::is_presentational_hint(Utf16FlyString const& name) const
 {
     if (Base::is_presentational_hint(name))
         return true;
@@ -91,7 +91,7 @@ void HTMLMarqueeElement::set_scroll_amount(WebIDL::UnsignedLong value)
 {
     if (value > 2147483647)
         value = 6;
-    set_attribute_value(HTML::AttributeNames::scrollamount, String::number(value));
+    set_attribute_value(HTML::AttributeNames::scrollamount, Utf16String::number(value));
 }
 
 // https://html.spec.whatwg.org/multipage/obsolete.html#dom-marquee-scrolldelay
@@ -110,7 +110,7 @@ void HTMLMarqueeElement::set_scroll_delay(WebIDL::UnsignedLong value)
 {
     if (value > 2147483647)
         value = 85;
-    set_attribute_value(HTML::AttributeNames::scrolldelay, String::number(value));
+    set_attribute_value(HTML::AttributeNames::scrolldelay, Utf16String::number(value));
 }
 
 }

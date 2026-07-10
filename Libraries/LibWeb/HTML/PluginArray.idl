@@ -4,5 +4,5 @@ interface PluginArray {
     undefined refresh();
     readonly attribute unsigned long length;
     getter Plugin? item(unsigned long index);
-    getter Plugin? namedItem(DOMString name);
+    getter Plugin? namedItem([Utf16FlyString] Utf16DOMString name);
 };

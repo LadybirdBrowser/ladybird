@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <LibGfx/Color.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/DOM/FragmentSerializationMode.h>
@@ -42,7 +43,7 @@ public:
     static GC::Ref<HTMLParser> create_with_open_input_stream(DOM::Document&);
     static GC::Ref<HTMLParser> create_with_uncertain_encoding(DOM::Document&, ByteBuffer const& input, Optional<MimeSniff::MimeType> maybe_mime_type = {});
     static GC::Ref<HTMLParser> create(DOM::Document&, StringView input, ParserScriptingMode, StringView encoding);
-    static GC::Ref<HTMLParser> create_for_decoded_string(DOM::Document&, StringView input, ParserScriptingMode, StringView encoding);
+    static GC::Ref<HTMLParser> create_for_decoded_string(DOM::Document&, Utf16View input, ParserScriptingMode, StringView encoding);
 
     void run(HTMLTokenizer::StopAtInsertionPoint = HTMLTokenizer::StopAtInsertionPoint::No);
     void run(URL::URL const&, HTMLTokenizer::StopAtInsertionPoint = HTMLTokenizer::StopAtInsertionPoint::No);
@@ -56,7 +57,7 @@ public:
         No,
         Yes,
     };
-    static WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> parse_html_fragment(DOM::Element& context_element, StringView markup, AllowDeclarativeShadowRoots = AllowDeclarativeShadowRoots::No, ParserScriptingMode = ParserScriptingMode::Inert);
+    static WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> parse_html_fragment(DOM::Element& context_element, Utf16View markup, AllowDeclarativeShadowRoots = AllowDeclarativeShadowRoots::No, ParserScriptingMode = ParserScriptingMode::Inert);
 
     enum class SerializableShadowRoots {
         No,
@@ -67,7 +68,7 @@ public:
     HTMLTokenizer& tokenizer() { return m_tokenizer; }
 
     void configure_element_created_by_rust_parser(DOM::Element&);
-    GC::Ref<DOM::Element> create_element_for_rust_parser(HTMLToken const&, Optional<FlyString> const& namespace_, DOM::Node& intended_parent, bool had_duplicate_attribute, GC::Ptr<HTMLFormElement>, bool has_template_element_on_stack);
+    GC::Ref<DOM::Element> create_element_for_rust_parser(HTMLToken const&, Optional<Utf16FlyString> const& namespace_, DOM::Node& intended_parent, bool had_duplicate_attribute, GC::Ptr<HTMLFormElement>, bool has_template_element_on_stack);
     void prepare_svg_script_for_rust_parser(SVG::SVGScriptElement&, size_t source_line_number);
     void set_script_source_line_from_rust_parser(DOM::Element&, size_t source_line_number);
     void mark_script_already_started_from_rust_parser(HTMLScriptElement&);
@@ -109,7 +110,7 @@ private:
     // https://html.spec.whatwg.org/multipage/parsing.html#stop-the-speculative-html-parser
     void stop_the_speculative_html_parser();
 
-    GC::Ref<DOM::Element> create_element_for(HTMLToken const&, Optional<FlyString> const& namespace_, DOM::Node& intended_parent);
+    GC::Ref<DOM::Element> create_element_for(HTMLToken const&, Optional<Utf16FlyString> const& namespace_, DOM::Node& intended_parent);
     void increment_script_nesting_level();
     void decrement_script_nesting_level();
 

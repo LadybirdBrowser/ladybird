@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/WebIDL/CallbackType.h>
@@ -21,20 +21,20 @@ class CustomElementDefinition : public JS::Cell {
     GC_CELL(CustomElementDefinition, JS::Cell);
     GC_DECLARE_ALLOCATOR(CustomElementDefinition);
 
-    static GC::Ref<CustomElementDefinition> create(JS::Realm& realm, String const& name, String const& local_name, WebIDL::CallbackType& constructor, Vector<Utf16String>&& observed_attributes, OrderedHashMap<FlyString, GC::Root<WebIDL::CallbackType>> lifecycle_callbacks, bool form_associated, bool disable_internals, bool disable_shadow)
+    static GC::Ref<CustomElementDefinition> create(JS::Realm& realm, Utf16FlyString const& name, Utf16FlyString const& local_name, WebIDL::CallbackType& constructor, Vector<Utf16FlyString>&& observed_attributes, OrderedHashMap<Utf16FlyString, GC::Root<WebIDL::CallbackType>> lifecycle_callbacks, bool form_associated, bool disable_internals, bool disable_shadow)
     {
         return realm.create<CustomElementDefinition>(name, local_name, constructor, move(observed_attributes), move(lifecycle_callbacks), form_associated, disable_internals, disable_shadow);
     }
 
     ~CustomElementDefinition() = default;
 
-    String const& name() const { return m_name; }
-    String const& local_name() const { return m_local_name; }
+    Utf16FlyString const& name() const { return m_name; }
+    Utf16FlyString const& local_name() const { return m_local_name; }
 
     WebIDL::CallbackType& constructor() { return *m_constructor; }
     WebIDL::CallbackType const& constructor() const { return *m_constructor; }
 
-    Vector<Utf16String> const& observed_attributes() const { return m_observed_attributes; }
+    Vector<Utf16FlyString> const& observed_attributes() const { return m_observed_attributes; }
 
     auto const& lifecycle_callbacks() const { return m_lifecycle_callbacks; }
 
@@ -46,7 +46,7 @@ class CustomElementDefinition : public JS::Cell {
     bool disable_shadow() const { return m_disable_shadow; }
 
 private:
-    CustomElementDefinition(String const& name, String const& local_name, WebIDL::CallbackType& constructor, Vector<Utf16String>&& observed_attributes, OrderedHashMap<FlyString, GC::Root<WebIDL::CallbackType>>&& lifecycle_callbacks, bool form_associated, bool disable_internals, bool disable_shadow)
+    CustomElementDefinition(Utf16FlyString const& name, Utf16FlyString const& local_name, WebIDL::CallbackType& constructor, Vector<Utf16FlyString>&& observed_attributes, OrderedHashMap<Utf16FlyString, GC::Root<WebIDL::CallbackType>>&& lifecycle_callbacks, bool form_associated, bool disable_internals, bool disable_shadow)
         : m_name(name)
         , m_local_name(local_name)
         , m_constructor(constructor)
@@ -64,12 +64,12 @@ private:
     // https://html.spec.whatwg.org/multipage/custom-elements.html#concept-custom-element-definition-name
     // A name
     //     A valid custom element name
-    String m_name;
+    Utf16FlyString m_name;
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#concept-custom-element-definition-local-name
     // A local name
     //     A local name
-    String m_local_name;
+    Utf16FlyString m_local_name;
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#concept-custom-element-definition-constructor
     // A Web IDL CustomElementConstructor callback function type value wrapping the custom element constructor
@@ -78,7 +78,7 @@ private:
     // https://html.spec.whatwg.org/multipage/custom-elements.html#concept-custom-element-definition-observed-attributes
     // A list of observed attributes
     //     A sequence<DOMString>
-    Vector<Utf16String> m_observed_attributes;
+    Vector<Utf16FlyString> m_observed_attributes;
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#concept-custom-element-definition-lifecycle-callbacks
     // A collection of lifecycle callbacks
@@ -87,7 +87,7 @@ private:
     //     "formResetCallback", and "formStateRestoreCallback".
     //     The corresponding values are either a Web IDL Function callback function type value, or null.
     //     By default the value of each entry is null.
-    OrderedHashMap<FlyString, GC::Ptr<WebIDL::CallbackType>> m_lifecycle_callbacks;
+    OrderedHashMap<Utf16FlyString, GC::Ptr<WebIDL::CallbackType>> m_lifecycle_callbacks;
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#concept-custom-element-definition-construction-stack
     // A construction stack

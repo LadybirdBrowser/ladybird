@@ -57,7 +57,7 @@ void HTMLProgressElement::set_value(double value)
     if (value < 0)
         value = 0;
 
-    set_attribute_value(HTML::AttributeNames::value, String::number(value));
+    set_attribute_value(HTML::AttributeNames::value, Utf16String::number(value));
     update_progress_value_element();
 }
 
@@ -77,7 +77,7 @@ void HTMLProgressElement::set_max(double value)
     if (value <= 0)
         return;
 
-    set_attribute_value(HTML::AttributeNames::max, String::number(value));
+    set_attribute_value(HTML::AttributeNames::max, Utf16String::number(value));
     update_progress_value_element();
 }
 

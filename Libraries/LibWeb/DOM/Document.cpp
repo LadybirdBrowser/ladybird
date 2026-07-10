@@ -20,6 +20,7 @@
 #include <AK/ScopeGuard.h>
 #include <AK/StringBuilder.h>
 #include <AK/Time.h>
+#include <AK/Utf16StringBuilder.h>
 #include <AK/Utf8View.h>
 #include <LibCore/Timer.h>
 #include <LibGC/RootVector.h>
@@ -903,7 +904,7 @@ WebIDL::ExceptionOr<void> Document::writeln(Vector<TrustedTypes::TrustedHTMLOrSt
 WebIDL::ExceptionOr<void> Document::run_the_document_write_steps(Vector<TrustedTypes::TrustedHTMLOrString> const& text, AddLineFeed line_feed, TrustedTypes::InjectionSink sink)
 {
     // 1. Let string be the empty string.
-    StringBuilder string;
+    Utf16StringBuilder string;
 
     // 2. Let isTrusted be false if text contains a string; otherwise true.
     auto is_trusted = true;
@@ -917,11 +918,10 @@ WebIDL::ExceptionOr<void> Document::run_the_document_write_steps(Vector<TrustedT
     // 3. For each value of text:
     for (auto const& value : text) {
         string.append(value.visit(
-                               // 1. If value is a TrustedHTML object, then append value's associated data to string.
-                               [](GC::Root<TrustedTypes::TrustedHTML> const& value) { return value->to_string(); },
-                               // 2. Otherwise, append value to string.
-                               [](Utf16String const& value) { return value; })
-                .to_utf8_but_should_be_ported_to_utf16());
+            // 1. If value is a TrustedHTML object, then append value's associated data to string.
+            [](GC::Root<TrustedTypes::TrustedHTML> const& value) { return value->to_string().utf16_view(); },
+            // 2. Otherwise, append value to string.
+            [](Utf16String const& value) { return value.utf16_view(); }));
     }
 
     // 4. If isTrusted is false, set string to the result of invoking the Get Trusted Type compliant string algorithm
@@ -930,16 +930,16 @@ WebIDL::ExceptionOr<void> Document::run_the_document_write_steps(Vector<TrustedT
         auto const new_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
             TrustedTypes::TrustedTypeName::TrustedHTML,
             relevant_global_object(*this),
-            Utf16String::from_utf8(MUST(string.to_string())),
+            string.to_string(),
             sink,
             TrustedTypes::Script.to_string()));
         string.clear();
-        string.append(new_string.to_utf8_but_should_be_ported_to_utf16());
+        string.append(new_string.utf16_view());
     }
 
     // 5. If lineFeed is true, append U+000A LINE FEED to string.
     if (line_feed == AddLineFeed::Yes)
-        string.append('\n');
+        string.append_ascii('\n');
 
     // 6. If document is an XML document, then throw an "InvalidStateError" DOMException.
     if (m_type == Type::XML)
@@ -964,7 +964,7 @@ WebIDL::ExceptionOr<void> Document::run_the_document_write_steps(Vector<TrustedT
     }
 
     // 10. Insert string into the input stream just before the insertion point.
-    m_parser->tokenizer().insert_input_at_insertion_point(string.string_view());
+    m_parser->tokenizer().insert_input_at_insertion_point(string.view());
 
     // 11. If document's pending parsing-blocking script is null, then have the HTML parser process string, one code
     //     point at a time, processing resulting tokens as they are emitted, and stopping when the tokenizer reaches
@@ -1221,7 +1221,7 @@ GC::Ptr<HTML::HTMLTitleElement> Document::title_element()
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-dir
-StringView Document::dir() const
+Utf16String Document::dir() const
 {
     // The dir IDL attribute on Document objects must reflect the dir content attribute of the html
     // element, if any, limited to only known values. If there is no such element, then the
@@ -1229,11 +1229,11 @@ StringView Document::dir() const
     if (auto html = html_element())
         return html->dir();
 
-    return ""sv;
+    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-dir
-void Document::set_dir(String const& dir)
+void Document::set_dir(Utf16String const& dir)
 {
     // The dir IDL attribute on Document objects must reflect the dir content attribute of the html
     // element, if any, limited to only known values. If there is no such element, then the
@@ -2660,7 +2660,7 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-getelementsbyname
-GC::Ref<NodeList> Document::get_elements_by_name(FlyString const& name)
+GC::Ref<NodeList> Document::get_elements_by_name(Utf16String const& name)
 {
     return LiveNodeList::create(realm(), *this, LiveNodeList::Scope::Descendants, [name](auto const& node) {
         if (!is<HTML::HTMLElement>(node))
@@ -2808,33 +2808,32 @@ HTML::EnvironmentSettingsObject& Document::relevant_settings_object() const
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createelement
-WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element(String const& local_name, Variant<String, Bindings::ElementCreationOptions> const& options)
+WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element(Utf16FlyString local_name, Variant<Utf16FlyString, Bindings::ElementCreationOptions> const& options)
 {
     // 1. If localName is not a valid element local name, then throw an "InvalidCharacterError" DOMException.
-    if (!is_valid_element_local_name(local_name))
+    if (!is_valid_element_local_name(local_name.view()))
         return WebIDL::InvalidCharacterError::create(realm(), "Invalid character in tag name."_utf16);
 
     // 2. If this is an HTML document, then set localName to localName in ASCII lowercase.
-    auto local_name_lower = document_type() == Type::HTML
-        ? local_name.to_ascii_lowercase()
-        : local_name;
+    if (document_type() == Type::HTML)
+        local_name = local_name.to_ascii_lowercase();
 
     // 3. Let registry and is be the result of flattening element creation options given options and this.
     auto [registry, is_value] = TRY(flatten_element_creation_options(options));
 
     // 4. Let namespace be the HTML namespace, if this is an HTML document or this’s content type is
     //    "application/xhtml+xml"; otherwise null.
-    Optional<FlyString> namespace_;
+    Optional<Utf16FlyString> namespace_;
     if (document_type() == Type::HTML || content_type() == "application/xhtml+xml"sv)
         namespace_ = Namespace::HTML;
 
     // 5. Return the result of creating an element given this, localName, namespace, null, is, true, and registry.
-    return TRY(DOM::create_element(*this, FlyString::from_utf8_without_validation(local_name_lower.bytes()), move(namespace_), {}, move(is_value), true, registry));
+    return TRY(DOM::create_element(*this, move(local_name), move(namespace_), {}, move(is_value), true, registry));
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createelementns
 // https://dom.spec.whatwg.org/#internal-createelementns-steps
-WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element_ns(Optional<FlyString> const& namespace_, String const& qualified_name, Variant<String, Bindings::ElementCreationOptions> const& options)
+WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element_ns(Optional<Utf16FlyString> namespace_, Utf16FlyString const& qualified_name, Variant<Utf16FlyString, Bindings::ElementCreationOptions> const& options)
 {
     // 1. Let (namespace, prefix, localName) be the result of validating and extracting namespace and qualifiedName
     //    given "element".
@@ -2878,10 +2877,10 @@ GC::Ref<Comment> Document::create_comment(Utf16String data)
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createprocessinginstruction
-WebIDL::ExceptionOr<GC::Ref<ProcessingInstruction>> Document::create_processing_instruction(String const& target, Utf16String data)
+WebIDL::ExceptionOr<GC::Ref<ProcessingInstruction>> Document::create_processing_instruction(Utf16FlyString const& target, Utf16String data)
 {
     // 1. If target does not match the Name production, then throw an "InvalidCharacterError" DOMException.
-    if (!is_valid_name(target))
+    if (!is_valid_name(target.view()))
         return WebIDL::InvalidCharacterError::create(realm(), "Invalid character in target name."_utf16);
 
     // 2. If data contains the string "?>", then throw an "InvalidCharacterError" DOMException.
@@ -3369,18 +3368,17 @@ Document::IndicatedPart Document::determine_the_indicated_part() const
 
     // 5. Let fragmentBytes be the result of percent-decoding fragment.
     // 6. Let decodedFragment be the result of running UTF-8 decode without BOM on fragmentBytes.
-    auto decoded_fragment = String::from_utf8_with_replacement_character(URL::percent_decode(*fragment), String::WithBOMHandling::No);
+    auto decoded_fragment = Utf16String::from_utf8_with_replacement_character(URL::percent_decode(*fragment), Utf16String::WithBOMHandling::No);
 
     // 7. Set potentialIndicatedElement to the result of finding a potential indicated element given document and decodedFragment.
-    auto decoded_fragment_as_utf16 = Utf16String::from_utf8(decoded_fragment);
-    potential_indicated_element = find_a_potential_indicated_element(decoded_fragment_as_utf16);
+    potential_indicated_element = find_a_potential_indicated_element(decoded_fragment);
 
     // 8. If potentialIndicatedElement is not null, then return potentialIndicatedElement.
     if (potential_indicated_element)
         return potential_indicated_element;
 
     // 9. If decodedFragment is an ASCII case-insensitive match for the string top, then return the top of the document.
-    if (decoded_fragment.equals_ignoring_ascii_case("top"sv))
+    if (decoded_fragment.utf16_view().equals_ignoring_ascii_case("top"sv))
         return Document::TopOfTheDocument {};
 
     // 10. Return null.
@@ -4445,18 +4443,17 @@ static inline bool is_valid_name_character(u32 code_point)
 }
 
 // https://www.w3.org/TR/xml/#NT-Name
-bool Document::is_valid_name(String const& name)
+bool Document::is_valid_name(Utf16View const& name)
 {
     if (name.is_empty())
         return false;
-    auto code_points = name.code_points();
-    auto it = code_points.begin();
+    auto it = name.begin();
 
     if (!is_valid_name_start_character(*it))
         return false;
     ++it;
 
-    for (; it != code_points.end(); ++it) {
+    for (; it != name.end(); ++it) {
         if (!is_valid_name_character(*it))
             return false;
     }
@@ -5518,7 +5515,7 @@ String Document::dump_accessibility_tree_as_json()
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createattribute
-WebIDL::ExceptionOr<GC::Ref<Attr>> Document::create_attribute(String const& local_name)
+WebIDL::ExceptionOr<GC::Ref<Attr>> Document::create_attribute(Utf16FlyString const& local_name)
 {
     // 1. If localName is not a valid attribute local name, then throw an "InvalidCharacterError" DOMException.
     if (!is_valid_attribute_local_name(local_name))
@@ -5526,11 +5523,15 @@ WebIDL::ExceptionOr<GC::Ref<Attr>> Document::create_attribute(String const& loca
 
     // 2. If this is an HTML document, then set localName to localName in ASCII lowercase.
     // 3. Return a new attribute whose local name is localName and node document is this.
-    return Attr::create(*this, is_html_document() ? local_name.to_ascii_lowercase() : local_name);
+    if (is_html_document()) {
+        auto lowercase_local_name = local_name.view().to_ascii_lowercase();
+        return Attr::create(*this, Utf16FlyString::from_utf16(lowercase_local_name.utf16_view()));
+    }
+    return Attr::create(*this, local_name);
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createattributens
-WebIDL::ExceptionOr<GC::Ref<Attr>> Document::create_attribute_ns(Optional<FlyString> const& namespace_, String const& qualified_name)
+WebIDL::ExceptionOr<GC::Ref<Attr>> Document::create_attribute_ns(Optional<Utf16FlyString> namespace_, Utf16FlyString const& qualified_name)
 {
     // 1. Let (namespace, prefix, localName) be the result of validating and extracting namespace and qualifiedName given "attribute".
     auto extracted_qualified_name = TRY(validate_and_extract(realm(), namespace_, qualified_name, ValidationContext::Attribute));
@@ -7376,11 +7377,11 @@ Optional<String> Document::get_style_sheet_source(CSS::StyleSheetIdentifier cons
             if (auto* node = Node::from_unique_id(*identifier.dom_element_unique_id)) {
                 if (node->is_html_style_element()) {
                     if (auto* sheet = as<HTML::HTMLStyleElement>(*node).sheet())
-                        return sheet->source_text();
+                        return sheet->source_text().map([](auto const& source_text) { return source_text.to_utf8(); });
                 }
                 if (node->is_svg_style_element()) {
                     if (auto* sheet = as<SVG::SVGStyleElement>(*node).sheet())
-                        return sheet->source_text();
+                        return sheet->source_text().map([](auto const& source_text) { return source_text.to_utf8(); });
                 }
             }
         }
@@ -7395,7 +7396,7 @@ Optional<String> Document::get_style_sheet_source(CSS::StyleSheetIdentifier cons
         if (m_style_sheets) {
             for (auto& style_sheet : m_style_sheets->sheets()) {
                 if (auto match = find_style_sheet_with_url(identifier.url.value(), style_sheet); match.has_value())
-                    return match->source_text();
+                    return match->source_text().map([](auto const& source_text) { return source_text.to_utf8(); });
             }
         }
 
@@ -7406,7 +7407,7 @@ Optional<String> Document::get_style_sheet_source(CSS::StyleSheetIdentifier cons
                     return;
 
                 if (auto match = find_style_sheet_with_url(identifier.url.value(), style_sheet); match.has_value())
-                    result = match->source_text();
+                    result = match->source_text().map([](auto const& source_text) { return source_text.to_utf8(); });
             });
             return result;
         }
@@ -7941,7 +7942,7 @@ void Document::set_allow_declarative_shadow_roots(bool allow)
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#parse-html-from-a-string
-void Document::parse_html_from_a_string(StringView html)
+void Document::parse_html_from_a_string(Utf16View html)
 {
     // 1. Set document's type to "html".
     set_document_type(DOM::Document::Type::HTML);
@@ -7979,7 +7980,7 @@ WebIDL::ExceptionOr<GC::Root<DOM::Document>> Document::parse_html_unsafe(JS::VM&
     document->set_allow_declarative_shadow_roots(true);
 
     // 4. Parse HTML from a string given document and compliantHTML.
-    document->parse_html_from_a_string(compliant_html.to_utf8_but_should_be_ported_to_utf16());
+    document->parse_html_from_a_string(compliant_html.utf16_view());
 
     // AD-HOC: Setting the origin to match that of the associated document matches the behavior of existing browsers.
     auto& associated_document = as<HTML::Window>(realm.global_object()).associated_document();
@@ -8503,16 +8504,18 @@ void Document::run_csp_initialization() const
 }
 
 // https://dom.spec.whatwg.org/#flatten-element-creation-options
-WebIDL::ExceptionOr<Document::RegistryAndIs> Document::flatten_element_creation_options(Variant<String, Bindings::ElementCreationOptions> const& options) const
+WebIDL::ExceptionOr<Document::RegistryAndIs> Document::flatten_element_creation_options(Variant<Utf16FlyString, Bindings::ElementCreationOptions> const& options) const
 {
     // 1. Let registry be the result of looking up a custom element registry given document.
     GC::Ptr<HTML::CustomElementRegistry> registry = HTML::look_up_a_custom_element_registry(*this);
 
     // 2. Let is be null.
-    Optional<String> is;
+    Optional<Utf16FlyString> is;
 
     // 3. If options is a dictionary:
-    if (auto* dictionary = options.get_pointer<Bindings::ElementCreationOptions>()) {
+    if (auto* legacy_is = options.get_pointer<Utf16FlyString>()) {
+        is = *legacy_is;
+    } else if (auto* dictionary = options.get_pointer<Bindings::ElementCreationOptions>()) {
         // 1. If options["is"] exists, then set is to it.
         if (dictionary->is.has_value())
             is = dictionary->is;
@@ -8705,12 +8708,13 @@ GC::Ptr<HTML::CustomElementRegistry> Document::effective_global_custom_element_r
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#upgrade-particular-elements-within-a-document
-void Document::upgrade_particular_elements(GC::Ref<HTML::CustomElementRegistry> registry, GC::Ref<HTML::CustomElementDefinition> definition, String local_name, Optional<String> maybe_name)
+void Document::upgrade_particular_elements(GC::Ref<HTML::CustomElementRegistry> registry, GC::Ref<HTML::CustomElementDefinition> definition, Utf16FlyString local_name, Optional<Utf16FlyString> maybe_name)
 {
     // To upgrade particular elements within a document given a CustomElementRegistry object registry, a Document
     // object document, a custom element definition definition, a string localName, and optionally a string name
     // (default localName):
     auto name = maybe_name.value_or(local_name);
+    auto only_include_elements_with_matching_is_value = name != local_name;
 
     // 1. Let upgradeCandidates be all elements that are shadow-including descendants of document, whose custom element
     //    registry is registry, whose namespace is the HTML namespace, and whose local name is localName, in
@@ -8726,7 +8730,7 @@ void Document::upgrade_particular_elements(GC::Ref<HTML::CustomElementRegistry> 
             return TraversalDecision::Continue;
         }
 
-        if (name != local_name && element->is_value() != name)
+        if (only_include_elements_with_matching_is_value && (!element->is_value().has_value() || element->is_value().value() != name))
             return TraversalDecision::Continue;
 
         // 2. For each element element of upgradeCandidates:

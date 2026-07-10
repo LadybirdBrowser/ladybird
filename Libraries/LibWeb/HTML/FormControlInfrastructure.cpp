@@ -58,20 +58,6 @@ static WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry_with_scalar_name(JS:
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#create-an-entry
-WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry(JS::Realm& realm, String const& name, Variant<GC::Ref<FileAPI::Blob>, String> const& value, Optional<String> const& filename)
-{
-    // 1. Set name to the result of converting name into a scalar value string.
-    auto entry_name = Utf16String::from_utf8(TRY_OR_THROW_OOM(realm.vm(), Infra::convert_to_scalar_value_string(name)));
-    return create_entry(realm, entry_name.utf16_view(), value.visit([](String const& string) -> Variant<GC::Ref<FileAPI::Blob>, Utf16String> { return Utf16String::from_utf8(string); }, [](GC::Ref<FileAPI::Blob> blob) -> Variant<GC::Ref<FileAPI::Blob>, Utf16String> { return blob; }),
-        filename);
-}
-
-WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry(JS::Realm& realm, Utf16View name, Variant<GC::Ref<FileAPI::Blob>, String> const& value, Optional<String> const& filename)
-{
-    return create_entry(realm, name, value.visit([](String const& string) -> Variant<GC::Ref<FileAPI::Blob>, Utf16String> { return Utf16String::from_utf8(string); }, [](GC::Ref<FileAPI::Blob> blob) -> Variant<GC::Ref<FileAPI::Blob>, Utf16String> { return blob; }),
-        filename);
-}
-
 WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry(JS::Realm& realm, Utf16View name, Variant<GC::Ref<FileAPI::Blob>, Utf16String> const& value, Optional<String> const& filename)
 {
     // 1. Set name to the result of converting name into a scalar value string.
@@ -165,24 +151,24 @@ WebIDL::ExceptionOr<Optional<GC::ConservativeVector<XHR::FormDataEntry>>> constr
 
             // 2. If the field element has a name attribute specified and its value is not the empty string, let name be
             //    that value followed by U+002E (.). Otherwise, let name be the empty string.
-            String name;
+            Utf16String name;
             if (auto value = input_element->get_attribute(AttributeNames::name); value.has_value() && !value->is_empty())
-                name = MUST(String::formatted("{}.", *value));
+                name = Utf16String::formatted("{}.", *value);
 
             // 3. Let namex be the concatenation of name and U+0078 (x).
-            auto name_x = MUST(String::formatted("{}x", name));
+            auto name_x = Utf16String::formatted("{}x", name);
 
             // 4. Let namey be the concatenation of name and U+0079 (y).
-            auto name_y = MUST(String::formatted("{}y", name));
+            auto name_y = Utf16String::formatted("{}y", name);
 
             // 5. Let (x, y) be the selected coordinate.
             auto [x, y] = input_element->selected_coordinate();
 
             // 6. Create an entry with namex and x, and append it to entry list.
-            entry_list.append(TRY(create_entry(realm, name_x, String::number(x))));
+            entry_list.append(TRY(create_entry(realm, name_x.utf16_view(), Utf16String::number(x))));
 
             // 7. Create an entry with namey and y, and append it to entry list.
-            entry_list.append(TRY(create_entry(realm, name_y, String::number(y))));
+            entry_list.append(TRY(create_entry(realm, name_y.utf16_view(), Utf16String::number(y))));
 
             // 8. Continue.
             continue;
@@ -240,7 +226,7 @@ WebIDL::ExceptionOr<Optional<GC::ConservativeVector<XHR::FormDataEntry>>> constr
         // 9. Otherwise, if the field element is an input element whose type attribute is in the Hidden state and name is an ASCII case-insensitive match for "_charset_":
         else if (auto* hidden_input = as_if<HTMLInputElement>(*control); hidden_input && hidden_input->type_state() == HTMLInputElement::TypeAttributeState::Hidden && name.equals_ignoring_ascii_case("_charset_"sv)) {
             // 1. Let charset be the name of encoding if encoding is given, and "UTF-8" otherwise.
-            auto charset = encoding.has_value() ? encoding.value() : "UTF-8"_string;
+            auto charset = encoding.has_value() ? Utf16String::from_utf8(encoding.value()) : "UTF-8"_utf16;
 
             // 2. Create an entry with name and charset, and append it to entry list.
             entry_list.append(TRY(create_entry(realm, name.view(), charset)));
@@ -256,7 +242,7 @@ WebIDL::ExceptionOr<Optional<GC::ConservativeVector<XHR::FormDataEntry>>> constr
             auto dirname = attribute.value();
 
             // 2. Let dir be the string "ltr" if the directionality of the element is 'ltr', and "rtl" otherwise (i.e., when the directionality of the element is 'rtl').
-            String dir = MUST((control->directionality() == DOM::Element::Directionality::Ltr) ? String::from_utf8("ltr"sv) : String::from_utf8("rtl"sv));
+            Utf16String dir = control->directionality() == DOM::Element::Directionality::Ltr ? "ltr"_utf16 : "rtl"_utf16;
 
             // 3. Create an entry with dirname and dir, and append it to entry list.
             entry_list.append(TRY(create_entry(realm, dirname, dir)));

@@ -26,8 +26,8 @@ namespace Web::CSS::Invalidation {
 static bool element_has_attribute(DOM::Element const& element, Utf16FlyString const& name)
 {
     bool found = false;
-    element.for_each_attribute([&](FlyString const& attribute_name, auto const&) {
-        if (name.view() == attribute_name.bytes_as_string_view())
+    element.for_each_attribute([&](Utf16FlyString const& attribute_name, auto const&) {
+        if (name == attribute_name)
             found = true;
     });
     return found;
@@ -57,7 +57,7 @@ static bool compound_may_match_element_impl(DOM::Element const& element, Selecto
                 return false;
             break;
         case Selector::SimpleSelector::Type::TagName:
-            if (simple_selector.qualified_name().name.lowercase_name.view() != element.lowercased_local_name().bytes_as_string_view())
+            if (simple_selector.qualified_name().name.lowercase_name.view() != element.lowercased_local_name().view())
                 return false;
             break;
         case Selector::SimpleSelector::Type::Id: {
@@ -124,7 +124,7 @@ bool element_matches_any_invalidation_set_property(DOM::Element const& element, 
         case InvalidationSet::Property::Type::Id:
             return element.id() == property.id();
         case InvalidationSet::Property::Type::TagName:
-            return property.name().view() == element.lowercased_local_name().bytes_as_string_view();
+            return property.name().view() == element.lowercased_local_name().view();
         case InvalidationSet::Property::Type::Attribute:
             return element_has_attribute(element, property.name()) || element.has_removed_attribute_for_style_invalidation(property.name());
         case InvalidationSet::Property::Type::PseudoClass: {

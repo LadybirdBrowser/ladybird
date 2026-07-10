@@ -39,7 +39,7 @@ void StyleElementBase::update_a_style_block_for_dynamic_change()
     update_a_style_block();
 }
 
-void StyleElementBase::style_element_attribute_changed(FlyString const& name, Optional<Utf16String> const& value)
+void StyleElementBase::style_element_attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& value)
 {
     if (name == HTML::AttributeNames::media) {
         if (auto* sheet = this->sheet()) {
@@ -121,9 +121,10 @@ void StyleElementBase::update_a_style_block(UpdateSource update_source)
     //            Left at its default value.
     //        CSS rules
     //          Left uninitialized.
+    auto text_content = style_element.text_content().value_or({});
     m_style_sheet_list = style_element.document_or_shadow_root_style_sheets();
     m_associated_css_style_sheet = m_style_sheet_list->create_a_css_style_sheet(
-        style_element.text_content().value_or({}).to_utf8_but_should_be_ported_to_utf16(),
+        text_content.utf16_view(),
         "text/css"_string,
         &style_element,
         style_element.attribute(HTML::AttributeNames::media).value_or({}),

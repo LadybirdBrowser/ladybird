@@ -56,9 +56,8 @@ Vector<Utf16FlyString> NamedNodeMap::supported_property_names() const
     names.ensure_capacity(m_attributes.size());
 
     for (auto const& attribute : m_attributes) {
-        auto const attribute_name = Utf16FlyString::from_fly_string(attribute->name());
-        if (!names.contains_slow(attribute_name))
-            names.append(attribute_name);
+        if (!names.contains_slow(attribute->name()))
+            names.append(attribute->name());
     }
 
     // 2. If this NamedNodeMap object’s element is in the HTML namespace and its node document is an HTML document, then for each name of names:
@@ -89,13 +88,13 @@ Attr const* NamedNodeMap::item(u32 index) const
 }
 
 // https://dom.spec.whatwg.org/#dom-namednodemap-getnameditem
-Attr const* NamedNodeMap::get_named_item(FlyString const& qualified_name) const
+Attr const* NamedNodeMap::get_named_item(Utf16FlyString const& qualified_name) const
 {
     return get_attribute(qualified_name);
 }
 
 // https://dom.spec.whatwg.org/#dom-namednodemap-getnameditemns
-Attr const* NamedNodeMap::get_named_item_ns(Optional<FlyString> const& namespace_, FlyString const& local_name) const
+Attr const* NamedNodeMap::get_named_item_ns(Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& local_name) const
 {
     return get_attribute_ns(namespace_, local_name);
 }
@@ -113,7 +112,7 @@ WebIDL::ExceptionOr<GC::Ptr<Attr>> NamedNodeMap::set_named_item_ns(Attr& attribu
 }
 
 // https://dom.spec.whatwg.org/#dom-namednodemap-removenameditem
-WebIDL::ExceptionOr<Attr const*> NamedNodeMap::remove_named_item(FlyString const& qualified_name)
+WebIDL::ExceptionOr<Attr const*> NamedNodeMap::remove_named_item(Utf16FlyString const& qualified_name)
 {
     // 1. Let attr be the result of removing an attribute given qualifiedName and element.
     auto const* attribute = remove_attribute(qualified_name);
@@ -127,7 +126,7 @@ WebIDL::ExceptionOr<Attr const*> NamedNodeMap::remove_named_item(FlyString const
 }
 
 // https://dom.spec.whatwg.org/#dom-namednodemap-removenameditemns
-WebIDL::ExceptionOr<Attr const*> NamedNodeMap::remove_named_item_ns(Optional<FlyString> const& namespace_, FlyString const& local_name)
+WebIDL::ExceptionOr<Attr const*> NamedNodeMap::remove_named_item_ns(Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& local_name)
 {
     // 1. Let attr be the result of removing an attribute given namespace, localName, and element.
     auto const* attribute = remove_attribute_ns(namespace_, local_name);
@@ -141,20 +140,20 @@ WebIDL::ExceptionOr<Attr const*> NamedNodeMap::remove_named_item_ns(Optional<Fly
 }
 
 // https://dom.spec.whatwg.org/#concept-element-attributes-get-by-name
-Attr* NamedNodeMap::get_attribute(FlyString const& qualified_name, size_t* item_index)
+Attr* NamedNodeMap::get_attribute(Utf16FlyString const& qualified_name, size_t* item_index)
 {
     return const_cast<Attr*>(const_cast<NamedNodeMap const*>(this)->get_attribute(qualified_name, item_index));
 }
 
 // https://dom.spec.whatwg.org/#concept-element-attributes-get-by-name
-Attr const* NamedNodeMap::get_attribute(FlyString const& qualified_name, size_t* item_index) const
+Attr const* NamedNodeMap::get_attribute(Utf16FlyString const& qualified_name, size_t* item_index) const
 {
     if (item_index)
         *item_index = 0;
 
     // 1. If element is in the HTML namespace and its node document is an HTML document, then set qualifiedName to qualifiedName in ASCII lowercase.
-    FlyString const* effective_qualified_name = &qualified_name;
-    FlyString lowercase_qualified_name;
+    Utf16FlyString const* effective_qualified_name = &qualified_name;
+    Utf16FlyString lowercase_qualified_name;
     if (associated_element().namespace_uri() == Namespace::HTML && associated_element().document().is_html_document()) {
         lowercase_qualified_name = qualified_name.to_ascii_lowercase();
         effective_qualified_name = &lowercase_qualified_name;
@@ -173,20 +172,20 @@ Attr const* NamedNodeMap::get_attribute(FlyString const& qualified_name, size_t*
 }
 
 // https://dom.spec.whatwg.org/#concept-element-attributes-get-by-namespace
-Attr* NamedNodeMap::get_attribute_ns(Optional<FlyString> const& namespace_, FlyString const& local_name, size_t* item_index)
+Attr* NamedNodeMap::get_attribute_ns(Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& local_name, size_t* item_index)
 {
     return const_cast<Attr*>(const_cast<NamedNodeMap const*>(this)->get_attribute_ns(namespace_, local_name, item_index));
 }
 
 // https://dom.spec.whatwg.org/#concept-element-attributes-get-by-namespace
-Attr const* NamedNodeMap::get_attribute_ns(Optional<FlyString> const& namespace_, FlyString const& local_name, size_t* item_index) const
+Attr const* NamedNodeMap::get_attribute_ns(Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& local_name, size_t* item_index) const
 {
     if (item_index)
         *item_index = 0;
 
     // 1. If namespace is the empty string, then set it to null.
-    Optional<FlyString> normalized_namespace;
-    if (namespace_ != String {})
+    Optional<Utf16FlyString> normalized_namespace;
+    if (namespace_ != Utf16FlyString {})
         normalized_namespace = namespace_;
 
     // 2. Return the attribute in element’s attribute list whose namespace is namespace and local name is localName, if any; otherwise null.
@@ -207,7 +206,7 @@ WebIDL::ExceptionOr<GC::Ptr<Attr>> NamedNodeMap::set_attribute(Attr& attribute)
     //    with attr’s local name, attr’s namespace, element, and attr’s value
     auto const verifiedValue = TRY(TrustedTypes::get_trusted_types_compliant_attribute_value(
         attribute.local_name(),
-        attribute.namespace_uri().has_value() ? Utf16String::from_utf8(attribute.namespace_uri().value()) : Optional<Utf16String>(),
+        attribute.namespace_uri(),
         associated_element(),
         attribute.value()));
 
@@ -300,7 +299,7 @@ void NamedNodeMap::remove_attribute_at_index(size_t attribute_index)
 }
 
 // https://dom.spec.whatwg.org/#concept-element-attributes-remove-by-name
-Attr const* NamedNodeMap::remove_attribute(FlyString const& qualified_name)
+Attr const* NamedNodeMap::remove_attribute(Utf16FlyString const& qualified_name)
 {
     size_t item_index = 0;
 
@@ -316,7 +315,7 @@ Attr const* NamedNodeMap::remove_attribute(FlyString const& qualified_name)
 }
 
 // https://dom.spec.whatwg.org/#concept-element-attributes-remove-by-namespace
-Attr const* NamedNodeMap::remove_attribute_ns(Optional<FlyString> const& namespace_, FlyString const& local_name)
+Attr const* NamedNodeMap::remove_attribute_ns(Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& local_name)
 {
     size_t item_index = 0;
 
@@ -343,7 +342,7 @@ JS::Value NamedNodeMap::named_item_value(Utf16FlyString const& name) const
 {
     Attr const* node = nullptr;
     for (auto const& attribute : m_attributes) {
-        if (name.view() == attribute->name().bytes_as_string_view()) {
+        if (name == attribute->name()) {
             node = attribute.ptr();
             break;
         }

@@ -21,7 +21,7 @@ SVGStopElement::SVGStopElement(DOM::Document& document, DOM::QualifiedName quali
 {
 }
 
-bool SVGStopElement::is_presentational_hint(FlyString const& name) const
+bool SVGStopElement::is_presentational_hint(Utf16FlyString const& name) const
 {
     if (Base::is_presentational_hint(name))
         return true;

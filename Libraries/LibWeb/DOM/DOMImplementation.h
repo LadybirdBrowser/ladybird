@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Utf16FlyString.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 
@@ -20,9 +21,9 @@ public:
     [[nodiscard]] static GC::Ref<DOMImplementation> create(Document&);
     virtual ~DOMImplementation();
 
-    WebIDL::ExceptionOr<GC::Ref<XMLDocument>> create_document(Optional<FlyString> const&, String const&, GC::Ptr<DocumentType>) const;
+    WebIDL::ExceptionOr<GC::Ref<XMLDocument>> create_document(Optional<Utf16FlyString>, Utf16FlyString const&, GC::Ptr<DocumentType>) const;
     GC::Ref<Document> create_html_document(Optional<Utf16String> const& title) const;
-    WebIDL::ExceptionOr<GC::Ref<DocumentType>> create_document_type(String const& name, String const& public_id, String const& system_id);
+    WebIDL::ExceptionOr<GC::Ref<DocumentType>> create_document_type(Utf16FlyString const& name, Utf16String const& public_id, Utf16String const& system_id);
 
     // https://dom.spec.whatwg.org/#dom-domimplementation-hasfeature
     bool has_feature() const

@@ -20,24 +20,14 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(Attr);
 
-GC::Ref<Attr> Attr::create(Document& document, FlyString local_name, Utf16String value, Element* owner_element)
+GC::Ref<Attr> Attr::create(Document& document, Utf16FlyString local_name, Utf16String value, Element* owner_element)
 {
-    return document.realm().create<Attr>(document, QualifiedName(move(local_name), Optional<FlyString> {}, Optional<FlyString> {}), move(value), owner_element);
-}
-
-GC::Ref<Attr> Attr::create(Document& document, FlyString local_name, String const& value, Element* owner_element)
-{
-    return create(document, move(local_name), Utf16String::from_utf8(value), owner_element);
+    return document.realm().create<Attr>(document, QualifiedName(move(local_name), OptionalNone {}, OptionalNone {}), move(value), owner_element);
 }
 
 GC::Ref<Attr> Attr::create(Document& document, QualifiedName qualified_name, Utf16String value, Element* owner_element)
 {
     return document.realm().create<Attr>(document, move(qualified_name), move(value), owner_element);
-}
-
-GC::Ref<Attr> Attr::create(Document& document, QualifiedName qualified_name, String const& value, Element* owner_element)
-{
-    return create(document, move(qualified_name), Utf16String::from_utf8(value), owner_element);
 }
 
 GC::Ref<Attr> Attr::clone(Document& document) const
@@ -96,7 +86,7 @@ WebIDL::ExceptionOr<void> Attr::set_value(Utf16String value)
     //    attribute’s local name, attribute’s namespace, element, and value.
     auto const verified_value = TRY(TrustedTypes::get_trusted_types_compliant_attribute_value(
         local_name(),
-        namespace_uri().has_value() ? Utf16String::from_utf8(namespace_uri().value()) : Optional<Utf16String>(),
+        namespace_uri(),
         element,
         value));
 
@@ -110,11 +100,6 @@ WebIDL::ExceptionOr<void> Attr::set_value(Utf16String value)
     change_attribute(verified_value);
 
     return {};
-}
-
-WebIDL::ExceptionOr<void> Attr::set_value(String value)
-{
-    return set_value(Utf16String::from_utf8(value));
 }
 
 // https://dom.spec.whatwg.org/#concept-element-attributes-change
@@ -142,10 +127,10 @@ void Attr::handle_attribute_changes(Element& element, Optional<Utf16String> cons
         auto& vm = this->vm();
 
         GC::RootVector<JS::Value> arguments;
-        arguments.append(JS::PrimitiveString::create(vm, Utf16FlyString::from_utf8(local_name())));
+        arguments.append(JS::PrimitiveString::create(vm, local_name()));
         arguments.append(!old_value.has_value() ? JS::js_null() : JS::PrimitiveString::create(vm, old_value.value()));
         arguments.append(!new_value.has_value() ? JS::js_null() : JS::PrimitiveString::create(vm, new_value.value()));
-        arguments.append(!namespace_uri().has_value() ? JS::js_null() : JS::PrimitiveString::create(vm, Utf16FlyString::from_utf8(namespace_uri().value())));
+        arguments.append(!namespace_uri().has_value() ? JS::js_null() : JS::PrimitiveString::create(vm, namespace_uri().value()));
 
         element.enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::attributeChangedCallback, move(arguments));
     }

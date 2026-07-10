@@ -122,7 +122,9 @@ def is_string_type(type_name: str) -> bool:
 
 
 def cpp_type_name_for_string(type_name: str, extended_attributes: Optional[dict[str, str]] = None) -> str:
-    is_fly_string = extended_attributes is not None and "FlyString" in extended_attributes
+    is_fly_string = extended_attributes is not None and (
+        "FlyString" in extended_attributes or "Utf16FlyString" in extended_attributes
+    )
     is_utf16_string = "Utf16" in type_name
     if is_utf16_string:
         return "Utf16FlyString" if is_fly_string else "Utf16String"
@@ -251,6 +253,7 @@ def cpp_type_for_non_nullable_idl_type(
     extended_attributes: Optional[dict[str, str]] = None,
 ) -> CppType:
     type_name = idl_type.name
+    extended_attributes = {**idl_type.extended_attributes, **(extended_attributes or {})}
 
     interface_like_type = interface_like_type_for_idl_type(idl_type, context)
     if interface_like_type is not None:

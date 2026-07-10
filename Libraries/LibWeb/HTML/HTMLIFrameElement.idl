@@ -6,7 +6,7 @@ interface HTMLIFrameElement : HTMLElement {
 
     [CEReactions, Reflect, URL] attribute USVString src;
     [CEReactions] attribute (TrustedHTML or Utf16DOMString) srcdoc;
-    [CEReactions, Reflect] attribute DOMString name;
+    [CEReactions, Reflect] attribute Utf16DOMString name;
     [SameObject, PutForwards=value] readonly attribute DOMTokenList sandbox;
     [CEReactions, Reflect] attribute DOMString allow;
     [CEReactions, Reflect=allowfullscreen] attribute boolean allowFullscreen;

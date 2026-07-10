@@ -15,6 +15,7 @@
 #include <AK/Math.h>
 #include <AK/OwnPtr.h>
 #include <AK/QuickSort.h>
+#include <AK/Utf16FlyString.h>
 #include <LibCore/Process.h>
 #include <LibCore/System.h>
 #include <LibDevTools/IndexedDBSerialization.h>
@@ -1715,7 +1716,7 @@ void ConnectionFromClient::set_dom_node_text(u64 page_id, Web::UniqueNodeID node
     async_did_finish_editing_dom_node(page_id, character_data.unique_id());
 }
 
-void ConnectionFromClient::set_dom_node_tag(u64 page_id, Web::UniqueNodeID node_id, String name)
+void ConnectionFromClient::set_dom_node_tag(u64 page_id, Web::UniqueNodeID node_id, Utf16FlyString name)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
     if (!dom_node || !dom_node->is_element() || !dom_node->parent()) {
@@ -1724,9 +1725,9 @@ void ConnectionFromClient::set_dom_node_tag(u64 page_id, Web::UniqueNodeID node_
     }
 
     auto& element = static_cast<Web::DOM::Element&>(*dom_node);
-    auto new_element = Web::DOM::create_element(element.document(), name, element.namespace_uri(), element.prefix(), element.is_value()).release_value_but_fixme_should_propagate_errors();
+    auto new_element = Web::DOM::create_element(element.document(), move(name), element.namespace_uri(), element.prefix(), element.is_value()).release_value_but_fixme_should_propagate_errors();
 
-    element.for_each_attribute([&](auto const& attribute) {
+    element.for_each_attribute([&](Web::DOM::Attr const& attribute) {
         new_element->set_attribute_value(attribute.local_name(), attribute.value(), attribute.prefix(), attribute.namespace_uri());
     });
 
@@ -1757,7 +1758,7 @@ void ConnectionFromClient::add_dom_node_attributes(u64 page_id, Web::UniqueNodeI
     async_did_finish_editing_dom_node(page_id, element.unique_id());
 }
 
-void ConnectionFromClient::replace_dom_node_attribute(u64 page_id, Web::UniqueNodeID node_id, String name, Vector<WebView::Attribute> replacement_attributes)
+void ConnectionFromClient::replace_dom_node_attribute(u64 page_id, Web::UniqueNodeID node_id, Utf16FlyString name, Vector<WebView::Attribute> replacement_attributes)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
     if (!dom_node || !dom_node->is_element()) {

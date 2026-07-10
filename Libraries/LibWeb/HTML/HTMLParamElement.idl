@@ -4,7 +4,7 @@ interface HTMLParamElement : HTMLElement {
 
     [HTMLConstructor] constructor();
 
-    [CEReactions, Reflect] attribute DOMString name;
+    [CEReactions, Reflect] attribute Utf16DOMString name;
     [CEReactions, Reflect] attribute DOMString value;
     [CEReactions, Reflect] attribute DOMString type;
     [CEReactions, Reflect=valuetype] attribute DOMString valueType;

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
 
 namespace Web::ARIA::AttributeNames {
 
@@ -68,7 +68,7 @@ namespace Web::ARIA::AttributeNames {
     __ENUMERATE_ARIA_ATTRIBUTE(aria_value_text, "aria-valuetext")
 
 #define __ENUMERATE_ARIA_ATTRIBUTE(name, attribute) \
-    extern FlyString const& name;
+    extern Utf16FlyString const& name;
 ENUMERATE_ARIA_ATTRIBUTES
 #undef __ENUMERATE_ARIA_ATTRIBUTE
 

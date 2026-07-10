@@ -143,9 +143,9 @@ private:
     virtual void get_dom_node_outer_html(u64 page_id, Web::UniqueNodeID node_id) override;
     virtual void set_dom_node_outer_html(u64 page_id, Web::UniqueNodeID node_id, String html) override;
     virtual void set_dom_node_text(u64 page_id, Web::UniqueNodeID node_id, String text) override;
-    virtual void set_dom_node_tag(u64 page_id, Web::UniqueNodeID node_id, String name) override;
+    virtual void set_dom_node_tag(u64 page_id, Web::UniqueNodeID node_id, Utf16FlyString name) override;
     virtual void add_dom_node_attributes(u64 page_id, Web::UniqueNodeID node_id, Vector<WebView::Attribute> attributes) override;
-    virtual void replace_dom_node_attribute(u64 page_id, Web::UniqueNodeID node_id, String name, Vector<WebView::Attribute> replacement_attributes) override;
+    virtual void replace_dom_node_attribute(u64 page_id, Web::UniqueNodeID node_id, Utf16FlyString name, Vector<WebView::Attribute> replacement_attributes) override;
     virtual void create_child_element(u64 page_id, Web::UniqueNodeID node_id) override;
     virtual void create_child_text_node(u64 page_id, Web::UniqueNodeID node_id) override;
     virtual void insert_dom_node_before(u64 page_id, Web::UniqueNodeID node_id, Web::UniqueNodeID parent_node_id, Optional<Web::UniqueNodeID> sibling_node_id) override;

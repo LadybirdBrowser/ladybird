@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16FlyString.h>
+#include <AK/Utf16String.h>
 #include <LibWeb/DOM/ChildNode.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/Export.h>
@@ -24,28 +25,28 @@ public:
 
     virtual ~DocumentType() override = default;
 
-    virtual FlyString node_name() const override { return name(); }
+    virtual Utf16FlyString node_name() const override { return m_name; }
 
-    String const& name() const { return m_name; }
-    void set_name(String const& name) { m_name = name; }
+    Utf16FlyString const& name() const { return m_name; }
+    void set_name(Utf16FlyString const& name) { m_name = name; }
 
-    String const& public_id() const { return m_public_id; }
-    void set_public_id(String const& public_id) { m_public_id = public_id; }
+    Utf16String const& public_id() const { return m_public_id; }
+    void set_public_id(Utf16String const& public_id) { m_public_id = public_id; }
 
-    String const& system_id() const { return m_system_id; }
-    void set_system_id(String const& system_id) { m_system_id = system_id; }
+    Utf16String const& system_id() const { return m_system_id; }
+    void set_system_id(Utf16String const& system_id) { m_system_id = system_id; }
 
 private:
     explicit DocumentType(Document&);
 
     virtual void initialize(JS::Realm&) override;
 
-    String m_name;
-    String m_public_id;
-    String m_system_id;
+    Utf16FlyString m_name;
+    Utf16String m_public_id;
+    Utf16String m_system_id;
 };
 
-bool is_valid_doctype_name(String const&);
+bool is_valid_doctype_name(Utf16View const&);
 
 template<>
 inline bool Node::fast_is<DocumentType>() const { return is_document_type(); }

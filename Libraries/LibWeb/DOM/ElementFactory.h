@@ -12,11 +12,11 @@
 
 namespace Web::DOM {
 
-WEB_API ErrorOr<FixedArray<FlyString>> valid_local_names_for_given_html_element_interface(StringView html_element_interface_name);
-bool is_unknown_html_element(FlyString const& tag_name);
+WEB_API ErrorOr<FixedArray<Utf16FlyString>> valid_local_names_for_given_html_element_interface(StringView html_element_interface_name);
+bool is_unknown_html_element(Utf16FlyString const& tag_name);
 
 struct Default { };
 
-WEB_API WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document&, FlyString local_name, Optional<FlyString> namespace_, Optional<FlyString> prefix = {}, Optional<String> is = Optional<String> {}, bool synchronous_custom_elements_flag = false, Variant<GC::Ptr<HTML::CustomElementRegistry>, Default> registry = Default {});
+WEB_API WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document&, Utf16FlyString local_name, Optional<Utf16FlyString> namespace_, Optional<Utf16FlyString> prefix = {}, Optional<Utf16FlyString> is = Optional<Utf16FlyString> {}, bool synchronous_custom_elements_flag = false, Variant<GC::Ptr<HTML::CustomElementRegistry>, Default> registry = Default {});
 
 }

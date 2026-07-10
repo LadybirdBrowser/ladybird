@@ -226,7 +226,7 @@ class DOMTreeParser(HTMLParser):
             if attribute_value is None:
                 attribute_value = ""
             attribute_expr = resolve_attribute(attribute_name, in_svg, self.html_attributes, self.svg_attributes)
-            self._add_line(f'{var_name}->set_attribute_value({attribute_expr}, "{attribute_value}"_string);')
+            self._add_line(f'{var_name}->set_attribute_value({attribute_expr}, "{attribute_value}"_utf16);')
 
         self._add_line(f"MUST({deref_parent}append_child({var_name}));")
 

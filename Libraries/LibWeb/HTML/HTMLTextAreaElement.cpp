@@ -291,7 +291,7 @@ void HTMLTextAreaElement::set_cols(WebIDL::UnsignedLong cols)
     if (cols == 0 || cols > 2147483647)
         cols = 20;
 
-    set_attribute_value(HTML::AttributeNames::cols, String::number(cols));
+    set_attribute_value(HTML::AttributeNames::cols, Utf16String::number(cols));
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-textarea-rows
@@ -310,7 +310,7 @@ void HTMLTextAreaElement::set_rows(WebIDL::UnsignedLong rows)
     if (rows == 0 || rows > 2147483647)
         rows = 2;
 
-    set_attribute_value(HTML::AttributeNames::rows, String::number(rows));
+    set_attribute_value(HTML::AttributeNames::rows, Utf16String::number(rows));
 }
 
 WebIDL::UnsignedLong HTMLTextAreaElement::selection_start_binding() const
@@ -458,7 +458,7 @@ void HTMLTextAreaElement::children_changed(ChildrenChangedMetadata const& metada
     }
 }
 
-void HTMLTextAreaElement::form_associated_element_attribute_changed(FlyString const& name, Optional<Utf16String> const&, Optional<Utf16String> const& value, Optional<FlyString> const&)
+void HTMLTextAreaElement::form_associated_element_attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const&, Optional<Utf16String> const& value, Optional<Utf16FlyString> const&)
 {
     if (name == HTML::AttributeNames::placeholder) {
         if (m_placeholder_text_node)

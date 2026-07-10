@@ -26,7 +26,7 @@ public:
     void blur();
 
 protected:
-    void attribute_changed(FlyString const&, Optional<Utf16String> const&, Optional<Utf16String> const&, Optional<FlyString> const&);
+    void attribute_changed(Utf16FlyString const&, Optional<Utf16String> const&, Optional<Utf16String> const&, Optional<Utf16FlyString> const&);
     WebIDL::ExceptionOr<void> cloned(DOM::Node&, bool) const;
     void inserted();
     void visit_edges(JS::Cell::Visitor&);

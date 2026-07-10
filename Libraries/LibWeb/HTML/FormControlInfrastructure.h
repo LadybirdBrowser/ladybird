@@ -16,8 +16,6 @@ struct SerializedFormData {
     ByteBuffer serialized_data;
 };
 
-WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry(JS::Realm& realm, String const& name, Variant<GC::Ref<FileAPI::Blob>, String> const& value, Optional<String> const& filename = {});
-WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry(JS::Realm& realm, Utf16View name, Variant<GC::Ref<FileAPI::Blob>, String> const& value, Optional<String> const& filename = {});
 WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry(JS::Realm& realm, Utf16View name, Variant<GC::Ref<FileAPI::Blob>, Utf16String> const& value, Optional<String> const& filename = {});
 WebIDL::ExceptionOr<Optional<GC::ConservativeVector<XHR::FormDataEntry>>> construct_entry_list(JS::Realm&, HTMLFormElement&, GC::Ptr<HTMLElement> submitter = nullptr, Optional<String> encoding = Optional<String> {});
 ErrorOr<Utf16String> normalize_line_breaks(Utf16View value);
