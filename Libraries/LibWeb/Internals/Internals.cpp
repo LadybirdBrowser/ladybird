@@ -898,6 +898,9 @@ void Internals::perform_per_test_cleanup()
 
     // Clear any input state
     page().top_level_traversable()->event_handler().clear_per_test_input_state({});
+
+    // Restore the page to the visible state.
+    page().top_level_traversable()->set_system_visibility_state(HTML::VisibilityState::Visible);
 }
 
 void Internals::set_highlighted_node(GC::Ptr<DOM::Node> node)
@@ -1042,6 +1045,12 @@ void Internals::set_preferred_color_scheme(Utf16String const& color_scheme)
 void Internals::set_page_focus(bool has_focus)
 {
     page().client().set_has_focus(has_focus);
+}
+
+void Internals::set_system_visibility_state(Utf16String const& state)
+{
+    auto visibility_state = state == "hidden"sv ? HTML::VisibilityState::Hidden : HTML::VisibilityState::Visible;
+    page().top_level_traversable()->set_system_visibility_state(visibility_state);
 }
 
 Utf16String Internals::canvas_color_scheme()

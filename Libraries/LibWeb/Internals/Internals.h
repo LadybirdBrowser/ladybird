@@ -156,6 +156,7 @@ public:
     void update_style();
     void set_preferred_color_scheme(Utf16String const& color_scheme);
     void set_page_focus(bool has_focus);
+    void set_system_visibility_state(Utf16String const& state);
     Utf16String canvas_color_scheme();
     bool style_sheet_may_have_has_selectors(CSS::CSSStyleSheet&);
     WebIDL::ExceptionOr<JS::Object*> image_animation_state_for_url(Utf16String const& url);
