@@ -9,9 +9,7 @@
 
 #include <AK/Platform.h>
 #include <QGuiApplication>
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
-#    include <QStyleHints>
-#endif
+#include <QStyleHints>
 
 namespace Ladybird::ChromeStyle {
 
@@ -27,16 +25,13 @@ static bool palette_is_dark(QPalette const& palette)
 
 bool is_dark(QPalette const& palette)
 {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     auto color_scheme = QGuiApplication::styleHints()->colorScheme();
     if (color_scheme != Qt::ColorScheme::Unknown)
         return color_scheme == Qt::ColorScheme::Dark;
-#endif
 
     return palette_is_dark(palette);
 }
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
 static bool palette_roles_match_color_scheme(QPalette const& palette, bool dark)
 {
     return color_is_dark(palette.color(QPalette::Window)) == dark
@@ -44,19 +39,14 @@ static bool palette_roles_match_color_scheme(QPalette const& palette, bool dark)
         && color_is_dark(palette.color(QPalette::Text)) != dark
         && color_is_dark(palette.color(QPalette::ButtonText)) != dark;
 }
-#endif
 
 static bool palette_matches_current_color_scheme(QPalette const& palette)
 {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     auto color_scheme = QGuiApplication::styleHints()->colorScheme();
     if (color_scheme == Qt::ColorScheme::Dark)
         return palette_roles_match_color_scheme(palette, true);
     if (color_scheme == Qt::ColorScheme::Light)
         return palette_roles_match_color_scheme(palette, false);
-#endif
-
-    Q_UNUSED(palette);
     return true;
 }
 

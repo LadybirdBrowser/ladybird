@@ -1,13 +1,13 @@
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets)
+
+find_package(Qt6 6.9 REQUIRED COMPONENTS Core Widgets)
 
 if (APPLE)
-    # The native presentation paths use platform GPU buffer handles directly
-    # instead of copying frames through CPU memory.
+    # The native presentation paths use platform GPU buffer handles directly instead of copying frames through CPU memory.
     set(QT_NO_PRIVATE_MODULE_WARNING ON)
-    find_package(Qt6 REQUIRED COMPONENTS GuiPrivate)
+    find_package(Qt6 6.9 REQUIRED COMPONENTS GuiPrivate)
 endif()
 
 qt_add_executable(ladybird main.cpp)

@@ -69,11 +69,7 @@ static constexpr int WINDOW_RESIZE_CORNER_WIDTH = WINDOW_RESIZE_BORDER_WIDTH * 2
 
 static bool should_use_screen_signal_for_dpi_changes()
 {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
     return QGuiApplication::platformName() != "wayland";
-#else
-    return true;
-#endif
 }
 
 static Optional<u64> display_id_for_screen(QScreen* screen)
@@ -1204,12 +1200,10 @@ void BrowserWindow::exit_fullscreen()
 
 bool BrowserWindow::event(QEvent* event)
 {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
     if (event->type() == QEvent::DevicePixelRatioChange) {
         if (m_device_pixel_ratio != devicePixelRatio())
             device_pixel_ratio_changed(devicePixelRatio());
     }
-#endif
     if (event->type() == QEvent::WinIdChange)
         connect_window_screen_changed_signal();
     if (event->type() == QEvent::PlatformSurface) {

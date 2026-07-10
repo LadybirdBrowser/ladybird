@@ -26,9 +26,7 @@
 #include <QPalette>
 #include <QResizeEvent>
 #include <QStyle>
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
-#    include <QStyleHints>
-#endif
+#include <QStyleHints>
 #include <QTextLayout>
 #include <QTimer>
 #include <QToolButton>
@@ -229,11 +227,9 @@ LocationEdit::LocationEdit(QWidget* parent, WebView::IsPrivate is_private)
         m_omnibox.cursor_moved(at_end);
     });
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, this, [this] {
         schedule_chrome_style_update();
     });
-#endif
 }
 
 void LocationEdit::set_trailing_action(QAction* action)

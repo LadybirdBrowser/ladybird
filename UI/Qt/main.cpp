@@ -14,14 +14,11 @@
 #include <UI/Qt/Settings.h>
 
 #include <QCoreApplication>
+#include <QStyleHints>
 #include <QtGlobal>
 
 #if defined(AK_OS_MACOS)
 #    include <UI/Qt/MacWindow.h>
-#endif
-
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
-#    include <QStyleHints>
 #endif
 
 namespace Ladybird {
@@ -30,12 +27,10 @@ namespace Ladybird {
 bool is_using_dark_system_theme(QWidget&);
 bool is_using_dark_system_theme(QWidget& widget)
 {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     // Use the explicitly set or system default color scheme whenever available
     auto color_scheme = QGuiApplication::styleHints()->colorScheme();
     if (color_scheme != Qt::ColorScheme::Unknown)
         return color_scheme == Qt::ColorScheme::Dark;
-#endif
 
     // Calculate luma based on Rec. 709 coefficients
     // https://en.wikipedia.org/wiki/Rec._709#Luma_coefficients

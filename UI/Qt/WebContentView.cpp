@@ -48,9 +48,7 @@
 #include <QPalette>
 #include <QPixmap>
 #include <QScrollBar>
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
-#    include <QStyleHints>
-#endif
+#include <QStyleHints>
 #include <QTextEdit>
 #include <QTimer>
 #include <QToolTip>
@@ -110,14 +108,12 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
         update_screen_rects();
     });
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     QObject::connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, this, [this] {
         QTimer::singleShot(0, this, [this] {
             update_palette();
             schedule_repaint();
         });
     });
-#endif
 
     m_tooltip_hover_timer.setSingleShot(true);
 
