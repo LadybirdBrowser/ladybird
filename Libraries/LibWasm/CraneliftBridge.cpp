@@ -52,6 +52,9 @@ struct InputFunctionEntry {
     u32 insn_offset;
     u32 insn_count;
     u32 result_arity;
+    u32 num_locals;
+    u32 locals_offset;
+    u32 _pad;
 };
 
 struct OutputFunctionEntry {
@@ -92,13 +95,14 @@ struct BatchInput {
     u32 result_arity;
     u32 function_index;
     CompiledInstructions* target;
+    u32 num_locals;
 };
 
 // Disk-cache blob format. Stable: cached files name format_version + layout_hash so
 // any rebuild that changes those will simply miss the cache rather than try to
 // execute incompatible bytes.
 constexpr u64 cache_blob_magic = 0x4354494A4D534157ULL; // "WASMJITC" little-endian
-constexpr u32 cache_blob_format_version = 5;
+constexpr u32 cache_blob_format_version = 6;
 
 struct CacheBlobHeader {
     u64 magic;
@@ -1157,12 +1161,16 @@ static void try_cranelift_compile_batch(Vector<BatchInput>& batch)
     auto const entries_size = sizeof(InputFunctionEntry) * function_count;
 
     size_t total_insn_count = 0;
-    for (auto& entry : batch)
+    size_t total_locals_bytes = 0;
+    for (auto& entry : batch) {
         total_insn_count += entry.insns.size();
+        total_locals_bytes += entry.num_locals;
+    }
 
     auto const insn_region_offset = align_up(entries_offset + entries_size, alignof(CraneliftInsn));
     auto const insn_bytes = total_insn_count * sizeof(CraneliftInsn);
-    auto const helpers_offset = align_up(insn_region_offset + insn_bytes, alignof(RuntimeHelpers));
+    auto const locals_region_offset = insn_region_offset + insn_bytes; // u8, no alignment needed
+    auto const helpers_offset = align_up(locals_region_offset + total_locals_bytes, alignof(RuntimeHelpers));
     auto const code_region_start = align_up(helpers_offset + sizeof(RuntimeHelpers), alignof(OutputFunctionEntry));
     auto const code_region_size = max(oop_code_region_min_size, total_insn_count * oop_code_bytes_per_insn);
     auto const reloc_region_start = align_up(code_region_start + sizeof(OutputFunctionEntry) * function_count + code_region_size, alignof(HelperReloc));
@@ -1233,6 +1241,7 @@ static void try_cranelift_compile_batch(Vector<BatchInput>& batch)
     };
 
     size_t insn_cursor = insn_region_offset;
+    size_t locals_cursor = locals_region_offset;
     for (size_t i = 0; i < function_count; ++i) {
         auto& input = batch[i];
         auto* entry = reinterpret_cast<InputFunctionEntry*>(base + entries_offset + i * sizeof(InputFunctionEntry));
@@ -1240,9 +1249,17 @@ static void try_cranelift_compile_batch(Vector<BatchInput>& batch)
             .insn_offset = static_cast<u32>(insn_cursor),
             .insn_count = static_cast<u32>(input.insns.size()),
             .result_arity = input.result_arity,
+            .num_locals = input.num_locals,
+            .locals_offset = static_cast<u32>(locals_cursor),
+            ._pad = 0,
         };
         __builtin_memcpy(base + insn_cursor, input.insns.data(), input.insns.size() * sizeof(CraneliftInsn));
         insn_cursor += input.insns.size() * sizeof(CraneliftInsn);
+
+        auto const& local_types = input.target->cranelift_local_types;
+        for (u32 l = 0; l < input.num_locals; ++l)
+            base[locals_cursor + l] = l < local_types.size() ? local_types[l] : static_cast<u8>(ValueType::I64);
+        locals_cursor += input.num_locals;
     }
 
     __builtin_memcpy(base + helpers_offset, &helpers, sizeof(helpers));
@@ -1485,7 +1502,7 @@ bool try_cranelift_compile(CompiledInstructions& compiled, u32 result_arity)
         }
     }
 
-    cranelift_cache_state().pending_batch.append({ move(flat), result_arity, s_active_function_index, &compiled });
+    cranelift_cache_state().pending_batch.append({ move(flat), result_arity, s_active_function_index, &compiled, compiled.cranelift_local_count });
     return false; // Not compiled yet, will be compiled in flush.
 #endif
 }

@@ -5156,6 +5156,10 @@ ErrorOr<Validator::ExpressionTypeResult, ValidationError> Validator::validate(Ex
         if (!has_unsupported_types && result_types.size() <= 1) {
             expression.compiled_instructions.cranelift_eligible = true;
             expression.compiled_instructions.cranelift_result_arity = static_cast<u32>(result_types.size());
+            expression.compiled_instructions.cranelift_local_count = static_cast<u32>(m_context.locals.size());
+            expression.compiled_instructions.cranelift_local_types.ensure_capacity(m_context.locals.size());
+            for (auto& type : m_context.locals)
+                expression.compiled_instructions.cranelift_local_types.unchecked_append(to_underlying(type.kind()));
         }
     }
 

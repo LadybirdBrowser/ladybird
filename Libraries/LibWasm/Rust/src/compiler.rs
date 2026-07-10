@@ -28,6 +28,7 @@ use cranelift_codegen::ir::UserExternalName;
 use cranelift_codegen::ir::UserFuncName;
 use cranelift_codegen::ir::condcodes::FloatCC;
 use cranelift_codegen::ir::condcodes::IntCC;
+use cranelift_codegen::ir::immediates::Ieee64;
 use cranelift_codegen::ir::types;
 use cranelift_codegen::settings::Configurable;
 use cranelift_codegen::settings::{self};
@@ -47,6 +48,14 @@ const REG_COUNT: usize = 8;
 const STACK_MARKER: u8 = 8;
 const CALLREC_BASE: u8 = 9;
 
+/// The `Int` bank is always defined.
+/// The `F64` bank is trusted only until the next control-flow merge, where it may be undefined on an incoming edge.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Bank {
+    Int,
+    F64,
+}
+
 /// Control flow frame tracking for structured control flow.
 struct ControlFrame {
     kind: ControlKind,
@@ -65,6 +74,7 @@ struct ControlFrame {
     /// Real value-stack size at block entry, minus this block's param count.
     /// Only meaningful (and only set) when vstack is disabled (max_stack_depth == 0).
     entry_real_depth_var: Option<Variable>,
+    bank_snapshot: Option<([Bank; REG_COUNT], Vec<Bank>)>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -82,6 +92,8 @@ impl CraneliftCompiler {
         helpers: &RuntimeHelpers,
         outcome_return_value: u64,
         result_arity: u32,
+        num_locals: u32,
+        local_types: &[u8],
     ) -> Result<CompiledFunction, &'static str> {
         for insn in insns {
             if !Self::is_supported(insn) {
@@ -370,6 +382,68 @@ impl CraneliftCompiler {
         builder.declare_var(initial_stack_size_var, types::I64);
         let mut next_var_id: u32 = VSTACK_VAR_BASE + max_stack_depth as u32 + 1;
 
+        let reg_vars_f64: [Variable; REG_COUNT] = std::array::from_fn(|_| {
+            let v = Variable::from_u32(next_var_id);
+            next_var_id += 1;
+            builder.declare_var(v, types::F64);
+            v
+        });
+        let stack_vars_f64: Vec<Variable> = (0..max_stack_depth)
+            .map(|_| {
+                let v = Variable::from_u32(next_var_id);
+                next_var_id += 1;
+                builder.declare_var(v, types::F64);
+                v
+            })
+            .collect();
+        let mut reg_ty = [Bank::Int; REG_COUNT];
+        let mut stack_ty = vec![Bank::Int; max_stack_depth];
+
+        const F64_KIND: u8 = 3;
+        let num_locals = num_locals as usize;
+        let local_is_f64: Vec<bool> = (0..num_locals)
+            .map(|i| local_types.get(i).copied() == Some(F64_KIND))
+            .collect();
+
+        // Promoting wasm locals to SSA variables keeps them in registers, which is a win only
+        // as long as they actually fit. Functions with more locals than the machine has usable
+        // registers make cranelift spill, and the spill traffic is both larger and slower than
+        // just leaving the locals in the frame and loading them on use.
+        // Set the cap according to the target's usable GPR count; the read/write macros fall back
+        // to the in-memory path for any index we don't promote.
+        let max_promote_locals = if cfg!(target_arch = "aarch64") {
+            24
+        } else if cfg!(target_arch = "x86_64") {
+            12
+        } else {
+            8
+        };
+        let local_vars: Vec<Variable> = if num_locals <= max_promote_locals {
+            (0..num_locals)
+                .map(|_| {
+                    let v = Variable::from_u32(next_var_id);
+                    next_var_id += 1;
+                    v
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
+        let mut dirty_locals = vec![false; num_locals];
+        for (i, var) in local_vars.iter().enumerate() {
+            let lb = builder.use_var(locals_base_var);
+            let offset = (i as i32) * value_size;
+            if local_is_f64[i] {
+                builder.declare_var(*var, types::F64);
+                let val = builder.ins().load(types::F64, MemFlags::trusted(), lb, offset);
+                builder.def_var(*var, val);
+            } else {
+                builder.declare_var(*var, types::I64);
+                let val = builder.ins().load(types::I64, MemFlags::trusted(), lb, offset);
+                builder.def_var(*var, val);
+            }
+        }
+
         if has_raw_call {
             let stack_size_fp = builder.ins().func_addr(ptr_type, h_stack_size);
             let cfg_for_size = builder.use_var(config_var);
@@ -447,10 +521,12 @@ impl CraneliftCompiler {
                 let val = $val;
                 if dst < STACK_MARKER {
                     $builder.def_var(reg_vars[dst as usize], val);
+                    reg_ty[dst as usize] = Bank::Int;
                     dirty_regs[dst as usize] = true;
                 } else if dst == STACK_MARKER {
                     if max_stack_depth > 0 {
                         $builder.def_var(stack_vars[sp], val);
+                        stack_ty[sp] = Bank::Int;
                         sp += 1;
                     } else {
                         let fp = $builder.ins().func_addr(ptr_type, h_stack_push);
@@ -464,6 +540,86 @@ impl CraneliftCompiler {
                     $builder
                         .ins()
                         .call_indirect(callrec_write_sig, fp, &[cfg, idx, val]);
+                }
+            }};
+        }
+
+        macro_rules! read_src_f64 {
+            ($builder:expr, $src:expr) => {{
+                let src = $src;
+                if src < STACK_MARKER {
+                    if reg_ty[src as usize] == Bank::F64 {
+                        $builder.use_var(reg_vars_f64[src as usize])
+                    } else {
+                        let raw = $builder.use_var(reg_vars[src as usize]);
+                        $builder.ins().bitcast(types::F64, MemFlags::new(), raw)
+                    }
+                } else if src == STACK_MARKER {
+                    if max_stack_depth > 0 && sp > 0 {
+                        sp -= 1;
+                        if stack_ty[sp] == Bank::F64 {
+                            $builder.use_var(stack_vars_f64[sp])
+                        } else {
+                            let raw = $builder.use_var(stack_vars[sp]);
+                            $builder.ins().bitcast(types::F64, MemFlags::new(), raw)
+                        }
+                    } else {
+                        let fp = $builder.ins().func_addr(ptr_type, h_stack_pop);
+                        let cfg = $builder.use_var(config_var);
+                        let call = $builder.ins().call_indirect(stack_pop_sig, fp, &[cfg]);
+                        let raw = $builder.inst_results(call)[0];
+                        $builder.ins().bitcast(types::F64, MemFlags::new(), raw)
+                    }
+                } else {
+                    let fp = $builder.ins().func_addr(ptr_type, h_callrec_read);
+                    let cfg = $builder.use_var(config_var);
+                    let idx = $builder.ins().iconst(types::I32, i64::from(src - CALLREC_BASE));
+                    let call = $builder.ins().call_indirect(callrec_read_sig, fp, &[cfg, idx]);
+                    let raw = $builder.inst_results(call)[0];
+                    $builder.ins().bitcast(types::F64, MemFlags::new(), raw)
+                }
+            }};
+        }
+
+        macro_rules! write_dst_f64 {
+            ($builder:expr, $dst:expr, $val:expr) => {{
+                let dst = $dst;
+                let val = $val;
+                let bits = $builder.ins().bitcast(types::I64, MemFlags::new(), val);
+                if dst < STACK_MARKER {
+                    $builder.def_var(reg_vars_f64[dst as usize], val);
+                    $builder.def_var(reg_vars[dst as usize], bits);
+                    reg_ty[dst as usize] = Bank::F64;
+                    dirty_regs[dst as usize] = true;
+                } else if dst == STACK_MARKER {
+                    if max_stack_depth > 0 {
+                        $builder.def_var(stack_vars_f64[sp], val);
+                        $builder.def_var(stack_vars[sp], bits);
+                        stack_ty[sp] = Bank::F64;
+                        sp += 1;
+                    } else {
+                        let fp = $builder.ins().func_addr(ptr_type, h_stack_push);
+                        let cfg = $builder.use_var(config_var);
+                        $builder.ins().call_indirect(stack_push_sig, fp, &[cfg, bits]);
+                    }
+                } else {
+                    let fp = $builder.ins().func_addr(ptr_type, h_callrec_write);
+                    let cfg = $builder.use_var(config_var);
+                    let idx = $builder.ins().iconst(types::I32, i64::from(dst - CALLREC_BASE));
+                    $builder
+                        .ins()
+                        .call_indirect(callrec_write_sig, fp, &[cfg, idx, bits]);
+                }
+            }};
+        }
+
+        macro_rules! reset_banks {
+            () => {{
+                for t in reg_ty.iter_mut() {
+                    *t = Bank::Int;
+                }
+                for t in stack_ty.iter_mut() {
+                    *t = Bank::Int;
                 }
             }};
         }
@@ -540,13 +696,10 @@ impl CraneliftCompiler {
         }
         macro_rules! f64_binop {
             ($builder:expr, $insn:expr, $op:ident) => {{
-                let rhs_raw = read_src!($builder, $insn.sources[0]);
-                let lhs_raw = read_src!($builder, $insn.sources[1]);
-                let lhs = $builder.ins().bitcast(types::F64, MemFlags::new(), lhs_raw);
-                let rhs = $builder.ins().bitcast(types::F64, MemFlags::new(), rhs_raw);
+                let rhs = read_src_f64!($builder, $insn.sources[0]);
+                let lhs = read_src_f64!($builder, $insn.sources[1]);
                 let result = $builder.ins().$op(lhs, rhs);
-                let result = $builder.ins().bitcast(types::I64, MemFlags::new(), result);
-                write_dst!($builder, $insn.destination, result);
+                write_dst_f64!($builder, $insn.destination, result);
             }};
         }
         macro_rules! f32_unop {
@@ -562,11 +715,9 @@ impl CraneliftCompiler {
         }
         macro_rules! f64_unop {
             ($builder:expr, $insn:expr, $op:ident) => {{
-                let src_raw = read_src!($builder, $insn.sources[0]);
-                let src = $builder.ins().bitcast(types::F64, MemFlags::new(), src_raw);
+                let src = read_src_f64!($builder, $insn.sources[0]);
                 let result = $builder.ins().$op(src);
-                let result = $builder.ins().bitcast(types::I64, MemFlags::new(), result);
-                write_dst!($builder, $insn.destination, result);
+                write_dst_f64!($builder, $insn.destination, result);
             }};
         }
         macro_rules! f32_cmp {
@@ -584,32 +735,128 @@ impl CraneliftCompiler {
         }
         macro_rules! f64_cmp {
             ($builder:expr, $insn:expr, $cc:expr) => {{
-                let rhs_raw = read_src!($builder, $insn.sources[0]);
-                let lhs_raw = read_src!($builder, $insn.sources[1]);
-                let lhs = $builder.ins().bitcast(types::F64, MemFlags::new(), lhs_raw);
-                let rhs = $builder.ins().bitcast(types::F64, MemFlags::new(), rhs_raw);
+                let rhs = read_src_f64!($builder, $insn.sources[0]);
+                let lhs = read_src_f64!($builder, $insn.sources[1]);
                 let cmp = $builder.ins().fcmp($cc, lhs, rhs);
                 let result = $builder.ins().uextend(types::I64, cmp);
                 write_dst!($builder, $insn.destination, result);
             }};
         }
 
-        // locals_base is a Value*, we're only interested in the first 8 bytes of *(locals_base + index * 16).
         macro_rules! read_local_inline {
             ($builder:expr, $idx_imm:expr) => {{
-                let lb = $builder.use_var(locals_base_var);
-                let offset = ($idx_imm as i32) * value_size;
-                $builder.ins().load(types::I64, MemFlags::trusted(), lb, offset)
+                let idx = ($idx_imm) as usize;
+                if idx < local_vars.len() {
+                    let v = $builder.use_var(local_vars[idx]);
+                    if local_is_f64[idx] {
+                        $builder.ins().bitcast(types::I64, MemFlags::new(), v)
+                    } else {
+                        v
+                    }
+                } else {
+                    let lb = $builder.use_var(locals_base_var);
+                    $builder
+                        .ins()
+                        .load(types::I64, MemFlags::trusted(), lb, (idx as i32) * value_size)
+                }
             }};
         }
-        // write_local_inline: store i64 to first 8 bytes, zero next 8 bytes
+        macro_rules! read_local_f64 {
+            ($builder:expr, $idx_imm:expr) => {{
+                let idx = ($idx_imm) as usize;
+                if idx < local_vars.len() && local_is_f64[idx] {
+                    $builder.use_var(local_vars[idx])
+                } else if idx < local_vars.len() {
+                    let v = $builder.use_var(local_vars[idx]);
+                    $builder.ins().bitcast(types::F64, MemFlags::new(), v)
+                } else {
+                    let lb = $builder.use_var(locals_base_var);
+                    $builder
+                        .ins()
+                        .load(types::F64, MemFlags::trusted(), lb, (idx as i32) * value_size)
+                }
+            }};
+        }
         macro_rules! write_local_inline {
             ($builder:expr, $idx_imm:expr, $val:expr) => {{
-                let lb = $builder.use_var(locals_base_var);
-                let offset = ($idx_imm as i32) * value_size;
-                $builder.ins().store(MemFlags::trusted(), $val, lb, offset);
-                let zero = $builder.ins().iconst(types::I64, 0);
-                $builder.ins().store(MemFlags::trusted(), zero, lb, offset + 8);
+                let idx = ($idx_imm) as usize;
+                let v = $val;
+                if idx < local_vars.len() {
+                    let stored = if local_is_f64[idx] {
+                        $builder.ins().bitcast(types::F64, MemFlags::new(), v)
+                    } else {
+                        v
+                    };
+                    $builder.def_var(local_vars[idx], stored);
+                    dirty_locals[idx] = true;
+                } else {
+                    let lb = $builder.use_var(locals_base_var);
+                    let offset = (idx as i32) * value_size;
+                    $builder.ins().store(MemFlags::trusted(), v, lb, offset);
+                    let zero = $builder.ins().iconst(types::I64, 0);
+                    $builder.ins().store(MemFlags::trusted(), zero, lb, offset + 8);
+                }
+            }};
+        }
+        macro_rules! write_local_f64 {
+            ($builder:expr, $idx_imm:expr, $val:expr) => {{
+                let idx = ($idx_imm) as usize;
+                let v = $val;
+                if idx < local_vars.len() && local_is_f64[idx] {
+                    $builder.def_var(local_vars[idx], v);
+                    dirty_locals[idx] = true;
+                } else if idx < local_vars.len() {
+                    let bits = $builder.ins().bitcast(types::I64, MemFlags::new(), v);
+                    $builder.def_var(local_vars[idx], bits);
+                    dirty_locals[idx] = true;
+                } else {
+                    let lb = $builder.use_var(locals_base_var);
+                    let offset = (idx as i32) * value_size;
+                    $builder.ins().store(MemFlags::trusted(), v, lb, offset);
+                    let zero = $builder.ins().iconst(types::I64, 0);
+                    $builder.ins().store(MemFlags::trusted(), zero, lb, offset + 8);
+                }
+            }};
+        }
+        macro_rules! local_get {
+            ($builder:expr, $idx_imm:expr, $dst:expr) => {{
+                let idx = ($idx_imm) as usize;
+                if idx < local_vars.len() && local_is_f64[idx] {
+                    let result = read_local_f64!($builder, $idx_imm);
+                    write_dst_f64!($builder, $dst, result);
+                } else {
+                    let result = read_local_inline!($builder, $idx_imm);
+                    write_dst!($builder, $dst, result);
+                }
+            }};
+        }
+        macro_rules! local_set {
+            ($builder:expr, $idx_imm:expr, $src:expr) => {{
+                let idx = ($idx_imm) as usize;
+                if idx < local_vars.len() && local_is_f64[idx] {
+                    let val = read_src_f64!($builder, $src);
+                    write_local_f64!($builder, $idx_imm, val);
+                } else {
+                    let val = read_src!($builder, $src);
+                    write_local_inline!($builder, $idx_imm, val);
+                }
+            }};
+        }
+        macro_rules! flush_locals {
+            ($builder:expr) => {{
+                if !local_vars.is_empty() {
+                    let lb = $builder.use_var(locals_base_var);
+                    for i in 0..local_vars.len() {
+                        if !dirty_locals[i] {
+                            continue;
+                        }
+                        let v = $builder.use_var(local_vars[i]);
+                        let offset = (i as i32) * value_size;
+                        $builder.ins().store(MemFlags::trusted(), v, lb, offset);
+                        let zero = $builder.ins().iconst(types::I64, 0);
+                        $builder.ins().store(MemFlags::trusted(), zero, lb, offset + 8);
+                    }
+                }
             }};
         }
 
@@ -754,6 +1001,7 @@ impl CraneliftCompiler {
                         value_size,
                         &dirty_regs,
                     );
+                    flush_locals!(builder);
                     set_trap!(builder, "unreachable executed");
                     builder.ins().jump(trap_block, &[]);
                     is_unreachable = true;
@@ -788,6 +1036,7 @@ impl CraneliftCompiler {
                         param_count,
                         stack_depth_at_entry: (sp - param_count) as i32,
                         entry_real_depth_var,
+                        bank_snapshot: None,
                     });
                 }
 
@@ -820,7 +1069,10 @@ impl CraneliftCompiler {
                         param_count,
                         stack_depth_at_entry: (sp - param_count) as i32,
                         entry_real_depth_var,
+                        bank_snapshot: None,
                     });
+                    // Loop header is a merge point (entry edge + back-edges + any tier-up dispatch).
+                    reset_banks!();
                 }
 
                 op::IF => {
@@ -864,6 +1116,7 @@ impl CraneliftCompiler {
                         param_count: _param_count,
                         stack_depth_at_entry: (sp - _param_count) as i32,
                         entry_real_depth_var,
+                        bank_snapshot: Some((reg_ty, stack_ty.clone())),
                     });
                 }
 
@@ -873,11 +1126,16 @@ impl CraneliftCompiler {
                         let after = frame.branch_target;
                         let entry_depth = frame.stack_depth_at_entry;
                         let pc = frame.param_count;
+                        let snapshot = frame.bank_snapshot.clone();
                         builder.ins().jump(after, &[]);
                         builder.switch_to_block(else_block);
                         builder.seal_block(else_block);
                         // Reset sp to entry depth + param_count (else branch inherits params).
                         sp = (entry_depth as usize) + pc;
+                        if let Some((saved_reg_ty, saved_stack_ty)) = snapshot {
+                            reg_ty = saved_reg_ty;
+                            stack_ty = saved_stack_ty;
+                        }
                         if let Some(frame) = control_stack.last_mut() {
                             frame.after_block = after;
                         }
@@ -896,6 +1154,8 @@ impl CraneliftCompiler {
                         builder.ins().jump(after, &[]);
                         builder.switch_to_block(after);
                         is_unreachable = false;
+                        // `after` merges the block body with any branches to it.
+                        reset_banks!();
 
                         // After end of block, sp = entry depth + arity.
                         sp = (frame.stack_depth_at_entry + frame.arity as i32) as usize;
@@ -1051,34 +1311,41 @@ impl CraneliftCompiler {
                     builder.seal_block(dead);
                 }
 
-                op::I32_CONST | op::I64_CONST | op::F32_CONST | op::F64_CONST => {
+                op::I32_CONST | op::I64_CONST | op::F32_CONST => {
                     let val = builder.ins().iconst(types::I64, insn.imm1);
                     write_dst!(builder, insn.destination, val);
                 }
+                op::F64_CONST => {
+                    let val = builder.ins().f64const(Ieee64::with_bits(insn.imm1 as u64));
+                    write_dst_f64!(builder, insn.destination, val);
+                }
 
                 op::LOCAL_GET | op::SYNTHETIC_ARGUMENT_GET => {
-                    let result = read_local_inline!(builder, insn.imm1);
-                    write_dst!(builder, insn.destination, result);
+                    local_get!(builder, insn.imm1, insn.destination);
                 }
                 op::LOCAL_SET | op::SYNTHETIC_ARGUMENT_SET => {
-                    let val = read_src!(builder, insn.sources[0]);
-                    write_local_inline!(builder, insn.imm1, val);
+                    local_set!(builder, insn.imm1, insn.sources[0]);
                 }
                 op::LOCAL_TEE | op::SYNTHETIC_ARGUMENT_TEE => {
-                    let val = read_src!(builder, insn.sources[0]);
-                    write_local_inline!(builder, insn.imm1, val);
-                    write_dst!(builder, insn.destination, val);
+                    let idx = insn.imm1 as usize;
+                    if idx < local_vars.len() && local_is_f64[idx] {
+                        let val = read_src_f64!(builder, insn.sources[0]);
+                        write_local_f64!(builder, insn.imm1, val);
+                        write_dst_f64!(builder, insn.destination, val);
+                    } else {
+                        let val = read_src!(builder, insn.sources[0]);
+                        write_local_inline!(builder, insn.imm1, val);
+                        write_dst!(builder, insn.destination, val);
+                    }
                 }
 
                 opc if (op::SYNTHETIC_LOCAL_GET_0..=op::SYNTHETIC_LOCAL_GET_7).contains(&opc) => {
                     let local_idx = (opc - op::SYNTHETIC_LOCAL_GET_0) as i64;
-                    let result = read_local_inline!(builder, local_idx);
-                    write_dst!(builder, insn.destination, result);
+                    local_get!(builder, local_idx, insn.destination);
                 }
                 opc if (op::SYNTHETIC_LOCAL_SET_0..=op::SYNTHETIC_LOCAL_SET_7).contains(&opc) => {
                     let local_idx = (opc - op::SYNTHETIC_LOCAL_SET_0) as i64;
-                    let val = read_src!(builder, insn.sources[0]);
-                    write_local_inline!(builder, local_idx, val);
+                    local_set!(builder, local_idx, insn.sources[0]);
                 }
                 op::SYNTHETIC_LOCAL_COPY => {
                     let val = read_local_inline!(builder, insn.imm1);
@@ -1414,27 +1681,23 @@ impl CraneliftCompiler {
                     let src = read_src!(builder, insn.sources[0]);
                     let i32_val = builder.ins().ireduce(types::I32, src);
                     let f64_val = builder.ins().fcvt_from_sint(types::F64, i32_val);
-                    let result = builder.ins().bitcast(types::I64, MemFlags::new(), f64_val);
-                    write_dst!(builder, insn.destination, result);
+                    write_dst_f64!(builder, insn.destination, f64_val);
                 }
                 op::F64_CONVERT_UI32 => {
                     let src = read_src!(builder, insn.sources[0]);
                     let i32_val = builder.ins().ireduce(types::I32, src);
                     let f64_val = builder.ins().fcvt_from_uint(types::F64, i32_val);
-                    let result = builder.ins().bitcast(types::I64, MemFlags::new(), f64_val);
-                    write_dst!(builder, insn.destination, result);
+                    write_dst_f64!(builder, insn.destination, f64_val);
                 }
                 op::F64_CONVERT_SI64 => {
                     let src = read_src!(builder, insn.sources[0]);
                     let f64_val = builder.ins().fcvt_from_sint(types::F64, src);
-                    let result = builder.ins().bitcast(types::I64, MemFlags::new(), f64_val);
-                    write_dst!(builder, insn.destination, result);
+                    write_dst_f64!(builder, insn.destination, f64_val);
                 }
                 op::F64_CONVERT_UI64 => {
                     let src = read_src!(builder, insn.sources[0]);
                     let f64_val = builder.ins().fcvt_from_uint(types::F64, src);
-                    let result = builder.ins().bitcast(types::I64, MemFlags::new(), f64_val);
-                    write_dst!(builder, insn.destination, result);
+                    write_dst_f64!(builder, insn.destination, f64_val);
                 }
                 op::I32_REINTERPRET_F32
                 | op::F32_REINTERPRET_I32
@@ -1444,8 +1707,7 @@ impl CraneliftCompiler {
                     write_dst!(builder, insn.destination, src);
                 }
                 op::F32_DEMOTE_F64 => {
-                    let src = read_src!(builder, insn.sources[0]);
-                    let f64_val = builder.ins().bitcast(types::F64, MemFlags::new(), src);
+                    let f64_val = read_src_f64!(builder, insn.sources[0]);
                     let f32_val = builder.ins().fdemote(types::F32, f64_val);
                     let result = builder.ins().bitcast(types::I32, MemFlags::new(), f32_val);
                     let result = builder.ins().sextend(types::I64, result);
@@ -1456,8 +1718,7 @@ impl CraneliftCompiler {
                     let i32_val = builder.ins().ireduce(types::I32, src);
                     let f32_val = builder.ins().bitcast(types::F32, MemFlags::new(), i32_val);
                     let f64_val = builder.ins().fpromote(types::F64, f32_val);
-                    let result = builder.ins().bitcast(types::I64, MemFlags::new(), f64_val);
-                    write_dst!(builder, insn.destination, result);
+                    write_dst_f64!(builder, insn.destination, f64_val);
                 }
                 // Truncation conversions (these can trap in wasm).
                 // Cranelift's fcvt_to_sint/fcvt_to_uint trap on overflow/NaN; the handler then maps the resulting "BadConversionToInteger" trap back to a wasm trap.
@@ -1589,37 +1850,40 @@ impl CraneliftCompiler {
                             _ => unreachable!(),
                         };
                         let address = inline_default_memory_address!(builder, addr, access_size);
-                        let result = match opc {
-                            op::I32_LOAD | op::F32_LOAD | op::I64_LOAD32_U => {
-                                let value = builder.ins().load(types::I32, wasm_memory_flags, address, 0);
-                                builder.ins().uextend(types::I64, value)
-                            }
-                            op::I64_LOAD | op::F64_LOAD => {
-                                builder.ins().load(types::I64, wasm_memory_flags, address, 0)
-                            }
-                            op::I32_LOAD8_S | op::I64_LOAD8_S => {
-                                let value = builder.ins().load(types::I8, wasm_memory_flags, address, 0);
-                                builder.ins().sextend(types::I64, value)
-                            }
-                            op::I32_LOAD8_U | op::I64_LOAD8_U => {
-                                let value = builder.ins().load(types::I8, wasm_memory_flags, address, 0);
-                                builder.ins().uextend(types::I64, value)
-                            }
-                            op::I32_LOAD16_S | op::I64_LOAD16_S => {
-                                let value = builder.ins().load(types::I16, wasm_memory_flags, address, 0);
-                                builder.ins().sextend(types::I64, value)
-                            }
-                            op::I32_LOAD16_U | op::I64_LOAD16_U => {
-                                let value = builder.ins().load(types::I16, wasm_memory_flags, address, 0);
-                                builder.ins().uextend(types::I64, value)
-                            }
-                            op::I64_LOAD32_S => {
-                                let value = builder.ins().load(types::I32, wasm_memory_flags, address, 0);
-                                builder.ins().sextend(types::I64, value)
-                            }
-                            _ => unreachable!(),
-                        };
-                        write_dst!(builder, insn.destination, result);
+                        if opc == op::F64_LOAD {
+                            let result = builder.ins().load(types::F64, wasm_memory_flags, address, 0);
+                            write_dst_f64!(builder, insn.destination, result);
+                        } else {
+                            let result = match opc {
+                                op::I32_LOAD | op::F32_LOAD | op::I64_LOAD32_U => {
+                                    let value = builder.ins().load(types::I32, wasm_memory_flags, address, 0);
+                                    builder.ins().uextend(types::I64, value)
+                                }
+                                op::I64_LOAD => builder.ins().load(types::I64, wasm_memory_flags, address, 0),
+                                op::I32_LOAD8_S | op::I64_LOAD8_S => {
+                                    let value = builder.ins().load(types::I8, wasm_memory_flags, address, 0);
+                                    builder.ins().sextend(types::I64, value)
+                                }
+                                op::I32_LOAD8_U | op::I64_LOAD8_U => {
+                                    let value = builder.ins().load(types::I8, wasm_memory_flags, address, 0);
+                                    builder.ins().uextend(types::I64, value)
+                                }
+                                op::I32_LOAD16_S | op::I64_LOAD16_S => {
+                                    let value = builder.ins().load(types::I16, wasm_memory_flags, address, 0);
+                                    builder.ins().sextend(types::I64, value)
+                                }
+                                op::I32_LOAD16_U | op::I64_LOAD16_U => {
+                                    let value = builder.ins().load(types::I16, wasm_memory_flags, address, 0);
+                                    builder.ins().uextend(types::I64, value)
+                                }
+                                op::I64_LOAD32_S => {
+                                    let value = builder.ins().load(types::I32, wasm_memory_flags, address, 0);
+                                    builder.ins().sextend(types::I64, value)
+                                }
+                                _ => unreachable!(),
+                            };
+                            write_dst!(builder, insn.destination, result);
+                        }
                     } else {
                         let memory_load_helper = match opc {
                             op::I32_LOAD | op::F32_LOAD => h_mem_load32_u,
@@ -1651,7 +1915,12 @@ impl CraneliftCompiler {
                         builder.switch_to_block(cont);
                         builder.seal_block(cont);
                         let result = builder.ins().stack_load(types::I64, result_slot, 0);
-                        write_dst!(builder, insn.destination, result);
+                        if opc == op::F64_LOAD {
+                            let result = builder.ins().bitcast(types::F64, MemFlags::new(), result);
+                            write_dst_f64!(builder, insn.destination, result);
+                        } else {
+                            write_dst!(builder, insn.destination, result);
+                        }
                     }
                 }
 
@@ -2035,6 +2304,9 @@ impl CraneliftCompiler {
                         builder.seal_block(tail);
                         tier_up_dispatch_tail = Some(next_tail);
                         builder.switch_to_block(header);
+                        // The tier-up dispatch jumps straight into this header with regs loaded from config (i64 bank),
+                        // so we can't trust any F64 vars to survive across this jump.
+                        reset_banks!();
                     }
                 }
 
@@ -2091,6 +2363,7 @@ impl CraneliftCompiler {
             value_size,
             &dirty_regs,
         );
+        flush_locals!(builder);
         let ret_val = builder.ins().iconst(types::I64, outcome_return_value as i64);
         builder.ins().return_(&[ret_val]);
 

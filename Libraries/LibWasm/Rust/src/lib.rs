@@ -169,6 +169,15 @@ pub fn compile_to_bytes(
     helpers: &RuntimeHelpers,
     outcome_return_value: u64,
     result_arity: u32,
+    num_locals: u32,
+    local_types: &[u8],
 ) -> Result<CompiledFunction, &'static str> {
-    CraneliftCompiler::compile_to_bytes(insns, helpers, outcome_return_value, result_arity)
+    CraneliftCompiler::compile_to_bytes(
+        insns,
+        helpers,
+        outcome_return_value,
+        result_arity,
+        num_locals,
+        local_types,
+    )
 }

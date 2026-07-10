@@ -987,6 +987,8 @@ struct CompiledInstructions {
     Vector<SourcesAndDestination> src_dst_mappings;
     InstructionStorage extra_instruction_storage;
 
+    Vector<u8> cranelift_local_types;
+
     // Pointer/size_t-sized members first, then the u32, then the bools, so the trailing scalars pack
     // into one word instead of scattering padding between them.
 
@@ -1005,6 +1007,7 @@ struct CompiledInstructions {
     size_t max_call_rec_size = 0;
 
     u32 cranelift_result_arity = 0; // result count to hand to try_cranelift_compile(); only meaningful when cranelift_eligible.
+    u32 cranelift_local_count = 0;  // total locals (params + declared); lets Cranelift promote locals to SSA instead of memory. Only meaningful when cranelift_eligible.
 
     bool direct = false;                  // true if all dispatches contain handler_ptr, otherwise false and all contain instruction_opcode.
     bool cranelift_eligible = false;      // true if this expression cleared the Cranelift type/shape checks during validation.

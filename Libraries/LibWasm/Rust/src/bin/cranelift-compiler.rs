@@ -42,6 +42,9 @@ struct InputFunctionEntry {
     insn_offset: u32,
     insn_count: u32,
     result_arity: u32,
+    num_locals: u32,
+    locals_offset: u32,
+    _pad: u32,
 }
 
 #[repr(C)]
@@ -294,7 +297,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     };
                     let insns =
                         unsafe { std::slice::from_raw_parts(insn_bytes.as_ptr().cast::<CraneliftInsn>(), insn_count) };
-                    if let Ok(compiled) = compile_to_bytes(insns, helpers_ref, outcome_return, entry.result_arity) {
+                    let num_locals = entry.num_locals as usize;
+                    let local_types = usize::try_from(entry.locals_offset)
+                        .ok()
+                        .and_then(|off| mapped_ref.get(off..off + num_locals))
+                        .unwrap_or(&[]);
+                    if let Ok(compiled) = compile_to_bytes(
+                        insns,
+                        helpers_ref,
+                        outcome_return,
+                        entry.result_arity,
+                        entry.num_locals,
+                        local_types,
+                    ) {
                         out.push((i, compiled));
                     }
                 }
