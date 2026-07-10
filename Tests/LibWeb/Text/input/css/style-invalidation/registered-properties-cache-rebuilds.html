@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../../include.js"></script>
+<style>
+    @property --registered-color {
+        syntax: "<color>";
+        inherits: false;
+        initial-value: rgb(1, 2, 3);
+    }
+
+    #target {
+        color: var(--registered-color);
+    }
+
+    .red {
+        color: rgb(255, 0, 0);
+    }
+</style>
+<div id="target">target</div>
+<div id="other">other</div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        internals.resetStyleInvalidationCounters();
+
+        // Style updates that don't change the active stylesheet set should not
+        // rebuild the registered custom properties cache.
+        const other = document.getElementById("other");
+        for (let i = 0; i < 5; ++i) {
+            other.classList.toggle("red");
+            internals.updateStyle();
+        }
+        let counters = internals.getStyleInvalidationCounters();
+        println(`rebuilds after class churn: ${counters.registeredPropertiesCacheRebuilds}`);
+
+        // Adding a stylesheet with a new @property rule must rebuild the cache
+        // so the new registration takes effect.
+        const style = document.createElement("style");
+        style.textContent = `
+            @property --late-color {
+                syntax: "<color>";
+                inherits: false;
+                initial-value: rgb(4, 5, 6);
+            }
+            #other { color: var(--late-color); }
+        `;
+        document.head.appendChild(style);
+        internals.updateStyle();
+        counters = internals.getStyleInvalidationCounters();
+        println(`cache rebuilt after sheet insertion: ${counters.registeredPropertiesCacheRebuilds >= 1}`);
+        println(`late registration works: ${getComputedStyle(other).color}`);
+        println(`early registration works: ${getComputedStyle(document.getElementById("target")).color}`);
+    });
+</script>

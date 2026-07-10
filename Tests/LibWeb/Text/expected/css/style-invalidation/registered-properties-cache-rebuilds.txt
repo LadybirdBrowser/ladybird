@@ -1,0 +1,4 @@
+rebuilds after class churn: 5
+cache rebuilt after sheet insertion: true
+late registration works: rgb(4, 5, 6)
+early registration works: rgb(1, 2, 3)

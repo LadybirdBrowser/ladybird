@@ -943,6 +943,7 @@ public:
         u64 previous_sibling_invalidation_walk_visits { 0 };
         u64 descendant_slot_invalidation_subtree_scans { 0 };
         u64 media_rule_evaluations { 0 };
+        u64 registered_properties_cache_rebuilds { 0 };
     };
     StyleInvalidationCounters& style_invalidation_counters() const { return m_style_invalidation_counters; }
     void reset_style_invalidation_counters() const;

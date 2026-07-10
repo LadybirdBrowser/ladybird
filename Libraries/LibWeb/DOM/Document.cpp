@@ -8957,6 +8957,8 @@ void Document::did_change_custom_property_registrations()
 
 void Document::build_registered_properties_cache()
 {
+    ++m_style_invalidation_counters.registered_properties_cache_rebuilds;
+
     HashMap<Utf16FlyString, CSS::CustomPropertyRegistration> cached_registered_properties_from_css_property_rules;
     for_each_active_css_style_sheet([&](CSS::CSSStyleSheet const& style_sheet) {
         style_sheet.for_each_effective_rule(TraversalOrder::Preorder, [&](CSS::CSSRule const& rule) {
