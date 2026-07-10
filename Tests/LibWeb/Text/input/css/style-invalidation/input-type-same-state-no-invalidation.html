@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../../include.js"></script>
+<style>
+    /* A never-matching :has() argument scans the whole wrapper subtree and
+       leaves every element in it inside the :has() scope, with #wrapper as an
+       anchor in non-subject position. */
+    #wrapper:has(.missing) span {
+        color: rgb(9, 9, 9);
+    }
+
+    /* A :has() selector with a featureless-sensitive argument makes child-list
+       mutations anywhere in the document take the conservative :has()
+       invalidation path. */
+    .hook:has(:not(.absent)) {
+        color: rgb(1, 1, 1);
+    }
+</style>
+<div id="wrapper">
+    <div id="big"></div>
+    <input id="file-input" type="file">
+</div>
+<script>
+    test(() => {
+        const big = document.getElementById("big");
+        for (let i = 0; i < 500; ++i) {
+            const leaf = document.createElement("span");
+            leaf.textContent = `leaf ${i}`;
+            big.appendChild(leaf);
+        }
+
+        const input = document.getElementById("file-input");
+        internals.updateStyle();
+        internals.resetStyleInvalidationCounters();
+
+        // Re-setting the type attribute to a value that parses to the same
+        // state must not rebuild the input's internal shadow tree. If it does,
+        // the internal child-list mutations take the conservative :has() path
+        // above and fan out into a restyle of the whole wrapper subtree.
+        input.setAttribute("type", "file");
+        internals.updateStyle();
+
+        const counters = internals.getStyleInvalidationCounters();
+        if (counters.elementStyleRecomputations < 10)
+            println("PASS: same-state type set stayed targeted");
+        else
+            println(`FAIL: same-state type set recomputed ${counters.elementStyleRecomputations} elements`);
+    });
+</script>
