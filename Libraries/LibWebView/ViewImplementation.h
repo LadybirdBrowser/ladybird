@@ -295,6 +295,13 @@ public:
     Function<void()> prepare_for_immediate_close();
     bool needs_beforeunload_check() const { return m_needs_beforeunload_check; }
 
+    struct NavigationListener {
+        Function<void(URL::URL const&)> on_load_start;
+        Function<void(URL::URL const&)> on_load_finish;
+    };
+    u64 add_navigation_listener(NavigationListener);
+    void remove_navigation_listener(u64 listener_id);
+
     Function<void()> on_ready_to_paint;
     Function<String(Web::HTML::ActivateTab, Web::HTML::WebViewHints, Optional<u64>)> on_new_web_view;
     Function<void()> on_activate_tab;
@@ -303,16 +310,8 @@ public:
     Function<void()> on_link_unhover;
     Function<void(Utf16String const&)> on_title_change;
     Function<void(URL::URL const&)> on_url_change;
-    Function<void(URL::URL const&, bool)> on_load_start;
+    Function<void()> on_load_start;
     Function<void(URL::URL const&)> on_load_finish;
-
-    struct NavigationListener {
-        Function<void(URL::URL const&, bool)> on_load_start;
-        Function<void(URL::URL const&)> on_load_finish;
-    };
-    u64 add_navigation_listener(NavigationListener);
-    void remove_navigation_listener(u64 listener_id);
-
     Function<void(ByteString const& path, i32)> on_request_file;
     Function<void(DictionaryLookup const&, Gfx::IntPoint)> on_request_dictionary_lookup;
     Function<void(Optional<Gfx::Bitmap const&>)> on_favicon_change;

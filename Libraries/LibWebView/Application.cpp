@@ -2817,7 +2817,7 @@ void Application::listen_for_navigation_events(DevTools::TabDescription const& d
         return;
 
     ViewImplementation::NavigationListener listener;
-    listener.on_load_start = [on_started = move(on_started)](URL::URL const& url, bool) {
+    listener.on_load_start = [on_started = move(on_started)](URL::URL const& url) {
         on_started(url.to_string());
     };
     listener.on_load_finish = [view_id = view->view_id(), on_finished = move(on_finished)](URL::URL const& url) {

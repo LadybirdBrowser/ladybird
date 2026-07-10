@@ -406,16 +406,16 @@ static NSImage* tab_loading_spinner_icon(NSUInteger frame)
     return [[tab web_view] handle];
 }
 
-- (void)onLoadStart:(URL::URL const&)url isRedirect:(BOOL)is_redirect
+- (void)onLoadStart
 {
     [self setTabLoading:YES];
-    [[self tabController] onLoadStart:url isRedirect:is_redirect];
+    [[self tabController] onLoadStart];
 }
 
-- (void)onLoadFinish:(URL::URL const&)url
+- (void)onLoadFinish
 {
     [self setTabLoading:NO];
-    [[self tabController] onLoadFinish:url];
+    [[self tabController] onLoadFinish];
 }
 
 - (void)onURLChange:(URL::URL const&)url

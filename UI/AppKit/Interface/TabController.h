@@ -24,8 +24,8 @@
 
 - (void)loadURL:(URL::URL const&)url;
 
-- (void)onLoadStart:(URL::URL const&)url isRedirect:(BOOL)isRedirect;
-- (void)onLoadFinish:(URL::URL const&)url;
+- (void)onLoadStart;
+- (void)onLoadFinish;
 - (void)onFaviconChange:(NSImage*)favicon;
 
 - (void)onURLChange:(URL::URL const&)url;

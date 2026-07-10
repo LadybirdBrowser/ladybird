@@ -123,6 +123,9 @@ void ViewImplementation::set_url(URL::URL url)
 
     if (current_host() != previous_host)
         apply_zoom_for_current_host();
+
+    if (on_url_change)
+        on_url_change(m_url);
 }
 
 void ViewImplementation::set_title(Badge<WebContentClient>, Utf16String title)
@@ -1229,10 +1232,8 @@ void ViewImplementation::apply_web_content_session_history_update(WebContentSess
 {
     if (update.current_url.has_value()) {
         auto current_url = *update.current_url;
-        auto const url_changed = m_url != current_url;
         set_url(current_url);
-        if (url_changed && on_url_change)
-            on_url_change(m_url);
+
         if (m_webdriver_pending_navigation_url.has_value() && *m_webdriver_pending_navigation_url != current_url)
             m_webdriver_pending_navigation_url = current_url;
         if (m_webdriver_pending_navigation_completes_with_session_history_update)
@@ -1463,10 +1464,7 @@ bool ViewImplementation::restore_pending_session_history_navigation(StringView r
 
     if (result.current_url.has_value()) {
         auto current_url = *result.current_url;
-        auto const url_changed = m_url != current_url;
         set_url(current_url);
-        if (url_changed && on_url_change)
-            on_url_change(m_url);
 
         if (result.web_content_restore_mode == PendingSessionHistoryNavigation::WebContentRestoreMode::RestoreFromUIProcess) {
             m_top_level_traversable.prepare_to_seed_web_content_session_history_from_ui_process();
@@ -1758,10 +1756,8 @@ void ViewImplementation::did_traverse_the_history_to_step(Badge<WebContentClient
         m_webdriver_pending_navigation_completes_with_session_history_update = false;
     if (step_result.current_url.has_value()) {
         auto current_url = *step_result.current_url;
-        auto const url_changed = m_url != current_url;
         set_url(current_url);
-        if (url_changed && on_url_change)
-            on_url_change(m_url);
+
         if (m_webdriver_pending_navigation_url.has_value() && *m_webdriver_pending_navigation_url != current_url)
             m_webdriver_pending_navigation_url = current_url;
     }

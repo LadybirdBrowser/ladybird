@@ -27,8 +27,8 @@
                       activateTab:(Web::HTML::ActivateTab)activate_tab
                         pageIndex:(u64)page_index;
 
-- (void)onLoadStart:(URL::URL const&)url isRedirect:(BOOL)is_redirect;
-- (void)onLoadFinish:(URL::URL const&)url;
+- (void)onLoadStart;
+- (void)onLoadFinish;
 
 - (void)onURLChange:(URL::URL const&)url;
 - (void)onTitleChange:(Utf16String const&)title;

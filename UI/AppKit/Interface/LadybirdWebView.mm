@@ -396,24 +396,24 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
         [[self window] close];
     };
 
-    m_web_view_bridge->on_load_start = [weak_self](auto const& url, bool is_redirect) {
+    m_web_view_bridge->on_load_start = [weak_self]() {
         LadybirdWebView* self = weak_self;
         if (self == nil) {
             return;
         }
-        [self.observer onLoadStart:url isRedirect:is_redirect];
+        [self.observer onLoadStart];
 
         if (_status_label != nil) {
             [self.status_label setHidden:YES];
         }
     };
 
-    m_web_view_bridge->on_load_finish = [weak_self](auto const& url) {
+    m_web_view_bridge->on_load_finish = [weak_self](auto const&) {
         LadybirdWebView* self = weak_self;
         if (self == nil) {
             return;
         }
-        [self.observer onLoadFinish:url];
+        [self.observer onLoadFinish];
     };
 
     m_web_view_bridge->on_url_change = [weak_self](auto const& url) {

@@ -818,15 +818,13 @@ private:
     [[self tab].web_view loadURL:url];
 }
 
-- (void)onLoadStart:(URL::URL const&)url isRedirect:(BOOL)isRedirect
+- (void)onLoadStart
 {
-    [self setLocationFieldText:url.serialize()];
     [[self locationSearchField] setLoading:YES];
 }
 
-- (void)onLoadFinish:(URL::URL const&)url
+- (void)onLoadFinish
 {
-    (void)url;
     [[self locationSearchField] setLoading:NO];
 }
 
