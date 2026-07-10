@@ -69,6 +69,8 @@ public:
 
     Task const* currently_running_task() const { return m_currently_running_task; }
 
+    u64 task_generation() const { return m_task_generation; }
+
     void schedule();
 
     void perform_a_microtask_checkpoint();
@@ -114,6 +116,8 @@ private:
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#currently-running-task
     GC::Ptr<Task> m_currently_running_task { nullptr };
+
+    u64 m_task_generation { 0 };
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#last-render-opportunity-time
     double m_last_render_opportunity_time { 0 };

@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/Timer.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/Promise.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
@@ -32,6 +33,7 @@
 #include <LibWeb/HTML/AudioTrackList.h>
 #include <LibWeb/HTML/AutoplaySettings.h>
 #include <LibWeb/HTML/CORSSettingAttribute.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/HTMLAudioElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLSourceElement.h>
@@ -134,6 +136,11 @@ void HTMLMediaElement::finalize()
     Base::finalize();
 
     m_screen_wake_lock.clear();
+
+    if (m_playback_position_update_timer) {
+        m_playback_position_update_timer->stop();
+        m_playback_position_update_timer = nullptr;
+    }
 
     // Tear down the controls eagerly so the Core::Timer they own (and the
     // closures it captures) cannot fire during the window between this GC
@@ -459,6 +466,16 @@ double HTMLMediaElement::current_time() const
     // in which case it must return the element's official playback position. The returned value must be expressed in seconds.
     if (m_default_playback_start_position != 0)
         return m_default_playback_start_position;
+
+    // https://html.spec.whatwg.org/multipage/media.html#playing-the-media-resource:official-playback-position-2
+    // Any time the user agent provides a stable state, the official playback position must be set to the current
+    // playback position.
+    auto task_generation = main_thread_event_loop().task_generation();
+    if (m_official_playback_position_task_generation != task_generation) {
+        m_official_playback_position_task_generation = task_generation;
+        m_official_playback_position = current_playback_position();
+    }
+
     return m_official_playback_position;
 }
 
@@ -488,40 +505,18 @@ void HTMLMediaElement::fast_seek(double time)
     seek_element(time, MediaSeekMode::ApproximateForSpeed);
 }
 
-// https://html.spec.whatwg.org/multipage/media.html#playing-the-media-resource:current-playback-position-13
-void HTMLMediaElement::set_current_playback_position(double playback_position)
+// https://html.spec.whatwg.org/multipage/media.html#current-playback-position
+double HTMLMediaElement::current_playback_position() const
 {
-    // When the current playback position of a media element changes (e.g. due to playback or seeking), the user agent must
-    // run the time marches on steps. To support use cases that depend on the timing accuracy of cue event firing, such as
-    // synchronizing captions with shot changes in a video, user agents should fire cue events as close as possible to their
-    // position on the media timeline, and ideally within 20 milliseconds. If the current playback position changes while the
-    // steps are running, then the user agent must wait for the steps to complete, and then must immediately rerun the steps.
-    // These steps are thus run as often as possible or needed.
-    // FIXME: Detect "the current playback position changes while the steps are running".
-    m_current_playback_position = playback_position;
+    if (!m_playback_manager)
+        return 0;
+    return m_playback_manager->current_time().to_seconds_f64();
+}
 
-    // FIXME: Regarding the official playback position, the spec states:
-    //
-    //        Any time the user agent provides a stable state, the official playback position must be set to the current playback position.
-    //        https://html.spec.whatwg.org/multipage/media.html#playing-the-media-resource:official-playback-position-2
-    //
-    //        We do not currently have a means to track a "stable state", so for now, keep the official playback position
-    //        in sync with the current playback position.
-    m_official_playback_position = m_current_playback_position;
-
-    time_marches_on();
-
-    upon_has_ended_playback_possibly_changed();
-    update_natural_dimensions();
-
-    // AD-HOC: Run the SourceBuffer monitoring algorithm to update readyState based on buffered data relative to
-    //         the current playback position. This satisfies the periodic buffer monitoring in MSE:
-    //         https://w3c.github.io/media-source/#buffer-monitoring
-    //         This is queued as a task to ensure that any tasks queued to fire events based on prior ready state
-    //         changes occur before it is changed again.
-    queue_a_media_element_task([](HTMLMediaElement& self) {
-        self.update_ready_state();
-    });
+void HTMLMediaElement::set_official_playback_position(double position)
+{
+    m_official_playback_position = position;
+    m_official_playback_position_task_generation = main_thread_event_loop().task_generation();
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-duration
@@ -568,7 +563,7 @@ void HTMLMediaElement::set_duration(double duration)
             self.dispatch_event(DOM::Event::create(self.realm(), HTML::EventNames::durationchange));
         });
 
-        if (m_current_playback_position > duration)
+        if (current_playback_position() > duration)
             seek_element(duration);
     }
 
@@ -809,11 +804,11 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::load_element()
             set_seeking(false);
 
         // 8. Set the current playback position to 0.
-        m_current_playback_position = 0;
+        // NB: The current playback position is read live from the playback manager, which this algorithm resets.
 
         if (m_official_playback_position != 0) {
             // Set the official playback position to 0.
-            m_official_playback_position = 0;
+            set_official_playback_position(0);
 
             // If this changed the official playback position, then queue a media element task given the media element to fire an
             // event named timeupdate at the media element.
@@ -1787,14 +1782,66 @@ void HTMLMediaElement::update_video_frame_and_timeline()
         }
     }
 
-    // Wait for the seek to complete before updating the timestamp, otherwise we'll display the timestamp from
-    // before the seek when the user lets go of the left mouse button.
+    upon_current_playback_position_possibly_changed();
+}
+
+// https://html.spec.whatwg.org/multipage/media.html#playing-the-media-resource:current-playback-position-13
+void HTMLMediaElement::upon_current_playback_position_possibly_changed()
+{
+    if (!m_playback_manager)
+        return;
+
     if (seeking())
         return;
 
-    auto new_position = m_playback_manager->current_time().to_seconds_f64();
-    if (new_position != m_current_playback_position)
-        set_current_playback_position(new_position);
+    auto current_position = current_playback_position();
+    if (m_last_known_current_playback_position == current_position)
+        return;
+
+    auto is_first_observation = !m_last_known_current_playback_position.has_value();
+    m_last_known_current_playback_position = current_position;
+    if (is_first_observation)
+        return;
+
+    // When the current playback position of a media element changes (e.g. due to playback or seeking), the user agent
+    // must run the time marches on steps. To support use cases that depend on the timing accuracy of cue event firing,
+    // such as synchronizing captions with shot changes in a video, user agents should fire cue events as close as
+    // possible to their position on the media timeline, and ideally within 20 milliseconds. If the current playback
+    // position changes while the steps are running, then the user agent must wait for the steps to complete, and then
+    // must immediately rerun the steps. These steps are thus run as often as possible or needed.
+    // FIXME: Detect "the current playback position changes while the steps are running".
+    time_marches_on();
+
+    upon_has_ended_playback_possibly_changed();
+    update_natural_dimensions();
+
+    // AD-HOC: Run the SourceBuffer monitoring algorithm to update readyState based on buffered data relative to
+    //         the current playback position. This satisfies the periodic buffer monitoring in MSE:
+    //         https://w3c.github.io/media-source/#buffer-monitoring
+    //         This is queued as a task to ensure that any tasks queued to fire events based on prior ready state
+    //         changes occur before it is changed again.
+    queue_a_media_element_task([](HTMLMediaElement& self) {
+        self.update_ready_state();
+    });
+}
+
+void HTMLMediaElement::start_or_stop_playback_position_update_timer()
+{
+    static constexpr int playback_position_update_interval_ms = 20;
+
+    if (!m_playback_manager || !m_playback_manager->is_playing()) {
+        if (m_playback_position_update_timer)
+            m_playback_position_update_timer->stop();
+        return;
+    }
+
+    if (!m_playback_position_update_timer) {
+        m_playback_position_update_timer = Core::Timer::create_repeating(playback_position_update_interval_ms, GC::weak_callback(*this, [](auto& self) {
+            self.upon_current_playback_position_possibly_changed();
+        }));
+    }
+    if (!m_playback_position_update_timer->is_active())
+        m_playback_position_update_timer->start();
 }
 
 void HTMLMediaElement::on_audio_track_added(Media::Track const& track)
@@ -1898,8 +1945,8 @@ void HTMLMediaElement::on_metadata_parsed()
     m_timeline_offset = m_playback_manager->start_time_realtime();
 
     // 3. Set the current playback position and the official playback position to the earliest possible position.
-    m_current_playback_position = 0;
-    m_official_playback_position = 0;
+    // NB: The current playback position is read live from the freshly-created playback manager, which is at 0.
+    set_official_playback_position(0);
 
     // 4. Update the duration attribute with the time of the last frame of the resource, if known, on the media timeline established above. If it is
     //    not known (e.g. a stream that is in principle infinite), update the duration attribute to the value positive Infinity.
@@ -2214,6 +2261,8 @@ void HTMLMediaElement::forget_media_resource_specific_tracks()
     m_video_tracks->remove_all_tracks();
     update_audio_play_state();
     m_playback_manager.clear();
+    m_last_known_current_playback_position = {};
+    start_or_stop_playback_position_update_timer();
     clear_compositor_video_frame();
     update_screen_wake_lock();
 
@@ -2440,9 +2489,11 @@ void HTMLMediaElement::on_playback_manager_state_change()
     if (seeking() && state != Media::PlaybackState::Seeking)
         finish_seeking_element();
     if (state == Media::PlaybackState::Ended && !m_error) {
-        set_current_playback_position(m_duration);
+        upon_current_playback_position_possibly_changed();
         reached_end_of_media_playback();
     }
+
+    start_or_stop_playback_position_update_timer();
 
     // NB: Queue the readyState update as a task so that it will never run before the durationchange and loadedmetadata
     //     events are fired. This ensures that readyState has a deterministic value in those events.
@@ -2552,11 +2603,7 @@ void HTMLMediaElement::pause_element()
         });
 
         // 4. Set the official playback position to the current playback position.
-        // AD-HOC: If the seeking attribute is set, we don't want to overwrite the official playback position, since that
-        //         means it is temporarily set to the seeking target position instead of the current playback position.
-        //         See: https://github.com/whatwg/html/issues/11773 and https://github.com/whatwg/html/pull/11792
-        if (!seeking())
-            m_official_playback_position = m_current_playback_position;
+        set_official_playback_position(current_playback_position());
     }
 }
 
@@ -2621,8 +2668,9 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
         // If two positions both satisfy that constraint (i.e. the new playback position is exactly in the middle between two ranges
         // in the seekable attribute), then use the position that is closest to the current playback position.
         if (other_nearest_point.has_value()) {
-            auto nearest_point_distance = abs(m_current_playback_position - nearest_point);
-            auto other_nearest_point_distance = abs(m_current_playback_position - other_nearest_point.value());
+            auto current_position = current_playback_position();
+            auto nearest_point_distance = abs(current_position - nearest_point);
+            auto other_nearest_point_distance = abs(current_position - other_nearest_point.value());
             if (nearest_point_distance < other_nearest_point_distance) {
                 playback_position = nearest_point;
             } else {
@@ -2630,11 +2678,6 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
             }
         }
     }
-
-    // AD-HOC: Ensure that currentTime returns the new playback position on the timeline immediately, as other
-    //         browsers do.
-    //         See https://github.com/whatwg/html/issues/11773
-    m_official_playback_position = playback_position;
 
     // 9. If the approximate-for-speed flag is set, adjust the new playback position to a value that will allow for playback to resume
     //    promptly. If new playback position before this step is before current playback position, then the adjusted new playback position
@@ -2654,11 +2697,6 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
     });
 
     // 11. Set the current playback position to the new playback position.
-    // NOTE: We set the playback position in finish_seeking_element(), once we've established the new playback position using
-    //       the seek mode we've been provided.
-
-    // 12. Wait until the user agent has established whether or not the media data for the new playback position is
-    //     available, and, if it is, until it has decoded enough data to play back that position.
     if (m_playback_manager) {
         AK::Duration new_playback_position_as_duration;
         if (playback_position == m_duration)
@@ -2668,6 +2706,13 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
         m_playback_manager->seek(new_playback_position_as_duration, manager_seek_mode);
     }
 
+    // AD-HOC: Ensure that currentTime returns the new playback position on the timeline immediately, as other
+    //         browsers do.
+    //         See https://github.com/whatwg/html/issues/11773
+    set_official_playback_position(current_playback_position());
+
+    // 12. Wait until the user agent has established whether or not the media data for the new playback position is
+    //     available, and, if it is, until it has decoded enough data to play back that position.
     // 13. Await a stable state. The synchronous section consists of all the remaining steps of this algorithm. (Steps in the
     //     synchronous section are marked with ⌛.)
     if (m_playback_manager) {
@@ -2715,7 +2760,12 @@ void HTMLMediaElement::notify_about_playing()
     auto promises = take_pending_play_promises();
 
     // 2. Queue a media element task given the element and the following steps:
-    queue_a_media_element_task([promises = move(promises)](HTMLMediaElement& self) {
+    // AD-HOC: The playback clock starts running below, before this task runs, so scripts observing the start of
+    //         playback would read a position sampled at an arbitrary later time. Give them the position that
+    //         playback begins from instead.
+    queue_a_media_element_task([promises = move(promises), starting_position = current_playback_position()](HTMLMediaElement& self) {
+        self.set_official_playback_position(starting_position);
+
         // 1. Fire an event named playing at the element.
         self.dispatch_event(DOM::Event::create(self.realm(), HTML::EventNames::playing));
 
@@ -2950,7 +3000,7 @@ bool HTMLMediaElement::has_ended_playback() const
     // Or:
     if (
         // The current playback position is the earliest possible position, and
-        m_current_playback_position == 0 &&
+        current_playback_position() == 0 &&
 
         // The direction of playback is backwards.
         direction_of_playback() == PlaybackDirection::Backwards) {
