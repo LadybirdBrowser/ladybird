@@ -56,7 +56,11 @@ void CheckBoxPaintable::paint(DisplayListRecordingContext& context, PaintPhase p
 
     auto const& checkbox = as<HTML::HTMLInputElement const>(*dom_node());
     bool enabled = checkbox.enabled();
-    auto checkbox_rect = context.enclosing_device_rect(absolute_rect()).to_type<int>();
+
+    // Keep checkboxes painted as square, centered within the space they occupy.
+    auto outer_rect = absolute_rect();
+    auto checkbox_size = min(outer_rect.width(), outer_rect.height());
+    auto checkbox_rect = context.enclosing_device_rect(CSSPixelRect { 0, 0, checkbox_size, checkbox_size }.centered_within(outer_rect)).to_type<int>();
     auto checkbox_radius = checkbox_rect.width() / 5;
 
     auto shade = [&](Color color, float amount) {
