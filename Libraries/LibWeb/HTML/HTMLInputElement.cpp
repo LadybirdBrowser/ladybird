@@ -1621,14 +1621,21 @@ void HTMLInputElement::form_associated_element_attribute_changed(FlyString const
     }
 
     // AD-HOC: A change to any of these attributes can change whether the element satisfies its constraints, and
-    //         therefore which validity pseudo-classes match.
-    if (first_is_one_of(name, HTML::AttributeNames::type, HTML::AttributeNames::value, HTML::AttributeNames::required, HTML::AttributeNames::pattern, HTML::AttributeNames::min, HTML::AttributeNames::max, HTML::AttributeNames::step, HTML::AttributeNames::maxlength, HTML::AttributeNames::minlength, HTML::AttributeNames::multiple))
+    //         therefore which validity pseudo-classes match. Re-setting an attribute to its current value cannot
+    //         change validity, so skip the invalidation in that case.
+    if (old_value != value && first_is_one_of(name, HTML::AttributeNames::type, HTML::AttributeNames::value, HTML::AttributeNames::required, HTML::AttributeNames::pattern, HTML::AttributeNames::min, HTML::AttributeNames::max, HTML::AttributeNames::step, HTML::AttributeNames::maxlength, HTML::AttributeNames::minlength, HTML::AttributeNames::multiple))
         CSS::Invalidation::invalidate_style_after_validity_change(*this);
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#input-type-change
 void HTMLInputElement::type_attribute_changed(TypeAttributeState old_state, TypeAttributeState new_state)
 {
+    // NB: The steps below apply when the type attribute changes state. Re-setting the attribute to a value that
+    //     parses to the same state must not reset the element's internals; some sites re-set type="file" on a
+    //     hidden upload input on every keystroke, and rebuilding the internal shadow tree each time is wasteful.
+    if (old_state == new_state)
+        return;
+
     auto new_value_attribute_mode = value_attribute_mode_for_type_state(new_state);
     auto old_value_attribute_mode = value_attribute_mode_for_type_state(old_state);
 

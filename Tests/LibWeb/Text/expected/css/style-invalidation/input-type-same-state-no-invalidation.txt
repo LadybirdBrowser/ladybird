@@ -1,1 +1,1 @@
-FAIL: same-state type set recomputed 504 elements
+PASS: same-state type set stayed targeted
