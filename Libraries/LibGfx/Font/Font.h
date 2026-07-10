@@ -12,6 +12,7 @@
 #include <AK/AtomicRefCounted.h>
 #include <AK/FlyString.h>
 #include <AK/HashMap.h>
+#include <AK/Optional.h>
 #include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/Utf16String.h>
@@ -61,6 +62,20 @@ enum FontWidth {
 
 constexpr float text_shaping_resolution = 64;
 
+enum class FontHintingStyle {
+    None,
+    Slight,
+    Normal,
+    Full,
+};
+
+struct FontHintingOptions {
+    FontHintingStyle style { FontHintingStyle::Normal };
+    bool force_autohinting { false };
+};
+
+void force_hinting_for_testing(Optional<FontHintingStyle>);
+
 class Font : public AtomicRefCounted<Font> {
 public:
     Font(NonnullRefPtr<Typeface const>, float point_width, float point_height, FontVariationSettings const variations, ShapeFeatures const& features);
@@ -103,6 +118,16 @@ public:
 
 private:
     u64 m_id { 0 };
+
+#if defined(USE_FONTCONFIG)
+    FontHintingOptions hinting_options(float scale) const;
+
+    struct ScaledFontHintingOptions {
+        float scale;
+        FontHintingOptions options;
+    };
+    mutable Optional<ScaledFontHintingOptions> m_hinting_options;
+#endif
 
     mutable RefPtr<Font const> m_bold_variant;
     mutable hb_font_t* m_harfbuzz_font { nullptr };

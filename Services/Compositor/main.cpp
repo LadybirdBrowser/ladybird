@@ -9,6 +9,7 @@
 #include <LibCore/ArgsParser.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Process.h>
+#include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/PathFontProvider.h>
 #include <LibGfx/SkiaBackendContext.h>
@@ -22,6 +23,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     StringView mach_server_name;
     bool wait_for_debugger = false;
+    bool enable_test_mode = false;
     bool force_cpu_painting = false;
     bool force_fontconfig = false;
     bool disable_async_scrolling = false;
@@ -30,6 +32,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Core::ArgsParser args_parser;
     args_parser.add_option(mach_server_name, "Mach server name", "mach-server-name", 0, "mach_server_name");
     args_parser.add_option(wait_for_debugger, "Wait for debugger", "wait-for-debugger");
+    args_parser.add_option(enable_test_mode, "Enable test mode", "test-mode");
     args_parser.add_option(force_cpu_painting, "Force CPU painting", "force-cpu-painting");
     args_parser.add_option(force_fontconfig, "Force using fontconfig for font loading", "force-fontconfig");
     args_parser.add_option(disable_async_scrolling, "Disable async scrolling", "disable-async-scrolling");
@@ -38,6 +41,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     if (wait_for_debugger)
         Core::Process::wait_for_debugger_and_break();
+
+    if (enable_test_mode)
+        Gfx::force_hinting_for_testing(Gfx::FontHintingStyle::Normal);
 
     WebView::platform_init();
     auto& font_provider = static_cast<Gfx::PathFontProvider&>(Gfx::FontDatabase::the().install_system_font_provider(make<Gfx::PathFontProvider>()));

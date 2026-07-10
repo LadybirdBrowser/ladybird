@@ -168,6 +168,8 @@ ErrorOr<NonnullRefPtr<WebView::CompositorClient>> launch_compositor_process()
     Vector<ByteString> arguments;
     if (browser_options.disable_sandbox == DisableSandbox::Yes)
         arguments.append("--disable-sandbox"sv);
+    if (web_content_options.is_test_mode == WebView::IsTestMode::Yes)
+        arguments.append("--test-mode"sv);
     if (web_content_options.force_cpu_painting == WebView::ForceCPUPainting::Yes)
         arguments.append("--force-cpu-painting"sv);
     if (web_content_options.force_fontconfig == WebView::ForceFontconfig::Yes)

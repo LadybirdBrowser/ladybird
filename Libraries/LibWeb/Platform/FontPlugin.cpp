@@ -37,6 +37,9 @@ void FontPlugin::install(FontPlugin& plugin)
 FontPlugin::FontPlugin(bool is_layout_test_mode, Gfx::SystemFontProvider* font_provider)
     : m_is_layout_test_mode(is_layout_test_mode)
 {
+    if (is_layout_test_mode)
+        Gfx::force_hinting_for_testing(Gfx::FontHintingStyle::Normal);
+
     if (!font_provider)
         font_provider = &static_cast<Gfx::PathFontProvider&>(Gfx::FontDatabase::the().install_system_font_provider(make<Gfx::PathFontProvider>()));
     if (is<Gfx::PathFontProvider>(*font_provider)) {
