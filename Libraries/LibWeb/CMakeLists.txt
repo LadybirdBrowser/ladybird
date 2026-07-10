@@ -282,7 +282,6 @@ set(SOURCES
     CSS/StyleValues/EasingStyleValue.cpp
     CSS/StyleValues/EdgeStyleValue.cpp
     CSS/StyleValues/FilterStyleValue.cpp
-    CSS/StyleValues/FilterValueListStyleValue.cpp
     CSS/StyleValues/FunctionStyleValue.cpp
     CSS/StyleValues/FontSourceStyleValue.cpp
     CSS/StyleValues/FontStyleStyleValue.cpp

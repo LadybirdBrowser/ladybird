@@ -61,7 +61,6 @@ namespace Web::CSS {
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Edge, edge, EdgeStyleValue)                                                               \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(EmptyOptional, empty_optional, EmptyOptionalStyleValue)                                   \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Filter, filter, FilterStyleValue)                                                         \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(FilterValueList, filter_value_list, FilterValueListStyleValue)                            \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Function, function, FunctionStyleValue)                                                   \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Flex, flex, FlexStyleValue)                                                               \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(FontSource, font_source, FontSourceStyleValue)                                            \

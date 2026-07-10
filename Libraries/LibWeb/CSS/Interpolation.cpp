@@ -223,7 +223,7 @@ static bool contains_url(StyleValueList const& list)
 // https://drafts.fxtf.org/filter-effects/#interpolation-of-filters
 static RefPtr<StyleValue const> interpolate_filter_value_list(DOM::Element& element, CalculationContext const& calculation_context, StyleValue const& a_from, StyleValue const& a_to, float delta, AllowDiscrete allow_discrete)
 {
-    auto is_filter_value_list_without_url = [](StyleValue const& value) {
+    auto is_interpolable_filter_list = [](StyleValue const& value) {
         if (!is_filter_style_value_list(value))
             return false;
         return !contains_url(value.as_value_list());
@@ -247,7 +247,7 @@ static RefPtr<StyleValue const> interpolate_filter_value_list(DOM::Element& elem
         return make_filter_value_list(move(interpolated_filter_values));
     };
 
-    if (is_filter_value_list_without_url(a_from) && is_filter_value_list_without_url(a_to)) {
+    if (is_interpolable_filter_list(a_from) && is_interpolable_filter_list(a_to)) {
         auto const& from_list = a_from.as_value_list();
         auto const& to_list = a_to.as_value_list();
         // If both filters have a <filter-value-list> of same length without <url> and for each <filter-function> for which there is a corresponding item in each list
@@ -273,8 +273,8 @@ static RefPtr<StyleValue const> interpolate_filter_value_list(DOM::Element& elem
     }
 
     // If one filter is none and the other is a <filter-value-list> without <url>
-    if ((is_filter_value_list_without_url(a_from) && a_to.to_keyword() == Keyword::None)
-        || (is_filter_value_list_without_url(a_to) && a_from.to_keyword() == Keyword::None)) {
+    if ((is_interpolable_filter_list(a_from) && a_to.to_keyword() == Keyword::None)
+        || (is_interpolable_filter_list(a_to) && a_from.to_keyword() == Keyword::None)) {
 
         // 1. Replace none with the corresponding <filter-value-list> of the other filter. The new <filter-function>s must be initialized to their initial values for interpolation.
         auto replace_none_with_initial_filter_list_values = [&](StyleValueList const& filter_value_list) {
