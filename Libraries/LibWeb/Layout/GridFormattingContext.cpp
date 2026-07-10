@@ -593,16 +593,18 @@ int GridFormattingContext::count_of_repeated_auto_fill_or_fit_tracks(GridDimensi
     // enough times for the name list to match the subgrid’s specified grid span (falling back to 0 if
     // the span is already fulfilled).
 
-    // Otherwise on a standalone axis, when auto-fill is given as the repetition number
-    // If the grid container has a definite size or max size in the relevant axis, then the number of
+    // Otherwise on a standalone axis, when auto-fill is given as the repetition number, if the grid
+    // container has a definite preferred size or maximum size in the relevant axis, then the number of
     // repetitions is the largest possible positive integer that does not cause the grid to overflow the
-    // content box of its grid container
+    // content box of its grid container taking gap into account; if any number of repetitions would
+    // overflow, then 1 repetition.
 
     auto const& grid_computed_values = grid_container().computed_values();
     CSSPixels size_of_repeated_tracks = 0;
-    // (treating each track as its max track sizing function if that is definite or its minimum track sizing
-    // function otherwise, flooring the max track sizing function by the min track sizing function if both
-    // are definite, and taking gap into account)
+    // For this purpose, each track is treated as its max track sizing function if that is definite or
+    // else its min track sizing function if that is definite. If both are definite, floor the max track
+    // sizing function by the min track sizing function. If neither are definite, the number of
+    // repetitions is one.
     auto const& repeat_track_list = repeated_track.repeat().grid_track_size_list().track_list();
     for (auto const& explicit_grid_track : repeat_track_list) {
         auto const& track_sizing_function = explicit_grid_track;
@@ -613,11 +615,11 @@ int GridFormattingContext::count_of_repeated_auto_fill_or_fit_tracks(GridDimensi
             if (max_size.is_definite()) {
                 track_size = resolve_definite_track_size(max_size, *m_available_space);
                 if (min_size.is_definite())
-                    track_size = min(track_size, resolve_definite_track_size(min_size, *m_available_space));
+                    track_size = max(track_size, resolve_definite_track_size(min_size, *m_available_space));
             } else if (min_size.is_definite()) {
                 track_size = resolve_definite_track_size(min_size, *m_available_space);
             } else {
-                VERIFY_NOT_REACHED();
+                return 1;
             }
         } else {
             track_size = resolve_definite_track_size(track_sizing_function.grid_size(), *m_available_space);
@@ -632,8 +634,6 @@ int GridFormattingContext::count_of_repeated_auto_fill_or_fit_tracks(GridDimensi
     auto const& gap = dimension == GridDimension::Column ? grid_computed_values.column_gap() : grid_computed_values.row_gap();
     auto gap_px = gap_to_px(gap, available_size.to_px_or_zero());
     auto size_of_repeated_tracks_with_gap = size_of_repeated_tracks + repeat_track_list.size() * gap_px;
-    // Otherwise, if the grid container has a definite min size in the relevant axis, the number of repetitions is the
-    // smallest possible positive integer that fulfills that minimum requirement
     if (available_size.is_definite()) {
         // NOTE: Gap size is added to free space to compensate for the fact that the last track does not have a gap
         auto free_space = available_size.to_px_or_zero();
@@ -641,6 +641,10 @@ int GridFormattingContext::count_of_repeated_auto_fill_or_fit_tracks(GridDimensi
         // If any number of repetitions would overflow, then 1 repetition.
         return max(1, number_of_repetitions);
     }
+
+    // FIXME: Otherwise, if the grid container has a definite minimum size in the relevant axis, the number of
+    //        repetitions is the smallest possible positive integer that fulfills that minimum requirement.
+
     // Otherwise, the specified track list repeats only once.
     return 1;
 }

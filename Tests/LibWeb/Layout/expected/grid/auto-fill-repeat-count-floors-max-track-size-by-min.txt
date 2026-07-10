@@ -4,13 +4,13 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       Box <div.grid.a> at [8,8] [0+0+0 450 0+0+334] [0+0+0 40 0+0+0] [GFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
-        BlockContainer <div.item> at [8,8] [0+0+0 112.5 0+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
+        BlockContainer <div.item> at [8,8] [0+0+0 150 0+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
-        BlockContainer <div.item> at [120.5,8] [0+0+0 112.5 0+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
+        BlockContainer <div.item> at [158,8] [0+0+0 150 0+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
-        BlockContainer <div.item> at [233,8] [0+0+0 112.5 0+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
+        BlockContainer <div.item> at [308,8] [0+0+0 150 0+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
       BlockContainer <(anonymous)> at [8,48] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
@@ -31,9 +31,9 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x96]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x80]
       Paintable (Box<DIV>.grid.a) [8,8 450x40]
-        PaintableWithLines (BlockContainer<DIV>.item) [8,8 112.5x40]
-        PaintableWithLines (BlockContainer<DIV>.item) [120.5,8 112.5x40]
-        PaintableWithLines (BlockContainer<DIV>.item) [233,8 112.5x40]
+        PaintableWithLines (BlockContainer<DIV>.item) [8,8 150x40]
+        PaintableWithLines (BlockContainer<DIV>.item) [158,8 150x40]
+        PaintableWithLines (BlockContainer<DIV>.item) [308,8 150x40]
       PaintableWithLines (BlockContainer(anonymous)) [8,48 784x0]
       Paintable (Box<DIV>.grid.b) [8,48 450x40]
         PaintableWithLines (BlockContainer<DIV>.item) [8,48 200x40]
