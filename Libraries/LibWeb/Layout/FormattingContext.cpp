@@ -1933,7 +1933,7 @@ void FormattingContext::resolve_anchor_insets(Box& box) const
     //     axis.
     //   - There is a target anchor element for the box it's used on, and the <anchor-name> value specified in the
     //     function.
-    // NB: The first two conditions are guaranteed: this function is called from layout_absolutely_positioned_element(),
+    // NB: The first two conditions are guaranteed: this function is only called for absolutely positioned boxes,
     //     and we only resolve anchor() values in inset properties.
     // FIXME: Support anchor-scope, position-try-fallbacks, anchor-size(), and other anchor positioning features.
 
@@ -2226,21 +2226,20 @@ void FormattingContext::layout_absolutely_positioned_children(Box const& box)
         auto child = m_state.take_next_contained_abspos_child(box);
         if (!child.has_value())
             break;
-        layout_absolutely_positioned_element(const_cast<Box&>(*child->box), child->static_position_rect);
+        auto& child_box = const_cast<Box&>(*child->box);
+        if (!m_state.try_get(child_box))
+            m_state.create(child_box, {}, {});
+        resolve_anchor_insets(child_box);
+        layout_absolutely_positioned_element(child_box, child->static_position_rect, resolve_abspos_containing_block_info(child_box));
     }
 }
 
-void FormattingContext::layout_absolutely_positioned_element(Box& box, StaticPositionRect const& static_position_rect)
+void FormattingContext::layout_absolutely_positioned_element(Box& box, StaticPositionRect const& static_position_rect, AbsposContainingBlockInfo const& containing_block_info)
 {
     // SVG elements cannot be absolutely positioned.
     VERIFY(!box.is_svg_box());
 
-    auto* existing_box_state = m_state.try_get_mutable(box);
-    auto& box_state = existing_box_state ? *existing_box_state : m_state.create(box, {}, {});
-
-    resolve_anchor_insets(box);
-
-    auto containing_block_info = resolve_abspos_containing_block_info(box);
+    auto& box_state = m_state.get_mutable(box);
 
     auto const available_space = AvailableSpace(AvailableSize::make_definite(clamp_to_max_dimension_value(containing_block_info.rect.width())), AvailableSize::make_definite(clamp_to_max_dimension_value(containing_block_info.rect.height())));
 

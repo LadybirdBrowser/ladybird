@@ -241,7 +241,7 @@ protected:
 
     ShrinkToFitResult calculate_shrink_to_fit_widths(Box const&, ContainingBlockConstraints const&);
 
-    void layout_absolutely_positioned_element(Box&, StaticPositionRect const&);
+    void layout_absolutely_positioned_element(Box&, StaticPositionRect const&, AbsposContainingBlockInfo const&);
 
     CSSPixels gap_to_px(Variant<CSS::LengthPercentage, CSS::NormalGap> const& gap, CSSPixels reference_value) const;
 
