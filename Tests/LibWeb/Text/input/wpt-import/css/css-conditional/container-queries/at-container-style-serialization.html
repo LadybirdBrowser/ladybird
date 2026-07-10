@@ -1,0 +1,59 @@
+<!doctype html>
+<title>CSS Container Queries: style() conditionText serialization</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-queries">
+<link rel="help" href="https://drafts.csswg.org/cssom/#serialize-a-css-rule">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<style id="testSheet">
+  @container style(        --foo:bar) { }
+  @container STyle(--foo:    ) { }
+  @container STyle(--foo:) { }
+  @container STyle(--foo) { }
+  @container  style(  ( --FOO: BAR) OR ( prop: val  ) ) { }
+  @container style (--foo: bar) { }
+  @container style(--foo: bar   baz) { }
+  @container style(--foo:2.100  ) { }
+
+  /* extra levels of parentheses */
+  @container style((--foo: bar)) { }
+  @container style(((--foo: bar))) { }
+  @container style(( (  (( (--foo )) )  ))) { }
+  @container style((not ((--foo: BAR)))) { }
+  @container style(((--FOO: BAR)) and (--bar: foo)) { }
+  @container style((((--foo) or ((--bar)))) and ((--baz)) and ((not ((--xyzzy))))) { }
+  @container style((((--a: b) or ((b: a)))) and ((--baz)) and ((not ((x: y))))) { }
+  @container style(--\{foo  : bar) { }
+  @container style(100px  > --\{foo >10px) {}
+</style>
+<script>
+  setup(() => {
+    assert_implements_style_container_queries();
+    assert_equals(testSheet.sheet.cssRules.length, 17);
+  });
+
+  const tests = [
+      ["style(--foo: bar)", "Normalize spaces"],
+      ["style(--foo: )", "Empty declaration value - spaces"],
+      ["style(--foo: )", "Empty declaration value"],
+      ["style(--foo)", "No declaration value"],
+      ["style((--FOO: BAR) or ( prop: val  ))", "Unknown CSS property after 'or'"],
+      ["style (--foo: bar)", "Not a style function with space before '('"],
+      ["style(--foo: bar   baz)", "Spaces preserved in custom property value"],
+      ["style(--foo: 2.100)", "Original string number in custom property value"],
+
+      ["style((--foo: bar))", "Single extra parens"],
+      ["style(((--foo: bar)))", "Double extra parens"],
+      ["style((((((--foo))))))", "Multiple extra parens"],
+      ["style((not ((--foo: BAR))))", "Extra parens and Not"],
+      ["style(((--FOO: BAR)) and (--bar: foo))", "Subexpressions and extra parens"],
+      ["style((((--foo) or ((--bar)))) and ((--baz)) and ((not ((--xyzzy)))))", "Multiple subexpressions and extra parens"],
+      ["style((((--a: b) or ((b: a)))) and ((--baz)) and ((not ((x: y)))))", "Multiple subexpressions and unknowns"],
+      ["style(--\\{foo: bar)", "Escape custom property identifier"],
+      ["style(100px > --\\{foo > 10px)", "Escape custom property identifier - range syntax"],
+  ].map((e, i) => [testSheet.sheet.cssRules[i], ...e]);
+
+  tests.forEach((t) => {
+    test(() => assert_equals(t[0].conditionText, t[1]), t[2]);
+  });
+</script>

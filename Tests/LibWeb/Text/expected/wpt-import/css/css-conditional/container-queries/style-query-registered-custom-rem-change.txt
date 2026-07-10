@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 2 tests
+
+1 Pass
+1 Fail
+Pass	Initially, 1rem * 10 evaluates to 160px
+Fail	Changing the :root font-size to 10px makes 1rem * 10 evaluate to 100px

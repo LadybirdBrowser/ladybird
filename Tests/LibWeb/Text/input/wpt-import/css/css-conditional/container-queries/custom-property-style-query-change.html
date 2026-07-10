@@ -1,0 +1,89 @@
+<!doctype html>
+<title>CSS Container Queries Test: custom property style query changes</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#style-container">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<style>
+  #container { container-name: my-container; }
+  #child, #grandchild { color: red; }
+  @container style(--target: child) {
+    #child { color: green; }
+  }
+  @container my-container style(--target: grandchild) {
+    #grandchild { color: green; }
+  }
+</style>
+<div id="container">
+  <div id="child"></div>
+  <div>
+    <div id="grandchild"></div>
+  </div>
+</div>
+<script>
+  setup(() => assert_implements_style_container_queries());
+
+  const green = "rgb(0, 128, 0)";
+  const red = "rgb(255, 0, 0)";
+
+  test(() => {
+    assert_equals(getComputedStyle(child).color, red);
+    assert_equals(getComputedStyle(grandchild).color, red);
+  }, "Initially no queries match.");
+
+  test(() => {
+    container.style.setProperty("--target", "child");
+    assert_equals(getComputedStyle(child).color, green);
+    assert_equals(getComputedStyle(grandchild).color, red);
+  }, "Target child");
+
+  test(() => {
+    container.style.setProperty("--target", "grandchild");
+    assert_equals(getComputedStyle(child).color, red);
+    assert_equals(getComputedStyle(grandchild).color, green);
+  }, "Target grandchild");
+</script>
+
+<style>
+  @property --length {
+    syntax: "<length>";
+    inherits: false;
+    initial-value: 0px;
+  }
+
+  #reg_container {
+    container-name: my-reg-container;
+    font-size: 50px;
+  }
+  #reg_child, #reg_grandchild { color: red; }
+  @container style(--length: 100px) {
+    #reg_child { color: green; }
+  }
+  @container my-reg-container style(--length: 200px) {
+    #reg_grandchild { color: green; }
+  }
+</style>
+<div id="reg_container">
+  <div id="reg_child"></div>
+  <div>
+    <div id="reg_grandchild"></div>
+  </div>
+</div>
+<script>
+  test(() => {
+    assert_equals(getComputedStyle(reg_child).color, red);
+    assert_equals(getComputedStyle(reg_grandchild).color, red);
+  }, "Initially no queries for registered property match.");
+
+  test(() => {
+    reg_container.style.setProperty("--length", "2em");
+    assert_equals(getComputedStyle(reg_child).color, green);
+    assert_equals(getComputedStyle(reg_grandchild).color, red);
+  }, "Registered property query child");
+
+  test(() => {
+    reg_container.style.setProperty("--length", "200px");
+    assert_equals(getComputedStyle(reg_child).color, red);
+    assert_equals(getComputedStyle(reg_grandchild).color, green);
+  }, "Registered property query grandchild");
+</script>

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<title>CSS Container Queries Test: style() query with rem unit for registered custom property</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#style-container">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<style>
+  @property --length {
+    syntax: "<length>";
+    initial-value: 0px;
+    inherits: false;
+  }
+
+  :root, body { font-size: 16px; }
+  #container { --length: 100px; }
+
+  #target { color: red; }
+  @container style(--length: calc(1rem * 10)) {
+    #target { color: green; }
+  }
+</style>
+<div id="container">
+  <div id="target">Should be green</div>
+</div>
+<script>
+  test(() => {
+    assert_equals(getComputedStyle(target).color, "rgb(255, 0, 0)");
+  }, "Initially, 1rem * 10 evaluates to 160px");
+
+  test(() => {
+    document.documentElement.style.fontSize = "10px";
+    assert_equals(getComputedStyle(target).color, "rgb(0, 128, 0)");
+  }, "Changing the :root font-size to 10px makes 1rem * 10 evaluate to 100px");
+</script>

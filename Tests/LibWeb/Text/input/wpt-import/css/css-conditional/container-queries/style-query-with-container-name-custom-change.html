@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<title>CSS Container Queries Test: named container style() query toggling.</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#style-container"/>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<style>
+  .outer {
+    container-name: my-named-container;
+    --length: 200px;
+  }
+
+  .inner {
+    background-color: red;
+  }
+
+  @container my-named-container (style(--length: 200px)) {
+    .inner {
+      background-color: green;
+    }
+  }
+</style>
+
+<div id="dut">
+  <div id="child" class="inner"></div>
+</div>
+
+<script>
+  test(() => {
+    assert_equals(getComputedStyle(child).backgroundColor, "rgb(255, 0, 0)");
+  }, "Initially container rule does not match.");
+  test(() => {
+    dut.classList.add("outer");
+    assert_equals(getComputedStyle(child).backgroundColor, "rgb(0, 128, 0)");
+  }, "Container rule matches and inner changes colour");
+  test(() => {
+    dut.classList.remove("outer");
+    assert_equals(getComputedStyle(child).backgroundColor, "rgb(255, 0, 0)");
+  }, "Container rule stops matching and inner changes colour back");
+</script>

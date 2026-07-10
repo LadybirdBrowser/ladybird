@@ -1,0 +1,55 @@
+<!doctype html>
+<title>@container: style queries parsing</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-rule">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<div style="container-name:name">
+  <main id="cq-main"></main>
+</div>
+<script>
+  setup(() => assert_implements_style_container_queries());
+
+  test_cq_condition_known('style(--my-prop: foo)');
+  test_cq_condition_known('style(--my-prop: foo - bar ())');
+  test_cq_condition_known('style(not ((--foo: calc(10px + 2em)) and ((--foo: url(x)))))');
+  test_cq_condition_known('style((--foo: bar) or (--bar: 10px))');
+  test_cq_condition_known('style(--my-prop:)');
+  test_cq_condition_known('style(--my-prop: )');
+  test_cq_condition_known('style(--foo: bar !important)');
+  test_cq_condition_known('style(--foo)');
+  test_cq_condition_known('style(--my-prop: attr(data-foo))');
+  test_cq_condition_known('style(--foo >= --bar)');
+  test_cq_condition_known('style(--foo = --bar)');
+  test_cq_condition_known('style(--foo <= --bar)');
+  test_cq_condition_known('style(10px > 10em)');
+  test_cq_condition_known('style(--foo >= 10em)');
+  test_cq_condition_known('style(10px > --bar)');
+  test_cq_condition_known('style(10px = --bar)');
+  test_cq_condition_known('style(--foo < --bar)');
+  test_cq_condition_known('style(10px <= 10em)');
+  test_cq_condition_known('style(10px = 10em)');
+  test_cq_condition_known('style(10px <= calc(10em + 20em))');
+  test_cq_condition_known('style(calc(10em + 20em) < 10px)');
+  test_cq_condition_known('style(--foo < 10em)');
+  test_cq_condition_known('style(10px <= --bar)');
+  test_cq_condition_known('style(--foo < --bar <= --baz)');
+  test_cq_condition_known('style(--foo >= --bar > --baz)');
+  test_cq_condition_known('style(--foo > 10px > 10em)');
+  test_cq_condition_known('style(10px < --foo < 10em)');
+  test_cq_condition_known('style(10px < --foo <= 10em)');
+  test_cq_condition_known('style(10px <= --foo < 10em)');
+  test_cq_condition_known('style(10px > 10em > --foo)');
+  test_cq_condition_known('style(10px < 10em < 10)');
+  test_cq_condition_known('style(var(--p) < calc(100 + 200))');
+  test_cq_condition_known('style(attr(data-foo type(<number>)) < var(--p) < var(--q))');
+  test_cq_condition_known('style(--foo < initial)');
+  test_cq_condition_known('style(10px <= env(safe-area-inset-top) < 20px)');
+
+  test_cq_condition_unknown('style(--foo: bar;)');
+  test_cq_condition_unknown('style(style(--foo: bar))');
+  test_cq_condition_unknown('style(10px < 10em > 10)');
+  test_cq_condition_unknown('style( < 10em)');
+  test_cq_condition_unknown('style(10px < 10em !)');
+  test_cq_condition_unknown('style(10px ! < 10em)');
+</script>
