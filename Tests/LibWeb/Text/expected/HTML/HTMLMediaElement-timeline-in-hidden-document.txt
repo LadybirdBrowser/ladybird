@@ -1,0 +1,4 @@
+document.hidden: true
+playing from 0
+timeupdate fired
+timeupdate fired

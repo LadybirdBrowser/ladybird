@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<video id="video"></video>
+<script>
+    // The media timeline must keep advancing and firing timeupdate in documents that receive no
+    // rendering opportunities, or scripts driven by currentTime/timeupdate (e.g. MSE players)
+    // stall in background tabs.
+    asyncTest(async done => {
+        const video = document.getElementById("video");
+        video.src = "../../../Assets/test-webm.webm";
+
+        const becameHidden = new Promise(resolve => {
+            document.addEventListener("visibilitychange", resolve, { once: true });
+        });
+        internals.setSystemVisibilityState("hidden");
+        await becameHidden;
+        println(`document.hidden: ${document.hidden}`);
+
+        await video.play();
+
+        let lastCurrentTime = video.currentTime;
+        let timeupdateCount = 0;
+        println(`playing from ${lastCurrentTime}`);
+        video.addEventListener("timeupdate", () => {
+            if (video.currentTime <= lastCurrentTime) {
+                println(`time went backwards: ${video.currentTime} < ${lastCurrentTime}`);
+                done();
+                return;
+            }
+            lastCurrentTime = video.currentTime;
+            println(`timeupdate fired`);
+            if (++timeupdateCount == 2)
+                done();
+        });
+        setTimeout(() => {
+            println(`timed out with current time: ${video.currentTime}`);
+            done();
+        }, 1000);
+    });
+</script>
