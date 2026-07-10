@@ -80,7 +80,23 @@ static bool is_out_of_flow_table_internal_child_of_table_root(Layout::NodeWithSt
     return parent.display().is_table_inside()
         && !child.is_anonymous()
         && child.is_out_of_flow()
+        && !child.has_replaced_element_table_display_adjustment()
         && child.display_before_box_type_transformation().is_internal_table();
+}
+
+static Optional<CSS::Display> adjusted_table_display_for_replaced_element(CSS::Display display)
+{
+    // https://drafts.csswg.org/css-tables-3/#table-structure
+    // Replaced elements with a table-root display behave as block or inline depending on their
+    // outer display type. Replaced elements with a table-internal display behave as inline.
+    if (display.is_table_inside()) {
+        if (display.is_block_outside())
+            return CSS::Display::from_short(CSS::Display::Short::Block);
+        return CSS::Display::from_short(CSS::Display::Short::Inline);
+    }
+    if (display.is_internal_table() || display.is_table_caption())
+        return CSS::Display::from_short(CSS::Display::Short::Inline);
+    return {};
 }
 
 // The insertion_parent_for_*() functions maintain the invariant that the in-flow children of
@@ -882,6 +898,14 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
     if (!layout_node)
         return;
 
+    if (layout_node->is_replaced_element()) {
+        if (auto adjusted_display = adjusted_table_display_for_replaced_element(display); adjusted_display.has_value()) {
+            display = *adjusted_display;
+            auto& computed_values = as<NodeWithStyle>(*layout_node).mutable_computed_values();
+            computed_values.set_display(display);
+        }
+    }
+
     // Decide whether to replace an existing node (partial tree update) or insert a new one appropriately.
     bool const may_replace_existing_layout_node = must_create_subtree == MustCreateSubtree::No
         && old_layout_node
@@ -1464,6 +1488,8 @@ static CSS::Display display_for_table_fixup(Node const& node)
     //
     // AD-HOC: Table-internal boxes can be blockified before fixup. Use the pre-transformation display for authored
     // boxes so an out-of-flow table-header-group is still recognized as a proper table child during fixup.
+    if (node.has_replaced_element_table_display_adjustment())
+        return node.display();
     if (!node.is_anonymous())
         return node.display_before_box_type_transformation();
     return node.display();

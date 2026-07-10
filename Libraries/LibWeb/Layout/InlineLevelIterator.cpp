@@ -119,7 +119,7 @@ Layout::Node const* InlineLevelIterator::next_inline_node_in_pre_order(Layout::N
             || current.first_child()->is_out_of_flow(m_inline_formatting_context))
         && current.display().is_flow_inside()
         && !is_inline_flow_interrupting_block(current)
-        && !current.is_replaced_box()) {
+        && !current.is_atomic_inline()) {
         if (!current.is_box() || !static_cast<Box const&>(current).is_out_of_flow(m_inline_formatting_context))
             return current.first_child();
     }
@@ -168,7 +168,7 @@ void InlineLevelIterator::skip_to_next()
         && m_next_node->is_inline()
         && m_next_node->display().is_flow_inside()
         && !m_next_node->is_out_of_flow(m_inline_formatting_context)
-        && !m_next_node->is_replaced_box())
+        && !m_next_node->is_atomic_inline())
         enter_node_with_box_model_metrics(static_cast<Layout::NodeWithStyleAndBoxModelMetrics const&>(*m_next_node));
 
     m_current_node = m_next_node;

@@ -352,6 +352,15 @@ Optional<FormattingContext::Type> FormattingContext::formatting_context_type_cre
 
     auto display = box.display();
 
+    // Native controls can use a generic box to host their shadow tree. When a table-specific
+    // display was adjusted to inline or block, keep that box atomic and give its contents an
+    // independent context without changing the formatting of ordinary controls.
+    if (box.has_replaced_element_table_display_adjustment()) {
+        if (is<BlockContainer>(box))
+            return Type::Block;
+        return Type::InternalReplaced;
+    }
+
     if (display.is_flex_inside())
         return Type::Flex;
 
@@ -3230,6 +3239,9 @@ CSSPixelRect FormattingContext::margin_box_rect_in_ancestor_coordinate_space(Box
 
 bool FormattingContext::box_is_sized_as_replaced_element(Box const& box, AvailableSpace const& available_space, ContainingBlockConstraints const& containing_block_constraints) const
 {
+    if (box.has_replaced_element_table_display_adjustment())
+        return true;
+
     // When a box has a preferred aspect ratio, its automatic sizes are calculated the same as for a
     // replaced element with a natural aspect ratio and no natural size in that axis, see e.g. CSS2 §10
     // and CSS Flexible Box Model Level 1 §9.2.

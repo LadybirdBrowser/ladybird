@@ -126,6 +126,8 @@ public:
     bool is_inline_block() const;
     bool is_inline_table() const;
 
+    bool is_replaced_element() const;
+    bool has_replaced_element_table_display_adjustment() const;
     bool is_atomic_inline() const;
     bool is_transformable() const;
 
