@@ -143,7 +143,6 @@ private:
     QWidget* m_toolbar { nullptr };
     QWidget* m_toolbar_window_controls_separator { nullptr };
     QWidget* m_toolbar_window_controls { nullptr };
-    QSpacerItem* m_toolbar_window_controls_spacer { nullptr };
     QSpacerItem* m_sidebar_toggle_navigation_spacer { nullptr };
     QToolButton* m_left_toggle_vertical_tabs_expanded_button { nullptr };
     QToolButton* m_right_toggle_vertical_tabs_expanded_button { nullptr };

@@ -14,7 +14,6 @@
 class QEnterEvent;
 class QEvent;
 class QMouseEvent;
-class QPaintEvent;
 class QWidget;
 
 namespace Ladybird {
@@ -30,7 +29,6 @@ public:
     WindowControlButton(WindowControlButtonType, QString const& tool_tip, QSize icon_size, QSize button_size, QWidget* parent = nullptr);
 
 private:
-    virtual void paintEvent(QPaintEvent*) override;
     virtual void enterEvent(QEnterEvent*) override;
     virtual void leaveEvent(QEvent*) override;
     virtual void mouseMoveEvent(QMouseEvent*) override;
@@ -42,7 +40,6 @@ private:
     void set_pressed_outside(bool);
     void update_pressed_position(QPoint const&);
 
-    [[maybe_unused]] WindowControlButtonType m_type {};
     bool m_tracking_press { false };
 };
 
@@ -53,6 +50,7 @@ struct WindowControlButtons {
     WindowControlButton* close { nullptr };
 };
 
-WindowControlButtons create_window_control_buttons(QWidget& parent, char const* object_name, QSize icon_size, QSize non_macos_button_size);
+WindowControlButtons create_window_control_buttons(QWidget& parent, char const* object_name, QSize icon_size, QSize button_size);
+QWidget* create_window_controls_spacer(QWidget& parent, char const* object_name, QSize size);
 
 }

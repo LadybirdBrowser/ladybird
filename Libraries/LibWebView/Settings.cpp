@@ -97,14 +97,6 @@ static auto const& CONFIG_VARIABLE_DEFINITIONS = *new Array<ConfigVariableDefini
         .array_element_type = JsonValue::Type::String,
     },
     {
-        .id = ConfigVariableID::UseRoundedWindowCorners,
-        .name = "ui.window.use_rounded_corners"sv,
-        .title = "Use rounded window corners"sv,
-        .description = "Clip browser windows to rounded corners."sv,
-        .default_value = true,
-        .array_element_type = {},
-    },
-    {
         .id = ConfigVariableID::UseClientSideWindowDecorations,
         .name = "ui.window.use_client_side_decorations"sv,
         .title = "Use client-side window decorations"sv,

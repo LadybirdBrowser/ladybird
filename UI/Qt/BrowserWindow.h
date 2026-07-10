@@ -19,7 +19,6 @@
 #include <QIcon>
 #include <QMainWindow>
 #include <QPushButton>
-#include <QRect>
 #include <QTabBar>
 
 class QPropertyAnimation;
@@ -138,7 +137,7 @@ public:
     FullscreenMode& fullscreen_mode();
 
     QMenu& hamburger_menu() const { return *m_hamburger_menu; }
-    static bool uses_client_side_decorations();
+    static bool has_chrome_in_titlebar();
 
     QAction& new_window_action() const { return *m_new_window_action; }
     QAction& find_action() const { return *m_find_in_page_action; }
@@ -206,18 +205,12 @@ private:
     void update_window_title(QString const&);
 
     void set_current_tab(Tab* tab);
-    bool position_is_in_rounded_corner_cutout(QPoint const&) const;
     Qt::Edges resize_edges_for_position(QPoint const&) const;
     Optional<Qt::CursorShape> resize_cursor_for_edges(Qt::Edges) const;
     bool filter_native_window_event(QWindow&, QEvent&);
-    bool start_window_resize(Qt::Edges, QPoint const& global_position);
-    void update_window_resize(QPoint const& global_position);
-    void finish_window_resize();
     void update_resize_cursor(QPoint const&);
     void refresh_resize_cursor_at_current_position(bool force_reapply = false);
     void clear_resize_cursor();
-    void update_window_corners();
-    void update_appkit_window_resizability();
     bool should_draw_window_border() const;
     void update_window_border();
 
@@ -228,6 +221,7 @@ private:
     void update_menu_bar_visibility();
     void update_menu_bar_window_control_icons();
     void update_window_decoration_state();
+    static bool uses_client_side_decorations();
     void toggle_window_maximized();
     bool start_window_move();
     bool connect_window_screen_changed_signal();
@@ -274,10 +268,6 @@ private:
     bool m_restore_to_maximized { false };
     bool m_should_record_closed_window_on_close { true };
     bool m_resize_cursor_active { false };
-    bool m_is_resizing_window { false };
-    Qt::Edges m_resize_edges {};
-    QPoint m_resize_start_global_position;
-    QRect m_resize_start_geometry;
 };
 
 }

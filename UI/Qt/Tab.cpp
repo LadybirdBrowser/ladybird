@@ -192,7 +192,6 @@ static QToolButton* create_navigation_history_toolbar_button(QWidget& parent, QA
 
 static constexpr int TOOLBAR_HORIZONTAL_MARGIN = 12;
 static constexpr int TOOLBAR_VERTICAL_MARGIN = 2;
-static constexpr int TOOLBAR_MACOS_TRAFFIC_LIGHTS_CONTROL_GAP = 22;
 static constexpr int TOOLBAR_SIDEBAR_TOGGLE_NAVIGATION_GAP = 8;
 static constexpr int TOOLBAR_LOCATION_EDIT_SIDE_GAP = 32;
 static constexpr int TOOLBAR_WINDOW_CONTROLS_RIGHT_MARGIN = 4;
@@ -633,24 +632,29 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_toolbar_window_controls_separator->setObjectName("LadybirdToolbarWindowControlsSeparator");
     m_toolbar_window_controls_separator->setFixedSize(1, 22);
 
-    auto window_control_buttons = create_window_control_buttons(*m_toolbar, "LadybirdToolbarWindowControls", { 16, 16 }, { 38, 38 });
-    m_toolbar_window_controls = window_control_buttons.container;
-    m_minimize_window_button = window_control_buttons.minimize;
-    m_maximize_window_button = window_control_buttons.maximize;
-    m_close_window_button = window_control_buttons.close;
+    if constexpr (use_native_macos_window_controls()) {
+        auto const native_controls_width = NATIVE_MACOS_WINDOW_CONTROLS_WIDTH + NATIVE_MACOS_WINDOW_CONTROLS_GAP;
+        m_toolbar_window_controls = create_window_controls_spacer(*m_toolbar, "LadybirdToolbarWindowControls", { native_controls_width, 38 });
+    } else {
+        auto window_control_buttons = create_window_control_buttons(*m_toolbar, "LadybirdToolbarWindowControls", { 16, 16 }, { 38, 38 });
+        m_toolbar_window_controls = window_control_buttons.container;
+        m_minimize_window_button = window_control_buttons.minimize;
+        m_maximize_window_button = window_control_buttons.maximize;
+        m_close_window_button = window_control_buttons.close;
 
-    QObject::connect(m_minimize_window_button, &QToolButton::clicked, this, [this] {
-        m_window->showMinimized();
-    });
-    QObject::connect(m_maximize_window_button, &QToolButton::clicked, this, [this] {
-        if (m_window->isMaximized())
-            m_window->showNormal();
-        else
-            m_window->showMaximized();
-    });
-    QObject::connect(m_close_window_button, &QToolButton::clicked, this, [this] {
-        m_window->close();
-    });
+        QObject::connect(m_minimize_window_button, &QToolButton::clicked, this, [this] {
+            m_window->showMinimized();
+        });
+        QObject::connect(m_maximize_window_button, &QToolButton::clicked, this, [this] {
+            if (m_window->isMaximized())
+                m_window->showNormal();
+            else
+                m_window->showMaximized();
+        });
+        QObject::connect(m_close_window_button, &QToolButton::clicked, this, [this] {
+            m_window->close();
+        });
+    }
 
     recreate_toolbar_icons();
 
@@ -673,11 +677,9 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     navigation_button_layout->addWidget(create_navigation_history_toolbar_button(*navigation_button_cluster, *m_navigate_forward_action, view(), 1));
     navigation_button_layout->addWidget(create_toolbar_button(*navigation_button_cluster, *m_reload_action));
 
-    if (use_left_traffic_light_window_controls()) {
+    if constexpr (use_native_macos_window_controls())
         toolbar_layout->addWidget(m_toolbar_window_controls, 0, Qt::AlignVCenter);
-        m_toolbar_window_controls_spacer = new QSpacerItem(TOOLBAR_MACOS_TRAFFIC_LIGHTS_CONTROL_GAP, 0, QSizePolicy::Fixed, QSizePolicy::Minimum);
-        toolbar_layout->addItem(m_toolbar_window_controls_spacer);
-    }
+
     auto* location_edit_container = new QWidget(m_toolbar);
     location_edit_container->setProperty(WINDOW_DRAG_REGION_PROPERTY, true);
     auto* location_edit_layout = new QHBoxLayout(location_edit_container);
@@ -696,7 +698,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     toolbar_layout->addWidget(m_private_badge, 0, Qt::AlignVCenter);
     toolbar_layout->addWidget(m_hamburger_button, 0, Qt::AlignTop);
 
-    if (use_right_custom_window_controls()) {
+    if constexpr (!use_native_macos_window_controls()) {
         toolbar_layout->addWidget(m_toolbar_window_controls_separator, 0, Qt::AlignVCenter);
         toolbar_layout->addWidget(m_toolbar_window_controls, 0, Qt::AlignVCenter);
     }
@@ -1095,19 +1097,20 @@ void Tab::set_toolbar_container_in_tab_layout(bool in_tab_layout)
 
 void Tab::set_toolbar_window_controls_visible(bool visible)
 {
-    auto const has_left_traffic_lights = use_left_traffic_light_window_controls() && visible;
-    auto const has_trailing_window_controls = use_right_custom_window_controls() && visible;
+    auto const has_native_window_controls = use_native_macos_window_controls() && visible;
+    auto const has_custom_window_controls = !use_native_macos_window_controls() && visible;
 
-    m_toolbar_window_controls_separator->setVisible(has_trailing_window_controls);
-    m_toolbar_window_controls->setVisible(has_left_traffic_lights || has_trailing_window_controls);
-    if (m_toolbar_window_controls_spacer)
-        m_toolbar_window_controls_spacer->changeSize(has_left_traffic_lights ? TOOLBAR_MACOS_TRAFFIC_LIGHTS_CONTROL_GAP : 0, 0, QSizePolicy::Fixed, QSizePolicy::Minimum);
-    m_toolbar->layout()->setContentsMargins(TOOLBAR_HORIZONTAL_MARGIN, TOOLBAR_VERTICAL_MARGIN, has_trailing_window_controls ? TOOLBAR_WINDOW_CONTROLS_RIGHT_MARGIN : TOOLBAR_HORIZONTAL_MARGIN, TOOLBAR_VERTICAL_MARGIN);
+    m_toolbar_window_controls_separator->setVisible(has_custom_window_controls);
+    m_toolbar_window_controls->setVisible(has_native_window_controls || has_custom_window_controls);
+    m_toolbar->layout()->setContentsMargins(TOOLBAR_HORIZONTAL_MARGIN, TOOLBAR_VERTICAL_MARGIN, has_custom_window_controls ? TOOLBAR_WINDOW_CONTROLS_RIGHT_MARGIN : TOOLBAR_HORIZONTAL_MARGIN, TOOLBAR_VERTICAL_MARGIN);
     m_toolbar->layout()->invalidate();
 }
 
 void Tab::update_window_control_icons()
 {
+    if (!m_minimize_window_button || !m_maximize_window_button || !m_close_window_button)
+        return;
+
     auto is_maximized = m_window->isMaximized();
     m_minimize_window_button->setIcon(create_chrome_icon(ChromeIcon::WindowMinimize, palette()));
     m_maximize_window_button->setIcon(create_chrome_icon(is_maximized ? ChromeIcon::WindowRestore : ChromeIcon::WindowMaximize, palette()));

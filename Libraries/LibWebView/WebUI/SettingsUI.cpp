@@ -5,7 +5,6 @@
  */
 
 #include <AK/JsonArray.h>
-#include <AK/Platform.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/HTML/AutoplayPolicy.h>
 #include <LibWebView/Application.h>
@@ -36,10 +35,6 @@ static StringView config_variable_type_to_string(JsonValue::Type type)
 
 static bool should_show_config_variable(ConfigVariableID id)
 {
-#if !defined(AK_OS_MACOS)
-    if (id == ConfigVariableID::UseRoundedWindowCorners)
-        return false;
-#endif
     if (id == ConfigVariableID::UseClientSideWindowDecorations)
         return Application::the().supports_client_side_window_decorations();
     return true;

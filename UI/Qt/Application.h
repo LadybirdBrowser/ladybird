@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Function.h>
+#include <AK/Platform.h>
 #include <LibURL/URL.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/PrivateBrowsing.h>
@@ -86,7 +87,14 @@ private:
 
     virtual bool supports_vertical_tabs() const override { return true; }
     virtual bool supports_private_browsing_windows() const override { return true; }
-    virtual bool supports_client_side_window_decorations() const override { return true; }
+    virtual bool supports_client_side_window_decorations() const override
+    {
+#if defined(AK_OS_MACOS)
+        return false;
+#else
+        return true;
+#endif
+    }
 
     virtual void update_tabs_display() const override;
 

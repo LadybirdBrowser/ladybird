@@ -10,13 +10,19 @@
 
 namespace Ladybird {
 
-enum class WindowControlsPlacement {
-    LeftTrafficLights,
-    RightCustomControls,
-};
+static constexpr int NATIVE_MACOS_WINDOW_CONTROLS_WIDTH = 62;
+static constexpr int NATIVE_MACOS_WINDOW_CONTROLS_GAP = 16;
+
+static constexpr bool use_native_macos_window_controls()
+{
+#if defined(AK_OS_MACOS)
+    return true;
+#else
+    return false;
+#endif
+}
 
 struct BrowserChromeLayoutPolicy {
-    WindowControlsPlacement controls_placement;
     int expanded_sidebar_width;
     int collapsed_sidebar_width;
     int toolbar_height;
@@ -25,30 +31,15 @@ struct BrowserChromeLayoutPolicy {
 static constexpr BrowserChromeLayoutPolicy browser_chrome_layout_policy()
 {
     return {
-#if defined(AK_OS_MACOS)
-        .controls_placement = WindowControlsPlacement::LeftTrafficLights,
-#else
-        .controls_placement = WindowControlsPlacement::RightCustomControls,
-#endif
         .expanded_sidebar_width = 232,
         .collapsed_sidebar_width = 52,
         .toolbar_height = 42,
     };
 }
 
-static constexpr bool use_left_traffic_light_window_controls()
-{
-    return browser_chrome_layout_policy().controls_placement == WindowControlsPlacement::LeftTrafficLights;
-}
-
-static constexpr bool use_right_custom_window_controls()
-{
-    return browser_chrome_layout_policy().controls_placement == WindowControlsPlacement::RightCustomControls;
-}
-
 static constexpr bool show_menubar_option_available()
 {
-    return use_right_custom_window_controls();
+    return !use_native_macos_window_controls();
 }
 
 }

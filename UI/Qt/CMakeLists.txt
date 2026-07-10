@@ -41,7 +41,7 @@ if (APPLE)
         MacWindow.mm
         WebContentViewMac.mm
     )
-    target_link_libraries(ladybird PRIVATE Qt::GuiPrivate "-framework Cocoa" "-framework IOSurface" "-framework Metal" "-framework QuartzCore")
+    target_link_libraries(ladybird PRIVATE Qt::GuiPrivate "-framework Cocoa" "-framework IOSurface" "-framework Metal")
 endif()
 
 if (NOT APPLE AND USE_VULKAN_DMABUF_IMAGES AND Qt6_VERSION VERSION_GREATER_EQUAL 6.7.0)
