@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<div id="host"><span>slotted</span></div>
+<script>
+    const shadowRoot = host.attachShadow({ mode: "open" });
+    shadowRoot.innerHTML = "<div style='display: none'></div>";
+    // Force a style update so the display:none wrapper has computed style, but is no longer dirty.
+    document.body.offsetWidth;
+    // Insert the slot into the display:none subtree. The style update traversal will not descend into
+    // the wrapper, leaving the slot without computed style.
+    shadowRoot.firstChild.appendChild(document.createElement("slot"));
+    // Dirty the slotted element so the next style update recomputes it. Resolving the em length
+    // reads font metrics from the styleless slot it inherits from.
+    host.firstChild.style.fontSize = "2em";
+    getComputedStyle(document.body).getPropertyValue("width");
+</script>

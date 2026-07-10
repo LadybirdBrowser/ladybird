@@ -19,6 +19,7 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 
@@ -218,6 +219,15 @@ static void enter_style_update_frame(StyleUpdateFrame& frame, StyleComputer& sty
 
 static bool should_update_style_for_child(StyleUpdateFrame const& frame, DOM::Node const& child, bool child_needs_inherited_style_update)
 {
+    // NB: Style inheritance follows the flat tree, so a slotted element inherits from its assigned slot. If that
+    //     slot has no computed style (because it sits in a display:none subtree that style update skips), the
+    //     slotted element's style cannot be computed either. Skip it; on-demand reads refresh it lazily via
+    //     update_style_for_element, and assigned slottables are invalidated when the slot eventually gets style.
+    if (auto const* element = as_if<DOM::Element>(child)) {
+        if (auto const slot = element->assigned_slot_internal(); slot && !slot->computed_properties())
+            return false;
+    }
+
     if (frame.traversal == StyleUpdateTraversal::TraverseDisplayNoneSubtrees) {
         if (auto const* element = as_if<DOM::Element>(child); element && !element->computed_properties())
             return true;
