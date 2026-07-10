@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div style="height: 3000px"></div>
+<iframe id="frame1" style="height: 100px"></iframe>
+<button id="button">bottom button</button>
+<script>
+    // Programmatically focusing a frame must not scroll it into view. Ad scripts
+    // commonly steal focus into an offscreen iframe on load; other engines only
+    // scroll on focus when the focused element is not embedded content.
+    asyncTest(async done => {
+        const settle = async () => {
+            for (let i = 0; i < 3; i++) {
+                await new Promise(resolve => requestAnimationFrame(resolve));
+                await new Promise(resolve => setTimeout(resolve, 0));
+            }
+        };
+
+        scrollTo(0, 0);
+        document.getElementById("frame1").focus();
+        await settle();
+        println(`scrollY after focusing iframe element: ${window.scrollY}`);
+
+        scrollTo(0, 0);
+        const frame2 = document.createElement("iframe");
+        frame2.style.height = "100px";
+        frame2.srcdoc = "<script>window.focus();<\/script>";
+        await new Promise(resolve => {
+            frame2.addEventListener("load", resolve, { once: true });
+            document.body.appendChild(frame2);
+        });
+        await settle();
+        println(`scrollY after iframe content calls window.focus(): ${window.scrollY}`);
+
+        scrollTo(0, 0);
+        document.getElementById("button").focus();
+        await settle();
+        println(`scrollY after focusing a regular element is nonzero: ${window.scrollY > 0}`);
+
+        done();
+    });
+</script>
