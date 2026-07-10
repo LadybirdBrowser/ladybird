@@ -1,0 +1,3 @@
+FAIL: appends near interaction :has() recomputed 5020 elements
+focused: rgb(7, 7, 7)
+focused element removed: rgb(1, 1, 1)
