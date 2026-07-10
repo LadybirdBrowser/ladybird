@@ -895,30 +895,19 @@ private:
 
 class Frame {
 public:
-    // Owning constructor (slow path).
-    explicit Frame(ModuleInstance const& module, Vector<Value, ArgumentsStaticSize> locals, Expression const& expression, size_t arity)
-        : m_module(module)
-        , m_owned_locals(move(locals))
-        , m_locals_ptr(m_owned_locals.data())
-        , m_expression(expression)
-        , m_arity(arity)
-        , m_owns_locals(true)
-    {
-    }
-
-    // Non-owning constructor (fast path).
-    explicit Frame(ModuleInstance const& module, Value* locals_ptr, Expression const& expression, size_t arity)
+    // An owning frame's pointer can be invalidated when m_owned_locals_stack grows, so re-derive teh pointer from the stack's data() when needed.
+    explicit Frame(ModuleInstance const& module, Value* locals_ptr, Expression const& expression, size_t arity, bool owns_locals = false)
         : m_module(module)
         , m_locals_ptr(locals_ptr)
         , m_expression(expression)
         , m_arity(arity)
+        , m_owns_locals(owns_locals)
     {
     }
 
     Frame(Frame&& other)
         : m_module(other.m_module)
-        , m_owned_locals(move(other.m_owned_locals))
-        , m_locals_ptr(other.m_owns_locals ? m_owned_locals.data() : other.m_locals_ptr)
+        , m_locals_ptr(other.m_locals_ptr)
         , m_expression(other.m_expression)
         , m_arity(other.m_arity)
         , m_label_index(other.m_label_index)
@@ -935,7 +924,6 @@ public:
     auto& module() const { return m_module; }
     Value* locals_data() const { return m_locals_ptr; }
     bool owns_locals() const { return m_owns_locals; }
-    Vector<Value, ArgumentsStaticSize>& owned_locals() { return m_owned_locals; }
     auto& expression() const { return m_expression; }
     auto arity() const { return m_arity; }
     auto label_index() const { return m_label_index; }
@@ -946,7 +934,6 @@ public:
 
 private:
     ModuleInstance const& m_module;
-    Vector<Value, ArgumentsStaticSize> m_owned_locals;
     Value* m_locals_ptr { nullptr };
     Expression const& m_expression;
     size_t m_arity { 0 };

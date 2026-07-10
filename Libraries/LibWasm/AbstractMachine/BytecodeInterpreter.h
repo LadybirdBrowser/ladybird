@@ -33,7 +33,11 @@ struct WASM_API BytecodeInterpreter final : public Interpreter {
     {
         return m_trap.get<Trap>();
     }
-    virtual void clear_trap() final { m_trap = Empty {}; }
+    virtual void clear_trap() final
+    {
+        if (!m_trap.has<Empty>()) [[unlikely]]
+            m_trap = Empty {};
+    }
     virtual void visit_external_resources(HostVisitOps const& host) override
     {
         if (auto ptr = m_trap.get_pointer<Trap>())

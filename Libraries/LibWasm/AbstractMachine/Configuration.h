@@ -40,13 +40,14 @@ public:
         m_store.unregister_configuration({}, *this);
     }
 
-    template<typename... Args>
-    void set_frame(IsTailcall is_tailcall, Args&&... frame_init)
+    void set_frame(IsTailcall is_tailcall, ModuleInstance const& module, Vector<Value, ArgumentsStaticSize> locals, Expression const& expression, size_t arity)
     {
-        m_frame_stack.empend(forward<Args>(frame_init)...);
+        m_owned_locals_stack.append(move(locals));
+        auto* locals_ptr = m_owned_locals_stack.last().data();
+        m_frame_stack.empend(module, locals_ptr, expression, arity, /* owns_locals = */ true);
 
         auto& frame = m_frame_stack.last();
-        m_locals_base = frame.locals_data();
+        m_locals_base = locals_ptr;
         auto const& memories = frame.module().memories();
         m_default_memory = memories.is_empty() ? nullptr : m_store.unsafe_get(memories[0]);
         frame.set_compiled_fn_table(&frame.module().compiled_fn_table(m_store));
@@ -78,11 +79,17 @@ public:
         Expression const& expression, size_t arity)
     {
         VERIFY(bit_cast<FlatPtr>(&module) != 0);
+
+        // For the (common) same-module call case, we already have the compiled-fn-table pointer cached on the caller's frame, so reuse it instead of re-resolving through the store on every call.
+        bool const same_module = !m_frame_stack.is_empty() && &m_frame_stack.last().module() == &module;
+        auto const* table = same_module ? m_frame_stack.last().compiled_fn_table() : &module.compiled_fn_table(m_store);
         m_frame_stack.empend(module, locals_ptr, expression, arity);
-        m_frame_stack.last().set_compiled_fn_table(&module.compiled_fn_table(m_store));
+        m_frame_stack.last().set_compiled_fn_table(table);
         m_locals_base = locals_ptr;
-        auto const& memories = module.memories();
-        m_default_memory = memories.is_empty() ? nullptr : m_store.unsafe_get(memories[0]);
+        if (!same_module) {
+            auto const& memories = module.memories();
+            m_default_memory = memories.is_empty() ? nullptr : m_store.unsafe_get(memories[0]);
+        }
         // Skip capacity hints and label push (Cranelift uses its own structured control flow).
     }
 
@@ -343,6 +350,7 @@ public:
     Vector<Value, 64, FastLastAccess::Yes> m_value_stack;
     Vector<Label, 64, FastLastAccess::Yes> m_label_stack;
     Vector<Frame> m_frame_stack;
+    Vector<Vector<Value, ArgumentsStaticSize>> m_owned_locals_stack;
     Vector<Value, ArgumentsStaticSize> m_current_call_record;
     Vector<Vector<Value, ArgumentsStaticSize>, 16, FastLastAccess::Yes> m_call_argument_freelist;
     size_t m_depth { 0 };

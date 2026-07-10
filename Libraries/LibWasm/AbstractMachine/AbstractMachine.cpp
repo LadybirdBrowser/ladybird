@@ -149,10 +149,8 @@ void AbstractMachine::RootsProvider::for_each_conservative_range(AK::Function<vo
         report_values(configuration->m_current_call_record.data(), configuration->m_current_call_record.size());
         for (auto& arguments : configuration->m_call_argument_freelist)
             report_values(arguments.data(), arguments.capacity());
-        for (auto& frame : configuration->m_frame_stack) {
-            if (frame.owns_locals())
-                report_values(frame.locals_data(), frame.owned_locals().size());
-        }
+        for (auto& owned_locals : configuration->m_owned_locals_stack)
+            report_values(owned_locals.data(), owned_locals.size());
     }
 
     for (auto& table : m_store.tables())
