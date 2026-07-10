@@ -152,6 +152,7 @@ static bool selector_may_match_mutation_features(Selector const& selector, Pendi
         };
 
         for (auto const& compound_selector : selector.compound_selectors()) {
+            bool const is_subject_compound = &compound_selector == &selector.compound_selectors().last();
             bool compound_has_positive_concrete_feature = false;
             for (auto const& simple_selector : compound_selector.simple_selectors) {
                 switch (simple_selector.type) {
@@ -180,6 +181,14 @@ static bool selector_may_match_mutation_features(Selector const& selector, Pendi
                 switch (simple_selector.type) {
                 case Selector::SimpleSelector::Type::Universal:
                 case Selector::SimpleSelector::Type::Nesting:
+                    // A universal (or nesting) selector matches regardless of any mutation, so it can only be the
+                    // reason a :has() argument starts or stops matching when it is the argument's subject. In
+                    // non-subject position, with only descendant and child combinators in play (sibling combinators
+                    // are handled above), any match chain that a mutation completes or breaks has its subject inside
+                    // the mutated subtree, and the subject compound is feature-checked on its own.
+                    if (is_subject_compound)
+                        must_be_conservative = true;
+                    break;
                 case Selector::SimpleSelector::Type::Invalid:
                 case Selector::SimpleSelector::Type::PseudoElement:
                     must_be_conservative = true;
