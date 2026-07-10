@@ -1,3 +1,12 @@
-Harness status: Error
+Harness status: OK
 
-Found 0 tests
+Found 6 tests
+
+2 Pass
+4 Fail
+Pass	Initially no queries match.
+Fail	Target child
+Fail	Target grandchild
+Pass	Initially no queries for registered property match.
+Fail	Registered property query child
+Fail	Registered property query grandchild

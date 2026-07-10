@@ -711,7 +711,31 @@ OwnPtr<BooleanExpression> Parser::parse_container_query_feature(TokenStream<Comp
         return nullptr;
     }
 
-    // FIXME: `style( <style-query> )`
+    // `style( <style-query> )`
+    if (tokens.next_token().is_function("style"sv)) {
+        auto const& function = tokens.consume_a_token().function();
+        TokenStream inner_tokens { function.value };
+        if (auto style_query = parse_style_query(inner_tokens, MatchResult::Unknown)) {
+            inner_tokens.discard_whitespace();
+            if (inner_tokens.has_next_token()) {
+                ErrorReporter::the().report(InvalidQueryError {
+                    .query_type = "@container"_utf16_fly_string,
+                    .value_string = function.to_string().to_well_formed_utf8(),
+                    .description = "Trailing tokens in style()."_string });
+                return nullptr;
+            }
+
+            transaction.commit();
+            return StyleQueryFunction::create(style_query.release_nonnull());
+        }
+
+        ErrorReporter::the().report(InvalidQueryError {
+            .query_type = "@container"_utf16_fly_string,
+            .value_string = function.to_string().to_well_formed_utf8(),
+            .description = "Failed to parse style()."_string });
+        return nullptr;
+    }
+
     // FIXME: `scroll-state( <scroll-state-query> )`
     // FIXME: `anchored( <anchored-query> )`
 

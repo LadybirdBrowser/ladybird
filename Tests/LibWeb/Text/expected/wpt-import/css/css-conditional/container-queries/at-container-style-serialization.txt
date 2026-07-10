@@ -1,3 +1,23 @@
-Harness status: Error
+Harness status: OK
 
-Found 0 tests
+Found 17 tests
+
+14 Pass
+3 Fail
+Pass	Normalize spaces
+Pass	Empty declaration value - spaces
+Pass	Empty declaration value
+Pass	No declaration value
+Fail	Unknown CSS property after 'or'
+Pass	Not a style function with space before '('
+Fail	Spaces preserved in custom property value
+Fail	Original string number in custom property value
+Pass	Single extra parens
+Pass	Double extra parens
+Pass	Multiple extra parens
+Pass	Extra parens and Not
+Pass	Subexpressions and extra parens
+Pass	Multiple subexpressions and extra parens
+Pass	Multiple subexpressions and unknowns
+Pass	Escape custom property identifier
+Pass	Escape custom property identifier - range syntax

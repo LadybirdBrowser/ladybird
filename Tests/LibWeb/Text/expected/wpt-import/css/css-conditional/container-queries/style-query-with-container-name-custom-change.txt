@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-2 Pass
-1 Fail
+3 Pass
 Pass	Initially container rule does not match.
-Fail	Container rule matches and inner changes colour
+Pass	Container rule matches and inner changes colour
 Pass	Container rule stops matching and inner changes colour back

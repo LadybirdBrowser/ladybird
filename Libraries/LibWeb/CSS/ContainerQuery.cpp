@@ -182,6 +182,40 @@ void SizeFeature::dump(StringBuilder& builder, int indent_levels) const
     builder.appendff("SizeFeature: {}\n", to_string());
 }
 
+NonnullOwnPtr<StyleQueryFunction> StyleQueryFunction::create(NonnullOwnPtr<BooleanExpression>&& query)
+{
+    return adopt_own(*new StyleQueryFunction(move(query)));
+}
+
+StyleQueryFunction::StyleQueryFunction(NonnullOwnPtr<BooleanExpression>&& query)
+    : m_query(move(query))
+{
+}
+
+MatchResult StyleQueryFunction::evaluate(BooleanExpressionEvaluationContext const& context) const
+{
+    return m_query->evaluate(context);
+}
+
+void StyleQueryFunction::collect_container_query_feature_requirements(ContainerQueryFeatureRequirements& requirements) const
+{
+    m_query->collect_container_query_feature_requirements(requirements);
+}
+
+void StyleQueryFunction::serialize_to(Utf16StringBuilder& builder) const
+{
+    builder.append("style("_utf16);
+    m_query->serialize_to(builder);
+    builder.append(")"_utf16);
+}
+
+void StyleQueryFunction::dump(StringBuilder& builder, int indent_levels) const
+{
+    indent(builder, indent_levels);
+    builder.append("StyleQueryFunction:\n"sv);
+    m_query->dump(builder, indent_levels + 1);
+}
+
 NonnullOwnPtr<StyleFeature> StyleFeature::create_boolean(PropertyNameAndID property)
 {
     return adopt_own(*new StyleFeature(StyleFeaturePlain {
@@ -732,6 +766,7 @@ MatchResult ContainerQuery::evaluate(DOM::AbstractElement const& element, Option
         return m_condition->evaluate({
             .document = &element.document(),
             .query_container = container,
+            .style_query_element = DOM::AbstractElement { *container },
         });
     }
 

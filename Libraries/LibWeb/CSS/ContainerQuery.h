@@ -45,6 +45,23 @@ private:
     }
 };
 
+// https://drafts.csswg.org/css-conditional-5/#style-container
+class StyleQueryFunction final : public BooleanExpression {
+public:
+    static NonnullOwnPtr<StyleQueryFunction> create(NonnullOwnPtr<BooleanExpression>&&);
+    virtual ~StyleQueryFunction() override = default;
+
+    virtual MatchResult evaluate(BooleanExpressionEvaluationContext const&) const override;
+    virtual void collect_container_query_feature_requirements(ContainerQueryFeatureRequirements&) const override;
+    virtual void serialize_to(Utf16StringBuilder&) const override;
+    virtual void dump(StringBuilder&, int indent_levels = 0) const override;
+
+private:
+    explicit StyleQueryFunction(NonnullOwnPtr<BooleanExpression>&&);
+
+    NonnullOwnPtr<BooleanExpression> m_query;
+};
+
 // https://drafts.csswg.org/css-conditional-5/#typedef-style-feature
 class StyleFeature final : public BooleanExpression {
 public:
