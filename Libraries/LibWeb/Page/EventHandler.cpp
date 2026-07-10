@@ -1772,7 +1772,16 @@ void EventHandler::run_mousedown_default_actions(DOM::Document& document, CSSPix
         if (!hit.has_value())
             return;
 
-        for (GC::Ptr<DOM::Node const> node = hit->paintable->dom_node(); node; node = node->parent_or_shadow_host_node()) {
+        // NB: Generated pseudo-elements don't have a DOM node, so we first have to walk up to find one.
+        GC::Ptr<DOM::Node const> start_node = nullptr;
+        for (RefPtr<Painting::Paintable> paintable = hit->paintable; paintable; paintable = paintable->parent()) {
+            if (paintable->dom_node()) {
+                start_node = paintable->dom_node();
+                break;
+            }
+        }
+
+        for (GC::Ptr<DOM::Node const> node = start_node; node; node = node->parent_or_shadow_host_node()) {
             if (node->is_editable_or_editing_host() || is<HTML::FormAssociatedTextControlElement>(*node))
                 return;
             if (auto const* anchor = as_if<HTML::HTMLAnchorElement>(*node); anchor && anchor->has_attribute(HTML::AttributeNames::href))

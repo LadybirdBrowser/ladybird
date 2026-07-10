@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+
+    a {
+        display: inline-block;
+        margin: 20px;
+        padding: 8px;
+    }
+
+    #generated::after {
+        content: "Generated link";
+    }
+</style>
+<a id="plain" href="about:blank">Plain link</a>
+<a id="generated" href="about:blank"></a>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        async function middleDragFrom(element) {
+            const rect = element.getBoundingClientRect();
+            const x = rect.left + rect.width / 2;
+            const y = rect.top + rect.height / 2;
+
+            internals.mouseDown(x, y, 1, internals.BUTTON_MIDDLE);
+            internals.mouseMove(x, y + 100);
+            await animationFrame();
+            await animationFrame();
+            internals.mouseUp(x, y + 100, internals.BUTTON_MIDDLE);
+        }
+
+        await middleDragFrom(plain);
+        println(`plain link scrollY: ${scrollY}`);
+
+        scrollTo(0, 0);
+
+        await middleDragFrom(generated);
+        println(`generated-content link scrollY: ${scrollY}`);
+
+        done();
+    });
+</script>
