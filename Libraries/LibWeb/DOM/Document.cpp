@@ -8957,6 +8957,12 @@ void Document::did_change_custom_property_registrations()
 
 void Document::build_registered_properties_cache()
 {
+    // The set of effective @property rules can only change when the active stylesheet rule set changes, which also
+    // invalidates the document's style cache. Skip the rebuild until that happens.
+    if (!m_needs_registered_properties_cache_update)
+        return;
+    m_needs_registered_properties_cache_update = false;
+
     ++m_style_invalidation_counters.registered_properties_cache_rebuilds;
 
     HashMap<Utf16FlyString, CSS::CustomPropertyRegistration> cached_registered_properties_from_css_property_rules;

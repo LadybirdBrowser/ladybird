@@ -697,6 +697,7 @@ public:
     bool needs_full_style_update() const { return m_needs_full_style_update; }
     void set_needs_full_style_update(bool b) { m_needs_full_style_update = b; }
     void build_registered_properties_cache_for_style_update() { build_registered_properties_cache(); }
+    void set_needs_registered_properties_cache_update() { m_needs_registered_properties_cache_update = true; }
     void set_needs_container_query_evaluation_after_layout(Element const& query_container);
 
     [[nodiscard]] bool needs_full_layout_tree_update() const { return m_needs_full_layout_tree_update; }
@@ -1673,6 +1674,7 @@ private:
     // https://www.w3.org/TR/css-properties-values-api-1/#dom-window-registeredpropertyset-slot
     HashMap<Utf16FlyString, CSS::CustomPropertyRegistration> m_registered_property_set;
     HashMap<Utf16FlyString, CSS::CustomPropertyRegistration> m_cached_registered_properties_from_css_property_rules;
+    bool m_needs_registered_properties_cache_update { true };
     size_t m_custom_property_registration_generation { 0 };
 
     CSS::StyleScope m_style_scope;

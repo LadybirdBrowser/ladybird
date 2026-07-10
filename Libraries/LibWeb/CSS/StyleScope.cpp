@@ -219,6 +219,10 @@ void StyleScope::invalidate_style_cache()
 {
     invalidate_counter_style_cache();
     m_style_cache = nullptr;
+    // The registered custom properties cache is built from the document's active stylesheets, so it only needs a
+    // rebuild when the document scope's rule set changes.
+    if (m_node->is_document())
+        document().set_needs_registered_properties_cache_update();
 }
 
 void StyleScope::invalidate_user_style_sheet()
