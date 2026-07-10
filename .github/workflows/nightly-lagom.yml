@@ -40,7 +40,7 @@ jobs:
             build_preset: 'Distribution'
             toolchain: 'Clang'
             clang_plugins: false
-            runner_labels: '["macos-26", "self-hosted"]'
+            runner_labels: '["blacksmith-6vcpu-macos-26"]'
             container: 'null'
 
           - os_name: 'Linux'
