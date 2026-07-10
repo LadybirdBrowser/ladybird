@@ -1,0 +1,47 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .target {
+        display: inline-block;
+        width: 40px;
+        aspect-ratio: 1;
+        vertical-align: top;
+    }
+    .child {
+        height: 50%;
+    }
+    button {
+        width: 40px;
+        aspect-ratio: 1;
+        padding: 0;
+        border: 0;
+        vertical-align: top;
+    }
+    button > div {
+        width: 10px;
+        height: 10px;
+    }
+</style>
+<div>
+    <div id="auto" class="target"><div id="auto-child" class="child"></div></div>
+</div>
+<div>
+    <div id="percentage" class="target" style="height: 100%"><div id="percentage-child" class="child"></div></div>
+</div>
+<div>
+    <div id="intrinsic" class="target" style="height: min-content"><div id="intrinsic-child" class="child"></div></div>
+</div>
+<button id="button"><div id="button-child"></div></button>
+<script>
+    test(() => {
+        const height = id => document.getElementById(id).getBoundingClientRect().height;
+
+        println(`auto: ${height("auto")}, ${height("auto-child")}`);
+        println(`percentage: ${height("percentage")}, ${height("percentage-child")}`);
+        println(`intrinsic: ${height("intrinsic")}, ${height("intrinsic-child")}`);
+
+        const buttonRect = document.getElementById("button").getBoundingClientRect();
+        const buttonChildRect = document.getElementById("button-child").getBoundingClientRect();
+        println(`button: ${buttonRect.height}, ${buttonChildRect.top - buttonRect.top}`);
+    });
+</script>

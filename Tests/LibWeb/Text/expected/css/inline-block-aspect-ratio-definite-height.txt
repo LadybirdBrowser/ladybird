@@ -1,0 +1,4 @@
+auto: 40, 20
+percentage: 40, 20
+intrinsic: 40, 20
+button: 40, 15

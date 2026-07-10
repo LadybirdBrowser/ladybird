@@ -127,6 +127,16 @@ void InlineFormattingContext::dimension_box_on_line(Box const& box, LayoutMode l
     if (box_is_sized_as_replaced_element(box, *m_available_space, box_constraints)) {
         box_state.set_content_width(compute_width_for_replaced_element(box, *m_available_space, box_constraints));
         box_state.set_content_height(compute_height_for_replaced_element(box, *m_available_space, box_constraints));
+
+        // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-automatic
+        // The axis in which the preferred size calculation depends on this aspect ratio is called the ratio-dependent
+        // axis, and the resulting size is definite if its input sizes are also definite
+        auto const height_is_automatic = computed_values.height().is_auto() || should_treat_height_as_auto(box, *m_available_space, box_constraints);
+        auto const height_resolved_from_aspect_ratio = box_state.has_definite_width() && box.has_preferred_aspect_ratio() && height_is_automatic;
+
+        if (height_resolved_from_aspect_ratio)
+            box_state.set_has_definite_height(true);
+
         auto child_layout_input = m_layout_input->for_child_formatting_context(box_state.available_inner_space_or_constraints_from(*m_available_space));
         auto independent_formatting_context = layout_inside(box, layout_mode, child_layout_input);
         if (independent_formatting_context)
