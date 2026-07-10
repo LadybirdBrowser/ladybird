@@ -1,1 +1,1 @@
-FAIL: streamed appends recomputed 5030 elements
+PASS: streamed appends stayed targeted

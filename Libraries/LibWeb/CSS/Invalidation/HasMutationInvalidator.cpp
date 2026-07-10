@@ -81,11 +81,6 @@ static bool pending_has_invalidation_covers_all_child_list_mutation_features(Sty
     return true;
 }
 
-static bool scope_has_featureless_sensitive_has_selectors(StyleScope const& scope)
-{
-    return scope.style_invalidation_data().has_selectors_sensitive_to_featureless_subtree_changes;
-}
-
 void invalidate_element_if_affected_by_has(DOM::Element& element, DescendantHasInvalidation descendant_has_invalidation)
 {
     if (element.affected_by_has_pseudo_class_in_subject_position())
@@ -466,15 +461,13 @@ static void schedule_has_invalidation_for_child_list_mutation(DOM::Node& parent,
     if (pending_has_invalidation_covers_all_child_list_mutation_features(scope, parent))
         return;
 
-    if (scope_has_featureless_sensitive_has_selectors(scope)) {
-        scope.record_conservative_pending_has_invalidation(parent, true);
-        if (has_sibling_combinator_has_selectors)
-            invalidate_children_affected_by_has_sibling_combinators(parent);
-        return;
-    }
-
     // Sibling-combinator :has() selectors are sensitive to featureless insertions/removals because a plain node can
     // still change adjacency and following-sibling relationships.
+    // NB: When the scope has :has() selectors whose arguments can match because a featureless node was inserted or
+    //     removed, such as :has(:not(.x)) or :has(:empty), subtree_has_feature_used_in_has_selector() returns true
+    //     unconditionally so the mutation is always scheduled. The per-rule feature filter applied later treats
+    //     exactly those argument selectors conservatively, so rules with concrete argument features still benefit
+    //     from feature filtering instead of the whole scope going conservative.
     auto may_affect_has_match = mutation_root.is_character_data()
         || subtree_has_feature_used_in_has_selector(mutation_root, scope)
         || has_sibling_combinator_has_selectors;
