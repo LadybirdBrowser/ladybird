@@ -465,7 +465,7 @@ static Optional<FirstLetterTarget> find_first_letter_in_block(BlockContainer& bl
                 result = find_first_letter_in_text(*text_node);
                 return result.has_value() ? TraversalDecision::Break : TraversalDecision::Continue;
             }
-            if (is<InlineNode>(node))
+            if (node.is_fragmented_inline())
                 return TraversalDecision::Continue;
 
             return TraversalDecision::Break;

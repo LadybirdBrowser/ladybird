@@ -123,6 +123,16 @@ void InlineFormattingContext::dimension_box_on_line(Box const& box, LayoutMode l
     box_state.border_bottom = computed_values.border_bottom().width;
     box_state.margin_bottom = computed_values.margin().bottom().to_px_or_zero(width_of_containing_block);
 
+    if (auto const* marker = as_if<ListItemMarkerBox>(box)) {
+        dimension_list_item_marker(*marker);
+        auto marker_distance = distance_between_marker_and_list_item(*marker);
+        if (computed_values.direction() == CSS::Direction::Ltr)
+            box_state.margin_right += marker_distance;
+        else
+            box_state.margin_left += marker_distance;
+        return;
+    }
+
     auto const& box_constraints = m_layout_input->containing_block_constraints;
     if (box_is_sized_as_replaced_element(box, *m_available_space, box_constraints)) {
         box_state.set_content_width(compute_width_for_replaced_element(box, *m_available_space, box_constraints));

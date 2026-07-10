@@ -22,4 +22,13 @@ void ListItemBox::set_marker(ListItemMarkerBox* marker)
     m_marker = marker;
 }
 
+RefPtr<Painting::Paintable> ListItemBox::create_paintable() const
+{
+    // A fragmented inline list item gets one paintable per line it spans, created via
+    // create_paintable_for_line_with_index(), instead of a node-level paintable.
+    if (is_fragmented_inline())
+        return nullptr;
+    return BlockContainer::create_paintable();
+}
+
 }

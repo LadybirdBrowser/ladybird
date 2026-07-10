@@ -1450,7 +1450,7 @@ bool Paintable::overflow_property_applies() const
     if (is<SVGPaintable>(*this))
         return false;
     auto const& display = computed_values().display();
-    if (layout_node().is_inline_node())
+    if (layout_node().is_fragmented_inline())
         return false;
     if (display.is_ruby_inside())
         return false;

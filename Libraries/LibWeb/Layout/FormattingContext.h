@@ -192,6 +192,9 @@ public:
 protected:
     FormattingContext(Type, LayoutMode, LayoutState&, Box const&, FormattingContext* parent = nullptr);
 
+    void dimension_list_item_marker(ListItemMarkerBox const&);
+    [[nodiscard]] static CSSPixels distance_between_marker_and_list_item(ListItemMarkerBox const&);
+
     [[nodiscard]] static bool computed_height_establishes_definite_containing_block_height(CSS::Size const&);
     [[nodiscard]] Optional<CSSPixels> calculate_transferred_width_for_replaced_element(Layout::Box const&, ContainingBlockConstraints const&) const;
 

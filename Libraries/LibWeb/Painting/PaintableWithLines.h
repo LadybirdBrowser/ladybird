@@ -19,7 +19,7 @@ class HitTestDisplayList;
 class PaintableWithLines : public Paintable {
 public:
     static NonnullRefPtr<PaintableWithLines> create(Layout::BlockContainer const&);
-    static NonnullRefPtr<PaintableWithLines> create(Layout::InlineNode const&, size_t line_index);
+    static NonnullRefPtr<PaintableWithLines> create(Layout::NodeWithStyleAndBoxModelMetrics const&, size_t line_index);
     virtual ~PaintableWithLines() override;
     virtual StringView class_name() const override { return "PaintableWithLines"sv; }
 
@@ -51,7 +51,7 @@ public:
 
 protected:
     PaintableWithLines(Layout::BlockContainer const&);
-    PaintableWithLines(Layout::InlineNode const&, size_t line_index);
+    PaintableWithLines(Layout::NodeWithStyleAndBoxModelMetrics const&, size_t line_index);
 
 private:
     [[nodiscard]] virtual bool is_paintable_with_lines() const final { return true; }

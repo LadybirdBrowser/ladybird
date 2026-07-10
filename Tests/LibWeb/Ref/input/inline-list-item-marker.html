@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/inline-list-item-marker-ref.html">
+<style>
+    body {
+        margin: 0;
+        font: 20px/24px monospace;
+    }
+    .item {
+        display: inline list-item;
+        list-style-position: inside;
+        list-style-type: "MMMM";
+    }
+    .item::marker {
+        color: transparent;
+    }
+    .box {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        vertical-align: top;
+        background: green;
+    }
+</style>
+<span class="item"><span class="box"></span></span>

@@ -483,7 +483,9 @@ void LineBuilder::update_last_line()
             : *fragment.layout_node().parent();
         auto const* containing_block = &m_context.containing_block();
         auto const* first_ancestor = &node == containing_block ? nullptr : node.parent();
-        for (auto const* ancestor = first_ancestor; !own_alignment_is_line_relative && ancestor && ancestor->is_inline_node() && ancestor != containing_block; ancestor = ancestor->parent()) {
+        for (auto const* ancestor = first_ancestor;
+            !own_alignment_is_line_relative && ancestor && ancestor->is_fragmented_inline() && ancestor != containing_block;
+            ancestor = ancestor->parent()) {
             auto const& ancestor_vertical_align = ancestor->computed_values().vertical_align();
             if (ancestor_vertical_align.has<CSS::VerticalAlign>()) {
                 auto keyword = ancestor_vertical_align.get<CSS::VerticalAlign>();

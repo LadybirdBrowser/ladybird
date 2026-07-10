@@ -406,9 +406,17 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
         };
     }
 
-    if (is<Layout::ListItemMarkerBox>(*m_current_node)) {
+    if (m_current_node->is_fragmented_inline()) {
         skip_to_next();
         return generate_next_item();
+    }
+
+    if (is<Layout::ListItemMarkerBox>(*m_current_node)) {
+        auto const* list_item = as_if<ListItemBox>(m_current_node->parent());
+        if (!list_item || !list_item->is_fragmented_inline()) {
+            skip_to_next();
+            return generate_next_item();
+        }
     }
 
     if (!is<Layout::Box>(*m_current_node)) {
@@ -426,7 +434,8 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
     }
 
     auto const& box_state = [&]() -> LayoutState::UsedValues const& {
-        if (!m_box_model_node_stack.is_empty() && m_box_model_node_stack.last() == &box)
+        if (is<ListItemMarkerBox>(box)
+            || (!m_box_model_node_stack.is_empty() && m_box_model_node_stack.last() == &box))
             return m_layout_state.get_mutable(box);
         return m_layout_state.create(box, m_layout_input.containing_block_constraints.percentage_basis_width, m_layout_input.containing_block_constraints.percentage_basis_height);
     }();

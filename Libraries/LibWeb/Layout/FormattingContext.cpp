@@ -22,6 +22,7 @@
 #include <LibWeb/Layout/FormattingContext.h>
 #include <LibWeb/Layout/GridFormattingContext.h>
 #include <LibWeb/Layout/InlineNode.h>
+#include <LibWeb/Layout/ListItemMarkerBox.h>
 #include <LibWeb/Layout/ReplacedBox.h>
 #include <LibWeb/Layout/ReplacedWithChildrenFormattingContext.h>
 #include <LibWeb/Layout/SVGFormattingContext.h>
@@ -217,6 +218,36 @@ FormattingContext::~FormattingContext() = default;
 void FormattingContext::place_child(Box const& child, CSSPixelPoint content_offset)
 {
     m_state.get_mutable(child).place(content_offset);
+}
+
+void FormattingContext::dimension_list_item_marker(ListItemMarkerBox const& marker)
+{
+    auto& marker_state = m_state.get_mutable(marker);
+
+    if (auto const* list_style_image = marker.list_style_image()) {
+        marker_state.set_content_width(list_style_image->natural_width(marker.document()).value_or(0));
+        marker_state.set_content_height(list_style_image->natural_height(marker.document()).value_or(0));
+        return;
+    }
+
+    auto marker_size = marker.relative_size();
+    marker_state.set_content_height(marker_size);
+
+    auto const& marker_font = marker.first_available_font();
+    if (auto marker_text = marker.text(); marker_text.has_value()) {
+        // FIXME: Use per-code-point fonts to measure text.
+        auto text_width = marker_font.width(Utf16String::from_utf8(marker_text.value()));
+        marker_state.set_content_width(CSSPixels::nearest_value_for(text_width));
+    } else {
+        marker_state.set_content_width(marker_size);
+    }
+}
+
+CSSPixels FormattingContext::distance_between_marker_and_list_item(ListItemMarkerBox const& marker)
+{
+    if (marker.text().has_value())
+        return 0;
+    return CSSPixels::nearest_value_for(.5f * marker.first_available_font().pixel_size());
 }
 
 bool FormattingContext::computed_height_establishes_definite_containing_block_height(CSS::Size const& computed_height)

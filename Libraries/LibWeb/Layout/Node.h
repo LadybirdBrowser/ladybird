@@ -129,6 +129,7 @@ public:
     bool is_replaced_element() const;
     bool has_replaced_element_table_display_adjustment() const;
     bool is_atomic_inline() const;
+    bool is_fragmented_inline() const;
     bool is_transformable() const;
 
     bool is_out_of_flow(FormattingContext const&) const;
@@ -381,6 +382,7 @@ class NodeWithStyleAndBoxModelMetrics : public NodeWithStyle {
 
 public:
     bool is_inline_flow_interrupting_block() const;
+    NonnullRefPtr<Painting::PaintableWithLines> create_paintable_for_line_with_index(size_t line_index) const;
 
 protected:
     NodeWithStyleAndBoxModelMetrics(DOM::Document&, DOM::Node*, CSS::ComputedProperties const&);

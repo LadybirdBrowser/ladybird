@@ -17,8 +17,6 @@ public:
     InlineNode(DOM::Document&, DOM::Element*, CSS::ComputedProperties const&);
     virtual ~InlineNode() override;
 
-    NonnullRefPtr<Painting::PaintableWithLines> create_paintable_for_line_with_index(size_t line_index) const;
-
 private:
     virtual bool is_inline_node() const override { return true; }
 };

@@ -24,6 +24,8 @@ public:
     ListItemMarkerBox const* marker() const { return m_marker; }
     void set_marker(ListItemMarkerBox*);
 
+    virtual RefPtr<Painting::Paintable> create_paintable() const override;
+
 private:
     virtual bool is_list_item_box() const override { return true; }
 

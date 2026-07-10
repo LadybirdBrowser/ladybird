@@ -45,6 +45,7 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/Paintable.h>
+#include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
 #include <LibWeb/SVG/SVGFilterElement.h>
 #include <LibWeb/SVG/SVGForeignObjectElement.h>
@@ -273,7 +274,7 @@ bool Node::establishes_a_fixed_positioning_containing_block() const
 static Box* nearest_ancestor_capable_of_forming_a_containing_block(Node& node)
 {
     for (auto* ancestor = node.parent(); ancestor; ancestor = ancestor->parent()) {
-        if (ancestor->is_block_container()
+        if ((ancestor->is_block_container() && !ancestor->is_fragmented_inline())
             || ancestor->display().is_flex_inside()
             || ancestor->display().is_grid_inside()
             || ancestor->is_replaced_box_with_children()) {
@@ -622,6 +623,18 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, DOM::Node* node, NonnullOw
 NodeWithStyleAndBoxModelMetrics::NodeWithStyleAndBoxModelMetrics(DOM::Document& document, DOM::Node* node, CSS::ComputedProperties const& style)
     : NodeWithStyle(document, node, style)
 {
+}
+
+NonnullRefPtr<Painting::PaintableWithLines> NodeWithStyleAndBoxModelMetrics::create_paintable_for_line_with_index(size_t line_index) const
+{
+    for (auto const& paintable : paintables()) {
+        if (is<Painting::PaintableWithLines>(*paintable)) {
+            auto const& paintable_with_lines = static_cast<Painting::PaintableWithLines const&>(*paintable);
+            if (paintable_with_lines.line_index() == line_index)
+                return const_cast<Painting::PaintableWithLines&>(paintable_with_lines);
+        }
+    }
+    return Painting::PaintableWithLines::create(*this, line_index);
 }
 
 NodeWithStyle::ImageObserver::ImageObserver(NodeWithStyle& owner, NonnullRefPtr<CSS::ImageStyleValue const> image)
@@ -1241,10 +1254,16 @@ bool Node::has_replaced_element_table_display_adjustment() const
 
 bool Node::is_atomic_inline() const
 {
-    if (is_replaced_element())
+    if (is_replaced_element() || is_list_item_marker_box())
         return true;
     auto display = this->display();
     return display.is_inline_outside() && !display.is_flow_inside();
+}
+
+bool Node::is_fragmented_inline() const
+{
+    return is_inline_node()
+        || (is_list_item_box() && display().is_inline_outside() && display().is_flow_inside());
 }
 
 // https://drafts.csswg.org/css-transforms-1/#transformable-element

@@ -14,7 +14,7 @@
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Layout/BlockContainer.h>
-#include <LibWeb/Layout/InlineNode.h>
+#include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
@@ -42,7 +42,7 @@ NonnullRefPtr<PaintableWithLines> PaintableWithLines::create(Layout::BlockContai
     return adopt_ref(*new PaintableWithLines(block_container));
 }
 
-NonnullRefPtr<PaintableWithLines> PaintableWithLines::create(Layout::InlineNode const& inline_node, size_t line_index)
+NonnullRefPtr<PaintableWithLines> PaintableWithLines::create(Layout::NodeWithStyleAndBoxModelMetrics const& inline_node, size_t line_index)
 {
     return adopt_ref(*new PaintableWithLines(inline_node, line_index));
 }
@@ -52,7 +52,7 @@ PaintableWithLines::PaintableWithLines(Layout::BlockContainer const& layout_box)
 {
 }
 
-PaintableWithLines::PaintableWithLines(Layout::InlineNode const& inline_node, size_t line_index)
+PaintableWithLines::PaintableWithLines(Layout::NodeWithStyleAndBoxModelMetrics const& inline_node, size_t line_index)
     : Paintable(inline_node)
     , m_line_index(line_index)
 {
@@ -284,7 +284,7 @@ void PaintableWithLines::paint(DisplayListRecordingContext& context, PaintPhase 
 
     // An inline's per-line paintable that only hosts an interrupting block's phantom fragment generates no box
     // of its own; painting its background/border would draw a degenerate box at the block's corner.
-    if (is<Layout::InlineNode>(layout_node()) && has_only_block_level_fragments())
+    if (layout_node().is_fragmented_inline() && has_only_block_level_fragments())
         return;
 
     Paintable::paint(context, phase);
