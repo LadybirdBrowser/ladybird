@@ -193,6 +193,7 @@ endpoint WebContentServer
     set_user_style(u64 page_id, String source) =|
 
     system_time_zone_changed() =|
+    set_system_font_family(String family) =|
 
     set_document_cookie_version_buffer(u64 page_id, Core::AnonymousBuffer document_cookie_version_buffer) =|
     set_document_cookie_version_index(u64 page_id, i64 document_id, Core::SharedVersionIndex document_index) =|

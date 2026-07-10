@@ -54,6 +54,8 @@ public:
 
     bool is_layout_test_mode() const { return m_is_layout_test_mode; }
 
+    void set_system_font_family(FlyString);
+
     void update_generic_fonts();
 
 private:
@@ -63,6 +65,7 @@ private:
     HashMap<GenericFontKey, FlyString> m_generic_font_cache;
     Vector<FlyString> m_symbol_font_names;
     RefPtr<Gfx::Font> m_default_fixed_width_font;
+    Optional<FlyString> m_system_font_family;
     bool m_is_layout_test_mode { false };
 };
 

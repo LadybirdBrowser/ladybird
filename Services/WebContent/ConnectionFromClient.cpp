@@ -78,6 +78,7 @@
 #include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
+#include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWebView/Attribute.h>
 #include <LibWebView/DictionaryLookup.h>
@@ -2511,6 +2512,11 @@ void ConnectionFromClient::system_time_zone_changed()
 {
     JS::clear_system_time_zone_cache();
     Unicode::clear_system_time_zone_cache();
+}
+
+void ConnectionFromClient::set_system_font_family(String family)
+{
+    Web::Platform::FontPlugin::the().set_system_font_family(FlyString { family });
 }
 
 void ConnectionFromClient::set_document_cookie_version_buffer(u64 page_id, Core::AnonymousBuffer document_cookie_version_buffer)

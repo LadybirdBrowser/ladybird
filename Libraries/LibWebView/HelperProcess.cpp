@@ -142,7 +142,11 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(IsP
         arguments.append("--mach-server-name"sv);
         arguments.append(server.value());
     }
-    return launch_server_process<WebView::WebContentClient>("WebContent"sv, move(arguments), is_private, initial_page_id, root_navigable_id);
+
+    auto client = TRY(launch_server_process<WebView::WebContentClient>("WebContent"sv, move(arguments), is_private, initial_page_id, root_navigable_id));
+    if (auto system_font_family = WebView::Application::the().system_font_family(); system_font_family.has_value())
+        client->async_set_system_font_family(system_font_family.release_value());
+    return client;
 }
 
 ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_image_decoder_process()

@@ -61,6 +61,9 @@ private:
 
     virtual void create_platform_options(WebView::BrowserOptions&, WebView::RequestServerOptions&, WebView::WebContentOptions&) override;
     virtual Core::EventLoop& create_platform_event_loop() override;
+#if !defined(AK_OS_MACOS)
+    virtual Optional<String> system_font_family() const override;
+#endif
 
     virtual Optional<WebView::ViewImplementation&> active_web_view() const override;
     virtual Vector<WebView::ViewImplementation&> active_window_web_views() const override;

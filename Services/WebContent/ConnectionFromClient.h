@@ -216,6 +216,7 @@ private:
     virtual void unmark_text_from_input_method(u64 page_id) override;
 
     virtual void system_time_zone_changed() override;
+    virtual void set_system_font_family(String family) override;
 
     virtual void set_document_cookie_version_buffer(u64 page_id, Core::AnonymousBuffer document_cookie_version_buffer) override;
     virtual void set_document_cookie_version_index(u64 page_id, i64 document_id, Core::SharedVersionIndex document_index) override;

@@ -28,6 +28,7 @@
 #include <QDialogButtonBox>
 #include <QFileDialog>
 #include <QFileOpenEvent>
+#include <QFont>
 #include <QFormLayout>
 #include <QKeySequence>
 #include <QLineEdit>
@@ -364,6 +365,16 @@ void Application::create_platform_options(WebView::BrowserOptions&, WebView::Req
 {
     web_content_options.config_path = Settings::the()->directory();
 }
+
+#if !defined(AK_OS_MACOS)
+// On macOS, WebContent resolves system-ui with CoreText, so the system font family is not sent there.
+Optional<String> Application::system_font_family() const
+{
+    if (!m_application)
+        return {};
+    return ak_string_from_qstring(QGuiApplication::font().family());
+}
+#endif
 
 Core::EventLoop& Application::create_platform_event_loop()
 {

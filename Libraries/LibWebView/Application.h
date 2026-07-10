@@ -72,6 +72,8 @@ public:
     static RequestServerOptions const& request_server_options() { return the().m_request_server_options; }
     static WebContentOptions& web_content_options() { return the().m_web_content_options; }
 
+    virtual Optional<String> system_font_family() const { return {}; }
+
     static Requests::RequestClient& request_server_client(IsPrivate = IsPrivate::No);
     static ImageDecoderClient::Client& image_decoder_client() { return *the().m_image_decoder_client; }
 

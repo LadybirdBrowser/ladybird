@@ -77,6 +77,14 @@ Vector<FlyString> FontPlugin::symbol_font_names()
     return m_symbol_font_names;
 }
 
+void FontPlugin::set_system_font_family(FlyString system_font_family)
+{
+    if (m_system_font_family == system_font_family)
+        return;
+    m_system_font_family = move(system_font_family);
+    m_generic_font_cache.clear();
+}
+
 void FontPlugin::update_generic_fonts()
 {
     // Store fallback font lists for each generic font category.
@@ -151,6 +159,15 @@ FlyString FontPlugin::compute_generic_font_name(GenericFont generic_font, int we
         break;
     default:
         VERIFY_NOT_REACHED();
+    }
+
+    if (generic_font == GenericFont::UiSansSerif && m_system_font_family.has_value()) {
+        auto system_font_family_is_available = false;
+        Gfx::FontDatabase::the().for_each_typeface_with_family_name(m_system_font_family.value(), [&](Gfx::Typeface const&) {
+            system_font_family_is_available = true;
+        });
+        if (system_font_family_is_available)
+            return m_system_font_family.value();
     }
 
     auto name = Gfx::TypefaceSkia::resolve_generic_family(generic_family_name, weight, slope);
