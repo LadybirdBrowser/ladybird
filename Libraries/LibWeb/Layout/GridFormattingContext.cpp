@@ -3102,7 +3102,10 @@ void GridFormattingContext::parent_context_did_dimension_child_root_box()
 
     grid_container().for_each_child_of_type<Box>([&](Layout::Box& box) {
         if (box.is_absolutely_positioned()) {
-            m_state.create(box, {}, {}).set_static_position_rect(calculate_static_position_rect(box));
+            // A zero static position rect suffices: it is only consulted when the containing
+            // block is not the grid container; when it is, the static position is the grid
+            // area rect, which GFC's abspos containing block resolution supplies instead.
+            register_contained_abspos_child(box, {});
         }
         return IterationDecision::Continue;
     });
@@ -3993,17 +3996,6 @@ CSSPixels GridFormattingContext::calculate_minimum_contribution(GridItem const& 
     }
 
     return calculate_min_content_contribution(item, dimension);
-}
-
-StaticPositionRect GridFormattingContext::calculate_static_position_rect(Box const& box) const
-{
-    // Result of this function is only used when containing block is not a grid container.
-    // If the containing block is a grid container then static position is a grid area rect and
-    // layout_absolutely_positioned_element() defined for GFC knows how to handle this case.
-    StaticPositionRect static_position;
-    auto const& box_state = m_state.get(box);
-    static_position.rect = { { 0, 0 }, { box_state.content_width(), box_state.content_height() } };
-    return static_position;
 }
 
 }

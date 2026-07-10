@@ -1194,4 +1194,34 @@ void LayoutState::UsedValues::set_indefinite_content_height()
     m_has_definite_height = false;
 }
 
+void LayoutState::register_contained_abspos_child(Box const& target, Box const& child, StaticPositionRect const& static_position_rect)
+{
+    auto& children = m_contained_abspos_children.ensure(&target);
+    // The same box can be encountered again when a subtree is intentionally laid out
+    // twice (percentage-height table cells); the fresh static position replaces the
+    // stale one instead of duplicating the entry. New entries are inserted in layout
+    // index order so consumption follows document order.
+    size_t insertion_index = children.size();
+    for (size_t i = 0; i < children.size(); ++i) {
+        if (children[i].box == &child) {
+            children[i].static_position_rect = static_position_rect;
+            return;
+        }
+        if (insertion_index == children.size() && child.layout_index() < children[i].box->layout_index())
+            insertion_index = i;
+    }
+    children.insert(insertion_index, { &child, static_position_rect });
+}
+
+Optional<LayoutState::ContainedAbsposChild> LayoutState::take_next_contained_abspos_child(Box const& target)
+{
+    auto it = m_contained_abspos_children.find(&target);
+    if (it == m_contained_abspos_children.end())
+        return {};
+    auto child = it->value.take_first();
+    if (it->value.is_empty())
+        m_contained_abspos_children.remove(it);
+    return child;
+}
+
 }

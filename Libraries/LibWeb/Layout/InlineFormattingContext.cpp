@@ -574,10 +574,7 @@ void InlineFormattingContext::generate_line_boxes()
                 if (found_static_position_marker)
                     break;
             }
-            auto& box_state = is<ListItemMarkerBox>(*box)
-                ? m_state.get_mutable(*box)
-                : m_state.create(*box, {}, {});
-            box_state.set_static_position_rect(static_position_rect);
+            register_contained_abspos_child(*box, static_position_rect);
         }
     }
 

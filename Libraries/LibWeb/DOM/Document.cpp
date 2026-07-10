@@ -1871,28 +1871,6 @@ void Document::update_layout(UpdateLayoutReason reason)
 
             layout_node.recompute_containing_block({});
 
-            auto* box = as_if<Layout::Box>(layout_node);
-            if (!box)
-                return TraversalDecision::Continue;
-
-            box->clear_contained_abspos_children();
-
-            if (!box->is_absolutely_positioned())
-                return TraversalDecision::Continue;
-
-            if (auto containing_block = box->containing_block()) {
-                auto closest_box_that_establishes_formatting_context = containing_block;
-                while (closest_box_that_establishes_formatting_context) {
-                    if (closest_box_that_establishes_formatting_context == m_layout_root)
-                        break;
-                    if (Layout::FormattingContext::formatting_context_type_created_by_box(*closest_box_that_establishes_formatting_context).has_value())
-                        break;
-                    closest_box_that_establishes_formatting_context = closest_box_that_establishes_formatting_context->containing_block();
-                }
-                VERIFY(closest_box_that_establishes_formatting_context);
-                closest_box_that_establishes_formatting_context->add_contained_abspos_child(*box);
-            }
-
             return TraversalDecision::Continue;
         });
 

@@ -280,9 +280,8 @@ void FlexFormattingContext::parent_context_did_dimension_child_root_box()
         return;
 
     flex_container().for_each_child_of_type<Box>([&](Layout::Box& box) {
-        if (box.is_absolutely_positioned()) {
-            m_state.create(box, {}, {}).set_static_position_rect(calculate_static_position_rect(box));
-        }
+        if (box.is_absolutely_positioned())
+            register_contained_abspos_child(box, calculate_static_position_rect(box));
         return IterationDecision::Continue;
     });
 

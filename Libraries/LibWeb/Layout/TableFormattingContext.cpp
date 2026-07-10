@@ -1815,16 +1815,8 @@ void TableFormattingContext::seed_table_participant_used_values(ContainingBlockC
         if (!child_box)
             continue;
 
-        if (child_box->display().is_table_caption()) {
+        if (child_box->display().is_table_caption())
             m_state.create(*child_box, participant_percentage_basis.percentage_basis_width, participant_percentage_basis.percentage_basis_height);
-            continue;
-        }
-
-        if (!child_box->is_absolutely_positioned() || m_state.try_get_mutable(*child_box))
-            continue;
-
-        auto& child_box_state = m_state.create(*child_box, participant_percentage_basis.percentage_basis_width, participant_percentage_basis.percentage_basis_height);
-        child_box_state.set_static_position_rect(calculate_static_position_rect(*child_box));
     }
 }
 
@@ -1893,11 +1885,10 @@ void TableFormattingContext::parent_context_did_dimension_child_root_box()
         return;
 
     context_box().for_each_in_subtree_of_type<Box const>([&](Layout::Box const& box) {
-        if (box.is_absolutely_positioned() && !m_state.try_get(box)) {
-            // FIXME: calculate_static_position_rect() is not aware of how to correctly calculate static position for
-            //        a box nested inside a table, but we need to set some value, so layout_absolutely_positioned_element()
-            //        won't crash trying to access it.
-            m_state.create(box, {}, {}).set_static_position_rect(calculate_static_position_rect(box));
+        if (box.is_absolutely_positioned()) {
+            // FIXME: Calculate the real static position for a box nested inside a table
+            //        instead of registering a zero rect.
+            register_contained_abspos_child(box, {});
         }
 
         if (formatting_context_type_created_by_box(box).has_value()) {
@@ -2144,14 +2135,6 @@ CSSPixels TableFormattingContext::border_spacing_vertical() const
     if (computed_values.border_collapse() == CSS::BorderCollapse::Collapse)
         return 0;
     return computed_values.border_spacing_vertical();
-}
-
-StaticPositionRect TableFormattingContext::calculate_static_position_rect(Box const&) const
-{
-    // FIXME: Implement static position calculation for table descendants instead of always returning a rectangle with zero position and size.
-    StaticPositionRect static_position;
-    static_position.rect = { { 0, 0 }, { 0, 0 } };
-    return static_position;
 }
 
 template<>

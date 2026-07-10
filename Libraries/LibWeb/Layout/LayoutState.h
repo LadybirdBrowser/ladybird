@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/BumpAllocator.h>
+#include <AK/HashMap.h>
 #include <AK/OwnPtr.h>
 #include <AK/kmalloc.h>
 #include <LibGfx/Path.h>
@@ -315,14 +316,6 @@ struct LayoutState {
             return move(m_rare->flex_layout_data);
         }
 
-        void set_static_position_rect(StaticPositionRect const& static_position_rect) { ensure_rare_data().static_position_rect = static_position_rect; }
-        CSSPixelPoint static_position() const
-        {
-            if (!m_rare || !m_rare->static_position_rect.has_value())
-                return {};
-            return m_rare->static_position_rect->aligned_position_for_box_with_size({ margin_box_width(), margin_box_height() });
-        }
-
     private:
         friend struct LayoutState;
         friend class FormattingContext;
@@ -355,7 +348,6 @@ struct LayoutState {
                 , grid_template_rows(other.grid_template_rows)
                 , override_borders_data(other.override_borders_data)
                 , computed_svg_transforms(other.computed_svg_transforms)
-                , static_position_rect(other.static_position_rect)
             {
                 if (other.grid_layout_data)
                     grid_layout_data = make<GridLayoutData>(*other.grid_layout_data);
@@ -372,7 +364,6 @@ struct LayoutState {
             RefPtr<CSS::GridTrackSizeListStyleValue const> grid_template_rows;
             Optional<Painting::Paintable::BordersDataWithElementKind> override_borders_data;
             Optional<Painting::SVGGraphicsPaintable::ComputedTransforms> computed_svg_transforms;
-            Optional<StaticPositionRect> static_position_rect;
         };
 
         RareData& ensure_rare_data()
@@ -430,12 +421,20 @@ struct LayoutState {
 
     bool has_subtree_root() const { return m_subtree_root != nullptr; }
 
+    struct ContainedAbsposChild {
+        Box const* box { nullptr };
+        StaticPositionRect static_position_rect;
+    };
+    void register_contained_abspos_child(Box const& target, Box const& child, StaticPositionRect const&);
+    [[nodiscard]] Optional<ContainedAbsposChild> take_next_contained_abspos_child(Box const& target);
+
 private:
     void resolve_relative_positions();
 
     PagedStore<UsedValues> m_used_values_store;
     Layout::NodeWithStyle const* m_subtree_root { nullptr };
     bool m_should_collect_devtools_layout_data { false };
+    HashMap<Box const*, Vector<ContainedAbsposChild>> m_contained_abspos_children;
 };
 
 inline CSSPixels clamp_to_max_dimension_value(CSSPixels value)

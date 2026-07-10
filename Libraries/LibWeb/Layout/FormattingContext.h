@@ -129,6 +129,10 @@ public:
 
     [[nodiscard]] static Optional<Type> formatting_context_type_created_by_box(Box const&);
 
+    // The box whose formatting context lays out `child` if `child` is absolutely
+    // positioned: the closest formatting context root at or above its containing block.
+    [[nodiscard]] static Box const& box_establishing_containing_formatting_context(Box const& child);
+
     static bool creates_block_formatting_context(Box const&);
 
     CSSPixels compute_table_box_width_inside_table_wrapper(Box const&, AvailableSpace const&,
@@ -237,25 +241,27 @@ protected:
 
     ShrinkToFitResult calculate_shrink_to_fit_widths(Box const&, ContainingBlockConstraints const&);
 
-    void layout_absolutely_positioned_element(Box&);
+    void layout_absolutely_positioned_element(Box&, StaticPositionRect const&);
 
     CSSPixels gap_to_px(Variant<CSS::LengthPercentage, CSS::NormalGap> const& gap, CSSPixels reference_value) const;
 
+    void register_contained_abspos_child(Box const& child, StaticPositionRect const&);
+    [[nodiscard]] static CSSPixelPoint aligned_static_position(StaticPositionRect const&, LayoutState::UsedValues const&);
     void layout_absolutely_positioned_children();
     void layout_absolutely_positioned_children(Box const&);
     virtual AbsposContainingBlockInfo resolve_abspos_containing_block_info(Box const&);
     void resolve_anchor_insets(Box&) const;
-    void compute_width_for_absolutely_positioned_element(Box const&, AvailableSpace const&, ContainingBlockConstraints const&);
-    void compute_width_for_absolutely_positioned_non_replaced_element(Box const&, AvailableSpace const&, ContainingBlockConstraints const&);
-    void compute_width_for_absolutely_positioned_replaced_element(Box const&, AvailableSpace const&, ContainingBlockConstraints const&);
+    void compute_width_for_absolutely_positioned_element(Box const&, AvailableSpace const&, ContainingBlockConstraints const&, StaticPositionRect const&);
+    void compute_width_for_absolutely_positioned_non_replaced_element(Box const&, AvailableSpace const&, ContainingBlockConstraints const&, StaticPositionRect const&);
+    void compute_width_for_absolutely_positioned_replaced_element(Box const&, AvailableSpace const&, ContainingBlockConstraints const&, StaticPositionRect const&);
 
     enum class BeforeOrAfterInsideLayout {
         Before,
         After,
     };
-    void compute_height_for_absolutely_positioned_element(Box const&, AvailableSpace const&, ContainingBlockConstraints const&, BeforeOrAfterInsideLayout);
-    void compute_height_for_absolutely_positioned_non_replaced_element(Box const&, AvailableSpace const&, ContainingBlockConstraints const&, BeforeOrAfterInsideLayout);
-    void compute_height_for_absolutely_positioned_replaced_element(Box const&, AvailableSpace const&, ContainingBlockConstraints const&, BeforeOrAfterInsideLayout);
+    void compute_height_for_absolutely_positioned_element(Box const&, AvailableSpace const&, ContainingBlockConstraints const&, StaticPositionRect const&, BeforeOrAfterInsideLayout);
+    void compute_height_for_absolutely_positioned_non_replaced_element(Box const&, AvailableSpace const&, ContainingBlockConstraints const&, StaticPositionRect const&, BeforeOrAfterInsideLayout);
+    void compute_height_for_absolutely_positioned_replaced_element(Box const&, AvailableSpace const&, ContainingBlockConstraints const&, StaticPositionRect const&, BeforeOrAfterInsideLayout);
 
     [[nodiscard]] Optional<CSSPixels> compute_auto_height_for_absolutely_positioned_element(Box const&, AvailableSpace const&, ContainingBlockConstraints const&, BeforeOrAfterInsideLayout) const;
 

@@ -1051,24 +1051,12 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
 
     if (box.is_absolutely_positioned()) {
         if (m_layout_mode == LayoutMode::Normal) {
-            // Absolutely positioned boxes enter layout here, in the context that contains them.
-            // Two kinds of boxes already have used values: list item markers, whose used values
-            // were created together with the ListItemBox that places them, and the document
-            // element, which was created by the layout entry point (and can end up absolutely
-            // positioned, e.g. as a popover).
-            auto box_is_document_element = box.dom_node() && box.dom_node() == box.document().document_element();
-            // The percentage basis of an absolutely positioned box is the padding box of its
-            // absolute positioning containing block; layout_absolutely_positioned_element() pins
-            // it once that rectangle is known.
-            auto& box_state = is<ListItemMarkerBox>(box) || box_is_document_element
-                ? m_state.get_mutable(box)
-                : m_state.create(box, {}, {});
             // NB: An originally-inline absolutely positioned box never reaches this path; the tree
             //     builder keeps out-of-flow boxes in inline context, where static position markers
             //     pin them at their exact flow position.
             StaticPositionRect static_position;
             static_position.rect = { { 0, m_y_offset_of_current_block_container.value() }, { 0, 0 } };
-            box_state.set_static_position_rect(static_position);
+            register_contained_abspos_child(box, static_position);
         }
         return;
     }

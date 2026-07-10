@@ -173,7 +173,6 @@ public:
     virtual void run(LayoutInput const&) override;
     virtual CSSPixels automatic_content_width() const override;
     virtual CSSPixels automatic_content_height() const override;
-    StaticPositionRect calculate_static_position_rect(Box const&) const;
 
     Box const& grid_container() const { return context_box(); }
 
