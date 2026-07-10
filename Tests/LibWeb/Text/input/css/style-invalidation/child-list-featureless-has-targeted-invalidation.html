@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../../include.js"></script>
+<style>
+    /* A :has() selector with a featureless-sensitive argument. Its presence
+       must not force conservative :has() invalidation for child-list mutations
+       near unrelated anchors. */
+    .hook:has(:not(.absent)) {
+        color: rgb(1, 1, 1);
+    }
+
+    /* A never-matching :has() argument scans the whole wrapper subtree and
+       leaves every element in it inside the :has() scope, with #wrapper as an
+       anchor in non-subject position. */
+    #wrapper:has(.missing) span {
+        color: rgb(9, 9, 9);
+    }
+</style>
+<div class="hook">hook</div>
+<div id="wrapper">
+    <div id="big"></div>
+    <div id="stream"></div>
+</div>
+<script>
+    test(() => {
+        const big = document.getElementById("big");
+        for (let i = 0; i < 500; ++i) {
+            const leaf = document.createElement("span");
+            leaf.textContent = `leaf ${i}`;
+            big.appendChild(leaf);
+        }
+        const stream = document.getElementById("stream");
+        internals.updateStyle();
+        internals.resetStyleInvalidationCounters();
+
+        // Simulate response streaming: append plain paragraphs one at a time,
+        // flushing style after each append. No :has() argument anchored at an
+        // ancestor of #stream can match a plain <p>, so the appends must not
+        // fan out into a restyle of the wrapper subtree.
+        for (let i = 0; i < 10; ++i) {
+            const p = document.createElement("p");
+            p.textContent = `chunk ${i}`;
+            stream.appendChild(p);
+            internals.updateStyle();
+        }
+
+        const counters = internals.getStyleInvalidationCounters();
+        if (counters.elementStyleRecomputations < 100)
+            println("PASS: streamed appends stayed targeted");
+        else
+            println(`FAIL: streamed appends recomputed ${counters.elementStyleRecomputations} elements`);
+    });
+</script>
