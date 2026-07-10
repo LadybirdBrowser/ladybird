@@ -1,1 +1,1 @@
-FAIL: ::after width was changed by the transition
+PASS: ::after width is unchanged by the transition
