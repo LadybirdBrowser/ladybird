@@ -1,0 +1,20 @@
+<!doctype html><style>
+.grid {
+    display: grid;
+    gap: 10px;
+    width: 530px;
+}
+.fit { grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); }
+.fill { grid-template-columns: repeat(auto-fill, minmax(0, 1fr)); }
+.item { height: 40px; }
+</style>
+<div class="grid fit">
+    <div class="item">a</div>
+    <div class="item">b</div>
+    <div class="item">c</div>
+</div>
+<div class="grid fill">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>
