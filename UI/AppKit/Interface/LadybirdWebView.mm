@@ -401,20 +401,23 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
         if (self == nil) {
             return;
         }
-        [self.observer onLoadStart];
-
         if (_status_label != nil) {
             [self.status_label setHidden:YES];
         }
     };
 
-    m_web_view_bridge->on_load_finish = [weak_self](auto const&) {
+    m_web_view_bridge->on_loading_state_change = [weak_self](bool is_loading) {
         LadybirdWebView* self = weak_self;
         if (self == nil) {
             return;
         }
-        [self.observer onLoadFinish];
+        if (is_loading)
+            [self.observer onLoadStart];
+        else
+            [self.observer onLoadFinish];
     };
+    if (m_web_view_bridge->is_loading())
+        m_web_view_bridge->on_loading_state_change(true);
 
     m_web_view_bridge->on_url_change = [weak_self](auto const& url) {
         LadybirdWebView* self = weak_self;

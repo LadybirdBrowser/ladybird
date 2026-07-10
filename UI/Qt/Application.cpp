@@ -416,6 +416,13 @@ BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, Win
 
     window->activateWindow();
     window->raise();
+
+    size_t initial_url_index = 0;
+    window->for_each_tab([&](Tab& tab) {
+        if (initial_url_index < initial_urls.size())
+            tab.navigate(initial_urls[initial_url_index++]);
+    });
+
     if (should_focus_location_editor) {
         QTimer::singleShot(0, window, [window] {
             if (auto* tab = window->current_tab())

@@ -539,20 +539,20 @@ void PageClient::page_did_middle_click_link(URL::URL const& url, ByteString cons
     client().async_did_middle_click_link(m_id, url, target, modifiers);
 }
 
-void PageClient::page_did_start_loading(URL::URL const& url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, bool is_redirect, Web::Bindings::NavigationHistoryBehavior history_handling)
+void PageClient::page_did_start_loading(Optional<String> const& navigation_id, URL::URL const& url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, bool is_redirect, Web::Bindings::NavigationHistoryBehavior history_handling)
 {
     if (m_webdriver)
         m_webdriver->page_did_start_loading({}, url);
 
-    client().async_did_start_loading(m_id, url, move(document_resource), is_redirect, history_handling);
+    client().async_did_start_loading(m_id, navigation_id, url, move(document_resource), is_redirect, history_handling);
 }
 
-void PageClient::page_did_cancel_loading(URL::URL const& url)
+void PageClient::page_did_cancel_loading(Optional<String> const& navigation_id, URL::URL const& url)
 {
     if (m_webdriver)
         m_webdriver->page_did_cancel_loading({}, url);
 
-    client().async_did_cancel_loading(m_id, url);
+    client().async_did_cancel_loading(m_id, navigation_id, url);
 }
 
 void PageClient::page_did_create_new_document(Web::DOM::Document& document)
@@ -581,9 +581,9 @@ void PageClient::page_did_change_active_document_in_top_level_browsing_context(W
     }
 }
 
-void PageClient::page_did_finish_loading(URL::URL const& url)
+void PageClient::page_did_finish_loading(Optional<String> const& navigation_id, URL::URL const& url)
 {
-    client().async_did_finish_loading(m_id, url);
+    client().async_did_finish_loading(m_id, navigation_id, url);
 }
 
 Optional<u64> PageClient::page_did_start_download(URL::URL const& url, ByteString const& suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data)

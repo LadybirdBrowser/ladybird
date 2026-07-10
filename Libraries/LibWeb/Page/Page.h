@@ -497,16 +497,16 @@ public:
     virtual void page_did_request_minimize_window() { }
     virtual void page_did_request_fullscreen_window() { }
     virtual void page_did_request_exit_fullscreen() { }
-    virtual void page_did_start_loading(URL::URL const&, Variant<Empty, String, HTML::POSTResource> document_resource, bool is_redirect, Bindings::NavigationHistoryBehavior history_handling = Bindings::NavigationHistoryBehavior::Auto)
+    virtual void page_did_start_loading(Optional<String> const&, URL::URL const&, Variant<Empty, String, HTML::POSTResource> document_resource, bool is_redirect, Bindings::NavigationHistoryBehavior history_handling = Bindings::NavigationHistoryBehavior::Auto)
     {
         (void)document_resource;
         (void)is_redirect;
         (void)history_handling;
     }
-    virtual void page_did_cancel_loading(URL::URL const&) { }
+    virtual void page_did_cancel_loading(Optional<String> const&, URL::URL const&) { }
     virtual void page_did_create_new_document(Web::DOM::Document&) { }
     virtual void page_did_change_active_document_in_top_level_browsing_context(Web::DOM::Document&) { }
-    virtual void page_did_finish_loading(URL::URL const&) { }
+    virtual void page_did_finish_loading(Optional<String> const&, URL::URL const&) { }
     virtual Optional<u64> page_did_start_download(URL::URL const&, ByteString const& suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data)
     {
         (void)suggested_filename;

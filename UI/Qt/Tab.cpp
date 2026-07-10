@@ -725,17 +725,10 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         m_hover_label->hide();
     };
 
-    view().on_load_start = [this]() {
-        set_loading(true);
+    view().on_loading_state_change = [this](bool is_loading) {
+        set_loading(is_loading);
     };
-
-    view().on_load_finish = [this](auto const&) {
-        set_loading(false);
-    };
-
-    view().on_web_content_crashed = [this] {
-        set_loading(false);
-    };
+    set_loading(view().is_loading());
 
     view().on_url_change = [this](auto const& url) {
         m_location_edit->set_url(url);

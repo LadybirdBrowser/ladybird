@@ -482,9 +482,8 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     if (parent_tab) {
         new_child_tab(Web::HTML::ActivateTab::Yes, *parent_tab, AK::move(page_index));
     } else {
-        for (size_t i = 0; i < initial_urls.size(); ++i) {
-            new_tab_from_url(initial_urls[i], (i == 0) ? Web::HTML::ActivateTab::Yes : Web::HTML::ActivateTab::No, TabLocation::end());
-        }
+        for (size_t i = 0; i < initial_urls.size(); ++i)
+            create_new_tab((i == 0) ? Web::HTML::ActivateTab::Yes : Web::HTML::ActivateTab::No, TabLocation::end());
     }
 
     m_tabs_container->set_new_tab_action(m_new_tab_action);

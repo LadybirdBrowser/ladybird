@@ -102,6 +102,8 @@ public:
     void load_navigation_error_page(StringView);
 
     void reload();
+    bool is_loading() const { return m_is_loading; }
+
     struct SessionHistoryTraversalMenuItem {
         int delta { 0 };
         String title;
@@ -312,6 +314,7 @@ public:
     Function<void(URL::URL const&)> on_url_change;
     Function<void()> on_load_start;
     Function<void(URL::URL const&)> on_load_finish;
+    Function<void(bool)> on_loading_state_change;
     Function<void(ByteString const& path, i32)> on_request_file;
     Function<void(DictionaryLookup const&, Gfx::IntPoint)> on_request_dictionary_lookup;
     Function<void(Optional<Gfx::Bitmap const&>)> on_favicon_change;
@@ -413,6 +416,7 @@ protected:
     void did_start_navigation(URL::URL const&, Variant<Empty, String, Web::HTML::POSTResource>, bool is_redirect, Web::Bindings::NavigationHistoryBehavior);
     bool did_cancel_navigation(URL::URL const&);
     void did_finish_navigation(URL::URL const&);
+    void set_loading_state(bool);
     void complete_webdriver_navigation_completion(u64 request_id, Web::WebDriver::Response);
     void complete_webdriver_pending_navigation_if_url_matches(URL::URL const&);
     void update_navigation_action_state();
@@ -565,6 +569,10 @@ protected:
 
     bool m_should_suppress_history_for_current_load { false };
     bool m_should_suppress_history_for_next_load { false };
+    bool m_is_loading { false };
+    bool m_is_waiting_for_navigation_start { false };
+    Optional<String> m_loading_navigation_id;
+
     size_t m_crash_count = 0;
     RefPtr<Core::Timer> m_repeated_crash_timer;
 

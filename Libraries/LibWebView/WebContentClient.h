@@ -129,7 +129,7 @@ private:
     virtual void did_change_top_level_active_document(u64 page_id, Web::HTML::ReplicatedNavigableState replicated_state) override;
     virtual void did_destroy_child_frame(u64 page_id, Web::HTML::NavigableId frame_id) override;
     virtual void did_start_webdriver_navigation(u64 page_id, URL::URL url) override;
-    virtual void did_finish_loading(u64 page_id, URL::URL) override;
+    virtual void did_finish_loading(u64 page_id, Optional<String>, URL::URL) override;
     virtual void did_request_refresh(u64 page_id) override;
     virtual void did_request_cursor_change(u64 page_id, Gfx::Cursor) override;
     virtual void did_change_title(u64 page_id, Utf16String) override;
@@ -142,8 +142,8 @@ private:
     virtual void did_unhover_link(u64 page_id) override;
     virtual void did_click_link(u64 page_id, URL::URL, ByteString, unsigned) override;
     virtual void did_middle_click_link(u64 page_id, URL::URL, ByteString, unsigned) override;
-    virtual void did_start_loading(u64 page_id, URL::URL, Variant<Empty, String, Web::HTML::POSTResource>, bool, Web::Bindings::NavigationHistoryBehavior) override;
-    virtual void did_cancel_loading(u64 page_id, URL::URL) override;
+    virtual void did_start_loading(u64 page_id, Optional<String>, URL::URL, Variant<Empty, String, Web::HTML::POSTResource>, bool, Web::Bindings::NavigationHistoryBehavior) override;
+    virtual void did_cancel_loading(u64 page_id, Optional<String>, URL::URL) override;
     virtual Messages::WebContentClient::DidStartDownloadWithoutRequestResponse did_start_download_without_request(u64 page_id, URL::URL, ByteString suggested_filename, Optional<u64> total_size) override;
     virtual Messages::WebContentClient::DidStartDownloadResponse did_start_download(u64 page_id, URL::URL, ByteString suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data) override;
     virtual void did_receive_download_data(u64 page_id, u64 download_id, ByteBuffer data) override;
