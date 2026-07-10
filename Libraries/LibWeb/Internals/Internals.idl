@@ -161,6 +161,8 @@ interface Internals {
     undefined setPreferredColorScheme(Utf16DOMString colorScheme);
     // Simulates the window gaining or losing focus (e.g. browser chrome or another window taking focus).
     undefined setPageFocus(boolean hasFocus);
+    // Simulates the page being shown or hidden (e.g. switching to another tab). Accepts "visible" or "hidden".
+    undefined setSystemVisibilityState(Utf16DOMString state);
     Utf16DOMString canvasColorScheme();
     // Returns the selector-insight cache state for stylesheet invalidation tests.
     boolean styleSheetMayHaveHasSelectors(CSSStyleSheet sheet);
