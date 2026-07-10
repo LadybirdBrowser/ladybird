@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<style>
+    @keyframes slide {
+        from {
+            transform: translateX(100px);
+        }
+        to {
+            transform: translateX(0);
+        }
+    }
+
+    @keyframes appear {
+        from {
+            display: none;
+            transform: translateX(100px);
+        }
+        to {
+            display: block;
+            transform: translateX(0);
+        }
+    }
+
+    #box {
+        display: none;
+        animation: slide 100s linear;
+    }
+
+    #child {
+        animation: slide 100s linear;
+    }
+
+    /* Mimics an animate-in drawer that should stay hidden while closed. */
+    #drawer {
+        display: none;
+        animation: appear 100s linear;
+    }
+</style>
+<div id="box"><div id="child"></div></div>
+<div id="drawer"></div>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        // Give any (incorrectly started) animation time to advance past progress 0.
+        await animationFrame();
+        await animationFrame();
+
+        const box = document.getElementById("box");
+        const child = document.getElementById("child");
+        const drawer = document.getElementById("drawer");
+
+        println("box animations: " + box.getAnimations().length);
+        println("child animations: " + child.getAnimations().length);
+        println("drawer animations: " + drawer.getAnimations().length);
+
+        // Force a style recomputation so a running animation would be re-sampled mid-flight.
+        drawer.style.setProperty("--force", "1");
+        println("drawer computed display: " + getComputedStyle(drawer).display);
+        println("drawer has transform: " + (getComputedStyle(drawer).transform !== "none"));
+        println("box has transform: " + (getComputedStyle(box).transform !== "none"));
+
+        box.style.display = "block";
+        println("after reveal, box animations: " + box.getAnimations().length);
+        println("after reveal, child animations: " + child.getAnimations().length);
+
+        box.style.display = "none";
+        println("after hiding again, box animations: " + box.getAnimations().length);
+        println("after hiding again, child animations: " + child.getAnimations().length);
+
+        done();
+    });
+</script>

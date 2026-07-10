@@ -1,0 +1,10 @@
+box animations: 1
+child animations: 0
+drawer animations: 1
+drawer computed display: none
+drawer has transform: true
+box has transform: true
+after reveal, box animations: 1
+after reveal, child animations: 1
+after hiding again, box animations: 0
+after hiding again, child animations: 0
