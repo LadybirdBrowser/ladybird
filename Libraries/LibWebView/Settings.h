@@ -66,7 +66,7 @@ enum class ConfigVariableID : u8 {
     ShowAdvancedDebugMenu,
     ContentBlockerListPaths,
     UseRoundedWindowCorners,
-    UseServerSideWindowDecorations,
+    UseClientSideWindowDecorations,
 
     Count,
 };

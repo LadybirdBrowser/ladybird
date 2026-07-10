@@ -105,11 +105,11 @@ static auto const& CONFIG_VARIABLE_DEFINITIONS = *new Array<ConfigVariableDefini
         .array_element_type = {},
     },
     {
-        .id = ConfigVariableID::UseServerSideWindowDecorations,
-        .name = "ui.window.use_server_side_decorations"sv,
-        .title = "Use server-side window decorations"sv,
-        .description = "Use the system window frame instead of the custom title bar and window controls."sv,
-        .default_value = false,
+        .id = ConfigVariableID::UseClientSideWindowDecorations,
+        .name = "ui.window.use_client_side_decorations"sv,
+        .title = "Use client-side window decorations"sv,
+        .description = "Use custom title bar and window controls instead of the system window frame."sv,
+        .default_value = true,
         .array_element_type = {},
     },
 } };

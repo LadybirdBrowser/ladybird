@@ -34,15 +34,14 @@ static StringView config_variable_type_to_string(JsonValue::Type type)
     VERIFY_NOT_REACHED();
 }
 
-static bool should_show_config_variable([[maybe_unused]] ConfigVariableID id)
+static bool should_show_config_variable(ConfigVariableID id)
 {
 #if !defined(AK_OS_MACOS)
     if (id == ConfigVariableID::UseRoundedWindowCorners)
         return false;
 #endif
-    if (id == ConfigVariableID::UseServerSideWindowDecorations)
-        return Application::the().supports_server_side_window_decorations();
-
+    if (id == ConfigVariableID::UseClientSideWindowDecorations)
+        return Application::the().supports_client_side_window_decorations();
     return true;
 }
 

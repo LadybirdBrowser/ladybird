@@ -591,7 +591,7 @@ FullscreenMode& BrowserWindow::fullscreen_mode()
 
 bool BrowserWindow::uses_client_side_decorations()
 {
-    return !WebView::Application::settings().config_variable_as_bool(WebView::ConfigVariableID::UseServerSideWindowDecorations);
+    return WebView::Application::settings().config_variable_as_bool(WebView::ConfigVariableID::UseClientSideWindowDecorations);
 }
 
 Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab, TabLocation location)
@@ -1607,7 +1607,7 @@ void BrowserWindow::config_variable_changed(WebView::ConfigVariableID variable)
 {
     if (variable == WebView::ConfigVariableID::UseRoundedWindowCorners)
         update_window_corners();
-    else if (variable == WebView::ConfigVariableID::UseServerSideWindowDecorations)
+    else if (variable == WebView::ConfigVariableID::UseClientSideWindowDecorations)
         update_window_decoration_state();
 }
 
