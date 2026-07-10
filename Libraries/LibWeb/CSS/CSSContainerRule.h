@@ -38,6 +38,7 @@ public:
     virtual bool condition_matches() const override;
     bool matches(DOM::AbstractElement const&) const;
     bool contains_size_feature() const;
+    bool contains_style_feature() const;
 
     Utf16String container_name() const;
     Utf16String container_query() const;

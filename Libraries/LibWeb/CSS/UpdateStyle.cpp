@@ -184,8 +184,10 @@ static void enter_style_update_frame(StyleUpdateFrame& frame, StyleComputer& sty
         } else {
             if (frame.needs_inherited_style_update)
                 frame.node_invalidation = element.recompute_inherited_style(DOM::ScheduleAnimationUpdate::Yes);
-            if (frame.recompute_elements_depending_on_custom_properties && element.refresh_inherited_custom_property_data())
+            if (frame.recompute_elements_depending_on_custom_properties && element.refresh_inherited_custom_property_data()) {
                 did_change_custom_properties = true;
+                element.invalidate_descendant_styles_depending_on_style_container_query();
+            }
         }
         frame.is_display_none = element.computed_properties()->display().is_none();
 

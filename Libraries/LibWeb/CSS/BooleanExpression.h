@@ -103,6 +103,11 @@ struct ContainerQueryFeatureRequirements {
             || requires_inline_size_container
             || requires_block_size_container;
     }
+
+    bool contains_style_feature() const
+    {
+        return requires_style_container;
+    }
 };
 
 // The contents of this file implement the `<boolean-expr>` concept.

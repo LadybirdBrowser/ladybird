@@ -189,6 +189,19 @@ bool CSSContainerRule::contains_size_feature() const
     return false;
 }
 
+bool CSSContainerRule::contains_style_feature() const
+{
+    for (auto const& condition : m_conditions) {
+        if (condition.container_query && condition.container_query->contains_style_feature())
+            return true;
+    }
+
+    if (auto const* parent_container_rule = find_parent_container_rule())
+        return parent_container_rule->contains_style_feature();
+
+    return false;
+}
+
 // https://drafts.csswg.org/cssom-1/#serialize-a-css-rule
 Utf16String CSSContainerRule::serialized() const
 {

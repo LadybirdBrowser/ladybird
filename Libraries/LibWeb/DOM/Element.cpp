@@ -1158,6 +1158,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
     m_style_uses_if_css_function = false;
     m_style_uses_inherit_css_function = false;
     m_style_depends_on_size_container_query = false;
+    m_style_depends_on_style_container_query = false;
     m_affected_by_has_pseudo_class_in_subject_position = false;
     m_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator = false;
     m_affected_by_direct_sibling_combinator = false;
@@ -1234,7 +1235,13 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
             mark_descendants_with_stale_styles_for_style_update();
     }
 
+    auto const element_style_changed = !invalidation.is_none();
+    auto const element_custom_properties_changed = did_change_custom_properties;
+
     invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, had_list_marker, old_computed_properties.ptr());
+
+    if (old_computed_properties && (element_style_changed || element_custom_properties_changed))
+        invalidate_descendant_styles_depending_on_style_container_query();
 
     if (invalidation.is_none()) {
         counters.element_style_noop_recomputations++;
@@ -1277,6 +1284,16 @@ void Element::mark_descendants_with_stale_styles_for_style_update()
         if (style->display().is_none())
             return TraversalDecision::SkipChildrenAndContinue;
         element->set_needs_style_update(true);
+        return TraversalDecision::Continue;
+    });
+}
+
+void Element::invalidate_descendant_styles_depending_on_style_container_query()
+{
+    for_each_shadow_including_descendant([](auto& node) {
+        auto* element = as_if<Element>(node);
+        if (element && element->style_depends_on_style_container_query())
+            element->set_needs_style_update(true);
         return TraversalDecision::Continue;
     });
 }
@@ -1360,7 +1377,12 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style(Sch
     m_computed_properties = CSS::ComputedProperties::create(move(computed_properties_builder));
 
     bool did_change_custom_properties = false;
+    auto const element_style_changed = !invalidation.is_none();
+
     invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, had_list_marker, old_computed_properties.ptr());
+
+    if (element_style_changed)
+        invalidate_descendant_styles_depending_on_style_container_query();
 
     if (invalidation.is_none()) {
         counters.element_inherited_style_noop_recomputations++;

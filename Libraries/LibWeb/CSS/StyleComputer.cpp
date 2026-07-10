@@ -635,7 +635,10 @@ Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules_
         if (!rule_is_relevant_for_current_scope)
             return;
 
-        if (rule_to_run.container_rule && !rule_to_run.container_rule->contains_size_feature() && !rule_to_run.container_rule->matches(abstract_element))
+        if (rule_to_run.container_rule
+            && !rule_to_run.container_rule->contains_size_feature()
+            && !rule_to_run.container_rule->contains_style_feature()
+            && !rule_to_run.container_rule->matches(abstract_element))
             return;
 
         auto const& selector = rule_to_run.selector;
@@ -803,10 +806,18 @@ Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules_
             && !selector.contains_pseudo_class(PseudoClass::Scope)
             && !selector.contains_the_nesting_selector())
             continue;
-        if (rule.container_rule && rule.container_rule->contains_size_feature()) {
-            abstract_element.element().set_style_depends_on_size_container_query();
-            if (!rule.container_rule->matches(abstract_element))
-                continue;
+        if (rule.container_rule) {
+            auto const contains_size_feature = rule.container_rule->contains_size_feature();
+            auto const contains_style_feature = rule.container_rule->contains_style_feature();
+
+            if (contains_size_feature || contains_style_feature) {
+                if (contains_size_feature)
+                    abstract_element.element().set_style_depends_on_size_container_query();
+                if (contains_style_feature)
+                    abstract_element.element().set_style_depends_on_style_container_query();
+                if (!rule.container_rule->matches(abstract_element))
+                    continue;
+            }
         }
         rule_to_run.scope_root = resolved_scope->root;
         rule_to_run.scope_proximity = resolved_scope->proximity;
