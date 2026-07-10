@@ -101,6 +101,15 @@ void paint_background(DisplayListRecordingContext& context, Paintable const& pai
     auto paint_into_isolated_group = any_of(resolved_background.layers, [](auto const& layer) {
         return layer.blend_mode != CSS::MixBlendMode::Normal;
     });
+    // OPTIMIZATION: An opaque color covering the border box already isolates a single background layer from the
+    //               element's backdrop.
+    Optional<Color> isolated_backdrop_color;
+    if (paint_into_isolated_group && resolved_background.layers.size() == 1
+        && resolved_background.color.alpha() == 255
+        && resolved_background.color_box.rect == resolved_background.background_rect) {
+        paint_into_isolated_group = false;
+        isolated_backdrop_color = resolved_background.color;
+    }
 
     bool is_root_element = paintable_box.layout_node().is_root_element();
     bool needs_text_clip = resolved_background.needs_text_clip && !is_root_element;
@@ -303,9 +312,13 @@ void paint_background(DisplayListRecordingContext& context, Paintable const& pai
         };
 
         Gfx::CompositingAndBlendingOperator compositing_and_blending_operator = mix_blend_mode_to_compositing_and_blending_operator(layer.blend_mode);
-        if (compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal) {
+        bool applied_blend_layer = false;
+        auto apply_blend_layer = [&] {
+            if (compositing_and_blending_operator == Gfx::CompositingAndBlendingOperator::Normal)
+                return;
             display_list_recorder.apply_effects(1.0f, compositing_and_blending_operator);
-        }
+            applied_blend_layer = true;
+        };
 
         // Past this (super-large) tile count, the non-image branch below covers the area with a single repeating
         // pattern whose command count is independent of the tile count. Otherwise, recording one painting command per
@@ -317,6 +330,7 @@ void paint_background(DisplayListRecordingContext& context, Paintable const& pai
 
         auto const& document = paintable_box.layout_node().document();
         if (auto color = image.color_if_single_pixel_bitmap(document); color.has_value()) {
+            apply_blend_layer();
             // OPTIMIZATION: If the image is a single pixel, we can just fill the whole area with it.
             //               However, we must first figure out the real coverage area, taking repeat etc into account.
 
@@ -326,7 +340,9 @@ void paint_background(DisplayListRecordingContext& context, Paintable const& pai
                 fill_rect.unite(image_device_rect);
             });
             display_list_recorder.fill_rect(fill_rect.to_type<int>(), color.value());
-        } else if (is<CSS::ImageStyleValue>(image) && (repeat_x || repeat_y) && !repeat_x_has_gap && !repeat_y_has_gap) {
+        } else if (is<CSS::ImageStyleValue>(image)
+            && ((repeat_x || repeat_y) || compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal)
+            && !repeat_x_has_gap && !repeat_y_has_gap) {
             // Use a dedicated painting command for repeated images instead of recording a separate command for each instance
             // of a repeated background, so the painter has the opportunity to optimize the painting of repeated images.
             auto dest_rect = context.rounded_device_rect(image_rect);
@@ -339,6 +355,7 @@ void paint_background(DisplayListRecordingContext& context, Paintable const& pai
 
             auto const& image_style_value = static_cast<CSS::ImageStyleValue const&>(image);
             if (auto display_list = image_style_value.record_display_list(context, document, dest_rect); display_list.has_value()) {
+                apply_blend_layer();
                 auto dest_int_rect = dest_rect.to_type<int>();
                 auto scaling_mode = to_gfx_scaling_mode(image_rendering, dest_int_rect.size(), dest_int_rect.size());
                 context.display_list_recorder().draw_repeated_display_list(dest_int_rect, clip_rect.to_type<int>(), *display_list, scaling_mode, repeat_x, repeat_y);
@@ -352,13 +369,14 @@ void paint_background(DisplayListRecordingContext& context, Paintable const& pai
                 if (tile_count == 1) {
                     auto source_rect = source_rect_for_visible_image_part(visible_rect, tile_device_rect, frame->size());
                     auto scaling_mode = to_gfx_scaling_mode(image_rendering, source_rect.size().to_rounded<int>(), visible_rect.size());
-                    context.display_list_recorder().draw_scaled_decoded_image_frame(visible_rect, source_rect, *frame, scaling_mode);
+                    context.display_list_recorder().draw_scaled_decoded_image_frame(visible_rect, source_rect, *frame, scaling_mode, compositing_and_blending_operator, isolated_backdrop_color);
                 } else if (tile_count > 1) {
                     auto scaling_mode = to_gfx_scaling_mode(image_rendering, frame->size(), tile_device_rect.size());
-                    context.display_list_recorder().draw_repeated_decoded_image_frame(tile_device_rect, clip_device_rect, *frame, scaling_mode, repeat_x, repeat_y);
+                    context.display_list_recorder().draw_repeated_decoded_image_frame(tile_device_rect, clip_device_rect, *frame, scaling_mode, repeat_x, repeat_y, compositing_and_blending_operator, isolated_backdrop_color);
                 }
             }
         } else if ((repeat_x || repeat_y) && !repeat_x_has_gap && !repeat_y_has_gap && tile_count > max_tiles_before_pattern_fallback) {
+            apply_blend_layer();
             // A not-decoded-image repeating background otherwise records a separate painting command for every tile —
             // which for very-large tile counts can lead to enough commands that we crash. So, instead record a single
             // tile into a nested display list, and fill the area with a repeating pattern. The painter does the tiling.
@@ -400,12 +418,13 @@ void paint_background(DisplayListRecordingContext& context, Paintable const& pai
                 .winding_rule = Gfx::WindingRule::Nonzero,
             });
         } else {
+            apply_blend_layer();
             for_each_image_device_rect([&](auto const& image_device_rect) {
                 image.paint(context, document, image_device_rect, image_rendering);
             });
         }
 
-        if (compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal) {
+        if (applied_blend_layer) {
             display_list_recorder.restore();
         }
     }

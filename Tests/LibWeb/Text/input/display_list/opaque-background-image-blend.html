@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #target {
+        width: 40px;
+        height: 40px;
+        background-color: rgb(45, 22, 0);
+        background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAAGQAQMAAADRPL3zAAAABlBMVEUwMDCAgIDHGf6uAAAAQ0lEQVRo3u3YMREAQAgDQRzg3+U7gDbl9+y1i4AMNdGrjBBCCCGEXJas84wQQgghhJwWW5kQQgghhPgnEkIIIYSQT1nvD3WWWfRskgAAAABJRU5ErkJggg==");
+        background-blend-mode: multiply;
+        background-repeat: no-repeat;
+    }
+</style>
+<div id="target"></div>
+<script>
+    asyncTest(done => {
+        window.addEventListener("load", () => {
+            println(internals.dumpDisplayList());
+            done();
+        });
+    });
+</script>

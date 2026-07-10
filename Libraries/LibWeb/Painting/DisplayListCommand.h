@@ -168,6 +168,8 @@ struct DrawScaledDecodedImageFrame {
     Optional<Gfx::FloatRect> src_rect;
     ImageFrameResourceId frame_id;
     Gfx::ScalingMode scaling_mode;
+    Gfx::CompositingAndBlendingOperator compositing_and_blending_operator { Gfx::CompositingAndBlendingOperator::Normal };
+    Optional<Color> isolated_backdrop_color;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return dst_rect; }
     void dump(StringBuilder&) const;
@@ -187,6 +189,8 @@ struct DrawRepeatedDecodedImageFrame {
     ImageFrameResourceId frame_id;
     Gfx::ScalingMode scaling_mode;
     Repeat repeat;
+    Gfx::CompositingAndBlendingOperator compositing_and_blending_operator { Gfx::CompositingAndBlendingOperator::Normal };
+    Optional<Color> isolated_backdrop_color;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return clip_rect; }
     void dump(StringBuilder&) const;

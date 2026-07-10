@@ -545,7 +545,7 @@ void DisplayListRecorder::draw_video_frame(Gfx::IntRect const& dst_rect, VideoFr
     });
 }
 
-void DisplayListRecorder::draw_scaled_decoded_image_frame(Gfx::IntRect const& dst_rect, Gfx::DecodedImageFrame frame, Gfx::ScalingMode scaling_mode)
+void DisplayListRecorder::draw_scaled_decoded_image_frame(Gfx::IntRect const& dst_rect, Gfx::DecodedImageFrame frame, Gfx::ScalingMode scaling_mode, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Optional<Color> isolated_backdrop_color)
 {
     if (dst_rect.is_empty())
         return;
@@ -554,10 +554,12 @@ void DisplayListRecorder::draw_scaled_decoded_image_frame(Gfx::IntRect const& ds
         .src_rect = {},
         .frame_id = resource_storage().add_image_frame(frame),
         .scaling_mode = scaling_mode,
+        .compositing_and_blending_operator = compositing_and_blending_operator,
+        .isolated_backdrop_color = isolated_backdrop_color,
     });
 }
 
-void DisplayListRecorder::draw_scaled_decoded_image_frame(Gfx::IntRect const& dst_rect, Gfx::FloatRect const& src_rect, Gfx::DecodedImageFrame frame, Gfx::ScalingMode scaling_mode)
+void DisplayListRecorder::draw_scaled_decoded_image_frame(Gfx::IntRect const& dst_rect, Gfx::FloatRect const& src_rect, Gfx::DecodedImageFrame frame, Gfx::ScalingMode scaling_mode, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Optional<Color> isolated_backdrop_color)
 {
     if (dst_rect.is_empty())
         return;
@@ -568,10 +570,12 @@ void DisplayListRecorder::draw_scaled_decoded_image_frame(Gfx::IntRect const& ds
         .src_rect = src_rect,
         .frame_id = resource_storage().add_image_frame(frame),
         .scaling_mode = scaling_mode,
+        .compositing_and_blending_operator = compositing_and_blending_operator,
+        .isolated_backdrop_color = isolated_backdrop_color,
     });
 }
 
-void DisplayListRecorder::draw_repeated_decoded_image_frame(Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, Gfx::DecodedImageFrame frame, Gfx::ScalingMode scaling_mode, bool repeat_x, bool repeat_y)
+void DisplayListRecorder::draw_repeated_decoded_image_frame(Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, Gfx::DecodedImageFrame frame, Gfx::ScalingMode scaling_mode, bool repeat_x, bool repeat_y, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Optional<Color> isolated_backdrop_color)
 {
     if (dst_rect.is_empty() || clip_rect.is_empty())
         return;
@@ -581,6 +585,8 @@ void DisplayListRecorder::draw_repeated_decoded_image_frame(Gfx::IntRect dst_rec
         .frame_id = resource_storage().add_image_frame(frame),
         .scaling_mode = scaling_mode,
         .repeat = { repeat_x, repeat_y },
+        .compositing_and_blending_operator = compositing_and_blending_operator,
+        .isolated_backdrop_color = isolated_backdrop_color,
     });
 }
 

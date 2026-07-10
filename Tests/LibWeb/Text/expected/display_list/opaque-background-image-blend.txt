@@ -1,0 +1,16 @@
+AccumulatedVisualContext Tree:
+  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+    [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
+
+DisplayList:
+SaveLayer@0
+  CompositorWheelHitTestTarget@0 target_scroll_frame_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x53]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x40]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 40x40]
+  FillRect@1 rect=[0,0 40x40] color=rgb(45, 22, 0)
+  Save@1
+    AddClipRect@1 rect=[0,0 40x40]
+    DrawScaledDecodedImageFrame@1 dst_rect=[0,0 40x40] src_rect=[0,0 40x40] blend_mode=2 isolated_backdrop_color=rgb(45, 22, 0)
+  Restore@1
+Restore@0

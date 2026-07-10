@@ -321,9 +321,22 @@ void DisplayListPlayerSkia::play_command(DrawScaledDecodedImageFrame const& comm
     auto& canvas = surface().canvas();
     SkPaint paint;
     paint.setAntiAlias(true);
+    if (command.isolated_backdrop_color.has_value()) {
+        auto src_rect = command.src_rect.value_or(Gfx::FloatRect { 0, 0, static_cast<float>(image->width()), static_cast<float>(image->height()) });
+        SkMatrix matrix;
+        matrix.setScale(dst_rect.width() / src_rect.width(), dst_rect.height() / src_rect.height());
+        matrix.postTranslate(dst_rect.x() - src_rect.x() * dst_rect.width() / src_rect.width(), dst_rect.y() - src_rect.y() * dst_rect.height() / src_rect.height());
+        auto image_shader = image->makeShader(SkTileMode::kDecal, SkTileMode::kDecal, to_skia_sampling_options(command.scaling_mode), matrix);
+        auto backdrop_shader = SkShaders::Color(to_skia_color(command.isolated_backdrop_color.value()));
+        paint.setShader(SkShaders::Blend(Gfx::to_skia_blender(command.compositing_and_blending_operator), move(backdrop_shader), move(image_shader)));
+    } else if (command.compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal) {
+        paint.setBlender(Gfx::to_skia_blender(command.compositing_and_blending_operator));
+    }
     canvas.save();
     canvas.clipRect(dst_rect, true);
-    if (command.src_rect.has_value()) {
+    if (command.isolated_backdrop_color.has_value()) {
+        canvas.drawRect(dst_rect, paint);
+    } else if (command.src_rect.has_value()) {
         auto src_rect = to_skia_rect(command.src_rect.value());
         canvas.drawImageRect(image.get(), src_rect, dst_rect, to_skia_sampling_options(command.scaling_mode), &paint, SkCanvas::kStrict_SrcRectConstraint);
     } else {
@@ -352,7 +365,14 @@ void DisplayListPlayerSkia::play_command(DrawRepeatedDecodedImageFrame const& co
 
     SkPaint paint;
     paint.setAntiAlias(true);
-    paint.setShader(shader);
+    if (command.isolated_backdrop_color.has_value()) {
+        auto backdrop_shader = SkShaders::Color(to_skia_color(command.isolated_backdrop_color.value()));
+        paint.setShader(SkShaders::Blend(Gfx::to_skia_blender(command.compositing_and_blending_operator), move(backdrop_shader), move(shader)));
+    } else {
+        paint.setShader(shader);
+    }
+    if (!command.isolated_backdrop_color.has_value() && command.compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal)
+        paint.setBlender(Gfx::to_skia_blender(command.compositing_and_blending_operator));
     auto& canvas = surface().canvas();
     canvas.drawPaint(paint);
 }

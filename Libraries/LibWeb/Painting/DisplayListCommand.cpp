@@ -50,11 +50,19 @@ void DrawScaledDecodedImageFrame::dump(StringBuilder& builder) const
     builder.appendff(" dst_rect={}", dst_rect);
     if (src_rect.has_value())
         builder.appendff(" src_rect={}", src_rect.value());
+    if (compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal)
+        builder.appendff(" blend_mode={}", static_cast<int>(compositing_and_blending_operator));
+    if (isolated_backdrop_color.has_value())
+        builder.appendff(" isolated_backdrop_color={}", isolated_backdrop_color.value());
 }
 
 void DrawRepeatedDecodedImageFrame::dump(StringBuilder& builder) const
 {
     builder.appendff(" dst_rect={} clip_rect={}", dst_rect, clip_rect);
+    if (compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal)
+        builder.appendff(" blend_mode={}", static_cast<int>(compositing_and_blending_operator));
+    if (isolated_backdrop_color.has_value())
+        builder.appendff(" isolated_backdrop_color={}", isolated_backdrop_color.value());
 }
 
 void DrawRepeatedDisplayList::dump(StringBuilder& builder) const
