@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <AK/TemporaryChange.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Length.h>
@@ -219,10 +220,20 @@ void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const&
 
     // Certain formatting contexts do not allow float intrusions, so reduce the available space for them.
     if (available_space.width.is_definite() && box_should_avoid_floats_because_it_establishes_fc(box)) {
+        auto available_width = available_space.width.to_px_or_zero();
         auto box_in_root_rect = content_box_rect_in_ancestor_coordinate_space(m_state.get(box), root());
-        box_in_root_rect.set_width(available_space.width.to_px_or_zero());
+        box_in_root_rect.set_width(available_width);
         auto intrusion = intrusions_for_band_into_rect(band_at(box_in_root_rect.y()), box_in_root_rect);
-        auto remaining_width = available_space.width.to_px_or_zero() - intrusion.left - intrusion.right;
+        auto remaining_width = available_width - intrusion.left - intrusion.right;
+        if (intrusion.left > 0 || intrusion.right > 0) {
+            // Negative margins do not create additional space next to a float. Reduce the space available for
+            // resolving an automatic width by any negative margins, so that the resulting border box is no wider
+            // than the space next to the float.
+            auto margin_left = box.computed_values().margin().left().resolved_or_auto(available_width).to_px_or_zero();
+            auto margin_right = box.computed_values().margin().right().resolved_or_auto(available_width).to_px_or_zero();
+            auto negative_margin_sum = min(margin_left, CSSPixels(0)) + min(margin_right, CSSPixels(0));
+            remaining_width = max(remaining_width + negative_margin_sum, CSSPixels(0));
+        }
         remaining_available_space.width = AvailableSize::make_definite(remaining_width);
     }
 
@@ -561,10 +572,19 @@ CSSPixels BlockFormattingContext::margin_box_left_of_float_in_root(FloatingBox c
     return containing_block_rect_in_root.right() - floating_box.offset_from_edge - floating_box.used_values.margin_box_left();
 }
 
-void BlockFormattingContext::avoid_float_intrusions(Box const& box, AvailableSpace const& available_space)
+CSSPixels BlockFormattingContext::border_box_left_of_box_avoiding_floats(Box const& box, LayoutState::UsedValues const& box_state, SpaceUsedByFloats const& space_used_by_floats) const
 {
-    if (box.computed_values().width().is_auto())
-        return;
+    if (box.computed_values().margin().left().is_auto())
+        return space_used_by_floats.left + box_state.margin_left;
+    if (box_state.margin_left >= 0)
+        return max(space_used_by_floats.left, box_state.margin_left);
+    if (space_used_by_floats.left > 0 || space_used_by_floats.right > 0)
+        return space_used_by_floats.left;
+    return space_used_by_floats.left + box_state.margin_left;
+}
+
+void BlockFormattingContext::avoid_float_intrusions(Box const& box, AvailableSpace const& available_space, ContainingBlockConstraints const& containing_block_constraints)
+{
     if (!available_space.width.is_definite())
         return;
     if (!box_should_avoid_floats_because_it_establishes_fc(box))
@@ -574,25 +594,42 @@ void BlockFormattingContext::avoid_float_intrusions(Box const& box, AvailableSpa
     // If necessary, implementations should clear the said element by placing it below any preceding floats, but may
     // place it adjacent to such floats if there is sufficient space.
     auto& box_state = m_state.get_mutable(box);
+    auto const* containing_block = box.containing_block();
+    VERIFY(containing_block);
+    auto containing_block_rect_in_root = content_box_rect_in_ancestor_coordinate_space(m_state.get(*containing_block), root());
     while (true) {
-        auto border_box_in_root_rect = content_box_rect_in_ancestor_coordinate_space(box_state, root());
-        border_box_in_root_rect.translate_by(-box_state.border_box_left(), -box_state.border_box_top());
-        auto const* containing_block = box.containing_block();
-        VERIFY(containing_block);
-        auto containing_block_rect_in_root = content_box_rect_in_ancestor_coordinate_space(m_state.get(*containing_block), root());
-        containing_block_rect_in_root.set_y(border_box_in_root_rect.y());
+        auto border_box_y_in_root = content_box_rect_in_ancestor_coordinate_space(box_state, root()).y() - box_state.border_box_top();
+        containing_block_rect_in_root.set_y(border_box_y_in_root);
         containing_block_rect_in_root.set_height(box_state.border_box_height());
-        auto const& band = band_at(border_box_in_root_rect.y());
+        auto const& band = band_at(border_box_y_in_root);
         auto space_used_by_floats = intrusions_for_band_into_rect(band, containing_block_rect_in_root);
-        auto remaining_space = available_space.width.to_px_or_zero() - space_used_by_floats.left - space_used_by_floats.right;
-        if (box_state.border_box_width() <= remaining_space)
+        bool const constrained_by_floats = space_used_by_floats.left > 0 || space_used_by_floats.right > 0;
+        auto border_box_left_in_containing_block = border_box_left_of_box_avoiding_floats(box, box_state, space_used_by_floats);
+
+        bool must_clear_below_current_band = constrained_by_floats
+            && border_box_left_in_containing_block + box_state.border_box_width() > available_space.width.to_px_or_zero() - space_used_by_floats.right;
+
+        if (!must_clear_below_current_band) {
+            CSSPixelRect border_box_rect_in_root {
+                containing_block_rect_in_root.x() + border_box_left_in_containing_block,
+                border_box_y_in_root,
+                box_state.border_box_width(),
+                box_state.border_box_height(),
+            };
+            must_clear_below_current_band = any_of(m_floats, [&](auto const& floating_box) {
+                return !floating_box->margin_box_rect_in_root_coordinate_space.intersected(border_box_rect_in_root).is_empty();
+            });
+        }
+        if (!must_clear_below_current_band)
             break;
 
-        auto next_band_start = next_float_band_block_start_after(border_box_in_root_rect.y());
+        auto next_band_start = next_float_band_block_start_after(border_box_y_in_root);
         if (!next_band_start.has_value())
             break;
 
-        box_state.set_content_y(box_state.offset.y() + next_band_start.value() - border_box_in_root_rect.y());
+        box_state.set_content_y(box_state.offset.y() + next_band_start.value() - border_box_y_in_root);
+
+        compute_width(box, available_space, containing_block_constraints);
     }
 }
 
@@ -1069,7 +1106,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
     place_block_level_element_in_normal_flow_vertically(box, y + margin_top);
 
     compute_width(box, available_space, layout_input.containing_block_constraints);
-    avoid_float_intrusions(box, available_space);
+    avoid_float_intrusions(box, available_space, layout_input.containing_block_constraints);
 
     place_block_level_element_in_normal_flow_horizontally(box, available_space);
 
@@ -1412,12 +1449,8 @@ void BlockFormattingContext::place_block_level_element_in_normal_flow_horizontal
         auto space_used_by_floats = intrusion_by_floats_into_box(box_state, 0);
         available_width_within_containing_block -= space_used_by_floats.left + space_used_by_floats.right;
 
-        // Since this box has a FC, it should avoid floats which means we cannot have its border box overlap with any
-        // float's margin box. We start off at the right-most border of the floats, and if this box' margin-left is not
-        // auto, we must overlap that margin with the floats as far as possible.
-        x = space_used_by_floats.left;
-        if (!child_box.computed_values().margin().left().is_auto())
-            x = max(x - max(box_state.margin_left, 0), 0);
+        // Subtracting the left margin here because it is applied again when the margin box offset is added below.
+        x = border_box_left_of_box_avoiding_floats(child_box, box_state, space_used_by_floats) - box_state.margin_left;
     }
 
     if (child_box.containing_block()->computed_values().text_align() == CSS::TextAlign::LibwebCenter) {

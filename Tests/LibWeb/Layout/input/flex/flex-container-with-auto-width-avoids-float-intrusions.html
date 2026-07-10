@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<style>
+body {
+    width: 400px;
+}
+.full-width-float {
+    background: blue;
+    float: left;
+    height: 100px;
+    width: 100%;
+}
+.partial-width-float {
+    background: blue;
+    float: left;
+    height: 100px;
+    width: 100px;
+}
+.small-negative-margin {
+    background: green;
+    display: flex;
+    height: 100px;
+    margin-left: -5px;
+}
+.large-negative-margin {
+    background: green;
+    display: flex;
+    height: 100px;
+    margin-left: -350px;
+}
+</style>
+<div class="full-width-float"></div><div class="small-negative-margin">This should clear the full-width float.</div>
+<hr><div class="partial-width-float"></div><div class="small-negative-margin">This should sit flush against the float.</div>
+<hr><div class="partial-width-float"></div><div class="large-negative-margin">This should clear the float.</div>
