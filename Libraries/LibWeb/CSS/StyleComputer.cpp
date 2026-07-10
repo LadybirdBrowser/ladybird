@@ -1367,6 +1367,32 @@ void StyleComputer::process_animation_definitions(ComputedProperties const& comp
     if (!element_animations)
         return;
 
+    // https://drafts.csswg.org/css-animations-1/#animations
+    // Setting the 'display' property to 'none' will terminate any running animation applied to the element and its
+    // descendants. If an element has a 'display' of 'none', updating 'display' to a value other than 'none' will
+    // start all animations applied to the element by the 'animation-name' property, as well as all animations
+    // applied to descendants with 'display' other than 'none'.
+    // NB: We must not start animations on elements that are not rendered due to display:none. Once display becomes
+    //     something other than none, the resulting style recomputation re-enters this function and starts them.
+    //     Termination of running animations when display becomes none is handled by
+    //     Element::play_or_cancel_animations_after_display_property_change().
+    // OPTIMIZATION: This involves an ancestor walk, so it's computed lazily since it's only needed on the path that
+    //               starts a brand new animation, not for the common case of an element without animations.
+    Optional<bool> in_display_none_subtree;
+    auto is_in_display_none_subtree = [&] {
+        if (!in_display_none_subtree.has_value()) {
+            bool result = computed_properties.display().is_none();
+            if (!result) {
+                if (abstract_element.pseudo_element().has_value())
+                    result = abstract_element.element().has_inclusive_ancestor_with_display_none_ignoring_animations();
+                else if (auto* parent = abstract_element.element().parent_or_shadow_host())
+                    result = parent->has_inclusive_ancestor_with_display_none_ignoring_animations();
+            }
+            in_display_none_subtree = result;
+        }
+        return in_display_none_subtree.value();
+    };
+
     HashTable<Utf16FlyString> defined_animation_names;
 
     for (auto const& animation_properties : animation_definitions) {
@@ -1405,6 +1431,9 @@ void StyleComputer::process_animation_definitions(ComputedProperties const& comp
             existing_animation.value()->apply_css_properties(animation_properties);
             return;
         }
+
+        if (is_in_display_none_subtree())
+            continue;
 
         // An animation applies to an element if its name appears as one of the identifiers in the computed value of the
         // animation-name property and the animation uses a valid @keyframes rule
