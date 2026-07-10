@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<style>
+    @keyframes slide-in-left {
+        0% {
+            display: none;
+            transform: translateX(-100%);
+        }
+        100% {
+            display: block;
+            transform: translateX(0);
+        }
+    }
+
+    dialog.drawer {
+        position: fixed;
+        inset: 0;
+        width: 660px;
+        height: 100%;
+        margin: 0;
+        animation: slide-in-left 100s linear;
+    }
+</style>
+<div style="display: flex; gap: 24px;">
+    <button>Produkter</button>
+    <dialog id="drawer" class="drawer">Drawer contents</dialog>
+</div>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const drawer = document.getElementById("drawer");
+        drawer.showModal();
+
+        // The animation samples display:none at its very first frame, so the dialog starts
+        // without a box. Once display animates to block, its box must be (re)generated even
+        // though top layer elements lay out as siblings of the root.
+        await animationFrame();
+        await animationFrame();
+
+        const rect = drawer.getBoundingClientRect();
+        println("modal: " + drawer.matches(":modal"));
+        println("computed display: " + getComputedStyle(drawer).display);
+        println("has box: " + (rect.width > 0 && rect.height > 0));
+        println("width: " + rect.width);
+
+        done();
+    });
+</script>
