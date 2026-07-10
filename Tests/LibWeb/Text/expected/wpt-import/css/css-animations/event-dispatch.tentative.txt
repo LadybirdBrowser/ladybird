@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 32 tests
 
-24 Pass
-8 Fail
+26 Pass
+6 Fail
 Pass	Idle -> Active
 Fail	Idle -> After
 Pass	Before -> Active
@@ -33,6 +33,6 @@ Pass	Set timeline and play transition after clearing the timeline.
 Pass	Set null target effect after canceling the animation.
 Fail	Cancel the animation after clearing the target effect.
 Pass	Replacing a running animation should get animationcancel earlier than animationstart
-Fail	The cancel event should be fired before the new start event if both have the same position in the animation list
-Fail	The cancel event with an earlier position in animation list should be fired earlier
+Pass	The cancel event should be fired before the new start event if both have the same position in the animation list
+Pass	The cancel event with an earlier position in animation list should be fired earlier
 Fail	The order of the cancel events follows the relative positions in the animation list at the point when they were cancelled

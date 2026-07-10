@@ -1429,7 +1429,7 @@ void StyleComputer::process_animation_definitions(ComputedProperties const& comp
         if (auto const& existing_animation = element_animations->get(animation_properties.name); existing_animation.has_value()) {
             as<Animations::KeyframeEffect>(*existing_animation.value()->effect()).set_key_frame_set(resolve_keyframes());
             existing_animation.value()->apply_css_properties(animation_properties);
-            return;
+            continue;
         }
 
         if (is_in_display_none_subtree())
