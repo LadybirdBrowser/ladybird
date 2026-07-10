@@ -1,0 +1,18 @@
+<!doctype html><style>
+.grid {
+    display: grid;
+    grid-template-columns: repeat(3, 100px);
+}
+.item {
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-row: span 3;
+}
+</style><div class="grid">
+<div class="item"><div>a1</div><div>a2</div><div>a3</div></div>
+<div class="item"><div>b1</div><div>b2</div><div>b3</div></div>
+<div class="item"><div>c1</div><div>c2</div><div>c3</div></div>
+<div class="item"><div>d1</div><div>d2</div><div>d3</div></div>
+<div class="item"><div>e1</div><div>e2</div><div>e3</div></div>
+<div class="item"><div>f1</div><div>f2</div><div>f3</div></div>
+</div>
