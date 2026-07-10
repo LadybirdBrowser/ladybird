@@ -873,7 +873,7 @@ void GridFormattingContext::place_item_with_no_declared_position(Box const& chil
     // area does not overlap any occupied grid cells, or the cursor's column position, plus the item's
     // column span, overflow the number of columns in the implicit grid, as determined earlier in this
     // algorithm.
-    auto found_unoccupied_area = find_unoccupied_grid_area(dimension, auto_placement_cursor_column, auto_placement_cursor_row, column_span, row_span);
+    find_unoccupied_grid_area(dimension, auto_placement_cursor_column, auto_placement_cursor_row, column_span, row_span);
 
     // 4.1.2.2. If a non-overlapping position was found in the previous step, set the item's row-start
     // and column-start lines to the cursor's position. Otherwise, increment the auto-placement cursor's
@@ -882,18 +882,13 @@ void GridFormattingContext::place_item_with_no_declared_position(Box const& chil
     column_start = auto_placement_cursor_column;
     row_start = auto_placement_cursor_row;
 
-    auto_placement_cursor_column += column_span - 1;
-    auto_placement_cursor_row += row_span - 1;
-
-    if (found_unoccupied_area == FoundUnoccupiedPlace::Yes) {
-        if (dimension == GridDimension::Column) {
-            auto_placement_cursor_column++;
-            auto_placement_cursor_row = m_occupation_grid.min_row_index();
-        } else {
-            auto_placement_cursor_row++;
-            auto_placement_cursor_column = m_occupation_grid.min_column_index();
-        }
-    }
+    // NB: The cursor's major-axis position must stay at the item's start line, so that subsequent items
+    //     keep packing into the same row (or column, for column flow) before moving on. Only advance the
+    //     minor-axis position past the item.
+    if (dimension == GridDimension::Column)
+        auto_placement_cursor_column += column_span;
+    else
+        auto_placement_cursor_row += row_span;
 
     record_grid_placement(GridItem {
         .box = child_box,
@@ -966,7 +961,7 @@ bool GridFormattingContext::grid_area_is_occupied(int column_start, int row_star
     return m_occupation_grid.is_area_occupied(column_start, row_start, static_cast<int>(column_span), static_cast<int>(row_span));
 }
 
-FoundUnoccupiedPlace GridFormattingContext::find_unoccupied_grid_area(GridDimension dimension, int& column_index, int& row_index, size_t column_span, size_t row_span) const
+void GridFormattingContext::find_unoccupied_grid_area(GridDimension dimension, int& column_index, int& row_index, size_t column_span, size_t row_span) const
 {
     if (dimension == GridDimension::Column) {
         // Row-flow: columns are the inner (minor) axis, rows are the outer (major) axis.
@@ -981,7 +976,7 @@ FoundUnoccupiedPlace GridFormattingContext::find_unoccupied_grid_area(GridDimens
 
                 auto minor_axis_fits = candidate_column_index + static_cast<int>(candidate_column_span) - 1 <= m_occupation_grid.max_column_index();
                 if (minor_axis_fits && !m_occupation_grid.is_area_occupied(candidate_column_index, candidate_row_index, static_cast<int>(candidate_column_span), static_cast<int>(candidate_row_span)))
-                    return FoundUnoccupiedPlace::Yes;
+                    return;
                 column_index++;
             }
             row_index++;
@@ -1000,15 +995,13 @@ FoundUnoccupiedPlace GridFormattingContext::find_unoccupied_grid_area(GridDimens
 
                 auto minor_axis_fits = candidate_row_index + static_cast<int>(candidate_row_span) - 1 <= m_occupation_grid.max_row_index();
                 if (minor_axis_fits && !m_occupation_grid.is_area_occupied(candidate_column_index, candidate_row_index, static_cast<int>(candidate_column_span), static_cast<int>(candidate_row_span)))
-                    return FoundUnoccupiedPlace::Yes;
+                    return;
                 row_index++;
             }
             column_index++;
             row_index = m_occupation_grid.min_row_index();
         }
     }
-
-    return FoundUnoccupiedPlace::No;
 }
 
 void GridFormattingContext::record_grid_placement(GridItem grid_item)

@@ -118,11 +118,6 @@ struct GridItem {
     }
 };
 
-enum class FoundUnoccupiedPlace {
-    No,
-    Yes
-};
-
 class OccupationGrid {
 public:
     OccupationGrid(size_t columns_count, size_t rows_count)
@@ -353,7 +348,7 @@ private:
     void clamp_grid_area_to_subgrid(GridDimension, int&, size_t&) const;
     void clamp_grid_area_to_subgrid(GridItem&) const;
     bool grid_area_is_occupied(int column_start, int row_start, size_t column_span, size_t row_span) const;
-    FoundUnoccupiedPlace find_unoccupied_grid_area(GridDimension, int& column_index, int& row_index, size_t column_span, size_t row_span) const;
+    void find_unoccupied_grid_area(GridDimension, int& column_index, int& row_index, size_t column_span, size_t row_span) const;
     void record_grid_placement(GridItem);
 
     void initialize_grid_tracks_from_definition(GridDimension);
