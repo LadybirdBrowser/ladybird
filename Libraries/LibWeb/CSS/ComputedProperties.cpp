@@ -31,7 +31,7 @@
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/EdgeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/EmptyOptionalStyleValue.h>
-#include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FilterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridAutoFlowStyleValue.h>
@@ -231,11 +231,11 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
     auto filter_style_value = [](Filter const& filter) -> NonnullRefPtr<StyleValue const> {
         if (filter.is_none())
             return KeywordStyleValue::create(Keyword::None);
-        Vector<FilterValue> filters;
-        filters.ensure_capacity(filter.filters().size());
+        StyleValueVector filters;
+        MUST(filters.try_ensure_capacity(filter.filters().size()));
         for (auto const& filter_value : filter.filters())
             filters.unchecked_append(filter_value);
-        return FilterValueListStyleValue::create(move(filters));
+        return StyleValueList::create(move(filters), StyleValueList::Separator::Space, StyleValueList::Collapsible::No);
     };
     auto ratio_style_value = [](Ratio const& ratio) -> NonnullRefPtr<StyleValue const> {
         return RatioStyleValue::create(
@@ -2828,16 +2828,16 @@ Appearance ComputedProperties::appearance() const
 Filter ComputedProperties::backdrop_filter() const
 {
     auto const& value = property(PropertyID::BackdropFilter);
-    if (value.is_filter_value_list())
-        return Filter(value.as_filter_value_list());
+    if (is_filter_style_value_list(value))
+        return Filter(value.as_value_list());
     return Filter::make_none();
 }
 
 Filter ComputedProperties::filter() const
 {
     auto const& value = property(PropertyID::Filter);
-    if (value.is_filter_value_list())
-        return Filter(value.as_filter_value_list());
+    if (is_filter_style_value_list(value))
+        return Filter(value.as_value_list());
     return Filter::make_none();
 }
 

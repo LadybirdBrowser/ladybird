@@ -30,7 +30,9 @@
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
-#include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FilterStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValueList.h>
+#include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
@@ -1458,66 +1460,76 @@ void CanvasRenderingContext2D::set_filter(Utf16View filter)
     //    then this parsing must return failure.
     auto style_value = parser.parse_as_css_value(CSS::PropertyID::Filter);
 
-    if (style_value && style_value->is_filter_value_list()) {
-        auto filter_value_list = style_value->absolutized(computation_context_for_drawing_state())->as_filter_value_list().filter_value_list();
+    if (style_value && style_value->is_value_list()) {
+        auto filter_value_list = style_value->absolutized(computation_context_for_drawing_state())->as_value_list().values();
 
         // 4. Set this's current filter to the given value.
         for (auto& item : filter_value_list) {
-            // FIXME: Add support for SVG filters when they get implement by the CSS parser.
-            item.visit(
-                [&](CSS::FilterOperation::Blur const& blur_filter) {
-                    float radius = blur_filter.resolved_radius();
-                    auto new_filter = Gfx::Filter::blur(radius, radius);
+            if (item->is_url()) {
+                // FIXME: Resolve the SVG filter
+                dbgln("FIXME: SVG filters are not implemented for Canvas2D");
+                continue;
+            }
 
-                    drawing_state().filter = drawing_state().filter.has_value()
-                        ? Gfx::Filter::compose(new_filter, *drawing_state().filter)
-                        : new_filter;
-                },
-                [&](CSS::FilterOperation::Color const& color) {
-                    float amount = color.resolved_amount();
-                    auto new_filter = Gfx::Filter::color(color.operation, amount);
+            auto const& filter_value = item->as_filter();
+            switch (filter_value.kind()) {
+            case CSS::FilterStyleValue::Kind::Blur: {
+                auto const& blur_filter = static_cast<CSS::BlurFilterStyleValue const&>(filter_value);
+                float radius = blur_filter.resolved_radius();
+                auto new_filter = Gfx::Filter::blur(radius, radius);
 
-                    drawing_state().filter = drawing_state().filter.has_value()
-                        ? Gfx::Filter::compose(new_filter, *drawing_state().filter)
-                        : new_filter;
-                },
-                [&](CSS::FilterOperation::HueRotate const& hue_rotate) {
-                    float angle = hue_rotate.angle_degrees();
-                    auto new_filter = Gfx::Filter::hue_rotate(angle);
+                drawing_state().filter = drawing_state().filter.has_value()
+                    ? Gfx::Filter::compose(new_filter, *drawing_state().filter)
+                    : new_filter;
+                break;
+            }
+            case CSS::FilterStyleValue::Kind::Color: {
+                auto const& color = static_cast<CSS::ColorFilterStyleValue const&>(filter_value);
+                float amount = color.resolved_amount();
+                auto new_filter = Gfx::Filter::color(color.operation(), amount);
 
-                    drawing_state().filter = drawing_state().filter.has_value()
-                        ? Gfx::Filter::compose(new_filter, *drawing_state().filter)
-                        : new_filter;
-                },
-                [&](CSS::FilterOperation::DropShadow const& drop_shadow) {
-                    float offset_x = static_cast<float>(CSS::Length::from_style_value(drop_shadow.offset_x, {}).absolute_length_to_px());
-                    float offset_y = static_cast<float>(CSS::Length::from_style_value(drop_shadow.offset_y, {}).absolute_length_to_px());
+                drawing_state().filter = drawing_state().filter.has_value()
+                    ? Gfx::Filter::compose(new_filter, *drawing_state().filter)
+                    : new_filter;
+                break;
+            }
+            case CSS::FilterStyleValue::Kind::HueRotate: {
+                auto const& hue_rotate = static_cast<CSS::HueRotateFilterStyleValue const&>(filter_value);
+                float angle = hue_rotate.angle_degrees();
+                auto new_filter = Gfx::Filter::hue_rotate(angle);
 
-                    float radius = 0.0f;
-                    if (drop_shadow.radius) {
-                        radius = static_cast<float>(CSS::Length::from_style_value(*drop_shadow.radius, {}).absolute_length_to_px());
-                    };
+                drawing_state().filter = drawing_state().filter.has_value()
+                    ? Gfx::Filter::compose(new_filter, *drawing_state().filter)
+                    : new_filter;
+                break;
+            }
+            case CSS::FilterStyleValue::Kind::DropShadow: {
+                auto const& drop_shadow = static_cast<CSS::DropShadowFilterStyleValue const&>(filter_value);
+                float offset_x = static_cast<float>(CSS::Length::from_style_value(drop_shadow.offset_x(), {}).absolute_length_to_px());
+                float offset_y = static_cast<float>(CSS::Length::from_style_value(drop_shadow.offset_y(), {}).absolute_length_to_px());
 
-                    DOM::AbstractElement abstract_element { *m_element };
-                    m_element->document().update_style_if_needed_for_element(abstract_element);
+                float radius = 0.0f;
+                if (drop_shadow.radius()) {
+                    radius = static_cast<float>(CSS::Length::from_style_value(*drop_shadow.radius(), {}).absolute_length_to_px());
+                };
 
-                    Gfx::Color color = Gfx::Color::Black;
-                    if (drop_shadow.color && m_element->computed_values()) {
-                        auto color_context = CSS::ColorResolutionContext::for_element(abstract_element);
-                        color = drop_shadow.color->to_color(color_context).value_or(Gfx::Color::Black);
-                    }
+                DOM::AbstractElement abstract_element { *m_element };
+                m_element->document().update_style_if_needed_for_element(abstract_element);
 
-                    auto new_filter = Gfx::Filter::drop_shadow(offset_x, offset_y, radius, color);
+                Gfx::Color color = Gfx::Color::Black;
+                if (drop_shadow.color() && m_element->computed_values()) {
+                    auto color_context = CSS::ColorResolutionContext::for_element(abstract_element);
+                    color = drop_shadow.color()->to_color(color_context).value_or(Gfx::Color::Black);
+                }
 
-                    drawing_state().filter = drawing_state().filter.has_value()
-                        ? Gfx::Filter::compose(new_filter, *drawing_state().filter)
-                        : new_filter;
-                },
-                [&](CSS::URL const& url) {
-                    (void)url;
-                    // FIXME: Resolve the SVG filter
-                    dbgln("FIXME: SVG filters are not implemented for Canvas2D");
-                });
+                auto new_filter = Gfx::Filter::drop_shadow(offset_x, offset_y, radius, color);
+
+                drawing_state().filter = drawing_state().filter.has_value()
+                    ? Gfx::Filter::compose(new_filter, *drawing_state().filter)
+                    : new_filter;
+                break;
+            }
+            }
         }
 
         drawing_state().filter_string = Utf16String::from_utf16(filter);

@@ -20,6 +20,7 @@
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleSheetInvalidation.h>
 #include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FilterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
@@ -449,6 +450,12 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property_style_value(PropertyN
         && !style_value->is_pending_substitution()
         && !style_value->is_guaranteed_invalid()
         && !style_value->is_css_wide_keyword()) {
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("Setting {} to '{}' is not allowed.", property.name(), style_value->to_string(SerializationMode::Normal)) };
+    }
+
+    if (first_is_one_of(property.id(), PropertyID::BackdropFilter, PropertyID::Filter)
+        && style_value->is_value_list()
+        && !is_filter_style_value_list(*style_value)) {
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("Setting {} to '{}' is not allowed.", property.name(), style_value->to_string(SerializationMode::Normal)) };
     }
 

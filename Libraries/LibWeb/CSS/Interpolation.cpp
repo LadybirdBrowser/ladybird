@@ -22,7 +22,7 @@
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
-#include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FilterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
@@ -135,196 +135,141 @@ static RefPtr<StyleValue const> interpolate_scale(StyleValue const& a_from, Styl
 }
 
 // https://drafts.fxtf.org/filter-effects/#interpolation-of-filter-functions
-static Optional<FilterValue> interpolate_filter_function(DOM::Element& element, CalculationContext const& calculation_context, FilterValue const& from, FilterValue const& to, float delta, AllowDiscrete allow_discrete)
+static RefPtr<FilterStyleValue const> interpolate_filter_function(DOM::Element& element, CalculationContext const& calculation_context, FilterStyleValue const& from, FilterStyleValue const& to, float delta, AllowDiscrete allow_discrete)
 {
-    VERIFY(!from.has<URL>());
-    VERIFY(!to.has<URL>());
+    VERIFY(!from.contains_url());
+    VERIFY(!to.contains_url());
 
-    if (from.index() != to.index()) {
+    if (from.kind() != to.kind())
+        return {};
+
+    switch (from.kind()) {
+    case FilterStyleValue::Kind::Blur: {
+        auto const& from_value = static_cast<BlurFilterStyleValue const&>(from);
+        auto const& to_value = static_cast<BlurFilterStyleValue const&>(to);
+
+        CalculationContext blur_calculation_context = calculation_context;
+        blur_calculation_context.accepted_ranges_by_type.set(ValueType::Length, { 0, NumericLimits<float>::max() });
+        if (auto interpolated_style_value = interpolate_value(element, blur_calculation_context, from_value.radius(), to_value.radius(), delta, allow_discrete))
+            return BlurFilterStyleValue::create(interpolated_style_value.release_nonnull());
         return {};
     }
+    case FilterStyleValue::Kind::HueRotate: {
+        auto const& from_value = static_cast<HueRotateFilterStyleValue const&>(from);
+        auto const& to_value = static_cast<HueRotateFilterStyleValue const&>(to);
+        if (auto interpolated_style_value = interpolate_value(element, calculation_context, from_value.angle(), to_value.angle(), delta, allow_discrete))
+            return HueRotateFilterStyleValue::create(interpolated_style_value.release_nonnull());
+        return {};
+    }
+    case FilterStyleValue::Kind::Color: {
+        auto const& from_value = static_cast<ColorFilterStyleValue const&>(from);
+        auto const& to_value = static_cast<ColorFilterStyleValue const&>(to);
+        auto operation = delta >= 0.5f ? to_value.operation() : from_value.operation();
 
-    auto result = from.visit(
-        [&](FilterOperation::Blur const& from_value) -> Optional<FilterValue> {
-            auto const& to_value = to.get<FilterOperation::Blur>();
+        CalculationContext filter_function_calculation_context = calculation_context;
+        switch (operation) {
+        case Gfx::ColorFilterType::Grayscale:
+        case Gfx::ColorFilterType::Invert:
+        case Gfx::ColorFilterType::Opacity:
+        case Gfx::ColorFilterType::Sepia:
+            filter_function_calculation_context.accepted_ranges_by_type.set(ValueType::Number, { 0, 1 });
+            break;
+        case Gfx::ColorFilterType::Brightness:
+        case Gfx::ColorFilterType::Contrast:
+        case Gfx::ColorFilterType::Saturate:
+            filter_function_calculation_context.accepted_ranges_by_type.set(ValueType::Number, { 0, NumericLimits<float>::max() });
+            break;
+        }
 
-            CalculationContext blur_calculation_context = calculation_context;
-            blur_calculation_context.accepted_ranges_by_type.set(ValueType::Length, { 0, NumericLimits<float>::max() });
-            if (auto interpolated_style_value = interpolate_value(element, blur_calculation_context, from_value.radius, to_value.radius, delta, allow_discrete)) {
-                return FilterOperation::Blur {
-                    .radius = interpolated_style_value.release_nonnull()
-                };
-            }
+        if (auto interpolated_style_value = interpolate_value(element, filter_function_calculation_context, from_value.amount(), to_value.amount(), delta, allow_discrete))
+            return ColorFilterStyleValue::create(operation, *interpolated_style_value);
+        return {};
+    }
+    case FilterStyleValue::Kind::DropShadow: {
+        auto const& from_value = static_cast<DropShadowFilterStyleValue const&>(from);
+        auto const& to_value = static_cast<DropShadowFilterStyleValue const&>(to);
+
+        StyleValueVector from_shadows { from_value.shadow_style_value() };
+        StyleValueVector to_shadows { to_value.shadow_style_value() };
+        auto from_list = StyleValueList::create(move(from_shadows), StyleValueList::Separator::Comma);
+        auto to_list = StyleValueList::create(move(to_shadows), StyleValueList::Separator::Comma);
+
+        auto result = interpolate_box_shadow(element, calculation_context, *from_list, *to_list, delta, allow_discrete);
+        if (!result)
             return {};
-        },
-        [&](FilterOperation::HueRotate const& from_value) -> Optional<FilterValue> {
-            auto const& to_value = to.get<FilterOperation::HueRotate>();
-            if (auto interpolated_style_value = interpolate_value(element, calculation_context, from_value.angle, to_value.angle, delta, allow_discrete)) {
-                return FilterOperation::HueRotate {
-                    .angle = interpolated_style_value.release_nonnull(),
-                };
-            }
-            return {};
-        },
-        [&](FilterOperation::Color const& from_value) -> Optional<FilterValue> {
-            auto const& to_value = to.get<FilterOperation::Color>();
-            auto operation = delta >= 0.5f ? to_value.operation : from_value.operation;
 
-            CalculationContext filter_function_calculation_context = calculation_context;
-            switch (operation) {
-            case Gfx::ColorFilterType::Grayscale:
-            case Gfx::ColorFilterType::Invert:
-            case Gfx::ColorFilterType::Opacity:
-            case Gfx::ColorFilterType::Sepia:
-                filter_function_calculation_context.accepted_ranges_by_type.set(ValueType::Number, { 0, 1 });
-                break;
-            case Gfx::ColorFilterType::Brightness:
-            case Gfx::ColorFilterType::Contrast:
-            case Gfx::ColorFilterType::Saturate:
-                filter_function_calculation_context.accepted_ranges_by_type.set(ValueType::Number, { 0, NumericLimits<float>::max() });
-                break;
-            }
+        auto const& result_shadow = result->as_value_list().value_at(0, false)->as_shadow();
 
-            if (auto interpolated_style_value = interpolate_value(element, filter_function_calculation_context, from_value.amount, to_value.amount, delta, allow_discrete)) {
-                return FilterOperation::Color {
-                    .operation = operation,
-                    .amount = *interpolated_style_value
-                };
-            }
-            return {};
-        },
-        [&](FilterOperation::DropShadow const& from_value) -> Optional<FilterValue> {
-            auto const& to_value = to.get<FilterOperation::DropShadow>();
+        RefPtr<StyleValue const> result_radius;
+        auto radius_has_value = delta >= 0.5f ? to_value.radius() : from_value.radius();
+        if (radius_has_value)
+            result_radius = result_shadow.blur_radius();
 
-            auto drop_shadow_to_shadow_style_value = [](FilterOperation::DropShadow const& drop_shadow) {
-                return ShadowStyleValue::create(
-                    ShadowStyleValue::ShadowType::Normal,
-                    drop_shadow.color,
-                    drop_shadow.offset_x,
-                    drop_shadow.offset_y,
-                    drop_shadow.radius,
-                    LengthStyleValue::create(Length::make_px(0)),
-                    ShadowPlacement::Outer);
-            };
+        return DropShadowFilterStyleValue::create(
+            result_shadow.offset_x(),
+            result_shadow.offset_y(),
+            result_radius,
+            result_shadow.color_or_null());
+    }
+    }
+    VERIFY_NOT_REACHED();
+}
 
-            StyleValueVector from_shadows { drop_shadow_to_shadow_style_value(from_value) };
-            StyleValueVector to_shadows { drop_shadow_to_shadow_style_value(to_value) };
-            auto from_list = StyleValueList::create(move(from_shadows), StyleValueList::Separator::Comma);
-            auto to_list = StyleValueList::create(move(to_shadows), StyleValueList::Separator::Comma);
-
-            auto result = interpolate_box_shadow(element, calculation_context, *from_list, *to_list, delta, allow_discrete);
-            if (!result)
-                return {};
-
-            auto const& result_shadow = result->as_value_list().value_at(0, false)->as_shadow();
-
-            RefPtr<StyleValue const> result_radius;
-            auto radius_has_value = delta >= 0.5f ? to_value.radius : from_value.radius;
-            if (radius_has_value)
-                result_radius = result_shadow.blur_radius();
-
-            return FilterOperation::DropShadow {
-                .offset_x = result_shadow.offset_x(),
-                .offset_y = result_shadow.offset_y(),
-                .radius = result_radius,
-                // FIXME: We shouldn't apply the default color here
-                .color = result_shadow.color()
-            };
-        },
-        [](URL const&) -> Optional<FilterValue> {
-            // URL filters cannot be interpolated
-            return {};
-        });
-
-    return result;
+static bool contains_url(StyleValueList const& list)
+{
+    return list.values().contains([](auto& it) { return it->is_url(); });
 }
 
 // https://drafts.fxtf.org/filter-effects/#interpolation-of-filters
 static RefPtr<StyleValue const> interpolate_filter_value_list(DOM::Element& element, CalculationContext const& calculation_context, StyleValue const& a_from, StyleValue const& a_to, float delta, AllowDiscrete allow_discrete)
 {
     auto is_filter_value_list_without_url = [](StyleValue const& value) {
-        if (!value.is_filter_value_list())
+        if (!is_filter_style_value_list(value))
             return false;
-        auto const& filter_value_list = value.as_filter_value_list();
-        return !filter_value_list.contains_url();
+        return !contains_url(value.as_value_list());
     };
 
-    auto initial_value_for = [&](FilterValue value) {
-        return value.visit([&](FilterOperation::Blur const&) -> FilterValue { return FilterOperation::Blur { LengthStyleValue::create(Length::make_px(0)) }; },
-            [&](FilterOperation::DropShadow const&) -> FilterValue {
-                return FilterOperation::DropShadow {
-                    .offset_x = LengthStyleValue::create(Length::make_px(0)),
-                    .offset_y = LengthStyleValue::create(Length::make_px(0)),
-                    .radius = LengthStyleValue::create(Length::make_px(0)),
-                    .color = ColorStyleValue::create_from_color(Color::Transparent, ColorSyntax::Legacy)
-                };
-            },
-            [&](FilterOperation::HueRotate const&) -> FilterValue {
-                return FilterOperation::HueRotate { AngleStyleValue::create(Angle::make_degrees(0)) };
-            },
-            [&](FilterOperation::Color const& color) -> FilterValue {
-                auto default_value_for_interpolation = [&]() {
-                    switch (color.operation) {
-                    case Gfx::ColorFilterType::Grayscale:
-                    case Gfx::ColorFilterType::Invert:
-                    case Gfx::ColorFilterType::Sepia:
-                        return 0.0;
-                    case Gfx::ColorFilterType::Brightness:
-                    case Gfx::ColorFilterType::Contrast:
-                    case Gfx::ColorFilterType::Opacity:
-                    case Gfx::ColorFilterType::Saturate:
-                        return 1.0;
-                    }
-                    VERIFY_NOT_REACHED();
-                }();
-                return FilterOperation::Color { .operation = color.operation, .amount = NumberStyleValue::create(default_value_for_interpolation) };
-            },
-            [&](auto&) -> FilterValue {
-                VERIFY_NOT_REACHED();
-            });
+    auto make_filter_value_list = [](StyleValueVector values) {
+        return StyleValueList::create(move(values), StyleValueList::Separator::Space, StyleValueList::Collapsible::No);
     };
 
-    auto interpolate_filter_values = [&](StyleValue const& from, StyleValue const& to) -> RefPtr<FilterValueListStyleValue const> {
-        auto const& from_filter_values = from.as_filter_value_list().filter_value_list();
-        auto const& to_filter_values = to.as_filter_value_list().filter_value_list();
-        Vector<FilterValue> interpolated_filter_values;
-        for (size_t i = 0; i < from.as_filter_value_list().size(); ++i) {
-            auto const& from_value = from_filter_values[i];
-            auto const& to_value = to_filter_values[i];
+    auto interpolate_filter_values = [&](StyleValueList const& from, StyleValueList const& to) -> RefPtr<StyleValueList const> {
+        StyleValueVector interpolated_filter_values;
+        for (size_t i = 0; i < from.size(); ++i) {
+            auto const& from_value = from.values()[i]->as_filter();
+            auto const& to_value = to.values()[i]->as_filter();
 
             auto interpolated_value = interpolate_filter_function(element, calculation_context, from_value, to_value, delta, allow_discrete);
-            if (!interpolated_value.has_value())
+            if (!interpolated_value)
                 return {};
-            interpolated_filter_values.append(interpolated_value.release_value());
+            interpolated_filter_values.append(interpolated_value.release_nonnull());
         }
-        return FilterValueListStyleValue::create(move(interpolated_filter_values));
+        return make_filter_value_list(move(interpolated_filter_values));
     };
 
     if (is_filter_value_list_without_url(a_from) && is_filter_value_list_without_url(a_to)) {
-        auto const& from_list = a_from.as_filter_value_list();
-        auto const& to_list = a_to.as_filter_value_list();
+        auto const& from_list = a_from.as_value_list();
+        auto const& to_list = a_to.as_value_list();
         // If both filters have a <filter-value-list> of same length without <url> and for each <filter-function> for which there is a corresponding item in each list
         if (from_list.size() == to_list.size()) {
             // Interpolate each <filter-function> pair following the rules in section Interpolation of Filter Functions.
-            return interpolate_filter_values(a_from, a_to);
+            return interpolate_filter_values(from_list, to_list);
         }
 
         // If both filters have a <filter-value-list> of different length without <url> and for each <filter-function> for which there is a corresponding item in each list
 
         // 1. Append the missing equivalent <filter-function>s from the longer list to the end of the shorter list. The new added <filter-function>s must be initialized to their initial values for interpolation.
-        auto append_missing_values_to = [&](FilterValueListStyleValue const& short_list, FilterValueListStyleValue const& longer_list) -> ValueComparingNonnullRefPtr<FilterValueListStyleValue const> {
-            Vector<FilterValue> new_filter_list = short_list.filter_value_list();
-            for (size_t i = new_filter_list.size(); i < longer_list.size(); ++i) {
-                auto const& filter_value = longer_list.filter_value_list()[i];
-                new_filter_list.append(initial_value_for(filter_value));
-            }
-            return FilterValueListStyleValue::create(move(new_filter_list));
+        auto append_missing_values_to = [&](StyleValueList const& short_list, StyleValueList const& longer_list) -> ValueComparingNonnullRefPtr<StyleValueList> {
+            StyleValueVector new_filter_list = short_list.values();
+            for (size_t i = new_filter_list.size(); i < longer_list.size(); ++i)
+                new_filter_list.append(FilterStyleValue::initial_value_for(longer_list.values()[i]->as_filter(), true));
+            return make_filter_value_list(move(new_filter_list));
         };
         ValueComparingNonnullRefPtr<StyleValue const> from = from_list.size() < to_list.size() ? append_missing_values_to(from_list, to_list) : a_from;
         ValueComparingNonnullRefPtr<StyleValue const> to = to_list.size() < from_list.size() ? append_missing_values_to(to_list, from_list) : a_to;
 
         // 2. Interpolate each <filter-function> pair following the rules in section Interpolation of Filter Functions.
-        return interpolate_filter_values(from, to);
+        return interpolate_filter_values(from->as_value_list(), to->as_value_list());
     }
 
     // If one filter is none and the other is a <filter-value-list> without <url>
@@ -332,19 +277,20 @@ static RefPtr<StyleValue const> interpolate_filter_value_list(DOM::Element& elem
         || (is_filter_value_list_without_url(a_to) && a_from.to_keyword() == Keyword::None)) {
 
         // 1. Replace none with the corresponding <filter-value-list> of the other filter. The new <filter-function>s must be initialized to their initial values for interpolation.
-        auto replace_none_with_initial_filter_list_values = [&](FilterValueListStyleValue const& filter_value_list) {
-            Vector<FilterValue> initial_values;
-            for (auto const& filter_value : filter_value_list.filter_value_list()) {
-                initial_values.append(initial_value_for(filter_value));
+        auto replace_none_with_initial_filter_list_values = [&](StyleValueList const& filter_value_list) {
+            StyleValueVector initial_values;
+            for (auto const& filter_value : filter_value_list.values()) {
+                // FIXME: We shouldn't apply the default color here.
+                initial_values.append(FilterStyleValue::initial_value_for(filter_value->as_filter(), true));
             }
-            return FilterValueListStyleValue::create(move(initial_values));
+            return make_filter_value_list(move(initial_values));
         };
 
-        ValueComparingNonnullRefPtr<StyleValue const> from = a_from.is_keyword() ? replace_none_with_initial_filter_list_values(a_to.as_filter_value_list()) : a_from;
-        ValueComparingNonnullRefPtr<StyleValue const> to = a_to.is_keyword() ? replace_none_with_initial_filter_list_values(a_from.as_filter_value_list()) : a_to;
+        ValueComparingNonnullRefPtr<StyleValue const> from = a_from.is_keyword() ? replace_none_with_initial_filter_list_values(a_to.as_value_list()) : a_from;
+        ValueComparingNonnullRefPtr<StyleValue const> to = a_to.is_keyword() ? replace_none_with_initial_filter_list_values(a_from.as_value_list()) : a_to;
 
         // 2. Interpolate each <filter-function> pair following the rules in section Interpolation of Filter Functions.
-        return interpolate_filter_values(from, to);
+        return interpolate_filter_values(from->as_value_list(), to->as_value_list());
     }
 
     // Otherwise:
@@ -2080,7 +2026,7 @@ RefPtr<StyleValue const> interpolate_repeatable_list(DOM::Element& element, Calc
 }
 
 // https://drafts.csswg.org/filter-effects/#accumulation
-Vector<FilterValue> accumulate_filter_function(FilterValueListStyleValue const& underlying_list, FilterValueListStyleValue const& animated_list)
+static StyleValueVector accumulate_filter_function(StyleValueList const& underlying_list, StyleValueList const& animated_list)
 {
     // Accumulation of <filter-value-list>s follows the same matching and extending rules as interpolation, falling
     // back to replace behavior if the lists do not match. However instead of interpolating the matching
@@ -2088,164 +2034,121 @@ Vector<FilterValue> accumulate_filter_function(FilterValueListStyleValue const& 
     // <filter-function>s whose initial value for interpolation is 1, which combine using one-based addition:
     // Vresult = Va + Vb - 1
 
-    auto initial_value_for = [](FilterValue const& value) {
-        return value.visit(
-            [&](FilterOperation::Blur const&) -> FilterValue { return FilterOperation::Blur { LengthStyleValue::create(Length::make_px(0)) }; },
-            [&](FilterOperation::DropShadow const&) -> FilterValue {
-                return FilterOperation::DropShadow {
-                    .offset_x = LengthStyleValue::create(Length::make_px(0)),
-                    .offset_y = LengthStyleValue::create(Length::make_px(0)),
-                    .radius = LengthStyleValue::create(Length::make_px(0)),
-                    .color = nullptr
-                };
-            },
-            [&](FilterOperation::HueRotate const&) -> FilterValue {
-                return FilterOperation::HueRotate { AngleStyleValue::create(Angle::make_degrees(0)) };
-            },
-            [&](FilterOperation::Color const& color) -> FilterValue {
-                auto default_value_for_accumulation = [&]() {
-                    switch (color.operation) {
-                    case Gfx::ColorFilterType::Grayscale:
-                    case Gfx::ColorFilterType::Invert:
-                    case Gfx::ColorFilterType::Sepia:
-                        return 0.0;
-                    case Gfx::ColorFilterType::Brightness:
-                    case Gfx::ColorFilterType::Contrast:
-                    case Gfx::ColorFilterType::Opacity:
-                    case Gfx::ColorFilterType::Saturate:
-                        return 1.0;
-                    }
-                    VERIFY_NOT_REACHED();
-                }();
-                return FilterOperation::Color { .operation = color.operation, .amount = NumberStyleValue::create(default_value_for_accumulation) };
-            },
-            [&](auto&) -> FilterValue {
-                VERIFY_NOT_REACHED();
-            });
-    };
+    if (contains_url(underlying_list) || contains_url(animated_list))
+        return {};
 
-    auto accumulate_filter = [](FilterValue const& underlying, FilterValue const& animated) -> Optional<FilterValue> {
-        return underlying.visit(
-            [&](FilterOperation::Blur const& underlying_blur) -> Optional<FilterValue> {
-                if (!animated.has<FilterOperation::Blur>())
-                    return {};
-                auto const& animated_blur = animated.get<FilterOperation::Blur>();
+    auto accumulate_filter = [](FilterStyleValue const& underlying, FilterStyleValue const& animated) -> RefPtr<FilterStyleValue const> {
+        if (underlying.kind() != animated.kind())
+            return {};
 
-                return FilterOperation::Blur { .radius = LengthStyleValue::create(Length::make_px(underlying_blur.resolved_radius() + animated_blur.resolved_radius())) };
-            },
-            [&](FilterOperation::HueRotate const& underlying_rotate) -> Optional<FilterValue> {
-                if (!animated.has<FilterOperation::HueRotate>())
-                    return {};
-                auto const& animated_rotate = animated.get<FilterOperation::HueRotate>();
-
-                return FilterOperation::HueRotate { .angle = AngleStyleValue::create(Angle::make_degrees(underlying_rotate.angle_degrees() + animated_rotate.angle_degrees())) };
-            },
-            [&](FilterOperation::Color const& underlying_color) -> Optional<FilterValue> {
-                if (!animated.has<FilterOperation::Color>())
-                    return {};
-                auto const& animated_color = animated.get<FilterOperation::Color>();
-                if (underlying_color.operation != animated_color.operation)
-                    return {};
-
-                auto underlying_amount = underlying_color.resolved_amount();
-                auto animated_amount = animated_color.resolved_amount();
-
-                double accumulated;
-                switch (underlying_color.operation) {
-                case Gfx::ColorFilterType::Brightness:
-                case Gfx::ColorFilterType::Contrast:
-                case Gfx::ColorFilterType::Opacity:
-                case Gfx::ColorFilterType::Saturate:
-                    accumulated = underlying_amount + animated_amount - 1.0;
-                    break;
-                case Gfx::ColorFilterType::Grayscale:
-                case Gfx::ColorFilterType::Invert:
-                case Gfx::ColorFilterType::Sepia:
-                    accumulated = underlying_amount + animated_amount;
-                    break;
-                default:
-                    VERIFY_NOT_REACHED();
-                }
-
-                return FilterOperation::Color {
-                    .operation = underlying_color.operation,
-                    .amount = NumberStyleValue::create(accumulated)
-                };
-            },
-            [&](FilterOperation::DropShadow const& underlying_shadow) -> Optional<FilterValue> {
-                if (!animated.has<FilterOperation::DropShadow>())
-                    return {};
-                auto const& animated_shadow = animated.get<FilterOperation::DropShadow>();
-
-                auto add_lengths = [](NonnullRefPtr<StyleValue const> const& a, NonnullRefPtr<StyleValue const> const& b) -> NonnullRefPtr<StyleValue const> {
-                    auto a_value = Length::from_style_value(a, {}).absolute_length_to_px_without_rounding();
-                    auto b_value = Length::from_style_value(b, {}).absolute_length_to_px_without_rounding();
-
-                    return LengthStyleValue::create(Length::make_px(a_value + b_value));
-                };
-
-                auto offset_x = add_lengths(underlying_shadow.offset_x, animated_shadow.offset_x);
-                auto offset_y = add_lengths(underlying_shadow.offset_y, animated_shadow.offset_y);
-                RefPtr<StyleValue const> accumulated_radius;
-                if (underlying_shadow.radius || animated_shadow.radius) {
-                    auto underlying_radius = underlying_shadow.radius ? Length::from_style_value(*underlying_shadow.radius, {}).absolute_length_to_px_without_rounding() : 0;
-                    auto animated_radius = animated_shadow.radius ? Length::from_style_value(*animated_shadow.radius, {}).absolute_length_to_px_without_rounding() : 0;
-                    accumulated_radius = LengthStyleValue::create(Length::make_px(underlying_radius + animated_radius));
-                }
-
-                RefPtr<StyleValue const> accumulated_color = animated_shadow.color;
-                if (underlying_shadow.color && animated_shadow.color) {
-                    ColorResolutionContext color_resolution_context {};
-                    auto underlying_color = underlying_shadow.color->to_color(color_resolution_context);
-                    auto animated_color = animated_shadow.color->to_color(color_resolution_context);
-                    if (underlying_color.has_value() && animated_color.has_value()) {
-                        auto accumulated = Color(
-                            min(255, underlying_color->red() + animated_color->red()),
-                            min(255, underlying_color->green() + animated_color->green()),
-                            min(255, underlying_color->blue() + animated_color->blue()),
-                            min(255, underlying_color->alpha() + animated_color->alpha()));
-                        accumulated_color = ColorStyleValue::create_from_color(accumulated, ColorSyntax::Legacy);
-                    }
-                }
-
-                return FilterOperation::DropShadow {
-                    .offset_x = offset_x,
-                    .offset_y = offset_y,
-                    .radius = accumulated_radius,
-                    .color = accumulated_color
-                };
-            },
-            [&](URL const&) -> Optional<FilterValue> {
+        switch (underlying.kind()) {
+        case FilterStyleValue::Kind::Blur: {
+            auto const& underlying_blur = static_cast<BlurFilterStyleValue const&>(underlying);
+            auto const& animated_blur = static_cast<BlurFilterStyleValue const&>(animated);
+            return BlurFilterStyleValue::create(LengthStyleValue::create(Length::make_px(underlying_blur.resolved_radius() + animated_blur.resolved_radius())));
+        }
+        case FilterStyleValue::Kind::HueRotate: {
+            auto const& underlying_rotate = static_cast<HueRotateFilterStyleValue const&>(underlying);
+            auto const& animated_rotate = static_cast<HueRotateFilterStyleValue const&>(animated);
+            return HueRotateFilterStyleValue::create(AngleStyleValue::create(Angle::make_degrees(underlying_rotate.angle_degrees() + animated_rotate.angle_degrees())));
+        }
+        case FilterStyleValue::Kind::Color: {
+            auto const& underlying_color = static_cast<ColorFilterStyleValue const&>(underlying);
+            auto const& animated_color = static_cast<ColorFilterStyleValue const&>(animated);
+            if (underlying_color.operation() != animated_color.operation())
                 return {};
-            });
+
+            auto underlying_amount = underlying_color.resolved_amount();
+            auto animated_amount = animated_color.resolved_amount();
+
+            double accumulated;
+            switch (underlying_color.operation()) {
+            case Gfx::ColorFilterType::Brightness:
+            case Gfx::ColorFilterType::Contrast:
+            case Gfx::ColorFilterType::Opacity:
+            case Gfx::ColorFilterType::Saturate:
+                accumulated = underlying_amount + animated_amount - 1.0;
+                break;
+            case Gfx::ColorFilterType::Grayscale:
+            case Gfx::ColorFilterType::Invert:
+            case Gfx::ColorFilterType::Sepia:
+                accumulated = underlying_amount + animated_amount;
+                break;
+            default:
+                VERIFY_NOT_REACHED();
+            }
+
+            return ColorFilterStyleValue::create(underlying_color.operation(), NumberStyleValue::create(accumulated));
+        }
+        case FilterStyleValue::Kind::DropShadow: {
+            auto const& underlying_shadow = static_cast<DropShadowFilterStyleValue const&>(underlying);
+            auto const& animated_shadow = static_cast<DropShadowFilterStyleValue const&>(animated);
+
+            auto add_lengths = [](NonnullRefPtr<StyleValue const> const& a, NonnullRefPtr<StyleValue const> const& b) -> NonnullRefPtr<StyleValue const> {
+                auto a_value = Length::from_style_value(a, {}).absolute_length_to_px_without_rounding();
+                auto b_value = Length::from_style_value(b, {}).absolute_length_to_px_without_rounding();
+
+                return LengthStyleValue::create(Length::make_px(a_value + b_value));
+            };
+
+            auto offset_x = add_lengths(underlying_shadow.offset_x(), animated_shadow.offset_x());
+            auto offset_y = add_lengths(underlying_shadow.offset_y(), animated_shadow.offset_y());
+            RefPtr<StyleValue const> accumulated_radius;
+            if (underlying_shadow.radius() || animated_shadow.radius()) {
+                auto underlying_radius = underlying_shadow.radius() ? Length::from_style_value(*underlying_shadow.radius(), {}).absolute_length_to_px_without_rounding() : 0;
+                auto animated_radius = animated_shadow.radius() ? Length::from_style_value(*animated_shadow.radius(), {}).absolute_length_to_px_without_rounding() : 0;
+                accumulated_radius = LengthStyleValue::create(Length::make_px(underlying_radius + animated_radius));
+            }
+
+            RefPtr<StyleValue const> accumulated_color = animated_shadow.color();
+            if (underlying_shadow.color() && animated_shadow.color()) {
+                ColorResolutionContext color_resolution_context {};
+                auto underlying_color = underlying_shadow.color()->to_color(color_resolution_context);
+                auto animated_color = animated_shadow.color()->to_color(color_resolution_context);
+                if (underlying_color.has_value() && animated_color.has_value()) {
+                    auto accumulated = Color(
+                        min(255, underlying_color->red() + animated_color->red()),
+                        min(255, underlying_color->green() + animated_color->green()),
+                        min(255, underlying_color->blue() + animated_color->blue()),
+                        min(255, underlying_color->alpha() + animated_color->alpha()));
+                    accumulated_color = ColorStyleValue::create_from_color(accumulated, ColorSyntax::Legacy);
+                }
+            }
+
+            return DropShadowFilterStyleValue::create(
+                offset_x,
+                offset_y,
+                accumulated_radius,
+                accumulated_color);
+        }
+        }
+        VERIFY_NOT_REACHED();
     };
 
     // Extend shorter list with initial values
     size_t max_size = max(underlying_list.size(), animated_list.size());
-    Vector<FilterValue> extended_underlying;
-    Vector<FilterValue> extended_animated;
+    StyleValueVector extended_underlying;
+    StyleValueVector extended_animated;
 
     for (size_t i = 0; i < max_size; ++i) {
-        if (i < underlying_list.size()) {
-            extended_underlying.append(underlying_list.filter_value_list()[i]);
-        } else {
-            extended_underlying.append(initial_value_for(animated_list.filter_value_list()[i]));
-        }
+        if (i < underlying_list.size())
+            extended_underlying.append(underlying_list.values()[i]);
+        else
+            extended_underlying.append(FilterStyleValue::initial_value_for(animated_list.values()[i]->as_filter(), false));
 
-        if (i < animated_list.size()) {
-            extended_animated.append(animated_list.filter_value_list()[i]);
-        } else {
-            extended_animated.append(initial_value_for(underlying_list.filter_value_list()[i]));
-        }
+        if (i < animated_list.size())
+            extended_animated.append(animated_list.values()[i]);
+        else
+            extended_animated.append(FilterStyleValue::initial_value_for(underlying_list.values()[i]->as_filter(), false));
     }
 
-    Vector<FilterValue> result;
+    StyleValueVector result;
     result.ensure_capacity(max_size);
     for (size_t i = 0; i < max_size; ++i) {
-        auto accumulated = accumulate_filter(extended_underlying[i], extended_animated[i]);
-        if (!accumulated.has_value())
+        auto accumulated = accumulate_filter(extended_underlying[i]->as_filter(), extended_animated[i]->as_filter());
+        if (!accumulated)
             return {};
-        result.unchecked_append(accumulated.release_value());
+        result.unchecked_append(accumulated.release_nonnull());
     }
     return result;
 }
@@ -2652,6 +2555,25 @@ RefPtr<StyleValue const> composite_value(PropertyID property_id, StyleValue cons
     case StyleValue::Type::ValueList: {
         auto& underlying_list = underlying_value.as_value_list();
         auto& animated_list = animated_value.as_value_list();
+
+        if (is_filter_style_value_list(underlying_value) && is_filter_style_value_list(animated_value)) {
+            // https://drafts.csswg.org/filter-effects/#addition
+            // Given two filter values representing an base value (base filter list) and a value to add (added filter list),
+            // returns the concatenation of the the two lists: ‘base filter list added filter list’.
+            if (composite_operation == Bindings::CompositeOperation::Add) {
+                StyleValueVector result = underlying_list.values();
+                result.extend(animated_list.values());
+                return StyleValueList::create(move(result), StyleValueList::Separator::Space, StyleValueList::Collapsible::No);
+            }
+
+            VERIFY(composite_operation == Bindings::CompositeOperation::Accumulate);
+            auto result = accumulate_filter_function(underlying_list, animated_list);
+            if (result.is_empty())
+                return {};
+
+            return StyleValueList::create(move(result), StyleValueList::Separator::Space, StyleValueList::Collapsible::No);
+        }
+
         if (underlying_list.size() != animated_list.size() || underlying_list.separator() != animated_list.separator())
             return {};
         StyleValueVector values;
@@ -2663,26 +2585,6 @@ RefPtr<StyleValue const> composite_value(PropertyID property_id, StyleValue cons
             values.unchecked_append(*composited_value);
         }
         return StyleValueList::create(move(values), underlying_list.separator());
-    }
-    case StyleValue::Type::FilterValueList: {
-        auto& underlying_list = underlying_value.as_filter_value_list();
-        auto& animated_list = animated_value.as_filter_value_list();
-
-        // https://drafts.csswg.org/filter-effects/#addition
-        // Given two filter values representing an base value (base filter list) and a value to add (added filter list),
-        // returns the concatenation of the the two lists: ‘base filter list added filter list’.
-        if (composite_operation == Bindings::CompositeOperation::Add) {
-            Vector<FilterValue> result = underlying_list.filter_value_list();
-            result.extend(animated_list.filter_value_list());
-            return FilterValueListStyleValue::create(move(result));
-        }
-
-        VERIFY(composite_operation == Bindings::CompositeOperation::Accumulate);
-        auto result = accumulate_filter_function(underlying_list, animated_list);
-        if (result.is_empty())
-            return {};
-
-        return FilterValueListStyleValue::create(move(result));
     }
     default:
         // FIXME: Implement compositing for missing types

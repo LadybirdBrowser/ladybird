@@ -6,14 +6,14 @@
  */
 
 #include "Filter.h"
-#include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FilterStyleValue.h>
 
 namespace Web::CSS {
 
-ReadonlySpan<FilterValue> Filter::filters() const
+StyleValueVector const& Filter::filters() const
 {
     VERIFY(has_filters());
-    return m_filter_value_list->as_filter_value_list().filter_value_list().span();
+    return m_filter_value_list->values();
 }
 
 }

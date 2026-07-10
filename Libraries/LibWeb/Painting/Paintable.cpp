@@ -17,11 +17,13 @@
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleValues/BorderImageSliceStyleValue.h>
-#include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FilterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
+#include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -855,70 +857,82 @@ ResolvedCSSFilter resolve_css_filter(CSS::Filter const& computed_filter, Paintab
 
     ResolvedCSSFilter result;
     for (auto const& filter_operation : computed_filter.filters()) {
-        filter_operation.visit(
-            [&](CSS::FilterOperation::Blur const& blur) {
-                auto resolved_radius = blur.resolved_radius();
-                result.operations.empend(ResolvedCSSFilter::Blur {
-                    .radius = CSSPixels::nearest_value_for(resolved_radius),
-                });
-            },
-            [&](CSS::FilterOperation::DropShadow const& drop_shadow) {
-                auto to_css_px = [&](NonnullRefPtr<CSS::StyleValue const> const& length) {
-                    return CSS::Length::from_style_value(length, {}).absolute_length_to_px();
-                };
-                auto color_context = CSS::ColorResolutionContext::for_layout_node_with_style(layout_node);
-                auto resolved_color = drop_shadow.color
-                    ? drop_shadow.color->to_color(color_context).value_or(computed_values.color())
-                    : computed_values.color();
-
-                result.operations.empend(ResolvedCSSFilter::DropShadow {
-                    .offset_x = to_css_px(drop_shadow.offset_x),
-                    .offset_y = to_css_px(drop_shadow.offset_y),
-                    .radius = drop_shadow.radius ? to_css_px(*drop_shadow.radius) : CSSPixels(0),
-                    .color = resolved_color,
-                });
-            },
-            [&](CSS::FilterOperation::Color const& color_operation) {
-                result.operations.empend(ResolvedCSSFilter::Color {
-                    .operation = color_operation.operation,
-                    .amount = color_operation.resolved_amount(),
-                });
-            },
-            [&](CSS::FilterOperation::HueRotate const& hue_rotate) {
-                result.operations.empend(ResolvedCSSFilter::HueRotate {
-                    .angle_degrees = hue_rotate.angle_degrees(),
-                });
-            },
-            [&](CSS::URL const& css_url) {
-                auto& url_string = css_url.url();
-                if (url_string.is_empty() || !url_string.starts_with('#'))
-                    return;
-                auto fragment_or_error = url_string.substring_from_byte_offset(1);
-                if (fragment_or_error.is_error())
-                    return;
-                auto maybe_filter = paintable_box.document().get_element_by_id(Utf16String::from_utf8(fragment_or_error.value()));
-                if (!maybe_filter)
-                    return;
-                if (auto* filter_element = as_if<SVG::SVGFilterElement>(*maybe_filter)) {
-                    // Filter primitive lengths are specified in the filtered element's user coordinate system, but the
-                    // resulting filter operates in device pixels. Compute the user-unit-to-device-pixel scale so the
-                    // filter can convert its lengths accordingly.
-                    auto device_pixels_per_css_pixel = paintable_box.document().page().client().device_pixels_per_css_pixel();
-                    auto filter_scale = Gfx::FloatPoint { device_pixels_per_css_pixel, device_pixels_per_css_pixel };
-                    if (auto const* svg_graphics_paintable = as_if<SVGGraphicsPaintable>(paintable_box)) {
-                        auto svg_to_css_pixels = svg_graphics_paintable->computed_transforms().svg_to_css_pixels_transform();
-                        filter_scale.scale_by(svg_to_css_pixels.x_scale(), svg_to_css_pixels.y_scale());
-                    }
-                    result.svg_filter = filter_element->gfx_filter(layout_node, filter_scale);
-                    auto bounds = paintable_box.absolute_border_box_rect();
-                    if (bounds.is_empty()) {
-                        if (auto svg_ancestor = paintable_box.first_ancestor_of_type<SVGSVGPaintable>())
-                            result.svg_filter_bounds = svg_ancestor->absolute_rect();
-                    }
-                    if (!bounds.is_empty())
-                        result.svg_filter_bounds = bounds;
+        if (filter_operation->is_url()) {
+            auto& url_string = filter_operation->as_url().url().url();
+            if (url_string.is_empty() || !url_string.starts_with('#'))
+                continue;
+            auto fragment_or_error = url_string.substring_from_byte_offset(1);
+            if (fragment_or_error.is_error())
+                continue;
+            auto maybe_filter = paintable_box.document().get_element_by_id(Utf16String::from_utf8(fragment_or_error.value()));
+            if (!maybe_filter)
+                continue;
+            if (auto* filter_element = as_if<SVG::SVGFilterElement>(*maybe_filter)) {
+                // Filter primitive lengths are specified in the filtered element's user coordinate system, but the
+                // resulting filter operates in device pixels. Compute the user-unit-to-device-pixel scale so the
+                // filter can convert its lengths accordingly.
+                auto device_pixels_per_css_pixel = paintable_box.document().page().client().device_pixels_per_css_pixel();
+                auto filter_scale = Gfx::FloatPoint { device_pixels_per_css_pixel, device_pixels_per_css_pixel };
+                if (auto const* svg_graphics_paintable = as_if<SVGGraphicsPaintable>(paintable_box)) {
+                    auto svg_to_css_pixels = svg_graphics_paintable->computed_transforms().svg_to_css_pixels_transform();
+                    filter_scale.scale_by(svg_to_css_pixels.x_scale(), svg_to_css_pixels.y_scale());
                 }
+                result.svg_filter = filter_element->gfx_filter(layout_node, filter_scale);
+                auto bounds = paintable_box.absolute_border_box_rect();
+                if (bounds.is_empty()) {
+                    if (auto svg_ancestor = paintable_box.first_ancestor_of_type<SVGSVGPaintable>())
+                        result.svg_filter_bounds = svg_ancestor->absolute_rect();
+                }
+                if (!bounds.is_empty())
+                    result.svg_filter_bounds = bounds;
+            }
+            continue;
+        }
+
+        auto const& filter_value = filter_operation->as_filter();
+        switch (filter_value.kind()) {
+        case CSS::FilterStyleValue::Kind::Blur: {
+            auto const& blur = static_cast<CSS::BlurFilterStyleValue const&>(filter_value);
+            auto resolved_radius = blur.resolved_radius();
+            result.operations.empend(ResolvedCSSFilter::Blur {
+                .radius = CSSPixels::nearest_value_for(resolved_radius),
             });
+            break;
+        }
+        case CSS::FilterStyleValue::Kind::DropShadow: {
+            auto const& drop_shadow = static_cast<CSS::DropShadowFilterStyleValue const&>(filter_value);
+            auto to_css_px = [&](NonnullRefPtr<CSS::StyleValue const> const& length) {
+                return CSS::Length::from_style_value(length, {}).absolute_length_to_px();
+            };
+            auto color_context = CSS::ColorResolutionContext::for_layout_node_with_style(layout_node);
+            auto resolved_color = drop_shadow.color()
+                ? drop_shadow.color()->to_color(color_context).value_or(computed_values.color())
+                : computed_values.color();
+
+            result.operations.empend(ResolvedCSSFilter::DropShadow {
+                .offset_x = to_css_px(drop_shadow.offset_x()),
+                .offset_y = to_css_px(drop_shadow.offset_y()),
+                .radius = drop_shadow.radius() ? to_css_px(*drop_shadow.radius()) : CSSPixels(0),
+                .color = resolved_color,
+            });
+            break;
+        }
+        case CSS::FilterStyleValue::Kind::Color: {
+            auto const& color_operation = static_cast<CSS::ColorFilterStyleValue const&>(filter_value);
+            result.operations.empend(ResolvedCSSFilter::Color {
+                .operation = color_operation.operation(),
+                .amount = color_operation.resolved_amount(),
+            });
+            break;
+        }
+        case CSS::FilterStyleValue::Kind::HueRotate: {
+            auto const& hue_rotate = static_cast<CSS::HueRotateFilterStyleValue const&>(filter_value);
+            result.operations.empend(ResolvedCSSFilter::HueRotate {
+                .angle_degrees = hue_rotate.angle_degrees(),
+            });
+            break;
+        }
+        }
     }
     return result;
 }

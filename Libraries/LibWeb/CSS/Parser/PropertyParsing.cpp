@@ -34,7 +34,7 @@
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/EdgeStyleValue.h>
-#include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FilterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
@@ -5459,11 +5459,11 @@ RefPtr<StyleValue const> Parser::parse_filter_value_list_value(TokenStream<Compo
 
     // https://drafts.csswg.org/filter-effects-1/#typedef-filter-function
     // <blur()> | <brightness()> | <contrast()> | <drop-shadow()> | <grayscale()> | <hue-rotate()> | <invert()> | <opacity()> | <sepia()> | <saturate()>
-    auto parse_filter_function = [&](auto filter_token, auto const& function_values) -> Optional<FilterValue> {
+    auto parse_filter_function = [&](auto filter_token, auto const& function_values) -> RefPtr<FilterStyleValue const> {
         TokenStream tokens { function_values };
         tokens.discard_whitespace();
 
-        auto if_no_more_tokens_return = [&](auto filter) -> Optional<FilterValue> {
+        auto if_no_more_tokens_return = [&](auto filter) -> RefPtr<FilterStyleValue const> {
             tokens.discard_whitespace();
             if (tokens.has_next_token())
                 return {};
@@ -5476,14 +5476,14 @@ RefPtr<StyleValue const> Parser::parse_filter_value_list_value(TokenStream<Compo
 
             // Default value when omitted is 0px.
             if (!tokens.has_next_token())
-                return FilterOperation::Blur { LengthStyleValue::create(Length::make_px(0)) };
+                return BlurFilterStyleValue::create(LengthStyleValue::create(Length::make_px(0)));
 
             // Negative values are not allowed.
             auto blur_radius = parse_length_value(tokens, non_negative_range);
             tokens.discard_whitespace();
             if (!blur_radius)
                 return {};
-            return if_no_more_tokens_return(FilterOperation::Blur { blur_radius.release_nonnull() });
+            return if_no_more_tokens_return(BlurFilterStyleValue::create(blur_radius.release_nonnull()));
         } else if (filter_token == FilterToken::DropShadow) {
             if (!tokens.has_next_token())
                 return {};
@@ -5516,26 +5516,26 @@ RefPtr<StyleValue const> Parser::parse_filter_value_list_value(TokenStream<Compo
                 }
             }
 
-            return if_no_more_tokens_return(FilterOperation::DropShadow { x_offset.release_nonnull(), y_offset.release_nonnull(), maybe_radius, maybe_color });
+            return if_no_more_tokens_return(DropShadowFilterStyleValue::create(x_offset.release_nonnull(), y_offset.release_nonnull(), maybe_radius, maybe_color));
         } else if (filter_token == FilterToken::HueRotate) {
             // https://drafts.csswg.org/filter-effects-1/#funcdef-filter-hue-rotate
             // hue-rotate( [ <angle> | <zero> ]? )
 
             // Default value when omitted is 0deg.
             if (!tokens.has_next_token())
-                return FilterOperation::HueRotate { AngleStyleValue::create(Angle::make_degrees(0)) };
+                return HueRotateFilterStyleValue::create(AngleStyleValue::create(Angle::make_degrees(0)));
 
             // The unit identifier may be omitted if the <angle> is zero.
             if (tokens.next_token().is(Token::Type::Number)) {
                 // hue-rotate(0)
                 auto token = tokens.consume_a_token().token();
                 if (token.is_integer() && token.to_integer() == 0)
-                    return if_no_more_tokens_return(FilterOperation::HueRotate { AngleStyleValue::create(Angle::make_degrees(0)) });
+                    return if_no_more_tokens_return(HueRotateFilterStyleValue::create(AngleStyleValue::create(Angle::make_degrees(0))));
                 return {};
             }
 
             if (auto angle = parse_angle_value(tokens, infinite_range))
-                return if_no_more_tokens_return(FilterOperation::HueRotate { angle.release_nonnull() });
+                return if_no_more_tokens_return(HueRotateFilterStyleValue::create(angle.release_nonnull()));
 
             return {};
         } else {
@@ -5564,7 +5564,7 @@ RefPtr<StyleValue const> Parser::parse_filter_value_list_value(TokenStream<Compo
 
             // Default value when omitted is 1.
             if (!tokens.has_next_token())
-                return FilterOperation::Color { filter_token_to_operation(filter_token), NumberStyleValue::create(1) };
+                return ColorFilterStyleValue::create(filter_token_to_operation(filter_token), NumberStyleValue::create(1));
 
             // Negative values are not allowed.
             auto amount = parse_number_percentage_value(tokens, non_negative_range, non_negative_range);
@@ -5581,11 +5581,11 @@ RefPtr<StyleValue const> Parser::parse_filter_value_list_value(TokenStream<Compo
                     amount = NumberStyleValue::create(1);
             }
 
-            return if_no_more_tokens_return(FilterOperation::Color { filter_token_to_operation(filter_token), amount.release_nonnull() });
+            return if_no_more_tokens_return(ColorFilterStyleValue::create(filter_token_to_operation(filter_token), amount.release_nonnull()));
         }
     };
 
-    Vector<FilterValue> filter_value_list {};
+    StyleValueVector filter_value_list {};
 
     while (tokens.has_next_token()) {
         tokens.discard_whitespace();
@@ -5594,7 +5594,7 @@ RefPtr<StyleValue const> Parser::parse_filter_value_list_value(TokenStream<Compo
 
         auto url_function = parse_url_function(tokens);
         if (url_function.has_value()) {
-            filter_value_list.append(*url_function);
+            filter_value_list.append(URLStyleValue::create(*url_function));
             continue;
         }
 
@@ -5607,16 +5607,16 @@ RefPtr<StyleValue const> Parser::parse_filter_value_list_value(TokenStream<Compo
 
         auto context_guard = push_temporary_value_parsing_context(FunctionContext { token.function().name });
         auto filter_function = parse_filter_function(*filter_token, token.function().value);
-        if (!filter_function.has_value())
+        if (!filter_function)
             return nullptr;
-        filter_value_list.append(*filter_function);
+        filter_value_list.append(filter_function.release_nonnull());
     }
 
     if (filter_value_list.is_empty())
         return nullptr;
 
     transaction.commit();
-    return FilterValueListStyleValue::create(move(filter_value_list));
+    return StyleValueList::create(move(filter_value_list), StyleValueList::Separator::Space, StyleValueList::Collapsible::No);
 }
 
 RefPtr<StyleValue const> Parser::parse_contain_value(TokenStream<ComponentValue>& tokens)

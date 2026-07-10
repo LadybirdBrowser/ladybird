@@ -59,6 +59,16 @@ static bool any_have_non_matching_associated_property(Utf16FlyString const& prop
     });
 }
 
+static NonnullRefPtr<StyleValueList> style_value_list_for_property(StyleValueVector&& values, PropertyID property_id)
+{
+    if (first_is_one_of(property_id, PropertyID::BackdropFilter, PropertyID::Filter))
+        return StyleValueList::create(move(values), StyleValueList::Separator::Space, StyleValueList::Collapsible::No);
+
+    // FIXME: Determine which other properties need a space instead of a comma, or to disable collapsibility.
+    //        Move this into Properties.json?
+    return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+}
+
 // https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation
 static WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(JS::VM& vm, PropertyNameAndID const& property, Variant<GC::Ref<CSSStyleValue>, Utf16String> const& value)
 {
@@ -220,9 +230,7 @@ WebIDL::ExceptionOr<void> StylePropertyMap::set(Utf16FlyString property_name, Re
     if (values_to_set.size() == 1 && !should_wrap_value_in_list(property.value(), values_to_set.first())) {
         TRY(props.set_property_style_value(property.value(), values_to_set.take_first()));
     } else {
-        // FIXME: How do we know if this is comma-separated or not?
-        auto values_list = StyleValueList::create(move(values_to_set), StyleValueList::Separator::Comma);
-        TRY(props.set_property_style_value(property.value(), move(values_list)));
+        TRY(props.set_property_style_value(property.value(), style_value_list_for_property(move(values_to_set), property->id())));
     }
 
     return {};
@@ -292,8 +300,7 @@ WebIDL::ExceptionOr<void> StylePropertyMap::append(Utf16FlyString property_name,
 
     // 11. Append the entries of temp values to props[property].
     // NB: StyleValues are immutable, so we create a new one instead.
-    // FIXME: How do we know if this is comma-separated or not?
-    return props.set_property_style_value(property.value(), StyleValueList::create(move(value_list), StyleValueList::Separator::Comma));
+    return props.set_property_style_value(property.value(), style_value_list_for_property(move(value_list), property->id()));
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-delete

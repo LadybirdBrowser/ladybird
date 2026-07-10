@@ -9,7 +9,7 @@
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleInvalidation.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
-#include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FilterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpacityValueStyleValue.h>
@@ -84,7 +84,7 @@ static bool is_stacking_context_creating_value(CSS::PropertyID property_id, Styl
     case CSS::PropertyID::BackdropFilter:
         if (value->is_keyword())
             return value->to_keyword() != CSS::Keyword::None;
-        return value->is_filter_value_list();
+        return is_filter_style_value_list(*value) && value->as_value_list().size() > 0;
     case CSS::PropertyID::ClipPath:
     case CSS::PropertyID::Mask:
     case CSS::PropertyID::MaskImage:
@@ -130,7 +130,7 @@ static bool is_containing_block_establishing_value(CSS::PropertyID property_id, 
     case CSS::PropertyID::BackdropFilter:
         if (value->is_keyword())
             return value->to_keyword() != CSS::Keyword::None;
-        return value->is_filter_value_list();
+        return is_filter_style_value_list(*value);
     case CSS::PropertyID::Contain: {
         // contain: none | strict | content | [ size || inline-size || layout || style || paint ]
         // Only layout and paint containment (which strict and content include) establish a
