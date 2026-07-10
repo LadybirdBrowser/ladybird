@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<style>
+    @keyframes a {
+        from {
+            opacity: 0.1;
+        }
+        to {
+            opacity: 0.9;
+        }
+    }
+
+    @keyframes b {
+        from {
+            transform: translateX(100px);
+        }
+        to {
+            transform: translateX(0);
+        }
+    }
+
+    #box.two {
+        animation: a 100s linear, b 100s linear;
+    }
+
+    #box.one {
+        animation: a 100s linear;
+    }
+</style>
+<div id="box" class="two"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const box = document.getElementById("box");
+        const names = () =>
+            box
+                .getAnimations()
+                .map(animation => animation.animationName)
+                .sort()
+                .join(",");
+
+        println("with both animations: " + names());
+
+        box.className = "one";
+        println("after removing 'b' from animation-name: " + names());
+    });
+</script>
