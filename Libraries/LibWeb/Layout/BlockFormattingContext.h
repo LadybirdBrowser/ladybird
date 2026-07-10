@@ -64,6 +64,7 @@ public:
     }
 
     virtual CSSPixels greatest_child_width(Box const&) const override;
+    [[nodiscard]] CSSPixels greatest_child_width_in_rect(Box const&, CSSPixelRect const& box_in_root_rect) const;
 
     void layout_floating_box(Box const& child, BlockContainer const& containing_block, LayoutInput const&, CSSPixels y, LineBuilder* = nullptr);
 
@@ -155,7 +156,6 @@ private:
     [[nodiscard]] size_t band_index_at(CSSPixels y) const;
     [[nodiscard]] FloatBand const& band_at(CSSPixels y) const;
     [[nodiscard]] SpaceUsedByFloats intrusions_for_band_into_rect(FloatBand const&, CSSPixelRect const& rect_in_root) const;
-    [[nodiscard]] CSSPixels greatest_child_width_in_rect(Box const&, CSSPixelRect const& box_in_root_rect) const;
     [[nodiscard]] FloatPlacement place_float(FloatSide, LayoutState::UsedValues const&, AvailableSpace const&, CSSPixelRect const& containing_block_rect_in_root, CSSPixels ceiling_in_root) const;
     void ensure_band_boundary(CSSPixels);
     void add_float_to_bands(FloatingBox const&, CSSPixelRect containing_block_rect_in_root);

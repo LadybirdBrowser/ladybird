@@ -185,6 +185,8 @@ struct LayoutState {
 
         CSSPixelPoint content_offset() const { return m_content_offset.value_or({}); }
 
+        bool is_placed() const { return m_content_offset.has_value(); }
+
         SizeConstraint width_constraint { SizeConstraint::None };
         SizeConstraint height_constraint { SizeConstraint::None };
 

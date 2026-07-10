@@ -1187,12 +1187,14 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         ? static_cast<TableFormattingContext*>(independent_formatting_context.ptr())
         : nullptr;
 
+    Optional<CSSPixelPoint> pending_position;
+
     if (box_is_positioned_by_fieldset_layout) {
         m_pending_legend_flow_position = CSSPixelPoint { content_x, content_y };
     } else if (table_formatting_context) {
         table_formatting_context->set_pending_table_box_content_offset_in_wrapper({ content_x, content_y });
     } else if (!box_opens_top_margin_group) {
-        place_child(box, { content_x, content_y });
+        pending_position = CSSPixelPoint { content_x, content_y };
     }
 
     AvailableSpace available_space_for_height_resolution = available_space;
@@ -1246,7 +1248,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
 
         independent_formatting_context->run(layout_input.for_child_formatting_context(inner_available_space));
         if (table_formatting_context)
-            place_child(box, table_formatting_context->pending_table_box_content_offset_in_wrapper());
+            pending_position = table_formatting_context->pending_table_box_content_offset_in_wrapper();
         if (is<TableWrapper>(block_container) && box.display().is_table_inside()) {
             box_state.margin_left = max(box_state.margin_left, 0);
             box_state.margin_right = max(box_state.margin_right, 0);
@@ -1279,7 +1281,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
             if (box_is_positioned_by_fieldset_layout) {
                 m_pending_legend_flow_position = CSSPixelPoint { content_x, final_content_y };
             } else {
-                place_child(box, { content_x, final_content_y });
+                pending_position = CSSPixelPoint { content_x, final_content_y };
             }
             translate_floats_in_subtree(box, { 0, final_content_y - content_y });
         }
@@ -1296,6 +1298,9 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         // The marker pseudo-element will be created from a ListItemMarkerBox
         layout_list_item_marker(*list_item_box, inline_space_used_before_children_formatted);
     // Otherwise, it will be a dealt with as a generic pseudo-element with the content of the ::marker pseudo-element.
+
+    if (pending_position.has_value())
+        place_child(box, *pending_position);
 
     if (independent_formatting_context || !margins_collapse_through(box, m_state)) {
         if (!m_margin_state.box_last_in_flow_child_margin_bottom_collapsed()) {

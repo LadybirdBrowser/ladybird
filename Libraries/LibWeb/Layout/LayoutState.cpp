@@ -1127,6 +1127,7 @@ void LayoutState::UsedValues::materialize_from_paintable(Painting::Paintable con
 
 void LayoutState::UsedValues::set_content_width(CSSPixels width)
 {
+    VERIFY(!is_placed());
     if (width < 0) {
         // Negative widths are not allowed in CSS. We have a bug somewhere! Clamp to 0 to avoid doing too much damage.
         dbgln_if(LIBWEB_CSS_DEBUG, "FIXME: Layout calculated a negative width for {}: {}", m_node->debug_description(), width);
@@ -1140,6 +1141,7 @@ void LayoutState::UsedValues::set_content_width(CSSPixels width)
 
 void LayoutState::UsedValues::set_content_height(CSSPixels height)
 {
+    VERIFY(!is_placed());
     if (height < 0) {
         // Negative heights are not allowed in CSS. We have a bug somewhere! Clamp to 0 to avoid doing too much damage.
         dbgln_if(LIBWEB_CSS_DEBUG, "FIXME: Layout calculated a negative height for {}: {}", m_node->debug_description(), height);

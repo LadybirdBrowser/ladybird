@@ -92,7 +92,10 @@ void InlineFormattingContext::run(LayoutInput const& layout_input)
 
     // NOTE: We ask the parent BFC to calculate the automatic content width of this IFC.
     //       This ensures that any floated boxes are taken into account.
-    m_automatic_content_width = parent().greatest_child_width(containing_block());
+    auto provisional_containing_block_position_in_root = m_layout_input->content_box_position_in_bfc_root->translated(
+        0, parent().y_adjustment_from_pending_ancestor_top_margins(containing_block()));
+    m_automatic_content_width = parent().greatest_child_width_in_rect(
+        containing_block(), { provisional_containing_block_position_in_root, m_containing_block_used_values.content_size() });
     m_automatic_content_height = content_height;
 
     compute_and_store_baselines(m_containing_block_used_values);
@@ -537,8 +540,10 @@ void InlineFormattingContext::generate_line_boxes()
     // NB: This must happen after update_last_line() so that last-line alignment
     //     adjustments are reflected in the used values of atomic inlines.
     for (auto& line_box : line_boxes) {
+        if (line_box.has_block_level_box())
+            continue;
         for (auto& fragment : line_box.fragments()) {
-            if (fragment.layout_node().is_inline_block()) {
+            if (fragment.layout_node().is_atomic_inline()) {
                 auto& box = as<Box>(fragment.layout_node());
                 place_child(box, fragment.offset());
             }

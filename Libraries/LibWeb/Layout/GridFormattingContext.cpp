@@ -2903,10 +2903,6 @@ void GridFormattingContext::run(LayoutInput const& layout_input)
             grid_area_size.set_width(non_cyclic_containing_block_width_for_table_wrapper(grid_item, grid_area_size.width()));
             table_wrapper_grid_area_size = grid_area_size;
         }
-        CSSPixelPoint margin_offset = { grid_item.used_values.margin_box_left(), grid_item.used_values.margin_box_top() };
-        place_child(grid_item.box, grid_area_rect.top_left() + margin_offset);
-        compute_inset(grid_item.box, grid_area_rect.size());
-
         auto available_space_for_children = AvailableSpace(AvailableSize::make_definite(grid_item.used_values.content_width()), AvailableSize::make_definite(grid_item.used_values.content_height()));
         grid_item.used_values.set_has_definite_width(true);
         grid_item.used_values.set_has_definite_height(true);
@@ -2920,7 +2916,13 @@ void GridFormattingContext::run(LayoutInput const& layout_input)
             }
             return constraints;
         }();
-        if (auto independent_formatting_context = layout_inside(grid_item.box, LayoutMode::Normal, LayoutInput { available_space_for_children, child_constraints }))
+        auto independent_formatting_context = layout_inside(grid_item.box, LayoutMode::Normal, LayoutInput { available_space_for_children, child_constraints });
+
+        CSSPixelPoint grid_item_content_offset = grid_area_rect.top_left() + CSSPixelPoint { grid_item.used_values.margin_box_left(), grid_item.used_values.margin_box_top() };
+        place_child(grid_item.box, grid_item_content_offset);
+        compute_inset(grid_item.box, grid_area_rect.size());
+
+        if (independent_formatting_context)
             independent_formatting_context->parent_context_did_dimension_child_root_box();
     }
 

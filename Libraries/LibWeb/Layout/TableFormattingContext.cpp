@@ -44,12 +44,13 @@ CSSPixels TableFormattingContext::run_caption_layout(CSS::CaptionSide phase, Ava
         // Captions live inside the table wrapper, so their quirks percentage height basis derives
         // from the wrapper, not from anything the table box inherited.
         auto const& caption_constraints = m_participant_constraints;
-        bool caption_was_positioned_before_inside_layout = false;
+        bool caption_was_placed = false;
         // The caption boxes are principal block-level boxes that retain their own content, padding, margin, and border areas,
         // and are rendered as normal block boxes inside the table wrapper box, as described in https://www.w3.org/TR/CSS22/tables.html#model
         if (auto caption_context = create_independent_formatting_context_if_needed(m_state, m_layout_mode, child_box)) {
             auto inner_available_space = caption_available_space;
             auto* block_context = as_if<BlockFormattingContext>(caption_context.ptr());
+            CSSPixelPoint caption_offset;
             if (block_context) {
                 auto available_width = caption_available_space.width.to_px_or_zero();
                 block_context->resolve_vertical_box_model_metrics(child_box, available_width);
@@ -58,11 +59,9 @@ CSSPixels TableFormattingContext::run_caption_layout(CSS::CaptionSide phase, Ava
                 inner_available_space = m_state.get(child_box).available_inner_space_or_constraints_from(caption_available_space);
 
                 auto const& caption_state = m_state.get(child_box);
-                CSSPixelPoint caption_offset { caption_state.border_box_left(), 0 };
+                caption_offset = { caption_state.border_box_left(), 0 };
                 if (phase == CSS::CaptionSide::Bottom)
                     caption_offset.set_y(m_state.get(table_box()).margin_box_height() + caption_state.margin_box_top());
-                place_child(child_box, caption_offset);
-                caption_was_positioned_before_inside_layout = true;
             }
 
             caption_context->run(LayoutInput { inner_available_space, caption_constraints });
@@ -73,13 +72,15 @@ CSSPixels TableFormattingContext::run_caption_layout(CSS::CaptionSide phase, Ava
                     auto height = child_box.has_size_containment() ? 0 : caption_context->automatic_content_height();
                     caption_state.set_content_height(height);
                 }
+                place_child(child_box, caption_offset);
+                caption_was_placed = true;
             }
         }
 
         auto const& caption_state = m_state.get(child_box);
         if (phase == CSS::CaptionSide::Top) {
             m_pending_table_box_content_offset_in_wrapper.set_y(caption_state.content_height() + caption_state.margin_box_bottom());
-        } else if (!caption_was_positioned_before_inside_layout) {
+        } else if (!caption_was_placed) {
             place_child(child_box, { caption_state.border_box_left(), m_state.get(table_box()).margin_box_height() + caption_state.margin_box_top() });
         }
         caption_height += caption_state.margin_box_height();
@@ -1258,7 +1259,6 @@ void TableFormattingContext::position_row_boxes()
         CSSPixels row_group_width = 0;
 
         auto& row_group_box_state = m_state.get_mutable(row_group_box);
-        place_child(row_group_box, { row_group_left_offset, row_group_top_offset });
 
         int num_rows = 0;
         TableGrid::for_each_child_box_matching(row_group_box, TableGrid::is_table_row, [&](auto& row) {
@@ -1272,6 +1272,7 @@ void TableFormattingContext::position_row_boxes()
 
         row_group_box_state.set_content_height(row_group_height);
         row_group_box_state.set_content_width(row_group_width);
+        place_child(row_group_box, { row_group_left_offset, row_group_top_offset });
 
         row_group_top_offset += row_group_height + (num_rows > 0 ? border_spacing_vertical() : 0);
     });
