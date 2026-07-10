@@ -72,14 +72,16 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
         app->on_open_file = [&](auto const& file_url) {
             if (auto* window = app->active_window_if_any()) {
-                auto& view = window->view();
-                if (auto* tab = window->current_tab())
-                    tab->set_url_is_hidden(false);
-                view.load(file_url);
+                auto& tab = window->new_tab_from_url(file_url, Web::HTML::ActivateTab::Yes, Ladybird::BrowserWindow::TabLocation::end());
+                tab.set_url_is_hidden(false);
+                auto& view = tab.view();
 #if defined(AK_OS_MACOS)
                 Ladybird::make_appkit_window_first_responder(view);
 #endif
                 view.setFocus();
+                window->show();
+                window->activateWindow();
+                window->raise();
                 return;
             }
             app->new_window({ file_url });
