@@ -408,10 +408,7 @@ static NSImage* tab_loading_spinner_icon(NSUInteger frame)
 
 - (void)onLoadStart:(URL::URL const&)url isRedirect:(BOOL)is_redirect
 {
-    [self setPageTitle:Ladybird::string_to_ns_string(url.serialize())];
     [self setTabLoading:YES];
-    [self updateTabTitleAndFavicon];
-
     [[self tabController] onLoadStart:url isRedirect:is_redirect];
 }
 

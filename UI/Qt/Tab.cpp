@@ -726,13 +726,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     };
 
     view().on_load_start = [this](URL::URL const& url, bool) {
-        auto url_serialized = qstring_from_ak_string(url.serialize());
-
-        m_title = url_serialized;
-        update_tab_title();
-
         set_loading(true);
-
         m_location_edit->set_url(url);
     };
 

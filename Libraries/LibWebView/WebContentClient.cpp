@@ -597,6 +597,7 @@ void WebContentClient::did_start_loading(u64 page_id, URL::URL url, Variant<Empt
         view->did_start_navigation(url, move(document_resource), is_redirect, history_handling);
 
         view->set_url({}, url);
+        view->set_title({}, Utf16String::from_utf8(url.serialize()));
         view->set_favicon({}, {});
 
         if (view->on_load_start)
@@ -812,9 +813,6 @@ void WebContentClient::did_change_title(u64 page_id, Utf16String title)
             title = Utf16String::from_utf8(view->url().serialize());
 
         view->set_title({}, title);
-
-        if (view->on_title_change)
-            view->on_title_change(title);
     }
 }
 

@@ -79,7 +79,7 @@ public:
     void set_url(Badge<WebContentClient>, URL::URL url) { set_url(move(url)); }
     URL::URL const& url() const { return m_url; }
 
-    void set_title(Badge<WebContentClient>, Utf16String title) { m_title = move(title); }
+    void set_title(Badge<WebContentClient>, Utf16String title);
     Utf16String const& title() const { return m_title; }
 
     void set_favicon(Badge<WebContentClient>, Optional<Gfx::Bitmap const&>);

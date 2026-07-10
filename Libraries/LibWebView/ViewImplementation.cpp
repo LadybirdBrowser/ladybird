@@ -125,6 +125,17 @@ void ViewImplementation::set_url(URL::URL url)
         apply_zoom_for_current_host();
 }
 
+void ViewImplementation::set_title(Badge<WebContentClient>, Utf16String title)
+{
+    if (m_title == title)
+        return;
+
+    m_title = move(title);
+
+    if (on_title_change)
+        on_title_change(m_title);
+}
+
 void ViewImplementation::set_favicon(Badge<WebContentClient>, Optional<Gfx::Bitmap const&> favicon)
 {
     m_favicon_base64_png.clear();
