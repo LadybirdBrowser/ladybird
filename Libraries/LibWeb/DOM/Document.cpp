@@ -3179,7 +3179,11 @@ void Document::set_focused_area(GC::Ptr<Node> node)
     set_needs_repaint();
 
     // Scroll the viewport if necessary to make the newly focused element visible.
-    if (new_focused_element) {
+    // NB: Not if the focused element is a navigable container: focus moving into a frame lands on its container
+    //     element in this document, and other engines do not scroll embedded content into view on focus. Ad
+    //     scripts commonly pull focus into an offscreen iframe during page load, and scrolling to it would
+    //     hijack the viewport.
+    if (new_focused_element && !is<HTML::NavigableContainer>(*new_focused_element)) {
         new_focused_element->queue_an_element_task(HTML::Task::Source::UserInteraction, [new_focused_element] {
             if (new_focused_element->document().focused_area().ptr() != new_focused_element)
                 return;
