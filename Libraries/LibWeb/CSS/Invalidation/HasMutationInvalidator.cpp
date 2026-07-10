@@ -44,7 +44,20 @@ static void invalidate_children_affected_by_has_sibling_combinators(DOM::Node& p
     });
 }
 
-static bool pending_has_invalidation_covers_all_child_list_mutation_features(StyleScope& scope, DOM::Node& parent)
+static bool pseudo_class_matching_is_unaffected_by_insertions(PseudoClass pseudo_class)
+{
+    // A freshly inserted node is never hovered, focused, or active, and inserting a node cannot change whether any
+    // existing element matches these pseudo-classes. Focus and hover moving onto or off an element is invalidated
+    // separately as a pseudo-class state change.
+    return first_is_one_of(pseudo_class,
+        PseudoClass::Hover,
+        PseudoClass::Active,
+        PseudoClass::Focus,
+        PseudoClass::FocusVisible,
+        PseudoClass::FocusWithin);
+}
+
+static bool pending_has_invalidation_covers_all_child_list_mutation_features(StyleScope& scope, DOM::Node& parent, HasMutationKind kind)
 {
     auto pending_invalidation = scope.m_pending_has_invalidations.find(parent);
     if (pending_invalidation == scope.m_pending_has_invalidations.end())
@@ -58,6 +71,15 @@ static bool pending_has_invalidation_covers_all_child_list_mutation_features(Sty
 
     if (!mutation_features.may_affect_sibling_relationships)
         return false;
+
+    // A record for pure insertions doesn't cover interaction pseudo-classes, so it cannot stand in for a removal
+    // or move when any :has() selector uses one.
+    if (kind != HasMutationKind::Insertion && !mutation_features.may_affect_interaction_pseudo_classes) {
+        for (auto const& entry : data.pseudo_classes_used_in_has_selectors) {
+            if (pseudo_class_matching_is_unaffected_by_insertions(entry.key))
+                return false;
+        }
+    }
 
     auto contains_all_keys = [](auto const& existing_features, auto const& used_features) {
         for (auto const& entry : used_features) {
@@ -230,11 +252,15 @@ static bool selector_may_match_mutation_features(Selector const& selector, Pendi
                     case PseudoClass::LowValue:
                     case PseudoClass::OptimalValue:
                     case PseudoClass::SuboptimalValue:
-                    case PseudoClass::EvenLessGoodValue:
+                    case PseudoClass::EvenLessGoodValue: {
                         saw_concrete_feature = true;
-                        concrete_feature_found_in_mutation_subtree |= mutation_features.may_affect_pseudo_classes
+                        bool blanket_applies = mutation_features.may_affect_pseudo_classes
+                            && (mutation_features.may_affect_interaction_pseudo_classes
+                                || !pseudo_class_matching_is_unaffected_by_insertions(pseudo_class.type));
+                        concrete_feature_found_in_mutation_subtree |= blanket_applies
                             || mutation_features.pseudo_classes.contains(pseudo_class.type);
                         break;
+                    }
                     case PseudoClass::Not:
                         // A bare negation can match because any unrelated node exists, but a negation
                         // attached to a positive concrete feature only changes when either side changes.
@@ -451,14 +477,14 @@ void invalidate_style_for_pending_has_mutations(DOM::Document& document)
     });
 }
 
-static void schedule_has_invalidation_for_child_list_mutation(DOM::Node& parent, DOM::Node& mutation_root, StyleScope& scope)
+static void schedule_has_invalidation_for_child_list_mutation(DOM::Node& parent, DOM::Node& mutation_root, StyleScope& scope, HasMutationKind kind)
 {
     if (!scope.may_have_has_selectors())
         return;
 
     auto has_sibling_combinator_has_selectors = scope.may_have_has_selectors_with_relative_selector_that_has_sibling_combinator();
 
-    if (pending_has_invalidation_covers_all_child_list_mutation_features(scope, parent))
+    if (pending_has_invalidation_covers_all_child_list_mutation_features(scope, parent, kind))
         return;
 
     // Sibling-combinator :has() selectors are sensitive to featureless insertions/removals because a plain node can
@@ -474,7 +500,7 @@ static void schedule_has_invalidation_for_child_list_mutation(DOM::Node& parent,
     if (!may_affect_has_match)
         return;
 
-    scope.record_pending_has_invalidation_mutation_features(parent, mutation_root, true);
+    scope.record_pending_has_invalidation_mutation_features(parent, mutation_root, true, kind);
     scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(parent);
 
     if (has_sibling_combinator_has_selectors)
@@ -486,7 +512,7 @@ static void schedule_has_invalidation_for_node_in_scope(DOM::Node& node, StyleSc
     if (!style_scope.may_have_has_selectors())
         return;
 
-    style_scope.record_pending_has_invalidation_mutation_features(node, node, false);
+    style_scope.record_pending_has_invalidation_mutation_features(node, node, false, HasMutationKind::Other);
     style_scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(node);
 }
 
@@ -502,14 +528,15 @@ static void schedule_document_user_has_invalidation_for_shadow_node(DOM::Node& n
     if (!document_style_scope.may_have_user_has_selectors())
         return;
 
-    document_style_scope.record_pending_has_invalidation_mutation_features(node, node, false);
+    document_style_scope.record_pending_has_invalidation_mutation_features(node, node, false, HasMutationKind::Other);
     document_style_scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(node);
 }
 
 void schedule_has_invalidation_for_node(DOM::Node& node, DOM::StyleInvalidationReason reason)
 {
     auto is_child_list_mutation = reason == DOM::StyleInvalidationReason::NodeRemove
-        || reason == DOM::StyleInvalidationReason::NodeInsertBefore;
+        || reason == DOM::StyleInvalidationReason::NodeInsertBefore
+        || reason == DOM::StyleInvalidationReason::NodeMove;
 
     // On insertion and removal the mutated node itself is uninteresting to the
     // :has() walker (a freshly inserted node has no :has() scope flags yet, and
@@ -520,10 +547,12 @@ void schedule_has_invalidation_for_node(DOM::Node& node, DOM::StyleInvalidationR
         if (!parent)
             return;
 
+        auto kind = reason == DOM::StyleInvalidationReason::NodeInsertBefore ? HasMutationKind::Insertion : HasMutationKind::Other;
+
         // Walk every scope that can observe the parent, including enclosing and hosted shadow roots, so :has() in
         // :host(), ::slotted(), and ::part() selectors can react to the mutation.
         parent->for_each_style_scope_which_may_observe_the_node([&](StyleScope& scope) {
-            schedule_has_invalidation_for_child_list_mutation(*parent, node, scope);
+            schedule_has_invalidation_for_child_list_mutation(*parent, node, scope, kind);
         });
         return;
     }
@@ -543,7 +572,7 @@ void schedule_has_invalidation_for_same_parent_move(DOM::Node& node)
         return;
 
     parent->for_each_style_scope_which_may_observe_the_node([&](StyleScope& scope) {
-        schedule_has_invalidation_for_child_list_mutation(*parent, node, scope);
+        schedule_has_invalidation_for_child_list_mutation(*parent, node, scope, HasMutationKind::Other);
     });
 }
 

@@ -54,6 +54,7 @@ static void mark_sibling_for_style_update(DOM::Element& element)
 void invalidate_structurally_affected_siblings(DOM::Node& node, DOM::StyleInvalidationReason reason)
 {
     auto is_insertion_or_removal = reason == DOM::StyleInvalidationReason::NodeInsertBefore
+        || reason == DOM::StyleInvalidationReason::NodeMove
         || reason == DOM::StyleInvalidationReason::NodeRemove;
 
     // OPTIMIZATION: For :first-child / :last-child / :only-child, the match result only flips for

@@ -131,10 +131,19 @@ struct StyleCache : public RefCounted<StyleCache> {
     void visit_edges(GC::Cell::Visitor&);
 };
 
+// A pure insertion cannot change interaction pseudo-class matching (:hover, :focus, etc): freshly inserted nodes
+// never carry such state, and inserting a node cannot flip it on existing elements. Removals and moves can relocate
+// interaction state, so they stay conservative.
+enum class HasMutationKind : u8 {
+    Insertion,
+    Other,
+};
+
 struct PendingHasInvalidationMutationFeatures {
     bool is_conservative { false };
     bool may_affect_sibling_relationships { false };
     bool may_affect_pseudo_classes { false };
+    bool may_affect_interaction_pseudo_classes { false };
     HashTable<Utf16FlyString> tag_names;
     HashTable<Utf16FlyString> ids;
     HashTable<Utf16FlyString> class_names;
@@ -196,7 +205,7 @@ public:
     RefPtr<CSS::CounterStyle const> get_registered_counter_style(Utf16FlyString const& name) const;
 
     void schedule_ancestors_style_invalidation_due_to_presence_of_has(GC::Ref<DOM::Node>);
-    void record_pending_has_invalidation_mutation_features(GC::Ref<DOM::Node>, GC::Ref<DOM::Node>, bool includes_descendants);
+    void record_pending_has_invalidation_mutation_features(GC::Ref<DOM::Node>, GC::Ref<DOM::Node>, bool includes_descendants, HasMutationKind);
     void record_pending_has_invalidation_mutation_features(GC::Ref<DOM::Node>, Vector<CSS::InvalidationSet::Property> const&);
 
     template<typename T>

@@ -44,6 +44,7 @@ namespace Web::DOM {
     X(MediaQueryChangedMatchState)                  \
     X(NavigableSetViewportSize)                     \
     X(NodeInsertBefore)                             \
+    X(NodeMove)                                     \
     X(NodeRemove)                                   \
     X(NodeSetTextContent)                           \
     X(Other)                                        \

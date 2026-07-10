@@ -1324,7 +1324,9 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
     if (is_same_parent_move)
         CSS::Invalidation::invalidate_style_after_same_parent_move(*this, StyleInvalidationReason::NodeInsertBefore);
     else
-        invalidate_style(StyleInvalidationReason::NodeInsertBefore);
+        // NB: Unlike a regular insertion, a moved node keeps state such as focus, so use a distinct reason that
+        //     keeps the conservative pseudo-class handling in :has() invalidation.
+        invalidate_style(StyleInvalidationReason::NodeMove);
     if (is_connected()) {
         new_parent.set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
     }
