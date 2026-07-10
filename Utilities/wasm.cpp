@@ -882,7 +882,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                     }
                 }
 
-                auto const* code_ptr = bit_cast<u8 const*>(ci.dispatches[0].handler_ptr);
+                auto const* code_ptr = bit_cast<u8 const*>(Wasm::cranelift_entry_acquire(ci));
                 auto code_size = ci.cranelift_code_size;
 
 #if defined(AK_OS_WINDOWS)
