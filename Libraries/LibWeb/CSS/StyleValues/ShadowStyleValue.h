@@ -44,10 +44,13 @@ public:
 
     ShadowType shadow_type() const { return m_properties.shadow_type; }
     ValueComparingNonnullRefPtr<StyleValue const> color() const;
+    ValueComparingRefPtr<StyleValue const> const& color_or_null() const { return m_properties.color; }
     ValueComparingNonnullRefPtr<StyleValue const> offset_x() const { return m_properties.offset_x; }
     ValueComparingNonnullRefPtr<StyleValue const> offset_y() const { return m_properties.offset_y; }
     ValueComparingNonnullRefPtr<StyleValue const> blur_radius() const;
+    ValueComparingRefPtr<StyleValue const> const& blur_radius_or_null() const { return m_properties.blur_radius; }
     ValueComparingNonnullRefPtr<StyleValue const> spread_distance() const;
+    ValueComparingRefPtr<StyleValue const> const& spread_distance_or_null() const { return m_properties.spread_distance; }
     ShadowPlacement placement() const { return m_properties.placement; }
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
