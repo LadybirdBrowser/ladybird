@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 12 tests
 
-11 Pass
-1 Fail
+12 Pass
 Pass	Document: CustomElementRegistry.prototype.initialize should upgrade the element given to the first argument
 Pass	Document: CustomElementRegistry.prototype.initialize should upgrade elements in tree order
 Pass	Document: CustomElementRegistry.prototype.initialize only upgrades elements beloning to the registry
@@ -15,4 +14,4 @@ Pass	XHTMLDocument: CustomElementRegistry.prototype.initialize should upgrade el
 Pass	XHTMLDocument: CustomElementRegistry.prototype.initialize only upgrades elements beloning to the registry
 Pass	CustomElementRegistry.prototype.initialize upgrades already initialized elements
 Pass	CustomElementRegistry.prototype.initialize upgrades custom elements in declarative shadow root when initialize() runs before define()
-Fail	CustomElementRegistry.prototype.initialize upgrades custom elements in imperative shadow root when inserted before define()
+Pass	CustomElementRegistry.prototype.initialize upgrades custom elements in imperative shadow root when inserted before define()

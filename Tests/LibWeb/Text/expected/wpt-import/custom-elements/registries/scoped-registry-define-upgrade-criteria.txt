@@ -2,18 +2,17 @@ Harness status: OK
 
 Found 14 tests
 
-7 Pass
-7 Fail
+14 Pass
 Pass	Adding definition to scoped registry should upgrade nodes associated with the registry.
-Fail	Adding definition to global registry should not affect shadow roots using scoped registry
+Pass	Adding definition to global registry should not affect shadow roots using scoped registry
 Pass	Adding definition to global registry should affect shadow roots also using global registry
-Fail	Adding definition to scoped registry should affect all associated shadow roots
-Fail	Adding definition to scoped registry should not affect document tree scope
-Fail	Adding definition to scoped registry should not affect shadow roots using other registries
+Pass	Adding definition to scoped registry should affect all associated shadow roots
+Pass	Adding definition to scoped registry should not affect document tree scope
+Pass	Adding definition to scoped registry should not affect shadow roots using other registries
 Pass	Adding definition to scoped registry should upgrade nodes even after the node is moved into a separate shadow tree.
-Fail	Adding definition to scoped registry should upgrade nodes even after the node is moved to a separate shadow tree using a different registry.
-Fail	Adding definition to scoped registry affects associated shadow roots in all iframes
-Fail	Adding definition to scoped registry affects associated shadow roots in other frame trees
+Pass	Adding definition to scoped registry should upgrade nodes even after the node is moved to a separate shadow tree using a different registry.
+Pass	Adding definition to scoped registry affects associated shadow roots in all iframes
+Pass	Adding definition to scoped registry affects associated shadow roots in other frame trees
 Pass	Adding definition to scoped registry should not upgrade disconnected elements
 Pass	Adding definition to scoped registry should not upgrade nodes in constructed documents
 Pass	Adding definition to scoped registry should not upgrade nodes in detached frames

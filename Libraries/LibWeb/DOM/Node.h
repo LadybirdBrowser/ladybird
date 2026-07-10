@@ -426,7 +426,7 @@ public:
 
     WebIDL::ExceptionOr<Utf16String> serialize_fragment(HTML::RequireWellFormed, FragmentSerializationMode = FragmentSerializationMode::Inner) const;
 
-    WebIDL::ExceptionOr<void> unsafely_set_html(Element&, Utf16View);
+    WebIDL::ExceptionOr<void> unsafely_set_html(Variant<GC::Ref<Element>, GC::Ref<DocumentFragment>>, Utf16View);
 
     void replace_all(GC::Ptr<Node>);
     void string_replace_all(Utf16String);

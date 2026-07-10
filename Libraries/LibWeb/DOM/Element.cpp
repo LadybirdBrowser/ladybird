@@ -56,6 +56,7 @@
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/DocumentFragment.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/HTMLCollection.h>
@@ -1523,27 +1524,29 @@ WebIDL::ExceptionOr<void> Element::set_inner_html(TrustedTypes::TrustedHTMLOrStr
         TrustedTypes::InjectionSink::Element_innerHTML,
         TrustedTypes::Script.to_string()));
 
-    // 2. Let context be this.
-    DOM::Node* context = this;
+    // 2. Let target be this.
+    Variant<GC::Ref<Element>, GC::Ref<DocumentFragment>> target = GC::Ref { *this };
 
-    // 3. Let fragment be the result of invoking the fragment parsing algorithm steps with context and compliantString.
-    auto fragment = TRY(as<Element>(*context).parse_fragment(compliant_string.utf16_view()));
-
-    // 4. If context is a template element, then set context to the template element's template contents (a DocumentFragment).
-    auto* template_element = as_if<HTML::HTMLTemplateElement>(*context);
+    // 3. If target is a template element, then set target to the template element's template contents (a DocumentFragment).
+    auto* template_element = as_if<HTML::HTMLTemplateElement>(*this);
     if (template_element)
-        context = template_element->content();
+        target = template_element->content();
 
-    // 5. Replace all with fragment within context.
-    context->replace_all(fragment);
+    // 4. Let fragment be the result of invoking the fragment parsing algorithm steps with target and compliantString.
+    auto fragment = TRY(parse_fragment(target, compliant_string.utf16_view()));
+
+    // 5. Replace all with fragment within target.
+    target.visit([&](auto node) {
+        node->replace_all(fragment);
+    });
 
     // NOTE: We don't invalidate style & layout for <template> elements since they don't affect rendering.
     if (!template_element) {
-        context->set_needs_style_update(true);
+        set_needs_style_update(true);
 
-        if (context->is_connected()) {
+        if (is_connected()) {
             // NOTE: Since the DOM has changed, we have to rebuild the layout tree.
-            context->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::ElementSetInnerHTML);
+            set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::ElementSetInnerHTML);
         }
     }
 
@@ -2650,32 +2653,18 @@ bool Element::is_actually_disabled() const
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#fragment-parsing-algorithm-steps
-WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> Element::parse_fragment(Utf16View markup, HTML::ParserScriptingMode scripting_mode)
+WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> Element::parse_fragment(Variant<GC::Ref<Element>, GC::Ref<DocumentFragment>> target, Utf16View markup, HTML::ParserScriptingMode scripting_mode)
 {
     // 1. Assert: scriptingMode is either Inert or Fragment.
     VERIFY(scripting_mode == HTML::ParserScriptingMode::Inert || scripting_mode == HTML::ParserScriptingMode::Fragment);
 
-    // 2. Let newChildren be null.
-    Vector<GC::Root<Node>> new_children;
+    // 2. If target's node document is an XML document, then return the result of invoking the XML fragment parsing
+    //    algorithm given target and markup.
+    if (target.visit([](auto node) { return node->document().is_xml_document(); }))
+        return XMLFragmentParser::parse_xml_fragment(target, markup);
 
-    // 3. If context's node document is an XML document, then set newChildren to the result of invoking the XML fragment parsing algorithm given context and markup.
-    if (document().is_xml_document()) {
-        new_children = TRY(XMLFragmentParser::parse_xml_fragment(*this, markup));
-    }
-    // 4. Otherwise, set newChildren to the result of invoking the HTML fragment parsing algorithm given context, markup, false, and scriptingMode.
-    else {
-        new_children = TRY(HTML::HTMLParser::parse_html_fragment(*this, markup, HTML::HTMLParser::AllowDeclarativeShadowRoots::No, scripting_mode));
-    }
-
-    // 5. Let fragment be a new DocumentFragment whose node document is context's node document.
-    auto fragment = realm().create<DOM::DocumentFragment>(document());
-
-    // 6. For each node of newChildren, in tree order: append node to fragment.
-    for (auto& child : new_children)
-        TRY(fragment->append_child(*child));
-
-    // 7. Return fragment.
-    return fragment;
+    // 3. Return the result of invoking the HTML fragment parsing algorithm given context, markup, false, and scriptingMode.
+    return HTML::HTMLParser::parse_html_fragment(target, markup, HTML::HTMLParser::AllowDeclarativeShadowRoots::No, scripting_mode);
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-outerhtml
@@ -2712,7 +2701,7 @@ WebIDL::ExceptionOr<void> Element::set_outer_html(TrustedTypes::TrustedHTMLOrStr
         parent = TRY(create_element(document(), HTML::TagNames::body, Namespace::HTML));
 
     // 6. Let fragment be the result of invoking the fragment parsing algorithm steps given parent and compliantString.
-    auto fragment = TRY(as<Element>(*parent).parse_fragment(compliant_string.utf16_view()));
+    auto fragment = TRY(Element::parse_fragment(GC::Ref { as<Element>(*parent) }, compliant_string.utf16_view()));
 
     // 6. Replace this with fragment within this's parent.
     TRY(this->parent()->replace_child(fragment, *this));
@@ -2773,7 +2762,7 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
     }
 
     // 5. Let fragment be the result of invoking the fragment parsing algorithm steps with context and compliantString.
-    auto fragment = TRY(as<Element>(*context).parse_fragment(compliant_string.utf16_view()));
+    auto fragment = TRY(Element::parse_fragment(GC::Ref { as<Element>(*context) }, compliant_string.utf16_view()));
 
     // 6. Use the first matching item from this list:
 
@@ -4877,12 +4866,12 @@ WebIDL::ExceptionOr<void> Element::set_html_unsafe(TrustedTypes::TrustedHTMLOrSt
         TrustedTypes::Script.to_string()));
 
     // 2. Let target be this's template contents if this is a template element; otherwise this.
-    DOM::Node* target = this;
+    Variant<GC::Ref<DOM::Element>, GC::Ref<DOM::DocumentFragment>> target = GC::Ref { *this };
     if (is<HTML::HTMLTemplateElement>(*this))
-        target = as<HTML::HTMLTemplateElement>(*this).content().ptr();
+        target = as<HTML::HTMLTemplateElement>(*this).content();
 
     // 3. Unsafe set HTML given target, this, and compliantHTML.
-    TRY(target->unsafely_set_html(*this, compliant_html.utf16_view()));
+    TRY(unsafely_set_html(target, compliant_html.utf16_view()));
 
     return {};
 }

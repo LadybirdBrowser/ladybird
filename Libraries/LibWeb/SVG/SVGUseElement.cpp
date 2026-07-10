@@ -107,9 +107,7 @@ void SVGUseElement::inserted()
     // The insertion that connected us may have inserted our referenced element along with us, with its insertion
     // steps running before ours, i.e. before we were registered to be notified about changes to it. If our shadow
     // tree has not been populated yet, try resolving the reference again.
-    // NB: While the document is still loading, the document-completely-loaded hook repopulates empty shadow trees,
-    //     so there is nothing to do here in that case.
-    if (!instance_root() && document().is_completely_loaded()
+    if (!instance_root()
         && m_href.has_value() && m_href->fragment().has_value() && is_referenced_element_same_document()) {
         clone_element_tree_as_our_shadow_tree(referenced_element());
     }
@@ -142,7 +140,7 @@ void SVGUseElement::moved_from(IsSubtreeRoot is_subtree_root, GC::Ptr<Node> old_
 
     register_for_referenced_element_changes();
 
-    if (!instance_root() && document().is_completely_loaded()
+    if (!instance_root()
         && m_href.has_value() && m_href->fragment().has_value() && is_referenced_element_same_document()) {
         clone_element_tree_as_our_shadow_tree(referenced_element());
     }

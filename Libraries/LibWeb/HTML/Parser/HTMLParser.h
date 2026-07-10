@@ -10,8 +10,12 @@
 #include <AK/Utf16View.h>
 #include <LibGfx/Color.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibURL/Forward.h>
+#include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/DOM/DocumentFragment.h>
 #include <LibWeb/DOM/FragmentSerializationMode.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Parser/HTMLTokenizer.h>
 #include <LibWeb/HTML/Parser/ParserScriptingMode.h>
 #include <LibWeb/MimeSniff/MimeType.h>
@@ -57,7 +61,9 @@ public:
         No,
         Yes,
     };
-    static WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> parse_html_fragment(DOM::Element& context_element, Utf16View markup, AllowDeclarativeShadowRoots = AllowDeclarativeShadowRoots::No, ParserScriptingMode = ParserScriptingMode::Inert);
+
+    static WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> parse_html_fragment(Variant<GC::Ref<DOM::Element>, GC::Ref<DOM::DocumentFragment>> target, Utf16View markup,
+        AllowDeclarativeShadowRoots = AllowDeclarativeShadowRoots::No, ParserScriptingMode = ParserScriptingMode::Inert);
 
     enum class SerializableShadowRoots {
         No,
@@ -66,6 +72,8 @@ public:
     static String serialize_html_fragment(DOM::Node const&, SerializableShadowRoots, ReadonlySpan<GC::Ref<DOM::ShadowRoot>>, DOM::FragmentSerializationMode = DOM::FragmentSerializationMode::Inner);
 
     HTMLTokenizer& tokenizer() { return m_tokenizer; }
+
+    void set_allow_declarative_shadow_roots(AllowDeclarativeShadowRoots allow) { m_allow_declarative_shadow_roots = allow; }
 
     void configure_element_created_by_rust_parser(DOM::Element&);
     GC::Ref<DOM::Element> create_element_for_rust_parser(HTMLToken const&, Optional<Utf16FlyString> const& namespace_, DOM::Node& intended_parent, bool had_duplicate_attribute, GC::Ptr<HTMLFormElement>, bool has_template_element_on_stack);
@@ -124,6 +132,10 @@ private:
 
     // https://html.spec.whatwg.org/multipage/parsing.html#scripting-mode
     ParserScriptingMode m_scripting_mode {};
+
+    // https://html.spec.whatwg.org/multipage/parsing.html#allow-declarative-shadow-roots
+    AllowDeclarativeShadowRoots m_allow_declarative_shadow_roots { AllowDeclarativeShadowRoots::No };
+
     bool m_script_created { false };
 
     bool m_aborted { false };
@@ -139,6 +151,9 @@ private:
     GC::Ptr<DOM::Document> m_document;
     GC::Ptr<HTMLFormElement> m_form_element;
     GC::Ptr<DOM::Element> m_context_element;
+
+    // https://html.spec.whatwg.org/multipage/parsing.html#root-insertion-target
+    GC::Ptr<DOM::DocumentFragment> m_root_insertion_target;
 
     // https://html.spec.whatwg.org/multipage/parsing.html#active-speculative-html-parser
     GC::Ptr<SpeculativeHTMLParser> m_active_speculative_html_parser;

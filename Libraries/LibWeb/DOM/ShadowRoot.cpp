@@ -113,14 +113,10 @@ WebIDL::ExceptionOr<void> ShadowRoot::set_inner_html(TrustedTypes::TrustedHTMLOr
         TrustedTypes::InjectionSink::ShadowRoot_innerHTML,
         TrustedTypes::Script.to_string()));
 
-    // 2. Let context be this's host.
-    auto context = this->host();
-    VERIFY(context);
+    // 2. Let fragment be the result of invoking the fragment parsing algorithm steps with this and compliantString.
+    auto fragment = TRY(HTML::HTMLParser::parse_html_fragment(GC::Ref<DocumentFragment> { *this }, compliant_string.utf16_view()));
 
-    // 3. Let fragment be the result of invoking the fragment parsing algorithm steps with context and compliantString.
-    auto fragment = TRY(context->parse_fragment(compliant_string.utf16_view()));
-
-    // 4. Replace all with fragment within this.
+    // 3. Replace all with fragment within this.
     this->replace_all(fragment);
 
     // NOTE: We don't invalidate style & layout for <template> elements since they don't affect rendering.
@@ -162,7 +158,7 @@ WebIDL::ExceptionOr<void> ShadowRoot::set_html_unsafe(TrustedTypes::TrustedHTMLO
         TrustedTypes::Script.to_string()));
 
     // 2. Unsafely set HTML given this, this's shadow host, and compliantHTML.
-    TRY(unsafely_set_html(*this->host(), compliant_html.utf16_view()));
+    TRY(unsafely_set_html(GC::Ref<DocumentFragment> { *this }, compliant_html.utf16_view()));
 
     return {};
 }
@@ -308,12 +304,16 @@ static Vector<ExportedPart> parse_exportparts_attribute(Element const& element)
     if (!exportparts.has_value())
         return result;
 
-    exportparts->for_each_split_view(',', SplitBehavior::Nothing, [&](Utf16View mapping) {
+    exportparts->for_each_split_view(u',', SplitBehavior::Nothing, [&](Utf16View mapping) {
         auto trimmed = mapping.trim_ascii_whitespace();
         if (trimmed.is_empty())
             return IterationDecision::Continue;
 
-        auto parts = trimmed.split_view(':', SplitBehavior::KeepEmpty);
+        Vector<Utf16View, 2> parts;
+        trimmed.for_each_split_view(u':', SplitBehavior::KeepEmpty, [&](Utf16View part) {
+            parts.append(part);
+            return IterationDecision::Continue;
+        });
         if (parts.size() == 1) {
             auto name = Utf16FlyString::from_utf16(parts[0].trim_ascii_whitespace());
             result.append({ name, name });
@@ -322,6 +322,7 @@ static Vector<ExportedPart> parse_exportparts_attribute(Element const& element)
             auto outer_name = Utf16FlyString::from_utf16(parts[1].trim_ascii_whitespace());
             result.append({ inner_name, outer_name });
         }
+
         return IterationDecision::Continue;
     });
 

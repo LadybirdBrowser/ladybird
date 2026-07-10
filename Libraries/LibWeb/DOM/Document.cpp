@@ -455,7 +455,7 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     document->m_about_base_url = navigation_params.about_base_url;
     document->set_url(*creation_url);
     document->m_readiness = HTML::DocumentReadyState::Loading;
-    document->set_allow_declarative_shadow_roots(true);
+    document->set_allow_declarative_shadow_roots(HTML::HTMLParser::AllowDeclarativeShadowRoots::Yes);
     document->set_custom_element_registry(realm.create<HTML::CustomElementRegistry>(realm));
 
     document->m_window = window;
@@ -595,12 +595,7 @@ Document::~Document() = default;
 void Document::set_temporary_document_for_fragment_parsing(Badge<HTML::HTMLParser>)
 {
     // https://html.spec.whatwg.org/multipage/parsing.html#html-fragment-parsing-algorithm
-    // AD-HOC: The HTML fragment parsing algorithm stages nodes in a temporary document before returning them.
-    // Treat that document as disconnected so post-connection steps happen only after the fragment is inserted
-    // into the context document.
-    // Spec issue: https://github.com/whatwg/html/issues/11023
     m_temporary_document_for_fragment_parsing = true;
-    set_is_connected(false);
 }
 
 void Document::set_style_invalidation_counter_dump_interval(Optional<u64> interval)
@@ -1055,16 +1050,23 @@ WebIDL::ExceptionOr<Document*> Document::open(Optional<String> const&, Optional<
     // 15. Set document to no-quirks mode.
     set_quirks_mode(QuirksMode::No);
 
-    // 16. Create a new HTML parser and associate it with document. This is a script-created parser (meaning that it can be closed by the document.open() and document.close() methods, and that the tokenizer will wait for an explicit call to document.close() before emitting an end-of-file token). The encoding confidence is irrelevant.
+    // 16. Create an HTML parser whose allow declarative shadow roots is document's allow declarative shadow roots, and
+    //     associate it with document. This is a script-created parser (meaning that it can be closed by the document.open()
+    //     and document.close() methods, and that the tokenizer will wait for an explicit call to document.close() before
+    //     emitting an end-of-file token). The encoding confidence is irrelevant.
     m_parser = HTML::HTMLParser::create_for_scripting(*this);
+    m_parser->set_allow_declarative_shadow_roots(allow_declarative_shadow_roots());
 
     // 17. Set the insertion point to point at just before the end of the input stream (which at this point will be empty).
     m_parser->tokenizer().update_insertion_point();
 
-    // 18. Update the current document readiness of document to "loading".
+    // 18. Set the parser's allow declarative shadow roots to true.
+    m_parser->set_allow_declarative_shadow_roots(HTML::HTMLParser::AllowDeclarativeShadowRoots::Yes);
+
+    // 19. Update the current document readiness of document to "loading".
     update_readiness(HTML::DocumentReadyState::Loading);
 
-    // 19. Return document.
+    // 20. Return document.
     return this;
 }
 
@@ -5456,11 +5458,6 @@ GC::Ref<DOM::Document> Document::appropriate_template_contents_owner_document()
             if (document_type() == Type::HTML)
                 new_document->set_document_type(Type::HTML);
 
-            // AD-HOC: Copy over the "allow declarative shadow roots" flag, otherwise no elements inside templates will
-            //         be able to have declarative shadow roots.
-            // Spec issue: https://github.com/whatwg/html/issues/11955
-            new_document->set_allow_declarative_shadow_roots(allow_declarative_shadow_roots());
-
             // 3. Set document's associated inert template document to newDocument.
             m_associated_inert_template_document = new_document;
         }
@@ -7599,7 +7596,7 @@ Vector<GC::Root<Range>> Document::find_matching_text(String const& query, CaseSe
 }
 
 // https://dom.spec.whatwg.org/#document-allow-declarative-shadow-roots
-bool Document::allow_declarative_shadow_roots() const
+HTML::HTMLParser::AllowDeclarativeShadowRoots Document::allow_declarative_shadow_roots() const
 {
     return m_allow_declarative_shadow_roots;
 }
@@ -7930,7 +7927,7 @@ void Document::unfullscreen_element(GC::Ref<Element> element)
 }
 
 // https://dom.spec.whatwg.org/#document-allow-declarative-shadow-roots
-void Document::set_allow_declarative_shadow_roots(bool allow)
+void Document::set_allow_declarative_shadow_roots(HTML::HTMLParser::AllowDeclarativeShadowRoots allow)
 {
     m_allow_declarative_shadow_roots = allow;
 }
@@ -7941,11 +7938,13 @@ void Document::parse_html_from_a_string(Utf16View html)
     // 1. Set document's type to "html".
     set_document_type(DOM::Document::Type::HTML);
 
-    // 2. Create an HTML parser parser, associated with document.
+    // 2. Let parser be a new HTML parser whose allow declarative shadow roots is document's allow declarative shadow roots,
+    //    associated with document.
     // 3. Place html into the input stream for parser. The encoding confidence is irrelevant.
     // FIXME: We don't have the concept of encoding confidence yet.
     auto scripting_mode = is_scripting_enabled() ? HTML::ParserScriptingMode::Normal : HTML::ParserScriptingMode::Disabled;
     auto parser = HTML::HTMLParser::create_for_decoded_string(*this, html, scripting_mode, "UTF-8"sv);
+    parser->set_allow_declarative_shadow_roots(allow_declarative_shadow_roots());
 
     // 4. Start parser and let it run until it has consumed all the characters just inserted into the input stream.
     parser->run(as<HTML::Window>(HTML::relevant_global_object(*this)).associated_document().url());
@@ -7971,7 +7970,7 @@ WebIDL::ExceptionOr<GC::Root<DOM::Document>> Document::parse_html_unsafe(JS::VM&
     document->set_content_type("text/html"_string);
 
     // 3. Set document's allow declarative shadow roots to true.
-    document->set_allow_declarative_shadow_roots(true);
+    document->set_allow_declarative_shadow_roots(HTML::HTMLParser::AllowDeclarativeShadowRoots::Yes);
 
     // 4. Parse HTML from a string given document and compliantHTML.
     document->parse_html_from_a_string(compliant_html.utf16_view());
@@ -7980,7 +7979,7 @@ WebIDL::ExceptionOr<GC::Root<DOM::Document>> Document::parse_html_unsafe(JS::VM&
     auto& associated_document = as<HTML::Window>(realm.global_object()).associated_document();
     document->set_origin(associated_document.origin());
 
-    // 5. Return document.
+    // 4. Return document.
     return document;
 }
 

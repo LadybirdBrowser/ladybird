@@ -286,7 +286,7 @@ static GC::Ref<Web::DOM::Document> parse_html(JS::Realm& realm, Web::DOM::Docume
     document->set_content_type("text/html"_string);
     document->set_origin(origin_document.origin());
     document->set_ready_to_run_scripts();
-    document->set_allow_declarative_shadow_roots(true);
+    document->set_allow_declarative_shadow_roots(Web::HTML::HTMLParser::AllowDeclarativeShadowRoots::Yes);
     document->set_custom_element_registry(realm.create<Web::HTML::CustomElementRegistry>(realm));
 
     auto parser = Web::HTML::HTMLParser::create(document, input, Web::HTML::ParserScriptingMode::Disabled, "UTF-8"sv);

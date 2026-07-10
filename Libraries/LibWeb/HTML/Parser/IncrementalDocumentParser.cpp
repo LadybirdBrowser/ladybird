@@ -54,6 +54,13 @@ void IncrementalDocumentParser::start()
     }));
 }
 
+void IncrementalDocumentParser::set_allow_declarative_shadow_roots(HTMLParser::AllowDeclarativeShadowRoots allow_declarative_shadow_roots)
+{
+    m_allow_declarative_shadow_roots = allow_declarative_shadow_roots;
+    if (m_parser)
+        m_parser->set_allow_declarative_shadow_roots(allow_declarative_shadow_roots);
+}
+
 void IncrementalDocumentParser::initialize_parser(ReadonlyBytes sniff_bytes)
 {
     if (m_parser)
@@ -79,6 +86,7 @@ void IncrementalDocumentParser::initialize_parser(ReadonlyBytes sniff_bytes)
     // FIXME: Implement the spec's "change the encoding while parsing" algorithm.
     m_document->set_url(m_url);
     m_parser = HTMLParser::create_with_open_input_stream(m_document);
+    m_parser->set_allow_declarative_shadow_roots(m_allow_declarative_shadow_roots);
 
     start_incremental_read();
 }

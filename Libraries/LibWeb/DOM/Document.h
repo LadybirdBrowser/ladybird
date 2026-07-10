@@ -45,6 +45,7 @@
 #include <LibWeb/HTML/DocumentReadyState.h>
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/PaintConfig.h>
+#include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/PreloadEntry.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/Scripting/ScriptRegistry.h>
@@ -612,8 +613,8 @@ public:
     bool is_fully_active() const;
     bool is_active() const;
 
-    [[nodiscard]] bool allow_declarative_shadow_roots() const;
-    void set_allow_declarative_shadow_roots(bool);
+    [[nodiscard]] HTML::HTMLParser::AllowDeclarativeShadowRoots allow_declarative_shadow_roots() const;
+    void set_allow_declarative_shadow_roots(HTML::HTMLParser::AllowDeclarativeShadowRoots allow_declarative_shadow_roots);
 
     GC::Ref<HTML::History> history();
     GC::Ref<HTML::History> history() const;
@@ -1605,7 +1606,7 @@ private:
     GC::Ptr<HTML::HTMLDialogElement> m_dialog_pointerdown_target;
 
     // https://dom.spec.whatwg.org/#document-allow-declarative-shadow-roots
-    bool m_allow_declarative_shadow_roots { false };
+    HTML::HTMLParser::AllowDeclarativeShadowRoots m_allow_declarative_shadow_roots { HTML::HTMLParser::AllowDeclarativeShadowRoots::No };
 
     // https://w3c.github.io/selection-api/#dfn-has-scheduled-selectionchange-event
     bool m_has_scheduled_selectionchange_event { false };

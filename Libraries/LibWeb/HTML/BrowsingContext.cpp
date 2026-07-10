@@ -247,7 +247,7 @@ BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_browsi
     document->set_about_base_url(creator_base_url);
 
     // allow declarative shadow roots: true
-    document->set_allow_declarative_shadow_roots(true);
+    document->set_allow_declarative_shadow_roots(HTML::HTMLParser::AllowDeclarativeShadowRoots::Yes);
 
     // custom element registry: A new CustomElementRegistry object.
     document->set_custom_element_registry(realm.create<CustomElementRegistry>(realm));

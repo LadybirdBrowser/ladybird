@@ -21,6 +21,7 @@
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/Comment.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/DocumentFragment.h>
 #include <LibWeb/DOM/DocumentType.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ElementFactory.h>
@@ -44,6 +45,7 @@
 #include <LibWeb/HTML/Parser/HTMLEncodingDetection.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Parser/HTMLToken.h>
+#include <LibWeb/HTML/Parser/ParserScriptingMode.h>
 #include <LibWeb/HTML/Parser/SpeculativeHTMLParser.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
@@ -111,7 +113,7 @@ extern "C" void ladybird_html_parser_move_all_children(size_t, size_t);
 extern "C" size_t ladybird_html_parser_template_content(size_t);
 extern "C" size_t ladybird_html_parser_attach_declarative_shadow_root(size_t, RustFfiHtmlShadowRootMode, RustFfiHtmlSlotAssignmentMode, bool, bool, bool, bool);
 extern "C" void ladybird_html_parser_set_template_content(size_t, size_t);
-extern "C" bool ladybird_html_parser_allows_declarative_shadow_roots(size_t);
+extern "C" bool ladybird_html_parser_is_shadow_host(size_t);
 
 HTMLParser::HTMLParser(DOM::Document& document, ParserScriptingMode scripting_mode, StringView input, StringView encoding, HTMLTokenizer::InputType input_type)
     : m_tokenizer(input, encoding, input_type)
@@ -151,6 +153,7 @@ void HTMLParser::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_document);
     visitor.visit(m_form_element);
     visitor.visit(m_context_element);
+    visitor.visit(m_root_insertion_target);
     visitor.visit(m_active_speculative_html_parser);
 
     rust_html_parser_visit_edges(m_rust_parser, &visitor);
@@ -174,6 +177,7 @@ void HTMLParser::run(HTMLTokenizer::StopAtInsertionPoint stop_at_insertion_point
             m_tokenizer.ffi_handle({}),
             this,
             m_scripting_mode != ParserScriptingMode::Disabled,
+            m_allow_declarative_shadow_roots == AllowDeclarativeShadowRoots::Yes,
             stop_at_insertion_point == HTMLTokenizer::StopAtInsertionPoint::Yes);
         if (result == RustFfiHtmlParserRunResult::Ok)
             break;
@@ -665,6 +669,7 @@ void HTMLParserEndState::complete()
     // 11. The Document is now ready for post-load tasks.
     m_document->set_ready_for_post_load_tasks(true);
 }
+
 // https://html.spec.whatwg.org/multipage/parsing.html#create-an-element-for-the-token
 GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Optional<Utf16FlyString> const& namespace_, DOM::Node& intended_parent)
 {
@@ -917,54 +922,59 @@ DOM::Document& HTMLParser::document()
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#parsing-html-fragments
-WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> HTMLParser::parse_html_fragment(DOM::Element& context_element, Utf16View markup, AllowDeclarativeShadowRoots allow_declarative_shadow_roots, ParserScriptingMode scripting_mode)
+WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> HTMLParser::parse_html_fragment(Variant<GC::Ref<DOM::Element>, GC::Ref<DOM::DocumentFragment>> target, Utf16View input, AllowDeclarativeShadowRoots allow_declarative_shadow_roots, ParserScriptingMode scripting_mode)
 {
     // 1. Assert: scriptingMode is either Inert or Fragment.
     VERIFY(scripting_mode == HTML::ParserScriptingMode::Inert || scripting_mode == HTML::ParserScriptingMode::Fragment);
 
-    // 2. Let document be a Document node whose type is "html".
-    auto temp_document = DOM::Document::create(context_element.realm());
+    // 2. Let context be target if target is an Element; otherwise target's host.
+    DOM::Element* context = target.has<GC::Ref<DOM::Element>>()
+        ? target.get<GC::Ref<DOM::Element>>().ptr()
+        : target.get<GC::Ref<DOM::DocumentFragment>>()->host();
+
+    // 3. Assert: context is non-null.
+    VERIFY(context);
+
+    // 4. Let document be a Document node whose type is "html".
+    auto temp_document = DOM::Document::create(context->realm());
     temp_document->set_document_type(DOM::Document::Type::HTML);
 
     temp_document->set_temporary_document_for_fragment_parsing({});
 
-    // AD-HOC: We set the about base URL of the document to the same as the context element's document.
+    // AD-HOC: We set the about base URL of the document to the same as the context's document.
     //         This is required for Document::parse_url() to work inside iframe srcdoc documents.
     //         Spec issue: https://github.com/whatwg/html/issues/12210
-    temp_document->set_about_base_url(context_element.document().about_base_url());
+    temp_document->set_about_base_url(context->document().about_base_url());
 
-    // 3. Let contextDocument be context's node document.
-    auto& context_document = context_element.document();
+    // 5. Let contextDocument be context's node document.
+    auto& context_document = context->document();
 
-    // 4. If contextDocument is in quirks mode, then set document's mode to "quirks".
+    // 6. If contextDocument is in quirks mode, then set document's mode to "quirks".
     if (context_document.in_quirks_mode()) {
         temp_document->set_quirks_mode(DOM::QuirksMode::Yes);
     }
-    // 5. Otherwise, if context's node document is in limited-quirks mode, then set document's mode to "limited-quirks".
-    else if (context_element.document().in_limited_quirks_mode()) {
+    // 7. Otherwise, if contextDocument is in limited-quirks mode, then set document's mode to "limited-quirks".
+    else if (context_document.in_limited_quirks_mode()) {
         temp_document->set_quirks_mode(DOM::QuirksMode::Limited);
     }
 
-    // 6. If allowDeclarativeShadowRoots is true, then set document's allow declarative shadow roots to true.
-    if (allow_declarative_shadow_roots == AllowDeclarativeShadowRoots::Yes)
-        temp_document->set_allow_declarative_shadow_roots(true);
-
-    // 7. Create a new HTML parser, and associate it with document.
-    // 8. If contextDocument's scripting is disabled, then set scriptingMode to Disabled.
-    // 9. Set the parser's scripting mode to scriptingMode.
-    if (context_element.document().is_scripting_disabled())
+    // 8. Create a new HTML parser whose allow declarative shadow roots is allowDeclarativeShadowRoots, and associate it with document.
+    // 9. If contextDocument's scripting is disabled, then set scriptingMode to Disabled.
+    // 10. Set the parser's scripting mode to scriptingMode.
+    if (context_document.is_scripting_disabled())
         scripting_mode = HTML::ParserScriptingMode::Disabled;
 
-    auto parser = HTMLParser::create_for_decoded_string(*temp_document, markup, scripting_mode, "utf-8"sv);
-    parser->m_context_element = context_element;
+    auto parser = HTMLParser::create_for_decoded_string(*temp_document, input, scripting_mode, "utf-8"sv);
+    parser->set_allow_declarative_shadow_roots(allow_declarative_shadow_roots);
+    parser->m_context_element = context; // FIXME: Is this needed?
     parser->m_parsing_fragment = true;
 
-    // 10. Set the state of the HTML parser's tokenization stage as follows, switching on the context element:
-    bool const context_element_is_html = context_element.namespace_uri() == Namespace::HTML;
+    // 11. Set the state of the HTML parser's tokenization stage as follows, switching on context:
+    bool const context_element_is_html = context->namespace_uri() == Namespace::HTML;
     // - title
     // - textarea
     if (context_element_is_html
-        && context_element.local_name().is_one_of(HTML::TagNames::title, HTML::TagNames::textarea)) {
+        && context->local_name().is_one_of(HTML::TagNames::title, HTML::TagNames::textarea)) {
         // Switch the tokenizer to the RCDATA state.
         parser->m_tokenizer.switch_to(HTMLTokenizer::State::RCDATA);
     }
@@ -974,23 +984,23 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> HTMLParser::parse_html_fragment
     // - noembed
     // - noframes
     else if (context_element_is_html
-        && context_element.local_name().is_one_of(HTML::TagNames::style, HTML::TagNames::xmp, HTML::TagNames::iframe, HTML::TagNames::noembed, HTML::TagNames::noframes)) {
+        && context->local_name().is_one_of(HTML::TagNames::style, HTML::TagNames::xmp, HTML::TagNames::iframe, HTML::TagNames::noembed, HTML::TagNames::noframes)) {
         // Switch the tokenizer to the RAWTEXT state.
         parser->m_tokenizer.switch_to(HTMLTokenizer::State::RAWTEXT);
     }
     // - script
-    else if (context_element_is_html && context_element.local_name().is_one_of(HTML::TagNames::script)) {
+    else if (context_element_is_html && context->local_name().is_one_of(HTML::TagNames::script)) {
         // Switch the tokenizer to the script data state.
         parser->m_tokenizer.switch_to(HTMLTokenizer::State::ScriptData);
     }
     // - noscript
-    else if (context_element_is_html && context_element.local_name().is_one_of(HTML::TagNames::noscript)) {
+    else if (context_element_is_html && context->local_name().is_one_of(HTML::TagNames::noscript)) {
         // If scripting mode is not Disabled, switch the tokenizer to the RAWTEXT state. Otherwise, leave the tokenizer in the data state.
         if (scripting_mode != HTML::ParserScriptingMode::Disabled)
             parser->m_tokenizer.switch_to(HTMLTokenizer::State::RAWTEXT);
     }
     // - plaintext
-    else if (context_element_is_html && context_element.local_name().is_one_of(HTML::TagNames::plaintext)) {
+    else if (context_element_is_html && context->local_name().is_one_of(HTML::TagNames::plaintext)) {
         // Switch the tokenizer to the PLAINTEXT state.
         parser->m_tokenizer.switch_to(HTMLTokenizer::State::PLAINTEXT);
     }
@@ -999,22 +1009,40 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> HTMLParser::parse_html_fragment
         // Leave the tokenizer in the data state.
     }
 
-    // 11. Let root be the result of creating an element given document, "html", the HTML namespace, null, null, false,
-    //    and context's custom element registry.
-    auto root = MUST(create_element(context_element.document(), HTML::TagNames::html, Namespace::HTML, {}, {}, false, context_element.custom_element_registry()));
+    auto target_node = target.visit([](auto node) -> GC::Ref<DOM::Node> { return node; });
 
-    // 12. Append root to document.
+    // 12. Let root be the result of creating an element given document, "html", the HTML namespace, null, null, false,
+    //     and the result of looking up a custom element registry given target.
+    auto root_registry = look_up_a_custom_element_registry(target_node);
+    auto root = MUST(create_element(*temp_document, HTML::TagNames::html, Namespace::HTML, {}, {}, false, root_registry));
+
+    // 13. Append root to document.
     MUST(temp_document->append_child(root));
 
-    // 17. Set the HTML parser's form element pointer to the nearest node to context that is a form element
+    // 14. Set up the HTML parser's stack of open elements so that it contains just the single element root.
+    // 15. Let fragment be a new DocumentFragment whose node document is target's node document.
+    auto fragment = context->realm().create<DOM::DocumentFragment>(target_node->document());
+
+    // 16. Set the parser's root insertion target to fragment.
+    parser->m_root_insertion_target = fragment;
+
+    // 17. If context is a template element, then push "in template" onto the stack of template insertion modes so that
+    //     it is the new current template insertion mode.
+    // 18. Create a start tag token whose name is the local name of context and whose attributes are the attributes of context.
+    //     Let this start tag token be the start tag token of context; e.g. for the purposes of determining if it is an
+    //     HTML integration point.
+    // 19. Reset the parser's insertion mode appropriately.
+    // NB: The parser will reference the context element as part of that algorithm.
+
+    // 20. Set the HTML parser's form element pointer to the nearest node to context that is a form element
     //     (going straight up the ancestor chain, and including the element itself, if it is a form element), if any.
     //     (If there is no such form element, the form element pointer keeps its initial value, null.)
-    parser->m_form_element = as_if<HTMLFormElement>(context_element);
+    parser->m_form_element = as_if<HTMLFormElement>(context);
     if (!parser->m_form_element)
-        parser->m_form_element = context_element.first_ancestor_of_type<HTMLFormElement>();
+        parser->m_form_element = context->first_ancestor_of_type<HTMLFormElement>();
 
-    auto context_local_name = utf16_code_units_for_ffi(context_element.local_name().view());
-    auto context_namespace = context_element.namespace_uri();
+    auto context_local_name = utf16_code_units_for_ffi(context->local_name().view());
+    auto context_namespace = context->namespace_uri();
     auto context_namespace_ffi = namespace_to_html_parser_ffi(context_namespace);
     Vector<u16> context_namespace_uri;
     if (context_namespace_ffi == RustFfiHtmlNamespace::Other && context_namespace.has_value()) {
@@ -1024,7 +1052,7 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> HTMLParser::parse_html_fragment
     Vector<Vector<u16>> attribute_names;
     Vector<Vector<u16>> attribute_prefixes;
     Vector<String> attribute_values_utf8;
-    if (auto attributes = context_element.attributes()) {
+    if (auto attributes = context->attributes()) {
         context_attributes.ensure_capacity(attributes->length());
         attribute_names.ensure_capacity(attributes->length());
         attribute_prefixes.ensure_capacity(attributes->length());
@@ -1054,7 +1082,8 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> HTMLParser::parse_html_fragment
     rust_html_parser_begin_fragment(
         parser->m_rust_parser,
         reinterpret_cast<size_t>(root.ptr()),
-        reinterpret_cast<size_t>(&context_element),
+        reinterpret_cast<size_t>(fragment.ptr()),
+        reinterpret_cast<size_t>(context),
         context_namespace_ffi,
         context_namespace_uri.data(),
         context_namespace_uri.size(),
@@ -1063,20 +1092,15 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> HTMLParser::parse_html_fragment
         context_attributes.data(),
         context_attributes.size(),
         quirks_mode_to_html_parser_ffi(temp_document->mode()),
+        allow_declarative_shadow_roots == AllowDeclarativeShadowRoots::Yes,
         parser->m_form_element ? reinterpret_cast<size_t>(parser->m_form_element.ptr()) : 0);
 
-    // 18. Place the input into the input stream for the HTML parser just created. The encoding confidence is irrelevant.
-    // 19. Start the HTML parser and let it run until it has consumed all the characters just inserted into the input stream.
-    parser->run(context_element.document().url());
+    // 22. Place the input into the input stream for the HTML parser just created. The encoding confidence is irrelevant.
+    // 23. Start the HTML parser and let it run until it has consumed all the characters just inserted into the input stream.
+    parser->run(context->document().url());
 
-    // 20. Return root's children, in tree order.
-    Vector<GC::Root<DOM::Node>> children;
-    while (GC::Ptr<DOM::Node> child = root->first_child()) {
-        MUST(root->remove_child(*child));
-        context_element.document().adopt_node(*child);
-        children.append(GC::make_root(*child));
-    }
-    return children;
+    // 24. Return fragment.
+    return fragment;
 }
 
 GC::Ref<HTMLParser> HTMLParser::create_for_scripting(DOM::Document& document)
@@ -1088,17 +1112,23 @@ GC::Ref<HTMLParser> HTMLParser::create_for_scripting(DOM::Document& document)
 GC::Ref<HTMLParser> HTMLParser::create_with_open_input_stream(DOM::Document& document)
 {
     auto scripting_mode = document.is_scripting_enabled() ? ParserScriptingMode::Normal : ParserScriptingMode::Disabled;
-    return document.realm().create<HTMLParser>(document, scripting_mode, ScriptCreatedParser::No);
+    auto parser = document.realm().create<HTMLParser>(document, scripting_mode, ScriptCreatedParser::No);
+    parser->set_allow_declarative_shadow_roots(AllowDeclarativeShadowRoots::Yes);
+    return parser;
 }
 
 GC::Ref<HTMLParser> HTMLParser::create_with_uncertain_encoding(DOM::Document& document, ByteBuffer const& input, Optional<MimeSniff::MimeType> maybe_mime_type)
 {
     auto scripting_mode = document.is_scripting_enabled() ? ParserScriptingMode::Normal : ParserScriptingMode::Disabled;
-    if (document.has_encoding())
-        return document.realm().create<HTMLParser>(document, scripting_mode, input, document.encoding().value().to_byte_string());
-    auto encoding = run_encoding_sniffing_algorithm(document, input, maybe_mime_type);
-    dbgln_if(HTML_PARSER_DEBUG, "The encoding sniffing algorithm returned encoding '{}'", encoding);
-    return document.realm().create<HTMLParser>(document, scripting_mode, input, encoding);
+    auto parser = [&] {
+        if (document.has_encoding())
+            return document.realm().create<HTMLParser>(document, scripting_mode, input, document.encoding().value().to_byte_string());
+        auto encoding = run_encoding_sniffing_algorithm(document, input, maybe_mime_type);
+        dbgln_if(HTML_PARSER_DEBUG, "The encoding sniffing algorithm returned encoding '{}'", encoding);
+        return document.realm().create<HTMLParser>(document, scripting_mode, input, encoding);
+    }();
+    parser->set_allow_declarative_shadow_roots(AllowDeclarativeShadowRoots::Yes);
+    return parser;
 }
 
 GC::Ref<HTMLParser> HTMLParser::create(DOM::Document& document, StringView input, ParserScriptingMode scripting_mode, StringView encoding)
@@ -2163,13 +2193,20 @@ extern "C" size_t ladybird_html_parser_create_comment(void* parser, u8 const* da
     return reinterpret_cast<size_t>(comment.ptr());
 }
 
+// https://html.spec.whatwg.org/multipage/parsing.html#insert-a-character
 extern "C" void ladybird_html_parser_insert_text(size_t parent, size_t offset, u8 const* data_ptr, size_t data_len)
 {
     auto insertion_location = node_and_offset_from_html_parser_ffi(parent, offset);
     auto& parent_node = *insertion_location.node;
+
+    // 3. If insertionLocation is in a Document node, then return.
+    // NOTE: The DOM will not let Document nodes have Text node children, so they are dropped on the floor.
     if (parent_node.is_document())
         return;
 
+    // 4. If there is a Text node immediately before insertionLocation, then append data to that Text node's data.
+    //    Otherwise, create a new Text node whose data is data and whose node document is the same as that of the element
+    //    in which insertionLocation finds itself, and insert the newly created node at insertionLocation.
     auto data = Utf16String::from_utf8(ffi_string(data_ptr, data_len));
     if (offset > 0) {
         if (auto* previous_text = as_if<DOM::Text>(parent_node.child_at_index(offset - 1))) {
@@ -2353,9 +2390,10 @@ extern "C" void ladybird_html_parser_set_template_content(size_t element, size_t
     as<HTMLTemplateElement>(node_from_html_parser_ffi(element)).set_template_contents(as<DOM::DocumentFragment>(node_from_html_parser_ffi(content)));
 }
 
-extern "C" bool ladybird_html_parser_allows_declarative_shadow_roots(size_t node)
+extern "C" bool ladybird_html_parser_is_shadow_host(size_t node)
 {
-    return node_from_html_parser_ffi(node).document().allow_declarative_shadow_roots();
+    auto* element = as_if<DOM::Element>(&node_from_html_parser_ffi(node));
+    return element && element->is_shadow_host();
 }
 
 }

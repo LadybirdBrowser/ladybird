@@ -126,7 +126,8 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_html_document(HTML::Navi
         }));
     }
 
-    // 3. Otherwise, create an HTML parser and associate it with the document.
+    // 3. Otherwise, create an HTML parser whose allow declarative shadow roots is true and associate it with document.
+    //
     //    Each task that the networking task source places on the task queue while fetching runs must then fill the
     //    parser's input byte stream with the fetched bytes and cause the HTML parser to perform the appropriate
     //    processing of the input stream.
@@ -141,6 +142,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_html_document(HTML::Navi
     else {
         auto body = GC::Ref { *navigation_params.response->body() };
         auto parser = HTML::IncrementalDocumentParser::create(document, body, navigation_params.response->url().value(), Fetch::Infrastructure::extract_mime_type(navigation_params.response->header_list()));
+        parser->set_allow_declarative_shadow_roots(HTML::HTMLParser::AllowDeclarativeShadowRoots::Yes);
         parser->start();
     }
 
