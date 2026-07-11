@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/caret-repaint-after-move-in-inline-element-ref.html">
+<style>
+    div {
+        font: 30px/1 monospace;
+    }
+</style>
+<div contenteditable="true"><p><span>abcd</span></p></div>
+<script>
+    const editor = document.querySelector("div");
+    const text = document.querySelector("span").firstChild;
+    editor.focus();
+    getSelection().setBaseAndExtent(text, 1, text, 1);
+
+    // Two nested requestAnimationFrame() calls to force code execution _after_ initial paint,
+    // so that moving the caret within the inline element must repaint its cached display list.
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            getSelection().setBaseAndExtent(text, 3, text, 3);
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

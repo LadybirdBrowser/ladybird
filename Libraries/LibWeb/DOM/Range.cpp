@@ -127,6 +127,7 @@ void Range::update_associated_selection()
         return;
 
     document.reset_cursor_blink_cycle();
+    document.set_cursor_position_needs_repaint();
 
     // https://w3c.github.io/selection-api/#selectionchange-event
     // When the selection is dissociated with its range, associated with a new range, or the associated range's boundary

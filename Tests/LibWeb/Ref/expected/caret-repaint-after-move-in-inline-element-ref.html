@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<style>
+    div {
+        font: 30px/1 monospace;
+    }
+</style>
+<div contenteditable="true"><p><span>abcd</span></p></div>
+<script>
+    const editor = document.querySelector("div");
+    const text = document.querySelector("span").firstChild;
+    editor.focus();
+    getSelection().setBaseAndExtent(text, 3, text, 3);
+</script>

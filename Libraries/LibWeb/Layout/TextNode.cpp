@@ -14,6 +14,7 @@
 #include <LibUnicode/Locale.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/InlineFormattingContext.h>
+#include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Painting/Paintable.h>
 
@@ -943,6 +944,19 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::try_commit_chunk(size_t start
 
 void TextNode::set_needs_repaint(InvalidateDisplayList should_invalidate_display_list) const
 {
+    // NB: Fragments for text inside an inline element are owned by that inline element's line paintables rather than
+    //     the containing block's paintable, so invalidate the nearest inline ancestor's paintables when there is one.
+    //     This mirrors the fragment relocation performed by LayoutState::commit().
+    for (auto const* ancestor = parent(); ancestor; ancestor = ancestor->parent()) {
+        if (!ancestor->display().is_inline_outside() || !ancestor->display().is_flow_inside())
+            break;
+        if (is<InlineNode>(*ancestor)) {
+            for (auto& paintable : const_cast<NodeWithStyle&>(*ancestor).paintables())
+                paintable->set_needs_repaint(should_invalidate_display_list);
+            break;
+        }
+    }
+
     if (auto* containing_block = this->containing_block()) {
         if (auto paintable_box = const_cast<Box&>(*containing_block).paintable_box())
             paintable_box->set_needs_repaint(should_invalidate_display_list);
