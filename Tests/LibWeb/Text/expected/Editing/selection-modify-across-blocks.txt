@@ -1,0 +1,8 @@
+extend backward from def,0: anchor=#text("def")@0 focus=p#p2@0
+extend backward again: anchor=#text("def")@0 focus=#text("abc")@3
+extend forward from empty line: anchor=p#p2@0 focus=p#p2@0
+extend backward from empty line: anchor=p#p2@0 focus=p#p2@0
+move forward from empty line: anchor=p#p2@0 focus=p#p2@0
+move forward by line: anchor=#text("abc")@1 focus=#text("abc")@1
+move to line start: anchor=#text("def")@1 focus=#text("def")@1
+move to line end: anchor=#text("def")@1 focus=#text("def")@1

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    p {
+        margin: 0;
+        font: 20px/1.5 monospace;
+    }
+</style>
+<div id="editor" contenteditable="true"><p><span id="s1">abc</span></p><p id="p2"><br><span id="s2">def</span></p></div>
+<script>
+    test(() => {
+        const editor = document.getElementById("editor");
+        const abc = document.getElementById("s1").firstChild;
+        const def = document.getElementById("s2").firstChild;
+        const p2 = document.getElementById("p2");
+        const sel = getSelection();
+        const describe = n => !n
+            ? "null"
+            : (n.nodeType === Node.TEXT_NODE ? `#text("${n.data}")` : n.nodeName.toLowerCase() + (n.id ? "#" + n.id : ""));
+        const report = label => {
+            println(`${label}: anchor=${describe(sel.anchorNode)}@${sel.anchorOffset} focus=${describe(sel.focusNode)}@${sel.focusOffset}`);
+        };
+        editor.focus();
+
+        // Extending backward across the block boundary and the empty line.
+        sel.setBaseAndExtent(def, 0, def, 0);
+        sel.modify("extend", "backward", "character");
+        report("extend backward from def,0");
+        sel.modify("extend", "backward", "character");
+        report("extend backward again");
+
+        // The Lexical deleteCharacter() pattern: an element-anchored caret on the empty line.
+        sel.setBaseAndExtent(p2, 0, p2, 0);
+        sel.modify("extend", "forward", "character");
+        report("extend forward from empty line");
+
+        sel.setBaseAndExtent(p2, 0, p2, 0);
+        sel.modify("extend", "backward", "character");
+        report("extend backward from empty line");
+
+        sel.setBaseAndExtent(p2, 0, p2, 0);
+        sel.modify("move", "forward", "character");
+        report("move forward from empty line");
+
+        // Line and line boundary granularities.
+        sel.setBaseAndExtent(abc, 1, abc, 1);
+        sel.modify("move", "forward", "line");
+        report("move forward by line");
+
+        sel.setBaseAndExtent(def, 1, def, 1);
+        sel.modify("move", "backward", "lineboundary");
+        report("move to line start");
+        sel.modify("move", "forward", "lineboundary");
+        report("move to line end");
+    });
+</script>
