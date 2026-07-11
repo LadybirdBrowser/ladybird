@@ -575,7 +575,7 @@ void CompositorState::publish_backing_stores(Web::Compositor::CompositorContextI
     VERIFY(m_client);
     VERIFY(context.presents_to_client());
 
-    m_client->did_allocate_backing_stores(context_id, publication.front_bitmap_id, move(publication.front_shared_image), publication.back_bitmap_id, move(publication.back_shared_image));
+    m_client->did_allocate_backing_stores(context_id, move(publication.bitmap_ids), move(publication.shared_images));
 }
 
 }

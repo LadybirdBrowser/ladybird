@@ -1831,15 +1831,13 @@ void WebContentClient::did_reset_session_history_for_testing(u64 page_id)
         view->did_reset_session_history_for_testing({});
 }
 
-void WebContentClient::did_present_backing_stores(u64 page_id, i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store)
+void WebContentClient::did_present_backing_stores(u64 page_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
 {
-    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI received backing stores for page {} front={} back={}",
-        page_id, front_bitmap_id, back_bitmap_id);
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI received {} backing stores for page {}", backing_stores.size(), page_id);
     if (auto view = view_for_page_id(page_id); view.has_value()) {
-        view->did_allocate_backing_stores({}, front_bitmap_id, move(front_backing_store), back_bitmap_id, move(back_backing_store));
+        view->did_allocate_backing_stores({}, move(bitmap_ids), move(backing_stores));
     } else {
-        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI dropping backing stores for page {} front={} back={}: no view",
-            page_id, front_bitmap_id, back_bitmap_id);
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI dropping {} backing stores for page {}: no view", backing_stores.size(), page_id);
     }
 }
 

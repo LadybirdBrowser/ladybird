@@ -10,6 +10,7 @@
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
 #include <AK/Types.h>
+#include <AK/Vector.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/SharedImage.h>
 #include <LibGfx/Size.h>
@@ -24,14 +25,15 @@ class BackingStoreManager {
 public:
     struct Allocation {
         Gfx::IntSize size;
-        i32 front_bitmap_id { -1 };
-        i32 back_bitmap_id { -1 };
+        Vector<i32> bitmap_ids;
     };
     struct Publication {
-        i32 front_bitmap_id { -1 };
-        Gfx::SharedImage front_shared_image;
-        i32 back_bitmap_id { -1 };
-        Gfx::SharedImage back_shared_image;
+        Vector<i32> bitmap_ids;
+        Vector<Gfx::SharedImage> shared_images;
+    };
+    struct RenderTarget {
+        Gfx::PaintingSurface& surface;
+        i32 bitmap_id { -1 };
     };
 
     BackingStoreManager() = default;
@@ -41,27 +43,32 @@ public:
     Optional<Publication> allocate_backing_stores(Allocation const&, RefPtr<Gfx::SkiaBackendContext> const&, bool should_publish);
 
     bool is_valid() const;
-    RefPtr<Gfx::PaintingSurface> front_store_if_present() const;
-    Gfx::PaintingSurface& front_store();
-    Gfx::PaintingSurface& back_store();
-    i32 back_bitmap_id() const;
-    void swap();
+    bool has_available_buffer() const;
+    Optional<RenderTarget> acquire_render_target();
+    void complete_rendering(i32 bitmap_id, bool release_to_external);
+    bool release_buffer(i32 bitmap_id);
+    RefPtr<Gfx::PaintingSurface> latest_rendered_surface() const;
 
 private:
-    struct BackingStoreState {
-        RefPtr<Gfx::PaintingSurface> front_store;
-        RefPtr<Gfx::PaintingSurface> back_store;
-        i32 front_bitmap_id { -1 };
-        i32 back_bitmap_id { -1 };
+    enum class BufferState : u8 {
+        Available,
+        Rendering,
+        Presented,
+    };
 
-        bool is_valid() const { return front_store && back_store; }
+    struct BackingStore {
+        RefPtr<Gfx::PaintingSurface> surface;
+        i32 bitmap_id { -1 };
+        BufferState state { BufferState::Available };
     };
 
     int m_next_bitmap_id { 0 };
 
     // Used to track if backing stores need reallocation
     Gfx::IntSize m_allocated_size;
-    BackingStoreState m_backing_stores;
+    Vector<BackingStore> m_backing_stores;
+    Optional<size_t> m_rendering_store_index;
+    Optional<size_t> m_latest_rendered_store_index;
 };
 
 }

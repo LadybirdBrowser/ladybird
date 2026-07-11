@@ -102,7 +102,7 @@ public:
     bool handle_pinch_event_in_compositor(u64 page_id, Web::PinchEvent const&);
     void dispatch_mouse_event_to_web_content(u64 page_id, Web::MouseEvent const&);
     void notify_presented_bitmap_ready_to_paint(u64 page_id, i32 bitmap_id);
-    void did_present_backing_stores(u64 page_id, i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store);
+    void did_present_backing_stores(u64 page_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores);
     void did_present_bitmap(u64 page_id, Gfx::IntRect, i32 bitmap_id);
 
     pid_t pid() const { return m_process_handle.pid; }

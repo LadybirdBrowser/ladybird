@@ -198,7 +198,6 @@ private:
     bool m_pending_present_frame_scheduled { false };
     Optional<Gfx::IntRect> m_presented_frame;
     Optional<i32> m_gpu_present_bitmap_id_awaiting_completion;
-    Optional<i32> m_presented_bitmap_id_awaiting_ack;
 };
 
 }

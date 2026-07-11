@@ -124,7 +124,6 @@ public:
     double device_pixel_ratio() const { return m_device_pixel_ratio; }
     Optional<u64> display_id() const { return m_display_id; }
     double maximum_frames_per_second() const { return m_maximum_frames_per_second; }
-
     void enqueue_input_event(Web::InputEvent);
     void did_finish_handling_input_event(Badge<WebContentClient>, Web::EventResult event_result);
 
@@ -276,7 +275,7 @@ public:
     void did_change_background_color(Badge<WebContentClient>, Gfx::Color);
     Gfx::Color page_background_color() const { return m_page_background_color; }
 
-    void did_allocate_backing_stores(Badge<WebContentClient>, i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store);
+    void did_allocate_backing_stores(Badge<WebContentClient>, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores);
 
     enum class ScreenshotType {
         Visible,
@@ -404,6 +403,9 @@ public:
     virtual Gfx::IntPoint to_widget_position(Gfx::IntPoint content_position) const = 0;
 
 protected:
+    virtual bool defer_backing_store_release(i32) { return false; }
+    void release_backing_store(i32 bitmap_id);
+
     static constexpr auto ZOOM_MIN_LEVEL = 0.3;
     static constexpr auto ZOOM_MAX_LEVEL = 5.0;
     static constexpr auto ZOOM_STEP = 0.1;
@@ -488,7 +490,7 @@ protected:
         RefPtr<WebContentClient> client;
         String client_handle;
         SharedBitmap front_bitmap;
-        SharedBitmap back_bitmap;
+        Vector<SharedBitmap> other_bitmaps;
         u64 page_index { 0 };
         bool has_usable_bitmap { false };
     } m_client_state;

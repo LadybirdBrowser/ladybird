@@ -29,9 +29,9 @@ void ConnectionFromClient::die()
     Core::Process::terminate_immediately(0);
 }
 
-void ConnectionFromClient::did_allocate_backing_stores(Web::Compositor::CompositorContextId context_id, i32 front_bitmap_id, Gfx::SharedImage&& front_backing_store, i32 back_bitmap_id, Gfx::SharedImage&& back_backing_store)
+void ConnectionFromClient::did_allocate_backing_stores(Web::Compositor::CompositorContextId context_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage>&& backing_stores)
 {
-    async_did_allocate_backing_stores(context_id, front_bitmap_id, move(front_backing_store), back_bitmap_id, move(back_backing_store));
+    async_did_allocate_backing_stores(context_id, move(bitmap_ids), move(backing_stores));
 }
 
 void ConnectionFromClient::did_present_frame(Web::Compositor::CompositorContextId context_id, Gfx::IntRect content_rect, i32 bitmap_id)

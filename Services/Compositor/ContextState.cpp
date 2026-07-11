@@ -120,10 +120,8 @@ void ContextState::stop_presenting_to_client()
 
 void ContextState::did_stop_presenting_to_client_if_needed(bool was_presenting_to_client, bool will_present_to_client)
 {
-    if (was_presenting_to_client && !will_present_to_client
-        && m_gpu_present_bitmap_id_awaiting_completion.has_value()
-        && m_presented_bitmap_id_awaiting_ack == m_gpu_present_bitmap_id_awaiting_completion)
-        m_presented_bitmap_id_awaiting_ack.clear();
+    (void)was_presenting_to_client;
+    (void)will_present_to_client;
 }
 
 void ContextState::set_parent_context(Optional<Web::Compositor::CompositorContextId> parent_context_id)
@@ -464,8 +462,7 @@ bool ContextState::should_defer_main_thread_present_for_async_scroll() const
     if (m_pending_async_scroll_offsets.is_empty())
         return false;
     return m_pending_present_frame.has_value()
-        || m_gpu_present_bitmap_id_awaiting_completion.has_value()
-        || m_presented_bitmap_id_awaiting_ack.has_value();
+        || is_present_blocked();
 }
 
 Web::Compositor::PendingAsyncScrollUpdates ContextState::take_pending_async_scroll_updates()
@@ -580,17 +577,20 @@ Optional<ContextState::PreparedFrame> ContextState::prepare_frame(Web::Painting:
         return {};
     }
 
-    auto& back_store = m_backing_store_manager.back_store();
+    auto render_target = m_backing_store_manager.acquire_render_target();
+    if (!render_target.has_value()) {
+        m_pending_present_frame = viewport_rect;
+        return {};
+    }
+    auto& back_store = render_target->surface;
     if (!presents_to_client()) {
         Gfx::PainterSkia painter { NonnullRefPtr<Gfx::PaintingSurface> { back_store } };
         painter.clear_rect(back_store.rect().to_type<float>(), Gfx::Color::Transparent);
     }
     paint_current_display_list(display_list_player, back_store, composited_context_resolver);
 
-    auto rendered_bitmap_id = m_backing_store_manager.back_bitmap_id();
+    auto rendered_bitmap_id = render_target->bitmap_id;
     m_gpu_present_bitmap_id_awaiting_completion = rendered_bitmap_id;
-    if (presents_to_client())
-        m_presented_bitmap_id_awaiting_ack = rendered_bitmap_id;
     return PreparedFrame {
         .rendered_surface = &back_store,
         .bitmap_id = rendered_bitmap_id,
@@ -599,7 +599,6 @@ Optional<ContextState::PreparedFrame> ContextState::prepare_frame(Web::Painting:
 
 void ContextState::did_submit_prepared_frame(Gfx::IntRect viewport_rect)
 {
-    m_backing_store_manager.swap();
     m_presented_frame = viewport_rect;
 }
 
@@ -617,15 +616,18 @@ bool ContextState::present_synchronously(Web::Painting::DisplayListPlayerSkia& d
     if (!viewport_rect.has_value())
         return false;
 
-    auto& back_store = m_backing_store_manager.back_store();
+    auto render_target = m_backing_store_manager.acquire_render_target();
+    if (!render_target.has_value())
+        return false;
+    auto& back_store = render_target->surface;
     if (!presents_to_client()) {
         Gfx::PainterSkia painter { NonnullRefPtr<Gfx::PaintingSurface> { back_store } };
         painter.clear_rect(back_store.rect().to_type<float>(), Gfx::Color::Transparent);
     }
     paint_current_display_list(display_list_player, back_store, composited_context_resolver);
     display_list_player.flush(back_store);
-    m_backing_store_manager.swap();
-    m_latest_rendered_surface = m_backing_store_manager.front_store_if_present();
+    m_backing_store_manager.complete_rendering(render_target->bitmap_id, false);
+    m_latest_rendered_surface = m_backing_store_manager.latest_rendered_surface();
     m_presented_frame = viewport_rect;
     m_pending_present_frame.clear();
     m_pending_present_frame_scheduled = false;
@@ -648,18 +650,15 @@ void ContextState::paint_screenshot(Web::Painting::DisplayListPlayerSkia& displa
 
 bool ContextState::acknowledge_presented_bitmap(i32 bitmap_id)
 {
-    if (m_presented_bitmap_id_awaiting_ack != bitmap_id)
-        return false;
-
-    m_presented_bitmap_id_awaiting_ack.clear();
-    return true;
+    return m_backing_store_manager.release_buffer(bitmap_id);
 }
 
 void ContextState::did_finish_gpu_present(i32 bitmap_id)
 {
     VERIFY(m_gpu_present_bitmap_id_awaiting_completion == bitmap_id);
     m_gpu_present_bitmap_id_awaiting_completion.clear();
-    m_latest_rendered_surface = m_backing_store_manager.front_store_if_present();
+    m_backing_store_manager.complete_rendering(bitmap_id, presents_to_client());
+    m_latest_rendered_surface = m_backing_store_manager.latest_rendered_surface();
 }
 
 void ContextState::stop_backing_store_shrink_timer()
@@ -807,7 +806,7 @@ void ContextState::rebuild_wheel_hit_test_targets()
 bool ContextState::is_present_blocked() const
 {
     return m_gpu_present_bitmap_id_awaiting_completion.has_value()
-        || m_presented_bitmap_id_awaiting_ack.has_value();
+        || !m_backing_store_manager.has_available_buffer();
 }
 
 bool ContextState::can_render_frame() const

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <Compositor/BackingStoreManager.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/SharedImageBuffer.h>
@@ -17,11 +18,6 @@
 
 namespace Compositor {
 
-struct BackingStorePair {
-    RefPtr<Gfx::PaintingSurface> front;
-    RefPtr<Gfx::PaintingSurface> back;
-};
-
 #if defined(USE_DIRECTX) || defined(USE_VULKAN)
 static NonnullRefPtr<Gfx::PaintingSurface> create_gpu_painting_surface_with_bitmap_flush(Gfx::IntSize size, Gfx::SharedImageBuffer& buffer, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
 {
@@ -34,56 +30,39 @@ static NonnullRefPtr<Gfx::PaintingSurface> create_gpu_painting_surface_with_bitm
 }
 #endif
 
-static BackingStorePair create_shareable_bitmap_backing_stores([[maybe_unused]] Gfx::IntSize size, Gfx::SharedImageBuffer& front_buffer, Gfx::SharedImageBuffer& back_buffer, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
+static NonnullRefPtr<Gfx::PaintingSurface> create_shareable_bitmap_backing_store([[maybe_unused]] Gfx::IntSize size, Gfx::SharedImageBuffer& buffer, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
 {
 #ifdef AK_OS_MACOS
-    if (skia_backend_context) {
-        return {
-            .front = Gfx::PaintingSurface::create_from_shared_image_buffer(front_buffer, *skia_backend_context),
-            .back = Gfx::PaintingSurface::create_from_shared_image_buffer(back_buffer, *skia_backend_context),
-        };
-    }
+    if (skia_backend_context)
+        return Gfx::PaintingSurface::create_from_shared_image_buffer(buffer, *skia_backend_context);
 #else
 #    if defined(USE_DIRECTX) || defined(USE_VULKAN)
-    if (skia_backend_context) {
-        return {
-            .front = create_gpu_painting_surface_with_bitmap_flush(size, front_buffer, skia_backend_context),
-            .back = create_gpu_painting_surface_with_bitmap_flush(size, back_buffer, skia_backend_context),
-        };
-    }
+    if (skia_backend_context)
+        return create_gpu_painting_surface_with_bitmap_flush(size, buffer, skia_backend_context);
 #    else
     (void)skia_backend_context;
 #    endif
 #endif
 
-    return {
-        .front = Gfx::PaintingSurface::wrap_bitmap(*front_buffer.bitmap()),
-        .back = Gfx::PaintingSurface::wrap_bitmap(*back_buffer.bitmap()),
-    };
+    return Gfx::PaintingSurface::wrap_bitmap(*buffer.bitmap());
 }
 
 #ifdef USE_VULKAN_DMABUF_IMAGES
-struct DMABufBackingStorePair {
-    RefPtr<Gfx::PaintingSurface> front;
-    RefPtr<Gfx::PaintingSurface> back;
-    Gfx::SharedImage front_shared_image;
-    Gfx::SharedImage back_shared_image;
+struct DMABufBackingStore {
+    RefPtr<Gfx::PaintingSurface> surface;
+    Gfx::SharedImage shared_image;
 };
 
-static ErrorOr<DMABufBackingStorePair> create_linear_dmabuf_backing_stores(Gfx::IntSize size, Gfx::SkiaBackendContext& skia_backend_context)
+static ErrorOr<DMABufBackingStore> create_linear_dmabuf_backing_store(Gfx::IntSize size, Gfx::SkiaBackendContext& skia_backend_context)
 {
     auto const& vulkan_context = skia_backend_context.vulkan_context();
-    static constexpr Array<uint64_t, 1> linear_modifiers = { DRM_FORMAT_MOD_LINEAR };
-    auto front_image = TRY(Gfx::create_shared_vulkan_image(vulkan_context, size.width(), size.height(), VK_FORMAT_B8G8R8A8_UNORM, linear_modifiers.span()));
-    auto back_image = TRY(Gfx::create_shared_vulkan_image(vulkan_context, size.width(), size.height(), VK_FORMAT_B8G8R8A8_UNORM, linear_modifiers.span()));
-    auto front_shared_image = Gfx::duplicate_shared_image(*front_image);
-    auto back_shared_image = Gfx::duplicate_shared_image(*back_image);
+    static constexpr Array<u64, 1> linear_modifiers = { DRM_FORMAT_MOD_LINEAR };
+    auto image = TRY(Gfx::create_shared_vulkan_image(vulkan_context, size.width(), size.height(), VK_FORMAT_B8G8R8A8_UNORM, linear_modifiers.span()));
+    auto shared_image = Gfx::duplicate_shared_image(*image);
 
-    return DMABufBackingStorePair {
-        .front = Gfx::PaintingSurface::create_from_vkimage(skia_backend_context, move(front_image), Gfx::PaintingSurface::Origin::TopLeft),
-        .back = Gfx::PaintingSurface::create_from_vkimage(skia_backend_context, move(back_image), Gfx::PaintingSurface::Origin::TopLeft),
-        .front_shared_image = move(front_shared_image),
-        .back_shared_image = move(back_shared_image),
+    return DMABufBackingStore {
+        .surface = Gfx::PaintingSurface::create_from_vkimage(skia_backend_context, move(image), Gfx::PaintingSurface::Origin::TopLeft),
+        .shared_image = move(shared_image),
     };
 }
 #endif
@@ -107,11 +86,11 @@ Optional<BackingStoreManager::Allocation> BackingStoreManager::resize_backing_st
 
     if (force_reallocate || m_allocated_size.is_empty() || !m_allocated_size.contains(minimum_needed_size)) {
         m_allocated_size = minimum_needed_size;
-        return Allocation {
-            .size = minimum_needed_size,
-            .front_bitmap_id = m_next_bitmap_id++,
-            .back_bitmap_id = m_next_bitmap_id++,
-        };
+        Vector<i32> bitmap_ids;
+        bitmap_ids.ensure_capacity(2);
+        for (size_t i = 0; i < 2; ++i)
+            bitmap_ids.append(m_next_bitmap_id++);
+        return Allocation { .size = minimum_needed_size, .bitmap_ids = move(bitmap_ids) };
     }
 
     return {};
@@ -119,77 +98,131 @@ Optional<BackingStoreManager::Allocation> BackingStoreManager::resize_backing_st
 
 Optional<BackingStoreManager::Publication> BackingStoreManager::allocate_backing_stores(Allocation const& allocation, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, bool should_publish)
 {
+    m_backing_stores.clear();
+    m_rendering_store_index.clear();
+    m_latest_rendered_store_index.clear();
+
+    auto buffer_count = should_publish ? allocation.bitmap_ids.size() : 2;
+    VERIFY(buffer_count <= allocation.bitmap_ids.size());
+    m_backing_stores.ensure_capacity(buffer_count);
+
+    // The UI installs the first published buffer as its initial front buffer.
+    // Reserve it until the UI releases it after presenting another buffer.
+    auto initial_buffer_state = [should_publish](size_t index) {
+        return should_publish && index == 0 ? BufferState::Presented : BufferState::Available;
+    };
+
 #ifdef USE_VULKAN_DMABUF_IMAGES
     if (skia_backend_context && should_publish) {
-        auto backing_stores = create_linear_dmabuf_backing_stores(allocation.size, *skia_backend_context);
-        if (!backing_stores.is_error()) {
-            auto backing_store_pair = backing_stores.release_value();
-            m_backing_stores.front_store = move(backing_store_pair.front);
-            m_backing_stores.back_store = move(backing_store_pair.back);
-            m_backing_stores.front_bitmap_id = allocation.front_bitmap_id;
-            m_backing_stores.back_bitmap_id = allocation.back_bitmap_id;
+        Vector<Gfx::SharedImage> shared_images;
+        shared_images.ensure_capacity(buffer_count);
+        bool allocation_succeeded = true;
+        for (size_t i = 0; i < buffer_count; ++i) {
+            auto backing_store = create_linear_dmabuf_backing_store(allocation.size, *skia_backend_context);
+            if (backing_store.is_error()) {
+                allocation_succeeded = false;
+                break;
+            }
+
+            auto store = backing_store.release_value();
+            m_backing_stores.append({
+                .surface = move(store.surface),
+                .bitmap_id = allocation.bitmap_ids[i],
+                .state = initial_buffer_state(i),
+            });
+            shared_images.append(move(store.shared_image));
+        }
+
+        if (allocation_succeeded) {
             return Publication {
-                .front_bitmap_id = allocation.front_bitmap_id,
-                .front_shared_image = move(backing_store_pair.front_shared_image),
-                .back_bitmap_id = allocation.back_bitmap_id,
-                .back_shared_image = move(backing_store_pair.back_shared_image),
+                .bitmap_ids = allocation.bitmap_ids,
+                .shared_images = move(shared_images),
             };
         }
+
+        m_backing_stores.clear();
     }
 #endif
 
-    auto front_buffer = Gfx::SharedImageBuffer::create(allocation.size);
-    auto back_buffer = Gfx::SharedImageBuffer::create(allocation.size);
-    auto front_shared_image = front_buffer.export_shared_image();
-    auto back_shared_image = back_buffer.export_shared_image();
-    auto backing_store_pair = create_shareable_bitmap_backing_stores(allocation.size, front_buffer, back_buffer, skia_backend_context);
-    m_backing_stores.front_store = move(backing_store_pair.front);
-    m_backing_stores.back_store = move(backing_store_pair.back);
-    m_backing_stores.front_bitmap_id = allocation.front_bitmap_id;
-    m_backing_stores.back_bitmap_id = allocation.back_bitmap_id;
+    Vector<Gfx::SharedImage> shared_images;
+    if (should_publish)
+        shared_images.ensure_capacity(buffer_count);
+    for (size_t i = 0; i < buffer_count; ++i) {
+        auto buffer = Gfx::SharedImageBuffer::create(allocation.size);
+        if (should_publish)
+            shared_images.append(buffer.export_shared_image());
+        m_backing_stores.append({
+            .surface = create_shareable_bitmap_backing_store(allocation.size, buffer, skia_backend_context),
+            .bitmap_id = allocation.bitmap_ids[i],
+            .state = initial_buffer_state(i),
+        });
+    }
 
     if (!should_publish)
         return {};
 
     return Publication {
-        .front_bitmap_id = allocation.front_bitmap_id,
-        .front_shared_image = move(front_shared_image),
-        .back_bitmap_id = allocation.back_bitmap_id,
-        .back_shared_image = move(back_shared_image),
+        .bitmap_ids = allocation.bitmap_ids,
+        .shared_images = move(shared_images),
     };
 }
 
 bool BackingStoreManager::is_valid() const
 {
-    return m_backing_stores.is_valid();
+    return !m_backing_stores.is_empty();
 }
 
-RefPtr<Gfx::PaintingSurface> BackingStoreManager::front_store_if_present() const
+bool BackingStoreManager::has_available_buffer() const
 {
-    return m_backing_stores.front_store;
+    return any_of(m_backing_stores, [](auto const& store) { return store.state == BufferState::Available; });
 }
 
-Gfx::PaintingSurface& BackingStoreManager::front_store()
+Optional<BackingStoreManager::RenderTarget> BackingStoreManager::acquire_render_target()
 {
-    VERIFY(m_backing_stores.front_store);
-    return *m_backing_stores.front_store;
+    VERIFY(!m_rendering_store_index.has_value());
+    for (size_t i = 0; i < m_backing_stores.size(); ++i) {
+        auto& store = m_backing_stores[i];
+        if (store.state != BufferState::Available)
+            continue;
+
+        store.state = BufferState::Rendering;
+        m_rendering_store_index = i;
+        return RenderTarget { *store.surface, store.bitmap_id };
+    }
+    return {};
 }
 
-Gfx::PaintingSurface& BackingStoreManager::back_store()
+void BackingStoreManager::complete_rendering(i32 bitmap_id, bool wait_for_release)
 {
-    VERIFY(m_backing_stores.back_store);
-    return *m_backing_stores.back_store;
+    VERIFY(m_rendering_store_index.has_value());
+    auto& store = m_backing_stores[*m_rendering_store_index];
+    VERIFY(store.state == BufferState::Rendering);
+    VERIFY(store.bitmap_id == bitmap_id);
+
+    if (!wait_for_release && m_latest_rendered_store_index.has_value())
+        m_backing_stores[*m_latest_rendered_store_index].state = BufferState::Available;
+
+    store.state = BufferState::Presented;
+    m_latest_rendered_store_index = m_rendering_store_index;
+    m_rendering_store_index.clear();
 }
 
-i32 BackingStoreManager::back_bitmap_id() const
+bool BackingStoreManager::release_buffer(i32 bitmap_id)
 {
-    return m_backing_stores.back_bitmap_id;
+    for (auto& store : m_backing_stores) {
+        if (store.bitmap_id != bitmap_id || store.state != BufferState::Presented)
+            continue;
+        store.state = BufferState::Available;
+        return true;
+    }
+    return false;
 }
 
-void BackingStoreManager::swap()
+RefPtr<Gfx::PaintingSurface> BackingStoreManager::latest_rendered_surface() const
 {
-    AK::swap(m_backing_stores.front_store, m_backing_stores.back_store);
-    AK::swap(m_backing_stores.front_bitmap_id, m_backing_stores.back_bitmap_id);
+    if (!m_latest_rendered_store_index.has_value())
+        return nullptr;
+    return m_backing_stores[*m_latest_rendered_store_index].surface;
 }
 
 }
