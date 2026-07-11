@@ -43,11 +43,11 @@ public:
     // Other browsers appear to only allow 32 channels - so let's limit ourselves to that too.
     static constexpr WebIDL::UnsignedLong MAX_NUMBER_OF_CHANNELS { 32 };
 
-    // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createbuffer-samplerate
-    // > An implementation MUST support sample rates in at least the range 8000 to 96000.
-    // This doesn't seem consistent between browsers. We use what firefox accepts from testing BaseAudioContext.createAudioBuffer.
-    static constexpr float MIN_SAMPLE_RATE { 8000 };
-    static constexpr float MAX_SAMPLE_RATE { 192000 };
+    // https://webaudio.github.io/web-audio-api/#sample-rates
+    // Implementations MUST support sample rates between 3000 Hz and 768000 Hz, inclusive. A NotSupportedError MUST
+    // be thrown if a sample rate outside this range is specified.
+    static constexpr float MIN_SAMPLE_RATE { 3000 };
+    static constexpr float MAX_SAMPLE_RATE { 768000 };
 
     static WebIDL::UnsignedLong render_quantum_size() { return s_render_quantum_size; }
 
