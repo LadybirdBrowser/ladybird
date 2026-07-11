@@ -41,6 +41,7 @@ public:
 
 private:
     void generate_line_boxes();
+    void compute_inline_box_pieces();
     void apply_text_overflow_ellipsis(Vector<LineBox>&);
     void apply_justification_to_fragments(CSS::TextJustify, LineBox&, bool is_last_line);
 
@@ -50,6 +51,8 @@ private:
 
     Optional<AvailableSpace> m_available_space;
     Optional<LayoutInput> m_layout_input;
+
+    Vector<NodeWithStyleAndBoxModelMetrics const*> m_fragmented_inlines_in_pre_order;
 
     CSSPixels m_automatic_content_width { 0 };
     CSSPixels m_automatic_content_height { 0 };

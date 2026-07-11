@@ -56,6 +56,9 @@ void InlineLevelIterator::generate_all_items()
 
 void InlineLevelIterator::enter_node_with_box_model_metrics(Layout::NodeWithStyleAndBoxModelMetrics const& node)
 {
+    if (node.is_fragmented_inline())
+        m_visited_fragmented_inlines.append(&node);
+
     if (!m_extra_leading_metrics.has_value())
         m_extra_leading_metrics = ExtraBoxMetrics {};
 

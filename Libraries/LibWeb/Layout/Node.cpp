@@ -1272,6 +1272,17 @@ bool Node::is_fragmented_inline() const
         || (is_list_item_box() && display().is_inline_outside() && display().is_flow_inside());
 }
 
+NodeWithStyleAndBoxModelMetrics const* Node::nearest_fragmented_inline_ancestor() const
+{
+    for (auto const* ancestor = parent(); ancestor; ancestor = ancestor->parent()) {
+        if (!ancestor->display().is_inline_outside() || !ancestor->display().is_flow_inside())
+            break;
+        if (ancestor->is_fragmented_inline())
+            return static_cast<NodeWithStyleAndBoxModelMetrics const*>(ancestor);
+    }
+    return nullptr;
+}
+
 // https://drafts.csswg.org/css-transforms-1/#transformable-element
 bool Node::is_transformable() const
 {

@@ -60,6 +60,8 @@ public:
     Optional<Item&> next();
     CSSPixels next_non_whitespace_sequence_width();
 
+    Vector<NodeWithStyleAndBoxModelMetrics const*> take_visited_fragmented_inlines() { return move(m_visited_fragmented_inlines); }
+
 private:
     void generate_all_items();
     Optional<Item> generate_next_item();
@@ -106,6 +108,7 @@ private:
     Optional<ExtraBoxMetrics> m_extra_trailing_metrics;
 
     Vector<NodeWithStyleAndBoxModelMetrics const*> m_box_model_node_stack;
+    Vector<NodeWithStyleAndBoxModelMetrics const*> m_visited_fragmented_inlines;
 
     // Pre-generated items for O(1) iteration and lookahead.
     Vector<Item> m_items;

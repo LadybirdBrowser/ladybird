@@ -198,6 +198,8 @@ struct LayoutState {
 
         Vector<LineBox> line_boxes;
 
+        Vector<Painting::InlineBoxPiece> inline_box_pieces;
+
         // Baselines of this box's in-flow content, relative to the box's content-box top edge.
         // Populated eagerly by the formatting context that lays out this box's children.
         // An empty Optional means the box has no baseline set (https://drafts.csswg.org/css-align-3/#baseline-export);

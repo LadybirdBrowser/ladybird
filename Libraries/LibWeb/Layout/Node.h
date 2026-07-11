@@ -130,6 +130,7 @@ public:
     bool has_replaced_element_table_display_adjustment() const;
     bool is_atomic_inline() const;
     bool is_fragmented_inline() const;
+    NodeWithStyleAndBoxModelMetrics const* nearest_fragmented_inline_ancestor() const;
     bool is_transformable() const;
 
     bool is_out_of_flow(FormattingContext const&) const;
