@@ -156,9 +156,9 @@ static Optional<Painting::CaretPosition> caret_position_from_editable_hit_node(D
     }
 
     auto paintable = boundary_node->paintable();
-    if (!paintable)
+    if (!paintable || !paintable->has_layout_node())
         paintable = hit_node.paintable();
-    if (!paintable)
+    if (!paintable || !paintable->has_layout_node())
         return {};
 
     return Painting::CaretPosition {
@@ -1831,6 +1831,8 @@ void EventHandler::run_mousedown_default_actions(DOM::Document& document, CSSPix
         return;
     VERIFY(m_selection_mode != SelectionMode::None);
 
+    // NB: Initiating the selection may run script (setting a selection inside an editing host runs the focusing
+    //     steps on it), which may have rebuilt the layout tree and detached the caret position's paintable.
     if (auto container = AutoScrollHandler::find_scrollable_ancestor(*caret_position->paintable))
         m_auto_scroll_handler = make<AutoScrollHandler>(m_navigable, *container);
 }
@@ -1866,11 +1868,13 @@ Optional<Painting::CaretPosition> EventHandler::prepare_mouse_selection(DOM::Doc
     if (!paint_root())
         return {};
 
-    // NB: Now we can do selection with a caret-position hit test.
+    // NB: Now we can do selection with a caret-position hit test. The pre-focus hit node is only preferred while it
+    //     is still connected; focus handlers may have replaced it (e.g. an editor placeholder swapped for the real
+    //     editing host), in which case the fresh hit test result points at the replacement.
     auto caret_position = document.caret_position_from_point_for_selection_start(visual_viewport_position);
-    if (editable_hit_node_before_focus && editing_host_before_focus && should_use_caret_position_from_editable_hit_node(caret_position, *editable_hit_node_before_focus, *editing_host_before_focus)) {
-        if (editable_hit_node_before_focus)
-            caret_position = caret_position_from_editable_hit_node(*editable_hit_node_before_focus);
+    if (editable_hit_node_before_focus && editable_hit_node_before_focus->is_connected() && editing_host_before_focus && should_use_caret_position_from_editable_hit_node(caret_position, *editable_hit_node_before_focus, *editing_host_before_focus)) {
+        if (auto caret_position_from_hit_node = caret_position_from_editable_hit_node(*editable_hit_node_before_focus); caret_position_from_hit_node.has_value())
+            caret_position = caret_position_from_hit_node;
     }
     if (!caret_position.has_value())
         return {};

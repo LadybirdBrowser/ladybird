@@ -82,6 +82,7 @@ public:
 
     virtual bool forms_unconnected_subtree() const { return false; }
 
+    bool has_layout_node() const { return m_layout_node; }
     Layout::Node const& layout_node() const
     {
         VERIFY(m_layout_node);
@@ -434,7 +435,6 @@ protected:
     explicit Paintable(Layout::InlineNode const&);
 
     void paint_with_inspector_overlay_context(DisplayListRecordingContext&, Function<void()> const&) const;
-    bool has_layout_node() const { return m_layout_node; }
 
     virtual void paint_border(DisplayListRecordingContext&) const;
     virtual void paint_backdrop_filter(DisplayListRecordingContext&) const;

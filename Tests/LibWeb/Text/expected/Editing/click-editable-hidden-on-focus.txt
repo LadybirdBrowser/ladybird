@@ -1,0 +1,2 @@
+selection: #text("edit me")@4
+active element: editor

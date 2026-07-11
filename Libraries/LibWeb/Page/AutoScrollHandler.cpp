@@ -109,6 +109,10 @@ CSSPixelPoint AutoScrollHandler::process(CSSPixelPoint mouse_position)
 
 GC::Ptr<DOM::Element> AutoScrollHandler::find_scrollable_ancestor(Painting::Paintable const& paintable)
 {
+    // NB: The caller may have held on to this paintable across script execution that rebuilt the layout tree.
+    if (!paintable.has_layout_node())
+        return {};
+
     RefPtr<Painting::Paintable> paintable_box = const_cast<Painting::Paintable&>(paintable);
     while (paintable_box) {
         if (paintable_box->could_be_scrolled_by_wheel_event()) {

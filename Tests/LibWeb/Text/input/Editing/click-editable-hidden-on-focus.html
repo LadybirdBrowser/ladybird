@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #placeholder,
+    #editor {
+        position: absolute;
+        left: 8px;
+        top: 8px;
+        width: 200px;
+        height: 40px;
+        font: 20px/1.5 monospace;
+    }
+</style>
+<textarea id="placeholder"></textarea>
+<div id="editor" contenteditable="true" style="display: none">edit me</div>
+<script>
+    test(() => {
+        // Like Reddit's comment composer: a focusable placeholder is swapped for the real editor when it gains
+        // focus, and the editor's own focus handler (which runs synchronously while the mouse click sets the
+        // selection into it) forces a synchronous relayout. The click's default actions must not keep using
+        // paintables from before that relayout.
+        const placeholder = document.getElementById("placeholder");
+        const editor = document.getElementById("editor");
+        placeholder.addEventListener("focus", () => {
+            placeholder.style.display = "none";
+            editor.style.display = "block";
+        });
+        editor.addEventListener("focus", () => {
+            document.body.appendChild(document.createElement("div"));
+            editor.getBoundingClientRect();
+        });
+
+        internals.click(40, 25);
+
+        const s = getSelection();
+        const describe = n => !n
+            ? "null"
+            : (n.nodeType === Node.TEXT_NODE ? `#text("${n.data}")` : n.nodeName.toLowerCase() + (n.id ? "#" + n.id : ""));
+        println(`selection: ${describe(s.focusNode)}@${s.focusOffset}`);
+        println(`active element: ${document.activeElement.id}`);
+    });
+</script>
