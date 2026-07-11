@@ -56,7 +56,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     WebView::Autocomplete autocomplete { WebView::IsPrivate::No };
 
     auto completed = false;
-    autocomplete.on_autocomplete_query_complete = [&](auto const&, WebView::AutocompleteResultKind kind) {
+    autocomplete.on_autocomplete_query_complete = [&](auto, auto const&, WebView::AutocompleteResultKind kind) {
         // Only the final result is delivered from within the request's on_finish — which is the re-entrant teardown
         // that previously crashed.
         if (kind != WebView::AutocompleteResultKind::Final)
@@ -65,7 +65,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         completed = true;
     };
 
-    autocomplete.query_autocomplete_engine("test"_string);
+    autocomplete.query_autocomplete_engine(1, "test"_string);
 
     Core::EventLoop::current().spin_until([&]() { return completed; });
 

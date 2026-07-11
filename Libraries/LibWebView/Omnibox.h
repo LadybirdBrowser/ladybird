@@ -24,9 +24,9 @@ class WEBVIEW_API OmniboxSuggestionProvider {
 public:
     virtual ~OmniboxSuggestionProvider() = default;
 
-    Function<void(Vector<AutocompleteSuggestion>, AutocompleteResultKind)> on_suggestions;
+    Function<void(AutocompleteQueryID, Vector<AutocompleteSuggestion>, AutocompleteResultKind)> on_suggestions;
 
-    virtual void query(String, size_t max_suggestions) = 0;
+    virtual void query(AutocompleteQueryID, String, size_t max_suggestions) = 0;
     virtual void cancel() = 0;
 };
 
@@ -45,13 +45,10 @@ public:
 //   - RowPreview:      the text of a highlighted suggestion that does not extend the query, shown fully
 //                      selected. The query is retained and restored when the popup goes away.
 //
-// The invariant that makes Enter trustworthy: whatever state we are in, on_commit carries exactly what the
-// bar displays. Enter resolves in this order: user-edited text is committed verbatim; otherwise, if the
-// visible popup rows belong to the current query, the selected row is activated; otherwise the rows are
-// stale (the user typed faster than suggestions arrive), so the query is re-run and the activation happens
-// as soon as a result worth acting on comes back. The predecessor of this model derived all of that from
-// widget selection offsets and a pile of latched booleans, and most omnibox bugs were one of those going
-// stale relative to what was actually on screen.
+// The invariant that makes Enter trustworthy: a selected row is activated only when it belongs to the
+// current query generation or the user selected it explicitly. When results lag behind fast typing, Enter
+// immediately commits the current input through the browser's normal URL-or-search resolution. It never
+// waits for a provider response that may arrive after the user's intent has changed.
 class WEBVIEW_API Omnibox {
     AK_MAKE_NONCOPYABLE(Omnibox);
     AK_MAKE_NONMOVABLE(Omnibox);
@@ -136,7 +133,8 @@ private:
         Previous,
     };
 
-    void received_suggestions(Vector<AutocompleteSuggestion>, AutocompleteResultKind);
+    void start_query();
+    void received_suggestions(AutocompleteQueryID, Vector<AutocompleteSuggestion>, AutocompleteResultKind);
     Optional<size_t> update_completion_for_suggestions(Vector<AutocompleteSuggestion> const&);
     bool select_adjacent_suggestion(StepDirection);
     void highlight_suggestion(size_t suggestion_index);
@@ -183,17 +181,15 @@ private:
 
     CompletionSuppression m_completion_suppression { Empty {} };
 
-    // m_popup_query records which query produced the rows on display. Rows can lag the query, since
-    // intermediate results do not repaint a visible popup and remote results arrive late; comparing it
-    // against m_query is how Enter distinguishes "activate what the user sees" from "wait for results".
-    // The rows survive close_popup() so the arrow keys can bring a dismissed popup back.
+    // The query ID makes provider delivery and popup freshness independent of comparing user-facing
+    // strings. The rows survive close_popup() so the arrow keys can bring a dismissed popup back.
     bool m_popup_visible { false };
-    String m_popup_query;
+    Optional<AutocompleteQueryID> m_popup_query_id;
     Vector<AutocompleteSuggestion> m_suggestions;
     Optional<Selection> m_selection;
 
-    // Enter was pressed while the popup rows were stale; activate as soon as fresh results arrive.
-    Optional<String> m_pending_activation_query;
+    u64 m_next_query_id { 0 };
+    Optional<AutocompleteQueryID> m_active_query_id;
 };
 
 }

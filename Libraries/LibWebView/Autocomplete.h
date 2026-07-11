@@ -30,6 +30,8 @@ enum class AutocompleteResultKind {
     Final,
 };
 
+using AutocompleteQueryID = u64;
+
 static constexpr auto default_autocomplete_suggestion_limit = 8uz;
 
 enum class AutocompleteSuggestionSource {
@@ -65,16 +67,17 @@ public:
     explicit Autocomplete(IsPrivate);
     ~Autocomplete();
 
-    Function<void(Vector<AutocompleteSuggestion>, AutocompleteResultKind)> on_autocomplete_query_complete;
+    Function<void(AutocompleteQueryID, Vector<AutocompleteSuggestion>, AutocompleteResultKind)> on_autocomplete_query_complete;
 
-    void query_autocomplete_engine(String, size_t max_suggestions = default_autocomplete_suggestion_limit);
+    void query_autocomplete_engine(AutocompleteQueryID, String, size_t max_suggestions = default_autocomplete_suggestion_limit);
     void cancel_pending_query();
 
 private:
     static ErrorOr<Vector<String>> received_autocomplete_respsonse(AutocompleteEngine const&, Optional<ByteString const&> content_type, StringView response);
-    void invoke_autocomplete_query_complete(Vector<AutocompleteSuggestion> suggestions, AutocompleteResultKind) const;
+    void invoke_autocomplete_query_complete(AutocompleteQueryID, Vector<AutocompleteSuggestion> suggestions, AutocompleteResultKind) const;
 
     IsPrivate m_is_private { IsPrivate::No };
+    Optional<AutocompleteQueryID> m_query_id;
     String m_query;
     size_t m_max_suggestions { default_autocomplete_suggestion_limit };
     Vector<AutocompleteSuggestion> m_history_suggestions;

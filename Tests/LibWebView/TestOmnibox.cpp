@@ -50,8 +50,9 @@ AutocompleteSuggestion literal_row(StringView url)
 
 class ScriptedProvider final : public WebView::OmniboxSuggestionProvider {
 public:
-    virtual void query(String query, size_t) override
+    virtual void query(WebView::AutocompleteQueryID query_id, String query, size_t) override
     {
+        query_ids.append(query_id);
         queries.append(move(query));
     }
 
@@ -62,10 +63,17 @@ public:
 
     void deliver(Vector<AutocompleteSuggestion> suggestions, AutocompleteResultKind result_kind)
     {
-        on_suggestions(move(suggestions), result_kind);
+        VERIFY(!query_ids.is_empty());
+        on_suggestions(query_ids.last(), move(suggestions), result_kind);
+    }
+
+    void deliver(WebView::AutocompleteQueryID query_id, Vector<AutocompleteSuggestion> suggestions, AutocompleteResultKind result_kind)
+    {
+        on_suggestions(query_id, move(suggestions), result_kind);
     }
 
     Vector<String> queries;
+    Vector<WebView::AutocompleteQueryID> query_ids;
     size_t cancel_count { 0 };
 };
 
@@ -158,7 +166,7 @@ struct Harness {
 
 }
 
-TEST_CASE(fast_typing_with_top_hit_flips_activates_the_visible_completion)
+TEST_CASE(fast_typing_publishes_each_local_generation)
 {
     Harness harness;
     harness.begin_editing();
@@ -188,14 +196,10 @@ TEST_CASE(fast_typing_with_top_hit_flips_activates_the_visible_completion)
     EXPECT_EQ(harness.display_text, "thev.example"sv);
     EXPECT_EQ(harness.selection_start, 4u);
 
-    // The popup still shows rows for "t" (intermediate updates do not repaint it), so Enter re-queries and
-    // must activate the completed suggestion, not search for the typed prefix.
-    EXPECT_EQ(harness.omnibox.suggestions().first().text, "https://www.twin.example/"sv);
+    // Each generation publishes its local results immediately, so the popup and completion agree even
+    // when the user types faster than remote suggestions arrive.
+    EXPECT_EQ(harness.omnibox.suggestions().first().text, "https://www.thev.example/"sv);
     harness.omnibox.return_pressed();
-    EXPECT(harness.commits.is_empty());
-    EXPECT_EQ(harness.provider->queries.last(), "thev"sv);
-    harness.provider->deliver({ history_row("https://www.thev.example/"sv), search_row("thev"sv) }, AutocompleteResultKind::Intermediate);
-
     EXPECT_EQ(harness.commits.size(), 1u);
     EXPECT_EQ(harness.commits.last(), "https://www.thev.example/"sv);
 }
@@ -258,12 +262,11 @@ TEST_CASE(typing_after_backspace_lifts_the_suppression)
     EXPECT_EQ(harness.selection_start, 2u);
 
     harness.omnibox.return_pressed();
-    harness.provider->deliver({ history_row("https://www.thev.example/"sv), search_row("th"sv) }, AutocompleteResultKind::Intermediate);
     EXPECT_EQ(harness.commits.size(), 1u);
     EXPECT_EQ(harness.commits.last(), "https://www.thev.example/"sv);
 }
 
-TEST_CASE(intermediate_results_do_not_repaint_a_visible_popup)
+TEST_CASE(the_first_intermediate_result_repaints_for_each_generation)
 {
     Harness harness;
     harness.begin_editing();
@@ -275,7 +278,7 @@ TEST_CASE(intermediate_results_do_not_repaint_a_visible_popup)
 
     harness.press_key('h');
     harness.provider->deliver({ history_row("https://www.thee.example/"sv), search_row("th"sv) }, AutocompleteResultKind::Intermediate);
-    EXPECT_EQ(harness.omnibox.suggestions().first().text, "https://www.twin.example/"sv);
+    EXPECT_EQ(harness.omnibox.suggestions().first().text, "https://www.thee.example/"sv);
 
     harness.provider->deliver({ history_row("https://www.thee.example/"sv), search_row("th"sv), search_row("th zzz"sv) }, AutocompleteResultKind::Final);
     EXPECT_EQ(harness.omnibox.suggestions().size(), 3u);
@@ -289,7 +292,7 @@ TEST_CASE(intermediate_results_do_not_repaint_a_visible_popup)
     EXPECT_EQ(harness.commits.last(), "https://www.thee.example/"sv);
 }
 
-TEST_CASE(pending_activation_waits_for_a_result_it_can_act_on)
+TEST_CASE(enter_with_stale_results_commits_the_current_input_immediately)
 {
     Harness harness;
     harness.begin_editing();
@@ -299,21 +302,20 @@ TEST_CASE(pending_activation_waits_for_a_result_it_can_act_on)
     harness.press_key('h');
     EXPECT_EQ(harness.display_text, "thee.example"sv);
 
-    // Enter with a stale popup: nothing to activate yet.
+    // Enter with a stale popup never waits for a provider response that may arrive after the user's
+    // intent has changed.
     harness.omnibox.return_pressed();
-    EXPECT(harness.commits.is_empty());
+    EXPECT_EQ(harness.commits.size(), 1u);
+    EXPECT_EQ(harness.commits.last(), "th"sv);
 
-    // An intermediate whose selected row merely equals the query is not worth activating; the final
-    // result may still bring a better row.
+    // Later deliveries may update the popup if editing is still active, but cannot trigger a second
+    // navigation.
     harness.provider->deliver({ search_row("th"sv) }, AutocompleteResultKind::Intermediate);
-    EXPECT(harness.commits.is_empty());
-
     harness.provider->deliver({ history_row("https://www.thee.example/"sv), search_row("th"sv) }, AutocompleteResultKind::Final);
     EXPECT_EQ(harness.commits.size(), 1u);
-    EXPECT_EQ(harness.commits.last(), "https://www.thee.example/"sv);
 }
 
-TEST_CASE(escape_keeps_an_automatic_completion_but_closes_the_popup)
+TEST_CASE(escape_rejects_an_automatic_completion_and_closes_the_popup)
 {
     Harness harness;
     harness.begin_editing();
@@ -325,12 +327,12 @@ TEST_CASE(escape_keeps_an_automatic_completion_but_closes_the_popup)
     auto cancels_before_escape = harness.provider->cancel_count;
     EXPECT_EQ(harness.omnibox.escape_pressed(), Omnibox::EscapeAction::ClosedPopup);
     EXPECT(!harness.omnibox.is_popup_visible());
-    EXPECT_EQ(harness.display_text, "thev.example"sv);
+    EXPECT_EQ(harness.display_text, "t"sv);
     EXPECT_EQ(harness.provider->cancel_count, cancels_before_escape + 1);
 
-    // With the popup gone, Enter submits what is on display.
+    // With the popup gone, Enter submits the input the user actually entered.
     harness.omnibox.return_pressed();
-    EXPECT_EQ(harness.commits.last(), "thev.example"sv);
+    EXPECT_EQ(harness.commits.last(), "t"sv);
 
     EXPECT_EQ(harness.omnibox.escape_pressed(), Omnibox::EscapeAction::EndEditing);
 }
@@ -571,23 +573,18 @@ TEST_CASE(dismissing_the_popup_restores_the_query)
     EXPECT(harness.omnibox.is_editing());
 }
 
-TEST_CASE(escape_cancels_a_pending_activation)
+TEST_CASE(deliveries_from_an_old_generation_are_ignored)
 {
     Harness harness;
     harness.begin_editing();
 
     harness.press_key('t');
-    harness.provider->deliver({ history_row("https://www.thee.example/"sv), search_row("t"sv) }, AutocompleteResultKind::Intermediate);
+    auto old_query_id = harness.provider->query_ids.last();
     harness.press_key('h');
 
-    // Enter with stale rows arms a pending activation; Escape must disarm it.
-    harness.omnibox.return_pressed();
-    EXPECT_EQ(harness.omnibox.escape_pressed(), Omnibox::EscapeAction::ClosedPopup);
-
-    // A later delivery for the same query (for example after the focus shortcut re-queries it) must not
-    // fire the navigation the user cancelled.
-    harness.omnibox.show_all_suggestions();
-    harness.provider->deliver({ history_row("https://www.thee.example/"sv), search_row("th"sv) }, AutocompleteResultKind::Final);
+    harness.provider->deliver(old_query_id, { history_row("https://www.thee.example/"sv), search_row("t"sv) }, AutocompleteResultKind::Final);
+    EXPECT_EQ(harness.display_text, "th"sv);
+    EXPECT(!harness.omnibox.is_popup_visible());
     EXPECT(harness.commits.is_empty());
 }
 
@@ -754,7 +751,7 @@ TEST_CASE(a_user_highlighted_completion_survives_a_refresh)
     EXPECT_EQ(harness.display_text, "t"sv);
 }
 
-TEST_CASE(pending_activation_survives_an_empty_intermediate_result)
+TEST_CASE(provider_results_after_a_stale_enter_do_not_navigate)
 {
     Harness harness;
     harness.begin_editing();
@@ -763,16 +760,14 @@ TEST_CASE(pending_activation_survives_an_empty_intermediate_result)
     harness.provider->deliver({ history_row("https://www.thee.example/"sv), search_row("t"sv) }, AutocompleteResultKind::Intermediate);
     harness.press_key('h');
     harness.omnibox.return_pressed();
-    EXPECT(harness.commits.is_empty());
+    EXPECT_EQ(harness.commits.size(), 1u);
+    EXPECT_EQ(harness.commits.last(), "th"sv);
 
-    // An empty intermediate result (no local matches, remote still pending) must not eat the activation
-    // the final result may still satisfy.
+    // Provider updates may continue until the chrome's commit handler ends editing, but no response is
+    // armed to perform another navigation.
     harness.provider->deliver({}, AutocompleteResultKind::Intermediate);
-    EXPECT(harness.commits.is_empty());
-
     harness.provider->deliver({ history_row("https://www.thee.example/"sv), search_row("th"sv) }, AutocompleteResultKind::Final);
     EXPECT_EQ(harness.commits.size(), 1u);
-    EXPECT_EQ(harness.commits.last(), "https://www.thee.example/"sv);
 }
 
 TEST_CASE(restarting_the_session_cancels_in_flight_queries)

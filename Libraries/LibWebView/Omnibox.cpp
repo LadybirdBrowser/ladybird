@@ -15,15 +15,15 @@ public:
     AutocompleteSuggestionProvider(IsPrivate is_private)
         : m_autocomplete(is_private)
     {
-        m_autocomplete.on_autocomplete_query_complete = [this](auto suggestions, auto result_kind) {
+        m_autocomplete.on_autocomplete_query_complete = [this](auto query_id, auto suggestions, auto result_kind) {
             if (on_suggestions)
-                on_suggestions(move(suggestions), result_kind);
+                on_suggestions(query_id, move(suggestions), result_kind);
         };
     }
 
-    virtual void query(String query, size_t max_suggestions) override
+    virtual void query(AutocompleteQueryID query_id, String query, size_t max_suggestions) override
     {
-        m_autocomplete.query_autocomplete_engine(move(query), max_suggestions);
+        m_autocomplete.query_autocomplete_engine(query_id, move(query), max_suggestions);
     }
 
     virtual void cancel() override
@@ -141,8 +141,8 @@ Omnibox::Omnibox(IsPrivate is_private)
 Omnibox::Omnibox(NonnullOwnPtr<OmniboxSuggestionProvider> provider)
     : m_provider(move(provider))
 {
-    m_provider->on_suggestions = [this](auto suggestions, auto result_kind) {
-        received_suggestions(move(suggestions), result_kind);
+    m_provider->on_suggestions = [this](auto query_id, auto suggestions, auto result_kind) {
+        received_suggestions(query_id, move(suggestions), result_kind);
     };
 }
 
@@ -159,14 +159,14 @@ void Omnibox::begin_editing(String text)
     m_completion_suggestion = {};
     m_completion_suppression = Empty {};
     m_user_rejected_completion = false;
-    m_pending_activation_query = {};
+    m_active_query_id = {};
 
     // A fresh editing session must not inherit the previous session's popup rows or act on deliveries
     // still in flight for the previous query.
     m_provider->cancel();
     close_popup();
     m_suggestions.clear();
-    m_popup_query = {};
+    m_popup_query_id = {};
 }
 
 void Omnibox::end_editing()
@@ -180,7 +180,7 @@ void Omnibox::end_editing()
     m_is_suspended = false;
     m_completion_suppression = Empty {};
     m_user_rejected_completion = false;
-    m_pending_activation_query = {};
+    m_active_query_id = {};
     m_provider->cancel();
     close_popup();
 }
@@ -195,8 +195,8 @@ void Omnibox::show_all_suggestions()
     // instead of truncating the bar back to the typed prefix when results arrive.
     adopt_display_text_as_query();
     m_completion_suppression = m_query;
-    m_popup_query = {};
-    m_provider->query(m_query, default_autocomplete_suggestion_limit);
+    m_popup_query_id = {};
+    start_query();
 }
 
 void Omnibox::text_edited(String text, bool cursor_at_end)
@@ -213,9 +213,6 @@ void Omnibox::text_edited(String text, bool cursor_at_end)
     m_query = text;
     m_display_text = move(text);
     m_cursor_at_end = cursor_at_end;
-
-    if (m_pending_activation_query.has_value() && *m_pending_activation_query != m_query)
-        m_pending_activation_query = {};
 
     if (m_completion_suppression.has<SuppressionArmedByDelete>()) {
         // The user deleted part of the text; leave it alone until the query changes again.
@@ -241,7 +238,15 @@ void Omnibox::text_edited(String text, bool cursor_at_end)
         }
     }
 
-    m_provider->query(m_query, default_autocomplete_suggestion_limit);
+    start_query();
+}
+
+void Omnibox::start_query()
+{
+    ++m_next_query_id;
+    VERIFY(m_next_query_id != 0);
+    m_active_query_id = m_next_query_id;
+    m_provider->query(*m_active_query_id, m_query, default_autocomplete_suggestion_limit);
 }
 
 void Omnibox::cursor_moved(bool cursor_at_end)
@@ -276,12 +281,10 @@ bool Omnibox::selection_is_user_choice() const
     return m_selection.has_value() && m_selection->origin == Selection::Origin::UserChoice;
 }
 
-void Omnibox::received_suggestions(Vector<AutocompleteSuggestion> suggestions, AutocompleteResultKind result_kind)
+void Omnibox::received_suggestions(AutocompleteQueryID query_id, Vector<AutocompleteSuggestion> suggestions, AutocompleteResultKind result_kind)
 {
-    if (!m_is_editing || m_is_suspended)
+    if (!m_is_editing || m_is_suspended || m_active_query_id != query_id)
         return;
-
-    bool should_activate = m_pending_activation_query.has_value() && *m_pending_activation_query == m_query;
     bool had_row_preview = m_provenance == TextProvenance::RowPreview;
 
     Optional<size_t> selected_suggestion;
@@ -290,10 +293,9 @@ void Omnibox::received_suggestions(Vector<AutocompleteSuggestion> suggestions, A
     else
         selected_suggestion = update_completion_for_suggestions(suggestions);
 
-    // Do not update the popup while results are still changing. Intermediate updates are triggered on
-    // every keystroke and would cause visible flicker in the suggestion list. Only final results are used
-    // to refresh the UI, except when Enter is already waiting on them.
-    if (result_kind == AutocompleteResultKind::Intermediate && m_popup_visible && !should_activate)
+    // Publish the first local result for every generation immediately. Additional intermediate
+    // deliveries for the same generation can wait for its final snapshot to avoid needless churn.
+    if (result_kind == AutocompleteResultKind::Intermediate && m_popup_visible && m_popup_query_id == query_id)
         return;
 
     // A selection that survives the refresh pointing at the same suggestion is still the user's
@@ -302,7 +304,7 @@ void Omnibox::received_suggestions(Vector<AutocompleteSuggestion> suggestions, A
     if (selection_is_user_choice() && m_selection->index < m_suggestions.size())
         user_chosen_text = m_suggestions[m_selection->index].text;
 
-    m_popup_query = m_query;
+    m_popup_query_id = query_id;
     m_suggestions = move(suggestions);
 
     // The fresh selection is published to the chrome by the popup repaint below, not via
@@ -318,8 +320,6 @@ void Omnibox::received_suggestions(Vector<AutocompleteSuggestion> suggestions, A
         restore_query_display();
 
     if (m_suggestions.is_empty()) {
-        // NB: The pending activation survives this close; an empty intermediate result must not eat an
-        //     activation the final result may still satisfy.
         if (m_popup_visible) {
             m_popup_visible = false;
             m_selection = {};
@@ -332,17 +332,6 @@ void Omnibox::received_suggestions(Vector<AutocompleteSuggestion> suggestions, A
         m_popup_visible = true;
         if (on_suggestions_change)
             on_suggestions_change();
-    }
-
-    if (should_activate) {
-        Optional<String> selected_text;
-        if (m_selection.has_value())
-            selected_text = m_suggestions[m_selection->index].text;
-
-        if (result_kind == AutocompleteResultKind::Final || (selected_text.has_value() && *selected_text != m_query)) {
-            m_pending_activation_query = {};
-            activate_selected_suggestion();
-        }
     }
 }
 
@@ -403,7 +392,12 @@ void Omnibox::return_pressed()
         return;
 
     if (!m_popup_visible) {
-        commit(m_display_text);
+        commit(m_query);
+        return;
+    }
+
+    if (selection_is_user_choice()) {
+        activate_selected_suggestion();
         return;
     }
 
@@ -411,7 +405,7 @@ void Omnibox::return_pressed()
     // automatically selected row. Rows the user chose deliberately still win.
     if (m_user_rejected_completion && !selection_is_user_choice()) {
         Optional<String> selected_text;
-        if (m_popup_query == m_query && m_selection.has_value())
+        if (m_popup_query_id == m_active_query_id && m_selection.has_value())
             selected_text = m_suggestions[m_selection->index].text;
         if (!completion_is_suppressed() && selected_text.has_value() && *selected_text != m_query) {
             activate_selected_suggestion();
@@ -425,14 +419,17 @@ void Omnibox::return_pressed()
         return;
     }
 
-    if (m_popup_query == m_query) {
+    if (m_popup_query_id == m_active_query_id) {
         activate_selected_suggestion();
         return;
     }
 
-    // The visible rows belong to an older query; re-run the current one and activate once results arrive.
-    m_pending_activation_query = m_query;
-    m_provider->query(m_query, default_autocomplete_suggestion_limit);
+    // Results must never delay Enter or activate after the user has moved on. If the visible rows are
+    // stale, commit the exact current input through the browser's normal URL-or-search resolution.
+    auto query = m_query;
+    restore_query_display();
+    close_popup();
+    commit(move(query));
 }
 
 // The chrome dismissed the popup without a key press (for example a click elsewhere in the window).
@@ -450,23 +447,20 @@ Omnibox::EscapeAction Omnibox::escape_pressed()
     if (!m_is_editing || !m_popup_visible)
         return EscapeAction::EndEditing;
 
-    if (m_provenance == TextProvenance::InlineCompleted && !selection_is_user_choice()) {
-        // Keep an automatic completion on display; only the popup goes away.
-        adopt_display_text_as_query();
-    } else {
-        restore_query_display();
-    }
+    if (m_provenance == TextProvenance::InlineCompleted && !selection_is_user_choice())
+        m_completion_suppression = m_query;
+    restore_query_display();
 
     abandon_popup_session();
     return EscapeAction::ClosedPopup;
 }
 
-// The user walked away from the popup (Escape or a click elsewhere): Enter must neither submit stale
-// edited text nor fire a previously pending activation.
+// The user walked away from the popup (Escape or a click elsewhere). Invalidate the active generation
+// before canceling its provider work so buffered deliveries cannot reopen the popup.
 void Omnibox::abandon_popup_session()
 {
     m_user_rejected_completion = false;
-    m_pending_activation_query = {};
+    m_active_query_id = {};
     close_popup();
     m_provider->cancel();
 }
