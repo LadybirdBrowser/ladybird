@@ -6,12 +6,12 @@
 
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
-#include <LibWeb/HTML/NavigableId.h>
+#include <LibWeb/HTML/CrossProcessId.h>
 
 namespace IPC {
 
 template<>
-ErrorOr<void> encode(Encoder& encoder, Web::HTML::NavigableId const& id)
+ErrorOr<void> encode(Encoder& encoder, Web::HTML::CrossProcessId const& id)
 {
     TRY(encoder.encode(id.namespace_id));
     TRY(encoder.encode(id.local_id));
@@ -19,16 +19,16 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::NavigableId const& id)
 }
 
 template<>
-ErrorOr<Web::HTML::NavigableId> decode(Decoder& decoder)
+ErrorOr<Web::HTML::CrossProcessId> decode(Decoder& decoder)
 {
-    return Web::HTML::NavigableId {
+    return Web::HTML::CrossProcessId {
         .namespace_id = TRY(decoder.decode<u64>()),
         .local_id = TRY(decoder.decode<u64>()),
     };
 }
 
 template<>
-ErrorOr<void> encode(Encoder& encoder, Web::HTML::NavigableIdAllocator const& allocator)
+ErrorOr<void> encode(Encoder& encoder, Web::HTML::CrossProcessIdAllocator const& allocator)
 {
     TRY(encoder.encode(allocator.namespace_id));
     TRY(encoder.encode(allocator.next_local_id));
@@ -36,9 +36,9 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::NavigableIdAllocator const& al
 }
 
 template<>
-ErrorOr<Web::HTML::NavigableIdAllocator> decode(Decoder& decoder)
+ErrorOr<Web::HTML::CrossProcessIdAllocator> decode(Decoder& decoder)
 {
-    return Web::HTML::NavigableIdAllocator {
+    return Web::HTML::CrossProcessIdAllocator {
         .namespace_id = TRY(decoder.decode<u64>()),
         .next_local_id = TRY(decoder.decode<u64>()),
     };

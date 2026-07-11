@@ -6,11 +6,11 @@
 
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
-#include <LibWeb/HTML/NavigableId.h>
+#include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWebView/HistoryDebug.h>
 #include <LibWebView/SessionHistory.h>
 
-static Web::HTML::NavigableId navigable_id(StringView id)
+static Web::HTML::CrossProcessId navigable_id(StringView id)
 {
     if (id == "frame-1"sv)
         return { 1, 1 };

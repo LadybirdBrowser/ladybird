@@ -29,7 +29,7 @@
 #include <LibWeb/Clipboard/SystemClipboard.h>
 #include <LibWeb/Compositor/Types.h>
 #include <LibWeb/HTML/ActivateTab.h>
-#include <LibWeb/HTML/NavigableId.h>
+#include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWebView/BookmarkStore.h>
 #include <LibWebView/FileDownloader.h>
 #include <LibWebView/Forward.h>
@@ -124,9 +124,9 @@ public:
         NonnullRefPtr<WebContentClient> client;
         u64 page_id { 0 };
     };
-    ErrorOr<ChildFrameWebContentProcess> launch_child_frame_web_content_process(IsPrivate, Web::HTML::NavigableId root_navigable_id);
+    ErrorOr<ChildFrameWebContentProcess> launch_child_frame_web_content_process(IsPrivate, Web::HTML::CrossProcessId root_navigable_id);
     u64 allocate_page_id();
-    Web::HTML::NavigableIdAllocator allocate_navigable_id_allocator();
+    Web::HTML::CrossProcessIdAllocator allocate_cross_process_id_allocator();
 
     void maybe_close_private_browsing_session();
     void reset_private_browsing_session();
@@ -277,7 +277,7 @@ protected:
     Main::Arguments& arguments() { return m_arguments; }
 
 private:
-    ErrorOr<NonnullRefPtr<WebContentClient>> create_web_content_client(Optional<ViewImplementation&>, IsPrivate, u64 initial_page_id, Optional<Web::HTML::NavigableId> root_navigable_id = {});
+    ErrorOr<NonnullRefPtr<WebContentClient>> create_web_content_client(Optional<ViewImplementation&>, IsPrivate, u64 initial_page_id, Optional<Web::HTML::CrossProcessId> root_navigable_id = {});
     PrivateBrowsingSession& ensure_private_browsing_session();
     ErrorOr<void> launch_services();
     void launch_spare_web_content_process();
@@ -405,7 +405,7 @@ private:
     RefPtr<WebContentClient> m_spare_web_content_process;
     bool m_has_queued_task_to_launch_spare_web_content_process { false };
     u64 m_next_page_or_compositor_context_id { 1 };
-    u64 m_next_navigable_id_namespace { 1 };
+    u64 m_next_cross_process_id_namespace { 1 };
 
     RefPtr<Database::Database> m_database;
     RefPtr<Database::Database> m_history_database;

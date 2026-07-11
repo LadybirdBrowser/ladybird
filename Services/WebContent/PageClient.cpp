@@ -97,12 +97,12 @@ void PageClient::set_should_report_session_history_updates_in_test_mode(bool sho
     s_should_report_session_history_updates_in_test_mode = should_report;
 }
 
-GC::Ref<PageClient> PageClient::create(JS::VM& vm, PageHost& page_host, u64 id, Optional<Web::HTML::NavigableId> pending_root_navigable_id)
+GC::Ref<PageClient> PageClient::create(JS::VM& vm, PageHost& page_host, u64 id, Optional<Web::HTML::CrossProcessId> pending_root_navigable_id)
 {
     return vm.heap().allocate<PageClient>(page_host, id, pending_root_navigable_id);
 }
 
-PageClient::PageClient(PageHost& owner, u64 id, Optional<Web::HTML::NavigableId> pending_root_navigable_id)
+PageClient::PageClient(PageHost& owner, u64 id, Optional<Web::HTML::CrossProcessId> pending_root_navigable_id)
     : m_owner(owner)
     , m_page(Web::Page::create(Web::Bindings::main_thread_vm(), *this))
     , m_id(id)
@@ -200,7 +200,7 @@ bool PageClient::is_connection_open() const
     return client().is_open();
 }
 
-Web::HTML::NavigableId PageClient::allocate_navigable_id()
+Web::HTML::CrossProcessId PageClient::allocate_navigable_id()
 {
     if (m_pending_root_navigable_id.has_value()) {
         auto id = *m_pending_root_navigable_id;
@@ -211,7 +211,7 @@ Web::HTML::NavigableId PageClient::allocate_navigable_id()
     return m_owner.allocate_navigable_id();
 }
 
-Web::NavigationProcessDecision PageClient::decide_navigation_process(URL::URL const& current_url, URL::URL const& target_url, Web::NavigationTarget target, Optional<Web::HTML::NavigableId> frame_id) const
+Web::NavigationProcessDecision PageClient::decide_navigation_process(URL::URL const& current_url, URL::URL const& target_url, Web::NavigationTarget target, Optional<Web::HTML::CrossProcessId> frame_id) const
 {
     return client().decide_navigation_process(m_id, move(frame_id), current_url, target_url, target);
 }
@@ -224,33 +224,33 @@ void PageClient::request_new_process_for_navigation(URL::URL const& url, Variant
     client().async_did_request_new_process_for_navigation(m_id, url, move(document_resource), history_handling);
 }
 
-void PageClient::request_new_process_for_child_frame_navigation(Web::HTML::NavigableId frame_id, URL::URL const& url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, Web::Bindings::NavigationHistoryBehavior history_handling)
+void PageClient::request_new_process_for_child_frame_navigation(Web::HTML::CrossProcessId frame_id, URL::URL const& url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, Web::Bindings::NavigationHistoryBehavior history_handling)
 {
     client().async_did_request_new_process_for_child_frame_navigation(m_id, frame_id, url, move(document_resource), history_handling);
 }
 
-void PageClient::page_did_create_child_frame(Web::HTML::NavigableId parent_frame_id, Web::HTML::NavigableId frame_id, Web::HTML::ReplicatedNavigableState const& replicated_state)
+void PageClient::page_did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState const& replicated_state)
 {
     client().async_did_create_child_frame(m_id, parent_frame_id, frame_id, replicated_state);
 }
 
-void PageClient::page_did_update_child_frame_viewport(Web::HTML::NavigableId frame_id, Web::CSSPixelRect viewport_rect)
+void PageClient::page_did_update_child_frame_viewport(Web::HTML::CrossProcessId frame_id, Web::CSSPixelRect viewport_rect)
 {
     client().async_did_update_child_frame_viewport(m_id, frame_id, page().css_to_device_rect(viewport_rect), page().client().device_pixel_ratio());
 }
 
-void PageClient::page_did_commit_child_frame_navigation(Web::HTML::NavigableId frame_id, Web::HTML::ReplicatedNavigableState const& replicated_state)
+void PageClient::page_did_commit_child_frame_navigation(Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState const& replicated_state)
 {
     client().async_did_commit_child_frame_navigation(m_id, frame_id, replicated_state);
 }
 
-void PageClient::page_did_destroy_child_frame(Web::HTML::NavigableId frame_id)
+void PageClient::page_did_destroy_child_frame(Web::HTML::CrossProcessId frame_id)
 {
     m_remote_child_frame_compositor_contexts.remove(frame_id);
     client().async_did_destroy_child_frame(m_id, frame_id);
 }
 
-void PageClient::set_remote_child_frame_compositor_context(Web::HTML::NavigableId frame_id, Optional<Web::Compositor::CompositorContextId> context_id)
+void PageClient::set_remote_child_frame_compositor_context(Web::HTML::CrossProcessId frame_id, Optional<Web::Compositor::CompositorContextId> context_id)
 {
     if (context_id.has_value())
         m_remote_child_frame_compositor_contexts.set(frame_id, *context_id);
@@ -259,12 +259,12 @@ void PageClient::set_remote_child_frame_compositor_context(Web::HTML::NavigableI
     request_frame();
 }
 
-Optional<Web::Compositor::CompositorContextId> PageClient::compositor_context_id_for_remote_child_frame(Web::HTML::NavigableId frame_id) const
+Optional<Web::Compositor::CompositorContextId> PageClient::compositor_context_id_for_remote_child_frame(Web::HTML::CrossProcessId frame_id) const
 {
     return m_remote_child_frame_compositor_contexts.get(frame_id);
 }
 
-void PageClient::run_iframe_load_event_steps(Web::HTML::NavigableId frame_id)
+void PageClient::run_iframe_load_event_steps(Web::HTML::CrossProcessId frame_id)
 {
     auto active_document = page().top_level_traversable()->active_document();
     if (!active_document)

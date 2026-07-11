@@ -19,7 +19,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/DocumentState.h>
-#include <LibWeb/HTML/NavigableId.h>
+#include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
@@ -84,7 +84,7 @@ struct SessionHistoryEntryDescriptor {
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#nested-history
 struct SessionHistoryNestedHistoryDescriptor {
-    NavigableId id;
+    CrossProcessId id;
     Vector<SessionHistoryEntryDescriptor> entries;
 };
 

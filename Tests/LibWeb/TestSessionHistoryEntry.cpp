@@ -7,10 +7,10 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
-#include <LibWeb/HTML/NavigableId.h>
+#include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 
-static Web::HTML::NavigableId frame_1_id()
+static Web::HTML::CrossProcessId frame_1_id()
 {
     return { 1, 1 };
 }

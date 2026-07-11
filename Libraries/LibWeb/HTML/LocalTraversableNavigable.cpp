@@ -243,7 +243,7 @@ static void populate_nested_histories_from_ui_process(DocumentState& document_st
         // FIXME: This is temporary glue for the current load-then-seed ordering.
         //        A replacement WebContent process can create live child navigables
         //        before the UI process sends its canonical session-history tree.
-        //        Now that nested history ids are canonical NavigableIds, the UI id
+        //        Now that nested history ids are canonical CrossProcessIds, the UI id
         //        must win; retarget the already-created child to match it. The
         //        longer-term model should avoid creating a distinct temporary id
         //        for a child the UI process already knows about.

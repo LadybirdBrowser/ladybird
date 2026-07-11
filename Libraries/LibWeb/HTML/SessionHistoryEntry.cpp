@@ -463,7 +463,7 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::SessionHistoryNestedHisto
 template<>
 ErrorOr<Web::HTML::SessionHistoryNestedHistoryDescriptor> IPC::decode(Decoder& decoder)
 {
-    auto id = TRY(decoder.decode<Web::HTML::NavigableId>());
+    auto id = TRY(decoder.decode<Web::HTML::CrossProcessId>());
     auto entries = TRY(decoder.decode<Vector<Web::HTML::SessionHistoryEntryDescriptor>>());
 
     return Web::HTML::SessionHistoryNestedHistoryDescriptor { id, move(entries) };

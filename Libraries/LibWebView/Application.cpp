@@ -620,16 +620,16 @@ void Application::open_bookmark_in_new_window(String const& bookmark_id, IsPriva
         open_url_in_new_window(bookmark->bookmark().url, is_private);
 }
 
-ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(Optional<ViewImplementation&> view, IsPrivate is_private, u64 initial_page_id, Optional<Web::HTML::NavigableId> root_navigable_id)
+ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(Optional<ViewImplementation&> view, IsPrivate is_private, u64 initial_page_id, Optional<Web::HTML::CrossProcessId> root_navigable_id)
 {
     auto request_server_handle = TRY(connect_new_request_server_client(is_private));
     auto image_decoder_handle = TRY(connect_new_image_decoder_client());
 
-    auto navigable_id_allocator = allocate_navigable_id_allocator();
-    auto root_id = root_navigable_id.value_or(navigable_id_allocator.allocate());
+    auto cross_process_id_allocator = allocate_cross_process_id_allocator();
+    auto root_id = root_navigable_id.value_or(cross_process_id_allocator.allocate());
 
     auto client = TRY(WebView::launch_web_content_process(is_private, initial_page_id, root_id));
-    client->async_initialize(initial_page_id, root_id, navigable_id_allocator);
+    client->async_initialize(initial_page_id, root_id, cross_process_id_allocator);
     if (view.has_value())
         client->assign_view({}, *view);
 
@@ -646,10 +646,10 @@ u64 Application::allocate_page_id()
     return m_next_page_or_compositor_context_id++;
 }
 
-Web::HTML::NavigableIdAllocator Application::allocate_navigable_id_allocator()
+Web::HTML::CrossProcessIdAllocator Application::allocate_cross_process_id_allocator()
 {
-    VERIFY(m_next_navigable_id_namespace > 0);
-    return Web::HTML::NavigableIdAllocator { .namespace_id = m_next_navigable_id_namespace++ };
+    VERIFY(m_next_cross_process_id_namespace > 0);
+    return Web::HTML::CrossProcessIdAllocator { .namespace_id = m_next_cross_process_id_namespace++ };
 }
 
 PrivateBrowsingSession& Application::ensure_private_browsing_session()
@@ -861,7 +861,7 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::launch_web_content_process
     return create_web_content_client(view, IsPrivate::No, allocate_page_id());
 }
 
-ErrorOr<Application::ChildFrameWebContentProcess> Application::launch_child_frame_web_content_process(IsPrivate is_private, Web::HTML::NavigableId root_navigable_id)
+ErrorOr<Application::ChildFrameWebContentProcess> Application::launch_child_frame_web_content_process(IsPrivate is_private, Web::HTML::CrossProcessId root_navigable_id)
 {
     auto page_id = allocate_page_id();
     auto client = TRY(create_web_content_client({}, is_private, page_id, root_navigable_id));

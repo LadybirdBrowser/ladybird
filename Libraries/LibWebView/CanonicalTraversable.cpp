@@ -15,7 +15,7 @@ CanonicalTraversable::CanonicalTraversable()
 {
 }
 
-CanonicalNavigable& CanonicalTraversable::insert(WebContentClient& reporting_client, u64 page_id, Web::HTML::NavigableId parent_frame_id, Web::HTML::NavigableId frame_id, CanonicalNavigable& fallback_parent)
+CanonicalNavigable& CanonicalTraversable::insert(WebContentClient& reporting_client, u64 page_id, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, CanonicalNavigable& fallback_parent)
 {
     if (auto existing_navigable = find(frame_id); existing_navigable.has_value())
         remove(*existing_navigable);
@@ -34,7 +34,7 @@ CanonicalNavigable& CanonicalTraversable::insert(WebContentClient& reporting_cli
     return navigable_ref;
 }
 
-Optional<CanonicalNavigable&> CanonicalTraversable::find(Web::HTML::NavigableId frame_id)
+Optional<CanonicalNavigable&> CanonicalTraversable::find(Web::HTML::CrossProcessId frame_id)
 {
     auto navigable = m_navigable_index.get(frame_id);
     if (!navigable.has_value() || !navigable.value())
@@ -43,7 +43,7 @@ Optional<CanonicalNavigable&> CanonicalTraversable::find(Web::HTML::NavigableId 
     return *navigable.value();
 }
 
-Optional<CanonicalNavigable const&> CanonicalTraversable::find(Web::HTML::NavigableId frame_id) const
+Optional<CanonicalNavigable const&> CanonicalTraversable::find(Web::HTML::CrossProcessId frame_id) const
 {
     auto navigable = m_navigable_index.get(frame_id);
     if (!navigable.has_value() || !navigable.value())

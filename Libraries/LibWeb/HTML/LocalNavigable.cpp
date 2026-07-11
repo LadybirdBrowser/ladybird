@@ -2634,7 +2634,7 @@ void LocalNavigable::begin_navigation(NavigateParams params)
                 auto& page_client = active_browsing_context()->page().client();
                 auto is_top_level_navigation = is_top_level_traversable();
                 auto target = is_top_level_navigation ? NavigationTarget::TopLevel : NavigationTarget::IFrame;
-                auto frame_id = is_top_level_navigation ? Optional<NavigableId> {} : Optional<NavigableId> { id() };
+                auto frame_id = is_top_level_navigation ? Optional<CrossProcessId> {} : Optional<CrossProcessId> { id() };
                 auto process_decision = page_client.decide_navigation_process(this->active_document()->url(), url, target, move(frame_id));
                 if (process_decision == NavigationProcessDecision::Remote && is_top_level_navigation) {
                     page_client.request_new_process_for_navigation(url, document_resource, history_handling);

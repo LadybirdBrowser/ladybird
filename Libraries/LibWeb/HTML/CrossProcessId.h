@@ -9,7 +9,6 @@
 #include <AK/Assertions.h>
 #include <AK/Format.h>
 #include <AK/HashFunctions.h>
-#include <AK/Optional.h>
 #include <AK/Traits.h>
 #include <AK/Types.h>
 #include <LibIPC/Forward.h>
@@ -17,22 +16,24 @@
 
 namespace Web::HTML {
 
-struct NavigableId {
+class CrossProcessId {
+public:
     u64 namespace_id { 0 };
     u64 local_id { 0 };
 
-    bool operator==(NavigableId const&) const = default;
+    bool operator==(CrossProcessId const&) const = default;
 };
 
-struct NavigableIdAllocator {
+class CrossProcessIdAllocator {
+public:
     u64 namespace_id { 0 };
     u64 next_local_id { 1 };
 
-    NavigableId allocate()
+    CrossProcessId allocate()
     {
         VERIFY(namespace_id > 0);
         VERIFY(next_local_id > 0);
-        return NavigableId {
+        return CrossProcessId {
             .namespace_id = namespace_id,
             .local_id = next_local_id++,
         };
@@ -42,8 +43,8 @@ struct NavigableIdAllocator {
 }
 
 template<>
-struct AK::Traits<Web::HTML::NavigableId> : public DefaultTraits<Web::HTML::NavigableId> {
-    static unsigned hash(Web::HTML::NavigableId const& id)
+struct AK::Traits<Web::HTML::CrossProcessId> : public DefaultTraits<Web::HTML::CrossProcessId> {
+    static unsigned hash(Web::HTML::CrossProcessId const& id)
     {
         return pair_int_hash(Traits<u64>::hash(id.namespace_id), Traits<u64>::hash(id.local_id));
     }
@@ -52,20 +53,20 @@ struct AK::Traits<Web::HTML::NavigableId> : public DefaultTraits<Web::HTML::Navi
 namespace IPC {
 
 template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::NavigableId const&);
+WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::CrossProcessId const&);
 template<>
-WEB_API ErrorOr<Web::HTML::NavigableId> decode(Decoder&);
+WEB_API ErrorOr<Web::HTML::CrossProcessId> decode(Decoder&);
 
 template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::NavigableIdAllocator const&);
+WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::CrossProcessIdAllocator const&);
 template<>
-WEB_API ErrorOr<Web::HTML::NavigableIdAllocator> decode(Decoder&);
+WEB_API ErrorOr<Web::HTML::CrossProcessIdAllocator> decode(Decoder&);
 
 }
 
 template<>
-struct AK::Formatter<Web::HTML::NavigableId> : Formatter<FormatString> {
-    ErrorOr<void> format(FormatBuilder& builder, Web::HTML::NavigableId const& id)
+struct AK::Formatter<Web::HTML::CrossProcessId> : Formatter<FormatString> {
+    ErrorOr<void> format(FormatBuilder& builder, Web::HTML::CrossProcessId const& id)
     {
         return Formatter<FormatString>::format(builder, "{}:{}"sv, id.namespace_id, id.local_id);
     }

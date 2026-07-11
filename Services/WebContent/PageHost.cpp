@@ -23,15 +23,15 @@ PageHost::PageHost(ConnectionFromClient& client)
 {
 }
 
-void PageHost::initialize(u64 initial_page_id, Web::HTML::NavigableId root_navigable_id, Web::HTML::NavigableIdAllocator navigable_id_allocator)
+void PageHost::initialize(u64 initial_page_id, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::CrossProcessIdAllocator cross_process_id_allocator)
 {
     VERIFY(m_pages.is_empty());
-    m_navigable_id_allocator = navigable_id_allocator;
+    m_cross_process_id_allocator = cross_process_id_allocator;
     auto& first_page = create_page(initial_page_id, root_navigable_id);
     Web::HTML::LocalTraversableNavigable::create_a_fresh_top_level_traversable(first_page.page(), URL::about_blank());
 }
 
-PageClient& PageHost::create_page(u64 page_id, Optional<Web::HTML::NavigableId> pending_root_navigable_id)
+PageClient& PageHost::create_page(u64 page_id, Optional<Web::HTML::CrossProcessId> pending_root_navigable_id)
 {
     VERIFY(page_id > 0);
     VERIFY(!m_pages.contains(page_id));
@@ -39,10 +39,10 @@ PageClient& PageHost::create_page(u64 page_id, Optional<Web::HTML::NavigableId> 
     return *m_pages.get(page_id).value();
 }
 
-Web::HTML::NavigableId PageHost::allocate_navigable_id()
+Web::HTML::CrossProcessId PageHost::allocate_navigable_id()
 {
-    VERIFY(m_navigable_id_allocator.has_value());
-    return m_navigable_id_allocator->allocate();
+    VERIFY(m_cross_process_id_allocator.has_value());
+    return m_cross_process_id_allocator->allocate();
 }
 
 void PageHost::remove_page(Badge<PageClient>, u64 page_id)
