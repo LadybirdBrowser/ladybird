@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<script>
+    // Moving an <object> element whose load event delayers are engaged to another document
+    // must release the delayers on the old document. If one leaks, the old document's load
+    // event (and therefore this page's load event) never fires.
+    window.grabObject = iframeDocument => {
+        document.body.appendChild(document.adoptNode(iframeDocument.querySelector("object")));
+    };
+
+    const iframe = document.createElement("iframe");
+    iframe.srcdoc = `<object data="file:///nonexistent-object-data"></object><script>parent.grabObject(document)<\/script>`;
+    iframe.addEventListener("load", () => println("iframe load event"));
+    document.body.appendChild(iframe);
+
+    asyncTest(done => {
+        window.addEventListener("load", () => {
+            println("window load event");
+            done();
+        });
+    });
+</script>
