@@ -23,9 +23,22 @@ static GC::Ref<Object> prototype_for_shared_state(Realm& realm, DataBlock::Share
         : realm.intrinsics().shared_array_buffer_prototype();
 }
 
+// A large allocation that fails may succeed once dead buffers pinning address space are collected — so retry, once
+// after a sync GC, before giving up (WebKit does the same).
+template<typename AllocFunction>
+static auto allocate_or_retry_after_gc(GC::Heap& heap, AllocFunction allocate)
+{
+    auto result = allocate();
+    if (result.is_error()) {
+        heap.collect_garbage();
+        result = allocate();
+    }
+    return result;
+}
+
 ThrowCompletionOr<GC::Ref<ArrayBuffer>> ArrayBuffer::create(Realm& realm, size_t byte_length, DataBlock::Shared is_shared)
 {
-    auto buffer = DataBlock::OwnedBackingStore::create_zeroed(byte_length);
+    auto buffer = allocate_or_retry_after_gc(realm.heap(), [&] { return DataBlock::OwnedBackingStore::create_zeroed(byte_length); });
     if (buffer.is_error())
         return realm.vm().throw_completion<RangeError>(ErrorType::NotEnoughMemoryToAllocate, byte_length);
 
@@ -155,9 +168,11 @@ ThrowCompletionOr<DataBlock> create_byte_data_block(VM& vm, size_t size, Optiona
 
     // 2. Let db be a new Data Block value consisting of size bytes. If it is impossible to create such a Data Block, throw a RangeError exception.
     // 3. Set all of the bytes of db to 0.
-    auto data_block = capacity.has_value()
-        ? DataBlock::OwnedBackingStore::create_zeroed_with_capacity(size, *capacity)
-        : DataBlock::OwnedBackingStore::create_zeroed(size);
+    auto data_block = allocate_or_retry_after_gc(vm.heap(), [&] {
+        return capacity.has_value()
+            ? DataBlock::OwnedBackingStore::create_zeroed_with_capacity(size, *capacity)
+            : DataBlock::OwnedBackingStore::create_zeroed(size);
+    });
     if (data_block.is_error())
         return vm.throw_completion<RangeError>(ErrorType::NotEnoughMemoryToAllocate, capacity.value_or(size));
 
@@ -185,14 +200,14 @@ static ThrowCompletionOr<DataBlock> create_shared_byte_data_block(VM& vm, size_t
 
         // Seal the fixed-length shared memfd against resizing: A compromised agent holding the transferred fd must not
         // be able to shrink it, and SIGBUS its same-origin siblings.
-        auto anonymous_buffer = Core::AnonymousBuffer::create_with_size(size, /* seal_immutable_size */ true);
+        auto anonymous_buffer = allocate_or_retry_after_gc(vm.heap(), [&] { return Core::AnonymousBuffer::create_with_size(size, /* seal_immutable_size */ true); });
         if (anonymous_buffer.is_error())
             return vm.throw_completion<RangeError>(ErrorType::NotEnoughMemoryToAllocate, size);
         return DataBlock { DataBlock::SharedBackingStore { anonymous_buffer.release_value() }, DataBlock::Shared::Yes };
     }
 
     // 1. Let db be a new Shared Data Block value consisting of size bytes. If it is impossible to create such a Shared Data Block, throw a RangeError exception.
-    auto data_block = DataBlock::OwnedBackingStore::create_zeroed_with_capacity(size, *capacity);
+    auto data_block = allocate_or_retry_after_gc(vm.heap(), [&] { return DataBlock::OwnedBackingStore::create_zeroed_with_capacity(size, *capacity); });
     if (data_block.is_error())
         return vm.throw_completion<RangeError>(ErrorType::NotEnoughMemoryToAllocate, *capacity);
 
