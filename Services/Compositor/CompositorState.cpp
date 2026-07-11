@@ -373,8 +373,11 @@ void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id)
             continue;
 
         auto pending_present_frame = context.take_pending_present_frame_if_unblocked();
-        if (!pending_present_frame.has_value())
+        if (!pending_present_frame.has_value()) {
+            if (context.has_pending_present_frame_scheduled_on(display_id))
+                vsync_scheduler_for_display(display_id).schedule(context.display_refresh_rate());
             continue;
+        }
         present_frame(context_id, context, *pending_present_frame);
     }
 }

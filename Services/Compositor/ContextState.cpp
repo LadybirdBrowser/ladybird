@@ -557,9 +557,9 @@ bool ContextState::can_schedule_pending_present_frame_if_unblocked() const
 
 Optional<ContextState::PendingFrame> ContextState::take_pending_present_frame_if_unblocked()
 {
-    m_pending_present_frame_scheduled = false;
     if (is_present_blocked())
         return {};
+    m_pending_present_frame_scheduled = false;
     if (!m_pending_present_frame.has_value())
         return {};
     return m_pending_present_frame.release_value();
