@@ -39,10 +39,15 @@ PageClient& PageHost::create_page(u64 page_id, Optional<Web::HTML::CrossProcessI
     return *m_pages.get(page_id).value();
 }
 
-Web::HTML::CrossProcessId PageHost::allocate_navigable_id()
+Web::HTML::CrossProcessId PageHost::allocate_cross_process_id()
 {
     VERIFY(m_cross_process_id_allocator.has_value());
     return m_cross_process_id_allocator->allocate();
+}
+
+Web::HTML::CrossProcessId PageHost::allocate_navigable_id()
+{
+    return allocate_cross_process_id();
 }
 
 void PageHost::remove_page(Badge<PageClient>, u64 page_id)

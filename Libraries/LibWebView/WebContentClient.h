@@ -28,8 +28,8 @@
 #include <LibWeb/Compositor/Types.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/ActivateTab.h>
-#include <LibWeb/HTML/FileFilter.h>
 #include <LibWeb/HTML/CrossProcessId.h>
+#include <LibWeb/HTML/FileFilter.h>
 #include <LibWeb/HTML/ReplicatedNavigableState.h>
 #include <LibWeb/HTML/Scripting/ScriptRegistry.h>
 #include <LibWeb/HTML/SelectItem.h>

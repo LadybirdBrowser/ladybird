@@ -24,14 +24,22 @@ static URL::URL parse_url(StringView url)
 
 TEST_CASE(post_load_seed_match_allows_ui_owned_nested_histories)
 {
-    Web::HTML::SessionHistoryEntryDescriptor live_descriptor;
-    live_descriptor.step = 0;
-    live_descriptor.url = parse_url("https://a.example/"sv);
-    live_descriptor.document_state.id = 1;
-    live_descriptor.document_state.ever_populated = true;
-    live_descriptor.document_state.navigable_target_name = Utf16String::from_utf8("main"sv);
+    auto vm = JS::VM::create();
 
-    auto seed_descriptor = live_descriptor;
+    auto live_document_state = Web::HTML::DocumentState::create();
+    live_document_state->set_ever_populated(true);
+    live_document_state->set_navigable_target_name(Utf16String::from_utf8("main"sv));
+
+    auto live_entry = Web::HTML::SessionHistoryEntry::create();
+    live_entry->set_step(0);
+    live_entry->set_url(parse_url("https://a.example/"sv));
+    live_entry->set_document_state(live_document_state);
+
+    Web::HTML::CrossProcessIdAllocator cross_process_id_allocator { .namespace_id = 3 };
+    Web::HTML::SessionHistoryEntryDescriptorCreationState creation_state { [&] {
+        return cross_process_id_allocator.allocate();
+    } };
+    auto seed_descriptor = Web::HTML::create_session_history_entry_descriptor(*live_entry, creation_state);
 
     Web::HTML::SessionHistoryEntryDescriptor nested_entry;
     nested_entry.step = 1;
@@ -41,8 +49,8 @@ TEST_CASE(post_load_seed_match_allows_ui_owned_nested_histories)
         .entries = { move(nested_entry) },
     });
 
-    EXPECT(!Web::HTML::session_history_entry_descriptors_match_ignoring_document_state_id(live_descriptor, seed_descriptor));
-    EXPECT(Web::HTML::session_history_entry_descriptors_match_ignoring_document_state_id(live_descriptor, seed_descriptor, Web::HTML::MatchNestedHistories::No));
+    EXPECT(!Web::HTML::session_history_entry_matches_descriptor_ignoring_document_state_id(*live_entry, seed_descriptor));
+    EXPECT(Web::HTML::session_history_entry_matches_descriptor_ignoring_document_state_id(*live_entry, seed_descriptor, Web::HTML::MatchNestedHistories::No));
 }
 
 TEST_CASE(descriptor_creation_preserves_nested_history_with_only_pending_entries)
@@ -65,7 +73,10 @@ TEST_CASE(descriptor_creation_preserves_nested_history_with_only_pending_entries
     top_level_entry->set_url(parse_url("https://a.example/"sv));
     top_level_entry->set_document_state(top_level_document_state);
 
-    Web::HTML::SessionHistoryEntryDescriptorCreationState creation_state;
+    Web::HTML::CrossProcessIdAllocator cross_process_id_allocator { .namespace_id = 3 };
+    Web::HTML::SessionHistoryEntryDescriptorCreationState creation_state { [&] {
+        return cross_process_id_allocator.allocate();
+    } };
     auto descriptor = Web::HTML::create_session_history_entry_descriptor(top_level_entry, creation_state);
 
     EXPECT_EQ(descriptor.document_state.nested_histories.size(), 1u);

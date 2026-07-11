@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Optional.h>
 #include <AK/RefCounted.h>
 #include <AK/Utf16String.h>
 #include <LibURL/Origin.h>
@@ -38,6 +39,9 @@ public:
 
     [[nodiscard]] Optional<UniqueNodeID> document_id() const { return m_document_id; }
     void set_document_id(Optional<UniqueNodeID> document_id) { m_document_id = document_id; }
+
+    [[nodiscard]] Optional<CrossProcessId> cross_process_id() const { return m_cross_process_id; }
+    void set_cross_process_id(Optional<CrossProcessId> id) { m_cross_process_id = id; }
 
     [[nodiscard]] Variant<SerializedPolicyContainer, Client> const& history_policy_container() const { return m_history_policy_container; }
     void set_history_policy_container(Variant<SerializedPolicyContainer, Client> history_policy_container) { m_history_policy_container = move(history_policy_container); }
@@ -79,6 +83,10 @@ private:
     // NOTE: We store the document's unique ID rather than a pointer to the document, because DocumentState is
     //       decoupled from the document's lifetime (LocalNavigable owns the document directly).
     Optional<UniqueNodeID> m_document_id;
+
+    // AD-HOC: Stable identity used by the UI-process session history mirror to preserve shared document states
+    //         across IPC and WebContent process swaps.
+    Optional<CrossProcessId> m_cross_process_id;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#document-state-history-policy-container
     Variant<SerializedPolicyContainer, Client> m_history_policy_container { Client::Tag };

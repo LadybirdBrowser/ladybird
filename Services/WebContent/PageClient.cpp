@@ -200,6 +200,11 @@ bool PageClient::is_connection_open() const
     return client().is_open();
 }
 
+Web::HTML::CrossProcessId PageClient::allocate_cross_process_id()
+{
+    return m_owner.allocate_cross_process_id();
+}
+
 Web::HTML::CrossProcessId PageClient::allocate_navigable_id()
 {
     if (m_pending_root_navigable_id.has_value()) {
@@ -208,7 +213,7 @@ Web::HTML::CrossProcessId PageClient::allocate_navigable_id()
         return id;
     }
 
-    return m_owner.allocate_navigable_id();
+    return allocate_cross_process_id();
 }
 
 Web::NavigationProcessDecision PageClient::decide_navigation_process(URL::URL const& current_url, URL::URL const& target_url, Web::NavigationTarget target, Optional<Web::HTML::CrossProcessId> frame_id) const

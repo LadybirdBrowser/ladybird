@@ -53,8 +53,7 @@ static void append_history_log_entry(StringBuilder& builder, Web::HTML::SessionH
 {
     builder.appendff("{}:{}", entry.step, entry.url);
     auto resource_type = document_state_resource_type(entry.document_state.resource);
-    if (entry.document_state.id != 0
-        || entry.document_state.reload_pending
+    if (entry.document_state.reload_pending
         || !entry.document_state.navigable_target_name.is_empty()
         || resource_type != "none"sv) {
         builder.appendff(" document_state={{id={}", entry.document_state.id);
@@ -120,7 +119,7 @@ JsonObject history_json_entry(Web::HTML::SessionHistoryEntryDescriptor const& en
     JsonObject serialized;
     serialized.set("step"sv, entry.step);
     serialized.set("url"sv, entry.url.serialize());
-    serialized.set("documentStateId"sv, entry.document_state.id);
+    serialized.set("documentStateId"sv, MUST(String::formatted("{}", entry.document_state.id)));
     serialized.set("resource"sv, document_state_resource_type(entry.document_state.resource));
     serialized.set("reloadPending"sv, entry.document_state.reload_pending);
     serialized.set("targetName"sv, entry.document_state.navigable_target_name.to_utf8());

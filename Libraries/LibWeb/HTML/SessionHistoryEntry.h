@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/Optional.h>
 #include <AK/RefCounted.h>
@@ -18,8 +19,8 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/HTML/DocumentState.h>
 #include <LibWeb/HTML/CrossProcessId.h>
+#include <LibWeb/HTML/DocumentState.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
@@ -47,7 +48,7 @@ struct SessionHistoryNestedHistoryDescriptor;
 struct SessionHistoryDocumentStateDescriptor {
     // AD-HOC: The spec models shared document state by object identity. The UI-process mirror uses a stable
     //         descriptor ID so entries that share a document state can be reconstructed after IPC.
-    u64 id { 0 };
+    CrossProcessId id;
     Variant<SerializedPolicyContainer, DocumentState::Client> history_policy_container { DocumentState::Client::Tag };
     Fetch::Infrastructure::Request::ReferrerType request_referrer { Fetch::Infrastructure::Request::Referrer::Client };
     ReferrerPolicy::ReferrerPolicy request_referrer_policy { ReferrerPolicy::DEFAULT_REFERRER_POLICY };
@@ -57,6 +58,7 @@ struct SessionHistoryDocumentStateDescriptor {
     Variant<Empty, String, POSTResource> resource;
     bool reload_pending { false };
     bool ever_populated { false };
+    bool is_provisional { false };
     Utf16String navigable_target_name;
     Vector<SessionHistoryNestedHistoryDescriptor> nested_histories;
 };
@@ -175,8 +177,12 @@ private:
 };
 
 struct SessionHistoryEntryDescriptorCreationState {
-    HashMap<DocumentState const*, u64> document_state_ids;
-    u64 next_document_state_id { 1 };
+    explicit SessionHistoryEntryDescriptorCreationState(Function<CrossProcessId()> allocate_cross_process_id)
+        : allocate_cross_process_id(move(allocate_cross_process_id))
+    {
+    }
+
+    Function<CrossProcessId()> allocate_cross_process_id;
 };
 
 WEB_API SessionHistoryEntryDescriptor create_session_history_entry_descriptor(SessionHistoryEntry const&, SessionHistoryEntryDescriptorCreationState&);
@@ -185,7 +191,6 @@ enum class MatchNestedHistories {
     Yes,
     No,
 };
-WEB_API bool session_history_entry_descriptors_match_ignoring_document_state_id(SessionHistoryEntryDescriptor const&, SessionHistoryEntryDescriptor const&, MatchNestedHistories = MatchNestedHistories::Yes);
 WEB_API bool session_history_entry_matches_descriptor_ignoring_document_state_id(SessionHistoryEntry const&, SessionHistoryEntryDescriptor const&, MatchNestedHistories = MatchNestedHistories::Yes);
 
 }

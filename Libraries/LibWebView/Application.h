@@ -127,6 +127,7 @@ public:
     ErrorOr<ChildFrameWebContentProcess> launch_child_frame_web_content_process(IsPrivate, Web::HTML::CrossProcessId root_navigable_id);
     u64 allocate_page_id();
     Web::HTML::CrossProcessIdAllocator allocate_cross_process_id_allocator();
+    Web::HTML::CrossProcessId allocate_ui_process_cross_process_id();
 
     void maybe_close_private_browsing_session();
     void reset_private_browsing_session();
@@ -406,6 +407,7 @@ private:
     bool m_has_queued_task_to_launch_spare_web_content_process { false };
     u64 m_next_page_or_compositor_context_id { 1 };
     u64 m_next_cross_process_id_namespace { 1 };
+    Web::HTML::CrossProcessIdAllocator m_ui_process_cross_process_id_allocator;
 
     RefPtr<Database::Database> m_database;
     RefPtr<Database::Database> m_history_database;

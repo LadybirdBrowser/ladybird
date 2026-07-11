@@ -53,10 +53,10 @@ public:
     Optional<size_t> current_top_level_entry_index() const;
 
     void clear();
-    void navigate(URL::URL);
-    void navigate(URL::URL, Variant<Empty, String, Web::HTML::POSTResource>);
-    void replace_current_entry_url(URL::URL);
-    void replace_current_entry(URL::URL, Variant<Empty, String, Web::HTML::POSTResource>);
+    void navigate(URL::URL, Web::HTML::CrossProcessId document_state_id);
+    void navigate(URL::URL, Web::HTML::CrossProcessId document_state_id, Variant<Empty, String, Web::HTML::POSTResource>);
+    void replace_current_entry_url(URL::URL, Web::HTML::CrossProcessId document_state_id);
+    void replace_current_entry(URL::URL, Web::HTML::CrossProcessId document_state_id, Variant<Empty, String, Web::HTML::POSTResource>);
     void mark_current_entry_reload_pending();
     void clear_current_entry_reload_pending();
     UpdateResult update_from_web_content(Vector<Entry> entries, Vector<i32> used_steps, size_t current_used_step_index);

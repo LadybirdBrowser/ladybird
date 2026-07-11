@@ -14,8 +14,8 @@
 #include <LibGfx/Rect.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/HTML/AudioPlayState.h>
-#include <LibWeb/HTML/FileFilter.h>
 #include <LibWeb/HTML/CrossProcessId.h>
+#include <LibWeb/HTML/FileFilter.h>
 #include <LibWeb/HTML/ReplicatedNavigableState.h>
 #include <LibWeb/HTML/Scripting/ScriptRegistry.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
@@ -58,6 +58,7 @@ public:
     virtual void did_handle_input_event(u64 page_id, Web::InputEvent const&) override;
     virtual void report_finished_handling_input_event(u64 page_id, Web::EventResult event_was_handled) override;
     virtual Web::Compositor::CompositorContextId allocate_compositor_context_id(Web::Compositor::PagePresentationRegistration) override;
+    virtual Web::HTML::CrossProcessId allocate_cross_process_id() override;
     virtual Web::HTML::CrossProcessId allocate_navigable_id() override;
 
     void set_palette_impl(Gfx::PaletteImpl&);

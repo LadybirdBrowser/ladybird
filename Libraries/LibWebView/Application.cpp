@@ -117,6 +117,7 @@ Application::Application(Optional<ByteString> ladybird_binary_path)
 {
     VERIFY(!s_the);
     s_the = this;
+    m_ui_process_cross_process_id_allocator = allocate_cross_process_id_allocator();
 
     platform_init(move(ladybird_binary_path));
 }
@@ -650,6 +651,11 @@ Web::HTML::CrossProcessIdAllocator Application::allocate_cross_process_id_alloca
 {
     VERIFY(m_next_cross_process_id_namespace > 0);
     return Web::HTML::CrossProcessIdAllocator { .namespace_id = m_next_cross_process_id_namespace++ };
+}
+
+Web::HTML::CrossProcessId Application::allocate_ui_process_cross_process_id()
+{
+    return m_ui_process_cross_process_id_allocator.allocate();
 }
 
 PrivateBrowsingSession& Application::ensure_private_browsing_session()

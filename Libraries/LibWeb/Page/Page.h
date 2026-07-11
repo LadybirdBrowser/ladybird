@@ -44,8 +44,8 @@
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWeb/HTML/ColorPickerUpdateState.h>
-#include <LibWeb/HTML/FileFilter.h>
 #include <LibWeb/HTML/CrossProcessId.h>
+#include <LibWeb/HTML/FileFilter.h>
 #include <LibWeb/HTML/POSTResource.h>
 #include <LibWeb/HTML/ReplicatedNavigableState.h>
 #include <LibWeb/HTML/Scripting/ScriptRegistry.h>
@@ -482,10 +482,11 @@ public:
             return Compositor::compositor_context_id_for_page(id());
         VERIFY_NOT_REACHED();
     }
-    virtual HTML::CrossProcessId allocate_navigable_id()
+    virtual HTML::CrossProcessId allocate_cross_process_id()
     {
         VERIFY_NOT_REACHED();
     }
+    virtual HTML::CrossProcessId allocate_navigable_id() { return allocate_cross_process_id(); }
     virtual void request_frame() = 0;
     virtual void page_did_change_title(Utf16String const&) { }
     virtual void page_did_change_url(URL::URL const&) { }
