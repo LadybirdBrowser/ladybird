@@ -54,19 +54,18 @@ public:
             auto const* containing_block = fragment.containing_block();
             if (!containing_block)
                 return;
-            auto paintable_box = containing_block->paintable_box();
-            if (!paintable_box)
+            auto const* paintable_with_lines = as_if<Painting::PaintableWithLines>(containing_block->paintable_box().ptr());
+            if (!paintable_with_lines)
                 return;
 
-            decision = paintable_box->template for_each_in_inclusive_subtree_of_type<Painting::PaintableWithLines>([&](auto const& paintable_with_lines) {
-                for (auto const& paintable_fragment : paintable_with_lines.fragments()) {
-                    if (&paintable_fragment.layout_node() != &fragment)
-                        continue;
-                    if (callback(paintable_fragment) == TraversalDecision::Break)
-                        return TraversalDecision::Break;
+            for (auto const& paintable_fragment : paintable_with_lines->fragments()) {
+                if (&paintable_fragment.layout_node() != &fragment)
+                    continue;
+                if (callback(paintable_fragment) == TraversalDecision::Break) {
+                    decision = TraversalDecision::Break;
+                    return;
                 }
-                return TraversalDecision::Continue;
-            });
+            }
         });
         return decision;
     }
@@ -82,19 +81,18 @@ public:
             auto* containing_block = fragment.containing_block();
             if (!containing_block)
                 return;
-            auto paintable_box = containing_block->paintable_box();
-            if (!paintable_box)
+            auto* paintable_with_lines = as_if<Painting::PaintableWithLines>(containing_block->paintable_box().ptr());
+            if (!paintable_with_lines)
                 return;
 
-            decision = paintable_box->template for_each_in_inclusive_subtree_of_type<Painting::PaintableWithLines>([&](auto& paintable_with_lines) {
-                for (auto& paintable_fragment : paintable_with_lines.fragments()) {
-                    if (&paintable_fragment.layout_node() != &fragment)
-                        continue;
-                    if (callback(paintable_fragment) == TraversalDecision::Break)
-                        return TraversalDecision::Break;
+            for (auto& paintable_fragment : paintable_with_lines->fragments()) {
+                if (&paintable_fragment.layout_node() != &fragment)
+                    continue;
+                if (callback(paintable_fragment) == TraversalDecision::Break) {
+                    decision = TraversalDecision::Break;
+                    return;
                 }
-                return TraversalDecision::Continue;
-            });
+            }
         });
         return decision;
     }
