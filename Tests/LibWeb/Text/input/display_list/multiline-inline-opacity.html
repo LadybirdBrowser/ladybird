@@ -1,0 +1,24 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    div {
+        width: 100px;
+        font-size: 16px;
+    }
+    span {
+        opacity: 0.5;
+        background: orange;
+    }
+</style>
+<div>
+    <span id="target">This span spans multiple lines</span>
+</div>
+<script>
+    test(() => {
+        println("With opacity:");
+        println(internals.dumpDisplayList());
+        document.getElementById("target").style.opacity = "1";
+        println("Without opacity:");
+        println(internals.dumpDisplayList());
+    });
+</script>

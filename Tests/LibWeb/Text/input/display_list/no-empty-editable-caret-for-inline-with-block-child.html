@@ -1,0 +1,19 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #wrap {
+        caret-color: rgb(255, 0, 0);
+    }
+</style>
+<span id="wrap" contenteditable><div id="inner">text</div></span>
+<script>
+    test(() => {
+        // The editable span's only own piece is the placeholder for the interrupting block,
+        // but the block is content: no empty-editable caret may appear for the span.
+        const wrap = document.getElementById("wrap");
+        wrap.focus();
+        document.getSelection().collapse(wrap, 0);
+        const caretLines = internals.dumpDisplayList().split("\n").filter(line => line.includes("color=rgb(255, 0, 0)"));
+        println(`caret rects: ${caretLines.length}`);
+    });
+</script>

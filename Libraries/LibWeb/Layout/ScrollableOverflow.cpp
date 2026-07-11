@@ -174,7 +174,7 @@ CSSPixelRect measure_scrollable_overflow(Box const& box, ContainedBoxesMap const
     };
 
     // - All line boxes directly contained by the scroll container.
-    if (auto first_paintable = box.first_paintable(); auto const* paintable_with_lines = as_if<Painting::PaintableWithLines>(first_paintable.ptr())) {
+    if (auto paintable = box.paintable(); auto const* paintable_with_lines = as_if<Painting::PaintableWithLines>(paintable.ptr())) {
         for (auto const& fragment : paintable_with_lines->fragments()) {
             auto fragment_rect = fragment.absolute_rect();
             if (auto const* dom_node = fragment.layout_node().dom_node(); dom_node && node_is_in_focused_text_control(*dom_node)) {

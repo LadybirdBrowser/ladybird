@@ -291,28 +291,36 @@ void PaintableWithLines::paint(DisplayListRecordingContext& context, PaintPhase 
     Paintable::paint(context, phase);
 
     if (phase == PaintPhase::Foreground) {
-        resolve_text_fragment_properties(*this);
-
-        Vector<PaintableFragment::FragmentSpan, 4> spans;
-        for (auto const& fragment : m_fragments)
-            compute_render_spans(fragment, spans);
-
-        for (auto const& span : spans) {
-            if (span.background_color.alpha() > 0) {
-                auto selection_rect = context.rounded_device_rect(span.fragment.selection_rect()).to_type<int>();
-                context.display_list_recorder().fill_rect(selection_rect, span.background_color);
-            }
-        }
-
-        for (auto const& span : spans)
-            paint_text_shadow(context, span);
-
-        for (auto const& span : spans)
-            paint_text_fragment(context, span);
+        paint_fragments_foreground(context, [](auto const&) { return true; });
 
         if (document().cursor_position())
             paint_cursor(context);
     }
+}
+
+void PaintableWithLines::paint_fragments_foreground(DisplayListRecordingContext& context, Function<bool(PaintableFragment const&)> const& should_paint_fragment) const
+{
+    resolve_text_fragment_properties(*this);
+
+    Vector<PaintableFragment::FragmentSpan, 4> spans;
+    for (auto const& fragment : m_fragments) {
+        if (!should_paint_fragment(fragment))
+            continue;
+        compute_render_spans(fragment, spans);
+    }
+
+    for (auto const& span : spans) {
+        if (span.background_color.alpha() > 0) {
+            auto selection_rect = context.rounded_device_rect(span.fragment.selection_rect()).to_type<int>();
+            context.display_list_recorder().fill_rect(selection_rect, span.background_color);
+        }
+    }
+
+    for (auto const& span : spans)
+        paint_text_shadow(context, span);
+
+    for (auto const& span : spans)
+        paint_text_fragment(context, span);
 }
 
 void compute_render_spans(PaintableFragment const& fragment, Vector<PaintableFragment::FragmentSpan, 4>& spans)

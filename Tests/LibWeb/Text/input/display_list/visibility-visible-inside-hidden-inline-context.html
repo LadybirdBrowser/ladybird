@@ -1,0 +1,17 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .hidden { visibility: hidden; }
+    .visible { visibility: visible; }
+    #relative-span { position: relative; visibility: hidden; }
+</style>
+<div class="hidden">hidden <span class="visible">shown-in-block</span></div>
+<div><span id="relative-span">hidden <b class="visible">shown-in-inline</b></span></div>
+<script>
+    test(() => {
+        // Only the two visibility: visible runs should paint, even though both sit inside
+        // visibility: hidden ancestors (a block, and a self-painting inline box).
+        const lines = internals.dumpDisplayList().split("\n").filter(line => line.includes("DrawGlyphRun"));
+        println(`glyph runs: ${lines.length}`);
+    });
+</script>

@@ -81,13 +81,13 @@ public:
 
     using PaintableList = DoublyLinkedList<NonnullRefPtr<Painting::Paintable>>;
 
-    RefPtr<Painting::Paintable> first_paintable()
+    RefPtr<Painting::Paintable> paintable()
     {
         if (m_paintable.is_empty())
             return nullptr;
         return m_paintable.first();
     }
-    RefPtr<Painting::Paintable const> first_paintable() const
+    RefPtr<Painting::Paintable const> paintable() const
     {
         if (m_paintable.is_empty())
             return nullptr;

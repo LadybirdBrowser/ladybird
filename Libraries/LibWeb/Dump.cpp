@@ -212,13 +212,13 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
     }
 
     auto dump_position = [&] {
-        if (auto first_paintable = layout_node.first_paintable(); auto const* paintable_box = first_paintable.ptr())
+        if (auto paintable = layout_node.paintable(); auto const* paintable_box = paintable.ptr())
             builder.appendff("at {}", paintable_box->absolute_rect().location());
         else
             builder.appendff("(not painted)");
     };
     auto dump_box_model = [&] {
-        if (auto first_paintable = layout_node.first_paintable(); auto const* paintable_box = first_paintable.ptr()) {
+        if (auto paintable = layout_node.paintable(); auto const* paintable_box = paintable.ptr()) {
             auto const& box_model = paintable_box->box_model();
             // Dump the horizontal box properties
             builder.appendff(" [{}+{}+{} {} {}+{}+{}]",
@@ -390,7 +390,7 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
             dump_fragment(fragment, fragment_index++);
     }
 
-    if (is<Layout::InlineNode>(layout_node) && layout_node.first_paintable()) {
+    if (is<Layout::InlineNode>(layout_node) && layout_node.paintable()) {
         auto const& inline_node = static_cast<Layout::InlineNode const&>(layout_node);
         for (auto const& paintable : inline_node.paintables()) {
             auto const& paintable_with_lines = static_cast<Painting::PaintableWithLines const&>(*paintable);

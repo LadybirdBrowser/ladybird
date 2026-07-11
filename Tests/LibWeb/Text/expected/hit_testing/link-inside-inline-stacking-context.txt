@@ -1,0 +1,2 @@
+own text: true
+link clicked, target=link

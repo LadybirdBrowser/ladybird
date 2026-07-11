@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+
+    body {
+        margin: 0;
+    }
+
+    #container {
+        font: 20px/20px Ahem;
+    }
+
+    #wrap {
+        opacity: 0.5;
+    }
+</style>
+<div id="container"><span id="wrap">aaa <a id="link" href="#">bbb</a></span></div>
+<script>
+    promiseTest(async () => {
+        await document.fonts.ready;
+        await animationFrame();
+
+        // Clicking the span's own text resolves to the span itself...
+        println(`own text: ${internals.hitTest(30, 10).node === document.getElementById("wrap")}`);
+
+        // ...but nested content keeps precedence over the span's stacking context box.
+        const link = document.getElementById("link");
+        link.addEventListener("click", (event) => {
+            println(`link clicked, target=${event.target.id}`);
+            event.preventDefault();
+        });
+        const linkRect = link.getBoundingClientRect();
+        internals.click(linkRect.left + 10, linkRect.top + 10);
+    });
+</script>

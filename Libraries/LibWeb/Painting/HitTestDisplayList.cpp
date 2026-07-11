@@ -307,12 +307,12 @@ void HitTestDisplayList::append_empty_line(PaintableFragment const& sibling_frag
     add_item_to_caret_items(item_index);
 }
 
-void HitTestDisplayList::append_empty_editable(PaintableWithLines const& paintable, CSSPixelRect rect, VisualContextIndex visual_context_index)
+void HitTestDisplayList::append_empty_editable(Paintable const& paintable, CSSPixelRect rect, VisualContextIndex visual_context_index)
 {
     auto item_index = m_items.size();
     m_items.append({
         .kind = ItemKind::EmptyEditable,
-        .paintable = const_cast<PaintableWithLines&>(paintable),
+        .paintable = const_cast<Paintable&>(paintable),
         .chrome_widget = {},
         .text_fragment = nullptr,
         .rect = rect,

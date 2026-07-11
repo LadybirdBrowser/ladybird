@@ -21,7 +21,7 @@ static Optional<CSSPixelSize> containing_block_padding_box_size(Layout::Node con
     auto parent_box = layout_node.containing_block();
     if (!parent_box)
         return {};
-    if (auto first_paintable = parent_box->first_paintable(); auto const* paintable_box = first_paintable.ptr())
+    if (auto paintable = parent_box->paintable(); auto const* paintable_box = paintable.ptr())
         return paintable_box->absolute_padding_box_rect().size();
     return {};
 }

@@ -1107,8 +1107,8 @@ void Element::apply_computed_style_to_layout_node_if_needed(CSS::RequiredInvalid
 
         if (auto node_with_style = pseudo_element.unsafe_layout_node()) {
             node_with_style->apply_style(*pseudo_element_style);
-            if (invalidation.needs_repaint() && node_with_style->first_paintable())
-                node_with_style->first_paintable()->set_needs_repaint();
+            if (invalidation.needs_repaint() && node_with_style->paintable())
+                node_with_style->paintable()->set_needs_repaint();
         }
     });
 }

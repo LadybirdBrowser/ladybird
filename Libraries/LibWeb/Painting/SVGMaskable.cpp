@@ -153,7 +153,7 @@ Optional<DisplayListResource> SVGMaskable::calculate_svg_mask_display_list(Displ
     auto* mask_box = get_mask_box(graphics_element);
     if (!mask_box)
         return {};
-    auto& mask_paintable = static_cast<Paintable const&>(*mask_box->first_paintable());
+    auto& mask_paintable = static_cast<Paintable const&>(*mask_box->paintable());
     return paint_mask_or_clip_to_display_list(context, target_svg_transform(), mask_paintable, mask_area, false);
 }
 
@@ -163,7 +163,7 @@ Optional<DisplayListResource> SVGMaskable::calculate_svg_clip_display_list(Displ
     auto* clip_box = get_clip_box(graphics_element);
     if (!clip_box)
         return {};
-    auto& clip_paintable = static_cast<Paintable const&>(*clip_box->first_paintable());
+    auto& clip_paintable = static_cast<Paintable const&>(*clip_box->paintable());
     return paint_mask_or_clip_to_display_list(context, target_svg_transform(), clip_paintable, clip_area, true);
 }
 

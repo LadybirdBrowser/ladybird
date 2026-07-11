@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        font-size: 16px;
+        line-height: 20px;
+    }
+
+    #vertical {
+        writing-mode: vertical-rl;
+    }
+</style>
+<body>
+    <div id="horizontal"><span id="empty-in-horizontal"></span></div>
+    <div id="vertical"><span id="empty-in-vertical"></span></div>
+
+    <script>
+        test(() => {
+            for (const id of ["empty-in-horizontal", "empty-in-vertical"]) {
+                const rect = document.getElementById(id).getBoundingClientRect();
+                println(`${id}: ${rect.width}x${rect.height}`);
+            }
+        });
+    </script>
+</body>

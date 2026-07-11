@@ -1,0 +1,4 @@
+rects: 2
+gap hit is container: true
+gap hit is span or its text: false
+line 2 hit is span text: true

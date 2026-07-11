@@ -1711,32 +1711,8 @@ void Paintable::paint(DisplayListRecordingContext& context, PaintPhase phase) co
         paint_table_borders(context, *this);
     }
 
-    if (phase == PaintPhase::Outline) {
-        auto const& outline_data = this->outline_data();
-        if (outline_data.has_value()) {
-            auto outline_offset = this->outline_offset();
-            auto border_radius_data = normalized_border_radii_data(ShrinkRadiiForBorders::No);
-            auto borders_rect = absolute_border_box_rect();
-
-            auto outline_offset_x = outline_offset;
-            auto outline_offset_y = outline_offset;
-            // "Both the height and the width of the outside of the shape drawn by the outline should not
-            // become smaller than twice the computed value of the outline-width property to make sure
-            // that an outline can be rendered even with large negative values."
-            // https://www.w3.org/TR/css-ui-4/#outline-offset
-            // So, if the horizontal outline offset is > half the borders_rect's width then we set it to that.
-            // (And the same for y)
-            if ((borders_rect.width() / 2) + outline_offset_x < 0)
-                outline_offset_x = -borders_rect.width() / 2;
-            if ((borders_rect.height() / 2) + outline_offset_y < 0)
-                outline_offset_y = -borders_rect.height() / 2;
-
-            border_radius_data.inflate(outline_data->top.width + outline_offset_y, outline_data->right.width + outline_offset_x, outline_data->bottom.width + outline_offset_y, outline_data->left.width + outline_offset_x);
-            borders_rect.inflate(outline_data->top.width + outline_offset_y, outline_data->right.width + outline_offset_x, outline_data->bottom.width + outline_offset_y, outline_data->left.width + outline_offset_x);
-
-            paint_all_borders(context.display_list_recorder(), context.rounded_device_rect(borders_rect), border_radius_data.as_corners(context.device_pixel_converter()), outline_data->to_device_pixels(context));
-        }
-    }
+    if (phase == PaintPhase::Outline)
+        paint_outline(context, absolute_border_box_rect(), normalized_border_radii_data(ShrinkRadiiForBorders::No));
 
     if (phase == PaintPhase::Overlay) {
         ChromeMetrics const& metrics = context.chrome_metrics();
@@ -2378,7 +2354,7 @@ static void paint_border_image_slice(DisplayListRecordingContext& context, Gfx::
     });
 }
 
-static bool paint_border_image(DisplayListRecordingContext& context, Paintable const& paintable_box, BordersData const& borders_data)
+static bool paint_border_image(DisplayListRecordingContext& context, Paintable const& paintable_box, BordersData const& borders_data, CSSPixelRect const& border_box_rect)
 {
     auto const& border_image = paintable_box.computed_values().border_image();
     if (!border_image.has_value())
@@ -2405,7 +2381,7 @@ static bool paint_border_image(DisplayListRecordingContext& context, Paintable c
         .bottom = borders_data.bottom.width,
         .left = borders_data.left.width,
     };
-    auto geometry = resolve_border_image_geometry(*border_image, frame.size(), paintable_box.absolute_border_box_rect(), border_width);
+    auto geometry = resolve_border_image_geometry(*border_image, frame.size(), border_box_rect, border_width);
 
     auto repeat_x = border_image->repeat_x;
     auto repeat_y = border_image->repeat_y;
@@ -2461,9 +2437,43 @@ void Paintable::paint_border(DisplayListRecordingContext& context) const
         .bottom = box_model().border.bottom == 0 || m_fragment_bottom_edge_away ? CSS::BorderData() : computed_values().border_bottom(),
         .left = box_model().border.left == 0 || m_fragment_left_edge_away ? CSS::BorderData() : computed_values().border_left(),
     };
-    if (paint_border_image(context, *this, borders_data))
+    paint_border(context, absolute_border_box_rect(), borders_data, normalized_border_radii_data());
+}
+
+void Paintable::paint_border(DisplayListRecordingContext& context, CSSPixelRect const& border_box_rect, BordersData const& borders_data, BorderRadiiData const& border_radii) const
+{
+    if (paint_border_image(context, *this, borders_data, border_box_rect))
         return;
-    paint_all_borders(context.display_list_recorder(), context.rounded_device_rect(absolute_border_box_rect()), normalized_border_radii_data().as_corners(context.device_pixel_converter()), borders_data.to_device_pixels(context));
+    paint_all_borders(context.display_list_recorder(), context.rounded_device_rect(border_box_rect), border_radii.as_corners(context.device_pixel_converter()), borders_data.to_device_pixels(context));
+}
+
+void Paintable::paint_outline(DisplayListRecordingContext& context, CSSPixelRect const& border_box_rect, BorderRadiiData const& border_radii) const
+{
+    auto const& outline_data = this->outline_data();
+    if (!outline_data.has_value())
+        return;
+
+    auto outline_offset = this->outline_offset();
+    auto border_radius_data = border_radii;
+    auto borders_rect = border_box_rect;
+
+    auto outline_offset_x = outline_offset;
+    auto outline_offset_y = outline_offset;
+    // "Both the height and the width of the outside of the shape drawn by the outline should not
+    // become smaller than twice the computed value of the outline-width property to make sure
+    // that an outline can be rendered even with large negative values."
+    // https://www.w3.org/TR/css-ui-4/#outline-offset
+    // So, if the horizontal outline offset is > half the borders_rect's width then we set it to that.
+    // (And the same for y)
+    if ((borders_rect.width() / 2) + outline_offset_x < 0)
+        outline_offset_x = -borders_rect.width() / 2;
+    if ((borders_rect.height() / 2) + outline_offset_y < 0)
+        outline_offset_y = -borders_rect.height() / 2;
+
+    border_radius_data.inflate(outline_data->top.width + outline_offset_y, outline_data->right.width + outline_offset_x, outline_data->bottom.width + outline_offset_y, outline_data->left.width + outline_offset_x);
+    borders_rect.inflate(outline_data->top.width + outline_offset_y, outline_data->right.width + outline_offset_x, outline_data->bottom.width + outline_offset_y, outline_data->left.width + outline_offset_x);
+
+    paint_all_borders(context.display_list_recorder(), context.rounded_device_rect(borders_rect), border_radius_data.as_corners(context.device_pixel_converter()), outline_data->to_device_pixels(context));
 }
 
 void Paintable::paint_backdrop_filter(DisplayListRecordingContext& context) const
@@ -2486,56 +2496,60 @@ void Paintable::paint_background(DisplayListRecordingContext& context) const
         return;
 
     auto const& computed_values = this->computed_values();
-
-    CSSPixelRect background_rect;
-    Color background_color = computed_values.background_color();
-    auto const* background_layers = &computed_values.background_layers();
+    auto node_has_borders = computed_values.border_top().width != 0 || computed_values.border_right().width != 0 || computed_values.border_bottom().width != 0 || computed_values.border_left().width != 0;
 
     // https://drafts.csswg.org/css-backgrounds/#root-background
-    auto is_root = layout_node_with_style_and_box_metrics().is_root_element();
-    if (is_root) {
-        background_rect = absolute_border_box_rect();
+    if (layout_node_with_style_and_box_metrics().is_root_element()) {
+        auto background_rect = absolute_border_box_rect();
+        Color background_color = computed_values.background_color();
+        auto const* background_layers = &computed_values.background_layers();
 
         auto& html_element = as<HTML::HTMLHtmlElement>(*layout_node_with_style_and_box_metrics().dom_node());
         if (html_element.should_use_body_background_properties()) {
             background_layers = document().background_layers();
             background_color = document().background_color();
         }
-    } else {
-        background_rect = absolute_padding_box_rect();
-    }
 
-    // HACK: If the Box has a border, use the bordered_rect to paint the background.
-    //       This way if we have a border-radius there will be no gap between the filling and actual border.
-    if (computed_values.border_top().width != 0 || computed_values.border_right().width != 0 || computed_values.border_bottom().width != 0 || computed_values.border_left().width != 0)
-        background_rect = absolute_border_box_rect();
+        auto border_radii = normalized_border_radii_data();
 
-    auto border_radii = normalized_border_radii_data();
+        ResolvedBackground resolved_background;
+        if (background_layers)
+            resolved_background = resolve_background_layers(*background_layers, *this, background_color, computed_values.background_color_clip(), background_rect, border_radii);
 
-    ResolvedBackground resolved_background;
-    if (background_layers)
-        resolved_background = resolve_background_layers(*background_layers, *this, background_color, computed_values.background_color_clip(), background_rect, border_radii);
-
-    if (is_root) {
         auto canvas_rect = navigable()->viewport_rect();
         if (auto overflow_rect = scrollable_overflow_rect(); overflow_rect.has_value())
             canvas_rect.unite(overflow_rect.value());
         resolved_background.background_rect.unite(canvas_rect);
         resolved_background.color_box.rect.unite(canvas_rect);
+
+        // If the body's background was propagated to the root element, use the body's image-rendering value.
+        auto image_rendering = computed_values.image_rendering();
+        if (html_element.should_use_body_background_properties())
+            image_rendering = document().background_image_rendering();
+
+        Painting::paint_background(context, *this, image_rendering, resolved_background, border_radii);
+        return;
     }
 
-    // If the body's background was propagated to the root element, use the body's image-rendering value.
-    auto image_rendering = computed_values.image_rendering();
-    if (layout_node().is_root_element()
-        && document().html_element()
-        && document().html_element()->should_use_body_background_properties()) {
-        image_rendering = document().background_image_rendering();
-    }
+    // HACK: If the Box has a border, use the bordered_rect to paint the background.
+    //       This way if we have a border-radius there will be no gap between the filling and actual border.
+    auto background_rect = node_has_borders ? absolute_border_box_rect() : absolute_padding_box_rect();
+    paint_background_within(context, background_rect, normalized_border_radii_data());
+}
 
-    Painting::paint_background(context, *this, image_rendering, resolved_background, border_radii);
+void Paintable::paint_background_within(DisplayListRecordingContext& context, CSSPixelRect const& background_rect, BorderRadiiData const& border_radii) const
+{
+    auto const& computed_values = this->computed_values();
+    auto resolved_background = resolve_background_layers(computed_values.background_layers(), *this, computed_values.background_color(), computed_values.background_color_clip(), background_rect, border_radii);
+    Painting::paint_background(context, *this, computed_values.image_rendering(), resolved_background, border_radii);
 }
 
 void Paintable::paint_box_shadow(DisplayListRecordingContext& context) const
+{
+    paint_box_shadow(context, absolute_border_box_rect(), absolute_padding_box_rect(), normalized_border_radii_data());
+}
+
+void Paintable::paint_box_shadow(DisplayListRecordingContext& context, CSSPixelRect const& border_box_rect, CSSPixelRect const& padding_box_rect, BorderRadiiData const& border_radii) const
 {
     auto const& box_shadow_layers = computed_values().box_shadow();
     if (box_shadow_layers.is_empty())
@@ -2550,8 +2564,8 @@ void Paintable::paint_box_shadow(DisplayListRecordingContext& context) const
         .bottom = computed_values().border_bottom(),
         .left = computed_values().border_left(),
     };
-    Painting::paint_box_shadow(context, absolute_border_box_rect(), absolute_padding_box_rect(),
-        borders_data, normalized_border_radii_data(), resolved_box_shadow_data);
+    Painting::paint_box_shadow(context, border_box_rect, padding_box_rect,
+        borders_data, border_radii, resolved_box_shadow_data);
 }
 
 BorderRadiiData Paintable::normalized_border_radii_data(ShrinkRadiiForBorders shrink) const

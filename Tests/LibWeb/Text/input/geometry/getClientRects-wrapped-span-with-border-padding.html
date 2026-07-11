@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+
+    body {
+        margin: 0;
+        font: 10px/20px Ahem;
+    }
+
+    .case {
+        margin: 10px 0 0 10px;
+        width: 45px;
+    }
+
+    #wrap {
+        border: 3px solid black;
+        padding: 5px;
+        background: orange;
+    }
+</style>
+<body>
+    <div class="case"><span id="wrap">aaa aaa aaa</span></div>
+
+    <script>
+        promiseTest(async () => {
+            await document.fonts.ready;
+            await animationFrame();
+
+            function formatNumber(value) {
+                if (Object.is(value, -0))
+                    return "0";
+                if (Number.isInteger(value))
+                    return `${value}`;
+                return value.toFixed(2);
+            }
+
+            function formatRect(rect) {
+                return `${formatNumber(rect.x)},${formatNumber(rect.y)} ${formatNumber(rect.width)}x${formatNumber(rect.height)}`;
+            }
+
+            const rects = document.getElementById("wrap").getClientRects();
+            println(`wrap: ${rects.length}`);
+            for (let i = 0; i < rects.length; ++i)
+                println(`wrap[${i}]: ${formatRect(rects[i])}`);
+        });
+    </script>
+</body>

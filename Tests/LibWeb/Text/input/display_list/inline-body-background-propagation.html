@@ -1,0 +1,18 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body {
+        display: inline;
+        background: rgba(0, 0, 255, 0.5);
+    }
+</style>
+<body>text
+<script>
+    test(() => {
+        // The body's background propagates to the root; the body's own line pieces must not
+        // paint it a second time.
+        const lines = internals.dumpDisplayList().split("\n").filter(line => line.includes("0, 0, 255"));
+        println(`background rects: ${lines.length}`);
+    });
+</script>
+</body>

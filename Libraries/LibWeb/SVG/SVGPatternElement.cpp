@@ -299,8 +299,8 @@ Optional<Painting::PaintStyle> SVGPatternElement::to_gfx_paint_style(SVGPaintCon
     auto paint_context_copy = recording_context.clone(display_list_recorder);
 
     Gfx::AffineTransform target_svg_transform;
-    auto first_paintable = target_layout_node.first_paintable();
-    if (auto const* svg_graphics_paintable = as_if<Painting::SVGGraphicsPaintable>(first_paintable.ptr()))
+    auto paintable = target_layout_node.paintable();
+    if (auto const* svg_graphics_paintable = as_if<Painting::SVGGraphicsPaintable>(paintable.ptr()))
         target_svg_transform = svg_graphics_paintable->computed_transforms().svg_transform();
     paint_context_copy.set_svg_transform(target_svg_transform);
 

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+
+    body {
+        margin: 0;
+    }
+
+    #container {
+        width: 50px;
+        font: 10px/30px Ahem;
+    }
+
+    #wrap {
+        background: orange;
+    }
+</style>
+<div id="container"><span id="wrap">aaaa aaaa</span></div>
+<script>
+    promiseTest(async () => {
+        await document.fonts.ready;
+        await animationFrame();
+
+        const container = document.getElementById("container");
+        const span = document.getElementById("wrap");
+        const rects = span.getClientRects();
+        println(`rects: ${rects.length}`);
+
+        const r0 = rects[0];
+        const r1 = rects[rects.length - 1];
+        const x = r0.left + 5;
+
+        const gapHit = internals.hitTest(x, (r0.bottom + r1.top) / 2);
+        println(`gap hit is container: ${gapHit.node === container}`);
+        println(`gap hit is span or its text: ${gapHit.node === span || gapHit.node === span.firstChild}`);
+
+        const line2Hit = internals.hitTest(r1.left + 5, (r1.top + r1.bottom) / 2);
+        println(`line 2 hit is span text: ${line2Hit.node === span.firstChild}`);
+    });
+</script>

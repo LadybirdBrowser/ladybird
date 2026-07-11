@@ -1,0 +1,14 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #wrap {
+        backdrop-filter: invert(1);
+    }
+</style>
+<div>before <span id="wrap">filtered</span> after</div>
+<script>
+    test(() => {
+        const lines = internals.dumpDisplayList().split("\n").filter(line => line.toLowerCase().includes("backdrop"));
+        println(`backdrop commands: ${lines.length}`);
+    });
+</script>

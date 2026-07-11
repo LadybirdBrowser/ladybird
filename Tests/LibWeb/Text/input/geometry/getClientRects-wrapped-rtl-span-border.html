@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+
+    body {
+        margin: 0;
+        font: 10px/20px Ahem;
+    }
+
+    #rtl-case {
+        direction: rtl;
+        width: 45px;
+        margin-left: 10px;
+    }
+
+    #wrap {
+        border-left: 2px solid blue;
+        border-right: 8px solid red;
+    }
+</style>
+<div id="rtl-case"><span id="wrap">aaa aaa</span></div>
+<script>
+    promiseTest(async () => {
+        await document.fonts.ready;
+        await animationFrame();
+
+        function formatNumber(value) {
+            if (Object.is(value, -0))
+                return "0";
+            if (Number.isInteger(value))
+                return `${value}`;
+            return value.toFixed(2);
+        }
+
+        // In rtl, the line with the span's first content carries border-right and the line
+        // with its last content carries border-left.
+        const rects = document.getElementById("wrap").getClientRects();
+        println(`rects: ${rects.length}`);
+        for (let i = 0; i < rects.length; ++i)
+            println(`wrap[${i}]: ${formatNumber(rects[i].x)},${formatNumber(rects[i].y)} ${formatNumber(rects[i].width)}x${formatNumber(rects[i].height)}`);
+    });
+</script>

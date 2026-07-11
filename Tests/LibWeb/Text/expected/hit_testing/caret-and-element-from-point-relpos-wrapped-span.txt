@@ -1,0 +1,4 @@
+rects: 2
+elementFromPoint is span: true
+caret node is span text: true
+caret offset: 7

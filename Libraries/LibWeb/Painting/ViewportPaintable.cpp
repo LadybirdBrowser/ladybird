@@ -379,7 +379,7 @@ void ViewportPaintable::recompute_selection_states(DOM::Range& range)
             return;
         }
         if (auto* layout_node = container.unsafe_layout_node()) {
-            if (auto paintable = layout_node->first_paintable())
+            if (auto paintable = layout_node->paintable())
                 paintable->set_selection_state(state);
         }
     };

@@ -1,0 +1,26 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    div {
+        width: 100px;
+        font-size: 16px;
+    }
+    #outer {
+        opacity: 0.5;
+    }
+    #inner {
+        color: blue;
+    }
+</style>
+<div>
+    <span id="outer"><span id="inner">This span spans multiple lines</span></span>
+</div>
+<script>
+    test(() => {
+        println("Before:");
+        println(internals.dumpDisplayList());
+        document.getElementById("inner").style.color = "red";
+        println("After:");
+        println(internals.dumpDisplayList());
+    });
+</script>

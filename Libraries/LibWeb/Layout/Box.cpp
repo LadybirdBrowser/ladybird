@@ -47,14 +47,14 @@ RefPtr<Painting::Paintable> Box::create_paintable() const
 
 RefPtr<Painting::Paintable> Box::paintable_box()
 {
-    if (auto paintable = Node::first_paintable())
+    if (auto paintable = Node::paintable())
         return static_cast<Painting::Paintable&>(*paintable);
     return nullptr;
 }
 
 RefPtr<Painting::Paintable const> Box::paintable_box() const
 {
-    if (auto paintable = Node::first_paintable())
+    if (auto paintable = Node::paintable())
         return static_cast<Painting::Paintable const&>(*paintable);
     return nullptr;
 }

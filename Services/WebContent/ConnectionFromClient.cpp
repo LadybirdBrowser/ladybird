@@ -880,17 +880,17 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, WebView::DOMNodePropert
     };
 
     auto serialize_layout = [&](Web::Layout::Node const* layout_node) {
-        auto first_paintable = layout_node ? layout_node->first_paintable() : nullptr;
-        if (!layout_node || !layout_node->is_box() || !first_paintable) {
+        auto paintable = layout_node ? layout_node->paintable() : nullptr;
+        if (!layout_node || !layout_node->is_box() || !paintable) {
             return JsonObject {};
         }
 
-        auto const& box_model = first_paintable->box_model();
+        auto const& box_model = paintable->box_model();
 
         JsonObject serialized;
 
-        serialized.set("width"sv, first_paintable->content_width().to_double());
-        serialized.set("height"sv, first_paintable->content_height().to_double());
+        serialized.set("width"sv, paintable->content_width().to_double());
+        serialized.set("height"sv, paintable->content_height().to_double());
 
         serialized.set("padding-top"sv, box_model.padding.top.to_double());
         serialized.set("padding-right"sv, box_model.padding.right.to_double());
@@ -1952,12 +1952,12 @@ static void append_paint_tree(Web::Page& page, StringBuilder& builder)
         builder.append("(no layout tree)"sv);
         return;
     }
-    if (!layout_root->first_paintable()) {
+    if (!layout_root->paintable()) {
         builder.append("(no paint tree)"sv);
         return;
     }
 
-    Web::dump_tree(builder, *layout_root->first_paintable());
+    Web::dump_tree(builder, *layout_root->paintable());
 }
 
 static void append_stacking_context_tree(Web::Page& page, StringBuilder& builder)
@@ -1975,7 +1975,7 @@ static void append_stacking_context_tree(Web::Page& page, StringBuilder& builder
         builder.append("(no layout tree)"sv);
         return;
     }
-    if (!layout_root->first_paintable()) {
+    if (!layout_root->paintable()) {
         builder.append("(no paint tree)"sv);
         return;
     }

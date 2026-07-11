@@ -167,8 +167,8 @@ static InlineAncestorChainRelativeOffset accumulated_relative_insets_from_inline
             break;
         result.found_fragmented_inline_node |= ancestor->is_fragmented_inline();
         if (ancestor->computed_values().position() == CSS::Positioning::Relative) {
-            VERIFY(ancestor->first_paintable());
-            auto const& ancestor_paintable_box = *ancestor->first_paintable();
+            VERIFY(ancestor->paintable());
+            auto const& ancestor_paintable_box = *ancestor->paintable();
             auto const& inset = ancestor_paintable_box.box_model().inset;
             result.offset.translate_by(inset.left, inset.top);
         }
@@ -257,7 +257,7 @@ static void build_paint_tree(Node& node, Painting::Paintable* fallback_parent_pa
         // out-of-flow boxes generates no line fragments) must not orphan its descendants' paintables;
         // pass the nearest ancestor paintable through. Other paintable-less nodes (e.g. non-rendered
         // SVG subtrees) keep their descendants disconnected on purpose.
-        auto* fallback_for_children = node.first_paintable() ? node.first_paintable().ptr() : (node_is_fragmented_inline ? fallback_parent_paintable : nullptr);
+        auto* fallback_for_children = node.paintable() ? node.paintable().ptr() : (node_is_fragmented_inline ? fallback_parent_paintable : nullptr);
         build_paint_tree(*child, fallback_for_children, node_is_fragmented_inline ? &paintable_by_line_index : nullptr);
     }
 }
@@ -266,7 +266,7 @@ void LayoutState::commit(Box& root)
 {
     RefPtr<Painting::Paintable> parent_paintable;
     if (!root.is_viewport()) {
-        if (auto existing = root.first_paintable(); auto* existing_box = existing.ptr()) {
+        if (auto existing = root.paintable(); auto* existing_box = existing.ptr()) {
             parent_paintable = existing_box->parent();
             if (parent_paintable)
                 parent_paintable->remove_child(*existing_box);
@@ -276,7 +276,7 @@ void LayoutState::commit(Box& root)
     // Cache existing paintables before clearing.
     HashMap<Node const*, NonnullRefPtr<Painting::Paintable>> paintable_cache;
     root.for_each_in_inclusive_subtree([&](Node& node) {
-        if (auto paintable = node.first_paintable(); auto* paintable_box = paintable.ptr()) {
+        if (auto paintable = node.paintable(); auto* paintable_box = paintable.ptr()) {
             // Fragmented inline nodes are excluded because they can span multiple lines, with a separate
             // InlinePaintable created for each line via create_paintable_for_line_with_index().
             // This 1:N relationship between layout node and paintables, combined with the
@@ -434,7 +434,7 @@ void LayoutState::commit(Box& root)
 
     // Create paintables for fragmented inline nodes without fragments to make possible querying their geometry.
     for (auto& inline_node : fragmented_inline_nodes) {
-        if (inline_node->first_paintable())
+        if (inline_node->paintable())
             continue;
 
         auto line_paintable = inline_node->create_paintable_for_line_with_index(0);
@@ -452,7 +452,7 @@ void LayoutState::commit(Box& root)
             if (!ancestor->is_fragmented_inline() || ancestor->dom_node())
                 break;
             auto& inline_ancestor = const_cast<NodeWithStyleAndBoxModelMetrics&>(static_cast<NodeWithStyleAndBoxModelMetrics const&>(*ancestor));
-            if (inline_ancestor.first_paintable())
+            if (inline_ancestor.paintable())
                 break;
             auto line_paintable = inline_ancestor.create_paintable_for_line_with_index(paintable->line_index());
             inline_ancestor.add_paintable(line_paintable);
@@ -471,7 +471,7 @@ void LayoutState::commit(Box& root)
         if (!node.is_box() || node.is_fragmented_inline())
             return;
 
-        auto paintable_ref = node.first_paintable();
+        auto paintable_ref = node.paintable();
         auto& paintable = *paintable_ref;
         CSSPixelPoint offset;
 

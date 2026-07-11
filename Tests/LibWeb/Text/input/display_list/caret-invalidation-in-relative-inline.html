@@ -1,0 +1,33 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #editable {
+        caret-color: rgb(255, 0, 0);
+    }
+
+    #wrap {
+        position: relative;
+    }
+</style>
+<div id="editable" contenteditable><span id="wrap">abcdef</span></div>
+<script>
+    test(() => {
+        // The caret is recorded in the self-painting span's cached foreground commands, so
+        // moving the cursor must invalidate that cache, not just the containing block's.
+        const editable = document.getElementById("editable");
+        editable.focus();
+        document.getSelection().collapse(document.getElementById("wrap").firstChild, 0);
+
+        const caretLines = () =>
+            internals.dumpDisplayList().split("\n").filter(line => line.includes("color=rgb(255, 0, 0)")).join("\n");
+
+        const before = caretLines();
+        internals.sendKey(editable, "Right");
+        internals.sendKey(editable, "Right");
+        internals.sendKey(editable, "Right");
+        const after = caretLines();
+
+        println(`caret painted: ${before.length > 0}`);
+        println(`caret moved: ${before !== after}`);
+    });
+</script>

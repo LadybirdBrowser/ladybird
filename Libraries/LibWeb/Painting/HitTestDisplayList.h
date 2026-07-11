@@ -40,7 +40,7 @@ public:
     void append_svg_path(Paintable& target, Gfx::Path, Gfx::WindingRule, CSSPixelRect bounding_box, VisualContextIndex);
     void append_text_fragment(PaintableFragment const&, VisualContextIndex);
     void append_empty_line(PaintableFragment const& sibling_fragment, size_t caret_offset, size_t line_box_index, CSSPixelRect line_rect, VisualContextIndex);
-    void append_empty_editable(PaintableWithLines const&, CSSPixelRect, VisualContextIndex);
+    void append_empty_editable(Paintable const&, CSSPixelRect, VisualContextIndex);
     void append_chrome_widget(Paintable const&, ChromeWidget&, VisualContextIndex);
 
     u64 visual_context_tree_version() const { return m_visual_context_tree_version; }

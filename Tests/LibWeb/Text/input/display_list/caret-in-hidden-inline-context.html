@@ -1,0 +1,34 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .editable {
+        visibility: visible;
+        caret-color: rgb(255, 0, 0);
+    }
+
+    #hidden-block {
+        visibility: hidden;
+    }
+
+    #hidden-relative-span {
+        position: relative;
+        visibility: hidden;
+    }
+</style>
+<div id="hidden-block"><span id="in-block" class="editable" contenteditable>abc</span></div>
+<div><span id="hidden-relative-span"><b id="in-inline" class="editable" contenteditable>def</b></span></div>
+<script>
+    test(() => {
+        // The caret follows its text's visibility: editable visibility: visible content
+        // nested in hidden ancestors paints its caret like it paints its glyphs.
+        const caretRectCount = () =>
+            internals.dumpDisplayList().split("\n").filter(line => line.includes("color=rgb(255, 0, 0)")).length;
+
+        for (const id of ["in-block", "in-inline"]) {
+            const editable = document.getElementById(id);
+            editable.focus();
+            document.getSelection().collapse(editable.firstChild, 1);
+            println(`${id}: ${caretRectCount()}`);
+        }
+    });
+</script>

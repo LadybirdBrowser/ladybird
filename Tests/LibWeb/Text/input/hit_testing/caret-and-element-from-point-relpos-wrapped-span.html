@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+
+    body {
+        margin: 0;
+    }
+
+    #container {
+        width: 50px;
+        font: 10px/20px Ahem;
+    }
+
+    #relpos {
+        position: relative;
+        top: 5px;
+        background: orange;
+    }
+</style>
+<div id="container"><span id="relpos">aaaa aaaa</span></div>
+<script>
+    promiseTest(async () => {
+        await document.fonts.ready;
+        await animationFrame();
+
+        const span = document.getElementById("relpos");
+        const rects = span.getClientRects();
+        println(`rects: ${rects.length}`);
+
+        const r1 = rects[rects.length - 1];
+        const x = r1.left + 15;
+        const y = (r1.top + r1.bottom) / 2;
+
+        const element = document.elementFromPoint(x, y);
+        println(`elementFromPoint is span: ${element === span}`);
+
+        const caret = document.caretPositionFromPoint(x, y);
+        println(`caret node is span text: ${caret.offsetNode === span.firstChild}`);
+        println(`caret offset: ${caret.offset}`);
+    });
+</script>

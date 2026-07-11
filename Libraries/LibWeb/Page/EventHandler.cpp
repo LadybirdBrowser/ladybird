@@ -843,7 +843,7 @@ EventResult EventHandler::dispatch_wheel_event(Painting::Paintable& paintable, C
 
     auto viewport_position = document->visual_viewport()->map_to_layout_viewport(visual_viewport_position);
     auto page_offset = compute_mouse_event_page_offset(viewport_position);
-    RefPtr<Painting::Paintable> offset_paintable = layout_node->first_paintable();
+    RefPtr<Painting::Paintable> offset_paintable = layout_node->paintable();
     if (!offset_paintable)
         offset_paintable = &paintable;
     auto scroll_offset = document->navigable()->viewport_scroll_offset();
@@ -1900,7 +1900,7 @@ bool EventHandler::fire_click_events(GC::Ref<DOM::Node> node, MouseEventCoordina
 EventHandler::MouseEventCoordinates EventHandler::compute_mouse_event_coordinates(CSSPixelPoint visual_viewport_position, CSSPixelPoint viewport_position, Painting::Paintable const& paintable, Layout::Node const& layout_node) const
 {
     auto page_offset = compute_mouse_event_page_offset(viewport_position);
-    RefPtr<Painting::Paintable const> offset_paintable = layout_node.first_paintable();
+    RefPtr<Painting::Paintable const> offset_paintable = layout_node.paintable();
     if (!offset_paintable)
         offset_paintable = paintable;
     auto scroll_offset = m_navigable->active_document()->navigable()->viewport_scroll_offset();

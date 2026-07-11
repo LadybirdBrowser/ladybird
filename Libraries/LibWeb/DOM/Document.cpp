@@ -2503,14 +2503,14 @@ void Document::set_highlighted_node(GC::Ptr<Node> node, Optional<CSS::PseudoElem
     if (m_highlighted_node == node && m_highlighted_pseudo_element == pseudo_element)
         return;
 
-    if (auto layout_node = highlighted_layout_node(); layout_node && layout_node->first_paintable())
-        layout_node->first_paintable()->set_needs_repaint();
+    if (auto layout_node = highlighted_layout_node(); layout_node && layout_node->paintable())
+        layout_node->paintable()->set_needs_repaint();
 
     m_highlighted_node = node;
     m_highlighted_pseudo_element = pseudo_element;
 
-    if (auto layout_node = highlighted_layout_node(); layout_node && layout_node->first_paintable())
-        layout_node->first_paintable()->set_needs_repaint();
+    if (auto layout_node = highlighted_layout_node(); layout_node && layout_node->paintable())
+        layout_node->paintable()->set_needs_repaint();
 }
 
 void Document::set_grid_highlighted_node(GC::Ptr<Node> node, Painting::GridInspectorOverlayOptions options)
@@ -2682,7 +2682,7 @@ static CSSPixelPoint hover_event_offset_for_target(Optional<HoverEventData> cons
     if (!layout_node)
         return hover_event_data->viewport_position;
 
-    auto paintable = layout_node->first_paintable();
+    auto paintable = layout_node->paintable();
     if (!paintable)
         return hover_event_data->viewport_position;
 
@@ -8333,7 +8333,7 @@ Optional<CSSPixelRect> Document::current_caret_rect()
     // Empty editable elements have no fragments; fall back to the caret position for the cursor's child offset
     // (which accounts for empty lines rendered by <br>), or the padding-box corner.
     if (auto* node_with_style = as_if<Layout::NodeWithStyleAndBoxModelMetrics>(*layout_node)) {
-        auto paintable = node_with_style->first_paintable();
+        auto paintable = node_with_style->paintable();
         if (auto const* with_lines = as_if<Painting::PaintableWithLines>(paintable.ptr()))
             return to_viewport_rect(with_lines->caret_rect_for_child_offset(position->offset()));
         if (auto const* box = paintable.ptr()) {

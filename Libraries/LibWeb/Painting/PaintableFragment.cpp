@@ -101,7 +101,7 @@ CSSPixelRect const PaintableFragment::absolute_line_box_rect() const
 
 RefPtr<Paintable> PaintableFragment::containing_block_paintable() const
 {
-    if (auto paintable = layout_node().first_paintable())
+    if (auto paintable = layout_node().paintable())
         return paintable->containing_block();
 
     auto const* containing_block = layout_node().containing_block();

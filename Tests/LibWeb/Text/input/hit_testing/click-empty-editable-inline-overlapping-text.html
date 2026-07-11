@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+
+    body {
+        margin: 0;
+        font: 10px/20px Ahem;
+    }
+
+    #empty {
+        padding: 0 10px;
+    }
+
+    #overlap {
+        margin-left: -20px;
+    }
+</style>
+<div><span id="empty" contenteditable></span><span id="overlap">aaaa</span></div>
+<script>
+    promiseTest(async () => {
+        await document.fonts.ready;
+        await animationFrame();
+
+        // The empty editable span's hit-test target must beat the overlapping text that
+        // paints before it, so a click can still place the caret inside it.
+        internals.click(5, 10);
+        const anchor = document.getSelection().anchorNode;
+        println(`anchor: ${anchor === document.getElementById("empty") ? "empty" : anchor.nodeName}`);
+    });
+</script>

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #text {
+        width: 120px;
+    }
+
+    #text::first-letter {
+        float: left;
+        font-size: 30px;
+    }
+</style>
+<p id="text" contenteditable>Hello there my friends</p>
+<script>
+    test(() => {
+        // The floated ::first-letter lives in its own block container; its line must not
+        // merge with the paragraph's first line when navigating by visual lines.
+        document.body.offsetWidth;
+
+        internals.sendKey(text, "Home");
+        internals.sendKey(text, "Right");
+        internals.sendKey(text, "Right");
+        internals.sendKey(text, "Right");
+
+        const probe = (key) => {
+            internals.sendKey(text, key);
+            println(`${key}: ${window.getSelection().getRangeAt(0).startOffset}`);
+        };
+        probe("End");
+        probe("Home");
+        probe("Down");
+        probe("Home");
+        probe("End");
+    });
+</script>

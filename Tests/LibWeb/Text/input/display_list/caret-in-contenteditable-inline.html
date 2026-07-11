@@ -1,0 +1,19 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #editable {
+        caret-color: rgb(255, 0, 0);
+    }
+</style>
+<body><span id="editable" contenteditable>edit me</span></body>
+<script>
+    test(() => {
+        // The editable element is an inline box whose containing block (body) is not
+        // editable itself; the caret must still paint.
+        const editable = document.getElementById("editable");
+        editable.focus();
+        document.getSelection().collapse(editable.firstChild, 3);
+        const lines = internals.dumpDisplayList().split("\n").filter(line => line.includes("color=rgb(255, 0, 0)"));
+        println(`caret rects: ${lines.length}`);
+    });
+</script>
