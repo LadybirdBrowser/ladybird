@@ -458,12 +458,12 @@ void WebContentClient::notify_presented_bitmap_ready_to_paint(u64 page_id, i32 b
     Application::the().notify_compositor_presented_bitmap_ready_to_paint(context_id, bitmap_id);
 }
 
-void WebContentClient::did_present_bitmap(u64 page_id, Gfx::IntRect rect, i32 bitmap_id)
+void WebContentClient::did_present_bitmap(u64 page_id, Gfx::IntRect rect, Gfx::IntRect damage_rect, i32 bitmap_id)
 {
     dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor IPC did_paint for page {} bitmap {} rect={}x{} at {},{}",
         page_id, bitmap_id, rect.width(), rect.height(), rect.x(), rect.y());
     if (auto view = view_for_page_id(page_id); view.has_value()) {
-        view->server_did_paint({}, bitmap_id, rect.size());
+        view->server_did_paint({}, bitmap_id, rect.size(), damage_rect);
     } else {
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI dropping did_paint for page {} bitmap {}: no view",
             page_id, bitmap_id);

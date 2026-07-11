@@ -103,7 +103,7 @@ public:
     void dispatch_mouse_event_to_web_content(u64 page_id, Web::MouseEvent const&);
     void notify_presented_bitmap_ready_to_paint(u64 page_id, i32 bitmap_id);
     void did_present_backing_stores(u64 page_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores);
-    void did_present_bitmap(u64 page_id, Gfx::IntRect, i32 bitmap_id);
+    void did_present_bitmap(u64 page_id, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id);
 
     pid_t pid() const { return m_process_handle.pid; }
     void set_pid(pid_t pid) { m_process_handle.pid = pid; }

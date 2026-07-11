@@ -37,13 +37,13 @@ void CompositorClient::did_allocate_backing_stores(Web::Compositor::CompositorCo
     web_content_client->did_present_backing_stores(*page_id, move(bitmap_ids), move(backing_stores));
 }
 
-void CompositorClient::did_present_frame(Web::Compositor::CompositorContextId context_id, Gfx::IntRect content_rect, i32 bitmap_id)
+void CompositorClient::did_present_frame(Web::Compositor::CompositorContextId context_id, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id)
 {
     auto web_content_client = WebContentClient::client_for_compositor_context_id(context_id);
     if (web_content_client.has_value()) {
         auto page_id = web_content_client->page_id_for_compositor_context_id(context_id);
         VERIFY(page_id.has_value());
-        web_content_client->did_present_bitmap(*page_id, content_rect, bitmap_id);
+        web_content_client->did_present_bitmap(*page_id, content_rect, damage_rect, bitmap_id);
         return;
     }
 

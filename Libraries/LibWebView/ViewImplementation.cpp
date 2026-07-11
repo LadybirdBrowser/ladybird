@@ -204,7 +204,7 @@ void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL c
     dump_session_history("after-process-swap-load"sv);
 }
 
-void ViewImplementation::server_did_paint(Badge<WebContentClient>, i32 bitmap_id, Gfx::IntSize size)
+void ViewImplementation::server_did_paint(Badge<WebContentClient>, i32 bitmap_id, Gfx::IntSize size, Gfx::IntRect damage_rect)
 {
     bool did_swap_bitmap = false;
     auto previous_front_bitmap_id = m_client_state.front_bitmap.id;
@@ -224,6 +224,8 @@ void ViewImplementation::server_did_paint(Badge<WebContentClient>, i32 bitmap_id
     if (!defer_backing_store_release(bitmap_to_release))
         release_backing_store(bitmap_to_release);
 
+    if (did_swap_bitmap)
+        did_accept_presented_backing_store(bitmap_id, damage_rect);
     if (did_swap_bitmap && on_ready_to_paint)
         on_ready_to_paint();
 }

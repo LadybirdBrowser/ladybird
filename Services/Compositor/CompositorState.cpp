@@ -292,7 +292,7 @@ void CompositorState::present_frame(Web::Compositor::CompositorContextId context
     if (!prepared_frame.has_value())
         return;
 
-    m_pending_async_presents.append(context_id, pending_frame.viewport_rect, prepared_frame->bitmap_id);
+    m_pending_async_presents.append(context_id, pending_frame.viewport_rect, pending_frame.damage_rect, prepared_frame->bitmap_id);
     auto* pending_present = &m_pending_async_presents.last();
 
     auto& event_loop = Core::EventLoop::current();
@@ -418,6 +418,7 @@ void CompositorState::did_finish_async_present(PendingAsyncPresent& pending_pres
 
     auto context_id = pending_present.context_id;
     auto viewport_rect = pending_present.viewport_rect;
+    auto damage_rect = pending_present.damage_rect;
     auto bitmap_id = pending_present.bitmap_id;
     auto was_cancelled = pending_present.was_cancelled;
     (void)m_pending_async_presents.remove(pending_present_iterator);
@@ -433,7 +434,7 @@ void CompositorState::did_finish_async_present(PendingAsyncPresent& pending_pres
     context->did_finish_gpu_present(bitmap_id);
     if (context->presents_to_client()) {
         VERIFY(m_client);
-        m_client->did_present_frame(context_id, viewport_rect, bitmap_id);
+        m_client->did_present_frame(context_id, viewport_rect, damage_rect, bitmap_id);
     }
     resize_backing_stores_if_needed(context_id, *context);
     if (auto parent_context_id = context->parent_context_id(); parent_context_id.has_value()) {

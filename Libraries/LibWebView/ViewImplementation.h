@@ -89,7 +89,7 @@ public:
 
     void create_new_process_for_cross_site_navigation(URL::URL const&, Variant<Empty, String, Web::HTML::POSTResource>, Web::Bindings::NavigationHistoryBehavior);
 
-    void server_did_paint(Badge<WebContentClient>, i32 bitmap_id, Gfx::IntSize size);
+    void server_did_paint(Badge<WebContentClient>, i32 bitmap_id, Gfx::IntSize size, Gfx::IntRect damage_rect);
 
     void set_window_position(Gfx::IntPoint);
     void set_window_size(Gfx::IntSize);
@@ -404,6 +404,7 @@ public:
 
 protected:
     virtual bool defer_backing_store_release(i32) { return false; }
+    virtual void did_accept_presented_backing_store(i32, Gfx::IntRect) { }
     void release_backing_store(i32 bitmap_id);
 
     static constexpr auto ZOOM_MIN_LEVEL = 0.3;

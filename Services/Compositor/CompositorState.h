@@ -45,7 +45,7 @@ public:
     virtual ~CompositorStateClient() = default;
 
     virtual void did_allocate_backing_stores(Web::Compositor::CompositorContextId, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage>&& backing_stores) = 0;
-    virtual void did_present_frame(Web::Compositor::CompositorContextId, Gfx::IntRect content_rect, i32 bitmap_id) = 0;
+    virtual void did_present_frame(Web::Compositor::CompositorContextId, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id) = 0;
 };
 
 class CompositorStateWebContentClient {
@@ -103,15 +103,17 @@ private:
     CompositorState(RefPtr<Gfx::SkiaBackendContext>, bool async_scrolling_enabled);
 
     struct PendingAsyncPresent {
-        PendingAsyncPresent(Web::Compositor::CompositorContextId context_id, Gfx::IntRect viewport_rect, i32 bitmap_id)
+        PendingAsyncPresent(Web::Compositor::CompositorContextId context_id, Gfx::IntRect viewport_rect, Gfx::IntRect damage_rect, i32 bitmap_id)
             : context_id(context_id)
             , viewport_rect(viewport_rect)
+            , damage_rect(damage_rect)
             , bitmap_id(bitmap_id)
         {
         }
 
         Web::Compositor::CompositorContextId context_id;
         Gfx::IntRect viewport_rect;
+        Gfx::IntRect damage_rect;
         i32 bitmap_id { 0 };
         bool was_cancelled { false };
     };
