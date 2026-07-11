@@ -808,6 +808,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_dialog_pointerdown_target);
     visitor.visit(m_console_client);
     visitor.visit(m_cursor_blink_timer);
+    visitor.visit(m_previously_repainted_cursor_position);
     visitor.visit(m_editing_host_manager);
     visitor.visit(m_local_storage_holder);
     visitor.visit(m_session_storage_holder);
@@ -8122,18 +8123,25 @@ void Document::reset_cursor_blink_cycle()
 
 void Document::set_cursor_position_needs_repaint()
 {
+    auto repaint_position = [](DOM::Position& position) {
+        auto node = position.node();
+        if (auto* text = as_if<DOM::Text>(*node)) {
+            if (auto* layout_text_node = as_if<Layout::TextNode>(text->unsafe_layout_node()))
+                layout_text_node->set_needs_repaint();
+            return;
+        }
+        node->set_needs_repaint();
+    };
+
     auto position = cursor_position();
-    if (!position)
-        return;
 
-    auto node = position->node();
-    if (auto* text = as_if<DOM::Text>(*node)) {
-        if (auto* layout_text_node = as_if<Layout::TextNode>(text->unsafe_layout_node()))
-            layout_text_node->set_needs_repaint();
-        return;
-    }
+    // NB: Also repaint the node the cursor moved away from, so the old caret disappears.
+    if (m_previously_repainted_cursor_position && (!position || m_previously_repainted_cursor_position->node() != position->node()))
+        repaint_position(*m_previously_repainted_cursor_position);
+    m_previously_repainted_cursor_position = position;
 
-    node->set_needs_repaint();
+    if (position)
+        repaint_position(*position);
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#doc-container-document

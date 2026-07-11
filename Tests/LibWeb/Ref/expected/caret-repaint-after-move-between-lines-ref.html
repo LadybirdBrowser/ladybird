@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<style>
+    p {
+        margin: 0;
+        font: 30px/1 monospace;
+    }
+</style>
+<div contenteditable="true"><p><span id="a">aaaa</span></p><p><span id="b">bbbb</span></p></div>
+<script>
+    const second = document.getElementById("b").firstChild;
+    document.querySelector("div").focus();
+    getSelection().setBaseAndExtent(second, 2, second, 2);
+</script>

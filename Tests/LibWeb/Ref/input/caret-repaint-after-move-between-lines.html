@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/caret-repaint-after-move-between-lines-ref.html">
+<style>
+    p {
+        margin: 0;
+        font: 30px/1 monospace;
+    }
+</style>
+<div contenteditable="true"><p><span id="a">aaaa</span></p><p><span id="b">bbbb</span></p></div>
+<script>
+    const first = document.getElementById("a").firstChild;
+    const second = document.getElementById("b").firstChild;
+    document.querySelector("div").focus();
+    getSelection().setBaseAndExtent(first, 2, first, 2);
+
+    // Two nested requestAnimationFrame() calls to force code execution _after_ initial paint,
+    // so that moving the caret to another line must repaint the line it moved away from.
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            getSelection().setBaseAndExtent(second, 2, second, 2);
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

@@ -1620,6 +1620,10 @@ private:
     GC::Ptr<GC::Timer> m_cursor_blink_timer;
     bool m_cursor_blink_state { false };
 
+    // The cursor position most recently invalidated for caret painting, so that moving the caret to another node
+    // also repaints the node it moved away from.
+    GC::Ptr<DOM::Position> m_previously_repainted_cursor_position;
+
     // NOTE: This is GC::Weak, not GC::Ptr, on purpose. We don't want the document to keep some old detached navigable alive.
     GC::Weak<HTML::LocalNavigable> m_navigable;
 
