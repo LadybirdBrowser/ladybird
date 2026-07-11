@@ -3316,6 +3316,17 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
     // NOTE: pending_document corresponds to historyEntry's document — it is the document produced by
     //       populate_session_history_entry_document, threaded here explicitly instead of being stored on the entry.
     if (!pending_document) {
+        // AD-HOC: Notify the UI that this navigation will never produce a document (e.g. an unhandled non-fetch
+        //         scheme like mailto:), so that it does not consider the page to be loading forever.
+        if (navigable->is_top_level_traversable())
+            navigable->active_browsing_context()->page().client().page_did_cancel_loading(expected_ongoing_navigation_id, history_entry->url());
+
+        // AD-HOC: Clear the ongoing navigation, like the "navigation must be a replace" and download cases do.
+        //         No history step will be applied for this navigation, so nothing else clears it, and a stale
+        //         ongoing navigation ID makes later same-document traversals consider themselves superseded.
+        if (expected_ongoing_navigation_id.has_value() && navigable->ongoing_navigation() == expected_ongoing_navigation_id)
+            navigable->set_ongoing_navigation({});
+
         on_complete->function()(HistoryStepResult::Applied);
         return;
     }
