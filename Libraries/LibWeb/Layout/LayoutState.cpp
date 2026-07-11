@@ -27,8 +27,9 @@
 
 namespace Web::Layout {
 
-LayoutState::LayoutState(NodeWithStyle const& subtree_root)
+LayoutState::LayoutState(NodeWithStyle const& subtree_root, Purpose purpose)
     : m_subtree_root(&subtree_root)
+    , m_purpose(purpose)
 {
 }
 

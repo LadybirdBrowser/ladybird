@@ -387,9 +387,16 @@ struct LayoutState {
         OwnPtr<RareData> m_rare;
     };
 
+    enum class Purpose : u8 {
+        Commit,      // Results will be committed (full layout, or a partial relayout of a subtree).
+        Measurement, // Throwaway state; only scalar measurements are read back, nothing is committed.
+    };
+
     LayoutState() = default;
-    explicit LayoutState(NodeWithStyle const& subtree_root);
+    LayoutState(NodeWithStyle const& subtree_root, Purpose);
     ~LayoutState();
+
+    bool is_for_measurement() const { return m_purpose == Purpose::Measurement; }
 
     // Commits the used values produced by layout and builds a paintable tree.
     void commit(Box& root);
@@ -432,6 +439,7 @@ private:
 
     PagedStore<UsedValues> m_used_values_store;
     Layout::NodeWithStyle const* m_subtree_root { nullptr };
+    Purpose m_purpose { Purpose::Commit };
     bool m_should_collect_devtools_layout_data { false };
     HashMap<Box const*, Vector<ContainedAbsposChild>> m_contained_abspos_children;
 };

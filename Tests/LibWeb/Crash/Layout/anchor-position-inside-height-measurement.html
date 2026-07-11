@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<!-- The outer box has auto height and a min-height, so laying it out first measures its
+     automatic content height in a throwaway LayoutState. Abspos children used to be laid
+     out inside that measurement, and resolving the anchor() inset walked the containing
+     block chain past the measurement root, reading state for boxes that don't exist in
+     the throwaway state. -->
+<div style="overflow: hidden; min-height: 10px; position: relative;">
+    <div style="anchor-name: --a; width: 20px; height: 20px;"></div>
+    <div style="position: absolute; left: anchor(--a right); top: 0;">abs</div>
+</div>
+<script>
+    document.body.offsetHeight;
+</script>

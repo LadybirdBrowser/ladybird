@@ -691,7 +691,7 @@ CSSPixels FormattingContext::compute_auto_height_for_block_formatting_context_ro
 
 CSSPixels FormattingContext::measure_automatic_content_height(Box const& box, AvailableSpace const& inner_available_space, ContainingBlockConstraints const& containing_block_constraints)
 {
-    LayoutState throwaway_state(box);
+    LayoutState throwaway_state(box, LayoutState::Purpose::Measurement);
     throwaway_state.create(box, containing_block_constraints.percentage_basis_width, containing_block_constraints.percentage_basis_height);
     auto measuring_context = create_independent_formatting_context_if_needed(throwaway_state, m_layout_mode, box);
     measuring_context->run(LayoutInput { inner_available_space, containing_block_constraints });
@@ -775,7 +775,7 @@ CSSPixels FormattingContext::compute_table_box_width_inside_table_wrapper(
     });
     VERIFY(table_box.has_value());
 
-    LayoutState throwaway_state(box);
+    LayoutState throwaway_state(box, LayoutState::Purpose::Measurement);
 
     // The table wrapper is invisible to percentage resolution, so the table box gets the
     // wrapper's constraints unchanged. Callers measuring a table wrapper for grid alignment
@@ -820,7 +820,7 @@ CSSPixels FormattingContext::compute_table_box_height_inside_table_wrapper(Box c
     // table-wrapper can't have borders or paddings but it might have margin taken from table-root.
     auto available_height = height_of_containing_block - margin_top - margin_bottom;
 
-    LayoutState throwaway_state(box);
+    LayoutState throwaway_state(box, LayoutState::Purpose::Measurement);
     throwaway_state.create(box, table_wrapper_constraints.percentage_basis_width, table_wrapper_constraints.percentage_basis_height);
 
     auto context = create_independent_formatting_context_if_needed(throwaway_state, LayoutMode::IntrinsicSizing, box);
@@ -2198,6 +2198,8 @@ void FormattingContext::layout_absolutely_positioned_children(Box const& box)
 {
     if (m_layout_mode != LayoutMode::Normal)
         return;
+    if (m_state.is_for_measurement())
+        return;
     // Laying out one child can register further children onto this box (a fixed position
     // box inside an absolutely positioned one shares its viewport containing block), so
     // take one at a time instead of iterating a snapshot.
@@ -2594,7 +2596,7 @@ CSSPixels FormattingContext::calculate_min_content_width(Layout::Box const& box,
     if (cache.has_value())
         return cache.value();
 
-    LayoutState throwaway_state(box);
+    LayoutState throwaway_state(box, LayoutState::Purpose::Measurement);
 
     auto& box_state = throwaway_state.create(box, containing_block_constraints.percentage_basis_width, containing_block_constraints.percentage_basis_height);
     box_state.width_constraint = SizeConstraint::MinContent;
@@ -2682,7 +2684,7 @@ CSSPixels FormattingContext::calculate_max_content_width(Layout::Box const& box,
     if (cache.has_value())
         return cache.value();
 
-    LayoutState throwaway_state(box);
+    LayoutState throwaway_state(box, LayoutState::Purpose::Measurement);
 
     auto const& actual_box_state = m_state.get(box);
 
@@ -2732,7 +2734,7 @@ CSSPixels FormattingContext::calculate_min_content_height(Layout::Box const& box
     if (cache.has_value())
         return cache.value();
 
-    LayoutState throwaway_state(box);
+    LayoutState throwaway_state(box, LayoutState::Purpose::Measurement);
 
     auto& box_state = throwaway_state.create(box, containing_block_constraints.percentage_basis_width, containing_block_constraints.percentage_basis_height);
     box_state.height_constraint = SizeConstraint::MinContent;
@@ -2767,7 +2769,7 @@ CSSPixels FormattingContext::calculate_max_content_height(Layout::Box const& box
     if (cache_slot.has_value())
         return cache_slot.value();
 
-    LayoutState throwaway_state(box);
+    LayoutState throwaway_state(box, LayoutState::Purpose::Measurement);
 
     auto& box_state = throwaway_state.create(box, containing_block_constraints.percentage_basis_width, containing_block_constraints.percentage_basis_height);
     box_state.height_constraint = SizeConstraint::MaxContent;

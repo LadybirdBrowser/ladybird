@@ -1680,7 +1680,7 @@ void Document::set_needs_container_query_evaluation_after_layout(Element const& 
 
 static void relayout_svg_root(Layout::SVGSVGBox& svg_root)
 {
-    Layout::LayoutState layout_state(svg_root);
+    Layout::LayoutState layout_state(svg_root, Layout::LayoutState::Purpose::Commit);
 
     // Pre-populate the svg_root itself.
     if (auto paintable = svg_root.paintable_box())
