@@ -85,6 +85,7 @@ private:
     bool should_ignore_device_input_event() const;
 
     EventResult fire_keyboard_event(FlyString const& event_name, HTML::LocalNavigable&, UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat);
+    [[nodiscard]] EventResult fire_text_input_event(HTML::LocalNavigable&, String const& data);
     [[nodiscard]] EventResult input_event(FlyString const& event_name, FlyString const& input_type, HTML::LocalNavigable&, Variant<u32, Utf16String> code_point_or_string);
 
     EventResult focus_next_element();

@@ -59,6 +59,7 @@
 #include <LibWeb/UIEvents/MouseButton.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
 #include <LibWeb/UIEvents/PointerEvent.h>
+#include <LibWeb/UIEvents/TextEvent.h>
 #include <LibWeb/UIEvents/WheelEvent.h>
 
 #include <SDL3/SDL_events.h>
@@ -1199,6 +1200,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
             }
 
             FIRE(input_event(UIEvents::EventNames::beforeinput, input_type, m_navigable, code_point));
+            FIRE(fire_text_input_event(m_navigable, "\n"_string));
             if (target->handle_return_key(input_type) != EventResult::Handled)
                 target->handle_insert(input_type, Utf16String::from_code_point(code_point));
 
@@ -1208,6 +1210,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         // FIXME: Text editing shortcut keys (copy/paste etc.) should be handled here.
         if (!should_ignore_keydown_event(code_point, modifiers, should_insert_text)) {
             FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::insertText, m_navigable, code_point));
+            FIRE(fire_text_input_event(m_navigable, String::from_code_point(code_point)));
             target->handle_insert(UIEvents::InputTypes::insertText, Utf16String::from_code_point(code_point));
             return EventResult::Handled;
         }
@@ -1538,6 +1541,35 @@ EventResult EventHandler::fire_keyboard_event(FlyString const& event_name, HTML:
 
     GC::Ptr target = document->body() ?: &document->root();
     return target->dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
+}
+
+// https://w3c.github.io/uievents/#event-type-textInput
+// AD-HOC: The legacy textInput event is deprecated, but all major browsers still fire it between beforeinput and the
+//         actual text insertion, and cancelling it prevents the insertion. React sources its onBeforeInput synthetic
+//         event from textInput whenever the TextEvent interface is exposed, so controlled editors depend on it.
+EventResult EventHandler::fire_text_input_event(HTML::LocalNavigable& navigable, String const& data)
+{
+    auto document = navigable.active_document();
+    if (!document)
+        return EventResult::Dropped;
+    if (!document->is_fully_active())
+        return EventResult::Dropped;
+
+    if (auto focused_area = document->focused_area()) {
+        if (is<HTML::NavigableContainer>(*focused_area)) {
+            auto& navigable_container = as<HTML::NavigableContainer>(*focused_area);
+            if (navigable_container.content_navigable())
+                return fire_text_input_event(as<HTML::LocalNavigable>(*navigable_container.content_navigable()), data);
+        }
+
+        auto event = UIEvents::TextEvent::create(document->realm(), UIEvents::EventNames::textInput);
+        event->init_text_event(UIEvents::EventNames::textInput.to_string(), true, true, navigable.active_window_proxy(), data);
+        event->set_composed(true);
+        event->set_is_trusted(true);
+        return focused_area->dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
+    }
+
+    return EventResult::Accepted;
 }
 
 EventResult EventHandler::input_event(FlyString const& event_name, FlyString const& input_type, HTML::LocalNavigable& navigable, Variant<u32, Utf16String> code_point_or_string)
