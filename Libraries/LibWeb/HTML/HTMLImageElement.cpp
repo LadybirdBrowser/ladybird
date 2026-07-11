@@ -182,11 +182,7 @@ void HTMLImageElement::adopted_from(DOM::Document& old_document)
     old_document.unregister_viewport_client(*this);
     document().register_viewport_client(*this);
 
-    m_document_observer->set_document(document());
-    if (!old_document.is_fully_active() && document().is_fully_active()) {
-        if (auto callback = m_document_observer->document_became_active())
-            callback->function()();
-    }
+    m_document_observer->retarget_for_adoption(document());
 
     if (m_load_event_delayer.has_value())
         m_load_event_delayer.emplace(document());

@@ -74,7 +74,7 @@ void SVGUseElement::adopted_from(DOM::Document& old_document)
     if (m_load_event_delayer.has_value())
         m_load_event_delayer.emplace(document());
 
-    m_document_observer->set_document(document());
+    m_document_observer->retarget_for_adoption(document());
 
     auto href = href_value();
     if (!href.has_value())
