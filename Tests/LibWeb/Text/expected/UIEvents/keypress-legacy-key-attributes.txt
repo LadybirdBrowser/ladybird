@@ -1,5 +1,5 @@
 keydown key=h keyCode=72 charCode=0 which=72
-keypress key=h keyCode=72 charCode=104 which=72
+keypress key=h keyCode=104 charCode=104 which=104
 keydown key=H keyCode=72 charCode=0 which=72
 keypress key=H keyCode=72 charCode=72 which=72
 keydown key=1 keyCode=49 charCode=0 which=49

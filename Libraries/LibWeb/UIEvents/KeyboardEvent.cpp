@@ -705,6 +705,13 @@ GC::Ref<KeyboardEvent> KeyboardEvent::create_from_platform_event(JS::Realm& real
     auto key_code = determine_key_code(platform_key, code_point);
     auto char_code = determine_char_code(event_name, code_point);
 
+    // https://w3c.github.io/uievents/#determine-keypress-keycode
+    // For keypress events that produce a character, all major browsers set keyCode (and therefore which) to the
+    // character code rather than the virtual key code. React synthesizes its onBeforeInput text from
+    // String.fromCharCode(event.which) on keypress, so controlled editors break without this.
+    if (event_name == UIEvents::EventNames::keypress && char_code != 0)
+        key_code = char_code;
+
     Bindings::KeyboardEventInit event_init {};
     event_init.key = move(event_key);
     event_init.code = move(event_code);
