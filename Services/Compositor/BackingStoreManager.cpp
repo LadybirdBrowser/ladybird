@@ -129,6 +129,7 @@ Optional<BackingStoreManager::Publication> BackingStoreManager::allocate_backing
                 .surface = move(store.surface),
                 .bitmap_id = allocation.bitmap_ids[i],
                 .state = initial_buffer_state(i),
+                .accumulated_damage = { {}, allocation.size },
             });
             shared_images.append(move(store.shared_image));
         }
@@ -155,6 +156,7 @@ Optional<BackingStoreManager::Publication> BackingStoreManager::allocate_backing
             .surface = create_shareable_bitmap_backing_store(allocation.size, buffer, skia_backend_context),
             .bitmap_id = allocation.bitmap_ids[i],
             .state = initial_buffer_state(i),
+            .accumulated_damage = { {}, allocation.size },
         });
     }
 
@@ -177,9 +179,12 @@ bool BackingStoreManager::has_available_buffer() const
     return any_of(m_backing_stores, [](auto const& store) { return store.state == BufferState::Available; });
 }
 
-Optional<BackingStoreManager::RenderTarget> BackingStoreManager::acquire_render_target()
+Optional<BackingStoreManager::RenderTarget> BackingStoreManager::acquire_render_target(Gfx::IntRect frame_damage)
 {
     VERIFY(!m_rendering_store_index.has_value());
+    for (auto& store : m_backing_stores)
+        store.accumulated_damage.unite(frame_damage);
+
     for (size_t i = 0; i < m_backing_stores.size(); ++i) {
         auto& store = m_backing_stores[i];
         if (store.state != BufferState::Available)
@@ -187,7 +192,9 @@ Optional<BackingStoreManager::RenderTarget> BackingStoreManager::acquire_render_
 
         store.state = BufferState::Rendering;
         m_rendering_store_index = i;
-        return RenderTarget { *store.surface, store.bitmap_id };
+        auto damage_rect = store.accumulated_damage;
+        store.accumulated_damage = {};
+        return RenderTarget { *store.surface, store.bitmap_id, damage_rect };
     }
     return {};
 }

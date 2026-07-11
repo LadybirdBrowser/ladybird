@@ -215,10 +215,10 @@ void ConnectionFromWebContent::viewport_size_updated(Web::Compositor::Compositor
     m_compositor_state->viewport_size_updated(context_id, viewport_size, window_resize_in_progress);
 }
 
-void ConnectionFromWebContent::present_frame(Web::Compositor::CompositorContextId context_id, Gfx::IntRect viewport_rect)
+void ConnectionFromWebContent::present_frame(Web::Compositor::CompositorContextId context_id, Gfx::IntRect viewport_rect, Gfx::IntRect damage_rect)
 {
     verify_context_is_owned_by_this_connection(context_id);
-    m_compositor_state->present_frame(context_id, viewport_rect);
+    m_compositor_state->present_frame(context_id, viewport_rect, damage_rect);
 }
 
 void ConnectionFromWebContent::request_screenshot(Web::Compositor::CompositorContextId context_id, Web::Compositor::ScreenshotRequestId request_id, Gfx::ShareableBitmap target_bitmap)

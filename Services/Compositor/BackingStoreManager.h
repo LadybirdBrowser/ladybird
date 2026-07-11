@@ -34,6 +34,7 @@ public:
     struct RenderTarget {
         Gfx::PaintingSurface& surface;
         i32 bitmap_id { -1 };
+        Gfx::IntRect damage_rect;
     };
 
     BackingStoreManager() = default;
@@ -44,7 +45,7 @@ public:
 
     bool is_valid() const;
     bool has_available_buffer() const;
-    Optional<RenderTarget> acquire_render_target();
+    Optional<RenderTarget> acquire_render_target(Gfx::IntRect frame_damage);
     void complete_rendering(i32 bitmap_id, bool release_to_external);
     bool release_buffer(i32 bitmap_id);
     RefPtr<Gfx::PaintingSurface> latest_rendered_surface() const;
@@ -60,6 +61,7 @@ private:
         RefPtr<Gfx::PaintingSurface> surface;
         i32 bitmap_id { -1 };
         BufferState state { BufferState::Available };
+        Gfx::IntRect accumulated_damage;
     };
 
     int m_next_bitmap_id { 0 };

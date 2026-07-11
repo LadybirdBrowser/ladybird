@@ -183,11 +183,11 @@ void CompositorConnection::viewport_size_updated(Web::Compositor::CompositorCont
     async_viewport_size_updated(context_id, viewport_size, window_resize_in_progress);
 }
 
-void CompositorConnection::present_frame(Web::Compositor::CompositorContextId context_id, Gfx::IntRect viewport_rect)
+void CompositorConnection::present_frame(Web::Compositor::CompositorContextId context_id, Gfx::IntRect viewport_rect, Gfx::IntRect damage_rect)
 {
     if (!can_send_message_to_compositor())
         return;
-    async_present_frame(context_id, viewport_rect);
+    async_present_frame(context_id, viewport_rect, damage_rect);
 }
 
 Optional<Web::Painting::CanvasId> CompositorConnection::create_webgl_context(Web::WebGL::WebGLVersion webgl_version, Gfx::IntSize size, bool depth, bool stencil, bool antialias, Vector<String>& out_supported_extensions)

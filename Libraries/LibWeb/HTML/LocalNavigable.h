@@ -37,7 +37,9 @@
 #include <LibWeb/HTML/WindowType.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Page/EventHandler.h>
+#include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
+#include <LibWeb/Painting/ScrollState.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/XHR/FormDataEntry.h>
 
@@ -256,7 +258,7 @@ public:
     bool has_pending_navigations() const { return !m_pending_navigations.is_empty(); }
     void clear_pending_navigations() { m_pending_navigations.clear(); }
 
-    bool record_display_list_and_scroll_state(PaintConfig);
+    bool record_display_list_and_scroll_state(PaintConfig, Gfx::IntRect* damage_rect = nullptr);
     void paint_next_frame();
     void render_screenshot(Gfx::PaintingSurface&, PaintConfig, Function<void()>&& callback);
     Painting::DisplayListResourceStorage& display_list_resource_storage() { return m_display_list_resource_storage; }
@@ -387,6 +389,9 @@ private:
     bool m_should_show_caret_hit_test_debug_overlay { false };
     Optional<PaintConfig> m_compositor_display_list_paint_config;
     u64 m_compositor_display_list_visual_context_tree_version { 0 };
+    RefPtr<Painting::DisplayList> m_compositor_display_list;
+    Optional<Painting::AccumulatedVisualContextTree> m_compositor_visual_context_tree;
+    Optional<Painting::ScrollStateSnapshot> m_compositor_scroll_state_snapshot;
     Painting::DisplayListResourceStorage m_display_list_resource_storage;
     Painting::DisplayListResourceSet m_compositor_display_list_resources;
     OwnPtr<Compositor::CompositorContextHandle> m_compositor_context;

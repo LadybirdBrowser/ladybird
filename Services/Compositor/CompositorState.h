@@ -95,7 +95,7 @@ public:
     Web::Compositor::PendingAsyncScrollUpdates take_pending_async_scroll_updates(Web::Compositor::CompositorContextId);
     void viewport_size_updated(Web::Compositor::CompositorContextId, Gfx::IntSize, Web::Compositor::WindowResizingInProgress);
     void set_display_metadata(Web::Compositor::CompositorContextId, Optional<u64> display_id, double refresh_rate);
-    void present_frame(Web::Compositor::CompositorContextId, Gfx::IntRect);
+    void present_frame(Web::Compositor::CompositorContextId, Gfx::IntRect viewport_rect, Gfx::IntRect damage_rect);
     bool request_screenshot(Web::Compositor::CompositorContextId, Gfx::ShareableBitmap&);
     void presented_bitmap_ready_to_paint(Web::Compositor::CompositorContextId, i32 bitmap_id);
 
@@ -129,8 +129,9 @@ private:
         Web::Compositor::CompositorContextId,
         ContextState&,
         ContextState::ContextUpdateResult const&);
-    void present_frame(Web::Compositor::CompositorContextId, ContextState&, Gfx::IntRect);
-    void schedule_present_frame(Web::Compositor::CompositorContextId, ContextState&, Gfx::IntRect);
+    void present_frame(Web::Compositor::CompositorContextId, ContextState&, ContextState::PendingFrame);
+    void schedule_present_frame(Web::Compositor::CompositorContextId, ContextState&, ContextState::PendingFrame);
+    void schedule_present_frame(Web::Compositor::CompositorContextId, ContextState&, Gfx::IntRect viewport_rect);
     void schedule_pending_present_frame(Web::Compositor::CompositorContextId, ContextState&);
     void schedule_pending_present_frame_on_vsync(Web::Compositor::CompositorContextId, ContextState&);
     void schedule_containing_context_present(ContextState&);

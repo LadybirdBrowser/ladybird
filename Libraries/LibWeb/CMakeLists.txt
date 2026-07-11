@@ -885,6 +885,7 @@ set(SOURCES
     Painting/CheckBoxPaintable.cpp
     Painting/DisplayList.cpp
     Painting/DisplayListCommand.cpp
+    Painting/DisplayListDamage.cpp
     Painting/DisplayListPlayerSkia.cpp
     Painting/DisplayListRecorder.cpp
     Painting/DisplayListRecordingContext.cpp

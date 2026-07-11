@@ -81,10 +81,10 @@ void CompositorContextHandle::viewport_size_updated(Gfx::IntSize viewport_size, 
     m_host.viewport_size_updated(m_context_id, viewport_size, window_resize_in_progress);
 }
 
-void CompositorContextHandle::present_frame(Gfx::IntRect viewport_rect)
+void CompositorContextHandle::present_frame(Gfx::IntRect viewport_rect, Gfx::IntRect damage_rect)
 {
     m_host.flush_canvas_2d_stream();
-    m_host.present_frame(m_context_id, viewport_rect);
+    m_host.present_frame(m_context_id, viewport_rect, damage_rect);
 }
 
 void CompositorContextHandle::request_screenshot(NonnullRefPtr<Gfx::PaintingSurface> target_surface, Function<void()>&& callback)

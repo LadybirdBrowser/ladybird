@@ -10,11 +10,10 @@
 #include <Compositor/ContextState.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/Color.h>
-#include <LibGfx/PainterSkia.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
+#include <core/SkCanvas.h>
 
 namespace Compositor {
 
@@ -501,6 +500,8 @@ void ContextState::finish_window_resize()
 
 Optional<BackingStoreManager::Publication> ContextState::resize_backing_stores_if_needed(RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
 {
+    if (m_gpu_present_bitmap_id_awaiting_completion.has_value())
+        return {};
     auto allocation = m_backing_store_manager.resize_backing_stores_if_needed(m_viewport_size, m_window_resize_in_progress);
     if (!allocation.has_value())
         return {};
@@ -514,9 +515,22 @@ bool ContextState::set_display_metadata(Optional<u64> display_id, double refresh
     return m_pending_present_frame_scheduled;
 }
 
-void ContextState::queue_present_frame(Gfx::IntRect viewport_rect)
+void ContextState::queue_present_frame(PendingFrame pending_frame)
 {
-    m_pending_present_frame = viewport_rect;
+    if (!m_pending_present_frame.has_value()) {
+        m_pending_present_frame = pending_frame;
+        return;
+    }
+
+    if (m_pending_present_frame->viewport_rect != pending_frame.viewport_rect) {
+        m_pending_present_frame = PendingFrame {
+            .viewport_rect = pending_frame.viewport_rect,
+            .damage_rect = { {}, pending_frame.viewport_rect.size() },
+        };
+        return;
+    }
+
+    m_pending_present_frame->damage_rect.unite(pending_frame.damage_rect);
 }
 
 void ContextState::mark_pending_present_frame_scheduled()
@@ -540,7 +554,7 @@ bool ContextState::can_schedule_pending_present_frame_if_unblocked() const
     return true;
 }
 
-Optional<Gfx::IntRect> ContextState::take_pending_present_frame_if_unblocked()
+Optional<ContextState::PendingFrame> ContextState::take_pending_present_frame_if_unblocked()
 {
     m_pending_present_frame_scheduled = false;
     if (is_present_blocked())
@@ -565,29 +579,25 @@ Optional<Gfx::IntRect> ContextState::current_frame_rect_to_present() const
     return m_presented_frame;
 }
 
-Optional<ContextState::PreparedFrame> ContextState::prepare_frame(Web::Painting::DisplayListPlayerSkia& display_list_player, Gfx::IntRect viewport_rect, CompositedContextResolver const* composited_context_resolver)
+Optional<ContextState::PreparedFrame> ContextState::prepare_frame(Web::Painting::DisplayListPlayerSkia& display_list_player, PendingFrame pending_frame, CompositedContextResolver const* composited_context_resolver)
 {
     if (is_present_blocked()) {
-        m_pending_present_frame = viewport_rect;
+        queue_present_frame(pending_frame);
         return {};
     }
 
     if (!can_render_frame()) {
-        m_presented_frame = viewport_rect;
+        m_presented_frame = pending_frame.viewport_rect;
         return {};
     }
 
-    auto render_target = m_backing_store_manager.acquire_render_target();
+    auto render_target = m_backing_store_manager.acquire_render_target(pending_frame.damage_rect);
     if (!render_target.has_value()) {
-        m_pending_present_frame = viewport_rect;
+        queue_present_frame(pending_frame);
         return {};
     }
     auto& back_store = render_target->surface;
-    if (!presents_to_client()) {
-        Gfx::PainterSkia painter { NonnullRefPtr<Gfx::PaintingSurface> { back_store } };
-        painter.clear_rect(back_store.rect().to_type<float>(), Gfx::Color::Transparent);
-    }
-    paint_current_display_list(display_list_player, back_store, composited_context_resolver);
+    paint_current_display_list(display_list_player, back_store, composited_context_resolver, render_target->damage_rect);
 
     auto rendered_bitmap_id = render_target->bitmap_id;
     m_gpu_present_bitmap_id_awaiting_completion = rendered_bitmap_id;
@@ -610,25 +620,25 @@ bool ContextState::present_synchronously(Web::Painting::DisplayListPlayerSkia& d
     if (is_present_blocked())
         return false;
 
-    auto viewport_rect = m_pending_present_frame;
-    if (!viewport_rect.has_value())
-        viewport_rect = m_presented_frame;
-    if (!viewport_rect.has_value())
+    Optional<PendingFrame> pending_frame = m_pending_present_frame;
+    if (!pending_frame.has_value() && m_presented_frame.has_value()) {
+        pending_frame = PendingFrame {
+            .viewport_rect = *m_presented_frame,
+            .damage_rect = { {}, m_presented_frame->size() },
+        };
+    }
+    if (!pending_frame.has_value())
         return false;
 
-    auto render_target = m_backing_store_manager.acquire_render_target();
+    auto render_target = m_backing_store_manager.acquire_render_target(pending_frame->damage_rect);
     if (!render_target.has_value())
         return false;
     auto& back_store = render_target->surface;
-    if (!presents_to_client()) {
-        Gfx::PainterSkia painter { NonnullRefPtr<Gfx::PaintingSurface> { back_store } };
-        painter.clear_rect(back_store.rect().to_type<float>(), Gfx::Color::Transparent);
-    }
-    paint_current_display_list(display_list_player, back_store, composited_context_resolver);
+    paint_current_display_list(display_list_player, back_store, composited_context_resolver, render_target->damage_rect);
     display_list_player.flush(back_store);
     m_backing_store_manager.complete_rendering(render_target->bitmap_id, false);
     m_latest_rendered_surface = m_backing_store_manager.latest_rendered_surface();
-    m_presented_frame = viewport_rect;
+    m_presented_frame = pending_frame->viewport_rect;
     m_pending_present_frame.clear();
     m_pending_present_frame_scheduled = false;
     return true;
@@ -824,9 +834,16 @@ Web::Painting::AccumulatedVisualContextTree const& ContextState::visual_context_
     return *m_visual_context_tree_for_compositing;
 }
 
-void ContextState::paint_current_display_list(Web::Painting::DisplayListPlayerSkia& display_list_player, Gfx::PaintingSurface& surface, CompositedContextResolver const* composited_context_resolver)
+void ContextState::paint_current_display_list(Web::Painting::DisplayListPlayerSkia& display_list_player, Gfx::PaintingSurface& surface, CompositedContextResolver const* composited_context_resolver, Optional<Gfx::IntRect> damage_rect)
 {
     VERIFY(m_display_list);
+    auto& canvas = surface.canvas();
+    auto save_count = canvas.save();
+    if (damage_rect.has_value()) {
+        canvas.clipIRect(SkIRect::MakeXYWH(damage_rect->x(), damage_rect->y(), damage_rect->width(), damage_rect->height()));
+        if (!presents_to_client())
+            canvas.clear(SK_ColorTRANSPARENT);
+    }
     display_list_player.execute(
         *m_display_list,
         visual_context_tree_for_compositing(),
@@ -836,6 +853,7 @@ void ContextState::paint_current_display_list(Web::Painting::DisplayListPlayerSk
         &m_canvas_surface_registry,
         composited_context_resolver);
     m_viewport_scrollbar_controller.paint(surface, display_list_player, m_scroll_state_snapshot);
+    canvas.restoreToCount(save_count);
 }
 
 }

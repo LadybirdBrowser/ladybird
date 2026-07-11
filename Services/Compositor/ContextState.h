@@ -74,6 +74,11 @@ public:
         i32 bitmap_id { 0 };
     };
 
+    struct PendingFrame {
+        Gfx::IntRect viewport_rect;
+        Gfx::IntRect damage_rect;
+    };
+
     ContextState(Optional<u64> page_id, CompositorStateWebContentClient&, Web::Painting::CanvasSurfaceRegistry const&, bool async_scrolling_enabled);
     ~ContextState();
 
@@ -123,14 +128,14 @@ public:
     Optional<u64> display_id() const { return m_display_id; }
     double display_refresh_rate() const { return m_display_refresh_rate; }
 
-    void queue_present_frame(Gfx::IntRect);
+    void queue_present_frame(PendingFrame);
     void mark_pending_present_frame_scheduled();
     bool has_pending_present_frame_scheduled_on(Optional<u64> display_id) const;
     bool can_schedule_pending_present_frame_if_unblocked() const;
-    Optional<Gfx::IntRect> take_pending_present_frame_if_unblocked();
+    Optional<PendingFrame> take_pending_present_frame_if_unblocked();
     bool needs_rasterization() const;
     Optional<Gfx::IntRect> current_frame_rect_to_present() const;
-    Optional<PreparedFrame> prepare_frame(Web::Painting::DisplayListPlayerSkia&, Gfx::IntRect, CompositedContextResolver const*);
+    Optional<PreparedFrame> prepare_frame(Web::Painting::DisplayListPlayerSkia&, PendingFrame, CompositedContextResolver const*);
     void did_submit_prepared_frame(Gfx::IntRect);
     bool present_synchronously(Web::Painting::DisplayListPlayerSkia&, CompositedContextResolver const*);
     bool can_paint_screenshot(Gfx::ShareableBitmap&) const;
@@ -156,7 +161,7 @@ private:
     bool is_present_blocked() const;
     bool can_render_frame() const;
     Web::Painting::AccumulatedVisualContextTree const& visual_context_tree_for_compositing() const;
-    void paint_current_display_list(Web::Painting::DisplayListPlayerSkia&, Gfx::PaintingSurface&, CompositedContextResolver const*);
+    void paint_current_display_list(Web::Painting::DisplayListPlayerSkia&, Gfx::PaintingSurface&, CompositedContextResolver const*, Optional<Gfx::IntRect> damage_rect = {});
 
     CompositorStateWebContentClient& m_web_content_client;
     Web::Painting::CanvasSurfaceRegistry const& m_canvas_surface_registry;
@@ -194,7 +199,7 @@ private:
     Optional<u64> m_display_id;
     double m_display_refresh_rate { 60.0 };
 
-    Optional<Gfx::IntRect> m_pending_present_frame;
+    Optional<PendingFrame> m_pending_present_frame;
     bool m_pending_present_frame_scheduled { false };
     Optional<Gfx::IntRect> m_presented_frame;
     Optional<i32> m_gpu_present_bitmap_id_awaiting_completion;

@@ -273,7 +273,7 @@ void CompositorState::set_display_metadata(Web::Compositor::CompositorContextId 
         schedule_pending_present_frame(context_id, *context);
 }
 
-void CompositorState::present_frame(Web::Compositor::CompositorContextId context_id, Gfx::IntRect viewport_rect)
+void CompositorState::present_frame(Web::Compositor::CompositorContextId context_id, Gfx::IntRect viewport_rect, Gfx::IntRect damage_rect)
 {
     auto* context = context_if_present(context_id);
     VERIFY(context);
@@ -281,17 +281,18 @@ void CompositorState::present_frame(Web::Compositor::CompositorContextId context
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread deferred present while async scroll is pending");
         return;
     }
-    schedule_present_frame(context_id, *context, viewport_rect);
+    damage_rect.intersect({ {}, viewport_rect.size() });
+    schedule_present_frame(context_id, *context, ContextState::PendingFrame { viewport_rect, damage_rect });
 }
 
-void CompositorState::present_frame(Web::Compositor::CompositorContextId context_id, ContextState& context, Gfx::IntRect viewport_rect)
+void CompositorState::present_frame(Web::Compositor::CompositorContextId context_id, ContextState& context, ContextState::PendingFrame pending_frame)
 {
     auto composited_context_resolver = resolver_for(context_id);
-    auto prepared_frame = context.prepare_frame(*m_display_list_player, viewport_rect, &composited_context_resolver);
+    auto prepared_frame = context.prepare_frame(*m_display_list_player, pending_frame, &composited_context_resolver);
     if (!prepared_frame.has_value())
         return;
 
-    m_pending_async_presents.append(context_id, viewport_rect, prepared_frame->bitmap_id);
+    m_pending_async_presents.append(context_id, pending_frame.viewport_rect, prepared_frame->bitmap_id);
     auto* pending_present = &m_pending_async_presents.last();
 
     auto& event_loop = Core::EventLoop::current();
@@ -301,14 +302,22 @@ void CompositorState::present_frame(Web::Compositor::CompositorContextId context
             self->did_finish_async_present(*pending_present);
         });
     });
-    context.did_submit_prepared_frame(viewport_rect);
+    context.did_submit_prepared_frame(pending_frame.viewport_rect);
     schedule_gpu_completion_check();
+}
+
+void CompositorState::schedule_present_frame(Web::Compositor::CompositorContextId context_id, ContextState& context, ContextState::PendingFrame pending_frame)
+{
+    context.queue_present_frame(pending_frame);
+    schedule_pending_present_frame(context_id, context);
 }
 
 void CompositorState::schedule_present_frame(Web::Compositor::CompositorContextId context_id, ContextState& context, Gfx::IntRect viewport_rect)
 {
-    context.queue_present_frame(viewport_rect);
-    schedule_pending_present_frame(context_id, context);
+    schedule_present_frame(context_id, context, ContextState::PendingFrame {
+                                                    .viewport_rect = viewport_rect,
+                                                    .damage_rect = { {}, viewport_rect.size() },
+                                                });
 }
 
 void CompositorState::schedule_pending_present_frame(Web::Compositor::CompositorContextId context_id, ContextState& context)
@@ -423,6 +432,7 @@ void CompositorState::did_finish_async_present(PendingAsyncPresent& pending_pres
         VERIFY(m_client);
         m_client->did_present_frame(context_id, viewport_rect, bitmap_id);
     }
+    resize_backing_stores_if_needed(context_id, *context);
     if (auto parent_context_id = context->parent_context_id(); parent_context_id.has_value()) {
         auto* parent_context = context_if_present(*parent_context_id);
         VERIFY(parent_context);
