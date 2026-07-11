@@ -25,7 +25,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
         PaintableWithLines (ListItemBox<SUMMARY>) [24,8 768x16]
           MarkerPaintable (ListItemMarkerBox(anonymous)) [8,12 8x8]
         PaintableWithLines (BlockContainer<SLOT>) [8,24 784x16]
-          PaintableWithLines (InlineNode<SPAN>) [8,24 82.3125x16]
+          InlinePaintable (InlineNode<SPAN>) [8,24 82.3125x16]
       PaintableWithLines (BlockContainer(anonymous)) [8,40 784x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

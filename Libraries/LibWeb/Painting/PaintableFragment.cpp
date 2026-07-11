@@ -13,6 +13,7 @@
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
+#include <LibWeb/Painting/InlinePaintable.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
 
@@ -38,12 +39,12 @@ static void for_each_cluster_in_glyph_run(Gfx::GlyphRun const& glyph_run, size_t
     }
 }
 
-PaintableFragment::PaintableFragment(PaintableWithLines const& paintable_with_lines, Layout::LineBoxFragment const& fragment, LineBoxData line_box_data)
+PaintableFragment::PaintableFragment(PaintableWithLines const& paintable_with_lines, Layout::LineBoxFragment const& fragment, u32 line_index)
     : m_layout_node(fragment.layout_node())
     , m_paintable_with_lines(paintable_with_lines)
     , m_offset(fragment.offset())
     , m_size(fragment.size())
-    , m_line_box_data(line_box_data)
+    , m_line_index(line_index)
     , m_start_offset(fragment.start())
     , m_length_in_code_units(fragment.length_in_code_units())
     , m_glyph_run(fragment.glyph_run())
@@ -81,6 +82,9 @@ void PaintableFragment::set_selection_state(Paintable::SelectionState state)
         if (auto* ancestor_box = ancestor.ptr())
             ancestor_box->invalidate_paint_cache();
     }
+
+    if (auto const* self_painting_ancestor = nearest_self_painting_inline_box(layout_node()))
+        self_painting_ancestor->invalidate_paint_cache();
 }
 
 CSSPixelRect const PaintableFragment::absolute_rect() const
@@ -93,7 +97,10 @@ CSSPixelRect const PaintableFragment::absolute_rect() const
 
 CSSPixelRect const PaintableFragment::absolute_line_box_rect() const
 {
-    auto rect = m_line_box_data.rect;
+    auto const& lines = paintable_with_lines().lines();
+    if (m_line_index >= lines.size())
+        return {};
+    auto rect = lines[m_line_index].rect;
     if (auto containing_block = containing_block_paintable())
         rect.translate_by(containing_block->absolute_position());
     return rect;

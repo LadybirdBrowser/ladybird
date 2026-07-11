@@ -197,8 +197,8 @@ void HitTestDisplayList::append_box(Paintable const& paintable_box, Paintable& t
 {
     Optional<size_t> caret_line_index;
     Optional<CSSPixelRect> caret_line_rect;
-    if (auto const& line_box_data = paintable_box.containing_line_box_data(); line_box_data.has_value()) {
-        caret_line_index = line_box_data->index;
+    if (auto line_box_index = paintable_box.containing_line_box_index(); line_box_index.has_value()) {
+        caret_line_index = line_box_index;
         caret_line_rect = paintable_box.absolute_containing_line_box_rect();
     }
 
@@ -271,7 +271,7 @@ void HitTestDisplayList::append_text_fragment(PaintableFragment const& fragment,
         .text_fragment = &fragment,
         .rect = fragment.absolute_rect(),
         .caret_rect = fragment.range_rect(Paintable::SelectionState::StartAndEnd, fragment.dom_start_offset_in_node(), fragment.dom_end_offset_in_node()),
-        .caret_line_index = fragment.line_box_data().index,
+        .caret_line_index = fragment.line_index(),
         .caret_line_rect = fragment.absolute_line_box_rect(),
         .block_container_margin_rect = absolute_margin_box_rect_for_containing_block(fragment),
         .visual_context_index = visual_context_index,

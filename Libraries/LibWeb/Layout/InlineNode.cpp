@@ -10,6 +10,7 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Layout/InlineFormattingContext.h>
 #include <LibWeb/Layout/InlineNode.h>
+#include <LibWeb/Painting/InlinePaintable.h>
 
 namespace Web::Layout {
 
@@ -19,5 +20,10 @@ InlineNode::InlineNode(DOM::Document& document, DOM::Element* element, CSS::Comp
 }
 
 InlineNode::~InlineNode() = default;
+
+RefPtr<Painting::Paintable> InlineNode::create_paintable() const
+{
+    return Painting::InlinePaintable::create(*this);
+}
 
 }

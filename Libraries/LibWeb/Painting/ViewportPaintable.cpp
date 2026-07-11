@@ -109,9 +109,12 @@ void ViewportPaintable::build_stacking_context_tree()
 {
     set_stacking_context(StackingContext::create(*this, nullptr, 0));
 
+    Vector<PaintableWithLines*> blocks_with_inline_box_pieces;
     size_t index_in_tree_order = 1;
     for_each_in_subtree_of_type<Paintable>([&](auto& paintable_box) {
         paintable_box.invalidate_stacking_context();
+        if (auto* paintable_with_lines = as_if<PaintableWithLines>(paintable_box); paintable_with_lines && !paintable_with_lines->inline_box_pieces().is_empty())
+            blocks_with_inline_box_pieces.append(paintable_with_lines);
         auto parent_context = paintable_box.enclosing_stacking_context();
         auto establishes_stacking_context = paintable_box.layout_node().establishes_stacking_context();
         if ((paintable_box.is_positioned() || establishes_stacking_context) && paintable_box.effective_z_index().value_or(0) == 0)
@@ -130,6 +133,9 @@ void ViewportPaintable::build_stacking_context_tree()
     });
 
     stacking_context()->sort();
+
+    for (auto* block : blocks_with_inline_box_pieces)
+        block->assign_fragment_ownership();
 }
 
 void ViewportPaintable::paint_all_phases(DisplayListRecordingContext& context)

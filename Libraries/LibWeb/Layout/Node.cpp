@@ -630,18 +630,6 @@ NodeWithStyleAndBoxModelMetrics::NodeWithStyleAndBoxModelMetrics(DOM::Document& 
 {
 }
 
-NonnullRefPtr<Painting::PaintableWithLines> NodeWithStyleAndBoxModelMetrics::create_paintable_for_line_with_index(size_t line_index) const
-{
-    for (auto const& paintable : paintables()) {
-        if (is<Painting::PaintableWithLines>(*paintable)) {
-            auto const& paintable_with_lines = static_cast<Painting::PaintableWithLines const&>(*paintable);
-            if (paintable_with_lines.line_index() == line_index)
-                return const_cast<Painting::PaintableWithLines&>(paintable_with_lines);
-        }
-    }
-    return Painting::PaintableWithLines::create(*this, line_index);
-}
-
 NodeWithStyle::ImageObserver::ImageObserver(NodeWithStyle& owner, NonnullRefPtr<CSS::ImageStyleValue const> image)
     : CSS::ImageStyleValue::Client(owner.document(), *image)
     , m_owner(owner)

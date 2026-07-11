@@ -69,7 +69,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           frag 1 from TextNode start: 0, length: 1, rect: [128,317 20x20] baseline: 16
               " "
           TextNode <#text> (not painted)
-          InlineNode <a> at [15,199] [0+0+0 157 0+0+0] [0+0+0 44 0+0+0]
+          InlineNode <a> at [8,199] [0+0+0 171 0+0+0] [0+0+0 44 0+0+0]
             frag 0 from BlockContainer start: 0, length: 0, rect: [15,199 157x44] baseline: 30
             BlockContainer <input.radios--input> at [15,199] inline-block [0+2+5 157 5+2+0] [0+2+0 44 0+2+0] [BFC] children: not-inline
               BlockContainer <(anonymous)> at [15,199] flex-container(column) [0+0+0 157 0+0+0] [0+0+0 44 0+0+0] [FFC] children: not-inline
@@ -80,7 +80,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                         "100ml Limited Edition"
                     TextNode <#text> (not painted)
           TextNode <#text> (not painted)
-          InlineNode <a> at [15,247] [0+0+0 97 0+0+0] [0+0+0 44 0+0+0]
+          InlineNode <a> at [8,247] [0+0+0 111 0+0+0] [0+0+0 44 0+0+0]
             frag 0 from BlockContainer start: 0, length: 0, rect: [15,247 97x44] baseline: 30
             BlockContainer <input.radios--input> at [15,247] inline-block [0+2+5 97 5+2+0] [0+2+0 44 0+2+0] [BFC] children: not-inline
               BlockContainer <(anonymous)> at [15,247] flex-container(column) [0+0+0 97 0+0+0] [0+0+0 44 0+0+0] [FFC] children: not-inline
@@ -91,7 +91,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                         "Coffret 30ml"
                     TextNode <#text> (not painted)
           TextNode <#text> (not painted)
-          InlineNode <a> at [146,247] [0+0+0 97 0+0+0] [0+0+0 44 0+0+0]
+          InlineNode <a> at [139,247] [0+0+0 111 0+0+0] [0+0+0 44 0+0+0]
             frag 0 from BlockContainer start: 0, length: 0, rect: [146,247 97x44] baseline: 30
             BlockContainer <input.radios--input> at [146,247] inline-block [0+2+5 97 5+2+0] [0+2+0 44 0+2+0] [BFC] children: not-inline
               BlockContainer <(anonymous)> at [146,247] flex-container(column) [0+0+0 97 0+0+0] [0+0+0 44 0+0+0] [FFC] children: not-inline
@@ -102,7 +102,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                         "Coffret 50ml"
                     TextNode <#text> (not painted)
           TextNode <#text> (not painted)
-          InlineNode <a> at [15,305] [0+0+0 106 0+0+0] [0+0+0 44 0+0+0]
+          InlineNode <a> at [8,305] [0+0+0 120 0+0+0] [0+0+0 44 0+0+0]
             frag 0 from BlockContainer start: 0, length: 0, rect: [15,305 106x44] baseline: 40
             BlockContainer <input.radios--input> at [15,305] inline-block [0+2+5 106 5+2+0] [10+2+0 44 0+2+0] [BFC] children: not-inline
               BlockContainer <(anonymous)> at [15,305] flex-container(column) [0+0+0 106 0+0+0] [0+0+0 44 0+0+0] [FFC] children: not-inline
@@ -113,7 +113,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                         "Coffret 100ml"
                     TextNode <#text> (not painted)
           TextNode <#text> (not painted)
-          InlineNode <a> at [155,305] [0+0+0 135 0+0+0] [0+0+0 44 0+0+0]
+          InlineNode <a> at [148,305] [0+0+0 149 0+0+0] [0+0+0 44 0+0+0]
             frag 0 from BlockContainer start: 0, length: 0, rect: [155,305 135x44] baseline: 40
             BlockContainer <input.radios--input> at [155,305] inline-block [0+2+5 135 5+2+0] [10+2+0 44 0+2+0] [BFC] children: not-inline
               BlockContainer <(anonymous)> at [155,305] flex-container(column) [0+0+0 135 0+0+0] [0+0+0 44 0+0+0] [FFC] children: not-inline
@@ -146,27 +146,27 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
             RadioButtonPaintable (RadioButton<INPUT>.radios--input) [164,134 14x4]
             PaintableWithLines (BlockContainer<LABEL>.radios--value-button) [178,134 116x47]
         PaintableWithLines (BlockContainer(anonymous)) [8,197 300x154]
-          PaintableWithLines (InlineNode<A>) [15,199 157x44]
+          InlinePaintable (InlineNode<A>) [8,199 171x44]
             PaintableWithLines (BlockContainer<INPUT>.radios--input) [8,197 171x48]
               PaintableWithLines (BlockContainer(anonymous)) [15,199 157x44]
                 PaintableWithLines (BlockContainer(anonymous)) [15,211 157x20]
                   PaintableWithLines (BlockContainer<SPAN>) [15,211 420x20]
-          PaintableWithLines (InlineNode<A>) [15,247 97x44]
+          InlinePaintable (InlineNode<A>) [8,247 111x44]
             PaintableWithLines (BlockContainer<INPUT>.radios--input) [8,245 111x48]
               PaintableWithLines (BlockContainer(anonymous)) [15,247 97x44]
                 PaintableWithLines (BlockContainer(anonymous)) [15,259 97x20]
                   PaintableWithLines (BlockContainer<SPAN>) [15,259 240x20]
-          PaintableWithLines (InlineNode<A>) [146,247 97x44]
+          InlinePaintable (InlineNode<A>) [139,247 111x44]
             PaintableWithLines (BlockContainer<INPUT>.radios--input) [139,245 111x48]
               PaintableWithLines (BlockContainer(anonymous)) [146,247 97x44]
                 PaintableWithLines (BlockContainer(anonymous)) [146,259 97x20]
                   PaintableWithLines (BlockContainer<SPAN>) [146,259 240x20]
-          PaintableWithLines (InlineNode<A>) [15,305 106x44]
+          InlinePaintable (InlineNode<A>) [8,305 120x44]
             PaintableWithLines (BlockContainer<INPUT>.radios--input) [8,303 120x48]
               PaintableWithLines (BlockContainer(anonymous)) [15,305 106x44]
                 PaintableWithLines (BlockContainer(anonymous)) [15,317 106x20]
                   PaintableWithLines (BlockContainer<SPAN>) [15,317 260x20]
-          PaintableWithLines (InlineNode<A>) [155,305 135x44]
+          InlinePaintable (InlineNode<A>) [148,305 149x44]
             PaintableWithLines (BlockContainer<INPUT>.radios--input) [148,303 149x48]
               PaintableWithLines (BlockContainer(anonymous)) [155,305 135x44]
                 PaintableWithLines (BlockContainer(anonymous)) [155,317 135x20]

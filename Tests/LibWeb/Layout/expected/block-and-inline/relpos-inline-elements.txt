@@ -11,7 +11,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             "bar"
         TextNode <#text> (not painted)
       TextNode <#text> (not painted)
-      InlineNode <b> at [53.796875,58] [0+0+0 27.203125 0+0+0] [0+0+0 16 0+0+0]
+      InlineNode <b> at [78.796875,33] [0+0+0 27.203125 0+0+0] [0+0+0 16 0+0+0]
         InlineNode <i> at [53.796875,58] [0+0+0 27.203125 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from TextNode start: 0, length: 3, rect: [53.796875,58 27.203125x16] baseline: 12.796875
               "baz"
@@ -21,9 +21,9 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x32]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x16]
-      PaintableWithLines (InlineNode<B>) [43.15625,33 27.640625x16]
-      PaintableWithLines (InlineNode<B>) [53.796875,58 27.203125x16]
-        PaintableWithLines (InlineNode<I>) [53.796875,58 27.203125x16]
+      InlinePaintable (InlineNode<B>) [43.15625,33 27.640625x16]
+      InlinePaintable (InlineNode<B>) [78.796875,33 27.203125x16]
+        InlinePaintable (InlineNode<I>) [53.796875,58 27.203125x16]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x32] (z-index: auto)

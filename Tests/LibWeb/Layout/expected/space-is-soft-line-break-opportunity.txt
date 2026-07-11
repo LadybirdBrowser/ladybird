@@ -19,9 +19,9 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x50]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x34]
       PaintableWithLines (BlockContainer<DIV>.fixed_width) [8,8 52x34]
-        PaintableWithLines (InlineNode<SPAN>.nowrap) [9,9 33.921875x16]
-        PaintableWithLines (InlineNode<SPAN>) [9,9 0x16]
-        PaintableWithLines (InlineNode<SPAN>.nowrap) [9,25 33.921875x16]
+        InlinePaintable (InlineNode<SPAN>.nowrap) [9,9 33.921875x16]
+        InlinePaintable (InlineNode<SPAN>) [9,9 0x16]
+        InlinePaintable (InlineNode<SPAN>.nowrap) [9,25 33.921875x16]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x50] (z-index: auto)

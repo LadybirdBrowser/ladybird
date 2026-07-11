@@ -9,13 +9,11 @@ SaveLayer@0
   CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x80]
   CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x80]
   CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[100,50 50x10]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,3 9.84375x14]
-  FillPath@1 path_bounding_rect=[0,3 10x14]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[98,48 4x4]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[-2,63 9.921875x14]
-  FillPath@1 path_bounding_rect=[-2,63 10x14]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,3 102x74]
+  FillPath@1 path_bounding_rect=[0,3 8x14]
+  FillPath@1 path_bounding_rect=[0,63 8x14]
   DrawGlyphRun@1 rect=[2,5 6x10] translation=[2,13] color=rgb(0, 0, 0)
-  DrawGlyphRun@1 rect=[100,55 7x10] translation=[100,63] color=rgb(0, 0, 0)
   DrawGlyphRun@1 rect=[0,65 6x10] translation=[0,73] color=rgb(0, 0, 0)
+  DrawGlyphRun@1 rect=[100,55 7x10] translation=[100,63] color=rgb(0, 0, 0)
 Restore@0
 

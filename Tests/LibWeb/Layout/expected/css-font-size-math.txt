@@ -26,11 +26,11 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x88]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x72]
-      PaintableWithLines (InlineNode<SPAN>) [8,24 78.9375x51]
-        PaintableWithLines (InlineNode<SPAN>) [47.09375,36 39.84375x36]
-          PaintableWithLines (InlineNode<SPAN>) [66.875,44 20.0625x26]
-            PaintableWithLines (InlineNode<SPAN>) [73.6875,50 13.25x19]
-              PaintableWithLines (InlineNode<SPAN>) [78.53125,55 8.40625x13]
+      InlinePaintable (InlineNode<SPAN>) [8,24 78.9375x51]
+        InlinePaintable (InlineNode<SPAN>) [47.09375,36 39.84375x36]
+          InlinePaintable (InlineNode<SPAN>) [66.875,44 20.0625x26]
+            InlinePaintable (InlineNode<SPAN>) [73.6875,50 13.25x19]
+              InlinePaintable (InlineNode<SPAN>) [78.53125,55 8.40625x13]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x88] (z-index: auto)

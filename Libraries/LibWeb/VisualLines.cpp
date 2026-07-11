@@ -49,7 +49,7 @@ Vector<VisualLine> collect_visual_lines(DOM::Text const& dom_node)
         if (!lines.is_empty()
             && !lines.last().fragments.is_empty()
             && &lines.last().fragments.last()->paintable_with_lines() == &fragment.paintable_with_lines()
-            && lines.last().fragments.last()->line_box_data().index == fragment.line_box_data().index) {
+            && lines.last().fragments.last()->line_index() == fragment.line_index()) {
             auto& line = lines.last();
             line.start_offset = min(line.start_offset, fragment.dom_start_offset_in_node());
             line.end_offset = max(line.end_offset, fragment.dom_end_offset_in_node());

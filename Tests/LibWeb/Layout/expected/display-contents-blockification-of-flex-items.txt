@@ -30,7 +30,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
         PaintableWithLines (BlockContainer<FOO-A>) [32.171875,8 58.15625x26]
           Paintable (Box<FOO-B>) [32.171875,8 58.15625x26]
             PaintableWithLines (BlockContainer(anonymous)) [37.171875,13 48.15625x16]
-              PaintableWithLines (InlineNode(anonymous)) [37.171875,13 48.15625x16]
+              InlinePaintable (InlineNode(anonymous)) [37.171875,13 48.15625x16]
       PaintableWithLines (BlockContainer(anonymous)) [8,34 784x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

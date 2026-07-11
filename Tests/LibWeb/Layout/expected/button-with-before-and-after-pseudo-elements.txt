@@ -24,8 +24,8 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       PaintableWithLines (BlockContainer<BUTTON>) [8,8 92x20]
         PaintableWithLines (BlockContainer(anonymous)) [13,10 82x16]
           PaintableWithLines (BlockContainer(anonymous)) [13,10 82x16]
-            PaintableWithLines (InlineNode(anonymous)) [13,10 27.15625x16]
-            PaintableWithLines (InlineNode(anonymous)) [67.796875,10 27.203125x16]
+            InlinePaintable (InlineNode(anonymous)) [13,10 27.15625x16]
+            InlinePaintable (InlineNode(anonymous)) [67.796875,10 27.203125x16]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x36] (z-index: auto)

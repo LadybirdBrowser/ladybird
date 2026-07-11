@@ -30,9 +30,9 @@ static void paint_node(Paintable const& paintable, DisplayListRecordingContext& 
 {
     TemporaryChange save_nesting_level(context.display_list_recorder().m_save_nesting_level, 0);
 
-    // Text fragments in a PaintableWithLines are content of the block container.
+    // Text fragments are content of the block container (or of a self-painting inline box).
     // They need the descendants' visual context, not the element's own visual context.
-    if (is<PaintableWithLines>(paintable) && phase == PaintPhase::Foreground)
+    if (paintable.foreground_paints_descendant_content() && phase == PaintPhase::Foreground)
         context.display_list_recorder().set_accumulated_visual_context(paintable.accumulated_visual_context_for_descendants_index());
     else
         context.display_list_recorder().set_accumulated_visual_context(paintable.accumulated_visual_context_index());

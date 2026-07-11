@@ -7,6 +7,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/HashMap.h>
+#include <AK/QuickSort.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/TextLayout.h>
 #include <LibWeb/DOM/Document.h>
@@ -20,6 +22,7 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
+#include <LibWeb/Painting/InlinePaintable.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/Painting/ShadowPainting.h>
 #include <LibWeb/Painting/StackingContext.h>
@@ -43,19 +46,8 @@ NonnullRefPtr<PaintableWithLines> PaintableWithLines::create(Layout::BlockContai
     return adopt_ref(*new PaintableWithLines(block_container));
 }
 
-NonnullRefPtr<PaintableWithLines> PaintableWithLines::create(Layout::NodeWithStyleAndBoxModelMetrics const& inline_node, size_t line_index)
-{
-    return adopt_ref(*new PaintableWithLines(inline_node, line_index));
-}
-
 PaintableWithLines::PaintableWithLines(Layout::BlockContainer const& layout_box)
     : Paintable(layout_box)
-{
-}
-
-PaintableWithLines::PaintableWithLines(Layout::NodeWithStyleAndBoxModelMetrics const& inline_node, size_t line_index)
-    : Paintable(inline_node)
-    , m_line_index(line_index)
 {
 }
 
@@ -67,6 +59,133 @@ void PaintableWithLines::reset_for_relayout()
 {
     Paintable::reset_for_relayout();
     m_fragments.clear();
+    m_lines.clear();
+    m_inline_box_pieces.clear();
+    m_fragment_ownership_filter = {
+        .include_everything = true,
+        .included = {},
+        .excluded = {},
+    };
+    m_text_fragment_properties_paint_generation_id.clear();
+}
+
+InlinePaintable const* nearest_self_painting_inline_box(Layout::Node const& node)
+{
+    for (auto const* ancestor = node.nearest_fragmented_inline_ancestor(); ancestor; ancestor = ancestor->nearest_fragmented_inline_ancestor()) {
+        auto const* proxy = as_if<InlinePaintable>(ancestor->paintable().ptr());
+        if (proxy && proxy->is_self_painting())
+            return proxy;
+    }
+    return nullptr;
+}
+
+void PaintableWithLines::assign_inline_box_geometry()
+{
+    HashMap<Layout::Node const*, Vector<u32>> piece_indices_by_node;
+    for (u32 piece_index = 0; piece_index < m_inline_box_pieces.size(); ++piece_index) {
+        if (auto const* piece_node = m_inline_box_pieces[piece_index].node.ptr())
+            piece_indices_by_node.ensure(piece_node).append(piece_index);
+    }
+
+    for (auto& [piece_node, piece_indices] : piece_indices_by_node) {
+        auto* inline_paintable = as_if<InlinePaintable>(const_cast<Layout::Node*>(piece_node)->paintable().ptr());
+        if (!inline_paintable)
+            continue;
+
+        auto const& box_model = inline_paintable->box_model();
+
+        Optional<CSSPixelRect> content_union;
+        Optional<CSSPixelRect> padding_union;
+        Optional<CSSPixelRect> border_union;
+        auto unite = [](Optional<CSSPixelRect>& target, CSSPixelRect const& rect) {
+            if (!target.has_value()) {
+                target = rect;
+                return;
+            }
+            // Degenerate rects (from placeholder pieces) only establish a position; the
+            // first one wins, and any real rect takes precedence over them.
+            if (rect.is_empty())
+                return;
+            if (target->is_empty())
+                target = rect;
+            else
+                target->unite(rect);
+        };
+
+        for (auto piece_index : piece_indices) {
+            auto const& piece = m_inline_box_pieces[piece_index];
+            if (piece.is_geometry_only_placeholder) {
+                // Placeholder pieces carry the (degenerate) content rect directly.
+                auto content_rect = piece.border_box_rect;
+                auto padding_rect = content_rect.inflated(box_model.padding.top, box_model.padding.right, box_model.padding.bottom, box_model.padding.left);
+                auto border_rect = padding_rect.inflated(box_model.border.top, box_model.border.right, box_model.border.bottom, box_model.border.left);
+                unite(content_union, content_rect);
+                unite(padding_union, padding_rect);
+                unite(border_union, border_rect);
+                continue;
+            }
+            auto border_rect = piece.border_box_rect;
+            auto padding_rect = inline_paintable->piece_padding_box_rect(piece, border_rect);
+            auto content_rect = inline_paintable->piece_content_box_rect(piece, border_rect);
+            unite(content_union, content_rect);
+            unite(padding_union, padding_rect);
+            unite(border_union, border_rect);
+        }
+
+        if (!content_union.has_value())
+            continue;
+        inline_paintable->set_offset(content_union->location());
+        inline_paintable->set_content_size(content_union->size());
+        inline_paintable->set_local_box_unions(
+            padding_union->translated(-content_union->x(), -content_union->y()),
+            border_union->translated(-content_union->x(), -content_union->y()));
+        inline_paintable->set_piece_indices(move(piece_indices));
+    }
+}
+
+void PaintableWithLines::assign_fragment_ownership()
+{
+    m_fragment_ownership_filter = {
+        .include_everything = true,
+        .included = {},
+        .excluded = {},
+    };
+
+    // A box that stopped being self-painting since the last assignment must not keep its
+    // stale filter around, so start every piece's box from a clean slate.
+    for (auto const& piece : m_inline_box_pieces) {
+        if (auto const* piece_node = piece.node.ptr()) {
+            if (auto* piece_paintable = as_if<InlinePaintable>(const_cast<Layout::Node*>(piece_node)->paintable().ptr()))
+                piece_paintable->set_fragment_ownership_filter({});
+        }
+    }
+
+    HashMap<InlinePaintable*, FragmentOwnershipFilter> filters;
+    for (auto const& piece : m_inline_box_pieces) {
+        auto const* piece_node = piece.node.ptr();
+        if (!piece_node || piece.fragment_count == 0)
+            continue;
+        auto* piece_paintable = as_if<InlinePaintable>(const_cast<Layout::Node*>(piece_node)->paintable().ptr());
+        if (!piece_paintable || !piece_paintable->is_self_painting())
+            continue;
+        FragmentRange range { piece.first_fragment_index, piece.first_fragment_index + piece.fragment_count };
+        filters.ensure(piece_paintable).included.append(range);
+        // The nearest self-painting box above owns the surrounding content but must not
+        // paint this box's subtree; content outside any such box falls to the block.
+        if (auto const* enclosing_owner = nearest_self_painting_inline_box(*piece_node))
+            filters.ensure(const_cast<InlinePaintable*>(enclosing_owner)).excluded.append(range);
+        else
+            m_fragment_ownership_filter.excluded.append(range);
+    }
+
+    auto sort_ranges = [](Vector<FragmentRange, 4>& ranges) {
+        quick_sort(ranges, [](auto const& a, auto const& b) { return a.begin < b.begin; });
+    };
+    sort_ranges(m_fragment_ownership_filter.excluded);
+    for (auto& [piece_paintable, filter] : filters) {
+        sort_ranges(filter.excluded);
+        piece_paintable->set_fragment_ownership_filter(move(filter));
+    }
 }
 
 void PaintableWithLines::paint_text_fragment_debug_highlight(DisplayListRecordingContext& context, PaintableFragment const& fragment)
@@ -91,35 +210,27 @@ void PaintableWithLines::record_hit_test_items(DisplayListRecordingContext& cont
     if (!hit_test_display_list)
         return;
 
-    if (m_fragments.is_empty()
-        && !has_children()
-        && layout_node().dom_node()
-        && layout_node().dom_node()->is_editable_or_editing_host()
-        && is_visible()
-        && visible_for_hit_testing()) {
-        hit_test_display_list->append_empty_editable(*this, absolute_border_box_rect(), accumulated_visual_context_index());
+    if (m_fragments.is_empty() && !has_children()) {
+        if (is_visible() && visible_for_hit_testing())
+            record_empty_editable_hit_test_item(*hit_test_display_list);
         return;
     }
 
-    for (auto const& fragment : m_fragments) {
+    // Fragments inside self-painting inline boxes are recorded during that box's paint,
+    // so their hit-test order and visual context match where they are painted.
+    m_fragment_ownership_filter.for_each_owned_fragment_index(m_fragments.size(), [&](size_t index) {
+        auto const& fragment = m_fragments[index];
         if (fragment.is_block_level_box())
-            continue;
+            return;
         hit_test_display_list->append_text_fragment(fragment, accumulated_visual_context_for_descendants_index());
-    }
+    });
 
     record_empty_line_caret_items(*hit_test_display_list, accumulated_visual_context_for_descendants_index());
-
-    if (stacking_context()
-        && is_inline()
-        && is_visible()
-        && visible_for_hit_testing()) {
-        hit_test_display_list->append_box(*this, const_cast<PaintableWithLines&>(*this), absolute_border_box_rect(), accumulated_visual_context_index(), border_radii_data());
-    }
 }
 
 Vector<PaintableWithLines::EmptyLineCaretTarget> PaintableWithLines::empty_line_caret_targets() const
 {
-    if (m_fragments.is_empty())
+    if (m_fragments.is_empty() || m_lines.is_empty())
         return {};
 
     // Line boxes without fragments (e.g. the blank line between two consecutive newlines in a textarea) produce no
@@ -148,33 +259,22 @@ Vector<PaintableWithLines::EmptyLineCaretTarget> PaintableWithLines::empty_line_
 
     auto lines = collect_visual_lines(*dom_text);
 
-    // The interpolation below requires visual lines to correspond 1:1 to this block's line boxes.
+    // The mapping below requires visual lines to correspond 1:1 to this block's line boxes. Trailing blank lines are
+    // the exception: layout does not retain a line box for a blank line at the very end, so visual lines may extend
+    // past m_lines and get extrapolated rects below the last line box.
+    if (lines.size() < m_lines.size())
+        return {};
     for (size_t i = 0; i < lines.size(); ++i) {
-        if (!lines[i].fragments.is_empty() && lines[i].fragments.first()->line_box_data().index != i)
+        if (i >= m_lines.size()) {
+            if (!lines[i].fragments.is_empty())
+                return {};
+            continue;
+        }
+        if (lines[i].fragments.is_empty() != (m_lines[i].fragment_count == 0))
+            return {};
+        if (!lines[i].fragments.is_empty() && lines[i].fragments.first()->line_index() != i)
             return {};
     }
-
-    // For each line, the index of the closest fragment-backed line before/after it.
-    Vector<Optional<size_t>> previous_fragment_line;
-    previous_fragment_line.resize(lines.size());
-    Vector<Optional<size_t>> next_fragment_line;
-    next_fragment_line.resize(lines.size());
-    Optional<size_t> last_seen;
-    for (size_t i = 0; i < lines.size(); ++i) {
-        previous_fragment_line[i] = last_seen;
-        if (!lines[i].fragments.is_empty())
-            last_seen = i;
-    }
-    last_seen = {};
-    for (size_t i = lines.size(); i-- > 0;) {
-        next_fragment_line[i] = last_seen;
-        if (!lines[i].fragments.is_empty())
-            last_seen = i;
-    }
-
-    auto line_box_rect_for_line = [&](size_t index) {
-        return lines[index].fragments.first()->absolute_line_box_rect();
-    };
 
     Vector<EmptyLineCaretTarget> targets;
     auto content_rect = absolute_rect();
@@ -182,30 +282,13 @@ Vector<PaintableWithLines::EmptyLineCaretTarget> PaintableWithLines::empty_line_
         if (!lines[i].fragments.is_empty())
             continue;
 
-        auto previous_line = previous_fragment_line[i];
-        auto next_line = next_fragment_line[i];
-
-        // Empty line boxes are not retained after layout, so interpolate each empty line's rect from its
-        // fragment-backed neighbors. Consecutive empty lines share their gap evenly.
         CSSPixelRect line_rect;
-        if (previous_line.has_value() && next_line.has_value()) {
-            auto previous_rect = line_box_rect_for_line(*previous_line);
-            auto next_rect = line_box_rect_for_line(*next_line);
-            auto count = static_cast<int>(*next_line - *previous_line - 1);
-            auto position_in_gap = static_cast<int>(i - *previous_line - 1);
-            auto line_height = (next_rect.top() - previous_rect.bottom()) / count;
-            line_rect = { content_rect.x(), previous_rect.bottom() + line_height * position_in_gap, content_rect.width(), line_height };
-        } else if (previous_line.has_value()) {
-            auto previous_rect = line_box_rect_for_line(*previous_line);
-            auto steps = static_cast<int>(i - *previous_line);
-            line_rect = { content_rect.x(), previous_rect.bottom() + previous_rect.height() * (steps - 1), content_rect.width(), previous_rect.height() };
-        } else if (next_line.has_value()) {
-            auto next_rect = line_box_rect_for_line(*next_line);
-            auto steps = static_cast<int>(*next_line - i);
-            line_rect = { content_rect.x(), next_rect.top() - next_rect.height() * steps, content_rect.width(), next_rect.height() };
+        if (i < m_lines.size()) {
+            line_rect = m_lines[i].rect.translated(content_rect.location());
         } else {
-            // NB: Unreachable; m_fragments is non-empty, so at least one line has fragments.
-            return targets;
+            auto last_rect = m_lines.last().rect.translated(content_rect.location());
+            auto steps = static_cast<int>(i - (m_lines.size() - 1));
+            line_rect = { content_rect.x(), last_rect.bottom() + last_rect.height() * (steps - 1), content_rect.width(), last_rect.height() };
         }
 
         targets.append({ lines[i].start_offset, i, line_rect });
@@ -232,7 +315,7 @@ Optional<CSSPixelRect> PaintableWithLines::empty_line_caret_rect(DOM::Position c
 void PaintableWithLines::record_empty_line_caret_items(HitTestDisplayList& hit_test_display_list, VisualContextIndex visual_context_index) const
 {
     for (auto const& target : empty_line_caret_targets())
-        hit_test_display_list.append_empty_line(m_fragments.first(), target.offset, target.line_box_index, target.rect, visual_context_index);
+        hit_test_display_list.append_empty_line(m_fragments.first(), target.offset, target.line_index, target.rect, visual_context_index);
 }
 
 static void resolve_text_fragment_properties(PaintableWithLines const& paintable_with_lines)
@@ -280,34 +363,33 @@ static void resolve_text_fragment_properties(PaintableWithLines const& paintable
 
 void PaintableWithLines::paint(DisplayListRecordingContext& context, PaintPhase phase) const
 {
-    if (!is_visible())
-        return;
-
-    // An inline's per-line paintable that only hosts an interrupting block's phantom fragment generates no box
-    // of its own; painting its background/border would draw a degenerate box at the block's corner.
-    if (layout_node().is_fragmented_inline() && has_only_block_level_fragments())
-        return;
-
-    Paintable::paint(context, phase);
+    if (is_visible())
+        Paintable::paint(context, phase);
 
     if (phase == PaintPhase::Foreground) {
-        paint_fragments_foreground(context, [](auto const&) { return true; });
+        // visibility: hidden on this block does not hide descendants that set visibility:
+        // visible again, so fragments (and the caret between their glyphs) are filtered by
+        // their own node's visibility instead.
+        paint_fragments_foreground(context, m_fragment_ownership_filter);
 
         if (document().cursor_position())
-            paint_cursor(context);
+            paint_cursor(context, nullptr);
     }
 }
 
-void PaintableWithLines::paint_fragments_foreground(DisplayListRecordingContext& context, Function<bool(PaintableFragment const&)> const& should_paint_fragment) const
+void PaintableWithLines::paint_fragments_foreground(DisplayListRecordingContext& context, FragmentOwnershipFilter const& filter) const
 {
-    resolve_text_fragment_properties(*this);
+    // The resolved properties are shared by all owners painting fragments of this block,
+    // so resolving once per display list build is enough.
+    if (m_text_fragment_properties_paint_generation_id != context.paint_generation_id()) {
+        resolve_text_fragment_properties(*this);
+        m_text_fragment_properties_paint_generation_id = context.paint_generation_id();
+    }
 
     Vector<PaintableFragment::FragmentSpan, 4> spans;
-    for (auto const& fragment : m_fragments) {
-        if (!should_paint_fragment(fragment))
-            continue;
-        compute_render_spans(fragment, spans);
-    }
+    filter.for_each_owned_fragment_index(m_fragments.size(), [&](size_t index) {
+        compute_render_spans(m_fragments[index], spans);
+    });
 
     for (auto const& span : spans) {
         if (span.background_color.alpha() > 0) {
@@ -526,23 +608,15 @@ CSSPixelRect PaintableWithLines::caret_rect_for_child_offset(size_t offset) cons
     return rect;
 }
 
-void PaintableWithLines::paint_cursor(DisplayListRecordingContext& context) const
+void PaintableWithLines::paint_cursor(DisplayListRecordingContext& context, InlinePaintable const* owner) const
 {
-    if (!document().cursor_blink_state() || !document().navigable()->is_focused())
+    if (!should_paint_cursor())
         return;
 
     auto cursor_position = document().cursor_position();
     VERIFY(cursor_position);
 
     auto const* dom_node = layout_node().dom_node();
-    if (!dom_node)
-        return;
-
-    auto focused_text_control_is_editable = false;
-    if (auto const* text_control = as_if<HTML::FormAssociatedTextControlElement>(document().focused_area().ptr()))
-        focused_text_control_is_editable = text_control->text_control_to_html_element().is_mutable();
-    if (!focused_text_control_is_editable && !dom_node->is_editable_or_editing_host())
-        return;
 
     auto fragment = fragment_at_position(*cursor_position);
 
@@ -550,8 +624,22 @@ void PaintableWithLines::paint_cursor(DisplayListRecordingContext& context) cons
     Color caret_color;
 
     if (fragment.has_value()) {
+        // The caret paints where its fragment's foreground paints: inside the nearest
+        // self-painting inline box, or in the block itself.
+        if (nearest_self_painting_inline_box(fragment->layout_node()) != owner)
+            return;
+        // Like the glyphs around it, the caret follows the text's own visibility, which may
+        // differ from this box's.
+        if (!layout_node_is_visible(fragment->layout_node()))
+            return;
         caret_color = fragment->layout_node().computed_values().caret_color();
         cursor_rect = fragment->range_rect(SelectionState::StartAndEnd, cursor_position->offset(), cursor_position->offset());
+    } else if (owner) {
+        // Blank lines and empty editable elements are handled by the block / the box itself.
+        return;
+    } else if (!is_visible()) {
+        // Blank-line and empty-element carets belong to this block itself.
+        return;
     } else if (auto empty_line_rect = empty_line_caret_rect(*cursor_position); empty_line_rect.has_value()) {
         caret_color = m_fragments.first().layout_node().computed_values().caret_color();
         cursor_rect = { empty_line_rect->x(), empty_line_rect->y(), 1, empty_line_rect->height() };

@@ -1,2 +1,2 @@
 empty-in-horizontal: 0x20
-empty-in-vertical: 0x20
+empty-in-vertical: 20x0

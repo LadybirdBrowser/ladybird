@@ -122,6 +122,7 @@
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
+#include <LibWeb/Painting/InlinePaintable.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/Painting/StackingContext.h>
@@ -1777,22 +1778,17 @@ static Vector<CSSPixelRect> compute_client_rects_assuming_layout_clean(Element c
     //          are left in the final list.
 
     Vector<CSSPixelRect> rects;
-    if (auto const* inline_node = as_if<Layout::InlineNode>(element.layout_node())) {
-        Painting::PaintableWithLines const* paintable_with_only_block_level_fragments = nullptr;
-        for (auto const& paintable : inline_node->paintables()) {
-            auto const* paintable_with_lines = as_if<Painting::PaintableWithLines>(paintable.ptr());
-            if (!paintable_with_lines)
-                continue;
-            if (paintable_with_lines->has_only_block_level_fragments()) {
-                paintable_with_only_block_level_fragments = paintable_with_lines;
-                continue;
-            }
-            append_transformed_border_box_rect(rects, *paintable_with_lines);
-        }
+    if (auto const* inline_paintable = as_if<Painting::InlinePaintable>(element.layout_node()->paintable().ptr())) {
+        inline_paintable->for_each_piece([&](Painting::InlineBoxPiece const& piece) {
+            if (piece.is_geometry_only_placeholder)
+                return;
+            auto absolute_rect = inline_paintable->absolute_piece_border_box_rect(piece);
+            rects.append(inline_paintable->transform_rect_to_viewport(absolute_rect, Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No));
+        });
         // An inline element whose content is only interrupting blocks generates no line fragments, but per CSSOM
         // we still report its (zero-sized) border area instead of an empty list.
-        if (rects.is_empty() && paintable_with_only_block_level_fragments)
-            append_transformed_border_box_rect(rects, *paintable_with_only_block_level_fragments);
+        if (rects.is_empty())
+            append_transformed_border_box_rect(rects, *inline_paintable);
         return rects;
     }
 

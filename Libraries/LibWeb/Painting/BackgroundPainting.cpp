@@ -21,6 +21,7 @@
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
+#include <LibWeb/Painting/InlinePaintable.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
 
 namespace Web::Painting {
@@ -40,6 +41,29 @@ static Gfx::FloatRect source_rect_for_visible_image_part(Gfx::IntRect const& vis
 static void append_text_clip_paths(DisplayListRecordingContext& context, Paintable const& paintable)
 {
     auto& display_list_recorder = context.display_list_recorder();
+
+    auto append_fragment = [&](PaintableFragment const& fragment) {
+        if (!is<Layout::TextNode>(fragment.layout_node()))
+            return;
+        auto glyph_run = fragment.glyph_run();
+        if (!glyph_run || glyph_run->glyphs().is_empty())
+            return;
+        auto fragment_absolute_rect = fragment.absolute_rect();
+        auto fragment_absolute_device_rect = context.enclosing_device_rect(fragment_absolute_rect);
+        auto scale = context.device_pixels_per_css_pixel();
+        auto baseline_start = Gfx::FloatPoint {
+            fragment_absolute_rect.x().to_float(),
+            fragment_absolute_rect.y().to_float() + fragment.baseline().to_float(),
+        } * scale;
+        display_list_recorder.draw_glyph_run(baseline_start, *glyph_run, Gfx::Color::Black, fragment_absolute_device_rect.template to_type<int>(), scale, fragment.orientation());
+    };
+
+    if (auto const* inline_paintable = as_if<InlinePaintable>(paintable)) {
+        inline_paintable->for_each_piece_fragment([&](InlineBoxPiece const&, PaintableFragment const& fragment) {
+            append_fragment(fragment);
+        });
+    }
+
     paintable.for_each_in_inclusive_subtree([&](auto& sub_paintable) {
         // https://drafts.csswg.org/css-backgrounds-4/#valdef-background-clip-text
         if (&sub_paintable != &paintable) {
@@ -48,21 +72,8 @@ static void append_text_clip_paths(DisplayListRecordingContext& context, Paintab
                 return TraversalDecision::SkipChildrenAndContinue;
         }
         if (auto const* paintable_lines = as_if<PaintableWithLines>(sub_paintable)) {
-            for (auto const& fragment : paintable_lines->fragments()) {
-                if (!is<Layout::TextNode>(fragment.layout_node()))
-                    continue;
-                auto glyph_run = fragment.glyph_run();
-                if (!glyph_run || glyph_run->glyphs().is_empty())
-                    continue;
-                auto fragment_absolute_rect = fragment.absolute_rect();
-                auto fragment_absolute_device_rect = context.enclosing_device_rect(fragment_absolute_rect);
-                auto scale = context.device_pixels_per_css_pixel();
-                auto baseline_start = Gfx::FloatPoint {
-                    fragment_absolute_rect.x().to_float(),
-                    fragment_absolute_rect.y().to_float() + fragment.baseline().to_float(),
-                } * scale;
-                display_list_recorder.draw_glyph_run(baseline_start, *glyph_run, Gfx::Color::Black, fragment_absolute_device_rect.template to_type<int>(), scale, fragment.orientation());
-            }
+            for (auto const& fragment : paintable_lines->fragments())
+                append_fragment(fragment);
         }
         return TraversalDecision::Continue;
     });

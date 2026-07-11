@@ -50,6 +50,7 @@
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/Painting/InlinePaintable.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 
@@ -386,20 +387,27 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
         block_container && block_container->children_are_inline() && block_container->paintable_with_lines()) {
         size_t fragment_index = 0;
         auto paintable_with_lines = block_container->paintable_with_lines();
-        for (auto const& fragment : paintable_with_lines->fragments())
+        for (auto const& fragment : paintable_with_lines->fragments()) {
+            // Fragments inside inline boxes are dumped under their box's layout node below.
+            if (fragment.layout_node().nearest_fragmented_inline_ancestor())
+                continue;
             dump_fragment(fragment, fragment_index++);
+        }
     }
 
-    if (is<Layout::InlineNode>(layout_node) && layout_node.paintable()) {
-        auto const& inline_node = static_cast<Layout::InlineNode const&>(layout_node);
-        for (auto const& paintable : inline_node.paintables()) {
-            auto const& paintable_with_lines = static_cast<Painting::PaintableWithLines const&>(*paintable);
-            auto const& fragments = paintable_with_lines.fragments();
-            for (size_t fragment_index = 0; fragment_index < fragments.size(); ++fragment_index) {
-                auto const& fragment = fragments[fragment_index];
-                dump_fragment(fragment, fragment_index);
+    if (auto const* inline_paintable = as_if<Painting::InlinePaintable>(layout_node.paintable().ptr())) {
+        Painting::InlineBoxPiece const* current_piece = nullptr;
+        size_t fragment_index_within_piece = 0;
+        inline_paintable->for_each_piece_fragment([&](Painting::InlineBoxPiece const& piece, Painting::PaintableFragment const& fragment) {
+            if (&piece != current_piece) {
+                current_piece = &piece;
+                fragment_index_within_piece = 0;
             }
-        }
+            // Fragments of nested inline boxes are dumped under their own box.
+            if (fragment.layout_node().nearest_fragmented_inline_ancestor() != &layout_node)
+                return;
+            dump_fragment(fragment, fragment_index_within_piece++);
+        });
     }
 
     if (show_computed_properties && layout_node.dom_node() && layout_node.dom_node()->is_element() && as<DOM::Element>(layout_node.dom_node())->computed_properties()) {

@@ -2,7 +2,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 116 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 100 0+0+8] children: not-inline
       BlockContainer <div.outer> at [8,8] [0+0+0 100 0+0+684] [0+0+0 100 0+0+0] children: inline
-        InlineNode <div.inline> at [8,8] [0+0+0 9.34375 0+0+0] [0+0+0 16 0+0+0]
+        InlineNode <div.inline> at [8,8] [0+0+0 9.46875 0+0+0] [0+0+0 132 0+0+0]
           frag 0 from TextNode start: 0, length: 1, rect: [8,8 9.34375x16] baseline: 12.796875
               "a"
           frag 0 from BlockContainer start: 0, length: 0, rect: [8,24 100x100] baseline: 0
@@ -16,24 +16,8 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x116]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x100]
       PaintableWithLines (BlockContainer<DIV>.outer) [8,8 100x100]
-        PaintableWithLines (InlineNode<DIV>.inline) [8,8 9.34375x16]
-
-        PaintableWithLines (InlineNode<DIV>.inline) [8,24 0x0]
+        InlinePaintable (InlineNode<DIV>.inline) [8,8 9.46875x132]
           PaintableWithLines (BlockContainer<DIV>.inner) [8,24 100x100]
-
-        PaintableWithLines (InlineNode<DIV>.inline) [8,124 9.46875x16]
-        PaintableWithLines (InlineNode<DIV>.inline) [8,8 9.34375x16]
-
-        PaintableWithLines (InlineNode<DIV>.inline) [8,24 0x0]
-          PaintableWithLines (BlockContainer<DIV>.inner) [8,24 100x100]
-
-        PaintableWithLines (InlineNode<DIV>.inline) [8,124 9.46875x16]
-        PaintableWithLines (InlineNode<DIV>.inline) [8,8 9.34375x16]
-
-        PaintableWithLines (InlineNode<DIV>.inline) [8,24 0x0]
-          PaintableWithLines (BlockContainer<DIV>.inner) [8,24 100x100]
-
-        PaintableWithLines (InlineNode<DIV>.inline) [8,124 9.46875x16]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x116] (z-index: auto)

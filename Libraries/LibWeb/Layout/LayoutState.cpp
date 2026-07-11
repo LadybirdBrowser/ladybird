@@ -34,7 +34,7 @@ LayoutState::~LayoutState()
 {
 }
 
-static Painting::LineBoxData line_box_data_for(LineBox const& line_box, size_t line_index)
+static CSSPixelRect united_fragment_rect_for_line_box(LineBox const& line_box)
 {
     CSSPixelRect rect;
     bool saw_fragment = false;
@@ -47,16 +47,20 @@ static Painting::LineBoxData line_box_data_for(LineBox const& line_box, size_t l
         saw_fragment = true;
     }
 
-    if (!saw_fragment)
-        return { line_index, {} };
-
     auto writing_mode = line_box.fragments().first().writing_mode();
     if (writing_mode == CSS::WritingMode::HorizontalTb) {
         rect.set_y(line_box.bottom() - line_box.height());
         rect.set_height(line_box.height());
     }
 
-    return { line_index, rect };
+    return rect;
+}
+
+static CSSPixelRect rect_for_line_box(LineBox const& line_box, CSSPixels containing_block_content_width)
+{
+    if (line_box.fragments().is_empty())
+        return { 0, line_box.bottom() - line_box.height(), containing_block_content_width, line_box.height() };
+    return united_fragment_rect_for_line_box(line_box);
 }
 
 void LayoutState::ensure_capacity(u32 node_count)
@@ -179,11 +183,16 @@ static InlineAncestorChainRelativeOffset accumulated_relative_insets_from_inline
 void LayoutState::resolve_relative_positions()
 {
     // This function resolves relative position offsets contributed by inline-flow ancestor chains, which
-    // apply both to fragments that belong to inline paintables and to block-level boxes interrupting an
-    // inline (block-in-inline). It runs *after* the paint tree has been constructed, so it modifies
-    // paintable node & fragment offsets directly.
+    // apply to fragments, to inline box pieces, and to block-level boxes interrupting an inline
+    // (block-in-inline). It runs *after* the paint tree has been constructed, so it modifies
+    // paintable node, fragment & piece offsets directly.
     m_used_values_store.for_each([&](UsedValues& used_values) {
         auto& node = const_cast<NodeWithStyle&>(used_values.node());
+
+        // Nodes outside the committed subtree (materialized containing blocks) keep their
+        // already-resolved offsets.
+        if (m_subtree_root && !m_subtree_root->is_inclusive_ancestor_of(node))
+            return;
 
         if (auto const* box = as_if<Box>(node); box && box->is_in_flow() && box->display().is_block_outside()) {
             auto accumulated = accumulated_relative_insets_from_inline_ancestor_chain(box->parent(), box->containing_block());
@@ -195,71 +204,53 @@ void LayoutState::resolve_relative_positions()
             }
         }
 
-        for (auto& paintable : node.paintables()) {
-            auto* inline_paintable = as_if<Painting::PaintableWithLines>(paintable.ptr());
-            if (!inline_paintable || !inline_paintable->layout_node().is_fragmented_inline())
-                continue;
+        auto* paintable_with_lines = as_if<Painting::PaintableWithLines>(node.paintable().ptr());
+        if (!paintable_with_lines)
+            return;
 
-            for (auto& fragment : inline_paintable->fragments()) {
-                auto accumulated = accumulated_relative_insets_from_inline_ancestor_chain(fragment.layout_node().parent(), nullptr);
-                if (!accumulated.offset.is_zero())
-                    const_cast<Painting::PaintableFragment&>(fragment).set_offset(fragment.offset().translated(accumulated.offset));
-            }
+        for (auto& fragment : paintable_with_lines->fragments()) {
+            auto accumulated = accumulated_relative_insets_from_inline_ancestor_chain(fragment.layout_node().parent(), nullptr);
+            if (!accumulated.offset.is_zero())
+                fragment.set_offset(fragment.offset().translated(accumulated.offset));
+        }
+
+        HashMap<Layout::Node const*, CSSPixelPoint> accumulated_offset_per_node;
+        for (auto& piece : paintable_with_lines->inline_box_pieces()) {
+            auto const* piece_node = piece.node.ptr();
+            if (!piece_node)
+                continue;
+            // The chain starts at the piece's own node: a relative inline box shifts its own pieces.
+            auto offset = accumulated_offset_per_node.ensure(piece_node, [&] {
+                return accumulated_relative_insets_from_inline_ancestor_chain(piece_node, nullptr).offset;
+            });
+            if (!offset.is_zero())
+                piece.border_box_rect.translate_by(offset);
         }
     });
 }
 
-static Optional<size_t> line_index_for_paint_parent_matching(Painting::Paintable const& paintable)
+static void build_paint_tree(Node& node, Painting::Paintable* parent_paintable = nullptr)
 {
-    if (auto const* paintable_with_lines = as_if<Painting::PaintableWithLines>(paintable); paintable_with_lines && paintable.layout_node().is_fragmented_inline())
-        return paintable_with_lines->line_index();
-
-    if (paintable.containing_line_box_data().has_value())
-        return paintable.containing_line_box_data()->index;
-
-    return {};
-}
-
-// A fragmented inline node has one paintable per line it spans; a child paintable must be attached to the parent
-// paintable for the line it belongs to, keyed by line index.
-static void build_paint_tree(Node& node, Painting::Paintable* fallback_parent_paintable = nullptr, HashMap<size_t, Painting::Paintable*> const* parent_paintable_by_line_index = nullptr)
-{
-    for (auto& paintable : node.paintables()) {
-        auto* parent_paintable = fallback_parent_paintable;
-        if (parent_paintable_by_line_index) {
-            if (auto line_index = line_index_for_paint_parent_matching(*paintable); line_index.has_value()) {
-                if (auto matching_parent = parent_paintable_by_line_index->get(line_index.value()); matching_parent.has_value())
-                    parent_paintable = matching_parent.value();
-            }
-        }
+    Painting::Paintable* paintable_for_children = nullptr;
+    if (auto paintable = node.paintable()) {
         if (parent_paintable && !paintable->forms_unconnected_subtree()) {
             VERIFY(!paintable->parent());
-            parent_paintable->append_child(paintable);
+            parent_paintable->append_child(*paintable);
         }
         paintable->set_dom_node(node.dom_node());
         if (node.dom_node())
             node.dom_node()->set_paintable(paintable);
+        paintable_for_children = paintable.ptr();
+    } else if (node.is_fragmented_inline()) {
+        // An inline box without a paintable (it was never laid out) must not orphan its
+        // descendants' paintables; pass the nearest ancestor paintable through. Other
+        // paintable-less nodes (e.g. non-rendered SVG subtrees) keep their descendants
+        // disconnected on purpose.
+        paintable_for_children = parent_paintable;
     }
 
-    if (!node.first_child())
-        return;
-
-    HashMap<size_t, Painting::Paintable*> paintable_by_line_index;
-    bool const node_is_fragmented_inline = node.is_fragmented_inline();
-    if (node_is_fragmented_inline) {
-        for (auto& paintable : node.paintables()) {
-            if (auto* paintable_with_lines = as_if<Painting::PaintableWithLines>(paintable.ptr()))
-                paintable_by_line_index.set(paintable_with_lines->line_index(), paintable_with_lines);
-        }
-    }
-    for (auto child = node.first_child(); child; child = child->next_sibling()) {
-        // An InlineNode without paintables of its own (an anonymous inline whose only children are
-        // out-of-flow boxes generates no line fragments) must not orphan its descendants' paintables;
-        // pass the nearest ancestor paintable through. Other paintable-less nodes (e.g. non-rendered
-        // SVG subtrees) keep their descendants disconnected on purpose.
-        auto* fallback_for_children = node.paintable() ? node.paintable().ptr() : (node_is_fragmented_inline ? fallback_parent_paintable : nullptr);
-        build_paint_tree(*child, fallback_for_children, node_is_fragmented_inline ? &paintable_by_line_index : nullptr);
-    }
+    for (auto child = node.first_child(); child; child = child->next_sibling())
+        build_paint_tree(*child, paintable_for_children);
 }
 
 void LayoutState::commit(Box& root)
@@ -276,14 +267,8 @@ void LayoutState::commit(Box& root)
     // Cache existing paintables before clearing.
     HashMap<Node const*, NonnullRefPtr<Painting::Paintable>> paintable_cache;
     root.for_each_in_inclusive_subtree([&](Node& node) {
-        if (auto paintable = node.paintable(); auto* paintable_box = paintable.ptr()) {
-            // Fragmented inline nodes are excluded because they can span multiple lines, with a separate
-            // InlinePaintable created for each line via create_paintable_for_line_with_index().
-            // This 1:N relationship between layout node and paintables, combined with the
-            // dynamic nature of fragment relocation, makes simple 1:1 caching inapplicable.
-            if (!node.is_fragmented_inline())
-                paintable_cache.set(&node, *paintable_box);
-        }
+        if (auto paintable = node.paintable())
+            paintable_cache.set(&node, *paintable);
         return TraversalDecision::Continue;
     });
 
@@ -296,17 +281,14 @@ void LayoutState::commit(Box& root)
 
     // After this point, we should have a clean slate to build the new paint tree.
 
-    HashTable<Layout::NodeWithStyleAndBoxModelMetrics*> fragmented_inline_nodes;
-
+    Vector<Node*> fragmented_inline_nodes;
     root.for_each_in_inclusive_subtree([&](Node& node) {
         if (auto* dom_node = node.dom_node())
             dom_node->clear_paintable();
         if (node.is_fragmented_inline() && node.dom_node())
-            fragmented_inline_nodes.set(&static_cast<NodeWithStyleAndBoxModelMetrics&>(node));
+            fragmented_inline_nodes.append(&node);
         return TraversalDecision::Continue;
     });
-
-    HashTable<WeakPtr<Painting::PaintableWithLines>> inline_node_paintables;
 
     auto transfer_box_model_metrics = [](Painting::BoxModelMetrics& box_model, UsedValues const& used_values) {
         box_model.inset = { used_values.inset_top, used_values.inset_right, used_values.inset_bottom, used_values.inset_left };
@@ -315,26 +297,7 @@ void LayoutState::commit(Box& root)
         box_model.margin = { used_values.margin_top, used_values.margin_right, used_values.margin_bottom, used_values.margin_left };
     };
 
-    auto try_to_relocate_fragment_in_inline_node = [&](auto& fragment, Painting::LineBoxData line_box_data, Painting::Paintable::FragmentationState fragmentation_state) -> bool {
-        for (auto const* parent = fragment.layout_node().parent(); parent; parent = parent->parent()) {
-            if (!parent->display().is_inline_outside() || !parent->display().is_flow_inside())
-                break;
-            if (parent->is_fragmented_inline()) {
-                auto& inline_node = const_cast<NodeWithStyleAndBoxModelMetrics&>(static_cast<NodeWithStyleAndBoxModelMetrics const&>(*parent));
-                auto line_paintable = inline_node.create_paintable_for_line_with_index(line_box_data.index);
-                line_paintable->add_fragment(fragment, line_box_data);
-                line_paintable->set_fragmentation_state(fragmentation_state);
-                if (auto const* used_values = try_get(inline_node))
-                    transfer_box_model_metrics(line_paintable->box_model(), *used_values);
-                if (!inline_node_paintables.contains(line_paintable.ptr())) {
-                    inline_node_paintables.set(line_paintable);
-                    inline_node.add_paintable(line_paintable);
-                }
-                return true;
-            }
-        }
-        return false;
-    };
+    Vector<NonnullRefPtr<Painting::PaintableWithLines>> blocks_with_inline_box_pieces;
 
     m_used_values_store.for_each([&](UsedValues& used_values) {
         auto& node = used_values.node();
@@ -369,37 +332,34 @@ void LayoutState::commit(Box& root)
                 paintable_box->set_table_cell_coordinates(used_values.table_cell_coordinates().value());
 
             if (auto* paintable_with_lines = as_if<Painting::PaintableWithLines>(*paintable_box)) {
-                for (size_t line_index = 0; line_index < used_values.line_boxes.size(); ++line_index) {
-                    auto& line_box = used_values.line_boxes[line_index];
-                    auto line_box_data = line_box_data_for(line_box, line_index);
-                    auto first_fragment_continues_last_line_box = false;
-                    if (line_index > 0 && used_values.line_boxes[line_index - 1].fragments().size() > 0 && used_values.line_boxes[line_index].fragments().size() > 0) {
-                        first_fragment_continues_last_line_box = &used_values.line_boxes[line_index - 1].fragments().last().layout_node() == &used_values.line_boxes[line_index].fragments().first().layout_node();
-                    }
-                    auto last_fragment_is_continued_in_next_line_box = false;
-                    if (line_index < used_values.line_boxes.size() - 1 && used_values.line_boxes[line_index].fragments().size() > 0 && used_values.line_boxes[line_index + 1].fragments().size() > 0) {
-                        last_fragment_is_continued_in_next_line_box = &used_values.line_boxes[line_index].fragments().last().layout_node() == &used_values.line_boxes[line_index + 1].fragments().first().layout_node();
-                    }
+                auto& line_boxes = used_values.line_boxes;
+                Vector<Painting::LineRecord> lines;
+                lines.ensure_capacity(line_boxes.size());
+                for (size_t line_index = 0; line_index < line_boxes.size(); ++line_index) {
+                    auto const& line_box = line_boxes[line_index];
+
+                    auto first_fragment_index = paintable_with_lines->fragments().size();
                     for (auto const& fragment : line_box.fragments()) {
                         if (fragment.is_fully_truncated())
                             continue;
-                        auto fragmentation_state = Painting::Paintable::FragmentationState::Unfragmented;
-                        auto is_first_fragment = &line_box.fragments().first() == &fragment;
-                        auto is_last_fragment = &line_box.fragments().last() == &fragment;
-                        if (is_first_fragment && is_last_fragment && first_fragment_continues_last_line_box && last_fragment_is_continued_in_next_line_box) {
-                            fragmentation_state = Painting::Paintable::FragmentationState::HorizontalMiddle;
-                        } else if (is_first_fragment && first_fragment_continues_last_line_box) {
-                            fragmentation_state = Painting::Paintable::FragmentationState::HorizontalEnd;
-                        } else if (is_last_fragment && last_fragment_is_continued_in_next_line_box) {
-                            fragmentation_state = Painting::Paintable::FragmentationState::HorizontalStart;
-                        }
-
-                        auto did_relocate_fragment = try_to_relocate_fragment_in_inline_node(fragment, line_box_data, fragmentation_state);
-                        first_fragment_continues_last_line_box = false;
-                        if (!did_relocate_fragment)
-                            paintable_with_lines->add_fragment(fragment, line_box_data);
+                        paintable_with_lines->add_fragment(fragment, static_cast<u32>(line_index));
                     }
+
+                    lines.append({
+                        .rect = rect_for_line_box(line_box, used_values.content_width()),
+                        .fragment_count = static_cast<u32>(paintable_with_lines->fragments().size() - first_fragment_index),
+                    });
                 }
+                paintable_with_lines->set_lines(move(lines));
+                paintable_with_lines->set_inline_box_pieces(move(used_values.inline_box_pieces));
+                if (!paintable_with_lines->inline_box_pieces().is_empty())
+                    blocks_with_inline_box_pieces.append(*paintable_with_lines);
+
+                // Piece fragment ranges were counted against the same skip-fully-truncated
+                // fragment stream during inline layout; a divergence would let piece
+                // consumers read out of bounds.
+                for (auto const& piece : paintable_with_lines->inline_box_pieces())
+                    VERIFY(piece.first_fragment_index + piece.fragment_count <= paintable_with_lines->fragments().size());
             }
 
             if (auto* svg_graphics_paintable = as_if<Painting::SVGGraphicsPaintable>(paintable.ptr());
@@ -432,39 +392,14 @@ void LayoutState::commit(Box& root)
         }
     });
 
-    // Create paintables for fragmented inline nodes without fragments to make possible querying their geometry.
-    for (auto& inline_node : fragmented_inline_nodes) {
-        if (inline_node->paintable())
-            continue;
-
-        auto line_paintable = inline_node->create_paintable_for_line_with_index(0);
-        inline_node->add_paintable(line_paintable);
-        inline_node_paintables.set(line_paintable.ptr());
-        if (auto const* used_values = try_get(*inline_node))
-            transfer_box_model_metrics(line_paintable->box_model(), *used_values);
-    }
-
-    // Ensure anonymous InlineNode ancestors of painted InlineNodes also get paintables. This handles cases like
-    // ::first-letter inside ::before, where the first-letter wrapper has a paintable but the ::before InlineNode above
-    // it does not.
-    for (auto const& paintable : inline_node_paintables.values()) {
-        for (auto const* ancestor = paintable->layout_node().parent(); ancestor; ancestor = ancestor->parent()) {
-            if (!ancestor->is_fragmented_inline() || ancestor->dom_node())
-                break;
-            auto& inline_ancestor = const_cast<NodeWithStyleAndBoxModelMetrics&>(static_cast<NodeWithStyleAndBoxModelMetrics const&>(*ancestor));
-            if (inline_ancestor.paintable())
-                break;
-            auto line_paintable = inline_ancestor.create_paintable_for_line_with_index(paintable->line_index());
-            inline_ancestor.add_paintable(line_paintable);
-            inline_node_paintables.set(line_paintable.ptr());
-            if (auto const* used_values = try_get(inline_ancestor))
-                transfer_box_model_metrics(line_paintable->box_model(), *used_values);
-        }
+    // Inline boxes that never went through inline layout (so they have no used values) still
+    // need a paintable so DOM geometry queries have something to answer from.
+    for (auto* fragmented_inline_node : fragmented_inline_nodes) {
+        if (!fragmented_inline_node->paintable())
+            fragmented_inline_node->add_paintable(fragmented_inline_node->create_paintable());
     }
 
     // Resolve relative positions for regular boxes (not line box fragments):
-    // NOTE: This needs to occur before fragments are transferred into the corresponding inline paintables, because
-    //       after this transfer, the containing_line_box_fragment will no longer be valid.
     m_used_values_store.for_each([&](UsedValues& used_values) {
         auto& node = const_cast<NodeWithStyle&>(used_values.node());
 
@@ -487,7 +422,7 @@ void LayoutState::commit(Box& root)
             // However, line box post-processing may remove fragments after we record this coordinate.
             if (containing_line_box_fragment.line_box_index < containing_block_used_values.line_boxes.size()) {
                 auto const& line_box = containing_block_used_values.line_boxes[containing_line_box_fragment.line_box_index];
-                paintable.set_containing_line_box_data(line_box_data_for(line_box, containing_line_box_fragment.line_box_index));
+                paintable.set_containing_line_box_index(containing_line_box_fragment.line_box_index);
                 if (containing_line_box_fragment.fragment_index < line_box.fragments().size())
                     offset = line_box.fragments()[containing_line_box_fragment.fragment_index].offset();
                 else
@@ -512,66 +447,9 @@ void LayoutState::commit(Box& root)
 
     resolve_relative_positions();
 
-    // Measure size of paintables created for inline nodes.
-    for (auto const& weak_paintable_with_lines : inline_node_paintables) {
-        auto paintable_with_lines = weak_paintable_with_lines.strong_ref();
-        if (!paintable_with_lines)
-            continue;
-        if (!paintable_with_lines->layout_node().is_fragmented_inline())
-            continue;
-
-        if (paintable_with_lines->has_only_block_level_fragments()) {
-            paintable_with_lines->set_offset(paintable_with_lines->fragments().first().offset());
-            paintable_with_lines->set_content_size({});
-            continue;
-        }
-
-        Optional<CSSPixelPoint> offset;
-        CSSPixelSize size;
-        auto line_index = paintable_with_lines->line_index();
-        paintable_with_lines->for_each_in_inclusive_subtree_of_type<Painting::PaintableWithLines>([&](auto& paintable) {
-            if (paintable.line_index() != line_index)
-                return TraversalDecision::Continue;
-            if (is<BlockContainer>(paintable.layout_node()) && !paintable.layout_node().is_fragmented_inline())
-                return TraversalDecision::SkipChildrenAndContinue;
-
-            auto const* used_values = try_get(paintable.layout_node_with_style_and_box_metrics());
-            if (&paintable != paintable_with_lines && used_values)
-                size.set_width(size.width() + used_values->margin_box_left() + used_values->margin_box_right());
-
-            auto const& fragments = paintable.fragments();
-            if (!fragments.is_empty()) {
-                auto use_fragment_offset = !offset.has_value() || (fragments.first().offset().x() < offset->x());
-                if (use_fragment_offset) {
-                    offset = fragments.first().offset();
-                    if (&paintable == paintable_with_lines->first_child() && used_values)
-                        offset->translate_by(-used_values->margin_box_left(), 0);
-                }
-            }
-            for (auto const& fragment : fragments)
-                size.set_width(size.width() + fragment.width());
-
-            return TraversalDecision::Continue;
-        });
-
-        if (offset.has_value()) {
-            if (!paintable_with_lines->fragments().is_empty())
-                offset.value().set_y(paintable_with_lines->fragments().first().offset().y());
-
-            // FIXME: If this paintable does not have any fragment we do no know the y offset. It should be where text should
-            // start if there had been any for this node. Pick y offset of the leftmost fragment in the inclusive subtree in the meantime.
-            paintable_with_lines->set_offset(offset.value());
-        }
-
-        if (!paintable_with_lines->fragments().is_empty()) {
-            for (auto const& fragment : paintable_with_lines->fragments())
-                size.set_height(max(size.height(), fragment.height()));
-        } else {
-            size.set_height(paintable_with_lines->layout_node().computed_values().line_height());
-        }
-
-        paintable_with_lines->set_content_size(size);
-    }
+    // Piece rects are final only now that relative positions are resolved.
+    for (auto const& paintable_with_lines : blocks_with_inline_box_pieces)
+        paintable_with_lines->assign_inline_box_geometry();
 }
 
 LayoutState::UsedValues& LayoutState::UsedValues::operator=(UsedValues const& other)

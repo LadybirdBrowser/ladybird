@@ -383,7 +383,6 @@ class NodeWithStyleAndBoxModelMetrics : public NodeWithStyle {
 
 public:
     bool is_inline_flow_interrupting_block() const;
-    NonnullRefPtr<Painting::PaintableWithLines> create_paintable_for_line_with_index(size_t line_index) const;
 
 protected:
     NodeWithStyleAndBoxModelMetrics(DOM::Document&, DOM::Node*, CSS::ComputedProperties const&);

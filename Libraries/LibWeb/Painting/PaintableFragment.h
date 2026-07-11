@@ -23,7 +23,7 @@ class PaintableWithLines;
 
 class WEB_API PaintableFragment {
 public:
-    PaintableFragment(PaintableWithLines const&, Layout::LineBoxFragment const&, LineBoxData);
+    PaintableFragment(PaintableWithLines const&, Layout::LineBoxFragment const&, u32 line_index);
 
     Layout::Node const& layout_node() const
     {
@@ -66,7 +66,7 @@ public:
     CSSPixelPoint offset() const { return m_offset; }
     void set_offset(CSSPixelPoint offset) { m_offset = offset; }
     CSSPixelSize size() const { return m_size; }
-    LineBoxData const& line_box_data() const { return m_line_box_data; }
+    u32 line_index() const { return m_line_index; }
 
     Vector<ShadowData> const& shadows() const { return m_shadows; }
     void set_shadows(Vector<ShadowData>&& shadows) { m_shadows = shadows; }
@@ -123,7 +123,7 @@ private:
     WeakPtr<PaintableWithLines const> m_paintable_with_lines;
     CSSPixelPoint m_offset;
     CSSPixelSize m_size;
-    LineBoxData m_line_box_data;
+    u32 m_line_index { 0 };
     size_t m_start_offset { 0 };
     size_t m_length_in_code_units { 0 };
     size_t m_dom_start_offset_in_node { 0 };

@@ -2,7 +2,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 246 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 230 0+0+8] children: not-inline
       BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 50 0+0+0] children: inline
-        InlineNode <span.inline> at [18,18] [0+0+0 6.0625 0+0+0] [0+0+0 30 0+0+0]
+        InlineNode <span.inline> at [8,18] [0+0+0 26.0625 0+0+0] [0+0+0 30 0+0+0]
           frag 0 from BlockContainer start: 0, length: 0, rect: [18,18 6.0625x30] baseline: 28
           BlockContainer <button> at [18,18] inline-block [0+5+5 6.0625 5+5+0] [0+5+5 30 5+5+0] [BFC] children: not-inline
             BlockContainer <(anonymous)> at [18,18] flex-container(column) [0+0+0 6.0625 0+0+0] [0+0+0 30 0+0+0] [FFC] children: not-inline
@@ -56,7 +56,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x246]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x230]
       PaintableWithLines (BlockContainer(anonymous)) [8,8 784x50]
-        PaintableWithLines (InlineNode<SPAN>.inline) [18,18 6.0625x30]
+        InlinePaintable (InlineNode<SPAN>.inline) [8,18 26.0625x30]
           PaintableWithLines (BlockContainer<BUTTON>) [8,8 26.0625x50]
             PaintableWithLines (BlockContainer(anonymous)) [18,18 6.0625x30]
               PaintableWithLines (BlockContainer(anonymous)) [18,28 6.0625x10]

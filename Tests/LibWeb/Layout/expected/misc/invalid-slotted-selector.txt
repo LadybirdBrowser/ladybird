@@ -20,9 +20,9 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       PaintableWithLines (BlockContainer<DIV>) [8,16 784x16]
         Paintable (Box<UL>) [8,16 784x16]
           PaintableWithLines (ListItemBox<LI>) [48,16 57.296875x16]
-            PaintableWithLines (InlineNode<A>) [48,16 57.296875x16]
+            InlinePaintable (InlineNode<A>) [48,16 57.296875x16]
           PaintableWithLines (ListItemBox<LI>) [105.296875,16 16.828125x16]
-            PaintableWithLines (InlineNode<A>) [105.296875,16 16.828125x16]
+            InlinePaintable (InlineNode<A>) [105.296875,16 16.828125x16]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x48] (z-index: auto)

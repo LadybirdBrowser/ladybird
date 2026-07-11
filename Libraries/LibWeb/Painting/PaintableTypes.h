@@ -31,9 +31,13 @@ enum class SelectionState : u8 {
     Full,
 };
 
-struct LineBoxData {
-    size_t index { 0 };
+// One record per line box of a block container with inline children, including lines without
+// fragments (e.g. blank lines between consecutive forced breaks in a textarea). The rect is
+// relative to the containing block's content-box origin, and fragment_count only counts
+// committed fragments (fully truncated ones are never committed).
+struct LineRecord {
     CSSPixelRect rect;
+    u32 fragment_count { 0 };
 };
 
 // One line's slice of an inline box (InlineNode or inline-flow ListItemBox) fragmented across

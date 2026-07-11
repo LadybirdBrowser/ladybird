@@ -7,7 +7,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         frag 1 from TextNode start: 0, length: 4, rect: [92.796875,16 38.53125x16] baseline: 12.796875
             " qux"
         TextNode <#text> (not painted)
-        InlineNode <a> at [43.15625,16] [0+0+0 45.640625 0+0+0] [0+0+0 18 0+0+0]
+        InlineNode <a> at [43.15625,16] [0+0+0 49.640625 0+0+0] [0+0+0 18 0+0+0]
           frag 0 from TextNode start: 0, length: 3, rect: [43.15625,16 27.640625x16] baseline: 12.796875
               "bar"
           frag 1 from Box start: 0, length: 0, rect: [74.796875,16 18x18] baseline: 12.796875
@@ -31,7 +31,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x50]
     PaintableWithLines (BlockContainer<BODY>) [8,16 784x18]
       PaintableWithLines (BlockContainer<P>) [8,16 784x18]
-        PaintableWithLines (InlineNode<A>) [43.15625,16 45.640625x18]
+        InlinePaintable (InlineNode<A>) [43.15625,16 49.640625x18]
           Paintable (Box<SPAN>.icon) [74.796875,16 18x18]
             PaintableWithLines (BlockContainer<SPAN>.hidden-label) [74.796875,16 27.203125x18]
       PaintableWithLines (BlockContainer(anonymous)) [8,50 784x0]

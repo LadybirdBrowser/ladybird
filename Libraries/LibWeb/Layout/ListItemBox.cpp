@@ -7,6 +7,7 @@
 
 #include <LibWeb/Layout/ListItemBox.h>
 #include <LibWeb/Layout/ListItemMarkerBox.h>
+#include <LibWeb/Painting/InlinePaintable.h>
 
 namespace Web::Layout {
 
@@ -24,10 +25,8 @@ void ListItemBox::set_marker(ListItemMarkerBox* marker)
 
 RefPtr<Painting::Paintable> ListItemBox::create_paintable() const
 {
-    // A fragmented inline list item gets one paintable per line it spans, created via
-    // create_paintable_for_line_with_index(), instead of a node-level paintable.
     if (is_fragmented_inline())
-        return nullptr;
+        return Painting::InlinePaintable::create(*this);
     return BlockContainer::create_paintable();
 }
 

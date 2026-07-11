@@ -23,7 +23,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       PaintableWithLines (BlockContainer<DIV>) [8,13 784x39]
         PaintableWithLines (BlockContainer(anonymous)) [8,13 784x0]
         PaintableWithLines (BlockContainer<PRE>) [8,13 784x39]
-          PaintableWithLines (InlineNode<CODE>) [-2,3 20x33]
+          InlinePaintable (InlineNode<CODE>) [-2,3 20x33]
         PaintableWithLines (BlockContainer(anonymous)) [8,65 784x0]
       PaintableWithLines (BlockContainer(anonymous)) [8,65 784x0]
 
