@@ -322,6 +322,8 @@ void ViewImplementation::load_navigation_error_page(StringView text)
 
 void ViewImplementation::reload()
 {
+    m_history_visit_transition_for_next_load = HistoryVisitTransition::Reload;
+
     if (m_last_stopped_load_url.has_value()) {
         // AD-HOC: If a UI-requested navigation was stopped before its document committed, WebContent still considers
         //         the previous document active. Reissue the stopped URL instead of reloading that previous document.
@@ -375,6 +377,7 @@ HistoryTraversalOutcome ViewImplementation::traverse_the_history_by_delta(
 
     m_should_suppress_history_for_current_load = false;
     m_should_suppress_history_for_next_load = false;
+    m_history_visit_transition_for_next_load = HistoryVisitTransition::Restore;
 
     if (decision.webdriver_pending_navigation_url.has_value()) {
         m_webdriver_pending_navigation_url = *decision.webdriver_pending_navigation_url;
@@ -1763,6 +1766,7 @@ void ViewImplementation::seed_web_content_session_history_from_ui_process(AllowC
 
 void ViewImplementation::restore_current_session_history_entry_from_ui_process()
 {
+    m_history_visit_transition_for_next_load = HistoryVisitTransition::Restore;
     m_webdriver_pending_navigation_url = m_url;
     auto should_seed = m_top_level_traversable.prepare_to_restore_current_session_history_entry_from_ui_process();
     if (should_seed)

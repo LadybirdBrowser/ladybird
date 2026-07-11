@@ -580,7 +580,10 @@ void WebContentClient::maybe_record_history_visit_for_current_load(u64 page_id, 
 
     // Title and favicon updates already give us a useful history entry, so
     // do not wait for did_finish_loading() on pages that never reach it.
-    Application::history_store(m_is_private).record_visit(url, move(title));
+    auto transition = HistoryVisitTransition::Link;
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        transition = view->m_history_visit_transition_for_current_load;
+    Application::history_store(m_is_private).record_visit(url, move(title), UnixDateTime::now(), transition);
     m_history_recorded_urls_for_current_load.set(page_id, normalized_url.release_value());
 }
 
@@ -592,6 +595,10 @@ void WebContentClient::did_start_loading(u64 page_id, Optional<String> navigatio
     m_history_recorded_urls_for_current_load.remove(page_id);
 
     if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (!is_redirect) {
+            view->m_history_visit_transition_for_current_load = view->m_history_visit_transition_for_next_load;
+            view->m_history_visit_transition_for_next_load = HistoryVisitTransition::Link;
+        }
         view->m_is_waiting_for_navigation_start = false;
         view->m_loading_navigation_id = navigation_id;
         view->m_loading_url = url;

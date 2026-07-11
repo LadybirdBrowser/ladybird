@@ -1070,6 +1070,7 @@ private:
 - (BOOL)navigateToLocation:(String)location
 {
     if (auto url = WebView::sanitize_url(location, WebView::Application::settings().search_engine()); url.has_value()) {
+        [[[self tab] web_view] view].set_next_history_visit_transition(WebView::HistoryVisitTransition::Omnibox);
         [self loadURL:*url];
     } else {
         [[[self tab] web_view] view].load_navigation_error_page(location);

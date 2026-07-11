@@ -93,6 +93,31 @@ static void expect_history_autocomplete_entries_include_metadata(WebView::Histor
     EXPECT_EQ(entries[0].last_visited_time, UnixDateTime::from_seconds_since_epoch(20));
 }
 
+static void expect_history_ranking_signals_track_visit_intent(WebView::HistoryStore& store)
+{
+    auto url = parse_url("https://example.com/"sv);
+    auto first_visit = UnixDateTime::from_seconds_since_epoch(1'000'000);
+    auto reload = UnixDateTime::from_seconds_since_epoch(1'000'000 + 86'400);
+    auto direct_visit = UnixDateTime::from_seconds_since_epoch(1'000'000 + 30 * 86'400);
+    auto restore = UnixDateTime::from_seconds_since_epoch(1'000'000 + 31 * 86'400);
+
+    store.record_visit(url, {}, first_visit, WebView::HistoryVisitTransition::Link);
+    store.record_visit(url, {}, reload, WebView::HistoryVisitTransition::Reload);
+    store.record_visit(url, {}, direct_visit, WebView::HistoryVisitTransition::Omnibox);
+    store.record_visit(url, {}, restore, WebView::HistoryVisitTransition::Restore);
+
+    auto entry = store.entry_for_url(url);
+    VERIFY(entry.has_value());
+    EXPECT_EQ(entry->visit_count, 4u);
+    EXPECT_EQ(entry->direct_visit_count, 1u);
+    EXPECT_EQ(entry->last_visited_time, restore);
+    EXPECT_EQ(entry->last_qualifying_visit_time, direct_visit);
+    EXPECT_EQ(entry->last_direct_visit_time, direct_visit);
+    EXPECT_EQ(entry->score_updated_at, direct_visit);
+    EXPECT_APPROXIMATE(entry->decayed_visit_score, 1.5);
+    EXPECT_APPROXIMATE(entry->decayed_direct_score, 1.0);
+}
+
 static void expect_history_page_entries_are_paginated_and_searchable(WebView::HistoryStore& store)
 {
     store.record_visit(parse_url("https://www.alpha.example.com/path"sv), "Alpha docs"_string, UnixDateTime::from_seconds_since_epoch(10));
@@ -330,6 +355,12 @@ TEST_CASE(history_autocomplete_entries_include_metadata)
     expect_history_autocomplete_entries_include_metadata(*store);
 }
 
+TEST_CASE(history_ranking_signals_track_visit_intent)
+{
+    auto store = WebView::HistoryStore::create();
+    expect_history_ranking_signals_track_visit_intent(*store);
+}
+
 TEST_CASE(history_page_entries_are_paginated_and_searchable)
 {
     auto store = WebView::HistoryStore::create();
@@ -532,6 +563,24 @@ TEST_CASE(persisted_history_autocomplete_entries_include_metadata)
     expect_history_autocomplete_entries_include_metadata(*store);
 }
 
+TEST_CASE(persisted_history_ranking_signals_track_visit_intent)
+{
+    auto database_directory = ByteString::formatted(
+        "{}/ladybird-history-store-ranking-signals-test-{}",
+        Core::StandardPaths::tempfile_directory(),
+        generate_random_uuid());
+    TRY_OR_FAIL(Core::Directory::create(database_directory, Core::Directory::CreateDirectories::Yes));
+
+    auto cleanup = ScopeGuard([&] {
+        MUST(FileSystem::remove(database_directory, FileSystem::RecursionMode::Allowed));
+    });
+
+    auto database = TRY_OR_FAIL(Database::Database::create(database_directory, "HistoryStore"sv));
+    auto store = create_persisted_store(*database);
+
+    expect_history_ranking_signals_track_visit_intent(*store);
+}
+
 TEST_CASE(persisted_history_page_entries_are_paginated_and_searchable)
 {
     auto database_directory = ByteString::formatted(
@@ -595,4 +644,33 @@ TEST_CASE(newer_history_schema_reports_database_too_new)
 
     EXPECT_EQ(TRY_OR_FAIL(WebView::HistoryStore::migrate_schema(*database)), Database::MigrationOutcome::DatabaseTooNew);
     EXPECT_EQ(TRY_OR_FAIL(WebView::HistoryStore::migrate_schema(*database, Database::MigrationMode::CheckOnly)), Database::MigrationOutcome::DatabaseTooNew);
+}
+
+TEST_CASE(history_ranking_signal_migration_preserves_existing_entries)
+{
+    auto database = TRY_OR_FAIL(Database::Database::create_memory_backed());
+    TRY_OR_FAIL(database->execute_raw(R"#(
+        CREATE TABLE SchemaVersions (store TEXT PRIMARY KEY, version INTEGER NOT NULL);
+        INSERT INTO SchemaVersions (store, version) VALUES ('History', 1);
+        CREATE TABLE History (
+            url TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            favicon TEXT,
+            visit_count INTEGER NOT NULL,
+            last_visited_time INTEGER NOT NULL
+        );
+        INSERT INTO History (url, title, visit_count, last_visited_time)
+        VALUES ('https://example.com/', 'Example', 12, 123000);
+    )#"sv));
+
+    EXPECT_EQ(TRY_OR_FAIL(WebView::HistoryStore::migrate_schema(*database)), Database::MigrationOutcome::Success);
+    auto store = TRY_OR_FAIL(WebView::HistoryStore::create(*database));
+    auto entry = store->entry_for_url(parse_url("https://example.com/"sv));
+
+    VERIFY(entry.has_value());
+    EXPECT_EQ(entry->visit_count, 12u);
+    EXPECT_EQ(entry->direct_visit_count, 0u);
+    EXPECT_EQ(entry->last_qualifying_visit_time, UnixDateTime::from_seconds_since_epoch(123));
+    EXPECT_EQ(entry->score_updated_at, UnixDateTime::from_seconds_since_epoch(123));
+    EXPECT_APPROXIMATE(entry->decayed_visit_score, 8.0);
 }

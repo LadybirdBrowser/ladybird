@@ -15,6 +15,7 @@
 #include <LibDatabase/Forward.h>
 #include <LibURL/URL.h>
 #include <LibWebView/Export.h>
+#include <LibWebView/HistoryVisitTransition.h>
 
 namespace WebView {
 
@@ -23,7 +24,13 @@ struct WEBVIEW_API HistoryEntry {
     Optional<String> title;
     Optional<String> favicon_base64_png;
     u64 visit_count { 0 };
+    u64 direct_visit_count { 0 };
     UnixDateTime last_visited_time;
+    UnixDateTime last_qualifying_visit_time;
+    UnixDateTime last_direct_visit_time;
+    double decayed_visit_score { 0 };
+    double decayed_direct_score { 0 };
+    UnixDateTime score_updated_at;
 };
 
 struct WEBVIEW_API RecentlyClosedEntry {
@@ -47,7 +54,7 @@ public:
 
     ~HistoryStore();
 
-    void record_visit(URL::URL const&, Optional<String> title = {}, UnixDateTime visited_at = UnixDateTime::now());
+    void record_visit(URL::URL const&, Optional<String> title = {}, UnixDateTime visited_at = UnixDateTime::now(), HistoryVisitTransition = HistoryVisitTransition::Link);
     void update_title(URL::URL const&, String const& title);
     void update_favicon(URL::URL const&, String const& favicon_base64_png);
 
@@ -84,7 +91,7 @@ private:
 
         virtual StringView name() = 0;
 
-        virtual void record_visit(String const& url, Optional<String> const& title, UnixDateTime visited_at) = 0;
+        virtual void record_visit(String const& url, Optional<String> const& title, UnixDateTime visited_at, HistoryVisitTransition) = 0;
         virtual void update_title(String const& url, String const& title) = 0;
         virtual void update_favicon(String const& url, String const& favicon_base64_png) = 0;
 
@@ -103,7 +110,7 @@ private:
 
         virtual StringView name() override { return "transient"sv; }
 
-        virtual void record_visit(String const& url, Optional<String> const& title, UnixDateTime visited_at) override;
+        virtual void record_visit(String const& url, Optional<String> const& title, UnixDateTime visited_at, HistoryVisitTransition) override;
         virtual void update_title(String const& url, String const& title) override;
         virtual void update_favicon(String const& url, String const& favicon_base64_png) override;
 
@@ -126,7 +133,7 @@ private:
 
         virtual StringView name() override { return "SQL"sv; }
 
-        virtual void record_visit(String const& url, Optional<String> const& title, UnixDateTime visited_at) override;
+        virtual void record_visit(String const& url, Optional<String> const& title, UnixDateTime visited_at, HistoryVisitTransition) override;
         virtual void update_title(String const& url, String const& title) override;
         virtual void update_favicon(String const& url, String const& favicon_base64_png) override;
 

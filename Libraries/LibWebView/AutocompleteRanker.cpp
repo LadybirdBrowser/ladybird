@@ -107,11 +107,16 @@ static i32 match_relevance(AutocompleteMatchClass match_class)
 
 static i32 page_quality(HistoryEntry const& entry, UnixDateTime now)
 {
-    auto age = now - entry.last_visited_time;
+    auto age = now - entry.last_qualifying_visit_time;
     auto age_in_days = max(0.0, static_cast<double>(age.to_seconds()) / 86'400.0);
-    auto visit_strength = 1.0 - AK::exp(-static_cast<double>(entry.visit_count) / 8.0);
+    auto score_age = now - entry.score_updated_at;
+    auto score_age_in_days = max(0.0, static_cast<double>(score_age.to_seconds()) / 86'400.0);
+    auto decayed_visit_score = entry.decayed_visit_score * AK::pow(0.5, score_age_in_days / 30.0);
+    auto decayed_direct_score = entry.decayed_direct_score * AK::pow(0.5, score_age_in_days / 60.0);
+    auto visit_strength = 1.0 - AK::exp(-decayed_visit_score / 8.0);
+    auto direct_strength = 1.0 - AK::exp(-decayed_direct_score / 3.0);
     auto recent_strength = AK::pow(0.5, age_in_days / 14.0);
-    return static_cast<i32>(75.0 * visit_strength + 25.0 * recent_strength);
+    return static_cast<i32>(150.0 * direct_strength + 75.0 * visit_strength + 25.0 * recent_strength);
 }
 
 static bool query_contains_path(StringView query)
@@ -158,7 +163,7 @@ Vector<AutocompleteSuggestion> rank_history_suggestions(StringView query, Vector
             relevance -= 200;
 
         auto is_url_prefix = match_class == AutocompleteMatchClass::ExactURL || match_class == AutocompleteMatchClass::URLPrefix;
-        auto has_strong_intent = entry.visit_count >= (query_is_url ? 1u : 2u);
+        auto has_strong_intent = entry.direct_visit_count >= (query_is_url ? 1u : 2u);
         auto can_be_automatically_selected = is_url_prefix
             && has_strong_intent
             && query_length >= 2

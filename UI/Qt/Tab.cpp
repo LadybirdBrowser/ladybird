@@ -1143,10 +1143,12 @@ void Tab::location_edit_return_pressed()
     if (text.isEmpty())
         return;
 
-    if (auto url = m_location_edit->url(); url.has_value())
+    if (auto url = m_location_edit->url(); url.has_value()) {
+        view().set_next_history_visit_transition(WebView::HistoryVisitTransition::Omnibox);
         navigate(*url);
-    else
+    } else {
         view().load_navigation_error_page(ak_string_from_qstring(text));
+    }
 
     view().setFocus();
 }

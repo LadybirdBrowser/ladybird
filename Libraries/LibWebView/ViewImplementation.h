@@ -49,6 +49,7 @@
 #include <LibWebView/DOMNodeProperties.h>
 #include <LibWebView/DictionaryLookup.h>
 #include <LibWebView/Forward.h>
+#include <LibWebView/HistoryVisitTransition.h>
 #include <LibWebView/PageInfo.h>
 #include <LibWebView/PrivateBrowsing.h>
 #include <LibWebView/SessionHistory.h>
@@ -98,6 +99,7 @@ public:
     void set_system_visibility_state(Web::HTML::VisibilityState);
 
     void load(URL::URL const&, Web::Bindings::NavigationHistoryBehavior = Web::Bindings::NavigationHistoryBehavior::Auto);
+    void set_next_history_visit_transition(HistoryVisitTransition transition) { m_history_visit_transition_for_next_load = transition; }
     void load_html(StringView);
     void load_navigation_error_page(StringView);
 
@@ -576,6 +578,8 @@ protected:
 
     bool m_should_suppress_history_for_current_load { false };
     bool m_should_suppress_history_for_next_load { false };
+    HistoryVisitTransition m_history_visit_transition_for_current_load { HistoryVisitTransition::Link };
+    HistoryVisitTransition m_history_visit_transition_for_next_load { HistoryVisitTransition::Link };
     bool m_is_loading { false };
     bool m_is_waiting_for_navigation_start { false };
     Optional<String> m_loading_navigation_id;
