@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<script>
+    // An img element inside a picture element fires exactly one load event, even when its src
+    // was set before insertion (multiple invocations of "update the image data" coalesce), and
+    // removing the picture afterwards is not a relevant mutation, so it must not fire another
+    // load event. Chrome, Firefox and Safari all fire exactly one load event here.
+    //
+    // The spurious load events this guards against were dispatched via the image loading
+    // batching dispatcher. The sentinel image below is a fresh (uncached) URL whose successful
+    // load also flows through the batching dispatcher, so by the time the sentinel's load event
+    // fires, any spurious load event queued before it has already been dispatched.
+    const events = [];
+
+    // Load the image once up front so the scenario below hits the list of available images.
+    const plainImage = document.createElement("img");
+    plainImage.src = "../../../Assets/120.png";
+    plainImage.onload = () => {
+        const picture = document.createElement("picture");
+        const source = document.createElement("source");
+        source.media = "(min-width: 1px)";
+        source.srcset = "../../../Assets/120.png";
+        const img = document.createElement("img");
+        img.src = "../../../Assets/120.png";
+        let loads = 0;
+        img.onload = () => {
+            loads++;
+            events.push(`img load #${loads}`);
+            if (loads > 1)
+                return;
+            picture.remove();
+
+            const sentinel = document.createElement("img");
+            sentinel.src =
+                "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNgYGBgAAAABQABh6FO1AAAAABJRU5ErkJggg==";
+            sentinel.onload = () => {
+                events.push("sentinel load");
+                for (const event of events)
+                    println(event);
+                window.__done();
+            };
+            document.body.appendChild(sentinel);
+        };
+        picture.appendChild(source);
+        picture.appendChild(img);
+        document.body.appendChild(picture);
+    };
+
+    asyncTest(done => {
+        window.__done = done;
+    });
+</script>

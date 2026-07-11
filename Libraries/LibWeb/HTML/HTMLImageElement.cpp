@@ -712,7 +712,17 @@ void HTMLImageElement::update_the_image_data_impl(bool restart_animations, bool 
             m_current_request->set_current_pixel_density(selected_pixel_density.value_or(1.0f));
 
             // 7. Queue an element task on the DOM manipulation task source given the img element and following steps:
-            queue_an_element_task(HTML::Task::Source::DOMManipulation, [this, restart_animations, maybe_omit_events, url_string, previous_url] {
+            queue_an_element_task(HTML::Task::Source::DOMManipulation, [this, restart_animations, maybe_omit_events, url_string, previous_url, update_the_image_data_count] {
+                // AD-HOC: If another instance of this algorithm was started after this one, let that newer instance
+                //         fire the load event instead of firing one per instance. The spec only has this guard in the
+                //         microtask continuation below (step 9: "Only the last instance takes effect, to avoid
+                //         multiple requests when, for example, the src, srcset, and crossorigin attributes are all
+                //         set in succession."), but relevant mutations (e.g. setting src and then inserting into a
+                //         picture) can also invoke this algorithm several times in the same script block, and the
+                //         major engines coalesce those updates into a single load event.
+                if (update_the_image_data_count != m_update_the_image_data_count)
+                    return;
+
                 // AD-HOC: Bail out if the document became inactive (e.g. iframe removed or navigated)
                 //         between when this task was queued and when it runs.
                 if (!document().is_fully_active()) {
@@ -762,6 +772,16 @@ after_step_7:
             selected_source = result.value().source;
             pixel_density = result.value().pixel_density;
         }
+
+        // AD-HOC: Record the selected source for elements that use srcset or picture. The spec only sets
+        //         https://html.spec.whatwg.org/multipage/images.html#last-selected-source in step 6, leaving it null
+        //         for such elements, which would make every environment change reselect and refetch the same URL and
+        //         fire a spurious load event, since "react to environment changes" only returns early when the newly
+        //         selected source matches the last selected source. Blink likewise records the selected candidate URL
+        //         at selection time and deliberately skips same-candidate updates on environment changes to avoid
+        //         spurious downloads. Spec issue: https://github.com/whatwg/html/issues/4646
+        if (selected_source.has_value())
+            m_last_selected_source = selected_source->url;
 
         // 11. If selected source is null, then:
         if (!selected_source.has_value()) {
