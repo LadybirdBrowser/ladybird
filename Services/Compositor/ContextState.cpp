@@ -14,6 +14,7 @@
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <core/SkCanvas.h>
+#include <core/SkImage.h>
 
 namespace Compositor {
 
@@ -837,6 +838,44 @@ Web::Painting::AccumulatedVisualContextTree const& ContextState::visual_context_
 void ContextState::paint_current_display_list(Web::Painting::DisplayListPlayerSkia& display_list_player, Gfx::PaintingSurface& surface, CompositedContextResolver const* composited_context_resolver, Optional<Gfx::IntRect> damage_rect)
 {
     VERIFY(m_display_list);
+    auto paint_display_list = [&](Gfx::PaintingSurface& target_surface) {
+        display_list_player.execute(
+            *m_display_list,
+            visual_context_tree_for_compositing(),
+            m_display_list_resource_storage,
+            m_scroll_state_snapshot,
+            target_surface,
+            &m_canvas_surface_registry,
+            composited_context_resolver);
+        m_viewport_scrollbar_controller.paint(target_surface, display_list_player, m_scroll_state_snapshot);
+    };
+
+    if (damage_rect.has_value() && !damage_rect->is_empty() && presents_to_client() && damage_rect->size() != surface.size() && surface.skia_backend_context()) {
+        if (!m_damage_surface || m_damage_surface->size() != damage_rect->size()) {
+            m_damage_surface = Gfx::PaintingSurface::create_with_size(
+                damage_rect->size(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, surface.skia_backend_context());
+        }
+
+        auto& damage_canvas = m_damage_surface->canvas();
+        damage_canvas.clear(SK_ColorTRANSPARENT);
+        damage_canvas.save();
+        damage_canvas.translate(-damage_rect->x(), -damage_rect->y());
+        paint_display_list(*m_damage_surface);
+        damage_canvas.restore();
+
+        auto image = m_damage_surface->sk_image_snapshot<sk_sp<SkImage>>();
+        SkPaint paint;
+        paint.setBlendMode(SkBlendMode::kSrc);
+        surface.canvas().drawImageRect(
+            image.get(),
+            SkRect::MakeWH(damage_rect->width(), damage_rect->height()),
+            SkRect::MakeXYWH(damage_rect->x(), damage_rect->y(), damage_rect->width(), damage_rect->height()),
+            SkSamplingOptions {},
+            &paint,
+            SkCanvas::kStrict_SrcRectConstraint);
+        return;
+    }
+
     auto& canvas = surface.canvas();
     auto save_count = canvas.save();
     if (damage_rect.has_value()) {
@@ -844,15 +883,7 @@ void ContextState::paint_current_display_list(Web::Painting::DisplayListPlayerSk
         if (!presents_to_client())
             canvas.clear(SK_ColorTRANSPARENT);
     }
-    display_list_player.execute(
-        *m_display_list,
-        visual_context_tree_for_compositing(),
-        m_display_list_resource_storage,
-        m_scroll_state_snapshot,
-        surface,
-        &m_canvas_surface_registry,
-        composited_context_resolver);
-    m_viewport_scrollbar_controller.paint(surface, display_list_player, m_scroll_state_snapshot);
+    paint_display_list(surface);
     canvas.restoreToCount(save_count);
 }
 

@@ -178,6 +178,7 @@ private:
     Web::Painting::ScrollStateSnapshot m_scroll_state_snapshot;
     BackingStoreManager m_backing_store_manager;
     RefPtr<Gfx::PaintingSurface> m_latest_rendered_surface;
+    RefPtr<Gfx::PaintingSurface> m_damage_surface;
 
     Web::Compositor::AsyncScrollTree m_async_scroll_tree;
     ViewportScrollbarController m_viewport_scrollbar_controller;
