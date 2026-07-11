@@ -594,6 +594,7 @@ void WebContentClient::did_start_loading(u64 page_id, Optional<String> navigatio
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         view->m_is_waiting_for_navigation_start = false;
         view->m_loading_navigation_id = navigation_id;
+        view->m_loading_url = url;
         view->m_should_suppress_history_for_current_load = view->m_should_suppress_history_for_next_load;
         view->m_should_suppress_history_for_next_load = false;
         view->did_start_navigation(url, move(document_resource), is_redirect, history_handling);
@@ -621,6 +622,7 @@ void WebContentClient::did_cancel_loading(u64 page_id, Optional<String> navigati
             return;
         view->m_is_waiting_for_navigation_start = false;
         view->m_loading_navigation_id.clear();
+        view->m_loading_url.clear();
         view->did_cancel_navigation(url);
 
         auto const& client_url = view->url();
@@ -714,6 +716,7 @@ void WebContentClient::did_finish_loading(u64 page_id, Optional<String> navigati
             return;
 
         view->m_loading_navigation_id.clear();
+        view->m_loading_url.clear();
         auto client_url = url;
         // Browser-generated pages can finish with an internal document URL.
         // Keep exposing the URL accepted at load start for suppressed loads.

@@ -4208,11 +4208,16 @@ void LocalNavigable::unregister_navigation_observer(Badge<NavigationObserver>, N
     m_navigation_observers.remove(navigation_observer);
 }
 
-// https://html.spec.whatwg.org/multipage/document-lifecycle.html#nav-stop
+// https://html.spec.whatwg.org/multipage/document-lifecycle.html#stop-document-loading
 void LocalNavigable::stop_loading()
 {
     // 1. Let document be navigable's active document.
     auto document = active_document();
+
+    // AD-HOC: The HTML Standard does not cancel planned navigations here, but Chromium, WebKit, and Gecko do so when
+    //         handling window.stop(). Prevent navigations deferred behind an ongoing traversal from starting once it
+    //         completes. See https://github.com/whatwg/html/issues/12609.
+    clear_pending_navigations();
 
     // 2. If document's unload counter is 0, and navigable's ongoing navigation is a navigation ID, then set the ongoing navigation for navigable to null.
     if (document->unload_counter() == 0 && ongoing_navigation().has<String>())

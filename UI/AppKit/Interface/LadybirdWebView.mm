@@ -1399,6 +1399,12 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
         return;
     }
 
+    auto key_event = Ladybird::ns_event_to_key_event(Web::KeyEvent::Type::KeyDown, event);
+    if (key_event.key == Web::UIEvents::KeyCode::Key_Escape && key_event.modifiers == Web::UIEvents::KeyModifier::Mod_None && m_web_view_bridge->is_loading()) {
+        m_web_view_bridge->stop_loading();
+        return;
+    }
+
     self.current_key_down_event = event;
     [self interpretKeyEvents:@[ event ]];
 }

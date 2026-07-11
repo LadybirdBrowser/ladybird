@@ -102,6 +102,7 @@ public:
     void load_navigation_error_page(StringView);
 
     void reload();
+    void stop_loading();
     bool is_loading() const { return m_is_loading; }
 
     struct SessionHistoryTraversalMenuItem {
@@ -572,6 +573,8 @@ protected:
     bool m_is_loading { false };
     bool m_is_waiting_for_navigation_start { false };
     Optional<String> m_loading_navigation_id;
+    Optional<URL::URL> m_loading_url;
+    Optional<URL::URL> m_last_stopped_load_url;
 
     size_t m_crash_count = 0;
     RefPtr<Core::Timer> m_repeated_crash_timer;

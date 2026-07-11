@@ -516,6 +516,12 @@ void WebContentView::keyPressEvent(QKeyEvent* event)
         return;
     }
 
+    if (event->key() == Qt::Key_Escape && event->modifiers() == Qt::NoModifier && is_loading()) {
+        stop_loading();
+        event->accept();
+        return;
+    }
+
     enqueue_native_event(Web::KeyEvent::Type::KeyDown, *event);
 }
 

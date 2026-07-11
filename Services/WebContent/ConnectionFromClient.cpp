@@ -315,6 +315,12 @@ void ConnectionFromClient::reload(u64 page_id)
         page->page().reload();
 }
 
+void ConnectionFromClient::stop_loading(u64 page_id)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().top_level_traversable()->stop_loading();
+}
+
 void ConnectionFromClient::cancel_download(u64 page_id, u64 download_id)
 {
     if (auto page = this->page(page_id); page.has_value())

@@ -195,6 +195,8 @@ void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL c
     set_loading_state(true);
     m_is_waiting_for_navigation_start = true;
     m_loading_navigation_id.clear();
+    m_loading_url = url;
+    m_last_stopped_load_url.clear();
     set_url(url);
     if (preparation.should_seed_web_content_before_load)
         seed_web_content_session_history_from_ui_process();
@@ -256,6 +258,8 @@ void ViewImplementation::load(URL::URL const& url, Web::Bindings::NavigationHist
     m_should_suppress_history_for_next_load = false;
     m_is_waiting_for_navigation_start = true;
     m_loading_navigation_id.clear();
+    m_loading_url = url;
+    m_last_stopped_load_url.clear();
     auto preparation = m_top_level_traversable.prepare_for_page_load(url, history_handling);
     if (preparation.should_update_navigation_action_state)
         update_navigation_action_state();
@@ -270,6 +274,8 @@ void ViewImplementation::load_html(StringView html)
     set_loading_state(true);
     m_is_waiting_for_navigation_start = false;
     m_loading_navigation_id.clear();
+    m_loading_url.clear();
+    m_last_stopped_load_url.clear();
     m_is_showing_crash_page = false;
     m_should_suppress_history_for_current_load = false;
     m_should_suppress_history_for_next_load = false;
@@ -282,6 +288,8 @@ void ViewImplementation::load_crash_page_html(StringView html, URL::URL const& c
     set_loading_state(true);
     m_is_waiting_for_navigation_start = false;
     m_loading_navigation_id.clear();
+    m_loading_url.clear();
+    m_last_stopped_load_url.clear();
     m_is_showing_crash_page = true;
     m_should_suppress_history_for_current_load = true;
     m_should_suppress_history_for_next_load = true;
@@ -303,6 +311,14 @@ void ViewImplementation::load_navigation_error_page(StringView text)
 
 void ViewImplementation::reload()
 {
+    if (m_last_stopped_load_url.has_value()) {
+        // AD-HOC: If a UI-requested navigation was stopped before its document committed, WebContent still considers
+        //         the previous document active. Reissue the stopped URL instead of reloading that previous document.
+        auto url = m_last_stopped_load_url.release_value();
+        load(url, Web::Bindings::NavigationHistoryBehavior::Replace);
+        return;
+    }
+
     set_loading_state(true);
     m_is_waiting_for_navigation_start = true;
     m_loading_navigation_id.clear();
@@ -322,6 +338,17 @@ void ViewImplementation::reload()
     update_navigation_action_state();
     dump_session_history("reload-mark-current-entry-reload-pending"sv);
     client().async_reload(page_id());
+}
+
+void ViewImplementation::stop_loading()
+{
+    if (!m_is_loading)
+        return;
+    m_last_stopped_load_url = m_loading_url;
+    set_loading_state(false);
+    m_is_waiting_for_navigation_start = false;
+    m_loading_navigation_id.clear();
+    client().async_stop_loading(page_id());
 }
 
 HistoryTraversalOutcome ViewImplementation::traverse_the_history_by_delta(
