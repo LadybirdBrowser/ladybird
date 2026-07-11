@@ -1,4 +1,5 @@
 set(TEST_SOURCES
+    TestAutocompleteMuxer.cpp
     TestAutocompleteRanker.cpp
     TestCookieJar.cpp
     TestHistoryStore.cpp

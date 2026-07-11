@@ -1,0 +1,158 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#include <LibTest/TestCase.h>
+#include <LibWebView/AutocompleteMuxer.h>
+
+namespace {
+
+WebView::AutocompleteSuggestion suggestion(
+    WebView::AutocompleteSuggestionSource source,
+    StringView text,
+    i32 relevance,
+    bool can_be_automatically_selected,
+    bool is_verbatim = false)
+{
+    return {
+        .source = source,
+        .section = source == WebView::AutocompleteSuggestionSource::Search
+            ? WebView::AutocompleteSuggestionSection::SearchSuggestions
+            : WebView::AutocompleteSuggestionSection::History,
+        .text = MUST(String::from_utf8(text)),
+        .title = {},
+        .subtitle = {},
+        .favicon_base64_png = {},
+        .relevance = relevance,
+        .is_verbatim = is_verbatim,
+        .can_be_automatically_selected = can_be_automatically_selected,
+    };
+}
+
+WebView::AutocompleteSuggestion search(StringView text, i32 relevance, bool is_verbatim = false)
+{
+    return suggestion(WebView::AutocompleteSuggestionSource::Search, text, relevance, is_verbatim, is_verbatim);
+}
+
+WebView::AutocompleteSuggestion history(StringView text, i32 relevance, bool can_be_automatically_selected = true)
+{
+    return suggestion(WebView::AutocompleteSuggestionSource::History, text, relevance, can_be_automatically_selected);
+}
+
+}
+
+TEST_CASE(default_selection_is_independent_of_display_relevance)
+{
+    auto results = WebView::mux_autocomplete_suggestions(
+        "manual"sv,
+        search("manual"sv, 1000, true),
+        { history("https://example.com/manual"sv, 1200, false) },
+        { search("manual pages"sv, 1300) },
+        8);
+
+    EXPECT_EQ(results.size(), 3u);
+    EXPECT_EQ(results[0].text, "manual"sv);
+    EXPECT(results[0].is_verbatim);
+    EXPECT_EQ(results[1].text, "manual pages"sv);
+}
+
+TEST_CASE(strong_local_navigation_can_replace_an_ambiguous_default)
+{
+    auto results = WebView::mux_autocomplete_suggestions(
+        "lady"sv,
+        search("lady"sv, 900, true),
+        { history("https://ladybird.org/"sv, 930) },
+        {},
+        8);
+
+    EXPECT_EQ(results[0].text, "https://ladybird.org/"sv);
+    EXPECT_EQ(results[1].text, "lady"sv);
+}
+
+TEST_CASE(verbatim_action_remains_visible_when_history_fills_the_list)
+{
+    Vector<WebView::AutocompleteSuggestion> history_suggestions;
+    for (size_t index = 0; index < 8; ++index)
+        history_suggestions.append(history(MUST(String::formatted("https://{}.example/", index)), 1000 - static_cast<i32>(index), false));
+
+    auto results = WebView::mux_autocomplete_suggestions(
+        "example"sv,
+        search("example"sv, 900, true),
+        move(history_suggestions),
+        {},
+        5);
+
+    EXPECT_EQ(results.size(), 5u);
+    EXPECT(results.contains([](auto const& result) { return result.text == "example"sv; }));
+}
+
+TEST_CASE(source_caps_are_soft)
+{
+    auto results = WebView::mux_autocomplete_suggestions(
+        "example/"sv,
+        {},
+        {
+            history("https://one.example/"sv, 1000),
+            history("https://two.example/"sv, 990),
+            history("https://three.example/"sv, 980),
+            history("https://four.example/"sv, 970),
+            history("https://five.example/"sv, 960),
+        },
+        {},
+        5);
+
+    EXPECT_EQ(results.size(), 5u);
+}
+
+TEST_CASE(origin_diversity_precedes_extra_pages_from_one_site)
+{
+    auto results = WebView::mux_autocomplete_suggestions(
+        "news"sv,
+        {},
+        {
+            history("https://news.example/one"sv, 1000),
+            history("https://news.example/two"sv, 990),
+            history("https://news.example/three"sv, 980),
+            history("https://other.example/news"sv, 970),
+            history("https://third.example/news"sv, 960),
+        },
+        {},
+        4);
+
+    EXPECT_EQ(results.size(), 4u);
+    EXPECT_EQ(results[0].text, "https://news.example/one"sv);
+    EXPECT_EQ(results[1].text, "https://news.example/two"sv);
+    EXPECT_EQ(results[2].text, "https://other.example/news"sv);
+    EXPECT_EQ(results[3].text, "https://third.example/news"sv);
+}
+
+TEST_CASE(exact_remote_query_merges_into_the_verbatim_search)
+{
+    auto results = WebView::mux_autocomplete_suggestions(
+        "ladybird browser"sv,
+        search("ladybird browser"sv, 1000, true),
+        {},
+        { search("Ladybird Browser"sv, 700) },
+        8);
+
+    EXPECT_EQ(results.size(), 1u);
+    EXPECT(results[0].is_verbatim);
+    EXPECT(results[0].can_be_automatically_selected);
+}
+
+TEST_CASE(http_and_https_destinations_are_not_deduplicated)
+{
+    auto results = WebView::mux_autocomplete_suggestions(
+        "example.com"sv,
+        {},
+        {
+            history("http://example.com/"sv, 1000),
+            history("https://example.com/"sv, 990),
+        },
+        {},
+        8);
+
+    EXPECT_EQ(results.size(), 2u);
+}

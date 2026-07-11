@@ -64,6 +64,7 @@ struct WEBVIEW_API AutocompleteSuggestion {
     Optional<String> favicon_base64_png;
     AutocompleteMatchClass match_class { AutocompleteMatchClass::None };
     i32 relevance { 0 };
+    bool is_verbatim { false };
     bool can_be_automatically_selected { true };
     bool can_be_inline_completed { false };
 };

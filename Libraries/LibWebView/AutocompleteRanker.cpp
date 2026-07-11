@@ -176,6 +176,7 @@ Vector<AutocompleteSuggestion> rank_history_suggestions(StringView query, Vector
             .favicon_base64_png = move(entry.favicon_base64_png),
             .match_class = match_class,
             .relevance = relevance,
+            .is_verbatim = false,
             .can_be_automatically_selected = can_be_automatically_selected,
             .can_be_inline_completed = can_be_inline_completed,
         });
