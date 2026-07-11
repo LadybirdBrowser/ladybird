@@ -633,6 +633,15 @@ void HTMLParserEndState::complete()
 
     // 9. Queue a global task on the DOM manipulation task source given the Document's relevant global object to run the following steps:
     queue_global_task(HTML::Task::Source::DOMManipulation, *m_document, GC::create_function(m_document->heap(), [document = m_document, parser = m_parser] {
+        // 11. The Document is now ready for post-load tasks.
+        // NB: The spec sets this synchronously after queueing this task, and relies on "spin the event loop"
+        //     continuations being queued tasks to keep an ancestor document's load event behind this document's own
+        //     load event and its container's load event. Our parser end state machine checks its progress from
+        //     deferred invocations, which run ahead of queued tasks, so flip readiness inside this task instead;
+        //     an ancestor then cannot complete until this task (and everything it queues) is already in the queue.
+        //     WebKit and Blink time their equivalent flag the same way.
+        document->set_ready_for_post_load_tasks(true);
+
         // 1. Update the current document readiness to "complete".
         document->update_readiness(HTML::DocumentReadyState::Complete);
 
@@ -679,8 +688,7 @@ void HTMLParserEndState::complete()
 
     // FIXME: 10. If the Document's print when loaded flag is set, then run the printing steps.
 
-    // 11. The Document is now ready for post-load tasks.
-    m_document->set_ready_for_post_load_tasks(true);
+    // NB: Step 11 (the Document is now ready for post-load tasks) runs inside the task queued above; see there.
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#create-an-element-for-the-token

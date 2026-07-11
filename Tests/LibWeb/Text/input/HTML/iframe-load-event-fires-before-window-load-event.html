@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<script>
+    // An iframe's load event fires before its document's window load event, matching Chrome,
+    // Firefox and Safari, where a frame delays the load event until it has completely finished
+    // loading, including firing its own load event.
+    const events = [];
+
+    const iframe = document.createElement("iframe");
+    iframe.srcdoc = "<body>hello</body>";
+    iframe.addEventListener("load", () => events.push("iframe load event"));
+    document.body.appendChild(iframe);
+
+    asyncTest(done => {
+        window.addEventListener("load", () => {
+            events.push("window load event");
+            for (const event of events)
+                println(event);
+            done();
+        });
+    });
+</script>
