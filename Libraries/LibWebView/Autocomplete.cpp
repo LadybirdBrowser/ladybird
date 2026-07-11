@@ -9,6 +9,7 @@
 #include <AK/Debug.h>
 #include <AK/Find.h>
 #include <LibCore/EventLoop.h>
+#include <LibCore/Timer.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
 #include <LibTextCodec/Decoder.h>
@@ -61,6 +62,11 @@ Autocomplete::~Autocomplete()
 
 void Autocomplete::cancel_pending_query()
 {
+    if (m_remote_query_timer) {
+        m_remote_query_timer->stop();
+        m_remote_query_timer.clear();
+    }
+
     if (m_request) {
         // This can be reached synchronously from inside the request's own completion callback: activating a suggestion
         // clears the location bar's focus, canceling the query. Stopping the request inline would destroy a still-
@@ -179,6 +185,10 @@ static Vector<AutocompleteSuggestion> make_remote_suggestions(Vector<String> rem
 
 void Autocomplete::query_autocomplete_engine(AutocompleteQueryID query_id, String query, size_t max_suggestions)
 {
+    if (m_remote_query_timer) {
+        m_remote_query_timer->stop();
+        m_remote_query_timer.clear();
+    }
     if (m_request) {
         m_request->stop();
         m_request.clear();
@@ -219,20 +229,34 @@ void Autocomplete::query_autocomplete_engine(AutocompleteQueryID query_id, Strin
         return;
     }
 
-    dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Fetching remote autocomplete suggestions from {} for '{}'", engine->name, m_query);
+    dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Scheduling remote autocomplete suggestions from {} for '{}'", engine->name, m_query);
 
-    auto url_string = MUST(String::formatted(engine->query_url, URL::percent_encode(m_query)));
+    static constexpr auto remote_query_debounce_delay_ms = 100;
+    m_remote_query_timer = Core::Timer::create_single_shot(remote_query_debounce_delay_ms, [this, query_id, engine = engine.release_value(), query = m_query] {
+        if (m_query_id != query_id)
+            return;
+        start_remote_query(query_id, engine, move(query));
+    });
+    m_remote_query_timer->start();
+}
+
+void Autocomplete::start_remote_query(AutocompleteQueryID query_id, AutocompleteEngine engine, String query)
+{
+    dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Fetching remote autocomplete suggestions from {} for '{}'", engine.name, query);
+
+    auto url_string = MUST(String::formatted(engine.query_url, URL::percent_encode(query)));
     auto url = URL::Parser::basic_parse(url_string);
 
     if (!url.has_value()) {
         m_remote_query_complete = true;
+        deliver_current_result();
         return;
     }
 
     m_request = Application::request_server_client(m_is_private).start_request("GET"sv, *url);
 
     m_request->set_buffered_request_finished_callback(
-        [this, query_id, engine = engine.release_value(), query = m_query](u64, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const& network_error, HTTP::HeaderList const& response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes>, Optional<u64>, Core::ImmutableBytes payload) {
+        [this, query_id, engine, query = move(query)](u64, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const& network_error, HTTP::HeaderList const& response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes>, Optional<u64>, Core::ImmutableBytes payload) {
             Core::deferred_invoke([this]() { m_request.clear(); });
 
             if (m_query_id != query_id) {

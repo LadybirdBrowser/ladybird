@@ -14,6 +14,7 @@
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
+#include <LibCore/Forward.h>
 #include <LibRequests/Forward.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/PrivateBrowsing.h>
@@ -87,6 +88,7 @@ public:
 
 private:
     static ErrorOr<Vector<String>> received_autocomplete_respsonse(AutocompleteEngine const&, Optional<ByteString const&> content_type, StringView response);
+    void start_remote_query(AutocompleteQueryID, AutocompleteEngine, String query);
     void local_query_complete(AutocompleteQueryID, Vector<AutocompleteSuggestion>);
     void deliver_current_result();
     void invoke_autocomplete_query_complete(AutocompleteQueryID, Vector<AutocompleteSuggestion> suggestions, AutocompleteResultKind) const;
@@ -101,6 +103,7 @@ private:
     bool m_remote_query_complete { false };
     Vector<AutocompleteSuggestion> m_history_suggestions;
     Vector<String> m_remote_suggestions;
+    RefPtr<Core::Timer> m_remote_query_timer;
     RefPtr<Requests::Request> m_request;
 };
 
