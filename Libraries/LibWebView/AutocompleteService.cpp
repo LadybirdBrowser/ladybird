@@ -9,7 +9,9 @@
 #include <LibCore/EventLoop.h>
 #include <LibDatabase/Database.h>
 #include <LibSync/Mutex.h>
+#include <LibWebView/AutocompleteRanker.h>
 #include <LibWebView/AutocompleteService.h>
+#include <LibWebView/HistoryStore.h>
 
 namespace WebView {
 
@@ -105,21 +107,22 @@ intptr_t AutocompleteService::worker_main(Optional<ByteString> history_database_
             query = m_pending_queries.take_first();
         }
 
-        auto entries = history_store
-            ? history_store->autocomplete_entries(query.input, query.max_suggestions)
-            : Vector<HistoryEntry> {};
-        deliver(query, move(entries));
+        auto preliminary_limit = max(query.max_suggestions * 4, 32uz);
+        auto suggestions = history_store
+            ? rank_history_suggestions(query.input, history_store->autocomplete_entries(query.input, preliminary_limit), query.max_suggestions)
+            : Vector<AutocompleteSuggestion> {};
+        deliver(query, move(suggestions));
     }
 }
 
-void AutocompleteService::deliver(Query const& query, Vector<HistoryEntry> entries)
+void AutocompleteService::deliver(Query const& query, Vector<AutocompleteSuggestion> suggestions)
 {
-    m_main_event_loop.deferred_invoke([this, client_id = query.client_id, query_id = query.query_id, entries = move(entries)]() mutable {
+    m_main_event_loop.deferred_invoke([this, client_id = query.client_id, query_id = query.query_id, suggestions = move(suggestions)]() mutable {
         auto client = m_clients.find(client_id);
         if (client == m_clients.end() || client->value->active_query_id != query_id)
             return;
         auto protected_client = client->value;
-        protected_client->on_query_complete(query_id, move(entries));
+        protected_client->on_query_complete(query_id, move(suggestions));
     });
 }
 

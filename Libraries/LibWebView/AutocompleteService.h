@@ -19,7 +19,6 @@
 #include <LibThreading/Thread.h>
 #include <LibWebView/Autocomplete.h>
 #include <LibWebView/Export.h>
-#include <LibWebView/HistoryStore.h>
 
 namespace WebView {
 
@@ -31,7 +30,7 @@ class WEBVIEW_API AutocompleteService {
 
 public:
     using ClientID = u64;
-    using OnQueryComplete = Function<void(AutocompleteQueryID, Vector<HistoryEntry>)>;
+    using OnQueryComplete = Function<void(AutocompleteQueryID, Vector<AutocompleteSuggestion>)>;
 
     AutocompleteService(Core::EventLoop&, Optional<ByteString> history_database_directory);
     ~AutocompleteService();
@@ -61,7 +60,7 @@ private:
     };
 
     intptr_t worker_main(Optional<ByteString> history_database_directory);
-    void deliver(Query const&, Vector<HistoryEntry>);
+    void deliver(Query const&, Vector<AutocompleteSuggestion>);
 
     Core::EventLoop& m_main_event_loop;
     HashMap<ClientID, NonnullRefPtr<Client>> m_clients;

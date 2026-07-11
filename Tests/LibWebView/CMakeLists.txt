@@ -1,4 +1,5 @@
 set(TEST_SOURCES
+    TestAutocompleteRanker.cpp
     TestCookieJar.cpp
     TestHistoryStore.cpp
     TestHSTSStore.cpp

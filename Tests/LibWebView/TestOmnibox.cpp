@@ -17,7 +17,16 @@ using WebView::Omnibox;
 
 AutocompleteSuggestion row(AutocompleteSuggestionSource source, AutocompleteSuggestionSection section, StringView text)
 {
-    return { .source = source, .section = section, .text = MUST(String::from_utf8(text)), .title = {}, .subtitle = {}, .favicon_base64_png = {}, .can_be_automatically_selected = true };
+    return {
+        .source = source,
+        .section = section,
+        .text = MUST(String::from_utf8(text)),
+        .title = {},
+        .subtitle = {},
+        .favicon_base64_png = {},
+        .can_be_automatically_selected = true,
+        .can_be_inline_completed = source == AutocompleteSuggestionSource::History,
+    };
 }
 
 AutocompleteSuggestion history_row(StringView url)
@@ -36,6 +45,13 @@ AutocompleteSuggestion non_automatic_history_row(StringView url, StringView titl
         .favicon_base64_png = {},
         .can_be_automatically_selected = false,
     };
+}
+
+AutocompleteSuggestion non_inline_history_row(StringView url)
+{
+    auto suggestion = history_row(url);
+    suggestion.can_be_inline_completed = false;
+    return suggestion;
 }
 
 AutocompleteSuggestion search_row(StringView query)
@@ -409,6 +425,20 @@ TEST_CASE(a_literal_url_suggestion_never_completes)
 
     harness.omnibox.return_pressed();
     EXPECT_EQ(harness.commits.last(), "t.example/path"sv);
+}
+
+TEST_CASE(an_automatic_default_does_not_imply_inline_completion)
+{
+    Harness harness;
+    harness.begin_editing();
+
+    harness.press_key('t');
+    harness.provider->deliver({ non_inline_history_row("https://www.thev.example/"sv), search_row("t"sv) }, AutocompleteResultKind::Final);
+    EXPECT_EQ(harness.display_text, "t"sv);
+    EXPECT_EQ(harness.omnibox.selected_suggestion(), 0u);
+
+    harness.omnibox.return_pressed();
+    EXPECT_EQ(harness.commits.last(), "https://www.thev.example/"sv);
 }
 
 TEST_CASE(a_top_row_that_does_not_match_the_prefix_is_not_automatically_selected)

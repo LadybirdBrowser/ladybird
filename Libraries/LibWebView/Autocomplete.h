@@ -46,6 +46,15 @@ enum class AutocompleteSuggestionSection {
     SearchSuggestions,
 };
 
+enum class AutocompleteMatchClass {
+    None,
+    ExactURL,
+    URLPrefix,
+    TitlePrefix,
+    URLSubstring,
+    TitleSubstring,
+};
+
 struct WEBVIEW_API AutocompleteSuggestion {
     AutocompleteSuggestionSource source { AutocompleteSuggestionSource::Search };
     AutocompleteSuggestionSection section { AutocompleteSuggestionSection::None };
@@ -53,7 +62,10 @@ struct WEBVIEW_API AutocompleteSuggestion {
     Optional<String> title;
     Optional<String> subtitle;
     Optional<String> favicon_base64_png;
+    AutocompleteMatchClass match_class { AutocompleteMatchClass::None };
+    i32 relevance { 0 };
     bool can_be_automatically_selected { true };
+    bool can_be_inline_completed { false };
 };
 
 WEBVIEW_API ReadonlySpan<AutocompleteEngine> autocomplete_engines();
@@ -74,7 +86,7 @@ public:
 
 private:
     static ErrorOr<Vector<String>> received_autocomplete_respsonse(AutocompleteEngine const&, Optional<ByteString const&> content_type, StringView response);
-    void local_query_complete(AutocompleteQueryID, Vector<HistoryEntry>);
+    void local_query_complete(AutocompleteQueryID, Vector<AutocompleteSuggestion>);
     void deliver_current_result();
     void invoke_autocomplete_query_complete(AutocompleteQueryID, Vector<AutocompleteSuggestion> suggestions, AutocompleteResultKind) const;
 

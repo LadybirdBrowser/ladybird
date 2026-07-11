@@ -306,6 +306,7 @@ TEST_CASE(autocomplete_url_matching)
 
 TEST_CASE(autocomplete_url_completion)
 {
+    expect_autocomplete_url_can_complete("red"sv, "https://reddit.com/"sv);
     expect_autocomplete_url_can_complete("reddit.co"sv, "https://reddit.com/"sv);
     expect_autocomplete_url_can_complete("https://reddit.co"sv, "https://www.reddit.com/"sv);
     expect_autocomplete_url_can_complete("www.reddit.co"sv, "https://www.reddit.com/"sv);
@@ -314,4 +315,5 @@ TEST_CASE(autocomplete_url_completion)
     expect_autocomplete_url_cannot_complete("reddit.co"sv, "https://reddit.co/"sv);
     expect_autocomplete_url_cannot_complete("reddit.co"sv, "https://reddit.net/"sv);
     expect_autocomplete_url_cannot_complete("reddit.com/r"sv, "https://reddit.com/"sv);
+    expect_autocomplete_url_cannot_complete("http://reddit.co"sv, "https://reddit.com/"sv);
 }

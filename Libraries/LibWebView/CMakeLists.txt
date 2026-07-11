@@ -2,6 +2,7 @@ set(SOURCES
     Application.cpp
     Attribute.cpp
     Autocomplete.cpp
+    AutocompleteRanker.cpp
     AutocompleteService.cpp
     BookmarkStore.cpp
     CanonicalNavigable.cpp

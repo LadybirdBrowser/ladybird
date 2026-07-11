@@ -357,6 +357,11 @@ Optional<size_t> Omnibox::update_completion_for_suggestions(Vector<AutocompleteS
         return 0;
     }
 
+    if (!suggestions.first().can_be_inline_completed) {
+        restore_query_display();
+        return 0;
+    }
+
     // Backspace suppression: the user just deleted into this query, so don't re-apply a completion, but
     // still honor the "highlight the top row" rule.
     if (completion_is_suppressed()) {

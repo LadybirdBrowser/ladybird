@@ -134,14 +134,6 @@ static String normalized_web_url_for_autocomplete_comparison(URL::URL const& url
     return MUST(builder.to_string());
 }
 
-static String normalized_url_for_autocomplete_prefix_matching(URL::URL const& url)
-{
-    if (url.scheme().is_one_of("http"sv, "https"sv))
-        return normalized_web_url_for_autocomplete_comparison(url);
-
-    return url.serialize(URL::ExcludeFragment::Yes);
-}
-
 bool autocomplete_urls_match(StringView left, StringView right)
 {
     auto left_url = sanitize_url(left);
@@ -158,18 +150,43 @@ bool autocomplete_urls_match(StringView left, StringView right)
 
 bool autocomplete_url_can_complete(StringView query, StringView suggestion)
 {
-    auto query_url = sanitize_url(query);
     auto suggestion_url = sanitize_url(suggestion);
-    if (!query_url.has_value() || !suggestion_url.has_value())
+    if (query.is_empty() || !suggestion_url.has_value())
         return false;
 
-    auto normalized_query = normalized_url_for_autocomplete_prefix_matching(*query_url);
-    auto normalized_suggestion = normalized_url_for_autocomplete_prefix_matching(*suggestion_url);
+    auto can_complete_form = [&](StringView form) {
+        if (form.ends_with('/'))
+            form = form.substring_view(0, form.length() - 1);
+        return form.length() > query.length()
+            && form.starts_with(query, CaseSensitivity::CaseInsensitive);
+    };
 
-    if (normalized_suggestion.bytes_as_string_view().length() <= normalized_query.bytes_as_string_view().length())
+    auto serialized_suggestion = suggestion_url->serialize(URL::ExcludeFragment::Yes);
+    if (can_complete_form(serialized_suggestion))
+        return true;
+
+    if (!suggestion_url->scheme().is_one_of("http"sv, "https"sv))
         return false;
 
-    return normalized_suggestion.starts_with_bytes(normalized_query, CaseSensitivity::CaseInsensitive);
+    auto serialized_suggestion_view = serialized_suggestion.bytes_as_string_view();
+    auto scheme_end = serialized_suggestion_view.find("://"sv);
+    VERIFY(scheme_end.has_value());
+    auto without_scheme = serialized_suggestion_view.substring_view(*scheme_end + 3);
+    if (can_complete_form(without_scheme))
+        return true;
+
+    if (without_scheme.starts_with("www."sv, CaseSensitivity::CaseInsensitive)) {
+        if (can_complete_form(without_scheme.substring_view(4)))
+            return true;
+
+        StringBuilder without_www;
+        without_www.append(serialized_suggestion_view.substring_view(0, *scheme_end + 3));
+        without_www.append(without_scheme.substring_view(4));
+        if (can_complete_form(without_www.string_view()))
+            return true;
+    }
+
+    return false;
 }
 
 Vector<URL::URL> sanitize_urls(ReadonlySpan<ByteString> raw_urls)
