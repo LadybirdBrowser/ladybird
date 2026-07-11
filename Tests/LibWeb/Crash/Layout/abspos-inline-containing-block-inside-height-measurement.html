@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<!-- The outer box has auto height and a min-height, so laying it out first measures its
+     automatic content height in a throwaway LayoutState. The measuring BFC lays out the
+     abspos child against its inline containing block (the position:relative span), and
+     computing the inline's rect for the atomic inline sibling used to walk the containing
+     block chain past the measurement root, reading state for boxes that don't exist in
+     the throwaway state. -->
+<div style="overflow: hidden; min-height: 10px; position: relative;">
+    <span style="position: relative;">
+        <div style="display: inline-block; width: 10px; height: 10px;"></div>
+        <div style="position: absolute; left: 0; top: 0;">abs</div>
+    </span>
+</div>
+<script>
+    document.body.offsetHeight;
+</script>
