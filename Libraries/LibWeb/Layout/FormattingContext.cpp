@@ -2268,13 +2268,6 @@ void FormattingContext::layout_absolutely_positioned_element(Box& box, StaticPos
 
     auto const available_space = AvailableSpace(AvailableSize::make_definite(clamp_to_max_dimension_value(containing_block_info.rect.width())), AvailableSize::make_definite(clamp_to_max_dimension_value(containing_block_info.rect.height())));
 
-    auto& containing_block_state = m_state.get_mutable(*box.containing_block());
-
-    // The size of the containing block of an abspos box is always definite from the perspective of the abspos box.
-    // Since abspos boxes are laid out last, we can mark the containing block as having definite sizes at this point.
-    containing_block_state.set_has_definite_width(true);
-    containing_block_state.set_has_definite_height(true);
-
     auto const& computed_values = box.computed_values();
 
     auto const containing_block_width = available_space.width.to_px_or_zero();
