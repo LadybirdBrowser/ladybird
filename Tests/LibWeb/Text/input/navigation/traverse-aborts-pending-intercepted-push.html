@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Regression test: a traversal that starts while an intercepted navigation's handler is still
+    // pending aborts that navigation from a session history traversal task, with no JavaScript on
+    // the stack. This used to crash WebContent inside abort_a_navigate_event because rejecting the
+    // pending promises ran script without an execution context.
+    asyncTest(done => {
+        const events = [];
+        let finished = false;
+
+        function queryFromURL(url) {
+            return new URL(url).search || "(none)";
+        }
+
+        function maybeDone() {
+            if (finished)
+                return;
+            if (!events.includes("traverse handler") || !events.includes("navigateerror at ?pushed"))
+                return;
+            if (queryFromURL(location.href) !== "?start" || navigation.currentEntry.index !== 0)
+                return;
+
+            finished = true;
+            for (const event of events)
+                println(event);
+            println(`final location=${queryFromURL(location.href)} index=${navigation.currentEntry.index}`);
+            done();
+        }
+
+        navigation.addEventListener("navigate", event => {
+            if (event.navigationType !== "push" && event.navigationType !== "traverse")
+                return;
+
+            events.push(`navigate ${event.navigationType} destination=${queryFromURL(event.destination.url)}`);
+
+            if (event.navigationType === "push") {
+                // A handler that never settles keeps the navigate event ongoing.
+                event.intercept({
+                    handler() {
+                        events.push("push handler started");
+                        return new Promise(() => {});
+                    },
+                });
+                return;
+            }
+
+            event.intercept({
+                handler() {
+                    events.push("traverse handler");
+                },
+            });
+        });
+
+        navigation.addEventListener("navigateerror", () => {
+            events.push(`navigateerror at ${queryFromURL(location.href)}`);
+        });
+
+        navigation.addEventListener("navigatesuccess", () => {
+            maybeDone();
+        });
+
+        const nextTask = () => new Promise(resolve => setTimeout(resolve, 0));
+
+        // NB: Wait until the document is completely loaded so that the location.href navigation gets
+        //     push (not replace) semantics. The task hops let each navigation settle before the next
+        //     one starts.
+        window.addEventListener("load", async () => {
+            await nextTask();
+            history.replaceState({}, "", "?start");
+            await nextTask();
+
+            // The intercepted push commits immediately, but its handler never settles.
+            location.href = "?pushed";
+            await nextTask();
+
+            // Traversing back aborts the pending intercepted push, then commits normally.
+            history.back();
+        });
+    });
+</script>

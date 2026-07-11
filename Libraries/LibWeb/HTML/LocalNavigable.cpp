@@ -2573,8 +2573,19 @@ void LocalNavigable::begin_navigation(NavigateParams params)
         auto continue_ = navigation->fire_a_push_replace_reload_navigate_event(navigation_type, url, false, user_involvement, source_element, entry_list_for_firing, navigation_api_state_for_firing);
 
         // 5. If continue is false, then return.
-        if (!continue_)
+        if (!continue_) {
+            // AD-HOC: This navigation is over: the navigate event either canceled it, or intercepted it and already
+            //         committed it as a same-document navigation. In the spec, an intercepted navigation's queued
+            //         same-document finalize sets the navigable's ongoing navigation to null moments later; our
+            //         synchronous same-document commit replaces that queued step but deliberately preserves foreign
+            //         navigation IDs, so clear our own ID here. Leaving it stamped makes later same-document
+            //         traversals treat themselves as superseded and lets WebDriver wait forever for this navigation
+            //         to finish. Preserve the Navigation API state: an intercepted navigate event stays ongoing
+            //         until its handlers settle.
+            if (ongoing_navigation() == navigation_id)
+                set_ongoing_navigation(Empty {}, NavigationAPIAbortBehavior::Preserve);
             return;
+        }
     }
 
     // FIXME: 22. If sourceDocument is navigable's container document, then reserve deferred fetch quota for navigable's container given url's origin.

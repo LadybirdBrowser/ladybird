@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Regression test: a real navigation canceled by the navigate event (preventDefault) used to leave
+    // its navigation ID stamped as the navigable's ongoing navigation forever, which made later
+    // same-document traversals treat themselves as superseded and never commit.
+    asyncTest(done => {
+        const events = [];
+        let finished = false;
+
+        function queryFromURL(url) {
+            return new URL(url).search || "(none)";
+        }
+
+        function maybeDone() {
+            if (finished)
+                return;
+            if (!events.includes("traverse handler"))
+                return;
+            if (queryFromURL(location.href) !== "?start" || navigation.currentEntry.index !== 0)
+                return;
+
+            finished = true;
+            for (const event of events)
+                println(event);
+            println(`final location=${queryFromURL(location.href)} index=${navigation.currentEntry.index}`);
+            done();
+        }
+
+        navigation.addEventListener("navigate", event => {
+            if (event.navigationType === "push" && !event.destination.sameDocument) {
+                events.push(`navigate push destination=${queryFromURL(event.destination.url)} cancelable=${event.cancelable}`);
+                event.preventDefault();
+                return;
+            }
+
+            if (event.navigationType === "traverse") {
+                events.push(`navigate traverse destination=${queryFromURL(event.destination.url)}`);
+                event.intercept({
+                    handler() {
+                        events.push("traverse handler");
+                    },
+                });
+            }
+        });
+
+        navigation.addEventListener("navigatesuccess", () => {
+            maybeDone();
+        });
+
+        const nextTask = () => new Promise(resolve => setTimeout(resolve, 0));
+
+        // NB: Wait until the document is completely loaded so that the location.href navigation gets
+        //     push (not replace) semantics. The task hops let each navigation settle before the next
+        //     one starts.
+        window.addEventListener("load", async () => {
+            await nextTask();
+            history.replaceState({}, "", "?start");
+            history.pushState({}, "", "?pushed");
+            await nextTask();
+
+            // A real navigation that stamps the navigable's ongoing navigation; the navigate
+            // listener cancels it.
+            location.href = "?canceled";
+            await nextTask();
+
+            // The canceled navigation must not block this same-document traversal.
+            history.back();
+        });
+    });
+</script>

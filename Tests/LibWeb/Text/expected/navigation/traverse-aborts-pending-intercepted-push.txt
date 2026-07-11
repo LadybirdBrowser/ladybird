@@ -1,0 +1,6 @@
+navigate push destination=?pushed
+push handler started
+navigateerror at ?pushed
+navigate traverse destination=?start
+traverse handler
+final location=?start index=0

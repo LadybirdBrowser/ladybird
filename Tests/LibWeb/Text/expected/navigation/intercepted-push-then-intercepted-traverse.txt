@@ -1,0 +1,9 @@
+navigate push destination=?pushed canIntercept=true
+currententrychange push to=?pushed
+push handler
+navigatesuccess at ?pushed
+navigate traverse destination=?start canIntercept=true
+currententrychange traverse to=?start
+traverse handler
+navigatesuccess at ?start
+final location=?start index=0

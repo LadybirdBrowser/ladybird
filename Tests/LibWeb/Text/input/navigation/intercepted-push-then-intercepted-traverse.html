@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Regression test: an entry created by an intercepted push (via a real navigation, not pushState)
+    // must still be traversable. The intercepted push used to leave its navigation ID stamped as the
+    // navigable's ongoing navigation forever, which made the later intercepted traverse treat itself
+    // as superseded: history.back() moved the session history step without ever committing, so the
+    // URL, navigation.currentEntry, and the intercept handler never updated or ran.
+    asyncTest(done => {
+        const events = [];
+        let finished = false;
+
+        function queryFromURL(url) {
+            return new URL(url).search || "(none)";
+        }
+
+        function finish() {
+            if (finished)
+                return;
+
+            finished = true;
+            for (const event of events)
+                println(event);
+            println(`final location=${queryFromURL(location.href)} index=${navigation.currentEntry.index}`);
+            done();
+        }
+
+        navigation.addEventListener("navigate", event => {
+            if (event.navigationType !== "push" && event.navigationType !== "traverse")
+                return;
+
+            events.push(`navigate ${event.navigationType} destination=${queryFromURL(event.destination.url)} canIntercept=${event.canIntercept}`);
+            if (!event.canIntercept) {
+                events.push("FAIL: cannot intercept");
+                finish();
+                return;
+            }
+
+            event.intercept({
+                handler() {
+                    events.push(`${event.navigationType} handler`);
+                },
+            });
+        });
+
+        navigation.addEventListener("currententrychange", event => {
+            if (event.navigationType !== "push" && event.navigationType !== "traverse")
+                return;
+            events.push(`currententrychange ${event.navigationType} to=${queryFromURL(navigation.currentEntry.url)}`);
+        });
+
+        navigation.addEventListener("navigatesuccess", () => {
+            events.push(`navigatesuccess at ${queryFromURL(location.href)}`);
+
+            if (queryFromURL(location.href) === "?pushed") {
+                // The intercepted push has fully finished; now traverse back to the original entry.
+                history.back();
+                return;
+            }
+
+            finish();
+        });
+
+        // NB: Wait until the document is completely loaded so that the location.href navigation gets
+        //     push (not replace) semantics.
+        window.addEventListener("load", () => {
+            setTimeout(() => {
+                history.replaceState({}, "", "?start");
+
+                // A real navigation (unlike pushState) stamps the navigable's ongoing navigation before
+                // firing the navigate event.
+                location.href = "?pushed";
+            }, 0);
+        });
+    });
+</script>

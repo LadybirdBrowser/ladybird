@@ -799,6 +799,10 @@ void Navigation::abort_a_navigate_event(GC::Ref<NavigateEvent> event, GC::Ref<We
     // 1. Let navigation be event's relevant global object's navigation API.
     // NB: Navigation is `this`.
 
+    // AD-HOC: Aborting can be triggered from session history traversal tasks with no JavaScript on the stack, and
+    //         both the abort signal and the promise rejections below run script.
+    TemporaryExecutionContext execution_context { relevant_realm(*this), TemporaryExecutionContext::CallbacksEnabled::Yes };
+
     // 2. Signal abort on event's abort controller given reason.
     event->abort_controller()->abort(reason);
 
