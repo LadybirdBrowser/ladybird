@@ -246,13 +246,6 @@ private:
         return {};
     }
 
-    virtual bool should_defer_main_thread_present_for_async_scroll(Web::Compositor::CompositorContextId context_id) const override
-    {
-        if (auto* connection = compositor_connection())
-            return connection->should_defer_main_thread_present_for_async_scroll(context_id);
-        return false;
-    }
-
     virtual Web::Compositor::PendingAsyncScrollUpdates take_pending_async_scroll_updates(Web::Compositor::CompositorContextId context_id) override
     {
         if (auto* connection = compositor_connection())

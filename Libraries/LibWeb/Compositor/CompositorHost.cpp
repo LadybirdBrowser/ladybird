@@ -71,11 +71,6 @@ AsyncScrollEnqueueResult CompositorContextHandle::async_scroll_by(UniqueNodeID e
     return m_host.async_scroll_by(m_context_id, expected_document_id, position, delta_in_device_pixels, viewport_rect, operation_tracking);
 }
 
-bool CompositorContextHandle::should_defer_main_thread_present_for_async_scroll() const
-{
-    return m_host.should_defer_main_thread_present_for_async_scroll(m_context_id);
-}
-
 PendingAsyncScrollUpdates CompositorContextHandle::take_pending_async_scroll_updates()
 {
     return m_host.take_pending_async_scroll_updates(m_context_id);

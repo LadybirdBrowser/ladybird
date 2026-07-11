@@ -43,7 +43,6 @@ public:
     void invalidate_wheel_event_listener_state(u64 generation);
     AsyncScrollEnqueueResult async_scroll_by(UniqueNodeID expected_document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels,
         Gfx::IntRect viewport_rect, AsyncScrollOperationTracking = AsyncScrollOperationTracking::No);
-    bool should_defer_main_thread_present_for_async_scroll() const;
     PendingAsyncScrollUpdates take_pending_async_scroll_updates();
     void viewport_size_updated(Gfx::IntSize, WindowResizingInProgress);
     void present_frame(Gfx::IntRect);
@@ -87,7 +86,6 @@ public:
     virtual AsyncScrollEnqueueResult async_scroll_by(CompositorContextId, UniqueNodeID expected_document_id, Gfx::FloatPoint position,
         Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect, AsyncScrollOperationTracking)
         = 0;
-    virtual bool should_defer_main_thread_present_for_async_scroll(CompositorContextId) const = 0;
     virtual PendingAsyncScrollUpdates take_pending_async_scroll_updates(CompositorContextId) = 0;
     virtual void viewport_size_updated(CompositorContextId, Gfx::IntSize, WindowResizingInProgress) = 0;
     virtual void present_frame(CompositorContextId, Gfx::IntRect) = 0;

@@ -239,14 +239,6 @@ bool CompositorState::async_scroll_by(Web::Compositor::CompositorContextId conte
     return apply_context_update_result(context_id, *context, context->async_scroll_by(position, delta));
 }
 
-bool CompositorState::should_defer_main_thread_present_for_async_scroll(Web::Compositor::CompositorContextId context_id) const
-{
-    auto* context = context_if_present(context_id);
-    VERIFY(context);
-
-    return context->should_defer_main_thread_present_for_async_scroll();
-}
-
 Web::Compositor::PendingAsyncScrollUpdates CompositorState::take_pending_async_scroll_updates(Web::Compositor::CompositorContextId context_id)
 {
     auto* context = context_if_present(context_id);
@@ -285,6 +277,10 @@ void CompositorState::present_frame(Web::Compositor::CompositorContextId context
 {
     auto* context = context_if_present(context_id);
     VERIFY(context);
+    if (context->should_defer_main_thread_present_for_async_scroll()) {
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread deferred present while async scroll is pending");
+        return;
+    }
     schedule_present_frame(context_id, *context, viewport_rect);
 }
 

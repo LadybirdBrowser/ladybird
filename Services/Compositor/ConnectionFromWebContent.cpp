@@ -203,12 +203,6 @@ Messages::CompositorWebContentServer::AsyncScrollByResponse ConnectionFromWebCon
     return result;
 }
 
-Messages::CompositorWebContentServer::ShouldDeferMainThreadPresentForAsyncScrollResponse ConnectionFromWebContent::should_defer_main_thread_present_for_async_scroll(Web::Compositor::CompositorContextId context_id)
-{
-    verify_context_is_owned_by_this_connection(context_id);
-    return m_compositor_state->should_defer_main_thread_present_for_async_scroll(context_id);
-}
-
 Messages::CompositorWebContentServer::TakePendingAsyncScrollUpdatesResponse ConnectionFromWebContent::take_pending_async_scroll_updates(Web::Compositor::CompositorContextId context_id)
 {
     verify_context_is_owned_by_this_connection(context_id);

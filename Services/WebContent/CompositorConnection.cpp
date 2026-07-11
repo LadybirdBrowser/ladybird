@@ -163,19 +163,6 @@ Web::Compositor::AsyncScrollEnqueueResult CompositorConnection::async_scroll_by(
     return response->take_result();
 }
 
-bool CompositorConnection::should_defer_main_thread_present_for_async_scroll(Web::Compositor::CompositorContextId context_id)
-{
-    if (!can_send_message_to_compositor())
-        return false;
-
-    auto response = send_sync_but_allow_failure<Messages::CompositorWebContentServer::ShouldDeferMainThreadPresentForAsyncScroll>(context_id);
-    if (!response) {
-        did_lose_compositor();
-        return false;
-    }
-    return response->should_defer();
-}
-
 Web::Compositor::PendingAsyncScrollUpdates CompositorConnection::take_pending_async_scroll_updates(Web::Compositor::CompositorContextId context_id)
 {
     if (!can_send_message_to_compositor())
