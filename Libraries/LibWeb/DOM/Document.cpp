@@ -110,6 +110,8 @@
 #include <LibWeb/DOM/Utils.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Dump.h>
+#include <LibWeb/Fetch/Infrastructure/FetchController.h>
+#include <LibWeb/Fetch/Infrastructure/FetchRecord.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/FileAPI/BlobURLStore.h>
 #include <LibWeb/HTML/AttributeNames.h>
@@ -332,7 +334,7 @@ static GC::Ref<HTML::BrowsingContext> obtain_a_browsing_context_to_use_for_a_nav
     return new_browsing_context;
 }
 
-// https://html.spec.whatwg.org/multipage/browsing-the-web.html#initialise-the-document-object
+// https://html.spec.whatwg.org/multipage/document-lifecycle.html#initialise-the-document-object
 WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type, String content_type, HTML::NavigationParams const& navigation_params)
 {
     // 1. Let browsingContext be the result of obtaining a browsing context to use for a navigation response given navigationParams.
@@ -501,7 +503,20 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
         }
     }
 
-    // FIXME: 15: If navigationParams's fetch controller is not null, then:
+    // AD-HOC: Retain the navigation fetch controller so aborting the document can cancel the main resource after
+    //         response commitment. Navigation fetches are not included in the document's subresource fetch group.
+    if (navigation_params.fetch_controller)
+        document->m_ongoing_navigation_fetch_controller = navigation_params.fetch_controller;
+
+    // FIXME: 15. If navigationParams's fetch controller is not null:
+    //            1. Let fullTimingInfo be the result of extracting the full timing info from navigationParams's fetch controller.
+    //            2. Let redirectCount be 0.
+    //            3. If navigationParams's response's has cross-origin redirects is false, or all of the following are true:
+    //                - navigationParams's request's client is null, or navigationParams's request's referrer is not "no-referrer", and
+    //                - navigation TAO check given navigationParams's response and navigationParams's origin returns success,
+    //               then set redirectCount to navigationParams's request's redirect count.
+    //            4. Create the navigation timing entry for document, given fullTimingInfo, redirectCount, navigationTimingType,
+    //               navigationParams's response's service worker timing info, and navigationParams's response's body info.
 
     // FIXME: 16. Create the navigation timing entry for document, with navigationParams's response's timing info,
     //        redirectCount, navigationParams's navigation timing type, and navigationParams's response's service
@@ -711,6 +726,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_pending_parsing_blocking_svg_script);
     visitor.visit(m_history);
     visitor.visit(m_html_parser_end_state);
+    visitor.visit(m_ongoing_navigation_fetch_controller);
     visitor.visit(m_style_computer);
     visitor.visit(m_font_computer);
     visitor.visit(m_browsing_context);
@@ -5158,22 +5174,38 @@ void Document::destroy_a_document_and_its_descendants(GC::Ptr<GC::Function<void(
     // NB: This is handled by destruction_state.
 }
 
-// https://html.spec.whatwg.org/multipage/browsing-the-web.html#abort-a-document
+// https://html.spec.whatwg.org/multipage/document-lifecycle.html#abort-a-document
 void Document::abort()
 {
     // 1. Assert: this is running as part of a task queued on document's relevant agent's event loop.
 
-    // FIXME: 2. Cancel any instances of the fetch algorithm in the context of document,
-    //           discarding any tasks queued for them, and discarding any further data received from the network for them.
-    //           If this resulted in any instances of the fetch algorithm being canceled
-    //           or any queued tasks or any network data getting discarded,
-    //           then make document unsalvageable given document and "fetch".
+    // 2. Cancel any instances of the fetch algorithm in the context of document,
+    //    discarding any tasks queued for them, and discarding any further data received from the network for them.
+    //    If this resulted in any instances of the fetch algorithm being canceled
+    //    or any queued tasks or any network data getting discarded,
+    //    then make document unsalvageable given document and "fetch".
+    bool canceled_fetch = false;
+    if (m_ongoing_navigation_fetch_controller && m_ongoing_navigation_fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Ongoing) {
+        m_ongoing_navigation_fetch_controller->stop_fetch();
+        canceled_fetch = true;
+    }
+
+    for (auto& fetch_record : relevant_settings_object().fetch_group()) {
+        auto controller = fetch_record.fetch_controller();
+        if (!controller || controller->state() != Fetch::Infrastructure::FetchController::State::Ongoing)
+            continue;
+        controller->stop_fetch();
+        canceled_fetch = true;
+    }
+
+    if (canceled_fetch)
+        make_unsalvageable("fetch"_string);
 
     // 3. If document's during-loading navigation ID for WebDriver BiDi is non-null, then:
     if (m_navigation_id.has_value()) {
-        // 1. FIXME: Invoke WebDriver BiDi navigation aborted with document's node navigable,
-        //           and new WebDriver BiDi navigation status whose whose id is document's navigation id,
-        //           status is "canceled", and url is document's URL.
+        // FIXME: 1. Invoke WebDriver BiDi navigation aborted with document's node navigable and a new WebDriver BiDi
+        //           navigation status whose id is document's during-loading navigation ID for WebDriver BiDi, status
+        //           is "canceled", and url is document's URL.
 
         // 2. Set document's during-loading navigation ID for WebDriver BiDi to null.
         m_navigation_id = {};

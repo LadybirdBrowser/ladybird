@@ -758,7 +758,7 @@ public:
     // https://html.spec.whatwg.org/multipage/document-lifecycle.html#destroy-a-document-and-its-descendants
     void destroy_a_document_and_its_descendants(GC::Ptr<GC::Function<void()>> after_all_destruction = {});
 
-    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#abort-a-document
+    // https://html.spec.whatwg.org/multipage/document-lifecycle.html#abort-a-document
     void abort();
     // https://html.spec.whatwg.org/multipage/document-lifecycle.html#abort-a-document-and-its-descendants
     void abort_a_document_and_its_descendants();
@@ -1472,6 +1472,10 @@ private:
 
     // https://html.spec.whatwg.org/multipage/dom.html#concept-document-navigation-id
     Optional<String> m_navigation_id;
+
+    // AD-HOC: The main resource fetch is not part of the document's subresource fetch group, so retain its controller
+    //         separately while the navigation fetch is ongoing.
+    GC::Ptr<Fetch::Infrastructure::FetchController> m_ongoing_navigation_fetch_controller;
 
     // https://html.spec.whatwg.org/multipage/origin.html#active-sandboxing-flag-set
     HTML::SandboxingFlagSet m_active_sandboxing_flag_set;
