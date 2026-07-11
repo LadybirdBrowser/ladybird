@@ -8,9 +8,9 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         Box <div.icon-wrapper> at [20,33] flex-container(row) flex-item [0+0+10 20 10+0+0] [0+0+10 20 10+0+0] [FFC] children: not-inline
           BlockContainer <(anonymous)> (not painted) [BFC] children: inline
             TextNode <#text> (not painted)
-          SVGSVGBox <svg> at [20,33] flex-item [0+0+0 20 0+0+0] [0+0+0 32 0+0+0] [SVG] children: inline
+          SVGSVGBox <svg> at [20,33] flex-item [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [SVG] children: inline
             TextNode <#text> (not painted)
-            SVGGeometryBox <path> at [19.8125,34.796875] [0+0+0 16.390625 0+0+0] [0+0+0 28.40625 0+0+0] children: not-inline
+            SVGGeometryBox <path> at [23.625,34.125] [0+0+0 10.25 0+0+0] [0+0+0 17.75 0+0+0] children: not-inline
             TextNode <#text> (not painted)
           BlockContainer <(anonymous)> (not painted) [BFC] children: inline
             TextNode <#text> (not painted)
@@ -23,8 +23,8 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [8,8 500x300]
       Paintable (Box<DIV>.button) [10,8 40x70]
         Paintable (Box<DIV>.icon-wrapper) [10,23 40x40]
-          SVGSVGPaintable (SVGSVGBox<svg>) [20,33 20x32]
-            SVGPathPaintable (SVGGeometryBox<path>) [19.8125,34.796875 16.390625x28.40625]
+          SVGSVGPaintable (SVGSVGBox<svg>) [20,33 20x20]
+            SVGPathPaintable (SVGGeometryBox<path>) [23.625,34.125 10.25x17.75]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x316] (z-index: auto)

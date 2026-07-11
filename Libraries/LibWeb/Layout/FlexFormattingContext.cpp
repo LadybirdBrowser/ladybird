@@ -1348,6 +1348,7 @@ void FlexFormattingContext::determine_hypothetical_cross_size_of_item(FlexItem& 
         // on this aspect ratio is called the ratio-dependent axis, and the resulting size is definite if its
         // input sizes are also definite.
         item.hypothetical_cross_size = css_clamp(calculate_cross_size_from_main_size_and_aspect_ratio(item.main_size.value(), item.box.preferred_aspect_ratio().value()), clamp_min, clamp_max);
+        item.cross_size_was_resolved_from_aspect_ratio = has_definite_main_size(item);
         return;
     }
 
@@ -1440,6 +1441,14 @@ void FlexFormattingContext::determine_used_cross_size_of_each_flex_item()
             } else {
                 // Otherwise, the used cross size is the item’s hypothetical cross size.
                 item.cross_size = item.hypothetical_cross_size;
+
+                // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-automatic
+                // The axis in which the preferred size calculation depends on this aspect ratio is called the
+                // ratio-dependent axis, and the resulting size is definite if its input sizes are also definite.
+                if (item.cross_size_was_resolved_from_aspect_ratio) {
+                    set_cross_size(item, item.cross_size.value());
+                    set_has_definite_cross_size(item);
+                }
             }
         }
     }
