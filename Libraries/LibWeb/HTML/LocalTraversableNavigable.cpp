@@ -1227,10 +1227,9 @@ void ApplyHistoryStepState::start()
                         ContentSecurityPolicy::Directives::Directive::NavigationType::Other, allow_POST,
                         GC::create_function(this->heap(), [this, after_document_populated, navigable](GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) {
                             VERIFY(m_traversable->active_window());
-                            // AD-HOC: Queue with navigable's active Document instead of using queue_global_task(active_window).
-                            //         During initial about:blank Window reuse, active_window()->associated_document() can already be
-                            //         the pending Document. This continuation must stay runnable against the current active Document.
-                            queue_a_task(Task::Source::NavigationAndTraversal, nullptr, navigable->active_document(), GC::create_function(heap(), [after_document_populated, output]() {
+                            // AD-HOC: Queue through the apply-history helper so child completion tasks survive frame
+                            //         removal/deactivation. The continuation revalidates the navigable before applying.
+                            queue_apply_history_step_task(*navigable, navigable->active_document(), GC::create_function(heap(), [after_document_populated, output]() {
                                 after_document_populated->function()(output);
                             }));
                         }));
