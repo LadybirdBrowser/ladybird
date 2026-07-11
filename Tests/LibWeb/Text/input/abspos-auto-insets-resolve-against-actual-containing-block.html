@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+    }
+    #cb {
+        position: relative;
+        width: 300px;
+        height: 200px;
+    }
+    #static-parent {
+        margin-left: 120px;
+        padding-top: 30px;
+    }
+    #target {
+        position: absolute;
+        width: 50px;
+        height: 20px;
+    }
+</style>
+<div id="cb">
+    <div id="static-parent">
+        <div id="target"></div>
+    </div>
+</div>
+<script>
+    // The static position of #target is inherited from #static-parent, which is offset from
+    // the actual containing block #cb. The resolved values of the inset properties must be
+    // relative to #cb (left: 120px, top: 30px), not to the box the element would have had as
+    // its containing block if it were static, and must agree with the box's actual offset
+    // within #cb printed below.
+    test(() => {
+        const style = getComputedStyle(document.getElementById("target"));
+        for (const property of ["top", "right", "bottom", "left"])
+            println(`${property}: ${style[property]}`);
+        const rect = document.getElementById("target").getBoundingClientRect();
+        const cbRect = document.getElementById("cb").getBoundingClientRect();
+        println(`offset within containing block: ${rect.x - cbRect.x},${rect.y - cbRect.y}`);
+    });
+</script>
