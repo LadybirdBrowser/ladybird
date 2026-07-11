@@ -1,0 +1,8 @@
+ArrowUp from bbb,0: #text("bbb") @ 0
+ArrowUp again: #text("bbb") @ 0
+ArrowDown from aaa,1: #text("aaa") @ 3
+ArrowDown again: #text("aaa") @ 3
+ArrowRight from aaa,3: #text("aaa") @ 3
+ArrowRight again: #text("aaa") @ 3
+ArrowLeft from bbb,0: #text("bbb") @ 0
+ArrowLeft again: #text("bbb") @ 0

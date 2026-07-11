@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    p {
+        margin: 0;
+        font: 20px/1.5 monospace;
+    }
+</style>
+<div id="editor" contenteditable="true"><p><span id="s1">aaa</span></p><p id="p2"><br></p><p><span id="s3">bbb</span></p></div>
+<script>
+    test(() => {
+        const editor = document.getElementById("editor");
+        const s1 = document.getElementById("s1").firstChild;
+        const s3 = document.getElementById("s3").firstChild;
+        const describe = n => !n
+            ? "null"
+            : (n.nodeType === Node.TEXT_NODE ? `#text("${n.data}")` : n.nodeName.toLowerCase() + (n.id ? "#" + n.id : ""));
+        const report = label => {
+            const s = getSelection();
+            println(`${label}: ${describe(s.focusNode)} @ ${s.focusOffset}`);
+        };
+        editor.focus();
+        const move = (node, offset, key, label) => {
+            getSelection().setBaseAndExtent(node, offset, node, offset);
+            internals.sendKey(editor, key);
+            report(label);
+        };
+
+        move(s3, 0, "Up", "ArrowUp from bbb,0");
+        internals.sendKey(editor, "Up");
+        report("ArrowUp again");
+
+        move(s1, 1, "Down", "ArrowDown from aaa,1");
+        internals.sendKey(editor, "Down");
+        report("ArrowDown again");
+
+        move(s1, 3, "Right", "ArrowRight from aaa,3");
+        internals.sendKey(editor, "Right");
+        report("ArrowRight again");
+
+        move(s3, 0, "Left", "ArrowLeft from bbb,0");
+        internals.sendKey(editor, "Left");
+        report("ArrowLeft again");
+    });
+</script>
