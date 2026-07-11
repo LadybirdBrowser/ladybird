@@ -711,6 +711,11 @@ void HTMLImageElement::update_the_image_data_impl(bool restart_animations, bool 
             //        That's why we value_or(1.0f) it.
             m_current_request->set_current_pixel_density(selected_pixel_density.value_or(1.0f));
 
+            // AD-HOC: Invalidate synchronously here. The image data is already available — so a paint taken before the
+            //         task below runs must still reflect it (otherwise, reftest screenshots can capture the old image).
+            set_needs_style_update(true);
+            set_needs_layout_update_or_repaint_after_image_data_change(*this, DOM::SetNeedsLayoutReason::HTMLImageElementUpdateTheImageData);
+
             // 7. Queue an element task on the DOM manipulation task source given the img element and following steps:
             queue_an_element_task(HTML::Task::Source::DOMManipulation, [this, restart_animations, maybe_omit_events, url_string, previous_url] {
                 // AD-HOC: Bail out if the document became inactive (e.g. iframe removed or navigated)
@@ -726,9 +731,6 @@ void HTMLImageElement::update_the_image_data_impl(bool restart_animations, bool 
 
                 // 2. Set the current request's current URL to urlString.
                 m_current_request->set_current_url(document().realm(), Utf16String::from_utf8(*url_string));
-
-                set_needs_style_update(true);
-                set_needs_layout_update_or_repaint_after_image_data_change(*this, DOM::SetNeedsLayoutReason::HTMLImageElementUpdateTheImageData);
 
                 // 3. If maybe omit events is not set or previousURL is not equal to urlString, then fire an event named load at the img element.
                 if (!maybe_omit_events || previous_url != Utf16String::from_utf8(*url_string))
