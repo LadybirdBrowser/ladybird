@@ -411,12 +411,6 @@ WebIDL::ExceptionOr<void> Selection::select_all_children(GC::Ref<DOM::Node> node
 // https://w3c.github.io/selection-api/#dom-selection-modify
 WebIDL::ExceptionOr<void> Selection::modify(Optional<String> alter, Optional<String> direction, Optional<String> granularity)
 {
-    auto anchor_node = this->anchor_node();
-    if (!anchor_node || !is<DOM::Text>(*anchor_node))
-        return {};
-
-    auto& text_node = static_cast<DOM::Text&>(*anchor_node);
-
     // 1. If alter is not ASCII case-insensitive match with "extend" or "move", abort these steps.
     if (!alter.has_value() || !alter.value().bytes_as_string_view().is_one_of_ignoring_ascii_case("extend"sv, "move"sv))
         return {};
@@ -434,6 +428,10 @@ WebIDL::ExceptionOr<void> Selection::modify(Optional<String> alter, Optional<Str
     if (is_empty())
         return {};
 
+    auto focus = focus_node();
+    if (!focus)
+        return {};
+
     // 5. Let effectiveDirection be backwards.
     auto effective_direction = Direction::Backwards;
 
@@ -441,12 +439,21 @@ WebIDL::ExceptionOr<void> Selection::modify(Optional<String> alter, Optional<Str
     if (direction.value().equals_ignoring_ascii_case("forward"sv))
         effective_direction = Direction::Forwards;
 
+    // Inline base direction of this selection's focus.
+    auto focus_directionality = DOM::Element::Directionality::Ltr;
+    if (auto* text = as_if<DOM::Text>(*focus)) {
+        if (auto text_directionality = text->directionality(); text_directionality.has_value())
+            focus_directionality = *text_directionality;
+    } else if (auto* element = as_if<DOM::Element>(*focus)) {
+        focus_directionality = element->directionality();
+    }
+
     // 7. If direction is ASCII case-insensitive match with "right" and inline base direction of this selection's focus is ltr, set effectiveDirection to forwards.
-    if (direction.value().equals_ignoring_ascii_case("right"sv) && text_node.directionality() == DOM::Element::Directionality::Ltr)
+    if (direction.value().equals_ignoring_ascii_case("right"sv) && focus_directionality == DOM::Element::Directionality::Ltr)
         effective_direction = Direction::Forwards;
 
     // 8. If direction is ASCII case-insensitive match with "left" and inline base direction of this selection's focus is rtl, set effectiveDirection to forwards.
-    if (direction.value().equals_ignoring_ascii_case("left"sv) && text_node.directionality() == DOM::Element::Directionality::Rtl)
+    if (direction.value().equals_ignoring_ascii_case("left"sv) && focus_directionality == DOM::Element::Directionality::Rtl)
         effective_direction = Direction::Forwards;
 
     // 9. Set this selection's direction to effectiveDirection.
@@ -456,17 +463,42 @@ WebIDL::ExceptionOr<void> Selection::modify(Optional<String> alter, Optional<Str
     // 11. Otherwise, set this selection's focus and anchor to the location as if the user had requested to move selection by granularity.
     auto collapse_selection = alter.value().equals_ignoring_ascii_case("move"sv);
 
-    // TODO: Implement the other granularity options.
+    auto move_focus_to_visual_line_boundary = [&](bool forwards) {
+        auto* text = as_if<DOM::Text>(focus_node().ptr());
+        if (!text)
+            return;
+        auto position = forwards
+            ? find_visual_line_end(*text, focus_offset(), m_focus_affinity)
+            : CursorLinePosition { find_visual_line_start(*text, focus_offset(), m_focus_affinity), TextAffinity::Downstream };
+        if (collapse_selection)
+            MUST(collapse(text, position.offset));
+        else
+            MUST(set_base_and_extent(*anchor_node(), anchor_offset(), *text, position.offset));
+        m_focus_affinity = position.affinity;
+        m_document->reset_cursor_blink_cycle();
+        m_document->set_cursor_position_needs_repaint();
+    };
+
+    // TODO: Implement the sentence, paragraph, and document granularity options.
+    auto granularity_view = granularity.value().bytes_as_string_view();
     if (effective_direction == Direction::Forwards) {
-        if (granularity.value().equals_ignoring_ascii_case("character"sv))
+        if (granularity_view.equals_ignoring_ascii_case("character"sv))
             move_offset_to_next_character(collapse_selection);
-        if (granularity.value().equals_ignoring_ascii_case("word"sv))
+        else if (granularity_view.equals_ignoring_ascii_case("word"sv))
             move_offset_to_next_word(collapse_selection);
+        else if (granularity_view.equals_ignoring_ascii_case("line"sv))
+            move_offset_to_next_line(collapse_selection);
+        else if (granularity_view.equals_ignoring_ascii_case("lineboundary"sv))
+            move_focus_to_visual_line_boundary(true);
     } else {
-        if (granularity.value().equals_ignoring_ascii_case("character"sv))
+        if (granularity_view.equals_ignoring_ascii_case("character"sv))
             move_offset_to_previous_character(collapse_selection);
-        if (granularity.value().equals_ignoring_ascii_case("word"sv))
+        else if (granularity_view.equals_ignoring_ascii_case("word"sv))
             move_offset_to_previous_word(collapse_selection);
+        else if (granularity_view.equals_ignoring_ascii_case("line"sv))
+            move_offset_to_previous_line(collapse_selection);
+        else if (granularity_view.equals_ignoring_ascii_case("lineboundary"sv))
+            move_focus_to_visual_line_boundary(false);
     }
 
     return {};
@@ -812,8 +844,13 @@ void Selection::move_offset_to_previous_character(bool collapse_selection)
 void Selection::move_offset_to_next_word(bool collapse_selection)
 {
     auto* text_node = as_if<DOM::Text>(focus_node().ptr());
-    if (!text_node)
+    if (!text_node) {
+        // The focus is parked on an element, e.g. an empty line; step into the closest caret host after it.
+        if (auto node = focus_node())
+            move_cursor_to_adjacent_caret_host(*this, caret_navigation_origin(*node, focus_offset()), CaretNavigationDirection::Forward, CaretEntryMode::LineEdge, {}, collapse_selection);
+        scroll_focus_into_view();
         return;
+    }
 
     while (true) {
         auto focus_offset = this->focus_offset();
@@ -839,8 +876,13 @@ void Selection::move_offset_to_next_word(bool collapse_selection)
 void Selection::move_offset_to_previous_word(bool collapse_selection)
 {
     auto* text_node = as_if<DOM::Text>(focus_node().ptr());
-    if (!text_node)
+    if (!text_node) {
+        // The focus is parked on an element, e.g. an empty line; step into the closest caret host before it.
+        if (auto node = focus_node())
+            move_cursor_to_adjacent_caret_host(*this, caret_navigation_origin(*node, focus_offset()), CaretNavigationDirection::Backward, CaretEntryMode::LineEdge, {}, collapse_selection);
+        scroll_focus_into_view();
         return;
+    }
 
     while (true) {
         auto focus_offset = this->focus_offset();
