@@ -580,27 +580,31 @@ Document::Document(JS::Realm& realm, URL::URL const& url)
     m_is_decoded_svg = m_page->client().is_svg_page_client();
 
     m_cursor_blink_timer = heap().allocate<GC::Timer>();
-    m_cursor_blink_timer->start_repeating(500, GC::create_function(heap(), [this] {
-        auto cursor_position = this->cursor_position();
-        if (!cursor_position)
-            return;
-
-        auto navigable = this->navigable();
-        if (!navigable || !navigable->is_focused())
-            return;
-
-        auto node = cursor_position->node();
-        if (auto* text = as_if<DOM::Text>(*node)) {
-            auto* layout_text_node = as_if<Layout::TextNode>(text->unsafe_layout_node());
-            if (!layout_text_node)
+    // NB: In test mode, the caret must not blink so we can deterministically generate display lists. The blink state
+    //     is set whenever the cursor moves (see reset_cursor_blink_cycle()), so the caret is still painted.
+    if (!HTML::Window::in_test_mode()) {
+        m_cursor_blink_timer->start_repeating(500, GC::create_function(heap(), [this] {
+            auto cursor_position = this->cursor_position();
+            if (!cursor_position)
                 return;
-            m_cursor_blink_state = !m_cursor_blink_state;
-            layout_text_node->set_needs_repaint();
-        } else if (node->unsafe_paintable()) {
-            m_cursor_blink_state = !m_cursor_blink_state;
-            node->set_needs_repaint();
-        }
-    }));
+
+            auto navigable = this->navigable();
+            if (!navigable || !navigable->is_focused())
+                return;
+
+            auto node = cursor_position->node();
+            if (auto* text = as_if<DOM::Text>(*node)) {
+                auto* layout_text_node = as_if<Layout::TextNode>(text->unsafe_layout_node());
+                if (!layout_text_node)
+                    return;
+                m_cursor_blink_state = !m_cursor_blink_state;
+                layout_text_node->set_needs_repaint();
+            } else if (node->unsafe_paintable()) {
+                m_cursor_blink_state = !m_cursor_blink_state;
+                node->set_needs_repaint();
+            }
+        }));
+    }
 
     HTML::main_thread_event_loop().register_document({}, *this);
 }
