@@ -1,0 +1,23 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 144 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 128 0+0+8] children: not-inline
+      BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      ImageBox <img> at [8,8] [0+0+0 110 0+0+674] [0+0+0 64 0+0+0] children: not-inline
+      BlockContainer <(anonymous)> at [8,72] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      ImageBox <img> at [8,72] [0+0+0 110 0+0+674] [0+0+0 64 0+0+0] children: not-inline
+      BlockContainer <(anonymous)> at [8,136] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x144]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x128]
+      PaintableWithLines (BlockContainer(anonymous)) [8,8 784x0]
+      ImagePaintable (ImageBox<IMG>) [8,8 110x64]
+      PaintableWithLines (BlockContainer(anonymous)) [8,72 784x0]
+      ImagePaintable (ImageBox<IMG>) [8,72 110x64]
+      PaintableWithLines (BlockContainer(anonymous)) [8,136 784x0]
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x144] (z-index: auto)
