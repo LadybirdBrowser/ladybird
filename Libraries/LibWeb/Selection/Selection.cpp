@@ -774,75 +774,83 @@ static bool move_cursor_to_adjacent_caret_host(Selection& selection, DOM::Node& 
 
 void Selection::move_offset_to_next_character(bool collapse_selection)
 {
-    auto* text_node = as_if<DOM::Text>(anchor_node().ptr());
-    if (!text_node) {
-        // The caret is parked on an element, e.g. an empty line; step into the closest caret host after it.
-        if (auto node = anchor_node(); node && is_collapsed())
-            move_cursor_to_adjacent_caret_host(*this, caret_navigation_origin(*node, anchor_offset()), CaretNavigationDirection::Forward, CaretEntryMode::LineEdge, {}, collapse_selection);
+    // If there is a selection range, collapse to the end of that range without moving forward
+    if (collapse_selection && !is_collapsed()) {
+        MUST(collapse(m_range->end_container(), m_range->end_offset()));
+        m_document->reset_cursor_blink_cycle();
         scroll_focus_into_view();
         return;
     }
 
-    // If there is a selection range, collapse to the end (max) of that range without moving forward
-    if (collapse_selection && !is_collapsed()) {
-        MUST(collapse(text_node, max(anchor_offset(), focus_offset())));
-        m_document->reset_cursor_blink_cycle();
-    }
-    // Otherwise, move forward if possible
-    else if (auto new_position = compute_cursor_position_on_next_character(*text_node, focus_offset(), m_focus_affinity); new_position.has_value()) {
-        if (collapse_selection) {
-            MUST(collapse(text_node, new_position->offset));
-            m_document->reset_cursor_blink_cycle();
-        } else {
-            MUST(set_base_and_extent(*text_node, anchor_offset(), *text_node, new_position->offset));
+    auto node = focus_node();
+    if (!node)
+        return;
+
+    if (auto* text_node = as_if<DOM::Text>(*node)) {
+        // Move forward within the text node if possible
+        if (auto new_position = compute_cursor_position_on_next_character(*text_node, focus_offset(), m_focus_affinity); new_position.has_value()) {
+            if (collapse_selection) {
+                MUST(collapse(text_node, new_position->offset));
+                m_document->reset_cursor_blink_cycle();
+            } else {
+                MUST(set_base_and_extent(*anchor_node(), anchor_offset(), *text_node, new_position->offset));
+            }
+            m_focus_affinity = new_position->affinity;
+            m_document->set_cursor_position_needs_repaint();
         }
-        m_focus_affinity = new_position->affinity;
-        m_document->set_cursor_position_needs_repaint();
+        // At the very end of this text node, move into the closest caret host after it.
+        else {
+            move_cursor_to_adjacent_caret_host(*this, *text_node, CaretNavigationDirection::Forward, CaretEntryMode::LineEdge, {}, collapse_selection);
+        }
     }
-    // At the very end of this text node, move into the closest caret host after it.
+    // The focus is parked on an element, e.g. an empty line; step into the closest caret host after it.
     else {
-        move_cursor_to_adjacent_caret_host(*this, *text_node, CaretNavigationDirection::Forward, CaretEntryMode::LineEdge, {}, collapse_selection);
+        move_cursor_to_adjacent_caret_host(*this, caret_navigation_origin(*node, focus_offset()), CaretNavigationDirection::Forward, CaretEntryMode::LineEdge, {}, collapse_selection);
     }
     scroll_focus_into_view();
 }
 
 void Selection::move_offset_to_previous_character(bool collapse_selection)
 {
-    auto* text_node = as_if<DOM::Text>(anchor_node().ptr());
-    if (!text_node) {
-        // The caret is parked on an element, e.g. an empty line; step into the closest caret host before it.
-        if (auto node = anchor_node(); node && is_collapsed())
-            move_cursor_to_adjacent_caret_host(*this, caret_navigation_origin(*node, anchor_offset()), CaretNavigationDirection::Backward, CaretEntryMode::LineEdge, {}, collapse_selection);
+    // If there is a selection range, collapse to the start of that range without moving backward
+    if (collapse_selection && !is_collapsed()) {
+        MUST(collapse(m_range->start_container(), m_range->start_offset()));
+        m_document->reset_cursor_blink_cycle();
         scroll_focus_into_view();
         return;
     }
 
-    // If there is a selection range, collapse to the start (min) of that range without moving backward
-    if (collapse_selection && !is_collapsed()) {
-        MUST(collapse(text_node, min(anchor_offset(), focus_offset())));
-        m_document->reset_cursor_blink_cycle();
-    }
-    // Otherwise, move backward if possible
-    else if (auto new_position = compute_cursor_position_on_previous_character(*text_node, focus_offset(), m_focus_affinity); new_position.has_value()) {
-        if (collapse_selection) {
-            MUST(collapse(text_node, new_position->offset));
-            m_document->reset_cursor_blink_cycle();
-        } else {
-            MUST(set_base_and_extent(*text_node, anchor_offset(), *text_node, new_position->offset));
+    auto node = focus_node();
+    if (!node)
+        return;
+
+    if (auto* text_node = as_if<DOM::Text>(*node)) {
+        // Move backward within the text node if possible
+        if (auto new_position = compute_cursor_position_on_previous_character(*text_node, focus_offset(), m_focus_affinity); new_position.has_value()) {
+            if (collapse_selection) {
+                MUST(collapse(text_node, new_position->offset));
+                m_document->reset_cursor_blink_cycle();
+            } else {
+                MUST(set_base_and_extent(*anchor_node(), anchor_offset(), *text_node, new_position->offset));
+            }
+            m_focus_affinity = new_position->affinity;
+            m_document->set_cursor_position_needs_repaint();
         }
-        m_focus_affinity = new_position->affinity;
-        m_document->set_cursor_position_needs_repaint();
+        // At the very start of this text node, move into the closest caret host before it.
+        else {
+            move_cursor_to_adjacent_caret_host(*this, *text_node, CaretNavigationDirection::Backward, CaretEntryMode::LineEdge, {}, collapse_selection);
+        }
     }
-    // At the very start of this text node, move into the closest caret host before it.
+    // The focus is parked on an element, e.g. an empty line; step into the closest caret host before it.
     else {
-        move_cursor_to_adjacent_caret_host(*this, *text_node, CaretNavigationDirection::Backward, CaretEntryMode::LineEdge, {}, collapse_selection);
+        move_cursor_to_adjacent_caret_host(*this, caret_navigation_origin(*node, focus_offset()), CaretNavigationDirection::Backward, CaretEntryMode::LineEdge, {}, collapse_selection);
     }
     scroll_focus_into_view();
 }
 
 void Selection::move_offset_to_next_word(bool collapse_selection)
 {
-    auto* text_node = as_if<DOM::Text>(anchor_node().ptr());
+    auto* text_node = as_if<DOM::Text>(focus_node().ptr());
     if (!text_node)
         return;
 
@@ -856,7 +864,7 @@ void Selection::move_offset_to_next_word(bool collapse_selection)
                 MUST(collapse(text_node, *offset));
                 m_document->reset_cursor_blink_cycle();
             } else {
-                MUST(set_base_and_extent(*text_node, anchor_offset(), *text_node, *offset));
+                MUST(set_base_and_extent(*anchor_node(), anchor_offset(), *text_node, *offset));
             }
             auto word = text_node->data().substring_view(focus_offset, *offset - focus_offset);
             if (Unicode::Segmenter::should_continue_beyond_word(word))
@@ -869,7 +877,7 @@ void Selection::move_offset_to_next_word(bool collapse_selection)
 
 void Selection::move_offset_to_previous_word(bool collapse_selection)
 {
-    auto* text_node = as_if<DOM::Text>(anchor_node().ptr());
+    auto* text_node = as_if<DOM::Text>(focus_node().ptr());
     if (!text_node)
         return;
 
@@ -880,7 +888,7 @@ void Selection::move_offset_to_previous_word(bool collapse_selection)
                 MUST(collapse(text_node, *offset));
                 m_document->reset_cursor_blink_cycle();
             } else {
-                MUST(set_base_and_extent(*text_node, anchor_offset(), *text_node, *offset));
+                MUST(set_base_and_extent(*anchor_node(), anchor_offset(), *text_node, *offset));
             }
             auto word = text_node->data().substring_view(*offset, focus_offset - *offset);
             if (Unicode::Segmenter::should_continue_beyond_word(word))
@@ -893,11 +901,14 @@ void Selection::move_offset_to_previous_word(bool collapse_selection)
 
 void Selection::move_offset_to_next_line(bool collapse_selection)
 {
-    auto* text_node = as_if<DOM::Text>(anchor_node().ptr());
+    auto node = focus_node();
+    if (!node)
+        return;
+
+    auto* text_node = as_if<DOM::Text>(*node);
     if (!text_node) {
-        // The caret is parked on an element, e.g. an empty line; move to the closest caret host below.
-        if (auto node = anchor_node(); node && is_collapsed())
-            move_cursor_to_adjacent_caret_host(*this, caret_navigation_origin(*node, anchor_offset()), CaretNavigationDirection::Forward, CaretEntryMode::ClosestToInlineCoordinate, {}, collapse_selection);
+        // The focus is parked on an element, e.g. an empty line; move to the closest caret host below.
+        move_cursor_to_adjacent_caret_host(*this, caret_navigation_origin(*node, focus_offset()), CaretNavigationDirection::Forward, CaretEntryMode::ClosestToInlineCoordinate, {}, collapse_selection);
         scroll_focus_into_view();
         return;
     }
@@ -919,7 +930,7 @@ void Selection::move_offset_to_next_line(bool collapse_selection)
         MUST(collapse(text_node, new_position->offset));
         m_document->reset_cursor_blink_cycle();
     } else {
-        MUST(set_base_and_extent(*text_node, anchor_offset(), *text_node, new_position->offset));
+        MUST(set_base_and_extent(*anchor_node(), anchor_offset(), *text_node, new_position->offset));
     }
     m_focus_affinity = new_position->affinity;
     scroll_focus_into_view();
@@ -927,11 +938,14 @@ void Selection::move_offset_to_next_line(bool collapse_selection)
 
 void Selection::move_offset_to_previous_line(bool collapse_selection)
 {
-    auto* text_node = as_if<DOM::Text>(anchor_node().ptr());
+    auto node = focus_node();
+    if (!node)
+        return;
+
+    auto* text_node = as_if<DOM::Text>(*node);
     if (!text_node) {
-        // The caret is parked on an element, e.g. an empty line; move to the closest caret host above.
-        if (auto node = anchor_node(); node && is_collapsed())
-            move_cursor_to_adjacent_caret_host(*this, caret_navigation_origin(*node, anchor_offset()), CaretNavigationDirection::Backward, CaretEntryMode::ClosestToInlineCoordinate, {}, collapse_selection);
+        // The focus is parked on an element, e.g. an empty line; move to the closest caret host above.
+        move_cursor_to_adjacent_caret_host(*this, caret_navigation_origin(*node, focus_offset()), CaretNavigationDirection::Backward, CaretEntryMode::ClosestToInlineCoordinate, {}, collapse_selection);
         scroll_focus_into_view();
         return;
     }
@@ -953,7 +967,7 @@ void Selection::move_offset_to_previous_line(bool collapse_selection)
         MUST(collapse(text_node, new_position->offset));
         m_document->reset_cursor_blink_cycle();
     } else {
-        MUST(set_base_and_extent(*text_node, anchor_offset(), *text_node, new_position->offset));
+        MUST(set_base_and_extent(*anchor_node(), anchor_offset(), *text_node, new_position->offset));
     }
     m_focus_affinity = new_position->affinity;
     scroll_focus_into_view();
