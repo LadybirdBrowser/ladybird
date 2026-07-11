@@ -1331,12 +1331,23 @@ void FlexFormattingContext::determine_hypothetical_cross_size_of_item(FlexItem& 
     }
 
     if (item.box.has_preferred_aspect_ratio()) {
+        // AD-HOC: For a replaced box whose only sizing information is a natural aspect ratio (e.g an SVG with a
+        //         viewBox but no natural width or height) and an indefinite flex basis, we stretch-fit the cross size
+        //         to the flex container instead of transferring the used main size through the aspect ratio.
         auto auto_size = item.box.auto_content_box_size();
-        if (item.used_flex_basis_is_definite || (auto_size.has_width() && auto_size.has_height())) {
-            item.hypothetical_cross_size = css_clamp(calculate_cross_size_from_main_size_and_aspect_ratio(item.main_size.value(), item.box.preferred_aspect_ratio().value()), clamp_min, clamp_max);
+        bool is_replaced_box_with_only_natural_aspect_ratio = item.box.is_replaced_box() && !(auto_size.has_width() && auto_size.has_height());
+        if (is_replaced_box_with_only_natural_aspect_ratio && !item.used_flex_basis_is_definite) {
+            item.hypothetical_cross_size = css_clamp(inner_cross_size(m_flex_container_state), clamp_min, clamp_max);
             return;
         }
-        item.hypothetical_cross_size = css_clamp(inner_cross_size(m_flex_container_state), clamp_min, clamp_max);
+
+        // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-automatic
+        // When a box has a preferred aspect ratio, its automatic sizes are calculated the same as for a
+        // replaced element with a natural aspect ratio and no natural size in that axis, see e.g. CSS2 § 10
+        // and CSS Flexible Box Model Level 1 § 9.2. The axis in which the preferred size calculation depends
+        // on this aspect ratio is called the ratio-dependent axis, and the resulting size is definite if its
+        // input sizes are also definite.
+        item.hypothetical_cross_size = css_clamp(calculate_cross_size_from_main_size_and_aspect_ratio(item.main_size.value(), item.box.preferred_aspect_ratio().value()), clamp_min, clamp_max);
         return;
     }
 
