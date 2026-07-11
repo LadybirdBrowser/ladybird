@@ -1,0 +1,14 @@
+Shift+Left 1: anchor=#text("def")@3 focus=#text("def")@2
+Shift+Left 2: anchor=#text("def")@3 focus=#text("def")@1
+Shift+Left 3: anchor=#text("def")@3 focus=#text("def")@0
+Shift+Left 4: anchor=#text("def")@3 focus=#text("abc")@3
+Shift+Left 5: anchor=#text("def")@3 focus=#text("def")@2
+Shift+Left 6: anchor=#text("def")@3 focus=#text("def")@1
+Shift+Right 1: anchor=#text("abc")@0 focus=#text("abc")@1
+Shift+Right 2: anchor=#text("abc")@0 focus=#text("abc")@2
+Shift+Right 3: anchor=#text("abc")@0 focus=#text("abc")@3
+Shift+Right 4: anchor=#text("abc")@0 focus=#text("def")@0
+Shift+Right 5: anchor=#text("abc")@0 focus=#text("abc")@1
+Shift+Right 6: anchor=#text("abc")@0 focus=#text("abc")@2
+Shift+Up: anchor=#text("def")@1 focus=#text("abc")@1
+Shift+Down: anchor=#text("def")@1 focus=#text("def")@3

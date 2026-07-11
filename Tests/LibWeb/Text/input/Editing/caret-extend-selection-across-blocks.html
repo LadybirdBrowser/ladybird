@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    p {
+        margin: 0;
+        font: 20px/1.5 monospace;
+    }
+</style>
+<div id="editor" contenteditable="true"><p><span id="s1">abc</span></p><p><span id="s2">def</span></p></div>
+<script>
+    test(() => {
+        const modShift = 1 << 2;
+        const editor = document.getElementById("editor");
+        const abc = document.getElementById("s1").firstChild;
+        const def = document.getElementById("s2").firstChild;
+        const describe = n => !n
+            ? "null"
+            : (n.nodeType === Node.TEXT_NODE ? `#text("${n.data}")` : n.nodeName.toLowerCase());
+        const report = label => {
+            const s = getSelection();
+            println(`${label}: anchor=${describe(s.anchorNode)}@${s.anchorOffset} focus=${describe(s.focusNode)}@${s.focusOffset}`);
+        };
+        editor.focus();
+
+        getSelection().setBaseAndExtent(def, 3, def, 3);
+        for (let i = 1; i <= 6; ++i) {
+            internals.sendKey(editor, "Left", modShift);
+            report(`Shift+Left ${i}`);
+        }
+
+        getSelection().setBaseAndExtent(abc, 0, abc, 0);
+        for (let i = 1; i <= 6; ++i) {
+            internals.sendKey(editor, "Right", modShift);
+            report(`Shift+Right ${i}`);
+        }
+
+        getSelection().setBaseAndExtent(def, 1, def, 1);
+        internals.sendKey(editor, "Up", modShift);
+        report("Shift+Up");
+        internals.sendKey(editor, "Down", modShift);
+        report("Shift+Down");
+    });
+</script>
