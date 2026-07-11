@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<script>
+    // A document's load event can be gated on something that delays the load event inside a
+    // subframe's document (e.g. an image load started after the subframe itself finished
+    // loading). When that inner load settles, the outer document's load event must fire.
+    //
+    // Frame A is gated by its own image (blocked on the "gate" token) while its subframe B
+    // finishes loading and starts an image load of its own (blocked on the "inner" token).
+    // Once both images are in flight, the gate token is released; when A's own image settles,
+    // the only thing delaying A's load event is the image inside B. Then the inner token is
+    // released; if clearing that inner delayer fails to wake A's parser end state machine,
+    // A's load event never fires and this test times out.
+    asyncTest(async done => {
+        internals.setTestTimeout(15000);
+        const httpServer = httpTestServer();
+
+        const gateToken = "subframe-delayer-gate";
+        const innerToken = "subframe-delayer-inner";
+        const frameGateURL = await httpServer.createEcho("GET", "/subframe-delayer-frame-gate", {
+            status: 404,
+            headers: { "Cache-Control": "no-store" },
+            body: "",
+            wait_for_unblock: gateToken,
+        });
+        const innerImageURL = await httpServer.createEcho("GET", "/subframe-delayer-inner-image", {
+            status: 404,
+            headers: { "Cache-Control": "no-store" },
+            body: "",
+            wait_for_unblock: innerToken,
+        });
+        const unblock = token => fetch(new URL(`/unblock/${token}`, frameGateURL));
+
+        window.addEventListener("message", async event => {
+            if (event.data === "inner image inserted") {
+                // The subframe's image insertion (and thus its load event delayer) is ordered
+                // before this message task, so the inner delayer is engaged; release the gate.
+                await unblock(gateToken);
+                // A's own image now settles, leaving the inner image as the only thing delaying
+                // A's load event; release it too.
+                await unblock(innerToken);
+                return;
+            }
+            println(event.data);
+            done();
+        });
+
+        const frame = document.createElement("iframe");
+        frame.srcdoc = `
+            <img src="${frameGateURL}">
+            <script>
+                const subframe = document.createElement("iframe");
+                subframe.srcdoc = "<body></body>";
+                subframe.addEventListener("load", () => {
+                    const innerImage = subframe.contentDocument.createElement("img");
+                    innerImage.src = "${innerImageURL}";
+                    subframe.contentDocument.body.appendChild(innerImage);
+                    parent.postMessage("inner image inserted", "*");
+                });
+                document.body.appendChild(subframe);
+                window.addEventListener("load", () => parent.postMessage("frame load event", "*"));
+            <\/script>
+        `;
+        document.body.appendChild(frame);
+    });
+</script>
