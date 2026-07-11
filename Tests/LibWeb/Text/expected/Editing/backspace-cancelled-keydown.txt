@@ -1,2 +1,2 @@
-editor text: a
-events: keydown:Backspace, beforeinput:deleteContentBackward
+editor text: ab
+events: keydown:Backspace

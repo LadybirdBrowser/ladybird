@@ -174,7 +174,7 @@ void EditingHostManager::decrement_cursor_position_to_previous_line(CollapseSele
         selection->move_offset_to_previous_line(collapse == CollapseSelection::Yes);
 }
 
-void EditingHostManager::handle_delete(FlyString const& input_type, DispatchInputEvent dispatch_input_event)
+void EditingHostManager::handle_delete(FlyString const& input_type)
 {
     // https://w3c.github.io/editing/docs/execCommand/#additional-requirements
     // When the user instructs the user agent to delete the previous character inside an editing host, such as by
@@ -184,7 +184,7 @@ void EditingHostManager::handle_delete(FlyString const& input_type, DispatchInpu
     // the Delete key while the cursor is in an editable node, the user agent must call execCommand("forwarddelete") on
     // the relevant document.
     auto command = input_type == UIEvents::InputTypes::deleteContentBackward ? Editing::CommandNames::delete_ : Editing::CommandNames::forwardDelete;
-    auto editing_result = m_document->exec_command_internal(command, false, {}, dispatch_input_event == DispatchInputEvent::Yes ? DOM::Document::DispatchInputEvent::Yes : DOM::Document::DispatchInputEvent::No);
+    auto editing_result = m_document->exec_command(command, false, {});
     if (editing_result.is_exception())
         dbgln("handle_delete(): editing resulted in exception: {}", editing_result.exception());
 }

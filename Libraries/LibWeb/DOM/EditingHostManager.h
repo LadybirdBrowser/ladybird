@@ -23,7 +23,7 @@ public:
     [[nodiscard]] static GC::Ref<EditingHostManager> create(JS::Realm&, GC::Ref<Document>);
 
     virtual void handle_insert(FlyString const& input_type, Utf16String const&) override;
-    virtual void handle_delete(FlyString const& input_type, DispatchInputEvent = DispatchInputEvent::Yes) override;
+    virtual void handle_delete(FlyString const& input_type) override;
     virtual EventResult handle_return_key(FlyString const& ui_input_type) override;
     virtual GC::Ptr<DOM::Node> mouse_selection_scope() override { return m_active_contenteditable_element; }
     virtual void select_all() override;

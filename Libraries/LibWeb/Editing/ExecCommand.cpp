@@ -20,11 +20,6 @@ namespace Web::DOM {
 // https://w3c.github.io/editing/docs/execCommand/#execcommand()
 WebIDL::ExceptionOr<bool> Document::exec_command(FlyString const& command, [[maybe_unused]] bool show_ui, Utf16String const& value)
 {
-    return exec_command_internal(command, show_ui, value, DispatchInputEvent::Yes);
-}
-
-WebIDL::ExceptionOr<bool> Document::exec_command_internal(FlyString const& command, [[maybe_unused]] bool show_ui, Utf16String const& value, DispatchInputEvent dispatch_input_event)
-{
     // AD-HOC: This is not directly mentioned in the spec, but all major browsers limit editing API calls to HTML documents
     if (!is_html_document())
         return WebIDL::InvalidStateError::create(realm(), "execCommand is only supported on HTML documents"_utf16);
@@ -124,7 +119,7 @@ WebIDL::ExceptionOr<bool> Document::exec_command_internal(FlyString const& comma
     //    value of command, and its data attribute initialized to null.
     bool tree_was_modified = dom_tree_version() != old_dom_tree_version
         || character_data_version() != old_character_data_version;
-    if (tree_was_modified && affected_editing_host && dispatch_input_event == DispatchInputEvent::Yes) {
+    if (tree_was_modified && affected_editing_host) {
         Bindings::InputEventInit event_init {};
         event_init.bubbles = true;
         event_init.input_type = command_definition.mapped_value.to_string();

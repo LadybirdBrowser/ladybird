@@ -1043,7 +1043,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     if (should_ignore_device_input_event() && m_mousedown_target_is_drag_candidate && key == UIEvents::KeyCode::Key_Escape)
         return cancel_drag_and_drop_event(m_last_known_mouse_visual_viewport_position.value_or({}), m_last_known_mouse_screen_position, UIEvents::MouseButton::Primary, m_last_known_mouse_buttons, modifiers);
 
-    auto handle_delete_key = [&](InputEventsTarget& target, InputEventsTarget::DispatchInputEvent dispatch_input_event) -> Optional<EventResult> {
+    auto handle_delete_key = [&](InputEventsTarget& target) -> Optional<EventResult> {
         auto input_type = input_type_for_delete_key(key);
         if (!input_type.has_value())
             return {};
@@ -1052,20 +1052,13 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         if (beforeinput_result == EventResult::Cancelled)
             return beforeinput_result;
 
-        target.handle_delete(input_type.value(), dispatch_input_event);
+        target.handle_delete(input_type.value());
         return EventResult::Handled;
     };
 
     auto dispatch_result = fire_keyboard_event(UIEvents::EventNames::keydown, m_navigable, key, modifiers, code_point, repeat);
-    if (dispatch_result == EventResult::Cancelled) {
-        if (auto document = m_navigable->active_document(); document && document->is_fully_active()) {
-            if (auto* target = document->active_input_events_target()) {
-                if (auto delete_result = handle_delete_key(*target, InputEventsTarget::DispatchInputEvent::No); delete_result.has_value())
-                    return delete_result.value();
-            }
-        }
+    if (dispatch_result != EventResult::Accepted)
         return dispatch_result;
-    }
 
     // https://w3c.github.io/uievents/#event-type-keypress
     // If supported by a user agent, this event MUST be dispatched when a key is pressed down, if and only if that key
@@ -1116,7 +1109,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     }
 
     if (auto* target = document->active_input_events_target()) {
-        if (auto delete_result = handle_delete_key(*target, InputEventsTarget::DispatchInputEvent::Yes); delete_result.has_value())
+        if (auto delete_result = handle_delete_key(*target); delete_result.has_value())
             return delete_result.value();
 
 #if defined(AK_OS_MACOS)

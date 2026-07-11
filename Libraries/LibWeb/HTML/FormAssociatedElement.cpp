@@ -1071,7 +1071,7 @@ void FormAssociatedTextControlElement::handle_insert(FlyString const& input_type
     scroll_cursor_into_view();
 }
 
-void FormAssociatedTextControlElement::handle_delete(FlyString const& input_type, DispatchInputEvent dispatch_input_event)
+void FormAssociatedTextControlElement::handle_delete(FlyString const& input_type)
 {
     auto text_node = form_associated_element_to_text_node();
     if (!text_node || !static_cast<FormAssociatedElement&>(text_control_to_html_element()).is_mutable())
@@ -1093,8 +1093,7 @@ void FormAssociatedTextControlElement::handle_delete(FlyString const& input_type
     MUST(set_range_text({}, selection_start, selection_end, Bindings::SelectionMode::End));
 
     text_node->invalidate_style(DOM::StyleInvalidationReason::EditingDeletion);
-    if (dispatch_input_event == DispatchInputEvent::Yes)
-        did_edit_text_node(input_type, {});
+    did_edit_text_node(input_type, {});
     scroll_cursor_into_view();
 }
 
