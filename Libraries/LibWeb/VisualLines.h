@@ -10,6 +10,7 @@
 #include <AK/Optional.h>
 #include <AK/Vector.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/PixelUnits.h>
 #include <LibWeb/TextAffinity.h>
 
 namespace Web {
@@ -45,6 +46,25 @@ Optional<CursorLinePosition> compute_cursor_position_on_previous_character(DOM::
 
 size_t find_visual_line_start(DOM::Text const&, size_t offset, TextAffinity);
 CursorLinePosition find_visual_line_end(DOM::Text const&, size_t offset, TextAffinity);
+
+// Helpers for caret navigation across node boundaries.
+
+// Whether the offset renders on the first/last visual line of the text.
+bool offset_is_on_first_visual_line(DOM::Text const&, size_t offset, TextAffinity);
+bool offset_is_on_last_visual_line(DOM::Text const&, size_t offset, TextAffinity);
+
+// The absolute inline-axis coordinate of the caret at the given offset, used to keep the caret column when moving
+// between lines. Returns nothing for positions on lines without rendered text.
+Optional<CSSPixels> cursor_inline_coordinate(DOM::Text const&, size_t offset, TextAffinity);
+
+// Cursor positions for entering a text node from an adjacent node. The "visual start" and "visual end" positions are
+// the rendered start of the first line and the rendered end of the last line; the "closest to" variants pick the
+// position on the first/last visual line closest to the given inline coordinate (or the line start when there is no
+// coordinate). All return nothing for text with no rendered lines.
+Optional<CursorLinePosition> cursor_position_at_visual_start(DOM::Text const&);
+Optional<CursorLinePosition> cursor_position_at_visual_end(DOM::Text const&);
+Optional<CursorLinePosition> cursor_position_on_first_line_closest_to(DOM::Text const&, Optional<CSSPixels> inline_coordinate);
+Optional<CursorLinePosition> cursor_position_on_last_line_closest_to(DOM::Text const&, Optional<CSSPixels> inline_coordinate);
 
 bool white_space_preserves_newlines(Layout::TextNode const&);
 

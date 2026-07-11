@@ -9,12 +9,14 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/Selection.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/Painting/Paintable.h>
+#include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/VisualLines.h>
 
@@ -594,15 +596,125 @@ GC::Ptr<DOM::Position> Selection::cursor_position() const
     return DOM::Position::create(m_document->realm(), *m_range->start_container(), m_range->start_offset(), m_focus_affinity);
 }
 
-// FIXME: The offset adjustment algorithms below do not handle moving over multiple DOM nodes. For example, if we have:
-//        `<div contenteditable><p>Well hello</p><p>friends</p></div>`, we should be able to move the cursor between the
-//        two <p> elements. But the algorithms below limit us to a single DOM node.
+// Cross-node caret navigation: when character or line movement reaches the edge of the current node, the caret moves
+// to the closest node in the editing host that can house it: either a text node with rendered text, or a block-level
+// element rendering an empty line (such as the `<p><br></p>` paragraphs produced by pressing Enter on an empty line).
+// FIXME: Word movement is still limited to a single DOM node.
+
+enum class CaretNavigationDirection : u8 {
+    Forward,
+    Backward,
+};
+
+enum class CaretEntryMode : u8 {
+    LineEdge,
+    ClosestToInlineCoordinate,
+};
+
+static bool text_node_has_rendered_text(DOM::Text const& text)
+{
+    for (auto const& line : collect_visual_lines(text)) {
+        if (!line.fragments.is_empty())
+            return true;
+    }
+    return false;
+}
+
+// A block-level element that renders no text but hosts an empty line where the caret can sit, such as `<p><br></p>`.
+static bool is_empty_line_host(DOM::Node& node)
+{
+    auto* element = as_if<DOM::Element>(node);
+    if (!element || !element->is_editable())
+        return false;
+    auto element_paintable = element->unsafe_paintable();
+    auto* paintable = as_if<Painting::PaintableWithLines>(element_paintable.ptr());
+    if (!paintable)
+        return false;
+    if (paintable->layout_node().display().is_inline_outside())
+        return false;
+
+    bool has_rendered_text = false;
+    element->for_each_in_subtree_of_type<DOM::Text>([&](auto& text) {
+        if (!text_node_has_rendered_text(text))
+            return TraversalDecision::Continue;
+        has_rendered_text = true;
+        return TraversalDecision::Break;
+    });
+    return !has_rendered_text;
+}
+
+static GC::Ptr<DOM::Node> adjacent_caret_host_in_editing_host(DOM::Node& from, DOM::Node& editing_host, CaretNavigationDirection direction)
+{
+    auto* node = &from;
+    while (node) {
+        node = direction == CaretNavigationDirection::Forward
+            ? node->next_in_pre_order(&editing_host)
+            : node->previous_in_pre_order();
+        if (!node || node == &editing_host || !editing_host.is_inclusive_ancestor_of(*node))
+            return nullptr;
+        if (auto* text = as_if<DOM::Text>(*node); text && text->is_editable() && text_node_has_rendered_text(*text))
+            return node;
+        if (is_empty_line_host(*node))
+            return node;
+    }
+    return nullptr;
+}
+
+// Moves the caret out of `from` into the closest caret host before or after it in the editing host. Enters text
+// nodes at the rendered edge facing `from` (LineEdge, for horizontal movement) or at the position on the edge line
+// closest to the given inline coordinate (for vertical movement). Empty line hosts house the caret at offset 0.
+static bool move_cursor_to_adjacent_caret_host(Selection& selection, DOM::Node& from, CaretNavigationDirection direction, CaretEntryMode entry_mode, Optional<CSSPixels> inline_coordinate, bool collapse_selection)
+{
+    auto editing_host = from.editing_host();
+    if (!editing_host)
+        return false;
+
+    selection.document()->update_layout_if_needed_for_node(*editing_host, DOM::UpdateLayoutReason::CursorLineNavigation);
+
+    auto target = adjacent_caret_host_in_editing_host(from, *editing_host, direction);
+    if (!target)
+        return false;
+
+    size_t new_offset = 0;
+    auto new_affinity = TextAffinity::Downstream;
+
+    if (auto* text = as_if<DOM::Text>(*target)) {
+        Optional<CursorLinePosition> position;
+        if (entry_mode == CaretEntryMode::LineEdge) {
+            position = direction == CaretNavigationDirection::Forward
+                ? cursor_position_at_visual_start(*text)
+                : cursor_position_at_visual_end(*text);
+        } else {
+            position = direction == CaretNavigationDirection::Forward
+                ? cursor_position_on_first_line_closest_to(*text, inline_coordinate)
+                : cursor_position_on_last_line_closest_to(*text, inline_coordinate);
+        }
+        if (!position.has_value())
+            return false;
+        new_offset = position->offset;
+        new_affinity = position->affinity;
+    }
+
+    if (collapse_selection)
+        MUST(selection.collapse(target, new_offset));
+    else
+        MUST(selection.set_base_and_extent(*selection.anchor_node(), selection.anchor_offset(), *target, new_offset));
+    selection.set_focus_affinity(new_affinity);
+    selection.document()->reset_cursor_blink_cycle();
+    selection.document()->set_cursor_position_needs_repaint();
+    return true;
+}
 
 void Selection::move_offset_to_next_character(bool collapse_selection)
 {
     auto* text_node = as_if<DOM::Text>(anchor_node().ptr());
-    if (!text_node)
+    if (!text_node) {
+        // The caret is parked on an element, e.g. an empty line; step into the closest caret host after it.
+        if (auto node = anchor_node(); node && is_collapsed())
+            move_cursor_to_adjacent_caret_host(*this, *node, CaretNavigationDirection::Forward, CaretEntryMode::LineEdge, {}, collapse_selection);
+        scroll_focus_into_view();
         return;
+    }
 
     // If there is a selection range, collapse to the end (max) of that range without moving forward
     if (collapse_selection && !is_collapsed()) {
@@ -620,14 +732,23 @@ void Selection::move_offset_to_next_character(bool collapse_selection)
         m_focus_affinity = new_position->affinity;
         m_document->set_cursor_position_needs_repaint();
     }
+    // At the very end of this text node, move into the closest caret host after it.
+    else {
+        move_cursor_to_adjacent_caret_host(*this, *text_node, CaretNavigationDirection::Forward, CaretEntryMode::LineEdge, {}, collapse_selection);
+    }
     scroll_focus_into_view();
 }
 
 void Selection::move_offset_to_previous_character(bool collapse_selection)
 {
     auto* text_node = as_if<DOM::Text>(anchor_node().ptr());
-    if (!text_node)
+    if (!text_node) {
+        // The caret is parked on an element, e.g. an empty line; step into the closest caret host before it.
+        if (auto node = anchor_node(); node && is_collapsed())
+            move_cursor_to_adjacent_caret_host(*this, *node, CaretNavigationDirection::Backward, CaretEntryMode::LineEdge, {}, collapse_selection);
+        scroll_focus_into_view();
         return;
+    }
 
     // If there is a selection range, collapse to the start (min) of that range without moving backward
     if (collapse_selection && !is_collapsed()) {
@@ -644,6 +765,10 @@ void Selection::move_offset_to_previous_character(bool collapse_selection)
         }
         m_focus_affinity = new_position->affinity;
         m_document->set_cursor_position_needs_repaint();
+    }
+    // At the very start of this text node, move into the closest caret host before it.
+    else {
+        move_cursor_to_adjacent_caret_host(*this, *text_node, CaretNavigationDirection::Backward, CaretEntryMode::LineEdge, {}, collapse_selection);
     }
     scroll_focus_into_view();
 }
@@ -702,8 +827,22 @@ void Selection::move_offset_to_previous_word(bool collapse_selection)
 void Selection::move_offset_to_next_line(bool collapse_selection)
 {
     auto* text_node = as_if<DOM::Text>(anchor_node().ptr());
-    if (!text_node)
+    if (!text_node) {
+        // The caret is parked on an element, e.g. an empty line; move to the closest caret host below.
+        if (auto node = anchor_node(); node && is_collapsed())
+            move_cursor_to_adjacent_caret_host(*this, *node, CaretNavigationDirection::Forward, CaretEntryMode::ClosestToInlineCoordinate, {}, collapse_selection);
+        scroll_focus_into_view();
         return;
+    }
+
+    // On the last visual line of this text node, move to the closest caret host below instead.
+    if (offset_is_on_last_visual_line(*text_node, focus_offset(), m_focus_affinity)) {
+        auto inline_coordinate = cursor_inline_coordinate(*text_node, focus_offset(), m_focus_affinity);
+        if (move_cursor_to_adjacent_caret_host(*this, *text_node, CaretNavigationDirection::Forward, CaretEntryMode::ClosestToInlineCoordinate, inline_coordinate, collapse_selection)) {
+            scroll_focus_into_view();
+            return;
+        }
+    }
 
     auto new_position = compute_cursor_position_on_next_line(*text_node, focus_offset(), m_focus_affinity);
     if (!new_position.has_value())
@@ -722,8 +861,22 @@ void Selection::move_offset_to_next_line(bool collapse_selection)
 void Selection::move_offset_to_previous_line(bool collapse_selection)
 {
     auto* text_node = as_if<DOM::Text>(anchor_node().ptr());
-    if (!text_node)
+    if (!text_node) {
+        // The caret is parked on an element, e.g. an empty line; move to the closest caret host above.
+        if (auto node = anchor_node(); node && is_collapsed())
+            move_cursor_to_adjacent_caret_host(*this, *node, CaretNavigationDirection::Backward, CaretEntryMode::ClosestToInlineCoordinate, {}, collapse_selection);
+        scroll_focus_into_view();
         return;
+    }
+
+    // On the first visual line of this text node, move to the closest caret host above instead.
+    if (offset_is_on_first_visual_line(*text_node, focus_offset(), m_focus_affinity)) {
+        auto inline_coordinate = cursor_inline_coordinate(*text_node, focus_offset(), m_focus_affinity);
+        if (move_cursor_to_adjacent_caret_host(*this, *text_node, CaretNavigationDirection::Backward, CaretEntryMode::ClosestToInlineCoordinate, inline_coordinate, collapse_selection)) {
+            scroll_focus_into_view();
+            return;
+        }
+    }
 
     auto new_position = compute_cursor_position_on_previous_line(*text_node, focus_offset(), m_focus_affinity);
     if (!new_position.has_value())

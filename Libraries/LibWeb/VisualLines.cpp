@@ -256,6 +256,65 @@ Optional<CursorLinePosition> compute_cursor_position_on_previous_character(DOM::
     return CursorLinePosition { *previous_offset, TextAffinity::Downstream };
 }
 
+bool offset_is_on_first_visual_line(DOM::Text const& dom_node, size_t offset, TextAffinity affinity)
+{
+    auto lines = visual_lines_with_up_to_date_layout(dom_node);
+    auto line_index = visual_line_index_for_offset(lines, offset, affinity);
+    return !line_index.has_value() || *line_index == 0;
+}
+
+bool offset_is_on_last_visual_line(DOM::Text const& dom_node, size_t offset, TextAffinity affinity)
+{
+    auto lines = visual_lines_with_up_to_date_layout(dom_node);
+    auto line_index = visual_line_index_for_offset(lines, offset, affinity);
+    return !line_index.has_value() || *line_index + 1 >= lines.size();
+}
+
+Optional<CSSPixels> cursor_inline_coordinate(DOM::Text const& dom_node, size_t offset, TextAffinity affinity)
+{
+    auto lines = visual_lines_with_up_to_date_layout(dom_node);
+    auto line_index = visual_line_index_for_offset(lines, offset, affinity);
+    if (!line_index.has_value())
+        return {};
+    return caret_inline_coordinate(lines[*line_index], offset);
+}
+
+Optional<CursorLinePosition> cursor_position_at_visual_start(DOM::Text const& dom_node)
+{
+    auto lines = visual_lines_with_up_to_date_layout(dom_node);
+    if (lines.is_empty())
+        return {};
+    auto offset = lines.first().start_offset;
+    return CursorLinePosition { offset, affinity_for_offset_on_line(lines, 0, offset) };
+}
+
+Optional<CursorLinePosition> cursor_position_at_visual_end(DOM::Text const& dom_node)
+{
+    auto lines = visual_lines_with_up_to_date_layout(dom_node);
+    if (lines.is_empty())
+        return {};
+    auto offset = lines.last().end_offset;
+    return CursorLinePosition { offset, affinity_for_offset_on_line(lines, lines.size() - 1, offset) };
+}
+
+Optional<CursorLinePosition> cursor_position_on_first_line_closest_to(DOM::Text const& dom_node, Optional<CSSPixels> inline_coordinate)
+{
+    auto lines = visual_lines_with_up_to_date_layout(dom_node);
+    if (lines.is_empty())
+        return {};
+    auto offset = offset_in_visual_line_closest_to_inline_coordinate(lines.first(), inline_coordinate);
+    return CursorLinePosition { offset, affinity_for_offset_on_line(lines, 0, offset) };
+}
+
+Optional<CursorLinePosition> cursor_position_on_last_line_closest_to(DOM::Text const& dom_node, Optional<CSSPixels> inline_coordinate)
+{
+    auto lines = visual_lines_with_up_to_date_layout(dom_node);
+    if (lines.is_empty())
+        return {};
+    auto offset = offset_in_visual_line_closest_to_inline_coordinate(lines.last(), inline_coordinate);
+    return CursorLinePosition { offset, affinity_for_offset_on_line(lines, lines.size() - 1, offset) };
+}
+
 size_t find_visual_line_start(DOM::Text const& dom_node, size_t offset, TextAffinity affinity)
 {
     auto lines = visual_lines_with_up_to_date_layout(dom_node);

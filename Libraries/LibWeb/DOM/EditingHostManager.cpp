@@ -86,13 +86,13 @@ GC::Ptr<Selection::Selection> EditingHostManager::get_selection_for_navigation(C
     if (!selection)
         return {};
 
-    // and the focus node must be inside a text node,
+    // and the focus node must be a text node or an element directly housing the caret (e.g. an empty line),
     auto focus_node = selection->focus_node();
-    if (!is<Text>(focus_node.ptr()))
+    if (!focus_node || (!is<Text>(*focus_node) && !is<Element>(*focus_node)))
         return {};
 
     // and if we're performing collapsed navigation (i.e. moving the caret), the focus node must be editable.
-    if (collapse == CollapseSelection::Yes && !focus_node->is_editable())
+    if (collapse == CollapseSelection::Yes && !focus_node->is_editable_or_editing_host())
         return {};
 
     return selection;
