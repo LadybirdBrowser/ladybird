@@ -409,7 +409,6 @@ struct LayoutState {
     void discard_used_values_for_descendants(Box const& root);
 
     UsedValues& populate_from_paintable(NodeWithStyle const&, Painting::Paintable const&);
-    UsedValues& populate_node_from(LayoutState const& source, NodeWithStyle const& node);
 
     UsedValues const* try_get(NodeWithStyle const&) const;
     UsedValues* try_get_mutable(NodeWithStyle const&);

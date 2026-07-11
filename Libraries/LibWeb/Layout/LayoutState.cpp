@@ -134,17 +134,6 @@ LayoutState::UsedValues& LayoutState::populate_from_paintable(NodeWithStyle cons
     return used_values;
 }
 
-LayoutState::UsedValues& LayoutState::populate_node_from(LayoutState const& source, NodeWithStyle const& node)
-{
-    VERIFY(m_subtree_root);
-    auto index = node.layout_index();
-    VERIFY(!m_used_values_store.get(index));
-
-    auto& values = m_used_values_store.allocate(index);
-    values = source.get(node);
-    return values;
-}
-
 LayoutState::UsedValues const* LayoutState::try_get(NodeWithStyle const& node) const
 {
     return m_used_values_store.get(node.layout_index());
