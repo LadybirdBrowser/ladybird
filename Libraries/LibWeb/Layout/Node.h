@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <AK/DoublyLinkedList.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefCounted.h>
@@ -79,24 +78,10 @@ public:
     bool is_generated_for_backdrop_pseudo_element() const { return m_generated_for == CSS::PseudoElement::Backdrop; }
     void set_generated_for(CSS::PseudoElement type, DOM::Element&);
 
-    using PaintableList = DoublyLinkedList<NonnullRefPtr<Painting::Paintable>>;
-
-    RefPtr<Painting::Paintable> paintable()
-    {
-        if (m_paintable.is_empty())
-            return nullptr;
-        return m_paintable.first();
-    }
-    RefPtr<Painting::Paintable const> paintable() const
-    {
-        if (m_paintable.is_empty())
-            return nullptr;
-        return m_paintable.first();
-    }
-    PaintableList& paintables() { return m_paintable; }
-    PaintableList const& paintables() const { return m_paintable; }
-    void add_paintable(RefPtr<Painting::Paintable>);
-    void clear_paintables();
+    RefPtr<Painting::Paintable> paintable() { return m_paintable; }
+    RefPtr<Painting::Paintable const> paintable() const { return m_paintable; }
+    void set_paintable(RefPtr<Painting::Paintable>);
+    void clear_paintable();
     void prepare_for_detach_from_layout_tree();
     void prepare_subtree_for_detach_from_layout_tree();
 
@@ -285,7 +270,7 @@ private:
     friend class NodeWithStyle;
 
     GC::Weak<DOM::Node> m_dom_node;
-    PaintableList m_paintable;
+    RefPtr<Painting::Paintable> m_paintable;
 
     Box* m_containing_block { nullptr };
 

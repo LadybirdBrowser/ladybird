@@ -688,7 +688,7 @@ static void record_scroll_node(Paintable const& paintable_box, DisplayListRecord
 
 static void record_main_thread_wheel_event_region(Paintable const& paintable_box, DisplayListRecordingContext& context)
 {
-    auto rect = css_rect_to_device_rect(paintable_box.absolute_united_border_box_rect(), context.device_pixels_per_css_pixel());
+    auto rect = css_rect_to_device_rect(paintable_box.absolute_border_box_rect(), context.device_pixels_per_css_pixel());
     if (rect.is_empty())
         return;
 
@@ -850,7 +850,7 @@ static void record_blocking_wheel_event_region(Paintable const& paintable_box, D
     if (!node || !node->inside_blocking_wheel_event_handler())
         return;
 
-    auto rect = css_rect_to_device_rect(paintable_box.absolute_united_border_box_rect(), context.device_pixels_per_css_pixel());
+    auto rect = css_rect_to_device_rect(paintable_box.absolute_border_box_rect(), context.device_pixels_per_css_pixel());
     if (rect.is_empty())
         return;
 
@@ -1349,43 +1349,6 @@ CSSPixelRect Paintable::overflow_clip_edge_rect() const
     return overflow_clip_edge;
 }
 
-template<typename Callable>
-static CSSPixelRect united_rect_for_all_paintables(Paintable const& start, Callable get_rect)
-{
-    // Inline nodes can have one paintable per line, so combine all paintables for this layout node.
-    Optional<CSSPixelRect> result;
-
-    for (auto const& paintable : start.layout_node().paintables()) {
-        auto paintable_border_box_rect = get_rect(*paintable);
-        if (!result.has_value())
-            result = paintable_border_box_rect;
-        else if (!paintable_border_box_rect.is_empty())
-            result->unite(paintable_border_box_rect);
-    }
-    return result.value_or({});
-}
-
-CSSPixelRect Paintable::absolute_united_border_box_rect() const
-{
-    return united_rect_for_all_paintables(*this, [](auto const& paintable_box) {
-        return paintable_box.absolute_border_box_rect();
-    });
-}
-
-CSSPixelRect Paintable::absolute_united_content_rect() const
-{
-    return united_rect_for_all_paintables(*this, [](auto const& paintable_box) {
-        return paintable_box.absolute_rect();
-    });
-}
-
-CSSPixelRect Paintable::absolute_united_padding_box_rect() const
-{
-    return united_rect_for_all_paintables(*this, [](auto const& paintable_box) {
-        return paintable_box.absolute_padding_box_rect();
-    });
-}
-
 Optional<CSSPixelRect> Paintable::get_clip_rect() const
 {
     auto clip = computed_values().clip();
@@ -1816,18 +1779,16 @@ void Paintable::paint_middle_button_scroll_indicator(DisplayListRecordingContext
 
 void Paintable::paint_inspector_overlay_internal(DisplayListRecordingContext& context) const
 {
-    auto content_rect = absolute_united_content_rect();
-    auto margin_rect = united_rect_for_all_paintables(*this, [](Paintable const& box) {
-        auto margin_box = box.box_model().margin_box();
-        return CSSPixelRect {
-            box.absolute_x() - margin_box.left,
-            box.absolute_y() - margin_box.top,
-            box.content_width() + margin_box.left + margin_box.right,
-            box.content_height() + margin_box.top + margin_box.bottom,
-        };
-    });
-    auto border_rect = absolute_united_border_box_rect();
-    auto padding_rect = absolute_united_padding_box_rect();
+    auto content_rect = absolute_rect();
+    auto margin_box = box_model().margin_box();
+    CSSPixelRect margin_rect {
+        absolute_x() - margin_box.left,
+        absolute_y() - margin_box.top,
+        content_width() + margin_box.left + margin_box.right,
+        content_height() + margin_box.top + margin_box.bottom,
+    };
+    auto border_rect = absolute_border_box_rect();
+    auto padding_rect = absolute_padding_box_rect();
 
     auto paint_inspector_rect = [&](CSSPixelRect const& rect, Color color) {
         auto device_rect = context.enclosing_device_rect(rect).to_type<int>();
@@ -1863,7 +1824,7 @@ void Paintable::paint_grid_inspector_overlay(DisplayListRecordingContext& contex
         return;
 
     paint_with_inspector_overlay_context(context, [&] {
-        auto content_rect = absolute_united_content_rect();
+        auto content_rect = absolute_rect();
         auto const origin = content_rect.location();
         auto const viewport_rect = document().viewport_rect();
         auto const& color = options.color;
@@ -1996,7 +1957,7 @@ void Paintable::paint_flexbox_inspector_overlay(DisplayListRecordingContext& con
         return;
 
     paint_with_inspector_overlay_context(context, [&] {
-        auto content_rect = absolute_united_content_rect();
+        auto content_rect = absolute_rect();
         auto const origin = content_rect.location();
         auto const viewport_rect = document().viewport_rect();
         auto const& color = options.color;

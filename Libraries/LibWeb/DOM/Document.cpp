@@ -2148,33 +2148,32 @@ static void rebuild_sticky_insets(Layout::Node const& root)
         if (!node_with_style || !node_with_style->is_sticky_position())
             return TraversalDecision::Continue;
 
-        for (auto& paintable : layout_node.paintables()) {
-            auto* box_paintable = paintable.ptr();
-            if (!box_paintable)
-                continue;
+        auto paintable = const_cast<Layout::Node&>(layout_node).paintable();
+        auto* box_paintable = paintable.ptr();
+        if (!box_paintable)
+            return TraversalDecision::Continue;
 
-            // https://drafts.csswg.org/css-position/#insets
-            // For sticky positioned boxes, the inset is instead relative to the relevant scrollport’s size.
-            // Negative values are allowed.
+        // https://drafts.csswg.org/css-position/#insets
+        // For sticky positioned boxes, the inset is instead relative to the relevant scrollport’s size.
+        // Negative values are allowed.
 
-            auto sticky_insets = make<Painting::StickyInsets>();
-            auto const& inset = node_with_style->computed_values().inset();
+        auto sticky_insets = make<Painting::StickyInsets>();
+        auto const& inset = node_with_style->computed_values().inset();
 
-            auto nearest_scrollable_ancestor = box_paintable->nearest_scrollable_ancestor();
-            CSSPixelSize scrollport_size;
-            if (nearest_scrollable_ancestor)
-                scrollport_size = nearest_scrollable_ancestor->absolute_rect().size();
+        auto nearest_scrollable_ancestor = box_paintable->nearest_scrollable_ancestor();
+        CSSPixelSize scrollport_size;
+        if (nearest_scrollable_ancestor)
+            scrollport_size = nearest_scrollable_ancestor->absolute_rect().size();
 
-            if (!inset.top().is_auto())
-                sticky_insets->top = inset.top().to_px_or_zero(scrollport_size.height());
-            if (!inset.right().is_auto())
-                sticky_insets->right = inset.right().to_px_or_zero(scrollport_size.width());
-            if (!inset.bottom().is_auto())
-                sticky_insets->bottom = inset.bottom().to_px_or_zero(scrollport_size.height());
-            if (!inset.left().is_auto())
-                sticky_insets->left = inset.left().to_px_or_zero(scrollport_size.width());
-            box_paintable->set_sticky_insets(move(sticky_insets));
-        }
+        if (!inset.top().is_auto())
+            sticky_insets->top = inset.top().to_px_or_zero(scrollport_size.height());
+        if (!inset.right().is_auto())
+            sticky_insets->right = inset.right().to_px_or_zero(scrollport_size.width());
+        if (!inset.bottom().is_auto())
+            sticky_insets->bottom = inset.bottom().to_px_or_zero(scrollport_size.height());
+        if (!inset.left().is_auto())
+            sticky_insets->left = inset.left().to_px_or_zero(scrollport_size.width());
+        box_paintable->set_sticky_insets(move(sticky_insets));
         return TraversalDecision::Continue;
     });
 }
@@ -8455,13 +8454,10 @@ void Document::schedule_accumulated_visual_context_value_update(Layout::Node con
         return;
     }
 
-    bool scheduled_any = false;
-    for (auto const& layout_node_paintable : layout_node.paintables()) {
+    if (auto layout_node_paintable = layout_node.paintable()) {
         m_paintable_boxes_needing_visual_context_value_update.append(*layout_node_paintable);
-        scheduled_any = true;
-    }
-    if (scheduled_any)
         set_needs_repaint(InvalidateDisplayList::No);
+    }
 }
 
 void Document::schedule_accumulated_visual_context_value_update(Element& element)
@@ -8495,7 +8491,7 @@ void Document::schedule_scrollable_overflow_recalculation(Layout::Node const& la
         return;
     }
 
-    for (auto const& layout_node_paintable : layout_node.paintables())
+    if (auto layout_node_paintable = layout_node.paintable())
         m_paintable_boxes_needing_scrollable_overflow_recalculation.append(*layout_node_paintable);
 }
 

@@ -1828,12 +1828,12 @@ void Node::inserted()
     set_needs_style_update(true);
 }
 
-void Node::clear_layout_node_paintables()
+void Node::clear_layout_node_paintable()
 {
     if (!m_layout_node)
         return;
 
-    m_layout_node->clear_paintables();
+    m_layout_node->clear_paintable();
 }
 
 void Node::removed_from(IsSubtreeRoot, Node*, Node&)
@@ -1841,7 +1841,7 @@ void Node::removed_from(IsSubtreeRoot, Node*, Node&)
     m_is_connected = false;
     m_in_editable_subtree = false;
     m_inside_blocking_wheel_event_handler = false;
-    clear_layout_node_paintables();
+    clear_layout_node_paintable();
     m_layout_node = nullptr;
     m_paintable = nullptr;
 
@@ -2752,7 +2752,7 @@ void Node::set_needs_repaint(InvalidateDisplayList should_invalidate_display_lis
             text_node->set_needs_repaint(should_invalidate_display_list);
             return;
         }
-        for (auto& paintable : layout_node->paintables())
+        if (auto paintable = layout_node->paintable())
             paintable->set_needs_repaint(should_invalidate_display_list);
     }
 }

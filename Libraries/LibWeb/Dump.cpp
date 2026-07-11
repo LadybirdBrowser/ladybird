@@ -730,48 +730,37 @@ void dump_tree(Painting::Paintable const& paintable)
 
 void dump_tree(StringBuilder& builder, Painting::Paintable const& paintable, bool colorize, int indent)
 {
-    // Dump all paintables attached to this layout node at every level.
-    // This makes detached/disconnected paintables visible across the full subtree.
     StringView paintable_with_lines_color_on = ""sv;
     StringView paintable_box_color_on = ""sv;
-    StringView paintable_color_on = ""sv;
     StringView color_off = ""sv;
 
     if (colorize) {
         paintable_with_lines_color_on = "\033[34m"sv;
         paintable_box_color_on = "\033[33m"sv;
-        paintable_color_on = "\033[32m"sv;
         color_off = "\033[0m"sv;
     }
 
-    bool dumped_any = false;
-    for (auto const& node_paintable : paintable.layout_node().paintables()) {
-        if (dumped_any)
-            builder.append("\n"sv);
+    for (int i = 0; i < indent; ++i)
+        builder.append("  "sv);
 
-        for (int i = 0; i < indent; ++i)
-            builder.append("  "sv);
+    if (is<Painting::PaintableWithLines>(paintable))
+        builder.append(paintable_with_lines_color_on);
+    else
+        builder.append(paintable_box_color_on);
 
-        if (is<Painting::PaintableWithLines>(node_paintable))
-            builder.append(paintable_with_lines_color_on);
-        else
-            builder.append(paintable_box_color_on);
+    builder.appendff("{}{} ({})", paintable.class_name(), color_off, paintable.layout_node().debug_description());
 
-        builder.appendff("{}{} ({})", node_paintable->class_name(), color_off, node_paintable->layout_node().debug_description());
+    builder.appendff(" {}", paintable.absolute_border_box_rect());
 
-        builder.appendff(" {}", node_paintable->absolute_border_box_rect());
+    if (paintable.has_scrollable_overflow())
+        builder.appendff(" overflow: {}", paintable.scrollable_overflow_rect());
 
-        if (node_paintable->has_scrollable_overflow())
-            builder.appendff(" overflow: {}", node_paintable->scrollable_overflow_rect());
+    if (!paintable.scroll_offset().is_zero())
+        builder.appendff(" scroll-offset: {}", paintable.scroll_offset());
+    builder.append("\n"sv);
 
-        if (!node_paintable->scroll_offset().is_zero())
-            builder.appendff(" scroll-offset: {}", node_paintable->scroll_offset());
-        builder.append("\n"sv);
-
-        for (auto child = node_paintable->first_child(); child; child = child->next_sibling())
-            dump_tree(builder, *child, colorize, indent + 1);
-        dumped_any = true;
-    }
+    for (auto child = paintable.first_child(); child; child = child->next_sibling())
+        dump_tree(builder, *child, colorize, indent + 1);
 }
 
 }

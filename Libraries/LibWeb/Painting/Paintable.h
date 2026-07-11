@@ -226,11 +226,6 @@ public:
     CSSPixelRect absolute_border_box_rect() const;
     CSSPixelRect overflow_clip_edge_rect() const;
 
-    // These united versions of the above rects include all paintables for this layout node.
-    CSSPixelRect absolute_united_border_box_rect() const;
-    CSSPixelRect absolute_united_content_rect() const;
-    CSSPixelRect absolute_united_padding_box_rect() const;
-
     CSSPixels border_box_width() const
     {
         auto border_box = box_model().border_box();

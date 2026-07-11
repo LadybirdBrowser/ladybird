@@ -2201,7 +2201,7 @@ void Element::clear_synthetic_pseudo_element_layout_nodes()
     for_each_synthetic_pseudo_element([&](CSS::PseudoElement, SyntheticPseudoElement& pseudo_element) {
         if (auto layout_node = pseudo_element.layout_node()) {
             layout_node->for_each_in_inclusive_subtree([](Layout::Node& node) {
-                node.clear_paintables();
+                node.clear_paintable();
                 return TraversalDecision::Continue;
             });
             layout_node->prepare_subtree_for_detach_from_layout_tree();
