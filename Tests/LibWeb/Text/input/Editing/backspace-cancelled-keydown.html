@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="editor" contenteditable="true">abc</div>
+<script>
+    test(() => {
+        const editor = document.getElementById("editor");
+        const events = [];
+
+        // Like Lexical-based editors (e.g. Reddit's comment composer), handle Backspace on keydown by
+        // deleting a character ourselves and cancelling the event. Cancelling the keydown must suppress
+        // the entire editing action, including the beforeinput event, so only one character is deleted.
+        editor.addEventListener("keydown", event => {
+            events.push(`keydown:${event.key}`);
+            if (event.key === "Backspace") {
+                const text = editor.firstChild;
+                text.data = text.data.slice(0, -1);
+                event.preventDefault();
+            }
+        });
+        editor.addEventListener("beforeinput", event => {
+            events.push(`beforeinput:${event.inputType}`);
+            if (event.inputType === "deleteContentBackward") {
+                const text = editor.firstChild;
+                text.data = text.data.slice(0, -1);
+                event.preventDefault();
+            }
+        });
+        editor.addEventListener("input", event => {
+            events.push(`input:${event.inputType}`);
+        });
+
+        editor.focus();
+        const text = editor.firstChild;
+        getSelection().setBaseAndExtent(text, 3, text, 3);
+
+        internals.sendKey(editor, "Backspace");
+
+        println(`editor text: ${editor.textContent}`);
+        println(`events: ${events.join(", ")}`);
+    });
+</script>

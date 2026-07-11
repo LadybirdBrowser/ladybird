@@ -1,0 +1,2 @@
+editor text: a
+events: keydown:Backspace, beforeinput:deleteContentBackward
