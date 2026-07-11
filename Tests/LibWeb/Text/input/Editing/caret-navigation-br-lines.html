@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    p {
+        margin: 0;
+        font: 20px/1.5 monospace;
+    }
+</style>
+<div id="editor1" contenteditable="true"><p id="p1"><span id="sab">ab</span></p><p id="p2"><br><span id="scd">cd</span></p></div>
+<div id="editor2" contenteditable="true"><p id="q">xy<br><br>zw</p></div>
+<script>
+    test(() => {
+        const describe = n => !n
+            ? "null"
+            : (n.nodeType === Node.TEXT_NODE ? `#text("${n.data}")` : n.nodeName.toLowerCase() + (n.id ? "#" + n.id : ""));
+        const report = label => {
+            const s = getSelection();
+            println(`${label}: ${describe(s.focusNode)} @ ${s.focusOffset}`);
+        };
+        const move = (editor, node, offset, key, label) => {
+            getSelection().setBaseAndExtent(node, offset, node, offset);
+            internals.sendKey(editor, key);
+            report(label);
+        };
+
+        // An empty line rendered by a leading <br> in a paragraph with text (as produced by Lexical editors).
+        const editor1 = document.getElementById("editor1");
+        const ab = document.getElementById("sab").firstChild;
+        const cd = document.getElementById("scd").firstChild;
+        editor1.focus();
+        move(editor1, cd, 1, "Up", "ArrowUp from cd,1");
+        internals.sendKey(editor1, "Up");
+        report("ArrowUp again");
+        move(editor1, ab, 1, "Down", "ArrowDown from ab,1");
+        internals.sendKey(editor1, "Down");
+        report("ArrowDown again");
+        move(editor1, ab, 2, "Right", "ArrowRight from ab,2");
+        internals.sendKey(editor1, "Right");
+        report("ArrowRight again");
+        move(editor1, cd, 0, "Left", "ArrowLeft from cd,0");
+        internals.sendKey(editor1, "Left");
+        report("ArrowLeft again");
+
+        // An empty line between two <br>s inside a single block.
+        const editor2 = document.getElementById("editor2");
+        const q = document.getElementById("q");
+        editor2.focus();
+        move(editor2, q.lastChild, 0, "Up", "ArrowUp from zw,0");
+        internals.sendKey(editor2, "Up");
+        report("ArrowUp again");
+        move(editor2, q.firstChild, 1, "Down", "ArrowDown from xy,1");
+        internals.sendKey(editor2, "Down");
+        report("ArrowDown again");
+    });
+</script>
