@@ -207,6 +207,11 @@ bool Node::establishes_a_fixed_positioning_containing_block() const
     if (!is<Box>(*this))
         return false;
 
+    // https://github.com/w3c/fxtf-drafts/issues/307#issuecomment-499612420
+    // foreignObject establishes a containing block for absolutely and fixed positioned elements.
+    if (is_svg_foreign_object_box())
+        return true;
+
     auto const& computed_values = this->computed_values();
 
     // https://drafts.csswg.org/css-will-change/#will-change

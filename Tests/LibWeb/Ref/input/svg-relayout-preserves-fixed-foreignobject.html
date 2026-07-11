@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/svg-relayout-preserves-fixed-foreignobject-ref.html">
+<style>
+    body {
+        margin: 0;
+        background: red;
+    }
+    .fixed {
+        position: fixed;
+        top: 30px;
+        left: 50px;
+        width: 40px;
+        height: 40px;
+        background: green;
+    }
+</style>
+<svg width="100" height="100">
+    <path id="path" d="M 10 10 L 20 20" fill="none" />
+    <foreignObject x="0" y="0" width="100" height="100">
+        <div xmlns="http://www.w3.org/1999/xhtml" id="fixed" class="fixed"></div>
+    </foreignObject>
+</svg>
+<script>
+    document.body.offsetHeight;
+    document.getElementById("path").setAttribute("d", "M 10 10 L 30 30");
+    document.body.offsetHeight;
+    const rect = document.getElementById("fixed").getBoundingClientRect();
+    document.body.style.background = rect.x === 50 && rect.y === 30 && rect.width === 40 && rect.height === 40
+        ? "green"
+        : "red";
+    document.querySelector("svg").style.visibility = "hidden";
+</script>
