@@ -1016,7 +1016,11 @@ void LayoutState::UsedValues::set_node(NodeWithStyle const& node, Optional<CSSPi
 
         if (size.is_auto()) {
             // NOTE: The width of a non-flex-item block is considered definite if it's auto and the containing block has definite width.
+            //       This models the "stretch-fit" case from the css-sizing-3 definition of definite sizes quoted above.
+            //       It explicitly only covers non-replaced blocks; the automatic width of a replaced box is
+            //       content-based and thus not definite before layout.
             if (width
+                && !node.is_replaced_box()
                 && !node.is_floating()
                 && !node.is_absolutely_positioned()
                 && node.display().is_block_outside()
