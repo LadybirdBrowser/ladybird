@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<input id="in">
+<script>
+    test(() => {
+        const input = document.getElementById("in");
+        input.focus();
+        for (const type of ["keydown", "keypress"])
+            input.addEventListener(type, e => println(`${e.type} key=${e.key} keyCode=${e.keyCode} charCode=${e.charCode} which=${e.which}`));
+        internals.sendText(input, "hH1");
+    });
+</script>
