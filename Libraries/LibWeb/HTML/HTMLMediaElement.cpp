@@ -274,8 +274,35 @@ void HTMLMediaElement::adopted_from(DOM::Document& old_document)
 {
     Base::adopted_from(old_document);
 
-    if (m_delaying_the_load_event.has_value())
+    // NB: The became-inactive transition synthesized when moving into a document that is not fully active stops any
+    //     in-flight fetch, and the became-active transition synthesized when moving back into a fully active document
+    //     resumes it. Without the former, the latter would find a fetch controller that is still live and start a
+    //     second fetch on top of it.
+    m_document_observer->retarget_for_adoption(document());
+
+    // https://html.spec.whatwg.org/multipage/media.html#delaying-the-load-event-flag
+    // While the delaying-the-load-event flag is true, the element must delay the load event of its document.
+    // NB: The flag delays the load event of the element's current node document, so it follows the element when it is
+    //     adopted into another document.
+    if (m_delaying_the_load_event.has_value()) {
         m_delaying_the_load_event.emplace(document());
+
+        // AD-HOC: If the resource selection algorithm was invoked while the element's node document was not fully
+        //         active, its queued media element tasks are associated with the old document and will never run.
+        //         That would leave this element delaying the load event of the document that adopted it forever.
+        //         Drop those stale tasks and re-invoke the resource selection algorithm so that it can proceed with
+        //         tasks associated with the new document. This matches the major engines, where a pending media load
+        //         continues after adoption and delays the new document's load event until it completes. Once a fetch
+        //         is in flight the pending work lives in the fetch machinery rather than in queued media element
+        //         tasks, and the synthesized activity transitions above take care of stopping and resuming it, so
+        //         only restart resource selection when no fetch has begun.
+        if (!old_document.is_fully_active() && !m_remote_fetch_data) {
+            main_thread_event_loop().task_queue().remove_tasks_matching([&](auto const& task) {
+                return task.source() == media_element_event_task_source();
+            });
+            select_resource();
+        }
+    }
 
     if (m_screen_wake_lock.has_value()) {
         m_screen_wake_lock.clear();

@@ -44,6 +44,10 @@ public:
     GC::Ref<Document> document() { return m_document; }
     void set_document(GC::Ref<Document>);
 
+    // Retargets this observer to the observed element's new document and synthesizes a became-active or
+    // became-inactive callback if the old and new documents differ in fully-active state.
+    void retarget_for_adoption(GC::Ref<Document>);
+
 private:
     explicit DocumentObserver(JS::Realm&, Document&);
 

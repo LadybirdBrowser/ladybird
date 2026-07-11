@@ -1,0 +1,3 @@
+video loadstart event (networkState=2, error=null)
+video error event (networkState=3, error=4)
+window load event

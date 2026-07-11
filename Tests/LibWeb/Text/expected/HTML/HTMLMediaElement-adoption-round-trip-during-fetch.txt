@@ -1,0 +1,2 @@
+video survived adoption round-trip during fetch
+video error event (error=4)

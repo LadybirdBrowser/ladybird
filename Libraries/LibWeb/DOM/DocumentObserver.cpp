@@ -45,6 +45,26 @@ void DocumentObserver::set_document(GC::Ref<Document> document)
     document->register_document_observer({}, *this);
 }
 
+void DocumentObserver::retarget_for_adoption(GC::Ref<Document> new_document)
+{
+    bool was_fully_active = m_document->is_fully_active();
+    set_document(new_document);
+    bool is_fully_active = new_document->is_fully_active();
+
+    // NB: If the observed element moved between a fully active document and a document that is not fully active,
+    //     synthesize the matching activity transition, so that observers see the same sequence of transitions as if
+    //     the element had stayed put and its document had changed activity.
+    if (was_fully_active == is_fully_active)
+        return;
+    if (is_fully_active) {
+        if (m_document_became_active)
+            m_document_became_active->function()();
+    } else {
+        if (m_document_became_inactive)
+            m_document_became_inactive->function()();
+    }
+}
+
 void DocumentObserver::set_document_became_active(Function<void()> callback)
 {
     if (callback)

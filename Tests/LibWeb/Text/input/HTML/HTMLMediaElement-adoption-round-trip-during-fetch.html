@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<script>
+    // Adopting a media element with an in-flight fetch into a document that is not fully active
+    // must stop the fetch, so that adopting it back into a fully active document can resume it.
+    // Without that, the resume path would find a live fetch controller and crash.
+    asyncTest(async done => {
+        internals.setTestTimeout(15000);
+        const httpServer = httpTestServer();
+
+        const token = "media-adoption-round-trip";
+        const mediaURL = await httpServer.createEcho("GET", "/media-adoption-round-trip", {
+            status: 200,
+            headers: { "Content-Type": "video/webm", "Cache-Control": "no-store" },
+            body: "",
+            wait_for_unblock: token,
+        });
+
+        const video = document.createElement("video");
+        video.preload = "auto";
+        video.src = mediaURL;
+        document.body.appendChild(video);
+        await new Promise(resolve => video.addEventListener("loadstart", resolve, { once: true }));
+
+        // Give the resource fetch algorithm a few event loop turns to actually start the fetch.
+        for (let i = 0; i < 10; ++i)
+            await new Promise(resolve => setTimeout(resolve, 0));
+
+        const inactiveDocument = new DOMParser().parseFromString("<body></body>", "text/html");
+        inactiveDocument.adoptNode(video);
+        document.body.appendChild(video);
+        println("video survived adoption round-trip during fetch");
+
+        video.addEventListener("error", () => {
+            println(`video error event (error=${video.error.code})`);
+            done();
+        });
+        await fetch(new URL(`/unblock/${token}`, mediaURL));
+    });
+</script>

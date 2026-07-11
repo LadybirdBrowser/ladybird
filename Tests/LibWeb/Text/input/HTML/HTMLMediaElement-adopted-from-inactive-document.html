@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<script>
+    // A media element whose load algorithm was invoked while its node document was not fully
+    // active must not delay the load event of a document it is later adopted into forever.
+    // Instead, the pending resource selection continues after adoption, and the adopting
+    // document's load event waits for it, matching Chrome, Firefox and Safari.
+    const events = [];
+
+    const parsedDocument = new DOMParser().parseFromString(
+        `<video src="file:///nonexistent-media-file.webm"></video>`,
+        "text/html"
+    );
+    const video = parsedDocument.querySelector("video");
+    for (const eventName of ["loadstart", "emptied", "abort", "error"]) {
+        video.addEventListener(eventName, () => {
+            events.push(`video ${eventName} event (networkState=${video.networkState}, error=${video.error ? video.error.code : null})`);
+        });
+    }
+    document.body.appendChild(video);
+
+    asyncTest(done => {
+        window.addEventListener("load", () => {
+            events.push("window load event");
+            for (const event of events)
+                println(event);
+            done();
+        });
+    });
+</script>
