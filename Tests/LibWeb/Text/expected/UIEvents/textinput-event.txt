@@ -1,0 +1,8 @@
+editor text: "a"
+field value: "bz"
+beforeinput(InputEvent data="a" inputType=insertText cancelable=true bubbles=true composed=true)
+input(InputEvent data="a" inputType=insertText cancelable=false bubbles=true composed=true)
+beforeinput(InputEvent data=null inputType=insertParagraph cancelable=true bubbles=true composed=true)
+input(InputEvent data=null inputType=insertParagraph cancelable=false bubbles=true composed=true)
+beforeinput(InputEvent data="b" inputType=insertText cancelable=true bubbles=true composed=true)
+beforeinput(InputEvent data="z" inputType=insertText cancelable=true bubbles=true composed=true)

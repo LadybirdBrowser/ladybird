@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="editor" contenteditable="true"></div>
+<input id="field">
+<script>
+    test(() => {
+        const events = [];
+        for (const type of ["beforeinput", "textInput", "input"]) {
+            window.addEventListener(type, e => {
+                events.push(`${e.type}(${e.constructor.name} data=${JSON.stringify(e.data ?? null)} inputType=${e.inputType ?? "-"} cancelable=${e.cancelable} bubbles=${e.bubbles} composed=${e.composed})`);
+            }, true);
+        }
+
+        const editor = document.getElementById("editor");
+        editor.focus();
+        internals.sendText(editor, "a");
+        internals.sendKey(editor, "Return");
+
+        const field = document.getElementById("field");
+        field.focus();
+        internals.sendText(field, "b");
+
+        // Cancelling textInput must prevent the insertion and the input event.
+        field.addEventListener("textInput", e => e.preventDefault());
+        internals.sendText(field, "z");
+
+        println(`editor text: ${JSON.stringify(editor.textContent)}`);
+        println(`field value: ${JSON.stringify(field.value)}`);
+        for (const line of events) println(line);
+    });
+</script>
