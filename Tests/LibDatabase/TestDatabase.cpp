@@ -57,3 +57,19 @@ TEST_CASE(string_can_contain_null_bytes)
     remove_item("my_key"_string);
     EXPECT_EQ(get_item("my_key"_string), Optional<String> {});
 }
+
+TEST_CASE(double_values_can_be_bound_and_read)
+{
+    auto database = TRY_OR_FAIL(Database::Database::create_memory_backed());
+    auto statement = TRY_OR_FAIL(database->prepare_statement("SELECT ?;"sv));
+
+    double result = 0;
+    database->execute_statement(
+        statement,
+        [&](auto statement_id) {
+            result = database->result_column<double>(statement_id, 0);
+        },
+        3.25);
+
+    EXPECT_EQ(result, 3.25);
+}

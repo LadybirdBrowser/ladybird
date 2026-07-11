@@ -52,6 +52,7 @@ static constexpr StringView sql_error(int error_code)
     __ENUMERATE_TYPE(u32)                \
     __ENUMERATE_TYPE(unsigned long)      \
     __ENUMERATE_TYPE(unsigned long long) \
+    __ENUMERATE_TYPE(double)             \
     __ENUMERATE_TYPE(bool)
 
 ErrorOr<NonnullRefPtr<Database>> Database::create_memory_backed()
@@ -172,6 +173,8 @@ ErrorOr<void> Database::try_apply_placeholder(StatementID statement_id, int inde
         SQL_TRY(sqlite3_bind_blob(statement, index, value.characters(), static_cast<int>(value.length()), SQLITE_TRANSIENT));
     } else if constexpr (IsSame<ValueType, UnixDateTime>) {
         TRY(try_apply_placeholder(statement_id, index, value.offset_to_epoch().to_milliseconds()));
+    } else if constexpr (IsSame<ValueType, double>) {
+        SQL_TRY(sqlite3_bind_double(statement, index, value));
     } else if constexpr (IsIntegral<ValueType>) {
         if constexpr (sizeof(ValueType) <= sizeof(int))
             SQL_TRY(sqlite3_bind_int(statement, index, static_cast<int>(value)));
@@ -205,6 +208,8 @@ ValueType Database::result_column(StatementID statement_id, int column)
     } else if constexpr (IsSame<ValueType, UnixDateTime>) {
         auto milliseconds = result_column<sqlite3_int64>(statement_id, column);
         return UnixDateTime::from_milliseconds_since_epoch(milliseconds);
+    } else if constexpr (IsSame<ValueType, double>) {
+        return sqlite3_column_double(statement, column);
     } else if constexpr (IsIntegral<ValueType>) {
         if constexpr (sizeof(ValueType) <= sizeof(int))
             return static_cast<ValueType>(sqlite3_column_int(statement, column));
