@@ -111,8 +111,7 @@ PageClient::PageClient(PageHost& owner, u64 id, Optional<Web::HTML::NavigableId>
     m_page->set_async_scrolling_enabled(s_async_scrolling_enabled);
     setup_palette();
 
-    m_frame_timer = Core::Timer::create_single_shot(0, [this] {
-        m_last_frame_dispatch_time = Web::HighResolutionTime::unsafe_shared_current_time();
+    m_frame_timer = Core::Timer::create_single_shot(0, [] {
         Web::HTML::main_thread_event_loop().queue_task_to_update_the_rendering();
     });
 }
@@ -429,10 +428,14 @@ void PageClient::request_frame()
         return;
 
     auto delay = 0.0;
-    if (m_last_frame_dispatch_time.has_value()) {
-        auto now = Web::HighResolutionTime::unsafe_shared_current_time();
+    auto now = Web::HighResolutionTime::unsafe_shared_current_time();
+    if (m_last_scheduled_frame_dispatch_time.has_value()) {
         auto minimum_frame_interval = 1000.0 / m_maximum_frames_per_second;
-        delay = max(0.0, *m_last_frame_dispatch_time + minimum_frame_interval - now);
+        auto next_frame_dispatch_time = *m_last_scheduled_frame_dispatch_time + minimum_frame_interval;
+        m_last_scheduled_frame_dispatch_time = max(now, next_frame_dispatch_time);
+        delay = *m_last_scheduled_frame_dispatch_time - now;
+    } else {
+        m_last_scheduled_frame_dispatch_time = now;
     }
 
     m_frame_timer->restart(static_cast<int>(AK::ceil(delay)));

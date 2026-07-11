@@ -311,7 +311,7 @@ private:
     GC::Ptr<WebContentConsoleClient> m_top_level_document_console_client;
 
     RefPtr<Core::Timer> m_frame_timer;
-    Optional<double> m_last_frame_dispatch_time;
+    Optional<double> m_last_scheduled_frame_dispatch_time;
     Queue<PendingDOMMutation> m_pending_dom_mutations;
     HashMap<Web::HTML::NavigableId, Web::Compositor::CompositorContextId> m_remote_child_frame_compositor_contexts;
     Optional<Web::HTML::NavigableId> m_pending_root_navigable_id;
