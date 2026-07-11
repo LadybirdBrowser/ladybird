@@ -978,6 +978,41 @@ bool TableFormattingContext::can_skip_row_intrinsic_measurement() const
     return true;
 }
 
+static bool cell_height_depends_on_table_height(Box const& cell_box)
+{
+    return cell_box.computed_values().height().is_percentage();
+}
+
+Optional<TableFormattingContext::MeasuredCellContent> TableFormattingContext::measure_cell_content(Box const& cell_box, LayoutState::UsedValues const& cell_used_values, AvailableSpace const& inner_available_space)
+{
+    if (m_layout_mode == LayoutMode::IntrinsicSizing
+        && !cell_box.is_inline()
+        && cell_used_values.width_constraint == SizeConstraint::None
+        && cell_used_values.height_constraint == SizeConstraint::None
+        && cell_used_values.has_definite_width()
+        && cell_used_values.has_definite_height()) {
+        return {};
+    }
+    if (!cell_box.can_have_children())
+        return {};
+
+    LayoutState throwaway_state(cell_box, LayoutState::Purpose::Measurement);
+    auto& throwaway_cell_used_values = throwaway_state.create(cell_box, {}, {});
+    throwaway_cell_used_values = cell_used_values;
+
+    auto measuring_context = create_independent_formatting_context_if_needed(throwaway_state, m_layout_mode, cell_box);
+    if (!measuring_context)
+        return {};
+    measuring_context->run(LayoutInput { inner_available_space });
+
+    auto content_height = measuring_context->automatic_content_height();
+    throwaway_cell_used_values.set_content_height(content_height);
+    return MeasuredCellContent {
+        .content_height = content_height,
+        .first_baseline = measuring_context->box_baseline(cell_box, BaselineSet::First),
+    };
+}
+
 void TableFormattingContext::compute_table_height()
 {
     // First pass of row height calculation:
@@ -1034,7 +1069,15 @@ void TableFormattingContext::compute_table_height()
         // - the horizontal/vertical border-spacing times the amount of spanned visible columns/rows minus one
         // FIXME: Account for visibility.
         cell_state.set_content_width(span_width - cell_state.border_box_left() - cell_state.border_box_right() + (cell.column_span - 1) * border_spacing_horizontal());
-        if (auto independent_formatting_context = layout_inside(cell.box, m_layout_mode, LayoutInput { cell_state.available_inner_space_or_constraints_from(*m_available_space) })) {
+        Optional<CSSPixels> measured_baseline;
+        if (cell_height_depends_on_table_height(cell.box)) {
+            // This cell's final inside layout happens in the second pass below; measure its
+            // content in a throwaway state instead of laying out the committing state twice.
+            if (auto measured = measure_cell_content(cell.box, cell_state, cell_state.available_inner_space_or_constraints_from(*m_available_space)); measured.has_value()) {
+                cell_state.set_content_height(measured->content_height);
+                measured_baseline = measured->first_baseline;
+            }
+        } else if (auto independent_formatting_context = layout_inside(cell.box, m_layout_mode, LayoutInput { cell_state.available_inner_space_or_constraints_from(*m_available_space) })) {
             cell_state.set_content_height(independent_formatting_context->automatic_content_height());
             independent_formatting_context->parent_context_did_dimension_child_root_box();
         }
@@ -1050,7 +1093,7 @@ void TableFormattingContext::compute_table_height()
         // https://drafts.csswg.org/css2/#height-layout
         // The baseline of a cell is the baseline of the first in-flow line box in the cell, or the first in-flow
         // table-row in the cell, whichever comes first.
-        cell.baseline = box_baseline(cell.box, BaselineSet::First);
+        cell.baseline = measured_baseline.value_or_lazy_evaluated([&] { return box_baseline(cell.box, BaselineSet::First); });
 
         // Implements https://www.w3.org/TR/css-tables-3/#computing-the-table-height
 
@@ -1136,21 +1179,18 @@ void TableFormattingContext::compute_table_height()
         for (size_t i = 0; i < cell.column_span; ++i)
             span_width += m_columns[cell.column_index + i].used_width;
 
-        auto cell_computed_height = cell.box.computed_values().height();
-        if (cell_computed_height.is_percentage()) {
-            auto cell_used_height = cell_computed_height.to_px(m_table_height);
-            cell_state.set_content_height(cell_used_height - cell_state.border_box_top() - cell_state.border_box_bottom());
-
-            if (!row.is_collapsed)
-                row.reference_height = max(row.reference_height, cell_used_height);
-        } else {
+        if (!cell_height_depends_on_table_height(cell.box))
             continue;
-        }
+
+        auto cell_used_height = cell.box.computed_values().height().to_px(m_table_height);
+        cell_state.set_content_height(cell_used_height - cell_state.border_box_top() - cell_state.border_box_bottom());
+
+        if (!row.is_collapsed)
+            row.reference_height = max(row.reference_height, cell_used_height);
 
         cell_state.set_content_width(span_width - cell_state.border_box_left() - cell_state.border_box_right() + (cell.column_span - 1) * border_spacing_horizontal());
-        // This is the second inside layout of this cell in the same layout state: its descendants
-        // already have used values from the first pass, so discard them before creating them anew.
-        m_state.discard_used_values_for_descendants(cell.box);
+        // The first pass only measured this cell in a throwaway state; this is its one and
+        // only inside layout in the committing state.
         if (auto independent_formatting_context = layout_inside(cell.box, m_layout_mode, LayoutInput { cell_state.available_inner_space_or_constraints_from(*m_available_space) })) {
             independent_formatting_context->parent_context_did_dimension_child_root_box();
         }

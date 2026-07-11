@@ -43,6 +43,12 @@ public:
     virtual void parent_context_did_dimension_child_root_box() override;
 
 private:
+    struct MeasuredCellContent {
+        CSSPixels content_height;
+        CSSPixels first_baseline;
+    };
+    Optional<MeasuredCellContent> measure_cell_content(Box const&, LayoutState::UsedValues const&, AvailableSpace const& inner_available_space);
+
     CSSPixels run_caption_layout(CSS::CaptionSide, AvailableSpace const&);
     CSSPixels compute_capmin();
     void compute_constrainedness();

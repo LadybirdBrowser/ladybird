@@ -113,15 +113,6 @@ LayoutState::UsedValues& LayoutState::create(NodeWithStyle const& node, Optional
     return used_values;
 }
 
-void LayoutState::discard_used_values_for_descendants(Box const& root)
-{
-    root.for_each_in_subtree([&](auto const& descendant) {
-        if (auto const* node_with_style = as_if<NodeWithStyle>(descendant))
-            m_used_values_store.remove(node_with_style->layout_index());
-        return TraversalDecision::Continue;
-    });
-}
-
 LayoutState::UsedValues& LayoutState::populate_from_paintable(NodeWithStyle const& node, Painting::Paintable const& paintable)
 {
     VERIFY(m_subtree_root);
@@ -1191,10 +1182,9 @@ void LayoutState::UsedValues::set_indefinite_content_height()
 void LayoutState::register_contained_abspos_child(Box const& target, Box const& child, StaticPositionRect const& static_position_rect)
 {
     auto& children = m_contained_abspos_children.ensure(&target);
-    // The same box can be encountered again when a subtree is intentionally laid out
-    // twice (percentage-height table cells); the fresh static position replaces the
-    // stale one instead of duplicating the entry. New entries are inserted in layout
-    // index order so consumption follows document order.
+    // If the same box is registered again, the fresh static position replaces the stale
+    // one instead of duplicating the entry. New entries are inserted in layout index
+    // order so consumption follows document order.
     size_t insertion_index = children.size();
     for (size_t i = 0; i < children.size(); ++i) {
         if (children[i].box == &child) {
