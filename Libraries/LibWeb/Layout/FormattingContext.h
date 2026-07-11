@@ -246,6 +246,7 @@ protected:
     CSSPixels gap_to_px(Variant<CSS::LengthPercentage, CSS::NormalGap> const& gap, CSSPixels reference_value) const;
 
     void register_contained_abspos_child(Box const& child, StaticPositionRect const&);
+    [[nodiscard]] StaticPositionRect resolve_static_position_relative_to_containing_block(Box const&, StaticPositionRect) const;
     [[nodiscard]] static CSSPixelPoint aligned_static_position(StaticPositionRect const&, LayoutState::UsedValues const&);
     void layout_absolutely_positioned_children();
     void layout_absolutely_positioned_children(Box const&);

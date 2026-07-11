@@ -1,5 +1,5 @@
-top: 0px
-right: 250px
-bottom: 180px
-left: 0px
+top: 30px
+right: 130px
+bottom: 150px
+left: 120px
 offset within containing block: 120,30
