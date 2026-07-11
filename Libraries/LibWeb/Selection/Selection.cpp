@@ -15,6 +15,9 @@
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
+#include <LibWeb/HTML/HTMLBRElement.h>
+#include <LibWeb/Layout/Box.h>
+#include <LibWeb/Layout/ReplacedBox.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/Selection/Selection.h>
@@ -620,6 +623,52 @@ static bool text_node_has_rendered_text(DOM::Text const& text)
     return false;
 }
 
+// Rendered inline content that would appear before a <br> on its line.
+static bool is_rendered_inline_content(DOM::Node& node)
+{
+    if (auto* text = as_if<DOM::Text>(node))
+        return text_node_has_rendered_text(*text);
+    if (auto* element = as_if<DOM::Element>(node)) {
+        auto* layout_node = element->layout_node();
+        if (!layout_node)
+            return false;
+        if (is<Layout::ReplacedBox>(*layout_node))
+            return true;
+        if (layout_node->display().is_inline_outside() && !layout_node->display().is_flow_inside())
+            return true;
+    }
+    return false;
+}
+
+// A <br> that renders an empty line hosts a caret position on its parent, at its child index. This covers a leading
+// <br> in a paragraph with text after it, and the lines between consecutive <br>s. A <br> renders an empty line when
+// nothing else renders between the start of its line and the <br> itself.
+// NB: Layout produces no fragments for <br>, so this walks the DOM back to the start of the containing block or a
+//     previous <br>, whichever comes first.
+static bool is_empty_line_break(DOM::Node& node)
+{
+    auto* br = as_if<HTML::HTMLBRElement>(node);
+    if (!br || !br->is_editable() || !br->layout_node())
+        return false;
+
+    auto* containing_block = br->layout_node()->containing_block();
+    if (!containing_block)
+        return false;
+    auto* containing_block_dom_node = containing_block->dom_node();
+    if (!containing_block_dom_node)
+        return false;
+
+    for (auto* previous = br->previous_in_pre_order(); previous && previous != containing_block_dom_node; previous = previous->previous_in_pre_order()) {
+        if (!containing_block_dom_node->is_inclusive_ancestor_of(*previous))
+            break;
+        if (is<HTML::HTMLBRElement>(*previous))
+            return true;
+        if (is_rendered_inline_content(*previous))
+            return false;
+    }
+    return true;
+}
+
 // A block-level element that renders no text but hosts an empty line where the caret can sit, such as `<p><br></p>`.
 static bool is_empty_line_host(DOM::Node& node)
 {
@@ -652,12 +701,24 @@ static GC::Ptr<DOM::Node> adjacent_caret_host_in_editing_host(DOM::Node& from, D
             : node->previous_in_pre_order();
         if (!node || node == &editing_host || !editing_host.is_inclusive_ancestor_of(*node))
             return nullptr;
+        // Walking backwards visits ancestors of the origin; the caret is already inside those.
+        if (node->is_inclusive_ancestor_of(from))
+            continue;
         if (auto* text = as_if<DOM::Text>(*node); text && text->is_editable() && text_node_has_rendered_text(*text))
             return node;
-        if (is_empty_line_host(*node))
+        if (is_empty_line_host(*node) || is_empty_line_break(*node))
             return node;
     }
     return nullptr;
+}
+
+// The node caret navigation should walk from: for a caret anchored on an element, that is the child the offset
+// points at (e.g. the <br> hosting the empty line the caret sits on), not the element itself.
+static DOM::Node& caret_navigation_origin(DOM::Node& node, size_t offset)
+{
+    if (auto* child = node.child_at_index(offset))
+        return *child;
+    return node;
 }
 
 // Moves the caret out of `from` into the closest caret host before or after it in the editing host. Enters text
@@ -677,6 +738,12 @@ static bool move_cursor_to_adjacent_caret_host(Selection& selection, DOM::Node& 
 
     size_t new_offset = 0;
     auto new_affinity = TextAffinity::Downstream;
+
+    // A <br> hosting an empty line houses the caret on its parent, at the child index of the <br>.
+    if (is<HTML::HTMLBRElement>(*target) && target->parent()) {
+        new_offset = target->index();
+        target = target->parent();
+    }
 
     if (auto* text = as_if<DOM::Text>(*target)) {
         Optional<CursorLinePosition> position;
@@ -711,7 +778,7 @@ void Selection::move_offset_to_next_character(bool collapse_selection)
     if (!text_node) {
         // The caret is parked on an element, e.g. an empty line; step into the closest caret host after it.
         if (auto node = anchor_node(); node && is_collapsed())
-            move_cursor_to_adjacent_caret_host(*this, *node, CaretNavigationDirection::Forward, CaretEntryMode::LineEdge, {}, collapse_selection);
+            move_cursor_to_adjacent_caret_host(*this, caret_navigation_origin(*node, anchor_offset()), CaretNavigationDirection::Forward, CaretEntryMode::LineEdge, {}, collapse_selection);
         scroll_focus_into_view();
         return;
     }
@@ -745,7 +812,7 @@ void Selection::move_offset_to_previous_character(bool collapse_selection)
     if (!text_node) {
         // The caret is parked on an element, e.g. an empty line; step into the closest caret host before it.
         if (auto node = anchor_node(); node && is_collapsed())
-            move_cursor_to_adjacent_caret_host(*this, *node, CaretNavigationDirection::Backward, CaretEntryMode::LineEdge, {}, collapse_selection);
+            move_cursor_to_adjacent_caret_host(*this, caret_navigation_origin(*node, anchor_offset()), CaretNavigationDirection::Backward, CaretEntryMode::LineEdge, {}, collapse_selection);
         scroll_focus_into_view();
         return;
     }
@@ -830,7 +897,7 @@ void Selection::move_offset_to_next_line(bool collapse_selection)
     if (!text_node) {
         // The caret is parked on an element, e.g. an empty line; move to the closest caret host below.
         if (auto node = anchor_node(); node && is_collapsed())
-            move_cursor_to_adjacent_caret_host(*this, *node, CaretNavigationDirection::Forward, CaretEntryMode::ClosestToInlineCoordinate, {}, collapse_selection);
+            move_cursor_to_adjacent_caret_host(*this, caret_navigation_origin(*node, anchor_offset()), CaretNavigationDirection::Forward, CaretEntryMode::ClosestToInlineCoordinate, {}, collapse_selection);
         scroll_focus_into_view();
         return;
     }
@@ -864,7 +931,7 @@ void Selection::move_offset_to_previous_line(bool collapse_selection)
     if (!text_node) {
         // The caret is parked on an element, e.g. an empty line; move to the closest caret host above.
         if (auto node = anchor_node(); node && is_collapsed())
-            move_cursor_to_adjacent_caret_host(*this, *node, CaretNavigationDirection::Backward, CaretEntryMode::ClosestToInlineCoordinate, {}, collapse_selection);
+            move_cursor_to_adjacent_caret_host(*this, caret_navigation_origin(*node, anchor_offset()), CaretNavigationDirection::Backward, CaretEntryMode::ClosestToInlineCoordinate, {}, collapse_selection);
         scroll_focus_into_view();
         return;
     }

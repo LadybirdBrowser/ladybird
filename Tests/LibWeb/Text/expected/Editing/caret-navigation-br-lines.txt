@@ -1,12 +1,12 @@
-ArrowUp from cd,1: #text("ab") @ 1
+ArrowUp from cd,1: p#p2 @ 0
 ArrowUp again: #text("ab") @ 0
-ArrowDown from ab,1: #text("cd") @ 1
-ArrowDown again: #text("cd") @ 2
-ArrowRight from ab,2: #text("cd") @ 0
-ArrowRight again: #text("cd") @ 1
-ArrowLeft from cd,0: #text("ab") @ 2
-ArrowLeft again: #text("ab") @ 1
-ArrowUp from zw,0: #text("xy") @ 0
+ArrowDown from ab,1: p#p2 @ 0
+ArrowDown again: #text("cd") @ 0
+ArrowRight from ab,2: p#p2 @ 0
+ArrowRight again: #text("cd") @ 0
+ArrowLeft from cd,0: p#p2 @ 0
+ArrowLeft again: #text("ab") @ 2
+ArrowUp from zw,0: p#q @ 2
 ArrowUp again: #text("xy") @ 0
-ArrowDown from xy,1: #text("zw") @ 1
-ArrowDown again: #text("zw") @ 2
+ArrowDown from xy,1: p#q @ 2
+ArrowDown again: #text("zw") @ 0
