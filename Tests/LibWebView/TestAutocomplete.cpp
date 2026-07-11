@@ -56,16 +56,20 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     WebView::Autocomplete autocomplete { WebView::IsPrivate::No };
 
     auto completed = false;
+    auto query_returned = false;
     autocomplete.on_autocomplete_query_complete = [&](auto, auto const&, WebView::AutocompleteResultKind kind) {
-        // Only the final result is delivered from within the request's on_finish — which is the re-entrant teardown
-        // that previously crashed.
+        // The empty local batch normally completes before the loopback request fails, so the final result
+        // is delivered from the request's on_finish. Canceling there is the re-entrant teardown that
+        // previously crashed.
         if (kind != WebView::AutocompleteResultKind::Final)
             return;
+        VERIFY(query_returned);
         autocomplete.cancel_pending_query();
         completed = true;
     };
 
     autocomplete.query_autocomplete_engine(1, "test"_string);
+    query_returned = true;
 
     Core::EventLoop::current().spin_until([&]() { return completed; });
 

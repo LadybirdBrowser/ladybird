@@ -74,13 +74,20 @@ public:
 
 private:
     static ErrorOr<Vector<String>> received_autocomplete_respsonse(AutocompleteEngine const&, Optional<ByteString const&> content_type, StringView response);
+    void local_query_complete(AutocompleteQueryID, Vector<HistoryEntry>);
+    void deliver_current_result();
     void invoke_autocomplete_query_complete(AutocompleteQueryID, Vector<AutocompleteSuggestion> suggestions, AutocompleteResultKind) const;
 
     IsPrivate m_is_private { IsPrivate::No };
+    u64 m_service_client_id { 0 };
     Optional<AutocompleteQueryID> m_query_id;
     String m_query;
+    String m_trimmed_query;
     size_t m_max_suggestions { default_autocomplete_suggestion_limit };
+    bool m_local_query_complete { false };
+    bool m_remote_query_complete { false };
     Vector<AutocompleteSuggestion> m_history_suggestions;
+    Vector<String> m_remote_suggestions;
     RefPtr<Requests::Request> m_request;
 };
 

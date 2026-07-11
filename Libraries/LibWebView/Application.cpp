@@ -30,6 +30,7 @@
 #include <LibWeb/Loader/UserAgent.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/AutocompleteService.h>
 #include <LibWebView/CompositorClient.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/HSTSStore.h>
@@ -123,6 +124,8 @@ Application::Application(Optional<ByteString> ladybird_binary_path)
 
 Application::~Application()
 {
+    m_autocomplete_service.clear();
+
     // Explicitly delete the observers first, as the observer destructors will refer to Application::the().
     m_settings_observer.clear();
     m_bookmark_store_observer.clear();
@@ -915,9 +918,12 @@ ErrorOr<void> Application::launch_services()
         process_did_exit(move(process), exit_status);
     };
 
+    Optional<ByteString> history_database_directory;
+
     if (m_browser_options.disable_sql_database == DisableSQLDatabase::No) {
         // FIXME: Move this to a generic "Ladybird data directory" helper.
         auto database_path = ByteString::formatted("{}/Ladybird", Core::StandardPaths::user_data_directory());
+        history_database_directory = database_path;
 
         m_database = TRY(Database::Database::create(database_path, "Ladybird"sv));
         m_history_database = TRY(Database::Database::create(database_path, "History"sv));
@@ -984,6 +990,9 @@ ErrorOr<void> Application::launch_services()
         m_hsts_store = HSTSStore::create();
         m_storage_jar = StorageJar::create();
     }
+
+    VERIFY(m_event_loop);
+    m_autocomplete_service = make<AutocompleteService>(*m_event_loop, move(history_database_directory));
 
     // No need to monitor the system time zone if the TZ environment variable is set, as it overrides system preferences.
     if (!Core::Environment::has("TZ"sv)) {

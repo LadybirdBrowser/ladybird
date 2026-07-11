@@ -15,6 +15,7 @@ namespace WebView {
 class Action;
 class Application;
 class Autocomplete;
+class AutocompleteService;
 class BookmarkStore;
 class CanonicalNavigable;
 class CanonicalTraversable;
@@ -43,6 +44,7 @@ struct CookieStorageKey;
 struct DictionaryLookup;
 struct DictionaryLookupTextStyle;
 struct DOMNodeProperties;
+struct HistoryEntry;
 struct Mutation;
 struct ProcessHandle;
 struct SearchEngine;

@@ -67,6 +67,7 @@ public:
     static Application& the() { return *s_the; }
 
     static Settings& settings() { return the().m_settings; }
+    static AutocompleteService& autocomplete_service() { return *the().m_autocomplete_service; }
 
     static BrowserOptions const& browser_options() { return the().m_browser_options; }
     static RequestServerOptions const& request_server_options() { return the().m_request_server_options; }
@@ -383,6 +384,7 @@ private:
     BookmarkStore m_bookmark_store;
     OwnPtr<ApplicationBookmarkStoreObserver> m_bookmark_store_observer;
     OwnPtr<HistoryStore> m_history_store;
+    OwnPtr<AutocompleteService> m_autocomplete_service;
 
     Main::Arguments m_arguments;
     BrowserOptions m_browser_options;
