@@ -2046,17 +2046,33 @@ void HTMLElement::did_receive_focus()
             return;
     }
 
-    DOM::Text* text = nullptr;
+    // AD-HOC: Place the cursor at the first valid caret position inside the editing host, matching other browsers:
+    //         the start of the first non-whitespace text node, or before the first <br> when there is no text. This
+    //         matters for editor frameworks (e.g. Draft.js) that only reconcile DOM mutations occurring inside their
+    //         rendered leaf elements.
+    DOM::Text* first_text = nullptr;
     for_each_in_inclusive_subtree_of_type<DOM::Text>([&](auto& node) {
-        text = &node;
-        return TraversalDecision::Continue;
+        if (node.data().is_ascii_whitespace())
+            return TraversalDecision::Continue;
+        first_text = &node;
+        return TraversalDecision::Break;
     });
-
-    if (!text) {
-        editing_host->set_selection_anchor(*this, 0);
+    if (first_text) {
+        editing_host->set_selection_anchor(*first_text, 0);
         return;
     }
-    editing_host->set_selection_anchor(*text, text->length());
+
+    HTMLBRElement* first_br = nullptr;
+    for_each_in_inclusive_subtree_of_type<HTMLBRElement>([&](auto& node) {
+        first_br = &node;
+        return TraversalDecision::Break;
+    });
+    if (first_br && first_br->parent()) {
+        editing_host->set_selection_anchor(*first_br->parent(), first_br->index());
+        return;
+    }
+
+    editing_host->set_selection_anchor(*this, 0);
 }
 
 void HTMLElement::did_lose_focus()

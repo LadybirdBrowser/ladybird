@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="a" contenteditable="true">abc</div>
+<div id="b" contenteditable="true"><div><span id="b-span">abc</span></div></div>
+<div id="c" contenteditable="true"><div><div><span id="c-span"><br></span></div></div></div>
+<div id="d" contenteditable="true"><p>one</p><p>two</p></div>
+<script>
+    test(() => {
+        const describe = n => !n
+            ? "null"
+            : (n.nodeType === Node.TEXT_NODE ? `#text("${n.data}")` : n.nodeName.toLowerCase() + (n.id ? "#" + n.id : ""));
+        for (const id of ["a", "b", "c", "d"]) {
+            const editor = document.getElementById(id);
+            editor.focus();
+            const selection = getSelection();
+            println(`${id}: anchor=${describe(selection.anchorNode)} offset=${selection.anchorOffset}`);
+            editor.blur();
+        }
+    });
+</script>

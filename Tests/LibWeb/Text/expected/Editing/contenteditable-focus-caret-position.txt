@@ -1,0 +1,4 @@
+a: anchor=#text("abc") offset=0
+b: anchor=#text("abc") offset=0
+c: anchor=span#c-span offset=0
+d: anchor=#text("one") offset=0
