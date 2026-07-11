@@ -22,6 +22,10 @@ public:
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
     virtual void adjust_computed_style(CSS::ComputedProperties::Builder&) override;
 
+    // Whether this <br> renders an empty line, i.e. nothing else renders between the start of its line and the <br>
+    // itself. Such a <br> hosts a caret position on its parent, at its child index.
+    bool represents_empty_line() const;
+
 private:
     virtual bool is_html_br_element() const override { return true; }
 

@@ -476,6 +476,48 @@ Optional<PaintableFragment const&> PaintableWithLines::fragment_at_position(DOM:
     return {};
 }
 
+CSSPixelRect PaintableWithLines::caret_rect_for_child_offset(size_t offset) const
+{
+    auto content_box = absolute_padding_box_rect();
+    auto line_height = computed_values().line_height();
+    CSSPixelRect rect { content_box.x(), content_box.y(), 1, line_height };
+
+    auto dom_node = layout_node().dom_node();
+    if (!dom_node)
+        return rect;
+    auto* child = dom_node->child_at_index(offset);
+    if (!child || !is<HTML::HTMLBRElement>(*child))
+        return rect;
+
+    // A caret parked before a <br> sits on the line below the content preceding the <br>. Layout produces no
+    // fragments for <br>, so start below the fragments of any preceding content, and add one line height for each
+    // empty line rendered by earlier <br>s.
+    Optional<CSSPixels> preceding_content_bottom;
+    for_each_in_inclusive_subtree_of_type<PaintableWithLines>([&](auto const& paintable_with_lines) {
+        for (auto const& fragment : paintable_with_lines.fragments()) {
+            auto* fragment_dom_node = const_cast<DOM::Node*>(fragment.layout_node().dom_node());
+            if (!fragment_dom_node || !(const_cast<DOM::Node&>(*child).compare_document_position(fragment_dom_node) & DOM::Node::DOCUMENT_POSITION_PRECEDING))
+                continue;
+            auto bottom = fragment.absolute_rect().bottom();
+            if (!preceding_content_bottom.has_value() || bottom > *preceding_content_bottom)
+                preceding_content_bottom = bottom;
+        }
+        return TraversalDecision::Continue;
+    });
+
+    size_t preceding_empty_lines = 0;
+    dom_node->for_each_in_subtree_of_type<HTML::HTMLBRElement>([&](auto& br) {
+        if (&br == child)
+            return TraversalDecision::Break;
+        if (br.represents_empty_line())
+            ++preceding_empty_lines;
+        return TraversalDecision::Continue;
+    });
+
+    rect.set_y(preceding_content_bottom.value_or(content_box.y()) + line_height * preceding_empty_lines);
+    return rect;
+}
+
 void PaintableWithLines::paint_cursor(DisplayListRecordingContext& context) const
 {
     if (!document().cursor_blink_state() || !document().navigable()->is_focused())
@@ -511,27 +553,7 @@ void PaintableWithLines::paint_cursor(DisplayListRecordingContext& context) cons
             return;
 
         caret_color = computed_values().caret_color();
-        auto content_box = absolute_padding_box_rect();
-        cursor_rect = { content_box.x(), content_box.y(), 1, computed_values().line_height() };
-
-        // A caret parked before a <br> hosting an empty line paints at that line's position. Layout produces no
-        // fragments for <br>, so the empty line starts where the fragments of the content before the <br> end.
-        if (auto* child = cursor_position->node()->child_at_index(cursor_position->offset()); child && is<HTML::HTMLBRElement>(*child)) {
-            Optional<CSSPixels> preceding_content_bottom;
-            for_each_in_inclusive_subtree_of_type<PaintableWithLines>([&](auto const& paintable_with_lines) {
-                for (auto const& fragment : paintable_with_lines.fragments()) {
-                    auto const* fragment_dom_node = fragment.layout_node().dom_node();
-                    if (!fragment_dom_node || !(child->compare_document_position(const_cast<DOM::Node*>(fragment_dom_node)) & DOM::Node::DOCUMENT_POSITION_PRECEDING))
-                        continue;
-                    auto bottom = fragment.absolute_rect().bottom();
-                    if (!preceding_content_bottom.has_value() || bottom > *preceding_content_bottom)
-                        preceding_content_bottom = bottom;
-                }
-                return TraversalDecision::Continue;
-            });
-            if (preceding_content_bottom.has_value())
-                cursor_rect.set_y(*preceding_content_bottom);
-        }
+        cursor_rect = caret_rect_for_child_offset(cursor_position->offset());
     }
 
     if (caret_color.alpha() == 0)

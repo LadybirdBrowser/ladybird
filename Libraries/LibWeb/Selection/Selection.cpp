@@ -17,7 +17,6 @@
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/Layout/Box.h>
-#include <LibWeb/Layout/ReplacedBox.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/Selection/Selection.h>
@@ -623,50 +622,12 @@ static bool text_node_has_rendered_text(DOM::Text const& text)
     return false;
 }
 
-// Rendered inline content that would appear before a <br> on its line.
-static bool is_rendered_inline_content(DOM::Node& node)
-{
-    if (auto* text = as_if<DOM::Text>(node))
-        return text_node_has_rendered_text(*text);
-    if (auto* element = as_if<DOM::Element>(node)) {
-        auto* layout_node = element->layout_node();
-        if (!layout_node)
-            return false;
-        if (is<Layout::ReplacedBox>(*layout_node))
-            return true;
-        if (layout_node->display().is_inline_outside() && !layout_node->display().is_flow_inside())
-            return true;
-    }
-    return false;
-}
-
 // A <br> that renders an empty line hosts a caret position on its parent, at its child index. This covers a leading
-// <br> in a paragraph with text after it, and the lines between consecutive <br>s. A <br> renders an empty line when
-// nothing else renders between the start of its line and the <br> itself.
-// NB: Layout produces no fragments for <br>, so this walks the DOM back to the start of the containing block or a
-//     previous <br>, whichever comes first.
+// <br> in a paragraph with text after it, and the lines between consecutive <br>s.
 static bool is_empty_line_break(DOM::Node& node)
 {
     auto* br = as_if<HTML::HTMLBRElement>(node);
-    if (!br || !br->is_editable() || !br->layout_node())
-        return false;
-
-    auto* containing_block = br->layout_node()->containing_block();
-    if (!containing_block)
-        return false;
-    auto* containing_block_dom_node = containing_block->dom_node();
-    if (!containing_block_dom_node)
-        return false;
-
-    for (auto* previous = br->previous_in_pre_order(); previous && previous != containing_block_dom_node; previous = previous->previous_in_pre_order()) {
-        if (!containing_block_dom_node->is_inclusive_ancestor_of(*previous))
-            break;
-        if (is<HTML::HTMLBRElement>(*previous))
-            return true;
-        if (is_rendered_inline_content(*previous))
-            return false;
-    }
-    return true;
+    return br && br->is_editable() && br->represents_empty_line();
 }
 
 // A block-level element that renders no text but hosts an empty line where the caret can sit, such as `<p><br></p>`.

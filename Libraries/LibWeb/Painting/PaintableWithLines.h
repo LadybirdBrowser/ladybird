@@ -49,6 +49,10 @@ public:
 
     size_t line_index() const { return m_line_index; }
 
+    // Caret rect for a cursor parked on this paintable's DOM node at the given child offset, e.g. on an empty line
+    // rendered by a <br> child or in an empty editable element.
+    CSSPixelRect caret_rect_for_child_offset(size_t offset) const;
+
 protected:
     PaintableWithLines(Layout::BlockContainer const&);
     PaintableWithLines(Layout::NodeWithStyleAndBoxModelMetrics const&, size_t line_index);

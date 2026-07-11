@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/caret-on-second-br-line-ref.html">
+<style>
+    div {
+        font: 30px/1 monospace;
+    }
+
+    p {
+        margin: 0;
+    }
+</style>
+<div contenteditable="true"><p id="p"><br><br></p></div>
+<script>
+    document.querySelector("div").focus();
+    const p = document.getElementById("p");
+    getSelection().setBaseAndExtent(p, 1, p, 1);
+</script>

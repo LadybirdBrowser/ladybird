@@ -9,8 +9,11 @@
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/Layout/BreakNode.h>
+#include <LibWeb/Layout/ReplacedBox.h>
+#include <LibWeb/VisualLines.h>
 
 namespace Web::HTML {
 
@@ -56,6 +59,53 @@ void HTMLBRElement::apply_presentational_hints(Vector<CSS::StyleProperty>& prope
                 properties.append({ .property_id = CSS::PropertyID::Clear, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Both) });
         }
     });
+}
+
+// Rendered inline content that would appear before a <br> on its line.
+static bool is_rendered_inline_content(DOM::Node const& node)
+{
+    if (auto const* text = as_if<DOM::Text>(node)) {
+        for (auto const& line : collect_visual_lines(*text)) {
+            if (!line.fragments.is_empty())
+                return true;
+        }
+        return false;
+    }
+    if (auto const* element = as_if<DOM::Element>(node)) {
+        auto const* layout_node = element->layout_node();
+        if (!layout_node)
+            return false;
+        if (is<Layout::ReplacedBox>(*layout_node))
+            return true;
+        if (layout_node->display().is_inline_outside() && !layout_node->display().is_flow_inside())
+            return true;
+    }
+    return false;
+}
+
+// NB: Layout produces no fragments for <br>, so this walks the DOM back to the start of the containing block or a
+//     previous <br>, whichever comes first.
+bool HTMLBRElement::represents_empty_line() const
+{
+    if (!layout_node())
+        return false;
+
+    auto const* containing_block = layout_node()->containing_block();
+    if (!containing_block)
+        return false;
+    auto const* containing_block_dom_node = containing_block->dom_node();
+    if (!containing_block_dom_node)
+        return false;
+
+    for (auto const* previous = previous_in_pre_order(); previous && previous != containing_block_dom_node; previous = previous->previous_in_pre_order()) {
+        if (!containing_block_dom_node->is_inclusive_ancestor_of(*previous))
+            break;
+        if (is<HTMLBRElement>(*previous))
+            return true;
+        if (is_rendered_inline_content(*previous))
+            return false;
+    }
+    return true;
 }
 
 void HTMLBRElement::adjust_computed_style(CSS::ComputedProperties::Builder& style)

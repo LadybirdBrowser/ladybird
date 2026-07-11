@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<style>
+    div[contenteditable] {
+        font: 30px/1 monospace;
+        caret-color: transparent;
+    }
+
+    p {
+        margin: 0;
+    }
+
+    #caret {
+        position: absolute;
+        left: 8px;
+        top: 38px;
+        width: 1px;
+        height: 30px;
+        background: black;
+    }
+</style>
+<div contenteditable="true"><p id="p"><br><br></p></div>
+<div id="caret"></div>
+<script>
+    document.querySelector("div[contenteditable]").focus();
+    const p = document.getElementById("p");
+    getSelection().setBaseAndExtent(p, 1, p, 1);
+</script>
