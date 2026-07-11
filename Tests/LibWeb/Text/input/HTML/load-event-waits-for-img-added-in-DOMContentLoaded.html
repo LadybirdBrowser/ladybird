@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<script>
+    // An image whose load is started by a DOMContentLoaded event handler delays the load
+    // event: the img error event must fire before the window load event, matching Chrome,
+    // Firefox and Safari.
+    const events = [];
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const img = document.createElement("img");
+        img.src = "file:///nonexistent-image.png";
+        img.addEventListener("error", () => events.push("img error event"));
+        document.body.appendChild(img);
+    });
+
+    asyncTest(done => {
+        window.addEventListener("load", () => {
+            events.push("window load event");
+            for (const event of events)
+                println(event);
+            done();
+        });
+    });
+</script>

@@ -1,0 +1,2 @@
+img error event
+window load event

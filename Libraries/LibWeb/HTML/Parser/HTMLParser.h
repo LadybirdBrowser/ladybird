@@ -171,6 +171,7 @@ public:
 private:
     enum class Phase {
         WaitingForDeferredScripts,
+        WaitingForDOMContentLoaded,
         WaitingForASAPScripts,
         WaitingForLoadEventDelay,
         Completed,
@@ -181,7 +182,7 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 
     void check_progress();
-    void advance_to_asap_scripts_phase();
+    void advance_to_dom_content_loaded_phase();
     void complete();
 
     Phase m_phase { Phase::WaitingForDeferredScripts };

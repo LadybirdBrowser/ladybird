@@ -553,8 +553,12 @@ void HTMLParserEndState::check_progress()
             (void)m_document->scripts_to_execute_when_parsing_has_finished().take_first();
         }
 
-        advance_to_asap_scripts_phase();
-        [[fallthrough]];
+        advance_to_dom_content_loaded_phase();
+        return;
+
+    case Phase::WaitingForDOMContentLoaded:
+        // NB: The task queued by advance_to_dom_content_loaded_phase() advances the state machine once it has run.
+        return;
 
     case Phase::WaitingForASAPScripts:
         // 7. Spin the event loop until the set of scripts that will execute as soon as possible and the list of scripts
@@ -580,7 +584,7 @@ void HTMLParserEndState::check_progress()
     }
 }
 
-void HTMLParserEndState::advance_to_asap_scripts_phase()
+void HTMLParserEndState::advance_to_dom_content_loaded_phase()
 {
     // AD-HOC: We need to scroll to the fragment on page load somewhere.
     // But a script that ran in step 5 above may have scrolled the page already,
@@ -591,8 +595,10 @@ void HTMLParserEndState::advance_to_asap_scripts_phase()
         m_document->scroll_to_the_fragment();
     }
 
+    m_phase = Phase::WaitingForDOMContentLoaded;
+
     // 6. Queue a global task on the DOM manipulation task source given the Document's relevant global object to run the following substeps:
-    queue_global_task(HTML::Task::Source::DOMManipulation, *m_document, GC::create_function(m_document->heap(), [document = m_document] {
+    queue_global_task(HTML::Task::Source::DOMManipulation, *m_document, GC::create_function(m_document->heap(), [state = GC::Ref(*this), document = m_document] {
         // 1. Set the Document's load timing info's DOM content loaded event start time to the current high resolution time given the Document's relevant global object.
         document->load_timing_info().dom_content_loaded_event_start_time = HighResolutionTime::current_high_resolution_time(relevant_global_object(*document));
 
@@ -607,9 +613,16 @@ void HTMLParserEndState::advance_to_asap_scripts_phase()
         // FIXME: 4. Enable the client message queue of the ServiceWorkerContainer object whose associated service worker client is the Document object's relevant settings object.
 
         // FIXME: 5. Invoke WebDriver BiDi DOM content loaded with the Document's browsing context, and a new WebDriver BiDi navigation status whose id is the Document object's navigation id, status is "pending", and url is the Document object's URL.
-    }));
 
-    m_phase = Phase::WaitingForASAPScripts;
+        // NB: Only advance the state machine after this task has run, so that anything the DOMContentLoaded event
+        //     handlers did (e.g. starting loads that delay the load event) is visible to the remaining phases. This
+        //     matches steps 7 and 8, whose "spin the event loop" continuations resume in a new task queued after the
+        //     DOMContentLoaded task, per https://html.spec.whatwg.org/multipage/webappapis.html#spin-the-event-loop.
+        if (state->m_phase == Phase::WaitingForDOMContentLoaded) {
+            state->m_phase = Phase::WaitingForASAPScripts;
+            state->schedule_progress_check();
+        }
+    }));
 }
 
 void HTMLParserEndState::complete()
