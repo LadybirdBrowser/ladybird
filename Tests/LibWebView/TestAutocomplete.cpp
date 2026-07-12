@@ -4,16 +4,19 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Random.h>
+#include <AK/ScopeGuard.h>
 #include <AK/String.h>
+#include <LibCore/Directory.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/StandardPaths.h>
+#include <LibFileSystem/FileSystem.h>
 #include <LibMain/Main.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/Autocomplete.h>
 #include <LibWebView/AutocompleteService.h>
 #include <LibWebView/Settings.h>
 #include <stdlib.h>
-#include <unistd.h>
 
 namespace {
 
@@ -43,7 +46,11 @@ public:
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
-    auto test_config_directory = ByteString::formatted("{}/Ladybird-TestAutocomplete-{}", Core::StandardPaths::tempfile_directory(), getpid());
+    auto test_config_directory = ByteString::formatted("{}/Ladybird-TestAutocomplete-{}", Core::StandardPaths::tempfile_directory(), generate_random_uuid());
+    TRY(Core::Directory::create(test_config_directory, Core::Directory::CreateDirectories::Yes));
+    auto cleanup_test_config_directory = ScopeGuard([&] {
+        MUST(FileSystem::remove(test_config_directory, FileSystem::RecursionMode::Allowed));
+    });
     VERIFY(setenv("XDG_CONFIG_HOME", test_config_directory.characters(), 1) == 0);
 
 #if defined(LADYBIRD_BINARY_PATH)
@@ -122,6 +129,23 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         Core::EventLoop::current().spin_until([&]() { return saw_adaptive_result; });
     }
 
+    auto private_read_completed = false;
+    {
+        WebView::Autocomplete private_autocomplete { WebView::IsPrivate::Yes };
+        private_autocomplete.on_autocomplete_query_complete = [&](auto, auto const& suggestions, WebView::AutocompleteResultKind kind) {
+            if (kind != WebView::AutocompleteResultKind::Final)
+                return;
+            VERIFY(suggestions.contains([](auto const& suggestion) {
+                return suggestion.source == WebView::AutocompleteSuggestionSource::Adaptive
+                    && suggestion.text == "https://example.com/manual/"sv;
+            }));
+            private_autocomplete.cancel_pending_query();
+            private_read_completed = true;
+        };
+        private_autocomplete.query_autocomplete_engine(3, "docs"_string);
+        Core::EventLoop::current().spin_until([&]() { return private_read_completed; });
+    }
+
     {
         WebView::Autocomplete private_autocomplete { WebView::IsPrivate::Yes };
         private_autocomplete.record_engagement({
@@ -144,8 +168,31 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             autocomplete.cancel_pending_query();
             private_query_completed = true;
         };
-        autocomplete.query_autocomplete_engine(3, "privatealias"_string);
+        autocomplete.query_autocomplete_engine(4, "privatealias"_string);
         Core::EventLoop::current().spin_until([&]() { return private_query_completed; });
+    }
+
+    WebView::Application::autocomplete_service().update_bookmarks({ {
+        .url = "https://github.com/LadybirdBrowser/ladybird"_string,
+        .title = "GH"_string,
+        .folder = {},
+        .favicon_base64_png = {},
+    } });
+    auto short_bookmark_query_completed = false;
+    {
+        WebView::Autocomplete autocomplete { WebView::IsPrivate::No };
+        autocomplete.on_autocomplete_query_complete = [&](auto, auto const& suggestions, WebView::AutocompleteResultKind kind) {
+            if (kind != WebView::AutocompleteResultKind::Final)
+                return;
+            VERIFY(!suggestions.is_empty());
+            VERIFY(suggestions.first().text == "https://github.com/LadybirdBrowser/ladybird"sv);
+            VERIFY(suggestions.first().can_be_automatically_selected);
+            VERIFY(suggestions.first().can_be_inline_completed);
+            autocomplete.cancel_pending_query();
+            short_bookmark_query_completed = true;
+        };
+        autocomplete.query_autocomplete_engine(5, "gi"_string);
+        Core::EventLoop::current().spin_until([&]() { return short_bookmark_query_completed; });
     }
 
     WebView::Application::settings().set_search_engine("Google"sv);
@@ -162,7 +209,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             autocomplete.cancel_pending_query();
             whitespace_query_completed = true;
         };
-        autocomplete.query_autocomplete_engine(4, "  spaced   query  "_string);
+        autocomplete.query_autocomplete_engine(6, "  spaced   query  "_string);
         Core::EventLoop::current().spin_until([&]() { return whitespace_query_completed; });
     }
 
@@ -185,7 +232,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         request_completed = true;
     };
 
-    autocomplete.query_autocomplete_engine(5, "test"_string);
+    autocomplete.query_autocomplete_engine(7, "test"_string);
     query_returned = true;
     Core::EventLoop::current().spin_until([&]() { return request_completed; });
 
