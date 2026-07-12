@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<script>
+    test(() => {
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync(`.card { color: rgb(1, 2, 3); } .card .title { color: rgb(4, 5, 6); }`);
+
+        // Adopting the same constructed sheet into several shadow roots should not have to walk the sheet's
+        // rules to derive its add/remove invalidation set more than once.
+        resetStyleCounters();
+        const hosts = [];
+        for (let i = 0; i < 4; i++) {
+            const host = makeElement("div");
+            const shadowRoot = host.attachShadow({ mode: "open" });
+            shadowRoot.adoptedStyleSheets = [sheet];
+            shadowRoot.appendChild(makeElement("section", { className: "card" }));
+            document.body.appendChild(host);
+            hosts.push(host);
+        }
+        internals.updateStyle();
+        const counters = styleCounters();
+        println(
+            `PASS: adopting one constructed sheet into four shadow roots | ` +
+                `styleSheetInvalidationSetBuilds=${counters.styleSheetInvalidationSetBuilds}`
+        );
+
+        for (const host of hosts) host.remove();
+    });
+</script>

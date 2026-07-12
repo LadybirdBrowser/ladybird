@@ -614,6 +614,7 @@ void invalidate_style_for_stylesheet_change(DOM::Node& document_or_shadow_root, 
     // OPTIMIZATION: Build the targeted invalidation set and check for broad-invalidation-triggering rule kinds in
     //               a single walk over the sheet's effective rules, so the sheet's @media gates evaluate once and
     //               every rule is visited once instead of twice.
+    ++document_or_shadow_root.document().style_invalidation_counters().style_sheet_invalidation_set_builds;
     StyleSheetInvalidationSet invalidation_set_result;
     bool sheet_contains_broad_invalidation_rule = false;
     sheet.for_each_effective_rule(TraversalOrder::Preorder, [&](CSSRule const& rule) {
