@@ -32,6 +32,7 @@ If you have any questions that are not answered here or in the [FAQ](FAQ.md), yo
 
 ## Browser/LibWeb
 * [General Architecture](ProcessArchitecture.md)
+* [Omnibox Design](Omnibox.md)
 * [LibWeb: From Loading to Painting](LibWebFromLoadingToPainting.md)
 * [LibWeb: Browsing Contexts and Navigables](BrowsingContextsAndNavigables.md)
 * [How to Add a CSS Property](CSSProperties.md)
