@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<script>
+    test(() => {
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync(`.absent-anchor:has(.needle) { ${MATCH_DECLARATION} }`);
+
+        const hosts = [];
+        for (let i = 0; i < 5; i++) {
+            const host = makeElement("div");
+            const shadowRoot = host.attachShadow({ mode: "open" });
+            shadowRoot.adoptedStyleSheets = [sheet];
+            shadowRoot.appendChild(makeElement("section"));
+            document.body.appendChild(host);
+            hosts.push(host);
+        }
+        document.body.offsetWidth;
+
+        // Only one shadow scope schedules a pending :has() invalidation; flushing should not have to visit
+        // every other scope in the document just to discover their pending lists are empty.
+        resetStyleCounters();
+        hosts[0].shadowRoot.firstChild.appendChild(makeElement("div", { className: "needle" }));
+        internals.updateStyle();
+        const counters = styleCounters();
+        println(
+            `PASS: one shadow scope scheduled :has() invalidations | ` +
+                `hasFlushScopesExamined=${counters.hasFlushScopesExamined}`
+        );
+
+        for (const host of hosts) host.remove();
+    });
+</script>

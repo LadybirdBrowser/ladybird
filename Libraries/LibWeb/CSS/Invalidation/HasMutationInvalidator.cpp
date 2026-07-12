@@ -472,8 +472,12 @@ static void invalidate_style_of_elements_affected_by_pending_has_mutations(Style
 
 void invalidate_style_for_pending_has_mutations(DOM::Document& document)
 {
+    auto& counters = document.style_invalidation_counters();
+
+    ++counters.has_flush_scopes_examined;
     invalidate_style_of_elements_affected_by_pending_has_mutations(document.style_scope());
     document.for_each_shadow_root([&](auto& shadow_root) {
+        ++counters.has_flush_scopes_examined;
         bool has_active_style_sheets = false;
         shadow_root.for_each_active_css_style_sheet([&](auto&) {
             has_active_style_sheets = true;
