@@ -142,6 +142,14 @@ Vector<AutocompleteMatchRange> autocomplete_match_ranges(StringView input, Strin
     return merged_ranges;
 }
 
+Vector<String> filter_remote_autocomplete_suggestions(StringView input, Vector<String> suggestions)
+{
+    suggestions.remove_all_matching([input](auto const& suggestion) {
+        return !suggestion.bytes_as_string_view().starts_with(input, CaseSensitivity::CaseInsensitive);
+    });
+    return suggestions;
+}
+
 [[maybe_unused]] static ByteString log_autocomplete_suggestions(Vector<AutocompleteSuggestion> const& suggestions)
 {
     Vector<ByteString> values;
@@ -240,12 +248,13 @@ void Autocomplete::query_autocomplete_engine(AutocompleteQueryID query_id, Strin
     m_max_suggestions = max_suggestions;
     m_query_id = query_id;
 
-    m_trimmed_query = MUST(String::from_utf8(query.bytes_as_string_view().trim_whitespace()));
+    auto trimmed_query = MUST(String::from_utf8(query.bytes_as_string_view().trim_whitespace()));
+    m_remote_suggestions = filter_remote_autocomplete_suggestions(trimmed_query, move(m_remote_suggestions));
+    m_trimmed_query = move(trimmed_query);
     m_query = move(query);
     m_local_query_complete = false;
     m_remote_query_complete = false;
     m_local_suggestions.clear();
-    m_remote_suggestions.clear();
 
     dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Autocomplete query='{}' trimmed='{}'", m_query, m_trimmed_query);
 
@@ -253,12 +262,14 @@ void Autocomplete::query_autocomplete_engine(AutocompleteQueryID query_id, Strin
     Application::autocomplete_service().query(m_service_client_id, query_id, m_trimmed_query, m_max_suggestions);
 
     if (m_trimmed_query.is_empty()) {
+        m_remote_suggestions.clear();
         m_remote_query_complete = true;
         dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Skipping remote autocomplete for empty query");
         return;
     }
 
     if (m_trimmed_query.starts_with_bytes(file_url_prefix)) {
+        m_remote_suggestions.clear();
         m_remote_query_complete = true;
         dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Skipping remote autocomplete for file URL query '{}'", m_trimmed_query);
         return;
@@ -266,6 +277,7 @@ void Autocomplete::query_autocomplete_engine(AutocompleteQueryID query_id, Strin
 
     auto engine = Application::settings().autocomplete_engine();
     if (!engine.has_value()) {
+        m_remote_suggestions.clear();
         m_remote_query_complete = true;
         dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Skipping remote autocomplete because no engine is configured");
         return;

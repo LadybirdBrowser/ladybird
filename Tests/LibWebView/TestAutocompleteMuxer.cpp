@@ -309,3 +309,17 @@ TEST_CASE(presentation_match_ranges_are_case_insensitive_and_merged)
     EXPECT_EQ(ranges[1].start, 7u);
     EXPECT_EQ(ranges[1].length, 6u);
 }
+
+TEST_CASE(remote_suggestions_are_filtered_for_a_new_input)
+{
+    auto suggestions = WebView::filter_remote_autocomplete_suggestions("reddit soc"sv, {
+                                                                                           "reddit soccer"_string,
+                                                                                           "Reddit social"_string,
+                                                                                           "reddit streams"_string,
+                                                                                           "soccer"_string,
+                                                                                       });
+
+    EXPECT_EQ(suggestions.size(), 2u);
+    EXPECT_EQ(suggestions[0], "reddit soccer"sv);
+    EXPECT_EQ(suggestions[1], "Reddit social"sv);
+}
