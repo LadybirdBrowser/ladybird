@@ -98,17 +98,19 @@ static void expect_history_ranking_signals_track_visit_intent(WebView::HistorySt
     auto url = parse_url("https://example.com/"sv);
     auto first_visit = UnixDateTime::from_seconds_since_epoch(1'000'000);
     auto reload = UnixDateTime::from_seconds_since_epoch(1'000'000 + 86'400);
+    auto redirect = UnixDateTime::from_seconds_since_epoch(1'000'000 + 2 * 86'400);
     auto direct_visit = UnixDateTime::from_seconds_since_epoch(1'000'000 + 30 * 86'400);
     auto restore = UnixDateTime::from_seconds_since_epoch(1'000'000 + 31 * 86'400);
 
     store.record_visit(url, {}, first_visit, WebView::HistoryVisitTransition::Link);
     store.record_visit(url, {}, reload, WebView::HistoryVisitTransition::Reload);
+    store.record_visit(url, {}, redirect, WebView::HistoryVisitTransition::Redirect);
     store.record_visit(url, {}, direct_visit, WebView::HistoryVisitTransition::Omnibox);
     store.record_visit(url, {}, restore, WebView::HistoryVisitTransition::Restore);
 
     auto entry = store.entry_for_url(url);
     VERIFY(entry.has_value());
-    EXPECT_EQ(entry->visit_count, 4u);
+    EXPECT_EQ(entry->visit_count, 5u);
     EXPECT_EQ(entry->direct_visit_count, 1u);
     EXPECT_EQ(entry->last_visited_time, restore);
     EXPECT_EQ(entry->last_qualifying_visit_time, direct_visit);

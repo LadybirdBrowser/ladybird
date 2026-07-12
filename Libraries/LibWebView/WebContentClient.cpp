@@ -595,7 +595,9 @@ void WebContentClient::did_start_loading(u64 page_id, Optional<String> navigatio
     m_history_recorded_urls_for_current_load.remove(page_id);
 
     if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (!is_redirect) {
+        if (is_redirect) {
+            view->m_history_visit_transition_for_current_load = HistoryVisitTransition::Redirect;
+        } else {
             view->m_history_visit_transition_for_current_load = view->m_history_visit_transition_for_next_load;
             view->m_history_visit_transition_for_next_load = HistoryVisitTransition::Link;
         }
