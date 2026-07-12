@@ -266,6 +266,7 @@ public:
 
     bool needs_repaint() const { return m_needs_repaint; }
     void set_needs_repaint() { m_needs_repaint = true; }
+    bool needs_to_record_display_list() const { return m_needs_to_record_display_list; }
     void set_needs_to_record_display_list() { m_needs_to_record_display_list = true; }
     void repaint_after_compositor_process_reconnect();
 

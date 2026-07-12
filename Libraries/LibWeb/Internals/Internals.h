@@ -109,6 +109,7 @@ public:
     bool screen_wake_lock_active();
 
     bool needs_repaint();
+    bool needs_display_list_record();
 
     String dump_display_list();
     String dump_accessibility_tree();

@@ -1,0 +1,40 @@
+<!doctype html>
+<canvas id="canvas1" width="100" height="100"></canvas>
+<canvas id="canvas2" width="100" height="100"></canvas>
+<script src="../include.js"></script>
+<script>
+    // WebGL canvas content updates reach the compositor through the canvas surface registry,
+    // so a draw call must schedule a repaint without invalidating the display list. Re-recording
+    // a display list that is identical to the previous one would produce an empty damage
+    // rectangle, and nothing would be repainted on screen.
+    //
+    // Creating a WebGL context is the exception: it must invalidate the display list, since the
+    // recorded DrawCanvas command refers to the context's canvas id.
+    asyncTest(async (done) => {
+        const lines = [];
+        const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+
+        // Let rendering settle so the initial display list has been recorded.
+        await nextFrame();
+        await nextFrame();
+
+        for (const [canvas, contextType] of [[canvas1, "webgl"], [canvas2, "webgl2"]]) {
+            const gl = canvas.getContext(contextType);
+            lines.push(`[${contextType}] needsDisplayListRecord after getContext: ${internals.needsDisplayListRecord}`);
+
+            await nextFrame();
+            lines.push(`[${contextType}] needsDisplayListRecord before draw: ${internals.needsDisplayListRecord}`);
+
+            gl.clearColor(0, 1, 0, 1);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            lines.push(`[${contextType}] needsRepaint after draw: ${internals.needsRepaint}`);
+            lines.push(`[${contextType}] needsDisplayListRecord after draw: ${internals.needsDisplayListRecord}`);
+
+            await nextFrame();
+        }
+
+        for (const line of lines)
+            println(line);
+        done();
+    });
+</script>

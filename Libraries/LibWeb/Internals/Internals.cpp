@@ -639,6 +639,11 @@ bool Internals::needs_repaint()
     return page().top_level_traversable()->needs_repaint();
 }
 
+bool Internals::needs_display_list_record()
+{
+    return page().top_level_traversable()->needs_to_record_display_list();
+}
+
 bool Internals::screen_wake_lock_active()
 {
     return page().is_screen_wake_lock_active();
