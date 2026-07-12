@@ -146,6 +146,9 @@ public:
     };
     ErrorOr<void> set_synchronous_pragma(Synchronous);
 
+    // https://www.sqlite.org/c3ref/busy_timeout.html
+    ErrorOr<void> set_busy_timeout(i32 milliseconds);
+
 private:
     static ErrorOr<NonnullRefPtr<Database>> create(sqlite3*, Optional<LexicalPath> database_path = {});
     Database(sqlite3*, Optional<LexicalPath> database_path);

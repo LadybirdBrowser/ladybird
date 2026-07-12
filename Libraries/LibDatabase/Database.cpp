@@ -422,4 +422,12 @@ ErrorOr<void> Database::set_synchronous_pragma(Synchronous synchronous)
     return {};
 }
 
+ErrorOr<void> Database::set_busy_timeout(i32 milliseconds)
+{
+    if (milliseconds < 0)
+        return Error::from_string_literal("Database busy timeout must not be negative");
+    SQL_TRY(sqlite3_busy_timeout(m_database, milliseconds));
+    return {};
+}
+
 }

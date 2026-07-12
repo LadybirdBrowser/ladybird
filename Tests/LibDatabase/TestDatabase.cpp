@@ -98,3 +98,16 @@ TEST_CASE(interrupted_statement_can_be_reused)
     EXPECT_EQ(outcome, Database::Database::StatementExecutionOutcome::Completed);
     EXPECT_EQ(row_count, 3u);
 }
+
+TEST_CASE(busy_timeout_can_be_configured)
+{
+    auto database = TRY_OR_FAIL(Database::Database::create_memory_backed());
+    TRY_OR_FAIL(database->set_busy_timeout(250));
+
+    auto statement = TRY_OR_FAIL(database->prepare_statement("PRAGMA busy_timeout;"sv));
+    i32 busy_timeout = 0;
+    database->execute_statement(statement, [&](auto statement_id) {
+        busy_timeout = database->result_column<i32>(statement_id, 0);
+    });
+    EXPECT_EQ(busy_timeout, 250);
+}
