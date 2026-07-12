@@ -191,6 +191,31 @@ TEST_CASE(short_queries_use_the_best_representative_for_an_origin)
     }));
 }
 
+TEST_CASE(exact_short_bookmark_titles_survive_origin_collapsing)
+{
+    auto bookmark_suggestion = bookmark("https://example.com/projects/ladybird"sv, 900, false);
+    bookmark_suggestion.title = "GH"_string;
+    bookmark_suggestion.match_class = WebView::AutocompleteMatchClass::ExactTitle;
+
+    auto results = WebView::mux_autocomplete_suggestions(
+        "GH"sv,
+        search("GH"sv, 1000, true),
+        {
+            history("https://example.com/"sv, 950),
+            move(bookmark_suggestion),
+        },
+        {},
+        8);
+
+    EXPECT_EQ(results.size(), 2u);
+    EXPECT(results.contains([](auto const& result) {
+        return result.text == "https://example.com/projects/ladybird"sv;
+    }));
+    EXPECT(!results.contains([](auto const& result) {
+        return result.text == "https://example.com/"sv;
+    }));
+}
+
 TEST_CASE(exact_remote_query_merges_into_the_verbatim_search)
 {
     auto results = WebView::mux_autocomplete_suggestions(

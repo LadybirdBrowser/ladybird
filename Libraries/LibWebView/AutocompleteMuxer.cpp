@@ -116,6 +116,9 @@ static u8 short_query_origin_preference(AutocompleteSuggestion const& suggestion
 {
     if (suggestion.adaptive_relevance > 0 && suggestion.can_be_automatically_selected)
         return 3;
+    if (suggestion.source == AutocompleteSuggestionSource::Bookmark
+        && suggestion.match_class == AutocompleteMatchClass::ExactTitle)
+        return 2;
     if (query_length >= 2
         && suggestion.source == AutocompleteSuggestionSource::Bookmark
         && suggestion.match_class == AutocompleteMatchClass::URLPrefix

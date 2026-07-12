@@ -238,6 +238,21 @@ TEST_CASE(bookmark_title_and_folder_matches_are_not_automatic)
     EXPECT(!folder_suggestions[0].can_be_inline_completed);
 }
 
+TEST_CASE(exact_short_bookmark_titles_are_matched_case_insensitively)
+{
+    auto suggestions = WebView::rank_bookmark_suggestions("GH"sv, {
+                                                                      bookmark("https://example.com/projects/ladybird"sv, "gh"sv),
+                                                                      bookmark("https://example.net/"sv, "Ghost"sv),
+                                                                  },
+        8);
+
+    EXPECT_EQ(suggestions.size(), 1u);
+    EXPECT_EQ(suggestions[0].text, "https://example.com/projects/ladybird"sv);
+    EXPECT_EQ(suggestions[0].match_class, WebView::AutocompleteMatchClass::ExactTitle);
+    EXPECT(!suggestions[0].can_be_automatically_selected);
+    EXPECT(!suggestions[0].can_be_inline_completed);
+}
+
 TEST_CASE(bookmark_does_not_append_a_query_string)
 {
     auto suggestions = WebView::rank_bookmark_suggestions("exa"sv, {

@@ -47,6 +47,7 @@ enum class AutocompleteSuggestionSource {
 enum class AutocompleteMatchClass {
     None,
     ExactURL,
+    ExactTitle,
     URLPrefix,
     TitlePrefix,
     URLSubstring,

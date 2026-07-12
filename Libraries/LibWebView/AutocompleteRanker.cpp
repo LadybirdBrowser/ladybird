@@ -93,6 +93,8 @@ static i32 match_relevance(AutocompleteMatchClass match_class)
     switch (match_class) {
     case AutocompleteMatchClass::ExactURL:
         return 1000;
+    case AutocompleteMatchClass::ExactTitle:
+        return 800;
     case AutocompleteMatchClass::URLPrefix:
         return 850;
     case AutocompleteMatchClass::TitlePrefix:
@@ -318,14 +320,14 @@ Vector<AutocompleteSuggestion> rank_bookmark_suggestions(StringView query, Vecto
 
     for (auto const& bookmark : bookmarks) {
         auto folded_url = MUST(bookmark.url.to_casefold());
-        Optional<String> folded_title;
-        if (query_length >= 3 && bookmark.title.has_value())
-            folded_title = MUST(bookmark.title->to_casefold());
+        auto folded_title = bookmark.title.map([](auto const& title) { return MUST(title.to_casefold()); });
 
         auto match_class = classify_match(folded_query, folded_url, {});
-        auto title_match_class = folded_title.has_value()
-            ? classify_match(folded_query, ""sv, folded_title->bytes_as_string_view())
-            : AutocompleteMatchClass::None;
+        auto title_match_class = AutocompleteMatchClass::None;
+        if (folded_title.has_value() && *folded_title == folded_query)
+            title_match_class = AutocompleteMatchClass::ExactTitle;
+        else if (query_length >= 3 && folded_title.has_value())
+            title_match_class = classify_match(folded_query, ""sv, folded_title->bytes_as_string_view());
         if (match_relevance(title_match_class) > match_relevance(match_class))
             match_class = title_match_class;
 
@@ -356,7 +358,7 @@ Vector<AutocompleteSuggestion> rank_bookmark_suggestions(StringView query, Vecto
             adjusted_match_relevance -= 200;
 
         auto bookmark_relevance = 75;
-        if (title_match_class == AutocompleteMatchClass::TitlePrefix)
+        if (title_match_class == AutocompleteMatchClass::ExactTitle || title_match_class == AutocompleteMatchClass::TitlePrefix)
             bookmark_relevance += 25;
 
         auto is_url_prefix = match_class == AutocompleteMatchClass::ExactURL || match_class == AutocompleteMatchClass::URLPrefix;

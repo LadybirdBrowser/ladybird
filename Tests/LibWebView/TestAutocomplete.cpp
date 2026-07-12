@@ -186,12 +186,14 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                 return;
             VERIFY(!suggestions.is_empty());
             VERIFY(suggestions.first().text == "https://github.com/LadybirdBrowser/ladybird"sv);
-            VERIFY(suggestions.first().can_be_automatically_selected);
-            VERIFY(suggestions.first().can_be_inline_completed);
+            VERIFY(suggestions.first().title == "GH"sv);
+            VERIFY(suggestions.first().match_class == WebView::AutocompleteMatchClass::ExactTitle);
+            VERIFY(!suggestions.first().can_be_automatically_selected);
+            VERIFY(!suggestions.first().can_be_inline_completed);
             autocomplete.cancel_pending_query();
             short_bookmark_query_completed = true;
         };
-        autocomplete.query_autocomplete_engine(5, "gi"_string);
+        autocomplete.query_autocomplete_engine(5, "GH"_string);
         Core::EventLoop::current().spin_until([&]() { return short_bookmark_query_completed; });
     }
 
