@@ -10,6 +10,7 @@
 
 #include <AK/Function.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/Utf16View.h>
 #include <LibWeb/Bindings/CSSStyleSheet.h>
@@ -28,6 +29,7 @@ namespace Web::CSS {
 
 class CSSImportRule;
 class StyleScope;
+struct CachedStyleSheetInvalidationSet;
 struct ShadowRootStylesheetEffects;
 struct StyleCache;
 
@@ -101,6 +103,7 @@ public:
     void for_each_owning_style_scope(Function<void(StyleScope&)> const&) const;
     NonnullRefPtr<StyleCache> shared_single_constructed_sheet_style_cache();
     SelectorInsights const& selector_insights() const;
+    CachedStyleSheetInvalidationSet const& cached_style_sheet_invalidation_set() const;
 
     Optional<Utf16FlyString> default_namespace() const;
     GC::Ptr<CSSNamespaceRule> default_namespace_rule() const { return m_default_namespace_rule; }
@@ -162,6 +165,7 @@ private:
     bool m_disallow_modification { false };
     Optional<bool> m_did_match;
     mutable Optional<SelectorInsights> m_selector_insights;
+    mutable OwnPtr<CachedStyleSheetInvalidationSet> m_cached_style_sheet_invalidation_set;
     RefPtr<StyleCache> m_shared_single_constructed_sheet_style_cache;
 
     Vector<Subresource&> m_critical_subresources;

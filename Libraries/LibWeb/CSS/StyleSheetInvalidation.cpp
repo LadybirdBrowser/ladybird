@@ -590,6 +590,43 @@ static bool rule_requires_broad_add_or_remove_invalidation(CSSRule const& rule)
     return false;
 }
 
+void StyleSheetInvalidationSet::visit_edges(GC::Cell::Visitor& visitor) const
+{
+    for (auto const& rule : pseudo_element_rules)
+        visitor.visit(rule.style_sheet_for_rule);
+    for (auto const& rule : trailing_universal_rules)
+        visitor.visit(rule.style_sheet_for_rule);
+}
+
+CachedStyleSheetInvalidationSet const& CSSStyleSheet::cached_style_sheet_invalidation_set() const
+{
+    if (m_cached_style_sheet_invalidation_set)
+        return *m_cached_style_sheet_invalidation_set;
+
+    if (auto document = owning_document())
+        ++document->style_invalidation_counters().style_sheet_invalidation_set_builds;
+
+    // OPTIMIZATION: Build the targeted invalidation set, check for broad-invalidation-triggering rule kinds, and
+    //               collect @keyframes names in a single walk over the sheet's effective rules, so the sheet's
+    //               @media gates evaluate once and every rule is visited once.
+    auto cached = make<CachedStyleSheetInvalidationSet>();
+    for_each_effective_rule(TraversalOrder::Preorder, [&](CSSRule const& rule) {
+        // Add/remove invalidation still has to look at effective non-style rules such as @keyframes or @layer, but
+        // inactive top-level media sheets should contribute nothing at all here.
+        if (!cached->contains_broad_invalidation_rule && rule_requires_broad_add_or_remove_invalidation(rule))
+            cached->contains_broad_invalidation_rule = true;
+        if (auto const* keyframes_rule = as_if<CSSKeyframesRule>(rule))
+            cached->keyframes_names.append(keyframes_rule->name());
+        if (cached->invalidation_set.invalidation_set.needs_invalidate_whole_subtree())
+            return;
+        if (auto const* style_rule = as_if<CSSStyleRule>(rule))
+            extend_style_sheet_invalidation_set_with_style_rule(cached->invalidation_set, *style_rule);
+    });
+
+    m_cached_style_sheet_invalidation_set = move(cached);
+    return *m_cached_style_sheet_invalidation_set;
+}
+
 void invalidate_style_for_stylesheet_change(DOM::Node& document_or_shadow_root, CSSStyleSheet const& sheet, DOM::StyleInvalidationReason reason)
 {
     if (sheet.rules().length() == 0) {
@@ -611,33 +648,25 @@ void invalidate_style_for_stylesheet_change(DOM::Node& document_or_shadow_root, 
         return;
     }
 
-    // OPTIMIZATION: Build the targeted invalidation set and check for broad-invalidation-triggering rule kinds in
-    //               a single walk over the sheet's effective rules, so the sheet's @media gates evaluate once and
-    //               every rule is visited once instead of twice.
-    ++document_or_shadow_root.document().style_invalidation_counters().style_sheet_invalidation_set_builds;
-    StyleSheetInvalidationSet invalidation_set_result;
-    bool sheet_contains_broad_invalidation_rule = false;
-    sheet.for_each_effective_rule(TraversalOrder::Preorder, [&](CSSRule const& rule) {
-        // Add/remove invalidation still has to look at effective non-style rules such as @keyframes or @layer, but
-        // inactive top-level media sheets should contribute nothing at all here.
-        if (!sheet_contains_broad_invalidation_rule && rule_requires_broad_add_or_remove_invalidation(rule))
-            sheet_contains_broad_invalidation_rule = true;
-        if (invalidation_set_result.invalidation_set.needs_invalidate_whole_subtree())
-            return;
-        if (auto const* style_rule = as_if<CSSStyleRule>(rule))
-            extend_style_sheet_invalidation_set_with_style_rule(invalidation_set_result, *style_rule);
-    });
+    auto const& cached = sheet.cached_style_sheet_invalidation_set();
 
-    bool requires_broad_invalidation = invalidation_set_result.invalidation_set.needs_invalidate_whole_subtree()
-        || sheet_contains_broad_invalidation_rule;
-    add_shadow_root_stylesheet_effects_for_broad_invalidation(document_or_shadow_root, invalidation_set_result, requires_broad_invalidation);
+    bool requires_broad_invalidation = cached.invalidation_set.invalidation_set.needs_invalidate_whole_subtree()
+        || cached.contains_broad_invalidation_rule;
+    if (requires_broad_invalidation) {
+        // The broad path only consults the shadow-escape flags of the set, so merge the scope's current reach into
+        // a copy of those flags instead of mutating the cached set.
+        StyleSheetInvalidationSet broad_effects;
+        broad_effects.merge_shadow_escape_flags_from(cached.invalidation_set);
+        add_shadow_root_stylesheet_effects_for_broad_invalidation(document_or_shadow_root, broad_effects, true);
+        invalidate_root_for_style_sheet_change(document_or_shadow_root, broad_effects, reason, true);
+    } else {
+        invalidate_root_for_style_sheet_change(document_or_shadow_root, cached.invalidation_set, reason, false);
+    }
 
-    invalidate_root_for_style_sheet_change(document_or_shadow_root, invalidation_set_result, reason, requires_broad_invalidation);
-
-    // OPTIMIZATION: Walk @keyframes rules in the new sheet and dirty only the elements that already
-    //               reference each animation-name, so a sheet add carrying @keyframes does not have
-    //               to escalate to a whole-subtree restyle.
-    invalidate_root_for_keyframes_rules_in_sheet(document_or_shadow_root, sheet);
+    // OPTIMIZATION: Dirty only the elements that already reference each @keyframes animation-name in the sheet, so
+    //               a sheet add carrying @keyframes does not have to escalate to a whole-subtree restyle.
+    for (auto const& animation_name : cached.keyframes_names)
+        invalidate_root_for_keyframes_rule(document_or_shadow_root, animation_name);
 }
 
 void invalidate_owners_for_inserted_style_rule(CSSStyleSheet const& style_sheet, CSSStyleRule const& style_rule, DOM::StyleInvalidationReason reason)
@@ -895,16 +924,6 @@ void invalidate_root_for_keyframes_rule(DOM::Node& root, Utf16FlyString const& a
         [&](DOM::Node& affected_root) {
             invalidate_elements_affected_by_inserted_keyframes_rule(affected_root, animation_name);
         });
-}
-
-void invalidate_root_for_keyframes_rules_in_sheet(DOM::Node& root, CSSStyleSheet const& sheet)
-{
-    sheet.for_each_effective_rule(TraversalOrder::Preorder, [&](CSSRule const& rule) {
-        auto const* keyframes_rule = as_if<CSSKeyframesRule>(rule);
-        if (!keyframes_rule)
-            return;
-        invalidate_root_for_keyframes_rule(root, keyframes_rule->name());
-    });
 }
 
 void invalidate_owners_for_inserted_keyframes_rule(CSSStyleSheet const& style_sheet, CSSKeyframesRule const& keyframes_rule)
