@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<script>
+    test(() => {
+        const tokens = new CSSStyleSheet();
+        tokens.replaceSync(`.card { color: rgb(1, 2, 3); }`);
+        const component = new CSSStyleSheet();
+        component.replaceSync(`.title { color: rgb(4, 5, 6); }`);
+
+        document.body.offsetWidth;
+
+        // Shadow roots adopting the same ordered set of constructed sheets should share one rule cache
+        // instead of each scope building its own from identical input.
+        resetStyleCounters();
+        const hosts = [];
+        for (let i = 0; i < 4; i++) {
+            const host = makeElement("div");
+            const shadowRoot = host.attachShadow({ mode: "open" });
+            shadowRoot.adoptedStyleSheets = [tokens, component];
+            const card = makeElement("section", { className: "card" });
+            card.appendChild(makeElement("span", { className: "title" }));
+            shadowRoot.appendChild(card);
+            document.body.appendChild(host);
+            hosts.push(host);
+        }
+        internals.updateStyle();
+        const counters = styleCounters();
+        println(
+            `PASS: four shadow roots adopting the same two constructed sheets | ` +
+                `scopeRuleCacheBuilds=${counters.scopeRuleCacheBuilds}`
+        );
+
+        for (const host of hosts) host.remove();
+    });
+</script>

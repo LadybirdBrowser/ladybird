@@ -1,0 +1,1 @@
+PASS: four shadow roots adopting the same two constructed sheets | scopeRuleCacheBuilds=4

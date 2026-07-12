@@ -169,6 +169,8 @@ void StyleScope::build_rule_cache()
     if (style_cache.rule_cache)
         return;
 
+    ++document().style_invalidation_counters().scope_rule_cache_builds;
+
     style_cache.rule_cache = make<StyleRuleCache>();
     populate_rule_cache(*style_cache.rule_cache);
 }

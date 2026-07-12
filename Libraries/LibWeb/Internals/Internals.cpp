@@ -859,6 +859,7 @@ JS::Object* Internals::get_style_invalidation_counters()
     object->define_direct_property("mediaRuleEvaluations"_utf16_fly_string, JS::Value(counters.media_rule_evaluations), JS::default_attributes);
     object->define_direct_property("registeredPropertiesCacheRebuilds"_utf16_fly_string, JS::Value(counters.registered_properties_cache_rebuilds), JS::default_attributes);
     object->define_direct_property("styleSheetInvalidationSetBuilds"_utf16_fly_string, JS::Value(counters.style_sheet_invalidation_set_builds), JS::default_attributes);
+    object->define_direct_property("scopeRuleCacheBuilds"_utf16_fly_string, JS::Value(counters.scope_rule_cache_builds), JS::default_attributes);
     return object;
 }
 

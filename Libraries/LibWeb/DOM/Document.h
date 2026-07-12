@@ -960,6 +960,7 @@ public:
         u64 media_rule_evaluations { 0 };
         u64 registered_properties_cache_rebuilds { 0 };
         u64 style_sheet_invalidation_set_builds { 0 };
+        u64 scope_rule_cache_builds { 0 };
     };
     StyleInvalidationCounters& style_invalidation_counters() const { return m_style_invalidation_counters; }
     void reset_style_invalidation_counters() const;
