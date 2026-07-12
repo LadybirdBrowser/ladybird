@@ -1,0 +1,7 @@
+initial: scrollWidth=100 scrollHeight=100 relayouts=1
+translate: scrollWidth=100 scrollHeight=390 relayouts=0
+rotate: scrollWidth=108 scrollHeight=108 relayouts=0
+scale: scrollWidth=270 scrollHeight=270 relayouts=0
+transform: scrollWidth=108 scrollHeight=108 relayouts=0
+transform-origin: scrollWidth=100 scrollHeight=127 relayouts=0
+transform-box: scrollWidth=100 scrollHeight=123 relayouts=0

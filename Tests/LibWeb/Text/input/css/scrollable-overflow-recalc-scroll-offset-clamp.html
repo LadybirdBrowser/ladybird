@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="scroller" style="overflow: scroll; width: 100px; height: 100px;">
+    <div id="child" style="width: 50px; height: 50px; transform: translateY(500px);"></div>
+</div>
+<script>
+    // When a transform change shrinks the scrollable overflow, an out-of-range scroll offset must be
+    // clamped by the recalculation pass, without performing layout.
+    test(() => {
+        const scroller = document.getElementById("scroller");
+        const child = document.getElementById("child");
+        const initialHeight = scroller.scrollHeight;
+        scroller.scrollTop = 10000;
+        const scrollTopAtMax = scroller.scrollTop;
+        const countersBefore = internals.getStyleInvalidationCounters();
+        child.style.transform = "translateY(150px)";
+        const heightAfterShrink = scroller.scrollHeight;
+        const scrollTopAfterShrink = scroller.scrollTop;
+        const countersAfter = internals.getStyleInvalidationCounters();
+        println(`initial scrollHeight: ${initialHeight}`);
+        println(`scrollTop clamped to: ${scrollTopAtMax}`);
+        println(`scrollHeight after shrink: ${heightAfterShrink}`);
+        println(`scrollTop re-clamped to: ${scrollTopAfterShrink}`);
+        println(`relayouts performed: ${countersAfter.relayoutsPerformed - countersBefore.relayoutsPerformed}`);
+    });
+</script>

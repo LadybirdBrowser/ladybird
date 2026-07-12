@@ -1,0 +1,6 @@
+initial scrollHeight: 100
+scrollHeight after transform toggled on: 550
+scrollTop clamped to: 450
+scrollHeight after transform toggled off: 100
+scrollTop after transform toggled off: 0
+relayouts performed: 0

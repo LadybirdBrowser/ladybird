@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="scroller" style="overflow: scroll; width: 100px; height: 100px;">
+    <div id="child" style="width: 50px; height: 50px;"></div>
+</div>
+<script>
+    // Toggling transform between none and a value flips has_scrollable_overflow on the scroller,
+    // which requires scroll frames to be reassigned; the scroller must become (and stop being)
+    // actually scrollable, all without performing layout.
+    test(() => {
+        const scroller = document.getElementById("scroller");
+        const child = document.getElementById("child");
+        const initialHeight = scroller.scrollHeight;
+        const countersBefore = internals.getStyleInvalidationCounters();
+        child.style.transform = "translateY(500px)";
+        const heightAfterToggleOn = scroller.scrollHeight;
+        scroller.scrollTop = 10000;
+        const scrollTopAfterToggleOn = scroller.scrollTop;
+        child.style.transform = "none";
+        const heightAfterToggleOff = scroller.scrollHeight;
+        const scrollTopAfterToggleOff = scroller.scrollTop;
+        const countersAfter = internals.getStyleInvalidationCounters();
+        println(`initial scrollHeight: ${initialHeight}`);
+        println(`scrollHeight after transform toggled on: ${heightAfterToggleOn}`);
+        println(`scrollTop clamped to: ${scrollTopAfterToggleOn}`);
+        println(`scrollHeight after transform toggled off: ${heightAfterToggleOff}`);
+        println(`scrollTop after transform toggled off: ${scrollTopAfterToggleOff}`);
+        println(`relayouts performed: ${countersAfter.relayoutsPerformed - countersBefore.relayoutsPerformed}`);
+    });
+</script>

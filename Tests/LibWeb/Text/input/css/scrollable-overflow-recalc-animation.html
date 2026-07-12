@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="scroller" style="overflow: scroll; width: 100px; height: 100px;">
+    <div id="child" style="width: 50px; height: 50px;"></div>
+</div>
+<script>
+    // An animated transform flows through the animation update context rather than the regular
+    // style update path, and must schedule scrollable overflow recalculation the same way.
+    test(() => {
+        const scroller = document.getElementById("scroller");
+        const child = document.getElementById("child");
+        const initialHeight = scroller.scrollHeight;
+        const animation = child.animate(
+            [{ transform: "translateY(0px)" }, { transform: "translateY(500px)" }],
+            { duration: 1000, fill: "forwards" });
+        animation.pause();
+        animation.currentTime = 1000;
+        const countersBefore = internals.getStyleInvalidationCounters();
+        const heightAtAnimationEnd = scroller.scrollHeight;
+        animation.currentTime = 0;
+        const heightAtAnimationStart = scroller.scrollHeight;
+        const countersAfter = internals.getStyleInvalidationCounters();
+        println(`initial scrollHeight: ${initialHeight}`);
+        println(`scrollHeight at animation end: ${heightAtAnimationEnd}`);
+        println(`scrollHeight at animation start: ${heightAtAnimationStart}`);
+        println(`relayouts performed: ${countersAfter.relayoutsPerformed - countersBefore.relayoutsPerformed}`);
+    });
+</script>

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #host::before {
+        content: "";
+        display: block;
+        width: 50px;
+        height: 50px;
+    }
+    #host.moved::before {
+        transform: translateY(500px);
+    }
+</style>
+<div id="scroller" style="overflow: scroll; width: 100px; height: 100px;">
+    <div id="host"></div>
+</div>
+<script>
+    // A transform change on a pseudo-element must schedule scrollable overflow recalculation via
+    // the owning element's synthetic pseudo-element layout nodes.
+    test(() => {
+        const scroller = document.getElementById("scroller");
+        const host = document.getElementById("host");
+        const initialHeight = scroller.scrollHeight;
+        const countersBefore = internals.getStyleInvalidationCounters();
+        host.classList.add("moved");
+        const heightAfterChange = scroller.scrollHeight;
+        const countersAfter = internals.getStyleInvalidationCounters();
+        println(`initial scrollHeight: ${initialHeight}`);
+        println(`scrollHeight after pseudo-element transform change: ${heightAfterChange}`);
+        println(`relayouts performed: ${countersAfter.relayoutsPerformed - countersBefore.relayoutsPerformed}`);
+    });
+</script>

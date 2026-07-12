@@ -1,0 +1,3 @@
+initial scrollHeight: 100
+scrollHeight after pseudo-element transform change: 550
+relayouts performed: 0

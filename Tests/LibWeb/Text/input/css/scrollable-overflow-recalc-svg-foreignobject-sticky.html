@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="scroller" style="overflow: scroll; width: 300px; height: 200px;">
+    <svg width="250" height="100" style="display: block;">
+        <foreignObject width="250" height="100">
+            <div xmlns="http://www.w3.org/1999/xhtml" style="height: 90px;">
+                <span id="sticky" style="position: sticky; top: 10px;">sticky</span>
+                <div id="filler" style="height: 30px;"></div>
+            </div>
+        </foreignObject>
+    </svg>
+    <div style="height: 1000px;"></div>
+</div>
+<script>
+    // A partial SVG relayout recreates the line paintables of inline-level elements inside
+    // <foreignObject>, which destroys their sticky insets and scroll frame indices while the
+    // scroll state still holds a sticky frame for the old paintable. The scheduled scrollable
+    // overflow pass that runs after the relayout must rebuild sticky insets and reassign scroll
+    // frames; refreshing the constraints of the stale frame instead dereferences the dead
+    // paintable and crashes WebContent.
+    // NOTE: All geometry reads happen before any println(), because printing mutates the DOM and
+    //       forces a relayout that would mask missing invalidation.
+    test(() => {
+        const scroller = document.getElementById("scroller");
+        const sticky = document.getElementById("sticky");
+        const filler = document.getElementById("filler");
+
+        scroller.scrollTop = 30;
+        const stickyTopBefore = sticky.getBoundingClientRect().top;
+        const countersBefore = internals.getStyleInvalidationCounters();
+
+        // Dirties layout inside the SVG subtree only, so the next layout update takes the partial
+        // SVG relayout path instead of a full relayout. The filler is after the sticky element in
+        // flow, so growing it must not move the sticky element.
+        filler.style.height = "50px";
+
+        const stickyTopAfter = sticky.getBoundingClientRect().top;
+        const countersAfter = internals.getStyleInvalidationCounters();
+
+        println(`sticky position stable across partial SVG relayout: ${stickyTopAfter === stickyTopBefore}`);
+        println(`relayouts performed: ${countersAfter.relayoutsPerformed - countersBefore.relayoutsPerformed}`);
+        println(`overflow was recalculated: ${countersAfter.scrollableOverflowRecalculations > countersBefore.scrollableOverflowRecalculations}`);
+    });
+</script>

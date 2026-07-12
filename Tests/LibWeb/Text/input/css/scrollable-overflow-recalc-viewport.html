@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="child" style="width: 50px; height: 50px;"></div>
+<script>
+    // A transform change must also refresh the viewport's scrollable overflow, so that
+    // document scroll metrics and the maximum window scroll position stay correct.
+    test(() => {
+        const child = document.getElementById("child");
+        const initialHeight = document.documentElement.scrollHeight;
+        const countersBefore = internals.getStyleInvalidationCounters();
+        child.style.transform = "translateY(2000px)";
+        const heightAfterChange = document.documentElement.scrollHeight;
+        window.scrollTo(0, 100000);
+        const scrollYAfterGrow = window.scrollY;
+        const countersAfter = internals.getStyleInvalidationCounters();
+        println(`viewport scrollHeight grew: ${heightAfterChange > initialHeight}`);
+        println(`scrollY clamped to grown max: ${scrollYAfterGrow > 0 && scrollYAfterGrow === heightAfterChange - window.innerHeight}`);
+        println(`relayouts performed: ${countersAfter.relayoutsPerformed - countersBefore.relayoutsPerformed}`);
+    });
+</script>

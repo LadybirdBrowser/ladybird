@@ -1,0 +1,61 @@
+﻿<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CSS Overflow: Scrollable Overflow Transform Dynamic DOM Manipulation</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-overflow-3/#scrollable" />
+<meta name="assert" content="Checks that changes on an element's transform contribute to the scrollable overflow, even when some new element has been added to the DOM tree.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  .container {
+    width: 100px;
+    height: 100px;
+    overflow: auto;
+    background: silver;
+    border: solid thick;
+  }
+
+  .element {
+    width: 50px;
+    height: 50px;
+    background: lime;
+  }
+</style>
+
+<div id="container1" class="container">
+  <div id="element1" style="transform: translateX(20px);" class="element"></div>
+</div>
+
+<div id="container2" class="container">
+  <div id="element2" style="transform: translateY(30px);" class="element"></div>
+</div>
+
+<div id="container3" class="container">
+  <div id="element3" style="transform: translate(20px, 30px);" class="element"></div>
+</div>
+
+<script>
+  test(() => {
+    assert_equals(container1.scrollWidth, 100);
+    document.body.appendChild(document.createElement("div"));
+    element1.style.transform = "translateX(200px)";
+    assert_equals(container1.scrollWidth, 250);
+  }, "Check scrollWidth before and after appendChild() and transform chage");
+
+  test(() => {
+    assert_equals(container2.scrollHeight, 100);
+    document.body.appendChild(document.createElement("div"));
+    element2.style.transform = "translateY(300px)";
+    assert_equals(container2.scrollHeight, 350);
+  }, "Check scrollHeight before and after appendChild() and transform chage");
+
+  test(() => {
+    assert_equals(container3.scrollWidth, 100);
+    assert_equals(container3.scrollHeight, 100);
+    document.body.appendChild(document.createElement("div"));
+    element3.style.transform = "translate(200px, 300px)";
+    assert_equals(container3.scrollWidth, 250);
+    assert_equals(container3.scrollHeight, 350);
+  }, "Check scrollWidth and scrollHeight before and after appendChild() and transform chage");
+</script>

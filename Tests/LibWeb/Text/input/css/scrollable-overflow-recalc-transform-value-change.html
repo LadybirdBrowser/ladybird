@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="scroller" style="overflow: scroll; width: 100px; height: 100px;">
+    <div id="child" style="width: 50px; height: 50px; transform: translate(1px, 1px);"></div>
+</div>
+<script>
+    // A transform value change must refresh the scroll container's scrollable overflow through the
+    // dedicated recalculation pass, without performing layout.
+    // NOTE: All geometry reads happen before any println(), because printing mutates the DOM and
+    //       forces a relayout that would mask missing invalidation.
+    test(() => {
+        const scroller = document.getElementById("scroller");
+        const child = document.getElementById("child");
+        const initialWidth = scroller.scrollWidth;
+        const initialHeight = scroller.scrollHeight;
+        const countersBefore = internals.getStyleInvalidationCounters();
+        child.style.transform = "translate(200px, 500px)";
+        const widthAfterChange = scroller.scrollWidth;
+        const heightAfterChange = scroller.scrollHeight;
+        const countersAfter = internals.getStyleInvalidationCounters();
+        println(`initial scrollWidth: ${initialWidth}`);
+        println(`initial scrollHeight: ${initialHeight}`);
+        println(`scrollWidth after transform change: ${widthAfterChange}`);
+        println(`scrollHeight after transform change: ${heightAfterChange}`);
+        println(`relayouts performed: ${countersAfter.relayoutsPerformed - countersBefore.relayoutsPerformed}`);
+        println(`overflow was recalculated: ${countersAfter.scrollableOverflowRecalculations > countersBefore.scrollableOverflowRecalculations}`);
+    });
+</script>

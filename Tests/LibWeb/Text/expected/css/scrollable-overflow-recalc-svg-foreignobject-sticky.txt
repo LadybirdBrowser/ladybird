@@ -1,0 +1,3 @@
+sticky position stable across partial SVG relayout: true
+relayouts performed: 0
+overflow was recalculated: true

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="scroller" style="overflow: scroll; width: 100px; height: 100px;">
+    <div id="child" style="width: 90px; height: 90px; padding: 10px; box-sizing: border-box;"></div>
+</div>
+<script>
+    // Each transform-family property must trigger scrollable overflow recalculation on its own,
+    // without performing layout.
+    test(() => {
+        const scroller = document.getElementById("scroller");
+        const child = document.getElementById("child");
+        const results = [];
+        let relayoutsBefore = internals.getStyleInvalidationCounters().relayoutsPerformed;
+        const step = name => {
+            const width = scroller.scrollWidth;
+            const height = scroller.scrollHeight;
+            const relayoutsAfter = internals.getStyleInvalidationCounters().relayoutsPerformed;
+            results.push([name, width, height, relayoutsAfter - relayoutsBefore]);
+            relayoutsBefore = relayoutsAfter;
+        };
+
+        step("initial");
+
+        child.style.translate = "0px 300px";
+        step("translate");
+        child.style.translate = "";
+
+        child.style.rotate = "45deg";
+        step("rotate");
+        child.style.rotate = "";
+
+        child.style.scale = "5";
+        step("scale");
+        child.style.scale = "";
+
+        child.style.transform = "rotate(45deg)";
+        step("transform");
+
+        child.style.transformOrigin = "0 0";
+        step("transform-origin");
+
+        child.style.transformBox = "content-box";
+        step("transform-box");
+
+        for (const [name, width, height, relayouts] of results)
+            println(`${name}: scrollWidth=${width} scrollHeight=${height} relayouts=${relayouts}`);
+    });
+</script>

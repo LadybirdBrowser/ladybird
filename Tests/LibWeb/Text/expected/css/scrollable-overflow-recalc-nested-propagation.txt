@@ -1,0 +1,3 @@
+initial scrollHeight: 100
+scrollHeight after transform change: 440
+relayouts performed: 0
