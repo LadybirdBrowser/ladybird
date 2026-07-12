@@ -20,6 +20,7 @@ namespace WebView {
 
 static constexpr auto DEFAULT_AUTOCOMPLETE_SUGGESTION_LIMIT = 8uz;
 static constexpr size_t MINIMUM_TITLE_AUTOCOMPLETE_QUERY_LENGTH = 3;
+static constexpr i32 HISTORY_DATABASE_BUSY_TIMEOUT_MS = 250;
 
 static constexpr u32 HISTORY_SCHEMA_BASELINE_VERSION = 1u;
 static constexpr u32 HISTORY_SCHEMA_RANKING_SIGNALS_VERSION = 2u;
@@ -188,6 +189,8 @@ ErrorOr<Database::MigrationOutcome> HistoryStore::migrate_schema(Database::Datab
 
 ErrorOr<NonnullOwnPtr<HistoryStore>> HistoryStore::create(Database::Database& database)
 {
+    TRY(database.set_busy_timeout(HISTORY_DATABASE_BUSY_TIMEOUT_MS));
+
     if (auto database_path = database.database_path(); database_path.has_value())
         dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Opening persisted history store at {}", database_path->string());
     else
