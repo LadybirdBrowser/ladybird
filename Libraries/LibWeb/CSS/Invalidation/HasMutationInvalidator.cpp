@@ -474,22 +474,20 @@ void invalidate_style_for_pending_has_mutations(DOM::Document& document)
 {
     auto& counters = document.style_invalidation_counters();
 
-    ++counters.has_flush_scopes_examined;
-    invalidate_style_of_elements_affected_by_pending_has_mutations(document.style_scope());
-    document.for_each_shadow_root([&](auto& shadow_root) {
+    // Only scopes that actually scheduled pending :has() invalidations registered themselves, so we don't have to
+    // iterate every shadow root in the document here. A scope adopted into another document re-registers there
+    // (see StyleScope::node_was_adopted_from), so every scope in this list still belongs to this document.
+    // NB: Keep the taken list rooted: the invalidation below can allocate (rule cache and user stylesheet builds),
+    //     and the member vector we moved out of is no longer visited.
+    GC::RootVector<GC::Ref<DOM::Node>> scopes;
+    scopes.extend(document.take_style_scopes_with_pending_has_invalidations());
+    for (auto& node : scopes) {
         ++counters.has_flush_scopes_examined;
-        bool has_active_style_sheets = false;
-        shadow_root.for_each_active_css_style_sheet([&](auto&) {
-            has_active_style_sheets = true;
-        });
-        if (!has_active_style_sheets) {
-            // Without shadow stylesheets, this scope cannot contain :has() selectors.
-            // Document-level user rules are handled by the document style scope above.
-            shadow_root.style_scope().m_pending_has_invalidations.clear();
-            return;
-        }
-        invalidate_style_of_elements_affected_by_pending_has_mutations(shadow_root.style_scope());
-    });
+        auto& style_scope = node->is_shadow_root()
+            ? as<DOM::ShadowRoot>(*node).style_scope()
+            : document.style_scope();
+        invalidate_style_of_elements_affected_by_pending_has_mutations(style_scope);
+    }
 }
 
 static void schedule_has_invalidation_for_child_list_mutation(DOM::Node& parent, DOM::Node& mutation_root, StyleScope& scope, HasMutationKind kind)

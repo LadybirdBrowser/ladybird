@@ -1166,6 +1166,27 @@ void StyleScope::for_each_active_css_style_sheet(Function<void(CSS::CSSStyleShee
     }
 }
 
+// The document keeps a list of the scopes with pending :has() invalidations so flushes only examine those. The
+// scope must appear in that list exactly once, so only the transition from an empty pending map registers it.
+void StyleScope::did_schedule_pending_has_invalidation(size_t previous_size)
+{
+    if (previous_size == 0)
+        document().register_style_scope_with_pending_has_invalidations(m_node);
+    document().set_needs_invalidation_of_elements_affected_by_has();
+}
+
+void StyleScope::node_was_adopted_from(DOM::Document& old_document)
+{
+    // Pending :has() invalidations registered this scope with its old document. Move the registration to the new
+    // document so the next flush there picks the scope up; the scheduling paths only register a scope when its
+    // pending map goes from empty to non-empty, so they would never re-register it themselves.
+    if (m_pending_has_invalidations.is_empty())
+        return;
+    old_document.unregister_style_scope_with_pending_has_invalidations(m_node);
+    document().register_style_scope_with_pending_has_invalidations(m_node);
+    document().set_needs_invalidation_of_elements_affected_by_has();
+}
+
 void StyleScope::schedule_ancestors_style_invalidation_due_to_presence_of_has(GC::Ref<DOM::Node> node)
 {
     auto previous_size = m_pending_has_invalidations.size();
@@ -1173,7 +1194,7 @@ void StyleScope::schedule_ancestors_style_invalidation_due_to_presence_of_has(GC
     if (m_pending_has_invalidations.size() == previous_size)
         return;
     mutation_features.is_conservative = true;
-    document().set_needs_invalidation_of_elements_affected_by_has();
+    did_schedule_pending_has_invalidation(previous_size);
 }
 
 static void merge_pending_has_invalidation_mutation_features(PendingHasInvalidationMutationFeatures& target, PendingHasInvalidationMutationFeatures const& source)
@@ -1277,7 +1298,7 @@ void StyleScope::record_pending_has_invalidation_mutation_features(GC::Ref<DOM::
         return;
     }
     existing_features = move(features);
-    document().set_needs_invalidation_of_elements_affected_by_has();
+    did_schedule_pending_has_invalidation(previous_size);
 }
 
 void StyleScope::record_pending_has_invalidation_mutation_features(GC::Ref<DOM::Node> scheduled_node, Vector<CSS::InvalidationSet::Property> const& properties)
@@ -1290,7 +1311,7 @@ void StyleScope::record_pending_has_invalidation_mutation_features(GC::Ref<DOM::
         return;
     }
     existing_features = move(features);
-    document().set_needs_invalidation_of_elements_affected_by_has();
+    did_schedule_pending_has_invalidation(previous_size);
 }
 
 RefPtr<CSS::CounterStyle const> StyleScope::get_registered_counter_style(Utf16FlyString const& name) const

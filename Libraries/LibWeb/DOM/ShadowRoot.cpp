@@ -43,6 +43,12 @@ void ShadowRoot::finalize()
     document().unregister_shadow_root({}, *this);
 }
 
+void ShadowRoot::adopted_from(Document& old_document)
+{
+    Base::adopted_from(old_document);
+    m_style_scope.node_was_adopted_from(old_document);
+}
+
 // https://fullscreen.spec.whatwg.org/#dom-document-fullscreenelement
 GC::Ptr<Element> ShadowRoot::fullscreen_element_for_bindings() const
 {

@@ -1,1 +1,1 @@
-PASS: one shadow scope scheduled :has() invalidations | hasFlushScopesExamined=6
+PASS: one shadow scope scheduled :has() invalidations | hasFlushScopesExamined=1

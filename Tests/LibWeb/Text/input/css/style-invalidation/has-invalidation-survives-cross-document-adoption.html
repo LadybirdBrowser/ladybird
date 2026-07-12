@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        // Create the shadow scope in a document that never flushes pending :has() invalidations (it has no
+        // browsing context), schedule one there, and only then adopt the host into this document.
+        const detachedDocument = document.implementation.createHTMLDocument("");
+        const host = detachedDocument.createElement("div");
+        detachedDocument.body.appendChild(host);
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = `
+            <style>
+                .anchor { color: rgb(1, 2, 3); }
+                .anchor:has(.needle) { color: rgb(4, 5, 6); }
+            </style>
+            <div class="anchor"><div class="child"></div></div>
+        `;
+        shadowRoot.querySelector(".child").classList.add("unrelated");
+
+        document.body.appendChild(host);
+        document.body.offsetWidth;
+
+        // The scope's pending :has() invalidations moved with it into this document, so a mutation inside the
+        // adopted shadow tree must still restyle the :has() anchor here.
+        shadowRoot.querySelector(".child").classList.add("needle");
+        println(getComputedStyle(shadowRoot.querySelector(".anchor")).color);
+        host.remove();
+    });
+</script>
