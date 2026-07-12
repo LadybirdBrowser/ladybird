@@ -18,7 +18,16 @@ namespace Web::Layout {
 // Map from each containing block to the boxes it contains.
 using ContainedBoxesMap = HashMap<Box const*, Vector<Box const*>>;
 
-ContainedBoxesMap build_contained_boxes_map(Node const& root);
+struct ScrollableOverflowMeasurementWork {
+    ContainedBoxesMap contained_boxes_map;
+    Vector<Box const*> boxes_to_measure;
+};
+
+// Walks the committed layout tree once, collecting the boxes whose paintable has no stored overflow
+// data (i.e. that need measuring) along with contained-boxes map entries for exactly those boxes;
+// boxes that still have overflow data are memoized by measure_scrollable_overflow() and never
+// consult the map.
+[[nodiscard]] ScrollableOverflowMeasurementWork collect_scrollable_overflow_measurement_work(Node const& root);
 
 // https://drafts.csswg.org/css-overflow-3/#scrollable-overflow-region
 // Measures the scrollable overflow of the given box and stores it on the box's paintable.

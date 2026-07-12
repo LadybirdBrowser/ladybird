@@ -52,6 +52,7 @@
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/InvalidateDisplayList.h>
+#include <LibWeb/Layout/ScrollableOverflow.h>
 #include <LibWeb/Painting/FlexboxInspectorOverlay.h>
 #include <LibWeb/Painting/Forward.h>
 #include <LibWeb/Painting/GridInspectorOverlay.h>
@@ -412,7 +413,11 @@ public:
     void update_layout_if_needed_for_node(Node const&, UpdateLayoutReason);
     [[nodiscard]] bool layout_is_up_to_date() const;
     void clear_devtools_layout_inspection_data();
-    void update_scrollable_overflow();
+    enum class UpdateScrollableOverflowMode : u8 {
+        AfterLayout,
+        Scheduled,
+    };
+    void update_scrollable_overflow(UpdateScrollableOverflowMode);
     void update_paint_and_hit_testing_properties_if_needed();
     void update_animated_style_if_needed();
     void update_style_computer_viewport_rect();
@@ -964,6 +969,8 @@ public:
         u64 registered_properties_cache_rebuilds { 0 };
         u64 style_sheet_invalidation_set_builds { 0 };
         u64 scope_rule_cache_builds { 0 };
+        u64 relayouts_performed { 0 };
+        u64 scrollable_overflow_recalculations { 0 };
     };
     StyleInvalidationCounters& style_invalidation_counters() const { return m_style_invalidation_counters; }
     void reset_style_invalidation_counters() const;
@@ -975,6 +982,8 @@ public:
     bool needs_accumulated_visual_contexts_update() const { return m_needs_accumulated_visual_contexts_update; }
     void schedule_accumulated_visual_context_value_update(Element&);
     void schedule_accumulated_visual_context_value_update(Layout::Node const&);
+    void schedule_scrollable_overflow_recalculation(Element&);
+    void schedule_scrollable_overflow_recalculation(Layout::Node const&);
 
     virtual JS::Value named_item_value(Utf16FlyString const& name) const override;
     virtual Vector<Utf16FlyString> supported_property_names() const override;
@@ -1589,6 +1598,14 @@ private:
 
     bool m_needs_accumulated_visual_contexts_update { false };
     Vector<WeakPtr<Painting::Paintable>> m_paintable_boxes_needing_visual_context_value_update;
+
+    bool m_needs_full_scrollable_overflow_recalculation { false };
+    Vector<WeakPtr<Painting::Paintable>> m_paintable_boxes_needing_scrollable_overflow_recalculation;
+    // NB: Holds raw layout node pointers that are only safe to read while m_layout_root still owns
+    //     the tree they came from: every full layout rebuilds the map, layout tree teardown clears
+    //     it, and its only reader, the scheduled scrollable overflow recalculation, runs only when
+    //     layout is up to date.
+    Layout::ContainedBoxesMap m_scrollable_overflow_contained_boxes_from_last_layout;
     bool m_needs_invalidation_of_elements_affected_by_has { false };
     Vector<GC::Ref<Node>> m_style_scopes_with_pending_has_invalidations;
     CSS::SheetSetStyleCacheRegistry m_sheet_set_style_cache_registry;

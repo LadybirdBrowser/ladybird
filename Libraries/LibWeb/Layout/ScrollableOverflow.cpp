@@ -15,18 +15,25 @@
 
 namespace Web::Layout {
 
-ContainedBoxesMap build_contained_boxes_map(Node const& root)
+ScrollableOverflowMeasurementWork collect_scrollable_overflow_measurement_work(Node const& root)
 {
-    ContainedBoxesMap contained_boxes_map;
+    auto needs_measurement = [](Box const& box) {
+        auto paintable = box.paintable_box();
+        return paintable && !paintable->overflow_data().has_value();
+    };
+
+    ScrollableOverflowMeasurementWork work;
     root.for_each_in_inclusive_subtree([&](auto& node) {
         auto const* box = as_if<Box>(node);
         if (!box || !box->paintable_box())
             return TraversalDecision::Continue;
-        if (auto const* containing_block = box->containing_block())
-            contained_boxes_map.ensure(containing_block).append(box);
+        if (needs_measurement(*box))
+            work.boxes_to_measure.append(box);
+        if (auto const* containing_block = box->containing_block(); containing_block && needs_measurement(*containing_block))
+            work.contained_boxes_map.ensure(containing_block).append(box);
         return TraversalDecision::Continue;
     });
-    return contained_boxes_map;
+    return work;
 }
 
 struct PhysicalOverflowDirections {

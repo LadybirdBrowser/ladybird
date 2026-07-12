@@ -268,7 +268,9 @@ public:
         return m_overflow_data->scrollable_overflow_rect;
     }
 
+    [[nodiscard]] Optional<OverflowData> const& overflow_data() const { return m_overflow_data; }
     void set_overflow_data(OverflowData data) { m_overflow_data = move(data); }
+    void clear_overflow_data() { m_overflow_data.clear(); }
 
     virtual void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::Yes);
 

@@ -902,6 +902,8 @@ AnimationUpdateContext::~AnimationUpdateContext()
             //     scheduled here, for each affected descendant.
             if (element_invalidation.accumulated_visual_contexts() == CSS::AccumulatedVisualContextInvalidation::UpdateValues)
                 element.document().schedule_accumulated_visual_context_value_update(element);
+            if (element_invalidation.needs_scrollable_overflow_recalculation())
+                element.document().schedule_scrollable_overflow_recalculation(element);
             invalidation |= element_invalidation;
             return TraversalDecision::Continue;
         });
@@ -929,6 +931,14 @@ AnimationUpdateContext::~AnimationUpdateContext()
                     element.document().schedule_accumulated_visual_context_value_update(*pseudo_element_node);
             } else {
                 element.document().schedule_accumulated_visual_context_value_update(target);
+            }
+        }
+        if (invalidation.needs_scrollable_overflow_recalculation()) {
+            if (element.pseudo_element().has_value()) {
+                if (auto pseudo_element_node = target->pseudo_element_unsafe_layout_node(element.pseudo_element().value()))
+                    element.document().schedule_scrollable_overflow_recalculation(*pseudo_element_node);
+            } else {
+                element.document().schedule_scrollable_overflow_recalculation(target);
             }
         }
 

@@ -36,6 +36,9 @@ static void apply_element_style_invalidation_after_style_change(DOM::Element& el
     if (invalidation.accumulated_visual_contexts() == AccumulatedVisualContextInvalidation::UpdateValues)
         element.document().schedule_accumulated_visual_context_value_update(element);
 
+    if (invalidation.needs_scrollable_overflow_recalculation())
+        element.document().schedule_scrollable_overflow_recalculation(element);
+
     if (invalidation.needs_relayout())
         element.set_needs_layout_update(DOM::SetNeedsLayoutReason::StyleChange);
     if (invalidation.needs_layout_tree_rebuild())
