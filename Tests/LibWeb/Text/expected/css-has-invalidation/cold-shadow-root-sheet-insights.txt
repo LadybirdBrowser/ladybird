@@ -3,5 +3,5 @@
   hasAncestorWalkInvocations: 0
 rgb(255, 0, 0)
 [cold shadow root with :has()]
-  hasInvalidationRuleCacheBuilds: 1
+  hasInvalidationRuleCacheBuilds: 0
   hasAncestorWalkInvocations: 1

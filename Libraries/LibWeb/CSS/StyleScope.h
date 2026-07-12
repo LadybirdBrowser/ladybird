@@ -193,9 +193,7 @@ public:
     [[nodiscard]] bool may_have_has_selectors() const;
     [[nodiscard]] bool may_have_user_has_selectors() const;
     [[nodiscard]] bool may_have_user_pseudo_class_selectors(PseudoClass) const;
-    [[nodiscard]] bool have_has_selectors() const;
     [[nodiscard]] bool may_have_has_selectors_with_relative_selector_that_has_sibling_combinator() const;
-    [[nodiscard]] bool have_has_selectors_with_relative_selector_that_has_sibling_combinator() const;
     [[nodiscard]] bool have_size_container_queries() const;
 
     void for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&)> const& callback) const;

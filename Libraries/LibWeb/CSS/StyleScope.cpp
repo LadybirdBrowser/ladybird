@@ -1126,11 +1126,6 @@ bool StyleScope::may_have_user_pseudo_class_selectors(PseudoClass pseudo_class) 
     return may_have_user_pseudo_class_selectors;
 }
 
-bool StyleScope::have_has_selectors() const
-{
-    return rule_cache().selector_insights.has_has_selectors;
-}
-
 bool StyleScope::may_have_has_selectors_with_relative_selector_that_has_sibling_combinator() const
 {
     if (!has_valid_rule_cache()) {
@@ -1144,11 +1139,6 @@ bool StyleScope::may_have_has_selectors_with_relative_selector_that_has_sibling_
         return may_have_has_selectors_with_relative_selector_that_has_sibling_combinator;
     }
 
-    return rule_cache().selector_insights.has_has_selectors_with_relative_selector_that_has_sibling_combinator;
-}
-
-bool StyleScope::have_has_selectors_with_relative_selector_that_has_sibling_combinator() const
-{
     return rule_cache().selector_insights.has_has_selectors_with_relative_selector_that_has_sibling_combinator;
 }
 
