@@ -943,7 +943,7 @@ QFrame#LadybirdAutocompletePopup {{
     color: {2};
     background: {0};
     border: 1px solid {1};
-    border-radius: 8px;
+    border-radius: 0 0 10px 10px;
 }}
 
 QListView#LadybirdAutocompleteList {{

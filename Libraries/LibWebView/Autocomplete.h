@@ -61,6 +61,7 @@ struct WEBVIEW_API AutocompleteSuggestion {
     Optional<String> title;
     Optional<String> subtitle;
     Optional<String> favicon_base64_png;
+    String highlight_input;
     AutocompleteMatchClass match_class { AutocompleteMatchClass::None };
     i32 relevance { 0 };
     i32 match_relevance { 0 };
@@ -70,6 +71,11 @@ struct WEBVIEW_API AutocompleteSuggestion {
     bool is_verbatim { false };
     bool can_be_automatically_selected { true };
     bool can_be_inline_completed { false };
+};
+
+struct AutocompleteMatchRange {
+    size_t start { 0 };
+    size_t length { 0 };
 };
 
 struct WEBVIEW_API AutocompleteBookmark {
@@ -82,6 +88,7 @@ struct WEBVIEW_API AutocompleteBookmark {
 WEBVIEW_API ReadonlySpan<AutocompleteEngine> autocomplete_engines();
 WEBVIEW_API Optional<AutocompleteEngine const&> find_autocomplete_engine_by_name(StringView name);
 WEBVIEW_API String autocomplete_suggestion_display_text(AutocompleteSuggestion const&);
+WEBVIEW_API Vector<AutocompleteMatchRange> autocomplete_match_ranges(StringView input, StringView text);
 WEBVIEW_API bool autocomplete_urls_match(StringView left, StringView right);
 WEBVIEW_API bool autocomplete_url_can_complete(StringView query, StringView suggestion);
 

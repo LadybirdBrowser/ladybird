@@ -298,3 +298,14 @@ TEST_CASE(a_scheme_does_not_disable_origin_diversity)
     EXPECT_EQ(results[1].text, "https://news.example/two"sv);
     EXPECT_EQ(results[2].text, "https://other.example/news"sv);
 }
+
+TEST_CASE(presentation_match_ranges_are_case_insensitive_and_merged)
+{
+    auto ranges = WebView::autocomplete_match_ranges("git hub"sv, "GitHub github"sv);
+
+    EXPECT_EQ(ranges.size(), 2u);
+    EXPECT_EQ(ranges[0].start, 0u);
+    EXPECT_EQ(ranges[0].length, 6u);
+    EXPECT_EQ(ranges[1].start, 7u);
+    EXPECT_EQ(ranges[1].length, 6u);
+}

@@ -8,6 +8,7 @@
 #include <AK/CharacterTypes.h>
 #include <AK/Debug.h>
 #include <AK/Find.h>
+#include <AK/QuickSort.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Timer.h>
 #include <LibRequests/Request.h>
@@ -106,6 +107,41 @@ String autocomplete_suggestion_display_text(AutocompleteSuggestion const& sugges
     return url_for_display(*url);
 }
 
+Vector<AutocompleteMatchRange> autocomplete_match_ranges(StringView input, StringView text)
+{
+    Vector<AutocompleteMatchRange> ranges;
+
+    for (auto token : input.split_view_if([](char ch) { return is_ascii_space(ch); })) {
+        if (token.is_empty())
+            continue;
+
+        for (size_t offset = 0; offset + token.length() <= text.length();) {
+            auto candidate = text.substring_view(offset, token.length());
+            if (candidate.equals_ignoring_ascii_case(token)) {
+                ranges.append({ offset, token.length() });
+                offset += token.length();
+            } else {
+                ++offset;
+            }
+        }
+    }
+
+    quick_sort(ranges, [](auto const& left, auto const& right) {
+        return left.start < right.start;
+    });
+
+    Vector<AutocompleteMatchRange> merged_ranges;
+    for (auto const& range : ranges) {
+        if (merged_ranges.is_empty() || merged_ranges.last().start + merged_ranges.last().length < range.start) {
+            merged_ranges.append(range);
+            continue;
+        }
+        auto end = max(merged_ranges.last().start + merged_ranges.last().length, range.start + range.length);
+        merged_ranges.last().length = end - merged_ranges.last().start;
+    }
+    return merged_ranges;
+}
+
 [[maybe_unused]] static ByteString log_autocomplete_suggestions(Vector<AutocompleteSuggestion> const& suggestions)
 {
     Vector<ByteString> values;
@@ -136,6 +172,7 @@ static Optional<AutocompleteSuggestion> search_for_query_suggestion(StringView q
         .title = query_string,
         .subtitle = move(subtitle),
         .favicon_base64_png = {},
+        .highlight_input = {},
         .relevance = contains_whitespace ? 1000 : 900,
         .is_verbatim = true,
         .can_be_automatically_selected = true,
@@ -154,6 +191,7 @@ static Optional<AutocompleteSuggestion> literal_url_suggestion(StringView query)
         .title = {},
         .subtitle = {},
         .favicon_base64_png = {},
+        .highlight_input = {},
         .relevance = 900,
         .is_verbatim = true,
         .can_be_automatically_selected = true,
@@ -175,6 +213,7 @@ static Vector<AutocompleteSuggestion> make_remote_suggestions(Vector<String> rem
             .title = {},
             .subtitle = {},
             .favicon_base64_png = {},
+            .highlight_input = {},
             .relevance = relevance,
             .is_verbatim = false,
             .can_be_automatically_selected = false,
@@ -320,6 +359,8 @@ void Autocomplete::deliver_current_result()
         m_local_suggestions,
         make_remote_suggestions(m_remote_suggestions),
         m_max_suggestions);
+    for (auto& suggestion : merged_suggestions)
+        suggestion.highlight_input = m_trimmed_query;
     auto result_kind = m_local_query_complete && m_remote_query_complete
         ? AutocompleteResultKind::Final
         : AutocompleteResultKind::Intermediate;

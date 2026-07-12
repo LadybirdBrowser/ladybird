@@ -10,11 +10,11 @@
 static NSString* const AUTOCOMPLETE_IDENTIFIER = @"Autocomplete";
 static constexpr CGFloat const POPOVER_PADDING = 8;
 static constexpr CGFloat const MINIMUM_WIDTH = 100;
-static constexpr CGFloat const CELL_HORIZONTAL_PADDING = 8;
-static constexpr CGFloat const CELL_VERTICAL_PADDING = 6;
-static constexpr CGFloat const CELL_ICON_SIZE = 16;
-static constexpr CGFloat const CELL_ICON_TEXT_SPACING = 6;
-static constexpr CGFloat const CELL_LABEL_VERTICAL_SPACING = 3;
+static constexpr CGFloat const CELL_HORIZONTAL_PADDING = 12;
+static constexpr CGFloat const CELL_VERTICAL_PADDING = 8;
+static constexpr CGFloat const CELL_ICON_SIZE = 20;
+static constexpr CGFloat const CELL_ICON_TEXT_SPACING = 10;
+static constexpr CGFloat const CELL_LABEL_VERTICAL_SPACING = 4;
 static constexpr size_t MAXIMUM_VISIBLE_AUTOCOMPLETE_SUGGESTIONS = 6;
 
 static NSFont* autocomplete_primary_font();
@@ -72,7 +72,7 @@ static NSFont* autocomplete_primary_font()
     static NSFont* font;
     static dispatch_once_t token;
     dispatch_once(&token, ^{
-        font = [NSFont systemFontOfSize:[NSFont systemFontSize] weight:NSFontWeightSemibold];
+        font = [NSFont systemFontOfSize:[NSFont systemFontSize] + 1.5 weight:NSFontWeightRegular];
     });
     return font;
 }
@@ -82,7 +82,7 @@ static NSFont* autocomplete_secondary_font()
     static NSFont* font;
     static dispatch_once_t token;
     dispatch_once(&token, ^{
-        font = [NSFont systemFontOfSize:[NSFont smallSystemFontSize]];
+        font = [NSFont systemFontOfSize:[NSFont smallSystemFontSize] + 1];
     });
     return font;
 }
@@ -109,28 +109,66 @@ static NSImage* literal_url_suggestion_icon()
     return image;
 }
 
+static NSAttributedString* autocomplete_attributed_string(StringView text, StringView highlight_input, NSFont* font, NSColor* color, bool emphasize_origin)
+{
+    auto string = MUST(String::from_utf8(text));
+    auto* ns_string = Ladybird::string_to_ns_string(string);
+    auto* attributed_string = [[NSMutableAttributedString alloc] initWithString:ns_string
+                                                                     attributes:@ {
+                                                                         NSFontAttributeName : font,
+                                                                         NSForegroundColorAttributeName : color,
+                                                                     }];
+
+    if (emphasize_origin) {
+        auto slash = text.find('/');
+        auto origin_length = slash.value_or(text.length());
+        auto origin = Ladybird::string_to_ns_string(MUST(String::from_utf8(text.substring_view(0, origin_length))));
+        [attributed_string addAttribute:NSFontAttributeName value:[NSFont systemFontOfSize:font.pointSize weight:NSFontWeightMedium] range:NSMakeRange(0, origin.length)];
+    }
+
+    for (auto const& range : WebView::autocomplete_match_ranges(highlight_input, text)) {
+        auto prefix = Ladybird::string_to_ns_string(MUST(String::from_utf8(text.substring_view(0, range.start))));
+        auto match = Ladybird::string_to_ns_string(MUST(String::from_utf8(text.substring_view(range.start, range.length))));
+        auto ns_range = NSMakeRange(prefix.length, match.length);
+        [attributed_string addAttribute:NSFontAttributeName value:[NSFont systemFontOfSize:font.pointSize weight:NSFontWeightBold] range:ns_range];
+        [attributed_string addAttribute:NSForegroundColorAttributeName value:[NSColor labelColor] range:ns_range];
+    }
+    return attributed_string;
+}
+
 static CGFloat autocomplete_visible_width(NSView* view)
 {
     auto* scroll_view = view.enclosingScrollView;
     return scroll_view ? scroll_view.contentSize.width : NSWidth(view.bounds);
 }
 
-@protocol AutocompleteTableViewHoverObserver <NSObject>
-
-- (void)autocompleteTableViewHoveredRowChanged:(NSInteger)row;
-
-@end
-
 @interface AutocompleteRowView : NSTableRowView
+@property (nonatomic) BOOL hovered;
 @end
 
 @implementation AutocompleteRowView
 
+- (void)setHovered:(BOOL)hovered
+{
+    _hovered = hovered;
+    [self setNeedsDisplay:YES];
+}
+
+- (void)drawBackgroundInRect:(NSRect)dirtyRect
+{
+    if (!self.hovered || self.isSelected)
+        return;
+    auto visible_bounds = NSMakeRect(0, 0, autocomplete_visible_width(self), NSHeight(self.bounds));
+    auto* path = [NSBezierPath bezierPathWithRoundedRect:NSInsetRect(visible_bounds, 4, 2) xRadius:7 yRadius:7];
+    [[[NSColor labelColor] colorWithAlphaComponent:0.06] setFill];
+    [path fill];
+}
+
 - (void)drawSelectionInRect:(NSRect)dirtyRect
 {
     auto visible_bounds = NSMakeRect(0, 0, autocomplete_visible_width(self), NSHeight(self.bounds));
-    auto selection_rect = NSInsetRect(visible_bounds, 2, 3);
-    auto* selection_path = [NSBezierPath bezierPathWithRoundedRect:selection_rect xRadius:6 yRadius:6];
+    auto selection_rect = NSInsetRect(visible_bounds, 4, 2);
+    auto* selection_path = [NSBezierPath bezierPathWithRoundedRect:selection_rect xRadius:7 yRadius:7];
 
     [[[NSColor controlAccentColor] colorWithAlphaComponent:0.16] setFill];
     [selection_path fill];
@@ -141,6 +179,7 @@ static CGFloat autocomplete_visible_width(NSView* view)
 @interface AutocompleteSuggestionView : NSTableCellView
 
 @property (nonatomic, strong) NSImageView* icon_view;
+@property (nonatomic, strong) NSImageView* badge_view;
 @property (nonatomic, strong) NSTextField* title_text_field;
 @property (nonatomic, strong) NSTextField* url_text_field;
 
@@ -151,12 +190,19 @@ static CGFloat autocomplete_visible_width(NSView* view)
 
 @interface AutocompleteTableView : NSTableView
 
-@property (nonatomic, weak) id<AutocompleteTableViewHoverObserver> hover_observer;
 @property (nonatomic, strong) NSTrackingArea* tracking_area;
+@property (nonatomic) NSInteger hovered_row;
 
 @end
 
 @implementation AutocompleteTableView
+
+- (instancetype)initWithFrame:(NSRect)frame
+{
+    if (self = [super initWithFrame:frame])
+        self.hovered_row = -1;
+    return self;
+}
 
 - (void)updateTrackingAreas
 {
@@ -177,13 +223,22 @@ static CGFloat autocomplete_visible_width(NSView* view)
     [super mouseMoved:event];
 
     auto point = [self convertPoint:event.locationInWindow fromView:nil];
-    [self.hover_observer autocompleteTableViewHoveredRowChanged:[self rowAtPoint:point]];
+    auto row = [self rowAtPoint:point];
+    if (row == self.hovered_row)
+        return;
+    if (self.hovered_row >= 0)
+        [(AutocompleteRowView*)[self rowViewAtRow:self.hovered_row makeIfNecessary:NO] setHovered:NO];
+    self.hovered_row = row;
+    if (self.hovered_row >= 0)
+        [(AutocompleteRowView*)[self rowViewAtRow:self.hovered_row makeIfNecessary:NO] setHovered:YES];
 }
 
 - (void)mouseExited:(NSEvent*)event
 {
     [super mouseExited:event];
-    [self.hover_observer autocompleteTableViewHoveredRowChanged:-1];
+    if (self.hovered_row >= 0)
+        [(AutocompleteRowView*)[self rowViewAtRow:self.hovered_row makeIfNecessary:NO] setHovered:NO];
+    self.hovered_row = -1;
 }
 
 @end
@@ -205,7 +260,7 @@ static CGFloat autocomplete_visible_width(NSView* view)
 
 @end
 
-@interface Autocomplete () <AutocompleteTableViewHoverObserver, NSTableViewDataSource, NSTableViewDelegate>
+@interface Autocomplete () <NSTableViewDataSource, NSTableViewDelegate>
 {
     Vector<WebView::AutocompleteSuggestion> m_suggestions;
 }
@@ -253,7 +308,6 @@ static CGFloat autocomplete_visible_width(NSView* view)
         [self.table_view setDataSource:self];
         [self.table_view setDelegate:self];
         [self.table_view setTarget:self];
-        [(AutocompleteTableView*)self.table_view setHover_observer:self];
 
         self.scroll_view = [[NSScrollView alloc] initWithFrame:NSZeroRect];
         [self.scroll_view setAutohidesScrollers:YES];
@@ -268,7 +322,10 @@ static CGFloat autocomplete_visible_width(NSView* view)
         self.content_view = [[NSView alloc] initWithFrame:NSZeroRect];
         [self.content_view setWantsLayer:YES];
         [self.content_view.layer setBackgroundColor:[NSColor windowBackgroundColor].CGColor];
-        [self.content_view.layer setCornerRadius:8];
+        [self.content_view.layer setCornerRadius:10];
+        [self.content_view.layer setMaskedCorners:kCALayerMinXMinYCorner | kCALayerMaxXMinYCorner];
+        [self.content_view.layer setBorderWidth:1];
+        [self.content_view.layer setBorderColor:[[NSColor separatorColor] colorWithAlphaComponent:0.55].CGColor];
         [self.content_view addSubview:self.scroll_view];
         self.suggestion_icons = [NSMutableDictionary dictionary];
 
@@ -399,17 +456,6 @@ static CGFloat autocomplete_visible_width(NSView* view)
     return ceil(total_height);
 }
 
-- (void)autocompleteTableViewHoveredRowChanged:(NSInteger)row
-{
-    if (![self isSelectableRow:row])
-        return;
-
-    if (row == self.table_view.selectedRow)
-        return;
-
-    [self selectRow:row notifyObserver:YES];
-}
-
 - (void)show
 {
     auto* toolbar_view = self.toolbar_item.view;
@@ -497,6 +543,13 @@ static CGFloat autocomplete_visible_width(NSView* view)
         [view addSubview:icon_view];
         [view setIcon_view:icon_view];
 
+        NSImageView* badge_view = [[NSImageView alloc] initWithFrame:NSZeroRect];
+        [badge_view setImageScaling:NSImageScaleProportionallyDown];
+        [badge_view setImage:[NSImage imageWithSystemSymbolName:@"star.fill" accessibilityDescription:@""]];
+        [badge_view setContentTintColor:[NSColor secondaryLabelColor]];
+        [view addSubview:badge_view];
+        [view setBadge_view:badge_view];
+
         NSTextField* title_text_field = [[NSTextField alloc] initWithFrame:NSZeroRect];
         [title_text_field setBezeled:NO];
         [title_text_field setDrawsBackground:NO];
@@ -521,9 +574,8 @@ static CGFloat autocomplete_visible_width(NSView* view)
 
     auto const& suggestion = m_suggestions[row];
     auto* suggestion_text = Ladybird::string_to_ns_string(suggestion.text);
-    auto* display_text = Ladybird::string_to_ns_string(WebView::autocomplete_suggestion_display_text(suggestion));
+    auto suggestion_display_text = WebView::autocomplete_suggestion_display_text(suggestion);
     auto* title_text = suggestion.title.has_value() ? Ladybird::string_to_ns_string(*suggestion.title) : nil;
-    auto* secondary_text = suggestion.subtitle.has_value() ? Ladybird::string_to_ns_string(*suggestion.subtitle) : display_text;
     auto* favicon = [self.suggestion_icons objectForKey:suggestion_text];
     auto* icon = suggestion.source == WebView::AutocompleteSuggestionSource::LiteralURL
         ? literal_url_suggestion_icon()
@@ -549,14 +601,19 @@ static CGFloat autocomplete_visible_width(NSView* view)
         || suggestion.source == WebView::AutocompleteSuggestionSource::Adaptive;
     [view.icon_view setContentTintColor:!is_local_suggestion || favicon == nil ? [NSColor secondaryLabelColor] : nil];
     [view.icon_view setHidden:NO];
+    static constexpr CGFloat badge_size = 9;
+    [view.badge_view setFrame:NSMakeRect(CELL_HORIZONTAL_PADDING + CELL_ICON_SIZE - badge_size + 2,
+                                  floor((NSHeight(view.bounds) - CELL_ICON_SIZE) / 2.f) - 2,
+                                  badge_size,
+                                  badge_size)];
+    [view.badge_view setHidden:suggestion.source != WebView::AutocompleteSuggestionSource::Bookmark];
 
     if (title_text != nil) {
         CGFloat text_block_height = primary_text_height + CELL_LABEL_VERTICAL_SPACING + secondary_text_height;
         CGFloat text_block_origin_y = floor((NSHeight(view.bounds) - text_block_height) / 2.f);
 
         [view.title_text_field setHidden:NO];
-        [view.title_text_field setStringValue:title_text];
-        [view.title_text_field setTextColor:[NSColor textColor]];
+        [view.title_text_field setAttributedStringValue:autocomplete_attributed_string(suggestion.title->bytes_as_string_view(), suggestion.highlight_input, autocomplete_primary_font(), [NSColor textColor], false)];
         [view.title_text_field setFrame:NSMakeRect(
                                             text_origin_x,
                                             text_block_origin_y + secondary_text_height + CELL_LABEL_VERTICAL_SPACING,
@@ -573,7 +630,7 @@ static CGFloat autocomplete_visible_width(NSView* view)
     } else {
         [view.title_text_field setHidden:YES];
 
-        [view.url_text_field setFont:[NSFont systemFontOfSize:[NSFont systemFontSize]]];
+        [view.url_text_field setFont:autocomplete_primary_font()];
         [view.url_text_field setTextColor:[NSColor textColor]];
         [view.url_text_field setFrame:NSMakeRect(
                                           text_origin_x,
@@ -582,7 +639,13 @@ static CGFloat autocomplete_visible_width(NSView* view)
                                           primary_text_height)];
     }
 
-    [view.url_text_field setStringValue:(title_text != nil ? secondary_text : display_text)];
+    auto secondary_string = suggestion.subtitle.has_value() ? suggestion.subtitle->bytes_as_string_view() : suggestion_display_text.bytes_as_string_view();
+    auto* secondary_font = title_text != nil ? autocomplete_secondary_font() : autocomplete_primary_font();
+    auto* secondary_color = title_text != nil || suggestion.source == WebView::AutocompleteSuggestionSource::Search
+        ? [NSColor secondaryLabelColor]
+        : [NSColor textColor];
+    auto emphasize_origin = suggestion.source != WebView::AutocompleteSuggestionSource::Search && !suggestion.subtitle.has_value();
+    [view.url_text_field setAttributedStringValue:autocomplete_attributed_string(secondary_string, suggestion.highlight_input, secondary_font, secondary_color, emphasize_origin)];
     return view;
 }
 
