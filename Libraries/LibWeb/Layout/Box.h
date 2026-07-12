@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/HashMap.h>
 #include <AK/OwnPtr.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/CSS/Sizing.h>
@@ -19,11 +20,20 @@ struct LineBoxFragmentCoordinate {
     size_t fragment_index { 0 };
 };
 
+struct IntrinsicSizeCacheKey {
+    Optional<CSSPixels> measured_at_width;
+    Optional<CSSPixels> percentage_basis_width;
+    Optional<CSSPixels> percentage_basis_height;
+    Optional<CSSPixels> quirks_mode_percentage_basis_height;
+
+    bool operator==(IntrinsicSizeCacheKey const&) const = default;
+};
+
 struct IntrinsicSizes {
-    Optional<CSSPixels> min_content_width;
-    Optional<CSSPixels> max_content_width;
-    HashMap<CSSPixels, Optional<CSSPixels>> min_content_height;
-    HashMap<CSSPixels, Optional<CSSPixels>> max_content_height;
+    HashMap<IntrinsicSizeCacheKey, CSSPixels> min_content_width;
+    HashMap<IntrinsicSizeCacheKey, CSSPixels> max_content_width;
+    HashMap<IntrinsicSizeCacheKey, CSSPixels> min_content_height;
+    HashMap<IntrinsicSizeCacheKey, CSSPixels> max_content_height;
 };
 
 class WEB_API Box : public NodeWithStyleAndBoxModelMetrics {
@@ -91,5 +101,24 @@ private:
 
 template<>
 inline bool Node::fast_is<Box>() const { return is_box(); }
+
+}
+
+namespace AK {
+
+template<>
+struct Traits<Web::Layout::IntrinsicSizeCacheKey> : public DefaultTraits<Web::Layout::IntrinsicSizeCacheKey> {
+    static unsigned hash(Web::Layout::IntrinsicSizeCacheKey const& key)
+    {
+        auto optional_hash = [](Optional<Web::CSSPixels> const& value) -> unsigned {
+            return value.has_value() ? pair_int_hash(1u, Traits<Web::CSSPixels>::hash(*value)) : 0u;
+        };
+        auto hash = optional_hash(key.measured_at_width);
+        hash = pair_int_hash(hash, optional_hash(key.percentage_basis_width));
+        hash = pair_int_hash(hash, optional_hash(key.percentage_basis_height));
+        hash = pair_int_hash(hash, optional_hash(key.quirks_mode_percentage_basis_height));
+        return hash;
+    }
+};
 
 }

@@ -2641,6 +2641,16 @@ CSSPixels FormattingContext::calculate_fit_content_height(Layout::Box const& box
     return calculate_max_content_height(box, available_space.width.to_px_or_zero(), containing_block_constraints);
 }
 
+static IntrinsicSizeCacheKey intrinsic_size_cache_key(ContainingBlockConstraints const& containing_block_constraints)
+{
+    return {
+        .measured_at_width = {},
+        .percentage_basis_width = containing_block_constraints.percentage_basis_width,
+        .percentage_basis_height = containing_block_constraints.percentage_basis_height,
+        .quirks_mode_percentage_basis_height = containing_block_constraints.quirks_mode_percentage_basis_height,
+    };
+}
+
 CSSPixels FormattingContext::calculate_min_content_width(Layout::Box const& box, ContainingBlockConstraints const& containing_block_constraints) const
 {
     if (box.is_replaced_box()) {
@@ -2665,9 +2675,10 @@ CSSPixels FormattingContext::calculate_min_content_width(Layout::Box const& box,
     if (!box.has_children())
         return 0;
 
+    auto cache_key = intrinsic_size_cache_key(containing_block_constraints);
     auto& cache = box.cached_intrinsic_sizes().min_content_width;
-    if (cache.has_value())
-        return cache.value();
+    if (auto cached_value = cache.get(cache_key); cached_value.has_value())
+        return cached_value.value();
 
     LayoutState throwaway_state(box, LayoutState::Purpose::Measurement);
 
@@ -2686,7 +2697,7 @@ CSSPixels FormattingContext::calculate_min_content_width(Layout::Box const& box,
     context->run(LayoutInput { available_space, containing_block_constraints });
 
     auto min_content_width = clamp_to_max_dimension_value(context->automatic_content_width());
-    cache.emplace(min_content_width);
+    cache.set(cache_key, min_content_width);
     return min_content_width;
 }
 
@@ -2753,9 +2764,10 @@ CSSPixels FormattingContext::calculate_max_content_width(Layout::Box const& box,
     if (!box.has_children())
         return 0;
 
+    auto cache_key = intrinsic_size_cache_key(containing_block_constraints);
     auto& cache = box.cached_intrinsic_sizes().max_content_width;
-    if (cache.has_value())
-        return cache.value();
+    if (auto cached_value = cache.get(cache_key); cached_value.has_value())
+        return cached_value.value();
 
     LayoutState throwaway_state(box, LayoutState::Purpose::Measurement);
 
@@ -2774,7 +2786,7 @@ CSSPixels FormattingContext::calculate_max_content_width(Layout::Box const& box,
     context->run(LayoutInput { available_space, containing_block_constraints });
 
     auto max_content_width = clamp_to_max_dimension_value(context->automatic_content_width());
-    cache.emplace(max_content_width);
+    cache.set(cache_key, max_content_width);
     return max_content_width;
 }
 
@@ -2795,9 +2807,11 @@ CSSPixels FormattingContext::calculate_min_content_height(Layout::Box const& box
     if (!box.has_children())
         return 0;
 
-    auto& cache = box.cached_intrinsic_sizes().min_content_height.ensure(width);
-    if (cache.has_value())
-        return cache.value();
+    auto cache_key = intrinsic_size_cache_key(containing_block_constraints);
+    cache_key.measured_at_width = width;
+    auto& cache = box.cached_intrinsic_sizes().min_content_height;
+    if (auto cached_value = cache.get(cache_key); cached_value.has_value())
+        return cached_value.value();
 
     LayoutState throwaway_state(box, LayoutState::Purpose::Measurement);
 
@@ -2812,7 +2826,7 @@ CSSPixels FormattingContext::calculate_min_content_height(Layout::Box const& box
     context->run(LayoutInput { available_space, containing_block_constraints });
 
     auto min_content_height = clamp_to_max_dimension_value(context->automatic_content_height());
-    cache.emplace(min_content_height);
+    cache.set(cache_key, min_content_height);
     return min_content_height;
 }
 
@@ -2830,9 +2844,11 @@ CSSPixels FormattingContext::calculate_max_content_height(Layout::Box const& box
     if (!box.has_children())
         return 0;
 
-    auto& cache_slot = box.cached_intrinsic_sizes().max_content_height.ensure(width);
-    if (cache_slot.has_value())
-        return cache_slot.value();
+    auto cache_key = intrinsic_size_cache_key(containing_block_constraints);
+    cache_key.measured_at_width = width;
+    auto& cache = box.cached_intrinsic_sizes().max_content_height;
+    if (auto cached_value = cache.get(cache_key); cached_value.has_value())
+        return cached_value.value();
 
     LayoutState throwaway_state(box, LayoutState::Purpose::Measurement);
 
@@ -2847,7 +2863,7 @@ CSSPixels FormattingContext::calculate_max_content_height(Layout::Box const& box
     context->run(LayoutInput { available_space, containing_block_constraints });
 
     auto max_content_height = clamp_to_max_dimension_value(context->automatic_content_height());
-    cache_slot.emplace(max_content_height);
+    cache.set(cache_key, max_content_height);
     return max_content_height;
 }
 
