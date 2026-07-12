@@ -894,33 +894,41 @@ void BlockFormattingContext::layout_inline_children(BlockContainer const& block_
         // NOTE: min-width or max-width for boxes with inline children can only be applied after inside layout
         //       is done and width of box content is known
         auto used_width_px = context.automatic_content_width();
-        // https://www.w3.org/TR/css-sizing-3/#sizing-values
-        // Percentages are resolved against the width/height, as appropriate, of the box’s containing block.
-        auto containing_block_width = layout_input.containing_block_constraints.percentage_basis_width.value_or(0);
-        auto available_width = AvailableSize::make_definite(containing_block_width);
-        if (!should_treat_max_width_as_none(block_container, available_space.width, layout_input.containing_block_constraints)) {
-            auto max_width_px = calculate_inner_width(block_container, available_width, block_container.computed_values().max_width(), layout_input.containing_block_constraints);
-            if (used_width_px > max_width_px)
-                used_width_px = max_width_px;
-        }
+        // NOTE: Min and max constraints are not applied to a box that is being sized under an intrinsic
+        //       sizing constraint: per css-sizing-3, min/max-width affect a box's intrinsic size
+        //       *contributions*, and the callers of calculate_{min,max}_content_width() apply them.
+        //       Applying them here would bake the box's own min/max-width into its measured intrinsic
+        //       size, and the border-box adjustment would consume border/padding that measurement
+        //       state does not have.
+        if (block_container_state.width_constraint == SizeConstraint::None) {
+            // https://www.w3.org/TR/css-sizing-3/#sizing-values
+            // Percentages are resolved against the width/height, as appropriate, of the box’s containing block.
+            auto containing_block_width = layout_input.containing_block_constraints.percentage_basis_width.value_or(0);
+            auto available_width = AvailableSize::make_definite(containing_block_width);
+            if (!should_treat_max_width_as_none(block_container, available_space.width, layout_input.containing_block_constraints)) {
+                auto max_width_px = calculate_inner_width(block_container, available_width, block_container.computed_values().max_width(), layout_input.containing_block_constraints);
+                if (used_width_px > max_width_px)
+                    used_width_px = max_width_px;
+            }
 
-        auto should_treat_min_width_as_auto = [&] {
-            auto const& available_width = available_space.width;
-            auto const& min_width = block_container.computed_values().min_width();
-            if (min_width.is_auto())
-                return true;
-            if (min_width.is_fit_content() && available_width.is_intrinsic_sizing_constraint())
-                return true;
-            if (min_width.is_max_content() && available_width.is_max_content())
-                return true;
-            if (min_width.is_min_content() && available_width.is_min_content())
-                return true;
-            return false;
-        }();
-        if (!should_treat_min_width_as_auto) {
-            auto min_width_px = calculate_inner_width(block_container, available_width, block_container.computed_values().min_width(), layout_input.containing_block_constraints);
-            if (used_width_px < min_width_px)
-                used_width_px = min_width_px;
+            auto should_treat_min_width_as_auto = [&] {
+                auto const& available_width = available_space.width;
+                auto const& min_width = block_container.computed_values().min_width();
+                if (min_width.is_auto())
+                    return true;
+                if (min_width.is_fit_content() && available_width.is_intrinsic_sizing_constraint())
+                    return true;
+                if (min_width.is_max_content() && available_width.is_max_content())
+                    return true;
+                if (min_width.is_min_content() && available_width.is_min_content())
+                    return true;
+                return false;
+            }();
+            if (!should_treat_min_width_as_auto) {
+                auto min_width_px = calculate_inner_width(block_container, available_width, block_container.computed_values().min_width(), layout_input.containing_block_constraints);
+                if (used_width_px < min_width_px)
+                    used_width_px = min_width_px;
+            }
         }
         block_container_state.set_content_width(used_width_px);
         block_container_state.set_content_height(context.automatic_content_height());
