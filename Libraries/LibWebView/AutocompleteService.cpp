@@ -6,6 +6,7 @@
 
 #include <AK/Debug.h>
 #include <AK/OwnPtr.h>
+#include <AK/ScopeGuard.h>
 #include <LibCore/EventLoop.h>
 #include <LibDatabase/Database.h>
 #include <LibSync/Mutex.h>
@@ -30,6 +31,8 @@ AutocompleteService::~AutocompleteService()
         Sync::MutexLocker locker(m_worker_mutex);
         m_stopping = true;
         m_pending_queries.clear();
+        if (m_interruptible_database)
+            m_interruptible_database->interrupt();
         m_worker_condition.signal();
     }
 
@@ -64,6 +67,8 @@ void AutocompleteService::query(ClientID client_id, AutocompleteQueryID query_id
         return query.client_id == client_id;
     });
     m_pending_queries.append(move(query));
+    if (m_running_query_client_id == client_id && m_interruptible_database)
+        m_interruptible_database->interrupt();
     m_worker_condition.signal();
 }
 
@@ -77,6 +82,8 @@ void AutocompleteService::cancel(ClientID client_id)
     m_pending_queries.remove_all_matching([&](auto const& query) {
         return query.client_id == client_id;
     });
+    if (m_running_query_client_id == client_id && m_interruptible_database)
+        m_interruptible_database->interrupt();
 }
 
 void AutocompleteService::update_bookmarks(Vector<AutocompleteBookmark> bookmarks)
@@ -98,6 +105,16 @@ void AutocompleteService::record_engagement(OmniboxEngagement engagement)
     Sync::MutexLocker locker(m_worker_mutex);
     m_pending_engagements.append(move(engagement));
     m_worker_condition.signal();
+}
+
+bool AutocompleteService::query_is_current(Query const& query)
+{
+    Sync::MutexLocker locker(m_worker_mutex);
+    if (m_stopping)
+        return false;
+    auto active_query = m_active_queries.find(query.client_id);
+    return active_query != m_active_queries.end()
+        && active_query->value.query_id == query.query_id;
 }
 
 intptr_t AutocompleteService::worker_main(Optional<ByteString> history_database_directory)
@@ -148,10 +165,36 @@ intptr_t AutocompleteService::worker_main(Optional<ByteString> history_database_
         if (!query.has_value())
             continue;
 
+        {
+            Sync::MutexLocker locker(m_worker_mutex);
+            m_running_query_client_id = query->client_id;
+            m_interruptible_database = database.ptr();
+        }
+        ScopeGuard clear_running_query = [&] {
+            Sync::MutexLocker locker(m_worker_mutex);
+            m_running_query_client_id = {};
+            m_interruptible_database = nullptr;
+        };
+
+        if (!query_is_current(*query))
+            continue;
+
         auto preliminary_limit = max(query->max_suggestions * 4, 32uz);
-        auto suggestions = rank_history_suggestions(query->input, history_store->autocomplete_entries(query->input, preliminary_limit), preliminary_limit);
+        auto history_entries = history_store->autocomplete_entries(query->input, preliminary_limit);
+        if (!query_is_current(*query))
+            continue;
+        auto suggestions = rank_history_suggestions(query->input, move(history_entries), preliminary_limit);
+        if (!query_is_current(*query))
+            continue;
         suggestions.extend(rank_bookmark_suggestions(query->input, bookmarks, preliminary_limit));
-        suggestions.extend(rank_engagement_suggestions(query->input, history_store->omnibox_engagements(query->input, 200), preliminary_limit));
+        if (!query_is_current(*query))
+            continue;
+        auto engagements_for_query = history_store->omnibox_engagements(query->input, 200);
+        if (!query_is_current(*query))
+            continue;
+        suggestions.extend(rank_engagement_suggestions(query->input, move(engagements_for_query), preliminary_limit));
+        if (!query_is_current(*query))
+            continue;
         deliver(*query, move(suggestions));
     }
 }

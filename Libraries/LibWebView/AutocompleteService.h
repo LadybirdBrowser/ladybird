@@ -14,6 +14,7 @@
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibCore/Forward.h>
+#include <LibDatabase/Forward.h>
 #include <LibSync/ConditionVariable.h>
 #include <LibSync/Mutex.h>
 #include <LibThreading/Thread.h>
@@ -63,6 +64,7 @@ private:
 
     intptr_t worker_main(Optional<ByteString> history_database_directory);
     void deliver(Query const&, Vector<AutocompleteSuggestion>);
+    bool query_is_current(Query const&);
 
     Core::EventLoop& m_main_event_loop;
     HashMap<ClientID, NonnullRefPtr<Client>> m_clients;
@@ -74,6 +76,8 @@ private:
     Vector<Query> m_pending_queries;
     Optional<Vector<AutocompleteBookmark>> m_pending_bookmarks;
     Vector<OmniboxEngagement> m_pending_engagements;
+    Optional<ClientID> m_running_query_client_id;
+    Database::Database* m_interruptible_database { nullptr };
     bool m_stopping { false };
     NonnullRefPtr<Threading::Thread> m_worker;
 };

@@ -1052,7 +1052,7 @@ Vector<HistoryEntry> HistoryStore::PersistedStorage::autocomplete_entries(String
     auto title_query_string = MUST(String::from_utf8(title_query));
     auto url_contains_query_string = MUST(String::from_utf8(autocomplete_url_contains_query(url_query)));
 
-    m_database.execute_statement(
+    auto outcome = m_database.execute_interruptible_statement(
         m_statements.search_entries,
         [&](auto statement_id) {
             auto title = m_database.result_column<String>(statement_id, 1);
@@ -1076,6 +1076,9 @@ Vector<HistoryEntry> HistoryStore::PersistedStorage::autocomplete_entries(String
         url_contains_query_string,
         title_query_string,
         static_cast<i64>(limit));
+
+    if (outcome == Database::Database::StatementExecutionOutcome::Interrupted)
+        entries.clear();
 
     return entries;
 }
@@ -1137,7 +1140,7 @@ void HistoryStore::PersistedStorage::record_omnibox_engagement(OmniboxEngagement
 Vector<StoredOmniboxEngagement> HistoryStore::PersistedStorage::omnibox_engagements(StringView normalized_url_input, StringView normalized_search_input, size_t limit)
 {
     Vector<StoredOmniboxEngagement> results;
-    m_database.execute_statement(
+    auto outcome = m_database.execute_interruptible_statement(
         m_statements.search_omnibox_engagements,
         [&](auto statement_id) {
             results.append({
@@ -1152,6 +1155,8 @@ Vector<StoredOmniboxEngagement> HistoryStore::PersistedStorage::omnibox_engageme
         MUST(String::from_utf8(normalized_url_input)),
         MUST(String::from_utf8(normalized_search_input)),
         static_cast<i64>(limit));
+    if (outcome == Database::Database::StatementExecutionOutcome::Interrupted)
+        results.clear();
     return results;
 }
 
