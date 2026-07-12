@@ -92,9 +92,7 @@ void ViewportPaintable::finalize_async_scrolling_metadata_recording(DisplayListR
 void ViewportPaintable::reset_for_relayout()
 {
     PaintableWithLines::reset_for_relayout();
-    m_scroll_state.clear();
-    m_scroll_state_snapshot = {};
-    m_needs_to_refresh_scroll_state = true;
+    clear_scroll_state();
     m_paintable_boxes_with_auto_content_visibility.clear();
     m_visual_context_tree.clear();
     m_visual_context_tree_needs_compositor_update = false;
@@ -142,39 +140,64 @@ void ViewportPaintable::paint_all_phases(DisplayListRecordingContext& context)
     context.display_list_recorder().restore();
 }
 
+void ViewportPaintable::precompute_sticky_constraints(ScrollFrameIndex sticky_frame_index, Paintable const& paintable_box)
+{
+    auto nearest_scrolling_ancestor_index = m_scroll_state.nearest_scrolling_ancestor(sticky_frame_index);
+    if (!nearest_scrolling_ancestor_index.value())
+        return;
+
+    auto const& scroll_ancestor_paintable = m_scroll_state.frame_at(nearest_scrolling_ancestor_index).paintable_box();
+    RefPtr<Paintable const> scroll_ancestor_paintable_ref = scroll_ancestor_paintable;
+    auto sticky_border_box_rect = paintable_box.absolute_border_box_rect();
+    RefPtr<Paintable const> containing_block_of_sticky = paintable_box.containing_block();
+
+    CSSPixelRect containing_block_region;
+    bool needs_parent_offset_adjustment = false;
+    if (containing_block_of_sticky == scroll_ancestor_paintable_ref) {
+        containing_block_region = { {}, containing_block_of_sticky->scrollable_overflow_rect()->size() };
+    } else {
+        containing_block_region = containing_block_of_sticky->absolute_border_box_rect()
+                                      .translated(-scroll_ancestor_paintable.absolute_rect().top_left());
+        needs_parent_offset_adjustment = true;
+    }
+
+    m_scroll_state.frame_at(sticky_frame_index).set_sticky_constraints({
+        .position_relative_to_scroll_ancestor = sticky_border_box_rect.top_left() - scroll_ancestor_paintable.absolute_rect().top_left(),
+        .border_box_size = sticky_border_box_rect.size(),
+        .scrollport_size = scroll_ancestor_paintable.absolute_rect().size(),
+        .containing_block_region = containing_block_region,
+        .needs_parent_offset_adjustment = needs_parent_offset_adjustment,
+        .insets = paintable_box.sticky_insets(),
+    });
+}
+
+void ViewportPaintable::refresh_sticky_constraints()
+{
+    m_scroll_state.for_each_sticky_frame([&](ScrollFrameIndex index, ScrollFrame& frame) {
+        precompute_sticky_constraints(index, frame.paintable_box());
+    });
+    m_needs_to_refresh_scroll_state = true;
+}
+
+void ViewportPaintable::clear_scroll_state()
+{
+    m_scroll_state.clear();
+    m_scroll_state_snapshot = {};
+    m_needs_to_refresh_scroll_state = true;
+}
+
+void ViewportPaintable::reassign_scroll_frames()
+{
+    clear_scroll_state();
+    assign_scroll_frames();
+}
+
 void ViewportPaintable::assign_scroll_frames()
 {
-    auto precompute_sticky_constraints = [&](ScrollFrameIndex sticky_frame_index, Paintable const& paintable_box) {
-        auto nearest_scrolling_ancestor_index = m_scroll_state.nearest_scrolling_ancestor(sticky_frame_index);
-        if (!nearest_scrolling_ancestor_index.value())
-            return;
-
-        auto const& scroll_ancestor_paintable = m_scroll_state.frame_at(nearest_scrolling_ancestor_index).paintable_box();
-        RefPtr<Paintable const> scroll_ancestor_paintable_ref = scroll_ancestor_paintable;
-        auto sticky_border_box_rect = paintable_box.absolute_border_box_rect();
-        RefPtr<Paintable const> containing_block_of_sticky = paintable_box.containing_block();
-
-        CSSPixelRect containing_block_region;
-        bool needs_parent_offset_adjustment = false;
-        if (containing_block_of_sticky == scroll_ancestor_paintable_ref) {
-            containing_block_region = { {}, containing_block_of_sticky->scrollable_overflow_rect()->size() };
-        } else {
-            containing_block_region = containing_block_of_sticky->absolute_border_box_rect()
-                                          .translated(-scroll_ancestor_paintable.absolute_rect().top_left());
-            needs_parent_offset_adjustment = true;
-        }
-
-        m_scroll_state.frame_at(sticky_frame_index).set_sticky_constraints({
-            .position_relative_to_scroll_ancestor = sticky_border_box_rect.top_left() - scroll_ancestor_paintable.absolute_rect().top_left(),
-            .border_box_size = sticky_border_box_rect.size(),
-            .scrollport_size = scroll_ancestor_paintable.absolute_rect().size(),
-            .containing_block_region = containing_block_region,
-            .needs_parent_offset_adjustment = needs_parent_offset_adjustment,
-            .insets = paintable_box.sticky_insets(),
-        });
-    };
-
     for_each_in_inclusive_subtree_of_type<Paintable>([&](auto& paintable_box) {
+        paintable_box.set_enclosing_scroll_frame_index({});
+        paintable_box.set_own_scroll_frame_index({});
+
         ScrollFrameIndex sticky_scroll_frame_index;
         if (paintable_box.is_sticky_position() && paintable_box.has_sticky_insets()) {
             auto parent_index = paintable_box.nearest_scroll_frame_index();

@@ -28,7 +28,9 @@ public:
     void build_stacking_context_tree_if_needed();
 
     void assign_scroll_frames();
+    void reassign_scroll_frames();
     void refresh_scroll_state();
+    void refresh_sticky_constraints();
 
     void assign_accumulated_visual_contexts();
     bool update_accumulated_visual_context_values(Paintable&);
@@ -71,6 +73,8 @@ private:
     virtual bool is_viewport_paintable() const override { return true; }
 
     void build_stacking_context_tree();
+    void clear_scroll_state();
+    void precompute_sticky_constraints(ScrollFrameIndex, Paintable const&);
 
     explicit ViewportPaintable(Layout::Viewport const&);
 
