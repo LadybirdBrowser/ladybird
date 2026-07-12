@@ -18,6 +18,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Node.h>
+#include <LibWeb/DOM/PseudoElement.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
@@ -331,6 +332,15 @@ static void push_style_update_frame_for_child(GC::ConservativeVector<StyleUpdate
     return root_invalidation;
 }
 
+// The pending :has() flush is triggered by a document-level flag rather than the style invalidator queue, so
+// update_style() and the targeted path in update_style_for_element() have to consume it the same way. Keep that
+// in one place so the two paths cannot drift apart.
+static void flush_pending_has_invalidations(DOM::Document& document)
+{
+    if (document.consume_needs_invalidation_of_elements_affected_by_has())
+        Invalidation::invalidate_style_for_pending_has_mutations(document);
+}
+
 void update_style(DOM::Document& document)
 {
     // NOTE: If our parent document needs a relayout, we must do that *first*. This is required as it may cause the
@@ -350,8 +360,7 @@ void update_style(DOM::Document& document)
     // style change event. [CSS-Transitions-2]
     document.increment_transition_generation();
 
-    if (document.consume_needs_invalidation_of_elements_affected_by_has())
-        Invalidation::invalidate_style_for_pending_has_mutations(document);
+    flush_pending_has_invalidations(document);
 
     if (!document.style_invalidator().has_pending_invalidations() && !document.needs_full_style_update() && !document.needs_style_update() && !document.child_needs_style_update() && !document.needs_media_rule_evaluation())
         return;
@@ -438,6 +447,16 @@ ComputedProperties const* update_style_for_element(DOM::Document& document, DOM:
     // element on the path back down to the target. Normal mode also re-cascades the target path under display:none
     // ancestors, because the regular document traversal may leave those descendants stale.
 
+    // Element-backed pseudo-elements read their computed style from the element that backs them (for example,
+    // ::details-content reads from the slot inside the details element's UA shadow tree). Point the targeted walk
+    // at the backing element: the originating element's inheritance chain wouldn't include its dirty bits.
+    if (abstract_element.pseudo_element().has_value() && is_element_reference_pseudo_element(*abstract_element.pseudo_element())) {
+        if (auto pseudo_element = abstract_element.element().get_pseudo_element(*abstract_element.pseudo_element()); pseudo_element.has_value()) {
+            if (auto const* element_reference = as_if<DOM::ElementReferencePseudoElement>(*pseudo_element))
+                return update_style_for_element(document, DOM::AbstractElement { element_reference->referenced_element() }, mode);
+        }
+    }
+
     if (auto navigable = document.navigable(); navigable && navigable->container() && &navigable->container()->document() != &document)
         navigable->container()->document().update_layout(DOM::UpdateLayoutReason::ChildDocumentStyleUpdate);
 
@@ -446,17 +465,31 @@ ComputedProperties const* update_style_for_element(DOM::Document& document, DOM:
 
         document.update_animated_style_if_needed();
 
-        // Media query evaluation can enqueue normal style invalidations, so do it before deciding whether the full
-        // style traversal needs to run.
+        // Media query evaluation can enqueue normal style invalidations, so do it before deciding what pending
+        // invalidation work needs to run.
         if (document.needs_media_rule_evaluation())
             document.evaluate_media_rules_for_style_update();
 
-        if (!document.is_running_update_layout()
-            && (document.needs_full_style_update()
-                || document.needs_invalidation_of_elements_affected_by_has()
-                || document.style_invalidator().has_pending_invalidations()
-                || document.needs_style_update())) {
-            update_style(document);
+        if (!document.is_running_update_layout()) {
+            if (document.needs_full_style_update()) {
+                // A full style update bypasses per-node dirty bits, so the targeted path below can't tell which
+                // ancestors are stale; run the whole traversal.
+                update_style(document);
+            } else {
+                // Pending invalidations only mark elements dirty. Flush them so the inheritance-chain walk below
+                // sees correct dirty bits, without recomputing style for every dirty element in the document the
+                // way a full update_style() would. Elements outside the chain stay dirty until the next regular
+                // style update. The chain recompute below is still a style change event, so it gets a fresh
+                // transition generation just like the full update_style() it replaces. [CSS-Transitions-2]
+                document.increment_transition_generation();
+                flush_pending_has_invalidations(document);
+                // NB: Unlike update_style(), the invalidator only needs to run when its queue is non-empty: the
+                //     unconditional walk it would otherwise do just propagates entire-subtree dirty flags, which
+                //     the inheritance-chain walk below already checks on the path.
+                if (document.style_invalidator().has_pending_invalidations())
+                    document.style_invalidator().invalidate(document);
+                document.build_registered_properties_cache_for_style_update();
+            }
         }
     }
 
