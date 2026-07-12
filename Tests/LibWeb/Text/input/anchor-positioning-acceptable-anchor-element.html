@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+
+    /* Case 1: anchor is a float outside the positioned element's containing block. */
+    #c1-float { float: left; width: 80px; height: 30px; margin-left: 40px; anchor-name: --c1; }
+    #c1-cb { position: relative; overflow: hidden; width: 300px; height: 60px; }
+    #c1-target { position: absolute; top: anchor(--c1 bottom); left: anchor(--c1 left); width: 10px; height: 10px; }
+    .clear { clear: both; }
+
+    /* Case 2: containing block is a float, anchor is outside it. */
+    #c2-anchor { width: 80px; height: 30px; anchor-name: --c2; }
+    #c2-cb { float: left; position: relative; width: 100px; height: 60px; margin-left: 50px; }
+    #c2-target { position: absolute; top: anchor(--c2 bottom); left: anchor(--c2 left); width: 10px; height: 10px; }
+
+    /* Case 3: anchor in a sibling subtree inside the containing block. */
+    #c3-cb { position: relative; width: 300px; height: 80px; }
+    #c3-anchor { width: 60px; height: 20px; margin-left: 30px; anchor-name: --c3; }
+    #c3-target { position: absolute; top: anchor(--c3 bottom); left: anchor(--c3 right); width: 10px; height: 10px; }
+
+    /* Case 4: anchor is the containing block itself. */
+    #c4-cb { position: relative; width: 200px; height: 50px; anchor-name: --c4; }
+    #c4-target { position: absolute; top: anchor(--c4 bottom); left: anchor(--c4 left); width: 10px; height: 10px; }
+
+    /* Case 5: containing block is the ICB, anchor nested in plain divs. */
+    #c5-anchor { width: 70px; height: 20px; margin-left: 25px; anchor-name: --c5; }
+    #c5-target { position: absolute; top: anchor(--c5 bottom); left: anchor(--c5 left); width: 10px; height: 10px; }
+
+    /* Case 6: duplicate names; only the earlier registrant is inside the containing block. */
+    #c6-cb { position: relative; width: 300px; height: 60px; }
+    #c6-inside { width: 50px; height: 20px; margin-left: 15px; anchor-name: --c6; }
+    #c6-outside { width: 90px; height: 25px; anchor-name: --c6; }
+    #c6-target { position: absolute; top: anchor(--c6 bottom); left: anchor(--c6 left); width: 10px; height: 10px; }
+
+    /* Case 7: unacceptable anchor with fallback values. */
+    #c7-anchor { width: 80px; height: 30px; anchor-name: --c7; }
+    #c7-cb { position: relative; width: 200px; height: 60px; }
+    #c7-target { position: absolute; top: anchor(--c7 bottom, 33px); left: anchor(--c7 right, 44px); width: 10px; height: 10px; }
+</style>
+<div id="case1">
+    <div id="c1-float"></div>
+    <div id="c1-cb"><div id="c1-target"></div></div>
+    <div class="clear"></div>
+</div>
+<div id="case2">
+    <div id="c2-anchor"></div>
+    <div id="c2-cb"><div id="c2-target"></div></div>
+    <div class="clear"></div>
+</div>
+<div id="case3">
+    <div id="c3-cb">
+        <div><div id="c3-anchor"></div></div>
+        <div id="c3-target"></div>
+    </div>
+</div>
+<div id="case4">
+    <div id="c4-cb"><div id="c4-target"></div></div>
+</div>
+<div id="case5">
+    <div><div id="c5-anchor"></div></div>
+    <div id="c5-target"></div>
+</div>
+<div id="case6">
+    <div id="c6-cb">
+        <div id="c6-inside"></div>
+        <div id="c6-target"></div>
+    </div>
+    <div id="c6-outside"></div>
+</div>
+<div id="case7">
+    <div id="c7-anchor"></div>
+    <div id="c7-cb"><div id="c7-target"></div></div>
+</div>
+<script>
+    test(() => {
+        const rect = (id) => {
+            const r = document.getElementById(id).getBoundingClientRect();
+            return `${r.left},${r.top}`;
+        };
+        println(`1. anchor is a float outside the CB:     target at ${rect("c1-target")} (float ${rect("c1-float")}, cb ${rect("c1-cb")})`);
+        println(`2. CB is a float, anchor outside it:     target at ${rect("c2-target")} (anchor ${rect("c2-anchor")}, cb ${rect("c2-cb")})`);
+        println(`3. anchor in sibling subtree inside CB:  target at ${rect("c3-target")} (anchor ${rect("c3-anchor")})`);
+        println(`4. anchor is the CB itself:              target at ${rect("c4-target")} (cb ${rect("c4-cb")})`);
+        println(`5. CB is the ICB, anchor in plain divs:  target at ${rect("c5-target")} (anchor ${rect("c5-anchor")})`);
+        println(`6. duplicate --c6, later one outside CB: target at ${rect("c6-target")} (inside ${rect("c6-inside")}, outside ${rect("c6-outside")})`);
+        println(`7. unacceptable anchor with fallback:    target at ${rect("c7-target")} (cb ${rect("c7-cb")})`);
+    });
+</script>

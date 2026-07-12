@@ -1,0 +1,7 @@
+1. anchor is a float outside the CB:     target at 0,30 (float 40,0, cb 120,0)
+2. CB is a float, anchor outside it:     target at 50,120 (anchor 0,60, cb 50,90)
+3. anchor in sibling subtree inside CB:  target at 90,170 (anchor 30,150)
+4. anchor is the CB itself:              target at 0,280 (cb 0,230)
+5. CB is the ICB, anchor in plain divs:  target at 25,300 (anchor 25,280)
+6. duplicate --c6, later one outside CB: target at 0,385 (inside 15,300, outside 0,360)
+7. unacceptable anchor with fallback:    target at 80,415 (cb 0,415)
