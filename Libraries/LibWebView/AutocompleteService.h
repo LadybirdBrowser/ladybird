@@ -41,6 +41,7 @@ public:
     void query(ClientID, AutocompleteQueryID, String, size_t max_suggestions);
     void cancel(ClientID);
     void update_bookmarks(Vector<AutocompleteBookmark>);
+    void record_engagement(OmniboxEngagement);
 
 private:
     struct Client final : public RefCounted<Client> {
@@ -72,6 +73,7 @@ private:
     HashMap<ClientID, Query> m_active_queries;
     Vector<Query> m_pending_queries;
     Optional<Vector<AutocompleteBookmark>> m_pending_bookmarks;
+    Vector<OmniboxEngagement> m_pending_engagements;
     bool m_stopping { false };
     NonnullRefPtr<Threading::Thread> m_worker;
 };

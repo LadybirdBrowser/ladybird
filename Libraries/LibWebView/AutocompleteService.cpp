@@ -93,6 +93,13 @@ void AutocompleteService::update_bookmarks(Vector<AutocompleteBookmark> bookmark
     m_worker_condition.signal();
 }
 
+void AutocompleteService::record_engagement(OmniboxEngagement engagement)
+{
+    Sync::MutexLocker locker(m_worker_mutex);
+    m_pending_engagements.append(move(engagement));
+    m_worker_condition.signal();
+}
+
 intptr_t AutocompleteService::worker_main(Optional<ByteString> history_database_directory)
 {
     RefPtr<Database::Database> database;
@@ -111,16 +118,19 @@ intptr_t AutocompleteService::worker_main(Optional<ByteString> history_database_
                 history_store = history_store_or_error.release_value();
         }
     }
+    if (!history_store)
+        history_store = HistoryStore::create();
 
     Vector<AutocompleteBookmark> bookmarks;
 
     while (true) {
         Optional<Query> query;
         Optional<Vector<AutocompleteBookmark>> bookmark_update;
+        Vector<OmniboxEngagement> engagements;
         {
             Sync::MutexLocker locker(m_worker_mutex);
             m_worker_condition.wait_while([&] {
-                return !m_stopping && m_pending_queries.is_empty() && !m_pending_bookmarks.has_value();
+                return !m_stopping && m_pending_queries.is_empty() && !m_pending_bookmarks.has_value() && m_pending_engagements.is_empty();
             });
             if (m_stopping)
                 return 0;
@@ -128,18 +138,20 @@ intptr_t AutocompleteService::worker_main(Optional<ByteString> history_database_
                 bookmark_update = m_pending_bookmarks.release_value();
             if (!m_pending_queries.is_empty())
                 query = m_pending_queries.take_first();
+            engagements = move(m_pending_engagements);
         }
 
         if (bookmark_update.has_value())
             bookmarks = bookmark_update.release_value();
+        for (auto const& engagement : engagements)
+            history_store->record_omnibox_engagement(engagement, engagement.used_at);
         if (!query.has_value())
             continue;
 
         auto preliminary_limit = max(query->max_suggestions * 4, 32uz);
-        auto suggestions = history_store
-            ? rank_history_suggestions(query->input, history_store->autocomplete_entries(query->input, preliminary_limit), preliminary_limit)
-            : Vector<AutocompleteSuggestion> {};
+        auto suggestions = rank_history_suggestions(query->input, history_store->autocomplete_entries(query->input, preliminary_limit), preliminary_limit);
         suggestions.extend(rank_bookmark_suggestions(query->input, bookmarks, preliminary_limit));
+        suggestions.extend(rank_engagement_suggestions(query->input, history_store->omnibox_engagements(query->input, 200), preliminary_limit));
         deliver(*query, move(suggestions));
     }
 }

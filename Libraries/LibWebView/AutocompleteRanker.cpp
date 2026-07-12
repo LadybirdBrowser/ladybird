@@ -5,6 +5,7 @@
  */
 
 #include <AK/CharacterTypes.h>
+#include <AK/Find.h>
 #include <AK/Math.h>
 #include <AK/QuickSort.h>
 #include <AK/String.h>
@@ -99,6 +100,10 @@ static i32 match_relevance(AutocompleteMatchClass match_class)
         return 450;
     case AutocompleteMatchClass::TitleSubstring:
         return 450;
+    case AutocompleteMatchClass::AdaptiveExact:
+        return 550;
+    case AutocompleteMatchClass::AdaptivePrefix:
+        return 350;
     case AutocompleteMatchClass::None:
         return 0;
     }
@@ -187,6 +192,7 @@ Vector<AutocompleteSuggestion> rank_history_suggestions(StringView query, Vector
             .match_relevance = adjusted_match_relevance,
             .history_relevance = history_relevance,
             .bookmark_relevance = 0,
+            .adaptive_relevance = 0,
             .is_verbatim = false,
             .can_be_automatically_selected = can_be_automatically_selected,
             .can_be_inline_completed = can_be_inline_completed,
@@ -281,6 +287,7 @@ Vector<AutocompleteSuggestion> rank_bookmark_suggestions(StringView query, Vecto
             .match_relevance = adjusted_match_relevance,
             .history_relevance = 0,
             .bookmark_relevance = bookmark_relevance,
+            .adaptive_relevance = 0,
             .is_verbatim = false,
             .can_be_automatically_selected = can_be_automatically_selected,
             .can_be_inline_completed = can_be_inline_completed,
@@ -295,6 +302,118 @@ Vector<AutocompleteSuggestion> rank_bookmark_suggestions(StringView query, Vecto
         return left.text < right.text;
     });
 
+    if (suggestions.size() > limit)
+        suggestions.resize(limit);
+    return suggestions;
+}
+
+static bool query_contains_whitespace(StringView query)
+{
+    return any_of(query, [](auto code_unit) { return is_ascii_space(code_unit); });
+}
+
+Vector<AutocompleteSuggestion> rank_engagement_suggestions(StringView query, Vector<StoredOmniboxEngagement> engagements, size_t limit, UnixDateTime now)
+{
+    if (query.is_empty())
+        return {};
+
+    auto query_length = Utf8View { query }.length();
+    Vector<AutocompleteSuggestion> suggestions;
+    suggestions.ensure_capacity(engagements.size());
+
+    for (auto& engagement : engagements) {
+        auto normalized_query = normalize_omnibox_input(query, engagement.destination_kind);
+        if (normalized_query.is_empty() || !engagement.normalized_input.starts_with_bytes(normalized_query))
+            continue;
+
+        auto current_length = Utf8View { normalized_query }.length();
+        auto stored_length = Utf8View { engagement.normalized_input }.length();
+        if (stored_length == 0 || current_length > stored_length)
+            continue;
+
+        auto exact_association = normalized_query == engagement.normalized_input;
+        auto prefix_strength = AK::sqrt(static_cast<double>(current_length) / static_cast<double>(stored_length));
+        auto weighted_uses = 2.0 * static_cast<double>(engagement.explicit_use_count) + static_cast<double>(engagement.default_use_count);
+        auto use_strength = 1.0 - AK::exp(-weighted_uses / 2.0);
+        auto age = now - engagement.last_used_time;
+        auto age_in_days = max(0.0, static_cast<double>(age.to_seconds()) / 86'400.0);
+        auto recency = AK::pow(0.5, age_in_days / 30.0);
+        auto exact_bonus = exact_association ? 1.15 : 1.0;
+        auto adaptive_relevance = static_cast<i32>(min(500.0, 500.0 * use_strength * prefix_strength * recency * exact_bonus));
+
+        auto match_class = exact_association ? AutocompleteMatchClass::AdaptiveExact : AutocompleteMatchClass::AdaptivePrefix;
+        auto adjusted_match_relevance = exact_association
+            ? match_relevance(match_class)
+            : static_cast<i32>(static_cast<double>(match_relevance(match_class)) * prefix_strength);
+        auto source = AutocompleteSuggestionSource::Adaptive;
+        auto section = AutocompleteSuggestionSection::History;
+        bool can_be_automatically_selected = false;
+        bool can_be_inline_completed = false;
+
+        if (engagement.destination_kind == OmniboxDestinationKind::URL) {
+            auto folded_query = MUST(MUST(String::from_utf8(query)).to_casefold());
+            auto folded_destination = MUST(engagement.destination.to_casefold());
+            auto url_match_class = classify_match(folded_query, folded_destination, {});
+            if (url_match_class == AutocompleteMatchClass::ExactURL || url_match_class == AutocompleteMatchClass::URLPrefix) {
+                match_class = url_match_class;
+                adjusted_match_relevance = match_relevance(url_match_class);
+            }
+
+            auto parsed_url = URL::Parser::basic_parse(engagement.destination);
+            auto is_deep_page_without_path_input = parsed_url.has_value()
+                && parsed_url->serialize_path() != "/"sv
+                && !query_contains_path(query);
+            if (is_deep_page_without_path_input && match_class == AutocompleteMatchClass::URLPrefix && !exact_association)
+                adjusted_match_relevance -= 200;
+            auto syntactic_url_prefix = autocomplete_url_can_complete(query, engagement.destination);
+            auto explicit_threshold = query_length == 1 ? 3u : query_contains_whitespace(query) ? 2u
+                                                                                                : 1u;
+            if (exact_association) {
+                can_be_automatically_selected = engagement.explicit_use_count >= explicit_threshold
+                    || (query_length >= 2 && weighted_uses >= 3.0);
+            } else {
+                can_be_automatically_selected = query_length >= 2
+                    && syntactic_url_prefix
+                    && weighted_uses >= 3.0;
+            }
+
+            auto deep_page_has_inline_intent = !is_deep_page_without_path_input
+                || (exact_association && engagement.explicit_use_count >= 2);
+            can_be_inline_completed = can_be_automatically_selected
+                && syntactic_url_prefix
+                && match_class == AutocompleteMatchClass::URLPrefix
+                && deep_page_has_inline_intent;
+        } else {
+            source = AutocompleteSuggestionSource::Search;
+            section = AutocompleteSuggestionSection::SearchSuggestions;
+        }
+
+        suggestions.append({
+            .source = source,
+            .section = section,
+            .text = move(engagement.destination),
+            .title = {},
+            .subtitle = {},
+            .favicon_base64_png = {},
+            .match_class = match_class,
+            .relevance = adjusted_match_relevance + adaptive_relevance,
+            .match_relevance = adjusted_match_relevance,
+            .history_relevance = 0,
+            .bookmark_relevance = 0,
+            .adaptive_relevance = adaptive_relevance,
+            .is_verbatim = false,
+            .can_be_automatically_selected = can_be_automatically_selected,
+            .can_be_inline_completed = can_be_inline_completed,
+        });
+    }
+
+    quick_sort(suggestions, [](auto const& left, auto const& right) {
+        if (left.relevance != right.relevance)
+            return left.relevance > right.relevance;
+        if (left.match_class != right.match_class)
+            return static_cast<u8>(left.match_class) < static_cast<u8>(right.match_class);
+        return left.text < right.text;
+    });
     if (suggestions.size() > limit)
         suggestions.resize(limit);
     return suggestions;

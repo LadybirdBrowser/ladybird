@@ -86,6 +86,13 @@ void Autocomplete::cancel_pending_query()
     m_remote_suggestions.clear();
 }
 
+void Autocomplete::record_engagement(OmniboxEngagement engagement)
+{
+    if (m_is_private == IsPrivate::Yes)
+        return;
+    Application::autocomplete_service().record_engagement(move(engagement));
+}
+
 StringView autocomplete_section_title(AutocompleteSuggestionSection section)
 {
     switch (section) {

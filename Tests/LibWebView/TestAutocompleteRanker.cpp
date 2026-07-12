@@ -44,6 +44,18 @@ WebView::AutocompleteBookmark bookmark(StringView url, Optional<StringView> titl
     };
 }
 
+WebView::StoredOmniboxEngagement engagement(StringView input, WebView::OmniboxDestinationKind kind, StringView destination, u64 explicit_use_count, u64 default_use_count = 0)
+{
+    return {
+        .normalized_input = MUST(String::from_utf8(input)),
+        .destination_kind = kind,
+        .destination = MUST(String::from_utf8(destination)),
+        .explicit_use_count = explicit_use_count,
+        .default_use_count = default_use_count,
+        .last_used_time = UnixDateTime::from_seconds_since_epoch(now_seconds),
+    };
+}
+
 }
 
 TEST_CASE(url_prefix_is_ranked_and_can_complete)
@@ -147,4 +159,61 @@ TEST_CASE(bookmark_title_and_folder_matches_are_not_automatic)
     EXPECT_EQ(folder_suggestions.size(), 1u);
     EXPECT(!folder_suggestions[0].can_be_automatically_selected);
     EXPECT(!folder_suggestions[0].can_be_inline_completed);
+}
+
+TEST_CASE(exact_adaptive_association_can_navigate_without_completing)
+{
+    auto suggestions = WebView::rank_engagement_suggestions("docs"sv, {
+                                                                          engagement("docs"sv, WebView::OmniboxDestinationKind::URL, "https://example.com/manual/"sv, 1),
+                                                                      },
+        8, UnixDateTime::from_seconds_since_epoch(now_seconds));
+
+    EXPECT_EQ(suggestions.size(), 1u);
+    EXPECT_EQ(suggestions[0].source, WebView::AutocompleteSuggestionSource::Adaptive);
+    EXPECT(suggestions[0].can_be_automatically_selected);
+    EXPECT(!suggestions[0].can_be_inline_completed);
+}
+
+TEST_CASE(adaptive_url_prefix_can_complete)
+{
+    auto suggestions = WebView::rank_engagement_suggestions("lady"sv, {
+                                                                          engagement("ladybird"sv, WebView::OmniboxDestinationKind::URL, "https://ladybird.org/"sv, 2),
+                                                                      },
+        8, UnixDateTime::from_seconds_since_epoch(now_seconds));
+
+    EXPECT_EQ(suggestions.size(), 1u);
+    EXPECT_EQ(suggestions[0].match_class, WebView::AutocompleteMatchClass::URLPrefix);
+    EXPECT(suggestions[0].can_be_automatically_selected);
+    EXPECT(suggestions[0].can_be_inline_completed);
+}
+
+TEST_CASE(search_like_adaptive_url_requires_two_explicit_uses)
+{
+    auto weak = WebView::rank_engagement_suggestions("lady docs"sv, {
+                                                                        engagement("lady docs"sv, WebView::OmniboxDestinationKind::URL, "https://ladybird.org/docs/"sv, 1),
+                                                                    },
+        8, UnixDateTime::from_seconds_since_epoch(now_seconds));
+    auto strong = WebView::rank_engagement_suggestions("lady docs"sv, {
+                                                                          engagement("lady docs"sv, WebView::OmniboxDestinationKind::URL, "https://ladybird.org/docs/"sv, 2),
+                                                                      },
+        8, UnixDateTime::from_seconds_since_epoch(now_seconds));
+
+    EXPECT_EQ(weak.size(), 1u);
+    EXPECT(!weak[0].can_be_automatically_selected);
+    EXPECT_EQ(strong.size(), 1u);
+    EXPECT(strong[0].can_be_automatically_selected);
+    EXPECT(!strong[0].can_be_inline_completed);
+}
+
+TEST_CASE(previous_searches_never_become_automatic_completions)
+{
+    auto suggestions = WebView::rank_engagement_suggestions("lady"sv, {
+                                                                          engagement("ladybird browser"sv, WebView::OmniboxDestinationKind::Search, "ladybird browser"sv, 4),
+                                                                      },
+        8, UnixDateTime::from_seconds_since_epoch(now_seconds));
+
+    EXPECT_EQ(suggestions.size(), 1u);
+    EXPECT_EQ(suggestions[0].source, WebView::AutocompleteSuggestionSource::Search);
+    EXPECT(!suggestions[0].can_be_automatically_selected);
+    EXPECT(!suggestions[0].can_be_inline_completed);
 }

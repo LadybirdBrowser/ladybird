@@ -24,6 +24,7 @@ struct WEBVIEW_API OmniboxEngagement {
     OmniboxDestinationKind destination_kind { OmniboxDestinationKind::URL };
     String destination;
     bool was_explicit { false };
+    UnixDateTime used_at { UnixDateTime::now() };
 };
 
 struct WEBVIEW_API StoredOmniboxEngagement {

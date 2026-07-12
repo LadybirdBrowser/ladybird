@@ -28,12 +28,14 @@ static void merge_suggestion(AutocompleteSuggestion& existing, AutocompleteSugge
     auto match_relevance = max(existing.match_relevance, suggestion.match_relevance);
     auto history_relevance = max(existing.history_relevance, suggestion.history_relevance);
     auto bookmark_relevance = max(existing.bookmark_relevance, suggestion.bookmark_relevance);
+    auto adaptive_relevance = max(existing.adaptive_relevance, suggestion.adaptive_relevance);
     auto relevance = max(existing.relevance, suggestion.relevance);
-    if (match_relevance != 0 || history_relevance != 0 || bookmark_relevance != 0)
-        relevance = max(relevance, match_relevance + history_relevance + bookmark_relevance);
+    if (match_relevance != 0 || history_relevance != 0 || bookmark_relevance != 0 || adaptive_relevance != 0)
+        relevance = max(relevance, match_relevance + history_relevance + bookmark_relevance + adaptive_relevance);
 
     auto suggestion_has_preferred_presentation = suggestion.source == AutocompleteSuggestionSource::Bookmark
-        || (existing.source == AutocompleteSuggestionSource::LiteralURL && suggestion.source == AutocompleteSuggestionSource::History);
+        || (existing.source == AutocompleteSuggestionSource::Adaptive && suggestion.source == AutocompleteSuggestionSource::History)
+        || (existing.source == AutocompleteSuggestionSource::LiteralURL && suggestion.source != AutocompleteSuggestionSource::LiteralURL);
     if (suggestion_has_preferred_presentation) {
         existing = move(suggestion);
     } else {
@@ -52,6 +54,7 @@ static void merge_suggestion(AutocompleteSuggestion& existing, AutocompleteSugge
     existing.match_relevance = match_relevance;
     existing.history_relevance = history_relevance;
     existing.bookmark_relevance = bookmark_relevance;
+    existing.adaptive_relevance = adaptive_relevance;
 }
 
 static void append_or_merge(Vector<AutocompleteSuggestion>& suggestions, AutocompleteSuggestion suggestion)

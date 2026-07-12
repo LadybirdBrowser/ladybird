@@ -17,6 +17,7 @@
 #include <LibCore/Forward.h>
 #include <LibRequests/Forward.h>
 #include <LibWebView/Forward.h>
+#include <LibWebView/OmniboxEngagement.h>
 #include <LibWebView/PrivateBrowsing.h>
 
 namespace WebView {
@@ -39,6 +40,7 @@ enum class AutocompleteSuggestionSource {
     LiteralURL,
     History,
     Bookmark,
+    Adaptive,
     Search,
 };
 
@@ -56,6 +58,8 @@ enum class AutocompleteMatchClass {
     TitlePrefix,
     URLSubstring,
     TitleSubstring,
+    AdaptiveExact,
+    AdaptivePrefix,
 };
 
 struct WEBVIEW_API AutocompleteSuggestion {
@@ -70,6 +74,7 @@ struct WEBVIEW_API AutocompleteSuggestion {
     i32 match_relevance { 0 };
     i32 history_relevance { 0 };
     i32 bookmark_relevance { 0 };
+    i32 adaptive_relevance { 0 };
     bool is_verbatim { false };
     bool can_be_automatically_selected { true };
     bool can_be_inline_completed { false };
@@ -97,6 +102,7 @@ public:
 
     void query_autocomplete_engine(AutocompleteQueryID, String, size_t max_suggestions = default_autocomplete_suggestion_limit);
     void cancel_pending_query();
+    void record_engagement(OmniboxEngagement);
 
 private:
     static ErrorOr<Vector<String>> received_autocomplete_respsonse(AutocompleteEngine const&, Optional<ByteString const&> content_type, StringView response);

@@ -669,7 +669,8 @@ static CGFloat autocomplete_visible_width(NSView* view)
                                  CELL_ICON_SIZE)];
     [view.icon_view setImage:icon];
     auto is_local_suggestion = suggestion.source == WebView::AutocompleteSuggestionSource::History
-        || suggestion.source == WebView::AutocompleteSuggestionSource::Bookmark;
+        || suggestion.source == WebView::AutocompleteSuggestionSource::Bookmark
+        || suggestion.source == WebView::AutocompleteSuggestionSource::Adaptive;
     [view.icon_view setContentTintColor:!is_local_suggestion ? [NSColor secondaryLabelColor] : nil];
     [view.icon_view setHidden:(icon == nil)];
 
