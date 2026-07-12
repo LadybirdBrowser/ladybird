@@ -13,6 +13,8 @@
 
 namespace WebView {
 
+WEBVIEW_API bool autocomplete_suggestions_have_same_destination(AutocompleteSuggestion const&, AutocompleteSuggestion const&);
+
 WEBVIEW_API Vector<AutocompleteSuggestion> mux_autocomplete_suggestions(
     StringView query,
     Optional<AutocompleteSuggestion> verbatim_suggestion,

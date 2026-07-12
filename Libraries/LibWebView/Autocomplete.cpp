@@ -319,9 +319,9 @@ void Autocomplete::deliver_current_result()
     if (!m_query_id.has_value())
         return;
 
-    auto verbatim_suggestion = literal_url_suggestion(m_trimmed_query);
+    auto verbatim_suggestion = literal_url_suggestion(m_query);
     if (!verbatim_suggestion.has_value())
-        verbatim_suggestion = search_for_query_suggestion(m_trimmed_query);
+        verbatim_suggestion = search_for_query_suggestion(m_query);
     auto merged_suggestions = mux_autocomplete_suggestions(
         m_trimmed_query,
         move(verbatim_suggestion),

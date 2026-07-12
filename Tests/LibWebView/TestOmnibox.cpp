@@ -447,6 +447,33 @@ TEST_CASE(explicit_selection_survives_same_generation_reordering)
     EXPECT(harness.provider->engagements.last().was_explicit);
 }
 
+TEST_CASE(search_selection_survives_equivalent_text_normalization)
+{
+    Harness harness;
+    harness.begin_editing();
+
+    for (auto code_point : "lady bird"sv)
+        harness.press_key(code_point);
+    harness.provider->deliver({
+                                  non_inline_history_row("https://example.com/lady-bird"sv),
+                                  search_row("lady bird"sv),
+                              },
+        AutocompleteResultKind::Intermediate);
+    EXPECT(harness.omnibox.select_next_suggestion());
+    EXPECT_EQ(harness.omnibox.selected_suggestion(), 1u);
+
+    harness.provider->deliver({
+                                  non_inline_history_row("https://example.com/lady-bird"sv),
+                                  search_row("Lady   Bird"sv),
+                              },
+        AutocompleteResultKind::Final);
+    EXPECT_EQ(harness.omnibox.selected_suggestion(), 1u);
+
+    harness.omnibox.return_pressed();
+    EXPECT_EQ(harness.commits.last(), "Lady   Bird"sv);
+    EXPECT(harness.provider->engagements.last().was_explicit);
+}
+
 TEST_CASE(enter_with_stale_results_commits_the_current_input_immediately)
 {
     Harness harness;

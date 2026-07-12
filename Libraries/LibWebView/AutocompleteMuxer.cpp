@@ -12,10 +12,12 @@
 
 namespace WebView {
 
-static bool suggestions_have_same_destination(AutocompleteSuggestion const& left, AutocompleteSuggestion const& right)
+bool autocomplete_suggestions_have_same_destination(AutocompleteSuggestion const& left, AutocompleteSuggestion const& right)
 {
-    if (left.source == AutocompleteSuggestionSource::Search || right.source == AutocompleteSuggestionSource::Search)
-        return left.source == right.source && left.text.equals_ignoring_case(right.text);
+    if (left.source == AutocompleteSuggestionSource::Search || right.source == AutocompleteSuggestionSource::Search) {
+        return left.source == right.source
+            && normalize_omnibox_destination(left.text, OmniboxDestinationKind::Search) == normalize_omnibox_destination(right.text, OmniboxDestinationKind::Search);
+    }
 
     return autocomplete_urls_match(left.text, right.text);
 }
@@ -60,7 +62,7 @@ static void merge_suggestion(AutocompleteSuggestion& existing, AutocompleteSugge
 static void append_or_merge(Vector<AutocompleteSuggestion>& suggestions, AutocompleteSuggestion suggestion)
 {
     for (auto& existing : suggestions) {
-        if (!suggestions_have_same_destination(existing, suggestion))
+        if (!autocomplete_suggestions_have_same_destination(existing, suggestion))
             continue;
         merge_suggestion(existing, move(suggestion));
         return;
@@ -75,7 +77,10 @@ static Optional<String> origin_family(AutocompleteSuggestion const& suggestion)
     auto url = URL::Parser::basic_parse(suggestion.text);
     if (!url.has_value() || !url->host().has_value())
         return {};
-    return MUST(url->serialized_host().to_lowercase());
+    auto host = MUST(url->serialized_host().to_lowercase());
+    if (host.bytes_as_string_view().starts_with("www."sv))
+        return MUST(String::from_utf8(host.bytes_as_string_view().substring_view(4)));
+    return host;
 }
 
 static bool is_local_navigation(AutocompleteSuggestion const& suggestion)
@@ -95,6 +100,13 @@ static bool suggestion_is_better(AutocompleteSuggestion const& left, Autocomplet
     if (left.is_verbatim != right.is_verbatim)
         return left.is_verbatim;
     return left.text < right.text;
+}
+
+static bool query_contains_url_suffix(StringView query)
+{
+    if (auto scheme_end = query.find("://"sv); scheme_end.has_value())
+        query = query.substring_view(*scheme_end + 3);
+    return query.find_any_of("/?#"sv).has_value();
 }
 
 Vector<AutocompleteSuggestion> mux_autocomplete_suggestions(
@@ -132,7 +144,7 @@ Vector<AutocompleteSuggestion> mux_autocomplete_suggestions(
     Vector<size_t> deferred_indices;
     size_t local_navigation_count = 0;
     size_t remote_search_count = 0;
-    auto query_contains_path = query.contains('/');
+    auto query_contains_path = query_contains_url_suffix(query);
     auto verbatim_index = candidates.find_first_index_if([](auto const& candidate) { return candidate.is_verbatim; });
 
     for (size_t index = 0; index < candidates.size() && result.size() < limit; ++index) {

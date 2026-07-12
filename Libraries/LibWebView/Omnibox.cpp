@@ -5,6 +5,7 @@
  */
 
 #include <AK/StringBuilder.h>
+#include <LibWebView/AutocompleteMuxer.h>
 #include <LibWebView/Omnibox.h>
 #include <LibWebView/URL.h>
 
@@ -131,17 +132,10 @@ static Optional<size_t> index_of_suggestion(String const& suggestion_text, Vecto
     });
 }
 
-static bool suggestions_have_same_destination(AutocompleteSuggestion const& left, AutocompleteSuggestion const& right)
-{
-    if (left.source == AutocompleteSuggestionSource::Search || right.source == AutocompleteSuggestionSource::Search)
-        return left.source == right.source && left.text.equals_ignoring_case(right.text);
-    return autocomplete_urls_match(left.text, right.text);
-}
-
 static Optional<size_t> index_of_suggestion(AutocompleteSuggestion const& needle, Vector<AutocompleteSuggestion> const& suggestions)
 {
     return suggestions.find_first_index_if([&](auto const& suggestion) {
-        return suggestions_have_same_destination(needle, suggestion);
+        return autocomplete_suggestions_have_same_destination(needle, suggestion);
     });
 }
 

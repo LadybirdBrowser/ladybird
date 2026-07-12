@@ -144,6 +144,20 @@ TEST_CASE(exact_remote_query_merges_into_the_verbatim_search)
     EXPECT(results[0].can_be_automatically_selected);
 }
 
+TEST_CASE(search_identity_folds_case_and_whitespace)
+{
+    auto results = WebView::mux_autocomplete_suggestions(
+        "Ladybird Browser"sv,
+        search("  Ladybird   Browser  "sv, 1000, true),
+        {},
+        { search("ladybird browser"sv, 700) },
+        8);
+
+    EXPECT_EQ(results.size(), 1u);
+    EXPECT_EQ(results[0].text, "  Ladybird   Browser  "sv);
+    EXPECT(results[0].is_verbatim);
+}
+
 TEST_CASE(http_and_https_destinations_are_not_deduplicated)
 {
     auto results = WebView::mux_autocomplete_suggestions(
@@ -180,4 +194,46 @@ TEST_CASE(history_and_bookmark_evidence_is_combined)
     EXPECT_EQ(results[0].source, WebView::AutocompleteSuggestionSource::Bookmark);
     EXPECT_EQ(results[0].title, Optional<String> { "Example bookmark"_string });
     EXPECT_EQ(results[0].relevance, 975);
+}
+
+TEST_CASE(www_and_bare_hosts_share_a_diversity_family)
+{
+    auto results = WebView::mux_autocomplete_suggestions(
+        "example"sv,
+        {},
+        {
+            history("https://example.com/one"sv, 1000),
+            history("https://www.example.com/two"sv, 990),
+            history("https://example.com/three"sv, 980),
+            history("https://other.example/example"sv, 970),
+            history("https://third.example/example"sv, 960),
+        },
+        {},
+        4);
+
+    EXPECT_EQ(results.size(), 4u);
+    EXPECT_EQ(results[0].text, "https://example.com/one"sv);
+    EXPECT_EQ(results[1].text, "https://www.example.com/two"sv);
+    EXPECT_EQ(results[2].text, "https://other.example/example"sv);
+    EXPECT_EQ(results[3].text, "https://third.example/example"sv);
+}
+
+TEST_CASE(a_scheme_does_not_disable_origin_diversity)
+{
+    auto results = WebView::mux_autocomplete_suggestions(
+        "https://news"sv,
+        {},
+        {
+            history("https://news.example/one"sv, 1000),
+            history("https://news.example/two"sv, 990),
+            history("https://news.example/three"sv, 980),
+            history("https://other.example/news"sv, 970),
+        },
+        {},
+        3);
+
+    EXPECT_EQ(results.size(), 3u);
+    EXPECT_EQ(results[0].text, "https://news.example/one"sv);
+    EXPECT_EQ(results[1].text, "https://news.example/two"sv);
+    EXPECT_EQ(results[2].text, "https://other.example/news"sv);
 }
