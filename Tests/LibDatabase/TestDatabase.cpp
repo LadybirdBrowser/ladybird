@@ -73,3 +73,28 @@ TEST_CASE(double_values_can_be_bound_and_read)
 
     EXPECT_EQ(result, 3.25);
 }
+
+TEST_CASE(interrupted_statement_can_be_reused)
+{
+    auto database = TRY_OR_FAIL(Database::Database::create_memory_backed());
+    auto statement = TRY_OR_FAIL(database->prepare_statement(R"#(
+        SELECT 1
+        UNION ALL SELECT 2
+        UNION ALL SELECT 3;
+    )#"sv));
+
+    size_t row_count = 0;
+    auto outcome = database->execute_interruptible_statement(statement, [&](auto) {
+        ++row_count;
+        database->interrupt();
+    });
+    EXPECT_EQ(outcome, Database::Database::StatementExecutionOutcome::Interrupted);
+    EXPECT_EQ(row_count, 1u);
+
+    row_count = 0;
+    outcome = database->execute_interruptible_statement(statement, [&](auto) {
+        ++row_count;
+    });
+    EXPECT_EQ(outcome, Database::Database::StatementExecutionOutcome::Completed);
+    EXPECT_EQ(row_count, 3u);
+}

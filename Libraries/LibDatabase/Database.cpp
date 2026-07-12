@@ -116,6 +116,42 @@ void Database::execute_statement_internal(StatementID statement_id, OnResult on_
     }
 }
 
+Database::StatementExecutionOutcome Database::execute_interruptible_statement_internal(StatementID statement_id, OnResult on_result)
+{
+    auto* statement = prepared_statement(statement_id);
+
+    while (true) {
+        auto result = sqlite3_step(statement);
+
+        switch (result) {
+        case SQLITE_DONE:
+            SQL_MUST(sqlite3_reset(statement));
+            return StatementExecutionOutcome::Completed;
+
+        case SQLITE_ROW:
+            if (on_result)
+                on_result(statement_id);
+            continue;
+
+        case SQLITE_INTERRUPT:
+            // sqlite3_reset() reports the interrupted statement's error code, so intentionally ignore
+            // its result here. Resetting still makes the prepared statement reusable.
+            sqlite3_reset(statement);
+            return StatementExecutionOutcome::Interrupted;
+
+        default:
+            sqlite3_reset(statement);
+            warnln("\033[31;1mDatabase error\033[0m: {}: {}", sql_error(result), sqlite3_errmsg(m_database));
+            VERIFY_NOT_REACHED();
+        }
+    }
+}
+
+void Database::interrupt()
+{
+    sqlite3_interrupt(m_database);
+}
+
 ErrorOr<void> Database::try_execute_statement_internal(StatementID statement_id, OnResult on_result)
 {
     auto* statement = prepared_statement(statement_id);

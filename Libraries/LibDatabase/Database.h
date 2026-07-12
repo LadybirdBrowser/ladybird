@@ -42,6 +42,11 @@ public:
 
     using OnResult = Function<void(StatementID)>;
 
+    enum class StatementExecutionOutcome {
+        Completed,
+        Interrupted,
+    };
+
     Optional<LexicalPath> const& database_path() const { return m_database_path; }
 
     ErrorOr<StatementID> prepare_statement(StringView statement);
@@ -61,6 +66,22 @@ public:
         VERIFY(bound_parameter_count(statement_id) == index - 1);
         execute_statement_internal(statement_id, move(on_result));
     }
+
+    // Unlike execute_statement(), this treats sqlite3_interrupt() as an expected outcome. Other SQL
+    // errors remain fatal, matching execute_statement().
+    template<typename... PlaceholderValues>
+    StatementExecutionOutcome execute_interruptible_statement(StatementID statement_id, OnResult on_result, PlaceholderValues&&... placeholder_values)
+    {
+        int index = 1;
+        (apply_placeholder(statement_id, index++, forward<PlaceholderValues>(placeholder_values)), ...);
+
+        VERIFY(bound_parameter_count(statement_id) == index - 1);
+        return execute_interruptible_statement_internal(statement_id, move(on_result));
+    }
+
+    // SQLite permits this to be called from another thread. The caller must keep this Database alive
+    // until interrupt() returns.
+    void interrupt();
 
     template<typename ValueType>
     ValueType result_column(StatementID, int column);
@@ -130,6 +151,7 @@ private:
     Database(sqlite3*, Optional<LexicalPath> database_path);
 
     void execute_statement_internal(StatementID, OnResult);
+    StatementExecutionOutcome execute_interruptible_statement_internal(StatementID, OnResult);
     ErrorOr<void> try_execute_statement_internal(StatementID, OnResult);
 
     int bound_parameter_count(StatementID);
