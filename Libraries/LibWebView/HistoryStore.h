@@ -41,6 +41,11 @@ struct WEBVIEW_API RecentlyClosedEntry {
     UnixDateTime closed_time;
 };
 
+enum class RemoveHistoryEntryEngagements {
+    No,
+    Yes,
+};
+
 class WEBVIEW_API HistoryStore {
     AK_MAKE_NONCOPYABLE(HistoryStore);
     AK_MAKE_NONMOVABLE(HistoryStore);
@@ -72,7 +77,7 @@ public:
     void record_omnibox_engagement(OmniboxEngagement const&, UnixDateTime used_at = UnixDateTime::now());
     Vector<StoredOmniboxEngagement> omnibox_engagements(StringView input, size_t limit = 50);
 
-    void remove_entry_for_url(URL::URL const&);
+    void remove_entry_for_url(URL::URL const&, RemoveHistoryEntryEngagements = RemoveHistoryEntryEngagements::Yes);
     void remove_entries_for_same_site(URL::URL const&);
     void remove_entries_accessed_since(UnixDateTime since);
 
@@ -110,7 +115,7 @@ private:
         virtual void record_omnibox_engagement(OmniboxEngagement const&, UnixDateTime used_at) = 0;
         virtual Vector<StoredOmniboxEngagement> omnibox_engagements(StringView normalized_url_input, StringView normalized_search_input, size_t limit) = 0;
 
-        virtual void remove_entry_for_url(String const& url) = 0;
+        virtual void remove_entry_for_url(String const& url, RemoveHistoryEntryEngagements) = 0;
         virtual void remove_entries_for_same_site(StringView site_key) = 0;
         virtual void remove_entries_accessed_since(UnixDateTime since) = 0;
     };
@@ -132,7 +137,7 @@ private:
         virtual void record_omnibox_engagement(OmniboxEngagement const&, UnixDateTime used_at) override;
         virtual Vector<StoredOmniboxEngagement> omnibox_engagements(StringView normalized_url_input, StringView normalized_search_input, size_t limit) override;
 
-        virtual void remove_entry_for_url(String const& url) override;
+        virtual void remove_entry_for_url(String const& url, RemoveHistoryEntryEngagements) override;
         virtual void remove_entries_for_same_site(StringView site_key) override;
         virtual void remove_entries_accessed_since(UnixDateTime since) override;
 
@@ -159,7 +164,7 @@ private:
         virtual void record_omnibox_engagement(OmniboxEngagement const&, UnixDateTime used_at) override;
         virtual Vector<StoredOmniboxEngagement> omnibox_engagements(StringView normalized_url_input, StringView normalized_search_input, size_t limit) override;
 
-        virtual void remove_entry_for_url(String const& url) override;
+        virtual void remove_entry_for_url(String const& url, RemoveHistoryEntryEngagements) override;
         virtual void remove_entries_for_same_site(StringView site_key) override;
         virtual void remove_entries_accessed_since(UnixDateTime since) override;
 

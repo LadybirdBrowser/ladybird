@@ -109,7 +109,10 @@ void HistoryUI::remove_history_entry(JsonValue const& data)
     if (!parsed_url.has_value())
         return;
 
-    Application::history_store(client().is_private()).remove_entry_for_url(*parsed_url);
+    auto remove_engagements = Application::bookmark_store().is_bookmarked(*parsed_url)
+        ? RemoveHistoryEntryEngagements::No
+        : RemoveHistoryEntryEngagements::Yes;
+    Application::history_store(client().is_private()).remove_entry_for_url(*parsed_url, remove_engagements);
 }
 
 void HistoryUI::forget_history_site(JsonValue const& data)

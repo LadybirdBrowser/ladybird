@@ -707,7 +707,7 @@ Vector<StoredOmniboxEngagement> HistoryStore::omnibox_engagements(StringView inp
         limit);
 }
 
-void HistoryStore::remove_entry_for_url(URL::URL const& url)
+void HistoryStore::remove_entry_for_url(URL::URL const& url, RemoveHistoryEntryEngagements remove_engagements)
 {
     if (m_is_disabled)
         return;
@@ -717,7 +717,7 @@ void HistoryStore::remove_entry_for_url(URL::URL const& url)
         return;
 
     dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Removing history entry for '{}'", *normalized_url);
-    m_storage->remove_entry_for_url(*normalized_url);
+    m_storage->remove_entry_for_url(*normalized_url, remove_engagements);
 }
 
 static Optional<String> site_key_for_history_entry(URL::URL const& url)
@@ -758,7 +758,7 @@ void HistoryStore::remove_entries_for_same_site(URL::URL const& url)
 
     auto site_key = site_key_for_history_entry(url);
     if (!site_key.has_value()) {
-        remove_entry_for_url(url);
+        remove_entry_for_url(url, RemoveHistoryEntryEngagements::Yes);
         return;
     }
 
@@ -944,9 +944,11 @@ Vector<StoredOmniboxEngagement> HistoryStore::TransientStorage::omnibox_engageme
     return results;
 }
 
-void HistoryStore::TransientStorage::remove_entry_for_url(String const& url)
+void HistoryStore::TransientStorage::remove_entry_for_url(String const& url, RemoveHistoryEntryEngagements remove_engagements)
 {
     m_entries.remove(url);
+    if (remove_engagements == RemoveHistoryEntryEngagements::No)
+        return;
     m_omnibox_engagements.remove_all_matching([&](auto const& engagement) {
         return engagement.destination_kind == OmniboxDestinationKind::URL
             && normalize_omnibox_destination(engagement.destination, engagement.destination_kind) == url;
@@ -1163,10 +1165,11 @@ Vector<StoredOmniboxEngagement> HistoryStore::PersistedStorage::omnibox_engageme
     return results;
 }
 
-void HistoryStore::PersistedStorage::remove_entry_for_url(String const& url)
+void HistoryStore::PersistedStorage::remove_entry_for_url(String const& url, RemoveHistoryEntryEngagements remove_engagements)
 {
     m_database.execute_statement(m_statements.delete_entry, {}, url);
-    m_database.execute_statement(m_statements.delete_omnibox_engagements_for_url, {}, url);
+    if (remove_engagements == RemoveHistoryEntryEngagements::Yes)
+        m_database.execute_statement(m_statements.delete_omnibox_engagements_for_url, {}, url);
 }
 
 void HistoryStore::PersistedStorage::remove_entries_for_same_site(StringView site_key)
@@ -1182,7 +1185,7 @@ void HistoryStore::PersistedStorage::remove_entries_for_same_site(StringView sit
         });
 
     for (auto const& url : urls_to_remove)
-        remove_entry_for_url(url);
+        remove_entry_for_url(url, RemoveHistoryEntryEngagements::Yes);
 }
 
 void HistoryStore::PersistedStorage::remove_entries_accessed_since(UnixDateTime since)

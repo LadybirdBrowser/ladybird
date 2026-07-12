@@ -211,6 +211,41 @@ static void expect_history_entries_can_be_removed(WebView::HistoryStore& store)
     EXPECT_EQ(store.omnibox_engagements("other"sv).size(), 1u);
 }
 
+static void expect_bookmarked_history_deletion_can_preserve_engagements(WebView::HistoryStore& store)
+{
+    auto example_url = parse_url("https://example.com/"sv);
+    store.record_visit(example_url, "Example"_string, UnixDateTime::from_seconds_since_epoch(10));
+    store.record_omnibox_engagement({
+        .input = "example"_string,
+        .destination_kind = WebView::OmniboxDestinationKind::URL,
+        .destination = example_url.serialize(),
+        .was_explicit = true,
+    });
+
+    store.remove_entry_for_url(example_url, WebView::RemoveHistoryEntryEngagements::No);
+
+    EXPECT(!store.entry_for_url(example_url).has_value());
+    EXPECT_EQ(store.omnibox_engagements("example"sv).size(), 1u);
+}
+
+static void expect_clearing_history_clears_all_engagements(WebView::HistoryStore& store)
+{
+    auto example_url = parse_url("https://example.com/"sv);
+    store.record_visit(example_url, "Example"_string, UnixDateTime::from_seconds_since_epoch(10));
+    store.record_omnibox_engagement({
+                                        .input = "example"_string,
+                                        .destination_kind = WebView::OmniboxDestinationKind::URL,
+                                        .destination = example_url.serialize(),
+                                        .was_explicit = true,
+                                    },
+        UnixDateTime::from_seconds_since_epoch(20));
+
+    store.remove_entries_accessed_since(UnixDateTime::earliest());
+
+    EXPECT(!store.entry_for_url(example_url).has_value());
+    EXPECT(store.omnibox_engagements("example"sv).is_empty());
+}
+
 static void expect_history_entries_for_same_site_can_be_removed(WebView::HistoryStore& store)
 {
     auto example_url = parse_url("https://www.example.com/"sv);
@@ -490,6 +525,18 @@ TEST_CASE(history_entries_can_be_removed)
     expect_history_entries_can_be_removed(*store);
 }
 
+TEST_CASE(bookmarked_history_deletion_can_preserve_engagements)
+{
+    auto store = WebView::HistoryStore::create();
+    expect_bookmarked_history_deletion_can_preserve_engagements(*store);
+}
+
+TEST_CASE(clearing_history_clears_all_engagements)
+{
+    auto store = WebView::HistoryStore::create();
+    expect_clearing_history_clears_all_engagements(*store);
+}
+
 TEST_CASE(history_entries_for_same_site_can_be_removed)
 {
     auto store = WebView::HistoryStore::create();
@@ -703,6 +750,40 @@ TEST_CASE(persisted_history_entries_can_be_removed)
     auto store = create_persisted_store(*database);
 
     expect_history_entries_can_be_removed(*store);
+}
+
+TEST_CASE(persisted_bookmarked_history_deletion_can_preserve_engagements)
+{
+    auto database_directory = ByteString::formatted(
+        "{}/ladybird-history-store-bookmark-engagement-test-{}",
+        Core::StandardPaths::tempfile_directory(),
+        generate_random_uuid());
+    TRY_OR_FAIL(Core::Directory::create(database_directory, Core::Directory::CreateDirectories::Yes));
+
+    auto cleanup = ScopeGuard([&] {
+        MUST(FileSystem::remove(database_directory, FileSystem::RecursionMode::Allowed));
+    });
+
+    auto database = TRY_OR_FAIL(Database::Database::create(database_directory, "HistoryStore"sv));
+    auto store = create_persisted_store(*database);
+    expect_bookmarked_history_deletion_can_preserve_engagements(*store);
+}
+
+TEST_CASE(persisted_clearing_history_clears_all_engagements)
+{
+    auto database_directory = ByteString::formatted(
+        "{}/ladybird-history-store-clear-engagement-test-{}",
+        Core::StandardPaths::tempfile_directory(),
+        generate_random_uuid());
+    TRY_OR_FAIL(Core::Directory::create(database_directory, Core::Directory::CreateDirectories::Yes));
+
+    auto cleanup = ScopeGuard([&] {
+        MUST(FileSystem::remove(database_directory, FileSystem::RecursionMode::Allowed));
+    });
+
+    auto database = TRY_OR_FAIL(Database::Database::create(database_directory, "HistoryStore"sv));
+    auto store = create_persisted_store(*database);
+    expect_clearing_history_clears_all_engagements(*store);
 }
 
 TEST_CASE(persisted_history_entries_for_same_site_can_be_removed)
