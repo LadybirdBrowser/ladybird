@@ -266,6 +266,10 @@ struct DrawVideoFrame {
 
     Gfx::IntRect dst_rect;
     VideoFrameResourceId video_frame_id;
+    // NB: The video frame resource updates in place under a stable id, so the command bytes don't change when
+    //     a new frame arrives. The content generation encodes frame changes so that display list damage
+    //     computation can tell that the video needs to be repainted.
+    u64 content_generation { 0 };
     Gfx::ScalingMode scaling_mode;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return dst_rect; }

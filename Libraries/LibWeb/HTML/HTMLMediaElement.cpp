@@ -1678,6 +1678,10 @@ Painting::VideoFrameResourceId HTMLMediaElement::ensure_video_frame_resource_id(
 
 void HTMLMediaElement::update_compositor_video_frame(NonnullRefPtr<Media::VideoFrame const> frame)
 {
+    // NB: The content generation is recorded into DrawVideoFrame display list commands, letting display list
+    //     damage computation see that the video content changed.
+    ++m_video_frame_content_generation;
+
     auto frame_id = ensure_video_frame_resource_id();
     if (auto navigable = document().navigable(); navigable && navigable->has_compositor_context())
         navigable->compositor_context().update_video_frame(frame_id, move(frame));

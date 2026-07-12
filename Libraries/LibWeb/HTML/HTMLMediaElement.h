@@ -176,6 +176,7 @@ public:
 
     Painting::VideoFrameResourceId ensure_video_frame_resource_id();
     Optional<Painting::VideoFrameResourceId> video_frame_resource_id() const { return m_video_frame_resource_id; }
+    u64 video_frame_content_generation() const { return m_video_frame_content_generation; }
 
     virtual bool update_intrinsic_video_dimensions() { return false; }
     virtual void update_natural_dimensions() { }
@@ -401,6 +402,7 @@ private:
     bool m_has_selected_preferred_video_track { false };
 
     Optional<Painting::VideoFrameResourceId> m_video_frame_resource_id;
+    u64 m_video_frame_content_generation { 0 };
 };
 
 }

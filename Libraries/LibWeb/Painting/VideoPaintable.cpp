@@ -85,7 +85,7 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
         auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), src_size, dst_rect.size());
         RefPtr<Media::VideoFrame const> frame = current;
         auto frame_id = const_cast<HTML::HTMLVideoElement&>(video_element).ensure_video_frame_resource_id();
-        context.display_list_recorder().draw_video_frame(dst_rect, frame_id, move(frame), scaling_mode);
+        context.display_list_recorder().draw_video_frame(dst_rect, frame_id, move(frame), video_element.video_frame_content_generation(), scaling_mode);
     };
 
     auto paint_transparent_black = [&]() {

@@ -204,6 +204,25 @@ TEST_CASE(changed_canvas_content_generation_damages_canvas_rect)
     EXPECT_EQ(*damage, (Gfx::IntRect { 9, 9, 22, 22 }));
 }
 
+TEST_CASE(changed_video_frame_content_generation_damages_video_rect)
+{
+    auto visual_context_tree = AccumulatedVisualContextTree::create();
+    DrawVideoFrame command {
+        .dst_rect = { 10, 10, 20, 20 },
+        .video_frame_id = VideoFrameResourceId { 1 },
+        .content_generation = 1,
+        .scaling_mode = Gfx::ScalingMode::NearestNeighbor,
+    };
+    auto old_display_list = command_bytes(command, command.dst_rect);
+    command.content_generation = 2;
+    auto new_display_list = command_bytes(command, command.dst_rect);
+    ScrollStateSnapshot scroll_state;
+
+    auto damage = compute_display_list_damage(old_display_list, visual_context_tree, scroll_state, new_display_list, visual_context_tree, scroll_state, { 0, 0, 100, 100 });
+    EXPECT(damage.has_value());
+    EXPECT_EQ(*damage, (Gfx::IntRect { 9, 9, 22, 22 }));
+}
+
 TEST_CASE(unchanged_canvas_content_generation_does_not_damage_canvas)
 {
     auto visual_context_tree = AccumulatedVisualContextTree::create();
