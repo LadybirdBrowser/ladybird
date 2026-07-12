@@ -181,6 +181,48 @@ TEST_CASE(unrelated_inserted_visual_context_does_not_damage_commands)
     EXPECT(damage->is_empty());
 }
 
+static ByteBuffer canvas_command_bytes(Gfx::IntRect rect, u64 content_generation)
+{
+    DrawCanvas command {
+        .dst_rect = rect,
+        .canvas_id = CanvasId { 1 },
+        .content_generation = content_generation,
+        .scaling_mode = Gfx::ScalingMode::NearestNeighbor,
+    };
+    return command_bytes(command, rect);
+}
+
+TEST_CASE(changed_canvas_content_generation_damages_canvas_rect)
+{
+    auto visual_context_tree = AccumulatedVisualContextTree::create();
+    auto old_display_list = canvas_command_bytes({ 10, 10, 20, 20 }, 1);
+    auto new_display_list = canvas_command_bytes({ 10, 10, 20, 20 }, 2);
+    ScrollStateSnapshot scroll_state;
+
+    auto damage = compute_display_list_damage(old_display_list, visual_context_tree, scroll_state, new_display_list, visual_context_tree, scroll_state, { 0, 0, 100, 100 });
+    EXPECT(damage.has_value());
+    EXPECT_EQ(*damage, (Gfx::IntRect { 9, 9, 22, 22 }));
+}
+
+TEST_CASE(unchanged_canvas_content_generation_does_not_damage_canvas)
+{
+    auto visual_context_tree = AccumulatedVisualContextTree::create();
+    auto canvas = canvas_command_bytes({ 10, 10, 20, 20 }, 1);
+    auto old_fill = fill_command_bytes({ 50, 50, 10, 10 }, Gfx::Color::Red);
+    auto new_fill = fill_command_bytes({ 50, 50, 10, 10 }, Gfx::Color::Blue);
+    ByteBuffer old_display_list;
+    old_display_list.append(canvas);
+    old_display_list.append(old_fill);
+    ByteBuffer new_display_list;
+    new_display_list.append(canvas);
+    new_display_list.append(new_fill);
+    ScrollStateSnapshot scroll_state;
+
+    auto damage = compute_display_list_damage(old_display_list, visual_context_tree, scroll_state, new_display_list, visual_context_tree, scroll_state, { 0, 0, 100, 100 });
+    EXPECT(damage.has_value());
+    EXPECT_EQ(*damage, (Gfx::IntRect { 49, 49, 12, 12 }));
+}
+
 TEST_CASE(inserted_and_removed_commands_do_not_damage_shifted_commands)
 {
     auto visual_context_tree = AccumulatedVisualContextTree::create();

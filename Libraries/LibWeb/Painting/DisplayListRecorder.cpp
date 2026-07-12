@@ -523,13 +523,14 @@ void DisplayListRecorder::draw_composited_context(Gfx::IntRect const& dst_rect, 
     });
 }
 
-void DisplayListRecorder::draw_canvas(Gfx::IntRect const& dst_rect, CanvasId canvas_id, Gfx::ScalingMode scaling_mode)
+void DisplayListRecorder::draw_canvas(Gfx::IntRect const& dst_rect, CanvasId canvas_id, u64 content_generation, Gfx::ScalingMode scaling_mode)
 {
     if (dst_rect.is_empty())
         return;
     append_command(DrawCanvas {
         .dst_rect = dst_rect,
         .canvas_id = canvas_id,
+        .content_generation = content_generation,
         .scaling_mode = scaling_mode,
     });
 }

@@ -250,6 +250,10 @@ struct DrawCanvas {
 
     Gfx::IntRect dst_rect;
     CanvasId canvas_id;
+    // NB: The canvas pixels live in the compositor's canvas surface registry, so the command bytes don't
+    //     change when the canvas content does. The content generation encodes content changes so that display
+    //     list damage computation can tell that the canvas needs to be repainted.
+    u64 content_generation { 0 };
     Gfx::ScalingMode scaling_mode;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return dst_rect; }

@@ -472,6 +472,11 @@ void HTMLCanvasElement::prepare_for_compositing()
         return;
     m_canvas_content_dirty = false;
 
+    // NB: The content generation is recorded into DrawCanvas display list commands, letting display list damage
+    //     computation see that the canvas content changed. Canvases are prepared for compositing before painting
+    //     in the rendering update, so display lists recorded in the same update pick up the new generation.
+    ++m_content_generation;
+
     m_context.visit(
         [](GC::Ref<CanvasRenderingContext2D>& context) {
             context->prepare_for_compositing();
