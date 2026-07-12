@@ -1221,6 +1221,16 @@ void ViewImplementation::retrieved_clipboard_entries(u64 request_id, ReadonlySpa
     client().async_retrieved_clipboard_entries(page_id(), request_id, items);
 }
 
+void ViewImplementation::insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation entry)
+{
+    Application::the().insert_clipboard_entry(move(entry));
+}
+
+Vector<Web::Clipboard::SystemClipboardRepresentation> ViewImplementation::clipboard_entries() const
+{
+    return Application::the().clipboard_entries();
+}
+
 void ViewImplementation::toggle_page_mute_state()
 {
     m_mute_state = Web::HTML::invert_mute_state(m_mute_state);

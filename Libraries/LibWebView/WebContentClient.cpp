@@ -1745,16 +1745,17 @@ void WebContentClient::did_change_background_color(u64 page_id, Gfx::Color color
         view->did_change_background_color({}, color);
 }
 
-void WebContentClient::did_insert_clipboard_entry(u64, Web::Clipboard::SystemClipboardRepresentation entry, String)
+void WebContentClient::did_insert_clipboard_entry(u64 page_id, Web::Clipboard::SystemClipboardRepresentation entry, String)
 {
-    Application::the().insert_clipboard_entry(move(entry));
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->insert_clipboard_entry(move(entry));
 }
 
 void WebContentClient::did_request_clipboard_entries(u64 page_id, u64 request_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         Vector<Web::Clipboard::SystemClipboardItem> items;
-        if (auto entries = Application::the().clipboard_entries(); !entries.is_empty())
+        if (auto entries = view->clipboard_entries(); !entries.is_empty())
             items.empend(move(entries));
 
         view->retrieved_clipboard_entries(request_id, items);

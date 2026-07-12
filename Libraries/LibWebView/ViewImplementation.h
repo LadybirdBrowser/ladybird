@@ -404,6 +404,9 @@ public:
     virtual Gfx::IntPoint to_widget_position(Gfx::IntPoint content_position) const = 0;
 
 protected:
+    virtual void insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation);
+    virtual Vector<Web::Clipboard::SystemClipboardRepresentation> clipboard_entries() const;
+
     virtual bool defer_backing_store_release(i32) { return false; }
     virtual void did_accept_presented_backing_store(i32, Gfx::IntRect) { }
     void release_backing_store(i32 bitmap_id);
