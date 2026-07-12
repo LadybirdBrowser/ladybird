@@ -10,6 +10,7 @@ import logging
 import os
 import socket
 import socketserver
+import ssl
 import sys
 import threading
 import time
@@ -157,6 +158,8 @@ class TestHTTPServer(socketserver.ThreadingTCPServer):
 class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     static_directory: str
     wpt_directory: str
+    aia_artifacts: dict
+    aia_config: Optional[dict]
 
     def __init__(self, *arguments, **kwargs):
         super().__init__(*arguments, directory=self.static_directory, **kwargs)
@@ -254,6 +257,32 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def _serve_static_request(self):
         self._serve_wpt_file_request()
 
+    def _serve_aia_artifact(self, request_path):
+        # Serves the intermediate certificate that the broken-chain HTTPS hosts point at via their AIA caIssuers URL.
+        # Fetched by RequestServer, not by the page.
+        entry = getattr(TestHTTPRequestHandler, "aia_artifacts", {}).get(request_path)
+        if entry is None:
+            # for example, /aia/dead: a deliberately missing artifact, to exercise the failure path.
+            self.send_error(404, "Not Found")
+            return
+        content_type, body = entry
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _serve_aia_config(self):
+        # Lets the test page discover the per-scenario HTTPS ports (each an OS-assigned port).
+        config = getattr(TestHTTPRequestHandler, "aia_config", None)
+        body = json.dumps(config or {}).encode("utf-8")
+        self.send_response(200 if config else 503)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_GET(self):
         if self.headers.get("Upgrade", "").lower() == "websocket":
             self._serve_websocket_echo()
@@ -269,6 +298,10 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self._serve_recorded_request_headers()
         elif request_path.endswith(".py"):
             self._serve_wpt_python_script()
+        elif request_path.startswith("/aia/"):
+            self._serve_aia_artifact(request_path)
+        elif request_path == "/aia-test/config":
+            self._serve_aia_config()
         else:
             self._serve_static_request()
 
@@ -638,7 +671,211 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             pass
 
 
-def start_server(port, static_directory):
+class AIALeafHandler(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain")
+        self.send_header("Content-Length", "2")
+        self.end_headers()
+        self.wfile.write(b"ok")
+
+    def log_message(self, format: str, *args: Any) -> None:
+        pass
+
+
+class AIATLSServer(socketserver.ThreadingTCPServer):
+    daemon_threads = True
+    allow_reuse_address = True
+
+    def __init__(self, server_address, handler, ssl_context):
+        super().__init__(server_address, handler)
+        self._ssl_context = ssl_context
+
+    def get_request(self):
+        sock, addr = super().get_request()
+        try:
+            return self._ssl_context.wrap_socket(sock, server_side=True), addr
+        except OSError:
+            sock.close()
+            raise
+
+
+def _setup_aia_test_servers(http_port, ca_cert_output):
+    try:
+        from cryptography import x509  # type: ignore[import-not-found]
+        from cryptography.hazmat.primitives import hashes  # type: ignore[import-not-found]
+        from cryptography.hazmat.primitives.asymmetric import ec  # type: ignore[import-not-found]
+        from cryptography.hazmat.primitives.serialization import Encoding  # type: ignore[import-not-found]
+        from cryptography.hazmat.primitives.serialization import NoEncryption  # type: ignore[import-not-found]
+        from cryptography.hazmat.primitives.serialization import PrivateFormat  # type: ignore[import-not-found]
+        from cryptography.hazmat.primitives.serialization import pkcs7  # type: ignore[import-not-found]
+        from cryptography.x509.oid import AuthorityInformationAccessOID  # type: ignore[import-not-found]
+        from cryptography.x509.oid import ExtendedKeyUsageOID  # type: ignore[import-not-found]
+        from cryptography.x509.oid import NameOID  # type: ignore[import-not-found]
+    except ImportError as error:
+        logging.warning("AIA test setup skipped: python 'cryptography' unavailable (%s)", error)
+        return
+
+    import datetime
+    import tempfile
+
+    def new_key():
+        return ec.generate_private_key(ec.SECP256R1())
+
+    def dn(common_name):
+        return x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, common_name)])
+
+    not_before, not_after = datetime.datetime(2020, 1, 1), datetime.datetime(2050, 1, 1)
+
+    root_key = new_key()
+    root = (
+        x509.CertificateBuilder()
+        .subject_name(dn("Ladybird AIA Test Root"))
+        .issuer_name(dn("Ladybird AIA Test Root"))
+        .public_key(root_key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(not_before)
+        .not_valid_after(not_after)
+        .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
+        .sign(root_key, hashes.SHA256())
+    )
+
+    aia_base = f"http://127.0.0.1:{http_port}/aia"
+    artifacts = {}
+    scenarios = {}
+
+    def add_scenario(name, host, artifact_name, encoding, shared=None):
+        # By default, each scenario gets its own intermediate — so fetching one never populates the cache for another
+        # (which would mask whether that scenario's own fetch and parse ran). The de-dupe scenarios instead share one
+        # intermediate — to check it's fetched only once.
+        if shared is not None:
+            intermediate, intermediate_key = shared
+        else:
+            intermediate_key = new_key()
+            intermediate = (
+                x509.CertificateBuilder()
+                .subject_name(dn(f"Ladybird AIA Test Intermediate ({name})"))
+                .issuer_name(root.subject)
+                .public_key(intermediate_key.public_key())
+                .serial_number(x509.random_serial_number())
+                .not_valid_before(not_before)
+                .not_valid_after(not_after)
+                .add_extension(x509.BasicConstraints(ca=True, path_length=0), critical=True)
+                .sign(root_key, hashes.SHA256())
+            )
+        if encoding == "der":
+            artifacts[f"/aia/{artifact_name}"] = ("application/pkix-cert", intermediate.public_bytes(Encoding.DER))
+            aia_url = f"{aia_base}/{artifact_name}"
+        elif encoding == "pkcs7":
+            artifacts[f"/aia/{artifact_name}"] = (
+                "application/pkcs7-mime",
+                pkcs7.serialize_certificates([intermediate], Encoding.DER),
+            )
+            aia_url = f"{aia_base}/{artifact_name}"
+        else:
+            aia_url = f"{aia_base}/dead"  # 404: the intermediate is never published
+
+        leaf_key = new_key()
+        leaf = (
+            x509.CertificateBuilder()
+            .subject_name(dn(host))
+            .issuer_name(intermediate.subject)
+            .public_key(leaf_key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(not_before)
+            .not_valid_after(not_after)
+            .add_extension(x509.SubjectAlternativeName([x509.DNSName("localhost")]), critical=False)
+            .add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]), critical=False)
+            .add_extension(
+                x509.AuthorityInformationAccess(
+                    [
+                        x509.AccessDescription(
+                            AuthorityInformationAccessOID.CA_ISSUERS, x509.UniformResourceIdentifier(aia_url)
+                        )
+                    ]
+                ),
+                critical=False,
+            )
+            .sign(intermediate_key, hashes.SHA256())
+        )
+        scenarios[name] = (leaf, leaf_key)
+        return intermediate, intermediate_key
+
+    add_scenario("good_der", "good-der.localhost", "intermediate-der.der", "der")
+    add_scenario("good_pkcs7", "good-pkcs7.localhost", "intermediate-pkcs7.p7c", "pkcs7")
+    add_scenario("dead", "dead.localhost", None, "dead")
+    shared_intermediate = add_scenario("dedup_a", "dedup-a.localhost", "intermediate-dedup.der", "der")
+    add_scenario("dedup_b", "dedup-b.localhost", "intermediate-dedup.der", "der", shared_intermediate)
+
+    # Negative trust control: The caIssuers URL serves a self-signed cert that's *not* anchored in the trusted test
+    # root. A fetched intermediate must never complete a chain to an untrusted anchor — so this host must fail to load.
+    untrusted_key = new_key()
+    untrusted = (
+        x509.CertificateBuilder()
+        .subject_name(dn("Ladybird AIA Test UNTRUSTED root"))
+        .issuer_name(dn("Ladybird AIA Test UNTRUSTED root"))
+        .public_key(untrusted_key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(not_before)
+        .not_valid_after(not_after)
+        .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
+        .sign(untrusted_key, hashes.SHA256())
+    )
+    artifacts["/aia/untrusted.der"] = ("application/pkix-cert", untrusted.public_bytes(Encoding.DER))
+    untrusted_leaf_key = new_key()
+    untrusted_leaf = (
+        x509.CertificateBuilder()
+        .subject_name(dn("untrusted-leaf.localhost"))
+        .issuer_name(untrusted.subject)
+        .public_key(untrusted_leaf_key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(not_before)
+        .not_valid_after(not_after)
+        .add_extension(x509.SubjectAlternativeName([x509.DNSName("localhost")]), critical=False)
+        .add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]), critical=False)
+        .add_extension(
+            x509.AuthorityInformationAccess(
+                [
+                    x509.AccessDescription(
+                        AuthorityInformationAccessOID.CA_ISSUERS,
+                        x509.UniformResourceIdentifier(f"{aia_base}/untrusted.der"),
+                    )
+                ]
+            ),
+            critical=False,
+        )
+        .sign(untrusted_key, hashes.SHA256())
+    )
+    scenarios["untrusted"] = (untrusted_leaf, untrusted_leaf_key)
+
+    TestHTTPRequestHandler.aia_artifacts = artifacts
+
+    # Write the root CA so RequestServer (via --certificate/CAINFO) trusts the completed chains.
+    with open(ca_cert_output, "wb") as ca_file:
+        ca_file.write(root.public_bytes(Encoding.PEM))
+
+    scratch = tempfile.mkdtemp(prefix="ladybird-aia-")
+    config = {}
+    for name, (leaf, leaf_key) in scenarios.items():
+        # The cert file holds *only* the leaf — so, each HTTPS host presents a broken chain (the intermediate is omitted
+        # and must be fetched via AIA).
+        cert_path = os.path.join(scratch, f"{name}.crt")
+        key_path = os.path.join(scratch, f"{name}.key")
+        with open(cert_path, "wb") as f:
+            f.write(leaf.public_bytes(Encoding.PEM))
+        with open(key_path, "wb") as f:
+            f.write(leaf_key.private_bytes(Encoding.PEM, PrivateFormat.TraditionalOpenSSL, NoEncryption()))
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.load_cert_chain(certfile=cert_path, keyfile=key_path)
+        server = AIATLSServer(("127.0.0.1", 0), AIALeafHandler, context)
+        config[name] = server.socket.getsockname()[1]
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+
+    TestHTTPRequestHandler.aia_config = config
+    logging.info("AIA test servers ready: %s (root CA at %s)", config, ca_cert_output)
+
+
+def start_server(port, static_directory, ca_cert_output=None):
     TestHTTPRequestHandler.static_directory = os.path.abspath(static_directory)
     TestHTTPRequestHandler.wpt_directory = os.path.join(
         TestHTTPRequestHandler.static_directory, "Text", "input", "wpt-import"
@@ -654,6 +891,20 @@ def start_server(port, static_directory):
         base_path=TestHTTPRequestHandler.static_directory,
         url_base="/static/",
     )
+
+    if ca_cert_output:
+        # Setup below can fail or be skipped (no 'cryptography'), and it is the only writer of this fixed path. A PEM
+        # left by an earlier run would then still be trusted, with a root key matching none of the servers now
+        # running - surfacing as a confusing TLS failure rather than the setup error it is.
+        try:
+            os.remove(ca_cert_output)
+        except FileNotFoundError:
+            pass
+
+        try:
+            _setup_aia_test_servers(httpd.socket.getsockname()[1], ca_cert_output)
+        except Exception as error:
+            logging.exception("AIA test setup failed: %s", error)
 
     print(httpd.socket.getsockname()[1])
     sys.stdout.flush()
@@ -683,6 +934,12 @@ if __name__ == "__main__":
         default=0,
         help="Port to run the server on",
     )
+    parser.add_argument(
+        "--ca-cert-output",
+        type=str,
+        default=None,
+        help="Path to write the AIA test root CA (PEM) to; enables the AIA broken-chain HTTPS servers",
+    )
     args = parser.parse_args()
 
-    start_server(port=args.port, static_directory=args.directory)
+    start_server(port=args.port, static_directory=args.directory, ca_cert_output=args.ca_cert_output)
