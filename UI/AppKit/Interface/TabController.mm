@@ -1763,11 +1763,6 @@ private:
 
 #pragma mark - AutocompleteObserver
 
-- (void)onHighlightedSuggestion:(NSUInteger)suggestion_index
-{
-    m_omnibox->suggestion_hovered(static_cast<size_t>(suggestion_index));
-}
-
 - (void)onAutocompleteDidClose
 {
     m_omnibox->popup_dismissed();

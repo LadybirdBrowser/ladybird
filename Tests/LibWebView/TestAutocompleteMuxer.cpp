@@ -18,11 +18,6 @@ WebView::AutocompleteSuggestion suggestion(
 {
     return {
         .source = source,
-        .section = source == WebView::AutocompleteSuggestionSource::Search
-            ? WebView::AutocompleteSuggestionSection::SearchSuggestions
-            : source == WebView::AutocompleteSuggestionSource::Bookmark
-            ? WebView::AutocompleteSuggestionSection::Bookmarks
-            : WebView::AutocompleteSuggestionSection::History,
         .text = MUST(String::from_utf8(text)),
         .title = {},
         .subtitle = {},

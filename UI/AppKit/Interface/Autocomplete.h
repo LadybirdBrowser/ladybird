@@ -14,7 +14,6 @@
 @protocol AutocompleteObserver <NSObject>
 
 - (void)onSelectedSuggestion:(NSUInteger)suggestion_index;
-- (void)onHighlightedSuggestion:(NSUInteger)suggestion_index;
 - (void)onAutocompleteDidClose;
 
 @end

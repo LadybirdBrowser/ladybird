@@ -317,3 +317,18 @@ TEST_CASE(autocomplete_url_completion)
     expect_autocomplete_url_cannot_complete("reddit.com/r"sv, "https://reddit.com/"sv);
     expect_autocomplete_url_cannot_complete("http://reddit.co"sv, "https://reddit.com/"sv);
 }
+
+TEST_CASE(autocomplete_suggestion_display_text)
+{
+    WebView::AutocompleteSuggestion url_suggestion {
+        .source = WebView::AutocompleteSuggestionSource::History,
+        .text = "https://www.example.com/"_string,
+    };
+    EXPECT_EQ(WebView::autocomplete_suggestion_display_text(url_suggestion), "example.com"sv);
+
+    WebView::AutocompleteSuggestion search_suggestion {
+        .source = WebView::AutocompleteSuggestionSource::Search,
+        .text = "https://example.com/"_string,
+    };
+    EXPECT_EQ(WebView::autocomplete_suggestion_display_text(search_suggestion), "https://example.com/"sv);
+}

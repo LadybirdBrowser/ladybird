@@ -36,35 +36,20 @@ namespace Ladybird {
 
 static constexpr int POPUP_PADDING = 6;
 static constexpr int CELL_HORIZONTAL_PADDING = 8;
-static constexpr int CELL_VERTICAL_PADDING = 8;
+static constexpr int CELL_VERTICAL_PADDING = 6;
 static constexpr int CELL_ICON_SIZE = 16;
 static constexpr int CELL_ICON_TEXT_SPACING = 6;
 static constexpr int CELL_LABEL_VERTICAL_SPACING = 3;
-static constexpr int SECTION_HEADER_HORIZONTAL_PADDING = 10;
-static constexpr int SECTION_HEADER_VERTICAL_PADDING = 4;
 static constexpr int MINIMUM_POPUP_WIDTH = 100;
-static constexpr size_t MAXIMUM_VISIBLE_AUTOCOMPLETE_SUGGESTIONS = 8;
+static constexpr size_t MAXIMUM_VISIBLE_AUTOCOMPLETE_SUGGESTIONS = 6;
 
 enum AutocompleteRole {
-    RowKindRole = Qt::UserRole + 1,
-    HeaderTextRole,
-    TitleRole,
+    TitleRole = Qt::UserRole + 1,
     SubtitleRole,
     UrlRole,
     FaviconRole,
     SourceRole,
     SuggestionIndexRole,
-};
-
-enum class RowKind {
-    SectionHeader,
-    Suggestion,
-};
-
-struct RowModel {
-    RowKind kind;
-    String header_text;
-    size_t suggestion_index { 0 };
 };
 
 static QFont autocomplete_primary_font()
@@ -79,13 +64,6 @@ static QFont autocomplete_secondary_font()
     QFont font = QApplication::font();
     if (font.pointSizeF() > 0)
         font.setPointSizeF(font.pointSizeF() - 1.0);
-    return font;
-}
-
-static QFont autocomplete_section_header_font()
-{
-    QFont font = autocomplete_secondary_font();
-    font.setWeight(QFont::DemiBold);
     return font;
 }
 
@@ -124,22 +102,7 @@ public:
     {
         beginResetModel();
         m_suggestions = move(suggestions);
-        m_rows.clear();
         m_favicon_cache.clear();
-
-        auto current_section = WebView::AutocompleteSuggestionSection::None;
-        for (size_t index = 0; index < m_suggestions.size(); ++index) {
-            auto const& suggestion = m_suggestions[index];
-            if (suggestion.section != WebView::AutocompleteSuggestionSection::None
-                && suggestion.section != current_section) {
-                current_section = suggestion.section;
-                m_rows.append({
-                    .kind = RowKind::SectionHeader,
-                    .header_text = MUST(String::from_utf8(WebView::autocomplete_section_title(current_section))),
-                });
-            }
-            m_rows.append({ .kind = RowKind::Suggestion, .header_text = {}, .suggestion_index = index });
-        }
 
         for (size_t index = 0; index < m_suggestions.size(); ++index) {
             auto const& suggestion = m_suggestions[index];
@@ -162,30 +125,21 @@ public:
     {
         if (parent.isValid())
             return 0;
-        return static_cast<int>(m_rows.size());
+        return static_cast<int>(m_suggestions.size());
     }
 
     QVariant data(QModelIndex const& index, int role) const override
     {
-        if (!index.isValid() || index.row() < 0 || index.row() >= static_cast<int>(m_rows.size()))
+        if (!index.isValid() || index.row() < 0 || index.row() >= static_cast<int>(m_suggestions.size()))
             return {};
 
-        auto const& row = m_rows[index.row()];
-        if (role == RowKindRole)
-            return static_cast<int>(row.kind);
-
-        if (row.kind == RowKind::SectionHeader) {
-            if (role == HeaderTextRole || role == Qt::DisplayRole)
-                return qstring_from_ak_string(row.header_text);
-            return {};
-        }
-
-        auto const& suggestion = m_suggestions[row.suggestion_index];
+        auto suggestion_index = static_cast<size_t>(index.row());
+        auto const& suggestion = m_suggestions[suggestion_index];
 
         switch (role) {
         case Qt::DisplayRole:
         case UrlRole:
-            return qstring_from_ak_string(suggestion.text);
+            return qstring_from_ak_string(WebView::autocomplete_suggestion_display_text(suggestion));
         case TitleRole:
             if (suggestion.title.has_value())
                 return qstring_from_ak_string(*suggestion.title);
@@ -196,14 +150,14 @@ public:
             return {};
         case FaviconRole:
             for (auto const& entry : m_favicon_cache) {
-                if (entry.suggestion_index == row.suggestion_index)
+                if (entry.suggestion_index == suggestion_index)
                     return entry.icon;
             }
             return {};
         case SourceRole:
             return static_cast<int>(suggestion.source);
         case SuggestionIndexRole:
-            return static_cast<int>(row.suggestion_index);
+            return index.row();
         default:
             return {};
         }
@@ -211,36 +165,21 @@ public:
 
     Qt::ItemFlags flags(QModelIndex const& index) const override
     {
-        if (!index.isValid() || index.row() < 0 || index.row() >= static_cast<int>(m_rows.size()))
+        if (!index.isValid() || index.row() < 0 || index.row() >= static_cast<int>(m_suggestions.size()))
             return Qt::NoItemFlags;
-        auto const& row = m_rows[index.row()];
-        if (row.kind == RowKind::SectionHeader)
-            return Qt::ItemIsEnabled;
         return Qt::ItemIsEnabled | Qt::ItemIsSelectable;
     }
 
-    Vector<RowModel> const& rows() const { return m_rows; }
-
     int table_row_for_suggestion_index(int suggestion_index) const
     {
-        if (suggestion_index < 0)
+        if (suggestion_index < 0 || suggestion_index >= static_cast<int>(m_suggestions.size()))
             return -1;
-        for (size_t i = 0; i < m_rows.size(); ++i) {
-            if (m_rows[i].kind == RowKind::Suggestion
-                && m_rows[i].suggestion_index == static_cast<size_t>(suggestion_index))
-                return static_cast<int>(i);
-        }
-        return -1;
+        return suggestion_index;
     }
 
     size_t visible_suggestion_count() const
     {
-        size_t count = 0;
-        for (auto const& row : m_rows) {
-            if (row.kind == RowKind::Suggestion)
-                ++count;
-        }
-        return count;
+        return m_suggestions.size();
     }
 
 private:
@@ -250,7 +189,6 @@ private:
     };
 
     Vector<WebView::AutocompleteSuggestion> m_suggestions;
-    Vector<RowModel> m_rows;
     Vector<FaviconEntry> m_favicon_cache;
 };
 
@@ -262,12 +200,9 @@ public:
     {
         if (!index.isValid())
             return {};
-        auto kind = static_cast<RowKind>(index.data(RowKindRole).toInt());
-        if (kind == RowKind::SectionHeader) {
-            QFontMetrics fm(autocomplete_section_header_font());
-            return QSize(0, fm.height() + SECTION_HEADER_VERTICAL_PADDING * 2);
-        }
         QFontMetrics primary_fm(autocomplete_primary_font());
+        if (index.data(TitleRole).toString().isEmpty())
+            return QSize(0, std::max(CELL_ICON_SIZE, primary_fm.height()) + CELL_VERTICAL_PADDING * 2);
         QFontMetrics secondary_fm(autocomplete_secondary_font());
         int content_height = std::max(CELL_ICON_SIZE,
             primary_fm.height() + CELL_LABEL_VERTICAL_SPACING + secondary_fm.height());
@@ -277,22 +212,6 @@ public:
     void paint(QPainter* painter, QStyleOptionViewItem const& option, QModelIndex const& index) const override
     {
         painter->save();
-        auto kind = static_cast<RowKind>(index.data(RowKindRole).toInt());
-
-        if (kind == RowKind::SectionHeader) {
-            auto text = index.data(HeaderTextRole).toString();
-            painter->setFont(autocomplete_section_header_font());
-            auto header_color = ChromeStyle::chrome_muted_text(option.palette);
-            header_color.setAlpha(170);
-            painter->setPen(header_color);
-            auto rect = option.rect.adjusted(
-                SECTION_HEADER_HORIZONTAL_PADDING, SECTION_HEADER_VERTICAL_PADDING,
-                -SECTION_HEADER_HORIZONTAL_PADDING, -SECTION_HEADER_VERTICAL_PADDING);
-            painter->drawText(rect, Qt::AlignLeft | Qt::AlignVCenter, text);
-            painter->restore();
-            return;
-        }
-
         bool selected = option.state & QStyle::State_Selected;
         if (selected) {
             auto rect = option.rect.adjusted(3, 2, -3, -2);
@@ -405,7 +324,7 @@ void Autocomplete::create_popup()
     m_list_view->setMouseTracking(true);
     m_list_view->setFrameShape(QFrame::NoFrame);
     m_list_view->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    m_list_view->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_list_view->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_list_view->setModel(m_model);
     m_list_view->setItemDelegate(m_delegate);
     update_chrome_style();
@@ -553,11 +472,9 @@ void Autocomplete::position_popup()
         option.initFrom(m_list_view);
         int h = m_delegate->sizeHint(option, index).height();
         total_height += h;
-        if (static_cast<RowKind>(index.data(RowKindRole).toInt()) == RowKind::Suggestion) {
-            ++seen_suggestions;
-            if (seen_suggestions >= visible_count)
-                break;
-        }
+        ++seen_suggestions;
+        if (seen_suggestions >= visible_count)
+            break;
     }
 
     auto* top_window = m_anchor->window();
@@ -583,10 +500,7 @@ void Autocomplete::position_popup()
 
 bool Autocomplete::is_selectable_row(int row) const
 {
-    if (row < 0 || row >= m_model->rowCount())
-        return false;
-    auto const& rows = m_model->rows();
-    return rows[row].kind == RowKind::Suggestion;
+    return row >= 0 && row < m_model->rowCount();
 }
 
 }

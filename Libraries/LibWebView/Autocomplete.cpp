@@ -95,20 +95,15 @@ void Autocomplete::record_engagement(OmniboxEngagement engagement)
     Application::autocomplete_service().record_engagement(move(engagement));
 }
 
-StringView autocomplete_section_title(AutocompleteSuggestionSection section)
+String autocomplete_suggestion_display_text(AutocompleteSuggestion const& suggestion)
 {
-    switch (section) {
-    case AutocompleteSuggestionSection::None:
-        return {};
-    case AutocompleteSuggestionSection::History:
-        return "History"sv;
-    case AutocompleteSuggestionSection::Bookmarks:
-        return "Bookmarks"sv;
-    case AutocompleteSuggestionSection::SearchSuggestions:
-        return "Search Suggestions"sv;
-    }
+    if (suggestion.source == AutocompleteSuggestionSource::Search)
+        return suggestion.text;
 
-    VERIFY_NOT_REACHED();
+    auto url = URL::create_with_url_or_path(suggestion.text.to_byte_string());
+    if (!url.has_value())
+        return suggestion.text;
+    return url_for_display(*url);
 }
 
 [[maybe_unused]] static ByteString log_autocomplete_suggestions(Vector<AutocompleteSuggestion> const& suggestions)
@@ -137,7 +132,6 @@ static Optional<AutocompleteSuggestion> search_for_query_suggestion(StringView q
 
     return AutocompleteSuggestion {
         .source = AutocompleteSuggestionSource::Search,
-        .section = AutocompleteSuggestionSection::SearchSuggestions,
         .text = query_string,
         .title = query_string,
         .subtitle = move(subtitle),
@@ -156,7 +150,6 @@ static Optional<AutocompleteSuggestion> literal_url_suggestion(StringView query)
 
     return AutocompleteSuggestion {
         .source = AutocompleteSuggestionSource::LiteralURL,
-        .section = AutocompleteSuggestionSection::None,
         .text = MUST(String::from_utf8(query)),
         .title = {},
         .subtitle = {},
@@ -178,7 +171,6 @@ static Vector<AutocompleteSuggestion> make_remote_suggestions(Vector<String> rem
     for (size_t index = 0; index < remote_suggestions.size() && index < maximum_remote_candidates; ++index) {
         suggestions.unchecked_append({
             .source = AutocompleteSuggestionSource::Search,
-            .section = AutocompleteSuggestionSection::SearchSuggestions,
             .text = move(remote_suggestions[index]),
             .title = {},
             .subtitle = {},

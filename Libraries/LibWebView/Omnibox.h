@@ -84,7 +84,6 @@ public:
     void popup_dismissed();
     bool select_next_suggestion();
     bool select_previous_suggestion();
-    void suggestion_hovered(size_t suggestion_index);
     void suggestion_clicked(size_t suggestion_index);
 
     // State for the chrome:
@@ -112,12 +111,11 @@ private:
     };
 
     // The selection carries its own origin, so an explicit-choice verdict cannot outlive or predate the
-    // row it is about. Hover previews remain distinct because merely hovering must not train ranking.
+    // row it is about.
     struct Selection {
         enum class Origin {
             Automatic,
             ExplicitChoice,
-            HoverPreview,
         };
 
         size_t index { 0 };

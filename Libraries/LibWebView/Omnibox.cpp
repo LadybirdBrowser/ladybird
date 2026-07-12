@@ -580,16 +580,6 @@ bool Omnibox::select_adjacent_suggestion(StepDirection direction)
     return true;
 }
 
-void Omnibox::suggestion_hovered(size_t suggestion_index)
-{
-    if (!m_is_editing || suggestion_index >= m_suggestions.size())
-        return;
-    if (m_selection.has_value() && m_selection->index == suggestion_index)
-        return;
-
-    highlight_suggestion(suggestion_index, Selection::Origin::HoverPreview);
-}
-
 void Omnibox::suggestion_clicked(size_t suggestion_index)
 {
     if (!m_is_editing || suggestion_index >= m_suggestions.size())
@@ -627,9 +617,8 @@ void Omnibox::display_suggestion(size_t suggestion_index)
 void Omnibox::activate_selected_suggestion()
 {
     if (m_selection.has_value()) {
-        auto record_engagement = m_selection->origin != Selection::Origin::HoverPreview;
         auto was_explicit = m_selection->origin == Selection::Origin::ExplicitChoice;
-        commit_suggestion(m_selection->index, record_engagement, was_explicit);
+        commit_suggestion(m_selection->index, true, was_explicit);
         return;
     }
 

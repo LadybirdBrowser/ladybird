@@ -198,10 +198,6 @@ LocationEdit::LocationEdit(QWidget* parent, WebView::IsPrivate is_private)
         m_omnibox.suggestion_clicked(static_cast<size_t>(suggestion_index));
     });
 
-    connect(m_autocomplete, &Autocomplete::suggestion_hovered, this, [this](int suggestion_index) {
-        m_omnibox.suggestion_hovered(static_cast<size_t>(suggestion_index));
-    });
-
     connect(m_autocomplete, &Autocomplete::dismissed, this, [this] {
         m_omnibox.popup_dismissed();
     });

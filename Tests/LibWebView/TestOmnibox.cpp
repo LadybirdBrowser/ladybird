@@ -11,15 +11,13 @@ namespace {
 
 using WebView::AutocompleteResultKind;
 using WebView::AutocompleteSuggestion;
-using WebView::AutocompleteSuggestionSection;
 using WebView::AutocompleteSuggestionSource;
 using WebView::Omnibox;
 
-AutocompleteSuggestion row(AutocompleteSuggestionSource source, AutocompleteSuggestionSection section, StringView text)
+AutocompleteSuggestion row(AutocompleteSuggestionSource source, StringView text)
 {
     return {
         .source = source,
-        .section = section,
         .text = MUST(String::from_utf8(text)),
         .title = {},
         .subtitle = {},
@@ -31,7 +29,7 @@ AutocompleteSuggestion row(AutocompleteSuggestionSource source, AutocompleteSugg
 
 AutocompleteSuggestion history_row(StringView url, i32 relevance = 0)
 {
-    auto suggestion = row(AutocompleteSuggestionSource::History, AutocompleteSuggestionSection::History, url);
+    auto suggestion = row(AutocompleteSuggestionSource::History, url);
     suggestion.relevance = relevance;
     return suggestion;
 }
@@ -40,7 +38,6 @@ AutocompleteSuggestion non_automatic_history_row(StringView url, StringView titl
 {
     return {
         .source = AutocompleteSuggestionSource::History,
-        .section = AutocompleteSuggestionSection::History,
         .text = MUST(String::from_utf8(url)),
         .title = MUST(String::from_utf8(title)),
         .subtitle = {},
@@ -58,12 +55,12 @@ AutocompleteSuggestion non_inline_history_row(StringView url, i32 relevance = 0)
 
 AutocompleteSuggestion search_row(StringView query)
 {
-    return row(AutocompleteSuggestionSource::Search, AutocompleteSuggestionSection::SearchSuggestions, query);
+    return row(AutocompleteSuggestionSource::Search, query);
 }
 
 AutocompleteSuggestion literal_row(StringView url)
 {
-    return row(AutocompleteSuggestionSource::LiteralURL, AutocompleteSuggestionSection::None, url);
+    return row(AutocompleteSuggestionSource::LiteralURL, url);
 }
 
 class ScriptedProvider final : public WebView::OmniboxSuggestionProvider {
@@ -519,23 +516,6 @@ TEST_CASE(escape_rejects_an_automatic_completion_and_closes_the_popup)
     EXPECT_EQ(harness.omnibox.escape_pressed(), Omnibox::EscapeAction::EndEditing);
 }
 
-TEST_CASE(escape_restores_the_query_over_a_preview)
-{
-    Harness harness;
-    harness.begin_editing();
-
-    harness.press_key('t');
-    harness.provider->deliver({ history_row("https://www.thev.example/"sv), history_row("https://odd.example/t"sv), search_row("t"sv) }, AutocompleteResultKind::Intermediate);
-
-    // Hovering a row that cannot extend the query previews it in full.
-    harness.omnibox.suggestion_hovered(1);
-    EXPECT_EQ(harness.display_text, "https://odd.example/t"sv);
-    EXPECT_EQ(harness.selection_start, 0u);
-
-    EXPECT_EQ(harness.omnibox.escape_pressed(), Omnibox::EscapeAction::ClosedPopup);
-    EXPECT_EQ(harness.display_text, "t"sv);
-}
-
 TEST_CASE(arrow_keys_walk_the_suggestions_and_enter_activates_the_choice)
 {
     Harness harness;
@@ -591,20 +571,6 @@ TEST_CASE(keyboard_choice_records_explicit_engagement)
     EXPECT_EQ(harness.provider->engagements[0].destination_kind, WebView::OmniboxDestinationKind::Search);
     EXPECT_EQ(harness.provider->engagements[0].destination, "t"sv);
     EXPECT(harness.provider->engagements[0].was_explicit);
-}
-
-TEST_CASE(hover_preview_does_not_record_engagement)
-{
-    Harness harness;
-    harness.begin_editing();
-
-    harness.press_key('t');
-    harness.provider->deliver({ history_row("https://www.thev.example/"sv), history_row("https://odd.example/t"sv), search_row("t"sv) }, AutocompleteResultKind::Final);
-    harness.omnibox.suggestion_hovered(1);
-    harness.omnibox.return_pressed();
-
-    EXPECT_EQ(harness.commits.last(), "https://odd.example/t"sv);
-    EXPECT(harness.provider->engagements.is_empty());
 }
 
 TEST_CASE(verbatim_commit_records_the_unmodified_input)
@@ -843,27 +809,6 @@ TEST_CASE(deliveries_from_an_old_generation_are_ignored)
     EXPECT_EQ(harness.display_text, "th"sv);
     EXPECT(!harness.omnibox.is_popup_visible());
     EXPECT(harness.commits.is_empty());
-}
-
-TEST_CASE(a_vanished_preview_row_stops_being_displayed)
-{
-    Harness harness;
-    harness.begin_editing();
-
-    harness.press_key('t');
-    harness.provider->deliver({ history_row("https://www.thev.example/"sv), history_row("https://odd.example/t"sv), search_row("t"sv) }, AutocompleteResultKind::Final);
-
-    harness.omnibox.suggestion_hovered(1);
-    EXPECT_EQ(harness.display_text, "https://odd.example/t"sv);
-
-    // The previewed row is gone from the refreshed results; the bar must not keep showing text that
-    // Enter would no longer act on.
-    harness.provider->deliver({ history_row("https://www.thev.example/"sv), search_row("t"sv) }, AutocompleteResultKind::Final);
-    EXPECT_EQ(harness.display_text, "t"sv);
-
-    // With no selected row left, Enter submits exactly what the bar shows.
-    harness.omnibox.return_pressed();
-    EXPECT_EQ(harness.commits.last(), "t"sv);
 }
 
 TEST_CASE(a_surviving_preview_row_remains_the_users_choice)

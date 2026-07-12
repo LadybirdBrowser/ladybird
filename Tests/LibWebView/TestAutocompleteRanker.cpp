@@ -133,6 +133,20 @@ TEST_CASE(distinct_deep_pages_can_establish_origin_intent)
     EXPECT_EQ(suggestions.first().text, "https://example.com/"sv);
 }
 
+TEST_CASE(aggregated_origin_uses_a_page_favicon)
+{
+    auto deep_page = entry("https://example.com/page"sv, "Page"sv, 1);
+    deep_page.favicon_base64_png = "favicon"_string;
+    auto suggestions = rank("exa"sv, { move(deep_page) });
+
+    auto origin = suggestions.find_if([](auto const& suggestion) {
+        return suggestion.text == "https://example.com/"sv;
+    });
+    VERIFY(origin != suggestions.end());
+    VERIFY(origin->favicon_base64_png.has_value());
+    EXPECT_EQ(*origin->favicon_base64_png, "favicon"sv);
+}
+
 TEST_CASE(short_queries_return_origins_instead_of_deep_pages)
 {
     auto suggestions = rank("g"sv, {

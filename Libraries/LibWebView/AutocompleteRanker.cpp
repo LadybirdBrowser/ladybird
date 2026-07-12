@@ -193,6 +193,9 @@ static void add_aggregated_origin_entries(StringView folded_query, Vector<Histor
         auto direct_score = decayed_score_at(entry.decayed_direct_score, entry.score_updated_at, now, 60.0);
         origin.decayed_visit_score = min(50.0, origin.decayed_visit_score + min(visit_score, is_origin_entry ? 8.0 : 2.0));
         origin.decayed_direct_score = min(12.0, origin.decayed_direct_score + min(direct_score, is_origin_entry ? 3.0 : 1.0));
+        if (entry.favicon_base64_png.has_value()
+            && (!origin.favicon_base64_png.has_value() || entry.last_visited_time >= origin.last_visited_time))
+            origin.favicon_base64_png = entry.favicon_base64_png;
         origin.last_visited_time = max(origin.last_visited_time, entry.last_visited_time);
         origin.last_qualifying_visit_time = max(origin.last_qualifying_visit_time, entry.last_qualifying_visit_time);
         origin.last_direct_visit_time = max(origin.last_direct_visit_time, entry.last_direct_visit_time);
@@ -271,7 +274,6 @@ Vector<AutocompleteSuggestion> rank_history_suggestions(StringView query, Vector
 
         suggestions.append({
             .source = AutocompleteSuggestionSource::History,
-            .section = AutocompleteSuggestionSection::History,
             .text = move(entry.url),
             .title = move(entry.title),
             .subtitle = {},
@@ -367,7 +369,6 @@ Vector<AutocompleteSuggestion> rank_bookmark_suggestions(StringView query, Vecto
 
         suggestions.append({
             .source = AutocompleteSuggestionSource::Bookmark,
-            .section = AutocompleteSuggestionSection::Bookmarks,
             .text = bookmark.url,
             .title = bookmark.title,
             .subtitle = bookmark.folder,
@@ -436,7 +437,6 @@ Vector<AutocompleteSuggestion> rank_engagement_suggestions(StringView query, Vec
             ? match_relevance(match_class)
             : static_cast<i32>(static_cast<double>(match_relevance(match_class)) * prefix_strength);
         auto source = AutocompleteSuggestionSource::Adaptive;
-        auto section = AutocompleteSuggestionSection::History;
         bool can_be_automatically_selected = false;
         bool can_be_inline_completed = false;
 
@@ -482,12 +482,10 @@ Vector<AutocompleteSuggestion> rank_engagement_suggestions(StringView query, Vec
                 && deep_page_has_inline_intent;
         } else {
             source = AutocompleteSuggestionSource::Search;
-            section = AutocompleteSuggestionSection::SearchSuggestions;
         }
 
         suggestions.append({
             .source = source,
-            .section = section,
             .text = move(engagement.destination),
             .title = {},
             .subtitle = {},

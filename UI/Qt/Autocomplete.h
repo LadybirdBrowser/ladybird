@@ -24,7 +24,7 @@ class AutocompleteModel;
 class AutocompleteDelegate;
 
 // The suggestion popup below the location bar. This is a pure view: LocationEdit feeds it rows and a
-// selection from the WebView::Omnibox model, and it reports row hovers, clicks, and outside-click
+// selection from the WebView::Omnibox model, and it reports clicks and outside-click
 // dismissals back.
 class Autocomplete final : public QObject {
     Q_OBJECT
@@ -42,7 +42,6 @@ public:
 
 signals:
     void suggestion_clicked(int suggestion_index);
-    void suggestion_hovered(int suggestion_index);
     void dismissed();
 
 protected:

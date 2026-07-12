@@ -44,13 +44,6 @@ enum class AutocompleteSuggestionSource {
     Search,
 };
 
-enum class AutocompleteSuggestionSection {
-    None,
-    History,
-    Bookmarks,
-    SearchSuggestions,
-};
-
 enum class AutocompleteMatchClass {
     None,
     ExactURL,
@@ -64,7 +57,6 @@ enum class AutocompleteMatchClass {
 
 struct WEBVIEW_API AutocompleteSuggestion {
     AutocompleteSuggestionSource source { AutocompleteSuggestionSource::Search };
-    AutocompleteSuggestionSection section { AutocompleteSuggestionSection::None };
     String text;
     Optional<String> title;
     Optional<String> subtitle;
@@ -89,7 +81,7 @@ struct WEBVIEW_API AutocompleteBookmark {
 
 WEBVIEW_API ReadonlySpan<AutocompleteEngine> autocomplete_engines();
 WEBVIEW_API Optional<AutocompleteEngine const&> find_autocomplete_engine_by_name(StringView name);
-WEBVIEW_API StringView autocomplete_section_title(AutocompleteSuggestionSection);
+WEBVIEW_API String autocomplete_suggestion_display_text(AutocompleteSuggestion const&);
 WEBVIEW_API bool autocomplete_urls_match(StringView left, StringView right);
 WEBVIEW_API bool autocomplete_url_can_complete(StringView query, StringView suggestion);
 
