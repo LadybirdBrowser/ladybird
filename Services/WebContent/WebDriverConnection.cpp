@@ -2378,12 +2378,19 @@ Web::WebDriver::Response WebDriverConnection::add_cookie_impl(JsonObject const& 
     //     The value if the entry exists, otherwise the current browsing context’s active document’s URL domain.
     // NOTE: The otherwise case is handled by the CookieJar
     if (data.has("domain"sv)) {
-        cookie.domain = TRY(Web::WebDriver::get_property(data, "domain"sv));
+        auto domain = TRY(Web::WebDriver::get_property(data, "domain"sv));
+
+        // NB: Clients conventionally send parent-domain cookies with a leading '.', which the Set-Cookie parser
+        //     would strip. Strip it here as well, since the cookie store never sees a leading dot.
+        if (domain.starts_with_bytes("."sv))
+            domain = MUST(domain.substring_from_byte_offset(1));
 
         // FIXME: Spec issue: We must return InvalidCookieDomain for invalid domains, rather than InvalidArgument.
         // https://github.com/w3c/webdriver/issues/1570
-        if (!HTTP::Cookie::domain_matches(*cookie.domain, document->domain()))
+        if (!HTTP::Cookie::domain_matches(document->domain(), domain))
             return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidCookieDomain, "Cookie domain does not match document domain"sv);
+
+        cookie.domain = move(domain);
     }
 
     // Cookie secure only
