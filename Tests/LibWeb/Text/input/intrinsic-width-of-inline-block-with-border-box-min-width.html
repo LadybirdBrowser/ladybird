@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    .probe {
+        display: inline-block;
+        box-sizing: border-box;
+        min-width: 50px;
+        padding: 0 10px;
+    }
+    .min { width: min-content; }
+    .max { width: max-content; }
+</style>
+<!--
+    The probe's border-box min-width is 50px, of which 20px is padding, so its border-box width must
+    be 50px under both intrinsic sizing constraints, and both wrappers must resolve to 50px wide.
+    Resolving the border-box adjustment against unresolved (zero) padding inflates the min-content
+    result to 70px.
+-->
+<div class="min"><div class="probe">x</div></div>
+<div class="max"><div class="probe">x</div></div>
+<script>
+    test(() => {
+        const minContent = document.querySelector(".min").offsetWidth;
+        const maxContent = document.querySelector(".max").offsetWidth;
+        println(`width under min-content: ${minContent}`);
+        println(`width under max-content: ${maxContent}`);
+        if (minContent === maxContent)
+            println("PASS: min-content and max-content widths agree");
+        else
+            println("FAIL: min-content width differs from max-content width");
+    });
+</script>

@@ -1,0 +1,3 @@
+width under min-content: 70
+width under max-content: 50
+FAIL: min-content width differs from max-content width
