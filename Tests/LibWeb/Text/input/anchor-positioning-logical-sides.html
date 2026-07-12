@@ -63,8 +63,12 @@
         const rtlCb = document.createElement("div");
         rtlCb.className = "cb";
         rtlCb.style.direction = "rtl";
+        // NB: Clearing the id detaches the clone from the #anchor style rule, so it must carry the anchor
+        //     styles inline; an anchor in the first container would not be an acceptable anchor element for
+        //     a target in this one.
         const anchor2 = document.getElementById("anchor").cloneNode();
         anchor2.id = "";
+        anchor2.style.cssText = "anchor-name: --a; position: absolute; top: 50px; left: 100px; width: 200px; height: 80px";
         const pctRtl = document.createElement("div");
         pctRtl.className = "target";
         pctRtl.style.left = "anchor(25%)";

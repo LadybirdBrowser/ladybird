@@ -6800,7 +6800,7 @@ void Document::element_with_name_was_removed(Badge<DOM::Element>, GC::Ref<DOM::E
     }
 }
 
-GC::Ptr<Element> Document::element_by_anchor_name(Utf16FlyString const& name, Node const& querying_node) const
+GC::Ptr<Element> Document::element_by_anchor_name(Utf16FlyString const& name, Node const& querying_node, Function<bool(Element&)> const& is_acceptable) const
 {
     // https://drafts.csswg.org/css-shadow-1/#tree-scoped-name
     // If a tree-scoped name is global (such as @font-face names), then when a tree-scoped reference is dereferenced to
@@ -6809,13 +6809,13 @@ GC::Ptr<Element> Document::element_by_anchor_name(Utf16FlyString const& name, No
     // host's node tree (recursively).
     auto const* node = &querying_node;
     while (auto const* shadow_root = as_if<ShadowRoot>(node->root())) {
-        if (auto element = shadow_root->anchor_name_map().element_by_name(name))
+        if (auto element = shadow_root->anchor_name_map().last_element_by_name_matching(name, is_acceptable))
             return element;
         node = shadow_root->host();
         if (!node)
             return {};
     }
-    return m_anchor_name_map.element_by_name(name);
+    return m_anchor_name_map.last_element_by_name_matching(name, is_acceptable);
 }
 
 void Document::add_form_associated_element_with_form_attribute(HTML::FormAssociatedElement& form_associated_element)

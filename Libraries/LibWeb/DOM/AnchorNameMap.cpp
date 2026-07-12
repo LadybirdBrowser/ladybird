@@ -35,12 +35,16 @@ void AnchorNameMap::unregister_name(Utf16FlyString const& name, GC::Ref<Element>
         m_map.remove(it);
 }
 
-GC::Ptr<Element> AnchorNameMap::element_by_name(Utf16FlyString const& name) const
+GC::Ptr<Element> AnchorNameMap::last_element_by_name_matching(Utf16FlyString const& name, Function<bool(Element&)> const& is_acceptable) const
 {
     auto it = m_map.find(name);
-    if (it == m_map.end() || it->value.is_empty())
+    if (it == m_map.end())
         return {};
-    return it->value.last();
+    for (auto i = it->value.size(); i-- > 0;) {
+        if (is_acceptable(it->value[i]))
+            return it->value[i];
+    }
+    return {};
 }
 
 }

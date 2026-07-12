@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/Utf16FlyString.h>
 #include <LibGC/Ptr.h>
@@ -18,7 +19,7 @@ class AnchorNameMap {
 public:
     void register_name(Utf16FlyString const& name, GC::Ref<Element>);
     void unregister_name(Utf16FlyString const& name, GC::Ref<Element>);
-    GC::Ptr<Element> element_by_name(Utf16FlyString const& name) const;
+    GC::Ptr<Element> last_element_by_name_matching(Utf16FlyString const& name, Function<bool(Element&)> const& is_acceptable) const;
 
     template<typename Visitor>
     void visit_edges(Visitor& visitor) { visitor.visit(m_map); }

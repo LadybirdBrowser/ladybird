@@ -1995,24 +1995,58 @@ void FormattingContext::resolve_anchor_insets(Box& box) const
     auto const& containing_block_state = m_state.get(*containing_block);
 
     // https://drafts.csswg.org/css-anchor-position-1/#acceptable-anchor-element
-    // FIXME: An element possible anchor is an acceptable anchor element for an absolutely positioned element positioned
-    //        el if all of the following are true:
-    //        - possible anchor is laid out strictly before positioned el [...]
-    auto target_anchor_box = [&](Utf16FlyString const& anchor_name) -> Box* {
-        auto anchor_element = element->document().element_by_anchor_name(anchor_name, *element);
-        if (!anchor_element)
-            return nullptr;
-
+    // An element possible anchor is an acceptable anchor element for an absolutely positioned element positioned el
+    // if all of the following are true:
+    //   - possible anchor is either an element or a fully styleable pseudo-elements.
+    //   - possible anchor is in scope for positioned el, per the effects of anchor-scope on possible anchor or its
+    //     ancestors.
+    //   - possible anchor is laid out strictly before positioned el, aka one of the following is true:
+    //     - possible anchor and positioned el have the same original containing block and either
+    //       - possible anchor is in a lower top layer than positioned el, or
+    //       - they both exist in the same top layer, but possible anchor is either not absolutely positioned or
+    //         occurs earlier in the flat tree order than positioned el
+    //     - The element generating possible anchor’s containing block (if one exists) is an acceptable anchor
+    //       element for positioned el
+    //   - If possible anchor is in the skipped contents of another element, then positioned el is in the skipped
+    //     contents of that same element.
+    // NB: Applied recursively, the "laid out strictly before" conditions require the anchor's containing block
+    //     chain to pass through positioned el's containing block. We implement that scoping, and approximate the
+    //     ordering conditions by only accepting anchors that already have layout results.
+    // FIXME: Implement the top layer conditions, the flat tree ordering between absolutely positioned boxes,
+    //        anchor-scope, and the skipped contents condition.
+    Function<bool(DOM::Element&)> is_acceptable_anchor_element = [&](DOM::Element& candidate) {
         // NB: We use unsafe_layout_node() because we are in the middle of layout.
-        auto* anchor_box = as_if<Box>(anchor_element->unsafe_layout_node());
-        if (!anchor_box)
-            return nullptr;
+        auto const* anchor_box = as_if<Box>(candidate.unsafe_layout_node());
+        if (!anchor_box || anchor_box == &box)
+            return false;
 
         // The anchor element may not have been laid out (it must be laid out strictly before
         // the positioned element to be an acceptable anchor).
         if (!m_state.try_get(*anchor_box))
+            return false;
+
+        for (auto const* ancestor = anchor_box->containing_block(); ancestor; ancestor = ancestor->containing_block()) {
+            if (ancestor == containing_block)
+                return true;
+        }
+        return false;
+    };
+
+    // https://drafts.csswg.org/css-anchor-position-1/#target
+    // Otherwise, anchor spec is a <dashed-ident>. If an ancestor of query el satisfies the following conditions,
+    // return the nearest such element to query el. Otherwise, return the last element el in tree order that
+    // satisfies the conditions.
+    //   - el is an anchor element with an anchor name of anchor spec.
+    //   - el’s anchor name loosely matches anchor spec.
+    //   - el is an acceptable anchor element for query el.
+    // If no element satisfies these conditions, return nothing.
+    // FIXME: Prefer the nearest ancestor of query el that satisfies the conditions over the last element in tree
+    //        order.
+    auto target_anchor_box = [&](Utf16FlyString const& anchor_name) -> Box* {
+        auto anchor_element = element->document().element_by_anchor_name(anchor_name, *element, is_acceptable_anchor_element);
+        if (!anchor_element)
             return nullptr;
-        return anchor_box;
+        return as_if<Box>(anchor_element->unsafe_layout_node());
     };
 
     // https://drafts.csswg.org/css-anchor-position-1/#determining
@@ -2031,12 +2065,20 @@ void FormattingContext::resolve_anchor_insets(Box& box) const
             return {};
 
         auto const& anchor_state = m_state.get(*anchor_box);
-        auto anchor_border_box_origin = m_state.cumulative_offset(anchor_state)
-            - CSSPixelPoint { anchor_state.border_box_left(), anchor_state.border_box_top() };
-        auto containing_block_padding_box_origin = m_state.cumulative_offset(containing_block_state)
-            - CSSPixelPoint { containing_block_state.padding_left, containing_block_state.padding_top };
+        // Accumulate offsets from the anchor only up to the containing block: acceptability guarantees the
+        // containing block is on the anchor's containing block chain, and boxes above it must not be read
+        // because they may not be placed yet while this formatting context is still laying out.
+        CSSPixelPoint anchor_offset_from_containing_block;
+        for (auto const* node = anchor_box; node != containing_block; node = node->containing_block()) {
+            VERIFY(node);
+            anchor_offset_from_containing_block += m_state.get(*node).content_offset();
+        }
+        // The anchor rect is expressed relative to the containing block's padding box.
+        auto anchor_border_box_origin = anchor_offset_from_containing_block
+            - CSSPixelPoint { anchor_state.border_box_left(), anchor_state.border_box_top() }
+            + CSSPixelPoint { containing_block_state.padding_left, containing_block_state.padding_top };
         return CSSPixelRect {
-            anchor_border_box_origin - containing_block_padding_box_origin,
+            anchor_border_box_origin,
             { anchor_state.border_box_width(), anchor_state.border_box_height() },
         };
     };
