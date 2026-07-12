@@ -22,6 +22,7 @@ WebView::AutocompleteSuggestion suggestion(
         .title = {},
         .subtitle = {},
         .favicon_base64_png = {},
+        .highlight_input = {},
         .relevance = relevance,
         .is_verbatim = is_verbatim,
         .can_be_automatically_selected = can_be_automatically_selected,

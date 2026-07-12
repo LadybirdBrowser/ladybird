@@ -320,15 +320,13 @@ TEST_CASE(autocomplete_url_completion)
 
 TEST_CASE(autocomplete_suggestion_display_text)
 {
-    WebView::AutocompleteSuggestion url_suggestion {
-        .source = WebView::AutocompleteSuggestionSource::History,
-        .text = "https://www.example.com/"_string,
-    };
+    WebView::AutocompleteSuggestion url_suggestion;
+    url_suggestion.source = WebView::AutocompleteSuggestionSource::History;
+    url_suggestion.text = "https://www.example.com/"_string;
     EXPECT_EQ(WebView::autocomplete_suggestion_display_text(url_suggestion), "example.com"sv);
 
-    WebView::AutocompleteSuggestion search_suggestion {
-        .source = WebView::AutocompleteSuggestionSource::Search,
-        .text = "https://example.com/"_string,
-    };
+    WebView::AutocompleteSuggestion search_suggestion;
+    search_suggestion.source = WebView::AutocompleteSuggestionSource::Search;
+    search_suggestion.text = "https://example.com/"_string;
     EXPECT_EQ(WebView::autocomplete_suggestion_display_text(search_suggestion), "https://example.com/"sv);
 }

@@ -21,6 +21,7 @@ AutocompleteSuggestion row(AutocompleteSuggestionSource source, StringView text)
         .title = {},
         .subtitle = {},
         .favicon_base64_png = {},
+        .highlight_input = {},
         .can_be_automatically_selected = true,
         .can_be_inline_completed = source == AutocompleteSuggestionSource::History,
     };
@@ -41,6 +42,7 @@ AutocompleteSuggestion non_automatic_history_row(StringView url, StringView titl
         .title = MUST(String::from_utf8(title)),
         .subtitle = {},
         .favicon_base64_png = {},
+        .highlight_input = {},
         .can_be_automatically_selected = false,
     };
 }
