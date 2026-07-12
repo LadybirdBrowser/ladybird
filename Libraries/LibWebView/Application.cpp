@@ -1007,10 +1007,12 @@ ErrorOr<void> Application::launch_services()
         else
             m_storage_jar = StorageJar::create();
 
-        if (TRY(HistoryStore::migrate_schema(*m_history_database)) == Database::MigrationOutcome::Success) {
+        auto history_outcome = TRY(HistoryStore::migrate_schema(*m_history_database));
+        if (history_outcome == Database::MigrationOutcome::Success) {
             m_history_store = TRY(HistoryStore::create(*m_history_database));
         } else {
             dbgln("History database was created by a newer Ladybird version; history will not be persisted this session");
+            history_database_directory = {};
             m_history_store = HistoryStore::create();
         }
     } else {
