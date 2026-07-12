@@ -7,9 +7,11 @@
 #pragma once
 
 #include <AK/Badge.h>
+#include <AK/ByteBuffer.h>
 #include <AK/HashMap.h>
 #include <AK/Optional.h>
 #include <AK/Time.h>
+#include <AK/Vector.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibHTTP/Cache/CacheMode.h>
 #include <LibHTTP/Cache/DiskCacheSettings.h>
@@ -25,6 +27,16 @@
 #include <RequestServer/RequestServerEndpoint.h>
 
 namespace RequestServer {
+
+// Cap on an AIA response: these carry one DER or PKCS#7 certificate bundle, never anything large.
+constexpr inline size_t max_aia_response_size = 64 * KiB;
+
+struct AIAFetch {
+    ByteString url;
+    ByteBuffer body;
+    Vector<u64> request_ids;
+    curl_slist* resolve_list { nullptr };
+};
 
 class ConnectionFromClient final
     : public IPC::ConnectionFromClient<RequestClientEndpoint, RequestServerEndpoint> {
@@ -55,6 +67,7 @@ public:
 
     void start_revalidation_request(Badge<Request>, ByteString method, URL::URL, NonnullRefPtr<HTTP::HeaderList> request_headers, ByteBuffer request_body, HTTP::Cookie::IncludeCredentials, Core::ProxyData proxy_data);
     void request_complete(Badge<Request>, Request const&);
+    void fetch_aia_intermediate(Badge<Request>, ByteString const& url, u64 for_request_id);
 
 private:
     ConnectionFromClient(NonnullOwnPtr<IPC::Transport>, IsPrimaryConnection, IsPrivate, ConnectionMap&, RequestTransferLeaseMap&, Optional<HTTP::DiskCache&>, ByteString alt_svc_cache_path);
@@ -95,6 +108,7 @@ private:
     static int on_socket_callback(void*, int sockfd, int what, void* user_data, void*);
     static int on_timeout_callback(void*, long timeout_ms, void* user_data);
     void check_active_requests();
+    void complete_aia_fetch(void* easy_handle, int result_code);
     void fail_websocket(u64 websocket_id, Requests::WebSocket::Error);
 
     ErrorOr<IPC::TransportHandle> create_client_socket(IsPrivate);
@@ -109,6 +123,13 @@ private:
 
     HashMap<u64, NonnullOwnPtr<Request>> m_active_requests;
     HashMap<u64, NonnullOwnPtr<Request>> m_active_revalidation_requests;
+    void start_aia_fetch(ByteString const& url, ByteString resolve_entry);
+    void abandon_aia_lookup(ByteString const& url);
+
+    HashMap<void*, NonnullOwnPtr<AIAFetch>> m_aia_fetches;
+    // AIA URLs whose DNS lookup is still outstanding, mapped to the requests waiting on them. Keeps a second
+    // request asking for the same URL from starting a duplicate lookup before m_aia_fetches has an entry.
+    HashMap<ByteString, Vector<u64>> m_pending_aia_lookups;
     HashTable<u64> m_pending_websockets;
     HashMap<u64, RefPtr<WebSocket::WebSocket>> m_websockets;
 
@@ -127,5 +148,6 @@ private:
 };
 
 constexpr inline uintptr_t websocket_private_tag = 0x1;
+constexpr inline uintptr_t aia_fetch_private_tag = 0x2;
 
 }

@@ -15,6 +15,7 @@
 #include <LibHTTP/Cache/Utilities.h>
 #include <LibHTTP/Status.h>
 #include <LibTextCodec/Decoder.h>
+#include <RequestServer/AIA.h>
 #include <RequestServer/CURL.h>
 #include <RequestServer/ConnectionFromClient.h>
 #include <RequestServer/Request.h>
@@ -29,21 +30,30 @@ extern OwnPtr<ResourceSubstitutionMap> g_resource_substitution_map;
 
 static long s_connect_timeout_seconds = 90L;
 
-static CURLcode configure_ssl_context(CURL*, [[maybe_unused]] void* ssl_context, void*)
+static CURLcode configure_ssl_context(CURL*, [[maybe_unused]] void* ssl_context, [[maybe_unused]] void* aia_collector)
 {
-#if defined(SSL_OP_IGNORE_UNEXPECTED_EOF)
-    // Some HTTPS servers, including the Python server used by WPT, close the connection without sending the
-    // mandatory TLS close-notify alert. Other browsers treat such a post-handshake transport EOF as a clean TLS EOF
-    // for compatibility. Do the same while leaving curl responsible for detecting incomplete HTTP framing.
-    static auto const curl_uses_openssl = [] {
+    // Everything below casts ssl_context to an SSL_CTX, which only holds when curl is built against OpenSSL.
+    [[maybe_unused]] static auto const curl_uses_openssl = [] {
         auto const* version_info = curl_version_info(CURLVERSION_NOW);
         VERIFY(version_info);
         return version_info->ssl_version && StringView { version_info->ssl_version, strlen(version_info->ssl_version) }.starts_with("OpenSSL/"sv);
     }();
 
+#if defined(SSL_OP_IGNORE_UNEXPECTED_EOF)
+    // Some HTTPS servers, including the Python server used by WPT, close the connection without sending the
+    // mandatory TLS close-notify alert. Other browsers treat such a post-handshake transport EOF as a clean TLS EOF
+    // for compatibility. Do the same while leaving curl responsible for detecting incomplete HTTP framing.
     if (curl_uses_openssl)
         SSL_CTX_set_options(static_cast<SSL_CTX*>(ssl_context), SSL_OP_IGNORE_UNEXPECTED_EOF);
 #endif
+
+#ifndef AK_OS_MACOS
+    // curl keeps one SSL context callback per handle, and AIA has to run against the same SSL_CTX configured above. So
+    // both are applied here. The collector arrives as CURLOPT_SSL_CTX_DATA and is null on handles lacking AIA state.
+    if (curl_uses_openssl && aia_collector)
+        apply_aia_verification(static_cast<SSL_CTX*>(ssl_context), *static_cast<AIACollector*>(aia_collector));
+#endif
+
     return CURLE_OK;
 }
 
@@ -574,6 +584,8 @@ void Request::notify_retrieved_http_cookie(Badge<ConnectionFromClient>, StringVi
     transition_to_state(State::Fetch);
 }
 
+static constexpr size_t max_aia_fetches_per_request = 5;
+
 void Request::notify_fetch_complete(Badge<ConnectionFromClient>, int result_code)
 {
     mark_lifecycle_event(this, &WireStats::complete_observed_at);
@@ -614,6 +626,12 @@ void Request::notify_fetch_complete(Badge<ConnectionFromClient>, int result_code
         return;
     }
 
+    if (should_retry_after_fetching_aia_intermediate(result_code)) {
+        m_curl_result_code = result_code;
+        transition_to_state(State::Complete);
+        return;
+    }
+
     if (is_revalidation_request()) {
         if (result_code == CURLE_OK && acquire_status_code() == 304) {
             if (m_type == RequestType::BackgroundRevalidation && m_disk_cache->mode() == HTTP::DiskCache::Mode::Testing)
@@ -641,6 +659,42 @@ void Request::notify_fetch_complete(Badge<ConnectionFromClient>, int result_code
         transition_to_state(State::Complete);
 }
 
+bool Request::should_retry_after_fetching_aia_intermediate(int curl_result_code) const
+{
+    return m_type == RequestType::Fetch
+        && curl_result_code == CURLE_PEER_FAILED_VERIFICATION
+        && m_aia_collector
+        && !m_aia_collector->pending_urls.is_empty()
+        && m_aia_fetch_count < max_aia_fetches_per_request;
+}
+
+void Request::start_aia_fetch_and_retry()
+{
+    ++m_aia_fetch_count;
+    auto url = m_aia_collector->pending_urls.take_first();
+    m_aia_collector->attempted_urls.set(url);
+    dbgln_if(REQUESTSERVER_DEBUG, "AIA: fetching missing intermediate from {} (attempt {})", url, m_aia_fetch_count);
+    // The fetch can finish sync; a curl_easy_init fail immediately retries this request, and retry_after_aia ignores a
+    // not-already-waiting request. So enter the state first, or that retry is dropped with nothing to wake the request.
+    transition_to_state(State::WaitForAIA);
+    m_client->fetch_aia_intermediate({}, url, m_request_id);
+}
+
+void Request::retry_after_aia(Badge<ConnectionFromClient>)
+{
+    if (m_state != State::WaitForAIA)
+        return;
+
+    // Frees curl_slist allocations from the previous attempt too: handle_fetch_state() builds a fresh header, resolve
+    // and connect-to list every time, so keeping only the easy handle would strand them until the request is destroyed.
+    MUST(free_curl_structs());
+
+    m_curl_result_code = {};
+    if (m_aia_collector)
+        m_aia_collector->pending_urls.clear();
+    transition_to_state(State::Fetch);
+}
+
 void Request::transition_to_state(State state)
 {
     dbgln_if(REQUESTSERVER_DEBUG, "Request::Transition[{}]: {} -> {} ({} {})", m_request_id, state_name(m_state), state_name(state), m_method, m_url);
@@ -659,6 +713,9 @@ void Request::process()
         break;
     case State::WaitForCache:
         // Do nothing; we are waiting for the disk cache to notify us to proceed.
+        break;
+    case State::WaitForAIA:
+        // Do nothing; we are waiting for the AIA intermediate-certificate fetch to notify us to proceed.
         break;
     case State::FailedCacheOnly:
         handle_failed_cache_only_state();
@@ -1000,7 +1057,7 @@ void Request::handle_fetch_state()
 
     auto is_revalidation_request = this->is_revalidation_request();
 
-    if (!is_revalidation_request) {
+    if (!is_revalidation_request && !m_informed_client_request_started) {
         if (inform_client_request_started().is_error())
             return;
     }
@@ -1018,6 +1075,11 @@ void Request::handle_fetch_state()
         set_option(CURLOPT_CAINFO, path.characters());
 
     set_option(CURLOPT_SSL_CTX_FUNCTION, configure_ssl_context);
+#ifndef AK_OS_MACOS
+    if (!m_aia_collector)
+        m_aia_collector = make_ref_counted<AIACollector>();
+    set_option(CURLOPT_SSL_CTX_DATA, m_aia_collector.ptr());
+#endif
 
     if (m_content_decoding_disabled) {
         set_option(CURLOPT_ACCEPT_ENCODING, "identity");
@@ -1141,6 +1203,11 @@ void Request::handle_complete_state()
 {
     if (m_type == RequestType::Fetch) {
         VERIFY(m_curl_result_code.has_value());
+
+        if (should_retry_after_fetching_aia_intermediate(*m_curl_result_code)) {
+            start_aia_fetch_and_retry();
+            return;
+        }
 
         if (m_curl_result_code != CURLE_OK) {
             m_network_error = curl_code_to_network_error(*m_curl_result_code);
@@ -1343,6 +1410,17 @@ ErrorOr<void> Request::transfer_to_client(ConnectionFromClient& client, u64 requ
     }
     previous_client.async_request_transferred(previous_request_id);
 
+    // An in-flight AIA fetch is registered with the client that started it, keyed by that client's request id.
+    // The transfer above moved this request out of that client's table, so the fetch can no longer find it when it
+    // completes and nothing would ever leave WaitForAIA. AIA is best-effort, so drop the retry and let the
+    // verification failure that triggered it surface to the new client. Clearing the pending URLs is what keeps
+    // handle_complete_state() from simply starting the same fetch again.
+    if (m_state == State::WaitForAIA) {
+        if (m_aia_collector)
+            m_aia_collector->pending_urls.clear();
+        transition_to_state(State::Complete);
+    }
+
     return {};
 }
 
@@ -1373,6 +1451,7 @@ ErrorOr<void> Request::inform_client_request_started()
         transition_to_state(State::Error);
         return result.release_error();
     }
+    m_informed_client_request_started = true;
 
     return {};
 }
