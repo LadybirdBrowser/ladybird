@@ -24,7 +24,7 @@ class WEBVIEW_API OmniboxSuggestionProvider {
 public:
     virtual ~OmniboxSuggestionProvider() = default;
 
-    Function<void(AutocompleteQueryID, Vector<AutocompleteSuggestion>, AutocompleteResultKind)> on_suggestions;
+    Function<void(AutocompleteQueryID, Vector<AutocompleteSuggestion>)> on_suggestions;
 
     virtual void query(AutocompleteQueryID, String, size_t max_suggestions) = 0;
     virtual void cancel() = 0;
@@ -78,6 +78,7 @@ public:
     void show_all_suggestions();
     void text_edited(String text, bool cursor_at_end);
     void cursor_moved(bool cursor_at_end);
+    bool accept_completion();
     void will_delete_text();
     void return_pressed();
     EscapeAction escape_pressed();
@@ -133,7 +134,7 @@ private:
     };
 
     void start_query();
-    void received_suggestions(AutocompleteQueryID, Vector<AutocompleteSuggestion>, AutocompleteResultKind);
+    void received_suggestions(AutocompleteQueryID, Vector<AutocompleteSuggestion>);
     void stabilize_automatic_default(Vector<AutocompleteSuggestion>&, bool is_same_generation_refresh) const;
     Optional<size_t> update_completion_for_suggestions(Vector<AutocompleteSuggestion> const&);
     bool select_adjacent_suggestion(StepDirection);
@@ -177,6 +178,10 @@ private:
 
     // InlineCompleted: the suggestion whose text supplied the completion suffix.
     Optional<String> m_completion_suggestion;
+
+    // Accepting a completion makes the full display text the next query, but committing it without
+    // another edit must still teach the prefix that produced the completion.
+    Optional<String> m_retained_engagement_input;
 
     // The user deleted or typed over a completion, so Enter must submit the query as typed instead of
     // activating the popup's automatically selected row. Cleared as soon as a fresh completion is applied.

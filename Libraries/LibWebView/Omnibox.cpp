@@ -17,9 +17,9 @@ public:
     AutocompleteSuggestionProvider(IsPrivate is_private)
         : m_autocomplete(is_private)
     {
-        m_autocomplete.on_autocomplete_query_complete = [this](auto query_id, auto suggestions, auto result_kind) {
+        m_autocomplete.on_autocomplete_query_complete = [this](auto query_id, auto suggestions, auto) {
             if (on_suggestions)
-                on_suggestions(query_id, move(suggestions), result_kind);
+                on_suggestions(query_id, move(suggestions));
         };
     }
 
@@ -178,8 +178,8 @@ Omnibox::Omnibox(IsPrivate is_private)
 Omnibox::Omnibox(NonnullOwnPtr<OmniboxSuggestionProvider> provider)
     : m_provider(move(provider))
 {
-    m_provider->on_suggestions = [this](auto query_id, auto suggestions, auto result_kind) {
-        received_suggestions(query_id, move(suggestions), result_kind);
+    m_provider->on_suggestions = [this](auto query_id, auto suggestions) {
+        received_suggestions(query_id, move(suggestions));
     };
 }
 
@@ -194,6 +194,7 @@ void Omnibox::begin_editing(String text)
     m_display_text = move(text);
     m_cursor_at_end = true;
     m_completion_suggestion = {};
+    m_retained_engagement_input = {};
     m_completion_suppression = Empty {};
     m_user_rejected_completion = false;
     m_active_query_id = {};
@@ -217,6 +218,7 @@ void Omnibox::end_editing()
     m_is_suspended = false;
     m_completion_suppression = Empty {};
     m_user_rejected_completion = false;
+    m_retained_engagement_input = {};
     m_active_query_id = {};
     m_provider->cancel();
     close_popup();
@@ -245,6 +247,7 @@ void Omnibox::text_edited(String text, bool cursor_at_end)
     bool had_preview = m_provenance == TextProvenance::RowPreview;
     auto previous_completion_suggestion = move(m_completion_suggestion);
     m_completion_suggestion = {};
+    m_retained_engagement_input = {};
 
     m_provenance = TextProvenance::UserText;
     m_query = text;
@@ -291,6 +294,29 @@ void Omnibox::cursor_moved(bool cursor_at_end)
     if (!m_is_editing)
         return;
     m_cursor_at_end = cursor_at_end;
+
+    if (cursor_at_end || m_provenance == TextProvenance::UserText)
+        return;
+
+    m_completion_suppression = m_query;
+    m_user_rejected_completion = true;
+    set_selection({});
+    restore_query_display();
+}
+
+bool Omnibox::accept_completion()
+{
+    if (!m_is_editing || m_provenance != TextProvenance::InlineCompleted)
+        return false;
+
+    m_retained_engagement_input = m_query;
+    adopt_display_text_as_query();
+    m_completion_suppression = m_query;
+    m_user_rejected_completion = false;
+    m_cursor_at_end = true;
+    set_display(m_query, {});
+    start_query();
+    return true;
 }
 
 void Omnibox::set_suspended(bool suspended)
@@ -318,7 +344,7 @@ bool Omnibox::selection_is_explicit() const
     return m_selection.has_value() && m_selection->origin == Selection::Origin::ExplicitChoice;
 }
 
-void Omnibox::received_suggestions(AutocompleteQueryID query_id, Vector<AutocompleteSuggestion> suggestions, AutocompleteResultKind)
+void Omnibox::received_suggestions(AutocompleteQueryID query_id, Vector<AutocompleteSuggestion> suggestions)
 {
     if (!m_is_editing || m_is_suspended || m_active_query_id != query_id)
         return;
@@ -632,7 +658,7 @@ void Omnibox::commit_suggestion(size_t suggestion_index, bool should_record_enga
     auto suggestion = m_suggestions[suggestion_index];
     if (should_record_engagement) {
         m_provider->record_engagement({
-            .input = m_query,
+            .input = m_retained_engagement_input.value_or(m_query),
             .destination_kind = suggestion.source == AutocompleteSuggestionSource::Search
                 ? OmniboxDestinationKind::Search
                 : OmniboxDestinationKind::URL,
@@ -656,7 +682,7 @@ void Omnibox::commit_suggestion_text(String text)
 void Omnibox::commit_verbatim(String text)
 {
     m_provider->record_engagement({
-        .input = text,
+        .input = m_retained_engagement_input.value_or(text),
         .destination_kind = location_looks_like_url(text) ? OmniboxDestinationKind::URL : OmniboxDestinationKind::Search,
         .destination = text,
         .was_explicit = false,

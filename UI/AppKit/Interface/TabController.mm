@@ -1714,6 +1714,11 @@ private:
             return YES;
     }
 
+    if (selector == @selector(moveRight:) || selector == @selector(moveToEndOfLine:)) {
+        if (m_omnibox->accept_completion())
+            return YES;
+    }
+
     if (selector != @selector(insertNewline:)) {
         return NO;
     }

@@ -387,6 +387,13 @@ void LocationEdit::keyPressEvent(QKeyEvent* event)
             return;
     }
 
+    if (event->key() == Qt::Key_Right || event->key() == Qt::Key_End) {
+        if (m_omnibox.accept_completion()) {
+            event->accept();
+            return;
+        }
+    }
+
     if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) {
         m_omnibox.return_pressed();
         event->accept();
