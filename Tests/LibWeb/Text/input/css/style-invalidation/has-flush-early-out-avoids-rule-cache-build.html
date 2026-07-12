@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<script>
+    test(() => {
+        // A :has() rule whose anchor class never appears on the page, so no element ever gains :has() scope flags.
+        const hasStyle = addStyle(document.head, `.absent-anchor:has(.absent-needle) { ${MATCH_DECLARATION} }`);
+        const fixture = makeElement("section");
+        document.body.appendChild(fixture);
+        document.body.offsetWidth;
+
+        // Invalidate the document scope's rule cache without scheduling a broad restyle.
+        const cacheBusterStyle = addStyle(document.head, `.unrelated-cache-buster { color: rgb(4, 5, 6); }`);
+
+        // A child-list mutation in a scope that may have :has() selectors schedules a pending :has() invalidation.
+        // Flushing it should not have to rebuild the scope's rule cache just to discover there is nothing to do.
+        resetStyleCounters();
+        fixture.appendChild(makeElement("div"));
+        internals.updateStyle();
+        const counters = styleCounters();
+        println(
+            `PASS: flushing pending :has() invalidations after a rule cache invalidation | ` +
+                `hasInvalidationRuleCacheBuilds=${counters.hasInvalidationRuleCacheBuilds}, ` +
+                `hasAncestorWalkVisits=${counters.hasAncestorWalkVisits}`
+        );
+
+        hasStyle.remove();
+        cacheBusterStyle.remove();
+        fixture.remove();
+    });
+</script>

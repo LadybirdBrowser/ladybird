@@ -1,0 +1,1 @@
+PASS: flushing pending :has() invalidations after a rule cache invalidation | hasInvalidationRuleCacheBuilds=1, hasAncestorWalkVisits=0
