@@ -136,9 +136,11 @@ private:
 
     void start_query();
     void received_suggestions(AutocompleteQueryID, Vector<AutocompleteSuggestion>, AutocompleteResultKind);
+    void stabilize_automatic_default(Vector<AutocompleteSuggestion>&, bool is_same_generation_refresh) const;
     Optional<size_t> update_completion_for_suggestions(Vector<AutocompleteSuggestion> const&);
     bool select_adjacent_suggestion(StepDirection);
     void highlight_suggestion(size_t suggestion_index, Selection::Origin);
+    void display_suggestion(size_t suggestion_index);
     void activate_selected_suggestion();
     void commit_suggestion(size_t suggestion_index, bool record_engagement, bool was_explicit);
     void commit_suggestion_text(String);

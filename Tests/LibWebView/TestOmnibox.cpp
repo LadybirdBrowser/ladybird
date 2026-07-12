@@ -29,9 +29,11 @@ AutocompleteSuggestion row(AutocompleteSuggestionSource source, AutocompleteSugg
     };
 }
 
-AutocompleteSuggestion history_row(StringView url)
+AutocompleteSuggestion history_row(StringView url, i32 relevance = 0)
 {
-    return row(AutocompleteSuggestionSource::History, AutocompleteSuggestionSection::History, url);
+    auto suggestion = row(AutocompleteSuggestionSource::History, AutocompleteSuggestionSection::History, url);
+    suggestion.relevance = relevance;
+    return suggestion;
 }
 
 AutocompleteSuggestion non_automatic_history_row(StringView url, StringView title)
@@ -47,9 +49,9 @@ AutocompleteSuggestion non_automatic_history_row(StringView url, StringView titl
     };
 }
 
-AutocompleteSuggestion non_inline_history_row(StringView url)
+AutocompleteSuggestion non_inline_history_row(StringView url, i32 relevance = 0)
 {
-    auto suggestion = history_row(url);
+    auto suggestion = history_row(url, relevance);
     suggestion.can_be_inline_completed = false;
     return suggestion;
 }
@@ -323,11 +325,126 @@ TEST_CASE(later_intermediate_results_refresh_the_active_generation)
     harness.provider->deliver({ search_row("t"sv) }, AutocompleteResultKind::Intermediate);
     auto repaints_after_first_delivery = harness.popup_repaints;
 
-    harness.provider->deliver({ history_row("https://www.thee.example/"sv), search_row("t"sv) }, AutocompleteResultKind::Intermediate);
+    harness.provider->deliver({ history_row("https://www.thee.example/"sv, 201), search_row("t"sv) }, AutocompleteResultKind::Intermediate);
 
     EXPECT_EQ(harness.popup_repaints, repaints_after_first_delivery + 1);
     EXPECT_EQ(harness.omnibox.suggestions().first().text, "https://www.thee.example/"sv);
     EXPECT_EQ(harness.display_text, "thee.example"sv);
+}
+
+TEST_CASE(automatic_default_uses_point_and_percentage_hysteresis)
+{
+    Harness harness;
+    harness.begin_editing();
+
+    harness.press_key('a');
+    harness.provider->deliver({
+                                  non_inline_history_row("https://alpha.example/"sv, 2'000),
+                                  search_row("a"sv),
+                              },
+        AutocompleteResultKind::Intermediate);
+
+    // This challenger clears the point margin, but not the ten-percent margin.
+    harness.provider->deliver({
+                                  non_inline_history_row("https://another.example/"sv, 2'110),
+                                  non_inline_history_row("https://alpha.example/"sv, 2'000),
+                                  search_row("a"sv),
+                              },
+        AutocompleteResultKind::Intermediate);
+    EXPECT_EQ(harness.omnibox.suggestions().first().text, "https://alpha.example/"sv);
+
+    // Clearing both margins permits a default change.
+    harness.provider->deliver({
+                                  non_inline_history_row("https://another.example/"sv, 2'201),
+                                  non_inline_history_row("https://alpha.example/"sv, 2'000),
+                                  search_row("a"sv),
+                              },
+        AutocompleteResultKind::Final);
+    EXPECT_EQ(harness.omnibox.suggestions().first().text, "https://another.example/"sv);
+}
+
+TEST_CASE(inline_completion_has_a_larger_stability_margin)
+{
+    Harness harness;
+    harness.begin_editing();
+
+    harness.press_key('a');
+    harness.provider->deliver({
+                                  history_row("https://alpha.example/"sv, 1'000),
+                                  search_row("a"sv),
+                              },
+        AutocompleteResultKind::Intermediate);
+    EXPECT_EQ(harness.display_text, "alpha.example"sv);
+
+    // The challenger clears the default margins but remains within the 150-point inline margin.
+    harness.provider->deliver({
+                                  history_row("https://another.example/"sv, 1'110),
+                                  history_row("https://alpha.example/"sv, 1'000),
+                                  search_row("a"sv),
+                              },
+        AutocompleteResultKind::Intermediate);
+    EXPECT_EQ(harness.omnibox.suggestions().first().text, "https://alpha.example/"sv);
+    EXPECT_EQ(harness.display_text, "alpha.example"sv);
+
+    harness.provider->deliver({
+                                  history_row("https://another.example/"sv, 1'151),
+                                  history_row("https://alpha.example/"sv, 1'000),
+                                  search_row("a"sv),
+                              },
+        AutocompleteResultKind::Final);
+    EXPECT_EQ(harness.omnibox.suggestions().first().text, "https://another.example/"sv);
+    EXPECT_EQ(harness.display_text, "another.example"sv);
+}
+
+TEST_CASE(a_non_inline_default_can_replace_an_inline_completion)
+{
+    Harness harness;
+    harness.begin_editing();
+
+    harness.press_key('a');
+    harness.provider->deliver({
+                                  history_row("https://alpha.example/"sv, 1'000),
+                                  search_row("a"sv),
+                              },
+        AutocompleteResultKind::Intermediate);
+    EXPECT_EQ(harness.display_text, "alpha.example"sv);
+
+    harness.provider->deliver({
+                                  non_inline_history_row("https://another.example/"sv, 1'201),
+                                  history_row("https://alpha.example/"sv, 1'000),
+                                  search_row("a"sv),
+                              },
+        AutocompleteResultKind::Final);
+    EXPECT_EQ(harness.omnibox.suggestions().first().text, "https://another.example/"sv);
+    EXPECT_EQ(harness.display_text, "a"sv);
+}
+
+TEST_CASE(explicit_selection_survives_same_generation_reordering)
+{
+    Harness harness;
+    harness.begin_editing();
+
+    harness.press_key('a');
+    harness.provider->deliver({
+                                  history_row("https://alpha.example/"sv, 1'000),
+                                  search_row("a"sv),
+                              },
+        AutocompleteResultKind::Intermediate);
+    EXPECT(harness.omnibox.select_next_suggestion());
+    EXPECT_EQ(harness.omnibox.selected_suggestion(), 1u);
+
+    harness.provider->deliver({
+                                  history_row("https://another.example/"sv, 1'201),
+                                  history_row("https://alpha.example/"sv, 1'000),
+                                  search_row("a"sv),
+                              },
+        AutocompleteResultKind::Final);
+    EXPECT_EQ(harness.omnibox.selected_suggestion(), 2u);
+    EXPECT_EQ(harness.display_text, "a"sv);
+
+    harness.omnibox.return_pressed();
+    EXPECT_EQ(harness.commits.last(), "a"sv);
+    EXPECT(harness.provider->engagements.last().was_explicit);
 }
 
 TEST_CASE(enter_with_stale_results_commits_the_current_input_immediately)

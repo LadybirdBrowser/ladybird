@@ -131,6 +131,43 @@ static Optional<size_t> index_of_suggestion(String const& suggestion_text, Vecto
     });
 }
 
+static bool suggestions_have_same_destination(AutocompleteSuggestion const& left, AutocompleteSuggestion const& right)
+{
+    if (left.source == AutocompleteSuggestionSource::Search || right.source == AutocompleteSuggestionSource::Search)
+        return left.source == right.source && left.text.equals_ignoring_case(right.text);
+    return autocomplete_urls_match(left.text, right.text);
+}
+
+static Optional<size_t> index_of_suggestion(AutocompleteSuggestion const& needle, Vector<AutocompleteSuggestion> const& suggestions)
+{
+    return suggestions.find_first_index_if([&](auto const& suggestion) {
+        return suggestions_have_same_destination(needle, suggestion);
+    });
+}
+
+static Optional<size_t> index_of_automatic_default(Vector<AutocompleteSuggestion> const& suggestions)
+{
+    return suggestions.find_first_index_if([](auto const& suggestion) {
+        return suggestion.can_be_automatically_selected;
+    });
+}
+
+static bool challenger_is_materially_better(AutocompleteSuggestion const& challenger, AutocompleteSuggestion const& incumbent)
+{
+    auto challenger_relevance = static_cast<i64>(challenger.relevance);
+    auto incumbent_relevance = static_cast<i64>(incumbent.relevance);
+    return challenger_relevance - incumbent_relevance > 100
+        && challenger_relevance * 10 > incumbent_relevance * 11;
+}
+
+static void move_suggestion_to_front(Vector<AutocompleteSuggestion>& suggestions, size_t index)
+{
+    if (index == 0)
+        return;
+    auto suggestion = suggestions.take(index);
+    suggestions.insert(0, move(suggestion));
+}
+
 static Optional<size_t> index_of_exact_search_suggestion(String const& query, Vector<AutocompleteSuggestion> const& suggestions)
 {
     return suggestions.find_first_index_if([&](auto const& suggestion) {
@@ -291,37 +328,39 @@ void Omnibox::received_suggestions(AutocompleteQueryID query_id, Vector<Autocomp
 {
     if (!m_is_editing || m_is_suspended || m_active_query_id != query_id)
         return;
-    bool had_row_preview = m_provenance == TextProvenance::RowPreview;
 
-    Optional<size_t> selected_suggestion;
-    if (had_row_preview)
-        selected_suggestion = index_of_suggestion(m_display_text, suggestions);
-    else
-        selected_suggestion = update_completion_for_suggestions(suggestions);
-
-    Optional<String> previous_selection_text;
+    auto is_same_generation_refresh = m_popup_query_id == query_id;
+    AutocompleteSuggestion const* previous_explicit_selection = nullptr;
     Optional<Selection::Origin> previous_selection_origin;
-    if (m_selection.has_value() && m_selection->index < m_suggestions.size()) {
-        previous_selection_text = m_suggestions[m_selection->index].text;
+    if (is_same_generation_refresh && m_selection.has_value() && m_selection->origin != Selection::Origin::Automatic && m_selection->index < m_suggestions.size()) {
+        previous_explicit_selection = &m_suggestions[m_selection->index];
         previous_selection_origin = m_selection->origin;
     }
+
+    stabilize_automatic_default(suggestions, is_same_generation_refresh);
+
+    Optional<size_t> preserved_selection;
+    if (previous_explicit_selection)
+        preserved_selection = index_of_suggestion(*previous_explicit_selection, suggestions);
 
     m_popup_query_id = query_id;
     m_suggestions = move(suggestions);
 
-    // The fresh selection is published to the chrome by the popup repaint below, not via
-    // on_selection_change, so it is assigned directly.
-    m_selection = selected_suggestion.map([&](auto index) {
-        auto origin = previous_selection_text.has_value() && m_suggestions[index].text == *previous_selection_text
-            ? *previous_selection_origin
-            : Selection::Origin::Automatic;
-        return Selection { index, origin };
-    });
-
-    // A previewed row that vanished from the refreshed rows must stop being displayed; the bar must not
-    // show something Enter would no longer act on.
-    if (had_row_preview && !m_selection.has_value())
+    if (preserved_selection.has_value()) {
+        // The fresh selection is published to the chrome by the popup repaint below, not via
+        // on_selection_change, so it is assigned directly.
+        m_selection = Selection { *preserved_selection, *previous_selection_origin };
+        display_suggestion(*preserved_selection);
+    } else if (previous_explicit_selection) {
+        // A previewed or explicitly selected row that vanished must stop being displayed. Enter must
+        // not silently fall through to a different automatic result.
+        m_selection = {};
         restore_query_display();
+    } else {
+        m_selection = update_completion_for_suggestions(m_suggestions).map([](auto index) {
+            return Selection { index, Selection::Origin::Automatic };
+        });
+    }
 
     if (m_suggestions.is_empty()) {
         if (m_popup_visible) {
@@ -337,6 +376,54 @@ void Omnibox::received_suggestions(AutocompleteQueryID query_id, Vector<Autocomp
         if (on_suggestions_change)
             on_suggestions_change();
     }
+}
+
+void Omnibox::stabilize_automatic_default(Vector<AutocompleteSuggestion>& suggestions, bool is_same_generation_refresh) const
+{
+    auto challenger_index = index_of_automatic_default(suggestions);
+    if (!challenger_index.has_value())
+        return;
+
+    // Forward typing may carry a completion into a new generation. Keep it only while it remains a
+    // valid default and inline candidate, and is within the inline hysteresis margin of the best
+    // inline candidate. A materially better non-inline default clears the completion instead.
+    auto has_explicit_selection = is_same_generation_refresh
+        && m_selection.has_value()
+        && m_selection->origin != Selection::Origin::Automatic;
+    if (!has_explicit_selection && m_completion_suggestion.has_value()) {
+        auto completion_index = index_of_suggestion(*m_completion_suggestion, suggestions);
+        if (completion_index.has_value()) {
+            auto const& completion_candidate = suggestions[*completion_index];
+            auto const& challenger = suggestions[*challenger_index];
+            if (completion_candidate.can_be_automatically_selected
+                && completion_candidate.can_be_inline_completed
+                && challenger.can_be_inline_completed
+                && !inline_completion_for_suggestion(m_query, completion_candidate.text).is_empty()) {
+                auto best_inline_relevance = completion_candidate.relevance;
+                for (auto const& suggestion : suggestions) {
+                    if (suggestion.can_be_inline_completed)
+                        best_inline_relevance = max(best_inline_relevance, suggestion.relevance);
+                }
+                if (static_cast<i64>(completion_candidate.relevance) + 150 >= best_inline_relevance) {
+                    move_suggestion_to_front(suggestions, *completion_index);
+                    return;
+                }
+            }
+        }
+    }
+
+    if (!is_same_generation_refresh)
+        return;
+
+    auto previous_default_index = index_of_automatic_default(m_suggestions);
+    if (!previous_default_index.has_value())
+        return;
+    auto incumbent_index = index_of_suggestion(m_suggestions[*previous_default_index], suggestions);
+    if (!incumbent_index.has_value() || !suggestions[*incumbent_index].can_be_automatically_selected)
+        return;
+
+    if (!challenger_is_materially_better(suggestions[*challenger_index], suggestions[*incumbent_index]))
+        move_suggestion_to_front(suggestions, *incumbent_index);
 }
 
 // Decides which row the popup should select for freshly received suggestions, and applies or clears the
@@ -373,14 +460,12 @@ Optional<size_t> Omnibox::update_completion_for_suggestions(Vector<AutocompleteS
         return 0;
     }
 
-    // Preserve an existing completion if its suggestion is still present and still extends the typed
-    // prefix. This keeps the completion stable while the user is forward-typing into a suggestion.
-    if (m_completion_suggestion.has_value()) {
-        if (auto preserved = index_of_suggestion(*m_completion_suggestion, suggestions); preserved.has_value()) {
-            if (auto completion = inline_completion_for_suggestion(m_query, *m_completion_suggestion); !completion.is_empty()) {
-                apply_completion(*m_completion_suggestion, move(completion));
-                return preserved;
-            }
+    // stabilize_automatic_default() moves a preserved completion to row 0 so the displayed suffix and
+    // Enter action can never refer to different candidates.
+    if (m_completion_suggestion.has_value() && suggestions.first().text == *m_completion_suggestion) {
+        if (auto completion = inline_completion_for_suggestion(m_query, *m_completion_suggestion); !completion.is_empty()) {
+            apply_completion(*m_completion_suggestion, move(completion));
+            return 0;
         }
     }
 
@@ -522,6 +607,13 @@ void Omnibox::suggestion_clicked(size_t suggestion_index)
 void Omnibox::highlight_suggestion(size_t suggestion_index, Selection::Origin origin)
 {
     set_selection(Selection { suggestion_index, origin });
+
+    display_suggestion(suggestion_index);
+}
+
+void Omnibox::display_suggestion(size_t suggestion_index)
+{
+    VERIFY(suggestion_index < m_suggestions.size());
 
     auto const& suggestion_text = m_suggestions[suggestion_index].text;
 
