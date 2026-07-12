@@ -1,0 +1,5 @@
+clipboard after copy: null
+editor text after copy: "hello world"
+clipboard after cut: null
+editor text after cut: "hello world"
+clipboard after canceled copy: null

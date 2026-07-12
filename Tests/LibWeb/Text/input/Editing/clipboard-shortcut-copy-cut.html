@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="editor" contenteditable="true">hello world</div>
+<script>
+    asyncTest(async done => {
+        const modCtrl = (1 << 1) | (1 << 3); // Ctrl and Super, to cover the platform clipboard modifier everywhere.
+        const editor = document.getElementById("editor");
+        const events = [];
+        for (const type of ["copy", "cut", "paste"]) {
+            editor.addEventListener(type, e => {
+                events.push(`${type}(cancelable=${e.cancelable} composed=${e.composed} data=${JSON.stringify(e.clipboardData?.getData("text/plain") ?? null)})`);
+            });
+        }
+        const readClipboard = async () => {
+            internals.dispatchUserActivatedEvent(editor, new Event("mousedown"));
+            return navigator.clipboard.readText().catch(() => null);
+        };
+
+        // Select "hello" and copy it.
+        editor.focus();
+        const text = editor.firstChild;
+        getSelection().setBaseAndExtent(text, 0, text, 5);
+        internals.sendKey(editor, "C", modCtrl);
+        println(`clipboard after copy: ${JSON.stringify(await readClipboard())}`);
+        println(`editor text after copy: ${JSON.stringify(editor.textContent)}`);
+
+        // Select " world" and cut it.
+        getSelection().setBaseAndExtent(text, 5, text, 11);
+        internals.sendKey(editor, "X", modCtrl);
+        println(`clipboard after cut: ${JSON.stringify(await readClipboard())}`);
+        println(`editor text after cut: ${JSON.stringify(editor.textContent)}`);
+
+        // A canceled copy writes the event's data to the clipboard instead (the Lexical pattern).
+        editor.addEventListener("copy", e => {
+            e.clipboardData.setData("text/plain", "custom payload");
+            e.preventDefault();
+        }, { once: true });
+        getSelection().setBaseAndExtent(editor.firstChild, 0, editor.firstChild, 5);
+        internals.sendKey(editor, "C", modCtrl);
+        println(`clipboard after canceled copy: ${JSON.stringify(await readClipboard())}`);
+
+        for (const line of events) println(line);
+        done();
+    });
+</script>
