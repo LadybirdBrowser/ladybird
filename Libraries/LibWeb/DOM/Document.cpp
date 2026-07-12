@@ -185,6 +185,7 @@
 #include <LibWeb/Layout/BlockFormattingContext.h>
 #include <LibWeb/Layout/SVGFormattingContext.h>
 #include <LibWeb/Layout/SVGSVGBox.h>
+#include <LibWeb/Layout/ScrollableOverflow.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/TextOffsetMapping.h>
 #include <LibWeb/Layout/TreeBuilder.h>
@@ -1859,6 +1860,8 @@ void Document::update_layout(UpdateLayoutReason reason)
                     relayout_svg_root(*svg_root);
             }
 
+            update_scrollable_overflow();
+
             invalidate_stacking_context_tree();
             set_needs_to_record_display_list();
 
@@ -1954,6 +1957,8 @@ void Document::update_layout(UpdateLayoutReason reason)
         }
 
         layout_state.commit(*m_layout_root);
+
+        update_scrollable_overflow();
 
         // Broadcast the current viewport rect to any new paintables, so they know whether they're visible or not.
         inform_all_viewport_clients_about_the_current_viewport_rect();
@@ -2126,6 +2131,61 @@ void Document::set_needs_animated_style_update()
         return;
 
     page().client().request_frame();
+}
+
+void Document::update_scrollable_overflow()
+{
+    // NB: Called during layout update, after the layout state has been committed.
+    if (!m_layout_root)
+        return;
+
+    auto contained_boxes_map = Layout::build_contained_boxes_map(*m_layout_root);
+
+    m_layout_root->for_each_in_inclusive_subtree([&](auto& layout_node) {
+        // Measure overflow in scroll containers.
+        if (auto const* box = as_if<Layout::Box>(layout_node); box && box->paintable_box()) {
+            Layout::measure_scrollable_overflow(*box, contained_boxes_map);
+
+            // The scroll offset can become invalid if the scrollable overflow rectangle has changed after layout.
+            // For example, if the scroll container has been scrolled to the very end and is then resized to become larger
+            // (scrollable overflow rect become smaller), the scroll offset would be out of bounds.
+            auto& paintable_box = const_cast<Painting::Paintable&>(*box->paintable_box());
+            if (!paintable_box.scroll_offset().is_zero())
+                paintable_box.set_scroll_offset(paintable_box.scroll_offset());
+        }
+
+        auto const* node_with_style = as_if<Layout::NodeWithStyle>(layout_node);
+        if (node_with_style && node_with_style->is_sticky_position()) {
+            for (auto& paintable : layout_node.paintables()) {
+                auto* paintable_box = paintable.ptr();
+                if (!paintable_box)
+                    continue;
+
+                // https://drafts.csswg.org/css-position/#insets
+                // For sticky positioned boxes, the inset is instead relative to the relevant scrollport’s size.
+                // Negative values are allowed.
+
+                auto sticky_insets = make<Painting::StickyInsets>();
+                auto const& inset = node_with_style->computed_values().inset();
+
+                auto nearest_scrollable_ancestor = paintable_box->nearest_scrollable_ancestor();
+                CSSPixelSize scrollport_size;
+                if (nearest_scrollable_ancestor)
+                    scrollport_size = nearest_scrollable_ancestor->absolute_rect().size();
+
+                if (!inset.top().is_auto())
+                    sticky_insets->top = inset.top().to_px_or_zero(scrollport_size.height());
+                if (!inset.right().is_auto())
+                    sticky_insets->right = inset.right().to_px_or_zero(scrollport_size.width());
+                if (!inset.bottom().is_auto())
+                    sticky_insets->bottom = inset.bottom().to_px_or_zero(scrollport_size.height());
+                if (!inset.left().is_auto())
+                    sticky_insets->left = inset.left().to_px_or_zero(scrollport_size.width());
+                paintable_box->set_sticky_insets(move(sticky_insets));
+            }
+        }
+        return TraversalDecision::Continue;
+    });
 }
 
 void Document::update_paint_and_hit_testing_properties_if_needed()

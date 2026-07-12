@@ -817,6 +817,7 @@ set(SOURCES
     Layout/SVGSVGBox.cpp
     Layout/SVGTextBox.cpp
     Layout/SVGTextPathBox.cpp
+    Layout/ScrollableOverflow.cpp
     Layout/TableFormattingContext.cpp
     Layout/TableGrid.cpp
     Layout/TableWrapper.cpp
