@@ -144,8 +144,8 @@ void InlineFormattingContext::dimension_box_on_line(Box const& box, LayoutMode l
         return;
     }
 
-    // Any box that has simple flow inside should have generated line box fragments already.
-    if (box.display().is_flow_inside()) {
+    // Any fragmented inline box should have generated line box fragments already.
+    if (box.is_fragmented_inline()) {
         dbgln("FIXME: InlineFormattingContext::dimension_box_on_line got unexpected box in inline context:");
         dump_tree(box);
         return;

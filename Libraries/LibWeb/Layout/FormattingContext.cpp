@@ -364,6 +364,11 @@ bool FormattingContext::creates_block_formatting_context(Box const& box)
         // The element is expected to establish a new block formatting context.
         return true;
 
+    // https://html.spec.whatwg.org/multipage/rendering.html#button-layout
+    // An element using button layout establishes a new formatting context for its contents.
+    if (auto const* html_element = as_if<HTML::HTMLElement>(box.dom_node()); html_element && html_element->uses_button_layout())
+        return true;
+
     return false;
 }
 
