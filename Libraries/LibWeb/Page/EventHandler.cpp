@@ -12,9 +12,12 @@
 #include <LibGfx/Bitmap.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Segmenter.h>
+#include <LibWeb/Bindings/ClipboardEvent.h>
 #include <LibWeb/Bindings/InputEvent.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/VisualViewport.h>
+#include <LibWeb/Clipboard/ClipboardEvent.h>
+#include <LibWeb/Clipboard/SystemClipboard.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Range.h>
@@ -22,6 +25,9 @@
 #include <LibWeb/Editing/Internal/Algorithms.h>
 #include <LibWeb/GraphemeEdgeTracker.h>
 #include <LibWeb/HTML/CloseWatcherManager.h>
+#include <LibWeb/HTML/DataTransfer.h>
+#include <LibWeb/HTML/DragDataStore.h>
+#include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
@@ -1109,6 +1115,17 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         //    instead interpret this interaction as some other action, instead of interpreting it as a close request.
     }
 
+    // https://w3c.github.io/clipboard-apis/#clipboard-actions
+    // AD-HOC: The clipboard action shortcut keys are not specified anywhere, but these combinations are universal.
+    if ((modifiers & UIEvents::Mod_PlatformCtrl) != 0 && (modifiers & (UIEvents::Mod_Shift | UIEvents::Mod_Alt)) == 0) {
+        if (key == UIEvents::KeyCode::Key_C)
+            return perform_copy_action();
+        if (key == UIEvents::KeyCode::Key_X)
+            return perform_cut_action();
+        if (key == UIEvents::KeyCode::Key_V)
+            return perform_paste_action();
+    }
+
     if (auto* target = document->active_input_events_target()) {
         if (auto delete_result = handle_delete_key(*target); delete_result.has_value())
             return delete_result.value();
@@ -1390,6 +1407,184 @@ EventResult EventHandler::handle_pinch_event(CSSPixelPoint point, u32 modifiers,
         return EventResult::Dropped;
 
     document->visual_viewport()->zoom(point, scale_delta);
+    return EventResult::Handled;
+}
+
+// https://w3c.github.io/clipboard-apis/#clipboard-event-target
+static GC::Ptr<DOM::EventTarget> clipboard_event_target(DOM::Document& document)
+{
+    // If the context is editable, the clipboard event target is the element that contains the start of the selection
+    // in document order; otherwise it is the focused node, falling back to the body or document element.
+    if (auto selection = document.get_selection()) {
+        if (auto range = selection->range(); range && range->start_container()->is_editable_or_editing_host())
+            return range->start_container();
+    }
+    if (auto focused_area = document.focused_area())
+        return focused_area;
+    if (auto* body = document.body())
+        return body;
+    return document.document_element();
+}
+
+// https://w3c.github.io/clipboard-apis/#fire-a-clipboard-event
+static bool fire_clipboard_event(DOM::Document& document, FlyString const& event_name, GC::Ref<HTML::DataTransfer> data_transfer)
+{
+    auto target = clipboard_event_target(document);
+    if (!target)
+        return true;
+
+    Bindings::ClipboardEventInit event_init {};
+    event_init.bubbles = true;
+    event_init.cancelable = true;
+    event_init.composed = true;
+    event_init.clipboard_data = data_transfer;
+
+    auto event = Clipboard::ClipboardEvent::construct_impl(document.realm(), event_name, event_init);
+    event->set_is_trusted(true);
+    return target->dispatch_event(event);
+}
+
+// https://w3c.github.io/clipboard-apis/#write-content-to-the-clipboard
+// AD-HOC: Our system clipboard interface carries a single representation, so this writes the plain text one.
+static void write_data_transfer_to_clipboard(DOM::Document& document, HTML::DragDataStore const& data_store)
+{
+    for (auto const& item : data_store.item_list()) {
+        if (item.kind == HTML::DragDataStoreItem::Kind::Text && item.type_string == "text/plain"sv) {
+            document.page().client().page_did_insert_clipboard_entry({ ByteString { item.data.bytes() }, "text/plain"_string }, "unspecified"sv);
+            return;
+        }
+    }
+}
+
+// https://w3c.github.io/clipboard-apis/#the-copy-action
+EventResult EventHandler::perform_copy_action()
+{
+    auto document = m_navigable->active_document();
+    if (!document || !document->is_fully_active())
+        return EventResult::Dropped;
+
+    auto data_store = HTML::DragDataStore::create();
+    data_store->set_mode(HTML::DragDataStore::Mode::ReadWrite);
+    auto data_transfer = HTML::DataTransfer::create(document->realm(), data_store);
+
+    // 2. Fire a clipboard event named copy.
+    bool event_was_not_canceled = fire_clipboard_event(*document, HTML::EventNames::copy, data_transfer);
+    data_store->set_mode(HTML::DragDataStore::Mode::Protected);
+
+    // 3. If the event was not canceled, then:
+    if (event_was_not_canceled) {
+        // 1. Copy the selected contents, if any, to the clipboard. Implementations should create alternate text/html
+        //    and text/plain clipboard formats when content in a web page is selected.
+        // FIXME: Also create a text/html representation of the selection.
+        if (auto text = m_navigable->selected_text(); !text.is_empty())
+            document->page().client().page_did_insert_clipboard_entry({ text.to_byte_string(), "text/plain"_string }, "unspecified"sv);
+
+        // FIXME: 2. Fire a clipboard event named clipboardchange.
+    }
+    // 4. Else, if the event was canceled, then:
+    else {
+        // 1. Call the write content to the clipboard algorithm, passing on the DataTransferItemList list items, a
+        //    clear-was-called flag and a types-to-clear list.
+        write_data_transfer_to_clipboard(*document, data_store);
+    }
+
+    // 5. Return true from the copy action.
+    return EventResult::Handled;
+}
+
+// https://w3c.github.io/clipboard-apis/#the-cut-action
+EventResult EventHandler::perform_cut_action()
+{
+    auto document = m_navigable->active_document();
+    if (!document || !document->is_fully_active())
+        return EventResult::Dropped;
+
+    auto data_store = HTML::DragDataStore::create();
+    data_store->set_mode(HTML::DragDataStore::Mode::ReadWrite);
+    auto data_transfer = HTML::DataTransfer::create(document->realm(), data_store);
+
+    // 2. Fire a clipboard event named cut.
+    bool event_was_not_canceled = fire_clipboard_event(*document, HTML::EventNames::cut, data_transfer);
+    data_store->set_mode(HTML::DragDataStore::Mode::Protected);
+
+    // 3. If the event was not canceled, then:
+    if (event_was_not_canceled) {
+        // 1. If there is a selection in an editable context where cutting is enabled, then:
+        if (auto* target = document->active_input_events_target()) {
+            auto text = m_navigable->selected_text();
+            if (!text.is_empty()) {
+                // 1. Copy the selected contents, if any, to the clipboard. Implementations should create alternate
+                //    text/html and text/plain clipboard formats when content in a web page is selected.
+                document->page().client().page_did_insert_clipboard_entry({ text.to_byte_string(), "text/plain"_string }, "unspecified"sv);
+
+                // 2. Remove the contents of the selection from the document and collapse the selection.
+                // 4. Queue tasks to fire any events that should fire due to the modification.
+                FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::deleteByCut, m_navigable, 0));
+                target->handle_delete(UIEvents::InputTypes::deleteByCut);
+
+                // FIXME: 3. Fire a clipboard event named clipboardchange.
+            }
+        }
+        // 2. Else, there is no selection or the context is not editable; do nothing.
+    }
+    // 4. Else, if the event was canceled, then:
+    else {
+        // 1. Call the write content to the clipboard algorithm, passing on the DataTransferItemList list items, a
+        //    clear-was-called flag and a types-to-clear list.
+        write_data_transfer_to_clipboard(*document, data_store);
+
+        // FIXME: 2. Fire a clipboard event named clipboardchange.
+    }
+
+    // 5. Return true from the cut action.
+    return EventResult::Handled;
+}
+
+// https://w3c.github.io/clipboard-apis/#the-paste-action
+EventResult EventHandler::perform_paste_action()
+{
+    auto document = m_navigable->active_document();
+    if (!document || !document->is_fully_active())
+        return EventResult::Dropped;
+
+    // NB: The system clipboard lives in the UI process, so retrieve its contents first and fire the paste event once
+    //     they arrive.
+    document->page().request_clipboard_entries(GC::create_function(document->heap(), [document = GC::Ref { *document }](Vector<Clipboard::SystemClipboardItem> items) {
+        auto data_store = HTML::DragDataStore::create();
+        if (!items.is_empty()) {
+            for (auto const& representation : items.first().system_clipboard_representations) {
+                // NB: The clipboard representation's type may carry parameters, e.g. "text/plain;charset=utf-8".
+                if (representation.mime_type == "text/plain"sv || representation.mime_type.starts_with_bytes("text/plain;"sv)) {
+                    data_store->add_item({
+                        .kind = HTML::DragDataStoreItem::Kind::Text,
+                        .type_string = "text/plain"_string,
+                        .data = MUST(ByteBuffer::copy(representation.data.bytes())),
+                        .file_name = {},
+                    });
+                    break;
+                }
+            }
+        }
+        data_store->set_mode(HTML::DragDataStore::Mode::ReadOnly);
+        auto data_transfer = HTML::DataTransfer::create(document->realm(), data_store);
+
+        // 2. Fire a clipboard event named paste.
+        bool event_was_not_canceled = fire_clipboard_event(*document, HTML::EventNames::paste, data_transfer);
+        data_store->set_mode(HTML::DragDataStore::Mode::Protected);
+
+        // 3. If the event was not canceled, then: if there is a selection or cursor in an editable context where
+        //    pasting is enabled, insert the most suitable content found on the clipboard, if any, into the context.
+        if (event_was_not_canceled) {
+            for (auto const& item : data_store->item_list()) {
+                if (item.kind == HTML::DragDataStoreItem::Kind::Text && item.type_string == "text/plain"sv) {
+                    if (auto navigable = document->navigable())
+                        navigable->event_handler().handle_paste(Utf16String::from_utf8(StringView { item.data.bytes() }));
+                    break;
+                }
+            }
+        }
+    }));
+
     return EventResult::Handled;
 }
 

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="editor" contenteditable="true">ab</div>
+<script>
+    asyncTest(async done => {
+        const modCtrl = (1 << 1) | (1 << 3); // Ctrl and Super, to cover the platform clipboard modifier everywhere.
+        const editor = document.getElementById("editor");
+
+        // Seed the system clipboard.
+        internals.dispatchUserActivatedEvent(editor, new Event("mousedown"));
+        await navigator.clipboard.writeText("PASTED");
+
+        editor.focus();
+        const text = editor.firstChild;
+        getSelection().setBaseAndExtent(text, 1, text, 1);
+
+        const pasteEvent = new Promise(resolve => {
+            editor.addEventListener("paste", e => resolve(e.clipboardData.getData("text/plain")), { once: true });
+        });
+        internals.sendKey(editor, "V", modCtrl);
+        println(`paste event data: ${JSON.stringify(await pasteEvent)}`);
+        while (editor.textContent === "ab")
+            await new Promise(resolve => requestAnimationFrame(resolve));
+        println(`editor text after paste: ${JSON.stringify(editor.textContent)}`);
+
+        // A canceled paste must not insert anything (the Lexical pattern).
+        const canceledPasteEvent = new Promise(resolve => {
+            editor.addEventListener("paste", e => {
+                e.preventDefault();
+                resolve(e.clipboardData.getData("text/plain"));
+            }, { once: true });
+        });
+        internals.sendKey(editor, "V", modCtrl);
+        println(`canceled paste event data: ${JSON.stringify(await canceledPasteEvent)}`);
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        println(`editor text after canceled paste: ${JSON.stringify(editor.textContent)}`);
+        done();
+    });
+</script>

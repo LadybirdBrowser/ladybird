@@ -1,0 +1,4 @@
+paste event data: "PASTED"
+editor text after paste: "aPASTEDb"
+canceled paste event data: "PASTED"
+editor text after canceled paste: "aPASTEDb"

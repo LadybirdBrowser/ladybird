@@ -1,5 +1,8 @@
-clipboard after copy: null
+clipboard after copy: "hello"
 editor text after copy: "hello world"
-clipboard after cut: null
-editor text after cut: "hello world"
-clipboard after canceled copy: null
+clipboard after cut: " world"
+editor text after cut: "hello"
+clipboard after canceled copy: "custom payload"
+copy(cancelable=true composed=true data="")
+cut(cancelable=true composed=true data="")
+copy(cancelable=true composed=true data="")
