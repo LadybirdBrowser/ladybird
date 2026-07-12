@@ -2372,7 +2372,7 @@ void GridFormattingContext::resolve_grid_item_sizes(GridDimension dimension)
                 auto table_wrapper_width = compute_table_box_width_inside_table_wrapper(
                     item.box, available_space, table_wrapper_constraints, table_wrapper_containing_block_width, TableWrapperWidthMode::UseTableUsedWidthIfNotAuto);
                 if (table_box_inside_table_wrapper(item).computed_values().width().is_auto())
-                    table_wrapper_width = max(table_wrapper_width, calculate_min_content_width(item.box, grid_area_constraints_for_item(item)));
+                    table_wrapper_width = max(table_wrapper_width, calculate_min_content_width(item.box, table_wrapper_constraints));
                 used_alignment = try_compute_size(table_wrapper_width, CSS::Size::make_px(table_wrapper_width), table_wrapper_containing_block_width);
             } else if (preferred_size.is_auto() || preferred_size.is_fit_content()) {
                 CSSPixels fit_content_size;
@@ -3552,7 +3552,7 @@ void GridFormattingContext::resolve_table_wrapper_grid_item_width(GridItem& item
     if (!preferred_width.is_auto())
         table_wrapper_width = max(table_wrapper_width, calculate_inner_width(item.box, available_space.width, preferred_width, grid_area_constraints_for_item(item)));
     if (table_box.computed_values().width().is_auto())
-        table_wrapper_width = max(table_wrapper_width, calculate_min_content_width(item.box, grid_area_constraints_for_item(item)));
+        table_wrapper_width = max(table_wrapper_width, calculate_min_content_width(item.box, table_wrapper_constraints));
     auto alignment = alignment_for_item(item.box, GridDimension::Column);
     if (table_box.computed_values().width().is_auto()
         && (alignment == Alignment::Normal || alignment == Alignment::Stretch)
