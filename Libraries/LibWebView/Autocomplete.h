@@ -38,12 +38,14 @@ static constexpr auto default_autocomplete_suggestion_limit = 8uz;
 enum class AutocompleteSuggestionSource {
     LiteralURL,
     History,
+    Bookmark,
     Search,
 };
 
 enum class AutocompleteSuggestionSection {
     None,
     History,
+    Bookmarks,
     SearchSuggestions,
 };
 
@@ -65,9 +67,19 @@ struct WEBVIEW_API AutocompleteSuggestion {
     Optional<String> favicon_base64_png;
     AutocompleteMatchClass match_class { AutocompleteMatchClass::None };
     i32 relevance { 0 };
+    i32 match_relevance { 0 };
+    i32 history_relevance { 0 };
+    i32 bookmark_relevance { 0 };
     bool is_verbatim { false };
     bool can_be_automatically_selected { true };
     bool can_be_inline_completed { false };
+};
+
+struct WEBVIEW_API AutocompleteBookmark {
+    String url;
+    Optional<String> title;
+    Optional<String> folder;
+    Optional<String> favicon_base64_png;
 };
 
 WEBVIEW_API ReadonlySpan<AutocompleteEngine> autocomplete_engines();
@@ -101,7 +113,7 @@ private:
     size_t m_max_suggestions { default_autocomplete_suggestion_limit };
     bool m_local_query_complete { false };
     bool m_remote_query_complete { false };
-    Vector<AutocompleteSuggestion> m_history_suggestions;
+    Vector<AutocompleteSuggestion> m_local_suggestions;
     Vector<String> m_remote_suggestions;
     RefPtr<Core::Timer> m_remote_query_timer;
     RefPtr<Requests::Request> m_request;

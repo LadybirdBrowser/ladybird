@@ -112,6 +112,37 @@ struct ApplicationBookmarkStoreObserver final : public BookmarkStoreObserver {
     }
 };
 
+static void append_autocomplete_bookmarks(Vector<AutocompleteBookmark>& bookmarks, ReadonlySpan<BookmarkItem> items, Optional<String> const& parent_folder)
+{
+    for (auto const& item : items) {
+        if (item.is_bookmark()) {
+            auto const& bookmark = item.bookmark();
+            bookmarks.append({
+                .url = bookmark.url.serialize(URL::ExcludeFragment::Yes),
+                .title = bookmark.title,
+                .folder = parent_folder,
+                .favicon_base64_png = bookmark.favicon_base64_png,
+            });
+            continue;
+        }
+
+        auto folder = parent_folder;
+        if (item.folder().title.has_value() && !item.folder().title->is_empty()) {
+            folder = parent_folder.has_value()
+                ? MUST(String::formatted("{} / {}", *parent_folder, *item.folder().title))
+                : *item.folder().title;
+        }
+        append_autocomplete_bookmarks(bookmarks, item.folder().children, folder);
+    }
+}
+
+static Vector<AutocompleteBookmark> autocomplete_bookmark_snapshot(BookmarkStore const& bookmark_store)
+{
+    Vector<AutocompleteBookmark> bookmarks;
+    append_autocomplete_bookmarks(bookmarks, bookmark_store.root_items(), {});
+    return bookmarks;
+}
+
 Application::Application(Optional<ByteString> ladybird_binary_path)
     : m_settings(Settings::create({}))
     , m_bookmark_store(BookmarkStore::create({}))
@@ -993,6 +1024,7 @@ ErrorOr<void> Application::launch_services()
 
     VERIFY(m_event_loop);
     m_autocomplete_service = make<AutocompleteService>(*m_event_loop, move(history_database_directory));
+    m_autocomplete_service->update_bookmarks(autocomplete_bookmark_snapshot(m_bookmark_store));
 
     // No need to monitor the system time zone if the TZ environment variable is set, as it overrides system preferences.
     if (!Core::Environment::has("TZ"sv)) {
@@ -1925,6 +1957,8 @@ void Application::update_bookmark_action_for_current_web_view()
 
 void Application::bookmarks_changed(Badge<ApplicationBookmarkStoreObserver>)
 {
+    if (m_autocomplete_service)
+        m_autocomplete_service->update_bookmarks(autocomplete_bookmark_snapshot(m_bookmark_store));
     m_bookmarks_menu->shrink(m_bookmarks_menu_static_size);
     create_bookmark_menu_items();
     rebuild_bookmarks_menu();

@@ -281,7 +281,7 @@ bool Omnibox::selection_is_user_choice() const
     return m_selection.has_value() && m_selection->origin == Selection::Origin::UserChoice;
 }
 
-void Omnibox::received_suggestions(AutocompleteQueryID query_id, Vector<AutocompleteSuggestion> suggestions, AutocompleteResultKind result_kind)
+void Omnibox::received_suggestions(AutocompleteQueryID query_id, Vector<AutocompleteSuggestion> suggestions, AutocompleteResultKind)
 {
     if (!m_is_editing || m_is_suspended || m_active_query_id != query_id)
         return;
@@ -292,11 +292,6 @@ void Omnibox::received_suggestions(AutocompleteQueryID query_id, Vector<Autocomp
         selected_suggestion = index_of_suggestion(m_display_text, suggestions);
     else
         selected_suggestion = update_completion_for_suggestions(suggestions);
-
-    // Publish the first local result for every generation immediately. Additional intermediate
-    // deliveries for the same generation can wait for its final snapshot to avoid needless churn.
-    if (result_kind == AutocompleteResultKind::Intermediate && m_popup_visible && m_popup_query_id == query_id)
-        return;
 
     // A selection that survives the refresh pointing at the same suggestion is still the user's
     // deliberate choice; anything else the refresh picks is automatic.

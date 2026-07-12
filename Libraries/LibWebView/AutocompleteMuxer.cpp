@@ -25,10 +25,16 @@ static void merge_suggestion(AutocompleteSuggestion& existing, AutocompleteSugge
     auto is_verbatim = existing.is_verbatim || suggestion.is_verbatim;
     auto can_be_automatically_selected = existing.can_be_automatically_selected || suggestion.can_be_automatically_selected;
     auto can_be_inline_completed = existing.can_be_inline_completed || suggestion.can_be_inline_completed;
+    auto match_relevance = max(existing.match_relevance, suggestion.match_relevance);
+    auto history_relevance = max(existing.history_relevance, suggestion.history_relevance);
+    auto bookmark_relevance = max(existing.bookmark_relevance, suggestion.bookmark_relevance);
     auto relevance = max(existing.relevance, suggestion.relevance);
+    if (match_relevance != 0 || history_relevance != 0 || bookmark_relevance != 0)
+        relevance = max(relevance, match_relevance + history_relevance + bookmark_relevance);
 
-    if (existing.source == AutocompleteSuggestionSource::LiteralURL
-        && suggestion.source != AutocompleteSuggestionSource::LiteralURL) {
+    auto suggestion_has_preferred_presentation = suggestion.source == AutocompleteSuggestionSource::Bookmark
+        || (existing.source == AutocompleteSuggestionSource::LiteralURL && suggestion.source == AutocompleteSuggestionSource::History);
+    if (suggestion_has_preferred_presentation) {
         existing = move(suggestion);
     } else {
         if (!existing.title.has_value() && suggestion.title.has_value())
@@ -43,6 +49,9 @@ static void merge_suggestion(AutocompleteSuggestion& existing, AutocompleteSugge
     existing.can_be_automatically_selected = can_be_automatically_selected;
     existing.can_be_inline_completed = can_be_inline_completed;
     existing.relevance = relevance;
+    existing.match_relevance = match_relevance;
+    existing.history_relevance = history_relevance;
+    existing.bookmark_relevance = bookmark_relevance;
 }
 
 static void append_or_merge(Vector<AutocompleteSuggestion>& suggestions, AutocompleteSuggestion suggestion)

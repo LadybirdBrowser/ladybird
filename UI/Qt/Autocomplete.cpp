@@ -316,7 +316,7 @@ public:
 
         if (source == WebView::AutocompleteSuggestionSource::Search) {
             create_chrome_icon(ChromeIcon::Search, option.palette).paint(painter, icon_rect);
-        } else if (source == WebView::AutocompleteSuggestionSource::History && !favicon.isNull()) {
+        } else if ((source == WebView::AutocompleteSuggestionSource::History || source == WebView::AutocompleteSuggestionSource::Bookmark) && !favicon.isNull()) {
             favicon.paint(painter, icon_rect);
         } else {
             create_chrome_icon(ChromeIcon::Globe, option.palette).paint(painter, icon_rect);

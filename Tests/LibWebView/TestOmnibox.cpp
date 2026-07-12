@@ -308,6 +308,22 @@ TEST_CASE(the_first_intermediate_result_repaints_for_each_generation)
     EXPECT_EQ(harness.commits.last(), "https://www.thee.example/"sv);
 }
 
+TEST_CASE(later_intermediate_results_refresh_the_active_generation)
+{
+    Harness harness;
+    harness.begin_editing();
+
+    harness.press_key('t');
+    harness.provider->deliver({ search_row("t"sv) }, AutocompleteResultKind::Intermediate);
+    auto repaints_after_first_delivery = harness.popup_repaints;
+
+    harness.provider->deliver({ history_row("https://www.thee.example/"sv), search_row("t"sv) }, AutocompleteResultKind::Intermediate);
+
+    EXPECT_EQ(harness.popup_repaints, repaints_after_first_delivery + 1);
+    EXPECT_EQ(harness.omnibox.suggestions().first().text, "https://www.thee.example/"sv);
+    EXPECT_EQ(harness.display_text, "thee.example"sv);
+}
+
 TEST_CASE(enter_with_stale_results_commits_the_current_input_immediately)
 {
     Harness harness;

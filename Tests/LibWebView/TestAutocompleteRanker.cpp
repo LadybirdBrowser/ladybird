@@ -34,6 +34,16 @@ Vector<WebView::AutocompleteSuggestion> rank(StringView query, Vector<WebView::H
     return WebView::rank_history_suggestions(query, move(entries), 8, UnixDateTime::from_seconds_since_epoch(now_seconds));
 }
 
+WebView::AutocompleteBookmark bookmark(StringView url, Optional<StringView> title = {}, Optional<StringView> folder = {})
+{
+    return {
+        .url = MUST(String::from_utf8(url)),
+        .title = title.map([](auto value) { return MUST(String::from_utf8(value)); }),
+        .folder = folder.map([](auto value) { return MUST(String::from_utf8(value)); }),
+        .favicon_base64_png = {},
+    };
+}
+
 }
 
 TEST_CASE(url_prefix_is_ranked_and_can_complete)
@@ -105,4 +115,36 @@ TEST_CASE(title_matching_uses_unicode_case_folding)
 
     EXPECT_EQ(suggestions.size(), 1u);
     EXPECT_EQ(suggestions[0].match_class, WebView::AutocompleteMatchClass::TitlePrefix);
+}
+
+TEST_CASE(bookmark_url_prefix_is_strong_navigation_intent)
+{
+    auto suggestions = WebView::rank_bookmark_suggestions("lady"sv, {
+                                                                        bookmark("https://ladybird.org/"sv, "Ladybird"sv),
+                                                                    },
+        8);
+
+    EXPECT_EQ(suggestions.size(), 1u);
+    EXPECT_EQ(suggestions[0].source, WebView::AutocompleteSuggestionSource::Bookmark);
+    EXPECT(suggestions[0].can_be_automatically_selected);
+    EXPECT(suggestions[0].can_be_inline_completed);
+}
+
+TEST_CASE(bookmark_title_and_folder_matches_are_not_automatic)
+{
+    auto title_suggestions = WebView::rank_bookmark_suggestions("browser"sv, {
+                                                                                 bookmark("https://example.com/"sv, "Browser project"sv),
+                                                                             },
+        8);
+    auto folder_suggestions = WebView::rank_bookmark_suggestions("reading"sv, {
+                                                                                  bookmark("https://example.com/"sv, "Example"sv, "Reading List"sv),
+                                                                              },
+        8);
+
+    EXPECT_EQ(title_suggestions.size(), 1u);
+    EXPECT(!title_suggestions[0].can_be_automatically_selected);
+    EXPECT(!title_suggestions[0].can_be_inline_completed);
+    EXPECT_EQ(folder_suggestions.size(), 1u);
+    EXPECT(!folder_suggestions[0].can_be_automatically_selected);
+    EXPECT(!folder_suggestions[0].can_be_inline_completed);
 }

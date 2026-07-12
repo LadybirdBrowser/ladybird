@@ -20,6 +20,8 @@ WebView::AutocompleteSuggestion suggestion(
         .source = source,
         .section = source == WebView::AutocompleteSuggestionSource::Search
             ? WebView::AutocompleteSuggestionSection::SearchSuggestions
+            : source == WebView::AutocompleteSuggestionSource::Bookmark
+            ? WebView::AutocompleteSuggestionSection::Bookmarks
             : WebView::AutocompleteSuggestionSection::History,
         .text = MUST(String::from_utf8(text)),
         .title = {},
@@ -155,4 +157,27 @@ TEST_CASE(http_and_https_destinations_are_not_deduplicated)
         8);
 
     EXPECT_EQ(results.size(), 2u);
+}
+
+TEST_CASE(history_and_bookmark_evidence_is_combined)
+{
+    auto history_suggestion = history("https://example.com/"sv, 900);
+    history_suggestion.match_relevance = 850;
+    history_suggestion.history_relevance = 50;
+    auto bookmark_suggestion = suggestion(WebView::AutocompleteSuggestionSource::Bookmark, "https://example.com/"sv, 925, true);
+    bookmark_suggestion.title = "Example bookmark"_string;
+    bookmark_suggestion.match_relevance = 850;
+    bookmark_suggestion.bookmark_relevance = 75;
+
+    auto results = WebView::mux_autocomplete_suggestions(
+        "example"sv,
+        {},
+        { move(history_suggestion), move(bookmark_suggestion) },
+        {},
+        8);
+
+    EXPECT_EQ(results.size(), 1u);
+    EXPECT_EQ(results[0].source, WebView::AutocompleteSuggestionSource::Bookmark);
+    EXPECT_EQ(results[0].title, Optional<String> { "Example bookmark"_string });
+    EXPECT_EQ(results[0].relevance, 975);
 }

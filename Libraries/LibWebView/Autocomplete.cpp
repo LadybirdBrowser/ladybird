@@ -82,7 +82,7 @@ void Autocomplete::cancel_pending_query()
     m_query_id = {};
     m_query = {};
     m_trimmed_query = {};
-    m_history_suggestions.clear();
+    m_local_suggestions.clear();
     m_remote_suggestions.clear();
 }
 
@@ -93,6 +93,8 @@ StringView autocomplete_section_title(AutocompleteSuggestionSection section)
         return {};
     case AutocompleteSuggestionSection::History:
         return "History"sv;
+    case AutocompleteSuggestionSection::Bookmarks:
+        return "Bookmarks"sv;
     case AutocompleteSuggestionSection::SearchSuggestions:
         return "Search Suggestions"sv;
     }
@@ -202,7 +204,7 @@ void Autocomplete::query_autocomplete_engine(AutocompleteQueryID query_id, Strin
     m_query = move(query);
     m_local_query_complete = false;
     m_remote_query_complete = false;
-    m_history_suggestions.clear();
+    m_local_suggestions.clear();
     m_remote_suggestions.clear();
 
     dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Autocomplete query='{}' trimmed='{}'", m_query, m_trimmed_query);
@@ -296,10 +298,10 @@ void Autocomplete::local_query_complete(AutocompleteQueryID query_id, Vector<Aut
     if (m_query_id != query_id)
         return;
 
-    m_history_suggestions = move(suggestions);
+    m_local_suggestions = move(suggestions);
     m_local_query_complete = true;
 
-    dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] History autocomplete suggestions for '{}': {}", m_trimmed_query, log_autocomplete_suggestions(m_history_suggestions));
+    dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Local autocomplete suggestions for '{}': {}", m_trimmed_query, log_autocomplete_suggestions(m_local_suggestions));
     deliver_current_result();
 }
 
@@ -314,7 +316,7 @@ void Autocomplete::deliver_current_result()
     auto merged_suggestions = mux_autocomplete_suggestions(
         m_trimmed_query,
         move(verbatim_suggestion),
-        m_history_suggestions,
+        m_local_suggestions,
         make_remote_suggestions(m_remote_suggestions),
         m_max_suggestions);
     auto result_kind = m_local_query_complete && m_remote_query_complete

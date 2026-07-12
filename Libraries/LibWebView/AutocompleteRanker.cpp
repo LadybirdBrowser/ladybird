@@ -147,20 +147,23 @@ Vector<AutocompleteSuggestion> rank_history_suggestions(StringView query, Vector
         if (match_class == AutocompleteMatchClass::None)
             continue;
 
-        auto relevance = match_relevance(match_class) + page_quality(entry, now);
+        auto adjusted_match_relevance = match_relevance(match_class);
         if (match_class == AutocompleteMatchClass::TitlePrefix)
-            relevance -= 100;
+            adjusted_match_relevance -= 100;
         else if (match_class == AutocompleteMatchClass::URLSubstring)
-            relevance -= 150;
+            adjusted_match_relevance -= 150;
         else if (match_class == AutocompleteMatchClass::TitleSubstring)
-            relevance -= 200;
+            adjusted_match_relevance -= 200;
 
         auto parsed_url = URL::Parser::basic_parse(entry.url);
         auto is_deep_page_without_path_input = parsed_url.has_value()
             && parsed_url->serialize_path() != "/"sv
             && !query_contains_path(query);
         if (is_deep_page_without_path_input && match_class == AutocompleteMatchClass::URLPrefix)
-            relevance -= 200;
+            adjusted_match_relevance -= 200;
+
+        auto history_relevance = page_quality(entry, now);
+        auto relevance = adjusted_match_relevance + history_relevance;
 
         auto is_url_prefix = match_class == AutocompleteMatchClass::ExactURL || match_class == AutocompleteMatchClass::URLPrefix;
         auto has_strong_intent = entry.direct_visit_count >= (query_is_url ? 1u : 2u);
@@ -181,6 +184,103 @@ Vector<AutocompleteSuggestion> rank_history_suggestions(StringView query, Vector
             .favicon_base64_png = move(entry.favicon_base64_png),
             .match_class = match_class,
             .relevance = relevance,
+            .match_relevance = adjusted_match_relevance,
+            .history_relevance = history_relevance,
+            .bookmark_relevance = 0,
+            .is_verbatim = false,
+            .can_be_automatically_selected = can_be_automatically_selected,
+            .can_be_inline_completed = can_be_inline_completed,
+        });
+    }
+
+    quick_sort(suggestions, [](auto const& left, auto const& right) {
+        if (left.relevance != right.relevance)
+            return left.relevance > right.relevance;
+        if (left.match_class != right.match_class)
+            return static_cast<u8>(left.match_class) < static_cast<u8>(right.match_class);
+        return left.text < right.text;
+    });
+
+    if (suggestions.size() > limit)
+        suggestions.resize(limit);
+    return suggestions;
+}
+
+Vector<AutocompleteSuggestion> rank_bookmark_suggestions(StringView query, Vector<AutocompleteBookmark> const& bookmarks, size_t limit)
+{
+    if (query.is_empty())
+        return {};
+
+    auto query_string = MUST(String::from_utf8(query));
+    auto folded_query = MUST(query_string.to_casefold());
+    auto query_length = Utf8View { query }.length();
+
+    Vector<AutocompleteSuggestion> suggestions;
+    suggestions.ensure_capacity(bookmarks.size());
+
+    for (auto const& bookmark : bookmarks) {
+        auto folded_url = MUST(bookmark.url.to_casefold());
+        Optional<String> folded_title;
+        if (query_length >= 3 && bookmark.title.has_value())
+            folded_title = MUST(bookmark.title->to_casefold());
+
+        auto match_class = classify_match(folded_query, folded_url, {});
+        auto title_match_class = folded_title.has_value()
+            ? classify_match(folded_query, ""sv, folded_title->bytes_as_string_view())
+            : AutocompleteMatchClass::None;
+        if (match_relevance(title_match_class) > match_relevance(match_class))
+            match_class = title_match_class;
+
+        Optional<String> folded_folder;
+        if (query_length >= 3 && bookmark.folder.has_value())
+            folded_folder = MUST(bookmark.folder->to_casefold());
+        auto folder_match_class = folded_folder.has_value()
+            ? classify_match(folded_query, ""sv, folded_folder->bytes_as_string_view())
+            : AutocompleteMatchClass::None;
+        if (match_relevance(folder_match_class) > match_relevance(match_class))
+            match_class = folder_match_class;
+        if (match_class == AutocompleteMatchClass::None)
+            continue;
+
+        auto adjusted_match_relevance = match_relevance(match_class);
+        if (match_class == AutocompleteMatchClass::TitlePrefix)
+            adjusted_match_relevance -= 100;
+        else if (match_class == AutocompleteMatchClass::URLSubstring)
+            adjusted_match_relevance -= 150;
+        else if (match_class == AutocompleteMatchClass::TitleSubstring)
+            adjusted_match_relevance -= 200;
+
+        auto parsed_url = URL::Parser::basic_parse(bookmark.url);
+        auto is_deep_page_without_path_input = parsed_url.has_value()
+            && parsed_url->serialize_path() != "/"sv
+            && !query_contains_path(query);
+        if (is_deep_page_without_path_input && match_class == AutocompleteMatchClass::URLPrefix)
+            adjusted_match_relevance -= 200;
+
+        auto bookmark_relevance = 75;
+        if (title_match_class == AutocompleteMatchClass::TitlePrefix)
+            bookmark_relevance += 25;
+
+        auto is_url_prefix = match_class == AutocompleteMatchClass::ExactURL || match_class == AutocompleteMatchClass::URLPrefix;
+        auto can_be_automatically_selected = is_url_prefix
+            && query_length >= 2
+            && !is_deep_page_without_path_input;
+        auto can_be_inline_completed = can_be_automatically_selected
+            && match_class == AutocompleteMatchClass::URLPrefix
+            && autocomplete_url_can_complete(query, bookmark.url);
+
+        suggestions.append({
+            .source = AutocompleteSuggestionSource::Bookmark,
+            .section = AutocompleteSuggestionSection::Bookmarks,
+            .text = bookmark.url,
+            .title = bookmark.title,
+            .subtitle = bookmark.folder,
+            .favicon_base64_png = bookmark.favicon_base64_png,
+            .match_class = match_class,
+            .relevance = adjusted_match_relevance + bookmark_relevance,
+            .match_relevance = adjusted_match_relevance,
+            .history_relevance = 0,
+            .bookmark_relevance = bookmark_relevance,
             .is_verbatim = false,
             .can_be_automatically_selected = can_be_automatically_selected,
             .can_be_inline_completed = can_be_inline_completed,

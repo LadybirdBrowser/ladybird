@@ -15,5 +15,6 @@
 namespace WebView {
 
 WEBVIEW_API Vector<AutocompleteSuggestion> rank_history_suggestions(StringView query, Vector<HistoryEntry>, size_t limit, UnixDateTime now = UnixDateTime::now());
+WEBVIEW_API Vector<AutocompleteSuggestion> rank_bookmark_suggestions(StringView query, Vector<AutocompleteBookmark> const&, size_t limit);
 
 }

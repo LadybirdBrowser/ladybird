@@ -57,11 +57,13 @@ void AutocompleteService::query(ClientID client_id, AutocompleteQueryID query_id
         return;
     client->value->active_query_id = query_id;
 
+    Query query { client_id, query_id, move(input), max_suggestions };
     Sync::MutexLocker locker(m_worker_mutex);
+    m_active_queries.set(client_id, query);
     m_pending_queries.remove_all_matching([&](auto const& query) {
         return query.client_id == client_id;
     });
-    m_pending_queries.append({ client_id, query_id, move(input), max_suggestions });
+    m_pending_queries.append(move(query));
     m_worker_condition.signal();
 }
 
@@ -71,9 +73,24 @@ void AutocompleteService::cancel(ClientID client_id)
         client->value->active_query_id = {};
 
     Sync::MutexLocker locker(m_worker_mutex);
+    m_active_queries.remove(client_id);
     m_pending_queries.remove_all_matching([&](auto const& query) {
         return query.client_id == client_id;
     });
+}
+
+void AutocompleteService::update_bookmarks(Vector<AutocompleteBookmark> bookmarks)
+{
+    Sync::MutexLocker locker(m_worker_mutex);
+    m_pending_bookmarks = move(bookmarks);
+
+    for (auto const& active_query : m_active_queries) {
+        m_pending_queries.remove_all_matching([&](auto const& query) {
+            return query.client_id == active_query.key;
+        });
+        m_pending_queries.append(active_query.value);
+    }
+    m_worker_condition.signal();
 }
 
 intptr_t AutocompleteService::worker_main(Optional<ByteString> history_database_directory)
@@ -95,23 +112,35 @@ intptr_t AutocompleteService::worker_main(Optional<ByteString> history_database_
         }
     }
 
+    Vector<AutocompleteBookmark> bookmarks;
+
     while (true) {
-        Query query;
+        Optional<Query> query;
+        Optional<Vector<AutocompleteBookmark>> bookmark_update;
         {
             Sync::MutexLocker locker(m_worker_mutex);
             m_worker_condition.wait_while([&] {
-                return !m_stopping && m_pending_queries.is_empty();
+                return !m_stopping && m_pending_queries.is_empty() && !m_pending_bookmarks.has_value();
             });
             if (m_stopping)
                 return 0;
-            query = m_pending_queries.take_first();
+            if (m_pending_bookmarks.has_value())
+                bookmark_update = m_pending_bookmarks.release_value();
+            if (!m_pending_queries.is_empty())
+                query = m_pending_queries.take_first();
         }
 
-        auto preliminary_limit = max(query.max_suggestions * 4, 32uz);
+        if (bookmark_update.has_value())
+            bookmarks = bookmark_update.release_value();
+        if (!query.has_value())
+            continue;
+
+        auto preliminary_limit = max(query->max_suggestions * 4, 32uz);
         auto suggestions = history_store
-            ? rank_history_suggestions(query.input, history_store->autocomplete_entries(query.input, preliminary_limit), query.max_suggestions)
+            ? rank_history_suggestions(query->input, history_store->autocomplete_entries(query->input, preliminary_limit), preliminary_limit)
             : Vector<AutocompleteSuggestion> {};
-        deliver(query, move(suggestions));
+        suggestions.extend(rank_bookmark_suggestions(query->input, bookmarks, preliminary_limit));
+        deliver(*query, move(suggestions));
     }
 }
 
