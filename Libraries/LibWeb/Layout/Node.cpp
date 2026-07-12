@@ -1037,6 +1037,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
 
     computed_values.set_stroke_linecap(computed_style.stroke_linecap());
     computed_values.set_stroke_linejoin(computed_style.stroke_linejoin());
+    computed_values.set_vector_effect(computed_style.vector_effect());
     computed_values.set_stroke_miterlimit(computed_style.stroke_miterlimit());
 
     computed_values.set_stroke_opacity(computed_style.stroke_opacity());

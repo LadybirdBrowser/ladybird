@@ -1142,6 +1142,10 @@
     "none",
     "text"
   ],
+  "vector-effect": [
+    "none",
+    "non-scaling-stroke"
+  ],
   "vertical-align": [
     "baseline",
     "bottom",

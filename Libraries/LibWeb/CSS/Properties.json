@@ -4691,6 +4691,16 @@
       "user-select"
     ]
   },
+  "vector-effect": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "none",
+    "requires-computation": "never",
+    "valid-types": [
+      "vector-effect"
+    ]
+  },
   "vertical-align": {
     "animation-type": "by-computed-value",
     "inherited": false,

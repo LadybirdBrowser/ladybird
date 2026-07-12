@@ -162,13 +162,15 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
         auto miter_limit = graphics_element.stroke_miterlimit().value_or(0);
         auto stroke_opacity = graphics_element.stroke_opacity().value_or(1);
 
+        // https://svgwg.org/svg2-draft/painting.html#PaintingVectorEffects
+        // With the non-scaling-stroke vector effect, stroke outline shall be calculated in the "host" coordinate space instead of user coordinate system.
         // Note: This is assuming .x_scale() == .y_scale() (which it does currently).
-        auto viewbox_scale = paint_transform.x_scale();
-        float stroke_thickness = graphics_element.stroke_width().value_or(1) * viewbox_scale;
+        auto stroke_scale = computed_values().vector_effect() == CSS::VectorEffect::NonScalingStroke ? 1.0f : paint_transform.x_scale();
+        float stroke_thickness = graphics_element.stroke_width().value_or(1) * stroke_scale;
         auto stroke_dasharray = graphics_element.stroke_dasharray();
         for (auto& value : stroke_dasharray)
-            value *= viewbox_scale;
-        float stroke_dashoffset = graphics_element.stroke_dashoffset().value_or(0) * viewbox_scale;
+            value *= stroke_scale;
+        float stroke_dashoffset = graphics_element.stroke_dashoffset().value_or(0) * stroke_scale;
 
         if (auto paint_style = graphics_element.stroke_paint_style(paint_context, &context); paint_style.has_value()) {
             context.display_list_recorder().stroke_path({

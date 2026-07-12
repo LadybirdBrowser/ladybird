@@ -710,6 +710,12 @@ StrokeLinejoin ComputedProperties::stroke_linejoin() const
     return keyword_to_stroke_linejoin(value.to_keyword()).release_value();
 }
 
+VectorEffect ComputedProperties::vector_effect() const
+{
+    auto const& value = property(PropertyID::VectorEffect);
+    return keyword_to_vector_effect(value.to_keyword()).release_value();
+}
+
 double ComputedProperties::stroke_miterlimit() const
 {
     return number_from_style_value(property(PropertyID::StrokeMiterlimit), {});

@@ -912,6 +912,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'unicode-bidi': 'normal'
 'userSelect': 'auto'
 'user-select': 'auto'
+'vectorEffect': 'none'
+'vector-effect': 'none'
 'verticalAlign': 'baseline'
 'vertical-align': 'baseline'
 'viewTimeline': 'none'

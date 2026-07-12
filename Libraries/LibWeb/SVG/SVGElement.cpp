@@ -107,6 +107,7 @@ static ReadonlySpan<NamedPropertyID> attribute_style_properties()
         NamedPropertyID(CSS::PropertyID::StrokeMiterlimit),
         NamedPropertyID(CSS::PropertyID::StrokeOpacity),
         NamedPropertyID(CSS::PropertyID::StrokeWidth),
+        NamedPropertyID(CSS::PropertyID::VectorEffect),
         NamedPropertyID(CSS::PropertyID::TextAnchor),
         NamedPropertyID(CSS::PropertyID::TextDecoration),
         NamedPropertyID(CSS::PropertyID::TextRendering),

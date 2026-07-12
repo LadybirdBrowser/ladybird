@@ -321,6 +321,7 @@ All properties associated with getComputedStyle(document.body):
     "translate",
     "unicode-bidi",
     "user-select",
+    "vector-effect",
     "vertical-align",
     "view-timeline-axis",
     "view-timeline-inset",

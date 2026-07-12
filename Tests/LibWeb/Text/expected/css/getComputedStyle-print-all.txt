@@ -319,6 +319,7 @@ transition-timing-function: ease
 translate: none
 unicode-bidi: normal
 user-select: auto
+vector-effect: none
 vertical-align: baseline
 view-timeline-axis: block
 view-timeline-inset: auto

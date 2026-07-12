@@ -239,6 +239,7 @@ public:
     static LengthPercentage stroke_dashoffset() { return Length::make_px(0); }
     static StrokeLinecap stroke_linecap() { return StrokeLinecap::Butt; }
     static StrokeLinejoin stroke_linejoin() { return StrokeLinejoin::Miter; }
+    static VectorEffect vector_effect() { return VectorEffect::None; }
     static float stroke_miterlimit() { return 4.0f; }
     static float stroke_opacity() { return 1.0f; }
     static LengthPercentage stroke_width() { return Length::make_px(1); }
@@ -754,6 +755,7 @@ public:
     LengthPercentage const& stroke_dashoffset() const { return m_inherited.stroke_dashoffset; }
     StrokeLinecap stroke_linecap() const { return m_inherited.stroke_linecap; }
     StrokeLinejoin stroke_linejoin() const { return m_inherited.stroke_linejoin; }
+    VectorEffect vector_effect() const { return m_noninherited.vector_effect; }
     double stroke_miterlimit() const { return m_inherited.stroke_miterlimit; }
     float stroke_opacity() const { return m_inherited.stroke_opacity; }
     LengthPercentage const& stroke_width() const { return m_inherited.stroke_width; }
@@ -992,6 +994,7 @@ protected:
         Optional<Utf16FlyString> view_transition_name;
         TouchActionData touch_action;
         MaskType mask_type { InitialValues::mask_type() };
+        VectorEffect vector_effect { InitialValues::vector_effect() };
         ScrollbarWidth scrollbar_width { InitialValues::scrollbar_width() };
         ShapeRendering shape_rendering { InitialValues::shape_rendering() };
         float flood_opacity { InitialValues::flood_opacity() };
@@ -1204,6 +1207,7 @@ public:
     void set_stroke_dashoffset(LengthPercentage value) { m_inherited.stroke_dashoffset = move(value); }
     void set_stroke_linecap(StrokeLinecap value) { m_inherited.stroke_linecap = move(value); }
     void set_stroke_linejoin(StrokeLinejoin value) { m_inherited.stroke_linejoin = move(value); }
+    void set_vector_effect(VectorEffect value) { m_noninherited.vector_effect = value; }
     void set_stroke_miterlimit(double value) { m_inherited.stroke_miterlimit = value; }
     void set_stroke_opacity(float value) { m_inherited.stroke_opacity = value; }
     void set_stroke_width(LengthPercentage value) { m_inherited.stroke_width = move(value); }
