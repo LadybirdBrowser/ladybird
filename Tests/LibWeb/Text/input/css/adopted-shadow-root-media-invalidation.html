@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    // Create the shadow root while its host lives in another document, then adopt the host into this
+    // document. Media invalidation walks this document's shadow root list, so the adopted shadow root must
+    // appear there for its @media rules to re-evaluate.
+    const detachedDocument = document.implementation.createHTMLDocument("");
+    const host = detachedDocument.createElement("div");
+    detachedDocument.body.appendChild(host);
+    const shadowRoot = host.attachShadow({ mode: "open" });
+    shadowRoot.innerHTML = `
+        <style>
+            .thing { color: rgb(1, 2, 3); }
+            @media (prefers-color-scheme: dark) {
+                .thing { color: rgb(4, 5, 6); }
+            }
+        </style>
+        <div class="thing"></div>
+    `;
+
+    document.body.appendChild(host);
+    internals.updateStyle();
+
+    internals.setPreferredColorScheme("dark");
+    internals.updateStyle();
+    println(getComputedStyle(shadowRoot.querySelector(".thing")).color);
+
+    internals.setPreferredColorScheme("auto");
+    host.remove();
+});
+</script>
