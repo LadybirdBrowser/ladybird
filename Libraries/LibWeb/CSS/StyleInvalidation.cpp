@@ -210,6 +210,11 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
         invalidation.ensure_at_least(InvalidationLevel::Relayout);
     }
 
+    // Scrollable overflow depends on these properties even though layout does not: a scroll container's
+    // scrollable overflow rect includes descendant border boxes as projected by their transforms.
+    if (CSS::property_affects_scrollable_overflow(property_id))
+        invalidation.set_needs_scrollable_overflow_recalculation();
+
     if (CSS::property_affects_stacking_context(property_id)) {
         // z-index changes always require rebuilding the stacking context tree because
         // the value determines painting order within the tree, not just whether a

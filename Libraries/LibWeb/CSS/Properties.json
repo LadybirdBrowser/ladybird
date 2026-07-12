@@ -3791,6 +3791,7 @@
     "inherited": false,
     "initial": "none",
     "affects-layout": false,
+    "affects-scrollable-overflow": true,
     "affects-stacking-context": true,
     "requires-computation": "cascaded-value"
   },
@@ -3850,6 +3851,7 @@
     "inherited": false,
     "initial": "none",
     "affects-layout": false,
+    "affects-scrollable-overflow": true,
     "affects-stacking-context": true,
     "requires-computation": "cascaded-value"
   },
@@ -4535,6 +4537,7 @@
     "inherited": false,
     "initial": "none",
     "affects-layout": false,
+    "affects-scrollable-overflow": true,
     "affects-stacking-context": true,
     "needs-layout-node-for-resolved-value": true,
     "percentages-resolve-to": "length",
@@ -4551,6 +4554,7 @@
     "inherited": false,
     "initial": "view-box",
     "affects-layout": false,
+    "affects-scrollable-overflow": true,
     "requires-computation": "never",
     "valid-types": [
       "transform-box"
@@ -4559,6 +4563,7 @@
   "transform-origin": {
     "affects-accumulated-visual-contexts": true,
     "affects-layout": false,
+    "affects-scrollable-overflow": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "50% 50%",
@@ -4664,6 +4669,7 @@
     "inherited": false,
     "initial": "none",
     "affects-layout": false,
+    "affects-scrollable-overflow": true,
     "affects-stacking-context": true,
     "requires-computation": "cascaded-value",
     "valid-types": [
