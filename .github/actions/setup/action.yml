@@ -64,7 +64,7 @@ runs:
         python3 -m pip install --upgrade pip
 
         if ${{ inputs.type == 'build' }} ; then
-          pip3 install pyyaml requests six
+          pip3 install pyyaml requests six cryptography
         else
           pip3 install -r "${GITHUB_WORKSPACE}/Meta/Linters/requirements.txt"
         fi
