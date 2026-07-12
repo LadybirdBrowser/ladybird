@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../../include.js"></script>
+<style>
+    #box {
+        flex-shrink: 1;
+        accent-color: rgb(1, 1, 1);
+        transition-property: flex-shrink, accent-color;
+        transition-duration: 100s;
+    }
+    .shrunk #box {
+        flex-shrink: 5;
+    }
+    .tinted #box {
+        accent-color: rgb(9, 9, 9);
+    }
+</style>
+<div id="wrap"><div id="box"></div></div>
+<script>
+    test(() => {
+        const wrap = document.getElementById("wrap");
+        const box = document.getElementById("box");
+        // Settle initial style so the transitions below have a before-change style. The transitioned properties
+        // resolve without layout, so each read below flushes the pending class invalidation and recomputes the
+        // target without a full update_layout().
+        document.body.offsetWidth;
+
+        // Each read is its own style change event with its own transition generation.
+        wrap.classList.add("shrunk");
+        getComputedStyle(box).flexShrink;
+        wrap.classList.add("tinted");
+        getComputedStyle(box).accentColor;
+
+        // Composite order for transitions with the same owning element sorts by transition generation first and
+        // only falls back to the transition property name for ties. If both reads ran under one generation, the
+        // tie-break would order accent-color before flex-shrink.
+        println(box.getAnimations().map((animation) => animation.transitionProperty).join(", "));
+    });
+</script>

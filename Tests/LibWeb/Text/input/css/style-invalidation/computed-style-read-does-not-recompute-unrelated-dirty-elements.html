@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<script>
+    test(() => {
+        const style = addStyle(document.head, `.hot .leaf { ${MATCH_DECLARATION} }`);
+        const box = makeElement("section");
+        for (let i = 0; i < 10; i++) box.appendChild(makeElement("div", { className: "leaf" }));
+        const probe = makeElement("p", { className: "probe" });
+        document.body.append(box, probe);
+        document.body.offsetWidth;
+
+        // Reading computed style of one element must resolve pending invalidations, but it should not have to
+        // recompute style for every dirty element in the document.
+        resetStyleCounters();
+        box.classList.add("hot");
+        assertEqual("probe outside the dirty subtree", readProbe(probe), BASE);
+        printPassWithCounters("computed style read outside a dirty subtree");
+
+        // Reading inside the dirty subtree must still see fresh style.
+        assertEqual("leaf inside the dirty subtree", readProbe(box.firstChild), MATCH);
+        println("PASS: computed style read inside the dirty subtree sees fresh style");
+
+        style.remove();
+        box.remove();
+        probe.remove();
+    });
+</script>

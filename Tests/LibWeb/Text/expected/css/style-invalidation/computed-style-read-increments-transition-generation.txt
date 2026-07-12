@@ -1,0 +1,1 @@
+flex-shrink, accent-color
