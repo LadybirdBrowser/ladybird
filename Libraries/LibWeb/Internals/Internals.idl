@@ -149,5 +149,6 @@ interface Internals {
     DOMString asyncScrollingStateWheelRoutingAdmission();
     DOMString asyncScrollingStateWheelScrollAdmissionAt(double x, double y, double deltaX, double deltaY, optional boolean forceStaleWheelEventRegions = false);
     DOMString asyncScrollingStateWheelTargetAt(double x, double y, double deltaX, double deltaY);
+    DOMString viewportOverflowX();
 
 };

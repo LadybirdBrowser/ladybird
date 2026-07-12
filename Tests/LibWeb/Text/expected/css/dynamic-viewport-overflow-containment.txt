@@ -1,0 +1,6 @@
+Initial wheel target: none
+Wheel target after body containment: viewport
+Scroll offset after wheel: 1
+Wheel target after root containment: none
+Scroll offset after hidden wheel: 0
+Scroll offset after scrollTo: 1

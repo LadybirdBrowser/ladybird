@@ -1737,34 +1737,46 @@ static void propagate_scrollbar_width_to_viewport(Element& root_element, Layout:
 // https://drafts.csswg.org/css-overflow-3/#overflow-propagation
 static void propagate_overflow_to_viewport(Element& root_element, Layout::Viewport& viewport)
 {
+    auto& viewport_computed_values = viewport.mutable_computed_values();
+    viewport_computed_values.set_overflow_x(CSS::Overflow::Auto);
+    viewport_computed_values.set_overflow_y(CSS::Overflow::Auto);
+
     // https://drafts.csswg.org/css-contain-2/#contain-property
     // Additionally, when any containments are active on either the HTML <html> or <body> elements, propagation of
     // properties from the <body> element to the initial containing block, the viewport, or the canvas background, is
     // disabled. Notably, this affects:
     // - 'overflow' and its longhands (see CSS Overflow 3 § 3.3 Overflow Viewport Propagation)
-    if (root_element.is_html_html_element() && !root_element.computed_properties()->contain().is_empty())
-        return;
-
     auto* body_element = root_element.first_child_of_type<HTML::HTMLBodyElement>();
+    bool body_element_can_propagate_overflow = body_element
+        && !body_element->computed_properties()->display().is_none()
+        && body_element->unsafe_layout_node();
+    bool body_propagation_is_disabled_by_containment = root_element.is_html_html_element() && !root_element.computed_properties()->contain().is_empty();
     if (body_element && !body_element->computed_properties()->contain().is_empty())
-        return;
+        body_propagation_is_disabled_by_containment = true;
 
     // UAs must apply the overflow-* values set on the root element to the viewport
     // when the root element’s display value is not none.
-    // NB: Called during layout tree construction.
-    auto overflow_origin_node = root_element.unsafe_layout_node();
-    auto& viewport_computed_values = viewport.mutable_computed_values();
+    auto root_element_layout_node = root_element.unsafe_layout_node();
+    auto& root_element_layout_values = root_element_layout_node->mutable_computed_values();
+    auto const& root_element_computed_properties = *root_element.computed_properties();
+    root_element_layout_values.set_overflow_x(root_element_computed_properties.overflow_x());
+    root_element_layout_values.set_overflow_y(root_element_computed_properties.overflow_y());
+    if (body_element_can_propagate_overflow) {
+        auto& body_element_layout_values = body_element->unsafe_layout_node()->mutable_computed_values();
+        auto const& body_element_computed_properties = *body_element->computed_properties();
+        body_element_layout_values.set_overflow_x(body_element_computed_properties.overflow_x());
+        body_element_layout_values.set_overflow_y(body_element_computed_properties.overflow_y());
+    }
+
+    auto overflow_origin_node = root_element_layout_node;
 
     // However, when the root element is an [HTML] html element (including XML syntax for HTML)
     // whose overflow value is visible (in both axes), and that element has as a child
     // a body element whose display value is also not none,
     // user agents must instead apply the overflow-* values of the first such child element to the viewport.
-    if (root_element.is_html_html_element()) {
-        auto root_element_layout_node = root_element.unsafe_layout_node();
-        auto& root_element_computed_values = root_element_layout_node->mutable_computed_values();
-        if (root_element_computed_values.overflow_x() == CSS::Overflow::Visible && root_element_computed_values.overflow_y() == CSS::Overflow::Visible) {
-            auto* body_element = root_element.first_child_of_type<HTML::HTMLBodyElement>();
-            if (body_element && body_element->unsafe_layout_node())
+    if (root_element.is_html_html_element() && !body_propagation_is_disabled_by_containment) {
+        if (root_element_computed_properties.overflow_x() == CSS::Overflow::Visible && root_element_computed_properties.overflow_y() == CSS::Overflow::Visible) {
+            if (body_element_can_propagate_overflow)
                 overflow_origin_node = body_element->unsafe_layout_node();
         }
     }
@@ -1872,16 +1884,21 @@ void Document::update_layout(UpdateLayoutReason reason)
             m_layout_root = as<Layout::Viewport>(*tree_builder.build(*this));
 
             // NB: Called during layout update.
-            if (document_element && document_element->unsafe_layout_node()) {
-                propagate_overflow_to_viewport(*document_element, *m_layout_root);
+            if (document_element && document_element->unsafe_layout_node())
                 propagate_scrollbar_width_to_viewport(*document_element, *m_layout_root);
-            }
 
             set_needs_full_layout_tree_update(false);
 
             if constexpr (UPDATE_LAYOUT_DEBUG) {
                 dbgln("TREEBUILD {} µs", timer.elapsed_time().to_microseconds());
             }
+        }
+
+        if (document_element && document_element->unsafe_layout_node()) {
+            propagate_overflow_to_viewport(*document_element, *m_layout_root);
+        } else {
+            m_layout_root->mutable_computed_values().set_overflow_x(CSS::Overflow::Auto);
+            m_layout_root->mutable_computed_values().set_overflow_y(CSS::Overflow::Auto);
         }
 
         u32 layout_index_counter = 0;

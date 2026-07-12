@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #navbar {
+        display: flex;
+    }
+
+    #navbar-end {
+        width: 100px;
+        margin-left: auto;
+        margin-right: -1px;
+    }
+
+    #search {
+        width: 100%;
+        height: 1px;
+    }
+</style>
+<div id="navbar"><div id="navbar-end"><div id="search"></div></div></div>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const navbarEndBounds = document.getElementById("navbar-end").getBoundingClientRect();
+        println(`Content overflows viewport: ${navbarEndBounds.right > document.documentElement.clientWidth}`);
+
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = "data:text/css,html { overflow-x: hidden; }";
+        const loaded = new Promise(resolve => link.onload = resolve);
+        document.head.appendChild(link);
+        await loaded;
+
+        println(`Scroll width includes overflow: ${document.documentElement.scrollWidth > document.documentElement.clientWidth}`);
+        println(`Horizontal wheel target: ${internals.asyncScrollingStateWheelTargetAt(400, 0, 100, 0)}`);
+
+        await internals.wheel(400, 0, 100, 0);
+        println(`Scroll offset after wheel: ${window.scrollX}`);
+
+        window.scrollTo(1, 0);
+        println(`Scroll offset after scrollTo: ${window.scrollX}`);
+    });
+</script>

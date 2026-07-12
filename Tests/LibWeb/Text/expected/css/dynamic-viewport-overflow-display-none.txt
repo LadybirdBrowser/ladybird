@@ -1,0 +1,6 @@
+Initial viewport overflow: hidden
+Viewport overflow with body display none: auto
+Viewport overflow after restoring body: hidden
+Viewport overflow from root: hidden
+Viewport overflow with root display none: auto
+Viewport overflow after restoring root: auto

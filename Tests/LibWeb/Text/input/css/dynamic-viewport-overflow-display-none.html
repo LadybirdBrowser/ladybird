@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+        overflow-x: hidden;
+    }
+
+    html::before {
+        content: "";
+        display: block;
+        width: 801px;
+        height: 1px;
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        println(`Initial viewport overflow: ${internals.viewportOverflowX()}`);
+
+        document.body.style.display = "none";
+        await animationFrame();
+        println(`Viewport overflow with body display none: ${internals.viewportOverflowX()}`);
+
+        document.body.style.display = "block";
+        await animationFrame();
+        println(`Viewport overflow after restoring body: ${internals.viewportOverflowX()}`);
+
+        document.body.style.display = "none";
+        document.documentElement.style.cssText = "overflow-x: hidden";
+        await animationFrame();
+        println(`Viewport overflow from root: ${internals.viewportOverflowX()}`);
+
+        document.documentElement.style.display = "none";
+        await animationFrame();
+        println(`Viewport overflow with root display none: ${internals.viewportOverflowX()}`);
+
+        document.documentElement.style.cssText = "display: block; overflow-x: visible";
+        await animationFrame();
+        println(`Viewport overflow after restoring root: ${internals.viewportOverflowX()}`);
+    });
+</script>

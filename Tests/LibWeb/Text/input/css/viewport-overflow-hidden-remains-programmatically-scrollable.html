@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<style>
+    html {
+        overflow-x: hidden;
+    }
+
+    body {
+        margin: 0;
+    }
+
+    #overflow {
+        position: absolute;
+        left: 0;
+        width: calc(100vw + 100px);
+        height: 1px;
+    }
+</style>
+<div id="overflow"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(`Overflow extends scroll width: ${document.documentElement.scrollWidth > document.documentElement.clientWidth}`);
+
+        window.scrollTo(50, 0);
+        println(`Horizontal scroll offset: ${window.scrollX}`);
+    });
+</script>

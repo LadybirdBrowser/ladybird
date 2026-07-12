@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<style>
+    html, body {
+        margin: 0;
+    }
+
+    html {
+        min-width: 801px;
+    }
+
+    body {
+        overflow-x: hidden;
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        println(`Initial wheel target: ${internals.asyncScrollingStateWheelTargetAt(400, 0, 100, 0)}`);
+
+        document.body.style.cssText = "contain: layout; overflow-x: visible";
+        println(`Wheel target after body containment: ${internals.asyncScrollingStateWheelTargetAt(400, 0, 100, 0)}`);
+
+        await internals.wheel(400, 0, 100, 0);
+        println(`Scroll offset after wheel: ${window.scrollX}`);
+
+        window.scrollTo(0, 0);
+        document.body.style.cssText = "overflow-x: visible";
+        document.documentElement.style.cssText = "contain: layout; overflow-x: hidden";
+        println(`Wheel target after root containment: ${internals.asyncScrollingStateWheelTargetAt(400, 0, 100, 0)}`);
+
+        await internals.wheel(400, 0, 100, 0);
+        println(`Scroll offset after hidden wheel: ${window.scrollX}`);
+
+        window.scrollTo(1, 0);
+        println(`Scroll offset after scrollTo: ${window.scrollX}`);
+    });
+</script>

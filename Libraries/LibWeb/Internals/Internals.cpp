@@ -50,6 +50,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Internals/InternalGamepad.h>
 #include <LibWeb/Internals/Internals.h>
+#include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/ContentBlocker.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Page/EventHandler.h>
@@ -1081,6 +1082,26 @@ String Internals::async_scrolling_state_wheel_target_at(double x, double y, doub
     if (scroll_tree.scroll_node_is_viewport(*target.node_id))
         return "viewport"_string;
     return "non-viewport"_string;
+}
+
+String Internals::viewport_overflow_x()
+{
+    auto& document = window().associated_document();
+    document.update_layout(DOM::UpdateLayoutReason::Debugging);
+    auto overflow = document.unsafe_layout_node()->computed_values().overflow_x();
+    switch (overflow) {
+    case CSS::Overflow::Auto:
+        return "auto"_string;
+    case CSS::Overflow::Clip:
+        return "clip"_string;
+    case CSS::Overflow::Hidden:
+        return "hidden"_string;
+    case CSS::Overflow::Scroll:
+        return "scroll"_string;
+    case CSS::Overflow::Visible:
+        return "visible"_string;
+    }
+    VERIFY_NOT_REACHED();
 }
 
 }

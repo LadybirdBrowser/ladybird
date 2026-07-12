@@ -1,0 +1,5 @@
+Content overflows viewport: true
+Scroll width includes overflow: true
+Horizontal wheel target: none
+Scroll offset after wheel: 0
+Scroll offset after scrollTo: 1
