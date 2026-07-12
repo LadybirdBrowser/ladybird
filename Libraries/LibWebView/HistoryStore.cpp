@@ -23,6 +23,7 @@ static constexpr size_t MINIMUM_TITLE_AUTOCOMPLETE_QUERY_LENGTH = 3;
 
 static constexpr u32 HISTORY_SCHEMA_BASELINE_VERSION = 1u;
 static constexpr u32 HISTORY_SCHEMA_RANKING_SIGNALS_VERSION = 2u;
+static constexpr u32 HISTORY_SCHEMA_OMNIBOX_ENGAGEMENTS_VERSION = 3u;
 
 static Optional<StringView> url_without_scheme(StringView url)
 {
@@ -139,7 +140,7 @@ static void sort_matching_entries(Vector<HistoryEntry const*>& matches, StringVi
 
 ErrorOr<Database::MigrationOutcome> HistoryStore::migrate_schema(Database::Database& database, Database::MigrationMode mode)
 {
-    Array<Database::Migration, 2> migrations { {
+    Array<Database::Migration, 3> migrations { {
         { .version = HISTORY_SCHEMA_BASELINE_VERSION, .sql = R"#(
             CREATE TABLE IF NOT EXISTS History (
                 url TEXT PRIMARY KEY,
@@ -164,6 +165,21 @@ ErrorOr<Database::MigrationOutcome> HistoryStore::migrate_schema(Database::Datab
             SET last_qualifying_visit_time = last_visited_time,
                 decayed_visit_score = MIN(CAST(visit_count AS REAL), 8.0),
                 score_updated_at = last_visited_time;
+        )#"sv },
+        { .version = HISTORY_SCHEMA_OMNIBOX_ENGAGEMENTS_VERSION, .sql = R"#(
+            CREATE TABLE OmniboxEngagements (
+                normalized_input TEXT NOT NULL,
+                destination_kind INTEGER NOT NULL,
+                destination_key TEXT NOT NULL,
+                destination TEXT NOT NULL,
+                explicit_use_count INTEGER NOT NULL,
+                default_use_count INTEGER NOT NULL,
+                last_used_time INTEGER NOT NULL,
+                PRIMARY KEY (normalized_input, destination_kind, destination_key)
+            );
+
+            CREATE INDEX OmniboxEngagementsByInput
+            ON OmniboxEngagements(destination_kind, normalized_input);
         )#"sv },
     } };
 
@@ -343,6 +359,45 @@ ErrorOr<NonnullOwnPtr<HistoryStore>> HistoryStore::create(Database::Database& da
     statements.delete_entry = TRY(database.prepare_statement("DELETE FROM History WHERE url = ?;"sv));
     statements.delete_entries_accessed_since = TRY(database.prepare_statement("DELETE FROM History WHERE last_visited_time >= ?;"sv));
     statements.all_urls = TRY(database.prepare_statement("SELECT url FROM History;"sv));
+    statements.upsert_omnibox_engagement = TRY(database.prepare_statement(R"#(
+        INSERT INTO OmniboxEngagements (
+            normalized_input,
+            destination_kind,
+            destination_key,
+            destination,
+            explicit_use_count,
+            default_use_count,
+            last_used_time
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(normalized_input, destination_kind, destination_key) DO UPDATE SET
+            destination = excluded.destination,
+            explicit_use_count = OmniboxEngagements.explicit_use_count + excluded.explicit_use_count,
+            default_use_count = OmniboxEngagements.default_use_count + excluded.default_use_count,
+            last_used_time = MAX(OmniboxEngagements.last_used_time, excluded.last_used_time);
+    )#"sv));
+    statements.search_omnibox_engagements = TRY(database.prepare_statement(R"#(
+        SELECT
+            normalized_input,
+            destination_kind,
+            destination,
+            explicit_use_count,
+            default_use_count,
+            last_used_time
+        FROM OmniboxEngagements
+        WHERE (?1 != ''
+                AND destination_kind = 0
+                AND SUBSTR(normalized_input, 1, LENGTH(?1)) = ?1)
+            OR (?2 != ''
+                AND destination_kind = 1
+                AND SUBSTR(normalized_input, 1, LENGTH(?2)) = ?2)
+        ORDER BY
+            (2 * explicit_use_count + default_use_count) DESC,
+            last_used_time DESC,
+            normalized_input ASC,
+            destination_key ASC
+        LIMIT ?3;
+    )#"sv));
 
     return adopt_own(*new HistoryStore { adopt_own<StorageImpl>(*new PersistedStorage { database, move(statements) }) });
 }
@@ -624,6 +679,23 @@ Vector<HistoryEntry> HistoryStore::list_entries(StringView query, size_t offset,
     return entries;
 }
 
+void HistoryStore::record_omnibox_engagement(OmniboxEngagement const& engagement, UnixDateTime used_at)
+{
+    if (m_is_disabled || engagement.input.is_empty() || engagement.destination.is_empty())
+        return;
+    m_storage->record_omnibox_engagement(engagement, used_at);
+}
+
+Vector<StoredOmniboxEngagement> HistoryStore::omnibox_engagements(StringView input, size_t limit)
+{
+    if (m_is_disabled || input.is_empty() || limit == 0)
+        return {};
+    return m_storage->omnibox_engagements(
+        normalize_omnibox_input(input, OmniboxDestinationKind::URL),
+        normalize_omnibox_input(input, OmniboxDestinationKind::Search),
+        limit);
+}
+
 void HistoryStore::remove_entry_for_url(URL::URL const& url)
 {
     if (m_is_disabled)
@@ -799,6 +871,68 @@ Vector<HistoryEntry> HistoryStore::TransientStorage::list_entries(StringView tit
     return entries;
 }
 
+void HistoryStore::TransientStorage::record_omnibox_engagement(OmniboxEngagement const& engagement, UnixDateTime used_at)
+{
+    auto normalized_input = normalize_omnibox_input(engagement.input, engagement.destination_kind);
+    auto destination = normalize_omnibox_destination(engagement.destination, engagement.destination_kind);
+    if (normalized_input.is_empty() || destination.is_empty())
+        return;
+
+    auto existing = m_omnibox_engagements.find_if([&](auto const& candidate) {
+        return candidate.normalized_input == normalized_input
+            && candidate.destination_kind == engagement.destination_kind
+            && normalize_omnibox_destination(candidate.destination, candidate.destination_kind) == destination;
+    });
+    if (existing != m_omnibox_engagements.end()) {
+        if (engagement.was_explicit) {
+            VERIFY(existing->explicit_use_count != NumericLimits<u64>::max());
+            ++existing->explicit_use_count;
+        } else {
+            VERIFY(existing->default_use_count != NumericLimits<u64>::max());
+            ++existing->default_use_count;
+        }
+        existing->destination = move(destination);
+        existing->last_used_time = max(existing->last_used_time, used_at);
+        return;
+    }
+
+    m_omnibox_engagements.append({
+        .normalized_input = move(normalized_input),
+        .destination_kind = engagement.destination_kind,
+        .destination = move(destination),
+        .explicit_use_count = engagement.was_explicit ? 1u : 0u,
+        .default_use_count = engagement.was_explicit ? 0u : 1u,
+        .last_used_time = used_at,
+    });
+}
+
+Vector<StoredOmniboxEngagement> HistoryStore::TransientStorage::omnibox_engagements(StringView normalized_url_input, StringView normalized_search_input, size_t limit)
+{
+    Vector<StoredOmniboxEngagement> results;
+    for (auto const& engagement : m_omnibox_engagements) {
+        auto normalized_input = engagement.destination_kind == OmniboxDestinationKind::URL
+            ? normalized_url_input
+            : normalized_search_input;
+        if (!normalized_input.is_empty() && engagement.normalized_input.starts_with_bytes(normalized_input))
+            results.append(engagement);
+    }
+
+    quick_sort(results, [](auto const& left, auto const& right) {
+        auto left_weight = 2.0 * static_cast<double>(left.explicit_use_count) + static_cast<double>(left.default_use_count);
+        auto right_weight = 2.0 * static_cast<double>(right.explicit_use_count) + static_cast<double>(right.default_use_count);
+        if (left_weight != right_weight)
+            return left_weight > right_weight;
+        if (left.last_used_time != right.last_used_time)
+            return left.last_used_time > right.last_used_time;
+        if (left.normalized_input != right.normalized_input)
+            return left.normalized_input < right.normalized_input;
+        return left.destination < right.destination;
+    });
+    if (results.size() > limit)
+        results.resize(limit);
+    return results;
+}
+
 void HistoryStore::TransientStorage::remove_entry_for_url(String const& url)
 {
     m_entries.remove(url);
@@ -960,6 +1094,46 @@ Vector<HistoryEntry> HistoryStore::PersistedStorage::list_entries(StringView tit
         static_cast<i64>(offset));
 
     return entries;
+}
+
+void HistoryStore::PersistedStorage::record_omnibox_engagement(OmniboxEngagement const& engagement, UnixDateTime used_at)
+{
+    auto normalized_input = normalize_omnibox_input(engagement.input, engagement.destination_kind);
+    auto destination = normalize_omnibox_destination(engagement.destination, engagement.destination_kind);
+    if (normalized_input.is_empty() || destination.is_empty())
+        return;
+
+    m_database.execute_statement(
+        m_statements.upsert_omnibox_engagement,
+        {},
+        normalized_input,
+        static_cast<u8>(engagement.destination_kind),
+        destination,
+        destination,
+        engagement.was_explicit ? 1u : 0u,
+        engagement.was_explicit ? 0u : 1u,
+        used_at);
+}
+
+Vector<StoredOmniboxEngagement> HistoryStore::PersistedStorage::omnibox_engagements(StringView normalized_url_input, StringView normalized_search_input, size_t limit)
+{
+    Vector<StoredOmniboxEngagement> results;
+    m_database.execute_statement(
+        m_statements.search_omnibox_engagements,
+        [&](auto statement_id) {
+            results.append({
+                .normalized_input = m_database.result_column<String>(statement_id, 0),
+                .destination_kind = static_cast<OmniboxDestinationKind>(m_database.result_column<u8>(statement_id, 1)),
+                .destination = m_database.result_column<String>(statement_id, 2),
+                .explicit_use_count = m_database.result_column<u64>(statement_id, 3),
+                .default_use_count = m_database.result_column<u64>(statement_id, 4),
+                .last_used_time = m_database.result_column<UnixDateTime>(statement_id, 5),
+            });
+        },
+        MUST(String::from_utf8(normalized_url_input)),
+        MUST(String::from_utf8(normalized_search_input)),
+        static_cast<i64>(limit));
+    return results;
 }
 
 void HistoryStore::PersistedStorage::remove_entry_for_url(String const& url)

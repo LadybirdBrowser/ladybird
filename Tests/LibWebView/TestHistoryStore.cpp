@@ -118,6 +118,47 @@ static void expect_history_ranking_signals_track_visit_intent(WebView::HistorySt
     EXPECT_APPROXIMATE(entry->decayed_direct_score, 1.0);
 }
 
+static void expect_omnibox_engagements_are_normalized_and_accumulated(WebView::HistoryStore& store)
+{
+    store.record_omnibox_engagement({
+                                        .input = "  HTTPS://WWW.DoCs  "_string,
+                                        .destination_kind = WebView::OmniboxDestinationKind::URL,
+                                        .destination = "https://example.com/manual#first"_string,
+                                        .was_explicit = true,
+                                    },
+        UnixDateTime::from_seconds_since_epoch(10));
+    store.record_omnibox_engagement({
+                                        .input = "docs"_string,
+                                        .destination_kind = WebView::OmniboxDestinationKind::URL,
+                                        .destination = "https://example.com/manual#second"_string,
+                                        .was_explicit = false,
+                                    },
+        UnixDateTime::from_seconds_since_epoch(20));
+    store.record_omnibox_engagement({
+                                        .input = "  Lady   Bird  "_string,
+                                        .destination_kind = WebView::OmniboxDestinationKind::Search,
+                                        .destination = "Ladybird Browser"_string,
+                                        .was_explicit = true,
+                                    },
+        UnixDateTime::from_seconds_since_epoch(30));
+
+    auto url_engagements = store.omnibox_engagements("DO"sv);
+    VERIFY(url_engagements.size() == 1);
+    EXPECT_EQ(url_engagements[0].normalized_input, "docs"sv);
+    EXPECT_EQ(url_engagements[0].destination_kind, WebView::OmniboxDestinationKind::URL);
+    EXPECT_EQ(url_engagements[0].destination, "https://example.com/manual"sv);
+    EXPECT_EQ(url_engagements[0].explicit_use_count, 1u);
+    EXPECT_EQ(url_engagements[0].default_use_count, 1u);
+    EXPECT_EQ(url_engagements[0].last_used_time, UnixDateTime::from_seconds_since_epoch(20));
+
+    auto search_engagements = store.omnibox_engagements("lady"sv);
+    VERIFY(search_engagements.size() == 1);
+    EXPECT_EQ(search_engagements[0].normalized_input, "lady bird"sv);
+    EXPECT_EQ(search_engagements[0].destination_kind, WebView::OmniboxDestinationKind::Search);
+    EXPECT_EQ(search_engagements[0].destination, "ladybird browser"sv);
+    EXPECT(store.omnibox_engagements("unrelated"sv).is_empty());
+}
+
 static void expect_history_page_entries_are_paginated_and_searchable(WebView::HistoryStore& store)
 {
     store.record_visit(parse_url("https://www.alpha.example.com/path"sv), "Alpha docs"_string, UnixDateTime::from_seconds_since_epoch(10));
@@ -361,6 +402,12 @@ TEST_CASE(history_ranking_signals_track_visit_intent)
     expect_history_ranking_signals_track_visit_intent(*store);
 }
 
+TEST_CASE(omnibox_engagements_are_normalized_and_accumulated)
+{
+    auto store = WebView::HistoryStore::create();
+    expect_omnibox_engagements_are_normalized_and_accumulated(*store);
+}
+
 TEST_CASE(history_page_entries_are_paginated_and_searchable)
 {
     auto store = WebView::HistoryStore::create();
@@ -579,6 +626,24 @@ TEST_CASE(persisted_history_ranking_signals_track_visit_intent)
     auto store = create_persisted_store(*database);
 
     expect_history_ranking_signals_track_visit_intent(*store);
+}
+
+TEST_CASE(persisted_omnibox_engagements_are_normalized_and_accumulated)
+{
+    auto database_directory = ByteString::formatted(
+        "{}/ladybird-history-store-engagement-test-{}",
+        Core::StandardPaths::tempfile_directory(),
+        generate_random_uuid());
+    TRY_OR_FAIL(Core::Directory::create(database_directory, Core::Directory::CreateDirectories::Yes));
+
+    auto cleanup = ScopeGuard([&] {
+        MUST(FileSystem::remove(database_directory, FileSystem::RecursionMode::Allowed));
+    });
+
+    auto database = TRY_OR_FAIL(Database::Database::create(database_directory, "HistoryStore"sv));
+    auto store = create_persisted_store(*database);
+
+    expect_omnibox_engagements_are_normalized_and_accumulated(*store);
 }
 
 TEST_CASE(persisted_history_page_entries_are_paginated_and_searchable)

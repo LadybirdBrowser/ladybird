@@ -24,6 +24,7 @@ set(SOURCES
     Menu.cpp
     Mutation.cpp
     Omnibox.cpp
+    OmniboxEngagement.cpp
     Plugins/ImageCodecPlugin.cpp
     PrivateBrowsing.cpp
     Process.cpp

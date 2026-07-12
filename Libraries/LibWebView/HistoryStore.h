@@ -16,6 +16,7 @@
 #include <LibURL/URL.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/HistoryVisitTransition.h>
+#include <LibWebView/OmniboxEngagement.h>
 
 namespace WebView {
 
@@ -68,6 +69,9 @@ public:
     Vector<HistoryEntry> autocomplete_entries(StringView query, size_t limit = 8);
     Vector<HistoryEntry> list_entries(StringView query = {}, size_t offset = 0, size_t limit = 50);
 
+    void record_omnibox_engagement(OmniboxEngagement const&, UnixDateTime used_at = UnixDateTime::now());
+    Vector<StoredOmniboxEngagement> omnibox_engagements(StringView input, size_t limit = 50);
+
     void remove_entry_for_url(URL::URL const&);
     void remove_entries_for_same_site(URL::URL const&);
     void remove_entries_accessed_since(UnixDateTime since);
@@ -83,6 +87,8 @@ private:
         Database::StatementID delete_entry { 0 };
         Database::StatementID delete_entries_accessed_since { 0 };
         Database::StatementID all_urls { 0 };
+        Database::StatementID upsert_omnibox_engagement { 0 };
+        Database::StatementID search_omnibox_engagements { 0 };
     };
 
     class StorageImpl {
@@ -98,6 +104,9 @@ private:
         virtual Optional<HistoryEntry> entry_for_url(String const& url) = 0;
         virtual Vector<HistoryEntry> autocomplete_entries(StringView title_query, StringView url_query, size_t limit) = 0;
         virtual Vector<HistoryEntry> list_entries(StringView title_query, StringView url_query, size_t offset, size_t limit) = 0;
+
+        virtual void record_omnibox_engagement(OmniboxEngagement const&, UnixDateTime used_at) = 0;
+        virtual Vector<StoredOmniboxEngagement> omnibox_engagements(StringView normalized_url_input, StringView normalized_search_input, size_t limit) = 0;
 
         virtual void remove_entry_for_url(String const& url) = 0;
         virtual void remove_entries_for_same_site(StringView site_key) = 0;
@@ -118,12 +127,16 @@ private:
         virtual Vector<HistoryEntry> autocomplete_entries(StringView title_query, StringView url_query, size_t limit) override;
         virtual Vector<HistoryEntry> list_entries(StringView title_query, StringView url_query, size_t offset, size_t limit) override;
 
+        virtual void record_omnibox_engagement(OmniboxEngagement const&, UnixDateTime used_at) override;
+        virtual Vector<StoredOmniboxEngagement> omnibox_engagements(StringView normalized_url_input, StringView normalized_search_input, size_t limit) override;
+
         virtual void remove_entry_for_url(String const& url) override;
         virtual void remove_entries_for_same_site(StringView site_key) override;
         virtual void remove_entries_accessed_since(UnixDateTime since) override;
 
     private:
         HashMap<String, HistoryEntry> m_entries;
+        Vector<StoredOmniboxEngagement> m_omnibox_engagements;
     };
 
     class PersistedStorage : public StorageImpl {
@@ -140,6 +153,9 @@ private:
         virtual Optional<HistoryEntry> entry_for_url(String const& url) override;
         virtual Vector<HistoryEntry> autocomplete_entries(StringView title_query, StringView url_query, size_t limit) override;
         virtual Vector<HistoryEntry> list_entries(StringView title_query, StringView url_query, size_t offset, size_t limit) override;
+
+        virtual void record_omnibox_engagement(OmniboxEngagement const&, UnixDateTime used_at) override;
+        virtual Vector<StoredOmniboxEngagement> omnibox_engagements(StringView normalized_url_input, StringView normalized_search_input, size_t limit) override;
 
         virtual void remove_entry_for_url(String const& url) override;
         virtual void remove_entries_for_same_site(StringView site_key) override;
