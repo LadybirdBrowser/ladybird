@@ -130,9 +130,14 @@ static i32 page_quality(HistoryEntry const& entry, UnixDateTime now)
     return static_cast<i32>(150.0 * direct_strength + 75.0 * visit_strength + 25.0 * recent_strength);
 }
 
-static bool query_contains_path(StringView query)
+static bool query_contains_url_suffix(StringView query)
 {
-    return searchable_query(query).contains('/');
+    return searchable_query(query).find_any_of("/?#"sv).has_value();
+}
+
+static bool url_has_non_origin_components(URL::URL const& url)
+{
+    return url.serialize_path() != "/"sv || url.query().has_value();
 }
 
 static Optional<String> origin_url_for_history_entry(HistoryEntry const& entry)
@@ -214,7 +219,7 @@ Vector<AutocompleteSuggestion> rank_history_suggestions(StringView query, Vector
     auto query_length = Utf8View { query }.length();
     auto query_is_url = location_looks_like_url(query);
 
-    if (!query_contains_path(query))
+    if (!query_contains_url_suffix(query))
         add_aggregated_origin_entries(folded_query, history_entries, now);
 
     Vector<AutocompleteSuggestion> suggestions;
@@ -243,8 +248,8 @@ Vector<AutocompleteSuggestion> rank_history_suggestions(StringView query, Vector
 
         auto parsed_url = URL::Parser::basic_parse(entry.url);
         auto is_deep_page_without_path_input = parsed_url.has_value()
-            && parsed_url->serialize_path() != "/"sv
-            && !query_contains_path(query);
+            && url_has_non_origin_components(*parsed_url)
+            && !query_contains_url_suffix(query);
         if (is_deep_page_without_path_input && match_class == AutocompleteMatchClass::URLPrefix)
             adjusted_match_relevance -= 200;
 
@@ -259,6 +264,7 @@ Vector<AutocompleteSuggestion> rank_history_suggestions(StringView query, Vector
             && !is_deep_page_without_path_input;
         auto can_be_inline_completed = can_be_automatically_selected
             && match_class == AutocompleteMatchClass::URLPrefix
+            && (!parsed_url.has_value() || !parsed_url->query().has_value())
             && autocomplete_url_can_complete(query, entry.url);
 
         suggestions.append({
@@ -339,8 +345,8 @@ Vector<AutocompleteSuggestion> rank_bookmark_suggestions(StringView query, Vecto
 
         auto parsed_url = URL::Parser::basic_parse(bookmark.url);
         auto is_deep_page_without_path_input = parsed_url.has_value()
-            && parsed_url->serialize_path() != "/"sv
-            && !query_contains_path(query);
+            && url_has_non_origin_components(*parsed_url)
+            && !query_contains_url_suffix(query);
         if (is_deep_page_without_path_input && match_class == AutocompleteMatchClass::URLPrefix)
             adjusted_match_relevance -= 200;
 
@@ -354,6 +360,7 @@ Vector<AutocompleteSuggestion> rank_bookmark_suggestions(StringView query, Vecto
             && !is_deep_page_without_path_input;
         auto can_be_inline_completed = can_be_automatically_selected
             && match_class == AutocompleteMatchClass::URLPrefix
+            && (!parsed_url.has_value() || !parsed_url->query().has_value())
             && autocomplete_url_can_complete(query, bookmark.url);
 
         suggestions.append({
@@ -442,8 +449,8 @@ Vector<AutocompleteSuggestion> rank_engagement_suggestions(StringView query, Vec
 
             auto parsed_url = URL::Parser::basic_parse(engagement.destination);
             auto is_deep_page_without_path_input = parsed_url.has_value()
-                && parsed_url->serialize_path() != "/"sv
-                && !query_contains_path(query);
+                && url_has_non_origin_components(*parsed_url)
+                && !query_contains_url_suffix(query);
             if (is_deep_page_without_path_input && match_class == AutocompleteMatchClass::URLPrefix && !exact_association)
                 adjusted_match_relevance -= 200;
             auto syntactic_url_prefix = autocomplete_url_can_complete(query, engagement.destination);

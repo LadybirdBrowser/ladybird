@@ -144,6 +144,26 @@ TEST_CASE(typed_path_allows_a_deep_page_completion)
     EXPECT(suggestions[0].can_be_inline_completed);
 }
 
+TEST_CASE(history_does_not_append_query_strings)
+{
+    auto host_suggestions = rank("exa"sv, {
+                                              entry("https://example.com/?session=secret"sv, "Example"sv, 10, 0, 10),
+                                          });
+    auto host_match = host_suggestions.find_if([](auto const& suggestion) {
+        return suggestion.text == "https://example.com/?session=secret"sv;
+    });
+    VERIFY(host_match != host_suggestions.end());
+    EXPECT(!host_match->can_be_automatically_selected);
+    EXPECT(!host_match->can_be_inline_completed);
+
+    auto query_suggestions = rank("example.com/?ses"sv, {
+                                                            entry("https://example.com/?session=secret"sv, "Example"sv, 10, 0, 10),
+                                                        });
+    VERIFY(query_suggestions.size() == 1);
+    EXPECT(query_suggestions[0].can_be_automatically_selected);
+    EXPECT(!query_suggestions[0].can_be_inline_completed);
+}
+
 TEST_CASE(title_matching_uses_unicode_case_folding)
 {
     auto suggestions = rank("strasse"sv, {
@@ -188,6 +208,18 @@ TEST_CASE(bookmark_title_and_folder_matches_are_not_automatic)
     EXPECT(!folder_suggestions[0].can_be_inline_completed);
 }
 
+TEST_CASE(bookmark_does_not_append_a_query_string)
+{
+    auto suggestions = WebView::rank_bookmark_suggestions("exa"sv, {
+                                                                       bookmark("https://example.com/?session=secret"sv, "Example"sv),
+                                                                   },
+        8);
+
+    EXPECT_EQ(suggestions.size(), 1u);
+    EXPECT(!suggestions[0].can_be_automatically_selected);
+    EXPECT(!suggestions[0].can_be_inline_completed);
+}
+
 TEST_CASE(exact_adaptive_association_can_navigate_without_completing)
 {
     auto suggestions = WebView::rank_engagement_suggestions("docs"sv, {
@@ -210,6 +242,18 @@ TEST_CASE(adaptive_url_prefix_can_complete)
 
     EXPECT_EQ(suggestions.size(), 1u);
     EXPECT_EQ(suggestions[0].match_class, WebView::AutocompleteMatchClass::URLPrefix);
+    EXPECT(suggestions[0].can_be_automatically_selected);
+    EXPECT(suggestions[0].can_be_inline_completed);
+}
+
+TEST_CASE(query_string_completion_requires_an_exact_adaptive_association)
+{
+    auto suggestions = WebView::rank_engagement_suggestions("exa"sv, {
+                                                                         engagement("exa"sv, WebView::OmniboxDestinationKind::URL, "https://example.com/?session=secret"sv, 2),
+                                                                     },
+        8, UnixDateTime::from_seconds_since_epoch(now_seconds));
+
+    EXPECT_EQ(suggestions.size(), 1u);
     EXPECT(suggestions[0].can_be_automatically_selected);
     EXPECT(suggestions[0].can_be_inline_completed);
 }
