@@ -98,12 +98,39 @@ TEST_CASE(passive_visit_frequency_does_not_become_navigation_intent)
 TEST_CASE(deep_page_does_not_own_an_origin_prefix)
 {
     auto suggestions = rank("example"sv, {
-                                             entry("https://example.com/often/reloaded"sv, "Example"sv, 1000),
+                                             entry("https://example.com/often/reloaded"sv, "Example"sv, 1000, 0, 100),
                                          });
 
-    EXPECT_EQ(suggestions.size(), 1u);
-    EXPECT(!suggestions[0].can_be_automatically_selected);
-    EXPECT(!suggestions[0].can_be_inline_completed);
+    EXPECT_EQ(suggestions.size(), 2u);
+    auto origin = suggestions.find_if([](auto const& suggestion) {
+        return suggestion.text == "https://example.com/"sv;
+    });
+    VERIFY(origin != suggestions.end());
+    EXPECT(!origin->can_be_automatically_selected);
+    EXPECT(!origin->can_be_inline_completed);
+
+    auto deep_page = suggestions.find_if([](auto const& suggestion) {
+        return suggestion.text == "https://example.com/often/reloaded"sv;
+    });
+    VERIFY(deep_page != suggestions.end());
+    EXPECT(!deep_page->can_be_automatically_selected);
+    EXPECT(!deep_page->can_be_inline_completed);
+}
+
+TEST_CASE(distinct_deep_pages_can_establish_origin_intent)
+{
+    auto suggestions = rank("exa"sv, {
+                                         entry("https://example.com/one"sv, "One"sv, 1, 0, 1),
+                                         entry("https://example.com/two"sv, "Two"sv, 1, 0, 1),
+                                     });
+
+    auto origin = suggestions.find_if([](auto const& suggestion) {
+        return suggestion.text == "https://example.com/"sv;
+    });
+    VERIFY(origin != suggestions.end());
+    EXPECT(origin->can_be_automatically_selected);
+    EXPECT(origin->can_be_inline_completed);
+    EXPECT_EQ(suggestions.first().text, "https://example.com/"sv);
 }
 
 TEST_CASE(typed_path_allows_a_deep_page_completion)

@@ -6,6 +6,7 @@
 
 #include <AK/CharacterTypes.h>
 #include <AK/Find.h>
+#include <AK/HashMap.h>
 #include <AK/Math.h>
 #include <AK/QuickSort.h>
 #include <AK/String.h>
@@ -110,14 +111,19 @@ static i32 match_relevance(AutocompleteMatchClass match_class)
     VERIFY_NOT_REACHED();
 }
 
+static double decayed_score_at(double score, UnixDateTime updated_at, UnixDateTime now, double half_life_days)
+{
+    auto age = now - updated_at;
+    auto age_in_days = max(0.0, static_cast<double>(age.to_seconds()) / 86'400.0);
+    return score * AK::pow(0.5, age_in_days / half_life_days);
+}
+
 static i32 page_quality(HistoryEntry const& entry, UnixDateTime now)
 {
     auto age = now - entry.last_qualifying_visit_time;
     auto age_in_days = max(0.0, static_cast<double>(age.to_seconds()) / 86'400.0);
-    auto score_age = now - entry.score_updated_at;
-    auto score_age_in_days = max(0.0, static_cast<double>(score_age.to_seconds()) / 86'400.0);
-    auto decayed_visit_score = entry.decayed_visit_score * AK::pow(0.5, score_age_in_days / 30.0);
-    auto decayed_direct_score = entry.decayed_direct_score * AK::pow(0.5, score_age_in_days / 60.0);
+    auto decayed_visit_score = decayed_score_at(entry.decayed_visit_score, entry.score_updated_at, now, 30.0);
+    auto decayed_direct_score = decayed_score_at(entry.decayed_direct_score, entry.score_updated_at, now, 60.0);
     auto visit_strength = 1.0 - AK::exp(-decayed_visit_score / 8.0);
     auto direct_strength = 1.0 - AK::exp(-decayed_direct_score / 3.0);
     auto recent_strength = AK::pow(0.5, age_in_days / 14.0);
@@ -129,12 +135,87 @@ static bool query_contains_path(StringView query)
     return searchable_query(query).contains('/');
 }
 
+static Optional<String> origin_url_for_history_entry(HistoryEntry const& entry)
+{
+    auto parsed_url = URL::Parser::basic_parse(entry.url);
+    if (!parsed_url.has_value() || !parsed_url->host().has_value())
+        return {};
+    if (parsed_url->scheme() != "http"sv && parsed_url->scheme() != "https"sv)
+        return {};
+    return MUST(String::formatted("{}/", parsed_url->origin().serialize()));
+}
+
+static void add_aggregated_origin_entries(StringView folded_query, Vector<HistoryEntry>& history_entries, UnixDateTime now)
+{
+    HashMap<String, HistoryEntry> origins;
+
+    for (auto const& entry : history_entries) {
+        auto origin_url = origin_url_for_history_entry(entry);
+        if (!origin_url.has_value())
+            continue;
+
+        auto folded_origin_url = MUST(origin_url->to_casefold());
+        auto match_class = classify_match(folded_query, folded_origin_url, {});
+        if (match_class != AutocompleteMatchClass::ExactURL && match_class != AutocompleteMatchClass::URLPrefix)
+            continue;
+
+        auto& origin = origins.ensure(*origin_url, [&] {
+            return HistoryEntry {
+                .url = *origin_url,
+                .title = {},
+                .favicon_base64_png = {},
+                .visit_count = 0,
+                .direct_visit_count = 0,
+                .last_visited_time = entry.last_visited_time,
+                .last_qualifying_visit_time = entry.last_qualifying_visit_time,
+                .last_direct_visit_time = entry.last_direct_visit_time,
+                .decayed_visit_score = 0,
+                .decayed_direct_score = 0,
+                .score_updated_at = now,
+            };
+        });
+
+        // A visit to the origin itself is strong origin evidence. Each deep page contributes at most
+        // one direct visit and a small amount of page quality, so one frequently reloaded page cannot
+        // claim the whole host.
+        auto is_origin_entry = entry.url == *origin_url;
+        auto visit_count_contribution = min(entry.visit_count, is_origin_entry ? 8u : 2u);
+        auto direct_visit_count_contribution = min(entry.direct_visit_count, is_origin_entry ? 3u : 1u);
+        origin.visit_count = min(100u, origin.visit_count + visit_count_contribution);
+        origin.direct_visit_count = min(10u, origin.direct_visit_count + direct_visit_count_contribution);
+
+        auto visit_score = decayed_score_at(entry.decayed_visit_score, entry.score_updated_at, now, 30.0);
+        auto direct_score = decayed_score_at(entry.decayed_direct_score, entry.score_updated_at, now, 60.0);
+        origin.decayed_visit_score = min(50.0, origin.decayed_visit_score + min(visit_score, is_origin_entry ? 8.0 : 2.0));
+        origin.decayed_direct_score = min(12.0, origin.decayed_direct_score + min(direct_score, is_origin_entry ? 3.0 : 1.0));
+        origin.last_visited_time = max(origin.last_visited_time, entry.last_visited_time);
+        origin.last_qualifying_visit_time = max(origin.last_qualifying_visit_time, entry.last_qualifying_visit_time);
+        origin.last_direct_visit_time = max(origin.last_direct_visit_time, entry.last_direct_visit_time);
+    }
+
+    for (auto& origin : origins) {
+        auto existing_origin = history_entries.find_if([&](auto const& entry) {
+            return entry.url == origin.key;
+        });
+        if (existing_origin != history_entries.end()) {
+            origin.value.title = move(existing_origin->title);
+            origin.value.favicon_base64_png = move(existing_origin->favicon_base64_png);
+            *existing_origin = move(origin.value);
+        } else {
+            history_entries.append(move(origin.value));
+        }
+    }
+}
+
 Vector<AutocompleteSuggestion> rank_history_suggestions(StringView query, Vector<HistoryEntry> history_entries, size_t limit, UnixDateTime now)
 {
     auto query_string = MUST(String::from_utf8(query));
     auto folded_query = MUST(query_string.to_casefold());
     auto query_length = Utf8View { query }.length();
     auto query_is_url = location_looks_like_url(query);
+
+    if (!query_contains_path(query))
+        add_aggregated_origin_entries(folded_query, history_entries, now);
 
     Vector<AutocompleteSuggestion> suggestions;
     suggestions.ensure_capacity(history_entries.size());
