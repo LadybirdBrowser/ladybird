@@ -1,0 +1,5 @@
+DER intermediate via AIA: loaded
+PKCS#7 intermediate via AIA: loaded
+dead AIA URL: failed
+untrusted intermediate (must not validate): failed
+both hosts sharing an intermediate: loaded, loaded

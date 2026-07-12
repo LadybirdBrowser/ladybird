@@ -1,0 +1,48 @@
+<!doctype html>
+<script src="./include.js"></script>
+<script>
+    // Exercises AIA fetching end-to-end: The fixture's HTTPS hosts present a broken chain (leaf only), and
+    // RequestServer must fetch the missing intermediate from the leaf's caIssuers URL to complete verification.
+    asyncTest(async done => {
+        const base = httpTestServer().baseURL;
+
+        let config;
+        try {
+            config = await (await fetch(`${base}/aia-test/config`)).json();
+        } catch (error) {
+            println("FAIL - could not read AIA test config: " + error);
+            done();
+            return;
+        }
+
+        if (!config.good_der) {
+            println(
+                "FAIL - AIA test HTTPS servers unavailable (is the 'cryptography' package installed for the test runner's python?)"
+            );
+            done();
+            return;
+        }
+
+        async function loads(port) {
+            try {
+                await fetch(`https://localhost:${port}/`, { mode: "no-cors" });
+                return "loaded";
+            } catch {
+                return "failed";
+            }
+        }
+
+        const goodDer = await loads(config.good_der);
+        const goodPkcs7 = await loads(config.good_pkcs7);
+        const dead = await loads(config.dead);
+        const untrusted = await loads(config.untrusted);
+        const [dedupA, dedupB] = await Promise.all([loads(config.dedup_a), loads(config.dedup_b)]);
+
+        println("DER intermediate via AIA: " + goodDer);
+        println("PKCS#7 intermediate via AIA: " + goodPkcs7);
+        println("dead AIA URL: " + dead);
+        println("untrusted intermediate (must not validate): " + untrusted);
+        println("both hosts sharing an intermediate: " + dedupA + ", " + dedupB);
+        done();
+    });
+</script>
