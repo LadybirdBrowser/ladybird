@@ -105,6 +105,10 @@ public:
     SelectorInsights const& selector_insights() const;
     CachedStyleSheetInvalidationSet const& cached_style_sheet_invalidation_set() const;
 
+    // Bumped whenever state that shared style caches derive from changes (rule mutations, media match-state flips).
+    // Lets sheet-set style cache registry entries detect staleness at lookup time.
+    u64 shared_style_cache_generation() const { return m_shared_style_cache_generation; }
+
     Optional<Utf16FlyString> default_namespace() const;
     GC::Ptr<CSSNamespaceRule> default_namespace_rule() const { return m_default_namespace_rule; }
     HashTable<Utf16FlyString> declared_namespaces() const;
@@ -167,6 +171,7 @@ private:
     mutable Optional<SelectorInsights> m_selector_insights;
     mutable OwnPtr<CachedStyleSheetInvalidationSet> m_cached_style_sheet_invalidation_set;
     RefPtr<StyleCache> m_shared_single_constructed_sheet_style_cache;
+    u64 m_shared_style_cache_generation { 0 };
 
     Vector<Subresource&> m_critical_subresources;
 

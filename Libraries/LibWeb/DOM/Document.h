@@ -938,6 +938,8 @@ public:
         return move(m_style_scopes_with_pending_has_invalidations);
     }
 
+    CSS::SheetSetStyleCacheRegistry& sheet_set_style_cache_registry() { return m_sheet_set_style_cache_registry; }
+
     // Test-only counters for observing style invalidation and recomputation work. See Internals.idl.
     struct StyleInvalidationCounters {
         u64 has_ancestor_walk_invocations { 0 };
@@ -1588,6 +1590,7 @@ private:
     Vector<WeakPtr<Painting::Paintable>> m_paintable_boxes_needing_visual_context_value_update;
     bool m_needs_invalidation_of_elements_affected_by_has { false };
     Vector<GC::Ref<Node>> m_style_scopes_with_pending_has_invalidations;
+    CSS::SheetSetStyleCacheRegistry m_sheet_set_style_cache_registry;
     RefPtr<Painting::HitTestDisplayList> m_hit_test_display_list;
     Optional<CSSPixelRect> m_caret_hit_test_debug_rect;
 

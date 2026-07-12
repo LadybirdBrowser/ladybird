@@ -131,6 +131,30 @@ struct StyleCache : public RefCounted<StyleCache> {
     void visit_edges(GC::Cell::Visitor&);
 };
 
+// Shared style caches for shadow-root scopes whose active stylesheets are the same ordered set of constructed
+// sheets. The cache contents only depend on the sheets and document-wide state, so all such scopes can use one
+// cache. Entries are validated against each sheet's shared-style-cache generation at lookup, so rule mutations and
+// media match-state flips (which bump the generation) make stale entries fall away lazily. Entries whose cache no
+// scope uses anymore get purged on insert, so abandoned sheet sets don't pin their caches for the document's
+// lifetime.
+class SheetSetStyleCacheRegistry {
+public:
+    NonnullRefPtr<StyleCache> ensure_style_cache_for_sheet_set(Vector<GC::Ref<CSSStyleSheet>> const& sheets);
+
+    void visit_edges(GC::Cell::Visitor&);
+
+private:
+    struct Entry {
+        Vector<GC::Ref<CSSStyleSheet>> sheets;
+        Vector<u64> sheet_generations;
+        NonnullRefPtr<StyleCache> style_cache;
+    };
+
+    static bool entry_is_current(Entry const&);
+
+    HashMap<u32, Vector<Entry>> m_entries_by_hash;
+};
+
 // A pure insertion cannot change interaction pseudo-class matching (:hover, :focus, etc): freshly inserted nodes
 // never carry such state, and inserting a node cannot flip it on existing elements. Removals and moves can relocate
 // interaction state, so they stay conservative.

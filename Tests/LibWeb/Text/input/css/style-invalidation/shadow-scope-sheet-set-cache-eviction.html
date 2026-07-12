@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<script>
+    test(() => {
+        const makeSheet = (rule) => {
+            const sheet = new CSSStyleSheet();
+            sheet.replaceSync(rule);
+            return sheet;
+        };
+        const makeHost = () => {
+            const host = makeElement("div");
+            const shadowRoot = host.attachShadow({ mode: "open" });
+            shadowRoot.appendChild(makeElement("section", { className: "card" }));
+            document.body.appendChild(host);
+            return host;
+        };
+
+        document.body.offsetWidth;
+
+        // A shared sheet-set cache must survive other scopes cycling through different sets as long as one scope
+        // still uses it: coming back to it must not rebuild.
+        {
+            const base = makeSheet(`.card { color: rgb(1, 2, 3); }`);
+            const alternate = makeSheet(`.title { color: rgb(4, 5, 6); }`);
+            const extra = makeSheet(`.badge { color: rgb(7, 8, 9); }`);
+            const keeper = makeHost();
+            const cycler = makeHost();
+            resetStyleCounters();
+            keeper.shadowRoot.adoptedStyleSheets = [base, alternate];
+            cycler.shadowRoot.adoptedStyleSheets = [base, alternate];
+            internals.updateStyle();
+            cycler.shadowRoot.adoptedStyleSheets = [base, extra];
+            internals.updateStyle();
+            cycler.shadowRoot.adoptedStyleSheets = [base, alternate];
+            internals.updateStyle();
+            println(
+                `PASS: in-use sheet set survives another scope cycling | ` +
+                    `scopeRuleCacheBuilds=${styleCounters().scopeRuleCacheBuilds}`
+            );
+            keeper.remove();
+            cycler.remove();
+        }
+
+        // Once no scope uses a sheet set anymore, its registry entry must not pin the built caches for the
+        // lifetime of the document: inserting a new set evicts abandoned entries, so coming back to an abandoned
+        // set rebuilds its cache.
+        {
+            const base = makeSheet(`.card { color: rgb(10, 20, 30); }`);
+            const alternate = makeSheet(`.title { color: rgb(40, 50, 60); }`);
+            const extra = makeSheet(`.badge { color: rgb(70, 80, 90); }`);
+            const solo = makeHost();
+            resetStyleCounters();
+            solo.shadowRoot.adoptedStyleSheets = [base, alternate];
+            internals.updateStyle();
+            solo.shadowRoot.adoptedStyleSheets = [base, extra];
+            internals.updateStyle();
+            solo.shadowRoot.adoptedStyleSheets = [base, alternate];
+            internals.updateStyle();
+            println(
+                `PASS: abandoned sheet set gets evicted on insert | ` +
+                    `scopeRuleCacheBuilds=${styleCounters().scopeRuleCacheBuilds}`
+            );
+            solo.remove();
+        }
+    });
+</script>

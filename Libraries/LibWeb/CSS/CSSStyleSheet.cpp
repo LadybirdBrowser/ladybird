@@ -455,6 +455,7 @@ void CSSStyleSheet::invalidate_shared_style_cache()
     m_selector_insights = {};
     m_cached_style_sheet_invalidation_set = nullptr;
     m_shared_single_constructed_sheet_style_cache = nullptr;
+    ++m_shared_style_cache_generation;
 
     // Imported rules contribute to their parent sheet's effective rules.
     if (auto* import_rule = as_if<CSSImportRule>(owner_rule().ptr())) {
