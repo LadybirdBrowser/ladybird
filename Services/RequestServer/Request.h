@@ -32,6 +32,8 @@ struct curl_slist;
 
 namespace RequestServer {
 
+class AIACollector;
+
 class Request final : public HTTP::CacheRequest {
 public:
     static NonnullOwnPtr<Request> fetch(
@@ -88,6 +90,7 @@ public:
     virtual void notify_request_unblocked(Badge<HTTP::DiskCache>) override;
     void notify_retrieved_http_cookie(Badge<ConnectionFromClient>, StringView cookie);
     void notify_fetch_complete(Badge<ConnectionFromClient>, int result_code);
+    void retry_after_aia(Badge<ConnectionFromClient>);
 
 private:
     struct TransferredBodyFile {
@@ -112,6 +115,7 @@ private:
         RetrieveCookie,    // Retrieve cookies from the UI process.
         Connect,           // Issue a network request to connect to the URL.
         Fetch,             // Issue a network request to fetch the URL.
+        WaitForAIA,        // Wait for an AIA intermediate-certificate fetch to complete, then retry the fetch.
         Complete,          // Finalize the request with the client.
         Error,             // Any error occured during the request's lifetime.
     };
@@ -125,6 +129,8 @@ private:
             return "ReadCache"sv;
         case State::WaitForCache:
             return "WaitForCache"sv;
+        case State::WaitForAIA:
+            return "WaitForAIA"sv;
         case State::FailedCacheOnly:
             return "FailedCacheOnly"sv;
         case State::ServeSubstitution:
@@ -189,6 +195,8 @@ private:
     ErrorOr<void> detach_curl_handle_from_multi();
     ErrorOr<void> free_curl_structs();
     ErrorOr<void> inform_client_request_started();
+    bool should_retry_after_fetching_aia_intermediate(int curl_result_code) const;
+    void start_aia_fetch_and_retry();
     ErrorOr<void> send_request_pipe_to_client();
     ErrorOr<void> send_transferred_body_file_to_client();
     void transfer_headers_to_client_if_needed();
@@ -215,6 +223,10 @@ private:
     void* m_curl_easy_handle { nullptr };
     bool m_curl_easy_handle_is_in_multi { false };
     Vector<curl_slist*> m_curl_string_lists;
+
+    RefPtr<AIACollector> m_aia_collector;
+    size_t m_aia_fetch_count { 0 };
+    bool m_informed_client_request_started { false };
     Optional<int> m_curl_result_code;
 
     NonnullRefPtr<Resolver> m_resolver;

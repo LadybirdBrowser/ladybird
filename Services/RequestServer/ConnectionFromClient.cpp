@@ -16,8 +16,10 @@
 #include <LibIPC/TransportHandle.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/WebSocket.h>
+#include <LibURL/Parser.h>
 #include <LibWebSocket/ConnectionInfo.h>
 #include <LibWebSocket/Message.h>
+#include <RequestServer/AIA.h>
 #include <RequestServer/CURL.h>
 #include <RequestServer/ConnectionFromClient.h>
 #include <RequestServer/Request.h>
@@ -141,6 +143,12 @@ ConnectionFromClient::~ConnectionFromClient()
     m_active_revalidation_requests.clear();
     m_pending_websockets.clear();
     m_websockets.clear();
+
+    for (auto& fetch : m_aia_fetches) {
+        curl_multi_remove_handle(m_curl_multi, fetch.key);
+        curl_easy_cleanup(fetch.key);
+    }
+    m_aia_fetches.clear();
 
     curl_multi_cleanup(m_curl_multi);
     m_curl_multi = nullptr;
@@ -513,6 +521,11 @@ void ConnectionFromClient::check_active_requests()
             continue;
         }
 
+        if (reinterpret_cast<uintptr_t>(application_private) & aia_fetch_private_tag) {
+            complete_aia_fetch(msg->easy_handle, msg->data.result);
+            continue;
+        }
+
         ++completions_drained;
         auto* request = static_cast<Request*>(application_private);
         request->notify_fetch_complete({}, msg->data.result);
@@ -520,6 +533,153 @@ void ConnectionFromClient::check_active_requests()
 
     if (completions_drained > 1)
         dbgln_if(REQUESTSERVER_WIRE_DEBUG, "RequestServer wire-batch: drained {} completions in one curl multi tick", completions_drained);
+}
+
+static size_t aia_write_body(char* data, size_t size, size_t count, void* user_data)
+{
+    auto& fetch = *static_cast<AIAFetch*>(user_data);
+    auto const length = size * count;
+    if (fetch.body.size() + length > max_aia_response_size)
+        return 0;
+    if (fetch.body.try_append(data, length).is_error())
+        return 0;
+    return length;
+}
+
+void ConnectionFromClient::fetch_aia_intermediate(Badge<Request>, ByteString const& url, u64 for_request_id)
+{
+    for (auto& in_flight : m_aia_fetches) {
+        if (in_flight.value->url == url) {
+            in_flight.value->request_ids.append(for_request_id);
+            return;
+        }
+    }
+
+    // The lookup below is async, so m_aia_fetches has no entry yet; this is what stops a second request for the
+    // same URL from starting a duplicate lookup in the meantime.
+    if (auto pending = m_pending_aia_lookups.get(url); pending.has_value()) {
+        m_pending_aia_lookups.ensure(url).append(for_request_id);
+        return;
+    }
+    m_pending_aia_lookups.set(url, { for_request_id });
+
+    auto parsed = URL::Parser::basic_parse(url);
+    if (!parsed.has_value() || parsed->serialized_host().is_empty()) {
+        abandon_aia_lookup(url);
+        return;
+    }
+    auto host = parsed->serialized_host().to_byte_string();
+    auto port = parsed->port_or_default();
+    auto weak_self = make_weak_ptr<ConnectionFromClient>();
+
+    // Resolve through RequestServer's own resolver rather than letting curl do it, so the AIA fetch honors the
+    // same DNS configuration (DoH included) as every other request this process makes.
+    m_resolver->dns.lookup(host, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA })
+        ->when_rejected([weak_self, url](auto const& error) {
+            if (auto self = weak_self.strong_ref()) {
+                dbgln_if(REQUESTSERVER_DEBUG, "AIA: DNS lookup failed for {}: {}", url, error);
+                self->abandon_aia_lookup(url);
+            }
+        })
+        .when_resolved([weak_self, url, host, port](auto const& dns_result) {
+            auto self = weak_self.strong_ref();
+            if (!self)
+                return;
+            if (dns_result->is_empty() || !dns_result->has_cached_addresses()) {
+                dbgln_if(REQUESTSERVER_DEBUG, "AIA: DNS lookup returned no addresses for {}", url);
+                self->abandon_aia_lookup(url);
+                return;
+            }
+            self->start_aia_fetch(url, build_curl_resolve_list(*dns_result, host, port));
+        });
+}
+
+// Nothing will arrive to wake the waiting requests, so release them to retry without the intermediate.
+void ConnectionFromClient::abandon_aia_lookup(ByteString const& url)
+{
+    auto waiting = m_pending_aia_lookups.take(url);
+    if (!waiting.has_value())
+        return;
+    for (auto request_id : *waiting) {
+        if (auto request = m_active_requests.get(request_id); request.has_value())
+            (*request)->retry_after_aia({});
+    }
+}
+
+void ConnectionFromClient::start_aia_fetch(ByteString const& url, ByteString resolve_entry)
+{
+    auto waiting = m_pending_aia_lookups.take(url);
+    if (!waiting.has_value() || waiting->is_empty())
+        return;
+
+    auto* easy_handle = curl_easy_init();
+    if (!easy_handle) {
+        for (auto request_id : *waiting) {
+            if (auto request = m_active_requests.get(request_id); request.has_value())
+                (*request)->retry_after_aia({});
+        }
+        return;
+    }
+
+    auto fetch = make<AIAFetch>();
+    fetch->url = url;
+    fetch->request_ids = move(*waiting);
+
+    auto set_option = [&](auto option, auto value) {
+        if (auto result = curl_easy_setopt(easy_handle, option, value); result != CURLE_OK)
+            dbgln("RequestServer: AIA fetch failed to set curl option: {}", curl_easy_strerror(result));
+    };
+    set_option(CURLOPT_PRIVATE, reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(fetch.ptr()) | aia_fetch_private_tag));
+    set_option(CURLOPT_URL, url.characters());
+    set_option(CURLOPT_PROTOCOLS_STR, "http");
+    set_option(CURLOPT_REDIR_PROTOCOLS_STR, "http");
+    set_option(CURLOPT_FOLLOWLOCATION, 1L);
+    set_option(CURLOPT_MAXREDIRS, 5L);
+    set_option(CURLOPT_TIMEOUT, 10L);
+    set_option(CURLOPT_MAXFILESIZE_LARGE, static_cast<curl_off_t>(max_aia_response_size));
+    set_option(CURLOPT_NOSIGNAL, 1L);
+    set_option(CURLOPT_WRITEFUNCTION, aia_write_body);
+    set_option(CURLOPT_WRITEDATA, fetch.ptr());
+
+    if (curl_slist* resolve_list = curl_slist_append(nullptr, resolve_entry.characters())) {
+        set_option(CURLOPT_RESOLVE, resolve_list);
+        fetch->resolve_list = resolve_list;
+    }
+
+    auto result = curl_multi_add_handle(m_curl_multi, easy_handle);
+    VERIFY(result == CURLM_OK);
+
+    m_aia_fetches.set(easy_handle, move(fetch));
+}
+
+void ConnectionFromClient::complete_aia_fetch(void* easy_handle, int result_code)
+{
+    long response_code = 0;
+    curl_easy_getinfo(easy_handle, CURLINFO_RESPONSE_CODE, &response_code);
+
+    auto fetch = m_aia_fetches.take(easy_handle);
+    curl_multi_remove_handle(m_curl_multi, easy_handle);
+    curl_easy_cleanup(easy_handle);
+    if (!fetch.has_value())
+        return;
+
+    // curl only reads the resolve list while the handle is attached, so it outlives the handle and is freed here.
+    if ((*fetch)->resolve_list)
+        curl_slist_free_all((*fetch)->resolve_list);
+
+    bool added = false;
+    if (result_code == CURLE_OK && response_code == 200)
+        added = add_fetched_aia_intermediate((*fetch)->body.bytes());
+
+    if (!added) {
+        dbgln_if(REQUESTSERVER_DEBUG, "AIA: intermediate fetch from {} failed (curl={}, status={})", (*fetch)->url, result_code, response_code);
+        mark_aia_url_failed((*fetch)->url);
+    }
+
+    for (auto request_id : (*fetch)->request_ids) {
+        if (auto request = m_active_requests.get(request_id); request.has_value())
+            (*request)->retry_after_aia({});
+    }
 }
 
 void ConnectionFromClient::fail_websocket(u64 websocket_id, Requests::WebSocket::Error error)
