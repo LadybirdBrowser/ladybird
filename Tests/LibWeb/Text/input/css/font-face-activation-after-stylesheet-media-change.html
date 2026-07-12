@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<style id="font-sheet" media="not all">
+    @font-face {
+        font-family: MediaFont;
+        src: url("../../../Assets/HashSans.woff");
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const sheet = document.getElementById("font-sheet").sheet;
+
+        println(`Initial face count: ${[...document.fonts].filter(face => face.family === "MediaFont").length}`);
+
+        sheet.media.mediaText = "all";
+        await document.fonts.ready;
+        const matchingFaces = [...document.fonts].filter(face => face.family === "MediaFont");
+        println(`Matching face count: ${matchingFaces.length}`);
+        println(`Matching face status: ${matchingFaces[0].status}`);
+
+        sheet.media.mediaText = "not all";
+        println(`Final face count: ${[...document.fonts].filter(face => face.family === "MediaFont").length}`);
+    });
+</script>

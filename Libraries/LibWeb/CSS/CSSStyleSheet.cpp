@@ -507,16 +507,28 @@ SelectorInsights const& CSSStyleSheet::selector_insights() const
 
 void CSSStyleSheet::invalidate_owners(DOM::StyleInvalidationReason reason, ShadowRootStylesheetEffects const* previous_sheet_effects)
 {
+    auto previously_matched = m_did_match;
     m_did_match = {};
     invalidate_shared_style_cache();
 
     // The MediaList may have been mutated (e.g. via MediaList::set_media_text), and owner invalidation computes
     // shadow-root effects from effective rules. Refresh the media state first so host-side shadow invalidation
     // sees the updated definitions.
-    if (auto document = owning_document())
+    if (auto document = owning_document()) {
         evaluate_media_queries(*document);
+        if (previously_matched.has_value() && previously_matched.value() != m_did_match.value())
+            reload_fonts_after_media_query_change();
+    }
 
     invalidate_style_for_style_sheet_owners(*this, reason, ShouldInvalidateRuleCache::Yes, previous_sheet_effects);
+}
+
+void CSSStyleSheet::reload_fonts_after_media_query_change()
+{
+    if (auto document = owning_document()) {
+        document->font_computer().unload_fonts_from_sheet(*this);
+        document->font_computer().load_fonts_from_sheet(*this);
+    }
 }
 
 GC::Ptr<DOM::Document> CSSStyleSheet::owning_document() const

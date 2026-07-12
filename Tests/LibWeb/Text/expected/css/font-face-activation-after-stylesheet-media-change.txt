@@ -1,0 +1,4 @@
+Initial face count: 0
+Matching face count: 1
+Matching face status: loaded
+Final face count: 0
