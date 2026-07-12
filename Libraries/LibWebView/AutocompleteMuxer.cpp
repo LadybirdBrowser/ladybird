@@ -6,6 +6,7 @@
 
 #include <AK/HashMap.h>
 #include <AK/QuickSort.h>
+#include <AK/Utf8View.h>
 #include <LibURL/Parser.h>
 #include <LibWebView/AutocompleteMuxer.h>
 #include <LibWebView/URL.h>
@@ -102,6 +103,29 @@ static bool suggestion_is_better(AutocompleteSuggestion const& left, Autocomplet
     return left.text < right.text;
 }
 
+static bool is_origin_navigation(AutocompleteSuggestion const& suggestion)
+{
+    auto url = URL::Parser::basic_parse(suggestion.text);
+    return url.has_value()
+        && url->host().has_value()
+        && url->serialize_path() == "/"sv
+        && !url->query().has_value();
+}
+
+static u8 short_query_origin_preference(AutocompleteSuggestion const& suggestion, size_t query_length)
+{
+    if (suggestion.adaptive_relevance > 0 && suggestion.can_be_automatically_selected)
+        return 3;
+    if (query_length >= 2
+        && suggestion.source == AutocompleteSuggestionSource::Bookmark
+        && suggestion.match_class == AutocompleteMatchClass::URLPrefix
+        && suggestion.can_be_automatically_selected)
+        return 2;
+    if (is_origin_navigation(suggestion))
+        return 1;
+    return 0;
+}
+
 static bool query_contains_url_suffix(StringView query)
 {
     if (auto scheme_end = query.find("://"sv); scheme_end.has_value())
@@ -128,6 +152,40 @@ Vector<AutocompleteSuggestion> mux_autocomplete_suggestions(
     for (auto& suggestion : remote_suggestions)
         append_or_merge(candidates, move(suggestion));
 
+    auto query_contains_path = query_contains_url_suffix(query);
+    auto query_length = Utf8View { query }.length();
+    auto is_short_host_query = !query_contains_path && query_length <= 2;
+
+    if (is_short_host_query) {
+        Vector<AutocompleteSuggestion> representatives;
+        representatives.ensure_capacity(candidates.size());
+        HashMap<String, size_t> origin_indices;
+
+        for (auto& candidate : candidates) {
+            auto origin = origin_family(candidate);
+            if (!origin.has_value()) {
+                representatives.append(move(candidate));
+                continue;
+            }
+
+            auto existing_index = origin_indices.get(*origin);
+            if (!existing_index.has_value()) {
+                origin_indices.set(*origin, representatives.size());
+                representatives.append(move(candidate));
+                continue;
+            }
+
+            auto& existing = representatives[*existing_index];
+            auto candidate_preference = short_query_origin_preference(candidate, query_length);
+            auto existing_preference = short_query_origin_preference(existing, query_length);
+            if (candidate_preference > existing_preference
+                || (candidate_preference == existing_preference && suggestion_is_better(candidate, existing)))
+                existing = move(candidate);
+        }
+
+        candidates = move(representatives);
+    }
+
     quick_sort(candidates, suggestion_is_better);
 
     auto default_index = candidates.find_first_index_if([](auto const& suggestion) {
@@ -139,28 +197,31 @@ Vector<AutocompleteSuggestion> mux_autocomplete_suggestions(
     }
 
     Vector<AutocompleteSuggestion> result;
-    result.ensure_capacity(min(limit, candidates.size()));
+    auto result_limit = is_short_host_query ? min(limit, 5uz) : limit;
+    auto origin_limit = is_short_host_query ? 1uz : 2uz;
+    result.ensure_capacity(min(result_limit, candidates.size()));
     HashMap<String, size_t> origin_counts;
-    Vector<size_t> deferred_indices;
+    Vector<size_t> deferred_source_indices;
     size_t local_navigation_count = 0;
     size_t remote_search_count = 0;
-    auto query_contains_path = query_contains_url_suffix(query);
     auto verbatim_index = candidates.find_first_index_if([](auto const& candidate) { return candidate.is_verbatim; });
 
-    for (size_t index = 0; index < candidates.size() && result.size() < limit; ++index) {
+    for (size_t index = 0; index < candidates.size() && result.size() < result_limit; ++index) {
         auto const& candidate = candidates[index];
         auto origin = origin_family(candidate);
         auto exceeds_origin_limit = !query_contains_path
             && origin.has_value()
-            && origin_counts.get(*origin).value_or(0) >= 2;
+            && origin_counts.get(*origin).value_or(0) >= origin_limit;
         auto exceeds_source_limit = (is_local_navigation(candidate) && local_navigation_count >= 4)
             || (is_remote_search(candidate) && remote_search_count >= 3);
         auto must_reserve_verbatim_slot = verbatim_index.has_value()
             && index < *verbatim_index
-            && result.size() + 1 == limit;
+            && result.size() + 1 == result_limit;
 
-        if (index != 0 && !candidate.is_verbatim && (exceeds_origin_limit || exceeds_source_limit || must_reserve_verbatim_slot)) {
-            deferred_indices.append(index);
+        if (index != 0 && !candidate.is_verbatim && (exceeds_origin_limit || must_reserve_verbatim_slot))
+            continue;
+        if (index != 0 && !candidate.is_verbatim && exceeds_source_limit) {
+            deferred_source_indices.append(index);
             continue;
         }
 
@@ -171,8 +232,8 @@ Vector<AutocompleteSuggestion> mux_autocomplete_suggestions(
         result.append(candidate);
     }
 
-    for (auto index : deferred_indices) {
-        if (result.size() >= limit)
+    for (auto index : deferred_source_indices) {
+        if (result.size() >= result_limit)
             break;
         result.append(candidates[index]);
     }

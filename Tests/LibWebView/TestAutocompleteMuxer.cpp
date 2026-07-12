@@ -43,6 +43,13 @@ WebView::AutocompleteSuggestion history(StringView text, i32 relevance, bool can
     return suggestion(WebView::AutocompleteSuggestionSource::History, text, relevance, can_be_automatically_selected);
 }
 
+WebView::AutocompleteSuggestion bookmark(StringView text, i32 relevance, bool can_be_automatically_selected = true)
+{
+    auto result = suggestion(WebView::AutocompleteSuggestionSource::Bookmark, text, relevance, can_be_automatically_selected);
+    result.match_class = WebView::AutocompleteMatchClass::URLPrefix;
+    return result;
+}
+
 }
 
 TEST_CASE(default_selection_is_independent_of_display_relevance)
@@ -128,6 +135,65 @@ TEST_CASE(origin_diversity_precedes_extra_pages_from_one_site)
     EXPECT_EQ(results[1].text, "https://news.example/two"sv);
     EXPECT_EQ(results[2].text, "https://other.example/news"sv);
     EXPECT_EQ(results[3].text, "https://third.example/news"sv);
+}
+
+TEST_CASE(origin_limit_does_not_refill_with_redundant_pages)
+{
+    auto results = WebView::mux_autocomplete_suggestions(
+        "news"sv,
+        {},
+        {
+            history("https://news.example/one"sv, 1000),
+            history("https://news.example/two"sv, 990),
+            history("https://news.example/three"sv, 980),
+            history("https://news.example/four"sv, 970),
+        },
+        {},
+        8);
+
+    EXPECT_EQ(results.size(), 2u);
+}
+
+TEST_CASE(short_queries_use_one_result_per_origin_and_five_total)
+{
+    auto results = WebView::mux_autocomplete_suggestions(
+        "g"sv,
+        search("g"sv, 1000, true),
+        {
+            history("https://github.com/"sv, 900),
+            history("https://github.com/LadybirdBrowser/ladybird"sv, 890),
+            history("https://google.com/"sv, 880),
+            history("https://goodreads.com/"sv, 870),
+            history("https://gitlab.com/"sv, 860),
+            history("https://gnu.org/"sv, 850),
+        },
+        {},
+        8);
+
+    EXPECT_EQ(results.size(), 5u);
+    EXPECT_EQ(results[0].text, "g"sv);
+    EXPECT(!results.contains([](auto const& result) {
+        return result.text == "https://github.com/LadybirdBrowser/ladybird"sv;
+    }));
+}
+
+TEST_CASE(short_queries_use_the_best_representative_for_an_origin)
+{
+    auto results = WebView::mux_autocomplete_suggestions(
+        "gi"sv,
+        search("gi"sv, 900, true),
+        {
+            history("https://github.com/"sv, 1000),
+            bookmark("https://github.com/LadybirdBrowser/ladybird"sv, 925),
+        },
+        {},
+        8);
+
+    EXPECT_EQ(results.size(), 2u);
+    EXPECT_EQ(results[0].text, "https://github.com/LadybirdBrowser/ladybird"sv);
+    EXPECT(!results.contains([](auto const& result) {
+        return result.text == "https://github.com/"sv;
+    }));
 }
 
 TEST_CASE(exact_remote_query_merges_into_the_verbatim_search)

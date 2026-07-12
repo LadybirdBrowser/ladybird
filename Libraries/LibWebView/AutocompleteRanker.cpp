@@ -250,6 +250,8 @@ Vector<AutocompleteSuggestion> rank_history_suggestions(StringView query, Vector
         auto is_deep_page_without_path_input = parsed_url.has_value()
             && url_has_non_origin_components(*parsed_url)
             && !query_contains_url_suffix(query);
+        if (query_length <= 2 && is_deep_page_without_path_input)
+            continue;
         if (is_deep_page_without_path_input && match_class == AutocompleteMatchClass::URLPrefix)
             adjusted_match_relevance -= 200;
 
@@ -347,7 +349,7 @@ Vector<AutocompleteSuggestion> rank_bookmark_suggestions(StringView query, Vecto
         auto is_deep_page_without_path_input = parsed_url.has_value()
             && url_has_non_origin_components(*parsed_url)
             && !query_contains_url_suffix(query);
-        if (is_deep_page_without_path_input && match_class == AutocompleteMatchClass::URLPrefix)
+        if (query_length == 1 && is_deep_page_without_path_input && match_class == AutocompleteMatchClass::URLPrefix)
             adjusted_match_relevance -= 200;
 
         auto bookmark_relevance = 75;
@@ -357,7 +359,7 @@ Vector<AutocompleteSuggestion> rank_bookmark_suggestions(StringView query, Vecto
         auto is_url_prefix = match_class == AutocompleteMatchClass::ExactURL || match_class == AutocompleteMatchClass::URLPrefix;
         auto can_be_automatically_selected = is_url_prefix
             && query_length >= 2
-            && !is_deep_page_without_path_input;
+            && (!parsed_url.has_value() || !parsed_url->query().has_value());
         auto can_be_inline_completed = can_be_automatically_selected
             && match_class == AutocompleteMatchClass::URLPrefix
             && (!parsed_url.has_value() || !parsed_url->query().has_value())
@@ -451,7 +453,13 @@ Vector<AutocompleteSuggestion> rank_engagement_suggestions(StringView query, Vec
             auto is_deep_page_without_path_input = parsed_url.has_value()
                 && url_has_non_origin_components(*parsed_url)
                 && !query_contains_url_suffix(query);
-            if (is_deep_page_without_path_input && match_class == AutocompleteMatchClass::URLPrefix && !exact_association)
+            auto short_deep_prefix_explicit_threshold = query_length == 1 ? 3u : 2u;
+            auto short_deep_prefix_has_evidence = query_length <= 2
+                && engagement.explicit_use_count >= short_deep_prefix_explicit_threshold;
+            if (query_length <= 2 && is_deep_page_without_path_input && !exact_association && !short_deep_prefix_has_evidence)
+                continue;
+            if (is_deep_page_without_path_input && match_class == AutocompleteMatchClass::URLPrefix
+                && !exact_association && !short_deep_prefix_has_evidence)
                 adjusted_match_relevance -= 200;
             auto syntactic_url_prefix = autocomplete_url_can_complete(query, engagement.destination);
             auto explicit_threshold = query_length == 1 ? 3u : query_contains_whitespace(query) ? 2u
@@ -462,11 +470,12 @@ Vector<AutocompleteSuggestion> rank_engagement_suggestions(StringView query, Vec
             } else {
                 can_be_automatically_selected = query_length >= 2
                     && syntactic_url_prefix
-                    && weighted_uses >= 3.0;
+                    && (short_deep_prefix_has_evidence || weighted_uses >= 3.0);
             }
 
             auto deep_page_has_inline_intent = !is_deep_page_without_path_input
-                || (exact_association && engagement.explicit_use_count >= 2);
+                || (exact_association && engagement.explicit_use_count >= 2)
+                || short_deep_prefix_has_evidence;
             can_be_inline_completed = can_be_automatically_selected
                 && syntactic_url_prefix
                 && match_class == AutocompleteMatchClass::URLPrefix

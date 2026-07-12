@@ -133,6 +133,22 @@ TEST_CASE(distinct_deep_pages_can_establish_origin_intent)
     EXPECT_EQ(suggestions.first().text, "https://example.com/"sv);
 }
 
+TEST_CASE(short_queries_return_origins_instead_of_deep_pages)
+{
+    auto suggestions = rank("g"sv, {
+                                       entry("https://github.com/LadybirdBrowser/ladybird/pulls"sv, "PRs"sv, 20),
+                                       entry("https://www.google.com/search?q=pulls"sv, "pulls - Search with Google"sv, 20),
+                                   });
+
+    EXPECT_EQ(suggestions.size(), 2u);
+    EXPECT(suggestions.contains([](auto const& suggestion) {
+        return suggestion.text == "https://github.com/"sv;
+    }));
+    EXPECT(suggestions.contains([](auto const& suggestion) {
+        return suggestion.text == "https://www.google.com/"sv;
+    }));
+}
+
 TEST_CASE(typed_path_allows_a_deep_page_completion)
 {
     auto suggestions = rank("example.com/ma"sv, {
@@ -220,6 +236,32 @@ TEST_CASE(bookmark_does_not_append_a_query_string)
     EXPECT(!suggestions[0].can_be_inline_completed);
 }
 
+TEST_CASE(short_url_prefixes_keep_deep_bookmarks_eligible)
+{
+    auto suggestions = WebView::rank_bookmark_suggestions("gi"sv, {
+                                                                      bookmark("https://github.com/LadybirdBrowser/ladybird"sv, "GH"sv),
+                                                                      bookmark("https://google.com/"sv, "Google"sv),
+                                                                  },
+        8);
+
+    EXPECT_EQ(suggestions.size(), 1u);
+    EXPECT_EQ(suggestions[0].text, "https://github.com/LadybirdBrowser/ladybird"sv);
+    EXPECT(suggestions[0].can_be_automatically_selected);
+    EXPECT(suggestions[0].can_be_inline_completed);
+}
+
+TEST_CASE(one_character_bookmark_prefix_is_not_automatic)
+{
+    auto suggestions = WebView::rank_bookmark_suggestions("g"sv, {
+                                                                     bookmark("https://github.com/LadybirdBrowser/ladybird"sv, "GH"sv),
+                                                                 },
+        8);
+
+    EXPECT_EQ(suggestions.size(), 1u);
+    EXPECT(!suggestions[0].can_be_automatically_selected);
+    EXPECT(!suggestions[0].can_be_inline_completed);
+}
+
 TEST_CASE(exact_adaptive_association_can_navigate_without_completing)
 {
     auto suggestions = WebView::rank_engagement_suggestions("docs"sv, {
@@ -256,6 +298,23 @@ TEST_CASE(query_string_completion_requires_an_exact_adaptive_association)
     EXPECT_EQ(suggestions.size(), 1u);
     EXPECT(suggestions[0].can_be_automatically_selected);
     EXPECT(suggestions[0].can_be_inline_completed);
+}
+
+TEST_CASE(short_adaptive_prefixes_require_explicit_evidence)
+{
+    auto weak_suggestions = WebView::rank_engagement_suggestions("gi"sv, {
+                                                                             engagement("git"sv, WebView::OmniboxDestinationKind::URL, "https://github.com/LadybirdBrowser/ladybird"sv, 0, 4),
+                                                                         },
+        8, UnixDateTime::from_seconds_since_epoch(now_seconds));
+    auto strong_suggestions = WebView::rank_engagement_suggestions("gi"sv, {
+                                                                               engagement("git"sv, WebView::OmniboxDestinationKind::URL, "https://github.com/LadybirdBrowser/ladybird"sv, 2),
+                                                                           },
+        8, UnixDateTime::from_seconds_since_epoch(now_seconds));
+
+    EXPECT(weak_suggestions.is_empty());
+    EXPECT_EQ(strong_suggestions.size(), 1u);
+    EXPECT(strong_suggestions[0].can_be_automatically_selected);
+    EXPECT(strong_suggestions[0].can_be_inline_completed);
 }
 
 TEST_CASE(search_like_adaptive_url_requires_two_explicit_uses)
