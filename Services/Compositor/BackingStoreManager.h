@@ -37,11 +37,18 @@ public:
         Gfx::IntRect damage_rect;
     };
 
+    enum class GpuSharing {
+        Disallowed,
+        Allowed,
+    };
+
     BackingStoreManager() = default;
 
     Optional<Allocation> resize_backing_stores_if_needed(
         Gfx::IntSize viewport_size, Web::Compositor::WindowResizingInProgress);
-    Optional<Publication> allocate_backing_stores(Allocation const&, RefPtr<Gfx::SkiaBackendContext> const&, bool should_publish);
+    Optional<Publication> allocate_backing_stores(Allocation const&, RefPtr<Gfx::SkiaBackendContext> const&, bool should_publish, GpuSharing);
+
+    void invalidate() { m_allocated_size = {}; }
 
     bool is_valid() const;
     bool has_available_buffer() const;

@@ -617,14 +617,19 @@ void ContextState::finish_window_resize()
     m_window_resize_in_progress = Web::Compositor::WindowResizingInProgress::No;
 }
 
-Optional<BackingStoreManager::Publication> ContextState::resize_backing_stores_if_needed(RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
+Optional<BackingStoreManager::Publication> ContextState::resize_backing_stores_if_needed(RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, BackingStoreManager::GpuSharing gpu_sharing)
 {
     if (m_gpu_present_bitmap_id_awaiting_completion.has_value())
         return {};
     auto allocation = m_backing_store_manager.resize_backing_stores_if_needed(m_viewport_size, m_window_resize_in_progress);
     if (!allocation.has_value())
         return {};
-    return m_backing_store_manager.allocate_backing_stores(*allocation, skia_backend_context, presents_to_client());
+    return m_backing_store_manager.allocate_backing_stores(*allocation, skia_backend_context, presents_to_client(), gpu_sharing);
+}
+
+void ContextState::invalidate_backing_stores()
+{
+    m_backing_store_manager.invalidate();
 }
 
 bool ContextState::set_display_metadata(Optional<u64> display_id, double refresh_rate)

@@ -104,6 +104,11 @@ void ConnectionFromClient::presented_bitmap_ready_to_paint(Web::Compositor::Comp
     m_compositor_state->presented_bitmap_ready_to_paint(context_id, bitmap_id);
 }
 
+void ConnectionFromClient::set_client_gpu_presentation_capability(bool supported, u64 adapter_luid)
+{
+    m_compositor_state->set_client_gpu_presentation_capability(supported, adapter_luid);
+}
+
 void ConnectionFromClient::crash()
 {
     warnln("Crashing Compositor process by request from Browser");

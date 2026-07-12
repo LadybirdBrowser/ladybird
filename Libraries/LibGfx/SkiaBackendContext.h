@@ -62,6 +62,7 @@ public:
 
     virtual MetalContext& metal_context() = 0;
     virtual VulkanContext const& vulkan_context() = 0;
+    virtual Direct3DContext& direct3d_context() { VERIFY_NOT_REACHED(); }
 
 protected:
     virtual void flush_and_submit_impl(SkSurface*) = 0;

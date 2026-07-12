@@ -52,6 +52,10 @@
 #    include <LibIPC/TransportBootstrapMach.h>
 #endif
 
+#ifdef USE_DIRECTX
+#    include <LibGfx/Direct3DContext.h>
+#endif
+
 #if !defined(AK_OS_WINDOWS)
 #    include <sys/wait.h>
 #endif
@@ -1141,7 +1145,22 @@ ErrorOr<void> Application::launch_compositor_process()
         handle_compositor_process_death();
     };
 
+#ifdef USE_DIRECTX
+    m_reported_compositor_gpu_presentation_unavailable = false;
+    if (auto adapter_luid = Gfx::default_dxgi_adapter_luid(); adapter_luid.has_value())
+        m_compositor_client->async_set_client_gpu_presentation_capability(true, *adapter_luid);
+#endif
+
     return {};
+}
+
+void Application::notify_compositor_gpu_presentation_unavailable()
+{
+    if (m_reported_compositor_gpu_presentation_unavailable)
+        return;
+    m_reported_compositor_gpu_presentation_unavailable = true;
+    if (m_compositor_client)
+        m_compositor_client->async_set_client_gpu_presentation_capability(false, 0);
 }
 
 void Application::handle_compositor_process_death()

@@ -60,7 +60,7 @@ if (APPLE)
 endif()
 
 if (HAS_DIRECTX)
-    list(APPEND SOURCES Direct3DContext.cpp)
+    list(APPEND SOURCES D3DSharedTexture.cpp Direct3DContext.cpp)
 endif()
 
 if (HAS_VULKAN)

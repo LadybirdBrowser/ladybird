@@ -45,6 +45,7 @@ private:
     virtual Messages::CompositorControlServer::HandlePinchEventResponse handle_pinch_event(Web::Compositor::CompositorContextId, Web::PinchEvent) override;
     virtual Messages::CompositorControlServer::AsyncScrollByResponse async_scroll_by(Web::Compositor::CompositorContextId, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels) override;
     virtual void presented_bitmap_ready_to_paint(Web::Compositor::CompositorContextId, i32 bitmap_id) override;
+    virtual void set_client_gpu_presentation_capability(bool supported, u64 adapter_luid) override;
     virtual void crash() override;
 
     ConnectionFromWebContent* web_content_connection(i32 web_content_connection_id);

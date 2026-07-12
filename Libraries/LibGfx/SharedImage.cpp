@@ -11,6 +11,9 @@
 #ifdef USE_VULKAN_DMABUF_IMAGES
 #    include <LibGfx/VulkanImage.h>
 #endif
+#ifdef USE_DIRECTX
+#    include <LibGfx/D3DSharedTexture.h>
+#endif
 
 #ifdef AK_OS_MACOS
 static Core::MachPort copy_send_right(Core::MachPort const& port)
@@ -39,6 +42,11 @@ SharedImage::SharedImage(LinuxDmaBufHandle&& dmabuf)
 {
 }
 
+SharedImage::SharedImage(WindowsD3DHandle&& d3d_handle)
+    : m_data(move(d3d_handle))
+{
+}
+
 #    ifdef USE_VULKAN_DMABUF_IMAGES
 static constexpr auto shared_image_bitmap_format = BitmapFormat::BGRA8888;
 static constexpr auto shared_image_alpha_type = AlphaType::Premultiplied;
@@ -64,6 +72,21 @@ LinuxDmaBufHandle duplicate_linux_dmabuf_handle(VulkanImage const& vulkan_image)
     };
 }
 #    endif
+
+#    ifdef USE_DIRECTX
+SharedImage duplicate_shared_image(D3DSharedTexture const& texture)
+{
+    return SharedImage { duplicate_windows_d3d_handle(texture) };
+}
+
+WindowsD3DHandle duplicate_windows_d3d_handle(D3DSharedTexture const& texture)
+{
+    return WindowsD3DHandle {
+        .size = texture.size(),
+        .file = MUST(texture.clone_handle()),
+    };
+}
+#    endif
 #endif
 
 }
@@ -74,6 +97,7 @@ namespace IPC {
 enum class SharedImageBackingType : u8 {
     ShareableBitmap,
     LinuxDmaBuf,
+    WindowsD3DTexture,
 };
 
 template<>
@@ -102,6 +126,23 @@ ErrorOr<Gfx::LinuxDmaBufHandle> decode(Decoder& decoder)
         .file = TRY(decoder.decode<IPC::File>()),
     };
 }
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Gfx::WindowsD3DHandle const& d3d_handle)
+{
+    TRY(encoder.encode(d3d_handle.size));
+    TRY(encoder.encode(TRY(IPC::File::clone_fd(d3d_handle.file.fd()))));
+    return {};
+}
+
+template<>
+ErrorOr<Gfx::WindowsD3DHandle> decode(Decoder& decoder)
+{
+    return Gfx::WindowsD3DHandle {
+        .size = TRY(decoder.decode<Gfx::IntSize>()),
+        .file = TRY(decoder.decode<IPC::File>()),
+    };
+}
 #endif
 
 template<>
@@ -119,6 +160,11 @@ ErrorOr<void> encode(Encoder& encoder, Gfx::SharedImage const& shared_image)
         [&](Gfx::LinuxDmaBufHandle const& dmabuf) -> ErrorOr<void> {
             TRY(encoder.encode(SharedImageBackingType::LinuxDmaBuf));
             TRY(encoder.encode(dmabuf));
+            return {};
+        },
+        [&](Gfx::WindowsD3DHandle const& d3d_handle) -> ErrorOr<void> {
+            TRY(encoder.encode(SharedImageBackingType::WindowsD3DTexture));
+            TRY(encoder.encode(d3d_handle));
             return {};
         });
 #endif
@@ -138,6 +184,8 @@ ErrorOr<Gfx::SharedImage> decode(Decoder& decoder)
         return Gfx::SharedImage { TRY(decoder.decode<Gfx::ShareableBitmap>()) };
     case SharedImageBackingType::LinuxDmaBuf:
         return Gfx::SharedImage { TRY(decoder.decode<Gfx::LinuxDmaBufHandle>()) };
+    case SharedImageBackingType::WindowsD3DTexture:
+        return Gfx::SharedImage { TRY(decoder.decode<Gfx::WindowsD3DHandle>()) };
     default:
         VERIFY_NOT_REACHED();
     }

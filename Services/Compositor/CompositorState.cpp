@@ -585,9 +585,38 @@ RefPtr<Gfx::PaintingSurface> CompositorState::resolve_composited_context(Web::Co
 
 void CompositorState::resize_backing_stores_if_needed(Web::Compositor::CompositorContextId context_id, ContextState& context)
 {
-    if (auto publication = context.resize_backing_stores_if_needed(m_skia_backend_context); publication.has_value()) {
+    if (auto publication = context.resize_backing_stores_if_needed(m_skia_backend_context, gpu_sharing_for_client()); publication.has_value()) {
         publish_backing_stores(context_id, context, publication.release_value());
         present_current_frame(context_id, context);
+    }
+}
+
+BackingStoreManager::GpuSharing CompositorState::gpu_sharing_for_client() const
+{
+#ifdef USE_DIRECTX
+    // Shared Direct3D textures can only be opened by the client if it presents on the same adapter.
+    if (!m_skia_backend_context || m_client_gpu_presentation_adapter_luid != m_skia_backend_context->direct3d_context().adapter_luid())
+        return BackingStoreManager::GpuSharing::Disallowed;
+#endif
+    return BackingStoreManager::GpuSharing::Allowed;
+}
+
+void CompositorState::set_client_gpu_presentation_capability(bool supported, u64 adapter_luid)
+{
+    Optional<u64> new_adapter_luid;
+    if (supported)
+        new_adapter_luid = adapter_luid;
+    if (m_client_gpu_presentation_adapter_luid == new_adapter_luid)
+        return;
+    m_client_gpu_presentation_adapter_luid = new_adapter_luid;
+
+    // Reallocate the backing stores of every presenting context so they match the new capability.
+    for (auto& context_entry : m_contexts) {
+        auto& context = *context_entry.value;
+        if (!context.presents_to_client())
+            continue;
+        context.invalidate_backing_stores();
+        resize_backing_stores_if_needed(context_entry.key, context);
     }
 }
 

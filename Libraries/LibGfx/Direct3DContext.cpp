@@ -12,6 +12,7 @@
 #ifdef USE_DIRECTX
 
 #    include <AK/Windows.h>
+#    include <LibCore/Environment.h>
 #    include <d3d12.h>
 #    include <dxgi1_4.h>
 
@@ -21,6 +22,11 @@
 namespace Gfx {
 
 using namespace Microsoft::WRL;
+
+static u64 pack_adapter_luid(LUID luid)
+{
+    return (static_cast<u64>(static_cast<u32>(luid.HighPart)) << 32) | static_cast<u32>(luid.LowPart);
+}
 
 struct Direct3DContext::Impl {
     Impl(ComPtr<IDXGIAdapter1> adapter, ComPtr<ID3D12Device> device, ComPtr<ID3D12CommandQueue> queue)
@@ -55,6 +61,11 @@ ID3D12Device* Direct3DContext::device() const
 ID3D12CommandQueue* Direct3DContext::queue() const
 {
     return m_impl->queue.Get();
+}
+
+u64 Direct3DContext::adapter_luid() const
+{
+    return pack_adapter_luid(m_impl->device->GetAdapterLuid());
 }
 
 static ErrorOr<ComPtr<IDXGIAdapter1>> get_hardware_adapter(IDXGIFactory4& factory)
@@ -98,6 +109,33 @@ ErrorOr<NonnullRefPtr<Direct3DContext>> create_direct3d_context()
         return Error::from_windows_error(hr);
 
     return adopt_ref(*new Direct3DContext(make<Direct3DContext::Impl>(move(adapter), move(device), move(queue))));
+}
+
+Optional<u64> default_dxgi_adapter_luid()
+{
+    // The result cannot change within a process lifetime, so compute it once.
+    static Optional<u64> const cached_adapter_luid = []() -> Optional<u64> {
+        ComPtr<IDXGIFactory4> factory;
+        if (FAILED(CreateDXGIFactory1(IID_PPV_ARGS(&factory))))
+            return {};
+
+        UINT adapter_index = 0;
+        if (auto adapter_index_override = Core::Environment::get("QT_D3D_ADAPTER_INDEX"sv); adapter_index_override.has_value()) {
+            if (auto value = adapter_index_override->to_number<UINT>(); value.has_value())
+                adapter_index = *value;
+        }
+
+        ComPtr<IDXGIAdapter1> adapter;
+        if (FAILED(factory->EnumAdapters1(adapter_index, &adapter)))
+            return {};
+
+        DXGI_ADAPTER_DESC1 description {};
+        if (FAILED(adapter->GetDesc1(&description)))
+            return {};
+
+        return pack_adapter_luid(description.AdapterLuid);
+    }();
+    return cached_adapter_luid;
 }
 
 }

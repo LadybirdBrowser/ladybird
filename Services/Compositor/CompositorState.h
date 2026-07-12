@@ -100,6 +100,7 @@ public:
     void present_frame(Web::Compositor::CompositorContextId, Gfx::IntRect viewport_rect, Gfx::IntRect damage_rect);
     bool request_screenshot(Web::Compositor::CompositorContextId, Gfx::ShareableBitmap&);
     void presented_bitmap_ready_to_paint(Web::Compositor::CompositorContextId, i32 bitmap_id);
+    void set_client_gpu_presentation_capability(bool supported, u64 adapter_luid);
 
 private:
     CompositorState(RefPtr<Gfx::SkiaBackendContext>, bool async_scrolling_enabled);
@@ -143,6 +144,7 @@ private:
     VSyncScheduler& vsync_scheduler_for_display(Optional<u64> display_id);
     void present_pending_frames_on_vsync(Optional<u64> display_id);
     void publish_backing_stores(Web::Compositor::CompositorContextId, ContextState&, BackingStoreManager::Publication&&);
+    BackingStoreManager::GpuSharing gpu_sharing_for_client() const;
     void did_finish_async_present(PendingAsyncPresent&);
     void cancel_pending_async_presents_for_context(Web::Compositor::CompositorContextId);
     void schedule_gpu_completion_check();
@@ -157,6 +159,9 @@ private:
     RefPtr<Core::Timer> m_gpu_completion_timer;
     CompositorStateClient* m_client { nullptr };
     bool m_async_scrolling_enabled { true };
+
+    // LUID of the GPU adapter the client can present shared GPU textures on, if any.
+    Optional<u64> m_client_gpu_presentation_adapter_luid;
 };
 
 }

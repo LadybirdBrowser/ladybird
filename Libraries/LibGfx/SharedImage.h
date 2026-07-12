@@ -33,12 +33,24 @@ struct LinuxDmaBufHandle {
     u64 modifier;
     IPC::File file;
 };
+
+// NOTE: The texture behind the handle is always DXGI_FORMAT_R8G8B8A8_UNORM with premultiplied alpha.
+struct WindowsD3DHandle {
+    IntSize size;
+    IPC::File file;
+};
 #endif
 
 #ifdef USE_VULKAN_DMABUF_IMAGES
 struct VulkanImage;
 SharedImage duplicate_shared_image(VulkanImage const&);
 LinuxDmaBufHandle duplicate_linux_dmabuf_handle(VulkanImage const&);
+#endif
+
+#ifdef USE_DIRECTX
+class D3DSharedTexture;
+SharedImage duplicate_shared_image(D3DSharedTexture const&);
+WindowsD3DHandle duplicate_windows_d3d_handle(D3DSharedTexture const&);
 #endif
 
 class SharedImage {
@@ -54,13 +66,14 @@ public:
 #else
     explicit SharedImage(ShareableBitmap);
     explicit SharedImage(LinuxDmaBufHandle&&);
+    explicit SharedImage(WindowsD3DHandle&&);
 #endif
 
 private:
 #ifdef AK_OS_MACOS
     Core::MachPort m_port;
 #else
-    Variant<ShareableBitmap, LinuxDmaBufHandle> m_data;
+    Variant<ShareableBitmap, LinuxDmaBufHandle, WindowsD3DHandle> m_data;
 #endif
 
     friend class SharedImageBuffer;
@@ -82,6 +95,12 @@ ErrorOr<void> encode(Encoder&, Gfx::LinuxDmaBufHandle const&);
 
 template<>
 ErrorOr<Gfx::LinuxDmaBufHandle> decode(Decoder&);
+
+template<>
+ErrorOr<void> encode(Encoder&, Gfx::WindowsD3DHandle const&);
+
+template<>
+ErrorOr<Gfx::WindowsD3DHandle> decode(Decoder&);
 #endif
 
 template<>

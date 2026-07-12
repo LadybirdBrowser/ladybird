@@ -276,6 +276,11 @@ public:
 
     Optional<Core::TimeZoneWatcher&> time_zone_watcher();
 
+    // Called by the UI when it turns out it cannot present GPU textures shared by the Compositor
+    // (e.g. importing a shared Direct3D texture failed), so the Compositor falls back to
+    // CPU-shared backing stores.
+    void notify_compositor_gpu_presentation_unavailable();
+
 protected:
     explicit Application(Optional<ByteString> ladybird_binary_path = {});
 
@@ -424,6 +429,7 @@ private:
     RefPtr<Requests::RequestClient> m_private_request_server_client;
     RefPtr<ImageDecoderClient::Client> m_image_decoder_client;
     RefPtr<CompositorClient> m_compositor_client;
+    bool m_reported_compositor_gpu_presentation_unavailable { false };
     size_t m_compositor_restart_count { 0 };
     enum class CompositorRecoveryState {
         Idle,

@@ -61,7 +61,7 @@ bool is_using_dark_system_theme(QWidget&);
 
 static QWidget* initial_web_content_view_parent([[maybe_unused]] QWidget* window)
 {
-#ifdef AK_OS_MACOS
+#ifdef LADYBIRD_QT_USE_RHI_WIDGET
     return nullptr;
 #else
     return window;
@@ -72,14 +72,18 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
     : WebContentViewBase(initial_web_content_view_parent(window))
     , WebView::ViewImplementation(initial_state.is_private)
 {
-#ifdef LADYBIRD_QT_USE_METAL_RHI_WIDGET
+#ifdef LADYBIRD_QT_USE_RHI_WIDGET
     // Keep the QRhiWidget out of the top-level QWidget backing store. If it is
     // parented before becoming native, Qt propagates its RHI config to the whole
     // browser window and uploads the full backing store texture on chrome repaints.
     setAttribute(Qt::WA_DontCreateNativeAncestors);
     setAttribute(Qt::WA_NativeWindow);
     setParent(window);
+#    ifdef LADYBIRD_QT_USE_METAL_RHI_WIDGET
     setApi(QRhiWidget::Api::Metal);
+#    else
+    setApi(QRhiWidget::Api::Direct3D11);
+#    endif
 #endif
 
     m_client_state.client = parent_client;
@@ -902,20 +906,26 @@ void WebContentView::paintEvent(QPaintEvent*)
 Optional<QPixmap> WebContentView::tab_preview_pixmap(QSize const& maximum_size) const
 {
     auto paintable = current_paintable();
-    if (!paintable.has_value())
+    if (!paintable.has_value() || maximum_size.isEmpty())
         return {};
 
-    auto const* bitmap = paintable->shared_image_buffer->bitmap().ptr();
-    if (!bitmap)
-        return {};
+    QImage snapshot;
+    if (auto bitmap = paintable->shared_image_buffer->bitmap_if_present()) {
+        auto width = min(bitmap->width(), paintable->bitmap_size.width());
+        auto height = min(bitmap->height(), paintable->bitmap_size.height());
+        if (width <= 0 || height <= 0)
+            return {};
 
-    auto width = min(bitmap->width(), paintable->bitmap_size.width());
-    auto height = min(bitmap->height(), paintable->bitmap_size.height());
-    if (width <= 0 || height <= 0 || maximum_size.isEmpty())
-        return {};
+        QImage image(bitmap->scanline_u8(0), bitmap->width(), bitmap->height(), bitmap->pitch(), QImage::Format_RGB32);
+        snapshot = image.copy(0, 0, width, height);
+    }
+#ifdef LADYBIRD_QT_USE_RHI_WIDGET
+    else {
+        // GPU-shared backing stores have no CPU-visible pixels, so grab the rendered widget instead.
+        snapshot = const_cast<WebContentView*>(this)->grabFramebuffer();
+    }
+#endif
 
-    QImage image(bitmap->scanline_u8(0), bitmap->width(), bitmap->height(), bitmap->pitch(), QImage::Format_RGB32);
-    auto snapshot = image.copy(0, 0, width, height);
     if (snapshot.isNull())
         return {};
 

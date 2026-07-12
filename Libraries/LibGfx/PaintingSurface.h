@@ -22,6 +22,16 @@ struct VulkanImage;
 }
 #endif
 
+#ifdef USE_DIRECTX
+#    include <AK/Error.h>
+
+namespace Gfx {
+
+class D3DSharedTexture;
+
+}
+#endif
+
 #ifdef AK_OS_MACOS
 #    include <LibGfx/MetalContext.h>
 #endif
@@ -51,6 +61,10 @@ public:
 
 #ifdef USE_VULKAN_DMABUF_IMAGES
     static NonnullRefPtr<PaintingSurface> create_from_vkimage(NonnullRefPtr<SkiaBackendContext> context, NonnullRefPtr<VulkanImage> vulkan_image, Origin origin);
+#endif
+
+#ifdef USE_DIRECTX
+    static ErrorOr<NonnullRefPtr<PaintingSurface>> create_from_d3d_texture(NonnullRefPtr<SkiaBackendContext>, NonnullRefPtr<D3DSharedTexture>, Origin = Origin::TopLeft);
 #endif
 
     NonnullRefPtr<Bitmap> snapshot_bitmap() const;

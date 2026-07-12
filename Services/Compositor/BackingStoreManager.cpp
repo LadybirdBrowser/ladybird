@@ -16,6 +16,10 @@
 #    include <libdrm/drm_fourcc.h>
 #endif
 
+#ifdef USE_DIRECTX
+#    include <LibGfx/D3DSharedTexture.h>
+#endif
+
 namespace Compositor {
 
 #if defined(USE_DIRECTX) || defined(USE_VULKAN)
@@ -47,21 +51,36 @@ static NonnullRefPtr<Gfx::PaintingSurface> create_shareable_bitmap_backing_store
     return Gfx::PaintingSurface::wrap_bitmap(*buffer.bitmap());
 }
 
-#ifdef USE_VULKAN_DMABUF_IMAGES
-struct DMABufBackingStore {
+#if defined(USE_VULKAN_DMABUF_IMAGES) || defined(USE_DIRECTX)
+struct GpuBackingStore {
     RefPtr<Gfx::PaintingSurface> surface;
     Gfx::SharedImage shared_image;
 };
+#endif
 
-static ErrorOr<DMABufBackingStore> create_linear_dmabuf_backing_store(Gfx::IntSize size, Gfx::SkiaBackendContext& skia_backend_context)
+#ifdef USE_VULKAN_DMABUF_IMAGES
+static ErrorOr<GpuBackingStore> create_shared_gpu_backing_store(Gfx::IntSize size, Gfx::SkiaBackendContext& skia_backend_context)
 {
     auto const& vulkan_context = skia_backend_context.vulkan_context();
     static constexpr Array<u64, 1> linear_modifiers = { DRM_FORMAT_MOD_LINEAR };
     auto image = TRY(Gfx::create_shared_vulkan_image(vulkan_context, size.width(), size.height(), VK_FORMAT_B8G8R8A8_UNORM, linear_modifiers.span()));
     auto shared_image = Gfx::duplicate_shared_image(*image);
 
-    return DMABufBackingStore {
+    return GpuBackingStore {
         .surface = Gfx::PaintingSurface::create_from_vkimage(skia_backend_context, move(image), Gfx::PaintingSurface::Origin::TopLeft),
+        .shared_image = move(shared_image),
+    };
+}
+#endif
+
+#ifdef USE_DIRECTX
+static ErrorOr<GpuBackingStore> create_shared_gpu_backing_store(Gfx::IntSize size, Gfx::SkiaBackendContext& skia_backend_context)
+{
+    auto texture = TRY(Gfx::D3DSharedTexture::create(skia_backend_context.direct3d_context(), size));
+    auto shared_image = Gfx::duplicate_shared_image(*texture);
+
+    return GpuBackingStore {
+        .surface = TRY(Gfx::PaintingSurface::create_from_d3d_texture(skia_backend_context, move(texture))),
         .shared_image = move(shared_image),
     };
 }
@@ -96,7 +115,7 @@ Optional<BackingStoreManager::Allocation> BackingStoreManager::resize_backing_st
     return {};
 }
 
-Optional<BackingStoreManager::Publication> BackingStoreManager::allocate_backing_stores(Allocation const& allocation, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, bool should_publish)
+Optional<BackingStoreManager::Publication> BackingStoreManager::allocate_backing_stores(Allocation const& allocation, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, bool should_publish, [[maybe_unused]] GpuSharing gpu_sharing)
 {
     m_backing_stores.clear();
     m_rendering_store_index.clear();
@@ -112,14 +131,15 @@ Optional<BackingStoreManager::Publication> BackingStoreManager::allocate_backing
         return should_publish && index == 0 ? BufferState::Presented : BufferState::Available;
     };
 
-#ifdef USE_VULKAN_DMABUF_IMAGES
-    if (skia_backend_context && should_publish) {
+#if defined(USE_VULKAN_DMABUF_IMAGES) || defined(USE_DIRECTX)
+    if (skia_backend_context && should_publish && gpu_sharing == GpuSharing::Allowed) {
         Vector<Gfx::SharedImage> shared_images;
         shared_images.ensure_capacity(buffer_count);
         bool allocation_succeeded = true;
         for (size_t i = 0; i < buffer_count; ++i) {
-            auto backing_store = create_linear_dmabuf_backing_store(allocation.size, *skia_backend_context);
+            auto backing_store = create_shared_gpu_backing_store(allocation.size, *skia_backend_context);
             if (backing_store.is_error()) {
+                dbgln("Failed to allocate shared GPU backing store ({}), falling back to shareable bitmaps", backing_store.error());
                 allocation_succeeded = false;
                 break;
             }

@@ -8,7 +8,7 @@ if (NOT APPLE)
     find_package(Qt6 6.9 OPTIONAL_COMPONENTS Positioning)
 endif()
 
-if (APPLE)
+if (APPLE OR HAS_DIRECTX)
     # The native presentation paths use platform GPU buffer handles directly instead of copying frames through CPU memory.
     set(QT_NO_PRIVATE_MODULE_WARNING ON)
     find_package(Qt6 6.9 REQUIRED COMPONENTS GuiPrivate)
@@ -103,6 +103,11 @@ if (NOT APPLE AND USE_VULKAN_DMABUF_IMAGES AND Qt6_VERSION VERSION_GREATER_EQUAL
     target_include_directories(ladybird PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
     target_link_libraries(ladybird PRIVATE Vulkan::Vulkan)
     add_dependencies(ladybird generate_web_content_view_linux_shaders)
+endif()
+
+if (HAS_DIRECTX)
+    target_sources(ladybird PRIVATE WebContentViewWindows.cpp)
+    target_link_libraries(ladybird PRIVATE Qt::GuiPrivate d3d11)
 endif()
 
 create_ladybird_bundle(ladybird)

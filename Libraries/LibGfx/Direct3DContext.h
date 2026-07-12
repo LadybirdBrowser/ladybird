@@ -11,6 +11,7 @@
 #    include <AK/Error.h>
 #    include <AK/NonnullOwnPtr.h>
 #    include <AK/NonnullRefPtr.h>
+#    include <AK/Optional.h>
 #    include <AK/RefCounted.h>
 
 struct ID3D12CommandQueue;
@@ -26,6 +27,7 @@ public:
     IDXGIAdapter1* adapter() const;
     ID3D12Device* device() const;
     ID3D12CommandQueue* queue() const;
+    u64 adapter_luid() const;
 
 private:
     struct Impl;
@@ -38,6 +40,11 @@ private:
 };
 
 ErrorOr<NonnullRefPtr<Direct3DContext>> create_direct3d_context();
+
+// LUID of the adapter that Qt's D3D11 backend will pick in the UI process (the first enumerated
+// adapter unless overridden by QT_D3D_ADAPTER_INDEX). Used to check that a texture shared by the
+// Compositor process can be opened by the UI process.
+Optional<u64> default_dxgi_adapter_luid();
 
 }
 

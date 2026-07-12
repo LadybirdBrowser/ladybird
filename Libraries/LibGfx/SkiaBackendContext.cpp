@@ -197,6 +197,8 @@ public:
 
     MetalContext& metal_context() override { VERIFY_NOT_REACHED(); }
 
+    Direct3DContext& direct3d_context() override { return m_direct3d_context; }
+
 private:
     sk_sp<GrDirectContext> m_context;
     NonnullRefPtr<Direct3DContext> m_direct3d_context;

@@ -25,6 +25,11 @@
 #    include <LibGfx/VulkanImage.h>
 #    include <gpu/ganesh/vk/GrVkBackendSurface.h>
 #    include <gpu/ganesh/vk/GrVkTypes.h>
+#elif defined(USE_DIRECTX)
+#    include <AK/Windows.h>
+#    include <LibGfx/D3DSharedTexture.h>
+#    include <gpu/ganesh/d3d/GrD3DBackendSurface.h>
+#    include <gpu/ganesh/d3d/GrD3DTypes.h>
 #endif
 
 namespace Gfx {
@@ -36,7 +41,7 @@ struct PaintingSurface::Impl {
     RefPtr<Bitmap> bitmap;
 };
 
-#if defined(AK_OS_MACOS) || defined(USE_VULKAN_DMABUF_IMAGES)
+#if defined(AK_OS_MACOS) || defined(USE_VULKAN_DMABUF_IMAGES) || defined(USE_DIRECTX)
 static GrSurfaceOrigin origin_to_sk_origin(PaintingSurface::Origin origin)
 {
     switch (origin) {
@@ -91,6 +96,32 @@ NonnullRefPtr<PaintingSurface> PaintingSurface::create_from_vkimage(NonnullRefPt
     vulkan_image->ref();
     sk_sp<SkSurface> surface = SkSurfaces::WrapBackendRenderTarget(context->sk_context(), rt, origin_to_sk_origin(origin), vk_format_to_sk_color_type(vulkan_image->info.format),
         SkColorSpace::MakeSRGB(), nullptr, release_vulkan_image, vulkan_image.ptr());
+    return adopt_ref(*new PaintingSurface(make<Impl>(context, size, surface, nullptr)));
+}
+#endif
+
+#ifdef USE_DIRECTX
+static void release_d3d_texture(void* context)
+{
+    auto* texture = static_cast<D3DSharedTexture*>(context);
+    texture->unref();
+}
+
+ErrorOr<NonnullRefPtr<PaintingSurface>> PaintingSurface::create_from_d3d_texture(NonnullRefPtr<SkiaBackendContext> context, NonnullRefPtr<D3DSharedTexture> texture, Origin origin)
+{
+    auto size = texture->size();
+    GrD3DTextureResourceInfo info(nullptr, nullptr, D3D12_RESOURCE_STATE_COMMON, DXGI_FORMAT_R8G8B8A8_UNORM,
+        /* sampleCount */ 1, /* levelCount */ 1, /* sampleQualityLevel */ 0);
+    // NOTE: The positional resource argument of GrD3DTextureResourceInfo would adopt our reference, so attach it with retain() instead.
+    info.fResource.retain(texture->resource());
+    auto render_target = GrBackendRenderTargets::MakeD3D(size.width(), size.height(), info);
+    // Note, we're implicitly giving Skia a reference to the texture. It will eventually be released by the callback function,
+    // which is guaranteed to be invoked even if wrapping fails.
+    texture->ref();
+    sk_sp<SkSurface> surface = SkSurfaces::WrapBackendRenderTarget(context->sk_context(), render_target, origin_to_sk_origin(origin),
+        kRGBA_8888_SkColorType, SkColorSpace::MakeSRGB(), nullptr, release_d3d_texture, texture.ptr());
+    if (!surface)
+        return Error::from_string_literal("Failed to wrap shared Direct3D texture in a Skia surface");
     return adopt_ref(*new PaintingSurface(make<Impl>(context, size, surface, nullptr)));
 }
 #endif

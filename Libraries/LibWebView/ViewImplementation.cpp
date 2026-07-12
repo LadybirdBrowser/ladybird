@@ -2378,18 +2378,22 @@ NonnullRefPtr<Core::Promise<LexicalPath>> ViewImplementation::take_screenshot(Sc
 
     switch (type) {
     case ScreenshotType::Visible: {
-        Gfx::Bitmap const* visible_bitmap = nullptr;
+        RefPtr<Gfx::Bitmap> visible_bitmap;
         if (m_client_state.has_usable_bitmap) {
             VERIFY(m_client_state.front_bitmap.shared_image_buffer);
-            visible_bitmap = m_client_state.front_bitmap.shared_image_buffer->bitmap().ptr();
+            visible_bitmap = m_client_state.front_bitmap.shared_image_buffer->bitmap_if_present();
         } else if (m_backup_shared_image_buffer) {
-            visible_bitmap = m_backup_shared_image_buffer->bitmap().ptr();
+            visible_bitmap = m_backup_shared_image_buffer->bitmap_if_present();
         }
         if (visible_bitmap) {
-            if (auto result = save_screenshot(visible_bitmap); result.is_error())
+            if (auto result = save_screenshot(visible_bitmap.ptr()); result.is_error())
                 promise->reject(result.release_error());
             else
                 promise->resolve(result.release_value());
+        } else {
+            // GPU-shared backing stores have no CPU-visible pixels, so ask WebContent to paint a screenshot for us.
+            m_pending_screenshot = promise;
+            client().async_take_document_screenshot(page_id());
         }
         break;
     }

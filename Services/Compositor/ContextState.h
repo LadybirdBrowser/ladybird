@@ -127,7 +127,8 @@ public:
     bool should_shrink_backing_stores_after_resize() const;
     void schedule_backing_store_shrink(Function<void()>);
     void finish_window_resize();
-    Optional<BackingStoreManager::Publication> resize_backing_stores_if_needed(RefPtr<Gfx::SkiaBackendContext> const&);
+    Optional<BackingStoreManager::Publication> resize_backing_stores_if_needed(RefPtr<Gfx::SkiaBackendContext> const&, BackingStoreManager::GpuSharing);
+    void invalidate_backing_stores();
 
     bool set_display_metadata(Optional<u64> display_id, double refresh_rate);
     Optional<u64> display_id() const { return m_display_id; }

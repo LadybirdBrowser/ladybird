@@ -63,6 +63,13 @@ SharedImageBuffer::SharedImageBuffer(NonnullRefPtr<Bitmap> bitmap, LinuxDmaBufHa
 {
 }
 #    endif
+
+#    ifdef USE_DIRECTX
+SharedImageBuffer::SharedImageBuffer(WindowsD3DHandle&& d3d_handle)
+    : m_windows_d3d_handle(move(d3d_handle))
+{
+}
+#    endif
 #endif
 
 SharedImageBuffer SharedImageBuffer::create(IntSize size)
@@ -95,6 +102,16 @@ SharedImageBuffer SharedImageBuffer::import_from_shared_image(SharedImage shared
             (void)dmabuf;
             VERIFY_NOT_REACHED();
 #    endif
+        },
+        [](WindowsD3DHandle& d3d_handle) -> SharedImageBuffer {
+#    ifdef USE_DIRECTX
+            // NOTE: D3D12 default-heap textures cannot be mapped for CPU access, so unlike the
+            //       other backing types this buffer has no bitmap view of the pixels.
+            return SharedImageBuffer(move(d3d_handle));
+#    else
+            (void)d3d_handle;
+            VERIFY_NOT_REACHED();
+#    endif
         });
 #endif
 }
@@ -110,7 +127,7 @@ SharedImage SharedImageBuffer::export_shared_image() const
 #ifdef AK_OS_MACOS
     return SharedImage { m_iosurface_handle.create_mach_port() };
 #else
-    return SharedImage { ShareableBitmap { m_bitmap, ShareableBitmap::ConstructWithKnownGoodBitmap } };
+    return SharedImage { ShareableBitmap { bitmap(), ShareableBitmap::ConstructWithKnownGoodBitmap } };
 #endif
 }
 
