@@ -77,6 +77,11 @@ public:
         ++cancel_count;
     }
 
+    virtual void record_engagement(WebView::OmniboxEngagement engagement) override
+    {
+        engagements.append(move(engagement));
+    }
+
     void deliver(Vector<AutocompleteSuggestion> suggestions, AutocompleteResultKind result_kind)
     {
         VERIFY(!query_ids.is_empty());
@@ -90,6 +95,7 @@ public:
 
     Vector<String> queries;
     Vector<WebView::AutocompleteQueryID> query_ids;
+    Vector<WebView::OmniboxEngagement> engagements;
     size_t cancel_count { 0 };
 };
 
@@ -408,6 +414,67 @@ TEST_CASE(arrow_keys_walk_the_suggestions_and_enter_activates_the_choice)
 
     harness.omnibox.return_pressed();
     EXPECT_EQ(harness.commits.last(), "https://www.thev.example/"sv);
+}
+
+TEST_CASE(automatic_default_records_the_typed_input)
+{
+    Harness harness;
+    harness.begin_editing();
+
+    harness.press_key('t');
+    harness.provider->deliver({ history_row("https://www.thev.example/"sv), search_row("t"sv) }, AutocompleteResultKind::Final);
+    harness.omnibox.return_pressed();
+
+    EXPECT_EQ(harness.provider->engagements.size(), 1u);
+    EXPECT_EQ(harness.provider->engagements[0].input, "t"sv);
+    EXPECT_EQ(harness.provider->engagements[0].destination_kind, WebView::OmniboxDestinationKind::URL);
+    EXPECT_EQ(harness.provider->engagements[0].destination, "https://www.thev.example/"sv);
+    EXPECT(!harness.provider->engagements[0].was_explicit);
+}
+
+TEST_CASE(keyboard_choice_records_explicit_engagement)
+{
+    Harness harness;
+    harness.begin_editing();
+
+    harness.press_key('t');
+    harness.provider->deliver({ history_row("https://www.thev.example/"sv), search_row("t"sv) }, AutocompleteResultKind::Final);
+    EXPECT(harness.omnibox.select_next_suggestion());
+    harness.omnibox.return_pressed();
+
+    EXPECT_EQ(harness.provider->engagements.size(), 1u);
+    EXPECT_EQ(harness.provider->engagements[0].input, "t"sv);
+    EXPECT_EQ(harness.provider->engagements[0].destination_kind, WebView::OmniboxDestinationKind::Search);
+    EXPECT_EQ(harness.provider->engagements[0].destination, "t"sv);
+    EXPECT(harness.provider->engagements[0].was_explicit);
+}
+
+TEST_CASE(hover_preview_does_not_record_engagement)
+{
+    Harness harness;
+    harness.begin_editing();
+
+    harness.press_key('t');
+    harness.provider->deliver({ history_row("https://www.thev.example/"sv), history_row("https://odd.example/t"sv), search_row("t"sv) }, AutocompleteResultKind::Final);
+    harness.omnibox.suggestion_hovered(1);
+    harness.omnibox.return_pressed();
+
+    EXPECT_EQ(harness.commits.last(), "https://odd.example/t"sv);
+    EXPECT(harness.provider->engagements.is_empty());
+}
+
+TEST_CASE(verbatim_commit_records_the_unmodified_input)
+{
+    Harness harness;
+    harness.begin_editing("ladybird browser"sv);
+
+    harness.omnibox.return_pressed();
+
+    EXPECT_EQ(harness.provider->engagements.size(), 1u);
+    EXPECT_EQ(harness.provider->engagements[0].input, "ladybird browser"sv);
+    EXPECT_EQ(harness.provider->engagements[0].destination_kind, WebView::OmniboxDestinationKind::Search);
+    EXPECT_EQ(harness.provider->engagements[0].destination, "ladybird browser"sv);
+    EXPECT(!harness.provider->engagements[0].was_explicit);
 }
 
 TEST_CASE(a_user_chosen_row_wins_over_edited_text)

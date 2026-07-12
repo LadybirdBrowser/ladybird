@@ -188,11 +188,25 @@ static void expect_history_entries_can_be_removed(WebView::HistoryStore& store)
 
     store.record_visit(example_url, "Example"_string, UnixDateTime::from_seconds_since_epoch(10));
     store.record_visit(other_url, "Other"_string, UnixDateTime::from_seconds_since_epoch(20));
+    store.record_omnibox_engagement({
+        .input = "example"_string,
+        .destination_kind = WebView::OmniboxDestinationKind::URL,
+        .destination = example_url.serialize(),
+        .was_explicit = true,
+    });
+    store.record_omnibox_engagement({
+        .input = "other"_string,
+        .destination_kind = WebView::OmniboxDestinationKind::URL,
+        .destination = other_url.serialize(),
+        .was_explicit = true,
+    });
 
     store.remove_entry_for_url(example_url);
 
     EXPECT(!store.entry_for_url(example_url).has_value());
     EXPECT(store.entry_for_url(other_url).has_value());
+    EXPECT(store.omnibox_engagements("example"sv).is_empty());
+    EXPECT_EQ(store.omnibox_engagements("other"sv).size(), 1u);
 }
 
 static void expect_history_entries_for_same_site_can_be_removed(WebView::HistoryStore& store)
@@ -204,12 +218,19 @@ static void expect_history_entries_for_same_site_can_be_removed(WebView::History
     store.record_visit(example_url, "Example"_string, UnixDateTime::from_seconds_since_epoch(10));
     store.record_visit(subdomain_url, "Docs"_string, UnixDateTime::from_seconds_since_epoch(20));
     store.record_visit(other_url, "Ladybird"_string, UnixDateTime::from_seconds_since_epoch(30));
+    store.record_omnibox_engagement({
+        .input = "docs"_string,
+        .destination_kind = WebView::OmniboxDestinationKind::URL,
+        .destination = subdomain_url.serialize(),
+        .was_explicit = true,
+    });
 
     store.remove_entries_for_same_site(example_url);
 
     EXPECT(!store.entry_for_url(example_url).has_value());
     EXPECT(!store.entry_for_url(subdomain_url).has_value());
     EXPECT(store.entry_for_url(other_url).has_value());
+    EXPECT(store.omnibox_engagements("docs"sv).is_empty());
 }
 
 TEST_CASE(record_and_lookup_history_entries)

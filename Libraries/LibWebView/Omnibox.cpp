@@ -6,6 +6,7 @@
 
 #include <AK/StringBuilder.h>
 #include <LibWebView/Omnibox.h>
+#include <LibWebView/URL.h>
 
 namespace WebView {
 
@@ -29,6 +30,11 @@ public:
     virtual void cancel() override
     {
         m_autocomplete.cancel_pending_query();
+    }
+
+    virtual void record_engagement(OmniboxEngagement engagement) override
+    {
+        m_autocomplete.record_engagement(move(engagement));
     }
 
 private:
@@ -276,9 +282,9 @@ bool Omnibox::completion_is_suppressed() const
     return suppressed_query && *suppressed_query == m_query;
 }
 
-bool Omnibox::selection_is_user_choice() const
+bool Omnibox::selection_is_explicit() const
 {
-    return m_selection.has_value() && m_selection->origin == Selection::Origin::UserChoice;
+    return m_selection.has_value() && m_selection->origin == Selection::Origin::ExplicitChoice;
 }
 
 void Omnibox::received_suggestions(AutocompleteQueryID query_id, Vector<AutocompleteSuggestion> suggestions, AutocompleteResultKind)
@@ -293,11 +299,12 @@ void Omnibox::received_suggestions(AutocompleteQueryID query_id, Vector<Autocomp
     else
         selected_suggestion = update_completion_for_suggestions(suggestions);
 
-    // A selection that survives the refresh pointing at the same suggestion is still the user's
-    // deliberate choice; anything else the refresh picks is automatic.
-    Optional<String> user_chosen_text;
-    if (selection_is_user_choice() && m_selection->index < m_suggestions.size())
-        user_chosen_text = m_suggestions[m_selection->index].text;
+    Optional<String> previous_selection_text;
+    Optional<Selection::Origin> previous_selection_origin;
+    if (m_selection.has_value() && m_selection->index < m_suggestions.size()) {
+        previous_selection_text = m_suggestions[m_selection->index].text;
+        previous_selection_origin = m_selection->origin;
+    }
 
     m_popup_query_id = query_id;
     m_suggestions = move(suggestions);
@@ -305,8 +312,10 @@ void Omnibox::received_suggestions(AutocompleteQueryID query_id, Vector<Autocomp
     // The fresh selection is published to the chrome by the popup repaint below, not via
     // on_selection_change, so it is assigned directly.
     m_selection = selected_suggestion.map([&](auto index) {
-        auto is_user_choice = user_chosen_text.has_value() && m_suggestions[index].text == *user_chosen_text;
-        return Selection { index, is_user_choice ? Selection::Origin::UserChoice : Selection::Origin::Automatic };
+        auto origin = previous_selection_text.has_value() && m_suggestions[index].text == *previous_selection_text
+            ? *previous_selection_origin
+            : Selection::Origin::Automatic;
+        return Selection { index, origin };
     });
 
     // A previewed row that vanished from the refreshed rows must stop being displayed; the bar must not
@@ -392,18 +401,18 @@ void Omnibox::return_pressed()
         return;
 
     if (!m_popup_visible) {
-        commit(m_query);
+        commit_verbatim(m_query);
         return;
     }
 
-    if (selection_is_user_choice()) {
+    if (selection_is_explicit()) {
         activate_selected_suggestion();
         return;
     }
 
     // The user edited or deleted a completion, so submit the text as typed instead of the popup's
     // automatically selected row. Rows the user chose deliberately still win.
-    if (m_user_rejected_completion && !selection_is_user_choice()) {
+    if (m_user_rejected_completion && !selection_is_explicit()) {
         Optional<String> selected_text;
         if (m_popup_query_id == m_active_query_id && m_selection.has_value())
             selected_text = m_suggestions[m_selection->index].text;
@@ -415,7 +424,7 @@ void Omnibox::return_pressed()
         auto query = m_query;
         restore_query_display();
         close_popup();
-        commit(move(query));
+        commit_verbatim(move(query));
         return;
     }
 
@@ -429,7 +438,7 @@ void Omnibox::return_pressed()
     auto query = m_query;
     restore_query_display();
     close_popup();
-    commit(move(query));
+    commit_verbatim(move(query));
 }
 
 // The chrome dismissed the popup without a key press (for example a click elsewhere in the window).
@@ -447,7 +456,7 @@ Omnibox::EscapeAction Omnibox::escape_pressed()
     if (!m_is_editing || !m_popup_visible)
         return EscapeAction::EndEditing;
 
-    if (m_provenance == TextProvenance::InlineCompleted && !selection_is_user_choice())
+    if (m_provenance == TextProvenance::InlineCompleted && !selection_is_explicit())
         m_completion_suppression = m_query;
     restore_query_display();
 
@@ -488,7 +497,7 @@ bool Omnibox::select_adjacent_suggestion(StepDirection direction)
     else if (m_selection.has_value())
         index = (m_selection->index + step) % count;
 
-    highlight_suggestion(index);
+    highlight_suggestion(index, Selection::Origin::ExplicitChoice);
     return true;
 }
 
@@ -499,7 +508,7 @@ void Omnibox::suggestion_hovered(size_t suggestion_index)
     if (m_selection.has_value() && m_selection->index == suggestion_index)
         return;
 
-    highlight_suggestion(suggestion_index);
+    highlight_suggestion(suggestion_index, Selection::Origin::HoverPreview);
 }
 
 void Omnibox::suggestion_clicked(size_t suggestion_index)
@@ -507,14 +516,12 @@ void Omnibox::suggestion_clicked(size_t suggestion_index)
     if (!m_is_editing || suggestion_index >= m_suggestions.size())
         return;
 
-    commit_suggestion_text(m_suggestions[suggestion_index].text);
+    commit_suggestion(suggestion_index, true, true);
 }
 
-// Highlighting is always a deliberate act (arrow keys or hover); automatic row selection goes through
-// received_suggestions() instead.
-void Omnibox::highlight_suggestion(size_t suggestion_index)
+void Omnibox::highlight_suggestion(size_t suggestion_index, Selection::Origin origin)
 {
-    set_selection(Selection { suggestion_index, Selection::Origin::UserChoice });
+    set_selection(Selection { suggestion_index, origin });
 
     auto const& suggestion_text = m_suggestions[suggestion_index].text;
 
@@ -534,13 +541,31 @@ void Omnibox::highlight_suggestion(size_t suggestion_index)
 void Omnibox::activate_selected_suggestion()
 {
     if (m_selection.has_value()) {
-        commit_suggestion_text(m_suggestions[m_selection->index].text);
+        auto record_engagement = m_selection->origin != Selection::Origin::HoverPreview;
+        auto was_explicit = m_selection->origin == Selection::Origin::ExplicitChoice;
+        commit_suggestion(m_selection->index, record_engagement, was_explicit);
         return;
     }
 
     restore_query_display();
     close_popup();
-    commit(m_query);
+    commit_verbatim(m_query);
+}
+
+void Omnibox::commit_suggestion(size_t suggestion_index, bool should_record_engagement, bool was_explicit)
+{
+    auto suggestion = m_suggestions[suggestion_index];
+    if (should_record_engagement) {
+        m_provider->record_engagement({
+            .input = m_query,
+            .destination_kind = suggestion.source == AutocompleteSuggestionSource::Search
+                ? OmniboxDestinationKind::Search
+                : OmniboxDestinationKind::URL,
+            .destination = suggestion.text,
+            .was_explicit = was_explicit,
+        });
+    }
+    commit_suggestion_text(move(suggestion.text));
 }
 
 void Omnibox::commit_suggestion_text(String text)
@@ -550,6 +575,17 @@ void Omnibox::commit_suggestion_text(String text)
     m_query = text;
     set_display(text, {});
     close_popup();
+    commit(move(text));
+}
+
+void Omnibox::commit_verbatim(String text)
+{
+    m_provider->record_engagement({
+        .input = text,
+        .destination_kind = location_looks_like_url(text) ? OmniboxDestinationKind::URL : OmniboxDestinationKind::Search,
+        .destination = text,
+        .was_explicit = false,
+    });
     commit(move(text));
 }
 

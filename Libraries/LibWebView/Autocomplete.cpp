@@ -90,6 +90,8 @@ void Autocomplete::record_engagement(OmniboxEngagement engagement)
 {
     if (m_is_private == IsPrivate::Yes)
         return;
+    if (engagement.destination_kind == OmniboxDestinationKind::Search && !Application::settings().search_engine().has_value())
+        return;
     Application::autocomplete_service().record_engagement(move(engagement));
 }
 

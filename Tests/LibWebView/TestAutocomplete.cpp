@@ -122,6 +122,32 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         Core::EventLoop::current().spin_until([&]() { return saw_adaptive_result; });
     }
 
+    {
+        WebView::Autocomplete private_autocomplete { WebView::IsPrivate::Yes };
+        private_autocomplete.record_engagement({
+            .input = "privatealias"_string,
+            .destination_kind = WebView::OmniboxDestinationKind::URL,
+            .destination = "https://private.example/"_string,
+            .was_explicit = true,
+        });
+    }
+
+    auto private_query_completed = false;
+    {
+        WebView::Autocomplete autocomplete { WebView::IsPrivate::No };
+        autocomplete.on_autocomplete_query_complete = [&](auto, auto const& suggestions, WebView::AutocompleteResultKind kind) {
+            if (kind != WebView::AutocompleteResultKind::Final)
+                return;
+            VERIFY(!suggestions.contains([](auto const& suggestion) {
+                return suggestion.source == WebView::AutocompleteSuggestionSource::Adaptive;
+            }));
+            autocomplete.cancel_pending_query();
+            private_query_completed = true;
+        };
+        autocomplete.query_autocomplete_engine(3, "privatealias"_string);
+        Core::EventLoop::current().spin_until([&]() { return private_query_completed; });
+    }
+
     // A closed loopback port makes the request fail fast and deterministically, with no real network.
     // Its on_finish synchronously delivers the final result. A data: URL cannot be used because the request
     // server's DNS path requires a host.
@@ -141,7 +167,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         request_completed = true;
     };
 
-    autocomplete.query_autocomplete_engine(3, "test"_string);
+    autocomplete.query_autocomplete_engine(4, "test"_string);
     query_returned = true;
     Core::EventLoop::current().spin_until([&]() { return request_completed; });
 

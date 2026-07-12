@@ -398,6 +398,14 @@ ErrorOr<NonnullOwnPtr<HistoryStore>> HistoryStore::create(Database::Database& da
             destination_key ASC
         LIMIT ?3;
     )#"sv));
+    statements.delete_omnibox_engagements_for_url = TRY(database.prepare_statement(R"#(
+        DELETE FROM OmniboxEngagements
+        WHERE destination_kind = 0 AND destination_key = ?;
+    )#"sv));
+    statements.delete_omnibox_engagements_used_since = TRY(database.prepare_statement(R"#(
+        DELETE FROM OmniboxEngagements
+        WHERE last_used_time >= ?;
+    )#"sv));
 
     return adopt_own(*new HistoryStore { adopt_own<StorageImpl>(*new PersistedStorage { database, move(statements) }) });
 }
@@ -936,6 +944,10 @@ Vector<StoredOmniboxEngagement> HistoryStore::TransientStorage::omnibox_engageme
 void HistoryStore::TransientStorage::remove_entry_for_url(String const& url)
 {
     m_entries.remove(url);
+    m_omnibox_engagements.remove_all_matching([&](auto const& engagement) {
+        return engagement.destination_kind == OmniboxDestinationKind::URL
+            && normalize_omnibox_destination(engagement.destination, engagement.destination_kind) == url;
+    });
 }
 
 void HistoryStore::TransientStorage::remove_entries_for_same_site(StringView site_key)
@@ -943,12 +955,19 @@ void HistoryStore::TransientStorage::remove_entries_for_same_site(StringView sit
     m_entries.remove_all_matching([&](auto const&, auto const& entry) {
         return history_entry_matches_site_key(entry.url, site_key);
     });
+    m_omnibox_engagements.remove_all_matching([&](auto const& engagement) {
+        return engagement.destination_kind == OmniboxDestinationKind::URL
+            && history_entry_matches_site_key(engagement.destination, site_key);
+    });
 }
 
 void HistoryStore::TransientStorage::remove_entries_accessed_since(UnixDateTime since)
 {
     m_entries.remove_all_matching([&](auto const&, auto const& entry) {
         return entry.last_visited_time >= since;
+    });
+    m_omnibox_engagements.remove_all_matching([&](auto const& engagement) {
+        return engagement.last_used_time >= since;
     });
 }
 
@@ -1139,6 +1158,7 @@ Vector<StoredOmniboxEngagement> HistoryStore::PersistedStorage::omnibox_engageme
 void HistoryStore::PersistedStorage::remove_entry_for_url(String const& url)
 {
     m_database.execute_statement(m_statements.delete_entry, {}, url);
+    m_database.execute_statement(m_statements.delete_omnibox_engagements_for_url, {}, url);
 }
 
 void HistoryStore::PersistedStorage::remove_entries_for_same_site(StringView site_key)
@@ -1160,6 +1180,7 @@ void HistoryStore::PersistedStorage::remove_entries_for_same_site(StringView sit
 void HistoryStore::PersistedStorage::remove_entries_accessed_since(UnixDateTime since)
 {
     m_database.execute_statement(m_statements.delete_entries_accessed_since, {}, since);
+    m_database.execute_statement(m_statements.delete_omnibox_engagements_used_since, {}, since);
 }
 
 }

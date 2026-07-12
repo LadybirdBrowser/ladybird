@@ -132,11 +132,11 @@ intptr_t AutocompleteService::worker_main(Optional<ByteString> history_database_
             m_worker_condition.wait_while([&] {
                 return !m_stopping && m_pending_queries.is_empty() && !m_pending_bookmarks.has_value() && m_pending_engagements.is_empty();
             });
-            if (m_stopping)
+            if (m_stopping && m_pending_engagements.is_empty())
                 return 0;
-            if (m_pending_bookmarks.has_value())
+            if (!m_stopping && m_pending_bookmarks.has_value())
                 bookmark_update = m_pending_bookmarks.release_value();
-            if (!m_pending_queries.is_empty())
+            if (!m_stopping && !m_pending_queries.is_empty())
                 query = m_pending_queries.take_first();
             engagements = move(m_pending_engagements);
         }

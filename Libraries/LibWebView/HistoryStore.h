@@ -89,6 +89,8 @@ private:
         Database::StatementID all_urls { 0 };
         Database::StatementID upsert_omnibox_engagement { 0 };
         Database::StatementID search_omnibox_engagements { 0 };
+        Database::StatementID delete_omnibox_engagements_for_url { 0 };
+        Database::StatementID delete_omnibox_engagements_used_since { 0 };
     };
 
     class StorageImpl {

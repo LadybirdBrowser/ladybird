@@ -28,6 +28,7 @@ public:
 
     virtual void query(AutocompleteQueryID, String, size_t max_suggestions) = 0;
     virtual void cancel() = 0;
+    virtual void record_engagement(OmniboxEngagement) { }
 };
 
 // The state machine behind a browser location bar editing session.
@@ -110,13 +111,13 @@ private:
         RowPreview,
     };
 
-    // The selection carries its own origin, so a "user choice" verdict cannot outlive or predate the row
-    // it is about. A deliberate choice wins over m_user_rejected_completion on Enter and survives
-    // Escape's completion-preserving path.
+    // The selection carries its own origin, so an explicit-choice verdict cannot outlive or predate the
+    // row it is about. Hover previews remain distinct because merely hovering must not train ranking.
     struct Selection {
         enum class Origin {
             Automatic,
-            UserChoice,
+            ExplicitChoice,
+            HoverPreview,
         };
 
         size_t index { 0 };
@@ -137,9 +138,11 @@ private:
     void received_suggestions(AutocompleteQueryID, Vector<AutocompleteSuggestion>, AutocompleteResultKind);
     Optional<size_t> update_completion_for_suggestions(Vector<AutocompleteSuggestion> const&);
     bool select_adjacent_suggestion(StepDirection);
-    void highlight_suggestion(size_t suggestion_index);
+    void highlight_suggestion(size_t suggestion_index, Selection::Origin);
     void activate_selected_suggestion();
+    void commit_suggestion(size_t suggestion_index, bool record_engagement, bool was_explicit);
     void commit_suggestion_text(String);
+    void commit_verbatim(String);
     void adopt_display_text_as_query();
     void apply_completion(String suggestion_text, String completion_text);
     void apply_preview(String suggestion_text);
@@ -150,7 +153,7 @@ private:
     void abandon_popup_session();
     void set_selection(Optional<Selection>);
     void commit(String text);
-    bool selection_is_user_choice() const;
+    bool selection_is_explicit() const;
     bool completion_is_suppressed() const;
 
     NonnullOwnPtr<OmniboxSuggestionProvider> m_provider;
