@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    .ancestor {
+        width: 500px;
+    }
+    .victim {
+        float: left;
+        height: 50%;
+    }
+    .victim canvas {
+        display: block;
+        height: 100%;
+    }
+</style>
+<!--
+    The float's shrink-to-fit width is measured from its max-content width, which here depends on
+    the ancestor's height: the float's own height:50% resolves against the containing block height,
+    the canvas child's height:100% resolves against that, and the canvas 2:1 natural aspect ratio
+    transfers the height back into a width. Growing the ancestor's height must therefore also grow
+    the float's width. The reference subtree is identical but starts in the final state, so both
+    floats must end up with the same geometry.
+-->
+<div id="toggled" class="ancestor" style="height: 100px">
+    <div class="victim"><canvas width="100" height="50"></canvas></div>
+</div>
+<div id="reference" class="ancestor" style="height: 200px">
+    <div class="victim"><canvas width="100" height="50"></canvas></div>
+</div>
+<script>
+    test(() => {
+        const toggledVictim = document.querySelector("#toggled .victim");
+        const referenceVictim = document.querySelector("#reference .victim");
+
+        // NOTE: All measurements are taken before any output is printed, so that the layout runs
+        //       under test are not perturbed by DOM mutations from println().
+
+        // Force a layout with #toggled at height 100px: victim is 50px tall, canvas 100x50.
+        const before = `${toggledVictim.offsetWidth}x${toggledVictim.offsetHeight}`;
+
+        document.getElementById("toggled").style.height = "200px";
+
+        const after = `${toggledVictim.offsetWidth}x${toggledVictim.offsetHeight}`;
+        const reference = `${referenceVictim.offsetWidth}x${referenceVictim.offsetHeight}`;
+
+        println(`before toggle: ${before}`);
+        println(`after toggle:  ${after}`);
+        println(`reference:     ${reference}`);
+        if (after === reference)
+            println("PASS: toggled float matches from-scratch layout of the same state");
+        else
+            println("FAIL: toggled float differs from from-scratch layout of the same state");
+    });
+</script>

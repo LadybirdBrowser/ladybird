@@ -1,0 +1,4 @@
+before toggle: 100x50
+after toggle:  100x100
+reference:     200x100
+FAIL: toggled float differs from from-scratch layout of the same state
