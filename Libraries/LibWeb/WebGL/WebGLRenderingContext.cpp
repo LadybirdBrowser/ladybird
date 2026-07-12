@@ -88,6 +88,10 @@ Optional<RemoteWebGLContext> create_remote_webgl_context(HTML::HTMLCanvasElement
     if (!result.success)
         return {};
 
+    // NB: The display list must be re-recorded so its DrawCanvas command refers to the new remote context's
+    //     canvas id. Content updates alone don't invalidate the display list, so do it here.
+    canvas_element.set_needs_repaint();
+
     return RemoteWebGLContext { transport.release_nonnull(), move(result) };
 }
 
@@ -168,7 +172,10 @@ void WebGLRenderingContext::did_update_canvas_content()
 {
     m_canvas_element->set_canvas_content_dirty();
 
-    m_canvas_element->set_needs_repaint();
+    // NB: Don't invalidate the display list here: the recorded DrawCanvas command is unaffected by content
+    //     updates, and re-recording an identical display list would yield an empty damage rectangle. The new
+    //     content reaches the compositor through the canvas surface registry when the canvas is presented.
+    m_canvas_element->set_needs_repaint(InvalidateDisplayList::No);
 }
 
 Optional<WebGLContextAttributes> WebGLRenderingContext::get_context_attributes()

@@ -84,7 +84,10 @@ void WebGL2RenderingContext::did_update_canvas_content()
 {
     m_canvas_element->set_canvas_content_dirty();
 
-    m_canvas_element->set_needs_repaint();
+    // NB: Don't invalidate the display list here: the recorded DrawCanvas command is unaffected by content
+    //     updates, and re-recording an identical display list would yield an empty damage rectangle. The new
+    //     content reaches the compositor through the canvas surface registry when the canvas is presented.
+    m_canvas_element->set_needs_repaint(InvalidateDisplayList::No);
 }
 
 Optional<WebGLContextAttributes> WebGL2RenderingContext::get_context_attributes()
