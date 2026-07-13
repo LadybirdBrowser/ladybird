@@ -87,10 +87,13 @@ void DevToolsServer::unregister_actor(String const& name)
 
 ErrorOr<void> DevToolsServer::on_new_client()
 {
+    // The client must be accepted even when one is already active; a pending connection left in the listen backlog
+    // would cause the accept notifier to fire in a busy loop.
+    auto client = TRY(m_server->accept());
+
     if (m_connection)
         return Error::from_string_literal("Only one active DevTools connection is currently allowed");
 
-    auto client = TRY(m_server->accept());
     auto buffered_socket = TRY(Core::BufferedTCPSocket::create(move(client)));
 
     m_connection = Connection::create(move(buffered_socket));

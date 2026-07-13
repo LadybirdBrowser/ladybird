@@ -27,6 +27,7 @@ public:
     ~DevToolsServer();
 
     RefPtr<Connection>& connection() { return m_connection; }
+    bool has_active_connection() const { return m_connection; }
     DevToolsDelegate const& delegate() const { return m_delegate; }
     ActorRegistry const& actor_registry() const { return m_actor_registry; }
     Optional<u16> local_port() const;

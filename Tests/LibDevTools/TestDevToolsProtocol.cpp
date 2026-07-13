@@ -1734,6 +1734,20 @@ static size_t source_actor_count(DevTools::DevToolsServer const& server)
     return count;
 }
 
+TEST_CASE(devtools_server_reports_connection_state)
+{
+    TestSession session;
+    session.server = MUST(DevTools::DevToolsServer::create(session.delegate, 0));
+    EXPECT(!session.server->has_active_connection());
+
+    session.client = ProtocolClient::connect(session.loop, *session.server);
+    EXPECT(session.server->has_active_connection());
+
+    session.client.clear();
+    spin_until(session.loop, [&] { return !session.server->has_active_connection(); });
+    EXPECT(!session.server->has_active_connection());
+}
+
 static JsonObject get_frame_target(ProtocolClient& client, StringView tab_actor)
 {
     auto watcher_actor = actor_from(client.request(tab_actor, "getWatcher"sv), "actor"sv);
