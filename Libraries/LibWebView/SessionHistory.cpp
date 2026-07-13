@@ -8,6 +8,8 @@
 #include <AK/HashTable.h>
 #include <AK/NumericLimits.h>
 #include <AK/QuickSort.h>
+#include <LibIPC/Encoder.h>
+#include <LibIPC/Message.h>
 #include <LibWebView/SessionHistory.h>
 
 namespace WebView {
@@ -65,6 +67,19 @@ static bool entries_match(Vector<TraversableSessionHistory::Entry> const& a, Vec
     return true;
 }
 
+static constexpr u64 seed_ack_proof_offset_basis = 1469598103934665603ULL;
+static constexpr u64 seed_ack_proof_prime = 1099511628211ULL;
+
+static u64 compute_fnv1a_64(ReadonlyBytes bytes)
+{
+    auto hash = seed_ack_proof_offset_basis;
+    for (auto byte : bytes) {
+        hash ^= byte;
+        hash *= seed_ack_proof_prime;
+    }
+    return hash;
+}
+
 struct SessionHistoryEntryMutationResult {
     bool found { false };
     bool rejected { false };
@@ -75,6 +90,7 @@ static bool is_supported_current_entry_update_kind(Web::HTML::SessionHistoryEntr
     switch (update_kind) {
     case Web::HTML::SessionHistoryEntryUpdateKind::NavigationAPIState:
     case Web::HTML::SessionHistoryEntryUpdateKind::ScrollRestorationMode:
+    case Web::HTML::SessionHistoryEntryUpdateKind::ScrollPositionData:
     case Web::HTML::SessionHistoryEntryUpdateKind::DocumentStateReloadPending:
     case Web::HTML::SessionHistoryEntryUpdateKind::DocumentStatePopulation:
         return true;
@@ -100,6 +116,9 @@ static bool entry_matches_ignoring_targeted_field(TraversableSessionHistory::Ent
         break;
     case Web::HTML::SessionHistoryEntryUpdateKind::ScrollRestorationMode:
         expected_entry.scroll_restoration_mode = stored_entry.scroll_restoration_mode;
+        break;
+    case Web::HTML::SessionHistoryEntryUpdateKind::ScrollPositionData:
+        expected_entry.scroll_position_data = stored_entry.scroll_position_data;
         break;
     case Web::HTML::SessionHistoryEntryUpdateKind::DocumentStateReloadPending:
         expected_entry.document_state.reload_pending = stored_entry.document_state.reload_pending;
@@ -138,6 +157,9 @@ static void apply_targeted_current_entry_update(TraversableSessionHistory::Entry
         break;
     case Web::HTML::SessionHistoryEntryUpdateKind::ScrollRestorationMode:
         entry.scroll_restoration_mode = updated_entry.scroll_restoration_mode;
+        break;
+    case Web::HTML::SessionHistoryEntryUpdateKind::ScrollPositionData:
+        entry.scroll_position_data = updated_entry.scroll_position_data;
         break;
     case Web::HTML::SessionHistoryEntryUpdateKind::DocumentStateReloadPending:
         entry.document_state.reload_pending = updated_entry.document_state.reload_pending;
@@ -919,16 +941,47 @@ bool TraversableSessionHistory::update_current_entry_from_web_content(Web::HTML:
     return true;
 }
 
-void TraversableSessionHistory::did_seed_web_content_from_ui_process(size_t current_top_level_entry_index)
+TraversableSessionHistory::SeedAckProof TraversableSessionHistory::compute_seed_ack_proof(Vector<Entry> const& entries, Vector<i32> const& used_steps, size_t current_used_step_index, Entry const* current_entry_seed_descriptor)
 {
-    VERIFY(current_top_level_entry_index < m_entries.size());
+    auto normalized_entries = entries;
+    if (current_used_step_index < used_steps.size()) {
+        if (auto current_top_level_entry_index = top_level_entry_index_for_step(normalized_entries, used_steps[current_used_step_index]); current_top_level_entry_index.has_value()) {
+            // TEMPORARY: Preserve today's seed-ack contract while adding a compact proof. WebContent may synthesize
+            // default current-entry serialized state when the seed descriptor has no record, and the full snapshot
+            // validator still decides whether those differences are acceptable.
+            auto& current_entry = normalized_entries[*current_top_level_entry_index];
+            auto const& seed_entry = current_entry_seed_descriptor ? *current_entry_seed_descriptor : current_entry;
+            auto nested_histories = move(current_entry.document_state.nested_histories);
+            Web::HTML::SessionHistoryDocumentStateDescriptor document_state;
+            document_state.id = current_entry.document_state.id;
+            document_state.nested_histories = move(nested_histories);
+            current_entry.document_state = move(document_state);
+            if (seed_entry.classic_history_api_state.is_empty())
+                current_entry.classic_history_api_state = {};
+            if (seed_entry.navigation_api_state.is_empty())
+                current_entry.navigation_api_state = {};
+        }
+    }
+
+    IPC::MessageBuffer buffer;
+    IPC::Encoder encoder { buffer };
+    MUST(encoder.encode("WebView::SessionHistorySeedAckProof-v5"sv));
+    MUST(encoder.encode(normalized_entries));
+    MUST(encoder.encode(used_steps));
+    MUST(encoder.encode(current_used_step_index));
+    return compute_fnv1a_64(buffer.data().span());
+}
+
+void TraversableSessionHistory::record_web_content_seeded_from_ui_process(i32 current_step)
+{
+    VERIFY(m_used_steps.contains_slow(current_step));
     m_web_content_known_entries = m_entries;
     m_web_content_known_used_steps = m_used_steps;
-    m_web_content_current_step = m_entries[current_top_level_entry_index].step;
+    m_web_content_current_step = current_step;
     m_web_content_uses_ui_step_coordinates = true;
 }
 
-bool TraversableSessionHistory::did_seed_web_content_from_ui_process(Vector<Entry> entries, Vector<i32> used_steps, size_t current_used_step_index)
+bool TraversableSessionHistory::web_content_seed_ack_matches_current_mirror(Vector<Entry> const& entries, Vector<i32> const& used_steps, size_t current_used_step_index) const
 {
     if (m_entries.is_empty() || entries.is_empty() || used_steps.is_empty() || current_used_step_index >= used_steps.size() || !entries_are_valid(entries) || !steps_are_valid(used_steps) || !entries_and_used_steps_are_consistent(entries, used_steps))
         return false;
@@ -950,10 +1003,6 @@ bool TraversableSessionHistory::did_seed_web_content_from_ui_process(Vector<Entr
     if (!seed_ack_entries_match(m_entries, entries, current_unknown_entry_index))
         return false;
 
-    m_web_content_known_entries = m_entries;
-    m_web_content_known_used_steps = m_used_steps;
-    m_web_content_current_step = used_steps[current_used_step_index];
-    m_web_content_uses_ui_step_coordinates = true;
     return true;
 }
 

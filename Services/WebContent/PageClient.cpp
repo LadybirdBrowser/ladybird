@@ -549,12 +549,12 @@ void PageClient::page_did_middle_click_link(URL::URL const& url, ByteString cons
     client().async_did_middle_click_link(m_id, url, target, modifiers);
 }
 
-void PageClient::page_did_start_loading(Optional<Utf16String> const& navigation_id, URL::URL const& url, Web::HTML::DocumentResource document_resource, bool is_redirect, Web::Bindings::NavigationHistoryBehavior history_handling)
+void PageClient::page_did_start_loading(Optional<Utf16String> const& navigation_id, URL::URL const& url, Web::HTML::DocumentResource document_resource, Web::HTML::CrossProcessId document_state_id, bool is_redirect, Web::Bindings::NavigationHistoryBehavior history_handling)
 {
     if (m_webdriver)
         m_webdriver->page_did_start_loading({}, url);
 
-    client().async_did_start_loading(m_id, navigation_id, url, move(document_resource), is_redirect, history_handling);
+    client().async_did_start_loading(m_id, navigation_id, url, move(document_resource), document_state_id, is_redirect, history_handling);
 }
 
 void PageClient::page_did_cancel_loading(Optional<Utf16String> const& navigation_id, URL::URL const& url)

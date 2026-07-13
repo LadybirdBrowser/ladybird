@@ -1339,6 +1339,8 @@ static StringView session_history_entry_update_kind_to_string(Web::HTML::Session
         return "navigation-api-state"sv;
     case Web::HTML::SessionHistoryEntryUpdateKind::ScrollRestorationMode:
         return "scroll-restoration-mode"sv;
+    case Web::HTML::SessionHistoryEntryUpdateKind::ScrollPositionData:
+        return "scroll-position-data"sv;
     case Web::HTML::SessionHistoryEntryUpdateKind::DocumentStateReloadPending:
         return "document-state-reload-pending"sv;
     case Web::HTML::SessionHistoryEntryUpdateKind::DocumentStatePopulation:
@@ -1515,13 +1517,13 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
         client().async_did_connect_devtools_client(page_id());
 }
 
-void ViewImplementation::did_start_navigation(URL::URL const& url, Web::HTML::DocumentResource document_resource, bool is_redirect, Web::Bindings::NavigationHistoryBehavior history_handling)
+void ViewImplementation::did_start_navigation(URL::URL const& url, Web::HTML::DocumentResource document_resource, Web::HTML::CrossProcessId document_state_id, bool is_redirect, Web::Bindings::NavigationHistoryBehavior history_handling)
 {
     set_loading_state(true);
     if (m_should_suppress_history_for_next_load || m_should_suppress_history_for_current_load)
         return;
 
-    auto result = m_top_level_traversable.did_start_navigation(url, move(document_resource), is_redirect, history_handling, m_is_showing_crash_page);
+    auto result = m_top_level_traversable.did_start_navigation(url, move(document_resource), document_state_id, is_redirect, history_handling, m_is_showing_crash_page);
     if (result.did_clear_crash_page)
         m_is_showing_crash_page = false;
     if (result.should_update_webdriver_pending_navigation_url && m_webdriver_pending_navigation_url.has_value())
@@ -1793,8 +1795,9 @@ void ViewImplementation::seed_web_content_session_history_from_ui_process(AllowC
             history_log_entries(seed->entries, seed->current_top_level_entry_index));
     }
 
+    auto expected_ack_proof = seed->expected_ack_proof;
     client().async_set_top_level_session_history(page_id(), move(seed->entries), seed->current_top_level_entry_index, seed->allow_current_entry_reconstruction);
-    m_top_level_traversable.did_send_web_content_session_history_seed();
+    m_top_level_traversable.did_send_web_content_session_history_seed(expected_ack_proof);
     update_navigation_action_state();
     dump_session_history("sent-webcontent-session-history-seed"sv);
 }
@@ -1840,19 +1843,20 @@ NonnullRefPtr<Core::Promise<Empty>> ViewImplementation::reset_session_history_fo
     return *m_pending_session_history_reset_for_testing;
 }
 
-void ViewImplementation::did_set_top_level_session_history(Badge<WebContentClient>, bool accepted, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index)
+void ViewImplementation::did_set_top_level_session_history(Badge<WebContentClient>, bool accepted, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index, TraversableSessionHistory::SeedAckProof seed_ack_proof)
 {
     if (history_debug_enabled()) {
-        dbgln("[History] UI received WebContent session history seed ack page={} pid={} accepted={} current_used_step={} entries={} used_steps={}",
+        dbgln("[History] UI received WebContent session history seed ack page={} pid={} accepted={} current_used_step={} proof={} entries={} used_steps={}",
             page_id(),
             client().pid(),
             accepted,
             current_used_step_index,
+            seed_ack_proof,
             history_log_entries(entries),
             history_log_steps(used_steps, current_used_step_index));
     }
 
-    auto ack = m_top_level_traversable.did_receive_web_content_session_history_seed_ack(accepted, move(entries), move(used_steps), current_used_step_index, m_url);
+    auto ack = m_top_level_traversable.did_receive_web_content_session_history_seed_ack(accepted, move(entries), move(used_steps), current_used_step_index, seed_ack_proof, m_url);
     if (ack.ignored) {
         dump_session_history(ack.dump_reason);
         return;

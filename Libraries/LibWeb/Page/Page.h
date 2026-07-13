@@ -499,9 +499,10 @@ public:
     virtual void page_did_request_minimize_window() { }
     virtual void page_did_request_fullscreen_window() { }
     virtual void page_did_request_exit_fullscreen() { }
-    virtual void page_did_start_loading(Optional<Utf16String> const&, URL::URL const&, HTML::DocumentResource document_resource, bool is_redirect, Bindings::NavigationHistoryBehavior history_handling = Bindings::NavigationHistoryBehavior::Auto)
+    virtual void page_did_start_loading(Optional<Utf16String> const&, URL::URL const&, HTML::DocumentResource document_resource, HTML::CrossProcessId document_state_id, bool is_redirect, Bindings::NavigationHistoryBehavior history_handling = Bindings::NavigationHistoryBehavior::Auto)
     {
         (void)document_resource;
+        (void)document_state_id;
         (void)is_redirect;
         (void)history_handling;
     }

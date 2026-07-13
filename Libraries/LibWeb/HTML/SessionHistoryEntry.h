@@ -40,6 +40,7 @@ enum class ScrollRestorationMode {
 enum class SessionHistoryEntryUpdateKind : u8 {
     NavigationAPIState,
     ScrollRestorationMode,
+    ScrollPositionData,
     DocumentStateReloadPending,
     DocumentStatePopulation,
 };

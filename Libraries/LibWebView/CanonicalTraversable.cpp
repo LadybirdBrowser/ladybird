@@ -349,7 +349,7 @@ WebContentSessionHistoryUpdateResult CanonicalTraversable::adopt_web_content_ses
     return update;
 }
 
-WebContentSessionHistorySeedAckResult CanonicalTraversable::did_receive_web_content_session_history_seed_ack(bool accepted, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index, URL::URL const& current_url)
+WebContentSessionHistorySeedAckResult CanonicalTraversable::did_receive_web_content_session_history_seed_ack(bool accepted, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index, TraversableSessionHistory::SeedAckProof seed_ack_proof, URL::URL const& current_url)
 {
     if (!m_pending_web_content_session_history_seed.waiting_for_ack)
         return { .ignored = true, .dump_reason = "ignored-webcontent-session-history-seed-ack"sv };
@@ -375,11 +375,22 @@ WebContentSessionHistorySeedAckResult CanonicalTraversable::did_receive_web_cont
         return result;
     }
 
-    if (!m_session_history.did_seed_web_content_from_ui_process(move(entries), move(used_steps), current_used_step_index)) {
+    auto expected_ack_proof = m_pending_web_content_session_history_seed.expected_ack_proof;
+    Optional<i32> acknowledged_current_step;
+    if (current_used_step_index < used_steps.size())
+        acknowledged_current_step = used_steps[current_used_step_index];
+
+    auto ack_snapshot_matches_current_mirror = m_session_history.web_content_seed_ack_matches_current_mirror(entries, used_steps, current_used_step_index);
+    auto ack_proof_matches_expected_seed = expected_ack_proof.has_value()
+        && expected_ack_proof->value == seed_ack_proof
+        && acknowledged_current_step.has_value()
+        && *acknowledged_current_step == expected_ack_proof->current_step;
+    if (!ack_snapshot_matches_current_mirror || !ack_proof_matches_expected_seed) {
         if (m_pending_web_content_session_history_seed.should_reseed_after_current_history_load) {
             m_pending_web_content_session_history_seed.waiting_for_ack = false;
             m_pending_web_content_session_history_seed.should_send_entries = true;
             m_pending_web_content_session_history_seed.ignore_updates_until_seed = true;
+            m_pending_web_content_session_history_seed.expected_ack_proof.clear();
             m_current_web_content_session_history_matches_mirror = false;
             result.dump_reason = "webcontent-session-history-preload-seed-ack-mismatch"sv;
             return result;
@@ -393,7 +404,10 @@ WebContentSessionHistorySeedAckResult CanonicalTraversable::did_receive_web_cont
         return result;
     }
 
+    m_session_history.record_web_content_seeded_from_ui_process(expected_ack_proof->current_step);
+
     m_pending_web_content_session_history_seed.waiting_for_ack = false;
+    m_pending_web_content_session_history_seed.expected_ack_proof.clear();
     if (m_pending_web_content_session_history_seed.should_reseed_after_current_history_load) {
         m_pending_web_content_session_history_seed.should_send_entries = true;
         m_pending_web_content_session_history_seed.ignore_updates_until_seed = true;
@@ -422,7 +436,7 @@ WebContentSessionHistorySeedAckResult CanonicalTraversable::did_receive_web_cont
     return result;
 }
 
-NavigationStartResult CanonicalTraversable::did_start_navigation(URL::URL const& url, Web::HTML::DocumentResource document_resource, bool is_redirect, Web::Bindings::NavigationHistoryBehavior history_handling, bool is_showing_crash_page)
+NavigationStartResult CanonicalTraversable::did_start_navigation(URL::URL const& url, Web::HTML::DocumentResource document_resource, Web::HTML::CrossProcessId document_state_id, bool is_redirect, Web::Bindings::NavigationHistoryBehavior history_handling, bool is_showing_crash_page)
 {
     if (m_session_history_entry_url_loading_from_ui_process.has_value()) {
         if (*m_session_history_entry_url_loading_from_ui_process != url)
@@ -450,7 +464,7 @@ NavigationStartResult CanonicalTraversable::did_start_navigation(URL::URL const&
     }
 
     if (is_redirect) {
-        m_session_history.replace_current_entry_url(url, allocate_ui_process_document_state_id());
+        m_session_history.replace_current_entry_url(url, document_state_id);
         if (m_pending_session_history_navigation.has_value())
             m_pending_session_history_navigation->url = url;
         m_current_web_content_session_history_matches_mirror = false;
@@ -467,12 +481,12 @@ NavigationStartResult CanonicalTraversable::did_start_navigation(URL::URL const&
             m_pending_session_history_navigation.clear();
 
         if (history_handling == Web::Bindings::NavigationHistoryBehavior::Replace) {
-            m_session_history.replace_current_entry(url, allocate_ui_process_document_state_id(), move(document_resource));
+            m_session_history.replace_current_entry(url, document_state_id, move(document_resource));
             m_current_web_content_session_history_matches_mirror = false;
             return { .dump_reason = "did-start-navigation-replace-current-url"sv, .should_update_navigation_action_state = true, .did_clear_crash_page = is_showing_crash_page };
         }
         if (history_handling == Web::Bindings::NavigationHistoryBehavior::Push) {
-            m_session_history.navigate(url, allocate_ui_process_document_state_id(), move(document_resource));
+            m_session_history.navigate(url, document_state_id, move(document_resource));
             m_current_web_content_session_history_matches_mirror = false;
             return { .dump_reason = "did-start-navigation-push-current-url"sv, .should_update_navigation_action_state = true, .did_clear_crash_page = is_showing_crash_page };
         }
@@ -484,9 +498,9 @@ NavigationStartResult CanonicalTraversable::did_start_navigation(URL::URL const&
     else
         m_pending_session_history_navigation.clear();
     if (history_handling == Web::Bindings::NavigationHistoryBehavior::Replace)
-        m_session_history.replace_current_entry(url, allocate_ui_process_document_state_id(), move(document_resource));
+        m_session_history.replace_current_entry(url, document_state_id, move(document_resource));
     else
-        m_session_history.navigate(url, allocate_ui_process_document_state_id(), move(document_resource));
+        m_session_history.navigate(url, document_state_id, move(document_resource));
     m_current_web_content_session_history_matches_mirror = false;
     return { .dump_reason = "did-start-navigation"sv, .should_update_navigation_action_state = true, .did_clear_crash_page = is_showing_crash_page };
 }
@@ -765,18 +779,34 @@ Optional<WebContentSessionHistorySeed> CanonicalTraversable::prepare_web_content
     auto allow_reconstructing_current_entry = is_restoring_traversal_target
         || m_pending_web_content_session_history_seed.step_after_loading_top_level_entry.has_value()
         || allow_current_entry_reconstruction;
+    auto used_steps = m_session_history.used_steps();
+    auto current_top_level_step = entries[*current_top_level_entry_index].step;
+    auto current_used_step_index = used_steps.find_first_index(current_top_level_step);
+    if (!current_used_step_index.has_value()) {
+        abandon_pending_web_content_session_history_seed();
+        m_current_web_content_session_history_matches_mirror = false;
+        m_session_history.forget_web_content_state();
+        return {};
+    }
+
+    WebContentSessionHistorySeedAckProof expected_ack_proof {
+        .value = TraversableSessionHistory::compute_seed_ack_proof(entries, used_steps, *current_used_step_index),
+        .current_step = current_top_level_step,
+    };
 
     return WebContentSessionHistorySeed {
         .entries = move(entries),
         .current_top_level_entry_index = *current_top_level_entry_index,
+        .expected_ack_proof = expected_ack_proof,
         .allow_current_entry_reconstruction = allow_reconstructing_current_entry,
     };
 }
 
-void CanonicalTraversable::did_send_web_content_session_history_seed()
+void CanonicalTraversable::did_send_web_content_session_history_seed(WebContentSessionHistorySeedAckProof expected_ack_proof)
 {
     m_pending_web_content_session_history_seed.waiting_for_ack = true;
     m_pending_web_content_session_history_seed.should_send_entries = false;
+    m_pending_web_content_session_history_seed.expected_ack_proof = expected_ack_proof;
 }
 
 bool CanonicalTraversable::prepare_to_restore_current_session_history_entry_from_ui_process()

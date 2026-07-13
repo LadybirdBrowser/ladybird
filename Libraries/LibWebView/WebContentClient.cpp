@@ -587,7 +587,7 @@ void WebContentClient::maybe_record_history_visit_for_current_load(u64 page_id, 
     m_history_recorded_urls_for_current_load.set(page_id, normalized_url.release_value());
 }
 
-void WebContentClient::did_start_loading(u64 page_id, Optional<Utf16String> navigation_id, URL::URL url, Web::HTML::DocumentResource document_resource, bool is_redirect, Web::Bindings::NavigationHistoryBehavior history_handling)
+void WebContentClient::did_start_loading(u64 page_id, Optional<Utf16String> navigation_id, URL::URL url, Web::HTML::DocumentResource document_resource, Web::HTML::CrossProcessId document_state_id, bool is_redirect, Web::Bindings::NavigationHistoryBehavior history_handling)
 {
     if (auto process = WebView::Application::the().find_process(m_process_handle.pid); process.has_value())
         process->set_title(OptionalNone {});
@@ -606,7 +606,7 @@ void WebContentClient::did_start_loading(u64 page_id, Optional<Utf16String> navi
         view->m_loading_url = url;
         view->m_should_suppress_history_for_current_load = view->m_should_suppress_history_for_next_load;
         view->m_should_suppress_history_for_next_load = false;
-        view->did_start_navigation(url, move(document_resource), is_redirect, history_handling);
+        view->did_start_navigation(url, move(document_resource), document_state_id, is_redirect, history_handling);
 
         view->set_url({}, url);
         view->set_title({}, Utf16String::from_utf8(url.serialize()));
@@ -1832,10 +1832,10 @@ Messages::WebContentClient::DidUpdateSessionHistoryAndRequestUiProcessSessionHis
     return { "{}"_string };
 }
 
-void WebContentClient::did_set_top_level_session_history(u64 page_id, bool accepted, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index)
+void WebContentClient::did_set_top_level_session_history(u64 page_id, bool accepted, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index, u64 seed_ack_proof)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
-        view->did_set_top_level_session_history({}, accepted, move(entries), move(used_steps), current_used_step_index);
+        view->did_set_top_level_session_history({}, accepted, move(entries), move(used_steps), current_used_step_index, seed_ack_proof);
 }
 
 void WebContentClient::did_traverse_the_history_to_step(u64 page_id, i32 step, bool step_was_available, Web::HTML::HistoryStepResult result)

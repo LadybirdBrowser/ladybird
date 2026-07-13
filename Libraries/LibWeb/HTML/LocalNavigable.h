@@ -121,7 +121,11 @@ public:
     RefPtr<SessionHistoryEntry> get_the_target_history_entry(int target_step) const;
     RefPtr<SessionHistoryEntry> get_the_target_history_entry_if_present(int target_step) const;
 
-    void save_persisted_state_to_active_session_history_entry();
+    enum class ReportCurrentEntryUpdate : u8 {
+        No,
+        Yes,
+    };
+    void save_persisted_state_to_active_session_history_entry(ReportCurrentEntryUpdate = ReportCurrentEntryUpdate::Yes);
     void restore_persisted_state_from_session_history_entry(SessionHistoryEntry const&);
     void restore_scroll_position_data(SessionHistoryEntry const&);
 
