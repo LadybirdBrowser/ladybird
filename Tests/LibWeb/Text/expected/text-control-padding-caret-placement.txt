@@ -1,0 +1,16 @@
+textarea LTR, top padding: 0
+textarea LTR, bottom padding: 6
+textarea LTR, leading padding: 0
+textarea LTR, trailing padding: 6
+input LTR, top padding: 0
+input LTR, bottom padding: 6
+input LTR, leading padding: 0
+input LTR, trailing padding: 6
+textarea RTL, top padding: 0
+textarea RTL, bottom padding: 6
+textarea RTL, leading padding: 0
+textarea RTL, trailing padding: 6
+input RTL, top padding: 0
+input RTL, bottom padding: 6
+input RTL, leading padding: 0
+input RTL, trailing padding: 6

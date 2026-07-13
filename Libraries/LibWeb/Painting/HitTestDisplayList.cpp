@@ -708,6 +708,18 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_for_line(CaretLine co
         && (inline_coordinate < inline_axis_start(line.rect, writing_mode) || inline_coordinate >= inline_axis_end(line.rect, writing_mode)))
         return caret_position_for_item(item_at_line_edge(CaretPositionType::After), local_point, CaretPositionType::After);
 
+    // Points past either inline edge resolve to the corresponding logical line edge. This also accounts for a
+    // reversed inline axis, where the logical start is the physically trailing edge.
+    if (inline_coordinate < inline_axis_start(line.rect, writing_mode)) {
+        auto type = inline_axis_is_reverse ? CaretPositionType::After : CaretPositionType::Before;
+        return caret_position_for_item(item_at_line_edge(type), local_point, type);
+    }
+
+    if (inline_coordinate >= inline_axis_end(line.rect, writing_mode)) {
+        auto type = inline_axis_is_reverse ? CaretPositionType::Before : CaretPositionType::After;
+        return caret_position_for_item(item_at_line_edge(type), local_point, type);
+    }
+
     Optional<size_t> closest_item_index;
     auto closest_block_distance = CSSPixels::max();
     auto closest_inline_distance = CSSPixels::max();

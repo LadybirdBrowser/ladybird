@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    input,
+    textarea {
+        box-sizing: border-box;
+        display: block;
+        width: 300px;
+        height: 60px;
+        padding: 15px 30px;
+        border: 1px solid;
+        font: 16px/20px monospace;
+        resize: none;
+    }
+</style>
+<textarea>abcdef</textarea>
+<input value="abcdef">
+<textarea dir="rtl">אבגדהו</textarea>
+<input dir="rtl" value="אבגדהו">
+<script>
+test(() => {
+    const clickAndReport = (control, label, x, y) => {
+        control.focus();
+        control.setSelectionRange(2, 2);
+        internals.click(x, y);
+        println(`${label}: ${control.selectionStart}`);
+    };
+
+    const testControl = (control, label) => {
+        const rect = control.getBoundingClientRect();
+        const lineCenterY = rect.top + 26;
+
+        clickAndReport(control, `${label}, top padding`, rect.left + rect.width / 2, rect.top + 5);
+        clickAndReport(control, `${label}, bottom padding`, rect.left + rect.width / 2, rect.bottom - 5);
+
+        if (control.dir === "rtl") {
+            clickAndReport(control, `${label}, leading padding`, rect.right - 5, lineCenterY);
+            clickAndReport(control, `${label}, trailing padding`, rect.left + 5, lineCenterY);
+        } else {
+            clickAndReport(control, `${label}, leading padding`, rect.left + 5, lineCenterY);
+            clickAndReport(control, `${label}, trailing padding`, rect.right - 5, lineCenterY);
+        }
+    };
+
+    const controls = document.querySelectorAll("textarea, input");
+    testControl(controls[0], "textarea LTR");
+    testControl(controls[1], "input LTR");
+    testControl(controls[2], "textarea RTL");
+    testControl(controls[3], "input RTL");
+});
+</script>

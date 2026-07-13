@@ -2091,7 +2091,18 @@ Optional<Painting::CaretPosition> EventHandler::prepare_mouse_selection(DOM::Doc
     // NB: Now we can do selection with a caret-position hit test. The pre-focus hit node is only preferred while it
     //     is still connected; focus handlers may have replaced it (e.g. an editor placeholder swapped for the real
     //     editing host), in which case the fresh hit test result points at the replacement.
-    auto caret_position = document.caret_position_from_point_for_selection_start(visual_viewport_position);
+    // NB: Text control padding belongs to the host element, while the selectable text lives in its user-agent shadow
+    //     tree. Constrain the hit test to that text so padding clicks snap to its closest caret position.
+    Optional<Painting::CaretPosition> caret_position;
+    if (auto* text_control = as_if<HTML::FormAssociatedTextControlElement>(document.focused_area().ptr()); text_control && editable_hit_node_before_focus) {
+        auto& text_control_element = text_control->text_control_to_html_element();
+        if (text_control_element.is_shadow_including_inclusive_ancestor_of(*editable_hit_node_before_focus)) {
+            if (auto selection_scope = text_control->mouse_selection_scope())
+                caret_position = document.caret_position_from_point_for_selection(visual_viewport_position, selection_scope);
+        }
+    }
+    if (!caret_position.has_value())
+        caret_position = document.caret_position_from_point_for_selection_start(visual_viewport_position);
     if (editable_hit_node_before_focus && editable_hit_node_before_focus->is_connected() && editing_host_before_focus && should_use_caret_position_from_editable_hit_node(caret_position, *editable_hit_node_before_focus, *editing_host_before_focus)) {
         if (auto caret_position_from_hit_node = caret_position_from_editable_hit_node(*editable_hit_node_before_focus); caret_position_from_hit_node.has_value())
             caret_position = caret_position_from_hit_node;
