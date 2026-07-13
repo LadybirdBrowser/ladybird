@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        font: 20px SerenitySans, sans-serif;
+    }
+
+    .case {
+        margin-bottom: 20px;
+    }
+
+    boxless {
+        display: contents;
+    }
+</style>
+
+<div class="case" id="control-case">
+    <span id="controlAnchor">control anchor</span>
+    <boxless><button id="controlTarget">control target</button></boxless>
+</div>
+
+<div class="case" id="none-case">
+    <span id="noneAnchor">none anchor</span>
+    <boxless style="user-select: none">
+        <boxless><span id="noneTarget">none target</span></boxless>
+    </boxless>
+</div>
+
+<div class="case" id="all-case">
+    <span id="allAnchor">all anchor</span>
+    <boxless style="user-select: all">
+        <boxless><span id="allTarget">all target</span></boxless>
+        <span>all sibling</span>
+    </boxless>
+</div>
+
+<div class="case" id="contain-entry-case">
+    <span id="containEntryAnchor">contain entry anchor</span>
+    <boxless style="user-select: contain">
+        <span id="containEntryTarget">contain entry target</span>
+    </boxless>
+</div>
+
+<div class="case" id="contain-exit-case">
+    <boxless style="user-select: contain">
+        <span id="containExitAnchor">contain exit anchor</span>
+        <span>contain sibling</span>
+    </boxless>
+    <span id="containExitTarget">contain exit target</span>
+</div>
+
+<div class="case" id="slot-case">
+    <span id="slotAnchor">slot anchor</span>
+    <span id="slotHost">
+        <template shadowrootmode="open">
+            <slot style="user-select: none"></slot>
+        </template>
+        <span id="slotTarget">slot target</span>
+    </span>
+</div>
+
+<script>
+    function pointInText(element, text, offset) {
+        const node = [...element.childNodes].find(node => node.nodeType === Node.TEXT_NODE && node.data.includes(text));
+        const start = node.data.indexOf(text) + offset;
+        const range = document.createRange();
+        range.setStart(node, start);
+        range.setEnd(node, start + 1);
+        const rect = range.getBoundingClientRect();
+        return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+    }
+
+    function dragSelection(anchor, anchorText, target, targetText) {
+        getSelection().removeAllRanges();
+        const start = pointInText(anchor, anchorText, 1);
+        const end = pointInText(target, targetText, targetText.length - 2);
+        internals.mouseDown(start.x, start.y);
+        internals.mouseMove(end.x, end.y);
+        internals.mouseUp(end.x, end.y);
+        return getSelection().toString();
+    }
+
+    test(() => {
+        document.body.offsetWidth;
+
+        let selection = dragSelection(controlAnchor, "control anchor", controlTarget, "control target");
+        println(`control selected anchor: ${selection.includes("ontrol anchor")}`);
+        println(`control excluded target: ${!selection.includes("control target")}`);
+
+        selection = dragSelection(noneAnchor, "none anchor", noneTarget, "none target");
+        println(`none selected anchor: ${selection.includes("one anchor")}`);
+        println(`none excluded target: ${!selection.includes("none target")}`);
+
+        selection = dragSelection(allAnchor, "all anchor", allTarget, "all target");
+        println(`all selected target: ${selection.includes("all target")}`);
+        println(`all selected sibling: ${selection.includes("all sibling")}`);
+
+        selection = dragSelection(containEntryAnchor, "contain entry anchor", containEntryTarget, "contain entry target");
+        println(`contain entry selected anchor: ${selection.includes("ontain entry anchor")}`);
+        println(`contain entry excluded target: ${!selection.includes("contain entry target")}`);
+
+        selection = dragSelection(containExitAnchor, "contain exit anchor", containExitTarget, "contain exit target");
+        println(`contain exit selected anchor: ${selection.includes("ontain exit anchor")}`);
+        println(`contain exit selected sibling: ${selection.includes("contain sibling")}`);
+        println(`contain exit excluded target: ${!selection.includes("contain exit target")}`);
+
+        selection = dragSelection(slotAnchor, "slot anchor", slotTarget, "slot target");
+        println(`slot selected anchor: ${selection.includes("lot anchor")}`);
+        println(`slot excluded target: ${!selection.includes("slot target")}`);
+    });
+</script>

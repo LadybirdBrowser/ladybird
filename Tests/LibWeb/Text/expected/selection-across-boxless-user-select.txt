@@ -1,0 +1,13 @@
+control selected anchor: true
+control excluded target: true
+none selected anchor: true
+none excluded target: true
+all selected target: true
+all selected sibling: true
+contain entry selected anchor: true
+contain entry excluded target: true
+contain exit selected anchor: true
+contain exit selected sibling: true
+contain exit excluded target: true
+slot selected anchor: true
+slot excluded target: true

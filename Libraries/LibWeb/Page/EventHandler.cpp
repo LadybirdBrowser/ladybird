@@ -2389,11 +2389,6 @@ bool EventHandler::maybe_request_paste_for_middle_click(DOM::Document& document,
 static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, size_t anchor_offset, GC::Ptr<DOM::Node> focus_node, size_t focus_offset, Selection::Selection* selection, CSS::UserSelect user_select)
 {
     auto move_focus_before_node = [&](GC::Ref<DOM::Node> node) -> bool {
-        focus_node = node->previous_in_pre_order();
-        if (focus_node) {
-            focus_offset = focus_node->length();
-            return true;
-        }
         if (!node->parent())
             return false;
         focus_node = *node->parent();
@@ -2402,13 +2397,6 @@ static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, size_t anchor_off
     };
 
     auto move_focus_after_node = [&](GC::Ref<DOM::Node> node) -> bool {
-        focus_node = node->next_in_pre_order();
-        while (focus_node && node->is_inclusive_ancestor_of(*focus_node))
-            focus_node = focus_node->next_in_pre_order();
-        if (focus_node) {
-            focus_offset = 0;
-            return true;
-        }
         if (!node->parent())
             return false;
         focus_node = *node->parent();
@@ -2427,12 +2415,12 @@ static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, size_t anchor_off
         //     focus node, as this means they are inside the same contain element, or not in a contain element at all.
         //     This takes care of the "selection trying to escape from a contain" case.
         while (
-            (!potential_contain_node->is_element() || !potential_contain_node->layout_node() || potential_contain_node->layout_node()->user_select_used_value() != CSS::UserSelect::Contain) && potential_contain_node->parent() && !potential_contain_node->is_inclusive_ancestor_of(*focus_node)) {
+            (!potential_contain_node->is_element() || potential_contain_node->user_select_used_value() != CSS::UserSelect::Contain) && potential_contain_node->parent() && !potential_contain_node->is_inclusive_ancestor_of(*focus_node)) {
             potential_contain_node = potential_contain_node->parent();
         }
 
         if (
-            potential_contain_node->layout_node() && potential_contain_node->layout_node()->user_select_used_value() == CSS::UserSelect::Contain && !potential_contain_node->is_inclusive_ancestor_of(*focus_node)) {
+            potential_contain_node->is_element() && potential_contain_node->user_select_used_value() == CSS::UserSelect::Contain && !potential_contain_node->is_inclusive_ancestor_of(*focus_node)) {
             if (focus_node->is_before(*potential_contain_node)) {
                 focus_offset = 0;
             } else {
@@ -2452,11 +2440,11 @@ static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, size_t anchor_off
             auto target_node = potential_contain_node;
             potential_contain_node = focus_node;
             while (
-                (!potential_contain_node->is_element() || !potential_contain_node->layout_node() || potential_contain_node->layout_node()->user_select_used_value() != CSS::UserSelect::Contain) && potential_contain_node->parent() && potential_contain_node != target_node) {
+                (!potential_contain_node->is_element() || potential_contain_node->user_select_used_value() != CSS::UserSelect::Contain) && potential_contain_node->parent() && potential_contain_node != target_node) {
                 potential_contain_node = potential_contain_node->parent();
             }
             if (
-                potential_contain_node->layout_node() && potential_contain_node->layout_node()->user_select_used_value() == CSS::UserSelect::Contain && !potential_contain_node->is_inclusive_ancestor_of(*anchor_node)) {
+                potential_contain_node->is_element() && potential_contain_node->user_select_used_value() == CSS::UserSelect::Contain && !potential_contain_node->is_inclusive_ancestor_of(*anchor_node)) {
                 if (potential_contain_node->is_before(*anchor_node)) {
                     if (!move_focus_after_node(*potential_contain_node))
                         return;
@@ -2481,7 +2469,7 @@ static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, size_t anchor_off
 
         // A selection started outside of this element must not end in this element. If the user attempts to create such
         // a selection, the UA must instead end the selection range at the element boundary.
-        while (focus_node->parent() && focus_node->parent()->layout_node()->user_select_used_value() == CSS::UserSelect::None) {
+        while (focus_node->parent() && focus_node->parent()->user_select_used_value() == CSS::UserSelect::None) {
             focus_node = focus_node->parent();
         }
         if (focus_node->is_before(*anchor_node)) {
@@ -2500,7 +2488,7 @@ static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, size_t anchor_off
         // then the selection must contain the entire element including all its descendants. If the element is selected
         // and the used value of 'user-select' on its parent is 'all', then the parent must be included in the selection,
         // recursively.
-        while (focus_node->parent() && focus_node->parent()->layout_node()->user_select_used_value() == CSS::UserSelect::All) {
+        while (focus_node->parent() && focus_node->parent()->user_select_used_value() == CSS::UserSelect::All) {
             if (anchor_node == focus_node) {
                 anchor_node = focus_node->parent();
             }

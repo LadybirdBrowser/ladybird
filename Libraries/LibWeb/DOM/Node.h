@@ -38,6 +38,7 @@ class Document;
 namespace Web::CSS {
 
 class StyleScope;
+enum class UserSelect : u8;
 
 }
 
@@ -173,6 +174,7 @@ public:
     bool is_editing_host() const;
     bool is_editable_or_editing_host() const { return is_editable() || is_editing_host(); }
     GC::Ptr<Node> editing_host();
+    CSS::UserSelect user_select_used_value() const;
 
     bool in_editable_subtree() const { return m_in_editable_subtree; }
     void recompute_editable_subtree_flag();

@@ -47,6 +47,7 @@
 #include <LibWeb/DOM/XMLDocument.h>
 #include <LibWeb/HTML/CustomElements/CustomElementReactionNames.h>
 #include <LibWeb/HTML/CustomElements/CustomElementRegistry.h>
+#include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLDocument.h>
 #include <LibWeb/HTML/HTMLFieldSetElement.h>
@@ -125,6 +126,60 @@ Node::Node(Document& document, NodeType type)
 }
 
 Node::~Node() = default;
+
+// https://drafts.csswg.org/css-ui/#propdef-user-select
+CSS::UserSelect Node::user_select_used_value() const
+{
+    auto const* element = as_if<Element>(*this);
+    if (!element) {
+        if (!is_text())
+            return CSS::UserSelect::Text;
+        element = flat_tree_parent_element();
+    }
+
+    if (!element || !element->computed_properties())
+        return CSS::UserSelect::None;
+
+    // The used value is the same as the computed value, except:
+    auto computed_value = element->computed_properties()->user_select();
+
+    // 1. on editable elements where the used value is always 'contain' regardless of the computed value
+
+    // 2. when the computed value is 'auto', in which case the used value is one of the other values as defined below
+
+    // For the purpose of this specification, an editable element is either an editing host or a mutable form control with
+    // textual content, such as textarea.
+    auto* form_control = as_if<HTML::FormAssociatedTextControlElement>(*element);
+    // FIXME: Check if this needs to exclude input elements with types such as color or range, and if so, which ones exactly.
+    if (element->is_editing_host() || (form_control && form_control->text_control_to_html_element().is_mutable()))
+        return CSS::UserSelect::Contain;
+
+    if (computed_value != CSS::UserSelect::Auto)
+        return computed_value;
+
+    // The used value of 'auto' is determined as follows:
+
+    // - On the '::before' and '::after' pseudo-elements, the used value is 'none'
+    // NOTE: Pseudo-elements are handled by Layout::Node::user_select_used_value().
+
+    // - If the element is an editable element, the used value is 'contain'
+    // NOTE: We already handled this above.
+
+    if (auto parent_element = element->element_to_inherit_style_from({})) {
+        auto parent_used_value = parent_element->user_select_used_value();
+
+        // - Otherwise, if the used value of user-select on the parent of this element is 'all', the used value is 'all'
+        if (parent_used_value == CSS::UserSelect::All)
+            return CSS::UserSelect::All;
+
+        // - Otherwise, if the used value of user-select on the parent of this element is 'none', the used value is 'none'
+        if (parent_used_value == CSS::UserSelect::None)
+            return CSS::UserSelect::None;
+    }
+
+    // - Otherwise, the used value is 'text'
+    return CSS::UserSelect::Text;
+}
 
 void Node::finalize()
 {
