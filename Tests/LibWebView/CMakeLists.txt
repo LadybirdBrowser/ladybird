@@ -5,6 +5,7 @@ set(TEST_SOURCES
     TestHistoryStore.cpp
     TestHSTSStore.cpp
     TestOmnibox.cpp
+    TestProfile.cpp
     TestSessionHistory.cpp
     TestStorageJar.cpp
     TestWebViewURL.cpp
