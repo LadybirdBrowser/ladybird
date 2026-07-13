@@ -2072,11 +2072,8 @@ Web::WebDriver::Response WebDriverConnection::element_send_keys_impl(StringView 
             // 7. Fire these events in order on element:
             //     1. input
             //     2. change
-            // NOTE: These events are fired by `did_select_files` as an element task. So instead of firing them here, we
-            //       spin the event loop once before informing the client that the action is complete.
-            Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(connection->current_browsing_context().heap(), [connection]() {
-                connection->async_driver_execution_complete(JsonValue {});
-            }));
+            // NOTE: These events are fired synchronously by `did_select_files`.
+            connection->async_driver_execution_complete(JsonValue {});
         };
 
         read_files_and_apply_selection(move(files), 0, {});

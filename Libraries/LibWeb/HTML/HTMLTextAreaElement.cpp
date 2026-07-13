@@ -90,11 +90,11 @@ void HTMLTextAreaElement::did_lose_focus()
 
     // The change event fires when the value is committed, if that makes sense for the control,
     // or else when the control loses focus
-    queue_an_element_task(HTML::Task::Source::UserInteraction, [this] {
-        auto change_event = DOM::Event::create(realm(), HTML::EventNames::change);
-        change_event->set_bubbles(true);
-        dispatch_event(change_event);
-    });
+    // https://github.com/whatwg/html/issues/1080
+    // INTEROP: Other engines synchronously notify script when the control loses focus.
+    auto change_event = DOM::Event::create(realm(), HTML::EventNames::change);
+    change_event->set_bubbles(true);
+    dispatch_event(change_event);
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-tabindex
@@ -133,13 +133,13 @@ void HTMLTextAreaElement::clear_algorithm()
 
     // Unlike their associated reset algorithms, changes made to form controls as part of these algorithms do count as
     // changes caused by the user (and thus, e.g. do cause input events to fire).
-    queue_an_element_task(HTML::Task::Source::UserInteraction, [this]() {
-        Bindings::InputEventInit input_event_init;
-        input_event_init.bubbles = true;
-        input_event_init.composed = true;
-        auto input_event = UIEvents::InputEvent::create_from_platform_event(realm(), HTML::EventNames::input, input_event_init);
-        dispatch_event(input_event);
-    });
+    // https://github.com/whatwg/html/issues/1080
+    // INTEROP: Other engines dispatch this event synchronously after clearing the value.
+    Bindings::InputEventInit input_event_init;
+    input_event_init.bubbles = true;
+    input_event_init.composed = true;
+    auto input_event = UIEvents::InputEvent::create_from_platform_event(realm(), HTML::EventNames::input, input_event_init);
+    dispatch_event(input_event);
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#the-textarea-element:concept-node-clone-ext

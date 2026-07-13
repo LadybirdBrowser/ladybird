@@ -502,30 +502,31 @@ void HTMLSelectElement::send_select_update_notifications()
 {
     // To send select update notifications for a select element element, queue an element task on
     // the user interaction task source given element to run these steps:
-    queue_an_element_task(HTML::Task::Source::UserInteraction, [this] {
-        // 1. Set the select element's user validity to true.
-        m_user_validity = true;
+    // https://github.com/whatwg/html/issues/1080
+    // INTEROP: Other engines perform these steps synchronously after changing the selection.
 
-        // AD-HOC: Setting the user validity changes which of the :user-valid and :user-invalid pseudo-classes match.
-        CSS::Invalidation::invalidate_style_after_validity_change(*this);
+    // 1. Set the select element's user validity to true.
+    m_user_validity = true;
 
-        // 2. Run update a select's selectedcontent given element.
-        MUST(update_selectedcontent());
+    // AD-HOC: Setting the user validity changes which of the :user-valid and :user-invalid pseudo-classes match.
+    CSS::Invalidation::invalidate_style_after_validity_change(*this);
 
-        // 3. Run clone selected option into select button given element.
-        clone_selected_option_into_select_button();
+    // 2. Run update a select's selectedcontent given element.
+    MUST(update_selectedcontent());
 
-        // 4. Fire an event named input at element, with the bubbles and composed attributes initialized to true.
-        auto input_event = DOM::Event::create(realm(), HTML::EventNames::input);
-        input_event->set_bubbles(true);
-        input_event->set_composed(true);
-        dispatch_event(input_event);
+    // 3. Run clone selected option into select button given element.
+    clone_selected_option_into_select_button();
 
-        // 5. Fire an event named change at element, with the bubbles attribute initialized to true.
-        auto change_event = DOM::Event::create(realm(), HTML::EventNames::change);
-        change_event->set_bubbles(true);
-        dispatch_event(*change_event);
-    });
+    // 4. Fire an event named input at element, with the bubbles and composed attributes initialized to true.
+    auto input_event = DOM::Event::create(realm(), HTML::EventNames::input);
+    input_event->set_bubbles(true);
+    input_event->set_composed(true);
+    dispatch_event(input_event);
+
+    // 5. Fire an event named change at element, with the bubbles attribute initialized to true.
+    auto change_event = DOM::Event::create(realm(), HTML::EventNames::change);
+    change_event->set_bubbles(true);
+    dispatch_event(*change_event);
 }
 
 void HTMLSelectElement::set_is_open(bool open)

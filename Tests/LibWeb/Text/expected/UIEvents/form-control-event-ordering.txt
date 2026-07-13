@@ -1,13 +1,17 @@
 range
+input(value="1")
 after sendKey(value="1")
-after controlled render(value="0")
+after controlled render(value="1")
 clear input
+input(value="")
 after clear(value="")
-after controlled render(value="value")
+after controlled render(value="")
 clear textarea
+input(value="")
 after clear(value="")
-after controlled render(value="value")
+after controlled render(value="")
 textarea change
 input(value="x")
 after sendText
+change(value="x")
 after blur
