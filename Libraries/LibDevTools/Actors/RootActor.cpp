@@ -92,16 +92,30 @@ void RootActor::handle_message(Message const& message)
         if (!browser_id.has_value())
             return;
 
-        for (auto const& actor : devtools().actor_registry()) {
-            auto const* tab_actor = as_if<TabActor>(*actor.value);
-            if (!tab_actor)
-                continue;
-            if (tab_actor->description().id != *browser_id)
-                continue;
+        TabActor const* tab_actor = nullptr;
 
-            response.set("tab"sv, tab_actor->serialize_description());
-            break;
+        for (auto const& actor : devtools().actor_registry()) {
+            auto const* candidate = as_if<TabActor>(*actor.value);
+
+            if (candidate && candidate->description().id == *browser_id) {
+                tab_actor = candidate;
+                break;
+            }
         }
+
+        // The tab might not have been registered yet if the client did not request the tab list on this connection,
+        // e.g. when a toolbox connects directly to a tab known from a previous connection.
+        if (!tab_actor) {
+            for (auto& tab_description : devtools().delegate().tab_list()) {
+                if (tab_description.id == *browser_id) {
+                    tab_actor = &devtools().register_actor<TabActor>(move(tab_description));
+                    break;
+                }
+            }
+        }
+
+        if (tab_actor)
+            response.set("tab"sv, tab_actor->serialize_description());
 
         send_response(message, move(response));
         return;
