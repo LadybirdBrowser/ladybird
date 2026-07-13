@@ -1332,6 +1332,41 @@ void ViewImplementation::did_update_session_history(Badge<WebContentClient>, Vec
     dump_session_history("did-update-session-history"sv);
 }
 
+static StringView session_history_entry_update_kind_to_string(Web::HTML::SessionHistoryEntryUpdateKind update_kind)
+{
+    switch (update_kind) {
+    case Web::HTML::SessionHistoryEntryUpdateKind::NavigationAPIState:
+        return "navigation-api-state"sv;
+    case Web::HTML::SessionHistoryEntryUpdateKind::ScrollRestorationMode:
+        return "scroll-restoration-mode"sv;
+    case Web::HTML::SessionHistoryEntryUpdateKind::DocumentStateReloadPending:
+        return "document-state-reload-pending"sv;
+    case Web::HTML::SessionHistoryEntryUpdateKind::DocumentStatePopulation:
+        return "document-state-population"sv;
+    }
+    return "unknown"sv;
+}
+
+void ViewImplementation::did_update_current_session_history_entry(Badge<WebContentClient>, Web::HTML::SessionHistoryEntryUpdateKind update_kind, Web::HTML::SessionHistoryEntryDescriptor entry)
+{
+    if (history_debug_enabled()) {
+        Vector<Web::HTML::SessionHistoryEntryDescriptor> entries;
+        entries.append(entry);
+        dbgln("[History] UI received WebContent current session history entry update page={} pid={} update_kind={} entry={}",
+            page_id(),
+            client().pid(),
+            session_history_entry_update_kind_to_string(update_kind),
+            history_log_entries(entries));
+    }
+
+    auto update = m_top_level_traversable.did_receive_web_content_current_entry_update(update_kind, move(entry));
+    if (update.should_request_session_history_update)
+        client().async_request_session_history_update(page_id());
+    if (update.should_update_navigation_action_state)
+        update_navigation_action_state();
+    dump_session_history(update.dump_reason);
+}
+
 void ViewImplementation::did_update_session_history_for_testing(Badge<WebContentClient>, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index)
 {
     auto update = m_top_level_traversable.did_receive_web_content_session_history_update_for_testing(move(entries), move(used_steps), current_used_step_index, m_url);

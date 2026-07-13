@@ -369,6 +369,14 @@ void ConnectionFromClient::set_top_level_session_history(u64 page_id, Vector<Web
     }
 }
 
+void ConnectionFromClient::request_session_history_update(u64 page_id)
+{
+    if (auto page = this->page(page_id); page.has_value()) {
+        auto session_history_snapshot = page->page().top_level_traversable()->create_session_history_snapshot();
+        async_did_update_session_history(page_id, move(session_history_snapshot.top_level_session_history_entries), move(session_history_snapshot.used_session_history_steps), session_history_snapshot.current_used_step_index);
+    }
+}
+
 void ConnectionFromClient::reset_session_history_for_testing(u64 page_id)
 {
     if (auto page = this->page(page_id); page.has_value()) {

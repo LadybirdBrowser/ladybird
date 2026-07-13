@@ -100,6 +100,13 @@ struct WebContentSessionHistoryUpdateDecision {
     WebContentSessionHistoryUpdateResult update {};
 };
 
+struct WebContentCurrentSessionHistoryEntryUpdateResult {
+    bool accepted { false };
+    StringView dump_reason;
+    bool should_request_session_history_update { false };
+    bool should_update_navigation_action_state { false };
+};
+
 struct WebContentSessionHistorySeedAckResult {
     bool ignored { false };
     StringView dump_reason;
@@ -233,6 +240,7 @@ public:
     void prepare_for_reload();
     void prepare_to_seed_web_content_session_history_from_ui_process();
     WebContentSessionHistoryUpdateDecision did_receive_web_content_session_history_update(Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32> used_steps, size_t current_used_step_index, URL::URL const& current_url);
+    WebContentCurrentSessionHistoryEntryUpdateResult did_receive_web_content_current_entry_update(Web::HTML::SessionHistoryEntryUpdateKind, Web::HTML::SessionHistoryEntryDescriptor);
     WebContentSessionHistoryUpdateDecision did_receive_web_content_session_history_update_for_testing(Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32> used_steps, size_t current_used_step_index, URL::URL const& current_url);
     WebContentSessionHistorySeedAckResult did_receive_web_content_session_history_seed_ack(bool accepted, Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32> used_steps, size_t current_used_step_index, URL::URL const& current_url);
     NavigationStartResult did_start_navigation(URL::URL const&, Web::HTML::DocumentResource, bool is_redirect, Web::Bindings::NavigationHistoryBehavior, bool is_showing_crash_page);

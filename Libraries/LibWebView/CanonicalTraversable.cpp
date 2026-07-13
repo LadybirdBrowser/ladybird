@@ -241,6 +241,47 @@ WebContentSessionHistoryUpdateDecision CanonicalTraversable::did_receive_web_con
     };
 }
 
+WebContentCurrentSessionHistoryEntryUpdateResult CanonicalTraversable::did_receive_web_content_current_entry_update(Web::HTML::SessionHistoryEntryUpdateKind update_kind, Web::HTML::SessionHistoryEntryDescriptor entry)
+{
+    if (m_pending_web_content_session_history_seed.waiting_for_ack)
+        return { .dump_reason = "ignored-current-entry-update-before-ui-seed-ack"sv };
+
+    if (m_pending_web_content_session_history_seed.ignore_updates_until_seed)
+        return { .dump_reason = "ignored-current-entry-update-before-ui-seed"sv };
+
+    if (m_pending_web_content_session_history_seed.step_after_loading_top_level_entry.has_value())
+        return { .dump_reason = "ignored-current-entry-update-before-restored-history-step"sv };
+
+    auto const web_content_session_history_matched_mirror_before_update = m_current_web_content_session_history_matches_mirror
+        && m_session_history.web_content_history_matches_mirror();
+
+    if (!m_session_history.update_current_entry_from_web_content(update_kind, move(entry))) {
+        m_current_web_content_session_history_matches_mirror = false;
+        m_session_history.forget_web_content_state();
+        return {
+            .dump_reason = "rejected-current-entry-update"sv,
+            .should_request_session_history_update = true,
+            .should_update_navigation_action_state = true,
+        };
+    }
+
+    auto web_content_session_history_matches_mirror_after_update = m_session_history.web_content_history_matches_mirror();
+    if (update_kind == Web::HTML::SessionHistoryEntryUpdateKind::DocumentStateReloadPending
+        || update_kind == Web::HTML::SessionHistoryEntryUpdateKind::DocumentStatePopulation) {
+        // The UI process may optimistically mark reload-pending or track an unpopulated document state before
+        // WebContent confirms the same mutation.
+        // Once the WebContent update is accepted and the known history state matches again, convergence is proven.
+        m_current_web_content_session_history_matches_mirror = web_content_session_history_matches_mirror_after_update;
+    } else {
+        m_current_web_content_session_history_matches_mirror = web_content_session_history_matched_mirror_before_update
+            && web_content_session_history_matches_mirror_after_update;
+    }
+    return {
+        .accepted = true,
+        .dump_reason = "did-update-current-entry"sv,
+    };
+}
+
 WebContentSessionHistoryUpdateDecision CanonicalTraversable::did_receive_web_content_session_history_update_for_testing(Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index, URL::URL const& current_url)
 {
     // NB: dumpUIProcessSessionHistory() first sends WebContent's current snapshot to the UI process, then returns

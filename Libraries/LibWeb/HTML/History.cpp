@@ -19,6 +19,22 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(History);
 
+static void report_current_session_history_entry_update_for_scroll_restoration_mode_change(DOM::Document& document, SessionHistoryEntry const& entry)
+{
+    auto navigable = document.navigable();
+    if (!navigable)
+        return;
+
+    auto traversable = navigable->traversable_navigable();
+    if (!traversable->page().client().should_report_session_history_updates())
+        return;
+
+    SessionHistoryEntryDescriptorCreationState creation_state { [&] {
+        return traversable->page().client().allocate_cross_process_id();
+    } };
+    traversable->page().client().page_did_update_current_session_history_entry(SessionHistoryEntryUpdateKind::ScrollRestorationMode, create_session_history_entry_descriptor(entry, creation_state));
+}
+
 GC::Ref<History> History::create(JS::Realm& realm)
 {
     return realm.create<History>(realm);
@@ -268,6 +284,8 @@ WebIDL::ExceptionOr<void> History::set_scroll_restoration(Bindings::ScrollRestor
         active_session_history_entry->set_scroll_restoration_mode(ScrollRestorationMode::Manual);
         break;
     }
+
+    report_current_session_history_entry_update_for_scroll_restoration_mode_change(this_relevant_global_object.associated_document(), *active_session_history_entry);
 
     return {};
 }

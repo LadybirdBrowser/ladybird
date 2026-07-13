@@ -38,7 +38,7 @@ GC_DEFINE_ALLOCATOR(NavigationAPIMethodTracker);
 
 static Bindings::NavigationResult navigation_api_method_tracker_derived_result(GC::Ref<NavigationAPIMethodTracker> api_method_tracker);
 
-static void report_session_history_update_for_navigation_api_state_change(DOM::Document& document)
+static void report_current_session_history_entry_update_for_navigation_api_state_change(DOM::Document& document, SessionHistoryEntry const& entry)
 {
     auto navigable = document.navigable();
     if (!navigable)
@@ -48,8 +48,10 @@ static void report_session_history_update_for_navigation_api_state_change(DOM::D
     if (!traversable->page().client().should_report_session_history_updates())
         return;
 
-    auto session_history_snapshot = traversable->create_session_history_snapshot();
-    traversable->page().client().page_did_update_session_history(session_history_snapshot.top_level_session_history_entries, session_history_snapshot.used_session_history_steps, session_history_snapshot.current_used_step_index);
+    SessionHistoryEntryDescriptorCreationState creation_state { [&] {
+        return traversable->page().client().allocate_cross_process_id();
+    } };
+    traversable->page().client().page_did_update_current_session_history_entry(SessionHistoryEntryUpdateKind::NavigationAPIState, create_session_history_entry_descriptor(entry, creation_state));
 }
 
 NavigationAPIMethodTracker::NavigationAPIMethodTracker(GC::Ref<Navigation> navigation,
@@ -161,7 +163,7 @@ WebIDL::ExceptionOr<void> Navigation::update_current_entry(Bindings::NavigationU
     // NB: The UI-process session history mirror needs to observe updateCurrentEntry() state changes so restored
     //     WebContent processes can reconstruct Navigation API state from the authoritative UI-owned history.
     auto& document = as<HTML::Window>(relevant_global_object(*this)).associated_document();
-    report_session_history_update_for_navigation_api_state_change(document);
+    report_current_session_history_entry_update_for_navigation_api_state_change(document, current->session_history_entry());
 
     // 5. Fire an event named currententrychange at this using NavigationCurrentEntryChangeEvent,
     //    with its navigationType attribute initialized to null and its from initialized to current.
