@@ -8,5 +8,6 @@ textInput(TextEvent data="\n" inputType=- cancelable=true bubbles=true composed=
 input(InputEvent data=null inputType=insertParagraph cancelable=false bubbles=true composed=true)
 beforeinput(InputEvent data="b" inputType=insertText cancelable=true bubbles=true composed=true)
 textInput(TextEvent data="b" inputType=- cancelable=true bubbles=true composed=true)
+input(InputEvent data="b" inputType=insertText cancelable=false bubbles=true composed=true)
 beforeinput(InputEvent data="z" inputType=insertText cancelable=true bubbles=true composed=true)
 textInput(TextEvent data="z" inputType=- cancelable=true bubbles=true composed=true)

@@ -1,10 +1,12 @@
 input
 beforeinput(value="")
 textInput(value="")
+input(value="i")
 after sendText(value="i")
-after controlled render(value="")
+after controlled render(value="i")
 textarea
 beforeinput(value="")
 textInput(value="")
+input(value="t")
 after sendText(value="t")
-after controlled render(value="")
+after controlled render(value="t")

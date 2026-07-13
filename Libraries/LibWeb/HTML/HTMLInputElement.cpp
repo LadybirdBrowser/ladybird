@@ -592,7 +592,17 @@ void HTMLInputElement::did_edit_text_node(FlyString const& input_type, Optional<
 
     CSS::Invalidation::invalidate_style_after_validity_change(*this);
 
-    user_interaction_did_change_input_value(input_type, data);
+    // https://html.spec.whatwg.org/multipage/input.html#common-input-element-events
+    // https://github.com/whatwg/html/issues/1080
+    // INTEROP: Although HTML specifies queuing this event, other engines dispatch it synchronously for text edits.
+    //          Controlled inputs rely on observing each edit before rendering can restore an older value.
+    Bindings::InputEventInit input_event_init;
+    input_event_init.bubbles = true;
+    input_event_init.composed = true;
+    input_event_init.input_type = input_type.to_string();
+    input_event_init.data = data;
+    auto input_event = UIEvents::InputEvent::create_from_platform_event(realm(), HTML::EventNames::input, input_event_init);
+    dispatch_event(*input_event);
 }
 
 void HTMLInputElement::did_pick_color(Optional<Color> picked_color, ColorPickerUpdateState state)
