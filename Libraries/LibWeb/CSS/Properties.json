@@ -4550,6 +4550,7 @@
     ]
   },
   "transform-box": {
+    "affects-accumulated-visual-contexts": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "view-box",

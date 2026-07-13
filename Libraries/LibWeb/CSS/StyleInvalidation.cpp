@@ -143,8 +143,9 @@ static bool accumulated_visual_context_change_is_value_only(CSS::PropertyID prop
 {
     switch (property_id) {
     case CSS::PropertyID::TransformOrigin:
+    case CSS::PropertyID::TransformBox:
     case CSS::PropertyID::PerspectiveOrigin:
-        // Origins never affect node presence.
+        // Origins and the reference box never affect node presence.
         return true;
     case CSS::PropertyID::Transform:
     case CSS::PropertyID::Translate:

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="box" style="width: 100px; height: 100px; padding: 50px; transform: translateX(100%);"></div>
+<script>
+    // Changing transform-box switches the reference box that transform percentages resolve
+    // against, so the accumulated visual context matrix must be recomputed: with the border-box
+    // reference (the used value of the initial view-box) translateX(100%) shifts by 200px, with
+    // the content-box reference by 100px. getBoundingClientRect() maps through the accumulated
+    // visual context tree, so a stale matrix would keep reporting the old position.
+    // NOTE: All geometry reads happen before any println(), because printing mutates the DOM and
+    //       forces a relayout that would mask missing invalidation.
+    test(() => {
+        const box = document.getElementById("box");
+        const leftWithBorderBox = box.getBoundingClientRect().left;
+        box.style.transformBox = "content-box";
+        const leftWithContentBox = box.getBoundingClientRect().left;
+        println(`left with transform-box: view-box: ${leftWithBorderBox}`);
+        println(`left with transform-box: content-box: ${leftWithContentBox}`);
+    });
+</script>
