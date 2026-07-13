@@ -136,9 +136,6 @@ public:
 
     TimeValue associated_effect_end() const;
 
-    Optional<CSS::AnimationPlayState> last_css_animation_play_state() const { return m_last_css_animation_play_state; }
-    void set_last_css_animation_play_state(CSS::AnimationPlayState state) { m_last_css_animation_play_state = state; }
-
 protected:
     Animation(JS::Realm&);
 
@@ -234,8 +231,6 @@ private:
     Optional<HTML::TaskID> m_pending_finish_microtask_id;
 
     Optional<TimeValue> m_saved_cancel_time;
-
-    Optional<CSS::AnimationPlayState> m_last_css_animation_play_state;
 };
 
 }
