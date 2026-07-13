@@ -131,7 +131,6 @@ unsafe extern "C" {
     fn ladybird_html_parser_mark_script_already_started(parser: *mut c_void, element: usize);
     fn ladybird_html_parser_parent_node(node: usize) -> usize;
     fn ladybird_html_parser_node_index(node: usize) -> usize;
-    fn ladybird_html_parser_child_count(node: usize) -> usize;
     fn ladybird_html_parser_create_element(
         parser: *mut c_void,
         intended_parent: usize,
@@ -222,6 +221,8 @@ struct AdjustedInsertionLocation {
     parent: usize,
     offset: usize,
 }
+
+const APPEND_CHILD_OFFSET: usize = usize::MAX;
 
 struct FragmentParsingContext {
     root: usize,
@@ -3312,10 +3313,6 @@ impl TreeBuilder {
         unsafe { ladybird_html_parser_node_index(node) }
     }
 
-    fn child_count(&self, node: usize) -> usize {
-        unsafe { ladybird_html_parser_child_count(node) }
-    }
-
     fn handle_element_popped(&mut self, element: usize) {
         unsafe { ladybird_html_parser_handle_element_popped(element) }
     }
@@ -3536,7 +3533,7 @@ impl TreeBuilder {
     fn append_comment_to_node(&mut self, parent: usize, data: &str) {
         let insertion_location = AdjustedInsertionLocation {
             parent,
-            offset: self.child_count(parent),
+            offset: APPEND_CHILD_OFFSET,
         };
         self.insert_comment(data, Some(insertion_location));
     }
@@ -3851,7 +3848,7 @@ impl TreeBuilder {
         let Some(target_node) = self.stack_of_open_elements.iter().find(|node| node.handle == target) else {
             return AdjustedInsertionLocation {
                 parent: target,
-                offset: if target == 0 { 0 } else { self.child_count(target) },
+                offset: if target == 0 { 0 } else { APPEND_CHILD_OFFSET },
             };
         };
 
@@ -3888,7 +3885,7 @@ impl TreeBuilder {
                 let template = &self.stack_of_open_elements[template_index];
                 adjusted_insertion_location = AdjustedInsertionLocation {
                     parent: template.handle,
-                    offset: self.child_count(template.handle),
+                    offset: APPEND_CHILD_OFFSET,
                 };
             } else {
                 match last_table_index {
@@ -3899,7 +3896,7 @@ impl TreeBuilder {
                         let parent = self.stack_of_open_elements.first().map(|node| node.handle).unwrap_or(0);
                         adjusted_insertion_location = AdjustedInsertionLocation {
                             parent,
-                            offset: self.child_count(parent),
+                            offset: APPEND_CHILD_OFFSET,
                         };
                     }
                     Some(table_index) => {
@@ -3920,7 +3917,7 @@ impl TreeBuilder {
                             // 7. Let adjusted insertion location be inside previous element, after its last child (if any).
                             adjusted_insertion_location = AdjustedInsertionLocation {
                                 parent: previous_element.handle,
-                                offset: self.child_count(previous_element.handle),
+                                offset: APPEND_CHILD_OFFSET,
                             };
                         }
                     }
@@ -3936,7 +3933,7 @@ impl TreeBuilder {
             // Let adjusted insertion location be inside target, after its last child (if any).
             adjusted_insertion_location = AdjustedInsertionLocation {
                 parent: target_node.handle,
-                offset: self.child_count(target_node.handle),
+                offset: APPEND_CHILD_OFFSET,
             };
         }
 
@@ -3949,7 +3946,7 @@ impl TreeBuilder {
             && let Some(template_content) = node.template_content
         {
             adjusted_insertion_location.parent = template_content;
-            adjusted_insertion_location.offset = self.child_count(template_content);
+            adjusted_insertion_location.offset = APPEND_CHILD_OFFSET;
         }
 
         // 4. Return the adjusted insertion location.
@@ -3988,7 +3985,7 @@ impl TreeBuilder {
                 .is_some_and(|node| node.handle == adjusted_insertion_location.parent)
         {
             adjusted_insertion_location.parent = self.root_insertion_target;
-            adjusted_insertion_location.offset = self.child_count(self.root_insertion_target);
+            adjusted_insertion_location.offset = APPEND_CHILD_OFFSET;
         }
         adjusted_insertion_location
     }
@@ -4295,7 +4292,7 @@ impl TreeBuilder {
             // 15. Insert whatever lastNode ended up being in the previous step at the adjusted insertion location given insertionLocation.
             let adjusted_insertion_location = self.adjusted_insertion_location(Some(AdjustedInsertionLocation {
                 parent: common_ancestor,
-                offset: self.child_count(common_ancestor),
+                offset: APPEND_CHILD_OFFSET,
             }));
             self.insert_node_at_insertion_location(adjusted_insertion_location, last_node);
 

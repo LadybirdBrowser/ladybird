@@ -10,6 +10,7 @@
 #include <AK/AnyOf.h>
 #include <AK/Debug.h>
 #include <AK/FFIHelpers.h>
+#include <AK/NumericLimits.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
@@ -105,7 +106,6 @@ extern "C" void ladybird_html_parser_set_script_source_line(void*, size_t, size_
 extern "C" void ladybird_html_parser_mark_script_already_started(void*, size_t);
 extern "C" size_t ladybird_html_parser_parent_node(size_t);
 extern "C" size_t ladybird_html_parser_node_index(size_t);
-extern "C" size_t ladybird_html_parser_child_count(size_t);
 extern "C" size_t ladybird_html_parser_create_element(void*, size_t, RustFfiHtmlNamespace, u16 const*, size_t, u16 const*, size_t, RustFfiHtmlParserAttribute const*, size_t, bool, size_t, bool);
 extern "C" void ladybird_html_parser_append_child(size_t, size_t);
 extern "C" void ladybird_html_parser_insert_node(size_t, size_t, size_t, bool);
@@ -2163,17 +2163,36 @@ struct NodeAndOffset {
     GC::Ref<DOM::Node> node;
     size_t offset;
 
+    static constexpr auto append_child_offset = NumericLimits<decltype(offset)>::max();
+
+    bool should_append() const
+    {
+        return offset == append_child_offset;
+    }
+
     DOM::Node* child_at_offset() const
     {
+        if (should_append())
+            return nullptr;
+
         VERIFY(offset <= node->child_count());
         return node->child_at_index(offset);
+    }
+
+    DOM::Node* previous_child() const
+    {
+        if (should_append())
+            return node->last_child();
+        if (offset == 0)
+            return nullptr;
+        return node->child_at_index(offset - 1);
     }
 };
 
 static NodeAndOffset node_and_offset_from_html_parser_ffi(size_t node, size_t offset)
 {
     auto& dom_node = node_from_html_parser_ffi(node);
-    VERIFY(offset <= dom_node.child_count());
+    VERIFY(offset == NodeAndOffset::append_child_offset || offset <= dom_node.child_count());
     return { dom_node, offset };
 }
 
@@ -2229,11 +2248,9 @@ extern "C" void ladybird_html_parser_insert_text(size_t parent, size_t offset, u
     //    Otherwise, create a new Text node whose data is data and whose node document is the same as that of the element
     //    in which insertionLocation finds itself, and insert the newly created node at insertionLocation.
     auto data = Utf16String::from_utf8(ffi_string(data_ptr, data_len));
-    if (offset > 0) {
-        if (auto* previous_text = as_if<DOM::Text>(parent_node.child_at_index(offset - 1))) {
-            (void)previous_text->append_data(data);
-            return;
-        }
+    if (auto* previous_text = as_if<DOM::Text>(insertion_location.previous_child())) {
+        (void)previous_text->append_data(data);
+        return;
     }
 
     if (auto* before_node = insertion_location.child_at_offset()) {
@@ -2303,11 +2320,6 @@ extern "C" size_t ladybird_html_parser_parent_node(size_t node)
 extern "C" size_t ladybird_html_parser_node_index(size_t node)
 {
     return node_from_html_parser_ffi(node).index();
-}
-
-extern "C" size_t ladybird_html_parser_child_count(size_t node)
-{
-    return node_from_html_parser_ffi(node).child_count();
 }
 
 extern "C" size_t ladybird_html_parser_create_element(void* parser, size_t intended_parent, RustFfiHtmlNamespace namespace_, u16 const* namespace_uri_ptr, size_t namespace_uri_len, u16 const* local_name_ptr, size_t local_name_len, RustFfiHtmlParserAttribute const* attributes, size_t attribute_count, bool had_duplicate_attribute, size_t form_element, bool has_template_element_on_stack)
