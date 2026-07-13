@@ -18,6 +18,7 @@
 #include <QtGlobal>
 
 #if defined(AK_OS_MACOS)
+#    include <UI/AppKit/Utilities/ApplicationIcon.h>
 #    include <UI/Qt/MacWindow.h>
 #endif
 
@@ -61,6 +62,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto& browser_process = app->browser_process();
 
     if (auto const& browser_options = Ladybird::Application::browser_options(); !browser_options.headless_mode.has_value()) {
+#if defined(AK_OS_MACOS)
+        Ladybird::set_profile_application_icon(Ladybird::Application::profile());
+#endif
+
         app->on_open_file = [&](auto const& file_url) {
             if (auto* window = app->active_window_if_any()) {
                 auto& tab = window->new_tab_from_url(file_url, Web::HTML::ActivateTab::Yes, Ladybird::BrowserWindow::TabLocation::end());

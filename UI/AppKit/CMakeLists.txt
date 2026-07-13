@@ -16,6 +16,7 @@ add_library(ladybird_impl STATIC
     Interface/SearchPanel.mm
     Interface/Tab.mm
     Interface/TabController.mm
+    Utilities/ApplicationIcon.mm
     Utilities/Conversions.mm
     Utilities/DictionaryLookup.mm
 )

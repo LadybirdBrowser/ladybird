@@ -37,6 +37,7 @@ target_link_libraries(ladybird PRIVATE Qt::Core Qt::Gui Qt::Widgets)
 
 if (APPLE)
     target_sources(ladybird PRIVATE
+        ../AppKit/Utilities/ApplicationIcon.mm
         ../AppKit/Utilities/DictionaryLookup.mm
         MacWindow.mm
         WebContentViewMac.mm

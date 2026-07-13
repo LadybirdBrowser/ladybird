@@ -14,6 +14,7 @@
 #import <Application/ApplicationDelegate.h>
 #import <Interface/Tab.h>
 #import <Interface/TabController.h>
+#import <Utilities/ApplicationIcon.h>
 
 #if !__has_feature(objc_arc)
 #    error "This project requires ARC"
@@ -50,6 +51,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto& browser_process = app->browser_process();
 
     if (auto const& browser_options = WebView::Application::browser_options(); !browser_options.headless_mode.has_value()) {
+        Ladybird::set_profile_application_icon(WebView::Application::profile());
+
         browser_process.on_new_tab = [&](auto const& raw_urls) {
             open_urls_from_client(raw_urls, WebView::NewWindow::No);
         };
