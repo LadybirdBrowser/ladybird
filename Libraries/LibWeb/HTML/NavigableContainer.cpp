@@ -123,11 +123,11 @@ void NavigableContainer::create_new_child_navigable()
 
         // 1-6. Append nestedHistory to parentDocState's nested histories.
         VERIFY(append_nested_history_for_child_navigable(*parent_navigable, *navigable, *history_entry));
-        auto nested_history_mutation = traversable->create_current_entry_nested_history_update_mutation(*parent_navigable->active_session_history_entry(), navigable->id());
-        VERIFY(nested_history_mutation.has_value());
+        auto child_navigable_mutation = traversable->create_child_navigable_creation_mutation(*parent_navigable->active_session_history_entry(), *navigable, *history_entry);
+        VERIFY(child_navigable_mutation.has_value());
 
         // 7. Update for navigable creation/destruction given traversable
-        traversable->update_for_navigable_creation_or_destruction(nested_history_mutation.release_value(),
+        traversable->update_for_navigable_creation_or_destruction(child_navigable_mutation.release_value(),
             GC::create_function(traversable->heap(), [signal](HistoryStepResult) {
                 signal->resolve({});
             }));
@@ -348,13 +348,13 @@ void NavigableContainer::destroy_the_child_navigable()
 
         // 8. Let traversable be container's node navigable's traversable navigable.
         auto traversable = this->navigable()->traversable_navigable();
-        auto nested_history_mutation = traversable->create_current_entry_nested_history_removal_mutation(*this->navigable()->active_session_history_entry(), navigable->id());
-        VERIFY(nested_history_mutation.has_value());
+        auto child_navigable_mutation = traversable->create_child_navigable_destruction_mutation(*this->navigable()->active_session_history_entry(), navigable->id());
+        VERIFY(child_navigable_mutation.has_value());
 
         // 9. Append the following session history traversal steps to traversable:
-        traversable->append_session_history_traversal_steps(GC::create_function(heap(), [traversable, nested_history_mutation = nested_history_mutation.release_value()](NonnullRefPtr<Core::Promise<Empty>> signal) mutable {
+        traversable->append_session_history_traversal_steps(GC::create_function(heap(), [traversable, child_navigable_mutation = child_navigable_mutation.release_value()](NonnullRefPtr<Core::Promise<Empty>> signal) mutable {
             // 1. Update for navigable creation/destruction given traversable.
-            traversable->update_for_navigable_creation_or_destruction(move(nested_history_mutation),
+            traversable->update_for_navigable_creation_or_destruction(move(child_navigable_mutation),
                 GC::create_function(traversable->heap(), [signal](HistoryStepResult) {
                     signal->resolve({});
                 }));

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <AK/StringView.h>
 #include <AK/Vector.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWebView/Export.h>
@@ -33,18 +34,17 @@ public:
 
     enum class WebContentMutationType {
         CurrentEntryUpdate,
-        CurrentEntryNestedHistoryUpdate,
-        CurrentEntryNestedHistoryRemoval,
+        ChildNavigableCreated,
+        ChildNavigableDestroyed,
         RestoredCurrentStep,
     };
 
     struct WebContentMutation {
         WebContentMutationType type { WebContentMutationType::CurrentEntryUpdate };
         Web::HTML::SessionHistoryEntryUpdateKind current_entry_update_kind { Web::HTML::SessionHistoryEntryUpdateKind::NavigationAPIState };
-        Web::HTML::CrossProcessId document_state_id;
-        Web::HTML::CrossProcessId nested_history_id;
+        Web::HTML::CrossProcessId parent_document_state_id;
+        Web::HTML::CrossProcessId navigable_id;
         Entry entry;
-        Web::HTML::SessionHistoryNestedHistoryDescriptor nested_history;
         i32 current_step { 0 };
 
         static WebContentMutation current_entry_update(Web::HTML::SessionHistoryEntryUpdateKind update_kind, Entry entry)
@@ -56,22 +56,23 @@ public:
             };
         }
 
-        static WebContentMutation current_entry_nested_history_update(Web::HTML::CrossProcessId document_state_id, Web::HTML::SessionHistoryNestedHistoryDescriptor nested_history, i32 current_step)
+        static WebContentMutation child_navigable_created(Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId navigable_id, Entry initial_entry, i32 current_step)
         {
             return {
-                .type = WebContentMutationType::CurrentEntryNestedHistoryUpdate,
-                .document_state_id = document_state_id,
-                .nested_history = move(nested_history),
+                .type = WebContentMutationType::ChildNavigableCreated,
+                .parent_document_state_id = parent_document_state_id,
+                .navigable_id = navigable_id,
+                .entry = move(initial_entry),
                 .current_step = current_step,
             };
         }
 
-        static WebContentMutation current_entry_nested_history_removal(Web::HTML::CrossProcessId document_state_id, Web::HTML::CrossProcessId nested_history_id, i32 current_step)
+        static WebContentMutation child_navigable_destroyed(Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId navigable_id, i32 current_step)
         {
             return {
-                .type = WebContentMutationType::CurrentEntryNestedHistoryRemoval,
-                .document_state_id = document_state_id,
-                .nested_history_id = nested_history_id,
+                .type = WebContentMutationType::ChildNavigableDestroyed,
+                .parent_document_state_id = parent_document_state_id,
+                .navigable_id = navigable_id,
                 .current_step = current_step,
             };
         }
@@ -95,6 +96,15 @@ public:
         CompleteMirror,
     };
 
+    enum class WebContentMirrorProof {
+        AcceptedSeedInstall,
+        RestoredCurrentStep,
+        ReloadPendingClear,
+        TopLevelCommitFromCompleteMirror,
+        TopLevelCommitFromAcceptedSeed,
+        InitialSingleEntryCommit,
+    };
+
     bool is_empty() const { return m_entries.is_empty(); }
     size_t size() const { return m_entries.size(); }
     size_t used_step_count() const { return m_used_steps.size(); }
@@ -112,15 +122,18 @@ public:
     [[nodiscard]] bool apply_top_level_cross_document_navigation_commit(Web::HTML::TopLevelCrossDocumentSessionHistoryNavigation);
     [[nodiscard]] bool apply_nested_same_document_navigation(Web::HTML::NestedSameDocumentSessionHistoryNavigation);
     [[nodiscard]] bool apply_nested_cross_document_navigation_commit(Web::HTML::NestedCrossDocumentSessionHistoryNavigation);
+    [[nodiscard]] bool apply_child_navigable_creation(Web::HTML::ChildNavigableSessionHistoryCreated);
+    [[nodiscard]] bool apply_child_navigable_destruction(Web::HTML::ChildNavigableSessionHistoryDestroyed);
     [[nodiscard]] WebContentMutationResult apply_web_content_mutation(WebContentMutation);
     void record_web_content_seeded_from_ui_process(i32 current_step);
-    void record_web_content_mirror_matches_ui_process();
+    void record_web_content_mirror_matches_ui_process(WebContentMirrorProof);
     void forget_web_content_state();
     void mark_web_content_history_match_unproven();
     [[nodiscard]] bool apply_traversal_to_step(i32 step);
     Vector<Entry> entries() const;
     Vector<i32> used_steps() const;
     WebContentMirrorState web_content_mirror_state() const { return m_web_content_mirror_state; }
+    Optional<WebContentMirrorProof> web_content_mirror_proof() const { return m_web_content_mirror_proof; }
     bool web_content_history_matches_mirror() const;
 
     [[nodiscard]] bool can_go_back() const;
@@ -142,8 +155,6 @@ public:
 
 private:
     [[nodiscard]] bool update_current_entry_from_web_content(Web::HTML::SessionHistoryEntryUpdateKind, Entry);
-    [[nodiscard]] bool update_current_entry_nested_history_from_web_content(Web::HTML::CrossProcessId document_state_id, Web::HTML::SessionHistoryNestedHistoryDescriptor, i32 current_step);
-    [[nodiscard]] bool remove_current_entry_nested_history_from_web_content(Web::HTML::CrossProcessId document_state_id, Web::HTML::CrossProcessId nested_history_id, i32 current_step);
     [[nodiscard]] bool did_restore_web_content_to_current_step(i32 step);
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-session-history-entries
@@ -157,6 +168,9 @@ private:
     Optional<size_t> m_current_used_step_index;
 
     WebContentMirrorState m_web_content_mirror_state { WebContentMirrorState::Unknown };
+    Optional<WebContentMirrorProof> m_web_content_mirror_proof;
 };
+
+StringView web_content_mirror_proof_to_string(TraversableSessionHistory::WebContentMirrorProof);
 
 }

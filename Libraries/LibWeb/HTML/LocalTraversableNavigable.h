@@ -55,16 +55,10 @@ public:
     void retire_claimed_session_history_step(int step);
     Vector<NonnullRefPtr<SessionHistoryEntry>>& session_history_entries() { return m_session_history_entries; }
     Vector<NonnullRefPtr<SessionHistoryEntry>> const& session_history_entries() const { return m_session_history_entries; }
-    struct SessionHistorySnapshot {
-        Vector<SessionHistoryEntryDescriptor> top_level_session_history_entries;
-        Vector<i32> used_session_history_steps;
-        size_t current_used_step_index { 0 };
-    };
     enum class SaveActiveEntryPersistedState : bool {
         No,
         Yes,
     };
-    SessionHistorySnapshot create_session_history_snapshot(SaveActiveEntryPersistedState = SaveActiveEntryPersistedState::Yes);
     bool report_current_session_history_entry_update(SessionHistoryEntryUpdateKind, SessionHistoryEntry const&, SaveActiveEntryPersistedState = SaveActiveEntryPersistedState::No);
 
     VisibilityState system_visibility_state() const { return m_system_visibility_state; }
@@ -92,15 +86,16 @@ public:
         GC::Ptr<LocalNavigable> navigable;
         RefPtr<SessionHistoryEntry> entry;
     };
-    struct CurrentEntryNestedHistoryUpdateMutation {
-        CrossProcessId document_state_id;
-        SessionHistoryNestedHistoryDescriptor nested_history;
+    struct ChildNavigableCreationMutation {
+        CrossProcessId parent_document_state_id;
+        CrossProcessId navigable_id;
+        SessionHistoryEntryDescriptor initial_entry;
     };
-    struct CurrentEntryNestedHistoryRemovalMutation {
-        CrossProcessId document_state_id;
-        CrossProcessId nested_history_id;
+    struct ChildNavigableDestructionMutation {
+        CrossProcessId parent_document_state_id;
+        CrossProcessId navigable_id;
     };
-    using CurrentEntryNestedHistoryMutation = Variant<CurrentEntryNestedHistoryUpdateMutation, CurrentEntryNestedHistoryRemovalMutation>;
+    using ChildNavigableSessionHistoryMutation = Variant<ChildNavigableCreationMutation, ChildNavigableDestructionMutation>;
     void apply_the_traverse_history_step(int, GC::Ptr<SourceSnapshotParams>, GC::Ptr<LocalNavigable>, UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete);
     void resume_applying_the_traverse_history_step(int, UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete);
     void record_intercepted_history_traversal_step(int);
@@ -108,9 +103,9 @@ public:
     void apply_the_reload_history_step(UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete);
     [[nodiscard]] bool try_to_synchronously_commit_same_document_navigation(GC::Ref<LocalNavigable>, NonnullRefPtr<SessionHistoryEntry>, RefPtr<SessionHistoryEntry> entry_to_replace);
     void apply_the_push_or_replace_history_step(int step, HistoryHandlingBehavior history_handling, UserNavigationInvolvement, SynchronousNavigation, GC::Ptr<DOM::Document> pending_document, GC::Ptr<LocalNavigable> expected_ongoing_navigation_navigable, Optional<Utf16String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete, Optional<SameDocumentSessionHistoryNavigationMutation> = {}, Optional<CrossDocumentSessionHistoryNavigationMutation> = {});
-    Optional<CurrentEntryNestedHistoryMutation> create_current_entry_nested_history_update_mutation(SessionHistoryEntry const& parent_entry, CrossProcessId nested_history_id);
-    Optional<CurrentEntryNestedHistoryMutation> create_current_entry_nested_history_removal_mutation(SessionHistoryEntry const& parent_entry, CrossProcessId nested_history_id);
-    void update_for_navigable_creation_or_destruction(CurrentEntryNestedHistoryMutation, GC::Ref<OnApplyHistoryStepComplete> on_complete);
+    Optional<ChildNavigableSessionHistoryMutation> create_child_navigable_creation_mutation(SessionHistoryEntry const& parent_entry, LocalNavigable const& child_navigable, SessionHistoryEntry const& child_entry);
+    Optional<ChildNavigableSessionHistoryMutation> create_child_navigable_destruction_mutation(SessionHistoryEntry const& parent_entry, CrossProcessId navigable_id);
+    void update_for_navigable_creation_or_destruction(ChildNavigableSessionHistoryMutation, GC::Ref<OnApplyHistoryStepComplete> on_complete);
 
     int get_the_used_step(int step) const;
     Vector<GC::Root<LocalNavigable>> get_all_local_navigables_whose_current_session_history_entry_will_change_or_reload(int) const;
@@ -194,7 +189,7 @@ private:
         GC::Ref<OnApplyHistoryStepComplete> on_complete,
         Optional<SameDocumentSessionHistoryNavigationMutation> = {},
         Optional<CrossDocumentSessionHistoryNavigationMutation> = {},
-        Optional<CurrentEntryNestedHistoryMutation> = {});
+        Optional<ChildNavigableSessionHistoryMutation> = {});
 
     void apply_the_history_step_after_unload_check(
         int step,
@@ -210,7 +205,7 @@ private:
         GC::Ref<OnApplyHistoryStepComplete> on_complete,
         Optional<SameDocumentSessionHistoryNavigationMutation>,
         Optional<CrossDocumentSessionHistoryNavigationMutation>,
-        Optional<CurrentEntryNestedHistoryMutation>);
+        Optional<ChildNavigableSessionHistoryMutation>);
 
     struct PendingHistoryTraversalRequest {
         u64 id { 0 };
@@ -245,7 +240,7 @@ private:
     [[nodiscard]] bool can_go_forward() const;
 
     Optional<WebContentSessionHistoryMutation> create_current_session_history_entry_update_mutation(SessionHistoryEntryUpdateKind, SessionHistoryEntry const&, SaveActiveEntryPersistedState = SaveActiveEntryPersistedState::No);
-    Optional<WebContentSessionHistoryMutation> create_current_entry_nested_history_mutation(CurrentEntryNestedHistoryMutation const&, i32 current_step);
+    Optional<WebContentSessionHistoryMutation> create_child_navigable_session_history_mutation(ChildNavigableSessionHistoryMutation const&, i32 current_step);
     Optional<WebContentSessionHistoryMutation> create_top_level_same_document_session_history_navigation_mutation(SessionHistoryEntry const&, Optional<i32> replaced_step, i32 current_step);
     Optional<WebContentSessionHistoryMutation> create_nested_same_document_session_history_navigation_mutation(LocalNavigable const&, SessionHistoryEntry const&, Optional<i32> replaced_step, i32 current_step);
     Optional<WebContentSessionHistoryMutation> create_nested_cross_document_session_history_navigation_mutation(LocalNavigable const&, SessionHistoryEntry const&, i32 current_step);

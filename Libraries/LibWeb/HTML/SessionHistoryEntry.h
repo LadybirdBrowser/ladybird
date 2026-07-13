@@ -44,6 +44,7 @@ enum class SessionHistoryEntryUpdateKind : u8 {
     ScrollPositionData,
     DocumentStateReloadPending,
     DocumentStatePopulation,
+    DocumentStateNavigableTargetName,
 };
 
 struct SessionHistoryEntryDescriptor;
@@ -161,20 +162,21 @@ struct CurrentSessionHistoryEntryUpdate {
     SessionHistoryEntryDescriptor entry;
 };
 
-struct CurrentSessionHistoryEntryNestedHistoryUpdate {
-    CrossProcessId document_state_id;
-    SessionHistoryNestedHistoryDescriptor nested_history;
+struct ChildNavigableSessionHistoryCreated {
+    CrossProcessId parent_document_state_id;
+    CrossProcessId navigable_id;
+    SessionHistoryEntryDescriptor initial_entry;
     i32 current_step { 0 };
 };
 
-struct CurrentSessionHistoryEntryNestedHistoryRemoval {
-    CrossProcessId document_state_id;
-    CrossProcessId nested_history_id;
+struct ChildNavigableSessionHistoryDestroyed {
+    CrossProcessId parent_document_state_id;
+    CrossProcessId navigable_id;
     i32 current_step { 0 };
 };
 
 struct WebContentSessionHistoryMutation {
-    using Mutation = Variant<CurrentSessionHistoryEntryUpdate, CurrentSessionHistoryEntryNestedHistoryUpdate, CurrentSessionHistoryEntryNestedHistoryRemoval, SameDocumentSessionHistoryNavigation, NestedSameDocumentSessionHistoryNavigation, NestedCrossDocumentSessionHistoryNavigation, TopLevelCrossDocumentSessionHistoryNavigation, RestoredCurrentSessionHistoryStep>;
+    using Mutation = Variant<CurrentSessionHistoryEntryUpdate, ChildNavigableSessionHistoryCreated, ChildNavigableSessionHistoryDestroyed, SameDocumentSessionHistoryNavigation, NestedSameDocumentSessionHistoryNavigation, NestedCrossDocumentSessionHistoryNavigation, TopLevelCrossDocumentSessionHistoryNavigation, RestoredCurrentSessionHistoryStep>;
 
     Mutation mutation;
 
@@ -183,14 +185,14 @@ struct WebContentSessionHistoryMutation {
         return { CurrentSessionHistoryEntryUpdate { update_kind, move(entry) } };
     }
 
-    static WebContentSessionHistoryMutation current_entry_nested_history_update(CurrentSessionHistoryEntryNestedHistoryUpdate update)
+    static WebContentSessionHistoryMutation child_navigable_created(ChildNavigableSessionHistoryCreated created)
     {
-        return { move(update) };
+        return { move(created) };
     }
 
-    static WebContentSessionHistoryMutation current_entry_nested_history_removal(CurrentSessionHistoryEntryNestedHistoryRemoval update)
+    static WebContentSessionHistoryMutation child_navigable_destroyed(ChildNavigableSessionHistoryDestroyed destroyed)
     {
-        return { move(update) };
+        return { move(destroyed) };
     }
 
     static WebContentSessionHistoryMutation top_level_same_document_navigation(SameDocumentSessionHistoryNavigation navigation)
@@ -320,6 +322,7 @@ struct SessionHistoryEntryDescriptorCreationState {
 };
 
 WEB_API SessionHistoryEntryDescriptor create_session_history_entry_descriptor(SessionHistoryEntry const&, SessionHistoryEntryDescriptorCreationState&);
+WEB_API CrossProcessId document_state_id_for_session_history_entry_descriptor(DocumentState&, SessionHistoryEntryDescriptorCreationState&);
 WEB_API bool session_history_entry_descriptors_match(SessionHistoryEntryDescriptor const&, SessionHistoryEntryDescriptor const&);
 enum class MatchNestedHistories {
     Yes,
@@ -344,16 +347,16 @@ template<>
 WEB_API ErrorOr<Web::HTML::CurrentSessionHistoryEntryUpdate> decode(Decoder&);
 
 template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::CurrentSessionHistoryEntryNestedHistoryUpdate const&);
+WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::ChildNavigableSessionHistoryCreated const&);
 
 template<>
-WEB_API ErrorOr<Web::HTML::CurrentSessionHistoryEntryNestedHistoryUpdate> decode(Decoder&);
+WEB_API ErrorOr<Web::HTML::ChildNavigableSessionHistoryCreated> decode(Decoder&);
 
 template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::CurrentSessionHistoryEntryNestedHistoryRemoval const&);
+WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::ChildNavigableSessionHistoryDestroyed const&);
 
 template<>
-WEB_API ErrorOr<Web::HTML::CurrentSessionHistoryEntryNestedHistoryRemoval> decode(Decoder&);
+WEB_API ErrorOr<Web::HTML::ChildNavigableSessionHistoryDestroyed> decode(Decoder&);
 
 template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::SameDocumentSessionHistoryNavigation const&);

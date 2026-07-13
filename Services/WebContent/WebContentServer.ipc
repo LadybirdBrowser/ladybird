@@ -72,7 +72,7 @@ endpoint WebContentServer
     check_if_traverse_history_step_is_canceled(u64 page_id, u64 request_id, i32 step) =|
     check_if_history_traversal_request_step_is_canceled(u64 page_id, u64 history_traversal_request_id, u64 request_id, i32 step) =|
     discard_history_traversal_request(u64 page_id, u64 history_traversal_request_id) =|
-    install_top_level_session_history_seed(u64 page_id, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries,
+    install_top_level_session_history_seed(u64 page_id, u64 seed_id, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries,
         size_t current_top_level_entry_index, bool allow_reconstructing_current_entry) =|
     reset_session_history_for_testing(u64 page_id) =|
 

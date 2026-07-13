@@ -395,7 +395,7 @@ void ConnectionFromClient::discard_history_traversal_request(u64 page_id, u64 hi
         page->page().top_level_traversable()->discard_history_traversal_request(history_traversal_request_id);
 }
 
-void ConnectionFromClient::install_top_level_session_history_seed(u64 page_id, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, size_t current_top_level_entry_index, bool allow_reconstructing_current_entry)
+void ConnectionFromClient::install_top_level_session_history_seed(u64 page_id, u64 seed_id, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, size_t current_top_level_entry_index, bool allow_reconstructing_current_entry)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         auto current_step = current_top_level_entry_index < entries.size()
@@ -403,9 +403,9 @@ void ConnectionFromClient::install_top_level_session_history_seed(u64 page_id, V
             : 0;
 
         auto accepted = page->page().top_level_traversable()->try_to_install_top_level_session_history_entries_from_ui_process(move(entries), current_top_level_entry_index, allow_reconstructing_current_entry);
-        async_did_install_top_level_session_history_seed(page_id, accepted, current_step);
+        async_did_install_top_level_session_history_seed(page_id, seed_id, accepted, current_step);
     } else {
-        async_did_install_top_level_session_history_seed(page_id, false, 0);
+        async_did_install_top_level_session_history_seed(page_id, seed_id, false, 0);
     }
 }
 

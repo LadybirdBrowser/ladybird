@@ -1321,6 +1321,8 @@ static StringView session_history_entry_update_kind_to_string(Web::HTML::Session
         return "document-state-reload-pending"sv;
     case Web::HTML::SessionHistoryEntryUpdateKind::DocumentStatePopulation:
         return "document-state-population"sv;
+    case Web::HTML::SessionHistoryEntryUpdateKind::DocumentStateNavigableTargetName:
+        return "document-state-navigable-target-name"sv;
     }
     return "unknown"sv;
 }
@@ -1337,23 +1339,24 @@ void ViewImplementation::did_apply_session_history_mutation(Badge<WebContentClie
                 client().pid(),
                 session_history_entry_update_kind_to_string(current_entry_update.update_kind),
                 history_log_entries(entries));
-        } else if (mutation.mutation.has<Web::HTML::CurrentSessionHistoryEntryNestedHistoryUpdate>()) {
-            auto const& nested_history_update = mutation.mutation.get<Web::HTML::CurrentSessionHistoryEntryNestedHistoryUpdate>();
-            dbgln("[History] UI received WebContent session history mutation page={} pid={} type=current-entry-nested-history-update document_state_id={} nested_history_id={} current_step={} nested_history_entry_count={}",
+        } else if (mutation.mutation.has<Web::HTML::ChildNavigableSessionHistoryCreated>()) {
+            auto const& child_navigable_created = mutation.mutation.get<Web::HTML::ChildNavigableSessionHistoryCreated>();
+            dbgln("[History] UI received WebContent session history mutation page={} pid={} type=child-navigable-session-history-created parent_document_state_id={} navigable_id={} current_step={} initial_entry_url={} initial_entry_document_state_id={}",
                 page_id(),
                 client().pid(),
-                nested_history_update.document_state_id,
-                nested_history_update.nested_history.id,
-                nested_history_update.current_step,
-                nested_history_update.nested_history.entries.size());
-        } else if (mutation.mutation.has<Web::HTML::CurrentSessionHistoryEntryNestedHistoryRemoval>()) {
-            auto const& nested_history_removal = mutation.mutation.get<Web::HTML::CurrentSessionHistoryEntryNestedHistoryRemoval>();
-            dbgln("[History] UI received WebContent session history mutation page={} pid={} type=current-entry-nested-history-removal document_state_id={} nested_history_id={} current_step={}",
+                child_navigable_created.parent_document_state_id,
+                child_navigable_created.navigable_id,
+                child_navigable_created.current_step,
+                child_navigable_created.initial_entry.url,
+                child_navigable_created.initial_entry.document_state.id);
+        } else if (mutation.mutation.has<Web::HTML::ChildNavigableSessionHistoryDestroyed>()) {
+            auto const& child_navigable_destroyed = mutation.mutation.get<Web::HTML::ChildNavigableSessionHistoryDestroyed>();
+            dbgln("[History] UI received WebContent session history mutation page={} pid={} type=child-navigable-session-history-destroyed parent_document_state_id={} navigable_id={} current_step={}",
                 page_id(),
                 client().pid(),
-                nested_history_removal.document_state_id,
-                nested_history_removal.nested_history_id,
-                nested_history_removal.current_step);
+                child_navigable_destroyed.parent_document_state_id,
+                child_navigable_destroyed.navigable_id,
+                child_navigable_destroyed.current_step);
         } else if (mutation.mutation.has<Web::HTML::NestedSameDocumentSessionHistoryNavigation>()) {
             auto const& nested_navigation = mutation.mutation.get<Web::HTML::NestedSameDocumentSessionHistoryNavigation>();
             dbgln("[History] UI received WebContent session history mutation page={} pid={} type=nested-same-document-navigation parent_document_state_id={} navigable_id={} replaced_step={} current_step={} url={} document_state_id={}",
@@ -1768,9 +1771,13 @@ JsonValue ViewImplementation::webdriver_session_history() const
     serialized.set("waitingToSeedWebContent"sv, m_top_level_traversable.pending_web_content_session_history_seed().should_send_entries);
     serialized.set("waitingForWebContentSeedAck"sv, m_top_level_traversable.pending_web_content_session_history_seed().waiting_for_ack);
     serialized.set("ignoringWebContentUpdatesUntilSeed"sv, m_top_level_traversable.pending_web_content_session_history_seed().ignore_updates_until_seed);
-    serialized.set("reseedAfterCurrentHistoryLoad"sv, m_top_level_traversable.pending_web_content_session_history_seed().should_reseed_after_current_history_load);
+    serialized.set("seedAfterCurrentHistoryLoad"sv, m_top_level_traversable.pending_web_content_session_history_seed().should_seed_after_current_history_load);
     serialized.set("hasOnlyTopLevelUsedSteps"sv, m_top_level_traversable.session_history().has_only_top_level_used_steps());
     serialized.set("webContentMirrorState"sv, m_top_level_traversable.session_history().web_content_mirror_state() == TraversableSessionHistory::WebContentMirrorState::CompleteMirror ? "complete"sv : "unknown"sv);
+    if (auto proof = m_top_level_traversable.session_history().web_content_mirror_proof(); proof.has_value())
+        serialized.set("webContentMirrorProof"sv, web_content_mirror_proof_to_string(*proof));
+    else
+        serialized.set("webContentMirrorProof"sv, JsonValue {});
 
     if (auto current_used_step_index = m_top_level_traversable.session_history().current_used_step_index(); current_used_step_index.has_value())
         serialized.set("currentUsedStepIndex"sv, *current_used_step_index);
@@ -1781,6 +1788,11 @@ JsonValue ViewImplementation::webdriver_session_history() const
         serialized.set("pendingWebContentHistoryStepAfterFallbackLoad"sv, *pending_step);
     else
         serialized.set("pendingWebContentHistoryStepAfterFallbackLoad"sv, JsonValue {});
+
+    if (auto expected_seed_id = m_top_level_traversable.pending_web_content_session_history_seed().expected_seed_id; expected_seed_id.has_value())
+        serialized.set("pendingWebContentSessionHistorySeedID"sv, *expected_seed_id);
+    else
+        serialized.set("pendingWebContentSessionHistorySeedID"sv, JsonValue {});
 
     if (m_top_level_traversable.pending_session_history_navigation().has_value()) {
         JsonObject pending_navigation;
@@ -1840,8 +1852,8 @@ void ViewImplementation::seed_web_content_session_history_from_ui_process(AllowC
             history_log_entries(seed->entries, seed->current_top_level_entry_index));
     }
 
-    client().async_install_top_level_session_history_seed(page_id(), move(seed->entries), seed->current_top_level_entry_index, seed->allow_current_entry_reconstruction);
-    m_top_level_traversable.did_send_web_content_session_history_seed(seed->current_step);
+    auto seed_id = m_top_level_traversable.did_send_web_content_session_history_seed(seed->current_step);
+    client().async_install_top_level_session_history_seed(page_id(), seed_id, move(seed->entries), seed->current_top_level_entry_index, seed->allow_current_entry_reconstruction);
     update_navigation_action_state();
     dump_session_history("sent-webcontent-session-history-seed"sv);
 }
@@ -1887,17 +1899,18 @@ NonnullRefPtr<Core::Promise<Empty>> ViewImplementation::reset_session_history_fo
     return *m_pending_session_history_reset_for_testing;
 }
 
-void ViewImplementation::did_install_top_level_session_history_seed(Badge<WebContentClient>, bool accepted, i32 current_step)
+void ViewImplementation::did_install_top_level_session_history_seed(Badge<WebContentClient>, u64 seed_id, bool accepted, i32 current_step)
 {
     if (history_debug_enabled()) {
-        dbgln("[History] UI received WebContent session history seed ack page={} pid={} accepted={} current_step={}",
+        dbgln("[History] UI received WebContent session history seed ack page={} pid={} seed_id={} accepted={} current_step={}",
             page_id(),
             client().pid(),
+            seed_id,
             accepted,
             current_step);
     }
 
-    auto ack = m_top_level_traversable.did_receive_web_content_session_history_seed_ack(accepted, current_step);
+    auto ack = m_top_level_traversable.did_receive_web_content_session_history_seed_ack(seed_id, accepted, current_step);
     if (ack.ignored) {
         dump_session_history(ack.dump_reason);
         return;
@@ -1998,6 +2011,9 @@ void ViewImplementation::dump_session_history(StringView reason, SessionHistoryD
         return;
 
     auto web_content_mirror_state = m_top_level_traversable.session_history().web_content_mirror_state() == TraversableSessionHistory::WebContentMirrorState::CompleteMirror ? "complete"sv : "unknown"sv;
+    auto web_content_mirror_proof = "none"sv;
+    if (auto proof = m_top_level_traversable.session_history().web_content_mirror_proof(); proof.has_value())
+        web_content_mirror_proof = web_content_mirror_proof_to_string(*proof);
 
     auto pending_navigation_url = "none"sv;
     auto pending_navigation_restore_mode = "none"sv;
@@ -2008,18 +2024,19 @@ void ViewImplementation::dump_session_history(StringView reason, SessionHistoryD
         pending_navigation_restore_mode = CanonicalTraversable::pending_session_history_navigation_web_content_restore_mode_to_string(m_top_level_traversable.pending_session_history_navigation()->web_content_restore_mode);
     }
 
-    dbgln("[History] UI session history page={} pid={} reason={} url='{}' webcontent_matches={} webcontent_mirror_state={} loading_from_ui={} waiting_to_seed={} waiting_for_seed_ack={} ignore_until_seed={} reseed_after_current_load={} pending_webcontent_step={} pending_navigation_url={} pending_navigation_restore={} pending_traversal_target={} pending_traversal_stage={} back={} forward={} entries={}",
+    dbgln("[History] UI session history page={} pid={} reason={} url='{}' webcontent_matches={} webcontent_mirror_state={} webcontent_mirror_proof={} loading_from_ui={} waiting_to_seed={} waiting_for_seed_ack={} ignore_until_seed={} seed_after_current_load={} pending_webcontent_step={} pending_navigation_url={} pending_navigation_restore={} pending_traversal_target={} pending_traversal_stage={} back={} forward={} entries={}",
         page_id(),
         client().pid(),
         reason,
         m_url,
         m_top_level_traversable.current_web_content_session_history_matches_mirror(),
         web_content_mirror_state,
+        web_content_mirror_proof,
         m_top_level_traversable.session_history_entry_url_loading_from_ui_process().has_value(),
         m_top_level_traversable.pending_web_content_session_history_seed().should_send_entries,
         m_top_level_traversable.pending_web_content_session_history_seed().waiting_for_ack,
         m_top_level_traversable.pending_web_content_session_history_seed().ignore_updates_until_seed,
-        m_top_level_traversable.pending_web_content_session_history_seed().should_reseed_after_current_history_load,
+        m_top_level_traversable.pending_web_content_session_history_seed().should_seed_after_current_history_load,
         m_top_level_traversable.pending_web_content_session_history_seed().step_after_loading_top_level_entry,
         pending_navigation_url,
         pending_navigation_restore_mode,

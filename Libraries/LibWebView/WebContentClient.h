@@ -250,7 +250,7 @@ private:
     virtual void did_apply_session_history_mutation_batch(u64 page_id, Web::HTML::WebContentSessionHistoryMutationBatch) override;
     virtual Messages::WebContentClient::DidRequestUiProcessSessionHistoryForTestingResponse did_request_ui_process_session_history_for_testing(u64 page_id) override;
     virtual Messages::WebContentClient::DidRequestSiteIsolationProcessTreeForTestingResponse did_request_site_isolation_process_tree_for_testing(u64 page_id) override;
-    virtual void did_install_top_level_session_history_seed(u64 page_id, bool accepted, i32 current_step) override;
+    virtual void did_install_top_level_session_history_seed(u64 page_id, u64 seed_id, bool accepted, i32 current_step) override;
     virtual void did_traverse_the_history_to_step(u64 page_id, i32 step, bool step_was_available, Web::HTML::HistoryStepResult) override;
     virtual void did_check_if_traverse_history_step_is_canceled(
         u64 page_id, u64 request_id, i32 step, bool canceled) override;

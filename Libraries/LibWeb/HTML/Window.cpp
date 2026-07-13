@@ -867,7 +867,9 @@ void Window::set_name(Utf16View name)
         return;
 
     // 2. Set this's navigable's active session history entry's document state's navigable target name to the given value.
-    navigable()->active_session_history_entry()->document_state()->set_navigable_target_name(Utf16String::from_utf16(name));
+    auto active_session_history_entry = navigable()->active_session_history_entry();
+    active_session_history_entry->document_state()->set_navigable_target_name(Utf16String::from_utf16(name));
+    navigable()->traversable_navigable()->report_current_session_history_entry_update(SessionHistoryEntryUpdateKind::DocumentStateNavigableTargetName, *active_session_history_entry);
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-status

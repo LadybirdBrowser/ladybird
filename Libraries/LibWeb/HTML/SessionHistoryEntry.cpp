@@ -38,7 +38,7 @@ SessionHistoryEntry::SessionHistoryEntry()
 {
 }
 
-static CrossProcessId document_state_id_for_descriptor(DocumentState& document_state, SessionHistoryEntryDescriptorCreationState& creation_state)
+CrossProcessId document_state_id_for_session_history_entry_descriptor(DocumentState& document_state, SessionHistoryEntryDescriptorCreationState& creation_state)
 {
     if (auto id = document_state.cross_process_id(); id.has_value())
         return *id;
@@ -66,7 +66,7 @@ static SessionHistoryDocumentStateDescriptor create_session_history_document_sta
 
         // NB: Keep the nested-history descriptor even when every entry in it is still pending. The entries are not
         //     used history steps yet, but the descriptor id preserves the live child navigable identity when the UI
-        //     process later reseeds an already-loaded document.
+        //     process later seeds an already-loaded document.
         nested_history_descriptors.unchecked_append({
             .id = nested_history.id,
             .entries = move(nested_entry_descriptors),
@@ -74,7 +74,7 @@ static SessionHistoryDocumentStateDescriptor create_session_history_document_sta
     }
 
     return {
-        .id = document_state_id_for_descriptor(document_state, creation_state),
+        .id = document_state_id_for_session_history_entry_descriptor(document_state, creation_state),
         .history_policy_container = document_state.history_policy_container(),
         .request_referrer = document_state.request_referrer(),
         .request_referrer_policy = document_state.request_referrer_policy(),
@@ -345,47 +345,50 @@ ErrorOr<Web::HTML::CurrentSessionHistoryEntryUpdate> IPC::decode(Decoder& decode
 }
 
 template<>
-ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::CurrentSessionHistoryEntryNestedHistoryUpdate const& update)
+ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::ChildNavigableSessionHistoryCreated const& created)
 {
-    TRY(encoder.encode(update.document_state_id));
-    TRY(encoder.encode(update.nested_history));
-    TRY(encoder.encode(update.current_step));
+    TRY(encoder.encode(created.parent_document_state_id));
+    TRY(encoder.encode(created.navigable_id));
+    TRY(encoder.encode(created.initial_entry));
+    TRY(encoder.encode(created.current_step));
     return {};
 }
 
 template<>
-ErrorOr<Web::HTML::CurrentSessionHistoryEntryNestedHistoryUpdate> IPC::decode(Decoder& decoder)
+ErrorOr<Web::HTML::ChildNavigableSessionHistoryCreated> IPC::decode(Decoder& decoder)
 {
-    auto document_state_id = TRY(decoder.decode<Web::HTML::CrossProcessId>());
-    auto nested_history = TRY(decoder.decode<Web::HTML::SessionHistoryNestedHistoryDescriptor>());
+    auto parent_document_state_id = TRY(decoder.decode<Web::HTML::CrossProcessId>());
+    auto navigable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>());
+    auto initial_entry = TRY(decoder.decode<Web::HTML::SessionHistoryEntryDescriptor>());
     auto current_step = TRY(decoder.decode<i32>());
 
-    return Web::HTML::CurrentSessionHistoryEntryNestedHistoryUpdate {
-        .document_state_id = document_state_id,
-        .nested_history = move(nested_history),
+    return Web::HTML::ChildNavigableSessionHistoryCreated {
+        .parent_document_state_id = parent_document_state_id,
+        .navigable_id = navigable_id,
+        .initial_entry = move(initial_entry),
         .current_step = current_step,
     };
 }
 
 template<>
-ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::CurrentSessionHistoryEntryNestedHistoryRemoval const& update)
+ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::ChildNavigableSessionHistoryDestroyed const& destroyed)
 {
-    TRY(encoder.encode(update.document_state_id));
-    TRY(encoder.encode(update.nested_history_id));
-    TRY(encoder.encode(update.current_step));
+    TRY(encoder.encode(destroyed.parent_document_state_id));
+    TRY(encoder.encode(destroyed.navigable_id));
+    TRY(encoder.encode(destroyed.current_step));
     return {};
 }
 
 template<>
-ErrorOr<Web::HTML::CurrentSessionHistoryEntryNestedHistoryRemoval> IPC::decode(Decoder& decoder)
+ErrorOr<Web::HTML::ChildNavigableSessionHistoryDestroyed> IPC::decode(Decoder& decoder)
 {
-    auto document_state_id = TRY(decoder.decode<Web::HTML::CrossProcessId>());
-    auto nested_history_id = TRY(decoder.decode<Web::HTML::CrossProcessId>());
+    auto parent_document_state_id = TRY(decoder.decode<Web::HTML::CrossProcessId>());
+    auto navigable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>());
     auto current_step = TRY(decoder.decode<i32>());
 
-    return Web::HTML::CurrentSessionHistoryEntryNestedHistoryRemoval {
-        .document_state_id = document_state_id,
-        .nested_history_id = nested_history_id,
+    return Web::HTML::ChildNavigableSessionHistoryDestroyed {
+        .parent_document_state_id = parent_document_state_id,
+        .navigable_id = navigable_id,
         .current_step = current_step,
     };
 }
