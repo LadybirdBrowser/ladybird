@@ -2,7 +2,10 @@
 
 ## Build Prerequisites
 
-Qt6 development packages, nasm, additional build tools, and a C++23 capable compiler are required.
+Qt6.9+ development packages, nasm, additional build tools, and a C++23 capable compiler are required.
+
+> [!NOTE]
+> Some distributions still package a Qt6 older than 6.9; for example, Debian 13 (trixie) ships Qt 6.8 — so configuring against it fails. If your Qt6 is older than 6.9, install a newer one from a newer distribution release, or directly from the [Qt online installer](https://www.qt.io/download-open-source), and then point the build to it using `CMAKE_PREFIX_PATH`.
 
 A Rust toolchain is also required. You can install it via [rustup](https://rustup.rs/).
 
