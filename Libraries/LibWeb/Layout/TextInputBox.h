@@ -18,7 +18,7 @@ public:
     TextInputBox(DOM::Document&, GC::Ptr<DOM::Element>, CSS::ComputedProperties const&);
 
     HTML::HTMLInputElement const& dom_node() const { return static_cast<HTML::HTMLInputElement const&>(*Box::dom_node()); }
-    static CSS::SizeWithAspectRatio auto_content_box_size_for_text_control(HTML::HTMLInputElement const&, Box const&);
+    static CSS::SizeWithAspectRatio default_preferred_size_for_text_control(HTML::HTMLInputElement const&, Box const&);
 
     virtual ~TextInputBox() override = default;
 

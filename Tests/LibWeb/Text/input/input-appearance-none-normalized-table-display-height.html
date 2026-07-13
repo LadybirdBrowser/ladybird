@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-tables-3/#table-structure">
+<link rel="help" href="https://drafts.csswg.org/css-ui/#appearance-switching">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/rendering.html#the-input-element-as-a-text-entry-widget">
+<script src="include.js"></script>
+<style>
+    input {
+        appearance: none;
+        border: 0;
+        float: left;
+        font: 16px/18px Arial;
+        height: auto;
+        padding: 12px;
+        width: 200px;
+    }
+
+    #normalized-table-cell {
+        display: table-cell;
+    }
+
+    #block {
+        display: block;
+    }
+</style>
+<input id="normalized-table-cell">
+<input id="block">
+<script>
+    test(() => {
+        const normalizedTableCellHeight = document.getElementById("normalized-table-cell").getBoundingClientRect().height;
+        const blockHeight = document.getElementById("block").getBoundingClientRect().height;
+        println(`Normalized table-cell height matches block height: ${normalizedTableCellHeight === blockHeight}`);
+    });
+</script>

@@ -186,7 +186,7 @@ static bool is_text_control_input(HTML::HTMLInputElement const& input_element)
     }
 }
 
-static Optional<CSS::SizeWithAspectRatio> appearance_none_text_input_auto_content_box_size(Box const& box)
+static Optional<CSS::SizeWithAspectRatio> default_preferred_size_for_appearance_none_text_input(Box const& box)
 {
     if (box.computed_values().appearance() != CSS::Appearance::None)
         return {};
@@ -195,13 +195,24 @@ static Optional<CSS::SizeWithAspectRatio> appearance_none_text_input_auto_conten
     if (!input_element || !is_text_control_input(*input_element))
         return {};
 
-    // https://drafts.csswg.org/css-ui/#appearance-switching
-    // "Widgets must not have their native appearance, and instead must have their primitive appearance."
+    // https://drafts.csswg.org/css-ui-4/#appearance-switching
+    // The element is rendered following the usual rules of CSS. Replaced elements other than widgets are not affected
+    // by this and remain replaced elements. Widgets must not have their native appearance, and instead must have their
+    // primitive appearance.
     //
-    // https://html.spec.whatwg.org/multipage/input.html#the-size-attribute
-    // "The size attribute gives the number of characters that, in a visual rendering, the user agent is to allow the
-    // user to see while editing the element's value."
-    return TextInputBox::auto_content_box_size_for_text_control(*input_element, box);
+    // https://html.spec.whatwg.org/multipage/rendering.html#the-input-element-as-a-text-entry-widget
+    // An input element whose type attribute is in one of the above states is an element with default preferred size,
+    // and user agents are expected to apply the 'field-sizing' CSS property to the element.
+    return TextInputBox::default_preferred_size_for_text_control(*input_element, box);
+}
+
+static CSS::SizeWithAspectRatio intrinsic_size_for_replaced_sizing(Box const& box)
+{
+    auto intrinsic_size = box.auto_content_box_size();
+    if (intrinsic_size.has_width() || intrinsic_size.has_height() || intrinsic_size.has_aspect_ratio())
+        return intrinsic_size;
+
+    return default_preferred_size_for_appearance_none_text_input(box).value_or(intrinsic_size);
 }
 
 FormattingContext::FormattingContext(Type type, LayoutMode layout_mode, LayoutState& state, Box const& context_box, FormattingContext* parent)
@@ -965,7 +976,7 @@ CSSPixels FormattingContext::tentative_width_for_replaced_element(Box const& box
 
     // If 'height' and 'width' both have computed values of 'auto' and the element also has an intrinsic width,
     // then that intrinsic width is the used value of 'width'.
-    auto intrinsic = box.auto_content_box_size();
+    auto intrinsic = intrinsic_size_for_replaced_sizing(box);
     if (computed_height.is_auto() && computed_width.is_auto() && intrinsic.has_width())
         return intrinsic.width.value();
 
@@ -1069,7 +1080,7 @@ CSSPixels FormattingContext::compute_width_for_replaced_element(Box const& box, 
 // https://www.w3.org/TR/CSS22/visudet.html#inline-replaced-height
 CSSPixels FormattingContext::tentative_height_for_replaced_element(Box const& box, CSS::Size const& computed_height, AvailableSpace const& available_space, ContainingBlockConstraints const& containing_block_constraints) const
 {
-    auto intrinsic = box.auto_content_box_size();
+    auto intrinsic = intrinsic_size_for_replaced_sizing(box);
     // If 'height' and 'width' both have computed values of 'auto' and the element also has
     // an intrinsic height, then that intrinsic height is the used value of 'height'.
     if (should_treat_width_as_auto(box, available_space) && should_treat_height_as_auto(box, available_space, containing_block_constraints) && intrinsic.has_height())
@@ -1115,7 +1126,7 @@ CSSPixels FormattingContext::compute_height_for_replaced_element(Box const& box,
     if ((computed_width.is_auto() && computed_height.is_auto() && box.has_preferred_aspect_ratio())) {
         // NOTE: This is a special case where calling tentative_width_for_replaced_element() would call us right back,
         //       and we'd end up in an infinite loop. So we need to handle this case separately.
-        if (auto intrinsic = box.auto_content_box_size(); intrinsic.has_width() || !intrinsic.has_height()) {
+        if (auto intrinsic = intrinsic_size_for_replaced_sizing(box); intrinsic.has_width() || !intrinsic.has_height()) {
             CSSPixels w = tentative_width_for_replaced_element(box, computed_width, available_space, containing_block_constraints);
             CSSPixels h = used_height;
             used_height = solve_replaced_size_constraint(w, h, box, available_space, containing_block_constraints).height();
@@ -2748,9 +2759,9 @@ CSSPixels FormattingContext::calculate_max_content_width(Layout::Box const& box,
         // size to max-content sizing. Do not use this for min-content sizing: CSS Sizing's "Compressible Replaced
         // Elements" section considers non-button-like <input> controls replaced for the percentage-sized replaced
         // element rule, so their cyclic-percentage min-content contribution can still compress toward zero.
-        if (auto appearance_none_text_input_auto_size = appearance_none_text_input_auto_content_box_size(box);
-            appearance_none_text_input_auto_size.has_value()) {
-            auto_size = appearance_none_text_input_auto_size.value();
+        if (auto default_preferred_size = default_preferred_size_for_appearance_none_text_input(box);
+            default_preferred_size.has_value()) {
+            auto_size = default_preferred_size.value();
         }
     }
     if (auto_size.has_width())
