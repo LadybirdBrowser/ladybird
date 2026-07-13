@@ -267,6 +267,71 @@ WebContentSessionHistoryMutationResult CanonicalTraversable::did_receive_web_con
         };
     }
 
+    if (mutation.mutation.has<Web::HTML::NestedSameDocumentSessionHistoryNavigation>()) {
+        auto nested_navigation = move(mutation.mutation.get<Web::HTML::NestedSameDocumentSessionHistoryNavigation>());
+        auto mutation_result = m_session_history.apply_web_content_mutation(
+            TraversableSessionHistory::WebContentMutation::nested_same_document_navigation(nested_navigation.parent_document_state_id, nested_navigation.navigable_id, move(nested_navigation.entry), nested_navigation.replaced_step, nested_navigation.current_step));
+        if (!mutation_result.accepted) {
+            m_session_history.forget_web_content_state();
+            return {
+                .dump_reason = "rejected-nested-same-document-navigation"sv,
+                .should_request_session_history_update = true,
+                .should_update_navigation_action_state = true,
+            };
+        }
+
+        return {
+            .accepted = true,
+            .dump_reason = "did-apply-nested-same-document-navigation"sv,
+            .should_update_navigation_action_state = true,
+        };
+    }
+
+    if (mutation.mutation.has<Web::HTML::NestedCrossDocumentSessionHistoryNavigation>()) {
+        auto nested_navigation = move(mutation.mutation.get<Web::HTML::NestedCrossDocumentSessionHistoryNavigation>());
+        auto mutation_result = m_session_history.apply_web_content_mutation(
+            TraversableSessionHistory::WebContentMutation::nested_cross_document_navigation(nested_navigation.parent_document_state_id, nested_navigation.navigable_id, move(nested_navigation.entry), nested_navigation.current_step));
+        if (!mutation_result.accepted) {
+            m_session_history.forget_web_content_state();
+            return {
+                .dump_reason = "rejected-nested-cross-document-navigation"sv,
+                .should_request_session_history_update = true,
+                .should_update_navigation_action_state = true,
+            };
+        }
+
+        return {
+            .accepted = true,
+            .dump_reason = "did-apply-nested-cross-document-navigation"sv,
+            .should_update_navigation_action_state = true,
+        };
+    }
+
+    if (mutation.mutation.has<Web::HTML::TopLevelCrossDocumentSessionHistoryNavigation>()) {
+        auto cross_document_navigation = move(mutation.mutation.get<Web::HTML::TopLevelCrossDocumentSessionHistoryNavigation>());
+        auto navigation_url = cross_document_navigation.entry.url;
+        auto mutation_result = m_session_history.apply_web_content_mutation(
+            TraversableSessionHistory::WebContentMutation::top_level_cross_document_navigation(move(cross_document_navigation.entry), cross_document_navigation.current_step));
+        if (!mutation_result.accepted) {
+            m_session_history.forget_web_content_state();
+            return {
+                .dump_reason = "rejected-top-level-cross-document-navigation"sv,
+                .should_request_session_history_update = true,
+                .should_update_navigation_action_state = true,
+            };
+        }
+
+        if (mutation_result.web_content_history_matches_mirror && m_pending_session_history_navigation.has_value() && m_pending_session_history_navigation->url == navigation_url)
+            m_pending_session_history_navigation.clear();
+
+        return {
+            .accepted = true,
+            .dump_reason = "did-apply-top-level-cross-document-navigation"sv,
+            .should_request_session_history_update = !mutation_result.web_content_history_matches_mirror,
+            .should_update_navigation_action_state = true,
+        };
+    }
+
     auto same_document_navigation = move(mutation.mutation.get<Web::HTML::SameDocumentSessionHistoryNavigation>());
     auto mutation_result = m_session_history.apply_web_content_mutation(
         TraversableSessionHistory::WebContentMutation::top_level_same_document_navigation(move(same_document_navigation.entry), same_document_navigation.replaced_step, same_document_navigation.current_step));

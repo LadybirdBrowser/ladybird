@@ -98,13 +98,33 @@ struct SameDocumentSessionHistoryNavigation {
     i32 current_step { 0 };
 };
 
+struct NestedSameDocumentSessionHistoryNavigation {
+    CrossProcessId parent_document_state_id;
+    CrossProcessId navigable_id;
+    SessionHistoryEntryDescriptor entry;
+    Optional<i32> replaced_step;
+    i32 current_step { 0 };
+};
+
+struct NestedCrossDocumentSessionHistoryNavigation {
+    CrossProcessId parent_document_state_id;
+    CrossProcessId navigable_id;
+    SessionHistoryEntryDescriptor entry;
+    i32 current_step { 0 };
+};
+
+struct TopLevelCrossDocumentSessionHistoryNavigation {
+    SessionHistoryEntryDescriptor entry;
+    i32 current_step { 0 };
+};
+
 struct CurrentSessionHistoryEntryUpdate {
     SessionHistoryEntryUpdateKind update_kind { SessionHistoryEntryUpdateKind::NavigationAPIState };
     SessionHistoryEntryDescriptor entry;
 };
 
 struct WebContentSessionHistoryMutation {
-    using Mutation = Variant<CurrentSessionHistoryEntryUpdate, SameDocumentSessionHistoryNavigation>;
+    using Mutation = Variant<CurrentSessionHistoryEntryUpdate, SameDocumentSessionHistoryNavigation, NestedSameDocumentSessionHistoryNavigation, NestedCrossDocumentSessionHistoryNavigation, TopLevelCrossDocumentSessionHistoryNavigation>;
 
     Mutation mutation;
 
@@ -114,6 +134,21 @@ struct WebContentSessionHistoryMutation {
     }
 
     static WebContentSessionHistoryMutation top_level_same_document_navigation(SameDocumentSessionHistoryNavigation navigation)
+    {
+        return { move(navigation) };
+    }
+
+    static WebContentSessionHistoryMutation nested_same_document_navigation(NestedSameDocumentSessionHistoryNavigation navigation)
+    {
+        return { move(navigation) };
+    }
+
+    static WebContentSessionHistoryMutation nested_cross_document_navigation(NestedCrossDocumentSessionHistoryNavigation navigation)
+    {
+        return { move(navigation) };
+    }
+
+    static WebContentSessionHistoryMutation top_level_cross_document_navigation(TopLevelCrossDocumentSessionHistoryNavigation navigation)
     {
         return { move(navigation) };
     }
@@ -249,6 +284,24 @@ WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::SameDocumentSessionHistoryNavi
 
 template<>
 WEB_API ErrorOr<Web::HTML::SameDocumentSessionHistoryNavigation> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::NestedSameDocumentSessionHistoryNavigation const&);
+
+template<>
+WEB_API ErrorOr<Web::HTML::NestedSameDocumentSessionHistoryNavigation> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::NestedCrossDocumentSessionHistoryNavigation const&);
+
+template<>
+WEB_API ErrorOr<Web::HTML::NestedCrossDocumentSessionHistoryNavigation> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::TopLevelCrossDocumentSessionHistoryNavigation const&);
+
+template<>
+WEB_API ErrorOr<Web::HTML::TopLevelCrossDocumentSessionHistoryNavigation> decode(Decoder&);
 
 template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::WebContentSessionHistoryMutation const&);
