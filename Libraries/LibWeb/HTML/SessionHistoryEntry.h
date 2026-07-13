@@ -48,6 +48,7 @@ enum class SessionHistoryEntryUpdateKind : u8 {
 };
 
 using SessionHistoryOperationId = u64;
+using SessionHistoryEpoch = u64;
 
 struct SessionHistoryEntryDescriptor;
 
@@ -63,7 +64,7 @@ struct SessionHistoryNestedHistoryDescriptor {
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#session-history-entry
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#document-state
 struct SessionHistoryDocumentStateDescriptor {
-    // AD-HOC: The spec models shared document state by object identity. The UI-process mirror uses a stable
+    // AD-HOC: The spec models shared document state by object identity. The UI-process copy uses a stable
     //         descriptor ID so entries that share a document state can be reconstructed after IPC.
     CrossProcessId id;
     Variant<SerializedPolicyContainer, DocumentState::Client> history_policy_container { DocumentState::Client::Tag };
@@ -75,7 +76,7 @@ struct SessionHistoryDocumentStateDescriptor {
     DocumentResource resource;
     bool reload_pending { false };
     bool ever_populated { false };
-    bool is_provisional { false };
+    bool is_ui_process_placeholder { false };
     Utf16String navigable_target_name;
     Vector<SessionHistoryNestedHistoryDescriptor> nested_histories;
 };
@@ -155,10 +156,6 @@ struct TopLevelCrossDocumentSessionHistoryNavigation {
     i32 current_step { 0 };
 };
 
-struct RestoredCurrentSessionHistoryStep {
-    i32 current_step { 0 };
-};
-
 struct CurrentSessionHistoryEntryUpdate {
     SessionHistoryEntryUpdateKind update_kind { SessionHistoryEntryUpdateKind::NavigationAPIState };
     SessionHistoryEntryDescriptor entry;
@@ -178,71 +175,83 @@ struct ChildNavigableSessionHistoryDestroyed {
 };
 
 struct WebContentSessionHistoryMutation {
-    using Mutation = Variant<CurrentSessionHistoryEntryUpdate, ChildNavigableSessionHistoryCreated, ChildNavigableSessionHistoryDestroyed, SameDocumentSessionHistoryNavigation, NestedSameDocumentSessionHistoryNavigation, NestedCrossDocumentSessionHistoryNavigation, TopLevelCrossDocumentSessionHistoryNavigation, RestoredCurrentSessionHistoryStep>;
+    using Mutation = Variant<CurrentSessionHistoryEntryUpdate, ChildNavigableSessionHistoryCreated, ChildNavigableSessionHistoryDestroyed, SameDocumentSessionHistoryNavigation, NestedSameDocumentSessionHistoryNavigation, NestedCrossDocumentSessionHistoryNavigation, TopLevelCrossDocumentSessionHistoryNavigation>;
 
+    SessionHistoryEpoch epoch { 0 };
     SessionHistoryOperationId operation_id { 0 };
     Mutation mutation;
 
     static WebContentSessionHistoryMutation current_entry_update(SessionHistoryEntryUpdateKind update_kind, SessionHistoryEntryDescriptor entry)
     {
-        return { 0, CurrentSessionHistoryEntryUpdate { update_kind, move(entry) } };
+        return { .mutation = CurrentSessionHistoryEntryUpdate { update_kind, move(entry) } };
     }
 
     static WebContentSessionHistoryMutation child_navigable_created(ChildNavigableSessionHistoryCreated created)
     {
-        return { 0, move(created) };
+        return { .mutation = move(created) };
     }
 
     static WebContentSessionHistoryMutation child_navigable_destroyed(ChildNavigableSessionHistoryDestroyed destroyed)
     {
-        return { 0, move(destroyed) };
+        return { .mutation = move(destroyed) };
     }
 
     static WebContentSessionHistoryMutation top_level_same_document_navigation(SameDocumentSessionHistoryNavigation navigation)
     {
-        return { 0, move(navigation) };
+        return { .mutation = move(navigation) };
     }
 
     static WebContentSessionHistoryMutation nested_same_document_navigation(NestedSameDocumentSessionHistoryNavigation navigation)
     {
-        return { 0, move(navigation) };
+        return { .mutation = move(navigation) };
     }
 
     static WebContentSessionHistoryMutation nested_cross_document_navigation(NestedCrossDocumentSessionHistoryNavigation navigation)
     {
-        return { 0, move(navigation) };
+        return { .mutation = move(navigation) };
     }
 
     static WebContentSessionHistoryMutation top_level_cross_document_navigation(TopLevelCrossDocumentSessionHistoryNavigation navigation)
     {
-        return { 0, move(navigation) };
-    }
-
-    static WebContentSessionHistoryMutation restored_current_step(RestoredCurrentSessionHistoryStep step)
-    {
-        return { 0, step };
+        return { .mutation = move(navigation) };
     }
 };
 
 struct WebContentSessionHistoryMutationBatch {
+    SessionHistoryEpoch epoch { 0 };
     SessionHistoryOperationId operation_id { 0 };
     Vector<WebContentSessionHistoryMutation> mutations;
     i32 final_current_step { 0 };
 };
 
+struct SessionHistoryLengthAndIndex {
+    u64 script_history_length { 0 };
+    u64 script_history_index { 0 };
+};
+
+struct CommittedSessionHistoryState {
+    SessionHistoryEpoch epoch { 0 };
+    SessionHistoryOperationId last_applied_mutation_id { 0 };
+    SessionHistoryOperationId last_handled_mutation_id { 0 };
+    i32 current_step { 0 };
+    SessionHistoryLengthAndIndex history_object_length_and_index;
+};
+
 enum class ApplySessionHistoryStepKind : u8 {
     Traverse,
     CheckForCancelationBeforeLoad,
-    RestoreCurrentStepAfterLoad,
+    RestoreCurrentStepAfterTopLevelLoad,
 };
 
 struct ApplySessionHistoryStepCommand {
+    SessionHistoryEpoch epoch { 0 };
     SessionHistoryOperationId command_id { 0 };
     SessionHistoryOperationId apply_after_mutation_id { 0 };
     Optional<u64> history_traversal_request_id;
     ApplySessionHistoryStepKind kind { ApplySessionHistoryStepKind::Traverse };
     i32 target_step { 0 };
     size_t target_step_index { 0 };
+    SessionHistoryLengthAndIndex target_history_object_length_and_index;
     SessionHistoryEntryDescriptor target_entry;
     SessionHistoryEntryDescriptor target_top_level_entry;
     bool target_step_is_top_level_entry { false };
@@ -406,12 +415,6 @@ template<>
 WEB_API ErrorOr<Web::HTML::TopLevelCrossDocumentSessionHistoryNavigation> decode(Decoder&);
 
 template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::RestoredCurrentSessionHistoryStep const&);
-
-template<>
-WEB_API ErrorOr<Web::HTML::RestoredCurrentSessionHistoryStep> decode(Decoder&);
-
-template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::WebContentSessionHistoryMutation const&);
 
 template<>
@@ -422,6 +425,18 @@ WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::WebContentSessionHistoryMutati
 
 template<>
 WEB_API ErrorOr<Web::HTML::WebContentSessionHistoryMutationBatch> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::SessionHistoryLengthAndIndex const&);
+
+template<>
+WEB_API ErrorOr<Web::HTML::SessionHistoryLengthAndIndex> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::CommittedSessionHistoryState const&);
+
+template<>
+WEB_API ErrorOr<Web::HTML::CommittedSessionHistoryState> decode(Decoder&);
 
 template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::ApplySessionHistoryStepCommand const&);

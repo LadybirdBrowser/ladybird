@@ -55,12 +55,12 @@ endpoint WebContentServer
     update_system_theme(u64 page_id, Core::AnonymousBuffer theme_buffer) =|
     update_screen_rects(u64 page_id, Vector<Web::DevicePixelRect> rects, u32 main_screen_index) =|
 
-    load_url(u64 page_id, URL::URL url, Web::Bindings::NavigationHistoryBehavior history_handling) =|
-    load_url_with_document_resource(u64 page_id, URL::URL url,
+    load_url(u64 page_id, Web::HTML::SessionHistoryEpoch session_history_epoch, URL::URL url, Web::Bindings::NavigationHistoryBehavior history_handling) =|
+    load_url_with_document_resource(u64 page_id, Web::HTML::SessionHistoryEpoch session_history_epoch, URL::URL url,
         Variant<Empty, Utf16String, Web::HTML::POSTResource> document_resource,
         Web::Bindings::NavigationHistoryBehavior history_handling) =|
-    load_html(u64 page_id, ByteString html) =|
-    load_html_with_url(u64 page_id, ByteString html, URL::URL url) =|
+    load_html(u64 page_id, Web::HTML::SessionHistoryEpoch session_history_epoch, ByteString html) =|
+    load_html_with_url(u64 page_id, Web::HTML::SessionHistoryEpoch session_history_epoch, ByteString html, URL::URL url) =|
     reload(u64 page_id) =|
     stop_loading(u64 page_id) =|
     cancel_download(u64 page_id, u64 download_id) =|
@@ -68,10 +68,12 @@ endpoint WebContentServer
     set_page_parent_context(u64 page_id, Optional<Web::Compositor::CompositorContextId> parent_context_id) =|
     set_remote_child_frame_compositor_context(u64 page_id, Web::HTML::CrossProcessId frame_id, Optional<Web::Compositor::CompositorContextId> context_id) =|
     apply_session_history_step(u64 page_id, Web::HTML::ApplySessionHistoryStepCommand command) =|
+    set_session_history_state(u64 page_id, Web::HTML::CommittedSessionHistoryState state) =|
     discard_history_traversal_request(u64 page_id, u64 history_traversal_request_id) =|
-    install_top_level_session_history_seed(u64 page_id, u64 seed_id, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries,
-        size_t current_top_level_entry_index, bool allow_reconstructing_current_entry) =|
-    reset_session_history_for_testing(u64 page_id) =|
+    install_top_level_session_history_state(u64 page_id, u64 state_install_id, Web::HTML::SessionHistoryEntryDescriptor current_entry,
+        Vector<Web::HTML::SessionHistoryEntryDescriptor> entries_for_navigation_api, Web::HTML::CommittedSessionHistoryState session_history_state,
+        bool allow_reconstructing_current_entry) =|
+    reset_session_history_for_testing(u64 page_id, Web::HTML::SessionHistoryEpoch session_history_epoch) =|
 
     set_viewport(u64 page_id, Web::DevicePixelSize size, double device_pixel_ratio, Web::ViewportIsFullscreen is_fullscreen) =|
 

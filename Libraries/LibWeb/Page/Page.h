@@ -422,11 +422,6 @@ enum class ContextMenuForInputEventsTarget : u8 {
     Yes,
 };
 
-enum class HistoryTraversalPrecheck : u8 {
-    Needed,
-    AlreadyDone,
-};
-
 enum class NavigationTarget : u8 {
     TopLevel,
     IFrame,
@@ -586,7 +581,7 @@ public:
     virtual void page_did_apply_session_history_mutation([[maybe_unused]] HTML::WebContentSessionHistoryMutation const&) { }
     virtual void page_did_apply_session_history_mutation_batch([[maybe_unused]] HTML::WebContentSessionHistoryMutationBatch const&) { }
     virtual String page_did_request_ui_process_session_history_for_testing() { return "{}"_string; }
-    virtual bool page_did_request_traverse_the_history_by_delta([[maybe_unused]] Optional<u64> history_traversal_request_id, [[maybe_unused]] HTML::SessionHistoryOperationId last_session_history_mutation_id, [[maybe_unused]] int delta, [[maybe_unused]] HistoryTraversalPrecheck history_traversal_precheck) { return false; }
+    virtual bool page_did_request_traverse_the_history_by_delta([[maybe_unused]] Optional<u64> history_traversal_request_id, [[maybe_unused]] HTML::SessionHistoryEpoch epoch, [[maybe_unused]] HTML::SessionHistoryOperationId last_session_history_mutation_id, [[maybe_unused]] int delta) { return false; }
     virtual void page_did_change_needs_beforeunload_check([[maybe_unused]] bool needs_beforeunload_check) { }
 
     virtual void request_file(FileRequest) = 0;

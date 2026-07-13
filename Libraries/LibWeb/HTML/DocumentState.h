@@ -84,7 +84,7 @@ private:
     //       decoupled from the document's lifetime (LocalNavigable owns the document directly).
     Optional<UniqueNodeID> m_document_id;
 
-    // AD-HOC: Stable identity used by the UI-process session history mirror to preserve shared document states
+    // AD-HOC: Stable identity used by the UI-process session history copy to preserve shared document states
     //         across IPC and WebContent process swaps.
     Optional<CrossProcessId> m_cross_process_id;
 

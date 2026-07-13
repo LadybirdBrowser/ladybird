@@ -244,7 +244,7 @@ private:
     virtual void page_did_apply_session_history_mutation(Web::HTML::WebContentSessionHistoryMutation const&) override;
     virtual void page_did_apply_session_history_mutation_batch(Web::HTML::WebContentSessionHistoryMutationBatch const&) override;
     virtual String page_did_request_ui_process_session_history_for_testing() override;
-    virtual bool page_did_request_traverse_the_history_by_delta(Optional<u64> history_traversal_request_id, Web::HTML::SessionHistoryOperationId last_session_history_mutation_id, int delta, Web::HistoryTraversalPrecheck) override;
+    virtual bool page_did_request_traverse_the_history_by_delta(Optional<u64> history_traversal_request_id, Web::HTML::SessionHistoryEpoch, Web::HTML::SessionHistoryOperationId last_session_history_mutation_id, int delta) override;
     virtual void request_file(Web::FileRequest) override;
     virtual void page_did_request_color_picker(Color current_color) override;
     virtual void page_did_request_file_picker(Web::HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles) override;

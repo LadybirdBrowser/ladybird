@@ -14,10 +14,6 @@
 
 namespace WebView {
 
-// AD-HOC: The HTML Standard stores a traversable navigable's session history entries on the traversable. Ladybird
-//         keeps an IPC-serializable mirror in the UI process so browser history survives WebContent process swaps
-//         and crash recovery. The mirror still uses the spec's session history entry and all used history steps model.
-//
 // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-session-history-entries
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-all-used-history-steps
 class WEBVIEW_API TraversableSessionHistory {
@@ -37,7 +33,6 @@ public:
         CurrentEntryUpdate,
         ChildNavigableCreated,
         ChildNavigableDestroyed,
-        RestoredCurrentStep,
     };
 
     struct WebContentMutation {
@@ -77,34 +72,11 @@ public:
                 .current_step = current_step,
             };
         }
-
-        static WebContentMutation restored_current_step(i32 step)
-        {
-            return {
-                .type = WebContentMutationType::RestoredCurrentStep,
-                .current_step = step,
-            };
-        }
     };
 
     struct WebContentMutationResult {
         bool accepted { false };
-        bool web_content_history_matches_mirror { false };
-    };
-
-    enum class WebContentMirrorState {
-        Unknown,
-        CompleteMirror,
-    };
-
-    enum class WebContentMirrorProof {
-        AcceptedSeedInstall,
-        RestoredCurrentStep,
-        ReloadPendingClear,
-        TopLevelCommitFromCompleteMirror,
-        TopLevelCommitFromAcceptedSeed,
-        InitialSingleEntryCommit,
-        AppliedSessionHistoryStepCommand,
+        bool web_content_history_is_synchronized { false };
     };
 
     bool is_empty() const { return m_entries.is_empty(); }
@@ -127,23 +99,20 @@ public:
     [[nodiscard]] bool apply_child_navigable_creation(Web::HTML::ChildNavigableSessionHistoryCreated);
     [[nodiscard]] bool apply_child_navigable_destruction(Web::HTML::ChildNavigableSessionHistoryDestroyed);
     [[nodiscard]] WebContentMutationResult apply_web_content_mutation(WebContentMutation);
-    void record_web_content_seeded_from_ui_process(i32 current_step);
-    void record_web_content_mirror_matches_ui_process(WebContentMirrorProof);
+    void record_web_content_session_history_state_installed(i32 current_step);
+    void record_web_content_history_synchronized();
     void forget_web_content_state();
     void mark_web_content_history_match_unproven();
     [[nodiscard]] bool apply_traversal_to_step(i32 step);
     Vector<Entry> entries() const;
     Vector<i32> used_steps() const;
-    WebContentMirrorState web_content_mirror_state() const { return m_web_content_mirror_state; }
-    Optional<WebContentMirrorProof> web_content_mirror_proof() const { return m_web_content_mirror_proof; }
-    bool web_content_history_matches_mirror() const;
+    bool web_content_history_is_synchronized() const;
 
     [[nodiscard]] bool can_go_back() const;
     [[nodiscard]] bool can_go_forward() const;
     [[nodiscard]] bool has_only_top_level_used_steps() const;
     [[nodiscard]] bool current_step_is_top_level_entry() const;
     [[nodiscard]] Optional<i32> current_step_to_restore_after_loading_top_level_entry() const;
-    [[nodiscard]] bool web_content_can_traverse_to(TraversalTarget const&) const;
     [[nodiscard]] Optional<TraversalTarget> traversal_target_for_delta(int delta) const;
     [[nodiscard]] Optional<TraversalTarget> traversal_target_for_step(i32 step) const;
     [[nodiscard]] Optional<size_t> target_step_index_for_delta(int delta) const;
@@ -157,7 +126,6 @@ public:
 
 private:
     [[nodiscard]] bool update_current_entry_from_web_content(Web::HTML::SessionHistoryEntryUpdateKind, Entry);
-    [[nodiscard]] bool did_restore_web_content_to_current_step(i32 step);
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-session-history-entries
     Vector<Entry> m_entries;
@@ -169,10 +137,7 @@ private:
     // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-current-session-history-step
     Optional<size_t> m_current_used_step_index;
 
-    WebContentMirrorState m_web_content_mirror_state { WebContentMirrorState::Unknown };
-    Optional<WebContentMirrorProof> m_web_content_mirror_proof;
+    bool m_web_content_history_is_synchronized { false };
 };
-
-StringView web_content_mirror_proof_to_string(TraversableSessionHistory::WebContentMirrorProof);
 
 }

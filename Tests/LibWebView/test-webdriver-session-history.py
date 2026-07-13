@@ -932,11 +932,10 @@ def history_current_entry(history):
 def web_content_history_is_observably_in_sync(snapshot):
     ui = snapshot["ui"]
     return not (
-        ui["waitingToSeedWebContent"]
-        or ui["waitingForWebContentSeedAck"]
-        or ui["ignoringWebContentUpdatesUntilSeed"]
-        or ui["seedAfterCurrentHistoryLoad"]
-        or ui["pendingWebContentHistoryStepAfterFallbackLoad"] is not None
+        ui["waitingToInstallWebContentHistoryState"]
+        or ui["waitingForWebContentHistoryStateInstallAck"]
+        or ui["installStateAfterCurrentHistoryLoad"]
+        or ui["pendingWebContentHistoryCommandAfterFallbackLoad"] is not None
         or ui["pendingSessionHistoryNavigation"] is not None
         or ui["pendingSessionHistoryTraversal"] is not None
         or not ui["webContentHistoryMatchesUI"]
@@ -953,12 +952,10 @@ def summarize_history_snapshot(snapshot):
             "back": ui["backButtonEnabled"],
             "forward": ui["forwardButtonEnabled"],
             "matches": ui["webContentHistoryMatchesUI"],
-            "waitingToSeedWebContent": ui["waitingToSeedWebContent"],
-            "waitingForWebContentSeedAck": ui["waitingForWebContentSeedAck"],
-            "ignoringWebContentUpdatesUntilSeed": ui["ignoringWebContentUpdatesUntilSeed"],
-            "seedAfterCurrentHistoryLoad": ui["seedAfterCurrentHistoryLoad"],
-            "webContentMirrorState": ui["webContentMirrorState"],
-            "pendingWebContentHistoryStepAfterFallbackLoad": ui["pendingWebContentHistoryStepAfterFallbackLoad"],
+            "waitingToInstallWebContentHistoryState": ui["waitingToInstallWebContentHistoryState"],
+            "waitingForWebContentHistoryStateInstallAck": ui["waitingForWebContentHistoryStateInstallAck"],
+            "installStateAfterCurrentHistoryLoad": ui["installStateAfterCurrentHistoryLoad"],
+            "pendingWebContentHistoryCommandAfterFallbackLoad": ui["pendingWebContentHistoryCommandAfterFallbackLoad"],
             "pendingSessionHistoryNavigation": ui["pendingSessionHistoryNavigation"],
             "pendingSessionHistoryTraversal": ui["pendingSessionHistoryTraversal"],
             "currentResource": history_current_entry(ui).get("resource"),
@@ -977,11 +974,9 @@ def expect_ui_session_history(
     expected_forward_enabled,
     log,
     expect_web_content_matches_ui=None,
-    expected_waiting_to_seed_web_content=None,
-    expected_waiting_for_web_content_seed_ack=None,
-    expected_ignoring_web_content_updates_until_seed=None,
-    expected_seed_after_current_history_load=None,
-    expected_web_content_mirror_state=None,
+    expected_waiting_to_install_state_web_content=None,
+    expected_waiting_for_web_content_state_install_ack=None,
+    expected_state_install_after_current_history_load=None,
 ):
     def ui_history_matches(snapshot):
         ui = snapshot["ui"]
@@ -996,24 +991,16 @@ def expect_ui_session_history(
                 or web_content_history_is_observably_in_sync(snapshot) is expect_web_content_matches_ui
             )
             and (
-                expected_waiting_to_seed_web_content is None
-                or ui["waitingToSeedWebContent"] is expected_waiting_to_seed_web_content
+                expected_waiting_to_install_state_web_content is None
+                or ui["waitingToInstallWebContentHistoryState"] is expected_waiting_to_install_state_web_content
             )
             and (
-                expected_waiting_for_web_content_seed_ack is None
-                or ui["waitingForWebContentSeedAck"] is expected_waiting_for_web_content_seed_ack
+                expected_waiting_for_web_content_state_install_ack is None
+                or ui["waitingForWebContentHistoryStateInstallAck"] is expected_waiting_for_web_content_state_install_ack
             )
             and (
-                expected_ignoring_web_content_updates_until_seed is None
-                or ui["ignoringWebContentUpdatesUntilSeed"] is expected_ignoring_web_content_updates_until_seed
-            )
-            and (
-                expected_seed_after_current_history_load is None
-                or ui["seedAfterCurrentHistoryLoad"] is expected_seed_after_current_history_load
-            )
-            and (
-                expected_web_content_mirror_state is None
-                or ui["webContentMirrorState"] == expected_web_content_mirror_state
+                expected_state_install_after_current_history_load is None
+                or ui["installStateAfterCurrentHistoryLoad"] is expected_state_install_after_current_history_load
             )
         )
 
@@ -1022,11 +1009,9 @@ def expect_ui_session_history(
             f"Expected {label} UI history to be entries={expected_entry_urls}, usedSteps={expected_used_steps}, "
             f"currentUsedStepIndex={expected_current_used_step_index}, back={expected_back_enabled}, "
             f"forward={expected_forward_enabled}, webContentMatchesUI={expect_web_content_matches_ui}, "
-            f"waitingToSeedWebContent={expected_waiting_to_seed_web_content}, "
-            f"waitingForWebContentSeedAck={expected_waiting_for_web_content_seed_ack}, "
-            f"ignoringWebContentUpdatesUntilSeed={expected_ignoring_web_content_updates_until_seed}; "
-            f"seedAfterCurrentHistoryLoad={expected_seed_after_current_history_load}; "
-            f"webContentMirrorState={expected_web_content_mirror_state}; "
+            f"waitingToInstallWebContentHistoryState={expected_waiting_to_install_state_web_content}, "
+            f"waitingForWebContentHistoryStateInstallAck={expected_waiting_for_web_content_state_install_ack}, "
+            f"installStateAfterCurrentHistoryLoad={expected_state_install_after_current_history_load}; "
             f"got {summarize_history_snapshot(snapshot)}\n" + "\n".join(log)
         )
 
@@ -1091,7 +1076,6 @@ def expect_beforeunload_cancels_webdriver_navigation(
     expected_history_snapshot,
     log,
     expect_web_content_matches_ui=True,
-    expected_web_content_mirror_state=None,
 ):
     request(webdriver_port, "POST", f"/session/{session_id}/timeouts", {"pageLoad": 1000})
     request(webdriver_port, "POST", f"/session/{session_id}/url", {"url": url})
@@ -1116,7 +1100,6 @@ def expect_beforeunload_cancels_webdriver_navigation(
         ui_history["forwardButtonEnabled"],
         log,
         expect_web_content_matches_ui=expect_web_content_matches_ui,
-        expected_web_content_mirror_state=expected_web_content_mirror_state,
     )
     return state
 
@@ -1422,7 +1405,7 @@ def expect_entry_nested_history(webdriver_port, session_id, label, entry_url, ex
 def expect_pending_web_content_history_step_after_fallback_load(webdriver_port, session_id, label, log):
     snapshot = session_history(webdriver_port, session_id)
     ui = snapshot["ui"]
-    pending_step = ui["pendingWebContentHistoryStepAfterFallbackLoad"]
+    pending_step = ui["pendingWebContentHistoryCommandAfterFallbackLoad"]
     pending_traversal = ui["pendingSessionHistoryTraversal"]
     ui_current_step = history_used_steps(ui)[ui["currentUsedStepIndex"]]
     log.append(
@@ -1439,8 +1422,8 @@ def expect_pending_web_content_history_step_after_fallback_load(webdriver_port, 
             f"Expected {label} WebContent history to be stale while step is pending\n" + "\n".join(log)
         )
 
-    if ui["waitingToSeedWebContent"] or ui["waitingForWebContentSeedAck"] or ui["seedAfterCurrentHistoryLoad"]:
-        raise AssertionError(f"Expected {label} WebContent seed to be applied\n" + "\n".join(log))
+    if ui["waitingToInstallWebContentHistoryState"] or ui["waitingForWebContentHistoryStateInstallAck"] or ui["installStateAfterCurrentHistoryLoad"]:
+        raise AssertionError(f"Expected {label} WebContentstate install to be applied\n" + "\n".join(log))
 
     if pending_traversal is None:
         raise AssertionError(f"Expected {label} to have a pending session history traversal\n" + "\n".join(log))
@@ -1451,9 +1434,9 @@ def expect_pending_web_content_history_step_after_fallback_load(webdriver_port, 
             f"to match pending WebContent step {pending_step}\n" + "\n".join(log)
         )
 
-    if pending_traversal["stage"] != "restoring-nested-step-after-seed":
+    if pending_traversal["stage"] != "restoring-current-step-after-state-install":
         raise AssertionError(
-            f"Expected {label} pending traversal to be restoring nested step after seed, "
+            f"Expected {label} pending traversal to be restoring current step afterstate install, "
             f"got {pending_traversal['stage']}\n" + "\n".join(log)
         )
 
@@ -1468,7 +1451,7 @@ def expect_no_pending_web_content_history_step_after_fallback_load(webdriver_por
     snapshot = session_history(webdriver_port, session_id)
     ui = snapshot["ui"]
     if (
-        ui["pendingWebContentHistoryStepAfterFallbackLoad"] is None
+        ui["pendingWebContentHistoryCommandAfterFallbackLoad"] is None
         and web_content_history_is_observably_in_sync(snapshot)
     ):
         log.append(f"{label} restored fallback step: {summarize_history_snapshot(snapshot)}")
@@ -1707,10 +1690,9 @@ def run_blocked_process_swap_ui_forward_crash_recovery_test(
         False,
         log,
         expect_web_content_matches_ui=False,
-        expected_waiting_to_seed_web_content=True,
-        expected_waiting_for_web_content_seed_ack=False,
-        expected_ignoring_web_content_updates_until_seed=True,
-        expected_seed_after_current_history_load=True,
+        expected_waiting_to_install_state_web_content=True,
+        expected_waiting_for_web_content_state_install_ack=False,
+        expected_state_install_after_current_history_load=True,
     )
     page_server.release_blocked_process_swap_back.set()
     wait_for_event(page_server.process_swap_back_document_ran, "process-swap UI forward recovery document")
@@ -1873,7 +1855,6 @@ def expect_beforeunload_cancels_stale_ui_load(
         before_blocked_browser_ui_back["ui"]["forwardButtonEnabled"],
         log,
         expect_web_content_matches_ui=False,
-        expected_web_content_mirror_state="unknown",
     )
 
     load_url_from_ui(webdriver_port, session_id, url_c)
@@ -1899,7 +1880,6 @@ def expect_beforeunload_cancels_stale_ui_load(
         before_blocked_browser_ui_back["ui"]["forwardButtonEnabled"],
         log,
         expect_web_content_matches_ui=False,
-        expected_web_content_mirror_state="unknown",
     )
 
     return blocked_stale_ui_load_state
@@ -2609,10 +2589,9 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             True,
             log,
             expect_web_content_matches_ui=False,
-            expected_waiting_to_seed_web_content=True,
-            expected_waiting_for_web_content_seed_ack=False,
-            expected_ignoring_web_content_updates_until_seed=True,
-            expected_seed_after_current_history_load=True,
+            expected_waiting_to_install_state_web_content=True,
+            expected_waiting_for_web_content_state_install_ack=False,
+            expected_state_install_after_current_history_load=True,
         )
         page_server.release_blocked_process_swap_back.set()
         wait_for_event(page_server.process_swap_back_document_ran, "process-swap UI back recovery document")
@@ -3879,7 +3858,7 @@ return [location.href, window.canceledTraverseCount];
                 + "\n".join(log)
             )
 
-        def browser_ui_traverse_setup_is_mirrored(snapshot):
+        def browser_ui_traverse_setup_is_synchronized(snapshot):
             ui_history = snapshot["ui"]
             if not web_content_history_is_observably_in_sync(snapshot):
                 return False
@@ -3889,7 +3868,7 @@ return [location.href, window.canceledTraverseCount];
             webdriver_port,
             session_id,
             "before browser UI traverse with navigate cancel handler",
-            browser_ui_traverse_setup_is_mirrored,
+            browser_ui_traverse_setup_is_synchronized,
             log,
         )
         if history_before_browser_ui_traverse["ui"]["currentUsedStepIndex"] == 0:
@@ -4145,7 +4124,6 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             before_blocked_browser_ui_back["ui"]["forwardButtonEnabled"],
             log,
             expect_web_content_matches_ui=True,
-            expected_web_content_mirror_state="complete",
         )
         execute_script(webdriver_port, session_id, "navigation.onnavigate = null; return null;")
 
@@ -4217,7 +4195,6 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             before_blocked_browser_ui_back["ui"]["forwardButtonEnabled"],
             log,
             expect_web_content_matches_ui=True,
-            expected_web_content_mirror_state="complete",
         )
 
         blocked_stale_ui_load_state = expect_beforeunload_cancels_stale_ui_load(
@@ -4240,7 +4217,6 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             before_blocked_browser_ui_back,
             log,
             expect_web_content_matches_ui=False,
-            expected_web_content_mirror_state="unknown",
         )
 
         blocked_cross_site_webdriver_navigate_state = expect_beforeunload_cancels_webdriver_navigation(
@@ -4253,7 +4229,6 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             before_blocked_browser_ui_back,
             log,
             expect_web_content_matches_ui=False,
-            expected_web_content_mirror_state="unknown",
         )
 
         blocked_refresh_state = expect_beforeunload_cancels_refresh(
@@ -4286,7 +4261,6 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             before_blocked_browser_ui_back["ui"]["forwardButtonEnabled"],
             log,
             expect_web_content_matches_ui=False,
-            expected_web_content_mirror_state="unknown",
         )
 
         request(webdriver_port, "POST", f"/session/{session_id}/back", {})
@@ -4311,7 +4285,6 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             before_blocked_browser_ui_back["ui"]["forwardButtonEnabled"],
             log,
             expect_web_content_matches_ui=False,
-            expected_web_content_mirror_state="unknown",
         )
 
         perform_browser_history_shortcut(webdriver_port, session_id, "left", log)
@@ -4336,7 +4309,6 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             before_blocked_browser_ui_back["ui"]["forwardButtonEnabled"],
             log,
             expect_web_content_matches_ui=False,
-            expected_web_content_mirror_state="unknown",
         )
 
         cross_site_link_click_point = execute_script(
@@ -4374,7 +4346,6 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             before_blocked_browser_ui_back["ui"]["forwardButtonEnabled"],
             log,
             expect_web_content_matches_ui=False,
-            expected_web_content_mirror_state="unknown",
         )
         execute_script(webdriver_port, session_id, "window.onbeforeunload = null; return null;")
 
@@ -4503,10 +4474,9 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             before_blocked_reload_crash_recovery["ui"]["forwardButtonEnabled"],
             log,
             expect_web_content_matches_ui=False,
-            expected_waiting_to_seed_web_content=True,
-            expected_waiting_for_web_content_seed_ack=False,
-            expected_ignoring_web_content_updates_until_seed=True,
-            expected_seed_after_current_history_load=True,
+            expected_waiting_to_install_state_web_content=True,
+            expected_waiting_for_web_content_state_install_ack=False,
+            expected_state_install_after_current_history_load=True,
         )
         page_server.release_blocked_reload.set()
         wait_for_event(page_server.reload_blocked_document_ran, "reload document after crash recovery")

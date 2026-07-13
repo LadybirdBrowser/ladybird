@@ -144,7 +144,7 @@ WebIDL::ExceptionOr<void> Navigation::update_current_entry(Bindings::NavigationU
     // 4. Set current's session history entry's navigation API state to serializedState.
     current->session_history_entry().set_navigation_api_state(serialized_state);
 
-    // NB: The UI-process session history mirror needs to observe updateCurrentEntry() state changes so restored
+    // NB: The UI-process session history copy needs to observe updateCurrentEntry() state changes so restored
     //     WebContent processes can reconstruct Navigation API state from the authoritative UI-owned history.
     auto& document = as<HTML::Window>(relevant_global_object(*this)).associated_document();
     if (auto navigable = document.navigable())
@@ -1278,7 +1278,10 @@ bool Navigation::inner_navigate_event_firing_algorithm(
 
             // 4. Append the following session history traversal steps to navigable's traversable navigable:
             auto destination_entry = event->destination()->navigation_history_entry();
-            VERIFY(destination_entry);
+            if (!destination_entry) {
+                abort_the_ongoing_navigation();
+                return false;
+            }
             auto target_step = destination_entry->session_history_entry().step().get<int>();
             auto traversable = navigable->traversable_navigable();
             traversable->record_intercepted_history_traversal_step(target_step);
@@ -1370,7 +1373,6 @@ bool Navigation::fire_a_traverse_navigate_event(NonnullRefPtr<SessionHistoryEntr
     auto destination_nhe = m_entry_list.find_if([destination_she](auto& nhe) {
         return &nhe->session_history_entry() == destination_she;
     });
-
     // 6. If destinationNHE is non-null, then:
     if (destination_nhe != m_entry_list.end()) {
         // 1. Set destination's entry to destinationNHE.

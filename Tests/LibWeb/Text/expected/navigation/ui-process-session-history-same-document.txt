@@ -2,4 +2,3 @@ after-push-state: location=?same-document-pushed
 after-push-state: ui-current=?same-document-pushed
 after-push-state: ui-relevant-entries=?same-document-replaced,?same-document-pushed*
 after-push-state: ui-buttons=true,false
-after-push-state: ui-webcontent-mirror-state=unknown

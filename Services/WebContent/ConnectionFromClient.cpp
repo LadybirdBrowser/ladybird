@@ -279,16 +279,19 @@ void ConnectionFromClient::update_screen_rects(u64 page_id, Vector<Web::DevicePi
         page->set_screen_rects(rects, main_screen);
 }
 
-void ConnectionFromClient::load_url(u64 page_id, URL::URL url, Web::Bindings::NavigationHistoryBehavior history_handling)
+void ConnectionFromClient::load_url(u64 page_id, Web::HTML::SessionHistoryEpoch session_history_epoch, URL::URL url, Web::Bindings::NavigationHistoryBehavior history_handling)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
         return;
 
+    if (!page->page().top_level_traversable()->set_session_history_epoch_from_ui_process(session_history_epoch))
+        return;
+
     page->page().load(url, history_handling);
 }
 
-void ConnectionFromClient::load_url_with_document_resource(u64 page_id, URL::URL url,
+void ConnectionFromClient::load_url_with_document_resource(u64 page_id, Web::HTML::SessionHistoryEpoch session_history_epoch, URL::URL url,
     Web::HTML::DocumentResource document_resource,
     Web::Bindings::NavigationHistoryBehavior history_handling)
 {
@@ -296,18 +299,21 @@ void ConnectionFromClient::load_url_with_document_resource(u64 page_id, URL::URL
     if (!page.has_value())
         return;
 
+    if (!page->page().top_level_traversable()->set_session_history_epoch_from_ui_process(session_history_epoch))
+        return;
+
     page->page().load(url, move(document_resource), history_handling);
 }
 
-void ConnectionFromClient::load_html(u64 page_id, ByteString html)
+void ConnectionFromClient::load_html(u64 page_id, Web::HTML::SessionHistoryEpoch session_history_epoch, ByteString html)
 {
-    if (auto page = this->page(page_id); page.has_value())
+    if (auto page = this->page(page_id); page.has_value() && page->page().top_level_traversable()->set_session_history_epoch_from_ui_process(session_history_epoch))
         page->page().load_html(html);
 }
 
-void ConnectionFromClient::load_html_with_url(u64 page_id, ByteString html, URL::URL url)
+void ConnectionFromClient::load_html_with_url(u64 page_id, Web::HTML::SessionHistoryEpoch session_history_epoch, ByteString html, URL::URL url)
 {
-    if (auto page = this->page(page_id); page.has_value())
+    if (auto page = this->page(page_id); page.has_value() && page->page().top_level_traversable()->set_session_history_epoch_from_ui_process(session_history_epoch))
         page->page().load_html(html, url);
 }
 
@@ -333,15 +339,22 @@ void ConnectionFromClient::apply_session_history_step(u64 page_id, Web::HTML::Ap
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
-        async_did_apply_session_history_step(page_id, command.command_id, false, Web::HTML::HistoryStepResult::Applied);
+        async_did_apply_session_history_step(page_id, command.epoch, command.command_id, false, Web::HTML::HistoryStepResult::Applied);
         return;
     }
 
+    auto command_epoch = command.epoch;
     auto command_id = command.command_id;
     page->page().top_level_traversable()->apply_session_history_step(move(command),
-        GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, command_id](bool step_was_available, Web::HTML::HistoryStepResult result) {
-            async_did_apply_session_history_step(page_id, command_id, step_was_available, result);
+        GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, command_epoch, command_id](bool step_was_available, Web::HTML::HistoryStepResult result) {
+            async_did_apply_session_history_step(page_id, command_epoch, command_id, step_was_available, result);
         }));
+}
+
+void ConnectionFromClient::set_session_history_state(u64 page_id, Web::HTML::CommittedSessionHistoryState state)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().top_level_traversable()->set_session_history_state_from_ui_process(state);
 }
 
 void ConnectionFromClient::discard_history_traversal_request(u64 page_id, u64 history_traversal_request_id)
@@ -350,30 +363,30 @@ void ConnectionFromClient::discard_history_traversal_request(u64 page_id, u64 hi
         page->page().top_level_traversable()->discard_history_traversal_request(history_traversal_request_id);
 }
 
-void ConnectionFromClient::install_top_level_session_history_seed(u64 page_id, u64 seed_id, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, size_t current_top_level_entry_index, bool allow_reconstructing_current_entry)
+void ConnectionFromClient::install_top_level_session_history_state(u64 page_id, u64 state_install_id, Web::HTML::SessionHistoryEntryDescriptor current_entry, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries_for_navigation_api, Web::HTML::CommittedSessionHistoryState session_history_state, bool allow_reconstructing_current_entry)
 {
+    auto session_history_epoch = session_history_state.epoch;
     if (auto page = this->page(page_id); page.has_value()) {
-        auto current_step = current_top_level_entry_index < entries.size()
-            ? entries[current_top_level_entry_index].step
-            : 0;
-
-        auto accepted = page->page().top_level_traversable()->try_to_install_top_level_session_history_entries_from_ui_process(move(entries), current_top_level_entry_index, allow_reconstructing_current_entry);
-        async_did_install_top_level_session_history_seed(page_id, seed_id, accepted, current_step);
+        auto current_step = current_entry.step;
+        auto accepted_state = page->page().top_level_traversable()->set_session_history_state_from_ui_process(session_history_state);
+        auto accepted = accepted_state
+            && page->page().top_level_traversable()->try_to_install_top_level_session_history_entries_from_ui_process(move(current_entry), move(entries_for_navigation_api), allow_reconstructing_current_entry);
+        async_did_install_top_level_session_history_state(page_id, session_history_epoch, state_install_id, accepted, current_step);
     } else {
-        async_did_install_top_level_session_history_seed(page_id, seed_id, false, 0);
+        async_did_install_top_level_session_history_state(page_id, session_history_epoch, state_install_id, false, 0);
     }
 }
 
-void ConnectionFromClient::reset_session_history_for_testing(u64 page_id)
+void ConnectionFromClient::reset_session_history_for_testing(u64 page_id, Web::HTML::SessionHistoryEpoch session_history_epoch)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         auto& event_loop = Web::HTML::main_thread_event_loop();
-        page->page().top_level_traversable()->reset_session_history_for_testing(
-            GC::create_function(event_loop.heap(), [this, page_id] {
-                async_did_reset_session_history_for_testing(page_id);
+        page->page().top_level_traversable()->reset_session_history_for_testing(session_history_epoch,
+            GC::create_function(event_loop.heap(), [this, page_id, session_history_epoch] {
+                async_did_reset_session_history_for_testing(page_id, session_history_epoch);
             }));
     } else {
-        async_did_reset_session_history_for_testing(page_id);
+        async_did_reset_session_history_for_testing(page_id, session_history_epoch);
     }
 }
 

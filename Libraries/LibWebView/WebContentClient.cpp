@@ -511,7 +511,7 @@ void WebContentClient::did_request_new_process_for_child_frame_navigation(u64 pa
             Web::ViewportIsFullscreen::No);
     }
     remote_client->async_set_system_visibility_state(remote_page_id, Web::HTML::VisibilityState::Visible);
-    remote_client->async_load_url_with_document_resource(remote_page_id, url, move(document_resource), history_handling);
+    remote_client->async_load_url_with_document_resource(remote_page_id, child_frame->top_level_traversable().web_content_session_history_epoch(), url, move(document_resource), history_handling);
 
     SiteIsolationManager::the().transition_child_frame_to_remote(*this, page_id, frame_id, move(remote_client), remote_page_id);
 }
@@ -1473,21 +1473,30 @@ void WebContentClient::did_change_needs_beforeunload_check(u64 page_id, bool nee
         view->did_change_needs_beforeunload_check({}, needs_beforeunload_check);
 }
 
-Messages::WebContentClient::DidRequestTraverseTheHistoryByDeltaResponse WebContentClient::did_request_traverse_the_history_by_delta(u64 page_id, Optional<u64> history_traversal_request_id, Web::HTML::SessionHistoryOperationId last_session_history_mutation_id, i32 delta, Web::HistoryTraversalPrecheck history_traversal_precheck)
+Messages::WebContentClient::DidRequestTraverseTheHistoryByDeltaResponse WebContentClient::did_request_traverse_the_history_by_delta(u64 page_id, Optional<u64> history_traversal_request_id, Web::HTML::SessionHistoryEpoch session_history_epoch, Web::HTML::SessionHistoryOperationId last_session_history_mutation_id, i32 delta)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (!view->is_current_web_content_session_history_epoch(session_history_epoch))
+            return false;
+
         auto view_id = view->view_id();
+        auto weak_this = static_cast<Core::EventReceiver&>(*this).make_weak_ptr();
         // This request is already a synchronous IPC from WebContent, so defer
         // the UI traversal before it possibly calls back into WebContent for
         // cancelation checks.
-        Core::deferred_invoke([view_id, history_traversal_request_id, last_session_history_mutation_id, delta, history_traversal_precheck] {
+        Core::deferred_invoke([weak_this, page_id, view_id, history_traversal_request_id, session_history_epoch, last_session_history_mutation_id, delta] {
             auto view = ViewImplementation::find_view_by_id(view_id);
             if (!view.has_value())
                 return;
-            auto check_for_cancelation = CheckForCancelation::IfWebContentCannotTraverseTarget;
-            if (history_traversal_precheck == Web::HistoryTraversalPrecheck::Needed)
-                check_for_cancelation = CheckForCancelation::Yes;
-            (void)view->traverse_the_history_by_delta(delta, check_for_cancelation, nullptr, history_traversal_request_id, last_session_history_mutation_id);
+            if (!view->is_current_web_content_session_history_epoch(session_history_epoch)) {
+                if (history_traversal_request_id.has_value()) {
+                    auto self = weak_this.strong_ref();
+                    if (self)
+                        static_cast<WebContentClient&>(*self).async_discard_history_traversal_request(page_id, *history_traversal_request_id);
+                }
+                return;
+            }
+            (void)view->traverse_the_history_by_delta(delta, CheckForCancelation::Yes, nullptr, history_traversal_request_id, last_session_history_mutation_id);
         });
         return true;
     }
@@ -1815,22 +1824,22 @@ Messages::WebContentClient::DidRequestSiteIsolationProcessTreeForTestingResponse
     return { SiteIsolationManager::the().dump_process_tree(*this, page_id) };
 }
 
-void WebContentClient::did_install_top_level_session_history_seed(u64 page_id, u64 seed_id, bool accepted, i32 current_step)
+void WebContentClient::did_install_top_level_session_history_state(u64 page_id, Web::HTML::SessionHistoryEpoch session_history_epoch, u64 state_install_id, bool accepted, i32 current_step)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
-        view->did_install_top_level_session_history_seed({}, seed_id, accepted, current_step);
+        view->did_install_top_level_session_history_state({}, session_history_epoch, state_install_id, accepted, current_step);
 }
 
-void WebContentClient::did_apply_session_history_step(u64 page_id, Web::HTML::SessionHistoryOperationId command_id, bool step_was_available, Web::HTML::HistoryStepResult result)
+void WebContentClient::did_apply_session_history_step(u64 page_id, Web::HTML::SessionHistoryEpoch session_history_epoch, Web::HTML::SessionHistoryOperationId command_id, bool step_was_available, Web::HTML::HistoryStepResult result)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
-        view->did_apply_session_history_step({}, command_id, step_was_available, result);
+        view->did_apply_session_history_step({}, session_history_epoch, command_id, step_was_available, result);
 }
 
-void WebContentClient::did_reset_session_history_for_testing(u64 page_id)
+void WebContentClient::did_reset_session_history_for_testing(u64 page_id, Web::HTML::SessionHistoryEpoch session_history_epoch)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
-        view->did_reset_session_history_for_testing({});
+        view->did_reset_session_history_for_testing({}, session_history_epoch);
 }
 
 void WebContentClient::did_present_backing_stores(u64 page_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
