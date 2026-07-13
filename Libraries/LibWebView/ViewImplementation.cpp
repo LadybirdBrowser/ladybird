@@ -1332,6 +1332,16 @@ void ViewImplementation::did_update_session_history(Badge<WebContentClient>, Vec
     dump_session_history("did-update-session-history"sv);
 }
 
+void ViewImplementation::did_fail_to_apply_session_history_mutation(Badge<WebContentClient>)
+{
+    auto update = m_top_level_traversable.did_fail_to_apply_web_content_session_history_mutation();
+    if (update.should_request_session_history_update)
+        client().async_request_session_history_update(page_id());
+    if (update.should_update_navigation_action_state)
+        update_navigation_action_state();
+    dump_session_history(update.dump_reason);
+}
+
 static StringView session_history_entry_update_kind_to_string(Web::HTML::SessionHistoryEntryUpdateKind update_kind)
 {
     switch (update_kind) {
@@ -1361,6 +1371,14 @@ void ViewImplementation::did_apply_session_history_mutation(Badge<WebContentClie
                 client().pid(),
                 session_history_entry_update_kind_to_string(current_entry_update.update_kind),
                 history_log_entries(entries));
+        } else if (mutation.mutation.has<Web::HTML::CurrentSessionHistoryEntryNestedHistoriesUpdate>()) {
+            auto const& nested_histories_update = mutation.mutation.get<Web::HTML::CurrentSessionHistoryEntryNestedHistoriesUpdate>();
+            dbgln("[History] UI received WebContent session history mutation page={} pid={} type=current-entry-nested-histories-update document_state_id={} current_step={} nested_history_count={}",
+                page_id(),
+                client().pid(),
+                nested_histories_update.document_state_id,
+                nested_histories_update.current_step,
+                nested_histories_update.nested_histories.size());
         } else if (mutation.mutation.has<Web::HTML::NestedSameDocumentSessionHistoryNavigation>()) {
             auto const& nested_navigation = mutation.mutation.get<Web::HTML::NestedSameDocumentSessionHistoryNavigation>();
             Vector<Web::HTML::SessionHistoryEntryDescriptor> entries;
@@ -1393,6 +1411,18 @@ void ViewImplementation::did_apply_session_history_mutation(Badge<WebContentClie
                 client().pid(),
                 cross_document_navigation.current_step,
                 history_log_entries(entries));
+        } else if (mutation.mutation.has<Web::HTML::AppliedSessionHistoryTraversal>()) {
+            auto const& traversal = mutation.mutation.get<Web::HTML::AppliedSessionHistoryTraversal>();
+            dbgln("[History] UI received WebContent session history mutation page={} pid={} type=applied-traversal current_step={}",
+                page_id(),
+                client().pid(),
+                traversal.current_step);
+        } else if (mutation.mutation.has<Web::HTML::RestoredCurrentSessionHistoryStep>()) {
+            auto const& restored_step = mutation.mutation.get<Web::HTML::RestoredCurrentSessionHistoryStep>();
+            dbgln("[History] UI received WebContent session history mutation page={} pid={} type=restored-current-step current_step={}",
+                page_id(),
+                client().pid(),
+                restored_step.current_step);
         } else {
             auto const& same_document_navigation = mutation.mutation.get<Web::HTML::SameDocumentSessionHistoryNavigation>();
             Vector<Web::HTML::SessionHistoryEntryDescriptor> entries;
@@ -1407,8 +1437,56 @@ void ViewImplementation::did_apply_session_history_mutation(Badge<WebContentClie
     }
 
     auto update = m_top_level_traversable.did_receive_web_content_session_history_mutation(move(mutation));
+    if (update.current_url.has_value()) {
+        auto current_url = *update.current_url;
+        set_url(current_url);
+
+        if (m_webdriver_pending_navigation_url.has_value() && *m_webdriver_pending_navigation_url != current_url)
+            m_webdriver_pending_navigation_url = current_url;
+    }
     if (update.should_request_session_history_update)
         client().async_request_session_history_update(page_id());
+
+    if (update.fallback_target.has_value()) {
+        load_session_history_traversal_target_from_ui_process(*update.fallback_target, update.dump_reason);
+        return;
+    }
+
+    if (update.should_complete_webdriver_pending_navigation)
+        complete_webdriver_pending_navigation_if_url_matches(m_url);
+    if (update.should_update_navigation_action_state)
+        update_navigation_action_state();
+    dump_session_history(update.dump_reason);
+}
+
+void ViewImplementation::did_apply_session_history_mutation_batch(Badge<WebContentClient>, Web::HTML::WebContentSessionHistoryMutationBatch batch)
+{
+    if (history_debug_enabled()) {
+        dbgln("[History] UI received WebContent session history mutation batch page={} pid={} final_current_step={} mutations={}",
+            page_id(),
+            client().pid(),
+            batch.final_current_step,
+            batch.mutations.size());
+    }
+
+    auto update = m_top_level_traversable.did_receive_web_content_session_history_mutation_batch(move(batch));
+    if (update.current_url.has_value()) {
+        auto current_url = *update.current_url;
+        set_url(current_url);
+
+        if (m_webdriver_pending_navigation_url.has_value() && *m_webdriver_pending_navigation_url != current_url)
+            m_webdriver_pending_navigation_url = current_url;
+    }
+    if (update.should_request_session_history_update)
+        client().async_request_session_history_update(page_id());
+
+    if (update.fallback_target.has_value()) {
+        load_session_history_traversal_target_from_ui_process(*update.fallback_target, update.dump_reason);
+        return;
+    }
+
+    if (update.should_complete_webdriver_pending_navigation)
+        complete_webdriver_pending_navigation_if_url_matches(m_url);
     if (update.should_update_navigation_action_state)
         update_navigation_action_state();
     dump_session_history(update.dump_reason);
@@ -1929,13 +2007,6 @@ void ViewImplementation::did_traverse_the_history_to_step(Badge<WebContentClient
         m_webdriver_pending_navigation_url = m_url;
     if (step_result.should_reset_webdriver_pending_navigation_completion)
         m_webdriver_pending_navigation_completes_with_session_history_update = false;
-    if (step_result.current_url.has_value()) {
-        auto current_url = *step_result.current_url;
-        set_url(current_url);
-
-        if (m_webdriver_pending_navigation_url.has_value() && *m_webdriver_pending_navigation_url != current_url)
-            m_webdriver_pending_navigation_url = current_url;
-    }
 
     if (step_result.fallback_target.has_value()) {
         load_session_history_traversal_target_from_ui_process(*step_result.fallback_target, step_result.dump_reason);

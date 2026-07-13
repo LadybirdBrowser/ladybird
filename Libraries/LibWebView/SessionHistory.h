@@ -49,6 +49,7 @@ public:
 
     enum class WebContentMutationType {
         CurrentEntryUpdate,
+        CurrentEntryNestedHistoriesUpdate,
         TopLevelSameDocumentNavigation,
         NestedSameDocumentNavigation,
         NestedCrossDocumentNavigation,
@@ -60,9 +61,11 @@ public:
     struct WebContentMutation {
         WebContentMutationType type { WebContentMutationType::CurrentEntryUpdate };
         Web::HTML::SessionHistoryEntryUpdateKind current_entry_update_kind { Web::HTML::SessionHistoryEntryUpdateKind::NavigationAPIState };
+        Web::HTML::CrossProcessId document_state_id;
         Web::HTML::CrossProcessId parent_document_state_id;
         Web::HTML::CrossProcessId navigable_id;
         Entry entry;
+        Vector<Web::HTML::SessionHistoryNestedHistoryDescriptor> nested_histories;
         Optional<i32> replaced_step;
         i32 current_step { 0 };
 
@@ -72,6 +75,16 @@ public:
                 .type = WebContentMutationType::CurrentEntryUpdate,
                 .current_entry_update_kind = update_kind,
                 .entry = move(entry),
+            };
+        }
+
+        static WebContentMutation current_entry_nested_histories_update(Web::HTML::CrossProcessId document_state_id, Vector<Web::HTML::SessionHistoryNestedHistoryDescriptor> nested_histories, i32 current_step)
+        {
+            return {
+                .type = WebContentMutationType::CurrentEntryNestedHistoriesUpdate,
+                .document_state_id = document_state_id,
+                .nested_histories = move(nested_histories),
+                .current_step = current_step,
             };
         }
 
@@ -188,6 +201,7 @@ public:
 private:
     [[nodiscard]] bool web_content_known_history_matches_mirror() const;
     [[nodiscard]] bool update_current_entry_from_web_content(Web::HTML::SessionHistoryEntryUpdateKind, Entry);
+    [[nodiscard]] bool update_current_entry_nested_histories_from_web_content(Web::HTML::CrossProcessId document_state_id, Vector<Web::HTML::SessionHistoryNestedHistoryDescriptor>, i32 current_step);
     [[nodiscard]] bool apply_top_level_same_document_navigation_from_web_content(Entry, Optional<i32> replaced_step, i32 current_step);
     [[nodiscard]] bool apply_nested_same_document_navigation_from_web_content(Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId navigable_id, Entry, Optional<i32> replaced_step, i32 current_step);
     [[nodiscard]] bool apply_nested_cross_document_navigation_from_web_content(Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId navigable_id, Entry, i32 current_step);

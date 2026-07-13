@@ -51,6 +51,7 @@ enum class HistoryStepResult {
     CanceledByBeforeUnload,
     CanceledByNavigate,
     Applied,
+    AppliedBySessionHistoryMutation,
 };
 using OnApplyHistoryStepComplete = GC::Function<void(HistoryStepResult)>;
 

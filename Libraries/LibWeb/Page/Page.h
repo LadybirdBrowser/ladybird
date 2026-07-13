@@ -583,8 +583,10 @@ public:
     virtual void page_did_request_activate_tab() { }
     virtual void page_did_close_top_level_traversable() { }
     virtual bool should_report_session_history_updates() const { return true; }
+    virtual void page_did_fail_to_apply_session_history_mutation() { }
     virtual void page_did_update_session_history([[maybe_unused]] Vector<HTML::SessionHistoryEntryDescriptor> const& entries, [[maybe_unused]] Vector<i32> const& used_steps, [[maybe_unused]] size_t current_used_step_index) { }
     virtual void page_did_apply_session_history_mutation([[maybe_unused]] HTML::WebContentSessionHistoryMutation const&) { }
+    virtual void page_did_apply_session_history_mutation_batch([[maybe_unused]] HTML::WebContentSessionHistoryMutationBatch const&) { }
     virtual String page_did_request_ui_process_session_history_for_testing() { return "{}"_string; }
     virtual String page_did_update_session_history_and_request_ui_process_session_history_for_testing([[maybe_unused]] Vector<HTML::SessionHistoryEntryDescriptor> const& entries, [[maybe_unused]] Vector<i32> const& used_steps, [[maybe_unused]] size_t current_used_step_index) { return "{}"_string; }
     virtual bool page_did_request_traverse_the_history_by_delta([[maybe_unused]] int delta, [[maybe_unused]] HistoryTraversalPrecheck history_traversal_precheck) { return false; }

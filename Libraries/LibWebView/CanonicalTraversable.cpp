@@ -245,6 +245,109 @@ WebContentSessionHistoryMutationResult CanonicalTraversable::did_receive_web_con
     if (m_pending_web_content_session_history_seed.ignore_updates_until_seed)
         return { .dump_reason = "ignored-session-history-mutation-before-ui-seed"sv };
 
+    if (mutation.mutation.has<Web::HTML::AppliedSessionHistoryTraversal>()) {
+        auto traversal = mutation.mutation.get<Web::HTML::AppliedSessionHistoryTraversal>();
+
+        if (m_pending_web_content_session_history_seed.step_after_loading_top_level_entry.has_value()) {
+            if (*m_pending_web_content_session_history_seed.step_after_loading_top_level_entry != traversal.current_step)
+                return { .dump_reason = "ignored-stale-webcontent-applied-traversal"sv };
+
+            auto mutation_result = m_session_history.apply_web_content_mutation(
+                TraversableSessionHistory::WebContentMutation::restored_current_step(traversal.current_step));
+            if (!mutation_result.accepted) {
+                m_session_history.mark_web_content_history_match_unproven();
+                m_pending_web_content_session_history_seed.step_after_loading_top_level_entry.clear();
+                m_pending_session_history_traversal.clear();
+                return {
+                    .dump_reason = "rejected-restored-current-session-history-step"sv,
+                    .should_request_session_history_update = true,
+                    .should_update_navigation_action_state = true,
+                };
+            }
+
+            m_pending_web_content_session_history_seed.step_after_loading_top_level_entry.clear();
+            m_pending_session_history_traversal.clear();
+            return {
+                .accepted = true,
+                .dump_reason = "did-restore-current-session-history-step"sv,
+                .should_update_navigation_action_state = true,
+                .should_complete_webdriver_pending_navigation = true,
+            };
+        }
+
+        auto should_complete_webdriver_pending_navigation = false;
+        auto has_pending_session_history_traversal = m_pending_session_history_traversal.has_value();
+        if (has_pending_session_history_traversal) {
+            if (m_pending_session_history_traversal->target_step != traversal.current_step)
+                return { .dump_reason = "ignored-stale-webcontent-applied-traversal"sv };
+            should_complete_webdriver_pending_navigation = m_pending_session_history_traversal->webdriver_pending_navigation_completes_with_session_history_update;
+        }
+
+        auto mutation_result = m_session_history.apply_web_content_mutation(
+            TraversableSessionHistory::WebContentMutation::applied_traversal(traversal.current_step));
+        if (!mutation_result.accepted) {
+            if (!has_pending_session_history_traversal) {
+                m_session_history.forget_web_content_state();
+                return {
+                    .dump_reason = "rejected-webcontent-applied-traversal"sv,
+                    .should_request_session_history_update = true,
+                    .should_update_navigation_action_state = true,
+                };
+            }
+
+            if (auto target = m_session_history.traversal_target_for_step(traversal.current_step); target.has_value())
+                return { .dump_reason = "webcontent-applied-traversal-mutation-with-stale-mirror-fallback-load"sv, .fallback_target = *target };
+            m_session_history.forget_web_content_state();
+            m_pending_session_history_traversal.clear();
+            return {
+                .dump_reason = "webcontent-applied-traversal-mutation-without-ui-target"sv,
+                .should_update_navigation_action_state = true,
+            };
+        }
+
+        Optional<URL::URL> current_url;
+        if (auto const* current_entry = m_session_history.current_entry())
+            current_url = current_entry->url;
+        m_pending_session_history_traversal.clear();
+        return {
+            .accepted = true,
+            .dump_reason = "did-apply-session-history-traversal"sv,
+            .should_update_navigation_action_state = true,
+            .current_url = move(current_url),
+            .should_complete_webdriver_pending_navigation = should_complete_webdriver_pending_navigation,
+        };
+    }
+
+    if (mutation.mutation.has<Web::HTML::RestoredCurrentSessionHistoryStep>()) {
+        auto restored_step = mutation.mutation.get<Web::HTML::RestoredCurrentSessionHistoryStep>();
+
+        if (!m_pending_web_content_session_history_seed.step_after_loading_top_level_entry.has_value()
+            || *m_pending_web_content_session_history_seed.step_after_loading_top_level_entry != restored_step.current_step)
+            return { .dump_reason = "ignored-stale-webcontent-restored-history-step"sv };
+
+        auto mutation_result = m_session_history.apply_web_content_mutation(
+            TraversableSessionHistory::WebContentMutation::restored_current_step(restored_step.current_step));
+        if (!mutation_result.accepted) {
+            m_session_history.mark_web_content_history_match_unproven();
+            m_pending_web_content_session_history_seed.step_after_loading_top_level_entry.clear();
+            m_pending_session_history_traversal.clear();
+            return {
+                .dump_reason = "rejected-restored-current-session-history-step"sv,
+                .should_request_session_history_update = true,
+                .should_update_navigation_action_state = true,
+            };
+        }
+
+        m_pending_web_content_session_history_seed.step_after_loading_top_level_entry.clear();
+        m_pending_session_history_traversal.clear();
+        return {
+            .accepted = true,
+            .dump_reason = "did-restore-current-session-history-step"sv,
+            .should_update_navigation_action_state = true,
+            .should_complete_webdriver_pending_navigation = true,
+        };
+    }
+
     if (m_pending_web_content_session_history_seed.step_after_loading_top_level_entry.has_value())
         return { .dump_reason = "ignored-session-history-mutation-before-restored-history-step"sv };
 
@@ -264,6 +367,27 @@ WebContentSessionHistoryMutationResult CanonicalTraversable::did_receive_web_con
         return {
             .accepted = true,
             .dump_reason = "did-update-current-entry"sv,
+        };
+    }
+
+    if (mutation.mutation.has<Web::HTML::CurrentSessionHistoryEntryNestedHistoriesUpdate>()) {
+        auto nested_histories_update = move(mutation.mutation.get<Web::HTML::CurrentSessionHistoryEntryNestedHistoriesUpdate>());
+        auto mutation_result = m_session_history.apply_web_content_mutation(
+            TraversableSessionHistory::WebContentMutation::current_entry_nested_histories_update(nested_histories_update.document_state_id, move(nested_histories_update.nested_histories), nested_histories_update.current_step));
+        if (!mutation_result.accepted) {
+            m_session_history.forget_web_content_state();
+            return {
+                .dump_reason = "rejected-current-entry-nested-histories-update"sv,
+                .should_request_session_history_update = true,
+                .should_update_navigation_action_state = true,
+            };
+        }
+
+        return {
+            .accepted = true,
+            .dump_reason = "did-update-current-entry-nested-histories"sv,
+            .should_request_session_history_update = !mutation_result.web_content_history_matches_mirror,
+            .should_update_navigation_action_state = true,
         };
     }
 
@@ -347,6 +471,50 @@ WebContentSessionHistoryMutationResult CanonicalTraversable::did_receive_web_con
     return {
         .accepted = true,
         .dump_reason = "did-apply-same-document-navigation"sv,
+        .should_update_navigation_action_state = true,
+    };
+}
+
+WebContentSessionHistoryMutationResult CanonicalTraversable::did_receive_web_content_session_history_mutation_batch(Web::HTML::WebContentSessionHistoryMutationBatch batch)
+{
+    WebContentSessionHistoryMutationResult batch_result {
+        .accepted = true,
+        .dump_reason = "did-apply-session-history-mutation-batch"sv,
+    };
+
+    for (auto& mutation : batch.mutations) {
+        auto mutation_result = did_receive_web_content_session_history_mutation(move(mutation));
+        if (!mutation_result.accepted)
+            return mutation_result;
+
+        if (mutation_result.fallback_target.has_value())
+            return mutation_result;
+
+        batch_result.should_request_session_history_update |= mutation_result.should_request_session_history_update;
+        batch_result.should_update_navigation_action_state |= mutation_result.should_update_navigation_action_state;
+        batch_result.should_complete_webdriver_pending_navigation |= mutation_result.should_complete_webdriver_pending_navigation;
+        if (mutation_result.current_url.has_value())
+            batch_result.current_url = move(mutation_result.current_url);
+    }
+
+    return batch_result;
+}
+
+WebContentSessionHistoryMutationResult CanonicalTraversable::did_fail_to_apply_web_content_session_history_mutation()
+{
+    if (m_pending_web_content_session_history_seed.waiting_for_ack)
+        return { .dump_reason = "ignored-session-history-mutation-failure-before-ui-seed-ack"sv };
+
+    if (m_pending_web_content_session_history_seed.ignore_updates_until_seed)
+        return { .dump_reason = "ignored-session-history-mutation-failure-before-ui-seed"sv };
+
+    if (m_pending_web_content_session_history_seed.step_after_loading_top_level_entry.has_value())
+        return { .dump_reason = "ignored-session-history-mutation-failure-before-restored-history-step"sv };
+
+    m_session_history.forget_web_content_state();
+    return {
+        .dump_reason = "webcontent-session-history-mutation-failed"sv,
+        .should_request_session_history_update = true,
         .should_update_navigation_action_state = true,
     };
 }
@@ -648,11 +816,16 @@ HistoryTraversalDecision CanonicalTraversable::traverse_the_history_by_delta(int
     //        sending anything. Once the UI process owns apply-the-history-step and issues per-navigable load commands,
     //        placement is decided per command and this prediction goes away.
     auto will_replace_web_content_process = SiteIsolationManager::the().navigation_requires_process_swap(current_url, target->target_top_level_entry->url);
+    auto webdriver_pending_navigation_completes_with_session_history_update = false;
+    if (auto const* current_entry = m_session_history.current_entry()) {
+        webdriver_pending_navigation_completes_with_session_history_update = current_entry->document_state.id == target->target_top_level_entry->document_state.id;
+    }
     auto pending_traversal = PendingSessionHistoryTraversal {
         .target_step = target->target_step,
         .target_step_index = target->target_step_index,
         .will_change_top_level_entry = target->changes_top_level_entry,
         .will_replace_web_content_process = will_replace_web_content_process,
+        .webdriver_pending_navigation_completes_with_session_history_update = webdriver_pending_navigation_completes_with_session_history_update,
         .on_cancelation_check_complete = nullptr,
     };
 
@@ -665,10 +838,6 @@ HistoryTraversalDecision CanonicalTraversable::traverse_the_history_by_delta(int
 
     if (web_content_can_apply_traversal && !will_replace_web_content_process) {
         m_pending_session_history_traversal = move(pending_traversal);
-        auto webdriver_pending_navigation_completes_with_session_history_update = false;
-        if (auto const* current_entry = m_session_history.current_entry()) {
-            webdriver_pending_navigation_completes_with_session_history_update = current_entry->document_state.id == target->target_top_level_entry->document_state.id;
-        }
         return {
             .outcome = { .status = HistoryTraversalStatus::Started, .will_replace_web_content_process = will_replace_web_content_process, .will_change_top_level_entry = target->changes_top_level_entry },
             .action = HistoryTraversalAction::TraverseInWebContent,
@@ -743,40 +912,28 @@ WebContentHistoryStepResult CanonicalTraversable::did_traverse_the_history_to_st
             return { .dump_reason = "webcontent-history-step-unavailable"sv, .should_update_navigation_action_state = true };
         }
 
-        if (result != Web::HTML::HistoryStepResult::Applied) {
+        if (result != Web::HTML::HistoryStepResult::Applied
+            && result != Web::HTML::HistoryStepResult::AppliedBySessionHistoryMutation) {
             m_pending_session_history_traversal.clear();
             return { .dump_reason = "webcontent-history-step-canceled"sv, .should_update_navigation_action_state = true, .should_complete_webdriver_pending_navigation = true, .should_update_webdriver_pending_navigation_to_current_url = true, .should_reset_webdriver_pending_navigation_completion = true };
         }
 
-        auto mutation_result = m_session_history.apply_web_content_mutation(
-            TraversableSessionHistory::WebContentMutation::applied_traversal(step));
-        if (!mutation_result.accepted) {
-            if (auto target = m_session_history.traversal_target_for_step(step); target.has_value())
-                return { .dump_reason = "webcontent-history-step-applied-with-stale-mirror-fallback-load"sv, .fallback_target = *target };
-            m_session_history.forget_web_content_state();
-            m_pending_session_history_traversal.clear();
-            return { .dump_reason = "webcontent-history-step-applied-without-ui-target"sv, .should_update_navigation_action_state = true };
-        }
-
-        auto should_complete_webdriver_pending_navigation = !m_pending_session_history_traversal->will_change_top_level_entry;
-        Optional<URL::URL> current_url;
-        if (auto const* current_entry = m_session_history.current_entry())
-            current_url = current_entry->url;
+        if (auto target = m_session_history.traversal_target_for_step(step); target.has_value())
+            return { .dump_reason = "webcontent-history-step-applied-without-mutation-fallback-load"sv, .fallback_target = *target };
+        m_session_history.forget_web_content_state();
         m_pending_session_history_traversal.clear();
-        return { .dump_reason = "webcontent-history-step-applied"sv, .should_update_navigation_action_state = true, .current_url = move(current_url), .should_complete_webdriver_pending_navigation = should_complete_webdriver_pending_navigation };
+        return { .dump_reason = "webcontent-history-step-applied-without-mutation"sv, .should_update_navigation_action_state = true };
     }
 
     if (*m_pending_web_content_session_history_seed.step_after_loading_top_level_entry != step)
         return { .dump_reason = "ignored-stale-webcontent-history-step-result"sv };
 
-    if (step_was_available && result == Web::HTML::HistoryStepResult::Applied) {
+    if (step_was_available
+        && (result == Web::HTML::HistoryStepResult::Applied || result == Web::HTML::HistoryStepResult::AppliedBySessionHistoryMutation)) {
         m_pending_web_content_session_history_seed.step_after_loading_top_level_entry.clear();
-        auto mutation_result = m_session_history.apply_web_content_mutation(
-            TraversableSessionHistory::WebContentMutation::restored_current_step(step));
-        if (!mutation_result.accepted)
-            m_session_history.mark_web_content_history_match_unproven();
+        m_session_history.mark_web_content_history_match_unproven();
         m_pending_session_history_traversal.clear();
-        return { .dump_reason = "webcontent-history-step-restored"sv, .should_update_navigation_action_state = true, .should_complete_webdriver_pending_navigation = true };
+        return { .dump_reason = "webcontent-history-step-restored-without-mutation"sv, .should_update_navigation_action_state = true };
     }
 
     auto pending_step_dump_reason = step_was_available ? "webcontent-pending-history-step-canceled"sv : "webcontent-history-step-unavailable"sv;

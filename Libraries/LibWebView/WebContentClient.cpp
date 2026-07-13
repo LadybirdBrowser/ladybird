@@ -1803,10 +1803,22 @@ void WebContentClient::did_update_session_history(u64 page_id, Vector<Web::HTML:
         view->did_update_session_history({}, move(entries), move(used_steps), current_used_step_index);
 }
 
+void WebContentClient::did_fail_to_apply_session_history_mutation(u64 page_id)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->did_fail_to_apply_session_history_mutation({});
+}
+
 void WebContentClient::did_apply_session_history_mutation(u64 page_id, Web::HTML::WebContentSessionHistoryMutation mutation)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
         view->did_apply_session_history_mutation({}, move(mutation));
+}
+
+void WebContentClient::did_apply_session_history_mutation_batch(u64 page_id, Web::HTML::WebContentSessionHistoryMutationBatch batch)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->did_apply_session_history_mutation_batch({}, move(batch));
 }
 
 Messages::WebContentClient::DidRequestUiProcessSessionHistoryForTestingResponse WebContentClient::did_request_ui_process_session_history_for_testing(u64 page_id)
