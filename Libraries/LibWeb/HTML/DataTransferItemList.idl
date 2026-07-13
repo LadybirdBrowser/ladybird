@@ -3,7 +3,7 @@
 interface DataTransferItemList {
     readonly attribute unsigned long length;
     getter DataTransferItem (unsigned long index);
-    DataTransferItem? add(DOMString data, DOMString type);
+    DataTransferItem? add(Utf16DOMString data, Utf16DOMString type);
     DataTransferItem? add(File data);
     undefined remove(unsigned long index);
     undefined clear();

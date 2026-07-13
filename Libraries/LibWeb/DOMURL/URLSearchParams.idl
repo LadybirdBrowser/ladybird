@@ -2,20 +2,20 @@
 [Exposed=*]
 interface URLSearchParams {
 
-    constructor(optional (sequence<sequence<USVString>> or record<USVString, USVString> or USVString) init = "");
+    constructor(optional (sequence<sequence<Utf16USVString>> or record<Utf16USVString, Utf16USVString> or Utf16USVString) init = "");
 
     readonly attribute unsigned long size;
 
-    undefined append(USVString name, USVString value);
-    undefined delete(USVString name, optional USVString value);
-    USVString? get(USVString name);
-    sequence<USVString> getAll(USVString name);
-    boolean has(USVString name, optional USVString value);
-    undefined set(USVString name, USVString value);
+    undefined append(Utf16USVString name, Utf16USVString value);
+    undefined delete(Utf16USVString name, optional Utf16USVString value);
+    Utf16USVString? get(Utf16USVString name);
+    sequence<Utf16USVString> getAll(Utf16USVString name);
+    boolean has(Utf16USVString name, optional Utf16USVString value);
+    undefined set(Utf16USVString name, Utf16USVString value);
 
     undefined sort();
 
-    iterable<USVString, USVString>;
+    iterable<Utf16USVString, Utf16USVString>;
     stringifier;
 
 };

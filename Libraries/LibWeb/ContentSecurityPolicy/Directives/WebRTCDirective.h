@@ -21,7 +21,7 @@ public:
     [[nodiscard]] virtual Result webrtc_pre_connect_check(GC::Ref<Policy const>) const override;
 
 private:
-    WebRTCDirective(String name, Vector<String> value);
+    WebRTCDirective(Utf16FlyString name, Vector<Utf16String> value);
 };
 
 }

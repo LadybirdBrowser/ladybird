@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const event = new HashChangeEvent("hashchange", {
+            oldURL: "https://example.com/old#\u{1F41E}",
+            newURL: "https://example.com/new#\u{1F41E}",
+        });
+
+        println(`type: ${event.type}`);
+        println(`oldURL: ${event.oldURL}`);
+        println(`newURL: ${event.newURL}`);
+    });
+</script>

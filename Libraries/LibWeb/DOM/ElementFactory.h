@@ -7,12 +7,13 @@
 #pragma once
 
 #include <AK/FixedArray.h>
+#include <AK/Utf16View.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Export.h>
 
 namespace Web::DOM {
 
-WEB_API ErrorOr<FixedArray<Utf16FlyString>> valid_local_names_for_given_html_element_interface(StringView html_element_interface_name);
+WEB_API ErrorOr<FixedArray<Utf16FlyString>> valid_local_names_for_given_html_element_interface(Utf16View html_element_interface_name);
 bool is_unknown_html_element(Utf16FlyString const& tag_name);
 
 struct Default { };

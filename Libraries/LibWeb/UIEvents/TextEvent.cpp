@@ -12,12 +12,12 @@ namespace Web::UIEvents {
 
 GC_DEFINE_ALLOCATOR(TextEvent);
 
-GC::Ref<TextEvent> TextEvent::create(JS::Realm& realm, FlyString const& event_name)
+GC::Ref<TextEvent> TextEvent::create(JS::Realm& realm, Utf16FlyString const& event_name)
 {
     return realm.create<TextEvent>(realm, event_name);
 }
 
-TextEvent::TextEvent(JS::Realm& realm, FlyString const& event_name)
+TextEvent::TextEvent(JS::Realm& realm, Utf16FlyString const& event_name)
     : UIEvent(realm, event_name)
 {
 }
@@ -31,7 +31,7 @@ void TextEvent::initialize(JS::Realm& realm)
 }
 
 // https://w3c.github.io/uievents/#dom-textevent-inittextevent
-void TextEvent::init_text_event(String const& type, bool bubbles, bool cancelable, GC::Ptr<HTML::WindowProxy> view, String const& data)
+void TextEvent::init_text_event(Utf16FlyString const& type, bool bubbles, bool cancelable, GC::Ptr<HTML::WindowProxy> view, Utf16String const& data)
 {
     // Initializes attributes of a TextEvent object. This method has the same behavior as UIEvent.initUIEvent().
     // The value of detail remains undefined.

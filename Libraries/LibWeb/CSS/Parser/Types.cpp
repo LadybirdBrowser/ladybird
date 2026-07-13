@@ -95,15 +95,19 @@ StringView ComponentValueToken::bracket_mirror_string() const
     return ""sv;
 }
 
-String SimpleBlock::to_string() const
+void SimpleBlock::serialize_to(Utf16StringBuilder& builder) const
 {
-    StringBuilder builder;
+    builder.append_ascii(token.bracket_string());
+    for (auto& item : value)
+        item.serialize_to(builder);
+    builder.append_ascii(token.bracket_mirror_string());
+}
 
-    builder.append(token.bracket_string());
-    builder.join(""sv, value);
-    builder.append(token.bracket_mirror_string());
-
-    return builder.to_string_without_validation();
+Utf16String SimpleBlock::to_string() const
+{
+    Utf16StringBuilder builder;
+    serialize_to(builder);
+    return builder.to_string();
 }
 
 String SimpleBlock::original_source_text() const
@@ -117,17 +121,20 @@ String SimpleBlock::original_source_text() const
     return builder.to_string_without_validation();
 }
 
-String Function::to_string() const
+void Function::serialize_to(Utf16StringBuilder& builder) const
 {
-    StringBuilder builder;
-
     serialize_an_identifier(builder, name);
-    builder.append('(');
+    builder.append_ascii('(');
     for (auto& item : value)
-        builder.append(item.to_string());
-    builder.append(')');
+        item.serialize_to(builder);
+    builder.append_ascii(')');
+}
 
-    return builder.to_string_without_validation();
+Utf16String Function::to_string() const
+{
+    Utf16StringBuilder builder;
+    serialize_to(builder);
+    return builder.to_string();
 }
 
 String Function::original_source_text() const
@@ -164,14 +171,14 @@ void AtRule::for_each_as_declaration_list(DeclarationVisitor&& visit) const
     for_each(
         [this](auto const& at_rule) {
             ErrorReporter::the().report(InvalidRuleLocationError {
-                .outer_rule_name = MUST(String::formatted("@{}", name)),
-                .inner_rule_name = MUST(String::formatted("@{}", at_rule.name)),
+                .outer_rule_name = Utf16String::formatted("@{}", name),
+                .inner_rule_name = Utf16String::formatted("@{}", at_rule.name),
             });
         },
         [this](auto const&) {
             ErrorReporter::the().report(InvalidRuleLocationError {
-                .outer_rule_name = MUST(String::formatted("@{}", name)),
-                .inner_rule_name = "qualified-rule"_fly_string,
+                .outer_rule_name = Utf16String::formatted("@{}", name),
+                .inner_rule_name = "qualified-rule"_utf16_fly_string,
             });
         },
         move(visit));
@@ -184,15 +191,15 @@ void AtRule::for_each_as_qualified_rule_list(QualifiedRuleVisitor&& visit) const
     for_each(
         [this](auto const& at_rule) {
             ErrorReporter::the().report(InvalidRuleLocationError {
-                .outer_rule_name = MUST(String::formatted("@{}", name)),
-                .inner_rule_name = MUST(String::formatted("@{}", at_rule.name)),
+                .outer_rule_name = Utf16String::formatted("@{}", name),
+                .inner_rule_name = Utf16String::formatted("@{}", at_rule.name),
             });
         },
         move(visit),
         [this](auto const&) {
             ErrorReporter::the().report(InvalidRuleLocationError {
-                .outer_rule_name = MUST(String::formatted("@{}", name)),
-                .inner_rule_name = "list-of-declarations"_fly_string,
+                .outer_rule_name = Utf16String::formatted("@{}", name),
+                .inner_rule_name = "list-of-declarations"_utf16_fly_string,
             });
         });
 }
@@ -205,14 +212,14 @@ void AtRule::for_each_as_at_rule_list(AtRuleVisitor&& visit) const
         move(visit),
         [this](auto const&) {
             ErrorReporter::the().report(InvalidRuleLocationError {
-                .outer_rule_name = MUST(String::formatted("@{}", name)),
-                .inner_rule_name = "qualified-rule"_fly_string,
+                .outer_rule_name = Utf16String::formatted("@{}", name),
+                .inner_rule_name = "qualified-rule"_utf16_fly_string,
             });
         },
         [this](auto const&) {
             ErrorReporter::the().report(InvalidRuleLocationError {
-                .outer_rule_name = MUST(String::formatted("@{}", name)),
-                .inner_rule_name = "list-of-declarations"_fly_string,
+                .outer_rule_name = Utf16String::formatted("@{}", name),
+                .inner_rule_name = "list-of-declarations"_utf16_fly_string,
             });
         });
 }
@@ -225,8 +232,8 @@ void AtRule::for_each_as_declaration_rule_list(AtRuleVisitor&& visit_at_rule, De
         move(visit_at_rule),
         [this](auto const&) {
             ErrorReporter::the().report(InvalidRuleLocationError {
-                .outer_rule_name = MUST(String::formatted("@{}", name)),
-                .inner_rule_name = "qualified-rule"_fly_string,
+                .outer_rule_name = Utf16String::formatted("@{}", name),
+                .inner_rule_name = "qualified-rule"_utf16_fly_string,
             });
         },
         move(visit_declaration));
@@ -241,15 +248,15 @@ void AtRule::for_each_as_rule_list(RuleVisitor&& visit) const
             [&](Rule const& rule) { visit(rule); },
             [&](Vector<Declaration> const&) {
                 ErrorReporter::the().report(InvalidRuleLocationError {
-                    .outer_rule_name = MUST(String::formatted("@{}", name)),
-                    .inner_rule_name = "list-of-declarations"_fly_string,
+                    .outer_rule_name = Utf16String::formatted("@{}", name),
+                    .inner_rule_name = "list-of-declarations"_utf16_fly_string,
                 });
             });
     }
 }
 
 // https://drafts.csswg.org/css-syntax/#typedef-declaration-list
-void QualifiedRule::for_each_as_declaration_list(FlyString const& rule_name, DeclarationVisitor&& visit) const
+void QualifiedRule::for_each_as_declaration_list(Utf16FlyString const& rule_name, DeclarationVisitor&& visit) const
 {
     // <declaration-list>: only declarations are allowed; at-rules and qualified rules are automatically invalid.
     for (auto const& declaration : declarations)
@@ -260,7 +267,7 @@ void QualifiedRule::for_each_as_declaration_list(FlyString const& rule_name, Dec
             [&](Rule const&) {
                 ErrorReporter::the().report(InvalidRuleLocationError {
                     .outer_rule_name = rule_name,
-                    .inner_rule_name = "qualified-rule"_fly_string,
+                    .inner_rule_name = "qualified-rule"_utf16_fly_string,
                 });
             },
             [&](Vector<Declaration> const& declarations) {

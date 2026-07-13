@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibGC/CellAllocator.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibURL/URL.h>
@@ -39,7 +40,7 @@ public:
 
     virtual ~Violation() = default;
 
-    [[nodiscard]] static GC::Ref<Violation> create_a_violation_object_for_global_policy_and_directive(JS::Realm& realm, GC::Ptr<JS::Object> global_object, GC::Ref<Policy const> policy, String directive);
+    [[nodiscard]] static GC::Ref<Violation> create_a_violation_object_for_global_policy_and_directive(JS::Realm& realm, GC::Ptr<JS::Object> global_object, GC::Ref<Policy const> policy, Utf16View directive);
     [[nodiscard]] static GC::Ref<Violation> create_a_violation_object_for_request_and_policy(JS::Realm& realm, GC::Ref<Fetch::Infrastructure::Request> request, GC::Ref<Policy const>);
 
     // https://w3c.github.io/webappsec-csp/#violation-url
@@ -58,7 +59,7 @@ public:
     // https://w3c.github.io/webappsec-csp/#violation-disposition
     [[nodiscard]] Policy::Disposition disposition() const { return m_policy->disposition(); }
 
-    [[nodiscard]] String const& effective_directive() const { return m_effective_directive; }
+    [[nodiscard]] Utf16String const& effective_directive() const { return m_effective_directive; }
 
     [[nodiscard]] Optional<URL::URL> source_file() const { return m_source_file; }
     void set_source_file(URL::URL source_file) { m_source_file = source_file; }
@@ -72,8 +73,8 @@ public:
     [[nodiscard]] GC::Ptr<DOM::Element> element() const { return m_element; }
     void set_element(GC::Ref<DOM::Element> element) { m_element = element; }
 
-    [[nodiscard]] String const& sample() const { return m_sample; }
-    void set_sample(String sample) { m_sample = sample; }
+    [[nodiscard]] Utf16String const& sample() const { return m_sample; }
+    void set_sample(Utf16String sample) { m_sample = move(sample); }
 
     void report_a_violation(JS::Realm&);
 
@@ -81,7 +82,7 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
-    Violation(GC::Ptr<JS::Object> global_object, GC::Ref<Policy const> policy, String directive);
+    Violation(GC::Ptr<JS::Object> global_object, GC::Ref<Policy const> policy, Utf16View directive);
 
     [[nodiscard]] String obtain_the_blocked_uri_of_resource() const;
     [[nodiscard]] ByteBuffer obtain_the_deprecated_serialization(JS::Realm&) const;
@@ -115,7 +116,7 @@ private:
     // https://w3c.github.io/webappsec-csp/#violation-effective-directive
     // Each violation has an effective directive which is a non-empty string representing the directive whose enforcement
     // caused the violation.
-    String m_effective_directive;
+    Utf16String m_effective_directive;
 
     // https://w3c.github.io/webappsec-csp/#violation-source-file
     // Each violation has a source file, which is either null or a URL.
@@ -135,7 +136,7 @@ private:
 
     // https://w3c.github.io/webappsec-csp/#violation-sample
     // Each violation has a sample, which is a string. It is the empty string unless otherwise specified.
-    String m_sample;
+    Utf16String m_sample;
 };
 
 }

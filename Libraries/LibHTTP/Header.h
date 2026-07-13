@@ -16,6 +16,7 @@ namespace HTTP {
 // https://fetch.spec.whatwg.org/#concept-header
 struct Header {
     [[nodiscard]] static Header isomorphic_encode(StringView, StringView);
+    [[nodiscard]] static Header isomorphic_encode(StringView, Utf16View);
 
     Optional<Vector<ByteString>> extract_header_values() const;
 

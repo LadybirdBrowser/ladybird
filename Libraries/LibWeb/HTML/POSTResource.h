@@ -7,7 +7,8 @@
 #pragma once
 
 #include <AK/ByteBuffer.h>
-#include <AK/String.h>
+#include <AK/Utf16String.h>
+#include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibIPC/Forward.h>
 #include <LibWeb/Forward.h>
@@ -32,8 +33,8 @@ struct POSTResource {
     RequestContentType request_content_type {};
 
     struct Directive {
-        String type;
-        String value;
+        Utf16String type;
+        Utf16String value;
 
         bool operator==(Directive const&) const = default;
     };
@@ -41,6 +42,8 @@ struct POSTResource {
 
     bool operator==(POSTResource const&) const = default;
 };
+
+using DocumentResource = Variant<Empty, Utf16String, POSTResource>;
 
 }
 

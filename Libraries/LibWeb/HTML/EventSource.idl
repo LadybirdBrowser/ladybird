@@ -1,9 +1,9 @@
 // https://html.spec.whatwg.org/multipage/server-sent-events.html#eventsource
 [Exposed=(Window,Worker)]
 interface EventSource : EventTarget {
-    constructor(USVString url, optional EventSourceInit eventSourceInitDict = {});
+    constructor(Utf16USVString url, optional EventSourceInit eventSourceInitDict = {});
 
-    readonly attribute USVString url;
+    readonly attribute Utf16USVString url;
     readonly attribute boolean withCredentials;
 
     // ready state

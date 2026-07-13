@@ -48,14 +48,14 @@ bool HTMLBRElement::is_presentational_hint(Utf16FlyString const& name) const
 void HTMLBRElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
 {
     Base::apply_presentational_hints(properties);
-    for_each_attribute([&](auto& name, auto& value) {
+    for_each_attribute([&](Utf16FlyString const& name, Utf16View value) {
         // https://html.spec.whatwg.org/multipage/rendering.html#phrasing-content-3
         if (name == HTML::AttributeNames::clear) {
-            if (value.equals_ignoring_ascii_case("left"sv))
+            if (value.equals_ignoring_ascii_case(u"left"sv))
                 properties.append({ .property_id = CSS::PropertyID::Clear, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Left) });
-            else if (value.equals_ignoring_ascii_case("right"sv))
+            else if (value.equals_ignoring_ascii_case(u"right"sv))
                 properties.append({ .property_id = CSS::PropertyID::Clear, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Right) });
-            else if (value.equals_ignoring_ascii_case("all"sv) || value.equals_ignoring_ascii_case("both"sv))
+            else if (value.equals_ignoring_ascii_case(u"all"sv) || value.equals_ignoring_ascii_case(u"both"sv))
                 properties.append({ .property_id = CSS::PropertyID::Clear, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Both) });
         }
     });

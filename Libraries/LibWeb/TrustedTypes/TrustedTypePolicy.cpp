@@ -180,7 +180,7 @@ WebIDL::ExceptionOr<JS::Value> TrustedTypePolicy::get_trusted_type_policy_value(
     if (!function) {
         // 1. If throwIfMissing throw a TypeError.
         if (throw_if_missing == ThrowIfCallbackMissing::Yes)
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Trying to create a trusted type without a callback"_string };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Trying to create a trusted type without a callback"_utf16 };
 
         // 2. Else return null
         return JS::js_null();
@@ -269,7 +269,7 @@ WebIDL::ExceptionOr<Optional<TrustedType>> process_value_with_a_default_policy(T
 }
 
 // https://www.w3.org/TR/trusted-types/#get-trusted-type-compliant-string-algorithm
-WebIDL::ExceptionOr<Utf16String> get_trusted_type_compliant_string(TrustedTypeName expected_type, JS::Object& global, Variant<GC::Ref<TrustedHTML>, GC::Ref<TrustedScript>, GC::Ref<TrustedScriptURL>, Utf16String> input, InjectionSink sink, String sink_group)
+WebIDL::ExceptionOr<Utf16String> get_trusted_type_compliant_string(TrustedTypeName expected_type, JS::Object& global, Variant<GC::Ref<TrustedHTML>, GC::Ref<TrustedScript>, GC::Ref<TrustedScriptURL>, Utf16String> input, InjectionSink sink, Utf16View sink_group)
 {
     // 1. If input is an instance of expectedType, return stringified input and abort these steps.
     switch (expected_type) {
@@ -332,7 +332,7 @@ WebIDL::ExceptionOr<Utf16String> get_trusted_type_compliant_string(TrustedTypeNa
         }
 
         // 3. Throw a TypeError and abort further steps.
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Sink {} of type {} requires a TrustedType to be used", to_string(sink), sink_group)) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("Sink {} of type {} requires a TrustedType to be used", to_string(sink), sink_group) };
     }
 
     // 7. Assert: convertedInput is an instance of expectedType.
@@ -403,7 +403,7 @@ WebIDL::ExceptionOr<Utf16String> get_trusted_types_compliant_attribute_value(Utf
         HTML::relevant_global_object(element.document()),
         new_value,
         sink,
-        Script.to_string());
+        Script.view());
 }
 
 ElementInterface element_interface(Utf16FlyString const& local_name, Utf16FlyString const& element_ns)

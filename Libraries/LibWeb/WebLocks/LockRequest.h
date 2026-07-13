@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/Forward.h>
@@ -20,17 +20,17 @@ class LockRequest final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(LockRequest);
 
 public:
-    LockRequest(String client_id, GC::Ref<LockManager>, String name, Bindings::LockMode, GC::Ref<WebIDL::CallbackType>, GC::Ref<WebIDL::Promise>, GC::Ptr<DOM::AbortSignal>);
+    LockRequest(Utf16String client_id, GC::Ref<LockManager>, Utf16String name, Bindings::LockMode, GC::Ref<WebIDL::CallbackType>, GC::Ref<WebIDL::Promise>, GC::Ptr<DOM::AbortSignal>);
 
     void abort_request();
     void signal_to_abort_request(GC::Ref<DOM::AbortSignal> signal);
 
     bool is_grantable(LockRequestQueue const&) const;
 
-    String const& client_id() const { return m_client_id; }
+    Utf16String const& client_id() const { return m_client_id; }
     LockManager& manager() const { return m_manager; }
 
-    String const& name() const { return m_name; }
+    Utf16String const& name() const { return m_name; }
     Bindings::LockMode mode() const { return m_mode; }
 
     GC::Ref<WebIDL::CallbackType> callback() const { return m_callback; }
@@ -43,9 +43,9 @@ public:
 private:
     virtual void visit_edges(Cell::Visitor& visitor) override;
 
-    String m_client_id;
+    Utf16String m_client_id;
     GC::Ref<LockManager> m_manager;
-    String m_name;
+    Utf16String m_name;
     Bindings::LockMode m_mode;
     GC::Ref<WebIDL::CallbackType> m_callback;
     GC::Ref<WebIDL::Promise> m_promise;

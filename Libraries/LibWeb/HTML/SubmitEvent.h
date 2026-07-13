@@ -17,15 +17,15 @@ class SubmitEvent final : public DOM::Event {
     GC_DECLARE_ALLOCATOR(SubmitEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<SubmitEvent> create(JS::Realm&, FlyString const& event_name, Bindings::SubmitEventInit const&);
-    static WebIDL::ExceptionOr<GC::Ref<SubmitEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::SubmitEventInit const&);
+    [[nodiscard]] static GC::Ref<SubmitEvent> create(JS::Realm&, Utf16FlyString const& event_name, Bindings::SubmitEventInit const&);
+    static WebIDL::ExceptionOr<GC::Ref<SubmitEvent>> construct_impl(JS::Realm&, Utf16FlyString const& event_name, Bindings::SubmitEventInit const&);
 
     virtual ~SubmitEvent() override;
 
     GC::Ptr<HTMLElement> submitter() const { return m_submitter; }
 
 private:
-    SubmitEvent(JS::Realm&, FlyString const& event_name, Bindings::SubmitEventInit const&);
+    SubmitEvent(JS::Realm&, Utf16FlyString const& event_name, Bindings::SubmitEventInit const&);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

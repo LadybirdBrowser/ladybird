@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibIPC/Forward.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/AgentType.h>
@@ -24,7 +24,7 @@ struct WEB_API WorkerAgentStartRequest {
     Bindings::AgentType agent_type { Bindings::AgentType::DedicatedWorker };
     Bindings::WorkerType type { Bindings::WorkerType::Classic };
     Bindings::RequestCredentials credentials { Bindings::RequestCredentials::SameOrigin };
-    String name;
+    Utf16String name;
     // FIXME: We don't implement SharedWorkerOptions/extendedLifetime yet.
     bool extended_lifetime { false };
     TransferDataEncoder outside_port;

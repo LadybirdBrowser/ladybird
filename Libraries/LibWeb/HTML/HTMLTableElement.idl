@@ -24,15 +24,15 @@ interface HTMLTableElement : HTMLElement {
     [CEReactions] undefined deleteRow(long index);
 
     // Obsolete
-    [CEReactions, Reflect] attribute DOMString align;
-    [CEReactions, Reflect] attribute DOMString border;
-    [CEReactions, Reflect] attribute DOMString frame;
-    [CEReactions, Reflect] attribute DOMString rules;
-    [CEReactions, Reflect] attribute DOMString summary;
-    [CEReactions, Reflect] attribute DOMString width;
+    [CEReactions, Reflect] attribute Utf16DOMString align;
+    [CEReactions, Reflect] attribute Utf16DOMString border;
+    [CEReactions, Reflect] attribute Utf16DOMString frame;
+    [CEReactions, Reflect] attribute Utf16DOMString rules;
+    [CEReactions, Reflect] attribute Utf16DOMString summary;
+    [CEReactions, Reflect] attribute Utf16DOMString width;
 
-    [CEReactions, LegacyNullToEmptyString, Reflect=bgcolor] attribute DOMString bgColor;
-    [CEReactions, LegacyNullToEmptyString, Reflect=cellpadding] attribute DOMString cellPadding;
-    [CEReactions, LegacyNullToEmptyString, Reflect=cellspacing] attribute DOMString cellSpacing;
+    [CEReactions, LegacyNullToEmptyString, Reflect=bgcolor] attribute Utf16DOMString bgColor;
+    [CEReactions, LegacyNullToEmptyString, Reflect=cellpadding] attribute Utf16DOMString cellPadding;
+    [CEReactions, LegacyNullToEmptyString, Reflect=cellspacing] attribute Utf16DOMString cellSpacing;
 
 };

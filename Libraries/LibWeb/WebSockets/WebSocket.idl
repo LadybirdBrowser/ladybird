@@ -2,9 +2,9 @@
 [Exposed=(Window,Worker)]
 interface WebSocket : EventTarget {
 
-    constructor(USVString url, optional (DOMString or sequence<DOMString>) protocols);
+    constructor(Utf16USVString url, optional (Utf16DOMString or sequence<Utf16DOMString>) protocols);
 
-    readonly attribute USVString url;
+    readonly attribute Utf16USVString url;
 
     // ready state
     const unsigned short CONNECTING = 0;
@@ -18,12 +18,12 @@ interface WebSocket : EventTarget {
     attribute EventHandler onopen;
     attribute EventHandler onerror;
     attribute EventHandler onclose;
-    readonly attribute DOMString extensions;
-    readonly attribute DOMString protocol;
-    undefined close(optional [Clamp] unsigned short code, optional USVString reason);
+    readonly attribute Utf16DOMString extensions;
+    readonly attribute Utf16DOMString protocol;
+    undefined close(optional [Clamp] unsigned short code, optional Utf16USVString reason);
 
     // messaging
     attribute EventHandler onmessage;
-    attribute DOMString binaryType;
-    undefined send((BufferSource or Blob or USVString) data);
+    attribute Utf16DOMString binaryType;
+    undefined send((BufferSource or Blob or Utf16USVString) data);
 };

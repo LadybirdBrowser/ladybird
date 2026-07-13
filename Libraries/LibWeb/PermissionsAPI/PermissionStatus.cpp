@@ -28,7 +28,7 @@ void PermissionStatus::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-PermissionStatus::PermissionStatus(JS::Realm& realm, String const& name, Bindings::PermissionDescriptor const& query)
+PermissionStatus::PermissionStatus(JS::Realm& realm, Utf16String const& name, Bindings::PermissionDescriptor const& query)
     : DOM::EventTarget(realm)
     , m_name(name)
     , m_query(query)
@@ -38,7 +38,7 @@ PermissionStatus::PermissionStatus(JS::Realm& realm, String const& name, Binding
 GC::Ref<PermissionStatus> PermissionStatus::create(JS::Realm& realm, Bindings::PermissionDescriptor permission_desc)
 {
     // 1. Let name be permissionDesc's name.
-    String name = permission_desc.name;
+    auto name = permission_desc.name;
 
     // 2. Assert: The feature identified by name is supported by the user agent.
     VERIFY(is_permission_supported(name));

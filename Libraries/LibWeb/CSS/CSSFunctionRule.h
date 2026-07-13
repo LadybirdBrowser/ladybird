@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Utf16FlyString.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibWeb/CSS/CSSGroupingRule.h>
 #include <LibWeb/CSS/Parser/Syntax.h>
 
@@ -19,14 +20,14 @@ struct FunctionParameterInternal {
     NonnullRefPtr<Parser::SyntaxNode> type;
     Optional<Vector<Parser::ComponentValue>> default_value;
 
-    void serialize(StringBuilder& builder) const;
+    void serialize(Utf16StringBuilder& builder) const;
 };
 
 // https://drafts.csswg.org/css-mixins-1/#dictdef-functionparameter
 struct FunctionParameter {
-    String name;
-    String type;
-    Optional<String> default_value;
+    Utf16String name;
+    Utf16String type;
+    Optional<Utf16String> default_value;
 
     static FunctionParameter from_internal_function_parameter(FunctionParameterInternal const&);
 };
@@ -42,11 +43,11 @@ public:
 
     virtual void initialize(JS::Realm&) override;
 
-    String name() const;
+    Utf16String name() const;
     Vector<FunctionParameter> get_parameters() const;
-    String return_type() const;
+    Utf16String return_type() const;
 
-    String serialized() const override;
+    Utf16String serialized() const override;
 
 private:
     CSSFunctionRule(JS::Realm&, CSSRuleList&, Utf16FlyString name, Vector<FunctionParameterInternal> parameters, NonnullRefPtr<Parser::SyntaxNode> return_type);

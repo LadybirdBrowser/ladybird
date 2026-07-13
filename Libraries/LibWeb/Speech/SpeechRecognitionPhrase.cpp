@@ -13,12 +13,12 @@ namespace Web::Speech {
 
 GC_DEFINE_ALLOCATOR(SpeechRecognitionPhrase);
 
-WebIDL::ExceptionOr<GC::Ref<SpeechRecognitionPhrase>> SpeechRecognitionPhrase::construct_impl(JS::Realm& realm, String const& phrase, float boost)
+WebIDL::ExceptionOr<GC::Ref<SpeechRecognitionPhrase>> SpeechRecognitionPhrase::construct_impl(JS::Realm& realm, Utf16String const& phrase, float boost)
 {
     return realm.create<SpeechRecognitionPhrase>(realm, phrase, boost);
 }
 
-SpeechRecognitionPhrase::SpeechRecognitionPhrase(JS::Realm& realm, String const& phrase, float boost)
+SpeechRecognitionPhrase::SpeechRecognitionPhrase(JS::Realm& realm, Utf16String const& phrase, float boost)
     : Bindings::PlatformObject(realm)
     , m_phrase(phrase)
     , m_boost(boost)

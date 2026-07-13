@@ -34,7 +34,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSMathSum>> CSSMathSum::add_all_types_into_math_sum
         if (auto added_types = type.added_to(value->type()); added_types.has_value()) {
             type = added_types.release_value();
         } else {
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot create a CSSMathSum with values of incompatible types"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot create a CSSMathSum with values of incompatible types"_utf16 };
         }
     }
 

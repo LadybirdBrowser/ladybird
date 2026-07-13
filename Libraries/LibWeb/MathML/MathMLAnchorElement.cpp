@@ -44,7 +44,8 @@ Utf16String MathMLAnchorElement::href() const
         return get_attribute_value(MathML::AttributeNames::href);
 
     // 5. Return url, serialized.
-    return Utf16String::from_utf8(m_url->serialize());
+    auto serialized_url = m_url->serialize();
+    return Utf16String::from_ascii_without_validation(serialized_url.bytes());
 }
 
 // https://w3c.github.io/mathml-core/#dom-mathmlanchorelement-href
@@ -57,12 +58,13 @@ void MathMLAnchorElement::set_href(Utf16String const& href)
 void MathMLAnchorElement::set_the_url()
 {
     // 1. If this element's href content attribute is absent, then return.
-    if (!has_attribute(MathML::AttributeNames::href))
+    auto href = get_attribute_value_view(MathML::AttributeNames::href);
+    if (!href.has_value())
         return;
 
     // 2. Let url be the result of encoding-parsing a URL given this element's href content attribute's value, relative
     //    to this element's node document.
-    auto url = document().encoding_parse_url(get_attribute_value(MathML::AttributeNames::href));
+    auto url = document().encoding_parse_url(*href);
 
     // 3. If url is not failure, then set this's url to url.
     if (url.has_value())
@@ -74,7 +76,8 @@ void MathMLAnchorElement::update_href()
 {
     // To update href for a MathMLAnchorElement, set the element's href content attribute's value to the element's url,
     // serialized.
-    hyperlink_element_utils_element().set_attribute_value(MathML::AttributeNames::href, Utf16String::from_utf8(m_url->serialize()));
+    auto serialized_url = m_url->serialize();
+    hyperlink_element_utils_element().set_attribute_value(MathML::AttributeNames::href, Utf16String::from_ascii_without_validation(serialized_url.bytes()));
 }
 
 }

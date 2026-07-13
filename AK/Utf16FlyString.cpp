@@ -58,6 +58,13 @@ Utf16FlyString Utf16FlyString::from_utf8(StringView string)
     return Utf16String::from_utf8(string);
 }
 
+Utf16FlyString Utf16FlyString::from_ascii_without_validation(StringView string)
+{
+    if (auto result = create_fly_string_from_cache(string); result.has_value())
+        return result.release_value();
+    return Utf16String::from_ascii_without_validation(string.bytes());
+}
+
 Utf16FlyString Utf16FlyString::from_utf8_without_validation(StringView string)
 {
     if (auto result = create_fly_string_from_cache(string); result.has_value())

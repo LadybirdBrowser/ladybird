@@ -47,7 +47,7 @@ void SVGAElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16St
         CSS::Invalidation::invalidate_style_after_hyperlink_state_change(*this);
     if (name == HTML::AttributeNames::rel) {
         if (m_rel_list)
-            m_rel_list->associated_attribute_changed(value.value_or({}));
+            m_rel_list->associated_attribute_changed(value.has_value() ? value->utf16_view() : u""sv);
     }
 }
 
@@ -98,7 +98,7 @@ void SVGAElement::activation_behavior(DOM::Event const& event)
     }
 
     // 2. Let hyperlinkSuffix be null.
-    Optional<String> hyperlink_suffix {};
+    Optional<Utf16String> hyperlink_suffix {};
 
     // FIXME: 3. If element is an a element, and event's target is an img with an ismap attribute specified, then:
 

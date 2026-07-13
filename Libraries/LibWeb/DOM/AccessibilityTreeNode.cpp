@@ -25,7 +25,7 @@ AccessibilityTreeNode::AccessibilityTreeNode(GC::Ptr<DOM::Node const> value)
     m_children = {};
 }
 
-void AccessibilityTreeNode::serialize_tree_as_json(JsonObjectSerializer<StringBuilder>& object, Document const& document) const
+void AccessibilityTreeNode::serialize_tree_as_json(JsonObjectSerializer<Utf16StringBuilder>& object, Document const& document) const
 {
     if (value()->is_document()) {
         VERIFY_NOT_REACHED();
@@ -39,12 +39,12 @@ void AccessibilityTreeNode::serialize_tree_as_json(JsonObjectSerializer<StringBu
             bool has_role = role.has_value() && !ARIA::is_abstract_role(*role);
 
             auto name = MUST(element->accessible_name(document));
-            MUST(object.add("name"sv, name.to_utf8()));
+            MUST(object.add("name"sv, name.utf16_view()));
             auto description = MUST(element->accessible_description(document));
-            MUST(object.add("description"sv, description.to_utf8()));
+            MUST(object.add("description"sv, description.utf16_view()));
 
             if (has_role)
-                MUST(object.add("role"sv, ARIA::role_name(*role)));
+                MUST(object.add("role"sv, ARIA::role_name(*role).utf16_view()));
             else
                 MUST(object.add("role"sv, ""sv));
         } else {
@@ -54,7 +54,7 @@ void AccessibilityTreeNode::serialize_tree_as_json(JsonObjectSerializer<StringBu
         MUST(object.add("type"sv, "text"sv));
 
         auto const* text_node = static_cast<DOM::Text const*>(value().ptr());
-        MUST(object.add("name"sv, text_node->data().to_utf8()));
+        MUST(object.add("name"sv, text_node->data().utf16_view()));
         MUST(object.add("role"sv, "text leaf"sv));
     }
 
@@ -65,7 +65,7 @@ void AccessibilityTreeNode::serialize_tree_as_json(JsonObjectSerializer<StringBu
         for (auto& child : children()) {
             if (child->value()->is_uninteresting_whitespace_node())
                 continue;
-            JsonObjectSerializer<StringBuilder> child_object = MUST(node_children.add_object());
+            JsonObjectSerializer<Utf16StringBuilder> child_object = MUST(node_children.add_object());
             child->serialize_tree_as_json(child_object, document);
             MUST(child_object.finish());
         }

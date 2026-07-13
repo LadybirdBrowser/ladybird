@@ -4,8 +4,8 @@ interface HTMLFontElement : HTMLElement {
 
     [HTMLConstructor] constructor();
 
-    [CEReactions, LegacyNullToEmptyString, Reflect] attribute DOMString color;
-    [CEReactions, Reflect] attribute DOMString face;
-    [CEReactions, Reflect] attribute DOMString size;
+    [CEReactions, LegacyNullToEmptyString, Reflect] attribute Utf16DOMString color;
+    [CEReactions, Reflect] attribute Utf16DOMString face;
+    [CEReactions, Reflect] attribute Utf16DOMString size;
 
 };

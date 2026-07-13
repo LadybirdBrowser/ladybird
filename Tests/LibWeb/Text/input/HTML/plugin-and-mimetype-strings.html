@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(`navigator.plugins is present: ${navigator.plugins.length > 0}`);
+        println(`navigator.mimeTypes is present: ${navigator.mimeTypes.length > 0}`);
+
+        if (navigator.plugins.length === 0 || navigator.mimeTypes.length === 0)
+            return;
+
+        const plugin = navigator.plugins[0];
+        const mimeType = navigator.mimeTypes["application/pdf"];
+
+        println(`plugin.description is a string: ${typeof plugin.description === "string"}`);
+        println(`plugin.filename is a string: ${typeof plugin.filename === "string"}`);
+        println(`plugin.description matches: ${plugin.description === "Portable Document Format"}`);
+        println(`plugin.filename matches: ${plugin.filename === "internal-pdf-viewer"}`);
+
+        println(`mimeType.description is a string: ${typeof mimeType.description === "string"}`);
+        println(`mimeType.suffixes is a string: ${typeof mimeType.suffixes === "string"}`);
+        println(`mimeType.description matches: ${mimeType.description === "Portable Document Format"}`);
+        println(`mimeType.suffixes matches: ${mimeType.suffixes === "pdf"}`);
+    });
+</script>

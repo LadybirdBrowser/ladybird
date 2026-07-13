@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Export.h>
 
@@ -19,15 +20,15 @@ class WEB_API WorkerLocation : public Bindings::PlatformObject {
 public:
     virtual ~WorkerLocation() override;
 
-    String href() const;
-    String origin() const;
-    String protocol() const;
-    String host() const;
-    String hostname() const;
-    String port() const;
-    String pathname() const;
-    String search() const;
-    String hash() const;
+    Utf16String href() const;
+    Utf16String origin() const;
+    Utf16String protocol() const;
+    Utf16String host() const;
+    Utf16String hostname() const;
+    Utf16String port() const;
+    Utf16String pathname() const;
+    Utf16String search() const;
+    Utf16String hash() const;
 
 private:
     explicit WorkerLocation(WorkerGlobalScope&);

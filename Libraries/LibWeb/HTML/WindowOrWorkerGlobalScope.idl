@@ -1,9 +1,9 @@
 // https://html.spec.whatwg.org/multipage/webappapis.html#timerhandler
-typedef (DOMString or Function) TimerHandler;
+typedef (Utf16DOMString or Function) TimerHandler;
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#windoworworkerglobalscope
 interface mixin WindowOrWorkerGlobalScope {
-    [Replaceable] readonly attribute USVString origin;
+    [Replaceable] readonly attribute Utf16USVString origin;
     readonly attribute boolean isSecureContext;
     readonly attribute boolean crossOriginIsolated;
 

@@ -1,7 +1,7 @@
 // https://drafts.fxtf.org/geometry/#dommatrixreadonly
 [Exposed=(Window,Worker), Serializable]
 interface DOMMatrixReadOnly {
-    constructor(optional (DOMString or sequence<unrestricted double>) init);
+    constructor(optional (Utf16DOMString or sequence<unrestricted double>) init);
 
     [NewObject] static DOMMatrixReadOnly fromMatrix(optional DOMMatrixInit other = {});
     [NewObject] static DOMMatrixReadOnly fromFloat32Array(Float32Array array32);

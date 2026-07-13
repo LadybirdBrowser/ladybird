@@ -24,11 +24,6 @@ static Utf16FlyString make_implicit_grid_line_name(Utf16View name, StringView su
     return Utf16FlyString::from_utf16(line_name.utf16_view());
 }
 
-static Utf16FlyString make_implicit_grid_line_name(String const& name, StringView suffix)
-{
-    return make_implicit_grid_line_name(Utf16String::from_utf8(name), suffix);
-}
-
 // https://drafts.csswg.org/css-grid/#overlarge-grids
 // Since memory is limited, UAs may clamp the possible size of the implicit grid to be within a UA-defined limit
 // (which should accommodate lines in the range [-10000, 10000]), dropping all lines outside that limit. If a grid item
@@ -692,11 +687,11 @@ GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_pos
     auto explicit_line_count = dimension == GridDimension::Row ? m_explicit_rows_line_count : m_explicit_columns_line_count;
 
     if (placement_end.has_identifier()) {
-        auto area_end_line_name = MUST(String::formatted("{}-end", placement_end.identifier()));
+        auto area_end_line_name = make_implicit_grid_line_name(placement_end.identifier().view(), "-end"sv);
         auto line_number = placement_end_line_number.value_or(1);
-        if (auto area_end_line_index = get_nth_line_index_by_line_name(dimension, area_end_line_name, line_number); area_end_line_index.has_value()) {
+        if (auto area_end_line_index = get_nth_line_index_by_line_name(dimension, area_end_line_name.view(), line_number); area_end_line_index.has_value()) {
             result.end = area_end_line_index.value();
-        } else if (auto line_name_index = get_nth_line_index_by_line_name(dimension, placement_end.identifier(), line_number); line_name_index.has_value()) {
+        } else if (auto line_name_index = get_nth_line_index_by_line_name(dimension, placement_end.identifier().view(), line_number); line_name_index.has_value()) {
             result.end = line_name_index.value();
         } else {
             result.end = explicit_line_count;
@@ -706,11 +701,11 @@ GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_pos
     }
 
     if (placement_start.has_identifier()) {
-        auto area_start_line_name = MUST(String::formatted("{}-start", placement_start.identifier()));
+        auto area_start_line_name = make_implicit_grid_line_name(placement_start.identifier().view(), "-start"sv);
         auto line_number = placement_start_line_number.value_or(1);
-        if (auto area_start_line_index = get_nth_line_index_by_line_name(dimension, area_start_line_name, line_number); area_start_line_index.has_value()) {
+        if (auto area_start_line_index = get_nth_line_index_by_line_name(dimension, area_start_line_name.view(), line_number); area_start_line_index.has_value()) {
             result.start = area_start_line_index.value();
-        } else if (auto line_name_index = get_nth_line_index_by_line_name(dimension, placement_start.identifier(), line_number); line_name_index.has_value()) {
+        } else if (auto line_name_index = get_nth_line_index_by_line_name(dimension, placement_start.identifier().view(), line_number); line_name_index.has_value()) {
             result.start = line_name_index.value();
         } else {
             result.start = explicit_line_count;
@@ -1978,10 +1973,10 @@ void GridFormattingContext::build_grid_areas()
     // naming the row-start and column-start lines of the named grid area, and two named foo-end, naming the row-end
     // and column-end lines of the named grid area.
     for (auto const& [name, area] : grid_template_areas.areas) {
-        m_column_lines[area.column_start].append({ .name = make_implicit_grid_line_name(name, "-start"sv), .implicit = true });
-        m_column_lines[area.column_end].append({ .name = make_implicit_grid_line_name(name, "-end"sv), .implicit = true });
-        m_row_lines[area.row_start].append({ .name = make_implicit_grid_line_name(name, "-start"sv), .implicit = true });
-        m_row_lines[area.row_end].append({ .name = make_implicit_grid_line_name(name, "-end"sv), .implicit = true });
+        m_column_lines[area.column_start].append({ .name = make_implicit_grid_line_name(name.view(), "-start"sv), .implicit = true });
+        m_column_lines[area.column_end].append({ .name = make_implicit_grid_line_name(name.view(), "-end"sv), .implicit = true });
+        m_row_lines[area.row_start].append({ .name = make_implicit_grid_line_name(name.view(), "-start"sv), .implicit = true });
+        m_row_lines[area.row_end].append({ .name = make_implicit_grid_line_name(name.view(), "-end"sv), .implicit = true });
     }
 }
 
@@ -2578,7 +2573,7 @@ void GridFormattingContext::save_grid_layout_data()
             line.negative_number = negative_line_number_for_index(i, explicit_start_line_index, explicit_line_count);
 
             for (auto const& line_name : lines[i])
-                line.names.append(MUST(line_name.name.view().to_utf8()));
+                line.names.append(line_name.name);
 
             result.lines.append(move(line));
 
@@ -3176,7 +3171,7 @@ AvailableSize GridFormattingContext::get_free_space(AvailableSpace const& availa
     return available_size;
 }
 
-Optional<int> GridFormattingContext::get_nth_line_index_by_line_name(GridDimension dimension, String const& line_name, int nth_line)
+Optional<int> GridFormattingContext::get_nth_line_index_by_line_name(GridDimension dimension, Utf16View line_name, int nth_line)
 {
     auto const& lines = dimension == GridDimension::Column ? m_column_lines : m_row_lines;
     size_t line_index = nth_line < 0 ? lines.size() + nth_line : nth_line - 1;
@@ -3185,7 +3180,7 @@ Optional<int> GridFormattingContext::get_nth_line_index_by_line_name(GridDimensi
     // Source: https://drafts.csswg.org/css-grid/#line-placement
     for (size_t actual_line_index = 0; actual_line_index < lines.size(); actual_line_index++) {
         for (auto const& line : lines[actual_line_index]) {
-            if (line.name == line_name) {
+            if (line.name.view() == line_name) {
                 // https://drafts.csswg.org/css-grid/#line-placement
                 // Contributes the nth grid line to the grid item’s placement.
                 if (line_index == 0)
@@ -3246,7 +3241,7 @@ void GridFormattingContext::init_grid_lines(GridDimension dimension)
                 };
 
                 struct AreaLineName {
-                    String area_name;
+                    Utf16FlyString area_name;
                     bool is_start { false };
                 };
 
@@ -3259,20 +3254,20 @@ void GridFormattingContext::init_grid_lines(GridDimension dimension)
                     auto constexpr end_suffix = "-end"sv;
                     if (line_name_view.ends_with(start_suffix)) {
                         return AreaLineName {
-                            .area_name = MUST(line_name_view.substring_view(0, line_name_view.length_in_code_units() - start_suffix.length()).to_utf8()),
+                            .area_name = Utf16FlyString::from_utf16(line_name_view.substring_view(0, line_name_view.length_in_code_units() - start_suffix.length())),
                             .is_start = true,
                         };
                     }
                     if (line_name_view.ends_with(end_suffix)) {
                         return AreaLineName {
-                            .area_name = MUST(line_name_view.substring_view(0, line_name_view.length_in_code_units() - end_suffix.length()).to_utf8()),
+                            .area_name = Utf16FlyString::from_utf16(line_name_view.substring_view(0, line_name_view.length_in_code_units() - end_suffix.length())),
                             .is_start = false,
                         };
                     }
                     return {};
                 };
 
-                HashMap<String, ParentGridArea> parent_grid_areas;
+                HashMap<Utf16FlyString, ParentGridArea> parent_grid_areas;
                 auto collect_implicit_area_line_names = [&](GridDimension line_dimension) {
                     auto const& parent_lines_for_dimension = line_dimension == GridDimension::Column ? parent_grid->m_column_lines : parent_grid->m_row_lines;
                     for (size_t line_index = 0; line_index < parent_lines_for_dimension.size(); ++line_index) {
@@ -3334,10 +3329,10 @@ void GridFormattingContext::init_grid_lines(GridDimension dimension)
                     auto start_line_index = max(area_start, subgrid_start) - subgrid_start;
                     auto end_line_index = min(area_end, subgrid_end) - subgrid_start;
                     if (start_line_index >= 0 && static_cast<size_t>(start_line_index) < lines.size()) {
-                        lines[start_line_index].append({ .name = make_implicit_grid_line_name(area_name, "-start"sv), .implicit = true });
+                        lines[start_line_index].append({ .name = make_implicit_grid_line_name(area_name.view(), "-start"sv), .implicit = true });
                     }
                     if (end_line_index >= 0 && static_cast<size_t>(end_line_index) < lines.size()) {
-                        lines[end_line_index].append({ .name = make_implicit_grid_line_name(area_name, "-end"sv), .implicit = true });
+                        lines[end_line_index].append({ .name = make_implicit_grid_line_name(area_name.view(), "-end"sv), .implicit = true });
                     }
                 }
             }

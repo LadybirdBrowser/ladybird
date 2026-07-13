@@ -1,0 +1,5 @@
+fieldset.type: fieldset
+output.type: output
+textarea.type: textarea
+select.type: select-one
+select.type after setting multiple: select-multiple

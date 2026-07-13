@@ -109,7 +109,7 @@ WebIDL::ExceptionOr<void> CSSUnparsedValue::set_value_of_new_indexed_property(u3
     // let tokens be this’s [[tokens]] internal slot. If n is not equal to the size of tokens, throw a RangeError.
     // Otherwise, append new value to tokens.
     if (n != m_tokens.size())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Index out of range"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Index out of range"_utf16 };
 
     m_tokens.append(TRY(unparsed_segment_from_js_value(vm(), value)));
     return {};
@@ -138,7 +138,7 @@ WebIDL::ExceptionOr<Utf16String> CSSUnparsedValue::to_string() const
     //         more levels of nesting. To avoid crashing, do a scan for that first and return the empty string.
     // Spec issue: https://github.com/w3c/css-houdini-drafts/issues/1158
     if (contains_unparsed_value(*this))
-        return Utf16String::from_utf8_without_validation(""sv);
+        return Utf16String {};
 
     // To serialize a CSSUnparsedValue this:
     // 1. Let s initially be the empty string.
@@ -183,14 +183,13 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSUnparsedValue::create_an
     // NB: CSSUnparsedValue stores a list of strings, each of which may contain any number of tokens. So the simplest
     //     way to convert it to ComponentValues is to serialize and then parse it.
     auto utf16_string = TRY(to_string());
-    auto string = MUST(utf16_string.utf16_view().to_utf8());
-    auto parser = Parser::Parser::create(Parser::ParsingParams {}, string);
+    auto parser = Parser::Parser::create(Parser::ParsingParams {}, utf16_string.utf16_view());
     auto component_values = parser.parse_as_list_of_component_values();
 
     Parser::SubstitutionFunctionsPresence substitution_presence;
 
     if (Parser::Parser::collect_arbitrary_substitution_function_presence(component_values, substitution_presence).is_error())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid arbitrary substitution function syntax"_string };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid arbitrary substitution function syntax"_utf16 };
 
     return UnresolvedStyleValue::create(move(component_values), substitution_presence, {}, UnresolvedStyleValue::SourceTextMode::Preserve);
 }

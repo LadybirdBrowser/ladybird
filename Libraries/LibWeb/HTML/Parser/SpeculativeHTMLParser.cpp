@@ -22,12 +22,12 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(SpeculativeHTMLParser);
 
-GC::Ref<SpeculativeHTMLParser> SpeculativeHTMLParser::create(JS::Realm& realm, GC::Ref<DOM::Document> document, String pending_input, URL::URL base_url)
+GC::Ref<SpeculativeHTMLParser> SpeculativeHTMLParser::create(JS::Realm& realm, GC::Ref<DOM::Document> document, Utf16String pending_input, URL::URL base_url)
 {
     return realm.create<SpeculativeHTMLParser>(document, move(pending_input), move(base_url));
 }
 
-SpeculativeHTMLParser::SpeculativeHTMLParser(GC::Ref<DOM::Document> document, String pending_input, URL::URL base_url)
+SpeculativeHTMLParser::SpeculativeHTMLParser(GC::Ref<DOM::Document> document, Utf16String pending_input, URL::URL base_url)
     : m_document(document)
     , m_input(move(pending_input))
     , m_base_url(move(base_url))
@@ -55,19 +55,23 @@ void SpeculativeHTMLParser::run()
     if (m_stopped)
         return;
 
-    auto input = m_input.bytes_as_string_view();
-    auto* bytes = reinterpret_cast<u8 const*>(input.characters_without_null_termination());
-    if (bytes == nullptr)
-        bytes = reinterpret_cast<u8 const*>("");
-
-    rust_html_preload_scanner_scan(bytes, input.length(), this, [](void* context, RustFfiPreloadScannerEntry const* entry) -> bool {
+    auto scanner_callback = [](void* context, RustFfiPreloadScannerEntry const* entry) -> bool {
         auto& parser = *static_cast<SpeculativeHTMLParser*>(context);
         if (parser.m_stopped || entry == nullptr)
             return false;
 
         parser.process_preload_scanner_entry(*entry);
         return !parser.m_stopped;
-    });
+    };
+
+    auto input = m_input.utf16_view();
+    if (input.has_ascii_storage()) {
+        auto bytes = input.bytes();
+        rust_html_preload_scanner_scan(bytes.data(), bytes.size(), this, scanner_callback);
+    } else {
+        auto code_units = input.utf16_span();
+        rust_html_preload_scanner_scan_utf16(reinterpret_cast<u16 const*>(code_units.data()), code_units.size(), this, scanner_callback);
+    }
 }
 
 namespace {
@@ -132,7 +136,7 @@ void SpeculativeHTMLParser::process_preload_scanner_entry(RustFfiPreloadScannerE
         // 1. If the speculative HTML parser encounters one of the following elements, then act as if that
         //    element is processed for the purpose of its effect on subsequent speculative fetches.
         //    - A base element.
-        if (auto parsed = m_document->encoding_parse_url(url_string); parsed.has_value())
+        if (auto parsed = m_document->encoding_parse_url(Utf16String::from_utf8(url_string)); parsed.has_value())
             m_base_url = parsed.release_value();
         return;
 

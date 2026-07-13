@@ -7,6 +7,8 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/IntersectionObserver/IntersectionObserverEntry.h>
 #include <LibWeb/PixelUnits.h>
@@ -43,8 +45,8 @@ public:
     Vector<ObservationTarget> const& observation_targets() const { return m_observation_targets; }
 
     NullableIntersectionObserverRoot root() const;
-    String root_margin() const;
-    String scroll_margin() const;
+    Utf16String root_margin() const;
+    Utf16String scroll_margin() const;
     Vector<CSS::LengthPercentage> const& scroll_margin_values() const { return m_scroll_margin; }
     Vector<double> const& thresholds() const { return m_thresholds; }
     long delay() const { return m_delay; }
@@ -66,7 +68,7 @@ private:
     virtual void visit_edges(JS::Cell::Visitor&) override;
     virtual void finalize() override;
 
-    static Optional<Vector<CSS::LengthPercentage>> parse_a_margin(JS::Realm&, String);
+    static Optional<Vector<CSS::LengthPercentage>> parse_a_margin(JS::Realm&, Utf16View);
 
     // https://www.w3.org/TR/intersection-observer/#dom-intersectionobserver-callback-slot
     GC::Ptr<WebIDL::CallbackType> m_callback;

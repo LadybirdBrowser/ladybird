@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <AK/Utf16String.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
@@ -44,10 +45,10 @@ public:
 
     // JS API functions
     [[nodiscard]] static GC::Ref<Response> error(JS::VM&);
-    static WebIDL::ExceptionOr<GC::Ref<Response>> redirect(JS::VM&, String const& url, u16 status);
+    static WebIDL::ExceptionOr<GC::Ref<Response>> redirect(JS::VM&, Utf16String const& url, u16 status);
     static WebIDL::ExceptionOr<GC::Ref<Response>> json(JS::VM&, JS::Value data, Bindings::ResponseInit const& init = {});
     [[nodiscard]] Bindings::ResponseType type() const;
-    [[nodiscard]] String url() const;
+    [[nodiscard]] Utf16String url() const;
     [[nodiscard]] bool redirected() const;
     [[nodiscard]] u16 status() const;
     [[nodiscard]] bool ok() const;

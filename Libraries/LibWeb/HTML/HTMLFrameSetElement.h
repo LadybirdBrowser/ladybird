@@ -32,7 +32,7 @@ private:
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
     // ^HTML::GlobalEventHandlers
-    virtual GC::Ptr<EventTarget> global_event_handlers_to_event_target(FlyString const& event_name) override;
+    virtual GC::Ptr<EventTarget> global_event_handlers_to_event_target(Utf16FlyString const& event_name) override;
 
     // ^HTML::WindowEventHandlers
     virtual GC::Ptr<EventTarget> window_event_handlers_to_event_target() override;

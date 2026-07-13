@@ -34,10 +34,10 @@ bool ListItemMarkerBox::counter_style_is_rendered_with_custom_image(RefPtr<CSS::
 
     auto const& counter_style_name = counter_style->name();
 
-    return first_is_one_of(counter_style_name, "square"_fly_string, "circle"_fly_string, "disc"_fly_string, "disclosure-closed"_fly_string, "disclosure-open"_fly_string);
+    return first_is_one_of(counter_style_name, "square"_utf16_fly_string, "circle"_utf16_fly_string, "disc"_utf16_fly_string, "disclosure-closed"_utf16_fly_string, "disclosure-open"_utf16_fly_string);
 }
 
-Optional<String> ListItemMarkerBox::text() const
+Optional<Utf16String> ListItemMarkerBox::text() const
 {
     VERIFY(m_list_item_element);
 
@@ -45,12 +45,12 @@ Optional<String> ListItemMarkerBox::text() const
     auto index = m_list_item_element->ordinal_value();
 
     return m_list_style_type.visit(
-        [](Empty const&) -> Optional<String> {
+        [](Empty const&) -> Optional<Utf16String> {
             // none
             // The element has no marker string.
             return {};
         },
-        [&](RefPtr<CSS::CounterStyle const> const& counter_style) -> Optional<String> {
+        [&](RefPtr<CSS::CounterStyle const> const& counter_style) -> Optional<Utf16String> {
             // <counter-style>
             // Specifies the element’s marker string as the value of the list-item counter represented using the
             // specified <counter-style>. Specifically, the marker string is the result of generating a counter
@@ -64,11 +64,11 @@ Optional<String> ListItemMarkerBox::text() const
             auto counter_representation = CSS::generate_a_counter_representation(counter_style, DOM::AbstractElement { *m_list_item_element }.style_scope(), index);
 
             if (!counter_style)
-                return MUST(String::formatted("{}. ", counter_representation));
+                return Utf16String::formatted("{}. ", counter_representation);
 
-            return MUST(String::formatted("{}{}{}", counter_style->prefix(), counter_representation, counter_style->suffix()));
+            return Utf16String::formatted("{}{}{}", counter_style->prefix(), counter_representation, counter_style->suffix());
         },
-        [](String const& string) -> Optional<String> {
+        [](Utf16String const& string) -> Optional<Utf16String> {
             // <string>
             // The element’s marker string is the specified <string>.
             return string;
@@ -100,10 +100,10 @@ CSSPixels ListItemMarkerBox::relative_size() const
 
     VERIFY(counter_style);
 
-    if (counter_style->name() == "square"_fly_string || counter_style->name() == "circle"_fly_string || counter_style->name() == "disc"_fly_string)
+    if (counter_style->name() == "square"_utf16_fly_string || counter_style->name() == "circle"_utf16_fly_string || counter_style->name() == "disc"_utf16_fly_string)
         return CSSPixels::nearest_value_for(ceilf(font_size * marker_image_size_factor));
 
-    if (counter_style->name() == "disclosure-closed"_fly_string || counter_style->name() == "disclosure-open"_fly_string)
+    if (counter_style->name() == "disclosure-closed"_utf16_fly_string || counter_style->name() == "disclosure-open"_utf16_fly_string)
         return CSSPixels::nearest_value_for(ceilf(font_size * disclosure_marker_image_size_factor));
 
     VERIFY_NOT_REACHED();

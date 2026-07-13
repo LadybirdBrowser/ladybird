@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16View.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -24,7 +25,7 @@ public:
 
     WebIDL::UnsignedLong length() const;
 
-    WebIDL::ExceptionOr<GC::Ptr<DataTransferItem>> add(String const& data, String const& type);
+    WebIDL::ExceptionOr<GC::Ptr<DataTransferItem>> add(Utf16View data, Utf16View type);
     GC::Ptr<DataTransferItem> add(GC::Ref<FileAPI::File>);
     WebIDL::ExceptionOr<void> remove(WebIDL::UnsignedLong index);
     void clear();

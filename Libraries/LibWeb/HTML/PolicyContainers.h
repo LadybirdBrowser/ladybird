@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibGC/CellAllocator.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibURL/Forward.h>
@@ -19,9 +20,9 @@ namespace Web::HTML {
 
 // https://w3c.github.io/webappsec-subresource-integrity/#integrity-policy
 struct IntegrityPolicy {
-    Vector<String> sources;
+    Vector<Utf16String> sources;
     Vector<Fetch::Infrastructure::Request::Destination> blocked_destinations;
-    Vector<String> endpoints;
+    Vector<Utf16String> endpoints;
 
     bool is_empty() const { return sources.is_empty() && blocked_destinations.is_empty() && endpoints.is_empty(); }
 };

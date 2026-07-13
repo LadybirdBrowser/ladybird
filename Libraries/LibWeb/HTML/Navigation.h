@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibJS/Runtime/Promise.h>
 #include <LibWeb/Bindings/Navigation.h>
 #include <LibWeb/Bindings/NavigationType.h>
@@ -22,7 +23,7 @@ struct NavigationAPIMethodTracker final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(NavigationAPIMethodTracker);
 
     NavigationAPIMethodTracker(GC::Ref<Navigation> navigation,
-        Optional<String> key,
+        Optional<Utf16String> key,
         JS::Value info,
         Optional<StorageSerializationRecord> serialized_state,
         GC::Ptr<NavigationHistoryEntry> committed_to_entry,
@@ -32,7 +33,7 @@ struct NavigationAPIMethodTracker final : public JS::Cell {
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ref<Navigation> navigation;
-    Optional<String> key;
+    Optional<Utf16String> key;
     JS::Value info;
     Optional<StorageSerializationRecord> serialized_state;
     GC::Ptr<NavigationHistoryEntry> committed_to_entry;
@@ -59,10 +60,10 @@ public:
     bool can_go_back() const;
     bool can_go_forward() const;
 
-    WebIDL::ExceptionOr<Bindings::NavigationResult> navigate(String url, Bindings::NavigationNavigateOptions const&);
+    WebIDL::ExceptionOr<Bindings::NavigationResult> navigate(Utf16String url, Bindings::NavigationNavigateOptions const&);
     WebIDL::ExceptionOr<Bindings::NavigationResult> reload(Bindings::NavigationReloadOptions const&);
 
-    WebIDL::ExceptionOr<Bindings::NavigationResult> traverse_to(String key, Bindings::NavigationOptions const&);
+    WebIDL::ExceptionOr<Bindings::NavigationResult> traverse_to(Utf16String key, Bindings::NavigationOptions const&);
     WebIDL::ExceptionOr<Bindings::NavigationResult> back(Bindings::NavigationOptions const&);
     WebIDL::ExceptionOr<Bindings::NavigationResult> forward(Bindings::NavigationOptions const&);
 
@@ -94,7 +95,7 @@ public:
         Optional<GC::ConservativeVector<XHR::FormDataEntry>&> form_data_entry_list = {},
         Optional<StorageSerializationRecord> navigation_api_state = {},
         Optional<StorageSerializationRecord> classic_history_api_state = {});
-    bool fire_a_download_request_navigate_event(URL::URL destination_url, UserNavigationInvolvement user_involvement, GC::Ptr<DOM::Element> source_element, String filename);
+    bool fire_a_download_request_navigate_event(URL::URL destination_url, UserNavigationInvolvement user_involvement, GC::Ptr<DOM::Element> source_element, Utf16String filename);
 
     void initialize_the_navigation_api_entries_for_a_new_document(Vector<NonnullRefPtr<SessionHistoryEntry>> const& new_shes, NonnullRefPtr<SessionHistoryEntry> initial_she);
     void initialize_the_navigation_api_entries_for_reconstructed_session_history(Vector<NonnullRefPtr<SessionHistoryEntry>> const& new_shes, NonnullRefPtr<SessionHistoryEntry> initial_she);
@@ -122,9 +123,9 @@ private:
     Bindings::NavigationResult early_error_result(AnyException);
 
     GC::Ref<NavigationAPIMethodTracker> maybe_set_the_upcoming_non_traverse_api_method_tracker(JS::Value info, Optional<StorageSerializationRecord>);
-    GC::Ref<NavigationAPIMethodTracker> add_an_upcoming_traverse_api_method_tracker(String destination_key, JS::Value info);
-    WebIDL::ExceptionOr<Bindings::NavigationResult> perform_a_navigation_api_traversal(String key, Bindings::NavigationOptions const&);
-    void promote_an_upcoming_api_method_tracker_to_ongoing(Optional<String> destination_key);
+    GC::Ref<NavigationAPIMethodTracker> add_an_upcoming_traverse_api_method_tracker(Utf16String destination_key, JS::Value info);
+    WebIDL::ExceptionOr<Bindings::NavigationResult> perform_a_navigation_api_traversal(Utf16String key, Bindings::NavigationOptions const&);
+    void promote_an_upcoming_api_method_tracker_to_ongoing(Optional<Utf16String> destination_key);
     void resolve_the_finished_promise(GC::Ref<NavigationAPIMethodTracker>);
     void reject_the_finished_promise(GC::Ref<NavigationAPIMethodTracker>, JS::Value exception);
     void clean_up(GC::Ref<NavigationAPIMethodTracker>);
@@ -137,7 +138,7 @@ private:
         UserNavigationInvolvement,
         GC::Ptr<DOM::Element> source_element,
         Optional<GC::ConservativeVector<XHR::FormDataEntry>&> form_data_entry_list,
-        Optional<String> download_request_filename,
+        Optional<Utf16String> download_request_filename,
         Optional<StorageSerializationRecord> classic_history_api_state);
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigation-entry-list
@@ -168,7 +169,7 @@ private:
     GC::Ptr<NavigationAPIMethodTracker> m_upcoming_non_traverse_api_method_tracker = nullptr;
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#upcoming-non-traverse-api-method-tracker
-    HashMap<String, GC::Ref<NavigationAPIMethodTracker>> m_upcoming_traverse_api_method_trackers;
+    HashMap<Utf16String, GC::Ref<NavigationAPIMethodTracker>> m_upcoming_traverse_api_method_trackers;
 
     // AD-HOC: Set when document.open() is called on an initial about:blank document.
     bool m_was_initial_about_blank_opened { false };

@@ -13,22 +13,22 @@ namespace Web::UIEvents {
 
 GC_DEFINE_ALLOCATOR(UIEvent);
 
-GC::Ref<UIEvent> UIEvent::create(JS::Realm& realm, FlyString const& event_name)
+GC::Ref<UIEvent> UIEvent::create(JS::Realm& realm, Utf16FlyString const& event_name)
 {
     return realm.create<UIEvent>(realm, event_name);
 }
 
-WebIDL::ExceptionOr<GC::Ref<UIEvent>> UIEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::UIEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<UIEvent>> UIEvent::construct_impl(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::UIEventInit const& event_init)
 {
     return realm.create<UIEvent>(realm, event_name, event_init);
 }
 
-UIEvent::UIEvent(JS::Realm& realm, FlyString const& event_name)
+UIEvent::UIEvent(JS::Realm& realm, Utf16FlyString const& event_name)
     : Event(realm, event_name)
 {
 }
 
-UIEvent::UIEvent(JS::Realm& realm, FlyString const& event_name, Bindings::UIEventInit const& event_init)
+UIEvent::UIEvent(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::UIEventInit const& event_init)
     : Event(realm, event_name, event_init)
     , m_view(event_init.view)
     , m_detail(event_init.detail)

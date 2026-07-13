@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 
 namespace Web::HTML {
 
@@ -25,13 +25,13 @@ struct OpenerPolicy {
     OpenerPolicyValue value { OpenerPolicyValue::UnsafeNone };
 
     // A reporting endpoint, which is string or null, initially null.
-    Optional<String> reporting_endpoint;
+    Optional<Utf16String> reporting_endpoint;
 
     // A report-only value, which is an opener policy value, initially "unsafe-none".
     OpenerPolicyValue report_only_value { OpenerPolicyValue::UnsafeNone };
 
     // A report-only reporting endpoint, which is a string or null, initially null.
-    Optional<String> report_only_reporting_endpoint;
+    Optional<Utf16String> report_only_reporting_endpoint;
 };
 
 }

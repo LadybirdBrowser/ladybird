@@ -55,7 +55,7 @@ protected:
 
 private:
     // ^HTML::GlobalEventHandlers
-    virtual GC::Ptr<DOM::EventTarget> global_event_handlers_to_event_target(FlyString const&) override { return *this; }
+    virtual GC::Ptr<DOM::EventTarget> global_event_handlers_to_event_target(Utf16FlyString const&) override { return *this; }
 
     virtual bool is_svg_element() const final { return true; }
 

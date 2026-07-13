@@ -24,9 +24,9 @@ UniversalSyntaxNode::UniversalSyntaxNode()
 
 UniversalSyntaxNode::~UniversalSyntaxNode() = default;
 
-String UniversalSyntaxNode::to_string() const
+Utf16String UniversalSyntaxNode::to_string() const
 {
-    return "*"_string;
+    return "*"_utf16;
 }
 
 bool UniversalSyntaxNode::equals(SyntaxNode const& other) const
@@ -59,9 +59,13 @@ TypeSyntaxNode::TypeSyntaxNode(Utf16FlyString type_name, Optional<ValueType> val
 
 TypeSyntaxNode::~TypeSyntaxNode() = default;
 
-String TypeSyntaxNode::to_string() const
+Utf16String TypeSyntaxNode::to_string() const
 {
-    return MUST(String::formatted("<{}>", m_type_name));
+    Utf16StringBuilder builder;
+    builder.append_ascii('<');
+    builder.append(m_type_name);
+    builder.append_ascii('>');
+    return builder.to_string();
 }
 
 bool TypeSyntaxNode::equals(SyntaxNode const& other) const
@@ -92,9 +96,9 @@ IdentSyntaxNode::IdentSyntaxNode(Utf16FlyString ident, CaseSensitivity case_sens
 
 IdentSyntaxNode::~IdentSyntaxNode() = default;
 
-String IdentSyntaxNode::to_string() const
+Utf16String IdentSyntaxNode::to_string() const
 {
-    return serialize_an_identifier(m_ident);
+    return serialize_an_identifier_to_utf16(m_ident);
 }
 
 bool IdentSyntaxNode::equals(SyntaxNode const& other) const
@@ -124,9 +128,12 @@ MultiplierSyntaxNode::MultiplierSyntaxNode(NonnullRefPtr<SyntaxNode> child)
 
 MultiplierSyntaxNode::~MultiplierSyntaxNode() = default;
 
-String MultiplierSyntaxNode::to_string() const
+Utf16String MultiplierSyntaxNode::to_string() const
 {
-    return MUST(String::formatted("{}+", m_child->to_string()));
+    Utf16StringBuilder builder;
+    builder.append(m_child->to_string());
+    builder.append_ascii('+');
+    return builder.to_string();
 }
 
 bool MultiplierSyntaxNode::equals(SyntaxNode const& other) const
@@ -156,9 +163,12 @@ CommaSeparatedMultiplierSyntaxNode::CommaSeparatedMultiplierSyntaxNode(NonnullRe
 
 CommaSeparatedMultiplierSyntaxNode::~CommaSeparatedMultiplierSyntaxNode() = default;
 
-String CommaSeparatedMultiplierSyntaxNode::to_string() const
+Utf16String CommaSeparatedMultiplierSyntaxNode::to_string() const
 {
-    return MUST(String::formatted("{}#", m_child->to_string()));
+    Utf16StringBuilder builder;
+    builder.append(m_child->to_string());
+    builder.append_ascii('#');
+    return builder.to_string();
 }
 
 bool CommaSeparatedMultiplierSyntaxNode::equals(SyntaxNode const& other) const
@@ -188,9 +198,9 @@ AlternativesSyntaxNode::AlternativesSyntaxNode(Vector<NonnullRefPtr<SyntaxNode>>
 
 AlternativesSyntaxNode::~AlternativesSyntaxNode() = default;
 
-String AlternativesSyntaxNode::to_string() const
+Utf16String AlternativesSyntaxNode::to_string() const
 {
-    StringBuilder builder;
+    Utf16StringBuilder builder;
 
     bool first = true;
     for (auto const& child : m_children) {
@@ -202,7 +212,7 @@ String AlternativesSyntaxNode::to_string() const
         builder.append(child->to_string());
     }
 
-    return builder.to_string_without_validation();
+    return builder.to_string();
 }
 
 bool AlternativesSyntaxNode::equals(SyntaxNode const& other) const

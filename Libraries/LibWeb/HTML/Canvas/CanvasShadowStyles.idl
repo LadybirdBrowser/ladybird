@@ -4,5 +4,5 @@ interface mixin CanvasShadowStyles {
     attribute unrestricted double shadowOffsetX; // (default 0)
     attribute unrestricted double shadowOffsetY; // (default 0)
     attribute unrestricted double shadowBlur; // (default 0)
-    attribute DOMString shadowColor; // (default transparent black)
+    attribute Utf16DOMString shadowColor; // (default transparent black)
 };

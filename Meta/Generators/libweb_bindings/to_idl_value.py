@@ -516,20 +516,19 @@ def dom_string_to_idl_value(
     includes.add("LibWeb/WebIDL/AbstractOperations.h")
     cpp_type_name = cpp_type_name_for_string(type_name, extended_attributes)
     add_include_for_string_cpp_type(cpp_type_name, includes)
-    to_string = "to_utf16_string" if "Utf16" in type_name else "to_string"
 
     # 1. If V is null and the conversion is to an IDL type associated with the [LegacyNullToEmptyString] extended attribute, then return the DOMString value that represents the empty string.
     if extended_attributes is not None and "LegacyNullToEmptyString" in extended_attributes:
         return f"""[&]() -> JS::ThrowCompletionOr<{cpp_type_name}> {{
         {cpp_type_name} string;
         if (!{value_name}.is_null())
-            string = TRY(WebIDL::{to_string}(vm, {value_name}));
+            string = TRY(WebIDL::to_utf16_string(vm, {value_name}));
         return string;
     }}()"""
     # 2. Let x be ? ToString(V).
     # 3. Return the IDL DOMString value that represents the same sequence of code units as the one the JavaScript String value x represents.
     return f"""[&]() -> JS::ThrowCompletionOr<{cpp_type_name}> {{
-        return TRY(WebIDL::{to_string}(vm, {value_name}));
+        return TRY(WebIDL::to_utf16_string(vm, {value_name}));
     }}()"""
 
 
@@ -558,13 +557,12 @@ def usv_string_to_idl_value(
     includes.add("LibWeb/WebIDL/AbstractOperations.h")
     cpp_type_name = cpp_type_name_for_string(type_name, extended_attributes)
     add_include_for_string_cpp_type(cpp_type_name, includes)
-    to_string = "to_utf16_usv_string" if "Utf16" in type_name else "to_usv_string"
 
     # 1. Let string be the result of converting V to a DOMString.
     # 2. If x contains any lone surrogates, then throw a TypeError.
     # 3. Return the IDL USVString value that represents the same sequence of code units as the one the JavaScript String value x represents.
     return f"""[&]() -> JS::ThrowCompletionOr<{cpp_type_name}> {{
-        return TRY(WebIDL::{to_string}(vm, {value_name}));
+        return TRY(WebIDL::to_utf16_usv_string(vm, {value_name}));
     }}()"""
 
 

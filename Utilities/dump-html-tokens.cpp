@@ -125,7 +125,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     u64 total_tokens = 0;
 
     for (int i = 0; i < iterations; i++) {
-        HTMLTokenizer tokenizer { input, "UTF-8"sv };
+        HTMLTokenizer tokenizer { Utf16String::from_utf8_with_replacement_character(input) };
         if (initial_state.has_value())
             tokenizer.switch_to(initial_state.value());
 

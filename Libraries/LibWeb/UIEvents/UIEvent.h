@@ -18,8 +18,8 @@ class WEB_API UIEvent : public DOM::Event {
     GC_DECLARE_ALLOCATOR(UIEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<UIEvent> create(JS::Realm&, FlyString const& type);
-    static WebIDL::ExceptionOr<GC::Ref<UIEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::UIEventInit const&);
+    [[nodiscard]] static GC::Ref<UIEvent> create(JS::Realm&, Utf16FlyString const& type);
+    static WebIDL::ExceptionOr<GC::Ref<UIEvent>> construct_impl(JS::Realm&, Utf16FlyString const& event_name, Bindings::UIEventInit const&);
 
     virtual ~UIEvent() override;
 
@@ -27,7 +27,7 @@ public:
     int detail() const { return m_detail; }
     virtual u32 which() const { return 0; }
 
-    void init_ui_event(String const& type, bool bubbles, bool cancelable, GC::Ptr<HTML::WindowProxy> view, int detail)
+    void init_ui_event(Utf16FlyString const& type, bool bubbles, bool cancelable, GC::Ptr<HTML::WindowProxy> view, int detail)
     {
         // Initializes attributes of an UIEvent object. This method has the same behavior as initEvent().
 
@@ -44,8 +44,8 @@ public:
     }
 
 protected:
-    UIEvent(JS::Realm&, FlyString const& event_name);
-    UIEvent(JS::Realm&, FlyString const& event_name, Bindings::UIEventInit const& event_init);
+    UIEvent(JS::Realm&, Utf16FlyString const& event_name);
+    UIEvent(JS::Realm&, Utf16FlyString const& event_name, Bindings::UIEventInit const& event_init);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

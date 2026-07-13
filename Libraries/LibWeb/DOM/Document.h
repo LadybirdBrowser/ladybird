@@ -10,7 +10,6 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
 #include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
@@ -18,9 +17,9 @@
 #include <AK/Optional.h>
 #include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
-#include <AK/String.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
 #include <LibCore/Forward.h>
@@ -51,6 +50,7 @@
 #include <LibWeb/HTML/Scripting/ScriptRegistry.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/VisibilityState.h>
+#include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Layout/ScrollableOverflow.h>
 #include <LibWeb/Painting/FlexboxInspectorOverlay.h>
@@ -89,7 +89,7 @@ enum class InvalidateLayoutTreeReason {
 #undef ENUMERATE_INVALIDATE_LAYOUT_TREE_REASON
 };
 
-[[nodiscard]] StringView to_string(InvalidateLayoutTreeReason);
+[[nodiscard]] Utf16View to_string(InvalidateLayoutTreeReason);
 
 #define ENUMERATE_UPDATE_LAYOUT_REASONS(X)   \
     X(AutoScrollSelection)                   \
@@ -164,7 +164,7 @@ enum class UpdateLayoutReason {
 #undef ENUMERATE_UPDATE_LAYOUT_REASON
 };
 
-[[nodiscard]] StringView to_string(UpdateLayoutReason);
+[[nodiscard]] Utf16View to_string(UpdateLayoutReason);
 
 // https://html.spec.whatwg.org/multipage/dom.html#document-load-timing-info
 struct DocumentLoadTimingInfo {
@@ -225,7 +225,7 @@ public:
         HTML
     };
 
-    static WebIDL::ExceptionOr<GC::Ref<Document>> create_and_initialize(Type, String content_type, HTML::NavigationParams const&);
+    static WebIDL::ExceptionOr<GC::Ref<Document>> create_and_initialize(Type, Utf16FlyString content_type, HTML::NavigationParams const&);
 
     [[nodiscard]] static GC::Ref<Document> create(JS::Realm&, URL::URL const& url = URL::about_blank());
     static GC::Ref<Document> construct_impl(JS::Realm&);
@@ -246,30 +246,30 @@ public:
 
     GC::Ptr<Selection::Selection> get_selection() const;
 
-    WebIDL::ExceptionOr<String> cookie();
-    WebIDL::ExceptionOr<void> set_cookie(StringView);
+    WebIDL::ExceptionOr<Utf16String> cookie();
+    WebIDL::ExceptionOr<void> set_cookie(Utf16View);
     bool is_cookie_averse() const;
 
     void set_cookie_version_index(Core::SharedVersionIndex cookie_version_index) { m_cookie_version_index = cookie_version_index; }
     void reset_cookie_version() { m_cookie_version = Core::INVALID_SHARED_VERSION; }
 
     Utf16String fg_color() const;
-    void set_fg_color(Utf16String const&);
+    void set_fg_color(Utf16View);
 
     Utf16String link_color() const;
-    void set_link_color(Utf16String const&);
+    void set_link_color(Utf16View);
 
     Utf16String vlink_color() const;
-    void set_vlink_color(Utf16String const&);
+    void set_vlink_color(Utf16View);
 
     Utf16String alink_color() const;
-    void set_alink_color(Utf16String const&);
+    void set_alink_color(Utf16View);
 
     Utf16String bg_color() const;
-    void set_bg_color(Utf16String const&);
+    void set_bg_color(Utf16View);
 
-    String referrer() const;
-    void set_referrer(String);
+    Utf16String const& referrer() const { return m_referrer; }
+    void set_referrer(Utf16String);
 
     void set_url(URL::URL const& url);
     URL::URL url() const { return m_url; }
@@ -281,8 +281,8 @@ public:
     GC::Ptr<HTML::HTMLBaseElement> first_base_element_with_target_in_tree_order() const;
     void respond_to_base_url_changes(URL::URL const& old_document_url, URL::URL const& old_base_url);
 
-    String url_string() const { return m_url.to_string(); }
-    String document_uri() const { return url_string(); }
+    Utf16String url_string_for_bindings() const { return utf16_string_from_url_ascii(m_url.to_string()); }
+    Utf16String document_uri() const { return url_string_for_bindings(); }
 
     URL::Origin const& origin() const;
     void set_origin(URL::Origin const& origin);
@@ -290,10 +290,8 @@ public:
     HTML::OpenerPolicy const& opener_policy() const { return m_opener_policy; }
     void set_opener_policy(HTML::OpenerPolicy policy) { m_opener_policy = move(policy); }
 
-    Optional<URL::URL> encoding_parse_url(StringView) const;
     Optional<URL::URL> encoding_parse_url(Utf16View) const;
-    Optional<String> encoding_parse_and_serialize_url(StringView) const;
-    Optional<String> encoding_parse_and_serialize_url(Utf16String const&) const;
+    Optional<Utf16String> encoding_parse_and_serialize_url(Utf16View) const;
 
     CSS::StyleComputer& style_computer() { return *m_style_computer; }
     CSS::StyleComputer const& style_computer() const { return *m_style_computer; }
@@ -310,7 +308,7 @@ public:
 
     double ensure_element_shared_css_random_base_value(CSS::RandomCachingKey const&);
 
-    Optional<String> get_style_sheet_source(CSS::StyleSheetIdentifier const&) const;
+    Optional<Utf16String> get_style_sheet_source(CSS::StyleSheetIdentifier const&) const;
 
     virtual Utf16FlyString node_name() const override { return "#document"_utf16_fly_string; }
 
@@ -340,8 +338,8 @@ public:
     HTML::HTMLHeadElement* head();
     GC::Ptr<HTML::HTMLTitleElement> title_element();
 
-    Utf16String dir() const;
-    void set_dir(Utf16String const&);
+    Utf16FlyString dir() const;
+    void set_dir(Utf16View);
 
     HTML::HTMLElement* body();
 
@@ -368,7 +366,7 @@ public:
     WebIDL::ExceptionOr<void> set_body(HTML::HTMLElement* new_body);
 
     Utf16String title() const;
-    WebIDL::ExceptionOr<void> set_title(Utf16String const&);
+    WebIDL::ExceptionOr<void> set_title(Utf16View);
 
     GC::Ptr<HTML::BrowsingContext> browsing_context() { return m_browsing_context; }
     GC::Ptr<HTML::BrowsingContext const> browsing_context() const { return m_browsing_context; }
@@ -441,7 +439,7 @@ public:
     RefPtr<Painting::ViewportPaintable const> unsafe_paintable() const;
     RefPtr<Painting::ViewportPaintable> unsafe_paintable();
 
-    GC::Ref<NodeList> get_elements_by_name(Utf16String const&);
+    GC::Ref<NodeList> get_elements_by_name(Utf16View);
 
     GC::Ref<HTMLCollection> applets();
     GC::Ref<HTMLCollection> anchors();
@@ -460,8 +458,8 @@ public:
     void capture_events();
     void release_events();
 
-    String const& source() const { return m_source; }
-    void set_source(String source) { m_source = move(source); }
+    Utf16String const& source() const { return m_source; }
+    void set_source(Utf16String source) { m_source = move(source); }
 
     HTML::EnvironmentSettingsObject& relevant_settings_object() const;
 
@@ -476,7 +474,7 @@ public:
     WebIDL::ExceptionOr<GC::Ref<Attr>> create_attribute(Utf16FlyString const& local_name);
     WebIDL::ExceptionOr<GC::Ref<Attr>> create_attribute_ns(Optional<Utf16FlyString> namespace_, Utf16FlyString const& qualified_name);
 
-    WebIDL::ExceptionOr<GC::Ref<Event>> create_event(StringView interface);
+    WebIDL::ExceptionOr<GC::Ref<Event>> create_event(Utf16FlyString const& interface);
     GC::Ref<Range> create_range();
 
     void set_pending_parsing_blocking_script(HTML::HTMLScriptElement*);
@@ -530,7 +528,7 @@ public:
     WebIDL::ExceptionOr<GC::Ref<Node>> adopt_node_binding(GC::Ref<Node>);
 
     DocumentType const* doctype() const;
-    String const& compat_mode() const;
+    Utf16FlyString compat_mode() const;
 
     // https://html.spec.whatwg.org/multipage/interaction.html#focused-area-of-the-document
     GC::Ptr<Node> focused_area() { return m_focused_area; }
@@ -558,11 +556,11 @@ public:
 
     GC::Ref<Document> appropriate_template_contents_owner_document();
 
-    StringView ready_state() const;
+    Utf16FlyString ready_state() const;
     HTML::DocumentReadyState readiness() const { return m_readiness; }
     void update_readiness(HTML::DocumentReadyState);
 
-    String last_modified() const;
+    Utf16String last_modified() const;
 
     [[nodiscard]] GC::Ptr<HTML::Window> window() const { return m_window; }
 
@@ -571,29 +569,29 @@ public:
     WebIDL::ExceptionOr<void> write(Vector<TrustedTypes::TrustedHTMLOrString> const& text);
     WebIDL::ExceptionOr<void> writeln(Vector<TrustedTypes::TrustedHTMLOrString> const& text);
 
-    WebIDL::ExceptionOr<Document*> open(Optional<String> const& = {}, Optional<String> const& = {});
-    WebIDL::ExceptionOr<GC::Ptr<HTML::WindowProxy>> open(StringView url, StringView name, StringView features);
+    WebIDL::ExceptionOr<Document*> open(Optional<Utf16String> const& = {}, Optional<Utf16String> const& = {});
+    WebIDL::ExceptionOr<GC::Ptr<HTML::WindowProxy>> open(Utf16View url, Utf16View name, Utf16View features);
     WebIDL::ExceptionOr<void> close();
 
     GC::Ptr<HTML::WindowProxy const> default_view() const;
     GC::Ptr<HTML::WindowProxy> default_view();
 
-    String const& content_type() const { return m_content_type; }
-    void set_content_type(String content_type) { m_content_type = move(content_type); }
+    Utf16FlyString const& content_type() const { return m_content_type; }
+    void set_content_type(Utf16FlyString content_type) { m_content_type = move(content_type); }
 
     Optional<Utf16String> const& pragma_set_default_language() const { return m_pragma_set_default_language; }
     void set_pragma_set_default_language(Utf16String language) { m_pragma_set_default_language = move(language); }
-    Optional<String> const& http_content_language() const { return m_http_content_language; }
+    Optional<Utf16String> const& http_content_language() const { return m_http_content_language; }
 
     bool has_encoding() const { return m_encoding.has_value(); }
-    Optional<String> const& encoding() const { return m_encoding; }
-    String encoding_or_default() const { return m_encoding.value_or("UTF-8"_string); }
-    void set_encoding(Optional<String> encoding) { m_encoding = move(encoding); }
+    Optional<Utf16String> const& encoding() const { return m_encoding; }
+    Utf16String encoding_or_default() const { return m_encoding.value_or("UTF-8"_utf16); }
+    void set_encoding(Optional<Utf16String> encoding) { m_encoding = move(encoding); }
 
     // NOTE: These are intended for the JS bindings
-    String character_set() const { return encoding_or_default(); }
-    String charset() const { return encoding_or_default(); }
-    String input_encoding() const { return encoding_or_default(); }
+    Utf16String character_set() const { return encoding_or_default(); }
+    Utf16String charset() const { return encoding_or_default(); }
+    Utf16String input_encoding() const { return encoding_or_default(); }
 
     bool ready_for_post_load_tasks() const { return m_ready_for_post_load_tasks; }
     void set_ready_for_post_load_tasks(bool ready);
@@ -612,7 +610,7 @@ public:
 
     virtual EventTarget* get_parent(Event const&) override;
 
-    String dump_dom_tree_as_json() const;
+    Utf16String dump_dom_tree_as_json() const;
 
     [[nodiscard]] bool has_a_style_sheet_that_is_blocking_scripts() const;
 
@@ -641,7 +639,7 @@ public:
     void set_page_showing(bool);
 
     bool hidden() const;
-    StringView visibility_state() const;
+    Utf16FlyString visibility_state() const;
     HTML::VisibilityState visibility_state_value() const { return m_visibility_state; }
 
     // https://html.spec.whatwg.org/multipage/interaction.html#update-the-visibility-state
@@ -728,12 +726,12 @@ public:
     Optional<URL::URL> about_base_url() const { return m_about_base_url; }
     void set_about_base_url(Optional<URL::URL> url) { m_about_base_url = url; }
 
-    String domain() const;
-    WebIDL::ExceptionOr<void> set_domain(String const&);
+    Utf16String domain() const;
+    WebIDL::ExceptionOr<void> set_domain(Utf16View);
 
     struct PendingScrollEvent {
         GC::Ref<EventTarget> event_target;
-        FlyString event_type;
+        Utf16FlyString event_type;
         bool operator==(PendingScrollEvent const&) const = default;
     };
     Vector<PendingScrollEvent>& pending_scroll_events() { return m_pending_scroll_events; }
@@ -788,15 +786,20 @@ public:
     void set_previous_document_unload_timing(DocumentUnloadTimingInfo const& previous_document_unload_timing) { m_previous_document_unload_timing = previous_document_unload_timing; }
 
     // https://w3c.github.io/editing/docs/execCommand/
-    WebIDL::ExceptionOr<bool> exec_command(FlyString const& command, bool show_ui, Utf16String const& value);
-    WebIDL::ExceptionOr<bool> query_command_enabled(FlyString const& command);
-    WebIDL::ExceptionOr<bool> query_command_indeterm(FlyString const& command);
-    WebIDL::ExceptionOr<bool> query_command_state(FlyString const& command);
-    WebIDL::ExceptionOr<bool> query_command_supported(FlyString const& command);
-    WebIDL::ExceptionOr<Utf16String> query_command_value(FlyString const& command);
+    enum class DispatchInputEvent {
+        No,
+        Yes,
+    };
+    WebIDL::ExceptionOr<bool> exec_command(Utf16FlyString const& command, bool show_ui, Utf16View value);
+    WebIDL::ExceptionOr<bool> exec_command_internal(Utf16FlyString const& command, bool show_ui, Utf16View value, DispatchInputEvent);
+    WebIDL::ExceptionOr<bool> query_command_enabled(Utf16FlyString const& command);
+    WebIDL::ExceptionOr<bool> query_command_indeterm(Utf16FlyString const& command);
+    WebIDL::ExceptionOr<bool> query_command_state(Utf16FlyString const& command);
+    WebIDL::ExceptionOr<bool> query_command_supported(Utf16FlyString const& command);
+    WebIDL::ExceptionOr<Utf16String> query_command_value(Utf16FlyString const& command);
 
-    WebIDL::ExceptionOr<GC::Ref<XPath::XPathExpression>> create_expression(String const& expression, GC::Ptr<XPath::XPathNSResolver> resolver = nullptr);
-    WebIDL::ExceptionOr<GC::Ref<XPath::XPathResult>> evaluate(String const& expression, DOM::Node const& context_node, GC::Ptr<XPath::XPathNSResolver> resolver = nullptr, WebIDL::UnsignedShort type = 0, GC::Ptr<XPath::XPathResult> result = nullptr);
+    WebIDL::ExceptionOr<GC::Ref<XPath::XPathExpression>> create_expression(Utf16View expression, GC::Ptr<XPath::XPathNSResolver> resolver = nullptr);
+    WebIDL::ExceptionOr<GC::Ref<XPath::XPathResult>> evaluate(Utf16View expression, DOM::Node const& context_node, GC::Ptr<XPath::XPathNSResolver> resolver = nullptr, WebIDL::UnsignedShort type = 0, GC::Ptr<XPath::XPathResult> result = nullptr);
     GC::Ref<DOM::Node> create_ns_resolver(GC::Ref<DOM::Node> node_resolver); // legacy
 
     // https://w3c.github.io/selection-api/#dfn-has-scheduled-selectionchange-event
@@ -807,7 +810,7 @@ public:
 
     void did_stop_being_active_document_in_navigable();
 
-    String dump_accessibility_tree_as_json();
+    Utf16String dump_accessibility_tree_as_json();
 
     void make_active();
 
@@ -816,7 +819,7 @@ public:
 
     void set_salvageable(bool value) { m_salvageable = value; }
 
-    void make_unsalvageable(String reason);
+    void make_unsalvageable(Utf16View reason);
 
     HTML::ListOfAvailableImages& list_of_available_images();
     HTML::ListOfAvailableImages const& list_of_available_images() const;
@@ -908,8 +911,8 @@ public:
 
     bool design_mode_enabled_state() const { return m_design_mode_enabled; }
     void set_design_mode_enabled_state(bool);
-    String design_mode() const;
-    WebIDL::ExceptionOr<void> set_design_mode(String const&);
+    Utf16FlyString design_mode() const;
+    WebIDL::ExceptionOr<void> set_design_mode(Utf16View);
 
     Element const* element_from_point(double x, double y);
     GC::RootVector<GC::Ref<Element>> elements_from_point(double x, double y);
@@ -1043,7 +1046,7 @@ public:
     // Does document represent an embedded svg img
     [[nodiscard]] bool is_decoded_svg() const { return m_is_decoded_svg; }
 
-    Vector<GC::Root<Range>> find_matching_text(String const&, CaseSensitivity);
+    Vector<GC::Root<Range>> find_matching_text(Utf16View, CaseSensitivity);
 
     void parse_html_from_a_string(Utf16View);
     static WebIDL::ExceptionOr<GC::Root<DOM::Document>> parse_html_unsafe(JS::VM&, TrustedTypes::TrustedHTMLOrString const&);
@@ -1134,15 +1137,21 @@ public:
     void set_css_styling_flag(bool flag) { m_css_styling_flag = flag; }
 
     // https://w3c.github.io/editing/docs/execCommand/#state-override
-    Optional<bool> command_state_override(FlyString const& command) const { return m_command_state_override.get(command); }
-    void set_command_state_override(FlyString const& command, bool state) { m_command_state_override.set(command, state); }
-    void clear_command_state_override(FlyString const& command) { m_command_state_override.remove(command); }
+    Optional<bool> command_state_override(Utf16FlyString const& command) const { return m_command_state_override.get(command); }
+    void set_command_state_override(Utf16FlyString const& command, bool state) { m_command_state_override.set(command, state); }
+    void clear_command_state_override(Utf16FlyString const& command) { m_command_state_override.remove(command); }
     void reset_command_state_overrides() { m_command_state_override.clear(); }
 
     // https://w3c.github.io/editing/docs/execCommand/#value-override
-    Optional<Utf16String const&> command_value_override(FlyString const& command) const { return m_command_value_override.get(command); }
-    void set_command_value_override(FlyString const& command, Utf16String const& value);
-    void clear_command_value_override(FlyString const& command);
+    Optional<Utf16View> command_value_override(Utf16FlyString const& command) const
+    {
+        auto value = m_command_value_override.get(command);
+        if (!value.has_value())
+            return {};
+        return value->utf16_view();
+    }
+    void set_command_value_override(Utf16FlyString const& command, Utf16View value);
+    void clear_command_value_override(Utf16FlyString const& command);
     void reset_command_value_overrides() { m_command_value_override.clear(); }
 
     GC::Ptr<DOM::Document> container_document() const;
@@ -1188,8 +1197,8 @@ public:
     auto const& script_blocking_style_sheet_set() const { return m_script_blocking_style_sheet_set; }
     void remove_from_script_blocking_style_sheet_set(Element&);
 
-    String dump_display_list();
-    String dump_stacking_context_tree();
+    Utf16String dump_display_list();
+    Utf16String dump_stacking_context_tree();
 
     CSS::Invalidation::StyleInvalidator& style_invalidator() { return m_style_invalidator; }
     CSS::Invalidation::StyleInvalidator const& style_invalidator() const { return m_style_invalidator; }
@@ -1205,13 +1214,13 @@ public:
 
     CSS::StyleScope const& style_scope() const { return m_style_scope; }
     CSS::StyleScope& style_scope() { return m_style_scope; }
-    String const& content_blocker_style_sheet();
+    Utf16String const& content_blocker_style_sheet();
     void invalidate_content_blocker_style_sheet();
     bool content_blocker_style_sheet_may_need_refresh_for_class_or_id(Utf16FlyString const* id, ReadonlySpan<Utf16FlyString> class_names);
 
     void exit_pointer_lock();
 
-    RefPtr<SelectorQuery const> selector_query_for(StringView) const;
+    RefPtr<SelectorQuery const> selector_query_for(Utf16View) const;
     QuerySelectorResultCache& query_selector_result_cache();
 
     GC::Ptr<HTML::CustomElementRegistry> custom_element_registry() const;
@@ -1241,7 +1250,7 @@ private:
     virtual bool is_dom_document() const final { return true; }
 
     // ^HTML::GlobalEventHandlers
-    virtual GC::Ptr<EventTarget> global_event_handlers_to_event_target(FlyString const&) final { return *this; }
+    virtual GC::Ptr<EventTarget> global_event_handlers_to_event_target(Utf16FlyString const&) final { return *this; }
 
     virtual void finalize() override final;
 
@@ -1265,7 +1274,7 @@ private:
     void queue_intersection_observer_task();
     void queue_an_intersection_observer_entry(IntersectionObserver::IntersectionObserver&, HighResolutionTime::DOMHighResTimeStamp time, GC::Ref<Geometry::DOMRectReadOnly> root_bounds, GC::Ref<Geometry::DOMRectReadOnly> bounding_client_rect, GC::Ref<Geometry::DOMRectReadOnly> intersection_rect, bool is_intersecting, double intersection_ratio, GC::Ref<Element> target);
 
-    Element* find_a_potential_indicated_element(Utf16String const& fragment) const;
+    Element* find_a_potential_indicated_element(Utf16View fragment) const;
 
     void dispatch_events_for_transition(GC::Ref<CSS::CSSTransition>);
 
@@ -1340,7 +1349,7 @@ private:
     bool m_has_been_destroyed { false };
     bool m_observers_consider_document_fully_active { false };
 
-    String m_source;
+    Utf16String m_source;
 
     GC::Ptr<HTML::HTMLScriptElement> m_pending_parsing_blocking_script;
     GC::Ptr<SVG::SVGScriptElement> m_pending_parsing_blocking_svg_script;
@@ -1387,10 +1396,10 @@ private:
     //            This default applies to other cases such as initial about:blank Documents or Documents without a
     //            browsing context.
     HTML::DocumentReadyState m_readiness { HTML::DocumentReadyState::Complete };
-    String m_content_type { "application/xml"_string };
+    Utf16FlyString m_content_type { "application/xml"_utf16_fly_string };
     Optional<Utf16String> m_pragma_set_default_language;
-    Optional<String> m_http_content_language;
-    Optional<String> m_encoding;
+    Optional<Utf16String> m_http_content_language;
+    Optional<Utf16String> m_encoding;
 
     bool m_ready_for_post_load_tasks { false };
 
@@ -1477,7 +1486,7 @@ private:
     HTML::OpenerPolicy m_opener_policy;
 
     // https://html.spec.whatwg.org/multipage/dom.html#the-document's-referrer
-    String m_referrer;
+    Utf16String m_referrer;
 
     // https://dom.spec.whatwg.org/#concept-document-origin
     URL::Origin m_origin { URL::Origin::create_opaque() };
@@ -1499,7 +1508,7 @@ private:
     bool m_completely_loaded_deferred { false };
 
     // https://html.spec.whatwg.org/multipage/dom.html#concept-document-navigation-id
-    Optional<String> m_navigation_id;
+    Optional<Utf16String> m_navigation_id;
 
     // AD-HOC: The main resource fetch is not part of the document's subresource fetch group, so retain its controller
     //         separately while the navigation fetch is ongoing.
@@ -1622,7 +1631,7 @@ private:
     // It's responsibility of object that allocated ShadowRoot to keep it alive.
     ShadowRoot::DocumentShadowRootList m_shadow_roots;
 
-    Optional<String> m_content_blocker_style_sheet;
+    Optional<Utf16String> m_content_blocker_style_sheet;
     // Class/id tokens already covered by the cached content blocker stylesheet.
     HashTable<Utf16FlyString> m_content_blocker_style_sheet_checked_classes;
     HashTable<Utf16FlyString> m_content_blocker_style_sheet_checked_ids;
@@ -1667,7 +1676,7 @@ private:
 
     Core::SharedVersion m_cookie_version { Core::INVALID_SHARED_VERSION };
     Optional<Core::SharedVersionIndex> m_cookie_version_index;
-    String m_cookie;
+    Utf16String m_cookie;
 
     mutable OwnPtr<Unicode::Segmenter> m_grapheme_segmenter;
     mutable OwnPtr<Unicode::Segmenter> m_line_segmenter;
@@ -1685,10 +1694,10 @@ private:
     bool m_css_styling_flag { false };
 
     // https://w3c.github.io/editing/docs/execCommand/#state-override
-    HashMap<FlyString, bool> m_command_state_override;
+    HashMap<Utf16FlyString, bool> m_command_state_override;
 
     // https://w3c.github.io/editing/docs/execCommand/#value-override
-    HashMap<FlyString, Utf16String> m_command_value_override;
+    HashMap<Utf16FlyString, Utf16String> m_command_value_override;
 
     // https://html.spec.whatwg.org/multipage/webstorage.html#session-storage-holder
     // A Document object has an associated session storage holder, which is null or a Storage object. It is initially null.
@@ -1731,7 +1740,7 @@ private:
 
     // Cache of parsed selector queries for querySelectorAll/querySelector/matches/closest.
     // A null value means the selector string failed to parse.
-    mutable HashMap<String, RefPtr<SelectorQuery const>> m_selector_query_cache;
+    mutable HashMap<Utf16String, RefPtr<SelectorQuery const>> m_selector_query_cache;
 
     // Cache of querySelectorAll results, validated lazily against dom_tree_version/character_data_version.
     OwnPtr<QuerySelectorResultCache> m_query_selector_result_cache;
@@ -1752,7 +1761,8 @@ private:
 template<>
 inline bool Node::fast_is<Document>() const { return is_document(); }
 
-bool is_a_registrable_domain_suffix_of_or_is_equal_to(StringView host_suffix_string, URL::Host const& original_host);
+bool is_a_registrable_domain_suffix_of_or_is_equal_to(Utf16View host_suffix_string, URL::Host const& original_host);
+bool is_a_registrable_domain_suffix_of_or_is_equal_to(URL::Host const& host_suffix, URL::Host const& original_host);
 
 }
 

@@ -7,8 +7,10 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Completion.h>
+#include <LibJS/Runtime/PropertyKey.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/Navigation.h>
 #include <LibWeb/Bindings/PlatformObject.h>
@@ -24,35 +26,35 @@ class Location final : public Bindings::PlatformObject {
 public:
     virtual ~Location() override;
 
-    WebIDL::ExceptionOr<String> href() const;
-    WebIDL::ExceptionOr<void> set_href(String const&);
+    WebIDL::ExceptionOr<Utf16String> href() const;
+    WebIDL::ExceptionOr<void> set_href(Utf16View);
 
-    WebIDL::ExceptionOr<String> origin() const;
+    WebIDL::ExceptionOr<Utf16String> origin() const;
 
-    WebIDL::ExceptionOr<String> protocol() const;
-    WebIDL::ExceptionOr<void> set_protocol(String const&);
+    WebIDL::ExceptionOr<Utf16String> protocol() const;
+    WebIDL::ExceptionOr<void> set_protocol(Utf16View);
 
-    WebIDL::ExceptionOr<String> host() const;
-    WebIDL::ExceptionOr<void> set_host(String const&);
+    WebIDL::ExceptionOr<Utf16String> host() const;
+    WebIDL::ExceptionOr<void> set_host(Utf16View);
 
-    WebIDL::ExceptionOr<String> hostname() const;
-    WebIDL::ExceptionOr<void> set_hostname(String const&);
+    WebIDL::ExceptionOr<Utf16String> hostname() const;
+    WebIDL::ExceptionOr<void> set_hostname(Utf16View);
 
-    WebIDL::ExceptionOr<String> port() const;
-    WebIDL::ExceptionOr<void> set_port(String const&);
+    WebIDL::ExceptionOr<Utf16String> port() const;
+    WebIDL::ExceptionOr<void> set_port(Utf16View);
 
-    WebIDL::ExceptionOr<String> pathname() const;
-    WebIDL::ExceptionOr<void> set_pathname(String const&);
+    WebIDL::ExceptionOr<Utf16String> pathname() const;
+    WebIDL::ExceptionOr<void> set_pathname(Utf16View);
 
-    WebIDL::ExceptionOr<String> search() const;
-    WebIDL::ExceptionOr<void> set_search(String const&);
+    WebIDL::ExceptionOr<Utf16String> search() const;
+    WebIDL::ExceptionOr<void> set_search(Utf16View);
 
-    WebIDL::ExceptionOr<String> hash() const;
-    WebIDL::ExceptionOr<void> set_hash(StringView);
+    WebIDL::ExceptionOr<Utf16String> hash() const;
+    WebIDL::ExceptionOr<void> set_hash(Utf16View);
 
-    WebIDL::ExceptionOr<void> replace(String const& url);
+    WebIDL::ExceptionOr<void> replace(Utf16View url);
     void reload() const;
-    WebIDL::ExceptionOr<void> assign(String const& url);
+    WebIDL::ExceptionOr<void> assign(Utf16View url);
 
     virtual JS::ThrowCompletionOr<JS::Object*> internal_get_prototype_of() const override;
     virtual JS::ThrowCompletionOr<bool> internal_set_prototype_of(Object* prototype) override;
@@ -84,7 +86,7 @@ private:
     HTML::CrossOriginPropertyDescriptorMap m_cross_origin_property_descriptor_map;
 
     // [[DefaultProperties]], https://html.spec.whatwg.org/multipage/history.html#defaultproperties
-    Vector<JS::Value> m_default_properties;
+    Vector<JS::PropertyKey> m_default_properties;
 };
 
 }

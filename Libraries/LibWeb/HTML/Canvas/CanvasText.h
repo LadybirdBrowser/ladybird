@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <AK/ByteString.h>
 #include <AK/Optional.h>
+#include <AK/Utf16View.h>
 #include <LibWeb/HTML/TextMetrics.h>
 
 namespace Web::HTML {
@@ -17,9 +17,9 @@ class CanvasText {
 public:
     virtual ~CanvasText() = default;
 
-    virtual void fill_text(Utf16String const&, float x, float y, Optional<double> max_width) = 0;
-    virtual void stroke_text(Utf16String const&, float x, float y, Optional<double> max_width) = 0;
-    virtual GC::Ref<TextMetrics> measure_text(Utf16String const&) = 0;
+    virtual void fill_text(Utf16View, float x, float y, Optional<double> max_width) = 0;
+    virtual void stroke_text(Utf16View, float x, float y, Optional<double> max_width) = 0;
+    virtual GC::Ref<TextMetrics> measure_text(Utf16View) = 0;
 
 protected:
     CanvasText() = default;

@@ -8,6 +8,7 @@
 #include <AK/NeverDestroyed.h>
 #include <AK/NonnullRawPtr.h>
 #include <AK/TypeCasts.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibCore/DirIterator.h>
 #include <LibWeb/Animations/AnimationTimeline.h>
 #include <LibWeb/Animations/DocumentTimeline.h>
@@ -1494,11 +1495,11 @@ ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(
 
         for (auto const& item : content_style_value.content().values()) {
             if (item->is_string()) {
-                content_data.data.append(MUST(item->as_string().string_value().view().to_utf8()));
+                content_data.data.append(item->as_string().string_value().to_utf16_string());
             } else if (item->is_keyword()) {
                 switch (item->to_keyword()) {
                 case Keyword::OpenQuote:
-                    content_data.data.append(MUST(get_quote_string(true, quote_nesting_level++).view().to_utf8()));
+                    content_data.data.append(get_quote_string(true, quote_nesting_level++).to_utf16_string());
                     break;
                 case Keyword::CloseQuote:
                     // A 'close-quote' or 'no-close-quote' that would make the depth negative is in error and is ignored
@@ -1507,7 +1508,7 @@ ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(
                     // - https://www.w3.org/TR/CSS21/generate.html#quotes-insert
                     // (This is missing from the CONTENT-3 spec.)
                     if (quote_nesting_level > 0)
-                        content_data.data.append(MUST(get_quote_string(false, --quote_nesting_level).view().to_utf8()));
+                        content_data.data.append(get_quote_string(false, --quote_nesting_level).to_utf16_string());
                     break;
                 case Keyword::NoOpenQuote:
                     quote_nesting_level++;
@@ -1537,7 +1538,7 @@ ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(
         content_data.type = ContentData::Type::List;
 
         if (auto alt_text = content_style_value.alt_text()) {
-            StringBuilder alt_text_builder;
+            Utf16StringBuilder alt_text_builder;
             for (auto const& item : alt_text->values()) {
                 if (item->is_string()) {
                     alt_text_builder.append(item->as_string().string_value().view());
@@ -1548,7 +1549,7 @@ ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(
                     dbgln("`{}` is not supported in `content` alt-text (yet?)", item->to_string(SerializationMode::Normal));
                 }
             }
-            content_data.alt_text = MUST(alt_text_builder.to_string());
+            content_data.alt_text = alt_text_builder.to_string();
         }
 
         return { content_data, quote_nesting_level };
@@ -1673,7 +1674,7 @@ ListStyleType ComputedProperties::list_style_type(StyleScope const& style_scope)
         return Empty {};
 
     if (value.is_string())
-        return MUST(value.as_string().string_value().view().to_utf8());
+        return value.as_string().string_value().to_utf16_string();
 
     return value.as_counter_style().resolve_counter_style(style_scope);
 }
@@ -2337,12 +2338,12 @@ Vector<AnimationProperties> ComputedProperties::animations(DOM::AbstractElement 
         auto animation_timeline_style_value = coordinated_properties.get(PropertyID::AnimationTimeline).value()[i];
 
         // https://drafts.csswg.org/css-animations-2/#animation-duration
-        auto duration = [&] -> Variant<double, String> {
+        auto duration = [&] -> Variant<double, Utf16String> {
             // auto
             if (animation_duration_style_value->to_keyword() == Keyword::Auto) {
                 // Preserve auto until the animation effect is associated with its timeline. Time-driven animations
                 // will resolve this to 0s, while scroll-driven animations fill the progress-based timeline.
-                return "auto"_string;
+                return "auto"_utf16;
             }
 
             // <time [0s,∞]>

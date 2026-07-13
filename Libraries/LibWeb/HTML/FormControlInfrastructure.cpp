@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/GenericLexer.h>
 #include <AK/Random.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibWeb/FileAPI/File.h>
@@ -19,7 +18,7 @@
 
 namespace Web::HTML {
 
-static WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry_with_scalar_name(JS::Realm& realm, Utf16String entry_name, Variant<GC::Ref<FileAPI::Blob>, Utf16String> const& value, Optional<String> const& filename)
+static WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry_with_scalar_name(JS::Realm& realm, Utf16String entry_name, Variant<GC::Ref<FileAPI::Blob>, Utf16String> const& value, Optional<Utf16String> const& filename)
 {
     auto entry_value = TRY(value.visit(
         // 2. If value is a string, then set value to the result of converting value into a scalar value string.
@@ -34,7 +33,7 @@ static WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry_with_scalar_name(JS:
                 Bindings::FilePropertyBag options {};
                 options.type = blob->type();
 
-                blob = TRY(FileAPI::File::create(realm, { { blob } }, "blob"_string, move(options)));
+                blob = TRY(FileAPI::File::create(realm, { { blob } }, "blob"_utf16, move(options)));
             }
 
             // 2. If filename is given, then set value to a new File object, representing the same bytes, whose name
@@ -44,7 +43,7 @@ static WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry_with_scalar_name(JS:
                 options.type = blob->type();
                 options.last_modified = as<FileAPI::File>(*blob).last_modified();
 
-                blob = TRY(FileAPI::File::create(realm, { { blob } }, *filename, move(options)));
+                blob = TRY(FileAPI::File::create(realm, { { blob } }, filename.value(), move(options)));
             }
 
             return GC::Ref { as<FileAPI::File>(*blob) };
@@ -58,7 +57,7 @@ static WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry_with_scalar_name(JS:
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#create-an-entry
-WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry(JS::Realm& realm, Utf16View name, Variant<GC::Ref<FileAPI::Blob>, Utf16String> const& value, Optional<String> const& filename)
+WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry(JS::Realm& realm, Utf16View name, Variant<GC::Ref<FileAPI::Blob>, Utf16String> const& value, Optional<Utf16String> const& filename)
 {
     // 1. Set name to the result of converting name into a scalar value string.
     auto entry_name = TRY_OR_THROW_OOM(realm.vm(), Infra::convert_to_scalar_value_string(name));
@@ -93,8 +92,8 @@ static WebIDL::ExceptionOr<void> construct_face_entry(JS::Realm& realm, GC::Ref<
         [](GC::Ref<FileAPI::File> file) -> Variant<GC::Ref<FileAPI::Blob>, Utf16String> {
             return GC::Ref<FileAPI::Blob> { file };
         },
-        [](String const& string) -> Variant<GC::Ref<FileAPI::Blob>, Utf16String> {
-            return Utf16String::from_utf8(string);
+        [](Utf16String const& string) -> Variant<GC::Ref<FileAPI::Blob>, Utf16String> {
+            return string;
         },
         [](auto&) -> Variant<GC::Ref<FileAPI::Blob>, Utf16String> {
             // The other types were handled above.
@@ -107,7 +106,7 @@ static WebIDL::ExceptionOr<void> construct_face_entry(JS::Realm& realm, GC::Ref<
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#constructing-the-form-data-set
-WebIDL::ExceptionOr<Optional<GC::ConservativeVector<XHR::FormDataEntry>>> construct_entry_list(JS::Realm& realm, HTMLFormElement& form, GC::Ptr<HTMLElement> submitter, Optional<String> encoding)
+WebIDL::ExceptionOr<Optional<GC::ConservativeVector<XHR::FormDataEntry>>> construct_entry_list(JS::Realm& realm, HTMLFormElement& form, GC::Ptr<HTMLElement> submitter, Optional<Utf16String> encoding)
 {
     // 1. If form's constructing entry list is true, then return null.
     if (form.constructing_entry_list())
@@ -211,8 +210,8 @@ WebIDL::ExceptionOr<Optional<GC::ConservativeVector<XHR::FormDataEntry>>> constr
             // 1. If there are no selected files, then create an entry with name and a new File object with an empty name, application/octet-stream as type, and an empty body, and append it to entry list.
             if (file_element->files()->length() == 0) {
                 Bindings::FilePropertyBag options {};
-                options.type = "application/octet-stream"_string;
-                auto file = TRY(FileAPI::File::create(realm, {}, String {}, options));
+                options.type = "application/octet-stream"_utf16;
+                auto file = TRY(FileAPI::File::create(realm, {}, Utf16String {}, options));
                 entry_list.append(TRY(create_entry(realm, name.view(), Variant<GC::Ref<FileAPI::Blob>, Utf16String> { GC::Ref<FileAPI::Blob> { file } })));
             }
             // 2. Otherwise, for each file in selected files, create an entry with name and a File object representing the file, and append it to entry list.
@@ -224,9 +223,9 @@ WebIDL::ExceptionOr<Optional<GC::ConservativeVector<XHR::FormDataEntry>>> constr
             }
         }
         // 9. Otherwise, if the field element is an input element whose type attribute is in the Hidden state and name is an ASCII case-insensitive match for "_charset_":
-        else if (auto* hidden_input = as_if<HTMLInputElement>(*control); hidden_input && hidden_input->type_state() == HTMLInputElement::TypeAttributeState::Hidden && name.equals_ignoring_ascii_case("_charset_"sv)) {
+        else if (auto* hidden_input = as_if<HTMLInputElement>(*control); hidden_input && hidden_input->type_state() == HTMLInputElement::TypeAttributeState::Hidden && name.equals_ignoring_ascii_case(u"_charset_"sv)) {
             // 1. Let charset be the name of encoding if encoding is given, and "UTF-8" otherwise.
-            auto charset = encoding.has_value() ? Utf16String::from_utf8(encoding.value()) : "UTF-8"_utf16;
+            auto charset = encoding.value_or("UTF-8"_utf16);
 
             // 2. Create an entry with name and charset, and append it to entry list.
             entry_list.append(TRY(create_entry(realm, name.view(), charset)));
@@ -294,50 +293,61 @@ ErrorOr<Utf16String> normalize_line_breaks(Utf16View value)
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#multipart/form-data-encoding-algorithm
 ErrorOr<SerializedFormData> serialize_to_multipart_form_data(GC::ConservativeVector<XHR::FormDataEntry> const& entry_list)
 {
-    auto escape_line_feed_carriage_return_double_quote = [](StringView value) -> ErrorOr<String> {
-        StringBuilder builder;
-        GenericLexer lexer { value };
-        while (!lexer.is_eof()) {
-            TRY(builder.try_append(lexer.consume_until(is_any_of("\r\n\""sv))));
-            switch (lexer.peek()) {
+    auto escape_line_feed_carriage_return_double_quote = [](Utf16View value) -> ErrorOr<Utf16String> {
+        Utf16StringBuilder builder { value.length_in_code_units() };
+        size_t chunk_start = 0;
+        for (size_t i = 0; i < value.length_in_code_units(); ++i) {
+            auto code_unit = value.code_unit_at(i);
+            if (code_unit != '\r' && code_unit != '\n' && code_unit != '"')
+                continue;
+
+            builder.append(value.substring_view(chunk_start, i - chunk_start));
+            switch (code_unit) {
             case '\r':
-                TRY(builder.try_append("%0D"sv));
+                builder.append("%0D"_utf16);
                 break;
             case '\n':
-                TRY(builder.try_append("%0A"sv));
+                builder.append("%0A"_utf16);
                 break;
-            case '\"':
-                TRY(builder.try_append("%22"sv));
+            case '"':
+                builder.append("%22"_utf16);
                 break;
+            default:
+                VERIFY_NOT_REACHED();
             }
-            lexer.ignore(1);
+            chunk_start = i + 1;
         }
+        builder.append(value.substring_view(chunk_start));
         return builder.to_string();
     };
 
     // The boundary used by the user agent in generating the return value of this algorithm is the multipart/form-data boundary string.
-    auto boundary = TRY(String::formatted("---------------------------{}", get_random<u64>()));
+    auto boundary = Utf16String::formatted("---------------------------{}", get_random<u64>());
+    auto boundary_utf8 = boundary.to_utf8();
     StringBuilder builder;
     // 1. For each entry of entry list:
     for (auto const& entry : entry_list) {
-        TRY(builder.try_append(TRY(String::formatted("--{}\r\n", boundary))));
+        TRY(builder.try_append(TRY(String::formatted("--{}\r\n", boundary_utf8))));
 
         // Replace every occurrence of U+000D (CR) not followed by U+000A (LF), and every occurrence of U+000A (LF) not preceded by U+000D (CR) by a string consisting of a U+000D (CR) and U+000A (LF).
         auto normalized_name = TRY(normalize_line_breaks(entry.name.utf16_view()));
         // For field names replace any 0x0A (LF) bytes with the byte sequence `%0A`, 0x0D (CR) with `%0D` and 0x22 (") with `%22`
-        auto escaped_name = TRY(escape_line_feed_carriage_return_double_quote(TRY(normalized_name.utf16_view().to_utf8())));
+        auto escaped_name = TRY(escape_line_feed_carriage_return_double_quote(normalized_name.utf16_view()));
+        auto escaped_name_utf8 = TRY(escaped_name.utf16_view().to_utf8());
 
         TRY(entry.value.visit(
             [&](GC::Ref<FileAPI::File> file) -> ErrorOr<void> {
                 // For filenames replace any 0x0A (LF) bytes with the byte sequence `%0A`, 0x0D (CR) with `%0D` and 0x22 (") with `%22`
-                auto escaped_filename = TRY(escape_line_feed_carriage_return_double_quote(file->name()));
+                auto escaped_filename = TRY(escape_line_feed_carriage_return_double_quote(file->name().utf16_view()));
+                auto escaped_filename_utf8 = TRY(escaped_filename.utf16_view().to_utf8());
                 // Add a `Content-Disposition` header with a `name` set to entry's name and `filename` set to entry's filename.
-                TRY(builder.try_append(TRY(String::formatted("Content-Disposition: form-data; name=\"{}\"; filename=\"{}\"\r\n", escaped_name, escaped_filename))));
+                TRY(builder.try_append(TRY(String::formatted("Content-Disposition: form-data; name=\"{}\"; filename=\"{}\"\r\n", escaped_name_utf8, escaped_filename_utf8))));
                 // The parts of the generated multipart/form-data resource that correspond to file fields must have a `Content-Type` header specified.
                 // RFC7578: If the contents of a file are to be sent, the file data SHOULD be labeled with an appropriate media type, if known, or
                 //          "application/octet-stream".
                 if (!file->type().is_empty()) {
-                    TRY(builder.try_append(TRY(String::formatted("Content-Type: {}\r\n\r\n", file->type()))));
+                    auto type = file->type().to_utf8();
+                    TRY(builder.try_append(TRY(String::formatted("Content-Type: {}\r\n\r\n", type))));
                 } else {
                     TRY(builder.try_append("Content-Type: application/octet-stream\r\n\r\n"sv));
                 }
@@ -349,12 +359,12 @@ ErrorOr<SerializedFormData> serialize_to_multipart_form_data(GC::ConservativeVec
                 // Replace every occurrence of U+000D (CR) not followed by U+000A (LF), and every occurrence of U+000A (LF) not preceded by U+000D (CR) by a string consisting of a U+000D (CR) and U+000A (LF).
                 auto normalized_value = TRY(normalize_line_breaks(string.utf16_view()));
                 // Add a `Content-Disposition` header with a `name` set to entry's name.
-                TRY(builder.try_append(TRY(String::formatted("Content-Disposition: form-data; name=\"{}\"\r\n\r\n", escaped_name))));
+                TRY(builder.try_append(TRY(String::formatted("Content-Disposition: form-data; name=\"{}\"\r\n\r\n", escaped_name_utf8))));
                 TRY(builder.try_append(TRY(String::formatted("{}\r\n", TRY(normalized_value.utf16_view().to_utf8())))));
                 return {};
             }));
     }
-    TRY(builder.try_append(TRY(String::formatted("--{}--\r\n", boundary))));
+    TRY(builder.try_append(TRY(String::formatted("--{}--\r\n", boundary_utf8))));
 
     // 2. Return the byte sequence resulting from encoding the entry list using the rules described by RFC 7578, Returning Values from Forms: multipart/form-data, given the following conditions: [RFC7578]
     auto serialized_data = TRY(builder.to_byte_buffer());

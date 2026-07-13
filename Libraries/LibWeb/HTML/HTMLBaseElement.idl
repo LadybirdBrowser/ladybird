@@ -5,6 +5,6 @@ interface HTMLBaseElement : HTMLElement {
     [HTMLConstructor] constructor();
 
     [CEReactions] attribute Utf16USVString href;
-    [CEReactions, Reflect] attribute DOMString target;
+    [CEReactions, Reflect] attribute Utf16DOMString target;
 
 };

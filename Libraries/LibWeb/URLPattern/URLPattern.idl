@@ -1,38 +1,38 @@
-typedef (USVString or URLPatternInit) URLPatternInput;
+typedef (Utf16USVString or URLPatternInit) URLPatternInput;
 
 // https://urlpattern.spec.whatwg.org/#urlpattern
 [Exposed=(Window,Worker)]
 interface URLPattern {
-    constructor(URLPatternInput input, USVString baseURL, optional URLPatternOptions options = {});
+    constructor(URLPatternInput input, Utf16USVString baseURL, optional URLPatternOptions options = {});
     constructor(optional URLPatternInput input = {}, optional URLPatternOptions options = {});
 
-    boolean test(optional URLPatternInput input = {}, optional USVString baseURL);
+    boolean test(optional URLPatternInput input = {}, optional Utf16USVString baseURL);
 
-    URLPatternResult? exec(optional URLPatternInput input = {}, optional USVString baseURL);
+    URLPatternResult? exec(optional URLPatternInput input = {}, optional Utf16USVString baseURL);
 
-    readonly attribute USVString protocol;
-    readonly attribute USVString username;
-    readonly attribute USVString password;
-    readonly attribute USVString hostname;
-    readonly attribute USVString port;
-    readonly attribute USVString pathname;
-    readonly attribute USVString search;
-    readonly attribute USVString hash;
+    readonly attribute Utf16USVString protocol;
+    readonly attribute Utf16USVString username;
+    readonly attribute Utf16USVString password;
+    readonly attribute Utf16USVString hostname;
+    readonly attribute Utf16USVString port;
+    readonly attribute Utf16USVString pathname;
+    readonly attribute Utf16USVString search;
+    readonly attribute Utf16USVString hash;
 
     readonly attribute boolean hasRegExpGroups;
 };
 
 // https://urlpattern.spec.whatwg.org/#dictdef-urlpatterninit
 dictionary URLPatternInit {
-    USVString protocol;
-    USVString username;
-    USVString password;
-    USVString hostname;
-    USVString port;
-    USVString pathname;
-    USVString search;
-    USVString hash;
-    USVString baseURL;
+    Utf16USVString protocol;
+    Utf16USVString username;
+    Utf16USVString password;
+    Utf16USVString hostname;
+    Utf16USVString port;
+    Utf16USVString pathname;
+    Utf16USVString search;
+    Utf16USVString hash;
+    Utf16USVString baseURL;
 };
 
 // https://urlpattern.spec.whatwg.org/#dictdef-urlpatternoptions
@@ -56,6 +56,6 @@ dictionary URLPatternResult {
 
 // https://urlpattern.spec.whatwg.org/#dictdef-urlpatterncomponentresult
 dictionary URLPatternComponentResult {
-    USVString input;
-    record<USVString, (USVString or undefined)> groups;
+    Utf16USVString input;
+    record<Utf16USVString, (Utf16USVString or undefined)> groups;
 };

@@ -144,7 +144,7 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_l
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#create-a-fresh-top-level-traversable
-GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_fresh_top_level_traversable(GC::Ref<Page> page, URL::URL const& initial_navigation_url, Variant<Empty, String, POSTResource> initial_navigation_post_resource)
+GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_fresh_top_level_traversable(GC::Ref<Page> page, URL::URL const& initial_navigation_url, DocumentResource initial_navigation_post_resource)
 {
     // 1. Let traversable be the result of creating a new top-level traversable given null and the empty string.
     auto traversable = create_a_new_top_level_traversable(page, nullptr, {});
@@ -337,10 +337,10 @@ static bool synchronous_same_document_navigation_must_preserve_ongoing_navigatio
     //         queue, and must later resolve races with the current history step. If another navigation has already
     //         claimed the navigable, leave that navigation ID alone. This matches Chromium, WebKit, and Gecko:
     //         a same-document history update from the same task does not cancel a later cross-document navigation.
-    return navigable.ongoing_navigation().has<String>();
+    return navigable.ongoing_navigation().has<Utf16String>();
 }
 
-static bool expected_ongoing_navigation_was_superseded(GC::Ptr<LocalNavigable> navigable, Optional<String> const& expected_navigation_id)
+static bool expected_ongoing_navigation_was_superseded(GC::Ptr<LocalNavigable> navigable, Optional<Utf16String> const& expected_navigation_id)
 {
     if (!navigable || !expected_navigation_id.has_value())
         return false;
@@ -809,7 +809,7 @@ public:
         LocalNavigable::NavigationAPIAbortBehavior navigation_api_abort_behavior,
         GC::Ptr<DOM::Document> pending_document,
         GC::Ptr<LocalNavigable> expected_ongoing_navigation_navigable,
-        Optional<String> expected_ongoing_navigation_id,
+        Optional<Utf16String> expected_ongoing_navigation_id,
         GC::Ref<OnApplyHistoryStepComplete> on_complete)
         : m_generation(++traversable->m_apply_history_step_generation_counter)
         , m_traversable(traversable)
@@ -938,7 +938,7 @@ private:
     LocalNavigable::NavigationAPIAbortBehavior m_navigation_api_abort_behavior;
     GC::Ptr<DOM::Document> m_pending_document;
     GC::Ptr<LocalNavigable> m_expected_ongoing_navigation_navigable;
-    Optional<String> m_expected_ongoing_navigation_id;
+    Optional<Utf16String> m_expected_ongoing_navigation_id;
     GC::Ptr<OnApplyHistoryStepComplete> m_on_complete;
     GC::Ref<Platform::Timer> m_timeout;
 
@@ -985,7 +985,7 @@ void ApplyHistoryStepState::start()
         // NB: The creation/destruction update is the bookkeeping step after the child's nested history has been
         //     attached to its parent document state. If the container's requested navigation has already started, it
         //     owns the ongoing navigation ID and eventual document activation.
-        if (!m_navigation_type.has_value() && navigable->ongoing_navigation().has<String>())
+        if (!m_navigation_type.has_value() && navigable->ongoing_navigation().has<Utf16String>())
             continue;
 
         // 1. Let targetEntry be the result of getting the target history entry given navigable and targetStep.
@@ -1000,7 +1000,7 @@ void ApplyHistoryStepState::start()
         //     with "traversal". The queued traversal is stale reconciliation at that point, and must not cancel the
         //     newer navigation.
         if (m_navigation_type == Bindings::NavigationType::Traverse
-            && navigable->ongoing_navigation().has<String>()
+            && navigable->ongoing_navigation().has<Utf16String>()
             && target_entry->document_state()->document_id() == navigable->active_document_id()) {
             continue;
         }
@@ -1672,7 +1672,7 @@ void LocalTraversableNavigable::apply_the_history_step(
     LocalNavigable::NavigationAPIAbortBehavior navigation_api_abort_behavior,
     GC::Ptr<DOM::Document> pending_document,
     GC::Ptr<LocalNavigable> expected_ongoing_navigation_navigable,
-    Optional<String> expected_ongoing_navigation_id,
+    Optional<Utf16String> expected_ongoing_navigation_id,
     GC::Ref<OnApplyHistoryStepComplete> on_complete)
 {
     // FIXME: 1. Assert: This is running within traversable's session history traversal queue.
@@ -1766,7 +1766,7 @@ void LocalTraversableNavigable::apply_the_history_step_after_unload_check(
     LocalNavigable::NavigationAPIAbortBehavior navigation_api_abort_behavior,
     GC::Ptr<DOM::Document> pending_document,
     GC::Ptr<LocalNavigable> expected_ongoing_navigation_navigable,
-    Optional<String> expected_ongoing_navigation_id,
+    Optional<Utf16String> expected_ongoing_navigation_id,
     GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete)
 {
     if (expected_ongoing_navigation_was_superseded(expected_ongoing_navigation_navigable, expected_ongoing_navigation_id)) {
@@ -2352,7 +2352,7 @@ void LocalTraversableNavigable::apply_the_reload_history_step(UserNavigationInvo
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#apply-the-push/replace-history-step
-void LocalTraversableNavigable::apply_the_push_or_replace_history_step(int step, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, SynchronousNavigation synchronous_navigation, GC::Ptr<DOM::Document> pending_document, GC::Ptr<LocalNavigable> expected_ongoing_navigation_navigable, Optional<String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete)
+void LocalTraversableNavigable::apply_the_push_or_replace_history_step(int step, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, SynchronousNavigation synchronous_navigation, GC::Ptr<DOM::Document> pending_document, GC::Ptr<LocalNavigable> expected_ongoing_navigation_navigable, Optional<Utf16String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete)
 {
     // 1. Return the result of applying the history step step to traversable given false, null, null, userInvolvement, and historyHandling.
     auto navigation_type = history_handling == HistoryHandlingBehavior::Replace ? Bindings::NavigationType::Replace : Bindings::NavigationType::Push;

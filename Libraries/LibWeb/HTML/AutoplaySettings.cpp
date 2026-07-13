@@ -4,11 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/String.h>
 #include <LibURL/Origin.h>
-#include <LibURL/Parser.h>
 #include <LibURL/URL.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/HTML/AutoplaySettings.h>
 
 namespace Web::HTML {
@@ -46,7 +45,7 @@ AutoplayDecision AutoplaySettings::decision_for_origin(DOM::Document const& docu
     VERIFY_NOT_REACHED();
 }
 
-void AutoplaySettings::set_policy(AutoplayPolicy policy, ReadonlySpan<String> allowlist)
+void AutoplaySettings::set_policy(AutoplayPolicy policy, ReadonlySpan<Utf16String> allowlist)
 {
     m_policy = policy;
 
@@ -54,10 +53,10 @@ void AutoplaySettings::set_policy(AutoplayPolicy policy, ReadonlySpan<String> al
     m_allowlist.ensure_capacity(allowlist.size());
 
     for (auto const& origin : allowlist) {
-        auto url = URL::Parser::basic_parse(origin);
+        auto url = DOMURL::parse(origin);
 
         if (!url.has_value())
-            url = URL::Parser::basic_parse(MUST(String::formatted("https://{}", origin)));
+            url = DOMURL::parse(Utf16String::formatted("https://{}", origin));
         if (!url.has_value()) {
             dbgln("Invalid origin for autoplay allowlist: {}", origin);
             continue;
@@ -67,26 +66,26 @@ void AutoplaySettings::set_policy(AutoplayPolicy policy, ReadonlySpan<String> al
     }
 }
 
-Optional<AutoplayPolicy> autoplay_policy_from_string(StringView string)
+Optional<AutoplayPolicy> autoplay_policy_from_string(Utf16View string)
 {
-    if (string == "allow-audio-and-video"sv)
+    if (string == u"allow-audio-and-video"sv)
         return AutoplayPolicy::AllowAudioAndVideo;
-    if (string == "block-audio"sv)
+    if (string == u"block-audio"sv)
         return AutoplayPolicy::BlockAudio;
-    if (string == "block-audio-and-video"sv)
+    if (string == u"block-audio-and-video"sv)
         return AutoplayPolicy::BlockAudioAndVideo;
     return {};
 }
 
-StringView autoplay_policy_to_string(AutoplayPolicy policy)
+Utf16View autoplay_policy_to_string(AutoplayPolicy policy)
 {
     switch (policy) {
     case AutoplayPolicy::AllowAudioAndVideo:
-        return "allow-audio-and-video"sv;
+        return u"allow-audio-and-video"sv;
     case AutoplayPolicy::BlockAudio:
-        return "block-audio"sv;
+        return u"block-audio"sv;
     case AutoplayPolicy::BlockAudioAndVideo:
-        return "block-audio-and-video"sv;
+        return u"block-audio-and-video"sv;
     }
 
     VERIFY_NOT_REACHED();

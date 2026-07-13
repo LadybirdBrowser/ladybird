@@ -27,11 +27,11 @@ class TextDecoder
     GC_DECLARE_ALLOCATOR(TextDecoder);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<TextDecoder>> construct_impl(JS::Realm&, StringView label, Bindings::TextDecoderOptions const&);
+    static WebIDL::ExceptionOr<GC::Ref<TextDecoder>> construct_impl(JS::Realm&, Utf16String const& label, Bindings::TextDecoderOptions const&);
 
     virtual ~TextDecoder() override;
 
-    WebIDL::ExceptionOr<String> decode(Optional<WebIDL::BufferSourceVariant>, Bindings::TextDecodeOptions const&);
+    WebIDL::ExceptionOr<Utf16String> decode(Optional<WebIDL::BufferSourceVariant>, Bindings::TextDecodeOptions const&);
 
 private:
     TextDecoder(JS::Realm&, FlyString encoding, TextCodec::ErrorMode error_mode, bool ignore_bom);

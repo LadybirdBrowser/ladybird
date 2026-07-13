@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Utf16StringBuilder.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/Bindings/CSSStyleProperties.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
@@ -193,7 +194,7 @@ Optional<StyleProperty const&> CSSStyleProperties::custom_property(Utf16FlyStrin
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-setproperty
-WebIDL::ExceptionOr<void> CSSStyleProperties::set_property(Utf16FlyString const& property_name, StringView value, StringView priority)
+WebIDL::ExceptionOr<void> CSSStyleProperties::set_property(Utf16FlyString const& property_name, Utf16View value, Utf16View priority)
 {
     // 1. If the computed flag is set, then throw a NoModificationAllowedError exception.
     if (is_computed())
@@ -212,19 +213,19 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property(Utf16FlyString const&
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-setproperty
-template<typename StringViewType>
-WebIDL::ExceptionOr<void> CSSStyleProperties::set_property_internal(PropertyNameAndID const& property, StringViewType value, StringView priority)
+WebIDL::ExceptionOr<void> CSSStyleProperties::set_property_internal(PropertyNameAndID const& property, Utf16View value, Utf16View priority)
 {
     // NB: Steps 1 and 2 only apply to the IDL method that invokes this.
 
     // 3. If value is the empty string, invoke removeProperty() with property as argument and return.
     if (value.is_empty()) {
-        MUST(remove_property_internal(property));
+        auto removed_value = MUST(remove_property_internal(property));
+        (void)removed_value;
         return {};
     }
 
     // 4. If priority is not the empty string and is not an ASCII case-insensitive match for the string "important", then return.
-    if (!priority.is_empty() && !priority.equals_ignoring_ascii_case("important"sv))
+    if (!priority.is_empty() && !priority.equals_ignoring_ascii_case(u"important"sv))
         return {};
 
     // 5. Let component value list be the result of parsing value for property property.
@@ -285,12 +286,7 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property_internal(PropertyName
     return {};
 }
 
-WebIDL::ExceptionOr<void> CSSStyleProperties::set_property(PropertyID property_id, StringView css_text, StringView priority)
-{
-    return set_property_internal(PropertyNameAndID::from_id(property_id), css_text, priority);
-}
-
-WebIDL::ExceptionOr<void> CSSStyleProperties::set_property(PropertyID property_id, Utf16View css_text, StringView priority)
+WebIDL::ExceptionOr<void> CSSStyleProperties::set_property(PropertyID property_id, Utf16View css_text, Utf16View priority)
 {
     return set_property_internal(PropertyNameAndID::from_id(property_id), css_text, priority);
 }
@@ -372,17 +368,17 @@ static RefPtr<StyleValue const> style_value_for_shadow(ShadowStyleValue::ShadowT
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertyvalue
-String CSSStyleProperties::get_property_value(Utf16FlyString const& property_name) const
+Utf16String CSSStyleProperties::get_property_value(Utf16FlyString const& property_name) const
 {
     if (auto property = PropertyNameAndID::from_name(property_name); property.has_value()) {
         if (auto style_property = get_property_internal(*property); style_property.has_value())
-            return style_property->value->to_string(is_computed() ? SerializationMode::ResolvedValue : SerializationMode::Normal);
+            return style_property->value->to_utf16_string(is_computed() ? SerializationMode::ResolvedValue : SerializationMode::Normal);
     }
 
     return {};
 }
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertypriority
-StringView CSSStyleProperties::get_property_priority(Utf16FlyString const& property_name) const
+Utf16String CSSStyleProperties::get_property_priority(Utf16FlyString const& property_name) const
 {
     auto property = PropertyNameAndID::from_name(property_name);
     if (!property.has_value())
@@ -391,12 +387,12 @@ StringView CSSStyleProperties::get_property_priority(Utf16FlyString const& prope
         auto maybe_custom_property = custom_property(property_name);
         if (!maybe_custom_property.has_value())
             return {};
-        return maybe_custom_property.value().important == Important::Yes ? "important"sv : ""sv;
+        return maybe_custom_property.value().important == Important::Yes ? "important"_utf16 : Utf16String {};
     }
     auto maybe_property = get_property(property->id());
     if (!maybe_property.has_value())
         return {};
-    return maybe_property->important == Important::Yes ? "important"sv : ""sv;
+    return maybe_property->important == Important::Yes ? "important"_utf16 : Utf16String {};
 }
 
 bool CSSStyleProperties::has_property(PropertyNameAndID const& property) const
@@ -453,7 +449,7 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property_style_value(PropertyN
         && !style_value->is_pending_substitution()
         && !style_value->is_guaranteed_invalid()
         && !style_value->is_css_wide_keyword()) {
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Setting {} to '{}' is not allowed.", property.name(), style_value->to_string(SerializationMode::Normal))) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("Setting {} to '{}' is not allowed.", property.name(), style_value->to_string(SerializationMode::Normal)) };
     }
 
     StyleComputer::for_each_property_expanding_shorthands(property.id(), style_value, [this](PropertyID longhand_id, StyleValue const& longhand_value) {
@@ -1163,13 +1159,13 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-removeproperty
-WebIDL::ExceptionOr<String> CSSStyleProperties::remove_property(Utf16FlyString const& property_name)
+WebIDL::ExceptionOr<Utf16String> CSSStyleProperties::remove_property(Utf16FlyString const& property_name)
 {
     return remove_property_internal(PropertyNameAndID::from_name(property_name));
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-removeproperty
-WebIDL::ExceptionOr<String> CSSStyleProperties::remove_property_internal(Optional<PropertyNameAndID> const& property)
+WebIDL::ExceptionOr<Utf16String> CSSStyleProperties::remove_property_internal(Optional<PropertyNameAndID> const& property)
 {
     // 1. If the readonly flag is set, then throw a NoModificationAllowedError exception.
     if (is_readonly())
@@ -1180,7 +1176,7 @@ WebIDL::ExceptionOr<String> CSSStyleProperties::remove_property_internal(Optiona
 
     // NB: The spec doesn't reject invalid property names, it just lets them pass through.
     //     Attempting to remove a non-existent property is a no-op, so we can just skip over this section.
-    String value;
+    Utf16String value;
     if (property.has_value()) {
         // 3. Let value be the return value of invoking getPropertyValue() with property as argument.
         // FIXME: Add an overload that takes PropertyNameAndID?
@@ -1224,30 +1220,30 @@ WebIDL::ExceptionOr<String> CSSStyleProperties::remove_property_internal(Optiona
     return value;
 }
 
-WebIDL::ExceptionOr<String> CSSStyleProperties::remove_property(PropertyID property_name)
+WebIDL::ExceptionOr<Utf16String> CSSStyleProperties::remove_property(PropertyID property_name)
 {
     return remove_property_internal(PropertyNameAndID::from_id(property_name));
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyleproperties-cssfloat
-String CSSStyleProperties::css_float() const
+Utf16String CSSStyleProperties::css_float() const
 {
     // The cssFloat attribute, on getting, must return the result of invoking getPropertyValue() with float as argument.
     return get_property_value("float"_utf16_fly_string);
 }
 
-WebIDL::ExceptionOr<void> CSSStyleProperties::set_css_float(StringView value)
+WebIDL::ExceptionOr<void> CSSStyleProperties::set_css_float(Utf16View value)
 {
     // On setting, the attribute must invoke setProperty() with float as first argument, as second argument the given value,
     // and no third argument. Any exceptions thrown must be re-thrown.
-    return set_property("float"_utf16_fly_string, value, ""sv);
+    return set_property(PropertyID::Float, value, u""sv);
 }
 
 // https://www.w3.org/TR/cssom/#serialize-a-css-declaration-block
-String CSSStyleProperties::serialized() const
+Utf16String CSSStyleProperties::serialized() const
 {
     // 1. Let list be an empty array.
-    Vector<String> list;
+    Vector<Utf16String> list;
 
     // 2. Let already serialized be an empty array.
     HashTable<PropertyID> already_serialized;
@@ -1284,11 +1280,11 @@ String CSSStyleProperties::serialized() const
         // NB: There are no shorthands for custom properties.
 
         // 5. Let value be the result of invoking serialize a CSS value of declaration.
-        auto value = declaration.value.value->to_string(Web::CSS::SerializationMode::Normal);
+        auto value = declaration.value.value->to_utf16_string(Web::CSS::SerializationMode::Normal);
 
         // 6. Let serialized declaration be the result of invoking serialize a CSS declaration with property name property, value value,
         //    and the important flag set if declaration has its important flag set.
-        String serialized_declaration = serialize_a_css_declaration(property, value, declaration.value.important);
+        auto serialized_declaration = serialize_a_css_declaration_to_utf16(property, value, declaration.value.important);
 
         // 7. Append serialized declaration to list.
         list.append(move(serialized_declaration));
@@ -1384,7 +1380,7 @@ String CSSStyleProperties::serialized() const
                     continue;
 
                 // 7. Let value be the result of invoking serialize a CSS value with current longhands.
-                auto value = serialize_a_css_value(current_longhands);
+                auto value = serialize_a_css_value_to_utf16(current_longhands);
 
                 // 8. If value is the empty string, continue with the steps labeled shorthand loop.
                 if (value.is_empty())
@@ -1393,7 +1389,7 @@ String CSSStyleProperties::serialized() const
                 // 9. Let serialized declaration be the result of invoking serialize a CSS declaration with property
                 //    name shorthand, value value, and the important flag set if the CSS declarations in current
                 //    longhands have their important flag set.
-                auto serialized_declaration = serialize_a_css_declaration(string_from_property_id(shorthand), move(value), current_longhands.first().important);
+                auto serialized_declaration = serialize_a_css_declaration_to_utf16(string_from_property_id(shorthand), value, current_longhands.first().important);
 
                 // 10. Append serialized declaration to list.
                 list.append(move(serialized_declaration));
@@ -1409,11 +1405,11 @@ String CSSStyleProperties::serialized() const
         // FIXME: File spec issue that this should only be run if we haven't serialized this declaration in the above shorthand loop.
         if (!already_serialized.contains(declaration.property_id)) {
             // 5. Let value be the result of invoking serialize a CSS value of declaration.
-            auto value = serialize_a_css_value(declaration);
+            auto value = serialize_a_css_value_to_utf16(declaration);
 
             // 6. Let serialized declaration be the result of invoking serialize a CSS declaration with property name property, value value,
             //    and the important flag set if declaration has its important flag set.
-            auto serialized_declaration = serialize_a_css_declaration(string_from_property_id(property), move(value), declaration.important);
+            auto serialized_declaration = serialize_a_css_declaration_to_utf16(string_from_property_id(property), value, declaration.important);
 
             // 7. Append serialized declaration to list.
             list.append(move(serialized_declaration));
@@ -1424,13 +1420,17 @@ String CSSStyleProperties::serialized() const
     }
 
     // 4. Return list joined with " " (U+0020).
-    StringBuilder builder;
-    builder.join(' ', list);
-    return MUST(builder.to_string());
+    Utf16StringBuilder builder;
+    for (size_t i = 0; i < list.size(); ++i) {
+        if (i != 0)
+            builder.append_ascii(' ');
+        builder.append(list[i]);
+    }
+    return builder.to_string();
 }
 
 // https://www.w3.org/TR/cssom/#serialize-a-css-value
-String CSSStyleProperties::serialize_a_css_value(StyleProperty const& declaration) const
+Utf16String CSSStyleProperties::serialize_a_css_value_to_utf16(StyleProperty const& declaration) const
 {
     // 1. If If this algorithm is invoked with a list list:
     // NOTE: This is handled in other other overload of this method
@@ -1454,14 +1454,14 @@ String CSSStyleProperties::serialize_a_css_value(StyleProperty const& declaratio
     //    unless the second item is a "," (U+002C COMMA) Return the result.
 
     // AD-HOC: As the spec is vague we don't follow it exactly here.
-    return declaration.value->to_string(Web::CSS::SerializationMode::Normal);
+    return declaration.value->to_utf16_string(Web::CSS::SerializationMode::Normal);
 }
 
 // https://www.w3.org/TR/cssom/#serialize-a-css-value
-String CSSStyleProperties::serialize_a_css_value(Vector<StyleProperty> list) const
+Utf16String CSSStyleProperties::serialize_a_css_value_to_utf16(Vector<StyleProperty> list) const
 {
     if (list.is_empty())
-        return String {};
+        return {};
 
     // 1. Let shorthand be the first shorthand property, in preferred order, that exactly maps to all of the longhand properties in list.
     Optional<PropertyID> shorthand = shorthands_for_longhand(list.first().property_id).first_matching([&](PropertyID shorthand) {
@@ -1478,7 +1478,7 @@ String CSSStyleProperties::serialize_a_css_value(Vector<StyleProperty> list) con
 
     // 2. If there is no such shorthand or shorthand cannot exactly represent the values of all the properties in list, return the empty string.
     if (!shorthand.has_value())
-        return String {};
+        return {};
 
     // 3. Otherwise, serialize a CSS value from a hypothetical declaration of the property shorthand with its value representing the combined values of the declarations in list.
     Function<ValueComparingNonnullRefPtr<ShorthandStyleValue const>(PropertyID)> make_shorthand_value = [&](PropertyID shorthand_id) {
@@ -1495,11 +1495,11 @@ String CSSStyleProperties::serialize_a_css_value(Vector<StyleProperty> list) con
         return ShorthandStyleValue::create(shorthand_id, longhand_ids, longhand_values);
     };
 
-    return make_shorthand_value(shorthand.value())->to_string(SerializationMode::Normal);
+    return make_shorthand_value(shorthand.value())->to_utf16_string(SerializationMode::Normal);
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-csstext
-WebIDL::ExceptionOr<void> CSSStyleProperties::set_css_text(StringView css_text)
+WebIDL::ExceptionOr<void> CSSStyleProperties::set_css_text(Utf16View css_text)
 {
     // 1. If the readonly flag is set, then throw a NoModificationAllowedError exception.
     if (is_readonly()) {
@@ -1628,18 +1628,6 @@ void CSSStyleProperties::set_the_declarations(Vector<StyleProperty> properties, 
 {
     m_properties = convert_declarations_to_specified_order(properties);
     m_custom_properties = move(custom_properties);
-}
-
-void CSSStyleProperties::set_declarations_from_text(StringView css_text)
-{
-    empty_the_declarations();
-    auto parsing_params = owner_node().has_value()
-        ? Parser::ParsingParams(owner_node()->element().document())
-        : Parser::ParsingParams();
-    parsing_params.rule_context.append(Parser::RuleContext::Style);
-
-    auto style = parse_css_property_declaration_block(parsing_params, css_text);
-    set_the_declarations(style.properties, style.custom_properties);
 }
 
 void CSSStyleProperties::set_declarations_from_text(Utf16View css_text)

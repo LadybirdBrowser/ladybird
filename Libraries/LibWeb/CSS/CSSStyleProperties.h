@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/GeneratedCSSStyleProperties.h>
 #include <LibWeb/DOM/StyleInvalidationReason.h>
@@ -35,15 +37,14 @@ public:
     Optional<StyleProperty> get_property(PropertyID) const;
     Optional<StyleProperty const&> custom_property(Utf16FlyString const& custom_property_name) const;
 
-    WebIDL::ExceptionOr<void> set_property(PropertyID, StringView css_text, StringView priority = ""sv);
-    WebIDL::ExceptionOr<void> set_property(PropertyID, Utf16View css_text, StringView priority = ""sv);
-    WebIDL::ExceptionOr<String> remove_property(PropertyID);
+    WebIDL::ExceptionOr<void> set_property(PropertyID, Utf16View css_text, Utf16View priority = u""sv);
+    WebIDL::ExceptionOr<Utf16String> remove_property(PropertyID);
 
-    virtual WebIDL::ExceptionOr<void> set_property(Utf16FlyString const& property_name, StringView css_text, StringView priority) override;
-    virtual WebIDL::ExceptionOr<String> remove_property(Utf16FlyString const& property_name) override;
+    virtual WebIDL::ExceptionOr<void> set_property(Utf16FlyString const& property_name, Utf16View css_text, Utf16View priority) override;
+    virtual WebIDL::ExceptionOr<Utf16String> remove_property(Utf16FlyString const& property_name) override;
 
-    virtual String get_property_value(Utf16FlyString const& property_name) const override;
-    virtual StringView get_property_priority(Utf16FlyString const& property_name) const override;
+    virtual Utf16String get_property_value(Utf16FlyString const& property_name) const override;
+    virtual Utf16String get_property_priority(Utf16FlyString const& property_name) const override;
 
     Vector<StyleProperty> const& properties() const { return m_properties; }
     OrderedHashMap<Utf16FlyString, StyleProperty> const& custom_properties() const { return m_custom_properties; }
@@ -57,15 +58,14 @@ public:
     RefPtr<StyleValue const> get_property_style_value(PropertyID) const;
     virtual WebIDL::ExceptionOr<void> set_property_style_value(PropertyNameAndID const&, NonnullRefPtr<StyleValue const>) override;
 
-    String css_float() const;
-    WebIDL::ExceptionOr<void> set_css_float(StringView);
+    Utf16String css_float() const;
+    WebIDL::ExceptionOr<void> set_css_float(Utf16View);
 
-    virtual String serialized() const final override;
-    String serialize_a_css_value(StyleProperty const&) const;
-    String serialize_a_css_value(Vector<StyleProperty>) const;
-    virtual WebIDL::ExceptionOr<void> set_css_text(StringView) override;
+    virtual Utf16String serialized() const final override;
+    Utf16String serialize_a_css_value_to_utf16(StyleProperty const&) const;
+    Utf16String serialize_a_css_value_to_utf16(Vector<StyleProperty>) const;
+    virtual WebIDL::ExceptionOr<void> set_css_text(Utf16View) override;
 
-    void set_declarations_from_text(StringView);
     void set_declarations_from_text(Utf16View);
 
 private:
@@ -77,10 +77,8 @@ private:
     RefPtr<StyleValue const> style_value_for_computed_property(Layout::NodeWithStyle const&, PropertyID) const;
     Optional<StyleProperty> get_property_internal(PropertyNameAndID const&) const;
     Optional<StyleProperty> get_direct_property(PropertyNameAndID const&) const;
-    template<typename StringViewType>
-    WebIDL::ExceptionOr<void> set_property_internal(PropertyNameAndID const&, StringViewType css_text, StringView priority);
-    WebIDL::ExceptionOr<String> remove_property_internal(Optional<PropertyNameAndID> const&);
-
+    WebIDL::ExceptionOr<void> set_property_internal(PropertyNameAndID const&, Utf16View css_text, Utf16View priority);
+    WebIDL::ExceptionOr<Utf16String> remove_property_internal(Optional<PropertyNameAndID> const&);
     bool set_a_css_declaration(PropertyID, NonnullRefPtr<StyleValue const>, Important);
     void empty_the_declarations();
     void set_the_declarations(Vector<StyleProperty> properties, OrderedHashMap<Utf16FlyString, StyleProperty> custom_properties);

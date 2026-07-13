@@ -4,14 +4,14 @@ interface Blob {
     constructor(optional sequence<BlobPart> blobParts, optional BlobPropertyBag options = {});
 
     readonly attribute unsigned long long size;
-    readonly attribute DOMString type;
+    readonly attribute Utf16DOMString type;
 
     // slice Blob into byte-ranged chunks
-    Blob slice(optional [Clamp] long long start, optional [Clamp] long long end, optional DOMString contentType);
+    Blob slice(optional [Clamp] long long start, optional [Clamp] long long end, optional Utf16DOMString contentType);
 
     // read from the Blob.
     [NewObject] ReadableStream stream();
-    [NewObject] Promise<USVString> text();
+    [NewObject] Promise<Utf16USVString> text();
     [NewObject] Promise<ArrayBuffer> arrayBuffer();
     [NewObject] Promise<Uint8Array> bytes();
 };
@@ -19,8 +19,8 @@ interface Blob {
 enum EndingType { "transparent", "native" };
 
 dictionary BlobPropertyBag {
-    DOMString type = "";
+    Utf16DOMString type = "";
     EndingType endings = "transparent";
 };
 
-typedef (BufferSource or Blob or USVString) BlobPart;
+typedef (BufferSource or Blob or Utf16USVString) BlobPart;

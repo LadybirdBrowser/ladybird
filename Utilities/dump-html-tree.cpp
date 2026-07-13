@@ -283,13 +283,13 @@ static GC::Ref<Web::DOM::Document> parse_html(JS::Realm& realm, Web::DOM::Docume
 {
     auto document = Web::DOM::Document::create(realm, URL::about_blank());
     document->set_document_type(Web::DOM::Document::Type::HTML);
-    document->set_content_type("text/html"_string);
+    document->set_content_type("text/html"_utf16_fly_string);
     document->set_origin(origin_document.origin());
     document->set_ready_to_run_scripts();
     document->set_allow_declarative_shadow_roots(Web::HTML::HTMLParser::AllowDeclarativeShadowRoots::Yes);
     document->set_custom_element_registry(realm.create<Web::HTML::CustomElementRegistry>(realm));
 
-    auto parser = Web::HTML::HTMLParser::create(document, input, Web::HTML::ParserScriptingMode::Disabled, "UTF-8"sv);
+    auto parser = Web::HTML::HTMLParser::create_from_byte_string(document, input, Web::HTML::ParserScriptingMode::Disabled, "UTF-8"sv);
     parser->run(URL::about_blank());
     return document;
 }

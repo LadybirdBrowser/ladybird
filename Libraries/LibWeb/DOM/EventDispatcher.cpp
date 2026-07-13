@@ -33,7 +33,7 @@
 namespace Web::DOM {
 
 // https://dom.spec.whatwg.org/#concept-event-listener-invoke
-static Optional<FlyString> legacy_event_type_for_event_type(FlyString const& event_type)
+static Optional<Utf16FlyString> legacy_event_type_for_event_type(Utf16FlyString const& event_type)
 {
     if (event_type == HTML::EventNames::animationend)
         return HTML::EventNames::webkitAnimationEnd;

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const markName = "marque-\u03c0-\ud83c\udf55";
+        const measureName = "mesure-\u03c0-\ud83c\udf55";
+        const optionsMeasureName = "options-\u03c0-\ud83c\udf55";
+
+        const mark = performance.mark(markName);
+        println(`mark.name === markName: ${mark.name === markName}`);
+
+        const marks = performance.getEntriesByName(markName, "mark");
+        println(`marks.length === 1: ${marks.length === 1}`);
+        println(`marks[0] === mark: ${marks[0] === mark}`);
+
+        const measure = performance.measure(measureName, markName);
+        println(`measure.name === measureName: ${measure.name === measureName}`);
+
+        const measures = performance.getEntriesByName(measureName, "measure");
+        println(`measures.length === 1: ${measures.length === 1}`);
+        println(`measures[0] === measure: ${measures[0] === measure}`);
+
+        const optionsMeasure = performance.measure(optionsMeasureName, { start: markName, end: performance.now() });
+        println(`optionsMeasure.name === optionsMeasureName: ${optionsMeasure.name === optionsMeasureName}`);
+        println(`performance.getEntriesByName(optionsMeasureName, "measure")[0] === optionsMeasure: ${performance.getEntriesByName(optionsMeasureName, "measure")[0] === optionsMeasure}`);
+
+        performance.clearMarks(markName);
+        println(`performance.getEntriesByName(markName, "mark").length === 0: ${performance.getEntriesByName(markName, "mark").length === 0}`);
+
+        performance.clearMeasures(measureName);
+        println(`performance.getEntriesByName(measureName, "measure").length === 0: ${performance.getEntriesByName(measureName, "measure").length === 0}`);
+
+        performance.clearMeasures(optionsMeasureName);
+        println(`performance.getEntriesByName(optionsMeasureName, "measure").length === 0: ${performance.getEntriesByName(optionsMeasureName, "measure").length === 0}`);
+    });
+</script>

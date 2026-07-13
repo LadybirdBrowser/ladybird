@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/FlyString.h>
 #include <AK/JsonObject.h>
 #include <AK/NeverDestroyed.h>
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/DOM/CustomEvent.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
@@ -24,15 +24,15 @@ static JS::PropertyKey const& ladybird_property()
     return *property;
 }
 
-static FlyString const& web_ui_loaded_event()
+static Utf16FlyString const& web_ui_loaded_event()
 {
-    static NeverDestroyed<FlyString> event { "WebUILoaded"_fly_string };
+    static NeverDestroyed<Utf16FlyString> event { "WebUILoaded"_utf16_fly_string };
     return *event;
 }
 
-static FlyString const& web_ui_message_event()
+static Utf16FlyString const& web_ui_message_event()
 {
-    static NeverDestroyed<FlyString> event { "WebUIMessage"_fly_string };
+    static NeverDestroyed<Utf16FlyString> event { "WebUIMessage"_utf16_fly_string };
     return *event;
 }
 
@@ -91,7 +91,7 @@ void WebUIConnection::send_message(String name, JsonValue data)
     m_document->dispatch_event(Web::DOM::CustomEvent::create(realm, web_ui_message_event(), event_init));
 }
 
-void WebUIConnection::received_message_from_web_ui(String const& name, JS::Value data)
+void WebUIConnection::received_message_from_web_ui(Utf16String const& name, JS::Value data)
 {
     if (!m_document->browsing_context())
         return;
@@ -102,7 +102,7 @@ void WebUIConnection::received_message_from_web_ui(String const& name, JS::Value
         return;
     }
 
-    async_received_message(name, deserialized_data.value());
+    async_received_message(name.to_utf8(), deserialized_data.value());
 }
 
 }

@@ -50,25 +50,25 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> FileReaderSync::read_as_array_buff
 }
 
 // https://w3c.github.io/FileAPI/#dfn-readAsBinaryStringSync
-WebIDL::ExceptionOr<String> FileReaderSync::read_as_binary_string(Blob& blob)
+WebIDL::ExceptionOr<Utf16String> FileReaderSync::read_as_binary_string(Blob& blob)
 {
-    return read_as<String>(blob, FileReader::Type::BinaryString);
+    return read_as<Utf16String>(blob, FileReader::Type::BinaryString);
 }
 
 // https://w3c.github.io/FileAPI/#dfn-readAsTextSync
-WebIDL::ExceptionOr<String> FileReaderSync::read_as_text(Blob& blob, Optional<String> const& encoding)
+WebIDL::ExceptionOr<Utf16String> FileReaderSync::read_as_text(Blob& blob, Optional<Utf16String> const& encoding)
 {
-    return read_as<String>(blob, FileReader::Type::Text, encoding);
+    return read_as<Utf16String>(blob, FileReader::Type::Text, encoding);
 }
 
 // https://w3c.github.io/FileAPI/#dfn-readAsDataURLSync
-WebIDL::ExceptionOr<String> FileReaderSync::read_as_data_url(Blob& blob)
+WebIDL::ExceptionOr<Utf16String> FileReaderSync::read_as_data_url(Blob& blob)
 {
-    return read_as<String>(blob, FileReader::Type::DataURL);
+    return read_as<Utf16String>(blob, FileReader::Type::DataURL);
 }
 
 template<typename Result>
-WebIDL::ExceptionOr<Result> FileReaderSync::read_as(Blob& blob, FileReader::Type type, Optional<String> const& encoding)
+WebIDL::ExceptionOr<Result> FileReaderSync::read_as(Blob& blob, FileReader::Type type, Optional<Utf16String> const& encoding)
 {
     // 1. Let stream be the result of calling get stream on blob.
     auto stream = blob.get_stream();

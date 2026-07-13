@@ -100,7 +100,7 @@ public:
 
     void output_debug_message(LogLevel log_level, StringView output) const;
     void output_debug_message(LogLevel log_level, Utf16View output) const;
-    void report_exception(String const& name, String const& message, JS::ErrorData const&, bool) const;
+    void report_exception(Utf16View name, Utf16View message, JS::ErrorData const&, bool) const;
 
 private:
     explicit Console(Realm&);
@@ -129,7 +129,7 @@ public:
     virtual ThrowCompletionOr<Value> printer(Console::LogLevel log_level, PrinterArguments) = 0;
 
     virtual void add_css_style_to_current_message(Utf16View) { }
-    virtual void report_exception(String const&, String const&, JS::ErrorData const&, bool) { }
+    virtual void report_exception(Utf16View, Utf16View, JS::ErrorData const&, bool) { }
 
     virtual void clear() = 0;
     virtual void end_group() = 0;

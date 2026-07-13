@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Forward.h>
 
@@ -21,12 +21,12 @@ public:
         return GridTrackPlacement();
     }
 
-    static GridTrackPlacement make_line(RefPtr<StyleValue const> line_number, Optional<String> name)
+    static GridTrackPlacement make_line(RefPtr<StyleValue const> line_number, Optional<Utf16FlyString> name)
     {
         return GridTrackPlacement(AreaOrLine { .line_number = move(line_number), .name = move(name) });
     }
 
-    static GridTrackPlacement make_span(NonnullRefPtr<StyleValue const> value, Optional<String> name)
+    static GridTrackPlacement make_span(NonnullRefPtr<StyleValue const> value, Optional<Utf16FlyString> name)
     {
         return GridTrackPlacement(Span { .value = move(value), .name = move(name) });
     }
@@ -50,7 +50,7 @@ public:
         return is_area_or_line() && m_value.get<AreaOrLine>().line_number;
     }
 
-    String identifier() const { return *m_value.get<AreaOrLine>().name; }
+    Utf16FlyString const& identifier() const { return *m_value.get<AreaOrLine>().name; }
 
     NonnullRefPtr<StyleValue const> line_number() const { return *m_value.get<AreaOrLine>().line_number; }
     NonnullRefPtr<StyleValue const> span() const { return *m_value.get<Span>().value; }
@@ -75,14 +75,14 @@ private:
 
     struct AreaOrLine {
         ValueComparingRefPtr<StyleValue const> line_number;
-        Optional<String> name;
+        Optional<Utf16FlyString> name;
         bool operator==(AreaOrLine const& other) const = default;
         bool is_computationally_independent() const { return !line_number || line_number->is_computationally_independent(); }
     };
 
     struct Span {
         ValueComparingNonnullRefPtr<StyleValue const> value;
-        Optional<String> name;
+        Optional<Utf16FlyString> name;
         bool operator==(Span const& other) const = default;
         bool is_computationally_independent() const { return value->is_computationally_independent(); }
     };

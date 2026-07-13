@@ -38,10 +38,10 @@ public:
     // Schema-level entries (upgrade transactions only).
     void note_object_store_created();
     void note_object_store_deleted();
-    void note_object_store_renamed(String old_name);
+    void note_object_store_renamed(Utf16String old_name);
     void note_index_created(GC::Ref<Index>);
     void note_index_deleted(GC::Ref<Index>);
-    void note_index_renamed(GC::Ref<Index>, String old_name);
+    void note_index_renamed(GC::Ref<Index>, Utf16String old_name);
 
     // Record that the key generator value was changed, saving the old value for revert.
     void note_key_generator_changed(u64 old_value);
@@ -68,7 +68,7 @@ public:
     // Clear the log without reverting (used after successful transaction commit).
     void clear() { m_entries.clear(); }
 
-    void append_changes(String const& database_name, String const& object_store_name, TransactionChanges&) const;
+    void append_changes(Utf16String const& database_name, Utf16String const& object_store_name, TransactionChanges&) const;
 
     [[nodiscard]] size_t position() const { return m_entries.size(); }
 
@@ -91,12 +91,12 @@ private:
     };
 
     struct ObjectStoreRenamed {
-        String old_name;
+        Utf16String old_name;
     };
 
     struct IndexRenamed {
         GC::Ref<Index> index;
-        String old_name;
+        Utf16String old_name;
     };
 
     struct KeyGeneratorChanged {

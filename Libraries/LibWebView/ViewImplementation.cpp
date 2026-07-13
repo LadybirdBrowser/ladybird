@@ -161,7 +161,7 @@ void ViewImplementation::set_favicon(Badge<WebContentClient>, Optional<Gfx::Bitm
         on_favicon_change(favicon);
 }
 
-void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL const& url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, Web::Bindings::NavigationHistoryBehavior history_handling)
+void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL const& url, Web::HTML::DocumentResource document_resource, Web::Bindings::NavigationHistoryBehavior history_handling)
 {
     dump_session_history("before-process-swap"sv);
     m_webdriver_pending_navigation_url = url;
@@ -742,7 +742,7 @@ void ViewImplementation::select_all()
     client().async_select_all(page_id());
 }
 
-void ViewImplementation::find_in_page(String const& query, CaseSensitivity case_sensitivity)
+void ViewImplementation::find_in_page(Utf16String const& query, CaseSensitivity case_sensitivity)
 {
     client().async_find_in_page(page_id(), query, case_sensitivity);
 }
@@ -772,12 +772,12 @@ void ViewImplementation::inspect_storage(Web::StorageAPI::StorageEndpointType st
     client().async_inspect_storage(page_id(), storage_endpoint, request_id);
 }
 
-Optional<StorageSetResult> ViewImplementation::set_session_storage_item(String const& key, String const& value)
+Optional<StorageSetResult> ViewImplementation::set_session_storage_item(Utf16String const& key, Utf16String const& value)
 {
     return client().set_session_storage_item(page_id(), key, value);
 }
 
-Optional<String> ViewImplementation::remove_session_storage_item(String const& key)
+Optional<Utf16String> ViewImplementation::remove_session_storage_item(Utf16String const& key)
 {
     return client().remove_session_storage_item(page_id(), key);
 }
@@ -1166,7 +1166,7 @@ void ViewImplementation::confirm_closed(bool accepted)
     client().async_confirm_closed(page_id(), accepted);
 }
 
-void ViewImplementation::prompt_closed(Optional<String> const& response)
+void ViewImplementation::prompt_closed(Optional<Utf16String> const& response)
 {
     client().async_prompt_closed(page_id(), response);
 }
@@ -1480,7 +1480,7 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
         client().async_did_connect_devtools_client(page_id());
 }
 
-void ViewImplementation::did_start_navigation(URL::URL const& url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, bool is_redirect, Web::Bindings::NavigationHistoryBehavior history_handling)
+void ViewImplementation::did_start_navigation(URL::URL const& url, Web::HTML::DocumentResource document_resource, bool is_redirect, Web::Bindings::NavigationHistoryBehavior history_handling)
 {
     set_loading_state(true);
     if (m_should_suppress_history_for_next_load || m_should_suppress_history_for_current_load)
@@ -2053,7 +2053,12 @@ void ViewImplementation::autoplay_settings_changed()
     if (web_content_options.enable_autoplay == EnableAutoplay::Yes)
         policy = Web::HTML::AutoplayPolicy::AllowAudioAndVideo;
 
-    client().async_set_autoplay_settings(page_id(), policy, autoplay_settings.site_filters.values());
+    Vector<Utf16String> allowlist;
+    allowlist.ensure_capacity(autoplay_settings.site_filters.size());
+    for (auto const& site_filter : autoplay_settings.site_filters)
+        allowlist.unchecked_append(Utf16String::from_utf8(site_filter));
+
+    client().async_set_autoplay_settings(page_id(), policy, move(allowlist));
 }
 
 void ViewImplementation::global_privacy_control_changed()

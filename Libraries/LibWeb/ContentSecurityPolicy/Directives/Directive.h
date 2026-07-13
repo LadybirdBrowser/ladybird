@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
+#include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/Ptr.h>
@@ -92,22 +93,22 @@ public:
     //    blocked for global?. It returns "Allowed" unless otherwise specified.
     virtual Result webrtc_pre_connect_check(GC::Ref<Policy const>) const { return Result::Allowed; }
 
-    [[nodiscard]] String const& name() const { return m_name; }
-    [[nodiscard]] Vector<String> const& value() const { return m_value; }
+    [[nodiscard]] Utf16FlyString const& name() const { return m_name; }
+    [[nodiscard]] Vector<Utf16String> const& value() const { return m_value; }
 
     [[nodiscard]] GC::Ref<Directive> clone(GC::Heap&) const;
     [[nodiscard]] SerializedDirective serialize() const;
 
 protected:
-    Directive(String name, Vector<String> value);
+    Directive(Utf16FlyString name, Vector<Utf16String> value);
 
 private:
     // https://w3c.github.io/webappsec-csp/#directive-name
     // https://w3c.github.io/webappsec-csp/#directive-value
     // Each directive is a name / value pair. The name is a non-empty string, and the value is a set of non-empty strings.
     // The value MAY be empty.
-    String m_name;
-    Vector<String> m_value;
+    Utf16FlyString m_name;
+    Vector<Utf16String> m_value;
 };
 
 }

@@ -6081,7 +6081,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(
             return WebIDL::DataError::create(m_realm, "Invalid curve"_utf16);
 
         // 5. If the alg field of jwk is present and is not "Ed25519" or "EdDSA", then throw a DataError.
-        if (jwk.alg.has_value() && !jwk.alg.value().is_one_of("Ed25519"sv, "EdDSA"sv))
+        if (jwk.alg.has_value() && (jwk.alg.value() != "Ed25519"_utf16 && jwk.alg.value() != "EdDSA"_utf16))
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_utf16);
 
         // 6. If usages is non-empty and the use field of jwk is present and is not "sig", then throw a DataError.
@@ -8498,7 +8498,7 @@ WebIDL::ExceptionOr<JS::Value> HMAC::get_key_length(AlgorithmParams const& param
     // Otherwise:
     else {
         // throw a TypeError.
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid key length"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid key length"_utf16 };
     }
 
     // 2. Return length.

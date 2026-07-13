@@ -7,7 +7,8 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
+#include <AK/Utf16String.h>
 #include <LibWeb/Bindings/CloseEvent.h>
 #include <LibWeb/DOM/Event.h>
 
@@ -18,23 +19,23 @@ class CloseEvent : public DOM::Event {
     GC_DECLARE_ALLOCATOR(CloseEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<CloseEvent> create(JS::Realm&, FlyString const& event_name, Bindings::CloseEventInit const& event_init = {});
-    static WebIDL::ExceptionOr<GC::Ref<CloseEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::CloseEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<CloseEvent> create(JS::Realm&, Utf16FlyString const& event_name, Bindings::CloseEventInit const& event_init = {});
+    static WebIDL::ExceptionOr<GC::Ref<CloseEvent>> construct_impl(JS::Realm&, Utf16FlyString const& event_name, Bindings::CloseEventInit const& event_init);
 
     virtual ~CloseEvent() override;
 
     bool was_clean() const { return m_was_clean; }
     u16 code() const { return m_code; }
-    String reason() const { return m_reason; }
+    Utf16String const& reason() const { return m_reason; }
 
 private:
-    CloseEvent(JS::Realm&, FlyString const& event_name, Bindings::CloseEventInit const& event_init);
+    CloseEvent(JS::Realm&, Utf16FlyString const& event_name, Bindings::CloseEventInit const& event_init);
 
     virtual void initialize(JS::Realm&) override;
 
     bool m_was_clean { false };
     u16 m_code { 0 };
-    String m_reason;
+    Utf16String m_reason;
 };
 
 }

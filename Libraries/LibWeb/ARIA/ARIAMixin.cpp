@@ -274,9 +274,8 @@ Vector<Utf16String> ARIAMixin::parse_id_reference_list(Optional<Utf16String> con
         return result;
 
     for_each_ascii_whitespace_separated_token(id_list->utf16_view(), [&](auto id_reference_view) {
-        auto id_reference = Utf16String::from_utf16(id_reference_view);
-        if (id_reference_exists(id_reference))
-            result.append(id_reference);
+        if (id_reference_exists(id_reference_view))
+            result.append(Utf16String::from_utf16(id_reference_view));
         return IterationDecision::Continue;
     });
     return result;

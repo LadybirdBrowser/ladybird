@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 
 namespace Web::HTML {
@@ -19,8 +20,8 @@ public:
     virtual ~Plugin() override;
 
     Utf16FlyString const& name() const;
-    String description() const;
-    String filename() const;
+    Utf16FlyString description() const;
+    Utf16FlyString filename() const;
     size_t length() const;
     GC::Ptr<MimeType> item(u32 index) const;
     GC::Ptr<MimeType> named_item(Utf16FlyString const& name) const;

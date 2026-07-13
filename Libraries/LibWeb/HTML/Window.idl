@@ -5,8 +5,8 @@ interface Window : EventTarget {
     [LegacyUnforgeable] readonly attribute WindowProxy window;
     [Replaceable] readonly attribute WindowProxy self;
     [LegacyUnforgeable] readonly attribute Document document;
-    attribute DOMString name;
-    attribute DOMString status;
+    attribute Utf16DOMString name;
+    attribute Utf16DOMString status;
     undefined close();
     readonly attribute boolean closed;
     [PutForwards=href, LegacyUnforgeable] readonly attribute Location location;
@@ -31,12 +31,12 @@ interface Window : EventTarget {
     attribute any opener;
     [Replaceable] readonly attribute WindowProxy? parent;
     readonly attribute Element? frameElement;
-    WindowProxy? open(optional USVString url = "", optional DOMString target = "_blank", optional [LegacyNullToEmptyString] DOMString features = "");
+    WindowProxy? open(optional Utf16USVString url = "", optional Utf16DOMString target = "_blank", optional [LegacyNullToEmptyString] Utf16DOMString features = "");
 
     // Since this is the global object, the IDL named getter adds a NamedPropertiesObject exotic
     // object on the prototype chain. Indeed, this does not make the global object an exotic object.
     // Indexed access is taken care of by the WindowProxy exotic object.
-    getter object (DOMString name);
+    getter object (Utf16DOMString name);
 
     // the user agent
     readonly attribute Navigator navigator;
@@ -44,21 +44,21 @@ interface Window : EventTarget {
 
     // user prompts
     undefined alert();
-    undefined alert(DOMString message);
-    boolean confirm(optional DOMString message = "");
-    DOMString? prompt(optional DOMString message = "", optional DOMString default = "");
+    undefined alert(Utf16DOMString message);
+    boolean confirm(optional Utf16DOMString message = "");
+    Utf16DOMString? prompt(optional Utf16DOMString message = "", optional Utf16DOMString default = "");
 
-    undefined postMessage(any message, USVString targetOrigin, optional sequence<object> transfer = []);
+    undefined postMessage(any message, Utf16USVString targetOrigin, optional sequence<object> transfer = []);
     undefined postMessage(any message, optional WindowPostMessageOptions options = {});
 
     // https://dom.spec.whatwg.org/#interface-window-extensions
     [Replaceable] readonly attribute (Event or undefined) event; // legacy
 
     // https://drafts.csswg.org/cssom/#extensions-to-the-window-interface
-    [NewObject] CSSStyleProperties getComputedStyle(Element elt, optional CSSOMString? pseudoElt);
+    [NewObject] CSSStyleProperties getComputedStyle(Element elt, optional Utf16CSSOMString? pseudoElt);
 
     // https://w3c.github.io/csswg-drafts/cssom-view/#extensions-to-the-window-interface
-    [NewObject] MediaQueryList matchMedia(CSSOMString query);
+    [NewObject] MediaQueryList matchMedia(Utf16CSSOMString query);
     [SameObject, Replaceable] readonly attribute Screen screen;
     [SameObject, Replaceable] readonly attribute VisualViewport? visualViewport;
 
@@ -100,7 +100,7 @@ interface Window : EventTarget {
     Selection? getSelection();
 
     // This function is non-standard.
-    boolean find(optional DOMString string = "");
+    boolean find(optional Utf16DOMString string = "");
 };
 Window includes AnimationFrameProvider;
 Window includes GlobalEventHandlers;
@@ -121,5 +121,5 @@ dictionary ScrollToOptions : ScrollOptions {
 };
 
 dictionary WindowPostMessageOptions : StructuredSerializeOptions {
-    USVString targetOrigin = "/";
+    Utf16USVString targetOrigin = "/";
 };

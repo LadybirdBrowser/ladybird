@@ -49,46 +49,70 @@ void CSSContainerRule::clear_caches()
     m_parent_container_rule_cache_valid = false;
 }
 
+static Utf16String serialized_condition_name(CSSContainerRule::Condition const& condition)
+{
+    if (!condition.container_name.has_value())
+        return {};
+
+    Utf16StringBuilder builder;
+    serialize_an_identifier(builder, *condition.container_name);
+    return builder.to_string();
+}
+
+static Utf16String serialized_condition_query(CSSContainerRule::Condition const& condition)
+{
+    return condition.container_query ? condition.container_query->to_string() : Utf16String {};
+}
+
+static void append_condition_text(Utf16StringBuilder& result, CSSContainerRule::Condition const& condition)
+{
+    auto name = serialized_condition_name(condition);
+    auto query = serialized_condition_query(condition);
+
+    if (!name.is_empty()) {
+        result.append(name.utf16_view());
+
+        if (!query.is_empty())
+            result.append_ascii(' ');
+    }
+
+    result.append(query.utf16_view());
+}
+
 // https://drafts.csswg.org/css-conditional-5/#the-csscontainerrule-interface
-String CSSContainerRule::condition_text() const
+Utf16String CSSContainerRule::serialized_condition_text() const
 {
     // The conditionText attribute (defined on the CSSConditionRule parent rule), on getting, must return a value as
     // follows:
 
     // 1. Let conditions be the result of getting the conditions attribute.
-    auto conditions = this->conditions();
+    auto const& conditions = m_conditions;
 
     // 2. Let first be true.
     auto first = true;
 
     // 2. Let result be the empty string.
-    StringBuilder result;
+    Utf16StringBuilder result;
 
     // 3. For each condition in conditions:
     for (auto const& condition : conditions) {
         // 1. If first is false, append ", " to result.
         if (!first)
-            result.append(", "sv);
+            result.append_ascii(", "sv);
 
         // 2. Set first to false.
         first = false;
 
         // 3. If condition's name is not empty:
-        if (!condition.name.is_empty()) {
-            // 1. Append condition's name to result.
-            result.append(condition.name);
-
-            // 2. If condition's query is not empty, append a single space to result.
-            if (!condition.query.is_empty())
-                result.append(' ');
-        }
-
+        //     1. Append condition's name to result.
+        //     2. If condition's query is not empty, append a single space to result.
+        //
         // 4. Append condition's query to result.
-        result.append(condition.query);
+        append_condition_text(result, condition);
     }
 
     // 5. Return result.
-    return result.to_string_without_validation();
+    return result.to_string();
 }
 
 bool CSSContainerRule::condition_matches() const
@@ -166,67 +190,67 @@ bool CSSContainerRule::contains_size_feature() const
 }
 
 // https://drafts.csswg.org/cssom-1/#serialize-a-css-rule
-String CSSContainerRule::serialized() const
+Utf16String CSSContainerRule::serialized() const
 {
     // AD-HOC: The spec does not define @container serialization, so this is based on CSSMediaRule::serialized().
-    StringBuilder builder;
-    builder.append("@container "sv);
+    Utf16StringBuilder builder;
+    builder.append_ascii("@container "sv);
 
-    builder.append(condition_text());
+    builder.append(serialized_condition_text());
 
-    builder.append(" {\n"sv);
+    builder.append_ascii(" {\n"sv);
 
     for (size_t i = 0; i < css_rules().length(); i++) {
         auto rule = css_rules().item(i);
-        auto result = rule->css_text();
+        auto result = rule->serialized();
 
         if (result.is_empty())
             continue;
 
-        builder.append("  "sv);
+        builder.append_ascii("  "sv);
         builder.append(result);
-        builder.append('\n');
+        builder.append_ascii('\n');
     }
 
-    builder.append('}');
+    builder.append_ascii('}');
 
-    return builder.to_string_without_validation();
+    return builder.to_string();
 }
 
 // https://drafts.csswg.org/css-conditional-5/#dom-csscontainerrule-containername
-String CSSContainerRule::container_name() const
+Utf16String CSSContainerRule::container_name() const
 {
     // The containerName attribute, on getting, must return a value as follows:
 
     // 1. Let conditions be the result of getting the conditions attribute.
-    auto conditions = this->conditions();
+    auto const& conditions = m_conditions;
 
     // 2. If the length of conditions is 1:
     if (conditions.size() == 1) {
         // 1. Return the only condition's name.
-        return conditions.first().name;
+        return serialized_condition_name(conditions.first());
     }
 
     // 3. Return "".
-    return ""_string;
+    return {};
 }
 
 // https://drafts.csswg.org/css-conditional-5/#dom-csscontainerrule-containerquery
-String CSSContainerRule::container_query() const
+Utf16String CSSContainerRule::container_query() const
 {
     // The containerQuery attribute, on getting, must return a value as follows:
 
     // 1. Let conditions be the result of getting the conditions attribute.
-    auto conditions = this->conditions();
+    auto const& conditions = m_conditions;
 
     // 2. If the length of conditions is 1:
     if (conditions.size() == 1) {
         // 1. Return the only condition's query.
-        return conditions.first().query;
+        return serialized_condition_query(conditions.first());
     }
 
     // 3. Return "".
-    return ""_string;
+    return {};
 }
 
 // https://drafts.csswg.org/css-conditional-5/#dom-csscontainerrule-conditions
@@ -249,8 +273,8 @@ Vector<CSSContainerCondition> CSSContainerRule::conditions() const
         //    omitting it in cases where it is known to be optional), but logical simplifications (such as removal of
         //    unneeded parentheses, or simplification based on evaluating results) are not allowed.
         CSSContainerCondition dict {
-            .name = condition.container_name.has_value() ? serialize_an_identifier(condition.container_name.value()) : ""_string,
-            .query = condition.container_query ? condition.container_query->to_string() : ""_string,
+            .name = serialized_condition_name(condition),
+            .query = serialized_condition_query(condition),
         };
 
         // 2. Append dict to result.

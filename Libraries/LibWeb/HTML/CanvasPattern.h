@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <AK/Utf16FlyString.h>
 #include <LibGfx/PaintStyle.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/HTML/Canvas/CanvasDrawImage.h>
@@ -19,7 +20,7 @@ class CanvasPattern final : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(CanvasPattern);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ptr<CanvasPattern>> create(JS::Realm&, CanvasImageSource const& image, StringView repetition);
+    static WebIDL::ExceptionOr<GC::Ptr<CanvasPattern>> create(JS::Realm&, CanvasImageSource const& image, Utf16FlyString const& repetition);
 
     ~CanvasPattern();
 

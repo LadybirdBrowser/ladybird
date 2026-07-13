@@ -21,8 +21,8 @@ public:
     static GC::Ref<LockManager> create(JS::Realm&);
     virtual ~LockManager() override = default;
 
-    GC::Ref<WebIDL::Promise> request(String const& name, GC::Ref<WebIDL::CallbackType>);
-    GC::Ref<WebIDL::Promise> request(String const& name, Bindings::LockOptions const&, GC::Ref<WebIDL::CallbackType>);
+    GC::Ref<WebIDL::Promise> request(Utf16String const& name, GC::Ref<WebIDL::CallbackType>);
+    GC::Ref<WebIDL::Promise> request(Utf16String const& name, Bindings::LockOptions const&, GC::Ref<WebIDL::CallbackType>);
     GC::Ref<WebIDL::Promise> query();
 
     void process_lock_request_queue(LockRequestQueue&);
@@ -36,7 +36,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    GC::Ref<LockRequest> request_lock(GC::Ref<WebIDL::Promise>, GC::Ref<WebIDL::CallbackType>, String name, Bindings::LockMode, bool if_available, bool steal, GC::Ptr<DOM::AbortSignal>);
+    GC::Ref<LockRequest> request_lock(GC::Ref<WebIDL::Promise>, GC::Ref<WebIDL::CallbackType>, Utf16String name, Bindings::LockMode, bool if_available, bool steal, GC::Ptr<DOM::AbortSignal>);
 
     void snapshot_lock_state(GC::Ref<WebIDL::Promise>);
 

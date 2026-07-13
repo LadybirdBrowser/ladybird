@@ -17,7 +17,7 @@ template<>
 void Intrinsics::create_web_prototype_and_constructor<HeadersIteratorPrototype>(JS::Realm& realm)
 {
     auto prototype = realm.create<HeadersIteratorPrototype>(realm);
-    m_prototypes.set("HeadersIterator"_fly_string, prototype);
+    m_prototypes.set("HeadersIterator"_utf16_fly_string, prototype);
 }
 
 }

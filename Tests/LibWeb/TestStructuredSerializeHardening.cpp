@@ -39,7 +39,7 @@ TEST_CASE(storage_reader_rejects_wrong_nested_serializable_type)
     auto point = Web::Geometry::DOMPoint::create(realm);
     auto point_body = serialized_object_body(point);
 
-    auto blob = Web::FileAPI::Blob::create(realm, MUST(ByteBuffer::copy("x"sv.bytes())), "text/plain"_string);
+    auto blob = Web::FileAPI::Blob::create(realm, MUST(ByteBuffer::copy("x"sv.bytes())), "text/plain"_utf16);
     auto blob_body = serialized_object_body(blob);
 
     // FileList v1 whose one entry is a DOMPoint, not a File.

@@ -4,7 +4,7 @@ interface SpeechRecognition : EventTarget {
     constructor();
 
     attribute SpeechGrammarList grammars;
-    attribute DOMString lang;
+    attribute Utf16DOMString lang;
     attribute boolean continuous;
     attribute boolean interimResults;
     attribute unsigned long maxAlternatives;

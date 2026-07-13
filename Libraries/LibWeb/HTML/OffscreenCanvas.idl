@@ -1,7 +1,7 @@
 // FIXME: This should be in OffscreenCanvasBase.idl but then it is not exported
 // https://html.spec.whatwg.org/multipage/canvas.html#imageencodeoptions
 dictionary ImageEncodeOptions {
-    DOMString type = "image/png";
+    Utf16DOMString type = "image/png";
     unrestricted double quality;
 };
 

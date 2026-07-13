@@ -54,7 +54,7 @@ XMLDocumentBuilder::XMLDocumentBuilder(DOM::Document& document, XMLScriptingSupp
 
 ErrorOr<void> XMLDocumentBuilder::set_source(ByteString source)
 {
-    m_document->set_source(TRY(String::from_byte_string(source)));
+    m_document->set_source(Utf16String::from_utf8_with_replacement_character(source.view()));
     return {};
 }
 
@@ -71,12 +71,13 @@ void XMLDocumentBuilder::set_doctype(XML::Doctype doctype)
     if (doctype.external_id.has_value()) {
         auto external_id = doctype.external_id.release_value();
 
-        auto system_id = Utf16String::from_utf8(MUST(AK::String::from_byte_string(external_id.system_id.system_literal)));
+        auto system_id = Utf16String::from_utf8(external_id.system_id.system_literal.view());
         document_type->set_system_id(system_id);
 
         if (external_id.public_id.has_value()) {
-            auto public_id = Utf16String::from_utf8(MUST(AK::String::from_byte_string(external_id.public_id.release_value().public_literal)));
-            document_type->set_public_id(public_id);
+            auto public_id = external_id.public_id.release_value();
+            auto public_id_string = Utf16String::from_utf8(public_id.public_literal.view());
+            document_type->set_public_id(public_id_string);
         }
     }
 

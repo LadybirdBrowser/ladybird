@@ -24,7 +24,7 @@ public:
     };
 
     ErrorCode code() const { return m_code; }
-    String message() const;
+    Utf16String message() const;
 
 private:
     GeolocationPositionError(JS::Realm&, ErrorCode);

@@ -1,7 +1,7 @@
 // https://html.spec.whatwg.org/multipage/dnd.html#the-dragevent-interface
 [Exposed=Window]
 interface DragEvent : MouseEvent {
-    constructor(DOMString type, optional DragEventInit eventInitDict = {});
+    constructor([Utf16FlyString] Utf16DOMString type, optional DragEventInit eventInitDict = {});
 
     readonly attribute DataTransfer? dataTransfer;
 };

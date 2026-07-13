@@ -47,6 +47,11 @@ public:
         return serialize_an_identifier(name());
     }
 
+    Utf16String to_utf16_string() const
+    {
+        return serialize_an_identifier_to_utf16(name());
+    }
+
 private:
     PropertyNameAndID(Optional<Utf16FlyString> name, PropertyID id)
         : m_name(move(name))

@@ -35,6 +35,13 @@ void RatioStyleValue::serialize(StringBuilder& builder, SerializationMode mode) 
     m_denominator->serialize(builder, mode);
 }
 
+void RatioStyleValue::serialize(Utf16StringBuilder& builder, SerializationMode mode) const
+{
+    m_numerator->serialize(builder, mode);
+    builder.append_ascii(" / "sv);
+    m_denominator->serialize(builder, mode);
+}
+
 Vector<Parser::ComponentValue> RatioStyleValue::tokenize() const
 {
     Vector<Parser::ComponentValue> component_values;

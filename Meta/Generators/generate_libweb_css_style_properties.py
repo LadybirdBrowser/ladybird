@@ -91,7 +91,7 @@ GC::Ref<JS::NativeFunction> create_getter(JS::Realm& realm, Utf16FlyString const
         auto result = TRY(throw_dom_exception_if_needed(vm, [&] {
             return idl_object->get_property_value(property_name);
         }));
-        return JS::PrimitiveString::create(vm, Utf16String::from_utf8(result));
+        return JS::PrimitiveString::create(vm, result);
     };
 
     return JS::NativeFunction::create(realm, move(getter), 0, JS::PropertyKey { attribute_name }, &realm, "get"sv);
@@ -103,9 +103,9 @@ GC::Ref<JS::NativeFunction> create_setter(JS::Realm& realm, Utf16FlyString const
         auto* idl_object = TRY(impl_from(vm));
 
         auto value = vm.argument(0);
-        String idl_value;
+        Utf16String idl_value;
         if (!value.is_null())
-            idl_value = TRY(WebIDL::to_string(vm, value));
+            idl_value = TRY(WebIDL::to_utf16_string(vm, value));
 
         auto original_steps = [&]() -> JS::ThrowCompletionOr<JS::Value> {
             TRY(throw_dom_exception_if_needed(vm, [&] {

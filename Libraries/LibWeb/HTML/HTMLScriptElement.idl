@@ -3,15 +3,15 @@
 interface HTMLScriptElement : HTMLElement {
     [HTMLConstructor] constructor();
 
-    [CEReactions, Reflect] attribute DOMString type;
+    [CEReactions, Reflect] attribute Utf16DOMString type;
     [CEReactions, Reflect=nomodule] attribute boolean noModule;
     [CEReactions] attribute boolean async;
     [CEReactions, Reflect] attribute boolean defer;
     [FIXME, SameObject, PutForwards=value] readonly attribute DOMTokenList blocking;
-    [CEReactions, Reflect=crossorigin, Enumerated=CORSSettingsAttribute] attribute DOMString? crossOrigin;
-    [CEReactions, Reflect=referrerpolicy, Enumerated=ReferrerPolicy] attribute DOMString referrerPolicy;
-    [CEReactions, Reflect] attribute DOMString integrity;
-    [CEReactions, Enumerated=FetchPriorityAttribute, Reflect=fetchpriority] attribute DOMString fetchPriority;
+    [CEReactions, Reflect=crossorigin, Enumerated=CORSSettingsAttribute] attribute Utf16DOMString? crossOrigin;
+    [CEReactions, Reflect=referrerpolicy, Enumerated=ReferrerPolicy] attribute Utf16DOMString referrerPolicy;
+    [CEReactions, Reflect] attribute Utf16DOMString integrity;
+    [CEReactions, Enumerated=FetchPriorityAttribute, Reflect=fetchpriority] attribute Utf16DOMString fetchPriority;
 
     // https://w3c.github.io/trusted-types/dist/spec/#enforcement-in-scripts
     [CEReactions] attribute (TrustedScript or Utf16DOMString) text;
@@ -19,10 +19,10 @@ interface HTMLScriptElement : HTMLElement {
     [CEReactions] attribute (TrustedScript or Utf16DOMString)? textContent;
     [CEReactions] attribute (TrustedScript or Utf16DOMString) innerText;
 
-    static boolean supports(DOMString type);
+    static boolean supports(Utf16DOMString type);
 
     // Obsolete
-    [CEReactions, Reflect] attribute DOMString charset;
-    [CEReactions, Reflect] attribute DOMString event;
-    [CEReactions, Reflect=for] attribute DOMString htmlFor;
+    [CEReactions, Reflect] attribute Utf16DOMString charset;
+    [CEReactions, Reflect] attribute Utf16DOMString event;
+    [CEReactions, Reflect=for] attribute Utf16DOMString htmlFor;
 };

@@ -7,6 +7,8 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <LibGC/Function.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
@@ -41,7 +43,7 @@ struct PreloadKey {
 PreloadKey create_a_preload_key(Fetch::Infrastructure::Request const&);
 
 // https://html.spec.whatwg.org/multipage/links.html#translate-a-preload-destination
-Variant<Empty, Optional<Fetch::Infrastructure::Request::Destination>> translate_a_preload_destination(Optional<Utf16String> const& destination);
+Variant<Empty, Optional<Fetch::Infrastructure::Request::Destination>> translate_a_preload_destination(Utf16View destination);
 
 // https://html.spec.whatwg.org/multipage/links.html#preload-entry
 class PreloadEntry final : public JS::Cell {
@@ -53,7 +55,7 @@ public:
 
     // integrity metadata
     //     A string
-    String integrity_metadata;
+    Utf16String integrity_metadata;
 
     // response
     //     Null or a response
@@ -73,7 +75,7 @@ bool consume_a_preloaded_resource(
     Optional<Fetch::Infrastructure::Request::Destination> destination,
     Fetch::Infrastructure::Request::Mode mode,
     Fetch::Infrastructure::Request::CredentialsMode credentials_mode,
-    String const& integrity_metadata,
+    Utf16View integrity_metadata,
     GC::Ref<GC::Function<void(GC::Ref<Fetch::Infrastructure::Response>)>> on_response_available);
 
 }

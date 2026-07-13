@@ -22,21 +22,20 @@ namespace Web::CSS {
 
 void escape_a_character(StringBuilder&, u32 character);
 void escape_a_character_as_code_point(StringBuilder&, u32 character);
-WEB_API void serialize_an_identifier(StringBuilder&, StringView ident);
 WEB_API void serialize_an_identifier(StringBuilder&, Utf16View ident);
+WEB_API void serialize_an_identifier(Utf16StringBuilder&, Utf16View ident);
 void serialize_a_string(StringBuilder&, StringView string);
 void serialize_a_string(StringBuilder&, Utf16View string);
-WEB_API void serialize_a_url(StringBuilder&, StringView url);
+void serialize_a_string(Utf16StringBuilder&, Utf16View string);
 WEB_API void serialize_a_url(StringBuilder&, Utf16View url);
+void serialize_a_url(Utf16StringBuilder&, Utf16View url);
 void serialize_unicode_ranges(StringBuilder&, Vector<Gfx::UnicodeRange> const& unicode_ranges);
 WEB_API void serialize_a_number(StringBuilder&, double value);
 WEB_API void serialize_a_number(Utf16StringBuilder&, double value);
 
-String serialize_an_identifier(StringView ident);
 String serialize_an_identifier(Utf16View ident);
-String serialize_a_string(StringView string);
+Utf16String serialize_an_identifier_to_utf16(Utf16View ident);
 String serialize_a_string(Utf16View string);
-String serialize_a_url(StringView url);
 String serialize_a_url(Utf16View url);
 String serialize_a_number(double value);
 
@@ -55,9 +54,10 @@ void serialize_a_comma_separated_list(StringBuilder& builder, Vector<T> const& i
     }
 }
 
-String serialize_a_css_declaration(Utf16View property, StringView value, Important = Important::No);
+Utf16String serialize_a_css_declaration_to_utf16(StringView property, Utf16View value, Important = Important::No);
+Utf16String serialize_a_css_declaration_to_utf16(Utf16View property, Utf16View value, Important = Important::No);
 
-String serialize_a_series_of_component_values(ReadonlySpan<Parser::ComponentValue>);
+Utf16String serialize_a_series_of_component_values(ReadonlySpan<Parser::ComponentValue>);
 String serialize_a_series_of_component_values_preserving_original_source_text(ReadonlySpan<Parser::ComponentValue>);
 String serialize_a_positional_value_list(StyleValueVector const& values, SerializationMode mode);
 

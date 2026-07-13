@@ -1,13 +1,13 @@
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#hashchangeevent
 [Exposed=Window]
 interface HashChangeEvent : Event {
-    constructor(DOMString type, optional HashChangeEventInit eventInitDict = {});
+    constructor([Utf16FlyString] Utf16DOMString type, optional HashChangeEventInit eventInitDict = {});
 
-    readonly attribute USVString oldURL;
-    readonly attribute USVString newURL;
+    readonly attribute Utf16USVString oldURL;
+    readonly attribute Utf16USVString newURL;
 };
 
 dictionary HashChangeEventInit : EventInit {
-    USVString oldURL = "";
-    USVString newURL = "";
+    Utf16USVString oldURL = "";
+    Utf16USVString newURL = "";
 };

@@ -2,7 +2,7 @@
 [Exposed=Window]
 interface CSSRule {
 
-    attribute CSSOMString cssText;
+    attribute Utf16CSSOMString cssText;
     readonly attribute CSSRule? parentRule;
     readonly attribute CSSStyleSheet? parentStyleSheet;
 

@@ -43,7 +43,7 @@ size_t CharacterData::external_memory_size() const
 }
 
 // https://dom.spec.whatwg.org/#dom-characterdata-data
-void CharacterData::set_data(Utf16String const& data)
+void CharacterData::set_data(Utf16View const& data)
 {
     // [The data] setter must replace data with node this, offset 0, count this’s length, and data new value.
     // NOTE: Since the offset is 0, it can never be above data's length, so this can never throw.

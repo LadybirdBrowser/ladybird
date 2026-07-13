@@ -21,7 +21,7 @@ public:
     virtual Result navigation_response_check(GC::Ref<Fetch::Infrastructure::Request const>, NavigationType, GC::Ref<Fetch::Infrastructure::Response const>, GC::Ref<HTML::LocalNavigable const>, CheckType, GC::Ref<Policy const>) const override;
 
 private:
-    FrameAncestorsDirective(String name, Vector<String> value);
+    FrameAncestorsDirective(Utf16FlyString name, Vector<Utf16String> value);
 };
 
 }

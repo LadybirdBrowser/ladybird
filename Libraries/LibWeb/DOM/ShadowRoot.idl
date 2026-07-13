@@ -12,7 +12,7 @@ interface ShadowRoot : DocumentFragment {
     // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-parsing-and-serialization
 
     [CEReactions] undefined setHTMLUnsafe((TrustedHTML or Utf16DOMString) html);
-    DOMString getHTML(optional GetHTMLOptions options = {});
+    Utf16DOMString getHTML(optional GetHTMLOptions options = {});
 
     [CEReactions, LegacyNullToEmptyString] attribute (TrustedHTML or Utf16DOMString) innerHTML;
 };

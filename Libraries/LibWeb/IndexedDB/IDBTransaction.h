@@ -70,7 +70,7 @@ public:
     [[nodiscard]] bool is_inactive() const { return m_state == TransactionState::Inactive; }
     [[nodiscard]] bool is_committing() const { return m_state == TransactionState::Committing; }
 
-    GC::Ptr<ObjectStore> object_store_named(String const& name) const;
+    GC::Ptr<ObjectStore> object_store_named(Utf16String const& name) const;
     void add_to_scope(GC::Ref<ObjectStore> object_store) { m_scope.append(object_store); }
     void remove_from_scope(GC::Ref<ObjectStore> object_store)
     {
@@ -99,7 +99,7 @@ public:
 
     WebIDL::ExceptionOr<void> abort();
     WebIDL::ExceptionOr<void> commit();
-    WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> object_store(String const& name);
+    WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> object_store(Utf16String const& name);
 
     void set_onabort(WebIDL::CallbackType*);
     WebIDL::CallbackType* onabort();

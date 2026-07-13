@@ -27,8 +27,8 @@ public:
     static WebIDL::ExceptionOr<GC::Ref<XPathEvaluator>> construct_impl(JS::Realm&);
     virtual void initialize(JS::Realm&) override;
 
-    WebIDL::ExceptionOr<GC::Ref<XPathExpression>> create_expression(String const& expression, GC::Ptr<XPathNSResolver> resolver = nullptr);
-    WebIDL::ExceptionOr<GC::Ref<XPathResult>> evaluate(String const& expression, DOM::Node const& context_node, GC::Ptr<XPathNSResolver> resolver = nullptr, WebIDL::UnsignedShort type = 0, GC::Ptr<XPathResult> result = nullptr);
+    WebIDL::ExceptionOr<GC::Ref<XPathExpression>> create_expression(Utf16View expression, GC::Ptr<XPathNSResolver> resolver = nullptr);
+    WebIDL::ExceptionOr<GC::Ref<XPathResult>> evaluate(Utf16View expression, DOM::Node const& context_node, GC::Ptr<XPathNSResolver> resolver = nullptr, WebIDL::UnsignedShort type = 0, GC::Ptr<XPathResult> result = nullptr);
     static GC::Ref<DOM::Node> create_ns_resolver(GC::Ref<DOM::Node> node_resolver); // legacy
 };
 

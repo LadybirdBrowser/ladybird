@@ -54,8 +54,8 @@ public:
     struct DoctypeData {
         // NOTE: "Missing" is a distinct state from the empty string.
         Utf16FlyString name;
-        String public_identifier;
-        String system_identifier;
+        Utf16String public_identifier;
+        Utf16String system_identifier;
         bool missing_name { true };
         bool missing_public_identifier { true };
         bool missing_system_identifier { true };
@@ -109,13 +109,13 @@ public:
         m_data.get<u32>() = code_point;
     }
 
-    String const& comment() const
+    Utf16String const& comment() const
     {
         VERIFY(is_comment());
         return m_comment_data;
     }
 
-    void set_comment(String comment)
+    void set_comment(Utf16String comment)
     {
         VERIFY(is_comment());
         m_comment_data = move(comment);
@@ -216,7 +216,7 @@ public:
 
     Type type() const { return m_type; }
 
-    String to_string() const;
+    Utf16String to_string() const;
 
     Position const& start_position() const { return m_start_position; }
     Position const& end_position() const { return m_end_position; }
@@ -262,7 +262,7 @@ private:
     Utf16FlyString m_string_data;
 
     // Type::Comment (comment data)
-    String m_comment_data;
+    Utf16String m_comment_data;
 
     Variant<Empty, u32, OwnPtr<DoctypeData>, OwnPtr<Vector<Attribute>>> m_data {};
 

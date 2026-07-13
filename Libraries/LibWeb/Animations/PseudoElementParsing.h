@@ -7,13 +7,13 @@
 #pragma once
 
 #include <AK/Optional.h>
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Animations {
 
 // https://drafts.csswg.org/web-animations-1/#dom-keyframeeffect-pseudo-element-parsing
-WebIDL::ExceptionOr<Optional<CSS::Selector::PseudoElementSelector>> pseudo_element_parsing(JS::Realm&, Optional<String> const&);
+WebIDL::ExceptionOr<Optional<CSS::Selector::PseudoElementSelector>> pseudo_element_parsing(JS::Realm&, Optional<Utf16String> const&);
 
 }

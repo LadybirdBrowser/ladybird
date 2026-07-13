@@ -18,9 +18,9 @@ class PointerEvent : public MouseEvent {
     GC_DECLARE_ALLOCATOR(PointerEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<PointerEvent> create(JS::Realm&, FlyString const& type, Bindings::PointerEventInit const& = {}, double page_x = 0, double page_y = 0, double offset_x = 0, double offset_y = 0);
-    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<PointerEvent>> create_from_platform_event(JS::Realm&, GC::Ptr<HTML::WindowProxy>, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, Optional<CSSPixelPoint> movement, unsigned button, unsigned buttons, unsigned modifiers);
-    static WebIDL::ExceptionOr<GC::Ref<PointerEvent>> construct_impl(JS::Realm&, FlyString const& type, Bindings::PointerEventInit const& = {});
+    [[nodiscard]] static GC::Ref<PointerEvent> create(JS::Realm&, Utf16FlyString const& type, Bindings::PointerEventInit const& = {}, double page_x = 0, double page_y = 0, double offset_x = 0, double offset_y = 0);
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<PointerEvent>> create_from_platform_event(JS::Realm&, GC::Ptr<HTML::WindowProxy>, Utf16FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, Optional<CSSPixelPoint> movement, unsigned button, unsigned buttons, unsigned modifiers);
+    static WebIDL::ExceptionOr<GC::Ref<PointerEvent>> construct_impl(JS::Realm&, Utf16FlyString const& type, Bindings::PointerEventInit const& = {});
 
     virtual ~PointerEvent() override;
 
@@ -45,7 +45,7 @@ public:
     WebIDL::Long twist() const { return m_twist; }
     double altitude_angle() const { return m_altitude_angle; }
     double azimuth_angle() const { return m_azimuth_angle; }
-    String const& pointer_type() const { return m_pointer_type; }
+    Utf16FlyString const& pointer_type() const { return m_pointer_type; }
     bool is_primary() const { return m_is_primary; }
     WebIDL::Long persistent_device_id() const { return m_persistent_device_id; }
     AK::ReadonlySpan<GC::Ref<PointerEvent>> get_coalesced_events() const { return m_coalesced_events; }
@@ -58,7 +58,7 @@ public:
     static constexpr float ACTIVE_PRESSURE_DEFAULT_IN_ACTIVE_BUTTON_STATE { 0.5 };
 
 protected:
-    PointerEvent(JS::Realm&, FlyString const& type, Bindings::PointerEventInit const&, double page_x, double page_y, double offset_x, double offset_y);
+    PointerEvent(JS::Realm&, Utf16FlyString const& type, Bindings::PointerEventInit const&, double page_x, double page_y, double offset_x, double offset_y);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -120,7 +120,7 @@ private:
 
     // Indicates the device type that caused the event (mouse, pen, touch, etc.)
     // https://w3c.github.io/pointerevents/#dom-pointerevent-pointertype
-    String m_pointer_type;
+    Utf16FlyString m_pointer_type;
 
     // Indicates if the pointer represents the primary pointer of this pointer type
     // https://w3c.github.io/pointerevents/#dom-pointerevent-isprimary

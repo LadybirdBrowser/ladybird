@@ -16,7 +16,7 @@ template<>
 void Intrinsics::create_web_prototype_and_constructor<ReadableStreamAsyncIteratorPrototype>(JS::Realm& realm)
 {
     auto prototype = realm.create<ReadableStreamAsyncIteratorPrototype>(realm);
-    m_prototypes.set("ReadableStreamAsyncIterator"_fly_string, prototype);
+    m_prototypes.set("ReadableStreamAsyncIterator"_utf16_fly_string, prototype);
 }
 
 }

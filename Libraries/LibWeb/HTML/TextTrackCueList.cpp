@@ -58,7 +58,7 @@ size_t TextTrackCueList::length() const
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-texttrackcuelist-getcuebyid
-GC::Ptr<TextTrackCue> TextTrackCueList::get_cue_by_id(StringView id) const
+GC::Ptr<TextTrackCue> TextTrackCueList::get_cue_by_id(Utf16View id) const
 {
     // The getCueById(id) method, when called with an argument other than the empty string, must return the first text track cue in the list
     // represented by the TextTrackCueList object whose text track cue identifier is id, if any, or null otherwise. If the argument is the

@@ -32,7 +32,7 @@ public:
 
     GC::Ref<WebIDL::Promise> register_(TrustedTypes::TrustedScriptURLOrString script_url, Bindings::RegistrationOptions const&);
 
-    GC::Ref<WebIDL::Promise> get_registration(String const& client_url);
+    GC::Ref<WebIDL::Promise> get_registration(Utf16String const& client_url);
     GC::Ref<WebIDL::Promise> get_registrations();
 
     GC::Ref<WebIDL::Promise> ready();

@@ -7,7 +7,7 @@ interface HTMLFieldSetElement : HTMLElement {
     readonly attribute HTMLFormElement? form;
     [CEReactions, Reflect] attribute Utf16DOMString name;
 
-    readonly attribute DOMString type;
+    readonly attribute Utf16DOMString type;
 
     [SameObject] readonly attribute HTMLCollection elements;
 
@@ -16,5 +16,5 @@ interface HTMLFieldSetElement : HTMLElement {
     readonly attribute Utf16DOMString validationMessage;
     boolean checkValidity();
     boolean reportValidity();
-    undefined setCustomValidity(DOMString error);
+    undefined setCustomValidity(Utf16DOMString error);
 };

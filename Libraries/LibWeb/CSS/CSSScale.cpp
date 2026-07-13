@@ -34,11 +34,11 @@ WebIDL::ExceptionOr<GC::Ref<CSSScale>> CSSScale::construct_impl(JS::Realm& realm
 
     // 2. If x, y, or z (if passed) don’t match <number>, throw a TypeError.
     if (!rectified_x->type().matches_number({}))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSScale x component doesn't match <number>"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSScale x component doesn't match <number>"_utf16 };
     if (!rectified_y->type().matches_number({}))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSScale y component doesn't match <number>"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSScale y component doesn't match <number>"_utf16 };
     if (rectified_z.has_value() && !rectified_z.value()->type().matches_number({}))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSScale z component doesn't match <number>"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSScale z component doesn't match <number>"_utf16 };
 
     // 3. Let this be a new CSSScale object, with its x and y internal slots set to x and y.
     // 4. If z was passed, set this’s z internal slot to z, and set this’s is2D internal slot to false.
@@ -168,7 +168,7 @@ WebIDL::ExceptionOr<void> CSSScale::set_x(CSSNumberish value)
     // AD-HOC: WPT expects this to throw for invalid values. https://github.com/w3c/css-houdini-drafts/issues/1153
     auto rectified_x = rectify_a_numberish_value(realm(), value);
     if (!rectified_x->type().matches_number({}))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSScale x component doesn't match <number>"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSScale x component doesn't match <number>"_utf16 };
     m_x = rectified_x;
     return {};
 }
@@ -181,7 +181,7 @@ WebIDL::ExceptionOr<void> CSSScale::set_y(CSSNumberish value)
     // AD-HOC: WPT expects this to throw for invalid values. https://github.com/w3c/css-houdini-drafts/issues/1153
     auto rectified_y = rectify_a_numberish_value(realm(), value);
     if (!rectified_y->type().matches_number({}))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSScale y component doesn't match <number>"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSScale y component doesn't match <number>"_utf16 };
     m_y = rectified_y;
     return {};
 }
@@ -194,7 +194,7 @@ WebIDL::ExceptionOr<void> CSSScale::set_z(CSSNumberish value)
     // AD-HOC: WPT expects this to throw for invalid values. https://github.com/w3c/css-houdini-drafts/issues/1153
     auto rectified_z = rectify_a_numberish_value(realm(), value);
     if (!rectified_z->type().matches_number({}))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSScale z component doesn't match <number>"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSScale z component doesn't match <number>"_utf16 };
     m_z = rectified_z;
     return {};
 }

@@ -204,7 +204,7 @@ WebIDL::CallbackType* FontFaceSet::onloadingerror()
 }
 
 // https://drafts.csswg.org/css-font-loading/#find-the-matching-font-faces
-static WebIDL::ExceptionOr<GC::Ref<JS::Set>> find_matching_font_faces(JS::Realm& realm, FontFaceSet& font_face_set, String const& font, String const& text)
+static WebIDL::ExceptionOr<GC::Ref<JS::Set>> find_matching_font_faces(JS::Realm& realm, FontFaceSet& font_face_set, Utf16String const& font, Utf16String const& text)
 {
     // 1. Parse font using the CSS value syntax of the font property. If a syntax error occurs, return a syntax error.
     auto property = parse_css_value(CSS::Parser::ParsingParams(), font, PropertyID::Font);
@@ -258,7 +258,7 @@ static WebIDL::ExceptionOr<GC::Ref<JS::Set>> find_matching_font_faces(JS::Realm&
     for (auto font_face_value : *matched_font_faces) {
         auto& font_face = as<FontFace>(font_face_value.as_object());
         bool includes_at_least_one_text_code_point = false;
-        for (auto code_point : text.code_points()) {
+        for (auto code_point : text.utf16_view()) {
             for (auto const& range : font_face.unicode_ranges()) {
                 if (range.contains(code_point)) {
                     includes_at_least_one_text_code_point = true;
@@ -279,7 +279,7 @@ static WebIDL::ExceptionOr<GC::Ref<JS::Set>> find_matching_font_faces(JS::Realm&
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-load
-JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> FontFaceSet::load(String const& font, String const& text)
+JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> FontFaceSet::load(Utf16String font, Utf16String text)
 {
     auto& realm = this->realm();
 
@@ -335,7 +335,7 @@ JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> FontFaceSet::load(String const& 
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-check
-WebIDL::ExceptionOr<bool> FontFaceSet::check(String const& font, String const& text)
+WebIDL::ExceptionOr<bool> FontFaceSet::check(Utf16String const& font, Utf16String const& text)
 {
     // 1. Let font face set be the FontFaceSet object this method was called on.
     GC::Ref font_face_set = *this;
@@ -370,7 +370,7 @@ GC::Ref<WebIDL::Promise> FontFaceSet::ready() const
 }
 
 // https://drafts.csswg.org/css-font-loading/#fire-a-font-load-event
-void FontFaceSet::fire_a_font_load_event(FlyString name, Vector<GC::Ref<FontFace>> font_faces)
+void FontFaceSet::fire_a_font_load_event(Utf16FlyString name, Vector<GC::Ref<FontFace>> font_faces)
 {
     // To fire a font load event named e at a FontFaceSet target with optional font faces means to fire a simple
     // event named e using the FontFaceSetLoadEvent interface that also meets these conditions:
@@ -425,7 +425,7 @@ void FontFaceSet::switch_to_loading()
 
     // 4. Queue a task to fire a font load event named loading at font face set.
     HTML::queue_a_task(HTML::Task::Source::FontLoading, nullptr, nullptr, GC::create_function(realm().heap(), [this] {
-        fire_a_font_load_event("loading"_fly_string);
+        fire_a_font_load_event("loading"_utf16_fly_string);
     }));
 }
 
@@ -454,12 +454,12 @@ void FontFaceSet::switch_to_loaded()
         auto failed_fonts = move(m_failed_fonts);
 
         // 4. Fire a font load event named loadingdone at font face set with loaded fonts.
-        fire_a_font_load_event("loadingdone"_fly_string, move(loaded_fonts));
+        fire_a_font_load_event("loadingdone"_utf16_fly_string, move(loaded_fonts));
 
         // 5. If font face set’s failed fonts is non-empty, fire a font load event named loadingerror at font face set
         //    with failed fonts.
         if (!failed_fonts.is_empty())
-            fire_a_font_load_event("loadingerror"_fly_string, move(failed_fonts));
+            fire_a_font_load_event("loadingerror"_utf16_fly_string, move(failed_fonts));
     }));
 }
 

@@ -43,7 +43,7 @@ void XPathResult::set_number(WebIDL::Double number_value)
     m_result_type = NUMBER_TYPE;
     m_number_value = number_value;
 }
-void XPathResult::set_string(String string_value)
+void XPathResult::set_string(Utf16String string_value)
 {
     m_result_type = STRING_TYPE;
     m_string_value = move(string_value);

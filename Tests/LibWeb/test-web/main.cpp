@@ -979,20 +979,20 @@ static void set_ui_callbacks_for_tests(TestWebView& view, TestRunCapture& test_r
         }
 
         if (add_txt_files) {
-            selected_files.empend("file1"sv, MUST(ByteBuffer::copy("Contents for file1"sv.bytes())));
+            selected_files.empend("file1"_utf16, MUST(ByteBuffer::copy("Contents for file1"sv.bytes())));
 
             if (allow_multiple_files == Web::HTML::AllowMultipleFiles::Yes) {
-                selected_files.empend("file2"sv, MUST(ByteBuffer::copy("Contents for file2"sv.bytes())));
-                selected_files.empend("file3"sv, MUST(ByteBuffer::copy("Contents for file3"sv.bytes())));
-                selected_files.empend("file4"sv, MUST(ByteBuffer::copy("Contents for file4"sv.bytes())));
+                selected_files.empend("file2"_utf16, MUST(ByteBuffer::copy("Contents for file2"sv.bytes())));
+                selected_files.empend("file3"_utf16, MUST(ByteBuffer::copy("Contents for file3"sv.bytes())));
+                selected_files.empend("file4"_utf16, MUST(ByteBuffer::copy("Contents for file4"sv.bytes())));
             }
         }
 
         if (add_cpp_files) {
-            selected_files.empend("file1.cpp"sv, MUST(ByteBuffer::copy("int main() {{ return 1; }}"sv.bytes())));
+            selected_files.empend("file1.cpp"_utf16, MUST(ByteBuffer::copy("int main() {{ return 1; }}"sv.bytes())));
 
             if (allow_multiple_files == Web::HTML::AllowMultipleFiles::Yes) {
-                selected_files.empend("file2.cpp"sv, MUST(ByteBuffer::copy("int main() {{ return 2; }}"sv.bytes())));
+                selected_files.empend("file2.cpp"_utf16, MUST(ByteBuffer::copy("int main() {{ return 2; }}"sv.bytes())));
             }
         }
 

@@ -19,10 +19,10 @@
 namespace {
 
 // https://infra.spec.whatwg.org/#set-append
-inline void append_to_ordered_set(Vector<Utf16String>& set, Utf16String item)
+inline void append_to_ordered_set(Vector<Utf16String>& set, Utf16View item)
 {
     if (!set.contains_slow(item))
-        set.append(move(item));
+        set.append(Utf16String::from_utf16(item));
 }
 
 // https://infra.spec.whatwg.org/#list-remove
@@ -32,37 +32,27 @@ inline void remove_from_ordered_set(Vector<Utf16String>& set, Utf16View item)
 }
 
 // https://infra.spec.whatwg.org/#set-replace
-inline void replace_in_ordered_set(Vector<Utf16String>& set, Utf16String const& item, Utf16String replacement)
+inline void replace_in_ordered_set(Vector<Utf16String>& set, Utf16View item, Utf16View replacement)
 {
-    auto item_index = set.find_first_index(item);
+    auto item_index = set.find_first_index_if([&](auto const& value) { return value == item; });
     VERIFY(item_index.has_value());
 
-    auto replacement_index = set.find_first_index(replacement);
+    auto replacement_index = set.find_first_index_if([&](auto const& value) { return value == replacement; });
     if (!replacement_index.has_value()) {
-        set[*item_index] = move(replacement);
+        set[*item_index] = Utf16String::from_utf16(replacement);
         return;
     }
 
-    auto index_to_set = min(*item_index, *replacement_index);
-    auto index_to_remove = max(*item_index, *replacement_index);
-    if (index_to_set == index_to_remove)
+    if (*item_index == *replacement_index)
         return;
 
-    set[index_to_set] = move(replacement);
-    set.remove(index_to_remove);
-}
-
-bool equals_ignoring_ascii_case(Utf16View string, StringView ascii_string)
-{
-    if (string.length_in_code_units() != ascii_string.length())
-        return false;
-
-    for (size_t i = 0; i < string.length_in_code_units(); ++i) {
-        if (AK::to_ascii_lowercase(string.code_unit_at(i)) != AK::to_ascii_lowercase(ascii_string[i]))
-            return false;
+    if (*replacement_index < *item_index) {
+        set.remove(*item_index);
+        return;
     }
 
-    return true;
+    set[*item_index] = move(set[*replacement_index]);
+    set.remove(*replacement_index);
 }
 
 }
@@ -89,7 +79,7 @@ DOMTokenList::DOMTokenList(Element& associated_element, Utf16FlyString associate
     // 1. Let element be set’s element.
     // 2. Let attributeName be set’s attribute name.
     // 3. Let value be the result of getting an attribute value given element and attributeName.
-    auto value = m_associated_element->get_attribute_value(m_associated_attribute);
+    auto value = m_associated_element->get_attribute_value_view(m_associated_attribute).value_or({});
 
     // 4. Run the attribute change steps for element, attributeName, value, value, and null.
     associated_attribute_changed(value);
@@ -117,7 +107,7 @@ size_t DOMTokenList::external_memory_size() const
 }
 
 // https://dom.spec.whatwg.org/#ref-for-domtokenlist%E2%91%A0%E2%91%A1
-void DOMTokenList::associated_attribute_changed(Utf16String const& value)
+void DOMTokenList::associated_attribute_changed(Utf16View value)
 {
     // 1. If localName is set’s attribute name, namespace is null, and value is null, then empty token set.
     // 2. Otherwise, if localName is set’s attribute name and namespace is null, then set set’s token set to value,
@@ -141,9 +131,17 @@ Optional<Utf16String> DOMTokenList::item(size_t index) const
 }
 
 // https://dom.spec.whatwg.org/#dom-domtokenlist-contains
-bool DOMTokenList::contains(Utf16String const& token)
+bool DOMTokenList::contains(Utf16View token)
 {
     return m_token_set.contains_slow(token);
+}
+
+WebIDL::ExceptionOr<void> DOMTokenList::add(Utf16View token)
+{
+    TRY(validate_token(token));
+    append_to_ordered_set(m_token_set, token);
+    run_update_steps();
+    return {};
 }
 
 // https://dom.spec.whatwg.org/#dom-domtokenlist-add
@@ -160,6 +158,14 @@ WebIDL::ExceptionOr<void> DOMTokenList::add(Vector<Utf16String> const& tokens)
     }
 
     // 3. Run the update steps.
+    run_update_steps();
+    return {};
+}
+
+WebIDL::ExceptionOr<void> DOMTokenList::remove(Utf16View token)
+{
+    TRY(validate_token(token));
+    remove_from_ordered_set(m_token_set, token);
     run_update_steps();
     return {};
 }
@@ -183,7 +189,7 @@ WebIDL::ExceptionOr<void> DOMTokenList::remove(Vector<Utf16String> const& tokens
 }
 
 // https://dom.spec.whatwg.org/#dom-domtokenlist-toggle
-WebIDL::ExceptionOr<bool> DOMTokenList::toggle(Utf16String const& token, Optional<bool> force)
+WebIDL::ExceptionOr<bool> DOMTokenList::toggle(Utf16View token, Optional<bool> force)
 {
     // 1. If token is the empty string, then throw a "SyntaxError" DOMException.
     // 2. If token contains any ASCII whitespace, then throw an "InvalidCharacterError" DOMException.
@@ -214,7 +220,7 @@ WebIDL::ExceptionOr<bool> DOMTokenList::toggle(Utf16String const& token, Optiona
 }
 
 // https://dom.spec.whatwg.org/#dom-domtokenlist-replace
-WebIDL::ExceptionOr<bool> DOMTokenList::replace(Utf16String const& token, Utf16String const& new_token)
+WebIDL::ExceptionOr<bool> DOMTokenList::replace(Utf16View token, Utf16View new_token)
 {
     // 1. If either token or newToken is the empty string, then throw a "SyntaxError" DOMException.
     TRY(validate_token_not_empty(token));
@@ -239,7 +245,7 @@ WebIDL::ExceptionOr<bool> DOMTokenList::replace(Utf16String const& token, Utf16S
 }
 
 // https://dom.spec.whatwg.org/#dom-domtokenlist-supports
-WebIDL::ExceptionOr<bool> DOMTokenList::supports(Utf16String const& token)
+WebIDL::ExceptionOr<bool> DOMTokenList::supports(Utf16View token)
 {
     // 1. Let result be the return value of validation steps called with token.
     auto result = run_validation_steps(token);
@@ -251,31 +257,31 @@ WebIDL::ExceptionOr<bool> DOMTokenList::supports(Utf16String const& token)
 // https://dom.spec.whatwg.org/#concept-domtokenlist-validation
 WebIDL::ExceptionOr<bool> DOMTokenList::run_validation_steps(Utf16View token)
 {
-    static NeverDestroyed<HashMap<SupportedTokenKey, Vector<StringView>>> supported_tokens_map { HashMap<SupportedTokenKey, Vector<StringView>> {
+    static NeverDestroyed<HashMap<SupportedTokenKey, Vector<Utf16View>>> supported_tokens_map { HashMap<SupportedTokenKey, Vector<Utf16View>> {
         // https://html.spec.whatwg.org/multipage/links.html#linkTypes
         { { HTML::TagNames::link, HTML::AttributeNames::rel },
-            { "modulepreload"sv, "preload"sv, "preconnect"sv, "dns-prefetch"sv, "stylesheet"sv, "icon"sv, "alternate"sv, "prefetch"sv, "prerender"sv, "next"sv, "manifest"sv, "apple-touch-icon"sv, "apple-touch-icon-precomposed"sv, "canonical"sv } },
+            { u"modulepreload"sv, u"preload"sv, u"preconnect"sv, u"dns-prefetch"sv, u"stylesheet"sv, u"icon"sv, u"alternate"sv, u"prefetch"sv, u"prerender"sv, u"next"sv, u"manifest"sv, u"apple-touch-icon"sv, u"apple-touch-icon-precomposed"sv, u"canonical"sv } },
         { { HTML::TagNames::a, HTML::AttributeNames::rel },
-            { "noreferrer"sv, "noopener"sv, "opener"sv } },
+            { u"noreferrer"sv, u"noopener"sv, u"opener"sv } },
         { { HTML::TagNames::area, HTML::AttributeNames::rel },
-            { "noreferrer"sv, "noopener"sv, "opener"sv } },
+            { u"noreferrer"sv, u"noopener"sv, u"opener"sv } },
         { { HTML::TagNames::form, HTML::AttributeNames::rel },
-            { "noreferrer"sv, "noopener"sv, "opener"sv } },
+            { u"noreferrer"sv, u"noopener"sv, u"opener"sv } },
 
         // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#attr-iframe-sandbox
         { { HTML::TagNames::iframe, HTML::AttributeNames::sandbox },
-            { "allow-downloads"sv, "allow-forms"sv, "allow-modals"sv, "allow-orientation-lock"sv, "allow-pointer-lock"sv, "allow-popups"sv, "allow-popups-to-escape-sandbox"sv, "allow-presentation"sv, "allow-same-origin"sv, "allow-scripts"sv, "allow-top-navigation"sv, "allow-top-navigation-by-user-activation"sv, "allow-top-navigation-to-custom-protocols"sv } },
+            { u"allow-downloads"sv, u"allow-forms"sv, u"allow-modals"sv, u"allow-orientation-lock"sv, u"allow-pointer-lock"sv, u"allow-popups"sv, u"allow-popups-to-escape-sandbox"sv, u"allow-presentation"sv, u"allow-same-origin"sv, u"allow-scripts"sv, u"allow-top-navigation"sv, u"allow-top-navigation-by-user-activation"sv, u"allow-top-navigation-to-custom-protocols"sv } },
     } };
 
     // 1. If set’s element and attribute name does not define supported tokens, then throw a TypeError.
     auto supported_tokens = supported_tokens_map->get({ m_associated_element->local_name(), m_associated_attribute });
     if (!supported_tokens.has_value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Attribute {} does not define any supported tokens", m_associated_attribute)) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("Attribute {} does not define any supported tokens", m_associated_attribute) };
 
     // 2. Let lowercaseToken be token, in ASCII lowercase.
     // 3. If lowercaseToken is present in the supported tokens of set’s element and attribute name, then return true.
     for (auto supported_token : *supported_tokens) {
-        if (equals_ignoring_ascii_case(token, supported_token))
+        if (token.equals_ignoring_ascii_case(supported_token))
             return true;
     }
 
@@ -295,7 +301,7 @@ Vector<Utf16String> DOMTokenList::parse_ordered_set(Utf16View input) const
     for (size_t i = 0; i < input.length_in_code_units(); ++i) {
         if (Infra::is_ascii_whitespace(input.code_unit_at(i))) {
             if (token_start.has_value()) {
-                append_to_ordered_set(tokens, Utf16String::from_utf16(input.substring_view(*token_start, i - *token_start)));
+                append_to_ordered_set(tokens, input.substring_view(*token_start, i - *token_start));
                 token_start.clear();
             }
             continue;
@@ -305,7 +311,7 @@ Vector<Utf16String> DOMTokenList::parse_ordered_set(Utf16View input) const
             token_start = i;
     }
     if (token_start.has_value())
-        append_to_ordered_set(tokens, Utf16String::from_utf16(input.substring_view(*token_start)));
+        append_to_ordered_set(tokens, input.substring_view(*token_start));
 
     // 4. Return tokens.
     return tokens;
@@ -331,7 +337,7 @@ Utf16String DOMTokenList::value() const
 }
 
 // https://dom.spec.whatwg.org/#ref-for-concept-element-attributes-set-value%E2%91%A2
-void DOMTokenList::set_value(Utf16String const& value)
+void DOMTokenList::set_value(Utf16View value)
 {
     GC::Ptr<DOM::Element> associated_element = m_associated_element.ptr();
     if (!associated_element)

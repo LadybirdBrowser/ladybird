@@ -4,11 +4,11 @@ typedef sequence<ClipboardItem> ClipboardItems;
 [SecureContext, Exposed=Window]
 interface Clipboard : EventTarget {
     Promise<ClipboardItems> read(optional ClipboardUnsanitizedFormats formats = {});
-    Promise<DOMString> readText();
+    Promise<Utf16DOMString> readText();
     Promise<undefined> write(ClipboardItems data);
-    Promise<undefined> writeText(DOMString data);
+    Promise<undefined> writeText(Utf16DOMString data);
 };
 
 dictionary ClipboardUnsanitizedFormats {
-    sequence<DOMString> unsanitized;
+    sequence<Utf16DOMString> unsanitized;
 };

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <AK/WeakPtr.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/QualifiedName.h>
@@ -35,7 +36,9 @@ public:
 
     Utf16String const& value() const { return m_value; }
     WebIDL::ExceptionOr<void> set_value(Utf16String value);
+    WebIDL::ExceptionOr<void> set_value(Utf16View value) { return set_value(Utf16String::from_utf16(value)); }
     void change_attribute(Utf16String value);
+    void change_attribute(Utf16View value) { change_attribute(Utf16String::from_utf16(value)); }
 
     Element* owner_element();
     Element const* owner_element() const;

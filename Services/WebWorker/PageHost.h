@@ -39,7 +39,7 @@ public:
     virtual HTTP::Cookie::VersionedCookie page_did_request_cookie(URL::URL const&, HTTP::Cookie::Source) override;
     virtual void page_did_store_hsts_policy(String const&, HTTP::HSTS::ParsedHSTSPolicy const&) override;
     virtual bool page_did_is_known_hsts_host(String const&) override;
-    virtual void page_did_report_worker_exception(String const& message, String const& filename, u32 lineno, u32 colno) override;
+    virtual void page_did_report_worker_exception(Utf16String const& message, Utf16String const& filename, u32 lineno, u32 colno) override;
     virtual void page_did_post_broadcast_channel_message(Web::HTML::BroadcastChannelMessage const& message) override;
     virtual void request_file(Web::FileRequest) override;
     virtual Web::HTML::WorkerAgentId start_worker_agent(Web::HTML::WorkerAgentStartRequest&&) override;

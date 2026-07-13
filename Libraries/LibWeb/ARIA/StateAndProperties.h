@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <LibWeb/ARIA/ARIAMixin.h>
 #include <LibWeb/ARIA/RoleType.h>
 
@@ -69,12 +70,12 @@ enum class StateAndProperties {
 };
 
 using DefaultValueType = Variant<Empty, f64, AriaOrientation, AriaLive, bool, AriaHasPopup>;
-ErrorOr<String> state_or_property_to_string_value(StateAndProperties, AriaData const&, DefaultValueType = {});
-ErrorOr<String> tristate_to_string(Tristate);
-ErrorOr<String> optional_integer_to_string(Optional<i32>);
-ErrorOr<String> optional_bool_to_string(Optional<bool>);
-ErrorOr<String> optional_number_to_string(Optional<f64>);
-ErrorOr<String> id_reference_list_to_string(Vector<Utf16String> const&);
-StringView state_or_property_to_string(StateAndProperties);
+ErrorOr<Utf16String> state_or_property_to_string_value(StateAndProperties, AriaData const&, DefaultValueType = {});
+ErrorOr<Utf16String> tristate_to_string(Tristate);
+ErrorOr<Utf16String> optional_integer_to_string(Optional<i32>);
+ErrorOr<Utf16String> optional_bool_to_string(Optional<bool>);
+ErrorOr<Utf16String> optional_number_to_string(Optional<f64>);
+ErrorOr<Utf16String> id_reference_list_to_string(Vector<Utf16String> const&);
+Utf16View state_or_property_to_string(StateAndProperties);
 
 }

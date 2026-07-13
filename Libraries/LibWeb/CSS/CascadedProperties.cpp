@@ -44,7 +44,7 @@ void CascadedProperties::revert_property(PropertyID property_id, Important impor
     }
 }
 
-void CascadedProperties::revert_layer_property(PropertyID property_id, Important important, CascadeOrigin cascade_origin, Optional<FlyString> layer_name, GC::Ptr<DOM::ShadowRoot const> source_shadow_root)
+void CascadedProperties::revert_layer_property(PropertyID property_id, Important important, CascadeOrigin cascade_origin, Optional<Utf16FlyString> layer_name, GC::Ptr<DOM::ShadowRoot const> source_shadow_root)
 {
     auto it = m_properties.find(property_id);
     if (it == m_properties.end())
@@ -63,7 +63,7 @@ void CascadedProperties::revert_layer_property(PropertyID property_id, Important
     }
 }
 
-void CascadedProperties::set_property(PropertyID property_id, NonnullRefPtr<StyleValue const> value, Important important, CascadeOrigin origin, Optional<FlyString> layer_name, GC::Ptr<CSS::CSSStyleDeclaration const> source, GC::Ptr<DOM::ShadowRoot const> source_shadow_root)
+void CascadedProperties::set_property(PropertyID property_id, NonnullRefPtr<StyleValue const> value, Important important, CascadeOrigin origin, Optional<Utf16FlyString> layer_name, GC::Ptr<CSS::CSSStyleDeclaration const> source, GC::Ptr<DOM::ShadowRoot const> source_shadow_root)
 {
     m_contained_properties_cache.set(to_underlying(property_id), true);
 

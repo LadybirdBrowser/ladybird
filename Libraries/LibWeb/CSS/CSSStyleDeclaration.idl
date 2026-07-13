@@ -1,16 +1,16 @@
 // https://drafts.csswg.org/cssom/#cssstyledeclaration
 [Exposed=Window]
 interface CSSStyleDeclaration {
-    [CEReactions] attribute CSSOMString cssText;
+    [CEReactions] attribute Utf16CSSOMString cssText;
 
     readonly attribute unsigned long length;
-    getter CSSOMString item(unsigned long index);
+    getter Utf16CSSOMString item(unsigned long index);
 
-    CSSOMString getPropertyValue(Utf16CSSOMString property);
-    CSSOMString getPropertyPriority(Utf16CSSOMString property);
+    Utf16CSSOMString getPropertyValue(Utf16CSSOMString property);
+    Utf16CSSOMString getPropertyPriority(Utf16CSSOMString property);
 
-    [CEReactions] undefined setProperty(Utf16CSSOMString property, [LegacyNullToEmptyString] CSSOMString value, optional [LegacyNullToEmptyString] CSSOMString priority = "");
-    [CEReactions] CSSOMString removeProperty(Utf16CSSOMString property);
+    [CEReactions] undefined setProperty(Utf16CSSOMString property, [LegacyNullToEmptyString] Utf16CSSOMString value, optional [LegacyNullToEmptyString] Utf16CSSOMString priority = "");
+    [CEReactions] Utf16CSSOMString removeProperty(Utf16CSSOMString property);
 
     readonly attribute CSSRule? parentRule;
 };

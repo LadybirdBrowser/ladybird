@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/Function.h>
+#include <AK/Utf16View.h>
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/Layout/FormattingContext.h>
 #include <LibWeb/Layout/GridLayoutData.h>
@@ -327,7 +328,7 @@ private:
 
     AvailableSize get_free_space(AvailableSpace const&, GridDimension) const;
 
-    Optional<int> get_nth_line_index_by_line_name(GridDimension dimension, String const&, int line_number);
+    Optional<int> get_nth_line_index_by_line_name(GridDimension dimension, Utf16View, int line_number);
     CSSPixels resolve_definite_track_size(CSS::GridSize const&, AvailableSpace const&) const;
     int count_of_repeated_auto_fill_or_fit_tracks(GridDimension, CSS::ExplicitGridTrack const& repeated_track);
 

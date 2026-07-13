@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="root"><span id="target"></span></div>
+<script>
+    test(() => {
+        const root = document.getElementById("root");
+        const target = document.getElementById("target");
+
+        const before = document.createElement("span");
+        before.id = "before";
+        println(target.insertAdjacentElement("beforebegin", before).id);
+
+        const afterBegin = document.createElement("span");
+        afterBegin.id = "after-begin";
+        println(target.insertAdjacentElement("afterbegin", afterBegin).id);
+
+        const beforeEnd = document.createElement("span");
+        beforeEnd.id = "before-end";
+        println(target.insertAdjacentElement("beforeend", beforeEnd).id);
+
+        const after = document.createElement("span");
+        after.id = "after";
+        println(target.insertAdjacentElement("afterend", after).id);
+
+        target.insertAdjacentText("BEFOREEND", "text");
+        target.insertAdjacentHTML("AfTeReNd", "<span id='after-html'></span>");
+
+        println(Array.from(root.children).map(element => element.id).join(","));
+        println(Array.from(target.childNodes).map(node => node.id || node.data).join(","));
+
+        try {
+            target.insertAdjacentElement("during", document.createElement("span"));
+        } catch (e) {
+            println(e.name);
+        }
+
+        const detached = document.createElement("div");
+        println(detached.insertAdjacentElement("beforebegin", document.createElement("span")));
+    });
+</script>

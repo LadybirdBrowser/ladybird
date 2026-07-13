@@ -48,14 +48,14 @@ void CSSStyleDeclaration::update_style_attribute()
     set_is_updating(true);
 
     // 5. Set an attribute value for owner node using "style" and the result of serializing declaration block.
-    owner_node()->element().set_attribute_value(HTML::AttributeNames::style, Utf16String::from_utf8(serialized()));
+    owner_node()->element().set_attribute_value(HTML::AttributeNames::style, serialized());
 
     // 6. Unset declaration block’s updating flag.
     set_is_updating(false);
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-csstext
-String CSSStyleDeclaration::css_text() const
+Utf16String CSSStyleDeclaration::css_text() const
 {
     // 1. If the computed flag is set, then return the empty string.
     if (is_computed())

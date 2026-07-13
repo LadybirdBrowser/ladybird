@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Utf16View.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/EncryptedMediaExtensions/EncryptedMediaExtensions.h>
 #include <LibWeb/WebIDL/Types.h>
@@ -50,8 +51,8 @@ Bindings::MediaCapabilitiesDecodingInfo create_a_media_capabilities_decoding_inf
 bool is_able_to_decode_media(Bindings::MediaDecodingConfiguration);
 
 // https://w3c.github.io/media-capabilities/#valid-audio-mime-type
-bool is_valid_audio_mime_type(StringView);
+bool is_valid_audio_mime_type(Utf16View);
 // https://w3c.github.io/media-capabilities/#valid-video-mime-type
-bool is_valid_video_mime_type(StringView);
+bool is_valid_video_mime_type(Utf16View);
 
 }

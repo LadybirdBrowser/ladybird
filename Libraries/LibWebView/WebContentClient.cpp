@@ -471,7 +471,7 @@ void WebContentClient::did_present_bitmap(u64 page_id, Gfx::IntRect rect, Gfx::I
     }
 }
 
-void WebContentClient::did_request_new_process_for_navigation(u64 page_id, URL::URL url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, Web::Bindings::NavigationHistoryBehavior history_handling)
+void WebContentClient::did_request_new_process_for_navigation(u64 page_id, URL::URL url, Web::HTML::DocumentResource document_resource, Web::Bindings::NavigationHistoryBehavior history_handling)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
         view->create_new_process_for_cross_site_navigation(url, move(document_resource), history_handling);
@@ -482,7 +482,7 @@ Messages::WebContentClient::DecideNavigationProcessResponse WebContentClient::de
     return SiteIsolationManager::the().decide_navigation_process(*this, page_id, move(frame_id), move(current_url), move(target_url), target);
 }
 
-void WebContentClient::did_request_new_process_for_child_frame_navigation(u64 page_id, Web::HTML::CrossProcessId frame_id, URL::URL url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, Web::Bindings::NavigationHistoryBehavior history_handling)
+void WebContentClient::did_request_new_process_for_child_frame_navigation(u64 page_id, Web::HTML::CrossProcessId frame_id, URL::URL url, Web::HTML::DocumentResource document_resource, Web::Bindings::NavigationHistoryBehavior history_handling)
 {
     auto child_frame = this->child_frame(page_id, frame_id);
     if (!child_frame.has_value())
@@ -587,7 +587,7 @@ void WebContentClient::maybe_record_history_visit_for_current_load(u64 page_id, 
     m_history_recorded_urls_for_current_load.set(page_id, normalized_url.release_value());
 }
 
-void WebContentClient::did_start_loading(u64 page_id, Optional<String> navigation_id, URL::URL url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, bool is_redirect, Web::Bindings::NavigationHistoryBehavior history_handling)
+void WebContentClient::did_start_loading(u64 page_id, Optional<Utf16String> navigation_id, URL::URL url, Web::HTML::DocumentResource document_resource, bool is_redirect, Web::Bindings::NavigationHistoryBehavior history_handling)
 {
     if (auto process = WebView::Application::the().find_process(m_process_handle.pid); process.has_value())
         process->set_title(OptionalNone {});
@@ -622,7 +622,7 @@ void WebContentClient::did_start_loading(u64 page_id, Optional<String> navigatio
     }
 }
 
-void WebContentClient::did_cancel_loading(u64 page_id, Optional<String> navigation_id, URL::URL url)
+void WebContentClient::did_cancel_loading(u64 page_id, Optional<Utf16String> navigation_id, URL::URL url)
 {
     m_history_recorded_urls_for_current_load.remove(page_id);
 
@@ -711,7 +711,7 @@ void WebContentClient::did_fail_download(u64 page_id, u64 download_id, String er
     Application::the().file_downloader().fail_download(download_id, move(error));
 }
 
-void WebContentClient::did_finish_loading(u64 page_id, Optional<String> navigation_id, URL::URL url)
+void WebContentClient::did_finish_loading(u64 page_id, Optional<Utf16String> navigation_id, URL::URL url)
 {
     if (url.scheme() == "about"sv && url.paths().size() == 1) {
         if (auto web_ui = WebUI::create(*this, page_id, url.paths().first()); web_ui.is_error())
@@ -933,10 +933,10 @@ void WebContentClient::did_request_media_context_menu(u64 page_id, Gfx::IntPoint
         view->did_request_media_context_menu({}, content_position, move(menu));
 }
 
-void WebContentClient::did_get_source(u64, URL::URL url, URL::URL base_url, String source)
+void WebContentClient::did_get_source(u64, URL::URL url, URL::URL base_url, Utf16String source)
 {
     if (auto view = Application::the().open_blank_new_tab(Web::HTML::ActivateTab::Yes); view.has_value()) {
-        auto html = highlight_source(url, base_url, source, Syntax::Language::HTML);
+        auto html = highlight_source(url, base_url, source.to_utf8(), Syntax::Language::HTML);
         view->load_html(html);
     }
 }
@@ -1126,7 +1126,7 @@ void WebContentClient::did_list_style_sheets(u64 page_id, Vector<Web::CSS::Style
     }
 }
 
-void WebContentClient::did_get_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier identifier, URL::URL base_url, String source)
+void WebContentClient::did_get_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier identifier, URL::URL base_url, Utf16String source)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_received_style_sheet_source)
@@ -1229,7 +1229,7 @@ void WebContentClient::did_finish_network_request(u64 page_id, u64 request_id, u
     }
 }
 
-void WebContentClient::did_request_alert(u64 page_id, String message)
+void WebContentClient::did_request_alert(u64 page_id, Utf16String message)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_request_alert)
@@ -1237,7 +1237,7 @@ void WebContentClient::did_request_alert(u64 page_id, String message)
     }
 }
 
-void WebContentClient::did_request_confirm(u64 page_id, String message)
+void WebContentClient::did_request_confirm(u64 page_id, Utf16String message)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_request_confirm)
@@ -1245,7 +1245,7 @@ void WebContentClient::did_request_confirm(u64 page_id, String message)
     }
 }
 
-void WebContentClient::did_request_prompt(u64 page_id, String message, String default_)
+void WebContentClient::did_request_prompt(u64 page_id, Utf16String message, Utf16String default_)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_request_prompt)
@@ -1253,7 +1253,7 @@ void WebContentClient::did_request_prompt(u64 page_id, String message, String de
     }
 }
 
-void WebContentClient::did_request_set_prompt_text(u64 page_id, String message)
+void WebContentClient::did_request_set_prompt_text(u64 page_id, Utf16String message)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_request_set_prompt_text)
@@ -1358,17 +1358,17 @@ Messages::WebContentClient::DidIsKnownHstsHostResponse WebContentClient::did_is_
     return Application::hsts_store(m_is_private).is_known_hsts_host(domain);
 }
 
-Messages::WebContentClient::DidRequestStorageItemResponse WebContentClient::did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, String bottle_key)
+Messages::WebContentClient::DidRequestStorageItemResponse WebContentClient::did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key)
 {
     return Application::storage_jar(m_is_private).get_item(storage_endpoint, storage_key, bottle_key);
 }
 
-Messages::WebContentClient::DidSetStorageItemResponse WebContentClient::did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, String bottle_key, String value)
+Messages::WebContentClient::DidSetStorageItemResponse WebContentClient::did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key, Utf16String value)
 {
     return Application::storage_jar(m_is_private).set_item(storage_endpoint, storage_key, bottle_key, value);
 }
 
-void WebContentClient::did_remove_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, String bottle_key)
+void WebContentClient::did_remove_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key)
 {
     Application::storage_jar(m_is_private).remove_item(storage_endpoint, storage_key, bottle_key);
 }
@@ -1388,7 +1388,7 @@ Messages::WebContentClient::DidRequestStorageUsageResponse WebContentClient::did
     return Application::storage_jar(m_is_private).usage(storage_key);
 }
 
-void WebContentClient::did_change_storage_item(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String url, Optional<String> key, Optional<String> old_value, Optional<String> new_value)
+void WebContentClient::did_change_storage_item(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String url, Optional<Utf16String> key, Optional<Utf16String> old_value, Optional<Utf16String> new_value)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         auto host = DevTools::storage_host_for_url(url);
@@ -1409,7 +1409,7 @@ void WebContentClient::did_change_storage_item(u64 page_id, Web::StorageAPI::Sto
             .storage_endpoint = storage_endpoint,
             .host = host.release_value(),
             .type = type,
-            .key = move(key),
+            .key = key.has_value() ? Optional<String> { key->to_utf8() } : Optional<String> {},
         });
     }
 }

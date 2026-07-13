@@ -6,7 +6,7 @@ interface HTMLOListElement : HTMLElement {
 
     [CEReactions, Reflect] attribute boolean reversed;
     [CEReactions] attribute long start;
-    [CEReactions, Reflect] attribute DOMString type;
+    [CEReactions, Reflect] attribute Utf16DOMString type;
 
     // Obsolete
     [CEReactions, Reflect] attribute boolean compact;

@@ -50,8 +50,8 @@ public:
     bool is_modal() const { return m_is_modal; }
     void set_is_modal(bool);
 
-    bool is_valid_command(Utf16String const&) override;
-    void command_steps(DOM::Element&, Utf16String const&) override;
+    bool is_valid_command(Utf16View) override;
+    void command_steps(DOM::Element&, Utf16View) override;
 
 private:
     HTMLDialogElement(DOM::Document&, DOM::QualifiedName);
@@ -62,7 +62,7 @@ private:
     virtual void inserted() override;
     virtual void attribute_changed(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
-    void queue_a_dialog_toggle_event_task(String old_state, String new_state, GC::Ptr<DOM::Element> source);
+    void queue_a_dialog_toggle_event_task(Utf16FlyString old_state, Utf16FlyString new_state, GC::Ptr<DOM::Element> source);
 
     void run_dialog_setup_steps();
     void run_dialog_cleanup_steps();

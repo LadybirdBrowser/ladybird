@@ -8,8 +8,8 @@
 #pragma once
 
 #include <AK/Optional.h>
-#include <AK/String.h>
-#include <AK/StringView.h>
+#include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <LibIPC/Forward.h>
 
 namespace Web::HTML {
@@ -21,8 +21,8 @@ enum class EmbedderPolicyValue : u8 {
     Credentialless,
 };
 
-StringView embedder_policy_value_to_string(EmbedderPolicyValue);
-Optional<EmbedderPolicyValue> embedder_policy_value_from_string(StringView);
+Utf16View embedder_policy_value_to_string(EmbedderPolicyValue);
+Optional<EmbedderPolicyValue> embedder_policy_value_from_string(Utf16View);
 
 // https://html.spec.whatwg.org/multipage/browsers.html#embedder-policy
 struct EmbedderPolicy {
@@ -36,11 +36,11 @@ struct EmbedderPolicy {
 
     // https://html.spec.whatwg.org/multipage/browsers.html#embedder-policy-reporting-endpoint
     // A reporting endpoint string, initially the empty string.
-    String reporting_endpoint;
+    Utf16String reporting_endpoint;
 
     // https://html.spec.whatwg.org/multipage/browsers.html#embedder-policy-report-only-reporting-endpoint
     // A report only reporting endpoint string, initially the empty string.
-    String report_only_reporting_endpoint;
+    Utf16String report_only_reporting_endpoint;
 };
 
 }

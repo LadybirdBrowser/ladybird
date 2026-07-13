@@ -17,7 +17,7 @@ class NavigationCurrentEntryChangeEvent final : public DOM::Event {
     GC_DECLARE_ALLOCATOR(NavigationCurrentEntryChangeEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<NavigationCurrentEntryChangeEvent> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::NavigationCurrentEntryChangeEventInit const&);
+    [[nodiscard]] static GC::Ref<NavigationCurrentEntryChangeEvent> construct_impl(JS::Realm&, Utf16FlyString const& event_name, Bindings::NavigationCurrentEntryChangeEventInit const&);
 
     virtual ~NavigationCurrentEntryChangeEvent() override;
 
@@ -25,7 +25,7 @@ public:
     GC::Ref<NavigationHistoryEntry> from() const { return m_from; }
 
 private:
-    NavigationCurrentEntryChangeEvent(JS::Realm&, FlyString const& event_name, Bindings::NavigationCurrentEntryChangeEventInit const& event_init);
+    NavigationCurrentEntryChangeEvent(JS::Realm&, Utf16FlyString const& event_name, Bindings::NavigationCurrentEntryChangeEventInit const& event_init);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

@@ -151,7 +151,7 @@ public:
     virtual void resolve_dom_node_url(TabDescription const&, Optional<Web::UniqueNodeID>, String const&, OnResolvedURLReceived) const { }
 
     using OnStyleSheetsReceived = Function<void(ErrorOr<Vector<Web::CSS::StyleSheetIdentifier>>)>;
-    using OnStyleSheetSourceReceived = Function<void(Web::CSS::StyleSheetIdentifier const&, String)>;
+    using OnStyleSheetSourceReceived = Function<void(Web::CSS::StyleSheetIdentifier const&, Utf16String)>;
     virtual void retrieve_style_sheets(TabDescription const&, OnStyleSheetsReceived) const { }
     virtual void retrieve_style_sheet_source(TabDescription const&, Web::CSS::StyleSheetIdentifier const&) const { }
     virtual void listen_for_style_sheet_sources(TabDescription const&, OnStyleSheetSourceReceived) const { }

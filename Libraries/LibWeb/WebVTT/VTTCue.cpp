@@ -13,7 +13,7 @@ namespace Web::WebVTT {
 GC_DEFINE_ALLOCATOR(VTTCue);
 
 // https://w3c.github.io/webvtt/#dom-vttcue-vttcue
-WebIDL::ExceptionOr<GC::Ref<VTTCue>> VTTCue::construct_impl(JS::Realm& realm, double start_time, double end_time, String const& text)
+WebIDL::ExceptionOr<GC::Ref<VTTCue>> VTTCue::construct_impl(JS::Realm& realm, double start_time, double end_time, Utf16String const& text)
 {
     // 1. Create a new WebVTT cue. Let cue be that WebVTT cue.
     auto cue = realm.create<VTTCue>(realm, nullptr);
@@ -24,7 +24,7 @@ WebIDL::ExceptionOr<GC::Ref<VTTCue>> VTTCue::construct_impl(JS::Realm& realm, do
     // 3. If the value of the endTime argument is negative Infinity or a Not-a-Number (NaN) value, then throw a TypeError exception.
     //    Otherwise, let cue’s text track cue end time be the value of the endTime argument.
     if (end_time == -AK::Infinity<double> || isnan(end_time))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "End time is negative infinity or NaN"_string };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "End time is negative infinity or NaN"_utf16 };
     cue->m_end_time = end_time;
 
     // 4. Let cue’s cue text be the value of the text argument, and let the rules for extracting the chapter title be the WebVTT rules
@@ -33,7 +33,7 @@ WebIDL::ExceptionOr<GC::Ref<VTTCue>> VTTCue::construct_impl(JS::Realm& realm, do
     // FIXME: let the rules for extracting the chapter title be the WebVTT rules for extracting the chapter title.
 
     // 5. Let cue’s text track cue identifier be the empty string.
-    cue->m_identifier = ""_string;
+    cue->m_identifier = {};
 
     // 6. Let cue’s text track cue pause-on-exit flag be false.
     cue->m_pause_on_exit = false;

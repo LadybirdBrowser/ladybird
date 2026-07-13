@@ -1,7 +1,7 @@
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#the-navigationcurrententrychangeevent-interface
 [Exposed=Window]
 interface NavigationCurrentEntryChangeEvent : Event {
-    constructor(DOMString type, NavigationCurrentEntryChangeEventInit eventInitDict);
+    constructor([Utf16FlyString] Utf16DOMString type, NavigationCurrentEntryChangeEventInit eventInitDict);
 
     readonly attribute NavigationType? navigationType;
     readonly attribute NavigationHistoryEntry from;

@@ -25,16 +25,16 @@ CanvasPattern::CanvasPattern(JS::Realm& realm, Gfx::CanvasPatternPaintStyle& pat
 CanvasPattern::~CanvasPattern() = default;
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createpattern
-WebIDL::ExceptionOr<GC::Ptr<CanvasPattern>> CanvasPattern::create(JS::Realm& realm, CanvasImageSource const& image, StringView repetition)
+WebIDL::ExceptionOr<GC::Ptr<CanvasPattern>> CanvasPattern::create(JS::Realm& realm, CanvasImageSource const& image, Utf16FlyString const& repetition)
 {
     auto parse_repetition = [&](auto value) -> Optional<Gfx::CanvasPatternPaintStyle::Repetition> {
-        if (value == "repeat"sv)
+        if (value == u"repeat"sv)
             return Gfx::CanvasPatternPaintStyle::Repetition::Repeat;
-        if (value == "repeat-x"sv)
+        if (value == u"repeat-x"sv)
             return Gfx::CanvasPatternPaintStyle::Repetition::RepeatX;
-        if (value == "repeat-y"sv)
+        if (value == u"repeat-y"sv)
             return Gfx::CanvasPatternPaintStyle::Repetition::RepeatY;
-        if (value == "no-repeat"sv)
+        if (value == u"no-repeat"sv)
             return Gfx::CanvasPatternPaintStyle::Repetition::NoRepeat;
         return {};
     };
@@ -50,12 +50,11 @@ WebIDL::ExceptionOr<GC::Ptr<CanvasPattern>> CanvasPattern::create(JS::Realm& rea
     VERIFY(usability == CanvasImageSourceUsability::Good);
 
     // 4. If repetition is the empty string, then set it to "repeat".
-    if (repetition.is_empty())
-        repetition = "repeat"sv;
+    auto repetition_or_default = repetition.is_empty() ? "repeat"_utf16_fly_string : repetition;
 
     // 5. If repetition is not identical to one of "repeat", "repeat-x", "repeat-y", or "no-repeat",
     // then throw a "SyntaxError" DOMException.
-    auto repetition_value = parse_repetition(repetition);
+    auto repetition_value = parse_repetition(repetition_or_default);
     if (!repetition_value.has_value())
         return WebIDL::SyntaxError::create(realm, "Repetition value is not valid"_utf16);
 

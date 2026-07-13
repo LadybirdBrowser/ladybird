@@ -22,8 +22,8 @@ template<>
 ErrorOr<Web::HTML::POSTResource::Directive> decode(Decoder& decoder)
 {
     return Web::HTML::POSTResource::Directive {
-        .type = TRY(decoder.decode<String>()),
-        .value = TRY(decoder.decode<String>()),
+        .type = TRY(decoder.decode<Utf16String>()),
+        .value = TRY(decoder.decode<Utf16String>()),
     };
 }
 

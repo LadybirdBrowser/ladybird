@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Utf16StringBuilder.h>
 #include <LibWeb/Bindings/CSSRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
@@ -40,14 +41,14 @@ WebIDL::UnsignedShort CSSRule::type_for_bindings() const
 }
 
 // https://www.w3.org/TR/cssom/#dom-cssrule-csstext
-String CSSRule::css_text() const
+Utf16String CSSRule::css_text() const
 {
     // The cssText attribute must return a serialization of the CSS rule.
     return serialized();
 }
 
 // https://www.w3.org/TR/cssom/#dom-cssrule-csstext
-void CSSRule::set_css_text(StringView)
+void CSSRule::set_css_text(Utf16View)
 {
     // On setting the cssText attribute must do nothing.
 }
@@ -82,9 +83,9 @@ void CSSRule::clear_caches()
     m_cached_layer_name.clear();
 }
 
-FlyString CSSRule::parent_layer_internal_qualified_name_slow_case() const
+Utf16FlyString CSSRule::parent_layer_internal_qualified_name_slow_case() const
 {
-    Vector<FlyString> layer_names;
+    Vector<Utf16FlyString> layer_names;
     for (auto* rule = parent_rule(); rule; rule = rule->parent_rule()) {
         switch (rule->type()) {
         case Type::Import:
@@ -138,7 +139,16 @@ FlyString CSSRule::parent_layer_internal_qualified_name_slow_case() const
         }
     }
 
-    return MUST(String::join('.', layer_names.in_reverse()));
+    Utf16StringBuilder builder;
+    bool first = true;
+    for (auto const& layer_name : layer_names.in_reverse()) {
+        if (!first)
+            builder.append_ascii('.');
+        first = false;
+        builder.append(layer_name);
+    }
+    auto qualified_name = builder.to_string();
+    return Utf16FlyString::from_utf16(qualified_name.utf16_view());
 }
 
 }

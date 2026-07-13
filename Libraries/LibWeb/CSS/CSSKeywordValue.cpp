@@ -29,7 +29,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSKeywordValue>> CSSKeywordValue::construct_impl(JS
 {
     // 1. If value is an empty string, throw a TypeError.
     if (value.is_empty())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot create a CSSKeywordValue with an empty string as the value"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot create a CSSKeywordValue with an empty string as the value"_utf16 };
 
     // 2. Otherwise, return a new CSSKeywordValue with its value internal slot set to value.
     return CSSKeywordValue::create(realm, Utf16FlyString { move(value) });
@@ -52,7 +52,7 @@ WebIDL::ExceptionOr<void> CSSKeywordValue::set_value(Utf16String value)
 {
     // 1. If value is an empty string, throw a TypeError.
     if (value.is_empty())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot set CSSKeywordValue.value to an empty string"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot set CSSKeywordValue.value to an empty string"_utf16 };
 
     // 2. Otherwise, set this’s value internal slot, to value.
     m_value = Utf16FlyString { move(value) };
@@ -65,7 +65,7 @@ void CSSKeywordValue::serialize(Utf16StringBuilder& builder) const
     // To serialize a CSSKeywordValue this:
     // 1. Return this’s value internal slot.
     // AD-HOC: Serialize it as an identifier. Spec issue: https://github.com/w3c/csswg-drafts/issues/12545
-    builder.append(Utf16String::from_utf8_without_validation(serialize_an_identifier(m_value)));
+    builder.append(serialize_an_identifier_to_utf16(m_value));
 }
 
 WebIDL::ExceptionOr<Utf16String> CSSKeywordValue::to_string() const
@@ -96,7 +96,7 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSKeywordValue::create_an_
         return keyword.has_value() && property_accepts_keyword(property.id(), keyword.value());
     }();
     if (perform_type_check == PerformTypeCheck::Yes && !matches_grammar) {
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Property '{}' does not accept the keyword '{}'", property.name(), m_value)) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("Property '{}' does not accept the keyword '{}'", property.name(), m_value) };
     }
 
     //     If any component of property’s CSS grammar has a limited numeric range, and the corresponding part of value

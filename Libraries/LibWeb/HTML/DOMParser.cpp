@@ -49,7 +49,7 @@ WebIDL::ExceptionOr<GC::Ref<DOM::Document>> DOMParser::parse_from_string(Trusted
         relevant_global_object(*this),
         move(string),
         TrustedTypes::InjectionSink::DOMParser_parseFromString,
-        TrustedTypes::Script.to_string()));
+        TrustedTypes::Script.view()));
 
     // 2. Let document be a new Document, whose content type is type and url is this's relevant global object's associated Document's URL.
     GC::Ptr<DOM::Document> document;
@@ -59,7 +59,7 @@ WebIDL::ExceptionOr<GC::Ref<DOM::Document>> DOMParser::parse_from_string(Trusted
     if (type == Bindings::DOMParserSupportedType::Text_Html) {
         // -> "text/html"
         document = HTML::HTMLDocument::create(realm(), associated_document.url());
-        document->set_content_type("text/html"_string);
+        document->set_content_type("text/html"_utf16_fly_string);
         document->set_document_type(DOM::Document::Type::HTML);
 
         // 1. Parse HTML from a string given document and compliantString.
@@ -69,16 +69,16 @@ WebIDL::ExceptionOr<GC::Ref<DOM::Document>> DOMParser::parse_from_string(Trusted
         document = DOM::Document::create(realm(), associated_document.url());
         switch (type) {
         case Bindings::DOMParserSupportedType::Text_Xml:
-            document->set_content_type("text/xml"_string);
+            document->set_content_type("text/xml"_utf16_fly_string);
             break;
         case Bindings::DOMParserSupportedType::Application_Xml:
-            document->set_content_type("application/xml"_string);
+            document->set_content_type("application/xml"_utf16_fly_string);
             break;
         case Bindings::DOMParserSupportedType::Application_XhtmlXml:
-            document->set_content_type("application/xhtml+xml"_string);
+            document->set_content_type("application/xhtml+xml"_utf16_fly_string);
             break;
         case Bindings::DOMParserSupportedType::Image_SvgXml:
-            document->set_content_type("image/svg+xml"_string);
+            document->set_content_type("image/svg+xml"_utf16_fly_string);
             break;
         case Bindings::DOMParserSupportedType::Text_Html:
             VERIFY_NOT_REACHED();

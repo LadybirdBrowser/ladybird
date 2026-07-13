@@ -96,7 +96,7 @@ void dump_tree(StringBuilder& builder, DOM::Node const& node)
     if (auto const* element = as_if<DOM::Element>(node)) {
         auto namespace_prefix = [&] -> Utf16FlyString {
             auto const& namespace_uri = element->namespace_uri();
-            if (!namespace_uri.has_value() || node.document().is_default_namespace(namespace_uri->to_utf16_string()))
+            if (!namespace_uri.has_value() || node.document().is_default_namespace(namespace_uri->view()))
                 return ""_utf16_fly_string;
             if (namespace_uri == Namespace::HTML)
                 return "html:"_utf16_fly_string;
@@ -108,7 +108,7 @@ void dump_tree(StringBuilder& builder, DOM::Node const& node)
         }();
 
         builder.appendff("<{}{}", namespace_prefix, element->local_name());
-        element->for_each_attribute([&](auto& name, auto& value) {
+        element->for_each_attribute([&](Utf16FlyString const& name, Utf16View value) {
             builder.appendff(" {}={}", name, value);
         });
         builder.append(">\n"sv);

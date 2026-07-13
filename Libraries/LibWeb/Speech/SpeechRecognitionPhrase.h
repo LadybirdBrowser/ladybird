@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
@@ -20,21 +20,21 @@ class SpeechRecognitionPhrase final : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(SpeechRecognitionPhrase);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<SpeechRecognitionPhrase>> construct_impl(JS::Realm&, String const& phrase, float boost = 1.f);
+    static WebIDL::ExceptionOr<GC::Ref<SpeechRecognitionPhrase>> construct_impl(JS::Realm&, Utf16String const& phrase, float boost = 1.f);
     virtual ~SpeechRecognitionPhrase() override;
 
     // https://wicg.github.io/speech-api/#dom-speechrecognitionphrase-phrase
-    String const& phrase() const { return m_phrase; }
+    Utf16String const& phrase() const { return m_phrase; }
 
     // https://wicg.github.io/speech-api/#dom-speechrecognitionphrase-boost
     float boost() const { return m_boost; }
 
 private:
-    SpeechRecognitionPhrase(JS::Realm&, String const& phrase, float boost);
+    SpeechRecognitionPhrase(JS::Realm&, Utf16String const& phrase, float boost);
 
     virtual void initialize(JS::Realm&) override;
 
-    String m_phrase;
+    Utf16String m_phrase;
     float m_boost { 1.f };
 };
 

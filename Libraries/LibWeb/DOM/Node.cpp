@@ -11,7 +11,6 @@
 #include <AK/HashTable.h>
 #include <AK/JsonObjectSerializer.h>
 #include <AK/NeverDestroyed.h>
-#include <AK/StringBuilder.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibGC/DeferGC.h>
 #include <LibGC/WeakHashMap.h>
@@ -68,6 +67,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/XMLSerializer.h>
 #include <LibWeb/Infra/CharacterTypes.h>
+#include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/TextNode.h>
@@ -153,10 +153,10 @@ size_t Node::external_memory_size() const
 }
 
 // https://dom.spec.whatwg.org/#dom-node-baseuri
-String Node::base_uri() const
+Utf16String Node::base_uri() const
 {
     // Return this’s node document’s document base URL, serialized.
-    return document().base_url().to_string();
+    return utf16_string_from_url_ascii(document().base_url().to_string());
 }
 
 HTML::HTMLAnchorElement const* Node::enclosing_link_element() const
@@ -229,7 +229,7 @@ WebIDL::ExceptionOr<void> Node::set_text_content(Optional<Utf16String> const& ma
 {
     // The textContent setter steps are to, if the given value is null, act as if it was the empty string instead,
     // and then do as described below, switching on the interface this implements:
-    auto content = maybe_content.value_or({});
+    auto content = maybe_content.has_value() ? maybe_content->utf16_view() : u""sv;
 
     // If DocumentFragment or Element, string replace all with the given value within this.
     if (is<DocumentFragment>(this) || is<Element>(this)) {
@@ -399,7 +399,7 @@ WebIDL::ExceptionOr<void> Node::set_node_value(Optional<Utf16String> const& mayb
 {
     // The nodeValue setter steps are to, if the given value is null, act as if it was the empty string instead,
     // and then do as described below, switching on the interface this implements:
-    auto value = maybe_value.value_or({});
+    auto value = maybe_value.has_value() ? maybe_value->utf16_view() : u""sv;
 
     // If Attr, set an existing attribute value with this and the given value.
     if (auto* attr = as_if<Attr>(this)) {
@@ -2104,19 +2104,19 @@ bool Node::is_uninteresting_whitespace_node() const
     return false;
 }
 
-IterationDecision Node::serialize_child_as_json(JsonArraySerializer<StringBuilder>& children_array, Node const& child) const
+IterationDecision Node::serialize_child_as_json(JsonArraySerializer<Utf16StringBuilder>& children_array, Node const& child) const
 {
     if (child.is_uninteresting_whitespace_node())
         return IterationDecision::Continue;
-    JsonObjectSerializer<StringBuilder> child_object = MUST(children_array.add_object());
+    JsonObjectSerializer<Utf16StringBuilder> child_object = MUST(children_array.add_object());
     child.serialize_tree_as_json(child_object);
     MUST(child_object.finish());
     return IterationDecision::Continue;
 }
 
-void Node::serialize_tree_as_json(JsonObjectSerializer<StringBuilder>& object) const
+void Node::serialize_tree_as_json(JsonObjectSerializer<Utf16StringBuilder>& object) const
 {
-    MUST(object.add("name"sv, node_name().view().to_utf8_but_should_be_ported_to_utf16()));
+    MUST(object.add("name"sv, node_name().view()));
     MUST(object.add("id"sv, unique_id().value()));
     if (is_document()) {
         MUST(object.add("type"sv, "document"));
@@ -2124,13 +2124,14 @@ void Node::serialize_tree_as_json(JsonObjectSerializer<StringBuilder>& object) c
         MUST(object.add("type"sv, "element"));
 
         auto const* element = static_cast<DOM::Element const*>(this);
-        if (element->namespace_uri().has_value())
-            MUST(object.add("namespace"sv, element->namespace_uri()->view().to_utf8_but_should_be_ported_to_utf16()));
+        if (element->namespace_uri().has_value()) {
+            MUST(object.add("namespace"sv, element->namespace_uri()->view()));
+        }
 
         if (element->has_attributes()) {
             auto attributes = MUST(object.add_object("attributes"sv));
-            element->for_each_attribute([&attributes](Utf16FlyString const& name, Utf16String const& value) {
-                MUST(attributes.add(name.view().to_utf8_but_should_be_ported_to_utf16(), value.to_utf8()));
+            element->for_each_attribute([&attributes](Utf16FlyString const& name, Utf16View value) {
+                MUST(attributes.add(name.view(), value));
             });
             MUST(attributes.finish());
         }
@@ -2139,7 +2140,7 @@ void Node::serialize_tree_as_json(JsonObjectSerializer<StringBuilder>& object) c
             auto const* container = static_cast<HTML::NavigableContainer const*>(element);
             if (auto const* content_document = container->content_document()) {
                 auto children = MUST(object.add_array("children"sv));
-                JsonObjectSerializer<StringBuilder> content_document_object = MUST(children.add_object());
+                JsonObjectSerializer<Utf16StringBuilder> content_document_object = MUST(children.add_object());
                 content_document->serialize_tree_as_json(content_document_object);
                 MUST(content_document_object.finish());
                 MUST(children.finish());
@@ -2162,10 +2163,10 @@ void Node::serialize_tree_as_json(JsonObjectSerializer<StringBuilder>& object) c
         MUST(object.add("type"sv, "text"));
 
         auto text_node = static_cast<DOM::Text const*>(this);
-        MUST(object.add("text"sv, text_node->data().to_utf8()));
+        MUST(object.add("text"sv, text_node->data().utf16_view()));
     } else if (is_comment()) {
         MUST(object.add("type"sv, "comment"sv));
-        MUST(object.add("data"sv, static_cast<DOM::Comment const&>(*this).data().to_utf8()));
+        MUST(object.add("data"sv, static_cast<DOM::Comment const&>(*this).data().utf16_view()));
     } else if (is_shadow_root()) {
         MUST(object.add("type"sv, "shadow-root"));
         MUST(object.add("mode"sv, static_cast<DOM::ShadowRoot const&>(*this).mode() == Bindings::ShadowRootMode::Open ? "open"sv : "closed"sv));
@@ -2270,6 +2271,16 @@ void Node::replace_all(GC::Ptr<Node> node)
     }
 }
 
+void Node::string_replace_all(Utf16View string)
+{
+    GC::Ptr<Node> node;
+
+    if (!string.is_empty())
+        node = realm().create<Text>(document(), Utf16String::from_utf16(string));
+
+    replace_all(node);
+}
+
 // https://dom.spec.whatwg.org/#string-replace-all
 void Node::string_replace_all(Utf16String string)
 {
@@ -2292,20 +2303,20 @@ WebIDL::ExceptionOr<Utf16String> Node::serialize_fragment(HTML::RequireWellForme
 
     // 2. If context document is an HTML document, return the result of HTML fragment serialization algorithm with node, false, and « ».
     if (context_document.is_html_document())
-        return Utf16String::from_utf8(HTML::HTMLParser::serialize_html_fragment(*this, HTML::HTMLParser::SerializableShadowRoots::No, {}, fragment_serialization_mode));
+        return HTML::HTMLParser::serialize_html_fragment(*this, HTML::HTMLParser::SerializableShadowRoots::No, {}, fragment_serialization_mode);
 
     // 3. Return the XML serialization of node given require well-formed.
     // AD-HOC: XML serialization algorithm returns the "outer" XML serialization of the node.
     //         For inner, concatenate the serialization of all children.
     if (fragment_serialization_mode == FragmentSerializationMode::Inner) {
-        StringBuilder markup;
+        Utf16StringBuilder markup;
         for (auto* child = first_child(); child; child = child->next_sibling()) {
             auto child_markup = TRY(HTML::serialize_node_to_xml_string(*child, require_well_formed));
-            markup.append(child_markup.bytes_as_string_view());
+            markup.append(child_markup.utf16_view());
         }
-        return Utf16String::from_utf8(MUST(markup.to_string()));
+        return markup.to_string();
     }
-    return Utf16String::from_utf8(TRY(HTML::serialize_node_to_xml_string(*this, require_well_formed)));
+    return HTML::serialize_node_to_xml_string(*this, require_well_formed);
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#unsafely-set-html
@@ -2444,7 +2455,7 @@ Vector<Utf16FlyString> Node::get_in_scope_prefixes() const
         if (!seen_prefixes.contains(prefix)) {
             prefixes.append(prefix);
             seen_prefixes.set(prefix);
-            VERIFY(lookup_namespace_uri(prefix.to_utf16_string()).has_value());
+            VERIFY(lookup_namespace_uri(prefix.view()).has_value());
         }
     };
 
@@ -2479,9 +2490,9 @@ Vector<Utf16FlyString> Node::get_in_scope_prefixes() const
 
                 Optional<Utf16FlyString> declared_prefix;
 
-                if (!attr->prefix().has_value() && attr->local_name() == "xmlns"sv) {
+                if (!attr->prefix().has_value() && attr->local_name() == u"xmlns"sv) {
                     declared_prefix = ""_utf16_fly_string;
-                } else if (attr->prefix() == "xmlns"sv) {
+                } else if (attr->prefix() == u"xmlns"sv) {
                     declared_prefix = attr->local_name();
                 } else {
                     continue;
@@ -2500,25 +2511,25 @@ Vector<Utf16FlyString> Node::get_in_scope_prefixes() const
 }
 
 // https://dom.spec.whatwg.org/#locate-a-namespace
-Optional<Utf16String> Node::locate_a_namespace(Optional<Utf16String> const& prefix) const
+Optional<Utf16String> Node::locate_a_namespace(Optional<Utf16View> prefix) const
 {
     // To locate a namespace for a node using prefix, switch on the interface node implements:
 
     // Element
     if (is<Element>(*this)) {
         // 1. If prefix is "xml", then return the XML namespace.
-        if (prefix.has_value() && prefix->utf16_view() == "xml"sv)
+        if (prefix.has_value() && *prefix == u"xml"sv)
             return Web::Namespace::XML.to_utf16_string();
 
         // 2. If prefix is "xmlns", then return the XMLNS namespace.
-        if (prefix.has_value() && prefix->utf16_view() == "xmlns"sv)
+        if (prefix.has_value() && *prefix == u"xmlns"sv)
             return Web::Namespace::XMLNS.to_utf16_string();
 
         // 3. If its namespace is non-null and its namespace prefix is prefix, then return namespace.
         auto& element = as<Element>(*this);
         if (element.namespace_uri().has_value()
             && element.prefix().has_value() == prefix.has_value()
-            && (!prefix.has_value() || element.prefix()->view() == prefix->utf16_view()))
+            && (!prefix.has_value() || element.prefix()->view() == *prefix))
             return element.namespace_uri()->to_utf16_string();
 
         // 4. If it has an attribute whose namespace is the XMLNS namespace, namespace prefix is "xmlns", and local name is prefix,
@@ -2528,7 +2539,7 @@ Optional<Utf16String> Node::locate_a_namespace(Optional<Utf16String> const& pref
             for (size_t i = 0; i < attributes->length(); ++i) {
                 auto& attr = *attributes->item(i);
                 if (attr.namespace_uri() == Web::Namespace::XMLNS) {
-                    if ((attr.prefix() == "xmlns"sv && prefix.has_value() && attr.local_name().view() == prefix->utf16_view()) || (!prefix.has_value() && !attr.prefix().has_value() && attr.local_name() == "xmlns"sv)) {
+                    if ((attr.prefix() == u"xmlns"sv && prefix.has_value() && attr.local_name().view() == *prefix) || (!prefix.has_value() && !attr.prefix().has_value() && attr.local_name() == u"xmlns"sv)) {
                         auto value = attr.value();
                         if (!value.is_empty())
                             return value;
@@ -2588,7 +2599,14 @@ Optional<Utf16String> Node::locate_a_namespace(Optional<Utf16String> const& pref
 }
 
 // https://dom.spec.whatwg.org/#dom-node-lookupnamespaceuri
-Optional<Utf16String> Node::lookup_namespace_uri(Optional<Utf16String> prefix) const
+Optional<Utf16String> Node::lookup_namespace_uri(Optional<Utf16String> const& prefix) const
+{
+    if (prefix.has_value())
+        return lookup_namespace_uri(prefix->utf16_view());
+    return lookup_namespace_uri(Optional<Utf16View> {});
+}
+
+Optional<Utf16String> Node::lookup_namespace_uri(Optional<Utf16View> prefix) const
 {
     // 1. If prefix is the empty string, then set it to null.
     if (prefix.has_value() && prefix->is_empty())
@@ -2599,7 +2617,14 @@ Optional<Utf16String> Node::lookup_namespace_uri(Optional<Utf16String> prefix) c
 }
 
 // https://dom.spec.whatwg.org/#dom-node-lookupprefix
-Optional<Utf16String> Node::lookup_prefix(Optional<Utf16String> namespace_) const
+Optional<Utf16String> Node::lookup_prefix(Optional<Utf16String> const& namespace_) const
+{
+    if (namespace_.has_value())
+        return lookup_prefix(namespace_->utf16_view());
+    return lookup_prefix(Optional<Utf16View> {});
+}
+
+Optional<Utf16String> Node::lookup_prefix(Optional<Utf16View> namespace_) const
 {
     // 1. If namespace is null or the empty string, then return null.
     if (!namespace_.has_value() || namespace_->is_empty())
@@ -2650,7 +2675,14 @@ Optional<Utf16String> Node::lookup_prefix(Optional<Utf16String> namespace_) cons
 }
 
 // https://dom.spec.whatwg.org/#dom-node-isdefaultnamespace
-bool Node::is_default_namespace(Optional<Utf16String> namespace_) const
+bool Node::is_default_namespace(Optional<Utf16String> const& namespace_) const
+{
+    if (namespace_.has_value())
+        return is_default_namespace(namespace_->utf16_view());
+    return is_default_namespace(Optional<Utf16View> {});
+}
+
+bool Node::is_default_namespace(Optional<Utf16View> namespace_) const
 {
     // 1. If namespace is the empty string, then set it to null.
     if (namespace_.has_value() && namespace_->is_empty())
@@ -2692,9 +2724,9 @@ GC::Ref<Node> Node::get_root_node(Bindings::GetRootNodeOptions const& options)
     return root();
 }
 
-String Node::debug_description() const
+Utf16String Node::debug_description() const
 {
-    StringBuilder builder;
+    Utf16StringBuilder builder;
     builder.append(node_name().to_ascii_lowercase());
     if (is_element()) {
         auto const& element = static_cast<DOM::Element const&>(*this);
@@ -2703,7 +2735,7 @@ String Node::debug_description() const
         for (auto const& class_name : element.class_names())
             builder.appendff(".{}", class_name);
     }
-    return MUST(builder.to_string());
+    return builder.to_string();
 }
 
 // https://dom.spec.whatwg.org/#concept-node-length
@@ -2810,7 +2842,7 @@ RefPtr<Painting::Paintable> Node::unsafe_paintable_box()
 }
 
 // https://dom.spec.whatwg.org/#queue-a-mutation-record
-void Node::queue_mutation_record(FlyString const& type, Optional<Utf16FlyString> const& attribute_name, Optional<Utf16FlyString> const& attribute_namespace, Optional<Utf16String> const& old_value, Vector<GC::Root<Node>> added_nodes, Vector<GC::Root<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling)
+void Node::queue_mutation_record(Utf16FlyString const& type, Optional<Utf16FlyString> const& attribute_name, Optional<Utf16FlyString> const& attribute_namespace, Optional<Utf16String> const& old_value, Vector<GC::Root<Node>> added_nodes, Vector<GC::Root<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling)
 {
     auto& document = this->document();
     auto& page = document.page();
@@ -3295,11 +3327,11 @@ ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Documen
                 auto const& content = before->computed_values().content().value();
 
                 if (content.alt_text.has_value()) {
-                    total_accumulated_text.append(Utf16String::from_utf8(content.alt_text.value()));
+                    total_accumulated_text.append(content.alt_text.value());
                 } else {
                     for (auto const& item : content.data) {
-                        if (auto const* string = item.get_pointer<String>())
-                            total_accumulated_text.append(Utf16String::from_utf8(*string));
+                        if (auto const* string = item.get_pointer<Utf16String>())
+                            total_accumulated_text.append(*string);
                     }
                 }
             }
@@ -3361,11 +3393,11 @@ ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Documen
                 auto const& content = after->computed_values().content().value();
 
                 if (content.alt_text.has_value()) {
-                    total_accumulated_text.append(Utf16String::from_utf8(content.alt_text.value()));
+                    total_accumulated_text.append(content.alt_text.value());
                 } else {
                     for (auto& item : content.data) {
-                        if (auto const* string = item.get_pointer<String>())
-                            total_accumulated_text.append(Utf16String::from_utf8(*string));
+                        if (auto const* string = item.get_pointer<Utf16String>())
+                            total_accumulated_text.append(*string);
                     }
                 }
             }
@@ -3508,7 +3540,7 @@ bool Node::has_inclusive_ancestor_with_display_none_ignoring_animations() const
     return false;
 }
 
-bool Node::has_inclusive_ancestor_with_event_listener(FlyString const& type) const
+bool Node::has_inclusive_ancestor_with_event_listener(Utf16FlyString const& type) const
 {
     for (auto const* ancestor = this; ancestor; ancestor = ancestor->parent_or_shadow_host()) {
         if (ancestor->has_event_listener(type))

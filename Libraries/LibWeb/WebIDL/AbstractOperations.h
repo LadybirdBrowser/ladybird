@@ -32,9 +32,7 @@ WEB_API ErrorOr<ByteBuffer> get_buffer_source_copy(ArrayBufferView const&);
 
 JS::Completion call_user_object_operation(CallbackType& callback, Utf16FlyString const& operation_name, Optional<JS::Value> this_argument, ReadonlySpan<JS::Value> args);
 
-WEB_API JS::ThrowCompletionOr<String> to_string(JS::VM&, JS::Value);
 WEB_API JS::ThrowCompletionOr<Utf16String> to_utf16_string(JS::VM&, JS::Value);
-WEB_API JS::ThrowCompletionOr<String> to_usv_string(JS::VM&, JS::Value);
 JS::ThrowCompletionOr<Utf16String> to_utf16_usv_string(JS::VM&, JS::Value);
 JS::ThrowCompletionOr<String> to_byte_string(JS::VM&, JS::Value);
 
@@ -82,7 +80,7 @@ bool lists_contain_same_elements(GC::Ptr<JS::Array> array, Optional<GC::RootVect
 // https://webidl.spec.whatwg.org/#internally-create-a-new-object-implementing-the-interface
 // Steps from "internally create a new object implementing the interface"
 template<typename PrototypeType>
-JS::ThrowCompletionOr<void> set_prototype_from_new_target(JS::VM& vm, JS::FunctionObject& new_target, FlyString const& interface_name, JS::Object& object)
+JS::ThrowCompletionOr<void> set_prototype_from_new_target(JS::VM& vm, JS::FunctionObject& new_target, Utf16FlyString const& interface_name, JS::Object& object)
 {
     // 3.2. Let prototype be ? Get(newTarget, "prototype").
     auto prototype = TRY(new_target.get(vm.names.prototype));

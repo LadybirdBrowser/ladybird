@@ -3,6 +3,6 @@
 interface SpeechGrammar {
     constructor();
 
-    attribute DOMString src;
+    attribute Utf16DOMString src;
     attribute float weight;
 };

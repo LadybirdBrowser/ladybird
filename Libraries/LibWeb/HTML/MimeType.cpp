@@ -36,19 +36,17 @@ Utf16FlyString const& MimeType::type() const
 }
 
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-mimetype-description
-String MimeType::description() const
+Utf16FlyString MimeType::description() const
 {
     // The MimeType interface's description getter steps are to return "Portable Document Format".
-    static String const& description_string = *new String("Portable Document Format"_string);
-    return description_string;
+    return "Portable Document Format"_utf16_fly_string;
 }
 
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-mimetype-suffixes
-String const& MimeType::suffixes() const
+Utf16FlyString MimeType::suffixes() const
 {
     // The MimeType interface's suffixes getter steps are to return "pdf".
-    static String const& suffixes_string = *new String("pdf"_string);
-    return suffixes_string;
+    return "pdf"_utf16_fly_string;
 }
 
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-mimetype-enabledplugin

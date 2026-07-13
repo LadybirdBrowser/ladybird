@@ -25,14 +25,14 @@ pub struct RustFfiTokenizerHandle {
     /// Temporary storage for the last token's string data, kept alive
     /// so that pointers in RustFfiToken remain valid until the next call.
     last_tag_name: Vec<u16>,
-    last_comment: Vec<u8>,
-    last_doctype_name: Vec<u8>,
-    last_public_id: Vec<u8>,
-    last_system_id: Vec<u8>,
+    last_comment: Vec<u16>,
+    last_doctype_name: Vec<u16>,
+    last_public_id: Vec<u16>,
+    last_system_id: Vec<u16>,
     last_attributes: Vec<RustFfiAttribute>,
     last_attr_names: Vec<Vec<u16>>,
-    last_attr_values: Vec<Vec<u8>>,
-    last_unparsed_input: Vec<u8>,
+    last_attr_values: Vec<Vec<u16>>,
+    last_unparsed_input: Vec<u16>,
 }
 
 /// C-compatible token representation.
@@ -56,14 +56,14 @@ pub struct RustFfiToken {
     pub tag_name_ptr: *const u16,
     pub tag_name_len: usize,
 
-    pub comment_ptr: *const u8,
+    pub comment_ptr: *const u16,
     pub comment_len: usize,
 
-    pub doctype_name_ptr: *const u8,
+    pub doctype_name_ptr: *const u16,
     pub doctype_name_len: usize,
-    pub public_id_ptr: *const u8,
+    pub public_id_ptr: *const u16,
     pub public_id_len: usize,
-    pub system_id_ptr: *const u8,
+    pub system_id_ptr: *const u16,
     pub system_id_len: usize,
     pub force_quirks: bool,
     pub missing_name: bool,
@@ -88,7 +88,7 @@ pub struct RustFfiAttribute {
     pub name_id: u16,
     pub name_ptr: *const u16,
     pub name_len: usize,
-    pub value_ptr: *const u8,
+    pub value_ptr: *const u16,
     pub value_len: usize,
     pub name_start_line: u64,
     pub name_start_column: u64,
@@ -325,7 +325,7 @@ fn next_token_slow(
 
             // Convert attributes. Move owned Strings out of each Attribute
             // instead of cloning, then point the FfiAttribute at the stable
-            // heap bytes that now live in handle.last_attr_{names,values}
+            // UTF-16 code units that now live in handle.last_attr_{names,values}
             // (unless the name was interned, in which case skip the copy).
             handle.last_attr_names.clear();
             handle.last_attr_values.clear();
@@ -349,20 +349,20 @@ fn next_token_slow(
                     // Keep the slot aligned with last_attr_values so index math stays valid.
                     handle.last_attr_names.push(Vec::new());
                 }
-                handle.last_attr_values.push(value.into_bytes());
+                handle.last_attr_values.push(value.encode_utf16().collect());
                 let last_idx = handle.last_attr_names.len() - 1;
-                let name_bytes = &handle.last_attr_names[last_idx];
-                let value_bytes = &handle.last_attr_values[last_idx];
+                let name_code_units = &handle.last_attr_names[last_idx];
+                let value_code_units = &handle.last_attr_values[last_idx];
                 handle.last_attributes.push(RustFfiAttribute {
                     name_id: local_name_id,
                     name_ptr: if local_name_id == 0 {
-                        name_bytes.as_ptr()
+                        name_code_units.as_ptr()
                     } else {
                         ptr::null()
                     },
-                    name_len: if local_name_id == 0 { name_bytes.len() } else { 0 },
-                    value_ptr: value_bytes.as_ptr(),
-                    value_len: value_bytes.len(),
+                    name_len: if local_name_id == 0 { name_code_units.len() } else { 0 },
+                    value_ptr: value_code_units.as_ptr(),
+                    value_len: value_code_units.len(),
                     name_start_line: name_start_position.line,
                     name_start_column: name_start_position.column,
                     name_end_line: name_end_position.line,
@@ -377,14 +377,14 @@ fn next_token_slow(
             out.attributes_len = handle.last_attributes.len();
         }
         TokenPayload::Comment(data) => {
-            handle.last_comment = data.into_bytes();
+            handle.last_comment = data.encode_utf16().collect();
             out.comment_ptr = handle.last_comment.as_ptr();
             out.comment_len = handle.last_comment.len();
         }
         TokenPayload::Doctype(doctype) => {
-            handle.last_doctype_name = doctype.name.into_bytes();
-            handle.last_public_id = doctype.public_identifier.into_bytes();
-            handle.last_system_id = doctype.system_identifier.into_bytes();
+            handle.last_doctype_name = doctype.name.encode_utf16().collect();
+            handle.last_public_id = doctype.public_identifier.encode_utf16().collect();
+            handle.last_system_id = doctype.system_identifier.encode_utf16().collect();
             out.doctype_name_ptr = handle.last_doctype_name.as_ptr();
             out.doctype_name_len = handle.last_doctype_name.len();
             out.public_id_ptr = handle.last_public_id.as_ptr();
@@ -469,14 +469,14 @@ pub unsafe extern "C" fn rust_html_tokenizer_append_input(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_html_tokenizer_unparsed_input(
     handle: *mut RustFfiTokenizerHandle,
-    out_ptr: *mut *const u8,
+    out_ptr: *mut *const u16,
     out_len: *mut usize,
 ) {
     if handle.is_null() || out_ptr.is_null() || out_len.is_null() {
         return;
     }
     let handle = unsafe { &mut *handle };
-    handle.last_unparsed_input = handle.tokenizer.unparsed_input().into_bytes();
+    handle.last_unparsed_input = handle.tokenizer.unparsed_input().encode_utf16().collect();
     unsafe {
         *out_ptr = handle.last_unparsed_input.as_ptr();
         *out_len = handle.last_unparsed_input.len();

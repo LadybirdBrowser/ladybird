@@ -9,7 +9,7 @@
 namespace Web::ContentSecurityPolicy::Directives::KeywordSources {
 
 #define __ENUMERATE_KEYWORD_SOURCE(name, value) \
-    FlyString const& name = *new FlyString(value##_fly_string);
+    Utf16FlyString const& name = *new Utf16FlyString(value##_utf16_fly_string);
 ENUMERATE_KEYWORD_SOURCES
 #undef __ENUMERATE_KEYWORD_SOURCE
 

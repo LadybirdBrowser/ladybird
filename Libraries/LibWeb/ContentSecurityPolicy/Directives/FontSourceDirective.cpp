@@ -13,7 +13,7 @@ namespace Web::ContentSecurityPolicy::Directives {
 
 GC_DEFINE_ALLOCATOR(FontSourceDirective);
 
-FontSourceDirective::FontSourceDirective(String name, Vector<String> value)
+FontSourceDirective::FontSourceDirective(Utf16FlyString name, Vector<Utf16String> value)
     : Directive(move(name), move(value))
 {
 }

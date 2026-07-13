@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const event = new MessageEvent("message", {
+            data: "hello",
+            origin: "https://example.com/\u{1F41E}",
+            lastEventId: "id-\u{1F41E}",
+        });
+
+        println(`type: ${event.type}`);
+        println(`data: ${event.data}`);
+        println(`origin: ${event.origin}`);
+        println(`lastEventId: ${event.lastEventId}`);
+
+        event.initMessageEvent("ignored", false, false, "ignored", "ignored", "ignored");
+        println(`after initMessageEvent type: ${event.type}`);
+
+        const initializedEvent = document.createEvent("MessageEvent");
+        initializedEvent.initMessageEvent("message", false, false, "initialized", "https://example.org/\u{1F41E}", "initialized-\u{1F41E}");
+        println(`initialized data: ${initializedEvent.data}`);
+        println(`initialized origin: ${initializedEvent.origin}`);
+        println(`initialized lastEventId: ${initializedEvent.lastEventId}`);
+    });
+</script>

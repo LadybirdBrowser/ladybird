@@ -9,5 +9,5 @@ enum PopoverTargetActionAttribute {
 // https://html.spec.whatwg.org/multipage/popover.html#popovertargetattributes
 interface mixin PopoverTargetAttributes {
     [Reflect=popovertarget, CEReactions] attribute Element? popoverTargetElement;
-    [Reflect=popovertargetaction, Enumerated=PopoverTargetActionAttribute, CEReactions] attribute DOMString popoverTargetAction;
+    [Reflect=popovertargetaction, Enumerated=PopoverTargetActionAttribute, CEReactions] attribute Utf16DOMString popoverTargetAction;
 };

@@ -19,7 +19,8 @@ static ErrorOr<GC::Ref<DOM::NodeList>, Error> locate_element_by_css_selector(DOM
 {
     // 1. Let elements be the result of calling querySelectorAll() with start node as this and selector as the argument.
     //    If this causes an exception to be thrown, return error with error code invalid selector.
-    auto elements = start_node.query_selector_all(selector);
+    auto selector_utf16 = Utf16String::from_utf8(selector);
+    auto elements = start_node.query_selector_all(selector_utf16);
     if (elements.is_exception())
         return Error::from_code(ErrorCode::InvalidSelector, "querySelectorAll() failed"sv);
 

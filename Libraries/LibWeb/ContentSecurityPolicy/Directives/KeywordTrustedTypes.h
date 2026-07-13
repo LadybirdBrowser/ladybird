@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
 
 namespace Web::ContentSecurityPolicy::Directives::KeywordTrustedTypes {
 
@@ -16,7 +16,7 @@ namespace Web::ContentSecurityPolicy::Directives::KeywordTrustedTypes {
     __ENUMERATE_KEYWORD_TRUSTED_TYPE(None, "'none'")                        \
     __ENUMERATE_KEYWORD_TRUSTED_TYPE(WildCard, "*")
 
-#define __ENUMERATE_KEYWORD_TRUSTED_TYPE(name, value) extern FlyString const& name;
+#define __ENUMERATE_KEYWORD_TRUSTED_TYPE(name, value) extern Utf16FlyString const& name;
 ENUMERATE_KEYWORD_TRUSTED_TYPES
 #undef __ENUMERATE_KEYWORD_TRUSTED_TYPE
 

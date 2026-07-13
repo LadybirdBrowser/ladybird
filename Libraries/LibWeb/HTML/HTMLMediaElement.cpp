@@ -48,6 +48,7 @@
 #include <LibWeb/HTML/VideoTrack.h>
 #include <LibWeb/HTML/VideoTrackList.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/MediaSourceExtensions/MediaSource.h>
@@ -64,7 +65,7 @@ struct HTMLMediaElement::RemoteFetchData {
     URL::URL url_record;
     RefPtr<Media::IncrementallyPopulatedStream> stream;
     GC::Weak<Fetch::Infrastructure::FetchController> fetch_controller;
-    Function<void(String)> failure_callback;
+    Function<void(Utf16String)> failure_callback;
     bool accepts_byte_ranges { false };
     u64 offset { 0 };
 
@@ -207,7 +208,7 @@ void HTMLMediaElement::attribute_changed(Utf16FlyString const& name, Optional<Ut
             return;
         load_element().release_value_but_fixme_should_propagate_errors();
     } else if (name == HTML::AttributeNames::crossorigin) {
-        m_crossorigin = cors_setting_attribute_from_keyword(value);
+        m_crossorigin = cors_setting_attribute_from_keyword(value.map([](auto const& value) { return value.utf16_view(); }));
     } else if (name == HTML::AttributeNames::controls) {
         if (value.has_value() || is_scripting_disabled())
             create_controls();
@@ -325,7 +326,7 @@ void HTMLMediaElement::cancel_the_fetching_process()
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#fatal-decode-error
-void HTMLMediaElement::set_decoder_error(String error_message)
+void HTMLMediaElement::set_decoder_error(Utf16String error_message)
 {
     auto& realm = this->realm();
 
@@ -402,14 +403,14 @@ GC::Ref<TimeRanges> HTMLMediaElement::seekable() const
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-navigator-canplaytype
-Bindings::CanPlayTypeResult HTMLMediaElement::can_play_type(StringView type) const
+Bindings::CanPlayTypeResult HTMLMediaElement::can_play_type(Utf16View type) const
 {
     // The canPlayType(type) method must:
     // - return the empty string if type is a type that the user agent knows it cannot render or is the type "application/octet-stream"
     // - return "probably" if the user agent is confident that the type represents a media resource that it can render if used in with this audio or video element
     // - return "maybe" otherwise. Implementers are encouraged to return "maybe" unless the type can be confidently established as being supported or not
     // Generally, a user agent should never return "probably" for a type that allows the codecs parameter if that parameter is not present.
-    if (type == "application/octet-stream"sv)
+    if (type == u"application/octet-stream"sv)
         return Bindings::CanPlayTypeResult::Empty;
 
     auto mime_type = MimeSniff::MimeType::parse(type);
@@ -591,7 +592,7 @@ GC::Ref<WebIDL::Promise> HTMLMediaElement::play()
     // 2. If the media element's error attribute is not null and its code is MEDIA_ERR_SRC_NOT_SUPPORTED, then return a promise
     //    rejected with a "NotSupportedError" DOMException.
     if (m_error && m_error->code() == MediaError::Code::SrcNotSupported) {
-        auto exception = WebIDL::NotSupportedError::create(realm, Utf16String::from_utf8(m_error->message()));
+        auto exception = WebIDL::NotSupportedError::create(realm, m_error->message());
         return WebIDL::create_rejected_promise_from_exception(realm, exception);
     }
 
@@ -709,7 +710,7 @@ void HTMLMediaElement::update_volume()
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-addtexttrack
-GC::Ref<TextTrack> HTMLMediaElement::add_text_track(Bindings::TextTrackKind kind, String const& label, String const& language)
+GC::Ref<TextTrack> HTMLMediaElement::add_text_track(Bindings::TextTrackKind kind, Utf16View label, Utf16View language)
 {
     // 1. Create a new TextTrack object.
     auto text_track = TextTrack::create(this->realm());
@@ -718,8 +719,8 @@ GC::Ref<TextTrack> HTMLMediaElement::add_text_track(Bindings::TextTrackKind kind
     //    label to label, its text track language to language, its text track readiness state to the text track loaded
     //    state, its text track mode to the text track hidden mode, and its text track list of cues to an empty list.
     text_track->set_kind(kind);
-    text_track->set_label(Utf16String::from_utf8(label));
-    text_track->set_language(Utf16String::from_utf8(language));
+    text_track->set_label(label);
+    text_track->set_language(language);
     text_track->set_readiness_state(TextTrack::ReadinessState::Loaded);
     text_track->set_mode(Bindings::TextTrackMode::Hidden);
     // FIXME: set text track list of cues to an empty list
@@ -895,7 +896,7 @@ public:
         //           it cannot render, then end the synchronous section, and jump down to the failed with elements step below.
 
         // 7. ⌛ Set the currentSrc attribute to the result of applying the URL serializer to urlRecord.
-        m_media_element->m_current_src = url_record->serialize();
+        m_media_element->m_current_src = utf16_string_from_url_ascii(url_record->serialize());
 
         // 8. End the synchronous section, continuing the remaining steps in parallel.
 
@@ -1125,9 +1126,9 @@ void HTMLMediaElement::select_resource()
             });
 
             // 1. ⌛ If the src attribute's value is the empty string, then end the synchronous section, and jump down to the failed with attribute step below.
-            auto source = self.get_attribute_value(HTML::AttributeNames::src);
+            auto source = self.get_attribute_value_view(HTML::AttributeNames::src).value_or({});
             if (source.is_empty()) {
-                failed_with_attribute("The 'src' attribute is empty"_string);
+                failed_with_attribute("The 'src' attribute is empty"_utf16);
                 return;
             }
 
@@ -1137,7 +1138,7 @@ void HTMLMediaElement::select_resource()
 
             // 3. ⌛ If urlRecord is not failure, then set the currentSrc attribute to the result of applying the URL serializer to urlRecord.
             if (url_record.has_value())
-                self.m_current_src = url_record->serialize();
+                self.m_current_src = utf16_string_from_url_ascii(url_record->serialize());
 
             // 4. End the synchronous section, continuing the remaining steps in parallel.
 
@@ -1187,7 +1188,7 @@ void HTMLMediaElement::select_resource()
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#concept-media-load-resource
-void HTMLMediaElement::load_url_resource(URL::URL const& url_record, Function<void(String)> failure_callback)
+void HTMLMediaElement::load_url_resource(URL::URL const& url_record, Function<void(Utf16String)> failure_callback)
 {
     // 1. Let mode be remote.
     // 2. If the algorithm was invoked with media provider object, then set mode to local.
@@ -1255,8 +1256,8 @@ void HTMLMediaElement::load_url_resource(URL::URL const& url_record, Function<vo
 // https://html.spec.whatwg.org/multipage/media.html#attr-media-preload
 bool HTMLMediaElement::preload_attribute_is_in_none_state() const
 {
-    auto preload = get_attribute(HTML::AttributeNames::preload);
-    return preload.has_value() && preload->equals_ignoring_ascii_case("none"sv);
+    auto preload = get_attribute_value_view(HTML::AttributeNames::preload);
+    return preload.has_value() && preload->equals_ignoring_ascii_case(u"none"sv);
 }
 
 bool HTMLMediaElement::should_wait_for_an_implementation_defined_event_before_fetching_the_resource() const
@@ -1492,7 +1493,7 @@ void HTMLMediaElement::run_remote_mode_resource_fetch_steps(ByteRange byte_range
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#concept-media-load-resource
-void HTMLMediaElement::load_local_resource(MediaProviderObject const& media_provider, Function<void(String)> failure_callback)
+void HTMLMediaElement::load_local_resource(MediaProviderObject const& media_provider, Function<void(Utf16String)> failure_callback)
 {
     // 1. Let mode be remote.
     // 2. If the algorithm was invoked with media provider object, then set mode to local.
@@ -1539,7 +1540,7 @@ void HTMLMediaElement::load_local_resource(MediaProviderObject const& media_prov
             // Run the "If the media data cannot be fetched at all, due to network errors, causing the user agent to
             // give up trying to fetch the resource" steps of the resource fetch algorithm's media data processing
             // steps list.
-            failure_callback("MediaSource is not closed"_string);
+            failure_callback("MediaSource is not closed"_utf16);
         }
         // -> Otherwise
         else {
@@ -1589,7 +1590,7 @@ void HTMLMediaElement::load_local_resource(MediaProviderObject const& media_prov
         }
     } else {
         // FIXME: Support File objects.
-        failure_callback("File objects are not supported"_string);
+        failure_callback("File objects are not supported"_utf16);
     }
 
     // The resource described by the current media resource, if any, contains the media data. It is
@@ -1609,12 +1610,12 @@ void HTMLMediaElement::load_local_resource(MediaProviderObject const& media_prov
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#verify-a-media-response
-Optional<String> HTMLMediaElement::verify_response_or_get_failure_reason(GC::Ref<Fetch::Infrastructure::Response> response, ByteRange const& byte_range)
+Optional<Utf16String> HTMLMediaElement::verify_response_or_get_failure_reason(GC::Ref<Fetch::Infrastructure::Response> response, ByteRange const& byte_range)
 {
     // 1. If response is a network error, then return false.
     if (response->is_network_error()) {
         VERIFY(response->network_error_message().has_value());
-        return response->network_error_message();
+        return Utf16String::from_utf8(*response->network_error_message());
     }
 
     // 2. If byteRange is "entire resource", then return true.
@@ -1630,12 +1631,12 @@ Optional<String> HTMLMediaElement::verify_response_or_get_failure_reason(GC::Ref
 
     // 5. If internalResponse's status is not 206, then return false.
     if (internal_response->status() != 206)
-        return MUST(String::formatted("Unexpected status code: {}", internal_response->status()));
+        return Utf16String::formatted("Unexpected status code: {}", internal_response->status());
 
     // 6. If the result of extracting content-range values from internalResponse is failure, then return false.
     auto maybe_content_range = internal_response->header_list()->extract_content_range_values();
     if (!maybe_content_range.has<HTTP::HeaderList::ContentRangeValues>())
-        return MUST(String::formatted("Failed to extract values from Content-Range: {}", internal_response->header_list()->get("Content-Range"sv)));
+        return Utf16String::formatted("Failed to extract values from Content-Range: {}", internal_response->header_list()->get("Content-Range"sv));
 
     auto const& content_range = maybe_content_range.get<HTTP::HeaderList::ContentRangeValues>();
     m_remote_fetch_data->offset = content_range.first_byte_pos;
@@ -2003,7 +2004,7 @@ void HTMLMediaElement::set_up_playback_manager_for_remote()
             self.cancel_the_fetching_process();
 
             // 2. Abort this subalgorithm, returning to the resource selection algorithm.
-            failure_callback(MUST(String::from_utf8(error.description())));
+            failure_callback(Utf16String::from_utf8(error.description()));
         });
     });
 
@@ -2016,7 +2017,7 @@ void HTMLMediaElement::set_up_playback_manager_for_remote()
                 return;
             if (playback_manager_ptr != self.m_playback_manager.ptr())
                 return;
-            self.set_decoder_error(MUST(String::from_utf8(error.description())));
+            self.set_decoder_error(Utf16String::from_utf8(error.description()));
         });
     });
 
@@ -2080,7 +2081,7 @@ void HTMLMediaElement::set_up_playback_manager_for_local()
     // -> If the media data is corrupted
     m_playback_manager->on_error = GC::weak_callback(*this, [](auto& self, Media::DecoderError&& error) {
         self.queue_a_media_element_task([error = move(error)](HTMLMediaElement& self) {
-            self.set_decoder_error(MUST(String::from_utf8(error.description())));
+            self.set_decoder_error(Utf16String::from_utf8(error.description()));
         });
     });
 
@@ -2139,7 +2140,7 @@ void HTMLMediaElement::process_media_data(FetchingStatus fetching_status)
             cancel_the_fetching_process();
 
             // 2. Set the error attribute to the result of creating a MediaError with MEDIA_ERR_NETWORK.
-            m_error = realm.create<MediaError>(realm, MediaError::Code::Network, "Connection interrupted"_string);
+            m_error = realm.create<MediaError>(realm, MediaError::Code::Network, "Connection interrupted"_utf16);
 
             // 3. Set the element's networkState attribute to the NETWORK_IDLE value.
             m_network_state = NetworkState::Idle;
@@ -2162,7 +2163,7 @@ void HTMLMediaElement::process_media_data(FetchingStatus fetching_status)
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dedicated-media-source-failure-steps
-void HTMLMediaElement::handle_media_source_failure(Span<GC::Ref<WebIDL::Promise>> promises, String error_message)
+void HTMLMediaElement::handle_media_source_failure(Span<GC::Ref<WebIDL::Promise>> promises, Utf16String error_message)
 {
     auto& realm = this->realm();
 

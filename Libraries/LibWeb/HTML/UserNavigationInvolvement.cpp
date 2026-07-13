@@ -16,7 +16,7 @@ UserNavigationInvolvement user_navigation_involvement(DOM::Event const& event)
 
     // 1. Assert: this algorithm is being called as part of an activation behavior definition.
     // 2. Assert: event's type is "click".
-    VERIFY(event.type() == "click"_fly_string);
+    VERIFY(event.type() == u"click"sv);
 
     // 3. If event's isTrusted is initialized to true, then return "activation".
     // 4. Return "none".

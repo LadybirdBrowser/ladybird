@@ -1,0 +1,4 @@
+window.origin is a string: true
+window.origin matches location.origin: true
+worker.origin is a string: true
+worker.origin matches location.origin: true

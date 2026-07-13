@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibGC/Cell.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/HeapVector.h>
@@ -34,6 +35,6 @@ struct RequestResponse : public GC::Cell {
 using RequestResponseList = GC::HeapVector<GC::Ref<RequestResponse>>;
 
 // https://w3c.github.io/ServiceWorker/#dfn-name-to-cache-map
-using NameToCacheMap = OrderedHashMap<String, GC::Ref<RequestResponseList>>;
+using NameToCacheMap = OrderedHashMap<Utf16String, GC::Ref<RequestResponseList>>;
 
 }

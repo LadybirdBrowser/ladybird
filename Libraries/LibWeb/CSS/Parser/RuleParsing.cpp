@@ -152,7 +152,7 @@ GC::Ptr<CSSRule> Parser::convert_to_rule(Rule const& rule, Nested nested)
                 return convert_to_supports_rule<NestedDeclarationsRule>(at_rule, nested);
 
             // FIXME: More at rules!
-            ErrorReporter::the().report(UnknownRuleError { .rule_name = MUST(String::formatted("@{}", at_rule.name)) });
+            ErrorReporter::the().report(UnknownRuleError { .rule_name = Utf16String::formatted("@{}", at_rule.name) });
             return {};
         },
         [this, nested](QualifiedRule const& qualified_rule) -> GC::Ptr<CSSRule> {
@@ -188,7 +188,7 @@ GC::Ptr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualifi
     if (maybe_selectors.is_error()) {
         if (maybe_selectors.error() == ParseError::SyntaxError) {
             ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-                .rule_name = "style"_fly_string,
+                .rule_name = "style"_utf16_fly_string,
                 .prelude = prelude_stream.dump_string(),
                 .description = "Selectors invalid."_string,
             });
@@ -198,7 +198,7 @@ GC::Ptr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualifi
 
     if (maybe_selectors.value().is_empty()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "style"_fly_string,
+            .rule_name = "style"_utf16_fly_string,
             .prelude = prelude_stream.dump_string(),
             .description = "Empty selector."_string,
         });
@@ -223,8 +223,8 @@ GC::Ptr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualifi
                         child_rules.append(*converted_rule);
                     } else {
                         ErrorReporter::the().report(InvalidRuleLocationError {
-                            .outer_rule_name = "style"_fly_string,
-                            .inner_rule_name = MUST(FlyString::from_utf8(converted_rule->class_name())),
+                            .outer_rule_name = "style"_utf16_fly_string,
+                            .inner_rule_name = Utf16FlyString::from_utf8(converted_rule->class_name()),
                         });
                     }
                 }
@@ -260,7 +260,7 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
 
     if (rule.is_block_rule) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@import"_fly_string,
+            .rule_name = "@import"_utf16_fly_string,
             .prelude = tokens.dump_string(),
             .description = "Must be a statement, not a block."_string,
         });
@@ -269,7 +269,7 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
 
     if (rule.prelude.is_empty()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@import"_fly_string,
+            .rule_name = "@import"_utf16_fly_string,
             .prelude = tokens.dump_string(),
             .description = "Empty prelude."_string,
         });
@@ -284,7 +284,7 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
 
     if (!url.has_value()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@import"_fly_string,
+            .rule_name = "@import"_utf16_fly_string,
             .prelude = tokens.dump_string(),
             .description = MUST(String::formatted("Unable to parse `{}` as URL.", tokens.next_token().to_debug_string())),
         });
@@ -292,7 +292,7 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
     }
 
     tokens.discard_whitespace();
-    Optional<FlyString> layer;
+    Optional<Utf16FlyString> layer;
     Optional<CSSImportRule::ImportScope> scope;
     RefPtr<Supports> supports {};
 
@@ -323,7 +323,7 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
             if (component_value.is(Token::Type::Whitespace))
                 continue;
 
-            if (component_value.is_ident("to"sv)) {
+            if (component_value.is_ident("to"_utf16)) {
                 if (!previous_non_whitespace_token)
                     return true;
                 if (!previous_non_whitespace_token->is_delim('.') && !previous_non_whitespace_token->is(Token::Type::Colon))
@@ -340,13 +340,13 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
         if (layer.has_value())
             return false;
 
-        if (tokens.next_token().is_ident("layer"sv)) {
+        if (tokens.next_token().is_ident("layer"_utf16)) {
             tokens.discard_a_token(); // layer
-            layer = FlyString {};
+            layer = Utf16FlyString {};
             return true;
         }
 
-        if (!tokens.next_token().is_function("layer"sv))
+        if (!tokens.next_token().is_function("layer"_utf16))
             return false;
 
         auto layer_transaction = tokens.begin_transaction();
@@ -366,13 +366,13 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
         if (scope.has_value())
             return false;
 
-        if (tokens.next_token().is_ident("scope"sv)) {
+        if (tokens.next_token().is_ident("scope"_utf16)) {
             tokens.discard_a_token(); // scope
             scope = CSSImportRule::ImportScope {};
             return true;
         }
 
-        if (!tokens.next_token().is_function("scope"sv))
+        if (!tokens.next_token().is_function("scope"_utf16))
             return false;
 
         auto scope_transaction = tokens.begin_transaction();
@@ -395,7 +395,7 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
             scope_tokens.discard_whitespace();
         }
 
-        if (scope_tokens.next_token().is_ident("to"sv)) {
+        if (scope_tokens.next_token().is_ident("to"_utf16)) {
             scope_tokens.discard_a_token(); // to
             scope_tokens.discard_whitespace();
             auto end_selectors = parse_parenthesized_scope_selector_list(scope_tokens, SelectorType::Relative);
@@ -426,7 +426,7 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
     auto parse_supports = [&]() -> bool {
         if (supports)
             return false;
-        if (!tokens.next_token().is_function("supports"sv))
+        if (!tokens.next_token().is_function("supports"_utf16))
             return false;
 
         auto supports_transaction = tokens.begin_transaction();
@@ -460,7 +460,7 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
 
     if (tokens.has_next_token()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@import"_fly_string,
+            .rule_name = "@import"_utf16_fly_string,
             .prelude = tokens.dump_string(),
             .description = "Trailing tokens in prelude."_string,
         });
@@ -470,7 +470,7 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
     return CSSImportRule::create(realm(), url.release_value(), const_cast<DOM::Document*>(m_document.ptr()), move(layer), move(scope), move(supports), MediaList::create(realm(), move(media_query_list)));
 }
 
-Optional<FlyString> Parser::parse_layer_name(TokenStream<ComponentValue>& tokens, AllowBlankLayerName allow_blank_layer_name)
+Optional<Utf16FlyString> Parser::parse_layer_name(TokenStream<ComponentValue>& tokens, AllowBlankLayerName allow_blank_layer_name)
 {
     // https://drafts.csswg.org/css-cascade-5/#typedef-layer-name
     // <layer-name> = <ident> [ '.' <ident> ]*
@@ -485,14 +485,14 @@ Optional<FlyString> Parser::parse_layer_name(TokenStream<ComponentValue>& tokens
     tokens.discard_whitespace();
     if (!tokens.has_next_token() && allow_blank_layer_name == AllowBlankLayerName::Yes) {
         // No name present, just return a blank one
-        return FlyString();
+        return Utf16FlyString();
     }
 
     auto& first_name_token = tokens.consume_a_token();
     if (!is_valid_layer_name_part(first_name_token))
         return {};
 
-    StringBuilder builder;
+    Utf16StringBuilder builder;
     builder.append(first_name_token.token().ident());
 
     while (tokens.has_next_token()) {
@@ -504,11 +504,13 @@ Optional<FlyString> Parser::parse_layer_name(TokenStream<ComponentValue>& tokens
         auto& name_token = tokens.consume_a_token();
         if (!is_valid_layer_name_part(name_token))
             return {};
-        builder.appendff(".{}", name_token.token().ident());
+        builder.append_ascii('.');
+        builder.append(name_token.token().ident());
     }
 
     transaction.commit();
-    return builder.to_fly_string_without_validation();
+    auto layer_name = builder.to_string();
+    return Utf16FlyString::from_utf16(layer_name.utf16_view());
 }
 
 template<typename NestedDeclarationsRule>
@@ -528,13 +530,13 @@ GC::Ptr<CSSRule> Parser::convert_to_layer_rule(AtRule const& rule, Nested nested
         // }
 
         // First, the name
-        FlyString layer_name = {};
+        Utf16FlyString layer_name = {};
         auto prelude_tokens = TokenStream { rule.prelude };
         if (auto maybe_name = parse_layer_name(prelude_tokens, AllowBlankLayerName::Yes); maybe_name.has_value()) {
             layer_name = maybe_name.release_value();
         } else {
             ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-                .rule_name = "@layer"_fly_string,
+                .rule_name = "@layer"_utf16_fly_string,
                 .prelude = prelude_tokens.dump_string(),
                 .description = "Not a valid layer name."_string,
             });
@@ -544,7 +546,7 @@ GC::Ptr<CSSRule> Parser::convert_to_layer_rule(AtRule const& rule, Nested nested
         prelude_tokens.discard_whitespace();
         if (prelude_tokens.has_next_token()) {
             ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-                .rule_name = "@layer"_fly_string,
+                .rule_name = "@layer"_utf16_fly_string,
                 .prelude = prelude_tokens.dump_string(),
                 .description = "Trailing tokens after name in prelude."_string,
             });
@@ -571,13 +573,13 @@ GC::Ptr<CSSRule> Parser::convert_to_layer_rule(AtRule const& rule, Nested nested
     // @layer <layer-name>#;
     auto prelude_tokens = TokenStream { rule.prelude };
     prelude_tokens.discard_whitespace();
-    Vector<FlyString> layer_names;
+    Vector<Utf16FlyString> layer_names;
     while (prelude_tokens.has_next_token()) {
         // Comma
         if (!layer_names.is_empty()) {
             if (auto comma = prelude_tokens.consume_a_token(); !comma.is(Token::Type::Comma)) {
                 ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-                    .rule_name = "@layer"_fly_string,
+                    .rule_name = "@layer"_utf16_fly_string,
                     .prelude = prelude_tokens.dump_string(),
                     .description = "Missing comma between layer names."_string,
                 });
@@ -590,7 +592,7 @@ GC::Ptr<CSSRule> Parser::convert_to_layer_rule(AtRule const& rule, Nested nested
             layer_names.append(name.release_value());
         } else {
             ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-                .rule_name = "@layer"_fly_string,
+                .rule_name = "@layer"_utf16_fly_string,
                 .prelude = prelude_tokens.dump_string(),
                 .description = "Contains invalid layer name."_string,
             });
@@ -601,7 +603,7 @@ GC::Ptr<CSSRule> Parser::convert_to_layer_rule(AtRule const& rule, Nested nested
 
     if (layer_names.is_empty()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@layer"_fly_string,
+            .rule_name = "@layer"_utf16_fly_string,
             .prelude = prelude_tokens.dump_string(),
             .description = "No layer names provided."_string,
         });
@@ -627,7 +629,7 @@ GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
     auto prelude_stream = TokenStream { rule.prelude };
     if (!rule.is_block_rule) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@keyframes"_fly_string,
+            .rule_name = "@keyframes"_utf16_fly_string,
             .prelude = prelude_stream.dump_string(),
             .description = "Must be a block, not a statement."_string,
         });
@@ -636,7 +638,7 @@ GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
 
     if (rule.prelude.is_empty()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@keyframes"_fly_string,
+            .rule_name = "@keyframes"_utf16_fly_string,
             .prelude = prelude_stream.dump_string(),
             .description = "Empty prelude."_string,
         });
@@ -647,7 +649,7 @@ GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
     auto& token = prelude_stream.consume_a_token();
     if (!token.is_token()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@keyframes"_fly_string,
+            .rule_name = "@keyframes"_utf16_fly_string,
             .prelude = prelude_stream.dump_string(),
             .description = "Name must be a <string> or <ident>."_string,
         });
@@ -659,7 +661,7 @@ GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
 
     if (prelude_stream.has_next_token()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@keyframes"_fly_string,
+            .rule_name = "@keyframes"_utf16_fly_string,
             .prelude = prelude_stream.dump_string(),
             .description = "Trailing tokens after name in prelude."_string,
         });
@@ -668,7 +670,7 @@ GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
 
     if (name_token.is(Token::Type::Ident) && !is_valid_custom_ident(name_token.ident(), { { "none"sv } })) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@keyframes"_fly_string,
+            .rule_name = "@keyframes"_utf16_fly_string,
             .prelude = prelude_stream.dump_string(),
             .description = "Invalid name."_string,
         });
@@ -677,7 +679,7 @@ GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
 
     if (!name_token.is(Token::Type::String) && !name_token.is(Token::Type::Ident)) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@keyframes"_fly_string,
+            .rule_name = "@keyframes"_utf16_fly_string,
             .prelude = prelude_stream.dump_string(),
             .description = "Name must be a <string> or <ident>."_string,
         });
@@ -693,15 +695,15 @@ GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
         if (!qualified_rule.child_rules.is_empty()) {
             for (auto const& child_rule : qualified_rule.child_rules) {
                 ErrorReporter::the().report(InvalidRuleLocationError {
-                    .outer_rule_name = "@keyframes"_fly_string,
+                    .outer_rule_name = "@keyframes"_utf16_fly_string,
                     .inner_rule_name = child_rule.visit(
                         [](Rule const& rule) {
                             return rule.visit(
-                                [](AtRule const& at_rule) { return MUST(String::formatted("@{}", at_rule.name)); },
-                                [](QualifiedRule const&) { return "qualified-rule"_string; });
+                                [](AtRule const& at_rule) { return Utf16String::formatted("@{}", at_rule.name); },
+                                [](QualifiedRule const&) { return Utf16String { "qualified-rule"_utf16_fly_string }; });
                         },
                         [](auto&) {
-                            return "list-of-declarations"_string;
+                            return Utf16String { "list-of-declarations"_utf16_fly_string };
                         }),
                 });
             }
@@ -716,18 +718,18 @@ GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
             auto& next_token = child_tokens.next_token();
             if (!next_token.is_token()) {
                 ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-                    .rule_name = "keyframe"_fly_string,
+                    .rule_name = "keyframe"_utf16_fly_string,
                     .prelude = child_tokens.dump_string(),
                     .description = "Invalid selector."_string,
                 });
                 break;
             }
             auto read_a_selector = false;
-            if (next_token.is_ident("from"sv)) {
+            if (next_token.is_ident("from"_utf16)) {
                 child_tokens.discard_a_token(); // from
                 selectors.append(Percentage(0));
                 read_a_selector = true;
-            } else if (next_token.is_ident("to"sv)) {
+            } else if (next_token.is_ident("to"_utf16)) {
                 child_tokens.discard_a_token(); // to
                 selectors.append(Percentage(100));
                 read_a_selector = true;
@@ -749,7 +751,7 @@ GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
         }
 
         PropertiesAndCustomProperties properties;
-        qualified_rule.for_each_as_declaration_list("keyframe"_fly_string, [&](auto const& declaration) {
+        qualified_rule.for_each_as_declaration_list("keyframe"_utf16_fly_string, [&](auto const& declaration) {
             // https://drafts.csswg.org/css-animations-1/#keyframes
             // None of the properties [in the <keyframe-block>'s <declaration-list>] interact with the cascade (so
             // using !important on them is invalid and will cause the property to be ignored).
@@ -775,7 +777,7 @@ GC::Ptr<CSSNamespaceRule> Parser::convert_to_namespace_rule(AtRule const& rule)
     auto tokens = TokenStream { rule.prelude };
     if (rule.is_block_rule) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@namespace"_fly_string,
+            .rule_name = "@namespace"_utf16_fly_string,
             .prelude = tokens.dump_string(),
             .description = "Must be a statement, not a block."_string,
         });
@@ -784,7 +786,7 @@ GC::Ptr<CSSNamespaceRule> Parser::convert_to_namespace_rule(AtRule const& rule)
 
     if (rule.prelude.is_empty()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@namespace"_fly_string,
+            .rule_name = "@namespace"_utf16_fly_string,
             .prelude = tokens.dump_string(),
             .description = "Empty prelude."_string,
         });
@@ -816,7 +818,7 @@ GC::Ptr<CSSNamespaceRule> Parser::convert_to_namespace_rule(AtRule const& rule)
             return component_value.token().string();
         }
 
-        if (component_value.is_function("url"sv)) {
+        if (component_value.is_function("url"_utf16)) {
             TokenStream url_tokens { component_value.function().value };
             url_tokens.discard_whitespace();
             auto const& url_string = url_tokens.consume_a_token();
@@ -832,7 +834,7 @@ GC::Ptr<CSSNamespaceRule> Parser::convert_to_namespace_rule(AtRule const& rule)
 
     if (!parse_namespace_uri.has_value()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@namespace"_fly_string,
+            .rule_name = "@namespace"_utf16_fly_string,
             .prelude = tokens.dump_string(),
             .description = "Unable to parse <url>."_string,
         });
@@ -844,7 +846,7 @@ GC::Ptr<CSSNamespaceRule> Parser::convert_to_namespace_rule(AtRule const& rule)
     tokens.discard_whitespace();
     if (tokens.has_next_token()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@namespace"_fly_string,
+            .rule_name = "@namespace"_utf16_fly_string,
             .prelude = tokens.dump_string(),
             .description = "Trailing tokens after <url> in prelude."_string,
         });
@@ -870,7 +872,7 @@ GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, Ne
     auto supports_tokens = TokenStream { rule.prelude };
     if (!rule.is_block_rule) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@supports"_fly_string,
+            .rule_name = "@supports"_utf16_fly_string,
             .prelude = supports_tokens.dump_string(),
             .description = "Must be a block, not a statement."_string,
         });
@@ -879,7 +881,7 @@ GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, Ne
 
     if (rule.prelude.is_empty()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@supports"_fly_string,
+            .rule_name = "@supports"_utf16_fly_string,
             .prelude = supports_tokens.dump_string(),
             .description = "Empty prelude."_string,
         });
@@ -889,7 +891,7 @@ GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, Ne
     auto supports = parse_a_supports(supports_tokens);
     if (!supports) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@supports"_fly_string,
+            .rule_name = "@supports"_utf16_fly_string,
             .prelude = supports_tokens.dump_string(),
             .description = "Supports clause invalid."_string,
         });
@@ -927,7 +929,7 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
     auto prelude_stream = TokenStream { rule.prelude };
     if (!rule.is_block_rule) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@property"_fly_string,
+            .rule_name = "@property"_utf16_fly_string,
             .prelude = prelude_stream.dump_string(),
             .description = "Must be a block, not a statement."_string,
         });
@@ -936,7 +938,7 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
 
     if (rule.prelude.is_empty()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@property"_fly_string,
+            .rule_name = "@property"_utf16_fly_string,
             .prelude = prelude_stream.dump_string(),
             .description = "Empty prelude."_string,
         });
@@ -947,7 +949,7 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
     auto const& token = prelude_stream.consume_a_token();
     if (!token.is_token()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@property"_fly_string,
+            .rule_name = "@property"_utf16_fly_string,
             .prelude = prelude_stream.dump_string(),
             .description = "Name must be an ident."_string,
         });
@@ -959,7 +961,7 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
 
     if (prelude_stream.has_next_token()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@property"_fly_string,
+            .rule_name = "@property"_utf16_fly_string,
             .prelude = prelude_stream.dump_string(),
             .description = "Trailing tokens after name in prelude."_string,
         });
@@ -968,7 +970,7 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
 
     if (!name_token.is(Token::Type::Ident) || !is_a_custom_property_name_string(name_token.ident())) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@property"_fly_string,
+            .rule_name = "@property"_utf16_fly_string,
             .prelude = prelude_stream.dump_string(),
             .description = "Name must be an ident starting with '--'."_string,
         });
@@ -1065,7 +1067,7 @@ GC::Ptr<CSSScopeRule> Parser::convert_to_scope_rule(AtRule const& rule, Nested n
     TokenStream prelude_stream { rule.prelude };
     if (!rule.is_block_rule) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@scope"_fly_string,
+            .rule_name = "@scope"_utf16_fly_string,
             .prelude = prelude_stream.dump_string(),
             .description = "Must be a block, not a statement."_string,
         });
@@ -1083,7 +1085,7 @@ GC::Ptr<CSSScopeRule> Parser::convert_to_scope_rule(AtRule const& rule, Nested n
         start_tokens.discard_whitespace();
         if (maybe_start_selectors.is_error() || maybe_start_selectors.value().is_empty() || start_tokens.has_next_token()) {
             ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-                .rule_name = "@scope"_fly_string,
+                .rule_name = "@scope"_utf16_fly_string,
                 .prelude = prelude_stream.dump_string(),
                 .description = "Invalid scope start selector."_string,
             });
@@ -1097,12 +1099,12 @@ GC::Ptr<CSSScopeRule> Parser::convert_to_scope_rule(AtRule const& rule, Nested n
         prelude_stream.discard_whitespace();
     }
 
-    if (prelude_stream.next_token().is_ident("to"sv)) {
+    if (prelude_stream.next_token().is_ident("to"_utf16)) {
         prelude_stream.discard_a_token(); // to
         prelude_stream.discard_whitespace();
         if (!(prelude_stream.next_token().is_block() && prelude_stream.next_token().block().is_paren())) {
             ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-                .rule_name = "@scope"_fly_string,
+                .rule_name = "@scope"_utf16_fly_string,
                 .prelude = prelude_stream.dump_string(),
                 .description = "Missing scope end selector."_string,
             });
@@ -1115,7 +1117,7 @@ GC::Ptr<CSSScopeRule> Parser::convert_to_scope_rule(AtRule const& rule, Nested n
         end_tokens.discard_whitespace();
         if (maybe_end_selectors.is_error() || maybe_end_selectors.value().is_empty() || end_tokens.has_next_token()) {
             ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-                .rule_name = "@scope"_fly_string,
+                .rule_name = "@scope"_utf16_fly_string,
                 .prelude = prelude_stream.dump_string(),
                 .description = "Invalid scope end selector."_string,
             });
@@ -1129,7 +1131,7 @@ GC::Ptr<CSSScopeRule> Parser::convert_to_scope_rule(AtRule const& rule, Nested n
 
     if (prelude_stream.has_next_token()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@scope"_fly_string,
+            .rule_name = "@scope"_utf16_fly_string,
             .prelude = prelude_stream.dump_string(),
             .description = "Trailing tokens after scope bounds."_string,
         });
@@ -1178,7 +1180,7 @@ GC::Ptr<CSSContainerRule> Parser::convert_to_container_rule(AtRule const& rule, 
     TokenStream prelude_stream { rule.prelude };
     if (!rule.is_block_rule) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@container"_fly_string,
+            .rule_name = "@container"_utf16_fly_string,
             .prelude = prelude_stream.dump_string(),
             .description = "Must be a block, not a statement."_string,
         });
@@ -1188,7 +1190,7 @@ GC::Ptr<CSSContainerRule> Parser::convert_to_container_rule(AtRule const& rule, 
     auto prelude_item_values = parse_a_comma_separated_list_of_component_values(prelude_stream);
     if (prelude_item_values.is_empty()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@container"_fly_string,
+            .rule_name = "@container"_utf16_fly_string,
             .prelude = prelude_stream.dump_string(),
             .description = "Empty prelude."_string,
         });
@@ -1208,7 +1210,7 @@ GC::Ptr<CSSContainerRule> Parser::convert_to_container_rule(AtRule const& rule, 
         auto container_query = parse_container_query(item_tokens);
         if (!container_name.has_value() && !container_query) {
             ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-                .rule_name = "@container"_fly_string,
+                .rule_name = "@container"_utf16_fly_string,
                 .prelude = prelude_stream.dump_string(),
                 .description = "Missing container name or query."_string,
             });
@@ -1218,7 +1220,7 @@ GC::Ptr<CSSContainerRule> Parser::convert_to_container_rule(AtRule const& rule, 
         item_tokens.discard_whitespace();
         if (item_tokens.has_next_token()) {
             ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-                .rule_name = "@container"_fly_string,
+                .rule_name = "@container"_utf16_fly_string,
                 .prelude = prelude_stream.dump_string(),
                 .description = "Trailing tokens after name and query."_string,
             });
@@ -1256,7 +1258,7 @@ GC::Ptr<CSSCounterStyleRule> Parser::convert_to_counter_style_rule(AtRule const&
     TokenStream prelude_stream { rule.prelude };
     if (!rule.is_block_rule) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@counter-style"_fly_string,
+            .rule_name = "@counter-style"_utf16_fly_string,
             .prelude = prelude_stream.dump_string(),
             .description = "Must be a block, not a statement."_string,
         });
@@ -1265,7 +1267,7 @@ GC::Ptr<CSSCounterStyleRule> Parser::convert_to_counter_style_rule(AtRule const&
 
     if (rule.prelude.is_empty()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@counter-style"_fly_string,
+            .rule_name = "@counter-style"_utf16_fly_string,
             .prelude = prelude_stream.dump_string(),
             .description = "Empty prelude."_string,
         });
@@ -1275,7 +1277,7 @@ GC::Ptr<CSSCounterStyleRule> Parser::convert_to_counter_style_rule(AtRule const&
     auto name = parse_counter_style_name(prelude_stream);
     if (!name.has_value()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@counter-style"_fly_string,
+            .rule_name = "@counter-style"_utf16_fly_string,
             .prelude = prelude_stream.dump_string(),
             .description = "Missing counter style name."_string,
         });
@@ -1285,7 +1287,7 @@ GC::Ptr<CSSCounterStyleRule> Parser::convert_to_counter_style_rule(AtRule const&
     prelude_stream.discard_whitespace();
     if (prelude_stream.has_next_token()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@counter-style"_fly_string,
+            .rule_name = "@counter-style"_utf16_fly_string,
             .prelude = prelude_stream.dump_string(),
             .description = "Trailing tokens after name in prelude."_string,
         });
@@ -1297,7 +1299,7 @@ GC::Ptr<CSSCounterStyleRule> Parser::convert_to_counter_style_rule(AtRule const&
     // FIXME: We should allow these in the UA stylesheet in order to initially define them.
     if (CSSCounterStyleRule::matches_non_overridable_counter_style_name(name.value()) && m_is_ua_style_sheet != IsUAStyleSheet::Yes) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@counter-style"_fly_string,
+            .rule_name = "@counter-style"_utf16_fly_string,
             .prelude = prelude_stream.dump_string(),
             .description = "Non-overridable counter style name."_string,
         });
@@ -1371,7 +1373,7 @@ GC::Ptr<CSSFontFaceRule> Parser::convert_to_font_face_rule(AtRule const& rule)
     TokenStream prelude_stream { rule.prelude };
     if (!rule.is_block_rule) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@font-face"_fly_string,
+            .rule_name = "@font-face"_utf16_fly_string,
             .prelude = prelude_stream.dump_string(),
             .description = "Must be a block, not a statement."_string,
         });
@@ -1381,7 +1383,7 @@ GC::Ptr<CSSFontFaceRule> Parser::convert_to_font_face_rule(AtRule const& rule)
     prelude_stream.discard_whitespace();
     if (prelude_stream.has_next_token()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@font-face"_fly_string,
+            .rule_name = "@font-face"_utf16_fly_string,
             .prelude = prelude_stream.dump_string(),
             .description = "Prelude is not allowed."_string,
         });
@@ -1405,7 +1407,7 @@ Optional<Vector<Utf16FlyString>> Parser::parse_comma_separated_family_name_list(
 
     if (comma_separated_families.is_empty()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@font-feature-values"_fly_string,
+            .rule_name = "@font-feature-values"_utf16_fly_string,
             .prelude = tokens.dump_string(),
             .description = "Empty family name list."_string,
         });
@@ -1418,7 +1420,7 @@ Optional<Vector<Utf16FlyString>> Parser::parse_comma_separated_family_name_list(
 
         if (!family_name || family_stream.has_next_token()) {
             ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-                .rule_name = "@font-feature-values"_fly_string,
+                .rule_name = "@font-feature-values"_utf16_fly_string,
                 .prelude = family_stream.dump_string(),
                 .description = "Invalid family name."_string,
             });
@@ -1438,7 +1440,7 @@ GC::Ptr<CSSFontFeatureValuesRule> Parser::convert_to_font_feature_values_rule(At
     auto prelude_stream = TokenStream { rule.prelude };
     if (!rule.is_block_rule) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@font-feature-values"_fly_string,
+            .rule_name = "@font-feature-values"_utf16_fly_string,
             .prelude = prelude_stream.dump_string(),
             .description = "Must be a block, not a statement."_string,
         });
@@ -1492,7 +1494,7 @@ GC::Ptr<CSSFontFeatureValuesRule> Parser::convert_to_font_feature_values_rule(At
 
                 if (declaration.important == Important::Yes) {
                     ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-                        .rule_name = MUST(String::formatted("@{}", at_rule.name)),
+                        .rule_name = Utf16String::formatted("@{}", at_rule.name),
                         .prelude = value_stream.dump_string(),
                         .description = "Declarations in @font-feature-values rules cannot be marked !important."_string,
                     });
@@ -1503,7 +1505,7 @@ GC::Ptr<CSSFontFeatureValuesRule> Parser::convert_to_font_feature_values_rule(At
 
                 if (!value_stream.has_next_token()) {
                     ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-                        .rule_name = MUST(String::formatted("@{}", at_rule.name)),
+                        .rule_name = Utf16String::formatted("@{}", at_rule.name),
                         .prelude = value_stream.dump_string(),
                         .description = "Empty feature value."_string,
                     });
@@ -1518,7 +1520,7 @@ GC::Ptr<CSSFontFeatureValuesRule> Parser::convert_to_font_feature_values_rule(At
                     // FIXME: Support calc()
                     if (!token.is(Token::Type::Number) || !token.token().is_integer() || token.token().to_integer() < 0) {
                         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-                            .rule_name = MUST(String::formatted("@{}", at_rule.name)),
+                            .rule_name = Utf16String::formatted("@{}", at_rule.name),
                             .prelude = value_stream.dump_string(),
                             .description = "Feature value entry must be a non-negative integer."_string,
                         });
@@ -1533,7 +1535,7 @@ GC::Ptr<CSSFontFeatureValuesRule> Parser::convert_to_font_feature_values_rule(At
 
                 if (values.size() > max_value_count) {
                     ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-                        .rule_name = MUST(String::formatted("@{}", at_rule.name)),
+                        .rule_name = Utf16String::formatted("@{}", at_rule.name),
                         .prelude = value_stream.dump_string(),
                         .description = MUST(String::formatted("Too many feature values provided (maximum {})."_string, max_value_count)),
                     });
@@ -1570,7 +1572,7 @@ static RefPtr<SyntaxNode> parse_css_type(TokenStream<ComponentValue>& tokens)
     // <type()>
     auto maybe_type_function_token = tokens.consume_a_token();
 
-    if (!maybe_type_function_token.is_function("type"sv))
+    if (!maybe_type_function_token.is_function("type"_utf16))
         return nullptr;
 
     if (auto maybe_type_function_syntax = parse_as_syntax(maybe_type_function_token.function().value)) {
@@ -1595,7 +1597,7 @@ Optional<Parser::FunctionPrelude> Parser::parse_function_prelude(TokenStream<Com
 
     if (!function_token.is_function()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@function"_fly_string,
+            .rule_name = "@function"_utf16_fly_string,
             .prelude = tokens.dump_string(),
             .description = "Prelude must start with a function token."_string,
         });
@@ -1608,7 +1610,7 @@ Optional<Parser::FunctionPrelude> Parser::parse_function_prelude(TokenStream<Com
     // else the definition is invalid.
     if (!function_name.starts_with("--"sv)) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@function"_fly_string,
+            .rule_name = "@function"_utf16_fly_string,
             .prelude = tokens.dump_string(),
             .description = "Function name must start with two dashes."_string,
         });
@@ -1630,7 +1632,7 @@ Optional<Parser::FunctionPrelude> Parser::parse_function_prelude(TokenStream<Com
         auto maybe_name = parse_dashed_ident(parameter_tokens);
         if (!maybe_name.has_value() || !is_a_custom_property_name_string(maybe_name.value())) {
             ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-                .rule_name = "@function"_fly_string,
+                .rule_name = "@function"_utf16_fly_string,
                 .prelude = parameter_tokens.dump_string(),
                 .description = "Parameter must have a name."_string,
             });
@@ -1654,7 +1656,7 @@ Optional<Parser::FunctionPrelude> Parser::parse_function_prelude(TokenStream<Com
 
             if (!maybe_default_value.has_value()) {
                 ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-                    .rule_name = "@function"_fly_string,
+                    .rule_name = "@function"_utf16_fly_string,
                     .prelude = parameter_tokens.dump_string(),
                     .description = "Expected default value after ':' in parameter"_string,
                 });
@@ -1675,7 +1677,7 @@ Optional<Parser::FunctionPrelude> Parser::parse_function_prelude(TokenStream<Com
 
         if (!parameter_tokens.is_empty()) {
             ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-                .rule_name = "@function"_fly_string,
+                .rule_name = "@function"_utf16_fly_string,
                 .prelude = parameter_tokens.dump_string(),
                 .description = "Trailing tokens after parameter"_string,
             });
@@ -1688,7 +1690,7 @@ Optional<Parser::FunctionPrelude> Parser::parse_function_prelude(TokenStream<Com
     tokens.discard_whitespace();
 
     NonnullRefPtr<SyntaxNode> return_type = UniversalSyntaxNode::create();
-    if (tokens.next_token().is_ident("returns"sv)) {
+    if (tokens.next_token().is_ident("returns"_utf16)) {
         tokens.discard_a_token();
         tokens.discard_whitespace();
 
@@ -1696,7 +1698,7 @@ Optional<Parser::FunctionPrelude> Parser::parse_function_prelude(TokenStream<Com
 
         if (!maybe_return_type) {
             ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-                .rule_name = "@function"_fly_string,
+                .rule_name = "@function"_utf16_fly_string,
                 .prelude = tokens.dump_string(),
                 .description = "Expected return type after 'returns' in prelude."_string,
             });
@@ -1710,7 +1712,7 @@ Optional<Parser::FunctionPrelude> Parser::parse_function_prelude(TokenStream<Com
 
     if (tokens.has_next_token()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@function"_fly_string,
+            .rule_name = "@function"_utf16_fly_string,
             .prelude = tokens.dump_string(),
             .description = "Trailing tokens in prelude."_string,
         });
@@ -1734,7 +1736,7 @@ GC::Ptr<CSSFunctionRule> Parser::convert_to_function_rule(AtRule const& function
 
     if (!function_rule.is_block_rule) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@function"_fly_string,
+            .rule_name = "@function"_utf16_fly_string,
             .prelude = prelude_stream.dump_string(),
             .description = "Must be a block, not a statement."_string,
         });
@@ -1776,7 +1778,7 @@ GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& page_rule)
     TokenStream tokens { page_rule.prelude };
     if (!page_rule.is_block_rule) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@page"_fly_string,
+            .rule_name = "@page"_utf16_fly_string,
             .prelude = tokens.dump_string(),
             .description = "Must be a block, not a statement."_string,
         });
@@ -1796,8 +1798,8 @@ GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& page_rule)
                     child_rules.append(*converted_rule);
                 } else {
                     ErrorReporter::the().report(InvalidRuleLocationError {
-                        .outer_rule_name = "@page"_fly_string,
-                        .inner_rule_name = MUST(FlyString::from_utf8(converted_rule->class_name())),
+                        .outer_rule_name = "@page"_utf16_fly_string,
+                        .inner_rule_name = Utf16FlyString::from_utf8(converted_rule->class_name()),
                     });
                 }
             }
@@ -1823,7 +1825,7 @@ GC::Ptr<CSSMarginRule> Parser::convert_to_margin_rule(AtRule const& rule)
     TokenStream prelude_stream { rule.prelude };
     if (!rule.is_block_rule) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = MUST(String::formatted("@{}", rule.name)),
+            .rule_name = Utf16String::formatted("@{}", rule.name),
             .prelude = prelude_stream.dump_string(),
             .description = "Must be a block, not a statement."_string,
         });
@@ -1833,7 +1835,7 @@ GC::Ptr<CSSMarginRule> Parser::convert_to_margin_rule(AtRule const& rule)
     prelude_stream.discard_whitespace();
     if (prelude_stream.has_next_token()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = MUST(String::formatted("@{}", rule.name)),
+            .rule_name = Utf16String::formatted("@{}", rule.name),
             .prelude = prelude_stream.dump_string(),
             .description = "Prelude is not allowed."_string,
         });

@@ -28,7 +28,7 @@ MediaStreamTrack::MediaStreamTrack(JS::Realm& realm)
 }
 
 // https://w3c.github.io/mediacapture-main/#mediastreamtrack
-GC::Ref<MediaStreamTrack> MediaStreamTrack::create(JS::Realm& realm, Bindings::MediaStreamTrackKind kind, Optional<String> label, bool muted)
+GC::Ref<MediaStreamTrack> MediaStreamTrack::create(JS::Realm& realm, Bindings::MediaStreamTrackKind kind, Optional<Utf16String> label, bool muted)
 {
     // https://w3c.github.io/mediacapture-main/#dfn-create-a-mediastreamtrack
     // 1. Let track be a new object of type source's MediaStreamTrack source type.
@@ -38,13 +38,13 @@ GC::Ref<MediaStreamTrack> MediaStreamTrack::create(JS::Realm& realm, Bindings::M
     // FIXME: [[Source]], initialized to source.
 
     // [[Id]]: See MediaStream.id attribute for guidelines on how to generate such an identifier.
-    track->m_id = Crypto::generate_random_uuid();
+    track->m_id = Utf16String::from_utf8(Crypto::generate_random_uuid());
 
     // [[Kind]]: "audio" if source is an audio source, or "video" if source is a video source.
     track->m_kind = kind;
 
     // [[Label]]: source label or empty string.
-    track->m_label = label.value_or(""_string);
+    track->m_label = label.value_or({});
 
     // [[ReadyState]]: "live".
     track->m_state = Bindings::MediaStreamTrackState::Live;
@@ -136,7 +136,7 @@ bool MediaStreamTrack::is_video() const
     return m_kind == video_track_kind;
 }
 
-Optional<String> MediaStreamTrack::device_id() const
+Optional<Utf16String> MediaStreamTrack::device_id() const
 {
     return m_settings.device_id;
 }

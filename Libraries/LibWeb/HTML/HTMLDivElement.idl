@@ -4,6 +4,6 @@ interface HTMLDivElement : HTMLElement {
 
     [HTMLConstructor] constructor();
 
-    [CEReactions, Reflect] attribute DOMString align;
+    [CEReactions, Reflect] attribute Utf16DOMString align;
 
 };

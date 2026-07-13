@@ -21,7 +21,7 @@ public:
     virtual Result inline_check(GC::Heap&, GC::Ptr<DOM::Element const>, InlineType, GC::Ref<Policy const>, Utf16View) const override;
 
 private:
-    ScriptSourceAttributeDirective(String name, Vector<String> value);
+    ScriptSourceAttributeDirective(Utf16FlyString name, Vector<Utf16String> value);
 };
 
 }

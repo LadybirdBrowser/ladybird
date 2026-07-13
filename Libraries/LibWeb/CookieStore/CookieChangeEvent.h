@@ -18,8 +18,8 @@ class CookieChangeEvent final : public DOM::Event {
     GC_DECLARE_ALLOCATOR(CookieChangeEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<CookieChangeEvent> create(JS::Realm&, FlyString const& event_name, Bindings::CookieChangeEventInit const& event_init);
-    [[nodiscard]] static GC::Ref<CookieChangeEvent> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::CookieChangeEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<CookieChangeEvent> create(JS::Realm&, Utf16FlyString const& event_name, Bindings::CookieChangeEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<CookieChangeEvent> construct_impl(JS::Realm&, Utf16FlyString const& event_name, Bindings::CookieChangeEventInit const& event_init);
 
     virtual ~CookieChangeEvent() override;
 
@@ -30,7 +30,7 @@ public:
     DEFINE_CACHED_ATTRIBUTE(deleted);
 
 private:
-    CookieChangeEvent(JS::Realm&, FlyString const& event_name, Bindings::CookieChangeEventInit const& event_init);
+    CookieChangeEvent(JS::Realm&, Utf16FlyString const& event_name, Bindings::CookieChangeEventInit const& event_init);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

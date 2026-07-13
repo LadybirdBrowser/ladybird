@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Crypto/SubtleCrypto.h>
 #include <LibWeb/Export.h>
@@ -27,7 +28,7 @@ public:
 
     WebIDL::ExceptionOr<WebIDL::ArrayBufferViewVariant> get_random_values(WebIDL::ArrayBufferViewVariant array) const;
 
-    String random_uuid() const;
+    Utf16String random_uuid() const;
 
 protected:
     virtual void initialize(JS::Realm&) override;

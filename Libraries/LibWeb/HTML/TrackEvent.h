@@ -7,8 +7,8 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
 #include <AK/Optional.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Variant.h>
 #include <LibGC/Root.h>
 #include <LibWeb/Bindings/TrackEvent.h>
@@ -23,14 +23,14 @@ class TrackEvent : public DOM::Event {
     GC_DECLARE_ALLOCATOR(TrackEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<TrackEvent> create(JS::Realm&, FlyString const& event_name, Bindings::TrackEventInit const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<TrackEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::TrackEventInit const&);
+    [[nodiscard]] static GC::Ref<TrackEvent> create(JS::Realm&, Utf16FlyString const& event_name, Bindings::TrackEventInit const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<TrackEvent>> construct_impl(JS::Realm&, Utf16FlyString const& event_name, Bindings::TrackEventInit const&);
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-trackevent-track
     NullableTrackType track() const;
 
 private:
-    TrackEvent(JS::Realm&, FlyString const& event_name, Bindings::TrackEventInit const&);
+    TrackEvent(JS::Realm&, Utf16FlyString const& event_name, Bindings::TrackEventInit const&);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;

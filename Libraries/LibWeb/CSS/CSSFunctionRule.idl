@@ -1,14 +1,14 @@
 // https://drafts.csswg.org/css-mixins-1/#dictdef-functionparameter
 dictionary FunctionParameter {
-    required CSSOMString name;
-    [ImplementedAs=type_for_bindings]required CSSOMString type;
-    CSSOMString defaultValue;
+    required Utf16CSSOMString name;
+    [ImplementedAs=type_for_bindings]required Utf16CSSOMString type;
+    Utf16CSSOMString defaultValue;
 };
 
 // https://drafts.csswg.org/css-mixins-1/#cssfunctionrule
 [Exposed=Window]
 interface CSSFunctionRule : CSSGroupingRule {
-    readonly attribute CSSOMString name;
+    readonly attribute Utf16CSSOMString name;
     sequence<FunctionParameter> getParameters();
-    readonly attribute CSSOMString returnType;
+    readonly attribute Utf16CSSOMString returnType;
 };

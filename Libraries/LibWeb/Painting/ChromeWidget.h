@@ -8,6 +8,7 @@
 
 #include <AK/EnumBits.h>
 #include <AK/RefCounted.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Weakable.h>
 #include <LibGC/Cell.h>
 #include <LibWeb/CSS/ComputedValues.h>
@@ -37,7 +38,7 @@ public:
     virtual ~ChromeWidget() = default;
 
     virtual bool contains(CSSPixelPoint, ChromeMetrics const&) const = 0;
-    virtual MouseAction handle_pointer_event(FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position) = 0;
+    virtual MouseAction handle_pointer_event(Utf16FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position) = 0;
     virtual void mouse_enter() = 0;
     virtual void mouse_leave() = 0;
 

@@ -91,7 +91,7 @@ GC::Ptr<HTML::HTMLSlotElement> find_a_slot(Slottable const& slottable, OpenFlag 
 
     // 6. Return the first slot in tree order in shadow’s descendants whose name is slottable’s name, if any; otherwise null.
     auto const& slottable_name = slottable.visit([](auto const& node) { return node->slottable_name(); });
-    return shadow->first_slot_with_name(slottable_name);
+    return shadow->first_slot_with_name(slottable_name.view());
 }
 
 // https://dom.spec.whatwg.org/#find-slotables

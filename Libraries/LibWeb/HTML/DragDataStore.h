@@ -7,11 +7,10 @@
 #pragma once
 
 #include <AK/ByteBuffer.h>
-#include <AK/ByteString.h>
-#include <AK/FlyString.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefCounted.h>
-#include <AK/String.h>
+#include <AK/Utf16FlyString.h>
+#include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Point.h>
@@ -28,10 +27,11 @@ struct DragDataStoreItem {
     Kind kind { Kind::Text };
 
     // https://html.spec.whatwg.org/multipage/dnd.html#the-drag-data-item-type-string
-    String type_string;
+    Utf16FlyString type_string;
 
-    ByteBuffer data;
-    ByteString file_name;
+    Utf16String data;
+    ByteBuffer file_data;
+    Utf16String file_name;
 };
 
 // https://html.spec.whatwg.org/multipage/dnd.html#drag-data-store
@@ -55,8 +55,8 @@ public:
     Mode mode() const { return m_mode; }
     void set_mode(Mode mode) { m_mode = mode; }
 
-    FlyString allowed_effects_state() const { return m_allowed_effects_state; }
-    void set_allowed_effects_state(FlyString allowed_effects_state) { m_allowed_effects_state = move(allowed_effects_state); }
+    Utf16FlyString allowed_effects_state() const { return m_allowed_effects_state; }
+    void set_allowed_effects_state(Utf16FlyString allowed_effects_state) { m_allowed_effects_state = move(allowed_effects_state); }
 
 private:
     DragDataStore();
@@ -65,7 +65,7 @@ private:
     Vector<DragDataStoreItem> m_item_list;
 
     // https://html.spec.whatwg.org/multipage/dnd.html#drag-data-store-default-feedback
-    String m_default_feedback;
+    Utf16String m_default_feedback;
 
     // https://html.spec.whatwg.org/multipage/dnd.html#drag-data-store-bitmap
     RefPtr<Gfx::Bitmap> m_bitmap;
@@ -77,7 +77,7 @@ private:
     Mode m_mode { Mode::Protected };
 
     // https://html.spec.whatwg.org/multipage/dnd.html#drag-data-store-allowed-effects-state
-    FlyString m_allowed_effects_state;
+    Utf16FlyString m_allowed_effects_state;
 };
 
 }

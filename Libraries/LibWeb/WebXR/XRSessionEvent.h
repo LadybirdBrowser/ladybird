@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/DOM/Event.h>
 
 namespace Web::WebXR {
@@ -16,15 +17,15 @@ class XRSessionEvent : public DOM::Event {
     GC_DECLARE_ALLOCATOR(XRSessionEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<XRSessionEvent> create(JS::Realm&, FlyString const&, Bindings::XRSessionEventInit const&);
-    static GC::Ref<XRSessionEvent> construct_impl(JS::Realm&, FlyString const&, Bindings::XRSessionEventInit const&);
+    [[nodiscard]] static GC::Ref<XRSessionEvent> create(JS::Realm&, Utf16FlyString const&, Bindings::XRSessionEventInit const&);
+    static GC::Ref<XRSessionEvent> construct_impl(JS::Realm&, Utf16FlyString const&, Bindings::XRSessionEventInit const&);
 
     virtual ~XRSessionEvent() override = default;
 
     GC::Ptr<XRSession> session() const { return m_session; }
 
 private:
-    XRSessionEvent(JS::Realm&, FlyString const&, Bindings::XRSessionEventInit const&);
+    XRSessionEvent(JS::Realm&, Utf16FlyString const&, Bindings::XRSessionEventInit const&);
     virtual void initialize(JS::Realm&) override;
 
     virtual void visit_edges(JS::Cell::Visitor&) override;

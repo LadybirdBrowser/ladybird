@@ -21,7 +21,7 @@ public:
     virtual ~RadioNodeList() override;
 
     Utf16String value() const;
-    void set_value(Utf16String const&);
+    void set_value(Utf16View);
 
 protected:
     virtual void initialize(JS::Realm&) override;

@@ -2,8 +2,8 @@
 [Exposed=Window, LegacyUnenumerableNamedProperties]
 interface Plugin {
     readonly attribute Utf16DOMString name;
-    readonly attribute DOMString description;
-    readonly attribute DOMString filename;
+    readonly attribute Utf16DOMString description;
+    readonly attribute Utf16DOMString filename;
     readonly attribute unsigned long length;
     getter MimeType? item(unsigned long index);
     getter MimeType? namedItem([Utf16FlyString] Utf16DOMString name);

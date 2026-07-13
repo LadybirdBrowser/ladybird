@@ -10,6 +10,7 @@
 #include <AK/HashMap.h>
 #include <AK/String.h>
 #include <AK/Types.h>
+#include <AK/Utf16View.h>
 #include <AK/Variant.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Export.h>
@@ -24,7 +25,7 @@ struct JSONObject {
 };
 using JSONTopLevel = Variant<JSONValue, JSONObject>;
 
-WebIDL::ExceptionOr<JS::Value> parse_json_string_to_javascript_value(JS::Realm&, StringView);
+WebIDL::ExceptionOr<JS::Value> parse_json_string_to_javascript_value(JS::Realm&, Utf16View);
 WebIDL::ExceptionOr<JS::Value> parse_json_bytes_to_javascript_value(JS::Realm&, ReadonlyBytes);
 WebIDL::ExceptionOr<String> serialize_javascript_value_to_json_string(JS::VM&, JS::Value);
 WebIDL::ExceptionOr<ByteBuffer> serialize_javascript_value_to_json_bytes(JS::VM&, JS::Value);

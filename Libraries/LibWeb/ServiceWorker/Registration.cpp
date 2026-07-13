@@ -122,7 +122,7 @@ Optional<Registration&> Registration::match(StorageAPI::StorageKey const& storag
     // 8. If matchingScopeString is not the empty string, then:
     if (!matching_scope_string.is_empty()) {
         // 1. Let matchingScope be the result of parsing matchingScopeString.
-        matching_scope = DOMURL::parse(matching_scope_string);
+        matching_scope = DOMURL::parse_from_byte_string(matching_scope_string);
         // 2. Assert: matchingScope’s origin and clientURL’s origin are same origin.
         VERIFY(matching_scope.value().origin().is_same_origin(client_url.origin()));
     }

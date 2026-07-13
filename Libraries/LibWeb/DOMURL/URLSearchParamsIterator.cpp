@@ -16,7 +16,7 @@ template<>
 void Intrinsics::create_web_prototype_and_constructor<URLSearchParamsIteratorPrototype>(JS::Realm& realm)
 {
     auto prototype = realm.create<URLSearchParamsIteratorPrototype>(realm);
-    m_prototypes.set("URLSearchParamsIterator"_fly_string, prototype);
+    m_prototypes.set("URLSearchParamsIterator"_utf16_fly_string, prototype);
 }
 
 }
@@ -58,11 +58,11 @@ JS::Object* URLSearchParamsIterator::next()
 
     auto& entry = m_url_search_params->m_list[m_index++];
     if (m_iteration_kind == JS::Object::PropertyKind::Key)
-        return create_iterator_result_object(vm(), JS::PrimitiveString::create(vm(), Utf16String::from_utf8(entry.name)), false);
+        return create_iterator_result_object(vm(), JS::PrimitiveString::create(vm(), entry.name), false);
     else if (m_iteration_kind == JS::Object::PropertyKind::Value)
-        return create_iterator_result_object(vm(), JS::PrimitiveString::create(vm(), Utf16String::from_utf8(entry.value)), false);
+        return create_iterator_result_object(vm(), JS::PrimitiveString::create(vm(), entry.value), false);
 
-    return create_iterator_result_object(vm(), JS::Array::create_from(realm(), { JS::PrimitiveString::create(vm(), Utf16String::from_utf8(entry.name)), JS::PrimitiveString::create(vm(), Utf16String::from_utf8(entry.value)) }), false);
+    return create_iterator_result_object(vm(), JS::Array::create_from(realm(), { JS::PrimitiveString::create(vm(), entry.name), JS::PrimitiveString::create(vm(), entry.value) }), false);
 }
 
 }

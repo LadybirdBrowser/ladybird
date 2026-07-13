@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Utf16View.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
 
@@ -22,7 +23,7 @@ public:
 
     virtual ~DOMStringMap() override;
 
-    Utf16String determine_value_of_named_property(Utf16FlyString const&) const;
+    Utf16String determine_value_of_named_property(Utf16View) const;
 
     virtual WebIDL::ExceptionOr<void> set_value_of_new_named_property(Utf16FlyString const&, JS::Value) override;
     virtual WebIDL::ExceptionOr<void> set_value_of_existing_named_property(Utf16FlyString const&, JS::Value) override;
@@ -38,13 +39,6 @@ private:
     // ^PlatformObject
     virtual JS::Value named_item_value(Utf16FlyString const&) const override;
     virtual Vector<Utf16FlyString> supported_property_names() const override;
-
-    struct NameValuePair {
-        Utf16FlyString name;
-        Utf16String value;
-    };
-
-    Vector<NameValuePair> get_name_value_pairs() const;
 
     // https://html.spec.whatwg.org/multipage/dom.html#concept-domstringmap-element
     GC::Ref<DOM::Element> m_associated_element;

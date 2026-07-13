@@ -32,7 +32,7 @@ void OptionConstructor::initialize(JS::Realm& realm)
 
     define_direct_property(vm.names.length, JS::Value(0), JS::Attribute::Configurable);
     define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, "Option"_utf16_fly_string), JS::Attribute::Configurable);
-    define_direct_property(vm.names.prototype, &ensure_web_prototype<Bindings::HTMLOptionElementPrototype>(realm, "HTMLOptionElement"_fly_string), 0);
+    define_direct_property(vm.names.prototype, &ensure_web_prototype<Bindings::HTMLOptionElementPrototype>(realm, "HTMLOptionElement"_utf16_fly_string), 0);
 }
 
 JS::ThrowCompletionOr<JS::Value> OptionConstructor::call()
@@ -61,7 +61,7 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> OptionConstructor::construct(Function
     GC::Ref<HTML::HTMLOptionElement> option_element = as<HTML::HTMLOptionElement>(*element);
 
     // https://webidl.spec.whatwg.org/#internally-create-a-new-object-implementing-the-interface
-    TRY(WebIDL::set_prototype_from_new_target<HTMLOptionElementPrototype>(vm, new_target, "HTMLOptionElement"_fly_string, *option_element));
+    TRY(WebIDL::set_prototype_from_new_target<HTMLOptionElementPrototype>(vm, new_target, "HTMLOptionElement"_utf16_fly_string, *option_element));
 
     // 3. If text is not the empty string, then append to option a new Text node whose data is text.
     auto text = TRY(text_value.to_utf16_string(vm));

@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/HashMap.h>
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Forward.h>
@@ -19,7 +19,7 @@ namespace Web::WebLocks {
 using LockRequestQueue = Vector<GC::Ref<LockRequest>>;
 
 // https://w3c.github.io/web-locks/#lock-manager-lock-request-queue-map
-using LockRequestQueueMap = HashMap<String, LockRequestQueue>;
+using LockRequestQueueMap = HashMap<Utf16String, LockRequestQueue>;
 
 HTML::ParallelQueue& lock_task_queue();
 void queue_web_locks_task(JS::Realm&, GC::Ref<GC::Function<void()>> steps);
@@ -27,6 +27,6 @@ void queue_web_locks_task_on_relevant_event_loop(JS::Realm&, GC::Ref<WebIDL::Cal
 
 LockManager& obtain_lock_manager(HTML::EnvironmentSettingsObject&);
 
-LockRequestQueue& get_lock_request_queue(LockRequestQueueMap&, String const& name);
+LockRequestQueue& get_lock_request_queue(LockRequestQueueMap&, Utf16String const& name);
 
 }

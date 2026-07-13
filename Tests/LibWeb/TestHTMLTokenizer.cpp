@@ -6,6 +6,7 @@
 
 #include <LibTest/TestCase.h>
 
+#include <AK/Utf16StringBuilder.h>
 #include <LibCore/File.h>
 #include <LibWeb/HTML/Parser/HTMLTokenizer.h>
 
@@ -76,7 +77,7 @@ using Token = Web::HTML::HTMLToken;
 static Vector<Token> run_tokenizer(StringView input)
 {
     Vector<Token> tokens;
-    Tokenizer tokenizer { input, "UTF-8"sv };
+    Tokenizer tokenizer { Utf16String::from_utf8(input) };
     while (true) {
         auto maybe_token = tokenizer.next_token();
         if (!maybe_token.has_value())
@@ -89,10 +90,10 @@ static Vector<Token> run_tokenizer(StringView input)
 // FIXME: It's not very nice to rely on the format of HTMLToken::to_string() to stay the same.
 static u32 hash_tokens(Vector<Token> const& tokens)
 {
-    StringBuilder builder;
+    Utf16StringBuilder builder;
     for (auto& token : tokens)
         builder.append(token.to_string());
-    return (u32)builder.string_view().hash();
+    return (u32)builder.view().hash();
 }
 
 TEST_CASE(empty)

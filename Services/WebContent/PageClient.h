@@ -11,6 +11,7 @@
 #include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
+#include <AK/Utf16String.h>
 #include <LibGfx/Rect.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/HTML/AudioPlayState.h>
@@ -74,7 +75,7 @@ public:
     void set_preferred_contrast(Web::CSS::PreferredContrast);
     void set_preferred_motion(Web::CSS::PreferredMotion);
     virtual void set_has_focus(bool) override;
-    void set_window_handle(String);
+    void set_window_handle(Utf16String);
     void did_start_webdriver_navigation(URL::URL const&);
     struct WebDriverHistoryTraversalResult {
         bool accepted { false };
@@ -100,7 +101,7 @@ public:
 
     void alert_closed();
     void confirm_closed(bool accepted);
-    void prompt_closed(Optional<String> response);
+    void prompt_closed(Optional<Utf16String> response);
     void color_picker_update(Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state);
     void select_dropdown_closed(Optional<u32> const& selected_item_id);
 
@@ -153,8 +154,8 @@ private:
     // ^PageClient
     virtual bool is_connection_open() const override;
     virtual Web::NavigationProcessDecision decide_navigation_process(URL::URL const& current_url, URL::URL const& target_url, Web::NavigationTarget, Optional<Web::HTML::CrossProcessId> frame_id) const override;
-    virtual void request_new_process_for_navigation(URL::URL const&, Variant<Empty, String, Web::HTML::POSTResource>, Web::Bindings::NavigationHistoryBehavior) override;
-    virtual void request_new_process_for_child_frame_navigation(Web::HTML::CrossProcessId frame_id, URL::URL const&, Variant<Empty, String, Web::HTML::POSTResource>, Web::Bindings::NavigationHistoryBehavior) override;
+    virtual void request_new_process_for_navigation(URL::URL const&, Web::HTML::DocumentResource, Web::Bindings::NavigationHistoryBehavior) override;
+    virtual void request_new_process_for_child_frame_navigation(Web::HTML::CrossProcessId frame_id, URL::URL const&, Web::HTML::DocumentResource, Web::Bindings::NavigationHistoryBehavior) override;
     virtual void page_did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState const&) override;
     virtual void page_did_update_child_frame_viewport(Web::HTML::CrossProcessId frame_id, Web::CSSPixelRect) override;
     virtual void page_did_commit_child_frame_navigation(Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState const&) override;
@@ -191,11 +192,11 @@ private:
     virtual void page_did_request_link_context_menu(Web::CSSPixelPoint, URL::URL const&, ByteString const& target, unsigned modifiers) override;
     virtual void page_did_request_image_context_menu(Web::CSSPixelPoint, URL::URL const&, ByteString const& target, unsigned modifiers, Optional<Gfx::Bitmap const*>) override;
     virtual void page_did_request_media_context_menu(Web::CSSPixelPoint, ByteString const& target, unsigned modifiers, Web::Page::MediaContextMenu const&) override;
-    virtual void page_did_start_loading(Optional<String> const&, URL::URL const&, Variant<Empty, String, Web::HTML::POSTResource>, bool, Web::Bindings::NavigationHistoryBehavior) override;
-    virtual void page_did_cancel_loading(Optional<String> const&, URL::URL const&) override;
+    virtual void page_did_start_loading(Optional<Utf16String> const&, URL::URL const&, Web::HTML::DocumentResource, bool, Web::Bindings::NavigationHistoryBehavior) override;
+    virtual void page_did_cancel_loading(Optional<Utf16String> const&, URL::URL const&) override;
     virtual void page_did_create_new_document(Web::DOM::Document&) override;
     virtual void page_did_change_active_document_in_top_level_browsing_context(Web::DOM::Document&) override;
-    virtual void page_did_finish_loading(Optional<String> const&, URL::URL const&) override;
+    virtual void page_did_finish_loading(Optional<Utf16String> const&, URL::URL const&) override;
     virtual Optional<u64> page_did_start_download(URL::URL const&, ByteString const& suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data) override;
     virtual Optional<u64> page_did_start_download(URL::URL const&, ByteString const& suggested_filename, Optional<u64> total_size) override;
     virtual void page_did_receive_download_data(u64 download_id, ByteBuffer data) override;
@@ -205,10 +206,10 @@ private:
     virtual void page_did_register_download_reader(u64 download_id, GC::Ref<Web::Streams::ReadableStreamDefaultReader>) override;
     virtual void page_did_unregister_download(u64 download_id) override;
     virtual bool page_is_download_canceled(u64 download_id) const override;
-    virtual void page_did_request_alert(String const&) override;
-    virtual void page_did_request_confirm(String const&) override;
-    virtual void page_did_request_prompt(String const&, String const&) override;
-    virtual void page_did_request_set_prompt_text(String const&) override;
+    virtual void page_did_request_alert(Utf16String const&) override;
+    virtual void page_did_request_confirm(Utf16String const&) override;
+    virtual void page_did_request_prompt(Utf16String const&, Utf16String const&) override;
+    virtual void page_did_request_set_prompt_text(Utf16String const&) override;
     virtual void page_did_request_accept_dialog() override;
     virtual void page_did_request_dismiss_dialog() override;
     virtual void page_did_change_favicon(Gfx::Bitmap const&) override;
@@ -226,13 +227,13 @@ private:
     virtual void page_did_delete_all_cookies(URL::URL const&, GC::Ref<Web::WebIDL::Promise>) override;
     virtual void page_did_store_hsts_policy(String const&, HTTP::HSTS::ParsedHSTSPolicy const&) override;
     virtual bool page_did_is_known_hsts_host(String const&) override;
-    virtual Optional<String> page_did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, String const& bottle_key) override;
-    virtual WebView::StorageSetResult page_did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, String const& bottle_key, String const& value) override;
-    virtual void page_did_remove_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, String const& bottle_key) override;
-    virtual Vector<String> page_did_request_storage_keys(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key) override;
+    virtual Optional<Utf16String> page_did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, Utf16String const& bottle_key) override;
+    virtual WebView::StorageSetResult page_did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, Utf16String const& bottle_key, Utf16String const& value) override;
+    virtual void page_did_remove_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, Utf16String const& bottle_key) override;
+    virtual Vector<Utf16String> page_did_request_storage_keys(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key) override;
     virtual u64 page_did_request_storage_usage(String const& storage_key) override;
     virtual void page_did_clear_storage(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key) override;
-    virtual void page_did_broadcast_storage_change(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& url, Optional<String> const& key, Optional<String> const& old_value, Optional<String> const& new_value) override;
+    virtual void page_did_broadcast_storage_change(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& url, Optional<Utf16String> const& key, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value) override;
     virtual void page_did_update_indexed_database(String const& url, Web::IndexedDB::TransactionChanges const&) override;
     virtual void page_did_update_resource_count(i32) override;
     virtual NewWebViewResult page_did_request_new_web_view(Web::HTML::ActivateTab, Web::HTML::WebViewHints, Web::HTML::TokenizedFeature::NoOpener) override;
@@ -248,7 +249,7 @@ private:
     virtual void page_did_request_color_picker(Color current_color) override;
     virtual void page_did_request_file_picker(Web::HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles) override;
     virtual void page_did_request_select_dropdown(Web::CSSPixelPoint content_position, Web::CSSPixels minimum_width, Vector<Web::HTML::SelectItem> items) override;
-    virtual void page_did_finish_test(String const& text) override;
+    virtual void page_did_finish_test(Utf16String const& text) override;
     virtual void page_did_set_test_timeout(double milliseconds) override;
     virtual void page_did_receive_reference_test_metadata(JsonValue) override;
     virtual void page_did_set_browser_zoom(double factor) override;
@@ -258,15 +259,15 @@ private:
     virtual void page_did_insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation const&, StringView presentation_style) override;
     virtual void page_did_request_clipboard_entries(u64 request_id) override;
     virtual void page_did_request_primary_paste() override;
-    virtual void page_did_update_primary_selection(String const&) override;
+    virtual void page_did_update_primary_selection(Utf16String const&) override;
     virtual void page_did_change_audio_play_state(Web::HTML::AudioPlayState) override;
     virtual void page_did_change_screen_wake_lock_state(Web::ScreenWakeLockState) override;
     virtual Web::HTML::WorkerAgentId start_worker_agent(Web::HTML::WorkerAgentStartRequest&&) override;
     virtual void close_worker_agent(Web::HTML::WorkerAgentId, Web::HTML::WorkerAgentOwnerToken) override;
-    virtual void page_did_mutate_dom(FlyString const& type, Web::DOM::Node const& target, Web::DOM::NodeList& added_nodes, Web::DOM::NodeList& removed_nodes, GC::Ptr<Web::DOM::Node> previous_sibling, GC::Ptr<Web::DOM::Node> next_sibling, Optional<Utf16FlyString> const& attribute_name) override;
+    virtual void page_did_mutate_dom(Utf16FlyString const& type, Web::DOM::Node const& target, Web::DOM::NodeList& added_nodes, Web::DOM::NodeList& removed_nodes, GC::Ptr<Web::DOM::Node> previous_sibling, GC::Ptr<Web::DOM::Node> next_sibling, Optional<Utf16FlyString> const& attribute_name) override;
     virtual void flush_pending_dom_mutations() override;
     virtual void page_did_take_screenshot(Gfx::ShareableBitmap const& screenshot) override;
-    virtual void received_message_from_web_ui(String const& name, JS::Value data) override;
+    virtual void received_message_from_web_ui(Utf16String const& name, JS::Value data) override;
     virtual void page_did_start_network_request(u64 request_id, URL::URL const&, ByteString const&, Vector<HTTP::Header> const&, ReadonlyBytes, Optional<String>) override;
     virtual void page_did_receive_network_response_headers(u64 request_id, u32 status_code, Optional<String>, Vector<HTTP::Header> const&) override;
     virtual void page_did_receive_network_response_body(u64 request_id, ReadonlyBytes) override;

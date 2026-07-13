@@ -361,7 +361,7 @@ static TraversableSessionHistory::Entry create_ui_process_session_history_entry(
     i32 step,
     URL::URL url,
     Web::HTML::CrossProcessId document_state_id,
-    Variant<Empty, String, Web::HTML::POSTResource> document_resource)
+    Web::HTML::DocumentResource document_resource)
 {
     return {
         .step = step,
@@ -395,7 +395,7 @@ void TraversableSessionHistory::navigate(URL::URL url, Web::HTML::CrossProcessId
     navigate(move(url), document_state_id, Empty {});
 }
 
-void TraversableSessionHistory::navigate(URL::URL url, Web::HTML::CrossProcessId document_state_id, Variant<Empty, String, Web::HTML::POSTResource> document_resource)
+void TraversableSessionHistory::navigate(URL::URL url, Web::HTML::CrossProcessId document_state_id, Web::HTML::DocumentResource document_resource)
 {
     forget_web_content_state();
 
@@ -442,7 +442,7 @@ void TraversableSessionHistory::replace_current_entry_url(URL::URL url, Web::HTM
     m_entries[*current_top_level_entry_index].url = move(url);
 }
 
-void TraversableSessionHistory::replace_current_entry(URL::URL url, Web::HTML::CrossProcessId document_state_id, Variant<Empty, String, Web::HTML::POSTResource> document_resource)
+void TraversableSessionHistory::replace_current_entry(URL::URL url, Web::HTML::CrossProcessId document_state_id, Web::HTML::DocumentResource document_resource)
 {
     forget_web_content_state();
 

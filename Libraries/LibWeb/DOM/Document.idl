@@ -7,29 +7,29 @@ interface Document : Node {
     [ImplementedAs=has_focus_for_bindings] boolean hasFocus();
 
     [PutForwards=href, LegacyUnforgeable] readonly attribute Location? location;
-    attribute USVString domain;
+    attribute Utf16USVString domain;
 
     readonly attribute DOMImplementation implementation;
 
-    [ImplementedAs=url_string] readonly attribute USVString URL;
-    readonly attribute USVString documentURI;
+    [ImplementedAs=url_string_for_bindings] readonly attribute Utf16DOMString URL;
+    readonly attribute Utf16DOMString documentURI;
 
-    readonly attribute DOMString characterSet;
-    readonly attribute DOMString charset;
-    readonly attribute DOMString inputEncoding;
-    readonly attribute DOMString contentType;
+    readonly attribute Utf16DOMString characterSet;
+    readonly attribute Utf16DOMString charset;
+    readonly attribute Utf16DOMString inputEncoding;
+    readonly attribute Utf16DOMString contentType;
 
     readonly attribute WindowProxy? defaultView;
 
-    [CEReactions] Document open(optional DOMString unused1, optional DOMString unused2);
-    WindowProxy? open(USVString url, DOMString name, DOMString features);
+    [CEReactions] Document open(optional Utf16DOMString unused1, optional Utf16DOMString unused2);
+    WindowProxy? open(Utf16USVString url, Utf16DOMString name, Utf16DOMString features);
     [CEReactions] undefined close();
     [CEReactions] undefined write((TrustedHTML or Utf16DOMString)... text);
     [CEReactions] undefined writeln((TrustedHTML or Utf16DOMString)... text);
 
     static Document parseHTMLUnsafe((TrustedHTML or Utf16DOMString) html);
 
-    attribute DOMString cookie;
+    attribute Utf16DOMString cookie;
 
     // https://html.spec.whatwg.org/multipage/obsolete.html#Document-partial
     [CEReactions, LegacyNullToEmptyString] attribute Utf16DOMString fgColor;
@@ -38,7 +38,7 @@ interface Document : Node {
     [CEReactions, LegacyNullToEmptyString] attribute Utf16DOMString alinkColor;
     [CEReactions, LegacyNullToEmptyString] attribute Utf16DOMString bgColor;
 
-    readonly attribute USVString referrer;
+    readonly attribute Utf16DOMString referrer;
 
 
     Element? getElementById(Utf16DOMString id);
@@ -74,12 +74,12 @@ interface Document : Node {
     [NewObject] Attr createAttributeNS([Utf16FlyString] Utf16DOMString? namespace, [Utf16FlyString] Utf16DOMString qualifiedName);
 
     Range createRange();
-    Event createEvent(DOMString interface);
+    Event createEvent([Utf16FlyString] Utf16DOMString interface);
 
     [CEReactions, NewObject] Node importNode(Node node, optional (boolean or ImportNodeOptions) options = false);
     [CEReactions, ImplementedAs=adopt_node_binding] Node adoptNode(Node node);
 
-    readonly attribute DOMString compatMode;
+    readonly attribute [Utf16FlyString] Utf16DOMString compatMode;
     readonly attribute DocumentType? doctype;
 
     readonly attribute Element? documentElement;
@@ -88,20 +88,20 @@ interface Document : Node {
     readonly attribute HTMLHeadElement? head;
     readonly attribute HTMLScriptElement? currentScript;
 
-    readonly attribute DOMString lastModified;
-    readonly attribute DOMString readyState;
+    readonly attribute Utf16DOMString lastModified;
+    readonly attribute [Utf16FlyString] Utf16DOMString readyState;
 
     [CEReactions] attribute Utf16DOMString title;
 
     readonly attribute boolean hidden;
-    readonly attribute DOMString visibilityState;
+    readonly attribute [Utf16FlyString] Utf16DOMString visibilityState;
 
     [NewObject] NodeIterator createNodeIterator(Node root, optional unsigned long whatToShow = 0xFFFFFFFF, optional NodeFilter? filter = null);
     [NewObject] TreeWalker createTreeWalker(Node root, optional unsigned long whatToShow = 0xFFFFFFFF, optional NodeFilter? filter = null);
 
     Selection? getSelection();
 
-    [CEReactions] attribute DOMString designMode;
+    [CEReactions] attribute Utf16DOMString designMode;
 
     // https://drafts.csswg.org/web-animations-1/#extensions-to-the-document-interface
     readonly attribute DocumentTimeline timeline;
@@ -113,13 +113,13 @@ interface Document : Node {
     readonly attribute Element? scrollingElement;
 
     // https://w3c.github.io/editing/docs/execCommand/
-    // FIXME: [CEReactions] boolean execCommand(DOMString commandId, optional boolean showUI = false, optional (TrustedHTML or DOMString) value = "");
-    [CEReactions] boolean execCommand(DOMString commandId, optional boolean showUI = false, optional Utf16DOMString value = "");
-    boolean queryCommandEnabled(DOMString commandId);
-    boolean queryCommandIndeterm(DOMString commandId);
-    boolean queryCommandState(DOMString commandId);
-    boolean queryCommandSupported(DOMString commandId);
-    Utf16DOMString queryCommandValue(DOMString commandId);
+    // FIXME: [CEReactions] boolean execCommand([Utf16FlyString] Utf16DOMString commandId, optional boolean showUI = false, optional (TrustedHTML or Utf16DOMString) value = "");
+    [CEReactions] boolean execCommand([Utf16FlyString] Utf16DOMString commandId, optional boolean showUI = false, optional Utf16DOMString value = "");
+    boolean queryCommandEnabled([Utf16FlyString] Utf16DOMString commandId);
+    boolean queryCommandIndeterm([Utf16FlyString] Utf16DOMString commandId);
+    boolean queryCommandState([Utf16FlyString] Utf16DOMString commandId);
+    boolean queryCommandSupported([Utf16FlyString] Utf16DOMString commandId);
+    Utf16DOMString queryCommandValue([Utf16FlyString] Utf16DOMString commandId);
 
     // special event handler IDL attributes that only apply to Document objects
     [LegacyLenientThis] attribute EventHandler onreadystatechange;

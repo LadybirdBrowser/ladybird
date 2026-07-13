@@ -19,8 +19,7 @@ public:
 
     virtual ~HTMLFormControlsCollection() override;
 
-    Variant<Empty, GC::Ref<DOM::Element>, GC::Ref<RadioNodeList>> named_item_or_radio_node_list(Utf16String const& name) const;
-    Variant<Empty, GC::Ref<DOM::Element>, GC::Ref<RadioNodeList>> named_item_or_radio_node_list(Utf16FlyString const& name) const;
+    Variant<Empty, GC::Ref<DOM::Element>, GC::Ref<RadioNodeList>> named_item_or_radio_node_list(Utf16View name) const;
 
 protected:
     virtual void initialize(JS::Realm&) override;
@@ -29,6 +28,10 @@ protected:
 
 private:
     HTMLFormControlsCollection(DOM::ParentNode& root, Scope, ESCAPING Function<bool(DOM::Element const&)> filter);
+
+    DOM::Element* first_matching_named_element(Utf16View name, bool& multiple_matching) const;
+    GC::Ref<RadioNodeList> create_radio_node_list(Utf16String name) const;
+    GC::Ref<RadioNodeList> create_radio_node_list(Utf16FlyString name) const;
 };
 
 }

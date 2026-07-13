@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Utf16View.h>
 #include <LibGfx/CanvasCommandList.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Canvas/DrawingState.h>
@@ -24,7 +25,7 @@ protected:
     virtual Gfx::Path& mutable_path() = 0;
     virtual Gfx::CanvasCommandList* canvas_command_list() = 0;
     virtual CSS::ComputationContext computation_context_for_drawing_state() const = 0;
-    Optional<Color> parse_a_css_color_value(StringView const& value) const;
+    Optional<Color> parse_a_css_color_value(Utf16View value) const;
 };
 
 }

@@ -7,18 +7,19 @@
 #pragma once
 
 #include <AK/Optional.h>
-#include <AK/String.h>
+#include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/PermissionStatus.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 
 namespace Web::PermissionsAPI {
 
-bool is_permission_supported(String const&);
+bool is_permission_supported(Utf16View);
 
 Bindings::PermissionState permission_state(Bindings::PermissionDescriptor descriptor, Optional<HTML::EnvironmentSettingsObject&> settings = {});
 
-Bindings::PermissionState get_current_permission_state(String const& name, Optional<HTML::EnvironmentSettingsObject&> settings = {});
+Bindings::PermissionState get_current_permission_state(Utf16View name, Optional<HTML::EnvironmentSettingsObject&> settings = {});
 
 Bindings::PermissionState request_permission(Bindings::PermissionDescriptor const& descriptor);
 

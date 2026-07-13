@@ -5,12 +5,12 @@ interface HTMLBodyElement : HTMLElement {
     [HTMLConstructor] constructor();
 
     // Obsolete
-    [CEReactions, LegacyNullToEmptyString, Reflect] attribute DOMString text;
-    [CEReactions, LegacyNullToEmptyString, Reflect] attribute DOMString link;
-    [CEReactions, LegacyNullToEmptyString, Reflect=vlink] attribute DOMString vLink;
-    [CEReactions, LegacyNullToEmptyString, Reflect=alink] attribute DOMString aLink;
-    [CEReactions, LegacyNullToEmptyString, Reflect=bgcolor] attribute DOMString bgColor;
-    [CEReactions, Reflect] attribute DOMString background;
+    [CEReactions, LegacyNullToEmptyString, Reflect] attribute Utf16DOMString text;
+    [CEReactions, LegacyNullToEmptyString, Reflect] attribute Utf16DOMString link;
+    [CEReactions, LegacyNullToEmptyString, Reflect=vlink] attribute Utf16DOMString vLink;
+    [CEReactions, LegacyNullToEmptyString, Reflect=alink] attribute Utf16DOMString aLink;
+    [CEReactions, LegacyNullToEmptyString, Reflect=bgcolor] attribute Utf16DOMString bgColor;
+    [CEReactions, Reflect] attribute Utf16DOMString background;
 
 };
 

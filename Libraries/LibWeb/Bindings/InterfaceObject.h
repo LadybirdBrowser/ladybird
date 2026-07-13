@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/StringView.h>
+#include <AK/Utf16View.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibWeb/Export.h>
@@ -25,6 +26,8 @@ struct InterfaceObjectMetadata {
 
     StringView name;
     StringView namespaced_name;
+    Utf16View utf16_name;
+    Utf16View utf16_namespaced_name;
     EnsurePrototypeFunction ensure_parent_prototype { nullptr };
     EnsureConstructorFunction ensure_parent_constructor { nullptr };
     InitializeConstructorFunction initialize_constructor { nullptr };

@@ -6,21 +6,22 @@
 
 #include "CounterStyle.h"
 #include <AK/HashTable.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibWeb/DOM/Document.h>
 
 namespace Web::CSS {
 
-static String string_from_counter_style_symbols(Vector<CounterStyleSymbol> const& symbols)
+static Utf16String string_from_counter_style_symbols(Vector<CounterStyleSymbol> const& symbols)
 {
-    StringBuilder builder;
+    Utf16StringBuilder builder;
     for (auto const& symbol : symbols)
-        builder.append(symbol);
-    return MUST(builder.to_string());
+        builder.append(symbol.view());
+    return builder.to_string();
 }
 
-static String string_from_counter_style_symbol(CounterStyleSymbol const& symbol)
+static Utf16String string_from_counter_style_symbol(CounterStyleSymbol const& symbol)
 {
-    return MUST(symbol.view().to_utf8());
+    return symbol.to_utf16_string();
 }
 
 // https://drafts.csswg.org/css-counter-styles-3/#decimal
@@ -108,7 +109,7 @@ bool CounterStyle::equals(CounterStyle const& other) const
 }
 
 // https://drafts.csswg.org/css-counter-styles-3/#extended-range-optional
-static String generate_an_initial_representation_for_extended_cjk_system(i64 value, ExtendedCJKCounterStyleAlgorithm::Type type, Array<CounterStyleSymbol, 10> const& digit_strings, Array<CounterStyleSymbol, 3> const& digit_marker_strings, Array<CounterStyleSymbol, 3> const& group_marker_strings)
+static Utf16String generate_an_initial_representation_for_extended_cjk_system(i64 value, ExtendedCJKCounterStyleAlgorithm::Type type, Array<CounterStyleSymbol, 10> const& digit_strings, Array<CounterStyleSymbol, 3> const& digit_marker_strings, Array<CounterStyleSymbol, 3> const& group_marker_strings)
 {
     // 1. If the counter value is 0, the representation is the character for 0 specified for the given counter style.
     //    Skip the rest of this algorithm.
@@ -127,7 +128,7 @@ static String generate_an_initial_representation_for_extended_cjk_system(i64 val
         value /= 10000;
     }
 
-    StringBuilder builder;
+    Utf16StringBuilder builder;
 
     for (i32 group_index = static_cast<i32>(groups.size()) - 1; group_index >= 0; --group_index) {
         auto const group_value = groups[group_index];
@@ -208,7 +209,7 @@ static String generate_an_initial_representation_for_extended_cjk_system(i64 val
 
         // 8. For the Korean styles, insert a space (" " U+0020) between each group.
         if (first_is_one_of(type, ExtendedCJKCounterStyleAlgorithm::Type::KoreanHangulFormal, ExtendedCJKCounterStyleAlgorithm::Type::KoreanHanjaInformal, ExtendedCJKCounterStyleAlgorithm::Type::KoreanHanjaFormal) && group_index != 0)
-            builder.append(' ');
+            builder.append_ascii(' ');
     }
 
     // 10. If the counter value was negative, prepend the appropriate negative sign character for the given counter
@@ -216,13 +217,13 @@ static String generate_an_initial_representation_for_extended_cjk_system(i64 val
     // NB: This is handled within `generate_a_counter_representation_impl`
 
     // 11. Return the resultant string as the representation of the counter value.
-    return MUST(builder.to_string());
+    return builder.to_string();
 }
 
-Optional<String> CounterStyle::generate_an_initial_representation_for_the_counter_value(i64 value) const
+Optional<Utf16String> CounterStyle::generate_an_initial_representation_for_the_counter_value(i64 value) const
 {
     return m_algorithm.visit(
-        [&](AdditiveCounterStyleAlgorithm const& additive_algorithm) -> Optional<String> {
+        [&](AdditiveCounterStyleAlgorithm const& additive_algorithm) -> Optional<Utf16String> {
             // https://drafts.csswg.org/css-counter-styles-3/#additive-system
             // To construct the representation:
 
@@ -241,7 +242,7 @@ Optional<String> CounterStyle::generate_an_initial_representation_for_the_counte
                 return {};
             }
 
-            StringBuilder builder;
+            Utf16StringBuilder builder;
 
             // 3. For each tuple in symbol list:
             for (auto const& tuple : additive_algorithm.symbol_list) {
@@ -256,14 +257,14 @@ Optional<String> CounterStyle::generate_an_initial_representation_for_the_counte
 
                 // 4. Append symbol to S reps times.
                 for (int i = 0; i < reps; ++i)
-                    builder.append(tuple.symbol);
+                    builder.append(tuple.symbol.view());
 
                 // 5. Decrement value by weight * reps.
                 value -= tuple.weight * reps;
 
                 // 6. If value is zero, return S.
                 if (value == 0)
-                    return MUST(builder.to_string());
+                    return builder.to_string();
             }
 
             // Assertion: value is still non-zero.
@@ -273,7 +274,7 @@ Optional<String> CounterStyle::generate_an_initial_representation_for_the_counte
             // the fallback counter style.
             return {};
         },
-        [&](FixedCounterStyleAlgorithm const& fixed_algorithm) -> Optional<String> {
+        [&](FixedCounterStyleAlgorithm const& fixed_algorithm) -> Optional<Utf16String> {
             // https://drafts.csswg.org/css-counter-styles-3/#fixed-system
             // The first counter symbol is the representation for the first symbol value, and subsequent counter values
             // are represented by subsequent counter symbols. Once the list of counter symbols is exhausted, further
@@ -286,7 +287,7 @@ Optional<String> CounterStyle::generate_an_initial_representation_for_the_counte
 
             return string_from_counter_style_symbol(fixed_algorithm.symbol_list[index]);
         },
-        [&](GenericCounterStyleAlgorithm const& generic_algorithm) -> Optional<String> {
+        [&](GenericCounterStyleAlgorithm const& generic_algorithm) -> Optional<Utf16String> {
             switch (generic_algorithm.type) {
             case CounterStyleSystem::Cyclic: {
                 // https://drafts.csswg.org/css-counter-styles-3/#cyclic-system
@@ -368,7 +369,9 @@ Optional<String> CounterStyle::generate_an_initial_representation_for_the_counte
 
                 // 3. Append the chosen symbol to S a number of times equal to the representation length.
                 // Finally, return S.
-                return MUST(String::repeated(string_from_counter_style_symbol(symbol), representation_length));
+                Utf16StringBuilder builder;
+                builder.append_repeated(symbol.view(), representation_length);
+                return builder.to_string();
             }
             case CounterStyleSystem::Additive:
                 // NB: This is handled by AdditiveCounterStyleAlgorithm.
@@ -377,13 +380,13 @@ Optional<String> CounterStyle::generate_an_initial_representation_for_the_counte
 
             VERIFY_NOT_REACHED();
         },
-        [&](EthiopicNumericCounterStyleAlgorithm const&) -> Optional<String> {
+        [&](EthiopicNumericCounterStyleAlgorithm const&) -> Optional<Utf16String> {
             // https://drafts.csswg.org/css-counter-styles-3/#ethiopic-numeric-counter-style
             // The following algorithm converts decimal digits to ethiopic numbers:
 
             // 1. If the number is 1, return "፩" (U+1369).
             if (value == 1)
-                return "\U00001369"_string;
+                return Utf16String::from_code_point(0x1369);
 
             // 2. Split the number into groups of two digits, starting with the least significant decimal digit.
             Vector<u8> groups {};
@@ -392,7 +395,7 @@ Optional<String> CounterStyle::generate_an_initial_representation_for_the_counte
                 value /= 100;
             }
 
-            StringBuilder builder;
+            Utf16StringBuilder builder;
 
             // 3. Index each group sequentially, starting from the least significant as group number zero.
 
@@ -448,9 +451,9 @@ Optional<String> CounterStyle::generate_an_initial_representation_for_the_counte
             }
 
             // 8. Concatenate the groups into one string, and return it.
-            return MUST(builder.to_string());
+            return builder.to_string();
         },
-        [&](ExtendedCJKCounterStyleAlgorithm const& extended_cjk_algorithm) -> Optional<String> {
+        [&](ExtendedCJKCounterStyleAlgorithm const& extended_cjk_algorithm) -> Optional<Utf16String> {
             // https://drafts.csswg.org/css-counter-styles-3/#extended-range-optional
             // All of the styles are defined by almost identical algorithms (specified as a single algorithm here, with
             // the differences called out when relevant), but use different sets of characters.
@@ -624,7 +627,7 @@ bool CounterStyle::uses_a_negative_sign() const
 }
 
 // https://drafts.csswg.org/css-counter-styles-3/#generate-a-counter
-static String generate_a_counter_representation_impl(RefPtr<CounterStyle const> const& counter_style, StyleScope const& style_scope, i32 value, HashTable<Utf16FlyString>& fallback_history)
+static Utf16String generate_a_counter_representation_impl(RefPtr<CounterStyle const> const& counter_style, StyleScope const& style_scope, i32 value, HashTable<Utf16FlyString>& fallback_history)
 {
     // When asked to generate a counter representation using a particular counter style for a particular
     // counter value, follow these steps:
@@ -687,20 +690,29 @@ static String generate_a_counter_representation_impl(RefPtr<CounterStyle const> 
             difference -= counter_style->negative_sign().prefix.length_in_code_units() + counter_style->negative_sign().suffix.length_in_code_units();
 
         // If difference is greater than zero, prepend difference copies of the specified <symbol> to the representation.
-        if (difference > 0)
-            representation = MUST(String::formatted("{}{}", MUST(String::repeated(string_from_counter_style_symbol(counter_style->pad().symbol), difference)), representation));
+        if (difference > 0) {
+            Utf16StringBuilder builder;
+            builder.append_repeated(counter_style->pad().symbol.view(), difference);
+            builder.append(representation);
+            representation = builder.to_string();
+        }
     }
 
     // 5. If the counter value is negative and the counter style uses a negative sign, wrap the representation in the
     //    counter style’s negative sign as specified in the negative descriptor.
-    if (value_is_negative_and_uses_negative_sign)
-        representation = MUST(String::formatted("{}{}{}", string_from_counter_style_symbol(counter_style->negative_sign().prefix), representation, string_from_counter_style_symbol(counter_style->negative_sign().suffix)));
+    if (value_is_negative_and_uses_negative_sign) {
+        Utf16StringBuilder builder;
+        builder.append(counter_style->negative_sign().prefix.view());
+        builder.append(representation);
+        builder.append(counter_style->negative_sign().suffix.view());
+        representation = builder.to_string();
+    }
 
     // 6. Return the representation.
     return representation;
 }
 
-String generate_a_counter_representation(RefPtr<CounterStyle const> const& counter_style, StyleScope const& style_scope, i32 value)
+Utf16String generate_a_counter_representation(RefPtr<CounterStyle const> const& counter_style, StyleScope const& style_scope, i32 value)
 {
     HashTable<Utf16FlyString> fallback_history;
     return generate_a_counter_representation_impl(counter_style, style_scope, value, fallback_history);

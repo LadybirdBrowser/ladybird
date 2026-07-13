@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibWeb/Bindings/VTTCue.h>
 #include <LibWeb/HTML/TextTrackCue.h>
 #include <LibWeb/WebIDL/Types.h>
@@ -32,7 +33,7 @@ public:
 
     using LineAndPositionSetting = Variant<double, Bindings::AutoKeyword>;
 
-    static WebIDL::ExceptionOr<GC::Ref<VTTCue>> construct_impl(JS::Realm&, double start_time, double end_time, String const& text);
+    static WebIDL::ExceptionOr<GC::Ref<VTTCue>> construct_impl(JS::Realm&, double start_time, double end_time, Utf16String const& text);
     virtual ~VTTCue() override = default;
 
     GC::Ptr<VTTRegion> region() const { return m_region; }
@@ -62,8 +63,8 @@ public:
     Bindings::AlignSetting align() const { return m_text_alignment; }
     void set_align(Bindings::AlignSetting align) { m_text_alignment = align; }
 
-    String const& text() const { return m_text; }
-    void set_text(String const& text) { m_text = text; }
+    Utf16String const& text() const { return m_text; }
+    void set_text(Utf16String const& text) { m_text = text; }
 
 protected:
     double computed_line();
@@ -77,7 +78,7 @@ private:
     virtual void visit_edges(Visitor&) override;
 
     // https://w3c.github.io/webvtt/#cue-text
-    String m_text;
+    Utf16String m_text;
 
     // https://w3c.github.io/webvtt/#webvtt-cue-writing-direction
     WritingDirection m_writing_direction { WritingDirection::Horizontal };

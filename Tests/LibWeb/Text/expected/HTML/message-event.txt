@@ -1,0 +1,8 @@
+type: message
+data: hello
+origin: https://example.com/🐞
+lastEventId: id-🐞
+after initMessageEvent type: ignored
+initialized data: initialized
+initialized origin: https://example.org/🐞
+initialized lastEventId: initialized-🐞

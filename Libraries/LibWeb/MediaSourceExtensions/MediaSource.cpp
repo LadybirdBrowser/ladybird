@@ -21,6 +21,8 @@ using Bindings::ReadyState;
 
 GC_DEFINE_ALLOCATOR(MediaSource);
 
+static bool is_type_supported(Utf16View type);
+
 WebIDL::ExceptionOr<GC::Ref<MediaSource>> MediaSource::construct_impl(JS::Realm& realm)
 {
     return realm.create<MediaSource>(realm);
@@ -154,20 +156,20 @@ GC::Ptr<WebIDL::CallbackType> MediaSource::onsourceclose()
 }
 
 // https://w3c.github.io/media-source/#addsourcebuffer-method
-WebIDL::ExceptionOr<GC::Ref<SourceBuffer>> MediaSource::add_source_buffer(String const& type)
+WebIDL::ExceptionOr<GC::Ref<SourceBuffer>> MediaSource::add_source_buffer(Utf16String const& type)
 {
     // 1. If type is an empty string then throw a TypeError exception and abort these steps.
     if (type.is_empty()) {
         return WebIDL::SimpleException {
             WebIDL::SimpleExceptionType::TypeError,
-            "SourceBuffer type must not be empty"sv
+            "SourceBuffer type must not be empty"_utf16
         };
     }
 
     // 2. If type contains a MIME type that is not supported or contains a MIME type that is not
     //    supported with the types specified for the other SourceBuffer objects in sourceBuffers,
     //    then throw a NotSupportedError exception and abort these steps.
-    if (!is_type_supported(type)) {
+    if (!is_type_supported(type.utf16_view())) {
         return WebIDL::NotSupportedError::create(realm(), "Unsupported MIME type"_utf16);
     }
 
@@ -182,7 +184,7 @@ WebIDL::ExceptionOr<GC::Ref<SourceBuffer>> MediaSource::add_source_buffer(String
     // 5. Let buffer be a new instance of a ManagedSourceBuffer if this is a ManagedMediaSource, or
     //    a SourceBuffer otherwise, with their respective associated resources.
     auto buffer = realm().create<SourceBuffer>(realm(), GC::Ref(*this));
-    buffer->set_content_type(type);
+    buffer->set_content_type(type.utf16_view());
 
     // FIXME: 6. Set buffer's [[generate timestamps flag]] to the value in the "Generate Timestamps Flag"
     //           column of the Media Source Extensions™ Byte Stream Format Registry entry that is
@@ -285,7 +287,7 @@ WebIDL::ExceptionOr<void> MediaSource::set_duration(double new_duration)
 {
     // 1. If the value being set is negative or NaN then throw a TypeError exception and abort these steps.
     if (new_duration < 0 || isnan(new_duration))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "duration must not be negative or NaN"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "duration must not be negative or NaN"_utf16 };
 
     // 2. If the readyState attribute is not in the "open" state then throw an InvalidStateError exception
     //    and abort these steps.
@@ -335,7 +337,7 @@ void MediaSource::run_duration_change_algorithm(double new_duration)
 }
 
 // https://w3c.github.io/media-source/#dom-mediasource-istypesupported
-bool MediaSource::is_type_supported(String const& type)
+static bool is_type_supported(Utf16View type)
 {
     // 1. If type is an empty string, then return false.
     if (type.is_empty())
@@ -380,6 +382,11 @@ bool MediaSource::is_type_supported(String const& type)
 
     // 6. Return true.
     return true;
+}
+
+bool MediaSource::is_type_supported(Utf16View type)
+{
+    return MediaSourceExtensions::is_type_supported(type);
 }
 
 }

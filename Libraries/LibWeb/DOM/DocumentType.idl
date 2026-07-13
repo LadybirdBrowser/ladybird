@@ -2,8 +2,8 @@
 [Exposed=Window]
 interface DocumentType : Node {
     readonly attribute Utf16DOMString name;
-    readonly attribute DOMString publicId;
-    readonly attribute DOMString systemId;
+    readonly attribute Utf16DOMString publicId;
+    readonly attribute Utf16DOMString systemId;
 };
 
 DocumentType includes ChildNode;

@@ -46,7 +46,7 @@ WebIDL::ExceptionOr<double> extract_high_water_mark(Bindings::QueuingStrategy co
 
     // 3. If highWaterMark is NaN or highWaterMark < 0, throw a RangeError exception.
     if (isnan(high_water_mark) || high_water_mark < 0)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Invalid value for high water mark"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Invalid value for high water mark"_utf16 };
 
     // 4. Return highWaterMark.
     return high_water_mark;
@@ -86,7 +86,7 @@ struct PromiseHolder : public JS::Cell {
 
 GC_DEFINE_ALLOCATOR(PromiseHolder);
 
-static void add_message_event_listener(JS::Realm& realm, HTML::MessagePort& port, FlyString const& name, Function<void(JS::VM&, HTML::MessageEvent const&)> handler)
+static void add_message_event_listener(JS::Realm& realm, HTML::MessagePort& port, Utf16FlyString const& name, Function<void(JS::VM&, HTML::MessageEvent const&)> handler)
 {
     auto behavior = [handler = GC::create_function(realm.heap(), move(handler))](JS::VM& vm) {
         auto& message_event = vm.argument(0).as<HTML::MessageEvent>();

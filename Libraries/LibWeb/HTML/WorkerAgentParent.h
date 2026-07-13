@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/AgentType.h>
 #include <LibWeb/Bindings/Request.h>
@@ -25,7 +26,7 @@ public:
 
     static WEB_API void did_finish_loading_worker_script(WorkerAgentOwnerToken);
     static WEB_API void did_fail_loading_worker_script(WorkerAgentOwnerToken);
-    static WEB_API void did_report_worker_exception(WorkerAgentOwnerToken, String message, String filename, u32 lineno, u32 colno);
+    static WEB_API void did_report_worker_exception(WorkerAgentOwnerToken, Utf16String message, Utf16String filename, u32 lineno, u32 colno);
     static WEB_API void did_close_worker(WorkerAgentOwnerToken);
 
 protected:
@@ -37,7 +38,7 @@ protected:
 private:
     void release_startup_keep_alive();
     void dispatch_error_event();
-    void dispatch_worker_exception(String message, String filename, u32 lineno, u32 colno);
+    void dispatch_worker_exception(Utf16String message, Utf16String filename, u32 lineno, u32 colno);
 
     static WorkerAgentOwnerToken next_owner_token();
 

@@ -27,7 +27,7 @@ public:
     void set_state(Bindings::PermissionState state) { m_state = state; }
 
     // https://w3c.github.io/permissions/#dom-permissionstatus-name
-    String const& name() const { return m_name; }
+    Utf16String const& name() const { return m_name; }
 
     Bindings::PermissionDescriptor const& query() const { return m_query; }
 
@@ -39,11 +39,11 @@ public:
     GC::Ptr<WebIDL::CallbackType> onchange();
 
 private:
-    PermissionStatus(JS::Realm&, String const&, Bindings::PermissionDescriptor const&);
+    PermissionStatus(JS::Realm&, Utf16String const&, Bindings::PermissionDescriptor const&);
 
     virtual void initialize(JS::Realm&) override;
 
-    String m_name;
+    Utf16String m_name;
     Bindings::PermissionState m_state { Bindings::PermissionState::Prompt };
 
     // https://w3c.github.io/permissions/#dfn-query

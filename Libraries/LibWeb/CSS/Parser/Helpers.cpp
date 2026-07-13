@@ -74,13 +74,6 @@ GC::Ref<CSS::CSSStyleSheet> parse_css_stylesheet(CSS::Parser::ParsingParams cons
     return style_sheet;
 }
 
-CSS::Parser::Parser::PropertiesAndCustomProperties parse_css_property_declaration_block(CSS::Parser::ParsingParams const& context, StringView css)
-{
-    if (css.is_empty())
-        return {};
-    return CSS::Parser::Parser::create(context, css).parse_as_property_declaration_block();
-}
-
 CSS::Parser::Parser::PropertiesAndCustomProperties parse_css_property_declaration_block(CSS::Parser::ParsingParams const& context, Utf16View css)
 {
     if (css.is_empty())
@@ -88,7 +81,7 @@ CSS::Parser::Parser::PropertiesAndCustomProperties parse_css_property_declaratio
     return CSS::Parser::Parser::create(context, css).parse_as_property_declaration_block();
 }
 
-Vector<CSS::Descriptor> parse_css_descriptor_declaration_block(CSS::Parser::ParsingParams const& parsing_params, CSS::AtRuleID at_rule_id, StringView css)
+Vector<CSS::Descriptor> parse_css_descriptor_declaration_block(CSS::Parser::ParsingParams const& parsing_params, CSS::AtRuleID at_rule_id, Utf16View css)
 {
     if (css.is_empty())
         return {};
@@ -109,13 +102,6 @@ RefPtr<CSS::StyleValue const> parse_css_value(CSS::Parser::ParsingParams const& 
     return CSS::Parser::Parser::create(context, string).parse_as_css_value(property_id);
 }
 
-RefPtr<CSS::StyleValue const> parse_css_type(CSS::Parser::ParsingParams const& context, StringView string, CSS::ValueType value_type)
-{
-    if (string.is_empty())
-        return nullptr;
-    return CSS::Parser::Parser::create(context, string).parse_as_type(value_type);
-}
-
 RefPtr<CSS::StyleValue const> parse_css_type(CSS::Parser::ParsingParams const& context, Utf16View string, CSS::ValueType value_type)
 {
     if (string.is_empty())
@@ -123,24 +109,24 @@ RefPtr<CSS::StyleValue const> parse_css_type(CSS::Parser::ParsingParams const& c
     return CSS::Parser::Parser::create(context, string).parse_as_type(value_type);
 }
 
-RefPtr<CSS::StyleValue const> parse_css_descriptor(CSS::Parser::ParsingParams const& parsing_params, CSS::AtRuleID at_rule_id, CSS::DescriptorNameAndID const& descriptor_name_and_id, StringView string)
+RefPtr<CSS::StyleValue const> parse_css_descriptor(CSS::Parser::ParsingParams const& parsing_params, CSS::AtRuleID at_rule_id, CSS::DescriptorNameAndID const& descriptor_name_and_id, Utf16View string)
 {
     if (string.is_empty())
         return nullptr;
     return CSS::Parser::Parser::create(parsing_params, string).parse_as_descriptor_value(at_rule_id, descriptor_name_and_id);
 }
 
-CSS::CSSRule* parse_css_rule(CSS::Parser::ParsingParams const& context, StringView css_text, bool nested)
+CSS::CSSRule* parse_css_rule(CSS::Parser::ParsingParams const& context, Utf16View css_text, bool nested)
 {
     return CSS::Parser::Parser::create(context, css_text).parse_as_css_rule(nested);
 }
 
-Optional<CSS::SelectorList> parse_selector(CSS::Parser::ParsingParams const& context, StringView selector_text)
+Optional<CSS::SelectorList> parse_selector(CSS::Parser::ParsingParams const& context, Utf16View selector_text)
 {
     return CSS::Parser::Parser::create(context, selector_text).parse_as_selector();
 }
 
-Optional<CSS::SelectorList> parse_selector_for_nested_style_rule(CSS::Parser::ParsingParams const& context, StringView selector_text, CSS::StyleNestingParent parent_is_scope_rule)
+Optional<CSS::SelectorList> parse_selector_for_nested_style_rule(CSS::Parser::ParsingParams const& context, Utf16View selector_text, CSS::StyleNestingParent parent_is_scope_rule)
 {
     auto parser = CSS::Parser::Parser::create(context, selector_text);
 
@@ -151,19 +137,14 @@ Optional<CSS::SelectorList> parse_selector_for_nested_style_rule(CSS::Parser::Pa
     return adapt_nested_relative_selector_list(*maybe_selectors, parent_is_scope_rule);
 }
 
-Optional<CSS::PageSelectorList> parse_page_selector_list(CSS::Parser::ParsingParams const& params, StringView selector_text)
+Optional<CSS::PageSelectorList> parse_page_selector_list(CSS::Parser::ParsingParams const& params, Utf16View selector_text)
 {
     return CSS::Parser::Parser::create(params, selector_text).parse_as_page_selector_list();
 }
 
-Optional<CSS::Selector::PseudoElementSelector> parse_pseudo_element_selector(CSS::Parser::ParsingParams const& context, StringView selector_text)
+Optional<CSS::Selector::PseudoElementSelector> parse_pseudo_element_selector(CSS::Parser::ParsingParams const& context, Utf16View selector_text)
 {
     return CSS::Parser::Parser::create(context, selector_text).parse_as_pseudo_element_selector();
-}
-
-RefPtr<CSS::MediaQuery> parse_media_query(CSS::Parser::ParsingParams const& context, StringView string)
-{
-    return CSS::Parser::Parser::create(context, string).parse_as_media_query();
 }
 
 RefPtr<CSS::MediaQuery> parse_media_query(CSS::Parser::ParsingParams const& context, Utf16View string)
@@ -171,26 +152,16 @@ RefPtr<CSS::MediaQuery> parse_media_query(CSS::Parser::ParsingParams const& cont
     return CSS::Parser::Parser::create(context, string).parse_as_media_query();
 }
 
-Vector<NonnullRefPtr<CSS::MediaQuery>> parse_media_query_list(CSS::Parser::ParsingParams const& context, StringView string)
-{
-    return CSS::Parser::Parser::create(context, string).parse_as_media_query_list();
-}
-
 Vector<NonnullRefPtr<CSS::MediaQuery>> parse_media_query_list(CSS::Parser::ParsingParams const& context, Utf16View string)
 {
     return CSS::Parser::Parser::create(context, string).parse_as_media_query_list();
 }
 
-RefPtr<CSS::Supports> parse_css_supports(CSS::Parser::ParsingParams const& context, StringView string)
+RefPtr<CSS::Supports> parse_css_supports(CSS::Parser::ParsingParams const& context, Utf16View string)
 {
     if (string.is_empty())
         return {};
     return CSS::Parser::Parser::create(context, string).parse_as_supports();
-}
-
-Vector<CSS::Parser::ComponentValue> parse_component_values_list(CSS::Parser::ParsingParams const& parsing_params, StringView string)
-{
-    return CSS::Parser::Parser::create(parsing_params, string).parse_as_list_of_component_values();
 }
 
 Vector<CSS::Parser::ComponentValue> parse_component_values_list(CSS::Parser::ParsingParams const& parsing_params, Utf16View string)
@@ -199,14 +170,14 @@ Vector<CSS::Parser::ComponentValue> parse_component_values_list(CSS::Parser::Par
 }
 
 // https://drafts.csswg.org/css-syntax/#css-decode-bytes
-ErrorOr<String> css_decode_bytes(Optional<StringView> const& environment_encoding, Optional<String> mime_type_charset, ReadonlyBytes encoded_string)
+ErrorOr<Utf16String> css_decode_bytes(Optional<StringView> const& environment_encoding, Optional<StringView> mime_type_charset, ReadonlyBytes encoded_string)
 {
     // https://drafts.csswg.org/css-syntax/#determine-the-fallback-encoding
     auto determine_the_fallback_encoding = [&mime_type_charset, &environment_encoding, &encoded_string]() -> StringView {
         // 1. If HTTP or equivalent protocol provides an encoding label (e.g. via the charset parameter of the Content-Type header) for the stylesheet,
         //    get an encoding from encoding label. If that does not return failure, return it.
         if (mime_type_charset.has_value()) {
-            if (auto encoding = TextCodec::get_standardized_encoding(mime_type_charset.value()); encoding.has_value())
+            if (auto encoding = TextCodec::get_standardized_encoding(*mime_type_charset); encoding.has_value())
                 return encoding.value();
         }
         // 2. Otherwise, check stylesheet’s byte stream. If the first 1024 bytes of the stream begin with the hex sequence
@@ -266,11 +237,11 @@ ErrorOr<String> css_decode_bytes(Optional<StringView> const& environment_encodin
         return Error::from_string_literal("No Decoder found");
     }
     // 2. Decode stylesheet’s stream of bytes with fallback encoding fallback, and return the result.
-    return TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, encoded_string);
+    return TextCodec::convert_input_to_utf16_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, encoded_string);
 }
 
 // https://drafts.csswg.org/css-values-4/#identifier-value
-bool is_valid_custom_ident(Utf16View ident, ReadonlySpan<StringView> const& blacklist)
+bool is_valid_custom_ident(Utf16View ident, ReadonlySpan<Utf16View> const& blacklist)
 {
     // The CSS-wide keywords are not valid <custom-ident>s.
     if (auto keyword = CSS::keyword_from_string(ident); keyword.has_value() && CSS::is_css_wide_keyword(keyword.value()))

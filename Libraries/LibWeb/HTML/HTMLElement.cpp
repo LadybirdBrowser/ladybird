@@ -59,6 +59,13 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(HTMLElement);
 
+static Optional<Utf16View> optional_utf16_view(Optional<Utf16String> const& string)
+{
+    if (!string.has_value())
+        return {};
+    return string->utf16_view();
+}
+
 HTMLElement::HTMLElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : Element(document, move(qualified_name))
 {
@@ -103,21 +110,23 @@ void HTMLElement::set_translate(bool new_value)
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-dir
-Utf16String HTMLElement::dir() const
+Utf16FlyString HTMLElement::dir() const
 {
     // FIXME: This should probably be `Reflect` in the IDL.
     // The dir IDL attribute on an element must reflect the dir content attribute of that element, limited to only known values.
-    auto dir = get_attribute_value(HTML::AttributeNames::dir);
-#define __ENUMERATE_HTML_ELEMENT_DIR_ATTRIBUTE(keyword) \
-    if (dir.equals_ignoring_ascii_case(#keyword##sv))   \
-        return #keyword##_utf16;
-    ENUMERATE_HTML_ELEMENT_DIR_ATTRIBUTES
-#undef __ENUMERATE_HTML_ELEMENT_DIR_ATTRIBUTE
+    auto dir = get_attribute_value_view(HTML::AttributeNames::dir);
+
+    if (dir.has_value() && dir->equals_ignoring_ascii_case(u"ltr"sv))
+        return "ltr"_utf16_fly_string;
+    if (dir.has_value() && dir->equals_ignoring_ascii_case(u"rtl"sv))
+        return "rtl"_utf16_fly_string;
+    if (dir.has_value() && dir->equals_ignoring_ascii_case(u"auto"sv))
+        return "auto"_utf16_fly_string;
 
     return {};
 }
 
-void HTMLElement::set_dir(Utf16String const& dir)
+void HTMLElement::set_dir(Utf16View dir)
 {
     set_attribute_value(HTML::AttributeNames::dir, dir);
 }
@@ -136,37 +145,37 @@ bool HTMLElement::is_content_editable() const
     return is_editable_or_editing_host();
 }
 
-StringView HTMLElement::content_editable() const
+Utf16FlyString HTMLElement::content_editable() const
 {
     switch (m_content_editable_state) {
     case ContentEditableState::True:
-        return "true"sv;
+        return "true"_utf16_fly_string;
     case ContentEditableState::False:
-        return "false"sv;
+        return "false"_utf16_fly_string;
     case ContentEditableState::PlaintextOnly:
-        return "plaintext-only"sv;
+        return "plaintext-only"_utf16_fly_string;
     case ContentEditableState::Inherit:
-        return "inherit"sv;
+        return "inherit"_utf16_fly_string;
     }
     VERIFY_NOT_REACHED();
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#contenteditable
-WebIDL::ExceptionOr<void> HTMLElement::set_content_editable(StringView content_editable)
+WebIDL::ExceptionOr<void> HTMLElement::set_content_editable(Utf16FlyString const& content_editable)
 {
-    if (content_editable.equals_ignoring_ascii_case("inherit"sv)) {
+    if (content_editable.equals_ignoring_ascii_case(u"inherit"sv)) {
         remove_attribute(HTML::AttributeNames::contenteditable);
         return {};
     }
-    if (content_editable.equals_ignoring_ascii_case("true"sv)) {
+    if (content_editable.equals_ignoring_ascii_case(u"true"sv)) {
         set_attribute_value(HTML::AttributeNames::contenteditable, "true"_utf16);
         return {};
     }
-    if (content_editable.equals_ignoring_ascii_case("plaintext-only"sv)) {
+    if (content_editable.equals_ignoring_ascii_case(u"plaintext-only"sv)) {
         set_attribute_value(HTML::AttributeNames::contenteditable, "plaintext-only"_utf16);
         return {};
     }
-    if (content_editable.equals_ignoring_ascii_case("false"sv)) {
+    if (content_editable.equals_ignoring_ascii_case(u"false"sv)) {
         set_attribute_value(HTML::AttributeNames::contenteditable, "false"_utf16);
         return {};
     }
@@ -737,13 +746,13 @@ void HTMLElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16St
         if (!value.has_value()) {
             // No value maps to the "inherit" state.
             m_content_editable_state = ContentEditableState::Inherit;
-        } else if (value->is_empty() || value->equals_ignoring_ascii_case("true"sv)) {
+        } else if (value->is_empty() || value->equals_ignoring_ascii_case(u"true"sv)) {
             // "true", an empty string or a missing value map to the "true" state.
             m_content_editable_state = ContentEditableState::True;
-        } else if (value->equals_ignoring_ascii_case("false"sv)) {
+        } else if (value->equals_ignoring_ascii_case(u"false"sv)) {
             // "false" maps to the "false" state.
             m_content_editable_state = ContentEditableState::False;
-        } else if (value->equals_ignoring_ascii_case("plaintext-only"sv)) {
+        } else if (value->equals_ignoring_ascii_case(u"plaintext-only"sv)) {
             // "plaintext-only" maps to the "plaintext-only" state.
             m_content_editable_state = ContentEditableState::PlaintextOnly;
         } else {
@@ -789,7 +798,7 @@ void HTMLElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16St
         //    and oldValue and value are in different states,
         //    then run the hide popover algorithm given element, true, true, false, true, and null.
         if (m_popover_visibility_state == PopoverVisibilityState::Showing
-            && popover_value_to_state(old_value) != popover_value_to_state(value))
+            && popover_value_to_state(optional_utf16_view(old_value)) != popover_value_to_state(optional_utf16_view(value)))
             MUST(hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::No, IgnoreDomState::Yes, nullptr));
     }();
 
@@ -840,7 +849,7 @@ void HTMLElement::inserted()
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fire-a-synthetic-pointer-event
-bool HTMLElement::fire_a_synthetic_pointer_event(FlyString const& type, DOM::Element& target, bool not_trusted)
+bool HTMLElement::fire_a_synthetic_pointer_event(Utf16FlyString const& type, DOM::Element& target, bool not_trusted)
 {
     // 1. Let event be the result of creating an event using PointerEvent.
     // 2. Initialize event's type attribute to e.
@@ -890,12 +899,12 @@ GC::Ptr<DOM::NodeList> HTMLElement::labels()
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-hidden
-Variant<bool, double, String, Empty> HTMLElement::hidden() const
+Variant<bool, double, Utf16String, Empty> HTMLElement::hidden() const
 {
     // 1. If the hidden attribute is in the hidden until found state, then return "until-found".
     auto const& hidden = get_attribute(HTML::AttributeNames::hidden);
-    if (hidden.has_value() && hidden->equals_ignoring_ascii_case("until-found"sv))
-        return "until-found"_string;
+    if (hidden.has_value() && hidden->equals_ignoring_ascii_case(u"until-found"sv))
+        return "until-found"_utf16;
     // 2. If the hidden attribute is set, then return true.
     if (hidden.has_value())
         return true;
@@ -903,12 +912,12 @@ Variant<bool, double, String, Empty> HTMLElement::hidden() const
     return false;
 }
 
-void HTMLElement::set_hidden(Variant<bool, double, String, Empty> const& given_value)
+void HTMLElement::set_hidden(Variant<bool, double, Utf16String, Empty> const& given_value)
 {
     // 1. If the given value is a string that is an ASCII case-insensitive match for "until-found", then set the hidden attribute to "until-found".
-    if (given_value.has<String>()) {
-        auto const& string = given_value.get<String>();
-        if (string.equals_ignoring_ascii_case("until-found"sv)) {
+    if (given_value.has<Utf16String>()) {
+        auto const& string = given_value.get<Utf16String>();
+        if (string.equals_ignoring_ascii_case(u"until-found"sv)) {
             set_attribute_value(HTML::AttributeNames::hidden, "until-found"_utf16);
             return;
         }
@@ -1137,27 +1146,27 @@ WebIDL::ExceptionOr<GC::Ref<ElementInternals>> HTMLElement::attach_internals()
     return { internals };
 }
 
-Optional<Utf16String> HTMLElement::popover_value_to_state(Optional<Utf16String> const& value)
+Optional<Utf16FlyString> HTMLElement::popover_value_to_state(Optional<Utf16View> value)
 {
     if (!value.has_value())
         return {};
 
-    if (value->is_empty() || value->equals_ignoring_ascii_case("auto"sv))
-        return "auto"_utf16;
+    if (value->is_empty() || value->equals_ignoring_ascii_case(u"auto"sv))
+        return "auto"_utf16_fly_string;
 
-    if (value->equals_ignoring_ascii_case("hint"sv))
-        return "hint"_utf16;
+    if (value->equals_ignoring_ascii_case(u"hint"sv))
+        return "hint"_utf16_fly_string;
 
-    return "manual"_utf16;
+    return "manual"_utf16_fly_string;
 }
 
 // https://html.spec.whatwg.org/multipage/popover.html#dom-popover
-Optional<Utf16String> HTMLElement::popover() const
+Optional<Utf16FlyString> HTMLElement::popover() const
 {
     // FIXME: This should probably be `Reflect` in the IDL.
     // The popover IDL attribute must reflect the popover attribute, limited to only known values.
     auto value = get_attribute(HTML::AttributeNames::popover);
-    return popover_value_to_state(value);
+    return popover_value_to_state(optional_utf16_view(value));
 }
 
 // https://html.spec.whatwg.org/multipage/popover.html#dom-popover
@@ -1271,8 +1280,8 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
     //    "open" at element, and the source attribute initialized to source at element is false,
     //    then run cleanupShowingFlag and return.
     Bindings::ToggleEventInit event_init {};
-    event_init.old_state = "closed"_string;
-    event_init.new_state = "open"_string;
+    event_init.old_state = "closed"_utf16_fly_string;
+    event_init.new_state = "open"_utf16_fly_string;
     event_init.cancelable = true;
     event_init.source = GC::make_root<DOM::Element>(source.ptr());
     if (!dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::beforetoggle, move(event_init)))) {
@@ -1303,7 +1312,7 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
     // NB: Steps 14 and 15 are implemented inside step 17 instead, see note below.
 
     // 16. If originalType is the Auto state, then:
-    if (original_type == "auto"sv) {
+    if (original_type == u"auto"sv) {
         // 1. Run close entire popover list given document's showing hint popover list, shouldRestoreFocus, and fireEvents.
         close_entire_popover_list(document.showing_hint_popover_list(), should_restore_focus, fire_events);
 
@@ -1322,7 +1331,7 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
     }
 
     // 17. If originalType is the hint state, then:
-    if (original_type == "hint"sv) {
+    if (original_type == u"hint"sv) {
 
         // AD-HOC: Steps 14 and 15 have been moved here to avoid hitting the `popover != manual` assertion in the topmost popover ancestor algorithm.
         // Spec issue: https://github.com/whatwg/html/issues/10988.
@@ -1361,7 +1370,7 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
     }
 
     // 18. If originalType is auto or hint, then:
-    if (original_type.has_value() && original_type.value().is_one_of("auto"sv, "hint"sv)) {
+    if (original_type.has_value() && original_type.value().is_one_of(u"auto"sv, u"hint"sv)) {
         // 1. Assert: stackToAppendTo is not null.
         VERIFY(stack_to_append_to != StackToAppendTo::Null);
 
@@ -1393,7 +1402,7 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
             document.showing_auto_popover_list().append(*this);
 
             // 2. Set element's opened in popover mode to "auto".
-            m_opened_in_popover_mode = "auto"_string;
+            m_opened_in_popover_mode = "auto"_utf16_fly_string;
         }
         // Otherwise:
         else {
@@ -1408,7 +1417,7 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
             document.showing_hint_popover_list().append(*this);
 
             // 3. Set element's opened in popover mode to "hint".
-            m_opened_in_popover_mode = "hint"_string;
+            m_opened_in_popover_mode = "hint"_utf16_fly_string;
         }
 
         // 6. Set element's popover close watcher to the result of establishing a close watcher given element's relevant global object, with:
@@ -1441,7 +1450,7 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
     // FIXME: 25. Run the popover focusing steps given element.
     // FIXME: 26. If shouldRestoreFocus is true and element's popover attribute is not in the No Popover state, then set element's previously focused element to originallyFocusedElement.
     // 27. Queue a popover toggle event task given element, "closed", "open", and source.
-    queue_a_popover_toggle_event_task("closed"_string, "open"_string, source);
+    queue_a_popover_toggle_event_task("closed"_utf16_fly_string, "open"_utf16_fly_string, source);
     // 28. Run cleanupShowingFlag.
     cleanup_showing_flag();
 
@@ -1492,7 +1501,7 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement focus_p
     };
 
     // 7. If element's opened in popover mode is "auto" or "hint", then:
-    if (m_opened_in_popover_mode.has_value() && m_opened_in_popover_mode.value().is_one_of("auto", "hint")) {
+    if (m_opened_in_popover_mode.has_value() && m_opened_in_popover_mode->is_one_of(u"auto"sv, u"hint"sv)) {
         // 7.1. Run hide all popovers until given element, focusPreviousElement, and fireEvents.
         hide_all_popovers_until(GC::Ptr(this), focus_previous_element, fire_events);
 
@@ -1511,8 +1520,8 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement focus_p
         // 1. Fire an event named beforetoggle, using ToggleEvent, with the oldState attribute initialized to "open",
         //    the newState attribute initialized to "closed", and the source attribute set to source at element.
         Bindings::ToggleEventInit event_init {};
-        event_init.old_state = "open"_string;
-        event_init.new_state = "closed"_string;
+        event_init.old_state = "open"_utf16_fly_string;
+        event_init.new_state = "closed"_utf16_fly_string;
         event_init.source = GC::make_root<DOM::Element>(source.ptr());
         dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::beforetoggle, move(event_init)));
 
@@ -1539,12 +1548,12 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement focus_p
     // Spec issue: https://github.com/whatwg/html/issues/11007
 
     // If element's opened in popover mode is "auto" or "hint":
-    if (m_opened_in_popover_mode.has_value() && m_opened_in_popover_mode.value().is_one_of("auto", "hint")) {
+    if (m_opened_in_popover_mode.has_value() && m_opened_in_popover_mode->is_one_of(u"auto"sv, u"hint"sv)) {
         // If document's showing hint popover list's last item is element:
         auto& hint_popovers = document.showing_hint_popover_list();
         if (!hint_popovers.is_empty() && hint_popovers.last() == this) {
             // Assert: element's opened in popover mode is "hint".
-            VERIFY(m_opened_in_popover_mode == "hint"sv);
+            VERIFY(m_opened_in_popover_mode == u"hint"sv);
 
             // Remove the last item from document's showing hint popover list.
             hint_popovers.remove(hint_popovers.size() - 1);
@@ -1571,7 +1580,7 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement focus_p
 
     // 14. If fireEvents is true, then queue a popover toggle event task given element, "open", "closed", and source.
     if (fire_events == FireEvents::Yes)
-        queue_a_popover_toggle_event_task("open"_string, "closed"_string, source);
+        queue_a_popover_toggle_event_task("open"_utf16_fly_string, "closed"_utf16_fly_string, source);
 
     // FIXME: 15. Let previouslyFocusedElement be element's previously focused element.
 
@@ -1640,7 +1649,7 @@ void HTMLElement::hide_all_popovers_until(Variant<GC::Ptr<HTMLElement>, GC::Ptr<
     VERIFY(endpoint.has<GC::Ptr<DOM::Document>>() || endpoint.get<GC::Ptr<HTMLElement>>()->popover_visibility_state() == PopoverVisibilityState::Showing);
 
     // 4. Assert: endpoint is a Document or endpoint's popover attribute is in the auto state or endpoint's popover attribute is in the hint state.
-    VERIFY(endpoint.has<GC::Ptr<DOM::Document>>() || endpoint.get<GC::Ptr<HTMLElement>>()->m_opened_in_popover_mode->is_one_of("auto", "hint"));
+    VERIFY(endpoint.has<GC::Ptr<DOM::Document>>() || endpoint.get<GC::Ptr<HTMLElement>>()->m_opened_in_popover_mode->is_one_of(u"auto"sv, u"hint"sv));
 
     // 5. If endpoint is a Document:
     if (endpoint.has<GC::Ptr<DOM::Document>>()) {
@@ -1658,7 +1667,7 @@ void HTMLElement::hide_all_popovers_until(Variant<GC::Ptr<HTMLElement>, GC::Ptr<
     auto endpoint_element = endpoint.get<GC::Ptr<HTMLElement>>();
     if (document->showing_hint_popover_list().contains_slow(GC::Ref(*endpoint_element))) {
         // 1. Assert: endpoint's popover attribute is in the hint state.
-        VERIFY(endpoint_element->m_opened_in_popover_mode == "hint"sv);
+        VERIFY(endpoint_element->m_opened_in_popover_mode == u"hint"sv);
 
         // 2. Run hide popover stack until given endpoint, document's showing hint popover list, focusPreviousElement, and fireEvents.
         endpoint_element->hide_popover_stack_until(document->showing_hint_popover_list(), focus_previous_element, fire_events);
@@ -1755,7 +1764,7 @@ GC::Ptr<HTMLElement> HTMLElement::topmost_popover_ancestor(GC::Ptr<DOM::Node> ne
         VERIFY(new_popover);
 
         // 2. Assert: newPopoverOrTopLayerElement's popover attribute is not in the No Popover state or the manual state.
-        VERIFY(!new_popover->popover().has_value() || new_popover->popover().value() != "manual"sv);
+        VERIFY(!new_popover->popover().has_value() || new_popover->popover().value() != u"manual"sv);
 
         // 3. Assert: newPopoverOrTopLayerElement's popover visibility state is not in the popover showing state.
         VERIFY(new_popover->popover_visibility_state() != PopoverVisibilityState::Showing);
@@ -1813,10 +1822,10 @@ GC::Ptr<HTMLElement> HTMLElement::topmost_popover_ancestor(GC::Ptr<DOM::Node> ne
                 return;
 
             // 3. Assert: candidateAncestor's popover attribute is not in the manual or none state.
-            VERIFY(!candidate_ancestor->popover().has_value() || candidate_ancestor->popover().value() != "manual"sv);
+            VERIFY(!candidate_ancestor->popover().has_value() || candidate_ancestor->popover().value() != u"manual"sv);
 
             // 4. Set okNesting to true if isPopover is false, newPopoverOrTopLayerElement's popover attribute is in the hint state, or candidateAncestor's popover attribute is in the auto state.
-            if (is_popover == IsPopover::No || new_popover->popover() == "hint"sv || candidate_ancestor->popover() == "auto"sv)
+            if (is_popover == IsPopover::No || new_popover->popover() == u"hint"sv || candidate_ancestor->popover() == u"auto"sv)
                 ok_nesting = true;
 
             // 5. If okNesting is false, then set candidate to candidateAncestor's parent in the flat tree.
@@ -1853,7 +1862,7 @@ GC::Ptr<HTMLElement> HTMLElement::nearest_inclusive_open_popover()
     // 2. While currentNode is not null:
     while (current_node) {
         // 1. If currentNode's popover attribute is in the Auto state or the Hint state, and currentNode's popover visibility state is showing, then return currentNode.
-        if (current_node->popover().has_value() && current_node->popover().value().is_one_of("auto"sv, "hint"sv) && current_node->popover_visibility_state() == PopoverVisibilityState::Showing)
+        if (current_node->popover().has_value() && current_node->popover().value().is_one_of(u"auto"sv, u"hint"sv) && current_node->popover_visibility_state() == PopoverVisibilityState::Showing)
             return current_node;
 
         // 2. Set currentNode to currentNode's parent in the flat tree.
@@ -1879,7 +1888,7 @@ GC::Ptr<HTMLElement> HTMLElement::nearest_inclusive_target_popover()
 
         // 2. If targetPopover is not null and targetPopover's popover attribute is in the Auto state or the Hint state, and targetPopover's popover visibility state is showing, then return targetPopover.
         if (target_popover) {
-            if (target_popover->popover().has_value() && target_popover->popover().value().is_one_of("auto"sv, "hint"sv) && target_popover->popover_visibility_state() == PopoverVisibilityState::Showing)
+            if (target_popover->popover().has_value() && target_popover->popover().value().is_one_of(u"auto"sv, u"hint"sv) && target_popover->popover_visibility_state() == PopoverVisibilityState::Showing)
                 return target_popover;
         }
 
@@ -1891,7 +1900,7 @@ GC::Ptr<HTMLElement> HTMLElement::nearest_inclusive_target_popover()
 }
 
 // https://html.spec.whatwg.org/multipage/popover.html#queue-a-popover-toggle-event-task
-void HTMLElement::queue_a_popover_toggle_event_task(String old_state, String new_state, GC::Ptr<HTMLElement> source)
+void HTMLElement::queue_a_popover_toggle_event_task(Utf16FlyString old_state, Utf16FlyString new_state, GC::Ptr<HTMLElement> source)
 {
     // 1. If element's popover toggle task tracker is not null, then:
     if (m_popover_toggle_task_tracker.has_value()) {
@@ -2176,15 +2185,15 @@ Utf16String HTMLElement::access_key_label() const
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-draggable
 bool HTMLElement::draggable() const
 {
-    auto attribute = get_attribute(HTML::AttributeNames::draggable);
+    auto attribute = get_attribute_value_view(HTML::AttributeNames::draggable);
 
     // If an element's draggable content attribute has the state True, the draggable IDL attribute must return true.
-    if (attribute.has_value() && attribute->equals_ignoring_ascii_case("true"sv)) {
+    if (attribute.has_value() && attribute->equals_ignoring_ascii_case(u"true"sv)) {
         return true;
     }
 
     // If an element's draggable content attribute has the state False, the draggable IDL attribute must return false.
-    if (attribute.has_value() && attribute->equals_ignoring_ascii_case("false"sv)) {
+    if (attribute.has_value() && attribute->equals_ignoring_ascii_case(u"false"sv)) {
         return false;
     }
 
@@ -2197,7 +2206,7 @@ bool HTMLElement::draggable() const
 
     // If the element is an object element that represents an image, the draggable IDL attribute must return true.
     if (is<HTML::HTMLObjectElement>(*this)) {
-        if (auto type_attribute = get_attribute(HTML::AttributeNames::type); type_attribute.has_value() && type_attribute->equals_ignoring_ascii_case("image"sv))
+        if (auto type_attribute = get_attribute_value_view(HTML::AttributeNames::type); type_attribute.has_value() && type_attribute->equals_ignoring_ascii_case(u"image"sv))
             return true;
     }
 
@@ -2244,13 +2253,13 @@ bool HTMLElement::spellcheck() const
     // NOTE: We use "true-by-default" for elements which are editable, editing hosts, or form associated text control
     //       elements "false-by-default" for root elements, and "inherit-by-default" for other elements.
 
-    auto maybe_spellcheck_attribute = attribute(HTML::AttributeNames::spellcheck);
+    auto maybe_spellcheck_attribute = get_attribute_value_view(HTML::AttributeNames::spellcheck);
 
     // The spellcheck IDL attribute, on getting, must return true if the element's spellcheck content attribute is in the True state,
-    if (maybe_spellcheck_attribute.has_value() && (maybe_spellcheck_attribute.value().equals_ignoring_ascii_case("true"sv) || maybe_spellcheck_attribute.value().is_empty()))
+    if (maybe_spellcheck_attribute.has_value() && (maybe_spellcheck_attribute.value().equals_ignoring_ascii_case(u"true"sv) || maybe_spellcheck_attribute.value().is_empty()))
         return true;
 
-    if (!maybe_spellcheck_attribute.has_value() || !maybe_spellcheck_attribute.value().equals_ignoring_ascii_case("false"sv)) {
+    if (!maybe_spellcheck_attribute.has_value() || !maybe_spellcheck_attribute.value().equals_ignoring_ascii_case(u"false"sv)) {
         // or if the element's spellcheck content attribute is in the Default state and the element's default behavior is true-by-default,
         if (is_editable_or_editing_host() || is<FormAssociatedTextControlElement>(this))
             return true;
@@ -2278,7 +2287,7 @@ void HTMLElement::set_spellcheck(bool spellcheck)
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-writingsuggestions
-Utf16String HTMLElement::writing_suggestions() const
+Utf16FlyString HTMLElement::writing_suggestions() const
 {
     // The writingsuggestions content attribute is an enumerated attribute with the following keywords and states:
     // Keyword            | State | Brief description
@@ -2293,22 +2302,22 @@ Utf16String HTMLElement::writing_suggestions() const
     // The attribute's invalid value default is the True state.
 
     // 1. If element's writingsuggestions content attribute is in the False state, return "false".
-    auto maybe_writing_suggestions_attribute = attribute(HTML::AttributeNames::writingsuggestions);
+    auto maybe_writing_suggestions_attribute = get_attribute_value_view(HTML::AttributeNames::writingsuggestions);
 
-    if (maybe_writing_suggestions_attribute.has_value() && maybe_writing_suggestions_attribute.value().equals_ignoring_ascii_case("false"sv))
-        return "false"_utf16;
+    if (maybe_writing_suggestions_attribute.has_value() && maybe_writing_suggestions_attribute.value().equals_ignoring_ascii_case(u"false"sv))
+        return "false"_utf16_fly_string;
 
     // 2. If element's writingsuggestions content attribute is in the Default state, element has a parent element, and the computed writing suggestions value of element's parent element is "false", then return "false".
-    if (!maybe_writing_suggestions_attribute.has_value() && first_ancestor_of_type<HTMLElement>() && first_ancestor_of_type<HTMLElement>()->writing_suggestions() == "false"_utf16) {
-        return "false"_utf16;
+    if (!maybe_writing_suggestions_attribute.has_value() && first_ancestor_of_type<HTMLElement>() && first_ancestor_of_type<HTMLElement>()->writing_suggestions() == u"false"sv) {
+        return "false"_utf16_fly_string;
     }
 
     // 3. Return "true".
-    return "true"_utf16;
+    return "true"_utf16_fly_string;
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-writingsuggestions
-void HTMLElement::set_writing_suggestions(Utf16String const& given_value)
+void HTMLElement::set_writing_suggestions(Utf16View given_value)
 {
     // 1. Set this's writingsuggestions content attribute to the given value.
     set_attribute_value(HTML::AttributeNames::writingsuggestions, given_value);
@@ -2348,17 +2357,17 @@ HTMLElement::AutocapitalizationHint HTMLElement::own_autocapitalization_hint() c
     // To compute the own autocapitalization hint of an element element, run the following steps:
     // 1. If the autocapitalize content attribute is present on element, and its value is not the empty string, return the
     //    state of the attribute.
-    auto maybe_autocapitalize_attribute = attribute(HTML::AttributeNames::autocapitalize);
+    auto maybe_autocapitalize_attribute = get_attribute_value_view(HTML::AttributeNames::autocapitalize);
 
     if (maybe_autocapitalize_attribute.has_value() && !maybe_autocapitalize_attribute.value().is_empty()) {
-        if (maybe_autocapitalize_attribute->equals_ignoring_ascii_case("off"sv)
-            || maybe_autocapitalize_attribute->equals_ignoring_ascii_case("none"sv))
+        if (maybe_autocapitalize_attribute->equals_ignoring_ascii_case(u"off"sv)
+            || maybe_autocapitalize_attribute->equals_ignoring_ascii_case(u"none"sv))
             return AutocapitalizationHint::None;
 
-        if (maybe_autocapitalize_attribute->equals_ignoring_ascii_case("words"sv))
+        if (maybe_autocapitalize_attribute->equals_ignoring_ascii_case(u"words"sv))
             return AutocapitalizationHint::Words;
 
-        if (maybe_autocapitalize_attribute->equals_ignoring_ascii_case("characters"sv))
+        if (maybe_autocapitalize_attribute->equals_ignoring_ascii_case(u"characters"sv))
             return AutocapitalizationHint::Characters;
 
         return AutocapitalizationHint::Sentences;
@@ -2375,7 +2384,7 @@ HTMLElement::AutocapitalizationHint HTMLElement::own_autocapitalization_hint() c
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#attr-autocapitalize
-Utf16String HTMLElement::autocapitalize() const
+Utf16FlyString HTMLElement::autocapitalize() const
 {
     // The autocapitalize getter steps are to:
     // 1. Let state be the own autocapitalization hint of this.
@@ -2389,19 +2398,19 @@ Utf16String HTMLElement::autocapitalize() const
     case AutocapitalizationHint::Default:
         return {};
     case AutocapitalizationHint::None:
-        return "none"_utf16;
+        return "none"_utf16_fly_string;
     case AutocapitalizationHint::Sentences:
-        return "sentences"_utf16;
+        return "sentences"_utf16_fly_string;
     case AutocapitalizationHint::Words:
-        return "words"_utf16;
+        return "words"_utf16_fly_string;
     case AutocapitalizationHint::Characters:
-        return "characters"_utf16;
+        return "characters"_utf16_fly_string;
     }
 
     VERIFY_NOT_REACHED();
 }
 
-void HTMLElement::set_autocapitalize(Utf16String const& given_value)
+void HTMLElement::set_autocapitalize(Utf16View given_value)
 {
     // The autocapitalize setter steps are to set the autocapitalize content attribute to the given value.
     set_attribute_value(HTML::AttributeNames::autocapitalize, given_value);
@@ -2419,8 +2428,8 @@ HTMLElement::AutocorrectionState HTMLElement::used_autocorrection_state() const
 
     // The attribute's invalid value default and missing value default are both the On state.
 
-    auto autocorrect_attribute_state = [](Optional<Utf16String> const& attribute) {
-        if (attribute.has_value() && attribute->equals_ignoring_ascii_case("off"sv))
+    auto autocorrect_attribute_state = [](Optional<Utf16View> attribute) {
+        if (attribute.has_value() && attribute->equals_ignoring_ascii_case(u"off"sv))
             return AutocorrectionState::Off;
 
         return AutocorrectionState::On;
@@ -2438,13 +2447,13 @@ HTMLElement::AutocorrectionState HTMLElement::used_autocorrection_state() const
     auto maybe_autocorrect_attribute = attribute(HTML::AttributeNames::autocorrect);
 
     if (maybe_autocorrect_attribute.has_value())
-        return autocorrect_attribute_state(maybe_autocorrect_attribute);
+        return autocorrect_attribute_state(optional_utf16_view(maybe_autocorrect_attribute));
 
     // 3. If element is an autocapitalize-and-autocorrect inheriting element and has a non-null form owner, then return
     //    the state of element's form owner's autocorrect attribute.
     if (auto const* form_associated_element = as_if<FormAssociatedElement>(this)) {
         if (form_associated_element->is_autocapitalize_and_autocorrect_inheriting() && form_associated_element->form())
-            return autocorrect_attribute_state(form_associated_element->form()->attribute(HTML::AttributeNames::autocorrect));
+            return autocorrect_attribute_state(optional_utf16_view(form_associated_element->form()->attribute(HTML::AttributeNames::autocorrect)));
     }
 
     // 4. Return On.

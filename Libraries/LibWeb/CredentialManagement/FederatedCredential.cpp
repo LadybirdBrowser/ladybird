@@ -25,10 +25,17 @@ FederatedCredential::~FederatedCredential()
 {
 }
 
+Utf16FlyString const& FederatedCredential::type() const
+{
+    static Utf16FlyString const& type = *new Utf16FlyString("federated"_utf16_fly_string);
+    return type;
+}
+
 FederatedCredential::FederatedCredential(JS::Realm& realm, Bindings::FederatedCredentialInit const& init, URL::Origin origin)
     : Credential(realm, init.id)
-    , CredentialUserData(init.name.value_or(String {}), init.icon_url.value_or(String {}))
+    , CredentialUserData(init.name.value_or(Utf16String {}), init.icon_url.value_or(Utf16String {}))
     , m_provider(init.provider)
+    , m_protocol(init.protocol)
     , m_origin(move(origin))
 {
 }

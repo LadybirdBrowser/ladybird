@@ -7,5 +7,5 @@ interface mixin Body {
     [NewObject] Promise<Uint8Array> bytes();
     [NewObject] Promise<FormData> formData();
     [NewObject] Promise<any> json();
-    [NewObject] Promise<USVString> text();
+    [NewObject] Promise<Utf16USVString> text();
 };

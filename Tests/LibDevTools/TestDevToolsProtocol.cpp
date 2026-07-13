@@ -356,7 +356,7 @@ static Web::CSS::StyleSheetIdentifier fixture_style_sheet()
 {
     return { .type = Web::CSS::StyleSheetIdentifier::Type::StyleElement,
         .dom_element_unique_id = 9,
-        .url = "https://example.test/style.css"_string,
+        .url = "https://example.test/style.css"_utf16,
         .rule_count = 2 };
 }
 
@@ -373,7 +373,7 @@ static JsonObject serialized_fixture_style_sheet()
 static Web::CSS::StyleSheetIdentifier fixture_user_agent_style_sheet()
 {
     return { .type = Web::CSS::StyleSheetIdentifier::Type::UserAgent,
-        .url = "CSS/Default.css"_string,
+        .url = "CSS/Default.css"_utf16,
         .rule_count = 4 };
 }
 
@@ -1120,7 +1120,7 @@ public:
         ++retrieve_style_sheet_source_call_count;
         Core::deferred_invoke([this] {
             VERIFY(on_style_sheet_source);
-            on_style_sheet_source(fixture_style_sheet(), "body { color: red; }"_string);
+            on_style_sheet_source(fixture_style_sheet(), "body { color: red; }"_utf16);
         });
     }
 
@@ -1144,7 +1144,7 @@ public:
         if (source_id == fixture_live_source.id) {
             callback(Web::HTML::ScriptRegistry::Content {
                 .content_type = fixture_live_source.content_type,
-                .text = "console.log('live source');"_string,
+                .text = "console.log('live source');"_utf16,
             });
             return;
         }
@@ -1156,7 +1156,7 @@ public:
 
         callback(Web::HTML::ScriptRegistry::Content {
             .content_type = fixture_source.content_type,
-            .text = "console.log('hello from source');"_string,
+            .text = "console.log('hello from source');"_utf16,
         });
     }
 
@@ -1353,7 +1353,7 @@ public:
 
     mutable Function<void(WebView::DOMNodeProperties)> on_dom_node_properties;
     mutable Function<void(WebView::Mutation)> on_dom_mutation;
-    mutable Function<void(Web::CSS::StyleSheetIdentifier const&, String)> on_style_sheet_source;
+    mutable Function<void(Web::CSS::StyleSheetIdentifier const&, Utf16String)> on_style_sheet_source;
     mutable Function<void(WebView::ConsoleOutput)> on_console_message;
     mutable Function<void(DevToolsDelegate::NetworkRequestData)> on_network_request_started;
     mutable Function<void(DevToolsDelegate::NetworkResponseData)> on_network_response_headers_received;
@@ -1378,9 +1378,9 @@ public:
     mutable Web::HTML::ScriptRegistry::Description fixture_source {
         .id = { .document_id = 1, .script_id = 1 },
         .url = {},
-        .display_url = "https://example.test/app.js"_string,
-        .introduction_type = "scriptElement"_string,
-        .content_type = "text/javascript"_string,
+        .display_url = "https://example.test/app.js"_utf16,
+        .introduction_type = "scriptElement"_utf16,
+        .content_type = "text/javascript"_utf16,
         .is_inline_source = false,
         .source_start_line = 1,
         .source_start_column = 0,
@@ -1389,9 +1389,9 @@ public:
     mutable Web::HTML::ScriptRegistry::Description fixture_live_source {
         .id = { .document_id = 1, .script_id = 2 },
         .url = {},
-        .display_url = "https://example.test/live.js"_string,
-        .introduction_type = "scriptElement"_string,
-        .content_type = "text/javascript"_string,
+        .display_url = "https://example.test/live.js"_utf16,
+        .introduction_type = "scriptElement"_utf16,
+        .content_type = "text/javascript"_utf16,
         .is_inline_source = false,
         .source_start_line = 1,
         .source_start_column = 0,
@@ -2900,10 +2900,10 @@ TEST_CASE(storage_indexed_database_change_events)
 TEST_CASE(storage_indexed_database_serializes_live_tree_updates)
 {
     Web::IndexedDB::TransactionChanges changes;
-    changes.added.append({ "fixtures"_string, "people"_string });
-    changes.added.append({ "fixtures"_string, "people"_string, JsonValue { 1 } });
-    changes.changed.append({ "fixtures"_string, "people"_string, JsonValue { 2 } });
-    changes.deleted.append({ "fixtures"_string, "people"_string, JsonValue { 3 } });
+    changes.added.append(Web::IndexedDB::TransactionChange { "fixtures"_utf16, "people"_utf16 });
+    changes.added.append(Web::IndexedDB::TransactionChange { "fixtures"_utf16, "people"_utf16, JsonValue { 1 } });
+    changes.changed.append(Web::IndexedDB::TransactionChange { "fixtures"_utf16, "people"_utf16, JsonValue { 2 } });
+    changes.deleted.append(Web::IndexedDB::TransactionChange { "fixtures"_utf16, "people"_utf16, JsonValue { 3 } });
 
     auto update = DevTools::IndexedDB::serialize_update("https://example.test/page"_string, changes);
 

@@ -5,6 +5,7 @@
  */
 
 #include <AK/ScopeGuard.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/AttributeNames.h>
@@ -43,7 +44,7 @@ EventResult DragAndDropEventHandler::handle_drag_start(
     unsigned modifiers,
     Vector<HTML::SelectedFile> files)
 {
-    auto fire_a_drag_and_drop_event = [&](GC::Ptr<DOM::EventTarget> target, FlyString const& name, GC::Ptr<DOM::EventTarget> related_target = nullptr) {
+    auto fire_a_drag_and_drop_event = [&](GC::Ptr<DOM::EventTarget> target, Utf16FlyString const& name, GC::Ptr<DOM::EventTarget> related_target = nullptr) {
         return this->fire_a_drag_and_drop_event(realm, target, name, screen_position, page_offset, client_offset, offset, button, buttons, modifiers, related_target);
     };
 
@@ -125,8 +126,9 @@ EventResult DragAndDropEventHandler::handle_drag_start(
 
         m_drag_data_store->add_item({
             .kind = HTML::DragDataStoreItem::Kind::File,
-            .type_string = mime_type.essence(),
-            .data = move(contents),
+            .type_string = Utf16String::from_utf8(mime_type.essence()),
+            .data = {},
+            .file_data = move(contents),
             .file_name = file.name(),
         });
     }
@@ -144,7 +146,7 @@ EventResult DragAndDropEventHandler::handle_drag_start(
     // 7. Run the following substeps:
     [&]() {
         // 1. Let urls be « ».
-        Vector<String> urls;
+        Vector<Utf16String> urls;
 
         // 2. For each node in the list of dragged nodes:
         if (auto* element = as_if<DOM::Element>(m_source_node.ptr())) {
@@ -170,7 +172,13 @@ EventResult DragAndDropEventHandler::handle_drag_start(
 
         // 4. Let url string be the result of concatenating the strings in urls, in the order they were added, separated
         //    by a U+000D CARRIAGE RETURN U+000A LINE FEED character pair (CRLF).
-        auto url = MUST(String::join("\r\n"sv, urls));
+        Utf16StringBuilder url_builder;
+        for (auto const& url : urls) {
+            if (!url_builder.is_empty())
+                url_builder.append_ascii("\r\n"sv);
+            url_builder.append(url);
+        }
+        auto url = url_builder.to_string();
 
         // 5. Add one item to the drag data store item list, with its properties set as follows:
         //
@@ -182,8 +190,9 @@ EventResult DragAndDropEventHandler::handle_drag_start(
         //        url string
         m_drag_data_store->add_item({
             .kind = HTML::DragDataStoreItem::Kind::Text,
-            .type_string = "text/uri-list"_string,
-            .data = MUST(ByteBuffer::copy(url.bytes())),
+            .type_string = "text/uri-list"_utf16,
+            .data = move(url),
+            .file_data = {},
             .file_name = {},
         });
     }();
@@ -232,7 +241,7 @@ EventResult DragAndDropEventHandler::handle_drag_move(
     if (!has_ongoing_drag_and_drop_operation())
         return EventResult::Cancelled;
 
-    auto fire_a_drag_and_drop_event = [&](GC::Ptr<DOM::EventTarget> target, FlyString const& name, GC::Ptr<DOM::EventTarget> related_target = nullptr) {
+    auto fire_a_drag_and_drop_event = [&](GC::Ptr<DOM::EventTarget> target, Utf16FlyString const& name, GC::Ptr<DOM::EventTarget> related_target = nullptr) {
         return this->fire_a_drag_and_drop_event(realm, target, name, screen_position, page_offset, client_offset, offset, button, buttons, modifiers, related_target);
     };
 
@@ -409,7 +418,7 @@ EventResult DragAndDropEventHandler::handle_drag_end(
     if (!has_ongoing_drag_and_drop_operation())
         return EventResult::Cancelled;
 
-    auto fire_a_drag_and_drop_event = [&](GC::Ptr<DOM::EventTarget> target, FlyString const& name, GC::Ptr<DOM::EventTarget> related_target = nullptr) {
+    auto fire_a_drag_and_drop_event = [&](GC::Ptr<DOM::EventTarget> target, Utf16FlyString const& name, GC::Ptr<DOM::EventTarget> related_target = nullptr) {
         return this->fire_a_drag_and_drop_event(realm, target, name, screen_position, page_offset, client_offset, offset, button, buttons, modifiers, related_target);
     };
 
@@ -516,7 +525,7 @@ EventResult DragAndDropEventHandler::handle_drag_end(
 GC::Ref<HTML::DragEvent> DragAndDropEventHandler::fire_a_drag_and_drop_event(
     JS::Realm& realm,
     GC::Ptr<DOM::EventTarget> target,
-    FlyString const& name,
+    Utf16FlyString const& name,
     CSSPixelPoint screen_position,
     CSSPixelPoint page_offset,
     CSSPixelPoint client_offset,

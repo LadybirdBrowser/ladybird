@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Utf16FlyString.h>
+#include <AK/Utf16View.h>
 #include <LibWeb/Bindings/ShadowRoot.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/DOM/AnchorNameMap.h>
@@ -62,7 +63,7 @@ public:
 
     WebIDL::ExceptionOr<void> set_html_unsafe(TrustedTypes::TrustedHTMLOrString const&);
 
-    WebIDL::ExceptionOr<String> get_html(Bindings::GetHTMLOptions const&) const;
+    WebIDL::ExceptionOr<Utf16String> get_html(Bindings::GetHTMLOptions const&) const;
 
     GC::Ptr<Element> active_element();
 
@@ -94,7 +95,7 @@ public:
             m_slot_registry->for_each_slot(callback);
     }
 
-    GC::Ptr<HTML::HTMLSlotElement> first_slot_with_name(Utf16FlyString const& name) const;
+    GC::Ptr<HTML::HTMLSlotElement> first_slot_with_name(Utf16View name) const;
 
     CSS::StyleScope const& style_scope() const { return m_style_scope; }
     CSS::StyleScope& style_scope() { return m_style_scope; }

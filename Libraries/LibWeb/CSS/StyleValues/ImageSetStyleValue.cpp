@@ -74,7 +74,7 @@ void ImageSetStyleValue::serialize(StringBuilder& builder, SerializationMode mod
         option.resolution->serialize(builder, mode);
         if (option.type.has_value()) {
             builder.append(" type(\""sv);
-            builder.append_escaped_for_json(*option.type);
+            builder.append_escaped_for_json(MUST(option.type->utf16_view().to_utf8()));
             builder.append("\")"sv);
         }
     }

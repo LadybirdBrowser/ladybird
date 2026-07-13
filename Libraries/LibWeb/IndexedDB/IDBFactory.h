@@ -21,8 +21,8 @@ class IDBFactory : public Bindings::PlatformObject {
 public:
     virtual ~IDBFactory() override;
 
-    WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> open(String const& name, Optional<u64> version);
-    WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> delete_database(String const& name);
+    WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> open(Utf16String const& name, Optional<u64> version);
+    WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> delete_database(Utf16String const& name);
     GC::Ref<WebIDL::Promise> databases();
 
     WebIDL::ExceptionOr<i8> cmp(JS::Value first, JS::Value second);

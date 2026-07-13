@@ -4,8 +4,8 @@ interface HTMLFrameSetElement : HTMLElement {
 
     [HTMLConstructor] constructor();
 
-    [CEReactions, Reflect] attribute DOMString cols;
-    [CEReactions, Reflect] attribute DOMString rows;
+    [CEReactions, Reflect] attribute Utf16DOMString cols;
+    [CEReactions, Reflect] attribute Utf16DOMString rows;
 
 };
 

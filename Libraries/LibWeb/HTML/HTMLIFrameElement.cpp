@@ -19,6 +19,7 @@
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/Layout/NavigableContainerViewport.h>
 #include <LibWeb/ResourceTiming/PerformanceResourceTiming.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
@@ -59,7 +60,7 @@ void HTMLIFrameElement::attribute_changed(Utf16FlyString const& name, Optional<U
 
     if (name == HTML::AttributeNames::sandbox) {
         if (m_sandbox)
-            m_sandbox->associated_attribute_changed(value.value_or({}));
+            m_sandbox->associated_attribute_changed(value.has_value() ? value->utf16_view() : u""sv);
     }
 
     // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-iframe-element:process-the-iframe-attributes-2
@@ -177,7 +178,7 @@ void HTMLIFrameElement::process_the_iframe_attributes(InitialInsertion initial_i
     }
 
     // 4. Let referrerPolicy be the current state of element's referrerpolicy content attribute.
-    auto referrer_policy = ReferrerPolicy::from_string(get_attribute_value(HTML::AttributeNames::referrerpolicy)).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
+    auto referrer_policy = ReferrerPolicy::from_string(get_attribute_value_view(HTML::AttributeNames::referrerpolicy).value_or({})).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
 
     // 5. Set element's current navigation was lazy loaded boolean to false.
     set_current_navigation_was_lazy_loaded(false);
@@ -245,8 +246,8 @@ void run_iframe_load_event_steps(HTMLIFrameElement& element)
         // FIXME: Our URL is already parsed, how are we supposed to parse it?
         ResourceTiming::PerformanceResourceTiming::mark_resource_timing(
             fallback_timing_info,
-            element.pending_resource_timing_url()->to_string(),
-            "iframe"_fly_string,
+            utf16_string_from_url_ascii(element.pending_resource_timing_url()->to_string()),
+            "iframe"_utf16_fly_string,
             global,
             Optional<Fetch::Infrastructure::Response::CacheState> {},
             Fetch::Infrastructure::Response::BodyInfo {},
@@ -347,7 +348,7 @@ WebIDL::ExceptionOr<void> HTMLIFrameElement::set_srcdoc(TrustedTypes::TrustedHTM
         HTML::relevant_global_object(*this),
         value,
         TrustedTypes::InjectionSink::HTMLIFrameElement_srcdoc,
-        TrustedTypes::Script.to_string()));
+        TrustedTypes::Script.view()));
 
     // 2. Set an attribute value given this, srcdoc's local name, and compliantString.
     set_attribute_value(AttributeNames::srcdoc, compliant_string);
@@ -360,7 +361,7 @@ ReferrerPolicy::ReferrerPolicy determine_iframe_element_referrer_policy(GC::Ptr<
     // 1. If embedder is an iframe element, then return embedder's referrerpolicy attribute's state's corresponding
     //    keyword.
     if (auto* iframe = as_if<HTMLIFrameElement>(embedder.ptr())) {
-        return ReferrerPolicy::from_string(iframe->get_attribute_value(HTML::AttributeNames::referrerpolicy)).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
+        return ReferrerPolicy::from_string(iframe->get_attribute_value_view(HTML::AttributeNames::referrerpolicy).value_or({})).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
     }
 
     // 2. Return the empty string.

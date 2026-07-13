@@ -48,7 +48,7 @@ public:
     // https://w3c.github.io/media-source/#dom-sourcebuffer-buffered
     WebIDL::ExceptionOr<GC::Ref<HTML::TimeRanges>> buffered();
 
-    void set_content_type(String const& type);
+    void set_content_type(Utf16View type);
 
     // https://w3c.github.io/media-source/#addsourcebuffer-method
     WebIDL::ExceptionOr<void> append_buffer(WebIDL::BufferSource);
@@ -57,7 +57,7 @@ public:
     WebIDL::ExceptionOr<void> abort();
 
     // https://w3c.github.io/media-source/#dom-sourcebuffer-changetype
-    WebIDL::ExceptionOr<void> change_type(String const& type);
+    WebIDL::ExceptionOr<void> change_type(Utf16String const& type);
 
     void set_reached_end_of_stream(Badge<MediaSource>);
     void clear_reached_end_of_stream(Badge<MediaSource>);

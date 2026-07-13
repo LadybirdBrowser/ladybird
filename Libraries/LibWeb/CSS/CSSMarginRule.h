@@ -21,7 +21,7 @@ public:
 
     virtual ~CSSMarginRule() override = default;
 
-    String name() const;
+    Utf16FlyString const& name() const { return m_name; }
     GC::Ref<CSSStyleProperties> style() { return m_style; }
     GC::Ref<CSSStyleProperties const> style() const { return m_style; }
 
@@ -29,7 +29,7 @@ private:
     CSSMarginRule(JS::Realm&, Utf16FlyString name, GC::Ref<CSSStyleProperties>);
 
     virtual void initialize(JS::Realm&) override;
-    virtual String serialized() const override;
+    virtual Utf16String serialized() const override;
     virtual void visit_edges(Visitor&) override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 

@@ -41,6 +41,7 @@ public:
 
 protected:
     Script(Optional<URL::URL> base_url, ByteString filename, EnvironmentSettingsObject&);
+    Script(Optional<URL::URL> base_url, ByteString filename, Utf16String display_filename, EnvironmentSettingsObject&);
 
     virtual void visit_edges(Visitor&) override;
 

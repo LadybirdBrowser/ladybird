@@ -1,18 +1,18 @@
 [Exposed=Nobody]
 interface Internals {
 
-    undefined signalTestIsDone(DOMString text);
+    undefined signalTestIsDone(Utf16DOMString text);
     undefined setTestTimeout(double milliseconds);
     undefined forceIncompatibleVisualContextTreeRebuild();
     undefined loadReferenceTestMetadata();
 
-    DOMString setTimeZone(DOMString timeZone);
+    Utf16DOMString setTimeZone(Utf16DOMString timeZone);
 
     undefined gc();
     Promise<undefined> gcAsync();
     // Clears a named environment binding and forces its current cell to be treated as garbage.
     // This does not work for values stored only in optimized locals or registers.
-    undefined markAsGarbage(DOMString variableName);
+    undefined markAsGarbage([Utf16FlyString] Utf16DOMString variableName);
     object hitTest(double x, double y);
 
     const unsigned short MOD_NONE = 0;
@@ -26,8 +26,8 @@ interface Internals {
     const unsigned short BUTTON_MIDDLE = 1;
     const unsigned short BUTTON_RIGHT = 2;
 
-    undefined sendText(HTMLElement target, DOMString text, optional unsigned short modifiers = 0);
-    undefined sendKey(HTMLElement target, DOMString keyName, optional unsigned short modifiers = 0);
+    undefined sendText(HTMLElement target, Utf16DOMString text, optional unsigned short modifiers = 0);
+    undefined sendKey(HTMLElement target, Utf16DOMString keyName, optional unsigned short modifiers = 0);
     undefined paste(HTMLElement target, Utf16DOMString text);
     undefined commitText();
 
@@ -43,11 +43,11 @@ interface Internals {
     Promise<undefined> wheel(double x, double y, double deltaX, double deltaY);
     undefined pinch(double x, double y, double scaleDelta, optional unsigned short modifiers = 0);
 
-    DOMString currentCursor();
+    Utf16DOMString currentCursor();
 
     // Returns the text that would be placed on the clipboard if the user copied the current selection now.
     // Excludes nodes whose used value of user-select is 'none' — mirroring what browsers actually copy.
-    DOMString selectedTextForClipboard();
+    Utf16DOMString selectedTextForClipboard();
 
     // Drive marked/preedit-text composition via the same path platform input methods use. setMarkedTextFromInputMethod
     // updates the inline preedit — replacing any previous preedit. commitText finalizes the composition with the given
@@ -62,15 +62,15 @@ interface Internals {
     DOMRect? currentCaretRect();
 
     boolean dispatchUserActivatedEvent(EventTarget target, Event event);
-    undefined spoofCurrentURL(USVString url);
+    undefined spoofCurrentURL(Utf16USVString url);
 
     // Loads a URL in the top-level traversable — deferred so it starts outside the calling task and can land between
     // session-history traversal-queue steps, as can one requested by ConnectionFromClient::load_url in the UI process.
-    undefined loadURL(USVString url);
+    undefined loadURL(Utf16USVString url);
 
     InternalAnimationTimeline createInternalAnimationTimeline();
 
-    undefined simulateDragStart(double x, double y, DOMString mimeType, DOMString contents);
+    undefined simulateDragStart(double x, double y, Utf16DOMString mimeType, Utf16DOMString contents);
     undefined simulateDragMove(double x, double y);
     undefined simulateDrop(double x, double y);
 
@@ -78,18 +78,18 @@ interface Internals {
     Promise<undefined> deleteAllCookies();
 
     boolean setHttpMemoryCacheEnabled(boolean enabled);
-    undefined setContentBlockers(DOMString patterns);
+    undefined setContentBlockers(Utf16DOMString patterns);
     undefined setContentBlockingEnabled(boolean enabled);
-    undefined setAutoplayPolicy(DOMString policy);
+    undefined setAutoplayPolicy(Utf16DOMString policy);
 
-    DOMString getComputedRole(Element element);
-    DOMString getComputedLabel(Element element);
-    DOMString getComputedAriaLevel(Element element);
+    Utf16DOMString getComputedRole(Element element);
+    Utf16DOMString getComputedLabel(Element element);
+    Utf16DOMString getComputedAriaLevel(Element element);
     unsigned short getEchoServerPort();
 
-    undefined setHSTSPolicy(DOMString domain, unsigned long long maxAge, boolean includeSubDomains);
-    undefined ingestHSTSHeader(USVString url, DOMString headerValue);
-    boolean isKnownHSTSHost(DOMString domain);
+    undefined setHSTSPolicy(Utf16DOMString domain, unsigned long long maxAge, boolean includeSubDomains);
+    undefined ingestHSTSHeader(Utf16USVString url, Utf16DOMString headerValue);
+    boolean isKnownHSTSHost(Utf16DOMString domain);
 
     undefined setBrowserZoom(double factor);
     undefined setDevicePixelRatio(double ratio);
@@ -100,15 +100,15 @@ interface Internals {
     readonly attribute boolean needsRepaint;
     readonly attribute boolean needsDisplayListRecord;
 
-    DOMString dumpDisplayList();
-    DOMString dumpAccessibilityTree();
-    DOMString dumpLayoutTree(Node node);
-    DOMString dumpPaintableTree(Node node);
-    DOMString dumpStackingContextTree();
-    DOMString dumpGCGraph();
-    DOMString dumpSessionHistory();
-    DOMString dumpUIProcessSessionHistory();
-    DOMString dumpSiteIsolationProcessTree();
+    Utf16DOMString dumpDisplayList();
+    Utf16DOMString dumpAccessibilityTree();
+    Utf16DOMString dumpLayoutTree(Node node);
+    Utf16DOMString dumpPaintableTree(Node node);
+    Utf16DOMString dumpStackingContextTree();
+    Utf16DOMString dumpGCGraph();
+    Utf16DOMString dumpSessionHistory();
+    Utf16DOMString dumpUIProcessSessionHistory();
+    Utf16DOMString dumpSiteIsolationProcessTree();
     Promise<undefined> flushSessionHistoryTraversalQueue();
 
     // Test-only: deterministically reproduce the navigation-vs-traversal race in Navigable::begin_navigation by
@@ -120,7 +120,7 @@ interface Internals {
 
     undefined handleSDLInputEvents();
 
-    undefined setEnvironmentsTopLevelURL(USVString url);
+    undefined setEnvironmentsTopLevelURL(Utf16USVString url);
 
     InternalGamepad connectVirtualGamepad();
 
@@ -135,21 +135,21 @@ interface Internals {
     undefined resetStyleInvalidationCounters();
     // Flushes pending style work without forcing layout.
     undefined updateStyle();
-    undefined setPreferredColorScheme(DOMString colorScheme);
+    undefined setPreferredColorScheme(Utf16DOMString colorScheme);
     // Simulates the window gaining or losing focus (e.g. browser chrome or another window taking focus).
     undefined setPageFocus(boolean hasFocus);
-    DOMString canvasColorScheme();
+    Utf16DOMString canvasColorScheme();
     // Returns the selector-insight cache state for stylesheet invalidation tests.
     boolean styleSheetMayHaveHasSelectors(CSSStyleSheet sheet);
-    object imageAnimationStateForURL(USVString url);
+    object imageAnimationStateForURL(Utf16USVString url);
     boolean mediaElementIsFetching(HTMLMediaElement element);
 
     object asyncScrollingState();
     boolean asyncScrollingStateBlocksWheelEventAt(double x, double y);
     boolean asyncScrollingStateCanWheelScrollAt(double x, double y, double deltaX, double deltaY, optional boolean forceStaleWheelEventRegions = false);
-    DOMString asyncScrollingStateWheelRoutingAdmission();
-    DOMString asyncScrollingStateWheelScrollAdmissionAt(double x, double y, double deltaX, double deltaY, optional boolean forceStaleWheelEventRegions = false);
-    DOMString asyncScrollingStateWheelTargetAt(double x, double y, double deltaX, double deltaY);
+    Utf16DOMString asyncScrollingStateWheelRoutingAdmission();
+    Utf16DOMString asyncScrollingStateWheelScrollAdmissionAt(double x, double y, double deltaX, double deltaY, optional boolean forceStaleWheelEventRegions = false);
+    Utf16DOMString asyncScrollingStateWheelTargetAt(double x, double y, double deltaX, double deltaY);
     DOMString viewportOverflowX();
 
 };

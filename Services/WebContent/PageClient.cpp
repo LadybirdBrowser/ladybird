@@ -12,6 +12,7 @@
 #include <AK/Math.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibCore/Process.h>
 #include <LibCore/Timer.h>
 #include <LibDevTools/IndexedDBSerialization.h>
@@ -70,11 +71,12 @@ GC_DEFINE_ALLOCATOR(PageClient);
 
 static String serialize_dom_mutation_target(Web::DOM::Node const& target)
 {
-    StringBuilder builder;
+    Utf16StringBuilder builder;
     auto serializer = MUST(JsonObjectSerializer<>::try_create(builder));
     target.serialize_tree_as_json(serializer);
     MUST(serializer.finish());
-    return MUST(builder.to_string());
+    auto json = builder.to_string();
+    return MUST(json.utf16_view().to_utf8());
 }
 
 bool PageClient::is_headless() const
@@ -169,12 +171,12 @@ void PageClient::set_has_focus(bool has_focus)
     invalidate_cached_paint_recursively(page().top_level_traversable());
 }
 
-void PageClient::set_window_handle(String window_handle)
+void PageClient::set_window_handle(Utf16String window_handle)
 {
     page().top_level_traversable()->set_window_handle(move(window_handle));
 
     if (m_webdriver)
-        m_webdriver->page_did_set_window_handle({}, page().top_level_traversable()->window_handle());
+        m_webdriver->page_did_set_window_handle({}, page().top_level_traversable()->window_handle().to_utf8());
 }
 
 void PageClient::did_start_webdriver_navigation(URL::URL const& url)
@@ -220,15 +222,15 @@ Web::NavigationProcessDecision PageClient::decide_navigation_process(URL::URL co
     return client().decide_navigation_process(m_id, move(frame_id), current_url, target_url, target);
 }
 
-void PageClient::request_new_process_for_navigation(URL::URL const& url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, Web::Bindings::NavigationHistoryBehavior history_handling)
+void PageClient::request_new_process_for_navigation(URL::URL const& url, Web::HTML::DocumentResource document_resource, Web::Bindings::NavigationHistoryBehavior history_handling)
 {
     if (m_webdriver)
-        m_webdriver->page_did_start_window_replacement({}, page().top_level_traversable()->window_handle());
+        m_webdriver->page_did_start_window_replacement({}, page().top_level_traversable()->window_handle().to_utf8());
 
     client().async_did_request_new_process_for_navigation(m_id, url, move(document_resource), history_handling);
 }
 
-void PageClient::request_new_process_for_child_frame_navigation(Web::HTML::CrossProcessId frame_id, URL::URL const& url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, Web::Bindings::NavigationHistoryBehavior history_handling)
+void PageClient::request_new_process_for_child_frame_navigation(Web::HTML::CrossProcessId frame_id, URL::URL const& url, Web::HTML::DocumentResource document_resource, Web::Bindings::NavigationHistoryBehavior history_handling)
 {
     client().async_did_request_new_process_for_child_frame_navigation(m_id, frame_id, url, move(document_resource), history_handling);
 }
@@ -547,7 +549,7 @@ void PageClient::page_did_middle_click_link(URL::URL const& url, ByteString cons
     client().async_did_middle_click_link(m_id, url, target, modifiers);
 }
 
-void PageClient::page_did_start_loading(Optional<String> const& navigation_id, URL::URL const& url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, bool is_redirect, Web::Bindings::NavigationHistoryBehavior history_handling)
+void PageClient::page_did_start_loading(Optional<Utf16String> const& navigation_id, URL::URL const& url, Web::HTML::DocumentResource document_resource, bool is_redirect, Web::Bindings::NavigationHistoryBehavior history_handling)
 {
     if (m_webdriver)
         m_webdriver->page_did_start_loading({}, url);
@@ -555,7 +557,7 @@ void PageClient::page_did_start_loading(Optional<String> const& navigation_id, U
     client().async_did_start_loading(m_id, navigation_id, url, move(document_resource), is_redirect, history_handling);
 }
 
-void PageClient::page_did_cancel_loading(Optional<String> const& navigation_id, URL::URL const& url)
+void PageClient::page_did_cancel_loading(Optional<Utf16String> const& navigation_id, URL::URL const& url)
 {
     if (m_webdriver)
         m_webdriver->page_did_cancel_loading({}, url);
@@ -589,7 +591,7 @@ void PageClient::page_did_change_active_document_in_top_level_browsing_context(W
     }
 }
 
-void PageClient::page_did_finish_loading(Optional<String> const& navigation_id, URL::URL const& url)
+void PageClient::page_did_finish_loading(Optional<Utf16String> const& navigation_id, URL::URL const& url)
 {
     client().async_did_finish_loading(m_id, navigation_id, url);
 }
@@ -684,9 +686,9 @@ void PageClient::did_complete_webdriver_navigation_completion(u64 request_id, We
     maybe_callback.value()(move(response));
 }
 
-void PageClient::page_did_finish_test(String const& text)
+void PageClient::page_did_finish_test(Utf16String const& text)
 {
-    client().async_did_finish_test(m_id, text);
+    client().async_did_finish_test(m_id, text.to_utf8());
 }
 
 void PageClient::page_did_set_test_timeout(double milliseconds)
@@ -739,7 +741,7 @@ void PageClient::page_did_request_media_context_menu(Web::CSSPixelPoint content_
     client().async_did_request_media_context_menu(m_id, page().css_to_device_point(content_position).to_type<int>(), target, modifiers, menu);
 }
 
-void PageClient::page_did_request_alert(String const& message)
+void PageClient::page_did_request_alert(Utf16String const& message)
 {
     client().async_did_request_alert(m_id, message);
 
@@ -752,7 +754,7 @@ void PageClient::alert_closed()
     page().alert_closed();
 }
 
-void PageClient::page_did_request_confirm(String const& message)
+void PageClient::page_did_request_confirm(Utf16String const& message)
 {
     client().async_did_request_confirm(m_id, message);
 
@@ -765,7 +767,7 @@ void PageClient::confirm_closed(bool accepted)
     page().confirm_closed(accepted);
 }
 
-void PageClient::page_did_request_prompt(String const& message, String const& default_)
+void PageClient::page_did_request_prompt(Utf16String const& message, Utf16String const& default_)
 {
     client().async_did_request_prompt(m_id, message, default_);
 
@@ -773,12 +775,12 @@ void PageClient::page_did_request_prompt(String const& message, String const& de
         m_webdriver->page_did_open_dialog({});
 }
 
-void PageClient::page_did_request_set_prompt_text(String const& text)
+void PageClient::page_did_request_set_prompt_text(Utf16String const& text)
 {
     client().async_did_request_set_prompt_text(m_id, text);
 }
 
-void PageClient::prompt_closed(Optional<String> response)
+void PageClient::prompt_closed(Optional<Utf16String> response)
 {
     page().prompt_closed(move(response));
 }
@@ -815,7 +817,7 @@ void PageClient::toggle_media_controls_state()
 
 void PageClient::set_user_style(String source)
 {
-    page().set_user_style(source);
+    page().set_user_style(Utf16String::from_utf8(source));
 }
 
 void PageClient::page_did_request_accept_dialog()
@@ -944,7 +946,7 @@ bool PageClient::page_did_is_known_hsts_host(String const& domain)
     return response->result();
 }
 
-Optional<String> PageClient::page_did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, String const& bottle_key)
+Optional<Utf16String> PageClient::page_did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, Utf16String const& bottle_key)
 {
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestStorageItem>(storage_endpoint, storage_key, bottle_key);
     if (!response) {
@@ -954,7 +956,7 @@ Optional<String> PageClient::page_did_request_storage_item(Web::StorageAPI::Stor
     return response->take_value();
 }
 
-WebView::StorageSetResult PageClient::page_did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, String const& bottle_key, String const& value)
+WebView::StorageSetResult PageClient::page_did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, Utf16String const& bottle_key, Utf16String const& value)
 {
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidSetStorageItem>(storage_endpoint, storage_key, bottle_key, value);
     if (!response) {
@@ -964,7 +966,7 @@ WebView::StorageSetResult PageClient::page_did_set_storage_item(Web::StorageAPI:
     return response->result();
 }
 
-void PageClient::page_did_remove_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, String const& bottle_key)
+void PageClient::page_did_remove_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, Utf16String const& bottle_key)
 {
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRemoveStorageItem>(storage_endpoint, storage_key, bottle_key);
     if (!response) {
@@ -973,7 +975,7 @@ void PageClient::page_did_remove_storage_item(Web::StorageAPI::StorageEndpointTy
     }
 }
 
-Vector<String> PageClient::page_did_request_storage_keys(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key)
+Vector<Utf16String> PageClient::page_did_request_storage_keys(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key)
 {
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestStorageKeys>(storage_endpoint, storage_key);
     if (!response) {
@@ -1002,7 +1004,7 @@ void PageClient::page_did_clear_storage(Web::StorageAPI::StorageEndpointType sto
     }
 }
 
-void PageClient::page_did_broadcast_storage_change(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& url, Optional<String> const& key, Optional<String> const& old_value, Optional<String> const& new_value)
+void PageClient::page_did_broadcast_storage_change(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& url, Optional<Utf16String> const& key, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value)
 {
     client().async_did_change_storage_item(m_id, storage_endpoint, url, key, old_value, new_value);
 }
@@ -1056,7 +1058,7 @@ void PageClient::page_did_close_top_level_traversable()
     page().top_level_traversable()->compositor_context().stop_presenting_to_client();
 
     if (m_webdriver)
-        m_webdriver->page_did_close_window({}, page().top_level_traversable()->window_handle());
+        m_webdriver->page_did_close_window({}, page().top_level_traversable()->window_handle().to_utf8());
 
     // FIXME: Rename this IPC call
     client().async_did_close_browsing_context(m_id);
@@ -1191,9 +1193,9 @@ void PageClient::page_did_request_primary_paste()
     client().async_did_request_primary_paste(m_id);
 }
 
-void PageClient::page_did_update_primary_selection(String const& text)
+void PageClient::page_did_update_primary_selection(Utf16String const& text)
 {
-    client().async_did_update_primary_selection(m_id, text);
+    client().async_did_update_primary_selection(m_id, text.to_utf8());
 }
 
 void PageClient::page_did_change_audio_play_state(Web::HTML::AudioPlayState play_state)
@@ -1222,7 +1224,7 @@ void PageClient::close_worker_agent(Web::HTML::WorkerAgentId agent_id, Web::HTML
     client().async_close_worker_agent(m_id, agent_id, owner_token);
 }
 
-void PageClient::page_did_mutate_dom(FlyString const& type, Web::DOM::Node const& target, Web::DOM::NodeList& added_nodes, Web::DOM::NodeList& removed_nodes, GC::Ptr<Web::DOM::Node>, GC::Ptr<Web::DOM::Node>, Optional<Utf16FlyString> const& attribute_name)
+void PageClient::page_did_mutate_dom(Utf16FlyString const& type, Web::DOM::Node const& target, Web::DOM::NodeList& added_nodes, Web::DOM::NodeList& removed_nodes, GC::Ptr<Web::DOM::Node>, GC::Ptr<Web::DOM::Node>, Optional<Utf16FlyString> const& attribute_name)
 {
     Optional<WebView::Mutation::Type> mutation;
 
@@ -1254,7 +1256,7 @@ void PageClient::page_did_mutate_dom(FlyString const& type, Web::DOM::Node const
         VERIFY_NOT_REACHED();
     }
 
-    auto mutation_message = WebView::Mutation { type.to_string(), target.unique_id(), {}, mutation.release_value() };
+    auto mutation_message = WebView::Mutation { type.to_utf16_string().to_utf8(), target.unique_id(), {}, mutation.release_value() };
     if (m_pending_dom_mutations.is_empty() && target.document().layout_is_up_to_date()) {
         send_dom_mutation(target, move(mutation_message));
         return;
@@ -1315,7 +1317,7 @@ ErrorOr<void> PageClient::connect_to_web_ui(IPC::TransportHandle handle)
     return {};
 }
 
-void PageClient::received_message_from_web_ui(String const& name, JS::Value data)
+void PageClient::received_message_from_web_ui(Utf16String const& name, JS::Value data)
 {
     if (m_web_ui)
         m_web_ui->received_message_from_web_ui(name, data);
@@ -1448,7 +1450,7 @@ static void gather_style_sheets(Vector<Web::CSS::StyleSheetIdentifier>& results,
             // We can gather this anyway, and hope it loads later
             results.append({
                 .type = Web::CSS::StyleSheetIdentifier::Type::ImportRule,
-                .url = import_rule->href(),
+                .url = import_rule->href_for_bindings(),
             });
         }
     }
@@ -1518,7 +1520,7 @@ Optional<Web::HTML::ScriptRegistry::Content> PageClient::devtools_source_content
     if (!document)
         return {};
 
-    return document->script_registry().script_content(source_id.script_id, document->source());
+    return document->script_registry().script_content(source_id.script_id, document->source().utf16_view());
 }
 
 void PageClient::page_did_register_javascript_source(Web::DOM::Document& document, Web::HTML::ScriptRegistry::Description const& source)

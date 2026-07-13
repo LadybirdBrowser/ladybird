@@ -4,17 +4,24 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Utf16StringBuilder.h>
 #include <AK/Variant.h>
 #include <LibWeb/ARIA/StateAndProperties.h>
 
 namespace Web::ARIA {
 
-static String serialize_aria_string(Utf16String const& value)
+template<size_t length>
+static constexpr Utf16View utf16_view(char16_t const (&string)[length])
 {
-    return value.to_utf8();
+    return { string, length - 1 };
 }
 
-ErrorOr<String> state_or_property_to_string_value(StateAndProperties state_or_property, AriaData const& aria_data, DefaultValueType default_value)
+static Utf16String serialize_aria_string(Utf16String const& value)
+{
+    return value;
+}
+
+ErrorOr<Utf16String> state_or_property_to_string_value(StateAndProperties state_or_property, AriaData const& aria_data, DefaultValueType default_value)
 {
     switch (state_or_property) {
     case StateAndProperties::AriaActiveDescendant: {
@@ -26,19 +33,19 @@ ErrorOr<String> state_or_property_to_string_value(StateAndProperties state_or_pr
             value = aria_data.aria_atomic_or_default(default_value.get<bool>());
         else
             value = aria_data.aria_atomic_or_default();
-        return value ? "true"_string : "false"_string;
+        return value ? "true"_utf16 : "false"_utf16;
     }
     case StateAndProperties::AriaAutoComplete: {
         auto value = aria_data.aria_auto_complete_or_default();
         switch (value) {
         case AriaAutocomplete::None:
-            return "none"_string;
+            return "none"_utf16;
         case AriaAutocomplete::List:
-            return "list"_string;
+            return "list"_utf16;
         case AriaAutocomplete::Both:
-            return "both"_string;
+            return "both"_utf16;
         case AriaAutocomplete::Inline:
-            return "inline"_string;
+            return "inline"_utf16;
         }
         VERIFY_NOT_REACHED();
     }
@@ -47,7 +54,7 @@ ErrorOr<String> state_or_property_to_string_value(StateAndProperties state_or_pr
     case StateAndProperties::AriaBrailleRoleDescription:
         return serialize_aria_string(aria_data.aria_braille_role_description_or_default());
     case StateAndProperties::AriaBusy:
-        return String::from_utf8(aria_data.aria_busy_or_default() ? "true"sv : "false"sv);
+        return aria_data.aria_busy_or_default() ? "true"_utf16 : "false"_utf16;
     case StateAndProperties::AriaChecked:
         return ARIA::tristate_to_string(aria_data.aria_checked_or_default());
     case StateAndProperties::AriaColCount:
@@ -64,19 +71,19 @@ ErrorOr<String> state_or_property_to_string_value(StateAndProperties state_or_pr
         auto value = aria_data.aria_current_or_default();
         switch (value) {
         case AriaCurrent::False:
-            return "false"_string;
+            return "false"_utf16;
         case AriaCurrent::True:
-            return "true"_string;
+            return "true"_utf16;
         case AriaCurrent::Date:
-            return "date"_string;
+            return "date"_utf16;
         case AriaCurrent::Location:
-            return "location"_string;
+            return "location"_utf16;
         case AriaCurrent::Page:
-            return "page"_string;
+            return "page"_utf16;
         case AriaCurrent::Step:
-            return "step"_string;
+            return "step"_utf16;
         case AriaCurrent::Time:
-            return "time"_string;
+            return "time"_utf16;
         }
         VERIFY_NOT_REACHED();
     }
@@ -88,36 +95,36 @@ ErrorOr<String> state_or_property_to_string_value(StateAndProperties state_or_pr
         return serialize_aria_string(aria_data.aria_details_or_default().value_or(Utf16String {}));
     }
     case StateAndProperties::AriaDisabled:
-        return aria_data.aria_disabled_or_default() ? "true"_string : "false"_string;
+        return aria_data.aria_disabled_or_default() ? "true"_utf16 : "false"_utf16;
     case StateAndProperties::AriaDropEffect: {
-        StringBuilder builder;
+        Utf16StringBuilder builder;
         auto value = aria_data.aria_drop_effect_or_default();
         for (auto const drop_effect : value) {
-            StringView to_add;
+            Utf16View to_add;
             switch (drop_effect) {
             case AriaDropEffect::Copy:
-                to_add = "copy"sv;
+                to_add = "copy"_utf16;
                 break;
             case AriaDropEffect::Execute:
-                to_add = "execute"sv;
+                to_add = "execute"_utf16;
                 break;
             case AriaDropEffect::Link:
-                to_add = "link"sv;
+                to_add = "link"_utf16;
                 break;
             case AriaDropEffect::Move:
-                to_add = "move"sv;
+                to_add = "move"_utf16;
                 break;
             case AriaDropEffect::None:
-                to_add = "none"sv;
+                to_add = "none"_utf16;
                 break;
             case AriaDropEffect::Popup:
-                to_add = "popup"sv;
+                to_add = "popup"_utf16;
                 break;
             }
             if (builder.is_empty())
                 builder.append(to_add);
             else {
-                builder.append(" "sv);
+                builder.append_ascii(' ');
                 builder.append(to_add);
             }
         }
@@ -136,19 +143,19 @@ ErrorOr<String> state_or_property_to_string_value(StateAndProperties state_or_pr
         auto value = aria_data.aria_has_popup_or_default();
         switch (value) {
         case AriaHasPopup::False:
-            return "false"_string;
+            return "false"_utf16;
         case AriaHasPopup::True:
-            return "true"_string;
+            return "true"_utf16;
         case AriaHasPopup::Menu:
-            return "menu"_string;
+            return "menu"_utf16;
         case AriaHasPopup::Listbox:
-            return "listbox"_string;
+            return "listbox"_utf16;
         case AriaHasPopup::Tree:
-            return "tree"_string;
+            return "tree"_utf16;
         case AriaHasPopup::Grid:
-            return "grid"_string;
+            return "grid"_utf16;
         case AriaHasPopup::Dialog:
-            return "dialog"_string;
+            return "dialog"_utf16;
         }
         VERIFY_NOT_REACHED();
     }
@@ -158,13 +165,13 @@ ErrorOr<String> state_or_property_to_string_value(StateAndProperties state_or_pr
         auto value = aria_data.aria_invalid_or_default();
         switch (value) {
         case AriaInvalid::Grammar:
-            return "grammar"_string;
+            return "grammar"_utf16;
         case AriaInvalid::False:
-            return "false"_string;
+            return "false"_utf16;
         case AriaInvalid::Spelling:
-            return "spelling"_string;
+            return "spelling"_utf16;
         case AriaInvalid::True:
-            return "true"_string;
+            return "true"_utf16;
         }
         VERIFY_NOT_REACHED();
     }
@@ -185,20 +192,20 @@ ErrorOr<String> state_or_property_to_string_value(StateAndProperties state_or_pr
 
         switch (value) {
         case AriaLive::Assertive:
-            return "assertive"_string;
+            return "assertive"_utf16;
         case AriaLive::Off:
-            return "off"_string;
+            return "off"_utf16;
         case AriaLive::Polite:
-            return "polite"_string;
+            return "polite"_utf16;
         }
         VERIFY_NOT_REACHED();
     }
     case StateAndProperties::AriaModal:
-        return aria_data.aria_modal_or_default() ? "true"_string : "false"_string;
+        return aria_data.aria_modal_or_default() ? "true"_utf16 : "false"_utf16;
     case StateAndProperties::AriaMultiLine:
-        return aria_data.aria_multi_line_or_default() ? "true"_string : "false"_string;
+        return aria_data.aria_multi_line_or_default() ? "true"_utf16 : "false"_utf16;
     case StateAndProperties::AriaMultiSelectable:
-        return aria_data.aria_multi_selectable_or_default() ? "true"_string : "false"_string;
+        return aria_data.aria_multi_selectable_or_default() ? "true"_utf16 : "false"_utf16;
     case StateAndProperties::AriaOrientation: {
         AriaOrientation value;
         if (default_value.has<AriaOrientation>())
@@ -208,11 +215,11 @@ ErrorOr<String> state_or_property_to_string_value(StateAndProperties state_or_pr
 
         switch (value) {
         case AriaOrientation::Horizontal:
-            return "horizontal"_string;
+            return "horizontal"_utf16;
         case AriaOrientation::Undefined:
-            return "undefined"_string;
+            return "undefined"_utf16;
         case AriaOrientation::Vertical:
-            return "vertical"_string;
+            return "vertical"_utf16;
         }
         VERIFY_NOT_REACHED();
     }
@@ -225,40 +232,40 @@ ErrorOr<String> state_or_property_to_string_value(StateAndProperties state_or_pr
     case StateAndProperties::AriaPressed:
         return ARIA::tristate_to_string(aria_data.aria_pressed_or_default());
     case StateAndProperties::AriaReadOnly:
-        return aria_data.aria_read_only_or_default() ? "true"_string : "false"_string;
+        return aria_data.aria_read_only_or_default() ? "true"_utf16 : "false"_utf16;
     case StateAndProperties::AriaRelevant: {
-        StringBuilder builder;
+        Utf16StringBuilder builder;
         auto value = aria_data.aria_relevant_or_default();
         for (auto const relevant : value) {
-            StringView to_add;
+            Utf16View to_add;
             switch (relevant) {
             case AriaRelevant::Additions:
-                to_add = "additions"sv;
+                to_add = "additions"_utf16;
                 break;
             case AriaRelevant::AdditionsText:
-                to_add = "additions text"sv;
+                to_add = "additions text"_utf16;
                 break;
             case AriaRelevant::All:
-                to_add = "all"sv;
+                to_add = "all"_utf16;
                 break;
             case AriaRelevant::Removals:
-                to_add = "removals"sv;
+                to_add = "removals"_utf16;
                 break;
             case AriaRelevant::Text:
-                to_add = "text"sv;
+                to_add = "text"_utf16;
                 break;
             }
             if (builder.is_empty())
                 builder.append(to_add);
             else {
-                builder.append(" "sv);
+                builder.append_ascii(' ');
                 builder.append(to_add);
             }
         }
         return builder.to_string();
     }
     case StateAndProperties::AriaRequired:
-        return String::from_utf8(aria_data.aria_required_or_default() ? "true"sv : "false"sv);
+        return aria_data.aria_required_or_default() ? "true"_utf16 : "false"_utf16;
     case StateAndProperties::AriaRoleDescription:
         return serialize_aria_string(aria_data.aria_role_description_or_default());
     case StateAndProperties::AriaRowCount:
@@ -277,13 +284,13 @@ ErrorOr<String> state_or_property_to_string_value(StateAndProperties state_or_pr
         auto value = aria_data.aria_sort_or_default();
         switch (value) {
         case AriaSort::Ascending:
-            return "ascending"_string;
+            return "ascending"_utf16;
         case AriaSort::Descending:
-            return "descending"_string;
+            return "descending"_utf16;
         case AriaSort::None:
-            return "none"_string;
+            return "none"_utf16;
         case AriaSort::Other:
-            return "other"_string;
+            return "other"_utf16;
         }
         VERIFY_NOT_REACHED();
     }
@@ -305,168 +312,168 @@ ErrorOr<String> state_or_property_to_string_value(StateAndProperties state_or_pr
     VERIFY_NOT_REACHED();
 }
 
-ErrorOr<String> tristate_to_string(Tristate value)
+ErrorOr<Utf16String> tristate_to_string(Tristate value)
 {
     switch (value) {
     case Tristate::False:
-        return "false"_string;
+        return "false"_utf16;
     case Tristate::True:
-        return "true"_string;
+        return "true"_utf16;
     case Tristate::Undefined:
-        return "undefined"_string;
+        return "undefined"_utf16;
     case Tristate::Mixed:
-        return "mixed"_string;
+        return "mixed"_utf16;
     }
     VERIFY_NOT_REACHED();
 }
 
-ErrorOr<String> optional_integer_to_string(Optional<i32> value)
+ErrorOr<Utf16String> optional_integer_to_string(Optional<i32> value)
 {
     if (value.has_value())
-        return String::number(value.value());
-    return String {};
+        return Utf16String::number(value.value());
+    return Utf16String {};
 }
 
-ErrorOr<String> optional_bool_to_string(Optional<bool> value)
+ErrorOr<Utf16String> optional_bool_to_string(Optional<bool> value)
 {
     if (!value.has_value())
-        return "undefined"_string;
+        return "undefined"_utf16;
     if (value.value())
-        return "true"_string;
-    return "false"_string;
+        return "true"_utf16;
+    return "false"_utf16;
 }
 
-ErrorOr<String> optional_number_to_string(Optional<f64> value)
+ErrorOr<Utf16String> optional_number_to_string(Optional<f64> value)
 {
     if (!value.has_value())
-        return "undefined"_string;
-    return String::number(value.value());
+        return "undefined"_utf16;
+    return Utf16String::number(value.value());
 }
 
-ErrorOr<String> id_reference_list_to_string(Vector<Utf16String> const& value)
+ErrorOr<Utf16String> id_reference_list_to_string(Vector<Utf16String> const& value)
 {
-    StringBuilder builder;
+    Utf16StringBuilder builder;
     for (auto const& id : value) {
         auto serialized_id = serialize_aria_string(id);
         if (builder.is_empty()) {
             builder.append(serialized_id);
         } else {
-            builder.append(" "sv);
+            builder.append_ascii(' ');
             builder.append(serialized_id);
         }
     }
     return builder.to_string();
 }
 
-StringView state_or_property_to_string(StateAndProperties value)
+Utf16View state_or_property_to_string(StateAndProperties value)
 {
     switch (value) {
     case StateAndProperties::AriaActiveDescendant:
-        return "aria-activedescendant"sv;
+        return utf16_view(u"aria-activedescendant");
     case StateAndProperties::AriaAtomic:
-        return "aria-atomic"sv;
+        return utf16_view(u"aria-atomic");
     case StateAndProperties::AriaAutoComplete:
-        return "aria-autocomplete"sv;
+        return utf16_view(u"aria-autocomplete");
     case StateAndProperties::AriaBrailleLabel:
-        return "aria-braillelabel"sv;
+        return utf16_view(u"aria-braillelabel");
     case StateAndProperties::AriaBrailleRoleDescription:
-        return "aria-brailleroledescription"sv;
+        return utf16_view(u"aria-brailleroledescription");
     case StateAndProperties::AriaBusy:
-        return "aria-busy"sv;
+        return utf16_view(u"aria-busy");
     case StateAndProperties::AriaChecked:
-        return "aria-checked"sv;
+        return utf16_view(u"aria-checked");
     case StateAndProperties::AriaColCount:
-        return "aria-colcount"sv;
+        return utf16_view(u"aria-colcount");
     case StateAndProperties::AriaColIndex:
-        return "aria-colindex"sv;
+        return utf16_view(u"aria-colindex");
     case StateAndProperties::AriaColIndexText:
-        return "aria-colindextext"sv;
+        return utf16_view(u"aria-colindextext");
     case StateAndProperties::AriaColSpan:
-        return "aria-colspan"sv;
+        return utf16_view(u"aria-colspan");
     case StateAndProperties::AriaControls:
-        return "aria-controls"sv;
+        return utf16_view(u"aria-controls");
     case StateAndProperties::AriaCurrent:
-        return "aria-current"sv;
+        return utf16_view(u"aria-current");
     case StateAndProperties::AriaDescribedBy:
-        return "aria-describedby"sv;
+        return utf16_view(u"aria-describedby");
     case StateAndProperties::AriaDescription:
-        return "aria-description"sv;
+        return utf16_view(u"aria-description");
     case StateAndProperties::AriaDetails:
-        return "aria-details"sv;
+        return utf16_view(u"aria-details");
     case StateAndProperties::AriaDisabled:
-        return "aria-disabled"sv;
+        return utf16_view(u"aria-disabled");
     case StateAndProperties::AriaDropEffect:
-        return "aria-dropeffect"sv;
+        return utf16_view(u"aria-dropeffect");
     case StateAndProperties::AriaErrorMessage:
-        return "aria-errormessage"sv;
+        return utf16_view(u"aria-errormessage");
     case StateAndProperties::AriaExpanded:
-        return "aria-expanded"sv;
+        return utf16_view(u"aria-expanded");
     case StateAndProperties::AriaFlowTo:
-        return "aria-flowto"sv;
+        return utf16_view(u"aria-flowto");
     case StateAndProperties::AriaGrabbed:
-        return "aria-grabbed"sv;
+        return utf16_view(u"aria-grabbed");
     case StateAndProperties::AriaHasPopup:
-        return "aria-haspopup"sv;
+        return utf16_view(u"aria-haspopup");
     case StateAndProperties::AriaHidden:
-        return "aria-hidden"sv;
+        return utf16_view(u"aria-hidden");
     case StateAndProperties::AriaInvalid:
-        return "aria-invalid"sv;
+        return utf16_view(u"aria-invalid");
     case StateAndProperties::AriaKeyShortcuts:
-        return "aria-keyshortcuts"sv;
+        return utf16_view(u"aria-keyshortcuts");
     case StateAndProperties::AriaLabel:
-        return "aria-label"sv;
+        return utf16_view(u"aria-label");
     case StateAndProperties::AriaLabelledBy:
-        return "aria-labelledby"sv;
+        return utf16_view(u"aria-labelledby");
     case StateAndProperties::AriaLevel:
-        return "aria-level"sv;
+        return utf16_view(u"aria-level");
     case StateAndProperties::AriaLive:
-        return "aria-live"sv;
+        return utf16_view(u"aria-live");
     case StateAndProperties::AriaModal:
-        return "aria-modal"sv;
+        return utf16_view(u"aria-modal");
     case StateAndProperties::AriaMultiLine:
-        return "aria-multiline"sv;
+        return utf16_view(u"aria-multiline");
     case StateAndProperties::AriaMultiSelectable:
-        return "aria-multiselectable"sv;
+        return utf16_view(u"aria-multiselectable");
     case StateAndProperties::AriaOrientation:
-        return "aria-orientation"sv;
+        return utf16_view(u"aria-orientation");
     case StateAndProperties::AriaOwns:
-        return "aria-owns"sv;
+        return utf16_view(u"aria-owns");
     case StateAndProperties::AriaPlaceholder:
-        return "aria-placeholder"sv;
+        return utf16_view(u"aria-placeholder");
     case StateAndProperties::AriaPosInSet:
-        return "aria-posinset"sv;
+        return utf16_view(u"aria-posinset");
     case StateAndProperties::AriaPressed:
-        return "aria-pressed"sv;
+        return utf16_view(u"aria-pressed");
     case StateAndProperties::AriaReadOnly:
-        return "aria-readonly"sv;
+        return utf16_view(u"aria-readonly");
     case StateAndProperties::AriaRelevant:
-        return "aria-relevant"sv;
+        return utf16_view(u"aria-relevant");
     case StateAndProperties::AriaRequired:
-        return "aria-required"sv;
+        return utf16_view(u"aria-required");
     case StateAndProperties::AriaRoleDescription:
-        return "aria-roledescription"sv;
+        return utf16_view(u"aria-roledescription");
     case StateAndProperties::AriaRowCount:
-        return "aria-rowcount"sv;
+        return utf16_view(u"aria-rowcount");
     case StateAndProperties::AriaRowIndex:
-        return "aria-rowindex"sv;
+        return utf16_view(u"aria-rowindex");
     case StateAndProperties::AriaRowIndexText:
-        return "aria-rowindextext"sv;
+        return utf16_view(u"aria-rowindextext");
     case StateAndProperties::AriaRowSpan:
-        return "aria-rowspan"sv;
+        return utf16_view(u"aria-rowspan");
     case StateAndProperties::AriaSelected:
-        return "aria-selected"sv;
+        return utf16_view(u"aria-selected");
     case StateAndProperties::AriaSetSize:
-        return "aria-setsize"sv;
+        return utf16_view(u"aria-setsize");
     case StateAndProperties::AriaSort:
-        return "aria-sort"sv;
+        return utf16_view(u"aria-sort");
     case StateAndProperties::AriaValueMax:
-        return "aria-valuemax"sv;
+        return utf16_view(u"aria-valuemax");
     case StateAndProperties::AriaValueMin:
-        return "aria-valuemin"sv;
+        return utf16_view(u"aria-valuemin");
     case StateAndProperties::AriaValueNow:
-        return "aria-valuenow"sv;
+        return utf16_view(u"aria-valuenow");
     case StateAndProperties::AriaValueText:
-        return "aria-valuetext"sv;
+        return utf16_view(u"aria-valuetext");
     }
     VERIFY_NOT_REACHED();
 }

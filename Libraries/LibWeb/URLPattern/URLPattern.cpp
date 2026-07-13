@@ -13,64 +13,87 @@ namespace Web::URLPattern {
 
 GC_DEFINE_ALLOCATOR(URLPattern);
 
-static URL::RustIntegration::URLPattern::Init to_internal_url_pattern_init(Bindings::URLPatternInit const& init)
+static WebIDL::ExceptionOr<Optional<String>> to_internal_optional_string(JS::VM& vm, Optional<Utf16String> const& string)
 {
-    return {
-        .protocol = init.protocol,
-        .username = init.username,
-        .password = init.password,
-        .hostname = init.hostname,
-        .port = init.port,
-        .pathname = init.pathname,
-        .search = init.search,
-        .hash = init.hash,
-        .base_url = init.base_url,
-    };
+    if (!string.has_value())
+        return Optional<String> {};
+    return TRY_OR_THROW_OOM(vm, string->utf16_view().to_utf8());
+}
+
+static Utf16String to_binding_string(String const& string)
+{
+    return Utf16String::from_utf8(string);
+}
+
+static Optional<Utf16String> to_binding_optional_string(Optional<String> const& string)
+{
+    if (!string.has_value())
+        return {};
+    return to_binding_string(*string);
+}
+
+static WebIDL::ExceptionOr<URL::RustIntegration::URLPattern::Init> to_internal_url_pattern_init(JS::VM& vm, Bindings::URLPatternInit const& init)
+{
+    URL::RustIntegration::URLPattern::Init internal_init;
+    internal_init.protocol = TRY(to_internal_optional_string(vm, init.protocol));
+    internal_init.username = TRY(to_internal_optional_string(vm, init.username));
+    internal_init.password = TRY(to_internal_optional_string(vm, init.password));
+    internal_init.hostname = TRY(to_internal_optional_string(vm, init.hostname));
+    internal_init.port = TRY(to_internal_optional_string(vm, init.port));
+    internal_init.pathname = TRY(to_internal_optional_string(vm, init.pathname));
+    internal_init.search = TRY(to_internal_optional_string(vm, init.search));
+    internal_init.hash = TRY(to_internal_optional_string(vm, init.hash));
+    internal_init.base_url = TRY(to_internal_optional_string(vm, init.base_url));
+    return internal_init;
 }
 
 static Bindings::URLPatternInit to_bindings_url_pattern_init(URL::RustIntegration::URLPattern::Init const& init)
 {
     return {
-        .base_url = init.base_url,
-        .hash = init.hash,
-        .hostname = init.hostname,
-        .password = init.password,
-        .pathname = init.pathname,
-        .port = init.port,
-        .protocol = init.protocol,
-        .search = init.search,
-        .username = init.username,
+        .base_url = to_binding_optional_string(init.base_url),
+        .hash = to_binding_optional_string(init.hash),
+        .hostname = to_binding_optional_string(init.hostname),
+        .password = to_binding_optional_string(init.password),
+        .pathname = to_binding_optional_string(init.pathname),
+        .port = to_binding_optional_string(init.port),
+        .protocol = to_binding_optional_string(init.protocol),
+        .search = to_binding_optional_string(init.search),
+        .username = to_binding_optional_string(init.username),
     };
 }
 
-static URL::RustIntegration::URLPattern::Input to_internal_url_pattern_input(URLPatternInput const& input)
+static WebIDL::ExceptionOr<URL::RustIntegration::URLPattern::Input> to_internal_url_pattern_input(JS::VM& vm, URLPatternInput const& input)
 {
     return input.visit(
-        [](String const& input_string) -> URL::RustIntegration::URLPattern::Input { return input_string; },
-        [](Bindings::URLPatternInit const& input_init) -> URL::RustIntegration::URLPattern::Input { return to_internal_url_pattern_init(input_init); });
+        [&](Utf16String const& input_string) -> WebIDL::ExceptionOr<URL::RustIntegration::URLPattern::Input> {
+            return TRY_OR_THROW_OOM(vm, input_string.utf16_view().to_utf8());
+        },
+        [&](Bindings::URLPatternInit const& input_init) -> WebIDL::ExceptionOr<URL::RustIntegration::URLPattern::Input> {
+            return TRY(to_internal_url_pattern_init(vm, input_init));
+        });
 }
 
 static Bindings::URLPatternComponentResult to_bindings_url_pattern_component_result(URL::RustIntegration::URLPattern::Component::Result const& result)
 {
-    OrderedHashMap<String, Variant<String, Empty, Empty>> groups;
+    OrderedHashMap<Utf16String, Variant<Utf16String, Empty, Empty>> groups;
     for (auto const& [key, value] : result.groups) {
-        groups.set(key, value.visit([](String const& string_value) -> Variant<String, Empty, Empty> { return string_value; }, [](Empty) -> Variant<String, Empty, Empty> { return Empty {}; }));
+        groups.set(to_binding_string(key), value.visit([](String const& string_value) -> Variant<Utf16String, Empty, Empty> { return to_binding_string(string_value); }, [](Empty) -> Variant<Utf16String, Empty, Empty> { return Empty {}; }));
     }
 
     return {
         .groups = move(groups),
-        .input = result.input,
+        .input = to_binding_string(result.input),
     };
 }
 
 static Bindings::URLPatternResult to_bindings_url_pattern_result(URL::RustIntegration::URLPattern::Result const& result)
 {
-    Vector<Variant<String, Bindings::URLPatternInit>> inputs;
+    Vector<Variant<Utf16String, Bindings::URLPatternInit>> inputs;
     inputs.ensure_capacity(result.inputs.size());
     for (auto const& input : result.inputs) {
         inputs.unchecked_append(input.visit(
-            [](String const& string_value) -> Variant<String, Bindings::URLPatternInit> { return string_value; },
-            [](URL::RustIntegration::URLPattern::Init const& init_value) -> Variant<String, Bindings::URLPatternInit> { return to_bindings_url_pattern_init(init_value); }));
+            [](String const& string_value) -> Variant<Utf16String, Bindings::URLPatternInit> { return to_binding_string(string_value); },
+            [](URL::RustIntegration::URLPattern::Init const& init_value) -> Variant<Utf16String, Bindings::URLPatternInit> { return to_bindings_url_pattern_init(init_value); }));
     }
 
     return {
@@ -101,7 +124,7 @@ void URLPattern::initialize(JS::Realm& realm)
 }
 
 // https://urlpattern.spec.whatwg.org/#dom-urlpattern-urlpattern
-WebIDL::ExceptionOr<GC::Ref<URLPattern>> URLPattern::construct_impl(JS::Realm& realm, URLPatternInput const& input, String const& base_url, URLPatternOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<URLPattern>> URLPattern::construct_impl(JS::Realm& realm, URLPatternInput const& input, Utf16String const& base_url, URLPatternOptions const& options)
 {
     // 1. Run initialize given this, input, baseURL, and options.
     return create(realm, input, base_url, options);
@@ -115,22 +138,26 @@ WebIDL::ExceptionOr<GC::Ref<URLPattern>> URLPattern::construct_impl(JS::Realm& r
 }
 
 // https://urlpattern.spec.whatwg.org/#urlpattern-initialize
-WebIDL::ExceptionOr<GC::Ref<URLPattern>> URLPattern::create(JS::Realm& realm, URLPatternInput const& input, Optional<String> const& base_url, URLPatternOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<URLPattern>> URLPattern::create(JS::Realm& realm, URLPatternInput const& input, Optional<Utf16String> const& base_url, URLPatternOptions const& options)
 {
     // 1. Set this’s associated URL pattern to the result of create given input, baseURL, and options.
-    auto pattern_or_error = URL::RustIntegration::URLPattern::create(to_internal_url_pattern_input(input), base_url, options.ignore_case ? URL::FFI::IgnoreCase::Yes : URL::FFI::IgnoreCase::No);
+    auto internal_input = TRY(to_internal_url_pattern_input(realm.vm(), input));
+    auto internal_base_url = TRY(to_internal_optional_string(realm.vm(), base_url));
+    auto pattern_or_error = URL::RustIntegration::URLPattern::create(internal_input, internal_base_url, options.ignore_case ? URL::FFI::IgnoreCase::Yes : URL::FFI::IgnoreCase::No);
     if (pattern_or_error.is_error())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, pattern_or_error.error().message };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::from_utf8(pattern_or_error.error().message) };
     return realm.create<URLPattern>(realm, pattern_or_error.release_value());
 }
 
 // https://urlpattern.spec.whatwg.org/#dom-urlpattern-test
-WebIDL::ExceptionOr<bool> URLPattern::test(URLPatternInput const& input, Optional<String> const& base_url) const
+WebIDL::ExceptionOr<bool> URLPattern::test(URLPatternInput const& input, Optional<Utf16String> const& base_url) const
 {
     // 1. Let result be the result of match given this's associated URL pattern, input, and baseURL if given.
-    auto result_or_error = m_url_pattern.match(to_internal_url_pattern_input(input), base_url);
+    auto internal_input = TRY(to_internal_url_pattern_input(vm(), input));
+    auto internal_base_url = TRY(to_internal_optional_string(vm(), base_url));
+    auto result_or_error = m_url_pattern.match(internal_input, internal_base_url);
     if (result_or_error.is_error())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, result_or_error.error().message };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::from_utf8(result_or_error.error().message) };
     auto result = result_or_error.release_value();
 
     // 2. If result is null, return false.
@@ -142,12 +169,14 @@ WebIDL::ExceptionOr<bool> URLPattern::test(URLPatternInput const& input, Optiona
 }
 
 // https://urlpattern.spec.whatwg.org/#dom-urlpattern-exec
-WebIDL::ExceptionOr<Optional<URLPatternResult>> URLPattern::exec(URLPatternInput const& input, Optional<String> const& base_url) const
+WebIDL::ExceptionOr<Optional<URLPatternResult>> URLPattern::exec(URLPatternInput const& input, Optional<Utf16String> const& base_url) const
 {
     // 1. Return the result of match given this's associated URL pattern, input, and baseURL if given.
-    auto result_or_error = m_url_pattern.match(to_internal_url_pattern_input(input), base_url);
+    auto internal_input = TRY(to_internal_url_pattern_input(vm(), input));
+    auto internal_base_url = TRY(to_internal_optional_string(vm(), base_url));
+    auto result_or_error = m_url_pattern.match(internal_input, internal_base_url);
     if (result_or_error.is_error())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, result_or_error.error().message };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::from_utf8(result_or_error.error().message) };
     auto result = result_or_error.release_value();
     if (!result.has_value())
         return Optional<URLPatternResult> {};
@@ -155,59 +184,59 @@ WebIDL::ExceptionOr<Optional<URLPatternResult>> URLPattern::exec(URLPatternInput
 }
 
 // https://urlpattern.spec.whatwg.org/#dom-urlpattern-protocol
-String const& URLPattern::protocol() const
+Utf16String URLPattern::protocol() const
 {
     // 1. Return this's associated URL pattern's protocol component's pattern string.
-    return m_url_pattern.protocol_component().pattern_string;
+    return to_binding_string(m_url_pattern.protocol_component().pattern_string);
 }
 
 // https://urlpattern.spec.whatwg.org/#dom-urlpattern-username
-String const& URLPattern::username() const
+Utf16String URLPattern::username() const
 {
     // 1. Return this's associated URL pattern's username component's pattern string.
-    return m_url_pattern.username_component().pattern_string;
+    return to_binding_string(m_url_pattern.username_component().pattern_string);
 }
 
 // https://urlpattern.spec.whatwg.org/#dom-urlpattern-password
-String const& URLPattern::password() const
+Utf16String URLPattern::password() const
 {
     // 1. Return this's associated URL pattern's password component's pattern string.
-    return m_url_pattern.password_component().pattern_string;
+    return to_binding_string(m_url_pattern.password_component().pattern_string);
 }
 
 // https://urlpattern.spec.whatwg.org/#dom-urlpattern-hostname
-String const& URLPattern::hostname() const
+Utf16String URLPattern::hostname() const
 {
     // 1. Return this's associated URL pattern's hostname component's pattern string.
-    return m_url_pattern.hostname_component().pattern_string;
+    return to_binding_string(m_url_pattern.hostname_component().pattern_string);
 }
 
 // https://urlpattern.spec.whatwg.org/#dom-urlpattern-port
-String const& URLPattern::port() const
+Utf16String URLPattern::port() const
 {
     // 1. Return this's associated URL pattern's port component's pattern string.
-    return m_url_pattern.port_component().pattern_string;
+    return to_binding_string(m_url_pattern.port_component().pattern_string);
 }
 
 // https://urlpattern.spec.whatwg.org/#dom-urlpattern-pathname
-String const& URLPattern::pathname() const
+Utf16String URLPattern::pathname() const
 {
     // 1. Return this's associated URL pattern's pathname component's pattern string.
-    return m_url_pattern.pathname_component().pattern_string;
+    return to_binding_string(m_url_pattern.pathname_component().pattern_string);
 }
 
 // https://urlpattern.spec.whatwg.org/#dom-urlpattern-search
-String const& URLPattern::search() const
+Utf16String URLPattern::search() const
 {
     // 1. Return this's associated URL pattern's search component's pattern string.
-    return m_url_pattern.search_component().pattern_string;
+    return to_binding_string(m_url_pattern.search_component().pattern_string);
 }
 
 // https://urlpattern.spec.whatwg.org/#dom-urlpattern-hash
-String const& URLPattern::hash() const
+Utf16String URLPattern::hash() const
 {
     // 1. Return this's associated URL pattern's hash component's pattern string.
-    return m_url_pattern.hash_component().pattern_string;
+    return to_binding_string(m_url_pattern.hash_component().pattern_string);
 }
 
 // https://urlpattern.spec.whatwg.org/#dom-urlpattern-hasregexpgroups

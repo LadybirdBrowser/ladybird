@@ -98,7 +98,7 @@ GC::Ref<WebIDL::Promise> CacheStorage::match(Fetch::RequestInfo request, Binding
 }
 
 // https://w3c.github.io/ServiceWorker/#cache-storage-has
-GC::Ref<WebIDL::Promise> CacheStorage::has(String const& cache_name)
+GC::Ref<WebIDL::Promise> CacheStorage::has(Utf16String const& cache_name)
 {
     auto& realm = HTML::relevant_realm(*this);
 
@@ -120,7 +120,7 @@ GC::Ref<WebIDL::Promise> CacheStorage::has(String const& cache_name)
 }
 
 // https://w3c.github.io/ServiceWorker/#cache-storage-open
-GC::Ref<WebIDL::Promise> CacheStorage::open(String const& cache_name)
+GC::Ref<WebIDL::Promise> CacheStorage::open(Utf16String const& cache_name)
 {
     auto& realm = HTML::relevant_realm(*this);
 
@@ -159,7 +159,7 @@ GC::Ref<WebIDL::Promise> CacheStorage::open(String const& cache_name)
 }
 
 // https://w3c.github.io/ServiceWorker/#cache-storage-open
-GC::Ref<WebIDL::Promise> CacheStorage::delete_(String const& cache_name)
+GC::Ref<WebIDL::Promise> CacheStorage::delete_(Utf16String const& cache_name)
 {
     auto& realm = HTML::relevant_realm(*this);
 
@@ -218,8 +218,8 @@ GC::Ref<WebIDL::Promise> CacheStorage::keys()
         //       name to cache map.
 
         // 2. Resolve promise with cacheKeys.
-        WebIDL::resolve_promise(realm, promise, JS::Array::create_from<String>(realm, cache_keys, [&](String const& cache_key) {
-            return JS::PrimitiveString::create(realm.vm(), Utf16String::from_utf8(cache_key));
+        WebIDL::resolve_promise(realm, promise, JS::Array::create_from<Utf16String>(realm, cache_keys, [&](Utf16String const& cache_key) {
+            return JS::PrimitiveString::create(realm.vm(), cache_key);
         }));
     }));
 

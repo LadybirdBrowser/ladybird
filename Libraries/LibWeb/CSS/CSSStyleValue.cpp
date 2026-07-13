@@ -49,7 +49,7 @@ void CSSStyleValue::initialize(JS::Realm& realm)
 CSSStyleValue::~CSSStyleValue() = default;
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssstylevalue-parse
-WebIDL::ExceptionOr<GC::Ref<CSSStyleValue>> CSSStyleValue::parse(JS::VM& vm, Utf16FlyString const& property, String css_text)
+WebIDL::ExceptionOr<GC::Ref<CSSStyleValue>> CSSStyleValue::parse(JS::VM& vm, Utf16FlyString const& property, Utf16View css_text)
 {
     // The parse(property, cssText) method, when invoked, must parse a CSSStyleValue with property property, cssText
     // cssText, and parseMultiple set to false, and return the result.
@@ -60,7 +60,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSStyleValue>> CSSStyleValue::parse(JS::VM& vm, Utf
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssstylevalue-parseall
-WebIDL::ExceptionOr<GC::RootVector<GC::Ref<CSSStyleValue>>> CSSStyleValue::parse_all(JS::VM& vm, Utf16FlyString const& property, String css_text)
+WebIDL::ExceptionOr<GC::RootVector<GC::Ref<CSSStyleValue>>> CSSStyleValue::parse_all(JS::VM& vm, Utf16FlyString const& property, Utf16View css_text)
 {
     // The parseAll(property, cssText) method, when invoked, must parse a CSSStyleValue with property property, cssText
     // cssText, and parseMultiple set to true, and return the result.
@@ -71,20 +71,20 @@ WebIDL::ExceptionOr<GC::RootVector<GC::Ref<CSSStyleValue>>> CSSStyleValue::parse
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#parse-a-cssstylevalue
-WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, GC::RootVector<GC::Ref<CSSStyleValue>>>> CSSStyleValue::parse_a_css_style_value(JS::VM& vm, Utf16FlyString property_name, String css_text, ParseMultiple parse_multiple)
+WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, GC::RootVector<GC::Ref<CSSStyleValue>>>> CSSStyleValue::parse_a_css_style_value(JS::VM& vm, Utf16FlyString property_name, Utf16View css_text, ParseMultiple parse_multiple)
 {
     // 1. If property is not a custom property name string, set property to property ASCII lowercased.
     // 2. If property is not a valid CSS property, throw a TypeError.
     auto property = PropertyNameAndID::from_name(property_name);
     if (!property.has_value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("'{}' is not a valid CSS property", property_name)) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("'{}' is not a valid CSS property", property_name) };
 
     // 3. Attempt to parse cssText according to property’s grammar.
     //    If this fails, throw a TypeError.
     //    Otherwise, let whole value be the parsed result.
     auto whole_value = parse_css_value(Parser::ParsingParams {}, css_text, property->id());
     if (!whole_value)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Failed to parse '{}' as a value for '{}' property", css_text, property->name())) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("Failed to parse '{}' as a value for '{}' property", css_text, property->name()) };
 
     // 4. Subdivide into iterations whole value, according to property, and let values be the result.
     auto values = whole_value->subdivide_into_iterations(property.value());
@@ -119,11 +119,11 @@ WebIDL::ExceptionOr<Utf16String> CSSStyleValue::to_string() const
     // FIXME: otherwise, if the value was extracted from the CSSOM
     // NB: For CSSStyleValue itself, we use the source value we were created from.
     if (m_source_value)
-        return Utf16String::from_utf8_without_validation(m_source_value->to_string(SerializationMode::Normal));
+        return m_source_value->to_utf16_string(SerializationMode::Normal);
     {
         // the serialization is specified in §6.7 Serialization from CSSOM Values below.
     }
-    return Utf16String::from_utf8_without_validation(""sv);
+    return Utf16String {};
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation
@@ -132,7 +132,7 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSStyleValue::create_an_in
     // If value is a direct CSSStyleValue,
     //     Return value’s associated value.
     if (!m_source_value)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Missing {}::create_an_internal_representation() overload", class_name())) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("Missing {}::create_an_internal_representation() overload", class_name()) };
     return NonnullRefPtr { *m_source_value };
 }
 

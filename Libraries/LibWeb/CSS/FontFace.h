@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Utf16FlyString.h>
+#include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <LibGfx/Font/Typeface.h>
 #include <LibGfx/FontCascadeList.h>
@@ -26,55 +27,55 @@ class FontFace final : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(FontFace);
 
 public:
-    using FontFaceSource = FlattenVariant<Variant<String>, WebIDL::BufferSourceVariant>;
+    using FontFaceSource = FlattenVariant<Variant<Utf16String>, WebIDL::BufferSourceVariant>;
 
-    [[nodiscard]] static GC::Ref<FontFace> construct_impl(JS::Realm&, String family, FontFaceSource source, Bindings::FontFaceDescriptors const& descriptors);
+    [[nodiscard]] static GC::Ref<FontFace> construct_impl(JS::Realm&, Utf16String family, FontFaceSource source, Bindings::FontFaceDescriptors const& descriptors);
     [[nodiscard]] static GC::Ref<FontFace> create_css_connected(JS::Realm&, CSSFontFaceRule&);
     virtual ~FontFace() override;
 
-    String family() const { return MUST(m_family.view().to_utf8()); }
+    Utf16String family() const { return m_family.to_utf16_string(); }
     Utf16FlyString const& family_name() const { return m_family; }
-    WebIDL::ExceptionOr<void> set_family(String const&);
+    WebIDL::ExceptionOr<void> set_family(Utf16View);
     void set_family_impl(NonnullRefPtr<StyleValue const> const& value);
 
-    String style() const { return m_style; }
-    WebIDL::ExceptionOr<void> set_style(String const&);
+    Utf16String const& style() const { return m_style; }
+    WebIDL::ExceptionOr<void> set_style(Utf16View);
     void set_style_impl(NonnullRefPtr<StyleValue const> const& value);
 
-    String weight() const { return m_weight; }
-    WebIDL::ExceptionOr<void> set_weight(String const&);
+    Utf16String const& weight() const { return m_weight; }
+    WebIDL::ExceptionOr<void> set_weight(Utf16View);
     void set_weight_impl(NonnullRefPtr<StyleValue const> const& value);
 
-    String stretch() const { return m_stretch; }
-    WebIDL::ExceptionOr<void> set_stretch(String const&);
+    Utf16String const& stretch() const { return m_stretch; }
+    WebIDL::ExceptionOr<void> set_stretch(Utf16View);
     void set_stretch_impl(NonnullRefPtr<StyleValue const> const& value);
 
-    String unicode_range() const { return m_unicode_range; }
-    WebIDL::ExceptionOr<void> set_unicode_range(String const&);
+    Utf16String const& unicode_range() const { return m_unicode_range; }
+    WebIDL::ExceptionOr<void> set_unicode_range(Utf16View);
     void set_unicode_range_impl(NonnullRefPtr<StyleValue const> const& value);
 
-    String feature_settings() const { return m_feature_settings; }
-    WebIDL::ExceptionOr<void> set_feature_settings(String const&);
+    Utf16String const& feature_settings() const { return m_feature_settings; }
+    WebIDL::ExceptionOr<void> set_feature_settings(Utf16View);
     void set_feature_settings_impl(NonnullRefPtr<StyleValue const> const& value);
 
-    String variation_settings() const { return m_variation_settings; }
-    WebIDL::ExceptionOr<void> set_variation_settings(String const&);
+    Utf16String const& variation_settings() const { return m_variation_settings; }
+    WebIDL::ExceptionOr<void> set_variation_settings(Utf16View);
     void set_variation_settings_impl(NonnullRefPtr<StyleValue const> const& value);
 
-    String display() const { return m_display; }
-    WebIDL::ExceptionOr<void> set_display(String const&);
+    Utf16String const& display() const { return m_display; }
+    WebIDL::ExceptionOr<void> set_display(Utf16View);
     void set_display_impl(NonnullRefPtr<StyleValue const> const& value);
 
-    String ascent_override() const { return m_ascent_override; }
-    WebIDL::ExceptionOr<void> set_ascent_override(String const&);
+    Utf16String const& ascent_override() const { return m_ascent_override; }
+    WebIDL::ExceptionOr<void> set_ascent_override(Utf16View);
     void set_ascent_override_impl(NonnullRefPtr<StyleValue const> const& value);
 
-    String descent_override() const { return m_descent_override; }
-    WebIDL::ExceptionOr<void> set_descent_override(String const&);
+    Utf16String const& descent_override() const { return m_descent_override; }
+    WebIDL::ExceptionOr<void> set_descent_override(Utf16View);
     void set_descent_override_impl(NonnullRefPtr<StyleValue const> const& value);
 
-    String line_gap_override() const { return m_line_gap_override; }
-    WebIDL::ExceptionOr<void> set_line_gap_override(String const&);
+    Utf16String const& line_gap_override() const { return m_line_gap_override; }
+    WebIDL::ExceptionOr<void> set_line_gap_override(Utf16View);
     void set_line_gap_override_impl(NonnullRefPtr<StyleValue const> const& value);
 
     bool is_css_connected() const { return m_css_font_face_rule != nullptr; }
@@ -126,17 +127,17 @@ private:
 
     // FIXME: Should we be storing StyleValues instead?
     Utf16FlyString m_family;
-    String m_style;
-    String m_weight;
-    String m_stretch;
-    String m_unicode_range;
+    Utf16String m_style;
+    Utf16String m_weight;
+    Utf16String m_stretch;
+    Utf16String m_unicode_range;
     Vector<Gfx::UnicodeRange> m_unicode_ranges;
-    String m_feature_settings;
-    String m_variation_settings;
-    String m_display;
-    String m_ascent_override;
-    String m_descent_override;
-    String m_line_gap_override;
+    Utf16String m_feature_settings;
+    Utf16String m_variation_settings;
+    Utf16String m_display;
+    Utf16String m_ascent_override;
+    Utf16String m_descent_override;
+    Utf16String m_line_gap_override;
 
     FontWeightRange m_cached_weight_range { 400, 400 };
     int m_cached_slope { 0 };
@@ -157,11 +158,9 @@ private:
     HashTable<GC::Ref<FontFaceSet>> m_containing_sets;
 };
 
-bool font_format_is_supported(FlyString const& name);
 bool font_format_is_supported(Utf16View name);
 
 bool font_tech_is_supported(FontTech);
-bool font_tech_is_supported(FlyString const& name);
 bool font_tech_is_supported(Utf16View name);
 
 }

@@ -10,6 +10,7 @@
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/StyleSheet.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/Infra/SerializedURL.h>
 
 namespace Web::CSS {
 
@@ -32,7 +33,6 @@ size_t StyleSheet::external_memory_size() const
 {
     auto size = Base::external_memory_size();
     size = JS::saturating_add_external_memory_size(size, JS::utf16_string_external_memory_size(m_title));
-    size = JS::saturating_add_external_memory_size(size, JS::string_external_memory_size(m_type_string));
     return size;
 }
 
@@ -40,6 +40,13 @@ Optional<String> StyleSheet::href() const
 {
     if (m_location.has_value())
         return m_location->to_string();
+    return {};
+}
+
+Optional<Utf16String> StyleSheet::href_for_bindings() const
+{
+    if (auto href = this->href(); href.has_value())
+        return utf16_string_from_url_ascii(*href);
     return {};
 }
 

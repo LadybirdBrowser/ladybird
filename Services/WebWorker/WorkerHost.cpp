@@ -30,7 +30,7 @@
 
 namespace WebWorker {
 
-WorkerHost::WorkerHost(URL::URL url, Web::Bindings::WorkerType type, String name)
+WorkerHost::WorkerHost(URL::URL url, Web::Bindings::WorkerType type, Utf16String name)
     : m_url(move(url))
     , m_type(type)
     , m_name(move(name))

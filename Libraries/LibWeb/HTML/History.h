@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Utf16View.h>
 #include <LibWeb/Bindings/History.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/HTML/HistoryHandlingBehavior.h>
@@ -24,8 +25,8 @@ public:
 
     virtual ~History() override;
 
-    WebIDL::ExceptionOr<void> push_state(JS::Value data, String const& unused, Optional<String> const& url = {});
-    WebIDL::ExceptionOr<void> replace_state(JS::Value data, String const& unused, Optional<String> const& url = {});
+    WebIDL::ExceptionOr<void> push_state(JS::Value data, Utf16View unused, Optional<Utf16String> const& url = {});
+    WebIDL::ExceptionOr<void> replace_state(JS::Value data, Utf16View unused, Optional<Utf16String> const& url = {});
     WebIDL::ExceptionOr<void> go(WebIDL::Long delta);
     WebIDL::ExceptionOr<void> back();
     WebIDL::ExceptionOr<void> forward();
@@ -47,7 +48,7 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
     WebIDL::ExceptionOr<void> delta_traverse(WebIDL::Long delta);
 
-    WebIDL::ExceptionOr<void> shared_history_push_replace_state(JS::Value data, Optional<String> const& url, HistoryHandlingBehavior);
+    WebIDL::ExceptionOr<void> shared_history_push_replace_state(JS::Value data, Optional<Utf16String> const& url, HistoryHandlingBehavior);
 
     JS::Value m_state { JS::js_null() };
 };

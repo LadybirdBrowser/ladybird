@@ -43,7 +43,7 @@ void StyleElementBase::style_element_attribute_changed(Utf16FlyString const& nam
 {
     if (name == HTML::AttributeNames::media) {
         if (auto* sheet = this->sheet()) {
-            sheet->set_media(value.value_or({}));
+            sheet->set_media(value.has_value() ? value->utf16_view() : u""sv);
             associated_style_sheet_media_attribute_changed();
         }
     } else if (name == HTML::AttributeNames::type) {
@@ -93,7 +93,7 @@ void StyleElementBase::update_a_style_block(UpdateSource update_source)
 
     // 4. If element's type attribute is present and its value is neither the empty string nor an ASCII case-insensitive match for "text/css", then return.
     auto type_attribute = style_element.attribute(HTML::AttributeNames::type);
-    if (type_attribute.has_value() && !type_attribute->is_empty() && !type_attribute->equals_ignoring_ascii_case("text/css"sv))
+    if (type_attribute.has_value() && !type_attribute->is_empty() && !type_attribute->equals_ignoring_ascii_case(u"text/css"sv))
         return;
 
     // 5. If the Should element's inline behavior be blocked by Content Security Policy? algorithm returns "Blocked" when executed upon the style element, "style", and the style element's child text content, then return. [CSP]
@@ -121,16 +121,17 @@ void StyleElementBase::update_a_style_block(UpdateSource update_source)
     //            Left at its default value.
     //        CSS rules
     //          Left uninitialized.
-    auto text_content = style_element.text_content().value_or({});
+    auto text_content = style_element.text_content();
+    auto text_content_view = text_content.has_value() ? text_content->utf16_view() : u""sv;
+    auto media_attribute = style_element.attribute(HTML::AttributeNames::media);
+    auto media_attribute_view = media_attribute.has_value() ? media_attribute->utf16_view() : u""sv;
+    auto title_attribute = style_element.in_a_document_tree() ? style_element.attribute(HTML::AttributeNames::title) : Optional<Utf16String> {};
     m_style_sheet_list = style_element.document_or_shadow_root_style_sheets();
     m_associated_css_style_sheet = m_style_sheet_list->create_a_css_style_sheet(
-        text_content.utf16_view(),
-        "text/css"_string,
+        text_content_view,
         &style_element,
-        style_element.attribute(HTML::AttributeNames::media).value_or({}),
-        style_element.in_a_document_tree()
-            ? style_element.attribute(HTML::AttributeNames::title).value_or({})
-            : Utf16String {},
+        media_attribute_view,
+        title_attribute.has_value() ? title_attribute.release_value() : Utf16String {},
         CSS::StyleSheetList::Alternate::No,
         CSS::StyleSheetList::OriginClean::Yes,
         {},

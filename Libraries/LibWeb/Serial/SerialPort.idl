@@ -46,7 +46,7 @@ dictionary SerialPortInfo {
     unsigned short usbVendorId;
     unsigned short usbProductId;
     // FIXME: Should be a BluetoothServiceUUID
-    DOMString bluetoothServiceClassId;
+    Utf16DOMString bluetoothServiceClassId;
 };
 
 // https://wicg.github.io/serial/#paritytype-enum

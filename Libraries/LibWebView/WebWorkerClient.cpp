@@ -44,7 +44,7 @@ void WebWorkerClient::did_fail_loading_worker_script()
     WorkerProcessManager::the().worker_did_fail_loading_script(m_agent_id);
 }
 
-void WebWorkerClient::did_report_worker_exception(String message, String filename, u32 lineno, u32 colno)
+void WebWorkerClient::did_report_worker_exception(Utf16String message, Utf16String filename, u32 lineno, u32 colno)
 {
     WorkerProcessManager::the().worker_did_report_exception(m_agent_id, move(message), move(filename), lineno, colno);
 }

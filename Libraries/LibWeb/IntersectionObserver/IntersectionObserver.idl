@@ -6,8 +6,8 @@ callback IntersectionObserverCallback = undefined (sequence<IntersectionObserver
 interface IntersectionObserver {
     constructor(IntersectionObserverCallback callback, optional IntersectionObserverInit options = {});
     readonly attribute (Element or Document)? root;
-    readonly attribute DOMString rootMargin;
-    readonly attribute DOMString scrollMargin;
+    readonly attribute Utf16DOMString rootMargin;
+    readonly attribute Utf16DOMString scrollMargin;
     readonly attribute FrozenArray<double> thresholds;
     readonly attribute long delay;
     readonly attribute boolean trackVisibility;
@@ -20,8 +20,8 @@ interface IntersectionObserver {
 // https://w3c.github.io/IntersectionObserver/#intersection-observer-init
 dictionary IntersectionObserverInit {
     (Element or Document)? root = null;
-    DOMString rootMargin = "0px";
-    DOMString scrollMargin = "0px";
+    Utf16DOMString rootMargin = "0px";
+    Utf16DOMString scrollMargin = "0px";
     (double or sequence<double>) threshold = 0;
     long delay = 0;
     boolean trackVisibility = false;

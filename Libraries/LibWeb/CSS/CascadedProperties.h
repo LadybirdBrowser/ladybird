@@ -9,6 +9,7 @@
 #include <AK/FixedBitmap.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefCounted.h>
+#include <AK/Utf16FlyString.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/Weak.h>
 #include <LibWeb/CSS/CascadeOrigin.h>
@@ -32,10 +33,10 @@ public:
     [[nodiscard]] GC::Ptr<DOM::ShadowRoot const> property_source_shadow_root(PropertyID) const;
     [[nodiscard]] Optional<StyleProperty> style_property(PropertyID) const;
 
-    void set_property(PropertyID, NonnullRefPtr<StyleValue const>, Important, CascadeOrigin, Optional<FlyString> layer_name, GC::Ptr<CSS::CSSStyleDeclaration const> source, GC::Ptr<DOM::ShadowRoot const> source_shadow_root);
+    void set_property(PropertyID, NonnullRefPtr<StyleValue const>, Important, CascadeOrigin, Optional<Utf16FlyString> layer_name, GC::Ptr<CSS::CSSStyleDeclaration const> source, GC::Ptr<DOM::ShadowRoot const> source_shadow_root);
 
     void revert_property(PropertyID, Important, CascadeOrigin);
-    void revert_layer_property(PropertyID, Important, CascadeOrigin, Optional<FlyString> layer_name, GC::Ptr<DOM::ShadowRoot const> source_shadow_root);
+    void revert_layer_property(PropertyID, Important, CascadeOrigin, Optional<Utf16FlyString> layer_name, GC::Ptr<DOM::ShadowRoot const> source_shadow_root);
 
 private:
     CascadedProperties();
@@ -44,7 +45,7 @@ private:
         StyleProperty property;
         size_t cascade_index { 0 };
         CascadeOrigin origin;
-        Optional<FlyString> layer_name;
+        Optional<Utf16FlyString> layer_name;
         GC::Weak<CSS::CSSStyleDeclaration const> source;
         GC::Weak<DOM::ShadowRoot const> source_shadow_root;
     };

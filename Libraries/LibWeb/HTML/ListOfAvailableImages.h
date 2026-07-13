@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <AK/Utf16String.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
@@ -22,7 +23,7 @@ class ListOfAvailableImages : public JS::Cell {
 
 public:
     struct Key {
-        String url;
+        Utf16String url;
         HTML::CORSSettingAttribute mode;
         Optional<URL::Origin> origin;
 

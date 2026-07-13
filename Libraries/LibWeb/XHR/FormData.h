@@ -31,13 +31,13 @@ public:
     static WebIDL::ExceptionOr<GC::Ref<FormData>> create(JS::Realm&, GC::ConservativeVector<FormDataEntry> entry_list);
 
     WebIDL::ExceptionOr<void> append(Utf16String const& name, Utf16String const& value);
-    WebIDL::ExceptionOr<void> append(Utf16String const& name, GC::Ref<FileAPI::Blob> const& blob_value, Optional<String> const& filename = {});
+    WebIDL::ExceptionOr<void> append(Utf16String const& name, GC::Ref<FileAPI::Blob> const& blob_value, Optional<Utf16String> const& filename = {});
     void delete_(Utf16String const& name);
     Variant<GC::Ref<FileAPI::File>, Utf16String, Empty> get(Utf16String const& name);
     WebIDL::ExceptionOr<Vector<FormDataEntryValue>> get_all(Utf16String const& name);
     bool has(Utf16String const& name);
     WebIDL::ExceptionOr<void> set(Utf16String const& name, Utf16String const& value);
-    WebIDL::ExceptionOr<void> set(Utf16String const& name, GC::Ref<FileAPI::Blob> const& blob_value, Optional<String> const& filename = {});
+    WebIDL::ExceptionOr<void> set(Utf16String const& name, GC::Ref<FileAPI::Blob> const& blob_value, Optional<Utf16String> const& filename = {});
 
     GC::ConservativeVector<FormDataEntry> entry_list() const;
 
@@ -52,8 +52,8 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    WebIDL::ExceptionOr<void> append_impl(Utf16String const& name, Variant<GC::Ref<FileAPI::Blob>, Utf16String> const& value, Optional<String> const& filename = {});
-    WebIDL::ExceptionOr<void> set_impl(Utf16String const& name, Variant<GC::Ref<FileAPI::Blob>, Utf16String> const& value, Optional<String> const& filename = {});
+    WebIDL::ExceptionOr<void> append_impl(Utf16String const& name, Variant<GC::Ref<FileAPI::Blob>, Utf16String> const& value, Optional<Utf16String> const& filename = {});
+    WebIDL::ExceptionOr<void> set_impl(Utf16String const& name, Variant<GC::Ref<FileAPI::Blob>, Utf16String> const& value, Optional<Utf16String> const& filename = {});
 
     Vector<FormDataEntry> m_entry_list;
 };

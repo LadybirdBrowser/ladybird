@@ -30,7 +30,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSSkewX>> CSSSkewX::construct_impl(JS::Realm& realm
 
     // 1. If ax does not match <angle>, throw a TypeError.
     if (!ax->type().matches_angle({}))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSSkewX ax component doesn't match <angle>"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSSkewX ax component doesn't match <angle>"_utf16 };
 
     // 2. Return a new CSSSkewX object with its ax internal slot set to ax, and its is2D internal slot set to true.
     return CSSSkewX::create(realm, ax);
@@ -97,7 +97,7 @@ WebIDL::ExceptionOr<void> CSSSkewX::set_ax(GC::Ref<CSSNumericValue> ax)
     // AD-HOC: Not specced. https://github.com/w3c/css-houdini-drafts/issues/1153
     //         WPT expects this to throw for invalid values.
     if (!ax->type().matches_angle({}))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSSkewX ax component doesn't match <angle>"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSSkewX ax component doesn't match <angle>"_utf16 };
     m_ax = ax;
     return {};
 }

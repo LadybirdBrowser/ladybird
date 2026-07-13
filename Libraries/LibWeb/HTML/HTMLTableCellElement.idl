@@ -14,23 +14,23 @@ interface HTMLTableCellElement : HTMLElement {
 
     [CEReactions] attribute unsigned long colSpan;
     [CEReactions] attribute unsigned long rowSpan;
-    [CEReactions, Reflect] attribute DOMString headers;
+    [CEReactions, Reflect] attribute Utf16DOMString headers;
     readonly attribute long cellIndex;
 
-    [CEReactions, Enumerated=ScopeAttribute, Reflect] attribute DOMString scope; // only conforming for th elements
-    [CEReactions, Reflect] attribute DOMString abbr;  // only conforming for th elements
+    [CEReactions, Enumerated=ScopeAttribute, Reflect] attribute Utf16DOMString scope; // only conforming for th elements
+    [CEReactions, Reflect] attribute Utf16DOMString abbr;  // only conforming for th elements
 
     // Obsolete
-    [CEReactions, Reflect] attribute DOMString align;
-    [CEReactions, Reflect] attribute DOMString axis;
-    [CEReactions, Reflect] attribute DOMString height;
-    [CEReactions, Reflect] attribute DOMString width;
+    [CEReactions, Reflect] attribute Utf16DOMString align;
+    [CEReactions, Reflect] attribute Utf16DOMString axis;
+    [CEReactions, Reflect] attribute Utf16DOMString height;
+    [CEReactions, Reflect] attribute Utf16DOMString width;
 
-    [CEReactions, Reflect=char] attribute DOMString ch;
-    [CEReactions, Reflect=charoff] attribute DOMString chOff;
+    [CEReactions, Reflect=char] attribute Utf16DOMString ch;
+    [CEReactions, Reflect=charoff] attribute Utf16DOMString chOff;
     [CEReactions, Reflect=nowrap] attribute boolean noWrap;
-    [CEReactions, Reflect=valign] attribute DOMString vAlign;
+    [CEReactions, Reflect=valign] attribute Utf16DOMString vAlign;
 
-    [CEReactions, LegacyNullToEmptyString, Reflect=bgcolor] attribute DOMString bgColor;
+    [CEReactions, LegacyNullToEmptyString, Reflect=bgcolor] attribute Utf16DOMString bgColor;
 
 };

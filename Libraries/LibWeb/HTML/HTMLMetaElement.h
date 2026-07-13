@@ -12,14 +12,14 @@
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/semantics.html#pragma-directives
-#define ENUMERATE_HTML_META_HTTP_EQUIV_ATTRIBUTES                                   \
-    __ENUMERATE_HTML_META_HTTP_EQUIV_ATTRIBUTE("content-language", ContentLanguage) \
-    __ENUMERATE_HTML_META_HTTP_EQUIV_ATTRIBUTE("content-type", EncodingDeclaration) \
-    __ENUMERATE_HTML_META_HTTP_EQUIV_ATTRIBUTE("default-style", DefaultStyle)       \
-    __ENUMERATE_HTML_META_HTTP_EQUIV_ATTRIBUTE("refresh", Refresh)                  \
-    __ENUMERATE_HTML_META_HTTP_EQUIV_ATTRIBUTE("set-cookie", SetCookie)             \
-    __ENUMERATE_HTML_META_HTTP_EQUIV_ATTRIBUTE("x-ua-compatible", XUACompatible)    \
-    __ENUMERATE_HTML_META_HTTP_EQUIV_ATTRIBUTE("content-security-policy", ContentSecurityPolicy)
+#define ENUMERATE_HTML_META_HTTP_EQUIV_ATTRIBUTES                                    \
+    __ENUMERATE_HTML_META_HTTP_EQUIV_ATTRIBUTE(u"content-language", ContentLanguage) \
+    __ENUMERATE_HTML_META_HTTP_EQUIV_ATTRIBUTE(u"content-type", EncodingDeclaration) \
+    __ENUMERATE_HTML_META_HTTP_EQUIV_ATTRIBUTE(u"default-style", DefaultStyle)       \
+    __ENUMERATE_HTML_META_HTTP_EQUIV_ATTRIBUTE(u"refresh", Refresh)                  \
+    __ENUMERATE_HTML_META_HTTP_EQUIV_ATTRIBUTE(u"set-cookie", SetCookie)             \
+    __ENUMERATE_HTML_META_HTTP_EQUIV_ATTRIBUTE(u"x-ua-compatible", XUACompatible)    \
+    __ENUMERATE_HTML_META_HTTP_EQUIV_ATTRIBUTE(u"content-security-policy", ContentSecurityPolicy)
 
 class HTMLMetaElement final : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLMetaElement, HTMLElement);

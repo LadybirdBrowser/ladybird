@@ -24,8 +24,8 @@ ErrorOr<Web::ContentSecurityPolicy::Directives::SerializedDirective> decode(Deco
 {
     Web::ContentSecurityPolicy::Directives::SerializedDirective serialized_directive {};
 
-    serialized_directive.name = TRY(decoder.decode<String>());
-    serialized_directive.value = TRY(decoder.decode<Vector<String>>());
+    serialized_directive.name = TRY(decoder.decode<Utf16FlyString>());
+    serialized_directive.value = TRY(decoder.decode<Vector<Utf16String>>());
 
     return serialized_directive;
 }

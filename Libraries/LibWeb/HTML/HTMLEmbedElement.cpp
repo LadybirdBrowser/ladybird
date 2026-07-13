@@ -45,7 +45,7 @@ bool HTMLEmbedElement::is_presentational_hint(Utf16FlyString const& name) const
 void HTMLEmbedElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
 {
     Base::apply_presentational_hints(properties);
-    for_each_attribute([&](auto& name, auto& value) {
+    for_each_attribute([&](Utf16FlyString const& name, Utf16View value) {
         if (name == HTML::AttributeNames::align) {
             // https://html.spec.whatwg.org/multipage/rendering.html#attributes-for-embedded-content-and-images
             // When an embed, iframe, img, or object element, or an input element whose type attribute is in the Image Button state,
@@ -54,7 +54,7 @@ void HTMLEmbedElement::apply_presentational_hints(Vector<CSS::StyleProperty>& pr
             // vertical middle of the element with the parent element's baseline.
             // FIXME: This should use legacy baseline-middle alignment instead of CSS vertical-align: middle,
             //        as Firefox and Chrome do with engine-specific legacy values.
-            if (value.equals_ignoring_ascii_case("center"sv) || value.equals_ignoring_ascii_case("middle"sv))
+            if (value.equals_ignoring_ascii_case(u"center"sv) || value.equals_ignoring_ascii_case(u"middle"sv))
                 properties.append({ .property_id = CSS::PropertyID::VerticalAlign, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Middle) });
         } else if (name == HTML::AttributeNames::height) {
             if (auto parsed_value = parse_dimension_value(value))

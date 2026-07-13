@@ -84,7 +84,7 @@ WebIDL::ExceptionOr<void> Attr::set_value(Utf16String value)
 
     // 3. Let verifiedValue be the result of calling get Trusted Types-compliant attribute value with
     //    attribute’s local name, attribute’s namespace, element, and value.
-    auto const verified_value = TRY(TrustedTypes::get_trusted_types_compliant_attribute_value(
+    auto verified_value = TRY(TrustedTypes::get_trusted_types_compliant_attribute_value(
         local_name(),
         namespace_uri(),
         element,
@@ -92,12 +92,12 @@ WebIDL::ExceptionOr<void> Attr::set_value(Utf16String value)
 
     // 4. If attribute’s element is null, then set attribute’s value to verifiedValue, and return.
     if (!owner_element()) {
-        m_value = verified_value;
+        m_value = move(verified_value);
         return {};
     }
 
     // 5. Change attribute to verifiedValue.
-    change_attribute(verified_value);
+    change_attribute(move(verified_value));
 
     return {};
 }

@@ -20,7 +20,7 @@ class WEB_API DOMMatrix : public DOMMatrixReadOnly {
     GC_DECLARE_ALLOCATOR(DOMMatrix);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> construct_impl(JS::Realm&, Optional<Variant<String, Vector<double>>> const& init);
+    static WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> construct_impl(JS::Realm&, Optional<Variant<Utf16String, Vector<double>>> const& init);
     static WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> create_from_dom_matrix_2d_init(JS::Realm&, Bindings::DOMMatrix2DInit& init);
     static WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> create_from_dom_matrix_init(JS::Realm&, Bindings::DOMMatrixInit& init);
     static GC::Ref<DOMMatrix> create_from_dom_matrix_read_only(JS::Realm&, DOMMatrixReadOnly const& read_only_matrix);
@@ -69,7 +69,7 @@ public:
     GC::Ref<DOMMatrix> skew_y_self(double sy = 0);
     GC::Ref<DOMMatrix> invert_self();
 
-    WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> set_matrix_value(String const& transform_list);
+    WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> set_matrix_value(Utf16String const& transform_list);
 
 private:
     DOMMatrix(JS::Realm&, double m11, double m12, double m21, double m22, double m41, double m42);

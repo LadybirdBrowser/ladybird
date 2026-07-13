@@ -64,7 +64,7 @@ WebIDL::ExceptionOr<void> ElementInternals::set_form_value(ElementInternalsFormV
         [](GC::Ref<FileAPI::File> file) -> FormAssociatedElement::FACESubmissionValue {
             return file;
         },
-        [](String const& string) -> FormAssociatedElement::FACESubmissionValue {
+        [](Utf16String const& string) -> FormAssociatedElement::FACESubmissionValue {
             return string;
         },
         [](GC::Ref<XHR::FormData> form_data) -> FormAssociatedElement::FACESubmissionValue {
@@ -88,7 +88,7 @@ WebIDL::ExceptionOr<void> ElementInternals::set_form_value(ElementInternalsFormV
             [](GC::Ref<FileAPI::File> file) -> FormAssociatedElement::FACESubmissionValue {
                 return GC::Ref { *file };
             },
-            [](String const& string) -> FormAssociatedElement::FACESubmissionValue {
+            [](Utf16String const& string) -> FormAssociatedElement::FACESubmissionValue {
                 return string;
             },
             [](GC::Ref<XHR::FormData> form_data) -> FormAssociatedElement::FACESubmissionValue {
@@ -131,7 +131,7 @@ static bool validity_flags_has_one_or_more_true_values(Bindings::ValidityStateFl
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#dom-elementinternals-setvalidity
-WebIDL::ExceptionOr<void> ElementInternals::set_validity(Bindings::ValidityStateFlags const& flags, Optional<String> message, GC::Ptr<HTMLElement> anchor)
+WebIDL::ExceptionOr<void> ElementInternals::set_validity(Bindings::ValidityStateFlags const& flags, Optional<Utf16String> message, GC::Ptr<HTMLElement> anchor)
 {
     // 1. Let element be this's target element.
     auto element = m_target_element;
@@ -144,7 +144,7 @@ WebIDL::ExceptionOr<void> ElementInternals::set_validity(Bindings::ValidityState
     if (validity_flags_has_one_or_more_true_values(flags) && (!message.has_value() || message->is_empty())) {
         return WebIDL::SimpleException {
             WebIDL::SimpleExceptionType::TypeError,
-            "Invalid flag(s) and empty message"sv
+            "Invalid flag(s) and empty message"_utf16
         };
     }
 
@@ -152,7 +152,7 @@ WebIDL::ExceptionOr<void> ElementInternals::set_validity(Bindings::ValidityState
     element->set_face_validity_flags({}, flags);
 
     // 5. Set element's validation message to the empty string if message is not given or all of element's validity flags are false, or to message otherwise.
-    String validation_message;
+    Utf16String validation_message;
     if (message.has_value() && validity_flags_has_one_or_more_true_values(flags))
         validation_message = message.release_value();
 
@@ -160,7 +160,7 @@ WebIDL::ExceptionOr<void> ElementInternals::set_validity(Bindings::ValidityState
 
     // 6. If element's customError validity flag is true, then set element's custom validity error message to element's
     //    validation message. Otherwise, set element's custom validity error message to the empty string.
-    element->set_custom_validity_error_message({}, flags.custom_error ? validation_message : ""_string);
+    element->set_custom_validity_error_message({}, flags.custom_error ? validation_message : Utf16String {});
 
     // 7. If anchor is not given, then set it to element.
     if (!anchor) {
@@ -205,7 +205,7 @@ WebIDL::ExceptionOr<GC::Ref<ValidityState const>> ElementInternals::validity() c
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#dom-elementinternals-validationmessage
-WebIDL::ExceptionOr<String> ElementInternals::validation_message() const
+WebIDL::ExceptionOr<Utf16String> ElementInternals::validation_message() const
 {
     // 1. Let element be this's target element.
     auto element = m_target_element;

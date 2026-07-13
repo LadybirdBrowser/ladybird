@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/CharacterTypes.h>
 #include <LibWeb/Bindings/NamedNodeMap.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/Document.h>
@@ -17,6 +18,15 @@
 namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(NamedNodeMap);
+
+static bool contains_ascii_uppercase(Utf16View string)
+{
+    for (auto code_unit : string) {
+        if (is_ascii_upper_alpha(code_unit))
+            return true;
+    }
+    return false;
+}
 
 GC::Ref<NamedNodeMap> NamedNodeMap::create(Element& element)
 {
@@ -64,7 +74,7 @@ Vector<Utf16FlyString> NamedNodeMap::supported_property_names() const
     if (associated_element().namespace_uri() == Namespace::HTML && associated_element().document().is_html_document()) {
         // 1. Let lowercaseName be name, in ASCII lowercase.
         // 2. If lowercaseName is not equal to name, remove name from names.
-        names.remove_all_matching([](auto const& name) { return name != name.to_ascii_lowercase(); });
+        names.remove_all_matching([](auto const& name) { return contains_ascii_uppercase(name.view()); });
     }
 
     // 3. Return names.

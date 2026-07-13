@@ -2,7 +2,7 @@
 [Experimental, Exposed=(Window,Worker)]
 interface PermissionStatus : EventTarget {
     readonly attribute PermissionState state;
-    readonly attribute DOMString name;
+    readonly attribute Utf16DOMString name;
     attribute EventHandler onchange;
 };
 

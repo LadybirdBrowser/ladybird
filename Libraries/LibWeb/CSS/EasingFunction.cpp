@@ -269,35 +269,35 @@ static Vector<LinearEasingFunction::ControlPoint> canonicalize_linear_easing_fun
 EasingFunction EasingFunction::linear()
 {
     // Equivalent to linear(0, 1)
-    return LinearEasingFunction { { { 0, 0 }, { 1, 1 } }, "linear"_string };
+    return LinearEasingFunction { { { 0, 0 }, { 1, 1 } }, "linear"_utf16 };
 }
 
 // https://drafts.csswg.org/css-easing-2/#valdef-cubic-bezier-easing-function-ease-in
 EasingFunction EasingFunction::ease_in()
 {
     // Equivalent to cubic-bezier(0.42, 0, 1, 1).
-    return CubicBezierEasingFunction { 0.42, 0, 1, 1, "ease-in"_string };
+    return CubicBezierEasingFunction { 0.42, 0, 1, 1, "ease-in"_utf16 };
 }
 
 // https://drafts.csswg.org/css-easing-2/#valdef-cubic-bezier-easing-function-ease-out
 EasingFunction EasingFunction::ease_out()
 {
     // Equivalent to cubic-bezier(0, 0, 0.58, 1).
-    return CubicBezierEasingFunction { 0, 0, 0.58, 1, "ease-out"_string };
+    return CubicBezierEasingFunction { 0, 0, 0.58, 1, "ease-out"_utf16 };
 }
 
 // https://drafts.csswg.org/css-easing-2/#valdef-cubic-bezier-easing-function-ease-in-out
 EasingFunction EasingFunction::ease_in_out()
 {
     // Equivalent to cubic-bezier(0.42, 0, 0.58, 1).
-    return CubicBezierEasingFunction { 0.42, 0, 0.58, 1, "ease-in-out"_string };
+    return CubicBezierEasingFunction { 0.42, 0, 0.58, 1, "ease-in-out"_utf16 };
 }
 
 // https://drafts.csswg.org/css-easing-2/#valdef-cubic-bezier-easing-function-ease
 EasingFunction EasingFunction::ease()
 {
     // Equivalent to cubic-bezier(0.25, 0.1, 0.25, 1).
-    return CubicBezierEasingFunction { 0.25, 0.1, 0.25, 1, "ease"_string };
+    return CubicBezierEasingFunction { 0.25, 0.1, 0.25, 1, "ease"_utf16 };
 }
 
 EasingFunction EasingFunction::from_style_value(StyleValue const& style_value)
@@ -322,7 +322,7 @@ EasingFunction EasingFunction::from_style_value(StyleValue const& style_value)
                 // at used value time by linear() canonicalization.
                 resolved_control_points = canonicalize_linear_easing_function_control_points(resolved_control_points);
 
-                return LinearEasingFunction { resolved_control_points, linear.to_string(SerializationMode::ResolvedValue) };
+                return LinearEasingFunction { resolved_control_points, linear.to_utf16_string(SerializationMode::ResolvedValue) };
             },
             [&](EasingStyleValue::CubicBezier const& cubic_bezier) -> EasingFunction {
                 auto resolved_x1 = number_from_style_value(cubic_bezier.x1, {});
@@ -330,10 +330,10 @@ EasingFunction EasingFunction::from_style_value(StyleValue const& style_value)
                 auto resolved_x2 = number_from_style_value(cubic_bezier.x2, {});
                 auto resolved_y2 = number_from_style_value(cubic_bezier.y2, {});
 
-                return CubicBezierEasingFunction { resolved_x1, resolved_y1, resolved_x2, resolved_y2, cubic_bezier.to_string(SerializationMode::Normal) };
+                return CubicBezierEasingFunction { resolved_x1, resolved_y1, resolved_x2, resolved_y2, cubic_bezier.to_utf16_string(SerializationMode::Normal) };
             },
             [&](EasingStyleValue::Steps const& steps) -> EasingFunction {
-                return StepsEasingFunction { int_from_style_value(steps.number_of_intervals), steps.position, steps.to_string(SerializationMode::ResolvedValue) };
+                return StepsEasingFunction { int_from_style_value(steps.number_of_intervals), steps.position, steps.to_utf16_string(SerializationMode::ResolvedValue) };
             });
     }
 
@@ -368,6 +368,14 @@ String EasingFunction::to_string() const
 {
     return visit(
         [](auto const& function) {
+            return function.stringified.to_utf8();
+        });
+}
+
+Utf16String const& EasingFunction::to_utf16_string() const
+{
+    return visit(
+        [](auto const& function) -> Utf16String const& {
             return function.stringified;
         });
 }

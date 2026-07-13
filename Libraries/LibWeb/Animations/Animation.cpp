@@ -232,7 +232,7 @@ WebIDL::ExceptionOr<Optional<TimeValue>> Animation::validate_a_css_numberish_tim
         // return false;
         return WebIDL::SimpleException {
             WebIDL::SimpleExceptionType::TypeError,
-            "CSSNumberish must be a percentage for progress-based animations"sv
+            "CSSNumberish must be a percentage for progress-based animations"_utf16
         };
     }
 
@@ -254,7 +254,7 @@ WebIDL::ExceptionOr<Optional<TimeValue>> Animation::validate_a_css_numberish_tim
         // return false.
         return WebIDL::SimpleException {
             WebIDL::SimpleExceptionType::TypeError,
-            "CSSNumericValue must be a time for non-progress based animations"sv
+            "CSSNumericValue must be a time for non-progress based animations"_utf16
         };
     }
 
@@ -1199,7 +1199,7 @@ WebIDL::ExceptionOr<void> Animation::silently_set_current_time(Optional<TimeValu
         if (current_time().has_value()) {
             return WebIDL::SimpleException {
                 WebIDL::SimpleExceptionType::TypeError,
-                "Cannot change an animation's current time from a resolve value to an unresolved value"sv
+                "Cannot change an animation's current time from a resolve value to an unresolved value"_utf16
             };
         }
 

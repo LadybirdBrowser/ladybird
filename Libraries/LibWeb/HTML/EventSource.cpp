@@ -34,8 +34,48 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(EventSource);
 
+template<typename Callback>
+static void for_each_line(Utf16View string, Callback&& callback)
+{
+    size_t substart = 0;
+    bool last_ch_was_cr = false;
+
+    for (size_t i = 0; i < string.length_in_code_units(); ++i) {
+        auto ch = string.code_unit_at(i);
+        bool split_view = false;
+
+        switch (ch) {
+        case '\n':
+            if (last_ch_was_cr)
+                substart = i + 1;
+            else
+                split_view = true;
+
+            last_ch_was_cr = false;
+            break;
+
+        case '\r':
+            split_view = true;
+            last_ch_was_cr = true;
+            break;
+
+        default:
+            last_ch_was_cr = false;
+            break;
+        }
+
+        if (split_view) {
+            callback(string.substring_view(substart, i - substart));
+            substart = i + 1;
+        }
+    }
+
+    if (auto tail_length = string.length_in_code_units() - substart; tail_length != 0)
+        callback(string.substring_view(substart, tail_length));
+}
+
 // https://html.spec.whatwg.org/multipage/server-sent-events.html#dom-eventsource
-WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::construct_impl(JS::Realm& realm, StringView url, Bindings::EventSourceInit const& event_source_init_dict)
+WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::construct_impl(JS::Realm& realm, Utf16View url, Bindings::EventSourceInit const& event_source_init_dict)
 {
     auto& vm = realm.vm();
 
@@ -139,7 +179,7 @@ WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::construct_impl(JS::Realm&
                     return;
 
                 auto end_index = *last_line_break + 1;
-                event_source->interpret_response({ pending_data.bytes().slice(0, end_index) });
+                event_source->interpret_response(pending_data.bytes().slice(0, end_index));
 
                 pending_data = MUST(pending_data.slice(end_index, pending_data.size() - end_index));
             });
@@ -322,8 +362,9 @@ void EventSource::reestablish_the_connection()
         // 3. If the EventSource object's last event ID string is not the empty string, then:
         if (!m_last_event_id.is_empty()) {
             // 1. Let lastEventIDValue be the EventSource object's last event ID string, encoded as UTF-8.
+            auto last_event_id_value = m_last_event_id.to_utf8();
             // 2. Set (`Last-Event-ID`, lastEventIDValue) in request's header list.
-            auto header = HTTP::Header::isomorphic_encode("Last-Event-ID"sv, m_last_event_id);
+            auto header = HTTP::Header::isomorphic_encode("Last-Event-ID"sv, last_event_id_value);
             request->header_list()->set(move(header));
         }
 
@@ -347,10 +388,12 @@ void EventSource::fail_the_connection()
 }
 
 // https://html.spec.whatwg.org/multipage/server-sent-events.html#event-stream-interpretation
-void EventSource::interpret_response(StringView response)
+void EventSource::interpret_response(ReadonlyBytes response)
 {
+    auto response_string = Utf16String::from_utf8_with_replacement_character(response);
+
     // Lines must be processed, in the order they are received, as follows:
-    for (auto line : response.lines(StringView::ConsiderCarriageReturn::Yes)) {
+    for_each_line(response_string.utf16_view(), [&](auto line) {
         // -> If the line is empty (a blank line)
         if (line.is_empty()) {
             // Dispatch the event, as defined below.
@@ -361,7 +404,7 @@ void EventSource::interpret_response(StringView response)
             // Ignore the line.
         }
         // -> If the line contains a U+003A COLON character (:)
-        else if (auto index = line.find(':'); index.has_value()) {
+        else if (auto index = line.find_code_unit_offset(':'); index.has_value()) {
             // Collect the characters on the line before the first U+003A COLON character (:), and let field be that string.
             auto field = line.substring_view(0, *index);
 
@@ -381,32 +424,32 @@ void EventSource::interpret_response(StringView response)
             // string as the field value.
             process_field(line, {});
         }
-    }
+    });
 }
 
 // https://html.spec.whatwg.org/multipage/server-sent-events.html#processField
-void EventSource::process_field(StringView field, StringView value)
+void EventSource::process_field(Utf16View field, Utf16View value)
 {
     // -> If the field name is "event"
-    if (field == "event"sv) {
+    if (field == u"event"sv) {
         // Set the event type buffer to the field value.
-        m_event_type = MUST(String::from_utf8(value));
+        m_event_type = Utf16FlyString::from_utf16(value);
     }
     // -> If the field name is "data"
-    else if (field == "data"sv) {
+    else if (field == u"data"sv) {
         // Append the field value to the data buffer, then append a single U+000A LINE FEED (LF) character to the data buffer.
         m_data.append(value);
-        m_data.append('\n');
+        m_data.append_ascii('\n');
     }
     // -> If the field name is "id"
-    else if (field == "id"sv) {
+    else if (field == u"id"sv) {
         // If the field value does not contain U+0000 NULL, then set the last event ID buffer to the field value.
         // Otherwise, ignore the field.
         if (!value.contains('\0'))
-            m_last_event_id = MUST(String::from_utf8(value));
+            m_last_event_id = Utf16String::from_utf16(value);
     }
     // -> If the field name is "retry"
-    else if (field == "retry"sv) {
+    else if (field == u"retry"sv) {
         // If the field value consists of only ASCII digits, then interpret the field value as an integer in base ten,
         // and set the event stream's reconnection time to that integer. Otherwise, ignore the field.
         if (auto retry = value.to_number<i64>(); retry.has_value())
@@ -427,17 +470,17 @@ void EventSource::dispatch_the_event()
     auto const& last_event_id = m_last_event_id;
 
     // 2. If the data buffer is an empty string, set the data buffer and the event type buffer to the empty string and return.
-    auto data_buffer = m_data.string_view();
+    auto data_buffer = m_data.view();
 
     if (data_buffer.is_empty()) {
-        m_event_type = {};
+        m_event_type = Utf16FlyString {};
         m_data.clear();
         return;
     }
 
     // 3. If the data buffer's last character is a U+000A LINE FEED (LF) character, then remove the last character from the data buffer.
     if (data_buffer.ends_with('\n'))
-        data_buffer = data_buffer.substring_view(0, data_buffer.length() - 1);
+        data_buffer = data_buffer.substring_view(0, data_buffer.length_in_code_units() - 1);
 
     // 4. Let event be the result of creating an event using MessageEvent, in the relevant realm of the EventSource object.
     // 5. Initialize event's type attribute to "message", its data attribute to data, its origin to the origin of the event
@@ -446,14 +489,14 @@ void EventSource::dispatch_the_event()
     // 6. If the event type buffer has a value other than the empty string, change the type of the newly created event to equal
     //    the value of the event type buffer.
     Bindings::MessageEventInit init;
-    init.data = JS::PrimitiveString::create(vm(), Utf16String::from_utf8(data_buffer));
+    init.data = JS::PrimitiveString::create(vm(), data_buffer);
     init.last_event_id = last_event_id;
 
-    auto type = m_event_type.is_empty() ? HTML::EventNames::message : m_event_type;
-    auto event = MessageEvent::create(realm(), type, init, m_url.origin());
+    auto event_type = m_event_type.is_empty() ? HTML::EventNames::message : m_event_type;
+    auto event = MessageEvent::create(realm(), event_type, init, m_url.origin());
 
     // 7. Set the data buffer and the event type buffer to the empty string.
-    m_event_type = {};
+    m_event_type = Utf16FlyString {};
     m_data.clear();
 
     // 8. Queue a task which, if the readyState attribute is set to a value other than CLOSED, dispatches the newly created

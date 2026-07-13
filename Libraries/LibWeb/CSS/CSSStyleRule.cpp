@@ -60,42 +60,42 @@ GC::Ref<StylePropertyMap> CSSStyleRule::style_map()
 }
 
 // https://drafts.csswg.org/cssom-1/#serialize-a-css-rule
-String CSSStyleRule::serialized() const
+Utf16String CSSStyleRule::serialized() const
 {
-    StringBuilder builder;
+    Utf16StringBuilder builder;
 
     // 1. Let s initially be the result of performing serialize a group of selectors on the rule’s associated selectors,
     //    followed by the string " {", i.e., a single SPACE (U+0020), followed by LEFT CURLY BRACKET (U+007B).
-    builder.append(serialize_a_group_of_selectors(selectors()));
-    builder.append(" {"sv);
+    builder.append(selector_text());
+    builder.append_ascii(" {"sv);
 
     // 2. Let decls be the result of performing serialize a CSS declaration block on the rule’s associated declarations,
     //    or null if there are no such declarations.
-    auto decls = declaration().length() > 0 ? declaration().serialized() : Optional<String>();
+    auto decls = declaration().length() > 0 ? Optional<Utf16String> { declaration().serialized() } : Optional<Utf16String> {};
 
     // 3. Let rules be the result of performing serialize a CSS rule on each rule in the rule’s cssRules list,
     //    or null if there are no such rules.
-    Vector<String> rules;
+    Vector<Utf16String> rules;
     for (auto& rule : css_rules()) {
         rules.append(rule->serialized());
     }
 
     // 4. If decls and rules are both null, append " }" to s (i.e. a single SPACE (U+0020) followed by RIGHT CURLY BRACKET (U+007D)) and return s.
     if (!decls.has_value() && rules.is_empty()) {
-        builder.append(" }"sv);
-        return builder.to_string_without_validation();
+        builder.append_ascii(" }"sv);
+        return builder.to_string();
     }
 
     // 5. If rules is null:
     if (rules.is_empty()) {
         // 1. Append a single SPACE (U+0020) to s
-        builder.append(' ');
+        builder.append_ascii(' ');
         // 2. Append decls to s
         builder.append(*decls);
         // 3. Append " }" to s (i.e. a single SPACE (U+0020) followed by RIGHT CURLY BRACKET (U+007D)).
-        builder.append(" }"sv);
+        builder.append_ascii(" }"sv);
         // 4. Return s.
-        return builder.to_string_without_validation();
+        return builder.to_string();
     }
 
     // 6. Otherwise:
@@ -117,22 +117,22 @@ String CSSStyleRule::serialized() const
         }
 
         // 3. Append a newline followed by RIGHT CURLY BRACKET (U+007D) to s.
-        builder.append("\n}"sv);
+        builder.append_ascii("\n}"sv);
 
         // 4. Return s.
-        return builder.to_string_without_validation();
+        return builder.to_string();
     }
 }
 
 // https://drafts.csswg.org/cssom-1/#dom-cssstylerule-selectortext
-String CSSStyleRule::selector_text() const
+Utf16String CSSStyleRule::selector_text() const
 {
     // The selectorText attribute, on getting, must return the result of serializing the associated group of selectors.
     return serialize_a_group_of_selectors(selectors());
 }
 
 // https://drafts.csswg.org/cssom-1/#dom-cssstylerule-selectortext
-void CSSStyleRule::set_selector_text(StringView selector_text)
+void CSSStyleRule::set_selector_text(Utf16View selector_text)
 {
     clear_caches();
 

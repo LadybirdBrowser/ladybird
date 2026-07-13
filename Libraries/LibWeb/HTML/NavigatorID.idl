@@ -1,12 +1,12 @@
 // https://html.spec.whatwg.org/multipage/system-state.html#navigatorid
 interface mixin NavigatorID {
-    readonly attribute DOMString appCodeName; // constant "Mozilla"
-    readonly attribute DOMString appName; // constant "Netscape"
-    readonly attribute DOMString appVersion;
-    readonly attribute DOMString platform;
-    readonly attribute DOMString product; // constant "Gecko"
-    [Exposed=Window] readonly attribute DOMString productSub;
-    readonly attribute DOMString userAgent;
-    [Exposed=Window] readonly attribute DOMString vendor;
-    [Exposed=Window] readonly attribute DOMString vendorSub; // constant ""
+    readonly attribute Utf16DOMString appCodeName; // constant "Mozilla"
+    readonly attribute Utf16DOMString appName; // constant "Netscape"
+    readonly attribute Utf16DOMString appVersion;
+    readonly attribute Utf16DOMString platform;
+    readonly attribute Utf16DOMString product; // constant "Gecko"
+    [Exposed=Window] readonly attribute Utf16DOMString productSub;
+    readonly attribute Utf16DOMString userAgent;
+    [Exposed=Window] readonly attribute Utf16DOMString vendor;
+    [Exposed=Window] readonly attribute Utf16DOMString vendorSub; // constant ""
 };

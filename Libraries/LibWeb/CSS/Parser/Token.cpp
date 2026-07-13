@@ -134,74 +134,107 @@ Token Token::create_whitespace(String original_source_text)
     return token;
 }
 
-String Token::to_string() const
+void Token::serialize_to(Utf16StringBuilder& builder) const
 {
-    StringBuilder builder;
-
     switch (m_type) {
     case Type::EndOfFile:
-        return String {};
+        return;
     case Type::Ident:
-        return serialize_an_identifier(ident());
-    case Type::Function:
-        return MUST(String::formatted("{}(", serialize_an_identifier(function())));
+        serialize_an_identifier(builder, ident());
+        return;
+    case Type::Function: {
+        serialize_an_identifier(builder, function());
+        builder.append_ascii('(');
+        return;
+    }
     case Type::AtKeyword:
-        return MUST(String::formatted("@{}", serialize_an_identifier(at_keyword())));
-    case Type::Hash: {
+        builder.append_ascii('@');
+        serialize_an_identifier(builder, at_keyword());
+        return;
+    case Type::Hash:
+        builder.append_ascii('#');
         switch (hash_type()) {
         case HashType::Id:
-            return MUST(String::formatted("#{}", serialize_an_identifier(hash_value())));
+            serialize_an_identifier(builder, hash_value());
+            return;
         case HashType::Unrestricted:
-            return MUST(String::formatted("#{}", hash_value()));
+            builder.append(hash_value());
+            return;
         }
         VERIFY_NOT_REACHED();
-    }
     case Type::String:
-        return serialize_a_string(string());
+        serialize_a_string(builder, string());
+        return;
     case Type::BadString:
-        return String {};
+        return;
     case Type::Url:
-        return serialize_a_url(url());
+        builder.append_ascii("url("sv);
+        serialize_a_string(builder, url());
+        builder.append_ascii(')');
+        return;
     case Type::BadUrl:
-        return "url()"_string;
+        builder.append_ascii("url()"sv);
+        return;
     case Type::Delim:
-        return String::from_code_point(delim());
+        builder.append_code_point(delim());
+        return;
     case Type::Number:
-        return String::number(m_value.get<Number>().value());
+        builder.appendff("{}", m_value.get<Number>().value());
+        return;
     case Type::Percentage:
-        return MUST(String::formatted("{}%", m_value.get<Number>().value()));
+        builder.appendff("{}%", m_value.get<Number>().value());
+        return;
     case Type::Dimension:
         builder.appendff("{}", m_value.get<DimensionValue>().number.value());
-        builder.append(MUST(dimension_unit().view().to_utf8()));
-        return builder.to_string_without_validation();
+        builder.append(dimension_unit());
+        return;
     case Type::Whitespace:
-        return " "_string;
+        builder.append_ascii(' ');
+        return;
     case Type::CDO:
-        return "<!--"_string;
+        builder.append_ascii("<!--"sv);
+        return;
     case Type::CDC:
-        return "-->"_string;
+        builder.append_ascii("-->"sv);
+        return;
     case Type::Colon:
-        return ":"_string;
+        builder.append_ascii(':');
+        return;
     case Type::Semicolon:
-        return ";"_string;
+        builder.append_ascii(';');
+        return;
     case Type::Comma:
-        return ","_string;
+        builder.append_ascii(',');
+        return;
     case Type::OpenSquare:
-        return "["_string;
+        builder.append_ascii('[');
+        return;
     case Type::CloseSquare:
-        return "]"_string;
+        builder.append_ascii(']');
+        return;
     case Type::OpenParen:
-        return "("_string;
+        builder.append_ascii('(');
+        return;
     case Type::CloseParen:
-        return ")"_string;
+        builder.append_ascii(')');
+        return;
     case Type::OpenCurly:
-        return "{"_string;
+        builder.append_ascii('{');
+        return;
     case Type::CloseCurly:
-        return "}"_string;
+        builder.append_ascii('}');
+        return;
     case Type::Invalid:
     default:
         VERIFY_NOT_REACHED();
     }
+}
+
+Utf16String Token::to_string() const
+{
+    Utf16StringBuilder builder;
+    serialize_to(builder);
+    return builder.to_string();
 }
 
 String Token::to_debug_string() const

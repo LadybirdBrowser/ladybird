@@ -1,7 +1,7 @@
 // https://dom.spec.whatwg.org/#interface-mutationrecord
 [Exposed=Window]
 interface MutationRecord {
-    readonly attribute DOMString type;
+    readonly attribute Utf16DOMString type;
     [SameObject] readonly attribute Node target;
     [SameObject] readonly attribute NodeList addedNodes;
     [SameObject] readonly attribute NodeList removedNodes;
@@ -9,5 +9,5 @@ interface MutationRecord {
     readonly attribute Node? nextSibling;
     readonly attribute Utf16DOMString? attributeName;
     readonly attribute Utf16DOMString? attributeNamespace;
-    readonly attribute DOMString? oldValue;
+    readonly attribute Utf16DOMString? oldValue;
 };

@@ -8,8 +8,8 @@
 
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
-#include <AK/String.h>
 #include <AK/Utf16FlyString.h>
+#include <AK/Utf16String.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CustomPropertyRegistration.h>
 #include <LibWeb/Forward.h>
@@ -29,7 +29,7 @@ public:
     Utf16FlyString const& name() const { return m_name; }
     Utf16FlyString const& syntax() const { return m_syntax; }
     bool inherits() const { return m_inherits; }
-    Optional<String> initial_value() const;
+    Optional<Utf16String> initial_value() const;
     RefPtr<StyleValue const> initial_style_value() const { return m_initial_value; }
 
     CustomPropertyRegistration to_registration() const;
@@ -38,7 +38,7 @@ private:
     CSSPropertyRule(JS::Realm&, Utf16FlyString name, Utf16FlyString syntax, NonnullRefPtr<Parser::SyntaxNode> parsed_syntax, bool inherits, RefPtr<StyleValue const> initial_value);
 
     virtual void initialize(JS::Realm&) override;
-    virtual String serialized() const override;
+    virtual Utf16String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 
     Utf16FlyString m_name;

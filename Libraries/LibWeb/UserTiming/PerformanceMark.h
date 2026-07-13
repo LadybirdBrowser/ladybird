@@ -19,7 +19,7 @@ class PerformanceMark final : public PerformanceTimeline::PerformanceEntry {
 public:
     virtual ~PerformanceMark();
 
-    static WebIDL::ExceptionOr<GC::Ref<PerformanceMark>> construct_impl(JS::Realm&, String const& mark_name, Bindings::PerformanceMarkOptions const& mark_options = {});
+    static WebIDL::ExceptionOr<GC::Ref<PerformanceMark>> construct_impl(JS::Realm&, Utf16String const& mark_name, Bindings::PerformanceMarkOptions const& mark_options = {});
 
     // NOTE: These three functions are answered by the registry for the given entry type.
     // https://w3c.github.io/timing-entrytypes-registry/#registry
@@ -34,12 +34,12 @@ public:
     // https://w3c.github.io/timing-entrytypes-registry/#dfn-should-add-entry
     virtual PerformanceTimeline::ShouldAddEntry should_add_entry(Optional<Bindings::PerformanceObserverInit const&> = {}) const override { return PerformanceTimeline::ShouldAddEntry::Yes; }
 
-    virtual FlyString const& entry_type() const override;
+    virtual Utf16FlyString const& entry_type() const override;
 
     JS::Value detail() const { return m_detail; }
 
 private:
-    PerformanceMark(JS::Realm&, String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, JS::Value detail);
+    PerformanceMark(JS::Realm&, Utf16String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, JS::Value detail);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(JS::Cell::Visitor&) override;

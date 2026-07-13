@@ -1,5 +1,5 @@
 track.kind: subtitles
-track.label: demo label
+track.label: démo label
 track.language: en-GB
 track.mode: hidden
 addtrack event called

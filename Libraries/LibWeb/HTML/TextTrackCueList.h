@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16View.h>
 #include <LibGC/RootVector.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/TextTrackCue.h>
@@ -22,7 +23,7 @@ public:
 
     size_t length() const;
 
-    GC::Ptr<TextTrackCue> get_cue_by_id(StringView id) const;
+    GC::Ptr<TextTrackCue> get_cue_by_id(Utf16View id) const;
 
 private:
     TextTrackCueList(JS::Realm&);

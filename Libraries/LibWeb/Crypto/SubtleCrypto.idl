@@ -9,40 +9,40 @@ enum KeyFormat { "raw-public", "raw-private", "raw-seed", "raw-secret", "raw", "
 
 dictionary RsaOtherPrimesInfo {
     // The following fields are defined in Section 6.3.2.7 of JSON Web Algorithms
-    DOMString r;
-    DOMString d;
-    DOMString t;
+    Utf16DOMString r;
+    Utf16DOMString d;
+    Utf16DOMString t;
 };
 
 // https://wicg.github.io/webcrypto-modern-algos/#partial-JsonWebKey-dictionary
 dictionary JsonWebKey {
     // The following fields are defined in Section 3.1 of JSON Web Key
-    DOMString kty;
-    DOMString use;
-    sequence<DOMString> key_ops;
-    DOMString alg;
+    Utf16DOMString kty;
+    Utf16DOMString use;
+    sequence<Utf16DOMString> key_ops;
+    Utf16DOMString alg;
 
     // The following fields are defined in JSON Web Key Parameters Registration
     boolean ext;
 
     // The following fields are defined in Section 6 of JSON Web Algorithms
-    DOMString crv;
-    DOMString x;
-    DOMString y;
-    DOMString d;
-    DOMString n;
-    DOMString e;
-    DOMString p;
-    DOMString q;
-    DOMString dp;
-    DOMString dq;
-    DOMString qi;
+    Utf16DOMString crv;
+    Utf16DOMString x;
+    Utf16DOMString y;
+    Utf16DOMString d;
+    Utf16DOMString n;
+    Utf16DOMString e;
+    Utf16DOMString p;
+    Utf16DOMString q;
+    Utf16DOMString dp;
+    Utf16DOMString dq;
+    Utf16DOMString qi;
     sequence<RsaOtherPrimesInfo> oth;
-    DOMString k;
+    Utf16DOMString k;
 
     // The following fields are defined in draft-ietf-cose-dilithium-07
-    DOMString pub;
-    DOMString priv;
+    Utf16DOMString pub;
+    Utf16DOMString priv;
 };
 
 // https://wicg.github.io/webcrypto-modern-algos/#encapsulation

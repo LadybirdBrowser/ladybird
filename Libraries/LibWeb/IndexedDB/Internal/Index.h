@@ -15,7 +15,7 @@
 
 namespace Web::IndexedDB {
 
-using KeyPath = Variant<String, Vector<String>>;
+using KeyPath = Variant<Utf16String, Vector<Utf16String>>;
 
 // https://w3c.github.io/IndexedDB/#index-construct
 class Index : public JS::Cell {
@@ -23,11 +23,11 @@ class Index : public JS::Cell {
     GC_DECLARE_ALLOCATOR(Index);
 
 public:
-    [[nodiscard]] static GC::Ref<Index> create(JS::Realm&, GC::Ref<ObjectStore>, String const&, KeyPath const&, bool, bool);
+    [[nodiscard]] static GC::Ref<Index> create(JS::Realm&, GC::Ref<ObjectStore>, Utf16String const&, KeyPath const&, bool, bool);
     virtual ~Index();
 
-    void set_name(String name);
-    [[nodiscard]] String name() const { return m_name; }
+    void set_name(Utf16String name);
+    [[nodiscard]] Utf16String name() const { return m_name; }
     [[nodiscard]] bool unique() const { return m_unique; }
     [[nodiscard]] bool multi_entry() const { return m_multi_entry; }
     [[nodiscard]] GC::Ref<ObjectStore> object_store() const { return m_object_store; }
@@ -53,7 +53,7 @@ protected:
     virtual void visit_edges(Visitor&) override;
 
 private:
-    Index(GC::Ref<ObjectStore>, String const&, KeyPath const&, bool, bool);
+    Index(GC::Ref<ObjectStore>, Utf16String const&, KeyPath const&, bool, bool);
 
     // An index [...] has a referenced object store.
     GC::Ref<ObjectStore> m_object_store;
@@ -62,7 +62,7 @@ private:
     Vector<IndexRecord> m_records;
 
     // An index has a name, which is a name. At any one time, the name is unique within index’s referenced object store.
-    String m_name;
+    Utf16String m_name;
 
     // An index has a unique flag. When true, the index enforces that no two records in the index has the same key.
     bool m_unique { false };

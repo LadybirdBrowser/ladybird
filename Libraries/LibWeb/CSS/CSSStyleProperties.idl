@@ -1,7 +1,7 @@
 // https://drafts.csswg.org/cssom/#cssstyleproperties
 [Exposed=Window]
 interface CSSStyleProperties : CSSStyleDeclaration {
-    [CEReactions, LegacyNullToEmptyString] attribute CSSOMString cssFloat;
+    [CEReactions, LegacyNullToEmptyString] attribute Utf16CSSOMString cssFloat;
 };
 
 CSSStyleProperties includes GeneratedCSSStyleProperties;

@@ -29,10 +29,10 @@ class WheelEvent final : public MouseEvent {
     GC_DECLARE_ALLOCATOR(WheelEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<WheelEvent> create(JS::Realm&, FlyString const& event_name, Bindings::WheelEventInit const& = {}, double page_x = 0, double page_y = 0, double offset_x = 0, double offset_y = 0);
-    [[nodiscard]] static GC::Ref<WheelEvent> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::WheelEventInit const& = {});
+    [[nodiscard]] static GC::Ref<WheelEvent> create(JS::Realm&, Utf16FlyString const& event_name, Bindings::WheelEventInit const& = {}, double page_x = 0, double page_y = 0, double offset_x = 0, double offset_y = 0);
+    [[nodiscard]] static GC::Ref<WheelEvent> construct_impl(JS::Realm&, Utf16FlyString const& event_name, Bindings::WheelEventInit const& = {});
 
-    static WebIDL::ExceptionOr<GC::Ref<WheelEvent>> create_from_platform_event(JS::Realm&, GC::Ptr<HTML::WindowProxy>, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, double delta_x, double delta_y, unsigned button, unsigned buttons, unsigned modifiers, WheelEventIsCancelable = WheelEventIsCancelable::Yes);
+    static WebIDL::ExceptionOr<GC::Ref<WheelEvent>> create_from_platform_event(JS::Realm&, GC::Ptr<HTML::WindowProxy>, Utf16FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, double delta_x, double delta_y, unsigned button, unsigned buttons, unsigned modifiers, WheelEventIsCancelable = WheelEventIsCancelable::Yes);
 
     virtual ~WheelEvent() override;
 
@@ -45,7 +45,7 @@ public:
     WebIDL::Long wheel_delta() const { return m_wheel_delta_y ? m_wheel_delta_y : m_wheel_delta_x; }
 
 private:
-    WheelEvent(JS::Realm&, FlyString const& event_name, Bindings::WheelEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y);
+    WheelEvent(JS::Realm&, Utf16FlyString const& event_name, Bindings::WheelEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y);
 
     virtual void initialize(JS::Realm&) override;
 

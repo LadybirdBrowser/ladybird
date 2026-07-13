@@ -1,15 +1,15 @@
 // https://html.spec.whatwg.org/multipage/webstorage.html#storageevent
 [Exposed=Window]
 interface StorageEvent : Event {
-    constructor(DOMString type, optional StorageEventInit eventInitDict = {});
+    constructor([Utf16FlyString] Utf16DOMString type, optional StorageEventInit eventInitDict = {});
 
     readonly attribute Utf16DOMString? key;
     readonly attribute Utf16DOMString? oldValue;
     readonly attribute Utf16DOMString? newValue;
-    readonly attribute USVString url;
+    readonly attribute Utf16USVString url;
     readonly attribute Storage? storageArea;
 
-    undefined initStorageEvent(DOMString type, optional boolean bubbles = false, optional boolean cancelable = false, optional Utf16DOMString? key = null, optional Utf16DOMString? oldValue = null, optional Utf16DOMString? newValue = null, optional USVString url = "", optional Storage? storageArea = null);
+    undefined initStorageEvent([Utf16FlyString] Utf16DOMString type, optional boolean bubbles = false, optional boolean cancelable = false, optional Utf16DOMString? key = null, optional Utf16DOMString? oldValue = null, optional Utf16DOMString? newValue = null, optional Utf16USVString url = "", optional Storage? storageArea = null);
 };
 
 // https://html.spec.whatwg.org/multipage/webstorage.html#storageeventinit
@@ -17,6 +17,6 @@ dictionary StorageEventInit : EventInit {
     Utf16DOMString? key = null;
     Utf16DOMString? oldValue = null;
     Utf16DOMString? newValue = null;
-    USVString url = "";
+    Utf16USVString url = "";
     Storage? storageArea = null;
 };

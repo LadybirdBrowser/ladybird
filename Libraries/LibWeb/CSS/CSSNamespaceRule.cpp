@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Utf16StringBuilder.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/CSSNamespaceRule.h>
@@ -37,26 +38,26 @@ void CSSNamespaceRule::initialize(JS::Realm& realm)
 }
 
 // https://www.w3.org/TR/cssom/#serialize-a-css-rule
-String CSSNamespaceRule::serialized() const
+Utf16String CSSNamespaceRule::serialized() const
 {
-    StringBuilder builder;
+    Utf16StringBuilder builder;
     // The literal string "@namespace", followed by a single SPACE (U+0020),
-    builder.append("@namespace "sv);
+    builder.append_ascii("@namespace "sv);
 
     // followed by the serialization as an identifier of the prefix attribute (if any),
     if (!m_prefix.is_empty()) {
         serialize_an_identifier(builder, m_prefix);
         // followed by a single SPACE (U+0020) if there is a prefix,
-        builder.append(" "sv);
+        builder.append_ascii(' ');
     }
 
     //  followed by the serialization as URL of the namespaceURI attribute,
     serialize_a_url(builder, m_namespace_uri);
 
     // followed the character ";" (U+003B).
-    builder.append(";"sv);
+    builder.append_ascii(';');
 
-    return MUST(builder.to_string());
+    return builder.to_string();
 }
 
 void CSSNamespaceRule::dump(StringBuilder& builder, int indent_levels) const

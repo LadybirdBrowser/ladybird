@@ -1,0 +1,10 @@
+navigator.plugins is present: true
+navigator.mimeTypes is present: true
+plugin.description is a string: true
+plugin.filename is a string: true
+plugin.description matches: true
+plugin.filename matches: true
+mimeType.description is a string: true
+mimeType.suffixes is a string: true
+mimeType.description matches: true
+mimeType.suffixes matches: true

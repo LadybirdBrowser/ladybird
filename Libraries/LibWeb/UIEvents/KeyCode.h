@@ -9,8 +9,8 @@
 
 #include <AK/EnumBits.h>
 #include <AK/Platform.h>
-#include <AK/StringView.h>
 #include <AK/Types.h>
+#include <AK/Utf16View.h>
 
 namespace Web::UIEvents {
 
@@ -158,10 +158,10 @@ enum KeyCode : u8 {
 #undef __ENUMERATE_KEY_CODE
 };
 
-constexpr KeyCode key_code_from_string(StringView key_name)
+constexpr KeyCode key_code_from_string(Utf16View key_name)
 {
 #define __ENUMERATE_KEY_CODE(name, ui_name, code) \
-    if (key_name == ui_name##sv)                  \
+    if (key_name == u##ui_name##sv)               \
         return KeyCode::Key_##name;
     ENUMERATE_KEY_CODES
 #undef __ENUMERATE_KEY_CODE

@@ -9,6 +9,7 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibGC/HeapVector.h>
@@ -30,8 +31,8 @@ public:
     // * a DOMString if type is string,
     // * a byte sequence if type is binary,
     // * a list of other keys if type is array.
-    using KeyValue = Variant<double, AK::String, ByteBuffer, GC::Root<GC::HeapVector<GC::Ref<Key>>>>;
-    using KeyValueInternal = Variant<double, AK::String, ByteBuffer, GC::Ref<GC::HeapVector<GC::Ref<Key>>>>;
+    using KeyValue = Variant<double, Utf16String, ByteBuffer, GC::Root<GC::HeapVector<GC::Ref<Key>>>>;
+    using KeyValueInternal = Variant<double, Utf16String, ByteBuffer, GC::Ref<GC::HeapVector<GC::Ref<Key>>>>;
 
     // A key has an associated type which is one of: number, date, string, binary, or array.
     enum KeyType {
@@ -46,16 +47,16 @@ public:
     [[nodiscard]] static GC::Ref<Key> create(JS::Realm&, KeyType, KeyValue);
     virtual ~Key();
 
-    [[nodiscard]] KeyType type() { return m_type; }
+    [[nodiscard]] KeyType type() const { return m_type; }
     [[nodiscard]] KeyValue value();
 
-    [[nodiscard]] bool is_invalid() { return m_type == Invalid; }
+    [[nodiscard]] bool is_invalid() const { return m_type == Invalid; }
 
-    [[nodiscard]] double value_as_double() { return m_value.get<double>(); }
-    [[nodiscard]] AK::String value_as_string() { return m_value.get<AK::String>(); }
-    [[nodiscard]] ByteBuffer value_as_byte_buffer() { return m_value.get<ByteBuffer>(); }
-    [[nodiscard]] ReadonlySpan<GC::Ref<Key>> value_as_vector() { return m_value.get<GC::Ref<GC::HeapVector<GC::Ref<Key>>>>()->elements(); }
-    [[nodiscard]] ReadonlySpan<GC::Ref<Key>> subkeys()
+    [[nodiscard]] double value_as_double() const { return m_value.get<double>(); }
+    [[nodiscard]] Utf16String const& value_as_string() const { return m_value.get<Utf16String>(); }
+    [[nodiscard]] ByteBuffer const& value_as_byte_buffer() const { return m_value.get<ByteBuffer>(); }
+    [[nodiscard]] ReadonlySpan<GC::Ref<Key>> value_as_vector() const { return m_value.get<GC::Ref<GC::HeapVector<GC::Ref<Key>>>>()->elements(); }
+    [[nodiscard]] ReadonlySpan<GC::Ref<Key>> subkeys() const
     {
         VERIFY(m_type == Array);
         return value_as_vector();
@@ -63,10 +64,10 @@ public:
 
     [[nodiscard]] static GC::Ref<Key> create_number(JS::Realm& realm, double value) { return create(realm, Number, value); }
     [[nodiscard]] static GC::Ref<Key> create_date(JS::Realm& realm, double value) { return create(realm, Date, value); }
-    [[nodiscard]] static GC::Ref<Key> create_string(JS::Realm& realm, AK::String const& value) { return create(realm, String, value); }
+    [[nodiscard]] static GC::Ref<Key> create_string(JS::Realm& realm, Utf16String const& value) { return create(realm, String, value); }
     [[nodiscard]] static GC::Ref<Key> create_binary(JS::Realm& realm, ByteBuffer const& value) { return create(realm, Binary, value); }
     [[nodiscard]] static GC::Ref<Key> create_array(JS::Realm& realm, GC::Root<GC::HeapVector<GC::Ref<Key>>> const& value) { return create(realm, Array, value); }
-    [[nodiscard]] static GC::Ref<Key> create_invalid(JS::Realm& realm, AK::String const& value) { return create(realm, Invalid, value); }
+    [[nodiscard]] static GC::Ref<Key> create_invalid(JS::Realm& realm, Utf16String const& value) { return create(realm, Invalid, value); }
 
     [[nodiscard]] static i8 compare_two_keys(GC::Ref<Key> a, GC::Ref<Key> b);
     [[nodiscard]] static bool equals(GC::Ref<Key> a, GC::Ref<Key> b) { return compare_two_keys(a, b) == 0; }

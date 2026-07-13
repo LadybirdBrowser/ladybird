@@ -7,6 +7,7 @@
  */
 
 #include <AK/AnyOf.h>
+#include <AK/Array.h>
 #include <AK/Assertions.h>
 #include <AK/Checked.h>
 #include <AK/Debug.h>
@@ -14,7 +15,7 @@
 #include <AK/JsonObjectSerializer.h>
 #include <AK/NumericLimits.h>
 #include <AK/SaturatingMath.h>
-#include <AK/StringBuilder.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibJS/Runtime/NativeFunction.h>
@@ -253,6 +254,27 @@ Optional<Utf16String> Element::get_attribute(Utf16FlyString const& name) const
     return {};
 }
 
+Optional<Utf16View> Element::get_attribute_value_view(Utf16FlyString const& name) const
+{
+    if (!m_attributes)
+        return {};
+
+    Utf16FlyString const* effective_name = &name;
+    Utf16FlyString lowercase_name;
+    if (namespace_uri() == Namespace::HTML && document().is_html_document()) {
+        lowercase_name = name.to_ascii_lowercase();
+        effective_name = &lowercase_name;
+    }
+
+    for (size_t i = 0; i < m_attributes->length(); ++i) {
+        auto const* attribute = m_attributes->item(i);
+        if (*effective_name == attribute->name())
+            return attribute->value().utf16_view();
+    }
+
+    return {};
+}
+
 // https://dom.spec.whatwg.org/#dom-element-getattributens
 Optional<Utf16String> Element::get_attribute_ns(Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& name) const
 {
@@ -308,7 +330,9 @@ Utf16String Element::get_an_elements_target(Optional<Utf16String> target) const
         target = "_blank"_utf16;
 
     // 3. Return target.
-    return target.value_or({});
+    if (target.has_value())
+        return target.release_value();
+    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#get-an-element's-noopener
@@ -316,7 +340,7 @@ HTML::TokenizedFeature::NoOpener Element::get_an_elements_noopener(URL::URL cons
 {
     // To get an element's noopener, given an a, area, or form element element, a URL record url, and a string target,
     // perform the following steps. They return a boolean.
-    auto link_types = get_attribute_value(HTML::AttributeNames::rel);
+    auto link_types = get_attribute_value_view(HTML::AttributeNames::rel).value_or({});
     auto has_link_type = [&](Utf16View link_type) {
         size_t start = 0;
         for (size_t i = 0; i <= link_types.length_in_code_units(); ++i) {
@@ -336,7 +360,7 @@ HTML::TokenizedFeature::NoOpener Element::get_an_elements_noopener(URL::URL cons
 
     // 2. If element's link types do not include the opener keyword and
     //    target is an ASCII case-insensitive match for "_blank", then return true.
-    if (!has_link_type(u"opener"sv) && target.equals_ignoring_ascii_case("_blank"sv))
+    if (!has_link_type(u"opener"sv) && target.equals_ignoring_ascii_case(u"_blank"sv))
         return HTML::TokenizedFeature::NoOpener::Yes;
 
     // 3. If url's blob URL entry is not null:
@@ -370,7 +394,7 @@ bool Element::cannot_navigate() const
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#following-hyperlinks-2
-void Element::follow_the_hyperlink(Optional<String> hyperlink_suffix, HTML::UserNavigationInvolvement user_involvement)
+void Element::follow_the_hyperlink(Optional<Utf16String> hyperlink_suffix, HTML::UserNavigationInvolvement user_involvement)
 {
     // 1. If subject cannot navigate, then return.
     if (cannot_navigate())
@@ -384,7 +408,7 @@ void Element::follow_the_hyperlink(Optional<String> hyperlink_suffix, HTML::User
         target_attribute_value = get_an_elements_target();
 
     // 4. Let urlRecord be the result of encoding-parsing a URL given subject's href attribute value, relative to subject's node document.
-    auto url_record = document().encoding_parse_url(get_attribute_value(HTML::AttributeNames::href));
+    auto url_record = document().encoding_parse_url(get_attribute_value_view(HTML::AttributeNames::href).value_or({}));
 
     // 5. If urlRecord is failure, then return.
     if (!url_record.has_value())
@@ -395,8 +419,7 @@ void Element::follow_the_hyperlink(Optional<String> hyperlink_suffix, HTML::User
 
     // 7. Let targetNavigable be the first return value of applying the rules for choosing a navigable given
     //    targetAttributeValue, subject's node navigable, and noopener.
-    auto target_attribute_value_utf8 = target_attribute_value.to_utf8();
-    auto target_navigable = document().navigable()->choose_a_navigable(target_attribute_value_utf8, noopener).navigable;
+    auto target_navigable = document().navigable()->choose_a_navigable(target_attribute_value, noopener).navigable;
 
     // 8. If targetNavigable is null, then return.
     if (!target_navigable)
@@ -406,16 +429,24 @@ void Element::follow_the_hyperlink(Optional<String> hyperlink_suffix, HTML::User
     auto url_string = url_record->serialize();
 
     // 10. If hyperlinkSuffix is non-null, then append it to urlString.
-    if (hyperlink_suffix.has_value())
-        url_string = MUST(String::formatted("{}{}", url_string, *hyperlink_suffix));
+    Optional<Utf16String> url_string_with_suffix;
+    if (hyperlink_suffix.has_value()) {
+        Utf16StringBuilder url_string_builder;
+        url_string_builder.append_ascii(url_string.bytes_as_string_view());
+        url_string_builder.append(hyperlink_suffix->utf16_view());
+        url_string_with_suffix = url_string_builder.to_string();
+    }
 
     // 11. Let referrerPolicy be the current state of subject's referrerpolicy content attribute.
-    auto referrer_policy = ReferrerPolicy::from_string(attribute(HTML::AttributeNames::referrerpolicy).value_or({})).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
+    auto referrer_policy_attribute = attribute(HTML::AttributeNames::referrerpolicy);
+    auto referrer_policy = ReferrerPolicy::from_string(referrer_policy_attribute.has_value() ? referrer_policy_attribute->utf16_view() : u""sv).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
 
     // FIXME: 12. If subject's link types includes the noreferrer keyword, then set referrerPolicy to "no-referrer".
 
     // 13. Navigate targetNavigable to urlString using subject's node document, with referrerPolicy set to referrerPolicy and userInvolvement set to userInvolvement.
-    auto url = URL::Parser::basic_parse(url_string);
+    auto url = url_string_with_suffix.has_value()
+        ? URL::Parser::basic_parse(url_string_with_suffix->utf16_view())
+        : URL::Parser::basic_parse(url_string);
     VERIFY(url.has_value());
     MUST(target_navigable->navigate({ .url = url.release_value(), .source_document = document(), .referrer_policy = referrer_policy, .user_involvement = user_involvement }));
 }
@@ -442,32 +473,30 @@ GC::Ptr<Attr> Element::get_attribute_node_ns(Optional<Utf16FlyString> const& nam
 WebIDL::ExceptionOr<void> Element::set_attribute_for_bindings(Utf16FlyString qualified_name, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> const& value)
 {
     // 1. If qualifiedName is not a valid attribute local name, then throw an "InvalidCharacterError" DOMException.
-    if (!is_valid_attribute_local_name(qualified_name))
+    if (!is_valid_attribute_local_name(qualified_name.view()))
         return WebIDL::InvalidCharacterError::create(realm(), "Attribute name must not be empty or contain invalid characters"_utf16);
 
     // 2. If this is in the HTML namespace and its node document is an HTML document, then set qualifiedName to
     //    qualifiedName in ASCII lowercase.
-    if (namespace_uri() == Namespace::HTML && document().document_type() == Document::Type::HTML) {
-        auto lowercase_qualified_name = qualified_name.view().to_ascii_lowercase();
-        qualified_name = Utf16FlyString::from_utf16(lowercase_qualified_name.utf16_view());
-    }
+    if (namespace_uri() == Namespace::HTML && document().document_type() == Document::Type::HTML)
+        qualified_name = qualified_name.to_ascii_lowercase();
 
     // 3. Let verifiedValue be the result of calling get Trusted Types-compliant attribute value
     //    with qualifiedName, null, this, and value.
-    auto const verified_value = TRY(TrustedTypes::get_trusted_types_compliant_attribute_value(qualified_name, {}, *this, value));
+    auto verified_value = TRY(TrustedTypes::get_trusted_types_compliant_attribute_value(qualified_name, {}, *this, value));
 
     // 4. Let attribute be the first attribute in this’s attribute list whose qualified name is qualifiedName, and null otherwise.
     auto* attribute = attributes()->get_attribute(qualified_name);
 
     // 5. If attribute is non-null, then change attribute to verifiedValue and return.
     if (attribute) {
-        attribute->change_attribute(verified_value);
+        attribute->change_attribute(move(verified_value));
         return {};
     }
 
     // 6. Set attribute to a new attribute whose local name is qualifiedName, value is verifiedValue,
     //    and node document is this’s node document.
-    attribute = Attr::create(document(), qualified_name, verified_value);
+    attribute = Attr::create(document(), qualified_name, move(verified_value));
 
     // 7. Append attribute to this.
     m_attributes->append_attribute(*attribute);
@@ -476,19 +505,19 @@ WebIDL::ExceptionOr<void> Element::set_attribute_for_bindings(Utf16FlyString qua
 }
 
 // https://dom.spec.whatwg.org/#valid-namespace-prefix
-bool is_valid_namespace_prefix(Utf16FlyString const& prefix)
+bool is_valid_namespace_prefix(Utf16View prefix)
 {
     // A string is a valid namespace prefix if its length is at least 1 and it does not contain ASCII whitespace, U+0000 NULL, U+002F (/), or U+003E (>).
     constexpr Array<u32, 8> INVALID_NAMESPACE_PREFIX_CHARACTERS { '\t', '\n', '\f', '\r', ' ', '\0', '/', '>' };
-    return !prefix.is_empty() && !prefix.view().contains_any_of(INVALID_NAMESPACE_PREFIX_CHARACTERS);
+    return !prefix.is_empty() && !prefix.contains_any_of(INVALID_NAMESPACE_PREFIX_CHARACTERS);
 }
 
 // https://dom.spec.whatwg.org/#valid-attribute-local-name
-bool is_valid_attribute_local_name(Utf16FlyString const& local_name)
+bool is_valid_attribute_local_name(Utf16View local_name)
 {
     // A string is a valid attribute local name if its length is at least 1 and it does not contain ASCII whitespace, U+0000 NULL, U+002F (/), U+003D (=), or U+003E (>).
     constexpr Array<u32, 9> INVALID_ATTRIBUTE_LOCAL_NAME_CHARACTERS { '\t', '\n', '\f', '\r', ' ', '\0', '/', '=', '>' };
-    return !local_name.is_empty() && !local_name.view().contains_any_of(INVALID_ATTRIBUTE_LOCAL_NAME_CHARACTERS);
+    return !local_name.is_empty() && !local_name.contains_any_of(INVALID_ATTRIBUTE_LOCAL_NAME_CHARACTERS);
 }
 
 bool is_valid_element_local_name(Utf16View const& name)
@@ -533,54 +562,58 @@ WebIDL::ExceptionOr<QualifiedName> validate_and_extract(JS::Realm& realm, Option
         namespace_ = {};
 
     // 2. Let prefix be null.
-    Optional<Utf16FlyString> prefix = {};
+    Optional<Utf16View> prefix_view = {};
 
     // 3. Let localName be qualifiedName.
-    auto local_name = qualified_name;
+    auto qualified_name_view = qualified_name.view();
+    auto local_name_view = qualified_name_view;
 
     // 4. If qualifiedName contains a U+003A (:):
-    auto qualified_name_view = qualified_name.view();
     auto colon_position = qualified_name_view.find_code_unit_offset(':');
     if (colon_position.has_value()) {
         // 1. Set prefix to the part of qualifiedName before the first U+003A (:).
-        prefix = Utf16FlyString::from_utf16(qualified_name_view.substring_view(0, *colon_position));
+        prefix_view = qualified_name_view.substring_view(0, *colon_position);
 
         // 2. Set localName to the part of qualifiedName after the first U+003A (:).
-        local_name = Utf16FlyString::from_utf16(qualified_name_view.substring_view(*colon_position + 1));
+        local_name_view = qualified_name_view.substring_view(*colon_position + 1);
 
         // 3. If prefix is not a valid namespace prefix, then throw an "InvalidCharacterError" DOMException.
-        if (!is_valid_namespace_prefix(*prefix))
+        if (!is_valid_namespace_prefix(*prefix_view))
             return WebIDL::InvalidCharacterError::create(realm, "Prefix not a valid namespace prefix."_utf16);
     }
 
     // 5. Assert: prefix is either null or a valid namespace prefix.
-    ASSERT(!prefix.has_value() || is_valid_namespace_prefix(*prefix));
+    ASSERT(!prefix_view.has_value() || is_valid_namespace_prefix(*prefix_view));
 
     // 6. If context is "attribute" and localName is not a valid attribute local name, then throw an "InvalidCharacterError" DOMException.
-    if (context == ValidationContext::Attribute && !is_valid_attribute_local_name(local_name))
+    if (context == ValidationContext::Attribute && !is_valid_attribute_local_name(local_name_view))
         return WebIDL::InvalidCharacterError::create(realm, "Local name not a valid attribute local name."_utf16);
 
     // 7. If context is "element" and localName is not a valid element local name, then throw an "InvalidCharacterError" DOMException.
-    if (context == ValidationContext::Element && !is_valid_element_local_name(local_name))
+    if (context == ValidationContext::Element && !is_valid_element_local_name(local_name_view))
         return WebIDL::InvalidCharacterError::create(realm, "Local name not a valid element local name."_utf16);
 
     // 8. If prefix is non-null and namespace is null, then throw a "NamespaceError" DOMException.
-    if (prefix.has_value() && !namespace_.has_value())
+    if (prefix_view.has_value() && !namespace_.has_value())
         return WebIDL::NamespaceError::create(realm, "Prefix is non-null and namespace is null."_utf16);
 
     // 9. If prefix is "xml" and namespace is not the XML namespace, then throw a "NamespaceError" DOMException.
-    if (prefix == "xml"sv && namespace_ != Namespace::XML)
+    if (prefix_view.has_value() && *prefix_view == u"xml"sv && namespace_ != Namespace::XML)
         return WebIDL::NamespaceError::create(realm, "Prefix is 'xml' and namespace is not the XML namespace."_utf16);
 
     // 10. If either qualifiedName or prefix is "xmlns" and namespace is not the XMLNS namespace, then throw a "NamespaceError" DOMException.
-    if ((qualified_name == "xmlns"sv || prefix == "xmlns"sv) && namespace_ != Namespace::XMLNS)
+    if ((qualified_name_view == u"xmlns"sv || (prefix_view.has_value() && *prefix_view == u"xmlns"sv)) && namespace_ != Namespace::XMLNS)
         return WebIDL::NamespaceError::create(realm, "Either qualifiedName or prefix is 'xmlns' and namespace is not the XMLNS namespace."_utf16);
 
     // 11. If namespace is the XMLNS namespace and neither qualifiedName nor prefix is "xmlns", then throw a "NamespaceError" DOMException.
-    if (namespace_ == Namespace::XMLNS && !(qualified_name == "xmlns"sv || prefix == "xmlns"sv))
+    if (namespace_ == Namespace::XMLNS && !(qualified_name_view == u"xmlns"sv || (prefix_view.has_value() && *prefix_view == u"xmlns"sv)))
         return WebIDL::NamespaceError::create(realm, "Namespace is the XMLNS namespace and neither qualifiedName nor prefix is 'xmlns'."_utf16);
 
     // 12. Return (namespace, prefix, localName).
+    auto local_name = colon_position.has_value() ? Utf16FlyString::from_utf16(local_name_view) : qualified_name;
+    Optional<Utf16FlyString> prefix;
+    if (prefix_view.has_value())
+        prefix = Utf16FlyString::from_utf16(*prefix_view);
     return QualifiedName { local_name, prefix, namespace_ };
 }
 
@@ -592,24 +625,19 @@ WebIDL::ExceptionOr<void> Element::set_attribute_ns_for_bindings(Optional<Utf16F
 
     // 2. Let verifiedValue be the result of calling get Trusted Types-compliant attribute value
     //    with localName, namespace, this, and value.
-    auto const verified_value = TRY(TrustedTypes::get_trusted_types_compliant_attribute_value(
+    auto verified_value = TRY(TrustedTypes::get_trusted_types_compliant_attribute_value(
         extracted_qualified_name.local_name(),
         extracted_qualified_name.namespace_(),
         *this,
         value));
 
     // 3. Set an attribute value for this using localName, verifiedValue, and also prefix and namespace.
-    set_attribute_value(extracted_qualified_name.local_name(), verified_value, extracted_qualified_name.prefix(), extracted_qualified_name.namespace_());
+    set_attribute_value(extracted_qualified_name.local_name(), move(verified_value), extracted_qualified_name.prefix(), extracted_qualified_name.namespace_());
 
     return {};
 }
 
 // https://dom.spec.whatwg.org/#concept-element-attributes-append
-void Element::append_attribute(Utf16FlyString const& name, Utf16String const& value)
-{
-    attributes()->append_attribute(Attr::create(document(), name, value));
-}
-
 // https://dom.spec.whatwg.org/#concept-element-attributes-append
 void Element::append_attribute(Attr& attribute)
 {
@@ -617,7 +645,12 @@ void Element::append_attribute(Attr& attribute)
 }
 
 // https://dom.spec.whatwg.org/#concept-element-attributes-set-value
-void Element::set_attribute_value(Utf16FlyString const& local_name, Utf16String const& value, Optional<Utf16FlyString> const& prefix, Optional<Utf16FlyString> const& namespace_)
+void Element::set_attribute_value(Utf16FlyString const& local_name, Utf16View value, Optional<Utf16FlyString> const& prefix, Optional<Utf16FlyString> const& namespace_)
+{
+    set_attribute_value(local_name, Utf16String::from_utf16(value), prefix, namespace_);
+}
+
+void Element::set_attribute_value(Utf16FlyString const& local_name, Utf16String value, Optional<Utf16FlyString> const& prefix, Optional<Utf16FlyString> const& namespace_)
 {
     // 1. Let attribute be the result of getting an attribute given namespace, localName, and element.
     auto* attribute = attributes()->get_attribute_ns(namespace_, local_name);
@@ -628,14 +661,14 @@ void Element::set_attribute_value(Utf16FlyString const& local_name, Utf16String 
     if (!attribute) {
         QualifiedName name { local_name, prefix, namespace_ };
 
-        auto new_attribute = Attr::create(document(), move(name), value);
+        auto new_attribute = Attr::create(document(), move(name), move(value));
         m_attributes->append_attribute(new_attribute);
 
         return;
     }
 
     // 3. Change attribute to value.
-    attribute->change_attribute(value);
+    attribute->change_attribute(move(value));
 }
 
 // https://dom.spec.whatwg.org/#dom-element-setattributenode
@@ -687,7 +720,7 @@ WebIDL::ExceptionOr<GC::Ref<Attr>> Element::remove_attribute_node(GC::Ref<Attr> 
 // https://dom.spec.whatwg.org/#dom-element-hasattribute
 bool Element::has_attribute(Utf16FlyString const& name) const
 {
-    return get_attribute(name).has_value();
+    return get_attribute_value_view(name).has_value();
 }
 
 // https://dom.spec.whatwg.org/#dom-element-hasattributens
@@ -708,15 +741,13 @@ bool Element::has_attribute_ns(Optional<Utf16FlyString> const& namespace_, Utf16
 WebIDL::ExceptionOr<bool> Element::toggle_attribute(Utf16FlyString const& name, Optional<bool> force)
 {
     // 1. If qualifiedName is not a valid attribute local name, then throw an "InvalidCharacterError" DOMException.
-    if (!is_valid_attribute_local_name(name))
+    if (!is_valid_attribute_local_name(name.view()))
         return WebIDL::InvalidCharacterError::create(realm(), "Attribute name must not be empty or contain invalid characters"_utf16);
 
     // 2. If this is in the HTML namespace and its node document is an HTML document, then set qualifiedName to qualifiedName in ASCII lowercase.
     auto effective_name = name;
-    if (namespace_uri() == Namespace::HTML && document().document_type() == Document::Type::HTML) {
-        auto lowercase_name = name.view().to_ascii_lowercase();
-        effective_name = Utf16FlyString::from_utf16(lowercase_name.utf16_view());
-    }
+    if (namespace_uri() == Namespace::HTML && document().document_type() == Document::Type::HTML)
+        effective_name = name.to_ascii_lowercase();
 
     // 3. Let attribute be the first attribute in this’s attribute list whose qualified name is qualifiedName, and null otherwise.
     auto* attribute = attributes()->get_attribute(effective_name);
@@ -848,7 +879,7 @@ Optional<GC::RootVector<GC::Ref<DOM::Element>>> Element::get_the_attribute_assoc
 
 RefPtr<Layout::Node> Element::create_layout_node(CSS::ComputedProperties const& style)
 {
-    if (local_name() == "noscript"sv && document().is_scripting_enabled())
+    if (local_name() == u"noscript"sv && document().is_scripting_enabled())
         return nullptr;
 
     auto display = style.display();
@@ -1477,7 +1508,7 @@ GC::Ptr<ShadowRoot> Element::shadow_root_for_bindings() const
 }
 
 // https://dom.spec.whatwg.org/#dom-element-matches
-WebIDL::ExceptionOr<bool> Element::matches(StringView selectors) const
+WebIDL::ExceptionOr<bool> Element::matches(Utf16View selectors) const
 {
     // 1. Let s be the result of parse a selector from selectors.
     auto query = document().selector_query_for(selectors);
@@ -1496,7 +1527,7 @@ WebIDL::ExceptionOr<bool> Element::matches(StringView selectors) const
 }
 
 // https://dom.spec.whatwg.org/#dom-element-closest
-WebIDL::ExceptionOr<DOM::Element const*> Element::closest(StringView selectors) const
+WebIDL::ExceptionOr<DOM::Element const*> Element::closest(Utf16View selectors) const
 {
     // 1. Let s be the result of parse a selector from selectors.
     auto query = document().selector_query_for(selectors);
@@ -1539,7 +1570,7 @@ WebIDL::ExceptionOr<void> Element::set_inner_html(TrustedTypes::TrustedHTMLOrStr
         HTML::relevant_global_object(*this),
         value,
         TrustedTypes::InjectionSink::Element_innerHTML,
-        TrustedTypes::Script.to_string()));
+        TrustedTypes::Script.view()));
 
     // 2. Let target be this.
     Variant<GC::Ref<Element>, GC::Ref<DocumentFragment>> target = GC::Ref { *this };
@@ -2153,7 +2184,7 @@ bool Element::matches_local_link_pseudo_class() const
     if (!matches_link_pseudo_class())
         return false;
     auto document_url = document().url();
-    auto maybe_href = attribute(HTML::AttributeNames::href);
+    auto maybe_href = get_attribute_value_view(HTML::AttributeNames::href);
     if (!maybe_href.has_value())
         return false;
     auto target_url = document().encoding_parse_url(*maybe_href);
@@ -2212,7 +2243,7 @@ void Element::clear_synthetic_pseudo_element_layout_nodes()
     });
 }
 
-void Element::serialize_children_as_json(JsonObjectSerializer<StringBuilder>& element_object) const
+void Element::serialize_children_as_json(JsonObjectSerializer<Utf16StringBuilder>& element_object) const
 {
     bool has_pseudo_elements = this->has_synthetic_pseudo_elements();
     if (!is_shadow_host() && !has_child_nodes() && !has_pseudo_elements)
@@ -2225,7 +2256,8 @@ void Element::serialize_children_as_json(JsonObjectSerializer<StringBuilder>& el
         if (!pseudo_element.layout_node())
             return;
         auto object = MUST(children.add_object());
-        MUST(object.add("name"sv, MUST(String::formatted("::{}", CSS::pseudo_element_name(pseudo_element_type)))));
+        auto pseudo_element_name = Utf16String::formatted("::{}", CSS::pseudo_element_name(pseudo_element_type));
+        MUST(object.add("name"sv, pseudo_element_name.utf16_view()));
         MUST(object.add("type"sv, "pseudo-element"));
         MUST(object.add("parent-id"sv, unique_id().value()));
         MUST(object.add("pseudo-element"sv, to_underlying(pseudo_element_type)));
@@ -2695,7 +2727,7 @@ WebIDL::ExceptionOr<void> Element::set_outer_html(TrustedTypes::TrustedHTMLOrStr
         HTML::relevant_global_object(*this),
         value,
         TrustedTypes::InjectionSink::Element_outerHTML,
-        TrustedTypes::Script.to_string()));
+        TrustedTypes::Script.view()));
 
     // 2. Let parent be this's parent.
     auto* parent = this->parent();
@@ -2722,7 +2754,7 @@ WebIDL::ExceptionOr<void> Element::set_outer_html(TrustedTypes::TrustedHTMLOrStr
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#the-insertadjacenthtml()-method
-WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, TrustedTypes::TrustedHTMLOrString const& string)
+WebIDL::ExceptionOr<void> Element::insert_adjacent_html(Utf16View position, TrustedTypes::TrustedHTMLOrString const& string)
 {
     // 1. Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with
     //    TrustedHTML, this's relevant global object, string, "Element insertAdjacentHTML", and "script".
@@ -2731,7 +2763,7 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
         HTML::relevant_global_object(*this),
         string,
         TrustedTypes::InjectionSink::Element_insertAdjacentHTML,
-        TrustedTypes::Script.to_string()));
+        TrustedTypes::Script.view()));
 
     // 2. Let context be null.
     GC::Ptr<Node> context;
@@ -2739,8 +2771,8 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
     // 3. Use the first matching item from this list:
     // - If position is an ASCII case-insensitive match for the string "beforebegin"
     // - If position is an ASCII case-insensitive match for the string "afterend"
-    if (position.equals_ignoring_ascii_case("beforebegin"sv)
-        || position.equals_ignoring_ascii_case("afterend"sv)) {
+    if (position.equals_ignoring_ascii_case(u"beforebegin"sv)
+        || position.equals_ignoring_ascii_case(u"afterend"sv)) {
         // 1. Set context to this's parent.
         context = this->parent();
 
@@ -2750,8 +2782,8 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
     }
     // - If position is an ASCII case-insensitive match for the string "afterbegin"
     // - If position is an ASCII case-insensitive match for the string "beforeend"
-    else if (position.equals_ignoring_ascii_case("afterbegin"sv)
-        || position.equals_ignoring_ascii_case("beforeend"sv)) {
+    else if (position.equals_ignoring_ascii_case(u"afterbegin"sv)
+        || position.equals_ignoring_ascii_case(u"beforeend"sv)) {
         // Set context to this.
         context = this;
     }
@@ -2767,7 +2799,7 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
     //    - context's namespace is the HTML namespace;
     if (!is<Element>(*context)
         || (context->document().document_type() == Document::Type::HTML
-            && static_cast<Element const&>(*context).local_name() == "html"sv
+            && static_cast<Element const&>(*context).local_name() == u"html"sv
             && static_cast<Element const&>(*context).namespace_uri() == Namespace::HTML)) {
         // then set context to the result of creating an element given this's node document, "body", and the HTML namespace.
         context = TRY(create_element(document(), HTML::TagNames::body, Namespace::HTML));
@@ -2779,25 +2811,25 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
     // 6. Use the first matching item from this list:
 
     // - If position is an ASCII case-insensitive match for the string "beforebegin"
-    if (position.equals_ignoring_ascii_case("beforebegin"sv)) {
+    if (position.equals_ignoring_ascii_case(u"beforebegin"sv)) {
         // Insert fragment into this's parent before this.
         parent()->insert_before(fragment, this);
     }
 
     // - If position is an ASCII case-insensitive match for the string "afterbegin"
-    else if (position.equals_ignoring_ascii_case("afterbegin"sv)) {
+    else if (position.equals_ignoring_ascii_case(u"afterbegin"sv)) {
         // Insert fragment into this before its first child.
         insert_before(fragment, first_child());
     }
 
     // - If position is an ASCII case-insensitive match for the string "beforeend"
-    else if (position.equals_ignoring_ascii_case("beforeend"sv)) {
+    else if (position.equals_ignoring_ascii_case(u"beforeend"sv)) {
         // Append fragment to this.
         TRY(append_child(fragment));
     }
 
     // - If position is an ASCII case-insensitive match for the string "afterend"
-    else if (position.equals_ignoring_ascii_case("afterend"sv)) {
+    else if (position.equals_ignoring_ascii_case(u"afterend"sv)) {
         // Insert fragment into this's parent before this's next sibling.
         parent()->insert_before(fragment, next_sibling());
     }
@@ -2944,10 +2976,10 @@ void Element::set_onfullscreenerror(GC::Ptr<WebIDL::CallbackType> event_handler)
 }
 
 // https://dom.spec.whatwg.org/#insert-adjacent
-WebIDL::ExceptionOr<GC::Ptr<Node>> Element::insert_adjacent(StringView where, GC::Ref<Node> node)
+WebIDL::ExceptionOr<GC::Ptr<Node>> Element::insert_adjacent(Utf16View where, GC::Ref<Node> node)
 {
     // To insert adjacent, given an element element, string where, and a node node, run the steps associated with the first ASCII case-insensitive match for where:
-    if (where.equals_ignoring_ascii_case("beforebegin"sv)) {
+    if (where.equals_ignoring_ascii_case(u"beforebegin"sv)) {
         // -> "beforebegin"
         // If element’s parent is null, return null.
         if (!parent())
@@ -2957,19 +2989,19 @@ WebIDL::ExceptionOr<GC::Ptr<Node>> Element::insert_adjacent(StringView where, GC
         return GC::Ptr<Node> { TRY(parent()->pre_insert(move(node), this)) };
     }
 
-    if (where.equals_ignoring_ascii_case("afterbegin"sv)) {
+    if (where.equals_ignoring_ascii_case(u"afterbegin"sv)) {
         // -> "afterbegin"
         // Return the result of pre-inserting node into element before element’s first child.
         return GC::Ptr<Node> { TRY(pre_insert(move(node), first_child())) };
     }
 
-    if (where.equals_ignoring_ascii_case("beforeend"sv)) {
+    if (where.equals_ignoring_ascii_case(u"beforeend"sv)) {
         // -> "beforeend"
         // Return the result of pre-inserting node into element before null.
         return GC::Ptr<Node> { TRY(pre_insert(move(node), nullptr)) };
     }
 
-    if (where.equals_ignoring_ascii_case("afterend"sv)) {
+    if (where.equals_ignoring_ascii_case(u"afterend"sv)) {
         // -> "afterend"
         // If element’s parent is null, return null.
         if (!parent())
@@ -2981,11 +3013,11 @@ WebIDL::ExceptionOr<GC::Ptr<Node>> Element::insert_adjacent(StringView where, GC
 
     // -> Otherwise
     // Throw a "SyntaxError" DOMException.
-    return WebIDL::SyntaxError::create(realm(), Utf16String::formatted("Unknown position '{}'. Must be one of 'beforebegin', 'afterbegin', 'beforeend' or 'afterend'", where));
+    return WebIDL::SyntaxError::create(realm(), "Unknown position. Must be one of 'beforebegin', 'afterbegin', 'beforeend' or 'afterend'"_utf16);
 }
 
 // https://dom.spec.whatwg.org/#dom-element-insertadjacentelement
-WebIDL::ExceptionOr<GC::Ptr<Element>> Element::insert_adjacent_element(String const& where, GC::Ref<Element> element)
+WebIDL::ExceptionOr<GC::Ptr<Element>> Element::insert_adjacent_element(Utf16View where, GC::Ref<Element> element)
 {
     // The insertAdjacentElement(where, element) method steps are to return the result of running insert adjacent, give this, where, and element.
     auto returned_node = TRY(insert_adjacent(where, element));
@@ -2995,10 +3027,10 @@ WebIDL::ExceptionOr<GC::Ptr<Element>> Element::insert_adjacent_element(String co
 }
 
 // https://dom.spec.whatwg.org/#dom-element-insertadjacenttext
-WebIDL::ExceptionOr<void> Element::insert_adjacent_text(String const& where, Utf16String const& data)
+WebIDL::ExceptionOr<void> Element::insert_adjacent_text(Utf16View where, Utf16View data)
 {
     // 1. Let text be a new Text node whose data is data and node document is this’s node document.
-    auto text = realm().create<DOM::Text>(document(), data);
+    auto text = realm().create<DOM::Text>(document(), Utf16String::from_utf16(data));
 
     // 2. Run insert adjacent, given this, where, and text.
     // Spec Note: This method returns nothing because it existed before we had a chance to design it.
@@ -3369,9 +3401,13 @@ bool Element::is_referenced() const
 {
     bool is_referenced = false;
     if (id().has_value()) {
+        auto id_view = id()->view();
         root().for_each_in_subtree_of_type<HTML::HTMLElement>([&](auto& element) {
             auto aria_data = MUST(Web::ARIA::AriaData::build_data(element));
-            if (aria_data->aria_labelled_by_or_default().contains_slow(id().value().to_utf16_string())) {
+            for (auto const& id_reference : aria_data->aria_labelled_by_or_default()) {
+                if (id_reference.utf16_view() != id_view)
+                    continue;
+
                 is_referenced = true;
                 return TraversalDecision::Break;
             }
@@ -3552,7 +3588,7 @@ void Element::enqueue_a_custom_element_callback_reaction(Utf16FlyString const& c
         VERIFY(!arguments.is_empty());
         auto& attribute_name_value = arguments.first();
         VERIFY(attribute_name_value.is_string());
-        auto attribute_name = Utf16FlyString { attribute_name_value.as_string().utf16_string() };
+        auto attribute_name = Utf16FlyString::from_utf16(attribute_name_value.as_string().utf16_string_view());
 
         // 2. If definition's observed attributes does not contain attributeName, then return.
         if (!definition->observed_attributes().contains_slow(attribute_name))
@@ -3731,17 +3767,17 @@ void Element::set_prefix(Optional<Utf16FlyString> value)
 }
 
 // https://dom.spec.whatwg.org/#locate-a-namespace-prefix
-Optional<Utf16String> Element::locate_a_namespace_prefix(Optional<Utf16String> const& namespace_) const
+Optional<Utf16String> Element::locate_a_namespace_prefix(Optional<Utf16View> namespace_) const
 {
     // 1. If element’s namespace is namespace and its namespace prefix is non-null, then return its namespace prefix.
-    if (this->namespace_uri().has_value() && namespace_.has_value() && this->namespace_uri()->view() == namespace_->utf16_view() && this->prefix().has_value())
+    if (this->namespace_uri().has_value() && namespace_.has_value() && this->namespace_uri()->view() == *namespace_ && this->prefix().has_value())
         return this->prefix()->to_utf16_string();
 
     // 2. If element has an attribute whose namespace prefix is "xmlns" and value is namespace, then return element’s first such attribute’s local name.
     if (auto attributes = this->attributes(); attributes && namespace_.has_value()) {
         for (size_t i = 0; i < attributes->length(); ++i) {
             auto& attr = *attributes->item(i);
-            if (attr.prefix() == "xmlns"sv && attr.value().utf16_view() == namespace_->utf16_view())
+            if (attr.prefix() == u"xmlns"sv && attr.value().utf16_view() == *namespace_)
                 return attr.local_name().to_utf16_string();
         }
     }
@@ -3770,10 +3806,10 @@ void Element::for_each_attribute(Function<void(Attr const&)> callback) const
         callback(*m_attributes->item(i));
 }
 
-void Element::for_each_attribute(Function<void(Utf16FlyString const&, Utf16String const&)> callback) const
+void Element::for_each_attribute(Function<void(Utf16FlyString const&, Utf16View)> callback) const
 {
     for_each_attribute([&callback](Attr const& attr) {
-        callback(attr.name(), attr.value());
+        callback(attr.name(), attr.value().utf16_view());
     });
 }
 
@@ -4381,9 +4417,9 @@ i32 Element::ordinal_value()
     return m_ordinal_value.value_or(1);
 }
 
-bool Element::id_reference_exists(Utf16String const& id_reference) const
+bool Element::id_reference_exists(Utf16View id_reference) const
 {
-    return document().get_element_by_id(id_reference.utf16_view());
+    return document().get_element_by_id(id_reference);
 }
 
 void Element::register_intersection_observer(Badge<IntersectionObserver::IntersectionObserver>, GC::Ref<IntersectionObserver::IntersectionObserver> observer)
@@ -4432,13 +4468,13 @@ Element::TranslationMode Element::translation_mode() const
     // translate-enabled state;
     // NOTE: The attribute is in the Yes state if the attribute is present and its value is the empty string or is a
     //       ASCII-case-insensitive match for "yes".
-    auto maybe_translate_attribute = attribute(HTML::AttributeNames::translate);
-    if (maybe_translate_attribute.has_value() && (maybe_translate_attribute.value().is_empty() || maybe_translate_attribute.value().equals_ignoring_ascii_case("yes"sv)))
+    auto maybe_translate_attribute = get_attribute_value_view(HTML::AttributeNames::translate);
+    if (maybe_translate_attribute.has_value() && (maybe_translate_attribute.value().is_empty() || maybe_translate_attribute.value().equals_ignoring_ascii_case(u"yes"sv)))
         return TranslationMode::TranslateEnabled;
 
     // otherwise, if the element's translate attribute is in the No state, then the element's translation mode is in
     // the no-translate state.
-    if (maybe_translate_attribute.has_value() && maybe_translate_attribute.value().equals_ignoring_ascii_case("no"sv)) {
+    if (maybe_translate_attribute.has_value() && maybe_translate_attribute.value().equals_ignoring_ascii_case(u"no"sv)) {
         return TranslationMode::NoTranslate;
     }
 
@@ -4719,13 +4755,13 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
         return;
     }
 
-    auto value_or_empty = value.value_or({});
+    auto value_or_empty = value.has_value() ? value->utf16_view() : u""sv;
 
     if (local_name == HTML::AttributeNames::id) {
         if (value_or_empty.is_empty())
             m_id = {};
         else
-            m_id = Utf16FlyString::from_utf16(value_or_empty.utf16_view());
+            m_id = Utf16FlyString::from_utf16(value_or_empty);
 
         if (is_connected()) {
             Optional<Utf16FlyString> old_id;
@@ -4737,7 +4773,7 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
         if (value_or_empty.is_empty())
             m_name = {};
         else
-            m_name = Utf16FlyString::from_utf16(value_or_empty.utf16_view());
+            m_name = Utf16FlyString::from_utf16(value_or_empty);
 
         if (is_connected())
             document().element_name_changed({}, *this);
@@ -4746,7 +4782,7 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
             m_classes.clear();
         } else {
             m_classes.clear();
-            for_each_ascii_whitespace_separated_token(value_or_empty.utf16_view(), [&](auto new_class) {
+            for_each_ascii_whitespace_separated_token(value_or_empty, [&](auto new_class) {
                 m_classes.append(Utf16FlyString::from_utf16(new_class));
                 return IterationDecision::Continue;
             });
@@ -4759,18 +4795,18 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
             return;
         if (!m_inline_style)
             m_inline_style = CSS::CSSStyleProperties::create_element_inline_style({ *this }, {}, {});
-        m_inline_style->set_declarations_from_text(value.value_or({}));
+        m_inline_style->set_declarations_from_text(value_or_empty);
         prefetch_inline_style_image_resources(*m_inline_style, document());
         set_needs_style_update(true);
     } else if (local_name == HTML::AttributeNames::dir || local_name == HTML::AttributeNames::lang) {
         bool const is_dir = local_name == HTML::AttributeNames::dir;
         if (is_dir) {
             // https://html.spec.whatwg.org/multipage/dom.html#attr-dir
-            if (value_or_empty.equals_ignoring_ascii_case("ltr"sv))
+            if (value_or_empty.equals_ignoring_ascii_case(u"ltr"sv))
                 m_dir = Dir::Ltr;
-            else if (value_or_empty.equals_ignoring_ascii_case("rtl"sv))
+            else if (value_or_empty.equals_ignoring_ascii_case(u"rtl"sv))
                 m_dir = Dir::Rtl;
-            else if (value_or_empty.equals_ignoring_ascii_case("auto"sv))
+            else if (value_or_empty.equals_ignoring_ascii_case(u"auto"sv))
                 m_dir = Dir::Auto;
             else
                 m_dir = {};
@@ -4782,13 +4818,17 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
     } else if (local_name == HTML::AttributeNames::part) {
         m_parts.clear();
         if (!value_or_empty.is_empty()) {
-            auto new_parts = value_or_empty.utf16_view();
+            auto new_parts = value_or_empty;
+            auto append_part = [&](Utf16View new_part) {
+                if (!m_parts.contains_slow(new_part))
+                    m_parts.append(Utf16FlyString::from_utf16(new_part));
+            };
             size_t start = 0;
             for (size_t i = 0; i <= new_parts.length_in_code_units(); ++i) {
                 if (i != new_parts.length_in_code_units() && !Infra::is_ascii_whitespace(new_parts.code_unit_at(i)))
                     continue;
                 if (i > start)
-                    m_parts.append(Utf16FlyString::from_utf16(new_parts.substring_view(start, i - start)));
+                    append_part(new_parts.substring_view(start, i - start));
                 start = i + 1;
             }
         }
@@ -4854,7 +4894,7 @@ ElementByIdMap& Element::document_or_shadow_root_element_by_id_map()
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-gethtml
-WebIDL::ExceptionOr<String> Element::get_html(Bindings::GetHTMLOptions const& options) const
+WebIDL::ExceptionOr<Utf16String> Element::get_html(Bindings::GetHTMLOptions const& options) const
 {
     // Element's getHTML(options) method steps are to return the result
     // of HTML fragment serialization algorithm with this,
@@ -4875,7 +4915,7 @@ WebIDL::ExceptionOr<void> Element::set_html_unsafe(TrustedTypes::TrustedHTMLOrSt
         HTML::relevant_global_object(*this),
         html,
         TrustedTypes::InjectionSink::Element_setHTMLUnsafe,
-        TrustedTypes::Script.to_string()));
+        TrustedTypes::Script.view()));
 
     // 2. Let target be this's template contents if this is a template element; otherwise this.
     Variant<GC::Ref<DOM::Element>, GC::Ref<DOM::DocumentFragment>> target = GC::Ref { *this };
@@ -4927,24 +4967,28 @@ Optional<Utf16String> Element::lang() const
 
         // 3. If the node's parent is a shadow root
         //      Use the language of that shadow root's host.
-        if (auto* parent = this->parent(); parent && parent->is_shadow_root())
-            return static_cast<ShadowRoot const&>(*parent).host()->lang().value_or({});
+        if (auto* parent = this->parent(); parent && parent->is_shadow_root()) {
+            if (auto language = static_cast<ShadowRoot const&>(*parent).host()->lang(); language.has_value())
+                return language.release_value();
+            return {};
+        }
 
         // 4. If the node's parent element is not null
         //      Use the language of that parent element.
-        if (auto parent = parent_element())
-            return parent->lang().value_or({});
+        if (auto parent = parent_element()) {
+            if (auto language = parent->lang(); language.has_value())
+                return language.release_value();
+            return {};
+        }
 
         // 5. Otherwise
         //      - If there is a pragma-set default language set, then that is the language of the node.
-        if (document().pragma_set_default_language().has_value()) {
-            return document().pragma_set_default_language().value_or({});
-        }
+        if (auto language = document().pragma_set_default_language(); language.has_value())
+            return language.release_value();
 
         //      - If there is no pragma-set default language set, then language information from a higher-level protocol (such as HTTP),
-        if (document().http_content_language().has_value()) {
-            return Utf16String::from_utf8(document().http_content_language().value_or({}));
-        }
+        if (auto language = document().http_content_language(); language.has_value())
+            return language.release_value();
 
         //        if any, must be used as the final fallback language instead.
         //      - In the absence of any such language information, and in cases where the higher-level protocol reports multiple languages,
@@ -5183,7 +5227,7 @@ bool Element::should_indicate_focus() const
 // https://html.spec.whatwg.org/multipage/interaction.html#tabindex-value
 bool Element::is_focusable() const
 {
-    return HTML::parse_integer(get_attribute_value(HTML::AttributeNames::tabindex)).has_value()
+    return HTML::parse_integer(get_attribute_value_view(HTML::AttributeNames::tabindex).value_or({})).has_value()
         && meets_focusable_area_rendering_requirements();
 }
 

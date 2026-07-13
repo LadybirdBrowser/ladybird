@@ -16,9 +16,9 @@ TEST_CASE(storage_round_trips_on_fresh_database)
 
     auto jar = TRY_OR_FAIL(WebView::StorageJar::create(*database));
 
-    EXPECT_EQ(jar->get_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "foo"_string), Optional<String> {});
-    jar->set_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "foo"_string, "bar"_string);
-    EXPECT_EQ(jar->get_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "foo"_string), Optional<String> { "bar"_string });
+    EXPECT_EQ(jar->get_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "foo"_utf16), Optional<Utf16String> {});
+    jar->set_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "foo"_utf16, "bar"_utf16);
+    EXPECT_EQ(jar->get_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "foo"_utf16), Optional<Utf16String> { "bar"_utf16 });
 
     EXPECT_EQ(TRY_OR_FAIL(database->schema_version("WebStorage"sv)), Optional<u32> { 1u });
 }

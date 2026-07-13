@@ -1,7 +1,7 @@
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#the-formdataevent-interface
 [Exposed=Window]
 interface FormDataEvent : Event {
-    constructor(DOMString type, FormDataEventInit eventInitDict);
+    constructor([Utf16FlyString] Utf16DOMString type, FormDataEventInit eventInitDict);
 
     readonly attribute FormData formData;
 };

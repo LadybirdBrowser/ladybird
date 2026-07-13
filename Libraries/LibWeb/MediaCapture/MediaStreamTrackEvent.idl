@@ -6,6 +6,6 @@ dictionary MediaStreamTrackEventInit : EventInit {
 // https://w3c.github.io/mediacapture-main/#mediastreamtrackevent
 [Exposed=Window]
 interface MediaStreamTrackEvent : Event {
-    constructor(DOMString type, MediaStreamTrackEventInit eventInitDict);
+    constructor([Utf16FlyString] Utf16DOMString type, MediaStreamTrackEventInit eventInitDict);
     [SameObject] readonly attribute MediaStreamTrack track;
 };

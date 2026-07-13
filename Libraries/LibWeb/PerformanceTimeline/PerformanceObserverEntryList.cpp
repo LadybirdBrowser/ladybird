@@ -36,7 +36,7 @@ void PerformanceObserverEntryList::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://www.w3.org/TR/performance-timeline/#dfn-filter-buffer-by-name-and-type
-ErrorOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> filter_buffer_by_name_and_type(Vector<GC::Ref<PerformanceTimeline::PerformanceEntry>> const& buffer, Optional<String> name, Optional<String> type)
+ErrorOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> filter_buffer_by_name_and_type(Vector<GC::Ref<PerformanceTimeline::PerformanceEntry>> const& buffer, Optional<Utf16String> const& name, Optional<Utf16FlyString> type)
 {
     // 1. Let result be an initially empty list.
     Vector<GC::Root<PerformanceTimeline::PerformanceEntry>> result;
@@ -48,7 +48,7 @@ ErrorOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> filter_buffer_b
             continue;
 
         // 2. If name is not null and if name is not identical to entry's name attribute, continue to next entry.
-        if (name.has_value() && name.value() != entry->name())
+        if (name.has_value() && name->utf16_view() != entry->name().utf16_view())
             continue;
 
         // 3. append entry to result.
@@ -69,19 +69,19 @@ WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> Per
 {
     // Returns a PerformanceEntryList object returned by filter buffer by name and type algorithm with this's entry list,
     // name and type set to null.
-    return TRY_OR_THROW_OOM(vm(), filter_buffer_by_name_and_type(m_entry_list, /* name= */ Optional<String> {}, /* type= */ Optional<String> {}));
+    return TRY_OR_THROW_OOM(vm(), filter_buffer_by_name_and_type(m_entry_list, /* name= */ Optional<Utf16String> {}, /* type= */ Optional<Utf16FlyString> {}));
 }
 
 // https://w3c.github.io/performance-timeline/#dom-performanceobserverentrylist-getentriesbytype
-WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> PerformanceObserverEntryList::get_entries_by_type(String const& type) const
+WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> PerformanceObserverEntryList::get_entries_by_type(Utf16FlyString const& type) const
 {
     // Returns a PerformanceEntryList object returned by filter buffer by name and type algorithm with this's entry list,
     // name set to null, and type set to the method's input type parameter.
-    return TRY_OR_THROW_OOM(vm(), filter_buffer_by_name_and_type(m_entry_list, /* name= */ Optional<String> {}, type));
+    return TRY_OR_THROW_OOM(vm(), filter_buffer_by_name_and_type(m_entry_list, /* name= */ Optional<Utf16String> {}, type));
 }
 
 // https://w3c.github.io/performance-timeline/#dom-performanceobserverentrylist-getentriesbyname
-WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> PerformanceObserverEntryList::get_entries_by_name(String const& name, Optional<String> type) const
+WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> PerformanceObserverEntryList::get_entries_by_name(Utf16String const& name, Optional<Utf16FlyString> type) const
 {
     // Returns a PerformanceEntryList object returned by filter buffer by name and type algorithm with this's entry list,
     // name set to the method input name parameter, and type set to null if optional entryType is omitted, or set to the

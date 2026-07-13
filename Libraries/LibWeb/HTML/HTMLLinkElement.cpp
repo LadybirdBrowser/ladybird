@@ -132,11 +132,11 @@ GC::Ref<DOM::DOMTokenList> HTMLLinkElement::sizes()
     return *m_sizes;
 }
 
-void HTMLLinkElement::set_media(Utf16String const& media)
+void HTMLLinkElement::set_media(Utf16View media)
 {
     set_attribute_value(HTML::AttributeNames::media, media);
     if (auto sheet = m_loaded_style_sheet)
-        sheet->set_media(media.utf16_view());
+        sheet->set_media(media);
 }
 
 Utf16String HTMLLinkElement::media() const
@@ -187,7 +187,7 @@ void HTMLLinkElement::attribute_changed(Utf16FlyString const& name, Optional<Utf
         // the element's rel attribute must be split on ASCII whitespace.
         // The resulting tokens are the keywords for the link types that apply to that element.
         m_relationship = 0;
-        auto link_types = value.value_or({});
+        auto link_types = value.has_value() ? value->utf16_view() : u""sv;
         size_t start = 0;
         for (size_t i = 0; i <= link_types.length_in_code_units(); ++i) {
             if (i != link_types.length_in_code_units() && !Infra::is_ascii_whitespace(link_types.code_unit_at(i)))
@@ -195,17 +195,17 @@ void HTMLLinkElement::attribute_changed(Utf16FlyString const& name, Optional<Utf
 
             if (i > start) {
                 auto token = link_types.substring_view(start, i - start);
-                if (token.equals_ignoring_ascii_case("stylesheet"sv))
+                if (token.equals_ignoring_ascii_case(u"stylesheet"sv))
                     m_relationship |= Relationship::Stylesheet;
-                else if (token.equals_ignoring_ascii_case("alternate"sv))
+                else if (token.equals_ignoring_ascii_case(u"alternate"sv))
                     m_relationship |= Relationship::Alternate;
-                else if (token.equals_ignoring_ascii_case("preload"sv))
+                else if (token.equals_ignoring_ascii_case(u"preload"sv))
                     m_relationship |= Relationship::Preload;
-                else if (token.equals_ignoring_ascii_case("dns-prefetch"sv))
+                else if (token.equals_ignoring_ascii_case(u"dns-prefetch"sv))
                     m_relationship |= Relationship::DNSPrefetch;
-                else if (token.equals_ignoring_ascii_case("preconnect"sv))
+                else if (token.equals_ignoring_ascii_case(u"preconnect"sv))
                     m_relationship |= Relationship::Preconnect;
-                else if (token.equals_ignoring_ascii_case("icon"sv))
+                else if (token.equals_ignoring_ascii_case(u"icon"sv))
                     m_relationship |= Relationship::Icon;
             }
 
@@ -213,7 +213,7 @@ void HTMLLinkElement::attribute_changed(Utf16FlyString const& name, Optional<Utf
         }
 
         if (m_rel_list)
-            m_rel_list->associated_attribute_changed(value.value_or({}));
+            m_rel_list->associated_attribute_changed(value.has_value() ? value->utf16_view() : u""sv);
     }
 
     // https://html.spec.whatwg.org/multipage/semantics.html#the-link-element:explicitly-enabled
@@ -226,7 +226,7 @@ void HTMLLinkElement::attribute_changed(Utf16FlyString const& name, Optional<Utf
             document_or_shadow_root_style_sheets().remove_a_css_style_sheet(*m_loaded_style_sheet);
             m_loaded_style_sheet = nullptr;
         } else if (name == HTML::AttributeNames::media) {
-            m_loaded_style_sheet->set_media(value.value_or({}));
+            m_loaded_style_sheet->set_media(value.has_value() ? value->utf16_view() : u""sv);
         }
     }
 
@@ -308,16 +308,18 @@ GC::Ref<HTMLLinkElement::LinkProcessingOptions> HTMLLinkElement::create_link_opt
 {
     // 1. Let document be el's node document.
     auto& document = this->document();
+    auto referrerpolicy = get_attribute(AttributeNames::referrerpolicy);
+    auto referrerpolicy_value = referrerpolicy.has_value() ? referrerpolicy->utf16_view() : u""sv;
 
     // 2. Let options be a new link processing options with
     auto options = realm().create<LinkProcessingOptions>(
         // crossorigin
         //     the state of el's crossorigin content attribute
-        cors_setting_attribute_from_keyword(get_attribute(AttributeNames::crossorigin)),
+        cors_setting_attribute_from_keyword(get_attribute(AttributeNames::crossorigin).map([](auto const& value) { return value.utf16_view(); })),
 
         // referrer policy
         //     the state of el's referrerpolicy content attribute
-        ReferrerPolicy::from_string(get_attribute(AttributeNames::referrerpolicy).value_or({})).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString),
+        ReferrerPolicy::from_string(referrerpolicy_value).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString),
 
         // FIXME: source set
         //     el's source set
@@ -348,7 +350,7 @@ GC::Ref<HTMLLinkElement::LinkProcessingOptions> HTMLLinkElement::create_link_opt
 
         // fetch priority
         //     the state of el's fetchpriority content attribute
-        Fetch::Infrastructure::request_priority_from_string(get_attribute_value(HTML::AttributeNames::fetchpriority)).value_or(Fetch::Infrastructure::Request::Priority::Auto));
+        Fetch::Infrastructure::request_priority_from_string(get_attribute_value_view(HTML::AttributeNames::fetchpriority).value_or({})).value_or(Fetch::Infrastructure::Request::Priority::Auto));
 
     // 3. If el has an href attribute, then set options's href to the value of el's href attribute.
     if (auto maybe_href = get_attribute(AttributeNames::href); maybe_href.has_value())
@@ -356,7 +358,7 @@ GC::Ref<HTMLLinkElement::LinkProcessingOptions> HTMLLinkElement::create_link_opt
 
     // 4. If el has an integrity attribute, then set options's integrity to the value of el's integrity content attribute.
     if (auto maybe_integrity = get_attribute(AttributeNames::integrity); maybe_integrity.has_value())
-        options->integrity = maybe_integrity->to_utf8();
+        options->integrity = maybe_integrity.release_value();
 
     // 5. If el has a type attribute, then set options's type to the value of el's type attribute.
     if (auto maybe_type = get_attribute(AttributeNames::type); maybe_type.has_value())
@@ -543,7 +545,7 @@ void HTMLLinkElement::fetch_and_process_linked_preload_resource()
     auto options = create_link_options();
 
     // 3. Let destination be the result of translating the keyword representing the state of el's as attribute.
-    auto destination = translate_a_preload_destination(get_attribute(HTML::AttributeNames::as));
+    auto destination = translate_a_preload_destination(get_attribute_value_view(HTML::AttributeNames::as).value_or({}));
 
     // 4. If destination is null, then return.
     if (destination.has<Empty>())
@@ -837,16 +839,16 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
 
     // 1. If the resource's Content-Type metadata is not text/css, then set success to false.
     auto mime_type_string = m_mime_type;
-    Optional<String> mime_type_charset;
+    Optional<StringView> mime_type_charset;
     auto extracted_mime_type = Fetch::Infrastructure::extract_mime_type(response.header_list());
     if (extracted_mime_type.has_value()) {
         if (!mime_type_string.has_value())
-            mime_type_string = Utf16String::from_utf8(extracted_mime_type->essence());
+            mime_type_string = Utf16String::from_ascii_without_validation(extracted_mime_type->essence().bytes());
         if (auto charset = extracted_mime_type->parameters().get("charset"sv); charset.has_value())
-            mime_type_charset = charset.value();
+            mime_type_charset = charset->bytes_as_string_view();
     }
 
-    if (mime_type_string.has_value() && mime_type_string != "text/css"_utf16)
+    if (mime_type_string.has_value() && mime_type_string != u"text/css"sv)
         success = false;
 
     // 2. If el no longer creates an external resource link that contributes to the styling processing model, or
@@ -893,7 +895,7 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
             environment_encoding = TextCodec::get_standardized_encoding(*charset);
 
         if (!environment_encoding.has_value() && document().encoding().has_value())
-            environment_encoding = document().encoding().value();
+            environment_encoding = TextCodec::get_standardized_encoding(document().encoding().value());
 
         auto maybe_decoded_string = css_decode_bytes(environment_encoding, mime_type_charset, body_bytes);
         if (maybe_decoded_string.is_error()) {
@@ -901,12 +903,14 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
             dispatch_event(*DOM::Event::create(realm(), HTML::EventNames::error));
         } else {
             VERIFY(!response.url_list().is_empty());
+            auto media = attribute(HTML::AttributeNames::media);
+            auto media_value = media.has_value() ? media->utf16_view() : u""sv;
+            auto title = in_a_document_tree() ? attribute(HTML::AttributeNames::title) : Optional<Utf16String> {};
             m_loaded_style_sheet = document_or_shadow_root_style_sheets().create_a_css_style_sheet(
                 maybe_decoded_string.release_value(),
-                "text/css"_string,
                 this,
-                attribute(HTML::AttributeNames::media).value_or({}),
-                in_a_document_tree() ? attribute(HTML::AttributeNames::title).value_or({}) : Utf16String {},
+                media_value,
+                title.has_value() ? title.release_value() : Utf16String {},
                 (m_relationship & Relationship::Alternate && !m_explicitly_enabled) ? CSS::StyleSheetList::Alternate::Yes : CSS::StyleSheetList::Alternate::No,
                 CSS::StyleSheetList::OriginClean::Yes,
                 response.url_list().first(),
@@ -1030,7 +1034,7 @@ void HTMLLinkElement::load_fallback_favicon_if_needed(GC::Ref<DOM::Document> doc
     //    the Document object's URL, client is the Document object's relevant settings object, destination is "image",
     //    synchronous flag is set, credentials mode is "include", and whose use-URL-credentials flag is set.
     // NOTE: Fetch requests no longer have a synchronous flag, see https://github.com/whatwg/fetch/pull/1165
-    auto favicon_url = document->encoding_parse_url("/favicon.ico"sv);
+    auto favicon_url = document->encoding_parse_url("/favicon.ico"_utf16);
 
     // It is possible for the URL parser to fail if the document's base URL is invalid.
     if (!favicon_url.has_value())

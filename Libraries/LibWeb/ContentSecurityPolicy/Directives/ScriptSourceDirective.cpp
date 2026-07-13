@@ -13,7 +13,7 @@ namespace Web::ContentSecurityPolicy::Directives {
 
 GC_DEFINE_ALLOCATOR(ScriptSourceDirective);
 
-ScriptSourceDirective::ScriptSourceDirective(String name, Vector<String> value)
+ScriptSourceDirective::ScriptSourceDirective(Utf16FlyString name, Vector<Utf16String> value)
     : Directive(move(name), move(value))
 {
 }

@@ -149,7 +149,7 @@ WebIDL::ExceptionOr<void> IDBCursor::continue_(Optional<JS::Value> key)
 
         // 2. If r is invalid, throw a "DataError" DOMException.
         if (r->is_invalid())
-            return WebIDL::DataError::create(realm, Utf16String::from_utf8(r->value_as_string()));
+            return WebIDL::DataError::create(realm, r->value_as_string());
 
         // 3. Let key be r.
         key_value = r;
@@ -217,7 +217,7 @@ WebIDL::ExceptionOr<void> IDBCursor::advance(WebIDL::UnsignedLong count)
 
     // 1. If count is 0 (zero), throw a TypeError.
     if (count == 0)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Count must not be zero (0)"_string };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Count must not be zero (0)"_utf16 };
 
     // 2. Let transaction be this’s transaction.
     auto transaction = this->transaction();
@@ -291,7 +291,7 @@ WebIDL::ExceptionOr<void> IDBCursor::continue_primary_key(JS::Value key_param, J
 
     // 8. If r is invalid, throw a "DataError" DOMException.
     if (r->is_invalid())
-        return WebIDL::DataError::create(realm, Utf16String::from_utf8(r->value_as_string()));
+        return WebIDL::DataError::create(realm, r->value_as_string());
 
     // 9. Let key be r.
     auto key = r;
@@ -301,7 +301,7 @@ WebIDL::ExceptionOr<void> IDBCursor::continue_primary_key(JS::Value key_param, J
 
     // 11. If r is invalid, throw a "DataError" DOMException.
     if (r->is_invalid())
-        return WebIDL::DataError::create(realm, Utf16String::from_utf8(r->value_as_string()));
+        return WebIDL::DataError::create(realm, r->value_as_string());
 
     // 12. Let primaryKey be r.
     auto primary_key = r;

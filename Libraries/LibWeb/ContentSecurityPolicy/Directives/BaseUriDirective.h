@@ -19,7 +19,7 @@ public:
     virtual ~BaseUriDirective() = default;
 
 private:
-    BaseUriDirective(String name, Vector<String> value);
+    BaseUriDirective(Utf16FlyString name, Vector<Utf16String> value);
 };
 
 }

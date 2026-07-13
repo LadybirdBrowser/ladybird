@@ -3,7 +3,7 @@
 interface AudioTrackList : EventTarget {
     readonly attribute unsigned long length;
     getter AudioTrack (unsigned long index);
-    AudioTrack? getTrackById(DOMString id);
+    AudioTrack? getTrackById(Utf16DOMString id);
 
     attribute EventHandler onchange;
     attribute EventHandler onaddtrack;

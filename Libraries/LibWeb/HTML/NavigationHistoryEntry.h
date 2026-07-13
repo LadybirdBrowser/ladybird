@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibWeb/DOM/EventTarget.h>
 
 namespace Web::HTML {
@@ -18,9 +19,9 @@ class NavigationHistoryEntry : public DOM::EventTarget {
 public:
     [[nodiscard]] static GC::Ref<NavigationHistoryEntry> create(JS::Realm&, NonnullRefPtr<SessionHistoryEntry>);
 
-    Optional<String> url() const;
-    String key() const;
-    String id() const;
+    Optional<Utf16String> url() const;
+    Utf16String key() const;
+    Utf16String id() const;
     i64 index() const;
     bool same_document() const;
     WebIDL::ExceptionOr<JS::Value> get_state();

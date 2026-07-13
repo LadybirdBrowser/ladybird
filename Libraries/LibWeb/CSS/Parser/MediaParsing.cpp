@@ -91,7 +91,7 @@ NonnullRefPtr<MediaQuery> Parser::parse_media_query(TokenStream<ComponentValue>&
         // "A media query that does not match the grammar in the previous section must be replaced by `not all`
         // during parsing." - https://www.w3.org/TR/mediaqueries-5/#error-handling
         ErrorReporter::the().report(InvalidQueryError {
-            .query_type = "@media"_fly_string,
+            .query_type = "@media"_utf16_fly_string,
             .value_string = tokens.dump_string(),
             .description = move(description),
         });
@@ -130,7 +130,7 @@ NonnullRefPtr<MediaQuery> Parser::parse_media_query(TokenStream<ComponentValue>&
         return media_query;
 
     // `[ and <media-condition-without-or> ]?`
-    if (auto const& maybe_and = tokens.consume_a_token(); maybe_and.is_ident("and"sv)) {
+    if (auto const& maybe_and = tokens.consume_a_token(); maybe_and.is_ident("and"_utf16)) {
         if (auto media_condition = parse_media_condition(tokens)) {
             // "or" is disallowed at the top level
             if (is<BooleanOrExpression>(*media_condition))
@@ -445,7 +445,7 @@ Optional<MediaQuery::MediaType> Parser::parse_media_type(TokenStream<ComponentVa
     // https://drafts.csswg.org/mediaqueries-3/#error-handling
     // "However, an exception is made for media types ‘layer’, ‘not’, ‘and’, ‘only’, and ‘or’. Even though they do match
     // the IDENT production, they must not be treated as unknown media types, but rather trigger the malformed query clause."
-    if (token.is_ident("layer"sv) || token.is_ident("not"sv) || token.is_ident("and"sv) || token.is_ident("only"sv) || token.is_ident("or"sv))
+    if (token.is_ident("layer"_utf16) || token.is_ident("not"_utf16) || token.is_ident("and"_utf16) || token.is_ident("only"_utf16) || token.is_ident("or"_utf16))
         return {};
 
     transaction.commit();
@@ -620,7 +620,7 @@ Optional<FeatureValue> Parser::parse_feature_value(FeatureID feature, TokenStrea
     if (!unknown_tokens.is_empty()) {
         transaction.commit();
         ErrorReporter::the().report(InvalidValueError {
-            .value_type = "<mf-value>"_fly_string,
+            .value_type = "<mf-value>"_utf16_fly_string,
             .value_string = MUST(String::join(""sv, unknown_tokens)),
             .description = "Unrecognized type"_string,
         });
@@ -679,7 +679,7 @@ GC::Ptr<CSSMediaRule> Parser::convert_to_media_rule(AtRule const& rule, Nested n
     // }
     if (!rule.is_block_rule) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@media"_fly_string,
+            .rule_name = "@media"_utf16_fly_string,
             .prelude = MUST(String::join(""sv, rule.prelude)),
             .description = "Expected a block."_string,
         });

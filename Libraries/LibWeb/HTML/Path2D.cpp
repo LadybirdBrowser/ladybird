@@ -17,13 +17,13 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(Path2D);
 
-WebIDL::ExceptionOr<GC::Ref<Path2D>> Path2D::construct_impl(JS::Realm& realm, Optional<Variant<GC::Ref<Path2D>, String>> const& path)
+WebIDL::ExceptionOr<GC::Ref<Path2D>> Path2D::construct_impl(JS::Realm& realm, Optional<Variant<GC::Ref<Path2D>, Utf16String>> const& path)
 {
     return realm.create<Path2D>(realm, path);
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-path2d
-Path2D::Path2D(JS::Realm& realm, Optional<Variant<GC::Ref<Path2D>, String>> const& path)
+Path2D::Path2D(JS::Realm& realm, Optional<Variant<GC::Ref<Path2D>, Utf16String>> const& path)
     : PlatformObject(realm)
     , CanvasPath(static_cast<Bindings::PlatformObject&>(*this))
 {
@@ -40,7 +40,7 @@ Path2D::Path2D(JS::Realm& realm, Optional<Variant<GC::Ref<Path2D>, String>> cons
     }
 
     // 4. Let svgPath be the result of parsing and interpreting path according to SVG 2's rules for path data. [SVG]
-    auto path_instructions = SVG::AttributeParser::parse_path_data(Utf16String::from_utf8(path->get<String>()));
+    auto path_instructions = SVG::AttributeParser::parse_path_data(path->get<Utf16String>());
     auto svg_path = path_instructions.to_gfx_path();
 
     if (!svg_path.is_empty()) {
@@ -62,7 +62,7 @@ Path2D::~Path2D() = default;
 void Path2D::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
-    set_prototype(&Bindings::ensure_web_prototype<Bindings::Path2DPrototype>(realm, "Path2D"_fly_string));
+    set_prototype(&Bindings::ensure_web_prototype<Bindings::Path2DPrototype>(realm, "Path2D"_utf16_fly_string));
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-path2d-addpath

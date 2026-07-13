@@ -68,15 +68,45 @@ pub unsafe extern "C" fn rust_html_preload_scanner_scan(
     scan(input, |entry| unsafe { callback(ctx, &raw const *entry) });
 }
 
+/// Scan pending UTF-16 parser input for resources the speculative HTML parser can fetch.
+///
+/// # Safety
+/// `input` must point to `input_len` UTF-16 code units. `callback` must not retain
+/// pointers from the provided entry beyond the callback invocation.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_html_preload_scanner_scan_utf16(
+    input: *const u16,
+    input_len: usize,
+    ctx: *mut c_void,
+    callback: unsafe extern "C" fn(ctx: *mut c_void, entry: *const RustFfiPreloadScannerEntry) -> bool,
+) {
+    let input = if input.is_null() || input_len == 0 {
+        &[]
+    } else {
+        unsafe { std::slice::from_raw_parts(input, input_len) }
+    };
+
+    scan_utf16(input, |entry| unsafe { callback(ctx, &raw const *entry) });
+}
+
 pub(crate) fn scan(input: &[u8], mut callback: impl FnMut(&RustFfiPreloadScannerEntry) -> bool) {
     let code_points = decode_utf8_to_u32(input);
+    scan_code_points(code_points, &mut callback);
+}
+
+pub(crate) fn scan_utf16(input: &[u16], mut callback: impl FnMut(&RustFfiPreloadScannerEntry) -> bool) {
+    let code_points = decode_utf16_to_u32(input);
+    scan_code_points(code_points, &mut callback);
+}
+
+fn scan_code_points(code_points: Vec<u32>, callback: &mut impl FnMut(&RustFfiPreloadScannerEntry) -> bool) {
     let mut tokenizer = HtmlTokenizer::new(code_points);
     let mut template_depth: u64 = 0;
     let mut foreign_depth: u64 = 0;
 
     while let Some(token) = tokenizer.next_token(false, false) {
         let should_continue = match token.token_type {
-            TokenType::StartTag => process_start_tag(&token, &mut template_depth, &mut foreign_depth, &mut callback),
+            TokenType::StartTag => process_start_tag(&token, &mut template_depth, &mut foreign_depth, callback),
             TokenType::EndTag => {
                 process_end_tag(&token, &mut template_depth, &mut foreign_depth);
                 true
@@ -88,6 +118,12 @@ pub(crate) fn scan(input: &[u8], mut callback: impl FnMut(&RustFfiPreloadScanner
             break;
         }
     }
+}
+
+fn decode_utf16_to_u32(code_units: &[u16]) -> Vec<u32> {
+    std::char::decode_utf16(code_units.iter().copied())
+        .map(|result| result.map_or(std::char::REPLACEMENT_CHARACTER as u32, |code_point| code_point as u32))
+        .collect()
 }
 
 fn process_start_tag(
@@ -295,6 +331,45 @@ mod tests {
             true
         });
         entries
+    }
+
+    fn collect_utf16(input: &str) -> Vec<ScannedEntry> {
+        let input = input.encode_utf16().collect::<Vec<_>>();
+        let mut entries = Vec::new();
+        scan_utf16(&input, |entry| {
+            let url = unsafe { std::slice::from_raw_parts(entry.url_ptr, entry.url_len) };
+            entries.push(ScannedEntry {
+                action: entry.action,
+                url: std::str::from_utf8(url).unwrap().to_string(),
+                destination: entry.destination,
+                cors_setting: entry.cors_setting,
+            });
+            true
+        });
+        entries
+    }
+
+    #[test]
+    fn scans_utf16_input() {
+        let entries = collect_utf16(r#"<base href="/base/😀"><img src="./photo.png">"#);
+
+        assert_eq!(
+            entries,
+            vec![
+                ScannedEntry {
+                    action: RustFfiPreloadScannerAction::Base,
+                    url: "/base/😀".to_string(),
+                    destination: RustFfiPreloadScannerDestination::None,
+                    cors_setting: RustFfiPreloadScannerCorsSetting::NoCors,
+                },
+                ScannedEntry {
+                    action: RustFfiPreloadScannerAction::Fetch,
+                    url: "./photo.png".to_string(),
+                    destination: RustFfiPreloadScannerDestination::Image,
+                    cors_setting: RustFfiPreloadScannerCorsSetting::NoCors,
+                },
+            ]
+        );
     }
 
     #[test]

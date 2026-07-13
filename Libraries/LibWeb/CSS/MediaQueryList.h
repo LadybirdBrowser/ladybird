@@ -22,7 +22,7 @@ public:
 
     virtual ~MediaQueryList() override = default;
 
-    String media() const;
+    Utf16String media() const;
     bool matches() const;
     bool evaluate();
 

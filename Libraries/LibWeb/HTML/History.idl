@@ -10,6 +10,6 @@ interface History {
     undefined go(optional long delta = 0);
     undefined back();
     undefined forward();
-    undefined pushState(any data, DOMString unused, optional USVString? url = null);
-    undefined replaceState(any data, DOMString unused, optional USVString? url = null);
+    undefined pushState(any data, Utf16DOMString unused, optional Utf16USVString? url = null);
+    undefined replaceState(any data, Utf16DOMString unused, optional Utf16USVString? url = null);
 };

@@ -6,12 +6,8 @@
  */
 
 #include <AK/Debug.h>
-#include <AK/FFIHelpers.h>
 #include <AK/NeverDestroyed.h>
-#include <AK/StringBuilder.h>
-#include <AK/Utf8View.h>
 #include <AK/Vector.h>
-#include <LibTextCodec/Decoder.h>
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/Parser/HTMLToken.h>
 #include <LibWeb/HTML/Parser/HTMLTokenizer.h>
@@ -19,15 +15,6 @@
 #include <LibWeb/HTMLTokenizerRustFFI.h>
 
 namespace Web::HTML {
-
-static Vector<u32> code_points_from_string(String const& string)
-{
-    Vector<u32> code_points;
-    code_points.ensure_capacity(string.bytes().size());
-    for (auto code_point : string.code_points())
-        code_points.append(code_point);
-    return code_points;
-}
 
 static Vector<u32> code_points_from_utf16_view(Utf16View input)
 {
@@ -38,12 +25,10 @@ static Vector<u32> code_points_from_utf16_view(Utf16View input)
     return code_points;
 }
 
-static RustFfiTokenizerHandle* create_tokenizer_from_utf8(StringView utf8_bytes)
+static RustFfiTokenizerHandle* create_tokenizer_from_utf16(Utf16View input)
 {
-    auto* bytes = reinterpret_cast<u8 const*>(utf8_bytes.characters_without_null_termination());
-    if (bytes == nullptr)
-        bytes = reinterpret_cast<u8 const*>("");
-    return rust_html_tokenizer_create_from_utf8(bytes, utf8_bytes.length());
+    auto code_points = code_points_from_utf16_view(input);
+    return rust_html_tokenizer_create(code_points.data(), code_points.size());
 }
 
 static Utf16FlyString utf16_fly_string_from_ffi(u16 const* ptr, size_t len)
@@ -53,20 +38,11 @@ static Utf16FlyString utf16_fly_string_from_ffi(u16 const* ptr, size_t len)
     return Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(ptr), len });
 }
 
-static String decoded_string_for_utf8_tokenizer(StringView input)
+static Utf16String utf16_string_from_ffi(u16 const* ptr, size_t len)
 {
-    Utf8View utf8_view { input };
-    if (utf8_view.validate(AllowLonelySurrogates::No))
-        return String::from_utf8_without_validation(input.bytes());
-
-    // Decoded strings may come from WTF-16 JS strings. Rust's UTF-8 path
-    // requires scalar-value UTF-8, so replace lone surrogates but keep BOMs.
-    VERIFY(utf8_view.validate());
-
-    StringBuilder builder(input.length());
-    for (auto code_point : utf8_view)
-        builder.append_code_point(is_unicode_surrogate(code_point) ? AK::UnicodeUtils::REPLACEMENT_CODE_POINT : code_point);
-    return builder.to_string_without_validation();
+    if (!ptr || len == 0)
+        return {};
+    return Utf16String::from_utf16({ reinterpret_cast<char16_t const*>(ptr), len });
 }
 
 static Vector<Utf16FlyString> build_interned_tag_name_table()
@@ -111,7 +87,7 @@ static Utf16FlyString const& interned_rust_attr_name(uint16_t id)
 
 HTMLTokenizer::HTMLTokenizer()
 {
-    m_tokenizer = create_tokenizer_from_utf8({});
+    m_tokenizer = create_tokenizer_from_utf16({});
     rust_html_tokenizer_set_input_stream_closed(m_tokenizer, false);
 }
 
@@ -121,17 +97,18 @@ HTMLTokenizer::~HTMLTokenizer()
         rust_html_tokenizer_destroy(m_tokenizer);
 }
 
-HTMLTokenizer::HTMLTokenizer(StringView input, ByteString const& encoding, InputType input_type)
+HTMLTokenizer::HTMLTokenizer(Utf16View input)
+    : m_source(Utf16String::from_utf16(input))
+    , m_input_stream_closed(true)
 {
-    if (input_type == InputType::EncodedBytes) {
-        auto decoder = TextCodec::decoder_for(encoding);
-        VERIFY(decoder.has_value());
-        m_source = MUST(decoder->to_utf8(input, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement));
-    } else {
-        m_source = decoded_string_for_utf8_tokenizer(input);
-    }
-    m_input_stream_closed = true;
-    m_tokenizer = create_tokenizer_from_utf8(m_source.bytes_as_string_view());
+    m_tokenizer = create_tokenizer_from_utf16(input);
+}
+
+HTMLTokenizer::HTMLTokenizer(Utf16String input)
+    : m_source(move(input))
+    , m_input_stream_closed(true)
+{
+    m_tokenizer = create_tokenizer_from_utf16(m_source.utf16_view());
 }
 
 Optional<HTMLToken> HTMLTokenizer::next_token(StopAtInsertionPoint stop_at_insertion_point)
@@ -189,7 +166,7 @@ Optional<HTMLToken> HTMLTokenizer::next_token(StopAtInsertionPoint stop_at_inser
                 attribute.local_name = interned_rust_attr_name(ffi_attribute.name_id);
             else
                 attribute.local_name = utf16_fly_string_from_ffi(ffi_attribute.name_ptr, ffi_attribute.name_len);
-            attribute.value = Utf16String::from_utf8(ffi_string_view(ffi_attribute.value_ptr, ffi_attribute.value_len));
+            attribute.value = utf16_string_from_ffi(ffi_attribute.value_ptr, ffi_attribute.value_len);
             attribute.name_start_position = { ffi_attribute.name_start_line, ffi_attribute.name_start_column };
             attribute.name_end_position = { ffi_attribute.name_end_line, ffi_attribute.name_end_column };
             attribute.value_start_position = { ffi_attribute.value_start_line, ffi_attribute.value_start_column };
@@ -202,20 +179,20 @@ Optional<HTMLToken> HTMLTokenizer::next_token(StopAtInsertionPoint stop_at_inser
         break;
     }
     case HTMLToken::Type::Comment:
-        token.set_comment(MUST(String::from_utf8(ffi_string_view(ffi.comment_ptr, ffi.comment_len))));
+        token.set_comment(utf16_string_from_ffi(ffi.comment_ptr, ffi.comment_len));
         break;
     case HTMLToken::Type::DOCTYPE: {
         auto& doctype = token.ensure_doctype_data();
         if (!ffi.missing_name) {
-            doctype.name = Utf16FlyString::from_utf8(ffi_string_view(ffi.doctype_name_ptr, ffi.doctype_name_len));
+            doctype.name = utf16_fly_string_from_ffi(ffi.doctype_name_ptr, ffi.doctype_name_len);
             doctype.missing_name = false;
         }
         if (!ffi.missing_public_id) {
-            doctype.public_identifier = MUST(String::from_utf8(ffi_string_view(ffi.public_id_ptr, ffi.public_id_len)));
+            doctype.public_identifier = utf16_string_from_ffi(ffi.public_id_ptr, ffi.public_id_len);
             doctype.missing_public_identifier = false;
         }
         if (!ffi.missing_system_id) {
-            doctype.system_identifier = MUST(String::from_utf8(ffi_string_view(ffi.system_id_ptr, ffi.system_id_len)));
+            doctype.system_identifier = utf16_string_from_ffi(ffi.system_id_ptr, ffi.system_id_len);
             doctype.missing_system_identifier = false;
         }
         doctype.force_quirks = ffi.force_quirks;
@@ -235,21 +212,20 @@ void HTMLTokenizer::parser_did_run(Badge<HTMLParser>)
     rust_html_tokenizer_parser_did_run(m_tokenizer);
 }
 
-String HTMLTokenizer::unparsed_input() const
+Utf16String HTMLTokenizer::unparsed_input() const
 {
-    uint8_t const* ptr = nullptr;
+    u16 const* ptr = nullptr;
     size_t len = 0;
     rust_html_tokenizer_unparsed_input(m_tokenizer, &ptr, &len);
-    return MUST(String::from_utf8(ffi_string_view(ptr, len)));
+    return utf16_string_from_ffi(ptr, len);
 }
 
-void HTMLTokenizer::append_to_input_stream(StringView input)
+void HTMLTokenizer::append_to_input_stream(Utf16View input)
 {
     if (input.is_empty())
         return;
 
-    auto utf8_input = MUST(String::from_utf8(input));
-    auto code_points = code_points_from_string(utf8_input);
+    auto code_points = code_points_from_utf16_view(input);
     rust_html_tokenizer_append_input(m_tokenizer, code_points.data(), code_points.size());
 }
 
@@ -257,13 +233,6 @@ void HTMLTokenizer::close_input_stream()
 {
     m_input_stream_closed = true;
     rust_html_tokenizer_set_input_stream_closed(m_tokenizer, true);
-}
-
-void HTMLTokenizer::insert_input_at_insertion_point(StringView input)
-{
-    auto utf8_input = MUST(String::from_utf8(input));
-    auto code_points = code_points_from_string(utf8_input);
-    rust_html_tokenizer_insert_input(m_tokenizer, code_points.data(), code_points.size());
 }
 
 void HTMLTokenizer::insert_input_at_insertion_point(Utf16View input)

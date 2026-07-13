@@ -10,6 +10,7 @@
 #pragma once
 
 #include <AK/Function.h>
+#include <AK/Utf16View.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
@@ -31,11 +32,11 @@ public:
     virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root) override;
 
     Utf16String rel() const { return get_attribute_value(HTML::AttributeNames::rel); }
-    void set_rel(Utf16String const& value) { set_attribute_value(HTML::AttributeNames::rel, value); }
+    void set_rel(Utf16View value) { set_attribute_value(HTML::AttributeNames::rel, value); }
     Utf16String type() const { return get_attribute_value(HTML::AttributeNames::type); }
-    void set_type(Utf16String const& value) { set_attribute_value(HTML::AttributeNames::type, value); }
+    void set_type(Utf16View value) { set_attribute_value(HTML::AttributeNames::type, value); }
     Utf16String href() const { return get_attribute_value(HTML::AttributeNames::href); }
-    void set_href(Utf16String const& value) { set_attribute_value(HTML::AttributeNames::href, value); }
+    void set_href(Utf16View value) { set_attribute_value(HTML::AttributeNames::href, value); }
 
     GC::Ref<DOM::DOMTokenList> rel_list();
     GC::Ref<DOM::DOMTokenList> sizes();
@@ -49,7 +50,7 @@ public:
     void set_parser_document(Badge<HTMLParser>, GC::Ref<DOM::Document> document) { m_parser_document = document; }
     void set_was_enabled_when_created_by_parser(Badge<HTMLParser>, bool was_enabled_when_created_by_parser) { m_was_enabled_when_created_by_parser = was_enabled_when_created_by_parser; }
 
-    void set_media(Utf16String const&);
+    void set_media(Utf16View);
     Utf16String media() const;
 
     GC::Ptr<CSS::CSSStyleSheet> sheet() const;
@@ -86,7 +87,7 @@ private:
         Optional<Fetch::Infrastructure::Request::InitiatorType> initiator { Fetch::Infrastructure::Request::InitiatorType::Link };
 
         // integrity (default the empty string)
-        String integrity;
+        Utf16String integrity;
 
         // type (default the empty string)
         Utf16String type;

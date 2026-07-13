@@ -60,7 +60,7 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSMathValue::create_an_int
     }();
 
     if (perform_type_check == PerformTypeCheck::Yes && !matches)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Property does not accept values of this type."sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Property does not accept values of this type."_utf16 };
 
     return CalculatedStyleValue::create(TRY(create_calculation_node(context)), type(), move(context));
 }

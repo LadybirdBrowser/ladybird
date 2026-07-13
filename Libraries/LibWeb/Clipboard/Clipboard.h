@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/Clipboard.h>
@@ -28,7 +28,7 @@ public:
     GC::Ref<WebIDL::Promise> read_text();
 
     GC::Ref<WebIDL::Promise> write(GC::RootVector<GC::Ref<ClipboardItem>> const&);
-    GC::Ref<WebIDL::Promise> write_text(String);
+    GC::Ref<WebIDL::Promise> write_text(Utf16String);
 
 private:
     Clipboard(JS::Realm&);

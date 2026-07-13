@@ -9,13 +9,13 @@
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#cors-settings-attributes
-CORSSettingAttribute cors_setting_attribute_from_keyword(Optional<Utf16String> const& keyword)
+CORSSettingAttribute cors_setting_attribute_from_keyword(Optional<Utf16View> keyword)
 {
     if (!keyword.has_value()) {
         // its missing value default is the No CORS state
         return CORSSettingAttribute::NoCORS;
     }
-    if (keyword->equals_ignoring_ascii_case("use-credentials"_utf16)) {
+    if (keyword->equals_ignoring_ascii_case(u"use-credentials"sv)) {
         return CORSSettingAttribute::UseCredentials;
     }
 

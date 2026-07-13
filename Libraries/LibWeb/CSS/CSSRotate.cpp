@@ -29,7 +29,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSRotate>> CSSRotate::construct_impl(JS::Realm& rea
 
     // 1. If angle doesn’t match <angle>, throw a TypeError.
     if (!angle->type().matches_angle({}))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSRotate angle component doesn't match <angle>"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSRotate angle component doesn't match <angle>"_utf16 };
 
     // 2. Return a new CSSRotate with its angle internal slot set to angle, its x and y internal slots set to new unit
     //    values of (0, "number"), its z internal slot set to a new unit value of (1, "number"), and its is2D internal
@@ -48,7 +48,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSRotate>> CSSRotate::construct_impl(JS::Realm& rea
 
     // 1. If angle doesn’t match <angle>, throw a TypeError.
     if (!angle->type().matches_angle({}))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSRotate angle component doesn't match <angle>"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSRotate angle component doesn't match <angle>"_utf16 };
 
     // 2. Let x, y, and z be replaced by the result of rectifying a numberish value.
     auto rectified_x = rectify_a_numberish_value(realm, x);
@@ -57,11 +57,11 @@ WebIDL::ExceptionOr<GC::Ref<CSSRotate>> CSSRotate::construct_impl(JS::Realm& rea
 
     // 3. If x, y, or z don’t match <number>, throw a TypeError.
     if (!rectified_x->type().matches_number({}))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSRotate x component doesn't match <number>"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSRotate x component doesn't match <number>"_utf16 };
     if (!rectified_y->type().matches_number({}))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSRotate y component doesn't match <number>"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSRotate y component doesn't match <number>"_utf16 };
     if (!rectified_z->type().matches_number({}))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSRotate z component doesn't match <number>"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSRotate z component doesn't match <number>"_utf16 };
 
     // 4. Return a new CSSRotate with its angle internal slot set to angle, its x, y, z internal slots set to x, y, and
     //    z, and its is2D internal slot set to false.
@@ -180,7 +180,7 @@ WebIDL::ExceptionOr<void> CSSRotate::set_x(CSSNumberish value)
     // AD-HOC: WPT expects this to throw for invalid values. https://github.com/w3c/css-houdini-drafts/issues/1153
     auto rectified_x = rectify_a_numberish_value(realm(), value);
     if (!rectified_x->type().matches_number({}))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSRotate x component doesn't match <number>"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSRotate x component doesn't match <number>"_utf16 };
     m_x = rectified_x;
     return {};
 }
@@ -193,7 +193,7 @@ WebIDL::ExceptionOr<void> CSSRotate::set_y(CSSNumberish value)
     // AD-HOC: WPT expects this to throw for invalid values. https://github.com/w3c/css-houdini-drafts/issues/1153
     auto rectified_y = rectify_a_numberish_value(realm(), value);
     if (!rectified_y->type().matches_number({}))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSRotate y component doesn't match <number>"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSRotate y component doesn't match <number>"_utf16 };
     m_y = rectified_y;
     return {};
 }
@@ -206,7 +206,7 @@ WebIDL::ExceptionOr<void> CSSRotate::set_z(CSSNumberish value)
     // AD-HOC: WPT expects this to throw for invalid values. https://github.com/w3c/css-houdini-drafts/issues/1153
     auto rectified_z = rectify_a_numberish_value(realm(), value);
     if (!rectified_z->type().matches_number({}))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSRotate z component doesn't match <number>"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSRotate z component doesn't match <number>"_utf16 };
     m_z = rectified_z;
     return {};
 }
@@ -215,7 +215,7 @@ WebIDL::ExceptionOr<void> CSSRotate::set_angle(GC::Ref<CSSNumericValue> value)
 {
     // AD-HOC: Not specced. WPT expects this to throw for invalid values. https://github.com/w3c/css-houdini-drafts/issues/1153
     if (!value->type().matches_angle({}))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSRotate angle component doesn't match <angle>"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSRotate angle component doesn't match <angle>"_utf16 };
     m_angle = value;
     return {};
 }

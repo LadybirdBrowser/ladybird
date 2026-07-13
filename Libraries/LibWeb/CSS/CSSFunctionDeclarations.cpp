@@ -37,7 +37,7 @@ void CSSFunctionDeclarations::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_style);
 }
 
-String CSSFunctionDeclarations::serialized() const
+Utf16String CSSFunctionDeclarations::serialized() const
 {
     // https://drafts.csswg.org/css-mixins-1/#the-function-declarations-interface
     // The CSSFunctionDeclarations rule, like CSSNestedDeclarations, serializes as if its declaration block had been

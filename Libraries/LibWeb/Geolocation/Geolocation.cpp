@@ -326,7 +326,7 @@ void Geolocation::request_a_position(GC::Ref<WebIDL::CallbackType> success_callb
         // AD-HOC: This is implemented by run_in_parallel_when_document_is_visible().
 
         // 6. Let descriptor be a new PermissionDescriptor whose name is "geolocation".
-        auto descriptor = Bindings::PermissionDescriptor { "geolocation"_string };
+        auto descriptor = Bindings::PermissionDescriptor { "geolocation"_utf16 };
 
         // 7. In parallel:
         // AD-HOC: run_in_parallel_when_document_is_visible() already runs this in parallel.

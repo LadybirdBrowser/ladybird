@@ -1,6 +1,6 @@
 [Exposed=(Window,Worker)]
 interface IDBIndex {
-    attribute DOMString name;
+    attribute Utf16DOMString name;
     [SameObject] readonly attribute IDBObjectStore objectStore;
     readonly attribute any keyPath;
     readonly attribute boolean multiEntry;

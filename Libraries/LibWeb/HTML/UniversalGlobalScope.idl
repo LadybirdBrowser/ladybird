@@ -4,8 +4,8 @@ callback VoidFunction = undefined ();
 // https://whatpr.org/html/9893/webappapis.html#universalglobalscope-mixin
 interface mixin UniversalGlobalScope {
     // base64 utility methods
-    DOMString btoa(DOMString data);
-    ByteString atob(DOMString data);
+    Utf16DOMString btoa(Utf16DOMString data);
+    ByteString atob(Utf16DOMString data);
 
     // microtask queuing
     undefined queueMicrotask(VoidFunction callback);

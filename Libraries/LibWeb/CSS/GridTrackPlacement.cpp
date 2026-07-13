@@ -23,11 +23,11 @@ void GridTrackPlacement::serialize(StringBuilder& builder, SerializationMode mod
             if (area_or_line.line_number && area_or_line.name.has_value()) {
                 area_or_line.line_number->serialize(builder, mode);
                 builder.append(' ');
-                builder.append(serialize_an_identifier(*area_or_line.name));
+                builder.append(serialize_an_identifier(area_or_line.name->view()));
             } else if (area_or_line.line_number) {
                 area_or_line.line_number->serialize(builder, mode);
             } else if (area_or_line.name.has_value()) {
-                builder.append(serialize_an_identifier(*area_or_line.name));
+                builder.append(serialize_an_identifier(area_or_line.name->view()));
             }
         },
         [&](Span const& span) {
@@ -40,7 +40,7 @@ void GridTrackPlacement::serialize(StringBuilder& builder, SerializationMode mod
 
             if (span.name.has_value()) {
                 builder.append(' ');
-                builder.append(span.name.value());
+                builder.append(serialize_an_identifier(span.name->view()));
             }
         });
 }

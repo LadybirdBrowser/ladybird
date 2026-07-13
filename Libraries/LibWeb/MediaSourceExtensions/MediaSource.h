@@ -47,7 +47,7 @@ public:
     void set_onsourceclose(GC::Ptr<WebIDL::CallbackType>);
     GC::Ptr<WebIDL::CallbackType> onsourceclose();
 
-    WebIDL::ExceptionOr<GC::Ref<SourceBuffer>> add_source_buffer(String const& type);
+    WebIDL::ExceptionOr<GC::Ref<SourceBuffer>> add_source_buffer(Utf16String const& type);
 
     WebIDL::ExceptionOr<void> end_of_stream(Optional<Bindings::EndOfStreamError> const& error = {});
     void run_end_of_stream_algorithm(Badge<SourceBuffer>, Optional<Bindings::EndOfStreamError> const& error) { run_end_of_stream_algorithm(error); }
@@ -59,8 +59,8 @@ public:
     // https://w3c.github.io/media-source/#duration-change-algorithm
     void run_duration_change_algorithm(double new_duration);
 
-    static bool is_type_supported(String const&);
-    static bool is_type_supported(JS::VM&, String const& type) { return is_type_supported(type); }
+    static bool is_type_supported(Utf16View);
+    static bool is_type_supported(JS::VM&, Utf16String const& type) { return is_type_supported(type.utf16_view()); }
 
 protected:
     MediaSource(JS::Realm&);

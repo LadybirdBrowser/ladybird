@@ -6,8 +6,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Utf16StringBuilder.h>
 #include <LibJS/Runtime/ExternalMemory.h>
-#include <LibURL/Parser.h>
 #include <LibWeb/Bindings/CSSStyleSheet.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSCounterStyleRule.h>
@@ -25,6 +25,7 @@
 #include <LibWeb/CSS/StyleSheetList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/StyleElementBase.h>
+#include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/HTML/HTMLLinkElement.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
@@ -57,7 +58,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> CSSStyleSheet::construct_impl(JS::Re
             sheet_location_url = sheet->location().release_value();
 
         // AD-HOC: This isn't explicitly mentioned in the specification, but multiple modern browsers do this.
-        Optional<::URL::URL> url = sheet->location().has_value() ? sheet_location_url->complete_url(options->base_url.value()) : ::URL::Parser::basic_parse(options->base_url.value());
+        auto url = DOMURL::parse(options->base_url->utf16_view(), sheet_location_url);
         if (!url.has_value())
             return WebIDL::NotAllowedError::create(realm, "Constructed style sheets must have a valid base URL"_utf16);
 
@@ -91,8 +92,8 @@ WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> CSSStyleSheet::construct_impl(JS::Re
     // 12. If the media attribute of options is a string, create a MediaList object from the string and assign it as sheet’s media.
     //     Otherwise, serialize a media query list from the attribute and then create a MediaList object from the resulting string and set it as sheet’s media.
     if (options.has_value()) {
-        if (options->media.has<String>()) {
-            sheet->set_media(options->media.get<String>());
+        if (options->media.has<Utf16String>()) {
+            sheet->set_media(options->media.get<Utf16String>());
         } else {
             sheet->m_media = *options->media.get<GC::Ref<MediaList>>();
         }
@@ -163,7 +164,7 @@ size_t CSSStyleSheet::external_memory_size() const
 }
 
 // https://www.w3.org/TR/cssom/#dom-cssstylesheet-insertrule
-WebIDL::ExceptionOr<unsigned> CSSStyleSheet::insert_rule(StringView rule, unsigned index)
+WebIDL::ExceptionOr<unsigned> CSSStyleSheet::insert_rule(Utf16View rule, unsigned index)
 {
     // FIXME: 1. If the origin-clean flag is unset, throw a SecurityError exception.
 
@@ -219,7 +220,7 @@ WebIDL::ExceptionOr<void> CSSStyleSheet::delete_rule(unsigned index)
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstylesheet-replace
-GC::Ref<WebIDL::Promise> CSSStyleSheet::replace(String text)
+GC::Ref<WebIDL::Promise> CSSStyleSheet::replace(Utf16String text)
 {
     auto& realm = this->realm();
 
@@ -274,7 +275,7 @@ GC::Ref<WebIDL::Promise> CSSStyleSheet::replace(String text)
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstylesheet-replacesync
-WebIDL::ExceptionOr<void> CSSStyleSheet::replace_sync(StringView text)
+WebIDL::ExceptionOr<void> CSSStyleSheet::replace_sync(Utf16View text)
 {
     // 1. If the constructed flag is not set, or the disallow modification flag is set, throw a NotAllowedError DOMException.
     if (!constructed())
@@ -306,28 +307,31 @@ WebIDL::ExceptionOr<void> CSSStyleSheet::replace_sync(StringView text)
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstylesheet-addrule
-WebIDL::ExceptionOr<WebIDL::Long> CSSStyleSheet::add_rule(Optional<String> selector, Optional<String> style, Optional<WebIDL::UnsignedLong> index)
+WebIDL::ExceptionOr<WebIDL::Long> CSSStyleSheet::add_rule(Optional<Utf16String> selector, Optional<Utf16String> style, Optional<WebIDL::UnsignedLong> index)
 {
     // 1. Let rule be an empty string.
-    StringBuilder rule;
+    Utf16StringBuilder rule;
 
     // 2. Append selector to rule.
     if (selector.has_value())
         rule.append(selector.release_value());
 
     // 3. Append " { " to rule.
-    rule.append('{');
+    rule.append_code_unit(u'{');
 
     // 4. If block is not empty, append block, followed by a space, to rule.
-    if (style.has_value() && !style->is_empty())
-        rule.appendff("{} ", style.release_value());
+    if (style.has_value() && !style->is_empty()) {
+        rule.append(style.release_value());
+        rule.append_code_unit(u' ');
+    }
 
     // 5. Append "}" to rule.
-    rule.append('}');
+    rule.append_code_unit(u'}');
 
     // 6. Let index be optionalIndex if provided, or the number of CSS rules in the stylesheet otherwise.
     // 7. Call insertRule(), with rule and index as arguments.
-    TRY(insert_rule(rule.string_view(), index.value_or(rules().length())));
+    auto rule_text = rule.to_string();
+    TRY(insert_rule(rule_text, index.value_or(rules().length())));
 
     // 8. Return -1.
     return -1;

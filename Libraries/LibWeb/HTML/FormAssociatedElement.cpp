@@ -29,6 +29,7 @@
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/ValidityState.h>
+#include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Page/EventHandler.h>
@@ -38,15 +39,38 @@
 
 namespace Web::HTML {
 
-static SelectionDirection string_to_selection_direction(Optional<String> value)
+static SelectionDirection string_to_selection_direction(Utf16View value)
+{
+    if (value == u"forward"sv)
+        return SelectionDirection::Forward;
+    if (value == u"backward"sv)
+        return SelectionDirection::Backward;
+    return SelectionDirection::None;
+}
+
+static SelectionDirection string_to_selection_direction(Optional<Utf16View> value)
 {
     if (!value.has_value())
         return SelectionDirection::None;
-    if (value.value() == "forward"sv)
-        return SelectionDirection::Forward;
-    if (value.value() == "backward"sv)
-        return SelectionDirection::Backward;
-    return SelectionDirection::None;
+    return string_to_selection_direction(*value);
+}
+
+static Optional<Utf16View> optional_utf16_view(Optional<Utf16String> const& string)
+{
+    if (!string.has_value())
+        return {};
+    return string->utf16_view();
+}
+
+static WebIDL::ExceptionOr<void> validate_selection_direction_applies(FormAssociatedTextControlElement& text_control)
+{
+    auto const& html_element = text_control.text_control_to_html_element();
+    if (is<HTMLInputElement>(html_element)) {
+        auto const& input_element = static_cast<HTMLInputElement const&>(html_element);
+        if (!input_element.selection_direction_applies())
+            return WebIDL::InvalidStateError::create(input_element.realm(), "selectionDirection does not apply to element"_utf16);
+    }
+    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#form-associated-element
@@ -103,7 +127,7 @@ GC::Ref<ValidityState const> FormAssociatedElement::validity() const
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-setcustomvalidity
-void FormAssociatedElement::set_custom_validity(String& error)
+void FormAssociatedElement::set_custom_validity(Utf16String& error)
 {
     // The setCustomValidity(error) method steps are:
 
@@ -317,22 +341,22 @@ void FormAssociatedElement::clear_algorithm()
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-fs-formaction
-String FormAssociatedElement::form_action() const
+Utf16String FormAssociatedElement::form_action() const
 {
     // The formAction IDL attribute must reflect the formaction content attribute, except that on getting, when the content attribute is missing or its value is the empty string,
     // the element's node document's URL must be returned instead.
     auto& html_element = form_associated_element_to_html_element();
     auto form_action_attribute = html_element.attribute(HTML::AttributeNames::formaction);
     if (!form_action_attribute.has_value() || form_action_attribute.value().is_empty()) {
-        return html_element.document().url_string();
+        return html_element.document().url_string_for_bindings();
     }
 
     if (auto maybe_url = html_element.document().encoding_parse_url(form_action_attribute.value()); maybe_url.has_value())
-        return maybe_url->to_string();
+        return utf16_string_from_url_ascii(maybe_url->to_string());
     return {};
 }
 
-void FormAssociatedElement::set_form_action(Utf16String const& value)
+void FormAssociatedElement::set_form_action(Utf16View value)
 {
     auto& html_element = form_associated_element_to_html_element();
     html_element.set_attribute_value(HTML::AttributeNames::formaction, value);
@@ -375,9 +399,8 @@ Utf16String FormAssociatedElement::validation_message() const
 
     // If the element is a candidate for constraint validation and is suffering from a custom error, then
     // the custom validity error message should be present in the return value.
-    if (suffering_from_a_custom_error()) {
-        return Utf16String::from_utf8(m_custom_validity_error_message);
-    }
+    if (suffering_from_a_custom_error())
+        return m_custom_validity_error_message;
 
     // FIXME: Return more specific localized messages
     return "Invalid form"_utf16;
@@ -602,9 +625,9 @@ void FormAssociatedElement::set_face_validity_flags(Badge<ElementInternals>, Bin
     m_face_validity_flags = value;
 }
 
-void FormAssociatedElement::set_face_validation_message(Badge<ElementInternals>, String const& value)
+void FormAssociatedElement::set_face_validation_message(Badge<ElementInternals>, Utf16View value)
 {
-    m_face_validation_message = value;
+    m_face_validation_message = Utf16String::from_utf16(value);
 }
 
 void FormAssociatedElement::set_face_validation_anchor(Badge<ElementInternals>, GC::Ptr<HTMLElement> value)
@@ -785,7 +808,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_end_bi
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#selection-direction
-Optional<String> FormAssociatedTextControlElement::selection_direction() const
+Optional<Utf16FlyString> FormAssociatedTextControlElement::selection_direction() const
 {
     // 1. If this element is an input element, and selectionDirection does not apply to this
     //    element, return null.
@@ -799,50 +822,53 @@ Optional<String> FormAssociatedTextControlElement::selection_direction() const
     // 2. Return this element's selection direction.
     switch (m_selection_direction) {
     case SelectionDirection::Forward:
-        return "forward"_string;
+        return "forward"_utf16_fly_string;
     case SelectionDirection::Backward:
-        return "backward"_string;
+        return "backward"_utf16_fly_string;
     case SelectionDirection::None:
-        return "none"_string;
+        return "none"_utf16_fly_string;
     default:
         VERIFY_NOT_REACHED();
     }
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#set-the-selection-direction
-void FormAssociatedTextControlElement::set_selection_direction(Optional<String> direction)
+void FormAssociatedTextControlElement::set_selection_direction(Optional<Utf16String> const& direction)
 {
     // To set the selection direction of an element to a given direction, update the element's
     // selection direction to the given direction, unless the direction is "none" and the
     // platform does not support that direction; in that case, update the element's selection
     // direction to "forward".
-    m_selection_direction = string_to_selection_direction(direction);
+    m_selection_direction = string_to_selection_direction(optional_utf16_view(direction));
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-selectiondirection
-WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_direction_binding(Optional<String> direction)
+WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_direction_binding(Optional<Utf16String> const& direction)
 {
     // 1. If this element is an input element, and selectionDirection does not apply to this element,
     //    throw an "InvalidStateError" DOMException.
-    auto const& html_element = text_control_to_html_element();
-    if (is<HTMLInputElement>(html_element)) {
-        auto const& input_element = static_cast<HTMLInputElement const&>(html_element);
-        if (!input_element.selection_direction_applies())
-            return WebIDL::InvalidStateError::create(input_element.realm(), "selectionDirection does not apply to element"_utf16);
-    }
+    TRY(validate_selection_direction_applies(*this));
+
+    set_the_selection_range(m_selection_start, m_selection_end, string_to_selection_direction(optional_utf16_view(direction)));
+    return {};
+}
+
+WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_direction_binding(Utf16View direction)
+{
+    TRY(validate_selection_direction_applies(*this));
 
     set_the_selection_range(m_selection_start, m_selection_end, string_to_selection_direction(direction));
     return {};
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setrangetext
-WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text_binding(Utf16String const& replacement)
+WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text_binding(Utf16View replacement)
 {
     return set_range_text_binding(replacement, m_selection_start, m_selection_end);
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setrangetext
-WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text_binding(Utf16String const& replacement, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, Bindings::SelectionMode selection_mode)
+WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text_binding(Utf16View replacement, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, Bindings::SelectionMode selection_mode)
 {
     auto& html_element = text_control_to_html_element();
 
@@ -855,7 +881,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text_bindi
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setrangetext
-WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text(Utf16String const& replacement, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, Bindings::SelectionMode selection_mode)
+WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text(Utf16View replacement, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, Bindings::SelectionMode selection_mode)
 {
     auto& html_element = text_control_to_html_element();
 
@@ -969,7 +995,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text(Utf16
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setselectionrange
-WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_range(Optional<WebIDL::UnsignedLong> start, Optional<WebIDL::UnsignedLong> end, Optional<String> direction)
+WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_range(Optional<WebIDL::UnsignedLong> start, Optional<WebIDL::UnsignedLong> end, Optional<Utf16String> const& direction)
 {
     // 1. If this element is an input element, and setSelectionRange() does not apply to this
     //    element, throw an "InvalidStateError" DOMException.
@@ -978,7 +1004,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_range(
         return WebIDL::InvalidStateError::create(html_element.realm(), "setSelectionRange does not apply to this input type"_utf16);
 
     // 2. Set the selection range with start, end, and direction.
-    set_the_selection_range(start, end, string_to_selection_direction(direction));
+    set_the_selection_range(start, end, string_to_selection_direction(optional_utf16_view(direction)));
     return {};
 }
 
@@ -1041,18 +1067,21 @@ void FormAssociatedTextControlElement::set_the_selection_range(Optional<WebIDL::
     }
 }
 
-void FormAssociatedTextControlElement::handle_insert(FlyString const& input_type, Utf16String const& data)
+void FormAssociatedTextControlElement::handle_insert(Utf16FlyString const& input_type, Utf16View data)
 {
     auto text_node = form_associated_element_to_text_node();
     if (!text_node || !static_cast<FormAssociatedElement&>(text_control_to_html_element()).is_mutable())
         return;
 
-    auto data_for_insertion = data;
+    Utf16View data_for_insertion = data;
+    Optional<Utf16String> truncated_data_for_insertion;
 
     if (auto max_length = text_node->max_length(); max_length.has_value()) {
         auto remaining_length = *max_length - text_node->length_in_utf16_code_units();
-        if (remaining_length < data.length_in_code_units())
-            data_for_insertion = Utf16String::from_utf16(data.substring_view(0, remaining_length));
+        if (remaining_length < data.length_in_code_units()) {
+            truncated_data_for_insertion = Utf16String::from_utf16(data.substring_view(0, remaining_length));
+            data_for_insertion = truncated_data_for_insertion->utf16_view();
+        }
     }
 
     auto selection_start = this->selection_start();
@@ -1065,13 +1094,13 @@ void FormAssociatedTextControlElement::handle_insert(FlyString const& input_type
     // https://w3c.github.io/input-events/#overview
     Optional<Utf16String> data_for_input_event;
     if (first_is_one_of(input_type, UIEvents::InputTypes::insertText, UIEvents::InputTypes::insertFromPaste))
-        data_for_input_event = data_for_insertion;
+        data_for_input_event = Utf16String::from_utf16(data_for_insertion);
 
     did_edit_text_node(input_type, data_for_input_event);
     scroll_cursor_into_view();
 }
 
-void FormAssociatedTextControlElement::handle_delete(FlyString const& input_type)
+void FormAssociatedTextControlElement::handle_delete(Utf16FlyString const& input_type, [[maybe_unused]] DispatchInputEvent dispatch_input_event)
 {
     auto text_node = form_associated_element_to_text_node();
     if (!text_node || !static_cast<FormAssociatedElement&>(text_control_to_html_element()).is_mutable())

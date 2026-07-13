@@ -20,9 +20,13 @@ public:
 
     virtual GC::Ref<JS::Cell> as_cell() = 0;
 
-    virtual void handle_insert(FlyString const& input_type, Utf16String const&) = 0;
-    virtual EventResult handle_return_key(FlyString const& input_type) = 0;
-    virtual void handle_delete(FlyString const& input_type) = 0;
+    virtual void handle_insert(Utf16FlyString const& input_type, Utf16View) = 0;
+    virtual EventResult handle_return_key(Utf16FlyString const& input_type) = 0;
+    enum class DispatchInputEvent {
+        No,
+        Yes,
+    };
+    virtual void handle_delete(Utf16FlyString const& input_type, DispatchInputEvent = DispatchInputEvent::Yes) = 0;
 
     // The node that mouse-driven selection through this target is constrained to (e.g. the text node inside a text
     // control, or the active editing host). Dragging outside it snaps the selection focus to its closest position.

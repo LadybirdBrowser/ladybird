@@ -188,7 +188,7 @@ void Window::finalize()
 Window::~Window() = default;
 
 // https://html.spec.whatwg.org/multipage/window-object.html#window-open-steps
-WebIDL::ExceptionOr<GC::Ptr<WindowProxy>> Window::window_open_steps(StringView url, StringView target, StringView features)
+WebIDL::ExceptionOr<GC::Ptr<WindowProxy>> Window::window_open_steps(Utf16View url, Utf16View target, Utf16View features)
 {
     auto [target_navigable, no_opener, window_type] = TRY(window_open_steps_internal(url, target, features));
     if (target_navigable == nullptr)
@@ -222,7 +222,7 @@ static TokenizedFeature::NoOpener get_noopener_for_window_open(DOM::Document con
     auto noopener = TokenizedFeature::NoOpener::No;
 
     // 3. If tokenizedFeatures["noopener"] exists, then set noopener to the result of parsing tokenizedFeatures["noopener"] as a boolean feature.
-    if (auto value = tokenized_features.get("noopener"sv); value.has_value()) {
+    if (auto value = tokenized_features.get(u"noopener"sv); value.has_value()) {
         noopener = parse_boolean_feature<TokenizedFeature::NoOpener>(*value);
     }
 
@@ -231,7 +231,7 @@ static TokenizedFeature::NoOpener get_noopener_for_window_open(DOM::Document con
 }
 
 // https://html.spec.whatwg.org/multipage/window-object.html#window-open-steps
-WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(StringView url, StringView target, StringView features)
+WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(Utf16View url, Utf16View target, Utf16View features)
 {
     // 1. If the event loop's termination nesting level is nonzero, return null.
     if (main_thread_event_loop().termination_nesting_level() != 0)
@@ -255,7 +255,7 @@ WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(Str
 
     // 5. If target is the empty string, then set target to "_blank".
     if (target.is_empty())
-        target = "_blank"sv;
+        target = u"_blank"sv;
 
     // 6. Let tokenizedFeatures be the result of tokenizing features.
     auto tokenized_features = tokenize_open_features(features);
@@ -264,7 +264,7 @@ WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(Str
     auto no_referrer = TokenizedFeature::NoReferrer::No;
 
     // 8. If tokenizedFeatures["noreferrer"] exists, then set noreferrer to the result of parsing tokenizedFeatures["noreferrer"] as a boolean feature.
-    if (auto no_referrer_feature = tokenized_features.get("noreferrer"sv); no_referrer_feature.has_value()) {
+    if (auto no_referrer_feature = tokenized_features.get(u"noreferrer"sv); no_referrer_feature.has_value()) {
         no_referrer = parse_boolean_feature<TokenizedFeature::NoReferrer>(*no_referrer_feature);
     }
 
@@ -272,8 +272,10 @@ WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(Str
     auto no_opener = get_noopener_for_window_open(source_document, tokenized_features, url_record);
 
     // 10. Remove tokenizedFeatures["noopener"] and tokenizedFeatures["noreferrer"].
-    tokenized_features.remove("noopener"sv);
-    tokenized_features.remove("noreferrer"sv);
+    if (auto iterator = tokenized_features.find(u"noopener"sv); iterator != tokenized_features.end())
+        tokenized_features.remove(iterator);
+    if (auto iterator = tokenized_features.find(u"noreferrer"sv); iterator != tokenized_features.end())
+        tokenized_features.remove(iterator);
 
     // 11. Let referrerPolicy be the empty string.
     auto referrer_policy = ReferrerPolicy::ReferrerPolicy::EmptyString;
@@ -473,7 +475,7 @@ Optional<CSS::FeatureValue> Window::query_media_feature(CSS::MediaFeatureID medi
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#fire-a-page-transition-event
-void Window::fire_a_page_transition_event(FlyString const& event_name, bool persisted)
+void Window::fire_a_page_transition_event(Utf16FlyString const& event_name, bool persisted)
 {
     // To fire a page transition event named eventName at a Window window with a boolean persisted,
     // fire an event named eventName at window, using PageTransitionEvent,
@@ -847,30 +849,29 @@ GC::Ref<DOM::Document const> Window::document() const
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-name
-String Window::name() const
+Utf16String Window::name() const
 {
     // 1. If this's navigable is null, then return the empty string.
     if (!navigable())
-        return String {};
+        return {};
 
     // 2. Return this's navigable's target name.
-    auto target_name = navigable()->target_name();
-    return MUST(target_name.utf16_view().to_utf8());
+    return navigable()->target_name();
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#apis-for-creating-and-navigating-browsing-contexts-by-name:dom-name
-void Window::set_name(String const& name)
+void Window::set_name(Utf16View name)
 {
     // 1. If this's navigable is null, then return.
     if (!navigable())
         return;
 
     // 2. Set this's navigable's active session history entry's document state's navigable target name to the given value.
-    navigable()->active_session_history_entry()->document_state()->set_navigable_target_name(Utf16String::from_utf8(name));
+    navigable()->active_session_history_entry()->document_state()->set_navigable_target_name(Utf16String::from_utf16(name));
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-status
-String Window::status() const
+Utf16String Window::status() const
 {
     // the status attribute on the Window object must, on getting, return the last string it was set to
     return m_status;
@@ -936,10 +937,10 @@ bool Window::closed() const
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-status
-void Window::set_status(String const& status)
+void Window::set_status(Utf16View status)
 {
     // on setting, must set itself to the new value.
-    m_status = status;
+    m_status = Utf16String::from_utf16(status);
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location
@@ -1160,7 +1161,7 @@ GC::Ptr<DOM::Element const> Window::frame_element() const
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-open
-WebIDL::ExceptionOr<GC::Ptr<WindowProxy>> Window::open(Optional<String> const& url, Optional<String> const& target, Optional<String> const& features)
+WebIDL::ExceptionOr<GC::Ptr<WindowProxy>> Window::open(Optional<Utf16String> const& url, Optional<Utf16String> const& target, Optional<Utf16String> const& features)
 {
     // The open(url, target, features) method steps are to run the window open steps with url, target, and features.
     return window_open_steps(*url, *target, *features);
@@ -1207,7 +1208,7 @@ GC::Ref<Speech::SpeechSynthesis> Window::speech_synthesis()
 }
 
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#dom-alert
-void Window::alert(String const& message)
+void Window::alert(Utf16String const& message)
 {
     // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#simple-dialogs
     // Note: This method is defined using two overloads, instead of using an optional argument,
@@ -1218,7 +1219,7 @@ void Window::alert(String const& message)
 }
 
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#dom-confirm
-bool Window::confirm(Optional<String> const& message)
+bool Window::confirm(Optional<Utf16String> const& message)
 {
     // FIXME: Make this fully spec compliant.
     // NOTE: `message` has an IDL-provided default value and is never empty.
@@ -1226,10 +1227,13 @@ bool Window::confirm(Optional<String> const& message)
 }
 
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#dom-prompt
-Optional<String> Window::prompt(Optional<String> const& message, Optional<String> const& default_)
+Optional<Utf16String> Window::prompt(Optional<Utf16String> const& message, Optional<Utf16String> const& default_)
 {
     // FIXME: Make this fully spec compliant.
-    return page().did_request_prompt(*message, *default_);
+    auto result = page().did_request_prompt(*message, *default_);
+    if (!result.has_value())
+        return {};
+    return result;
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#window-post-message-steps
@@ -1242,16 +1246,16 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, B
     auto& incumbent_settings = incumbent_settings_object();
 
     // 3. Let targetOrigin be options["targetOrigin"].
-    Variant<String, URL::Origin> target_origin = options.target_origin;
+    Variant<Utf16String, URL::Origin> target_origin = options.target_origin;
 
     // 4. If targetOrigin is a single U+002F SOLIDUS character (/), then set targetOrigin to incumbentSettings's origin.
-    if (options.target_origin == "/"sv) {
+    if (options.target_origin == u"/"sv) {
         target_origin = incumbent_settings.origin();
     }
     // 5. Otherwise, if targetOrigin is not a single U+002A ASTERISK character (*), then:
-    else if (options.target_origin != "*"sv) {
+    else if (options.target_origin != u"*"sv) {
         // 1. Let parsedURL be the result of running the URL parser on targetOrigin.
-        auto parsed_url = DOMURL::parse(options.target_origin);
+        auto parsed_url = DOMURL::parse(options.target_origin.utf16_view());
 
         // 2. If parsedURL is failure, then throw a "SyntaxError" DOMException.
         if (!parsed_url.has_value())
@@ -1272,7 +1276,7 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, B
         // 1. If the targetOrigin argument is not a single literal U+002A ASTERISK character (*) and targetWindow's
         //    associated Document's origin is not same origin with targetOrigin, then return.
         // NOTE: Due to step 4 and 5 above, the only time it's not '*' is if target_origin contains an Origin.
-        if (!target_origin.has<String>()) {
+        if (!target_origin.has<Utf16String>()) {
             auto const& actual_target_origin = target_origin.get<URL::Origin>();
             if (!document()->origin().is_same_origin(actual_target_origin))
                 return;
@@ -1292,7 +1296,7 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, B
         // If this throws an exception, catch it, fire an event named messageerror at targetWindow, using MessageEvent,
         // with its origin initialized to origin and the source attribute initialized to source, and then return.
         if (deserialize_record_or_error.is_exception()) {
-            Bindings::MessageEventInit message_event_init { Bindings::EventInit {}, JS::js_null(), String {}, String {}, {}, GC::Ref { source } };
+            Bindings::MessageEventInit message_event_init { Bindings::EventInit {}, JS::js_null(), Utf16String {}, Utf16String {}, {}, GC::Ref { source } };
 
             auto message_error_event = MessageEvent::create(target_realm, EventNames::messageerror, message_event_init, origin);
             dispatch_event(message_error_event);
@@ -1316,7 +1320,7 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, B
         // 7. Fire an event named message at targetWindow, using MessageEvent, with its origin initialized to origin,
         //    the source attribute initialized to source, the data attribute initialized to messageClone, and the ports
         //    attribute initialized to newPorts.
-        Bindings::MessageEventInit message_event_init { Bindings::EventInit {}, message_clone, String {}, String {}, move(new_ports), GC::Ref { source } };
+        Bindings::MessageEventInit message_event_init { Bindings::EventInit {}, message_clone, Utf16String {}, Utf16String {}, move(new_ports), GC::Ref { source } };
 
         auto message_event = MessageEvent::create(target_realm, EventNames::message, message_event_init, origin);
         message_event->set_is_trusted(true);
@@ -1335,11 +1339,11 @@ WebIDL::ExceptionOr<void> Window::post_message(JS::Value message, Bindings::Wind
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-window-postmessage
-WebIDL::ExceptionOr<void> Window::post_message(JS::Value message, String const& target_origin, GC::RootVector<GC::Ref<JS::Object>> const& transfer)
+WebIDL::ExceptionOr<void> Window::post_message(JS::Value message, Utf16View target_origin, GC::RootVector<GC::Ref<JS::Object>> const& transfer)
 {
     // The Window interface's postMessage(message, targetOrigin, transfer) method steps are to run the window post message
     // steps given this, message, and «[ "targetOrigin" → targetOrigin, "transfer" → transfer ]».
-    return window_post_message_steps(message, Bindings::WindowPostMessageOptions { { .transfer = transfer }, target_origin });
+    return window_post_message_steps(message, Bindings::WindowPostMessageOptions { { .transfer = transfer }, Utf16String::from_utf16(target_origin) });
 }
 
 // https://dom.spec.whatwg.org/#dom-window-event
@@ -1352,7 +1356,7 @@ Variant<GC::Ref<DOM::Event>, Empty> Window::event() const
 }
 
 // https://drafts.csswg.org/cssom/#dom-window-getcomputedstyle
-GC::Ref<CSS::CSSStyleProperties> Window::get_computed_style(DOM::Element& element, Optional<String> const& pseudo_element) const
+GC::Ref<CSS::CSSStyleProperties> Window::get_computed_style(DOM::Element& element, Optional<Utf16String> const& pseudo_element) const
 {
     // 1. Let doc be elt’s node document.
 
@@ -1360,7 +1364,7 @@ GC::Ref<CSS::CSSStyleProperties> Window::get_computed_style(DOM::Element& elemen
     Optional<DOM::AbstractElement> object { element };
 
     // 3. If pseudoElt is provided, is not the empty string, and starts with a colon, then:
-    if (pseudo_element.has_value() && pseudo_element.value().starts_with(':')) {
+    if (pseudo_element.has_value() && pseudo_element.value().starts_with(u":"sv)) {
         // 1. Parse pseudoElt as a <pseudo-element-selector>, and let type be the result.
         auto type = parse_pseudo_element_selector(CSS::Parser::ParsingParams(associated_document()), pseudo_element.value());
 
@@ -1409,7 +1413,7 @@ GC::Ref<CSS::CSSStyleProperties> Window::get_computed_style(DOM::Element& elemen
 }
 
 // https://w3c.github.io/csswg-drafts/cssom-view/#dom-window-matchmedia
-WebIDL::ExceptionOr<GC::Ref<CSS::MediaQueryList>> Window::match_media(String const& query)
+WebIDL::ExceptionOr<GC::Ref<CSS::MediaQueryList>> Window::match_media(Utf16View query)
 {
     // 1. Let parsed media query list be the result of parsing query.
     auto parsed_media_query_list = parse_media_query_list(CSS::Parser::ParsingParams(associated_document()), query);
@@ -1880,12 +1884,12 @@ OrderedHashMap<Utf16FlyString, GC::Ref<LocalNavigable>> Window::document_tree_ch
     // 3. For each navigable of children:
     for (auto const& navigable : children) {
         // 1. Let name be navigable's target name.
-        auto target_name = navigable->target_name();
-        auto name = Utf16FlyString::from_utf16(target_name.utf16_view());
-
         // 2. If name is the empty string, then continue.
-        if (name.is_empty())
+        auto const& target_name = navigable->target_name();
+        if (target_name.is_empty())
             continue;
+
+        auto name = Utf16FlyString::from_utf16(target_name.utf16_view());
 
         // 3. If firstNamedChildren contains a navigable whose target name is name, then continue.
         if (first_named_children.contains(name))
@@ -1968,7 +1972,7 @@ JS::Value Window::named_item_value(Utf16FlyString const& name) const
 
     // 1. Let objects be the list of named objects of window with the name name.
     // NOTE: There will be at least one such object, since the algorithm would otherwise not have been invoked by Web IDL.
-    auto objects = mutable_this.named_objects(name);
+    auto objects = mutable_this.named_objects(name.view());
 
     // 2. If objects contains a navigable, then:
     if (!objects.navigables.is_empty()) {
@@ -1996,15 +2000,17 @@ JS::Value Window::named_item_value(Utf16FlyString const& name) const
     // 4. Otherwise return an HTMLCollection rooted at window's associated Document,
     //    whose filter matches only named objects of window with the name name. (By definition, these will all be elements.)
     return DOM::HTMLCollection::create(mutable_this.associated_document(), DOM::HTMLCollection::Scope::Descendants, [name](auto& element) -> bool {
-        if ((is<HTMLEmbedElement>(element) || is<HTMLFormElement>(element) || is<HTMLImageElement>(element) || is<HTMLObjectElement>(element))
-            && (element.name() == name))
-            return true;
-        return element.id() == name;
+        if (is<HTMLEmbedElement>(element) || is<HTMLFormElement>(element) || is<HTMLImageElement>(element) || is<HTMLObjectElement>(element)) {
+            if (auto element_name = element.name(); element_name.has_value() && element_name->view() == name.view())
+                return true;
+        }
+        auto element_id = element.id();
+        return element_id.has_value() && element_id->view() == name.view();
     });
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-nameditem-filter
-Window::NamedObjects Window::named_objects(Utf16FlyString const& name)
+Window::NamedObjects Window::named_objects(Utf16View name)
 {
     // NOTE: Since the Window interface has the [Global] extended attribute, its named properties
     //       follow the rules for named properties objects rather than legacy platform objects.
@@ -2014,7 +2020,7 @@ Window::NamedObjects Window::named_objects(Utf16FlyString const& name)
     // document-tree child navigables of window's associated Document whose target name is name;
     auto children = associated_document().document_tree_child_navigables();
     for (auto& navigable : children) {
-        auto target_name = navigable->target_name();
+        auto const& target_name = navigable->target_name();
         if (name == target_name.utf16_view()) {
             objects.navigables.append(*navigable);
         }
@@ -2028,7 +2034,7 @@ Window::NamedObjects Window::named_objects(Utf16FlyString const& name)
             // NOTE: The element will be added when we iterate over the element_by_id() map below.
             continue;
         }
-        if (auto element_name = element->name(); element_name.has_value() && *element_name == name)
+        if (auto element_name = element->name(); element_name.has_value() && element_name->view() == name)
             objects.elements.append(*element);
     }
     associated_document().element_by_id().for_each_element_with_id(name, associated_document(), [&](auto& element) {
@@ -2038,7 +2044,7 @@ Window::NamedObjects Window::named_objects(Utf16FlyString const& name)
     return objects;
 }
 
-bool Window::find(String const& string)
+bool Window::find(Utf16View string)
 {
     if (string.is_empty())
         return false;
@@ -2049,7 +2055,7 @@ bool Window::find(String const& string)
         result = page.find_in_page_next_match();
     } else {
         Page::FindInPageQuery query {
-            string,
+            Utf16String::from_utf16(string),
             CaseSensitivity::CaseInsensitive,
             Page::WrapAround::No,
             Page::ClearSelectionOnNoMatch::No,

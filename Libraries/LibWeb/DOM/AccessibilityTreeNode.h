@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/JsonObjectSerializer.h>
+#include <AK/Utf16StringBuilder.h>
 #include <AK/Vector.h>
 #include <LibGC/CellAllocator.h>
 #include <LibJS/Heap/Cell.h>
@@ -27,7 +28,7 @@ public:
     Vector<GC::Ptr<AccessibilityTreeNode>> children() const { return m_children; }
     void append_child(AccessibilityTreeNode* child) { m_children.append(child); }
 
-    void serialize_tree_as_json(JsonObjectSerializer<StringBuilder>& object, Document const&) const;
+    void serialize_tree_as_json(JsonObjectSerializer<Utf16StringBuilder>& object, Document const&) const;
 
 protected:
     virtual void visit_edges(Visitor&) override;

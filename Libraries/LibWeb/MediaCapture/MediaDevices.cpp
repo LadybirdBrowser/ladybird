@@ -32,13 +32,13 @@
 
 namespace Web::MediaCapture {
 
-static String const& AUDIO_INPUT_KIND = *new String("audioinput"_string);
-static String const& AUDIO_OUTPUT_KIND = *new String("audiooutput"_string);
-static String const& VIDEO_INPUT_KIND = *new String("videoinput"_string);
+static Utf16FlyString const& AUDIO_INPUT_KIND = *new Utf16FlyString("audioinput"_utf16_fly_string);
+static Utf16FlyString const& AUDIO_OUTPUT_KIND = *new Utf16FlyString("audiooutput"_utf16_fly_string);
+static Utf16FlyString const& VIDEO_INPUT_KIND = *new Utf16FlyString("videoinput"_utf16_fly_string);
 
-using ConstrainDOMString = Variant<String, Vector<String>, Bindings::ConstrainDOMStringParameters>;
+using ConstrainDOMString = Variant<Utf16String, Vector<Utf16String>, Bindings::ConstrainDOMStringParameters>;
 
-static Optional<Vector<String>> extract_device_id_constraint(Optional<ConstrainDOMString> const& device_id_value);
+static Optional<Vector<Utf16String>> extract_device_id_constraint(Optional<ConstrainDOMString> const& device_id_value);
 static void resolve_with_device_info_list(JS::Realm& realm, WebIDL::Promise& promise, GC::RootVector<GC::Ref<MediaDeviceInfo>> const& result_list);
 
 GC_DEFINE_ALLOCATOR(MediaDevices);
@@ -161,7 +161,7 @@ bool MediaDevices::is_in_view() const
     return document.is_fully_active() && document.visibility_state_value() == HTML::VisibilityState::Visible;
 }
 
-bool MediaDevices::has_live_device_of_kind(StringView kind) const
+bool MediaDevices::has_live_device_of_kind(Utf16FlyString const& kind) const
 {
     for (auto const& device : m_stored_device_list) {
         if (device.kind != kind)
@@ -198,7 +198,7 @@ void MediaDevices::set_device_information_exposure(bool audio_requested, bool vi
 }
 
 // https://w3c.github.io/mediacapture-main/#dom-mediadevices-getusermedia
-void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, Optional<Vector<String>> requested_device_ids)
+void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, Optional<Vector<Utf16String>> requested_device_ids)
 {
     JS::Realm& realm = this->realm();
     GC::Ref<MediaDevices> media_devices = *this;
@@ -245,7 +245,7 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
         if (requested_device_ids.has_value() && !requested_device_ids->is_empty()) {
             Vector<Media::AudioDeviceInfo> filtered_candidates;
             for (auto const& device : candidate_set) {
-                String device_id = String::from_utf8_with_replacement_character(device.dom_device_id.view());
+                auto device_id = Utf16String::from_utf8_with_replacement_character(device.dom_device_id.view());
                 for (auto const& requested_id : *requested_device_ids) {
                     if (device_id == requested_id) {
                         filtered_candidates.append(device);
@@ -300,14 +300,14 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
         Media::AudioDeviceInfo const& granted_device = final_candidate.value();
 
         // 11.9.4 Using grantedDevice's deviceId, deviceId, set mediaDevices.[[devicesLiveMap]][deviceId] to true, if it isn't already true, and set mediaDevices.[[devicesAccessibleMap]][deviceId] to true, if it isn't already true.
-        String granted_device_id = String::from_utf8_with_replacement_character(granted_device.dom_device_id.view());
+        auto granted_device_id = Utf16String::from_utf8_with_replacement_character(granted_device.dom_device_id.view());
         media_devices->m_devices_live_map.set(granted_device_id, true);
         media_devices->m_devices_accessible_map.set(granted_device_id, true);
 
         // 11.9.5 Let track be the result of creating a MediaStreamTrack with grantedDevice and mediaDevices. The source of the MediaStreamTrack MUST NOT change.
         GC::Ref<MediaStreamTrack> track = MediaStreamTrack::create(realm,
             Bindings::MediaStreamTrackKind::Audio,
-            String::from_utf8_with_replacement_character(granted_device.label.view()));
+            Utf16String::from_utf8_with_replacement_character(granted_device.label.view()));
 
         Bindings::MediaTrackSettings settings = track->get_settings();
         settings.device_id = granted_device_id;
@@ -388,21 +388,21 @@ GC::RootVector<GC::Ref<MediaDeviceInfo>> MediaDevices::create_list_of_device_inf
 
     auto create_device_info_object = [&](StoredDevice const& device) -> Optional<GC::Ref<MediaDeviceInfo>> {
         Optional<Bindings::MediaDeviceKind> kind;
-        if (device.kind == "audioinput"sv)
+        if (device.kind == AUDIO_INPUT_KIND)
             kind = Bindings::MediaDeviceKind::Audioinput;
-        else if (device.kind == "audiooutput"sv)
+        else if (device.kind == AUDIO_OUTPUT_KIND)
             kind = Bindings::MediaDeviceKind::Audiooutput;
         else
             return {};
 
-        String device_id = device.dom_device_id;
-        String label = device.label;
-        String group_id = device.group_id;
+        auto device_id = device.dom_device_id;
+        auto label = device.label;
+        auto group_id = device.group_id;
 
-        if (device.kind == "audioinput"sv && !microphone_information_can_be_exposed()) {
-            device_id = String {};
-            label = String {};
-            group_id = String {};
+        if (device.kind == AUDIO_INPUT_KIND && !microphone_information_can_be_exposed()) {
+            device_id = {};
+            label = {};
+            group_id = {};
         }
         // FIXME: Implement videoinput creation when camera enumeration is available.
 
@@ -480,7 +480,7 @@ GC::RootVector<GC::Ref<MediaDeviceInfo>> MediaDevices::create_list_of_device_inf
 
         // 8.4 Append deviceInfo to otherDeviceList.
         // 8.5 If device is the system default audio output, prepend it instead.
-        if (device.kind == "audiooutput"sv && device.is_default) {
+        if (device.kind == AUDIO_OUTPUT_KIND && device.is_default) {
             // AD-HOC: 8.5.x Label & id in the LibMedia audio device cache are only mutated in response
             // to OS notifications. The device manager updates the DOM id & label in the event of changes,
             // and these will be broadcast to the LibMedia cache. We don't set that state here.
@@ -591,7 +591,7 @@ GC::Ref<WebIDL::Promise> MediaDevices::get_user_media(Optional<Bindings::MediaSt
 
     bool audio_requested = false;
     bool video_requested = false;
-    Optional<Vector<String>> requested_device_ids;
+    Optional<Vector<Utf16String>> requested_device_ids;
 
     // 1. Let constraints be the method's first argument.
     if (!constraints.has_value())
@@ -672,20 +672,20 @@ Vector<MediaDevices::StoredDevice> MediaDevices::current_audio_device_snapshot()
 
     for (auto const& device : input_devices) {
         stored_devices.append(StoredDevice {
-            .dom_device_id = String::from_utf8_with_replacement_character(device.dom_device_id.view()),
+            .dom_device_id = Utf16String::from_utf8_with_replacement_character(device.dom_device_id.view()),
             .kind = AUDIO_INPUT_KIND,
-            .label = String::from_utf8_with_replacement_character(device.label.view()),
-            .group_id = String::from_utf8_with_replacement_character(device.group_id.view()),
+            .label = Utf16String::from_utf8_with_replacement_character(device.label.view()),
+            .group_id = Utf16String::from_utf8_with_replacement_character(device.group_id.view()),
             .is_default = device.is_default,
         });
     }
 
     for (auto const& device : output_devices) {
         stored_devices.append(StoredDevice {
-            .dom_device_id = String::from_utf8_with_replacement_character(device.dom_device_id.view()),
+            .dom_device_id = Utf16String::from_utf8_with_replacement_character(device.dom_device_id.view()),
             .kind = AUDIO_OUTPUT_KIND,
-            .label = String::from_utf8_with_replacement_character(device.label.view()),
-            .group_id = String::from_utf8_with_replacement_character(device.group_id.view()),
+            .label = Utf16String::from_utf8_with_replacement_character(device.label.view()),
+            .group_id = Utf16String::from_utf8_with_replacement_character(device.group_id.view()),
             .is_default = device.is_default,
         });
     }
@@ -699,23 +699,23 @@ void MediaDevices::did_observe_audio_device_cache_update()
     process_pending_get_user_media_requests();
 }
 
-static Optional<Vector<String>> dom_string_values_from_variant(Variant<String, Vector<String>> const& value)
+static Optional<Vector<Utf16String>> dom_string_values_from_variant(Variant<Utf16String, Vector<Utf16String>> const& value)
 {
-    Vector<String> values;
-    if (value.has<String>()) {
-        auto const& string_value = value.get<String>();
+    Vector<Utf16String> values;
+    if (value.has<Utf16String>()) {
+        auto const& string_value = value.get<Utf16String>();
         if (!string_value.is_empty())
             values.append(string_value);
     } else {
-        for (auto const& entry : value.get<Vector<String>>()) {
+        for (auto const& entry : value.get<Vector<Utf16String>>()) {
             if (!entry.is_empty())
                 values.append(entry);
         }
     }
-    return values.is_empty() ? Optional<Vector<String>> {} : Optional<Vector<String>> { move(values) };
+    return values.is_empty() ? Optional<Vector<Utf16String>> {} : Optional<Vector<Utf16String>> { move(values) };
 }
 
-static Optional<Vector<String>> extract_dom_string_constraint_values(ConstrainDOMString const& constraint)
+static Optional<Vector<Utf16String>> extract_dom_string_constraint_values(ConstrainDOMString const& constraint)
 {
     // https://w3c.github.io/mediacapture-main/#dom-constraindomstring
     // ConstrainDOMString is (DOMString or sequence<DOMString> or ConstrainDOMStringParameters).
@@ -734,13 +734,13 @@ static Optional<Vector<String>> extract_dom_string_constraint_values(ConstrainDO
         return {};
     }
 
-    if (constraint.has<String>())
-        return dom_string_values_from_variant(Variant<String, Vector<String>> { constraint.get<String>() });
+    if (constraint.has<Utf16String>())
+        return dom_string_values_from_variant(Variant<Utf16String, Vector<Utf16String>> { constraint.get<Utf16String>() });
 
-    return dom_string_values_from_variant(Variant<String, Vector<String>> { constraint.get<Vector<String>>() });
+    return dom_string_values_from_variant(Variant<Utf16String, Vector<Utf16String>> { constraint.get<Vector<Utf16String>>() });
 }
 
-static Optional<Vector<String>> extract_device_id_constraint(Optional<ConstrainDOMString> const& device_id_value)
+static Optional<Vector<Utf16String>> extract_device_id_constraint(Optional<ConstrainDOMString> const& device_id_value)
 {
     if (!device_id_value.has_value())
         return {};

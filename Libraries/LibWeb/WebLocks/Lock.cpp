@@ -39,7 +39,7 @@ void Lock::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://w3c.github.io/web-locks/#dom-lock-name
-String const& Lock::name() const
+Utf16String const& Lock::name() const
 {
     // The name getter’s steps are to return the associated lock’s name.
     return m_lock->name();
@@ -52,7 +52,7 @@ Bindings::LockMode Lock::mode() const
     return m_lock->mode();
 }
 
-LockData::LockData(String client_id, GC::Ref<LockManager> manager, Bindings::LockMode mode, String name, GC::Ref<WebIDL::Promise> released_promise, GC::Ref<WebIDL::Promise> waiting_promise)
+LockData::LockData(Utf16String client_id, GC::Ref<LockManager> manager, Bindings::LockMode mode, Utf16String name, GC::Ref<WebIDL::Promise> released_promise, GC::Ref<WebIDL::Promise> waiting_promise)
     : m_client_id(move(client_id))
     , m_manager(manager)
     , m_name(move(name))

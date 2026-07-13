@@ -5,15 +5,15 @@ interface HTMLFrameElement : HTMLElement {
     [HTMLConstructor] constructor();
 
     [CEReactions, Reflect] attribute Utf16DOMString name;
-    [CEReactions, Reflect] attribute DOMString scrolling;
-    [CEReactions, Reflect, URL] attribute USVString src;
-    [CEReactions, Reflect=frameborder] attribute DOMString frameBorder;
-    [CEReactions, Reflect=longdesc, URL] attribute USVString longDesc;
+    [CEReactions, Reflect] attribute Utf16DOMString scrolling;
+    [CEReactions, Reflect, URL] attribute Utf16USVString src;
+    [CEReactions, Reflect=frameborder] attribute Utf16DOMString frameBorder;
+    [CEReactions, Reflect=longdesc, URL] attribute Utf16USVString longDesc;
     [CEReactions, Reflect=noresize] attribute boolean noResize;
     readonly attribute Document? contentDocument;
     readonly attribute WindowProxy? contentWindow;
 
-    [CEReactions, LegacyNullToEmptyString, Reflect=marginheight] attribute DOMString marginHeight;
-    [CEReactions, LegacyNullToEmptyString, Reflect=marginwidth] attribute DOMString marginWidth;
+    [CEReactions, LegacyNullToEmptyString, Reflect=marginheight] attribute Utf16DOMString marginHeight;
+    [CEReactions, LegacyNullToEmptyString, Reflect=marginwidth] attribute Utf16DOMString marginWidth;
 
 };

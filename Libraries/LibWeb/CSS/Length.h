@@ -9,6 +9,7 @@
 
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibGC/Cell.h>
 #include <LibGC/Ptr.h>
 #include <LibGfx/Forward.h>
@@ -188,6 +189,7 @@ public:
     }
 
     void serialize(StringBuilder&, SerializationMode = SerializationMode::Normal) const;
+    void serialize(Utf16StringBuilder&, SerializationMode = SerializationMode::Normal) const;
     String to_string(SerializationMode = SerializationMode::Normal) const;
 
     bool operator==(Length const& other) const

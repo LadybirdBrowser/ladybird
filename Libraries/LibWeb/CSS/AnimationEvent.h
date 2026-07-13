@@ -19,8 +19,8 @@ class AnimationEvent : public DOM::Event {
     GC_DECLARE_ALLOCATOR(AnimationEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<AnimationEvent> create(JS::Realm&, FlyString const& type, Bindings::AnimationEventInit const& event_init = {});
-    static WebIDL::ExceptionOr<GC::Ref<AnimationEvent>> construct_impl(JS::Realm&, FlyString const& type, Bindings::AnimationEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<AnimationEvent> create(JS::Realm&, Utf16FlyString const& type, Bindings::AnimationEventInit const& event_init = {});
+    static WebIDL::ExceptionOr<GC::Ref<AnimationEvent>> construct_impl(JS::Realm&, Utf16FlyString const& type, Bindings::AnimationEventInit const& event_init);
 
     virtual ~AnimationEvent() override = default;
 
@@ -29,7 +29,7 @@ public:
     Utf16String const& pseudo_element() const { return m_pseudo_element; }
 
 private:
-    AnimationEvent(JS::Realm&, FlyString const& type, Bindings::AnimationEventInit const& event_init);
+    AnimationEvent(JS::Realm&, Utf16FlyString const& type, Bindings::AnimationEventInit const& event_init);
 
     virtual void initialize(JS::Realm&) override;
 

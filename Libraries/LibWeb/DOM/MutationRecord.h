@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
 #include <LibWeb/Bindings/PlatformObject.h>
@@ -19,11 +18,11 @@ class MutationRecord : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(MutationRecord);
 
 public:
-    [[nodiscard]] static GC::Ref<MutationRecord> create(JS::Realm&, FlyString const& type, Node const& target, NodeList& added_nodes, NodeList& removed_nodes, Node* previous_sibling, Node* next_sibling, Optional<Utf16FlyString> const& attribute_name, Optional<Utf16FlyString> const& attribute_namespace, Optional<Utf16String> const& old_value);
+    [[nodiscard]] static GC::Ref<MutationRecord> create(JS::Realm&, Utf16FlyString const& type, Node const& target, NodeList& added_nodes, NodeList& removed_nodes, Node* previous_sibling, Node* next_sibling, Optional<Utf16FlyString> const& attribute_name, Optional<Utf16FlyString> const& attribute_namespace, Optional<Utf16String> const& old_value);
 
     virtual ~MutationRecord() override;
 
-    FlyString const& type() const { return m_type; }
+    Utf16FlyString const& type() const { return m_type; }
     Node const* target() const { return m_target; }
     NodeList const* added_nodes() const { return m_added_nodes; }
     NodeList const* removed_nodes() const { return m_removed_nodes; }
@@ -40,12 +39,12 @@ public:
     Optional<Utf16String> const& old_value() const { return m_old_value; }
 
 private:
-    MutationRecord(JS::Realm& realm, FlyString const& type, Node const& target, NodeList& added_nodes, NodeList& removed_nodes, Node* previous_sibling, Node* next_sibling, Optional<Utf16FlyString> const& attribute_name, Optional<Utf16FlyString> const& attribute_namespace, Optional<Utf16String> const& old_value);
+    MutationRecord(JS::Realm& realm, Utf16FlyString const& type, Node const& target, NodeList& added_nodes, NodeList& removed_nodes, Node* previous_sibling, Node* next_sibling, Optional<Utf16FlyString> const& attribute_name, Optional<Utf16FlyString> const& attribute_namespace, Optional<Utf16String> const& old_value);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    FlyString m_type;
+    Utf16FlyString m_type;
     GC::Ptr<Node const> m_target;
     GC::Ptr<NodeList> m_added_nodes;
     GC::Ptr<NodeList> m_removed_nodes;

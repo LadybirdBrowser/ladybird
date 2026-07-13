@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/DOM/EventTarget.h>
@@ -44,8 +44,8 @@ public:
     void set_grammars(GC::Ref<SpeechGrammarList> grammars) { m_grammars = grammars; }
 
     // https://wicg.github.io/speech-api/#dom-speechrecognition-lang
-    String const& lang() const { return m_lang; }
-    void set_lang(String const& lang) { m_lang = lang; }
+    Utf16String const& lang() const { return m_lang; }
+    void set_lang(Utf16String const& lang) { m_lang = lang; }
 
     // https://wicg.github.io/speech-api/#dom-speechrecognition-continuous
     bool continuous() const { return m_continuous; }
@@ -73,7 +73,7 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<SpeechGrammarList> m_grammars;
-    String m_lang;
+    Utf16String m_lang;
     bool m_continuous { false };
     bool m_interim_results { false };
     WebIDL::UnsignedLong m_max_alternatives { 1 };

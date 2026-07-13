@@ -2,7 +2,7 @@
 [Exposed=Window]
 interface MimeType {
     readonly attribute Utf16DOMString type;
-    readonly attribute DOMString description;
-    readonly attribute DOMString suffixes;
+    readonly attribute Utf16DOMString description;
+    readonly attribute Utf16DOMString suffixes;
     readonly attribute Plugin enabledPlugin;
 };

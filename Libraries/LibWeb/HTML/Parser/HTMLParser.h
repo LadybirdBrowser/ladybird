@@ -46,8 +46,8 @@ public:
     static GC::Ref<HTMLParser> create_for_scripting(DOM::Document&);
     static GC::Ref<HTMLParser> create_with_open_input_stream(DOM::Document&);
     static GC::Ref<HTMLParser> create_with_uncertain_encoding(DOM::Document&, ByteBuffer const& input, Optional<MimeSniff::MimeType> maybe_mime_type = {});
-    static GC::Ref<HTMLParser> create(DOM::Document&, StringView input, ParserScriptingMode, StringView encoding);
-    static GC::Ref<HTMLParser> create_for_decoded_string(DOM::Document&, Utf16View input, ParserScriptingMode, StringView encoding);
+    static GC::Ref<HTMLParser> create_from_byte_string(DOM::Document&, StringView input, ParserScriptingMode, StringView encoding);
+    static GC::Ref<HTMLParser> create_for_decoded_string(DOM::Document&, Utf16View input, ParserScriptingMode, Utf16View encoding);
 
     void run(HTMLTokenizer::StopAtInsertionPoint = HTMLTokenizer::StopAtInsertionPoint::No);
     void run(URL::URL const&, HTMLTokenizer::StopAtInsertionPoint = HTMLTokenizer::StopAtInsertionPoint::No);
@@ -69,7 +69,7 @@ public:
         No,
         Yes,
     };
-    static String serialize_html_fragment(DOM::Node const&, SerializableShadowRoots, ReadonlySpan<GC::Ref<DOM::ShadowRoot>>, DOM::FragmentSerializationMode = DOM::FragmentSerializationMode::Inner);
+    static Utf16String serialize_html_fragment(DOM::Node const&, SerializableShadowRoots, ReadonlySpan<GC::Ref<DOM::ShadowRoot>>, DOM::FragmentSerializationMode = DOM::FragmentSerializationMode::Inner);
 
     HTMLTokenizer& tokenizer() { return m_tokenizer; }
 
@@ -104,7 +104,8 @@ private:
         Yes,
     };
 
-    HTMLParser(DOM::Document&, ParserScriptingMode, StringView input, StringView encoding, HTMLTokenizer::InputType = HTMLTokenizer::InputType::EncodedBytes);
+    HTMLParser(DOM::Document&, ParserScriptingMode, StringView input, StringView encoding);
+    HTMLParser(DOM::Document&, ParserScriptingMode, Utf16View input, Utf16View encoding);
     HTMLParser(DOM::Document&, ParserScriptingMode, ScriptCreatedParser);
 
     virtual void visit_edges(Cell::Visitor&) override;
@@ -193,13 +194,9 @@ private:
     GC::Ref<Platform::Timer> m_timeout;
 };
 
-RefPtr<CSS::StyleValue const> parse_dimension_value(StringView);
 RefPtr<CSS::StyleValue const> parse_dimension_value(Utf16View);
-RefPtr<CSS::StyleValue const> parse_nonzero_dimension_value(StringView);
 RefPtr<CSS::StyleValue const> parse_nonzero_dimension_value(Utf16View);
-Optional<Color> parse_legacy_color_value(StringView);
 Optional<Color> parse_legacy_color_value(Utf16View);
-RefPtr<CSS::StyleValue const> parse_table_child_element_align_value(StringView);
 RefPtr<CSS::StyleValue const> parse_table_child_element_align_value(Utf16View);
 
 }

@@ -7,9 +7,9 @@ dictionary EffectTiming {
     double iterationStart = 0.0;
     unrestricted double iterations = 1.0;
     // FIXME: Support playbackRate
-    (unrestricted double or CSSNumericValue or DOMString) duration = "auto";
+    (unrestricted double or CSSNumericValue or Utf16DOMString) duration = "auto";
     PlaybackDirection direction = "normal";
-    DOMString easing = "linear";
+    Utf16DOMString easing = "linear";
 };
 
 // https://drafts.csswg.org/web-animations-1/#dictdef-optionaleffecttiming
@@ -21,9 +21,9 @@ dictionary OptionalEffectTiming {
     double iterationStart;
     unrestricted double iterations;
     // FIXME: Support playbackRate
-    (unrestricted double or DOMString) duration;
+    (unrestricted double or Utf16DOMString) duration;
     PlaybackDirection direction;
-    DOMString easing;
+    Utf16DOMString easing;
 };
 
 // https://drafts.csswg.org/web-animations-1/#the-fillmode-enumeration

@@ -23,7 +23,7 @@ public:
     virtual ~CSSNestedDeclarations() override = default;
 
     SelectorList const& absolutized_selectors() const;
-    [[nodiscard]] FlyString const& qualified_layer_name() const { return parent_layer_internal_qualified_name(); }
+    [[nodiscard]] Utf16FlyString const& qualified_layer_name() const { return parent_layer_internal_qualified_name(); }
     CSSStyleProperties const& declaration() const { return m_declaration; }
 
     GC::Ref<CSSStyleProperties> style();
@@ -35,7 +35,7 @@ private:
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
-    virtual String serialized() const override;
+    virtual Utf16String serialized() const override;
     virtual void clear_caches() override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 

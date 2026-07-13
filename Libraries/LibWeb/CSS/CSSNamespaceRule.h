@@ -29,7 +29,7 @@ private:
     CSSNamespaceRule(JS::Realm&, Optional<Utf16FlyString> prefix, Utf16FlyString namespace_uri);
 
     virtual void initialize(JS::Realm&) override;
-    virtual String serialized() const override;
+    virtual Utf16String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 
     Utf16FlyString m_namespace_uri;

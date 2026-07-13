@@ -38,7 +38,7 @@ WebIDL::ExceptionOr<Optional<double>> WritableStreamDefaultWriter::desired_size(
 {
     // 1. If this.[[stream]] is undefined, throw a TypeError exception.
     if (!m_stream)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot get desired size of writer that has no locked stream"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot get desired size of writer that has no locked stream"_utf16 };
 
     // 2. Return ! WritableStreamDefaultWriterGetDesiredSize(this).
     return writable_stream_default_writer_get_desired_size(*this);

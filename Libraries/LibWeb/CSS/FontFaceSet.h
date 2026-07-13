@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibJS/Runtime/Set.h>
 #include <LibJS/Runtime/SetIterator.h>
 #include <LibWeb/Bindings/FontFaceSet.h>
@@ -39,8 +40,8 @@ public:
     void set_onloadingerror(WebIDL::CallbackType*);
     WebIDL::CallbackType* onloadingerror();
 
-    JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> load(String const& font, String const& text);
-    WebIDL::ExceptionOr<bool> check(String const& font, String const& text);
+    JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> load(Utf16String font, Utf16String text);
+    WebIDL::ExceptionOr<bool> check(Utf16String const& font, Utf16String const& text);
 
     Vector<GC::Ref<FontFace>>& loading_fonts() { return m_loading_fonts; }
     Vector<GC::Ref<FontFace>>& loaded_fonts() { return m_loaded_fonts; }
@@ -51,7 +52,7 @@ public:
 
     void on_set_modified_from_js(Badge<Bindings::FontFaceSetPrototype>) { }
 
-    void fire_a_font_load_event(FlyString name, Vector<GC::Ref<FontFace>> = {});
+    void fire_a_font_load_event(Utf16FlyString name, Vector<GC::Ref<FontFace>> = {});
     void set_is_pending_on_the_environment(bool);
 
     void switch_to_loading();

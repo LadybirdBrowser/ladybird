@@ -106,7 +106,7 @@ ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(JS::Realm& rea
 
     auto& svg_realm = page.top_level_traversable()->active_document()->realm();
     auto document = DOM::XMLDocument::create(svg_realm);
-    document->set_content_type("image/svg+xml"_string);
+    document->set_content_type("image/svg+xml"_utf16_fly_string);
     document->set_origin(URL::Origin::create_opaque());
     document->set_url(url);
 

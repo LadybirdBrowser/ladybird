@@ -73,7 +73,7 @@ GC::Ref<WebIDL::Promise> ServiceWorkerContainer::register_(TrustedTypes::Trusted
         HTML::relevant_global_object(*this),
         script_url,
         TrustedTypes::InjectionSink::ServiceWorkerContainer_register,
-        TrustedTypes::Script.to_string()));
+        TrustedTypes::Script.view()));
 
     // 3 Let client be this's service worker client.
     auto client = m_service_worker_client;
@@ -87,7 +87,7 @@ GC::Ref<WebIDL::Promise> ServiceWorkerContainer::register_(TrustedTypes::Trusted
 
     // 6. If options["scope"] exists, set scopeURL to the result of parsing options["scope"] with this's relevant settings object’s API base URL.
     if (options.scope.has_value()) {
-        scope_url = DOMURL::parse(options.scope.value(), base_url);
+        scope_url = DOMURL::parse(options.scope->utf16_view(), base_url);
     }
 
     // 7. Invoke Start Register with scopeURL, scriptURL, p, client, client’s creation URL, options["type"], and options["updateViaCache"].
@@ -98,7 +98,7 @@ GC::Ref<WebIDL::Promise> ServiceWorkerContainer::register_(TrustedTypes::Trusted
 }
 
 // https://w3c.github.io/ServiceWorker/#navigator-service-worker-getRegistration
-GC::Ref<WebIDL::Promise> ServiceWorkerContainer::get_registration(String const& client_url)
+GC::Ref<WebIDL::Promise> ServiceWorkerContainer::get_registration(Utf16String const& client_url)
 {
     auto& realm = this->realm();
 
@@ -114,7 +114,7 @@ GC::Ref<WebIDL::Promise> ServiceWorkerContainer::get_registration(String const& 
 
     // 3. Let clientURL be the result of parsing clientURL with this's relevant settings object’s API base URL.
     auto base_url = HTML::relevant_settings_object(*this).api_base_url();
-    auto parsed_client_url = DOMURL::parse(client_url, base_url);
+    auto parsed_client_url = DOMURL::parse(client_url.utf16_view(), base_url);
 
     // 4. If clientURL is failure, return a promise rejected with a TypeError.
     if (!parsed_client_url.has_value())
@@ -294,7 +294,7 @@ void ServiceWorkerContainer::start_register(Optional<URL::URL> scope_url, Option
     // 5. If scopeURL is null, set scopeURL to the result of parsing the string "./" with scriptURL.
     // Note: The scope url for the registration is set to the location of the service worker script by default.
     if (!scope_url.has_value()) {
-        scope_url = DOMURL::parse("./"sv, script_url);
+        scope_url = DOMURL::parse({ u"./", 2 }, script_url);
     }
 
     // 6. If scopeURL is failure, reject promise with a TypeError and abort these steps.

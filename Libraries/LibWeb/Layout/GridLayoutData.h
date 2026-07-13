@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Vector.h>
 #include <AK/kmalloc.h>
 #include <LibWeb/CSS/Enums.h>
@@ -27,7 +27,7 @@ enum class GridTrackState : u8 {
 };
 
 struct GridLayoutLine {
-    Vector<String> names;
+    Vector<Utf16FlyString> names;
     CSSPixels start { 0 };
     CSSPixels breadth { 0 };
     GridTrackType type { GridTrackType::Implicit };
@@ -43,7 +43,7 @@ struct GridLayoutTrack {
 };
 
 struct GridLayoutArea {
-    String name;
+    Utf16FlyString name;
     GridTrackType type { GridTrackType::Explicit };
     u32 row_start { 0 };
     u32 row_end { 0 };

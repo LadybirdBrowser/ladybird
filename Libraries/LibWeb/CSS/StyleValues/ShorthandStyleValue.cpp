@@ -6,6 +6,7 @@
  */
 
 #include "ShorthandStyleValue.h"
+#include <AK/Utf16StringBuilder.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -769,11 +770,14 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
                         if (!inner_builder.is_empty())
                             inner_builder.append(' ');
                         inner_builder.append("\""sv);
+                        Utf16StringBuilder area_row_builder;
                         for (size_t y = 0; y < areas.column_count(); ++y) {
                             if (y != 0)
-                                inner_builder.append(' ');
-                            inner_builder.append(areas.cell_name_at(area_index, y));
+                                area_row_builder.append_ascii(' ');
+                            area_row_builder.append(areas.cell_name_at(area_index, y).view());
                         }
+                        auto area_row = area_row_builder.to_string();
+                        inner_builder.append(MUST(area_row.utf16_view().to_utf8()));
                         inner_builder.append("\""sv);
                     }
                     auto track_size_serialization = track_size->to_string(mode);

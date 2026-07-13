@@ -8,15 +8,15 @@
 
 #include <AK/Forward.h>
 #include <AK/Optional.h>
-#include <AK/String.h>
 #include <AK/Traits.h>
+#include <AK/Utf16FlyString.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/PropertyKey.h>
 
 namespace Web::HTML {
 
 struct CrossOriginProperty {
-    String property;
+    Utf16FlyString property;
     Optional<bool> needs_get {};
     Optional<bool> needs_set {};
 };

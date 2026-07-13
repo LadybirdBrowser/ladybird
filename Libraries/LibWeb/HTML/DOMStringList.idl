@@ -2,6 +2,6 @@
 [Exposed=(Window,Worker)]
 interface DOMStringList {
     readonly attribute unsigned long length;
-    getter DOMString? item(unsigned long index);
-    boolean contains(DOMString string);
+    getter Utf16DOMString? item(unsigned long index);
+    boolean contains(Utf16DOMString string);
 };

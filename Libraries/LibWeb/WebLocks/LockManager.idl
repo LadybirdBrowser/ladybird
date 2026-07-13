@@ -1,8 +1,8 @@
 // https://w3c.github.io/web-locks/#lockmanager
 [SecureContext, Exposed=(Window,Worker)]
 interface LockManager {
-    Promise<any> request(DOMString name, LockGrantedCallback callback);
-    Promise<any> request(DOMString name, LockOptions options, LockGrantedCallback callback);
+    Promise<any> request(Utf16DOMString name, LockGrantedCallback callback);
+    Promise<any> request(Utf16DOMString name, LockOptions options, LockGrantedCallback callback);
 
     Promise<LockManagerSnapshot> query();
 };
@@ -24,7 +24,7 @@ dictionary LockManagerSnapshot {
 };
 
 dictionary LockInfo {
-    DOMString name;
+    Utf16DOMString name;
     LockMode mode;
-    DOMString clientId;
+    Utf16DOMString clientId;
 };

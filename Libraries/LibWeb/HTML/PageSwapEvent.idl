@@ -1,6 +1,6 @@
 [Exposed=Window]
 interface PageSwapEvent : Event {
-    constructor(DOMString type, optional PageSwapEventInit eventInitDict = {});
+    constructor([Utf16FlyString] Utf16DOMString type, optional PageSwapEventInit eventInitDict = {});
     readonly attribute NavigationActivation? activation;
     readonly attribute ViewTransition? viewTransition;
 };

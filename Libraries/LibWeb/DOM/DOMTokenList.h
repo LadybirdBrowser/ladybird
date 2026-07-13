@@ -9,9 +9,9 @@
 #pragma once
 
 #include <AK/Optional.h>
-#include <AK/StringView.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <AK/Vector.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
@@ -28,20 +28,22 @@ public:
     [[nodiscard]] static GC::Ref<DOMTokenList> create(Element& associated_element, Utf16FlyString associated_attribute);
     ~DOMTokenList() = default;
 
-    void associated_attribute_changed(Utf16String const& value);
+    void associated_attribute_changed(Utf16View value);
 
     virtual Optional<JS::Value> item_value(size_t index) const override;
 
     size_t length() const { return m_token_set.size(); }
     Optional<Utf16String> item(size_t index) const;
-    bool contains(Utf16String const& token);
+    bool contains(Utf16View token);
+    WebIDL::ExceptionOr<void> add(Utf16View token);
     WebIDL::ExceptionOr<void> add(Vector<Utf16String> const& tokens);
+    WebIDL::ExceptionOr<void> remove(Utf16View token);
     WebIDL::ExceptionOr<void> remove(Vector<Utf16String> const& tokens);
-    WebIDL::ExceptionOr<bool> toggle(Utf16String const& token, Optional<bool> force);
-    WebIDL::ExceptionOr<bool> replace(Utf16String const& token, Utf16String const& new_token);
-    WebIDL::ExceptionOr<bool> supports(Utf16String const& token);
+    WebIDL::ExceptionOr<bool> toggle(Utf16View token, Optional<bool> force);
+    WebIDL::ExceptionOr<bool> replace(Utf16View token, Utf16View new_token);
+    WebIDL::ExceptionOr<bool> supports(Utf16View token);
     Utf16String value() const;
-    void set_value(Utf16String const& value);
+    void set_value(Utf16View value);
 
 private:
     DOMTokenList(Element& associated_element, Utf16FlyString associated_attribute);

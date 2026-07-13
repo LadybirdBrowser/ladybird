@@ -5,8 +5,8 @@ interface HTMLParamElement : HTMLElement {
     [HTMLConstructor] constructor();
 
     [CEReactions, Reflect] attribute Utf16DOMString name;
-    [CEReactions, Reflect] attribute DOMString value;
-    [CEReactions, Reflect] attribute DOMString type;
-    [CEReactions, Reflect=valuetype] attribute DOMString valueType;
+    [CEReactions, Reflect] attribute Utf16DOMString value;
+    [CEReactions, Reflect] attribute Utf16DOMString type;
+    [CEReactions, Reflect=valuetype] attribute Utf16DOMString valueType;
 
 };

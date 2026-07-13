@@ -113,25 +113,25 @@ GC::Ref<WebIDL::Promise> ReadableStreamBYOBReader::read(WebIDL::ArrayBufferView 
 
     // 1. If view.[[ByteLength]] is 0, return a promise rejected with a TypeError exception.
     if (view.byte_length() == 0) {
-        WebIDL::SimpleException exception { WebIDL::SimpleExceptionType::TypeError, "Cannot read in an empty buffer"sv };
+        WebIDL::SimpleException exception { WebIDL::SimpleExceptionType::TypeError, "Cannot read in an empty buffer"_utf16 };
         return WebIDL::create_rejected_promise_from_exception(realm, move(exception));
     }
 
     // 2. If view.[[ViewedArrayBuffer]].[[ArrayBufferByteLength]] is 0, return a promise rejected with a TypeError exception.
     if (view.viewed_array_buffer()->byte_length() == 0) {
-        WebIDL::SimpleException exception { WebIDL::SimpleExceptionType::TypeError, "Cannot read in an empty buffer"sv };
+        WebIDL::SimpleException exception { WebIDL::SimpleExceptionType::TypeError, "Cannot read in an empty buffer"_utf16 };
         return WebIDL::create_rejected_promise_from_exception(realm, move(exception));
     }
 
     // 3. If ! IsDetachedBuffer(view.[[ViewedArrayBuffer]]) is true, return a promise rejected with a TypeError exception.
     if (view.viewed_array_buffer()->is_detached()) {
-        WebIDL::SimpleException exception { WebIDL::SimpleExceptionType::TypeError, "Cannot read in a detached buffer"sv };
+        WebIDL::SimpleException exception { WebIDL::SimpleExceptionType::TypeError, "Cannot read in a detached buffer"_utf16 };
         return WebIDL::create_rejected_promise_from_exception(realm, move(exception));
     }
 
     // 4. If options["min"] is 0, return a promise rejected with a TypeError exception.
     if (options.min == 0) {
-        WebIDL::SimpleException exception { WebIDL::SimpleExceptionType::TypeError, "options[\"min\'] cannot have a value of 0."sv };
+        WebIDL::SimpleException exception { WebIDL::SimpleExceptionType::TypeError, "options[\"min\'] cannot have a value of 0."_utf16 };
         return WebIDL::create_rejected_promise_from_exception(realm, move(exception));
     }
 
@@ -139,7 +139,7 @@ GC::Ref<WebIDL::Promise> ReadableStreamBYOBReader::read(WebIDL::ArrayBufferView 
     if (auto typed_array = view.typed_array_base()) {
         // 1. If options["min"] > view.[[ArrayLength]], return a promise rejected with a RangeError exception.
         if (options.min > typed_array->array_length().length()) {
-            WebIDL::SimpleException exception { WebIDL::SimpleExceptionType::RangeError, "options[\"min\"] cannot be larger than the length of the view."sv };
+            WebIDL::SimpleException exception { WebIDL::SimpleExceptionType::RangeError, "options[\"min\"] cannot be larger than the length of the view."_utf16 };
             return WebIDL::create_rejected_promise_from_exception(realm, move(exception));
         }
     }
@@ -148,14 +148,14 @@ GC::Ref<WebIDL::Promise> ReadableStreamBYOBReader::read(WebIDL::ArrayBufferView 
         VERIFY(view.array_buffer_view().has<GC::Ref<JS::DataView>>());
         // 1. If options["min"] > view.[[ByteLength]], return a promise rejected with a RangeError exception.
         if (options.min > view.byte_length()) {
-            WebIDL::SimpleException exception { WebIDL::SimpleExceptionType::RangeError, "options[\"min\"] cannot be larger than the length of the view."sv };
+            WebIDL::SimpleException exception { WebIDL::SimpleExceptionType::RangeError, "options[\"min\"] cannot be larger than the length of the view."_utf16 };
             return WebIDL::create_rejected_promise_from_exception(realm, move(exception));
         }
     }
 
     // 7. If this.[[stream]] is undefined, return a promise rejected with a TypeError exception.
     if (!m_stream) {
-        WebIDL::SimpleException exception { WebIDL::SimpleExceptionType::TypeError, "Cannot read from an empty stream"sv };
+        WebIDL::SimpleException exception { WebIDL::SimpleExceptionType::TypeError, "Cannot read from an empty stream"_utf16 };
         return WebIDL::create_rejected_promise_from_exception(realm, move(exception));
     }
 

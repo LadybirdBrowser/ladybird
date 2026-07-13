@@ -29,7 +29,7 @@ void AudioConstructor::initialize(JS::Realm& realm)
 
     define_direct_property(vm.names.length, JS::Value(0), JS::Attribute::Configurable);
     define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, "Audio"_utf16_fly_string), JS::Attribute::Configurable);
-    define_direct_property(vm.names.prototype, &ensure_web_prototype<Bindings::HTMLAudioElementPrototype>(realm, "HTMLAudioElement"_fly_string), 0);
+    define_direct_property(vm.names.prototype, &ensure_web_prototype<Bindings::HTMLAudioElementPrototype>(realm, "HTMLAudioElement"_utf16_fly_string), 0);
 }
 
 JS::ThrowCompletionOr<JS::Value> AudioConstructor::call()
@@ -51,7 +51,7 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> AudioConstructor::construct(FunctionO
     auto audio = TRY(Bindings::throw_dom_exception_if_needed(vm, [&]() { return DOM::create_element(document, HTML::TagNames::audio, Namespace::HTML); }));
 
     // https://webidl.spec.whatwg.org/#internally-create-a-new-object-implementing-the-interface
-    TRY(WebIDL::set_prototype_from_new_target<HTMLAudioElementPrototype>(vm, new_target, "HTMLAudioElement"_fly_string, *audio));
+    TRY(WebIDL::set_prototype_from_new_target<HTMLAudioElementPrototype>(vm, new_target, "HTMLAudioElement"_utf16_fly_string, *audio));
 
     // 3. Set an attribute value for audio using "preload" and "auto".
     audio->set_attribute_value(HTML::AttributeNames::preload, "auto"_utf16);

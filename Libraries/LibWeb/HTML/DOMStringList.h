@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <AK/Vector.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 
@@ -16,20 +18,20 @@ class DOMStringList final : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(DOMStringList);
 
 public:
-    static GC::Ref<DOMStringList> create(JS::Realm&, Vector<String>);
+    static GC::Ref<DOMStringList> create(JS::Realm&, Vector<Utf16String>);
 
     u32 length() const;
-    Optional<String> item(u32 index) const;
-    bool contains(StringView string);
+    Optional<Utf16String> item(u32 index) const;
+    bool contains(Utf16View string);
 
     virtual Optional<JS::Value> item_value(size_t index) const override;
 
 private:
-    explicit DOMStringList(JS::Realm&, Vector<String>);
+    explicit DOMStringList(JS::Realm&, Vector<Utf16String>);
 
     virtual void initialize(JS::Realm&) override;
 
-    Vector<String> m_list;
+    Vector<Utf16String> m_list;
 };
 
 }

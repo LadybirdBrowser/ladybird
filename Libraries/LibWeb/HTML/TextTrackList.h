@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16View.h>
 #include <LibGC/RootVector.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/TextTrack.h>
@@ -23,7 +24,7 @@ public:
 
     size_t length() const;
 
-    GC::Ptr<TextTrack> get_track_by_id(StringView id) const;
+    GC::Ptr<TextTrack> get_track_by_id(Utf16View id) const;
 
     void set_onchange(WebIDL::CallbackType*);
     WebIDL::CallbackType* onchange();

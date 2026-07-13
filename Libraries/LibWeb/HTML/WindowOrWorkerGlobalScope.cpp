@@ -46,6 +46,7 @@
 #include <LibWeb/IndexedDB/IDBDatabase.h>
 #include <LibWeb/IndexedDB/IDBFactory.h>
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
+#include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/PerformanceTimeline/EntryTypes.h>
@@ -106,10 +107,10 @@ void WindowOrWorkerGlobalScopeMixin::finalize()
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#dom-origin
-String WindowOrWorkerGlobalScopeMixin::origin() const
+Utf16String WindowOrWorkerGlobalScopeMixin::origin() const
 {
     // The origin getter steps are to return this's relevant settings object's origin, serialized.
-    return relevant_settings_object(this_impl()).origin().serialize();
+    return utf16_string_from_url_ascii(relevant_settings_object(this_impl()).origin().serialize());
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#dom-issecurecontext
@@ -615,7 +616,7 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
                 return true;
             },
             // 6. Otherwise:
-            [&](String const& source) {
+            [&](Utf16String const& source) {
                 // 1. If previousId was not given:
                 if (!previous_id.has_value()) {
                     // 1. Let globalName be "Window" if global is a Window object; "WorkerGlobalScope" otherwise.
@@ -625,7 +626,7 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
                     auto method_name = repeat == Repeat::Yes ? "setInterval"sv : "setTimeout"sv;
 
                     // 3. Let sink be a concatenation of globalName, U+0020 SPACE, and methodName.
-                    [[maybe_unused]] auto sink = String::formatted("{} {}", global_name, method_name);
+                    [[maybe_unused]] auto sink = Utf16String::formatted("{} {}", global_name, method_name);
 
                     // FIXME: 4. Set handler to the result of invoking the Get Trusted Type compliant string algorithm with TrustedScript, global, handler, sink, and "script".
                 }
@@ -633,9 +634,8 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
                 // 2. Assert: handler is a string.
                 // 3. Perform EnsureCSPDoesNotBlockStringCompilation(realm, « », handler, handler, timer, « », handler).
                 //    If this throws an exception, catch it, report it for global, and abort these steps.
-                auto source_utf16 = Utf16String::from_utf8(source);
-                auto handler_primitive_string = JS::PrimitiveString::create(vm, source_utf16);
-                if (auto result = ContentSecurityPolicy::ensure_csp_does_not_block_string_compilation(realm, {}, source_utf16, source_utf16, JS::CompilationType::Timer, {}, handler_primitive_string); result.is_throw_completion()) {
+                auto handler_primitive_string = JS::PrimitiveString::create(vm, source);
+                if (auto result = ContentSecurityPolicy::ensure_csp_does_not_block_string_compilation(realm, {}, source, source, JS::CompilationType::Timer, {}, handler_primitive_string); result.is_throw_completion()) {
                     report_exception(result, realm);
                     return false;
                 }
@@ -665,7 +665,7 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
                 // 8. Let script be the result of creating a classic script given handler, settings object, base URL, and fetch options.
                 // FIXME: Pass fetch options.
                 auto basename = base_url.basename();
-                auto script = ClassicScript::create(basename, source_utf16, settings_object, move(base_url));
+                auto script = ClassicScript::create(basename, source, settings_object, move(base_url));
 
                 // 9. Run the classic script script.
                 (void)script->run();
@@ -721,7 +721,7 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
 }
 
 // 1. https://www.w3.org/TR/performance-timeline/#dfn-relevant-performance-entry-tuple
-PerformanceTimeline::PerformanceEntryTuple& WindowOrWorkerGlobalScopeMixin::relevant_performance_entry_tuple(FlyString const& entry_type)
+PerformanceTimeline::PerformanceEntryTuple& WindowOrWorkerGlobalScopeMixin::relevant_performance_entry_tuple(Utf16FlyString const& entry_type)
 {
     // 1. Let map be the performance entry buffer map associated with globalObject.
     // 2. Return the result of getting the value of an entry from map, given entryType as the key.
@@ -751,7 +751,7 @@ void WindowOrWorkerGlobalScopeMixin::queue_performance_entry(GC::Ref<Performance
         //    or whose type member equals to entryType:
         auto iterator = registered_observer->options_list().find_if([&entry_type](Bindings::PerformanceObserverInit const& entry) {
             if (entry.entry_types.has_value())
-                return entry.entry_types->contains_slow(entry_type.to_string());
+                return entry.entry_types->contains_slow(entry_type);
 
             VERIFY(entry.type.has_value());
             return entry.type.value() == entry_type;
@@ -807,22 +807,22 @@ void WindowOrWorkerGlobalScopeMixin::add_performance_entry(GC::Ref<PerformanceTi
         tuple.performance_entry_buffer.append(new_entry);
 }
 
-void WindowOrWorkerGlobalScopeMixin::clear_performance_entry_buffer(Badge<HighResolutionTime::Performance>, FlyString const& entry_type)
+void WindowOrWorkerGlobalScopeMixin::clear_performance_entry_buffer(Badge<HighResolutionTime::Performance>, Utf16FlyString const& entry_type)
 {
     auto& tuple = relevant_performance_entry_tuple(entry_type);
     tuple.performance_entry_buffer.clear();
 }
 
-void WindowOrWorkerGlobalScopeMixin::remove_entries_from_performance_entry_buffer(Badge<HighResolutionTime::Performance>, FlyString const& entry_type, String entry_name)
+void WindowOrWorkerGlobalScopeMixin::remove_entries_from_performance_entry_buffer(Badge<HighResolutionTime::Performance>, Utf16FlyString const& entry_type, Utf16View entry_name)
 {
     auto& tuple = relevant_performance_entry_tuple(entry_type);
     tuple.performance_entry_buffer.remove_all_matching([&entry_name](GC::Root<PerformanceTimeline::PerformanceEntry> const& entry) {
-        return entry->name() == entry_name;
+        return entry->name().utf16_view() == entry_name;
     });
 }
 
 // https://www.w3.org/TR/performance-timeline/#dfn-filter-buffer-map-by-name-and-type
-ErrorOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> WindowOrWorkerGlobalScopeMixin::filter_buffer_map_by_name_and_type(Optional<String> name, Optional<String> type) const
+ErrorOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> WindowOrWorkerGlobalScopeMixin::filter_buffer_map_by_name_and_type(Optional<Utf16String> const& name, Optional<Utf16FlyString> type) const
 {
     // 1. Let result be an initially empty list.
     Vector<GC::Root<PerformanceTimeline::PerformanceEntry>> result;
@@ -936,7 +936,7 @@ void WindowOrWorkerGlobalScopeMixin::queue_the_performance_observer_task()
                 // 2. For each PerformanceObserverInit item in registeredObserver's options list:
                 for (auto const& item : registered_observer->options_list()) {
                     // 1. For each DOMString entryType that appears either as item's type or in item's entryTypes:
-                    auto increment_dropped_entries_count = [this, &dropped_entries_count](FlyString const& type) {
+                    auto increment_dropped_entries_count = [this, &dropped_entries_count](Utf16FlyString const& type) {
                         // 1. Let map be relevantGlobal's performance entry buffer map.
                         auto const& map = m_performance_entry_buffer_map;
 
@@ -1205,7 +1205,7 @@ GC::Ref<JS::Object> WindowOrWorkerGlobalScopeMixin::supported_entry_types() cons
         GC::RootVector<JS::Value> supported_entry_types;
 
 #define __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(entry_type, cpp_class) \
-    supported_entry_types.append(JS::PrimitiveString::create(vm, Utf16FlyString::from_utf8(entry_type)));
+    supported_entry_types.append(JS::PrimitiveString::create(vm, entry_type));
         ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES
 #undef __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES
 
@@ -1247,8 +1247,8 @@ void WindowOrWorkerGlobalScopeMixin::report_an_exception(JS::Value exception, Om
         [&](GC::Ref<JS::Script> const& js_script) {
             if (as<ClassicScript>(js_script->host_defined())->muted_errors() == ClassicScript::MutedErrors::Yes) {
                 error_info.error = JS::js_null();
-                error_info.message = "Script error."_string;
-                error_info.filename = String {};
+                error_info.message = "Script error."_utf16;
+                error_info.filename = Utf16String {};
                 error_info.lineno = 0;
                 error_info.colno = 0;
             }

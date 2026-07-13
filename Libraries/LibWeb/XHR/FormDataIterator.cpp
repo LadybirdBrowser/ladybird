@@ -17,7 +17,7 @@ template<>
 void Intrinsics::create_web_prototype_and_constructor<FormDataIteratorPrototype>(JS::Realm& realm)
 {
     auto prototype = realm.create<FormDataIteratorPrototype>(realm);
-    m_prototypes.set("FormDataIterator"_fly_string, prototype);
+    m_prototypes.set("FormDataIterator"_utf16_fly_string, prototype);
 }
 
 }

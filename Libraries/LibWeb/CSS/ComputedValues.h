@@ -165,7 +165,7 @@ struct OverflowClipMarginData {
     bool operator==(OverflowClipMarginData const&) const = default;
 };
 
-using ListStyleType = Variant<Empty, RefPtr<CounterStyle const>, String>;
+using ListStyleType = Variant<Empty, RefPtr<CounterStyle const>, Utf16String>;
 
 class InitialValues {
 public:
@@ -509,9 +509,9 @@ struct ContentData {
         List,
     } type { Type::Normal };
 
-    Vector<Variant<String, NonnullRefPtr<AbstractImageStyleValue>>> data;
+    Vector<Variant<Utf16String, NonnullRefPtr<AbstractImageStyleValue>>> data;
     Vector<ValueComparingRefPtr<CounterStyle const>> counter_style_dependencies;
-    Optional<String> alt_text {};
+    Optional<Utf16String> alt_text {};
 };
 
 struct CounterData {

@@ -20,9 +20,9 @@ class WEB_API MouseEvent : public UIEvent {
     GC_DECLARE_ALLOCATOR(MouseEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<MouseEvent> create(JS::Realm&, FlyString const& event_name, Bindings::MouseEventInit const& = {}, double page_x = 0, double page_y = 0, double offset_x = 0, double offset_y = 0);
-    static WebIDL::ExceptionOr<GC::Ref<MouseEvent>> create_from_platform_event(JS::Realm&, GC::Ptr<HTML::WindowProxy>, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, Optional<CSSPixelPoint> movement, unsigned button, unsigned buttons, unsigned modifiers, int detail = 0);
-    static WebIDL::ExceptionOr<GC::Ref<MouseEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::MouseEventInit const&);
+    [[nodiscard]] static GC::Ref<MouseEvent> create(JS::Realm&, Utf16FlyString const& event_name, Bindings::MouseEventInit const& = {}, double page_x = 0, double page_y = 0, double offset_x = 0, double offset_y = 0);
+    static WebIDL::ExceptionOr<GC::Ref<MouseEvent>> create_from_platform_event(JS::Realm&, GC::Ptr<HTML::WindowProxy>, Utf16FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, Optional<CSSPixelPoint> movement, unsigned button, unsigned buttons, unsigned modifiers, int detail = 0);
+    static WebIDL::ExceptionOr<GC::Ref<MouseEvent>> construct_impl(JS::Realm&, Utf16FlyString const& event_name, Bindings::MouseEventInit const&);
 
     virtual ~MouseEvent() override;
 
@@ -61,11 +61,11 @@ public:
     i16 button() const { return m_button; }
     u16 buttons() const { return m_buttons; }
 
-    bool get_modifier_state(String const& key_arg) const;
+    bool get_modifier_state(Utf16FlyString const& key_arg) const;
 
     virtual u32 which() const override { return m_button + 1; }
 
-    void init_mouse_event(String const& type, bool bubbles, bool cancelable, GC::Ptr<HTML::WindowProxy> view, WebIDL::Long detail, WebIDL::Long screen_x, WebIDL::Long screen_y, WebIDL::Long client_x, WebIDL::Long client_y, bool ctrl_key, bool alt_key, bool shift_key, bool meta_key, WebIDL::Short button, DOM::EventTarget* related_target);
+    void init_mouse_event(Utf16FlyString const& type, bool bubbles, bool cancelable, GC::Ptr<HTML::WindowProxy> view, WebIDL::Long detail, WebIDL::Long screen_x, WebIDL::Long screen_y, WebIDL::Long client_x, WebIDL::Long client_y, bool ctrl_key, bool alt_key, bool shift_key, bool meta_key, WebIDL::Short button, DOM::EventTarget* related_target);
 
     [[nodiscard]] virtual GC::Ref<MouseEvent> clone() const;
 
@@ -73,7 +73,7 @@ public:
     void set_offset_y(double offset_y) { m_offset_y = offset_y; }
 
 protected:
-    MouseEvent(JS::Realm&, FlyString const& event_name, Bindings::MouseEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y);
+    MouseEvent(JS::Realm&, Utf16FlyString const& event_name, Bindings::MouseEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y);
 
     virtual void initialize(JS::Realm&) override;
 

@@ -13,7 +13,7 @@ interface HTMLDialogElement : HTMLElement {
 
     [CEReactions, Reflect] attribute boolean open;
     attribute Utf16DOMString returnValue;
-    [CEReactions, Reflect=closedby, Enumerated=ClosedByAttribute] attribute DOMString closedBy;
+    [CEReactions, Reflect=closedby, Enumerated=ClosedByAttribute] attribute Utf16DOMString closedBy;
     [CEReactions] undefined show();
     [CEReactions] undefined showModal();
     [CEReactions] undefined close(optional Utf16DOMString returnValue);

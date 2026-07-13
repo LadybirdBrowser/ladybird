@@ -25,7 +25,7 @@ Notification::Notification(JS::Realm& realm)
 // https://notifications.spec.whatwg.org/#create-a-notification
 WebIDL::ExceptionOr<ConceptNotification> Notification::create_a_notification(
     JS::Realm& realm,
-    String const& title,
+    Utf16String const& title,
     Bindings::NotificationOptions const& options,
     URL::Origin origin,
     URL::URL base_url,
@@ -38,7 +38,7 @@ WebIDL::ExceptionOr<ConceptNotification> Notification::create_a_notification(
 
     // 3. If options["renotify"] is true and options["tag"] is the empty string, then throw a TypeError.
     if (options.renotify && options.tag.is_empty())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "options[\"tag\"] cannot be the empty string when options[\"renotify\"] is set to true."sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "options[\"tag\"] cannot be the empty string when options[\"renotify\"] is set to true."_utf16 };
 
     // 4. Set notification’s data to StructuredSerializeForStorage(options["data"]).
     notification.data = TRY(HTML::structured_serialize_for_storage(realm.vm(), options.data));
@@ -61,7 +61,8 @@ WebIDL::ExceptionOr<ConceptNotification> Notification::create_a_notification(
     // 10. If options["navigate"] exists, then parse it using baseURL, and if that does not return failure,
     // set notification’s navigation URL to the return value. (Otherwise notification’s navigation URL remains null.)
     if (options.navigate.has_value()) {
-        notification.navigation_url = base_url.complete_url(options.navigate.value());
+        auto navigate = TRY_OR_THROW_OOM(realm.vm(), options.navigate->utf16_view().to_utf8());
+        notification.navigation_url = base_url.complete_url(navigate);
     }
 
     // 11. Set notification’s tag to options["tag"].
@@ -70,19 +71,22 @@ WebIDL::ExceptionOr<ConceptNotification> Notification::create_a_notification(
     // 12. If options["image"] exists, then parse it using baseURL, and if that does not return failure,
     // set notification’s image URL to the return value. (Otherwise notification’s image URL is not set.)
     if (options.image.has_value()) {
-        notification.image_url = base_url.complete_url(options.image.value());
+        auto image = TRY_OR_THROW_OOM(realm.vm(), options.image->utf16_view().to_utf8());
+        notification.image_url = base_url.complete_url(image);
     }
 
     // 13. If options["icon"] exists, then parse it using baseURL, and if that does not return failure,
     // set notification’s icon URL to the return value. (Otherwise notification’s icon URL is not set.)
     if (options.icon.has_value()) {
-        notification.icon_url = base_url.complete_url(options.icon.value());
+        auto icon = TRY_OR_THROW_OOM(realm.vm(), options.icon->utf16_view().to_utf8());
+        notification.icon_url = base_url.complete_url(icon);
     }
 
     // 14. If options["badge"] exists, then parse it using baseURL, and if that does not return failure,
     // set notification’s badge URL to the return value. (Otherwise notification’s badge URL is not set.)
     if (options.badge.has_value()) {
-        notification.badge_url = base_url.complete_url(options.badge.value());
+        auto badge = TRY_OR_THROW_OOM(realm.vm(), options.badge->utf16_view().to_utf8());
+        notification.badge_url = base_url.complete_url(badge);
     }
 
     // FIXME: 15. If options["vibrate"] exists, then validate and normalize it and
@@ -122,13 +126,17 @@ WebIDL::ExceptionOr<ConceptNotification> Notification::create_a_notification(
 
         // 4. If entry["navigate"] exists, then parse it using baseURL, and if that does not return failure,
         // set action’s navigation URL to the return value. (Otherwise action’s navigation URL remains null.)
-        if (entry.navigate.has_value())
-            action.navigation_url = base_url.complete_url(entry.navigate.value());
+        if (entry.navigate.has_value()) {
+            auto navigate = TRY_OR_THROW_OOM(realm.vm(), entry.navigate->utf16_view().to_utf8());
+            action.navigation_url = base_url.complete_url(navigate);
+        }
 
         // 5. If entry["icon"] exists, then parse it using baseURL, and if that does not return failure,
         // set action’s icon URL to the return value. (Otherwise action’s icon URL remains null.)
-        if (entry.icon.has_value())
-            action.icon_url = base_url.complete_url(entry.icon.value());
+        if (entry.icon.has_value()) {
+            auto icon = TRY_OR_THROW_OOM(realm.vm(), entry.icon->utf16_view().to_utf8());
+            action.icon_url = base_url.complete_url(icon);
+        }
 
         // 6. Append action to notification’s actions.
         notification.actions.append(action);
@@ -141,7 +149,7 @@ WebIDL::ExceptionOr<ConceptNotification> Notification::create_a_notification(
 // https://notifications.spec.whatwg.org/#create-a-notification-with-a-settings-object
 WebIDL::ExceptionOr<ConceptNotification> Notification::create_a_notification_with_a_settings_object(
     JS::Realm& realm,
-    String const& title,
+    Utf16String const& title,
     Bindings::NotificationOptions const& options,
     GC::Ref<HTML::EnvironmentSettingsObject> settings)
 {
@@ -162,7 +170,7 @@ WebIDL::ExceptionOr<ConceptNotification> Notification::create_a_notification_wit
 // https://notifications.spec.whatwg.org/#constructors
 WebIDL::ExceptionOr<GC::Ref<Notification>> Notification::construct_impl(
     JS::Realm& realm,
-    String const& title,
+    Utf16String const& title,
     Bindings::NotificationOptions const& options)
 {
     auto this_notification = realm.create<Notification>(realm);
@@ -171,11 +179,11 @@ WebIDL::ExceptionOr<GC::Ref<Notification>> Notification::construct_impl(
 
     // 1. If this’s relevant global object is a ServiceWorkerGlobalScope object, then throw a TypeError.
     if (is<ServiceWorker::ServiceWorkerGlobalScope>(relevant_global_object))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "This’s relevant global object is a ServiceWorkerGlobalScope object"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "This’s relevant global object is a ServiceWorkerGlobalScope object"_utf16 };
 
     // 2. If options["actions"] is not empty, then throw a TypeError.
     if (!options.actions.is_empty())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Options `action` is not empty"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Options `action` is not empty"_utf16 };
 
     // 3. Let notification be the result of creating a notification with a settings object given title, options, and this’s relevant settings object.
     ConceptNotification notification = TRY(create_a_notification_with_a_settings_object(realm, title, options, relevant_settings_object));
@@ -219,11 +227,11 @@ Vector<NotificationAction> Notification::actions() const
 
         // 4. If entry’s navigation URL is non-null, then set action["navigate"] to entry’s navigation URL, serialized.
         if (entry.navigation_url.has_value())
-            action.navigate = entry.navigation_url->serialize();
+            action.navigate = serialize_url_for_bindings(entry.navigation_url);
 
         // 5. If entry’s icon URL is non-null, then set action["icon"] to entry’s icon URL, serialized.
         if (entry.icon_url.has_value())
-            action.icon = entry.icon_url->serialize();
+            action.icon = serialize_url_for_bindings(entry.icon_url);
 
         // FIXME: 6. Call Object.freeze on action, to prevent accidental mutation by scripts.
 
@@ -244,6 +252,13 @@ JS::Value Notification::data() const
     if (!deserialized_data.is_exception())
         return deserialized_data.release_value();
     return JS::js_null();
+}
+
+Utf16String Notification::serialize_url_for_bindings(Optional<URL::URL> const& url)
+{
+    if (!url.has_value())
+        return {};
+    return Utf16String::from_utf8(url->serialize());
 }
 
 }

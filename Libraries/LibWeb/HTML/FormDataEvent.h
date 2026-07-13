@@ -17,14 +17,14 @@ class FormDataEvent final : public DOM::Event {
     GC_DECLARE_ALLOCATOR(FormDataEvent);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<FormDataEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::FormDataEventInit const& event_init);
+    static WebIDL::ExceptionOr<GC::Ref<FormDataEvent>> construct_impl(JS::Realm&, Utf16FlyString const& event_name, Bindings::FormDataEventInit const& event_init);
 
     virtual ~FormDataEvent() override;
 
     GC::Ptr<XHR::FormData> form_data() const { return m_form_data; }
 
 private:
-    FormDataEvent(JS::Realm&, FlyString const& event_name, Bindings::FormDataEventInit const& event_init);
+    FormDataEvent(JS::Realm&, Utf16FlyString const& event_name, Bindings::FormDataEventInit const& event_init);
 
     void initialize(JS::Realm&) override;
 

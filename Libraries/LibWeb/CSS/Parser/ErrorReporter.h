@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
 #include <AK/HashMap.h>
 #include <AK/String.h>
 #include <AK/Utf16FlyString.h>
@@ -15,7 +14,7 @@
 namespace Web::CSS::Parser {
 
 struct UnknownPropertyError {
-    FlyString rule_name { "style"_fly_string };
+    Utf16FlyString rule_name { "style"_utf16_fly_string };
     Utf16FlyString property_name;
     bool operator==(UnknownPropertyError const&) const = default;
     unsigned hash() const
@@ -25,20 +24,20 @@ struct UnknownPropertyError {
 };
 
 struct UnknownRuleError {
-    FlyString rule_name;
+    Utf16FlyString rule_name;
     bool operator==(UnknownRuleError const&) const = default;
     unsigned hash() const { return rule_name.hash(); }
 };
 
 struct UnknownMediaFeatureError {
-    FlyString media_feature_name;
+    Utf16FlyString media_feature_name;
     bool operator==(UnknownMediaFeatureError const&) const = default;
     unsigned hash() const { return media_feature_name.hash(); }
 };
 
 struct UnknownPseudoClassOrElementError {
-    FlyString rule_name { "style"_fly_string };
-    FlyString name;
+    Utf16FlyString rule_name { "style"_utf16_fly_string };
+    Utf16FlyString name;
     bool operator==(UnknownPseudoClassOrElementError const&) const = default;
     unsigned hash() const
     {
@@ -47,7 +46,7 @@ struct UnknownPseudoClassOrElementError {
 };
 
 struct InvalidPropertyError {
-    FlyString rule_name { "style"_fly_string };
+    Utf16FlyString rule_name { "style"_utf16_fly_string };
     Utf16FlyString property_name;
     String value_string;
     String description;
@@ -59,7 +58,7 @@ struct InvalidPropertyError {
 };
 
 struct InvalidValueError {
-    FlyString value_type;
+    Utf16FlyString value_type;
     String value_string;
     String description;
     bool operator==(InvalidValueError const&) const = default;
@@ -70,7 +69,7 @@ struct InvalidValueError {
 };
 
 struct InvalidRuleError {
-    FlyString rule_name;
+    Utf16FlyString rule_name;
     String prelude;
     String description;
     bool operator==(InvalidRuleError const&) const = default;
@@ -81,7 +80,7 @@ struct InvalidRuleError {
 };
 
 struct InvalidQueryError {
-    FlyString query_type { "@media"_fly_string };
+    Utf16FlyString query_type { "@media"_utf16_fly_string };
     String value_string;
     String description;
     bool operator==(InvalidQueryError const&) const = default;
@@ -92,7 +91,7 @@ struct InvalidQueryError {
 };
 
 struct InvalidSelectorError {
-    FlyString rule_name { "style"_fly_string };
+    Utf16FlyString rule_name { "style"_utf16_fly_string };
     String value_string;
     String description;
     bool operator==(InvalidSelectorError const&) const = default;
@@ -103,7 +102,7 @@ struct InvalidSelectorError {
 };
 
 struct InvalidPseudoClassOrElementError {
-    FlyString name;
+    Utf16FlyString name;
     String value_string;
     String description;
     bool operator==(InvalidPseudoClassOrElementError const&) const = default;
@@ -114,8 +113,8 @@ struct InvalidPseudoClassOrElementError {
 };
 
 struct InvalidRuleLocationError {
-    FlyString outer_rule_name;
-    FlyString inner_rule_name;
+    Utf16FlyString outer_rule_name;
+    Utf16FlyString inner_rule_name;
     bool operator==(InvalidRuleLocationError const&) const = default;
     unsigned hash() const
     {

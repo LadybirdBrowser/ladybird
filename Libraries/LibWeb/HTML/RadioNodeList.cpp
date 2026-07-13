@@ -66,7 +66,7 @@ Utf16String RadioNodeList::value() const
     return element->get_attribute(AttributeNames::value).value_or("on"_utf16);
 }
 
-void RadioNodeList::set_value(Utf16String const& value)
+void RadioNodeList::set_value(Utf16View value)
 {
     HTMLInputElement* element = nullptr;
 
@@ -74,7 +74,7 @@ void RadioNodeList::set_value(Utf16String const& value)
     //    that is an input element whose type attribute is in the Radio Button state and whose value content attribute is either absent,
     //    or present and equal to the new value, if any. If no such element exists, then instead let element be null.
     if (value == u"on"sv) {
-        element = as<HTMLInputElement>(first_matching([&value](auto const& node) {
+        element = as<HTMLInputElement>(first_matching([value](auto const& node) {
             auto const* button = radio_button(node);
             if (!button)
                 return false;
@@ -87,7 +87,7 @@ void RadioNodeList::set_value(Utf16String const& value)
     //    type attribute is in the Radio Button state and whose value content attribute is present and equal to the new value, if any. If
     //    no such element exists, then instead let element be null.
     else {
-        element = as<HTMLInputElement>(first_matching([&value](auto const& node) {
+        element = as<HTMLInputElement>(first_matching([value](auto const& node) {
             auto const* button = radio_button(node);
             if (!button)
                 return false;

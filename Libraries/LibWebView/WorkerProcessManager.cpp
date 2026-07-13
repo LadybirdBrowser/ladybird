@@ -243,7 +243,7 @@ void WorkerProcessManager::notify_worker_script_load_failure(Owner const& owner)
         });
 }
 
-void WorkerProcessManager::notify_worker_exception(Owner const& owner, String const& message, String const& filename, u32 lineno, u32 colno)
+void WorkerProcessManager::notify_worker_exception(Owner const& owner, Utf16String const& message, Utf16String const& filename, u32 lineno, u32 colno)
 {
     owner.client.visit(
         [&](WebContentOwner const& web_content_owner) {
@@ -300,7 +300,7 @@ void WorkerProcessManager::worker_did_fail_loading_script(Web::HTML::WorkerAgent
     });
 }
 
-void WorkerProcessManager::worker_did_report_exception(Web::HTML::WorkerAgentId agent_id, String message, String filename, u32 lineno, u32 colno)
+void WorkerProcessManager::worker_did_report_exception(Web::HTML::WorkerAgentId agent_id, Utf16String message, Utf16String filename, u32 lineno, u32 colno)
 {
     auto maybe_agent = m_agents.find(agent_id);
     if (maybe_agent == m_agents.end())

@@ -125,8 +125,7 @@ def cpp_type_name_for_string(type_name: str, extended_attributes: Optional[dict[
     is_fly_string = extended_attributes is not None and (
         "FlyString" in extended_attributes or "Utf16FlyString" in extended_attributes
     )
-    is_utf16_string = "Utf16" in type_name
-    if is_utf16_string:
+    if type_name in ("DOMString", "USVString", "Utf16DOMString", "Utf16USVString"):
         return "Utf16FlyString" if is_fly_string else "Utf16String"
     return "FlyString" if is_fly_string else "String"
 

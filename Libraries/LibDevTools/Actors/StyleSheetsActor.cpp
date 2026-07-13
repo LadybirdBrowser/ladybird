@@ -25,7 +25,7 @@ StyleSheetsActor::StyleSheetsActor(DevToolsServer& devtools, String name, WeakPt
     if (auto tab = m_tab.strong_ref()) {
         devtools.delegate().listen_for_style_sheet_sources(
             tab->description(),
-            weak_callback(*this, [](auto& self, Web::CSS::StyleSheetIdentifier const& style_sheet, String source) {
+            weak_callback(*this, [](auto& self, Web::CSS::StyleSheetIdentifier const& style_sheet, Utf16String source) {
                 self.style_sheet_source_received(style_sheet, move(source));
             }));
     }
@@ -79,7 +79,7 @@ Optional<String> StyleSheetsActor::resource_id_for(Web::CSS::StyleSheetIdentifie
     return resource_id_for_index(name(), *index);
 }
 
-void StyleSheetsActor::style_sheet_source_received(Web::CSS::StyleSheetIdentifier const& style_sheet, String source)
+void StyleSheetsActor::style_sheet_source_received(Web::CSS::StyleSheetIdentifier const& style_sheet, Utf16String source)
 {
     auto index = m_style_sheets.find_first_index(style_sheet);
     if (!index.has_value())
@@ -92,7 +92,7 @@ void StyleSheetsActor::style_sheet_source_received(Web::CSS::StyleSheetIdentifie
     // FIXME: Support the `longString` message type so that we don't have to send the entire style sheet
     //        source at once for large sheets.
     JsonObject response;
-    response.set("text"sv, move(source));
+    response.set("text"sv, source.to_utf8());
     send_response(*pending_message, move(response));
 }
 

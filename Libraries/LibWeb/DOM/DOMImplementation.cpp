@@ -77,13 +77,13 @@ WebIDL::ExceptionOr<GC::Ref<XMLDocument>> DOMImplementation::create_document(Opt
     // 7. document’s content type is determined by namespace:
     if (namespace_ == Namespace::HTML) {
         // -> HTML namespace
-        xml_document->set_content_type("application/xhtml+xml"_string);
+        xml_document->set_content_type("application/xhtml+xml"_utf16_fly_string);
     } else if (namespace_ == Namespace::SVG) {
         // -> SVG namespace
-        xml_document->set_content_type("image/svg+xml"_string);
+        xml_document->set_content_type("image/svg+xml"_utf16_fly_string);
     } else {
         // -> Any other namespace
-        xml_document->set_content_type("application/xml"_string);
+        xml_document->set_content_type("application/xml"_utf16_fly_string);
     }
 
     // 8. Return document.
@@ -97,7 +97,7 @@ GC::Ref<Document> DOMImplementation::create_html_document(Optional<Utf16String> 
     auto html_document = HTML::HTMLDocument::create(realm());
 
     // 2. Set doc’s content type to "text/html".
-    html_document->set_content_type("text/html"_string);
+    html_document->set_content_type("text/html"_utf16_fly_string);
     html_document->set_document_type(DOM::Document::Type::HTML);
 
     html_document->set_ready_for_post_load_tasks(true);
@@ -138,7 +138,7 @@ GC::Ref<Document> DOMImplementation::create_html_document(Optional<Utf16String> 
 }
 
 // https://dom.spec.whatwg.org/#dom-domimplementation-createdocumenttype
-WebIDL::ExceptionOr<GC::Ref<DocumentType>> DOMImplementation::create_document_type(Utf16FlyString const& name, Utf16String const& public_id, Utf16String const& system_id)
+WebIDL::ExceptionOr<GC::Ref<DocumentType>> DOMImplementation::create_document_type(Utf16FlyString const& name, Utf16View public_id, Utf16View system_id)
 {
 
     // 1. If name is not a valid doctype name, then throw an "InvalidCharacterError" DOMException.

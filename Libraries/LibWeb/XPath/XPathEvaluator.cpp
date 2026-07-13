@@ -37,13 +37,13 @@ void XPathEvaluator::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-WebIDL::ExceptionOr<GC::Ref<XPathExpression>> XPathEvaluator::create_expression(String const& expression, GC::Ptr<XPathNSResolver> resolver)
+WebIDL::ExceptionOr<GC::Ref<XPathExpression>> XPathEvaluator::create_expression(Utf16View expression, GC::Ptr<XPathNSResolver> resolver)
 {
     auto& realm = this->realm();
     return XPath::create_expression(realm, expression, resolver);
 }
 
-WebIDL::ExceptionOr<GC::Ref<XPathResult>> XPathEvaluator::evaluate(String const& expression, DOM::Node const& context_node, GC::Ptr<XPathNSResolver> resolver, WebIDL::UnsignedShort type, GC::Ptr<XPathResult> result)
+WebIDL::ExceptionOr<GC::Ref<XPathResult>> XPathEvaluator::evaluate(Utf16View expression, DOM::Node const& context_node, GC::Ptr<XPathNSResolver> resolver, WebIDL::UnsignedShort type, GC::Ptr<XPathResult> result)
 {
     auto& realm = this->realm();
     return XPath::evaluate(realm, expression, context_node, resolver, type, result);

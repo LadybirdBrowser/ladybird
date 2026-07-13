@@ -125,10 +125,10 @@ static HashMap<String, Extension, AK::ASCIICaseInsensitiveStringTraits> const& a
     return extensions;
 }
 
-Optional<Vector<String>> WebGLRenderingContextBase::get_supported_extensions()
+Optional<Vector<Utf16String>> WebGLRenderingContextBase::get_supported_extensions()
 {
     auto const& opengl_extensions = context().get_supported_opengl_extensions();
-    Vector<String> webgl_extensions;
+    Vector<Utf16String> webgl_extensions;
 
     for (auto const& [available_extension_name, available_extension_info] : available_webgl_extensions()) {
         bool supported = !available_extension_info.only_for_webgl_version.has_value()
@@ -148,32 +148,36 @@ Optional<Vector<String>> WebGLRenderingContextBase::get_supported_extensions()
         }
 
         if (supported)
-            webgl_extensions.append(available_extension_name);
+            webgl_extensions.append(Utf16String::from_ascii_without_validation(available_extension_name.bytes_as_string_view().bytes()));
     }
 
     return webgl_extensions;
 }
 
-JS::Object* WebGLRenderingContextBase::get_extension(String const& name)
+JS::Object* WebGLRenderingContextBase::get_extension(Utf16String const& name)
 {
     // Returns an object if, and only if, name is an ASCII case-insensitive match [HTML] for one of the names returned
     // from getSupportedExtensions; otherwise, returns null. The object returned from getExtension contains any constants
     // or functions provided by the extension. A returned object may have no constants or functions if the extension does
     // not define any, but a unique object must still be returned. That object is used to indicate that the extension has
     // been enabled.
+    if (!name.is_ascii())
+        return nullptr;
+
+    auto name_string = MUST(String::from_byte_string(name.to_byte_string()));
     auto supported_extensions = get_supported_extensions();
-    auto supported_extension_iterator = supported_extensions->find_if([&name](String const& supported_extension) {
+    auto supported_extension_iterator = supported_extensions->find_if([&name](Utf16String const& supported_extension) {
         return supported_extension.equals_ignoring_ascii_case(name);
     });
     if (supported_extension_iterator == supported_extensions->end())
         return nullptr;
 
-    auto maybe_extension = m_enabled_extensions.get(name);
+    auto maybe_extension = m_enabled_extensions.get(name_string);
     if (maybe_extension.has_value())
         return maybe_extension.release_value();
 
     // If we pass the check above this will always return a value
-    auto const& extension_info = available_webgl_extensions().get(name).release_value();
+    auto const& extension_info = available_webgl_extensions().get(name_string).release_value();
 
     if (!extension_info.factory)
         return nullptr;
@@ -183,7 +187,7 @@ JS::Object* WebGLRenderingContextBase::get_extension(String const& name)
     }
 
     auto extension = MUST(extension_info.factory(realm(), *this));
-    m_enabled_extensions.set(name, extension);
+    m_enabled_extensions.set(move(name_string), extension);
     return extension;
 }
 

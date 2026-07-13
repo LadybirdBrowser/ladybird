@@ -51,7 +51,7 @@ Optional<CSS::CursorPredefined> ResizeHandle::cursor() const
     return CSS::CursorPredefined::EwResize;
 }
 
-MouseAction ResizeHandle::handle_pointer_event(FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position)
+MouseAction ResizeHandle::handle_pointer_event(Utf16FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position)
 {
     if (type == UIEvents::EventNames::pointermove) {
         if (!m_resize_action)

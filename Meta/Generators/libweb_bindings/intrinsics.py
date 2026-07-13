@@ -355,7 +355,7 @@ def write_namespace_creation(out: TextIO, interface: Interface, interfaces: List
 void Intrinsics::create_web_namespace<{interface.namespace_class}>(JS::Realm& realm)
 {{
     auto namespace_object = realm.create<{interface.namespace_class}>(realm);
-    m_namespaces.set("{interface.name}"_fly_string, namespace_object);
+    m_namespaces.set("{interface.name}"_utf16_fly_string, namespace_object);
 
     [[maybe_unused]] static constexpr u8 attr = JS::Attribute::Writable | JS::Attribute::Configurable;
 """
@@ -366,7 +366,7 @@ void Intrinsics::create_web_namespace<{interface.namespace_class}>(JS::Realm& re
             continue
 
         out.write(
-            f"""    namespace_object->define_intrinsic_accessor("{owned_interface.name}"_utf16_fly_string, attr, [](auto& realm) -> JS::Value {{ return &Bindings::ensure_web_constructor<{owned_interface.prototype_class}>(realm, "{interface.name}.{owned_interface.name}"_fly_string); }});
+            f"""    namespace_object->define_intrinsic_accessor("{owned_interface.name}"_utf16_fly_string, attr, [](auto& realm) -> JS::Value {{ return &Bindings::ensure_web_constructor<{owned_interface.prototype_class}>(realm, "{interface.name}.{owned_interface.name}"_utf16_fly_string); }});
 """
         )
 
@@ -385,6 +385,8 @@ WEB_API void Intrinsics::create_web_prototype_and_constructor<{interface.prototy
     static constexpr InterfaceObjectMetadata metadata {{
         .name = "{interface.name}"sv,
         .namespaced_name = "{interface.namespaced_name}"sv,
+        .utf16_name = "{interface.name}"sv,
+        .utf16_namespaced_name = "{interface.namespaced_name}"sv,
         .initialize_constructor = &{interface.constructor_class}::initialize,
         .initialize_prototype = &{interface.prototype_class}::initialize,
     }};
@@ -405,13 +407,15 @@ WEB_API void Intrinsics::create_web_prototype_and_constructor<{interface.prototy
         ensure_parent_prototype = "nullptr"
         ensure_parent_constructor = "nullptr"
         if interface.parent_name:
-            ensure_parent_prototype = f"""[](JS::Realm& realm) -> JS::Object& {{ return Web::Bindings::ensure_web_prototype<{interface.parent_name}Prototype>(realm, "{interface.parent_name}"_fly_string); }}"""
-            ensure_parent_constructor = f"""[](JS::Realm& realm) -> JS::NativeFunction& {{ return Web::Bindings::ensure_web_constructor<{interface.parent_name}Prototype>(realm, "{interface.parent_name}"_fly_string); }}"""
+            ensure_parent_prototype = f"""[](JS::Realm& realm) -> JS::Object& {{ return Web::Bindings::ensure_web_prototype<{interface.parent_name}Prototype>(realm, "{interface.parent_name}"_utf16_fly_string); }}"""
+            ensure_parent_constructor = f"""[](JS::Realm& realm) -> JS::NativeFunction& {{ return Web::Bindings::ensure_web_constructor<{interface.parent_name}Prototype>(realm, "{interface.parent_name}"_utf16_fly_string); }}"""
 
         out.write(
             f"""    static constexpr InterfaceObjectMetadata metadata {{
         .name = "{interface.name}"sv,
         .namespaced_name = "{interface.namespaced_name}"sv,
+        .utf16_name = "{interface.name}"sv,
+        .utf16_namespaced_name = "{interface.namespaced_name}"sv,
         .ensure_parent_prototype = {ensure_parent_prototype},
         .ensure_parent_constructor = {ensure_parent_constructor},
         .initialize_constructor = &{interface.constructor_class}::initialize,
@@ -428,7 +432,7 @@ WEB_API void Intrinsics::create_web_prototype_and_constructor<{interface.prototy
         if legacy_constructor is not None:
             out.write(
                 f"""    auto legacy_constructor = realm.create<{legacy_constructor.constructor_class}>(realm);
-    m_constructors.set("{legacy_constructor.name}"_fly_string, legacy_constructor.ptr());
+    m_constructors.set("{legacy_constructor.name}"_utf16_fly_string, legacy_constructor.ptr());
 """
             )
 
@@ -448,12 +452,14 @@ WEB_API void Intrinsics::create_web_prototype_and_constructor<{interface.prototy
 
         ensure_parent_constructor = "nullptr"
         if interface.parent_name:
-            ensure_parent_constructor = f"""[](JS::Realm& realm) -> JS::NativeFunction& {{ return Web::Bindings::ensure_web_constructor<{interface.parent_name}Prototype>(realm, "{interface.parent_name}"_fly_string); }}"""
+            ensure_parent_constructor = f"""[](JS::Realm& realm) -> JS::NativeFunction& {{ return Web::Bindings::ensure_web_constructor<{interface.parent_name}Prototype>(realm, "{interface.parent_name}"_utf16_fly_string); }}"""
 
         out.write(
             f"""    static constexpr InterfaceObjectMetadata metadata {{
         .name = "{interface.name}"sv,
         .namespaced_name = "{interface.namespaced_name}"sv,
+        .utf16_name = "{interface.name}"sv,
+        .utf16_namespaced_name = "{interface.namespaced_name}"sv,
         .ensure_parent_constructor = {ensure_parent_constructor},
         .initialize_constructor = &{interface.constructor_class}::initialize,
         .construct = &{interface.constructor_class}::construct,
@@ -465,14 +471,14 @@ WEB_API void Intrinsics::create_web_prototype_and_constructor<{interface.prototy
         if interface_supports_named_properties(interface):
             out.write(
                 f"""    auto named_properties_object = realm.create<{interface.name}Properties>(realm);
-    m_prototypes.set("{interface.name}Properties"_fly_string, named_properties_object);
+    m_prototypes.set("{interface.name}Properties"_utf16_fly_string, named_properties_object);
 
 """
             )
 
         out.write(
             f"""    auto prototype = realm.create<{interface.prototype_class}>(realm);
-    m_prototypes.set("{interface.namespaced_name}"_fly_string, prototype);
+    m_prototypes.set("{interface.namespaced_name}"_utf16_fly_string, prototype);
 
     create_web_constructor(realm, metadata, prototype);
 """
@@ -482,7 +488,7 @@ WEB_API void Intrinsics::create_web_prototype_and_constructor<{interface.prototy
         if legacy_constructor is not None:
             out.write(
                 f"""    auto legacy_constructor = realm.create<{legacy_constructor.constructor_class}>(realm);
-    m_constructors.set("{legacy_constructor.name}"_fly_string, legacy_constructor.ptr());
+    m_constructors.set("{legacy_constructor.name}"_utf16_fly_string, legacy_constructor.ptr());
 """
             )
 
@@ -504,17 +510,17 @@ WEB_API void Intrinsics::create_web_prototype_and_constructor<{interface.prototy
     if interface_supports_named_properties(interface):
         out.write(
             f"""    auto named_properties_object = realm.create<{interface.name}Properties>(realm);
-    m_prototypes.set("{interface.name}Properties"_fly_string, named_properties_object);
+    m_prototypes.set("{interface.name}Properties"_utf16_fly_string, named_properties_object);
 
 """
         )
 
     out.write(
         f"""    auto prototype = realm.create<{interface.prototype_class}>(realm);
-    m_prototypes.set("{interface.namespaced_name}"_fly_string, prototype);
+    m_prototypes.set("{interface.namespaced_name}"_utf16_fly_string, prototype);
 
     auto constructor = realm.create<{interface.constructor_class}>(realm);
-    m_constructors.set("{interface.namespaced_name}"_fly_string, constructor);
+    m_constructors.set("{interface.namespaced_name}"_utf16_fly_string, constructor);
 
     prototype->define_direct_property(vm.names.constructor, constructor.ptr(), JS::Attribute::Writable | JS::Attribute::Configurable);
 """
@@ -524,7 +530,7 @@ WEB_API void Intrinsics::create_web_prototype_and_constructor<{interface.prototy
     if legacy_constructor is not None:
         out.write(
             f"""    auto legacy_constructor = realm.create<{legacy_constructor.constructor_class}>(realm);
-    m_constructors.set("{legacy_constructor.name}"_fly_string, legacy_constructor.ptr());
+    m_constructors.set("{legacy_constructor.name}"_utf16_fly_string, legacy_constructor.ptr());
 """
         )
 
@@ -606,7 +612,7 @@ def write_interface_global_accessor(out: TextIO, class_name: str, interface: Int
 
     def write_constructor_accessor(name: str, constructor_name: str) -> None:
         out.write(
-            f'{indentation}global.define_intrinsic_accessor("{name}"_utf16_fly_string, attr, [](auto& realm) -> JS::Value {{ return &ensure_web_constructor<{interface.prototype_class}>(realm, "{constructor_name}"_fly_string); }});\n'
+            f'{indentation}global.define_intrinsic_accessor("{name}"_utf16_fly_string, attr, [](auto& realm) -> JS::Value {{ return &ensure_web_constructor<{interface.prototype_class}>(realm, "{constructor_name}"_utf16_fly_string); }});\n'
         )
 
     if "SecureContext" in interface.extended_attributes:
@@ -657,6 +663,6 @@ def write_interface_global_accessor(out: TextIO, class_name: str, interface: Int
 
 def write_namespace_global_accessor(out: TextIO, interface: Interface) -> None:
     out.write(
-        f"""    global.define_intrinsic_accessor("{interface.name}"_utf16_fly_string, attr, [](auto& realm) -> JS::Value {{ return &ensure_web_namespace<{interface.namespace_class}>(realm, "{interface.name}"_fly_string); }});
+        f"""    global.define_intrinsic_accessor("{interface.name}"_utf16_fly_string, attr, [](auto& realm) -> JS::Value {{ return &ensure_web_namespace<{interface.namespace_class}>(realm, "{interface.name}"_utf16_fly_string); }});
 """
     )

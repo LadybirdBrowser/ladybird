@@ -28,17 +28,18 @@ ErrorOr<void> TextDecoderOutputQueue::push(String output)
     return m_builder.try_append(output.bytes_as_string_view());
 }
 
-ErrorOr<String> TextDecoderOutputQueue::serialize()
+ErrorOr<Utf16String> TextDecoderOutputQueue::serialize()
 {
     if (m_has_builder)
-        return m_builder.to_string();
+        return Utf16String::from_utf8(TRY(m_builder.to_string()));
     if (m_single_output.has_value())
-        return m_single_output.release_value();
-    return String {};
+        return Utf16String::from_utf8(m_single_output.release_value());
+    return Utf16String {};
 }
 
 TextDecoderCommonMixin::TextDecoderCommonMixin(FlyString encoding, TextCodec::ErrorMode error_mode, bool ignore_bom)
     : m_encoding(move(encoding))
+    , m_encoding_for_bindings(Utf16FlyString::from_fly_string(m_encoding))
     , m_error_mode(error_mode)
     , m_ignore_bom(ignore_bom)
 {
@@ -52,7 +53,7 @@ void TextDecoderCommonMixin::set_decoder_to_new_instance_of_encoding_decoder()
 static WebIDL::ExceptionOr<void> append_decoded_output(JS::VM& vm, TextDecoderOutputQueue& output, ErrorOr<String> decoded_or_error)
 {
     if (decoded_or_error.is_error() && decoded_or_error.error().code() != ENOMEM)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Decoding failed"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Decoding failed"_utf16 };
 
     auto decoded = TRY_OR_THROW_OOM(vm, move(decoded_or_error));
     TRY_OR_THROW_OOM(vm, output.push(move(decoded)));
@@ -71,7 +72,7 @@ WebIDL::ExceptionOr<void> TextDecoderCommonMixin::process_an_item(JS::VM& vm, En
     return append_decoded_output(vm, output, m_decoder->finish());
 }
 
-WebIDL::ExceptionOr<String> TextDecoderCommonMixin::serialize_io_queue(JS::VM& vm, TextDecoderOutputQueue& output)
+WebIDL::ExceptionOr<Utf16String> TextDecoderCommonMixin::serialize_io_queue(JS::VM& vm, TextDecoderOutputQueue& output)
 {
     return TRY_OR_THROW_OOM(vm, output.serialize());
 }

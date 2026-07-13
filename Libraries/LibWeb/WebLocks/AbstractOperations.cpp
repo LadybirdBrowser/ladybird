@@ -54,7 +54,7 @@ LockManager& obtain_lock_manager(HTML::EnvironmentSettingsObject& environment)
 }
 
 // https://w3c.github.io/web-locks/#get-the-lock-request-queue
-LockRequestQueue& get_lock_request_queue(LockRequestQueueMap& queue_map, String const& name)
+LockRequestQueue& get_lock_request_queue(LockRequestQueueMap& queue_map, Utf16String const& name)
 {
     // 1. If queueMap[name] does not exist, set queueMap[name] to a new empty lock request queue.
     // 2. Return queueMap[name].

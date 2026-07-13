@@ -12,17 +12,17 @@ namespace Web::UIEvents {
 
 GC_DEFINE_ALLOCATOR(CompositionEvent);
 
-GC::Ref<CompositionEvent> CompositionEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::CompositionEventInit const& event_init)
+GC::Ref<CompositionEvent> CompositionEvent::create(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::CompositionEventInit const& event_init)
 {
     return realm.create<CompositionEvent>(realm, event_name, event_init);
 }
 
-WebIDL::ExceptionOr<GC::Ref<CompositionEvent>> CompositionEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::CompositionEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<CompositionEvent>> CompositionEvent::construct_impl(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::CompositionEventInit const& event_init)
 {
     return realm.create<CompositionEvent>(realm, event_name, event_init);
 }
 
-CompositionEvent::CompositionEvent(JS::Realm& realm, FlyString const& event_name, Bindings::CompositionEventInit const& event_init)
+CompositionEvent::CompositionEvent(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::CompositionEventInit const& event_init)
     : UIEvent(realm, event_name, event_init)
     , m_data(event_init.data)
 {
@@ -37,7 +37,7 @@ void CompositionEvent::initialize(JS::Realm& realm)
 }
 
 // https://w3c.github.io/uievents/#dom-compositionevent-initcompositionevent
-void CompositionEvent::init_composition_event(String const& type, bool bubbles, bool cancelable, GC::Ptr<HTML::WindowProxy> view, String const& data)
+void CompositionEvent::init_composition_event(Utf16FlyString const& type, bool bubbles, bool cancelable, GC::Ptr<HTML::WindowProxy> view, Utf16String const& data)
 {
     // Initializes attributes of a CompositionEvent object. This method has the same behavior as UIEvent.initUIEvent().
     // The value of detail remains undefined.

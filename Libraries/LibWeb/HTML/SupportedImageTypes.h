@@ -7,14 +7,13 @@
 #pragma once
 
 #include <AK/Forward.h>
-#include <AK/StringView.h>
+#include <AK/Utf16View.h>
 
 namespace Web::HTML {
 
 // Returns true for an empty type, or for a MIME type that our image decoder
 // is known to support. The list is currently hard-coded; eventually it should
 // be derived from the registered image decoders.
-bool is_supported_image_type(StringView type);
 bool is_supported_image_type(Utf16View type);
 
 }

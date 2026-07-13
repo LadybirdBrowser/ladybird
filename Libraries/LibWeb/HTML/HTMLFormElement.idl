@@ -51,7 +51,7 @@ interface HTMLFormElement : HTMLElement {
 
     [HTMLConstructor] constructor();
 
-    [CEReactions, Reflect=accept-charset] attribute DOMString acceptCharset;
+    [CEReactions, Reflect=accept-charset] attribute Utf16DOMString acceptCharset;
     [CEReactions] attribute Utf16USVString action;
     [CEReactions, Enumerated=Autocomplete, Reflect] attribute Utf16DOMString autocomplete;
     [CEReactions, Enumerated=EnctypeAttribute, Reflect] attribute Utf16DOMString enctype;
@@ -59,8 +59,8 @@ interface HTMLFormElement : HTMLElement {
     [CEReactions, Enumerated=MethodAttribute, Reflect] attribute Utf16DOMString method;
     [CEReactions, Reflect] attribute Utf16DOMString name;
     [CEReactions, Reflect=novalidate] attribute boolean noValidate;
-    [CEReactions, Reflect] attribute DOMString target;
-    [CEReactions, Reflect] attribute DOMString rel;
+    [CEReactions, Reflect] attribute Utf16DOMString target;
+    [CEReactions, Reflect] attribute Utf16DOMString rel;
     [SameObject, PutForwards=value] readonly attribute DOMTokenList relList;
 
     [SameObject] readonly attribute HTMLFormControlsCollection elements;

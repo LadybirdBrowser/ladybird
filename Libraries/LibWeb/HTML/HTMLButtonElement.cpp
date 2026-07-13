@@ -50,13 +50,16 @@ void HTMLButtonElement::adjust_computed_style(CSS::ComputedProperties::Builder& 
 
 HTMLButtonElement::TypeAttributeState HTMLButtonElement::type_state() const
 {
-    auto value = get_attribute_value(HTML::AttributeNames::type);
+    auto value = get_attribute_value_view(HTML::AttributeNames::type);
 
-#define __ENUMERATE_HTML_BUTTON_TYPE_ATTRIBUTE(keyword, state) \
-    if (value.equals_ignoring_ascii_case(#keyword##sv))        \
-        return HTMLButtonElement::TypeAttributeState::state;
-    ENUMERATE_HTML_BUTTON_TYPE_ATTRIBUTES
-#undef __ENUMERATE_HTML_BUTTON_TYPE_ATTRIBUTE
+    if (value.has_value() && value->equals_ignoring_ascii_case(u"submit"sv))
+        return HTMLButtonElement::TypeAttributeState::Submit;
+    if (value.has_value() && value->equals_ignoring_ascii_case(u"reset"sv))
+        return HTMLButtonElement::TypeAttributeState::Reset;
+    if (value.has_value() && value->equals_ignoring_ascii_case(u"button"sv))
+        return HTMLButtonElement::TypeAttributeState::Button;
+    if (value.has_value() && value->equals_ignoring_ascii_case(u"auto"sv))
+        return HTMLButtonElement::TypeAttributeState::Auto;
 
     // The attribute's missing value default and invalid value default are both the Auto state.
     // https://html.spec.whatwg.org/multipage/form-elements.html#attr-button-type-auto-state
@@ -64,12 +67,12 @@ HTMLButtonElement::TypeAttributeState HTMLButtonElement::type_state() const
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-button-type
-Utf16String HTMLButtonElement::type_for_bindings() const
+Utf16FlyString HTMLButtonElement::type_for_bindings() const
 {
     // The type getter steps are:
     // 1. If this is a submit button, then return "submit".
     if (is_submit_button())
-        return "submit"_utf16;
+        return "submit"_utf16_fly_string;
 
     // 2. Let state be this's type attribute.
     auto state = type_state();
@@ -79,13 +82,13 @@ Utf16String HTMLButtonElement::type_for_bindings() const
 
     // 4. If state is in the Auto state, then return "button".
     if (state == TypeAttributeState::Auto)
-        return "button"_utf16;
+        return "button"_utf16_fly_string;
 
     // 5. Return the keyword value corresponding to state.
     switch (state) {
 #define __ENUMERATE_HTML_BUTTON_TYPE_ATTRIBUTE(keyword, state) \
     case TypeAttributeState::state:                            \
-        return #keyword##_utf16;
+        return #keyword##_utf16_fly_string;
         ENUMERATE_HTML_BUTTON_TYPE_ATTRIBUTES
 #undef __ENUMERATE_HTML_BUTTON_TYPE_ATTRIBUTE
     }
@@ -93,7 +96,7 @@ Utf16String HTMLButtonElement::type_for_bindings() const
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-button-type
-void HTMLButtonElement::set_type_for_bindings(Utf16String const& type)
+void HTMLButtonElement::set_type_for_bindings(Utf16View type)
 {
     // The type setter steps are to set the type content attribute to the given value.
     set_attribute_value(HTML::AttributeNames::type, type);
@@ -139,7 +142,9 @@ bool HTMLButtonElement::is_submit_button() const
 Utf16String HTMLButtonElement::value() const
 {
     // The element's value is the value of the element's value attribute, if there is one; otherwise the empty string.
-    return attribute(AttributeNames::value).value_or({});
+    if (auto value = attribute(AttributeNames::value); value.has_value())
+        return value.release_value();
+    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-button-element:concept-fe-optional-value
@@ -155,7 +160,7 @@ bool HTMLButtonElement::has_activation_behavior() const
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#determine-if-command-is-valid
-static bool determine_if_a_command_is_valid_for_a_target(Utf16String const& command, GC::Ptr<Web::DOM::Element> target)
+static bool determine_if_a_command_is_valid_for_a_target(Utf16View command, GC::Ptr<Web::DOM::Element> target)
 {
     // 1. If command is in the Unknown state, then return false.
     if (command.is_empty())
@@ -343,7 +348,7 @@ Utf16String HTMLButtonElement::command() const
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-button-element:dom-button-command-2
-void HTMLButtonElement::set_command(Utf16String const& value)
+void HTMLButtonElement::set_command(Utf16View value)
 {
     set_attribute_value(AttributeNames::command, value);
 }

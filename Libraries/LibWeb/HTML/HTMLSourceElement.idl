@@ -4,11 +4,11 @@ interface HTMLSourceElement : HTMLElement {
 
     [HTMLConstructor] constructor();
 
-    [CEReactions, Reflect, URL] attribute USVString src;
-    [CEReactions, Reflect] attribute DOMString type;
-    [CEReactions, Reflect] attribute USVString srcset;
-    [CEReactions, Reflect] attribute DOMString sizes;
-    [CEReactions, Reflect] attribute DOMString media;
+    [CEReactions, Reflect, URL] attribute Utf16USVString src;
+    [CEReactions, Reflect] attribute Utf16DOMString type;
+    [CEReactions, Reflect] attribute Utf16USVString srcset;
+    [CEReactions, Reflect] attribute Utf16DOMString sizes;
+    [CEReactions, Reflect] attribute Utf16DOMString media;
     [CEReactions, Reflect] attribute unsigned long width;
     [CEReactions, Reflect] attribute unsigned long height;
 

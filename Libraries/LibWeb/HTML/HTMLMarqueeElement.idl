@@ -4,17 +4,17 @@ interface HTMLMarqueeElement : HTMLElement {
 
     [HTMLConstructor] constructor();
 
-    [CEReactions, Reflect] attribute DOMString behavior;
-    [CEReactions, Reflect=bgcolor] attribute DOMString bgColor;
-    [CEReactions, Reflect] attribute DOMString direction;
-    [CEReactions, Reflect] attribute DOMString height;
+    [CEReactions, Reflect] attribute Utf16DOMString behavior;
+    [CEReactions, Reflect=bgcolor] attribute Utf16DOMString bgColor;
+    [CEReactions, Reflect] attribute Utf16DOMString direction;
+    [CEReactions, Reflect] attribute Utf16DOMString height;
     [CEReactions, Reflect] attribute unsigned long hspace;
     [FIXME, CEReactions] attribute long loop;
     [CEReactions] attribute unsigned long scrollAmount;
     [CEReactions] attribute unsigned long scrollDelay;
     [CEReactions, Reflect=truespeed] attribute boolean trueSpeed;
     [CEReactions, Reflect] attribute unsigned long vspace;
-    [CEReactions, Reflect] attribute DOMString width;
+    [CEReactions, Reflect] attribute Utf16DOMString width;
 
     [FIXME] undefined start();
     [FIXME] undefined stop();

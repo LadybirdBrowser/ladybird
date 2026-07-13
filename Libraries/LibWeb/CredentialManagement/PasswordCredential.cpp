@@ -37,9 +37,15 @@ PasswordCredential::~PasswordCredential()
 {
 }
 
+Utf16FlyString const& PasswordCredential::type() const
+{
+    static Utf16FlyString const& type = *new Utf16FlyString("password"_utf16_fly_string);
+    return type;
+}
+
 PasswordCredential::PasswordCredential(JS::Realm& realm, Bindings::PasswordCredentialData const& data, URL::Origin origin)
     : Credential(realm, data.id)
-    , CredentialUserData(data.name.value_or(String {}), data.icon_url.value_or(String {}))
+    , CredentialUserData(data.name.value_or(Utf16String {}), data.icon_url.value_or(Utf16String {}))
     , m_password(data.password)
     , m_origin(move(origin))
 {

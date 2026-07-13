@@ -10,6 +10,7 @@
 #include <AK/HashMap.h>
 #include <AK/String.h>
 #include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Page/Page.h>
@@ -36,10 +37,10 @@ public:
 
     virtual size_t size() const = 0;
     virtual Vector<Utf16String> keys() const = 0;
-    virtual Optional<Utf16String> get(Utf16String const&) const = 0;
-    virtual StorageSetResult set(Utf16String const& key, Utf16String const& value) = 0;
+    virtual Optional<Utf16String> get(Utf16View) const = 0;
+    virtual StorageSetResult set(Utf16View key, Utf16View value) = 0;
     virtual void clear() = 0;
-    virtual void remove(Utf16String const&) = 0;
+    virtual void remove(Utf16View) = 0;
 
     Optional<u64> quota() const { return m_quota; }
 
@@ -64,10 +65,10 @@ public:
 
     virtual size_t size() const override;
     virtual Vector<Utf16String> keys() const override;
-    virtual Optional<Utf16String> get(Utf16String const&) const override;
-    virtual StorageSetResult set(Utf16String const& key, Utf16String const& value) override;
+    virtual Optional<Utf16String> get(Utf16View) const override;
+    virtual StorageSetResult set(Utf16View key, Utf16View value) override;
     virtual void clear() override;
-    virtual void remove(Utf16String const&) override;
+    virtual void remove(Utf16View) override;
 
     virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
@@ -97,10 +98,10 @@ public:
 
     virtual size_t size() const override;
     virtual Vector<Utf16String> keys() const override;
-    virtual Optional<Utf16String> get(Utf16String const&) const override;
-    virtual StorageSetResult set(Utf16String const& key, Utf16String const& value) override;
+    virtual Optional<Utf16String> get(Utf16View) const override;
+    virtual StorageSetResult set(Utf16View key, Utf16View value) override;
     virtual void clear() override;
-    virtual void remove(Utf16String const&) override;
+    virtual void remove(Utf16View) override;
 
     void copy_map_from(SessionStorageBottle const&);
 

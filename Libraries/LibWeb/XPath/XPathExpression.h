@@ -19,7 +19,7 @@ class XPathExpression final : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(XPathExpression);
 
 public:
-    explicit XPathExpression(JS::Realm&, String const& expression, GC::Ptr<XPathNSResolver> resolver);
+    explicit XPathExpression(JS::Realm&, Utf16View expression, GC::Ptr<XPathNSResolver> resolver);
     virtual ~XPathExpression() override;
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void initialize(JS::Realm&) override;
@@ -27,7 +27,7 @@ public:
     WebIDL::ExceptionOr<GC::Ref<XPathResult>> evaluate(DOM::Node const& context_node, WebIDL::UnsignedShort type = 0, GC::Ptr<XPathResult> result = nullptr);
 
 private:
-    String m_expression;
+    Utf16String m_expression;
     GC::Ptr<XPathNSResolver> m_resolver;
 };
 

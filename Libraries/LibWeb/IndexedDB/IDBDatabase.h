@@ -19,8 +19,8 @@
 
 namespace Web::IndexedDB {
 
-using KeyPath = Variant<String, Vector<String>>;
-using NullableKeyPath = Variant<String, Vector<String>, Empty>;
+using KeyPath = Variant<Utf16String, Vector<Utf16String>>;
+using NullableKeyPath = Variant<Utf16String, Vector<Utf16String>, Empty>;
 
 // https://w3c.github.io/IndexedDB/#IDBDatabase-interface
 // https://www.w3.org/TR/IndexedDB/#database-connection
@@ -41,7 +41,7 @@ public:
     void set_state(ConnectionState state);
 
     [[nodiscard]] String uuid() const { return m_uuid; }
-    [[nodiscard]] String name() const { return m_name; }
+    [[nodiscard]] Utf16String name() const { return m_name; }
     [[nodiscard]] u64 version() const { return m_version; }
     [[nodiscard]] bool close_pending() const { return m_close_pending; }
     [[nodiscard]] ConnectionState state() const { return m_state; }
@@ -57,10 +57,10 @@ public:
     void add_transaction(GC::Ref<IDBTransaction> transaction) { m_transactions.append(transaction); }
 
     [[nodiscard]] GC::Ref<HTML::DOMStringList> object_store_names();
-    WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> create_object_store(String const&, Bindings::IDBObjectStoreParameters const&);
-    WebIDL::ExceptionOr<void> delete_object_store(String const&);
+    WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> create_object_store(Utf16String const&, Bindings::IDBObjectStoreParameters const&);
+    WebIDL::ExceptionOr<void> delete_object_store(Utf16String const&);
 
-    WebIDL::ExceptionOr<GC::Ref<IDBTransaction>> transaction(Variant<String, Vector<String>>, Bindings::IDBTransactionMode = Bindings::IDBTransactionMode::Readonly, Bindings::IDBTransactionOptions = { .durability = Bindings::IDBTransactionDurability::Default });
+    WebIDL::ExceptionOr<GC::Ref<IDBTransaction>> transaction(Variant<Utf16String, Vector<Utf16String>>, Bindings::IDBTransactionMode = Bindings::IDBTransactionMode::Readonly, Bindings::IDBTransactionOptions = { .durability = Bindings::IDBTransactionDurability::Default });
 
     void close();
 
@@ -92,7 +92,7 @@ private:
     Vector<PendingTransactionWait> m_pending_transaction_waits;
 
     u64 m_version { 0 };
-    String m_name;
+    Utf16String m_name;
 
     // Each connection has a close pending flag which is initially false.
     bool m_close_pending { false };

@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/Badge.h>
-#include <AK/String.h>
+#include <AK/Utf16View.h>
 #include <LibGC/RootVector.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/VideoTrack.h>
@@ -27,7 +27,7 @@ public:
     // https://html.spec.whatwg.org/multipage/media.html#dom-videotracklist-length
     size_t length() const { return m_video_tracks.size(); }
 
-    GC::Ptr<VideoTrack> get_track_by_id(StringView id) const;
+    GC::Ptr<VideoTrack> get_track_by_id(Utf16View id) const;
     i32 selected_index() const;
 
     template<typename Callback>

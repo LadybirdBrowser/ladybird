@@ -14,12 +14,12 @@ namespace Web::Speech {
 
 GC_DEFINE_ALLOCATOR(SpeechSynthesisUtterance);
 
-WebIDL::ExceptionOr<GC::Ref<SpeechSynthesisUtterance>> SpeechSynthesisUtterance::construct_impl(JS::Realm& realm, String const& text)
+WebIDL::ExceptionOr<GC::Ref<SpeechSynthesisUtterance>> SpeechSynthesisUtterance::construct_impl(JS::Realm& realm, Utf16String const& text)
 {
     return realm.create<SpeechSynthesisUtterance>(realm, text);
 }
 
-SpeechSynthesisUtterance::SpeechSynthesisUtterance(JS::Realm& realm, String const& text)
+SpeechSynthesisUtterance::SpeechSynthesisUtterance(JS::Realm& realm, Utf16String const& text)
     : DOM::EventTarget(realm)
     , m_text(text)
 {

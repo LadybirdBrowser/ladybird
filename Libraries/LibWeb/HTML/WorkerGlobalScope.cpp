@@ -97,7 +97,7 @@ void WorkerGlobalScope::close_a_worker()
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#importing-scripts-and-libraries
-WebIDL::ExceptionOr<void> WorkerGlobalScope::import_scripts(Vector<String> const& urls, PerformTheFetchHook perform_fetch)
+WebIDL::ExceptionOr<void> WorkerGlobalScope::import_scripts(Vector<Utf16String> const& urls, PerformTheFetchHook perform_fetch)
 {
     // The algorithm may optionally be customized by supplying custom perform the fetch hooks,
     // which if provided will be used when invoking fetch a classic worker-imported script.

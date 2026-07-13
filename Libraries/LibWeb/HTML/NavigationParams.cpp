@@ -62,17 +62,25 @@ bool check_a_navigation_responses_adherence_to_x_frame_options(GC::Ptr<Fetch::In
     auto raw_x_frame_options = response->header_list()->get_decode_and_split("X-Frame-Options"sv.bytes());
 
     // 4. Let xFrameOptions be a new set.
-    auto x_frame_options = AK::OrderedHashTable<String>();
+    Vector<StringView> x_frame_options;
 
     // 5. For each value of rawXFrameOptions, append value, converted to ASCII lowercase, to xFrameOptions.
     if (raw_x_frame_options.has_value()) {
         for (auto const& value : raw_x_frame_options.value()) {
-            x_frame_options.set(value.to_ascii_lowercase());
+            auto value_view = value.bytes_as_string_view();
+            if (!x_frame_options.contains([&](auto const& option) { return option.equals_ignoring_ascii_case(value_view); }))
+                x_frame_options.append(value_view);
         }
     }
 
+    auto is_recognized_x_frame_option = [](StringView option) {
+        return option.equals_ignoring_ascii_case("deny"sv)
+            || option.equals_ignoring_ascii_case("allowall"sv)
+            || option.equals_ignoring_ascii_case("sameorigin"sv);
+    };
+
     // 6. If xFrameOptions's size is greater than 1, and xFrameOptions contains any of "deny", "allowall", or "sameorigin", then return false.
-    if (x_frame_options.size() > 1 && (x_frame_options.contains("deny"sv) || x_frame_options.contains("allowall"sv) || x_frame_options.contains("sameorigin"sv))) {
+    if (x_frame_options.size() > 1 && x_frame_options.contains(is_recognized_x_frame_option)) {
         return false;
     }
 
@@ -83,12 +91,12 @@ bool check_a_navigation_responses_adherence_to_x_frame_options(GC::Ptr<Fetch::In
 
     // 8. If xFrameOptions[0] is "deny", then return false.
     auto first_x_frame_option = x_frame_options.begin();
-    if (!x_frame_options.is_empty() && *first_x_frame_option == "deny"sv) {
+    if (!x_frame_options.is_empty() && first_x_frame_option->equals_ignoring_ascii_case("deny"sv)) {
         return false;
     }
 
     // 9. If xFrameOptions[0] is "sameorigin", then:
-    if (!x_frame_options.is_empty() && *first_x_frame_option == "sameorigin"sv) {
+    if (!x_frame_options.is_empty() && first_x_frame_option->equals_ignoring_ascii_case("sameorigin"sv)) {
         // 1. Let containerDocument be navigable's container document.
         auto container_document = navigable->container_document();
 

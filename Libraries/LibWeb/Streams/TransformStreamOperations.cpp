@@ -250,7 +250,7 @@ WebIDL::ExceptionOr<void> transform_stream_default_controller_enqueue(TransformS
 
     // 3. If ! ReadableStreamDefaultControllerCanCloseOrEnqueue(readableController) is false, throw a TypeError exception.
     if (!readable_stream_default_controller_can_close_or_enqueue(readable_controller))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "ReadableController is either closed or not readable."sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "ReadableController is either closed or not readable."_utf16 };
 
     // 4. Let enqueueResult be ReadableStreamDefaultControllerEnqueue(readableController, chunk).
     auto enqueue_result = readable_stream_default_controller_enqueue(readable_controller, chunk);

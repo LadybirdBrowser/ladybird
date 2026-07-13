@@ -10,15 +10,15 @@ enum CanvasTextRendering { "auto", "optimizeSpeed", "optimizeLegibility", "geome
 // https://html.spec.whatwg.org/multipage/canvas.html#canvastextdrawingstyles
 interface mixin CanvasTextDrawingStyles {
     // text
-    [FIXME] attribute DOMString lang; // (default: "inherit")
-    attribute DOMString font; // (default 10px sans-serif)
+    [FIXME] attribute Utf16DOMString lang; // (default: "inherit")
+    attribute Utf16DOMString font; // (default 10px sans-serif)
     attribute CanvasTextAlign textAlign; // (default: "start")
     attribute CanvasTextBaseline textBaseline; // (default: "alphabetic")
     attribute CanvasDirection direction; // (default: "inherit")
-    attribute DOMString letterSpacing; // (default: "0px")
+    attribute Utf16DOMString letterSpacing; // (default: "0px")
     [FIXME] attribute CanvasFontKerning fontKerning; // (default: "auto")
     [FIXME] attribute CanvasFontStretch fontStretch; // (default: "normal")
     [FIXME] attribute CanvasFontVariantCaps fontVariantCaps; // (default: "normal")
     [FIXME] attribute CanvasTextRendering textRendering; // (default: "auto")
-    [FIXME] attribute DOMString wordSpacing; // (default: "0px")
+    [FIXME] attribute Utf16DOMString wordSpacing; // (default: "0px")
 };

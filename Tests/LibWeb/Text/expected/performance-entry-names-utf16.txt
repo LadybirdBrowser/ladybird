@@ -1,0 +1,11 @@
+mark.name === markName: true
+marks.length === 1: true
+marks[0] === mark: true
+measure.name === measureName: true
+measures.length === 1: true
+measures[0] === measure: true
+optionsMeasure.name === optionsMeasureName: true
+performance.getEntriesByName(optionsMeasureName, "measure")[0] === optionsMeasure: true
+performance.getEntriesByName(markName, "mark").length === 0: true
+performance.getEntriesByName(measureName, "measure").length === 0: true
+performance.getEntriesByName(optionsMeasureName, "measure").length === 0: true

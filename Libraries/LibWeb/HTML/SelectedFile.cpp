@@ -11,13 +11,13 @@
 
 namespace Web::HTML {
 
-SelectedFile::SelectedFile(ByteString name, ByteBuffer contents)
+SelectedFile::SelectedFile(Utf16String name, ByteBuffer contents)
     : m_name(move(name))
     , m_file_or_contents(move(contents))
 {
 }
 
-SelectedFile::SelectedFile(ByteString name, IPC::File file)
+SelectedFile::SelectedFile(Utf16String name, IPC::File file)
     : m_name(move(name))
     , m_file_or_contents(move(file))
 {
@@ -42,7 +42,7 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::SelectedFile const& file)
 template<>
 ErrorOr<Web::HTML::SelectedFile> IPC::decode(Decoder& decoder)
 {
-    auto name = TRY(decoder.decode<ByteString>());
+    auto name = TRY(decoder.decode<Utf16String>());
     auto file_or_contents = TRY((decoder.decode<Variant<IPC::File, ByteBuffer>>()));
 
     ByteBuffer contents;

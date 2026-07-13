@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibWeb/Forward.h>
@@ -25,7 +25,7 @@ public:
     ~DOMEventListener();
 
     // type (a string)
-    FlyString type;
+    Utf16FlyString type;
 
     // callback (null or an EventListener object)
     GC::Ptr<IDLEventListener> callback;

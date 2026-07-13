@@ -19,7 +19,7 @@ WebIDL::ExceptionOr<GC::Ref<VTTRegion>> VTTRegion::construct_impl(JS::Realm& rea
     auto region = realm.create<VTTRegion>(realm);
 
     // 2. Let region’s WebVTT region identifier be the empty string.
-    region->m_identifier = ""_string;
+    region->m_identifier = {};
 
     // 3. Let region’s WebVTT region width be 100.
     region->m_width = 100;

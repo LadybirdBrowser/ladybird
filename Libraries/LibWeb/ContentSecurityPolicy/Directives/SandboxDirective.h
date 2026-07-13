@@ -21,7 +21,7 @@ public:
     [[nodiscard]] virtual Result initialization(Variant<GC::Ref<DOM::Document const>, GC::Ref<HTML::WorkerGlobalScope const>>, GC::Ref<Policy const>) const override;
 
 private:
-    SandboxDirective(String name, Vector<String> value);
+    SandboxDirective(Utf16FlyString name, Vector<Utf16String> value);
 };
 
 }

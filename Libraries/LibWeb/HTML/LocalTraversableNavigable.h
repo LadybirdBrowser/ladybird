@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibWeb/Bindings/NavigationType.h>
 #include <LibWeb/Export.h>
@@ -37,7 +38,7 @@ class WEB_API LocalTraversableNavigable final : public LocalNavigable {
 
 public:
     static GC::Ref<LocalTraversableNavigable> create_a_new_top_level_traversable(GC::Ref<Page>, GC::Ptr<BrowsingContext> opener, Utf16String target_name);
-    static GC::Ref<LocalTraversableNavigable> create_a_fresh_top_level_traversable(GC::Ref<Page>, URL::URL const& initial_navigation_url, Variant<Empty, String, POSTResource> = Empty {});
+    static GC::Ref<LocalTraversableNavigable> create_a_fresh_top_level_traversable(GC::Ref<Page>, URL::URL const& initial_navigation_url, DocumentResource = Empty {});
 
     virtual ~LocalTraversableNavigable() override;
 
@@ -84,7 +85,7 @@ public:
         No,
     };
     [[nodiscard]] bool try_to_synchronously_commit_same_document_navigation(GC::Ref<LocalNavigable>, NonnullRefPtr<SessionHistoryEntry>, RefPtr<SessionHistoryEntry> entry_to_replace);
-    void apply_the_push_or_replace_history_step(int step, HistoryHandlingBehavior history_handling, UserNavigationInvolvement, SynchronousNavigation, GC::Ptr<DOM::Document> pending_document, GC::Ptr<LocalNavigable> expected_ongoing_navigation_navigable, Optional<String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete);
+    void apply_the_push_or_replace_history_step(int step, HistoryHandlingBehavior history_handling, UserNavigationInvolvement, SynchronousNavigation, GC::Ptr<DOM::Document> pending_document, GC::Ptr<LocalNavigable> expected_ongoing_navigation_navigable, Optional<Utf16String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete);
     void update_for_navigable_creation_or_destruction(GC::Ref<OnApplyHistoryStepComplete> on_complete);
 
     int get_the_used_step(int step) const;
@@ -114,8 +115,8 @@ public:
         m_session_history_traversal_queue->append_sync(steps, target_navigable);
     }
 
-    String window_handle() const { return m_window_handle; }
-    void set_window_handle(String window_handle) { m_window_handle = move(window_handle); }
+    Utf16String const& window_handle() const { return m_window_handle; }
+    void set_window_handle(Utf16String window_handle) { m_window_handle = move(window_handle); }
 
     [[nodiscard]] GC::Ptr<DOM::Node> currently_focused_area();
 
@@ -162,7 +163,7 @@ private:
         LocalNavigable::NavigationAPIAbortBehavior,
         GC::Ptr<DOM::Document> pending_document,
         GC::Ptr<LocalNavigable> expected_ongoing_navigation_navigable,
-        Optional<String> expected_ongoing_navigation_id,
+        Optional<Utf16String> expected_ongoing_navigation_id,
         GC::Ref<OnApplyHistoryStepComplete> on_complete);
 
     void apply_the_history_step_after_unload_check(
@@ -175,7 +176,7 @@ private:
         LocalNavigable::NavigationAPIAbortBehavior,
         GC::Ptr<DOM::Document> pending_document,
         GC::Ptr<LocalNavigable> expected_ongoing_navigation_navigable,
-        Optional<String> expected_ongoing_navigation_id,
+        Optional<Utf16String> expected_ongoing_navigation_id,
         GC::Ref<OnApplyHistoryStepComplete> on_complete);
 
     using OnHistoryStepPrechecksComplete = GC::Function<void(HistoryStepResult, int target_step, LocalNavigable::NavigationAPIAbortBehavior)>;
@@ -243,7 +244,7 @@ private:
 
     GC::Ref<SessionHistoryTraversalQueue> m_session_history_traversal_queue;
 
-    String m_window_handle;
+    Utf16String m_window_handle;
 
     // https://w3c.github.io/geolocation/#dfn-emulated-position-data
     Geolocation::EmulatedPositionData m_emulated_position_data;

@@ -122,7 +122,7 @@ static bool can_seed_replacement_process_before_load(TraversableSessionHistory c
     return true;
 }
 
-ProcessSwapNavigationPreparation CanonicalTraversable::prepare_for_process_swap_navigation(URL::URL const& url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, Web::Bindings::NavigationHistoryBehavior history_handling)
+ProcessSwapNavigationPreparation CanonicalTraversable::prepare_for_process_swap_navigation(URL::URL const& url, Web::HTML::DocumentResource document_resource, Web::Bindings::NavigationHistoryBehavior history_handling)
 {
     ProcessSwapNavigationPreparation result;
 
@@ -381,7 +381,7 @@ WebContentSessionHistorySeedAckResult CanonicalTraversable::did_receive_web_cont
     return result;
 }
 
-NavigationStartResult CanonicalTraversable::did_start_navigation(URL::URL const& url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, bool is_redirect, Web::Bindings::NavigationHistoryBehavior history_handling, bool is_showing_crash_page)
+NavigationStartResult CanonicalTraversable::did_start_navigation(URL::URL const& url, Web::HTML::DocumentResource document_resource, bool is_redirect, Web::Bindings::NavigationHistoryBehavior history_handling, bool is_showing_crash_page)
 {
     if (m_session_history_entry_url_loading_from_ui_process.has_value()) {
         if (*m_session_history_entry_url_loading_from_ui_process != url)

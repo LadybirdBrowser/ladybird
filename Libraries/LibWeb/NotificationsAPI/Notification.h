@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/Optional.h>
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/Value.h>
@@ -19,10 +19,10 @@
 namespace Web::NotificationsAPI {
 
 struct NotificationAction {
-    String action;
-    String title;
-    Optional<String> navigate;
-    Optional<String> icon;
+    Utf16String action;
+    Utf16String title;
+    Optional<Utf16String> navigate;
+    Optional<Utf16String> icon;
 };
 
 // https://notifications.spec.whatwg.org/#concept-notification
@@ -30,12 +30,12 @@ struct NotificationAction {
 // "A notification is an abstract representation of something that happened, such as the delivery of a message."
 struct ConceptNotification {
     // FIXME: A notification has an associated service worker registration (null or a service worker registration). It is initially null.
-    String title;
+    Utf16String title;
     Bindings::NotificationDirection direction;
-    String language;
-    String body;
+    Utf16String language;
+    Utf16String body;
     Optional<URL::URL> navigation_url;
-    String tag;
+    Utf16String tag;
     HTML::StorageSerializationRecord data;
     HighResolutionTime::EpochTimeStamp timestamp;
     URL::Origin origin = URL::Origin({}); // FIXME: Is this a hack ? There is no default constructor to URL::Origin and the value for `origin` is set in `create-a-notification-with-a-settings-object`
@@ -52,8 +52,8 @@ struct ConceptNotification {
 
     // https://notifications.spec.whatwg.org/#action
     struct Action {
-        String name;
-        String title;
+        Utf16String name;
+        Utf16String title;
         Optional<URL::URL> navigation_url;
         Optional<URL::URL> icon_url;
         // FIXME: icon resource
@@ -69,20 +69,20 @@ class WEB_API Notification final : public DOM::EventTarget {
 public:
     [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<Notification>> construct_impl(
         JS::Realm& realm,
-        String const& title,
+        Utf16String const& title,
         Bindings::NotificationOptions const& options);
 
     // https://notifications.spec.whatwg.org/#create-a-notification-with-a-settings-object
     static WebIDL::ExceptionOr<ConceptNotification> create_a_notification_with_a_settings_object(
         JS::Realm& realm,
-        String const& title,
+        Utf16String const& title,
         Bindings::NotificationOptions const& options,
         GC::Ref<HTML::EnvironmentSettingsObject> settings);
 
     // https://notifications.spec.whatwg.org/#create-a-notification
     static WebIDL::ExceptionOr<ConceptNotification> create_a_notification(
         JS::Realm& realm,
-        String const& title,
+        Utf16String const& title,
         Bindings::NotificationOptions const& options,
         URL::Origin origin,
         URL::URL base_url,
@@ -95,15 +95,15 @@ public:
         return 0;
     }
 
-    String const& title() const { return m_notification.title; }
+    Utf16String const& title() const { return m_notification.title; }
     Bindings::NotificationDirection dir() const { return m_notification.direction; }
-    String const& lang() const { return m_notification.language; }
-    String const& body() const { return m_notification.body; }
-    String navigate() const { return m_notification.navigation_url.has_value() ? m_notification.navigation_url->serialize() : ""_string; }
-    String const& tag() const { return m_notification.tag; }
-    String image() const { return m_notification.image_url.has_value() ? m_notification.image_url->serialize() : ""_string; }
-    String icon() const { return m_notification.icon_url.has_value() ? m_notification.icon_url->serialize() : ""_string; }
-    String badge() const { return m_notification.badge_url.has_value() ? m_notification.badge_url->serialize() : ""_string; }
+    Utf16String const& lang() const { return m_notification.language; }
+    Utf16String const& body() const { return m_notification.body; }
+    Utf16String navigate() const { return serialize_url_for_bindings(m_notification.navigation_url); }
+    Utf16String const& tag() const { return m_notification.tag; }
+    Utf16String image() const { return serialize_url_for_bindings(m_notification.image_url); }
+    Utf16String icon() const { return serialize_url_for_bindings(m_notification.icon_url); }
+    Utf16String badge() const { return serialize_url_for_bindings(m_notification.badge_url); }
     HighResolutionTime::EpochTimeStamp timestamp() const { return m_notification.timestamp; }
     bool renotify() const { return m_notification.renotify_preference; }
     Optional<bool> silent() const { return m_notification.silent_preference; }
@@ -115,6 +115,8 @@ private:
     Notification(JS::Realm&);
 
     virtual void initialize(JS::Realm&) override;
+
+    static Utf16String serialize_url_for_bindings(Optional<URL::URL> const&);
 
     ConceptNotification m_notification;
 };

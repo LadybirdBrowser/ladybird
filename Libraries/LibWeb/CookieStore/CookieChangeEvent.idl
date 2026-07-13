@@ -6,7 +6,7 @@ dictionary CookieChangeEventInit : EventInit {
 // https://cookiestore.spec.whatwg.org/#cookiechangeevent
 [Exposed=Window, SecureContext]
 interface CookieChangeEvent : Event {
-    constructor(DOMString type, optional CookieChangeEventInit eventInitDict = {});
+    constructor([Utf16FlyString] Utf16DOMString type, optional CookieChangeEventInit eventInitDict = {});
     [SameObject, CachedAttribute] readonly attribute FrozenArray<CookieListItem> changed;
     [SameObject, CachedAttribute] readonly attribute FrozenArray<CookieListItem> deleted;
 };

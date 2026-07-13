@@ -35,7 +35,7 @@ struct ScriptFetchOptions {
     Utf16String cryptographic_nonce {};
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-script-fetch-options-integrity
-    String integrity_metadata {};
+    Utf16String integrity_metadata {};
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-script-fetch-options-parser
     Fetch::Infrastructure::Request::ParserMetadata parser_metadata { Fetch::Infrastructure::Request::ParserMetadata::NotParserInserted };
@@ -89,8 +89,8 @@ WebIDL::ExceptionOr<URL::URL> resolve_module_specifier(Optional<Script&> referri
 WebIDL::ExceptionOr<Optional<URL::URL>> resolve_imports_match(Utf16View normalized_specifier, Optional<URL::URL> as_url, ModuleSpecifierMap const&);
 Optional<URL::URL> resolve_url_like_module_specifier(Utf16View specifier, URL::URL const& base_url);
 ScriptFetchOptions get_descendant_script_fetch_options(ScriptFetchOptions const& original_options, URL::URL const& url, EnvironmentSettingsObject& settings_object);
-String resolve_a_module_integrity_metadata(URL::URL const& url, EnvironmentSettingsObject& settings_object);
-void fetch_classic_script(GC::Ref<HTMLScriptElement>, URL::URL const&, EnvironmentSettingsObject& settings_object, ScriptFetchOptions options, CORSSettingAttribute cors_setting, String character_encoding, OnFetchScriptComplete on_complete);
+Utf16String resolve_a_module_integrity_metadata(URL::URL const& url, EnvironmentSettingsObject& settings_object);
+void fetch_classic_script(GC::Ref<HTMLScriptElement>, URL::URL const&, EnvironmentSettingsObject& settings_object, ScriptFetchOptions options, CORSSettingAttribute cors_setting, Utf16String character_encoding, OnFetchScriptComplete on_complete);
 WEB_API WebIDL::ExceptionOr<void> fetch_classic_worker_script(URL::URL const&, EnvironmentSettingsObject& fetch_client, Fetch::Infrastructure::Request::Destination, EnvironmentSettingsObject& settings_object, PerformTheFetchHook, OnFetchScriptComplete);
 WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_script(URL::URL const&, HTML::EnvironmentSettingsObject&, PerformTheFetchHook = nullptr);
 WEB_API WebIDL::ExceptionOr<void> fetch_module_worker_script_graph(URL::URL const&, EnvironmentSettingsObject& fetch_client, Fetch::Infrastructure::Request::Destination, EnvironmentSettingsObject& settings_object, PerformTheFetchHook, OnFetchScriptComplete);

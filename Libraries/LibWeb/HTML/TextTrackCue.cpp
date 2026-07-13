@@ -51,7 +51,7 @@ WebIDL::ExceptionOr<void> TextTrackCue::set_end_time(double end_time)
 {
     // On setting, if the new value is negative Infinity or a Not-a-Number (NaN) value, then throw a TypeError exception.
     if (end_time == -AK::Infinity<double> || isnan(end_time))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Value is negative infinity or NaN"_string };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Value is negative infinity or NaN"_utf16 };
 
     // Otherwise, the text track cue end time must be set to the new value.
     m_end_time = end_time;

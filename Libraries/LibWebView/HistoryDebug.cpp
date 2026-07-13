@@ -19,9 +19,9 @@ bool history_debug_enabled()
 
 static void append_history_log_entry(StringBuilder& builder, Web::HTML::SessionHistoryEntryDescriptor const& entry);
 
-static StringView document_state_resource_type(Variant<Empty, String, Web::HTML::POSTResource> const& resource)
+static StringView document_state_resource_type(Web::HTML::DocumentResource const& resource)
 {
-    if (resource.has<String>())
+    if (resource.has<Utf16String>())
         return "string"sv;
     if (resource.has<Web::HTML::POSTResource>())
         return "post"sv;

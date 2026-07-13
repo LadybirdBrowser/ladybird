@@ -21,6 +21,7 @@
 #include <AK/StringBuilder.h>
 #include <AK/Time.h>
 #include <AK/Utf16StringBuilder.h>
+#include <AK/Utf16View.h>
 #include <AK/Utf8View.h>
 #include <LibCore/Timer.h>
 #include <LibGC/RootVector.h>
@@ -180,6 +181,7 @@
 #include <LibWeb/HighResolutionTime/Performance.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Infra/CharacterTypes.h>
+#include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/IntersectionObserver/IntersectionObserver.h>
 #include <LibWeb/Layout/BlockFormattingContext.h>
@@ -243,7 +245,7 @@ static void dump_style_invalidation_counters(Document const& document)
 {
     auto const& counters = document.style_invalidation_counters();
     dbgln("Style invalidation counters for {}: styleInvalidations={}, fullStyleInvalidations={}, elementStyleRecomputations={}, elementStyleNoopRecomputations={}, elementInheritedStyleRecomputations={}, elementInheritedStyleNoopRecomputations={}, previousSiblingInvalidationWalkVisits={}, mediaRuleEvaluations={}, hasAncestorWalkInvocations={}, hasAncestorWalkVisits={}, hasAncestorSiblingElementChecks={}, hasInvalidationMetadataCandidates={}, hasMatchInvocations={}, hasResultCacheHits={}, hasResultCacheMisses={}",
-        document.url_string(),
+        document.url().to_string(),
         counters.style_invalidations,
         counters.full_style_invalidations,
         counters.element_style_recomputations,
@@ -336,7 +338,7 @@ static GC::Ref<HTML::BrowsingContext> obtain_a_browsing_context_to_use_for_a_nav
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#initialise-the-document-object
-WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type, String content_type, HTML::NavigationParams const& navigation_params)
+WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type, Utf16FlyString content_type, HTML::NavigationParams const& navigation_params)
 {
     // 1. Let browsingContext be the result of obtaining a browsing context to use for a navigation response given navigationParams.
     auto browsing_context = obtain_a_browsing_context_to_use_for_a_navigation_response(navigation_params);
@@ -472,7 +474,7 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
 
     // NOTE: Non-standard: Pull out the Content-Language header to determine the document's language.
     if (auto maybe_http_content_language = navigation_params.response->header_list()->get("Content-Language"sv); maybe_http_content_language.has_value()) {
-        if (auto maybe_content_language = String::from_byte_string(maybe_http_content_language.value()); !maybe_content_language.is_error())
+        if (auto maybe_content_language = Utf16String::try_from_utf8(maybe_http_content_language->view()); !maybe_content_language.is_error())
             document->m_http_content_language = maybe_content_language.release_value();
     }
 
@@ -493,14 +495,14 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     // 14. If navigationParams's request is non-null, then:
     if (navigation_params.request) {
         // 1. Set document's referrer to the empty string.
-        document->m_referrer = String {};
+        document->m_referrer = {};
 
         // 2. Let referrer be navigationParams's request's referrer.
         auto const& referrer = navigation_params.request->referrer();
 
         // 3. If referrer is a URL record, then set document's referrer to the serialization of referrer.
         if (referrer.has<URL::URL>()) {
-            document->m_referrer = referrer.get<URL::URL>().serialize();
+            document->m_referrer = utf16_string_from_url_ascii(referrer.get<URL::URL>().serialize());
         }
     }
 
@@ -526,8 +528,7 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     // 17. If navigationParams's response has a `Refresh` header, then:
     if (auto maybe_refresh = navigation_params.response->header_list()->get("Refresh"sv); maybe_refresh.has_value()) {
         // 1. Let value be the isomorphic decoding of the value of the header.
-        auto decoded_value = TextCodec::isomorphic_decode(maybe_refresh.value());
-        auto value = Utf16String::from_utf8(decoded_value.bytes_as_string_view());
+        auto value = TextCodec::isomorphic_decode_to_utf16(maybe_refresh.value());
 
         // 2. Run the shared declarative refresh steps with document and value.
         document->shared_declarative_refresh_steps(value, nullptr);
@@ -823,11 +824,11 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_ancestor_origins_list);
 }
 
-String const& Document::content_blocker_style_sheet()
+Utf16String const& Document::content_blocker_style_sheet()
 {
     if (is_decoded_svg()) {
         if (!m_content_blocker_style_sheet.has_value())
-            m_content_blocker_style_sheet = String {};
+            m_content_blocker_style_sheet = Utf16String {};
         return m_content_blocker_style_sheet.value();
     }
 
@@ -951,7 +952,7 @@ WebIDL::ExceptionOr<void> Document::run_the_document_write_steps(Vector<TrustedT
             relevant_global_object(*this),
             string.to_string(),
             sink,
-            TrustedTypes::Script.to_string()));
+            TrustedTypes::Script.view()));
         string.clear();
         string.append(new_string.utf16_view());
     }
@@ -996,7 +997,7 @@ WebIDL::ExceptionOr<void> Document::run_the_document_write_steps(Vector<TrustedT
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-document-open
-WebIDL::ExceptionOr<Document*> Document::open(Optional<String> const&, Optional<String> const&)
+WebIDL::ExceptionOr<Document*> Document::open(Optional<Utf16String> const&, Optional<Utf16String> const&)
 {
     // 1. If document is an XML document, then throw an "InvalidStateError" DOMException.
     if (m_type == Type::XML)
@@ -1029,7 +1030,7 @@ WebIDL::ExceptionOr<Document*> Document::open(Optional<String> const&, Optional<
     // AD-HOC: Pending navigations can also sit in m_pending_navigations, so we need to cancel those too.
     if (auto navigable = this->navigable()) {
         navigable->clear_pending_navigations();
-        if (navigable->ongoing_navigation().has<String>())
+        if (navigable->ongoing_navigation().has<Utf16String>())
             navigable->stop_loading();
     }
 
@@ -1095,7 +1096,7 @@ WebIDL::ExceptionOr<Document*> Document::open(Optional<String> const&, Optional<
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-document-open-window
-WebIDL::ExceptionOr<GC::Ptr<HTML::WindowProxy>> Document::open(StringView url, StringView name, StringView features)
+WebIDL::ExceptionOr<GC::Ptr<HTML::WindowProxy>> Document::open(Utf16View url, Utf16View name, Utf16View features)
 {
     // 1. If this is not fully active, then throw an "InvalidAccessError" DOMException.
     if (!is_fully_active())
@@ -1247,7 +1248,7 @@ GC::Ptr<HTML::HTMLTitleElement> Document::title_element()
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-dir
-Utf16String Document::dir() const
+Utf16FlyString Document::dir() const
 {
     // The dir IDL attribute on Document objects must reflect the dir content attribute of the html
     // element, if any, limited to only known values. If there is no such element, then the
@@ -1259,7 +1260,7 @@ Utf16String Document::dir() const
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-dir
-void Document::set_dir(Utf16String const& dir)
+void Document::set_dir(Utf16View dir)
 {
     // The dir IDL attribute on Document objects must reflect the dir content attribute of the html
     // element, if any, limited to only known values. If there is no such element, then the
@@ -1306,19 +1307,24 @@ WebIDL::ExceptionOr<void> Document::set_body(HTML::HTMLElement* new_body)
 // https://html.spec.whatwg.org/multipage/dom.html#document.title
 Utf16String Document::title() const
 {
-    Utf16String value;
+    Utf16String svg_title;
+    Optional<Utf16String> html_title;
+    Utf16View value = u""sv;
 
     // 1. If the document element is an SVG svg element, then let value be the child text content of the first SVG title
     //    element that is a child of the document element.
     if (auto const* document_element = this->document_element(); is<SVG::SVGSVGElement>(document_element)) {
-        if (auto const* title_element = document_element->first_child_of_type<SVG::SVGTitleElement>())
-            value = title_element->child_text_content();
+        if (auto const* title_element = document_element->first_child_of_type<SVG::SVGTitleElement>()) {
+            svg_title = title_element->child_text_content();
+            value = svg_title.utf16_view();
+        }
     }
 
     // 2. Otherwise, let value be the child text content of the title element, or the empty string if the title element
     //    is null.
     else if (auto title_element = this->title_element()) {
-        value = title_element->text_content().value_or({});
+        html_title = title_element->text_content();
+        value = html_title.has_value() ? html_title->utf16_view() : u""sv;
     }
 
     // 3. Strip and collapse ASCII whitespace in value.
@@ -1329,7 +1335,7 @@ Utf16String Document::title() const
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#document.title
-WebIDL::ExceptionOr<void> Document::set_title(Utf16String const& title)
+WebIDL::ExceptionOr<void> Document::set_title(Utf16View title)
 {
     auto* document_element = this->document_element();
 
@@ -1569,8 +1575,8 @@ void Document::respond_to_base_url_changes(URL::URL const& old_document_url, URL
             return TraversalDecision::Continue;
 
         auto href = element->get_attribute_value(HTML::AttributeNames::href);
-        auto old_target_url = DOMURL::parse(href, old_base_url, encoding);
-        auto new_target_url = base_url_unchanged ? old_target_url : DOMURL::parse(href, new_base_url, encoding);
+        auto old_target_url = DOMURL::parse(href, old_base_url, encoding.utf16_view());
+        auto new_target_url = base_url_unchanged ? old_target_url : DOMURL::parse(href, new_base_url, encoding.utf16_view());
 
         if (local_link_match(old_target_url, old_document_url) != local_link_match(new_target_url, new_document_url)) {
             element->invalidate_style(
@@ -1642,7 +1648,7 @@ URL::URL Document::base_url() const
 }
 
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#encoding-parsing-a-url
-Optional<URL::URL> Document::encoding_parse_url(StringView url) const
+Optional<URL::URL> Document::encoding_parse_url(Utf16View url) const
 {
     // 1. Let encoding be UTF-8.
     // 2. If environment is a Document object, then set encoding to environment's character encoding.
@@ -1655,17 +1661,11 @@ Optional<URL::URL> Document::encoding_parse_url(StringView url) const
     auto base_url = this->base_url();
 
     // 5. Return the result of applying the URL parser to url, with baseURL and encoding.
-    return DOMURL::parse(url, base_url, encoding);
-}
-
-Optional<URL::URL> Document::encoding_parse_url(Utf16View url) const
-{
-    auto encoding = encoding_or_default();
-    return DOMURL::parse(url, base_url(), encoding);
+    return DOMURL::parse(url, base_url, encoding.utf16_view());
 }
 
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#encoding-parsing-and-serializing-a-url
-Optional<String> Document::encoding_parse_and_serialize_url(StringView url) const
+Optional<Utf16String> Document::encoding_parse_and_serialize_url(Utf16View url) const
 {
     // 1. Let url be the result of encoding-parsing a URL given url, relative to environment.
     auto parsed_url = encoding_parse_url(url);
@@ -1675,15 +1675,7 @@ Optional<String> Document::encoding_parse_and_serialize_url(StringView url) cons
         return {};
 
     // 3. Return the result of applying the URL serializer to url.
-    return parsed_url->serialize();
-}
-
-Optional<String> Document::encoding_parse_and_serialize_url(Utf16String const& url) const
-{
-    auto parsed_url = encoding_parse_url(url);
-    if (!parsed_url.has_value())
-        return {};
-    return parsed_url->serialize();
+    return utf16_string_from_url_ascii(parsed_url->serialize());
 }
 
 void Document::invalidate_layout_tree(InvalidateLayoutTreeReason reason)
@@ -2404,7 +2396,7 @@ void Document::obtain_supported_color_schemes()
 
         // 2. For each element in candidate elements:
         auto content = element.attribute(HTML::AttributeNames::content);
-        if (element.name().has_value() && element.name()->equals_ignoring_ascii_case("color-scheme"sv) && content.has_value()) {
+        if (element.name().has_value() && element.name()->equals_ignoring_ascii_case(u"color-scheme"sv) && content.has_value()) {
             // 1. Let parsed be the result of parsing a list of component values given the value of element's content attribute.
             auto context = CSS::Parser::ParsingParams { document() };
             auto parsed = parse_css_value(context, content.value(), CSS::PropertyID::ColorScheme);
@@ -2436,7 +2428,7 @@ void Document::obtain_theme_color()
 
         // 2. For each element in candidate elements:
         auto content = element.attribute(HTML::AttributeNames::content);
-        if (element.name().has_value() && element.name()->equals_ignoring_ascii_case("theme-color"sv) && content.has_value()) {
+        if (element.name().has_value() && element.name()->equals_ignoring_ascii_case(u"theme-color"sv) && content.has_value()) {
             // 1. If element has a media attribute and the value of element's media attribute does not match the environment, then continue.
             auto context = CSS::Parser::ParsingParams { document() };
             auto media = element.attribute(HTML::AttributeNames::media);
@@ -2875,9 +2867,9 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-getelementsbyname
-GC::Ref<NodeList> Document::get_elements_by_name(Utf16String const& name)
+GC::Ref<NodeList> Document::get_elements_by_name(Utf16View name)
 {
-    return LiveNodeList::create(realm(), *this, LiveNodeList::Scope::Descendants, [name](auto const& node) {
+    return LiveNodeList::create(realm(), *this, LiveNodeList::Scope::Descendants, [name = Utf16String::from_utf16(name)](auto const& node) {
         if (!is<HTML::HTMLElement>(node))
             return false;
         return as<HTML::HTMLElement>(node).name() == name;
@@ -3039,7 +3031,7 @@ WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element(Utf16FlyString lo
     // 4. Let namespace be the HTML namespace, if this is an HTML document or this’s content type is
     //    "application/xhtml+xml"; otherwise null.
     Optional<Utf16FlyString> namespace_;
-    if (document_type() == Type::HTML || content_type() == "application/xhtml+xml"sv)
+    if (document_type() == Type::HTML || content_type() == u"application/xhtml+xml"sv)
         namespace_ = Namespace::HTML;
 
     // 5. Return the result of creating an element given this, localName, namespace, null, is, true, and registry.
@@ -3112,7 +3104,7 @@ GC::Ref<Range> Document::create_range()
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createevent
-WebIDL::ExceptionOr<GC::Ref<Event>> Document::create_event(StringView interface)
+WebIDL::ExceptionOr<GC::Ref<Event>> Document::create_event(Utf16FlyString const& interface)
 {
     auto& realm = this->realm();
 
@@ -3122,45 +3114,45 @@ WebIDL::ExceptionOr<GC::Ref<Event>> Document::create_event(StringView interface)
 
     // 2. If interface is an ASCII case-insensitive match for any of the strings in the first column in the following table,
     //      then set constructor to the interface in the second column on the same row as the matching string:
-    if (interface.equals_ignoring_ascii_case("beforeunloadevent"sv)) {
-        event = HTML::BeforeUnloadEvent::create(realm, FlyString {});
-    } else if (interface.equals_ignoring_ascii_case("compositionevent"sv)) {
-        event = UIEvents::CompositionEvent::create(realm, String {});
-    } else if (interface.equals_ignoring_ascii_case("customevent"sv)) {
-        event = CustomEvent::create(realm, FlyString {});
-    } else if (interface.equals_ignoring_ascii_case("devicemotionevent"sv)) {
-        event = Event::create(realm, FlyString {}); // FIXME: Create DeviceMotionEvent
-    } else if (interface.equals_ignoring_ascii_case("deviceorientationevent"sv)) {
-        event = Event::create(realm, FlyString {}); // FIXME: Create DeviceOrientationEvent
-    } else if (interface.equals_ignoring_ascii_case("dragevent"sv)) {
-        event = HTML::DragEvent::create(realm, FlyString {});
-    } else if (interface.equals_ignoring_ascii_case("event"sv)
-        || interface.equals_ignoring_ascii_case("events"sv)) {
-        event = Event::create(realm, FlyString {});
-    } else if (interface.equals_ignoring_ascii_case("focusevent"sv)) {
-        event = UIEvents::FocusEvent::create(realm, FlyString {});
-    } else if (interface.equals_ignoring_ascii_case("hashchangeevent"sv)) {
-        event = HTML::HashChangeEvent::create(realm, FlyString {}, {});
-    } else if (interface.equals_ignoring_ascii_case("htmlevents"sv)) {
-        event = Event::create(realm, FlyString {});
-    } else if (interface.equals_ignoring_ascii_case("keyboardevent"sv)) {
-        event = UIEvents::KeyboardEvent::create(realm, String {});
-    } else if (interface.equals_ignoring_ascii_case("messageevent"sv)) {
-        event = HTML::MessageEvent::create(realm, FlyString {}, Bindings::MessageEventInit {});
-    } else if (interface.equals_ignoring_ascii_case("mouseevent"sv)
-        || interface.equals_ignoring_ascii_case("mouseevents"sv)) {
-        event = UIEvents::MouseEvent::create(realm, FlyString {});
-    } else if (interface.equals_ignoring_ascii_case("storageevent"sv)) {
-        event = HTML::StorageEvent::create(realm, FlyString {});
-    } else if (interface.equals_ignoring_ascii_case("svgevents"sv)) {
-        event = Event::create(realm, FlyString {});
-    } else if (interface.equals_ignoring_ascii_case("textevent"sv)) {
-        event = UIEvents::TextEvent::create(realm, FlyString {});
-    } else if (interface.equals_ignoring_ascii_case("touchevent"sv)) {
-        event = Event::create(realm, FlyString {}); // FIXME: Create TouchEvent
-    } else if (interface.equals_ignoring_ascii_case("uievent"sv)
-        || interface.equals_ignoring_ascii_case("uievents"sv)) {
-        event = UIEvents::UIEvent::create(realm, FlyString {});
+    if (interface.equals_ignoring_ascii_case(u"beforeunloadevent"sv)) {
+        event = HTML::BeforeUnloadEvent::create(realm, Utf16FlyString {});
+    } else if (interface.equals_ignoring_ascii_case(u"compositionevent"sv)) {
+        event = UIEvents::CompositionEvent::create(realm, Utf16FlyString {});
+    } else if (interface.equals_ignoring_ascii_case(u"customevent"sv)) {
+        event = CustomEvent::create(realm, Utf16FlyString {});
+    } else if (interface.equals_ignoring_ascii_case(u"devicemotionevent"sv)) {
+        event = Event::create(realm, Utf16FlyString {}); // FIXME: Create DeviceMotionEvent
+    } else if (interface.equals_ignoring_ascii_case(u"deviceorientationevent"sv)) {
+        event = Event::create(realm, Utf16FlyString {}); // FIXME: Create DeviceOrientationEvent
+    } else if (interface.equals_ignoring_ascii_case(u"dragevent"sv)) {
+        event = HTML::DragEvent::create(realm, Utf16FlyString {});
+    } else if (interface.equals_ignoring_ascii_case(u"event"sv)
+        || interface.equals_ignoring_ascii_case(u"events"sv)) {
+        event = Event::create(realm, Utf16FlyString {});
+    } else if (interface.equals_ignoring_ascii_case(u"focusevent"sv)) {
+        event = UIEvents::FocusEvent::create(realm, Utf16FlyString {});
+    } else if (interface.equals_ignoring_ascii_case(u"hashchangeevent"sv)) {
+        event = HTML::HashChangeEvent::create(realm, Utf16FlyString {}, {});
+    } else if (interface.equals_ignoring_ascii_case(u"htmlevents"sv)) {
+        event = Event::create(realm, Utf16FlyString {});
+    } else if (interface.equals_ignoring_ascii_case(u"keyboardevent"sv)) {
+        event = UIEvents::KeyboardEvent::create(realm, Utf16FlyString {});
+    } else if (interface.equals_ignoring_ascii_case(u"messageevent"sv)) {
+        event = HTML::MessageEvent::create(realm, Utf16FlyString {}, Bindings::MessageEventInit {});
+    } else if (interface.equals_ignoring_ascii_case(u"mouseevent"sv)
+        || interface.equals_ignoring_ascii_case(u"mouseevents"sv)) {
+        event = UIEvents::MouseEvent::create(realm, Utf16FlyString {});
+    } else if (interface.equals_ignoring_ascii_case(u"storageevent"sv)) {
+        event = HTML::StorageEvent::create(realm, Utf16FlyString {});
+    } else if (interface.equals_ignoring_ascii_case(u"svgevents"sv)) {
+        event = Event::create(realm, Utf16FlyString {});
+    } else if (interface.equals_ignoring_ascii_case(u"textevent"sv)) {
+        event = UIEvents::TextEvent::create(realm, Utf16FlyString {});
+    } else if (interface.equals_ignoring_ascii_case(u"touchevent"sv)) {
+        event = Event::create(realm, Utf16FlyString {}); // FIXME: Create TouchEvent
+    } else if (interface.equals_ignoring_ascii_case(u"uievent"sv)
+        || interface.equals_ignoring_ascii_case(u"uievents"sv)) {
+        event = UIEvents::UIEvent::create(realm, Utf16FlyString {});
     }
 
     // 3. If constructor is null, then throw a "NotSupportedError" DOMException.
@@ -3375,15 +3367,12 @@ DocumentType const* Document::doctype() const
     return first_child_of_type<DocumentType>();
 }
 
-String const& Document::compat_mode() const
+Utf16FlyString Document::compat_mode() const
 {
-    static String const& back_compat = *new String("BackCompat"_string);
-    static String const& css1_compat = *new String("CSS1Compat"_string);
-
     if (m_quirks_mode == QuirksMode::Yes)
-        return back_compat;
+        return "BackCompat"_utf16_fly_string;
 
-    return css1_compat;
+    return "CSS1Compat"_utf16_fly_string;
 }
 
 void Document::update_active_element()
@@ -3578,7 +3567,7 @@ Document::IndicatedPart Document::determine_the_indicated_part() const
         return Document::TopOfTheDocument {};
 
     // 3. Let potentialIndicatedElement be the result of finding a potential indicated element given document and fragment.
-    auto fragment_as_utf16 = Utf16String::from_utf8(*fragment);
+    auto fragment_as_utf16 = utf16_string_from_url_ascii(*fragment);
     auto* potential_indicated_element = find_a_potential_indicated_element(fragment_as_utf16);
 
     // 4. If potentialIndicatedElement is not null, then return potentialIndicatedElement.
@@ -3597,7 +3586,7 @@ Document::IndicatedPart Document::determine_the_indicated_part() const
         return potential_indicated_element;
 
     // 9. If decodedFragment is an ASCII case-insensitive match for the string top, then return the top of the document.
-    if (decoded_fragment.utf16_view().equals_ignoring_ascii_case("top"sv))
+    if (decoded_fragment.utf16_view().equals_ignoring_ascii_case(u"top"sv))
         return Document::TopOfTheDocument {};
 
     // 10. Return null.
@@ -3605,21 +3594,20 @@ Document::IndicatedPart Document::determine_the_indicated_part() const
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#find-a-potential-indicated-element
-Element* Document::find_a_potential_indicated_element(Utf16String const& fragment) const
+Element* Document::find_a_potential_indicated_element(Utf16View fragment) const
 {
     // To find a potential indicated element given a Document document and a string fragment, run these steps:
-    auto fragment_fly_string = Utf16FlyString::from_utf16(fragment.utf16_view());
 
     // 1. If there is an element in the document tree whose root is document and that has an ID equal to
     //    fragment, then return the first such element in tree order.
-    if (auto element = get_element_by_id(fragment_fly_string))
+    if (auto element = get_element_by_id(fragment))
         return const_cast<Element*>(element.ptr());
 
     // 2. If there is an a element in the document tree whose root is document that has a name attribute
     //    whose value is equal to fragment, then return the first such element in tree order.
     Element* element_with_name = nullptr;
     root().for_each_in_subtree_of_type<Element>([&](Element const& element) {
-        if (element.name() == fragment_fly_string) {
+        if (element.name().has_value() && element.name()->view() == fragment) {
             element_with_name = const_cast<Element*>(&element);
             return TraversalDecision::Break;
         }
@@ -3673,7 +3661,7 @@ void Document::dispatch_events_for_transition(GC::Ref<CSS::CSSTransition> transi
         ActiveTime,
     };
 
-    auto dispatch_event = [&](FlyString const& type, Interval interval) {
+    auto dispatch_event = [&](Utf16FlyString const& type, Interval interval) {
         // The target for a transition event is the transition’s owning element. If there is no owning element,
         // no transition events are dispatched.
         if (!transition->effect() || !transition->owning_element().has_value())
@@ -3710,10 +3698,12 @@ void Document::dispatch_events_for_transition(GC::Ref<CSS::CSSTransition> transi
         event_init.bubbles = true;
         event_init.property_name = transition->transition_property().to_utf16_string();
         event_init.elapsed_time = elapsed_time_output;
-        event_init.pseudo_element = transition->owning_element()->pseudo_element().map([](auto it) {
-                                                                                      return Utf16String::formatted("::{}", CSS::pseudo_element_name(it));
-                                                                                  })
-                                        .value_or({});
+        if (auto pseudo_element = transition->owning_element()->pseudo_element().map([](auto it) {
+                return Utf16String::formatted("::{}", CSS::pseudo_element_name(it));
+            });
+            pseudo_element.has_value()) {
+            event_init.pseudo_element = pseudo_element.release_value();
+        }
 
         auto timeline = transition->timeline();
 
@@ -3802,7 +3792,7 @@ void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::An
     if (!owning_element.has_value())
         return;
 
-    auto dispatch_event = [&](FlyString const& name, Animations::TimeValue elapsed_time) {
+    auto dispatch_event = [&](Utf16FlyString const& name, Animations::TimeValue elapsed_time) {
         double elapsed_time_output;
         switch (elapsed_time.type) {
         case Animations::TimeValue::Type::Milliseconds:
@@ -3818,10 +3808,12 @@ void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::An
         event_init.bubbles = true;
         event_init.animation_name = css_animation.animation_name().to_utf16_string();
         event_init.elapsed_time = elapsed_time_output;
-        event_init.pseudo_element = owning_element->pseudo_element().map([](auto it) {
-                                                                        return Utf16String::formatted("::{}", CSS::pseudo_element_name(it));
-                                                                    })
-                                        .value_or({});
+        if (auto pseudo_element = owning_element->pseudo_element().map([](auto it) {
+                return Utf16String::formatted("::{}", CSS::pseudo_element_name(it));
+            });
+            pseudo_element.has_value()) {
+            event_init.pseudo_element = pseudo_element.release_value();
+        }
 
         auto timeline = animation->timeline();
 
@@ -3976,15 +3968,15 @@ void Document::scroll_to_the_beginning_of_the_document()
         navigable->perform_scroll_of_viewport_scrolling_box({ 0, 0 });
 }
 
-StringView Document::ready_state() const
+Utf16FlyString Document::ready_state() const
 {
     switch (m_readiness) {
     case HTML::DocumentReadyState::Loading:
-        return "loading"sv;
+        return "loading"_utf16_fly_string;
     case HTML::DocumentReadyState::Interactive:
-        return "interactive"sv;
+        return "interactive"_utf16_fly_string;
     case HTML::DocumentReadyState::Complete:
-        return "complete"sv;
+        return "complete"_utf16_fly_string;
     }
     VERIFY_NOT_REACHED();
 }
@@ -4041,7 +4033,7 @@ void Document::update_readiness(HTML::DocumentReadyState readiness_value)
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-lastmodified
-String Document::last_modified() const
+Utf16String Document::last_modified() const
 {
     // The lastModified attribute, on getting, must return the date and time of the Document's source file's
     // last modification, in the user's local time zone, in the following format:
@@ -4064,10 +4056,13 @@ String Document::last_modified() const
     // the attribute must return the current date and time in the above format.
     constexpr auto format_string = "%m/%d/%Y %H:%M:%S"sv;
 
-    if (m_last_modified.has_value())
-        return MUST(m_last_modified.value().to_string(format_string));
+    if (m_last_modified.has_value()) {
+        auto last_modified = MUST(m_last_modified.value().to_string(format_string));
+        return Utf16String::from_ascii_without_validation(last_modified.bytes());
+    }
 
-    return MUST(AK::UnixDateTime::now().to_string(format_string));
+    auto now = MUST(AK::UnixDateTime::now().to_string(format_string));
+    return Utf16String::from_ascii_without_validation(now.bytes());
 }
 
 Page& Document::page()
@@ -4151,11 +4146,11 @@ void Document::completely_finish_loading()
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-cookie
-WebIDL::ExceptionOr<String> Document::cookie()
+WebIDL::ExceptionOr<Utf16String> Document::cookie()
 {
     // On getting, if the document is a cookie-averse Document object, then the user agent must return the empty string.
     if (is_cookie_averse())
-        return String {};
+        return Utf16String {};
 
     // Otherwise, if the Document's origin is an opaque origin, the user agent must throw a "SecurityError" DOMException.
     if (origin().is_opaque())
@@ -4172,14 +4167,15 @@ WebIDL::ExceptionOr<String> Document::cookie()
 
     if (cookie_version.has_value()) {
         m_cookie_version = *cookie_version;
-        m_cookie = cookie;
+        m_cookie = Utf16String::from_utf8(cookie);
+        return m_cookie;
     }
 
-    return cookie;
+    return Utf16String::from_utf8(cookie);
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-cookie
-WebIDL::ExceptionOr<void> Document::set_cookie(StringView cookie_string)
+WebIDL::ExceptionOr<void> Document::set_cookie(Utf16View cookie_string)
 {
     // On setting, if the document is a cookie-averse Document object, then the user agent must do nothing.
     if (is_cookie_averse())
@@ -4191,7 +4187,8 @@ WebIDL::ExceptionOr<void> Document::set_cookie(StringView cookie_string)
 
     // Otherwise, the user agent must act as it would when receiving a set-cookie-string for the document's URL via a
     // "non-HTTP" API, consisting of the new value encoded as UTF-8.
-    if (auto cookie = HTTP::Cookie::parse_cookie(url(), cookie_string); cookie.has_value()) {
+    auto cookie_string_utf8 = TRY_OR_THROW_OOM(vm(), cookie_string.to_utf8());
+    if (auto cookie = HTTP::Cookie::parse_cookie(url(), cookie_string_utf8); cookie.has_value()) {
         page().client().page_did_set_cookie(m_url, cookie.value(), HTTP::Cookie::Source::NonHttp);
         reset_cookie_version();
     }
@@ -4222,7 +4219,7 @@ Utf16String Document::fg_color() const
     return {};
 }
 
-void Document::set_fg_color(Utf16String const& value)
+void Document::set_fg_color(Utf16View value)
 {
     if (auto* body_element = body(); body_element && !is<HTML::HTMLFrameSetElement>(*body_element))
         body_element->set_attribute_value(HTML::AttributeNames::text, value);
@@ -4235,7 +4232,7 @@ Utf16String Document::link_color() const
     return {};
 }
 
-void Document::set_link_color(Utf16String const& value)
+void Document::set_link_color(Utf16View value)
 {
     if (auto* body_element = body(); body_element && !is<HTML::HTMLFrameSetElement>(*body_element))
         body_element->set_attribute_value(HTML::AttributeNames::link, value);
@@ -4248,7 +4245,7 @@ Utf16String Document::vlink_color() const
     return {};
 }
 
-void Document::set_vlink_color(Utf16String const& value)
+void Document::set_vlink_color(Utf16View value)
 {
     if (auto* body_element = body(); body_element && !is<HTML::HTMLFrameSetElement>(*body_element))
         body_element->set_attribute_value(HTML::AttributeNames::vlink, value);
@@ -4261,7 +4258,7 @@ Utf16String Document::alink_color() const
     return {};
 }
 
-void Document::set_alink_color(Utf16String const& value)
+void Document::set_alink_color(Utf16View value)
 {
     if (auto* body_element = body(); body_element && !is<HTML::HTMLFrameSetElement>(*body_element))
         body_element->set_attribute_value(HTML::AttributeNames::alink, value);
@@ -4274,22 +4271,22 @@ Utf16String Document::bg_color() const
     return {};
 }
 
-void Document::set_bg_color(Utf16String const& value)
+void Document::set_bg_color(Utf16View value)
 {
     if (auto* body_element = body(); body_element && !is<HTML::HTMLFrameSetElement>(*body_element))
         body_element->set_attribute_value(HTML::AttributeNames::bgcolor, value);
 }
 
-String Document::dump_dom_tree_as_json() const
+Utf16String Document::dump_dom_tree_as_json() const
 {
     const_cast<Document&>(*this).update_layout(UpdateLayoutReason::InspectDOMTree);
 
-    StringBuilder builder;
+    Utf16StringBuilder builder;
     auto json = MUST(JsonObjectSerializer<>::try_create(builder));
     serialize_tree_as_json(json);
 
     MUST(json.finish());
-    return MUST(builder.to_string());
+    return builder.to_string();
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#has-a-style-sheet-that-is-blocking-scripts
@@ -4305,12 +4302,7 @@ bool Document::has_a_style_sheet_that_is_blocking_scripts() const
     return !m_script_blocking_style_sheet_set.is_empty();
 }
 
-String Document::referrer() const
-{
-    return m_referrer;
-}
-
-void Document::set_referrer(String referrer)
+void Document::set_referrer(Utf16String referrer)
 {
     m_referrer = move(referrer);
 }
@@ -4360,13 +4352,13 @@ bool Document::hidden() const
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-document-visibilitystate
-StringView Document::visibility_state() const
+Utf16FlyString Document::visibility_state() const
 {
     switch (m_visibility_state) {
     case HTML::VisibilityState::Hidden:
-        return "hidden"sv;
+        return "hidden"_utf16_fly_string;
     case HTML::VisibilityState::Visible:
-        return "visible"sv;
+        return "visible"_utf16_fly_string;
     }
     VERIFY_NOT_REACHED();
 }
@@ -4895,21 +4887,21 @@ GC::Ref<HTML::History> Document::history() const
 }
 
 // https://html.spec.whatwg.org/multipage/origin.html#dom-document-domain
-String Document::domain() const
+Utf16String Document::domain() const
 {
     // 1. Let effectiveDomain be this's origin's effective domain.
     auto effective_domain = origin().effective_domain();
 
     // 2. If effectiveDomain is null, then return the empty string.
     if (!effective_domain.has_value())
-        return String {};
+        return Utf16String {};
 
     // 3. Return effectiveDomain, serialized.
-    return effective_domain->serialize();
+    return utf16_string_from_url_ascii(effective_domain->serialize());
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#is-a-registrable-domain-suffix-of-or-is-equal-to
-bool is_a_registrable_domain_suffix_of_or_is_equal_to(StringView host_suffix_string, URL::Host const& original_host)
+bool is_a_registrable_domain_suffix_of_or_is_equal_to(Utf16View host_suffix_string, URL::Host const& original_host)
 {
     // 1. If hostSuffixString is the empty string, then return false.
     if (host_suffix_string.is_empty())
@@ -4922,35 +4914,48 @@ bool is_a_registrable_domain_suffix_of_or_is_equal_to(StringView host_suffix_str
     if (!host_suffix.has_value())
         return false;
 
+    return is_a_registrable_domain_suffix_of_or_is_equal_to(host_suffix.value(), original_host);
+}
+
+static bool ends_with_dot_prefixed_suffix(Utf16View string, Utf16View suffix)
+{
+    if (string.length_in_code_units() <= suffix.length_in_code_units())
+        return false;
+    if (!string.ends_with(suffix))
+        return false;
+    return string.code_unit_at(string.length_in_code_units() - suffix.length_in_code_units() - 1) == '.';
+}
+
+bool is_a_registrable_domain_suffix_of_or_is_equal_to(URL::Host const& host_suffix, URL::Host const& original_host)
+{
     // 4. If hostSuffix does not equal originalHost, then:
-    if (host_suffix.value() != original_host) {
+    if (host_suffix != original_host) {
         // 1. If hostSuffix or originalHost is not a domain, then return false.
         // NOTE: This excludes hosts that are IP addresses.
-        if (!host_suffix->has<String>() || !original_host.has<String>())
+        if (!host_suffix.has<String>() || !original_host.has<String>())
             return false;
-        auto const& host_suffix_string = host_suffix->get<String>();
+        auto const& host_suffix_string = host_suffix.get<String>();
         auto const& original_host_string = original_host.get<String>();
 
         // 2. If hostSuffix, prefixed by U+002E (.), does not match the end of originalHost, then return false.
-        auto prefixed_host_suffix = MUST(String::formatted(".{}", host_suffix_string));
-        if (!original_host_string.ends_with_bytes(prefixed_host_suffix))
+        if (!ends_with_dot_prefixed_suffix(Utf16View { original_host_string.bytes_as_string_view() }, Utf16View { host_suffix_string.bytes_as_string_view() }))
             return false;
 
         // 3. If any of the following are true:
         //     * hostSuffix equals hostSuffix's public suffix; or
         //     * hostSuffix, prefixed by U+002E (.), matches the end of originalHost's public suffix,
         //    then return false. [URL]
-        if (host_suffix_string == host_suffix->public_suffix())
+        if (host_suffix_string == host_suffix.public_suffix())
             return false;
 
         auto original_host_public_suffix = original_host.public_suffix();
         VERIFY(original_host_public_suffix.has_value());
 
-        if (original_host_public_suffix->ends_with_bytes(prefixed_host_suffix))
+        if (ends_with_dot_prefixed_suffix(Utf16View { original_host_public_suffix->bytes_as_string_view() }, Utf16View { host_suffix_string.bytes_as_string_view() }))
             return false;
 
         // 4. Assert: originalHost's public suffix, prefixed by U+002E (.), matches the end of hostSuffix.
-        VERIFY(host_suffix_string.ends_with_bytes(MUST(String::formatted(".{}", *original_host_public_suffix))));
+        VERIFY(ends_with_dot_prefixed_suffix(Utf16View { host_suffix_string.bytes_as_string_view() }, Utf16View { original_host_public_suffix->bytes_as_string_view() }));
     }
 
     // 5. Return true.
@@ -4958,7 +4963,7 @@ bool is_a_registrable_domain_suffix_of_or_is_equal_to(StringView host_suffix_str
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#dom-document-domain
-WebIDL::ExceptionOr<void> Document::set_domain(String const& domain)
+WebIDL::ExceptionOr<void> Document::set_domain(Utf16View domain)
 {
     auto& realm = this->realm();
 
@@ -5189,7 +5194,7 @@ void Document::run_unloading_cleanup_steps()
     //    If this affected any WebSocket objects, then make document unsalvageable given document and "websocket".
     auto affected_any_web_sockets = window.make_disappear_all_web_sockets();
     if (affected_any_web_sockets == HTML::WindowOrWorkerGlobalScopeMixin::AffectedAnyWebSockets::Yes)
-        make_unsalvageable("websocket"_string);
+        make_unsalvageable("websocket"_utf16);
 
     // FIXME: 3. For each WebTransport object transport whose relevant global object is window, run the context cleanup steps given transport.
 
@@ -5291,7 +5296,7 @@ void Document::destroy()
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#make-document-unsalvageable
-void Document::make_unsalvageable([[maybe_unused]] String reason)
+void Document::make_unsalvageable([[maybe_unused]] Utf16View reason)
 {
     // FIXME: 1. Let details be a new not restored reason details whose reason is reason.
     // FIXME: 2. Append details to document's bfcache blocking details.
@@ -5350,7 +5355,7 @@ void Document::destroy_a_document_and_its_descendants(GC::Ptr<GC::Function<void(
         // 1. Let reason be a string from user-agent specific blocking reasons. If none apply, then let reason be
         //    "masked".
         // FIXME: user-agent specific blocking reasons.
-        auto reason = "masked"_string;
+        auto reason = "masked"_utf16;
 
         // 2. Make document unsalvageable given document and reason.
         make_unsalvageable(reason);
@@ -5427,7 +5432,7 @@ void Document::abort()
     }
 
     if (canceled_fetch)
-        make_unsalvageable("fetch"_string);
+        make_unsalvageable("fetch"_utf16);
 
     // 3. If document's during-loading navigation ID for WebDriver BiDi is non-null, then:
     if (m_navigation_id.has_value()) {
@@ -5448,7 +5453,7 @@ void Document::abort()
         parser->abort();
 
         // 3. Make document unsalvageable given document and "parser-aborted".
-        make_unsalvageable("parser-aborted"_string);
+        make_unsalvageable("parser-aborted"_utf16);
     }
 }
 
@@ -5732,11 +5737,11 @@ GC::Ref<DOM::Document> Document::appropriate_template_contents_owner_document()
     return *this;
 }
 
-String Document::dump_accessibility_tree_as_json()
+Utf16String Document::dump_accessibility_tree_as_json()
 {
     update_layout(UpdateLayoutReason::InspectAccessibilityTree);
 
-    StringBuilder builder;
+    Utf16StringBuilder builder;
     auto accessibility_tree = AccessibilityTreeNode::create(this, nullptr);
     build_accessibility_tree(*&accessibility_tree);
     auto json = MUST(JsonObjectSerializer<>::try_create(builder));
@@ -5750,22 +5755,20 @@ String Document::dump_accessibility_tree_as_json()
     }
 
     MUST(json.finish());
-    return MUST(builder.to_string());
+    return builder.to_string();
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createattribute
 WebIDL::ExceptionOr<GC::Ref<Attr>> Document::create_attribute(Utf16FlyString const& local_name)
 {
     // 1. If localName is not a valid attribute local name, then throw an "InvalidCharacterError" DOMException.
-    if (!is_valid_attribute_local_name(local_name))
+    if (!is_valid_attribute_local_name(local_name.view()))
         return WebIDL::InvalidCharacterError::create(realm(), "Invalid character in attribute name."_utf16);
 
     // 2. If this is an HTML document, then set localName to localName in ASCII lowercase.
     // 3. Return a new attribute whose local name is localName and node document is this.
-    if (is_html_document()) {
-        auto lowercase_local_name = local_name.view().to_ascii_lowercase();
-        return Attr::create(*this, Utf16FlyString::from_utf16(lowercase_local_name.utf16_view()));
-    }
+    if (is_html_document())
+        return Attr::create(*this, local_name.to_ascii_lowercase());
     return Attr::create(*this, local_name);
 }
 
@@ -6501,7 +6504,7 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
             Bindings::PopStateEventInit popstate_event_init;
             popstate_event_init.state = history()->unsafe_state();
             auto& relevant_global_object = as<HTML::Window>(HTML::relevant_global_object(*this));
-            auto pop_state_event = HTML::PopStateEvent::create(realm(), "popstate"_fly_string, popstate_event_init);
+            auto pop_state_event = HTML::PopStateEvent::create(realm(), "popstate"_utf16_fly_string, popstate_event_init);
             relevant_global_object.dispatch_event(pop_state_event);
 
             // 4. Restore persisted state given entry.
@@ -6514,9 +6517,9 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
             //    initialized to the serialization of entry's URL.
             if (old_url.fragment() != entry->url().fragment()) {
                 Bindings::HashChangeEventInit hashchange_event_init;
-                hashchange_event_init.old_url = old_url.serialize();
-                hashchange_event_init.new_url = entry->url().serialize();
-                auto hashchange_event = HTML::HashChangeEvent::create(realm(), "hashchange"_fly_string, hashchange_event_init);
+                hashchange_event_init.old_url = utf16_string_from_url_ascii(old_url.serialize());
+                hashchange_event_init.new_url = utf16_string_from_url_ascii(entry->url().serialize());
+                auto hashchange_event = HTML::HashChangeEvent::create(realm(), "hashchange"_utf16_fly_string, hashchange_event_init);
                 HTML::queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object, GC::create_function(heap(), [hashchange_event, &relevant_global_object]() {
                     relevant_global_object.dispatch_event(hashchange_event);
                 }));
@@ -7073,19 +7076,18 @@ void Document::set_design_mode_enabled_state(bool design_mode_enabled)
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#making-entire-documents-editable:-the-designmode-idl-attribute
-String Document::design_mode() const
+Utf16FlyString Document::design_mode() const
 {
     // The designMode getter steps are to return "on" if this's design mode enabled is true; otherwise "off".
-    return design_mode_enabled_state() ? "on"_string : "off"_string;
+    return design_mode_enabled_state() ? "on"_utf16_fly_string : "off"_utf16_fly_string;
 }
 
-WebIDL::ExceptionOr<void> Document::set_design_mode(String const& design_mode)
+WebIDL::ExceptionOr<void> Document::set_design_mode(Utf16View design_mode)
 {
     // 1. Let value be the given value, converted to ASCII lowercase.
-    auto value = MUST(design_mode.to_lowercase());
 
     // 2. If value is "on" and this's design mode enabled is false, then:
-    if (value == "on"sv && !m_design_mode_enabled) {
+    if (design_mode.equals_ignoring_ascii_case(u"on"sv) && !m_design_mode_enabled) {
         // 1. Set this's design mode enabled to true.
         set_design_mode_enabled_state(true);
         // 2. Reset this's active range's start and end boundary points to be at the start of this.
@@ -7098,7 +7100,7 @@ WebIDL::ExceptionOr<void> Document::set_design_mode(String const& design_mode)
             HTML::run_focusing_steps(document_element);
     }
     // 3. If value is "off", then set this's design mode enabled to false.
-    else if (value == "off"sv) {
+    else if (design_mode.equals_ignoring_ascii_case(u"off"sv)) {
         set_design_mode_enabled_state(false);
     }
     return {};
@@ -7325,7 +7327,7 @@ Vector<Utf16FlyString> Document::supported_property_names() const
     return result;
 }
 
-static bool is_named_element_with_name(Element const& element, Utf16FlyString const& name)
+static bool is_named_element_with_name(Element const& element, Utf16View name)
 {
     // Named elements with the name name, for the purposes of the above algorithm, are those that are either:
 
@@ -7336,27 +7338,27 @@ static bool is_named_element_with_name(Element const& element, Utf16FlyString co
         || is<HTML::HTMLIFrameElement>(element)
         || is<HTML::HTMLImageElement>(element)
         || (is<HTML::HTMLObjectElement>(element) && is_exposed(element))) {
-        if (element.name() == name)
+        if (element.name().has_value() && element.name()->view() == name)
             return true;
     }
 
     // - Exposed object elements that have an id content attribute whose value is name, or
     if (is<HTML::HTMLObjectElement>(element) && is_exposed(element)) {
-        if (element.id() == name)
+        if (element.id().has_value() && element.id()->view() == name)
             return true;
     }
 
     // - img elements that have an id content attribute whose value is name, and that have a non-empty name content
     //   attribute present also.
     if (is<HTML::HTMLImageElement>(element)) {
-        if (element.id() == name && element.name().has_value())
+        if (element.id().has_value() && element.id()->view() == name && element.name().has_value())
             return true;
     }
 
     return false;
 }
 
-static Vector<GC::Ref<DOM::Element>> named_elements_with_name(Document const& document, Utf16FlyString const& name)
+static Vector<GC::Ref<DOM::Element>> named_elements_with_name(Document const& document, Utf16View name)
 {
     Vector<GC::Ref<DOM::Element>> named_elements;
 
@@ -7373,7 +7375,7 @@ JS::Value Document::named_item_value(Utf16FlyString const& name) const
 {
     // 1. Let elements be the list of named elements with the name name that are in a document tree with the Document as their root.
     // NOTE: There will be at least one such element, since the algorithm would otherwise not have been invoked by Web IDL.
-    auto elements = named_elements_with_name(*this, name);
+    auto elements = named_elements_with_name(*this, name.view());
 
     // 2. If elements has only one element, and that element is an iframe element, and that iframe element's content navigable is not null,
     //    then return the active WindowProxy of the element's content navigable.
@@ -7389,7 +7391,7 @@ JS::Value Document::named_item_value(Utf16FlyString const& name) const
 
     // 4. Otherwise return an HTMLCollection rooted at the Document node, whose filter matches only named elements with the name name.
     return HTMLCollection::create(*const_cast<Document*>(this), HTMLCollection::Scope::Descendants, [name](auto& element) {
-        return is_named_element_with_name(element, name);
+        return is_named_element_with_name(element, name.view());
     });
 }
 
@@ -7609,9 +7611,9 @@ double Document::ensure_element_shared_css_random_base_value(CSS::RandomCachingK
     });
 }
 
-static Optional<CSS::CSSStyleSheet&> find_style_sheet_with_url(String const& url, CSS::CSSStyleSheet& style_sheet)
+static Optional<CSS::CSSStyleSheet&> find_style_sheet_with_url(Utf16View url, CSS::CSSStyleSheet& style_sheet)
 {
-    if (style_sheet.href() == url)
+    if (style_sheet.href_for_bindings() == url)
         return style_sheet;
 
     for (auto& import_rule : style_sheet.import_rules()) {
@@ -7624,7 +7626,7 @@ static Optional<CSS::CSSStyleSheet&> find_style_sheet_with_url(String const& url
     return {};
 }
 
-Optional<String> Document::get_style_sheet_source(CSS::StyleSheetIdentifier const& identifier) const
+Optional<Utf16String> Document::get_style_sheet_source(CSS::StyleSheetIdentifier const& identifier) const
 {
     switch (identifier.type) {
     case CSS::StyleSheetIdentifier::Type::StyleElement:
@@ -7632,11 +7634,11 @@ Optional<String> Document::get_style_sheet_source(CSS::StyleSheetIdentifier cons
             if (auto* node = Node::from_unique_id(*identifier.dom_element_unique_id)) {
                 if (node->is_html_style_element()) {
                     if (auto* sheet = as<HTML::HTMLStyleElement>(*node).sheet())
-                        return sheet->source_text().map([](auto const& source_text) { return source_text.to_utf8(); });
+                        return sheet->source_text();
                 }
                 if (node->is_svg_style_element()) {
                     if (auto* sheet = as<SVG::SVGStyleElement>(*node).sheet())
-                        return sheet->source_text().map([](auto const& source_text) { return source_text.to_utf8(); });
+                        return sheet->source_text();
                 }
             }
         }
@@ -7651,18 +7653,18 @@ Optional<String> Document::get_style_sheet_source(CSS::StyleSheetIdentifier cons
         if (m_style_sheets) {
             for (auto& style_sheet : m_style_sheets->sheets()) {
                 if (auto match = find_style_sheet_with_url(identifier.url.value(), style_sheet); match.has_value())
-                    return match->source_text().map([](auto const& source_text) { return source_text.to_utf8(); });
+                    return match->source_text();
             }
         }
 
         if (m_adopted_style_sheets) {
-            Optional<String> result;
+            Optional<Utf16String> result;
             m_adopted_style_sheets->for_each<CSS::CSSStyleSheet>([&](auto& style_sheet) {
                 if (result.has_value())
                     return;
 
                 if (auto match = find_style_sheet_with_url(identifier.url.value(), style_sheet); match.has_value())
-                    result = match->source_text().map([](auto const& source_text) { return source_text.to_utf8(); });
+                    result = match->source_text();
             });
             return result;
         }
@@ -7670,7 +7672,7 @@ Optional<String> Document::get_style_sheet_source(CSS::StyleSheetIdentifier cons
         return {};
     }
     case CSS::StyleSheetIdentifier::Type::UserAgent:
-        return CSS::StyleComputer::user_agent_style_sheet_source(identifier.url.value());
+        return CSS::StyleComputer::user_agent_style_sheet_source(identifier.url->utf16_view());
     case CSS::StyleSheetIdentifier::Type::UserStyle:
         return page().user_style();
     }
@@ -7795,7 +7797,7 @@ void Document::set_needs_to_refresh_scroll_state(bool b)
         paintable->set_needs_to_refresh_scroll_state(b);
 }
 
-Vector<GC::Root<Range>> Document::find_matching_text(String const& query, CaseSensitivity case_sensitivity)
+Vector<GC::Root<Range>> Document::find_matching_text(Utf16View query, CaseSensitivity case_sensitivity)
 {
     // Ensure the layout tree exists before searching for text matches.
     update_layout(UpdateLayoutReason::DocumentFindMatchingText);
@@ -7807,8 +7809,6 @@ Vector<GC::Root<Range>> Document::find_matching_text(String const& query, CaseSe
     if (text_blocks.is_empty())
         return {};
 
-    auto utf16_query = Utf16String::from_utf8(query);
-
     Vector<GC::Root<Range>> matches;
     for (auto const& text_block : text_blocks) {
         size_t offset = 0;
@@ -7817,8 +7817,8 @@ Vector<GC::Root<Range>> Document::find_matching_text(String const& query, CaseSe
         auto* match_start_position = text_block.positions.data();
         while (true) {
             auto match_index = case_sensitivity == CaseSensitivity::CaseInsensitive
-                ? text_view.find_code_unit_offset_ignoring_case(utf16_query, offset)
-                : text_view.find_code_unit_offset(utf16_query, offset);
+                ? text_view.find_code_unit_offset_ignoring_case(query, offset)
+                : text_view.find_code_unit_offset(query, offset);
             if (!match_index.has_value())
                 break;
 
@@ -7830,19 +7830,19 @@ Vector<GC::Root<Range>> Document::find_matching_text(String const& query, CaseSe
             VERIFY(start_dom_node);
 
             auto* match_end_position = match_start_position;
-            for (; i < text_block.positions.size() - 1 && (match_index.value() + utf16_query.length_in_code_units() > text_block.positions[i + 1].start_offset); ++i)
+            for (; i < text_block.positions.size() - 1 && (match_index.value() + query.length_in_code_units() > text_block.positions[i + 1].start_offset); ++i)
                 match_end_position = &text_block.positions[i + 1];
 
             auto end_dom_node = match_end_position->dom_node.ptr();
             VERIFY(end_dom_node);
-            auto end_position = match_index.value() + utf16_query.length_in_code_units() - match_end_position->start_offset + match_end_position->dom_offset_within_node;
+            auto end_position = match_index.value() + query.length_in_code_units() - match_end_position->start_offset + match_end_position->dom_offset_within_node;
 
             if (&start_dom_node->root() != &end_dom_node->root()
                 || !start_dom_node->is_connected()
                 || !end_dom_node->is_connected()
                 || start_position > start_dom_node->length()
                 || end_position > end_dom_node->length()) {
-                offset = match_index.value() + utf16_query.length_in_code_units() + 1;
+                offset = match_index.value() + query.length_in_code_units() + 1;
                 if (offset >= text_view.length_in_code_units())
                     break;
                 continue;
@@ -7850,7 +7850,7 @@ Vector<GC::Root<Range>> Document::find_matching_text(String const& query, CaseSe
 
             matches.append(Range::create(*start_dom_node, start_position, *end_dom_node, end_position));
             match_start_position = match_end_position;
-            offset = match_index.value() + utf16_query.length_in_code_units() + 1;
+            offset = match_index.value() + query.length_in_code_units() + 1;
             if (offset >= text_view.length_in_code_units())
                 break;
         }
@@ -7896,7 +7896,7 @@ bool Document::is_render_blocked() const
 bool Document::allows_adding_render_blocking_elements() const
 {
     // A document allows adding render-blocking elements if document's content type is "text/html" and the body element of document is null.
-    return content_type() == "text/html" && !body();
+    return content_type() == u"text/html"sv && !body();
 }
 
 void Document::add_render_blocking_element(GC::Ref<Element> element)
@@ -8207,7 +8207,7 @@ void Document::parse_html_from_a_string(Utf16View html)
     // 3. Place html into the input stream for parser. The encoding confidence is irrelevant.
     // FIXME: We don't have the concept of encoding confidence yet.
     auto scripting_mode = is_scripting_enabled() ? HTML::ParserScriptingMode::Normal : HTML::ParserScriptingMode::Disabled;
-    auto parser = HTML::HTMLParser::create_for_decoded_string(*this, html, scripting_mode, "UTF-8"sv);
+    auto parser = HTML::HTMLParser::create_for_decoded_string(*this, html, scripting_mode, "UTF-8"_utf16);
     parser->set_allow_declarative_shadow_roots(allow_declarative_shadow_roots());
 
     // 4. Start parser and let it run until it has consumed all the characters just inserted into the input stream.
@@ -8227,11 +8227,11 @@ WebIDL::ExceptionOr<GC::Root<DOM::Document>> Document::parse_html_unsafe(JS::VM&
         HTML::current_global_object(),
         html,
         TrustedTypes::InjectionSink::Document_parseHTMLUnsafe,
-        TrustedTypes::Script.to_string()));
+        TrustedTypes::Script.view()));
 
     // 2. Let document be a new Document, whose content type is "text/html".
     auto document = Document::create(realm);
-    document->set_content_type("text/html"_string);
+    document->set_content_type("text/html"_utf16_fly_string);
 
     // 3. Set document's allow declarative shadow roots to true.
     document->set_allow_declarative_shadow_roots(HTML::HTMLParser::AllowDeclarativeShadowRoots::Yes);
@@ -9046,18 +9046,18 @@ ElementByIdMap& Document::element_by_id() const
     return *m_element_by_id;
 }
 
-String Document::dump_display_list()
+Utf16String Document::dump_display_list()
 {
     update_layout(UpdateLayoutReason::DumpDisplayList);
 
     auto viewport_paintable = paintable();
     if (!viewport_paintable)
-        return "No paintable"_string;
+        return "No paintable"_utf16;
 
     auto& resource_storage = navigable()->display_list_resource_storage();
     auto display_list = record_display_list(HTML::PaintConfig {}, resource_storage);
     if (!display_list)
-        return "No display list"_string;
+        return "No display list"_utf16;
 
     HashMap<size_t, RefPtr<Painting::Paintable const>> context_id_to_paintable;
     viewport_paintable->for_each_in_inclusive_subtree_of_type<Painting::Paintable>([&](auto const& paintable_box) {
@@ -9135,26 +9135,26 @@ String Document::dump_display_list()
 
     dump_commands(*display_list, 0);
 
-    return builder.to_string_without_validation();
+    return Utf16String::from_utf8_without_validation(builder.string_view());
 }
 
-String Document::dump_stacking_context_tree()
+Utf16String Document::dump_stacking_context_tree()
 {
     update_layout(UpdateLayoutReason::DumpDisplayList);
 
     auto viewport_paintable = paintable();
     if (!viewport_paintable)
-        return "No paintable"_string;
+        return "No paintable"_utf16;
 
     viewport_paintable->build_stacking_context_tree_if_needed();
 
     auto stacking_context = viewport_paintable->stacking_context();
     if (!stacking_context)
-        return "No stacking context"_string;
+        return "No stacking context"_utf16;
 
     StringBuilder builder;
     stacking_context->dump(builder);
-    return builder.to_string_without_validation();
+    return Utf16String::from_utf8_without_validation(builder.string_view());
 }
 
 Optional<Vector<CSS::Parser::ComponentValue>> Document::environment_variable_value(CSS::EnvironmentVariable environment_variable, Span<i32> indices) const
@@ -9205,13 +9205,13 @@ HashMap<Utf16FlyString, CSS::CustomPropertyRegistration>& Document::registered_p
     return m_registered_property_set;
 }
 
-WebIDL::ExceptionOr<GC::Ref<XPath::XPathExpression>> Document::create_expression(String const& expression, GC::Ptr<XPath::XPathNSResolver> resolver)
+WebIDL::ExceptionOr<GC::Ref<XPath::XPathExpression>> Document::create_expression(Utf16View expression, GC::Ptr<XPath::XPathNSResolver> resolver)
 {
     auto& realm = this->realm();
     return XPath::create_expression(realm, expression, resolver);
 }
 
-WebIDL::ExceptionOr<GC::Ref<XPath::XPathResult>> Document::evaluate(String const& expression, DOM::Node const& context_node, GC::Ptr<XPath::XPathNSResolver> resolver, WebIDL::UnsignedShort type, GC::Ptr<XPath::XPathResult> result)
+WebIDL::ExceptionOr<GC::Ref<XPath::XPathResult>> Document::evaluate(Utf16View expression, DOM::Node const& context_node, GC::Ptr<XPath::XPathNSResolver> resolver, WebIDL::UnsignedShort type, GC::Ptr<XPath::XPathResult> result)
 {
     auto& realm = this->realm();
     return XPath::evaluate(realm, expression, context_node, resolver, type, result);
@@ -9368,19 +9368,19 @@ GC::Ref<HTML::DOMStringList> Document::ancestor_origins_list_creation_steps() co
     VERIFY(ancestor_origins.has_value());
 
     // 3. Let output be « ».
-    Vector<String> output;
+    Vector<Utf16String> output;
 
     // 4. For each origin of ancestorOrigins:
     for (auto const& origin : ancestor_origins.value()) {
         // 1. Append the serialization of origin to output.
-        output.append(origin.serialize());
+        output.append(utf16_string_from_url_ascii(origin.serialize()));
     }
 
     // 5. Return a new DOMStringList object whose associated list is output.
     return HTML::DOMStringList::create(realm(), move(output));
 }
 
-StringView to_string(SetNeedsLayoutReason reason)
+Utf16View to_string(SetNeedsLayoutReason reason)
 {
     switch (reason) {
 #define ENUMERATE_SET_NEEDS_LAYOUT_REASON(e) \
@@ -9392,7 +9392,7 @@ StringView to_string(SetNeedsLayoutReason reason)
     VERIFY_NOT_REACHED();
 }
 
-StringView to_string(SetNeedsLayoutTreeUpdateReason reason)
+Utf16View to_string(SetNeedsLayoutTreeUpdateReason reason)
 {
     switch (reason) {
 #define ENUMERATE_SET_NEEDS_LAYOUT_TREE_UPDATE_REASON(e) \
@@ -9404,7 +9404,7 @@ StringView to_string(SetNeedsLayoutTreeUpdateReason reason)
     VERIFY_NOT_REACHED();
 }
 
-StringView to_string(InvalidateLayoutTreeReason reason)
+Utf16View to_string(InvalidateLayoutTreeReason reason)
 {
     switch (reason) {
 #define ENUMERATE_INVALIDATE_LAYOUT_TREE_REASON(e) \
@@ -9416,7 +9416,7 @@ StringView to_string(InvalidateLayoutTreeReason reason)
     VERIFY_NOT_REACHED();
 }
 
-StringView to_string(UpdateLayoutReason reason)
+Utf16View to_string(UpdateLayoutReason reason)
 {
     switch (reason) {
 #define ENUMERATE_UPDATE_LAYOUT_REASON(e) \
@@ -9465,13 +9465,11 @@ static bool contains_named_namespace(CSS::SelectorList const& selectors)
     return false;
 }
 
-RefPtr<SelectorQuery const> Document::selector_query_for(StringView selector_text) const
+RefPtr<SelectorQuery const> Document::selector_query_for(Utf16View selector_text) const
 {
     static constexpr size_t MAX_SELECTOR_QUERY_CACHE_SIZE = 512;
 
-    auto selector_text_string = MUST(String::from_utf8(selector_text));
-
-    if (auto it = m_selector_query_cache.find(selector_text_string); it != m_selector_query_cache.end())
+    if (auto it = m_selector_query_cache.find(selector_text); it != m_selector_query_cache.end())
         return it->value;
 
     auto maybe_selectors = parse_selector(CSS::Parser::ParsingParams { *this }, selector_text);
@@ -9487,7 +9485,7 @@ RefPtr<SelectorQuery const> Document::selector_query_for(StringView selector_tex
     if (m_selector_query_cache.size() >= MAX_SELECTOR_QUERY_CACHE_SIZE)
         m_selector_query_cache.remove(m_selector_query_cache.begin());
 
-    m_selector_query_cache.set(selector_text_string, query);
+    m_selector_query_cache.set(Utf16String::from_utf16(selector_text), query);
     return query;
 }
 

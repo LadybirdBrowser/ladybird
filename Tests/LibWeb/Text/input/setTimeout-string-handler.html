@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(done => {
+        window.done = done;
+        setTimeout("println('string timer code point: ' + 'caf\\u00e9'.codePointAt(3)); done();", 0);
+    });
+</script>

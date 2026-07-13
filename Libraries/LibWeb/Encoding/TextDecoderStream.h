@@ -23,7 +23,7 @@ class TextDecoderStream final
     GC_DECLARE_ALLOCATOR(TextDecoderStream);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<TextDecoderStream>> construct_impl(JS::Realm&, FlyString label, Bindings::TextDecoderOptions const&);
+    static WebIDL::ExceptionOr<GC::Ref<TextDecoderStream>> construct_impl(JS::Realm&, Utf16String const& label, Bindings::TextDecoderOptions const&);
     virtual ~TextDecoderStream() override;
 
 private:
@@ -35,7 +35,7 @@ private:
     WebIDL::ExceptionOr<void> decode_and_enqueue_chunk(JS::Value);
     WebIDL::ExceptionOr<void> flush_and_enqueue();
 
-    WebIDL::ExceptionOr<void> enqueue_decoded_output(String const&);
+    WebIDL::ExceptionOr<void> enqueue_decoded_output(Utf16String const&);
 };
 
 }

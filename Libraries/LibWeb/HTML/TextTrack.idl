@@ -8,11 +8,11 @@ enum TextTrackKind { "subtitles",  "captions",  "descriptions",  "chapters",  "m
 [Exposed=Window]
 interface TextTrack : EventTarget {
     readonly attribute TextTrackKind kind;
-    readonly attribute DOMString label;
-    readonly attribute DOMString language;
+    readonly attribute Utf16DOMString label;
+    readonly attribute Utf16DOMString language;
 
-    readonly attribute DOMString id;
-    [FIXME] readonly attribute DOMString inBandMetadataTrackDispatchType;
+    readonly attribute Utf16DOMString id;
+    [FIXME] readonly attribute Utf16DOMString inBandMetadataTrackDispatchType;
 
     attribute TextTrackMode mode;
 

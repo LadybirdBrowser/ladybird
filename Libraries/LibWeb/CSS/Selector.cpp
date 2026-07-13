@@ -145,6 +145,30 @@ Selector::Selector(Vector<CompoundSelector>&& compound_selectors)
     m_can_use_fast_matches = can_selector_use_fast_matches(*this);
 }
 
+static void append_integer(Utf16StringBuilder& builder, i64 value)
+{
+    if (value == 0) {
+        builder.append_ascii('0');
+        return;
+    }
+
+    if (value < 0)
+        builder.append_ascii('-');
+
+    u64 magnitude = value < 0 ? 0 - static_cast<u64>(value) : static_cast<u64>(value);
+    Array<char, 20> digits;
+    size_t digit_count = 0;
+    while (magnitude > 0) {
+        digits[digit_count++] = static_cast<char>('0' + magnitude % 10);
+        magnitude /= 10;
+    }
+
+    while (digit_count > 0)
+        builder.append_ascii(digits[--digit_count]);
+}
+
+static void serialize_a_group_of_selectors_to_builder(Utf16StringBuilder&, SelectorList const&);
+
 void Selector::collect_ancestor_hashes()
 {
     if (is_slotted()) {
@@ -514,51 +538,61 @@ u32 Selector::specificity() const
     return *m_specificity;
 }
 
-String Selector::PseudoElementSelector::serialize() const
+Utf16String Selector::PseudoElementSelector::serialize() const
 {
-    StringBuilder builder;
-    builder.append("::"sv);
+    Utf16StringBuilder builder;
+    serialize_to(builder);
+    return builder.to_string();
+}
+
+void Selector::PseudoElementSelector::serialize_to(Utf16StringBuilder& builder) const
+{
+    builder.append_ascii("::"sv);
 
     if (!m_name.is_empty()) {
         builder.append(m_name.view());
     } else {
-        builder.append(pseudo_element_name(m_type));
+        builder.append_ascii(pseudo_element_name(m_type));
     }
 
     m_value.visit(
         [&builder](NonnullRefPtr<Selector> const& compound_selector) {
-            builder.append('(');
-            builder.append(compound_selector->serialize());
-            builder.append(')');
+            builder.append_ascii('(');
+            compound_selector->serialize_to(builder);
+            builder.append_ascii(')');
         },
         [&builder](PTNameSelector const& pt_name_selector) {
-            builder.append('(');
+            builder.append_ascii('(');
             if (pt_name_selector.is_universal)
-                builder.append('*');
+                builder.append_ascii('*');
             else
                 builder.append(pt_name_selector.value.view());
-            builder.append(')');
+            builder.append_ascii(')');
         },
         [&builder](IdentList const& ident_list) {
-            builder.append('(');
+            builder.append_ascii('(');
             bool first = true;
             for (auto const& ident : ident_list) {
                 if (!first)
-                    builder.append(' ');
+                    builder.append_ascii(' ');
                 first = false;
                 serialize_an_identifier(builder, ident);
             }
-            builder.append(')');
+            builder.append_ascii(')');
         },
         [](Empty const&) {});
-
-    return builder.to_string_without_validation();
 }
 
 // https://www.w3.org/TR/cssom/#serialize-a-simple-selector
-String Selector::SimpleSelector::serialize() const
+Utf16String Selector::SimpleSelector::serialize() const
 {
-    StringBuilder s;
+    Utf16StringBuilder builder;
+    serialize_to(builder);
+    return builder.to_string();
+}
+
+void Selector::SimpleSelector::serialize_to(Utf16StringBuilder& s) const
+{
     switch (type) {
     case Selector::SimpleSelector::Type::TagName:
     case Selector::SimpleSelector::Type::Universal: {
@@ -568,13 +602,13 @@ String Selector::SimpleSelector::serialize() const
         //    followed by a "|" (U+007C) to s.
         if (qualified_name.namespace_type == QualifiedName::NamespaceType::Named) {
             serialize_an_identifier(s, qualified_name.namespace_);
-            s.append('|');
+            s.append_ascii('|');
         }
 
         // 2. If the namespace prefix maps to a namespace that is the null namespace (not in a namespace)
         //    append "|" (U+007C) to s.
         if (qualified_name.namespace_type == QualifiedName::NamespaceType::None)
-            s.append('|');
+            s.append_ascii('|');
 
         // 3. If this is a type selector append the serialization of the element name as an identifier to s.
         if (type == Selector::SimpleSelector::Type::TagName)
@@ -582,7 +616,7 @@ String Selector::SimpleSelector::serialize() const
 
         // 4. If this is a universal selector append "*" (U+002A) to s.
         if (type == Selector::SimpleSelector::Type::Universal)
-            s.append('*');
+            s.append_ascii('*');
 
         break;
     }
@@ -590,15 +624,15 @@ String Selector::SimpleSelector::serialize() const
         auto& attribute = this->attribute();
 
         // 1. Append "[" (U+005B) to s.
-        s.append('[');
+        s.append_ascii('[');
 
         // 2. If the namespace prefix maps to a namespace that is not the null namespace (not in a namespace)
         //    append the serialization of the namespace prefix as an identifier, followed by a "|" (U+007C) to s.
         if (attribute.qualified_name.namespace_type == QualifiedName::NamespaceType::Named) {
             serialize_an_identifier(s, attribute.qualified_name.namespace_);
-            s.append('|');
+            s.append_ascii('|');
         } else if (attribute.qualified_name.namespace_type == QualifiedName::NamespaceType::Any) {
-            s.append("*|"sv);
+            s.append_ascii("*|"sv);
         }
 
         // 3. Append the serialization of the attribute name as an identifier to s.
@@ -609,22 +643,22 @@ String Selector::SimpleSelector::serialize() const
         if (!attribute.value.is_empty()) {
             switch (attribute.match_type) {
             case Selector::SimpleSelector::Attribute::MatchType::ExactValueMatch:
-                s.append("="sv);
+                s.append_ascii("="sv);
                 break;
             case Selector::SimpleSelector::Attribute::MatchType::ContainsWord:
-                s.append("~="sv);
+                s.append_ascii("~="sv);
                 break;
             case Selector::SimpleSelector::Attribute::MatchType::ContainsString:
-                s.append("*="sv);
+                s.append_ascii("*="sv);
                 break;
             case Selector::SimpleSelector::Attribute::MatchType::StartsWithSegment:
-                s.append("|="sv);
+                s.append_ascii("|="sv);
                 break;
             case Selector::SimpleSelector::Attribute::MatchType::StartsWithString:
-                s.append("^="sv);
+                s.append_ascii("^="sv);
                 break;
             case Selector::SimpleSelector::Attribute::MatchType::EndsWithString:
-                s.append("$="sv);
+                s.append_ascii("$="sv);
                 break;
             default:
                 break;
@@ -638,29 +672,29 @@ String Selector::SimpleSelector::serialize() const
         //    (the line just above is an addition to CSS OM to match Selectors Level 4 last draft)
         switch (attribute.case_type) {
         case Selector::SimpleSelector::Attribute::CaseType::CaseInsensitiveMatch:
-            s.append(" i"sv);
+            s.append_ascii(" i"sv);
             break;
         case Selector::SimpleSelector::Attribute::CaseType::CaseSensitiveMatch:
-            s.append(" s"sv);
+            s.append_ascii(" s"sv);
             break;
         default:
             break;
         }
 
         // 6. Append "]" (U+005D) to s.
-        s.append(']');
+        s.append_ascii(']');
         break;
     }
 
     case Selector::SimpleSelector::Type::Class:
         // Append a "." (U+002E), followed by the serialization of the class name as an identifier to s.
-        s.append('.');
+        s.append_ascii('.');
         serialize_an_identifier(s, class_name().view());
         break;
 
     case Selector::SimpleSelector::Type::Id:
         // Append a "#" (U+0023), followed by the serialization of the ID as an identifier to s.
-        s.append('#');
+        s.append_ascii('#');
         serialize_an_identifier(s, id_name().view());
         break;
 
@@ -686,15 +720,15 @@ String Selector::SimpleSelector::serialize() const
 
         // If the pseudo-class does not accept arguments append ":" (U+003A), followed by the name of the pseudo-class, to s.
         if (!accepts_arguments) {
-            s.append(':');
-            s.append(pseudo_class_name(pseudo_class.type));
+            s.append_ascii(':');
+            s.append_ascii(pseudo_class_name(pseudo_class.type));
         }
         // Otherwise, append ":" (U+003A), followed by the name of the pseudo-class, followed by "(" (U+0028),
         // followed by the value of the pseudo-class argument(s) determined as per below, followed by ")" (U+0029), to s.
         else {
-            s.append(':');
-            s.append(pseudo_class_name(pseudo_class.type));
-            s.append('(');
+            s.append_ascii(':');
+            s.append_ascii(pseudo_class_name(pseudo_class.type));
+            s.append_ascii('(');
             // NB: The spec list is incomplete. For ease of maintenance, we use the data from PseudoClasses.json for
             //     this instead of a hard-coded list.
             switch (metadata.parameter_type) {
@@ -703,7 +737,7 @@ String Selector::SimpleSelector::serialize() const
             case PseudoClassMetadata::ParameterType::ANPlusB:
             case PseudoClassMetadata::ParameterType::ANPlusBOf:
                 // The result of serializing the value using the rules to serialize an <an+b> value.
-                s.append(pseudo_class.an_plus_b_pattern.serialize());
+                pseudo_class.an_plus_b_pattern.serialize_to(s);
                 break;
             case PseudoClassMetadata::ParameterType::CompoundSelector:
             case PseudoClassMetadata::ParameterType::ForgivingSelectorList:
@@ -711,65 +745,73 @@ String Selector::SimpleSelector::serialize() const
             case PseudoClassMetadata::ParameterType::RelativeSelectorList:
             case PseudoClassMetadata::ParameterType::SelectorList:
                 // The result of serializing the value using the rules for serializing a group of selectors.
-                s.append(serialize_a_group_of_selectors(pseudo_class.argument_selector_list));
+                serialize_a_group_of_selectors_to_builder(s, pseudo_class.argument_selector_list);
                 break;
             case PseudoClassMetadata::ParameterType::Ident:
-                s.append(serialize_an_identifier(pseudo_class.ident->string_value));
+                serialize_an_identifier(s, pseudo_class.ident->string_value);
                 break;
             case PseudoClassMetadata::ParameterType::LanguageRanges:
                 // The serialization of a comma-separated list of each argument’s serialization as a string, preserving relative order.
                 for (size_t i = 0; i < pseudo_class.languages.size(); ++i) {
                     if (i > 0)
-                        s.append(", "sv);
+                        s.append_ascii(", "sv);
                     s.append(pseudo_class.languages[i].view());
                 }
                 break;
             case PseudoClassMetadata::ParameterType::LevelList:
                 // AD-HOC: not in the spec.
-                s.join(", "sv, pseudo_class.levels);
+                for (size_t i = 0; i < pseudo_class.levels.size(); ++i) {
+                    if (i > 0)
+                        s.append_ascii(", "sv);
+                    append_integer(s, pseudo_class.levels[i]);
+                }
                 break;
             }
-            s.append(')');
+            s.append_ascii(')');
         }
         break;
     }
     case Selector::SimpleSelector::Type::PseudoElement:
         // AD-HOC: Spec issue: https://github.com/w3c/csswg-drafts/issues/11997
-        s.append(this->pseudo_element().serialize());
+        this->pseudo_element().serialize_to(s);
         break;
     case Type::Nesting:
         // AD-HOC: Not in spec yet.
-        s.append('&');
+        s.append_ascii('&');
         break;
     case Type::Invalid:
         // AD-HOC: We're not told how to do these. Just serialize their component values.
         auto invalid = value.get<Invalid>();
         for (auto const& component_value : invalid.component_values)
-            s.append(component_value.to_string());
+            component_value.serialize_to(s);
         break;
     }
-    return MUST(s.to_string());
 }
 
 // https://www.w3.org/TR/cssom/#serialize-a-selector
-String Selector::serialize() const
+Utf16String Selector::serialize() const
 {
-    StringBuilder s;
+    Utf16StringBuilder builder;
+    serialize_to(builder);
+    return builder.to_string();
+}
 
+void Selector::serialize_to(Utf16StringBuilder& s) const
+{
     // AD-HOC: If this is a relative selector, we need to serialize the starting combinator.
     if (!compound_selectors().is_empty()) {
         switch (compound_selectors().first().combinator) {
         case Combinator::ImmediateChild:
-            s.append("> "sv);
+            s.append_ascii("> "sv);
             break;
         case Combinator::NextSibling:
-            s.append("+ "sv);
+            s.append_ascii("+ "sv);
             break;
         case Combinator::SubsequentSibling:
-            s.append("~ "sv);
+            s.append_ascii("~ "sv);
             break;
         case Combinator::Column:
-            s.append("|| "sv);
+            s.append_ascii("|| "sv);
             break;
         case Combinator::PseudoElement:
         default:
@@ -798,7 +840,7 @@ String Selector::serialize() const
                 }
             }
             if (should_serialize_universal)
-                s.append(compound_selector.simple_selectors.first().serialize());
+                compound_selector.simple_selectors.first().serialize_to(s);
         }
         // 2. Otherwise, for each simple selector in the compound selectors that is not a universal selector
         //    of which the namespace prefix maps to a namespace that is not the default namespace
@@ -820,7 +862,7 @@ String Selector::serialize() const
                     //   foo|*.bar { } /* This would skip the `foo|*` when serializing. */
                     // </style>
                 }
-                s.append(simple_selector.serialize());
+                simple_selector.serialize_to(s);
             }
         }
 
@@ -832,19 +874,19 @@ String Selector::serialize() const
             //     so we have to check that one.
             switch (compound_selectors()[i + 1].combinator) {
             case Combinator::Descendant:
-                s.append(' ');
+                s.append_ascii(' ');
                 break;
             case Combinator::ImmediateChild:
-                s.append(" > "sv);
+                s.append_ascii(" > "sv);
                 break;
             case Combinator::NextSibling:
-                s.append(" + "sv);
+                s.append_ascii(" + "sv);
                 break;
             case Combinator::SubsequentSibling:
-                s.append(" ~ "sv);
+                s.append_ascii(" ~ "sv);
                 break;
             case Combinator::Column:
-                s.append(" || "sv);
+                s.append_ascii(" || "sv);
                 break;
             case Combinator::PseudoElement:
             default:
@@ -857,8 +899,6 @@ String Selector::serialize() const
             //      serialization of pseudoElements was moved to SimpleSelector::serialize()
         }
     }
-
-    return MUST(s.to_string());
 }
 
 // https://drafts.csswg.org/selectors-4/#single-colon-pseudos
@@ -878,10 +918,23 @@ bool is_legacy_single_colon_pseudo_element(PseudoElement pseudo_element)
 }
 
 // https://www.w3.org/TR/cssom/#serialize-a-group-of-selectors
-String serialize_a_group_of_selectors(SelectorList const& selectors)
+static void serialize_a_group_of_selectors_to_builder(Utf16StringBuilder& builder, SelectorList const& selectors)
 {
     // To serialize a group of selectors serialize each selector in the group of selectors and then serialize a comma-separated list of these serializations.
-    return MUST(String::join(", "sv, selectors));
+    bool first = true;
+    for (auto const& selector : selectors) {
+        if (!first)
+            builder.append_ascii(", "sv);
+        first = false;
+        selector->serialize_to(builder);
+    }
+}
+
+Utf16String serialize_a_group_of_selectors(SelectorList const& selectors)
+{
+    Utf16StringBuilder builder;
+    serialize_a_group_of_selectors_to_builder(builder, selectors);
+    return builder.to_string();
 }
 
 NonnullRefPtr<Selector> Selector::relative_to(SimpleSelector const& parent) const
@@ -1017,7 +1070,7 @@ Optional<Selector::SimpleSelector> Selector::SimpleSelector::absolutized(Selecto
             for (auto const& selector : pseudo_class.argument_selector_list) {
                 if (contains_invalid_contents_for_has(selector)) {
                     Parser::ErrorReporter::the().report(Parser::InvalidSelectorError {
-                        .value_string = selector->serialize(),
+                        .value_string = selector->serialize().to_utf8(),
                         .description = "After absolutizing, :has() would contain invalid contents."_string,
                     });
                     return {};
@@ -1232,36 +1285,48 @@ bool Selector::SimpleSelector::ANPlusBPattern::matches(int index) const
 }
 
 // https://drafts.csswg.org/css-syntax-3/#serializing-anb
-String Selector::SimpleSelector::ANPlusBPattern::serialize() const
+Utf16String Selector::SimpleSelector::ANPlusBPattern::serialize() const
+{
+    Utf16StringBuilder builder;
+    serialize_to(builder);
+    return builder.to_string();
+}
+
+void Selector::SimpleSelector::ANPlusBPattern::serialize_to(Utf16StringBuilder& result) const
 {
     // 1. If A is zero, return the serialization of B.
-    if (step_size == 0)
-        return String::number(offset);
+    if (step_size == 0) {
+        append_integer(result, offset);
+        return;
+    }
 
     // 2. Otherwise, let result initially be an empty string.
-    StringBuilder result;
 
     // 3.
     // - A is 1: Append "n" to result.
     if (step_size == 1)
-        result.append('n');
+        result.append_ascii('n');
     // - A is -1: Append "-n" to result.
     else if (step_size == -1)
-        result.append("-n"sv);
+        result.append_ascii("-n"sv);
     // - A is non-zero: Serialize A and append it to result, then append "n" to result.
-    else if (step_size != 0)
-        result.appendff("{}n", step_size);
+    else if (step_size != 0) {
+        append_integer(result, step_size);
+        result.append_ascii('n');
+    }
 
     // 4.
     // - B is greater than zero: Append "+" to result, then append the serialization of B to result.
-    if (offset > 0)
-        result.appendff("+{}", offset);
+    if (offset > 0) {
+        result.append_ascii('+');
+        append_integer(result, offset);
+    }
     // - B is less than zero: Append the serialization of B to result.
-    else if (offset < 0)
-        result.appendff("{}", offset);
+    else if (offset < 0) {
+        append_integer(result, offset);
+    }
 
     // 5. Return result.
-    return MUST(result.to_string());
 }
 
 }

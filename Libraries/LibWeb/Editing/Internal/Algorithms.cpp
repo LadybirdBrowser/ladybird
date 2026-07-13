@@ -44,6 +44,13 @@
 
 namespace Web::Editing {
 
+static Optional<Utf16View> optional_utf16_view(Optional<Utf16String> const& value)
+{
+    if (!value.has_value())
+        return {};
+    return value->utf16_view();
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#active-range
 GC::Ptr<DOM::Range> active_range(DOM::Document const& document)
 {
@@ -580,7 +587,7 @@ void canonicalize_whitespace(DOM::BoundaryPoint boundary, bool fix_collapsed_spa
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#clear-the-value
-Vector<GC::Ref<DOM::Node>> clear_the_value(FlyString const& command, GC::Ref<DOM::Element> element)
+Vector<GC::Ref<DOM::Node>> clear_the_value(Utf16FlyString const& command, GC::Ref<DOM::Element> element)
 {
     // 1. Let command be the current command.
 
@@ -635,14 +642,15 @@ Vector<GC::Ref<DOM::Node>> clear_the_value(FlyString const& command, GC::Ref<DOM
         if (!was_removed)
             return;
         if (new_values.is_empty()) {
-            MUST(inline_style->remove_property(CSS::PropertyID::TextDecoration));
+            auto removed_value = MUST(inline_style->remove_property(CSS::PropertyID::TextDecoration));
+            (void)removed_value;
             return;
         }
 
         auto new_style_value = CSS::StyleValueList::create(move(new_values), value_list.separator());
         MUST(inline_style->set_property(
             CSS::PropertyID::TextDecoration,
-            new_style_value->to_string(CSS::SerializationMode::Normal),
+            new_style_value->to_utf16_string(CSS::SerializationMode::Normal),
             {}));
     };
     if (command == CommandNames::strikethrough)
@@ -657,8 +665,10 @@ Vector<GC::Ref<DOM::Node>> clear_the_value(FlyString const& command, GC::Ref<DOM
     auto command_definition = find_command_definition(command);
     if (command_definition->relevant_css_property.has_value()) {
         auto property_to_remove = command_definition->relevant_css_property.value();
-        if (auto inline_style = element->inline_style())
-            MUST(inline_style->remove_property(property_to_remove));
+        if (auto inline_style = element->inline_style()) {
+            auto removed_value = MUST(inline_style->remove_property(property_to_remove));
+            (void)removed_value;
+        }
     }
 
     // 8. If element is a font element:
@@ -1108,7 +1118,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#effective-command-value
-Optional<Utf16String> effective_command_value(GC::Ptr<DOM::Node> node, FlyString const& command)
+Optional<Utf16String> effective_command_value(GC::Ptr<DOM::Node> node, Utf16FlyString const& command)
 {
     VERIFY(node);
 
@@ -1153,7 +1163,7 @@ Optional<Utf16String> effective_command_value(GC::Ptr<DOM::Node> node, FlyString
         auto resolved_value = resolved_background_color();
         if (!resolved_value)
             return {};
-        return Utf16String::from_utf8_without_validation(resolved_value->to_string(CSS::SerializationMode::ResolvedValue));
+        return resolved_value->to_utf16_string(CSS::SerializationMode::ResolvedValue);
     }
 
     // 5. If command is "subscript" or "superscript":
@@ -1229,7 +1239,7 @@ Optional<Utf16String> effective_command_value(GC::Ptr<DOM::Node> node, FlyString
     auto optional_value = resolved_value(*node, command_definition.relevant_css_property.value());
     if (!optional_value)
         return {};
-    return Utf16String::from_utf8_without_validation(optional_value->to_string(CSS::SerializationMode::ResolvedValue));
+    return optional_value->to_utf16_string(CSS::SerializationMode::ResolvedValue);
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#first-equivalent-point
@@ -1361,7 +1371,7 @@ bool follows_a_line_break(GC::Ref<DOM::Node> node)
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#force-the-value
-void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional<Utf16String const&> new_value)
+void force_the_value(GC::Ref<DOM::Node> node, Utf16FlyString const& command, Optional<Utf16View> new_value)
 {
     // 1. Let command be the current command.
 
@@ -1390,8 +1400,8 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
             { node },
             [&](GC::Ref<DOM::Node> sibling) {
                 return is_simple_modifiable_element(sibling)
-                    && values_are_equivalent(command, specified_command_value(as<DOM::Element>(*sibling), command), new_value)
-                    && values_are_loosely_equivalent(command, effective_command_value(sibling, command), new_value);
+                    && values_are_equivalent(command, optional_utf16_view(specified_command_value(as<DOM::Element>(*sibling), command)), new_value)
+                    && values_are_loosely_equivalent(command, optional_utf16_view(effective_command_value(sibling, command)), new_value);
             },
             [] -> GC::Ptr<DOM::Node> { return {}; });
     }
@@ -1401,7 +1411,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
         return;
 
     // 6. If the effective command value of command is loosely equivalent to new value on node, abort this algorithm.
-    if (values_are_loosely_equivalent(command, effective_command_value(node, command), new_value))
+    if (values_are_loosely_equivalent(command, optional_utf16_view(effective_command_value(node, command)), new_value))
         return;
 
     // 7. If node is not an allowed child of "span":
@@ -1412,7 +1422,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
         node->for_each_child([&](GC::Ref<DOM::Node> child) {
             if (is<DOM::Element>(*child)) {
                 auto const child_specified_value = specified_command_value(static_cast<DOM::Element&>(*child), command);
-                if (child_specified_value.has_value() && !values_are_equivalent(command, child_specified_value.value(), new_value))
+                if (child_specified_value.has_value() && !values_are_equivalent(command, child_specified_value->utf16_view(), new_value))
                     return IterationDecision::Continue;
             }
 
@@ -1430,7 +1440,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
     }
 
     // 8. If the effective command value of command is loosely equivalent to new value on node, abort this algorithm.
-    if (values_are_loosely_equivalent(command, effective_command_value(node, command), new_value))
+    if (values_are_loosely_equivalent(command, optional_utf16_view(effective_command_value(node, command)), new_value))
         return;
 
     // 9. Let new parent be null.
@@ -1469,7 +1479,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
 
                 // 2. Set the color attribute of new parent to the result of applying the rules for serializing simple color
                 //    values to new value (interpreted as a simple color).
-                new_parent->set_attribute_value(HTML::AttributeNames::color, Utf16String::from_utf8(new_value_color->to_string_without_alpha()));
+                new_parent->set_attribute_value(HTML::AttributeNames::color, new_value_color->to_utf16_string_without_alpha());
             }
         }
 
@@ -1544,7 +1554,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
     // 17. If the effective command value of command for new parent is not loosely equivalent to new value, and the
     //     relevant CSS property for command is not null, set that CSS property of new parent to new value (if the new
     //     value would be valid).
-    if (!values_are_loosely_equivalent(command, effective_command_value(new_parent, command), new_value)) {
+    if (!values_are_loosely_equivalent(command, optional_utf16_view(effective_command_value(new_parent, command)), new_value)) {
         auto const& command_definition = find_command_definition(command);
         if (command_definition->relevant_css_property.has_value()) {
             auto inline_style = new_parent->style_for_bindings();
@@ -1558,7 +1568,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
     if (command == CommandNames::strikethrough && new_value == "line-through"sv
         && effective_command_value(new_parent, command) != "line-through"sv) {
         auto inline_style = new_parent->style_for_bindings();
-        MUST(inline_style->set_property(CSS::PropertyID::TextDecoration, "line-through"sv));
+        MUST(inline_style->set_property(CSS::PropertyID::TextDecoration, u"line-through"sv));
     }
 
     // 19. If command is "underline", and new value is "underline", and the effective command value of "underline" for
@@ -1566,7 +1576,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
     if (command == CommandNames::underline && new_value == "underline"sv
         && effective_command_value(new_parent, command) != "underline"sv) {
         auto inline_style = new_parent->style_for_bindings();
-        MUST(inline_style->set_property(CSS::PropertyID::TextDecoration, "underline"sv));
+        MUST(inline_style->set_property(CSS::PropertyID::TextDecoration, u"underline"sv));
     }
 
     // 20. Append node to new parent as its last child, preserving ranges.
@@ -1575,7 +1585,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
     // 21. If node is an Element and the effective command value of command for node is not loosely equivalent to new
     //     value:
     if (is<DOM::Element>(*node)
-        && !values_are_loosely_equivalent(command, effective_command_value(node, command), new_value)) {
+        && !values_are_loosely_equivalent(command, optional_utf16_view(effective_command_value(node, command)), new_value)) {
         // 1. Insert node into the parent of new parent before new parent, preserving ranges.
         move_node_preserving_ranges(node, *new_parent->parent(), new_parent->index());
 
@@ -1588,7 +1598,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
         node->for_each_child([&](GC::Ref<DOM::Node> child) {
             if (is<DOM::Element>(*child)) {
                 auto child_value = specified_command_value(static_cast<DOM::Element&>(*child), command);
-                if (child_value.has_value() && !values_are_equivalent(command, child_value.value(), new_value))
+                if (child_value.has_value() && !values_are_equivalent(command, child_value->utf16_view(), new_value))
                     return IterationDecision::Continue;
             }
 
@@ -2526,11 +2536,7 @@ bool is_simple_modifiable_element(GC::Ref<DOM::Node> node)
             HTML::TagNames::span, HTML::TagNames::strike, HTML::TagNames::u)
         && inline_style->has_property(CSS::PropertyID::TextDecoration)) {
         auto text_decoration = inline_style->get_property_value("text-decoration"_utf16_fly_string);
-        if (first_is_one_of(text_decoration,
-                string_from_keyword(CSS::Keyword::LineThrough),
-                string_from_keyword(CSS::Keyword::Underline),
-                string_from_keyword(CSS::Keyword::Overline),
-                string_from_keyword(CSS::Keyword::None)))
+        if (text_decoration.is_one_of("line-through"_utf16, "underline"_utf16, "overline"_utf16, "none"_utf16))
             return true;
     }
 
@@ -2670,7 +2676,8 @@ void justify_the_selection(DOM::Document& document, JustifyAlignment alignment)
 
         // 2. Unset the CSS property "text-align" on element, if it's set by a style attribute.
         auto inline_style = element->style_for_bindings();
-        MUST(inline_style->remove_property(CSS::PropertyID::TextAlign));
+        auto removed_text_align = MUST(inline_style->remove_property(CSS::PropertyID::TextAlign));
+        (void)removed_text_align;
 
         // 3. If element is a div or span or center with no attributes, remove it, preserving its descendants.
         if (element->local_name().is_one_of(HTML::TagNames::div, HTML::TagNames::span, HTML::TagNames::center)
@@ -2721,7 +2728,7 @@ void justify_the_selection(DOM::Document& document, JustifyAlignment alignment)
         //
         //    New parent instructions are to call createElement("div") on the context object, then set its CSS property
         //    "text-align" to alignment and return the result.
-        auto alignment_keyword = string_from_keyword([&alignment] {
+        auto alignment_keyword = utf16_fly_string_from_keyword([&alignment] {
             switch (alignment) {
             case JustifyAlignment::Center:
                 return CSS::Keyword::Center;
@@ -2734,7 +2741,7 @@ void justify_the_selection(DOM::Document& document, JustifyAlignment alignment)
             }
             VERIFY_NOT_REACHED();
         }());
-        auto alignment_keyword_utf16 = Utf16String::from_utf8(alignment_keyword);
+        auto alignment_keyword_string = alignment_keyword.to_utf16_string();
 
         wrap(
             sublist,
@@ -2743,12 +2750,12 @@ void justify_the_selection(DOM::Document& document, JustifyAlignment alignment)
                     return false;
                 GC::Ref<DOM::Element> element = static_cast<DOM::Element&>(*sibling);
                 u8 number_of_matching_attributes = 0;
-                if (element->get_attribute_value(HTML::AttributeNames::align).equals_ignoring_ascii_case(alignment_keyword_utf16))
+                if (element->get_attribute_value(HTML::AttributeNames::align).equals_ignoring_ascii_case(alignment_keyword))
                     ++number_of_matching_attributes;
                 if (element->has_attribute(HTML::AttributeNames::style) && element->inline_style()
                     && element->inline_style()->length() == 1) {
                     if (auto text_align = element->inline_style()->get_property_style_value(CSS::PropertyID::TextAlign)) {
-                        auto align_value = text_align->to_string(CSS::SerializationMode::Normal);
+                        auto align_value = text_align->to_utf16_string(CSS::SerializationMode::Normal);
                         if (align_value.equals_ignoring_ascii_case(alignment_keyword))
                             ++number_of_matching_attributes;
                     }
@@ -2758,7 +2765,7 @@ void justify_the_selection(DOM::Document& document, JustifyAlignment alignment)
             [&] {
                 auto div = MUST(DOM::create_element(document, HTML::TagNames::div, Namespace::HTML));
                 auto inline_style = div->style_for_bindings();
-                MUST(inline_style->set_property(CSS::PropertyID::TextAlign, alignment_keyword));
+                MUST(inline_style->set_property(CSS::PropertyID::TextAlign, alignment_keyword_string));
                 return div;
             });
     }
@@ -2968,9 +2975,12 @@ void outdent(GC::Ref<DOM::Node> node)
 
         // 2. Unset the margin, padding, and border CSS properties of node.
         if (auto inline_style = element.inline_style()) {
-            MUST(inline_style->remove_property(CSS::PropertyID::Border));
-            MUST(inline_style->remove_property(CSS::PropertyID::Margin));
-            MUST(inline_style->remove_property(CSS::PropertyID::Padding));
+            auto removed_border = MUST(inline_style->remove_property(CSS::PropertyID::Border));
+            auto removed_margin = MUST(inline_style->remove_property(CSS::PropertyID::Margin));
+            auto removed_padding = MUST(inline_style->remove_property(CSS::PropertyID::Padding));
+            (void)removed_border;
+            (void)removed_margin;
+            (void)removed_padding;
         }
 
         // 3. Set the tag name of node to "div".
@@ -3165,7 +3175,7 @@ Optional<DOM::BoundaryPoint> previous_equivalent_point(DOM::BoundaryPoint bounda
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#push-down-values
-void push_down_values(FlyString const& command, GC::Ref<DOM::Node> node, Optional<Utf16String const&> new_value)
+void push_down_values(Utf16FlyString const& command, GC::Ref<DOM::Node> node, Optional<Utf16View> new_value)
 {
     // 1. Let command be the current command.
 
@@ -3174,7 +3184,7 @@ void push_down_values(FlyString const& command, GC::Ref<DOM::Node> node, Optiona
         return;
 
     // 3. If the effective command value of command is loosely equivalent to new value on node, abort this algorithm.
-    if (values_are_loosely_equivalent(command, effective_command_value(node, command), new_value))
+    if (values_are_loosely_equivalent(command, optional_utf16_view(effective_command_value(node, command)), new_value))
         return;
 
     // 4. Let current ancestor be node's parent.
@@ -3187,7 +3197,7 @@ void push_down_values(FlyString const& command, GC::Ref<DOM::Node> node, Optiona
     //    equivalent to new value on it, append current ancestor to ancestor list, then set current ancestor to its
     //    parent.
     while (is<DOM::Element>(current_ancestor.ptr()) && current_ancestor->is_editable()
-        && !values_are_loosely_equivalent(command, effective_command_value(current_ancestor, command), new_value)) {
+        && !values_are_loosely_equivalent(command, optional_utf16_view(effective_command_value(current_ancestor, command)), new_value)) {
         ancestor_list.append(*current_ancestor);
         current_ancestor = current_ancestor->parent();
     }
@@ -3206,7 +3216,7 @@ void push_down_values(FlyString const& command, GC::Ref<DOM::Node> node, Optiona
     // 10. If the effective command value of command is not loosely equivalent to new value on the parent of the last
     //     member of ancestor list, and new value is not null, abort this algorithm.
     if (new_value.has_value() && ancestor_list.last()->parent()
-        && !values_are_loosely_equivalent(command, effective_command_value(ancestor_list.last()->parent(), command), new_value))
+        && !values_are_loosely_equivalent(command, optional_utf16_view(effective_command_value(ancestor_list.last()->parent(), command)), new_value))
         return;
 
     // 11. While ancestor list is not empty:
@@ -3240,7 +3250,7 @@ void push_down_values(FlyString const& command, GC::Ref<DOM::Node> node, Optiona
             //    propagated value, continue with the next child.
             if (is<DOM::Element>(*child)) {
                 auto child_command_value = specified_command_value(static_cast<DOM::Element&>(*child), command);
-                if (child_command_value.has_value() && child_command_value != propagated_value)
+                if (child_command_value.has_value() && !values_are_equivalent(command, child_command_value->utf16_view(), optional_utf16_view(propagated_value)))
                     continue;
             }
 
@@ -3249,7 +3259,7 @@ void push_down_values(FlyString const& command, GC::Ref<DOM::Node> node, Optiona
                 continue;
 
             // 4. Force the value of child, with command as in this algorithm and new value equal to propagated value.
-            force_the_value(*child, command, propagated_value);
+            force_the_value(*child, command, optional_utf16_view(propagated_value));
         }
     }
 }
@@ -3263,7 +3273,7 @@ Vector<RecordedOverride> record_current_overrides(DOM::Document const& document)
     // 2. If there is a value override for "createLink", add ("createLink", value override for "createLink") to
     //    overrides.
     if (auto override = document.command_value_override(CommandNames::createLink); override.has_value())
-        overrides.empend(CommandNames::createLink, override.release_value());
+        overrides.empend(CommandNames::createLink, Utf16String::from_utf16(override.release_value()));
 
     // 3. For each command in the list "bold", "italic", "strikethrough", "subscript", "superscript", "underline", in
     //    order: if there is a state override for command, add (command, command's state override) to overrides.
@@ -3278,7 +3288,7 @@ Vector<RecordedOverride> record_current_overrides(DOM::Document const& document)
     for (auto const& command : { CommandNames::fontName, CommandNames::fontSize, CommandNames::foreColor,
              CommandNames::hiliteColor }) {
         if (auto override = document.command_value_override(command); override.has_value())
-            overrides.empend(command, override.release_value());
+            overrides.empend(command, Utf16String::from_utf16(override.release_value()));
     }
 
     // 5. Return overrides.
@@ -3450,7 +3460,7 @@ void remove_node_preserving_its_descendants(GC::Ref<DOM::Node> node)
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#reorder-modifiable-descendants
-void reorder_modifiable_descendants(GC::Ref<DOM::Node> node, FlyString const& command, Optional<Utf16String const&> new_value)
+void reorder_modifiable_descendants(GC::Ref<DOM::Node> node, Utf16FlyString const& command, Optional<Utf16View> new_value)
 {
     // 1. Let candidate equal node.
     GC::Ptr<DOM::Node> candidate = node;
@@ -3461,7 +3471,7 @@ void reorder_modifiable_descendants(GC::Ref<DOM::Node> node, FlyString const& co
     while (is_modifiable_element(*candidate) && candidate->child_count() == 1
         && is_modifiable_element(*candidate->first_child())
         && (!is_simple_modifiable_element(*candidate)
-            || specified_command_value(static_cast<DOM::Element&>(*candidate), command) != new_value)) {
+            || !values_are_equivalent(command, optional_utf16_view(specified_command_value(static_cast<DOM::Element&>(*candidate), command)), new_value))) {
         candidate = candidate->first_child();
     }
 
@@ -3469,8 +3479,8 @@ void reorder_modifiable_descendants(GC::Ref<DOM::Node> node, FlyString const& co
     //    to new value, or its effective command value is not loosely equivalent to new value, abort these steps.
     if (candidate == node
         || !is_simple_modifiable_element(*candidate)
-        || specified_command_value(static_cast<DOM::Element&>(*candidate), command) != new_value
-        || !values_are_loosely_equivalent(command, effective_command_value(candidate, command), new_value))
+        || !values_are_equivalent(command, optional_utf16_view(specified_command_value(static_cast<DOM::Element&>(*candidate), command)), new_value)
+        || !values_are_loosely_equivalent(command, optional_utf16_view(effective_command_value(candidate, command)), new_value))
         return;
 
     // 4. While candidate has children, insert the first child of candidate into candidate's parent immediately before
@@ -3533,8 +3543,8 @@ void restore_states_and_values(DOM::Document& document, Vector<RecordedOverride>
                     || (!value_override.has_value()
                         && !values_are_loosely_equivalent(
                             CommandNames::fontSize,
-                            effective_command_value(node, CommandNames::fontSize),
-                            override.value.get<Utf16String>())))) {
+                            optional_utf16_view(effective_command_value(node, CommandNames::fontSize)),
+                            override.value.get<Utf16String>().utf16_view())))) {
                 // 1. Convert override to an integer number of pixels, and set override to the legacy font size for the
                 //    result.
                 auto override_pixel_size = font_size_to_pixel_size(override.value.get<Utf16String>());
@@ -3595,9 +3605,9 @@ void restore_the_values_of_nodes(Vector<RecordedNodeValue> const& values)
         // 5. Otherwise, if ancestor is an Element and its specified command value for command is not equivalent to
         //    value, or if ancestor is not an Element and value is not null, force the value of command to value on
         //    node.
-        else if ((is<DOM::Element>(ancestor.ptr()) && specified_command_value(static_cast<DOM::Element&>(*ancestor), command) != value)
+        else if ((is<DOM::Element>(ancestor.ptr()) && !values_are_equivalent(command, optional_utf16_view(specified_command_value(static_cast<DOM::Element&>(*ancestor), command)), optional_utf16_view(value)))
             || (!is<DOM::Element>(ancestor.ptr()) && value.has_value())) {
-            force_the_value(node, command, value);
+            force_the_value(node, command, optional_utf16_view(value));
         }
     }
 }
@@ -3718,7 +3728,7 @@ SelectionsListState selections_list_state(DOM::Document const& document)
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#set-the-selection's-value
-void set_the_selections_value(DOM::Document& document, FlyString const& command, Optional<Utf16String const&> new_value)
+void set_the_selections_value(DOM::Document& document, Utf16FlyString const& command, Optional<Utf16View> new_value)
 {
     // 1. Let command be the current command.
 
@@ -3827,7 +3837,7 @@ GC::Ref<DOM::Element> set_the_tag_name(GC::Ref<DOM::Element> element, Utf16FlySt
     element->parent()->insert_before(replacement_element, element);
 
     // 5. Copy all attributes of element to replacement element, in order.
-    element->for_each_attribute([&replacement_element](Utf16FlyString const& name, Utf16String const& value) {
+    element->for_each_attribute([&replacement_element](Utf16FlyString const& name, Utf16View value) {
         replacement_element->set_attribute_value(name, value);
     });
 
@@ -3843,7 +3853,7 @@ GC::Ref<DOM::Element> set_the_tag_name(GC::Ref<DOM::Element> element, Utf16FlySt
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#specified-command-value
-Optional<Utf16String> specified_command_value(GC::Ref<DOM::Element> element, FlyString const& command)
+Optional<Utf16String> specified_command_value(GC::Ref<DOM::Element> element, Utf16FlyString const& command)
 {
     // 1. If command is "backColor" or "hiliteColor" and the Element's display property does not have resolved value
     //    "inline", return null.
@@ -3927,7 +3937,7 @@ Optional<Utf16String> specified_command_value(GC::Ref<DOM::Element> element, Fly
     if (auto inline_style = element->inline_style()) {
         auto value = inline_style->get_property_value(string_from_property_id(property.value()));
         if (!value.is_empty())
-            return Utf16String::from_utf8_without_validation(value);
+            return value;
     }
 
     // 11. If element is a font element that has an attribute whose effect is to create a presentational hint for
@@ -3938,7 +3948,7 @@ Optional<Utf16String> specified_command_value(GC::Ref<DOM::Element> element, Fly
         Vector<CSS::StyleProperty> presentational_hint_properties;
         font_element.apply_presentational_hints(presentational_hint_properties);
         if (auto hint = presentational_hint_properties.first_matching([&](auto& it) { return it.property_id == property.value(); }); hint.has_value())
-            return Utf16String::from_utf8_without_validation(hint->value->to_string(CSS::SerializationMode::Normal));
+            return hint->value->to_utf16_string(CSS::SerializationMode::Normal);
     }
 
     // 12. If element is in the following list, and property is equal to the CSS property name listed for it, return the
@@ -4075,7 +4085,7 @@ void split_the_parent_of_nodes(Vector<GC::Ref<DOM::Node>> const& node_list)
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#standard-inline-value-command
-bool standard_inline_indeterminate(DOM::Document const& document, FlyString const& command)
+bool standard_inline_indeterminate(DOM::Document const& document, Utf16FlyString const& command)
 {
     // If a command is a standard inline value command, it is indeterminate if among formattable nodes that are
     // effectively contained in the active range, there are two that have distinct effective command values.
@@ -4102,7 +4112,7 @@ bool standard_inline_indeterminate(DOM::Document const& document, FlyString cons
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#standard-inline-value-command
-Utf16String standard_inline_value(DOM::Document const& document, FlyString const& command)
+Utf16String standard_inline_value(DOM::Document const& document, Utf16FlyString const& command)
 {
     // Its value is the effective command value of the first formattable node that is effectively contained in the
     // active range;
@@ -4410,7 +4420,7 @@ void toggle_lists(DOM::Document& document, Utf16FlyString const& tag_name)
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#equivalent-values
-bool values_are_equivalent(FlyString const& command, Optional<Utf16String const&> a, Optional<Utf16String const&> b)
+bool values_are_equivalent(Utf16FlyString const& command, Optional<Utf16View> a, Optional<Utf16View> b)
 {
     // Two quantities are equivalent values for a command if either both are null,
     if (!a.has_value() && !b.has_value())
@@ -4449,7 +4459,7 @@ bool values_are_equivalent(FlyString const& command, Optional<Utf16String const&
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#loosely-equivalent-values
-bool values_are_loosely_equivalent(FlyString const& command, Optional<Utf16String const&> a, Optional<Utf16String const&> b)
+bool values_are_loosely_equivalent(Utf16FlyString const& command, Optional<Utf16View> a, Optional<Utf16View> b)
 {
     // Two quantities are loosely equivalent values for a command if either they are equivalent values for the command,
     if (values_are_equivalent(command, a, b))
@@ -4678,7 +4688,7 @@ GC::Ptr<DOM::Node> first_formattable_node_effectively_contained(GC::Ptr<DOM::Ran
 CSSPixels font_size_to_pixel_size(Utf16View const& font_size)
 {
     // If the font size ends in 'px', interpret the preceding as a number and return it.
-    if (font_size.ends_with("px"sv)) {
+    if (font_size.ends_with(u"px"sv)) {
         auto optional_number = font_size.substring_view(0, font_size.length_in_code_units() - 2).to_number<float>();
         if (optional_number.has_value())
             return CSSPixels::nearest_value_for(optional_number.value());
@@ -4819,7 +4829,7 @@ RefPtr<CSS::StyleValue const> resolved_value(GC::Ref<DOM::Node> node, CSS::Prope
     return optional_style_property.value().value;
 }
 
-void take_the_action_for_command(DOM::Document& document, FlyString const& command, Utf16String const& value)
+void take_the_action_for_command(DOM::Document& document, Utf16FlyString const& command, Utf16View value)
 {
     auto const& command_definition = find_command_definition(command);
     command_definition->action(document, value);

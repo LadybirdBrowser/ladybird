@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<form id="form">
+    <utf16-face name="field"></utf16-face>
+</form>
+<script>
+    test(() => {
+        customElements.define("utf16-face", class extends HTMLElement {
+            static formAssociated = true;
+
+            constructor()
+            {
+                super();
+                this.attachInternals().setFormValue("café 🍕");
+            }
+        });
+
+        const formData = new FormData(document.getElementById("form"));
+        println(formData.get("field"));
+    });
+</script>

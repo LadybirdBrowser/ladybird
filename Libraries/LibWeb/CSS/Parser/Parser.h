@@ -308,7 +308,7 @@ private:
         No,
         Yes,
     };
-    Optional<FlyString> parse_layer_name(TokenStream<ComponentValue>&, AllowBlankLayerName);
+    Optional<Utf16FlyString> parse_layer_name(TokenStream<ComponentValue>&, AllowBlankLayerName);
     Optional<Vector<Utf16FlyString>> parse_comma_separated_family_name_list(TokenStream<ComponentValue>&);
 
     struct FunctionPrelude {
@@ -419,8 +419,8 @@ private:
     };
     Optional<PropertyAndValue> parse_css_value_for_properties(ReadonlySpan<PropertyID>, TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_builtin_value(TokenStream<ComponentValue>&);
-    Optional<Utf16FlyString> parse_custom_ident(TokenStream<ComponentValue>&, ReadonlySpan<StringView> blacklist);
-    RefPtr<CustomIdentStyleValue const> parse_custom_ident_value(TokenStream<ComponentValue>&, ReadonlySpan<StringView> blacklist = {});
+    Optional<Utf16FlyString> parse_custom_ident(TokenStream<ComponentValue>&, ReadonlySpan<Utf16View> blacklist);
+    RefPtr<CustomIdentStyleValue const> parse_custom_ident_value(TokenStream<ComponentValue>&, ReadonlySpan<Utf16View> blacklist = {});
     Optional<Utf16FlyString> parse_dashed_ident(TokenStream<ComponentValue>&);
     RefPtr<CustomIdentStyleValue const> parse_dashed_ident_value(TokenStream<ComponentValue>&);
     RefPtr<RandomValueSharingStyleValue const> parse_random_value_sharing(TokenStream<ComponentValue>&);
@@ -440,10 +440,10 @@ private:
         Array<RefPtr<StyleValue const>, 4> components;
         RefPtr<StyleValue const> origin_color;
     };
-    Optional<LabOrLchColorValue> parse_lab_like_color_value(TokenStream<ComponentValue>&, StringView);
+    Optional<LabOrLchColorValue> parse_lab_like_color_value(TokenStream<ComponentValue>&, Utf16View);
     RefPtr<StyleValue const> parse_lab_color_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_oklab_color_value(TokenStream<ComponentValue>&);
-    Optional<LabOrLchColorValue> parse_lch_like_color_value(TokenStream<ComponentValue>&, StringView);
+    Optional<LabOrLchColorValue> parse_lch_like_color_value(TokenStream<ComponentValue>&, Utf16View);
     RefPtr<StyleValue const> parse_lch_color_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_oklch_color_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_color_function(TokenStream<ComponentValue>&);
@@ -718,28 +718,23 @@ namespace Web {
 
 GC::Ref<CSS::CSSStyleSheet> parse_css_stylesheet(CSS::Parser::ParsingParams const&, StringView, Optional<::URL::URL> location = {}, GC::Ptr<CSS::MediaList> media_list = {});
 GC::Ref<CSS::CSSStyleSheet> parse_css_stylesheet(CSS::Parser::ParsingParams const&, Utf16View, Optional<::URL::URL> location = {}, GC::Ptr<CSS::MediaList> media_list = {});
-CSS::Parser::Parser::PropertiesAndCustomProperties parse_css_property_declaration_block(CSS::Parser::ParsingParams const&, StringView);
 CSS::Parser::Parser::PropertiesAndCustomProperties parse_css_property_declaration_block(CSS::Parser::ParsingParams const&, Utf16View);
-Vector<CSS::Descriptor> parse_css_descriptor_declaration_block(CSS::Parser::ParsingParams const&, CSS::AtRuleID, StringView);
+Vector<CSS::Descriptor> parse_css_descriptor_declaration_block(CSS::Parser::ParsingParams const&, CSS::AtRuleID, Utf16View);
 RefPtr<CSS::StyleValue const> parse_css_value(CSS::Parser::ParsingParams const&, StringView, CSS::PropertyID);
 RefPtr<CSS::StyleValue const> parse_css_value(CSS::Parser::ParsingParams const&, Utf16View, CSS::PropertyID);
-RefPtr<CSS::StyleValue const> parse_css_type(CSS::Parser::ParsingParams const&, StringView, CSS::ValueType);
 RefPtr<CSS::StyleValue const> parse_css_type(CSS::Parser::ParsingParams const&, Utf16View, CSS::ValueType);
-RefPtr<CSS::StyleValue const> parse_css_descriptor(CSS::Parser::ParsingParams const&, CSS::AtRuleID, CSS::DescriptorNameAndID const&, StringView);
-Optional<CSS::SelectorList> parse_selector(CSS::Parser::ParsingParams const&, StringView);
-Optional<CSS::SelectorList> parse_selector_for_nested_style_rule(CSS::Parser::ParsingParams const&, StringView, CSS::StyleNestingParent);
-Optional<CSS::PageSelectorList> parse_page_selector_list(CSS::Parser::ParsingParams const&, StringView);
-Optional<CSS::Selector::PseudoElementSelector> parse_pseudo_element_selector(CSS::Parser::ParsingParams const&, StringView);
-CSS::CSSRule* parse_css_rule(CSS::Parser::ParsingParams const&, StringView, bool nested = false);
-RefPtr<CSS::MediaQuery> parse_media_query(CSS::Parser::ParsingParams const&, StringView);
+RefPtr<CSS::StyleValue const> parse_css_descriptor(CSS::Parser::ParsingParams const&, CSS::AtRuleID, CSS::DescriptorNameAndID const&, Utf16View);
+Optional<CSS::SelectorList> parse_selector(CSS::Parser::ParsingParams const&, Utf16View);
+Optional<CSS::SelectorList> parse_selector_for_nested_style_rule(CSS::Parser::ParsingParams const&, Utf16View, CSS::StyleNestingParent);
+Optional<CSS::PageSelectorList> parse_page_selector_list(CSS::Parser::ParsingParams const&, Utf16View);
+Optional<CSS::Selector::PseudoElementSelector> parse_pseudo_element_selector(CSS::Parser::ParsingParams const&, Utf16View);
+CSS::CSSRule* parse_css_rule(CSS::Parser::ParsingParams const&, Utf16View, bool nested = false);
 RefPtr<CSS::MediaQuery> parse_media_query(CSS::Parser::ParsingParams const&, Utf16View);
-Vector<NonnullRefPtr<CSS::MediaQuery>> parse_media_query_list(CSS::Parser::ParsingParams const&, StringView);
 Vector<NonnullRefPtr<CSS::MediaQuery>> parse_media_query_list(CSS::Parser::ParsingParams const&, Utf16View);
-RefPtr<CSS::Supports> parse_css_supports(CSS::Parser::ParsingParams const&, StringView);
-Vector<CSS::Parser::ComponentValue> parse_component_values_list(CSS::Parser::ParsingParams const&, StringView);
+RefPtr<CSS::Supports> parse_css_supports(CSS::Parser::ParsingParams const&, Utf16View);
 Vector<CSS::Parser::ComponentValue> parse_component_values_list(CSS::Parser::ParsingParams const&, Utf16View);
 GC::Ref<JS::Realm> internal_css_realm();
-ErrorOr<String> css_decode_bytes(Optional<StringView> const& environment_encoding, Optional<String> mime_type_charset, ReadonlyBytes encoded_string);
-bool is_valid_custom_ident(Utf16View, ReadonlySpan<StringView> const& blacklist);
+ErrorOr<Utf16String> css_decode_bytes(Optional<StringView> const& environment_encoding, Optional<StringView> mime_type_charset, ReadonlyBytes encoded_string);
+bool is_valid_custom_ident(Utf16View, ReadonlySpan<Utf16View> const& blacklist);
 
 }

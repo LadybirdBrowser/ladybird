@@ -157,7 +157,7 @@ ErrorOr<Optional<URL::URL>> Response::location_url(Optional<String> const& reque
         return OptionalNone {};
 
     // 3. If location is a header value, then set location to the result of parsing location with response’s URL.
-    auto location = DOMURL::parse(location_values->first(), url());
+    auto location = DOMURL::parse_from_byte_string(location_values->first(), url());
     if (!location.has_value())
         return Error::from_string_literal("Invalid 'Location' header URL");
 

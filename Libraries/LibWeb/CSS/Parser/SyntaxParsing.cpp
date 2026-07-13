@@ -104,7 +104,7 @@ RefPtr<SyntaxNode> parse_syntax_component(TokenStream<ComponentValue>& tokens, L
         auto& ident_token = tokens.consume_a_token();
         auto& end_token = tokens.consume_a_token();
 
-        if (ident_token.is_ident("transform-list"sv) && end_token.is_delim('>')) {
+        if (ident_token.is_ident("transform-list"_utf16) && end_token.is_delim('>')) {
             transform_list_transaction.commit();
             return TypeSyntaxNode::create("transform-list"_utf16_fly_string);
         }
@@ -271,7 +271,7 @@ RefPtr<StyleValue const> Parser::parse_according_to_syntax_node(TokenStream<Comp
         }
 
         ErrorReporter::the().report(InvalidValueError {
-            .value_type = MUST(String::formatted("<{}>", type_name)),
+            .value_type = Utf16String::formatted("<{}>", type_name),
             .value_string = tokens.dump_string(),
             .description = "Unknown type in <syntax>."_string,
         });

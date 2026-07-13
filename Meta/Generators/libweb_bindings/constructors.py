@@ -99,7 +99,7 @@ def write_constructor_steps(
 
         // 2. Set prototype to the interface prototype object for interface in targetRealm.
         VERIFY(target_realm);
-        prototype = &Bindings::ensure_web_prototype<{interface.prototype_class}>(*target_realm, "{interface.namespaced_name}"_fly_string);
+        prototype = &Bindings::ensure_web_prototype<{interface.prototype_class}>(*target_realm, "{interface.namespaced_name}"_utf16_fly_string);
     }}
 
 """
@@ -189,7 +189,7 @@ def write_html_constructor_steps(
     // 8. Otherwise (i.e., if definition is for a customized built-in element):
     else {{
         // 1. Let valid local names be the list of local names for elements defined in this specification or in other applicable specifications that use the active function object as their element interface.
-        static auto const& valid_local_names = *new auto(MUST(DOM::valid_local_names_for_given_html_element_interface("{interface.name}"sv)));
+        static auto const& valid_local_names = *new auto(MUST(DOM::valid_local_names_for_given_html_element_interface(Utf16View {{ "{interface.name}"sv }})));
 
         // 2. If valid local names does not contain definition's local name, then throw a TypeError.
         if (!valid_local_names.contains_slow(definition->local_name()))
@@ -209,7 +209,7 @@ def write_html_constructor_steps(
         auto element = realm.create<{fully_qualified_name_for_interface(interface)}>(window.associated_document(), DOM::QualifiedName {{ definition->local_name(), {{}}, Namespace::HTML }});
 
         // https://webidl.spec.whatwg.org/#internally-create-a-new-object-implementing-the-interface
-        TRY(WebIDL::set_prototype_from_new_target<{interface.prototype_class}>(vm, new_target, "{interface.namespaced_name}"_fly_string, *element));
+        TRY(WebIDL::set_prototype_from_new_target<{interface.prototype_class}>(vm, new_target, "{interface.namespaced_name}"_utf16_fly_string, *element));
 
         // 6. Set element's custom element registry to registry.
         element->set_custom_element_registry(registry);
@@ -233,7 +233,7 @@ def write_html_constructor_steps(
 
         // 2. Set prototype to the interface prototype object of realm whose interface is the same as the interface of the active function object.
         VERIFY(function_realm);
-        prototype = &Bindings::ensure_web_prototype<{interface.prototype_class}>(*function_realm, "{interface.namespaced_name}"_fly_string);
+        prototype = &Bindings::ensure_web_prototype<{interface.prototype_class}>(*function_realm, "{interface.namespaced_name}"_utf16_fly_string);
     }}
 
     VERIFY(prototype.is_object());

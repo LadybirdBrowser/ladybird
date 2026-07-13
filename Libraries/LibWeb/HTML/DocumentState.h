@@ -64,8 +64,8 @@ public:
     [[nodiscard]] Vector<NestedHistory> const& nested_histories() const { return m_nested_histories; }
     [[nodiscard]] Vector<NestedHistory>& nested_histories() { return m_nested_histories; }
 
-    [[nodiscard]] Variant<Empty, String, POSTResource> resource() const { return m_resource; }
-    void set_resource(Variant<Empty, String, POSTResource> resource) { m_resource = move(resource); }
+    [[nodiscard]] DocumentResource resource() const { return m_resource; }
+    void set_resource(DocumentResource resource) { m_resource = move(resource); }
 
     [[nodiscard]] bool reload_pending() const { return m_reload_pending; }
     void set_reload_pending(bool reload_pending) { m_reload_pending = reload_pending; }
@@ -73,7 +73,7 @@ public:
     [[nodiscard]] bool ever_populated() const { return m_ever_populated; }
     void set_ever_populated(bool ever_populated) { m_ever_populated = ever_populated; }
 
-    [[nodiscard]] Utf16String navigable_target_name() const { return m_navigable_target_name; }
+    [[nodiscard]] Utf16String const& navigable_target_name() const { return m_navigable_target_name; }
     void set_navigable_target_name(Utf16String navigable_target_name) { m_navigable_target_name = move(navigable_target_name); }
 
 private:
@@ -110,7 +110,7 @@ private:
     Vector<NestedHistory> m_nested_histories;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#document-state-resource
-    Variant<Empty, String, POSTResource> m_resource {};
+    DocumentResource m_resource {};
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#document-state-reload-pending
     bool m_reload_pending { false };

@@ -11,7 +11,6 @@
 #include <AK/Optional.h>
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
-#include <AK/String.h>
 #include <AK/Types.h>
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
@@ -55,7 +54,7 @@ struct SessionHistoryDocumentStateDescriptor {
     Optional<URL::Origin> initiator_origin;
     Optional<URL::Origin> origin;
     Optional<URL::URL> about_base_url;
-    Variant<Empty, String, POSTResource> resource;
+    DocumentResource resource;
     bool reload_pending { false };
     bool ever_populated { false };
     bool is_provisional { false };
@@ -78,8 +77,8 @@ struct SessionHistoryEntryDescriptor {
     SessionHistoryDocumentStateDescriptor document_state;
     StorageSerializationRecord classic_history_api_state;
     StorageSerializationRecord navigation_api_state;
-    String navigation_api_key;
-    String navigation_api_id;
+    Utf16String navigation_api_key;
+    Utf16String navigation_api_id;
     ScrollRestorationMode scroll_restoration_mode { ScrollRestorationMode::Auto };
     SessionHistoryEntryScrollPositionData scroll_position_data;
 };
@@ -123,11 +122,11 @@ public:
     [[nodiscard]] StorageSerializationRecord const& navigation_api_state() const { return m_navigation_api_state; }
     void set_navigation_api_state(StorageSerializationRecord navigation_api_state) { m_navigation_api_state = move(navigation_api_state); }
 
-    [[nodiscard]] String const& navigation_api_key() const { return m_navigation_api_key; }
-    void set_navigation_api_key(String navigation_api_key) { m_navigation_api_key = move(navigation_api_key); }
+    [[nodiscard]] Utf16String const& navigation_api_key() const { return m_navigation_api_key; }
+    void set_navigation_api_key(Utf16String navigation_api_key) { m_navigation_api_key = move(navigation_api_key); }
 
-    [[nodiscard]] String const& navigation_api_id() const { return m_navigation_api_id; }
-    void set_navigation_api_id(String navigation_api_id) { m_navigation_api_id = move(navigation_api_id); }
+    [[nodiscard]] Utf16String const& navigation_api_id() const { return m_navigation_api_id; }
+    void set_navigation_api_id(Utf16String navigation_api_id) { m_navigation_api_id = move(navigation_api_id); }
 
     [[nodiscard]] ScrollRestorationMode scroll_restoration_mode() const { return m_scroll_restoration_mode; }
     void set_scroll_restoration_mode(ScrollRestorationMode scroll_restoration_mode) { m_scroll_restoration_mode = scroll_restoration_mode; }
@@ -157,11 +156,11 @@ private:
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#she-navigation-api-key
     // navigation API key, which is a string, initially set to the result of generating a random UUID.
-    String m_navigation_api_key;
+    Utf16String m_navigation_api_key;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#she-navigation-api-id
     // navigation API ID, which is a string, initially set to the result of generating a random UUID.
-    String m_navigation_api_id;
+    Utf16String m_navigation_api_id;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#she-scroll-restoration-mode
     // scroll restoration mode, a scroll restoration mode, initially "auto"

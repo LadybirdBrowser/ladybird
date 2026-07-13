@@ -41,15 +41,15 @@ bool HTMLHeadingElement::is_presentational_hint(Utf16FlyString const& name) cons
 void HTMLHeadingElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
 {
     HTMLElement::apply_presentational_hints(properties);
-    for_each_attribute([&](auto& name, auto& value) {
+    for_each_attribute([&](Utf16FlyString const& name, Utf16View value) {
         if (name == HTML::AttributeNames::align) {
-            if (value == "left"sv)
+            if (value == u"left"sv)
                 properties.append({ .property_id = CSS::PropertyID::TextAlign, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Left) });
-            else if (value == "right"sv)
+            else if (value == u"right"sv)
                 properties.append({ .property_id = CSS::PropertyID::TextAlign, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Right) });
-            else if (value == "center"sv)
+            else if (value == u"center"sv)
                 properties.append({ .property_id = CSS::PropertyID::TextAlign, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Center) });
-            else if (value == "justify"sv)
+            else if (value == u"justify"sv)
                 properties.append({ .property_id = CSS::PropertyID::TextAlign, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Justify) });
         }
     });

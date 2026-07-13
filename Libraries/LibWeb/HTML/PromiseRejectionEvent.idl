@@ -1,7 +1,7 @@
 // https://html.spec.whatwg.org/multipage/webappapis.html#promiserejectionevent
 [Exposed=*]
 interface PromiseRejectionEvent : Event {
-    constructor(DOMString type, PromiseRejectionEventInit eventInitDict);
+    constructor([Utf16FlyString] Utf16DOMString type, PromiseRejectionEventInit eventInitDict);
 
     readonly attribute object promise;
     readonly attribute any reason;

@@ -62,7 +62,7 @@ size_t TextTrackList::length() const
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-texttracklist-gettrackbyid
-GC::Ptr<TextTrack> TextTrackList::get_track_by_id(StringView id) const
+GC::Ptr<TextTrack> TextTrackList::get_track_by_id(Utf16View id) const
 {
     // The getTrackById(id) method must return the first TextTrack in the TextTrackList object whose id
     // IDL attribute would return a value equal to the value of the id argument.

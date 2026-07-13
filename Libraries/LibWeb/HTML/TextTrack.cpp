@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/CharacterTypes.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/EventNames.h>
@@ -56,9 +55,9 @@ Utf16String const& TextTrack::label()
     return m_label;
 }
 
-void TextTrack::set_label(Utf16String label)
+void TextTrack::set_label(Utf16View label)
 {
-    m_label = move(label);
+    m_label = Utf16String::from_utf16(label);
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-texttrack-language
@@ -67,9 +66,9 @@ Utf16String const& TextTrack::language()
     return m_language;
 }
 
-void TextTrack::set_language(Utf16String language)
+void TextTrack::set_language(Utf16View language)
 {
-    m_language = move(language);
+    m_language = Utf16String::from_utf16(language);
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-texttrack-id
@@ -78,9 +77,9 @@ Utf16String const& TextTrack::id()
     return m_id;
 }
 
-void TextTrack::set_id(Utf16String id)
+void TextTrack::set_id(Utf16View id)
 {
-    m_id = move(id);
+    m_id = Utf16String::from_utf16(id);
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-texttrack-mode
@@ -128,36 +127,23 @@ void TextTrack::unregister_observer(Badge<TextTrackObserver>, TextTrackObserver&
     VERIFY(was_removed);
 }
 
-static bool equals_ignoring_ascii_case(Utf16View string, StringView ascii_string)
-{
-    if (string.length_in_code_units() != ascii_string.length())
-        return false;
-
-    for (size_t i = 0; i < string.length_in_code_units(); ++i) {
-        if (AK::to_ascii_lowercase(string.code_unit_at(i)) != AK::to_ascii_lowercase(ascii_string[i]))
-            return false;
-    }
-
-    return true;
-}
-
 Bindings::TextTrackKind text_track_kind_from_string(Utf16View value)
 {
     // https://html.spec.whatwg.org/multipage/media.html#attr-track-kind
 
-    if (value.is_empty() || equals_ignoring_ascii_case(value, "subtitles"sv)) {
+    if (value.is_empty() || value.equals_ignoring_ascii_case(u"subtitles"sv)) {
         return Bindings::TextTrackKind::Subtitles;
     }
-    if (equals_ignoring_ascii_case(value, "captions"sv)) {
+    if (value.equals_ignoring_ascii_case(u"captions"sv)) {
         return Bindings::TextTrackKind::Captions;
     }
-    if (equals_ignoring_ascii_case(value, "descriptions"sv)) {
+    if (value.equals_ignoring_ascii_case(u"descriptions"sv)) {
         return Bindings::TextTrackKind::Descriptions;
     }
-    if (equals_ignoring_ascii_case(value, "chapters"sv)) {
+    if (value.equals_ignoring_ascii_case(u"chapters"sv)) {
         return Bindings::TextTrackKind::Chapters;
     }
-    if (equals_ignoring_ascii_case(value, "metadata"sv)) {
+    if (value.equals_ignoring_ascii_case(u"metadata"sv)) {
         return Bindings::TextTrackKind::Metadata;
     }
 

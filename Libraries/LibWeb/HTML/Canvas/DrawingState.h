@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibWeb/Bindings/CanvasRenderingContext2D.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/HTML/CanvasGradient.h>
@@ -36,13 +37,14 @@ struct FillOrStrokeStyle {
     Optional<Gfx::Color> as_color() const;
     Gfx::Color to_color_but_fixme_should_accept_any_paint_style() const;
 
-    using JsFillOrStrokeStyle = Variant<String, GC::Ref<CanvasGradient>, GC::Ref<CanvasPattern>>;
+    using JsFillOrStrokeStyle = Variant<Utf16String, GC::Ref<CanvasGradient>, GC::Ref<CanvasPattern>>;
 
     JsFillOrStrokeStyle to_js_fill_or_stroke_style() const
     {
         return m_fill_or_stroke_style.visit(
             [&](Gfx::Color color) -> JsFillOrStrokeStyle {
-                return color.to_string(Gfx::Color::HTMLCompatibleSerialization::Yes);
+                auto serialized_color = color.to_string(Gfx::Color::HTMLCompatibleSerialization::Yes);
+                return Utf16String::from_ascii_without_validation(serialized_color.bytes());
             },
             [&](auto handle) -> JsFillOrStrokeStyle {
                 return handle;
@@ -69,7 +71,7 @@ struct DrawingState {
     float shadow_blur { 0.0f };
     Gfx::Color shadow_color { Gfx::Color::Transparent };
     Optional<Gfx::Filter> filter;
-    Optional<String> filter_string;
+    Optional<Utf16String> filter_string;
     float line_width { 1 };
     Bindings::CanvasLineCap line_cap { Bindings::CanvasLineCap::Butt };
     Bindings::CanvasLineJoin line_join { Bindings::CanvasLineJoin::Miter };

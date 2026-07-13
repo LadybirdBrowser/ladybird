@@ -44,7 +44,7 @@ void MediaQueryList::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-mediaquerylist-media
-String MediaQueryList::media() const
+Utf16String MediaQueryList::media() const
 {
     return serialize_a_media_query_list(m_media);
 }

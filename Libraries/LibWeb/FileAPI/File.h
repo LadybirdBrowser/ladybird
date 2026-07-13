@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibWeb/Bindings/File.h>
 #include <LibWeb/FileAPI/Blob.h>
 
@@ -17,13 +18,13 @@ class WEB_API File : public Blob {
 
 public:
     static GC::Ref<File> create(JS::Realm& realm);
-    static WebIDL::ExceptionOr<GC::Ref<File>> create(JS::Realm&, BlobParts const& file_bits, String const& file_name, Optional<Bindings::FilePropertyBag> const& options = {});
-    static WebIDL::ExceptionOr<GC::Ref<File>> construct_impl(JS::Realm&, BlobParts const& file_bits, String const& file_name, Optional<Bindings::FilePropertyBag> const& options = {});
+    static WebIDL::ExceptionOr<GC::Ref<File>> create(JS::Realm&, BlobParts const& file_bits, Utf16String file_name, Optional<Bindings::FilePropertyBag> const& options = {});
+    static WebIDL::ExceptionOr<GC::Ref<File>> construct_impl(JS::Realm&, BlobParts const& file_bits, Utf16String file_name, Optional<Bindings::FilePropertyBag> const& options = {});
 
     virtual ~File() override;
 
     // https://w3c.github.io/FileAPI/#dfn-name
-    String const& name() const { return m_name; }
+    Utf16String const& name() const { return m_name; }
     // https://w3c.github.io/FileAPI/#dfn-lastModified
     i64 last_modified() const { return m_last_modified; }
 
@@ -31,12 +32,12 @@ public:
     virtual WebIDL::ExceptionOr<void> deserialization_steps(HTML::StructuredSerializeReader&, HTML::DeserializationMemory&) override;
 
 private:
-    File(JS::Realm&, ByteBuffer, String file_name, String type, i64 last_modified);
+    File(JS::Realm&, ByteBuffer, Utf16String file_name, Utf16String type, i64 last_modified);
     explicit File(JS::Realm&);
 
     virtual void initialize(JS::Realm&) override;
 
-    String m_name;
+    Utf16String m_name;
     i64 m_last_modified { 0 };
 };
 

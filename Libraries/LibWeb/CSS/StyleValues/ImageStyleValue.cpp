@@ -259,14 +259,14 @@ ValueComparingNonnullRefPtr<StyleValue const> ImageStyleValue::absolutized(Compu
 
     if (base_url.has_value()) {
         if (m_should_absolutize_url_for_computed_value) {
-            if (DOMURL::parse(m_url.url()).has_value()) {
+            if (DOMURL::parse_from_byte_string(m_url.url().bytes_as_string_view()).has_value()) {
                 auto absolutized_image = adopt_ref(*new (nothrow) ImageStyleValue(m_url, *base_url));
                 absolutized_image->m_parent_style_sheet_origin_clean = m_parent_style_sheet_origin_clean;
                 absolutized_image->m_should_absolutize_url_for_computed_value = true;
                 return absolutized_image;
             }
 
-            if (auto resolved_url = DOMURL::parse(m_url.url(), *base_url); resolved_url.has_value()) {
+            if (auto resolved_url = DOMURL::parse_from_byte_string(m_url.url().bytes_as_string_view(), *base_url); resolved_url.has_value()) {
                 auto absolutized_image = adopt_ref(*new (nothrow) ImageStyleValue(URL { resolved_url->to_string(), m_url.type(), m_url.request_url_modifiers() }, *base_url));
                 absolutized_image->m_parent_style_sheet_origin_clean = m_parent_style_sheet_origin_clean;
                 absolutized_image->m_should_absolutize_url_for_computed_value = true;
@@ -352,7 +352,7 @@ Optional<::URL::URL> ImageStyleValue::resolved_url(DOM::Document const& document
     if (m_url.url().is_empty())
         return {};
 
-    return DOMURL::parse(m_url.url(), style_resource_base_url(document));
+    return DOMURL::parse_from_byte_string(m_url.url().bytes_as_string_view(), style_resource_base_url(document));
 }
 
 ::URL::URL ImageStyleValue::style_resource_base_url(DOM::Document const& document) const

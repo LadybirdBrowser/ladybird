@@ -1,7 +1,7 @@
 // https://html.spec.whatwg.org/multipage/workers.html#sharedworkerglobalscope
 [Global=(Worker,SharedWorker),Exposed=SharedWorker]
 interface SharedWorkerGlobalScope : WorkerGlobalScope {
-    [Replaceable] readonly attribute DOMString name;
+    [Replaceable] readonly attribute Utf16DOMString name;
 
     undefined close();
 

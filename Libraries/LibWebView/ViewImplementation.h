@@ -88,7 +88,7 @@ public:
 
     String const& handle() const { return m_client_state.client_handle; }
 
-    void create_new_process_for_cross_site_navigation(URL::URL const&, Variant<Empty, String, Web::HTML::POSTResource>, Web::Bindings::NavigationHistoryBehavior);
+    void create_new_process_for_cross_site_navigation(URL::URL const&, Web::HTML::DocumentResource, Web::Bindings::NavigationHistoryBehavior);
 
     void server_did_paint(Badge<WebContentClient>, i32 bitmap_id, Gfx::IntSize size, Gfx::IntRect damage_rect);
 
@@ -159,7 +159,7 @@ public:
     Optional<DictionaryLookup> selected_text_for_dictionary_lookup();
     bool look_up_selected_text_at(Gfx::IntPoint widget_position);
     void select_all();
-    void find_in_page(String const& query, CaseSensitivity = CaseSensitivity::CaseInsensitive);
+    void find_in_page(Utf16String const& query, CaseSensitivity = CaseSensitivity::CaseInsensitive);
     void find_in_page_next_match();
     void find_in_page_previous_match();
 
@@ -167,8 +167,8 @@ public:
 
     void inspect_dom_tree();
     void inspect_storage(Web::StorageAPI::StorageEndpointType, u64 request_id);
-    Optional<StorageSetResult> set_session_storage_item(String const& key, String const& value);
-    Optional<String> remove_session_storage_item(String const& key);
+    Optional<StorageSetResult> set_session_storage_item(Utf16String const& key, Utf16String const& value);
+    Optional<Utf16String> remove_session_storage_item(Utf16String const& key);
     bool clear_session_storage();
     void inspect_accessibility_tree();
     void get_hovered_node_id();
@@ -228,7 +228,7 @@ public:
 
     void alert_closed();
     void confirm_closed(bool accepted);
-    void prompt_closed(Optional<String> const& response);
+    void prompt_closed(Optional<Utf16String> const& response);
     void color_picker_update(Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state);
     void file_picker_closed(Vector<Web::HTML::SelectedFile> selected_files);
     void select_dropdown_closed(Optional<u32> const& selected_item_id);
@@ -325,10 +325,10 @@ public:
     Function<void()> on_stop_tooltip_override;
     Function<void(ByteString const&)> on_enter_tooltip_area;
     Function<void()> on_leave_tooltip_area;
-    Function<void(String const& message)> on_request_alert;
-    Function<void(String const& message)> on_request_confirm;
-    Function<void(String const& message, String const& default_)> on_request_prompt;
-    Function<void(String const& message)> on_request_set_prompt_text;
+    Function<void(Utf16String const& message)> on_request_alert;
+    Function<void(Utf16String const& message)> on_request_confirm;
+    Function<void(Utf16String const& message, Utf16String const& default_)> on_request_prompt;
+    Function<void(Utf16String const& message)> on_request_set_prompt_text;
     Function<void()> on_request_accept_dialog;
     Function<void()> on_request_dismiss_dialog;
     Function<void(JsonObject)> on_received_dom_tree;
@@ -343,7 +343,7 @@ public:
     Function<void(Optional<Web::UniqueNodeID> const& node_id)> on_finished_editing_dom_node;
     Function<void(String)> on_received_dom_node_html;
     Function<void(Vector<Web::CSS::StyleSheetIdentifier>)> on_received_style_sheet_list;
-    Function<void(Web::CSS::StyleSheetIdentifier const&, URL::URL const&, String const&)> on_received_style_sheet_source;
+    Function<void(Web::CSS::StyleSheetIdentifier const&, URL::URL const&, Utf16String const&)> on_received_style_sheet_source;
     HashMap<u64, DevTools::DevToolsDelegate::OnSourcesReceived> on_received_devtools_sources;
     HashMap<Web::HTML::ScriptRegistry::Identifier, Function<void(Optional<Web::HTML::ScriptRegistry::Content>)>> on_received_devtools_source;
     HashMap<u64, DevTools::DevToolsDelegate::OnResolvedURLReceived> on_resolved_dom_node_url;
@@ -422,7 +422,7 @@ protected:
     u64 page_id() const;
 
     void set_url(URL::URL);
-    void did_start_navigation(URL::URL const&, Variant<Empty, String, Web::HTML::POSTResource>, bool is_redirect, Web::Bindings::NavigationHistoryBehavior);
+    void did_start_navigation(URL::URL const&, Web::HTML::DocumentResource, bool is_redirect, Web::Bindings::NavigationHistoryBehavior);
     bool did_cancel_navigation(URL::URL const&);
     void did_finish_navigation(URL::URL const&);
     void set_loading_state(bool);
@@ -582,7 +582,7 @@ protected:
     HistoryVisitTransition m_history_visit_transition_for_next_load { HistoryVisitTransition::Link };
     bool m_is_loading { false };
     bool m_is_waiting_for_navigation_start { false };
-    Optional<String> m_loading_navigation_id;
+    Optional<Utf16String> m_loading_navigation_id;
     Optional<URL::URL> m_loading_url;
     Optional<URL::URL> m_last_stopped_load_url;
 

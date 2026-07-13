@@ -111,7 +111,7 @@ void XMLHttpRequest::stop_timeout_timer()
 }
 
 // https://xhr.spec.whatwg.org/#concept-event-fire-progress
-static void fire_progress_event(XMLHttpRequestEventTarget& target, FlyString const& event_name, u64 transmitted, u64 length)
+static void fire_progress_event(XMLHttpRequestEventTarget& target, Utf16FlyString const& event_name, u64 transmitted, u64 length)
 {
     // To fire a progress event named e at target, given transmitted and length, means to fire an event named e at target, using ProgressEvent,
     // with the loaded attribute initialized to transmitted, and if length is not 0, with the lengthComputable attribute initialized to true
@@ -124,7 +124,7 @@ static void fire_progress_event(XMLHttpRequestEventTarget& target, FlyString con
 }
 
 // https://xhr.spec.whatwg.org/#dom-xmlhttprequest-responsetext
-WebIDL::ExceptionOr<String> XMLHttpRequest::response_text() const
+WebIDL::ExceptionOr<Utf16String> XMLHttpRequest::response_text() const
 {
     // 1. If this’s response type is not the empty string or "text", then throw an "InvalidStateError" DOMException.
     if (m_response_type != Bindings::XMLHttpRequestResponseType::Empty && m_response_type != Bindings::XMLHttpRequestResponseType::Text)
@@ -132,7 +132,7 @@ WebIDL::ExceptionOr<String> XMLHttpRequest::response_text() const
 
     // 2. If this’s state is not loading or done, then return the empty string.
     if (m_state != State::Loading && m_state != State::Done)
-        return String {};
+        return Utf16String {};
 
     // 3. Return the result of getting a text response for this.
     return get_text_response();
@@ -197,7 +197,7 @@ WebIDL::ExceptionOr<JS::Value> XMLHttpRequest::response()
             return JS::PrimitiveString::create(vm, Utf16String {});
 
         // 2. Return the result of getting a text response for this.
-        return JS::PrimitiveString::create(vm, Utf16String::from_utf8(get_text_response()));
+        return JS::PrimitiveString::create(vm, get_text_response());
     }
     // 2. If this’s state is not done, then return null.
     if (m_state != State::Done)
@@ -220,7 +220,7 @@ WebIDL::ExceptionOr<JS::Value> XMLHttpRequest::response()
     // 6. Otherwise, if this’s response type is "blob", set this’s response object to a new Blob object representing this’s received bytes with type set to the result of get a final MIME type for this.
     else if (m_response_type == Bindings::XMLHttpRequestResponseType::Blob) {
         auto mime_type_as_string = get_final_mime_type().serialized();
-        auto blob = FileAPI::Blob::create(realm(), m_received_bytes, move(mime_type_as_string));
+        auto blob = FileAPI::Blob::create(realm(), m_received_bytes, Utf16String::from_utf8(mime_type_as_string));
         m_response_object = GC::Ref<JS::Object> { blob };
     }
     // 7. Otherwise, if this’s response type is "document", set a document response for this.
@@ -255,11 +255,11 @@ WebIDL::ExceptionOr<JS::Value> XMLHttpRequest::response()
 }
 
 // https://xhr.spec.whatwg.org/#text-response
-String XMLHttpRequest::get_text_response() const
+Utf16String XMLHttpRequest::get_text_response() const
 {
     // 1. If xhr’s response’s body is null, then return the empty string.
     if (!m_response->body())
-        return String {};
+        return Utf16String {};
 
     // 2. Let charset be the result of get a final encoding for xhr.
     auto charset = get_final_encoding();
@@ -279,7 +279,7 @@ String XMLHttpRequest::get_text_response() const
     // If we don't support the decoder yet, let's crash instead of attempting to return something, as the result would be incorrect and create obscure bugs.
     VERIFY(decoder.has_value());
 
-    return TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, m_received_bytes).release_value_but_fixme_should_propagate_errors();
+    return TextCodec::convert_input_to_utf16_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, m_received_bytes).release_value_but_fixme_should_propagate_errors();
 }
 
 // https://xhr.spec.whatwg.org/#document-response
@@ -301,26 +301,27 @@ void XMLHttpRequest::set_document_response()
         return;
 
     // 5. If finalMIME is an HTML MIME type, then:
-    Optional<String> charset;
+    Optional<Utf16String> charset;
     GC::Ptr<DOM::Document> document;
     if (final_mime.is_html()) {
         // 5.1. Let charset be the result of get a final encoding for xhr.
         if (auto final_encoding = get_final_encoding(); final_encoding.has_value())
-            charset = MUST(String::from_utf8(*final_encoding));
+            charset = Utf16String::from_utf8(*final_encoding);
 
         // 5.2. If charset is null, prescan the first 1024 bytes of xhr’s received bytes and if that does not terminate unsuccessfully then let charset be the return value.
         document = DOM::Document::create(realm());
         if (!charset.has_value())
             if (auto found_charset = HTML::run_prescan_byte_stream_algorithm(*document, m_received_bytes); found_charset.has_value())
-                charset = MUST(String::from_byte_string(found_charset.value()));
+                charset = Utf16String::from_utf8(MUST(String::from_byte_string(found_charset.value())));
 
         // 5.3. If charset is null, then set charset to UTF-8.
         if (!charset.has_value())
-            charset = "UTF-8"_string;
+            charset = "UTF-8"_utf16;
 
         // 5.4. Let document be a document that represents the result parsing xhr’s received bytes following the rules set forth in the HTML Standard for an HTML parser with scripting disabled and a known definite encoding charset.
         auto scripting_mode = document->is_scripting_enabled() ? HTML::ParserScriptingMode::Normal : HTML::ParserScriptingMode::Disabled;
-        auto parser = HTML::HTMLParser::create(*document, m_received_bytes, scripting_mode, charset.value());
+        auto charset_for_parser = charset->to_utf8();
+        auto parser = HTML::HTMLParser::create_from_byte_string(*document, m_received_bytes, scripting_mode, charset_for_parser);
         parser->run(document->url());
 
         // 5.5. Flag document as an HTML document.
@@ -338,13 +339,13 @@ void XMLHttpRequest::set_document_response()
 
     // 7. If charset is null, then set charset to UTF-8.
     if (!charset.has_value())
-        charset = "UTF-8"_string;
+        charset = "UTF-8"_utf16;
 
     // 8. Set document’s encoding to charset.
     document->set_encoding(move(charset));
 
     // 9. Set document’s content type to finalMIME.
-    document->set_content_type(final_mime.serialized());
+    document->set_content_type(Utf16FlyString::from_utf8(final_mime.serialized()));
 
     // 10. Set document’s URL to xhr’s response’s URL.
     document->set_url(m_response->url().value_or({}));
@@ -452,13 +453,13 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::set_request_header(String const& name,
 }
 
 // https://xhr.spec.whatwg.org/#dom-xmlhttprequest-open
-WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method, String const& url)
+WebIDL::ExceptionOr<void> XMLHttpRequest::open(Utf16String const& method, Utf16String const& url)
 {
     // 7. If the async argument is omitted, set async to true, and set username and password to null.
     return open(method, url, true, {}, {});
 }
 
-WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method, String const& url, bool async, Optional<String> const& username, Optional<String> const& password)
+WebIDL::ExceptionOr<void> XMLHttpRequest::open(Utf16String const& method, Utf16String const& url, bool async, Optional<Utf16String> const& username, Optional<Utf16String> const& password)
 {
     // 1. If this’s relevant global object is a Window object and its associated Document is not fully active, then throw an "InvalidStateError" DOMException.
     if (is<HTML::Window>(HTML::relevant_global_object(*this))) {
@@ -468,15 +469,15 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method, String cons
     }
 
     // 2. If method is not a method, then throw a "SyntaxError" DOMException.
-    if (!HTTP::is_method(method))
+    if (!HTTP::is_method(method.utf16_view()))
         return WebIDL::SyntaxError::create(realm(), "An invalid or illegal string was specified."_utf16);
 
     // 3. If method is a forbidden method, then throw a "SecurityError" DOMException.
-    if (HTTP::is_forbidden_method(method))
+    if (HTTP::is_forbidden_method(method.utf16_view()))
         return WebIDL::SecurityError::create(realm(), "Forbidden method, must not be 'CONNECT', 'TRACE', or 'TRACK'"_utf16);
 
     // 4. Normalize method.
-    auto normalized_method = HTTP::normalize_method(method);
+    auto normalized_method = HTTP::normalize_method(method.utf16_view());
 
     // 5. Let parsedURL be the result of encoding-parsing a URL url, relative to this’s relevant settings object.
     auto& relevant_settings_object = HTML::relevant_settings_object(*this);
@@ -493,10 +494,10 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method, String cons
     if (parsed_url->host().has_value()) {
         // 1. If the username argument is not null, set the username given parsedURL and username.
         if (username.has_value())
-            parsed_url->set_username(username.value());
+            parsed_url->set_username(username->utf16_view());
         // 2. If the password argument is not null, set the password given parsedURL and password.
         if (password.has_value())
-            parsed_url->set_password(password.value());
+            parsed_url->set_password(password->utf16_view());
     }
 
     // 9. If async is false, the current global object is a Window object, and either this’s timeout is
@@ -567,7 +568,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
     // 4. If body is not null, then:
     if (!body.has<Empty>()) {
         // 1. Let extractedContentType be null.
-        Optional<ByteString> extracted_content_type;
+        Optional<Utf16String> extracted_content_type;
 
         // 2. If body is a Document, then set this’s request body to body, serialized, converted, and UTF-8 encoded.
         if (body.has<GC::Ref<DOM::Document>>()) {
@@ -593,7 +594,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
         // 5. If originalAuthorContentType is non-null, then:
         if (original_author_content_type.has_value()) {
             // 1. If body is a Document or a USVString, then:
-            if (body.has<GC::Ref<DOM::Document>>() || body.has<String>()) {
+            if (body.has<GC::Ref<DOM::Document>>() || body.has<Utf16String>()) {
                 // 1. Let contentTypeRecord be the result of parsing originalAuthorContentType.
                 auto content_type_record = MimeSniff::MimeType::parse(original_author_content_type.value());
 
@@ -1027,7 +1028,7 @@ String XMLHttpRequest::get_all_response_headers() const
 }
 
 // https://xhr.spec.whatwg.org/#dom-xmlhttprequest-overridemimetype
-WebIDL::ExceptionOr<void> XMLHttpRequest::override_mime_type(String const& mime)
+WebIDL::ExceptionOr<void> XMLHttpRequest::override_mime_type(Utf16String const& mime)
 {
     // 1. If this’s state is loading or done, then throw an "InvalidStateError" DOMException.
     if (m_state == State::Loading || m_state == State::Done)
@@ -1241,7 +1242,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::handle_errors()
     return {};
 }
 
-JS::ThrowCompletionOr<void> XMLHttpRequest::request_error_steps(FlyString const& event_name, GC::Ptr<WebIDL::DOMException> exception)
+JS::ThrowCompletionOr<void> XMLHttpRequest::request_error_steps(Utf16FlyString const& event_name, GC::Ptr<WebIDL::DOMException> exception)
 {
     stop_timeout_timer();
 
@@ -1288,14 +1289,14 @@ JS::ThrowCompletionOr<void> XMLHttpRequest::request_error_steps(FlyString const&
 }
 
 // https://xhr.spec.whatwg.org/#the-responseurl-attribute
-String XMLHttpRequest::response_url()
+Utf16String XMLHttpRequest::response_url()
 {
     // The responseURL getter steps are to return the empty string if this’s response’s URL is null;
     // otherwise its serialization with the exclude fragment flag set.
     if (!m_response->url().has_value())
-        return String {};
+        return {};
 
-    return m_response->url().value().serialize(URL::ExcludeFragment::Yes);
+    return Utf16String::from_utf8(m_response->url().value().serialize(URL::ExcludeFragment::Yes));
 }
 
 }

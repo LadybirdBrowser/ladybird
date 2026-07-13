@@ -10,7 +10,6 @@
 #include <AK/Assertions.h>
 #include <AK/HashTable.h>
 #include <AK/OwnPtr.h>
-#include <AK/String.h>
 #include <AK/Tuple.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
@@ -74,7 +73,7 @@ public:
 
     virtual ~LocalNavigable() override;
 
-    using NullOrError = Optional<String>;
+    using NullOrError = Optional<Utf16String>;
     using NavigationParamsVariant = Variant<NullOrError, GC::Ref<NavigationParams>, GC::Ref<NonFetchSchemeNavigationParams>>;
 
     void initialize_navigable(NonnullRefPtr<DocumentState> document_state, GC::Ptr<LocalNavigable> parent, GC::Ref<DOM::Document> document);
@@ -126,7 +125,7 @@ public:
     void restore_persisted_state_from_session_history_entry(SessionHistoryEntry const&);
     void restore_scroll_position_data(SessionHistoryEntry const&);
 
-    virtual Utf16String target_name() const override;
+    virtual Utf16String const& target_name() const override;
 
     GC::Ptr<NavigableContainer> container() const;
     GC::Ptr<DOM::Document> container_document() const;
@@ -142,7 +141,7 @@ public:
         WindowType window_type;
     };
 
-    ChosenNavigable choose_a_navigable(StringView name, TokenizedFeature::NoOpener no_opener, ActivateTab = ActivateTab::Yes, Optional<TokenizedFeature::Map const&> window_features = {});
+    ChosenNavigable choose_a_navigable(Utf16View name, TokenizedFeature::NoOpener no_opener, ActivateTab = ActivateTab::Yes, Optional<TokenizedFeature::Map const&> window_features = {});
 
     GC::Ptr<LocalNavigable> find_a_navigable_by_target_name(Utf16View name);
 
@@ -155,8 +154,8 @@ public:
         Preserve
     };
 
-    Variant<Empty, Traversal, String> ongoing_navigation() const { return m_ongoing_navigation; }
-    void set_ongoing_navigation(Variant<Empty, Traversal, String> ongoing_navigation, NavigationAPIAbortBehavior = NavigationAPIAbortBehavior::Abort);
+    Variant<Empty, Traversal, Utf16String> ongoing_navigation() const { return m_ongoing_navigation; }
+    void set_ongoing_navigation(Variant<Empty, Traversal, Utf16String> ongoing_navigation, NavigationAPIAbortBehavior = NavigationAPIAbortBehavior::Abort);
 
     // Test-only (Internals.clobberNextNavigationWithATraversal): make the next navigation's unload check be interrupted
     // by a synthetic session-history traversal that re-stamps the ongoing navigation.
@@ -164,7 +163,7 @@ public:
 
     void populate_session_history_entry_document(
         URL::URL url,
-        Variant<Empty, String, POSTResource> document_resource,
+        DocumentResource document_resource,
         Fetch::Infrastructure::Request::ReferrerType request_referrer,
         ReferrerPolicy::ReferrerPolicy request_referrer_policy,
         Optional<URL::Origin> initiator_origin,
@@ -177,7 +176,7 @@ public:
         GC::Ref<SourceSnapshotParams> source_snapshot_params,
         TargetSnapshotParams const& target_snapshot_params,
         UserNavigationInvolvement user_involvement,
-        Optional<String> navigation_id,
+        Optional<Utf16String> navigation_id,
         NavigationParamsVariant navigation_params,
         ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type,
         bool allow_POST,
@@ -187,7 +186,7 @@ public:
         URL::URL url;
         // FIXME: source_document should now be nullable, and default to nullptr.
         GC::Ref<DOM::Document> source_document;
-        Variant<Empty, String, POSTResource> document_resource = Empty {};
+        DocumentResource document_resource = Empty {};
         GC::Ptr<Fetch::Infrastructure::Response> response = nullptr;
         bool exceptions_enabled = false;
         Bindings::NavigationHistoryBehavior history_handling = Bindings::NavigationHistoryBehavior::Auto;
@@ -203,7 +202,7 @@ public:
 
     WebIDL::ExceptionOr<void> navigate(NavigateParams);
 
-    GC::Ptr<DOM::Document> evaluate_javascript_url(URL::URL const&, URL::Origin const& new_document_origin, UserNavigationInvolvement, String navigation_id);
+    GC::Ptr<DOM::Document> evaluate_javascript_url(URL::URL const&, URL::Origin const& new_document_origin, UserNavigationInvolvement, Utf16String navigation_id);
 
     bool allowed_by_sandboxing_to_navigate(LocalNavigable const& target, SourceSnapshotParams const&);
 
@@ -234,12 +233,12 @@ public:
     Page& page() { return m_page; }
     Page const& page() const { return m_page; }
 
-    String selected_text() const;
-    String cut_selected_text() const;
+    Utf16String selected_text() const;
+    Utf16String cut_selected_text() const;
     void select_all();
-    void paste(Utf16String const&);
-    void set_marked_text_from_input_method(Utf16String const& text);
-    void commit_text_from_input_method(Utf16String const& text, i32 replacement_start = 0, i32 replacement_length = 0);
+    void paste(Utf16View);
+    void set_marked_text_from_input_method(Utf16View text);
+    void commit_text_from_input_method(Utf16View text, i32 replacement_start = 0, i32 replacement_length = 0);
     void unmark_text_from_input_method();
 
     Web::EventHandler& event_handler() { return m_event_handler; }
@@ -310,7 +309,7 @@ protected:
     virtual void finalize() override;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#ongoing-navigation
-    Variant<Empty, Traversal, String> m_ongoing_navigation;
+    Variant<Empty, Traversal, Utf16String> m_ongoing_navigation;
 
 private:
     enum class PendingNavigationBehavior {
@@ -321,8 +320,8 @@ private:
     void begin_navigation(NavigateParams);
     void queue_pending_navigation(NavigateParams, PendingNavigationBehavior);
     void process_pending_navigations();
-    void navigate_to_a_fragment(URL::URL const&, HistoryHandlingBehavior, UserNavigationInvolvement, GC::Ptr<DOM::Element> source_element, Optional<StorageSerializationRecord> navigation_api_state, String navigation_id);
-    void navigate_to_a_javascript_url(URL::URL const&, HistoryHandlingBehavior, GC::Ref<SourceSnapshotParams>, URL::Origin const& initiator_origin, UserNavigationInvolvement, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, InitialInsertion, String navigation_id);
+    void navigate_to_a_fragment(URL::URL const&, HistoryHandlingBehavior, UserNavigationInvolvement, GC::Ptr<DOM::Element> source_element, Optional<StorageSerializationRecord> navigation_api_state, Utf16String navigation_id);
+    void navigate_to_a_javascript_url(URL::URL const&, HistoryHandlingBehavior, GC::Ref<SourceSnapshotParams>, URL::Origin const& initiator_origin, UserNavigationInvolvement, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, InitialInsertion, Utf16String navigation_id);
 
     void reset_cursor_blink_cycle();
 
@@ -350,8 +349,8 @@ private:
     // AD-HOC: Active IME composition state. While a composition is in progress, m_input_method_composition_node and
     //         m_input_method_composition_offset record the start of the marked (preedit) text; the marked text spans
     //         from there to the caret. A null node means no composition is in progress.
-    void replace_input_method_marked_text(Utf16String const& text);
-    bool apply_input_method_commit_replacement(Utf16String const& text, i32 replacement_start, i32 replacement_length);
+    void replace_input_method_marked_text(Utf16View text);
+    bool apply_input_method_commit_replacement(Utf16View text, i32 replacement_start, i32 replacement_length);
     GC::Ptr<DOM::Node> m_input_method_composition_node;
     size_t m_input_method_composition_offset { 0 };
 
@@ -432,7 +431,7 @@ WEB_API HashTable<GC::RawRef<LocalNavigable>>& all_local_navigables();
 Vector<NonnullRefPtr<SessionHistoryEntry>>* append_nested_history_for_child_navigable(
     LocalNavigable& parent_navigable, LocalNavigable& child_navigable, SessionHistoryEntry& history_entry);
 bool navigation_must_be_a_replace(URL::URL const& url, DOM::Document const& document);
-void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable>, HistoryHandlingBehavior, UserNavigationInvolvement, NonnullRefPtr<SessionHistoryEntry>, GC::Ptr<DOM::Document> pending_document, Optional<String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete);
+void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable>, HistoryHandlingBehavior, UserNavigationInvolvement, NonnullRefPtr<SessionHistoryEntry>, GC::Ptr<DOM::Document> pending_document, Optional<Utf16String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete);
 void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_url, Optional<StorageSerializationRecord> = {}, HistoryHandlingBehavior history_handling = HistoryHandlingBehavior::Replace);
 
 }

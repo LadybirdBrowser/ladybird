@@ -29,11 +29,11 @@ TEST_CASE(is_code_unit_prefix)
     EXPECT(!Web::Infra::is_code_unit_prefix("abcdef"sv, "abc"sv));
 
     // Non-ASCII characters
-    EXPECT(Web::Infra::is_code_unit_prefix("こんにちは"sv, "こんにちは世界"sv));
-    EXPECT(!Web::Infra::is_code_unit_prefix("世界"sv, "こんにちは世界"sv));
+    EXPECT(Web::Infra::is_code_unit_prefix(u"こんにちは"sv, u"こんにちは世界"sv));
+    EXPECT(!Web::Infra::is_code_unit_prefix(u"世界"sv, u"こんにちは世界"sv));
 
-    EXPECT(Web::Infra::is_code_unit_prefix("こ"sv, "こん"sv));
-    EXPECT(!Web::Infra::is_code_unit_prefix("こん"sv, "こ"sv));
+    EXPECT(Web::Infra::is_code_unit_prefix(u"こ"sv, u"こん"sv));
+    EXPECT(!Web::Infra::is_code_unit_prefix(u"こん"sv, u"こ"sv));
 
     // Special characters
     EXPECT(Web::Infra::is_code_unit_prefix("!@#"sv, "!@#$%^"sv));

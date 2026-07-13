@@ -467,7 +467,7 @@ RefPtr<RadialGradientStyleValue const> Parser::parse_radial_gradient_function(To
         return nullptr;
 
     auto& token = tokens.next_token();
-    if (token.is_ident("at"sv)) {
+    if (token.is_ident("at"_utf16)) {
         tokens.discard_a_token();
         auto position = parse_position_value(tokens);
         if (!position)

@@ -70,7 +70,7 @@ public:
     GC::Ptr<CSSRule> owner_rule() { return m_owner_css_rule; }
     void set_owner_css_rule(CSSRule* rule) { m_owner_css_rule = rule; }
 
-    virtual String type() const override { return "text/css"_string; }
+    virtual Utf16FlyString type() const override { return "text/css"_utf16_fly_string; }
 
     CSSRuleList const& rules() const { return *m_rules; }
     CSSRuleList& rules() { return *m_rules; }
@@ -78,13 +78,13 @@ public:
     CSSRuleList* css_rules() { return m_rules; }
     CSSRuleList const* css_rules() const { return m_rules; }
 
-    WebIDL::ExceptionOr<unsigned> insert_rule(StringView rule, unsigned index);
-    WebIDL::ExceptionOr<WebIDL::Long> add_rule(Optional<String> selector, Optional<String> style, Optional<WebIDL::UnsignedLong> index);
+    WebIDL::ExceptionOr<unsigned> insert_rule(Utf16View rule, unsigned index);
+    WebIDL::ExceptionOr<WebIDL::Long> add_rule(Optional<Utf16String> selector, Optional<Utf16String> style, Optional<WebIDL::UnsignedLong> index);
     WebIDL::ExceptionOr<void> remove_rule(Optional<WebIDL::UnsignedLong> index);
     WebIDL::ExceptionOr<void> delete_rule(unsigned index);
 
-    GC::Ref<WebIDL::Promise> replace(String text);
-    WebIDL::ExceptionOr<void> replace_sync(StringView text);
+    GC::Ref<WebIDL::Promise> replace(Utf16String text);
+    WebIDL::ExceptionOr<void> replace_sync(Utf16View text);
 
     void for_each_effective_rule(TraversalOrder, Function<void(CSSRule const&)> const& callback) const;
     void for_each_effective_style_producing_rule(Function<void(CSSRule const&)> const& callback) const;

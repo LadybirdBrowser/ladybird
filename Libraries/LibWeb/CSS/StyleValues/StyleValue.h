@@ -16,6 +16,7 @@
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
 #include <AK/StringView.h>
+#include <AK/Utf16StringBuilder.h>
 #include <AK/ValueComparingRefPtr.h>
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
@@ -175,7 +176,9 @@ public:
     Keyword to_keyword() const;
 
     String to_string(SerializationMode) const;
+    Utf16String to_utf16_string(SerializationMode) const;
     virtual void serialize(StringBuilder&, SerializationMode) const = 0;
+    virtual void serialize(Utf16StringBuilder&, SerializationMode) const;
     virtual Vector<Parser::ComponentValue> tokenize() const;
     virtual GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const;
     virtual StyleValueVector subdivide_into_iterations(PropertyNameAndID const&) const;

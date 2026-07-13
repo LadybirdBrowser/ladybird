@@ -55,16 +55,16 @@ void HTMLTrackElement::visit_edges(Cell::Visitor& visitor)
 void HTMLTrackElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
+    auto value_or_empty = value.has_value() ? value->utf16_view() : u""sv;
 
     // https://html.spec.whatwg.org/multipage/media.html#sourcing-out-of-band-text-tracks
     // As the kind, label, and srclang attributes are set, changed, or removed, the text track must update accordingly, as per the definitions above.
     if (name.equals_ignoring_ascii_case(HTML::AttributeNames::kind)) {
-        auto kind = value.value_or({});
-        m_track->set_kind(text_track_kind_from_string(kind));
+        m_track->set_kind(text_track_kind_from_string(value_or_empty));
     } else if (name.equals_ignoring_ascii_case(HTML::AttributeNames::label)) {
-        m_track->set_label(value.value_or({}));
+        m_track->set_label(value_or_empty);
     } else if (name.equals_ignoring_ascii_case(HTML::AttributeNames::srclang)) {
-        m_track->set_language(value.value_or({}));
+        m_track->set_language(value_or_empty);
     } else if (name.equals_ignoring_ascii_case(HTML::AttributeNames::src)) {
         // https://html.spec.whatwg.org/multipage/media.html#sourcing-out-of-band-text-tracks:attr-track-src
         // FIXME: Whenever a track element has its src attribute set, changed, or removed, the user agent must immediately empty the element's text track's text track list of cues.
@@ -76,20 +76,20 @@ void HTMLTrackElement::attribute_changed(Utf16FlyString const& name, Optional<Ut
         // https://html.spec.whatwg.org/multipage/media.html#attr-track-src
         // When the element's src attribute is set, run these steps:
         // 1. Let trackURL be failure.
-        Optional<String> track_url;
+        Optional<Utf16String> track_url;
 
         // 2. Let value be the element's src attribute value.
         // 3. If value is not the empty string, then set trackURL to the result of encoding-parsing-and-serializing a URL given value, relative to the element's node document.
-        if (!value->is_empty())
-            track_url = document().encoding_parse_and_serialize_url(value.value_or({}));
+        if (!value_or_empty.is_empty())
+            track_url = document().encoding_parse_and_serialize_url(value_or_empty);
 
         // 4. Set the element's track URL to trackURL if it is not failure; otherwise to the empty string.
-        set_track_url(track_url.value_or({}));
+        set_track_url(track_url.has_value() ? track_url->utf16_view() : u""sv);
     }
     // https://html.spec.whatwg.org/multipage/media.html#dom-texttrack-id
     // For tracks that correspond to track elements, the track's identifier is the value of the element's id attribute, if any.
     if (name.equals_ignoring_ascii_case(HTML::AttributeNames::id)) {
-        m_track->set_id(value.value_or({}));
+        m_track->set_id(value_or_empty);
     }
 }
 
@@ -131,12 +131,12 @@ WebIDL::UnsignedShort HTMLTrackElement::ready_state()
     VERIFY_NOT_REACHED();
 }
 
-void HTMLTrackElement::set_track_url(String track_url)
+void HTMLTrackElement::set_track_url(Utf16View track_url)
 {
     if (m_track_url == track_url)
         return;
 
-    m_track_url = move(track_url);
+    m_track_url = Utf16String::from_utf16(track_url);
 
     auto track_is_hidden_or_showing = first_is_one_of(m_track->mode(), Bindings::TextTrackMode::Hidden, Bindings::TextTrackMode::Showing);
 
@@ -206,7 +206,7 @@ void HTMLTrackElement::start_the_track_processing_model_parallel_steps()
     if (!url.is_empty()) {
         // 1. Let request be the result of creating a potential-CORS request given URL, "track", and corsAttributeState,
         // and with the same-origin fallback flag set.
-        auto parsed_url = URL::Parser::basic_parse(url);
+        auto parsed_url = URL::Parser::basic_parse(url.utf16_view());
         VERIFY(parsed_url.has_value());
         auto request = create_potential_CORS_request(realm.vm(), parsed_url.release_value(), Fetch::Infrastructure::Request::Destination::Track, cors_attribute_state, SameOriginFallbackFlag::Yes);
 

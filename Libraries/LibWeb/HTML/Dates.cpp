@@ -144,7 +144,7 @@ bool is_valid_local_date_and_time_string(Utf16View const& value)
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-normalised-local-date-and-time-string
-Utf16String normalize_local_date_and_time_string(Utf16String const& value)
+Utf16String normalize_local_date_and_time_string(Utf16View value)
 {
     // A string is a valid normalized local date and time string representing a date and time if it consists of the following components in the given order:
 
@@ -152,13 +152,12 @@ Utf16String normalize_local_date_and_time_string(Utf16String const& value)
     // 2. A U+0054 LATIN CAPITAL LETTER T character (T)
     // 3. A valid time string representing the time, expressed as the shortest possible string for the given time (e.g. omitting the seconds component entirely if the given time is zero seconds past the minute)
 
-    auto value_with_normalized_t = value;
-    if (auto spaces = value.count(" "sv); spaces > 0) {
+    auto parts = value.split_view('T', SplitBehavior::KeepEmpty);
+    if (parts.size() != 2) {
+        auto spaces = value.count(u" "sv);
         VERIFY(spaces == 1);
-        value_with_normalized_t = value.replace(" "sv, "T"sv, ReplaceMode::FirstOnly);
+        parts = value.split_view(' ', SplitBehavior::KeepEmpty);
     }
-
-    auto parts = value_with_normalized_t.split_view('T', SplitBehavior::KeepEmpty);
     VERIFY(parts.size() == 2);
 
     auto normalized_length = parts[1].length_in_code_points();
@@ -171,10 +170,10 @@ Utf16String normalize_local_date_and_time_string(Utf16String const& value)
 
     if (normalized_length > 5) {
         auto time_without_milliseconds = parts[1].unicode_substring_view(0, 8);
-        return Utf16String::formatted("{}T{}", parts[0], parts[1].unicode_substring_view(0, time_without_milliseconds.ends_with(":00"sv) ? 5 : 8));
+        return Utf16String::formatted("{}T{}", parts[0], parts[1].unicode_substring_view(0, time_without_milliseconds.ends_with(u":00"sv) ? 5 : 8));
     }
 
-    return value_with_normalized_t;
+    return Utf16String::formatted("{}T{}", parts[0], parts[1]);
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-time-string
@@ -506,11 +505,11 @@ WebIDL::ExceptionOr<GC::Ref<JS::Date>> parse_time_string(JS::Realm& realm, Utf16
     // 3. Parse a time component to obtain hour, minute, and second. If this returns nothing, then fail.
     auto hour_minute_second = parse_a_time_component(input);
     if (!hour_minute_second.has_value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Can't parse time string"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Can't parse time string"_utf16 };
 
     // 4. If position is not beyond the end of input, then fail.
     if (!input.is_eof())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Can't parse time string"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Can't parse time string"_utf16 };
 
     // 5. Let time be the time with hour hour, minute minute, and second second.
     // 6. Return time.

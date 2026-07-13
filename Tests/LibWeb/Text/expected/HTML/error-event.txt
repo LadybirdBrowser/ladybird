@@ -1,0 +1,6 @@
+type: error
+message: well hello friends 🐞
+filename: file:///tmp/🐞.js
+lineno: 12
+colno: 34
+error identity: true

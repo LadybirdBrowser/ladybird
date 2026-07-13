@@ -15,6 +15,7 @@
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/Date.h>
+#include <LibJS/Runtime/PropertyKey.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/DOM/EventDispatcher.h>
@@ -68,8 +69,18 @@ struct TaskCounterState final : public GC::Cell {
 
 GC_DEFINE_ALLOCATOR(TaskCounterState);
 
+static Vector<Utf16String> strictly_split_key_path(Utf16String const& key_path)
+{
+    Vector<Utf16String> identifiers;
+    key_path.for_each_split_view(u'.', SplitBehavior::KeepEmpty, [&](Utf16View const& identifier) {
+        identifiers.append(Utf16String::from_utf16(identifier));
+        return IterationDecision::Continue;
+    });
+    return identifiers;
+}
+
 // https://w3c.github.io/IndexedDB/#open-a-database-connection
-void open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage_key, String name, Optional<u64> maybe_version, GC::Ref<IDBRequest> request, GC::Ref<GC::Function<void(WebIDL::ExceptionOr<GC::Ref<IDBDatabase>>)>> on_complete)
+void open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage_key, Utf16String name, Optional<u64> maybe_version, GC::Ref<IDBRequest> request, GC::Ref<GC::Function<void(WebIDL::ExceptionOr<GC::Ref<IDBDatabase>>)>> on_complete)
 {
     // 1. Let queue be the connection queue for storageKey and name.
     auto& queue = ConnectionQueueHandler::for_key_and_name(storage_key, name);
@@ -225,7 +236,7 @@ void open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage
     }));
 }
 
-bool fire_a_version_change_event(JS::Realm& realm, FlyString const& event_name, GC::Ref<DOM::EventTarget> target, u64 old_version, Optional<u64> new_version)
+bool fire_a_version_change_event(JS::Realm& realm, Utf16FlyString const& event_name, GC::Ref<DOM::EventTarget> target, u64 old_version, Optional<u64> new_version)
 {
     Bindings::IDBVersionChangeEventInit event_init = {};
     // 4. Set event’s oldVersion attribute to oldVersion.
@@ -259,7 +270,7 @@ WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm& realm, JS:
 
     // 2. If seen contains input, then return invalid.
     if (seen.contains_slow(input))
-        return Key::create_invalid(realm, "Already seen key"_string);
+        return Key::create_invalid(realm, "Already seen key"_utf16);
 
     // 3. Jump to the appropriate step below:
 
@@ -268,7 +279,7 @@ WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm& realm, JS:
 
         // 1. If input is NaN then return invalid.
         if (input.is_nan())
-            return Key::create_invalid(realm, "NaN key"_string);
+            return Key::create_invalid(realm, "NaN key"_utf16);
 
         // 2. Otherwise, return a new key with type number and value input.
         return Key::create_number(realm, input.as_double());
@@ -283,7 +294,7 @@ WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm& realm, JS:
 
         // 2. If ms is NaN then return invalid.
         if (isnan(ms))
-            return Key::create_invalid(realm, "NaN key"_string);
+            return Key::create_invalid(realm, "NaN key"_utf16);
 
         // 3. Otherwise, return a new key with type date and value ms.
         return Key::create_date(realm, ms);
@@ -293,7 +304,7 @@ WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm& realm, JS:
     if (input.is_string()) {
 
         // 1. Return a new key with type string and value input.
-        return Key::create_string(realm, input.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16());
+        return Key::create_string(realm, input.as_string().utf16_string());
     }
 
     // - If input is a buffer source type
@@ -301,7 +312,7 @@ WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm& realm, JS:
 
         // 1. If input is detached then return invalid.
         if (WebIDL::BufferSource::is_detached(input))
-            return Key::create_invalid(realm, "Detached buffer is not supported as key"_string);
+            return Key::create_invalid(realm, "Detached buffer is not supported as key"_utf16);
 
         // 2. Let bytes be the result of getting a copy of the bytes held by the buffer source input.
         auto data_buffer = MUST(WebIDL::get_buffer_source_copy(input.as_object()));
@@ -332,7 +343,7 @@ WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm& realm, JS:
 
             // 2. If hop is false, return invalid.
             if (!hop)
-                return Key::create_invalid(realm, "Array-like object has no property"_string);
+                return Key::create_invalid(realm, "Array-like object has no property"_utf16);
 
             // 3. Let entry be ? Get(input, index).
             auto entry = TRY(input.as_object().get(index));
@@ -358,7 +369,7 @@ WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm& realm, JS:
 
     // - Otherwise
     // Return invalid.
-    return Key::create_invalid(realm, "Unable to convert value to key. Its not of a known type"_string);
+    return Key::create_invalid(realm, "Unable to convert value to key. Its not of a known type"_utf16);
 }
 
 // https://w3c.github.io/IndexedDB/#close-a-database-connection
@@ -479,7 +490,7 @@ void upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase> connection, u64 v
 }
 
 // https://w3c.github.io/IndexedDB/#deleting-a-database
-void delete_a_database(JS::Realm& realm, StorageAPI::StorageKey storage_key, String name, GC::Ref<IDBRequest> request, GC::Ref<GC::Function<void(WebIDL::ExceptionOr<u64>)>> on_complete)
+void delete_a_database(JS::Realm& realm, StorageAPI::StorageKey storage_key, Utf16String name, GC::Ref<IDBRequest> request, GC::Ref<GC::Function<void(WebIDL::ExceptionOr<u64>)>> on_complete)
 {
     // 1. Let queue be the connection queue for storageKey and name.
     auto& queue = ConnectionQueueHandler::for_key_and_name(storage_key, name);
@@ -738,7 +749,7 @@ JS::Value convert_a_key_to_a_value(JS::Realm& realm, GC::Ref<Key> key)
 
     case Key::KeyType::String: {
         // Return an ECMAScript String value equal to value
-        return JS::PrimitiveString::create(realm.vm(), Utf16String::from_utf8(key->value_as_string()));
+        return JS::PrimitiveString::create(realm.vm(), key->value_as_string());
     }
 
     case Key::KeyType::Date: {
@@ -812,7 +823,7 @@ bool is_valid_key_path(KeyPath const& path)
 {
     // A valid key path is one of:
     return path.visit(
-        [](String const& value) -> bool {
+        [](Utf16String const& value) -> bool {
             // * An empty string.
             if (value.is_empty())
                 return true;
@@ -825,7 +836,7 @@ bool is_valid_key_path(KeyPath const& path)
 
             return false;
         },
-        [](Vector<String> const& values) -> bool {
+        [](Vector<Utf16String> const& values) -> bool {
             // * A non-empty list containing only strings conforming to the above requirements.
             if (values.is_empty())
                 return false;
@@ -840,15 +851,15 @@ bool is_valid_key_path(KeyPath const& path)
 }
 
 // https://w3c.github.io/IndexedDB/#create-a-sorted-name-list
-GC::Ref<HTML::DOMStringList> create_a_sorted_name_list(JS::Realm& realm, Vector<String> names)
+GC::Ref<HTML::DOMStringList> create_a_sorted_name_list(JS::Realm& realm, Vector<Utf16String> names)
 {
     // 1. Let sorted be names sorted in ascending order with the code unit less than algorithm.
     quick_sort(names, [](auto const& a, auto const& b) {
-        return Infra::code_unit_less_than(a, b);
+        return a.utf16_view().is_code_unit_less_than(b);
     });
 
     // 2. Return a new DOMStringList associated with sorted.
-    return HTML::DOMStringList::create(realm, names);
+    return HTML::DOMStringList::create(realm, move(names));
 }
 
 // https://w3c.github.io/IndexedDB/#commit-a-transaction
@@ -995,8 +1006,8 @@ WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_multi_entry_key(JS::Realm
 WebIDL::ExceptionOr<ErrorOr<JS::Value>> evaluate_key_path_on_a_value(JS::Realm& realm, JS::Value value, KeyPath const& key_path)
 {
     // 1. If keyPath is a list of strings, then:
-    if (key_path.has<Vector<String>>()) {
-        auto const& key_path_list = key_path.get<Vector<String>>();
+    if (key_path.has<Vector<Utf16String>>()) {
+        auto const& key_path_list = key_path.get<Vector<Utf16String>>();
 
         // 1. Let result be a new Array object created as if by the expression [].
         auto result = MUST(JS::Array::create(realm, 0));
@@ -1032,7 +1043,7 @@ WebIDL::ExceptionOr<ErrorOr<JS::Value>> evaluate_key_path_on_a_value(JS::Realm& 
         return result;
     }
 
-    auto const& key_path_string = key_path.get<String>();
+    auto const& key_path_string = key_path.get<Utf16String>();
 
     // 2. If keyPath is the empty string, return value and skip the remaining steps.
     if (key_path_string.is_empty())
@@ -1040,39 +1051,40 @@ WebIDL::ExceptionOr<ErrorOr<JS::Value>> evaluate_key_path_on_a_value(JS::Realm& 
 
     // 3. Let identifiers be the result of strictly splitting keyPath on U+002E FULL STOP characters (.).
     // 4. For each identifier of identifiers, jump to the appropriate step below:
-    TRY(key_path_string.bytes_as_string_view().for_each_split_view('.', SplitBehavior::KeepEmpty, [&](auto const& identifier) -> ErrorOr<void> {
+    Optional<Error> failure;
+    key_path_string.for_each_split_view(u'.', SplitBehavior::KeepEmpty, [&](Utf16View const& identifier) {
         // If Type(value) is String, and identifier is "length"
-        if (value.is_string() && identifier == "length") {
+        if (value.is_string() && identifier == "length"_utf16) {
             // Let value be a Number equal to the number of elements in value.
             value = JS::Value(value.as_string().length_in_utf16_code_units());
         }
 
         // If value is an Array and identifier is "length"
-        else if (value.is_object() && is<JS::Array>(value.as_object()) && identifier == "length") {
+        else if (value.is_object() && is<JS::Array>(value.as_object()) && identifier == "length"_utf16) {
             // Let value be ! ToLength(! Get(value, "length")).
             value = JS::Value(MUST(length_of_array_like(realm.vm(), value.as_object())));
         }
 
         // If value is a Blob and identifier is "size"
-        else if (value.is_object() && is<FileAPI::Blob>(value.as_object()) && identifier == "size") {
+        else if (value.is_object() && is<FileAPI::Blob>(value.as_object()) && identifier == "size"_utf16) {
             // Let value be value’s size.
             value = JS::Value(static_cast<FileAPI::Blob&>(value.as_object()).size());
         }
 
         // If value is a Blob and identifier is "type"
-        else if (value.is_object() && is<FileAPI::Blob>(value.as_object()) && identifier == "type") {
+        else if (value.is_object() && is<FileAPI::Blob>(value.as_object()) && identifier == "type"_utf16) {
             // Let value be a String equal to value’s type.
-            value = JS::PrimitiveString::create(realm.vm(), Utf16String::from_utf8(static_cast<FileAPI::Blob&>(value.as_object()).type()));
+            value = JS::PrimitiveString::create(realm.vm(), static_cast<FileAPI::Blob&>(value.as_object()).type());
         }
 
         // If value is a File and identifier is "name"
-        else if (value.is_object() && is<FileAPI::File>(value.as_object()) && identifier == "name") {
+        else if (value.is_object() && is<FileAPI::File>(value.as_object()) && identifier == "name"_utf16) {
             // Let value be a String equal to value’s name.
-            value = JS::PrimitiveString::create(realm.vm(), Utf16String::from_utf8(static_cast<FileAPI::File&>(value.as_object()).name()));
+            value = JS::PrimitiveString::create(realm.vm(), static_cast<FileAPI::File&>(value.as_object()).name());
         }
 
         // If value is a File and identifier is "lastModified"
-        else if (value.is_object() && is<FileAPI::File>(value.as_object()) && identifier == "lastModified") {
+        else if (value.is_object() && is<FileAPI::File>(value.as_object()) && identifier == "lastModified"_utf16) {
             // Let value be a Number equal to value’s lastModified.
             value = JS::Value(static_cast<double>(static_cast<FileAPI::File&>(value.as_object()).last_modified()));
         }
@@ -1080,28 +1092,36 @@ WebIDL::ExceptionOr<ErrorOr<JS::Value>> evaluate_key_path_on_a_value(JS::Realm& 
         // Otherwise
         else {
             // 1. If Type(value) is not Object, return failure.
-            if (!value.is_object())
-                return Error::from_string_literal("Value is not an object during key path evaluation");
+            if (!value.is_object()) {
+                failure = Error::from_string_literal("Value is not an object during key path evaluation");
+                return IterationDecision::Break;
+            }
 
-            auto identifier_property = Utf16String::from_utf8_without_validation(identifier.bytes());
+            auto identifier_property = JS::PropertyKey { Utf16String::from_utf16(identifier) };
 
             // 2. Let hop be ! HasOwnProperty(value, identifier).
             auto hop = MUST(value.as_object().has_own_property(identifier_property));
 
             // 3. If hop is false, return failure.
-            if (!hop)
-                return Error::from_string_literal("Failed to find property on object during key path evaluation");
+            if (!hop) {
+                failure = Error::from_string_literal("Failed to find property on object during key path evaluation");
+                return IterationDecision::Break;
+            }
 
             // 4. Let value be ! Get(value, identifier).
             value = MUST(value.as_object().get(identifier_property));
 
             // 5. If value is undefined, return failure.
-            if (value.is_undefined())
-                return Error::from_string_literal("undefined value on object during key path evaluation");
+            if (value.is_undefined()) {
+                failure = Error::from_string_literal("undefined value on object during key path evaluation");
+                return IterationDecision::Break;
+            }
         }
 
-        return {};
-    }));
+        return IterationDecision::Continue;
+    });
+    if (failure.has_value())
+        return failure.release_value();
 
     // 5. Assert: value is not an abrupt completion.
     // NOTE: Step 4 above makes this assertion via MUST
@@ -1130,31 +1150,31 @@ bool check_that_a_key_could_be_injected_into_a_value(JS::Realm& realm, JS::Value
     // NOTE: The key paths used in this section are always strings and never sequences
 
     // 1. Let identifiers be the result of strictly splitting keyPath on U+002E FULL STOP characters (.).
-    auto identifiers = MUST(key_path.get<String>().split('.'));
+    auto identifiers = strictly_split_key_path(key_path.get<Utf16String>());
 
     // 2. Assert: identifiers is not empty.
     VERIFY(!identifiers.is_empty());
 
     // 3. Remove the last item of identifiers.
-    identifiers.take_last();
+    (void)identifiers.take_last();
 
     // 4. For each remaining identifier of identifiers, if any:
     for (auto const& identifier : identifiers) {
-        auto identifier_utf16 = Utf16FlyString::from_utf8(identifier);
-
         // 1. If value is not an Object or an Array, return false.
         if (!(value.is_object() || MUST(value.is_array(realm.vm()))))
             return false;
 
+        auto identifier_property = JS::PropertyKey { identifier };
+
         // 2. Let hop be ! HasOwnProperty(value, identifier).
-        auto hop = MUST(value.as_object().has_own_property(identifier_utf16));
+        auto hop = MUST(value.as_object().has_own_property(identifier_property));
 
         // 3. If hop is false, return true.
         if (!hop)
             return true;
 
         // 4. Let value be ! Get(value, identifier).
-        value = MUST(value.as_object().get(identifier_utf16));
+        value = MUST(value.as_object().get(identifier_property));
     }
 
     // 5. Return true if value is an Object or an Array, or false otherwise.
@@ -1378,7 +1398,7 @@ GC::Ref<IDBRequest> asynchronously_execute_a_request(JS::Realm& realm, IDBReques
 void inject_a_key_into_a_value_using_a_key_path(JS::Realm& realm, JS::Value value, GC::Ref<Key> key, KeyPath const& key_path)
 {
     // 1. Let identifiers be the result of strictly splitting keyPath on U+002E FULL STOP characters (.).
-    auto identifiers = MUST(key_path.get<String>().split('.'));
+    auto identifiers = strictly_split_key_path(key_path.get<Utf16String>());
 
     // 2. Assert: identifiers is not empty.
     VERIFY(!identifiers.is_empty());
@@ -1388,13 +1408,13 @@ void inject_a_key_into_a_value_using_a_key_path(JS::Realm& realm, JS::Value valu
 
     // 4. For each remaining identifier of identifiers:
     for (auto const& identifier : identifiers) {
-        auto identifier_utf16 = Utf16FlyString::from_utf8(identifier);
-
         // 1. Assert: value is an Object or an Array.
         VERIFY(value.is_object() || MUST(value.is_array(realm.vm())));
 
+        auto identifier_property = JS::PropertyKey { identifier };
+
         // 2. Let hop be ! HasOwnProperty(value, identifier).
-        auto hop = MUST(value.as_object().has_own_property(identifier_utf16));
+        auto hop = MUST(value.as_object().has_own_property(identifier_property));
 
         // 3. If hop is false, then:
         if (!hop) {
@@ -1402,14 +1422,14 @@ void inject_a_key_into_a_value_using_a_key_path(JS::Realm& realm, JS::Value valu
             auto o = JS::Object::create(realm, realm.intrinsics().object_prototype());
 
             // 2. Let status be CreateDataProperty(value, identifier, o).
-            auto status = MUST(value.as_object().create_data_property(identifier_utf16, o));
+            auto status = MUST(value.as_object().create_data_property(identifier_property, o));
 
             // 3. Assert: status is true.
             VERIFY(status);
         }
 
         // 4. Let value be ! Get(value, identifier).
-        value = MUST(value.as_object().get(identifier_utf16));
+        value = MUST(value.as_object().get(identifier_property));
     }
 
     // 5. Assert: value is an Object or an Array.
@@ -1419,7 +1439,7 @@ void inject_a_key_into_a_value_using_a_key_path(JS::Realm& realm, JS::Value valu
     auto key_value = convert_a_key_to_a_value(realm, key);
 
     // 7. Let status be CreateDataProperty(value, last, keyValue).
-    auto status = MUST(value.as_object().create_data_property(Utf16FlyString::from_utf8(last), key_value));
+    auto status = MUST(value.as_object().create_data_property(JS::PropertyKey { last }, key_value));
 
     // 8. Assert: status is true.
     VERIFY(status);

@@ -19,7 +19,7 @@ namespace Web::UserTiming {
 
 GC_DEFINE_ALLOCATOR(PerformanceMark);
 
-PerformanceMark::PerformanceMark(JS::Realm& realm, String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, JS::Value detail)
+PerformanceMark::PerformanceMark(JS::Realm& realm, Utf16String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, JS::Value detail)
     : PerformanceTimeline::PerformanceEntry(realm, name, start_time, duration)
     , m_detail(detail)
 {
@@ -28,7 +28,7 @@ PerformanceMark::PerformanceMark(JS::Realm& realm, String const& name, HighResol
 PerformanceMark::~PerformanceMark() = default;
 
 // https://w3c.github.io/user-timing/#dfn-performancemark-constructor
-WebIDL::ExceptionOr<GC::Ref<PerformanceMark>> PerformanceMark::construct_impl(JS::Realm& realm, String const& mark_name, Bindings::PerformanceMarkOptions const& mark_options)
+WebIDL::ExceptionOr<GC::Ref<PerformanceMark>> PerformanceMark::construct_impl(JS::Realm& realm, Utf16String const& mark_name, Bindings::PerformanceMarkOptions const& mark_options)
 {
     auto& current_global_object = HTML::current_global_object();
     auto& vm = realm.vm();
@@ -37,8 +37,8 @@ WebIDL::ExceptionOr<GC::Ref<PerformanceMark>> PerformanceMark::construct_impl(JS
     if (is<HTML::Window>(current_global_object)) {
         bool matched = false;
 
-#define __ENUMERATE_NAVIGATION_TIMING_ENTRY_NAME(name, _) \
-    if (mark_name == NavigationTiming::EntryNames::name)  \
+#define __ENUMERATE_NAVIGATION_TIMING_ENTRY_NAME(name, _)                    \
+    if (mark_name.utf16_view() == NavigationTiming::EntryNames::name.view()) \
         matched = true;
         ENUMERATE_NAVIGATION_TIMING_ENTRY_NAMES
 #undef __ENUMERATE_NAVIGATION_TIMING_ENTRY_NAME
@@ -62,7 +62,7 @@ WebIDL::ExceptionOr<GC::Ref<PerformanceMark>> PerformanceMark::construct_impl(JS
     if (mark_options.start_time.has_value()) {
         // 1. If markOptions's startTime is negative, throw a TypeError.
         if (mark_options.start_time.value() < 0.0)
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "startTime cannot be negative"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "startTime cannot be negative"_utf16 };
 
         // 2. Otherwise, set entry's startTime to the value of markOptions's startTime.
         start_time = mark_options.start_time.value();
@@ -93,7 +93,7 @@ WebIDL::ExceptionOr<GC::Ref<PerformanceMark>> PerformanceMark::construct_impl(JS
     return realm.create<PerformanceMark>(realm, name, start_time, duration, detail);
 }
 
-FlyString const& PerformanceMark::entry_type() const
+Utf16FlyString const& PerformanceMark::entry_type() const
 {
     return PerformanceTimeline::EntryTypes::mark;
 }

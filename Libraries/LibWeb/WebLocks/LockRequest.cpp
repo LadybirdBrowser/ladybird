@@ -14,7 +14,7 @@ namespace Web::WebLocks {
 
 GC_DEFINE_ALLOCATOR(LockRequest);
 
-LockRequest::LockRequest(String client_id, GC::Ref<LockManager> manager, String name, Bindings::LockMode mode, GC::Ref<WebIDL::CallbackType> callback, GC::Ref<WebIDL::Promise> promise, GC::Ptr<DOM::AbortSignal> signal)
+LockRequest::LockRequest(Utf16String client_id, GC::Ref<LockManager> manager, Utf16String name, Bindings::LockMode mode, GC::Ref<WebIDL::CallbackType> callback, GC::Ref<WebIDL::Promise> promise, GC::Ptr<DOM::AbortSignal> signal)
     : m_client_id(move(client_id))
     , m_manager(manager)
     , m_name(move(name))

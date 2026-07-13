@@ -205,11 +205,11 @@ WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> TrustedTypePolicyFactory::create
 
     // 2. If allowedByCSP is "Blocked", throw a TypeError and abort further steps.
     if (allowed_by_csp == ContentSecurityPolicy::Directives::Directive::Result::Blocked)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Content Security Policy blocked the creation of the policy {}", policy_name)) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("Content Security Policy blocked the creation of the policy {}", policy_name) };
 
     // 3. If policyName is default and the factory’s default policy value is not null, throw a TypeError and abort further steps.
     if (policy_name == "default"sv && m_default_policy)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Policy Factory already has a default value defined"_string };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Policy Factory already has a default value defined"_utf16 };
 
     // 4. Let policy be a new TrustedTypePolicy object.
     // 5. Set policy’s name property value to policyName.
@@ -248,24 +248,24 @@ ContentSecurityPolicy::Directives::Directive::Result TrustedTypePolicyFactory::s
         auto const directive = policy->get_directive_by_name(ContentSecurityPolicy::Directives::Names::TrustedTypes);
 
         // 4. If directive’s value only contains a tt-keyword which is a match for a value 'none', set createViolation to true.
-        if (directive->value().size() == 1 && directive->value().first().equals_ignoring_ascii_case(ContentSecurityPolicy::Directives::KeywordTrustedTypes::None))
+        if (directive->value().size() == 1 && directive->value().first().equals_ignoring_ascii_case(ContentSecurityPolicy::Directives::KeywordTrustedTypes::None.view()))
             create_violation = true;
 
         // 5. If createdPolicyNames contains policyName and directive’s value does not contain a tt-keyword which is a match for a value 'allow-duplicates', set createViolation to true.
         auto created_policy_names_iterator = created_policy_names.find(policy_name);
         if (!created_policy_names_iterator.is_end()) {
             auto maybe_allow_duplicates = directive->value().find_if([](auto const& directive_value) {
-                return directive_value.equals_ignoring_ascii_case(ContentSecurityPolicy::Directives::KeywordTrustedTypes::AllowDuplicates);
+                return directive_value.equals_ignoring_ascii_case(ContentSecurityPolicy::Directives::KeywordTrustedTypes::AllowDuplicates.view());
             });
             if (maybe_allow_duplicates.is_end())
                 create_violation = true;
         }
 
         // 6. If directive’s value does not contain a tt-policy-name, which value is policyName, and directive’s value does not contain a tt-wildcard, set createViolation to true.
-        auto directive_value_iterator = directive->value().find(policy_name.to_utf8());
+        auto directive_value_iterator = directive->value().find(policy_name);
         if (directive_value_iterator.is_end()) {
             auto maybe_wild_card = directive->value().find_if([](auto const& directive_value) {
-                return directive_value.equals_ignoring_ascii_case(ContentSecurityPolicy::Directives::KeywordTrustedTypes::WildCard);
+                return directive_value.equals_ignoring_ascii_case(ContentSecurityPolicy::Directives::KeywordTrustedTypes::WildCard.view());
             });
 
             if (maybe_wild_card.is_end())
@@ -277,14 +277,14 @@ ContentSecurityPolicy::Directives::Directive::Result TrustedTypePolicyFactory::s
             continue;
 
         // 8. Let violation be the result of executing Create a violation object for global, policy, and directive on global, policy and "trusted-types"
-        auto const violation = ContentSecurityPolicy::Violation::create_a_violation_object_for_global_policy_and_directive(realm, global, policy, ContentSecurityPolicy::Directives::Names::TrustedTypes.to_string());
+        auto const violation = ContentSecurityPolicy::Violation::create_a_violation_object_for_global_policy_and_directive(realm, global, policy, ContentSecurityPolicy::Directives::Names::TrustedTypes);
 
         // 9. Set violation’s resource to "trusted-types-policy".
         violation->set_resource(ContentSecurityPolicy::Violation::Resource::TrustedTypesPolicy);
 
         // 10. Set violation’s sample to the substring of policyName, containing its first 40 characters.
         auto sample = policy_name.substring_view(0, min(policy_name.length_in_code_points(), 40));
-        violation->set_sample(Utf16String::from_utf16(sample).to_utf8());
+        violation->set_sample(Utf16String::from_utf16(sample));
 
         // 11. Execute Report a violation on violation.
         violation->report_a_violation(realm);

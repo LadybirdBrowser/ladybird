@@ -9,6 +9,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/HTML/HTMLBaseElement.h>
+#include <LibWeb/Infra/SerializedURL.h>
 
 namespace Web::HTML {
 
@@ -81,9 +82,9 @@ void HTMLBaseElement::set_the_frozen_base_url(URL::URL const& old_base_url)
     auto& document = this->document();
 
     // 2. Let urlRecord be the result of parsing the value of element's href content attribute with document's fallback base URL, and document's character encoding. (Thus, the base element isn't affected by itself.)
-    auto href = get_attribute_value(AttributeNames::href);
+    auto href = get_attribute_value_view(AttributeNames::href).value_or({});
     auto encoding = document.encoding_or_default();
-    auto url_record = DOMURL::parse(href, document.fallback_base_url(), encoding.bytes_as_string_view());
+    auto url_record = DOMURL::parse(href, document.fallback_base_url(), encoding.utf16_view());
 
     // 3. If any of the following are true:
     //    - urlRecord is failure;
@@ -112,22 +113,23 @@ Utf16String HTMLBaseElement::href() const
     auto const& document = this->document();
 
     // 2. Let url be the value of the href attribute of this element, if it has one, and the empty string otherwise.
-    auto url = attribute(AttributeNames::href).value_or({});
+    auto url = attribute(AttributeNames::href);
+    auto url_view = url.has_value() ? url->utf16_view() : u""sv;
 
     // 3. Let urlRecord be the result of parsing url with document's fallback base URL, and document's character encoding. (Thus, the base element isn't affected by other base elements or itself.)
     auto encoding = document.encoding_or_default();
-    auto url_record = DOMURL::parse(url, document.fallback_base_url(), encoding.bytes_as_string_view());
+    auto url_record = DOMURL::parse(url_view, document.fallback_base_url(), encoding.utf16_view());
 
     // 4. If urlRecord is failure, return url.
     if (!url_record.has_value())
-        return url;
+        return url.has_value() ? url.release_value() : Utf16String {};
 
     // 5. Return the serialization of urlRecord.
-    return Utf16String::from_utf8(url_record->to_string());
+    return utf16_string_from_url_ascii(url_record->to_string());
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#dom-base-href
-void HTMLBaseElement::set_href(Utf16String const& href)
+void HTMLBaseElement::set_href(Utf16View href)
 {
     // The href IDL attribute, on setting, must set the href content attribute to the given new value.
     set_attribute_value(AttributeNames::href, href);

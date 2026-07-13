@@ -35,7 +35,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSTransformValue>> CSSTransformValue::construct_imp
 
     // 1. If transforms is empty, throw a TypeError.
     if (transforms.is_empty())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSTransformValue's transforms list cannot be empty."sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSTransformValue's transforms list cannot be empty."_utf16 };
 
     // 2. Return a new CSSTransformValue whose values to iterate over is transforms.
     return CSSTransformValue::create(realm, transforms);
@@ -86,7 +86,7 @@ static WebIDL::ExceptionOr<GC::Ref<CSSTransformComponent>> transform_component_f
 {
     if (auto transform_component = value.as_if<CSSTransformComponent>())
         return GC::Ref { *transform_component };
-    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Value must be a CSSTransformComponent"sv };
+    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Value must be a CSSTransformComponent"_utf16 };
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#ref-for-dfn-set-the-value-of-an-existing-indexed-property%E2%91%A0
@@ -105,7 +105,7 @@ WebIDL::ExceptionOr<void> CSSTransformValue::set_value_of_new_indexed_property(u
     // values be this’s [[values]] internal slot. If n is not equal to the size of values, throw a RangeError.
     // Otherwise, append new value to values.
     if (n != m_transforms.size())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Index out of range"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Index out of range"_utf16 };
 
     m_transforms.append(TRY(transform_component_from_js_value(new_value)));
     return {};
@@ -185,7 +185,7 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSTransformValue::create_a
         return StyleValueList::create(move(transforms), StyleValueList::Separator::Space);
     }
 
-    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Property does not accept values of this type."sv };
+    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Property does not accept values of this type."_utf16 };
 }
 
 }

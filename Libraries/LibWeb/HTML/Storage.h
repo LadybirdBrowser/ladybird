@@ -9,6 +9,7 @@
 #pragma once
 
 #include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/StorageAPI/StorageBottle.h>
@@ -34,9 +35,9 @@ public:
 
     size_t length() const;
     Optional<Utf16String> key(size_t index);
-    Optional<Utf16String> get_item(Utf16String const& key) const;
-    WebIDL::ExceptionOr<void> set_item(Utf16String const& key, Utf16String const& value);
-    void remove_item(Utf16String const& key);
+    Optional<Utf16String> get_item(Utf16View key) const;
+    WebIDL::ExceptionOr<void> set_item(Utf16View key, Utf16View value);
+    void remove_item(Utf16View key);
     void clear();
     Type type() const { return m_type; }
 
@@ -55,7 +56,7 @@ private:
     virtual WebIDL::ExceptionOr<void> set_value_of_named_property(Utf16FlyString const& key, JS::Value value) override;
 
     void reorder();
-    void broadcast(Optional<Utf16String> const& key, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value);
+    void broadcast(Optional<Utf16View> key, Optional<Utf16View> old_value, Optional<Utf16View> new_value);
 
     Type m_type {};
     GC::Ref<StorageAPI::StorageBottle> m_storage_bottle;

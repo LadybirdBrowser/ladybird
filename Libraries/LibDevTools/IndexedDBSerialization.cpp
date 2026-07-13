@@ -211,7 +211,7 @@ static JsonArray serialize_update_paths(Vector<Web::IndexedDB::TransactionChange
         //        Remove this filter once Firefox supports record updates.
         if (change.key.has_value())
             continue;
-        paths.must_append(indexed_database_path(change.database_name, change.object_store_name, change.key));
+        paths.must_append(indexed_database_path(change.database_name.to_utf8(), change.object_store_name.to_utf8(), change.key));
     }
     return paths;
 }

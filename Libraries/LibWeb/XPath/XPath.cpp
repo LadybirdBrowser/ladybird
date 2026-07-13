@@ -156,7 +156,7 @@ static void convert_xpath_result(xmlXPathObjectPtr xpath_result, XPath::XPathRes
     }
     case XPATH_STRING: {
         ReadonlyBytes bytes(xpath_result->stringval, xmlStrlen(xpath_result->stringval));
-        result->set_string(String::from_utf8_without_validation(bytes));
+        result->set_string(Utf16String::from_utf8_without_validation(bytes));
         break;
     }
     case XPATH_USERS:
@@ -165,16 +165,16 @@ static void convert_xpath_result(xmlXPathObjectPtr xpath_result, XPath::XPathRes
     }
 }
 
-WebIDL::ExceptionOr<GC::Ref<XPathExpression>> create_expression(JS::Realm& realm, String const& expression, GC::Ptr<XPathNSResolver> resolver)
+WebIDL::ExceptionOr<GC::Ref<XPathExpression>> create_expression(JS::Realm& realm, Utf16View expression, GC::Ptr<XPathNSResolver> resolver)
 {
     return realm.create<XPathExpression>(realm, expression, resolver);
 }
 
-WebIDL::ExceptionOr<GC::Ref<XPathResult>> evaluate(JS::Realm& realm, String const& expression, DOM::Node const& context_node, GC::Ptr<XPathNSResolver> /*resolver*/, unsigned short type, GC::Ptr<XPathResult> result)
+WebIDL::ExceptionOr<GC::Ref<XPathResult>> evaluate(JS::Realm& realm, Utf16View expression, DOM::Node const& context_node, GC::Ptr<XPathNSResolver> /*resolver*/, unsigned short type, GC::Ptr<XPathResult> result)
 {
     // Parse the expression as xpath
-    ByteString bytes = expression.bytes_as_string_view();
-    auto* xpath_compiled = xmlXPathCompile(bit_cast<xmlChar const*>(bytes.characters()));
+    auto expression_bytes = expression.to_byte_string().release_value_but_fixme_should_propagate_errors();
+    auto* xpath_compiled = xmlXPathCompile(bit_cast<xmlChar const*>(expression_bytes.characters()));
     if (!xpath_compiled)
         return WebIDL::SyntaxError::create(realm, "Invalid XPath expression"_utf16);
     ScopeGuard xpath_compiled_cleanup = [&] { xmlXPathFreeCompExpr(xpath_compiled); };

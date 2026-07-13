@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <LibCore/ImmutableBytes.h>
 #include <LibJS/Forward.h>
@@ -17,7 +18,7 @@
 namespace Web::Fetch {
 
 // https://fetch.spec.whatwg.org/#bodyinit
-using XMLHttpRequestBodyInit = FlattenVariant<WebIDL::BufferSourceVariant, Variant<GC::Ref<FileAPI::Blob>, GC::Ref<XHR::FormData>, GC::Ref<DOMURL::URLSearchParams>, String>>;
+using XMLHttpRequestBodyInit = FlattenVariant<WebIDL::BufferSourceVariant, Variant<GC::Ref<FileAPI::Blob>, GC::Ref<XHR::FormData>, GC::Ref<DOMURL::URLSearchParams>, Utf16String>>;
 using BodyInit = FlattenVariant<Variant<GC::Ref<Streams::ReadableStream>>, XMLHttpRequestBodyInit>;
 using NullableBodyInit = FlattenVariant<BodyInit, Variant<Empty>>;
 

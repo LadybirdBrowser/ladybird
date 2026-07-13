@@ -47,12 +47,15 @@ CSSFontFeatureValuesRule::CSSFontFeatureValuesRule(JS::Realm& realm, Vector<Utf1
 {
 }
 
-String CSSFontFeatureValuesRule::font_family() const
+Utf16String CSSFontFeatureValuesRule::serialized_font_family() const
 {
-    StringBuilder builder;
+    Utf16StringBuilder builder;
 
+    bool first = true;
     for (auto const& family : m_font_families) {
-        if (builder.length() > 0)
+        if (first)
+            first = false;
+        else
             builder.append(", "sv);
 
         if (family.view().contains_any_of(Infra::ASCII_WHITESPACE_CODE_POINTS))
@@ -61,42 +64,49 @@ String CSSFontFeatureValuesRule::font_family() const
             serialize_an_identifier(builder, family);
     }
 
-    return MUST(builder.to_string());
+    return builder.to_string();
 }
 
-void CSSFontFeatureValuesRule::set_font_family(String const& value)
+Utf16String CSSFontFeatureValuesRule::font_family() const
+{
+    return serialized_font_family();
+}
+
+void CSSFontFeatureValuesRule::set_font_family(Utf16View value)
 {
     Vector<Utf16FlyString> family_names;
 
-    for (auto const& family_name : value.bytes_as_string_view().split_view(','))
-        family_names.append(Utf16FlyString { Utf16String::from_utf8(family_name.trim_whitespace()) });
+    value.for_each_split_view(u',', SplitBehavior::Nothing, [&](Utf16View family_name) {
+        family_names.append(Utf16FlyString::from_utf16(family_name.trim(Infra::ASCII_WHITESPACE)));
+        return IterationDecision::Continue;
+    });
 
     m_font_families = move(family_names);
 }
 
-String CSSFontFeatureValuesRule::serialized() const
+Utf16String CSSFontFeatureValuesRule::serialized() const
 {
-    StringBuilder builder;
+    Utf16StringBuilder builder;
 
     auto serialize_font_feature_values_map = [&](CSSFontFeatureValuesMap const& map, StringView const& at_rule_name) {
         if (auto entries = map.to_ordered_hash_map(); !entries.is_empty()) {
             builder.appendff("  @{} {{"sv, at_rule_name);
 
             for (auto const& [key, value] : entries) {
-                builder.append(' ');
+                builder.append_ascii(' ');
                 serialize_an_identifier(builder, key);
-                builder.append(':');
+                builder.append_ascii(':');
 
                 for (size_t i = 0; i < value.size(); ++i)
                     builder.appendff(" {}", value[i]);
 
-                builder.append(";"sv);
+                builder.append_ascii(";"sv);
             }
-            builder.append(" }"sv);
+            builder.append_ascii(" }"sv);
         }
     };
 
-    builder.appendff("@font-feature-values {} {{"sv, font_family());
+    builder.appendff("@font-feature-values {} {{"sv, serialized_font_family());
 
     serialize_font_feature_values_map(m_annotation, "annotation"sv);
     serialize_font_feature_values_map(m_ornaments, "ornaments"sv);
@@ -105,9 +115,9 @@ String CSSFontFeatureValuesRule::serialized() const
     serialize_font_feature_values_map(m_character_variant, "character-variant"sv);
     serialize_font_feature_values_map(m_styleset, "styleset"sv);
     serialize_font_feature_values_map(m_historical_forms, "historical-forms"sv);
-    builder.append(" }"sv);
+    builder.append_ascii(" }"sv);
 
-    return builder.to_string_without_validation();
+    return builder.to_string();
 }
 
 HashMap<FontFeatureValueKey, Vector<u32>> CSSFontFeatureValuesRule::to_hash_map() const

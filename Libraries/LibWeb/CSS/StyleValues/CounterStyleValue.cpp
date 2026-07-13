@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Utf16StringBuilder.h>
 #include <LibWeb/CSS/CounterStyle.h>
 #include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/CSS/Enums.h>
@@ -33,7 +34,7 @@ CounterStyleValue::CounterStyleValue(CounterFunction function, Utf16FlyString co
 
 CounterStyleValue::~CounterStyleValue() = default;
 
-String CounterStyleValue::resolve(DOM::AbstractElement& element_reference) const
+Utf16String CounterStyleValue::resolve(DOM::AbstractElement& element_reference) const
 {
     // "If no counter named <counter-name> exists on an element where counter() or counters() is used,
     // one is first instantiated with a starting value of 0."
@@ -56,7 +57,7 @@ String CounterStyleValue::resolve(DOM::AbstractElement& element_reference) const
     // using the counter style named <counter-style>, sorted in outermost-first to innermost-last order
     // and joined by the specified <string>."
     // NOTE: The way counters sets are inherited, this should be the order they appear in the counters set.
-    StringBuilder stb;
+    Utf16StringBuilder stb;
     for (auto const& counter : counters_set.counters()) {
         if (counter.name != m_properties.counter_name)
             continue;
@@ -64,10 +65,10 @@ String CounterStyleValue::resolve(DOM::AbstractElement& element_reference) const
         auto const& style_scope = element_reference.style_scope();
         auto counter_string = generate_a_counter_representation(m_properties.counter_style->as_counter_style().resolve_counter_style(style_scope), style_scope, counter.value.value_or(0));
         if (!stb.is_empty())
-            stb.append(MUST(m_properties.join_string.view().to_utf8()));
+            stb.append(m_properties.join_string.view());
         stb.append(counter_string);
     }
-    return stb.to_string_without_validation();
+    return stb.to_string();
 }
 
 // https://drafts.csswg.org/cssom-1/#ref-for-typedef-counter

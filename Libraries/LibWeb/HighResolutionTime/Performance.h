@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Utf16FlyString.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibWeb/Bindings/PerformanceMeasure.h>
 #include <LibWeb/DOM/EventTarget.h>
@@ -26,10 +27,10 @@ public:
     double now() const;
     double time_origin() const;
 
-    WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMark>> mark(String const& mark_name, Bindings::PerformanceMarkOptions const& mark_options = {});
-    void clear_marks(Optional<String> mark_name);
-    WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMeasure>> measure(String const& measure_name, Variant<String, Bindings::PerformanceMeasureOptions> const& start_or_measure_options, Optional<String> end_mark);
-    void clear_measures(Optional<String> measure_name);
+    WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMark>> mark(Utf16String const& mark_name, Bindings::PerformanceMarkOptions const& mark_options = {});
+    void clear_marks(Optional<Utf16String> const& mark_name);
+    WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMeasure>> measure(Utf16String const& measure_name, Variant<Utf16String, Bindings::PerformanceMeasureOptions> const& start_or_measure_options, Optional<Utf16String> end_mark);
+    void clear_measures(Optional<Utf16String> const& measure_name);
 
     void clear_resource_timings();
     void set_resource_timing_buffer_size(u32 max_size);
@@ -37,8 +38,8 @@ public:
     WebIDL::CallbackType* onresourcetimingbufferfull();
 
     WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> get_entries() const;
-    WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> get_entries_by_type(String const& type) const;
-    WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> get_entries_by_name(String const& name, Optional<String> type) const;
+    WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> get_entries_by_type(Utf16FlyString const& type) const;
+    WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> get_entries_by_name(Utf16String const& name, Optional<Utf16FlyString> type) const;
 
     GC::Ptr<NavigationTiming::PerformanceTiming> timing();
     GC::Ptr<NavigationTiming::PerformanceNavigation> navigation();
@@ -52,8 +53,8 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> convert_name_to_timestamp(JS::Realm& realm, String const& name);
-    WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> convert_mark_to_timestamp(JS::Realm& realm, Variant<String, HighResolutionTime::DOMHighResTimeStamp> mark);
+    WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> convert_name_to_timestamp(JS::Realm& realm, Utf16String const& name);
+    WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> convert_mark_to_timestamp(JS::Realm& realm, Variant<Utf16String, HighResolutionTime::DOMHighResTimeStamp> const& mark);
 
     GC::Ptr<NavigationTiming::PerformanceNavigation> m_navigation;
     GC::Ptr<NavigationTiming::PerformanceTiming> m_timing;

@@ -52,7 +52,7 @@ WebIDL::UnsignedLong DataTransferItemList::length() const
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransferitemlist-add
-WebIDL::ExceptionOr<GC::Ptr<DataTransferItem>> DataTransferItemList::add(String const& data, String const& type)
+WebIDL::ExceptionOr<GC::Ptr<DataTransferItem>> DataTransferItemList::add(Utf16View data, Utf16View type)
 {
     auto& realm = this->realm();
 
@@ -75,7 +75,8 @@ WebIDL::ExceptionOr<GC::Ptr<DataTransferItem>> DataTransferItemList::add(String 
     auto item = m_data_transfer->add_item({
         .kind = HTML::DragDataStoreItem::Kind::Text,
         .type_string = type.to_ascii_lowercase(),
-        .data = MUST(ByteBuffer::copy(data.bytes())),
+        .data = Utf16String::from_utf16(data),
+        .file_data = {},
         .file_name = {},
     });
 
@@ -99,8 +100,9 @@ GC::Ptr<DataTransferItem> DataTransferItemList::add(GC::Ref<FileAPI::File> file)
     auto item = m_data_transfer->add_item({
         .kind = HTML::DragDataStoreItem::Kind::File,
         .type_string = file->type().to_ascii_lowercase(),
-        .data = MUST(ByteBuffer::copy(file->raw_bytes())),
-        .file_name = file->name().to_byte_string(),
+        .data = {},
+        .file_data = MUST(ByteBuffer::copy(file->raw_bytes())),
+        .file_name = file->name(),
     });
 
     // 3. Determine the value of the indexed property corresponding to the newly added item, and return that value (a

@@ -16,7 +16,6 @@
 #include <LibWeb/Bindings/URLSearchParams.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/DOMURL/URLSearchParams.h>
-#include <LibWeb/Infra/Strings.h>
 
 namespace Web::DOMURL {
 
@@ -63,10 +62,10 @@ String url_encode(Vector<QueryParam> const& tuples, StringView encoding)
         // 1. Assert: tuple’s name and tuple’s value are scalar value strings.
 
         // 2. Let name be the result of running percent-encode after encoding with encoding, tuple’s name, the application/x-www-form-urlencoded percent-encode set, and true.
-        auto name = URL::Parser::percent_encode_after_encoding(*encoder, tuple.name, URL::PercentEncodeSet::ApplicationXWWWFormUrlencoded, true);
+        auto name = URL::Parser::percent_encode_after_encoding(*encoder, tuple.name.to_utf8(), URL::PercentEncodeSet::ApplicationXWWWFormUrlencoded, true);
 
         // 3. Let value be the result of running percent-encode after encoding with encoding, tuple’s value, the application/x-www-form-urlencoded percent-encode set, and true.
-        auto value = URL::Parser::percent_encode_after_encoding(*encoder, tuple.value, URL::PercentEncodeSet::ApplicationXWWWFormUrlencoded, true);
+        auto value = URL::Parser::percent_encode_after_encoding(*encoder, tuple.value.to_utf8(), URL::PercentEncodeSet::ApplicationXWWWFormUrlencoded, true);
 
         // 4. If output is not the empty string, then append U+0026 (&) to output.
         if (!output.is_empty())
@@ -117,13 +116,18 @@ Vector<QueryParam> url_decode(StringView input)
         auto space_decoded_value = value.replace("+"sv, " "sv, ReplaceMode::All);
 
         // 5. Let nameString and valueString be the result of running UTF-8 decode without BOM on the percent-decoding of name and value, respectively.
-        auto name_string = String::from_utf8_with_replacement_character(URL::percent_decode(space_decoded_name), String::WithBOMHandling::No);
-        auto value_string = String::from_utf8_with_replacement_character(URL::percent_decode(space_decoded_value), String::WithBOMHandling::No);
+        auto name_string = Utf16String::from_utf8_with_replacement_character(URL::percent_decode(space_decoded_name), Utf16String::WithBOMHandling::No);
+        auto value_string = Utf16String::from_utf8_with_replacement_character(URL::percent_decode(space_decoded_value), Utf16String::WithBOMHandling::No);
 
         output.empend(move(name_string), move(value_string));
     }
 
     return output;
+}
+
+Vector<QueryParam> url_decode(Utf16View input)
+{
+    return url_decode(MUST(input.to_utf8()));
 }
 
 GC::Ref<URLSearchParams> URLSearchParams::create(JS::Realm& realm, Vector<QueryParam> list)
@@ -132,7 +136,14 @@ GC::Ref<URLSearchParams> URLSearchParams::create(JS::Realm& realm, Vector<QueryP
 }
 
 // https://url.spec.whatwg.org/#urlsearchparams-initialize
-GC::Ref<URLSearchParams> URLSearchParams::create(JS::Realm& realm, StringView init)
+GC::Ref<URLSearchParams> URLSearchParams::create_from_byte_string(JS::Realm& realm, StringView init)
+{
+    // NOTE: We skip the other steps since we know it is a string at this point.
+    // b. Set query’s list to the result of parsing init.
+    return URLSearchParams::create(realm, url_decode(init));
+}
+
+GC::Ref<URLSearchParams> URLSearchParams::create(JS::Realm& realm, Utf16View init)
 {
     // NOTE: We skip the other steps since we know it is a string at this point.
     // b. Set query’s list to the result of parsing init.
@@ -141,10 +152,8 @@ GC::Ref<URLSearchParams> URLSearchParams::create(JS::Realm& realm, StringView in
 
 // https://url.spec.whatwg.org/#dom-urlsearchparams-urlsearchparams
 // https://url.spec.whatwg.org/#urlsearchparams-initialize
-WebIDL::ExceptionOr<GC::Ref<URLSearchParams>> URLSearchParams::construct_impl(JS::Realm& realm, Variant<Vector<Vector<String>>, OrderedHashMap<String, String>, String> const& init)
+WebIDL::ExceptionOr<GC::Ref<URLSearchParams>> URLSearchParams::construct_impl(JS::Realm& realm, Variant<Vector<Vector<Utf16String>>, OrderedHashMap<Utf16String, Utf16String>, Utf16String> const& init)
 {
-    auto& vm = realm.vm();
-
     // 1. If init is a string and starts with U+003F (?), then remove the first code point from init.
     // NOTE: We do this when we know that it's a string on step 3 of initialization.
 
@@ -153,8 +162,8 @@ WebIDL::ExceptionOr<GC::Ref<URLSearchParams>> URLSearchParams::construct_impl(JS
     // URLSearchParams init from this point forward
 
     // 1. If init is a sequence, then for each pair in init:
-    if (init.has<Vector<Vector<String>>>()) {
-        auto const& init_sequence = init.get<Vector<Vector<String>>>();
+    if (init.has<Vector<Vector<Utf16String>>>()) {
+        auto const& init_sequence = init.get<Vector<Vector<Utf16String>>>();
 
         Vector<QueryParam> list;
         list.ensure_capacity(init_sequence.size());
@@ -162,7 +171,7 @@ WebIDL::ExceptionOr<GC::Ref<URLSearchParams>> URLSearchParams::construct_impl(JS
         for (auto const& pair : init_sequence) {
             // a. If pair does not contain exactly two items, then throw a TypeError.
             if (pair.size() != 2)
-                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, TRY_OR_THROW_OOM(vm, String::formatted("Expected only 2 items in pair, got {}", pair.size())) };
+                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("Expected only 2 items in pair, got {}", pair.size()) };
 
             // b. Append a new name-value pair whose name is pair’s first item, and value is pair’s second item, to query’s list.
             list.append(QueryParam { .name = pair[0], .value = pair[1] });
@@ -172,8 +181,8 @@ WebIDL::ExceptionOr<GC::Ref<URLSearchParams>> URLSearchParams::construct_impl(JS
     }
 
     // 2. Otherwise, if init is a record, then for each name → value of init, append a new name-value pair whose name is name and value is value, to query’s list.
-    if (init.has<OrderedHashMap<String, String>>()) {
-        auto const& init_record = init.get<OrderedHashMap<String, String>>();
+    if (init.has<OrderedHashMap<Utf16String, Utf16String>>()) {
+        auto const& init_record = init.get<OrderedHashMap<Utf16String, Utf16String>>();
 
         Vector<QueryParam> list;
         list.ensure_capacity(init_record.size());
@@ -187,10 +196,10 @@ WebIDL::ExceptionOr<GC::Ref<URLSearchParams>> URLSearchParams::construct_impl(JS
     // 3. Otherwise:
     // a. Assert: init is a string.
     // NOTE: `get` performs `VERIFY(has<T>())`
-    auto const& init_string = init.get<String>();
+    auto const& init_string = init.get<Utf16String>();
 
     // See NOTE at the start of this function.
-    auto init_string_view = init_string.bytes_as_string_view();
+    auto init_string_view = init_string.utf16_view();
     auto stripped_init = init_string_view.substring_view(init_string_view.starts_with('?'));
 
     // b. Set query’s list to the result of parsing init.
@@ -205,7 +214,7 @@ size_t URLSearchParams::size() const
 }
 
 // https://url.spec.whatwg.org/#dom-urlsearchparams-append
-void URLSearchParams::append(String const& name, String const& value)
+void URLSearchParams::append(Utf16String const& name, Utf16String const& value)
 {
     // 1. Append a new name-value pair whose name is name and value is value, to list.
     m_list.empend(name, value);
@@ -222,7 +231,7 @@ void URLSearchParams::update()
         return;
 
     // 2. Let serializedQuery be the serialization of query’s list.
-    Optional<String> serialized_query = to_string();
+    Optional<String> serialized_query = serialize_to_byte_string();
 
     // 3. If serializedQuery is the empty string, then set serializedQuery to null.
     if (serialized_query == String {})
@@ -233,7 +242,7 @@ void URLSearchParams::update()
 }
 
 // https://url.spec.whatwg.org/#dom-urlsearchparams-delete
-void URLSearchParams::delete_(String const& name, Optional<String> const& value)
+void URLSearchParams::delete_(Utf16String const& name, Optional<Utf16String> const& value)
 {
     // 1. If value is given, then remove all tuples whose name is name and value is value from this’s list.
     if (value.has_value()) {
@@ -252,7 +261,7 @@ void URLSearchParams::delete_(String const& name, Optional<String> const& value)
     update();
 }
 
-Optional<String> URLSearchParams::get(String const& name)
+Optional<Utf16String> URLSearchParams::get(Utf16String const& name)
 {
     // return the value of the first name-value pair whose name is name in this’s list, if there is such a pair, and null otherwise.
     auto result = m_list.find_if([&name](auto& entry) {
@@ -264,10 +273,10 @@ Optional<String> URLSearchParams::get(String const& name)
 }
 
 // https://url.spec.whatwg.org/#dom-urlsearchparams-getall
-Vector<String> URLSearchParams::get_all(String const& name)
+Vector<Utf16String> URLSearchParams::get_all(Utf16String const& name)
 {
     // return the values of all name-value pairs whose name is name, in this’s list, in list order, and the empty sequence otherwise.
-    Vector<String> values;
+    Vector<Utf16String> values;
     for (auto& entry : m_list) {
         if (entry.name == name)
             values.append(entry.value);
@@ -276,7 +285,7 @@ Vector<String> URLSearchParams::get_all(String const& name)
 }
 
 // https://url.spec.whatwg.org/#dom-urlsearchparams-has
-bool URLSearchParams::has(String const& name, Optional<String> const& value)
+bool URLSearchParams::has(Utf16String const& name, Optional<Utf16String> const& value)
 {
     // 1. If value is given and there is a tuple whose name is name and value is value in this’s list, then return true.
     if (value.has_value()) {
@@ -301,7 +310,7 @@ bool URLSearchParams::has(String const& name, Optional<String> const& value)
     return false;
 }
 
-void URLSearchParams::set(String const& name, String const& value)
+void URLSearchParams::set(Utf16String const& name, Utf16String const& value)
 {
     // 1. If this’s list contains any name-value pairs whose name is name, then set the value of the first such name-value pair to value and remove the others.
     auto existing = m_list.find_if([&name](auto& entry) {
@@ -327,17 +336,23 @@ void URLSearchParams::sort()
 {
     // 1. Set this’s list to the result of sorting in ascending order this’s list, with a being less than b if a’s name is code unit less than b’s name.
     insertion_sort(m_list, [](auto& a, auto& b) {
-        return Infra::code_unit_less_than(a.name, b.name);
+        return a.name.utf16_view().is_code_unit_less_than(b.name);
     });
 
     // 2. Update this.
     update();
 }
 
-String URLSearchParams::to_string() const
+String URLSearchParams::serialize_to_byte_string() const
 {
     // return the serialization of this’s list.
     return url_encode(m_list);
+}
+
+Utf16String URLSearchParams::to_string() const
+{
+    auto serialized = serialize_to_byte_string();
+    return Utf16String::from_ascii_without_validation(serialized.bytes());
 }
 
 JS::ThrowCompletionOr<void> URLSearchParams::for_each(ForEachCallback callback)

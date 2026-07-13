@@ -5,6 +5,8 @@
  */
 
 #include <AK/JsonArray.h>
+#include <AK/Platform.h>
+#include <AK/Utf16String.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/HTML/AutoplayPolicy.h>
 #include <LibWebView/Application.h>
@@ -323,7 +325,8 @@ void SettingsUI::set_site_setting_policy(JsonValue const& site_setting)
 
     switch (*setting) {
     case SiteSettingType::Autoplay:
-        if (auto parsed = Web::HTML::autoplay_policy_from_string(*policy); parsed.has_value())
+        auto policy_utf16 = Utf16String::from_utf8_without_validation(*policy);
+        if (auto parsed = Web::HTML::autoplay_policy_from_string(policy_utf16.utf16_view()); parsed.has_value())
             WebView::Application::settings().set_autoplay_policy(*parsed);
         break;
     }

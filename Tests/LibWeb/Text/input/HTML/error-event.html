@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const error = { name: "SyntheticError" };
+        const event = new ErrorEvent("error", {
+            message: "well hello friends \u{1F41E}",
+            filename: "file:///tmp/\u{1F41E}.js",
+            lineno: 12,
+            colno: 34,
+            error,
+        });
+
+        println(`type: ${event.type}`);
+        println(`message: ${event.message}`);
+        println(`filename: ${event.filename}`);
+        println(`lineno: ${event.lineno}`);
+        println(`colno: ${event.colno}`);
+        println(`error identity: ${event.error === error}`);
+    });
+</script>

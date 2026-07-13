@@ -13,34 +13,34 @@ interface HTMLImageElement : HTMLElement {
     [HTMLConstructor] constructor();
 
     [CEReactions, Reflect] attribute Utf16DOMString alt;
-    [CEReactions, Reflect, URL] attribute USVString src;
-    [CEReactions, Reflect] attribute DOMString srcset;
-    [CEReactions, Reflect] attribute DOMString sizes;
-    [CEReactions, Enumerated=CORSSettingsAttribute, Reflect=crossorigin] attribute DOMString? crossOrigin;
-    [CEReactions, Reflect=usemap] attribute DOMString useMap;
+    [CEReactions, Reflect, URL] attribute Utf16USVString src;
+    [CEReactions, Reflect] attribute Utf16DOMString srcset;
+    [CEReactions, Reflect] attribute Utf16DOMString sizes;
+    [CEReactions, Enumerated=CORSSettingsAttribute, Reflect=crossorigin] attribute Utf16DOMString? crossOrigin;
+    [CEReactions, Reflect=usemap] attribute Utf16DOMString useMap;
     [CEReactions, Reflect=ismap] attribute boolean isMap;
     [CEReactions] attribute unsigned long width;
     [CEReactions] attribute unsigned long height;
     readonly attribute unsigned long naturalWidth;
     readonly attribute unsigned long naturalHeight;
     readonly attribute boolean complete;
-    readonly attribute USVString currentSrc;
-    [CEReactions, Reflect=referrerpolicy, Enumerated=ReferrerPolicy] attribute DOMString referrerPolicy;
-    [CEReactions, Enumerated=Decoding, Reflect] attribute DOMString decoding;
-    [CEReactions, Enumerated=LazyLoadingAttribute, Reflect] attribute DOMString loading;
-    [CEReactions, Enumerated=FetchPriorityAttribute, Reflect=fetchpriority] attribute DOMString fetchPriority;
+    readonly attribute Utf16USVString currentSrc;
+    [CEReactions, Reflect=referrerpolicy, Enumerated=ReferrerPolicy] attribute Utf16DOMString referrerPolicy;
+    [CEReactions, Enumerated=Decoding, Reflect] attribute Utf16DOMString decoding;
+    [CEReactions, Enumerated=LazyLoadingAttribute, Reflect] attribute Utf16DOMString loading;
+    [CEReactions, Enumerated=FetchPriorityAttribute, Reflect=fetchpriority] attribute Utf16DOMString fetchPriority;
 
     Promise<undefined> decode();
 
     // Obsolete
     [CEReactions, Reflect] attribute Utf16DOMString name;
-    [CEReactions, Reflect, URL] attribute USVString lowsrc;
-    [CEReactions, Reflect] attribute DOMString align;
+    [CEReactions, Reflect, URL] attribute Utf16USVString lowsrc;
+    [CEReactions, Reflect] attribute Utf16DOMString align;
     [CEReactions, Reflect] attribute unsigned long hspace;
     [CEReactions, Reflect] attribute unsigned long vspace;
-    [CEReactions, Reflect=longdesc, URL] attribute USVString longDesc;
+    [CEReactions, Reflect=longdesc, URL] attribute Utf16USVString longDesc;
 
-    [CEReactions, LegacyNullToEmptyString, Reflect] attribute DOMString border;
+    [CEReactions, LegacyNullToEmptyString, Reflect] attribute Utf16DOMString border;
 
     // https://drafts.csswg.org/cssom-view/#extensions-to-the-htmlimageelement-interface
     readonly attribute long x;

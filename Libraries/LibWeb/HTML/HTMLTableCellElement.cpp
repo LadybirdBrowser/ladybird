@@ -56,7 +56,7 @@ bool HTMLTableCellElement::is_presentational_hint(Utf16FlyString const& name) co
 void HTMLTableCellElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
 {
     Base::apply_presentational_hints(properties);
-    for_each_attribute([&](auto& name, auto& value) {
+    for_each_attribute([&](Utf16FlyString const& name, Utf16View value) {
         if (name == HTML::AttributeNames::bgcolor) {
             // https://html.spec.whatwg.org/multipage/rendering.html#tables-2:rules-for-parsing-a-legacy-colour-value
             auto color = parse_legacy_color_value(value);
@@ -217,10 +217,10 @@ Optional<ARIA::Role> HTMLTableCellElement::default_role() const
             // tests at https://wpt.fyi/results/html-aam/table-roles.html require doing these ancestor checks — and
             // implementing them causes the behavior to match that of other engines.
             // https://w3c.github.io/html-aam/#el-th-columnheader
-            if (get_attribute(HTML::AttributeNames::scope) == "columnheader"sv || ancestor->local_name() == TagNames::thead)
+            if (get_attribute(HTML::AttributeNames::scope) == u"columnheader"sv || ancestor->local_name() == TagNames::thead)
                 return ARIA::Role::columnheader;
             // https://w3c.github.io/html-aam/#el-th-rowheader
-            if (get_attribute(HTML::AttributeNames::scope) == "rowheader"sv || ancestor->local_name() == TagNames::tbody)
+            if (get_attribute(HTML::AttributeNames::scope) == u"rowheader"sv || ancestor->local_name() == TagNames::tbody)
                 return ARIA::Role::rowheader;
         }
     }

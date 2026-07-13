@@ -9,6 +9,7 @@
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16StringBuilder.h>
+#include <AK/Utf16View.h>
 #include <LibWeb/Bindings/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/NumericType.h>
@@ -63,7 +64,7 @@ public:
     void serialize(Utf16StringBuilder&, SerializationParams const&) const;
     Utf16String to_string(SerializationParams const&) const;
 
-    static WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> parse(JS::VM&, String const& css_text);
+    static WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> parse(JS::VM&, Utf16View css_text);
 
     virtual WebIDL::ExceptionOr<NonnullRefPtr<CalculationNode const>> create_calculation_node(CalculationContext const&) const = 0;
 

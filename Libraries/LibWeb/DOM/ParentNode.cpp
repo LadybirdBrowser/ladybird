@@ -24,7 +24,7 @@ namespace Web::DOM {
 GC_DEFINE_ALLOCATOR(ParentNode);
 
 // https://dom.spec.whatwg.org/#dom-parentnode-queryselector
-WebIDL::ExceptionOr<GC::Ptr<Element>> ParentNode::query_selector(StringView selector_text)
+WebIDL::ExceptionOr<GC::Ptr<Element>> ParentNode::query_selector(Utf16View selector_text)
 {
     // The querySelector(selectors) method steps are to return the first result of running scope-match a selectors string selectors against this,
     // if the result is not an empty list; otherwise null.
@@ -41,7 +41,7 @@ WebIDL::ExceptionOr<GC::Ptr<Element>> ParentNode::query_selector(StringView sele
 }
 
 // https://dom.spec.whatwg.org/#dom-parentnode-queryselectorall
-WebIDL::ExceptionOr<GC::Ref<NodeList>> ParentNode::query_selector_all(StringView selector_text)
+WebIDL::ExceptionOr<GC::Ref<NodeList>> ParentNode::query_selector_all(Utf16View selector_text)
 {
     // The querySelectorAll(selectors) method steps are to return the static result of running scope-match a selectors string selectors against this.
 
@@ -100,7 +100,7 @@ GC::Ref<HTMLCollection> ParentNode::children()
 GC::Ref<HTMLCollection> ParentNode::get_elements_by_tag_name(Utf16FlyString const& qualified_name)
 {
     // 1. If qualifiedName is "*" (U+002A), return a HTMLCollection rooted at root, whose filter matches only descendant elements.
-    if (qualified_name == "*"sv) {
+    if (qualified_name == u"*"sv) {
         return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [](Element const&) {
             return true;
         });
@@ -108,21 +108,20 @@ GC::Ref<HTMLCollection> ParentNode::get_elements_by_tag_name(Utf16FlyString cons
 
     // 2. Otherwise, if root’s node document is an HTML document, return a HTMLCollection rooted at root, whose filter matches the following descendant elements:
     if (root().document().document_type() == Document::Type::HTML) {
-        auto lowercase_qualified_name = qualified_name.view().to_ascii_lowercase();
-        auto qualified_name_in_ascii_lowercase = Utf16FlyString::from_utf16(lowercase_qualified_name.utf16_view());
-        return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [qualified_name, qualified_name_in_ascii_lowercase](Element const& element) {
+        auto lowercase_qualified_name = qualified_name.to_ascii_lowercase();
+        return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [qualified_name, lowercase_qualified_name = move(lowercase_qualified_name)](Element const& element) {
             // - Whose namespace is the HTML namespace and whose qualified name is qualifiedName, in ASCII lowercase.
             if (element.namespace_uri() == Namespace::HTML)
-                return element.qualified_name() == qualified_name_in_ascii_lowercase;
+                return element.qualified_name() == lowercase_qualified_name;
 
             // - Whose namespace is not the HTML namespace and whose qualified name is qualifiedName.
-            return element.qualified_name() == qualified_name;
+            return element.qualified_name().view() == qualified_name.view();
         });
     }
 
     // 3. Otherwise, return a HTMLCollection rooted at root, whose filter matches descendant elements whose qualified name is qualifiedName.
     return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [qualified_name](Element const& element) {
-        return element.qualified_name() == qualified_name;
+        return element.qualified_name().view() == qualified_name.view();
     });
 }
 
@@ -135,29 +134,36 @@ GC::Ref<HTMLCollection> ParentNode::get_elements_by_tag_name_ns(Optional<Utf16Fl
         namespace_ = OptionalNone {};
 
     // 2. If both namespace and localName are "*" (U+002A), return a HTMLCollection rooted at root, whose filter matches descendant elements.
-    if (namespace_ == "*"sv && local_name == "*"sv) {
+    if (namespace_ == u"*"sv && local_name == u"*"sv) {
         return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [](Element const&) {
             return true;
         });
     }
 
     // 3. Otherwise, if namespace is "*" (U+002A), return a HTMLCollection rooted at root, whose filter matches descendant elements whose local name is localName.
-    if (namespace_ == "*"sv) {
+    if (namespace_ == u"*"sv) {
         return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [local_name](Element const& element) {
-            return element.local_name() == local_name;
+            return element.local_name().view() == local_name.view();
         });
     }
 
     // 4. Otherwise, if localName is "*" (U+002A), return a HTMLCollection rooted at root, whose filter matches descendant elements whose namespace is namespace.
-    if (local_name == "*"sv) {
+    if (local_name == u"*"sv) {
         return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [namespace_](Element const& element) {
-            return element.namespace_uri() == namespace_;
+            auto element_namespace = element.namespace_uri();
+            if (element_namespace.has_value() != namespace_.has_value())
+                return false;
+            return !namespace_.has_value() || element_namespace->view() == namespace_->view();
         });
     }
 
     // 5. Otherwise, return a HTMLCollection rooted at root, whose filter matches descendant elements whose namespace is namespace and local name is localName.
     return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [namespace_, local_name](Element const& element) {
-        return element.namespace_uri() == namespace_ && element.local_name() == local_name;
+        auto element_namespace = element.namespace_uri();
+        if (element_namespace.has_value() != namespace_.has_value())
+            return false;
+        return (!namespace_.has_value() || element_namespace->view() == namespace_->view())
+            && element.local_name().view() == local_name.view();
     });
 }
 
@@ -216,15 +222,19 @@ WebIDL::ExceptionOr<void> ParentNode::move_before(GC::Ref<Node> node, GC::Ptr<No
 }
 
 // https://dom.spec.whatwg.org/#dom-document-getelementsbyclassname
-GC::Ref<HTMLCollection> ParentNode::get_elements_by_class_name(Utf16String const& class_names)
+GC::Ref<HTMLCollection> ParentNode::get_elements_by_class_name(Utf16View class_names)
 {
-    Vector<Utf16FlyString> list_of_class_names;
-    auto class_names_view = class_names.utf16_view();
+    Vector<Utf16String> list_of_class_names;
+    auto append_class_name = [&](Utf16View class_name) {
+        if (!list_of_class_names.contains_slow(class_name))
+            list_of_class_names.append(Utf16String::from_utf16(class_name));
+    };
+
     Optional<size_t> token_start;
-    for (size_t i = 0; i < class_names_view.length_in_code_units(); ++i) {
-        if (Infra::is_ascii_whitespace(class_names_view.code_unit_at(i))) {
+    for (size_t i = 0; i < class_names.length_in_code_units(); ++i) {
+        if (Infra::is_ascii_whitespace(class_names.code_unit_at(i))) {
             if (token_start.has_value()) {
-                list_of_class_names.append(Utf16FlyString::from_utf16(class_names_view.substring_view(*token_start, i - *token_start)));
+                append_class_name(class_names.substring_view(*token_start, i - *token_start));
                 token_start = {};
             }
             continue;
@@ -235,7 +245,7 @@ GC::Ref<HTMLCollection> ParentNode::get_elements_by_class_name(Utf16String const
     }
 
     if (token_start.has_value())
-        list_of_class_names.append(Utf16FlyString::from_utf16(class_names_view.substring_view(*token_start)));
+        append_class_name(class_names.substring_view(*token_start));
 
     return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [list_of_class_names = move(list_of_class_names), quirks_mode = document().in_quirks_mode()](Element const& element) {
         for (auto& name : list_of_class_names) {
@@ -246,7 +256,7 @@ GC::Ref<HTMLCollection> ParentNode::get_elements_by_class_name(Utf16String const
     });
 }
 
-GC::Ptr<Element> ParentNode::get_element_by_id(Utf16FlyString const& id) const
+GC::Ptr<Element> ParentNode::get_element_by_id(Utf16View id) const
 {
     if (is_connected()) {
         // For connected document and shadow root we have a cache that allows fast lookup.
@@ -266,23 +276,13 @@ GC::Ptr<Element> ParentNode::get_element_by_id(Utf16FlyString const& id) const
 
     GC::Ptr<Element> found_element;
     const_cast<ParentNode&>(*this).for_each_in_inclusive_subtree_of_type<Element>([&](Element& element) {
-        if (element.id() == id) {
+        if (element.id().has_value() && element.id()->view() == id) {
             found_element = &element;
             return TraversalDecision::Break;
         }
         return TraversalDecision::Continue;
     });
     return found_element;
-}
-
-GC::Ptr<Element> ParentNode::get_element_by_id(Utf16View id) const
-{
-    return get_element_by_id(Utf16FlyString::from_utf16(id));
-}
-
-GC::Ptr<Element> ParentNode::get_element_by_id(Utf16String const& id) const
-{
-    return get_element_by_id(id.utf16_view());
 }
 
 }

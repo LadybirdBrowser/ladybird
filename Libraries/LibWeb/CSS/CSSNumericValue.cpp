@@ -232,7 +232,7 @@ WebIDL::ExceptionOr<CSSNumberish> CSSNumericValue::invert()
     if (auto* unit_value = as_if<CSSUnitValue>(*this); unit_value && unit_value->unit() == "number"_utf16_fly_string) {
         // 1. If this’s value internal slot is set to 0 or -0, throw a RangeError.
         if (unit_value->value() == 0 || unit_value->value() == -0)
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Zero has no multiplicative inverse"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Zero has no multiplicative inverse"_utf16 };
 
         // 2. Else return a new CSSUnitValue with the unit internal slot set to "number", and a value internal slot set
         //    to 1 divided by this’s {CSSUnitValue/value}} internal slot.
@@ -339,20 +339,20 @@ WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> CSSNumericValue::to(Utf16FlyString co
     // 2. Let sum be the result of creating a sum value from this. If sum is failure, throw a TypeError.
     auto sum = create_a_sum_value();
     if (!sum.has_value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to create a sum from input '{}'", MUST(to_string()))) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("Unable to create a sum from input '{}'", MUST(to_string())) };
 
     // 3. If sum has more than one item, throw a TypeError.
     //    Otherwise, let item be the result of creating a CSSUnitValue from the sole item in sum, then converting it to
     //    unit. If item is failure, throw a TypeError.
     if (sum->size() > 1)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Sum contains more than one item"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Sum contains more than one item"_utf16 };
     auto item = CSSUnitValue::create_from_sum_value_item(realm(), sum->first());
     if (!item)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to create CSSUnitValue from input '{}'", MUST(to_string()))) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("Unable to create CSSUnitValue from input '{}'", MUST(to_string())) };
 
     auto converted_item = item->converted_to_unit(unit);
     if (!converted_item)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Unable to convert input to requested unit"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Unable to convert input to requested unit"_utf16 };
 
     // 4. Return item.
     return converted_item.as_nonnull();
@@ -487,7 +487,7 @@ static WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> reify_a_numeric_value(JS::R
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-parse
-WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::parse(JS::VM& vm, String const& css_text)
+WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::parse(JS::VM& vm, Utf16View css_text)
 {
     // The parse(cssText) method, when called, must perform the following steps:
 

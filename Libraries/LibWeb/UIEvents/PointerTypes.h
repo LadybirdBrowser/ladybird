@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/Export.h>
 
 namespace Web::UIEvents::PointerTypes {
@@ -17,7 +17,7 @@ namespace Web::UIEvents::PointerTypes {
     __ENUMERATE_POINTER_TYPE(Pen, "pen")     \
     __ENUMERATE_POINTER_TYPE(Touch, "touch")
 
-#define __ENUMERATE_POINTER_TYPE(name, value) extern WEB_API String name;
+#define __ENUMERATE_POINTER_TYPE(name, value) extern WEB_API Utf16FlyString name;
 ENUMERATE_POINTER_TYPES
 #undef __ENUMERATE_POINTER_TYPE
 

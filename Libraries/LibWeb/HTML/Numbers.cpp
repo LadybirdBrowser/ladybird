@@ -12,19 +12,9 @@
 
 namespace Web::HTML {
 
-static size_t code_unit_length(StringView string)
-{
-    return string.length();
-}
-
 static size_t code_unit_length(Utf16View string)
 {
     return string.length_in_code_units();
-}
-
-static u32 code_unit_at(StringView string, size_t index)
-{
-    return string[index];
 }
 
 static u32 code_unit_at(Utf16View string, size_t index)
@@ -80,25 +70,9 @@ static Optional<StringType> parse_integer_digits_impl(StringType string)
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-integers
-Optional<StringView> parse_integer_digits(StringView string)
-{
-    return parse_integer_digits_impl(string);
-}
-
-// https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-integers
 Optional<Utf16View> parse_integer_digits(Utf16View string)
 {
     return parse_integer_digits_impl(string);
-}
-
-// https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-integers
-Optional<i32> parse_integer(StringView string)
-{
-    auto optional_digits = parse_integer_digits(string);
-    if (!optional_digits.has_value())
-        return {};
-
-    return optional_digits->to_number<i32>(TrimWhitespace::No);
 }
 
 Optional<i32> parse_integer(Utf16View string)
@@ -134,29 +108,9 @@ static Optional<StringType> parse_non_negative_integer_digits_impl(StringType st
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-non-negative-integers
-Optional<StringView> parse_non_negative_integer_digits(StringView string)
-{
-    return parse_non_negative_integer_digits_impl(string);
-}
-
-// https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-non-negative-integers
 Optional<Utf16View> parse_non_negative_integer_digits(Utf16View string)
 {
     return parse_non_negative_integer_digits_impl(string);
-}
-
-// https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-non-negative-integers
-Optional<u32> parse_non_negative_integer(StringView string)
-{
-    auto optional_digits = parse_non_negative_integer_digits(string);
-    if (!optional_digits.has_value())
-        return {};
-
-    auto optional_value = optional_digits->to_number<i64>(TrimWhitespace::No);
-    if (!optional_value.has_value() || *optional_value > NumericLimits<u32>::max())
-        return {};
-
-    return static_cast<u32>(optional_value.value());
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-non-negative-integers
@@ -377,12 +331,6 @@ conversion:
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-floating-point-number-values
-Optional<double> parse_floating_point_number(StringView string)
-{
-    return parse_floating_point_number_impl(string);
-}
-
-// https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-floating-point-number-values
 Optional<double> parse_floating_point_number(Utf16View string)
 {
     return parse_floating_point_number_impl(string);
@@ -436,12 +384,6 @@ static bool is_valid_floating_point_number_impl(StringType string)
             return false;
     }
     return is_eof(string, position);
-}
-
-// https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-floating-point-number
-bool is_valid_floating_point_number(StringView string)
-{
-    return is_valid_floating_point_number_impl(string);
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-floating-point-number

@@ -57,24 +57,24 @@ void MarkerPaintable::paint(DisplayListRecordingContext& context, PaintPhase pha
     if (auto text = layout_box().text(); text.has_value()) {
         // FIXME: This should use proper text layout logic!
         // This does not line up with the text in the <li> element which looks very sad :(
-        context.display_list_recorder().draw_text(device_rect.to_type<int>(), Utf16String::from_utf8(*text), layout_box().font(context), Gfx::TextAlignment::Center, color);
+        context.display_list_recorder().draw_text(device_rect.to_type<int>(), *text, layout_box().font(context), Gfx::TextAlignment::Center, color);
         return;
     }
 
     auto const& counter_style = list_style_type.get<RefPtr<CSS::CounterStyle const>>();
     VERIFY(Layout::ListItemMarkerBox::counter_style_is_rendered_with_custom_image(counter_style));
 
-    if (counter_style->name() == "square"_fly_string) {
+    if (counter_style->name() == "square"_utf16_fly_string) {
         context.display_list_recorder().fill_rect(device_rect.to_type<int>(), color);
         return;
     }
 
-    if (counter_style->name() == "circle"_fly_string) {
+    if (counter_style->name() == "circle"_utf16_fly_string) {
         context.display_list_recorder().draw_ellipse(device_rect.to_type<int>(), color, 1);
         return;
     }
 
-    if (counter_style->name() == "disc"_fly_string) {
+    if (counter_style->name() == "disc"_utf16_fly_string) {
         context.display_list_recorder().fill_ellipse(device_rect.to_type<int>(), color);
         return;
     }
@@ -84,7 +84,7 @@ void MarkerPaintable::paint(DisplayListRecordingContext& context, PaintPhase pha
     float top = device_rect.y().value();
     float bottom = top + device_rect.height().value();
 
-    if (counter_style->name() == "disclosure-closed"_fly_string) {
+    if (counter_style->name() == "disclosure-closed"_utf16_fly_string) {
         // https://drafts.csswg.org/css-counter-styles-3/#disclosure-closed
         // For the disclosure-open and disclosure-closed counter styles, the marker must be an image or character
         // suitable for indicating the open and closed states of a disclosure widget, such as HTML’s details element.
@@ -101,7 +101,7 @@ void MarkerPaintable::paint(DisplayListRecordingContext& context, PaintPhase pha
         return;
     }
 
-    if (counter_style->name() == "disclosure-open"_fly_string) {
+    if (counter_style->name() == "disclosure-open"_utf16_fly_string) {
         // https://drafts.csswg.org/css-counter-styles-3/#disclosure-open
         // For the disclosure-open and disclosure-closed counter styles, the marker must be an image or character
         // suitable for indicating the open and closed states of a disclosure widget, such as HTML’s details element.

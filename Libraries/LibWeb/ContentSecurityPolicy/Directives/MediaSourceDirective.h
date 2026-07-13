@@ -22,7 +22,7 @@ public:
     virtual Result post_request_check(GC::Heap&, GC::Ref<Fetch::Infrastructure::Request const>, GC::Ref<Fetch::Infrastructure::Response const>, GC::Ref<Policy const>) const override;
 
 private:
-    MediaSourceDirective(String name, Vector<String> value);
+    MediaSourceDirective(Utf16FlyString name, Vector<Utf16String> value);
 };
 
 }

@@ -22,9 +22,9 @@ MatchResult Supports::Declaration::evaluate(BooleanExpressionEvaluationContext c
     return as_match_result(m_matches);
 }
 
-String Supports::Declaration::to_string() const
+void Supports::Declaration::serialize_to(Utf16StringBuilder& builder) const
 {
-    return m_declaration;
+    builder.append(m_declaration.utf16_view());
 }
 
 void Supports::Declaration::dump(StringBuilder& builder, int indent_levels) const
@@ -38,9 +38,11 @@ MatchResult Supports::Selector::evaluate(BooleanExpressionEvaluationContext cons
     return as_match_result(m_matches);
 }
 
-String Supports::Selector::to_string() const
+void Supports::Selector::serialize_to(Utf16StringBuilder& builder) const
 {
-    return MUST(String::formatted("selector({})", m_selector));
+    builder.append_ascii("selector("sv);
+    builder.append(m_selector.utf16_view());
+    builder.append_ascii(')');
 }
 
 void Supports::Selector::dump(StringBuilder& builder, int indent_levels) const
@@ -54,9 +56,11 @@ MatchResult Supports::FontTech::evaluate(BooleanExpressionEvaluationContext cons
     return as_match_result(m_matches);
 }
 
-String Supports::FontTech::to_string() const
+void Supports::FontTech::serialize_to(Utf16StringBuilder& builder) const
 {
-    return MUST(String::formatted("font-tech({})", m_tech));
+    builder.append_ascii("font-tech("sv);
+    builder.append(m_tech.view());
+    builder.append_ascii(')');
 }
 
 void Supports::FontTech::dump(StringBuilder& builder, int indent_levels) const
@@ -70,9 +74,11 @@ MatchResult Supports::FontFormat::evaluate(BooleanExpressionEvaluationContext co
     return as_match_result(m_matches);
 }
 
-String Supports::FontFormat::to_string() const
+void Supports::FontFormat::serialize_to(Utf16StringBuilder& builder) const
 {
-    return MUST(String::formatted("font-format({})", m_format));
+    builder.append_ascii("font-format("sv);
+    builder.append(m_format.view());
+    builder.append_ascii(')');
 }
 
 void Supports::FontFormat::dump(StringBuilder& builder, int indent_levels) const
@@ -86,9 +92,11 @@ MatchResult Supports::Env::evaluate(BooleanExpressionEvaluationContext const&) c
     return as_match_result(m_matches);
 }
 
-String Supports::Env::to_string() const
+void Supports::Env::serialize_to(Utf16StringBuilder& builder) const
 {
-    return MUST(String::formatted("font-format({})", serialize_an_identifier(m_variable_name)));
+    builder.append_ascii("font-format("sv);
+    serialize_an_identifier(builder, m_variable_name);
+    builder.append_ascii(')');
 }
 
 void Supports::Env::dump(StringBuilder& builder, int indent_levels) const
@@ -102,13 +110,11 @@ MatchResult Supports::AtRule::evaluate(BooleanExpressionEvaluationContext const&
     return as_match_result(m_matches);
 }
 
-String Supports::AtRule::to_string() const
+void Supports::AtRule::serialize_to(Utf16StringBuilder& builder) const
 {
-    StringBuilder builder;
-    builder.append("at-rule(@"sv);
+    builder.append_ascii("at-rule(@"sv);
     serialize_an_identifier(builder, m_name);
-    builder.append(')');
-    return builder.to_string_without_validation();
+    builder.append_ascii(')');
 }
 
 void Supports::AtRule::dump(StringBuilder& builder, int indent_levels) const
@@ -117,7 +123,7 @@ void Supports::AtRule::dump(StringBuilder& builder, int indent_levels) const
     builder.appendff("AtRule: `@{}` matches={}\n", m_name, m_matches);
 }
 
-String Supports::to_string() const
+Utf16String Supports::to_string() const
 {
     return m_condition->to_string();
 }

@@ -100,7 +100,7 @@ void DevToolsConsoleClient::handle_result(JS::Value result)
     m_client->did_execute_js_console_input(serialize_js_value(m_realm, result));
 }
 
-void DevToolsConsoleClient::report_exception(String const& name, String const& message, JS::ErrorData const& error_data, bool in_promise)
+void DevToolsConsoleClient::report_exception(Utf16View name, Utf16View message, JS::ErrorData const& error_data, bool in_promise)
 {
     Vector<WebView::StackFrame> trace;
     trace.ensure_capacity(error_data.traceback().size());
@@ -125,8 +125,8 @@ void DevToolsConsoleClient::report_exception(String const& name, String const& m
     send_console_output({
         .timestamp = UnixDateTime::now(),
         .output = WebView::ConsoleError {
-            .name = name,
-            .message = message,
+            .name = MUST(name.to_utf8()),
+            .message = MUST(message.to_utf8()),
             .trace = move(trace),
             .inside_promise = in_promise,
         },

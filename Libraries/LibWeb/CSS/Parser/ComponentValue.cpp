@@ -28,7 +28,7 @@ ComponentValue::ComponentValue(GuaranteedInvalidValue&& invalid)
 
 ComponentValue::~ComponentValue() = default;
 
-bool ComponentValue::is_function(StringView name) const
+bool ComponentValue::is_function(Utf16View name) const
 {
     return is_function() && function().name.equals_ignoring_ascii_case(name);
 }
@@ -53,14 +53,21 @@ bool ComponentValue::is_delim(u32 delim) const
     }
 }
 
-bool ComponentValue::is_ident(StringView ident) const
+bool ComponentValue::is_ident(Utf16View ident) const
 {
     return is(Token::Type::Ident) && token().ident().equals_ignoring_ascii_case(ident);
 }
 
-String ComponentValue::to_string() const
+void ComponentValue::serialize_to(Utf16StringBuilder& builder) const
 {
-    return m_value.visit([](auto const& it) { return it.to_string(); });
+    m_value.visit([&](auto const& it) { it.serialize_to(builder); });
+}
+
+Utf16String ComponentValue::to_string() const
+{
+    Utf16StringBuilder builder;
+    serialize_to(builder);
+    return builder.to_string();
 }
 
 String ComponentValue::to_debug_string() const

@@ -27,7 +27,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSVariableReferenceValue>> CSSVariableReferenceValu
     // The CSSVariableReferenceValue(variable, fallback) constructor must, when called, perform the following steps:
     // 1. If variable is not a custom property name string, throw a TypeError.
     if (!is_a_custom_property_name_string(variable))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("'{}' is not a valid CSS custom property name", variable)) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("'{}' is not a valid CSS custom property name", variable) };
 
     // 2. Return a new CSSVariableReferenceValue with its variable internal slot set to variable and its fallback internal slot set to fallback.
     return CSSVariableReferenceValue::create(realm, Utf16FlyString { move(variable) }, move(fallback));
@@ -67,7 +67,7 @@ WebIDL::ExceptionOr<void> CSSVariableReferenceValue::set_variable(Utf16String va
     // The variable attribute of a CSSVariableReferenceValue this must, on setting a variable variable, perform the following steps:
     // 1. If variable is not a custom property name string, throw a TypeError.
     if (!is_a_custom_property_name_string(variable))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("'{}' is not a valid CSS custom property name", variable)) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("'{}' is not a valid CSS custom property name", variable) };
 
     // 2. Otherwise, set this’s variable internal slot to variable.
     m_variable = Utf16FlyString { move(variable) };

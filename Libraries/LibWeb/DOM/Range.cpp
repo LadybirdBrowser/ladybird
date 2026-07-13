@@ -1319,7 +1319,7 @@ WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::create_contextual_fragment
         HTML::relevant_global_object(*this),
         string,
         TrustedTypes::InjectionSink::Range_createContextualFragment,
-        TrustedTypes::Script.to_string()));
+        TrustedTypes::Script.view()));
 
     // 2. Let node be this's start node.
     GC::Ref<Node> node = *start_container();

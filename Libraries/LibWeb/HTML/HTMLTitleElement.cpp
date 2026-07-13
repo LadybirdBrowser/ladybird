@@ -44,7 +44,7 @@ Utf16String HTMLTitleElement::text() const
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#dom-title-text
-void HTMLTitleElement::set_text(Utf16String const& value)
+void HTMLTitleElement::set_text(Utf16View value)
 {
     // The text attribute's setter must string replace all with the given value within this title element.
     string_replace_all(value);

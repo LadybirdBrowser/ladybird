@@ -91,7 +91,7 @@ WebIDL::ExceptionOr<Optional<String>> Headers::get(String const& name)
 
     // 1. If name is not a header name, then throw a TypeError.
     if (!HTTP::is_header_name(name))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid header name"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid header name"_utf16 };
 
     // 2. Return the result of getting name from this’s header list.
     auto byte_buffer = m_header_list->get(name);
@@ -124,7 +124,7 @@ WebIDL::ExceptionOr<bool> Headers::has(String const& name)
 
     // 1. If name is not a header name, then throw a TypeError.
     if (!HTTP::is_header_name(name))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid header name"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid header name"_utf16 };
 
     // 2. Return true if this’s header list contains name; otherwise false.
     return m_header_list->contains(name);
@@ -200,13 +200,13 @@ WebIDL::ExceptionOr<bool> Headers::validate(HTTP::Header const& header) const
 
     // 1. If name is not a header name or value is not a header value, then throw a TypeError.
     if (!HTTP::is_header_name(name))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid header name"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid header name"_utf16 };
     if (!HTTP::is_header_value(value))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid header value"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid header value"_utf16 };
 
     // 2. If headers’s guard is "immutable", then throw a TypeError.
     if (m_guard == Guard::Immutable)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Headers object is immutable"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Headers object is immutable"_utf16 };
 
     // 3. If headers’s guard is "request" and (name, value) is a forbidden request-header, then return false.
     if (m_guard == Guard::Request && HTTP::is_forbidden_request_header(header))
@@ -277,7 +277,7 @@ WebIDL::ExceptionOr<void> Headers::fill(HeadersInit const& object)
             for (auto const& entry : object) {
                 // 1. If header's size is not 2, then throw a TypeError.
                 if (entry.size() != 2)
-                    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Array must contain header key/value pair"sv };
+                    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Array must contain header key/value pair"_utf16 };
 
                 // 2. Append (header[0], header[1]) to headers.
                 auto header = HTTP::Header::isomorphic_encode(entry[0], entry[1]);

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
@@ -24,8 +24,8 @@ public:
     virtual ~SpeechGrammar() override;
 
     // https://wicg.github.io/speech-api/#dom-speechgrammar-src
-    String const& src() const { return m_src; }
-    void set_src(String const& src) { m_src = src; }
+    Utf16String const& src() const { return m_src; }
+    void set_src(Utf16String const& src) { m_src = src; }
 
     // https://wicg.github.io/speech-api/#dom-speechgrammar-weight
     float weight() const { return m_weight; }
@@ -36,7 +36,7 @@ private:
 
     virtual void initialize(JS::Realm&) override;
 
-    String m_src;
+    Utf16String m_src;
     float m_weight { 1.f };
 };
 

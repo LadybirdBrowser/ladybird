@@ -13,6 +13,7 @@
 #include <AK/GenericShorthands.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
+#include <AK/Utf16View.h>
 #include <AK/Vector.h>
 #include <LibURL/Host.h>
 #include <LibURL/Origin.h>
@@ -74,6 +75,7 @@ enum class SpaceAsPlus {
     Yes,
 };
 String percent_encode(StringView input, PercentEncodeSet set = PercentEncodeSet::Userinfo, SpaceAsPlus = SpaceAsPlus::No);
+String percent_encode(Utf16View input, PercentEncodeSet set = PercentEncodeSet::Userinfo, SpaceAsPlus = SpaceAsPlus::No);
 ByteString percent_decode(StringView input);
 
 // https://url.spec.whatwg.org/#url-representation
@@ -110,7 +112,9 @@ public:
 
     void set_scheme(String);
     void set_username(StringView);
+    void set_username(Utf16View);
     void set_password(StringView);
+    void set_password(Utf16View);
     void set_host(Host);
     void set_port(Optional<u16>);
     void set_paths(Vector<ByteString> const&);

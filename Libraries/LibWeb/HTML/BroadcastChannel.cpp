@@ -147,7 +147,7 @@ WebIDL::ExceptionOr<void> BroadcastChannel::post_message(JS::Value message)
 
     BroadcastChannelMessage message_to_send {
         .storage_key = source_storage_key,
-        .channel_name = name().to_utf16_string(),
+        .channel_name = name(),
         .source_origin = source_origin,
         .serialized_message = serialized,
         .source_process_id = Core::System::getpid(),

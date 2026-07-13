@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibWeb/Layout/Box.h>
 
 namespace Web::Layout {
@@ -21,7 +22,7 @@ public:
     explicit ListItemMarkerBox(DOM::Document&, CSS::ListStyleType, CSS::ListStylePosition, GC::Ref<DOM::Element>, CSS::ComputedProperties const&);
     virtual ~ListItemMarkerBox() override;
 
-    Optional<String> text() const;
+    Optional<Utf16String> text() const;
 
     virtual RefPtr<Painting::Paintable> create_paintable() const override;
 

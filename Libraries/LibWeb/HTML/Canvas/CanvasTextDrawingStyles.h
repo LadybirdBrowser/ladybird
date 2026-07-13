@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <LibWeb/HTML/Canvas/AbstractCanvasMixin.h>
 
 namespace Web::HTML {
@@ -15,8 +17,8 @@ template<typename CanvasType>
 class CanvasTextDrawingStyles : protected virtual AbstractCanvasMixin {
 public:
     ~CanvasTextDrawingStyles() = default;
-    ByteString font() const;
-    void set_font(StringView font);
+    Utf16String font() const;
+    void set_font(Utf16View font);
 
     // https://html.spec.whatwg.org/multipage/canvas.html#font-style-source-object
     Variant<DOM::Document*, HTML::WorkerGlobalScope*> get_font_source_for_font_style_source_object(CanvasType& font_style_source_object);
@@ -30,8 +32,8 @@ public:
     Bindings::CanvasDirection direction() const { return drawing_state().direction; }
     void set_direction(Bindings::CanvasDirection direction) { drawing_state().direction = direction; }
 
-    String letter_spacing() const;
-    void set_letter_spacing(StringView);
+    Utf16String letter_spacing() const;
+    void set_letter_spacing(Utf16View);
     float resolved_letter_spacing() const;
 
 protected:

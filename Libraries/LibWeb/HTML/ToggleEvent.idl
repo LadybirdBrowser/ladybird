@@ -1,14 +1,14 @@
 // https://html.spec.whatwg.org/multipage/interaction.html#toggleevent
 [Exposed=Window]
 interface ToggleEvent : Event {
-    constructor(DOMString type, optional ToggleEventInit eventInitDict = {});
-    readonly attribute DOMString oldState;
-    readonly attribute DOMString newState;
+    constructor([Utf16FlyString] Utf16DOMString type, optional ToggleEventInit eventInitDict = {});
+    readonly attribute [Utf16FlyString] Utf16DOMString oldState;
+    readonly attribute [Utf16FlyString] Utf16DOMString newState;
     readonly attribute Element? source;
 };
 
 dictionary ToggleEventInit : EventInit {
-    DOMString oldState = "";
-    DOMString newState = "";
+    [Utf16FlyString] Utf16DOMString oldState = "";
+    [Utf16FlyString] Utf16DOMString newState = "";
     Element? source = null;
 };

@@ -3,8 +3,8 @@
 interface EventTarget {
     constructor();
 
-    undefined addEventListener(DOMString type, EventListener? callback, optional (AddEventListenerOptions or boolean) options = {});
-    undefined removeEventListener(DOMString type, EventListener? callback, optional (EventListenerOptions or boolean) options = {});
+    undefined addEventListener([Utf16FlyString] Utf16DOMString type, EventListener? callback, optional (AddEventListenerOptions or boolean) options = {});
+    undefined removeEventListener([Utf16FlyString] Utf16DOMString type, EventListener? callback, optional (EventListenerOptions or boolean) options = {});
     [ImplementedAs=dispatch_event_binding] boolean dispatchEvent(Event event);
 };
 

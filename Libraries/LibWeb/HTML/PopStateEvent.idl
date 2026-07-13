@@ -1,7 +1,7 @@
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#popstateevent
 [Exposed=Window]
 interface PopStateEvent : Event {
-    constructor(DOMString type, optional PopStateEventInit eventInitDict = {});
+    constructor([Utf16FlyString] Utf16DOMString type, optional PopStateEventInit eventInitDict = {});
 
     readonly attribute any state;
     [FIXME] readonly attribute boolean hasUAVisualTransition;

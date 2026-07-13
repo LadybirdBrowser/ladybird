@@ -71,25 +71,25 @@ void HTMLLIElement::apply_presentational_hints(Vector<CSS::StyleProperty>& prope
     Base::apply_presentational_hints(properties);
 
     // https://html.spec.whatwg.org/multipage/rendering.html#lists
-    for_each_attribute([&](auto& name, auto& value) {
+    for_each_attribute([&](Utf16FlyString const& name, Utf16View value) {
         if (name == HTML::AttributeNames::type) {
-            if (value == "1"sv) {
+            if (value == u"1"sv) {
                 properties.append({ .property_id = CSS::PropertyID::ListStyleType, .value = CSS::CounterStyleStyleValue::create("decimal"_utf16_fly_string) });
-            } else if (value == "a"sv) {
+            } else if (value == u"a"sv) {
                 properties.append({ .property_id = CSS::PropertyID::ListStyleType, .value = CSS::CounterStyleStyleValue::create("lower-alpha"_utf16_fly_string) });
-            } else if (value == "A"sv) {
+            } else if (value == u"A"sv) {
                 properties.append({ .property_id = CSS::PropertyID::ListStyleType, .value = CSS::CounterStyleStyleValue::create("upper-alpha"_utf16_fly_string) });
-            } else if (value == "i"sv) {
+            } else if (value == u"i"sv) {
                 properties.append({ .property_id = CSS::PropertyID::ListStyleType, .value = CSS::CounterStyleStyleValue::create("lower-roman"_utf16_fly_string) });
-            } else if (value == "I"sv) {
+            } else if (value == u"I"sv) {
                 properties.append({ .property_id = CSS::PropertyID::ListStyleType, .value = CSS::CounterStyleStyleValue::create("upper-roman"_utf16_fly_string) });
-            } else if (value.equals_ignoring_ascii_case("none"sv)) {
+            } else if (value.equals_ignoring_ascii_case(u"none"sv)) {
                 properties.append({ .property_id = CSS::PropertyID::ListStyleType, .value = CSS::KeywordStyleValue::create(CSS::Keyword::None) });
-            } else if (value.equals_ignoring_ascii_case("disc"sv)) {
+            } else if (value.equals_ignoring_ascii_case(u"disc"sv)) {
                 properties.append({ .property_id = CSS::PropertyID::ListStyleType, .value = CSS::CounterStyleStyleValue::create("disc"_utf16_fly_string) });
-            } else if (value.equals_ignoring_ascii_case("circle"sv)) {
+            } else if (value.equals_ignoring_ascii_case(u"circle"sv)) {
                 properties.append({ .property_id = CSS::PropertyID::ListStyleType, .value = CSS::CounterStyleStyleValue::create("circle"_utf16_fly_string) });
-            } else if (value.equals_ignoring_ascii_case("square"sv)) {
+            } else if (value.equals_ignoring_ascii_case(u"square"sv)) {
                 properties.append({ .property_id = CSS::PropertyID::ListStyleType, .value = CSS::CounterStyleStyleValue::create("square"_utf16_fly_string) });
             }
         }

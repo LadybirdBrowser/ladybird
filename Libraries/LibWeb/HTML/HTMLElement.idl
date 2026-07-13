@@ -5,13 +5,13 @@ interface HTMLElement : Element {
     [HTMLConstructor] constructor();
 
     // metadata attributes
-    [Reflect, CEReactions] attribute DOMString title;
-    [Reflect, CEReactions] attribute DOMString lang;
+    [Reflect, CEReactions] attribute Utf16DOMString title;
+    [Reflect, CEReactions] attribute Utf16DOMString lang;
     [CEReactions] attribute boolean translate;
     [CEReactions] attribute Utf16DOMString dir;
 
     // user interaction
-    [CEReactions] attribute (boolean or unrestricted double or DOMString)? hidden;
+    [CEReactions] attribute (boolean or unrestricted double or Utf16DOMString)? hidden;
     [Reflect, CEReactions] attribute boolean inert;
     undefined click();
     [Reflect=accesskey, CEReactions] attribute Utf16DOMString accessKey;
@@ -86,10 +86,10 @@ enum InputMode {
 
 // https://html.spec.whatwg.org/multipage/interaction.html#elementcontenteditable
 interface mixin ElementContentEditable {
-    [CEReactions] attribute DOMString contentEditable;
-    [Reflect=enterkeyhint, Enumerated=EnterKeyHint, CEReactions] attribute DOMString enterKeyHint;
+    [CEReactions] attribute [Utf16FlyString] Utf16DOMString contentEditable;
+    [Reflect=enterkeyhint, Enumerated=EnterKeyHint, CEReactions] attribute Utf16DOMString enterKeyHint;
     readonly attribute boolean isContentEditable;
-    [Reflect=inputmode, Enumerated=InputMode, CEReactions] attribute DOMString inputMode;
+    [Reflect=inputmode, Enumerated=InputMode, CEReactions] attribute Utf16DOMString inputMode;
 };
 
 HTMLElement includes ElementCSSInlineStyle;

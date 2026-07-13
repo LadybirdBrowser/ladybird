@@ -20,8 +20,8 @@ class AnimationPlaybackEvent : public DOM::Event {
     GC_DECLARE_ALLOCATOR(AnimationPlaybackEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<AnimationPlaybackEvent> create(JS::Realm&, FlyString const& type, Bindings::AnimationPlaybackEventInit const& event_init = {});
-    static WebIDL::ExceptionOr<GC::Ref<AnimationPlaybackEvent>> construct_impl(JS::Realm&, FlyString const& type, Bindings::AnimationPlaybackEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<AnimationPlaybackEvent> create(JS::Realm&, Utf16FlyString const& type, Bindings::AnimationPlaybackEventInit const& event_init = {});
+    static WebIDL::ExceptionOr<GC::Ref<AnimationPlaybackEvent>> construct_impl(JS::Realm&, Utf16FlyString const& type, Bindings::AnimationPlaybackEventInit const& event_init);
 
     virtual ~AnimationPlaybackEvent() override = default;
 
@@ -29,7 +29,7 @@ public:
     NullableCSSNumberish timeline_time() const;
 
 private:
-    AnimationPlaybackEvent(JS::Realm&, FlyString const& type, Bindings::AnimationPlaybackEventInit const& event_init);
+    AnimationPlaybackEvent(JS::Realm&, Utf16FlyString const& type, Bindings::AnimationPlaybackEventInit const& event_init);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;

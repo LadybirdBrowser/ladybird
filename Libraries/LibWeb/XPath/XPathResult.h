@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
@@ -37,7 +37,7 @@ public:
 
     WebIDL::UnsignedShort result_type() const { return m_result_type; }
     WebIDL::Double number_value() const { return m_number_value; }
-    String string_value() { return m_string_value; }
+    Utf16String string_value() { return m_string_value; }
     WebIDL::Boolean boolean_value() const { return m_boolean_value; }
     GC::Ptr<DOM::Node> single_node_value() { return m_node_set.is_empty() ? nullptr : m_node_set.first(); }
     WebIDL::Boolean invalid_iterator_state() const { return m_invalid_iterator_state; }
@@ -47,14 +47,14 @@ public:
     GC::Ptr<DOM::Node> snapshot_item(int index);
 
     void set_number(WebIDL::Double number_value);
-    void set_string(String string_value);
+    void set_string(Utf16String string_value);
     void set_boolean(bool boolean_value);
     void set_node_set(Vector<GC::Ptr<DOM::Node>> node_set, unsigned short type);
 
 private:
     WebIDL::UnsignedShort m_result_type { 0 };
     WebIDL::Double m_number_value { 0 };
-    String m_string_value;
+    Utf16String m_string_value;
     WebIDL::Boolean m_boolean_value { false };
     WebIDL::Boolean m_invalid_iterator_state { false };
     WebIDL::UnsignedLong m_snapshot_length { 0 };

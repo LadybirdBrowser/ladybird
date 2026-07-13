@@ -8,6 +8,7 @@
 
 #include <AK/FlyString.h>
 #include <AK/OwnPtr.h>
+#include <AK/Utf16FlyString.h>
 #include <LibJS/Forward.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -20,7 +21,7 @@ struct EndOfQueue {
 class TextDecoderOutputQueue {
 public:
     ErrorOr<void> push(String);
-    ErrorOr<String> serialize();
+    ErrorOr<Utf16String> serialize();
 
 private:
     Optional<String> m_single_output;
@@ -32,7 +33,7 @@ private:
 class TextDecoderCommonMixin {
 public:
     // https://encoding.spec.whatwg.org/#dom-textdecoder-encoding
-    FlyString const& encoding() const { return m_encoding; }
+    Utf16FlyString const& encoding() const { return m_encoding_for_bindings; }
 
     // https://encoding.spec.whatwg.org/#dom-textdecoder-fatal
     bool fatal() const { return m_error_mode == TextCodec::ErrorMode::Fatal; }
@@ -46,13 +47,14 @@ protected:
     void set_decoder_to_new_instance_of_encoding_decoder();
     WebIDL::ExceptionOr<void> process_an_item(JS::VM&, ReadonlyBytes item, TextDecoderOutputQueue& output);
     WebIDL::ExceptionOr<void> process_an_item(JS::VM&, EndOfQueue, TextDecoderOutputQueue& output);
-    WebIDL::ExceptionOr<String> serialize_io_queue(JS::VM&, TextDecoderOutputQueue& output);
+    WebIDL::ExceptionOr<Utf16String> serialize_io_queue(JS::VM&, TextDecoderOutputQueue& output);
 
     // https://encoding.spec.whatwg.org/#textdecodercommon-decoder
     OwnPtr<TextCodec::StreamingDecoder> m_decoder;
 
     // https://encoding.spec.whatwg.org/#textdecoder-encoding
     FlyString m_encoding;
+    Utf16FlyString m_encoding_for_bindings;
 
     // https://encoding.spec.whatwg.org/#textdecoder-error-mode
     TextCodec::ErrorMode m_error_mode { TextCodec::ErrorMode::Replacement };

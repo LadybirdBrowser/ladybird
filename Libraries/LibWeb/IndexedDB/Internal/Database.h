@@ -25,7 +25,7 @@ class Database : public JS::Cell {
 public:
     void set_version(u64 version) { m_version = version; }
     u64 version() const { return m_version; }
-    String name() const { return m_name; }
+    Utf16String name() const { return m_name; }
 
     void set_upgrade_transaction(GC::Ptr<IDBTransaction> transaction) { m_upgrade_transaction = transaction; }
     [[nodiscard]] GC::Ptr<IDBTransaction> upgrade_transaction() { return m_upgrade_transaction; }
@@ -38,7 +38,7 @@ public:
     GC::RootVector<GC::Ref<IDBDatabase>> associated_connections_as_root_vector();
 
     ReadonlySpan<GC::Ref<ObjectStore>> object_stores() { return m_object_stores; }
-    GC::Ptr<ObjectStore> object_store_with_name(String const& name) const;
+    GC::Ptr<ObjectStore> object_store_with_name(Utf16String const& name) const;
     void add_object_store(GC::Ref<ObjectStore> object_store) { m_object_stores.append(object_store); }
     void remove_object_store(GC::Ref<ObjectStore> object_store)
     {
@@ -46,13 +46,13 @@ public:
     }
 
     [[nodiscard]] static Vector<GC::Weak<Database>> for_key(StorageAPI::StorageKey const&);
-    [[nodiscard]] static Optional<Database&> for_key_and_name(StorageAPI::StorageKey const&, String const&);
-    [[nodiscard]] static ErrorOr<GC::Ref<Database>> create_for_key_and_name(GC::Heap&, StorageAPI::StorageKey const&, String const&);
-    [[nodiscard]] static ErrorOr<void> delete_for_key_and_name(StorageAPI::StorageKey const&, String const&);
+    [[nodiscard]] static Optional<Database&> for_key_and_name(StorageAPI::StorageKey const&, Utf16String const&);
+    [[nodiscard]] static ErrorOr<GC::Ref<Database>> create_for_key_and_name(GC::Heap&, StorageAPI::StorageKey const&, Utf16String const&);
+    [[nodiscard]] static ErrorOr<void> delete_for_key_and_name(StorageAPI::StorageKey const&, Utf16String const&);
 
     static void for_each_database(AK::Function<void(Database&)> const& visitor);
 
-    [[nodiscard]] static GC::Ref<Database> create(GC::Heap&, String const&);
+    [[nodiscard]] static GC::Ref<Database> create(GC::Heap&, Utf16String const&);
     virtual ~Database();
 
     void wait_for_connections_to_close(ReadonlySpan<GC::Ref<IDBDatabase>> connections, GC::Ref<GC::Function<void()>> after_all);
@@ -61,7 +61,7 @@ public:
 protected:
     explicit Database(IDBDatabase& database);
 
-    explicit Database(String name)
+    explicit Database(Utf16String name)
         : m_name(move(name))
     {
     }
@@ -78,7 +78,7 @@ private:
     Optional<PendingConnectionWait> m_pending_connection_wait;
 
     // A database has a name which identifies it within a specific storage key.
-    String m_name;
+    Utf16String m_name;
 
     // A database has a version. When a database is first created, its version is 0 (zero).
     u64 m_version { 0 };

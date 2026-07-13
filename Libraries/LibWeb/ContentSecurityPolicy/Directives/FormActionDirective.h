@@ -21,7 +21,7 @@ public:
     virtual Result pre_navigation_check(GC::Ref<Fetch::Infrastructure::Request>, NavigationType, GC::Ref<Policy const>) const override;
 
 private:
-    FormActionDirective(String name, Vector<String> value);
+    FormActionDirective(Utf16FlyString name, Vector<Utf16String> value);
 };
 
 }

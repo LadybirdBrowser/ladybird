@@ -9,12 +9,12 @@
 
 #include <AK/HashMap.h>
 #include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <LibWeb/Export.h>
 
 namespace Web::MimeSniff {
 
-bool is_javascript_mime_type_essence_match(StringView);
 bool is_javascript_mime_type_essence_match(Utf16View);
 
 // https://mimesniff.spec.whatwg.org/#javascript-mime-type
@@ -72,6 +72,7 @@ public:
 
     String const& essence() const;
     [[nodiscard]] String serialized() const;
+    [[nodiscard]] Utf16String serialized_as_utf16() const;
 
 private:
     MimeType(String type, String subtype);

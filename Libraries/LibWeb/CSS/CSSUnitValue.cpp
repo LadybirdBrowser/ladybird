@@ -65,7 +65,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> CSSUnitValue::construct_impl(JS::Real
     auto fly_unit = Utf16FlyString { move(unit) };
     auto numeric_type = NumericType::create_from_unit(fly_unit);
     if (!numeric_type.has_value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot create CSSUnitValue with unrecognized unit"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot create CSSUnitValue with unrecognized unit"_utf16 };
 
     // 2. Return a new CSSUnitValue with its value internal slot set to value and its unit set to unit.
     return realm.create<CSSUnitValue>(realm, value, move(fly_unit), numeric_type.release_value());
@@ -362,7 +362,7 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSUnitValue::create_an_int
 
     auto value = create_numeric_value(m_value, m_unit);
     if (!value.has_value()) {
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Unrecognized unit."sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Unrecognized unit."_utf16 };
     }
 
     if (perform_type_check == PerformTypeCheck::No) {
@@ -472,7 +472,7 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSUnitValue::create_an_int
         });
 
     if (!style_value)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Property does not accept values of this type."sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Property does not accept values of this type."_utf16 };
     return style_value.release_nonnull();
 }
 
@@ -480,7 +480,7 @@ WebIDL::ExceptionOr<NonnullRefPtr<CalculationNode const>> CSSUnitValue::create_c
 {
     auto value = create_numeric_value(m_value, m_unit);
     if (!value.has_value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Unable to create calculation node."sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Unable to create calculation node."_utf16 };
 
     return NumericCalculationNode::create(value.release_value(), context);
 }

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/Bindings/PageTransitionEvent.h>
 #include <LibWeb/DOM/Event.h>
 
@@ -17,10 +17,10 @@ class PageTransitionEvent final : public DOM::Event {
     GC_DECLARE_ALLOCATOR(PageTransitionEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<PageTransitionEvent> create(JS::Realm&, FlyString const& event_name, Bindings::PageTransitionEventInit const&);
-    static WebIDL::ExceptionOr<GC::Ref<PageTransitionEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::PageTransitionEventInit const&);
+    [[nodiscard]] static GC::Ref<PageTransitionEvent> create(JS::Realm&, Utf16FlyString const& event_name, Bindings::PageTransitionEventInit const&);
+    static WebIDL::ExceptionOr<GC::Ref<PageTransitionEvent>> construct_impl(JS::Realm&, Utf16FlyString const& event_name, Bindings::PageTransitionEventInit const&);
 
-    PageTransitionEvent(JS::Realm&, FlyString const& event_name, Bindings::PageTransitionEventInit const& event_init);
+    PageTransitionEvent(JS::Realm&, Utf16FlyString const& event_name, Bindings::PageTransitionEventInit const& event_init);
 
     virtual ~PageTransitionEvent() override;
 

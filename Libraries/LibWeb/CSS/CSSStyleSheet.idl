@@ -5,20 +5,20 @@ interface CSSStyleSheet : StyleSheet {
 
     readonly attribute CSSRule? ownerRule;
     [SameObject] readonly attribute CSSRuleList cssRules;
-    unsigned long insertRule(CSSOMString rule, optional unsigned long index = 0);
+    unsigned long insertRule(Utf16CSSOMString rule, optional unsigned long index = 0);
     undefined deleteRule(unsigned long index);
 
-    Promise<CSSStyleSheet> replace(USVString text);
-    undefined replaceSync(USVString text);
+    Promise<CSSStyleSheet> replace(Utf16USVString text);
+    undefined replaceSync(Utf16USVString text);
 
     // https://drafts.csswg.org/cssom/#legacy-css-style-sheet-members
     [SameObject, ImplementedAs=css_rules] readonly attribute CSSRuleList rules;
-    long addRule(optional DOMString selector = "undefined", optional DOMString style = "undefined", optional unsigned long index);
+    long addRule(optional Utf16DOMString selector = "undefined", optional Utf16DOMString style = "undefined", optional unsigned long index);
     undefined removeRule(optional unsigned long index);
 };
 
 dictionary CSSStyleSheetInit {
-    DOMString? baseURL = null;
-    (MediaList or DOMString) media = "";
+    Utf16DOMString? baseURL = null;
+    (MediaList or Utf16DOMString) media = "";
     boolean disabled = false;
 };

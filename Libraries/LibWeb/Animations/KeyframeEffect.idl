@@ -7,20 +7,20 @@ enum CompositeOperationOrAuto { "replace", "add", "accumulate", "auto" };
 // https://drafts.csswg.org/web-animations-1/#the-keyframeeffectoptions-dictionary
 dictionary KeyframeEffectOptions : EffectTiming {
     CompositeOperation composite = "replace";
-    CSSOMString? pseudoElement = null;
+    Utf16CSSOMString? pseudoElement = null;
 };
 
 // https://drafts.csswg.org/web-animations-1/#dictdef-basepropertyindexedkeyframe
 dictionary BasePropertyIndexedKeyframe {
     (double? or sequence<double?>) offset = [];
-    (DOMString or sequence<DOMString>) easing = [];
+    (Utf16DOMString or sequence<Utf16DOMString>) easing = [];
     (CompositeOperationOrAuto or sequence<CompositeOperationOrAuto>) composite = [];
 };
 
 // https://drafts.csswg.org/web-animations-1/#dictdef-basekeyframe
 dictionary BaseKeyframe {
     double? offset = null;
-    DOMString easing = "linear";
+    Utf16DOMString easing = "linear";
     CompositeOperationOrAuto composite = "auto";
 };
 
@@ -31,7 +31,7 @@ interface KeyframeEffect : AnimationEffect {
     constructor(KeyframeEffect source);
 
     attribute Element? target;
-    attribute CSSOMString? pseudoElement;
+    attribute Utf16CSSOMString? pseudoElement;
     attribute CompositeOperation composite;
     sequence<object> getKeyframes();
     undefined setKeyframes(object? keyframes);

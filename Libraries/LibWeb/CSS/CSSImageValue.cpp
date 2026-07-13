@@ -54,7 +54,7 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSImageValue::create_an_in
         return property_accepts_type(property.id(), ValueType::Image);
     }();
     if (perform_type_check == PerformTypeCheck::Yes && !matches_grammar) {
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Property '{}' does not accept <image>", property.name())) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("Property '{}' does not accept <image>", property.name()) };
     }
 
     //     FIXME: If any component of property’s CSS grammar has a limited numeric range, and the corresponding part of value

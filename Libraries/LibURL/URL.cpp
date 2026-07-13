@@ -12,6 +12,7 @@
 #include <AK/Debug.h>
 #include <AK/LexicalPath.h>
 #include <AK/StringBuilder.h>
+#include <AK/Utf16View.h>
 #include <AK/Utf8View.h>
 #include <LibURL/Parser.h>
 #include <LibURL/PublicSuffixData.h>
@@ -51,8 +52,22 @@ void URL::set_username(StringView username)
     m_data->username = percent_encode(username, PercentEncodeSet::Userinfo);
 }
 
+// https://url.spec.whatwg.org/#set-the-username
+void URL::set_username(Utf16View username)
+{
+    // To set the username given a url and username, set url’s username to the result of running UTF-8 percent-encode on username using the userinfo percent-encode set.
+    m_data->username = percent_encode(username, PercentEncodeSet::Userinfo);
+}
+
 // https://url.spec.whatwg.org/#set-the-password
 void URL::set_password(StringView password)
+{
+    // To set the password given a url and password, set url’s password to the result of running UTF-8 percent-encode on password using the userinfo percent-encode set.
+    m_data->password = percent_encode(password, PercentEncodeSet::Userinfo);
+}
+
+// https://url.spec.whatwg.org/#set-the-password
+void URL::set_password(Utf16View password)
 {
     // To set the password given a url and password, set url’s password to the result of running UTF-8 percent-encode on password using the userinfo percent-encode set.
     m_data->password = percent_encode(password, PercentEncodeSet::Userinfo);
@@ -452,6 +467,18 @@ String percent_encode(StringView input, PercentEncodeSet set, SpaceAsPlus space_
 {
     StringBuilder builder;
     for (auto code_point : Utf8View(input)) {
+        if (space_as_plus == SpaceAsPlus::Yes && code_point == ' ')
+            builder.append('+');
+        else
+            append_percent_encoded_if_necessary(builder, code_point, set);
+    }
+    return MUST(builder.to_string());
+}
+
+String percent_encode(Utf16View input, PercentEncodeSet set, SpaceAsPlus space_as_plus)
+{
+    StringBuilder builder;
+    for (auto code_point : input) {
         if (space_as_plus == SpaceAsPlus::Yes && code_point == ' ')
             builder.append('+');
         else

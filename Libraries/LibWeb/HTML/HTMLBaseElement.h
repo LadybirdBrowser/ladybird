@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16View.h>
 #include <LibWeb/HTML/HTMLElement.h>
 
 namespace Web::HTML {
@@ -18,7 +19,7 @@ public:
     virtual ~HTMLBaseElement() override;
 
     Utf16String href() const;
-    void set_href(Utf16String const& href);
+    void set_href(Utf16View href);
 
     URL::URL const& frozen_base_url() const { return m_frozen_base_url; }
 

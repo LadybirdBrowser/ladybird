@@ -1,7 +1,7 @@
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#pagetransitionevent
 [Exposed=Window]
 interface PageTransitionEvent : Event {
-    constructor(DOMString type, optional PageTransitionEventInit eventInitDict = {});
+    constructor([Utf16FlyString] Utf16DOMString type, optional PageTransitionEventInit eventInitDict = {});
 
     readonly attribute boolean persisted;
 };

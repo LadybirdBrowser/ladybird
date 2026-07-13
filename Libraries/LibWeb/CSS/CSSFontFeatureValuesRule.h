@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Utf16FlyString.h>
+#include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <LibJS/Runtime/MapIterator.h>
 #include <LibWeb/Bindings/PlatformObject.h>
@@ -26,8 +27,8 @@ public:
 
     static bool is_font_feature_value_type_at_keyword(Utf16View);
 
-    String font_family() const;
-    void set_font_family(String const&);
+    Utf16String font_family() const;
+    void set_font_family(Utf16View);
     GC::Ref<CSSFontFeatureValuesMap> annotation() const { return m_annotation; }
     GC::Ref<CSSFontFeatureValuesMap> ornaments() const { return m_ornaments; }
     GC::Ref<CSSFontFeatureValuesMap> stylistic() const { return m_stylistic; }
@@ -41,9 +42,11 @@ public:
 
     virtual void clear_caches() override;
 
-    virtual String serialized() const override;
+    virtual Utf16String serialized() const override;
 
 private:
+    Utf16String serialized_font_family() const;
+
     CSSFontFeatureValuesRule(JS::Realm&, Vector<Utf16FlyString> font_families);
 
     virtual void initialize(JS::Realm&) override;

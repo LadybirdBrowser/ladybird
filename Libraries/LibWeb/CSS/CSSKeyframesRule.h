@@ -39,7 +39,7 @@ private:
     virtual void visit_edges(Visitor&) override;
 
     virtual void initialize(JS::Realm&) override;
-    virtual String serialized() const override;
+    virtual Utf16String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 
     Utf16FlyString m_name;

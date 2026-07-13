@@ -164,7 +164,7 @@ GC::Ref<WebIDL::Promise> ReadableStreamDefaultReader::read()
 
     // 1. If this.[[stream]] is undefined, return a promise rejected with a TypeError exception.
     if (!m_stream) {
-        WebIDL::SimpleException exception { WebIDL::SimpleExceptionType::TypeError, "Cannot read from an empty stream"sv };
+        WebIDL::SimpleException exception { WebIDL::SimpleExceptionType::TypeError, "Cannot read from an empty stream"_utf16 };
         return WebIDL::create_rejected_promise_from_exception(realm, move(exception));
     }
 

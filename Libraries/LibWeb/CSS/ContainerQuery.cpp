@@ -591,8 +591,8 @@ MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& con
         return MatchResult::False;
 
     if (!registration.has_value()) {
-        auto computed_value_string = MUST(serialize_a_series_of_component_values(computed_tokens).trim_ascii_whitespace());
-        auto query_value_string = MUST(serialize_a_series_of_component_values(query_value).trim_ascii_whitespace());
+        auto computed_value_string = serialize_a_series_of_component_values(computed_tokens).trim_ascii_whitespace();
+        auto query_value_string = serialize_a_series_of_component_values(query_value).trim_ascii_whitespace();
         return as_match_result(computed_value_string == query_value_string);
     }
 
@@ -609,36 +609,51 @@ void StyleFeature::collect_container_query_feature_requirements(ContainerQueryFe
     requirements.requires_style_container = true;
 }
 
-static String serialize_style_range_value(StyleFeature::StyleRangeValue const& value)
+static Utf16String serialize_style_range_value_to_utf16(StyleFeature::StyleRangeValue const& value)
 {
     return value.visit(
         [](PropertyNameAndID const& property) {
-            return property.to_string();
+            return property.to_utf16_string();
         },
         [](Vector<Parser::ComponentValue> const& component_values) {
             return serialize_a_series_of_component_values(component_values);
         });
 }
 
-String StyleFeature::to_string() const
+void StyleFeature::serialize_to(Utf16StringBuilder& builder) const
 {
-    return m_feature.visit(
-        [](StyleFeaturePlain const& feature) {
+    m_feature.visit(
+        [&](StyleFeaturePlain const& feature) {
+            auto serialized_property = feature.property.to_utf16_string();
+            builder.append(serialized_property.utf16_view());
             if (!feature.value.has_value())
-                return feature.property.to_string();
-            return MUST(String::formatted("{}: {}", feature.property.to_string(), serialize_a_series_of_component_values(feature.value.value())));
+                return;
+            builder.append_ascii(": "sv);
+            auto serialized_value = serialize_a_series_of_component_values(feature.value.value());
+            builder.append(serialized_value.utf16_view());
         },
-        [](StyleRange const& range) {
+        [&](StyleRange const& range) {
+            auto serialized_left = serialize_style_range_value_to_utf16(range.left);
+            builder.append(serialized_left.utf16_view());
+            builder.append_ascii(' ');
+            builder.append_ascii(string_from_feature_comparison(range.left_comparison));
+            builder.append_ascii(' ');
+            auto serialized_middle = serialize_style_range_value_to_utf16(range.middle);
+            builder.append(serialized_middle.utf16_view());
             if (!range.right.has_value())
-                return MUST(String::formatted("{} {} {}", serialize_style_range_value(range.left), string_from_feature_comparison(range.left_comparison), serialize_style_range_value(range.middle)));
-            return MUST(String::formatted("{} {} {} {} {}", serialize_style_range_value(range.left), string_from_feature_comparison(range.left_comparison), serialize_style_range_value(range.middle), string_from_feature_comparison(range.right_comparison.value()), serialize_style_range_value(range.right.value())));
+                return;
+            builder.append_ascii(' ');
+            builder.append_ascii(string_from_feature_comparison(range.right_comparison.value()));
+            builder.append_ascii(' ');
+            auto serialized_right = serialize_style_range_value_to_utf16(range.right.value());
+            builder.append(serialized_right.utf16_view());
         });
 }
 
 void StyleFeature::dump(StringBuilder& builder, int indent_levels) const
 {
     indent(builder, indent_levels);
-    builder.appendff("StyleFeature: {}\n", to_string());
+    builder.appendff("StyleFeature: {}\n", to_string().to_utf8());
 }
 
 NonnullRefPtr<ContainerQuery> ContainerQuery::create(NonnullOwnPtr<BooleanExpression>&& condition)
@@ -724,7 +739,7 @@ MatchResult ContainerQuery::evaluate(DOM::AbstractElement const& element, Option
     return MatchResult::Unknown;
 }
 
-String ContainerQuery::to_string() const
+Utf16String ContainerQuery::to_string() const
 {
     return m_condition->to_string();
 }

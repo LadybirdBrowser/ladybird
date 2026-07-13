@@ -10,6 +10,7 @@
 #include <AK/ByteBuffer.h>
 #include <AK/OwnPtr.h>
 #include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <LibGC/Function.h>
 #include <LibGfx/Forward.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
@@ -51,7 +52,7 @@ public:
     }
 
     Utf16String alt() const { return get_attribute_value(HTML::AttributeNames::alt); }
-    void set_alt(Utf16String const& alt) { set_attribute_value(HTML::AttributeNames::alt, alt); }
+    void set_alt(Utf16View alt) { set_attribute_value(HTML::AttributeNames::alt, alt); }
 
     WebIDL::UnsignedLong width() const;
     void set_width(WebIDL::UnsignedLong);
@@ -69,7 +70,7 @@ public:
     bool complete() const;
 
     // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-currentsrc
-    String current_src() const;
+    Utf16String current_src() const;
 
     // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-decode
     [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> decode() const;
@@ -137,9 +138,8 @@ private:
 
     virtual void did_set_viewport_rect(CSSPixelRect const&) override;
 
-    void handle_successful_fetch(URL::URL const&, StringView mime_type, ImageRequest&, ByteBuffer, bool maybe_omit_events, URL::URL const& previous_url);
     void handle_failed_fetch();
-    void add_callbacks_to_image_request(GC::Ref<ImageRequest>, bool maybe_omit_events, String const& url_string, Utf16String const& previous_url);
+    void add_callbacks_to_image_request(GC::Ref<ImageRequest>, bool maybe_omit_events, Utf16View url_string, Utf16View previous_url);
 
     virtual void decoded_image_data_did_update() override { set_needs_repaint(); }
 

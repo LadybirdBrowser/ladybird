@@ -9,6 +9,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/HTMLHyperlinkElementUtils.h>
+#include <LibWeb/Infra/SerializedURL.h>
 
 namespace Web::HTML {
 
@@ -60,11 +61,11 @@ Utf16String HTMLHyperlinkElementUtils::href() const
         return href_content_attribute.release_value();
 
     // 5. Return url, serialized.
-    return Utf16String::from_utf8(url->serialize());
+    return utf16_string_from_url_ascii(url->serialize());
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-href
-void HTMLHyperlinkElementUtils::set_href(Utf16String const& href)
+void HTMLHyperlinkElementUtils::set_href(Utf16View href)
 {
     // The href attribute's setter must set this element's href content attribute's value to the given value.
     hyperlink_element_utils_element().set_attribute_value(HTML::AttributeNames::href, href);
@@ -75,7 +76,7 @@ void HTMLHyperlinkElementUtils::update_href()
 {
     // To update href for an HTMLAnchorElement or HTMLAreaElement element, set the element's href content attribute's
     // value to the element's url, serialized.
-    hyperlink_element_utils_element().set_attribute_value(HTML::AttributeNames::href, Utf16String::from_utf8(m_url->serialize()));
+    hyperlink_element_utils_element().set_attribute_value(HTML::AttributeNames::href, utf16_string_from_url_ascii(m_url->serialize()));
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-a-target

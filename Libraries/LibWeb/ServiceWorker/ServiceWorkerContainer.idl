@@ -6,7 +6,7 @@ interface ServiceWorkerContainer : EventTarget {
 
     [NewObject, ImplementedAs=register_] Promise<ServiceWorkerRegistration> register((TrustedScriptURL or Utf16USVString) scriptURL, optional RegistrationOptions options = {});
 
-    [NewObject] Promise<(ServiceWorkerRegistration or undefined)> getRegistration(optional USVString clientURL = "");
+    [NewObject] Promise<(ServiceWorkerRegistration or undefined)> getRegistration(optional Utf16USVString clientURL = "");
     [NewObject] Promise<FrozenArray<ServiceWorkerRegistration>> getRegistrations();
 
     [FIXME] undefined startMessages();
@@ -18,7 +18,7 @@ interface ServiceWorkerContainer : EventTarget {
 };
 
 dictionary RegistrationOptions {
-    USVString scope;
+    Utf16USVString scope;
     WorkerType type = "classic";
     ServiceWorkerUpdateViaCache updateViaCache = "imports";
 };

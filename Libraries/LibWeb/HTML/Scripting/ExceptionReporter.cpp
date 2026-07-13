@@ -36,14 +36,14 @@ void report_exception_to_console(JS::Value value, JS::Realm& realm, ErrorInPromi
             dbgln("\033[31;1mUnhandled JavaScript exception{}:\033[0m [{}] {}", error_in_promise == ErrorInPromise::Yes ? " (in promise)" : "", name, message);
         }
         if (auto const* error_data = object.error_data()) {
-            String exception_name;
-            String exception_message;
+            Utf16String exception_name;
+            Utf16String exception_message;
             if (auto const* exception = as_if<WebIDL::DOMException>(object)) {
-                exception_name = exception->name().to_string();
-                exception_message = MUST(exception->message().view().to_utf8());
+                exception_name = exception->name().to_utf16_string();
+                exception_message = exception->message().to_utf16_string();
             } else {
-                exception_name = name.to_utf16_string_without_side_effects().to_utf8();
-                exception_message = message.to_utf16_string_without_side_effects().to_utf8();
+                exception_name = name.to_utf16_string_without_side_effects();
+                exception_message = message.to_utf16_string_without_side_effects();
             }
             dbgln("{}", error_data->stack_string(JS::CompactTraceback::Yes));
             console.report_exception(exception_name, exception_message, *error_data, error_in_promise == ErrorInPromise::Yes);
@@ -54,9 +54,8 @@ void report_exception_to_console(JS::Value value, JS::Realm& realm, ErrorInPromi
     }
 
     auto utf16_message = value.to_utf16_string_without_side_effects();
-    auto message = utf16_message.to_utf8();
     auto error = JS::Error::create(realm, utf16_message);
-    console.report_exception("Error"_string, message, *error, error_in_promise == ErrorInPromise::Yes);
+    console.report_exception("Error"_utf16, utf16_message, *error, error_in_promise == ErrorInPromise::Yes);
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#report-the-exception

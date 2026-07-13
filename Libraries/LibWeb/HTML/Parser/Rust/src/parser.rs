@@ -83,7 +83,7 @@ pub struct RustFfiHtmlParserAttribute {
     pub prefix_ptr: *const u16,
     pub prefix_len: usize,
     pub namespace_: RustFfiHtmlAttributeNamespace,
-    pub value_ptr: *const u8,
+    pub value_ptr: *const u16,
     pub value_len: usize,
 }
 
@@ -94,7 +94,7 @@ pub struct RustFfiHtmlParserContextAttribute {
     pub prefix_ptr: *const u16,
     pub prefix_len: usize,
     pub namespace_: RustFfiHtmlAttributeNamespace,
-    pub value_ptr: *const u8,
+    pub value_ptr: *const u16,
     pub value_len: usize,
 }
 
@@ -110,18 +110,18 @@ unsafe extern "C" {
         parser: *mut c_void,
         name_ptr: *const u16,
         name_len: usize,
-        public_id_ptr: *const u8,
+        public_id_ptr: *const u16,
         public_id_len: usize,
-        system_id_ptr: *const u8,
+        system_id_ptr: *const u16,
         system_id_len: usize,
     ) -> usize;
-    fn ladybird_html_parser_create_comment(parser: *mut c_void, data_ptr: *const u8, data_len: usize) -> usize;
-    fn ladybird_html_parser_insert_text(parent: usize, offset: usize, data_ptr: *const u8, data_len: usize);
+    fn ladybird_html_parser_create_comment(parser: *mut c_void, data_ptr: *const u16, data_len: usize) -> usize;
+    fn ladybird_html_parser_insert_text(parent: usize, offset: usize, data_ptr: *const u16, data_len: usize);
     fn ladybird_html_parser_add_missing_attribute(
         element: usize,
         local_name_ptr: *const u16,
         local_name_len: usize,
-        value_ptr: *const u8,
+        value_ptr: *const u16,
         value_len: usize,
     );
     fn ladybird_html_parser_remove_node(node: usize);
@@ -3259,6 +3259,8 @@ impl TreeBuilder {
 
     fn create_document_type(&mut self, name: &str, public_id: &str, system_id: &str) -> usize {
         let name = name.encode_utf16().collect::<Vec<_>>();
+        let public_id = public_id.encode_utf16().collect::<Vec<_>>();
+        let system_id = system_id.encode_utf16().collect::<Vec<_>>();
         unsafe {
             ladybird_html_parser_create_document_type(
                 self.host,
@@ -3273,6 +3275,7 @@ impl TreeBuilder {
     }
 
     fn create_comment(&mut self, data: &str) -> usize {
+        let data = data.encode_utf16().collect::<Vec<_>>();
         unsafe { ladybird_html_parser_create_comment(self.host, data.as_ptr(), data.len()) }
     }
 
@@ -3559,6 +3562,7 @@ impl TreeBuilder {
     }
 
     fn insert_text(&mut self, insertion_location: AdjustedInsertionLocation, data: &str) {
+        let data = data.encode_utf16().collect::<Vec<_>>();
         unsafe {
             ladybird_html_parser_insert_text(
                 insertion_location.parent,
@@ -3578,13 +3582,14 @@ impl TreeBuilder {
                 .unwrap_or_default()
                 .encode_utf16()
                 .collect::<Vec<_>>();
+            let value = attribute.value.encode_utf16().collect::<Vec<_>>();
             unsafe {
                 ladybird_html_parser_add_missing_attribute(
                     element,
                     local_name.as_ptr(),
                     local_name.len(),
-                    attribute.value.as_ptr(),
-                    attribute.value.len(),
+                    value.as_ptr(),
+                    value.len(),
                 );
             }
         }
@@ -4412,7 +4417,7 @@ impl TreeBuilder {
 struct AttributeStorage {
     local_name_code_units: Vec<Vec<u16>>,
     prefix_code_units: Vec<Vec<u16>>,
-    value_bytes: Vec<Vec<u8>>,
+    value_code_units: Vec<Vec<u16>>,
 }
 
 struct AdjustedAttributeName {
@@ -4443,15 +4448,6 @@ fn owned_attributes_from_token(token: &Token, namespace_: RustFfiHtmlNamespace) 
     attributes
 }
 
-unsafe fn string_from_ffi(ptr: *const u8, len: usize) -> String {
-    if ptr.is_null() || len == 0 {
-        return String::new();
-    }
-
-    let bytes = unsafe { std::slice::from_raw_parts(ptr, len) };
-    String::from_utf8_lossy(bytes).to_string()
-}
-
 unsafe fn utf16_string_from_ffi(ptr: *const u16, len: usize) -> String {
     if ptr.is_null() || len == 0 {
         return String::new();
@@ -4470,6 +4466,30 @@ unsafe fn utf16_namespace_uri_from_ffi(
         return None;
     }
     Some(unsafe { utf16_string_from_ffi(ptr, len) })
+}
+
+unsafe fn owned_attributes_from_ffi(
+    attributes: *const RustFfiHtmlParserAttribute,
+    attribute_count: usize,
+) -> Vec<OwnedAttribute> {
+    if attributes.is_null() || attribute_count == 0 {
+        return Vec::new();
+    }
+
+    let attributes = unsafe { std::slice::from_raw_parts(attributes, attribute_count) };
+    attributes
+        .iter()
+        .map(|attribute| OwnedAttribute {
+            local_name: unsafe { utf16_string_from_ffi(attribute.local_name_ptr, attribute.local_name_len) },
+            prefix: if attribute.prefix_len == 0 {
+                None
+            } else {
+                Some(unsafe { utf16_string_from_ffi(attribute.prefix_ptr, attribute.prefix_len) })
+            },
+            namespace_: attribute.namespace_,
+            value: unsafe { utf16_string_from_ffi(attribute.value_ptr, attribute.value_len) },
+        })
+        .collect()
 }
 
 unsafe fn owned_context_attributes_from_ffi(
@@ -4491,7 +4511,7 @@ unsafe fn owned_context_attributes_from_ffi(
                 Some(unsafe { utf16_string_from_ffi(attribute.prefix_ptr, attribute.prefix_len) })
             },
             namespace_: attribute.namespace_,
-            value: unsafe { string_from_ffi(attribute.value_ptr, attribute.value_len) },
+            value: unsafe { utf16_string_from_ffi(attribute.value_ptr, attribute.value_len) },
         })
         .collect()
 }
@@ -4520,7 +4540,7 @@ fn attributes_from_owned_attributes(
     let mut storage = AttributeStorage {
         local_name_code_units: Vec::with_capacity(attributes.len()),
         prefix_code_units: Vec::new(),
-        value_bytes: Vec::with_capacity(attributes.len()),
+        value_code_units: Vec::with_capacity(attributes.len()),
     };
     let mut ffi_attributes = Vec::with_capacity(attributes.len());
 
@@ -4528,7 +4548,7 @@ fn attributes_from_owned_attributes(
         storage
             .local_name_code_units
             .push(attribute.local_name.encode_utf16().collect());
-        storage.value_bytes.push(attribute.value.as_bytes().to_vec());
+        storage.value_code_units.push(attribute.value.encode_utf16().collect());
 
         let local_name_code_units = storage.local_name_code_units.last().unwrap();
         let (prefix_ptr, prefix_len) = match &attribute.prefix {
@@ -4539,15 +4559,15 @@ fn attributes_from_owned_attributes(
             }
             None => (std::ptr::null(), 0),
         };
-        let value_bytes = storage.value_bytes.last().unwrap();
+        let value_code_units = storage.value_code_units.last().unwrap();
         ffi_attributes.push(RustFfiHtmlParserAttribute {
             local_name_ptr: local_name_code_units.as_ptr(),
             local_name_len: local_name_code_units.len(),
             prefix_ptr,
             prefix_len,
             namespace_: attribute.namespace_,
-            value_ptr: value_bytes.as_ptr(),
-            value_len: value_bytes.len(),
+            value_ptr: value_code_units.as_ptr(),
+            value_len: value_code_units.len(),
         });
     }
 
@@ -4561,7 +4581,7 @@ fn attributes_from_token(
     let mut storage = AttributeStorage {
         local_name_code_units: Vec::new(),
         prefix_code_units: Vec::new(),
-        value_bytes: Vec::new(),
+        value_code_units: Vec::new(),
     };
     let mut attributes = Vec::new();
     let TokenPayload::Tag {
@@ -4573,7 +4593,7 @@ fn attributes_from_token(
     };
 
     storage.local_name_code_units.reserve(token_attributes.len());
-    storage.value_bytes.reserve(token_attributes.len());
+    storage.value_code_units.reserve(token_attributes.len());
     attributes.reserve(token_attributes.len());
 
     for attribute in token_attributes {
@@ -4581,7 +4601,7 @@ fn attributes_from_token(
         storage
             .local_name_code_units
             .push(adjusted_name.local_name.encode_utf16().collect());
-        storage.value_bytes.push(attribute.value.as_bytes().to_vec());
+        storage.value_code_units.push(attribute.value.encode_utf16().collect());
 
         let local_name_code_units = storage.local_name_code_units.last().unwrap();
         let (prefix_ptr, prefix_len) = match adjusted_name.prefix {
@@ -4592,15 +4612,15 @@ fn attributes_from_token(
             }
             None => (std::ptr::null(), 0),
         };
-        let value_bytes = storage.value_bytes.last().unwrap();
+        let value_code_units = storage.value_code_units.last().unwrap();
         attributes.push(RustFfiHtmlParserAttribute {
             local_name_ptr: local_name_code_units.as_ptr(),
             local_name_len: local_name_code_units.len(),
             prefix_ptr,
             prefix_len,
             namespace_: adjusted_name.namespace_,
-            value_ptr: value_bytes.as_ptr(),
-            value_len: value_bytes.len(),
+            value_ptr: value_code_units.as_ptr(),
+            value_len: value_code_units.len(),
         });
     }
 

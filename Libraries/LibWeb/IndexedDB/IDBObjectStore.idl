@@ -1,6 +1,6 @@
 [Exposed=(Window,Worker)]
 interface IDBObjectStore {
-    attribute DOMString name;
+    attribute Utf16DOMString name;
     readonly attribute any keyPath;
     readonly attribute DOMStringList indexNames;
     [SameObject] readonly attribute IDBTransaction transaction;
@@ -18,9 +18,9 @@ interface IDBObjectStore {
     [NewObject] IDBRequest count(optional any query);
     [NewObject] IDBRequest openCursor(optional any query, optional IDBCursorDirection direction = "next");
     [NewObject] IDBRequest openKeyCursor(optional any query, optional IDBCursorDirection direction = "next");
-    IDBIndex index(DOMString name);
-    [NewObject] IDBIndex createIndex(DOMString name, (DOMString or sequence<DOMString>) keyPath, optional IDBIndexParameters options = {});
-    undefined deleteIndex(DOMString name);
+    IDBIndex index(Utf16DOMString name);
+    [NewObject] IDBIndex createIndex(Utf16DOMString name, (Utf16DOMString or sequence<Utf16DOMString>) keyPath, optional IDBIndexParameters options = {});
+    undefined deleteIndex(Utf16DOMString name);
 };
 
 dictionary IDBIndexParameters {

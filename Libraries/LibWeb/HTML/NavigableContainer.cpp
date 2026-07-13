@@ -179,7 +179,7 @@ DOM::Document const* NavigableContainer::get_svg_document() const
     auto const* document = content_document();
 
     // 2. If document is non-null and was created by the page load processing model for XML files section because the computed type of the resource in the navigate algorithm was image/svg+xml, then return document.
-    if (document && document->content_type() == "image/svg+xml"sv)
+    if (document && document->content_type() == u"image/svg+xml"sv)
         return document;
     // 3. Return null.
     return nullptr;
@@ -207,10 +207,10 @@ Optional<URL::URL> NavigableContainer::shared_attribute_processing_steps_for_ifr
     auto url = URL::about_blank();
 
     // 2. If element has a src attribute specified, and its value is not the empty string, then:
-    auto src_attribute_value = get_attribute_value(HTML::AttributeNames::src);
-    if (!src_attribute_value.is_empty()) {
+    auto src_attribute_value = get_attribute_value_view(HTML::AttributeNames::src);
+    if (src_attribute_value.has_value() && !src_attribute_value->is_empty()) {
         // 1. Let maybeURL be the result of encoding-parsing a URL given that attribute's value, relative to element's node document.
-        auto maybe_url = document().encoding_parse_url(src_attribute_value);
+        auto maybe_url = document().encoding_parse_url(*src_attribute_value);
 
         // 2. If maybeURL is not failure, then set url to maybeURL.
         if (maybe_url.has_value())
@@ -274,9 +274,9 @@ void NavigableContainer::navigate_an_iframe_or_frame(URL::URL url, ReferrerPolic
     // 4. Navigate element's content navigable to url using element's node document, with historyHandling set to historyHandling,
     //    referrerPolicy set to referrerPolicy, documentResource set to srcdocString, and initialInsertion set to
     //    initialInsertion.
-    Variant<Empty, String, POSTResource> document_resource = Empty {};
+    DocumentResource document_resource = Empty {};
     if (srcdoc_string.has_value())
-        document_resource = srcdoc_string->to_utf8();
+        document_resource = *srcdoc_string;
 
     MUST(local_navigable.navigate({
         .url = move(url),

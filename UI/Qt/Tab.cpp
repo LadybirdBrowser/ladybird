@@ -763,7 +763,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     };
 
     view().on_request_alert = [this](auto const& message) {
-        m_dialog = new QMessageBox(QMessageBox::Icon::Warning, "Ladybird", qstring_from_ak_string(message), QMessageBox::StandardButton::Ok, &view());
+        m_dialog = new QMessageBox(QMessageBox::Icon::Warning, "Ladybird", qstring_from_utf16_string(message), QMessageBox::StandardButton::Ok, &view());
 
         QObject::connect(m_dialog, &QDialog::finished, this, [this]() {
             view().alert_closed();
@@ -774,7 +774,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     };
 
     view().on_request_confirm = [this](auto const& message) {
-        m_dialog = new QMessageBox(QMessageBox::Icon::Question, "Ladybird", qstring_from_ak_string(message), QMessageBox::StandardButton::Ok | QMessageBox::StandardButton::Cancel, &view());
+        m_dialog = new QMessageBox(QMessageBox::Icon::Question, "Ladybird", qstring_from_utf16_string(message), QMessageBox::StandardButton::Ok | QMessageBox::StandardButton::Cancel, &view());
 
         QObject::connect(m_dialog, &QDialog::finished, this, [this](auto result) {
             view().confirm_closed(result == QMessageBox::StandardButton::Ok || result == QDialog::Accepted);
@@ -789,13 +789,13 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
         auto& dialog = static_cast<QInputDialog&>(*m_dialog);
         dialog.setWindowTitle("Ladybird");
-        dialog.setLabelText(qstring_from_ak_string(message));
-        dialog.setTextValue(qstring_from_ak_string(default_));
+        dialog.setLabelText(qstring_from_utf16_string(message));
+        dialog.setTextValue(qstring_from_utf16_string(default_));
 
         QObject::connect(m_dialog, &QDialog::finished, this, [this](auto result) {
             if (result == QDialog::Accepted) {
                 auto& dialog = static_cast<QInputDialog&>(*m_dialog);
-                view().prompt_closed(ak_string_from_qstring(dialog.textValue()));
+                view().prompt_closed(utf16_string_from_qstring(dialog.textValue()));
             } else {
                 view().prompt_closed({});
             }
@@ -808,7 +808,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
     view().on_request_set_prompt_text = [this](auto const& message) {
         if (m_dialog && is<QInputDialog>(*m_dialog))
-            static_cast<QInputDialog&>(*m_dialog).setTextValue(qstring_from_ak_string(message));
+            static_cast<QInputDialog&>(*m_dialog).setTextValue(qstring_from_utf16_string(message));
     };
 
     view().on_request_accept_dialog = [this]() {

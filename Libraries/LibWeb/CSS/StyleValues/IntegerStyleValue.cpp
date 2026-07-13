@@ -16,6 +16,11 @@ void IntegerStyleValue::serialize(StringBuilder& builder, SerializationMode) con
     builder.appendff("{}", m_value);
 }
 
+void IntegerStyleValue::serialize(Utf16StringBuilder& builder, SerializationMode) const
+{
+    builder.appendff("{}", m_value);
+}
+
 Vector<Parser::ComponentValue> IntegerStyleValue::tokenize() const
 {
     return { Parser::Token::create_number(Number { Number::Type::Integer, static_cast<double>(m_value) }) };

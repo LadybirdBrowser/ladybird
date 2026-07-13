@@ -5,5 +5,5 @@ interface Crypto {
 
     ArrayBufferView getRandomValues(ArrayBufferView array);
 
-    [SecureContext] DOMString randomUUID();
+    [SecureContext] Utf16DOMString randomUUID();
 };

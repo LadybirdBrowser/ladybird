@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibWeb/CSS/StylePropertyMapReadOnly.h>
 
 namespace Web::CSS {
@@ -20,8 +21,8 @@ public:
 
     virtual ~StylePropertyMap() override;
 
-    WebIDL::ExceptionOr<void> set(Utf16FlyString property, ReadonlySpan<Variant<GC::Ref<CSSStyleValue>, String>> values);
-    WebIDL::ExceptionOr<void> append(Utf16FlyString property, ReadonlySpan<Variant<GC::Ref<CSSStyleValue>, String>> values);
+    WebIDL::ExceptionOr<void> set(Utf16FlyString property, ReadonlySpan<Variant<GC::Ref<CSSStyleValue>, Utf16String>> values);
+    WebIDL::ExceptionOr<void> append(Utf16FlyString property, ReadonlySpan<Variant<GC::Ref<CSSStyleValue>, Utf16String>> values);
     WebIDL::ExceptionOr<void> delete_(Utf16FlyString property);
     WebIDL::ExceptionOr<void> clear();
 

@@ -40,6 +40,7 @@ public:
     }
 
     String to_string(SerializationMode mode) const;
+    void serialize_to(Utf16StringBuilder&, SerializationMode) const;
 
     bool is_ident() const { return m_type == Type::Ident; }
     bool is_length() const { return m_type == Type::Length; }
@@ -169,30 +170,58 @@ public:
     FeatureValue const& value() const { return m_value.template get<FeatureValue>(); }
     Range const& range() const { return m_value.template get<Range>(); }
 
-    virtual String to_string() const override
+    virtual void serialize_to(Utf16StringBuilder& builder) const override
     {
         // NB: Even though the surrounding boolean-expression grammar owns the parentheses, feature serialization
         //     includes them so callers do not need a wrapper node just for serialization.
         switch (m_type) {
         case Type::IsTrue:
-            return MUST(String::formatted("({})", Derived::serialize_feature_id(m_id)));
-        case Type::ExactValue:
-            return MUST(String::formatted("({}: {})", Derived::serialize_feature_id(m_id), value().to_string(SerializationMode::Normal)));
-        case Type::MinValue:
-            return MUST(String::formatted("(min-{}: {})", Derived::serialize_feature_id(m_id), value().to_string(SerializationMode::Normal)));
-        case Type::MaxValue:
-            return MUST(String::formatted("(max-{}: {})", Derived::serialize_feature_id(m_id), value().to_string(SerializationMode::Normal)));
+            builder.append_ascii('(');
+            builder.append_ascii(Derived::serialize_feature_id(m_id));
+            builder.append_ascii(')');
+            return;
+        case Type::ExactValue: {
+            builder.append_ascii('(');
+            builder.append_ascii(Derived::serialize_feature_id(m_id));
+            builder.append_ascii(": "sv);
+            value().serialize_to(builder, SerializationMode::Normal);
+            builder.append_ascii(')');
+            return;
+        }
+        case Type::MinValue: {
+            builder.append_ascii("(min-"sv);
+            builder.append_ascii(Derived::serialize_feature_id(m_id));
+            builder.append_ascii(": "sv);
+            value().serialize_to(builder, SerializationMode::Normal);
+            builder.append_ascii(')');
+            return;
+        }
+        case Type::MaxValue: {
+            builder.append_ascii("(max-"sv);
+            builder.append_ascii(Derived::serialize_feature_id(m_id));
+            builder.append_ascii(": "sv);
+            value().serialize_to(builder, SerializationMode::Normal);
+            builder.append_ascii(')');
+            return;
+        }
         case Type::Range: {
             auto& range = this->range();
-            StringBuilder builder;
-            builder.append('(');
-            if (range.left_comparison.has_value())
-                builder.appendff("{} {} ", range.left_value->to_string(SerializationMode::Normal), string_from_feature_comparison(*range.left_comparison));
-            builder.append(Derived::serialize_feature_id(m_id));
-            if (range.right_comparison.has_value())
-                builder.appendff(" {} {}", string_from_feature_comparison(*range.right_comparison), range.right_value->to_string(SerializationMode::Normal));
-            builder.append(')');
-            return builder.to_string_without_validation();
+            builder.append_ascii('(');
+            if (range.left_comparison.has_value()) {
+                range.left_value->serialize_to(builder, SerializationMode::Normal);
+                builder.append_ascii(' ');
+                builder.append_ascii(string_from_feature_comparison(*range.left_comparison));
+                builder.append_ascii(' ');
+            }
+            builder.append_ascii(Derived::serialize_feature_id(m_id));
+            if (range.right_comparison.has_value()) {
+                builder.append_ascii(' ');
+                builder.append_ascii(string_from_feature_comparison(*range.right_comparison));
+                builder.append_ascii(' ');
+                range.right_value->serialize_to(builder, SerializationMode::Normal);
+            }
+            builder.append_ascii(')');
+            return;
         }
         }
         VERIFY_NOT_REACHED();

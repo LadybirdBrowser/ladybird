@@ -129,7 +129,7 @@ CSSStyleRule const& CSSNestedDeclarations::parent_style_rule() const
     VERIFY_NOT_REACHED();
 }
 
-String CSSNestedDeclarations::serialized() const
+Utf16String CSSNestedDeclarations::serialized() const
 {
     // NOTE: There's no proper spec for this yet, only this note:
     // "The CSSNestedDeclarations rule serializes as if its declaration block had been serialized directly."

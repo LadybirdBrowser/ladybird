@@ -13,7 +13,7 @@ namespace Web::WebIDL {
 
 GC_DEFINE_ALLOCATOR(DOMException);
 
-GC::Ref<DOMException> DOMException::create(JS::Realm& realm, FlyString name, Utf16String const& message)
+GC::Ref<DOMException> DOMException::create(JS::Realm& realm, Utf16FlyString name, Utf16String const& message)
 {
     return realm.create<DOMException>(realm, move(name), message);
 }
@@ -23,12 +23,12 @@ GC::Ref<DOMException> DOMException::create(JS::Realm& realm)
     return realm.create<DOMException>(realm);
 }
 
-GC::Ref<DOMException> DOMException::construct_impl(JS::Realm& realm, Utf16String const& message, FlyString name)
+GC::Ref<DOMException> DOMException::construct_impl(JS::Realm& realm, Utf16String const& message, Utf16FlyString name)
 {
     return realm.create<DOMException>(realm, move(name), message);
 }
 
-DOMException::DOMException(JS::Realm& realm, FlyString name, Utf16String const& message)
+DOMException::DOMException(JS::Realm& realm, Utf16FlyString name, Utf16String const& message)
     : PlatformObject(realm)
     , ErrorData(realm.vm())
     , m_name(move(name))
@@ -59,7 +59,7 @@ void DOMException::visit_edges(Visitor& visitor)
 WebIDL::ExceptionOr<void> DOMException::serialization_steps(HTML::StructuredSerializeWriter& serialized, bool, HTML::SerializationMemory&)
 {
     // 1. Set serialized.[[Name]] to value’s name.
-    serialized.encode(Utf16String::from_utf8(m_name.to_string()));
+    serialized.encode(m_name.to_utf16_string());
 
     // 2. Set serialized.[[Message]] to value’s message.
     serialized.encode(m_message.to_utf16_string());
@@ -74,7 +74,7 @@ WebIDL::ExceptionOr<void> DOMException::deserialization_steps(HTML::StructuredSe
     auto& realm = this->realm();
 
     // 1. Set value’s name to serialized.[[Name]].
-    m_name = TRY(HTML::decode_utf8_text_or_throw_data_clone_error(realm, serialized));
+    m_name = TRY(HTML::decode_or_throw_data_clone_error<Utf16String>(realm, serialized));
 
     // 2. Set value’s message to serialized.[[Message]].
     m_message = TRY(HTML::decode_or_throw_data_clone_error<Utf16String>(realm, serialized));

@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Utf16View.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/HTMLElement.h>
 
@@ -26,13 +27,13 @@ public:
 
     Utf16String value() const;
     virtual Utf16String form_value() const override { return value(); }
-    void set_value(Utf16String const&);
+    void set_value(Utf16View);
 
     Utf16String text() const;
-    void set_text(Utf16String const&);
+    void set_text(Utf16View);
 
     [[nodiscard]] Utf16String label() const;
-    void set_label(Utf16String const&);
+    void set_label(Utf16View);
 
     int index() const;
 

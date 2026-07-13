@@ -14,7 +14,7 @@ namespace Web::ContentSecurityPolicy::Directives {
 
 GC_DEFINE_ALLOCATOR(DefaultSourceDirective);
 
-DefaultSourceDirective::DefaultSourceDirective(String name, Vector<String> value)
+DefaultSourceDirective::DefaultSourceDirective(Utf16FlyString name, Vector<Utf16String> value)
     : Directive(move(name), move(value))
 {
 }
@@ -32,7 +32,7 @@ Directive::Result DefaultSourceDirective::pre_request_check(GC::Heap& heap, GC::
 
     // 3. Return the result of executing the pre-request check for the directive whose name is name on request and
     //    policy, using this directive’s value for the comparison.
-    auto directive = create_directive(heap, name->to_string(), value());
+    auto directive = create_directive(heap, *name, value());
     return directive->pre_request_check(heap, request, policy);
 }
 
@@ -49,7 +49,7 @@ Directive::Result DefaultSourceDirective::post_request_check(GC::Heap& heap, GC:
 
     // 3. Return the result of executing the post-request check for the directive whose name is name on request,
     //    response, and policy, using this directive’s value for the comparison.
-    auto directive = create_directive(heap, name->to_string(), value());
+    auto directive = create_directive(heap, *name, value());
     return directive->post_request_check(heap, request, response, policy);
 }
 
@@ -66,7 +66,7 @@ Directive::Result DefaultSourceDirective::inline_check(GC::Heap& heap, GC::Ptr<D
 
     // 3. Otherwise, return the result of executing the inline check for the directive whose name is name on element,
     //    type, policy and source, using this directive’s value for the comparison.
-    auto directive = create_directive(heap, name.to_string(), value());
+    auto directive = create_directive(heap, name, value());
     return directive->inline_check(heap, element, type, policy, source);
 }
 

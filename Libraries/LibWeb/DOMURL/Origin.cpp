@@ -67,7 +67,7 @@ WebIDL::ExceptionOr<GC::Ref<Origin>> Origin::from(JS::VM& vm, JS::Value value)
     }
 
     // 3. Throw a TypeError.
-    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Value is not a valid Origin"sv };
+    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Value is not a valid Origin"_utf16 };
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#dom-origin-opaque

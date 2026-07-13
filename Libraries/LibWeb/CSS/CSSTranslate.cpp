@@ -30,14 +30,14 @@ WebIDL::ExceptionOr<GC::Ref<CSSTranslate>> CSSTranslate::construct_impl(JS::Real
 
     // 1. If x or y don’t match <length-percentage>, throw a TypeError.
     if (!x->type().matches_length_percentage({}))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSTranslate x component doesn't match <length-percentage>"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSTranslate x component doesn't match <length-percentage>"_utf16 };
 
     if (!y->type().matches_length_percentage({}))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSTranslate y component doesn't match <length-percentage>"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSTranslate y component doesn't match <length-percentage>"_utf16 };
 
     // 2. If z was passed, but doesn’t match <length>, throw a TypeError.
     if (z && !z->type().matches_length({}))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSTranslate z component doesn't match <length>"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSTranslate z component doesn't match <length>"_utf16 };
 
     // 3. Let this be a new CSSTranslate object, with its x and y internal slots set to x and y.
     // 4. If z was passed, set this’s z internal slot to z, and set this’s is2D internal slot to false.
@@ -155,7 +155,7 @@ WebIDL::ExceptionOr<void> CSSTranslate::set_x(GC::Ref<CSSNumericValue> x)
     // AD-HOC: Not specced. https://github.com/w3c/css-houdini-drafts/issues/1153
     //         WPT expects this to throw for invalid values.
     if (!x->type().matches_length_percentage({}))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSTranslate x component doesn't match <length-percentage>"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSTranslate x component doesn't match <length-percentage>"_utf16 };
     m_x = x;
     return {};
 }
@@ -165,7 +165,7 @@ WebIDL::ExceptionOr<void> CSSTranslate::set_y(GC::Ref<CSSNumericValue> y)
     // AD-HOC: Not specced. https://github.com/w3c/css-houdini-drafts/issues/1153
     //         WPT expects this to throw for invalid values.
     if (!y->type().matches_length_percentage({}))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSTranslate y component doesn't match <length-percentage>"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSTranslate y component doesn't match <length-percentage>"_utf16 };
     m_y = y;
     return {};
 }
@@ -175,7 +175,7 @@ WebIDL::ExceptionOr<void> CSSTranslate::set_z(GC::Ref<CSSNumericValue> z)
     // AD-HOC: Not specced. https://github.com/w3c/css-houdini-drafts/issues/1153
     //         WPT expects this to throw for invalid values.
     if (!z->type().matches_length({}))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSTranslate z component doesn't match <length>"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSTranslate z component doesn't match <length>"_utf16 };
     m_z = z;
     return {};
 }

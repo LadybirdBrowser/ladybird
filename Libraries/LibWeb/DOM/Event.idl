@@ -1,9 +1,9 @@
 // https://dom.spec.whatwg.org/#event
 [Exposed=*]
 interface Event {
-    constructor(DOMString type, optional EventInit eventInitDict = {});
+    constructor([Utf16FlyString] Utf16DOMString type, optional EventInit eventInitDict = {});
 
-    readonly attribute DOMString type;
+    readonly attribute Utf16DOMString type;
     readonly attribute EventTarget? target;
     readonly attribute EventTarget? srcElement; // legacy
     [ImplementedAs=current_target_for_bindings] readonly attribute EventTarget? currentTarget;
@@ -29,7 +29,7 @@ interface Event {
     [LegacyUnforgeable] readonly attribute boolean isTrusted;
     readonly attribute DOMHighResTimeStamp timeStamp;
 
-    undefined initEvent(DOMString type, optional boolean bubbles = false, optional boolean cancelable = false); // legacy
+    undefined initEvent([Utf16FlyString] Utf16DOMString type, optional boolean bubbles = false, optional boolean cancelable = false); // legacy
 };
 
 dictionary EventInit {

@@ -17,15 +17,15 @@ class MediaStreamTrackEvent final : public DOM::Event {
     GC_DECLARE_ALLOCATOR(MediaStreamTrackEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<MediaStreamTrackEvent> create(JS::Realm&, FlyString const& event_name, Bindings::MediaStreamTrackEventInit const&);
-    [[nodiscard]] static GC::Ref<MediaStreamTrackEvent> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::MediaStreamTrackEventInit const&);
+    [[nodiscard]] static GC::Ref<MediaStreamTrackEvent> create(JS::Realm&, Utf16FlyString const& event_name, Bindings::MediaStreamTrackEventInit const&);
+    [[nodiscard]] static GC::Ref<MediaStreamTrackEvent> construct_impl(JS::Realm&, Utf16FlyString const& event_name, Bindings::MediaStreamTrackEventInit const&);
 
     virtual ~MediaStreamTrackEvent() override;
 
     GC::Ref<MediaStreamTrack> track() const { return m_track; }
 
 private:
-    MediaStreamTrackEvent(JS::Realm&, FlyString const& event_name, Bindings::MediaStreamTrackEventInit const&);
+    MediaStreamTrackEvent(JS::Realm&, Utf16FlyString const& event_name, Bindings::MediaStreamTrackEventInit const&);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

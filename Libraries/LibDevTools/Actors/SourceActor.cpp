@@ -28,7 +28,7 @@ SourceActor::~SourceActor() = default;
 
 JsonObject SourceActor::serialize_source() const
 {
-    auto source_url = m_source.url.has_value() ? m_source.url->serialize() : m_source.display_url;
+    auto source_url = m_source.url.has_value() ? m_source.url->serialize() : m_source.display_url.to_utf8();
 
     JsonObject source;
     source.set("actor"sv, name());
@@ -37,7 +37,7 @@ JsonObject SourceActor::serialize_source() const
     source.set("isBlackBoxed"sv, false);
     source.set("sourceMapBaseURL"sv, source_url);
     source.set("sourceMapURL"sv, JsonValue {});
-    source.set("introductionType"sv, m_source.introduction_type);
+    source.set("introductionType"sv, m_source.introduction_type.to_utf8());
     source.set("isInlineSource"sv, m_source.is_inline_source);
     source.set("sourceStartLine"sv, m_source.source_start_line);
     source.set("sourceStartColumn"sv, m_source.source_start_column);
@@ -57,7 +57,7 @@ void SourceActor::handle_message(Message const& message)
         if (!tab) {
             JsonObject response;
             response.set("source"sv, ""sv);
-            response.set("contentType"sv, m_source.content_type);
+            response.set("contentType"sv, m_source.content_type.to_utf8());
             send_response(message, move(response));
             return;
         }
@@ -66,8 +66,8 @@ void SourceActor::handle_message(Message const& message)
             async_handler<SourceActor>(message, [](auto&, auto source_content, auto& response) {
                 // Firefox's longstring protocol accepts a primitive string and wraps it in a SimpleStringFront on the
                 // client side.
-                response.set("source"sv, move(source_content.text));
-                response.set("contentType"sv, move(source_content.content_type));
+                response.set("source"sv, source_content.text.to_utf8());
+                response.set("contentType"sv, source_content.content_type.to_utf8());
             }));
         return;
     }

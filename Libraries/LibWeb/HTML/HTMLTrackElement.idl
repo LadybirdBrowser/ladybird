@@ -14,10 +14,10 @@ interface HTMLTrackElement : HTMLElement {
 
     [HTMLConstructor] constructor();
 
-    [CEReactions, Enumerated=TrackKindAttribute, Reflect] attribute DOMString kind;
-    [CEReactions, Reflect, URL] attribute USVString src;
-    [CEReactions, Reflect] attribute DOMString srclang;
-    [CEReactions, Reflect] attribute DOMString label;
+    [CEReactions, Enumerated=TrackKindAttribute, Reflect] attribute Utf16DOMString kind;
+    [CEReactions, Reflect, URL] attribute Utf16USVString src;
+    [CEReactions, Reflect] attribute Utf16DOMString srclang;
+    [CEReactions, Reflect] attribute Utf16DOMString label;
     [CEReactions, Reflect] attribute boolean default;
 
     const unsigned short NONE = 0;

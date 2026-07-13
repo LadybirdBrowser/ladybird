@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Internals/InternalsBase.h>
@@ -19,7 +20,7 @@ class WEB_API WebUI final : public InternalsBase {
 public:
     virtual ~WebUI() override;
 
-    void send_message(String const& name, JS::Value data);
+    void send_message(Utf16String const& name, JS::Value data);
 
 private:
     explicit WebUI(JS::Realm&);

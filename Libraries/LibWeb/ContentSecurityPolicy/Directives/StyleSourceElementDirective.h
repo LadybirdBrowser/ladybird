@@ -23,7 +23,7 @@ public:
     virtual Result inline_check(GC::Heap&, GC::Ptr<DOM::Element const>, InlineType, GC::Ref<Policy const>, Utf16View) const override;
 
 private:
-    StyleSourceElementDirective(String name, Vector<String> value);
+    StyleSourceElementDirective(Utf16FlyString name, Vector<Utf16String> value);
 };
 
 }

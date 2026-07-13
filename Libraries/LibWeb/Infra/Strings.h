@@ -17,14 +17,13 @@
 
 namespace Web::Infra {
 
-WEB_API String normalize_newlines(String const&);
 WEB_API Utf16String normalize_newlines(Utf16String const&);
+WEB_API Utf16String normalize_newlines(Utf16View);
 WEB_API ErrorOr<String> strip_and_collapse_whitespace(StringView string);
+Utf16String strip_and_collapse_whitespace(Utf16View string);
 Utf16String strip_and_collapse_whitespace(Utf16String const& string);
-WEB_API bool is_code_unit_prefix(StringView potential_prefix, StringView input);
 WEB_API bool is_code_unit_prefix(Utf16View potential_prefix, Utf16View input);
-WEB_API ErrorOr<String> convert_to_scalar_value_string(StringView string);
 WEB_API ErrorOr<Utf16String> convert_to_scalar_value_string(Utf16View string);
-bool code_unit_less_than(StringView a, StringView b);
+bool code_unit_less_than(Utf16View a, Utf16View b);
 
 }

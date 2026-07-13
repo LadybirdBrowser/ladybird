@@ -28,11 +28,11 @@ def generate_css_parser_expression_for_type_component_value(out: TextIO, cpp_nam
 
     additional_arguments = ""
     if type.custom_ident_blacklist:
-        additional_arguments = ", ReadonlySpan<StringView> { "
+        additional_arguments = ", ReadonlySpan<Utf16View> { "
 
         if len(type.custom_ident_blacklist) > 0:
             disallowed_idents = "".join(f'"{disallowed_ident}"sv, ' for disallowed_ident in type.custom_ident_blacklist)
-            additional_arguments += f"Array<StringView, {len(type.custom_ident_blacklist)}> {{{disallowed_idents}}}"
+            additional_arguments += f"Array<Utf16View, {len(type.custom_ident_blacklist)}> {{{disallowed_idents}}}"
 
         additional_arguments += "}"
 

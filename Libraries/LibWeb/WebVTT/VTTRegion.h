@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/VTTRegion.h>
 #include <LibWeb/WebIDL/Types.h>
@@ -21,8 +22,8 @@ public:
     static WebIDL::ExceptionOr<GC::Ref<VTTRegion>> construct_impl(JS::Realm&);
     virtual ~VTTRegion() override = default;
 
-    String const& id() const { return m_identifier; }
-    void set_id(String const& id) { m_identifier = id; }
+    Utf16String const& id() const { return m_identifier; }
+    void set_id(Utf16String const& id) { m_identifier = id; }
 
     double width() const { return m_width; }
     WebIDL::ExceptionOr<void> set_width(double width);
@@ -51,7 +52,7 @@ private:
     virtual void initialize(JS::Realm&) override;
 
     // https://w3c.github.io/webvtt/#webvtt-region-identifier
-    String m_identifier {};
+    Utf16String m_identifier {};
 
     // https://w3c.github.io/webvtt/#webvtt-region-width
     double m_width { 100 };

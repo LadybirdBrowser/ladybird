@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibIPC/Forward.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
@@ -36,7 +36,7 @@ struct SerializedWorkerGlobalScope {
 using SerializedGlobal = Variant<SerializedWindow, SerializedWorkerGlobalScope>;
 
 struct SerializedEnvironmentSettingsObject {
-    String id;
+    Utf16String id;
     URL::URL creation_url;
     Optional<URL::URL> top_level_creation_url;
     Optional<URL::Origin> top_level_origin;

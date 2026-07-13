@@ -1,10 +1,10 @@
 // https://html.spec.whatwg.org/multipage/webappapis.html#errorevent
 [Exposed=(Window,Worker)]
 interface ErrorEvent : Event {
-    constructor(DOMString type, optional ErrorEventInit eventInitDict = {});
+    constructor([Utf16FlyString] Utf16DOMString type, optional ErrorEventInit eventInitDict = {});
 
-    readonly attribute DOMString message;
-    readonly attribute USVString filename;
+    readonly attribute Utf16DOMString message;
+    readonly attribute Utf16USVString filename;
     readonly attribute unsigned long lineno;
     readonly attribute unsigned long colno;
     readonly attribute any error;
@@ -12,8 +12,8 @@ interface ErrorEvent : Event {
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#erroreventinit
 dictionary ErrorEventInit : EventInit {
-    DOMString message = "";
-    USVString filename = "";
+    Utf16DOMString message = "";
+    Utf16USVString filename = "";
     unsigned long lineno = 0;
     unsigned long colno = 0;
     any error;

@@ -301,7 +301,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
             // 13. If serviceWorkerAllowed is null, then:
             if (service_worker_allowed.has<Empty>()) {
                 // 1. Let resolvedScope be the result of parsing "./" using job’s script url as the base URL.
-                auto resolved_scope = DOMURL::parse("./"sv, job->script_url);
+                auto resolved_scope = DOMURL::parse({ u"./", 2 }, job->script_url);
 
                 // 2. Set maxScopeString to "/", followed by the strings in resolvedScope’s path (including empty strings), separated from each other by "/".
                 max_scope_string = join_paths_with_slash(*resolved_scope);
@@ -309,7 +309,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
             // 14. Else:
             else {
                 // 1. Let maxScope be the result of parsing serviceWorkerAllowed using job’s script url as the base URL.
-                auto max_scope = DOMURL::parse(service_worker_allowed.get<Vector<ByteString>>()[0], job->script_url);
+                auto max_scope = DOMURL::parse_from_byte_string(service_worker_allowed.get<Vector<ByteString>>()[0], job->script_url);
 
                 // 2. If maxScope’s origin is job’s script url's origin, then:
                 if (max_scope->origin().is_same_origin(job->script_url.origin())) {

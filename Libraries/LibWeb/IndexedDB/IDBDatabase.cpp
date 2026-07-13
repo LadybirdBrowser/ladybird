@@ -113,7 +113,7 @@ void IDBDatabase::close()
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbdatabase-createobjectstore
-WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> IDBDatabase::create_object_store(String const& name, Bindings::IDBObjectStoreParameters const& options)
+WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> IDBDatabase::create_object_store(Utf16String const& name, Bindings::IDBObjectStoreParameters const& options)
 {
     auto& realm = this->realm();
 
@@ -133,7 +133,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> IDBDatabase::create_object_store(St
     auto const& nullable_key_path = options.key_path;
     Optional<KeyPath> key_path;
     if (!nullable_key_path.has<Empty>())
-        key_path = nullable_key_path.downcast<String, Vector<String>>();
+        key_path = nullable_key_path.downcast<Utf16String, Vector<Utf16String>>();
 
     // 5. If keyPath is not null and is not a valid key path, throw a "SyntaxError" DOMException.
     if (key_path.has_value() && !is_valid_key_path(key_path.value()))
@@ -146,7 +146,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> IDBDatabase::create_object_store(St
     // 7. Let autoIncrement be options’s autoIncrement member.
     auto auto_increment = options.auto_increment;
 
-    bool is_empty_key_path_or_sequence = key_path.has_value() && key_path.value().visit([](String const& value) -> bool { return value.is_empty(); }, [](Vector<String> const&) -> bool { return true; });
+    bool is_empty_key_path_or_sequence = key_path.has_value() && key_path.value().visit([](Utf16String const& value) -> bool { return value.is_empty(); }, [](Vector<Utf16String> const&) -> bool { return true; });
 
     // 8. If autoIncrement is true and keyPath is an empty string or any sequence (empty or otherwise), throw an "InvalidAccessError" DOMException.
     if (auto_increment && is_empty_key_path_or_sequence)
@@ -173,16 +173,16 @@ WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> IDBDatabase::create_object_store(St
 GC::Ref<HTML::DOMStringList> IDBDatabase::object_store_names()
 {
     // 1. Let names be a list of the names of the object stores in this's object store set.
-    Vector<String> names;
+    Vector<Utf16String> names;
     for (auto const& object_store : this->object_store_set())
         names.append(object_store->name());
 
     // 2. Return the result (a DOMStringList) of creating a sorted name list with names.
-    return create_a_sorted_name_list(realm(), names);
+    return create_a_sorted_name_list(realm(), move(names));
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbdatabase-deleteobjectstore
-WebIDL::ExceptionOr<void> IDBDatabase::delete_object_store(String const& name)
+WebIDL::ExceptionOr<void> IDBDatabase::delete_object_store(Utf16String const& name)
 {
     auto& realm = this->realm();
 
@@ -229,7 +229,7 @@ WebIDL::ExceptionOr<void> IDBDatabase::delete_object_store(String const& name)
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbdatabase-transaction
-WebIDL::ExceptionOr<GC::Ref<IDBTransaction>> IDBDatabase::transaction(Variant<String, Vector<String>> store_names, Bindings::IDBTransactionMode mode, Bindings::IDBTransactionOptions options)
+WebIDL::ExceptionOr<GC::Ref<IDBTransaction>> IDBDatabase::transaction(Variant<Utf16String, Vector<Utf16String>> store_names, Bindings::IDBTransactionMode mode, Bindings::IDBTransactionOptions options)
 {
     auto& realm = this->realm();
 
@@ -243,11 +243,11 @@ WebIDL::ExceptionOr<GC::Ref<IDBTransaction>> IDBDatabase::transaction(Variant<St
         return WebIDL::InvalidStateError::create(realm, "Close pending"_utf16);
 
     // 3. Let scope be the set of unique strings in storeNames if it is a sequence, or a set containing one string equal to storeNames otherwise.
-    Vector<String> scope;
-    if (store_names.has<Vector<String>>()) {
-        scope = store_names.get<Vector<String>>();
+    Vector<Utf16String> scope;
+    if (store_names.has<Vector<Utf16String>>()) {
+        scope = store_names.get<Vector<Utf16String>>();
     } else {
-        scope.append(store_names.get<String>());
+        scope.append(store_names.get<Utf16String>());
     }
 
     // 4. If any string in scope is not the name of an object store in the connected database, throw a "NotFoundError" DOMException.
@@ -262,7 +262,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBTransaction>> IDBDatabase::transaction(Variant<St
 
     // 6. If mode is not "readonly" or "readwrite", throw a TypeError.
     if (mode != Bindings::IDBTransactionMode::Readonly && mode != Bindings::IDBTransactionMode::Readwrite)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid transaction mode"_string };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid transaction mode"_utf16 };
 
     // 7. Let transaction be a newly created transaction with this connection, mode, options’ durability member, and the set of object stores named in scope.
     Vector<GC::Ref<ObjectStore>> scope_stores;

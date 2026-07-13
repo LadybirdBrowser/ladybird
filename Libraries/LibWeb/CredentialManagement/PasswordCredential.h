@@ -28,17 +28,17 @@ public:
 
     virtual ~PasswordCredential() override;
 
-    String const& password() const { return m_password; }
+    Utf16String const& password() const { return m_password; }
     URL::Origin const& origin() const { return m_origin; }
 
-    String type() const override { return "password"_string; }
+    Utf16FlyString const& type() const override;
 
 private:
     PasswordCredential(JS::Realm&, Bindings::PasswordCredentialData const&, URL::Origin);
     virtual void initialize(JS::Realm&) override;
 
     // TODO: Use Core::SecretString when it comes back
-    String m_password;
+    Utf16String m_password;
 
     // https://www.w3.org/TR/credential-management-1/#dom-credential-origin-slot
     URL::Origin m_origin;

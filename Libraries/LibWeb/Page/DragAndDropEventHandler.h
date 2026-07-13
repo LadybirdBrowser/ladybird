@@ -40,7 +40,7 @@ private:
     GC::Ref<HTML::DragEvent> fire_a_drag_and_drop_event(
         JS::Realm&,
         GC::Ptr<DOM::EventTarget> target,
-        FlyString const& name,
+        Utf16FlyString const& name,
         CSSPixelPoint screen_position,
         CSSPixelPoint page_offset,
         CSSPixelPoint client_offset,
@@ -64,7 +64,7 @@ private:
     GC::Ptr<DOM::Node> m_current_target_element;
 
     // https://html.spec.whatwg.org/multipage/dnd.html#current-drag-operation
-    FlyString m_current_drag_operation;
+    Utf16FlyString m_current_drag_operation;
 };
 
 }

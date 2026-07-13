@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        function nextMessage(target) {
+            return new Promise(resolve => {
+                target.addEventListener("message", function handler(event) {
+                    target.removeEventListener("message", handler);
+                    resolve(event.data);
+                });
+            });
+        }
+
+        const dedicatedWorkerName = "dedicated-é-水";
+        const dedicatedWorkerScript = "postMessage({ name: self.name, type: typeof self.name });";
+        const dedicatedWorkerURL = URL.createObjectURL(new Blob([dedicatedWorkerScript], { type: "text/javascript" }));
+        const dedicatedWorker = new Worker(dedicatedWorkerURL, { name: dedicatedWorkerName });
+        const dedicatedWorkerMessage = await nextMessage(dedicatedWorker);
+
+        println(`dedicated worker name is a string: ${dedicatedWorkerMessage.type === "string"}`);
+        println(`dedicated worker name matches: ${dedicatedWorkerMessage.name === dedicatedWorkerName}`);
+
+        dedicatedWorker.terminate();
+        URL.revokeObjectURL(dedicatedWorkerURL);
+
+        const sharedWorkerName = "shared-é-水";
+        const sharedWorkerScript = `
+            let connections = 0;
+            onconnect = event => {
+                connections++;
+                const port = event.ports[0];
+                port.postMessage({
+                    connection: connections,
+                    name: self.name,
+                    type: typeof self.name,
+                });
+            };
+        `;
+        const sharedWorkerURL = URL.createObjectURL(new Blob([sharedWorkerScript], { type: "text/javascript" }));
+
+        const sharedWorker1 = new SharedWorker(sharedWorkerURL, sharedWorkerName);
+        const sharedWorker2 = new SharedWorker(sharedWorkerURL, { name: sharedWorkerName });
+
+        const sharedWorkerMessage1Promise = nextMessage(sharedWorker1.port);
+        const sharedWorkerMessage2Promise = nextMessage(sharedWorker2.port);
+        sharedWorker1.port.start();
+        sharedWorker2.port.start();
+
+        const sharedWorkerMessage1 = await sharedWorkerMessage1Promise;
+        const sharedWorkerMessage2 = await sharedWorkerMessage2Promise;
+
+        println(`shared worker name is a string: ${sharedWorkerMessage1.type === "string"}`);
+        println(`shared worker string option name matches: ${sharedWorkerMessage1.name === sharedWorkerName}`);
+        println(`shared worker dictionary name matches: ${sharedWorkerMessage2.name === sharedWorkerName}`);
+        println(`shared worker reused by matching name: ${sharedWorkerMessage2.connection === 2}`);
+
+        URL.revokeObjectURL(sharedWorkerURL);
+        done();
+    });
+</script>

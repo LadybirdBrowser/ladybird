@@ -171,7 +171,7 @@ JS::ThrowCompletionOr<ResolvedOverload> resolve_overload(JS::VM& vm, EffectiveOv
         else if (value.is_object() && is<Bindings::PlatformObject>(value.as_object())
             && has_overload_with_argument_type_or_subtype_matching(overloads, i, [value](Type const& type) {
                    // - an interface type that V implements
-                   if (static_cast<Bindings::PlatformObject const&>(value.as_object()).implements_interface(MUST(String::from_byte_string(type.name()))))
+                   if (static_cast<Bindings::PlatformObject const&>(value.as_object()).implements_interface(type.name().view()))
                        return true;
 
                    // - object

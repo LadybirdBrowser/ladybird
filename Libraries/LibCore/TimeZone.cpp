@@ -14,16 +14,21 @@ namespace Core::TimeZone {
 ErrorOr<void> set_current_time_zone(StringView time_zone)
 {
     auto time_zone_utf16 = Utf16String::from_utf8(time_zone);
-    TRY(Unicode::set_current_time_zone(time_zone_utf16));
-    TRY(Core::Environment::set("TZ"sv, time_zone, Core::Environment::Overwrite::Yes));
+    return set_current_time_zone(time_zone_utf16.utf16_view());
+}
+
+ErrorOr<void> set_current_time_zone(Utf16View time_zone)
+{
+    TRY(Unicode::set_current_time_zone(time_zone));
+    auto time_zone_utf8 = TRY(time_zone.to_utf8());
+    TRY(Core::Environment::set("TZ"sv, time_zone_utf8, Core::Environment::Overwrite::Yes));
     tzset();
     return {};
 }
 
-String current_time_zone()
+Utf16String current_time_zone()
 {
-    auto time_zone = Unicode::current_time_zone();
-    return time_zone.utf16_view().to_utf8_but_should_be_ported_to_utf16();
+    return Unicode::current_time_zone();
 }
 
 }

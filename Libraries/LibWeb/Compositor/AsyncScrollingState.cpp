@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Utf16View.h>
 #include <LibWeb/Compositor/AsyncScrollTree.h>
 #include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/Painting/DisplayList.h>
@@ -177,19 +178,19 @@ WheelRoutingAdmission wheel_routing_admission_for(AsyncScrollingState const& sta
     return WheelRoutingAdmission::Accepted;
 }
 
-StringView wheel_routing_admission_to_string(WheelRoutingAdmission admission)
+Utf16View wheel_routing_admission_to_utf16_view(WheelRoutingAdmission admission)
 {
     switch (admission) {
     case WheelRoutingAdmission::Accepted:
-        return "accepted"sv;
+        return u"accepted"sv;
     case WheelRoutingAdmission::NoAsyncScrollingState:
-        return "no async scrolling state"sv;
+        return u"no async scrolling state"sv;
     case WheelRoutingAdmission::BlockingWheelEventListeners:
-        return "blocking wheel event listeners"sv;
+        return u"blocking wheel event listeners"sv;
     case WheelRoutingAdmission::NoScrollNode:
-        return "no scroll node"sv;
+        return u"no scroll node"sv;
     case WheelRoutingAdmission::StaleWheelEventListeners:
-        return "stale wheel event listeners"sv;
+        return u"stale wheel event listeners"sv;
     }
     VERIFY_NOT_REACHED();
 }

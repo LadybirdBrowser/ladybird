@@ -26,8 +26,8 @@ public:
     virtual ~IDBObjectStore() override;
     [[nodiscard]] static GC::Ref<IDBObjectStore> create(JS::Realm&, GC::Ref<ObjectStore>, GC::Ref<IDBTransaction>);
 
-    String name() const;
-    WebIDL::ExceptionOr<void> set_name(String const& value);
+    Utf16String name() const;
+    WebIDL::ExceptionOr<void> set_name(Utf16String const& value);
     JS::Value key_path() const;
     [[nodiscard]] GC::Ref<HTML::DOMStringList> index_names();
     GC::Ref<IDBTransaction> transaction() const;
@@ -46,12 +46,12 @@ public:
     [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> open_cursor(Optional<JS::Value>, Bindings::IDBCursorDirection = Bindings::IDBCursorDirection::Next);
     [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> open_key_cursor(Optional<JS::Value>, Bindings::IDBCursorDirection = Bindings::IDBCursorDirection::Next);
 
-    WebIDL::ExceptionOr<GC::Ref<IDBIndex>> index(String const&);
+    WebIDL::ExceptionOr<GC::Ref<IDBIndex>> index(Utf16String const&);
 
-    WebIDL::ExceptionOr<GC::Ref<IDBIndex>> create_index(String const&, KeyPath, Bindings::IDBIndexParameters const&);
-    WebIDL::ExceptionOr<void> delete_index(String const&);
+    WebIDL::ExceptionOr<GC::Ref<IDBIndex>> create_index(Utf16String const&, KeyPath, Bindings::IDBIndexParameters const&);
+    WebIDL::ExceptionOr<void> delete_index(Utf16String const&);
 
-    AK::HashMap<String, GC::Ref<Index>>& index_set() { return m_indexes; }
+    AK::HashMap<Utf16String, GC::Ref<Index>>& index_set() { return m_indexes; }
     WebIDL::ExceptionOr<GC::Ref<IDBRequest>> add_or_put(GC::Ref<IDBObjectStore>, JS::Value, Optional<JS::Value> const&, bool);
     GC::Ref<ObjectStore> store() const { return m_store; }
 
@@ -69,10 +69,10 @@ private:
     GC::Ref<IDBTransaction> m_transaction;
 
     // An object store handle has a name, which is initialized to the name of the associated object store when the object store handle is created.
-    String m_name;
+    Utf16String m_name;
 
     // An object store handle has an index set
-    AK::HashMap<String, GC::Ref<Index>> m_indexes;
+    AK::HashMap<Utf16String, GC::Ref<Index>> m_indexes;
 };
 
 }

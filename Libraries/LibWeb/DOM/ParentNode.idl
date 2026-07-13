@@ -11,6 +11,6 @@ interface mixin ParentNode {
 
     [CEReactions] undefined moveBefore(Node node, Node? child);
 
-    Element? querySelector(DOMString selectors);
-    [NewObject] NodeList querySelectorAll(DOMString selectors);
+    Element? querySelector(Utf16DOMString selectors);
+    [NewObject] NodeList querySelectorAll(Utf16DOMString selectors);
 };

@@ -23,7 +23,7 @@ Credential::Credential(JS::Realm& realm)
 {
 }
 
-Credential::Credential(JS::Realm& realm, String id)
+Credential::Credential(JS::Realm& realm, Utf16String id)
     : PlatformObject(realm)
     , m_id(move(id))
 {

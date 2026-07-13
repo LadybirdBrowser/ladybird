@@ -23,7 +23,7 @@
 
 namespace Web::IndexedDB {
 
-using KeyPath = Variant<String, Vector<String>>;
+using KeyPath = Variant<Utf16String, Vector<Utf16String>>;
 
 // https://w3c.github.io/IndexedDB/#object-store-construct
 class ObjectStore : public JS::Cell {
@@ -31,17 +31,17 @@ class ObjectStore : public JS::Cell {
     GC_DECLARE_ALLOCATOR(ObjectStore);
 
 public:
-    [[nodiscard]] static GC::Ref<ObjectStore> create(JS::Realm&, GC::Ref<Database>, String, bool, Optional<KeyPath> const&);
+    [[nodiscard]] static GC::Ref<ObjectStore> create(JS::Realm&, GC::Ref<Database>, Utf16String, bool, Optional<KeyPath> const&);
     virtual ~ObjectStore();
 
-    String name() const { return m_name; }
-    void set_name(String name) { m_name = move(name); }
+    Utf16String name() const { return m_name; }
+    void set_name(Utf16String name) { m_name = move(name); }
     Optional<KeyPath> key_path() const { return m_key_path; }
     bool uses_inline_keys() const { return m_key_path.has_value(); }
     bool uses_out_of_line_keys() const { return !m_key_path.has_value(); }
     KeyGenerator& key_generator() { return *m_key_generator; }
     bool uses_a_key_generator() const { return m_key_generator.has_value(); }
-    AK::HashMap<String, GC::Ref<Index>>& index_set() { return m_indexes; }
+    AK::HashMap<Utf16String, GC::Ref<Index>>& index_set() { return m_indexes; }
 
     [[nodiscard]] bool is_deleted() const { return m_deleted; }
     void set_deleted(bool deleted) { m_deleted = deleted; }
@@ -74,16 +74,16 @@ protected:
     virtual void visit_edges(Visitor&) override;
 
 private:
-    ObjectStore(GC::Ref<Database> database, String name, bool auto_increment, Optional<KeyPath> const& key_path);
+    ObjectStore(GC::Ref<Database> database, Utf16String name, bool auto_increment, Optional<KeyPath> const& key_path);
 
     // AD-HOC: An ObjectStore needs to know what Database it belongs to...
     GC::Ref<Database> m_database;
 
     // AD-HOC: An Index has referenced ObjectStores, we also need the reverse mapping
-    AK::HashMap<String, GC::Ref<Index>> m_indexes;
+    AK::HashMap<Utf16String, GC::Ref<Index>> m_indexes;
 
     // An object store has a name, which is a name. At any one time, the name is unique within the database to which it belongs.
-    String m_name;
+    Utf16String m_name;
 
     // An object store optionally has a key path. If the object store has a key path it is said to use in-line keys. Otherwise it is said to use out-of-line keys.
     Optional<KeyPath> m_key_path;

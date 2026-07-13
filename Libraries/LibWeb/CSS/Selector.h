@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <AK/Forward.h>
 #include <AK/RefCounted.h>
 #include <AK/String.h>
 #include <AK/Utf16FlyString.h>
@@ -58,7 +59,8 @@ public:
             return to_underlying(type) < to_underlying(PseudoElement::KnownPseudoElementCount);
         }
 
-        String serialize() const;
+        Utf16String serialize() const;
+        void serialize_to(Utf16StringBuilder&) const;
 
         PseudoElement type() const { return m_type; }
 
@@ -93,7 +95,8 @@ public:
             int offset = { 0 };  // "B"
 
             bool matches(int index) const;
-            String serialize() const;
+            Utf16String serialize() const;
+            void serialize_to(Utf16StringBuilder&) const;
         };
 
         struct PseudoClassSelector {
@@ -209,7 +212,8 @@ public:
         QualifiedName const& qualified_name() const { return value.get<QualifiedName>(); }
         QualifiedName& qualified_name() { return value.get<QualifiedName>(); }
 
-        String serialize() const;
+        Utf16String serialize() const;
+        void serialize_to(Utf16StringBuilder&) const;
 
         Optional<SimpleSelector> absolutized(SimpleSelector const& selector_for_nesting) const;
     };
@@ -250,7 +254,8 @@ public:
     bool contains_unknown_webkit_pseudo_element() const;
     RefPtr<Selector> absolutized(SimpleSelector const& selector_for_nesting) const;
     u32 specificity() const;
-    String serialize() const;
+    Utf16String serialize() const;
+    void serialize_to(Utf16StringBuilder&) const;
 
     auto const& ancestor_hashes() const { return m_ancestor_hashes; }
 
@@ -285,7 +290,7 @@ private:
 
 bool is_legacy_single_colon_pseudo_element(PseudoElement);
 
-String serialize_a_group_of_selectors(SelectorList const& selectors);
+Utf16String serialize_a_group_of_selectors(SelectorList const& selectors);
 
 enum class StyleNestingParent : u8 {
     None,
@@ -304,7 +309,7 @@ template<>
 struct Formatter<Web::CSS::Selector> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, Web::CSS::Selector const& selector)
     {
-        return Formatter<StringView>::format(builder, selector.serialize());
+        return Formatter<StringView>::format(builder, selector.serialize().to_utf8());
     }
 };
 

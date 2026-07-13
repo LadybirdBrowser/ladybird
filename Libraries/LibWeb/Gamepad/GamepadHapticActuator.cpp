@@ -145,7 +145,7 @@ GC::Ref<WebIDL::Promise> GamepadHapticActuator::play_effect(Bindings::GamepadHap
 
     // 1. If params does not describe a valid effect of type type, return a promise rejected with a TypeError.
     if (!is_valid_effect(type, params))
-        return WebIDL::create_rejected_promise_from_exception(realm, WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid effect"_string });
+        return WebIDL::create_rejected_promise_from_exception(realm, WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid effect"_utf16 });
 
     // 2. Let document be the current settings object's relevant global object's associated Document.
     auto& window = as<HTML::Window>(HTML::current_settings_object().global_object());

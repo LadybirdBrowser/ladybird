@@ -31,7 +31,7 @@ private:
 
     virtual void handle_message(Message const&) override;
 
-    void style_sheet_source_received(Web::CSS::StyleSheetIdentifier const&, String source);
+    void style_sheet_source_received(Web::CSS::StyleSheetIdentifier const&, Utf16String source);
 
     WeakPtr<TabActor> m_tab;
 

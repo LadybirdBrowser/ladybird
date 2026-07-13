@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/TextAffinity.h>
@@ -34,8 +35,8 @@ public:
     unsigned focus_offset() const;
     bool is_collapsed() const;
     unsigned range_count() const;
-    String type() const;
-    String direction() const;
+    Utf16String type() const;
+    Utf16String direction() const;
     WebIDL::ExceptionOr<GC::Ptr<DOM::Range>> get_range_at(unsigned index);
     void add_range(GC::Ref<DOM::Range>);
     WebIDL::ExceptionOr<void> remove_range(GC::Ref<DOM::Range>);
@@ -48,7 +49,7 @@ public:
     WebIDL::ExceptionOr<void> extend(GC::Ref<DOM::Node>, unsigned offset);
     WebIDL::ExceptionOr<void> set_base_and_extent(GC::Ref<DOM::Node> anchor_node, unsigned anchor_offset, GC::Ref<DOM::Node> focus_node, unsigned focus_offset);
     WebIDL::ExceptionOr<void> select_all_children(GC::Ref<DOM::Node>);
-    WebIDL::ExceptionOr<void> modify(Optional<String> alter, Optional<String> direction, Optional<String> granularity);
+    WebIDL::ExceptionOr<void> modify(Optional<Utf16String> alter, Optional<Utf16String> direction, Optional<Utf16String> granularity);
     WebIDL::ExceptionOr<void>
     delete_from_document();
     bool contains_node(GC::Ref<DOM::Node>, bool allow_partial_containment) const;

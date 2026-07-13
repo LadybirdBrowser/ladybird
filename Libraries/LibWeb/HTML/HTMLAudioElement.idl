@@ -1,5 +1,5 @@
 // https://html.spec.whatwg.org/multipage/media.html#htmlaudioelement
-[Exposed=Window, LegacyFactoryFunction=Audio(optional DOMString src)]
+[Exposed=Window, LegacyFactoryFunction=Audio(optional Utf16DOMString src)]
 interface HTMLAudioElement : HTMLMediaElement {
     [HTMLConstructor] constructor();
 };

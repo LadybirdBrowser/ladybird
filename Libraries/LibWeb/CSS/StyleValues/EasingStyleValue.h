@@ -34,12 +34,16 @@ public:
             return all_of(stops, [](Stop const& stop) { return stop.output->is_computationally_independent() && (!stop.input || stop.input->is_computationally_independent()); });
         }
 
-        void serialize(StringBuilder&, SerializationMode) const;
+        void serialize(Utf16StringBuilder&, SerializationMode) const;
         String to_string(SerializationMode mode) const
         {
-            StringBuilder builder;
+            return to_utf16_string(mode).to_utf8();
+        }
+        Utf16String to_utf16_string(SerializationMode mode) const
+        {
+            Utf16StringBuilder builder;
             serialize(builder, mode);
-            return builder.to_string_without_validation();
+            return builder.to_string();
         }
     };
 
@@ -67,12 +71,16 @@ public:
             return x1->is_computationally_independent() && y1->is_computationally_independent() && x2->is_computationally_independent() && y2->is_computationally_independent();
         }
 
-        void serialize(StringBuilder&, SerializationMode) const;
+        void serialize(Utf16StringBuilder&, SerializationMode) const;
         String to_string(SerializationMode mode) const
         {
-            StringBuilder builder;
+            return to_utf16_string(mode).to_utf8();
+        }
+        Utf16String to_utf16_string(SerializationMode mode) const
+        {
+            Utf16StringBuilder builder;
             serialize(builder, mode);
-            return builder.to_string_without_validation();
+            return builder.to_string();
         }
     };
 
@@ -87,12 +95,16 @@ public:
             return number_of_intervals->is_computationally_independent();
         }
 
-        void serialize(StringBuilder&, SerializationMode) const;
+        void serialize(Utf16StringBuilder&, SerializationMode) const;
         String to_string(SerializationMode mode) const
         {
-            StringBuilder builder;
+            return to_utf16_string(mode).to_utf8();
+        }
+        Utf16String to_utf16_string(SerializationMode mode) const
+        {
+            Utf16StringBuilder builder;
             serialize(builder, mode);
-            return builder.to_string_without_validation();
+            return builder.to_string();
         }
     };
 
@@ -100,6 +112,7 @@ public:
         using Variant::Variant;
 
         void serialize(StringBuilder&, SerializationMode) const;
+        void serialize(Utf16StringBuilder&, SerializationMode) const;
     };
 
     static ValueComparingNonnullRefPtr<EasingStyleValue const> create(Function const& function)
@@ -111,6 +124,7 @@ public:
     Function const& function() const { return m_function; }
 
     virtual void serialize(StringBuilder& builder, SerializationMode mode) const override { m_function.serialize(builder, mode); }
+    virtual void serialize(Utf16StringBuilder& builder, SerializationMode mode) const override { m_function.serialize(builder, mode); }
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 

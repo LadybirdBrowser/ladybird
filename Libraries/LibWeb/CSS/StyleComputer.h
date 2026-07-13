@@ -11,6 +11,8 @@
 #include <AK/JsonArray.h>
 #include <AK/Optional.h>
 #include <AK/OwnPtr.h>
+#include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
@@ -88,7 +90,7 @@ public:
     };
     static Optional<AnimatedInheritValue> get_animated_inherit_value(PropertyID, DOM::AbstractElement);
 
-    static Optional<String> user_agent_style_sheet_source(StringView name);
+    static Optional<Utf16String> user_agent_style_sheet_source(Utf16View name);
 
     explicit StyleComputer(DOM::Document&);
     ~StyleComputer();
@@ -168,7 +170,7 @@ private:
     };
 
     struct LayerMatchingRules {
-        FlyString qualified_layer_name;
+        Utf16FlyString qualified_layer_name;
         Vector<ScopedMatchingRule> rules;
     };
 
@@ -198,7 +200,7 @@ private:
 
     [[nodiscard]] Length::FontMetrics calculate_root_element_font_metrics(ComputedProperties const&) const;
 
-    [[nodiscard]] Vector<ScopedMatchingRule> collect_matching_rules_from_context(DOM::AbstractElement, CascadeOrigin, GC::Ptr<DOM::ShadowRoot const>, Optional<FlyString const> qualified_layer_name = {}, u64* matching_pseudo_element_styles = nullptr) const;
+    [[nodiscard]] Vector<ScopedMatchingRule> collect_matching_rules_from_context(DOM::AbstractElement, CascadeOrigin, GC::Ptr<DOM::ShadowRoot const>, Optional<Utf16FlyString const> qualified_layer_name = {}, u64* matching_pseudo_element_styles = nullptr) const;
 
     void cascade_declarations(
         CascadedProperties&,
@@ -206,7 +208,7 @@ private:
         Vector<ScopedMatchingRule> const&,
         CascadeOrigin,
         Important,
-        Optional<FlyString> layer_name,
+        Optional<Utf16FlyString> layer_name,
         bool include_inline_style) const;
 
     void apply_property_list_to_cascade(
@@ -215,14 +217,14 @@ private:
         ReadonlySpan<StyleProperty>,
         CascadeOrigin,
         Important,
-        Optional<FlyString> layer_name,
+        Optional<Utf16FlyString> layer_name,
         GC::Ptr<CSSStyleDeclaration const> source,
         GC::Ptr<DOM::ShadowRoot const> source_shadow_root,
         BypassPseudoElementPropertyWhitelist) const;
 
     GC::Ref<DOM::Document> m_document;
 
-    [[nodiscard]] RuleCache const* rule_cache_for_cascade_origin(CascadeOrigin, Optional<FlyString const> qualified_layer_name, GC::Ptr<DOM::ShadowRoot const>) const;
+    [[nodiscard]] RuleCache const* rule_cache_for_cascade_origin(CascadeOrigin, Optional<Utf16FlyString const> qualified_layer_name, GC::Ptr<DOM::ShadowRoot const>) const;
 
     Length::FontMetrics m_default_font_metrics;
     mutable Length::FontMetrics m_root_element_font_metrics;

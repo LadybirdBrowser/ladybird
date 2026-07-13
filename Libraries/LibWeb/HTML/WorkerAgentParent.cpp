@@ -6,6 +6,7 @@
 
 #include <AK/HashMap.h>
 #include <AK/NeverDestroyed.h>
+#include <AK/Utf16String.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
@@ -101,7 +102,7 @@ void WorkerAgentParent::did_fail_loading_worker_script(WorkerAgentOwnerToken own
     parent->value->release_startup_keep_alive();
 }
 
-void WorkerAgentParent::did_report_worker_exception(WorkerAgentOwnerToken owner_token, String message, String filename, u32 lineno, u32 colno)
+void WorkerAgentParent::did_report_worker_exception(WorkerAgentOwnerToken owner_token, Utf16String message, Utf16String filename, u32 lineno, u32 colno)
 {
     auto parent = worker_agent_parents().find(owner_token);
     if (parent == worker_agent_parents().end())
@@ -131,7 +132,7 @@ void WorkerAgentParent::dispatch_error_event()
     }));
 }
 
-void WorkerAgentParent::dispatch_worker_exception(String message, String filename, u32 lineno, u32 colno)
+void WorkerAgentParent::dispatch_worker_exception(Utf16String message, Utf16String filename, u32 lineno, u32 colno)
 {
     // https://html.spec.whatwg.org/multipage/webappapis.html#report-an-exception
     // 7.2: If global implements DedicatedWorkerGlobalScope, queue a global task on the DOM manipulation task source with the global's associated Worker's relevant global object to run these steps:

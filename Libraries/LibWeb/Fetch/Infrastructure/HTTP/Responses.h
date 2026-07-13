@@ -11,6 +11,7 @@
 #include <AK/Forward.h>
 #include <AK/Optional.h>
 #include <AK/Time.h>
+#include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibCore/ImmutableBytes.h>
 #include <LibGC/Ptr.h>
@@ -56,7 +57,7 @@ public:
         u64 decoded_size { 0 };
 
         // https://fetch.spec.whatwg.org/#response-body-info-content-type
-        String content_type {};
+        Utf16String content_type {};
 
         bool operator==(BodyInfo const&) const = default;
     };

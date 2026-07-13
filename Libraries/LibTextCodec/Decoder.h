@@ -50,7 +50,9 @@ public:
     ~StreamingDecoder();
 
     ErrorOr<String> to_utf8(ReadonlyBytes);
+    ErrorOr<Utf16String> to_utf16(ReadonlyBytes);
     ErrorOr<String> finish();
+    ErrorOr<Utf16String> finish_to_utf16();
 
 private:
     ErrorMode m_error_mode { ErrorMode::Replacement };
@@ -62,6 +64,7 @@ private:
 TEXTCODEC_API Optional<Decoder&> decoder_for_exact_name(StringView encoding);
 
 TEXTCODEC_API Optional<Decoder&> decoder_for(StringView encoding);
+TEXTCODEC_API Optional<Decoder&> decoder_for(Utf16View encoding);
 TEXTCODEC_API Optional<StringView> get_standardized_encoding(StringView encoding);
 TEXTCODEC_API Optional<StringView> get_standardized_encoding(Utf16View encoding);
 
@@ -77,5 +80,6 @@ TEXTCODEC_API ErrorOr<size_t> convert_input_to_utf16_length_using_given_decoder_
 TEXTCODEC_API StringView get_output_encoding(StringView encoding);
 
 TEXTCODEC_API String isomorphic_decode(StringView);
+TEXTCODEC_API Utf16String isomorphic_decode_to_utf16(StringView);
 
 }

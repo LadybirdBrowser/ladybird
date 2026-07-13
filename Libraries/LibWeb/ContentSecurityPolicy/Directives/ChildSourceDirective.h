@@ -22,7 +22,7 @@ public:
     virtual Result post_request_check(GC::Heap&, GC::Ref<Fetch::Infrastructure::Request const>, GC::Ref<Fetch::Infrastructure::Response const>, GC::Ref<Policy const>) const override;
 
 private:
-    ChildSourceDirective(String name, Vector<String> value);
+    ChildSourceDirective(Utf16FlyString name, Vector<Utf16String> value);
 };
 
 }

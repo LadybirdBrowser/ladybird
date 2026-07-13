@@ -58,11 +58,11 @@ TEST_CASE(serializable_objects_round_trip_through_storage)
     }
 
     {
-        auto blob = Web::FileAPI::Blob::create(realm, MUST(ByteBuffer::copy("hello"sv.bytes())), "text/plain"_string);
+        auto blob = Web::FileAPI::Blob::create(realm, MUST(ByteBuffer::copy("hello"sv.bytes())), "text/plain"_utf16);
 
         auto value = MUST(storage_deserialize(storage_serialize(blob)));
         auto& decoded = as<Web::FileAPI::Blob>(value.as_object());
-        EXPECT_EQ(decoded.type(), "text/plain"_string);
+        EXPECT_EQ(decoded.type(), "text/plain"_utf16);
         EXPECT_EQ(decoded.raw_bytes(), "hello"sv.bytes());
     }
 }
@@ -697,20 +697,22 @@ TEST_CASE(file_name_non_ascii_text_field_round_trips)
     append_storage_signed_leb128(body, 0);        // last modified
 
     auto& file = as<Web::FileAPI::File>(MUST(storage_deserialize(serializable_storage_record("File"sv, 1, body))).as_object());
-    EXPECT_EQ(file.name(), "café.txt"_string);
+    EXPECT_EQ(file.name(), "café.txt"_utf16);
 }
 
-TEST_CASE(file_name_with_lone_surrogate_is_rejected)
+TEST_CASE(file_name_with_lone_surrogate_round_trips)
 {
     Vector<u8> body;
     append_storage_string(body, "text/plain"sv);
     append_storage_bytes(body, "data"sv.bytes());
-    // A lone high surrogate written as a raw little-endian code unit: decode_utf8_text must reject it.
+    // A lone high surrogate written as a raw little-endian code unit.
     Array<u16, 4> name_units { 'f', 'i', 'l', 0xD800 };
     append_storage_utf16(body, name_units);
     append_storage_signed_leb128(body, 0);
 
-    EXPECT(storage_deserialize(serializable_storage_record("File"sv, 1, body)).is_error());
+    auto& file = as<Web::FileAPI::File>(MUST(storage_deserialize(serializable_storage_record("File"sv, 1, body))).as_object());
+    Array<char16_t, 4> expected_name_units { 'f', 'i', 'l', 0xD800 };
+    EXPECT_EQ(file.name(), Utf16String::from_utf16({ expected_name_units.data(), expected_name_units.size() }));
 }
 
 TEST_CASE(serializable_registry_completeness)

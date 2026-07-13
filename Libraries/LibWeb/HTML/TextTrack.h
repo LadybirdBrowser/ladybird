@@ -37,13 +37,13 @@ public:
     void set_kind(Bindings::TextTrackKind);
 
     Utf16String const& label();
-    void set_label(Utf16String);
+    void set_label(Utf16View);
 
     Utf16String const& language();
-    void set_language(Utf16String);
+    void set_language(Utf16View);
 
     Utf16String const& id();
-    void set_id(Utf16String);
+    void set_id(Utf16View);
 
     Bindings::TextTrackMode mode();
     void set_mode(Bindings::TextTrackMode);

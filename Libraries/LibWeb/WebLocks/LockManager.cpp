@@ -50,14 +50,14 @@ void LockManager::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://w3c.github.io/web-locks/#dom-lockmanager-request
-GC::Ref<WebIDL::Promise> LockManager::request(String const& name, GC::Ref<WebIDL::CallbackType> callback)
+GC::Ref<WebIDL::Promise> LockManager::request(Utf16String const& name, GC::Ref<WebIDL::CallbackType> callback)
 {
     // 1. If options was not passed, then let options be a new LockOptions dictionary with default members.
     return request(name, {}, callback);
 }
 
 // https://w3c.github.io/web-locks/#dom-lockmanager-request
-GC::Ref<WebIDL::Promise> LockManager::request(String const& name, Bindings::LockOptions const& options, GC::Ref<WebIDL::CallbackType> callback)
+GC::Ref<WebIDL::Promise> LockManager::request(Utf16String const& name, Bindings::LockOptions const& options, GC::Ref<WebIDL::CallbackType> callback)
 {
     auto& realm = this->realm();
 
@@ -77,7 +77,7 @@ GC::Ref<WebIDL::Promise> LockManager::request(String const& name, Bindings::Lock
 
     // 5. If name starts with U+002D HYPHEN-MINUS (-), then return a promise rejected with a "NotSupportedError"
     //    DOMException.
-    if (name.starts_with('-'))
+    if (name.utf16_view().starts_with(u"-"sv))
         return WebIDL::create_rejected_promise_from_exception(realm, WebIDL::NotSupportedError::create(realm, "Lock names starting with '-' are reserved"_utf16));
 
     // 6. If both options["steal"] and options["ifAvailable"] are true, then return a promise rejected with a
@@ -142,7 +142,7 @@ GC::Ref<WebIDL::Promise> LockManager::query()
 }
 
 // https://w3c.github.io/web-locks/#request-a-lock
-GC::Ref<LockRequest> LockManager::request_lock(GC::Ref<WebIDL::Promise> promise, GC::Ref<WebIDL::CallbackType> callback, String name, Bindings::LockMode mode, bool if_available, bool steal, GC::Ptr<DOM::AbortSignal> signal)
+GC::Ref<LockRequest> LockManager::request_lock(GC::Ref<WebIDL::Promise> promise, GC::Ref<WebIDL::CallbackType> callback, Utf16String name, Bindings::LockMode mode, bool if_available, bool steal, GC::Ptr<DOM::AbortSignal> signal)
 {
     auto& environment = HTML::relevant_settings_object(*this);
 
@@ -337,9 +337,9 @@ void LockManager::snapshot_lock_state(GC::Ref<WebIDL::Promise> promise)
 
     auto create_lock_info_object = [&](auto lock) {
         auto lock_info = JS::Object::create(realm, realm.intrinsics().object_prototype());
-        MUST(lock_info->create_data_property_or_throw(*NAME, JS::PrimitiveString::create(vm, Utf16String::from_utf8(lock->name()))));
+        MUST(lock_info->create_data_property_or_throw(*NAME, JS::PrimitiveString::create(vm, lock->name())));
         MUST(lock_info->create_data_property_or_throw(*MODE, JS::PrimitiveString::create(vm, Bindings::idl_enum_to_string(lock->mode()))));
-        MUST(lock_info->create_data_property_or_throw(*CLIENT_ID, JS::PrimitiveString::create(vm, Utf16String::from_utf8(lock->client_id()))));
+        MUST(lock_info->create_data_property_or_throw(*CLIENT_ID, JS::PrimitiveString::create(vm, lock->client_id())));
 
         return lock_info;
     };

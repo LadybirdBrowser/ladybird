@@ -139,6 +139,20 @@ String StyleValue::to_string(SerializationMode mode) const
     return builder.to_string_without_validation();
 }
 
+Utf16String StyleValue::to_utf16_string(SerializationMode mode) const
+{
+    Utf16StringBuilder builder;
+    serialize(builder, mode);
+    return builder.to_string();
+}
+
+void StyleValue::serialize(Utf16StringBuilder& builder, SerializationMode mode) const
+{
+    auto serialized = to_string(mode);
+    auto serialized_utf16 = Utf16String::from_utf8_without_validation(serialized);
+    builder.append(serialized_utf16.utf16_view());
+}
+
 AbstractImageStyleValue const& StyleValue::as_abstract_image() const
 {
     VERIFY(is_abstract_image());

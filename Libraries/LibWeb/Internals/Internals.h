@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Internals/InternalAnimationTimeline.h>
@@ -34,20 +35,20 @@ public:
 
     virtual ~Internals() override;
 
-    void signal_test_is_done(String const& text);
+    void signal_test_is_done(Utf16String const& text);
     void set_test_timeout(double milliseconds);
     void force_incompatible_visual_context_tree_rebuild();
     WebIDL::ExceptionOr<void> load_reference_test_metadata();
 
-    WebIDL::ExceptionOr<String> set_time_zone(StringView time_zone);
+    WebIDL::ExceptionOr<Utf16String> set_time_zone(Utf16String const& time_zone);
 
     void gc();
     GC::Ref<WebIDL::Promise> gc_async();
-    WebIDL::ExceptionOr<void> mark_as_garbage(StringView variable_name);
+    WebIDL::ExceptionOr<void> mark_as_garbage(Utf16FlyString const& variable_name);
     JS::Object* hit_test(double x, double y);
 
-    void send_text(HTML::HTMLElement&, String const&, WebIDL::UnsignedShort modifiers);
-    void send_key(HTML::HTMLElement&, String const&, WebIDL::UnsignedShort modifiers);
+    void send_text(HTML::HTMLElement&, Utf16String const&, WebIDL::UnsignedShort modifiers);
+    void send_key(HTML::HTMLElement&, Utf16String const&, WebIDL::UnsignedShort modifiers);
     void paste(HTML::HTMLElement& target, Utf16String const& text);
     void commit_text();
 
@@ -63,9 +64,9 @@ public:
     GC::Ref<WebIDL::Promise> wheel(double x, double y, double delta_x, double delta_y);
     void pinch(double x, double y, double scale_delta, WebIDL::UnsignedShort modifiers);
 
-    String current_cursor();
+    Utf16String current_cursor();
 
-    String selected_text_for_clipboard();
+    Utf16String selected_text_for_clipboard();
 
     void set_marked_text_from_input_method(Utf16String const& text);
     void commit_text_from_input_method(Utf16String const& text, WebIDL::Long replacement_start, WebIDL::Long replacement_length);
@@ -74,12 +75,12 @@ public:
 
     WebIDL::ExceptionOr<bool> dispatch_user_activated_event(DOM::EventTarget&, DOM::Event& event);
 
-    void spoof_current_url(String const& url);
-    void load_url(String const& url);
+    void spoof_current_url(Utf16String const& url);
+    void load_url(Utf16String const& url);
 
     GC::Ref<InternalAnimationTimeline> create_internal_animation_timeline();
 
-    void simulate_drag_start(double x, double y, String const& name, String const& contents);
+    WebIDL::ExceptionOr<void> simulate_drag_start(double x, double y, Utf16String const& name, Utf16String const& contents);
     void simulate_drag_move(double x, double y);
     void simulate_drop(double x, double y);
 
@@ -87,20 +88,20 @@ public:
     GC::Ref<WebIDL::Promise> delete_all_cookies();
 
     bool set_http_memory_cache_enabled(bool enabled);
-    WebIDL::ExceptionOr<void> set_content_blockers(String const& patterns);
+    WebIDL::ExceptionOr<void> set_content_blockers(Utf16String const& patterns);
     void set_content_blocking_enabled(bool enabled);
-    void set_autoplay_policy(String const& policy);
+    void set_autoplay_policy(Utf16String const& policy);
 
-    String get_computed_role(DOM::Element& element);
-    String get_computed_label(DOM::Element& element);
-    String get_computed_aria_level(DOM::Element& element);
+    Utf16String get_computed_role(DOM::Element& element);
+    Utf16String get_computed_label(DOM::Element& element);
+    Utf16String get_computed_aria_level(DOM::Element& element);
 
     static u16 get_echo_server_port();
     static void set_echo_server_port(u16 port);
 
-    void set_hsts_policy(String const& domain, u64 max_age, bool include_sub_domains);
-    void ingest_hsts_header(String const& url, String const& header_value);
-    bool is_known_hsts_host(String const& domain);
+    WebIDL::ExceptionOr<void> set_hsts_policy(Utf16String const& domain, u64 max_age, bool include_sub_domains);
+    WebIDL::ExceptionOr<void> ingest_hsts_header(Utf16String const& url, Utf16String const& header_value);
+    WebIDL::ExceptionOr<bool> is_known_hsts_host(Utf16String const& domain);
 
     void set_browser_zoom(double factor);
     void set_device_pixel_ratio(double ratio);
@@ -111,15 +112,15 @@ public:
     bool needs_repaint();
     bool needs_display_list_record();
 
-    String dump_display_list();
-    String dump_accessibility_tree();
-    String dump_layout_tree(GC::Ref<DOM::Node>);
-    String dump_paintable_tree(GC::Ref<DOM::Node>);
-    String dump_stacking_context_tree();
-    String dump_gc_graph();
-    String dump_session_history();
-    String dump_ui_process_session_history();
-    String dump_site_isolation_process_tree();
+    Utf16String dump_display_list();
+    Utf16String dump_accessibility_tree();
+    Utf16String dump_layout_tree(GC::Ref<DOM::Node>);
+    Utf16String dump_paintable_tree(GC::Ref<DOM::Node>);
+    Utf16String dump_stacking_context_tree();
+    Utf16String dump_gc_graph();
+    Utf16String dump_session_history();
+    Utf16String dump_ui_process_session_history();
+    Utf16String dump_site_isolation_process_tree();
     GC::Ref<WebIDL::Promise> flush_session_history_traversal_queue();
     void clobber_next_navigation_with_a_traversal();
 
@@ -135,23 +136,23 @@ public:
     void set_highlighted_node(GC::Ptr<DOM::Node> node);
 
     void clear_element(HTML::HTMLElement&);
-    void set_environments_top_level_url(StringView url);
+    WebIDL::ExceptionOr<void> set_environments_top_level_url(Utf16String const& url);
 
     JS::Object* get_style_invalidation_counters();
     void reset_style_invalidation_counters();
     void update_style();
-    void set_preferred_color_scheme(StringView color_scheme);
+    void set_preferred_color_scheme(Utf16String const& color_scheme);
     void set_page_focus(bool has_focus);
-    String canvas_color_scheme();
+    Utf16String canvas_color_scheme();
     bool style_sheet_may_have_has_selectors(CSS::CSSStyleSheet&);
-    WebIDL::ExceptionOr<JS::Object*> image_animation_state_for_url(String const& url);
+    WebIDL::ExceptionOr<JS::Object*> image_animation_state_for_url(Utf16String const& url);
     bool media_element_is_fetching(HTML::HTMLMediaElement&);
     JS::Object* async_scrolling_state();
     bool async_scrolling_state_blocks_wheel_event_at(double x, double y);
     bool async_scrolling_state_can_wheel_scroll_at(double x, double y, double delta_x, double delta_y, bool force_stale_wheel_event_regions);
-    String async_scrolling_state_wheel_routing_admission();
-    String async_scrolling_state_wheel_scroll_admission_at(double x, double y, double delta_x, double delta_y, bool force_stale_wheel_event_regions);
-    String async_scrolling_state_wheel_target_at(double x, double y, double delta_x, double delta_y);
+    Utf16String async_scrolling_state_wheel_routing_admission();
+    Utf16String async_scrolling_state_wheel_scroll_admission_at(double x, double y, double delta_x, double delta_y, bool force_stale_wheel_event_regions);
+    Utf16String async_scrolling_state_wheel_target_at(double x, double y, double delta_x, double delta_y);
     String viewport_overflow_x();
 
 private:

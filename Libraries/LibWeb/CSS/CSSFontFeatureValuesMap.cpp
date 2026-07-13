@@ -27,11 +27,6 @@ CSSFontFeatureValuesMap::CSSFontFeatureValuesMap(JS::Realm& realm, size_t max_va
 {
 }
 
-WebIDL::ExceptionOr<void> CSSFontFeatureValuesMap::set(String const& feature_value_name, Variant<u32, Vector<u32>> const& values)
-{
-    return set(Utf16String::from_utf8(feature_value_name), values);
-}
-
 WebIDL::ExceptionOr<void> CSSFontFeatureValuesMap::set(Utf16String const& feature_value_name, Variant<u32, Vector<u32>> const& values)
 {
     // https://drafts.csswg.org/css-fonts-4/#cssfontfeaturevaluesmap

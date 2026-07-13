@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/Optional.h>
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 
@@ -20,7 +20,7 @@ public:
     struct Option {
         NonnullRefPtr<AbstractImageStyleValue const> image;
         NonnullRefPtr<StyleValue const> resolution;
-        Optional<String> type;
+        Optional<Utf16String> type;
     };
 
     static ValueComparingNonnullRefPtr<ImageSetStyleValue const> create(Vector<Option>);

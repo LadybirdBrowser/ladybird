@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(btoa("hello"));
+        println(btoa("\xff"));
+        println(atob("/w==").codePointAt(0).toString(16));
+
+        try {
+            btoa("\u0100");
+            println("FAIL");
+        } catch (error) {
+            println(error.name);
+        }
+    });
+</script>

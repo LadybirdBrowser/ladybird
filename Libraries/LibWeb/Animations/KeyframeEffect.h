@@ -86,8 +86,8 @@ public:
     void set_target(DOM::Element* target);
 
     // JS bindings
-    Optional<String> pseudo_element() const;
-    WebIDL::ExceptionOr<void> set_pseudo_element(Optional<String>);
+    Optional<Utf16String> pseudo_element() const;
+    WebIDL::ExceptionOr<void> set_pseudo_element(Optional<Utf16String>);
 
     Optional<DOM::AbstractElement> target_abstract_element() const;
     void set_target(DOM::AbstractElement);

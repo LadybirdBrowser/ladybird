@@ -14,6 +14,21 @@
 
 namespace Web::HTML {
 
+namespace AutocompleteToken {
+
+#define __ENUMERATE_AUTOCOMPLETE_TOKEN(name, value) Utf16FlyString const& name = *new Utf16FlyString(value##_utf16_fly_string);
+__ENUMERATE_AUTOCOMPLETE_TOKEN(billing, "billing")
+__ENUMERATE_AUTOCOMPLETE_TOKEN(fax, "fax")
+__ENUMERATE_AUTOCOMPLETE_TOKEN(home, "home")
+__ENUMERATE_AUTOCOMPLETE_TOKEN(mobile, "mobile")
+__ENUMERATE_AUTOCOMPLETE_TOKEN(pager, "pager")
+__ENUMERATE_AUTOCOMPLETE_TOKEN(shipping, "shipping")
+__ENUMERATE_AUTOCOMPLETE_TOKEN(webauthn, "webauthn")
+__ENUMERATE_AUTOCOMPLETE_TOKEN(work, "work")
+#undef __ENUMERATE_AUTOCOMPLETE_TOKEN
+
+}
+
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#autofill-expectation-mantle
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#autofill-anchor-mantle
 AutocompleteElement::AutofillMantle AutocompleteElement::get_autofill_mantle() const
@@ -31,22 +46,29 @@ AutocompleteElement::AutofillMantle AutocompleteElement::get_autofill_mantle() c
     return AutofillMantle::Expectation;
 }
 
-Vector<Utf16String> AutocompleteElement::autocomplete_tokens() const
+static Vector<Utf16View> autocomplete_tokens(Utf16View autocomplete_value)
 {
-    auto autocomplete_value = autocomplete_element_to_html_element().attribute(AttributeNames::autocomplete).value_or({});
-
-    Vector<Utf16String> autocomplete_tokens;
-    auto autocomplete_value_view = autocomplete_value.utf16_view();
-    size_t start = 0;
-    for (size_t i = 0; i <= autocomplete_value_view.length_in_code_units(); ++i) {
-        if (i != autocomplete_value_view.length_in_code_units() && !Infra::is_ascii_whitespace(autocomplete_value_view.code_unit_at(i)))
+    Vector<Utf16View> autocomplete_tokens;
+    for (size_t start = 0, i = 0; i <= autocomplete_value.length_in_code_units(); ++i) {
+        if (i != autocomplete_value.length_in_code_units() && !Infra::is_ascii_whitespace(autocomplete_value.code_unit_at(i)))
             continue;
 
         if (i > start)
-            autocomplete_tokens.append(Utf16String::from_utf16(autocomplete_value_view.substring_view(start, i - start)));
+            autocomplete_tokens.append(autocomplete_value.substring_view(start, i - start));
         start = i + 1;
     }
     return autocomplete_tokens;
+}
+
+Vector<Utf16String> AutocompleteElement::autocomplete_tokens() const
+{
+    auto autocomplete_value = autocomplete_element_to_html_element().attribute(AttributeNames::autocomplete);
+    auto autocomplete_value_view = autocomplete_value.has_value() ? autocomplete_value->utf16_view() : u""sv;
+
+    Vector<Utf16String> tokens;
+    for (auto token : HTML::autocomplete_tokens(autocomplete_value_view))
+        tokens.append(Utf16String::from_utf16(token));
+    return tokens;
 }
 
 Utf16String AutocompleteElement::autocomplete() const
@@ -56,7 +78,7 @@ Utf16String AutocompleteElement::autocomplete() const
     return details.value;
 }
 
-void AutocompleteElement::set_autocomplete(Utf16String const& value)
+void AutocompleteElement::set_autocomplete(Utf16View value)
 {
     // The autocomplete IDL attribute [...] on setting, must reflect the content attribute of the same name.
     autocomplete_element_to_html_element().set_attribute_value(AttributeNames::autocomplete, value);
@@ -150,6 +172,34 @@ static CategoryAndMaximumTokens determine_a_field_category(Utf16View const& fiel
     return CategoryAndMaximumTokens {};
 }
 
+static Optional<Utf16FlyString> contact_token_canonicalized(Utf16View token)
+{
+    using namespace AutocompleteToken;
+
+    if (token.equals_ignoring_ascii_case(u"home"sv))
+        return home;
+    if (token.equals_ignoring_ascii_case(u"work"sv))
+        return work;
+    if (token.equals_ignoring_ascii_case(u"mobile"sv))
+        return mobile;
+    if (token.equals_ignoring_ascii_case(u"fax"sv))
+        return fax;
+    if (token.equals_ignoring_ascii_case(u"pager"sv))
+        return pager;
+    return {};
+}
+
+static Optional<Utf16FlyString> mode_token_canonicalized(Utf16View token)
+{
+    using namespace AutocompleteToken;
+
+    if (token.equals_ignoring_ascii_case(u"shipping"sv))
+        return shipping;
+    if (token.equals_ignoring_ascii_case(u"billing"sv))
+        return billing;
+    return {};
+}
+
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#autofill-processing-model
 AutocompleteElement::AttributeDetails AutocompleteElement::parse_autocomplete_attribute() const
 {
@@ -172,12 +222,14 @@ AutocompleteElement::AttributeDetails AutocompleteElement::parse_autocomplete_at
         auto const* form = as<FormAssociatedElement const>(autocomplete_element_to_html_element()).form();
 
         // 35. If form is not null and form's autocomplete attribute is in the off state, then set the element's autofill field name to "off".
-        if (form && form->attribute(AttributeNames::autocomplete) == "off"sv) {
-            attr_details.field_name = "off"_string;
+        auto form_autocomplete_attribute = form ? form->attribute(AttributeNames::autocomplete) : Optional<Utf16String> {};
+        auto form_autocomplete_attribute_view = form_autocomplete_attribute.has_value() ? form_autocomplete_attribute->utf16_view() : u""sv;
+        if (form && form_autocomplete_attribute_view.equals_ignoring_ascii_case(u"off"sv)) {
+            attr_details.field_name = "off"_utf16;
         }
         // Otherwise, set the element's autofill field name to "on".
         else {
-            attr_details.field_name = "on"_string;
+            attr_details.field_name = "on"_utf16;
         }
 
         return attr_details;
@@ -188,7 +240,9 @@ AutocompleteElement::AttributeDetails AutocompleteElement::parse_autocomplete_at
         return step_default();
 
     // 2. Let tokens be the result of splitting the attribute's value on ASCII whitespace.
-    auto tokens = autocomplete_tokens();
+    auto autocomplete_value = autocomplete_element_to_html_element().attribute(AttributeNames::autocomplete);
+    auto autocomplete_value_view = autocomplete_value.has_value() ? autocomplete_value->utf16_view() : u""sv;
+    auto tokens = HTML::autocomplete_tokens(autocomplete_value_view);
 
     // 3. If tokens is empty, then jump to the step labeled default.
     if (tokens.is_empty())
@@ -198,7 +252,7 @@ AutocompleteElement::AttributeDetails AutocompleteElement::parse_autocomplete_at
     auto index = tokens.size() - 1;
 
     // 5. Let field be the indexth token in tokens.
-    auto const& field = tokens[index];
+    auto field = tokens[index];
 
     // 6. Set the category, maximum tokens pair to the result of determining a field's category given field.
     auto [category, maximum_tokens] = determine_a_field_category(field);
@@ -220,7 +274,7 @@ AutocompleteElement::AttributeDetails AutocompleteElement::parse_autocomplete_at
     // 10. If category is Off, set the element's autofill field name to the string "off", set its autofill hint set to empty,
     //     and set its IDL-exposed autofill value to the string "off". Then, return.
     if (category == Category::Off) {
-        attr_details.field_name = "off"_string;
+        attr_details.field_name = "off"_utf16;
         attr_details.hint_set = {};
         attr_details.value = "off"_utf16;
         return attr_details;
@@ -229,20 +283,20 @@ AutocompleteElement::AttributeDetails AutocompleteElement::parse_autocomplete_at
     // 11. If category is Automatic, set the element's autofill field name to the string "on", set its autofill hint set to empty,
     //     and set its IDL-exposed autofill value to the string "on". Then, return.
     if (category == Category::Automatic) {
-        attr_details.field_name = "on"_string;
+        attr_details.field_name = "on"_utf16;
         attr_details.hint_set = {};
         attr_details.value = "on"_utf16;
         return attr_details;
     }
 
     // 12. Let scope tokens be an empty list.
-    Vector<String> scope_tokens;
+    Vector<Utf16String> scope_tokens;
 
     // 13. Let hint tokens be an empty set.
-    HashTable<String> hint_tokens;
+    HashTable<Utf16FlyString> hint_tokens;
 
     // 14. Let credential type be null.
-    Optional<String> credential_type;
+    Optional<Utf16FlyString> credential_type;
 
     // 15. Let IDL value have the same value as field.
     // NOTE: lowercasing is not mentioned in the spec, but required to pass all WPT tests.
@@ -259,7 +313,7 @@ AutocompleteElement::AttributeDetails AutocompleteElement::parse_autocomplete_at
         attr_details.scope = scope_tokens;
 
         // 29. Set the element's autofill field name to field.
-        attr_details.field_name = field.to_utf8();
+        attr_details.field_name = Utf16String::from_utf16(field);
 
         // 30. Set the element's IDL-exposed autofill value to IDL value.
         attr_details.value = idl_value;
@@ -272,7 +326,7 @@ AutocompleteElement::AttributeDetails AutocompleteElement::parse_autocomplete_at
     //     then run the substeps that follow:
     if (category == Category::Credential && tokens[index].equals_ignoring_ascii_case(u"webauthn"sv)) {
         // 1. Set credential type to "webauthn".
-        credential_type = "webauthn"_string;
+        credential_type = AutocompleteToken::webauthn;
 
         // 2. If the indexth token in tokens is the first entry, then skip to the step labeled done.
         if (index == 0)
@@ -308,19 +362,18 @@ AutocompleteElement::AttributeDetails AutocompleteElement::parse_autocomplete_at
 
     // 19. If category is Contact and the indexth token in tokens is an ASCII case-insensitive match for one of the strings in the following list,
     //     then run the substeps that follow:
-    if (category == Category::Contact && tokens[index].to_ascii_lowercase().is_one_of(u"home"sv, u"work"sv, u"mobile"sv, u"fax"sv, u"pager"sv)) {
+    if (auto contact = category == Category::Contact ? contact_token_canonicalized(tokens[index]) : Optional<Utf16FlyString> {}; contact.has_value()) {
         // 1. Let contact be the matching string from the list above.
-        auto contact = tokens[index].to_ascii_lowercase();
-        auto contact_utf8 = contact.to_utf8();
+        auto contact_string = contact->to_utf16_string();
 
         // 2. Insert contact at the start of scope tokens.
-        scope_tokens.prepend(contact_utf8);
+        scope_tokens.prepend(contact_string);
 
         // 3. Add contact to hint tokens.
-        hint_tokens.set(contact_utf8);
+        hint_tokens.set(*contact);
 
         // 4. Let IDL value be the concatenation of contact, a U+0020 SPACE character, and the previous value of IDL value.
-        idl_value = Utf16String::formatted("{} {}", contact, idl_value);
+        idl_value = Utf16String::formatted("{} {}", contact->view(), idl_value);
 
         // 5. If the indexth entry in tokens is the first entry, then skip to the step labeled done.
         if (index == 0)
@@ -332,19 +385,18 @@ AutocompleteElement::AttributeDetails AutocompleteElement::parse_autocomplete_at
 
     // 20. If the indexth token in tokens is an ASCII case-insensitive match for one of the strings in the following list,
     //     then run the substeps that follow:
-    if (tokens[index].to_ascii_lowercase().is_one_of(u"shipping"sv, u"billing"sv)) {
+    if (auto mode = mode_token_canonicalized(tokens[index]); mode.has_value()) {
         // 1. Let mode be the matching string from the list above.
-        auto mode = tokens[index].to_ascii_lowercase();
-        auto mode_utf8 = mode.to_utf8();
+        auto mode_string = mode->to_utf16_string();
 
         // 2. Insert mode at the start of scope tokens.
-        scope_tokens.prepend(mode_utf8);
+        scope_tokens.prepend(mode_string);
 
         // 3. Add mode to hint tokens.
-        hint_tokens.set(mode_utf8);
+        hint_tokens.set(*mode);
 
         // 4. Let IDL value be the concatenation of mode, a U+0020 SPACE character, and the previous value of IDL value.
-        idl_value = Utf16String::formatted("{} {}", mode, idl_value);
+        idl_value = Utf16String::formatted("{} {}", mode->view(), idl_value);
 
         // 5. If the indexth entry in tokens is the first entry, then skip to the step labeled done.
         if (index == 0)
@@ -360,15 +412,14 @@ AutocompleteElement::AttributeDetails AutocompleteElement::parse_autocomplete_at
 
     // 22. If the first eight characters of the indexth token in tokens are not an ASCII case-insensitive match for the string "section-",
     //     then jump to the step labeled default.
-    if (!tokens[index].to_ascii_lowercase().starts_with(u"section-"sv))
+    if (tokens[index].length_in_code_units() < 8 || !tokens[index].substring_view(0, 8).equals_ignoring_ascii_case(u"section-"sv))
         return step_default();
 
     // 23. Let section be the indexth token in tokens, converted to ASCII lowercase.
     auto section = tokens[index].to_ascii_lowercase();
-    auto section_utf8 = section.to_utf8();
 
     // 24. Insert section at the start of scope tokens.
-    scope_tokens.prepend(section_utf8);
+    scope_tokens.prepend(section);
 
     // 25. Let IDL value be the concatenation of section, a U+0020 SPACE character, and the previous value of IDL value.
     idl_value = Utf16String::formatted("{} {}", section, idl_value);

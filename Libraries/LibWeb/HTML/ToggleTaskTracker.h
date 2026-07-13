@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/Optional.h>
-#include <AK/String.h>
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
 
 namespace Web::HTML {
@@ -19,7 +19,7 @@ struct ToggleTaskTracker {
     Optional<HTML::TaskID> task_id;
 
     // https://html.spec.whatwg.org/multipage/interaction.html#toggle-task-old-state
-    String old_state;
+    Utf16FlyString old_state;
 };
 
 }

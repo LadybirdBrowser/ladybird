@@ -4,27 +4,27 @@ interface HTMLIFrameElement : HTMLElement {
 
     [HTMLConstructor] constructor();
 
-    [CEReactions, Reflect, URL] attribute USVString src;
+    [CEReactions, Reflect, URL] attribute Utf16USVString src;
     [CEReactions] attribute (TrustedHTML or Utf16DOMString) srcdoc;
     [CEReactions, Reflect] attribute Utf16DOMString name;
     [SameObject, PutForwards=value] readonly attribute DOMTokenList sandbox;
-    [CEReactions, Reflect] attribute DOMString allow;
+    [CEReactions, Reflect] attribute Utf16DOMString allow;
     [CEReactions, Reflect=allowfullscreen] attribute boolean allowFullscreen;
-    [CEReactions, Reflect] attribute DOMString width;
-    [CEReactions, Reflect] attribute DOMString height;
-    [CEReactions, Reflect=referrerpolicy, Enumerated=ReferrerPolicy] attribute DOMString referrerPolicy;
-    [CEReactions, Enumerated=LazyLoadingAttribute, Reflect] attribute DOMString loading;
+    [CEReactions, Reflect] attribute Utf16DOMString width;
+    [CEReactions, Reflect] attribute Utf16DOMString height;
+    [CEReactions, Reflect=referrerpolicy, Enumerated=ReferrerPolicy] attribute Utf16DOMString referrerPolicy;
+    [CEReactions, Enumerated=LazyLoadingAttribute, Reflect] attribute Utf16DOMString loading;
     readonly attribute Document? contentDocument;
     readonly attribute WindowProxy? contentWindow;
     Document? getSVGDocument();
 
     // Obsolete
-    [CEReactions, Reflect] attribute DOMString align;
-    [CEReactions, Reflect] attribute DOMString scrolling;
-    [CEReactions, Reflect=frameborder] attribute DOMString frameBorder;
-    [CEReactions, Reflect=longdesc, URL] attribute USVString longDesc;
+    [CEReactions, Reflect] attribute Utf16DOMString align;
+    [CEReactions, Reflect] attribute Utf16DOMString scrolling;
+    [CEReactions, Reflect=frameborder] attribute Utf16DOMString frameBorder;
+    [CEReactions, Reflect=longdesc, URL] attribute Utf16USVString longDesc;
 
-    [CEReactions, LegacyNullToEmptyString, Reflect=marginheight] attribute DOMString marginHeight;
-    [CEReactions, LegacyNullToEmptyString, Reflect=marginwidth] attribute DOMString marginWidth;
+    [CEReactions, LegacyNullToEmptyString, Reflect=marginheight] attribute Utf16DOMString marginHeight;
+    [CEReactions, LegacyNullToEmptyString, Reflect=marginwidth] attribute Utf16DOMString marginWidth;
 
 };

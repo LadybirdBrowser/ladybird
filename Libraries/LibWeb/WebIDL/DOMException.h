@@ -82,10 +82,10 @@ namespace Web::WebIDL {
     __ENUMERATE(OperationError)                      \
     __ENUMERATE(NotAllowedError)
 
-static u16 get_legacy_code_for_name(FlyString const& name)
+static u16 get_legacy_code_for_name(Utf16FlyString const& name)
 {
-#define __ENUMERATE(ErrorName, code) \
-    if (name == #ErrorName)          \
+#define __ENUMERATE(ErrorName, code)           \
+    if (name == #ErrorName##_utf16_fly_string) \
         return code;
     ENUMERATE_DOM_EXCEPTION_LEGACY_CODES
 #undef __ENUMERATE
@@ -101,16 +101,16 @@ class WEB_API DOMException
     GC_DECLARE_ALLOCATOR(DOMException);
 
 public:
-    static GC::Ref<DOMException> create(JS::Realm& realm, FlyString name, Utf16String const& message);
+    static GC::Ref<DOMException> create(JS::Realm& realm, Utf16FlyString name, Utf16String const& message);
     static GC::Ref<DOMException> create(JS::Realm& realm);
 
     // JS constructor has message first, name second
     // FIXME: This is a completely pointless footgun, let's use the same order for both factories.
-    static GC::Ref<DOMException> construct_impl(JS::Realm& realm, Utf16String const& message, FlyString name);
+    static GC::Ref<DOMException> construct_impl(JS::Realm& realm, Utf16String const& message, Utf16FlyString name);
 
     virtual ~DOMException() override;
 
-    FlyString const& name() const { return m_name; }
+    Utf16FlyString const& name() const { return m_name; }
     Utf16FlyString const& message() const { return m_message; }
     u16 code() const { return get_legacy_code_for_name(m_name); }
 
@@ -118,7 +118,7 @@ public:
     virtual WebIDL::ExceptionOr<void> deserialization_steps(HTML::StructuredSerializeReader&, HTML::DeserializationMemory&) override;
 
 protected:
-    DOMException(JS::Realm&, FlyString name, Utf16String const& message);
+    DOMException(JS::Realm&, Utf16FlyString name, Utf16String const& message);
     explicit DOMException(JS::Realm&);
 
     virtual void initialize(JS::Realm&) override;
@@ -128,7 +128,7 @@ private:
     virtual ErrorData* error_data() final { return this; }
     virtual ErrorData const* error_data() const final { return this; }
 
-    FlyString m_name;
+    Utf16FlyString m_name;
     Utf16FlyString m_message;
 };
 
@@ -137,7 +137,7 @@ private:
     public:                                                                               \
         static GC::Ref<DOMException> create(JS::Realm& realm, Utf16String const& message) \
         {                                                                                 \
-            return DOMException::create(realm, #ErrorName##_fly_string, message);         \
+            return DOMException::create(realm, #ErrorName##_utf16_fly_string, message);   \
         }                                                                                 \
     };
 ENUMERATE_DOM_EXCEPTION_ERROR_NAMES

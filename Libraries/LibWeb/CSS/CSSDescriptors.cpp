@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Utf16StringBuilder.h>
 #include <LibWeb/CSS/CSSDescriptors.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
@@ -63,7 +64,13 @@ bool CSSDescriptors::set_a_css_declaration(DescriptorNameAndID const& descriptor
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-setproperty
-WebIDL::ExceptionOr<void> CSSDescriptors::set_property(Utf16FlyString const& property, StringView value, StringView priority)
+WebIDL::ExceptionOr<void> CSSDescriptors::set_property(Utf16FlyString const& property, Utf16View value, Utf16View priority)
+{
+    return set_property_internal(property, value, priority);
+}
+
+// https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-setproperty
+WebIDL::ExceptionOr<void> CSSDescriptors::set_property_internal(Utf16FlyString const& property, Utf16View value, Utf16View priority)
 {
     // 1. If the readonly flag is set, then throw a NoModificationAllowedError exception.
     if (is_readonly())
@@ -84,12 +91,13 @@ WebIDL::ExceptionOr<void> CSSDescriptors::set_property(Utf16FlyString const& pro
 
     // 3. If value is the empty string, invoke removeProperty() with property as argument and return.
     if (value.is_empty()) {
-        MUST(remove_property(property));
+        auto removed_value = MUST(remove_property(property));
+        (void)removed_value;
         return {};
     }
 
     // 4. If priority is not the empty string and is not an ASCII case-insensitive match for the string "important", then return.
-    if (!priority.is_empty() && !priority.equals_ignoring_ascii_case("important"sv))
+    if (!priority.is_empty() && !priority.equals_ignoring_ascii_case(u"important"sv))
         return {};
 
     // 5. Let component value list be the result of parsing value for property property.
@@ -132,14 +140,14 @@ WebIDL::ExceptionOr<void> CSSDescriptors::set_property(Utf16FlyString const& pro
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-removeproperty
-WebIDL::ExceptionOr<String> CSSDescriptors::remove_property(Utf16FlyString const& property)
+WebIDL::ExceptionOr<Utf16String> CSSDescriptors::remove_property(Utf16FlyString const& property)
 {
     // 1. If the readonly flag is set, then throw a NoModificationAllowedError exception.
     if (is_readonly())
         return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify properties of readonly CSSStyleDeclaration"_utf16);
 
     if (!property.is_ascii())
-        return String {};
+        return Utf16String {};
 
     // 2. If property is not a custom property, let property be property converted to ASCII lowercase.
     // AD-HOC: We compare names case-insensitively instead.
@@ -176,7 +184,7 @@ WebIDL::ExceptionOr<String> CSSDescriptors::remove_property(Utf16FlyString const
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertyvalue
-String CSSDescriptors::get_property_value(Utf16FlyString const& property) const
+Utf16String CSSDescriptors::get_property_value(Utf16FlyString const& property) const
 {
     if (!property.is_ascii())
         return {};
@@ -190,7 +198,7 @@ String CSSDescriptors::get_property_value(Utf16FlyString const& property) const
     if (descriptor_name_and_id.has_value()) {
         auto match = m_descriptors.first_matching([descriptor_name_and_id](Descriptor const& entry) { return entry.descriptor_name_and_id == descriptor_name_and_id; });
         if (match.has_value())
-            return match->value->to_string(SerializationMode::Normal);
+            return match->value->to_utf16_string(SerializationMode::Normal);
     }
 
     // 3. Return the empty string.
@@ -198,17 +206,17 @@ String CSSDescriptors::get_property_value(Utf16FlyString const& property) const
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertypriority
-StringView CSSDescriptors::get_property_priority(Utf16FlyString const&) const
+Utf16String CSSDescriptors::get_property_priority(Utf16FlyString const&) const
 {
     // AD-HOC: It's not valid for descriptors to be !important.
     return {};
 }
 
 // https://drafts.csswg.org/cssom/#serialize-a-css-declaration-block
-String CSSDescriptors::serialized() const
+Utf16String CSSDescriptors::serialized() const
 {
     // 1. Let list be an empty array.
-    Vector<String> list;
+    Vector<Utf16String> list;
     list.ensure_capacity(m_descriptors.size());
 
     // 2. Let already serialized be an empty array.
@@ -228,24 +236,30 @@ String CSSDescriptors::serialized() const
         // NB: Descriptors can't be shorthands.
 
         // 5. Let value be the result of invoking serialize a CSS value of declaration.
-        auto value = descriptor.value->to_string(SerializationMode::Normal);
+        auto value = descriptor.value->to_utf16_string(SerializationMode::Normal);
 
         // 6. Let serialized declaration be the result of invoking serialize a CSS declaration with property name property, value value, and the important flag set if declaration has its important flag set.
-        auto serialized_declaration = serialize_a_css_declaration(property_string, value, Important::No);
+        auto serialized_declaration = serialize_a_css_declaration_to_utf16(property_string, value, Important::No);
 
         // 7. Append serialized declaration to list.
-        list.append(serialized_declaration);
+        list.append(move(serialized_declaration));
 
         // 8. Append property to already serialized.
         // AD-HOC: Not needed as we don't have shorthands.
     }
 
     // 4. Return list joined with " " (U+0020).
-    return MUST(String::join(' ', list));
+    Utf16StringBuilder builder;
+    for (size_t i = 0; i < list.size(); ++i) {
+        if (i != 0)
+            builder.append_ascii(' ');
+        builder.append(list[i]);
+    }
+    return builder.to_string();
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-csstext
-WebIDL::ExceptionOr<void> CSSDescriptors::set_css_text(StringView value)
+WebIDL::ExceptionOr<void> CSSDescriptors::set_css_text(Utf16View value)
 {
     // 1. If the readonly flag is set, then throw a NoModificationAllowedError exception.
     if (is_readonly())

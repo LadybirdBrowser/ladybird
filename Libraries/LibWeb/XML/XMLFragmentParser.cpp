@@ -47,7 +47,7 @@ WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> XMLFragmentParser::parse_xml
         if (prefix.is_empty() || prefix == "xmlns"sv)
             continue;
 
-        auto namespace_uri = context->lookup_namespace_uri(prefix.to_utf16_string()).value();
+        auto namespace_uri = context->lookup_namespace_uri(prefix.view()).value();
         VERIFY(!namespace_uri.is_empty());
 
         feed.append(" xmlns:"sv);

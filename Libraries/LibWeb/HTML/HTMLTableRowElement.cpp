@@ -55,7 +55,7 @@ bool HTMLTableRowElement::is_presentational_hint(Utf16FlyString const& name) con
 void HTMLTableRowElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
 {
     Base::apply_presentational_hints(properties);
-    for_each_attribute([&](auto& name, auto& value) {
+    for_each_attribute([&](Utf16FlyString const& name, Utf16View value) {
         if (name == HTML::AttributeNames::align) {
             if (auto parsed_value = parse_table_child_element_align_value(value))
                 properties.append({ .property_id = CSS::PropertyID::TextAlign, .value = parsed_value.release_nonnull() });

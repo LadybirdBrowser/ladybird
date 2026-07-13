@@ -9,6 +9,7 @@
 
 #include <AK/Optional.h>
 #include <AK/RefCounted.h>
+#include <AK/Utf16String.h>
 #include <LibCore/Socket.h>
 #include <LibURL/URL.h>
 #include <LibWeb/DOM/EventTarget.h>
@@ -76,7 +77,7 @@ public:
 
     GC::Ref<WorkerLocation> location() const;
     GC::Ref<WorkerNavigator> navigator() const;
-    WebIDL::ExceptionOr<void> import_scripts(Vector<String> const& urls, PerformTheFetchHook = nullptr);
+    WebIDL::ExceptionOr<void> import_scripts(Vector<Utf16String> const& urls, PerformTheFetchHook = nullptr);
 
 #undef __ENUMERATE
 #define __ENUMERATE(attribute_name, event_name)       \
@@ -92,8 +93,8 @@ public:
     URL::URL const& url() const { return m_url.value(); }
     void set_url(URL::URL const& url) { m_url = url; }
 
-    String const& name() const { return m_name; }
-    void set_name(String name) { m_name = move(name); }
+    Utf16String const& name() const { return m_name; }
+    void set_name(Utf16String name) { m_name = move(name); }
 
     Bindings::WorkerType type() const { return m_type; }
     void set_type(Bindings::WorkerType type) { m_type = type; }
@@ -157,7 +158,7 @@ private:
     //        For DedicatedWorkerGlobalScope instances, it is simply a developer-supplied name, useful mostly for debugging purposes.
     //        For SharedWorkerGlobalScope instances, it allows obtaining a reference to a common shared worker via the SharedWorker() constructor.
     //        For ServiceWorkerGlobalScope objects, it doesn't make sense (and as such isn't exposed through the JavaScript API at all).
-    String m_name;
+    Utf16String m_name;
 
     // https://html.spec.whatwg.org/multipage/workers.html#concept-workerglobalscope-policy-container
     // A WorkerGlobalScope object has an associated policy container (a policy container). It is initially a new policy container.

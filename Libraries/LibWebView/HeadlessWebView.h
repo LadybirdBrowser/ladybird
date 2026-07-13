@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibCore/Forward.h>
 #include <LibGfx/Forward.h>
 #include <LibWeb/Page/Page.h>
@@ -47,7 +48,7 @@ protected:
     Web::DevicePixelSize m_viewport_size;
 
     Web::Page::PendingDialog m_pending_dialog { Web::Page::PendingDialog::None };
-    Optional<String> m_pending_prompt_text;
+    Optional<Utf16String> m_pending_prompt_text;
 
     // When restoring from fullscreen, we need to know to what dimension.
     Web::DevicePixelRect m_previous_dimensions;

@@ -7,6 +7,8 @@
 #pragma once
 
 #include <AK/NonnullRefPtr.h>
+#include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/Percentage.h>
@@ -28,14 +30,14 @@ public:
     CSS::Percentage key() const { return m_key; }
     GC::Ref<CSSStyleProperties> style() const { return m_declarations; }
 
-    String key_text() const
+    Utf16String key_text() const
     {
-        return m_key.to_string();
+        return m_key.to_utf16_string();
     }
 
-    void set_key_text(String const& key_text)
+    void set_key_text(Utf16View)
     {
-        dbgln("FIXME: CSSKeyframeRule::set_key_text is not implemented: {}", key_text);
+        dbgln("FIXME: CSSKeyframeRule::set_key_text is not implemented");
     }
 
 private:
@@ -43,7 +45,7 @@ private:
 
     virtual void visit_edges(Visitor&) override;
     virtual void initialize(JS::Realm&) override;
-    virtual String serialized() const override;
+    virtual Utf16String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 
     CSS::Percentage m_key;

@@ -1,5 +1,5 @@
 // https://html.spec.whatwg.org/multipage/custom-elements.html#customstateset
 [Exposed=Window]
 interface CustomStateSet {
-    setlike<DOMString>;
+    setlike<Utf16DOMString>;
 };

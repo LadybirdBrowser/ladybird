@@ -1,7 +1,7 @@
 // https://html.spec.whatwg.org/multipage/media.html#trackevent
 [Exposed=Window]
 interface TrackEvent : Event {
-    constructor(DOMString type, optional TrackEventInit eventInitDict = {});
+    constructor([Utf16FlyString] Utf16DOMString type, optional TrackEventInit eventInitDict = {});
 
     readonly attribute (VideoTrack or AudioTrack or TextTrack)? track;
 };

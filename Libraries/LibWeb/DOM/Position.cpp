@@ -27,9 +27,9 @@ void Position::visit_edges(Visitor& visitor)
     visitor.visit(m_node);
 }
 
-ErrorOr<String> Position::to_string() const
+ErrorOr<Utf16String> Position::to_string() const
 {
-    return String::formatted("DOM::Position({} ({})), {})", node()->node_name(), node().ptr(), offset());
+    return Utf16String::formatted("DOM::Position({} ({})), {})", node()->node_name(), node().ptr(), offset());
 }
 
 }

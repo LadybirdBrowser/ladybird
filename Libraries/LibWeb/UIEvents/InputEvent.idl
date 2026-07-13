@@ -1,10 +1,10 @@
 // https://w3c.github.io/uievents/#inputevent
 [Exposed=Window]
 interface InputEvent : UIEvent {
-    constructor(DOMString type, optional InputEventInit eventInitDict = {});
+    constructor([Utf16FlyString] Utf16DOMString type, optional InputEventInit eventInitDict = {});
     readonly attribute Utf16USVString? data;
     readonly attribute boolean isComposing;
-    readonly attribute DOMString inputType;
+    readonly attribute Utf16DOMString inputType;
 
     sequence<StaticRange> getTargetRanges();
 };
@@ -13,5 +13,5 @@ interface InputEvent : UIEvent {
 dictionary InputEventInit : UIEventInit {
     Utf16DOMString? data = null;
     boolean isComposing = false;
-    DOMString inputType = "";
+    [Utf16FlyString] Utf16DOMString inputType = "";
 };

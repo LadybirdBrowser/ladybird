@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <LibWeb/HTML/Canvas/CanvasState.h>
 #include <LibWeb/HTML/CanvasGradient.h>
 #include <LibWeb/HTML/CanvasPattern.h>
@@ -27,8 +28,8 @@ public:
     virtual float shadow_blur() const = 0;
     virtual void set_shadow_blur(float offsetY) = 0;
 
-    virtual String shadow_color() const = 0;
-    virtual void set_shadow_color(String color) = 0;
+    virtual Utf16String shadow_color() const = 0;
+    virtual void set_shadow_color(Utf16View color) = 0;
 
 protected:
     CanvasShadowStyles() = default;

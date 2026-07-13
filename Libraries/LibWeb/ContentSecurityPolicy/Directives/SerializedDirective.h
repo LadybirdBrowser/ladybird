@@ -6,15 +6,16 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16FlyString.h>
+#include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibIPC/Forward.h>
 
 namespace Web::ContentSecurityPolicy::Directives {
 
 struct SerializedDirective {
-    String name;
-    Vector<String> value;
+    Utf16FlyString name;
+    Vector<Utf16String> value;
 };
 
 }

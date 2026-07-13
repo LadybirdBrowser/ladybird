@@ -13,7 +13,7 @@
 namespace Web::HTML {
 
 // https://drafts.csswg.org/css-color-4/#parse-a-css-color-value
-Optional<Color> AbstractCanvasMixin::parse_a_css_color_value(StringView const& value) const
+Optional<Color> AbstractCanvasMixin::parse_a_css_color_value(Utf16View value) const
 {
     // To parse a CSS <color> value, given a string input, and an optional context element element:
 

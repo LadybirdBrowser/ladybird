@@ -168,7 +168,7 @@ Utf16String HTMLTextAreaElement::default_value() const
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-textarea-defaultvalue
-void HTMLTextAreaElement::set_default_value(Utf16String const& default_value)
+void HTMLTextAreaElement::set_default_value(Utf16View default_value)
 {
     // The defaultValue attribute's setter must string replace all with the given value within this element.
     string_replace_all(default_value);
@@ -182,13 +182,13 @@ Utf16String HTMLTextAreaElement::value() const
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-textarea-value
-void HTMLTextAreaElement::set_value(Utf16String const& value)
+void HTMLTextAreaElement::set_value(Utf16View value)
 {
     // 1. Let oldAPIValue be this element's API value.
     auto old_api_value = api_value();
 
     // 2. Set this element's raw value to the new value.
-    set_raw_value(value);
+    set_raw_value(Utf16String::from_utf16(value));
 
     // 3. Set this element's dirty value flag to true.
     m_dirty_value = true;
@@ -226,7 +226,7 @@ Utf16String HTMLTextAreaElement::api_value() const
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
-WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_relevant_value(Utf16String const& value)
+WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_relevant_value(Utf16View value)
 {
     set_value(value);
     return {};
@@ -333,12 +333,12 @@ WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_selection_end_binding(WebIDL:
     return FormAssociatedTextControlElement::set_selection_end_binding(value);
 }
 
-String HTMLTextAreaElement::selection_direction_binding() const
+Utf16FlyString HTMLTextAreaElement::selection_direction_binding() const
 {
     return selection_direction().value();
 }
 
-void HTMLTextAreaElement::set_selection_direction_binding(String const& direction)
+void HTMLTextAreaElement::set_selection_direction_binding(Utf16View direction)
 {
     // NOTE: The selectionDirection setter never returns an error for textarea elements.
     MUST(static_cast<FormAssociatedTextControlElement&>(*this).set_selection_direction_binding(direction));
@@ -358,7 +358,7 @@ void HTMLTextAreaElement::create_shadow_tree_if_needed()
         static auto& style = *new GC::Root<CSS::CSSStyleProperties>;
         if (!style) {
             style = CSS::CSSStyleProperties::create(internal_css_realm(), {}, {});
-            style->set_declarations_from_text("display: flex;"sv);
+            style->set_declarations_from_text(u"display: flex;"sv);
         }
         element->set_inline_style(*style);
     }
@@ -369,7 +369,7 @@ void HTMLTextAreaElement::create_shadow_tree_if_needed()
         static auto& style = *new GC::Root<CSS::CSSStyleProperties>;
         if (!style) {
             style = CSS::CSSStyleProperties::create(internal_css_realm(), {}, {});
-            style->set_declarations_from_text("width: 100%;"sv);
+            style->set_declarations_from_text(u"width: 100%;"sv);
         }
         m_inner_text_element->set_inline_style(*style);
     }
@@ -409,7 +409,7 @@ static GC::Ref<CSS::CSSStyleProperties> placeholder_style_when_visible()
     static auto& style = *new GC::Root<CSS::CSSStyleProperties>;
     if (!style) {
         style = CSS::CSSStyleProperties::create(internal_css_realm(), {}, {});
-        style->set_declarations_from_text(R"~~~(
+        style->set_declarations_from_text(uR"~~~(
                 width: 100%;
                 overflow: hidden;
                 margin-inline-start: -100%;
@@ -425,7 +425,7 @@ static GC::Ref<CSS::CSSStyleProperties> placeholder_style_when_hidden()
     static auto& style = *new GC::Root<CSS::CSSStyleProperties>;
     if (!style) {
         style = CSS::CSSStyleProperties::create(internal_css_realm(), {}, {});
-        style->set_declarations_from_text("display: none;"sv);
+        style->set_declarations_from_text(u"display: none;"sv);
     }
     return *style;
 }
@@ -462,7 +462,7 @@ void HTMLTextAreaElement::form_associated_element_attribute_changed(Utf16FlyStri
 {
     if (name == HTML::AttributeNames::placeholder) {
         if (m_placeholder_text_node)
-            m_placeholder_text_node->set_data(value.value_or({}));
+            m_placeholder_text_node->set_data(value.has_value() ? value->utf16_view() : u""sv);
         update_placeholder_visibility();
     } else if (name == HTML::AttributeNames::maxlength) {
         handle_maxlength_attribute();
@@ -474,7 +474,7 @@ void HTMLTextAreaElement::form_associated_element_attribute_changed(Utf16FlyStri
         CSS::Invalidation::invalidate_style_after_validity_change(*this);
 }
 
-void HTMLTextAreaElement::did_edit_text_node(FlyString const& input_type, Optional<Utf16String> const& data)
+void HTMLTextAreaElement::did_edit_text_node(Utf16FlyString const& input_type, Optional<Utf16String> const& data)
 {
     VERIFY(m_text_node);
     set_raw_value(m_text_node->data());
@@ -489,7 +489,7 @@ void HTMLTextAreaElement::did_edit_text_node(FlyString const& input_type, Option
     Bindings::InputEventInit input_event_init;
     input_event_init.bubbles = true;
     input_event_init.composed = true;
-    input_event_init.input_type = input_type.to_string();
+    input_event_init.input_type = input_type;
     input_event_init.data = data;
     auto input_event = UIEvents::InputEvent::create_from_platform_event(realm(), HTML::EventNames::input, input_event_init);
     dispatch_event(input_event);
@@ -500,7 +500,7 @@ void HTMLTextAreaElement::did_edit_text_node(FlyString const& input_type, Option
     update_placeholder_visibility();
 }
 
-EventResult HTMLTextAreaElement::handle_return_key(FlyString const& input_type)
+EventResult HTMLTextAreaElement::handle_return_key(Utf16FlyString const& input_type)
 {
     handle_insert(input_type, Utf16String::from_code_point(0x0A)); // Avoid the platform codepoint
     return EventResult::Handled;

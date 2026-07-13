@@ -48,17 +48,17 @@ endpoint WebContentClient
     did_destroy_compositor_context(Web::Compositor::CompositorContextId context_id) =|
 
     decide_navigation_process(u64 page_id, Optional<Web::HTML::CrossProcessId> frame_id, URL::URL current_url, URL::URL target_url, Web::NavigationTarget target) => (Web::NavigationProcessDecision decision)
-    did_request_new_process_for_navigation(u64 page_id, URL::URL url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, Web::Bindings::NavigationHistoryBehavior history_handling) =|
-    did_request_new_process_for_child_frame_navigation(u64 page_id, Web::HTML::CrossProcessId frame_id, URL::URL url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, Web::Bindings::NavigationHistoryBehavior history_handling) =|
+    did_request_new_process_for_navigation(u64 page_id, URL::URL url, Variant<Empty, Utf16String, Web::HTML::POSTResource> document_resource, Web::Bindings::NavigationHistoryBehavior history_handling) =|
+    did_request_new_process_for_child_frame_navigation(u64 page_id, Web::HTML::CrossProcessId frame_id, URL::URL url, Variant<Empty, Utf16String, Web::HTML::POSTResource> document_resource, Web::Bindings::NavigationHistoryBehavior history_handling) =|
     did_create_child_frame(u64 page_id, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state) =|
     did_update_child_frame_viewport(u64 page_id, Web::HTML::CrossProcessId frame_id, Web::DevicePixelRect viewport_rect, double device_pixel_ratio) =|
     did_commit_child_frame_navigation(u64 page_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state) =|
     did_change_top_level_active_document(u64 page_id, Web::HTML::ReplicatedNavigableState replicated_state) =|
     did_destroy_child_frame(u64 page_id, Web::HTML::CrossProcessId frame_id) =|
     did_start_webdriver_navigation(u64 page_id, URL::URL url) =|
-    did_start_loading(u64 page_id, Optional<String> navigation_id, URL::URL url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, bool is_redirect, Web::Bindings::NavigationHistoryBehavior history_handling) =|
-    did_cancel_loading(u64 page_id, Optional<String> navigation_id, URL::URL url) =|
-    did_finish_loading(u64 page_id, Optional<String> navigation_id, URL::URL url) =|
+    did_start_loading(u64 page_id, Optional<Utf16String> navigation_id, URL::URL url, Variant<Empty, Utf16String, Web::HTML::POSTResource> document_resource, bool is_redirect, Web::Bindings::NavigationHistoryBehavior history_handling) =|
+    did_cancel_loading(u64 page_id, Optional<Utf16String> navigation_id, URL::URL url) =|
+    did_finish_loading(u64 page_id, Optional<Utf16String> navigation_id, URL::URL url) =|
     did_start_download_without_request(u64 page_id, URL::URL url, ByteString suggested_filename, Optional<u64> total_size) => (Optional<u64> download_id)
     did_start_download(u64 page_id, URL::URL url, ByteString suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data) => (Optional<u64> download_id)
     did_receive_download_data(u64 page_id, u64 download_id, ByteBuffer data) =|
@@ -80,13 +80,13 @@ endpoint WebContentClient
     did_request_link_context_menu(u64 page_id, Gfx::IntPoint content_position, URL::URL url, ByteString target, unsigned modifiers) =|
     did_request_image_context_menu(u64 page_id, Gfx::IntPoint content_position, URL::URL url, ByteString target, unsigned modifiers, Optional<Gfx::ShareableBitmap> bitmap) =|
     did_request_media_context_menu(u64 page_id, Gfx::IntPoint content_position, ByteString target, unsigned modifiers, Web::Page::MediaContextMenu menu) =|
-    did_request_alert(u64 page_id, String message) =|
-    did_request_confirm(u64 page_id, String message) =|
-    did_request_prompt(u64 page_id, String message, String default_) =|
-    did_request_set_prompt_text(u64 page_id, String message) =|
+    did_request_alert(u64 page_id, Utf16String message) =|
+    did_request_confirm(u64 page_id, Utf16String message) =|
+    did_request_prompt(u64 page_id, Utf16String message, Utf16String default_) =|
+    did_request_set_prompt_text(u64 page_id, Utf16String message) =|
     did_request_accept_dialog(u64 page_id) =|
     did_request_dismiss_dialog(u64 page_id) =|
-    did_get_source(u64 page_id, URL::URL url, URL::URL base_url, String source) =|
+    did_get_source(u64 page_id, URL::URL url, URL::URL base_url, Utf16String source) =|
 
     did_inspect_dom_tree(u64 page_id, String dom_tree) =|
     did_inspect_storage(u64 page_id, u64 request_id, String storage_items) =|
@@ -103,7 +103,7 @@ endpoint WebContentClient
     did_get_dom_node_html(u64 page_id, String html) =|
 
     did_list_style_sheets(u64 page_id, Vector<Web::CSS::StyleSheetIdentifier> style_sheets) =|
-    did_get_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier identifier, URL::URL base_url, String source) =|
+    did_get_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier identifier, URL::URL base_url, Utf16String source) =|
     did_list_devtools_sources(u64 page_id, u64 request_id, Vector<Web::HTML::ScriptRegistry::Description> sources) =|
     did_get_devtools_source(u64 page_id, Web::HTML::ScriptRegistry::Identifier source_id, Optional<Web::HTML::ScriptRegistry::Content> source) =|
     did_add_devtools_source(u64 page_id, Web::HTML::ScriptRegistry::Description source) =|
@@ -128,13 +128,13 @@ endpoint WebContentClient
     did_store_hsts_policy(String domain, HTTP::HSTS::ParsedHSTSPolicy policy) =|
     did_is_known_hsts_host(String domain) => (bool result)
 
-    did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, String bottle_key) => (Optional<String> value)
-    did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, String bottle_key, String value) => (WebView::StorageSetResult result)
-    did_remove_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, String bottle_key) => ()
-    did_request_storage_keys(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key) => (Vector<String> keys)
+    did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key) => (Optional<Utf16String> value)
+    did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key, Utf16String value) => (WebView::StorageSetResult result)
+    did_remove_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key) => ()
+    did_request_storage_keys(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key) => (Vector<Utf16String> keys)
     did_clear_storage(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key) => ()
     did_request_storage_usage(String storage_key) => (u64 usage)
-    did_change_storage_item(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String url, Optional<String> key, Optional<String> old_value, Optional<String> new_value) =|
+    did_change_storage_item(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String url, Optional<Utf16String> key, Optional<Utf16String> old_value, Optional<Utf16String> new_value) =|
     did_update_indexed_database(u64 page_id, String update) =|
     did_post_broadcast_channel_message(u64 page_id, Web::HTML::BroadcastChannelMessage message) =|
 

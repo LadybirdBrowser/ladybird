@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Forward.h>
 #include <AK/Optional.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Vector.h>
@@ -28,6 +29,7 @@ public:
     Optional<Utf16FlyString> name() const { return m_name; }
     Vector<PagePseudoClass> const& pseudo_classes() const { return m_pseudo_classes; }
     String serialize() const;
+    void serialize_to(AK::Utf16StringBuilder&) const;
 
 private:
     Optional<Utf16FlyString> m_name;

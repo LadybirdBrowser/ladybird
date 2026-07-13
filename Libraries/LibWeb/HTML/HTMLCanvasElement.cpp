@@ -25,6 +25,7 @@
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
+#include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/Layout/CanvasBox.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -97,8 +98,8 @@ void HTMLCanvasElement::apply_presentational_hints(Vector<CSS::StyleProperty>& p
 
     // https://html.spec.whatwg.org/multipage/rendering.html#map-to-the-aspect-ratio-property
     // if element has both attributes w and h, and parsing those attributes' values using the rules for parsing non-negative integers doesn't generate an error for either
-    auto w = parse_non_negative_integer(get_attribute_value(HTML::AttributeNames::width));
-    auto h = parse_non_negative_integer(get_attribute_value(HTML::AttributeNames::height));
+    auto w = parse_non_negative_integer(get_attribute_value_view(HTML::AttributeNames::width).value_or({}));
+    auto h = parse_non_negative_integer(get_attribute_value_view(HTML::AttributeNames::height).value_or({}));
 
     // then the user agent is expected to use the parsed integers as a presentational hint for the 'aspect-ratio' property of the form auto w / h.
     if (w.has_value() && h.has_value()) {
@@ -279,7 +280,7 @@ JS::ThrowCompletionOr<HTMLCanvasElement::HasOrCreatedContext> HTMLCanvasElement:
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-getcontext
-JS::ThrowCompletionOr<HTMLCanvasElement::RenderingContext> HTMLCanvasElement::get_context(String const& type, JS::Value options)
+JS::ThrowCompletionOr<HTMLCanvasElement::RenderingContext> HTMLCanvasElement::get_context(Utf16View type, JS::Value options)
 {
     // 1. If options is not an object, then set options to null.
     if (!options.is_object())
@@ -290,7 +291,7 @@ JS::ThrowCompletionOr<HTMLCanvasElement::RenderingContext> HTMLCanvasElement::ge
 
     // 3. Run the steps in the cell of the following table whose column header matches this canvas element's canvas context mode and whose row header matches contextId:
     // NOTE: See the spec for the full table.
-    if (type == "2d"sv) {
+    if (type == u"2d"sv) {
         if (TRY(create_2d_context(options)) == HasOrCreatedContext::Yes)
             return m_context.get<GC::Ref<HTML::CanvasRenderingContext2D>>();
 
@@ -298,14 +299,14 @@ JS::ThrowCompletionOr<HTMLCanvasElement::RenderingContext> HTMLCanvasElement::ge
     }
 
     // NOTE: The WebGL spec says "experimental-webgl" is also acceptable and must be equivalent to "webgl". Other engines accept this, so we do too.
-    if (type.is_one_of("webgl"sv, "experimental-webgl"sv)) {
+    if (type.is_one_of(u"webgl"sv, u"experimental-webgl"sv)) {
         if (TRY(create_webgl_context<WebGL::WebGLRenderingContext>(options)) == HasOrCreatedContext::Yes)
             return m_context.get<GC::Ref<WebGL::WebGLRenderingContext>>();
 
         return Empty {};
     }
 
-    if (type == "webgl2"sv) {
+    if (type == u"webgl2"sv) {
         if (TRY(create_webgl_context<WebGL::WebGL2RenderingContext>(options)) == HasOrCreatedContext::Yes)
             return m_context.get<GC::Ref<WebGL::WebGL2RenderingContext>>();
 
@@ -344,7 +345,7 @@ bool HTMLCanvasElement::is_origin_clean() const
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-todataurl
-WebIDL::ExceptionOr<String> HTMLCanvasElement::to_data_url(StringView type, Optional<JS::Value> js_quality)
+WebIDL::ExceptionOr<Utf16String> HTMLCanvasElement::to_data_url(Utf16View type, Optional<JS::Value> js_quality)
 {
     // 1. If this canvas element's bitmap's origin-clean flag is set to false, then throw a "SecurityError" DOMException.
     if (!is_origin_clean())
@@ -354,7 +355,7 @@ WebIDL::ExceptionOr<String> HTMLCanvasElement::to_data_url(StringView type, Opti
     //    then return the string "data:,". (This is the shortest data: URL; it represents the empty string in a text/plain resource.)
     auto bitmap = get_bitmap_from_surface();
     if (!bitmap)
-        return "data:,"_string;
+        return "data:,"_utf16;
 
     // 3. Let file be a serialization of this canvas element's bitmap as a file, passing type and quality if given.
     Optional<double> quality = js_quality.has_value() && js_quality->is_number() ? js_quality->as_double() : Optional<double>();
@@ -363,19 +364,20 @@ WebIDL::ExceptionOr<String> HTMLCanvasElement::to_data_url(StringView type, Opti
     // 4. If file is null, then return "data:,".
     if (file.is_error()) {
         dbgln("HTMLCanvasElement: Failed to encode canvas bitmap to {}: {}", type, file.error());
-        return "data:,"_string;
+        return "data:,"_utf16;
     }
 
     // 5. Return a data: URL representing file. [RFC2397]
     auto base64_encoded_or_error = encode_base64(file.value().buffer);
     if (base64_encoded_or_error.is_error()) {
-        return "data:,"_string;
+        return "data:,"_utf16;
     }
-    return URL::create_with_data(file.value().mime_type, base64_encoded_or_error.release_value(), true).to_string();
+    auto mime_type = serialized_bitmap_mime_type_to_byte_string(file.value().mime_type);
+    return utf16_string_from_url_ascii(URL::create_with_data(mime_type, base64_encoded_or_error.release_value(), true).to_string());
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-toblob
-WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackType> callback, StringView type, Optional<JS::Value> js_quality)
+WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackType> callback, Utf16View type, Optional<JS::Value> js_quality)
 {
     // 1. If this canvas element's bitmap's origin-clean flag is set to false, then throw a "SecurityError" DOMException.
     if (!is_origin_clean())
@@ -389,7 +391,8 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackTyp
     Optional<double> quality = js_quality.has_value() && js_quality->is_number() ? js_quality->as_double() : Optional<double>();
 
     // 4. Run these steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this, callback, bitmap_result, type, quality] {
+    auto type_string = Utf16String::from_utf16(type);
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this, callback, bitmap_result, type = move(type_string), quality] {
         // 1. If result is non-null, then set result to a serialization of result as a file with type and quality if given.
         Optional<SerializeBitmapResult> file_result;
         if (bitmap_result) {
@@ -403,7 +406,7 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackTyp
                 // 1. If result is non-null, then set result to a new Blob object, created in the relevant realm of this canvas element, representing result. [FILEAPI]
                 GC::Ptr<FileAPI::Blob> blob_result;
                 if (file_result.has_value())
-                    blob_result = FileAPI::Blob::create(realm(), file_result->buffer, TRY_OR_THROW_OOM(vm(), String::from_utf8(file_result->mime_type)));
+                    blob_result = FileAPI::Blob::create(realm(), file_result->buffer, serialized_bitmap_mime_type_to_utf16_view(file_result->mime_type));
 
                 // 2. Invoke callback with « result » and "report".
                 TRY(WebIDL::invoke_callback(*callback, {}, WebIDL::ExceptionBehavior::Report, { { blob_result } }));

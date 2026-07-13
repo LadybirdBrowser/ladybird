@@ -49,7 +49,12 @@ private:
     virtual void finalize() override;
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
-    void handle_successful_fetch(URL::URL const&, StringView mime_type, ByteBuffer data, bool image_data_is_cors_cross_origin);
+    enum class IsSVGImage {
+        No,
+        Yes,
+    };
+
+    void handle_successful_fetch(URL::URL const&, IsSVGImage, ByteBuffer data, bool image_data_is_cors_cross_origin);
     void handle_failed_fetch();
     void handle_successful_resource_load();
 

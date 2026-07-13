@@ -56,7 +56,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, Empty>> StylePropertyMapRead
     // 2. If property is not a valid CSS property, throw a TypeError.
     auto property = PropertyNameAndID::from_name(property_name);
     if (!property.has_value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("'{}' is not a valid CSS property", property_name)) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("'{}' is not a valid CSS property", property_name) };
 
     // 3. Let props be the value of this’s [[declarations]] internal slot.
     auto& props = m_declarations;
@@ -80,7 +80,7 @@ WebIDL::ExceptionOr<GC::RootVector<GC::Ref<CSSStyleValue>>> StylePropertyMapRead
     // 2. If property is not a valid CSS property, throw a TypeError.
     auto property = PropertyNameAndID::from_name(property_name);
     if (!property.has_value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("'{}' is not a valid CSS property", property_name)) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("'{}' is not a valid CSS property", property_name) };
 
     // 3. Let props be the value of this’s [[declarations]] internal slot.
     auto& props = m_declarations;
@@ -108,7 +108,7 @@ WebIDL::ExceptionOr<bool> StylePropertyMapReadOnly::has(Utf16FlyString property_
     // 2. If property is not a valid CSS property, throw a TypeError.
     auto property = PropertyNameAndID::from_name(property_name);
     if (!property.has_value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("'{}' is not a valid CSS property", property_name)) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("'{}' is not a valid CSS property", property_name) };
 
     // 3. Let props be the value of this’s [[declarations]] internal slot.
     auto& props = m_declarations;

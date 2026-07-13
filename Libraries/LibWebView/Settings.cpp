@@ -9,6 +9,7 @@
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
+#include <AK/Utf16String.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibURL/InternalURLs.h>
@@ -256,7 +257,8 @@ Settings Settings::create(ByteString settings_path)
             return;
 
         if (auto policy = saved_settings->get_string(SITE_SETTING_POLICY_KEY); policy.has_value()) {
-            if (auto parsed = Web::HTML::autoplay_policy_from_string(*policy); parsed.has_value())
+            auto policy_utf16 = Utf16String::from_utf8_without_validation(*policy);
+            if (auto parsed = Web::HTML::autoplay_policy_from_string(policy_utf16.utf16_view()); parsed.has_value())
                 site_setting.policy = *parsed;
         }
 
@@ -379,7 +381,7 @@ JsonValue Settings::serialize_json() const
             site_filters.must_append(site_filter);
 
         JsonObject setting;
-        setting.set(SITE_SETTING_POLICY_KEY, Web::HTML::autoplay_policy_to_string(site_setting.policy));
+        setting.set(SITE_SETTING_POLICY_KEY, MUST(Web::HTML::autoplay_policy_to_string(site_setting.policy).to_utf8()));
         setting.set(SITE_SETTING_SITE_FILTERS_KEY, move(site_filters));
 
         settings.set(key, move(setting));

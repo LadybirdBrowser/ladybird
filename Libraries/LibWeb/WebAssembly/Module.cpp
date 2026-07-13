@@ -62,8 +62,8 @@ WebIDL::ExceptionOr<Vector<Bindings::ModuleImportDescriptor>> Module::imports(JS
         // 3.2. Let obj be «[ "module" → moduleName, "name" → name, "kind" → kind ]».
         Bindings::ModuleImportDescriptor descriptor {
             .kind = kind,
-            .module = String::from_utf8_with_replacement_character(import.module()),
-            .name = String::from_utf8_with_replacement_character(import.name()),
+            .module = Utf16String::from_utf8_with_replacement_character(import.module()),
+            .name = Utf16String::from_utf8_with_replacement_character(import.name()),
         };
 
         // 3.3. Append obj to imports.
@@ -99,7 +99,7 @@ WebIDL::ExceptionOr<Vector<Bindings::ModuleExportDescriptor>> Module::exports(JS
         // 3.2. Let obj be «[ "name" → name, "kind" → kind ]».
         Bindings::ModuleExportDescriptor descriptor {
             .kind = kind,
-            .name = String::from_utf8_with_replacement_character(entry.name()),
+            .name = Utf16String::from_utf8_with_replacement_character(entry.name()),
         };
         // 3.3. Append obj to exports.
         export_objects.append(move(descriptor));
@@ -109,20 +109,20 @@ WebIDL::ExceptionOr<Vector<Bindings::ModuleExportDescriptor>> Module::exports(JS
 }
 
 // https://webassembly.github.io/threads/js-api/index.html#dom-module-customsections
-WebIDL::ExceptionOr<GC::RootVector<GC::Ref<JS::ArrayBuffer>>> Module::custom_sections(JS::VM&, GC::Ref<Module> module_object, String section_name)
+WebIDL::ExceptionOr<GC::RootVector<GC::Ref<JS::ArrayBuffer>>> Module::custom_sections(JS::VM&, GC::Ref<Module> module_object, Utf16String const& section_name)
 {
     // 1. Let bytes be moduleObject.[[Bytes]].
     // 2. Let customSections be « ».
     GC::RootVector<GC::Ref<JS::ArrayBuffer>> array_buffers;
+    auto section_name_utf8 = section_name.to_utf8();
 
     // 3. For each custom section customSection of bytes, interpreted according to the module grammar,
     auto& custom_sections = module_object->m_compiled_module->module->custom_sections();
     for (auto& section : custom_sections) {
         // 3.1. Let name be the name of customSection, decoded as UTF-8.
         // 3.2. Assert: name is not failure (moduleObject.[[Module]] is valid).
-        auto name = MUST(String::from_utf8(section.name().bytes()));
         // 3.3. If name equals sectionName as string values,
-        if (section_name == name) {
+        if (StringView { section.name().bytes() } == section_name_utf8.bytes_as_string_view()) {
             // 3.3.1. Append a new ArrayBuffer containing a copy of the bytes in bytes for the range matched by this customsec production to customSections.
             array_buffers.append(JS::ArrayBuffer::create(module_object->realm(), section.contents()));
         }

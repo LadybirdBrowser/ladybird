@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/String.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibWeb/Bindings/IDBObjectStore.h>
 #include <LibWeb/Bindings/Intrinsics.h>
@@ -51,14 +50,14 @@ void IDBObjectStore::visit_edges(Visitor& visitor)
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbobjectstore-name
-String IDBObjectStore::name() const
+Utf16String IDBObjectStore::name() const
 {
     // The name getter steps are to return this’s name.
     return m_name;
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbobjectstore-name
-WebIDL::ExceptionOr<void> IDBObjectStore::set_name(String const& value)
+WebIDL::ExceptionOr<void> IDBObjectStore::set_name(Utf16String const& value)
 {
     auto& realm = this->realm();
 
@@ -110,12 +109,12 @@ JS::Value IDBObjectStore::key_path() const
         return JS::js_null();
 
     return m_store->key_path().value().visit(
-        [&](String const& value) -> JS::Value {
-            return JS::PrimitiveString::create(realm().vm(), Utf16String::from_utf8(value));
+        [&](Utf16String const& value) -> JS::Value {
+            return JS::PrimitiveString::create(realm().vm(), value);
         },
-        [&](Vector<String> const& value) -> JS::Value {
-            return JS::Array::create_from<String>(realm(), value.span(), [&](auto const& entry) -> JS::Value {
-                return JS::PrimitiveString::create(realm().vm(), Utf16String::from_utf8(entry));
+        [&](Vector<Utf16String> const& value) -> JS::Value {
+            return JS::Array::create_from<Utf16String>(realm(), value.span(), [&](auto const& entry) -> JS::Value {
+                return JS::PrimitiveString::create(realm().vm(), entry);
             });
         });
 }
@@ -124,12 +123,12 @@ JS::Value IDBObjectStore::key_path() const
 GC::Ref<HTML::DOMStringList> IDBObjectStore::index_names()
 {
     // 1. Let names be a list of the names of the indexes in this's index set.
-    Vector<String> names;
+    Vector<Utf16String> names;
     for (auto const& [name, index] : m_indexes)
         names.append(name);
 
     // 2. Return the result (a DOMStringList) of creating a sorted name list with names.
-    return create_a_sorted_name_list(realm(), names);
+    return create_a_sorted_name_list(realm(), move(names));
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbobjectstore-transaction
@@ -147,7 +146,7 @@ bool IDBObjectStore::auto_increment() const
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbobjectstore-createindex
-WebIDL::ExceptionOr<GC::Ref<IDBIndex>> IDBObjectStore::create_index(String const& name, KeyPath key_path, Bindings::IDBIndexParameters const& options)
+WebIDL::ExceptionOr<GC::Ref<IDBIndex>> IDBObjectStore::create_index(Utf16String const& name, KeyPath key_path, Bindings::IDBIndexParameters const& options)
 {
     auto& realm = this->realm();
 
@@ -184,7 +183,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBIndex>> IDBObjectStore::create_index(String const
     auto multi_entry = options.multi_entry;
 
     // 10. If keyPath is a sequence and multiEntry is true, throw an "InvalidAccessError" DOMException.
-    if (key_path.has<Vector<String>>() && multi_entry)
+    if (key_path.has<Vector<Utf16String>>() && multi_entry)
         return WebIDL::InvalidAccessError::create(realm, "Key path is a sequence and multiEntry is true"_utf16);
 
     // 11. Let index be a new index in store.
@@ -202,7 +201,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBIndex>> IDBObjectStore::create_index(String const
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbobjectstore-index
-WebIDL::ExceptionOr<GC::Ref<IDBIndex>> IDBObjectStore::index(String const& name)
+WebIDL::ExceptionOr<GC::Ref<IDBIndex>> IDBObjectStore::index(Utf16String const& name)
 {
     // 1. Let transaction be this’s transaction.
     auto transaction = this->transaction();
@@ -228,7 +227,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBIndex>> IDBObjectStore::index(String const& name)
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbobjectstore-deleteindex
-WebIDL::ExceptionOr<void> IDBObjectStore::delete_index(String const& name)
+WebIDL::ExceptionOr<void> IDBObjectStore::delete_index(Utf16String const& name)
 {
     auto& realm = this->realm();
 
@@ -335,7 +334,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::add_or_put(GC::Ref<IDBO
 
             // 2. If kpk is invalid, throw a "DataError" DOMException.
             if (key_value->is_invalid())
-                return WebIDL::DataError::create(realm, Utf16String::from_utf8(key_value->value_as_string()));
+                return WebIDL::DataError::create(realm, key_value->value_as_string());
         }
 
         // 4. Otherwise (kpk is failure):

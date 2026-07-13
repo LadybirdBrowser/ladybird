@@ -5,6 +5,6 @@ dictionary ClipboardEventInit : EventInit {
 // https://w3c.github.io/clipboard-apis/#clipboardevent
 [Exposed=Window]
 interface ClipboardEvent : Event {
-    constructor(DOMString type, optional ClipboardEventInit eventInitDict = {});
+    constructor([Utf16FlyString] Utf16DOMString type, optional ClipboardEventInit eventInitDict = {});
     readonly attribute DataTransfer? clipboardData;
 };

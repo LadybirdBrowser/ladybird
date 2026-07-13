@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16View.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/HyperlinkElementUtils.h>
@@ -18,7 +19,7 @@ public:
     virtual ~HTMLHyperlinkElementUtils() override;
 
     Utf16String href() const;
-    void set_href(Utf16String const&);
+    void set_href(Utf16View);
 
     Utf16String target() const;
     void set_target(Utf16String);

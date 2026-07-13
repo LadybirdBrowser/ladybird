@@ -50,7 +50,7 @@ async_test(t => {
     const info = { some: "object with identity" };
     const formData = new FormData();
     const signal = (new AbortController()).signal;
-    const downloadRequest = "abc";
+    const downloadRequest = "abc\u{1F41E}";
     const hasUAVisualTransition = true;
     const sourceElement = document.createElement("a");
 

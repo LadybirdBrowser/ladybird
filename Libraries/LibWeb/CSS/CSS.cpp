@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Utf16StringBuilder.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/CSS.h>
 #include <LibWeb/CSS/CSS.h>
@@ -22,14 +23,14 @@
 namespace Web::CSS {
 
 // https://www.w3.org/TR/cssom-1/#dom-css-escape
-WebIDL::ExceptionOr<String> escape(JS::VM&, StringView identifier)
+WebIDL::ExceptionOr<Utf16String> escape(JS::VM&, Utf16View identifier)
 {
     // The escape(ident) operation must return the result of invoking serialize an identifier of ident.
-    return serialize_an_identifier(identifier);
+    return serialize_an_identifier_to_utf16(identifier);
 }
 
 // https://www.w3.org/TR/css-conditional-3/#dom-css-supports
-bool supports(JS::VM&, Utf16FlyString const& property_name, StringView value)
+bool supports(JS::VM&, Utf16FlyString const& property_name, Utf16View value)
 {
     // 1. If property is an ASCII case-insensitive match for any defined CSS property that the UA supports, or is a
     //    custom property name string, and value successfully parses according to that property’s grammar, return true.
@@ -43,7 +44,7 @@ bool supports(JS::VM&, Utf16FlyString const& property_name, StringView value)
 }
 
 // https://www.w3.org/TR/css-conditional-3/#dom-css-supports
-WebIDL::ExceptionOr<bool> supports(JS::VM& vm, StringView condition_text)
+WebIDL::ExceptionOr<bool> supports(JS::VM& vm, Utf16View condition_text)
 {
     auto& realm = *vm.current_realm();
 
@@ -52,7 +53,11 @@ WebIDL::ExceptionOr<bool> supports(JS::VM& vm, StringView condition_text)
         return true;
 
     // 2. Otherwise, If conditionText, wrapped in parentheses and then parsed and evaluated as a <supports-condition>, would return true, return true.
-    auto wrapped_condition_text = TRY_OR_THROW_OOM(vm, String::formatted("({})", condition_text));
+    Utf16StringBuilder wrapped_condition_text_builder;
+    wrapped_condition_text_builder.append_code_unit(u'(');
+    wrapped_condition_text_builder.append(condition_text);
+    wrapped_condition_text_builder.append_code_unit(u')');
+    auto wrapped_condition_text = wrapped_condition_text_builder.to_string();
 
     if (auto supports = parse_css_supports(Parser::ParsingParams { realm }, wrapped_condition_text); supports && supports->matches())
         return true;
@@ -76,7 +81,7 @@ WebIDL::ExceptionOr<void> register_property(JS::VM& vm, Bindings::PropertyDefini
 
     // If property set already contains an entry with name as its property name (compared codepoint-wise),
     // throw an InvalidModificationError and exit this algorithm.
-    auto property_name = Utf16FlyString::from_utf8(definition.name);
+    auto property_name = Utf16FlyString { definition.name };
     if (property_set.contains(property_name))
         return WebIDL::InvalidModificationError::create(realm, "Property already registered"_utf16);
 

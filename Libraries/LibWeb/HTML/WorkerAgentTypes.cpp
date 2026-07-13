@@ -35,7 +35,7 @@ ErrorOr<Web::HTML::WorkerAgentStartRequest> decode(Decoder& decoder)
         .agent_type = TRY(decoder.decode<Web::Bindings::AgentType>()),
         .type = TRY(decoder.decode<Web::Bindings::WorkerType>()),
         .credentials = TRY(decoder.decode<Web::Bindings::RequestCredentials>()),
-        .name = TRY(decoder.decode<String>()),
+        .name = TRY(decoder.decode<Utf16String>()),
         .extended_lifetime = TRY(decoder.decode<bool>()),
         .outside_port = TRY(decoder.decode<Web::HTML::TransferDataEncoder>()),
         .outside_settings = TRY(decoder.decode<Web::HTML::SerializedEnvironmentSettingsObject>()),

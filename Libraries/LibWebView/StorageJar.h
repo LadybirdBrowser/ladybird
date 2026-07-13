@@ -10,6 +10,7 @@
 #include <AK/String.h>
 #include <AK/Time.h>
 #include <AK/Traits.h>
+#include <AK/Utf16String.h>
 #include <LibDatabase/Forward.h>
 #include <LibRequests/CacheSizes.h>
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
@@ -25,7 +26,7 @@ struct StorageLocation {
 
     StorageEndpointType storage_endpoint;
     String storage_key;
-    String bottle_key;
+    Utf16String bottle_key;
 };
 
 class WEBVIEW_API StorageJar {
@@ -40,12 +41,12 @@ public:
 
     ~StorageJar();
 
-    Optional<String> get_item(StorageEndpointType storage_endpoint, String const& storage_key, String const& bottle_key);
-    StorageSetResult set_item(StorageEndpointType storage_endpoint, String const& storage_key, String const& bottle_key, String const& bottle_value);
-    void remove_item(StorageEndpointType storage_endpoint, String const& storage_key, String const& key);
+    Optional<Utf16String> get_item(StorageEndpointType storage_endpoint, String const& storage_key, Utf16String const& bottle_key);
+    StorageSetResult set_item(StorageEndpointType storage_endpoint, String const& storage_key, Utf16String const& bottle_key, Utf16String const& bottle_value);
+    void remove_item(StorageEndpointType storage_endpoint, String const& storage_key, Utf16String const& key);
     void remove_items_accessed_since(UnixDateTime);
     void clear_storage_key(StorageEndpointType storage_endpoint, String const& storage_key);
-    Vector<String> get_all_keys(StorageEndpointType storage_endpoint, String const& storage_key);
+    Vector<Utf16String> get_all_keys(StorageEndpointType storage_endpoint, String const& storage_key);
     u64 usage(String const& storage_key);
     Requests::CacheSizes estimate_storage_size_accessed_since(UnixDateTime since) const;
 
@@ -65,18 +66,18 @@ private:
 
     class TransientStorage {
     public:
-        Optional<String> get_item(StorageLocation const& key);
-        StorageSetResult set_item(StorageLocation const& key, String const& value);
+        Optional<Utf16String> get_item(StorageLocation const& key);
+        StorageSetResult set_item(StorageLocation const& key, Utf16String const& value);
         void delete_item(StorageLocation const& key);
         void delete_items_accessed_since(UnixDateTime);
         void clear(StorageEndpointType storage_endpoint, String const& storage_key);
-        Vector<String> get_keys(StorageEndpointType storage_endpoint, String const& storage_key);
+        Vector<Utf16String> get_keys(StorageEndpointType storage_endpoint, String const& storage_key);
         u64 usage(String const& storage_key);
         Requests::CacheSizes estimate_storage_size_accessed_since(UnixDateTime since) const;
 
     private:
         struct Entry {
-            String value;
+            Utf16String value;
             UnixDateTime last_access_time;
         };
 
@@ -84,12 +85,12 @@ private:
     };
 
     struct PersistedStorage {
-        Optional<String> get_item(StorageLocation const& key);
-        StorageSetResult set_item(StorageLocation const& key, String const& value);
+        Optional<Utf16String> get_item(StorageLocation const& key);
+        StorageSetResult set_item(StorageLocation const& key, Utf16String const& value);
         void delete_item(StorageLocation const& key);
         void delete_items_accessed_since(UnixDateTime);
         void clear(StorageEndpointType storage_endpoint, String const& storage_key);
-        Vector<String> get_keys(StorageEndpointType storage_endpoint, String const& storage_key);
+        Vector<Utf16String> get_keys(StorageEndpointType storage_endpoint, String const& storage_key);
         u64 usage(String const& storage_key);
         Requests::CacheSizes estimate_storage_size_accessed_since(UnixDateTime since) const;
 

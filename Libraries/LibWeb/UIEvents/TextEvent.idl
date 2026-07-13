@@ -1,6 +1,6 @@
 // https://w3c.github.io/uievents/#textevent
 [Exposed=Window]
 interface TextEvent : UIEvent {
-    readonly attribute DOMString data;
-    undefined initTextEvent(DOMString type, optional boolean bubbles = false, optional boolean cancelable = false, optional WindowProxy? view = null, optional DOMString data = "undefined");
+    readonly attribute Utf16DOMString data;
+    undefined initTextEvent([Utf16FlyString] Utf16DOMString type, optional boolean bubbles = false, optional boolean cancelable = false, optional WindowProxy? view = null, optional Utf16DOMString data = "undefined");
 };

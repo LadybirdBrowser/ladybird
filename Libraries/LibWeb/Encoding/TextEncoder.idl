@@ -9,8 +9,8 @@ dictionary TextEncoderEncodeIntoResult {
 interface TextEncoder {
     constructor();
 
-    [NewObject] Uint8Array encode(optional USVString input = "");
-    TextEncoderEncodeIntoResult encodeInto(USVString source, [AllowShared] Uint8Array destination);
+    [NewObject] Uint8Array encode(optional Utf16USVString input = "");
+    TextEncoderEncodeIntoResult encodeInto(Utf16USVString source, [AllowShared] Uint8Array destination);
 };
 
 TextEncoder includes TextEncoderCommon;

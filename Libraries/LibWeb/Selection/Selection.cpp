@@ -122,22 +122,22 @@ unsigned Selection::range_count() const
     return 0;
 }
 
-String Selection::type() const
+Utf16String Selection::type() const
 {
     if (!m_range)
-        return "None"_string;
+        return "None"_utf16;
     if (m_range->collapsed())
-        return "Caret"_string;
-    return "Range"_string;
+        return "Caret"_utf16;
+    return "Range"_utf16;
 }
 
-String Selection::direction() const
+Utf16String Selection::direction() const
 {
     if (!m_range || m_direction == Direction::Directionless)
-        return "none"_string;
+        return "none"_utf16;
     if (m_direction == Direction::Forwards)
-        return "forward"_string;
-    return "backward"_string;
+        return "forward"_utf16;
+    return "backward"_utf16;
 }
 
 // https://w3c.github.io/selection-api/#dom-selection-getrangeat
@@ -409,19 +409,19 @@ WebIDL::ExceptionOr<void> Selection::select_all_children(GC::Ref<DOM::Node> node
 }
 
 // https://w3c.github.io/selection-api/#dom-selection-modify
-WebIDL::ExceptionOr<void> Selection::modify(Optional<String> alter, Optional<String> direction, Optional<String> granularity)
+WebIDL::ExceptionOr<void> Selection::modify(Optional<Utf16String> alter, Optional<Utf16String> direction, Optional<Utf16String> granularity)
 {
     // 1. If alter is not ASCII case-insensitive match with "extend" or "move", abort these steps.
-    if (!alter.has_value() || !alter.value().bytes_as_string_view().is_one_of_ignoring_ascii_case("extend"sv, "move"sv))
+    if (!alter.has_value() || !alter->utf16_view().is_one_of_ignoring_ascii_case(u"extend"sv, u"move"sv))
         return {};
 
     // 2. If direction is not ASCII case-insensitive match with "forward", "backward", "left", or "right", abort these steps.
-    if (!direction.has_value() || !direction.value().bytes_as_string_view().is_one_of_ignoring_ascii_case("forward"sv, "backward"sv, "left"sv, "right"sv))
+    if (!direction.has_value() || !direction->utf16_view().is_one_of_ignoring_ascii_case(u"forward"sv, u"backward"sv, u"left"sv, u"right"sv))
         return {};
 
     // 3. If granularity is not ASCII case-insensitive match with "character", "word", "sentence", "line", "paragraph",
     //    "lineboundary", "sentenceboundary", "paragraphboundary", "documentboundary", abort these steps.
-    if (!granularity.has_value() || !granularity.value().bytes_as_string_view().is_one_of_ignoring_ascii_case("character"sv, "word"sv, "sentence"sv, "line"sv, "paragraph"sv, "lineboundary"sv, "sentenceboundary"sv, "paragraphboundary"sv, "documentboundary"sv))
+    if (!granularity.has_value() || !granularity->utf16_view().is_one_of_ignoring_ascii_case(u"character"sv, u"word"sv, u"sentence"sv, u"line"sv, u"paragraph"sv, u"lineboundary"sv, u"sentenceboundary"sv, u"paragraphboundary"sv, u"documentboundary"sv))
         return {};
 
     // 4. If this selection is empty, abort these steps.
@@ -436,7 +436,7 @@ WebIDL::ExceptionOr<void> Selection::modify(Optional<String> alter, Optional<Str
     auto effective_direction = Direction::Backwards;
 
     // 6. If direction is ASCII case-insensitive match with "forward", set effectiveDirection to forwards.
-    if (direction.value().equals_ignoring_ascii_case("forward"sv))
+    if (direction->equals_ignoring_ascii_case(u"forward"sv))
         effective_direction = Direction::Forwards;
 
     // Inline base direction of this selection's focus.
@@ -449,11 +449,11 @@ WebIDL::ExceptionOr<void> Selection::modify(Optional<String> alter, Optional<Str
     }
 
     // 7. If direction is ASCII case-insensitive match with "right" and inline base direction of this selection's focus is ltr, set effectiveDirection to forwards.
-    if (direction.value().equals_ignoring_ascii_case("right"sv) && focus_directionality == DOM::Element::Directionality::Ltr)
+    if (direction->equals_ignoring_ascii_case(u"right"sv) && focus_directionality == DOM::Element::Directionality::Ltr)
         effective_direction = Direction::Forwards;
 
     // 8. If direction is ASCII case-insensitive match with "left" and inline base direction of this selection's focus is rtl, set effectiveDirection to forwards.
-    if (direction.value().equals_ignoring_ascii_case("left"sv) && focus_directionality == DOM::Element::Directionality::Rtl)
+    if (direction->equals_ignoring_ascii_case(u"left"sv) && focus_directionality == DOM::Element::Directionality::Rtl)
         effective_direction = Direction::Forwards;
 
     // 9. Set this selection's direction to effectiveDirection.
@@ -461,7 +461,7 @@ WebIDL::ExceptionOr<void> Selection::modify(Optional<String> alter, Optional<Str
 
     // 10. If alter is ASCII case-insensitive match with "extend", set this selection's focus to the location as if the user had requested to extend selection by granularity.
     // 11. Otherwise, set this selection's focus and anchor to the location as if the user had requested to move selection by granularity.
-    auto collapse_selection = alter.value().equals_ignoring_ascii_case("move"sv);
+    auto collapse_selection = alter->equals_ignoring_ascii_case(u"move"sv);
 
     auto move_focus_to_visual_line_boundary = [&](bool forwards) {
         auto* text = as_if<DOM::Text>(focus_node().ptr());
@@ -480,24 +480,23 @@ WebIDL::ExceptionOr<void> Selection::modify(Optional<String> alter, Optional<Str
     };
 
     // TODO: Implement the sentence, paragraph, and document granularity options.
-    auto granularity_view = granularity.value().bytes_as_string_view();
     if (effective_direction == Direction::Forwards) {
-        if (granularity_view.equals_ignoring_ascii_case("character"sv))
+        if (granularity->equals_ignoring_ascii_case(u"character"sv))
             move_offset_to_next_character(collapse_selection);
-        else if (granularity_view.equals_ignoring_ascii_case("word"sv))
+        else if (granularity->equals_ignoring_ascii_case(u"word"sv))
             move_offset_to_next_word(collapse_selection);
-        else if (granularity_view.equals_ignoring_ascii_case("line"sv))
+        else if (granularity->equals_ignoring_ascii_case(u"line"sv))
             move_offset_to_next_line(collapse_selection);
-        else if (granularity_view.equals_ignoring_ascii_case("lineboundary"sv))
+        else if (granularity->equals_ignoring_ascii_case(u"lineboundary"sv))
             move_focus_to_visual_line_boundary(true);
     } else {
-        if (granularity_view.equals_ignoring_ascii_case("character"sv))
+        if (granularity->equals_ignoring_ascii_case(u"character"sv))
             move_offset_to_previous_character(collapse_selection);
-        else if (granularity_view.equals_ignoring_ascii_case("word"sv))
+        else if (granularity->equals_ignoring_ascii_case(u"word"sv))
             move_offset_to_previous_word(collapse_selection);
-        else if (granularity_view.equals_ignoring_ascii_case("line"sv))
+        else if (granularity->equals_ignoring_ascii_case(u"line"sv))
             move_offset_to_previous_line(collapse_selection);
-        else if (granularity_view.equals_ignoring_ascii_case("lineboundary"sv))
+        else if (granularity->equals_ignoring_ascii_case(u"lineboundary"sv))
             move_focus_to_visual_line_boundary(false);
     }
 

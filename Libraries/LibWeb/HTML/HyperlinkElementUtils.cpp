@@ -6,47 +6,49 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Utf16String.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/CSS/Invalidation/LinkInvalidator.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/HyperlinkElementUtils.h>
+#include <LibWeb/Infra/SerializedURL.h>
 
 namespace Web::HTML {
 
 HyperlinkElementUtils::~HyperlinkElementUtils() = default;
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-origin
-String HyperlinkElementUtils::origin() const
+Utf16String HyperlinkElementUtils::origin() const
 {
     // 1. Reinitialize url.
     reinitialize_url();
 
     // 2. If this element's url is null, return the empty string.
     if (!m_url.has_value())
-        return String {};
+        return Utf16String {};
 
     // 3. Return the serialization of this element's url's origin.
-    return m_url->origin().serialize();
+    return utf16_string_from_url_ascii(m_url->origin().serialize());
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-protocol
-String HyperlinkElementUtils::protocol() const
+Utf16String HyperlinkElementUtils::protocol() const
 {
     // 1. Reinitialize url.
     reinitialize_url();
 
     // 2. If this element's url is null, return ":".
     if (!m_url.has_value())
-        return ":"_string;
+        return ":"_utf16;
 
     // 3. Return this element's url's scheme, followed by ":".
-    return MUST(String::formatted("{}:", m_url->scheme()));
+    return Utf16String::formatted("{}:", m_url->scheme());
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-protocol
-void HyperlinkElementUtils::set_protocol(StringView protocol)
+void HyperlinkElementUtils::set_protocol(Utf16View protocol)
 {
     // 1. Reinitialize url.
     reinitialize_url();
@@ -56,28 +58,29 @@ void HyperlinkElementUtils::set_protocol(StringView protocol)
         return;
 
     // 3. Basic URL parse the given value, followed by ":", with this element's url as url and scheme start state as state override.
-    (void)URL::Parser::basic_parse(MUST(String::formatted("{}:", protocol)), {}, &m_url.value(), URL::Parser::State::SchemeStart);
+    auto protocol_with_colon = Utf16String::formatted("{}:", protocol);
+    (void)URL::Parser::basic_parse(protocol_with_colon.utf16_view(), {}, &m_url.value(), URL::Parser::State::SchemeStart);
 
     // 4. Update href.
     update_href();
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-username
-String HyperlinkElementUtils::username() const
+Utf16String HyperlinkElementUtils::username() const
 {
     // 1. Reinitialize url.
     reinitialize_url();
 
     // 2. If this element's url is null, return the empty string.
     if (!m_url.has_value())
-        return String {};
+        return Utf16String {};
 
     // 3. Return this element's url's username.
-    return m_url->username();
+    return utf16_string_from_url_ascii(m_url->username());
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-username
-void HyperlinkElementUtils::set_username(StringView username)
+void HyperlinkElementUtils::set_username(Utf16View username)
 {
     // 1. Reinitialize url.
     reinitialize_url();
@@ -97,7 +100,7 @@ void HyperlinkElementUtils::set_username(StringView username)
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-password
-String HyperlinkElementUtils::password() const
+Utf16String HyperlinkElementUtils::password() const
 {
     // 1. Reinitialize url.
     reinitialize_url();
@@ -107,14 +110,14 @@ String HyperlinkElementUtils::password() const
 
     // 3. If url is null, then return the empty string.
     if (!url.has_value())
-        return String {};
+        return Utf16String {};
 
     // 4. Return url's password.
-    return url->password();
+    return utf16_string_from_url_ascii(url->password());
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-password
-void HyperlinkElementUtils::set_password(StringView password)
+void HyperlinkElementUtils::set_password(Utf16View password)
 {
     // 1. Reinitialize url.
     reinitialize_url();
@@ -134,7 +137,7 @@ void HyperlinkElementUtils::set_password(StringView password)
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-host
-String HyperlinkElementUtils::host() const
+Utf16String HyperlinkElementUtils::host() const
 {
     // 1. Reinitialize url.
     reinitialize_url();
@@ -144,18 +147,18 @@ String HyperlinkElementUtils::host() const
 
     // 3. If url or url's host is null, return the empty string.
     if (!url.has_value() || !url->host().has_value())
-        return String {};
+        return Utf16String {};
 
     // 4. If url's port is null, return url's host, serialized.
     if (!url->port().has_value())
-        return url->serialized_host();
+        return utf16_string_from_url_ascii(url->serialized_host());
 
     // 5. Return url's host, serialized, followed by ":" and url's port, serialized.
-    return MUST(String::formatted("{}:{}", url->serialized_host(), url->port().value()));
+    return utf16_string_from_url_ascii_host_and_port(url->serialized_host(), url->port().value());
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-host
-void HyperlinkElementUtils::set_host(StringView host)
+void HyperlinkElementUtils::set_host(Utf16View host)
 {
     // 1. Reinitialize url.
     reinitialize_url();
@@ -175,7 +178,7 @@ void HyperlinkElementUtils::set_host(StringView host)
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-hostname
-String HyperlinkElementUtils::hostname() const
+Utf16String HyperlinkElementUtils::hostname() const
 {
     // 1. Reinitialize url.
     reinitialize_url();
@@ -185,14 +188,14 @@ String HyperlinkElementUtils::hostname() const
 
     // 3. If url or url's host is null, return the empty string.
     if (!url.has_value() || !url->host().has_value())
-        return String {};
+        return Utf16String {};
 
     // 4. Return url's host, serialized.
-    return url->serialized_host();
+    return utf16_string_from_url_ascii(url->serialized_host());
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-hostname
-void HyperlinkElementUtils::set_hostname(StringView hostname)
+void HyperlinkElementUtils::set_hostname(Utf16View hostname)
 {
     // 1. Reinitialize url.
     reinitialize_url();
@@ -212,7 +215,7 @@ void HyperlinkElementUtils::set_hostname(StringView hostname)
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-port
-String HyperlinkElementUtils::port() const
+Utf16String HyperlinkElementUtils::port() const
 {
     // 1. Reinitialize url.
     reinitialize_url();
@@ -222,14 +225,14 @@ String HyperlinkElementUtils::port() const
 
     // 3. If url or url's port is null, return the empty string.
     if (!url.has_value() || !url->port().has_value())
-        return String {};
+        return Utf16String {};
 
     // 4. Return url's port, serialized.
-    return String::number(url->port().value());
+    return Utf16String::number(url->port().value());
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-port
-void HyperlinkElementUtils::set_port(StringView port)
+void HyperlinkElementUtils::set_port(Utf16View port)
 {
     // 1. Reinitialize url.
     reinitialize_url();
@@ -254,7 +257,7 @@ void HyperlinkElementUtils::set_port(StringView port)
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-pathname
-String HyperlinkElementUtils::pathname() const
+Utf16String HyperlinkElementUtils::pathname() const
 {
     // 1. Reinitialize url.
     reinitialize_url();
@@ -263,14 +266,14 @@ String HyperlinkElementUtils::pathname() const
 
     // 3. If url is null, return the empty string.
     if (!m_url.has_value())
-        return String {};
+        return Utf16String {};
 
     // 4. Return the result of URL path serializing url.
-    return m_url->serialize_path();
+    return utf16_string_from_url_ascii(m_url->serialize_path());
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-pathname
-void HyperlinkElementUtils::set_pathname(StringView pathname)
+void HyperlinkElementUtils::set_pathname(Utf16View pathname)
 {
     // 1. Reinitialize url.
     reinitialize_url();
@@ -292,7 +295,7 @@ void HyperlinkElementUtils::set_pathname(StringView pathname)
     update_href();
 }
 
-String HyperlinkElementUtils::search() const
+Utf16String HyperlinkElementUtils::search() const
 {
     // 1. Reinitialize url.
     reinitialize_url();
@@ -301,13 +304,13 @@ String HyperlinkElementUtils::search() const
 
     // 3. If url is null, or url's query is either null or the empty string, return the empty string.
     if (!m_url.has_value() || !m_url->query().has_value() || m_url->query()->is_empty())
-        return String {};
+        return Utf16String {};
 
     // 4. Return "?", followed by url's query.
-    return MUST(String::formatted("?{}", m_url->query()));
+    return utf16_string_from_url_ascii_with_prefix('?', *m_url->query());
 }
 
-void HyperlinkElementUtils::set_search(StringView search)
+void HyperlinkElementUtils::set_search(Utf16View search)
 {
     // 1. Reinitialize url.
     reinitialize_url();
@@ -324,7 +327,7 @@ void HyperlinkElementUtils::set_search(StringView search)
     } else {
         // 5. Otherwise:
         //    1. Let input be the given value with a single leading "?" removed, if any.
-        auto input = search.substring_view(search.starts_with('?'));
+        auto input = search.substring_view(search.starts_with(u"?"sv));
 
         //    2. Set url's query to the empty string.
         m_url->set_query(String {});
@@ -337,7 +340,7 @@ void HyperlinkElementUtils::set_search(StringView search)
     update_href();
 }
 
-String HyperlinkElementUtils::hash() const
+Utf16String HyperlinkElementUtils::hash() const
 {
     // 1. Reinitialize url.
     reinitialize_url();
@@ -346,13 +349,13 @@ String HyperlinkElementUtils::hash() const
 
     // 3. If url is null, or url's fragment is either null or the empty string, return the empty string.
     if (!m_url.has_value() || !m_url->fragment().has_value() || m_url->fragment()->is_empty())
-        return String {};
+        return Utf16String {};
 
     // 4. Return "#", followed by url's fragment.
-    return MUST(String::formatted("#{}", *m_url->fragment()));
+    return utf16_string_from_url_ascii_with_prefix('#', *m_url->fragment());
 }
 
-void HyperlinkElementUtils::set_hash(StringView hash)
+void HyperlinkElementUtils::set_hash(Utf16View hash)
 {
     // 1. Reinitialize url.
     reinitialize_url();
@@ -369,7 +372,7 @@ void HyperlinkElementUtils::set_hash(StringView hash)
     } else {
         // 5. Otherwise:
         //    1. Let input be the given value with a single leading "#" removed, if any.
-        auto input = hash.substring_view(hash.starts_with('#'));
+        auto input = hash.substring_view(hash.starts_with(u"#"sv));
 
         //    2. Set url's fragment to the empty string.
         m_url->set_fragment(String {});

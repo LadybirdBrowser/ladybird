@@ -5,6 +5,7 @@
  */
 
 #include "CSSFunctionRule.h"
+#include <AK/Utf16StringBuilder.h>
 #include <LibWeb/Bindings/CSSFunctionRule.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Serialize.h>
@@ -19,7 +20,7 @@ FunctionParameter FunctionParameter::from_internal_function_parameter(FunctionPa
     return {
         // name
         // The name of the function parameter.
-        MUST(internal.name.view().to_utf8()),
+        internal.name.to_utf16_string(),
 
         // type
         // The type of the function parameter, represented as a syntax string, or "*" if the parameter has no type.
@@ -27,12 +28,14 @@ FunctionParameter FunctionParameter::from_internal_function_parameter(FunctionPa
 
         // defaultValue
         // The default value of the function parameter, or `null` if the argument does not have a default.
-        internal.default_value.has_value() ? MUST(serialize_a_series_of_component_values(internal.default_value.value()).trim_ascii_whitespace()) : Optional<String> {},
+        internal.default_value.has_value()
+            ? serialize_a_series_of_component_values(internal.default_value.value()).trim_ascii_whitespace()
+            : Optional<Utf16String> {},
     };
 }
 
 // https://drafts.csswg.org/css-mixins-1/#serialize-a-css-type
-static void serialize_a_css_type(StringBuilder& builder, Parser::SyntaxNode const& type)
+static void serialize_a_css_type(Utf16StringBuilder& builder, Parser::SyntaxNode const& type)
 {
     // To serialize a CSS type, return the concatenation of the following:
 
@@ -57,17 +60,17 @@ static void serialize_a_css_type(StringBuilder& builder, Parser::SyntaxNode cons
 
     // Otherwise, return the concatenation of the following:
     // The string "type(", i.e. "type" followed by a single LEFT PARENTHESIS (U+0028).
-    builder.append("type("sv);
+    builder.append_ascii("type("sv);
 
     // The corresponding syntax string.
     builder.append(type.to_string());
 
     // The string ")", i.e. a single RIGHT PARENTHESIS (U+0029).
-    builder.append(')');
+    builder.append_ascii(')');
 }
 
 // https://drafts.csswg.org/css-mixins-1/#serialize-a-function-parameter
-void FunctionParameterInternal::serialize(StringBuilder& builder) const
+void FunctionParameterInternal::serialize(Utf16StringBuilder& builder) const
 {
     // To serialize a function parameter, return the concatenation of the following:
 
@@ -77,7 +80,7 @@ void FunctionParameterInternal::serialize(StringBuilder& builder) const
     // If the function parameter has a type, and that type is not the universal syntax definition:
     if (type->type() != Parser::SyntaxNode::NodeType::Universal) {
         // - A single SPACE (U+0020), followed by the result of performing serialize a CSS type on that type.
-        builder.append(' ');
+        builder.append_ascii(' ');
         serialize_a_css_type(builder, *type);
     }
 
@@ -85,7 +88,8 @@ void FunctionParameterInternal::serialize(StringBuilder& builder) const
     if (default_value.has_value()) {
         // - A single COLON (U+003A), followed by a single SPACE (U+0020), followed by the result of performing
         //   serialize a CSS value on that value.
-        builder.appendff(": {}", MUST(serialize_a_series_of_component_values(default_value.value()).trim_ascii_whitespace()));
+        builder.append_ascii(": "sv);
+        builder.append(serialize_a_series_of_component_values(default_value.value()).trim_ascii_whitespace());
     }
 }
 
@@ -102,9 +106,9 @@ CSSFunctionRule::CSSFunctionRule(JS::Realm& realm, CSSRuleList& rules, Utf16FlyS
 {
 }
 
-String CSSFunctionRule::name() const
+Utf16String CSSFunctionRule::name() const
 {
-    return MUST(m_name.view().to_utf8());
+    return m_name.to_utf16_string();
 }
 
 void CSSFunctionRule::initialize(JS::Realm& realm)
@@ -126,7 +130,7 @@ Vector<FunctionParameter> CSSFunctionRule::get_parameters() const
 }
 
 // https://drafts.csswg.org/css-mixins-1/#dom-cssfunctionrule-returntype
-String CSSFunctionRule::return_type() const
+Utf16String CSSFunctionRule::return_type() const
 {
     // The return type of the custom function, represented as a syntax string. If the custom function has no return
     // type, returns "*".
@@ -135,41 +139,41 @@ String CSSFunctionRule::return_type() const
 }
 
 // https://drafts.csswg.org/css-mixins-1/#serialize-a-cssfunctionrule
-String CSSFunctionRule::serialized() const
+Utf16String CSSFunctionRule::serialized() const
 {
     // To serialize a CSSFunctionRule, return the concatenation of the following:
-    StringBuilder builder;
+    Utf16StringBuilder builder;
 
     // 1. The string "@function" followed by a single SPACE (U+0020).
-    builder.append("@function "sv);
+    builder.append_ascii("@function "sv);
 
     // 2. The result of performing serialize an identifier on the name of the custom function, followed by a single LEFT
     //    PARENTHESIS (U+0028).
     serialize_an_identifier(builder, m_name);
-    builder.append('(');
+    builder.append_ascii('(');
 
     // 3. The result of serialize a function parameter on each of the custom function’s parameters, all joined by ", "
     //    (COMMA U+002C, followed by a single SPACE U+0020).
     for (size_t i = 0; i < m_parameters.size(); ++i) {
         if (i > 0)
-            builder.append(", "sv);
+            builder.append_ascii(", "sv);
         m_parameters[i].serialize(builder);
     }
 
     // 4. A single RIGHT PARENTHESIS (U+0029).
-    builder.append(')');
+    builder.append_ascii(')');
 
     // 5. If the custom function has return type, and that return type is not the universal syntax definition ("*"):
     if (m_return_type->type() != Parser::SyntaxNode::NodeType::Universal) {
         // - A single SPACE (U+0020), followed by the string "returns", followed by a single SPACE (U+0020).
-        builder.append(" returns "sv);
+        builder.append_ascii(" returns "sv);
 
         // - The result of performing serialize a CSS type on that type.
         serialize_a_css_type(builder, *m_return_type);
     }
 
     // 6. A single SPACE (U+0020), followed by a LEFT CURLY BRACKET (U+007B).
-    builder.append(" {"sv);
+    builder.append_ascii(" {"sv);
 
     // 7. The result of performing serialize a CSS rule on each rule in cssRules, filtering out empty strings, each
     //    preceded by a single SPACE (U+0020).
@@ -181,15 +185,15 @@ String CSSFunctionRule::serialized() const
         auto serialized_rule = rule->serialized();
 
         if (!serialized_rule.is_empty()) {
-            builder.append(' ');
+            builder.append_ascii(' ');
             builder.append(serialized_rule);
         }
     }
 
     // 8. A single SPACE (U+0020), followed by a single RIGHT CURLY BRACKET (U+007D).
-    builder.append(" }"sv);
+    builder.append_ascii(" }"sv);
 
-    return MUST(builder.to_string());
+    return builder.to_string();
 }
 
 }

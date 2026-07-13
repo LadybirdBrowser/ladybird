@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/IDBCursor.h>
@@ -24,19 +25,19 @@ enum class RecordKind {
     Record
 };
 
-using KeyPath = Variant<String, Vector<String>>;
+using KeyPath = Variant<Utf16String, Vector<Utf16String>>;
 using RecordSource = Variant<GC::Ref<ObjectStore>, GC::Ref<Index>>;
 
-void open_a_database_connection(JS::Realm&, StorageAPI::StorageKey, String, Optional<u64>, GC::Ref<IDBRequest>, GC::Ref<GC::Function<void(WebIDL::ExceptionOr<GC::Ref<IDBDatabase>>)>>);
-bool fire_a_version_change_event(JS::Realm&, FlyString const&, GC::Ref<DOM::EventTarget>, u64, Optional<u64>);
+void open_a_database_connection(JS::Realm&, StorageAPI::StorageKey, Utf16String, Optional<u64>, GC::Ref<IDBRequest>, GC::Ref<GC::Function<void(WebIDL::ExceptionOr<GC::Ref<IDBDatabase>>)>>);
+bool fire_a_version_change_event(JS::Realm&, Utf16FlyString const&, GC::Ref<DOM::EventTarget>, u64, Optional<u64>);
 WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm&, JS::Value, Vector<JS::Value> = {});
 void close_a_database_connection(GC::Ref<IDBDatabase>, GC::Ptr<GC::Function<void()>> on_complete = nullptr, bool forced = false);
 void upgrade_a_database(JS::Realm&, GC::Ref<IDBDatabase>, u64, GC::Ref<IDBRequest>, GC::Ref<GC::Function<void()>>);
-void delete_a_database(JS::Realm&, StorageAPI::StorageKey, String, GC::Ref<IDBRequest>, GC::Ref<GC::Function<void(WebIDL::ExceptionOr<u64>)>>);
+void delete_a_database(JS::Realm&, StorageAPI::StorageKey, Utf16String, GC::Ref<IDBRequest>, GC::Ref<GC::Function<void(WebIDL::ExceptionOr<u64>)>>);
 void abort_a_transaction(GC::Ref<IDBTransaction>, GC::Ptr<WebIDL::DOMException>);
 JS::Value convert_a_key_to_a_value(JS::Realm&, GC::Ref<Key>);
 bool is_valid_key_path(KeyPath const&);
-GC::Ref<HTML::DOMStringList> create_a_sorted_name_list(JS::Realm&, Vector<String>);
+GC::Ref<HTML::DOMStringList> create_a_sorted_name_list(JS::Realm&, Vector<Utf16String>);
 void commit_a_transaction(JS::Realm&, GC::Ref<IDBTransaction>);
 WebIDL::ExceptionOr<JS::Value> clone_in_realm(JS::Realm&, JS::Value, GC::Ref<IDBTransaction>);
 WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_multi_entry_key(JS::Realm&, JS::Value);

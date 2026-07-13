@@ -9,6 +9,7 @@
 #pragma once
 
 #include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <LibJS/Forward.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
@@ -34,7 +35,7 @@ public:
     virtual ~Environment() override;
 
     // An id https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-id
-    String id;
+    Utf16String id;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-creation-url
     URL::URL creation_url;
@@ -62,7 +63,7 @@ public:
 
 protected:
     Environment() = default;
-    Environment(String id, URL::URL creation_url, Optional<URL::URL> top_level_creation_url, Optional<URL::Origin> top_level_origin, GC::Ptr<BrowsingContext> target_browsing_context)
+    Environment(Utf16String id, URL::URL creation_url, Optional<URL::URL> top_level_creation_url, Optional<URL::Origin> top_level_origin, GC::Ptr<BrowsingContext> target_browsing_context)
         : id(move(id))
         , creation_url(move(creation_url))
         , top_level_creation_url(move(top_level_creation_url))
@@ -116,10 +117,9 @@ public:
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-time-origin
     virtual double time_origin() const = 0;
 
-    Optional<URL::URL> parse_url(StringView);
-    Optional<URL::URL> encoding_parse_url(StringView);
+    Optional<URL::URL> parse_url(Utf16View);
     Optional<URL::URL> encoding_parse_url(Utf16View);
-    Optional<String> encoding_parse_and_serialize_url(StringView);
+    Optional<Utf16String> encoding_parse_and_serialize_url(Utf16View);
 
     JS::Realm& realm();
     JS::Object& global_object();
@@ -218,7 +218,7 @@ WEB_API void prepare_to_run_callback(EnvironmentSettingsObject&);
 WEB_API void clean_up_after_running_callback(EnvironmentSettingsObject const&);
 WEB_API bool module_type_allowed(EnvironmentSettingsObject const&, Utf16View module_type);
 
-WEB_API void add_module_to_resolved_module_set(EnvironmentSettingsObject&, String const& serialized_base_url, Utf16String const& normalized_specifier, Optional<URL::URL> const& as_url);
+WEB_API void add_module_to_resolved_module_set(EnvironmentSettingsObject&, Utf16View serialized_base_url, Utf16View normalized_specifier, Optional<URL::URL> const& as_url);
 
 WEB_API EnvironmentSettingsObject& incumbent_settings_object();
 WEB_API JS::Realm& incumbent_realm();

@@ -177,7 +177,8 @@ public:
     StringView bracket_string() const;
     StringView bracket_mirror_string() const;
 
-    String to_string() const;
+    Utf16String to_string() const;
+    void serialize_to(Utf16StringBuilder&) const;
     String to_debug_string() const;
 
     String const& original_source_text() const { return m_original_source_text; }
@@ -225,6 +226,6 @@ template<>
 struct AK::Formatter<Web::CSS::Parser::Token> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, Web::CSS::Parser::Token const& token)
     {
-        return Formatter<StringView>::format(builder, token.to_string());
+        return Formatter<StringView>::format(builder, token.to_string().to_utf8());
     }
 };

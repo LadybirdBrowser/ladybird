@@ -41,11 +41,11 @@ WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::construct_impl(JS::Realm& realm
             // 1. If submitter is not a submit button, then throw a TypeError.
             auto form_associated_element = as_if<HTML::FormAssociatedElement>(*submitter);
             if (!form_associated_element) {
-                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Submitter is not associated with a form."sv };
+                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Submitter is not associated with a form."_utf16 };
             }
 
             if (!form_associated_element->is_submit_button()) {
-                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Submitter is not a valid submit button."sv };
+                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Submitter is not a valid submit button."_utf16 };
             }
             // 2. If submitter’s form owner is not form, then throw a "NotFoundError" DOMException.
             auto* form_owner = form_associated_element->form();
@@ -76,7 +76,7 @@ WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::create(JS::Realm& realm, Vector
     GC::ConservativeVector<FormDataEntry> list;
     list.ensure_capacity(entry_list.size());
     for (auto& entry : entry_list)
-        list.unchecked_append({ .name = Utf16String::from_utf8(entry.name), .value = Utf16String::from_utf8(entry.value) });
+        list.unchecked_append({ .name = move(entry.name), .value = move(entry.value) });
 
     return construct_impl(realm, move(list));
 }
@@ -114,15 +114,14 @@ WebIDL::ExceptionOr<void> FormData::append(Utf16String const& name, Utf16String 
 }
 
 // https://xhr.spec.whatwg.org/#dom-formdata-append-blob
-WebIDL::ExceptionOr<void> FormData::append(Utf16String const& name, GC::Ref<FileAPI::Blob> const& blob_value, Optional<String> const& filename)
+WebIDL::ExceptionOr<void> FormData::append(Utf16String const& name, GC::Ref<FileAPI::Blob> const& blob_value, Optional<Utf16String> const& filename)
 {
-    auto inner_filename = filename.has_value() ? filename.value() : Optional<String> {};
-    return append_impl(name, blob_value, inner_filename);
+    return append_impl(name, blob_value, filename);
 }
 
 // https://xhr.spec.whatwg.org/#dom-formdata-append
 // https://xhr.spec.whatwg.org/#dom-formdata-append-blob
-WebIDL::ExceptionOr<void> FormData::append_impl(Utf16String const& name, Variant<GC::Ref<FileAPI::Blob>, Utf16String> const& value, Optional<String> const& filename)
+WebIDL::ExceptionOr<void> FormData::append_impl(Utf16String const& name, Variant<GC::Ref<FileAPI::Blob>, Utf16String> const& value, Optional<Utf16String> const& filename)
 {
     auto& realm = this->realm();
     auto& vm = realm.vm();
@@ -188,10 +187,9 @@ WebIDL::ExceptionOr<void> FormData::set(Utf16String const& name, Utf16String con
 }
 
 // https://xhr.spec.whatwg.org/#dom-formdata-set-blob
-WebIDL::ExceptionOr<void> FormData::set(Utf16String const& name, GC::Ref<FileAPI::Blob> const& blob_value, Optional<String> const& filename)
+WebIDL::ExceptionOr<void> FormData::set(Utf16String const& name, GC::Ref<FileAPI::Blob> const& blob_value, Optional<Utf16String> const& filename)
 {
-    auto inner_filename = filename.has_value() ? filename.value() : Optional<String> {};
-    return set_impl(name, blob_value, inner_filename);
+    return set_impl(name, blob_value, filename);
 }
 
 GC::ConservativeVector<FormDataEntry> FormData::entry_list() const
@@ -201,7 +199,7 @@ GC::ConservativeVector<FormDataEntry> FormData::entry_list() const
 
 // https://xhr.spec.whatwg.org/#dom-formdata-set
 // https://xhr.spec.whatwg.org/#dom-formdata-set-blob
-WebIDL::ExceptionOr<void> FormData::set_impl(Utf16String const& name, Variant<GC::Ref<FileAPI::Blob>, Utf16String> const& value, Optional<String> const& filename)
+WebIDL::ExceptionOr<void> FormData::set_impl(Utf16String const& name, Variant<GC::Ref<FileAPI::Blob>, Utf16String> const& value, Optional<Utf16String> const& filename)
 {
     auto& realm = this->realm();
     auto& vm = realm.vm();

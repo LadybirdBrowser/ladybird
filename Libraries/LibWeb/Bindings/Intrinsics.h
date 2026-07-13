@@ -6,10 +6,10 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
 #include <AK/Forward.h>
 #include <AK/HashMap.h>
 #include <AK/NeverDestroyed.h>
+#include <AK/Utf16FlyString.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
@@ -18,7 +18,7 @@
 
 #define WEB_SET_PROTOTYPE_FOR_INTERFACE_WITH_CUSTOM_NAME(interface_class, interface_name)                       \
     do {                                                                                                        \
-        static NeverDestroyed<FlyString> name { #interface_name##_fly_string };                                 \
+        static NeverDestroyed<Utf16FlyString> name { #interface_name##_utf16_fly_string };                      \
         if (!shape().prototype()) {                                                                             \
             set_prototype(&Bindings::ensure_web_prototype<Bindings::interface_class##Prototype>(realm, *name)); \
         }                                                                                                       \
@@ -53,7 +53,7 @@ public:
     }
 
     template<typename NamespaceType>
-    JS::Object& ensure_web_namespace(FlyString const& namespace_name)
+    JS::Object& ensure_web_namespace(Utf16FlyString const& namespace_name)
     {
         if (auto it = m_namespaces.find(namespace_name); it != m_namespaces.end())
             return *it->value;
@@ -63,7 +63,7 @@ public:
     }
 
     template<typename PrototypeType>
-    JS::Object& ensure_web_prototype(FlyString const& class_name)
+    JS::Object& ensure_web_prototype(Utf16FlyString const& class_name)
     {
         if (auto it = m_prototypes.find(class_name); it != m_prototypes.end())
             return *it->value;
@@ -73,7 +73,7 @@ public:
     }
 
     template<typename PrototypeType>
-    JS::NativeFunction& ensure_web_constructor(FlyString const& class_name)
+    JS::NativeFunction& ensure_web_constructor(Utf16FlyString const& class_name)
     {
         if (auto it = m_constructors.find(class_name); it != m_constructors.end())
             return *it->value;
@@ -88,7 +88,7 @@ public:
         Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)> behaviour,
         UnforgeableKey::Type);
 
-    JS::Object& existing_web_prototype(FlyString const&);
+    JS::Object& existing_web_prototype(Utf16FlyString const&);
 
 private:
     virtual void visit_edges(JS::Cell::Visitor&) override;
@@ -101,9 +101,9 @@ private:
     void create_web_prototype_and_constructor(JS::Realm& realm, InterfaceObjectMetadata const&);
     void create_web_constructor(JS::Realm& realm, InterfaceObjectMetadata const&, JS::Object& prototype);
 
-    HashMap<FlyString, GC::Ref<JS::Object>> m_namespaces;
-    HashMap<FlyString, GC::Ref<JS::Object>> m_prototypes;
-    HashMap<FlyString, GC::Ptr<JS::NativeFunction>> m_constructors;
+    HashMap<Utf16FlyString, GC::Ref<JS::Object>> m_namespaces;
+    HashMap<Utf16FlyString, GC::Ref<JS::Object>> m_prototypes;
+    HashMap<Utf16FlyString, GC::Ptr<JS::NativeFunction>> m_constructors;
     HashMap<UnforgeableKey, GC::Ref<JS::NativeFunction>> m_unforgeable_functions;
     GC::Ref<JS::Realm> m_realm;
 };
@@ -111,19 +111,19 @@ private:
 WEB_API Intrinsics& host_defined_intrinsics(JS::Realm& realm);
 
 template<typename T>
-[[nodiscard]] JS::Object& ensure_web_namespace(JS::Realm& realm, FlyString const& namespace_name)
+[[nodiscard]] JS::Object& ensure_web_namespace(JS::Realm& realm, Utf16FlyString const& namespace_name)
 {
     return host_defined_intrinsics(realm).ensure_web_namespace<T>(namespace_name);
 }
 
 template<typename T>
-[[nodiscard]] JS::Object& ensure_web_prototype(JS::Realm& realm, FlyString const& class_name)
+[[nodiscard]] JS::Object& ensure_web_prototype(JS::Realm& realm, Utf16FlyString const& class_name)
 {
     return host_defined_intrinsics(realm).ensure_web_prototype<T>(class_name);
 }
 
 template<typename T>
-[[nodiscard]] JS::NativeFunction& ensure_web_constructor(JS::Realm& realm, FlyString const& class_name)
+[[nodiscard]] JS::NativeFunction& ensure_web_constructor(JS::Realm& realm, Utf16FlyString const& class_name)
 {
     return host_defined_intrinsics(realm).ensure_web_constructor<T>(class_name);
 }

@@ -1,0 +1,8 @@
+window language is string: true
+window language is first language: true
+window languages is frozen array: true
+window languages has strings: true
+worker language is string: true
+worker language is first language: true
+worker languages is frozen array: true
+worker languages has strings: true

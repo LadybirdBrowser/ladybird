@@ -9,6 +9,7 @@
 
 #include <AK/String.h>
 #include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/StyleProperty.h>
@@ -31,16 +32,16 @@ public:
     virtual size_t length() const = 0;
     virtual Utf16String item(size_t index) const = 0;
 
-    virtual WebIDL::ExceptionOr<void> set_property(Utf16FlyString const& property_name, StringView css_text, StringView priority) = 0;
-    virtual WebIDL::ExceptionOr<String> remove_property(Utf16FlyString const& property_name) = 0;
+    virtual WebIDL::ExceptionOr<void> set_property(Utf16FlyString const& property_name, Utf16View css_text, Utf16View priority) = 0;
+    virtual WebIDL::ExceptionOr<Utf16String> remove_property(Utf16FlyString const& property_name) = 0;
 
-    virtual String get_property_value(Utf16FlyString const& property_name) const = 0;
-    virtual StringView get_property_priority(Utf16FlyString const& property_name) const = 0;
+    virtual Utf16String get_property_value(Utf16FlyString const& property_name) const = 0;
+    virtual Utf16String get_property_priority(Utf16FlyString const& property_name) const = 0;
 
-    String css_text() const;
-    virtual WebIDL::ExceptionOr<void> set_css_text(StringView) = 0;
+    Utf16String css_text() const;
+    virtual WebIDL::ExceptionOr<void> set_css_text(Utf16View) = 0;
 
-    virtual String serialized() const = 0;
+    virtual Utf16String serialized() const = 0;
 
     // https://drafts.csswg.org/cssom/#cssstyledeclaration-computed-flag
     [[nodiscard]] bool is_computed() const { return m_computed; }

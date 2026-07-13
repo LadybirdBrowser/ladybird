@@ -23,8 +23,8 @@ public:
     virtual ~IDBIndex() override;
     [[nodiscard]] static GC::Ref<IDBIndex> create(JS::Realm&, GC::Ref<Index>, GC::Ref<IDBObjectStore>);
 
-    WebIDL::ExceptionOr<void> set_name(String const& value);
-    String name() const { return m_name; }
+    WebIDL::ExceptionOr<void> set_name(Utf16String const& value);
+    Utf16String name() const { return m_name; }
     GC::Ref<IDBObjectStore> object_store() { return m_object_store_handle; }
     JS::Value key_path() const;
     bool multi_entry() const { return m_index->multi_entry(); }
@@ -56,7 +56,7 @@ private:
     GC::Ref<IDBObjectStore> m_object_store_handle;
 
     // An index handle has a name, which is initialized to the name of the associated index when the index handle is created.
-    String m_name;
+    Utf16String m_name;
 };
 
 }

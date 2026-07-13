@@ -147,7 +147,7 @@ Directives::Directive::Result should_request_be_blocked_by_integrity_policy(GC::
     auto const& policy_container = request->policy_container().get<GC::Ref<HTML::PolicyContainer>>();
 
     // 2. Let parsedMetadata be the result of calling parse metadata with request’s integrity metadata.
-    auto parsed_metadata = MUST(SRI::parse_metadata(request->integrity_metadata()));
+    auto parsed_metadata = MUST(SRI::parse_metadata(request->integrity_metadata().utf16_view()));
 
     // 3. If parsedMetadata is not the empty set and request’s mode is either "cors" or "same-origin", return "Allowed".
     if (!parsed_metadata.is_empty() && (request->mode() == Fetch::Infrastructure::Request::Mode::CORS || request->mode() == Fetch::Infrastructure::Request::Mode::SameOrigin))
@@ -181,13 +181,13 @@ Directives::Directive::Result should_request_be_blocked_by_integrity_policy(GC::
     [[maybe_unused]] auto report_block = false;
 
     // 12. If policy’s sources contains "inline" and policy’s blocked destinations contains request’s destination, set block to true.
-    if (policy.sources.contains_slow("inline"sv)
+    if (policy.sources.contains_slow(u"inline"sv)
         && request->destination().has_value()
         && policy.blocked_destinations.contains_slow(request->destination().value()))
         block = true;
 
     // 13. If reportPolicy’s sources contains "inline" and reportPolicy’s blocked destinations contains request’s destination, set reportBlock to true.
-    if (report_policy.sources.contains_slow("inline"sv)
+    if (report_policy.sources.contains_slow(u"inline"sv)
         && request->destination().has_value()
         && report_policy.blocked_destinations.contains_slow(request->destination().value()))
         report_block = true;
@@ -297,7 +297,7 @@ Directives::Directive::Result should_navigation_request_of_type_be_blocked_by_co
 
                 // 3. Otherwise, let violation be the result of executing § 2.4.1 Create a violation object for global,
                 //    policy, and directive on navigation request’s client’s global object, policy, and directive-name.
-                auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(realm, navigation_request->client()->global_object(), policy, directive_name.to_string());
+                auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(realm, navigation_request->client()->global_object(), policy, directive_name);
 
                 // 4. Set violation’s resource to navigation request’s URL.
                 violation->set_resource(navigation_request->url());
@@ -429,7 +429,7 @@ Directives::Directive::Result should_elements_inline_type_behavior_be_blocked_by
             //   policy, and directive on the current settings object’s global object, policy, and directive-name.
             // FIXME: File spec issue about using "current settings object" here, as it can run outside of a script
             //        context (for example, a just parsed inline script being prepared)
-            auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(realm, global_object, policy, directive_name.to_string());
+            auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(realm, global_object, policy, directive_name);
 
             // 4. Set violation’s resource to "inline".
             violation->set_resource(Violation::Resource::Inline);
@@ -441,12 +441,12 @@ Directives::Directive::Result should_elements_inline_type_behavior_be_blocked_by
             //    substring of source containing its first 40 characters.
             // FIXME: Should this be case insensitive?
             auto maybe_report_sample = directive->value().find_if([](auto const& directive_value) {
-                return directive_value.equals_ignoring_ascii_case(Directives::KeywordSources::ReportSample);
+                return directive_value.equals_ignoring_ascii_case(Directives::KeywordSources::ReportSample.view());
             });
 
             if (!maybe_report_sample.is_end()) {
                 auto sample = source.unicode_substring_view(0, min(source.length_in_code_points(), 40));
-                violation->set_sample(MUST(sample.to_utf8()));
+                violation->set_sample(Utf16String::from_utf16(sample));
             }
 
             // 7. Execute § 5.5 Report a violation on violation.
@@ -527,7 +527,7 @@ JS::ThrowCompletionOr<void> ensure_csp_does_not_block_string_compilation(JS::Rea
             realm.global_object(),
             source_to_validate,
             compilation_sink,
-            TrustedTypes::Script.to_string());
+            TrustedTypes::Script.view());
 
         // 7. If the algorithm throws an error, throw an EvalError.
         if (maybe_source_string.is_error()) {
@@ -551,7 +551,7 @@ JS::ThrowCompletionOr<void> ensure_csp_does_not_block_string_compilation(JS::Rea
     VERIFY(csp_list);
     for (auto const policy : csp_list->policies()) {
         // 1. Let source-list be null.
-        Optional<Vector<String>> maybe_source_list;
+        Optional<Vector<Utf16String>> maybe_source_list;
 
         // 2. If policy contains a directive whose name is "script-src", then set source-list to that directive's value.
         auto maybe_script_src = policy->directives().find_if([](auto const& directive) {
@@ -577,13 +577,13 @@ JS::ThrowCompletionOr<void> ensure_csp_does_not_block_string_compilation(JS::Rea
             auto const& source_list = maybe_source_list.value();
 
             auto maybe_unsafe_eval = source_list.find_if([](auto const& directive_value) {
-                return directive_value.equals_ignoring_ascii_case(Directives::KeywordSources::UnsafeEval);
+                return directive_value.equals_ignoring_ascii_case(Directives::KeywordSources::UnsafeEval.view());
             });
 
             if (maybe_unsafe_eval.is_end()) {
                 // 1. Let violation be the result of executing § 2.4.1 Create a violation object for global, policy,
                 //    and directive on global, policy, and "script-src".
-                auto script_src_string = Directives::Names::ScriptSrc.to_string();
+                auto script_src_string = Directives::Names::ScriptSrc;
                 auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(realm, global, policy, script_src_string);
 
                 // 2. Set violation’s resource to "eval".
@@ -593,12 +593,12 @@ JS::ThrowCompletionOr<void> ensure_csp_does_not_block_string_compilation(JS::Rea
                 //    substring of sourceString containing its first 40 characters.
                 // FIXME: Should this be case insensitive?
                 auto maybe_report_sample = source_list.find_if([](auto const& directive_value) {
-                    return directive_value.equals_ignoring_ascii_case(Directives::KeywordSources::ReportSample);
+                    return directive_value.equals_ignoring_ascii_case(Directives::KeywordSources::ReportSample.view());
                 });
 
                 if (!maybe_report_sample.is_end()) {
                     auto source_view = source_string.substring_view(0, min(source_string.length_in_code_units(), 40));
-                    violation->set_sample(MUST(source_view.to_utf8()));
+                    violation->set_sample(Utf16String::from_utf16(source_view));
                 }
 
                 // 4. Execute § 5.5 Report a violation on violation.
@@ -633,7 +633,7 @@ JS::ThrowCompletionOr<void> ensure_csp_does_not_block_wasm_byte_compilation(JS::
     VERIFY(csp_list);
     for (auto const policy : csp_list->policies()) {
         // 1. Let source-list be null.
-        Optional<Vector<String>> maybe_source_list;
+        Optional<Vector<Utf16String>> maybe_source_list;
 
         // 2. If policy contains a directive whose name is "script-src", then set source-list to that directive's value.
         auto maybe_script_src = policy->directives().find_if([](auto const& directive) {
@@ -660,14 +660,14 @@ JS::ThrowCompletionOr<void> ensure_csp_does_not_block_wasm_byte_compilation(JS::
             auto const& source_list = maybe_source_list.value();
 
             auto maybe_unsafe_eval = source_list.find_if([](auto const& directive_value) {
-                return directive_value.equals_ignoring_ascii_case(Directives::KeywordSources::UnsafeEval)
-                    || directive_value.equals_ignoring_ascii_case(Directives::KeywordSources::WasmUnsafeEval);
+                return directive_value.equals_ignoring_ascii_case(Directives::KeywordSources::UnsafeEval.view())
+                    || directive_value.equals_ignoring_ascii_case(Directives::KeywordSources::WasmUnsafeEval.view());
             });
 
             if (maybe_unsafe_eval.is_end()) {
                 // 1. Let violation be the result of executing § 2.4.1 Create a violation object for global, policy,
                 //    and directive on global, policy, and "script-src".
-                auto script_src_string = Directives::Names::ScriptSrc.to_string();
+                auto script_src_string = Directives::Names::ScriptSrc;
                 auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(realm, global, policy, script_src_string);
 
                 // 2. Set violation’s resource to "wasm-eval".
@@ -720,7 +720,7 @@ Directives::Directive::Result is_base_allowed_for_document(JS::Realm& realm, URL
         if (Directives::does_url_match_source_list_in_origin_with_redirect_count(base, source_list, policy->self_origin(), 0) == Directives::MatchResult::DoesNotMatch) {
             // 1. Let violation be the result of executing § 2.4.1 Create a violation object for global, policy, and
             //    directive on document’s global object, policy, and "base-uri".
-            auto base_uri_string = Directives::Names::BaseUri.to_string();
+            auto base_uri_string = Directives::Names::BaseUri;
             auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(realm, document->window(), policy, base_uri_string);
 
             // 2. Set violation’s resource to "inline".

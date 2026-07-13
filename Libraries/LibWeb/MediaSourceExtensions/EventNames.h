@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
 
 namespace Web::MediaSourceExtensions::EventNames {
 
@@ -25,7 +25,7 @@ namespace Web::MediaSourceExtensions::EventNames {
     __ENUMERATE_MEDIA_SOURCE_EXTENSIONS_ATTRIBUTE(updateend)          \
     __ENUMERATE_MEDIA_SOURCE_EXTENSIONS_ATTRIBUTE(updatestart)
 
-#define __ENUMERATE_MEDIA_SOURCE_EXTENSIONS_ATTRIBUTE(name) extern FlyString const& name;
+#define __ENUMERATE_MEDIA_SOURCE_EXTENSIONS_ATTRIBUTE(name) extern Utf16FlyString const& name;
 ENUMERATE_MEDIA_SOURCE_EXTENSIONS_ATTRIBUTES
 #undef __ENUMERATE_MEDIA_SOURCE_EXTENSIONS_ATTRIBUTE
 

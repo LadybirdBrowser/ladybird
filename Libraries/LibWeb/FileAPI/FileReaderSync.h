@@ -25,15 +25,15 @@ public:
     static GC::Ref<FileReaderSync> construct_impl(JS::Realm&);
 
     WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> read_as_array_buffer(Blob&);
-    WebIDL::ExceptionOr<String> read_as_binary_string(Blob&);
-    WebIDL::ExceptionOr<String> read_as_text(Blob&, Optional<String> const& encoding = {});
-    WebIDL::ExceptionOr<String> read_as_data_url(Blob&);
+    WebIDL::ExceptionOr<Utf16String> read_as_binary_string(Blob&);
+    WebIDL::ExceptionOr<Utf16String> read_as_text(Blob&, Optional<Utf16String> const& encoding = {});
+    WebIDL::ExceptionOr<Utf16String> read_as_data_url(Blob&);
 
 private:
     explicit FileReaderSync(JS::Realm&);
 
     template<typename Result>
-    WebIDL::ExceptionOr<Result> read_as(Blob&, FileReader::Type, Optional<String> const& encoding = {});
+    WebIDL::ExceptionOr<Result> read_as(Blob&, FileReader::Type, Optional<Utf16String> const& encoding = {});
 
     virtual void initialize(JS::Realm&) override;
 };

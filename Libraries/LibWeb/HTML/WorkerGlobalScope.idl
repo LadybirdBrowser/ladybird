@@ -4,7 +4,7 @@ interface WorkerGlobalScope : EventTarget {
     readonly attribute WorkerGlobalScope self;
     readonly attribute WorkerLocation location;
     readonly attribute WorkerNavigator navigator;
-    undefined importScripts(USVString... urls);
+    undefined importScripts(Utf16USVString... urls);
 
     attribute OnErrorEventHandler onerror;
     attribute EventHandler onlanguagechange;

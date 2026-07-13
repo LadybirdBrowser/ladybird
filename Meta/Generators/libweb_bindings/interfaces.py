@@ -123,7 +123,7 @@ def write_implementation(
         # Object.getPrototypeOf(DOMException.prototype) === Error.prototype
         parent_prototype = "realm.intrinsics().error_prototype()"
     if interface.parent_name:
-        parent_prototype = f'GC::Ref {{ ensure_web_prototype<{interface.parent_name}Prototype>(realm, "{interface.parent_name}"_fly_string) }}'
+        parent_prototype = f'GC::Ref {{ ensure_web_prototype<{interface.parent_name}Prototype>(realm, "{interface.parent_name}"_utf16_fly_string) }}'
 
     constructor_length = 0
     if interface.constructors:
@@ -136,10 +136,10 @@ def write_implementation(
     auto& vm = realm.vm();
     [[maybe_unused]] u8 default_attributes = JS::Attribute::Enumerable;
 
-    {f'object.set_prototype(&ensure_web_constructor<{interface.parent_name}Prototype>(realm, "{interface.parent_name}"_fly_string));' if interface.parent_name else ""}
+    {f'object.set_prototype(&ensure_web_constructor<{interface.parent_name}Prototype>(realm, "{interface.parent_name}"_utf16_fly_string));' if interface.parent_name else ""}
     object.define_direct_property(vm.names.length, JS::Value({constructor_length}), JS::Attribute::Configurable);
     object.define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, "{interface.name}"_utf16), JS::Attribute::Configurable);
-    object.define_direct_property(vm.names.prototype, &ensure_web_prototype<{interface.prototype_class}>(realm, "{interface.namespaced_name}"_fly_string), 0);
+    object.define_direct_property(vm.names.prototype, &ensure_web_prototype<{interface.prototype_class}>(realm, "{interface.namespaced_name}"_utf16_fly_string), 0);
 """)
     constants.define_the_constants(out, context, includes, interface)
     attributes.define_the_static_attributes(out, includes, interface)
@@ -209,7 +209,7 @@ void {interface.prototype_class}::initialize(JS::Realm& realm)
     if interface_supports_named_properties(interface):
         includes.add("LibWeb/Bindings/Intrinsics.h")
         out.write(
-            f'    object.set_prototype(&ensure_web_prototype<{interface.prototype_class}>(realm, "{interface.name}Properties"_fly_string));\n'
+            f'    object.set_prototype(&ensure_web_prototype<{interface.prototype_class}>(realm, "{interface.name}Properties"_utf16_fly_string));\n'
         )
 
     if "Global" in interface.extended_attributes:

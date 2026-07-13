@@ -41,7 +41,7 @@ void HTMLAreaElement::attribute_changed(Utf16FlyString const& name, Optional<Utf
         set_the_url();
     } else if (name == HTML::AttributeNames::rel) {
         if (m_rel_list)
-            m_rel_list->associated_attribute_changed(value.value_or({}));
+            m_rel_list->associated_attribute_changed(value.has_value() ? value->utf16_view() : u""sv);
     }
 }
 

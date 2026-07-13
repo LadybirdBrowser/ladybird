@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 
 namespace Web::PerformanceTimeline {
@@ -19,8 +20,8 @@ public:
     virtual ~PerformanceObserverEntryList() override;
 
     WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> get_entries() const;
-    WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> get_entries_by_type(String const& type) const;
-    WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> get_entries_by_name(String const& name, Optional<String> type) const;
+    WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> get_entries_by_type(Utf16FlyString const& type) const;
+    WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> get_entries_by_name(Utf16String const& name, Optional<Utf16FlyString> type) const;
 
 private:
     PerformanceObserverEntryList(JS::Realm&, Vector<GC::Ref<PerformanceTimeline::PerformanceEntry>>&&);
@@ -34,6 +35,6 @@ private:
     Vector<GC::Ref<PerformanceTimeline::PerformanceEntry>> m_entry_list;
 };
 
-ErrorOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> filter_buffer_by_name_and_type(Vector<GC::Ref<PerformanceTimeline::PerformanceEntry>> const& buffer, Optional<String> name, Optional<String> type);
+ErrorOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> filter_buffer_by_name_and_type(Vector<GC::Ref<PerformanceTimeline::PerformanceEntry>> const& buffer, Optional<Utf16String> const& name, Optional<Utf16FlyString> type);
 
 }

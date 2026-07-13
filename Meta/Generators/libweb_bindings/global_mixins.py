@@ -88,7 +88,7 @@ void {interface.name}GlobalMixin::initialize(JS::Realm& realm, [[maybe_unused]] 
     [[maybe_unused]] auto& vm = realm.vm();
     [[maybe_unused]] u8 default_attributes = JS::Attribute::Enumerable | JS::Attribute::Configurable | JS::Attribute::Writable;
 
-    object.set_prototype(&ensure_web_prototype<{interface.prototype_class}>(realm, "{interface.namespaced_name}"_fly_string));
+    object.set_prototype(&ensure_web_prototype<{interface.prototype_class}>(realm, "{interface.namespaced_name}"_utf16_fly_string));
 """
     )
     define_the_regular_attributes(out, includes, interface)

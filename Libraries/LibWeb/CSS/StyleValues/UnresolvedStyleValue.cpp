@@ -27,8 +27,8 @@ static String source_text_from_component_values(Vector<Parser::ComponentValue> c
         if (original_source_text.is_empty()) {
             auto serialized_values = serialize_a_series_of_component_values(values);
             if (source_text_mode == UnresolvedStyleValue::SourceTextMode::Trim)
-                return MUST(serialized_values.trim_ascii_whitespace());
-            return serialized_values;
+                return serialized_values.trim_ascii_whitespace().to_utf8();
+            return serialized_values.to_utf8();
         }
         builder.append(original_source_text);
     }
@@ -68,7 +68,9 @@ ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::cr
     }();
     // NB: The comparison text is a normalized serialization, only used when we have separate original source text.
     //     Don't pay for serializing it otherwise.
-    auto value_comparison_text = has_original_source_text ? MUST(serialize_a_series_of_component_values(values).trim_ascii_whitespace()) : String {};
+    auto value_comparison_text = has_original_source_text
+        ? serialize_a_series_of_component_values(values).trim_ascii_whitespace().to_utf8()
+        : String {};
     return adopt_ref(*new (nothrow) UnresolvedStyleValue(move(source_text), move(value_comparison_text), substitution_presence, contains_attr_tainted_values));
 }
 
@@ -166,7 +168,7 @@ private:
         //     Also, a var() might not be representable, if it has an ASF in place of its name, so those will be part
         //     of a string instead.
         for (auto const& component_value : source_values) {
-            if (component_value.is_function("var"sv)) {
+            if (component_value.is_function("var"_utf16)) {
                 // First parse the var() to see if it is representable as a CSSVariableReferenceValue. It might not be,
                 // for example if it has an ASF in the place of its variable name. In that case we fall back to
                 // serializing it like a regular function.
@@ -199,7 +201,7 @@ private:
 
     void serialize_unserialized_values()
     {
-        m_reified_values.append(Utf16String::from_utf8(serialize_a_series_of_component_values(m_unserialized_values)));
+        m_reified_values.append(serialize_a_series_of_component_values(m_unserialized_values));
         m_unserialized_values.clear_with_capacity();
     }
 

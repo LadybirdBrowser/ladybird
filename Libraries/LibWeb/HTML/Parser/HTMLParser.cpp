@@ -88,6 +88,25 @@ static Utf16FlyString utf16_fly_string_from_ffi(u16 const* ptr, size_t len)
     return Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(ptr), len });
 }
 
+static Utf16String utf16_string_from_ffi(u16 const* ptr, size_t len)
+{
+    if (!ptr || len == 0)
+        return {};
+    return Utf16String::from_utf16({ reinterpret_cast<char16_t const*>(ptr), len });
+}
+
+static Utf16String utf16_string_from_standardized_encoding_label(StringView label)
+{
+    return Utf16String::from_ascii_without_validation(label.bytes());
+}
+
+static Utf16String decode_html_parser_input(StringView input, StringView encoding)
+{
+    auto decoder = TextCodec::decoder_for(encoding);
+    VERIFY(decoder.has_value());
+    return MUST(TextCodec::convert_input_to_utf16_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, input));
+}
+
 extern "C" void ladybird_html_parser_log_parse_error(void*, u8 const*, size_t);
 extern "C" void ladybird_html_parser_stop_parsing(void*);
 extern "C" bool ladybird_html_parser_parse_errors_enabled();
@@ -95,10 +114,10 @@ extern "C" void ladybird_html_parser_visit_node(void*, size_t);
 extern "C" size_t ladybird_html_parser_document_node(void*);
 extern "C" size_t ladybird_html_parser_document_html_element(void*);
 extern "C" void ladybird_html_parser_set_document_quirks_mode(void*, RustFfiHtmlQuirksMode);
-extern "C" size_t ladybird_html_parser_create_document_type(void*, u16 const*, size_t, u8 const*, size_t, u8 const*, size_t);
-extern "C" size_t ladybird_html_parser_create_comment(void*, u8 const*, size_t);
-extern "C" void ladybird_html_parser_insert_text(size_t, size_t, u8 const*, size_t);
-extern "C" void ladybird_html_parser_add_missing_attribute(size_t, u16 const*, size_t, u8 const*, size_t);
+extern "C" size_t ladybird_html_parser_create_document_type(void*, u16 const*, size_t, u16 const*, size_t, u16 const*, size_t);
+extern "C" size_t ladybird_html_parser_create_comment(void*, u16 const*, size_t);
+extern "C" void ladybird_html_parser_insert_text(size_t, size_t, u16 const*, size_t);
+extern "C" void ladybird_html_parser_add_missing_attribute(size_t, u16 const*, size_t, u16 const*, size_t);
 extern "C" void ladybird_html_parser_remove_node(size_t);
 extern "C" void ladybird_html_parser_handle_element_popped(size_t);
 extern "C" void ladybird_html_parser_prepare_svg_script(void*, size_t, size_t);
@@ -115,8 +134,8 @@ extern "C" size_t ladybird_html_parser_attach_declarative_shadow_root(size_t, Ru
 extern "C" void ladybird_html_parser_set_template_content(size_t, size_t);
 extern "C" bool ladybird_html_parser_is_shadow_host(size_t);
 
-HTMLParser::HTMLParser(DOM::Document& document, ParserScriptingMode scripting_mode, StringView input, StringView encoding, HTMLTokenizer::InputType input_type)
-    : m_tokenizer(input, encoding, input_type)
+HTMLParser::HTMLParser(DOM::Document& document, ParserScriptingMode scripting_mode, StringView input, StringView encoding)
+    : m_tokenizer(decode_html_parser_input(input, encoding))
     , m_scripting_mode(scripting_mode)
     , m_document(document)
 {
@@ -124,7 +143,19 @@ HTMLParser::HTMLParser(DOM::Document& document, ParserScriptingMode scripting_mo
     m_document->set_parser({}, *this);
     auto standardized_encoding = TextCodec::get_standardized_encoding(encoding);
     VERIFY(standardized_encoding.has_value());
-    m_document->set_encoding(MUST(String::from_utf8(standardized_encoding.value())));
+    m_document->set_encoding(utf16_string_from_standardized_encoding_label(standardized_encoding.value()));
+}
+
+HTMLParser::HTMLParser(DOM::Document& document, ParserScriptingMode scripting_mode, Utf16View input, Utf16View encoding)
+    : m_tokenizer(input)
+    , m_scripting_mode(scripting_mode)
+    , m_document(document)
+{
+    m_rust_parser = rust_html_parser_create();
+    m_document->set_parser({}, *this);
+    auto standardized_encoding = TextCodec::get_standardized_encoding(encoding);
+    VERIFY(standardized_encoding.has_value());
+    m_document->set_encoding(utf16_string_from_standardized_encoding_label(standardized_encoding.value()));
 }
 
 HTMLParser::HTMLParser(DOM::Document& document, ParserScriptingMode scripting_mode, ScriptCreatedParser script_created)
@@ -985,7 +1016,7 @@ WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> HTMLParser::parse_html_fragm
     if (context_document.is_scripting_disabled())
         scripting_mode = HTML::ParserScriptingMode::Disabled;
 
-    auto parser = HTMLParser::create_for_decoded_string(*temp_document, input, scripting_mode, "utf-8"sv);
+    auto parser = HTMLParser::create_for_decoded_string(*temp_document, input, scripting_mode, "utf-8"_utf16);
     parser->set_allow_declarative_shadow_roots(allow_declarative_shadow_roots);
     parser->m_context_element = context; // FIXME: Is this needed?
     parser->m_parsing_fragment = true;
@@ -1072,18 +1103,18 @@ WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> HTMLParser::parse_html_fragm
     Vector<RustFfiHtmlParserContextAttribute> context_attributes;
     Vector<Vector<u16>> attribute_names;
     Vector<Vector<u16>> attribute_prefixes;
-    Vector<String> attribute_values_utf8;
+    Vector<Vector<u16>> attribute_values;
     if (auto attributes = context->attributes()) {
         context_attributes.ensure_capacity(attributes->length());
         attribute_names.ensure_capacity(attributes->length());
         attribute_prefixes.ensure_capacity(attributes->length());
-        attribute_values_utf8.ensure_capacity(attributes->length());
+        attribute_values.ensure_capacity(attributes->length());
         for (size_t i = 0; i < attributes->length(); ++i) {
             auto const* attribute = attributes->item(i);
             attribute_names.unchecked_append(utf16_code_units_for_ffi(attribute->local_name().view()));
             auto const& local_name = attribute_names.last();
-            attribute_values_utf8.unchecked_append(attribute->value().to_utf8());
-            auto value = attribute_values_utf8.last().bytes_as_string_view();
+            attribute_values.unchecked_append(utf16_code_units_for_ffi(attribute->value().utf16_view()));
+            auto const& value = attribute_values.last();
             Vector<u16> const* prefix = nullptr;
             if (attribute->prefix().has_value()) {
                 attribute_prefixes.unchecked_append(utf16_code_units_for_ffi(attribute->prefix()->view()));
@@ -1095,8 +1126,8 @@ WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> HTMLParser::parse_html_fragm
                 prefix ? prefix->data() : nullptr,
                 prefix ? prefix->size() : 0,
                 attribute_namespace_to_html_parser_ffi(attribute->namespace_uri()),
-                reinterpret_cast<u8 const*>(value.characters_without_null_termination()),
-                value.length(),
+                value.data(),
+                value.size(),
             });
         }
     }
@@ -1142,8 +1173,11 @@ GC::Ref<HTMLParser> HTMLParser::create_with_uncertain_encoding(DOM::Document& do
 {
     auto scripting_mode = document.is_scripting_enabled() ? ParserScriptingMode::Normal : ParserScriptingMode::Disabled;
     auto parser = [&] {
-        if (document.has_encoding())
-            return document.realm().create<HTMLParser>(document, scripting_mode, input, document.encoding().value().to_byte_string());
+        if (document.has_encoding()) {
+            auto standardized_encoding = TextCodec::get_standardized_encoding(document.encoding().value());
+            VERIFY(standardized_encoding.has_value());
+            return document.realm().create<HTMLParser>(document, scripting_mode, input, standardized_encoding.value());
+        }
         auto encoding = run_encoding_sniffing_algorithm(document, input, maybe_mime_type);
         dbgln_if(HTML_PARSER_DEBUG, "The encoding sniffing algorithm returned encoding '{}'", encoding);
         return document.realm().create<HTMLParser>(document, scripting_mode, input, encoding);
@@ -1152,15 +1186,14 @@ GC::Ref<HTMLParser> HTMLParser::create_with_uncertain_encoding(DOM::Document& do
     return parser;
 }
 
-GC::Ref<HTMLParser> HTMLParser::create(DOM::Document& document, StringView input, ParserScriptingMode scripting_mode, StringView encoding)
+GC::Ref<HTMLParser> HTMLParser::create_from_byte_string(DOM::Document& document, StringView input, ParserScriptingMode scripting_mode, StringView encoding)
 {
     return document.realm().create<HTMLParser>(document, scripting_mode, input, encoding);
 }
 
-GC::Ref<HTMLParser> HTMLParser::create_for_decoded_string(DOM::Document& document, Utf16View input, ParserScriptingMode scripting_mode, StringView encoding)
+GC::Ref<HTMLParser> HTMLParser::create_for_decoded_string(DOM::Document& document, Utf16View input, ParserScriptingMode scripting_mode, Utf16View encoding)
 {
-    auto utf8_input = input.to_utf8_but_should_be_ported_to_utf16();
-    return document.realm().create<HTMLParser>(document, scripting_mode, utf8_input, encoding, HTMLTokenizer::InputType::DecodedString);
+    return document.realm().create<HTMLParser>(document, scripting_mode, input, encoding);
 }
 
 enum class AttributeMode {
@@ -1169,41 +1202,41 @@ enum class AttributeMode {
 };
 
 template<OneOf<Utf8View, Utf16View> ViewType>
-static String escape_string(ViewType const& string, AttributeMode attribute_mode)
+static Utf16String escape_string(ViewType const& string, AttributeMode attribute_mode)
 {
     // https://html.spec.whatwg.org/multipage/parsing.html#escapingString
-    StringBuilder builder;
+    Utf16StringBuilder builder;
     for (auto code_point : string) {
         // 1. Replace any occurrence of the "&" character by the string "&amp;".
         if (code_point == '&')
-            builder.append("&amp;"sv);
+            builder.append_ascii("&amp;"sv);
         // 2. Replace any occurrences of the U+00A0 NO-BREAK SPACE character by the string "&nbsp;".
         else if (code_point == 0xA0)
-            builder.append("&nbsp;"sv);
+            builder.append_ascii("&nbsp;"sv);
         // 3. Replace any occurrences of the "<" character by the string "&lt;".
         else if (code_point == '<')
-            builder.append("&lt;"sv);
+            builder.append_ascii("&lt;"sv);
         // 4. Replace any occurrences of the ">" character by the string "&gt;".
         else if (code_point == '>')
-            builder.append("&gt;"sv);
+            builder.append_ascii("&gt;"sv);
         // 5. If the algorithm was invoked in the attribute mode, then replace any occurrences of the """ character by the string "&quot;".
         else if (code_point == '"' && attribute_mode == AttributeMode::Yes)
-            builder.append("&quot;"sv);
+            builder.append_ascii("&quot;"sv);
         else
             builder.append_code_point(code_point);
     }
-    return builder.to_string_without_validation();
+    return builder.to_string();
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#html-fragment-serialisation-algorithm
-String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableShadowRoots serializable_shadow_roots, ReadonlySpan<GC::Ref<DOM::ShadowRoot>> shadow_roots, DOM::FragmentSerializationMode fragment_serialization_mode)
+Utf16String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableShadowRoots serializable_shadow_roots, ReadonlySpan<GC::Ref<DOM::ShadowRoot>> shadow_roots, DOM::FragmentSerializationMode fragment_serialization_mode)
 {
     // NOTE: Steps in this function are jumbled a bit to accommodate the Element.outerHTML API.
     //       When called with FragmentSerializationMode::Outer, we will serialize the element itself,
     //       not just its children.
 
     // 2. Let s be a string, and initialize it to the empty string.
-    StringBuilder builder;
+    Utf16StringBuilder builder;
 
     auto serialize_element = [&](DOM::Element const& element) {
         // If current node is an element in the HTML namespace, the MathML namespace, or the SVG namespace, then let tagname be current node's local name.
@@ -1216,17 +1249,17 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
             tag_name = element.qualified_name();
 
         // Append a U+003C LESS-THAN SIGN character (<), followed by tagname.
-        builder.append('<');
-        builder.append(tag_name);
+        builder.append_ascii('<');
+        builder.append(tag_name.view());
 
         // If current node's is value is not null, and the element does not have an is attribute in its attribute list,
         // then append the string " is="",
         // followed by current node's is value escaped as described below in attribute mode,
         // followed by a U+0022 QUOTATION MARK character (").
         if (element.is_value().has_value() && !element.has_attribute(AttributeNames::is)) {
-            builder.append(" is=\""sv);
+            builder.append_ascii(" is=\""sv);
             builder.append(escape_string(element.is_value()->view(), AttributeMode::Yes));
-            builder.append('"');
+            builder.append_ascii('"');
         }
 
         // For each attribute that the element has,
@@ -1237,50 +1270,50 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
         // the attribute's value, escaped as described below in attribute mode,
         // and a second U+0022 QUOTATION MARK character (").
         element.for_each_attribute([&](DOM::Attr const& attribute) {
-            builder.append(' ');
+            builder.append_ascii(' ');
 
             // An attribute's serialized name for the purposes of the previous paragraph must be determined as follows:
             // -> If the attribute has no namespace:
             if (!attribute.namespace_uri().has_value()) {
                 // The attribute's serialized name is the attribute's local name.
-                builder.append(attribute.local_name());
+                builder.append(attribute.local_name().view());
             }
             // -> If the attribute is in the XML namespace:
             else if (attribute.namespace_uri() == Namespace::XML) {
                 // The attribute's serialized name is the string "xml:" followed by the attribute's local name.
-                builder.append("xml:"sv);
-                builder.append(attribute.local_name());
+                builder.append_ascii("xml:"sv);
+                builder.append(attribute.local_name().view());
             }
             // -> If the attribute is in the XMLNS namespace and the attribute's local name is xmlns:
-            else if (attribute.namespace_uri() == Namespace::XMLNS && attribute.local_name() == "xmlns"sv) {
+            else if (attribute.namespace_uri() == Namespace::XMLNS && attribute.local_name() == u"xmlns"sv) {
                 // The attribute's serialized name is the string "xmlns".
-                builder.append("xmlns"sv);
+                builder.append_ascii("xmlns"sv);
             }
             // -> If the attribute is in the XMLNS namespace and the attribute's local name is not xmlns:
             else if (attribute.namespace_uri() == Namespace::XMLNS) {
                 // The attribute's serialized name is the string "xmlns:" followed by the attribute's local name.
-                builder.append("xmlns:"sv);
-                builder.append(attribute.local_name());
+                builder.append_ascii("xmlns:"sv);
+                builder.append(attribute.local_name().view());
             }
             // -> If the attribute is in the XLink namespace:
             else if (attribute.namespace_uri() == Namespace::XLink) {
                 // The attribute's serialized name is the string "xlink:" followed by the attribute's local name.
-                builder.append("xlink:"sv);
-                builder.append(attribute.local_name());
+                builder.append_ascii("xlink:"sv);
+                builder.append(attribute.local_name().view());
             }
             // -> If the attribute is in some other namespace:
             else {
                 // The attribute's serialized name is the attribute's qualified name.
-                builder.append(attribute.name());
+                builder.append(attribute.name().view());
             }
 
-            builder.append("=\""sv);
+            builder.append_ascii("=\""sv);
             builder.append(escape_string(attribute.value().utf16_view(), AttributeMode::Yes));
-            builder.append('"');
+            builder.append_ascii('"');
         });
 
         // Append a U+003E GREATER-THAN SIGN character (>).
-        builder.append('>');
+        builder.append_ascii('>');
 
         // If current node serializes as void, then continue on to the next child node at this point.
         if (element.serializes_as_void())
@@ -1293,16 +1326,16 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
         // tagname again,
         // and finally a U+003E GREATER-THAN SIGN character (>).
         builder.append(serialize_html_fragment(element, serializable_shadow_roots, shadow_roots));
-        builder.append("</"sv);
-        builder.append(tag_name);
-        builder.append('>');
+        builder.append_ascii("</"sv);
+        builder.append(tag_name.view());
+        builder.append_ascii('>');
 
         return IterationDecision::Continue;
     };
 
     if (fragment_serialization_mode == DOM::FragmentSerializationMode::Outer) {
         serialize_element(as<DOM::Element>(node));
-        return builder.to_string_without_validation();
+        return builder.to_string();
     }
 
     // The algorithm takes as input a DOM Element, Document, or DocumentFragment referred to as the node.
@@ -1315,7 +1348,7 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
         // 1. If the node serializes as void, then return the empty string.
         //    (NOTE: serializes as void is defined only on elements in the spec)
         if (element.serializes_as_void())
-            return String {};
+            return {};
 
         // 3. If the node is a template element, then let the node instead be the template element's template contents (a DocumentFragment node).
         //    (NOTE: This is out of order of the spec to avoid another dynamic cast. The second step just creates a string builder, so it shouldn't matter)
@@ -1334,29 +1367,29 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
                 || any_of(shadow_roots, [&](auto& entry) { return entry == shadow; })) {
                 // then:
                 // 1. Append "<template shadowrootmode="".
-                builder.append("<template shadowrootmode=\""sv);
+                builder.append_ascii("<template shadowrootmode=\""sv);
 
                 // 2. If shadow's mode is "open", then append "open". Otherwise, append "closed".
-                builder.append(shadow->mode() == Bindings::ShadowRootMode::Open ? "open"sv : "closed"sv);
+                builder.append_ascii(shadow->mode() == Bindings::ShadowRootMode::Open ? "open"sv : "closed"sv);
 
                 // 3. Append """.
-                builder.append('"');
+                builder.append_ascii('"');
 
                 // 4. If shadow's delegates focus is set, then append " shadowrootdelegatesfocus=""".
                 if (shadow->delegates_focus())
-                    builder.append(" shadowrootdelegatesfocus=\"\""sv);
+                    builder.append_ascii(" shadowrootdelegatesfocus=\"\""sv);
 
                 // 5. If shadow's serializable is set, then append " shadowrootserializable=""".
                 if (shadow->serializable())
-                    builder.append(" shadowrootserializable=\"\""sv);
+                    builder.append_ascii(" shadowrootserializable=\"\""sv);
 
                 // 6. If shadow's slot assignment is "manual", then append " shadowrootslotassignment="manual"".
                 if (shadow->slot_assignment() == Bindings::SlotAssignmentMode::Manual)
-                    builder.append(" shadowrootslotassignment=\"manual\""sv);
+                    builder.append_ascii(" shadowrootslotassignment=\"manual\""sv);
 
                 // 7. If shadow's clonable is set, then append " shadowrootclonable=""".
                 if (shadow->clonable())
-                    builder.append(" shadowrootclonable=\"\""sv);
+                    builder.append_ascii(" shadowrootclonable=\"\""sv);
 
                 // 7. Let shouldAppendRegistryAttribute be the result of running these steps:
                 auto should_append_registry_attribute = [&] {
@@ -1381,17 +1414,17 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
 
                 // 8. If shouldAppendRegistryAttribute is true, then append " shadowrootcustomelementregistry=""".
                 if (should_append_registry_attribute)
-                    builder.append(" shadowrootcustomelementregistry=\"\""sv);
+                    builder.append_ascii(" shadowrootcustomelementregistry=\"\""sv);
 
                 // 9. Append ">".
-                builder.append('>');
+                builder.append_ascii('>');
 
                 // 10. Append the value of running the HTML fragment serialization algorithm with shadow,
                 //    serializableShadowRoots, and shadowRoots (thus recursing into this algorithm for that element).
                 builder.append(serialize_html_fragment(*shadow, serializable_shadow_roots, shadow_roots));
 
                 // 11. Append "</template>".
-                builder.append("</template>"sv);
+                builder.append_ascii("</template>"sv);
             }
         }
     }
@@ -1421,7 +1454,7 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
                 // or if the parent of current node is a noscript element and scripting is enabled for the node, then append the value of current node's data IDL attribute literally.
                 if (parent_element.local_name().is_one_of(HTML::TagNames::style, HTML::TagNames::script, HTML::TagNames::xmp, HTML::TagNames::iframe, HTML::TagNames::noembed, HTML::TagNames::noframes, HTML::TagNames::plaintext)
                     || (parent_element.local_name() == HTML::TagNames::noscript && !parent_element.is_scripting_disabled())) {
-                    builder.append(text_node.data());
+                    builder.append(text_node.data().utf16_view());
                     return IterationDecision::Continue;
                 }
             }
@@ -1436,9 +1469,9 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
 
             // Append the literal string "<!--" (U+003C LESS-THAN SIGN, U+0021 EXCLAMATION MARK, U+002D HYPHEN-MINUS, U+002D HYPHEN-MINUS),
             // followed by the value of current node's data IDL attribute, followed by the literal string "-->" (U+002D HYPHEN-MINUS, U+002D HYPHEN-MINUS, U+003E GREATER-THAN SIGN).
-            builder.append("<!--"sv);
-            builder.append(comment_node.data());
-            builder.append("-->"sv);
+            builder.append_ascii("<!--"sv);
+            builder.append(comment_node.data().utf16_view());
+            builder.append_ascii("-->"sv);
             return IterationDecision::Continue;
         }
 
@@ -1448,11 +1481,11 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
 
             // Append the literal string "<?" (U+003C LESS-THAN SIGN, U+003F QUESTION MARK), followed by the value of current node's target IDL attribute,
             // followed by a single U+0020 SPACE character, followed by the value of current node's data IDL attribute, followed by a single U+003E GREATER-THAN SIGN character (>).
-            builder.append("<?"sv);
-            builder.append(processing_instruction_node.target());
-            builder.append(' ');
-            builder.append(processing_instruction_node.data());
-            builder.append('>');
+            builder.append_ascii("<?"sv);
+            builder.append(processing_instruction_node.target().view());
+            builder.append_ascii(' ');
+            builder.append(processing_instruction_node.data().utf16_view());
+            builder.append_ascii('>');
             return IterationDecision::Continue;
         }
 
@@ -1463,9 +1496,9 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
             // Append the literal string "<!DOCTYPE" (U+003C LESS-THAN SIGN, U+0021 EXCLAMATION MARK, U+0044 LATIN CAPITAL LETTER D, U+004F LATIN CAPITAL LETTER O,
             // U+0043 LATIN CAPITAL LETTER C, U+0054 LATIN CAPITAL LETTER T, U+0059 LATIN CAPITAL LETTER Y, U+0050 LATIN CAPITAL LETTER P, U+0045 LATIN CAPITAL LETTER E),
             // followed by a space (U+0020 SPACE), followed by the value of current node's name IDL attribute, followed by the literal string ">" (U+003E GREATER-THAN SIGN).
-            builder.append("<!DOCTYPE "sv);
-            builder.append(document_type_node.name());
-            builder.append('>');
+            builder.append_ascii("<!DOCTYPE "sv);
+            builder.append(document_type_node.name().view());
+            builder.append_ascii('>');
             return IterationDecision::Continue;
         }
 
@@ -1473,23 +1506,13 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
     });
 
     // 6. Return s.
-    return MUST(builder.to_string());
+    return builder.to_string();
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#current-dimension-value
-static size_t code_unit_length(StringView string)
-{
-    return string.length();
-}
-
 static size_t code_unit_length(Utf16View string)
 {
     return string.length_in_code_units();
-}
-
-static u32 code_unit_at(StringView string, size_t index)
-{
-    return string[index];
 }
 
 static u32 code_unit_at(Utf16View string, size_t index)
@@ -1503,8 +1526,7 @@ static bool is_eof(StringType string, size_t position)
     return position >= code_unit_length(string);
 }
 
-template<typename StringType>
-static RefPtr<CSS::StyleValue const> parse_current_dimension_value(float value, StringType input, size_t position)
+static RefPtr<CSS::StyleValue const> parse_current_dimension_value(float value, Utf16View input, size_t position)
 {
     // 1. If position is past the end of input, then return value as a length.
     if (is_eof(input, position))
@@ -1519,8 +1541,7 @@ static RefPtr<CSS::StyleValue const> parse_current_dimension_value(float value, 
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-dimension-values
-template<typename StringType>
-static RefPtr<CSS::StyleValue const> parse_dimension_value_impl(StringType input)
+RefPtr<CSS::StyleValue const> parse_dimension_value(Utf16View input)
 {
     // 1. Let input be the string being parsed.
     // 2. Let position be a position variable for input, initially pointing at the start of input.
@@ -1537,14 +1558,13 @@ static RefPtr<CSS::StyleValue const> parse_dimension_value_impl(StringType input
 
     // 5. Collect a sequence of code points that are ASCII digits from input given position,
     //    and interpret the resulting sequence as a base-ten integer. Let value be that number.
-    StringBuilder number_string;
+    double integer_value = 0;
     while (!is_eof(input, position) && is_ascii_digit(code_unit_at(input, position))) {
-        number_string.append(code_unit_at(input, position));
+        integer_value = integer_value * 10 + (code_unit_at(input, position) - '0');
         ++position;
     }
-    auto integer_value = number_string.string_view().to_number<double>();
 
-    float value = min(*integer_value, CSSPixels::max_dimension_value);
+    float value = min(integer_value, CSSPixels::max_dimension_value);
 
     // 6. If position is past the end of input, then return value as a length.
     if (is_eof(input, position))
@@ -1589,23 +1609,8 @@ static RefPtr<CSS::StyleValue const> parse_dimension_value_impl(StringType input
     return parse_current_dimension_value(value, input, position);
 }
 
-RefPtr<CSS::StyleValue const> parse_dimension_value(StringView string)
-{
-    auto input = Utf8View(string);
-    if (!input.validate())
-        return nullptr;
-
-    return parse_dimension_value_impl(string);
-}
-
-RefPtr<CSS::StyleValue const> parse_dimension_value(Utf16View string)
-{
-    return parse_dimension_value_impl(string);
-}
-
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-non-zero-dimension-values
-template<typename StringType>
-static RefPtr<CSS::StyleValue const> parse_nonzero_dimension_value_impl(StringType string)
+RefPtr<CSS::StyleValue const> parse_nonzero_dimension_value(Utf16View string)
 {
     // 1. Let input be the string being parsed.
     // 2. Let value be the result of parsing input using the rules for parsing dimension values.
@@ -1626,159 +1631,7 @@ static RefPtr<CSS::StyleValue const> parse_nonzero_dimension_value_impl(StringTy
     return value;
 }
 
-RefPtr<CSS::StyleValue const> parse_nonzero_dimension_value(StringView string)
-{
-    return parse_nonzero_dimension_value_impl(string);
-}
-
-RefPtr<CSS::StyleValue const> parse_nonzero_dimension_value(Utf16View string)
-{
-    return parse_nonzero_dimension_value_impl(string);
-}
-
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-a-legacy-colour-value
-Optional<Color> parse_legacy_color_value(StringView string_view)
-{
-    // 1. If input is the empty string, then return failure.
-    if (string_view.is_empty())
-        return {};
-
-    ByteString input = string_view;
-
-    // 2. Strip leading and trailing ASCII whitespace from input.
-    input = input.trim(Infra::ASCII_WHITESPACE);
-
-    // 3. If input is an ASCII case-insensitive match for "transparent", then return failure.
-    if (input.equals_ignoring_ascii_case("transparent"sv))
-        return {};
-
-    // 4. If input is an ASCII case-insensitive match for one of the named colors, then return the CSS color corresponding to that keyword. [CSSCOLOR]
-    if (auto const color = Color::from_named_css_color_string(input); color.has_value())
-        return color;
-
-    auto hex_nibble_to_u8 = [](char nibble) -> u8 {
-        if (nibble >= '0' && nibble <= '9')
-            return nibble - '0';
-        if (nibble >= 'a' && nibble <= 'f')
-            return nibble - 'a' + 10;
-        return nibble - 'A' + 10;
-    };
-
-    // 5. If input's code point length is four, and the first character in input is U+0023 (#), and the last three characters of input are all ASCII hex digits, then:
-    if (input.length() == 4 && input[0] == '#' && is_ascii_hex_digit(input[1]) && is_ascii_hex_digit(input[2]) && is_ascii_hex_digit(input[3])) {
-        // 1. Let result be a CSS color.
-        Color result;
-        result.set_alpha(0xFF);
-
-        // 2. Interpret the second character of input as a hexadecimal digit; let the red component of result be the resulting number multiplied by 17.
-        result.set_red(hex_nibble_to_u8(input[1]) * 17);
-
-        // 3. Interpret the third character of input as a hexadecimal digit; let the green component of result be the resulting number multiplied by 17.
-        result.set_green(hex_nibble_to_u8(input[2]) * 17);
-
-        // 4. Interpret the fourth character of input as a hexadecimal digit; let the blue component of result be the resulting number multiplied by 17.
-        result.set_blue(hex_nibble_to_u8(input[3]) * 17);
-
-        // 5. Return result.
-        return result;
-    }
-
-    // 6. Replace any code points greater than U+FFFF in input (i.e., any characters that are not in the basic multilingual plane) with "00".
-    auto replace_non_basic_multilingual_code_points = [](StringView string) -> ByteString {
-        StringBuilder builder;
-        for (auto code_point : Utf8View { string }) {
-            if (code_point > 0xFFFF)
-                builder.append("00"sv);
-            else
-                builder.append_code_point(code_point);
-        }
-        return builder.to_byte_string();
-    };
-    input = replace_non_basic_multilingual_code_points(input);
-
-    // 7. If input's code point length is greater than 128, truncate input, leaving only the first 128 characters.
-    if (input.length() > 128)
-        input = input.substring(0, 128);
-
-    // 8. If the first character in input is U+0023 (#), then remove it.
-    if (input[0] == '#')
-        input = input.substring(1);
-
-    // 9. Replace any character in input that is not an ASCII hex digit with U+0030 (0).
-    auto replace_non_ascii_hex = [](StringView string) -> ByteString {
-        StringBuilder builder;
-        for (auto code_point : Utf8View { string }) {
-            if (is_ascii_hex_digit(code_point))
-                builder.append_code_point(code_point);
-            else
-                builder.append_code_point('0');
-        }
-        return builder.to_byte_string();
-    };
-    input = replace_non_ascii_hex(input);
-
-    // 10. While input's code point length is zero or not a multiple of three, append U+0030 (0) to input.
-    StringBuilder builder;
-    builder.append(input);
-    while (builder.length() == 0 || (builder.length() % 3 != 0))
-        builder.append_code_point('0');
-    input = builder.to_byte_string();
-
-    // 11. Split input into three strings of equal code point length, to obtain three components. Let length be the code point length that all of those components have (one third the code point length of input).
-    auto length = input.length() / 3;
-    auto first_component = input.substring_view(0, length);
-    auto second_component = input.substring_view(length, length);
-    auto third_component = input.substring_view(length * 2, length);
-
-    // 12. If length is greater than 8, then remove the leading length-8 characters in each component, and let length be 8.
-    if (length > 8) {
-        first_component = first_component.substring_view(length - 8);
-        second_component = second_component.substring_view(length - 8);
-        third_component = third_component.substring_view(length - 8);
-        length = 8;
-    }
-
-    // 13. While length is greater than two and the first character in each component is U+0030 (0), remove that character and reduce length by one.
-    while (length > 2 && first_component[0] == '0' && second_component[0] == '0' && third_component[0] == '0') {
-        --length;
-        first_component = first_component.substring_view(1);
-        second_component = second_component.substring_view(1);
-        third_component = third_component.substring_view(1);
-    }
-
-    // 14. If length is still greater than two, truncate each component, leaving only the first two characters in each.
-    if (length > 2) {
-        first_component = first_component.substring_view(0, 2);
-        second_component = second_component.substring_view(0, 2);
-        third_component = third_component.substring_view(0, 2);
-    }
-
-    auto to_hex = [&](StringView string) -> u8 {
-        if (length == 1) {
-            return hex_nibble_to_u8(string[0]);
-        }
-        auto nib1 = hex_nibble_to_u8(string[0]);
-        auto nib2 = hex_nibble_to_u8(string[1]);
-        return nib1 << 4 | nib2;
-    };
-
-    // 15. Let result be a CSS color.
-    Color result;
-    result.set_alpha(0xFF);
-
-    // 16. Interpret the first component as a hexadecimal number; let the red component of result be the resulting number.
-    result.set_red(to_hex(first_component));
-
-    // 17. Interpret the second component as a hexadecimal number; let the green component of result be the resulting number.
-    result.set_green(to_hex(second_component));
-
-    // 18. Interpret the third component as a hexadecimal number; let the blue component of result be the resulting number.
-    result.set_blue(to_hex(third_component));
-
-    // 19. Return result.
-    return result;
-}
-
 Optional<Color> parse_legacy_color_value(Utf16View string)
 {
     // 1. If input is the empty string, then return failure.
@@ -1789,7 +1642,7 @@ Optional<Color> parse_legacy_color_value(Utf16View string)
     auto input = Utf16String::from_utf16(string.trim(Infra::ASCII_WHITESPACE));
 
     // 3. If input is an ASCII case-insensitive match for "transparent", then return failure.
-    if (input.equals_ignoring_ascii_case("transparent"sv))
+    if (input.equals_ignoring_ascii_case(u"transparent"sv))
         return {};
 
     // 4. If input is an ASCII case-insensitive match for one of the named colors, then return the CSS color corresponding to that keyword. [CSSCOLOR]
@@ -1832,7 +1685,7 @@ Optional<Color> parse_legacy_color_value(Utf16View string)
         Utf16StringBuilder builder;
         for (auto code_point : string) {
             if (code_point > 0xFFFF)
-                builder.append("00"sv);
+                builder.append(u"00"sv);
             else
                 builder.append_code_point(code_point);
         }
@@ -1927,45 +1780,34 @@ Optional<Color> parse_legacy_color_value(Utf16View string)
 }
 
 // https://html.spec.whatwg.org/multipage/rendering.html#tables-2
-template<typename StringType>
-static RefPtr<CSS::StyleValue const> parse_table_child_element_align_value_impl(StringType string_view)
+RefPtr<CSS::StyleValue const> parse_table_child_element_align_value(Utf16View string_view)
 {
     // The thead, tbody, tfoot, tr, td, and th elements, when they have an align attribute whose value is an ASCII
     // case-insensitive match for either the string "center" or the string "middle", are expected to center text within
     // themselves, as if they had their 'text-align' property set to 'center' in a presentational hint, and to align
     // descendants to the center.
-    if (string_view.equals_ignoring_ascii_case("center"sv) || string_view.equals_ignoring_ascii_case("middle"sv))
+    if (string_view.equals_ignoring_ascii_case(u"center"sv) || string_view.equals_ignoring_ascii_case(u"middle"sv))
         return CSS::KeywordStyleValue::create(CSS::Keyword::LibwebCenter);
 
     // The thead, tbody, tfoot, tr, td, and th elements, when they have an align attribute whose value is an ASCII
     // case-insensitive match for the string "left", are expected to left-align text within themselves, as if they had
     // their 'text-align' property set to 'left' in a presentational hint, and to align descendants to the left.
-    if (string_view.equals_ignoring_ascii_case("left"sv))
+    if (string_view.equals_ignoring_ascii_case(u"left"sv))
         return CSS::KeywordStyleValue::create(CSS::Keyword::LibwebLeft);
 
     // The thead, tbody, tfoot, tr, td, and th elements, when they have an align attribute whose value is an ASCII
     // case-insensitive match for the string "right", are expected to right-align text within themselves, as if they
     // had their 'text-align' property set to 'right' in a presentational hint, and to align descendants to the right.
-    if (string_view.equals_ignoring_ascii_case("right"sv))
+    if (string_view.equals_ignoring_ascii_case(u"right"sv))
         return CSS::KeywordStyleValue::create(CSS::Keyword::LibwebRight);
 
     // The thead, tbody, tfoot, tr, td, and th elements, when they have an align attribute whose value is an ASCII
     // case-insensitive match for the string "justify", are expected to full-justify text within themselves, as if they
     // had their 'text-align' property set to 'justify' in a presentational hint, and to align descendants to the left.
-    if (string_view.equals_ignoring_ascii_case("justify"sv))
+    if (string_view.equals_ignoring_ascii_case(u"justify"sv))
         return CSS::KeywordStyleValue::create(CSS::Keyword::Justify);
 
     return nullptr;
-}
-
-RefPtr<CSS::StyleValue const> parse_table_child_element_align_value(StringView string_view)
-{
-    return parse_table_child_element_align_value_impl(string_view);
-}
-
-RefPtr<CSS::StyleValue const> parse_table_child_element_align_value(Utf16View string)
-{
-    return parse_table_child_element_align_value_impl(string);
 }
 
 JS::Realm& HTMLParser::realm()
@@ -2216,25 +2058,25 @@ extern "C" void ladybird_html_parser_set_document_quirks_mode(void* parser, Rust
         document.set_quirks_mode(quirks_mode_from_html_parser_ffi(mode));
 }
 
-extern "C" size_t ladybird_html_parser_create_document_type(void* parser, u16 const* name_ptr, size_t name_len, u8 const* public_id_ptr, size_t public_id_len, u8 const* system_id_ptr, size_t system_id_len)
+extern "C" size_t ladybird_html_parser_create_document_type(void* parser, u16 const* name_ptr, size_t name_len, u16 const* public_id_ptr, size_t public_id_len, u16 const* system_id_ptr, size_t system_id_len)
 {
     auto& html_parser = parser_from_html_parser_ffi(parser);
     auto document_type = html_parser.document().realm().create<DOM::DocumentType>(html_parser.document());
     document_type->set_name(utf16_fly_string_from_ffi(name_ptr, name_len));
-    document_type->set_public_id(Utf16String::from_utf8(ffi_string_view(public_id_ptr, public_id_len)));
-    document_type->set_system_id(Utf16String::from_utf8(ffi_string_view(system_id_ptr, system_id_len)));
+    document_type->set_public_id(utf16_string_from_ffi(public_id_ptr, public_id_len));
+    document_type->set_system_id(utf16_string_from_ffi(system_id_ptr, system_id_len));
     return reinterpret_cast<size_t>(document_type.ptr());
 }
 
-extern "C" size_t ladybird_html_parser_create_comment(void* parser, u8 const* data_ptr, size_t data_len)
+extern "C" size_t ladybird_html_parser_create_comment(void* parser, u16 const* data_ptr, size_t data_len)
 {
     auto& html_parser = parser_from_html_parser_ffi(parser);
-    auto comment = html_parser.document().realm().create<DOM::Comment>(html_parser.document(), Utf16String::from_utf8(ffi_string(data_ptr, data_len)));
+    auto comment = html_parser.document().realm().create<DOM::Comment>(html_parser.document(), utf16_string_from_ffi(data_ptr, data_len));
     return reinterpret_cast<size_t>(comment.ptr());
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#insert-a-character
-extern "C" void ladybird_html_parser_insert_text(size_t parent, size_t offset, u8 const* data_ptr, size_t data_len)
+extern "C" void ladybird_html_parser_insert_text(size_t parent, size_t offset, u16 const* data_ptr, size_t data_len)
 {
     auto insertion_location = node_and_offset_from_html_parser_ffi(parent, offset);
     auto& parent_node = *insertion_location.node;
@@ -2247,7 +2089,7 @@ extern "C" void ladybird_html_parser_insert_text(size_t parent, size_t offset, u
     // 4. If there is a Text node immediately before insertionLocation, then append data to that Text node's data.
     //    Otherwise, create a new Text node whose data is data and whose node document is the same as that of the element
     //    in which insertionLocation finds itself, and insert the newly created node at insertionLocation.
-    auto data = Utf16String::from_utf8(ffi_string(data_ptr, data_len));
+    auto data = utf16_string_from_ffi(data_ptr, data_len);
     if (auto* previous_text = as_if<DOM::Text>(insertion_location.previous_child())) {
         (void)previous_text->append_data(data);
         return;
@@ -2263,14 +2105,15 @@ extern "C" void ladybird_html_parser_insert_text(size_t parent, size_t offset, u
     MUST(parent_node.append_child(*text));
 }
 
-extern "C" void ladybird_html_parser_add_missing_attribute(size_t element, u16 const* local_name_ptr, size_t local_name_len, u8 const* value_ptr, size_t value_len)
+extern "C" void ladybird_html_parser_add_missing_attribute(size_t element, u16 const* local_name_ptr, size_t local_name_len, u16 const* value_ptr, size_t value_len)
 {
     auto& dom_element = as<DOM::Element>(node_from_html_parser_ffi(element));
     auto local_name = utf16_fly_string_from_ffi(local_name_ptr, local_name_len);
     if (dom_element.has_attribute(local_name))
         return;
-    auto value = Utf16String::from_utf8(ffi_string_view(value_ptr, value_len));
-    dom_element.append_attribute(local_name, value);
+    auto value = utf16_string_from_ffi(value_ptr, value_len);
+    auto attribute = DOM::Attr::create(dom_element.document(), move(local_name), move(value));
+    dom_element.append_attribute(attribute);
 }
 
 extern "C" void ladybird_html_parser_remove_node(size_t node)
@@ -2337,7 +2180,7 @@ extern "C" size_t ladybird_html_parser_create_element(void* parser, size_t inten
         token_attribute.prefix = move(prefix);
         token_attribute.local_name = utf16_fly_string_from_ffi(attribute.local_name_ptr, attribute.local_name_len);
         token_attribute.namespace_ = attribute_namespace_from_html_parser_ffi(attribute.namespace_);
-        token_attribute.value = Utf16String::from_utf8(ffi_string_view(attribute.value_ptr, attribute.value_len));
+        token_attribute.value = utf16_string_from_ffi(attribute.value_ptr, attribute.value_len);
         token.add_attribute(move(token_attribute));
     }
 

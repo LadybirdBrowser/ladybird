@@ -19,7 +19,7 @@ public:
     virtual ~ReportUriDirective() = default;
 
 private:
-    ReportUriDirective(String name, Vector<String> value);
+    ReportUriDirective(Utf16FlyString name, Vector<Utf16String> value);
 };
 
 }

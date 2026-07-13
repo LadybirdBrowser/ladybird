@@ -33,7 +33,7 @@ void SVGStopElement::apply_presentational_hints(Vector<CSS::StyleProperty>& prop
 {
     Base::apply_presentational_hints(properties);
     CSS::Parser::ParsingParams parsing_context { document(), CSS::Parser::ParsingMode::SVGPresentationAttribute };
-    for_each_attribute([&](auto& name, auto& value) {
+    for_each_attribute([&](Utf16FlyString const& name, Utf16View value) {
         if (name == SVG::AttributeNames::stopColor) {
             if (auto stop_color = parse_css_value(parsing_context, value, CSS::PropertyID::StopColor)) {
                 properties.append({ .property_id = CSS::PropertyID::StopColor, .value = stop_color.release_nonnull() });

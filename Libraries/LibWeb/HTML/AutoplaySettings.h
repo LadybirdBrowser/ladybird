@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibURL/Forward.h>
 #include <LibWeb/Export.h>
@@ -28,7 +29,7 @@ public:
 
     AutoplayDecision decision_for_origin(DOM::Document const&, URL::Origin const&) const;
 
-    void set_policy(AutoplayPolicy, ReadonlySpan<String> allowlist);
+    void set_policy(AutoplayPolicy, ReadonlySpan<Utf16String> allowlist);
 
 private:
     AutoplaySettings();

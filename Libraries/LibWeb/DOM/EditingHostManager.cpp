@@ -34,7 +34,7 @@ void EditingHostManager::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_active_contenteditable_element);
 }
 
-void EditingHostManager::handle_insert(FlyString const&, Utf16String const& value)
+void EditingHostManager::handle_insert(Utf16FlyString const&, Utf16View value)
 {
     // https://w3c.github.io/editing/docs/execCommand/#additional-requirements
     // When the user instructs the user agent to insert text inside an editing host, such as by typing on the keyboard
@@ -174,7 +174,7 @@ void EditingHostManager::decrement_cursor_position_to_previous_line(CollapseSele
         selection->move_offset_to_previous_line(collapse == CollapseSelection::Yes);
 }
 
-void EditingHostManager::handle_delete(FlyString const& input_type)
+void EditingHostManager::handle_delete(Utf16FlyString const& input_type, [[maybe_unused]] DispatchInputEvent dispatch_input_event)
 {
     // https://w3c.github.io/editing/docs/execCommand/#additional-requirements
     // When the user instructs the user agent to delete the previous character inside an editing host, such as by
@@ -189,7 +189,7 @@ void EditingHostManager::handle_delete(FlyString const& input_type)
         dbgln("handle_delete(): editing resulted in exception: {}", editing_result.exception());
 }
 
-EventResult EditingHostManager::handle_return_key(FlyString const& ui_input_type)
+EventResult EditingHostManager::handle_return_key(Utf16FlyString const& ui_input_type)
 {
     VERIFY(ui_input_type == UIEvents::InputTypes::insertParagraph || ui_input_type == UIEvents::InputTypes::insertLineBreak);
 

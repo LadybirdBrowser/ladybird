@@ -40,11 +40,11 @@ void CSSKeyframeRule::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-String CSSKeyframeRule::serialized() const
+Utf16String CSSKeyframeRule::serialized() const
 {
-    StringBuilder builder;
+    Utf16StringBuilder builder;
     builder.appendff("{}% {{ {} }}", key().value(), style()->serialized());
-    return MUST(builder.to_string());
+    return builder.to_string();
 }
 
 void CSSKeyframeRule::dump(StringBuilder& builder, int indent_levels) const

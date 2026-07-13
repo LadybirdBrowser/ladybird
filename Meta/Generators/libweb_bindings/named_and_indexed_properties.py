@@ -75,9 +75,7 @@ def write_named_properties_object_implementation(
     includes.add(implementation_header_for_interface(interface))
     parent_prototype = "realm.intrinsics().object_prototype()"
     if interface.parent_name:
-        parent_prototype = (
-            f'&ensure_web_prototype<{interface.parent_name}Prototype>(realm, "{interface.parent_name}"_fly_string)'
-        )
+        parent_prototype = f'&ensure_web_prototype<{interface.parent_name}Prototype>(realm, "{interface.parent_name}"_utf16_fly_string)'
     out.write(
         f"""GC_DEFINE_ALLOCATOR({interface.name}Properties);
 

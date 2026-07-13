@@ -560,7 +560,6 @@ RefPtr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element&
     m_quote_nesting_level = final_quote_nesting_level;
     auto pseudo_element_display = pseudo_element_style->display();
 
-    Optional<String> content_from_counter_style;
     // ::before and ::after only exist if they have content. `content: normal` computes to `none` for them.
     // We also don't create them if they are `display: none`.
     if (first_is_one_of(pseudo_element, CSS::PseudoElement::Before, CSS::PseudoElement::After)
@@ -648,8 +647,8 @@ RefPtr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element&
             push_parent(*pseudo_element_node);
             for (auto& item : new_content.data) {
                 RefPtr<Layout::Node> layout_node;
-                if (auto const* string = item.get_pointer<String>()) {
-                    layout_node = make_ref_counted<GeneratedTextNode>(document, Utf16String::from_utf8(*string));
+                if (auto const* string = item.get_pointer<Utf16String>()) {
+                    layout_node = make_ref_counted<GeneratedTextNode>(document, *string);
                 } else {
                     auto& image = *item.get<NonnullRefPtr<CSS::AbstractImageStyleValue>>();
                     layout_node = create_content_image_box(document, nullptr, *pseudo_element_style, image);

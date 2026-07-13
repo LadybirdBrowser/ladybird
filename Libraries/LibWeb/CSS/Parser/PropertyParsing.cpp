@@ -15,6 +15,7 @@
 
 #include <AK/Debug.h>
 #include <AK/QuickSort.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibWeb/CSS/CharacterTypes.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
@@ -795,7 +796,7 @@ RefPtr<StyleValue const> Parser::parse_color_scheme_value(TokenStream<ComponentV
     {
         auto transaction = tokens.begin_transaction();
         tokens.discard_whitespace();
-        if (tokens.consume_a_token().is_ident("normal"sv)) {
+        if (tokens.consume_a_token().is_ident("normal"_utf16)) {
             if (tokens.has_next_token())
                 return {};
             transaction.commit();
@@ -810,7 +811,7 @@ RefPtr<StyleValue const> Parser::parse_color_scheme_value(TokenStream<ComponentV
     {
         auto transaction = tokens.begin_transaction();
         tokens.discard_whitespace();
-        if (tokens.consume_a_token().is_ident("only"sv)) {
+        if (tokens.consume_a_token().is_ident("only"_utf16)) {
             only = true;
             transaction.commit();
         }
@@ -839,7 +840,7 @@ RefPtr<StyleValue const> Parser::parse_color_scheme_value(TokenStream<ComponentV
     if (!only) {
         auto transaction = tokens.begin_transaction();
         tokens.discard_whitespace();
-        if (tokens.consume_a_token().is_ident("only"sv)) {
+        if (tokens.consume_a_token().is_ident("only"_utf16)) {
             only = true;
             transaction.commit();
         }
@@ -877,7 +878,7 @@ RefPtr<StyleValue const> Parser::parse_counter_definitions_value(TokenStream<Com
         if (auto counter_name = parse_custom_ident_value(tokens, { { "none"sv } })) {
             definition.name = counter_name->custom_ident();
             definition.is_reversed = false;
-        } else if (allow_reversed == AllowReversed::Yes && token.is_function("reversed"sv)) {
+        } else if (allow_reversed == AllowReversed::Yes && token.is_function("reversed"_utf16)) {
             TokenStream function_tokens { token.function().value };
             tokens.discard_a_token();
             function_tokens.discard_whitespace();
@@ -1635,7 +1636,7 @@ RefPtr<StyleValue const> Parser::parse_border_image_slice_value(TokenStream<Comp
     RefPtr<StyleValue const> left;
 
     auto parse_fill = [](TokenStream<ComponentValue>& fill_tokens) {
-        if (fill_tokens.next_token().is_ident("fill"sv)) {
+        if (fill_tokens.next_token().is_ident("fill"_utf16)) {
             fill_tokens.discard_a_token();
             return true;
         }
@@ -1912,7 +1913,7 @@ RefPtr<StyleValue const> Parser::parse_single_shadow_value(TokenStream<Component
             continue;
         }
 
-        if (shadow_type == ShadowStyleValue::ShadowType::Normal && token.is_ident("inset"sv)) {
+        if (shadow_type == ShadowStyleValue::ShadowType::Normal && token.is_ident("inset"_utf16)) {
             if (placement.has_value())
                 return nullptr;
             placement = ShadowPlacement::Inner;
@@ -2018,7 +2019,7 @@ RefPtr<StyleValue const> Parser::parse_rotate_value(TokenStream<ComponentValue>&
         tokens.discard_whitespace();
         auto const& axis = tokens.consume_a_token();
 
-        if (axis.is_ident("x"sv) || axis.is_ident("y"sv) || axis.is_ident("z"sv)) {
+        if (axis.is_ident("x"_utf16) || axis.is_ident("y"_utf16) || axis.is_ident("z"_utf16)) {
             xyz_transaction.commit();
             return axis;
         }
@@ -2035,11 +2036,11 @@ RefPtr<StyleValue const> Parser::parse_rotate_value(TokenStream<ComponentValue>&
 
         if (angle) {
             transaction.commit();
-            if (axis->is_ident("x"sv))
+            if (axis->is_ident("x"_utf16))
                 return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::RotateX, { angle.release_nonnull() });
-            if (axis->is_ident("y"sv))
+            if (axis->is_ident("y"_utf16))
                 return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::RotateY, { angle.release_nonnull() });
-            if (axis->is_ident("z"sv))
+            if (axis->is_ident("z"_utf16))
                 return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::RotateZ, { angle.release_nonnull() });
             VERIFY_NOT_REACHED();
         }
@@ -2296,8 +2297,8 @@ RefPtr<StyleValue const> Parser::parse_display_value(TokenStream<ComponentValue>
 
             // Not a display value, abort.
             ErrorReporter::the().report(InvalidValueError {
-                .value_type = "<display>"_fly_string,
-                .value_string = tokens.next_token().to_string(),
+                .value_type = "<display>"_utf16_fly_string,
+                .value_string = tokens.next_token().to_string().to_utf8(),
                 .description = "Unrecognized value"_string,
             });
             return {};
@@ -2490,7 +2491,7 @@ RefPtr<StyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>& t
     tokens.discard_whitespace();
 
     while (tokens.has_next_token()) {
-        if (tokens.next_token().is_ident("normal"sv)) {
+        if (tokens.next_token().is_ident("normal"_utf16)) {
             normal_count++;
             tokens.discard_a_token(); // normal
             tokens.discard_whitespace();
@@ -2499,7 +2500,7 @@ RefPtr<StyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>& t
 
         // <font-variant-css2> = normal | small-caps
         // So, we handle that manually instead of trying to parse the font-variant property.
-        if (!font_variant && tokens.next_token().is_ident("small-caps"sv)) {
+        if (!font_variant && tokens.next_token().is_ident("small-caps"_utf16)) {
             tokens.discard_a_token(); // small-caps
 
             font_variant = ShorthandStyleValue::create(PropertyID::FontVariant,
@@ -2686,7 +2687,7 @@ RefPtr<StyleValue const> Parser::parse_font_language_override_value(TokenStream<
         tokens.discard_whitespace();
         if (tokens.has_next_token()) {
             ErrorReporter::the().report(InvalidPropertyError {
-                .rule_name = "style"_fly_string,
+                .rule_name = "style"_utf16_fly_string,
                 .property_name = "font-language-override"_utf16_fly_string,
                 .value_string = tokens.dump_string(),
                 .description = "Unexpected trailing tokens"_string,
@@ -2696,7 +2697,7 @@ RefPtr<StyleValue const> Parser::parse_font_language_override_value(TokenStream<
         auto length = string_value.length_in_code_units();
         if (length == 0) {
             ErrorReporter::the().report(InvalidPropertyError {
-                .rule_name = "style"_fly_string,
+                .rule_name = "style"_utf16_fly_string,
                 .property_name = "font-language-override"_utf16_fly_string,
                 .value_string = tokens.dump_string(),
                 .description = "<string> value is empty"_string,
@@ -2705,7 +2706,7 @@ RefPtr<StyleValue const> Parser::parse_font_language_override_value(TokenStream<
         }
         if (!string_value.is_ascii()) {
             ErrorReporter::the().report(InvalidPropertyError {
-                .rule_name = "style"_fly_string,
+                .rule_name = "style"_utf16_fly_string,
                 .property_name = "font-language-override"_utf16_fly_string,
                 .value_string = tokens.dump_string(),
                 .description = MUST(String::formatted("<string> value \"{}\" contains non-ascii characters", string_value)),
@@ -2714,7 +2715,7 @@ RefPtr<StyleValue const> Parser::parse_font_language_override_value(TokenStream<
         }
         if (length > 4) {
             ErrorReporter::the().report(InvalidPropertyError {
-                .rule_name = "style"_fly_string,
+                .rule_name = "style"_utf16_fly_string,
                 .property_name = "font-language-override"_utf16_fly_string,
                 .value_string = tokens.dump_string(),
                 .description = MUST(String::formatted("<string> value \"{}\" is too long", string_value)),
@@ -2725,7 +2726,7 @@ RefPtr<StyleValue const> Parser::parse_font_language_override_value(TokenStream<
         auto trimmed = string_value.view().trim_ascii_whitespace(TrimMode::Right);
         if (trimmed.is_empty()) {
             ErrorReporter::the().report(InvalidPropertyError {
-                .rule_name = "style"_fly_string,
+                .rule_name = "style"_utf16_fly_string,
                 .property_name = "font-language-override"_utf16_fly_string,
                 .value_string = tokens.dump_string(),
                 .description = MUST(String::formatted("<string> value \"{}\" is only whitespace", string_value)),
@@ -2982,7 +2983,7 @@ RefPtr<StyleValue const> Parser::parse_list_style_value(TokenStream<ComponentVal
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
     while (tokens.has_next_token()) {
-        if (auto const& peek = tokens.next_token(); peek.is_ident("none"sv)) {
+        if (auto const& peek = tokens.next_token(); peek.is_ident("none"_utf16)) {
             tokens.discard_a_token(); // none
             found_nones++;
             continue;
@@ -3315,7 +3316,7 @@ RefPtr<StyleValue const> Parser::parse_math_depth_value(TokenStream<ComponentVal
     }
 
     // add(<integer>)
-    if (tokens.next_token().is_function("add"sv)) {
+    if (tokens.next_token().is_function("add"_utf16)) {
         auto const& function = tokens.next_token().function();
         auto context_guard = push_temporary_value_parsing_context(FunctionContext { function.name });
 
@@ -5061,11 +5062,11 @@ RefPtr<StyleValue const> Parser::parse_grid_shorthand_value(TokenStream<Componen
         auto dense = GridAutoFlowStyleValue::Dense::No;
         for (int i = 0; i < 2 && tokens.has_next_token(); ++i) {
             auto const& token = tokens.next_token();
-            if (token.is_ident("auto-flow"sv) && !found_auto_flow) {
+            if (token.is_ident("auto-flow"_utf16) && !found_auto_flow) {
                 tokens.discard_a_token(); // auto-flow
                 tokens.discard_whitespace();
                 found_auto_flow = true;
-            } else if (token.is_ident("dense"sv) && dense == GridAutoFlowStyleValue::Dense::No) {
+            } else if (token.is_ident("dense"_utf16) && dense == GridAutoFlowStyleValue::Dense::No) {
                 tokens.discard_a_token(); // dense
                 tokens.discard_whitespace();
                 dense = GridAutoFlowStyleValue::Dense::Yes;
@@ -5160,21 +5161,28 @@ RefPtr<StyleValue const> Parser::parse_grid_template_areas_value(TokenStream<Com
     };
 
     auto consume_while = [](AK::Utf16CodePointIterator& code_points, AK::Utf16CodePointIterator const& end, AK::Function<bool(u32)> predicate) {
-        StringBuilder builder;
         while (code_points != end && predicate(*code_points)) {
+            ++code_points;
+        }
+    };
+
+    auto consume_identifier = [](AK::Utf16CodePointIterator& code_points, AK::Utf16CodePointIterator const& end) {
+        Utf16StringBuilder builder;
+        while (code_points != end && is_ident_code_point(*code_points)) {
             builder.append_code_point(*code_points);
             ++code_points;
         }
-        return MUST(builder.to_string());
+        auto string = builder.to_string();
+        return Utf16FlyString::from_utf16(string.utf16_view());
     };
 
-    Vector<Vector<String>> grid_area_rows;
+    Vector<Vector<Utf16FlyString>> grid_area_rows;
     Optional<size_t> column_count;
 
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
     while (tokens.has_next_token() && tokens.next_token().is(Token::Type::String)) {
-        Vector<String> grid_area_columns;
+        Vector<Utf16FlyString> grid_area_columns;
         auto string = tokens.consume_a_token().token().string().view();
         auto code_points = string.begin();
         auto code_points_end = string.end();
@@ -5184,10 +5192,9 @@ RefPtr<StyleValue const> Parser::parse_grid_template_areas_value(TokenStream<Com
                 consume_while(code_points, code_points_end, is_whitespace);
             } else if (is_full_stop(*code_points)) {
                 consume_while(code_points, code_points_end, *is_full_stop);
-                grid_area_columns.append("."_string);
+                grid_area_columns.append("."_utf16_fly_string);
             } else if (is_ident_code_point(*code_points)) {
-                auto token = consume_while(code_points, code_points_end, is_ident_code_point);
-                grid_area_columns.append(move(token));
+                grid_area_columns.append(consume_identifier(code_points, code_points_end));
             } else {
                 return nullptr;
             }
@@ -5212,19 +5219,19 @@ RefPtr<StyleValue const> Parser::parse_grid_template_areas_value(TokenStream<Com
     // filled-in rectangle, the declaration is invalid.
 
     // Pre-compute occurrence counts for each named area.
-    HashMap<String, size_t> name_counts;
+    HashMap<Utf16FlyString, size_t> name_counts;
     for (auto const& row : grid_area_rows) {
         for (auto const& cell : row) {
-            if (cell != "."sv)
+            if (cell != "."_utf16_fly_string)
                 name_counts.set(cell, name_counts.get(cell).value_or(0) + 1);
         }
     }
 
-    HashMap<String, GridArea> grid_areas;
+    HashMap<Utf16FlyString, GridArea> grid_areas;
     for (size_t y = 0; y < grid_area_rows.size(); y++) {
         for (size_t x = 0; x < grid_area_rows[y].size(); x++) {
             auto const& name = grid_area_rows[y][x];
-            if (name == "."sv)
+            if (name == "."_utf16_fly_string)
                 continue;
             if (grid_areas.contains(name))
                 continue;
@@ -5341,7 +5348,7 @@ RefPtr<StyleValue const> Parser::parse_grid_track_size_list(TokenStream<Componen
     {
         auto transaction = tokens.begin_transaction();
         tokens.discard_whitespace();
-        if (tokens.has_next_token() && tokens.next_token().is_ident("none"sv)) {
+        if (tokens.has_next_token() && tokens.next_token().is_ident("none"_utf16)) {
             tokens.discard_a_token(); // none
             transaction.commit();
             return GridTrackSizeListStyleValue::make_none();
@@ -5352,7 +5359,7 @@ RefPtr<StyleValue const> Parser::parse_grid_track_size_list(TokenStream<Componen
     {
         auto transaction = tokens.begin_transaction();
         tokens.discard_whitespace();
-        if (tokens.has_next_token() && tokens.next_token().is_ident("subgrid"sv)) {
+        if (tokens.has_next_token() && tokens.next_token().is_ident("subgrid"_utf16)) {
             tokens.discard_a_token(); // subgrid
 
             auto track_list = GridTrackSizeList::make_subgrid();

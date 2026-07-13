@@ -15,6 +15,7 @@
 #include <AK/RefCounted.h>
 #include <AK/Time.h>
 #include <AK/Utf16FlyString.h>
+#include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibCore/File.h>
 #include <LibCore/Process.h>
@@ -228,7 +229,7 @@ static Optional<Web::DOM::Element&> container_for_element(Web::DOM::Element& ele
 }
 
 template<typename T>
-static bool fire_an_event(FlyString const& name, Optional<Web::DOM::Element&> target)
+static bool fire_an_event(Utf16FlyString const& name, Optional<Web::DOM::Element&> target)
 {
     // FIXME: This is supposed to call the https://dom.spec.whatwg.org/#concept-event-fire DOM algorithm,
     //        but that doesn't seem to be implemented elsewhere. So, we'll ad-hack it for now. :^)
@@ -259,7 +260,7 @@ ErrorOr<NonnullRefPtr<WebDriverConnection>> WebDriverConnection::connect(Web::Pa
     auto transport = TRY(IPC::Transport::from_socket(move(socket)));
 #endif
     auto connection = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) WebDriverConnection(move(transport), page_client)));
-    connection->async_did_set_window_handle(page_client.page().top_level_traversable()->window_handle());
+    connection->async_did_set_window_handle(page_client.page().top_level_traversable()->window_handle().to_utf8());
     return connection;
 }
 
@@ -468,7 +469,7 @@ Messages::WebDriverClient::BackResponse WebDriverConnection::back()
             metadata->will_replace_web_content_process = traversal_result.will_replace_web_content_process;
             metadata->wait_for_navigation_completion = true;
             if (metadata->will_replace_web_content_process)
-                async_did_start_window_replacement(current_top_level_browsing_context()->page().top_level_traversable()->window_handle());
+                async_did_start_window_replacement(current_top_level_browsing_context()->page().top_level_traversable()->window_handle().to_utf8());
             if (metadata->sync_response_returned)
                 async_driver_execution_complete(JsonValue {});
             else
@@ -500,7 +501,7 @@ Messages::WebDriverClient::ForwardResponse WebDriverConnection::forward()
             metadata->will_replace_web_content_process = traversal_result.will_replace_web_content_process;
             metadata->wait_for_navigation_completion = true;
             if (metadata->will_replace_web_content_process)
-                async_did_start_window_replacement(current_top_level_browsing_context()->page().top_level_traversable()->window_handle());
+                async_did_start_window_replacement(current_top_level_browsing_context()->page().top_level_traversable()->window_handle().to_utf8());
             if (metadata->sync_response_returned)
                 async_driver_execution_complete(JsonValue {});
             else
@@ -597,7 +598,7 @@ Messages::WebDriverClient::TraverseHistoryFromUiResponse WebDriverConnection::tr
         }
 
         if (traversal_result.will_replace_web_content_process)
-            async_did_start_window_replacement(current_top_level_browsing_context()->page().top_level_traversable()->window_handle());
+            async_did_start_window_replacement(current_top_level_browsing_context()->page().top_level_traversable()->window_handle().to_utf8());
 
         JsonObject result;
         result.set("willReplaceWebContentProcess"sv, traversal_result.will_replace_web_content_process);
@@ -685,6 +686,7 @@ Messages::WebDriverClient::SwitchToWindowResponse WebDriverConnection::switch_to
     // 4. If handle is equal to the associated window handle for some top-level browsing context, let context be the that
     //    browsing context, and set the current top-level browsing context with session and context.
     //    Otherwise, return error with error code no such window.
+    auto handle_utf16 = Utf16String::from_utf8(handle);
     bool found_matching_context = false;
 
     for (auto navigable : Web::HTML::all_local_navigables()) {
@@ -692,7 +694,7 @@ Messages::WebDriverClient::SwitchToWindowResponse WebDriverConnection::switch_to
         if (!traversable.active_browsing_context())
             continue;
 
-        if (handle == traversable.window_handle()) {
+        if (handle_utf16 == traversable.window_handle()) {
             set_current_top_level_browsing_context(*traversable.active_browsing_context());
             found_matching_context = true;
             break;
@@ -744,10 +746,10 @@ Messages::WebDriverClient::NewWindowResponse WebDriverConnection::new_window(Jso
         VERIFY(active_window);
 
         Web::HTML::TemporaryExecutionContext execution_context { active_window->document()->realm() };
-        auto [target_navigable, no_opener, window_type] = MUST(active_window->window_open_steps_internal("about:blank"sv, ""sv, "noopener"sv));
+        auto [target_navigable, no_opener, window_type] = MUST(active_window->window_open_steps_internal(u"about:blank"sv, u""sv, u"noopener"sv));
 
         // 6. Let handle be the associated window handle of the newly created window.
-        auto handle = target_navigable->traversable_navigable()->window_handle();
+        auto handle = target_navigable->traversable_navigable()->window_handle().to_utf8();
 
         // 7. Let type be "tab" if the newly created window shares an OS-level window with the current browsing context, or "window" otherwise.
         auto type = "tab"sv;
@@ -1650,7 +1652,7 @@ Messages::WebDriverClient::GetComputedRoleResponse WebDriverConnection::get_comp
 
         // 5. Return success with data role.
         if (role.has_value()) {
-            async_driver_execution_complete({ Web::ARIA::role_name(*role) });
+            async_driver_execution_complete({ Web::ARIA::role_name(*role).to_utf8() });
             return;
         }
         async_driver_execution_complete(JsonValue {});
@@ -2059,7 +2061,9 @@ Web::WebDriver::Response WebDriverConnection::element_send_keys_impl(StringView 
                         return;
                     }
 
-                    selected_files.append(Web::HTML::SelectedFile { LexicalPath::basename(path), contents_or_error.release_value() });
+                    selected_files.append(Web::HTML::SelectedFile {
+                        Utf16String::from_utf8(LexicalPath::basename(path)),
+                        contents_or_error.release_value() });
                     self(move(paths), index + 1, move(selected_files));
                 });
 
@@ -2384,7 +2388,8 @@ Web::WebDriver::Response WebDriverConnection::add_cookie_impl(JsonObject const& 
 
         // FIXME: Spec issue: We must return InvalidCookieDomain for invalid domains, rather than InvalidArgument.
         // https://github.com/w3c/webdriver/issues/1570
-        if (!HTTP::Cookie::domain_matches(document->domain(), domain))
+        auto document_domain = document->domain().to_utf8();
+        if (!HTTP::Cookie::domain_matches(document_domain, domain))
             return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidCookieDomain, "Cookie domain does not match document domain"sv);
 
         cookie.domain = move(domain);
@@ -2598,7 +2603,7 @@ Messages::WebDriverClient::GetAlertTextResponse WebDriverConnection::get_alert_t
 
     // 4. Return success with data message.
     if (message.has_value())
-        return message.value();
+        return message->to_utf8();
     return JsonValue {};
 }
 
@@ -2637,7 +2642,7 @@ Messages::WebDriverClient::SendAlertTextResponse WebDriverConnection::send_alert
     }
 
     // 6. Perform user agent dependent steps to set the value of current user prompt’s text field to text.
-    current_browsing_context().page().client().page_did_request_set_prompt_text(text);
+    current_browsing_context().page().client().page_did_request_set_prompt_text(Utf16String::from_utf8(text));
 
     // 7. Return success with data null.
     return JsonValue {};
@@ -2783,7 +2788,7 @@ Web::WebDriver::PromptHandlerConfiguration WebDriverConnection::get_the_prompt_h
 }
 
 // https://w3c.github.io/webdriver/#dfn-annotated-unexpected-alert-open-error
-static Web::WebDriver::Error create_annotated_unexpected_alert_open_error(Optional<String> const& text)
+static Web::WebDriver::Error create_annotated_unexpected_alert_open_error(Optional<Utf16String> const& text)
 {
     // An annotated unexpected alert open error is an error with error code unexpected alert open and an optional error
     // data dictionary with the following entries:
@@ -2791,7 +2796,7 @@ static Web::WebDriver::Error create_annotated_unexpected_alert_open_error(Option
     //         The current user prompt's message.
     auto data = text.map([&](auto const& text) -> JsonValue {
         JsonObject data;
-        data.set("text"sv, text);
+        data.set("text"sv, text.to_utf8());
         return data;
     });
 

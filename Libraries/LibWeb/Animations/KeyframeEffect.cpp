@@ -6,6 +6,7 @@
 
 #include <AK/Bitmap.h>
 #include <AK/QuickSort.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibJS/Runtime/Iterator.h>
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Animations/KeyframeEffect.h>
@@ -69,7 +70,7 @@ static WebIDL::ExceptionOr<KeyframeType<AL>> process_a_keyframe_like_object(JS::
             return Optional<double> {};
         auto double_value = TRY(value.to_double(vm));
         if (isnan(double_value) || isinf(double_value))
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Invalid offset value: {}", TRY(value.to_utf16_string(vm)))) };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("Invalid offset value: {}", TRY(value.to_utf16_string(vm))) };
         return double_value;
     };
 
@@ -91,7 +92,7 @@ static WebIDL::ExceptionOr<KeyframeType<AL>> process_a_keyframe_like_object(JS::
         if (string_value == "auto"sv)
             return Bindings::CompositeOperationOrAuto::Auto;
 
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid composite value"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid composite value"_utf16 };
     };
 
     // 1. Run the procedure to convert an ECMAScript value to a dictionary type with keyframe input as the ECMAScript
@@ -497,7 +498,7 @@ static WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_a_keyframes_argument(JS
 
     // 6. If processed keyframes is not loosely sorted by offset, throw a TypeError and abort these steps.
     if (!is_loosely_sorted_by_offset(processed_keyframes))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Keyframes are not in ascending order based on offset"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Keyframes are not in ascending order based on offset"_utf16 };
 
     // 7. If there exist any keyframe in processed keyframes whose keyframe offset is non-null and less than zero or
     //    greater than one, throw a TypeError and abort these steps.
@@ -508,7 +509,7 @@ static WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_a_keyframes_argument(JS
 
         auto offset = keyframe.offset.value();
         if (offset < 0.0 || offset > 1.0)
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Keyframe {} has invalid offset value {}", i, offset)) };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("Keyframe {} has invalid offset value {}", i, offset) };
     }
 
     // 8. For each frame in processed keyframes, perform the following steps:
@@ -554,7 +555,7 @@ static WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_a_keyframes_argument(JS
         auto easing_value = AnimationEffect::parse_easing_string(easing_string);
 
         if (!easing_value.has_value())
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Invalid animation easing value: \"{}\"", easing_string)) };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("Invalid animation easing value: \"{}\"", easing_string) };
 
         keyframe.easing.set(easing_value.value());
     }
@@ -565,7 +566,7 @@ static WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_a_keyframes_argument(JS
         auto easing_string = unused_easing.get<Utf16String>();
         auto easing_value = AnimationEffect::parse_easing_string(easing_string);
         if (!easing_value.has_value())
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Invalid animation easing value: \"{}\"", easing_string)) };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("Invalid animation easing value: \"{}\"", easing_string) };
     }
 
     return processed_keyframes;
@@ -712,7 +713,7 @@ WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> KeyframeEffect::construct_impl(
     //       the spec may enable setting the duration as a CSSNumeric value, where the unit is a valid time unit or
     //       percent.
     if (timing_input.duration.has<GC::Ref<CSS::CSSNumericValue>>())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Setting duration as a CSSNumericValue is not supported"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Setting duration as a CSSNumericValue is not supported"_utf16 };
 
     // 5. Call the procedure to update the timing properties of an animation effect of effect from timing input.
     //    If that procedure causes an exception to be thrown, propagate the exception and abort this procedure.
@@ -802,15 +803,17 @@ void KeyframeEffect::set_target(DOM::Element* target)
     //        it will remain "stuck" until it's style is fully invalidated for some other reason.
 }
 
-Optional<String> KeyframeEffect::pseudo_element() const
+Optional<Utf16String> KeyframeEffect::pseudo_element() const
 {
     if (!m_target_pseudo_selector.has_value())
         return {};
-    return m_target_pseudo_selector->serialize();
+    Utf16StringBuilder builder;
+    m_target_pseudo_selector->serialize_to(builder);
+    return builder.to_string();
 }
 
 // https://drafts.csswg.org/web-animations-1/#dom-keyframeeffect-pseudoelement
-WebIDL::ExceptionOr<void> KeyframeEffect::set_pseudo_element(Optional<String> value)
+WebIDL::ExceptionOr<void> KeyframeEffect::set_pseudo_element(Optional<Utf16String> value)
 {
     // On setting, sets the target pseudo-selector of the animation effect to the result of
     // pseudo-element parsing on the provided value, defined as the following:
@@ -865,7 +868,7 @@ WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> KeyframeEffect::get_keyframes()
             TRY(object->set(vm.names.offset, keyframe.offset.has_value() ? JS::Value(keyframe.offset.value()) : JS::js_null(), ShouldThrowExceptions::Yes));
             TRY(object->set(vm.names.computedOffset, JS::Value(keyframe.computed_offset.value()), ShouldThrowExceptions::Yes));
             auto easing_value = keyframe.easing.get<CSS::EasingFunction>();
-            TRY(object->set(vm.names.easing, JS::PrimitiveString::create(vm, Utf16String::from_utf8(easing_value.to_string())), ShouldThrowExceptions::Yes));
+            TRY(object->set(vm.names.easing, JS::PrimitiveString::create(vm, easing_value.to_utf16_string()), ShouldThrowExceptions::Yes));
 
             if (keyframe.composite == Bindings::CompositeOperationOrAuto::Replace) {
                 TRY(object->set(vm.names.composite, JS::PrimitiveString::create(vm, "replace"sv), ShouldThrowExceptions::Yes));
@@ -879,7 +882,7 @@ WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> KeyframeEffect::get_keyframes()
 
             for (auto const& [id, value] : keyframe.parsed_properties()) {
                 auto key = CSS::camel_case_string_from_property_id(id);
-                auto value_string = JS::PrimitiveString::create(vm, Utf16String::from_utf8(value->to_string(CSS::SerializationMode::Normal)));
+                auto value_string = JS::PrimitiveString::create(vm, value->to_utf16_string(CSS::SerializationMode::Normal));
                 TRY(object->set(JS::PropertyKey { move(key), JS::PropertyKey::StringMayBeNumber::No }, value_string, ShouldThrowExceptions::Yes));
             }
 

@@ -1,0 +1,8 @@
+before
+after-begin
+before-end
+after
+before,target,after-html,after
+after-begin,before-end,text
+SyntaxError
+null

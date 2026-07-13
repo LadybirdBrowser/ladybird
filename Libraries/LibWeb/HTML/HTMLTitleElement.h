@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16View.h>
 #include <LibWeb/HTML/HTMLElement.h>
 
 namespace Web::HTML {
@@ -18,7 +19,7 @@ public:
     virtual ~HTMLTitleElement() override;
 
     Utf16String text() const;
-    void set_text(Utf16String const& value);
+    void set_text(Utf16View value);
 
 private:
     HTMLTitleElement(DOM::Document&, DOM::QualifiedName);

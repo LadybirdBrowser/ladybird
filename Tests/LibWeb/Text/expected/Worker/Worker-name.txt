@@ -1,0 +1,6 @@
+dedicated worker name is a string: true
+dedicated worker name matches: true
+shared worker name is a string: true
+shared worker string option name matches: true
+shared worker dictionary name matches: true
+shared worker reused by matching name: true

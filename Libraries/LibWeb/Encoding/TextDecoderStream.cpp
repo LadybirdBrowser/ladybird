@@ -27,14 +27,14 @@ namespace Web::Encoding {
 GC_DEFINE_ALLOCATOR(TextDecoderStream);
 
 // https://encoding.spec.whatwg.org/#dom-textdecoderstream
-WebIDL::ExceptionOr<GC::Ref<TextDecoderStream>> TextDecoderStream::construct_impl(JS::Realm& realm, FlyString label, Bindings::TextDecoderOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<TextDecoderStream>> TextDecoderStream::construct_impl(JS::Realm& realm, Utf16String const& label, Bindings::TextDecoderOptions const& options)
 {
     // 1. Let encoding be the result of getting an encoding from label.
-    auto encoding = TextCodec::get_standardized_encoding(label);
+    auto encoding = TextCodec::get_standardized_encoding(label.utf16_view());
 
     // 2. If encoding is failure or replacement, then throw a RangeError.
     if (!encoding.has_value() || encoding->equals_ignoring_ascii_case("replacement"sv))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, MUST(String::formatted("Invalid encoding {}", label)) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, Utf16String::formatted("Invalid encoding {}", label.to_utf8()) };
 
     // 3. Set this’s encoding to encoding.
     auto lowercase_encoding_name = encoding.value().to_ascii_lowercase_string();
@@ -112,7 +112,7 @@ WebIDL::ExceptionOr<void> TextDecoderStream::decode_and_enqueue_chunk(JS::Value 
 
     // 1. Let bufferSource be the result of converting chunk to an AllowSharedBufferSource.
     if (!WebIDL::is_buffer_source_type(chunk))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Chunk is not a BufferSource"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Chunk is not a BufferSource"_utf16 };
 
     // 2. Push a copy of bufferSource to decoder's I/O queue.
     // WARNING: See the warning for SharedArrayBuffer objects above.
@@ -191,7 +191,7 @@ WebIDL::ExceptionOr<void> TextDecoderStream::flush_and_enqueue()
     return result.release_error();
 }
 
-WebIDL::ExceptionOr<void> TextDecoderStream::enqueue_decoded_output(String const& decoded)
+WebIDL::ExceptionOr<void> TextDecoderStream::enqueue_decoded_output(Utf16String const& decoded)
 {
     auto& realm = this->realm();
     auto& vm = realm.vm();
@@ -199,7 +199,7 @@ WebIDL::ExceptionOr<void> TextDecoderStream::enqueue_decoded_output(String const
     if (decoded.is_empty())
         return {};
 
-    auto js_string = JS::PrimitiveString::create(vm, Utf16String::from_utf8(decoded));
+    auto js_string = JS::PrimitiveString::create(vm, decoded);
     return Streams::transform_stream_default_controller_enqueue(*m_transform->controller(), js_string);
 }
 

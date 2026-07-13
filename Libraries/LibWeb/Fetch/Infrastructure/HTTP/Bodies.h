@@ -10,6 +10,7 @@
 #include <AK/Forward.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
+#include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <LibCore/ImmutableBytes.h>
 #include <LibGC/Ptr.h>
@@ -99,7 +100,7 @@ private:
 // A body with type is a tuple that consists of a body (a body) and a type (a header value or null).
 struct BodyWithType {
     GC::Ref<Body> body;
-    Optional<ByteString> type;
+    Optional<Utf16String> type;
 };
 
 WEB_API GC::Ref<Body> byte_sequence_as_body(JS::Realm&, ReadonlyBytes);

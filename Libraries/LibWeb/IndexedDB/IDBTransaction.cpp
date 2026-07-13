@@ -117,12 +117,12 @@ WebIDL::ExceptionOr<void> IDBTransaction::abort()
 GC::Ref<HTML::DOMStringList> IDBTransaction::object_store_names()
 {
     // 1. Let names be a list of the names of the object stores in this's scope.
-    Vector<String> names;
+    Vector<Utf16String> names;
     for (auto const& object_store : this->scope())
         names.append(object_store->name());
 
     // 2. Return the result (a DOMStringList) of creating a sorted name list with names.
-    return create_a_sorted_name_list(realm(), names);
+    return create_a_sorted_name_list(realm(), move(names));
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbtransaction-commit
@@ -140,7 +140,7 @@ WebIDL::ExceptionOr<void> IDBTransaction::commit()
     return {};
 }
 
-GC::Ptr<ObjectStore> IDBTransaction::object_store_named(String const& name) const
+GC::Ptr<ObjectStore> IDBTransaction::object_store_named(Utf16String const& name) const
 {
     for (auto const& store : m_scope) {
         if (store->name() == name)
@@ -151,7 +151,7 @@ GC::Ptr<ObjectStore> IDBTransaction::object_store_named(String const& name) cons
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbtransaction-objectstore
-WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> IDBTransaction::object_store(String const& name)
+WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> IDBTransaction::object_store(Utf16String const& name)
 {
     auto& realm = this->realm();
 

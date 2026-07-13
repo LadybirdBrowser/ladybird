@@ -23,60 +23,39 @@ enum class Mode {
     Absolute,
 };
 
-static size_t code_unit_length(StringView string)
-{
-    return string.length();
-}
-
-static size_t code_unit_length(Utf16View string)
-{
-    return string.length_in_code_units();
-}
-
-static u32 code_unit_at(StringView string, size_t index)
-{
-    return string[index];
-}
-
-static u32 code_unit_at(Utf16View string, size_t index)
-{
-    return string.code_unit_at(index);
-}
-
 // https://html.spec.whatwg.org/multipage/rendering.html#rules-for-parsing-a-legacy-font-size
-template<typename StringType>
-static Optional<CSS::Keyword> parse_legacy_font_size_impl(StringType input)
+Optional<CSS::Keyword> HTMLFontElement::parse_legacy_font_size(Utf16View input)
 {
     // 1. Let input be the attribute's value.
     // 2. Let position be a pointer into input, initially pointing at the start of the string.
     size_t position = 0;
 
     // 3. Skip ASCII whitespace within input given position.
-    while (position < code_unit_length(input) && Web::Infra::is_ascii_whitespace(code_unit_at(input, position)))
+    while (position < input.length_in_code_units() && Web::Infra::is_ascii_whitespace(input.code_unit_at(position)))
         ++position;
 
     // 4. If position is past the end of input, there is no presentational hint. Return.
-    if (position == code_unit_length(input))
+    if (position == input.length_in_code_units())
         return {};
 
     // 5. If the character at position is a U+002B PLUS SIGN character (+), then let mode be relative-plus, and advance position to the next character. Otherwise, if the character at position is a U+002D HYPHEN-MINUS character (-), then let mode be relative-minus, and advance position to the next character. Otherwise, let mode be absolute.
     Mode mode { Mode::Absolute };
 
-    if (code_unit_at(input, position) == '+') {
+    if (input.code_unit_at(position) == '+') {
         mode = Mode::RelativePlus;
         ++position;
-    } else if (code_unit_at(input, position) == '-') {
+    } else if (input.code_unit_at(position) == '-') {
         mode = Mode::RelativeMinus;
         ++position;
     }
 
     // 6. Collect a sequence of code points that are ASCII digits from input given position, and let digits be the resulting sequence.
     size_t start_index = position;
-    while (position < code_unit_length(input) && is_ascii_digit(code_unit_at(input, position)))
+    while (position < input.length_in_code_units() && is_ascii_digit(input.code_unit_at(position)))
         ++position;
 
     auto digits = input.substring_view(start_index, position - start_index);
-    auto value_or_empty = digits.template to_number<i32>();
+    auto value_or_empty = digits.to_number<i32>();
 
     // 7. If digits is the empty string, there is no presentational hint. Return.
     if (!value_or_empty.has_value())
@@ -120,16 +99,6 @@ static Optional<CSS::Keyword> parse_legacy_font_size_impl(StringType input)
     }
 }
 
-Optional<CSS::Keyword> HTMLFontElement::parse_legacy_font_size(StringView string)
-{
-    return parse_legacy_font_size_impl(string);
-}
-
-Optional<CSS::Keyword> HTMLFontElement::parse_legacy_font_size(Utf16View string)
-{
-    return parse_legacy_font_size_impl(string);
-}
-
 HTMLFontElement::HTMLFontElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
 {
@@ -157,7 +126,7 @@ bool HTMLFontElement::is_presentational_hint(Utf16FlyString const& name) const
 void HTMLFontElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
 {
     Base::apply_presentational_hints(properties);
-    for_each_attribute([&](auto& name, auto& value) {
+    for_each_attribute([&](Utf16FlyString const& name, Utf16View value) {
         if (name == AttributeNames::color) {
             // https://html.spec.whatwg.org/multipage/rendering.html#phrasing-content-3:rules-for-parsing-a-legacy-colour-value
             auto color = parse_legacy_color_value(value);

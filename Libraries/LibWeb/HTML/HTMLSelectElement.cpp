@@ -174,10 +174,10 @@ Optional<JS::Value> HTMLSelectElement::item_value(size_t index) const
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-select-nameditem
-HTMLOptionElement* HTMLSelectElement::named_item(Utf16String const& name)
+HTMLOptionElement* HTMLSelectElement::named_item(Utf16View name)
 {
     // The namedItem(name) method must return the value returned by the method of the same name on the options collection, when invoked with the same argument.
-    return as<HTMLOptionElement>(const_cast<HTMLOptionsCollection&>(*options()).named_item(Utf16FlyString::from_utf16(name.utf16_view())));
+    return as<HTMLOptionElement>(const_cast<HTMLOptionsCollection&>(*options()).named_item(name));
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-select-add
@@ -421,16 +421,13 @@ void HTMLSelectElement::children_changed(ChildrenChangedMetadata const& metadata
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-select-type
-String const& HTMLSelectElement::type() const
+Utf16FlyString HTMLSelectElement::type() const
 {
     // The type IDL attribute, on getting, must return the string "select-one" if the multiple attribute is absent, and the string "select-multiple" if the multiple attribute is present.
-    static String const& select_one = *new String("select-one"_string);
-    static String const& select_multiple = *new String("select-multiple"_string);
-
     if (!has_attribute(AttributeNames::multiple))
-        return select_one;
+        return "select-one"_utf16_fly_string;
 
-    return select_multiple;
+    return "select-multiple"_utf16_fly_string;
 }
 
 Optional<ARIA::Role> HTMLSelectElement::default_role() const
@@ -460,7 +457,7 @@ Utf16String HTMLSelectElement::value() const
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-select-value
-WebIDL::ExceptionOr<void> HTMLSelectElement::set_value(Utf16String const& value)
+WebIDL::ExceptionOr<void> HTMLSelectElement::set_value(Utf16View value)
 {
     // The value setter steps are:
     ScopeGuard guard { [&]() {
@@ -590,7 +587,10 @@ void HTMLSelectElement::show_the_picker_if_applicable()
                             option_group_items.append(SelectItemOption { id_counter++, option_element->selected(), option_element->disabled(), option_element, Infra::strip_and_collapse_whitespace(option_element->label()), option_element->value() });
                     }
                 }
-                m_select_items.append(SelectItemOptionGroup { opt_group_element->get_attribute(AttributeNames::label).value_or({}), option_group_items });
+                auto label = opt_group_element->get_attribute(AttributeNames::label);
+                m_select_items.append(SelectItemOptionGroup {
+                    label.has_value() ? label.release_value() : Utf16String {},
+                    move(option_group_items) });
             }
         }
 
@@ -703,11 +703,11 @@ void HTMLSelectElement::computed_properties_changed()
     if (m_chevron_icon_element) {
         auto appearance = computed_properties()->appearance();
         if (appearance == CSS::Appearance::None) {
-            MUST(m_chevron_icon_element->style_for_bindings()->set_property(CSS::PropertyID::Display, "none"_string));
-            MUST(m_inner_text_element->style_for_bindings()->set_property(CSS::PropertyID::MarginInlineEnd, "0"_string));
+            MUST(m_chevron_icon_element->style_for_bindings()->set_property(CSS::PropertyID::Display, u"none"sv));
+            MUST(m_inner_text_element->style_for_bindings()->set_property(CSS::PropertyID::MarginInlineEnd, u"0"sv));
         } else {
-            MUST(m_chevron_icon_element->style_for_bindings()->set_property(CSS::PropertyID::Display, "block"_string));
-            MUST(m_inner_text_element->style_for_bindings()->set_property(CSS::PropertyID::MarginInlineEnd, "20px"_string));
+            MUST(m_chevron_icon_element->style_for_bindings()->set_property(CSS::PropertyID::Display, u"block"sv));
+            MUST(m_inner_text_element->style_for_bindings()->set_property(CSS::PropertyID::MarginInlineEnd, u"20px"sv));
         }
     }
 }

@@ -43,19 +43,17 @@ Utf16FlyString const& Plugin::name() const
 }
 
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-plugin-description
-String Plugin::description() const
+Utf16FlyString Plugin::description() const
 {
     // The Plugin interface's description getter steps are to return "Portable Document Format".
-    static String const& description_string = *new String("Portable Document Format"_string);
-    return description_string;
+    return "Portable Document Format"_utf16_fly_string;
 }
 
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-plugin-filename
-String Plugin::filename() const
+Utf16FlyString Plugin::filename() const
 {
     // The Plugin interface's filename getter steps are to return "internal-pdf-viewer".
-    static String const& filename_string = *new String("internal-pdf-viewer"_string);
-    return filename_string;
+    return "internal-pdf-viewer"_utf16_fly_string;
 }
 
 // https://html.spec.whatwg.org/multipage/system-state.html#pdf-viewing-support:support-named-properties-3

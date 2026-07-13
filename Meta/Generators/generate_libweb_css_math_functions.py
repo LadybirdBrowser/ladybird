@@ -178,7 +178,7 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
             auto calculation_node = parse_a_calculation(tokens, context);
             if (!calculation_node) {{
                 ErrorReporter::the().report(InvalidValueError {{
-                    .value_type = "{name}()"_fly_string,
+                    .value_type = "{name}()"_utf16_fly_string,
                     .value_string = stream.dump_string(),
                     .description = MUST(String::formatted("Argument #{{}} is not a valid calculation.", parsed_arguments.size())),
                 }});
@@ -188,7 +188,7 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
             auto maybe_argument_type = calculation_node->numeric_type();
             if (!maybe_argument_type.has_value()) {{
                 ErrorReporter::the().report(InvalidValueError {{
-                    .value_type = "{name}()"_fly_string,
+                    .value_type = "{name}()"_utf16_fly_string,
                     .value_string = stream.dump_string(),
                     .description = MUST(String::formatted("Argument #{{}} couldn't determine its type.", parsed_arguments.size())),
                 }});
@@ -203,7 +203,7 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
             out.write(f"""
             if (!({type_check})) {{
                 ErrorReporter::the().report(InvalidValueError {{
-                    .value_type = "{name}()"_fly_string,
+                    .value_type = "{name}()"_utf16_fly_string,
                     .value_string = stream.dump_string(),
                     .description = MUST(String::formatted("Argument #{{}} type ({{}}) is not an accepted type.", parsed_arguments.size(), argument_type.dump())),
                 }});
@@ -218,7 +218,7 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
                 out.write(f"""
                 if (determined_argument_type != argument_type) {{
                     ErrorReporter::the().report(InvalidValueError {{
-                        .value_type = "{name}()"_fly_string,
+                        .value_type = "{name}()"_utf16_fly_string,
                         .value_string = stream.dump_string(),
                         .description = MUST(String::formatted("Argument #{{}} type ({{}}) doesn't match type of previous arguments ({{}}).", parsed_arguments.size(), argument_type.dump(), determined_argument_type->dump())),
                     }});
@@ -231,7 +231,7 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
                     determined_argument_type = consistent_type.release_value();
                 }} else {{
                     ErrorReporter::the().report(InvalidValueError {{
-                        .value_type = "{name}()"_fly_string,
+                        .value_type = "{name}()"_utf16_fly_string,
                         .value_string = stream.dump_string(),
                         .description = MUST(String::formatted("Argument #{{}} type ({{}}) is not consistent with type of previous arguments ({{}}).", parsed_arguments.size(), argument_type.dump(), determined_argument_type->dump())),
                     }});
@@ -264,7 +264,7 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
             out.write(f"""
         if (arguments.size() < {min_argument_count} || arguments.size() > {max_argument_count}) {{
             ErrorReporter::the().report(InvalidValueError {{
-                .value_type = "{name}()"_fly_string,
+                .value_type = "{name}()"_utf16_fly_string,
                 .value_string = stream.dump_string(),
                 .description = MUST(String::formatted("Wrong number of arguments {{}}, expected between {min_argument_count} and {max_argument_count} inclusive.", arguments.size())),
             }});
@@ -322,7 +322,7 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
                     out.write(f"""
         if (argument_index >= arguments.size()) {{
             ErrorReporter::the().report(InvalidValueError {{
-                .value_type = "{name}()"_fly_string,
+                .value_type = "{name}()"_utf16_fly_string,
                 .value_string = stream.dump_string(),
                 .description = "Missing required argument '{parameter_name}'."_string,
             }});
@@ -345,7 +345,7 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
                     out.write(f"""
             }} else {{
                 ErrorReporter::the().report(InvalidValueError {{
-                    .value_type = "{name}()"_fly_string,
+                    .value_type = "{name}()"_utf16_fly_string,
                     .value_string = stream.dump_string(),
                     .description = "Failed to parse required argument '{parameter_name}'."_string,
                 }});
@@ -364,7 +364,7 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
             auto maybe_argument_type_{parameter_index} = parameter_{parameter_index}->numeric_type();
             if (!maybe_argument_type_{parameter_index}.has_value()) {{
                 ErrorReporter::the().report(InvalidValueError {{
-                    .value_type = "{name}()"_fly_string,
+                    .value_type = "{name}()"_utf16_fly_string,
                     .value_string = stream.dump_string(),
                     .description = "Argument '{parameter_name}' couldn't determine its type."_string,
                 }});
@@ -374,7 +374,7 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
 
             if (!({type_check})) {{
                 ErrorReporter::the().report(InvalidValueError {{
-                    .value_type = "{name}()"_fly_string,
+                    .value_type = "{name}()"_utf16_fly_string,
                     .value_string = stream.dump_string(),
                     .description = MUST(String::formatted("Argument '{parameter_name}' type ({{}}) is not an accepted type.", argument_type_{parameter_index}.dump())),
                 }});
@@ -389,7 +389,7 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
                         out.write(f"""
                 if (determined_argument_type != argument_type_{parameter_index}) {{
                     ErrorReporter::the().report(InvalidValueError {{
-                        .value_type = "{name}()"_fly_string,
+                        .value_type = "{name}()"_utf16_fly_string,
                         .value_string = stream.dump_string(),
                         .description = MUST(String::formatted("Argument '{parameter_name}' type ({{}}) doesn't match type of previous arguments ({{}}).", argument_type_{parameter_index}.dump(), determined_argument_type->dump())),
                     }});
@@ -402,7 +402,7 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
                     determined_argument_type = consistent_type.release_value();
                 }} else {{
                     ErrorReporter::the().report(InvalidValueError {{
-                        .value_type = "{name}()"_fly_string,
+                        .value_type = "{name}()"_utf16_fly_string,
                         .value_string = stream.dump_string(),
                         .description = MUST(String::formatted("Argument '{parameter_name}' type ({{}}) is not consistent with type of previous arguments ({{}}).", argument_type_{parameter_index}.dump(), determined_argument_type->dump())),
                     }});

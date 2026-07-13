@@ -52,6 +52,11 @@ static bool is_unsupported_source(ParsedFontFace::Source const& source)
     return source.local_or_url.get<URL>().url().ends_with_bytes(".eot"sv);
 }
 
+static Utf16String serialize_style_value_to_utf16(StyleValue const& value)
+{
+    return value.to_utf16_string(SerializationMode::Normal);
+}
+
 static FontWeightRange compute_weight_range(StyleValue const& value)
 {
     if (value.to_keyword() == Keyword::Auto || value.to_keyword() == Keyword::Normal)
@@ -123,7 +128,7 @@ static NonnullRefPtr<Core::Promise<NonnullRefPtr<Gfx::Typeface const>>> load_vec
 GC_DEFINE_ALLOCATOR(FontFace);
 
 // https://drafts.csswg.org/css-font-loading/#font-face-constructor
-GC::Ref<FontFace> FontFace::construct_impl(JS::Realm& realm, String family, FontFaceSource source, Bindings::FontFaceDescriptors const& descriptors)
+GC::Ref<FontFace> FontFace::construct_impl(JS::Realm& realm, Utf16String family, FontFaceSource source, Bindings::FontFaceDescriptors const& descriptors)
 {
     auto& vm = realm.vm();
 
@@ -139,8 +144,8 @@ GC::Ref<FontFace> FontFace::construct_impl(JS::Realm& realm, String family, Font
     //    Otherwise, set font face’s corresponding attributes to the serialization of the parsed values.
 
     Parser::ParsingParams parsing_params { realm };
-    auto try_set_descriptor = [&](DescriptorID descriptor_id, String const& string, auto setter_impl) {
-        auto result = parse_css_descriptor(parsing_params, AtRuleID::FontFace, DescriptorNameAndID::from_id(descriptor_id), string);
+    auto try_set_descriptor = [&](DescriptorID descriptor_id, Utf16String const& string, auto setter_impl) {
+        auto result = parse_css_descriptor(parsing_params, AtRuleID::FontFace, DescriptorNameAndID::from_id(descriptor_id), string.utf16_view());
         if (!result) {
             font_face->reject_status_promise(WebIDL::SyntaxError::create(realm, Utf16String::formatted("FontFace constructor: Invalid {}", to_string(descriptor_id))));
             return;
@@ -159,8 +164,8 @@ GC::Ref<FontFace> FontFace::construct_impl(JS::Realm& realm, String family, Font
     try_set_descriptor(DescriptorID::DescentOverride, descriptors.descent_override, &FontFace::set_descent_override_impl);
     try_set_descriptor(DescriptorID::LineGapOverride, descriptors.line_gap_override, &FontFace::set_line_gap_override_impl);
     RefPtr<StyleValue const> parsed_source;
-    if (auto* source_string = source.get_pointer<String>()) {
-        parsed_source = parse_css_descriptor(parsing_params, AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::Src), *source_string);
+    if (auto* source_string = source.get_pointer<Utf16String>()) {
+        parsed_source = parse_css_descriptor(parsing_params, AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::Src), source_string->utf16_view());
         if (!parsed_source) {
             font_face->reject_status_promise(WebIDL::SyntaxError::create(realm, Utf16String::formatted("FontFace constructor: Invalid {}", to_string(DescriptorID::Src))));
         }
@@ -173,7 +178,7 @@ GC::Ref<FontFace> FontFace::construct_impl(JS::Realm& realm, String family, Font
 
     // 2. If the source argument was a CSSOMString, set font face’s internal [[Urls]] slot to the string.
     //    If the source argument was a BinaryData, set font face’s internal [[Data]] slot to the passed argument.
-    if (source.has<String>()) {
+    if (source.has<Utf16String>()) {
         font_face->m_urls = ParsedFontFace::sources_from_style_value(*parsed_source);
         font_face->m_urls.remove_all_matching(is_unsupported_source);
     } else {
@@ -414,7 +419,7 @@ RefPtr<Gfx::FontCascadeList const> FontFace::font_with_point_size(float point_si
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-family
-WebIDL::ExceptionOr<void> FontFace::set_family(String const& string)
+WebIDL::ExceptionOr<void> FontFace::set_family(Utf16View string)
 {
     // On setting, parse the string according to the grammar for the corresponding @font-face descriptor.
     // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
@@ -448,7 +453,7 @@ void FontFace::set_family_impl(NonnullRefPtr<StyleValue const> const& value)
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-style
-WebIDL::ExceptionOr<void> FontFace::set_style(String const& string)
+WebIDL::ExceptionOr<void> FontFace::set_style(Utf16View string)
 {
     // On setting, parse the string according to the grammar for the corresponding @font-face descriptor.
     // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
@@ -480,12 +485,12 @@ void FontFace::set_style_impl(NonnullRefPtr<StyleValue const> const& value)
 {
     auto context = computation_context();
     NonnullRefPtr<StyleValue const> absolutized_value = context.has_value() ? value->absolutized(*context) : value;
-    m_style = absolutized_value->to_string(SerializationMode::Normal);
+    m_style = serialize_style_value_to_utf16(*absolutized_value);
     m_cached_slope = compute_slope(*absolutized_value);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-weight
-WebIDL::ExceptionOr<void> FontFace::set_weight(String const& string)
+WebIDL::ExceptionOr<void> FontFace::set_weight(Utf16View string)
 {
     // On setting, parse the string according to the grammar for the corresponding @font-face descriptor.
     // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
@@ -517,12 +522,12 @@ void FontFace::set_weight_impl(NonnullRefPtr<StyleValue const> const& value)
 {
     auto context = computation_context();
     NonnullRefPtr<StyleValue const> absolutized_value = context.has_value() ? value->absolutized(*context) : value;
-    m_weight = absolutized_value->to_string(SerializationMode::Normal);
+    m_weight = serialize_style_value_to_utf16(*absolutized_value);
     m_cached_weight_range = compute_weight_range(*absolutized_value);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-stretch
-WebIDL::ExceptionOr<void> FontFace::set_stretch(String const& string)
+WebIDL::ExceptionOr<void> FontFace::set_stretch(Utf16View string)
 {
     // On setting, parse the string according to the grammar for the corresponding @font-face descriptor.
     // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
@@ -555,12 +560,12 @@ void FontFace::set_stretch_impl(NonnullRefPtr<StyleValue const> const& value)
 {
     auto context = computation_context();
     NonnullRefPtr<StyleValue const> absolutized_value = context.has_value() ? value->absolutized(*context) : value;
-    m_stretch = absolutized_value->to_string(SerializationMode::Normal);
+    m_stretch = serialize_style_value_to_utf16(*absolutized_value);
     m_cached_width = compute_width(*absolutized_value);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-unicoderange
-WebIDL::ExceptionOr<void> FontFace::set_unicode_range(String const& string)
+WebIDL::ExceptionOr<void> FontFace::set_unicode_range(Utf16View string)
 {
     // On setting, parse the string according to the grammar for the corresponding @font-face descriptor.
     // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
@@ -585,7 +590,7 @@ WebIDL::ExceptionOr<void> FontFace::set_unicode_range(String const& string)
 
 void FontFace::set_unicode_range_impl(NonnullRefPtr<StyleValue const> const& value)
 {
-    m_unicode_range = value->to_string(SerializationMode::Normal);
+    m_unicode_range = serialize_style_value_to_utf16(*value);
     auto const& ranges = value->as_value_list().values();
     m_unicode_ranges.clear_with_capacity();
     m_unicode_ranges.ensure_capacity(ranges.size());
@@ -594,7 +599,7 @@ void FontFace::set_unicode_range_impl(NonnullRefPtr<StyleValue const> const& val
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-featuresettings
-WebIDL::ExceptionOr<void> FontFace::set_feature_settings(String const& string)
+WebIDL::ExceptionOr<void> FontFace::set_feature_settings(Utf16View string)
 {
     // On setting, parse the string according to the grammar for the corresponding @font-face descriptor.
     // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
@@ -614,11 +619,11 @@ WebIDL::ExceptionOr<void> FontFace::set_feature_settings(String const& string)
 
 void FontFace::set_feature_settings_impl(NonnullRefPtr<StyleValue const> const& value)
 {
-    m_feature_settings = value->to_string(SerializationMode::Normal);
+    m_feature_settings = serialize_style_value_to_utf16(*value);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-variationsettings
-WebIDL::ExceptionOr<void> FontFace::set_variation_settings(String const& string)
+WebIDL::ExceptionOr<void> FontFace::set_variation_settings(Utf16View string)
 {
     // On setting, parse the string according to the grammar for the corresponding @font-face descriptor.
     // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
@@ -638,11 +643,11 @@ WebIDL::ExceptionOr<void> FontFace::set_variation_settings(String const& string)
 
 void FontFace::set_variation_settings_impl(NonnullRefPtr<StyleValue const> const& value)
 {
-    m_variation_settings = value->to_string(SerializationMode::Normal);
+    m_variation_settings = serialize_style_value_to_utf16(*value);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-display
-WebIDL::ExceptionOr<void> FontFace::set_display(String const& string)
+WebIDL::ExceptionOr<void> FontFace::set_display(Utf16View string)
 {
     // On setting, parse the string according to the grammar for the corresponding @font-face descriptor.
     // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
@@ -662,11 +667,11 @@ WebIDL::ExceptionOr<void> FontFace::set_display(String const& string)
 
 void FontFace::set_display_impl(NonnullRefPtr<StyleValue const> const& value)
 {
-    m_display = value->to_string(SerializationMode::Normal);
+    m_display = serialize_style_value_to_utf16(*value);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-ascentoverride
-WebIDL::ExceptionOr<void> FontFace::set_ascent_override(String const& string)
+WebIDL::ExceptionOr<void> FontFace::set_ascent_override(Utf16View string)
 {
     // On setting, parse the string according to the grammar for the corresponding @font-face descriptor.
     // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
@@ -686,11 +691,11 @@ WebIDL::ExceptionOr<void> FontFace::set_ascent_override(String const& string)
 
 void FontFace::set_ascent_override_impl(NonnullRefPtr<StyleValue const> const& value)
 {
-    m_ascent_override = value->to_string(SerializationMode::Normal);
+    m_ascent_override = serialize_style_value_to_utf16(*value);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-descentoverride
-WebIDL::ExceptionOr<void> FontFace::set_descent_override(String const& string)
+WebIDL::ExceptionOr<void> FontFace::set_descent_override(Utf16View string)
 {
     // On setting, parse the string according to the grammar for the corresponding @font-face descriptor.
     // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
@@ -710,11 +715,11 @@ WebIDL::ExceptionOr<void> FontFace::set_descent_override(String const& string)
 
 void FontFace::set_descent_override_impl(NonnullRefPtr<StyleValue const> const& value)
 {
-    m_descent_override = value->to_string(SerializationMode::Normal);
+    m_descent_override = serialize_style_value_to_utf16(*value);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-linegapoverride
-WebIDL::ExceptionOr<void> FontFace::set_line_gap_override(String const& string)
+WebIDL::ExceptionOr<void> FontFace::set_line_gap_override(Utf16View string)
 {
     // On setting, parse the string according to the grammar for the corresponding @font-face descriptor.
     // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
@@ -734,7 +739,7 @@ WebIDL::ExceptionOr<void> FontFace::set_line_gap_override(String const& string)
 
 void FontFace::set_line_gap_override_impl(NonnullRefPtr<StyleValue const> const& value)
 {
-    m_line_gap_override = value->to_string(SerializationMode::Normal);
+    m_line_gap_override = serialize_style_value_to_utf16(*value);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-load
@@ -867,11 +872,6 @@ static bool font_format_is_supported_impl(Name const& name)
     return false;
 }
 
-bool font_format_is_supported(FlyString const& name)
-{
-    return font_format_is_supported_impl(name);
-}
-
 bool font_format_is_supported(Utf16View name)
 {
     return font_format_is_supported_impl(name);
@@ -919,11 +919,6 @@ static bool font_tech_is_supported_impl(Name const& name)
         }
     }
     return false;
-}
-
-bool font_tech_is_supported(FlyString const& name)
-{
-    return font_tech_is_supported_impl(name);
 }
 
 bool font_tech_is_supported(Utf16View name)

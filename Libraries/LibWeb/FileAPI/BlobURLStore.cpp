@@ -15,13 +15,14 @@
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/FileAPI/BlobURLStore.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
 
 namespace Web::FileAPI {
 
 BlobURLStore& blob_url_store()
 {
-    static NeverDestroyed<GC::ConservativeHashMap<String, BlobURLEntry>> store;
+    static NeverDestroyed<GC::ConservativeHashMap<Utf16String, BlobURLEntry>> store;
     return *store;
 }
 
@@ -74,7 +75,7 @@ ErrorOr<Utf16String> add_entry_to_blob_url_store(BlobURLEntry::Object object)
     BlobURLEntry entry { object, HTML::current_settings_object() };
 
     // 4. Set store[url] to entry.
-    TRY(store.try_set(url.to_utf8_but_should_be_ported_to_utf16(), move(entry)));
+    TRY(store.try_set(url, move(entry)));
 
     // 5. Return url.
     return url;
@@ -122,7 +123,7 @@ void remove_entry_from_blob_url_store(URL::URL const& url)
     auto& store = blob_url_store();
 
     // 2. Let url string be the result of serializing url.
-    auto url_string = url.serialize();
+    auto url_string = utf16_string_from_url_ascii(url.serialize());
 
     // 3. Remove store[url string].
     store.remove(url_string);
@@ -153,7 +154,7 @@ Optional<BlobURLEntry const&> resolve_a_blob_url(URL::URL const& url)
     auto& store = blob_url_store();
 
     // 3. Let url string be the result of serializing url with the exclude fragment flag set.
-    auto url_string = url.serialize(URL::ExcludeFragment::Yes);
+    auto url_string = utf16_string_from_url_ascii(url.serialize(URL::ExcludeFragment::Yes));
 
     // 4. If store[url string] exists, return store[url string]; otherwise return failure.
     return store.get(url_string);

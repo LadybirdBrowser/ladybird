@@ -26,7 +26,7 @@ class WEB_API DOMMatrixReadOnly
     GC_DECLARE_ALLOCATOR(DOMMatrixReadOnly);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> construct_impl(JS::Realm&, Optional<Variant<String, Vector<double>>> const& init);
+    static WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> construct_impl(JS::Realm&, Optional<Variant<Utf16String, Vector<double>>> const& init);
     static WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> create_from_dom_matrix_2d_init(JS::Realm&, Bindings::DOMMatrix2DInit& init);
     static WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> create_from_dom_matrix_init(JS::Realm&, Bindings::DOMMatrixInit& init);
     static GC::Ref<DOMMatrixReadOnly> create(JS::Realm&);
@@ -84,7 +84,7 @@ public:
     GC::Ref<JS::Float32Array> to_float32_array() const;
     GC::Ref<JS::Float64Array> to_float64_array() const;
 
-    WebIDL::ExceptionOr<String> to_string() const;
+    WebIDL::ExceptionOr<Utf16String> to_string() const;
 
     virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::StructuredSerializeWriter&, bool for_storage, HTML::SerializationMemory&) override;
     virtual WebIDL::ExceptionOr<void> deserialization_steps(HTML::StructuredSerializeReader&, HTML::DeserializationMemory&) override;
@@ -115,6 +115,6 @@ struct ParsedMatrix {
     bool is_2d_transform;
 };
 
-WebIDL::ExceptionOr<ParsedMatrix> parse_dom_matrix_init_string(JS::Realm& realm, StringView transform_list);
+WebIDL::ExceptionOr<ParsedMatrix> parse_dom_matrix_init_string(JS::Realm& realm, Utf16View transform_list);
 
 }

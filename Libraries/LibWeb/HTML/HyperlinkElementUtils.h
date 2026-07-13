@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
 
@@ -16,34 +17,34 @@ class HyperlinkElementUtils {
 public:
     virtual ~HyperlinkElementUtils();
 
-    String origin() const;
+    Utf16String origin() const;
 
-    String protocol() const;
-    void set_protocol(StringView);
+    Utf16String protocol() const;
+    void set_protocol(Utf16View);
 
-    String username() const;
-    void set_username(StringView);
+    Utf16String username() const;
+    void set_username(Utf16View);
 
-    String password() const;
-    void set_password(StringView);
+    Utf16String password() const;
+    void set_password(Utf16View);
 
-    String host() const;
-    void set_host(StringView);
+    Utf16String host() const;
+    void set_host(Utf16View);
 
-    String hostname() const;
-    void set_hostname(StringView);
+    Utf16String hostname() const;
+    void set_hostname(Utf16View);
 
-    String port() const;
-    void set_port(StringView);
+    Utf16String port() const;
+    void set_port(Utf16View);
 
-    String pathname() const;
-    void set_pathname(StringView);
+    Utf16String pathname() const;
+    void set_pathname(Utf16View);
 
-    String search() const;
-    void set_search(StringView);
+    Utf16String search() const;
+    void set_search(Utf16View);
 
-    String hash() const;
-    void set_hash(StringView);
+    Utf16String hash() const;
+    void set_hash(Utf16View);
 
 protected:
     virtual DOM::Element& hyperlink_element_utils_element() = 0;

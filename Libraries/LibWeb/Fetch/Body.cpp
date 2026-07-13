@@ -86,7 +86,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> BodyMixin::blob() const
         // NOTE: If extracting the mime type returns failure, other browsers set it to an empty string - not sure if that's spec'd.
         auto mime_type = this->mime_type_impl();
         auto mime_type_string = mime_type.has_value() ? mime_type->serialized() : String {};
-        return FileAPI::Blob::create(realm, move(bytes), move(mime_type_string));
+        return FileAPI::Blob::create(realm, move(bytes), Utf16String::from_utf8(mime_type_string));
     }));
 }
 
@@ -128,7 +128,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> BodyMixin::form_data() const
 
                 // 2. If that fails for some reason, then throw a TypeError.
                 if (error_or_entry_list.is_error())
-                    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Failed to parse multipart form data: {}", error_or_entry_list.release_error().message)) };
+                    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("Failed to parse multipart form data: {}", error_or_entry_list.release_error().message) };
 
                 // 3. Return a new FormData object, appending each entry, resulting from the parsing operation, to its entry list.
                 return TRY(XHR::FormData::create(realm, error_or_entry_list.release_value()));
@@ -144,7 +144,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> BodyMixin::form_data() const
         }
 
         // 3. Throw a TypeError.
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Mime type must be 'multipart/form-data' or 'application/x-www-form-urlencoded'"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Mime type must be 'multipart/form-data' or 'application/x-www-form-urlencoded'"_utf16 };
     }));
 }
 
@@ -182,7 +182,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> consume_body(JS::Realm& realm, Bod
 {
     // 1. If object is unusable, then return a promise rejected with a TypeError.
     if (object.is_unusable()) {
-        WebIDL::SimpleException exception { WebIDL::SimpleExceptionType::TypeError, "Body is unusable"sv };
+        WebIDL::SimpleException exception { WebIDL::SimpleExceptionType::TypeError, "Body is unusable"_utf16 };
         return WebIDL::create_rejected_promise_from_exception(realm, move(exception));
     }
 
@@ -445,10 +445,10 @@ MultipartParsingErrorOr<GC::ConservativeVector<XHR::FormDataEntry>> parse_multip
 
             // 3. Let value be a new File object with name filename, type contentType, and body body.
             auto content_type = header.content_type.release_value();
-            auto blob = FileAPI::Blob::create(realm, MUST(ByteBuffer::copy(body.bytes())), content_type);
+            auto blob = FileAPI::Blob::create(realm, MUST(ByteBuffer::copy(body.bytes())), {});
             Bindings::FilePropertyBag options {};
-            options.type = move(content_type);
-            value = MUST(FileAPI::File::create(realm, { { blob } }, header.filename.release_value(), move(options)));
+            options.type = Utf16String::from_utf8(content_type);
+            value = MUST(FileAPI::File::create(realm, { { blob } }, Utf16String::from_utf8(header.filename.release_value()), move(options)));
         }
         // 11. Otherwise:
         else {

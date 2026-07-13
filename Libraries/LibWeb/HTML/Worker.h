@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/AbstractWorker.h>
 #include <LibWeb/HTML/Window.h>
@@ -52,7 +53,7 @@ public:
 #undef __ENUMERATE
 
 protected:
-    Worker(JS::Realm&, Utf16String const&, Bindings::WorkerOptions const&);
+    Worker(JS::Realm&, Utf16View, Bindings::WorkerOptions const&);
 
     // ^AbstractWorker
     virtual DOM::EventTarget& this_event_target() override { return *this; }

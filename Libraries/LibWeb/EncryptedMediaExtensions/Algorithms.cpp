@@ -40,7 +40,7 @@ Optional<Vector<Bindings::MediaKeySystemMediaCapability>> get_supported_capabili
             return {};
 
         // 5. Let mimeType be the result of running parse a MIME type with content type.
-        auto mime_type = MimeSniff::MimeType::parse(content_type.to_utf8());
+        auto mime_type = MimeSniff::MimeType::parse(content_type);
 
         // 6. If mimeType is failure or is unrecognized, continue to the next iteration.
         if (!mime_type.has_value())

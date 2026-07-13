@@ -1,10 +1,10 @@
-callback FunctionStringCallback = undefined (DOMString data);
+callback FunctionStringCallback = undefined (Utf16DOMString data);
 
 // https://html.spec.whatwg.org/multipage/dnd.html#datatransferitem
 [Exposed=Window]
 interface DataTransferItem {
-    readonly attribute DOMString kind;
-    readonly attribute DOMString type;
+    readonly attribute Utf16DOMString kind;
+    readonly attribute Utf16DOMString type;
     undefined getAsString(FunctionStringCallback? _callback);
     File? getAsFile();
 

@@ -9,7 +9,7 @@
 namespace Web::Editing::CommandNames {
 
 #define __ENUMERATE_COMMAND_NAME(name, command) \
-    FlyString const& name = *new FlyString(command##_fly_string);
+    Utf16FlyString const& name = *new Utf16FlyString(command##_utf16_fly_string);
 ENUMERATE_COMMAND_NAMES
 #undef __ENUMERATE_COMMAND_NAME
 

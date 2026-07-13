@@ -43,14 +43,14 @@ void CSSScopeRule::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_cached_nearest_ancestor_scope_rule);
 }
 
-Optional<String> CSSScopeRule::start() const
+Optional<Utf16String> CSSScopeRule::start() const
 {
     if (m_start_selectors.has_value())
         return serialize_a_group_of_selectors(*m_start_selectors);
     return {};
 }
 
-Optional<String> CSSScopeRule::end() const
+Optional<Utf16String> CSSScopeRule::end() const
 {
     if (m_end_selectors.has_value())
         return serialize_a_group_of_selectors(*m_end_selectors);
@@ -175,11 +175,11 @@ void CSSScopeRule::clear_caches()
 }
 
 // https://drafts.csswg.org/cssom-1/#serialize-a-css-rule
-String CSSScopeRule::serialized() const
+Utf16String CSSScopeRule::serialized() const
 {
     // AD-HOC: There is no spec for this yet.
-    StringBuilder builder;
-    builder.append("@scope"sv);
+    Utf16StringBuilder builder;
+    builder.append_ascii("@scope"sv);
 
     if (auto start = this->start(); start.has_value())
         builder.appendff(" ({})", *start);
@@ -187,23 +187,23 @@ String CSSScopeRule::serialized() const
     if (auto end = this->end(); end.has_value())
         builder.appendff(" to ({})", *end);
 
-    builder.append(" {\n"sv);
+    builder.append_ascii(" {\n"sv);
 
     for (size_t i = 0; i < css_rules().length(); i++) {
         auto rule = css_rules().item(i);
-        auto result = rule->css_text();
+        auto result = rule->serialized();
 
         if (result.is_empty())
             continue;
 
-        builder.append("  "sv);
+        builder.append_ascii("  "sv);
         builder.append(result);
-        builder.append('\n');
+        builder.append_ascii('\n');
     }
 
-    builder.append('}');
+    builder.append_ascii('}');
 
-    return builder.to_string_without_validation();
+    return builder.to_string();
 }
 
 void CSSScopeRule::dump(StringBuilder& builder, int indent_levels) const

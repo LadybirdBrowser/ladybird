@@ -8,6 +8,8 @@
 #pragma once
 
 #include <AK/NonnullRefPtr.h>
+#include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <LibWeb/CSS/CSSGroupingRule.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/Selector.h>
@@ -27,13 +29,13 @@ public:
     SelectorList const& absolutized_selectors() const;
     CSSStyleProperties const& declaration() const { return m_declaration; }
 
-    String selector_text() const;
-    void set_selector_text(StringView);
+    Utf16String selector_text() const;
+    void set_selector_text(Utf16View);
 
     GC::Ref<CSSStyleProperties> style();
     GC::Ref<StylePropertyMap> style_map();
 
-    [[nodiscard]] FlyString const& qualified_layer_name() const { return parent_layer_internal_qualified_name(); }
+    [[nodiscard]] Utf16FlyString const& qualified_layer_name() const { return parent_layer_internal_qualified_name(); }
 
 private:
     CSSStyleRule(JS::Realm&, SelectorList&&, CSSStyleProperties&, CSSRuleList&);
@@ -41,7 +43,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void clear_caches() override;
-    virtual String serialized() const override;
+    virtual Utf16String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 
     virtual void set_parent_style_sheet(CSSStyleSheet*) override;

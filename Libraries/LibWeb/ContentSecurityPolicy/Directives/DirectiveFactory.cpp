@@ -35,7 +35,7 @@
 
 namespace Web::ContentSecurityPolicy::Directives {
 
-GC::Ref<Directive> create_directive(GC::Heap& heap, String name, Vector<String> value)
+GC::Ref<Directive> create_directive(GC::Heap& heap, Utf16FlyString name, Vector<Utf16String> value)
 {
     if (name == Names::BaseUri)
         return heap.allocate<BaseUriDirective>(move(name), move(value));

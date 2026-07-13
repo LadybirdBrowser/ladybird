@@ -154,13 +154,7 @@ Element* HTMLCollection::item(size_t index) const
 }
 
 // https://dom.spec.whatwg.org/#dom-htmlcollection-nameditem-key
-Element* HTMLCollection::named_item(Utf16String const& key) const
-{
-    return named_item(Utf16FlyString::from_utf16(key.utf16_view()));
-}
-
-// https://dom.spec.whatwg.org/#dom-htmlcollection-nameditem-key
-Element* HTMLCollection::named_item(Utf16FlyString const& key) const
+Element* HTMLCollection::named_item(Utf16View key) const
 {
     // 1. If key is the empty string, return null.
     if (key.is_empty())
@@ -205,7 +199,7 @@ Optional<JS::Value> HTMLCollection::item_value(size_t index) const
 
 JS::Value HTMLCollection::named_item_value(Utf16FlyString const& name) const
 {
-    auto* element = named_item(name);
+    auto* element = named_item(name.view());
     if (!element)
         return JS::js_undefined();
     return element;

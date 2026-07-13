@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <LibWeb/CSS/CSSGroupingRule.h>
 #include <LibWeb/CSS/CSSPageDescriptors.h>
 #include <LibWeb/CSS/PageSelector.h>
@@ -22,8 +24,8 @@ public:
 
     virtual ~CSSPageRule() override = default;
 
-    String selector_text() const;
-    void set_selector_text(StringView);
+    Utf16String selector_text() const;
+    void set_selector_text(Utf16View);
 
     GC::Ref<CSSPageDescriptors> style() { return m_style; }
     GC::Ref<CSSPageDescriptors const> descriptors() const { return m_style; }
@@ -32,7 +34,7 @@ private:
     CSSPageRule(JS::Realm&, PageSelectorList&&, GC::Ref<CSSPageDescriptors>, CSSRuleList&);
 
     virtual void initialize(JS::Realm&) override;
-    virtual String serialized() const override;
+    virtual Utf16String serialized() const override;
     virtual void visit_edges(Visitor&) override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 

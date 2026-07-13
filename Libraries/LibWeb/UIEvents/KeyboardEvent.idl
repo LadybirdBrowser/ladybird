@@ -2,7 +2,7 @@
 [Exposed=Window]
 interface KeyboardEvent : UIEvent {
 
-    constructor(DOMString type, optional KeyboardEventInit eventInitDict = {});
+    constructor([Utf16FlyString] Utf16DOMString type, optional KeyboardEventInit eventInitDict = {});
 
     // KeyLocationCode
     const unsigned long DOM_KEY_LOCATION_STANDARD = 0x00;
@@ -10,8 +10,8 @@ interface KeyboardEvent : UIEvent {
     const unsigned long DOM_KEY_LOCATION_RIGHT = 0x02;
     const unsigned long DOM_KEY_LOCATION_NUMPAD = 0x03;
 
-    readonly attribute DOMString key;
-    readonly attribute DOMString code;
+    readonly attribute Utf16DOMString key;
+    readonly attribute [Utf16FlyString] Utf16DOMString code;
     readonly attribute unsigned long location;
 
     readonly attribute boolean ctrlKey;
@@ -25,17 +25,17 @@ interface KeyboardEvent : UIEvent {
     readonly attribute unsigned long charCode;
     readonly attribute unsigned long keyCode;
 
-    boolean getModifierState(DOMString keyArg);
+    boolean getModifierState([Utf16FlyString] Utf16DOMString keyArg);
 
     // https://w3c.github.io/uievents/#dom-keyboardevent-initkeyboardevent
-    undefined initKeyboardEvent(DOMString typeArg, optional boolean bubblesArg = false, optional boolean cancelableArg = false, optional WindowProxy? viewArg = null, optional DOMString keyArg = "", optional unsigned long locationArg = 0, optional boolean ctrlKey = false, optional boolean altKey = false, optional boolean shiftKey = false, optional boolean metaKey = false);
+    undefined initKeyboardEvent([Utf16FlyString] Utf16DOMString typeArg, optional boolean bubblesArg = false, optional boolean cancelableArg = false, optional WindowProxy? viewArg = null, optional Utf16DOMString keyArg = "", optional unsigned long locationArg = 0, optional boolean ctrlKey = false, optional boolean altKey = false, optional boolean shiftKey = false, optional boolean metaKey = false);
 
 };
 
 // https://w3c.github.io/uievents/#dictdef-keyboardeventinit
 dictionary KeyboardEventInit : EventModifierInit {
-    DOMString key = "";
-    DOMString code = "";
+    Utf16DOMString key = "";
+    [Utf16FlyString] Utf16DOMString code = "";
     unsigned long location = 0;
     boolean repeat = false;
     boolean isComposing = false;

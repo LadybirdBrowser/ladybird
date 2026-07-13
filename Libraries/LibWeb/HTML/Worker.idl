@@ -12,7 +12,7 @@ interface Worker : EventTarget {
 };
 
 dictionary WorkerOptions {
-    DOMString name = "";
+    Utf16DOMString name = "";
     WorkerType type = "classic";
     RequestCredentials credentials = "same-origin";
 };

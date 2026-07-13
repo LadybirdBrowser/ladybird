@@ -91,8 +91,8 @@ static Web::HTML::SessionHistoryEntryDescriptor entry(i32 step, StringView url, 
     auto entry = create_test_entry(step, parse_url(url));
     entry.classic_history_api_state = state_record(classic_history_api_state);
     entry.navigation_api_state = state_record(navigation_api_state);
-    entry.navigation_api_key = MUST(String::from_utf8(navigation_api_key));
-    entry.navigation_api_id = MUST(String::from_utf8(navigation_api_id));
+    entry.navigation_api_key = Utf16String::from_utf8(navigation_api_key);
+    entry.navigation_api_id = Utf16String::from_utf8(navigation_api_id);
     entry.scroll_restoration_mode = scroll_restoration_mode;
     return entry;
 }
@@ -201,7 +201,7 @@ static void expect_entry_resource(Web::HTML::SessionHistoryEntryDescriptor const
     }
 
     if (expected_resource == "string"sv) {
-        EXPECT(entry.document_state.resource.has<String>());
+        EXPECT(entry.document_state.resource.has<Utf16String>());
         return;
     }
 

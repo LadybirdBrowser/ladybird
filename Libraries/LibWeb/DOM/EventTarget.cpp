@@ -8,8 +8,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/StringBuilder.h>
+#include <AK/Utf16String.h>
 #include <AK/Utf16StringBuilder.h>
+#include <AK/Utf16View.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
 #include <LibJS/Runtime/ExternalMemory.h>
@@ -175,13 +176,13 @@ static FlattenedAddEventListenerOptions flatten_add_event_listener_options(Varia
 }
 
 // https://dom.spec.whatwg.org/#default-passive-value
-static bool default_passive_value(FlyString const& type, EventTarget* event_target)
+static bool default_passive_value(Utf16FlyString const& type, EventTarget* event_target)
 {
     // 1. Return true if all of the following are true:
     //    - type is one of "touchstart", "touchmove", "wheel", or "mousewheel".
     //    - eventTarget is a Window object, or is a node whose node document is eventTarget, or is a node whose node document’s document element is eventTarget,
     //      or is a node whose node document’s body element is eventTarget.
-    if (AK::first_is_one_of(type, "touchstart"sv, "touchmove"sv, "wheel"sv, "mousewheel"sv)) {
+    if (AK::first_is_one_of(type, u"touchstart"sv, u"touchmove"sv, u"wheel"sv, u"mousewheel"sv)) {
         if (is<HTML::Window>(event_target))
             return true;
 
@@ -197,7 +198,7 @@ static bool default_passive_value(FlyString const& type, EventTarget* event_targ
 
 static bool is_blocking_wheel_event_listener(DOMEventListener const& listener)
 {
-    return AK::first_is_one_of(listener.type, "wheel"sv, "mousewheel"sv) && listener.passive != true;
+    return AK::first_is_one_of(listener.type, u"wheel"sv, u"mousewheel"sv) && listener.passive != true;
 }
 
 static void invalidate_compositor_wheel_event_listener_state(EventTarget& event_target, DOMEventListener const& listener)
@@ -237,7 +238,7 @@ static void update_needs_beforeunload_check(EventTarget& event_target, DOMEventL
 }
 
 // https://dom.spec.whatwg.org/#dom-eventtarget-addeventlistener
-void EventTarget::add_event_listener(FlyString const& type, IDLEventListener* callback, Variant<Bindings::AddEventListenerOptions, bool> const& options)
+void EventTarget::add_event_listener(Utf16FlyString const& type, IDLEventListener* callback, Variant<Bindings::AddEventListenerOptions, bool> const& options)
 {
     // 1. Let capture, passive, once, and signal be the result of flattening more options.
     auto flattened_options = flatten_add_event_listener_options(options);
@@ -255,7 +256,7 @@ void EventTarget::add_event_listener(FlyString const& type, IDLEventListener* ca
     add_an_event_listener(*event_listener);
 }
 
-void EventTarget::add_event_listener_without_options(FlyString const& type, IDLEventListener& callback)
+void EventTarget::add_event_listener_without_options(Utf16FlyString const& type, IDLEventListener& callback)
 {
     add_event_listener(type, &callback, Bindings::AddEventListenerOptions {});
 }
@@ -306,7 +307,7 @@ void EventTarget::add_an_event_listener(DOMEventListener& listener)
 }
 
 // https://dom.spec.whatwg.org/#dom-eventtarget-removeeventlistener
-void EventTarget::remove_event_listener(FlyString const& type, IDLEventListener* callback, Variant<Bindings::EventListenerOptions, bool> const& options)
+void EventTarget::remove_event_listener(Utf16FlyString const& type, IDLEventListener* callback, Variant<Bindings::EventListenerOptions, bool> const& options)
 {
     auto& event_listener_list = ensure_data().event_listener_list;
 
@@ -331,7 +332,7 @@ void EventTarget::remove_event_listener(FlyString const& type, IDLEventListener*
         remove_an_event_listener(**it);
 }
 
-void EventTarget::remove_event_listener_without_options(FlyString const& type, IDLEventListener& callback)
+void EventTarget::remove_event_listener_without_options(Utf16FlyString const& type, IDLEventListener& callback)
 {
     remove_event_listener(type, &callback, Bindings::EventListenerOptions {});
 }
@@ -370,7 +371,7 @@ WebIDL::ExceptionOr<bool> EventTarget::dispatch_event_binding(Event& event)
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#window-reflecting-body-element-event-handler-set
-bool is_window_reflecting_body_element_event_handler(FlyString const& name)
+bool is_window_reflecting_body_element_event_handler(Utf16FlyString const& name)
 {
     return name.is_one_of(
         HTML::EventNames::blur,
@@ -378,11 +379,11 @@ bool is_window_reflecting_body_element_event_handler(FlyString const& name)
         HTML::EventNames::focus,
         HTML::EventNames::load,
         UIEvents::EventNames::resize,
-        "scroll");
+        "scroll"_utf16_fly_string);
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#windoweventhandlers
-static bool is_window_event_handler(FlyString const& name)
+static bool is_window_event_handler(Utf16FlyString const& name)
 {
     return name.is_one_of(
         HTML::EventNames::afterprint,
@@ -404,7 +405,7 @@ static bool is_window_event_handler(FlyString const& name)
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#determining-the-target-of-an-event-handler
-static EventTarget* determine_target_of_event_handler(EventTarget& event_target, FlyString const& name)
+static EventTarget* determine_target_of_event_handler(EventTarget& event_target, Utf16FlyString const& name)
 {
     // To determine the target of an event handler, given an EventTarget object eventTarget on which the event handler is exposed,
     // and an event handler name name, the following steps are taken:
@@ -428,7 +429,7 @@ static EventTarget* determine_target_of_event_handler(EventTarget& event_target,
     return &as<EventTarget>(HTML::relevant_global_object(event_target_element.document()));
 }
 
-static Optional<FlyString> event_name_from_event_handler_attribute_local_name(Utf16FlyString const& local_name)
+static Optional<Utf16FlyString> event_name_from_event_handler_attribute_local_name(Utf16FlyString const& local_name)
 {
 #undef __ENUMERATE
 #define __ENUMERATE(attribute_name, event_name)             \
@@ -442,7 +443,7 @@ static Optional<FlyString> event_name_from_event_handler_attribute_local_name(Ut
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#event-handler-attributes:event-handler-idl-attributes-2
-WebIDL::CallbackType* EventTarget::event_handler_attribute(FlyString const& name)
+WebIDL::CallbackType* EventTarget::event_handler_attribute(Utf16FlyString const& name)
 {
     // 1. Let eventTarget be the result of determining the target of an event handler given this object and name.
     auto target = determine_target_of_event_handler(*this, name);
@@ -456,7 +457,7 @@ WebIDL::CallbackType* EventTarget::event_handler_attribute(FlyString const& name
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#getting-the-current-value-of-the-event-handler
-WebIDL::CallbackType* EventTarget::get_current_value_of_event_handler(FlyString const& name)
+WebIDL::CallbackType* EventTarget::get_current_value_of_event_handler(Utf16FlyString const& name)
 {
     // 1. Let handlerMap be eventTarget's event handler map. (NOTE: Not necessary)
     auto& handler_map = ensure_data().event_handler_map;
@@ -475,7 +476,7 @@ WebIDL::CallbackType* EventTarget::get_current_value_of_event_handler(FlyString 
     auto& event_handler = event_handler_iterator->value;
 
     // 3. If eventHandler's value is an internal raw uncompiled handler, then:
-    if (event_handler->value.has<ByteString>()) {
+    if (event_handler->value.has<Utf16String>()) {
         // 1. If eventTarget is an element, then let element be eventTarget, and document be element's node document.
         //    Otherwise, eventTarget is a Window object, let element be null, and document be eventTarget's associated Document.
         GC::Ptr<Element> element;
@@ -496,8 +497,7 @@ WebIDL::CallbackType* EventTarget::get_current_value_of_event_handler(FlyString 
             return nullptr;
 
         // 3. Let body be the uncompiled script body in eventHandler's value.
-        auto& body = event_handler->value.get<ByteString>();
-        auto body_utf16 = Utf16String::from_utf8(body);
+        auto const& body = event_handler->value.get<Utf16String>();
 
         // FIXME: 4. Let location be the location where the script body originated, as given by eventHandler's value.
 
@@ -513,19 +513,19 @@ WebIDL::CallbackType* EventTarget::get_current_value_of_event_handler(FlyString 
 
         // Build source text and parameter strings for the event handler function.
         Utf16StringBuilder source_builder;
-        Utf16String parameters_string;
+        Utf16View parameters_string;
 
         // sourceText / ParameterList
         if (name == HTML::EventNames::error && is<HTML::Window>(this)) {
             //  -> If name is onerror and eventTarget is a Window object
             //      Let the function have five arguments, named event, source, lineno, colno, and error.
-            source_builder.appendff("function on{}(event, source, lineno, colno, error) {{\n{}\n}}", name, body_utf16);
-            parameters_string = "event, source, lineno, colno, error"_utf16;
+            source_builder.appendff("function on{}(event, source, lineno, colno, error) {{\n{}\n}}", name, body);
+            parameters_string = u"event, source, lineno, colno, error"sv;
         } else {
             //  -> Otherwise
             //      Let the function have a single argument called event.
-            source_builder.appendff("function on{}(event) {{\n{}\n}}", name, body_utf16);
-            parameters_string = "event"_utf16;
+            source_builder.appendff("function on{}(event) {{\n{}\n}}", name, body);
+            parameters_string = u"event"sv;
         }
 
         auto source_text = source_builder.to_string();
@@ -533,7 +533,7 @@ WebIDL::CallbackType* EventTarget::get_current_value_of_event_handler(FlyString 
         auto& vm = Bindings::main_thread_vm();
 
         auto rust_compilation = JS::RustIntegration::compile_dynamic_function(
-            vm, source_text, parameters_string, body_utf16, JS::FunctionKind::Normal);
+            vm, source_text, parameters_string, body, JS::FunctionKind::Normal);
 
         // 7. If body is not parsable as FunctionBody or if parsing detects an early error, then follow these substeps:
         if (!rust_compilation.has_value() || rust_compilation->is_error()) {
@@ -594,7 +594,7 @@ WebIDL::CallbackType* EventTarget::get_current_value_of_event_handler(FlyString 
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#event-handler-attributes:event-handler-idl-attributes-3
-void EventTarget::set_event_handler_attribute(FlyString const& name, WebIDL::CallbackType* value)
+void EventTarget::set_event_handler_attribute(Utf16FlyString const& name, WebIDL::CallbackType* value)
 {
     // 1. Let eventTarget be the result of determining the target of an event handler given this object and name.
     auto event_target = determine_target_of_event_handler(*this, name);
@@ -641,7 +641,7 @@ void EventTarget::set_event_handler_attribute(FlyString const& name, WebIDL::Cal
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#activate-an-event-handler
-void EventTarget::activate_event_handler(FlyString const& name, HTML::EventHandler& event_handler)
+void EventTarget::activate_event_handler(Utf16FlyString const& name, HTML::EventHandler& event_handler)
 {
     // 1. Let handlerMap be eventTarget's event handler map.
     // 2. Let eventHandler be handlerMap[name].
@@ -689,7 +689,7 @@ void EventTarget::activate_event_handler(FlyString const& name, HTML::EventHandl
     event_handler.listener = listener;
 }
 
-void EventTarget::deactivate_event_handler(FlyString const& name)
+void EventTarget::deactivate_event_handler(Utf16FlyString const& name)
 {
     // 1. Let handlerMap be eventTarget's event handler map.
     auto& handler_map = ensure_data().event_handler_map;
@@ -720,7 +720,7 @@ void EventTarget::deactivate_event_handler(FlyString const& name)
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#the-event-handler-processing-algorithm
-JS::ThrowCompletionOr<void> EventTarget::process_event_handler_for_event(FlyString const& name, Event& event)
+JS::ThrowCompletionOr<void> EventTarget::process_event_handler_for_event(Utf16FlyString const& name, Event& event)
 {
     // 1. Let callback be the result of getting the current value of the event handler given eventTarget and name.
     auto* callback = get_current_value_of_event_handler(name);
@@ -859,7 +859,7 @@ void EventTarget::element_event_handler_attribute_changed(Utf16FlyString const& 
     // NOTE: See the optimization comments in set_event_handler_attribute.
 
     if (event_handler_iterator == handler_map.end()) {
-        auto new_event_handler = heap().allocate<HTML::EventHandler>(value->to_byte_string());
+        auto new_event_handler = heap().allocate<HTML::EventHandler>(*value);
 
         //  6. Activate an event handler given eventTarget and name.
         event_target->activate_event_handler(*event_name, *new_event_handler);
@@ -871,7 +871,7 @@ void EventTarget::element_event_handler_attribute_changed(Utf16FlyString const& 
     auto& event_handler = event_handler_iterator->value;
 
     //  6. Activate an event handler given eventTarget and name.
-    event_handler->value = value->to_byte_string();
+    event_handler->value = *value;
     event_target->activate_event_handler(*event_name, *event_handler);
 }
 
@@ -894,13 +894,13 @@ bool EventTarget::dispatch_event(Event& event)
         // pointerdown, provided the event's pointerType is "mouse".
         if (event.type() == UIEvents::EventNames::pointerdown) {
             if (auto* pointer_event = as_if<UIEvents::PointerEvent>(&event))
-                return pointer_event->pointer_type() == "mouse"sv;
+                return pointer_event->pointer_type() == u"mouse"sv;
         }
 
         // pointerup, provided the event's pointerType is not "mouse".
         if (event.type() == UIEvents::EventNames::pointerup) {
             if (auto* pointer_event = as_if<UIEvents::PointerEvent>(&event))
-                return pointer_event->pointer_type() != "mouse"sv;
+                return pointer_event->pointer_type() != u"mouse"sv;
         }
 
         // FIXME: touchend
@@ -948,7 +948,7 @@ bool EventTarget::dispatch_event(Event& event)
     return EventDispatcher::dispatch(*this, event);
 }
 
-bool EventTarget::has_event_listener(FlyString const& type) const
+bool EventTarget::has_event_listener(Utf16FlyString const& type) const
 {
     return m_data && m_data->event_listener_list.contains([&type](auto listener) { return listener->type == type; });
 }

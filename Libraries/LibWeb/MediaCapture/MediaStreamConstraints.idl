@@ -1,7 +1,7 @@
 // https://w3c.github.io/mediacapture-main/#dom-constraindomstringparameters
 dictionary ConstrainDOMStringParameters {
-    (DOMString or sequence<DOMString>) exact;
-    (DOMString or sequence<DOMString>) ideal;
+    (Utf16DOMString or sequence<Utf16DOMString>) exact;
+    (Utf16DOMString or sequence<Utf16DOMString>) ideal;
 };
 
 // https://w3c.github.io/mediacapture-main/#dom-constraindoublerange
@@ -36,15 +36,15 @@ dictionary ConstrainBooleanParameters {
 
 // https://w3c.github.io/mediacapture-main/#dom-constrainbooleanordomstringparameters
 dictionary ConstrainBooleanOrDOMStringParameters {
-    (boolean or DOMString) exact;
-    (boolean or DOMString) ideal;
+    (boolean or Utf16DOMString) exact;
+    (boolean or Utf16DOMString) ideal;
 };
 
 typedef (unsigned long or ConstrainULongRange) ConstrainULong;
 typedef (double or ConstrainDoubleRange) ConstrainDouble;
 typedef (boolean or ConstrainBooleanParameters) ConstrainBoolean;
-typedef (DOMString or sequence<DOMString> or ConstrainDOMStringParameters) ConstrainDOMString;
-typedef (boolean or DOMString or ConstrainBooleanOrDOMStringParameters) ConstrainBooleanOrDOMString;
+typedef (Utf16DOMString or sequence<Utf16DOMString> or ConstrainDOMStringParameters) ConstrainDOMString;
+typedef (boolean or Utf16DOMString or ConstrainBooleanOrDOMStringParameters) ConstrainBooleanOrDOMString;
 
 // https://w3c.github.io/mediacapture-main/#dictdef-mediatrackconstraintset
 dictionary MediaTrackConstraintSet {
@@ -102,17 +102,17 @@ dictionary MediaTrackCapabilities {
     ULongRange height;
     DoubleRange aspectRatio;
     DoubleRange frameRate;
-    sequence<DOMString> facingMode;
-    sequence<DOMString> resizeMode;
+    sequence<Utf16DOMString> facingMode;
+    sequence<Utf16DOMString> resizeMode;
     ULongRange sampleRate;
     ULongRange sampleSize;
-    sequence<(boolean or DOMString)> echoCancellation;
+    sequence<(boolean or Utf16DOMString)> echoCancellation;
     sequence<boolean> autoGainControl;
     sequence<boolean> noiseSuppression;
     DoubleRange latency;
     ULongRange channelCount;
-    DOMString deviceId;
-    DOMString groupId;
+    Utf16DOMString deviceId;
+    Utf16DOMString groupId;
     sequence<boolean> backgroundBlur;
 };
 
@@ -122,16 +122,16 @@ dictionary MediaTrackSettings {
     unsigned long height;
     double aspectRatio;
     double frameRate;
-    DOMString facingMode;
-    DOMString resizeMode;
+    Utf16DOMString facingMode;
+    Utf16DOMString resizeMode;
     unsigned long sampleRate;
     unsigned long sampleSize;
-    (boolean or DOMString) echoCancellation;
+    (boolean or Utf16DOMString) echoCancellation;
     boolean autoGainControl;
     boolean noiseSuppression;
     double latency;
     unsigned long channelCount;
-    DOMString deviceId;
-    DOMString groupId;
+    Utf16DOMString deviceId;
+    Utf16DOMString groupId;
     boolean backgroundBlur;
 };

@@ -19,7 +19,7 @@ QuotaExceededError::QuotaExceededError(JS::Realm& realm)
 }
 
 QuotaExceededError::QuotaExceededError(JS::Realm& realm, Utf16String const& message)
-    : DOMException(realm, "QuotaExceededError"_fly_string, message)
+    : DOMException(realm, "QuotaExceededError"_utf16_fly_string, message)
 {
 }
 

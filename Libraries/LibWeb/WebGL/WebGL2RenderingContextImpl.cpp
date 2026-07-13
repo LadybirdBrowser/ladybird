@@ -1035,7 +1035,7 @@ void WebGL2RenderingContextImpl::end_transform_feedback()
     m_context->end_transform_feedback();
 }
 
-void WebGL2RenderingContextImpl::transform_feedback_varyings(GC::Ref<WebGLProgram> program, Vector<String> const& varyings, WebIDL::UnsignedLong buffer_mode)
+void WebGL2RenderingContextImpl::transform_feedback_varyings(GC::Ref<WebGLProgram> program, Vector<Utf16String> const& varyings, WebIDL::UnsignedLong buffer_mode)
 {
     m_context->make_current();
 
@@ -1049,7 +1049,7 @@ void WebGL2RenderingContextImpl::transform_feedback_varyings(GC::Ref<WebGLProgra
     Vector<Vector<GLchar>> varying_strings;
     varying_strings.ensure_capacity(varyings.size());
     for (auto const& varying : varyings) {
-        varying_strings.unchecked_append(null_terminated_string(varying));
+        varying_strings.unchecked_append(null_terminated_utf8_string(varying.utf16_view()));
     }
 
     Vector<GLchar const*> varying_strings_characters;
@@ -1115,7 +1115,7 @@ void WebGL2RenderingContextImpl::bind_buffer_range(WebIDL::UnsignedLong target, 
     m_context->bind_buffer_range(target, index, buffer_handle, offset, size);
 }
 
-Optional<Vector<WebIDL::UnsignedLong>> WebGL2RenderingContextImpl::get_uniform_indices(GC::Ref<WebGLProgram> program, Vector<String> const& uniform_names)
+Optional<Vector<WebIDL::UnsignedLong>> WebGL2RenderingContextImpl::get_uniform_indices(GC::Ref<WebGLProgram> program, Vector<Utf16String> const& uniform_names)
 {
     m_context->make_current();
 
@@ -1130,7 +1130,7 @@ Optional<Vector<WebIDL::UnsignedLong>> WebGL2RenderingContextImpl::get_uniform_i
     Vector<Vector<GLchar>> uniform_names_strings;
     uniform_names_strings.ensure_capacity(uniform_names.size());
     for (auto const& uniform_name : uniform_names) {
-        uniform_names_strings.unchecked_append(null_terminated_string(uniform_name));
+        uniform_names_strings.unchecked_append(null_terminated_utf8_string(uniform_name.utf16_view()));
     }
 
     Vector<GLchar const*> uniform_names_characters;
@@ -1189,7 +1189,7 @@ JS::Value WebGL2RenderingContextImpl::get_active_uniforms(GC::Ref<WebGLProgram> 
     return JS::Array::create_from(realm(), params_as_values);
 }
 
-WebIDL::UnsignedLong WebGL2RenderingContextImpl::get_uniform_block_index(GC::Ref<WebGLProgram> program, String uniform_block_name)
+WebIDL::UnsignedLong WebGL2RenderingContextImpl::get_uniform_block_index(GC::Ref<WebGLProgram> program, Utf16String uniform_block_name)
 {
     m_context->make_current();
 
@@ -1200,7 +1200,7 @@ WebIDL::UnsignedLong WebGL2RenderingContextImpl::get_uniform_block_index(GC::Ref
     }
     auto program_handle = handle_or_error.release_value();
 
-    auto uniform_block_name_null_terminated = null_terminated_string(uniform_block_name);
+    auto uniform_block_name_null_terminated = null_terminated_utf8_string(uniform_block_name.utf16_view());
     return m_context->get_uniform_block_index(program_handle, uniform_block_name_null_terminated.data());
 }
 
@@ -1245,7 +1245,7 @@ JS::Value WebGL2RenderingContextImpl::get_active_uniform_block_parameter(GC::Ref
     }
 }
 
-Optional<String> WebGL2RenderingContextImpl::get_active_uniform_block_name(GC::Ref<WebGLProgram> program, WebIDL::UnsignedLong uniform_block_index)
+Optional<Utf16String> WebGL2RenderingContextImpl::get_active_uniform_block_name(GC::Ref<WebGLProgram> program, WebIDL::UnsignedLong uniform_block_index)
 {
     m_context->make_current();
 
@@ -1261,9 +1261,9 @@ Optional<String> WebGL2RenderingContextImpl::get_active_uniform_block_name(GC::R
     Vector<GLchar> uniform_block_name;
     uniform_block_name.resize(uniform_block_name_length);
     if (!uniform_block_name_length)
-        return String {};
+        return Utf16String {};
     m_context->get_active_uniform_block_name(program_handle, uniform_block_index, uniform_block_name_length, nullptr, uniform_block_name.data());
-    return String::from_utf8_without_validation(ReadonlyBytes { uniform_block_name.data(), static_cast<size_t>(uniform_block_name_length - 1) });
+    return utf16_string_from_gl_string(uniform_block_name.data(), static_cast<size_t>(uniform_block_name_length - 1));
 }
 
 void WebGL2RenderingContextImpl::uniform_block_binding(GC::Ref<WebGLProgram> program, WebIDL::UnsignedLong uniform_block_index, WebIDL::UnsignedLong uniform_block_binding)

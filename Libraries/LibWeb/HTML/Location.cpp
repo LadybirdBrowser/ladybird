@@ -7,7 +7,7 @@
  */
 
 #include <AK/String.h>
-#include <AK/StringBuilder.h>
+#include <AK/Utf16String.h>
 #include <LibGC/RootVector.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/PropertyDescriptor.h>
@@ -15,12 +15,14 @@
 #include <LibURL/Parser.h>
 #include <LibWeb/Bindings/Location.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/CrossOrigin/AbstractOperations.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Location.h>
 #include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
 namespace Web::HTML {
@@ -38,7 +40,8 @@ Location::~Location() = default;
 void Location::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_default_properties);
+    for (auto const& property : m_default_properties)
+        property.visit_edges(visitor);
     for (auto& descriptor : m_cross_origin_property_descriptor_map)
         descriptor.value.visit_edges(visitor);
 }
@@ -80,7 +83,8 @@ void Location::initialize(JS::Realm& realm)
     MUST(JS::Object::internal_define_own_property(vm.well_known_symbol_to_primitive(), to_primitive_property_descriptor, &no_current_property));
 
     // 5. Set the value of the [[DefaultProperties]] internal slot of location to location.[[OwnPropertyKeys]]().
-    m_default_properties.extend(MUST(Object::internal_own_property_keys()));
+    for (auto property : MUST(Object::internal_own_property_keys()))
+        m_default_properties.append(MUST(JS::PropertyKey::from_value(vm, property)));
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#relevant-document
@@ -126,7 +130,7 @@ URL::URL Location::url() const
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-href
-WebIDL::ExceptionOr<String> Location::href() const
+WebIDL::ExceptionOr<Utf16String> Location::href() const
 {
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
@@ -134,11 +138,11 @@ WebIDL::ExceptionOr<String> Location::href() const
         return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     // 2. Return this's url, serialized.
-    return url().serialize();
+    return utf16_string_from_url_ascii(url().serialize());
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#the-location-interface:dom-location-href-2
-WebIDL::ExceptionOr<void> Location::set_href(String const& new_href)
+WebIDL::ExceptionOr<void> Location::set_href(Utf16View new_href)
 {
     auto& realm = this->realm();
 
@@ -148,7 +152,7 @@ WebIDL::ExceptionOr<void> Location::set_href(String const& new_href)
         return {};
 
     // 2. Let url be the result of encoding-parsing a URL given the given value, relative to the entry settings object.
-    auto url = entry_settings_object().encoding_parse_url(new_href.to_byte_string());
+    auto url = entry_settings_object().encoding_parse_url(new_href);
 
     // 3. If url is failure, then throw a "SyntaxError" DOMException.
     if (!url.has_value())
@@ -161,7 +165,7 @@ WebIDL::ExceptionOr<void> Location::set_href(String const& new_href)
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location-origin
-WebIDL::ExceptionOr<String> Location::origin() const
+WebIDL::ExceptionOr<Utf16String> Location::origin() const
 {
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
@@ -169,25 +173,23 @@ WebIDL::ExceptionOr<String> Location::origin() const
         return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     // 2. Return the serialization of this's url's origin.
-    return url().origin().serialize();
+    return utf16_string_from_url_ascii(url().origin().serialize());
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-protocol
-WebIDL::ExceptionOr<String> Location::protocol() const
+WebIDL::ExceptionOr<Utf16String> Location::protocol() const
 {
-    auto& vm = this->vm();
-
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
         return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     // 2. Return this's url's scheme, followed by ":".
-    return TRY_OR_THROW_OOM(vm, String::formatted("{}:", url().scheme()));
+    return Utf16String::formatted("{}:", url().scheme());
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-protocol
-WebIDL::ExceptionOr<void> Location::set_protocol(String const& value)
+WebIDL::ExceptionOr<void> Location::set_protocol(Utf16View value)
 {
     auto relevant_document = this->relevant_document();
 
@@ -203,7 +205,8 @@ WebIDL::ExceptionOr<void> Location::set_protocol(String const& value)
     auto copy_url = this->url();
 
     // 4. Let possibleFailure be the result of basic URL parsing the given value, followed by ":", with copyURL as url and scheme start state as state override.
-    auto possible_failure = URL::Parser::basic_parse(MUST(String::formatted("{}:", value)), {}, &copy_url, URL::Parser::State::SchemeStart);
+    auto value_with_colon = Utf16String::formatted("{}:", value);
+    auto possible_failure = URL::Parser::basic_parse(value_with_colon.utf16_view(), {}, &copy_url, URL::Parser::State::SchemeStart);
 
     // 5. If possibleFailure is failure, then throw a "SyntaxError" DOMException.
     if (!possible_failure.has_value())
@@ -220,10 +223,8 @@ WebIDL::ExceptionOr<void> Location::set_protocol(String const& value)
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-host
-WebIDL::ExceptionOr<String> Location::host() const
+WebIDL::ExceptionOr<Utf16String> Location::host() const
 {
-    auto& vm = this->vm();
-
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
@@ -234,18 +235,18 @@ WebIDL::ExceptionOr<String> Location::host() const
 
     // 3. If url's host is null, return the empty string.
     if (!url.host().has_value())
-        return String {};
+        return Utf16String {};
 
     // 4. If url's port is null, return url's host, serialized.
     if (!url.port().has_value())
-        return url.serialized_host();
+        return utf16_string_from_url_ascii(url.serialized_host());
 
     // 5. Return url's host, serialized, followed by ":" and url's port, serialized.
-    return TRY_OR_THROW_OOM(vm, String::formatted("{}:{}", url.serialized_host(), *url.port()));
+    return utf16_string_from_url_ascii_host_and_port(url.serialized_host(), *url.port());
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location-host
-WebIDL::ExceptionOr<void> Location::set_host(String const& value)
+WebIDL::ExceptionOr<void> Location::set_host(Utf16View value)
 {
     // 1. If this's relevant Document is null, then return.
     auto const relevant_document = this->relevant_document();
@@ -273,7 +274,7 @@ WebIDL::ExceptionOr<void> Location::set_host(String const& value)
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-hostname
-WebIDL::ExceptionOr<String> Location::hostname() const
+WebIDL::ExceptionOr<Utf16String> Location::hostname() const
 {
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
@@ -284,14 +285,14 @@ WebIDL::ExceptionOr<String> Location::hostname() const
 
     // 2. If this's url's host is null, return the empty string.
     if (!url.host().has_value())
-        return String {};
+        return Utf16String {};
 
     // 3. Return this's url's host, serialized.
-    return url.serialized_host();
+    return utf16_string_from_url_ascii(url.serialized_host());
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location-hostname
-WebIDL::ExceptionOr<void> Location::set_hostname(String const& value)
+WebIDL::ExceptionOr<void> Location::set_hostname(Utf16View value)
 {
     // 1. If this's relevant Document is null, then return.
     auto const relevant_document = this->relevant_document();
@@ -319,7 +320,7 @@ WebIDL::ExceptionOr<void> Location::set_hostname(String const& value)
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-port
-WebIDL::ExceptionOr<String> Location::port() const
+WebIDL::ExceptionOr<Utf16String> Location::port() const
 {
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
@@ -330,14 +331,14 @@ WebIDL::ExceptionOr<String> Location::port() const
 
     // 2. If this's url's port is null, return the empty string.
     if (!url.port().has_value())
-        return String {};
+        return Utf16String {};
 
     // 3. Return this's url's port, serialized.
-    return String::number(*url.port());
+    return Utf16String::number(*url.port());
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location-port
-WebIDL::ExceptionOr<void> Location::set_port(String const& value)
+WebIDL::ExceptionOr<void> Location::set_port(Utf16View value)
 {
     // 1. If this's relevant Document is null, then return.
     auto const relevant_document = this->relevant_document();
@@ -371,7 +372,7 @@ WebIDL::ExceptionOr<void> Location::set_port(String const& value)
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-pathname
-WebIDL::ExceptionOr<String> Location::pathname() const
+WebIDL::ExceptionOr<Utf16String> Location::pathname() const
 {
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
@@ -379,11 +380,11 @@ WebIDL::ExceptionOr<String> Location::pathname() const
         return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     // 2. Return the result of URL path serializing this Location object's url.
-    return url().serialize_path();
+    return utf16_string_from_url_ascii(url().serialize_path());
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location-search
-WebIDL::ExceptionOr<void> Location::set_pathname(String const& value)
+WebIDL::ExceptionOr<void> Location::set_pathname(Utf16View value)
 {
     // 1. If this's relevant Document is null, then return.
     auto const relevant_document = this->relevant_document();
@@ -414,10 +415,8 @@ WebIDL::ExceptionOr<void> Location::set_pathname(String const& value)
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-search
-WebIDL::ExceptionOr<String> Location::search() const
+WebIDL::ExceptionOr<Utf16String> Location::search() const
 {
-    auto& vm = this->vm();
-
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
@@ -427,14 +426,14 @@ WebIDL::ExceptionOr<String> Location::search() const
 
     // 2. If this's url's query is either null or the empty string, return the empty string.
     if (!url.query().has_value() || url.query()->is_empty())
-        return String {};
+        return Utf16String {};
 
     // 3. Return "?", followed by this's url's query.
-    return TRY_OR_THROW_OOM(vm, String::formatted("?{}", url.query()));
+    return utf16_string_from_url_ascii_with_prefix('?', *url.query());
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location-search
-WebIDL::ExceptionOr<void> Location::set_search(String const& value)
+WebIDL::ExceptionOr<void> Location::set_search(Utf16View value)
 {
     // The search setter steps are:
     auto const relevant_document = this->relevant_document();
@@ -457,8 +456,7 @@ WebIDL::ExceptionOr<void> Location::set_search(String const& value)
     // 5. Otherwise, run these substeps:
     else {
         // 1. Let input be the given value with a single leading "?" removed, if any.
-        auto value_as_string_view = value.bytes_as_string_view();
-        auto input = value_as_string_view.substring_view(value_as_string_view.starts_with('?'));
+        auto input = value.substring_view(value.starts_with(u"?"sv));
 
         // 2. Set copyURL's query to the empty string.
         copy_url.set_query(String {});
@@ -474,10 +472,8 @@ WebIDL::ExceptionOr<void> Location::set_search(String const& value)
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-hash
-WebIDL::ExceptionOr<String> Location::hash() const
+WebIDL::ExceptionOr<Utf16String> Location::hash() const
 {
-    auto& vm = this->vm();
-
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
@@ -487,14 +483,14 @@ WebIDL::ExceptionOr<String> Location::hash() const
 
     // 2. If this's url's fragment is either null or the empty string, return the empty string.
     if (!url.fragment().has_value() || url.fragment()->is_empty())
-        return String {};
+        return Utf16String {};
 
     // 3. Return "#", followed by this's url's fragment.
-    return TRY_OR_THROW_OOM(vm, String::formatted("#{}", *url.fragment()));
+    return utf16_string_from_url_ascii_with_prefix('#', *url.fragment());
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location-hash
-WebIDL::ExceptionOr<void> Location::set_hash(StringView value)
+WebIDL::ExceptionOr<void> Location::set_hash(Utf16View value)
 {
     // 1. If this's relevant Document is null, then return.
     auto const relevant_document = this->relevant_document();
@@ -512,7 +508,7 @@ WebIDL::ExceptionOr<void> Location::set_hash(StringView value)
     auto this_url_fragment = copy_url.fragment().has_value() ? *copy_url.fragment() : String {};
 
     // 5. Let input be the given value with a single leading "#" removed, if any.
-    auto input = value.substring_view(value.starts_with('#'));
+    auto input = value.substring_view(value.starts_with(u"#"sv));
 
     // 6. Set copyURL's fragment to the empty string.
     copy_url.set_fragment(String {});
@@ -548,14 +544,14 @@ void Location::reload() const
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-replace
-WebIDL::ExceptionOr<void> Location::replace(String const& url)
+WebIDL::ExceptionOr<void> Location::replace(Utf16View url)
 {
     // 1. If this's relevant Document is null, then return.
     if (!relevant_document())
         return {};
 
     // 2. Parse url relative to the entry settings object. If that failed, throw a "SyntaxError" DOMException.
-    auto replace_url = entry_settings_object().parse_url(url);
+    auto replace_url = DOMURL::parse(url, entry_settings_object().api_base_url());
     if (!replace_url.has_value())
         return WebIDL::SyntaxError::create(realm(), Utf16String::formatted("Invalid URL '{}'", url));
 
@@ -566,7 +562,7 @@ WebIDL::ExceptionOr<void> Location::replace(String const& url)
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location-assign
-WebIDL::ExceptionOr<void> Location::assign(String const& url)
+WebIDL::ExceptionOr<void> Location::assign(Utf16View url)
 {
     // 1. If this's relevant Document is null, then return.
     auto const relevant_document = this->relevant_document();
@@ -578,7 +574,7 @@ WebIDL::ExceptionOr<void> Location::assign(String const& url)
         return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     // 3. Parse url relative to the entry settings object. If that failed, throw a "SyntaxError" DOMException.
-    auto assign_url = entry_settings_object().parse_url(url);
+    auto assign_url = DOMURL::parse(url, entry_settings_object().api_base_url());
     if (!assign_url.has_value())
         return WebIDL::SyntaxError::create(realm(), Utf16String::formatted("Invalid URL '{}'", url));
 
@@ -632,10 +628,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> Location::internal_get_o
 
         // 2. If the value of the [[DefaultProperties]] internal slot of this contains P, then set desc.[[Configurable]] to true.
         // FIXME: This doesn't align with what the other browsers do. Spec issue: https://github.com/whatwg/html/issues/4157
-        auto property_key_value = property_key.is_symbol()
-            ? JS::Value { property_key.as_symbol() }
-            : JS::PrimitiveString::create(vm, property_key.to_utf16_string());
-        if (m_default_properties.contains_slow(property_key_value))
+        if (m_default_properties.contains_slow(property_key))
             descriptor->configurable = true;
 
         // 3. Return desc.

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/RefCounted.h>
+#include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
@@ -21,7 +22,7 @@ namespace WebWorker {
 
 class WorkerHost : public RefCounted<WorkerHost> {
 public:
-    explicit WorkerHost(URL::URL url, Web::Bindings::WorkerType type, String name);
+    explicit WorkerHost(URL::URL url, Web::Bindings::WorkerType type, Utf16String name);
     ~WorkerHost();
 
     void run(GC::Ref<Web::Page>, Web::HTML::TransferDataEncoder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject const&, Web::Bindings::RequestCredentials, bool is_shared);
@@ -47,7 +48,7 @@ private:
 
     URL::URL m_url;
     Web::Bindings::WorkerType m_type;
-    String m_name;
+    Utf16String m_name;
     bool m_is_shared { false };
     bool m_accepting_shared_worker_connections { false };
     // WorkerHost is only touched on the WebWorker main thread.

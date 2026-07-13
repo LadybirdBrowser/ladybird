@@ -8,7 +8,7 @@
 #pragma once
 
 #include <AK/ByteBuffer.h>
-#include <AK/FlyString.h>
+#include <AK/ByteString.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::Fetch::Infrastructure {
@@ -43,7 +43,7 @@ struct ConnectionTimingInfo {
     // https://fetch.spec.whatwg.org/#connection-timing-info-alpn-negotiated-protocol
     // ALPN negotiated protocol (default the empty byte sequence)
     //     A byte sequence.
-    FlyString alpn_negotiated_protocol;
+    ByteString alpn_negotiated_protocol;
 };
 
 }

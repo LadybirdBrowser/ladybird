@@ -435,7 +435,7 @@ void MessagePort::post_message_task_steps(SerializedTransferRecord& serialize_wi
     }
 
     // 6. Fire an event named message at finalTargetPort, using MessageEvent, with the data attribute initialized to messageClone and the ports attribute initialized to newPorts.
-    Bindings::MessageEventInit event_init { Bindings::EventInit {}, message_clone, String {}, String {}, move(new_ports), Empty {} };
+    Bindings::MessageEventInit event_init { Bindings::EventInit {}, message_clone, Utf16String {}, Utf16String {}, move(new_ports), Empty {} };
     auto event = MessageEvent::create(target_realm, HTML::EventNames::message, event_init);
     event->set_is_trusted(true);
     message_event_target->dispatch_event(event);

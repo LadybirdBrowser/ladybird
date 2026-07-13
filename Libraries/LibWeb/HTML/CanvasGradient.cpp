@@ -59,7 +59,7 @@ void CanvasGradient::initialize(JS::Realm& realm)
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-canvasgradient-addcolorstop
-WebIDL::ExceptionOr<void> CanvasGradient::add_color_stop(double offset, StringView color)
+WebIDL::ExceptionOr<void> CanvasGradient::add_color_stop(double offset, Utf16View color)
 {
     // 1. If the offset is less than 0 or greater than 1, then throw an "IndexSizeError" DOMException.
     if (offset < 0 || offset > 1)

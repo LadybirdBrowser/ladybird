@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const video = document.createElement("video");
+        const audio = document.createElement("audio");
+
+        println(`application/octet-stream: "${video.canPlayType("application/octet-stream")}"`);
+        println(`video/webm: "${video.canPlayType("video/webm")}"`);
+        println(`audio/mpeg: "${audio.canPlayType("audio/mpeg")}"`);
+        println(`invalid non-ascii: "${video.canPlayType("vidéo/webm")}"`);
+    });
+</script>

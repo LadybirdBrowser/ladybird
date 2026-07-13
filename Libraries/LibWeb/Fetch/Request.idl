@@ -1,4 +1,4 @@
-typedef (Request or USVString) RequestInfo;
+typedef (Request or Utf16USVString) RequestInfo;
 
 // https://fetch.spec.whatwg.org/#request
 [Exposed=(Window,Worker)]
@@ -6,17 +6,17 @@ interface Request {
     constructor(RequestInfo input, optional RequestInit init = {});
 
     readonly attribute ByteString method;
-    readonly attribute USVString url;
+    readonly attribute Utf16USVString url;
     [SameObject] readonly attribute Headers headers;
 
     readonly attribute RequestDestination destination;
-    readonly attribute USVString referrer;
+    readonly attribute Utf16USVString referrer;
     readonly attribute ReferrerPolicy referrerPolicy;
     readonly attribute RequestMode mode;
     readonly attribute RequestCredentials credentials;
     readonly attribute RequestCache cache;
     readonly attribute RequestRedirect redirect;
-    readonly attribute DOMString integrity;
+    readonly attribute Utf16DOMString integrity;
     readonly attribute boolean keepalive;
     readonly attribute boolean isReloadNavigation;
     readonly attribute boolean isHistoryNavigation;
@@ -31,13 +31,13 @@ dictionary RequestInit {
     ByteString method;
     HeadersInit headers;
     BodyInit? body;
-    USVString referrer;
+    Utf16USVString referrer;
     ReferrerPolicy referrerPolicy;
     RequestMode mode;
     RequestCredentials credentials;
     RequestCache cache;
     RequestRedirect redirect;
-    DOMString integrity;
+    Utf16DOMString integrity;
     boolean keepalive;
     AbortSignal? signal;
     RequestDuplex duplex;

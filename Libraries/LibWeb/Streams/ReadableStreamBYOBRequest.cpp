@@ -48,13 +48,13 @@ WebIDL::ExceptionOr<void> ReadableStreamBYOBRequest::respond(WebIDL::UnsignedLon
 {
     // 1. If this.[[controller]] is undefined, throw a TypeError exception.
     if (!m_controller)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Controller is undefined"_string };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Controller is undefined"_utf16 };
 
     WebIDL::ArrayBufferView view { m_view.downcast<WebIDL::ArrayBufferViewVariant>() };
 
     // 2. If ! IsDetachedBuffer(this.[[view]].[[ArrayBuffer]]) is true, throw a TypeError exception.
     if (view.viewed_array_buffer()->is_detached())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Unable to respond to detached ArrayBuffer"_string };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Unable to respond to detached ArrayBuffer"_utf16 };
 
     // 3. Assert: this.[[view]].[[ByteLength]] > 0.
     VERIFY(view.viewed_array_buffer()->byte_length() > 0);
@@ -73,11 +73,11 @@ WebIDL::ExceptionOr<void> ReadableStreamBYOBRequest::respond_with_new_view(WebID
 
     // 1. If this.[[controller]] is undefined, throw a TypeError exception.
     if (!m_controller)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Controller is undefined"_string };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Controller is undefined"_utf16 };
 
     // 2. If ! IsDetachedBuffer(view.[[ViewedArrayBuffer]]) is true, throw a TypeError exception.
     if (view.viewed_array_buffer()->is_detached())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Unable to respond with a detached ArrayBuffer"_string };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Unable to respond with a detached ArrayBuffer"_utf16 };
 
     // 3. Return ? ReadableByteStreamControllerRespondWithNewView(this.[[controller]], view).
     return TRY(readable_byte_stream_controller_respond_with_new_view(realm, *m_controller, view));

@@ -1031,7 +1031,7 @@ static bool should_ignore_keydown_event(u32 code_point, u32 modifiers, bool shou
     return false;
 }
 
-static Optional<FlyString> input_type_for_delete_key(UIEvents::KeyCode key)
+static Optional<Utf16FlyString> input_type_for_delete_key(UIEvents::KeyCode key)
 {
     if (key == UIEvents::KeyCode::Key_Backspace)
         return UIEvents::InputTypes::deleteContentBackward;
@@ -1217,7 +1217,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
             }
 
             FIRE(input_event(UIEvents::EventNames::beforeinput, input_type, m_navigable, code_point));
-            FIRE(fire_text_input_event(m_navigable, "\n"_string));
+            FIRE(fire_text_input_event(m_navigable, "\n"_utf16));
             if (target->handle_return_key(input_type) != EventResult::Handled)
                 target->handle_insert(input_type, Utf16String::from_code_point(code_point));
 
@@ -1227,7 +1227,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         // FIXME: Text editing shortcut keys (copy/paste etc.) should be handled here.
         if (!should_ignore_keydown_event(code_point, modifiers, should_insert_text)) {
             FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::insertText, m_navigable, code_point));
-            FIRE(fire_text_input_event(m_navigable, String::from_code_point(code_point)));
+            FIRE(fire_text_input_event(m_navigable, Utf16String::from_code_point(code_point)));
             target->handle_insert(UIEvents::InputTypes::insertText, Utf16String::from_code_point(code_point));
             return EventResult::Handled;
         }
@@ -1427,7 +1427,7 @@ static GC::Ptr<DOM::EventTarget> clipboard_event_target(DOM::Document& document)
 }
 
 // https://w3c.github.io/clipboard-apis/#fire-a-clipboard-event
-static bool fire_clipboard_event(DOM::Document& document, FlyString const& event_name, GC::Ref<HTML::DataTransfer> data_transfer)
+static bool fire_clipboard_event(DOM::Document& document, Utf16FlyString const& event_name, GC::Ref<HTML::DataTransfer> data_transfer)
 {
     auto target = clipboard_event_target(document);
     if (!target)
@@ -1449,8 +1449,8 @@ static bool fire_clipboard_event(DOM::Document& document, FlyString const& event
 static void write_data_transfer_to_clipboard(DOM::Document& document, HTML::DragDataStore const& data_store)
 {
     for (auto const& item : data_store.item_list()) {
-        if (item.kind == HTML::DragDataStoreItem::Kind::Text && item.type_string == "text/plain"sv) {
-            document.page().client().page_did_insert_clipboard_entry({ ByteString { item.data.bytes() }, "text/plain"_string }, "unspecified"sv);
+        if (item.kind == HTML::DragDataStoreItem::Kind::Text && item.type_string == u"text/plain"sv) {
+            document.page().client().page_did_insert_clipboard_entry({ item.data.to_byte_string(), "text/plain"_string }, "unspecified"sv);
             return;
         }
     }
@@ -1557,8 +1557,9 @@ EventResult EventHandler::perform_paste_action()
                 if (representation.mime_type == "text/plain"sv || representation.mime_type.starts_with_bytes("text/plain;"sv)) {
                     data_store->add_item({
                         .kind = HTML::DragDataStoreItem::Kind::Text,
-                        .type_string = "text/plain"_string,
-                        .data = MUST(ByteBuffer::copy(representation.data.bytes())),
+                        .type_string = "text/plain"_utf16_fly_string,
+                        .data = Utf16String::from_utf8_with_replacement_character(representation.data),
+                        .file_data = {},
                         .file_name = {},
                     });
                     break;
@@ -1576,9 +1577,9 @@ EventResult EventHandler::perform_paste_action()
         //    pasting is enabled, insert the most suitable content found on the clipboard, if any, into the context.
         if (event_was_not_canceled) {
             for (auto const& item : data_store->item_list()) {
-                if (item.kind == HTML::DragDataStoreItem::Kind::Text && item.type_string == "text/plain"sv) {
+                if (item.kind == HTML::DragDataStoreItem::Kind::Text && item.type_string == u"text/plain"sv) {
                     if (auto navigable = document->navigable())
-                        navigable->event_handler().handle_paste(Utf16String::from_utf8(StringView { item.data.bytes() }));
+                        navigable->event_handler().handle_paste(item.data);
                     break;
                 }
             }
@@ -1588,7 +1589,7 @@ EventResult EventHandler::perform_paste_action()
     return EventResult::Handled;
 }
 
-EventResult EventHandler::handle_paste(Utf16String const& text)
+EventResult EventHandler::handle_paste(Utf16View text)
 {
     auto active_document = m_navigable->active_document();
     if (!active_document)
@@ -1668,7 +1669,7 @@ void EventHandler::process_auto_scroll()
         m_middle_button_scroll_handler->perform_tick();
 }
 
-static GC::Ptr<DOM::StaticRange> collapsed_delete_target_range_for_input_event(DOM::Document const& document, DOM::Range const& range, FlyString const& input_type)
+static GC::Ptr<DOM::StaticRange> collapsed_delete_target_range_for_input_event(DOM::Document const& document, DOM::Range const& range, Utf16FlyString const& input_type)
 {
     if (!range.start_container()->is_editable_or_editing_host())
         return nullptr;
@@ -1691,7 +1692,7 @@ static GC::Ptr<DOM::StaticRange> collapsed_delete_target_range_for_input_event(D
     return nullptr;
 }
 
-static GC::RootVector<GC::Ref<DOM::StaticRange>> target_ranges_for_input_event(DOM::Document const& document, FlyString const& input_type)
+static GC::RootVector<GC::Ref<DOM::StaticRange>> target_ranges_for_input_event(DOM::Document const& document, Utf16FlyString const& input_type)
 {
     GC::RootVector<GC::Ref<DOM::StaticRange>> target_ranges;
     if (auto selection = document.get_selection(); selection) {
@@ -1712,7 +1713,7 @@ static GC::RootVector<GC::Ref<DOM::StaticRange>> target_ranges_for_input_event(D
     return target_ranges;
 }
 
-EventResult EventHandler::fire_keyboard_event(FlyString const& event_name, HTML::LocalNavigable& navigable, UIEvents::KeyCode key, u32 modifiers, u32 code_point, bool repeat)
+EventResult EventHandler::fire_keyboard_event(Utf16FlyString const& event_name, HTML::LocalNavigable& navigable, UIEvents::KeyCode key, u32 modifiers, u32 code_point, bool repeat)
 {
     GC::Ptr<DOM::Document> document = navigable.active_document();
     if (!document)
@@ -1742,7 +1743,7 @@ EventResult EventHandler::fire_keyboard_event(FlyString const& event_name, HTML:
 // AD-HOC: The legacy textInput event is deprecated, but all major browsers still fire it between beforeinput and the
 //         actual text insertion, and cancelling it prevents the insertion. React sources its onBeforeInput synthetic
 //         event from textInput whenever the TextEvent interface is exposed, so controlled editors depend on it.
-EventResult EventHandler::fire_text_input_event(HTML::LocalNavigable& navigable, String const& data)
+EventResult EventHandler::fire_text_input_event(HTML::LocalNavigable& navigable, Utf16String const& data)
 {
     auto document = navigable.active_document();
     if (!document)
@@ -1758,7 +1759,7 @@ EventResult EventHandler::fire_text_input_event(HTML::LocalNavigable& navigable,
         }
 
         auto event = UIEvents::TextEvent::create(document->realm(), UIEvents::EventNames::textInput);
-        event->init_text_event(UIEvents::EventNames::textInput.to_string(), true, true, navigable.active_window_proxy(), data);
+        event->init_text_event(UIEvents::EventNames::textInput, true, true, navigable.active_window_proxy(), data);
         event->set_composed(true);
         event->set_is_trusted(true);
         return focused_area->dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
@@ -1767,7 +1768,7 @@ EventResult EventHandler::fire_text_input_event(HTML::LocalNavigable& navigable,
     return EventResult::Accepted;
 }
 
-EventResult EventHandler::input_event(FlyString const& event_name, FlyString const& input_type, HTML::LocalNavigable& navigable, Variant<u32, Utf16String> code_point_or_string)
+EventResult EventHandler::input_event(Utf16FlyString const& event_name, Utf16FlyString const& input_type, HTML::LocalNavigable& navigable, Variant<u32, Utf16String> code_point_or_string)
 {
     auto document = navigable.active_document();
     if (!document)
@@ -1786,7 +1787,7 @@ EventResult EventHandler::input_event(FlyString const& event_name, FlyString con
             input_event_init.data = string;
         });
 
-    input_event_init.input_type = input_type.to_string();
+    input_event_init.input_type = input_type;
 
     if (auto focused_area = document->focused_area()) {
         if (is<HTML::NavigableContainer>(*focused_area)) {
@@ -3097,7 +3098,7 @@ void EventHandler::record_last_known_mouse_position(CSSPixelPoint visual_viewpor
     m_last_known_mouse_modifiers = modifiers;
 }
 
-bool EventHandler::dispatch_chrome_widget_pointer_event(RefPtr<Painting::ChromeWidget> target, FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position)
+bool EventHandler::dispatch_chrome_widget_pointer_event(RefPtr<Painting::ChromeWidget> target, Utf16FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position)
 {
     bool allow_default_behavior = true;
 

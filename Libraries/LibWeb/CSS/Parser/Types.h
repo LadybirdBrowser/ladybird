@@ -49,7 +49,7 @@ struct QualifiedRule {
     Vector<RuleOrListOfDeclarations> child_rules;
     Optional<SourcePosition> source_position = {};
 
-    void for_each_as_declaration_list(FlyString const& rule_name, DeclarationVisitor&& visit) const;
+    void for_each_as_declaration_list(Utf16FlyString const& rule_name, DeclarationVisitor&& visit) const;
 };
 
 // https://drafts.csswg.org/css-syntax/#declaration
@@ -58,7 +58,7 @@ struct Declaration {
     Vector<ComponentValue> value;
     Important important = Important::No;
     Optional<String> original_value_text = {};
-    Optional<String> original_full_text = {};
+    Optional<Utf16String> original_full_text = {};
     Optional<SourcePosition> source_position = {};
 };
 
@@ -106,7 +106,8 @@ struct SimpleBlock {
     bool is_paren() const { return token.is(Token::Type::OpenParen); }
     bool is_square() const { return token.is(Token::Type::OpenSquare); }
 
-    String to_string() const;
+    Utf16String to_string() const;
+    void serialize_to(Utf16StringBuilder&) const;
     String original_source_text() const;
 
     bool operator==(SimpleBlock const& other) const { return token == other.token && value == other.value; }
@@ -119,7 +120,8 @@ struct Function {
     ComponentValueToken name_token = {};
     ComponentValueToken end_token = {};
 
-    String to_string() const;
+    Utf16String to_string() const;
+    void serialize_to(Utf16StringBuilder&) const;
     String original_source_text() const;
 
     bool operator==(Function const& other) const { return name == other.name && value == other.value; }
@@ -128,7 +130,8 @@ struct Function {
 // https://drafts.csswg.org/css-variables/#guaranteed-invalid-value
 struct GuaranteedInvalidValue {
     GuaranteedInvalidValue() = default;
-    String to_string() const { return {}; }
+    Utf16String to_string() const { return {}; }
+    void serialize_to(Utf16StringBuilder&) const { }
     String original_source_text() const { return {}; }
 
     bool operator==(GuaranteedInvalidValue const&) const = default;

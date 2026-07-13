@@ -24,7 +24,7 @@ public:
 
     virtual ~CSSSupportsRule() = default;
 
-    String condition_text() const override;
+    virtual Utf16String serialized_condition_text() const override;
     bool matches() const { return condition_matches(); }
 
     virtual bool condition_matches() const override { return m_supports->matches(); }
@@ -35,7 +35,7 @@ private:
     CSSSupportsRule(JS::Realm&, NonnullRefPtr<Supports>&&, CSSRuleList&);
 
     virtual void initialize(JS::Realm&) override;
-    virtual String serialized() const override;
+    virtual Utf16String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 
     NonnullRefPtr<Supports> m_supports;

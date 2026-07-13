@@ -263,11 +263,11 @@ WebIDL::ExceptionOr<GC::Ref<ImageBitmap>> OffscreenCanvas::transfer_to_image_bit
     return image;
 }
 
-static Tuple<FlyString, Optional<double>> options_convert_or_default(Optional<Bindings::ImageEncodeOptions> options)
+static Tuple<Utf16String, Optional<double>> options_convert_or_default(Optional<Bindings::ImageEncodeOptions> options)
 {
 
     if (!options.has_value()) {
-        return { "image/png"_fly_string, {} };
+        return { "image/png"_utf16, {} };
     }
 
     return { options->type, options->quality };
@@ -320,7 +320,7 @@ GC::Ref<WebIDL::Promise> OffscreenCanvas::convert_to_blob(Optional<Bindings::Ima
             }
             // 2. Otherwise, resolve result with a new Blob object, created in global's relevant realm, representing file. [FILEAPI]
             else {
-                auto blob = FileAPI::Blob::create(realm(), file_result->buffer, MUST(String::from_utf8(file_result->mime_type)));
+                auto blob = FileAPI::Blob::create(realm(), file_result->buffer, serialized_bitmap_mime_type_to_utf16_view(file_result->mime_type));
                 WebIDL::resolve_promise(realm(), result_promise, blob);
             }
         }));

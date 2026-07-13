@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/NonnullRefPtr.h>
+#include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibWeb/Bindings/Blob.h>
 #include <LibWeb/Bindings/PlatformObject.h>
@@ -18,13 +19,13 @@
 
 namespace Web::FileAPI {
 
-using BlobPart = FlattenVariant<WebIDL::BufferSourceVariant, Variant<GC::Ref<Blob>, String>>;
+using BlobPart = FlattenVariant<WebIDL::BufferSourceVariant, Variant<GC::Ref<Blob>, Utf16String>>;
 using BlobParts = GC::ConservativeVector<BlobPart>;
 using BlobPartsOrByteBuffer = Variant<BlobParts, ByteBuffer>;
 
-[[nodiscard]] ErrorOr<String> convert_line_endings_to_native(StringView string);
+[[nodiscard]] ErrorOr<Utf16String> convert_line_endings_to_native(Utf16View string);
 [[nodiscard]] ErrorOr<ByteBuffer> process_blob_parts(BlobParts const& blob_parts, Optional<Bindings::BlobPropertyBag> const& options = {});
-[[nodiscard]] bool is_basic_latin(StringView view);
+[[nodiscard]] bool is_basic_latin(Utf16View view);
 
 class WEB_API Blob
     : public Bindings::PlatformObject
@@ -35,16 +36,16 @@ class WEB_API Blob
 public:
     virtual ~Blob() override;
 
-    [[nodiscard]] static GC::Ref<Blob> create(JS::Realm&, ByteBuffer, String type);
+    [[nodiscard]] static GC::Ref<Blob> create(JS::Realm&, ByteBuffer, Utf16View type);
     [[nodiscard]] static GC::Ref<Blob> create(JS::Realm&, Optional<BlobPartsOrByteBuffer> const& blob_parts_or_byte_buffer = {}, Optional<Bindings::BlobPropertyBag> const& options = {});
     static WebIDL::ExceptionOr<GC::Ref<Blob>> construct_impl(JS::Realm&, Optional<BlobParts> const& blob_parts = {}, Optional<Bindings::BlobPropertyBag> const& options = {});
 
     // https://w3c.github.io/FileAPI/#dfn-size
     u64 size() const { return m_byte_buffer.size(); }
     // https://w3c.github.io/FileAPI/#dfn-type
-    String const& type() const { return m_type; }
+    Utf16String const& type() const { return m_type; }
 
-    WebIDL::ExceptionOr<GC::Ref<Blob>> slice(Optional<i64> start = {}, Optional<i64> end = {}, Optional<String> const& content_type = {});
+    WebIDL::ExceptionOr<GC::Ref<Blob>> slice(Optional<i64> start = {}, Optional<i64> end = {}, Optional<Utf16String> const& content_type = {});
 
     GC::Ref<Streams::ReadableStream> stream();
     GC::Ref<WebIDL::Promise> text();
@@ -59,15 +60,15 @@ public:
     virtual WebIDL::ExceptionOr<void> deserialization_steps(HTML::StructuredSerializeReader&, HTML::DeserializationMemory&) override;
 
 protected:
-    Blob(JS::Realm&, ByteBuffer, String type);
+    Blob(JS::Realm&, ByteBuffer, Utf16String type);
     Blob(JS::Realm&, ByteBuffer);
 
     virtual void initialize(JS::Realm&) override;
 
-    WebIDL::ExceptionOr<GC::Ref<Blob>> slice_blob(Optional<i64> start = {}, Optional<i64> end = {}, Optional<String> const& content_type = {});
+    WebIDL::ExceptionOr<GC::Ref<Blob>> slice_blob(Optional<i64> start = {}, Optional<i64> end = {}, Optional<Utf16String> const& content_type = {});
 
     ByteBuffer m_byte_buffer {};
-    String m_type {};
+    Utf16String m_type {};
 
 private:
     explicit Blob(JS::Realm&);

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibURL/URL.h>
@@ -22,7 +22,7 @@ class SpeculativeHTMLParser final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(SpeculativeHTMLParser);
 
 public:
-    static GC::Ref<SpeculativeHTMLParser> create(JS::Realm&, GC::Ref<DOM::Document>, String pending_input, URL::URL base_url);
+    static GC::Ref<SpeculativeHTMLParser> create(JS::Realm&, GC::Ref<DOM::Document>, Utf16String pending_input, URL::URL base_url);
 
     virtual ~SpeculativeHTMLParser() override;
 
@@ -30,13 +30,13 @@ public:
     void stop();
 
 private:
-    SpeculativeHTMLParser(GC::Ref<DOM::Document>, String pending_input, URL::URL base_url);
+    SpeculativeHTMLParser(GC::Ref<DOM::Document>, Utf16String pending_input, URL::URL base_url);
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
     void process_preload_scanner_entry(RustFfiPreloadScannerEntry const&);
 
     GC::Ref<DOM::Document> m_document;
-    String m_input;
+    Utf16String m_input;
     URL::URL m_base_url;
     bool m_stopped { false };
 };

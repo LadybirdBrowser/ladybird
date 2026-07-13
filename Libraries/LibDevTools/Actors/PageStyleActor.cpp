@@ -127,9 +127,9 @@ static Optional<Web::CSS::StyleSheetIdentifier> style_sheet_identifier_from_json
 
     auto dom_element_unique_id = object.get_integer<Web::UniqueNodeID::Type>("domElementUniqueId"sv);
     auto rule_count = object.get_integer<size_t>("ruleCount"sv).value_or(0);
-    Optional<String> url;
+    Optional<Utf16String> url;
     if (auto url_value = object.get_string("url"sv); url_value.has_value())
-        url = *url_value;
+        url = Utf16String::from_utf8(*url_value);
 
     return Web::CSS::StyleSheetIdentifier {
         .type = *type,

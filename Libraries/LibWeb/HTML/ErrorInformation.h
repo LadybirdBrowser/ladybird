@@ -7,15 +7,15 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibJS/Runtime/Value.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#extract-error
 struct ErrorInformation {
-    String message;
-    String filename;
+    Utf16String message;
+    Utf16String filename;
     JS::Value error;
     size_t lineno { 0 };
     size_t colno { 0 };

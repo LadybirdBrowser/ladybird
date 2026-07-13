@@ -46,7 +46,7 @@ void DataTransferItem::visit_edges(JS::Cell::Visitor& visitor)
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransferitem-kind
-String DataTransferItem::kind() const
+Utf16FlyString DataTransferItem::kind() const
 {
     // The kind attribute must return the empty string if the DataTransferItem object is in the disabled mode; otherwise
     // it must return the string given in the cell from the second column of the following table from the row whose cell
@@ -57,22 +57,22 @@ String DataTransferItem::kind() const
     //     Text | "string"
     //     File | "file"
     if (!mode().has_value())
-        return {};
+        return ""_utf16_fly_string;
 
     auto const& item = m_data_transfer->drag_data(*m_item_index);
 
     switch (item.kind) {
     case DragDataStoreItem::Kind::Text:
-        return "string"_string;
+        return "string"_utf16_fly_string;
     case DragDataStoreItem::Kind::File:
-        return "file"_string;
+        return "file"_utf16_fly_string;
     }
 
     VERIFY_NOT_REACHED();
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransferitem-type
-String DataTransferItem::type() const
+Utf16String DataTransferItem::type() const
 {
     // The type attribute must return the empty string if the DataTransferItem object is in the disabled mode; otherwise
     // it must return the drag data item type string of the item represented by the DataTransferItem object.
@@ -80,7 +80,7 @@ String DataTransferItem::type() const
         return {};
 
     auto const& item = m_data_transfer->drag_data(*m_item_index);
-    return item.type_string;
+    return item.type_string.to_utf16_string();
 }
 
 Optional<DragDataStore::Mode> DataTransferItem::mode() const
@@ -113,7 +113,7 @@ void DataTransferItem::get_as_string(GC::Ptr<WebIDL::CallbackType> callback) con
 
     // 4. Otherwise, queue a task to invoke callback, passing the actual data of the item represented by the
     //    DataTransferItem object as the argument.
-    auto data = JS::PrimitiveString::create(vm, Utf16String::from_utf8({ item.data }));
+    auto data = JS::PrimitiveString::create(vm, item.data);
 
     HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr,
         GC::Function<void()>::create(realm.heap(), [callback, data]() {
@@ -137,18 +137,15 @@ GC::Ptr<FileAPI::File> DataTransferItem::get_as_file() const
         return nullptr;
 
     // 3. Return a new File object representing the actual data of the item represented by the DataTransferItem object.
-    auto blob = FileAPI::Blob::create(realm, item.data, item.type_string);
-
-    // FIXME: The FileAPI should use ByteString for file names.
-    auto file_name = MUST(String::from_byte_string(item.file_name));
+    auto blob = FileAPI::Blob::create(realm, item.file_data, item.type_string.view());
 
     // FIXME: Fill in other fields (e.g. last_modified).
     Bindings::FilePropertyBag options {};
-    options.type = item.type_string;
+    options.type = item.type_string.to_utf16_string();
 
     FileAPI::BlobParts file_bits {};
     file_bits.append(blob);
-    return MUST(FileAPI::File::create(realm, file_bits, file_name, move(options)));
+    return MUST(FileAPI::File::create(realm, file_bits, item.file_name, move(options)));
 }
 
 // https://wicg.github.io/entries-api/#dom-datatransferitem-webkitgetasentry

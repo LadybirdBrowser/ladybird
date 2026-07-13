@@ -156,10 +156,10 @@ TESTJS_GLOBAL_FUNCTION(detach_array_buffer, detachArrayBuffer)
 TESTJS_GLOBAL_FUNCTION(set_time_zone, setTimeZone)
 {
     auto current_time_zone = Core::TimeZone::current_time_zone();
-    auto current_time_zone_string = JS::PrimitiveString::create(vm, Utf16String::from_ascii_without_validation(current_time_zone.bytes_as_string_view().bytes()));
-    auto time_zone = TRY(vm.argument(0).to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
+    auto current_time_zone_string = JS::PrimitiveString::create(vm, move(current_time_zone));
+    auto time_zone = TRY(vm.argument(0).to_utf16_string(vm));
 
-    if (auto result = Core::TimeZone::set_current_time_zone(time_zone); result.is_error())
+    if (auto result = Core::TimeZone::set_current_time_zone(time_zone.utf16_view()); result.is_error())
         return vm.throw_completion<JS::InternalError>(Utf16String::formatted("Could not set time zone: {}", result.error()));
 
     JS::clear_system_time_zone_cache();

@@ -25,8 +25,8 @@ public:
     GC::Ptr<Element> last_element_child();
     u32 child_element_count() const;
 
-    WebIDL::ExceptionOr<GC::Ptr<Element>> query_selector(StringView);
-    WebIDL::ExceptionOr<GC::Ref<NodeList>> query_selector_all(StringView);
+    WebIDL::ExceptionOr<GC::Ptr<Element>> query_selector(Utf16View);
+    WebIDL::ExceptionOr<GC::Ref<NodeList>> query_selector_all(Utf16View);
 
     GC::Ref<HTMLCollection> children();
 
@@ -38,10 +38,8 @@ public:
     WebIDL::ExceptionOr<void> replace_children(ReadonlySpan<Variant<GC::Ref<Node>, Utf16String>> const& nodes);
     WebIDL::ExceptionOr<void> move_before(GC::Ref<Node> node, GC::Ptr<Node> child);
 
-    GC::Ref<HTMLCollection> get_elements_by_class_name(Utf16String const&);
+    GC::Ref<HTMLCollection> get_elements_by_class_name(Utf16View);
 
-    GC::Ptr<Element> get_element_by_id(Utf16FlyString const& id) const;
-    GC::Ptr<Element> get_element_by_id(Utf16String const& id) const;
     GC::Ptr<Element> get_element_by_id(Utf16View id) const;
 
     bool has_child_affected_by_last_child_pseudo_class() const { return m_has_child_affected_by_last_child_pseudo_class; }

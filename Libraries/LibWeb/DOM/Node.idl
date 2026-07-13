@@ -16,7 +16,7 @@ interface Node : EventTarget {
     readonly attribute unsigned short nodeType;
     readonly attribute Utf16DOMString nodeName;
 
-    readonly attribute USVString baseURI;
+    readonly attribute Utf16DOMString baseURI;
 
     readonly attribute boolean isConnected;
     readonly attribute Document? ownerDocument;

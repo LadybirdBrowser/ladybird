@@ -8,6 +8,8 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/Checked.h>
+#include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/TypedArray.h>
@@ -70,8 +72,8 @@ public:
     // https://immersive-web.github.io/webxr/#dom-webglrenderingcontextbase-makexrcompatible
     GC::Ref<WebIDL::Promise> make_xr_compatible();
 
-    Optional<Vector<String>> get_supported_extensions();
-    JS::Object* get_extension(String const& name);
+    Optional<Vector<Utf16String>> get_supported_extensions();
+    JS::Object* get_extension(Utf16String const& name);
 
     void enable_compressed_texture_format(WebIDL::UnsignedLong format);
 
@@ -264,6 +266,17 @@ protected:
             result.append(c);
         result.append('\0');
         return result;
+    }
+
+    static Vector<GLchar> null_terminated_utf8_string(Utf16View string)
+    {
+        auto utf8_string = MUST(string.to_utf8());
+        return null_terminated_string(utf8_string.bytes_as_string_view());
+    }
+
+    static Utf16String utf16_string_from_gl_string(void const* data, size_t length)
+    {
+        return Utf16String::from_utf8_without_validation({ reinterpret_cast<char const*>(data), length });
     }
 
     GLenum get_error_value();

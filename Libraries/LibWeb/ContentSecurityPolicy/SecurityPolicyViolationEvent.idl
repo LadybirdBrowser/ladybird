@@ -7,15 +7,15 @@ enum SecurityPolicyViolationEventDisposition {
 // https://w3c.github.io/webappsec-csp/#securitypolicyviolationevent
 [Exposed=(Window,Worker)]
 interface SecurityPolicyViolationEvent : Event {
-    constructor(DOMString type, optional SecurityPolicyViolationEventInit eventInitDict = {});
-    readonly attribute USVString documentURI;
-    readonly attribute USVString referrer;
-    readonly attribute USVString blockedURI;
-    readonly attribute DOMString effectiveDirective;
-    readonly attribute DOMString violatedDirective; // historical alias of effectiveDirective
-    readonly attribute DOMString originalPolicy;
-    readonly attribute USVString sourceFile;
-    readonly attribute DOMString sample;
+    constructor([Utf16FlyString] Utf16DOMString type, optional SecurityPolicyViolationEventInit eventInitDict = {});
+    readonly attribute Utf16USVString documentURI;
+    readonly attribute Utf16USVString referrer;
+    readonly attribute Utf16USVString blockedURI;
+    readonly attribute Utf16DOMString effectiveDirective;
+    readonly attribute Utf16DOMString violatedDirective; // historical alias of effectiveDirective
+    readonly attribute Utf16DOMString originalPolicy;
+    readonly attribute Utf16USVString sourceFile;
+    readonly attribute Utf16DOMString sample;
     readonly attribute SecurityPolicyViolationEventDisposition disposition;
     readonly attribute unsigned short statusCode;
     readonly attribute unsigned long lineNumber;
@@ -23,14 +23,14 @@ interface SecurityPolicyViolationEvent : Event {
 };
 
 dictionary SecurityPolicyViolationEventInit : EventInit {
-    USVString documentURI = "";
-    USVString referrer = "";
-    USVString blockedURI = "";
-    DOMString violatedDirective = "";
-    DOMString effectiveDirective = "";
-    DOMString originalPolicy = "";
-    USVString sourceFile = "";
-    DOMString sample = "";
+    Utf16USVString documentURI = "";
+    Utf16USVString referrer = "";
+    Utf16USVString blockedURI = "";
+    Utf16DOMString violatedDirective = "";
+    Utf16DOMString effectiveDirective = "";
+    Utf16DOMString originalPolicy = "";
+    Utf16USVString sourceFile = "";
+    Utf16DOMString sample = "";
     SecurityPolicyViolationEventDisposition disposition = "enforce";
     unsigned short statusCode = 0;
     unsigned long lineNumber = 0;

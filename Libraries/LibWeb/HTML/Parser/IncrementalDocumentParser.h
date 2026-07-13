@@ -9,7 +9,8 @@
 #include <AK/ByteBuffer.h>
 #include <AK/Optional.h>
 #include <AK/OwnPtr.h>
-#include <AK/StringBuilder.h>
+#include <AK/Utf16StringBuilder.h>
+#include <AK/Utf16View.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibURL/URL.h>
@@ -41,7 +42,7 @@ private:
     void process_end_of_body();
     void process_body_error(JS::Value);
 
-    void append_decoded(StringView);
+    void append_decoded(Utf16View);
     void pump();
     void register_deferred_start();
     bool should_continue() const;
@@ -55,7 +56,7 @@ private:
     GC::Ptr<HTMLParser> m_parser;
     OwnPtr<TextCodec::StreamingDecoder> m_decoder;
 
-    StringBuilder m_source;
+    Utf16StringBuilder m_source;
 };
 
 }

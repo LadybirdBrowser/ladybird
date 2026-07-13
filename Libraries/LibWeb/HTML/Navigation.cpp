@@ -53,7 +53,7 @@ static void report_session_history_update_for_navigation_api_state_change(DOM::D
 }
 
 NavigationAPIMethodTracker::NavigationAPIMethodTracker(GC::Ref<Navigation> navigation,
-    Optional<String> key,
+    Optional<Utf16String> key,
     JS::Value info,
     Optional<StorageSerializationRecord> serialized_state,
     GC::Ptr<NavigationHistoryEntry> committed_to_entry,
@@ -239,7 +239,7 @@ Bindings::NavigationHistoryBehavior to_navigation_history_behavior(HistoryHandli
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigation-navigate
-WebIDL::ExceptionOr<Bindings::NavigationResult> Navigation::navigate(String url, Bindings::NavigationNavigateOptions const& options)
+WebIDL::ExceptionOr<Bindings::NavigationResult> Navigation::navigate(Utf16String url, Bindings::NavigationNavigateOptions const& options)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -248,7 +248,7 @@ WebIDL::ExceptionOr<Bindings::NavigationResult> Navigation::navigate(String url,
     // 1. Parse url relative to this's relevant settings object.
     //    If that returns failure, then return an early error result for a "SyntaxError" DOMException.
     //    Otherwise, let urlRecord be the resulting URL record.
-    auto url_record = relevant_settings_object(*this).parse_url(url);
+    auto url_record = relevant_settings_object(*this).encoding_parse_url(url);
     if (!url_record.has_value())
         return early_error_result(WebIDL::SyntaxError::create(realm, "Cannot navigate to Invalid URL"_utf16));
 
@@ -368,7 +368,7 @@ WebIDL::ExceptionOr<Bindings::NavigationResult> Navigation::reload(Bindings::Nav
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigation-traverseto
-WebIDL::ExceptionOr<Bindings::NavigationResult> Navigation::traverse_to(String key, Bindings::NavigationOptions const& options)
+WebIDL::ExceptionOr<Bindings::NavigationResult> Navigation::traverse_to(Utf16String key, Bindings::NavigationOptions const& options)
 {
     auto& realm = this->realm();
     // The traverseTo(key, options) method steps are:
@@ -598,7 +598,7 @@ GC::Ref<NavigationAPIMethodTracker> Navigation::maybe_set_the_upcoming_non_trave
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#add-an-upcoming-traverse-api-method-tracker
-GC::Ref<NavigationAPIMethodTracker> Navigation::add_an_upcoming_traverse_api_method_tracker(String destination_key, JS::Value info)
+GC::Ref<NavigationAPIMethodTracker> Navigation::add_an_upcoming_traverse_api_method_tracker(Utf16String destination_key, JS::Value info)
 {
     auto& vm = this->vm();
     auto& realm = relevant_realm(*this);
@@ -638,7 +638,7 @@ GC::Ref<NavigationAPIMethodTracker> Navigation::add_an_upcoming_traverse_api_met
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#performing-a-navigation-api-traversal
-WebIDL::ExceptionOr<Bindings::NavigationResult> Navigation::perform_a_navigation_api_traversal(String key, Bindings::NavigationOptions const& options)
+WebIDL::ExceptionOr<Bindings::NavigationResult> Navigation::perform_a_navigation_api_traversal(Utf16String key, Bindings::NavigationOptions const& options)
 {
     auto& realm = this->realm();
     // To perform a navigation API traversal given a Navigation navigation, a string key, and a NavigationOptions options:
@@ -843,7 +843,7 @@ void Navigation::abort_a_navigate_event(GC::Ref<NavigateEvent> event, GC::Ref<We
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#promote-an-upcoming-api-method-tracker-to-ongoing
-void Navigation::promote_an_upcoming_api_method_tracker_to_ongoing(Optional<String> destination_key)
+void Navigation::promote_an_upcoming_api_method_tracker_to_ongoing(Optional<Utf16String> destination_key)
 {
     // 1. Assert: navigation's ongoing API method tracker is null.
     VERIFY(m_ongoing_api_method_tracker == nullptr);
@@ -1064,7 +1064,7 @@ bool Navigation::inner_navigate_event_firing_algorithm(
     UserNavigationInvolvement user_involvement,
     GC::Ptr<DOM::Element> source_element,
     Optional<GC::ConservativeVector<XHR::FormDataEntry>&> form_data_entry_list,
-    Optional<String> download_request_filename,
+    Optional<Utf16String> download_request_filename,
     Optional<StorageSerializationRecord> classic_history_api_state)
 {
     // NOTE: Specification assumes that ongoing navigation event is cancelled before dispatching next navigation event.
@@ -1092,14 +1092,14 @@ bool Navigation::inner_navigate_event_firing_algorithm(
     }
 
     // 2. Let destinationKey be null.
-    Optional<String> destination_key = {};
+    Optional<Utf16String> destination_key = {};
 
     // 3. If destination's entry is non-null, then set destinationKey to destination's entry's key.
     if (destination->navigation_history_entry() != nullptr)
         destination_key = destination->navigation_history_entry()->key();
 
     // 4. Assert: destinationKey is not the empty string.
-    VERIFY(destination_key != ""sv);
+    VERIFY(!destination_key.has_value() || !destination_key->is_empty());
 
     // 5. Promote an upcoming API method tracker to ongoing given navigation and destinationKey.
     promote_an_upcoming_api_method_tracker_to_ongoing(destination_key);
@@ -1463,7 +1463,7 @@ bool Navigation::fire_a_push_replace_reload_navigate_event(
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#fire-a-download-request-navigate-event
-bool Navigation::fire_a_download_request_navigate_event(URL::URL destination_url, UserNavigationInvolvement user_involvement, GC::Ptr<DOM::Element> source_element, String filename)
+bool Navigation::fire_a_download_request_navigate_event(URL::URL destination_url, UserNavigationInvolvement user_involvement, GC::Ptr<DOM::Element> source_element, Utf16String filename)
 {
     auto& realm = relevant_realm(*this);
     auto& vm = this->vm();

@@ -20,6 +20,7 @@ public:
     i32 integer() const { return m_value; }
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
+    virtual void serialize(Utf16StringBuilder&, SerializationMode) const override;
     virtual Vector<Parser::ComponentValue> tokenize() const override;
     virtual GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const override;
 

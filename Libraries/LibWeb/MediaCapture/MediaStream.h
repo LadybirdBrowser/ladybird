@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
@@ -24,12 +25,12 @@ public:
 
     virtual ~MediaStream() override = default;
 
-    String id() const { return m_id; }
+    Utf16String const& id() const { return m_id; }
 
     Vector<GC::Ref<MediaStreamTrack>> get_audio_tracks() const;
     Vector<GC::Ref<MediaStreamTrack>> get_video_tracks() const;
     Vector<GC::Ref<MediaStreamTrack>> get_tracks() const;
-    GC::Ptr<MediaStreamTrack> get_track_by_id(String const& track_id) const;
+    GC::Ptr<MediaStreamTrack> get_track_by_id(Utf16String const& track_id) const;
 
     void add_track(GC::Ref<MediaStreamTrack> track);
     void remove_track(GC::Ref<MediaStreamTrack> track);
@@ -48,7 +49,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    String m_id;
+    Utf16String m_id;
     Vector<GC::Ref<MediaStreamTrack>> m_tracks;
 };
 

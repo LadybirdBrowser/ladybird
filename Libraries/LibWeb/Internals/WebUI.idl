@@ -1,4 +1,4 @@
 [Exposed=Nobody]
 interface WebUI {
-    undefined sendMessage(DOMString name, optional any data = null);
+    undefined sendMessage(Utf16DOMString name, optional any data = null);
 };

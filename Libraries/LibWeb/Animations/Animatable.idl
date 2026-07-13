@@ -6,12 +6,12 @@ interface mixin Animatable {
 
 // https://drafts.csswg.org/web-animations-1/#dictdef-keyframeanimationoptions
 dictionary KeyframeAnimationOptions : KeyframeEffectOptions {
-    DOMString id = "";
+    [Utf16FlyString] Utf16DOMString id = "";
     AnimationTimeline? timeline;
 };
 
 // https://drafts.csswg.org/web-animations-1/#dictdef-getanimationsoptions
 dictionary GetAnimationsOptions {
     boolean subtree = false;
-    CSSOMString? pseudoElement = null;
+    Utf16CSSOMString? pseudoElement = null;
 };

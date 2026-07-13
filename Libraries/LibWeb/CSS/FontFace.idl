@@ -1,14 +1,14 @@
 dictionary FontFaceDescriptors {
-    CSSOMString style = "normal";
-    CSSOMString weight = "normal";
-    CSSOMString stretch = "normal";
-    CSSOMString unicodeRange = "U+0-10FFFF";
-    CSSOMString featureSettings = "normal";
-    CSSOMString variationSettings = "normal";
-    CSSOMString display = "auto";
-    CSSOMString ascentOverride = "normal";
-    CSSOMString descentOverride = "normal";
-    CSSOMString lineGapOverride = "normal";
+    Utf16CSSOMString style = "normal";
+    Utf16CSSOMString weight = "normal";
+    Utf16CSSOMString stretch = "normal";
+    Utf16CSSOMString unicodeRange = "U+0-10FFFF";
+    Utf16CSSOMString featureSettings = "normal";
+    Utf16CSSOMString variationSettings = "normal";
+    Utf16CSSOMString display = "auto";
+    Utf16CSSOMString ascentOverride = "normal";
+    Utf16CSSOMString descentOverride = "normal";
+    Utf16CSSOMString lineGapOverride = "normal";
 };
 
 enum FontFaceLoadStatus { "unloaded", "loading", "loaded", "error" };
@@ -17,18 +17,18 @@ enum FontFaceLoadStatus { "unloaded", "loading", "loaded", "error" };
 [Exposed=(Window,Worker)]
 interface FontFace {
     // FIXME: BufferSource usage needs https://github.com/w3c/csswg-drafts/pull/10309
-    constructor(CSSOMString family, (CSSOMString or BufferSource) source, optional FontFaceDescriptors descriptors = {});
-    attribute CSSOMString family;
-    attribute CSSOMString style;
-    attribute CSSOMString weight;
-    attribute CSSOMString stretch;
-    attribute CSSOMString unicodeRange;
-    attribute CSSOMString featureSettings;
-    attribute CSSOMString variationSettings;
-    attribute CSSOMString display;
-    attribute CSSOMString ascentOverride;
-    attribute CSSOMString descentOverride;
-    attribute CSSOMString lineGapOverride;
+    constructor(Utf16CSSOMString family, (Utf16CSSOMString or BufferSource) source, optional FontFaceDescriptors descriptors = {});
+    attribute Utf16CSSOMString family;
+    attribute Utf16CSSOMString style;
+    attribute Utf16CSSOMString weight;
+    attribute Utf16CSSOMString stretch;
+    attribute Utf16CSSOMString unicodeRange;
+    attribute Utf16CSSOMString featureSettings;
+    attribute Utf16CSSOMString variationSettings;
+    attribute Utf16CSSOMString display;
+    attribute Utf16CSSOMString ascentOverride;
+    attribute Utf16CSSOMString descentOverride;
+    attribute Utf16CSSOMString lineGapOverride;
 
     readonly attribute FontFaceLoadStatus status;
 

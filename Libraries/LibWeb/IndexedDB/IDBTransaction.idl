@@ -5,7 +5,7 @@ interface IDBTransaction : EventTarget {
     readonly attribute IDBTransactionDurability durability;
     [SameObject, ImplementedAs=connection] readonly attribute IDBDatabase db;
     readonly attribute DOMException? error;
-    IDBObjectStore objectStore(DOMString name);
+    IDBObjectStore objectStore(Utf16DOMString name);
     undefined commit();
     undefined abort();
     

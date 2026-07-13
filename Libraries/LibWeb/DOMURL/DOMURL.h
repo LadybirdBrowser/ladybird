@@ -25,41 +25,41 @@ class DOMURL : public Bindings::PlatformObject {
 
 public:
     [[nodiscard]] static GC::Ref<DOMURL> create(JS::Realm&, URL::URL, GC::Ref<URLSearchParams> query);
-    static WebIDL::ExceptionOr<GC::Ref<DOMURL>> construct_impl(JS::Realm&, String const& url, Optional<String> const& base = {});
+    static WebIDL::ExceptionOr<GC::Ref<DOMURL>> construct_impl(JS::Realm&, Utf16String const& url, Optional<Utf16String> const& base = {});
 
     virtual ~DOMURL() override;
 
     static WebIDL::ExceptionOr<Utf16String> create_object_url(JS::VM&, FileAPI::BlobURLEntry::Object object);
-    static void revoke_object_url(JS::VM&, StringView url);
+    static void revoke_object_url(JS::VM&, Utf16String const& url);
 
-    static GC::Ptr<DOMURL> parse_for_bindings(JS::VM&, String const& url, Optional<String> const& base = {});
-    static bool can_parse(JS::VM&, String const& url, Optional<String> const& base = {});
+    static GC::Ptr<DOMURL> parse_for_bindings(JS::VM&, Utf16String const& url, Optional<Utf16String> const& base = {});
+    static bool can_parse(JS::VM&, Utf16String const& url, Optional<Utf16String> const& base = {});
 
-    String href() const;
-    WebIDL::ExceptionOr<void> set_href(String const&);
+    Utf16String href() const;
+    WebIDL::ExceptionOr<void> set_href(Utf16String const&);
 
-    String origin() const;
+    Utf16String origin() const;
 
-    String protocol() const;
-    void set_protocol(String const&);
+    Utf16String protocol() const;
+    void set_protocol(Utf16String const&);
 
-    String const& username() const;
-    void set_username(String const&);
+    Utf16String username() const;
+    void set_username(Utf16String const&);
 
-    String const& password() const;
-    void set_password(String const&);
+    Utf16String password() const;
+    void set_password(Utf16String const&);
 
-    String host() const;
-    void set_host(String const&);
+    Utf16String host() const;
+    void set_host(Utf16String const&);
 
-    String hostname() const;
-    void set_hostname(String const&);
+    Utf16String hostname() const;
+    void set_hostname(Utf16String const&);
 
-    String port() const;
-    void set_port(String const&);
+    Utf16String port() const;
+    void set_port(Utf16String const&);
 
-    String pathname() const;
-    void set_pathname(String const&);
+    Utf16String pathname() const;
+    void set_pathname(Utf16String const&);
 
     Optional<String> const& fragment() const { return m_url.fragment(); }
 
@@ -69,15 +69,15 @@ public:
 
     bool has_an_opaque_path() const { return m_url.has_an_opaque_path(); }
 
-    String search() const;
-    void set_search(String const&);
+    Utf16String search() const;
+    void set_search(Utf16String const&);
 
     GC::Ref<URLSearchParams const> search_params() const;
 
-    String hash() const;
-    void set_hash(String const&);
+    Utf16String hash() const;
+    void set_hash(Utf16String const&);
 
-    String to_json() const;
+    Utf16String to_json() const;
 
     Optional<String> const& query() const { return m_url.query(); }
     void set_query(Badge<URLSearchParams>, Optional<String> query) { m_url.set_query(move(query)); }
@@ -97,7 +97,7 @@ private:
 };
 
 // https://url.spec.whatwg.org/#concept-url-parser
-WEB_API Optional<URL::URL> parse(StringView input, Optional<URL::URL const&> base_url = {}, Optional<StringView> encoding = {});
-WEB_API Optional<URL::URL> parse(Utf16View input, Optional<URL::URL const&> base_url = {}, Optional<StringView> encoding = {});
+WEB_API Optional<URL::URL> parse_from_byte_string(StringView input, Optional<URL::URL const&> base_url = {}, Optional<StringView> encoding = {});
+WEB_API Optional<URL::URL> parse(Utf16View input, Optional<URL::URL const&> base_url = {}, Optional<Utf16View> encoding = {});
 
 }

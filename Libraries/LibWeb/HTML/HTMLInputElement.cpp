@@ -347,28 +347,28 @@ FileFilter HTMLInputElement::parse_accept_attribute() const
 
     // If specified, the attribute must consist of a set of comma-separated tokens, each of which must be an ASCII
     // case-insensitive match for one of the following:
-    auto accept = get_attribute_value(HTML::AttributeNames::accept);
+    auto accept = get_attribute_value_view(HTML::AttributeNames::accept).value_or({});
 
     accept.for_each_split_view(',', SplitBehavior::Nothing, [&](Utf16View value) {
         // The string "audio/*"
         //     Indicates that sound files are accepted.
-        if (value.equals_ignoring_ascii_case("audio/*"sv))
+        if (value.equals_ignoring_ascii_case(u"audio/*"sv))
             filter.add_filter(FileFilter::FileType::Audio);
 
         // The string "video/*"
         //     Indicates that video files are accepted.
-        else if (value.equals_ignoring_ascii_case("video/*"sv))
+        else if (value.equals_ignoring_ascii_case(u"video/*"sv))
             filter.add_filter(FileFilter::FileType::Video);
 
         // The string "image/*"
         //     Indicates that image files are accepted.
-        else if (value.equals_ignoring_ascii_case("image/*"sv))
+        else if (value.equals_ignoring_ascii_case(u"image/*"sv))
             filter.add_filter(FileFilter::FileType::Image);
 
         // A valid MIME type string with no parameters
         //     Indicates that files of the specified type are accepted.
         else if (auto mime_type = MimeSniff::MimeType::parse(value); mime_type.has_value() && mime_type->parameters().is_empty())
-            filter.add_filter(FileFilter::MimeType { Utf16String::from_utf8(mime_type->essence()) });
+            filter.add_filter(FileFilter::MimeType { Utf16String::from_ascii_without_validation(mime_type->essence().bytes()) });
 
         // A string whose first character is a U+002E FULL STOP character (.)
         //     Indicates that files with the specified file extension are accepted.
@@ -588,7 +588,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::run_input_activation_behavior(DOM::E
     return {};
 }
 
-void HTMLInputElement::did_edit_text_node(FlyString const& input_type, Optional<Utf16String> const& data)
+void HTMLInputElement::did_edit_text_node(Utf16FlyString const& input_type, Optional<Utf16String> const& data)
 {
     m_dirty_value = true;
     m_has_uncommitted_changes = true;
@@ -654,16 +654,14 @@ void HTMLInputElement::did_select_files(Span<SelectedFile> selected_files, Multi
         auto contents = selected_file.take_contents();
 
         auto mime_type = MimeSniff::Resource::sniff(contents);
-        auto blob = FileAPI::Blob::create(realm(), move(contents), mime_type.essence());
-
-        // FIXME: The FileAPI should use ByteString for file names.
-        auto file_name = MUST(String::from_byte_string(selected_file.name()));
+        auto type = Utf16String::from_ascii_without_validation(mime_type.essence().bytes());
+        auto blob = FileAPI::Blob::create(realm(), move(contents), type);
 
         // FIXME: Fill in other fields (e.g. last_modified).
         Bindings::FilePropertyBag options {};
-        options.type = mime_type.essence();
+        options.type = move(type);
 
-        auto file = MUST(FileAPI::File::create(realm(), { { blob } }, file_name, move(options)));
+        auto file = MUST(FileAPI::File::create(realm(), { { blob } }, selected_file.name(), move(options)));
         files->add_file(file);
     }
 
@@ -746,7 +744,7 @@ Utf16String HTMLInputElement::relevant_value() const
     return value();
 }
 
-WebIDL::ExceptionOr<void> HTMLInputElement::set_relevant_value(Utf16String const& value)
+WebIDL::ExceptionOr<void> HTMLInputElement::set_relevant_value(Utf16View value)
 {
     if (m_text_node)
         m_text_node->set_data(value);
@@ -766,7 +764,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_relevant_value(Utf16String const
     return {};
 }
 
-WebIDL::ExceptionOr<void> HTMLInputElement::set_value(Utf16String const& value)
+WebIDL::ExceptionOr<void> HTMLInputElement::set_value(Utf16View value)
 {
     auto& realm = this->realm();
 
@@ -774,7 +772,6 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_value(Utf16String const& value)
     // https://html.spec.whatwg.org/multipage/input.html#dom-input-value-value
     case ValueAttributeMode::Value: {
         // 1. Let oldValue be the element's value.
-        auto old_value = move(m_value);
 
         // 2. Set the element's value to the new value.
         // NOTE: For the TextNode this is done as part of step 4 below.
@@ -783,7 +780,9 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_value(Utf16String const& value)
         m_dirty_value = true;
 
         // 4. Invoke the value sanitization algorithm, if the element's type attribute's current state defines one.
-        m_value = value_sanitization_algorithm(value);
+        auto sanitized_value = value_sanitization_algorithm(value);
+        auto old_value = move(m_value);
+        m_value = move(sanitized_value);
 
         // 5. If the element's value (after applying the value sanitization algorithm) is different from oldValue,
         //    and the element has a text entry cursor position, move the text entry cursor position to the end of the
@@ -860,7 +859,7 @@ static GC::Ref<CSS::CSSStyleProperties> stepper_button_style_when_visible()
     static auto& style = *new GC::Root<CSS::CSSStyleProperties>;
     if (!style) {
         style = CSS::CSSStyleProperties::create(internal_css_realm(), {}, {});
-        style->set_declarations_from_text(R"~~~(
+        style->set_declarations_from_text(uR"~~~(
                 padding: 0;
                 cursor: default;
             )~~~"sv);
@@ -873,7 +872,7 @@ static GC::Ref<CSS::CSSStyleProperties> stepper_button_style_when_hidden()
     static auto& style = *new GC::Root<CSS::CSSStyleProperties>;
     if (!style) {
         style = CSS::CSSStyleProperties::create(internal_css_realm(), {}, {});
-        style->set_declarations_from_text(R"~~~(
+        style->set_declarations_from_text(uR"~~~(
                 display: none;
             )~~~"sv);
     }
@@ -885,7 +884,7 @@ static GC::Ref<CSS::CSSStyleProperties> placeholder_style_when_visible()
     static auto& style = *new GC::Root<CSS::CSSStyleProperties>;
     if (!style) {
         style = CSS::CSSStyleProperties::create(internal_css_realm(), {}, {});
-        style->set_declarations_from_text(R"~~~(
+        style->set_declarations_from_text(uR"~~~(
                 width: 100%;
                 height: 1lh;
                 overflow: hidden;
@@ -904,7 +903,7 @@ static GC::Ref<CSS::CSSStyleProperties> placeholder_style_when_hidden()
     static auto& style = *new GC::Root<CSS::CSSStyleProperties>;
     if (!style) {
         style = CSS::CSSStyleProperties::create(internal_css_realm(), {}, {});
-        style->set_declarations_from_text("display: none;"sv);
+        style->set_declarations_from_text(u"display: none;"sv);
     }
     return *style;
 }
@@ -1147,7 +1146,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
         static auto& style = *new GC::Root<CSS::CSSStyleProperties>;
         if (!style) {
             style = CSS::CSSStyleProperties::create(internal_css_realm(), {}, {});
-            style->set_declarations_from_text(R"~~~(
+            style->set_declarations_from_text(uR"~~~(
                 display: flex;
                 height: 100%;
                 align-items: center;
@@ -1166,7 +1165,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
             static auto& style = *new GC::Root<CSS::CSSStyleProperties>;
             if (!style) {
                 style = CSS::CSSStyleProperties::create(internal_css_realm(), {}, {});
-                style->set_declarations_from_text(R"~~~(
+                style->set_declarations_from_text(uR"~~~(
                     display: flex;
                     align-items: center;
                     flex: 1;
@@ -1184,7 +1183,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
         static auto& style = *new GC::Root<CSS::CSSStyleProperties>;
         if (!style) {
             style = CSS::CSSStyleProperties::create(internal_css_realm(), {}, {});
-            style->set_declarations_from_text(R"~~~(
+            style->set_declarations_from_text(uR"~~~(
                 width: 100%;
                 height: 1lh;
                 overflow: auto;
@@ -1360,7 +1359,7 @@ void HTMLInputElement::update_file_input_shadow_tree()
 
     if (m_selected_files && m_selected_files->length() > 0) {
         if (m_selected_files->length() == 1)
-            m_file_label->string_replace_all(Utf16String::from_utf8(m_selected_files->item(0)->name()));
+            m_file_label->string_replace_all(m_selected_files->item(0)->name());
         else
             m_file_label->string_replace_all(Utf16String::formatted("{} files selected.", m_selected_files->length()));
     } else {
@@ -1399,14 +1398,14 @@ void HTMLInputElement::create_range_input_shadow_tree()
                 return JS::js_undefined();
             auto key = key_value.as_string().utf16_string_view();
 
-            if (key == "ArrowLeft"_utf16 || key == "ArrowDown"_utf16)
+            if (key == u"ArrowLeft"sv || key == u"ArrowDown"sv)
                 MUST(step_down());
-            if (key == "PageDown"_utf16)
+            if (key == u"PageDown"sv)
                 MUST(step_down(10));
 
-            if (key == "ArrowRight"_utf16 || key == "ArrowUp"_utf16)
+            if (key == u"ArrowRight"sv || key == u"ArrowUp"sv)
                 MUST(step_up());
-            if (key == "PageUp"_utf16)
+            if (key == u"PageUp"sv)
                 MUST(step_up(10));
 
             user_interaction_did_change_input_value();
@@ -1492,7 +1491,7 @@ void HTMLInputElement::create_range_input_shadow_tree()
     add_event_listener_without_options(UIEvents::EventNames::mousedown, DOM::IDLEventListener::create(realm(), mousedown_callback));
 }
 
-void HTMLInputElement::user_interaction_did_change_input_value(FlyString const& input_type, Optional<Utf16String> const& data)
+void HTMLInputElement::user_interaction_did_change_input_value(Utf16FlyString const& input_type, Optional<Utf16String> const& data)
 {
     // https://html.spec.whatwg.org/multipage/input.html#common-input-element-events
     // For input elements without a defined input activation behavior, but to which these events apply,
@@ -1506,7 +1505,7 @@ void HTMLInputElement::user_interaction_did_change_input_value(FlyString const& 
     Bindings::InputEventInit input_event_init;
     input_event_init.bubbles = true;
     input_event_init.composed = true;
-    input_event_init.input_type = input_type.to_string();
+    input_event_init.input_type = input_type;
     input_event_init.data = data;
     auto input_event = UIEvents::InputEvent::create_from_platform_event(realm(), HTML::EventNames::input, input_event_init);
     dispatch_event(*input_event);
@@ -1523,10 +1522,10 @@ void HTMLInputElement::update_slider_shadow_tree_elements()
     double position = (value - minimum) / (maximum - minimum) * 100;
 
     if (m_slider_progress_element)
-        MUST(m_slider_progress_element->style_for_bindings()->set_property(CSS::PropertyID::Width, MUST(String::formatted("{}%", position))));
+        MUST(m_slider_progress_element->style_for_bindings()->set_property(CSS::PropertyID::Width, Utf16String::formatted("{}%", position)));
 
     if (m_slider_thumb)
-        MUST(m_slider_thumb->style_for_bindings()->set_property(CSS::PropertyID::MarginLeft, MUST(String::formatted("{}%", position))));
+        MUST(m_slider_thumb->style_for_bindings()->set_property(CSS::PropertyID::MarginLeft, Utf16String::formatted("{}%", position)));
 }
 
 void HTMLInputElement::did_receive_focus()
@@ -1571,7 +1570,7 @@ void HTMLInputElement::form_associated_element_attribute_changed(Utf16FlyString 
             m_dirty_checkedness = false;
         }
     } else if (name == HTML::AttributeNames::type) {
-        auto new_type_attribute_state = parse_type_attribute(value.value_or({}));
+        auto new_type_attribute_state = parse_type_attribute(value.has_value() ? value->utf16_view() : u""sv);
         type_attribute_changed(m_type, new_type_attribute_state);
 
         // https://html.spec.whatwg.org/multipage/input.html#image-button-state-(type=image):the-input-element-4
@@ -1607,7 +1606,7 @@ void HTMLInputElement::form_associated_element_attribute_changed(Utf16FlyString 
             update_placeholder_visibility();
         }
     } else if (name == HTML::AttributeNames::src) {
-        handle_src_attribute(value.value_or({})).release_value_but_fixme_should_propagate_errors();
+        handle_src_attribute(value.has_value() ? value->utf16_view() : u""sv).release_value_but_fixme_should_propagate_errors();
     } else if (name == HTML::AttributeNames::alt) {
         if (unsafe_layout_node() && type_state() == TypeAttributeState::ImageButton)
             did_update_alt_text(as<Layout::ImageBox>(*unsafe_layout_node()));
@@ -1660,7 +1659,10 @@ void HTMLInputElement::type_attribute_changed(TypeAttributeState old_state, Type
     //    then set the value of the element to the value of the value content attribute, if there is one, or the empty string
     //    otherwise, and then set the control's dirty value flag to false.
     else if (old_value_attribute_mode != ValueAttributeMode::Value && new_value_attribute_mode == ValueAttributeMode::Value) {
-        m_value = attribute(HTML::AttributeNames::value).value_or({});
+        if (auto value = attribute(HTML::AttributeNames::value); value.has_value())
+            m_value = value.release_value();
+        else
+            m_value = {};
         m_dirty_value = false;
     }
 
@@ -1721,7 +1723,7 @@ void HTMLInputElement::signal_a_type_change()
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#attr-input-src
-WebIDL::ExceptionOr<void> HTMLInputElement::handle_src_attribute(Utf16String const& value)
+WebIDL::ExceptionOr<void> HTMLInputElement::handle_src_attribute(Utf16View value)
 {
     auto& realm = this->realm();
     auto& vm = realm.vm();
@@ -1729,7 +1731,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::handle_src_attribute(Utf16String con
     if (type_state() != TypeAttributeState::ImageButton)
         return {};
 
-    m_last_src_value = value;
+    m_last_src_value = Utf16String::from_utf16(value);
 
     // 1. Let url be the result of encoding-parsing a URL given the src attribute's value, relative to the element's
     //    node document.
@@ -1799,13 +1801,13 @@ HTMLInputElement::TypeAttributeState HTMLInputElement::parse_type_attribute(Utf1
     return HTMLInputElement::TypeAttributeState::Text;
 }
 
-Utf16String HTMLInputElement::type() const
+Utf16FlyString HTMLInputElement::type() const
 {
     // FIXME: This should probably be `Reflect` in the IDL.
     switch (m_type) {
 #define __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE(keyword, state) \
     case TypeAttributeState::state:                           \
-        return keyword##_utf16;
+        return keyword##_utf16_fly_string;
         ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTES
 #undef __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE
     }
@@ -1813,7 +1815,7 @@ Utf16String HTMLInputElement::type() const
     VERIFY_NOT_REACHED();
 }
 
-void HTMLInputElement::set_type(Utf16String const& type)
+void HTMLInputElement::set_type(Utf16View type)
 {
     set_attribute_value(HTML::AttributeNames::type, type);
 }
@@ -1844,11 +1846,11 @@ static bool is_valid_simple_color(Utf16View const& value)
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#value-sanitization-algorithm
-Utf16String HTMLInputElement::value_sanitization_algorithm(Utf16String const& value) const
+Utf16String HTMLInputElement::value_sanitization_algorithm(Utf16View value) const
 {
     auto strip_newlines = [&]() {
         if (!value.contains('\r') && !value.contains('\n'))
-            return value;
+            return Utf16String::from_utf16(value);
 
         Utf16StringBuilder builder;
 
@@ -2009,7 +2011,7 @@ Utf16String HTMLInputElement::value_sanitization_algorithm(Utf16String const& va
         return "#000000"_utf16;
     }
 
-    return value;
+    return Utf16String::from_utf16(value);
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#the-input-element:concept-form-reset-control
@@ -2104,7 +2106,7 @@ void HTMLInputElement::form_associated_element_was_inserted()
     }
 }
 
-EventResult HTMLInputElement::handle_return_key(FlyString const&)
+EventResult HTMLInputElement::handle_return_key(Utf16FlyString const&)
 {
     if (auto* form = this->form())
         form->implicitly_submit_form().release_value_but_fixme_should_propagate_errors();
@@ -2137,7 +2139,7 @@ void HTMLInputElement::apply_presentational_hints(Vector<CSS::StyleProperty>& pr
     if (type_state() != TypeAttributeState::ImageButton)
         return;
 
-    for_each_attribute([&](auto& name, auto& value) {
+    for_each_attribute([&](Utf16FlyString const& name, Utf16View value) {
         if (name == HTML::AttributeNames::align) {
             // https://html.spec.whatwg.org/multipage/rendering.html#attributes-for-embedded-content-and-images
             // When an embed, iframe, img, or object element, or an input element whose type attribute is in the Image Button state,
@@ -2146,7 +2148,7 @@ void HTMLInputElement::apply_presentational_hints(Vector<CSS::StyleProperty>& pr
             // vertical middle of the element with the parent element's baseline.
             // FIXME: This should use legacy baseline-middle alignment instead of CSS vertical-align: middle,
             //        as Firefox and Chrome do with engine-specific legacy values.
-            if (value.equals_ignoring_ascii_case("center"sv) || value.equals_ignoring_ascii_case("middle"sv))
+            if (value.equals_ignoring_ascii_case(u"center"sv) || value.equals_ignoring_ascii_case(u"middle"sv))
                 properties.append({ .property_id = CSS::PropertyID::VerticalAlign, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Middle) });
         } else if (name == HTML::AttributeNames::border) {
             if (auto parsed_value = parse_non_negative_integer(value); parsed_value.has_value()) {
@@ -2682,7 +2684,7 @@ WebIDL::ExceptionOr<GC::Ptr<JS::Date>> HTMLInputElement::convert_string_to_date(
         // If parsing a date from input results in an error, then return an error;
         auto maybe_date = parse_a_date_string(input);
         if (!maybe_date.has_value())
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Can't parse date string"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Can't parse date string"_utf16 };
         auto date = maybe_date.value();
 
         // otherwise, return a new Date object representing midnight UTC on the morning of the parsed date.
@@ -2694,7 +2696,7 @@ WebIDL::ExceptionOr<GC::Ptr<JS::Date>> HTMLInputElement::convert_string_to_date(
         // If parsing a month from input results in an error, then return an error;
         auto maybe_year_and_month = parse_a_month_string(input);
         if (!maybe_year_and_month.has_value())
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Can't parse month string"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Can't parse month string"_utf16 };
         auto year_and_month = maybe_year_and_month.value();
 
         // otherwise, return a new Date object representing midnight UTC on the morning of the first day of the parsed month.
@@ -2706,7 +2708,7 @@ WebIDL::ExceptionOr<GC::Ptr<JS::Date>> HTMLInputElement::convert_string_to_date(
         // If parsing a week from input results in an error, then return an error;
         auto maybe_week = parse_a_week_string(input);
         if (!maybe_week.has_value())
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Can't parse week string"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Can't parse week string"_utf16 };
         auto week = maybe_week.value();
 
         // otherwise, return a new Date object representing midnight UTC on the morning of the Monday of the parsed week.
@@ -2882,7 +2884,7 @@ Optional<double> HTMLInputElement::allowed_value_step() const
     auto step_string = *maybe_step_string;
 
     // 3. Otherwise, if the attribute's value is an ASCII case-insensitive match for the string "any", then there is no allowed value step.
-    if (step_string.equals_ignoring_ascii_case("any"sv))
+    if (step_string.equals_ignoring_ascii_case(u"any"sv))
         return {};
 
     // 4. Otherwise, if the rules for parsing floating-point number values, when they are applied to the attribute's value, return an error,
@@ -2945,7 +2947,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_value_as_date(GC::Ptr<JS::Object
 
     // otherwise, if the new value is not null and not a Date object throw a TypeError exception;
     if (value && !is<JS::Date>(*value))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "valueAsDate: input is not a Date"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "valueAsDate: input is not a Date"_utf16 };
 
     // otherwise if the new value is null or a Date object representing the NaN time value, then set the value of the element to the empty string;
     if (!value) {
@@ -2980,7 +2982,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_value_as_number(double value)
 {
     // On setting, if the new value is infinite, then throw a TypeError exception.
     if (!isfinite(value))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "valueAsNumber: Value is infinite"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "valueAsNumber: Value is infinite"_utf16 };
 
     // Otherwise, if the valueAsNumber attribute does not apply, as defined for the input element's type attribute's current state, then throw an "InvalidStateError" DOMException.
     if (!value_as_number_applies())

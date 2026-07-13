@@ -9,9 +9,11 @@
 #pragma once
 
 #include <AK/Time.h>
+#include <AK/Utf16View.h>
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/Bindings/Navigation.h>
 #include <LibWeb/HTML/HTMLElement.h>
+#include <LibWeb/HTML/POSTResource.h>
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
 
 namespace Web::HTML {
@@ -96,12 +98,12 @@ public:
     bool constructing_entry_list() const { return m_constructing_entry_list; }
     void set_constructing_entry_list(bool value) { m_constructing_entry_list = value; }
 
-    void set_method(Utf16String const&);
+    void set_method(Utf16View);
 
     GC::Ref<DOM::DOMTokenList> rel_list();
 
-    String action() const;
-    void set_action(Utf16String const&);
+    Utf16String action() const;
+    void set_action(Utf16View);
 
     FormAssociatedElement* default_button() const;
 
@@ -121,14 +123,14 @@ private:
 
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
-    ErrorOr<String> pick_an_encoding() const;
+    ErrorOr<Utf16String> pick_an_encoding() const;
 
-    ErrorOr<void> mutate_action_url(URL::URL parsed_action, GC::ConservativeVector<XHR::FormDataEntry> entry_list, String encoding, GC::Ref<LocalNavigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement);
-    ErrorOr<void> submit_as_entity_body(URL::URL parsed_action, GC::ConservativeVector<XHR::FormDataEntry> entry_list, EncodingTypeAttributeState encoding_type, String encoding, GC::Ref<LocalNavigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement);
+    ErrorOr<void> mutate_action_url(URL::URL parsed_action, GC::ConservativeVector<XHR::FormDataEntry> entry_list, Utf16String encoding, GC::Ref<LocalNavigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement);
+    ErrorOr<void> submit_as_entity_body(URL::URL parsed_action, GC::ConservativeVector<XHR::FormDataEntry> entry_list, EncodingTypeAttributeState encoding_type, Utf16String encoding, GC::Ref<LocalNavigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement);
     void get_action_url(URL::URL parsed_action, GC::ConservativeVector<XHR::FormDataEntry> entry_list, GC::Ref<LocalNavigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement);
-    ErrorOr<void> mail_with_headers(URL::URL parsed_action, GC::ConservativeVector<XHR::FormDataEntry> entry_list, String encoding, GC::Ref<LocalNavigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement);
-    ErrorOr<void> mail_as_body(URL::URL parsed_action, GC::ConservativeVector<XHR::FormDataEntry> entry_list, EncodingTypeAttributeState encoding_type, String encoding, GC::Ref<LocalNavigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement);
-    void plan_to_navigate_to(URL::URL url, Variant<Empty, String, POSTResource> post_resource, GC::ConservativeVector<XHR::FormDataEntry> entry_list, GC::Ref<LocalNavigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement);
+    ErrorOr<void> mail_with_headers(URL::URL parsed_action, GC::ConservativeVector<XHR::FormDataEntry> entry_list, Utf16String encoding, GC::Ref<LocalNavigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement);
+    ErrorOr<void> mail_as_body(URL::URL parsed_action, GC::ConservativeVector<XHR::FormDataEntry> entry_list, EncodingTypeAttributeState encoding_type, Utf16String encoding, GC::Ref<LocalNavigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement);
+    void plan_to_navigate_to(URL::URL url, DocumentResource post_resource, GC::ConservativeVector<XHR::FormDataEntry> entry_list, GC::Ref<LocalNavigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement);
 
     size_t number_of_fields_blocking_implicit_submission() const;
 

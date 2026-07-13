@@ -202,7 +202,7 @@ TEST_CASE(profile_databases_are_isolated)
         hsts_store->store_policy("profile-isolation.example"_string, HTTP::HSTS::ParsedHSTSPolicy { AK::Duration::from_seconds(3600), false });
 
         auto storage_jar = TRY_OR_FAIL(WebView::StorageJar::create(*database));
-        storage_jar->set_item(WebView::StorageEndpointType::LocalStorage, "https://profile-isolation.example"_string, "profile"_string, "first"_string);
+        storage_jar->set_item(WebView::StorageEndpointType::LocalStorage, "https://profile-isolation.example"_string, "profile"_utf16, "first"_utf16);
     }
 
     {
@@ -216,7 +216,7 @@ TEST_CASE(profile_databases_are_isolated)
         auto hsts_store = TRY_OR_FAIL(WebView::HSTSStore::create(*database));
         EXPECT(!hsts_store->is_known_hsts_host("profile-isolation.example"sv));
         auto storage_jar = TRY_OR_FAIL(WebView::StorageJar::create(*database));
-        EXPECT(!storage_jar->get_item(WebView::StorageEndpointType::LocalStorage, "https://profile-isolation.example"_string, "profile"_string).has_value());
+        EXPECT(!storage_jar->get_item(WebView::StorageEndpointType::LocalStorage, "https://profile-isolation.example"_string, "profile"_utf16).has_value());
     }
 
     {
@@ -226,7 +226,7 @@ TEST_CASE(profile_databases_are_isolated)
         auto hsts_store = TRY_OR_FAIL(WebView::HSTSStore::create(*database));
         EXPECT(hsts_store->is_known_hsts_host("profile-isolation.example"sv));
         auto storage_jar = TRY_OR_FAIL(WebView::StorageJar::create(*database));
-        EXPECT_EQ(storage_jar->get_item(WebView::StorageEndpointType::LocalStorage, "https://profile-isolation.example"_string, "profile"_string), Optional<String> { "first"_string });
+        EXPECT_EQ(storage_jar->get_item(WebView::StorageEndpointType::LocalStorage, "https://profile-isolation.example"_string, "profile"_utf16), Optional<Utf16String> { "first"_utf16 });
     }
 
     {

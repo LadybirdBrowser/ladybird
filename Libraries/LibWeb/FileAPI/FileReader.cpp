@@ -24,6 +24,7 @@
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Streams/ReadableStream.h>
@@ -95,7 +96,7 @@ GC::Ref<FileReader> FileReader::construct_impl(JS::Realm& realm)
 }
 
 // https://w3c.github.io/FileAPI/#blob-package-data
-WebIDL::ExceptionOr<FileReader::Result> FileReader::blob_package_data(JS::Realm& realm, ByteBuffer bytes, Type type, Optional<String> const& mime_type, Optional<String> const& encoding_name)
+WebIDL::ExceptionOr<FileReader::Result> FileReader::blob_package_data(JS::Realm& realm, ByteBuffer bytes, Type type, Optional<Utf16String> const& mime_type, Optional<Utf16String> const& encoding_name)
 {
     // A Blob has an associated package data algorithm, given bytes, a type, a optional mimeType, and a optional encodingName, which switches on type and runs the associated steps:
     switch (type) {
@@ -104,8 +105,8 @@ WebIDL::ExceptionOr<FileReader::Result> FileReader::blob_package_data(JS::Realm&
         // Use mimeType as part of the Data URL if it is available in keeping with the Data URL specification [RFC2397].
         // If mimeType is not available return a Data URL without a media-type. [RFC2397].
         // https://github.com/w3c/FileAPI/issues/104
-        auto mime_string = mime_type.has_value() && !mime_type->is_empty() ? mime_type.value() : "application/octet-stream"_string;
-        return URL::create_with_data(mime_string, MUST(encode_base64(bytes)), true).to_string();
+        auto mime_string = mime_type.has_value() && !mime_type->is_empty() ? mime_type->to_utf8() : "application/octet-stream"_string;
+        return utf16_string_from_url_ascii(URL::create_with_data(mime_string, MUST(encode_base64(bytes)), true).to_string());
     }
     case Type::Text: {
         // 1. Let encoding be failure.
@@ -113,12 +114,13 @@ WebIDL::ExceptionOr<FileReader::Result> FileReader::blob_package_data(JS::Realm&
 
         // 2. If the encodingName is present, set encoding to the result of getting an encoding from encodingName.
         if (encoding_name.has_value())
-            encoding = TextCodec::get_standardized_encoding(encoding_name.value());
+            encoding = TextCodec::get_standardized_encoding(encoding_name->utf16_view());
 
         // 3. If encoding is failure, and mimeType is present:
         if (!encoding.has_value() && mime_type.has_value()) {
             // 1. Let type be the result of parse a MIME type given mimeType.
-            auto maybe_type = MimeSniff::MimeType::parse(mime_type.value());
+            auto mime_type_utf8 = mime_type->to_utf8();
+            auto maybe_type = MimeSniff::MimeType::parse(mime_type_utf8);
 
             // 2. If type is not failure, set encoding to the result of getting an encoding from type’s parameters["charset"].
             if (maybe_type.has_value()) {
@@ -133,7 +135,7 @@ WebIDL::ExceptionOr<FileReader::Result> FileReader::blob_package_data(JS::Realm&
         // 5. Decode bytes using fallback encoding encoding, and return the result.
         auto decoder = TextCodec::decoder_for(encoding.value_or("UTF-8"sv));
         VERIFY(decoder.has_value());
-        return TRY_OR_THROW_OOM(realm.vm(), convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(decoder.value(), bytes));
+        return TRY_OR_THROW_OOM(realm.vm(), convert_input_to_utf16_using_given_decoder_unless_there_is_a_byte_order_mark(decoder.value(), bytes));
     }
     case Type::ArrayBuffer:
         // Return a new ArrayBuffer whose contents are bytes.
@@ -143,7 +145,7 @@ WebIDL::ExceptionOr<FileReader::Result> FileReader::blob_package_data(JS::Realm&
         Utf16StringBuilder builder(bytes.size());
         for (auto byte : bytes.bytes())
             builder.append_code_unit(byte);
-        return MUST(builder.view().to_utf8());
+        return builder.to_string();
     }
     VERIFY_NOT_REACHED();
 }
@@ -169,7 +171,7 @@ void FileReader::queue_a_task(GC::Ref<GC::Function<void()>> task)
 }
 
 // https://w3c.github.io/FileAPI/#readOperation
-WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Optional<String> const& encoding_name)
+WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Optional<Utf16String> const& encoding_name)
 {
     auto& realm = this->realm();
     auto const blobs_type = blob.type();
@@ -342,7 +344,7 @@ WebIDL::ExceptionOr<void> FileReader::read_as_data_url(Blob& blob)
 }
 
 // https://w3c.github.io/FileAPI/#dfn-readAsText
-WebIDL::ExceptionOr<void> FileReader::read_as_text(Blob& blob, Optional<String> const& encoding)
+WebIDL::ExceptionOr<void> FileReader::read_as_text(Blob& blob, Optional<Utf16String> const& encoding)
 {
     // The readAsText(blob, encoding) method, when invoked, must initiate a read operation for blob with Text and encoding.
     return read_operation(blob, Type::Text, encoding);

@@ -5,6 +5,7 @@
  */
 
 #include <AK/QuickSort.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibWeb/Bindings/IntersectionObserver.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -54,7 +55,7 @@ WebIDL::ExceptionOr<GC::Ref<IntersectionObserver>> IntersectionObserver::constru
     // 6. If any value in thresholds is less than 0.0 or greater than 1.0, throw a RangeError exception.
     for (auto value : thresholds) {
         if (value < 0.0 || value > 1.0)
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Threshold values must be between 0.0 and 1.0 inclusive"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Threshold values must be between 0.0 and 1.0 inclusive"_utf16 };
     }
 
     // 7. Sort thresholds in ascending order.
@@ -212,42 +213,48 @@ NullableIntersectionObserverRoot IntersectionObserver::root() const
     VERIFY_NOT_REACHED();
 }
 
+static void append_margin_value(Utf16StringBuilder& builder, CSS::LengthPercentage const& value)
+{
+    auto serialized = value.to_string(CSS::SerializationMode::ResolvedValue);
+    builder.append_ascii(serialized.bytes_as_string_view());
+}
+
 // https://w3c.github.io/IntersectionObserver/#dom-intersectionobserver-rootmargin
-String IntersectionObserver::root_margin() const
+Utf16String IntersectionObserver::root_margin() const
 {
     // On getting, return the result of serializing the elements of [[rootMargin]] space-separated, where pixel
     // lengths serialize as the numeric value followed by "px", and percentages serialize as the numeric value
     // followed by "%". Note that this is not guaranteed to be identical to the options.rootMargin passed to the
     // IntersectionObserver constructor. If no rootMargin was passed to the IntersectionObserver
     // constructor, the value of this attribute is "0px 0px 0px 0px".
-    StringBuilder builder;
-    builder.append(m_root_margin[0].to_string(CSS::SerializationMode::ResolvedValue));
-    builder.append(' ');
-    builder.append(m_root_margin[1].to_string(CSS::SerializationMode::ResolvedValue));
-    builder.append(' ');
-    builder.append(m_root_margin[2].to_string(CSS::SerializationMode::ResolvedValue));
-    builder.append(' ');
-    builder.append(m_root_margin[3].to_string(CSS::SerializationMode::ResolvedValue));
-    return builder.to_string().value();
+    Utf16StringBuilder builder;
+    append_margin_value(builder, m_root_margin[0]);
+    builder.append_ascii(' ');
+    append_margin_value(builder, m_root_margin[1]);
+    builder.append_ascii(' ');
+    append_margin_value(builder, m_root_margin[2]);
+    builder.append_ascii(' ');
+    append_margin_value(builder, m_root_margin[3]);
+    return builder.to_string();
 }
 
 // https://w3c.github.io/IntersectionObserver/#dom-intersectionobserver-scrollmargin
-String IntersectionObserver::scroll_margin() const
+Utf16String IntersectionObserver::scroll_margin() const
 {
     // On getting, return the result of serializing the elements of [[scrollMargin]] space-separated, where pixel
     // lengths serialize as the numeric value followed by "px", and percentages serialize as the numeric value
     // followed by "%". Note that this is not guaranteed to be identical to the options.scrollMargin passed to the
     // IntersectionObserver constructor. If no scrollMargin was passed to the IntersectionObserver
     // constructor, the value of this attribute is "0px 0px 0px 0px".
-    StringBuilder builder;
-    builder.append(m_scroll_margin[0].to_string(CSS::SerializationMode::ResolvedValue));
-    builder.append(' ');
-    builder.append(m_scroll_margin[1].to_string(CSS::SerializationMode::ResolvedValue));
-    builder.append(' ');
-    builder.append(m_scroll_margin[2].to_string(CSS::SerializationMode::ResolvedValue));
-    builder.append(' ');
-    builder.append(m_scroll_margin[3].to_string(CSS::SerializationMode::ResolvedValue));
-    return builder.to_string().value();
+    Utf16StringBuilder builder;
+    append_margin_value(builder, m_scroll_margin[0]);
+    builder.append_ascii(' ');
+    append_margin_value(builder, m_scroll_margin[1]);
+    builder.append_ascii(' ');
+    append_margin_value(builder, m_scroll_margin[2]);
+    builder.append_ascii(' ');
+    append_margin_value(builder, m_scroll_margin[3]);
+    return builder.to_string();
 }
 
 // https://www.w3.org/TR/intersection-observer/#intersectionobserver-intersection-root
@@ -331,7 +338,7 @@ void IntersectionObserver::queue_entry(Badge<DOM::Document>, GC::Ref<Intersectio
 }
 
 // https://w3c.github.io/IntersectionObserver/#parse-a-margin
-Optional<Vector<CSS::LengthPercentage>> IntersectionObserver::parse_a_margin(JS::Realm& realm, String margin_string)
+Optional<Vector<CSS::LengthPercentage>> IntersectionObserver::parse_a_margin(JS::Realm& realm, Utf16View margin_string)
 {
     // 1. Parse a list of component values marginString, storing the result as tokens.
     auto tokens = CSS::Parser::Parser::create(CSS::Parser::ParsingParams { realm }, margin_string).parse_as_list_of_component_values();

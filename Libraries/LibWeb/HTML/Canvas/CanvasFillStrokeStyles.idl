@@ -1,9 +1,9 @@
 // https://html.spec.whatwg.org/multipage/canvas.html#canvasfillstrokestyles
 interface mixin CanvasFillStrokeStyles {
-    attribute (DOMString or CanvasGradient or CanvasPattern) strokeStyle;
-    attribute (DOMString or CanvasGradient or CanvasPattern) fillStyle;
+    attribute (Utf16DOMString or CanvasGradient or CanvasPattern) strokeStyle;
+    attribute (Utf16DOMString or CanvasGradient or CanvasPattern) fillStyle;
     CanvasGradient createLinearGradient(double x0, double y0, double x1, double y1);
     CanvasGradient createRadialGradient(double x0, double y0, double r0, double x1, double y1, double r1);
     CanvasGradient createConicGradient(double startAngle, double x, double y);
-    CanvasPattern? createPattern(CanvasImageSource image, [LegacyNullToEmptyString] DOMString repetition);
+    CanvasPattern? createPattern(CanvasImageSource image, [LegacyNullToEmptyString, Utf16FlyString] Utf16DOMString repetition);
 };

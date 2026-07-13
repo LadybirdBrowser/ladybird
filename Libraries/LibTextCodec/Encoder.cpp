@@ -6,6 +6,7 @@
 
 #include <AK/Error.h>
 #include <AK/StringBuilder.h>
+#include <AK/Utf16View.h>
 #include <AK/Utf8View.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibTextCodec/Encoder.h>
@@ -225,6 +226,25 @@ ByteString isomorphic_encode(StringView input)
     StringBuilder builder(input.length());
 
     for (auto code_point : Utf8View { input }) {
+        // VERIFY(code_point <= 0xFF);
+        if (code_point > 0xFF)
+            dbgln("FIXME: Trying to isomorphic encode a string with code points > U+00FF.");
+
+        builder.append(static_cast<u8>(code_point));
+    }
+
+    return builder.to_byte_string();
+}
+
+// https://infra.spec.whatwg.org/#isomorphic-encode
+ByteString isomorphic_encode(Utf16View input)
+{
+    // To isomorphic encode an isomorphic string input: return a byte sequence whose length is equal to input’s code
+    // point length and whose bytes have the same values as the values of input’s code points, in the same order.
+    // NB: This is essentially spec-speak for "Encode as ISO-8859-1 / Latin-1".
+    StringBuilder builder(input.length_in_code_units());
+
+    for (auto code_point : input) {
         // VERIFY(code_point <= 0xFF);
         if (code_point > 0xFF)
             dbgln("FIXME: Trying to isomorphic encode a string with code points > U+00FF.");

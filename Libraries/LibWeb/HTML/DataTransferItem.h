@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <AK/Utf16FlyString.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/EntriesAPI/FileSystemEntry.h>
@@ -23,8 +24,8 @@ public:
     static GC::Ref<DataTransferItem> create(JS::Realm&, GC::Ref<DataTransfer>, size_t item_index);
     virtual ~DataTransferItem() override;
 
-    String kind() const;
-    String type() const;
+    Utf16FlyString kind() const;
+    Utf16String type() const;
     void set_item_index(Badge<DataTransfer>, Optional<size_t> index) { m_item_index = move(index); }
 
     void get_as_string(GC::Ptr<WebIDL::CallbackType>) const;

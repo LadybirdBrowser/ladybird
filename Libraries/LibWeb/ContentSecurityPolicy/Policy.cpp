@@ -57,13 +57,13 @@ GC::Ref<Policy> Policy::parse_a_serialized_csp(GC::Heap& heap, Variant<ByteStrin
         // 4. Set directive name to be the result of running ASCII lowercase on directive name.
         // Spec Note: Directive names are case-insensitive, that is: script-SRC 'none' and ScRiPt-sRc 'none' are
         //            equivalent.
-        auto lowercase_directive_name = directive_name.to_ascii_lowercase_string();
+        auto lowercase_directive_name = Utf16FlyString::from_utf8(directive_name.to_ascii_lowercase_string());
 
         // 5. If policy’s directive set contains a directive whose name is directive name, continue.
         if (policy->contains_directive_with_name(lowercase_directive_name)) {
             // Spec Note: In this case, the user agent SHOULD notify developers that a duplicate directive was
             //            ignored. A console warning might be appropriate, for example.
-            dbgln("Ignoring duplicate Content Security Policy directive: {}", lowercase_directive_name);
+            dbgln("Ignoring duplicate Content Security Policy directive: {}", lowercase_directive_name.view());
             continue;
         }
 
@@ -71,9 +71,9 @@ GC::Ref<Policy> Policy::parse_a_serialized_csp(GC::Heap& heap, Variant<ByteStrin
         auto rest_of_the_token = lexer.consume_all();
         auto directive_value_views = rest_of_the_token.split_view_if(Infra::is_ascii_whitespace);
 
-        Vector<String> directive_value;
+        Vector<Utf16String> directive_value;
         for (auto directive_value_view : directive_value_views) {
-            String directive_value_entry = MUST(String::from_utf8(directive_value_view));
+            auto directive_value_entry = Utf16String::from_utf8(directive_value_view);
             directive_value.append(move(directive_value_entry));
         }
 
@@ -160,7 +160,7 @@ GC::Ref<Policy> Policy::create_from_serialized_policy(GC::Heap& heap, Serialized
     return policy;
 }
 
-bool Policy::contains_directive_with_name(StringView name) const
+bool Policy::contains_directive_with_name(Utf16View name) const
 {
     auto maybe_directive = m_directives.find_if([name](auto const& directive) {
         return directive->name() == name;
@@ -168,7 +168,7 @@ bool Policy::contains_directive_with_name(StringView name) const
     return !maybe_directive.is_end();
 }
 
-GC::Ptr<Directives::Directive> Policy::get_directive_by_name(StringView name) const
+GC::Ptr<Directives::Directive> Policy::get_directive_by_name(Utf16View name) const
 {
     auto maybe_directive = m_directives.find_if([name](auto const& directive) {
         return directive->name() == name;
@@ -213,7 +213,7 @@ SerializedPolicy Policy::serialize() const
     };
 }
 
-void Policy::remove_directive(Badge<HTML::HTMLMetaElement>, FlyString const& name)
+void Policy::remove_directive(Badge<HTML::HTMLMetaElement>, Utf16FlyString const& name)
 {
     m_directives.remove_all_matching([&name](auto const& directive) {
         return directive->name() == name;

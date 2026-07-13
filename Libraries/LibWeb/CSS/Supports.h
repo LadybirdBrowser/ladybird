@@ -20,45 +20,45 @@ class WEB_API Supports final : public RefCounted<Supports> {
 public:
     class Declaration final : public BooleanExpression {
     public:
-        static NonnullOwnPtr<Declaration> create(String declaration, bool matches)
+        static NonnullOwnPtr<Declaration> create(Utf16String declaration, bool matches)
         {
             return adopt_own(*new Declaration(move(declaration), matches));
         }
         virtual ~Declaration() override = default;
 
         virtual MatchResult evaluate(BooleanExpressionEvaluationContext const&) const override;
-        virtual String to_string() const override;
+        virtual void serialize_to(Utf16StringBuilder&) const override;
         virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
     private:
-        Declaration(String declaration, bool matches)
+        Declaration(Utf16String declaration, bool matches)
             : m_declaration(move(declaration))
             , m_matches(matches)
         {
         }
-        String m_declaration;
+        Utf16String m_declaration;
         bool m_matches;
     };
 
     class Selector final : public BooleanExpression {
     public:
-        static NonnullOwnPtr<Selector> create(String selector, bool matches)
+        static NonnullOwnPtr<Selector> create(Utf16String selector, bool matches)
         {
             return adopt_own(*new Selector(move(selector), matches));
         }
         virtual ~Selector() override = default;
 
         virtual MatchResult evaluate(BooleanExpressionEvaluationContext const&) const override;
-        virtual String to_string() const override;
+        virtual void serialize_to(Utf16StringBuilder&) const override;
         virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
     private:
-        Selector(String selector, bool matches)
+        Selector(Utf16String selector, bool matches)
             : m_selector(move(selector))
             , m_matches(matches)
         {
         }
-        String m_selector;
+        Utf16String m_selector;
         bool m_matches;
     };
 
@@ -71,7 +71,7 @@ public:
         virtual ~FontTech() override = default;
 
         virtual MatchResult evaluate(BooleanExpressionEvaluationContext const&) const override;
-        virtual String to_string() const override;
+        virtual void serialize_to(Utf16StringBuilder&) const override;
         virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
     private:
@@ -93,7 +93,7 @@ public:
         virtual ~FontFormat() override = default;
 
         virtual MatchResult evaluate(BooleanExpressionEvaluationContext const&) const override;
-        virtual String to_string() const override;
+        virtual void serialize_to(Utf16StringBuilder&) const override;
         virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
     private:
@@ -115,7 +115,7 @@ public:
         virtual ~Env() override = default;
 
         virtual MatchResult evaluate(BooleanExpressionEvaluationContext const&) const override;
-        virtual String to_string() const override;
+        virtual void serialize_to(Utf16StringBuilder&) const override;
         virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
     private:
@@ -137,7 +137,7 @@ public:
         virtual ~AtRule() override = default;
 
         virtual MatchResult evaluate(BooleanExpressionEvaluationContext const&) const override;
-        virtual String to_string() const override;
+        virtual void serialize_to(Utf16StringBuilder&) const override;
         virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
     private:
@@ -157,7 +157,7 @@ public:
     }
 
     bool matches() const { return m_matches; }
-    String to_string() const;
+    Utf16String to_string() const;
 
     void dump(StringBuilder&, int indent_levels = 0) const;
 

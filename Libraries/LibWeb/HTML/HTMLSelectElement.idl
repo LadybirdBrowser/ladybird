@@ -11,7 +11,7 @@ interface HTMLSelectElement : HTMLElement {
     [CEReactions, Reflect] attribute boolean required;
     [CEReactions] attribute unsigned long size;
 
-    readonly attribute DOMString type;
+    readonly attribute Utf16DOMString type;
 
     [SameObject] readonly attribute HTMLOptionsCollection options;
     [CEReactions] attribute unsigned long length;
@@ -31,7 +31,7 @@ interface HTMLSelectElement : HTMLElement {
     readonly attribute Utf16DOMString validationMessage;
     boolean checkValidity();
     boolean reportValidity();
-    undefined setCustomValidity(DOMString error);
+    undefined setCustomValidity(Utf16DOMString error);
 
     undefined showPicker();
 

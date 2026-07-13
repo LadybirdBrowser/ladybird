@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
 
 namespace Web::ServiceWorker::EventNames {
 
@@ -17,7 +17,7 @@ namespace Web::ServiceWorker::EventNames {
     __ENUMERATE_SERVICE_WORKER_EVENT(message)  \
     __ENUMERATE_SERVICE_WORKER_EVENT(messageerror)
 
-#define __ENUMERATE_SERVICE_WORKER_EVENT(name) extern FlyString const& name;
+#define __ENUMERATE_SERVICE_WORKER_EVENT(name) extern Utf16FlyString const& name;
 ENUMERATE_SERVICE_WORKER_EVENTS
 #undef __ENUMERATE_SERVICE_WORKER_EVENT
 

@@ -24,6 +24,11 @@ void KeywordStyleValue::serialize(StringBuilder& builder, SerializationMode) con
     builder.append(string_from_keyword(keyword()));
 }
 
+void KeywordStyleValue::serialize(Utf16StringBuilder& builder, SerializationMode) const
+{
+    builder.append_ascii(string_from_keyword(keyword()));
+}
+
 bool KeywordStyleValue::is_color(Keyword keyword)
 {
     switch (keyword) {

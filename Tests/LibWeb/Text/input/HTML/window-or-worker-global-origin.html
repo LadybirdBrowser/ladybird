@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        println(`window.origin is a string: ${typeof window.origin === "string"}`);
+        println(`window.origin matches location.origin: ${window.origin === location.origin}`);
+
+        const workerScript = `
+            postMessage({
+                originIsString: typeof self.origin === "string",
+                originMatchesLocationOrigin: self.origin === location.origin,
+            });
+        `;
+        const workerURL = URL.createObjectURL(new Blob([workerScript], { type: "text/javascript" }));
+        const worker = new Worker(workerURL);
+        worker.onerror = event => {
+            println(`worker error: ${event.message}`);
+            URL.revokeObjectURL(workerURL);
+            worker.terminate();
+            done();
+        };
+        worker.onmessage = event => {
+            println(`worker.origin is a string: ${event.data.originIsString}`);
+            println(`worker.origin matches location.origin: ${event.data.originMatchesLocationOrigin}`);
+            URL.revokeObjectURL(workerURL);
+            worker.terminate();
+            done();
+        };
+    });
+</script>

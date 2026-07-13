@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        println(`window language is string: ${typeof navigator.language === "string"}`);
+        println(`window language is first language: ${navigator.language === navigator.languages[0]}`);
+        println(`window languages is frozen array: ${Array.isArray(navigator.languages) && Object.isFrozen(navigator.languages)}`);
+        println(`window languages has strings: ${navigator.languages.length > 0 && navigator.languages.every(language => typeof language === "string")}`);
+
+        const worker = new Worker(URL.createObjectURL(new Blob([`
+            postMessage({
+                languageIsString: typeof navigator.language === "string",
+                languageIsFirstLanguage: navigator.language === navigator.languages[0],
+                languagesIsFrozenArray: Array.isArray(navigator.languages) && Object.isFrozen(navigator.languages),
+                languagesHasStrings: navigator.languages.length > 0 && navigator.languages.every(language => typeof language === "string"),
+            });
+        `], { type: "application/javascript" })));
+
+        worker.onmessage = event => {
+            println(`worker language is string: ${event.data.languageIsString}`);
+            println(`worker language is first language: ${event.data.languageIsFirstLanguage}`);
+            println(`worker languages is frozen array: ${event.data.languagesIsFrozenArray}`);
+            println(`worker languages has strings: ${event.data.languagesHasStrings}`);
+            done();
+        };
+    });
+</script>

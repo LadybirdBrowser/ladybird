@@ -11,7 +11,7 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(EventHandler);
 
-EventHandler::EventHandler(ByteString s)
+EventHandler::EventHandler(Utf16String s)
     : value(move(s))
 {
 }

@@ -39,13 +39,13 @@ void IDBFactory::initialize(JS::Realm& realm)
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbfactory-open
-WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> IDBFactory::open(String const& name, Optional<u64> version)
+WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> IDBFactory::open(Utf16String const& name, Optional<u64> version)
 {
     auto& realm = this->realm();
 
     // 1. If version is 0 (zero), throw a TypeError.
     if (version.has_value() && version.value() == 0)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "The version provided must not be 0"_string };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "The version provided must not be 0"_utf16 };
 
     // 2. Let environment be this's relevant settings object.
     auto& environment = HTML::relevant_settings_object(*this);
@@ -122,7 +122,7 @@ WebIDL::ExceptionOr<i8> IDBFactory::cmp(JS::Value first, JS::Value second)
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbfactory-deletedatabase
-WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> IDBFactory::delete_database(String const& name)
+WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> IDBFactory::delete_database(Utf16String const& name)
 {
     auto& realm = this->realm();
 
@@ -218,7 +218,7 @@ GC::Ref<WebIDL::Promise> IDBFactory::databases()
             auto info = JS::Object::create(realm, realm.intrinsics().object_prototype());
 
             // 3. Set info’s name dictionary member to db’s name.
-            MUST(info->create_data_property("name"_utf16_fly_string, JS::PrimitiveString::create(realm.vm(), Utf16String::from_utf8(db->name()))));
+            MUST(info->create_data_property("name"_utf16_fly_string, JS::PrimitiveString::create(realm.vm(), db->name())));
 
             // 4. Set info’s version dictionary member to db’s version.
             MUST(info->create_data_property("version"_utf16_fly_string, JS::Value(db->version())));

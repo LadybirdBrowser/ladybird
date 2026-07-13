@@ -18,7 +18,7 @@ class PerformanceMeasure final : public PerformanceTimeline::PerformanceEntry {
 public:
     virtual ~PerformanceMeasure();
 
-    [[nodiscard]] static GC::Ref<PerformanceMeasure> create(JS::Realm&, String const& measure_name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, JS::Value detail);
+    [[nodiscard]] static GC::Ref<PerformanceMeasure> create(JS::Realm&, Utf16String const& measure_name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, JS::Value detail);
 
     // NOTE: These three functions are answered by the registry for the given entry type.
     // https://w3c.github.io/timing-entrytypes-registry/#registry
@@ -33,12 +33,12 @@ public:
     // https://w3c.github.io/timing-entrytypes-registry/#dfn-should-add-entry
     virtual PerformanceTimeline::ShouldAddEntry should_add_entry(Optional<Bindings::PerformanceObserverInit const&> = {}) const override { return PerformanceTimeline::ShouldAddEntry::Yes; }
 
-    virtual FlyString const& entry_type() const override;
+    virtual Utf16FlyString const& entry_type() const override;
 
     JS::Value detail() const { return m_detail; }
 
 private:
-    PerformanceMeasure(JS::Realm&, String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, JS::Value detail);
+    PerformanceMeasure(JS::Realm&, Utf16String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, JS::Value detail);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(JS::Cell::Visitor&) override;

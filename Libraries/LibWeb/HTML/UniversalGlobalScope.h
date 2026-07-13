@@ -9,7 +9,7 @@
 #pragma once
 
 #include <AK/Forward.h>
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibGC/HeapVector.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWeb/Forward.h>
@@ -26,8 +26,8 @@ public:
     virtual DOM::EventTarget& this_impl() = 0;
     virtual DOM::EventTarget const& this_impl() const = 0;
 
-    WebIDL::ExceptionOr<String> btoa(String const& data) const;
-    WebIDL::ExceptionOr<String> atob(String const& data) const;
+    WebIDL::ExceptionOr<Utf16String> btoa(Utf16View data) const;
+    WebIDL::ExceptionOr<Utf16String> atob(Utf16View data) const;
     void queue_microtask(WebIDL::CallbackType&);
     WebIDL::ExceptionOr<JS::Value> structured_clone(JS::Value, Bindings::StructuredSerializeOptions const&) const;
 

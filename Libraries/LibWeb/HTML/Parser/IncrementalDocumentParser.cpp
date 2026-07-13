@@ -5,6 +5,7 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/StringView.h>
 #include <LibGC/Function.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibTextCodec/Decoder.h>
@@ -17,6 +18,11 @@
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(IncrementalDocumentParser);
+
+static Utf16String utf16_string_from_standardized_encoding_label(StringView label)
+{
+    return Utf16String::from_ascii_without_validation(label.bytes());
+}
 
 GC::Ref<IncrementalDocumentParser> IncrementalDocumentParser::create(GC::Ref<DOM::Document> document, GC::Ref<Fetch::Infrastructure::Body> body, URL::URL url, Optional<MimeSniff::MimeType> mime_type)
 {
@@ -68,20 +74,23 @@ void IncrementalDocumentParser::initialize_parser(ReadonlyBytes sniff_bytes)
 
     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-with-a-known-character-encoding
     // https://html.spec.whatwg.org/multipage/parsing.html#determining-the-character-encoding
-    auto encoding = m_document->has_encoding()
-        ? m_document->encoding().value().to_byte_string()
-        : run_encoding_sniffing_algorithm(m_document, sniff_bytes, m_mime_type);
-    dbgln_if(HTML_PARSER_DEBUG, "The incremental HTML parser selected encoding '{}'", encoding);
-
-    auto standardized_encoding = TextCodec::get_standardized_encoding(encoding);
+    Optional<StringView> standardized_encoding;
+    if (m_document->has_encoding()) {
+        standardized_encoding = TextCodec::get_standardized_encoding(m_document->encoding().value());
+    } else {
+        auto encoding = run_encoding_sniffing_algorithm(m_document, sniff_bytes, m_mime_type);
+        standardized_encoding = TextCodec::get_standardized_encoding(encoding);
+    }
     VERIFY(standardized_encoding.has_value());
+    dbgln_if(HTML_PARSER_DEBUG, "The incremental HTML parser selected encoding '{}'", standardized_encoding.value());
+
     m_decoder = make<TextCodec::StreamingDecoder>(standardized_encoding.value(), TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement);
 
     // https://html.spec.whatwg.org/multipage/parsing.html#determining-the-character-encoding
     // The document's character encoding must immediately be set to the value returned from this
     // algorithm, at the same time as the user agent uses the returned value to select the decoder
     // to use for the input byte stream.
-    m_document->set_encoding(MUST(String::from_utf8(standardized_encoding.value())));
+    m_document->set_encoding(utf16_string_from_standardized_encoding_label(standardized_encoding.value()));
 
     // FIXME: Implement the spec's "change the encoding while parsing" algorithm.
     m_document->set_url(m_url);
@@ -114,7 +123,7 @@ bool IncrementalDocumentParser::should_continue() const
     return m_parser && !m_parser->aborted() && m_document->parser() == m_parser;
 }
 
-void IncrementalDocumentParser::append_decoded(StringView decoded)
+void IncrementalDocumentParser::append_decoded(Utf16View decoded)
 {
     m_source.append(decoded);
     m_parser->tokenizer().append_to_input_stream(decoded);
@@ -129,8 +138,8 @@ void IncrementalDocumentParser::process_body_chunk(ByteBuffer bytes)
     // Each task that the networking task source places on the task queue while fetching runs must
     // fill the parser's input byte stream with the fetched bytes and cause the HTML parser to
     // perform the appropriate processing of the input stream.
-    auto decoded = m_decoder->to_utf8(bytes.bytes()).release_value_but_fixme_should_propagate_errors();
-    append_decoded(decoded.bytes_as_string_view());
+    auto decoded = m_decoder->to_utf16(bytes.bytes()).release_value_but_fixme_should_propagate_errors();
+    append_decoded(decoded);
     pump();
 }
 
@@ -139,12 +148,12 @@ void IncrementalDocumentParser::process_end_of_body()
     if (!should_continue())
         return;
 
-    auto decoded = m_decoder->finish().release_value_but_fixme_should_propagate_errors();
-    append_decoded(decoded.bytes_as_string_view());
+    auto decoded = m_decoder->finish_to_utf16().release_value_but_fixme_should_propagate_errors();
+    append_decoded(decoded);
 
     // https://html.spec.whatwg.org/multipage/document-lifecycle.html#read-html
     // When no more bytes are available, have the parser process the implied EOF character.
-    m_document->set_source(m_source.to_string_without_validation());
+    m_document->set_source(m_source.to_string());
     m_parser->tokenizer().close_input_stream();
     pump();
 }

@@ -12,7 +12,7 @@
     [FIXME, SameObject] readonly attribute XRRenderState renderState;
     [FIXME, SameObject] readonly attribute XRInputSourceArray inputSources;
     [FIXME, SameObject] readonly attribute XRInputSourceArray trackedSources;
-    [FIXME] readonly attribute FrozenArray<DOMString> enabledFeatures;
+    [FIXME] readonly attribute FrozenArray<Utf16DOMString> enabledFeatures;
     [FIXME] readonly attribute boolean isSystemKeyboardSupported;
     
     // Methods

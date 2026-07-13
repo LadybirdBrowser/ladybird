@@ -291,7 +291,7 @@ def write_attribute_getter(
 
         // 3. If urlString is not failure, then return urlString.
         if (url_string.has_value())
-            R = Utf16String::from_utf8(url_string.release_value());
+            R = url_string.release_value();
         else
             R = MUST(Infra::convert_to_scalar_value_string(*content_attribute_value));
     }}"""

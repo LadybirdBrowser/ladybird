@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Utf16View.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/HTMLElement.h>
 
@@ -29,8 +30,8 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    String track_url() const { return m_track_url; }
-    void set_track_url(String);
+    Utf16String track_url() const { return m_track_url; }
+    void set_track_url(Utf16View);
 
     void start_the_track_processing_model();
     void start_the_track_processing_model_parallel_steps();
@@ -46,7 +47,7 @@ private:
     GC::Ptr<TextTrackObserver> m_track_observer;
 
     // https://html.spec.whatwg.org/multipage/media.html#track-url
-    String m_track_url {};
+    Utf16String m_track_url {};
 
     GC::Ptr<Fetch::Infrastructure::FetchAlgorithms> m_fetch_algorithms;
     GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;

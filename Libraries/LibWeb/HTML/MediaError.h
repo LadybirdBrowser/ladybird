@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 
@@ -25,10 +25,10 @@ public:
     };
 
     Code code() const { return m_code; }
-    String const& message() const { return m_message; }
+    Utf16String const& message() const { return m_message; }
 
 private:
-    MediaError(JS::Realm&, Code code, String message);
+    MediaError(JS::Realm&, Code code, Utf16String message);
 
     virtual void initialize(JS::Realm&) override;
 
@@ -36,7 +36,7 @@ private:
     Code m_code;
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-mediaerror-message
-    String m_message;
+    Utf16String m_message;
 };
 
 }

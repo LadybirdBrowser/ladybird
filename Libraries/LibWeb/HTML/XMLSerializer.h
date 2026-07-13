@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 
 namespace Web::HTML {
@@ -20,7 +21,7 @@ public:
 
     virtual ~XMLSerializer() override;
 
-    WebIDL::ExceptionOr<String> serialize_to_string(GC::Ref<DOM::Node const> root);
+    WebIDL::ExceptionOr<Utf16String> serialize_to_string(GC::Ref<DOM::Node const> root);
 
 private:
     explicit XMLSerializer(JS::Realm&);
@@ -33,6 +34,6 @@ enum class RequireWellFormed {
     Yes,
 };
 
-WebIDL::ExceptionOr<String> serialize_node_to_xml_string(GC::Ref<DOM::Node const> root, RequireWellFormed require_well_formed);
+WebIDL::ExceptionOr<Utf16String> serialize_node_to_xml_string(GC::Ref<DOM::Node const> root, RequireWellFormed require_well_formed);
 
 }

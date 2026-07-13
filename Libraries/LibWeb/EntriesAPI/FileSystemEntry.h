@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 
 namespace Web::EntriesAPI {
@@ -20,20 +21,20 @@ class FileSystemEntry final : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(FileSystemEntry);
 
 public:
-    static GC::Ref<FileSystemEntry> create(JS::Realm&, EntryType entry_type, ByteString name);
+    static GC::Ref<FileSystemEntry> create(JS::Realm&, EntryType entry_type, Utf16String name);
     virtual ~FileSystemEntry() override = default;
 
     bool is_file() const;
     bool is_directory() const;
-    ByteString name() const;
+    Utf16String const& name() const;
 
 private:
-    FileSystemEntry(JS::Realm&, EntryType entry_type, ByteString name);
+    FileSystemEntry(JS::Realm&, EntryType entry_type, Utf16String name);
 
     virtual void initialize(JS::Realm&) override;
 
     EntryType m_entry_type;
-    ByteString m_name;
+    Utf16String m_name;
 };
 
 }

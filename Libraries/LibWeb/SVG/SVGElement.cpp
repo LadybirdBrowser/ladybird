@@ -139,7 +139,7 @@ void SVGElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properti
 {
     Base::apply_presentational_hints(properties);
     CSS::Parser::ParsingParams parsing_context { document(), CSS::Parser::ParsingMode::SVGPresentationAttribute };
-    for_each_attribute([&](auto& name, auto& value) {
+    for_each_attribute([&](Utf16FlyString const& name, Utf16View value) {
         for (auto& property : attribute_style_properties()) {
             if (!property.name.equals_ignoring_ascii_case(name.view()))
                 continue;

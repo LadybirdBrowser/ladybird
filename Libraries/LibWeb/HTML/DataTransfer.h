@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <AK/Utf16FlyString.h>
+#include <AK/Utf16View.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/HTML/DragDataStore.h>
@@ -26,7 +28,7 @@ namespace Web::HTML {
 
 namespace DataTransferEffect {
 
-#define __ENUMERATE_DATA_TRANSFER_EFFECT(name) extern FlyString const& name;
+#define __ENUMERATE_DATA_TRANSFER_EFFECT(name) extern Utf16FlyString const& name;
 ENUMERATE_DATA_TRANSFER_EFFECTS
 #undef __ENUMERATE_DATA_TRANSFER_EFFECT
 
@@ -42,22 +44,20 @@ public:
     static GC::Ref<DataTransfer> construct_impl(JS::Realm&);
     virtual ~DataTransfer() override;
 
-    FlyString const& drop_effect() const { return m_drop_effect; }
-    void set_drop_effect(String const&);
-    void set_drop_effect(FlyString);
+    Utf16FlyString const& drop_effect() const { return m_drop_effect; }
+    void set_drop_effect(Utf16FlyString);
 
-    FlyString const& effect_allowed() const { return m_effect_allowed; }
-    void set_effect_allowed(String const&);
-    void set_effect_allowed(FlyString);
-    void set_effect_allowed_internal(FlyString);
+    Utf16FlyString const& effect_allowed() const { return m_effect_allowed; }
+    void set_effect_allowed(Utf16FlyString);
+    void set_effect_allowed_internal(Utf16FlyString);
 
     GC::Ref<DataTransferItemList> items();
 
-    ReadonlySpan<String> types() const;
+    ReadonlySpan<Utf16String> types() const;
     DEFINE_CACHED_ATTRIBUTE(types);
-    String get_data(String const& format) const;
-    void set_data(String const& format_argument, String const& value);
-    void clear_data(Optional<String> maybe_format = {});
+    Utf16String get_data(Utf16View format) const;
+    void set_data(Utf16View format_argument, Utf16View value);
+    void clear_data(Optional<Utf16String> const& maybe_format = {});
     GC::Ref<FileAPI::FileList> files() const;
 
     Optional<DragDataStore::Mode> mode() const;
@@ -65,7 +65,7 @@ public:
 
     GC::Ref<DataTransferItem> add_item(DragDataStoreItem item);
     void remove_item(size_t index);
-    bool contains_item_with_type(DragDataStoreItem::Kind, String const& type) const;
+    bool contains_item_with_type(DragDataStoreItem::Kind, Utf16View type) const;
     GC::Ref<DataTransferItem> item(size_t index) const;
     DragDataStoreItem const& drag_data(size_t index) const;
     size_t length() const;
@@ -79,17 +79,17 @@ private:
     void update_data_transfer_types_list();
 
     // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-dropeffect
-    FlyString m_drop_effect { DataTransferEffect::none };
+    Utf16FlyString m_drop_effect { DataTransferEffect::none };
 
     // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-effectallowed
-    FlyString m_effect_allowed { DataTransferEffect::none };
+    Utf16FlyString m_effect_allowed { DataTransferEffect::none };
 
     // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-items
     GC::Ptr<DataTransferItemList> m_items;
     Vector<GC::Ref<DataTransferItem>> m_item_list;
 
     // https://html.spec.whatwg.org/multipage/dnd.html#concept-datatransfer-types
-    Vector<String> m_types;
+    Vector<Utf16String> m_types;
 
     // https://html.spec.whatwg.org/multipage/dnd.html#the-datatransfer-interface:drag-data-store-3
     RefPtr<DragDataStore> m_associated_drag_data_store;

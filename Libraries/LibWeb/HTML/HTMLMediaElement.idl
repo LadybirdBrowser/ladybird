@@ -23,19 +23,19 @@ interface HTMLMediaElement : HTMLElement {
     readonly attribute MediaError? error;
 
     // network state
-    [Reflect, CEReactions, URL] attribute USVString src;
+    [Reflect, CEReactions, URL] attribute Utf16USVString src;
     attribute MediaProvider? srcObject;
-    readonly attribute USVString currentSrc;
-    [Reflect=crossorigin, CEReactions, Enumerated=CORSSettingsAttribute] attribute DOMString? crossOrigin;
+    readonly attribute Utf16USVString currentSrc;
+    [Reflect=crossorigin, CEReactions, Enumerated=CORSSettingsAttribute] attribute Utf16DOMString? crossOrigin;
     const unsigned short NETWORK_EMPTY = 0;
     const unsigned short NETWORK_IDLE = 1;
     const unsigned short NETWORK_LOADING = 2;
     const unsigned short NETWORK_NO_SOURCE = 3;
     readonly attribute unsigned short networkState;
-    [Reflect, CEReactions, Enumerated=Preload] attribute DOMString preload;
+    [Reflect, CEReactions, Enumerated=Preload] attribute Utf16DOMString preload;
     readonly attribute TimeRanges buffered;
     undefined load();
-    CanPlayTypeResult canPlayType(DOMString type);
+    CanPlayTypeResult canPlayType(Utf16DOMString type);
 
     // ready state
     const unsigned short HAVE_NOTHING = 0;
@@ -73,6 +73,6 @@ interface HTMLMediaElement : HTMLElement {
     [SameObject] readonly attribute AudioTrackList audioTracks;
     [SameObject] readonly attribute VideoTrackList videoTracks;
     [SameObject] readonly attribute TextTrackList textTracks;
-    TextTrack addTextTrack(TextTrackKind kind, optional DOMString label = "", optional DOMString language = "");
+    TextTrack addTextTrack(TextTrackKind kind, optional Utf16DOMString label = "", optional Utf16DOMString language = "");
 
 };

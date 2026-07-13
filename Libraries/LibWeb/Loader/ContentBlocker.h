@@ -11,6 +11,7 @@
 #include <AK/Noncopyable.h>
 #include <AK/String.h>
 #include <AK/Utf16FlyString.h>
+#include <AK/Utf16String.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
@@ -50,8 +51,8 @@ public:
     ErrorOr<void> set_patterns(ReadonlySpan<String>);
     ErrorOr<void> set_rules_from_bytes(ReadonlyBytes);
 
-    String cosmetic_style_sheet_for_url(URL::URL const&) const;
-    String cosmetic_style_sheet_for_url(URL::URL const&, ReadonlySpan<Utf16FlyString> classes, ReadonlySpan<Utf16FlyString> ids) const;
+    Utf16String cosmetic_style_sheet_for_url(URL::URL const&) const;
+    Utf16String cosmetic_style_sheet_for_url(URL::URL const&, ReadonlySpan<Utf16FlyString> classes, ReadonlySpan<Utf16FlyString> ids) const;
     bool has_generic_cosmetic_selectors_for_url(URL::URL const&, ReadonlySpan<Utf16FlyString> classes, ReadonlySpan<Utf16FlyString> ids) const;
 
     static ResourceType resource_type_from_fetch_metadata(Optional<Fetch::Infrastructure::Request::Destination> const&, Optional<Fetch::Infrastructure::Request::InitiatorType> const&, Fetch::Infrastructure::Request::Mode);

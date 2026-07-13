@@ -23,7 +23,6 @@ public:
 
     GC::Ref<JS::Map> map_entries() { return m_map_entries; }
 
-    WebIDL::ExceptionOr<void> set(String const& feature_value_name, Variant<u32, Vector<u32>> const& values);
     WebIDL::ExceptionOr<void> set(Utf16String const& feature_value_name, Variant<u32, Vector<u32>> const& values);
 
     void on_map_modified_from_js(Badge<Bindings::CSSFontFeatureValuesMapPrototype>);

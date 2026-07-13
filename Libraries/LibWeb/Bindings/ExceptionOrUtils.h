@@ -74,11 +74,10 @@ ALWAYS_INLINE JS::Completion exception_to_throw_completion(JS::VM& vm, auto&& ex
 {
     return exception.visit(
         [&](WebIDL::SimpleException const& exception) {
-            auto message = exception.message.visit([](auto const& s) { return Utf16String::from_utf8(s); });
             switch (exception.type) {
 #define E(x)                             \
     case WebIDL::SimpleExceptionType::x: \
-        return vm.template throw_completion<JS::x>(message.utf16_view());
+        return vm.template throw_completion<JS::x>(exception.message.utf16_view());
 
                 ENUMERATE_SIMPLE_WEBIDL_EXCEPTION_TYPES(E)
 

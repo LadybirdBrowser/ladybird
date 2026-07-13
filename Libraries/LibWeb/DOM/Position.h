@@ -9,7 +9,7 @@
 #pragma once
 
 #include <AK/Error.h>
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/TextAffinity.h>
@@ -37,7 +37,7 @@ public:
         return m_node == other->m_node && m_offset == other->m_offset;
     }
 
-    ErrorOr<String> to_string() const;
+    ErrorOr<Utf16String> to_string() const;
 
 private:
     Position(GC::Ref<Node>, unsigned offset, TextAffinity);
@@ -52,9 +52,9 @@ private:
 }
 
 template<>
-struct AK::Formatter<Web::DOM::Position> : Formatter<StringView> {
+struct AK::Formatter<Web::DOM::Position> : Formatter<Utf16String> {
     ErrorOr<void> format(FormatBuilder& builder, Web::DOM::Position const& value)
     {
-        return Formatter<StringView>::format(builder, TRY(value.to_string()));
+        return Formatter<Utf16String>::format(builder, TRY(value.to_string()));
     }
 };

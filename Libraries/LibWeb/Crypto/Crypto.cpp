@@ -82,9 +82,10 @@ WebIDL::ExceptionOr<WebIDL::ArrayBufferViewVariant> Crypto::get_random_values(We
 }
 
 // https://w3c.github.io/webcrypto/#dfn-Crypto-method-randomUUID
-String Crypto::random_uuid() const
+Utf16String Crypto::random_uuid() const
 {
-    return generate_random_uuid();
+    auto uuid = generate_random_uuid();
+    return Utf16String::from_ascii_without_validation(uuid.bytes_as_string_view().bytes());
 }
 
 // https://w3c.github.io/webcrypto/#dfn-generate-a-random-uuid

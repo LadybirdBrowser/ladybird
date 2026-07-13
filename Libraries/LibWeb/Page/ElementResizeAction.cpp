@@ -95,8 +95,8 @@ void ElementResizeAction::handle_pointer_move(CSSPixelPoint pointer_position)
     }
 
     auto style = element->style_for_bindings();
-    auto width_str = MUST(String::formatted("{:.2f}px", max(0.0, css_width.to_double())));
-    auto height_str = MUST(String::formatted("{:.2f}px", max(0.0, css_height.to_double())));
+    auto width_str = Utf16String::formatted("{:.2f}px", max(0.0, css_width.to_double()));
+    auto height_str = Utf16String::formatted("{:.2f}px", max(0.0, css_height.to_double()));
 
     MUST(style->set_property(CSS::PropertyID::Width, width_str));
     MUST(style->set_property(CSS::PropertyID::Height, height_str));

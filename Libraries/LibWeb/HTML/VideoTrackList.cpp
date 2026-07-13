@@ -66,7 +66,7 @@ void VideoTrackList::remove_all_tracks()
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-videotracklist-gettrackbyid
-GC::Ptr<VideoTrack> VideoTrackList::get_track_by_id(StringView id) const
+GC::Ptr<VideoTrack> VideoTrackList::get_track_by_id(Utf16View id) const
 {
     // The AudioTrackList getTrackById(id) and VideoTrackList getTrackById(id) methods must return the first AudioTrack
     // or VideoTrack object (respectively) in the AudioTrackList or VideoTrackList object (respectively) whose identifier

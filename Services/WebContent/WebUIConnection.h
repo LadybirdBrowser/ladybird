@@ -8,6 +8,7 @@
 
 #include <AK/JsonValue.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/Utf16String.h>
 #include <LibGC/Ptr.h>
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibIPC/Transport.h>
@@ -26,7 +27,7 @@ public:
 
     void visit_edges(JS::Cell::Visitor&);
 
-    void received_message_from_web_ui(String const& name, JS::Value data);
+    void received_message_from_web_ui(Utf16String const& name, JS::Value data);
 
     Web::DOM::Document const& document() const { return m_document; }
 

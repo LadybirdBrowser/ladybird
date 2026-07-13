@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/Root.h>
 #include <LibJS/Forward.h>
@@ -26,7 +27,7 @@ public:
     static WebIDL::ExceptionOr<GC::Ref<Module>> construct_impl(JS::Realm&, WebIDL::BufferSource bytes);
     static WebIDL::ExceptionOr<Vector<Bindings::ModuleImportDescriptor>> imports(JS::VM&, GC::Ref<Module>);
     static WebIDL::ExceptionOr<Vector<Bindings::ModuleExportDescriptor>> exports(JS::VM&, GC::Ref<Module>);
-    static WebIDL::ExceptionOr<GC::RootVector<GC::Ref<JS::ArrayBuffer>>> custom_sections(JS::VM&, GC::Ref<Module>, String section_name);
+    static WebIDL::ExceptionOr<GC::RootVector<GC::Ref<JS::ArrayBuffer>>> custom_sections(JS::VM&, GC::Ref<Module>, Utf16String const& section_name);
 
     NonnullRefPtr<Detail::CompiledWebAssemblyModule> compiled_module() const { return m_compiled_module; }
 

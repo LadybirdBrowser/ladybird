@@ -116,7 +116,7 @@ GC::Ref<WebIDL::Promise> Cache::match_all(Optional<Fetch::RequestInfo> request, 
                 return {};
             },
             // 2. Else if request is a string, then:
-            [&](String const& request) -> ErrorOr<void, GC::Ref<WebIDL::Promise>> {
+            [&](Utf16String const& request) -> ErrorOr<void, GC::Ref<WebIDL::Promise>> {
                 // 1. Set r to the associated request of the result of invoking the initial value of Request as
                 //    constructor with request as its argument. If this throws an exception, return a promise rejected
                 //    with that exception.
@@ -420,7 +420,7 @@ GC::Ref<WebIDL::Promise> Cache::put(Fetch::RequestInfo request, GC::Ref<Fetch::R
             return {};
         },
         // 3. Else:
-        [&](String const& request) -> ErrorOr<void, GC::Ref<WebIDL::Promise>> {
+        [&](Utf16String const& request) -> ErrorOr<void, GC::Ref<WebIDL::Promise>> {
             // 1. Let requestObj be the result of invoking Request’s constructor with request as its argument. If this
             //    throws an exception, return a promise rejected with exception.
             auto request_object = Fetch::Request::construct_impl(realm, request);
@@ -556,7 +556,7 @@ GC::Ref<WebIDL::Promise> Cache::delete_(Fetch::RequestInfo request, Bindings::Ca
             return {};
         },
         // 3. Else if request is a string, then:
-        [&](String const& request) -> ErrorOr<void, GC::Ref<WebIDL::Promise>> {
+        [&](Utf16String const& request) -> ErrorOr<void, GC::Ref<WebIDL::Promise>> {
             // 1. Set r to the associated request of the result of invoking the initial value of Request as constructor
             //    with request as its argument. If this throws an exception, return a promise rejected with that
             //    exception.
@@ -645,7 +645,7 @@ GC::Ref<WebIDL::Promise> Cache::keys(Optional<Fetch::RequestInfo> request, Bindi
                 return {};
             },
             // 2. Else if request is a string, then:
-            [&](String const& request) -> ErrorOr<void, GC::Ref<WebIDL::Promise>> {
+            [&](Utf16String const& request) -> ErrorOr<void, GC::Ref<WebIDL::Promise>> {
                 // 1. Set r to the associated request of the result of invoking the initial value of Request as
                 //    constructor with request as its argument. If this throws an exception, return a promise rejected
                 //    with that exception.
@@ -850,11 +850,11 @@ WebIDL::ExceptionOr<bool> Cache::batch_cache_operations(GC::Ref<GC::HeapVector<G
         for (auto operation : operations->elements()) {
             // 1. If operation’s type matches neither "delete" nor "put", throw a TypeError.
             if (operation->type != CacheBatchOperation::Type::Delete && operation->type != CacheBatchOperation::Type::Put)
-                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Batch operation type must be 'delete' or 'put'"sv };
+                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Batch operation type must be 'delete' or 'put'"_utf16 };
 
             // 2. If operation’s type matches "delete" and operation’s response is not null, throw a TypeError.
             if (operation->type == CacheBatchOperation::Type::Delete && operation->response)
-                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Batch operations of type 'delete' must not have a response"sv };
+                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Batch operations of type 'delete' must not have a response"_utf16 };
 
             // 3. If the result of running Query Cache with operation’s request, operation’s options, and addedItems is
             //    not empty, throw an "InvalidStateError" DOMException.
@@ -877,18 +877,18 @@ WebIDL::ExceptionOr<bool> Cache::batch_cache_operations(GC::Ref<GC::HeapVector<G
             else if (operation->type == CacheBatchOperation::Type::Put) {
                 // 1. If operation’s response is null, throw a TypeError.
                 if (!operation->response)
-                    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Batch operations of type 'put' must have a response"sv };
+                    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Batch operations of type 'put' must have a response"_utf16 };
 
                 // 2. Let r be operation’s request’s associated request.
                 auto request = operation->request;
 
                 // 3. If r’s url’s scheme is not one of "http" and "https", throw a TypeError.
                 if (!request->url().scheme().is_one_of("http"sv, "https"sv))
-                    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Request must be a GET request with an HTTP(S) URL"sv };
+                    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Request must be a GET request with an HTTP(S) URL"_utf16 };
 
                 // 4. If r’s method is not `GET`, throw a TypeError.
                 if (request->method() != "GET"sv)
-                    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Request must be a GET request with an HTTP(S) URL"sv };
+                    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Request must be a GET request with an HTTP(S) URL"_utf16 };
 
                 // 5. If operation’s options is not null, throw a TypeError.
                 // FIXME: Spec issue: No other part of the spec indicates that options may be created as null.

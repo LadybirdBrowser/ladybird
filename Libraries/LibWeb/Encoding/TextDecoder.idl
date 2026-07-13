@@ -12,9 +12,9 @@ dictionary TextDecodeOptions {
 // https://encoding.spec.whatwg.org/#textdecoder
 [Exposed=*]
 interface TextDecoder {
-    constructor(optional DOMString label = "utf-8", optional TextDecoderOptions options = {});
+    constructor(optional Utf16DOMString label = "utf-8", optional TextDecoderOptions options = {});
 
     // FIXME: BufferSource is really a AllowSharedBufferSource
-    USVString decode(optional BufferSource input, optional TextDecodeOptions options = {});
+    Utf16USVString decode(optional BufferSource input, optional TextDecodeOptions options = {});
 };
 TextDecoder includes TextDecoderCommon;

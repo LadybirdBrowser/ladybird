@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <AK/Utf16FlyString.h>
+#include <AK/Utf16String.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/MediaList.h>
 #include <LibWeb/Export.h>
@@ -21,13 +23,14 @@ class WEB_API StyleSheet : public Bindings::PlatformObject {
 public:
     virtual ~StyleSheet() = default;
 
-    virtual String type() const = 0;
+    virtual Utf16FlyString type() const = 0;
 
     DOM::Element* owner_node() { return m_owner_node; }
     DOM::Element const* owner_node() const { return m_owner_node; }
     void set_owner_node(DOM::Element*);
 
     Optional<String> href() const;
+    Optional<Utf16String> href_for_bindings() const;
 
     Optional<::URL::URL> location() const { return m_location; }
     void set_location(Optional<::URL::URL> location) { m_location = move(location); }
@@ -36,19 +39,12 @@ public:
     Optional<Utf16String> title_for_bindings() const;
     void set_title(Utf16String title) { m_title = move(title); }
 
-    void set_type(String type) { m_type_string = move(type); }
-
     GC::Ref<MediaList> media() const
     {
         return m_media;
     }
 
     void set_media(Utf16View media)
-    {
-        m_media->set_media_text(media);
-    }
-
-    void set_media(StringView media)
     {
         m_media->set_media_text(media);
     }
@@ -79,7 +75,6 @@ private:
 
     Optional<::URL::URL> m_location;
     Utf16String m_title;
-    String m_type_string;
 
     bool m_disabled { false };
     bool m_alternate { false };

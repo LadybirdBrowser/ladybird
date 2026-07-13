@@ -5,5 +5,5 @@ interface Permissions {
 };
 
 dictionary PermissionDescriptor {
-    required DOMString name;
+    required Utf16DOMString name;
 };

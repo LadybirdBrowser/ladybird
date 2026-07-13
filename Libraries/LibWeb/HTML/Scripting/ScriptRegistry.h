@@ -10,8 +10,9 @@
 #include <AK/HashFunctions.h>
 #include <AK/HashMap.h>
 #include <AK/Optional.h>
-#include <AK/String.h>
 #include <AK/Types.h>
+#include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <AK/Variant.h>
 #include <LibIPC/Forward.h>
 #include <LibJS/Forward.h>
@@ -24,8 +25,8 @@ namespace Web::HTML {
 class WEB_API ScriptRegistry {
 public:
     struct Content {
-        String content_type;
-        String text;
+        Utf16String content_type;
+        Utf16String text;
     };
 
     struct Identifier {
@@ -38,9 +39,9 @@ public:
     struct Description {
         Identifier id;
         Optional<URL::URL> url;
-        String display_url;
-        String introduction_type;
-        String content_type;
+        Utf16String display_url;
+        Utf16String introduction_type;
+        Utf16String content_type;
         bool is_inline_source { false };
         u32 source_start_line { 1 };
         u32 source_start_column { 0 };
@@ -63,10 +64,10 @@ public:
         ContentHandle content;
     };
 
-    Script const& register_javascript_source(NonnullRefPtr<JS::SourceCode const>, ByteString const& filename, String introduction_type, IsInlineSource, size_t source_line_number, size_t source_length);
+    Script const& register_javascript_source(NonnullRefPtr<JS::SourceCode const>, ByteString const& filename, Utf16String display_url, Utf16String introduction_type, IsInlineSource, size_t source_line_number, size_t source_length);
 
     OrderedHashMap<u64, Script> const& scripts() const { return m_scripts; }
-    Optional<Content> script_content(u64 script_id, String const& document_source) const;
+    Optional<Content> script_content(u64 script_id, Utf16View document_source) const;
 
 private:
     OrderedHashMap<u64, Script> m_scripts;

@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const event = new CloseEvent("close", {
+            wasClean: true,
+            code: 1000,
+            reason: "well hello friends \u{1F41E}",
+        });
+
+        println(`type: ${event.type}`);
+        println(`wasClean: ${event.wasClean}`);
+        println(`code: ${event.code}`);
+        println(`reason: ${event.reason}`);
+    });
+</script>

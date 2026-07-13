@@ -17,8 +17,8 @@ class TransitionEvent final : public DOM::Event {
     GC_DECLARE_ALLOCATOR(TransitionEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<TransitionEvent> create(JS::Realm&, FlyString const& event_name, Bindings::TransitionEventInit const& = {});
-    [[nodiscard]] static GC::Ref<TransitionEvent> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::TransitionEventInit const& = {});
+    [[nodiscard]] static GC::Ref<TransitionEvent> create(JS::Realm&, Utf16FlyString const& event_name, Bindings::TransitionEventInit const& = {});
+    [[nodiscard]] static GC::Ref<TransitionEvent> construct_impl(JS::Realm&, Utf16FlyString const& event_name, Bindings::TransitionEventInit const& = {});
 
     virtual ~TransitionEvent() override;
 
@@ -27,7 +27,7 @@ public:
     Utf16String const& pseudo_element() const { return m_pseudo_element; }
 
 private:
-    TransitionEvent(JS::Realm&, FlyString const& event_name, Bindings::TransitionEventInit const& event_init);
+    TransitionEvent(JS::Realm&, Utf16FlyString const& event_name, Bindings::TransitionEventInit const& event_init);
 
     virtual void initialize(JS::Realm&) override;
 

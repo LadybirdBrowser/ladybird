@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/NeverDestroyed.h>
 #include <AK/NumberFormat.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
@@ -63,12 +62,10 @@ void MediaControls::create_shadow_tree()
 
     m_dom = MediaControlsDOM(document, *shadow_root, is_video ? MediaControlsDOM::Options::Video : MediaControlsDOM::Options::None);
 
-    static NeverDestroyed<Vector<Utf16String>> video_class { Vector<Utf16String> { "video"_utf16 } };
-    static NeverDestroyed<Vector<Utf16String>> audio_class { Vector<Utf16String> { "audio"_utf16 } };
     if (is_video)
-        MUST(m_dom->container->class_list()->add(*video_class));
+        MUST(m_dom->container->class_list()->add(u"video"sv));
     else
-        MUST(m_dom->container->class_list()->add(*audio_class));
+        MUST(m_dom->container->class_list()->add(u"audio"sv));
 
     // Initialize state
     update_play_pause_icon();
@@ -81,7 +78,7 @@ void MediaControls::create_shadow_tree()
 }
 
 template<typename T, CallableAs<bool, T&> Handler>
-GC::Ref<DOM::IDLEventListener> MediaControls::add_event_listener(JS::Realm& realm, DOM::EventTarget& target, FlyString const& event_name, ListenOnce listen_once, Handler handler)
+GC::Ref<DOM::IDLEventListener> MediaControls::add_event_listener(JS::Realm& realm, DOM::EventTarget& target, Utf16FlyString const& event_name, ListenOnce listen_once, Handler handler)
 {
     auto callback_function = JS::NativeFunction::create(
         realm, [handler = move(handler)](JS::VM& vm) {
@@ -104,7 +101,7 @@ GC::Ref<DOM::IDLEventListener> MediaControls::add_event_listener(JS::Realm& real
 }
 
 template<CallableAs<bool> Handler>
-GC::Ref<DOM::IDLEventListener> MediaControls::add_event_listener(JS::Realm& realm, DOM::EventTarget& target, FlyString const& event_name, Handler handler)
+GC::Ref<DOM::IDLEventListener> MediaControls::add_event_listener(JS::Realm& realm, DOM::EventTarget& target, Utf16FlyString const& event_name, Handler handler)
 {
     return add_event_listener<DOM::Event>(realm, target, event_name, ListenOnce::No, [handler = move(handler)](DOM::Event&) {
         return handler();
@@ -112,19 +109,19 @@ GC::Ref<DOM::IDLEventListener> MediaControls::add_event_listener(JS::Realm& real
 }
 
 template<CallableAs<bool, UIEvents::MouseEvent const&> Handler>
-GC::Ref<DOM::IDLEventListener> MediaControls::add_event_listener(JS::Realm& realm, DOM::EventTarget& target, FlyString const& event_name, Handler handler)
+GC::Ref<DOM::IDLEventListener> MediaControls::add_event_listener(JS::Realm& realm, DOM::EventTarget& target, Utf16FlyString const& event_name, Handler handler)
 {
     return add_event_listener<UIEvents::MouseEvent>(realm, target, event_name, ListenOnce::No, handler);
 }
 
 template<CallableAs<bool, UIEvents::MouseEvent const&> Handler>
-GC::Ref<DOM::IDLEventListener> MediaControls::add_event_listener(JS::Realm& realm, DOM::EventTarget& target, FlyString const& event_name, ListenOnce listen_once, Handler handler)
+GC::Ref<DOM::IDLEventListener> MediaControls::add_event_listener(JS::Realm& realm, DOM::EventTarget& target, Utf16FlyString const& event_name, ListenOnce listen_once, Handler handler)
 {
     return add_event_listener<UIEvents::MouseEvent>(realm, target, event_name, listen_once, handler);
 }
 
 template<CallableAs<bool, UIEvents::KeyboardEvent const&> Handler>
-GC::Ref<DOM::IDLEventListener> MediaControls::add_event_listener(JS::Realm& realm, DOM::EventTarget& target, FlyString const& event_name, Handler handler)
+GC::Ref<DOM::IDLEventListener> MediaControls::add_event_listener(JS::Realm& realm, DOM::EventTarget& target, Utf16FlyString const& event_name, Handler handler)
 {
     return add_event_listener<UIEvents::KeyboardEvent>(realm, target, event_name, ListenOnce::No, handler);
 }
@@ -411,21 +408,21 @@ void MediaControls::set_up_event_listeners()
 
         auto key = event.key();
 
-        if (key == " ") {
+        if (key == u" "sv) {
             toggle_playback();
-        } else if (key == "Home") {
+        } else if (key == u"Home"sv) {
             set_current_time(0);
-        } else if (key == "End") {
+        } else if (key == u"End"sv) {
             set_current_time(m_media_element->duration());
-        } else if (key == "ArrowLeft") {
+        } else if (key == u"ArrowLeft"sv) {
             set_current_time(m_media_element->current_time() - arrow_time_step);
-        } else if (key == "ArrowRight") {
+        } else if (key == u"ArrowRight"sv) {
             set_current_time(m_media_element->current_time() + arrow_time_step);
-        } else if (key == "ArrowUp") {
+        } else if (key == u"ArrowUp"sv) {
             set_volume(m_media_element->volume() + arrow_volume_step);
-        } else if (key == "ArrowDown") {
+        } else if (key == u"ArrowDown"sv) {
             set_volume(m_media_element->volume() - arrow_volume_step);
-        } else if (key == "m" || key == "M") {
+        } else if (key == u"m"sv || key == u"M"sv) {
             toggle_mute();
         } else {
             return false;
@@ -502,13 +499,12 @@ void MediaControls::update_play_pause_icon()
         return m_media_element->paused();
     }();
 
-    static Utf16String s_playing_class = "playing"_utf16;
-    MUST(m_dom->play_pause_icon->class_list()->toggle(s_playing_class, !paused));
+    MUST(m_dom->play_pause_icon->class_list()->toggle(u"playing"sv, !paused));
 }
 
-static String format_percent(double value)
+static Utf16String format_percent(double value)
 {
-    return MUST(String::formatted("{}%", value * 100));
+    return Utf16String::formatted("{}%", value * 100);
 }
 
 void MediaControls::update_timeline()
@@ -539,9 +535,8 @@ void MediaControls::update_timeline()
 
     while (m_buffered_ranges.size() < range_count) {
         auto range = MUST(DOM::create_element(m_media_element->document(), HTML::TagNames::div, Namespace::HTML));
-        static Utf16String const& timeline_buffered_class = *new Utf16String("timeline-buffered"_utf16);
-        MUST(range->class_list()->toggle(timeline_buffered_class, true));
-        MUST(range->style_for_bindings()->set_property(CSS::PropertyID::Display, "block"sv));
+        MUST(range->class_list()->toggle(u"timeline-buffered"sv, true));
+        MUST(range->style_for_bindings()->set_property(CSS::PropertyID::Display, u"block"sv));
         m_dom->timeline_track->insert_before(range, nullptr);
         m_buffered_ranges.empend(*range);
     }
@@ -621,7 +616,7 @@ void MediaControls::update_volume_and_mute_indicator()
     auto muted = !has_audio || m_media_element->muted();
 
     if (muted)
-        MUST(m_dom->volume_fill->style_for_bindings()->set_property(CSS::PropertyID::Width, "0"sv));
+        MUST(m_dom->volume_fill->style_for_bindings()->set_property(CSS::PropertyID::Width, u"0"sv));
     else
         MUST(m_dom->volume_fill->style_for_bindings()->set_property(CSS::PropertyID::Width, format_percent(volume)));
 
@@ -633,35 +628,33 @@ void MediaControls::update_volume_and_mute_indicator()
         return MuteIconState::Empty;
     }();
 
-    static auto icon_class = [](MuteIconState state) -> Vector<Utf16String> const& {
-        static NeverDestroyed<Vector<Utf16String>> no_volume_class;
-        static NeverDestroyed<Vector<Utf16String>> low_volume_class { Vector<Utf16String> { "low"_utf16 } };
-        static NeverDestroyed<Vector<Utf16String>> high_volume_class { Vector<Utf16String> { "high"_utf16 } };
-
+    static auto icon_class = [](MuteIconState state) -> Utf16View {
         switch (state) {
         case MuteIconState::Empty:
-            return *no_volume_class;
+            return {};
         case MuteIconState::Low:
-            return *low_volume_class;
+            return u"low"sv;
         case MuteIconState::High:
-            return *high_volume_class;
+            return u"high"sv;
         }
         VERIFY_NOT_REACHED();
     };
 
     if (new_volume_icon_state != m_mute_icon_state) {
-        MUST(m_dom->mute_button->class_list()->remove(icon_class(m_mute_icon_state)));
-        MUST(m_dom->mute_button->class_list()->add(icon_class(new_volume_icon_state)));
+        if (auto previous_class = icon_class(m_mute_icon_state); !previous_class.is_empty())
+            MUST(m_dom->mute_button->class_list()->remove(previous_class));
+        if (auto next_class = icon_class(new_volume_icon_state); !next_class.is_empty())
+            MUST(m_dom->mute_button->class_list()->add(next_class));
         m_mute_icon_state = new_volume_icon_state;
     }
 
     if (muted != m_was_muted) {
-        MUST(m_dom->mute_button->class_list()->toggle("muted"_utf16, muted));
+        MUST(m_dom->mute_button->class_list()->toggle(u"muted"sv, muted));
         m_was_muted = muted;
     }
 
     if (has_audio != m_had_audio) {
-        MUST(m_dom->volume_area->class_list()->toggle("hidden"_utf16, !has_audio));
+        MUST(m_dom->volume_area->class_list()->toggle(u"hidden"sv, !has_audio));
         m_had_audio = has_audio;
     }
 }
@@ -671,12 +664,10 @@ void MediaControls::update_fullscreen_icon()
     if (!m_dom->fullscreen_icon)
         return;
 
-    static Utf16String const& fullscreen_class = *new Utf16String("fullscreen"_utf16);
-
     VERIFY(m_media_element);
 
     auto is_fullscreen_element = m_media_element->document().fullscreen_element() == m_media_element;
-    MUST(m_dom->fullscreen_icon->class_list()->toggle(fullscreen_class, is_fullscreen_element));
+    MUST(m_dom->fullscreen_icon->class_list()->toggle(u"fullscreen"sv, is_fullscreen_element));
 }
 
 void MediaControls::update_placeholder_visibility()
@@ -686,7 +677,7 @@ void MediaControls::update_placeholder_visibility()
     if (!m_dom->placeholder_circle)
         return;
 
-    auto display = should_show_placeholder() ? "flex"sv : "none"sv;
+    auto display = should_show_placeholder() ? u"flex"sv : u"none"sv;
     MUST(m_dom->placeholder_circle->style_for_bindings()->set_property(CSS::PropertyID::Display, display));
 }
 
@@ -699,10 +690,9 @@ bool MediaControls::should_show_placeholder() const
     return video_element.current_representation() != HTMLVideoElement::Representation::VideoFrame;
 }
 
-static Vector<Utf16String> const& visible_class()
+static Utf16View visible_class()
 {
-    static NeverDestroyed<Vector<Utf16String>> visible_class { Vector<Utf16String> { "visible"_utf16 } };
-    return *visible_class;
+    return u"visible"sv;
 }
 
 void MediaControls::show_controls()

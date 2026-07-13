@@ -25,6 +25,6 @@ interface SourceBuffer : EventTarget {
 
     undefined appendBuffer(BufferSource data);
     undefined abort();
-    undefined changeType(DOMString type);
+    undefined changeType(Utf16DOMString type);
     [FIXME] undefined remove(double start, unrestricted double end);
 };

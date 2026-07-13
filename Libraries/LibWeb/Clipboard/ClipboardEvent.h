@@ -19,14 +19,14 @@ class ClipboardEvent : public DOM::Event {
     GC_DECLARE_ALLOCATOR(ClipboardEvent);
 
 public:
-    static GC::Ref<ClipboardEvent> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::ClipboardEventInit const& event_init);
+    static GC::Ref<ClipboardEvent> construct_impl(JS::Realm&, Utf16FlyString const& event_name, Bindings::ClipboardEventInit const& event_init);
 
     virtual ~ClipboardEvent() override;
 
     GC::Ptr<HTML::DataTransfer> clipboard_data() { return m_clipboard_data; }
 
 private:
-    ClipboardEvent(JS::Realm&, FlyString const& event_name, Bindings::ClipboardEventInit const& event_init);
+    ClipboardEvent(JS::Realm&, Utf16FlyString const& event_name, Bindings::ClipboardEventInit const& event_init);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(JS::Cell::Visitor&) override;

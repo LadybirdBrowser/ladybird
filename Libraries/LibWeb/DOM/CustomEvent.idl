@@ -1,11 +1,11 @@
 // https://dom.spec.whatwg.org/#interface-customevent
 [Exposed=*]
 interface CustomEvent : Event {
-    constructor(DOMString type, optional CustomEventInit eventInitDict = {});
+    constructor([Utf16FlyString] Utf16DOMString type, optional CustomEventInit eventInitDict = {});
 
     readonly attribute any detail;
 
-    undefined initCustomEvent(DOMString type, optional boolean bubbles = false, optional boolean cancelable = false, optional any detail = null); // legacy
+    undefined initCustomEvent([Utf16FlyString] Utf16DOMString type, optional boolean bubbles = false, optional boolean cancelable = false, optional any detail = null); // legacy
 };
 
 dictionary CustomEventInit : EventInit {

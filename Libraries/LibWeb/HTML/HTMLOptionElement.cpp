@@ -114,7 +114,7 @@ Utf16String HTMLOptionElement::value() const
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-option-value
-void HTMLOptionElement::set_value(Utf16String const& value)
+void HTMLOptionElement::set_value(Utf16View value)
 {
     set_attribute_value(HTML::AttributeNames::value, value);
 }
@@ -142,7 +142,7 @@ Utf16String HTMLOptionElement::label() const
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-option-label
-void HTMLOptionElement::set_label(Utf16String const& label)
+void HTMLOptionElement::set_label(Utf16View label)
 {
     set_attribute_value(HTML::AttributeNames::label, label);
     // Note: this causes attribute_changed() to be called, which will update the <select>'s label
@@ -162,11 +162,11 @@ Utf16String HTMLOptionElement::text() const
     });
 
     // Return the result of stripping and collapsing ASCII whitespace from the above concatenation.
-    return Infra::strip_and_collapse_whitespace(builder.to_string());
+    return Infra::strip_and_collapse_whitespace(builder.view());
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-option-text
-void HTMLOptionElement::set_text(Utf16String const& text)
+void HTMLOptionElement::set_text(Utf16View text)
 {
     string_replace_all(text);
     // Note: this causes children_changed() to be called, which will update the <select>'s label

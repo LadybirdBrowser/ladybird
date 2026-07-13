@@ -26,19 +26,19 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(NavigateEvent);
 
-GC::Ref<NavigateEvent> NavigateEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::NavigateEventInit const& event_init)
+GC::Ref<NavigateEvent> NavigateEvent::create(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::NavigateEventInit const& event_init)
 {
     auto event = realm.create<NavigateEvent>(realm, event_name, event_init);
     event->set_is_trusted(true);
     return event;
 }
 
-GC::Ref<NavigateEvent> NavigateEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::NavigateEventInit const& event_init)
+GC::Ref<NavigateEvent> NavigateEvent::construct_impl(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::NavigateEventInit const& event_init)
 {
     return realm.create<NavigateEvent>(realm, event_name, event_init);
 }
 
-NavigateEvent::NavigateEvent(JS::Realm& realm, FlyString const& event_name, Bindings::NavigateEventInit const& event_init)
+NavigateEvent::NavigateEvent(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::NavigateEventInit const& event_init)
     : DOM::Event(realm, event_name, event_init)
     , m_navigation_type(event_init.navigation_type)
     , m_destination(*event_init.destination)
@@ -111,7 +111,7 @@ WebIDL::ExceptionOr<void> NavigateEvent::intercept(Bindings::NavigationIntercept
         if (m_focus_reset_behavior.has_value() && *m_focus_reset_behavior != *options.focus_reset) {
             auto& console = realm.intrinsics().console_object()->console();
             console.output_debug_message(JS::Console::LogLevel::Warn,
-                TRY_OR_THROW_OOM(vm, String::formatted("focusReset behavior on NavigationEvent overridden (was: {}, now: {})", *m_focus_reset_behavior, *options.focus_reset)));
+                Utf16String::formatted("focusReset behavior on NavigationEvent overridden (was: {}, now: {})", *m_focus_reset_behavior, *options.focus_reset));
         }
 
         // 2. Set this's focus reset behavior to options["focusReset"].
@@ -126,7 +126,7 @@ WebIDL::ExceptionOr<void> NavigateEvent::intercept(Bindings::NavigationIntercept
         if (m_scroll_behavior.has_value() && *m_scroll_behavior != *options.scroll) {
             auto& console = realm.intrinsics().console_object()->console();
             console.output_debug_message(JS::Console::LogLevel::Warn,
-                TRY_OR_THROW_OOM(vm, String::formatted("scroll option on NavigationEvent overridden (was: {}, now: {})", *m_scroll_behavior, *options.scroll)));
+                Utf16String::formatted("scroll option on NavigationEvent overridden (was: {}, now: {})", *m_scroll_behavior, *options.scroll));
         }
 
         // 2. Set this's scroll behavior to options["scroll"].

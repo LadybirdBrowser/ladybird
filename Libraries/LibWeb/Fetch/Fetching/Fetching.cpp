@@ -59,6 +59,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/Loader/LoadRequest.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/MixedContent/AbstractOperations.h>
@@ -853,13 +854,13 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
 
                 // 3. If mimeType is non-null, then set bodyInfo’s content type to the result of minimizing a supported MIME type given mimeType.
                 if (mime_type.has_value())
-                    body_info.content_type = MimeSniff::minimise_a_supported_mime_type(mime_type.value());
+                    body_info.content_type = Utf16String::from_utf8(MimeSniff::minimise_a_supported_mime_type(mime_type.value()));
             }
 
             // 8. If fetchParams’s request’s initiator type is not null, then mark resource timing given timingInfo,
             //    request’s URL, request’s initiator type, global, cacheState, bodyInfo, and responseStatus.
             if (fetch_params.request()->initiator_type().has_value()) {
-                ResourceTiming::PerformanceResourceTiming::mark_resource_timing(timing_info, fetch_params.request()->url().to_string(), Infrastructure::initiator_type_to_string(fetch_params.request()->initiator_type().value()), global, cache_state, body_info, response_status);
+                ResourceTiming::PerformanceResourceTiming::mark_resource_timing(timing_info, utf16_string_from_url_ascii(fetch_params.request()->url().to_string()), Infrastructure::initiator_type_to_string(fetch_params.request()->initiator_type().value()), global, cache_state, body_info, response_status);
             }
         });
     };
@@ -1066,7 +1067,7 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
         URL::BlobURLEntry::Blob* blob_object;
         if (blob_object = maybe_blob_object.value().get_pointer<URL::BlobURLEntry::Blob>(); !blob_object)
             return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Failed to obtain a Blob object from 'blob:' URL"_string));
-        auto const blob = FileAPI::Blob::create(realm, blob_object->data, blob_object->type);
+        auto const blob = FileAPI::Blob::create(realm, blob_object->data, Utf16String::from_utf8(blob_object->type));
 
         // 9. Let response be a new response.
         auto response = Infrastructure::Response::create(vm);

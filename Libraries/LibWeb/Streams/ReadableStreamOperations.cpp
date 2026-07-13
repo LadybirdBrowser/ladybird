@@ -190,7 +190,7 @@ WebIDL::ExceptionOr<GC::Ref<ReadableStream>> readable_stream_from_iterable(JS::V
             GC::create_function(realm.heap(), [&vm, stream](JS::Value iter_result) -> WebIDL::ExceptionOr<JS::Value> {
                 // 1. If iterResult is not an Object, throw a TypeError.
                 if (!iter_result.is_object())
-                    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "iterResult is not an Object"sv };
+                    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "iterResult is not an Object"_utf16 };
 
                 // 2. Let done be ? IteratorComplete(iterResult).
                 auto done = TRY(JS::iterator_complete(vm, iter_result.as_object()));
@@ -244,7 +244,7 @@ WebIDL::ExceptionOr<GC::Ref<ReadableStream>> readable_stream_from_iterable(JS::V
             GC::create_function(realm.heap(), [](JS::Value iter_result) -> WebIDL::ExceptionOr<JS::Value> {
                 // 1. If iterResult is not an Object, throw a TypeError.
                 if (!iter_result.is_object())
-                    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "iterResult is not an Object"sv };
+                    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "iterResult is not an Object"_utf16 };
 
                 // 2. Return undefined.
                 return JS::js_undefined();
@@ -1227,11 +1227,11 @@ WebIDL::ExceptionOr<void> set_up_readable_stream_byob_reader(ReadableStreamBYOBR
 {
     // 1. If ! IsReadableStreamLocked(stream) is true, throw a TypeError exception.
     if (is_readable_stream_locked(stream))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot create stream reader for a locked stream"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot create stream reader for a locked stream"_utf16 };
 
     // 2. If stream.[[controller]] does not implement ReadableByteStreamController, throw a TypeError exception.
     if (!stream.controller()->has<GC::Ref<ReadableByteStreamController>>())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "BYOB reader cannot set up reader from non-byte stream"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "BYOB reader cannot set up reader from non-byte stream"_utf16 };
 
     // 3. Perform ! ReadableStreamReaderGenericInitialize(reader, stream).
     readable_stream_reader_generic_initialize({ reader }, stream);
@@ -1247,7 +1247,7 @@ WebIDL::ExceptionOr<void> set_up_readable_stream_default_reader(ReadableStreamDe
 {
     // 1. If ! IsReadableStreamLocked(stream) is true, throw a TypeError exception.
     if (is_readable_stream_locked(stream))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot create stream reader for a locked stream"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot create stream reader for a locked stream"_utf16 };
 
     // 2. Perform ! ReadableStreamReaderGenericInitialize(reader, stream).
     readable_stream_reader_generic_initialize({ reader }, stream);
@@ -2485,7 +2485,7 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond(ReadableByteSt
     if (state == ReadableStream::State::Closed) {
         // 1. If bytesWritten is not 0, throw a TypeError exception.
         if (bytes_written != 0)
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Bytes written is not zero for closed stream"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Bytes written is not zero for closed stream"_utf16 };
     }
     // 5. Otherwise,
     else {
@@ -2494,11 +2494,11 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond(ReadableByteSt
 
         // 2. If bytesWritten is 0, throw a TypeError exception.
         if (bytes_written == 0)
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Bytes written is zero for stream which is not closed"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Bytes written is zero for stream which is not closed"_utf16 };
 
         // 3. If firstDescriptor’s bytes filled + bytesWritten > firstDescriptor’s byte length, throw a RangeError exception.
         if (first_descriptor->bytes_filled + bytes_written > first_descriptor->byte_length)
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Bytes written is greater than the pull requests byte length"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Bytes written is greater than the pull requests byte length"_utf16 };
     }
 
     // 6. Set firstDescriptor’s buffer to ! TransferArrayBuffer(firstDescriptor’s buffer).
@@ -2670,7 +2670,7 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond_with_new_view(
     if (state == ReadableStream::State::Closed) {
         // 1. If view.[[ByteLength]] is not 0, throw a TypeError exception.
         if (view.byte_length() != 0)
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Byte length is not zero for closed stream"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Byte length is not zero for closed stream"_utf16 };
     }
     // 6. Otherwise,
     else {
@@ -2679,20 +2679,20 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond_with_new_view(
 
         // 2. If view.[[ByteLength]] is 0, throw a TypeError exception.
         if (view.byte_length() == 0)
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Byte length is zero for stream which is not closed"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Byte length is zero for stream which is not closed"_utf16 };
     }
 
     // 7. If firstDescriptor’s byte offset + firstDescriptor’ bytes filled is not view.[[ByteOffset]], throw a RangeError exception.
     if (first_descriptor->byte_offset + first_descriptor->bytes_filled != view.byte_offset())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Byte offset is not aligned with the pull request's byte offset"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Byte offset is not aligned with the pull request's byte offset"_utf16 };
 
     // 8. If firstDescriptor’s buffer byte length is not view.[[ViewedArrayBuffer]].[[ByteLength]], throw a RangeError exception.
     if (first_descriptor->buffer_byte_length != view.viewed_array_buffer()->byte_length())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Buffer byte length is not aligned with the pull request's byte length"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Buffer byte length is not aligned with the pull request's byte length"_utf16 };
 
     // 9. If firstDescriptor’s bytes filled + view.[[ByteLength]] > firstDescriptor’s byte length, throw a RangeError exception.
     if (first_descriptor->bytes_filled + view.byte_length() > first_descriptor->byte_length)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Byte length is greater than the pull request's byte length"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Byte length is greater than the pull request's byte length"_utf16 };
 
     // 10. Let viewByteLength be view.[[ByteLength]].
     auto view_byte_length = view.byte_length();
@@ -2903,7 +2903,7 @@ WebIDL::ExceptionOr<void> set_up_readable_byte_stream_controller_from_underlying
 
     // 9. If autoAllocateChunkSize is 0, then throw a TypeError exception.
     if (auto_allocate_chunk_size.is_integral_number() && auto_allocate_chunk_size.as_double() == 0)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot use an auto allocate chunk size of 0"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot use an auto allocate chunk size of 0"_utf16 };
 
     // 10. Perform ? SetUpReadableByteStreamController(stream, controller, startAlgorithm, pullAlgorithm, cancelAlgorithm, highWaterMark, autoAllocateChunkSize).
     return set_up_readable_byte_stream_controller(stream, controller, start_algorithm, pull_algorithm, cancel_algorithm, high_water_mark, auto_allocate_chunk_size);

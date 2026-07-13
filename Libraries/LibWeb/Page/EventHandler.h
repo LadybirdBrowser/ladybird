@@ -59,7 +59,7 @@ public:
 
     EventResult handle_drag_and_drop_event(DragEvent::Type, CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, Vector<HTML::SelectedFile> files);
     EventResult handle_pinch_event(CSSPixelPoint, unsigned modifiers, double scale_delta);
-    EventResult handle_paste(Utf16String const& text);
+    EventResult handle_paste(Utf16View text);
     void handle_sdl_input_events();
 
     void process_auto_scroll();
@@ -84,9 +84,9 @@ public:
 private:
     bool should_ignore_device_input_event() const;
 
-    EventResult fire_keyboard_event(FlyString const& event_name, HTML::LocalNavigable&, UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat);
-    [[nodiscard]] EventResult fire_text_input_event(HTML::LocalNavigable&, String const& data);
-    [[nodiscard]] EventResult input_event(FlyString const& event_name, FlyString const& input_type, HTML::LocalNavigable&, Variant<u32, Utf16String> code_point_or_string);
+    EventResult fire_keyboard_event(Utf16FlyString const& event_name, HTML::LocalNavigable&, UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat);
+    [[nodiscard]] EventResult fire_text_input_event(HTML::LocalNavigable&, Utf16String const& data);
+    [[nodiscard]] EventResult input_event(Utf16FlyString const& event_name, Utf16FlyString const& input_type, HTML::LocalNavigable&, Variant<u32, Utf16String> code_point_or_string);
 
     [[nodiscard]] EventResult perform_copy_action();
     [[nodiscard]] EventResult perform_cut_action();
@@ -157,7 +157,7 @@ private:
     PointerEventDispatchResult dispatch_a_pointer_event_for_a_device_that_supports_hover(PointerEventType, GC::Ptr<DOM::Node>, RefPtr<Painting::ChromeWidget>, MouseEventCoordinates const&, CSSPixelPoint screen_position, CSSPixelPoint movement, unsigned button, unsigned buttons, unsigned modifiers, int click_count = 0);
     void track_the_effective_position_of_the_legacy_mouse_pointer(GC::Ptr<DOM::Node>, Optional<DOM::HoverEventData> = {});
 
-    bool dispatch_chrome_widget_pointer_event(RefPtr<Painting::ChromeWidget>, FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position);
+    bool dispatch_chrome_widget_pointer_event(RefPtr<Painting::ChromeWidget>, Utf16FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position);
     void update_hovered_chrome_widget(RefPtr<Painting::ChromeWidget>);
 
     void update_cursor(RefPtr<Painting::Paintable>, GC::Ptr<DOM::Node> host_element, RefPtr<Painting::ChromeWidget>, bool hit_text_node = false);

@@ -30,10 +30,10 @@ CSSPropertyRule::CSSPropertyRule(JS::Realm& realm, Utf16FlyString name, Utf16Fly
 {
 }
 
-Optional<String> CSSPropertyRule::initial_value() const
+Optional<Utf16String> CSSPropertyRule::initial_value() const
 {
     if (m_initial_value)
-        return m_initial_value->to_string(SerializationMode::Normal);
+        return m_initial_value->to_utf16_string(SerializationMode::Normal);
     return {};
 }
 
@@ -54,9 +54,9 @@ CustomPropertyRegistration CSSPropertyRule::to_registration() const
 }
 
 // https://www.w3.org/TR/cssom-1/#serialize-a-css-rule
-String CSSPropertyRule::serialized() const
+Utf16String CSSPropertyRule::serialized() const
 {
-    StringBuilder builder;
+    Utf16StringBuilder builder;
 
     // Serialization algorithm is defined in the spec below
     // https://drafts.css-houdini.org/css-properties-values-api/#the-css-property-rule-interface
@@ -68,7 +68,7 @@ String CSSPropertyRule::serialized() const
     builder.appendff("@property {} ", serialize_an_identifier(name()));
 
     // 3. The string "{ ", i.e., a single LEFT CURLY BRACKET (U+007B), followed by a SPACE (U+0020).
-    builder.append("{ "sv);
+    builder.append_ascii("{ "sv);
 
     // 4. The string "syntax:", followed by a single SPACE (U+0020).
     // 5. The result of performing serialize a string on the rule’s syntax, followed by a single SEMICOLON (U+003B), followed by a SPACE (U+0020).
@@ -85,14 +85,14 @@ String CSSPropertyRule::serialized() const
         // 1. The string "initial-value:".
         // 2. The result of performing serialize a CSS value in the rule’s initial-value followed by a single SEMICOLON
         //    (U+003B), followed by a SPACE (U+0020).
-        builder.append("initial-value: "sv);
+        builder.append_ascii("initial-value: "sv);
         m_initial_value->serialize(builder, SerializationMode::Normal);
-        builder.append("; "sv);
+        builder.append_ascii("; "sv);
     }
     // 9. A single RIGHT CURLY BRACKET (U+007D).
-    builder.append("}"sv);
+    builder.append_ascii("}"sv);
 
-    return MUST(builder.to_string());
+    return builder.to_string();
 }
 
 void CSSPropertyRule::dump(StringBuilder& builder, int indent_levels) const

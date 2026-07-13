@@ -34,7 +34,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSMathProduct>> CSSMathProduct::multiply_all_types_
         if (auto multiplied_types = type.multiplied_by(value->type()); multiplied_types.has_value()) {
             type = multiplied_types.release_value();
         } else {
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot create a CSSMathProduct with values of incompatible types"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot create a CSSMathProduct with values of incompatible types"_utf16 };
         }
     }
 

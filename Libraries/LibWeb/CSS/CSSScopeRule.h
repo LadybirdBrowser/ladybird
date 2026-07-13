@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <AK/Utf16String.h>
 #include <LibWeb/CSS/CSSGroupingRule.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/Forward.h>
@@ -29,8 +30,8 @@ public:
     Optional<SelectorList> const& end_selectors_for_matching() const;
     GC::Ptr<CSSScopeRule const> nearest_ancestor_scope_rule() const;
 
-    Optional<String> start() const;
-    Optional<String> end() const;
+    Optional<Utf16String> start() const;
+    Optional<Utf16String> end() const;
 
 private:
     CSSScopeRule(JS::Realm&, Optional<SelectorList>&& start_selectors, Optional<SelectorList>&& end_selectors, CSSRuleList&);
@@ -38,7 +39,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void clear_caches() override;
-    virtual String serialized() const override;
+    virtual Utf16String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 
     Optional<SelectorList> m_start_selectors;

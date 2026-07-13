@@ -38,8 +38,8 @@ interface Element : Node {
     boolean hasAttributes();
     [SameObject] readonly attribute NamedNodeMap attributes;
     sequence<[Utf16FlyString] Utf16DOMString> getAttributeNames();
-    DOMString? getAttribute([Utf16FlyString] Utf16DOMString qualifiedName);
-    DOMString? getAttributeNS([Utf16FlyString] Utf16DOMString? namespace, [Utf16FlyString] Utf16DOMString localName);
+    Utf16DOMString? getAttribute([Utf16FlyString] Utf16DOMString qualifiedName);
+    Utf16DOMString? getAttributeNS([Utf16FlyString] Utf16DOMString? namespace, [Utf16FlyString] Utf16DOMString localName);
     [CEReactions, ImplementedAs=set_attribute_for_bindings] undefined setAttribute([Utf16FlyString] Utf16DOMString qualifiedName, (TrustedType or Utf16DOMString) value);
     [CEReactions, ImplementedAs=set_attribute_ns_for_bindings] undefined setAttributeNS([Utf16FlyString] Utf16DOMString? namespace, [Utf16FlyString] Utf16DOMString qualifiedName, (TrustedType or Utf16DOMString) value);
     [CEReactions] undefined removeAttribute([Utf16FlyString] Utf16DOMString qualifiedName);
@@ -59,16 +59,16 @@ interface Element : Node {
 
     readonly attribute CustomElementRegistry? customElementRegistry;
 
-    boolean matches(DOMString selectors);
-    Element? closest(DOMString selectors);
-    [ImplementedAs=matches] boolean webkitMatchesSelector(DOMString selectors); // legacy alias of .matches
+    boolean matches(Utf16DOMString selectors);
+    Element? closest(Utf16DOMString selectors);
+    [ImplementedAs=matches] boolean webkitMatchesSelector(Utf16DOMString selectors); // legacy alias of .matches
 
     HTMLCollection getElementsByTagName([Utf16FlyString] Utf16DOMString tagName);
     HTMLCollection getElementsByTagNameNS([Utf16FlyString] Utf16DOMString? namespace, [Utf16FlyString] Utf16DOMString localName);
     HTMLCollection getElementsByClassName(Utf16DOMString className);
 
-    [CEReactions] Element? insertAdjacentElement(DOMString where, Element element); // legacy
-    undefined insertAdjacentText(DOMString where, Utf16DOMString data); // legacy
+    [CEReactions] Element? insertAdjacentElement(Utf16DOMString where, Element element); // legacy
+    undefined insertAdjacentText(Utf16DOMString where, Utf16DOMString data); // legacy
 
     // https://dom.spec.whatwg.org/#interface-nondocumenttypechildnode
     readonly attribute Element? nextElementSibling;
@@ -99,13 +99,13 @@ interface Element : Node {
 
     // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-parsing-and-serialization
     [CEReactions] undefined setHTMLUnsafe((TrustedHTML or Utf16DOMString) html);
-    DOMString getHTML(optional GetHTMLOptions options = {});
+    Utf16DOMString getHTML(optional GetHTMLOptions options = {});
 
     [CEReactions, LegacyNullToEmptyString] attribute (TrustedHTML or Utf16DOMString) innerHTML;
 
     [CEReactions, LegacyNullToEmptyString] attribute (TrustedHTML or Utf16DOMString) outerHTML;
 
-    [CEReactions] undefined insertAdjacentHTML(DOMString position, (TrustedHTML or Utf16DOMString) text);
+    [CEReactions] undefined insertAdjacentHTML(Utf16DOMString position, (TrustedHTML or Utf16DOMString) text);
 
     // https://w3c.github.io/pointerevents/#extensions-to-the-element-interface
     undefined setPointerCapture(long pointerId);

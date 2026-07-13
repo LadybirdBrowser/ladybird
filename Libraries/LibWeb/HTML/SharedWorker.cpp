@@ -23,7 +23,7 @@ namespace Web::HTML {
 GC_DEFINE_ALLOCATOR(SharedWorker);
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-sharedworker
-WebIDL::ExceptionOr<GC::Ref<SharedWorker>> SharedWorker::construct_impl(JS::Realm& realm, TrustedTypes::TrustedScriptURLOrString const& script_url, Variant<String, Bindings::WorkerOptions>& options_value)
+WebIDL::ExceptionOr<GC::Ref<SharedWorker>> SharedWorker::construct_impl(JS::Realm& realm, TrustedTypes::TrustedScriptURLOrString const& script_url, Variant<Utf16String, Bindings::WorkerOptions>& options_value)
 {
     // 1. Let compliantScriptURL be the result of invoking the get trusted type compliant string algorithm with
     //    TrustedScriptURL, this's relevant global object, scriptURL, "SharedWorker constructor", and "script".
@@ -32,12 +32,12 @@ WebIDL::ExceptionOr<GC::Ref<SharedWorker>> SharedWorker::construct_impl(JS::Real
         realm.global_object(),
         script_url,
         TrustedTypes::InjectionSink::SharedWorker_constructor,
-        TrustedTypes::Script.to_string()));
+        TrustedTypes::Script.view()));
 
     // 2. If options is a DOMString, set options to a new WorkerOptions dictionary whose name member is set to the
     //    value of options and whose other members are set to their default values.
     auto options = options_value.visit(
-        [&](String& options) {
+        [&](Utf16String& options) {
             return Bindings::WorkerOptions { .name = move(options) };
         },
         [&](Bindings::WorkerOptions& options) {

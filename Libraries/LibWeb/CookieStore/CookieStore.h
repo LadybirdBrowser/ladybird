@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/Optional.h>
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibHTTP/Forward.h>
 #include <LibWeb/Bindings/CookieStore.h>
 #include <LibWeb/DOM/EventTarget.h>
@@ -22,16 +22,16 @@ class WEB_API CookieStore final : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(CookieStore);
 
 public:
-    GC::Ref<WebIDL::Promise> get(String name);
+    GC::Ref<WebIDL::Promise> get(Utf16String name);
     GC::Ref<WebIDL::Promise> get(Bindings::CookieStoreGetOptions const&);
 
-    GC::Ref<WebIDL::Promise> get_all(String name);
+    GC::Ref<WebIDL::Promise> get_all(Utf16String name);
     GC::Ref<WebIDL::Promise> get_all(Bindings::CookieStoreGetOptions const&);
 
-    GC::Ref<WebIDL::Promise> set(String name, String value);
+    GC::Ref<WebIDL::Promise> set(Utf16String name, Utf16String value);
     GC::Ref<WebIDL::Promise> set(Bindings::CookieInit const&);
 
-    GC::Ref<WebIDL::Promise> delete_(String name);
+    GC::Ref<WebIDL::Promise> delete_(Utf16String name);
     GC::Ref<WebIDL::Promise> delete_(Bindings::CookieStoreDeleteOptions const&);
 
     void set_onchange(WebIDL::CallbackType*);

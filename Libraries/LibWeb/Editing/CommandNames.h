@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
 
 namespace Web::Editing::CommandNames {
 
@@ -53,7 +53,7 @@ namespace Web::Editing::CommandNames {
     __ENUMERATE_COMMAND_NAME(unlink, "unlink")                                       \
     __ENUMERATE_COMMAND_NAME(useCSS, "useCSS")
 
-#define __ENUMERATE_COMMAND_NAME(name, command) extern FlyString const& name;
+#define __ENUMERATE_COMMAND_NAME(name, command) extern Utf16FlyString const& name;
 ENUMERATE_COMMAND_NAMES
 #undef __ENUMERATE_COMMAND_NAME
 

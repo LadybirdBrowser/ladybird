@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/NonnullRefPtr.h>
+#include <AK/Utf16String.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
@@ -21,7 +22,7 @@ class FileReader : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(FileReader);
 
 public:
-    using Result = Variant<Empty, String, GC::Ref<JS::ArrayBuffer>>;
+    using Result = Variant<Empty, Utf16String, GC::Ref<JS::ArrayBuffer>>;
 
     virtual ~FileReader() override;
 
@@ -31,7 +32,7 @@ public:
     // async read methods
     WebIDL::ExceptionOr<void> read_as_array_buffer(Blob&);
     WebIDL::ExceptionOr<void> read_as_binary_string(Blob&);
-    WebIDL::ExceptionOr<void> read_as_text(Blob&, Optional<String> const& encoding = {});
+    WebIDL::ExceptionOr<void> read_as_text(Blob&, Optional<Utf16String> const& encoding = {});
     WebIDL::ExceptionOr<void> read_as_data_url(Blob&);
 
     void abort();
@@ -87,7 +88,7 @@ public:
         Text,
         DataURL,
     };
-    static WebIDL::ExceptionOr<Result> blob_package_data(JS::Realm& realm, ByteBuffer, FileReader::Type type, Optional<String> const&, Optional<String> const& encoding_name = {});
+    static WebIDL::ExceptionOr<Result> blob_package_data(JS::Realm& realm, ByteBuffer, FileReader::Type type, Optional<Utf16String> const&, Optional<Utf16String> const& encoding_name = {});
 
 protected:
     FileReader(JS::Realm&, ByteBuffer);
@@ -99,7 +100,7 @@ protected:
 private:
     explicit FileReader(JS::Realm&);
 
-    WebIDL::ExceptionOr<void> read_operation(Blob&, Type, Optional<String> const& encoding_name = {});
+    WebIDL::ExceptionOr<void> read_operation(Blob&, Type, Optional<Utf16String> const& encoding_name = {});
 
     void queue_a_task(GC::Ref<GC::Function<void()>>);
 

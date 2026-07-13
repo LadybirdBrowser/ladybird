@@ -3,14 +3,14 @@
 interface SVGAElement : SVGGraphicsElement {
 
     [SameObject] readonly attribute SVGAnimatedString target;
-    [Reflect] attribute DOMString download;
-    [Reflect] attribute USVString ping;
-    [Reflect] attribute DOMString rel;
+    [Reflect] attribute Utf16DOMString download;
+    [Reflect] attribute Utf16USVString ping;
+    [Reflect] attribute Utf16DOMString rel;
     [SameObject, PutForwards=value] readonly attribute DOMTokenList relList;
-    [Reflect] attribute DOMString hreflang;
-    [Reflect] attribute DOMString type;
+    [Reflect] attribute Utf16DOMString hreflang;
+    [Reflect] attribute Utf16DOMString type;
 
-    [Reflect=referrerpolicy, Enumerated=ReferrerPolicy] attribute DOMString referrerPolicy;
+    [Reflect=referrerpolicy, Enumerated=ReferrerPolicy] attribute Utf16DOMString referrerPolicy;
 
 };
 

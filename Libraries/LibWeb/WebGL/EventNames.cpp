@@ -9,7 +9,7 @@
 namespace Web::WebGL::EventNames {
 
 #define __ENUMERATE_GL_EVENT(name) \
-    FlyString const& name = *new FlyString(#name##_fly_string);
+    Utf16FlyString const& name = *new Utf16FlyString(#name##_utf16_fly_string);
 ENUMERATE_GL_EVENTS
 #undef __ENUMERATE_GL_EVENT
 

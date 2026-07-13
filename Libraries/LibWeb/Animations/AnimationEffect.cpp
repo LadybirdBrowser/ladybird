@@ -85,10 +85,10 @@ Bindings::OptionalEffectTiming to_optional_effect_timing(Bindings::EffectTiming 
         .delay = effect_timing.delay,
         .direction = effect_timing.direction,
         .duration = effect_timing.duration.visit(
-            [](double const& value) -> Variant<double, String> { return value; },
-            [](String const& value) -> Variant<double, String> { return value; },
+            [](double const& value) -> Variant<double, Utf16String> { return value; },
+            [](Utf16String const& value) -> Variant<double, Utf16String> { return value; },
             // NB: We check that this isn't the case in the caller
-            [](GC::Ref<CSS::CSSNumericValue>) -> Variant<double, String> { VERIFY_NOT_REACHED(); }),
+            [](GC::Ref<CSS::CSSNumericValue>) -> Variant<double, Utf16String> { VERIFY_NOT_REACHED(); }),
         .easing = effect_timing.easing,
         .end_delay = effect_timing.end_delay,
         .fill = effect_timing.fill,
@@ -105,7 +105,7 @@ Bindings::EffectTiming AnimationEffect::get_timing() const
         .delay = m_specified_start_delay,
         .direction = m_playback_direction,
         .duration = m_specified_iteration_duration,
-        .easing = m_timing_function.to_string(),
+        .easing = m_timing_function.to_utf16_string(),
         .end_delay = m_specified_end_delay,
         .fill = m_fill_mode,
         .iteration_start = m_iteration_start,
@@ -146,7 +146,7 @@ Bindings::ComputedEffectTiming AnimationEffect::get_computed_timing() const
     computed_timing.iterations = m_iteration_count;
     computed_timing.duration = duration;
     computed_timing.direction = m_playback_direction;
-    computed_timing.easing = m_timing_function.to_string();
+    computed_timing.easing = m_timing_function.to_utf16_string();
     computed_timing.active_duration = active_duration().as_css_numberish(realm());
     computed_timing.current_iteration = current_iteration();
     computed_timing.end_time = end_time().as_css_numberish(realm());
@@ -211,7 +211,7 @@ void AnimationEffect::convert_a_time_based_animation_to_a_proportional_animation
     // AD-HOC: We use the specified interation duration instead of the iteration duration here, see
     //         https://github.com/w3c/csswg-drafts/pull/13170
     // If the iteration duration is auto, then perform the following steps.
-    if (m_specified_iteration_duration.has<String>()) {
+    if (m_specified_iteration_duration.has<Utf16String>()) {
         // Set start delay and end delay to 0, as it is not possible to mix time and proportions.
         // Note: Future versions may allow these properties to be assigned percentages, at which point the delays are
         //       only to be ignored if their values are expressed as times and not as percentages.
@@ -271,7 +271,7 @@ void AnimationEffect::normalize_specified_timing()
         // 3. If iteration duration is auto:
         // AD-HOC: We use the specified interation duration instead of the iteration duration here, see
         //         https://github.com/w3c/csswg-drafts/pull/13170
-        if (m_specified_iteration_duration.has<String>()) {
+        if (m_specified_iteration_duration.has<Utf16String>()) {
             // Set iteration duration = intrinsic iteration duration
             m_iteration_duration = intrinsic_iteration_duration();
         }
@@ -291,12 +291,12 @@ WebIDL::ExceptionOr<void> AnimationEffect::update_timing(Bindings::OptionalEffec
     // 1. If the iterationStart member of input exists and is less than zero, throw a TypeError and abort this
     //    procedure.
     if (timing.iteration_start.has_value() && timing.iteration_start.value() < 0.0)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid iteration start value"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid iteration start value"_utf16 };
 
     // 2. If the iterations member of input exists, and is less than zero or is the value NaN, throw a TypeError and
     //    abort this procedure.
     if (timing.iterations.has_value() && (timing.iterations.value() < 0.0 || isnan(timing.iterations.value())))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid iteration count value"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid iteration count value"_utf16 };
 
     // 3. If the duration member of input exists, and is less than zero or is the value NaN, throw a TypeError and
     //    abort this procedure.
@@ -307,12 +307,12 @@ WebIDL::ExceptionOr<void> AnimationEffect::update_timing(Bindings::OptionalEffec
             return true;
         if (duration->has<double>() && (duration->get<double>() < 0.0 || isnan(duration->get<double>())))
             return false;
-        if (duration->has<String>() && (duration->get<String>() != "auto"))
+        if (duration->has<Utf16String>() && (duration->get<Utf16String>() != "auto"sv))
             return false;
         return true;
     }();
     if (!has_valid_duration_value)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid duration value"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid duration value"_utf16 };
 
     // 4. If the easing member of input exists but cannot be parsed using the <easing-function> production
     //    [CSS-EASING-1], throw a TypeError and abort this procedure.
@@ -320,7 +320,7 @@ WebIDL::ExceptionOr<void> AnimationEffect::update_timing(Bindings::OptionalEffec
     if (timing.easing.has_value()) {
         easing_value = parse_easing_string(timing.easing.value());
         if (!easing_value.has_value())
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid easing function"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid easing function"_utf16 };
     }
 
     // 5. Assign each member that exists in input to the corresponding timing property of effect as follows:
@@ -766,24 +766,6 @@ Optional<double> AnimationEffect::transformed_progress() const
     // 3. Return the result of evaluating the animation effect’s timing function passing directed progress as the input progress value and
     //    before flag as the before flag.
     return m_timing_function.evaluate_at(directed_progress.value(), before_flag);
-}
-
-Optional<CSS::EasingFunction> AnimationEffect::parse_easing_string(StringView value)
-{
-    if (auto style_value = parse_css_value(CSS::Parser::ParsingParams(), value, CSS::PropertyID::AnimationTimingFunction)) {
-        if (style_value->is_unresolved() || style_value->is_css_wide_keyword())
-            return {};
-
-        auto easing_values = style_value->as_value_list().values();
-
-        if (easing_values.size() != 1)
-            return {};
-
-        // FIXME: We should absolutize the style value to resolve relative lengths within calcs
-        return CSS::EasingFunction::from_style_value(easing_values[0]);
-    }
-
-    return {};
 }
 
 Optional<CSS::EasingFunction> AnimationEffect::parse_easing_string(Utf16View value)

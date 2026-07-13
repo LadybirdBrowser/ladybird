@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        window.name = "hello \u{1d11e}";
+        println(window.name.length);
+        println(window.name.codePointAt(6).toString(16));
+
+        window.status = "status \u2603";
+        println(window.status.length);
+        println(window.status.codePointAt(7).toString(16));
+
+        println(typeof window.name);
+        println(typeof window.status);
+    });
+</script>

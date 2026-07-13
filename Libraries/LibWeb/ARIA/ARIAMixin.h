@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/String.h>
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibWeb/ARIA/AriaData.h>
@@ -82,7 +81,7 @@ protected:
 
     void visit_edges(GC::Cell::Visitor&);
 
-    virtual bool id_reference_exists(Utf16String const&) const = 0;
+    virtual bool id_reference_exists(Utf16View) const = 0;
 
 private:
 #define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute) \

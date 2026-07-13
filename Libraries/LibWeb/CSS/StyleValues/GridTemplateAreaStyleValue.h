@@ -10,6 +10,7 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/CSS/GridTrackSize.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
@@ -17,13 +18,13 @@ namespace Web::CSS {
 
 class GridTemplateAreaStyleValue final : public StyleValueWithDefaultOperators<GridTemplateAreaStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<GridTemplateAreaStyleValue const> create(HashMap<String, GridArea> grid_areas, size_t row_count, size_t column_count);
+    static ValueComparingNonnullRefPtr<GridTemplateAreaStyleValue const> create(HashMap<Utf16FlyString, GridArea> grid_areas, size_t row_count, size_t column_count);
     virtual ~GridTemplateAreaStyleValue() override = default;
 
-    HashMap<String, GridArea> const& grid_areas() const { return m_grid_areas; }
+    HashMap<Utf16FlyString, GridArea> const& grid_areas() const { return m_grid_areas; }
     size_t row_count() const { return m_row_count; }
     size_t column_count() const { return m_column_count; }
-    String cell_name_at(size_t row, size_t column) const;
+    Utf16FlyString cell_name_at(size_t row, size_t column) const;
     virtual void serialize(StringBuilder&, SerializationMode) const override;
 
     bool properties_equal(GridTemplateAreaStyleValue const& other) const
@@ -36,7 +37,7 @@ public:
     virtual bool is_computationally_independent() const override { return true; }
 
 private:
-    explicit GridTemplateAreaStyleValue(HashMap<String, GridArea> grid_areas, size_t row_count, size_t column_count)
+    explicit GridTemplateAreaStyleValue(HashMap<Utf16FlyString, GridArea> grid_areas, size_t row_count, size_t column_count)
         : StyleValueWithDefaultOperators(Type::GridTemplateArea)
         , m_grid_areas(move(grid_areas))
         , m_row_count(row_count)
@@ -44,7 +45,7 @@ private:
     {
     }
 
-    HashMap<String, GridArea> m_grid_areas;
+    HashMap<Utf16FlyString, GridArea> m_grid_areas;
     size_t m_row_count { 0 };
     size_t m_column_count { 0 };
 };

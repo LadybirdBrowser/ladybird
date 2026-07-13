@@ -4,7 +4,7 @@ interface Animation : EventTarget {
     constructor(optional AnimationEffect? effect = null,
                 optional AnimationTimeline? timeline);
 
-    attribute DOMString id;
+    attribute [Utf16FlyString] Utf16DOMString id;
     attribute AnimationEffect? effect;
     [ImplementedAs=timeline_for_bindings] attribute AnimationTimeline? timeline;
     [ImplementedAs=start_time_for_bindings] attribute CSSNumberish? startTime;

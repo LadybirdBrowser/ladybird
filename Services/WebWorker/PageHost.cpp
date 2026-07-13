@@ -103,7 +103,7 @@ bool PageHost::page_did_is_known_hsts_host(String const& domain)
     return m_client.did_is_known_hsts_host(domain);
 }
 
-void PageHost::page_did_report_worker_exception(String const& message, String const& filename, u32 lineno, u32 colno)
+void PageHost::page_did_report_worker_exception(Utf16String const& message, Utf16String const& filename, u32 lineno, u32 colno)
 {
     m_client.async_did_report_worker_exception(message, filename, lineno, colno);
 }

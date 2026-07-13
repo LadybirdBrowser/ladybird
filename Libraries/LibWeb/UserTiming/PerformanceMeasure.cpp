@@ -18,7 +18,7 @@ namespace Web::UserTiming {
 
 GC_DEFINE_ALLOCATOR(PerformanceMeasure);
 
-PerformanceMeasure::PerformanceMeasure(JS::Realm& realm, String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, JS::Value detail)
+PerformanceMeasure::PerformanceMeasure(JS::Realm& realm, Utf16String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, JS::Value detail)
     : PerformanceTimeline::PerformanceEntry(realm, name, start_time, duration)
     , m_detail(detail)
 {
@@ -26,12 +26,12 @@ PerformanceMeasure::PerformanceMeasure(JS::Realm& realm, String const& name, Hig
 
 PerformanceMeasure::~PerformanceMeasure() = default;
 
-GC::Ref<PerformanceMeasure> PerformanceMeasure::create(JS::Realm& realm, String const& measure_name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, JS::Value detail)
+GC::Ref<PerformanceMeasure> PerformanceMeasure::create(JS::Realm& realm, Utf16String const& measure_name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, JS::Value detail)
 {
     return realm.create<PerformanceMeasure>(realm, measure_name, start_time, duration, detail);
 }
 
-FlyString const& PerformanceMeasure::entry_type() const
+Utf16FlyString const& PerformanceMeasure::entry_type() const
 {
     return PerformanceTimeline::EntryTypes::measure;
 }

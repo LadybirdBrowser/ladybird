@@ -3,7 +3,7 @@
 interface VideoTrackList : EventTarget {
     readonly attribute unsigned long length;
     getter VideoTrack (unsigned long index);
-    VideoTrack? getTrackById(DOMString id);
+    VideoTrack? getTrackById(Utf16DOMString id);
     readonly attribute long selectedIndex;
 
     attribute EventHandler onchange;

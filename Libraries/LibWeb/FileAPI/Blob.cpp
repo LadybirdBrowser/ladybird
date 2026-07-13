@@ -5,8 +5,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/GenericLexer.h>
 #include <AK/Utf16String.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/TypedArray.h>
@@ -29,57 +29,61 @@ namespace Web::FileAPI {
 
 GC_DEFINE_ALLOCATOR(Blob);
 
-GC::Ref<Blob> Blob::create(JS::Realm& realm, ByteBuffer byte_buffer, String type)
+GC::Ref<Blob> Blob::create(JS::Realm& realm, ByteBuffer byte_buffer, Utf16View type)
 {
-    Bindings::BlobPropertyBag options = {
-        .endings = Bindings::EndingType::Transparent,
-        .type = move(type),
-    };
-    return create(realm, move(byte_buffer), move(options));
+    return realm.create<Blob>(realm, move(byte_buffer), Utf16String::from_utf16(type));
 }
 
 // https://w3c.github.io/FileAPI/#convert-line-endings-to-native
-ErrorOr<String> convert_line_endings_to_native(StringView string)
+ErrorOr<Utf16String> convert_line_endings_to_native(Utf16View string)
 {
     // 1. Let native line ending be the code point U+000A LF.
-    auto native_line_ending = "\n"sv;
+    auto native_line_ending = "\n"_utf16;
 
     // 2. If the underlying platform’s conventions are to represent newlines as a carriage return and line feed sequence, set native line ending to the code point U+000D CR followed by the code point U+000A LF.
     // NOTE: this step is a no-op since LibWeb does not compile on Windows, which is the only platform we know of that that uses a carriage return and line feed sequence for line endings.
 
     // 3. Set result to the empty string.
-    StringBuilder result;
+    Utf16StringBuilder result { string.length_in_code_units() };
 
     // 4. Let position be a position variable for s, initially pointing at the start of s.
-    auto lexer = GenericLexer { string };
+    size_t position = 0;
 
     // 5. Let token be the result of collecting a sequence of code points that are not equal to U+000A LF or U+000D CR from s given position.
+    size_t token_start = position;
+    while (position < string.length_in_code_units() && string.code_unit_at(position) != '\n' && string.code_unit_at(position) != '\r')
+        ++position;
+
     // 6. Append token to result.
-    TRY(result.try_append(lexer.consume_until(is_any_of("\n\r"sv))));
+    result.append(string.substring_view(token_start, position - token_start));
 
     // 7. While position is not past the end of s:
-    while (!lexer.is_eof()) {
+    while (position < string.length_in_code_units()) {
         // 1. If the code point at position within s equals U+000D CR:
-        if (lexer.peek() == '\r') {
+        if (string.code_unit_at(position) == '\r') {
             // 1. Append native line ending to result.
-            TRY(result.try_append(native_line_ending));
+            result.append(native_line_ending);
 
             // 2. Advance position by 1.
-            lexer.ignore(1);
+            ++position;
 
             // 3. If position is not past the end of s and the code point at position within s equals U+000A LF advance position by 1.
-            if (!lexer.is_eof() && lexer.peek() == '\n')
-                lexer.ignore(1);
+            if (position < string.length_in_code_units() && string.code_unit_at(position) == '\n')
+                ++position;
         }
         // 2. Otherwise if the code point at position within s equals U+000A LF, advance position by 1 and append native line ending to result.
-        else if (lexer.peek() == '\n') {
-            lexer.ignore(1);
-            TRY(result.try_append(native_line_ending));
+        else if (string.code_unit_at(position) == '\n') {
+            ++position;
+            result.append(native_line_ending);
         }
 
         // 3. Let token be the result of collecting a sequence of code points that are not equal to U+000A LF or U+000D CR from s given position.
+        token_start = position;
+        while (position < string.length_in_code_units() && string.code_unit_at(position) != '\n' && string.code_unit_at(position) != '\r')
+            ++position;
+
         // 4. Append token to result.
-        TRY(result.try_append(lexer.consume_until(is_any_of("\n\r"sv))));
+        result.append(string.substring_view(token_start, position - token_start));
     }
     // 5. Return result.
     return result.to_string();
@@ -95,17 +99,20 @@ ErrorOr<ByteBuffer> process_blob_parts(BlobParts const& blob_parts, Optional<Bin
     for (auto const& blob_part : blob_parts) {
         TRY(blob_part.visit(
             // 1. If element is a USVString, run the following sub-steps:
-            [&](String const& string) -> ErrorOr<void> {
+            [&](Utf16String const& string) -> ErrorOr<void> {
                 // 1. Let s be element.
-                auto s = string;
+                auto s = string.utf16_view();
 
                 // 2. If the endings member of options is "native", set s to the result of converting line endings to native of element.
-                if (options.has_value() && options->endings == Bindings::EndingType::Native)
-                    s = TRY(convert_line_endings_to_native(s));
+                Optional<Utf16String> native_line_endings;
+                if (options.has_value() && options->endings == Bindings::EndingType::Native) {
+                    native_line_endings = TRY(convert_line_endings_to_native(s));
+                    s = native_line_endings->utf16_view();
+                }
 
-                // NOTE: The AK::String is always UTF-8.
                 // 3. Append the result of UTF-8 encoding s to bytes.
-                return bytes.try_append(s.bytes());
+                auto encoded_string = TRY(s.to_utf8());
+                return bytes.try_append(encoded_string.bytes());
             },
             // 2. If element is a BufferSource, get a copy of the bytes held by the buffer source, and append those bytes to bytes.
             [&](WebIDL::BufferSourceVariant buffer_source) -> ErrorOr<void> {
@@ -121,7 +128,7 @@ ErrorOr<ByteBuffer> process_blob_parts(BlobParts const& blob_parts, Optional<Bin
     return bytes;
 }
 
-bool is_basic_latin(StringView view)
+bool is_basic_latin(Utf16View view)
 {
     for (auto code_point : view) {
         if (code_point < 0x0020 || code_point > 0x007E)
@@ -135,7 +142,7 @@ Blob::Blob(JS::Realm& realm)
 {
 }
 
-Blob::Blob(JS::Realm& realm, ByteBuffer byte_buffer, String type)
+Blob::Blob(JS::Realm& realm, ByteBuffer byte_buffer, Utf16String type)
     : PlatformObject(realm)
     , m_byte_buffer(move(byte_buffer))
     , m_type(move(type))
@@ -162,7 +169,7 @@ WebIDL::ExceptionOr<void> Blob::serialization_steps(HTML::StructuredSerializeWri
 
     // NON-STANDARD: FileAPI spec doesn't specify that type should be serialized, although
     //               to be conformant with other browsers this needs to be serialized.
-    serialized.encode(Utf16String::from_utf8(m_type));
+    serialized.encode(m_type);
 
     // 2. Set serialized.[[ByteSequence]] to value’s underlying byte sequence.
     serialized.encode(m_byte_buffer);
@@ -178,7 +185,7 @@ WebIDL::ExceptionOr<void> Blob::deserialization_steps(HTML::StructuredSerializeR
 
     // NON-STANDARD: FileAPI spec doesn't specify that type should be deserialized, although
     //               to be conformant with other browsers this needs to be deserialized.
-    m_type = TRY(HTML::decode_utf8_text_or_throw_data_clone_error(realm, serialized));
+    m_type = TRY(HTML::decode_or_throw_data_clone_error<Utf16String>(realm, serialized));
 
     // 2. Set value’s underlying byte sequence to serialized.[[ByteSequence]].
     m_byte_buffer = TRY(HTML::decode_or_throw_data_clone_error<ByteBuffer>(realm, serialized));
@@ -205,7 +212,7 @@ GC::Ref<Blob> Blob::create(JS::Realm& realm, Optional<BlobPartsOrByteBuffer> con
             });
     }
 
-    auto type = String {};
+    auto type = Utf16String {};
     // 3. If the type member of the options argument is not the empty string, run the following sub-steps:
     if (options.has_value() && !options->type.is_empty()) {
         // FIXME: 1. If the type member is provided and is not the empty string, let t be set to the type dictionary member.
@@ -213,9 +220,11 @@ GC::Ref<Blob> Blob::create(JS::Realm& realm, Optional<BlobPartsOrByteBuffer> con
         // FIXME: 2. Convert every character in t to ASCII lowercase.
 
         // NOTE: The spec is out of date, and we are supposed to call into the MimeType parser here.
-        auto maybe_parsed_type = MimeSniff::MimeType::parse(options->type);
-        if (maybe_parsed_type.has_value())
-            type = maybe_parsed_type->serialized();
+        if (is_basic_latin(options->type.utf16_view())) {
+            auto maybe_parsed_type = MimeSniff::MimeType::parse(options->type.utf16_view());
+            if (maybe_parsed_type.has_value())
+                type = maybe_parsed_type->serialized_as_utf16();
+        }
     }
 
     // 4. Return a Blob object referring to bytes as its associated byte sequence, with its size set to the length of bytes, and its type set to the value of t from the substeps above.
@@ -230,7 +239,7 @@ WebIDL::ExceptionOr<GC::Ref<Blob>> Blob::construct_impl(JS::Realm& realm, Option
 }
 
 // https://w3c.github.io/FileAPI/#dfn-slice
-WebIDL::ExceptionOr<GC::Ref<Blob>> Blob::slice(Optional<i64> start, Optional<i64> end, Optional<String> const& content_type)
+WebIDL::ExceptionOr<GC::Ref<Blob>> Blob::slice(Optional<i64> start, Optional<i64> end, Optional<Utf16String> const& content_type)
 {
     // 1. Let sliceStart, sliceEnd, and sliceContentType be null.
     // 2. If start is given, set sliceStart to start.
@@ -241,7 +250,7 @@ WebIDL::ExceptionOr<GC::Ref<Blob>> Blob::slice(Optional<i64> start, Optional<i64
 }
 
 // https://w3c.github.io/FileAPI/#slice-blob
-WebIDL::ExceptionOr<GC::Ref<Blob>> Blob::slice_blob(Optional<i64> start, Optional<i64> end, Optional<String> const& content_type)
+WebIDL::ExceptionOr<GC::Ref<Blob>> Blob::slice_blob(Optional<i64> start, Optional<i64> end, Optional<Utf16String> const& content_type)
 {
     auto& vm = realm().vm();
 
@@ -287,7 +296,7 @@ WebIDL::ExceptionOr<GC::Ref<Blob>> Blob::slice_blob(Optional<i64> start, Optiona
 
     // 4. The contentType parameter, if non-null, is used to set the ASCII-encoded string in lower case representing the media type of the Blob.
     //    User agents must normalize contentType according to the following:
-    String relative_content_type;
+    Utf16String relative_content_type;
     if (!content_type.has_value()) {
         // a. If contentType is null, let relativeContentType be set to the empty string.
         relative_content_type = {};
@@ -296,12 +305,12 @@ WebIDL::ExceptionOr<GC::Ref<Blob>> Blob::slice_blob(Optional<i64> start, Optiona
 
         // 1. If relativeContentType contains any characters outside the range of U+0020 to U+007E, then set relativeContentType to the empty string
         //    and return from these substeps:
-        if (!is_basic_latin(content_type.value())) {
+        if (!is_basic_latin(content_type->utf16_view())) {
             relative_content_type = {};
         }
         // 2. Convert every character in relativeContentType to ASCII lowercase.
         else {
-            relative_content_type = content_type.value().to_ascii_lowercase();
+            relative_content_type = content_type->to_ascii_lowercase();
         }
     }
 
@@ -400,8 +409,8 @@ GC::Ref<WebIDL::Promise> Blob::text()
 
         auto decoder = TextCodec::decoder_for("UTF-8"sv);
         auto buffer_data = MUST(array_buffer.copy_to_byte_buffer());
-        auto utf8_text = TRY_OR_THROW_OOM(vm, TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, buffer_data));
-        return JS::PrimitiveString::create(vm, Utf16String::from_utf8(utf8_text));
+        auto text = TRY_OR_THROW_OOM(vm, TextCodec::convert_input_to_utf16_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, buffer_data));
+        return JS::PrimitiveString::create(vm, move(text));
     }));
 }
 

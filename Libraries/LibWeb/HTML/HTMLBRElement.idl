@@ -4,6 +4,6 @@ interface HTMLBRElement : HTMLElement {
 
     [HTMLConstructor] constructor();
 
-    [CEReactions, Reflect] attribute DOMString clear;
+    [CEReactions, Reflect] attribute Utf16DOMString clear;
 
 };

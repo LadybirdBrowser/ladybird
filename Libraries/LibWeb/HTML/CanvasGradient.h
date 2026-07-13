@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Utf16View.h>
 #include <LibGfx/PaintStyle.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 
@@ -21,7 +22,7 @@ public:
     static WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> create_linear(JS::Realm&, double x0, double y0, double x1, double y1);
     static WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> create_conic(JS::Realm&, double start_angle, double x, double y);
 
-    WebIDL::ExceptionOr<void> add_color_stop(double offset, StringView color);
+    WebIDL::ExceptionOr<void> add_color_stop(double offset, Utf16View color);
 
     ~CanvasGradient();
 

@@ -9,7 +9,7 @@
 namespace Web::UIEvents::InputTypes {
 
 #define __ENUMERATE_INPUT_TYPE(name) \
-    FlyString const& name = *new FlyString(#name##_fly_string);
+    Utf16FlyString const& name = *new Utf16FlyString(#name##_utf16_fly_string);
 ENUMERATE_INPUT_TYPES
 #undef __ENUMERATE_INPUT_TYPE
 

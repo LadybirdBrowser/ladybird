@@ -138,17 +138,17 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
     DOM::AbortSignal* input_signal = nullptr;
 
     // 5. If input is a string, then:
-    if (input.has<String>()) {
+    if (input.has<Utf16String>()) {
         // 1. Let parsedURL be the result of parsing input with baseURL.
-        auto parsed_url = DOMURL::parse(input.get<String>(), base_url);
+        auto parsed_url = DOMURL::parse(input.get<Utf16String>().utf16_view(), base_url);
 
         // 2. If parsedURL is failure, then throw a TypeError.
         if (!parsed_url.has_value())
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Input URL is not valid"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Input URL is not valid"_utf16 };
 
         // 3. If parsedURL includes credentials, then throw a TypeError.
         if (parsed_url->includes_credentials())
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Input URL must not include credentials"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Input URL must not include credentials"_utf16 };
 
         // 4. Set request to a new request whose URL is parsedURL.
         input_request = Infrastructure::Request::create(vm);
@@ -185,7 +185,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
 
     // 10. If init["window"] exists and is non-null, then throw a TypeError.
     if (init.window.has_value() && !init.window->is_null())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "The 'window' property must be omitted or null"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "The 'window' property must be omitted or null"_utf16 };
 
     // 11. If init["window"] exists, then set traversableForUserPrompts to "no-traversable".
     if (init.window.has_value())
@@ -319,11 +319,11 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
         // 3. Otherwise:
         else {
             // 1. Let parsedReferrer be the result of parsing referrer with baseURL.
-            auto parsed_referrer = DOMURL::parse(referrer, base_url);
+            auto parsed_referrer = DOMURL::parse(referrer.utf16_view(), base_url);
 
             // 2. If parsedReferrer is failure, then throw a TypeError.
             if (!parsed_referrer.has_value())
-                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Referrer must be a valid URL"sv };
+                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Referrer must be a valid URL"_utf16 };
 
             // 3. If one of the following is true
             // - parsedReferrer’s scheme is "about" and path is the string "client"
@@ -352,7 +352,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
 
     // 17. If mode is "navigate", then throw a TypeError.
     if (mode == Infrastructure::Request::Mode::Navigate)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Mode must not be 'navigate'"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Mode must not be 'navigate'"_utf16 };
 
     // 18. If mode is non-null, set request’s mode to mode.
     if (mode.has_value())
@@ -368,7 +368,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
 
     // 21. If request’s cache mode is "only-if-cached" and request’s mode is not "same-origin", then throw a TypeError.
     if (request->cache_mode() == HTTP::CacheMode::OnlyIfCached && request->mode() != Infrastructure::Request::Mode::SameOrigin)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Mode must be 'same-origin' when cache mode is 'only-if-cached'"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Mode must be 'same-origin' when cache mode is 'only-if-cached'"_utf16 };
 
     // 22. If init["redirect"] exists, then set request’s redirect mode to it.
     if (init.redirect.has_value())
@@ -389,9 +389,9 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
 
         // 2. If method is not a method or method is a forbidden method, then throw a TypeError.
         if (!HTTP::is_method(method))
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Method has invalid value"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Method has invalid value"_utf16 };
         if (HTTP::is_forbidden_method(method))
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Method must not be one of CONNECT, TRACE, or TRACK"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Method must not be one of CONNECT, TRACE, or TRACK"_utf16 };
 
         // 3. Normalize method.
         auto normalized_method = HTTP::normalize_method(method);
@@ -429,7 +429,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
     if (request_object->request()->mode() == Infrastructure::Request::Mode::NoCORS) {
         // 1. If this’s request’s method is not a CORS-safelisted method, then throw a TypeError.
         if (!HTTP::is_cors_safelisted_method(request_object->request()->method()))
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Method must be one of GET, HEAD, or POST"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Method must be one of GET, HEAD, or POST"_utf16 };
 
         // 2. Set this’s headers’s guard to "request-no-cors".
         request_object->headers()->set_guard(Headers::Guard::RequestNoCORS);
@@ -469,7 +469,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
 
     // 35. If either init["body"] exists and is non-null or inputBody is non-null, and request’s method is `GET` or `HEAD`, then throw a TypeError.
     if (((init.body.has_value() && !init.body->has<Empty>()) || (input_body.has_value() && !input_body.value().has<Empty>())) && request->method().is_one_of("GET"sv, "HEAD"sv))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Method must not be GET or HEAD when body is provided"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Method must not be GET or HEAD when body is provided"_utf16 };
 
     // 36. Let initBody be null.
     Optional<Infrastructure::Request::BodyType> init_body;
@@ -498,11 +498,11 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
     if (input_or_init_body.has_value() && input_or_init_body->has<GC::Ref<Infrastructure::Body>>() && input_or_init_body->get<GC::Ref<Infrastructure::Body>>()->source().has<Empty>()) {
         // 1. If initBody is non-null and init["duplex"] does not exist, then throw a TypeError.
         if (init_body.has_value() && !init.duplex.has_value())
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Body without source requires 'duplex' value to be set"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Body without source requires 'duplex' value to be set"_utf16 };
 
         // 2. If this’s request’s mode is neither "same-origin" nor "cors", then throw a TypeError.
         if (request_object->request()->mode() != Infrastructure::Request::Mode::SameOrigin && request_object->request()->mode() != Infrastructure::Request::Mode::CORS)
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Request mode must be 'same-origin' or 'cors'"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Request mode must be 'same-origin' or 'cors'"_utf16 };
 
         // 3. Set this’s request’s use-CORS-preflight flag.
         request_object->request()->set_use_cors_preflight(true);
@@ -515,7 +515,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
     if (!init_body.has_value() && input_body.has_value()) {
         // 2. If input is unusable, then throw a TypeError.
         if (input.has<GC::Ref<Request>>() && input.get<GC::Ref<Request>>()->is_unusable())
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Request is unusable"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Request is unusable"_utf16 };
 
         // FIXME: 2. Set finalBody to the result of creating a proxy for inputBody.
     }
@@ -535,10 +535,11 @@ String Request::method() const
 }
 
 // https://fetch.spec.whatwg.org/#dom-request-url
-String Request::url() const
+Utf16String Request::url() const
 {
     // The url getter steps are to return this’s request’s URL, serialized.
-    return m_request->url().serialize();
+    auto serialized_url = m_request->url().serialize();
+    return Utf16String::from_ascii_without_validation(serialized_url.bytes());
 }
 
 // https://fetch.spec.whatwg.org/#dom-request-headers
@@ -556,24 +557,25 @@ Bindings::RequestDestination Request::destination() const
 }
 
 // https://fetch.spec.whatwg.org/#dom-request-referrer
-String Request::referrer() const
+Utf16String Request::referrer() const
 {
     return m_request->referrer().visit(
         [&](Infrastructure::Request::Referrer const& referrer) {
             switch (referrer) {
             // 1. If this’s request’s referrer is "no-referrer", then return the empty string.
             case Infrastructure::Request::Referrer::NoReferrer:
-                return String {};
+                return Utf16String {};
             // 2. If this’s request’s referrer is "client", then return "about:client".
             case Infrastructure::Request::Referrer::Client:
-                return "about:client"_string;
+                return "about:client"_utf16;
             default:
                 VERIFY_NOT_REACHED();
             }
         },
         [&](URL::URL const& url) {
             // 3. Return this’s request’s referrer, serialized.
-            return url.serialize();
+            auto serialized_url = url.serialize();
+            return Utf16String::from_ascii_without_validation(serialized_url.bytes());
         });
 }
 
@@ -613,7 +615,7 @@ Bindings::RequestRedirect Request::redirect() const
 }
 
 // https://fetch.spec.whatwg.org/#dom-request-integrity
-String Request::integrity() const
+Utf16String Request::integrity() const
 {
     // The integrity getter steps are to return this’s request’s integrity metadata.
     return m_request->integrity_metadata();
@@ -661,7 +663,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::clone() const
 
     // 1. If this is unusable, then throw a TypeError.
     if (is_unusable())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Request is unusable"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Request is unusable"_utf16 };
 
     // 2. Let clonedRequest be the result of cloning this’s request.
     auto cloned_request = m_request->clone(realm);

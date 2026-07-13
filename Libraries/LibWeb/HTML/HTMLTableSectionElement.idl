@@ -9,9 +9,9 @@ interface HTMLTableSectionElement : HTMLElement {
     [CEReactions] undefined deleteRow(long index);
 
     // Obsolete
-    [CEReactions, Reflect] attribute DOMString align;
-    [CEReactions, Reflect=char] attribute DOMString ch;
-    [CEReactions, Reflect=charoff] attribute DOMString chOff;
-    [CEReactions, Reflect=valign] attribute DOMString vAlign;
+    [CEReactions, Reflect] attribute Utf16DOMString align;
+    [CEReactions, Reflect=char] attribute Utf16DOMString ch;
+    [CEReactions, Reflect=charoff] attribute Utf16DOMString chOff;
+    [CEReactions, Reflect=valign] attribute Utf16DOMString vAlign;
 
 };

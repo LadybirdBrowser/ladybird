@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibURL/RustIntegration.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/URLPattern.h>
@@ -14,7 +14,7 @@
 namespace Web::URLPattern {
 
 using URLPatternInit = Bindings::URLPatternInit;
-using URLPatternInput = Variant<String, Bindings::URLPatternInit>;
+using URLPatternInput = Variant<Utf16String, Bindings::URLPatternInit>;
 using URLPatternResult = Bindings::URLPatternResult;
 using URLPatternOptions = Bindings::URLPatternOptions;
 
@@ -24,21 +24,21 @@ class URLPattern : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(URLPattern);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<URLPattern>> create(JS::Realm&, URLPatternInput const&, Optional<String> const& base_url, URLPatternOptions const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<URLPattern>> construct_impl(JS::Realm&, URLPatternInput const&, String const& base_url, URLPatternOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<URLPattern>> create(JS::Realm&, URLPatternInput const&, Optional<Utf16String> const& base_url, URLPatternOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<URLPattern>> construct_impl(JS::Realm&, URLPatternInput const&, Utf16String const& base_url, URLPatternOptions const& = {});
     static WebIDL::ExceptionOr<GC::Ref<URLPattern>> construct_impl(JS::Realm&, URLPatternInput const&, URLPatternOptions const& = {});
 
-    WebIDL::ExceptionOr<bool> test(URLPatternInput const&, Optional<String> const& base_url) const;
-    WebIDL::ExceptionOr<Optional<URLPatternResult>> exec(URLPatternInput const&, Optional<String> const& base_url) const;
+    WebIDL::ExceptionOr<bool> test(URLPatternInput const&, Optional<Utf16String> const& base_url) const;
+    WebIDL::ExceptionOr<Optional<URLPatternResult>> exec(URLPatternInput const&, Optional<Utf16String> const& base_url) const;
 
-    String const& protocol() const;
-    String const& username() const;
-    String const& password() const;
-    String const& hostname() const;
-    String const& port() const;
-    String const& pathname() const;
-    String const& search() const;
-    String const& hash() const;
+    Utf16String protocol() const;
+    Utf16String username() const;
+    Utf16String password() const;
+    Utf16String hostname() const;
+    Utf16String port() const;
+    Utf16String pathname() const;
+    Utf16String search() const;
+    Utf16String hash() const;
 
     bool has_reg_exp_groups() const;
 

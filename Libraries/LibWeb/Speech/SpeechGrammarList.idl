@@ -5,6 +5,6 @@ interface SpeechGrammarList {
 
     readonly attribute unsigned long length;
     getter SpeechGrammar item(unsigned long index);
-    [FIXME] undefined addFromURI(DOMString src, optional float weight = 1.0);
-    [FIXME] undefined addFromString(DOMString string, optional float weight = 1.0);
+    [FIXME] undefined addFromURI(Utf16DOMString src, optional float weight = 1.0);
+    [FIXME] undefined addFromString(Utf16DOMString string, optional float weight = 1.0);
 };

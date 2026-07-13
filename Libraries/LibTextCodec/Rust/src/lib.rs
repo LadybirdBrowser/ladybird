@@ -13,6 +13,7 @@ use std::panic::AssertUnwindSafe;
 use std::panic::catch_unwind;
 
 type FfiBytesFn = unsafe extern "C" fn(ctx: *mut c_void, data: *const u8, len: usize);
+type FfiUtf16Fn = unsafe extern "C" fn(ctx: *mut c_void, data: *const u16, len: usize);
 type FfiCodePointFn = unsafe extern "C" fn(ctx: *mut c_void, code_point: u32);
 
 pub struct TextCodecRustStreamingDecoder {
@@ -214,6 +215,56 @@ pub unsafe extern "C" fn textcodec_rust_streaming_decoder_decode_to_utf8(
             let (result, _, _) = decoder.decoder.decode_to_string(input, &mut output, last);
             if !output.is_empty() {
                 on_bytes(ctx, output.as_ptr(), output.len());
+            }
+
+            matches!(result, CoderResult::InputEmpty)
+        })
+    }
+}
+
+/// # Safety
+/// - `decoder` must be a valid pointer returned by `textcodec_rust_streaming_decoder_new`.
+/// - `input`/`input_len` must be a valid byte slice.
+/// - `on_utf16` must not retain `data` beyond the duration of the callback.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn textcodec_rust_streaming_decoder_decode_to_utf16(
+    decoder: *mut TextCodecRustStreamingDecoder,
+    input: *const u8,
+    input_len: usize,
+    last: bool,
+    fatal: bool,
+    ctx: *mut c_void,
+    on_utf16: FfiUtf16Fn,
+) -> bool {
+    unsafe {
+        abort_on_panic(|| {
+            if decoder.is_null() {
+                eprintln!("textcodec_rust_streaming_decoder_decode_to_utf16: null decoder pointer");
+                return false;
+            }
+            let Some(input) = bytes_from_raw(input, input_len) else {
+                return false;
+            };
+            let decoder = &mut *decoder;
+            let Some(output_capacity) = decoder.decoder.max_utf16_buffer_length(input.len()) else {
+                return false;
+            };
+            let mut output = vec![0u16; output_capacity];
+
+            if fatal {
+                let (result, _, written) =
+                    decoder
+                        .decoder
+                        .decode_to_utf16_without_replacement(input, &mut output, last);
+                if written > 0 {
+                    on_utf16(ctx, output.as_ptr(), written);
+                }
+                return matches!(result, DecoderResult::InputEmpty);
+            }
+
+            let (result, _, written, _) = decoder.decoder.decode_to_utf16(input, &mut output, last);
+            if written > 0 {
+                on_utf16(ctx, output.as_ptr(), written);
             }
 
             matches!(result, CoderResult::InputEmpty)

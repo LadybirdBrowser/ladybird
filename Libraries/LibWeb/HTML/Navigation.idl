@@ -9,10 +9,10 @@ interface Navigation : EventTarget {
     readonly attribute boolean canGoBack;
     readonly attribute boolean canGoForward;
 
-    NavigationResult navigate(USVString url, optional NavigationNavigateOptions options = {});
+    NavigationResult navigate(Utf16USVString url, optional NavigationNavigateOptions options = {});
     NavigationResult reload(optional NavigationReloadOptions options = {});
 
-    NavigationResult traverseTo(DOMString key, optional NavigationOptions options = {});
+    NavigationResult traverseTo(Utf16DOMString key, optional NavigationOptions options = {});
     NavigationResult back(optional NavigationOptions options = {});
     NavigationResult forward(optional NavigationOptions options = {});
 

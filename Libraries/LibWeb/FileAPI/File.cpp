@@ -18,7 +18,7 @@ namespace Web::FileAPI {
 
 GC_DEFINE_ALLOCATOR(File);
 
-File::File(JS::Realm& realm, ByteBuffer byte_buffer, String file_name, String type, i64 last_modified)
+File::File(JS::Realm& realm, ByteBuffer byte_buffer, Utf16String file_name, Utf16String type, i64 last_modified)
     : Blob(realm, move(byte_buffer), move(type))
     , m_name(move(file_name))
     , m_last_modified(last_modified)
@@ -44,7 +44,7 @@ GC::Ref<File> File::create(JS::Realm& realm)
 }
 
 // https://w3c.github.io/FileAPI/#ref-for-dom-file-file
-WebIDL::ExceptionOr<GC::Ref<File>> File::create(JS::Realm& realm, BlobParts const& file_bits, String const& file_name, Optional<Bindings::FilePropertyBag> const& options)
+WebIDL::ExceptionOr<GC::Ref<File>> File::create(JS::Realm& realm, BlobParts const& file_bits, Utf16String file_name, Optional<Bindings::FilePropertyBag> const& options)
 {
     auto& vm = realm.vm();
 
@@ -53,9 +53,9 @@ WebIDL::ExceptionOr<GC::Ref<File>> File::create(JS::Realm& realm, BlobParts cons
 
     // 2. Let n be the fileName argument to the constructor.
     //    NOTE: Underlying OS filesystems use differing conventions for file name; with constructed files, mandating UTF-16 lessens ambiquity when file names are converted to byte sequences.
-    auto name = file_name;
+    auto name = move(file_name);
 
-    auto type = String {};
+    auto type = Utf16String {};
     i64 last_modified = 0;
     // 3. Process FilePropertyBag dictionary argument by running the following substeps:
     if (options.has_value()) {
@@ -64,10 +64,12 @@ WebIDL::ExceptionOr<GC::Ref<File>> File::create(JS::Realm& realm, BlobParts cons
         // FIXME: 2. Convert every character in t to ASCII lowercase.
 
         // NOTE: The spec is out of date, and we are supposed to call into the MimeType parser here.
-        auto maybe_parsed_type = Web::MimeSniff::MimeType::parse(options->type);
+        if (is_basic_latin(options->type.utf16_view())) {
+            auto maybe_parsed_type = Web::MimeSniff::MimeType::parse(options->type.utf16_view());
 
-        if (maybe_parsed_type.has_value())
-            type = maybe_parsed_type->serialized();
+            if (maybe_parsed_type.has_value())
+                type = maybe_parsed_type->serialized_as_utf16();
+        }
 
         // 3. If the lastModified member is provided, let d be set to the lastModified dictionary member. If it is not provided, set d to the current date and time represented as the number of milliseconds since the Unix Epoch (which is the equivalent of Date.now() [ECMA-262]).
         //    Note: Since ECMA-262 Date objects convert to long long values representing the number of milliseconds since the Unix Epoch, the lastModified member could be a Date object [ECMA-262].
@@ -84,9 +86,9 @@ WebIDL::ExceptionOr<GC::Ref<File>> File::create(JS::Realm& realm, BlobParts cons
     return realm.create<File>(realm, move(bytes), move(name), move(type), last_modified);
 }
 
-WebIDL::ExceptionOr<GC::Ref<File>> File::construct_impl(JS::Realm& realm, BlobParts const& file_bits, String const& file_name, Optional<Bindings::FilePropertyBag> const& options)
+WebIDL::ExceptionOr<GC::Ref<File>> File::construct_impl(JS::Realm& realm, BlobParts const& file_bits, Utf16String file_name, Optional<Bindings::FilePropertyBag> const& options)
 {
-    return create(realm, file_bits, file_name, options);
+    return create(realm, file_bits, move(file_name), options);
 }
 
 WebIDL::ExceptionOr<void> File::serialization_steps(HTML::StructuredSerializeWriter& serialized, bool, HTML::SerializationMemory&)
@@ -95,13 +97,13 @@ WebIDL::ExceptionOr<void> File::serialization_steps(HTML::StructuredSerializeWri
 
     // NON-STANDARD: FileAPI spec doesn't specify that type should be serialized, although
     //               to be conformant with other browsers this needs to be serialized.
-    serialized.encode(Utf16String::from_utf8(m_type));
+    serialized.encode(m_type);
 
     // 2. Set serialized.[[ByteSequence]] to value’s underlying byte sequence.
     serialized.encode(m_byte_buffer);
 
     // 3. Set serialized.[[Name]] to the value of value’s name attribute.
-    serialized.encode(Utf16String::from_utf8(m_name));
+    serialized.encode(m_name);
 
     // 4. Set serialized.[[LastModified]] to the value of value’s lastModified attribute.
     serialized.encode(m_last_modified);
@@ -117,13 +119,13 @@ WebIDL::ExceptionOr<void> File::deserialization_steps(HTML::StructuredSerializeR
 
     // NON-STANDARD: FileAPI spec doesn't specify that type should be deserialized, although
     //               to be conformant with other browsers this needs to be deserialized.
-    m_type = TRY(HTML::decode_utf8_text_or_throw_data_clone_error(realm, serialized));
+    m_type = TRY(HTML::decode_or_throw_data_clone_error<Utf16String>(realm, serialized));
 
     // 2. Set value’s underlying byte sequence to serialized.[[ByteSequence]].
     m_byte_buffer = TRY(HTML::decode_or_throw_data_clone_error<ByteBuffer>(realm, serialized));
 
     // 3. Initialize the value of value’s name attribute to serialized.[[Name]].
-    m_name = TRY(HTML::decode_utf8_text_or_throw_data_clone_error(realm, serialized));
+    m_name = TRY(HTML::decode_or_throw_data_clone_error<Utf16String>(realm, serialized));
 
     // 4. Initialize the value of value’s lastModified attribute to serialized.[[LastModified]].
     m_last_modified = TRY(HTML::decode_or_throw_data_clone_error<i64>(realm, serialized));

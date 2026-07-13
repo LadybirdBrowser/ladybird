@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibWeb/Bindings/HashChangeEvent.h>
 #include <LibWeb/DOM/Event.h>
 
@@ -16,20 +17,20 @@ class HashChangeEvent final : public DOM::Event {
     GC_DECLARE_ALLOCATOR(HashChangeEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<HashChangeEvent> create(JS::Realm&, FlyString const& event_name, Bindings::HashChangeEventInit const&);
-    [[nodiscard]] static GC::Ref<HashChangeEvent> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::HashChangeEventInit const&);
+    [[nodiscard]] static GC::Ref<HashChangeEvent> create(JS::Realm&, Utf16FlyString const& event_name, Bindings::HashChangeEventInit const&);
+    [[nodiscard]] static GC::Ref<HashChangeEvent> construct_impl(JS::Realm&, Utf16FlyString const& event_name, Bindings::HashChangeEventInit const&);
 
-    String old_url() const { return m_old_url; }
-    String new_url() const { return m_new_url; }
+    Utf16String const& old_url() const { return m_old_url; }
+    Utf16String const& new_url() const { return m_new_url; }
 
 private:
-    HashChangeEvent(JS::Realm&, FlyString const& event_name, Bindings::HashChangeEventInit const& event_init);
+    HashChangeEvent(JS::Realm&, Utf16FlyString const& event_name, Bindings::HashChangeEventInit const& event_init);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(JS::Cell::Visitor& visitor) override;
 
-    String m_old_url;
-    String m_new_url;
+    Utf16String m_old_url;
+    Utf16String m_new_url;
 };
 
 }

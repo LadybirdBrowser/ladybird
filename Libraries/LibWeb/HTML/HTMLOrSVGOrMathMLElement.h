@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/HTML/DOMStringMap.h>
@@ -20,7 +21,7 @@ public:
 
     // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#dom-noncedelement-nonce
     Utf16String const& nonce() const { return m_cryptographic_nonce; }
-    void set_nonce(Utf16String const& nonce) { m_cryptographic_nonce = nonce; }
+    void set_nonce(Utf16View nonce) { m_cryptographic_nonce = Utf16String::from_utf16(nonce); }
 
     void focus();
     void blur();

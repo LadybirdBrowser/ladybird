@@ -600,7 +600,7 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_v
     auto find_generic_font = [&](Keyword font_id) -> RefPtr<Gfx::FontCascadeList const> {
 #ifdef AK_OS_MACOS
         if (auto system_ui_font_kind = macos_system_ui_font_kind_from_family_name(string_from_keyword(font_id)); system_ui_font_kind.has_value()) {
-            auto family = Utf16FlyString { Utf16String::from_utf8(string_from_keyword(font_id)) };
+            auto family = utf16_fly_string_from_keyword(font_id);
             if (auto system_font = find_macos_system_ui_font(system_ui_font_kind.value(), family))
                 return system_font;
         }

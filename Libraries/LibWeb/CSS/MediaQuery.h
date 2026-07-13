@@ -60,7 +60,8 @@ public:
 
     bool matches() const { return m_matches; }
     bool evaluate(DOM::Document const&);
-    String to_string() const;
+    Utf16String to_string() const;
+    void serialize_to(Utf16StringBuilder&) const;
 
     void dump(StringBuilder&, int indent_levels = 0) const;
 
@@ -76,9 +77,8 @@ private:
     bool m_matches { false };
 };
 
-String serialize_a_media_query_list(Vector<NonnullRefPtr<MediaQuery>> const&);
+Utf16String serialize_a_media_query_list(Vector<NonnullRefPtr<MediaQuery>> const&);
 
-Optional<MediaQuery::KnownMediaType> media_type_from_string(StringView);
 Optional<MediaQuery::KnownMediaType> media_type_from_string(Utf16View);
 StringView to_string(MediaQuery::KnownMediaType);
 
@@ -90,7 +90,7 @@ template<>
 struct Formatter<Web::CSS::MediaFeature> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, Web::CSS::MediaFeature const& media_feature)
     {
-        return Formatter<StringView>::format(builder, media_feature.to_string());
+        return Formatter<StringView>::format(builder, media_feature.to_string().to_utf8());
     }
 };
 
@@ -98,7 +98,7 @@ template<>
 struct Formatter<Web::CSS::MediaQuery> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, Web::CSS::MediaQuery const& media_query)
     {
-        return Formatter<StringView>::format(builder, media_query.to_string());
+        return Formatter<StringView>::format(builder, media_query.to_string().to_utf8());
     }
 };
 

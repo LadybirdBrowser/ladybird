@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/NonnullOwnPtr.h>
+#include <AK/Utf16String.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
@@ -33,7 +34,7 @@ public:
 
     void active_texture(WebIDL::UnsignedLong texture);
     void attach_shader(GC::Ref<WebGLProgram> program, GC::Ref<WebGLShader> shader);
-    void bind_attrib_location(GC::Ref<WebGLProgram> program, WebIDL::UnsignedLong index, String name);
+    void bind_attrib_location(GC::Ref<WebGLProgram> program, WebIDL::UnsignedLong index, Utf16String name);
     void bind_buffer(WebIDL::UnsignedLong target, GC::Ptr<WebGLBuffer> buffer);
     void bind_framebuffer(WebIDL::UnsignedLong target, GC::Ptr<WebGLFramebuffer> framebuffer);
     void bind_renderbuffer(WebIDL::UnsignedLong target, GC::Ptr<WebGLRenderbuffer> renderbuffer);
@@ -84,21 +85,21 @@ public:
     GC::Ptr<WebGLActiveInfo> get_active_attrib(GC::Ref<WebGLProgram> program, WebIDL::UnsignedLong index);
     GC::Ptr<WebGLActiveInfo> get_active_uniform(GC::Ref<WebGLProgram> program, WebIDL::UnsignedLong index);
     Optional<Vector<GC::Root<WebGLShader>>> get_attached_shaders(GC::Ref<WebGLProgram> program);
-    WebIDL::Long get_attrib_location(GC::Ref<WebGLProgram> program, String name);
+    WebIDL::Long get_attrib_location(GC::Ref<WebGLProgram> program, Utf16String name);
     JS::Value get_buffer_parameter(WebIDL::UnsignedLong target, WebIDL::UnsignedLong pname);
     WebIDL::ExceptionOr<JS::Value> get_parameter(WebIDL::UnsignedLong pname);
     JS::Value get_framebuffer_attachment_parameter(WebIDL::UnsignedLong target, WebIDL::UnsignedLong attachment, WebIDL::UnsignedLong pname);
     WebIDL::UnsignedLong get_error();
     JS::Value get_program_parameter(GC::Ref<WebGLProgram> program, WebIDL::UnsignedLong pname);
-    Optional<String> get_program_info_log(GC::Ref<WebGLProgram> program);
+    Optional<Utf16String> get_program_info_log(GC::Ref<WebGLProgram> program);
     JS::Value get_renderbuffer_parameter(WebIDL::UnsignedLong target, WebIDL::UnsignedLong pname);
     JS::Value get_shader_parameter(GC::Ref<WebGLShader> shader, WebIDL::UnsignedLong pname);
     GC::Ptr<WebGLShaderPrecisionFormat> get_shader_precision_format(WebIDL::UnsignedLong shadertype, WebIDL::UnsignedLong precisiontype);
-    Optional<String> get_shader_info_log(GC::Ref<WebGLShader> shader);
-    Optional<String> get_shader_source(GC::Ref<WebGLShader> shader);
+    Optional<Utf16String> get_shader_info_log(GC::Ref<WebGLShader> shader);
+    Optional<Utf16String> get_shader_source(GC::Ref<WebGLShader> shader);
     JS::Value get_tex_parameter(WebIDL::UnsignedLong target, WebIDL::UnsignedLong pname);
     JS::Value get_uniform(GC::Ref<WebGLProgram> program, GC::Ref<WebGLUniformLocation> location);
-    GC::Ptr<WebGLUniformLocation> get_uniform_location(GC::Ref<WebGLProgram> program, String name);
+    GC::Ptr<WebGLUniformLocation> get_uniform_location(GC::Ref<WebGLProgram> program, Utf16String name);
     JS::Value get_vertex_attrib(WebIDL::UnsignedLong index, WebIDL::UnsignedLong pname);
     WebIDL::LongLong get_vertex_attrib_offset(WebIDL::UnsignedLong index, WebIDL::UnsignedLong pname);
     void hint(WebIDL::UnsignedLong target, WebIDL::UnsignedLong mode);
@@ -116,7 +117,7 @@ public:
     void renderbuffer_storage(WebIDL::UnsignedLong target, WebIDL::UnsignedLong internalformat, WebIDL::Long width, WebIDL::Long height);
     void sample_coverage(float value, bool invert);
     void scissor(WebIDL::Long x, WebIDL::Long y, WebIDL::Long width, WebIDL::Long height);
-    void shader_source(GC::Ref<WebGLShader> shader, String source);
+    void shader_source(GC::Ref<WebGLShader> shader, Utf16String source);
     void stencil_func(WebIDL::UnsignedLong func, WebIDL::Long ref, WebIDL::UnsignedLong mask);
     void stencil_func_separate(WebIDL::UnsignedLong face, WebIDL::UnsignedLong func, WebIDL::Long ref, WebIDL::UnsignedLong mask);
     void stencil_mask(WebIDL::UnsignedLong mask);

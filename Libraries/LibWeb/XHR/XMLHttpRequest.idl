@@ -25,8 +25,8 @@ interface XMLHttpRequest : XMLHttpRequestEventTarget {
     readonly attribute unsigned short readyState;
 
     // request
-    undefined open(DOMString method, DOMString url);
-    undefined open(ByteString method, USVString url, boolean async, optional USVString? username = null, optional USVString? password = null);
+    undefined open(Utf16DOMString method, Utf16DOMString url);
+    undefined open(Utf16DOMString method, Utf16USVString url, boolean async, optional Utf16USVString? username = null, optional Utf16USVString? password = null);
     undefined setRequestHeader(ByteString name, ByteString value);
     attribute unsigned long timeout;
     attribute boolean withCredentials;
@@ -35,15 +35,15 @@ interface XMLHttpRequest : XMLHttpRequestEventTarget {
     undefined abort();
 
     // response
-    readonly attribute USVString responseURL;
+    readonly attribute Utf16USVString responseURL;
     readonly attribute unsigned short status;
     readonly attribute ByteString statusText;
     ByteString? getResponseHeader(ByteString name);
     ByteString getAllResponseHeaders();
-    undefined overrideMimeType(DOMString mime);
+    undefined overrideMimeType(Utf16DOMString mime);
     attribute XMLHttpRequestResponseType responseType;
     readonly attribute any response;
-    readonly attribute DOMString responseText;
+    readonly attribute Utf16DOMString responseText;
     [Exposed=Window] readonly attribute Document? responseXML;
 
 };

@@ -35,7 +35,7 @@ bool Scrollbar::contains(CSSPixelPoint position, ChromeMetrics const& metrics) c
     return false;
 }
 
-MouseAction Scrollbar::handle_pointer_event(FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position)
+MouseAction Scrollbar::handle_pointer_event(Utf16FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position)
 {
     if (type == UIEvents::EventNames::pointermove) {
         if (!m_thumb_grab_position.has_value())

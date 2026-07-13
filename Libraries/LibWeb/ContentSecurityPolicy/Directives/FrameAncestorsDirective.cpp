@@ -19,7 +19,7 @@ namespace Web::ContentSecurityPolicy::Directives {
 
 GC_DEFINE_ALLOCATOR(FrameAncestorsDirective);
 
-FrameAncestorsDirective::FrameAncestorsDirective(String name, Vector<String> value)
+FrameAncestorsDirective::FrameAncestorsDirective(Utf16FlyString name, Vector<Utf16String> value)
     : Directive(move(name), move(value))
 {
 }
@@ -55,7 +55,8 @@ Directive::Result FrameAncestorsDirective::navigation_response_check(GC::Ref<Fet
         VERIFY(document);
 
         // 2. Let origin be the result of executing the URL parser on the ASCII serialization of document’s origin.
-        auto origin = DOMURL::parse(document->origin().serialize());
+        auto serialized_origin = document->origin().serialize();
+        auto origin = DOMURL::parse_from_byte_string(serialized_origin.bytes_as_string_view());
 
         // AD-HOC: If the origin is opaque, serialization produces "null" which fails URL parsing.
         //         All major engines block in this case, as an opaque origin can never match any source expression.

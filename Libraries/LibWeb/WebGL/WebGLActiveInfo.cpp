@@ -13,12 +13,12 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLActiveInfo);
 
-GC::Ptr<WebGLActiveInfo> WebGLActiveInfo::create(JS::Realm& realm, String name, GLenum type, GLsizei size)
+GC::Ptr<WebGLActiveInfo> WebGLActiveInfo::create(JS::Realm& realm, Utf16String name, GLenum type, GLsizei size)
 {
     return realm.create<WebGLActiveInfo>(realm, move(name), type, size);
 }
 
-WebGLActiveInfo::WebGLActiveInfo(JS::Realm& realm, String name, GLenum type, GLsizei size)
+WebGLActiveInfo::WebGLActiveInfo(JS::Realm& realm, Utf16String name, GLenum type, GLsizei size)
     : Bindings::PlatformObject(realm)
     , m_name(move(name))
     , m_type(type)

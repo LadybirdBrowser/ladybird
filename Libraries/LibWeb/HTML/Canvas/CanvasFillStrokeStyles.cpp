@@ -9,7 +9,6 @@
  */
 
 #include "CanvasFillStrokeStyles.h"
-#include <AK/String.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/DOM/Document.h>
@@ -26,7 +25,7 @@ void CanvasFillStrokeStyles::set_fill_style(FillOrStrokeStyleVariant style)
     // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-fillstyle
     style.visit(
         // 1. If the given value is a string, then:
-        [&](String const& string) {
+        [&](Utf16String const& string) {
             // 1. Let context be this's canvas attribute's value, if that is an element; otherwise null.
 
             // 2. Let parsedValue be the result of parsing the given value with context if non-null.
@@ -62,7 +61,7 @@ void CanvasFillStrokeStyles::set_stroke_style(FillOrStrokeStyleVariant style)
 
     style.visit(
         // 1. If the given value is a string, then:
-        [&](String const& string) {
+        [&](Utf16String const& string) {
             // 1. Let context be this's canvas attribute's value, if that is an element; otherwise null.
 
             // 2. Let parsedValue be the result of parsing the given value with context if non-null.
@@ -105,7 +104,7 @@ GC::Ref<CanvasGradient> CanvasFillStrokeStyles::create_conic_gradient(double sta
     return CanvasGradient::create_conic(my_realm(), start_angle, x, y).release_value_but_fixme_should_propagate_errors();
 }
 
-WebIDL::ExceptionOr<GC::Ptr<CanvasPattern>> CanvasFillStrokeStyles::create_pattern(CanvasImageSource const& image, StringView repetition)
+WebIDL::ExceptionOr<GC::Ptr<CanvasPattern>> CanvasFillStrokeStyles::create_pattern(CanvasImageSource const& image, Utf16FlyString const& repetition)
 {
     return CanvasPattern::create(my_realm(), image, repetition);
 }

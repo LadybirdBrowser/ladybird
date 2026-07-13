@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <AK/Utf16View.h>
 #include <LibRegex/ECMAScriptRegex.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/DOM/Text.h>
@@ -74,21 +75,21 @@ public:
 #undef __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE
     };
 
-    Utf16String type() const;
+    Utf16FlyString type() const;
     TypeAttributeState type_state() const { return m_type; }
-    void set_type(Utf16String const&);
+    void set_type(Utf16View);
 
     Utf16String default_value() const { return get_attribute_value(HTML::AttributeNames::value); }
-    void set_default_value(Utf16String const& value) { set_attribute_value(HTML::AttributeNames::value, value); }
+    void set_default_value(Utf16View value) { set_attribute_value(HTML::AttributeNames::value, value); }
 
     Utf16String value() const;
     virtual Utf16String form_value() const override { return value(); }
     virtual Optional<Utf16String> optional_value() const override;
-    WebIDL::ExceptionOr<void> set_value(Utf16String const&);
+    WebIDL::ExceptionOr<void> set_value(Utf16View);
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
     virtual Utf16String relevant_value() const override;
-    WebIDL::ExceptionOr<void> set_relevant_value(Utf16String const& value) override;
+    WebIDL::ExceptionOr<void> set_relevant_value(Utf16View value) override;
     virtual Optional<Utf16String> selected_text_for_stringifier() const override;
 
     virtual void set_dirty_value_flag(bool flag) override { m_dirty_value = flag; }
@@ -232,11 +233,11 @@ public:
 
     static bool selection_or_range_applies_for_type_state(TypeAttributeState);
 
-    Optional<String> selection_direction_binding() { return selection_direction(); }
+    Optional<Utf16FlyString> selection_direction_binding() { return selection_direction(); }
 
     // ^FormAssociatedTextControlElement
     virtual HTMLElement& text_control_to_html_element() override { return *this; }
-    virtual void did_edit_text_node(FlyString const& input_type, Optional<Utf16String> const& data) override;
+    virtual void did_edit_text_node(Utf16FlyString const& input_type, Optional<Utf16String> const& data) override;
     virtual GC::Ptr<DOM::Text> form_associated_element_to_text_node() override { return m_text_node; }
     virtual GC::Ptr<DOM::Element> text_control_scroll_container() override { return m_inner_text_element; }
 
@@ -266,7 +267,7 @@ private:
 
     virtual bool is_presentational_hint(Utf16FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
-    virtual EventResult handle_return_key(FlyString const& ui_input_type) override;
+    virtual EventResult handle_return_key(Utf16FlyString const& ui_input_type) override;
 
     // ^DOM::Node
     virtual bool is_html_input_element() const final { return true; }
@@ -320,12 +321,12 @@ private:
     WebIDL::ExceptionOr<void> run_input_activation_behavior(DOM::Event const&);
 
     void handle_maxlength_attribute();
-    WebIDL::ExceptionOr<void> handle_src_attribute(Utf16String const& value);
+    WebIDL::ExceptionOr<void> handle_src_attribute(Utf16View value);
 
-    void user_interaction_did_change_input_value(FlyString const& input_type = {}, Optional<Utf16String> const& data = {});
+    void user_interaction_did_change_input_value(Utf16FlyString const& input_type = {}, Optional<Utf16String> const& data = {});
 
     // https://html.spec.whatwg.org/multipage/input.html#value-sanitization-algorithm
-    Utf16String value_sanitization_algorithm(Utf16String const&) const;
+    Utf16String value_sanitization_algorithm(Utf16View) const;
 
     enum class ValueAttributeMode {
         Value,

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const childURL = "../../data/window-barprops-popout-window.html";
+        const cases = [
+            ["aliases", "SCREENX=10,InnerWidth=200"],
+            [
+                "not popup",
+                "LoCaTiOn=YeS,toolbar=TRUE,menubar=1,resizable=1,scrollbars=1,status=1,éxtra=yes",
+            ],
+        ];
+
+        let index = 0;
+
+        window.addEventListener("message", event => {
+            println(`${cases[index][0]}:`);
+            println(event.data);
+
+            ++index;
+            if (index === cases.length) {
+                done();
+                return;
+            }
+
+            window.open(childURL, "_blank", cases[index][1]);
+        });
+
+        window.open(childURL, "_blank", cases[index][1]);
+    });
+</script>

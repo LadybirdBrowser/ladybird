@@ -134,7 +134,7 @@ void Page::load(URL::URL const& url, Bindings::NavigationHistoryBehavior history
     (void)top_level_traversable()->navigate({ .url = url, .source_document = *top_level_traversable()->active_document(), .history_handling = history_handling, .user_involvement = HTML::UserNavigationInvolvement::BrowserUI });
 }
 
-void Page::load(URL::URL const& url, Variant<Empty, String, HTML::POSTResource> document_resource,
+void Page::load(URL::URL const& url, HTML::DocumentResource document_resource,
     Bindings::NavigationHistoryBehavior history_handling)
 {
     (void)top_level_traversable()->navigate({
@@ -153,7 +153,7 @@ void Page::load_html(StringView html)
 
     (void)top_level_traversable()->navigate({ .url = URL::about_srcdoc(),
         .source_document = *top_level_traversable()->active_document(),
-        .document_resource = String::from_utf8(html).release_value_but_fixme_should_propagate_errors(),
+        .document_resource = Utf16String::from_utf8(html),
         .user_involvement = HTML::UserNavigationInvolvement::BrowserUI });
 }
 
@@ -177,7 +177,7 @@ void Page::load_html(StringView html, URL::URL const& url)
         .user_involvement = HTML::UserNavigationInvolvement::BrowserUI };
 
     if (url == URL::about_srcdoc())
-        params.document_resource = move(html_string);
+        params.document_resource = Utf16String::from_utf8(html);
 
     (void)top_level_traversable()->navigate(move(params));
 }
@@ -492,7 +492,7 @@ static ResponseType spin_event_loop_until_dialog_closed(PageClient& client, Opti
     return response.release_value();
 }
 
-void Page::did_request_alert(String const& message)
+void Page::did_request_alert(Utf16String const& message)
 {
     m_pending_dialog = PendingDialog::Alert;
     m_client->page_did_request_alert(message);
@@ -511,7 +511,7 @@ void Page::alert_closed()
     }
 }
 
-bool Page::did_request_confirm(String const& message)
+bool Page::did_request_confirm(Utf16String const& message)
 {
     m_pending_dialog = PendingDialog::Confirm;
     m_client->page_did_request_confirm(message);
@@ -530,7 +530,7 @@ void Page::confirm_closed(bool accepted)
     }
 }
 
-Optional<String> Page::did_request_prompt(String const& message, String const& default_)
+Optional<Utf16String> Page::did_request_prompt(Utf16String const& message, Utf16String const& default_)
 {
     m_pending_dialog = PendingDialog::Prompt;
     m_client->page_did_request_prompt(message, default_);
@@ -541,7 +541,7 @@ Optional<String> Page::did_request_prompt(String const& message, String const& d
     return spin_event_loop_until_dialog_closed(*m_client, m_pending_prompt_response);
 }
 
-void Page::prompt_closed(Optional<String> response)
+void Page::prompt_closed(Optional<Utf16String> response)
 {
     if (m_pending_dialog == PendingDialog::Prompt) {
         m_pending_prompt_response = move(response);
@@ -857,9 +857,9 @@ GC::Ptr<HTML::HTMLMediaElement> Page::media_context_menu_element()
     return static_cast<HTML::HTMLMediaElement*>(dom_node);
 }
 
-void Page::set_user_style(String source)
+void Page::set_user_style(Utf16String source)
 {
-    m_user_style_sheet_source = source;
+    m_user_style_sheet_source = move(source);
     invalidate_user_style();
 }
 

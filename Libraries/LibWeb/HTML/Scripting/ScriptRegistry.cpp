@@ -18,12 +18,12 @@ static ScriptRegistry::Content source_content(ScriptRegistry::Script const& scri
         [&](ScriptRegistry::JavaScriptSource const& js_source) -> ScriptRegistry::Content {
             return {
                 .content_type = script.description.content_type,
-                .text = js_source.source_code->code().to_utf8(),
+                .text = js_source.source_code->code(),
             };
         });
 }
 
-ScriptRegistry::Script const& ScriptRegistry::register_javascript_source(NonnullRefPtr<JS::SourceCode const> source_code, ByteString const& filename, String introduction_type, IsInlineSource is_inline_source, size_t source_line_number, size_t source_length)
+ScriptRegistry::Script const& ScriptRegistry::register_javascript_source(NonnullRefPtr<JS::SourceCode const> source_code, ByteString const& filename, Utf16String display_url, Utf16String introduction_type, IsInlineSource is_inline_source, size_t source_line_number, size_t source_length)
 {
     // FIXME: Support WebAssembly sources once WebAssembly modules retain their original binary module bytes.
     // FIXME: Register worker sources when DevTools can target workers.
@@ -34,9 +34,9 @@ ScriptRegistry::Script const& ScriptRegistry::register_javascript_source(Nonnull
                           .description = {
                               .id = { .document_id = {}, .script_id = id },
                               .url = move(parsed_url),
-                              .display_url = String::from_utf8_with_replacement_character(filename),
+                              .display_url = move(display_url),
                               .introduction_type = move(introduction_type),
-                              .content_type = is_inline ? "text/html"_string : "text/javascript"_string,
+                              .content_type = is_inline ? "text/html"_utf16 : "text/javascript"_utf16,
                               .is_inline_source = is_inline,
                               .source_start_line = static_cast<u32>(source_line_number),
                               .source_start_column = 0,
@@ -48,14 +48,14 @@ ScriptRegistry::Script const& ScriptRegistry::register_javascript_source(Nonnull
     return m_scripts.find(id)->value;
 }
 
-Optional<ScriptRegistry::Content> ScriptRegistry::script_content(u64 script_id, String const& document_source) const
+Optional<ScriptRegistry::Content> ScriptRegistry::script_content(u64 script_id, Utf16View document_source) const
 {
     auto script = m_scripts.find(script_id);
     if (script == m_scripts.end())
         return {};
 
     if (script->value.description.is_inline_source && !document_source.is_empty()) {
-        return Content { .content_type = script->value.description.content_type, .text = document_source };
+        return Content { .content_type = script->value.description.content_type, .text = Utf16String::from_utf16(document_source) };
     }
 
     return source_content(script->value);
@@ -105,9 +105,9 @@ ErrorOr<Web::HTML::ScriptRegistry::Description> decode(Decoder& decoder)
 {
     auto id = TRY(decoder.decode<Web::HTML::ScriptRegistry::Identifier>());
     auto url = TRY(decoder.decode<Optional<URL::URL>>());
-    auto display_url = TRY(decoder.decode<String>());
-    auto introduction_type = TRY(decoder.decode<String>());
-    auto content_type = TRY(decoder.decode<String>());
+    auto display_url = TRY(decoder.decode<Utf16String>());
+    auto introduction_type = TRY(decoder.decode<Utf16String>());
+    auto content_type = TRY(decoder.decode<Utf16String>());
     auto is_inline_source = TRY(decoder.decode<bool>());
     auto source_start_line = TRY(decoder.decode<u32>());
     auto source_start_column = TRY(decoder.decode<u32>());
@@ -137,8 +137,8 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::ScriptRegistry::Content const&
 template<>
 ErrorOr<Web::HTML::ScriptRegistry::Content> decode(Decoder& decoder)
 {
-    auto content_type = TRY(decoder.decode<String>());
-    auto text = TRY(decoder.decode<String>());
+    auto content_type = TRY(decoder.decode<Utf16String>());
+    auto text = TRY(decoder.decode<Utf16String>());
 
     return Web::HTML::ScriptRegistry::Content {
         .content_type = move(content_type),

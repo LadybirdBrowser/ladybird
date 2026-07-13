@@ -9,7 +9,7 @@
 namespace Web::PerformanceTimeline::EntryTypes {
 
 #define __ENUMERATE_PERFORMANCE_TIMELINE_ENTRY_TYPE(name, type) \
-    FlyString const& name = *new FlyString(type##_fly_string);
+    Utf16FlyString const& name = *new Utf16FlyString(type##_utf16_fly_string);
 ENUMERATE_PERFORMANCE_TIMELINE_ENTRY_TYPES
 #undef __ENUMERATE_PERFORMANCE_TIMELINE_ENTRY_TYPE
 

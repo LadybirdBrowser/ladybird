@@ -6,6 +6,7 @@
  */
 
 #include "CanvasTextDrawingStyles.h"
+#include <AK/Utf16StringBuilder.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -25,15 +26,15 @@
 namespace Web::HTML {
 
 template<typename CanvasType>
-ByteString CanvasTextDrawingStyles<CanvasType>::font() const
+Utf16String CanvasTextDrawingStyles<CanvasType>::font() const
 {
     // When font style value is empty return default string
     if (!drawing_state().font_style_value) {
-        return "10px sans-serif";
+        return "10px sans-serif"_utf16;
     }
 
     // On getting, the font attribute must return the serialized form of the current font of the context (with no 'line-height' component).
-    return drawing_state().font_style_value->to_string(CSS::SerializationMode::ResolvedValue).to_byte_string();
+    return drawing_state().font_style_value->to_utf16_string(CSS::SerializationMode::ResolvedValue);
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#font-style-source-object
@@ -65,7 +66,7 @@ Variant<DOM::Document*, HTML::WorkerGlobalScope*> CanvasTextDrawingStyles<Canvas
     };
 }
 template<typename CanvasType>
-void CanvasTextDrawingStyles<CanvasType>::set_font(StringView font)
+void CanvasTextDrawingStyles<CanvasType>::set_font(Utf16View font)
 {
     // The font IDL attribute, on setting, must be parsed as a CSS <'font'> value (but without supporting property-independent style sheet syntax like 'inherit'),
     // and the resulting font must be assigned to the context, with the 'line-height' component forced to 'normal', with the 'font-size' component converted to CSS pixels,
@@ -190,17 +191,17 @@ void CanvasTextDrawingStyles<CanvasType>::set_font(StringView font)
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-letterspacing
 template<typename CanvasType>
-String CanvasTextDrawingStyles<CanvasType>::letter_spacing() const
+Utf16String CanvasTextDrawingStyles<CanvasType>::letter_spacing() const
 {
     // The letterSpacing getter steps are to return the serialized form of this's letter spacing.
-    StringBuilder builder;
+    Utf16StringBuilder builder;
     drawing_state().letter_spacing->serialize(builder, CSS::SerializationMode::Normal);
-    return MUST(builder.to_string());
+    return builder.to_string();
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-letterspacing
 template<typename CanvasType>
-void CanvasTextDrawingStyles<CanvasType>::set_letter_spacing(StringView letter_spacing)
+void CanvasTextDrawingStyles<CanvasType>::set_letter_spacing(Utf16View letter_spacing)
 {
     // 1. Let parsed be the result of parsing the given value as a CSS <length>.
     auto parsed = parse_css_type(CSS::Parser::ParsingParams { CSS::Parser::SpecialContext::CanvasContextGenericValue }, letter_spacing, CSS::ValueType::Length);

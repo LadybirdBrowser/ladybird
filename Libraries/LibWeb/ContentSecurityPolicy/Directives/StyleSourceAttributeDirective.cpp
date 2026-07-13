@@ -13,7 +13,7 @@ namespace Web::ContentSecurityPolicy::Directives {
 
 GC_DEFINE_ALLOCATOR(StyleSourceAttributeDirective);
 
-StyleSourceAttributeDirective::StyleSourceAttributeDirective(String name, Vector<String> value)
+StyleSourceAttributeDirective::StyleSourceAttributeDirective(Utf16FlyString name, Vector<Utf16String> value)
     : Directive(move(name), move(value))
 {
 }

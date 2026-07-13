@@ -1,4 +1,4 @@
 // https://w3c.github.io/beacon/#sendbeacon-method
 partial interface Navigator {
-    boolean sendBeacon(USVString url, optional BodyInit? data = null);
+    boolean sendBeacon(Utf16USVString url, optional BodyInit? data = null);
 };

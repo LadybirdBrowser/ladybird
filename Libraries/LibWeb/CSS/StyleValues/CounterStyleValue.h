@@ -34,7 +34,7 @@ public:
     auto counter_style() const { return m_properties.counter_style; }
     auto join_string() const { return m_properties.join_string; }
 
-    String resolve(DOM::AbstractElement&) const;
+    Utf16String resolve(DOM::AbstractElement&) const;
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
 

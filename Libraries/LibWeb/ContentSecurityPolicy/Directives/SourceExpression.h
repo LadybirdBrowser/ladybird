@@ -7,19 +7,19 @@
 #pragma once
 
 #include <AK/Optional.h>
-#include <AK/StringView.h>
+#include <AK/Utf16View.h>
 #include <AK/Vector.h>
 
 namespace Web::ContentSecurityPolicy::Directives {
 
 struct SourceExpressionParseResult {
-    Optional<StringView> scheme_part;
-    Optional<StringView> host_part;
-    Optional<StringView> port_part;
-    Optional<StringView> path_part;
-    Optional<StringView> keyword_source;
-    Optional<StringView> base64_value;
-    Optional<StringView> hash_algorithm;
+    Optional<Utf16View> scheme_part;
+    Optional<Utf16View> host_part;
+    Optional<Utf16View> port_part;
+    Optional<Utf16View> path_part;
+    Optional<Utf16View> keyword_source;
+    Optional<Utf16View> base64_value;
+    Optional<Utf16View> hash_algorithm;
 };
 
 enum class Production {
@@ -30,6 +30,6 @@ enum class Production {
     HashSource,
 };
 
-Optional<SourceExpressionParseResult> parse_source_expression(Production, StringView);
+Optional<SourceExpressionParseResult> parse_source_expression(Production, Utf16View);
 
 }

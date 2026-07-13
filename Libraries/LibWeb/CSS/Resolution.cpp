@@ -50,6 +50,22 @@ void Resolution::serialize(StringBuilder& builder, SerializationMode serializati
     builder.append(unit_name());
 }
 
+void Resolution::serialize(Utf16StringBuilder& builder, SerializationMode serialization_mode) const
+{
+    // https://drafts.csswg.org/cssom/#serialize-a-css-value
+    // -> <resolution>
+    // The resolution in dots per CSS pixel serialized as per <number> followed by the literal string "dppx".
+    // AD-HOC: WPT expects us to serialize using the actual unit, like for other dimensions.
+    //         https://github.com/w3c/csswg-drafts/issues/12616
+    if (serialization_mode == SerializationMode::ResolvedValue) {
+        serialize_a_number(builder, to_dots_per_pixel());
+        builder.append_ascii("dppx"sv);
+        return;
+    }
+    serialize_a_number(builder, raw_value());
+    builder.append(unit_name());
+}
+
 String Resolution::to_string(SerializationMode serialization_mode) const
 {
     StringBuilder builder;

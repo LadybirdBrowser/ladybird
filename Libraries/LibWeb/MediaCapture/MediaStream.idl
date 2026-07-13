@@ -2,11 +2,11 @@
 [Exposed=Window]
 interface MediaStream : EventTarget {
     constructor(optional sequence<MediaStreamTrack> tracks = []);
-    readonly attribute DOMString id;
+    readonly attribute Utf16DOMString id;
     sequence<MediaStreamTrack> getAudioTracks();
     sequence<MediaStreamTrack> getVideoTracks();
     sequence<MediaStreamTrack> getTracks();
-    MediaStreamTrack? getTrackById(DOMString trackId);
+    MediaStreamTrack? getTrackById(Utf16DOMString trackId);
     undefined addTrack(MediaStreamTrack track);
     undefined removeTrack(MediaStreamTrack track);
     MediaStream clone();

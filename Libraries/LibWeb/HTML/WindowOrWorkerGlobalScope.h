@@ -7,10 +7,12 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
 #include <AK/Forward.h>
 #include <AK/HashMap.h>
 #include <AK/IDAllocator.h>
+#include <AK/Utf16FlyString.h>
+#include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <AK/Variant.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Export.h>
@@ -24,7 +26,7 @@
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#timerhandler
-using TimerHandler = Variant<GC::Ref<WebIDL::CallbackType>, String>;
+using TimerHandler = Variant<GC::Ref<WebIDL::CallbackType>, Utf16String>;
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#windoworworkerglobalscope
 class WEB_API WindowOrWorkerGlobalScopeMixin {
@@ -35,7 +37,7 @@ public:
     virtual DOM::EventTarget const& this_impl() const = 0;
 
     // JS API functions
-    String origin() const;
+    Utf16String origin() const;
     bool is_secure_context() const;
     bool cross_origin_isolated() const;
     GC::Ref<WebIDL::Promise> create_image_bitmap(ImageBitmapSource image, Optional<Bindings::ImageBitmapOptions> options = {}) const;
@@ -53,13 +55,13 @@ public:
         Yes,
     };
 
-    PerformanceTimeline::PerformanceEntryTuple& relevant_performance_entry_tuple(FlyString const& entry_type);
+    PerformanceTimeline::PerformanceEntryTuple& relevant_performance_entry_tuple(Utf16FlyString const& entry_type);
     void queue_performance_entry(GC::Ref<PerformanceTimeline::PerformanceEntry> new_entry);
     void add_performance_entry(GC::Ref<PerformanceTimeline::PerformanceEntry> new_entry, CheckIfPerformanceBufferIsFull check_if_performance_buffer_is_full = CheckIfPerformanceBufferIsFull::No);
-    void clear_performance_entry_buffer(Badge<HighResolutionTime::Performance>, FlyString const& entry_type);
-    void remove_entries_from_performance_entry_buffer(Badge<HighResolutionTime::Performance>, FlyString const& entry_type, String entry_name);
+    void clear_performance_entry_buffer(Badge<HighResolutionTime::Performance>, Utf16FlyString const& entry_type);
+    void remove_entries_from_performance_entry_buffer(Badge<HighResolutionTime::Performance>, Utf16FlyString const& entry_type, Utf16View entry_name);
 
-    ErrorOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> filter_buffer_map_by_name_and_type(Optional<String> name, Optional<String> type) const;
+    ErrorOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> filter_buffer_map_by_name_and_type(Optional<Utf16String> const& name, Optional<Utf16FlyString> type) const;
 
     void register_performance_observer(Badge<PerformanceTimeline::PerformanceObserver>, GC::Ref<PerformanceTimeline::PerformanceObserver>);
     void unregister_performance_observer(Badge<PerformanceTimeline::PerformanceObserver>, GC::Ref<PerformanceTimeline::PerformanceObserver>);
@@ -146,7 +148,7 @@ private:
     // https://www.w3.org/TR/performance-timeline/#dfn-performance-entry-buffer-map
     // a performance entry buffer map map, keyed on a DOMString, representing the entry type to which the buffer belongs. The map's value is the following tuple:
     // NOTE: See the PerformanceEntryTuple struct above for the map's value tuple.
-    OrderedHashMap<FlyString, PerformanceTimeline::PerformanceEntryTuple> m_performance_entry_buffer_map;
+    OrderedHashMap<Utf16FlyString, PerformanceTimeline::PerformanceEntryTuple> m_performance_entry_buffer_map;
 
     HashTable<GC::Ref<EventSource>> m_registered_event_sources;
 

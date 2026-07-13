@@ -18,7 +18,12 @@
 namespace Web::DOM {
 
 // https://w3c.github.io/editing/docs/execCommand/#execcommand()
-WebIDL::ExceptionOr<bool> Document::exec_command(FlyString const& command, [[maybe_unused]] bool show_ui, Utf16String const& value)
+WebIDL::ExceptionOr<bool> Document::exec_command(Utf16FlyString const& command, [[maybe_unused]] bool show_ui, Utf16View value)
+{
+    return exec_command_internal(command, show_ui, value, DispatchInputEvent::Yes);
+}
+
+WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& command, [[maybe_unused]] bool show_ui, Utf16View value, DispatchInputEvent dispatch_input_event)
 {
     // AD-HOC: This is not directly mentioned in the spec, but all major browsers limit editing API calls to HTML documents
     if (!is_html_document())
@@ -119,14 +124,14 @@ WebIDL::ExceptionOr<bool> Document::exec_command(FlyString const& command, [[may
     //    value of command, and its data attribute initialized to null.
     bool tree_was_modified = dom_tree_version() != old_dom_tree_version
         || character_data_version() != old_character_data_version;
-    if (tree_was_modified && affected_editing_host) {
+    if (tree_was_modified && affected_editing_host && dispatch_input_event == DispatchInputEvent::Yes) {
         Bindings::InputEventInit event_init {};
         event_init.bubbles = true;
-        event_init.input_type = command_definition.mapped_value.to_string();
+        event_init.input_type = command_definition.mapped_value;
 
         // AD-HOC: For insertText, we do what other browsers do and set data to value.
         if (command == Editing::CommandNames::insertText)
-            event_init.data = value;
+            event_init.data = Utf16String::from_utf16(value);
 
         auto event = UIEvents::InputEvent::create_from_platform_event(realm(), HTML::EventNames::input, event_init);
         event->set_is_trusted(true);
@@ -144,7 +149,7 @@ WebIDL::ExceptionOr<bool> Document::exec_command(FlyString const& command, [[may
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#querycommandenabled()
-WebIDL::ExceptionOr<bool> Document::query_command_enabled(FlyString const& command)
+WebIDL::ExceptionOr<bool> Document::query_command_enabled(Utf16FlyString const& command)
 {
     // AD-HOC: This is not directly mentioned in the spec, but all major browsers limit editing API calls to HTML documents
     if (!is_html_document())
@@ -239,7 +244,7 @@ WebIDL::ExceptionOr<bool> Document::query_command_enabled(FlyString const& comma
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#querycommandindeterm()
-WebIDL::ExceptionOr<bool> Document::query_command_indeterm(FlyString const& command)
+WebIDL::ExceptionOr<bool> Document::query_command_indeterm(Utf16FlyString const& command)
 {
     // AD-HOC: This is not directly mentioned in the spec, but all major browsers limit editing API calls to HTML documents
     if (!is_html_document())
@@ -287,7 +292,7 @@ WebIDL::ExceptionOr<bool> Document::query_command_indeterm(FlyString const& comm
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#querycommandstate()
-WebIDL::ExceptionOr<bool> Document::query_command_state(FlyString const& command)
+WebIDL::ExceptionOr<bool> Document::query_command_state(Utf16FlyString const& command)
 {
     // AD-HOC: This is not directly mentioned in the spec, but all major browsers limit editing API calls to HTML documents
     if (!is_html_document())
@@ -336,7 +341,7 @@ WebIDL::ExceptionOr<bool> Document::query_command_state(FlyString const& command
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#querycommandsupported()
-WebIDL::ExceptionOr<bool> Document::query_command_supported(FlyString const& command)
+WebIDL::ExceptionOr<bool> Document::query_command_supported(Utf16FlyString const& command)
 {
     // AD-HOC: This is not directly mentioned in the spec, but all major browsers limit editing API calls to HTML documents
     if (!is_html_document())
@@ -350,7 +355,7 @@ WebIDL::ExceptionOr<bool> Document::query_command_supported(FlyString const& com
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#querycommandvalue()
-WebIDL::ExceptionOr<Utf16String> Document::query_command_value(FlyString const& command)
+WebIDL::ExceptionOr<Utf16String> Document::query_command_value(Utf16FlyString const& command)
 {
     // AD-HOC: This is not directly mentioned in the spec, but all major browsers limit editing API calls to HTML documents
     if (!is_html_document())
@@ -374,27 +379,27 @@ WebIDL::ExceptionOr<Utf16String> Document::query_command_value(FlyString const& 
 
     // 3. If the value override for command is set, return it.
     if (value_override.has_value())
-        return value_override.release_value();
+        return Utf16String::from_utf16(value_override.release_value());
 
     // 4. Return command's value.
     return command_definition.value(*this);
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#value-override
-void Document::set_command_value_override(FlyString const& command, Utf16String const& value)
+void Document::set_command_value_override(Utf16FlyString const& command, Utf16View value)
 {
-    m_command_value_override.set(command, value);
+    m_command_value_override.set(command, Utf16String::from_utf16(value));
 
     // The value override for the backColor command must be the same as the value override for the hiliteColor command,
     // such that setting one sets the other to the same thing and unsetting one unsets the other.
     if (command == Editing::CommandNames::backColor)
-        m_command_value_override.set(Editing::CommandNames::hiliteColor, value);
+        m_command_value_override.set(Editing::CommandNames::hiliteColor, Utf16String::from_utf16(value));
     else if (command == Editing::CommandNames::hiliteColor)
-        m_command_value_override.set(Editing::CommandNames::backColor, value);
+        m_command_value_override.set(Editing::CommandNames::backColor, Utf16String::from_utf16(value));
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#value-override
-void Document::clear_command_value_override(FlyString const& command)
+void Document::clear_command_value_override(Utf16FlyString const& command)
 {
     m_command_value_override.remove(command);
 

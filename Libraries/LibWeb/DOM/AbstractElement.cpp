@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Utf16StringBuilder.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/DOM/AbstractElement.h>
@@ -214,14 +215,14 @@ void AbstractElement::set_counters_set(OwnPtr<CSS::CountersSet>&& counters_set)
     }
 }
 
-String AbstractElement::debug_description() const
+Utf16String AbstractElement::debug_description() const
 {
     if (m_pseudo_element.has_value()) {
-        StringBuilder builder;
+        Utf16StringBuilder builder;
         builder.append(m_element->debug_description());
-        builder.append("::"sv);
-        builder.append(CSS::pseudo_element_name(*m_pseudo_element));
-        return builder.to_string_without_validation();
+        builder.append_ascii("::"sv);
+        builder.append_ascii(CSS::pseudo_element_name(*m_pseudo_element));
+        return builder.to_string();
     }
     return m_element->debug_description();
 }

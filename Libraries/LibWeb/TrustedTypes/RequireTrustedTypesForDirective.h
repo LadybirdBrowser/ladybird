@@ -16,7 +16,7 @@ namespace Web::TrustedTypes {
 #define ENUMERATE_REQUIRE_KEYWORD_TRUSTED_TYPES_FOR \
     __ENUMERATE_REQUIRE_KEYWORD_TRUSTED_TYPES_FOR(Script, "'script'")
 
-#define __ENUMERATE_REQUIRE_KEYWORD_TRUSTED_TYPES_FOR(name, value) extern FlyString const& name;
+#define __ENUMERATE_REQUIRE_KEYWORD_TRUSTED_TYPES_FOR(name, value) extern Utf16FlyString const& name;
 ENUMERATE_REQUIRE_KEYWORD_TRUSTED_TYPES_FOR
 #undef __ENUMERATE_REQUIRE_KEYWORD_TRUSTED_TYPES_FOR
 
@@ -36,11 +36,11 @@ public:
     Result pre_navigation_check(GC::Ref<Fetch::Infrastructure::Request>, NavigationType, GC::Ref<ContentSecurityPolicy::Policy const>) const override;
 
 private:
-    RequireTrustedTypesForDirective(String name, Vector<String> value);
+    RequireTrustedTypesForDirective(Utf16FlyString name, Vector<Utf16String> value);
 };
 
-bool does_sink_require_trusted_types(JS::Object&, String, IncludeReportOnlyPolicies);
+bool does_sink_require_trusted_types(JS::Object&, Utf16View, IncludeReportOnlyPolicies);
 
-ContentSecurityPolicy::Directives::Directive::Result should_sink_type_mismatch_violation_be_blocked_by_content_security_policy(JS::Object& global, TrustedTypes::InjectionSink sink, String sink_group, Utf16String source);
+ContentSecurityPolicy::Directives::Directive::Result should_sink_type_mismatch_violation_be_blocked_by_content_security_policy(JS::Object& global, TrustedTypes::InjectionSink sink, Utf16View sink_group, Utf16String source);
 
 }

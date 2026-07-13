@@ -139,7 +139,7 @@ static unsigned long determine_key_code(KeyCode platform_key, u32 code_point)
 }
 
 // https://www.w3.org/TR/uievents/#dom-keyboardevent-charcode
-static u32 determine_char_code(FlyString const& event_name, u32 code_point)
+static u32 determine_char_code(Utf16FlyString const& event_name, u32 code_point)
 {
     // charCode holds a character value, for keypress events which generate character input. The value is the Unicode
     // reference number (code point) of that character (e.g. event.charCode = event.key.charCodeAt(0) for printable
@@ -153,108 +153,108 @@ static u32 determine_char_code(FlyString const& event_name, u32 code_point)
 }
 
 // 3. Named key Attribute Values, https://www.w3.org/TR/uievents-key/#named-key-attribute-values
-static ErrorOr<Optional<String>> get_event_named_key(KeyCode platform_key)
+static ErrorOr<Optional<Utf16FlyString>> get_event_named_key(KeyCode platform_key)
 {
     switch (platform_key) {
     // 3.1. Special Keys, https://www.w3.org/TR/uievents-key/#keys-special
     case KeyCode::Key_Invalid:
-        return "Unidentified"_string;
+        return "Unidentified"_utf16_fly_string;
 
     // 3.2. Modifier Keys, https://www.w3.org/TR/uievents-key/#keys-modifier
     case KeyCode::Key_LeftAlt:
     case KeyCode::Key_RightAlt:
-        return "Alt"_string;
+        return "Alt"_utf16_fly_string;
     case KeyCode::Key_AltGr:
-        return "AltGraph"_string;
+        return "AltGraph"_utf16_fly_string;
     case KeyCode::Key_CapsLock:
-        return "CapsLock"_string;
+        return "CapsLock"_utf16_fly_string;
     case KeyCode::Key_LeftControl:
     case KeyCode::Key_RightControl:
-        return "Control"_string;
+        return "Control"_utf16_fly_string;
     // FIXME: Fn
     // FIXME: FnLock
     case KeyCode::Key_LeftSuper:
     case KeyCode::Key_RightSuper:
-        return "Meta"_string;
+        return "Meta"_utf16_fly_string;
     case KeyCode::Key_NumLock:
-        return "NumLock"_string;
+        return "NumLock"_utf16_fly_string;
     case KeyCode::Key_ScrollLock:
-        return "ScrollLock"_string;
+        return "ScrollLock"_utf16_fly_string;
     case KeyCode::Key_LeftShift:
     case KeyCode::Key_RightShift:
-        return "Shift"_string;
+        return "Shift"_utf16_fly_string;
 
     // 3.3. Whitespace Keys, https://www.w3.org/TR/uievents-key/#keys-whitespace
     case KeyCode::Key_Return:
-        return "Enter"_string;
+        return "Enter"_utf16_fly_string;
     case KeyCode::Key_Tab:
-        return "Tab"_string;
+        return "Tab"_utf16_fly_string;
     case KeyCode::Key_Space:
-        return " "_string;
+        return " "_utf16_fly_string;
 
     // 3.4. Navigation Keys, https://www.w3.org/TR/uievents-key/#keys-navigation
     case KeyCode::Key_Down:
-        return "ArrowDown"_string;
+        return "ArrowDown"_utf16_fly_string;
     case KeyCode::Key_Left:
-        return "ArrowLeft"_string;
+        return "ArrowLeft"_utf16_fly_string;
     case KeyCode::Key_Right:
-        return "ArrowRight"_string;
+        return "ArrowRight"_utf16_fly_string;
     case KeyCode::Key_Up:
-        return "ArrowUp"_string;
+        return "ArrowUp"_utf16_fly_string;
     case KeyCode::Key_End:
-        return "End"_string;
+        return "End"_utf16_fly_string;
     case KeyCode::Key_Home:
-        return "Home"_string;
+        return "Home"_utf16_fly_string;
     case KeyCode::Key_PageDown:
-        return "PageDown"_string;
+        return "PageDown"_utf16_fly_string;
     case KeyCode::Key_PageUp:
-        return "PageUp"_string;
+        return "PageUp"_utf16_fly_string;
 
     // 3.5. Editing Keys, https://www.w3.org/TR/uievents-key/#keys-editing
     case KeyCode::Key_Backspace:
-        return "Backspace"_string;
+        return "Backspace"_utf16_fly_string;
     case KeyCode::Key_Delete:
-        return "Delete"_string;
+        return "Delete"_utf16_fly_string;
     case KeyCode::Key_Insert:
-        return "Insert"_string;
+        return "Insert"_utf16_fly_string;
 
     // 3.6. UI Keys, https://www.w3.org/TR/uievents-key/#keys-ui
     case KeyCode::Key_Menu:
-        return "ContextMenu"_string;
+        return "ContextMenu"_utf16_fly_string;
     case KeyCode::Key_Escape:
-        return "Escape"_string;
+        return "Escape"_utf16_fly_string;
     // FIXME: Help
     // FIXME: Pause
 
     // 3.7. Device Keys, https://www.w3.org/TR/uievents-key/#keys-device
     case KeyCode::Key_PrintScreen:
-        return "PrintScreen"_string;
+        return "PrintScreen"_utf16_fly_string;
 
     // 3.9. General-Purpose Function Keys, https://www.w3.org/TR/uievents-key/#keys-function
     case KeyCode::Key_F1:
-        return "F1"_string;
+        return "F1"_utf16_fly_string;
     case KeyCode::Key_F2:
-        return "F2"_string;
+        return "F2"_utf16_fly_string;
     case KeyCode::Key_F3:
-        return "F3"_string;
+        return "F3"_utf16_fly_string;
     case KeyCode::Key_F4:
-        return "F4"_string;
+        return "F4"_utf16_fly_string;
     case KeyCode::Key_F5:
-        return "F5"_string;
+        return "F5"_utf16_fly_string;
     case KeyCode::Key_F6:
-        return "F6"_string;
+        return "F6"_utf16_fly_string;
     case KeyCode::Key_F7:
-        return "F7"_string;
+        return "F7"_utf16_fly_string;
     case KeyCode::Key_F8:
-        return "F8"_string;
+        return "F8"_utf16_fly_string;
     case KeyCode::Key_F9:
-        return "F9"_string;
+        return "F9"_utf16_fly_string;
     case KeyCode::Key_F10:
-        return "F10"_string;
+        return "F10"_utf16_fly_string;
     case KeyCode::Key_F11:
-        return "F11"_string;
+        return "F11"_utf16_fly_string;
     case KeyCode::Key_F12:
-        return "F12"_string;
+        return "F12"_utf16_fly_string;
 
     default:
         break;
@@ -264,7 +264,7 @@ static ErrorOr<Optional<String>> get_event_named_key(KeyCode platform_key)
 }
 
 // 2.1. Unicode Values, https://www.w3.org/TR/uievents-key/#keys-unicode
-static ErrorOr<Optional<String>> get_event_key_string(u32 code_point)
+static ErrorOr<Optional<Utf16String>> get_event_key_string(u32 code_point)
 {
     auto is_non_control_character = [&]() {
         // A non-control character is any valid Unicode character except those that are part of the "Other, Control"
@@ -277,7 +277,7 @@ static ErrorOr<Optional<String>> get_event_key_string(u32 code_point)
     // FIXME: Our key events are currently set up to provide one code point at a time. We will need to handle multi-
     //        code point events and NFC normalize that string.
     if (is_non_control_character())
-        return String::from_code_point(code_point);
+        return Utf16String::from_code_point(code_point);
 
     return OptionalNone {};
 }
@@ -303,7 +303,7 @@ static unsigned remove_non_glyph_modifier_keys(unsigned modifiers)
 }
 
 // 2.2. Selecting key Attribute Values, https://www.w3.org/TR/uievents-key/#selecting-key-attribute-values
-static ErrorOr<String> get_event_key(KeyCode platform_key, u32 code_point, unsigned modifiers)
+static ErrorOr<Utf16String> get_event_key(KeyCode platform_key, u32 code_point, unsigned modifiers)
 {
     // 1. Let key be a DOMString initially set to "Unidentified".
     // NOTE: We return "Unidentified" at the end to avoid needlessly allocating it here.
@@ -315,7 +315,7 @@ static ErrorOr<String> get_event_key(KeyCode platform_key, u32 code_point, unsig
     if (platform_key != KeyCode::Key_Invalid) {
         if (auto named_key = TRY(get_event_named_key(platform_key)); named_key.has_value()) {
             // 1. Set key to that named key attribute value.
-            return named_key.release_value();
+            return named_key.release_value().to_utf16_string();
         }
     }
 
@@ -340,58 +340,58 @@ static ErrorOr<String> get_event_key(KeyCode platform_key, u32 code_point, unsig
     }
 
     // 5. Return key as the key attribute value for this key event.
-    return "Unidentified"_string;
+    return "Unidentified"_utf16;
 }
 
 // 3. Keyboard Event code Value Tables, https://www.w3.org/TR/uievents-code/#code-value-tables
-static ErrorOr<String> get_event_code(KeyCode platform_key, unsigned modifiers)
+static ErrorOr<Utf16FlyString> get_event_code(KeyCode platform_key, unsigned modifiers)
 {
     // 3.4. Numpad Section, https://www.w3.org/TR/uievents-code/#key-numpad-section
     if ((modifiers & Mod_Keypad) != 0) {
         switch (platform_key) {
         case KeyCode::Key_0:
-            return "Numpad0"_string;
+            return "Numpad0"_utf16_fly_string;
         case KeyCode::Key_1:
-            return "Numpad1"_string;
+            return "Numpad1"_utf16_fly_string;
         case KeyCode::Key_2:
-            return "Numpad2"_string;
+            return "Numpad2"_utf16_fly_string;
         case KeyCode::Key_3:
-            return "Numpad3"_string;
+            return "Numpad3"_utf16_fly_string;
         case KeyCode::Key_4:
-            return "Numpad4"_string;
+            return "Numpad4"_utf16_fly_string;
         case KeyCode::Key_5:
-            return "Numpad5"_string;
+            return "Numpad5"_utf16_fly_string;
         case KeyCode::Key_6:
-            return "Numpad6"_string;
+            return "Numpad6"_utf16_fly_string;
         case KeyCode::Key_7:
-            return "Numpad7"_string;
+            return "Numpad7"_utf16_fly_string;
         case KeyCode::Key_8:
-            return "Numpad8"_string;
+            return "Numpad8"_utf16_fly_string;
         case KeyCode::Key_9:
-            return "Numpad9"_string;
+            return "Numpad9"_utf16_fly_string;
         case KeyCode::Key_Plus:
-            return "NumpadAdd"_string;
+            return "NumpadAdd"_utf16_fly_string;
         case KeyCode::Key_Comma:
-            return "NumpadComma"_string;
+            return "NumpadComma"_utf16_fly_string;
         case KeyCode::Key_Period:
         case KeyCode::Key_Delete:
-            return "NumpadDecimal"_string;
+            return "NumpadDecimal"_utf16_fly_string;
         case KeyCode::Key_Slash:
-            return "NumpadDivide"_string;
+            return "NumpadDivide"_utf16_fly_string;
         case KeyCode::Key_Return:
-            return "NumpadEnter"_string;
+            return "NumpadEnter"_utf16_fly_string;
         case KeyCode::Key_Asterisk:
-            return "NumpadMultiply"_string;
+            return "NumpadMultiply"_utf16_fly_string;
         case KeyCode::Key_Minus:
-            return "NumpadSubtract"_string;
+            return "NumpadSubtract"_utf16_fly_string;
         case KeyCode::Key_Equal:
-            return "NumpadEqual"_string;
+            return "NumpadEqual"_utf16_fly_string;
         case KeyCode::Key_Hashtag:
-            return "NumpadHash"_string;
+            return "NumpadHash"_utf16_fly_string;
         case KeyCode::Key_LeftParen:
-            return "NumpadParenLeft"_string;
+            return "NumpadParenLeft"_utf16_fly_string;
         case KeyCode::Key_RightParen:
-            return "NumpadParenRight"_string;
+            return "NumpadParenRight"_utf16_fly_string;
         default:
             break;
         }
@@ -401,274 +401,274 @@ static ErrorOr<String> get_event_code(KeyCode platform_key, unsigned modifiers)
     // 3.1.1. Writing System Keys, https://www.w3.org/TR/uievents-code/#key-alphanumeric-writing-system
     case KeyCode::Key_Backtick:
     case KeyCode::Key_Tilde:
-        return "Backquote"_string;
+        return "Backquote"_utf16_fly_string;
     case KeyCode::Key_Backslash:
     case KeyCode::Key_Pipe:
-        return "Backslash"_string;
+        return "Backslash"_utf16_fly_string;
     case KeyCode::Key_LeftBrace:
     case KeyCode::Key_LeftBracket:
-        return "BracketLeft"_string;
+        return "BracketLeft"_utf16_fly_string;
     case KeyCode::Key_RightBrace:
     case KeyCode::Key_RightBracket:
-        return "BracketRight"_string;
+        return "BracketRight"_utf16_fly_string;
     case KeyCode::Key_Comma:
     case KeyCode::Key_LessThan:
-        return "Comma"_string;
+        return "Comma"_utf16_fly_string;
     case KeyCode::Key_0:
     case KeyCode::Key_RightParen:
-        return "Digit0"_string;
+        return "Digit0"_utf16_fly_string;
     case KeyCode::Key_1:
     case KeyCode::Key_ExclamationPoint:
-        return "Digit1"_string;
+        return "Digit1"_utf16_fly_string;
     case KeyCode::Key_2:
     case KeyCode::Key_AtSign:
-        return "Digit2"_string;
+        return "Digit2"_utf16_fly_string;
     case KeyCode::Key_3:
     case KeyCode::Key_Hashtag:
-        return "Digit3"_string;
+        return "Digit3"_utf16_fly_string;
     case KeyCode::Key_4:
     case KeyCode::Key_Dollar:
-        return "Digit4"_string;
+        return "Digit4"_utf16_fly_string;
     case KeyCode::Key_5:
     case KeyCode::Key_Percent:
-        return "Digit5"_string;
+        return "Digit5"_utf16_fly_string;
     case KeyCode::Key_6:
     case KeyCode::Key_Circumflex:
-        return "Digit6"_string;
+        return "Digit6"_utf16_fly_string;
     case KeyCode::Key_7:
     case KeyCode::Key_Ampersand:
-        return "Digit7"_string;
+        return "Digit7"_utf16_fly_string;
     case KeyCode::Key_8:
     case KeyCode::Key_Asterisk:
-        return "Digit8"_string;
+        return "Digit8"_utf16_fly_string;
     case KeyCode::Key_9:
     case KeyCode::Key_LeftParen:
-        return "Digit9"_string;
+        return "Digit9"_utf16_fly_string;
     case KeyCode::Key_Equal:
     case KeyCode::Key_Plus:
-        return "Equal"_string;
+        return "Equal"_utf16_fly_string;
     // FIXME: IntlBackslash
     // FIXME: IntlRo
     // FIXME: IntlYen
     case KeyCode::Key_A:
-        return "KeyA"_string;
+        return "KeyA"_utf16_fly_string;
     case KeyCode::Key_B:
-        return "KeyB"_string;
+        return "KeyB"_utf16_fly_string;
     case KeyCode::Key_C:
-        return "KeyC"_string;
+        return "KeyC"_utf16_fly_string;
     case KeyCode::Key_D:
-        return "KeyD"_string;
+        return "KeyD"_utf16_fly_string;
     case KeyCode::Key_E:
-        return "KeyE"_string;
+        return "KeyE"_utf16_fly_string;
     case KeyCode::Key_F:
-        return "KeyF"_string;
+        return "KeyF"_utf16_fly_string;
     case KeyCode::Key_G:
-        return "KeyG"_string;
+        return "KeyG"_utf16_fly_string;
     case KeyCode::Key_H:
-        return "KeyH"_string;
+        return "KeyH"_utf16_fly_string;
     case KeyCode::Key_I:
-        return "KeyI"_string;
+        return "KeyI"_utf16_fly_string;
     case KeyCode::Key_J:
-        return "KeyJ"_string;
+        return "KeyJ"_utf16_fly_string;
     case KeyCode::Key_K:
-        return "KeyK"_string;
+        return "KeyK"_utf16_fly_string;
     case KeyCode::Key_L:
-        return "KeyL"_string;
+        return "KeyL"_utf16_fly_string;
     case KeyCode::Key_M:
-        return "KeyM"_string;
+        return "KeyM"_utf16_fly_string;
     case KeyCode::Key_N:
-        return "KeyN"_string;
+        return "KeyN"_utf16_fly_string;
     case KeyCode::Key_O:
-        return "KeyO"_string;
+        return "KeyO"_utf16_fly_string;
     case KeyCode::Key_P:
-        return "KeyP"_string;
+        return "KeyP"_utf16_fly_string;
     case KeyCode::Key_Q:
-        return "KeyQ"_string;
+        return "KeyQ"_utf16_fly_string;
     case KeyCode::Key_R:
-        return "KeyR"_string;
+        return "KeyR"_utf16_fly_string;
     case KeyCode::Key_S:
-        return "KeyS"_string;
+        return "KeyS"_utf16_fly_string;
     case KeyCode::Key_T:
-        return "KeyT"_string;
+        return "KeyT"_utf16_fly_string;
     case KeyCode::Key_U:
-        return "KeyU"_string;
+        return "KeyU"_utf16_fly_string;
     case KeyCode::Key_V:
-        return "KeyV"_string;
+        return "KeyV"_utf16_fly_string;
     case KeyCode::Key_W:
-        return "KeyW"_string;
+        return "KeyW"_utf16_fly_string;
     case KeyCode::Key_X:
-        return "KeyX"_string;
+        return "KeyX"_utf16_fly_string;
     case KeyCode::Key_Y:
-        return "KeyY"_string;
+        return "KeyY"_utf16_fly_string;
     case KeyCode::Key_Z:
-        return "KeyZ"_string;
+        return "KeyZ"_utf16_fly_string;
     case KeyCode::Key_Minus:
     case KeyCode::Key_Underscore:
-        return "Minus"_string;
+        return "Minus"_utf16_fly_string;
     case KeyCode::Key_Period:
     case KeyCode::Key_GreaterThan:
-        return "Period"_string;
+        return "Period"_utf16_fly_string;
     case KeyCode::Key_Apostrophe:
     case KeyCode::Key_DoubleQuote:
-        return "Quote"_string;
+        return "Quote"_utf16_fly_string;
     case KeyCode::Key_Semicolon:
     case KeyCode::Key_Colon:
-        return "Semicolon"_string;
+        return "Semicolon"_utf16_fly_string;
     case KeyCode::Key_Slash:
     case KeyCode::Key_QuestionMark:
-        return "Slash"_string;
+        return "Slash"_utf16_fly_string;
 
     // 3.1.2. Functional Keys, https://www.w3.org/TR/uievents-code/#key-alphanumeric-functional
     case KeyCode::Key_LeftAlt:
-        return "AltLeft"_string;
+        return "AltLeft"_utf16_fly_string;
     case KeyCode::Key_RightAlt:
-        return "AltRight"_string;
+        return "AltRight"_utf16_fly_string;
     case KeyCode::Key_AltGr:
-        return "AltGraph"_string;
+        return "AltGraph"_utf16_fly_string;
     case KeyCode::Key_Backspace:
-        return "Backspace"_string;
+        return "Backspace"_utf16_fly_string;
     case KeyCode::Key_CapsLock:
-        return "CapsLock"_string;
+        return "CapsLock"_utf16_fly_string;
     case KeyCode::Key_Menu:
-        return "ContextMenu"_string;
+        return "ContextMenu"_utf16_fly_string;
     case KeyCode::Key_LeftControl:
-        return "ControlLeft"_string;
+        return "ControlLeft"_utf16_fly_string;
     case KeyCode::Key_RightControl:
-        return "ControlRight"_string;
+        return "ControlRight"_utf16_fly_string;
     case KeyCode::Key_Return:
-        return "Enter"_string;
+        return "Enter"_utf16_fly_string;
     case KeyCode::Key_LeftSuper:
-        return "MetaLeft"_string;
+        return "MetaLeft"_utf16_fly_string;
     case KeyCode::Key_RightSuper:
-        return "MetaRight"_string;
+        return "MetaRight"_utf16_fly_string;
     case KeyCode::Key_LeftShift:
-        return "ShiftLeft"_string;
+        return "ShiftLeft"_utf16_fly_string;
     case KeyCode::Key_RightShift:
-        return "ShiftRight"_string;
+        return "ShiftRight"_utf16_fly_string;
     case KeyCode::Key_Space:
-        return "Space"_string;
+        return "Space"_utf16_fly_string;
     case KeyCode::Key_Tab:
-        return "Tab"_string;
+        return "Tab"_utf16_fly_string;
 
     // 3.2. Control Pad Section, https://www.w3.org/TR/uievents-code/#key-controlpad-section
     case KeyCode::Key_Delete:
-        return "Delete"_string;
+        return "Delete"_utf16_fly_string;
     case KeyCode::Key_End:
-        return "End"_string;
+        return "End"_utf16_fly_string;
     // FIXME: Help
     case KeyCode::Key_Home:
-        return "Home"_string;
+        return "Home"_utf16_fly_string;
     case KeyCode::Key_Insert:
-        return "Insert"_string;
+        return "Insert"_utf16_fly_string;
     case KeyCode::Key_PageDown:
-        return "PageDown"_string;
+        return "PageDown"_utf16_fly_string;
     case KeyCode::Key_PageUp:
-        return "PageUp"_string;
+        return "PageUp"_utf16_fly_string;
 
     // 3.3. Arrow Pad Section, https://www.w3.org/TR/uievents-code/#key-arrowpad-section
     case KeyCode::Key_Down:
-        return "ArrowDown"_string;
+        return "ArrowDown"_utf16_fly_string;
     case KeyCode::Key_Left:
-        return "ArrowLeft"_string;
+        return "ArrowLeft"_utf16_fly_string;
     case KeyCode::Key_Right:
-        return "ArrowRight"_string;
+        return "ArrowRight"_utf16_fly_string;
     case KeyCode::Key_Up:
-        return "ArrowUp"_string;
+        return "ArrowUp"_utf16_fly_string;
 
     // 3.4. Numpad Section, https://www.w3.org/TR/uievents-code/#key-numpad-section
     case KeyCode::Key_NumLock:
-        return "NumLock"_string;
+        return "NumLock"_utf16_fly_string;
 
     // 3.5. Function Section, https://www.w3.org/TR/uievents-code/#key-function-section
     case KeyCode::Key_Escape:
-        return "Escape"_string;
+        return "Escape"_utf16_fly_string;
     case KeyCode::Key_F1:
-        return "F1"_string;
+        return "F1"_utf16_fly_string;
     case KeyCode::Key_F2:
-        return "F2"_string;
+        return "F2"_utf16_fly_string;
     case KeyCode::Key_F3:
-        return "F3"_string;
+        return "F3"_utf16_fly_string;
     case KeyCode::Key_F4:
-        return "F4"_string;
+        return "F4"_utf16_fly_string;
     case KeyCode::Key_F5:
-        return "F5"_string;
+        return "F5"_utf16_fly_string;
     case KeyCode::Key_F6:
-        return "F6"_string;
+        return "F6"_utf16_fly_string;
     case KeyCode::Key_F7:
-        return "F7"_string;
+        return "F7"_utf16_fly_string;
     case KeyCode::Key_F8:
-        return "F8"_string;
+        return "F8"_utf16_fly_string;
     case KeyCode::Key_F9:
-        return "F9"_string;
+        return "F9"_utf16_fly_string;
     case KeyCode::Key_F10:
-        return "F10"_string;
+        return "F10"_utf16_fly_string;
     case KeyCode::Key_F11:
-        return "F11"_string;
+        return "F11"_utf16_fly_string;
     case KeyCode::Key_F12:
-        return "F12"_string;
+        return "F12"_utf16_fly_string;
     case KeyCode::Key_PrintScreen:
     case KeyCode::Key_SysRq:
-        return "PrintScreen"_string;
+        return "PrintScreen"_utf16_fly_string;
     case KeyCode::Key_ScrollLock:
-        return "ScrollLock"_string;
+        return "ScrollLock"_utf16_fly_string;
     case KeyCode::Key_PauseBreak:
-        return "Pause"_string;
+        return "Pause"_utf16_fly_string;
 
     // 3.6. Media Section, https://www.w3.org/TR/uievents-code/#media-keys
     case KeyCode::Key_BrowserSearch:
-        return "BrowserSearch"_string;
+        return "BrowserSearch"_utf16_fly_string;
     case KeyCode::Key_BrowserFavorites:
-        return "BrowserFavorites"_string;
+        return "BrowserFavorites"_utf16_fly_string;
     case KeyCode::Key_BrowserHome:
-        return "BrowserHome"_string;
+        return "BrowserHome"_utf16_fly_string;
     case KeyCode::Key_PreviousTrack:
-        return "PreviousTrack"_string;
+        return "PreviousTrack"_utf16_fly_string;
     case KeyCode::Key_BrowserBack:
-        return "BrowserBack"_string;
+        return "BrowserBack"_utf16_fly_string;
     case KeyCode::Key_BrowserForward:
-        return "BrowserForward"_string;
+        return "BrowserForward"_utf16_fly_string;
     case KeyCode::Key_BrowserRefresh:
-        return "BrowserRefresh"_string;
+        return "BrowserRefresh"_utf16_fly_string;
     case KeyCode::Key_BrowserStop:
-        return "BrowserStop"_string;
+        return "BrowserStop"_utf16_fly_string;
     case KeyCode::Key_VolumeDown:
-        return "AudioVolumeDown"_string;
+        return "AudioVolumeDown"_utf16_fly_string;
     case KeyCode::Key_VolumeUp:
-        return "AudioVolumeUp"_string;
+        return "AudioVolumeUp"_utf16_fly_string;
     case KeyCode::Key_Wake:
-        return "WakeUp"_string;
+        return "WakeUp"_utf16_fly_string;
     case KeyCode::Key_Sleep:
-        return "Sleep"_string;
+        return "Sleep"_utf16_fly_string;
     case KeyCode::Key_NextTrack:
-        return "NextTrack"_string;
+        return "NextTrack"_utf16_fly_string;
     case KeyCode::Key_MediaSelect:
-        return "MediaSelect"_string;
+        return "MediaSelect"_utf16_fly_string;
     case KeyCode::Key_Email:
-        return "LaunchMail"_string;
+        return "LaunchMail"_utf16_fly_string;
 
     case KeyCode::Key_Power:
-        return "Power"_string;
+        return "Power"_utf16_fly_string;
     case KeyCode::Key_Stop:
-        return "MediaStop"_string;
+        return "MediaStop"_utf16_fly_string;
     case KeyCode::Key_PlayPause:
-        return "MediaPlayPause"_string;
+        return "MediaPlayPause"_utf16_fly_string;
     case KeyCode::Key_Mute:
-        return "AudioVolumeMute"_string;
+        return "AudioVolumeMute"_utf16_fly_string;
     case KeyCode::Key_Calculator:
-        return "LaunchApp2"_string;
+        return "LaunchApp2"_utf16_fly_string;
     case KeyCode::Key_MyComputer:
-        return "LaunchApp1"_string;
+        return "LaunchApp1"_utf16_fly_string;
 
     // FIXME: Are these correct?
     case KeyCode::Key_LeftGUI:
-        return "LaunchApp2"_string;
+        return "LaunchApp2"_utf16_fly_string;
     case KeyCode::Key_RightGUI:
     case KeyCode::Key_Apps:
-        return "LaunchApp1"_string;
+        return "LaunchApp1"_utf16_fly_string;
 
     // 3.7. Legacy, Non-Standard and Special Keys, https://www.w3.org/TR/uievents-code/#key-legacy
     case KeyCode::Key_Invalid:
-        return "Unidentified"_string;
+        return "Unidentified"_utf16_fly_string;
     }
 
     VERIFY_NOT_REACHED();
@@ -698,7 +698,7 @@ static DOMKeyLocation get_event_location(KeyCode platform_key, unsigned modifier
     return DOMKeyLocation::Standard;
 }
 
-GC::Ref<KeyboardEvent> KeyboardEvent::create_from_platform_event(JS::Realm& realm, FlyString const& event_name, KeyCode platform_key, unsigned modifiers, u32 code_point, bool repeat)
+GC::Ref<KeyboardEvent> KeyboardEvent::create_from_platform_event(JS::Realm& realm, Utf16FlyString const& event_name, KeyCode platform_key, unsigned modifiers, u32 code_point, bool repeat)
 {
     auto event_key = MUST(get_event_key(platform_key, code_point, modifiers));
     auto event_code = MUST(get_event_code(platform_key, modifiers));
@@ -733,41 +733,41 @@ GC::Ref<KeyboardEvent> KeyboardEvent::create_from_platform_event(JS::Realm& real
     return event;
 }
 
-bool KeyboardEvent::get_modifier_state(String const& key_arg) const
+bool KeyboardEvent::get_modifier_state(Utf16FlyString const& key_arg) const
 {
-    if (key_arg == "Control")
+    if (key_arg == "Control"_utf16_fly_string)
         return m_ctrl_key;
-    if (key_arg == "Shift")
+    if (key_arg == "Shift"_utf16_fly_string)
         return m_shift_key;
-    if (key_arg == "Alt")
+    if (key_arg == "Alt"_utf16_fly_string)
         return m_alt_key;
-    if (key_arg == "Meta")
+    if (key_arg == "Meta"_utf16_fly_string)
         return m_meta_key;
-    if (key_arg == "AltGraph")
+    if (key_arg == "AltGraph"_utf16_fly_string)
         return m_modifier_alt_graph;
-    if (key_arg == "CapsLock")
+    if (key_arg == "CapsLock"_utf16_fly_string)
         return m_modifier_caps_lock;
-    if (key_arg == "Fn")
+    if (key_arg == "Fn"_utf16_fly_string)
         return m_modifier_fn;
-    if (key_arg == "FnLock")
+    if (key_arg == "FnLock"_utf16_fly_string)
         return m_modifier_fn_lock;
-    if (key_arg == "Hyper")
+    if (key_arg == "Hyper"_utf16_fly_string)
         return m_modifier_hyper;
-    if (key_arg == "NumLock")
+    if (key_arg == "NumLock"_utf16_fly_string)
         return m_modifier_num_lock;
-    if (key_arg == "ScrollLock")
+    if (key_arg == "ScrollLock"_utf16_fly_string)
         return m_modifier_scroll_lock;
-    if (key_arg == "Super")
+    if (key_arg == "Super"_utf16_fly_string)
         return m_modifier_super;
-    if (key_arg == "Symbol")
+    if (key_arg == "Symbol"_utf16_fly_string)
         return m_modifier_symbol;
-    if (key_arg == "SymbolLock")
+    if (key_arg == "SymbolLock"_utf16_fly_string)
         return m_modifier_symbol_lock;
     return false;
 }
 
 // https://w3c.github.io/uievents/#dom-keyboardevent-initkeyboardevent
-void KeyboardEvent::init_keyboard_event(String const& type, bool bubbles, bool cancelable, GC::Ptr<HTML::WindowProxy> view, String const& key, WebIDL::UnsignedLong location, bool ctrl_key, bool alt_key, bool shift_key, bool meta_key)
+void KeyboardEvent::init_keyboard_event(Utf16FlyString const& type, bool bubbles, bool cancelable, GC::Ptr<HTML::WindowProxy> view, Utf16String const& key, WebIDL::UnsignedLong location, bool ctrl_key, bool alt_key, bool shift_key, bool meta_key)
 {
     // Initializes attributes of a KeyboardEvent object. This method has the same behavior as UIEvent.initUIEvent().
     // The value of detail remains undefined.
@@ -789,17 +789,17 @@ void KeyboardEvent::init_keyboard_event(String const& type, bool bubbles, bool c
     m_meta_key = meta_key;
 }
 
-GC::Ref<KeyboardEvent> KeyboardEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::KeyboardEventInit const& event_init)
+GC::Ref<KeyboardEvent> KeyboardEvent::create(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::KeyboardEventInit const& event_init)
 {
     return realm.create<KeyboardEvent>(realm, event_name, event_init);
 }
 
-WebIDL::ExceptionOr<GC::Ref<KeyboardEvent>> KeyboardEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::KeyboardEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<KeyboardEvent>> KeyboardEvent::construct_impl(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::KeyboardEventInit const& event_init)
 {
     return create(realm, event_name, event_init);
 }
 
-KeyboardEvent::KeyboardEvent(JS::Realm& realm, FlyString const& event_name, Bindings::KeyboardEventInit const& event_init)
+KeyboardEvent::KeyboardEvent(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::KeyboardEventInit const& event_init)
     : UIEvent(realm, event_name, event_init)
     , m_key(event_init.key)
     , m_code(event_init.code)

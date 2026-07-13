@@ -9,6 +9,7 @@
 #include <AK/JsonValue.h>
 #include <AK/LexicalPath.h>
 #include <AK/Platform.h>
+#include <AK/Utf16String.h>
 #include <LibCore/Directory.h>
 #include <LibCore/Environment.h>
 #include <LibCore/File.h>
@@ -138,7 +139,7 @@ ErrorOr<Web::HTML::SelectedFile> create_selected_file(ByteString const& file_pat
     // https://html.spec.whatwg.org/multipage/input.html#file-upload-state-(type=file):concept-input-file-path
     // Filenames must not contain path components, even in the case that a user has selected an entire directory
     // hierarchy or multiple files with the same name from different directories.
-    auto name = LexicalPath::basename(file_path);
+    auto name = Utf16String::from_utf8(LexicalPath::basename(file_path));
 
     auto file = TRY(Core::File::open(file_path, Core::File::OpenMode::Read));
     return Web::HTML::SelectedFile { move(name), IPC::File::adopt_file(move(file)) };

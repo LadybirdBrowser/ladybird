@@ -110,12 +110,22 @@ struct DecodeContext {
     ErrorOr<void> result {};
 };
 
+struct Utf16DecodeContext {
+    Utf16StringBuilder builder;
+};
+
 static void append_decoded_bytes(void* context, u8 const* data, size_t length)
 {
     auto& decode_context = *static_cast<DecodeContext*>(context);
     if (decode_context.result.is_error())
         return;
     decode_context.result = decode_context.builder.try_append(StringView { data, length });
+}
+
+static void append_decoded_utf16(void* context, u16 const* data, size_t length)
+{
+    auto& decode_context = *static_cast<Utf16DecodeContext*>(context);
+    decode_context.builder.append(Utf16View { reinterpret_cast<char16_t const*>(data), length });
 }
 
 ErrorOr<String> rust_decode_to_utf8(StringView encoding, StringView input, IgnoreBOM ignore_bom, ErrorMode error_mode)
@@ -134,6 +144,22 @@ ErrorOr<String> rust_decode_to_utf8(StringView encoding, StringView input, Ignor
         return Error::from_string_literal("Failed to decode input");
     TRY(context.result);
     return context.builder.to_string_without_validation();
+}
+
+ErrorOr<Utf16String> rust_streaming_decode_to_utf16(FFI::TextCodecRustStreamingDecoder* decoder, ReadonlyBytes input, bool last, ErrorMode error_mode)
+{
+    Utf16DecodeContext context { .builder = Utf16StringBuilder(input.size()) };
+    auto succeeded = FFI::textcodec_rust_streaming_decoder_decode_to_utf16(
+        decoder,
+        input.data(),
+        input.size(),
+        last,
+        error_mode == ErrorMode::Fatal,
+        &context,
+        append_decoded_utf16);
+    if (!succeeded)
+        return Error::from_string_literal("Failed to decode input");
+    return context.builder.to_string();
 }
 
 ErrorOr<void> rust_process(StringView encoding, StringView input, IgnoreBOM ignore_bom, Function<ErrorOr<void>(u32)> on_code_point)
@@ -187,6 +213,12 @@ ErrorOr<String> rust_streaming_decode_to_utf8(FFI::TextCodecRustStreamingDecoder
 }
 
 Optional<Decoder&> decoder_for(StringView label)
+{
+    auto encoding = get_standardized_encoding(label);
+    return encoding.has_value() ? decoder_for_exact_name(encoding.value()) : Optional<Decoder&> {};
+}
+
+Optional<Decoder&> decoder_for(Utf16View label)
 {
     auto encoding = get_standardized_encoding(label);
     return encoding.has_value() ? decoder_for_exact_name(encoding.value()) : Optional<Decoder&> {};
@@ -488,9 +520,19 @@ ErrorOr<String> StreamingDecoder::to_utf8(ReadonlyBytes input)
     return rust_streaming_decode_to_utf8(static_cast<FFI::TextCodecRustStreamingDecoder*>(m_decoder), input, false, m_error_mode);
 }
 
+ErrorOr<Utf16String> StreamingDecoder::to_utf16(ReadonlyBytes input)
+{
+    return rust_streaming_decode_to_utf16(static_cast<FFI::TextCodecRustStreamingDecoder*>(m_decoder), input, false, m_error_mode);
+}
+
 ErrorOr<String> StreamingDecoder::finish()
 {
     return rust_streaming_decode_to_utf8(static_cast<FFI::TextCodecRustStreamingDecoder*>(m_decoder), {}, true, m_error_mode);
+}
+
+ErrorOr<Utf16String> StreamingDecoder::finish_to_utf16()
+{
+    return rust_streaming_decode_to_utf16(static_cast<FFI::TextCodecRustStreamingDecoder*>(m_decoder), {}, true, m_error_mode);
 }
 
 ErrorOr<void> UTF8Decoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
@@ -550,6 +592,20 @@ String isomorphic_decode(StringView input)
         builder.append_code_point(byte);
 
     return builder.to_string_without_validation();
+}
+
+// https://infra.spec.whatwg.org/#isomorphic-decode
+Utf16String isomorphic_decode_to_utf16(StringView input)
+{
+    // To isomorphic decode a byte sequence input, return a string whose code point length is equal to input’s length
+    // and whose code points have the same values as the values of input’s bytes, in the same order.
+    // NB: This is essentially spec-speak for "Decode as ISO-8859-1 / Latin-1".
+    Utf16StringBuilder builder(input.length());
+
+    for (auto byte : input.bytes())
+        builder.append_code_point(byte);
+
+    return builder.to_string();
 }
 
 }

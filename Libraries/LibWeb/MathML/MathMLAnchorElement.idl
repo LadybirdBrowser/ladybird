@@ -2,7 +2,7 @@
 [Exposed=Window]
 interface MathMLAnchorElement : MathMLElement {
     [ReflectSetter] attribute Utf16USVString href;
-    [Reflect] attribute DOMString target;
+    [Reflect] attribute Utf16DOMString target;
 };
 
 MathMLAnchorElement includes HyperlinkElementUtils;

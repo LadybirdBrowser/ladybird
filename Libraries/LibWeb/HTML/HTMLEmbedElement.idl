@@ -4,14 +4,14 @@ interface HTMLEmbedElement : HTMLElement {
 
     [HTMLConstructor] constructor();
 
-    [CEReactions, Reflect, URL] attribute USVString src;
-    [CEReactions, Reflect] attribute DOMString type;
-    [CEReactions, Reflect] attribute DOMString width;
-    [CEReactions, Reflect] attribute DOMString height;
+    [CEReactions, Reflect, URL] attribute Utf16USVString src;
+    [CEReactions, Reflect] attribute Utf16DOMString type;
+    [CEReactions, Reflect] attribute Utf16DOMString width;
+    [CEReactions, Reflect] attribute Utf16DOMString height;
     [FIXME] Document? getSVGDocument();
 
     // Obsolete
-    [CEReactions, Reflect] attribute DOMString align;
+    [CEReactions, Reflect] attribute Utf16DOMString align;
     [CEReactions, Reflect] attribute Utf16DOMString name;
 
 };

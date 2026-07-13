@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <AK/String.h>
 #include <AK/Types.h>
+#include <AK/Utf16String.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 
 namespace Web::Bindings {
@@ -24,23 +24,23 @@ class MediaDeviceInfo final : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(MediaDeviceInfo);
 
 public:
-    [[nodiscard]] static GC::Ref<MediaDeviceInfo> create(JS::Realm&, String device_id, Bindings::MediaDeviceKind kind, String label, String group_id);
+    [[nodiscard]] static GC::Ref<MediaDeviceInfo> create(JS::Realm&, Utf16String device_id, Bindings::MediaDeviceKind kind, Utf16String label, Utf16String group_id);
     virtual ~MediaDeviceInfo() override;
 
-    String device_id() const { return m_device_id; }
+    Utf16String const& device_id() const { return m_device_id; }
     Bindings::MediaDeviceKind kind() const { return m_kind; }
-    String label() const { return m_label; }
-    String group_id() const { return m_group_id; }
+    Utf16String const& label() const { return m_label; }
+    Utf16String const& group_id() const { return m_group_id; }
 
 private:
-    MediaDeviceInfo(JS::Realm&, String device_id, Bindings::MediaDeviceKind kind, String label, String group_id);
+    MediaDeviceInfo(JS::Realm&, Utf16String device_id, Bindings::MediaDeviceKind kind, Utf16String label, Utf16String group_id);
 
     virtual void initialize(JS::Realm&) override;
 
-    String m_device_id;
+    Utf16String m_device_id;
     Bindings::MediaDeviceKind m_kind;
-    String m_label;
-    String m_group_id;
+    Utf16String m_label;
+    Utf16String m_group_id;
 };
 
 }

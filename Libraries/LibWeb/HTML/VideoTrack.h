@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <AK/String.h>
 #include <AK/Time.h>
 #include <LibMedia/Track.h>
 #include <LibWeb/Bindings/PlatformObject.h>

@@ -10,6 +10,7 @@
 
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
+#include <AK/Utf16View.h>
 #include <LibWeb/CSS/Parser/Token.h>
 #include <LibWeb/CSS/Parser/Types.h>
 #include <LibWeb/Export.h>
@@ -32,13 +33,13 @@ public:
     SimpleBlock const& block() const { return m_value.get<SimpleBlock>(); }
 
     bool is_function() const { return m_value.has<Function>(); }
-    bool is_function(StringView name) const;
+    bool is_function(Utf16View name) const;
     Function const& function() const { return m_value.get<Function>(); }
 
     bool is_token() const { return m_value.has<Token>(); }
     bool is(Token::Type type) const { return is_token() && token().is(type); }
     bool is_delim(u32 delim) const;
-    bool is_ident(StringView ident) const;
+    bool is_ident(Utf16View ident) const;
     Token const& token() const { return m_value.get<Token>(); }
     operator Token() const { return m_value.get<Token>(); }
 
@@ -47,7 +48,8 @@ public:
     bool contains_attr_tainted_value() const;
     void set_attr_tainted() { m_attr_tainted = true; }
 
-    String to_string() const;
+    Utf16String to_string() const;
+    void serialize_to(Utf16StringBuilder&) const;
     String to_debug_string() const;
     String original_source_text() const;
 
@@ -68,6 +70,6 @@ template<>
 struct AK::Formatter<Web::CSS::Parser::ComponentValue> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, Web::CSS::Parser::ComponentValue const& component_value)
     {
-        return Formatter<StringView>::format(builder, component_value.to_string());
+        return Formatter<StringView>::format(builder, component_value.to_string().to_utf8());
     }
 };

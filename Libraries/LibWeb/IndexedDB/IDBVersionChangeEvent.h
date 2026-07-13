@@ -21,13 +21,13 @@ class IDBVersionChangeEvent : public DOM::Event {
 public:
     virtual ~IDBVersionChangeEvent() override;
 
-    static GC::Ref<IDBVersionChangeEvent> create(JS::Realm&, FlyString const&, Bindings::IDBVersionChangeEventInit const&);
+    static GC::Ref<IDBVersionChangeEvent> create(JS::Realm&, Utf16FlyString const&, Bindings::IDBVersionChangeEventInit const&);
 
     u64 old_version() const { return m_old_version; }
     Optional<u64> new_version() const { return m_new_version; }
 
 protected:
-    explicit IDBVersionChangeEvent(JS::Realm&, FlyString const& event_name, Bindings::IDBVersionChangeEventInit const& event_init);
+    explicit IDBVersionChangeEvent(JS::Realm&, Utf16FlyString const& event_name, Bindings::IDBVersionChangeEventInit const& event_init);
 
     virtual void initialize(JS::Realm&) override;
 

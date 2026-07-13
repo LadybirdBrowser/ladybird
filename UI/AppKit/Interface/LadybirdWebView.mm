@@ -298,7 +298,7 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
 - (void)findInPage:(NSString*)query
     caseSensitivity:(CaseSensitivity)case_sensitivity
 {
-    m_web_view_bridge->find_in_page(Ladybird::ns_string_to_string(query), case_sensitivity);
+    m_web_view_bridge->find_in_page(Ladybird::ns_string_to_utf16_string(query), case_sensitivity);
 }
 
 - (void)findInPageNextMatch
@@ -652,7 +652,7 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
         if (self == nil) {
             return;
         }
-        auto* ns_message = Ladybird::string_to_ns_string(message);
+        auto* ns_message = Ladybird::utf16_string_to_ns_string(message);
 
         self.dialog = [[NSAlert alloc] init];
         [self.dialog setMessageText:ns_message];
@@ -669,7 +669,7 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
         if (self == nil) {
             return;
         }
-        auto* ns_message = Ladybird::string_to_ns_string(message);
+        auto* ns_message = Ladybird::utf16_string_to_ns_string(message);
 
         self.dialog = [[NSAlert alloc] init];
         [[self.dialog addButtonWithTitle:@"OK"] setTag:NSModalResponseOK];
@@ -688,8 +688,8 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
         if (self == nil) {
             return;
         }
-        auto* ns_message = Ladybird::string_to_ns_string(message);
-        auto* ns_default = Ladybird::string_to_ns_string(default_);
+        auto* ns_message = Ladybird::utf16_string_to_ns_string(message);
+        auto* ns_default = Ladybird::utf16_string_to_ns_string(default_);
 
         auto* input = [[NSTextField alloc] initWithFrame:NSMakeRect(0, 0, 200, 24)];
         [input setStringValue:ns_default];
@@ -704,10 +704,10 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
 
         [self.dialog beginSheetModalForWindow:[self window]
                             completionHandler:^(NSModalResponse response) {
-                                Optional<String> text;
+                                Optional<Utf16String> text;
 
                                 if (response == NSModalResponseOK) {
-                                    text = Ladybird::ns_string_to_string([input stringValue]);
+                                    text = Ladybird::ns_string_to_utf16_string([input stringValue]);
                                 }
 
                                 m_web_view_bridge->prompt_closed(move(text));
@@ -724,7 +724,7 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
             return;
         }
 
-        auto* ns_message = Ladybird::string_to_ns_string(message);
+        auto* ns_message = Ladybird::utf16_string_to_ns_string(message);
 
         auto* input = (NSTextField*)[self.dialog accessoryView];
         [input setStringValue:ns_message];

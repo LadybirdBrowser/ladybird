@@ -36,7 +36,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSMathClamp>> CSSMathClamp::construct_impl(JS::Real
                     .added_to(value_rectified->type())
                     .map([&](auto&& type) { return type.added_to(upper_rectified->type()); });
     if (!type.has_value()) {
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot create a CSSMathClamp with values of incompatible types"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot create a CSSMathClamp with values of incompatible types"_utf16 };
     }
 
     // 3. Return a new CSSMathClamp whose lower, value, and upper internal slots are set to lower, value, and upper, respectively.

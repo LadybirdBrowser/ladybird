@@ -56,10 +56,10 @@ void SlotRegistry::remove(HTML::HTMLSlotElement& slot)
     });
 }
 
-GC::Ptr<HTML::HTMLSlotElement> SlotRegistry::first_slot_with_name(Utf16FlyString const& name) const
+GC::Ptr<HTML::HTMLSlotElement> SlotRegistry::first_slot_with_name(Utf16View name) const
 {
     for (auto const& slot : m_slots) {
-        if (slot && slot->slot_name() == name)
+        if (slot && slot->slot_name().view() == name)
             return slot.ptr();
     }
 

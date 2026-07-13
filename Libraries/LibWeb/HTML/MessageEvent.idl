@@ -4,22 +4,22 @@ typedef (WindowProxy or MessagePort) MessageEventSource;
 // https://html.spec.whatwg.org/multipage/comms.html#messageevent
 [Exposed=(Window,Worker)]
 interface MessageEvent : Event {
-    constructor(DOMString type, optional MessageEventInit eventInitDict = {});
+    constructor([Utf16FlyString] Utf16DOMString type, optional MessageEventInit eventInitDict = {});
 
     readonly attribute any data;
-    readonly attribute USVString origin;
-    readonly attribute DOMString lastEventId;
+    readonly attribute Utf16USVString origin;
+    readonly attribute Utf16DOMString lastEventId;
     readonly attribute MessageEventSource? source;
     // FIXME: This should be FrozenArray<MessagePort>, but must also always return the same object.
     readonly attribute any ports;
 
-    undefined initMessageEvent(DOMString type, optional boolean bubbles = false, optional boolean cancelable = false, optional any data = null, optional USVString origin = "", optional DOMString lastEventId = "", optional MessageEventSource? source = null, optional sequence<MessagePort> ports = []);
+    undefined initMessageEvent([Utf16FlyString] Utf16DOMString type, optional boolean bubbles = false, optional boolean cancelable = false, optional any data = null, optional Utf16USVString origin = "", optional Utf16DOMString lastEventId = "", optional MessageEventSource? source = null, optional sequence<MessagePort> ports = []);
 };
 
 dictionary MessageEventInit : EventInit {
     any data = null;
-    USVString origin = "";
-    DOMString lastEventId = "";
+    Utf16USVString origin = "";
+    Utf16DOMString lastEventId = "";
     MessageEventSource? source = null;
     sequence<MessagePort> ports = [];
 };

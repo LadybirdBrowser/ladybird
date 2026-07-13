@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Utf16FlyString.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
@@ -57,7 +58,7 @@ private:
     WebGLContextAttributes m_actual_context_parameters {};
 };
 
-bool fire_webgl_context_event(HTML::HTMLCanvasElement& canvas_element, FlyString const& type);
+bool fire_webgl_context_event(HTML::HTMLCanvasElement& canvas_element, Utf16FlyString const& type);
 void fire_webgl_context_creation_error(HTML::HTMLCanvasElement& canvas_element);
 
 OwnPtr<WebGLContextProxy> create_webgl_context_proxy(HTML::HTMLCanvasElement&, WebGLVersion, WebGLContextAttributes const&);

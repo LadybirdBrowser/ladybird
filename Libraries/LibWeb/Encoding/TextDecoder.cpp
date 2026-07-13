@@ -21,16 +21,14 @@ namespace Web::Encoding {
 GC_DEFINE_ALLOCATOR(TextDecoder);
 
 // https://encoding.spec.whatwg.org/#dom-textdecoder
-WebIDL::ExceptionOr<GC::Ref<TextDecoder>> TextDecoder::construct_impl(JS::Realm& realm, StringView label, Bindings::TextDecoderOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<TextDecoder>> TextDecoder::construct_impl(JS::Realm& realm, Utf16String const& label, Bindings::TextDecoderOptions const& options)
 {
-    auto& vm = realm.vm();
-
     // 1. Let encoding be the result of getting an encoding from label.
-    auto encoding = TextCodec::get_standardized_encoding(label);
+    auto encoding = TextCodec::get_standardized_encoding(label.utf16_view());
 
     // 2. If encoding is failure or replacement, then throw a RangeError.
     if (!encoding.has_value() || encoding->equals_ignoring_ascii_case("replacement"sv))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, TRY_OR_THROW_OOM(vm, String::formatted("Invalid encoding {}", label)) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, Utf16String::formatted("Invalid encoding {}", label.to_utf8()) };
 
     // 3. Set this’s encoding to encoding.
     // https://encoding.spec.whatwg.org/#dom-textdecoder-encoding
@@ -62,7 +60,7 @@ void TextDecoder::initialize(JS::Realm& realm)
 }
 
 // https://encoding.spec.whatwg.org/#dom-textdecoder-decode
-WebIDL::ExceptionOr<String> TextDecoder::decode(Optional<WebIDL::BufferSourceVariant> input, Bindings::TextDecodeOptions const& options)
+WebIDL::ExceptionOr<Utf16String> TextDecoder::decode(Optional<WebIDL::BufferSourceVariant> input, Bindings::TextDecodeOptions const& options)
 {
     // 1. If this’s do not flush is false, then set this’s decoder to a new instance of this’s encoding’s decoder, this’s
     //    I/O queue to the I/O queue of bytes « end-of-queue », and this’s BOM seen to false.

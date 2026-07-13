@@ -1,26 +1,26 @@
 // https://url.spec.whatwg.org/#url
 [Exposed=*, LegacyWindowAlias=webkitURL, ImplementedAs=DOMURL]
 interface URL {
-    constructor(USVString url, optional USVString base);
+    constructor(Utf16USVString url, optional Utf16USVString base);
 
-    [ImplementedAs=parse_for_bindings] static URL? parse(USVString url, optional USVString base);
-    static boolean canParse(USVString url, optional USVString base);
+    [ImplementedAs=parse_for_bindings] static URL? parse(Utf16USVString url, optional Utf16USVString base);
+    static boolean canParse(Utf16USVString url, optional Utf16USVString base);
 
-    stringifier attribute USVString href;
-    readonly attribute USVString origin;
-    attribute USVString protocol;
-    attribute USVString username;
-    attribute USVString password;
-    attribute USVString host;
-    attribute USVString hostname;
-    attribute USVString port;
-    attribute USVString pathname;
-    attribute USVString search;
+    stringifier attribute Utf16USVString href;
+    readonly attribute Utf16USVString origin;
+    attribute Utf16USVString protocol;
+    attribute Utf16USVString username;
+    attribute Utf16USVString password;
+    attribute Utf16USVString host;
+    attribute Utf16USVString hostname;
+    attribute Utf16USVString port;
+    attribute Utf16USVString pathname;
+    attribute Utf16USVString search;
     [SameObject] readonly attribute URLSearchParams searchParams;
-    attribute USVString hash;
+    attribute Utf16USVString hash;
 
-    USVString toJSON();
+    Utf16USVString toJSON();
 
     static Utf16DOMString createObjectURL((Blob or MediaSource) obj);
-    static undefined revokeObjectURL(DOMString url);
+    static undefined revokeObjectURL(Utf16DOMString url);
 };

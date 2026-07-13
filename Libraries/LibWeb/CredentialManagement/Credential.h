@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <AK/Utf16FlyString.h>
+#include <AK/Utf16String.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/Credential.h>
 #include <LibWeb/Bindings/PlatformObject.h>
@@ -23,21 +25,21 @@ public:
 
     virtual ~Credential() override;
 
-    String const& id() const { return m_id; }
+    Utf16String const& id() const { return m_id; }
 
-    virtual String type() const = 0;
+    virtual Utf16FlyString const& type() const = 0;
 
 protected:
     explicit Credential(JS::Realm&);
-    Credential(JS::Realm&, String id);
+    Credential(JS::Realm&, Utf16String id);
     virtual void initialize(JS::Realm&) override;
 
-    String m_id;
+    Utf16String m_id;
 };
 
 // https://www.w3.org/TR/credential-management-1/#dictdef-credentialdata
 struct CredentialData {
-    String id;
+    Utf16String id;
 };
 
 }

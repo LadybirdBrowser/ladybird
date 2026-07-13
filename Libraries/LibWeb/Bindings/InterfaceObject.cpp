@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Utf16FlyString.h>
 #include <LibJS/Runtime/PrimitiveString.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
@@ -14,16 +15,6 @@ namespace Web::Bindings {
 
 GC_DEFINE_ALLOCATOR(InterfacePrototypeObject);
 GC_DEFINE_ALLOCATOR(InterfaceConstructor);
-
-static FlyString fly_string_from_metadata_name(StringView name)
-{
-    return FlyString::from_utf8_without_validation(name.bytes());
-}
-
-static Utf16FlyString utf16_fly_string_from_metadata_name(StringView name)
-{
-    return Utf16FlyString::from_utf8_without_validation(name);
-}
 
 InterfacePrototypeObject::InterfacePrototypeObject(JS::Realm& realm, InterfaceObjectMetadata const& metadata)
     : Object(realm, metadata.ensure_parent_prototype ? nullptr : realm.intrinsics().object_prototype().ptr())
@@ -39,10 +30,10 @@ void InterfacePrototypeObject::initialize(JS::Realm& realm)
         m_metadata.initialize_prototype(realm, *this);
     } else if (m_metadata.ensure_parent_prototype) {
         set_prototype(&m_metadata.ensure_parent_prototype(realm));
-        define_direct_property(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, utf16_fly_string_from_metadata_name(m_metadata.namespaced_name)), JS::Attribute::Configurable);
+        define_direct_property(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, m_metadata.utf16_namespaced_name), JS::Attribute::Configurable);
     } else {
         set_prototype(realm.intrinsics().object_prototype());
-        define_direct_property(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, utf16_fly_string_from_metadata_name(m_metadata.namespaced_name)), JS::Attribute::Configurable);
+        define_direct_property(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, m_metadata.utf16_namespaced_name), JS::Attribute::Configurable);
     }
 
     Base::initialize(realm);
@@ -62,7 +53,7 @@ JS::ThrowCompletionOr<bool> InterfacePrototypeObject::internal_set_prototype_of(
 }
 
 InterfaceConstructor::InterfaceConstructor(JS::Realm& realm, InterfaceObjectMetadata const& metadata)
-    : NativeFunction(utf16_fly_string_from_metadata_name(metadata.name), realm.intrinsics().function_prototype())
+    : NativeFunction(Utf16FlyString::from_utf16(metadata.utf16_name), realm.intrinsics().function_prototype())
     , m_metadata(metadata)
 {
 }
@@ -93,8 +84,8 @@ void InterfaceConstructor::initialize(JS::Realm& realm)
     if (m_metadata.ensure_parent_constructor)
         set_prototype(&m_metadata.ensure_parent_constructor(realm));
     define_direct_property(vm.names.length, JS::Value(0), JS::Attribute::Configurable);
-    define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, utf16_fly_string_from_metadata_name(m_metadata.name)), JS::Attribute::Configurable);
-    define_direct_property(vm.names.prototype, &host_defined_intrinsics(realm).existing_web_prototype(fly_string_from_metadata_name(m_metadata.namespaced_name)), 0);
+    define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, m_metadata.utf16_name), JS::Attribute::Configurable);
+    define_direct_property(vm.names.prototype, &host_defined_intrinsics(realm).existing_web_prototype(Utf16FlyString::from_utf16(m_metadata.utf16_namespaced_name)), 0);
 }
 
 }

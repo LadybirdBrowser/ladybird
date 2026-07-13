@@ -46,7 +46,7 @@ bool HTMLMarqueeElement::is_presentational_hint(Utf16FlyString const& name) cons
 void HTMLMarqueeElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
 {
     HTMLElement::apply_presentational_hints(properties);
-    for_each_attribute([&](auto& name, auto& value) {
+    for_each_attribute([&](Utf16FlyString const& name, Utf16View value) {
         if (name == HTML::AttributeNames::bgcolor) {
             // https://html.spec.whatwg.org/multipage/rendering.html#the-marquee-element-2:rules-for-parsing-a-legacy-colour-value
             auto color = parse_legacy_color_value(value);

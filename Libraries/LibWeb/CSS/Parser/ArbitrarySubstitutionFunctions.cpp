@@ -180,7 +180,7 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
     } else if (first_argument_tokens.next_token().is_delim('%')) {
         first_argument_tokens.discard_a_token(); // %
         syntax = AttrUnit { "%"_utf16_fly_string };
-    } else if (first_argument_tokens.next_token().is_function("type"sv)) {
+    } else if (first_argument_tokens.next_token().is_function("type"_utf16)) {
         auto const& type_function = first_argument_tokens.consume_a_token().function();
         if (auto parsed_syntax = parse_as_syntax(type_function.value)) {
             syntax = parsed_syntax.release_nonnull();

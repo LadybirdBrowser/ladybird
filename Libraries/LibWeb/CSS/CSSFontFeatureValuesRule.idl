@@ -1,6 +1,6 @@
 [Exposed=Window]
 interface CSSFontFeatureValuesRule : CSSRule {
-    attribute CSSOMString fontFamily;
+    attribute Utf16CSSOMString fontFamily;
     readonly attribute CSSFontFeatureValuesMap annotation;
     readonly attribute CSSFontFeatureValuesMap ornaments;
     readonly attribute CSSFontFeatureValuesMap stylistic;

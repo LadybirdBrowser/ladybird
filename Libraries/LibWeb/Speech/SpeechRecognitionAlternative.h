@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
@@ -23,7 +23,7 @@ public:
     virtual ~SpeechRecognitionAlternative() override;
 
     // https://wicg.github.io/speech-api/#dom-speechrecognitionalternative-transcript
-    String const& transcript() const { return m_transcript; }
+    Utf16String const& transcript() const { return m_transcript; }
 
     // https://wicg.github.io/speech-api/#dom-speechrecognitionalternative-confidence
     float confidence() const { return m_confidence; }
@@ -33,7 +33,7 @@ private:
 
     virtual void initialize(JS::Realm&) override;
 
-    String m_transcript;
+    Utf16String m_transcript;
     float m_confidence { 0.f };
 };
 

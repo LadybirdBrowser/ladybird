@@ -42,17 +42,17 @@ void CSSKeyframesRule::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-String CSSKeyframesRule::serialized() const
+Utf16String CSSKeyframesRule::serialized() const
 {
-    StringBuilder builder;
+    Utf16StringBuilder builder;
     builder.appendff("@keyframes \"{}\"", name());
-    builder.append(" { "sv);
+    builder.append_ascii(" { "sv);
     for (auto const& keyframe : *m_rules) {
-        builder.append(keyframe->css_text());
-        builder.append(' ');
+        builder.append(keyframe->serialized());
+        builder.append_ascii(' ');
     }
-    builder.append('}');
-    return MUST(builder.to_string());
+    builder.append_ascii('}');
+    return builder.to_string();
 }
 
 WebIDL::UnsignedLong CSSKeyframesRule::length() const

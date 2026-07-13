@@ -34,6 +34,7 @@ public:
     void modify_request(GC::Ref<Fetch::Infrastructure::Request>) const;
     Type type() const { return m_type; }
     String to_string() const;
+    Utf16String to_utf16_string() const;
     bool operator==(RequestURLModifier const&) const;
 
 private:
@@ -60,6 +61,7 @@ public:
     Vector<RequestURLModifier> const& request_url_modifiers() const { return m_request_url_modifiers; }
 
     String to_string() const;
+    Utf16String to_utf16_string() const;
     bool operator==(URL const&) const;
 
 private:

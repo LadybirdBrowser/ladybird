@@ -1,7 +1,7 @@
 // https://xhr.spec.whatwg.org/#interface-progressevent
 [Exposed=(Window,Worker)]
 interface ProgressEvent : Event {
-    constructor(DOMString type, optional ProgressEventInit eventInitDict = {});
+    constructor([Utf16FlyString] Utf16DOMString type, optional ProgressEventInit eventInitDict = {});
 
     readonly attribute boolean lengthComputable;
     readonly attribute double loaded;

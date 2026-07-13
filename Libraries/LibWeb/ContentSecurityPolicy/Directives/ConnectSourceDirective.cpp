@@ -13,7 +13,7 @@ namespace Web::ContentSecurityPolicy::Directives {
 
 GC_DEFINE_ALLOCATOR(ConnectSourceDirective);
 
-ConnectSourceDirective::ConnectSourceDirective(String name, Vector<String> value)
+ConnectSourceDirective::ConnectSourceDirective(Utf16FlyString name, Vector<Utf16String> value)
     : Directive(move(name), move(value))
 {
 }

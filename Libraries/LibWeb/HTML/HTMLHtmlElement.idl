@@ -5,6 +5,6 @@ interface HTMLHtmlElement : HTMLElement {
     [HTMLConstructor] constructor();
 
     // Obsolete
-    [CEReactions, Reflect] attribute DOMString version;
+    [CEReactions, Reflect] attribute Utf16DOMString version;
 
 };

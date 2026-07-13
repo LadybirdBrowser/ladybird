@@ -290,14 +290,16 @@ void FrameActor::style_sheets_available(JsonObject& response, Vector<Web::CSS::S
         if (style_sheet.url.has_value()) {
             if (style_sheet.type == Web::CSS::StyleSheetIdentifier::Type::UserAgent) {
                 // LibWeb sets the URL to a style sheet name for UA style sheets. DevTools would reject these invalid URLs.
-                href = MUST(String::formatted("resource://{}", style_sheet.url.value()));
-                title = *style_sheet.url;
+                auto style_sheet_url = style_sheet.url->to_utf8();
+                href = MUST(String::formatted("resource://{}", style_sheet_url));
+                title = move(style_sheet_url);
                 source_map_base_url = tab_url;
             } else if (style_sheet.type == Web::CSS::StyleSheetIdentifier::Type::StyleElement) {
-                source_map_base_url = *style_sheet.url;
+                source_map_base_url = style_sheet.url->to_utf8();
             } else {
-                href = *style_sheet.url;
-                source_map_base_url = *style_sheet.url;
+                auto style_sheet_url = style_sheet.url->to_utf8();
+                href = style_sheet_url;
+                source_map_base_url = move(style_sheet_url);
             }
         } else {
             source_map_base_url = tab_url;

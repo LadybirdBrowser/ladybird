@@ -40,6 +40,11 @@ ModuleScript::ModuleScript(Optional<URL::URL> base_url, ByteString filename, Env
 {
 }
 
+ModuleScript::ModuleScript(Optional<URL::URL> base_url, ByteString filename, Utf16String display_filename, EnvironmentSettingsObject& settings)
+    : Script(move(base_url), move(filename), move(display_filename), settings)
+{
+}
+
 // https://html.spec.whatwg.org/multipage/webappapis.html#creating-a-javascript-module-script
 WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_javascript_module_script(ByteString const& filename, Utf16View source, EnvironmentSettingsObject& settings, URL::URL base_url, size_t source_line_number, ScriptRegistry::IsInlineSource is_inline_source)
 {
@@ -86,7 +91,8 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_javascript_mod
 WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_pre_parsed(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject& settings, URL::URL base_url, JS::FFI::ParsedProgram* parsed)
 {
     auto& realm = settings.realm();
-    auto script = realm.create<ModuleScript>(move(base_url), filename, settings);
+    auto display_filename = source_code->filename();
+    auto script = realm.create<ModuleScript>(move(base_url), filename, move(display_filename), settings);
 
     script->set_parse_error(JS::js_null());
     script->set_error_to_rethrow(JS::js_null());
@@ -108,7 +114,8 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_pre_parsed(
 WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_pre_compiled(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject& settings, URL::URL base_url, JS::FFI::CompiledProgram* compiled)
 {
     auto& realm = settings.realm();
-    auto script = realm.create<ModuleScript>(move(base_url), filename, settings);
+    auto display_filename = source_code->filename();
+    auto script = realm.create<ModuleScript>(move(base_url), filename, move(display_filename), settings);
 
     script->set_parse_error(JS::js_null());
     script->set_error_to_rethrow(JS::js_null());
@@ -130,7 +137,8 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_pre_compile
 WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_bytecode_cache(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject& settings, URL::URL base_url, NonnullRefPtr<JS::RustIntegration::DecodedBytecodeCache> bytecode_cache)
 {
     auto& realm = settings.realm();
-    auto script = realm.create<ModuleScript>(move(base_url), filename, settings);
+    auto display_filename = source_code->filename();
+    auto script = realm.create<ModuleScript>(move(base_url), filename, move(display_filename), settings);
 
     script->set_parse_error(JS::js_null());
     script->set_error_to_rethrow(JS::js_null());
@@ -150,7 +158,7 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_bytecode_ca
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#creating-a-css-module-script
-WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_css_module_script(ByteString const& filename, StringView source, EnvironmentSettingsObject& settings)
+WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_css_module_script(ByteString const& filename, Utf16View source, EnvironmentSettingsObject& settings)
 {
     auto& realm = settings.realm();
 

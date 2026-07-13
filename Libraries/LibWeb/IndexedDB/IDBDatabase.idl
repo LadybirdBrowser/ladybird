@@ -1,13 +1,13 @@
 [Exposed=(Window,Worker)]
 interface IDBDatabase : EventTarget {
-    readonly attribute DOMString name;
+    readonly attribute Utf16DOMString name;
     readonly attribute unsigned long long version;
     readonly attribute DOMStringList objectStoreNames;
 
-    [NewObject] IDBTransaction transaction((DOMString or sequence<DOMString>) storeNames, optional IDBTransactionMode mode = "readonly", optional IDBTransactionOptions options = {});
+    [NewObject] IDBTransaction transaction((Utf16DOMString or sequence<Utf16DOMString>) storeNames, optional IDBTransactionMode mode = "readonly", optional IDBTransactionOptions options = {});
     undefined close();
-    [NewObject] IDBObjectStore createObjectStore(DOMString name, optional IDBObjectStoreParameters options = {});
-    undefined deleteObjectStore(DOMString name);
+    [NewObject] IDBObjectStore createObjectStore(Utf16DOMString name, optional IDBObjectStoreParameters options = {});
+    undefined deleteObjectStore(Utf16DOMString name);
 
     // Event handlers:
     attribute EventHandler onabort;
@@ -23,6 +23,6 @@ dictionary IDBTransactionOptions {
 };
 
 dictionary IDBObjectStoreParameters {
-    (DOMString or sequence<DOMString>)? keyPath = null;
+    (Utf16DOMString or sequence<Utf16DOMString>)? keyPath = null;
     boolean autoIncrement = false;
 };

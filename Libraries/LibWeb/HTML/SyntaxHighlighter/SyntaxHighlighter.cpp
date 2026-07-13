@@ -6,6 +6,7 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/Utf16String.h>
 #include <LibJS/SyntaxHighlighter.h>
 #include <LibJS/Token.h>
 #include <LibWeb/CSS/SyntaxHighlighter/SyntaxHighlighter.h>
@@ -36,7 +37,7 @@ void SyntaxHighlighter::rehighlight(Palette const& palette)
             false);
     };
 
-    HTMLTokenizer tokenizer { text, "utf-8" };
+    HTMLTokenizer tokenizer { Utf16String::from_utf8_without_validation(text) };
     [[maybe_unused]] enum class State {
         HTML,
         Javascript,
@@ -52,19 +53,19 @@ void SyntaxHighlighter::rehighlight(Palette const& palette)
         dbgln_if(SYNTAX_HIGHLIGHTING_DEBUG, "(HTML::SyntaxHighlighter) got token of type {}", token->to_string());
 
         if (token->is_start_tag()) {
-            if (token->tag_name() == "script"sv) {
+            if (token->tag_name() == u"script"sv) {
                 tokenizer.switch_to(HTMLTokenizer::State::ScriptData);
                 state = State::Javascript;
                 // The end position points to the '>' character, but we need the position after it
                 substring_start_position = { token->end_position().line, token->end_position().column + 1 };
-            } else if (token->tag_name() == "style"sv) {
+            } else if (token->tag_name() == u"style"sv) {
                 tokenizer.switch_to(HTMLTokenizer::State::RAWTEXT);
                 state = State::CSS;
                 // The end position points to the '>' character, but we need the position after it
                 substring_start_position = { token->end_position().line, token->end_position().column + 1 };
             }
         } else if (token->is_end_tag()) {
-            if (token->tag_name().is_one_of("script"sv, "style"sv)) {
+            if (token->tag_name().is_one_of(u"script"sv, u"style"sv)) {
                 if (state == State::Javascript) {
                     VERIFY(static_cast<u64>(AugmentedTokenKind::__Count) < JS_TOKEN_START_VALUE);
                     Syntax::ProxyHighlighterClient proxy_client {

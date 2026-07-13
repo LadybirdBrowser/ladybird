@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/DOM/HTMLCollection.h>
 #include <LibWeb/HTML/HTMLElement.h>
@@ -20,10 +21,9 @@ class HTMLFieldSetElement final
 public:
     virtual ~HTMLFieldSetElement() override;
 
-    String const& type() const
+    Utf16FlyString type() const
     {
-        static String const& fieldset = *new String("fieldset"_string);
-        return fieldset;
+        return "fieldset"_utf16_fly_string;
     }
 
     bool is_disabled() const;

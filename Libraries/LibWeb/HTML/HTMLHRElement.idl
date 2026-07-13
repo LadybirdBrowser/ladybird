@@ -5,10 +5,10 @@ interface HTMLHRElement : HTMLElement {
     [HTMLConstructor] constructor();
 
     // Obsolete
-    [CEReactions, Reflect] attribute DOMString align;
-    [CEReactions, Reflect] attribute DOMString color;
+    [CEReactions, Reflect] attribute Utf16DOMString align;
+    [CEReactions, Reflect] attribute Utf16DOMString color;
     [CEReactions, Reflect=noshade] attribute boolean noShade;
-    [CEReactions, Reflect] attribute DOMString size;
-    [CEReactions, Reflect] attribute DOMString width;
+    [CEReactions, Reflect] attribute Utf16DOMString size;
+    [CEReactions, Reflect] attribute Utf16DOMString width;
 
 };

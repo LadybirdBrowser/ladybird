@@ -92,7 +92,8 @@ GC::Ref<ClassicScript> ClassicScript::create_from_pre_parsed(ByteString filename
     if (muted_errors == MutedErrors::Yes)
         base_url = URL::about_blank();
 
-    auto script = vm.heap().allocate<ClassicScript>(move(base_url), move(filename), settings);
+    auto display_filename = source_code->filename();
+    auto script = vm.heap().allocate<ClassicScript>(move(base_url), move(filename), move(display_filename), settings);
 
     script->m_muted_errors = muted_errors;
     script->set_parse_error(JS::js_null());
@@ -126,7 +127,8 @@ GC::Ref<ClassicScript> ClassicScript::create_from_pre_compiled(ByteString filena
     if (muted_errors == MutedErrors::Yes)
         base_url = URL::about_blank();
 
-    auto script = vm.heap().allocate<ClassicScript>(move(base_url), move(filename), settings);
+    auto display_filename = source_code->filename();
+    auto script = vm.heap().allocate<ClassicScript>(move(base_url), move(filename), move(display_filename), settings);
 
     script->m_muted_errors = muted_errors;
     script->set_parse_error(JS::js_null());
@@ -160,7 +162,8 @@ GC::Ref<ClassicScript> ClassicScript::create_from_bytecode_cache(ByteString file
     if (muted_errors == MutedErrors::Yes)
         base_url = URL::about_blank();
 
-    auto script = vm.heap().allocate<ClassicScript>(move(base_url), move(filename), settings);
+    auto display_filename = source_code->filename();
+    auto script = vm.heap().allocate<ClassicScript>(move(base_url), move(filename), move(display_filename), settings);
 
     script->m_muted_errors = muted_errors;
     script->set_parse_error(JS::js_null());
@@ -267,6 +270,11 @@ JS::Completion ClassicScript::run(RethrowErrors rethrow_errors, GC::Ptr<JS::Envi
 
 ClassicScript::ClassicScript(URL::URL base_url, ByteString filename, EnvironmentSettingsObject& settings)
     : Script(move(base_url), move(filename), settings)
+{
+}
+
+ClassicScript::ClassicScript(URL::URL base_url, ByteString filename, Utf16String display_filename, EnvironmentSettingsObject& settings)
+    : Script(move(base_url), move(filename), move(display_filename), settings)
 {
 }
 

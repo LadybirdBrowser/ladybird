@@ -76,7 +76,7 @@ bool MathMLElement::is_presentational_hint(Utf16FlyString const& name) const
 void MathMLElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
 {
     Base::apply_presentational_hints(properties);
-    for_each_attribute([&](auto& name, auto& value) {
+    for_each_attribute([&](Utf16FlyString const& name, Utf16View value) {
         if (name == AttributeNames::dir) {
             // https://w3c.github.io/mathml-core/#attributes-common-to-html-and-mathml-elements
             // The dir attribute, if present, must be an ASCII case-insensitive match to ltr or rtl. In that case, the

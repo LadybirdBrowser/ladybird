@@ -9,7 +9,7 @@
 namespace Web::UIEvents::PointerTypes {
 
 #define __ENUMERATE_POINTER_TYPE(name, value) \
-    String name = value##_string;
+    Utf16FlyString name = value##_utf16_fly_string;
 ENUMERATE_POINTER_TYPES
 #undef __ENUMERATE_POINTER_TYPE
 

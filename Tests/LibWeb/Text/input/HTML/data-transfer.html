@@ -12,6 +12,8 @@
         let stringItem = dataTransferItemList.add("well hello friends", "custom-type");
         println(`stringItem: kind=${stringItem.kind}, type=${stringItem.type}`);
         println(`length=${dataTransferItemList.length}, types=${dataTransfer.types}`);
+        dataTransfer.setData("Text", "well hello \u{1f980}");
+        println(`getData(Text): data=${dataTransfer.getData("Text")}`);
 
         if (dataTransferItemList[0] !== stringItem) {
             println("FAILED");
@@ -44,11 +46,11 @@
         let fileItemAsEntry = fileItem.webkitGetAsEntry();
         println(`fileItemAsEntry: name=${fileItemAsEntry.name}, file=${fileItemAsEntry.isFile}, directory=${fileItemAsEntry.isDirectory}`);
 
-        if (dataTransferItemList[1] !== fileItem) {
+        if (dataTransferItemList[2] !== fileItem) {
             println("FAILED");
         }
 
-        if (dataTransferItemList[2] !== undefined) {
+        if (dataTransferItemList[3] !== undefined) {
             println("FAILED");
         }
 

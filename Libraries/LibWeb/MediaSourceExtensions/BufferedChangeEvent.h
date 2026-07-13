@@ -18,10 +18,10 @@ class BufferedChangeEvent : public DOM::Event {
     GC_DECLARE_ALLOCATOR(BufferedChangeEvent);
 
 public:
-    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<BufferedChangeEvent>> construct_impl(JS::Realm&, FlyString const& type, Bindings::BufferedChangeEventInit const& = {});
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<BufferedChangeEvent>> construct_impl(JS::Realm&, Utf16FlyString const& type, Bindings::BufferedChangeEventInit const& = {});
 
 private:
-    BufferedChangeEvent(JS::Realm&, FlyString const& type, Bindings::BufferedChangeEventInit const&);
+    BufferedChangeEvent(JS::Realm&, Utf16FlyString const& type, Bindings::BufferedChangeEventInit const&);
 
     virtual ~BufferedChangeEvent() override;
 

@@ -7,6 +7,6 @@ interface HTMLLIElement : HTMLElement {
     [CEReactions] attribute long value;
 
     // Obsolete
-    [CEReactions, Reflect] attribute DOMString type;
+    [CEReactions, Reflect] attribute Utf16DOMString type;
 
 };

@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Utf16String.h>
 #include <LibJS/Console.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ConsoleObject.h>
@@ -14,6 +15,7 @@
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Infra/JSON.h>
+#include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/Infra/Strings.h>
 
 namespace Web::HTML {
@@ -27,7 +29,7 @@ value_is_ordered_map(JS::Value const& value)
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#parse-an-import-map-string
-WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteString const& input, URL::URL base_url)
+WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, Utf16View input, URL::URL base_url)
 {
     HTML::TemporaryExecutionContext execution_context { realm };
 
@@ -36,7 +38,7 @@ WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteStr
 
     // 2. If parsed is not an ordered map, then throw a TypeError indicating that the top-level value needs to be a JSON object.
     if (!value_is_ordered_map(parsed))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "The top-level value of an importmap needs to be a JSON object."_string };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "The top-level value of an importmap needs to be a JSON object."_utf16 };
     auto& parsed_object = parsed.as_object();
 
     // 3. Let sortedAndNormalizedImports be an empty ordered map.
@@ -48,7 +50,7 @@ WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteStr
 
         // If parsed["imports"] is not an ordered map, then throw a TypeError indicating that the value for the "imports" top-level key needs to be a JSON object.
         if (!value_is_ordered_map(imports))
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "The 'imports' top-level value of an importmap needs to be a JSON object."_string };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "The 'imports' top-level value of an importmap needs to be a JSON object."_utf16 };
 
         // Set sortedAndNormalizedImports to the result of sorting and normalizing a module specifier map given parsed["imports"] and baseURL.
         sorted_and_normalized_imports = TRY(sort_and_normalise_module_specifier_map(realm, imports.as_object(), base_url));
@@ -63,7 +65,7 @@ WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteStr
 
         // If parsed["scopes"] is not an ordered map, then throw a TypeError indicating that the value for the "scopes" top-level key needs to be a JSON object.
         if (!value_is_ordered_map(scopes))
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "The 'scopes' top-level value of an importmap needs to be a JSON object."_string };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "The 'scopes' top-level value of an importmap needs to be a JSON object."_utf16 };
 
         // Set sortedAndNormalizedScopes to the result of sorting and normalizing scopes given parsed["scopes"] and baseURL.
         sorted_and_normalized_scopes = TRY(sort_and_normalise_scopes(realm, scopes.as_object(), base_url));
@@ -78,7 +80,7 @@ WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteStr
 
         // 1. If parsed["integrity"] is not an ordered map, then throw a TypeError indicating that the value for the "integrity" top-level key needs to be a JSON object.
         if (!value_is_ordered_map(integrity))
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "The 'integrity' top-level value of an importmap needs to be a JSON object."_string };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "The 'integrity' top-level value of an importmap needs to be a JSON object."_utf16 };
 
         // 2. Set normalizedIntegrity to the result of normalizing a module integrity map given parsed["integrity"] and baseURL.
         normalized_integrity = TRY(normalize_module_integrity_map(realm, integrity.as_object(), base_url));
@@ -94,7 +96,7 @@ WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteStr
             continue;
 
         auto& console = realm.intrinsics().console_object()->console();
-        console.output_debug_message(JS::Console::LogLevel::Warn, MUST(String::formatted("An invalid top-level key ({}) was present in the import map", key.as_string())));
+        console.output_debug_message(JS::Console::LogLevel::Warn, Utf16String::formatted("An invalid top-level key ({}) was present in the import map", key.as_string()));
     }
 
     // 10. Return an import map whose imports are sortedAndNormalizedImports, whose scopes are sortedAndNormalizedScopes, and whose integrity are normalizedIntegrity.
@@ -112,7 +114,7 @@ Optional<Utf16String> normalize_specifier_key(JS::Realm& realm, Utf16View specif
     if (specifier_key.is_empty()) {
         // 1. The user agent may report a warning to the console indicating that specifier keys may not be the empty string.
         auto& console = realm.intrinsics().console_object()->console();
-        console.output_debug_message(JS::Console::LogLevel::Warn, "Specifier keys may not be empty"sv);
+        console.output_debug_message(JS::Console::LogLevel::Warn, u"Specifier keys may not be empty"sv);
 
         // 2. Return null.
         return {};
@@ -123,7 +125,7 @@ Optional<Utf16String> normalize_specifier_key(JS::Realm& realm, Utf16View specif
 
     // 3. If url is not null, then return the serialization of url.
     if (url.has_value())
-        return Utf16String::from_utf8(url->serialize());
+        return utf16_string_from_url_ascii(url->serialize());
 
     // 4. Return specifierKey.
     return Utf16String::from_utf16(specifier_key);
@@ -154,7 +156,7 @@ WebIDL::ExceptionOr<ModuleSpecifierMap> sort_and_normalise_module_specifier_map(
         if (!value.is_string()) {
             // 1. The user agent may report a warning to the console indicating that addresses need to be strings.
             auto& console = realm.intrinsics().console_object()->console();
-            console.output_debug_message(JS::Console::LogLevel::Warn, "Addresses need to be strings"sv);
+            console.output_debug_message(JS::Console::LogLevel::Warn, u"Addresses need to be strings"sv);
 
             // 2. Set normalized[normalizedSpecifierKey] to null.
             normalized.set(normalized_specifier_key.release_value(), {});
@@ -170,7 +172,7 @@ WebIDL::ExceptionOr<ModuleSpecifierMap> sort_and_normalise_module_specifier_map(
         if (!address_url.has_value()) {
             // 1. The user agent may report a warning to the console indicating that the address was invalid.
             auto& console = realm.intrinsics().console_object()->console();
-            console.output_debug_message(JS::Console::LogLevel::Warn, "Address was invalid"sv);
+            console.output_debug_message(JS::Console::LogLevel::Warn, u"Address was invalid"sv);
 
             // 2. Set normalized[normalizedSpecifierKey] to null.
             normalized.set(normalized_specifier_key.value(), {});
@@ -184,7 +186,7 @@ WebIDL::ExceptionOr<ModuleSpecifierMap> sort_and_normalise_module_specifier_map(
             // 1. The user agent may report a warning to the console indicating that an invalid address was given for the specifier key specifierKey; since specifierKey ends with a slash, the address needs to as well.
             auto& console = realm.intrinsics().console_object()->console();
             console.output_debug_message(JS::Console::LogLevel::Warn,
-                MUST(String::formatted("An invalid address was given for the specifier key ({}); since specifierKey ends with a slash, the address needs to as well", specifier_key.as_string())));
+                Utf16String::formatted("An invalid address was given for the specifier key ({}); since specifierKey ends with a slash, the address needs to as well", specifier_key.as_string()));
 
             // 2. Set normalized[normalizedSpecifierKey] to null.
             normalized.set(normalized_specifier_key.value(), {});
@@ -217,7 +219,7 @@ WebIDL::ExceptionOr<HashMap<URL::URL, ModuleSpecifierMap>> sort_and_normalise_sc
 
         // 1. If potentialSpecifierMap is not an ordered map, then throw a TypeError indicating that the value of the scope with prefix scopePrefix needs to be a JSON object.
         if (!potential_specifier_map.is_object())
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, String::formatted("The value of the scope with the prefix '{}' needs to be a JSON object.", scope_prefix.as_string()).release_value_but_fixme_should_propagate_errors() };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("The value of the scope with the prefix '{}' needs to be a JSON object.", scope_prefix.as_string()) };
 
         // 2. Let scopePrefixURL be the result of URL parsing scopePrefix with baseURL.
         auto scope_prefix_url = DOMURL::parse(scope_prefix.as_string().view(), base_url);
@@ -227,7 +229,7 @@ WebIDL::ExceptionOr<HashMap<URL::URL, ModuleSpecifierMap>> sort_and_normalise_sc
             // 1. The user agent may report a warning to the console that the scope prefix URL was not parseable.
             auto& console = realm.intrinsics().console_object()->console();
             console.output_debug_message(JS::Console::LogLevel::Warn,
-                MUST(String::formatted("The scope prefix URL ({}) was not parseable", scope_prefix.as_string())));
+                Utf16String::formatted("The scope prefix URL ({}) was not parseable", scope_prefix.as_string()));
 
             // 2. Continue.
             continue;
@@ -264,7 +266,7 @@ WebIDL::ExceptionOr<ModuleIntegrityMap> normalize_module_integrity_map(JS::Realm
             // 1. The user agent may report a warning to the console indicating that the key failed to resolve.
             auto& console = realm.intrinsics().console_object()->console();
             console.output_debug_message(JS::Console::LogLevel::Warn,
-                MUST(String::formatted("Failed to resolve key ({})", key.as_string())));
+                Utf16String::formatted("Failed to resolve key ({})", key.as_string()));
 
             // 2. Continue.
             continue;
@@ -275,14 +277,14 @@ WebIDL::ExceptionOr<ModuleIntegrityMap> normalize_module_integrity_map(JS::Realm
             // 1. The user agent may report a warning to the console indicating that integrity metadata values need to be strings.
             auto& console = realm.intrinsics().console_object()->console();
             console.output_debug_message(JS::Console::LogLevel::Warn,
-                MUST(String::formatted("Integrity metadata value for '{}' needs to be a string", key.as_string())));
+                Utf16String::formatted("Integrity metadata value for '{}' needs to be a string", key.as_string()));
 
             // 2. Continue.
             continue;
         }
 
         // 4. Set normalized[resolvedURL] to value.
-        normalized.set(resolved_url.release_value(), value.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16());
+        normalized.set(resolved_url.release_value(), value.as_string().utf16_string());
     }
 
     // 3. Return normalized.
@@ -303,7 +305,7 @@ static ModuleSpecifierMap merge_module_specifier_maps(JS::Realm& realm, ModuleSp
             //    avoid reporting if the rule is identical to an existing one.
             auto& console = realm.intrinsics().console_object()->console();
             console.output_debug_message(JS::Console::LogLevel::Warn,
-                MUST(String::formatted("An import map rule for specifier '{}' was ignored as one was already present in the existing import map", specifier)));
+                Utf16String::formatted("An import map rule for specifier '{}' was ignored as one was already present in the existing import map", specifier));
 
             // 2. Continue.
             continue;
@@ -339,8 +341,11 @@ void merge_existing_and_new_import_maps(Window& global, ImportMap& new_import_ma
         // 1. For each record of global's resolved module set:
         for (auto const& record : global.resolved_module_set()) {
             // 1. If scopePrefix is record's serialized base URL, or if scopePrefix ends with U+002F (/) and scopePrefix is a code unit prefix of record's serialized base URL, then:
-            auto serialized_scope_prefix = scope_prefix.serialize();
-            if (serialized_scope_prefix == record.serialized_base_url || (serialized_scope_prefix.ends_with('/') && record.serialized_base_url.has_value() && Infra::is_code_unit_prefix(serialized_scope_prefix, *record.serialized_base_url))) {
+            auto serialized_scope_prefix = utf16_string_from_url_ascii(scope_prefix.serialize());
+            if (record.serialized_base_url.has_value()
+                && (serialized_scope_prefix == *record.serialized_base_url
+                    || (serialized_scope_prefix.utf16_view().ends_with('/')
+                        && Infra::is_code_unit_prefix(serialized_scope_prefix.utf16_view(), record.serialized_base_url->utf16_view())))) {
                 // 1. For each specifierKey → resolutionResult of scopeImports:
                 scope_imports.remove_all_matching([&](Utf16String const& specifier_key, Optional<URL::URL> const&) {
                     // 1. If specifierKey is record's specifier, or if all of the following conditions are true:
@@ -356,7 +361,7 @@ void merge_existing_and_new_import_maps(Window& global, ImportMap& new_import_ma
                         //    may choose to avoid reporting if the rule is identical to an existing one.
                         auto& console = realm.intrinsics().console_object()->console();
                         console.output_debug_message(JS::Console::LogLevel::Warn,
-                            MUST(String::formatted("An import map rule for specifier '{}' was ignored as one was already present in the existing import map", specifier_key)));
+                            Utf16String::formatted("An import map rule for specifier '{}' was ignored as one was already present in the existing import map", specifier_key));
 
                         // 2. Remove scopeImports[specifierKey].
                         return true;
@@ -386,7 +391,7 @@ void merge_existing_and_new_import_maps(Window& global, ImportMap& new_import_ma
             //    avoid reporting if the rule is identical to an existing one.
             auto& console = realm.intrinsics().console_object()->console();
             console.output_debug_message(JS::Console::LogLevel::Warn,
-                MUST(String::formatted("An import map integrity rule for url '{}' was ignored as one was already present in the existing import map", url)));
+                Utf16String::formatted("An import map integrity rule for url '{}' was ignored as one was already present in the existing import map", url));
 
             // 2. Continue.
             continue;
@@ -406,7 +411,7 @@ void merge_existing_and_new_import_maps(Window& global, ImportMap& new_import_ma
                 //    avoid reporting if the rule is identical to an existing one.
                 auto& console = realm.intrinsics().console_object()->console();
                 console.output_debug_message(JS::Console::LogLevel::Warn,
-                    MUST(String::formatted("An import map rule for specifier '{}' was ignored as one was already present in the existing import map", specifier)));
+                    Utf16String::formatted("An import map rule for specifier '{}' was ignored as one was already present in the existing import map", specifier));
 
                 // 2. Remove newImportMapImports[specifier].
                 return true;

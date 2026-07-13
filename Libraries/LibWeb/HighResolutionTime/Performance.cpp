@@ -79,7 +79,7 @@ double Performance::now() const
 }
 
 // https://w3c.github.io/user-timing/#mark-method
-WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMark>> Performance::mark(String const& mark_name, Bindings::PerformanceMarkOptions const& mark_options)
+WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMark>> Performance::mark(Utf16String const& mark_name, Bindings::PerformanceMarkOptions const& mark_options)
 {
     auto& realm = this->realm();
 
@@ -96,7 +96,7 @@ WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMark>> Performance::mark(Stri
     return entry;
 }
 
-void Performance::clear_marks(Optional<String> mark_name)
+void Performance::clear_marks(Optional<Utf16String> const& mark_name)
 {
     // 1. If markName is omitted, remove all PerformanceMark objects from the performance entry buffer.
     if (!mark_name.has_value()) {
@@ -110,16 +110,14 @@ void Performance::clear_marks(Optional<String> mark_name)
     // 3. Return undefined.
 }
 
-WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> Performance::convert_name_to_timestamp(JS::Realm& realm, String const& name)
+WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> Performance::convert_name_to_timestamp(JS::Realm& realm, Utf16String const& name)
 {
-    auto& vm = realm.vm();
-
     // 1. If the global object is not a Window object, throw a TypeError.
     if (!is<HTML::Window>(realm.global_object()))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, TRY_OR_THROW_OOM(vm, String::formatted("'{}' is an attribute in the PerformanceTiming interface and thus can only be used in a Window context", name)) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("'{}' is an attribute in the PerformanceTiming interface and thus can only be used in a Window context", name) };
 
     // 2. If name is navigationStart, return 0.
-    if (name == NavigationTiming::EntryNames::navigationStart)
+    if (name.utf16_view() == NavigationTiming::EntryNames::navigationStart.view())
         return 0.0;
 
     auto timing_interface = timing();
@@ -132,7 +130,7 @@ WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> Performance::conver
     u64 end_time { 0 };
 
 #define __ENUMERATE_NAVIGATION_TIMING_ENTRY_NAME(camel_case_name, snake_case_name) \
-    if (name == NavigationTiming::EntryNames::camel_case_name)                     \
+    if (name.utf16_view() == NavigationTiming::EntryNames::camel_case_name.view()) \
         end_time = timing_interface->snake_case_name();
     ENUMERATE_NAVIGATION_TIMING_ENTRY_NAMES
 #undef __ENUMERATE_NAVIGATION_TIMING_ENTRY_NAME
@@ -146,15 +144,15 @@ WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> Performance::conver
 }
 
 // https://w3c.github.io/user-timing/#dfn-convert-a-mark-to-a-timestamp
-WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> Performance::convert_mark_to_timestamp(JS::Realm& realm, Variant<String, HighResolutionTime::DOMHighResTimeStamp> mark)
+WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> Performance::convert_mark_to_timestamp(JS::Realm& realm, Variant<Utf16String, HighResolutionTime::DOMHighResTimeStamp> const& mark)
 {
-    if (mark.has<String>()) {
-        auto const& mark_string = mark.get<String>();
+    if (mark.has<Utf16String>()) {
+        auto const& mark_string = mark.get<Utf16String>();
 
         // 1. If mark is a DOMString and it has the same name as a read only attribute in the PerformanceTiming interface, let end
         //    time be the value returned by running the convert a name to a timestamp algorithm with name set to the value of mark.
-#define __ENUMERATE_NAVIGATION_TIMING_ENTRY_NAME(name, _)  \
-    if (mark_string == NavigationTiming::EntryNames::name) \
+#define __ENUMERATE_NAVIGATION_TIMING_ENTRY_NAME(name, _)                      \
+    if (mark_string.utf16_view() == NavigationTiming::EntryNames::name.view()) \
         return convert_name_to_timestamp(realm, mark_string);
         ENUMERATE_NAVIGATION_TIMING_ENTRY_NAMES
 #undef __ENUMERATE_NAVIGATION_TIMING_ENTRY_NAME
@@ -166,7 +164,7 @@ WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> Performance::conver
         auto& performance_entry_buffer = tuple.performance_entry_buffer;
 
         auto maybe_entry = performance_entry_buffer.last_matching([&mark_string](GC::Root<PerformanceTimeline::PerformanceEntry> const& entry) {
-            return entry->name() == mark_string;
+            return entry->name().utf16_view() == mark_string.utf16_view();
         });
 
         if (!maybe_entry.has_value())
@@ -180,14 +178,14 @@ WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> Performance::conver
 
     // 1. If mark is negative, throw a TypeError.
     if (mark_time_stamp < 0.0)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot have negative time values in PerformanceMark"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot have negative time values in PerformanceMark"_utf16 };
 
     // 2. Otherwise, let end time be mark.
     return mark_time_stamp;
 }
 
 // https://w3c.github.io/user-timing/#dom-performance-measure
-WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMeasure>> Performance::measure(String const& measure_name, Variant<String, Bindings::PerformanceMeasureOptions> const& start_or_measure_options, Optional<String> end_mark)
+WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMeasure>> Performance::measure(Utf16String const& measure_name, Variant<Utf16String, Bindings::PerformanceMeasureOptions> const& start_or_measure_options, Optional<Utf16String> end_mark)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -202,15 +200,15 @@ WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMeasure>> Performance::measur
             || start_or_measure_options_dictionary_object->detail.has_value())) {
         // 1. If endMark is given, throw a TypeError.
         if (end_mark.has_value())
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot provide PerformanceMeasureOptions and endMark at the same time"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot provide PerformanceMeasureOptions and endMark at the same time"_utf16 };
 
         // 2. If startOrMeasureOptions's start and end members are both omitted, throw a TypeError.
         if (!start_or_measure_options_dictionary_object->start.has_value() && !start_or_measure_options_dictionary_object->end.has_value())
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "PerformanceMeasureOptions must contain one or both of 'start' and 'end'"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "PerformanceMeasureOptions must contain one or both of 'start' and 'end'"_utf16 };
 
         // 3. If startOrMeasureOptions's start, duration, and end members are all present, throw a TypeError.
         if (start_or_measure_options_dictionary_object->start.has_value() && start_or_measure_options_dictionary_object->end.has_value() && start_or_measure_options_dictionary_object->duration.has_value())
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "PerformanceMeasureOptions cannot contain 'start', 'duration' and 'end' properties all at once"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "PerformanceMeasureOptions cannot contain 'start', 'duration' and 'end' properties all at once"_utf16 };
     }
 
     // 2. Compute end time as follows:
@@ -265,8 +263,8 @@ WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMeasure>> Performance::measur
     }
     // 3. Otherwise, if startOrMeasureOptions is a DOMString, let start time be the value returned by running the convert a mark
     //    to a timestamp algorithm passing in startOrMeasureOptions.
-    else if (start_or_measure_options.has<String>()) {
-        start_time = TRY(convert_mark_to_timestamp(realm, start_or_measure_options.get<String>()));
+    else if (start_or_measure_options.has<Utf16String>()) {
+        start_time = TRY(convert_mark_to_timestamp(realm, start_or_measure_options.get<Utf16String>()));
     }
     // 4. Otherwise, let start time be 0.
     else {
@@ -317,7 +315,7 @@ WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMeasure>> Performance::measur
 }
 
 // https://w3c.github.io/user-timing/#dom-performance-clearmeasures
-void Performance::clear_measures(Optional<String> measure_name)
+void Performance::clear_measures(Optional<Utf16String> const& measure_name)
 {
     // 1. If measureName is omitted, remove all PerformanceMeasure objects in the performance entry buffer.
     if (!measure_name.has_value()) {
@@ -367,21 +365,21 @@ WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> Per
 
     // Returns a PerformanceEntryList object returned by the filter buffer map by name and type algorithm with name and
     // type set to null.
-    return TRY_OR_THROW_OOM(vm, window_or_worker().filter_buffer_map_by_name_and_type(/* name= */ Optional<String> {}, /* type= */ Optional<String> {}));
+    return TRY_OR_THROW_OOM(vm, window_or_worker().filter_buffer_map_by_name_and_type(/* name= */ Optional<Utf16String> {}, /* type= */ Optional<Utf16FlyString> {}));
 }
 
 // https://www.w3.org/TR/performance-timeline/#dom-performance-getentriesbytype
-WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> Performance::get_entries_by_type(String const& type) const
+WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> Performance::get_entries_by_type(Utf16FlyString const& type) const
 {
     auto& vm = this->vm();
 
     // Returns a PerformanceEntryList object returned by filter buffer map by name and type algorithm with name set to null,
     // and type set to the method's input type parameter.
-    return TRY_OR_THROW_OOM(vm, window_or_worker().filter_buffer_map_by_name_and_type(/* name= */ Optional<String> {}, type));
+    return TRY_OR_THROW_OOM(vm, window_or_worker().filter_buffer_map_by_name_and_type(/* name= */ Optional<Utf16String> {}, type));
 }
 
 // https://www.w3.org/TR/performance-timeline/#dom-performance-getentriesbyname
-WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> Performance::get_entries_by_name(String const& name, Optional<String> type) const
+WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> Performance::get_entries_by_name(Utf16String const& name, Optional<Utf16FlyString> type) const
 {
     auto& vm = this->vm();
 

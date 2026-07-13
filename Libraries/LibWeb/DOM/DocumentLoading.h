@@ -7,19 +7,20 @@
 
 #pragma once
 
+#include <AK/StringView.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
 
 namespace Web {
 
-bool build_xml_document(DOM::Document& document, ByteBuffer const& data, Optional<String> content_encoding);
+bool build_xml_document(DOM::Document& document, ByteBuffer const& data, Optional<StringView> content_encoding);
 GC::Ptr<DOM::Document> load_document(HTML::NavigationParams const& navigation_params, ReadonlyBytes sniff_bytes);
 bool can_load_document_with_type(MimeSniff::MimeType const&);
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#read-ua-inline
 template<typename MutateDocument>
-GC::Ref<DOM::Document> create_document_for_inline_content(GC::Ptr<HTML::LocalNavigable> navigable, Optional<String> navigation_id, HTML::UserNavigationInvolvement user_involvement, MutateDocument mutate_document)
+GC::Ref<DOM::Document> create_document_for_inline_content(GC::Ptr<HTML::LocalNavigable> navigable, Optional<Utf16String> navigation_id, HTML::UserNavigationInvolvement user_involvement, MutateDocument mutate_document)
 {
     auto& vm = navigable->vm();
     VERIFY(navigable->active_document());
@@ -77,7 +78,7 @@ GC::Ref<DOM::Document> create_document_for_inline_content(GC::Ptr<HTML::LocalNav
         user_involvement);
 
     // 5. Let document be the result of creating and initializing a Document object given "html", "text/html", and navigationParams.
-    auto document = DOM::Document::create_and_initialize(DOM::Document::Type::HTML, "text/html"_string, navigation_params).release_value_but_fixme_should_propagate_errors();
+    auto document = DOM::Document::create_and_initialize(DOM::Document::Type::HTML, "text/html"_utf16_fly_string, navigation_params).release_value_but_fixme_should_propagate_errors();
 
     // 6. Either associate document with a custom rendering that is not rendered using the normal Document rendering
     //    rules, or mutate document until it represents the content the user agent wants to render.

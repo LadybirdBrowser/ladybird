@@ -316,7 +316,7 @@ WebIDL::ExceptionOr<void> CanvasPath::round_rect(double x, double y, double w, d
 
     // 3. If radii is not a list of size one, two, three, or four, then throw a RangeError.
     if (radii.get<Vector<Radius>>().is_empty() || radii.get<Vector<Radius>>().size() > 4)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "roundRect: Can have between 1 and 4 radii"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "roundRect: Can have between 1 and 4 radii"_utf16 };
 
     // 4. Let normalizedRadii be an empty list.
     Vector<Bindings::DOMPointInit> normalized_radii;
@@ -333,7 +333,7 @@ WebIDL::ExceptionOr<void> CanvasPath::round_rect(double x, double y, double w, d
 
             // 5.1.2. If radius["x"] or radius["y"] is negative, then throw a RangeError.
             if (radius_as_dom_point.x < 0 || radius_as_dom_point.y < 0)
-                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "roundRect: Radius can't be negative"sv };
+                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "roundRect: Radius can't be negative"_utf16 };
 
             // 5.1.3. Otherwise, append radius to normalizedRadii.
             normalized_radii.append(radius_as_dom_point);
@@ -349,7 +349,7 @@ WebIDL::ExceptionOr<void> CanvasPath::round_rect(double x, double y, double w, d
 
             // 5.2.2. If radius is negative, then throw a RangeError.
             if (radius_as_double < 0)
-                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "roundRect: Radius can't be negative"sv };
+                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "roundRect: Radius can't be negative"_utf16 };
 
             // 5.2.3. Otherwise append «[ "x" → radius, "y" → radius ]» to normalizedRadii.
             Bindings::DOMPointInit normalized_radius {};

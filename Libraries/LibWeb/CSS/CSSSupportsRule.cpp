@@ -31,32 +31,32 @@ void CSSSupportsRule::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-String CSSSupportsRule::condition_text() const
+Utf16String CSSSupportsRule::serialized_condition_text() const
 {
     return m_supports->to_string();
 }
 
 // https://www.w3.org/TR/cssom-1/#serialize-a-css-rule
-String CSSSupportsRule::serialized() const
+Utf16String CSSSupportsRule::serialized() const
 {
     // Note: The spec doesn't cover this yet, so I'm roughly following the spec for the @media rule.
     // It should be pretty close!
 
-    StringBuilder builder;
+    Utf16StringBuilder builder;
 
-    builder.append("@supports "sv);
-    builder.append(condition_text());
-    builder.append(" {\n"sv);
+    builder.append_ascii("@supports "sv);
+    builder.append(serialized_condition_text());
+    builder.append_ascii(" {\n"sv);
     for (size_t i = 0; i < css_rules().length(); i++) {
         auto rule = css_rules().item(i);
         if (i != 0)
-            builder.append("\n"sv);
-        builder.append("  "sv);
-        builder.append(rule->css_text());
+            builder.append_ascii("\n"sv);
+        builder.append_ascii("  "sv);
+        builder.append(rule->serialized());
     }
-    builder.append("\n}"sv);
+    builder.append_ascii("\n}"sv);
 
-    return MUST(builder.to_string());
+    return builder.to_string();
 }
 
 void CSSSupportsRule::dump(StringBuilder& builder, int indent_levels) const

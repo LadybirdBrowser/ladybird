@@ -39,7 +39,7 @@ WebIDL::ExceptionOr<GC::Ref<WritableStream>> WritableStream::construct_impl(JS::
 
     // 3. If underlyingSinkDict["type"] exists, throw a RangeError exception.
     if (underlying_sink_dict.type.has_value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Invalid use of reserved key 'type'"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Invalid use of reserved key 'type'"_utf16 };
 
     // 4. Perform ! InitializeWritableStream(this).
     // Note: This AO configures slot values which are already specified in the class's field initializers.

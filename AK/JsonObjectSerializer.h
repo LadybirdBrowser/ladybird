@@ -72,16 +72,46 @@ public:
         return {};
     }
 
+    ErrorOr<void> add(StringView key, Utf16View const& value)
+    {
+        TRY(begin_item(key));
+        if constexpr (IsLegacyBuilder<Builder>) {
+            TRY(m_builder.try_append('"'));
+            TRY(m_builder.try_append_escaped_for_json(value));
+            TRY(m_builder.try_append('"'));
+        } else {
+            TRY(m_builder.append('"'));
+            TRY(m_builder.append_escaped_for_json(value));
+            TRY(m_builder.append('"'));
+        }
+        return {};
+    }
+
+    ErrorOr<void> add(Utf16View const& key, Utf16View const& value)
+    {
+        TRY(begin_item(key));
+        if constexpr (IsLegacyBuilder<Builder>) {
+            TRY(m_builder.try_append('"'));
+            TRY(m_builder.try_append_escaped_for_json(value));
+            TRY(m_builder.try_append('"'));
+        } else {
+            TRY(m_builder.append('"'));
+            TRY(m_builder.append_escaped_for_json(value));
+            TRY(m_builder.append('"'));
+        }
+        return {};
+    }
+
     ErrorOr<void> add(StringView key, char const* value)
     {
         TRY(begin_item(key));
         if constexpr (IsLegacyBuilder<Builder>) {
             TRY(m_builder.try_append('"'));
-            TRY(m_builder.try_append_escaped_for_json({ value, __builtin_strlen(value) }));
+            TRY(m_builder.try_append_escaped_for_json(StringView { value, __builtin_strlen(value) }));
             TRY(m_builder.try_append('"'));
         } else {
             TRY(m_builder.append('"'));
-            TRY(m_builder.append_escaped_for_json({ value, __builtin_strlen(value) }));
+            TRY(m_builder.append_escaped_for_json(StringView { value, __builtin_strlen(value) }));
             TRY(m_builder.append('"'));
         }
         return {};
@@ -183,7 +213,19 @@ public:
         return JsonArraySerializer<Builder>::try_create(m_builder);
     }
 
+    ErrorOr<JsonArraySerializer<Builder>> add_array(Utf16View const& key)
+    {
+        TRY(begin_item(key));
+        return JsonArraySerializer<Builder>::try_create(m_builder);
+    }
+
     ErrorOr<JsonObjectSerializer<Builder>> add_object(StringView key)
+    {
+        TRY(begin_item(key));
+        return JsonObjectSerializer::try_create(m_builder);
+    }
+
+    ErrorOr<JsonObjectSerializer<Builder>> add_object(Utf16View const& key)
     {
         TRY(begin_item(key));
         return JsonObjectSerializer::try_create(m_builder);
@@ -207,6 +249,29 @@ private:
     }
 
     ErrorOr<void> begin_item(StringView key)
+    {
+        VERIFY(!m_finished);
+        if (!m_empty) {
+            if constexpr (IsLegacyBuilder<Builder>)
+                TRY(m_builder.try_append(','));
+            else
+                TRY(m_builder.append(','));
+        }
+        m_empty = false;
+
+        if constexpr (IsLegacyBuilder<Builder>) {
+            TRY(m_builder.try_append('"'));
+            TRY(m_builder.try_append_escaped_for_json(key));
+            TRY(m_builder.try_append("\":"sv));
+        } else {
+            TRY(m_builder.append('"'));
+            TRY(m_builder.append_escaped_for_json(key));
+            TRY(m_builder.append("\":"sv));
+        }
+        return {};
+    }
+
+    ErrorOr<void> begin_item(Utf16View const& key)
     {
         VERIFY(!m_finished);
         if (!m_empty) {

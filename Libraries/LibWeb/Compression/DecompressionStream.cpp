@@ -46,7 +46,7 @@ WebIDL::ExceptionOr<GC::Ref<DecompressionStream>> DecompressionStream::construct
     }();
 
     if (decompressor.is_error())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to create decompressor: {}", decompressor.error())) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("Unable to create decompressor: {}", decompressor.error()) };
 
     // 5. Set this's transform to a new TransformStream.
     // NOTE: We do this first so that we may store it as nonnull in the GenericTransformStream.
@@ -114,7 +114,7 @@ WebIDL::ExceptionOr<void> DecompressionStream::decompress_and_enqueue_chunk(JS::
 
     // 1. If chunk is not a BufferSource type, then throw a TypeError.
     if (!WebIDL::is_buffer_source_type(chunk))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Chunk is not a BufferSource type"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Chunk is not a BufferSource type"_utf16 };
 
     // 2. Let buffer be the result of decompressing chunk with ds's format and context. If this results in an error,
     //    then throw a TypeError.
@@ -129,7 +129,7 @@ WebIDL::ExceptionOr<void> DecompressionStream::decompress_and_enqueue_chunk(JS::
         return decompressed.slice(0, size);
     }();
     if (maybe_buffer.is_error())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to decompress chunk: {}", maybe_buffer.error())) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("Unable to decompress chunk: {}", maybe_buffer.error()) };
 
     auto buffer = maybe_buffer.release_value();
 
@@ -156,7 +156,7 @@ WebIDL::ExceptionOr<void> DecompressionStream::decompress_flush_and_enqueue()
         return TRY(decompressor->read_until_eof());
     });
     if (maybe_buffer.is_error())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to decompress flush: {}", maybe_buffer.error())) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("Unable to decompress flush: {}", maybe_buffer.error()) };
 
     auto buffer = maybe_buffer.release_value();
 

@@ -61,28 +61,31 @@ void MediaFeature::dump(StringBuilder& builder, int indent_levels) const
     builder.appendff("MediaFeature: {}\n", to_string());
 }
 
-String MediaQuery::to_string() const
+Utf16String MediaQuery::to_string() const
 {
-    StringBuilder builder;
+    Utf16StringBuilder builder;
+    serialize_to(builder);
+    return builder.to_string();
+}
 
+void MediaQuery::serialize_to(Utf16StringBuilder& builder) const
+{
     if (m_negated)
-        builder.append("not "sv);
+        builder.append_ascii("not "sv);
 
     if (m_negated || m_media_type.known_type != KnownMediaType::All || !m_media_condition) {
         if (m_media_type.known_type.has_value()) {
-            builder.append(CSS::to_string(m_media_type.known_type.value()));
+            builder.append_ascii(CSS::to_string(m_media_type.known_type.value()));
         } else {
-            builder.append(serialize_an_identifier(m_media_type.name.to_ascii_lowercase()));
+            auto serialized_media_type = serialize_an_identifier_to_utf16(m_media_type.name.to_ascii_lowercase());
+            builder.append(serialized_media_type.utf16_view());
         }
         if (m_media_condition)
-            builder.append(" and "sv);
+            builder.append_ascii(" and "sv);
     }
 
-    if (m_media_condition) {
-        builder.append(m_media_condition->to_string());
-    }
-
-    return MUST(builder.to_string());
+    if (m_media_condition)
+        m_media_condition->serialize_to(builder);
 }
 
 bool MediaQuery::evaluate(DOM::Document const& document)
@@ -134,26 +137,24 @@ void MediaQuery::dump(StringBuilder& builder, int indent_levels) const
 }
 
 // https://www.w3.org/TR/cssom-1/#serialize-a-media-query-list
-String serialize_a_media_query_list(Vector<NonnullRefPtr<MediaQuery>> const& media_queries)
+Utf16String serialize_a_media_query_list(Vector<NonnullRefPtr<MediaQuery>> const& media_queries)
 {
     // 1. If the media query list is empty, then return the empty string.
     if (media_queries.is_empty())
-        return String {};
+        return {};
 
     // 2. Serialize each media query in the list of media queries, in the same order as they
     // appear in the media query list, and then serialize the list.
-    return MUST(String::join(", "sv, media_queries));
-}
-
-Optional<MediaQuery::KnownMediaType> media_type_from_string(StringView name)
-{
-    if (name.equals_ignoring_ascii_case("all"sv))
-        return MediaQuery::KnownMediaType::All;
-    if (name.equals_ignoring_ascii_case("print"sv))
-        return MediaQuery::KnownMediaType::Print;
-    if (name.equals_ignoring_ascii_case("screen"sv))
-        return MediaQuery::KnownMediaType::Screen;
-    return {};
+    Utf16StringBuilder builder;
+    bool first = true;
+    for (auto const& media_query : media_queries) {
+        if (first)
+            first = false;
+        else
+            builder.append_ascii(", "sv);
+        media_query->serialize_to(builder);
+    }
+    return builder.to_string();
 }
 
 Optional<MediaQuery::KnownMediaType> media_type_from_string(Utf16View name)

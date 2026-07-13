@@ -1,7 +1,7 @@
 // https://w3c.github.io/pointerevents/#idl-wheelevent
 [Exposed=Window]
 interface WheelEvent : MouseEvent {
-    constructor(DOMString type, optional WheelEventInit eventInitDict = {});
+    constructor([Utf16FlyString] Utf16DOMString type, optional WheelEventInit eventInitDict = {});
 
     // DeltaModeCode
     const unsigned long DOM_DELTA_PIXEL = 0x00;

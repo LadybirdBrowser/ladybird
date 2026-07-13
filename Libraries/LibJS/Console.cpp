@@ -782,7 +782,7 @@ void Console::output_debug_message(LogLevel log_level, Utf16View output) const
     }
 }
 
-void Console::report_exception(String const& name, String const& message, JS::ErrorData const& error_data, bool in_promise) const
+void Console::report_exception(Utf16View name, Utf16View message, JS::ErrorData const& error_data, bool in_promise) const
 {
     if (m_client)
         m_client->report_exception(name, message, error_data, in_promise);

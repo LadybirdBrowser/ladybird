@@ -24,13 +24,12 @@ public:
     [[nodiscard]] static GC::Ref<MediaList> create(JS::Realm&, Vector<NonnullRefPtr<MediaQuery>>&&);
     virtual ~MediaList() override = default;
 
-    String media_text() const;
-    void set_media_text(StringView);
+    Utf16String media_text() const;
     void set_media_text(Utf16View);
     size_t length() const { return m_media.size(); }
-    Optional<String> item(u32 index) const;
-    void append_medium(StringView);
-    WebIDL::ExceptionOr<void> delete_medium(StringView);
+    Optional<Utf16String> item(u32 index) const;
+    void append_medium(Utf16View);
+    WebIDL::ExceptionOr<void> delete_medium(Utf16View);
 
     virtual Optional<JS::Value> item_value(size_t index) const override;
 

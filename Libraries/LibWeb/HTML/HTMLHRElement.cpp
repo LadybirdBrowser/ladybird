@@ -43,7 +43,7 @@ bool HTMLHRElement::is_presentational_hint(Utf16FlyString const& name) const
 void HTMLHRElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
 {
     Base::apply_presentational_hints(properties);
-    for_each_attribute([&](auto& name, auto& value) {
+    for_each_attribute([&](Utf16FlyString const& name, Utf16View value) {
         // https://html.spec.whatwg.org/multipage/rendering.html#the-hr-element-2
         if (name == HTML::AttributeNames::color || name == HTML::AttributeNames::noshade) {
             properties.append({ .property_id = CSS::PropertyID::BorderTopStyle, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Solid) });
@@ -53,13 +53,13 @@ void HTMLHRElement::apply_presentational_hints(Vector<CSS::StyleProperty>& prope
         }
 
         if (name == HTML::AttributeNames::align) {
-            if (value.equals_ignoring_ascii_case("left"sv)) {
+            if (value.equals_ignoring_ascii_case(u"left"sv)) {
                 properties.append({ .property_id = CSS::PropertyID::MarginLeft, .value = CSS::LengthStyleValue::create(CSS::Length::make_px(0)) });
                 properties.append({ .property_id = CSS::PropertyID::MarginRight, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Auto) });
-            } else if (value.equals_ignoring_ascii_case("right"sv)) {
+            } else if (value.equals_ignoring_ascii_case(u"right"sv)) {
                 properties.append({ .property_id = CSS::PropertyID::MarginLeft, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Auto) });
                 properties.append({ .property_id = CSS::PropertyID::MarginRight, .value = CSS::LengthStyleValue::create(CSS::Length::make_px(0)) });
-            } else if (value.equals_ignoring_ascii_case("center"sv)) {
+            } else if (value.equals_ignoring_ascii_case(u"center"sv)) {
                 properties.append({ .property_id = CSS::PropertyID::MarginLeft, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Auto) });
                 properties.append({ .property_id = CSS::PropertyID::MarginRight, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Auto) });
             }

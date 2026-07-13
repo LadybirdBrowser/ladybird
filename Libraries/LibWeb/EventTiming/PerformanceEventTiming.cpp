@@ -17,7 +17,7 @@ GC_DEFINE_ALLOCATOR(PerformanceEventTiming);
 // https://www.w3.org/TR/event-timing/#sec-init-event-timing
 PerformanceEventTiming::PerformanceEventTiming(
     JS::Realm& realm,
-    String const& name,
+    Utf16String const& name,
     HighResolutionTime::DOMHighResTimeStamp start_time,
     HighResolutionTime::DOMHighResTimeStamp duration,
     DOM::Event const& event,
@@ -35,7 +35,7 @@ PerformanceEventTiming::PerformanceEventTiming(
 
 PerformanceEventTiming::~PerformanceEventTiming() = default;
 
-FlyString const& PerformanceEventTiming::entry_type() const
+Utf16FlyString const& PerformanceEventTiming::entry_type() const
 {
     return m_entry_type;
 }
@@ -74,11 +74,11 @@ PerformanceTimeline::ShouldAddEntry PerformanceEventTiming::should_add_performan
 {
     dbgln("FIXME: Implement PerformanceEventTiming should_add_performance_event_timing()");
     // 1. If entry’s entryType attribute value equals to "first-input", return true.
-    if (entry_type() == "first-input")
+    if (entry_type() == PerformanceTimeline::EntryTypes::first_input)
         return PerformanceTimeline::ShouldAddEntry::Yes;
 
     // 2. Assert that entry’s entryType attribute value equals "event".
-    VERIFY(entry_type() == "event");
+    VERIFY(entry_type() == PerformanceTimeline::EntryTypes::event);
 
     // FIXME: 3. Let minDuration be computed as follows:
     // FIXME: 3.1. If options is not present or if options’s durationThreshold is not present, let minDuration be 104.

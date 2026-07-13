@@ -19,15 +19,27 @@ void BooleanExpression::indent(StringBuilder& builder, int levels)
     builder.append_repeated("  "sv, levels);
 }
 
+Utf16String BooleanExpression::to_string() const
+{
+    Utf16StringBuilder builder;
+    serialize_to(builder);
+    return builder.to_string();
+}
+
 void GeneralEnclosed::collect_container_query_feature_requirements(ContainerQueryFeatureRequirements& requirements) const
 {
     requirements.has_unknown_or_unsupported_feature = true;
 }
 
+void GeneralEnclosed::serialize_to(Utf16StringBuilder& builder) const
+{
+    builder.append(m_serialized_contents.utf16_view());
+}
+
 void GeneralEnclosed::dump(StringBuilder& builder, int indent_levels) const
 {
     indent(builder, indent_levels);
-    builder.appendff("GeneralEnclosed: {}\n", to_string());
+    builder.appendff("GeneralEnclosed: {}\n", to_string().to_utf8());
 }
 
 MatchResult BooleanNotExpression::evaluate(BooleanExpressionEvaluationContext const& context) const
@@ -50,9 +62,10 @@ void BooleanNotExpression::collect_container_query_feature_requirements(Containe
     m_child->collect_container_query_feature_requirements(requirements);
 }
 
-String BooleanNotExpression::to_string() const
+void BooleanNotExpression::serialize_to(Utf16StringBuilder& builder) const
 {
-    return MUST(String::formatted("not {}", m_child->to_string()));
+    builder.append_ascii("not "sv);
+    m_child->serialize_to(builder);
 }
 
 void BooleanNotExpression::dump(StringBuilder& builder, int indent_levels) const
@@ -72,9 +85,11 @@ void BooleanExpressionInParens::collect_container_query_feature_requirements(Con
     m_child->collect_container_query_feature_requirements(requirements);
 }
 
-String BooleanExpressionInParens::to_string() const
+void BooleanExpressionInParens::serialize_to(Utf16StringBuilder& builder) const
 {
-    return MUST(String::formatted("({})", m_child->to_string()));
+    builder.append_ascii('(');
+    m_child->serialize_to(builder);
+    builder.append_ascii(')');
 }
 
 void BooleanExpressionInParens::dump(StringBuilder& builder, int indent_levels) const
@@ -110,9 +125,16 @@ void BooleanAndExpression::collect_container_query_feature_requirements(Containe
         child->collect_container_query_feature_requirements(requirements);
 }
 
-String BooleanAndExpression::to_string() const
+void BooleanAndExpression::serialize_to(Utf16StringBuilder& builder) const
 {
-    return MUST(String::join(" and "sv, m_children));
+    bool first = true;
+    for (auto const& child : m_children) {
+        if (first)
+            first = false;
+        else
+            builder.append_ascii(" and "sv);
+        child->serialize_to(builder);
+    }
 }
 
 void BooleanAndExpression::dump(StringBuilder& builder, int indent_levels) const
@@ -147,9 +169,16 @@ void BooleanOrExpression::collect_container_query_feature_requirements(Container
         child->collect_container_query_feature_requirements(requirements);
 }
 
-String BooleanOrExpression::to_string() const
+void BooleanOrExpression::serialize_to(Utf16StringBuilder& builder) const
 {
-    return MUST(String::join(" or "sv, m_children));
+    bool first = true;
+    for (auto const& child : m_children) {
+        if (first)
+            first = false;
+        else
+            builder.append_ascii(" or "sv);
+        child->serialize_to(builder);
+    }
 }
 
 void BooleanOrExpression::dump(StringBuilder& builder, int indent_levels) const
@@ -158,6 +187,11 @@ void BooleanOrExpression::dump(StringBuilder& builder, int indent_levels) const
     builder.append("OR:\n"sv);
     for (auto const& child : m_children)
         child->dump(builder, indent_levels + 1);
+}
+
+void ConstantBooleanExpression::serialize_to(Utf16StringBuilder& builder) const
+{
+    builder.append_ascii(CSS::to_string(m_value));
 }
 
 void ConstantBooleanExpression::dump(StringBuilder& builder, int indent_levels) const

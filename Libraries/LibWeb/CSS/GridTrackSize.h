@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
 #include <AK/HashMap.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Vector.h>
@@ -94,7 +93,7 @@ struct GridArea {
 };
 
 struct GridTemplateAreas {
-    HashMap<String, GridArea> areas;
+    HashMap<Utf16FlyString, GridArea> areas;
     size_t row_count { 0 };
     size_t column_count { 0 };
 

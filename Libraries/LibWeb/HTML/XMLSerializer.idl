@@ -2,5 +2,5 @@
 [Exposed=Window]
 interface XMLSerializer {
     constructor();
-    DOMString serializeToString(Node root);
+    Utf16DOMString serializeToString(Node root);
 };

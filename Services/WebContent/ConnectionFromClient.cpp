@@ -16,6 +16,7 @@
 #include <AK/OwnPtr.h>
 #include <AK/QuickSort.h>
 #include <AK/Utf16FlyString.h>
+#include <AK/Utf16String.h>
 #include <LibCore/Process.h>
 #include <LibCore/System.h>
 #include <LibDevTools/IndexedDBSerialization.h>
@@ -181,14 +182,14 @@ void ConnectionFromClient::close_server()
 Messages::WebContentServer::GetWindowHandleResponse ConnectionFromClient::get_window_handle(u64 page_id)
 {
     if (auto page = this->page(page_id); page.has_value())
-        return page->page().top_level_traversable()->window_handle();
+        return page->page().top_level_traversable()->window_handle().to_utf8();
     return String {};
 }
 
 void ConnectionFromClient::set_window_handle(u64 page_id, String handle)
 {
     if (auto page = this->page(page_id); page.has_value()) {
-        page->set_window_handle(move(handle));
+        page->set_window_handle(Utf16String::from_utf8(handle));
         page->send_current_needs_beforeunload_check();
     }
 }
@@ -287,7 +288,7 @@ void ConnectionFromClient::load_url(u64 page_id, URL::URL url, Web::Bindings::Na
 }
 
 void ConnectionFromClient::load_url_with_document_resource(u64 page_id, URL::URL url,
-    Variant<Empty, String, Web::HTML::POSTResource> document_resource,
+    Web::HTML::DocumentResource document_resource,
     Web::Bindings::NavigationHistoryBehavior history_handling)
 {
     auto page = this->page(page_id);
@@ -501,7 +502,7 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
     if (request == "dump-display-list") {
         if (auto* doc = page->page().top_level_browsing_context().active_document()) {
             auto display_list_dump = doc->dump_display_list();
-            dbgln("{}", display_list_dump);
+            dbgln("{}", display_list_dump.to_utf8());
         }
         return;
     }
@@ -713,7 +714,7 @@ void ConnectionFromClient::inspect_dom_tree(u64 page_id)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         if (auto* doc = page->page().top_level_browsing_context().active_document())
-            async_did_inspect_dom_tree(page_id, doc->dump_dom_tree_as_json());
+            async_did_inspect_dom_tree(page_id, doc->dump_dom_tree_as_json().to_utf8());
     }
 }
 
@@ -776,7 +777,7 @@ static Optional<GC::Ref<Web::HTML::Storage>> active_session_storage_for_page(Pag
     return storage_or_error.release_value();
 }
 
-Messages::WebContentServer::SetSessionStorageItemResponse ConnectionFromClient::set_session_storage_item(u64 page_id, String key, String value)
+Messages::WebContentServer::SetSessionStorageItemResponse ConnectionFromClient::set_session_storage_item(u64 page_id, Utf16String key, Utf16String value)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -786,28 +787,28 @@ Messages::WebContentServer::SetSessionStorageItemResponse ConnectionFromClient::
     if (!storage.has_value())
         return Optional<WebView::StorageSetResult> {};
 
-    auto old_value = (*storage)->get_item(Utf16String::from_utf8(key));
-    auto result = (*storage)->set_item(Utf16String::from_utf8(key), Utf16String::from_utf8(value));
+    auto old_value = (*storage)->get_item(key);
+    auto result = (*storage)->set_item(key, value);
     if (result.is_exception())
         return WebView::StorageSetResult { WebView::StorageOperationError::QuotaExceededError };
 
-    return WebView::StorageSetResult { old_value.map([](auto const& value) { return MUST(value.utf16_view().to_utf8()); }) };
+    return WebView::StorageSetResult { move(old_value) };
 }
 
-Messages::WebContentServer::RemoveSessionStorageItemResponse ConnectionFromClient::remove_session_storage_item(u64 page_id, String key)
+Messages::WebContentServer::RemoveSessionStorageItemResponse ConnectionFromClient::remove_session_storage_item(u64 page_id, Utf16String key)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
-        return Optional<String> {};
+        return Optional<Utf16String> {};
 
     auto storage = active_session_storage_for_page(*page);
     if (!storage.has_value())
-        return Optional<String> {};
+        return Optional<Utf16String> {};
 
-    auto old_value = (*storage)->get_item(Utf16String::from_utf8(key));
+    auto old_value = (*storage)->get_item(key);
     if (old_value.has_value())
-        (*storage)->remove_item(Utf16String::from_utf8(key));
-    return old_value.map([](auto const& value) { return MUST(value.utf16_view().to_utf8()); });
+        (*storage)->remove_item(key);
+    return old_value;
 }
 
 Messages::WebContentServer::ClearSessionStorageResponse ConnectionFromClient::clear_session_storage(u64 page_id)
@@ -985,11 +986,11 @@ static StringView grid_track_state_to_string(Web::Layout::GridTrackState state)
     VERIFY_NOT_REACHED();
 }
 
-static JsonArray serialize_grid_line_names(Vector<String> const& names)
+static JsonArray serialize_grid_line_names(Vector<Utf16FlyString> const& names)
 {
     JsonArray serialized_names;
     for (auto const& name : names)
-        serialized_names.must_append(name);
+        serialized_names.must_append(MUST(name.view().to_utf8()));
     return serialized_names;
 }
 
@@ -1020,7 +1021,7 @@ static JsonObject serialize_grid_area(Web::Layout::GridLayoutArea const& area)
     JsonObject serialized_area;
     serialized_area.set("columnEnd"sv, area.column_end);
     serialized_area.set("columnStart"sv, area.column_start);
-    serialized_area.set("name"sv, area.name);
+    serialized_area.set("name"sv, MUST(area.name.view().to_utf8()));
     serialized_area.set("rowEnd"sv, area.row_end);
     serialized_area.set("rowStart"sv, area.row_start);
     serialized_area.set("type"sv, grid_track_type_to_string(area.type));
@@ -1520,7 +1521,7 @@ void ConnectionFromClient::inspect_accessibility_tree(u64 page_id)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         if (auto* doc = page->page().top_level_browsing_context().active_document())
-            async_did_inspect_accessibility_tree(page_id, doc->dump_accessibility_tree_as_json());
+            async_did_inspect_accessibility_tree(page_id, doc->dump_accessibility_tree_as_json().to_utf8());
     }
 }
 
@@ -1609,7 +1610,7 @@ void ConnectionFromClient::resolve_dom_node_url(u64 page_id, u64 request_id, Opt
     }();
 
     auto resolved_url = document
-        ? document->encoding_parse_url(url)
+        ? document->encoding_parse_url(Utf16String::from_utf8(url))
               .map([](auto const& parsed_url) {
                   return parsed_url.serialize();
               })
@@ -2040,7 +2041,7 @@ void ConnectionFromClient::request_internal_page_info(u64 page_id, WebView::Page
 Messages::WebContentServer::GetSelectedTextResponse ConnectionFromClient::get_selected_text(u64 page_id)
 {
     if (auto page = this->page(page_id); page.has_value())
-        return page->page().focused_navigable().selected_text().to_byte_string();
+        return page->page().focused_navigable().selected_text().to_utf8().to_byte_string();
     return ByteString {};
 }
 
@@ -2119,7 +2120,7 @@ Messages::WebContentServer::GetSelectedTextForLookupResponse ConnectionFromClien
     }
 
     return WebView::DictionaryLookup {
-        .text = move(text),
+        .text = text.to_utf8(),
         .style = move(style),
         .baseline_origin = baseline_origin,
     };
@@ -2140,7 +2141,7 @@ Messages::WebContentServer::SelectWordForDictionaryLookupResponse ConnectionFrom
 Messages::WebContentServer::CutSelectedTextResponse ConnectionFromClient::cut_selected_text(u64 page_id)
 {
     if (auto page = this->page(page_id); page.has_value())
-        return page->page().focused_navigable().cut_selected_text().to_byte_string();
+        return page->page().focused_navigable().cut_selected_text().to_utf8().to_byte_string();
     return ByteString {};
 }
 
@@ -2150,7 +2151,7 @@ void ConnectionFromClient::select_all(u64 page_id)
         page->page().focused_navigable().select_all();
 }
 
-void ConnectionFromClient::find_in_page(u64 page_id, String query, CaseSensitivity case_sensitivity)
+void ConnectionFromClient::find_in_page(u64 page_id, Utf16String query, CaseSensitivity case_sensitivity)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -2274,7 +2275,7 @@ void ConnectionFromClient::set_content_blockers(u64 page_id, Core::AnonymousBuff
     }
 }
 
-void ConnectionFromClient::set_autoplay_settings(u64, Web::HTML::AutoplayPolicy policy, Vector<String> allowlist)
+void ConnectionFromClient::set_autoplay_settings(u64, Web::HTML::AutoplayPolicy policy, Vector<Utf16String> allowlist)
 {
     Web::HTML::AutoplaySettings::the().set_policy(policy, allowlist);
 }
@@ -2436,7 +2437,7 @@ void ConnectionFromClient::confirm_closed(u64 page_id, bool accepted)
         page->page().confirm_closed(accepted);
 }
 
-void ConnectionFromClient::prompt_closed(u64 page_id, Optional<String> response)
+void ConnectionFromClient::prompt_closed(u64 page_id, Optional<Utf16String> response)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().prompt_closed(move(response));
@@ -2511,7 +2512,7 @@ void ConnectionFromClient::set_page_mute_state(u64 page_id, Web::HTML::MuteState
 void ConnectionFromClient::set_user_style(u64 page_id, String source)
 {
     if (auto page = this->page(page_id); page.has_value())
-        page->page().set_user_style(move(source));
+        page->page().set_user_style(Utf16String::from_utf8(source));
 }
 
 void ConnectionFromClient::system_time_zone_changed()
@@ -2563,7 +2564,7 @@ void ConnectionFromClient::did_worker_agent_fail_loading_script(Web::HTML::Worke
     Web::HTML::WorkerAgentParent::did_fail_loading_worker_script(owner_token);
 }
 
-void ConnectionFromClient::did_worker_agent_report_exception(Web::HTML::WorkerAgentOwnerToken owner_token, String message, String filename, u32 lineno, u32 colno)
+void ConnectionFromClient::did_worker_agent_report_exception(Web::HTML::WorkerAgentOwnerToken owner_token, Utf16String message, Utf16String filename, u32 lineno, u32 colno)
 {
     Web::HTML::WorkerAgentParent::did_report_worker_exception(owner_token, move(message), move(filename), lineno, colno);
 }

@@ -36,7 +36,7 @@ public:
         auto& element = static_cast<T const&>(*this);
 
         auto value = element.attribute(HTML::AttributeNames::loading);
-        if (value.has_value() && value->equals_ignoring_ascii_case("lazy"sv))
+        if (value.has_value() && value->equals_ignoring_ascii_case(u"lazy"sv))
             return LazyLoading::Lazy;
         return LazyLoading::Eager;
     }

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
@@ -20,9 +21,9 @@ class NavigationDestination : public Bindings::PlatformObject {
 public:
     [[nodiscard]] static GC::Ref<NavigationDestination> create(JS::Realm&);
 
-    String url() const;
-    String key() const;
-    String id() const;
+    Utf16String url() const;
+    Utf16String key() const;
+    Utf16String id() const;
     i64 index() const;
     bool same_document() const;
     WebIDL::ExceptionOr<JS::Value> get_state();

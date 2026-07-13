@@ -30,9 +30,9 @@ WebIDL::ExceptionOr<GC::Ref<CSSSkew>> CSSSkew::construct_impl(JS::Realm& realm, 
 
     // 1. If ax or ay do not match <angle>, throw a TypeError.
     if (!ax->type().matches_angle({}))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSSkew ax component doesn't match <angle>"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSSkew ax component doesn't match <angle>"_utf16 };
     if (!ay->type().matches_angle({}))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSSkew ay component doesn't match <angle>"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSSkew ay component doesn't match <angle>"_utf16 };
 
     // 2. Return a new CSSSkew object with its ax and ay internal slots set to ax and ay, and its is2D internal slot
     //    set to true.
@@ -117,7 +117,7 @@ WebIDL::ExceptionOr<void> CSSSkew::set_ax(GC::Ref<CSSNumericValue> ax)
     // AD-HOC: Not specced. https://github.com/w3c/css-houdini-drafts/issues/1153
     //         WPT expects this to throw for invalid values.
     if (!ax->type().matches_angle({}))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSSkew ax component doesn't match <angle>"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSSkew ax component doesn't match <angle>"_utf16 };
     m_ax = ax;
     return {};
 }
@@ -127,7 +127,7 @@ WebIDL::ExceptionOr<void> CSSSkew::set_ay(GC::Ref<CSSNumericValue> ay)
     // AD-HOC: Not specced. https://github.com/w3c/css-houdini-drafts/issues/1153
     //         WPT expects this to throw for invalid values.
     if (!ay->type().matches_angle({}))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSSkew ay component doesn't match <angle>"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSSkew ay component doesn't match <angle>"_utf16 };
     m_ay = ay;
     return {};
 }

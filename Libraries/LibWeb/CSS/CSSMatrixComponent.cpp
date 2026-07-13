@@ -67,7 +67,7 @@ WebIDL::ExceptionOr<Utf16String> CSSMatrixComponent::to_string() const
 {
     // 1. Return the serialization of this’s matrix internal slot.
     // FIXME: This means we ignore our is_2d state. https://github.com/w3c/css-houdini-drafts/issues/1155
-    return Utf16String::from_utf8(TRY(m_matrix->to_string()));
+    return TRY(m_matrix->to_string());
 }
 
 WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSMatrixComponent::to_matrix() const

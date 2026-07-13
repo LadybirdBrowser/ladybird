@@ -8,6 +8,7 @@
 
 #include <AK/Optional.h>
 #include <AK/Utf16FlyString.h>
+#include <AK/Utf16String.h>
 #include <LibWeb/CSS/CSSConditionRule.h>
 #include <LibWeb/Forward.h>
 
@@ -15,8 +16,8 @@ namespace Web::CSS {
 
 // https://drafts.csswg.org/css-conditional-5/#dictdef-csscontainercondition
 struct CSSContainerCondition {
-    String name;
-    String query;
+    Utf16String name;
+    Utf16String query;
 };
 
 // https://drafts.csswg.org/css-conditional-5/#the-csscontainerrule-interface
@@ -33,13 +34,13 @@ public:
 
     virtual ~CSSContainerRule() override;
 
-    virtual String condition_text() const override;
+    virtual Utf16String serialized_condition_text() const override;
     virtual bool condition_matches() const override;
     bool matches(DOM::AbstractElement const&) const;
     bool contains_size_feature() const;
 
-    String container_name() const;
-    String container_query() const;
+    Utf16String container_name() const;
+    Utf16String container_query() const;
 
     // FIXME: Should be FrozenArray
     Vector<CSSContainerCondition> conditions() const;
@@ -52,7 +53,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void clear_caches() override;
-    virtual String serialized() const override;
+    virtual Utf16String serialized() const override;
     CSSContainerRule const* find_parent_container_rule() const;
 
     bool conditions_match(DOM::AbstractElement const&) const;

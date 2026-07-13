@@ -10,6 +10,7 @@
 #include <AK/Concepts.h>
 #include <AK/Optional.h>
 #include <AK/Utf16FlyString.h>
+#include <AK/Utf16StringBuilder.h>
 #include <AK/Utf16View.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/ARIA/ARIAMixin.h>
@@ -121,7 +122,7 @@ public:
 
     void set_prefix(Optional<Utf16FlyString> value);
 
-    Optional<Utf16String> locate_a_namespace_prefix(Optional<Utf16String> const& namespace_) const;
+    Optional<Utf16String> locate_a_namespace_prefix(Optional<Utf16View> namespace_) const;
 
     // NOTE: This is for the JS bindings
     Optional<Utf16FlyString> const& namespace_uri() const { return m_qualified_name.namespace_(); }
@@ -135,13 +136,14 @@ public:
     Optional<Utf16String> get_attribute(Utf16FlyString const& name) const;
     Optional<Utf16String> get_attribute_ns(Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& name) const;
     Utf16String get_attribute_value(Utf16FlyString const& local_name, Optional<Utf16FlyString> const& namespace_ = {}) const;
+    Optional<Utf16View> get_attribute_value_view(Utf16FlyString const& name) const;
 
     Utf16String get_an_elements_target(Optional<Utf16String> target = {}) const;
     HTML::TokenizedFeature::NoOpener get_an_elements_noopener(URL::URL const& url, Utf16View target) const;
 
     bool cannot_navigate() const;
 
-    void follow_the_hyperlink(Optional<String> hyperlink_suffix, HTML::UserNavigationInvolvement = HTML::UserNavigationInvolvement::None);
+    void follow_the_hyperlink(Optional<Utf16String> hyperlink_suffix, HTML::UserNavigationInvolvement = HTML::UserNavigationInvolvement::None);
 
     Optional<Utf16String> lang() const;
     void invalidate_lang_value();
@@ -149,11 +151,11 @@ public:
     WebIDL::ExceptionOr<void> set_attribute_for_bindings(Utf16FlyString qualified_name, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> const& value);
 
     WebIDL::ExceptionOr<void> set_attribute_ns_for_bindings(Optional<Utf16FlyString> namespace_, Utf16FlyString const& qualified_name, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> const& value);
-    void set_attribute_value(Utf16FlyString const& local_name, Utf16String const& value, Optional<Utf16FlyString> const& prefix = {}, Optional<Utf16FlyString> const& namespace_ = {});
+    void set_attribute_value(Utf16FlyString const& local_name, Utf16View value, Optional<Utf16FlyString> const& prefix = {}, Optional<Utf16FlyString> const& namespace_ = {});
+    void set_attribute_value(Utf16FlyString const& local_name, Utf16String value, Optional<Utf16FlyString> const& prefix = {}, Optional<Utf16FlyString> const& namespace_ = {});
     WebIDL::ExceptionOr<GC::Ptr<Attr>> set_attribute_node_for_bindings(Attr&);
     WebIDL::ExceptionOr<GC::Ptr<Attr>> set_attribute_node_ns_for_bindings(Attr&);
 
-    void append_attribute(Utf16FlyString const& name, Utf16String const& value);
     void append_attribute(Attr&);
     void remove_attribute(Utf16FlyString const& name);
     void remove_attribute_ns(Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& name);
@@ -181,8 +183,8 @@ public:
     WebIDL::ExceptionOr<void> attach_a_shadow_root(Bindings::ShadowRootMode mode, bool clonable, bool serializable, bool delegates_focus, Bindings::SlotAssignmentMode slot_assignment, GC::Ptr<HTML::CustomElementRegistry> registry);
     GC::Ptr<ShadowRoot> shadow_root_for_bindings() const;
 
-    WebIDL::ExceptionOr<bool> matches(StringView selectors) const;
-    WebIDL::ExceptionOr<DOM::Element const*> closest(StringView selectors) const;
+    WebIDL::ExceptionOr<bool> matches(Utf16View selectors) const;
+    WebIDL::ExceptionOr<DOM::Element const*> closest(Utf16View selectors) const;
 
     int client_top() const;
     int client_left() const;
@@ -193,9 +195,9 @@ public:
     void for_each_attribute(Function<void(Attr&)>);
     void for_each_attribute(Function<void(Attr const&)>) const;
 
-    void for_each_attribute(Function<void(Utf16FlyString const&, Utf16String const&)>) const;
+    void for_each_attribute(Function<void(Utf16FlyString const&, Utf16View)>) const;
 
-    bool has_class(Utf16FlyString const&, CaseSensitivity = CaseSensitivity::CaseSensitive) const;
+    bool has_class(Utf16View, CaseSensitivity = CaseSensitivity::CaseSensitive) const;
     Vector<Utf16FlyString> const& class_names() const { return m_classes; }
 
     // https://html.spec.whatwg.org/multipage/embedded-content-other.html#dimension-attributes
@@ -293,9 +295,9 @@ public:
 
     WebIDL::ExceptionOr<void> set_html_unsafe(TrustedTypes::TrustedHTMLOrString const&);
 
-    WebIDL::ExceptionOr<String> get_html(Bindings::GetHTMLOptions const&) const;
+    WebIDL::ExceptionOr<Utf16String> get_html(Bindings::GetHTMLOptions const&) const;
 
-    WebIDL::ExceptionOr<void> insert_adjacent_html(String const& position, TrustedTypes::TrustedHTMLOrString const&);
+    WebIDL::ExceptionOr<void> insert_adjacent_html(Utf16View position, TrustedTypes::TrustedHTMLOrString const&);
 
     enum class FullscreenRequester {
         Bindings,
@@ -403,7 +405,7 @@ public:
     bool has_synthetic_pseudo_elements() const;
     void clear_synthetic_pseudo_element_layout_nodes(Badge<Layout::TreeBuilder, Node>) { clear_synthetic_pseudo_element_layout_nodes(); }
 
-    void serialize_children_as_json(JsonObjectSerializer<StringBuilder>&) const;
+    void serialize_children_as_json(JsonObjectSerializer<Utf16StringBuilder>&) const;
 
     i32 tab_index() const;
     void set_tab_index(i32 tab_index);
@@ -425,8 +427,8 @@ public:
 
     bool is_actually_disabled() const;
 
-    WebIDL::ExceptionOr<GC::Ptr<Element>> insert_adjacent_element(String const& where, GC::Ref<Element> element);
-    WebIDL::ExceptionOr<void> insert_adjacent_text(String const& where, Utf16String const& data);
+    WebIDL::ExceptionOr<GC::Ptr<Element>> insert_adjacent_element(Utf16View where, GC::Ref<Element> element);
+    WebIDL::ExceptionOr<void> insert_adjacent_text(Utf16View where, Utf16View data);
 
     // https://w3c.github.io/csswg-drafts/cssom-view-1/#dom-element-scrollintoview
     GC::Ref<WebIDL::Promise> scroll_into_view(Optional<Variant<bool, Bindings::ScrollIntoViewOptions>> = {});
@@ -676,7 +678,7 @@ protected:
 
     virtual void visit_edges(Cell::Visitor&) override;
 
-    virtual bool id_reference_exists(Utf16String const&) const override;
+    virtual bool id_reference_exists(Utf16View) const override;
 
     CustomElementState custom_element_state() const { return m_custom_element_state; }
     GC::Ptr<HTML::CustomElementDefinition> custom_element_definition() const { return m_custom_element_definition; }
@@ -693,7 +695,7 @@ private:
     void set_in_display_none_subtree_on_descendant_styles();
     void mark_descendants_with_stale_styles_for_style_update();
 
-    WebIDL::ExceptionOr<GC::Ptr<Node>> insert_adjacent(StringView where, GC::Ref<Node> node);
+    WebIDL::ExceptionOr<GC::Ptr<Node>> insert_adjacent(Utf16View where, GC::Ref<Node> node);
 
     void enqueue_an_element_on_the_appropriate_element_queue();
 
@@ -836,7 +838,7 @@ inline GC::Ptr<Element const> Node::parent_element() const
     return as_if<Element>(this->parent());
 }
 
-inline bool Element::has_class(Utf16FlyString const& class_name, CaseSensitivity case_sensitivity) const
+inline bool Element::has_class(Utf16View class_name, CaseSensitivity case_sensitivity) const
 {
     if (case_sensitivity == CaseSensitivity::CaseSensitive) {
         return any_of(m_classes, [&](auto& it) {
@@ -848,8 +850,8 @@ inline bool Element::has_class(Utf16FlyString const& class_name, CaseSensitivity
     });
 }
 
-bool is_valid_namespace_prefix(Utf16FlyString const&);
-bool is_valid_attribute_local_name(Utf16FlyString const&);
+bool is_valid_namespace_prefix(Utf16View);
+bool is_valid_attribute_local_name(Utf16View);
 bool is_valid_element_local_name(Utf16View const&);
 
 enum class ValidationContext {

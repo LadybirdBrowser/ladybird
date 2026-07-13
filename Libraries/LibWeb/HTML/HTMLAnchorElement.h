@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16View.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLHyperlinkElementUtils.h>
 
@@ -23,15 +24,15 @@ public:
     virtual Optional<URL::Origin> extract_an_origin() const override { return hyperlink_element_utils_extract_an_origin(); }
 
     Utf16String rel() const { return get_attribute_value(HTML::AttributeNames::rel); }
-    void set_rel(Utf16String const& rel) { set_attribute_value(HTML::AttributeNames::rel, rel); }
+    void set_rel(Utf16View rel) { set_attribute_value(HTML::AttributeNames::rel, rel); }
 
     Utf16String download() const { return get_attribute_value(HTML::AttributeNames::download); }
-    void set_download(Utf16String const& download) { set_attribute_value(HTML::AttributeNames::download, download); }
+    void set_download(Utf16View download) { set_attribute_value(HTML::AttributeNames::download, download); }
 
     GC::Ref<DOM::DOMTokenList> rel_list();
 
     Utf16String text() const;
-    void set_text(Utf16String const&);
+    void set_text(Utf16View);
 
     // ^EventTarget
     // https://html.spec.whatwg.org/multipage/interaction.html#the-tabindex-attribute:the-a-element

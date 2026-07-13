@@ -47,7 +47,7 @@ GC::Ref<JS::NativeFunction> Intrinsics::ensure_web_unforgeable_function(
     return *function;
 }
 
-JS::Object& Intrinsics::existing_web_prototype(FlyString const& class_name)
+JS::Object& Intrinsics::existing_web_prototype(Utf16FlyString const& class_name)
 {
     auto it = m_prototypes.find(class_name);
     VERIFY(it != m_prototypes.end());
@@ -57,7 +57,7 @@ JS::Object& Intrinsics::existing_web_prototype(FlyString const& class_name)
 void Intrinsics::create_web_prototype_and_constructor(JS::Realm& realm, InterfaceObjectMetadata const& metadata)
 {
     auto prototype = realm.create<InterfacePrototypeObject>(realm, metadata);
-    m_prototypes.set(FlyString::from_utf8_without_validation(metadata.namespaced_name.bytes()), prototype);
+    m_prototypes.set(Utf16FlyString::from_utf16(metadata.utf16_namespaced_name), prototype);
 
     create_web_constructor(realm, metadata, prototype);
 }
@@ -67,7 +67,7 @@ void Intrinsics::create_web_constructor(JS::Realm& realm, InterfaceObjectMetadat
     auto& vm = realm.vm();
 
     auto constructor = realm.create<InterfaceConstructor>(realm, metadata);
-    m_constructors.set(FlyString::from_utf8_without_validation(metadata.namespaced_name.bytes()), constructor);
+    m_constructors.set(Utf16FlyString::from_utf16(metadata.utf16_namespaced_name), constructor);
 
     prototype.define_direct_property(vm.names.constructor, constructor.ptr(), JS::Attribute::Writable | JS::Attribute::Configurable);
 }

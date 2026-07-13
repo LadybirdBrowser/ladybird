@@ -27,7 +27,7 @@ public:
 
     Gfx::IntSize bitmap_size_for_canvas(size_t minimum_width = 0, size_t minimum_height = 0) const;
 
-    JS::ThrowCompletionOr<RenderingContext> get_context(String const& type, JS::Value options);
+    JS::ThrowCompletionOr<RenderingContext> get_context(Utf16View type, JS::Value options);
     enum class HasOrCreatedContext {
         No,
         Yes,
@@ -42,8 +42,8 @@ public:
 
     virtual void attribute_changed(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
-    WebIDL::ExceptionOr<String> to_data_url(StringView type, Optional<JS::Value> quality);
-    WebIDL::ExceptionOr<void> to_blob(GC::Ref<WebIDL::CallbackType> callback, StringView type, Optional<JS::Value> quality);
+    WebIDL::ExceptionOr<Utf16String> to_data_url(Utf16View type, Optional<JS::Value> quality);
+    WebIDL::ExceptionOr<void> to_blob(GC::Ref<WebIDL::CallbackType> callback, Utf16View type, Optional<JS::Value> quality);
     bool is_origin_clean() const;
     RefPtr<Gfx::Bitmap> get_bitmap_from_surface();
 

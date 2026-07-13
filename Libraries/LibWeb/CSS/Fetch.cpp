@@ -76,7 +76,7 @@ static Optional<::URL::URL> resolve_a_style_resource_url(StyleResourceURL const&
     auto url_string = url_value.visit(
         [](::URL::URL const& url) { return url.to_string(); },
         [](CSS::URL const& url) { return url.url(); });
-    return DOMURL::parse(url_string, base_url);
+    return DOMURL::parse_from_byte_string(url_string.bytes_as_string_view(), base_url);
 }
 
 // https://drafts.csswg.org/css-values-4/#fetch-a-style-resource

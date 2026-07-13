@@ -249,19 +249,9 @@ JS::ThrowCompletionOr<String> to_byte_string(JS::VM& vm, JS::Value value)
     return x.to_utf8_but_should_be_ported_to_utf16();
 }
 
-JS::ThrowCompletionOr<String> to_string(JS::VM& vm, JS::Value value)
-{
-    return TRY(value.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
-}
-
 JS::ThrowCompletionOr<Utf16String> to_utf16_string(JS::VM& vm, JS::Value value)
 {
     return value.to_utf16_string(vm);
-}
-
-JS::ThrowCompletionOr<String> to_usv_string(JS::VM& vm, JS::Value value)
-{
-    return TRY(value.to_utf16_string(vm)).to_well_formed_utf8();
 }
 
 JS::ThrowCompletionOr<Utf16String> to_utf16_usv_string(JS::VM& vm, JS::Value value)

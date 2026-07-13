@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 
 namespace Web::CredentialManagement {
 
@@ -15,18 +15,18 @@ class CredentialUserData {
 public:
     virtual ~CredentialUserData() = default;
 
-    String const& name() const { return m_name; }
-    String const& icon_url() const { return m_icon_url; }
+    Utf16String const& name() const { return m_name; }
+    Utf16String const& icon_url() const { return m_icon_url; }
 
 protected:
-    CredentialUserData(String name, String icon_url)
+    CredentialUserData(Utf16String name, Utf16String icon_url)
         : m_name(move(name))
         , m_icon_url(move(icon_url))
     {
     }
 
-    String m_name;
-    String m_icon_url;
+    Utf16String m_name;
+    Utf16String m_icon_url;
 };
 
 }

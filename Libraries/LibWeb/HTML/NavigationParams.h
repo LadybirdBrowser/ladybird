@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <AK/Utf16String.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/Ptr.h>
 #include <LibURL/Origin.h>
@@ -28,7 +29,7 @@ struct NavigationParams : GC::Cell {
     GC_DECLARE_ALLOCATOR(NavigationParams);
 
     // null or a navigation ID
-    Optional<String> id;
+    Optional<Utf16String> id;
 
     // the navigable to be navigated
     GC::Ptr<LocalNavigable> navigable;
@@ -78,7 +79,7 @@ protected:
     void visit_edges(Visitor& visitor) override;
 
     NavigationParams(
-        Optional<String> id,
+        Optional<Utf16String> id,
         GC::Ptr<LocalNavigable> navigable,
         GC::Ptr<Fetch::Infrastructure::Request> request,
         GC::Ptr<Fetch::Infrastructure::Response> response,
@@ -118,7 +119,7 @@ struct NonFetchSchemeNavigationParams : JS::Cell {
     GC_DECLARE_ALLOCATOR(NonFetchSchemeNavigationParams);
 
     // null or a navigation ID
-    Optional<String> id;
+    Optional<Utf16String> id;
 
     // the navigable to be navigated
     GC::Ptr<LocalNavigable> navigable;
@@ -142,7 +143,7 @@ struct NonFetchSchemeNavigationParams : JS::Cell {
 
 protected:
     NonFetchSchemeNavigationParams(
-        Optional<String> id,
+        Optional<Utf16String> id,
         GC::Ptr<LocalNavigable> navigable,
         URL::URL url,
         SandboxingFlagSet target_snapshot_sandboxing_flags,

@@ -34,12 +34,13 @@ void ServiceWorker::initialize(JS::Realm& realm)
 }
 
 // https://w3c.github.io/ServiceWorker/#dom-serviceworker-scripturl
-String ServiceWorker::script_url() const
+Utf16String ServiceWorker::script_url() const
 {
     if (!m_service_worker_record)
         return {};
 
-    return m_service_worker_record->script_url.serialize();
+    auto serialized_url = m_service_worker_record->script_url.serialize();
+    return Utf16String::from_ascii_without_validation(serialized_url.bytes());
 }
 
 #undef __ENUMERATE

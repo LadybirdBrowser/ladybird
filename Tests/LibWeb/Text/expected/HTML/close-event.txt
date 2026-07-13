@@ -1,0 +1,4 @@
+type: close
+wasClean: true
+code: 1000
+reason: well hello friends 🐞

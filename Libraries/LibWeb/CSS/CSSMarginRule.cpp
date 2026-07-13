@@ -34,23 +34,18 @@ void CSSMarginRule::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-String CSSMarginRule::name() const
-{
-    return MUST(m_name.view().to_utf8());
-}
-
-String CSSMarginRule::serialized() const
+Utf16String CSSMarginRule::serialized() const
 {
     // AD-HOC: There is currently no spec for serializing CSSMarginRule.
-    StringBuilder builder;
+    Utf16StringBuilder builder;
     builder.appendff("@{} {{ ", m_name);
     if (m_style->length() > 0) {
         builder.append(m_style->serialized());
-        builder.append(' ');
+        builder.append_ascii(' ');
     }
-    builder.append('}');
+    builder.append_ascii('}');
 
-    return builder.to_string_without_validation();
+    return builder.to_string();
 }
 
 void CSSMarginRule::visit_edges(Visitor& visitor)
@@ -71,22 +66,22 @@ void CSSMarginRule::dump(StringBuilder& builder, int indent_levels) const
 // https://drafts.csswg.org/css-page-3/#syntax-page-selector
 bool is_margin_rule_name(Utf16View name)
 {
-    return name.equals_ignoring_ascii_case("top-left-corner"sv)
-        || name.equals_ignoring_ascii_case("top-left"sv)
-        || name.equals_ignoring_ascii_case("top-center"sv)
-        || name.equals_ignoring_ascii_case("top-right"sv)
-        || name.equals_ignoring_ascii_case("top-right-corner"sv)
-        || name.equals_ignoring_ascii_case("bottom-left-corner"sv)
-        || name.equals_ignoring_ascii_case("bottom-left"sv)
-        || name.equals_ignoring_ascii_case("bottom-center"sv)
-        || name.equals_ignoring_ascii_case("bottom-right"sv)
-        || name.equals_ignoring_ascii_case("bottom-right-corner"sv)
-        || name.equals_ignoring_ascii_case("left-top"sv)
-        || name.equals_ignoring_ascii_case("left-middle"sv)
-        || name.equals_ignoring_ascii_case("left-bottom"sv)
-        || name.equals_ignoring_ascii_case("right-top"sv)
-        || name.equals_ignoring_ascii_case("right-middle"sv)
-        || name.equals_ignoring_ascii_case("right-bottom"sv);
+    return name.equals_ignoring_ascii_case(u"top-left-corner"sv)
+        || name.equals_ignoring_ascii_case(u"top-left"sv)
+        || name.equals_ignoring_ascii_case(u"top-center"sv)
+        || name.equals_ignoring_ascii_case(u"top-right"sv)
+        || name.equals_ignoring_ascii_case(u"top-right-corner"sv)
+        || name.equals_ignoring_ascii_case(u"bottom-left-corner"sv)
+        || name.equals_ignoring_ascii_case(u"bottom-left"sv)
+        || name.equals_ignoring_ascii_case(u"bottom-center"sv)
+        || name.equals_ignoring_ascii_case(u"bottom-right"sv)
+        || name.equals_ignoring_ascii_case(u"bottom-right-corner"sv)
+        || name.equals_ignoring_ascii_case(u"left-top"sv)
+        || name.equals_ignoring_ascii_case(u"left-middle"sv)
+        || name.equals_ignoring_ascii_case(u"left-bottom"sv)
+        || name.equals_ignoring_ascii_case(u"right-top"sv)
+        || name.equals_ignoring_ascii_case(u"right-middle"sv)
+        || name.equals_ignoring_ascii_case(u"right-bottom"sv);
 }
 
 }

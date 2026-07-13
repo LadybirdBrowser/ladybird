@@ -25,11 +25,11 @@ ErrorInformation extract_error_information(JS::VM& vm, JS::Value exception)
         if (auto object = exception.as_if<JS::Object>()) {
             if (MUST(object->has_own_property(vm.names.message))) {
                 auto message = object->get_without_side_effects(vm.names.message);
-                return message.to_utf16_string_without_side_effects().to_utf8();
+                return message.to_utf16_string_without_side_effects();
             }
         }
 
-        return MUST(String::formatted("Uncaught exception: {}", exception));
+        return Utf16String::formatted("Uncaught exception: {}", exception);
     }();
 
     // FIXME: This offset is relative to the javascript source. Other browsers appear to do it relative
@@ -40,7 +40,7 @@ ErrorInformation extract_error_information(JS::VM& vm, JS::Value exception)
         for (auto const& frame : object->error_data()->traceback()) {
             auto source_range = frame.source_range();
             if (source_range.start.line != 0 || source_range.start.column != 0) {
-                attributes.filename = source_range.filename().to_utf8();
+                attributes.filename = source_range.filename();
                 attributes.lineno = source_range.start.line;
                 attributes.colno = source_range.start.column;
                 break;
@@ -52,7 +52,7 @@ ErrorInformation extract_error_information(JS::VM& vm, JS::Value exception)
         for (auto const& frame : vm.stack_trace()) {
             if (frame.source_range.has_value()) {
                 auto const& source_range = *frame.source_range;
-                attributes.filename = source_range.filename().to_utf8();
+                attributes.filename = source_range.filename();
                 attributes.lineno = source_range.start.line;
                 attributes.colno = source_range.start.column;
                 break;

@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/Bindings/CustomEvent.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/Export.h>
@@ -20,8 +20,8 @@ class WEB_API CustomEvent : public Event {
     GC_DECLARE_ALLOCATOR(CustomEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<CustomEvent> create(JS::Realm&, FlyString const& event_name, Bindings::CustomEventInit const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<CustomEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::CustomEventInit const&);
+    [[nodiscard]] static GC::Ref<CustomEvent> create(JS::Realm&, Utf16FlyString const& event_name, Bindings::CustomEventInit const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<CustomEvent>> construct_impl(JS::Realm&, Utf16FlyString const& event_name, Bindings::CustomEventInit const&);
 
     virtual ~CustomEvent() override;
 
@@ -31,10 +31,10 @@ public:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
-    void init_custom_event(String const& type, bool bubbles, bool cancelable, JS::Value detail);
+    void init_custom_event(Utf16FlyString const& type, bool bubbles, bool cancelable, JS::Value detail);
 
 private:
-    CustomEvent(JS::Realm&, FlyString const& event_name, Bindings::CustomEventInit const& event_init);
+    CustomEvent(JS::Realm&, Utf16FlyString const& event_name, Bindings::CustomEventInit const& event_init);
 
     // https://dom.spec.whatwg.org/#dom-customevent-initcustomevent-type-bubbles-cancelable-detail-detail
     JS::Value m_detail { JS::js_null() };

@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibURL/Parser.h>
-#include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
@@ -18,7 +16,7 @@
 namespace Web::HTML {
 
 // https://w3c.github.io/beacon/#sendbeacon-method
-WebIDL::ExceptionOr<bool> NavigatorBeaconPartial::send_beacon(String const& url, Fetch::NullableBodyInit const& data)
+WebIDL::ExceptionOr<bool> NavigatorBeaconPartial::send_beacon(Utf16View url, Fetch::NullableBodyInit const& data)
 {
     auto& navigator = as<Navigator>(*this);
     auto& realm = navigator.realm();
@@ -26,17 +24,17 @@ WebIDL::ExceptionOr<bool> NavigatorBeaconPartial::send_beacon(String const& url,
     auto& relevant_settings_object = HTML::relevant_settings_object(navigator);
 
     // 1. Set base to this's relevant settings object's API base URL.
-    auto base_url = relevant_settings_object.api_base_url();
+    // NB: This is handled by the encoding_parse_url() call below.
 
     // 2. Set origin to this's relevant settings object's origin.
     auto origin = relevant_settings_object.origin();
 
     // 3. Set parsedUrl to the result of the URL parser steps with url and base. If the algorithm returns an error, or if parsedUrl's scheme is not "http" or "https", throw a "TypeError" exception and terminate these steps.
-    auto parsed_url = URL::Parser::basic_parse(url, base_url);
+    auto parsed_url = relevant_settings_object.encoding_parse_url(url);
     if (!parsed_url.has_value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Beacon URL {} is invalid.", url)) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("Beacon URL {} is invalid.", url) };
     if (parsed_url->scheme() != "http" && parsed_url->scheme() != "https")
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Beacon URL {} must be either http:// or https://.", url)) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("Beacon URL {} must be either http:// or https://.", url) };
 
     // 4. Let headerList be an empty list.
     auto header_list = HTTP::HeaderList::create();

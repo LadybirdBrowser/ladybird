@@ -7,12 +7,13 @@
 #pragma once
 
 #include <AK/DistinctNumeric.h>
-#include <AK/FlyString.h>
 #include <AK/Function.h>
 #include <AK/GenericShorthands.h>
 #include <AK/RefPtr.h>
 #include <AK/TypeCasts.h>
 #include <AK/Utf16FlyString.h>
+#include <AK/Utf16String.h>
+#include <AK/Utf16StringBuilder.h>
 #include <AK/Utf16View.h>
 #include <AK/Vector.h>
 #include <LibWeb/Bindings/Node.h>
@@ -81,7 +82,7 @@ enum class SetNeedsLayoutReason {
 #undef ENUMERATE_SET_NEEDS_LAYOUT_REASON
 };
 
-[[nodiscard]] StringView to_string(SetNeedsLayoutReason);
+[[nodiscard]] Utf16View to_string(SetNeedsLayoutReason);
 
 #define ENUMERATE_SET_NEEDS_LAYOUT_TREE_UPDATE_REASONS(X) \
     X(CharacterDataReplaceData)                           \
@@ -106,7 +107,7 @@ enum class SetNeedsLayoutTreeUpdateReason {
 #undef ENUMERATE_SET_NEEDS_LAYOUT_TREE_UPDATE_REASON
 };
 
-[[nodiscard]] StringView to_string(SetNeedsLayoutTreeUpdateReason);
+[[nodiscard]] Utf16View to_string(SetNeedsLayoutTreeUpdateReason);
 
 class WEB_API Node : public EventTarget
     , public TreeNode<Node> {
@@ -263,7 +264,7 @@ public:
 
     virtual Utf16FlyString node_name() const = 0;
 
-    String base_uri() const;
+    Utf16String base_uri() const;
 
     virtual Optional<Utf16String> alternative_text() const;
 
@@ -413,8 +414,8 @@ public:
     bool is_scripting_disabled() const;
 
     // Used for dumping the DOM Tree
-    void serialize_tree_as_json(JsonObjectSerializer<StringBuilder>&) const;
-    IterationDecision serialize_child_as_json(JsonArraySerializer<StringBuilder>& children_array, Node const& child) const;
+    void serialize_tree_as_json(JsonObjectSerializer<Utf16StringBuilder>&) const;
+    IterationDecision serialize_child_as_json(JsonArraySerializer<Utf16StringBuilder>& children_array, Node const& child) const;
 
     bool is_shadow_including_descendant_of(Node const&) const;
     bool is_shadow_including_inclusive_descendant_of(Node const&) const;
@@ -429,6 +430,7 @@ public:
     WebIDL::ExceptionOr<void> unsafely_set_html(Variant<GC::Ref<Element>, GC::Ref<DocumentFragment>>, Utf16View);
 
     void replace_all(GC::Ptr<Node>);
+    void string_replace_all(Utf16View);
     void string_replace_all(Utf16String);
 
     bool is_same_node(Node const*) const;
@@ -438,7 +440,7 @@ public:
 
     bool is_uninteresting_whitespace_node() const;
 
-    String debug_description() const;
+    Utf16String debug_description() const;
 
     size_t length() const;
 
@@ -447,7 +449,7 @@ public:
 
     void add_registered_observer(RegisteredObserver&);
 
-    void queue_mutation_record(FlyString const& type, Optional<Utf16FlyString> const& attribute_name, Optional<Utf16FlyString> const& attribute_namespace, Optional<Utf16String> const& old_value, Vector<GC::Root<Node>> added_nodes, Vector<GC::Root<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling);
+    void queue_mutation_record(Utf16FlyString const& type, Optional<Utf16FlyString> const& attribute_name, Optional<Utf16FlyString> const& attribute_namespace, Optional<Utf16String> const& old_value, Vector<GC::Root<Node>> added_nodes, Vector<GC::Root<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling);
 
     // https://dom.spec.whatwg.org/#concept-shadow-including-inclusive-descendant
     template<typename Callback>
@@ -493,16 +495,19 @@ public:
     ErrorOr<Utf16String> accessible_name(Document const&, ShouldComputeRole = ShouldComputeRole::Yes) const;
     ErrorOr<Utf16String> accessible_description(Document const&) const;
 
-    Optional<Utf16String> locate_a_namespace(Optional<Utf16String> const& prefix) const;
-    Optional<Utf16String> lookup_namespace_uri(Optional<Utf16String> prefix) const;
-    Optional<Utf16String> lookup_prefix(Optional<Utf16String> namespace_) const;
-    bool is_default_namespace(Optional<Utf16String> namespace_) const;
+    Optional<Utf16String> locate_a_namespace(Optional<Utf16View> prefix) const;
+    Optional<Utf16String> lookup_namespace_uri(Optional<Utf16String> const& prefix) const;
+    Optional<Utf16String> lookup_namespace_uri(Optional<Utf16View> prefix) const;
+    Optional<Utf16String> lookup_prefix(Optional<Utf16String> const& namespace_) const;
+    Optional<Utf16String> lookup_prefix(Optional<Utf16View> namespace_) const;
+    bool is_default_namespace(Optional<Utf16String> const& namespace_) const;
+    bool is_default_namespace(Optional<Utf16View> namespace_) const;
     Vector<Utf16FlyString> get_in_scope_prefixes() const;
 
     bool is_inert() const;
 
     bool has_inclusive_ancestor_with_display_none_ignoring_animations() const;
-    bool has_inclusive_ancestor_with_event_listener(FlyString const& type) const;
+    bool has_inclusive_ancestor_with_event_listener(Utf16FlyString const& type) const;
 
     GC::Ptr<ShadowRoot> containing_shadow_root();
     GC::Ptr<ShadowRoot const> containing_shadow_root() const

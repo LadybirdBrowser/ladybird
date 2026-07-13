@@ -11,6 +11,7 @@
 #include <AK/GenericLexer.h>
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
+#include <AK/Utf16StringBuilder.h>
 #include <AK/Utf8View.h>
 #include <LibHTTP/HTTP.h>
 #include <LibHTTP/Header.h>
@@ -33,17 +34,13 @@ static bool equals_ignoring_ascii_case(Utf16View string, StringView ascii_string
     return true;
 }
 
-// https://mimesniff.spec.whatwg.org/#javascript-mime-type-essence-match
-bool is_javascript_mime_type_essence_match(StringView string)
+static void append_utf8_as_utf16(Utf16StringBuilder& builder, StringView string)
 {
-    // A string is a JavaScript MIME type essence match if it is an ASCII case-insensitive match for one of the JavaScript MIME type essence strings.
-    for (auto const& javascript_essence : s_javascript_mime_type_essence_strings) {
-        if (string.equals_ignoring_ascii_case(javascript_essence))
-            return true;
-    }
-    return false;
+    for (auto code_point : Utf8View { string })
+        builder.append_code_point(code_point);
 }
 
+// https://mimesniff.spec.whatwg.org/#javascript-mime-type-essence-match
 bool is_javascript_mime_type_essence_match(Utf16View string)
 {
     // A string is a JavaScript MIME type essence match if it is an ASCII case-insensitive match for one of the JavaScript MIME type essence strings.
@@ -458,6 +455,50 @@ String MimeType::serialized() const
 
     // 3. Return serialization.
     return serialization.to_string_without_validation();
+}
+
+// https://mimesniff.spec.whatwg.org/#serialize-a-mime-type
+Utf16String MimeType::serialized_as_utf16() const
+{
+    // 1. Let serialization be the concatenation of mimeType’s type, U+002F (/), and mimeType’s subtype.
+    Utf16StringBuilder serialization;
+    append_utf8_as_utf16(serialization, m_type);
+    serialization.append_ascii('/');
+    append_utf8_as_utf16(serialization, m_subtype);
+
+    // 2. For each name → value of mimeType’s parameters:
+    for (auto [name, value] : m_parameters) {
+        // 1. Append U+003B (;) to serialization.
+        serialization.append_ascii(';');
+
+        // 2. Append name to serialization.
+        append_utf8_as_utf16(serialization, name);
+
+        // 3. Append U+003D (=) to serialization.
+        serialization.append_ascii('=');
+
+        // 4. If value does not solely contain HTTP token code points or value is the empty string, then:
+        if (!contains_only_http_token_code_points(value) || value.is_empty()) {
+            // 1. Precede each occurrence of U+0022 (") or U+005C (\) in value with U+005C (\).
+            // 2. Prepend U+0022 (") to value.
+            serialization.append_ascii('"');
+            for (auto code_point : Utf8View { value }) {
+                if (code_point == '"' || code_point == '\\')
+                    serialization.append_ascii('\\');
+                serialization.append_code_point(code_point);
+            }
+
+            // 3. Append U+0022 (") to value.
+            serialization.append_ascii('"');
+            continue;
+        }
+
+        // 5. Append value to serialization.
+        append_utf8_as_utf16(serialization, value);
+    }
+
+    // 3. Return serialization.
+    return serialization.to_string();
 }
 
 void MimeType::set_parameter(String name, String value)

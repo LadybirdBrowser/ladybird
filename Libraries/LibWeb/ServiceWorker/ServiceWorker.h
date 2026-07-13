@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibWeb/Bindings/ServiceWorker.h>
 #include <LibWeb/DOM/EventTarget.h>
 
@@ -25,7 +26,7 @@ public:
 
     virtual ~ServiceWorker() override;
 
-    String script_url() const;
+    Utf16String script_url() const;
     Bindings::ServiceWorkerState service_worker_state() const { return m_state; }
     void set_service_worker_state(Bindings::ServiceWorkerState state) { m_state = state; }
 

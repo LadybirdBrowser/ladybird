@@ -116,7 +116,7 @@ WebIDL::ExceptionOr<void> set_up_writable_stream_default_writer(WritableStreamDe
 
     // 1. If ! IsWritableStreamLocked(stream) is true, throw a TypeError exception.
     if (is_writable_stream_locked(stream))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Stream is locked"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Stream is locked"_utf16 };
 
     // 2. Set writer.[[stream]] to stream.
     writer.set_stream(stream);

@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/Optional.h>
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <LibGC/ConservativeHashMap.h>
 #include <LibWeb/Animations/TimeValue.h>
@@ -58,7 +58,6 @@ class AnimationEffect : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(AnimationEffect);
 
 public:
-    static Optional<CSS::EasingFunction> parse_easing_string(StringView value);
     static Optional<CSS::EasingFunction> parse_easing_string(Utf16View value);
 
     Bindings::EffectTiming get_timing() const;
@@ -81,7 +80,7 @@ public:
     void set_iteration_count(double iteration_count) { m_iteration_count = iteration_count; }
 
     TimeValue const& iteration_duration() const { return m_iteration_duration; }
-    void set_specified_iteration_duration(Variant<double, String> iteration_duration) { m_specified_iteration_duration = move(iteration_duration); }
+    void set_specified_iteration_duration(Variant<double, Utf16String> iteration_duration) { m_specified_iteration_duration = move(iteration_duration); }
 
     Bindings::PlaybackDirection playback_direction() const { return m_playback_direction; }
     void set_playback_direction(Bindings::PlaybackDirection playback_direction) { m_playback_direction = playback_direction; }
@@ -179,7 +178,7 @@ protected:
     double m_iteration_count { 1.0 };
 
     // https://drafts.csswg.org/web-animations-2/#specified-iteration-duration
-    Variant<double, String> m_specified_iteration_duration { "auto"_string };
+    Variant<double, Utf16String> m_specified_iteration_duration { "auto"_utf16 };
 
     // https://www.w3.org/TR/web-animations-1/#iteration-duration
     // https://drafts.csswg.org/web-animations-2/#iteration-intervals

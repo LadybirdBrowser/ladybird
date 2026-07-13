@@ -9,6 +9,7 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <AK/Utf16String.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/WebGL/Types.h>
@@ -22,8 +23,8 @@ class WEB_API WebGLObject : public Bindings::PlatformObject {
 public:
     virtual ~WebGLObject();
 
-    String label() const { return m_label; }
-    void set_label(String const& label) { m_label = label; }
+    Utf16String const& label() const { return m_label; }
+    void set_label(Utf16String const& label) { m_label = label; }
 
     ErrorOr<GLuint> handle(WebGLRenderingContextBase const* context) const;
     ErrorOr<Optional<GLuint>> handle_for_deletion(WebGLRenderingContextBase const* context);
@@ -47,7 +48,7 @@ private:
     u64 m_context_generation { 0 };
 
     bool m_invalidated { false };
-    String m_label;
+    Utf16String m_label;
 };
 
 }

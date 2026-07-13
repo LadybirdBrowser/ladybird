@@ -2,6 +2,6 @@
 [Exposed=(Window,Worker)]
 interface PerformanceObserverEntryList {
     PerformanceEntryList getEntries();
-    PerformanceEntryList getEntriesByType(DOMString type);
-    PerformanceEntryList getEntriesByName(DOMString name, optional DOMString type);
+    PerformanceEntryList getEntriesByType([Utf16FlyString] Utf16DOMString type);
+    PerformanceEntryList getEntriesByName(Utf16DOMString name, optional [Utf16FlyString] Utf16DOMString type);
 };

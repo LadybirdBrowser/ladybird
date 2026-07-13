@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/JsonObjectSerializer.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibWeb/ARIA/AriaData.h>
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/ARIA/StateAndProperties.h>
@@ -48,7 +49,7 @@ public:
     // https://www.w3.org/TR/wai-aria-1.2/#implictValueForRole
     using DefaultValueType = Variant<Empty, f64, AriaOrientation, AriaLive, bool, AriaHasPopup>;
     virtual DefaultValueType default_value_for_property_or_state(StateAndProperties) const { return {}; }
-    ErrorOr<void> serialize_as_json(JsonObjectSerializer<StringBuilder>& object) const;
+    ErrorOr<void> serialize_as_json(JsonObjectSerializer<Utf16StringBuilder>& object) const;
 
 protected:
     RoleType(AriaData const&);

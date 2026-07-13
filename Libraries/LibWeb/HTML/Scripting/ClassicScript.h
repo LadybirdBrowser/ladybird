@@ -44,6 +44,7 @@ public:
 
 private:
     ClassicScript(URL::URL base_url, ByteString filename, EnvironmentSettingsObject&);
+    ClassicScript(URL::URL base_url, ByteString filename, Utf16String display_filename, EnvironmentSettingsObject&);
 
     virtual bool is_classic_script() const final { return true; }
 

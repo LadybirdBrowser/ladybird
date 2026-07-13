@@ -5,7 +5,7 @@ enum ScrollSetting { "", "up" };
 [Exposed=Window]
 interface VTTRegion {
     constructor();
-    attribute DOMString id;
+    attribute Utf16DOMString id;
     attribute double width;
     attribute unsigned long lines;
     attribute double regionAnchorX;

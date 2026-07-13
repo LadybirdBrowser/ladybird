@@ -14,6 +14,12 @@
 
 namespace Web::HTML {
 
+static Utf16String generate_random_uuid_utf16()
+{
+    auto uuid = Crypto::generate_random_uuid();
+    return Utf16String::from_ascii_without_validation(uuid.bytes());
+}
+
 NonnullRefPtr<SessionHistoryEntry> SessionHistoryEntry::create()
 {
     return adopt_ref(*new SessionHistoryEntry());
@@ -27,8 +33,8 @@ void SessionHistoryEntry::set_document_state(RefPtr<DocumentState> document_stat
 SessionHistoryEntry::SessionHistoryEntry()
     : m_classic_history_api_state(MUST(structured_serialize_for_storage(JS::VM::the(), JS::js_null())))
     , m_navigation_api_state(MUST(structured_serialize_for_storage(JS::VM::the(), JS::js_undefined())))
-    , m_navigation_api_key(Crypto::generate_random_uuid())
-    , m_navigation_api_id(Crypto::generate_random_uuid())
+    , m_navigation_api_key(generate_random_uuid_utf16())
+    , m_navigation_api_id(generate_random_uuid_utf16())
 {
 }
 
@@ -300,8 +306,8 @@ ErrorOr<Web::HTML::SessionHistoryEntryDescriptor> IPC::decode(Decoder& decoder)
     auto document_state = TRY(decoder.decode<Web::HTML::SessionHistoryDocumentStateDescriptor>());
     auto classic_history_api_state = TRY(decoder.decode<Web::HTML::StorageSerializationRecord>());
     auto navigation_api_state = TRY(decoder.decode<Web::HTML::StorageSerializationRecord>());
-    auto navigation_api_key = TRY(decoder.decode<String>());
-    auto navigation_api_id = TRY(decoder.decode<String>());
+    auto navigation_api_key = TRY(decoder.decode<Utf16String>());
+    auto navigation_api_id = TRY(decoder.decode<Utf16String>());
     auto scroll_restoration_mode = TRY(decoder.decode<Web::HTML::ScrollRestorationMode>());
     auto scroll_position_data = TRY(decoder.decode<Web::HTML::SessionHistoryEntryScrollPositionData>());
 
@@ -363,7 +369,7 @@ ErrorOr<Web::HTML::SessionHistoryDocumentStateDescriptor> IPC::decode(Decoder& d
     auto initiator_origin = TRY(decoder.decode<Optional<URL::Origin>>());
     auto origin = TRY(decoder.decode<Optional<URL::Origin>>());
     auto about_base_url = TRY(decoder.decode<Optional<URL::URL>>());
-    auto resource = TRY(decoder.decode<Variant<Empty, String, Web::HTML::POSTResource>>());
+    auto resource = TRY(decoder.decode<Web::HTML::DocumentResource>());
     auto reload_pending = TRY(decoder.decode<bool>());
     auto ever_populated = TRY(decoder.decode<bool>());
     auto is_provisional = TRY(decoder.decode<bool>());

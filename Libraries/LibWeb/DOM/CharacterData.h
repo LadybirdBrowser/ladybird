@@ -28,7 +28,7 @@ public:
     virtual ~CharacterData() override;
 
     Utf16String const& data() const { return m_data; }
-    void set_data(Utf16String const&);
+    void set_data(Utf16View const&);
 
     unsigned length_in_utf16_code_units() const { return m_data.length_in_code_units(); }
 

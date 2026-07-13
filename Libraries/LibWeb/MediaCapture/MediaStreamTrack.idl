@@ -6,8 +6,8 @@ enum MediaStreamTrackKind { "audio", "video" };
 [Exposed=Window]
 interface MediaStreamTrack : EventTarget {
     readonly attribute MediaStreamTrackKind kind;
-    readonly attribute DOMString id;
-    readonly attribute DOMString label;
+    readonly attribute Utf16DOMString id;
+    readonly attribute Utf16DOMString label;
     attribute boolean enabled;
     readonly attribute boolean muted;
     readonly attribute MediaStreamTrackState readyState;

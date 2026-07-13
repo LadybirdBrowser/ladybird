@@ -2,5 +2,5 @@
 interface mixin CanvasCompositing {
     // compositing
     attribute unrestricted double globalAlpha; // (default 1.0)
-    attribute DOMString globalCompositeOperation; // (default "source-over")
+    attribute Utf16DOMString globalCompositeOperation; // (default "source-over")
 };

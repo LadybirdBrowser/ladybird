@@ -10,6 +10,7 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Types.h>
+#include <AK/Utf16String.h>
 
 namespace WebView {
 
@@ -18,6 +19,6 @@ enum class StorageOperationError : u8 {
 };
 
 // Error setting the storage item, or the old value if the operation was successful.
-using StorageSetResult = Variant<StorageOperationError, Optional<String>>;
+using StorageSetResult = Variant<StorageOperationError, Optional<Utf16String>>;
 
 }

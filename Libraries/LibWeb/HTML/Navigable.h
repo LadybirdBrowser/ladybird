@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/String.h>
 #include <AK/Utf16String.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
@@ -32,7 +31,7 @@ public:
     bool is_ancestor_of(GC::Ref<Navigable>) const;
 
     virtual GC::Ptr<WindowProxy> active_window_proxy() = 0;
-    virtual Utf16String target_name() const = 0;
+    virtual Utf16String const& target_name() const = 0;
     GC::Ref<Navigable> top_level_traversable();
     virtual Optional<URL::URL> active_document_url() const = 0;
     virtual Optional<URL::Origin> active_document_origin() const = 0;

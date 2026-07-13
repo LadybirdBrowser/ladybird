@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/AbstractWorker.h>
@@ -23,7 +24,7 @@ class SharedWorker final
     GC_DECLARE_ALLOCATOR(SharedWorker);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<SharedWorker>> construct_impl(JS::Realm&, TrustedTypes::TrustedScriptURLOrString const& script_url, Variant<String, Bindings::WorkerOptions>& options);
+    static WebIDL::ExceptionOr<GC::Ref<SharedWorker>> construct_impl(JS::Realm&, TrustedTypes::TrustedScriptURLOrString const& script_url, Variant<Utf16String, Bindings::WorkerOptions>& options);
 
     virtual ~SharedWorker();
 

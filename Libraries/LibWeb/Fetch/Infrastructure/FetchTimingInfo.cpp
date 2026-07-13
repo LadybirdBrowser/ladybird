@@ -60,7 +60,7 @@ void FetchTimingInfo::update_final_timings(Requests::RequestTimingInfo const& fi
         .connection_start_time = coarsened_connection_start_time,
         .connection_end_time = coarsened_connection_end_time,
         .secure_connection_start_time = coarsened_secure_connection_start_time,
-        .alpn_negotiated_protocol = alpn_http_version_to_fly_string(final_timings.http_version_alpn_identifier),
+        .alpn_negotiated_protocol = alpn_http_version_to_byte_string(final_timings.http_version_alpn_identifier),
     };
 
     auto request_start_time_milliseconds = m_start_time + (static_cast<HighResolutionTime::DOMHighResTimeStamp>(final_timings.request_start_microseconds) / 1000.0);

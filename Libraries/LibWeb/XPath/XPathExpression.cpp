@@ -20,9 +20,9 @@ namespace Web::XPath {
 
 GC_DEFINE_ALLOCATOR(XPathExpression);
 
-XPathExpression::XPathExpression(JS::Realm& realm, String const& expression, GC::Ptr<XPathNSResolver> resolver)
+XPathExpression::XPathExpression(JS::Realm& realm, Utf16View expression, GC::Ptr<XPathNSResolver> resolver)
     : Web::Bindings::PlatformObject(realm)
-    , m_expression(expression)
+    , m_expression(Utf16String::from_utf16(expression))
     , m_resolver(resolver)
 {
 }

@@ -41,15 +41,15 @@ void HTMLUListElement::apply_presentational_hints(Vector<CSS::StyleProperty>& pr
     Base::apply_presentational_hints(properties);
 
     // https://html.spec.whatwg.org/multipage/rendering.html#lists
-    for_each_attribute([&](auto& name, auto& value) {
+    for_each_attribute([&](Utf16FlyString const& name, Utf16View value) {
         if (name == HTML::AttributeNames::type) {
-            if (value.equals_ignoring_ascii_case("none"sv)) {
+            if (value.equals_ignoring_ascii_case(u"none"sv)) {
                 properties.append({ .property_id = CSS::PropertyID::ListStyleType, .value = CSS::KeywordStyleValue::create(CSS::Keyword::None) });
-            } else if (value.equals_ignoring_ascii_case("disc"sv)) {
+            } else if (value.equals_ignoring_ascii_case(u"disc"sv)) {
                 properties.append({ .property_id = CSS::PropertyID::ListStyleType, .value = CSS::CounterStyleStyleValue::create("disc"_utf16_fly_string) });
-            } else if (value.equals_ignoring_ascii_case("circle"sv)) {
+            } else if (value.equals_ignoring_ascii_case(u"circle"sv)) {
                 properties.append({ .property_id = CSS::PropertyID::ListStyleType, .value = CSS::CounterStyleStyleValue::create("circle"_utf16_fly_string) });
-            } else if (value.equals_ignoring_ascii_case("square"sv)) {
+            } else if (value.equals_ignoring_ascii_case(u"square"sv)) {
                 properties.append({ .property_id = CSS::PropertyID::ListStyleType, .value = CSS::CounterStyleStyleValue::create("square"_utf16_fly_string) });
             }
         }

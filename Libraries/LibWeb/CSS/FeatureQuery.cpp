@@ -15,6 +15,11 @@ String FeatureValue::to_string(SerializationMode mode) const
     return MUST(builder.to_string());
 }
 
+void FeatureValue::serialize_to(Utf16StringBuilder& builder, SerializationMode mode) const
+{
+    m_value->serialize(builder, mode);
+}
+
 StringView string_from_feature_comparison(FeatureComparison comparison)
 {
     switch (comparison) {

@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/Badge.h>
-#include <AK/String.h>
+#include <AK/Utf16View.h>
 #include <LibGC/RootVector.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/AudioTrack.h>
@@ -25,7 +25,7 @@ public:
     // https://html.spec.whatwg.org/multipage/media.html#dom-audiotracklist-length
     size_t length() const { return m_audio_tracks.size(); }
 
-    GC::Ptr<AudioTrack> get_track_by_id(StringView id) const;
+    GC::Ptr<AudioTrack> get_track_by_id(Utf16View id) const;
     bool has_enabled_track() const;
 
     template<typename Callback>

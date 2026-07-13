@@ -6,10 +6,10 @@
 
 #pragma once
 
-#include <AK/Forward.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/RefCounted.h>
+#include <AK/Utf16String.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Encoding/TextEncoderCommon.h>
@@ -31,8 +31,8 @@ public:
 
     virtual ~TextEncoder() override;
 
-    GC::Ref<JS::Uint8Array> encode(String const& input) const;
-    Bindings::TextEncoderEncodeIntoResult encode_into(String const& source, GC::Ref<JS::Uint8Array> destination) const;
+    GC::Ref<JS::Uint8Array> encode(Utf16String const& input) const;
+    Bindings::TextEncoderEncodeIntoResult encode_into(Utf16String const& source, GC::Ref<JS::Uint8Array> destination) const;
 
 protected:
     // https://encoding.spec.whatwg.org/#dom-textencoder

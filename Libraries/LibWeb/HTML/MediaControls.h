@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
 #include <AK/Optional.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Vector.h>
 #include <LibCore/Timer.h>
 #include <LibGC/Cell.h>
@@ -35,15 +35,15 @@ private:
     };
 
     template<typename T, CallableAs<bool, T&> Handler>
-    GC::Ref<DOM::IDLEventListener> add_event_listener(JS::Realm&, DOM::EventTarget&, FlyString const& event_name, ListenOnce, Handler);
+    GC::Ref<DOM::IDLEventListener> add_event_listener(JS::Realm&, DOM::EventTarget&, Utf16FlyString const& event_name, ListenOnce, Handler);
     template<CallableAs<bool> Handler>
-    GC::Ref<DOM::IDLEventListener> add_event_listener(JS::Realm&, DOM::EventTarget&, FlyString const& event_nam, Handler);
+    GC::Ref<DOM::IDLEventListener> add_event_listener(JS::Realm&, DOM::EventTarget&, Utf16FlyString const& event_name, Handler);
     template<CallableAs<bool, UIEvents::MouseEvent const&> Handler>
-    GC::Ref<DOM::IDLEventListener> add_event_listener(JS::Realm&, DOM::EventTarget&, FlyString const& event_name, Handler);
+    GC::Ref<DOM::IDLEventListener> add_event_listener(JS::Realm&, DOM::EventTarget&, Utf16FlyString const& event_name, Handler);
     template<CallableAs<bool, UIEvents::MouseEvent const&> Handler>
-    GC::Ref<DOM::IDLEventListener> add_event_listener(JS::Realm&, DOM::EventTarget&, FlyString const& event_name, ListenOnce, Handler);
+    GC::Ref<DOM::IDLEventListener> add_event_listener(JS::Realm&, DOM::EventTarget&, Utf16FlyString const& event_name, ListenOnce, Handler);
     template<CallableAs<bool, UIEvents::KeyboardEvent const&> Handler>
-    GC::Ref<DOM::IDLEventListener> add_event_listener(JS::Realm&, DOM::EventTarget&, FlyString const& event_name, Handler);
+    GC::Ref<DOM::IDLEventListener> add_event_listener(JS::Realm&, DOM::EventTarget&, Utf16FlyString const& event_name, Handler);
 
     void remove_event_listeners();
     void set_up_event_listeners();
@@ -76,7 +76,7 @@ private:
 
     struct RegisteredEventListener {
         GC::Weak<DOM::EventTarget> target;
-        FlyString event_name;
+        Utf16FlyString event_name;
         GC::Weak<DOM::IDLEventListener> listener;
     };
     Vector<RegisteredEventListener> m_registered_event_listeners;

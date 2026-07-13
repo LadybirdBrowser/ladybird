@@ -7,9 +7,8 @@
 
 #pragma once
 
-#include <AK/String.h>
-#include <AK/StringView.h>
 #include <AK/Types.h>
+#include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/Parser/HTMLToken.h>
@@ -104,13 +103,9 @@ class HTMLParser;
 
 class WEB_API HTMLTokenizer {
 public:
-    enum class InputType {
-        EncodedBytes,
-        DecodedString,
-    };
-
     explicit HTMLTokenizer();
-    explicit HTMLTokenizer(StringView input, ByteString const& encoding, InputType = InputType::EncodedBytes);
+    explicit HTMLTokenizer(Utf16String input);
+    explicit HTMLTokenizer(Utf16View input);
     ~HTMLTokenizer();
 
     enum class State {
@@ -129,12 +124,11 @@ public:
 
     auto const& source() const { return m_source; }
 
-    String unparsed_input() const;
+    Utf16String unparsed_input() const;
 
-    void append_to_input_stream(StringView input);
+    void append_to_input_stream(Utf16View input);
     void close_input_stream();
     bool is_input_stream_closed() const { return m_input_stream_closed; }
-    void insert_input_at_insertion_point(StringView input);
     void insert_input_at_insertion_point(Utf16View input);
     void insert_eof();
 
@@ -167,7 +161,7 @@ private:
     }
 
     State m_state { State::Data };
-    String m_source;
+    Utf16String m_source;
     bool m_input_stream_closed { false };
 
     RustFfiTokenizerHandle* m_tokenizer { nullptr };

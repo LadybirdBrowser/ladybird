@@ -39,8 +39,7 @@ public:
 
     size_t length() const;
     Element* item(size_t index) const;
-    Element* named_item(Utf16String const& key) const;
-    Element* named_item(Utf16FlyString const& key) const;
+    Element* named_item(Utf16View key) const;
 
     GC::RootVector<GC::Ref<Element>> collect_matching_elements() const;
 

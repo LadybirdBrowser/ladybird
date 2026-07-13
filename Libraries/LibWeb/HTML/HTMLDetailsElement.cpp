@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Utf16View.h>
 #include <LibWeb/Bindings/HTMLDetailsElement.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
@@ -80,11 +81,11 @@ void HTMLDetailsElement::attribute_changed(Utf16FlyString const& local_name, Opt
         if (old_value.has_value() != value.has_value()) {
             // 1. If oldValue is null, queue a details toggle event task given the details element, "closed", and "open".
             if (!old_value.has_value()) {
-                queue_a_details_toggle_event_task("closed"_string, "open"_string);
+                queue_a_details_toggle_event_task("closed"_utf16_fly_string, "open"_utf16_fly_string);
             }
             // 2. Otherwise, queue a details toggle event task given the details element, "open", and "closed".
             else {
-                queue_a_details_toggle_event_task("open"_string, "closed"_string);
+                queue_a_details_toggle_event_task("open"_utf16_fly_string, "closed"_utf16_fly_string);
             }
         }
 
@@ -105,7 +106,7 @@ void HTMLDetailsElement::children_changed(ChildrenChangedMetadata const& metadat
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#queue-a-details-toggle-event-task
-void HTMLDetailsElement::queue_a_details_toggle_event_task(String old_state, String new_state)
+void HTMLDetailsElement::queue_a_details_toggle_event_task(Utf16FlyString old_state, Utf16FlyString new_state)
 {
     // 1. If element's details toggle task tracker is not null, then:
     if (m_details_toggle_task_tracker.has_value()) {
@@ -144,7 +145,7 @@ void HTMLDetailsElement::queue_a_details_toggle_event_task(String old_state, Str
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#details-name-group
 template<typename Callback>
-void for_each_element_in_details_name_group(HTMLDetailsElement& details, Utf16String const& name, Callback&& callback)
+void for_each_element_in_details_name_group(HTMLDetailsElement& details, Utf16View name, Callback&& callback)
 {
     // The details name group that contains a details element a also contains all the other details elements b that
     // fulfill all of the following conditions:

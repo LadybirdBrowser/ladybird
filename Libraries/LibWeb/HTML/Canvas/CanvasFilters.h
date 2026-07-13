@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 
 namespace Web::HTML {
 
@@ -15,8 +16,8 @@ class CanvasFilters {
 public:
     ~CanvasFilters() = default;
 
-    virtual String filter() const = 0;
-    virtual void set_filter(String filter) = 0;
+    virtual Utf16String filter() const = 0;
+    virtual void set_filter(Utf16View filter) = 0;
 
 protected:
     CanvasFilters() = default;

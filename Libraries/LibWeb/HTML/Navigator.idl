@@ -45,8 +45,8 @@ interface Navigator {
 
 // https://html.spec.whatwg.org/multipage/system-state.html#navigatorcontentutils
 interface mixin NavigatorContentUtils {
-    [FIXME, SecureContext] undefined registerProtocolHandler(DOMString scheme, USVString url);
-    [FIXME, SecureContext] undefined unregisterProtocolHandler(DOMString scheme, USVString url);
+    [FIXME, SecureContext] undefined registerProtocolHandler(Utf16DOMString scheme, Utf16USVString url);
+    [FIXME, SecureContext] undefined unregisterProtocolHandler(Utf16DOMString scheme, Utf16USVString url);
 };
 
 // https://html.spec.whatwg.org/multipage/system-state.html#navigatorcookies

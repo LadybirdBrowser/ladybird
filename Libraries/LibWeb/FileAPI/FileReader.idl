@@ -5,7 +5,7 @@ interface FileReader : EventTarget {
     // async read methods
     undefined readAsArrayBuffer(Blob blob);
     undefined readAsBinaryString(Blob blob);
-    undefined readAsText(Blob blob, optional DOMString encoding);
+    undefined readAsText(Blob blob, optional Utf16DOMString encoding);
     undefined readAsDataURL(Blob blob);
 
     undefined abort();
@@ -18,7 +18,7 @@ interface FileReader : EventTarget {
     readonly attribute unsigned short readyState;
 
     // File or Blob data
-    readonly attribute (DOMString or ArrayBuffer)? result;
+    readonly attribute (Utf16DOMString or ArrayBuffer)? result;
 
     readonly attribute DOMException? error;
 

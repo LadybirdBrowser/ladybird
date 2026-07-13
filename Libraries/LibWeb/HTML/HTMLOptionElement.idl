@@ -1,5 +1,5 @@
 // https://html.spec.whatwg.org/multipage/form-elements.html#htmloptionelement
-[Exposed=Window, LegacyFactoryFunction=Option(optional DOMString text = "", optional DOMString value, optional boolean defaultSelected = false, optional boolean selected = false)]
+[Exposed=Window, LegacyFactoryFunction=Option(optional Utf16DOMString text = "", optional Utf16DOMString value, optional boolean defaultSelected = false, optional boolean selected = false)]
 interface HTMLOptionElement : HTMLElement {
     [HTMLConstructor] constructor();
 

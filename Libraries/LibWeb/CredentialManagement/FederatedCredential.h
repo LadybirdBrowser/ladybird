@@ -26,18 +26,18 @@ public:
 
     virtual ~FederatedCredential() override;
 
-    String const& provider() const { return m_provider; }
-    Optional<String> const& protocol() const { return m_protocol; }
+    Utf16String const& provider() const { return m_provider; }
+    Optional<Utf16String> const& protocol() const { return m_protocol; }
     URL::Origin const& origin() const { return m_origin; }
 
-    String type() const override { return "federated"_string; }
+    Utf16FlyString const& type() const override;
 
 private:
     FederatedCredential(JS::Realm&, Bindings::FederatedCredentialInit const&, URL::Origin);
     virtual void initialize(JS::Realm&) override;
 
-    String m_provider;
-    Optional<String> m_protocol;
+    Utf16String m_provider;
+    Optional<Utf16String> m_protocol;
 
     // https://www.w3.org/TR/credential-management-1/#dom-credential-origin-slot
     URL::Origin m_origin;
@@ -45,16 +45,16 @@ private:
 
 // https://www.w3.org/TR/credential-management-1/#dictdef-federatedcredentialrequestoptions
 struct FederatedCredentialRequestOptions {
-    Optional<Vector<String>> providers;
-    Optional<Vector<String>> protocols;
+    Optional<Vector<Utf16String>> providers;
+    Optional<Vector<Utf16String>> protocols;
 };
 
 // https://www.w3.org/TR/credential-management-1/#dictdef-federatedcredentialinit
 struct FederatedCredentialInit : CredentialData {
-    Optional<String> name;
-    Optional<String> icon_url;
-    String provider;
-    Optional<String> protocol;
+    Optional<Utf16String> name;
+    Optional<Utf16String> icon_url;
+    Utf16String provider;
+    Optional<Utf16String> protocol;
 };
 
 }

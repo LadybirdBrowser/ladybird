@@ -57,7 +57,7 @@ public:
 
     virtual MatchResult evaluate(BooleanExpressionEvaluationContext const&) const override;
     virtual void collect_container_query_feature_requirements(ContainerQueryFeatureRequirements&) const override;
-    virtual String to_string() const override;
+    virtual void serialize_to(Utf16StringBuilder&) const override;
     virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
     struct StyleFeaturePlain {
@@ -93,7 +93,7 @@ public:
     ContainerQueryFeatureRequirements const& feature_requirements() const { return m_feature_requirements; }
     bool contains_size_feature() const { return m_feature_requirements.contains_size_feature(); }
     MatchResult evaluate(DOM::AbstractElement const&, Optional<Utf16FlyString> const& container_name) const;
-    String to_string() const;
+    Utf16String to_string() const;
 
     void dump(StringBuilder&, int indent_levels = 0) const;
 

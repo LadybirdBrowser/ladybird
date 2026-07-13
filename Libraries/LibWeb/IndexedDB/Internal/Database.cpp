@@ -14,7 +14,7 @@
 
 namespace Web::IndexedDB {
 
-using IDBDatabaseMapping = HashMap<StorageAPI::StorageKey, HashMap<String, GC::Root<Database>>>;
+using IDBDatabaseMapping = HashMap<StorageAPI::StorageKey, HashMap<Utf16String, GC::Root<Database>>>;
 static IDBDatabaseMapping& idb_databases()
 {
     static NeverDestroyed<IDBDatabaseMapping> databases;
@@ -36,7 +36,7 @@ GC_DEFINE_ALLOCATOR(Database);
 
 Database::~Database() = default;
 
-GC::Ref<Database> Database::create(GC::Heap& heap, String const& name)
+GC::Ref<Database> Database::create(GC::Heap& heap, Utf16String const& name)
 {
     return heap.allocate<Database>(name);
 }
@@ -51,7 +51,7 @@ void Database::visit_edges(Visitor& visitor)
         visitor.visit(m_pending_connection_wait->callback);
 }
 
-GC::Ptr<ObjectStore> Database::object_store_with_name(String const& name) const
+GC::Ptr<ObjectStore> Database::object_store_with_name(Utf16String const& name) const
 {
     for (auto const& object_store : m_object_stores) {
         if (object_store->name() == name)
@@ -71,7 +71,7 @@ Vector<GC::Weak<Database>> Database::for_key(StorageAPI::StorageKey const& key)
     return databases;
 }
 
-RequestList& ConnectionQueueHandler::for_key_and_name(StorageAPI::StorageKey const& key, String const& name)
+RequestList& ConnectionQueueHandler::for_key_and_name(StorageAPI::StorageKey const& key, Utf16String const& name)
 {
     auto& instance = ConnectionQueueHandler::the();
     auto maybe_connection = instance.m_open_requests.find_if([&key, &name](Connection const& connection) {
@@ -86,18 +86,18 @@ RequestList& ConnectionQueueHandler::for_key_and_name(StorageAPI::StorageKey con
     return new_connection->request_list;
 }
 
-Optional<Database&> Database::for_key_and_name(StorageAPI::StorageKey const& key, String const& name)
+Optional<Database&> Database::for_key_and_name(StorageAPI::StorageKey const& key, Utf16String const& name)
 {
-    auto database_mapping = idb_databases().ensure(key, [] { return HashMap<String, GC::Root<Database>>(); });
+    auto database_mapping = idb_databases().ensure(key, [] { return HashMap<Utf16String, GC::Root<Database>>(); });
     if (auto maybe_database = database_mapping.get(name); maybe_database.has_value())
         return *maybe_database.value();
     return {};
 }
 
-ErrorOr<GC::Ref<Database>> Database::create_for_key_and_name(GC::Heap& heap, StorageAPI::StorageKey const& key, String const& name)
+ErrorOr<GC::Ref<Database>> Database::create_for_key_and_name(GC::Heap& heap, StorageAPI::StorageKey const& key, Utf16String const& name)
 {
     auto database_mapping = TRY(idb_databases().try_ensure(key, [] {
-        return HashMap<String, GC::Root<Database>>();
+        return HashMap<Utf16String, GC::Root<Database>>();
     }));
 
     auto value = Database::create(heap, name);
@@ -108,7 +108,7 @@ ErrorOr<GC::Ref<Database>> Database::create_for_key_and_name(GC::Heap& heap, Sto
     return value;
 }
 
-ErrorOr<void> Database::delete_for_key_and_name(StorageAPI::StorageKey const& key, String const& name)
+ErrorOr<void> Database::delete_for_key_and_name(StorageAPI::StorageKey const& key, Utf16String const& name)
 {
     // FIXME: Is a missing entry a failure?
     auto maybe_database_mapping = idb_databases().get(key);

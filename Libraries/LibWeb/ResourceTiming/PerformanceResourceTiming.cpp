@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ByteString.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
@@ -15,7 +16,7 @@ namespace Web::ResourceTiming {
 
 GC_DEFINE_ALLOCATOR(PerformanceResourceTiming);
 
-PerformanceResourceTiming::PerformanceResourceTiming(JS::Realm& realm, String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, GC::Ref<Fetch::Infrastructure::FetchTimingInfo> timing_info)
+PerformanceResourceTiming::PerformanceResourceTiming(JS::Realm& realm, Utf16String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, GC::Ref<Fetch::Infrastructure::FetchTimingInfo> timing_info)
     : PerformanceTimeline::PerformanceEntry(realm, name, start_time, duration)
     , m_timing_info(timing_info)
 {
@@ -24,7 +25,7 @@ PerformanceResourceTiming::PerformanceResourceTiming(JS::Realm& realm, String co
 PerformanceResourceTiming::~PerformanceResourceTiming() = default;
 
 // https://w3c.github.io/resource-timing/#dfn-entrytype
-FlyString const& PerformanceResourceTiming::entry_type() const
+Utf16FlyString const& PerformanceResourceTiming::entry_type() const
 {
     // entryType
     //  The entryType getter steps are to return the DOMString "resource".
@@ -55,7 +56,7 @@ HighResolutionTime::DOMHighResTimeStamp convert_fetch_timestamp(HighResolutionTi
 }
 
 // https://w3c.github.io/resource-timing/#dfn-mark-resource-timing
-void PerformanceResourceTiming::mark_resource_timing(GC::Ref<Fetch::Infrastructure::FetchTimingInfo> timing_info, String const& requested_url, FlyString const& initiator_type, JS::Object& global, Optional<Fetch::Infrastructure::Response::CacheState> const& cache_mode, Fetch::Infrastructure::Response::BodyInfo body_info, Fetch::Infrastructure::Status response_status, FlyString delivery_type)
+void PerformanceResourceTiming::mark_resource_timing(GC::Ref<Fetch::Infrastructure::FetchTimingInfo> timing_info, Utf16String const& requested_url, Utf16FlyString const& initiator_type, JS::Object& global, Optional<Fetch::Infrastructure::Response::CacheState> const& cache_mode, Fetch::Infrastructure::Response::BodyInfo body_info, Fetch::Infrastructure::Status response_status, Utf16FlyString delivery_type)
 {
     // 1. Create a PerformanceResourceTiming object entry in global's realm.
     auto& window_or_worker = as<HTML::WindowOrWorkerGlobalScopeMixin>(global);
@@ -87,7 +88,7 @@ void PerformanceResourceTiming::mark_resource_timing(GC::Ref<Fetch::Infrastructu
 }
 
 // https://www.w3.org/TR/resource-timing/#dfn-setup-the-resource-timing-entry
-void PerformanceResourceTiming::setup_the_resource_timing_entry(FlyString const& initiator_type, String const& requested_url, GC::Ref<Fetch::Infrastructure::FetchTimingInfo> timing_info, Optional<Fetch::Infrastructure::Response::CacheState> const& cache_mode, Fetch::Infrastructure::Response::BodyInfo body_info, Fetch::Infrastructure::Status response_status, FlyString delivery_type)
+void PerformanceResourceTiming::setup_the_resource_timing_entry(Utf16FlyString const& initiator_type, Utf16String const& requested_url, GC::Ref<Fetch::Infrastructure::FetchTimingInfo> timing_info, Optional<Fetch::Infrastructure::Response::CacheState> const& cache_mode, Fetch::Infrastructure::Response::BodyInfo body_info, Fetch::Infrastructure::Status response_status, Utf16FlyString delivery_type)
 {
     // 2. Setup the resource timing entry for entry, given initiatorType, requestedURL, timingInfo, cacheMode, bodyInfo, responseStatus, and deliveryType.
     // https://w3c.github.io/resource-timing/#dfn-setup-the-resource-timing-entry
@@ -114,21 +115,21 @@ void PerformanceResourceTiming::setup_the_resource_timing_entry(FlyString const&
 
     // 8. If deliveryType is the empty string and cacheMode is not, then set deliveryType to "cache".
     if (delivery_type.is_empty() && cache_mode.has_value())
-        delivery_type = "cache"_fly_string;
+        delivery_type = "cache"_utf16_fly_string;
 
     // 9. Set entry's delivery type to deliveryType.
     m_delivery_type = delivery_type;
 }
 
 // https://w3c.github.io/resource-timing/#dom-performanceresourcetiming-nexthopprotocol
-FlyString PerformanceResourceTiming::next_hop_protocol() const
+ByteString PerformanceResourceTiming::next_hop_protocol() const
 {
     // The nextHopProtocol getter steps are to isomorphic decode this's timing info's final connection timing info's
     // ALPN negotiated protocol. See Recording connection timing info for more info.
     // NOTE: "final connection timing info" can be null, e.g. if this is the timing of a cross-origin resource and
     //       the Timing-Allow-Origin check fails. We return empty string in this case.
     if (!m_timing_info->final_connection_timing_info().has_value())
-        return ""_fly_string;
+        return {};
 
     return m_timing_info->final_connection_timing_info()->alpn_negotiated_protocol;
 }
@@ -331,7 +332,7 @@ Bindings::RenderBlockingStatusType PerformanceResourceTiming::render_blocking_st
 }
 
 // https://w3c.github.io/resource-timing/#dom-performanceresourcetiming-contenttype
-String const& PerformanceResourceTiming::content_type() const
+Utf16String const& PerformanceResourceTiming::content_type() const
 {
     // The contentType getter steps are to return this's resource info's content type.
     return m_response_body_info.content_type;

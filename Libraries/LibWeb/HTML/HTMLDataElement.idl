@@ -4,6 +4,6 @@ interface HTMLDataElement : HTMLElement {
 
     [HTMLConstructor] constructor();
 
-    [CEReactions, Reflect] attribute DOMString value;
+    [CEReactions, Reflect] attribute Utf16DOMString value;
 
 };

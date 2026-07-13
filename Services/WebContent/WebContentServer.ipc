@@ -57,7 +57,7 @@ endpoint WebContentServer
 
     load_url(u64 page_id, URL::URL url, Web::Bindings::NavigationHistoryBehavior history_handling) =|
     load_url_with_document_resource(u64 page_id, URL::URL url,
-        Variant<Empty, String, Web::HTML::POSTResource> document_resource,
+        Variant<Empty, Utf16String, Web::HTML::POSTResource> document_resource,
         Web::Bindings::NavigationHistoryBehavior history_handling) =|
     load_html(u64 page_id, ByteString html) =|
     load_html_with_url(u64 page_id, ByteString html, URL::URL url) =|
@@ -84,8 +84,8 @@ endpoint WebContentServer
     get_source(u64 page_id) =|
     inspect_dom_tree(u64 page_id) =|
     inspect_storage(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, u64 request_id) =|
-    set_session_storage_item(u64 page_id, String key, String value) => (Optional<WebView::StorageSetResult> result)
-    remove_session_storage_item(u64 page_id, String key) => (Optional<String> old_value)
+    set_session_storage_item(u64 page_id, Utf16String key, Utf16String value) => (Optional<WebView::StorageSetResult> result)
+    remove_session_storage_item(u64 page_id, Utf16String key) => (Optional<Utf16String> old_value)
     clear_session_storage(u64 page_id) => (bool did_clear)
     inspect_dom_node(u64 page_id, WebView::DOMNodeProperties::Type property_type, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element, JsonValue options) =|
     inspect_grid_layouts(u64 page_id, Web::UniqueNodeID root_node_id) =|
@@ -146,12 +146,12 @@ endpoint WebContentServer
     commit_text_from_input_method(u64 page_id, Utf16String text, i32 replacement_start, i32 replacement_length) =|
     unmark_text_from_input_method(u64 page_id) =|
 
-    find_in_page(u64 page_id, String query, AK::CaseSensitivity case_sensitivity) =|
+    find_in_page(u64 page_id, Utf16String query, AK::CaseSensitivity case_sensitivity) =|
     find_in_page_next_match(u64 page_id) =|
     find_in_page_previous_match(u64 page_id) =|
 
     set_content_blockers(u64 page_id, Core::AnonymousBuffer patterns) =|
-    set_autoplay_settings(u64 page_id, Web::HTML::AutoplayPolicy policy, Vector<String> allowlist) =|
+    set_autoplay_settings(u64 page_id, Web::HTML::AutoplayPolicy policy, Vector<Utf16String> allowlist) =|
     set_proxy_mappings(u64 page_id, Vector<ByteString> proxies, HashMap<ByteString, size_t> mappings) =|
     set_preferred_color_scheme(u64 page_id, Web::CSS::PreferredColorScheme color_scheme) =|
     set_preferred_contrast(u64 page_id, Web::CSS::PreferredContrast contrast) =|
@@ -176,7 +176,7 @@ endpoint WebContentServer
 
     alert_closed(u64 page_id) =|
     confirm_closed(u64 page_id, bool accepted) =|
-    prompt_closed(u64 page_id, Optional<String> response) =|
+    prompt_closed(u64 page_id, Optional<Utf16String> response) =|
     color_picker_update(u64 page_id, Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state) =|
     file_picker_closed(u64 page_id, Vector<Web::HTML::SelectedFile> selected_files) =|
     select_dropdown_closed(u64 page_id, Optional<u32> selected_item_id) =|
@@ -203,7 +203,7 @@ endpoint WebContentServer
 
     did_worker_agent_finish_loading_script(Web::HTML::WorkerAgentOwnerToken owner_token) =|
     did_worker_agent_fail_loading_script(Web::HTML::WorkerAgentOwnerToken owner_token) =|
-    did_worker_agent_report_exception(Web::HTML::WorkerAgentOwnerToken owner_token, String message, String filename, u32 lineno, u32 colno) =|
+    did_worker_agent_report_exception(Web::HTML::WorkerAgentOwnerToken owner_token, Utf16String message, Utf16String filename, u32 lineno, u32 colno) =|
     did_worker_agent_close(Web::HTML::WorkerAgentOwnerToken owner_token) =|
 
     request_close(u64 page_id) =|

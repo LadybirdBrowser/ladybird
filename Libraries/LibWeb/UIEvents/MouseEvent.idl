@@ -1,7 +1,7 @@
 // https://w3c.github.io/uievents/#mouseevent
 [Exposed=Window]
 interface MouseEvent : UIEvent {
-    constructor(DOMString type, optional MouseEventInit eventInitDict = {});
+    constructor([Utf16FlyString] Utf16DOMString type, optional MouseEventInit eventInitDict = {});
 
     // https://drafts.csswg.org/cssom-view/#extensions-to-the-mouseevent-interface
     readonly attribute double screenX;
@@ -29,10 +29,10 @@ interface MouseEvent : UIEvent {
 
     readonly attribute EventTarget? relatedTarget;
 
-    boolean getModifierState(DOMString keyArg);
+    boolean getModifierState([Utf16FlyString] Utf16DOMString keyArg);
 
     // https://w3c.github.io/uievents/#dom-mouseevent-initmouseevent
-    undefined initMouseEvent(DOMString typeArg, optional boolean bubblesArg = false, optional boolean cancelableArg = false, optional WindowProxy? viewArg = null, optional long detailArg = 0, optional long screenXArg = 0, optional long screenYArg = 0, optional long clientXArg = 0, optional long clientYArg = 0, optional boolean ctrlKeyArg = false, optional boolean altKeyArg = false, optional boolean shiftKeyArg = false, optional boolean metaKeyArg = false, optional short buttonArg = 0, optional EventTarget? relatedTargetArg = null);
+    undefined initMouseEvent([Utf16FlyString] Utf16DOMString typeArg, optional boolean bubblesArg = false, optional boolean cancelableArg = false, optional WindowProxy? viewArg = null, optional long detailArg = 0, optional long screenXArg = 0, optional long screenYArg = 0, optional long clientXArg = 0, optional long clientYArg = 0, optional boolean ctrlKeyArg = false, optional boolean altKeyArg = false, optional boolean shiftKeyArg = false, optional boolean metaKeyArg = false, optional short buttonArg = 0, optional EventTarget? relatedTargetArg = null);
 };
 
 // https://w3c.github.io/uievents/#idl-mouseeventinit

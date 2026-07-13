@@ -7,8 +7,8 @@ callback PerformanceObserverCallback = undefined (PerformanceObserverEntryList e
 
 // https://w3c.github.io/performance-timeline/#dom-performanceobserverinit
 dictionary PerformanceObserverInit {
-    sequence<DOMString> entryTypes;
-    DOMString type;
+    sequence<[Utf16FlyString] Utf16DOMString> entryTypes;
+    [Utf16FlyString] Utf16DOMString type;
     boolean buffered;
 };
 

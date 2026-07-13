@@ -1,7 +1,7 @@
 // https://drafts.csswg.org/css-transitions/#transitionevent
 [Exposed=Window]
 interface TransitionEvent : Event {
-    constructor(CSSOMString type, optional TransitionEventInit transitionEventInitDict = {});
+    constructor([Utf16FlyString] Utf16CSSOMString type, optional TransitionEventInit transitionEventInitDict = {});
     readonly attribute Utf16CSSOMString propertyName;
     readonly attribute double elapsedTime;
     readonly attribute Utf16CSSOMString pseudoElement;

@@ -8,6 +8,8 @@
 
 #include <AK/NonnullOwnPtr.h>
 #include <AK/String.h>
+#include <AK/Utf16String.h>
+#include <AK/Utf16StringBuilder.h>
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/DOM/AbstractElement.h>
@@ -114,14 +116,15 @@ public:
 
     virtual MatchResult evaluate(BooleanExpressionEvaluationContext const&) const = 0;
     virtual void collect_container_query_feature_requirements(ContainerQueryFeatureRequirements&) const { }
-    virtual String to_string() const = 0;
+    Utf16String to_string() const;
+    virtual void serialize_to(Utf16StringBuilder&) const = 0;
     virtual void dump(StringBuilder&, int indent_levels = 0) const = 0;
 };
 
 // https://www.w3.org/TR/mediaqueries-4/#typedef-general-enclosed
 class GeneralEnclosed final : public BooleanExpression {
 public:
-    static NonnullOwnPtr<GeneralEnclosed> create(String serialized_contents, MatchResult matches = MatchResult::Unknown)
+    static NonnullOwnPtr<GeneralEnclosed> create(Utf16String serialized_contents, MatchResult matches = MatchResult::Unknown)
     {
         return adopt_own(*new GeneralEnclosed(move(serialized_contents), matches));
     }
@@ -129,17 +132,17 @@ public:
 
     virtual MatchResult evaluate(BooleanExpressionEvaluationContext const&) const override { return m_matches; }
     virtual void collect_container_query_feature_requirements(ContainerQueryFeatureRequirements&) const override;
-    virtual String to_string() const override { return m_serialized_contents; }
+    virtual void serialize_to(Utf16StringBuilder&) const override;
     virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
 private:
-    GeneralEnclosed(String serialized_contents, MatchResult matches)
+    GeneralEnclosed(Utf16String serialized_contents, MatchResult matches)
         : m_serialized_contents(move(serialized_contents))
         , m_matches(matches)
     {
     }
 
-    String m_serialized_contents;
+    Utf16String m_serialized_contents;
     MatchResult m_matches;
 };
 
@@ -153,7 +156,7 @@ public:
 
     virtual MatchResult evaluate(BooleanExpressionEvaluationContext const&) const override;
     virtual void collect_container_query_feature_requirements(ContainerQueryFeatureRequirements&) const override;
-    virtual String to_string() const override;
+    virtual void serialize_to(Utf16StringBuilder&) const override;
     virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
 private:
@@ -175,7 +178,7 @@ public:
 
     virtual MatchResult evaluate(BooleanExpressionEvaluationContext const&) const override;
     virtual void collect_container_query_feature_requirements(ContainerQueryFeatureRequirements&) const override;
-    virtual String to_string() const override;
+    virtual void serialize_to(Utf16StringBuilder&) const override;
     virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
 private:
@@ -197,7 +200,7 @@ public:
 
     virtual MatchResult evaluate(BooleanExpressionEvaluationContext const&) const override;
     virtual void collect_container_query_feature_requirements(ContainerQueryFeatureRequirements&) const override;
-    virtual String to_string() const override;
+    virtual void serialize_to(Utf16StringBuilder&) const override;
     virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
 private:
@@ -219,7 +222,7 @@ public:
 
     virtual MatchResult evaluate(BooleanExpressionEvaluationContext const&) const override;
     virtual void collect_container_query_feature_requirements(ContainerQueryFeatureRequirements&) const override;
-    virtual String to_string() const override;
+    virtual void serialize_to(Utf16StringBuilder&) const override;
     virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
 private:
@@ -240,7 +243,7 @@ public:
     virtual ~ConstantBooleanExpression() override = default;
 
     virtual MatchResult evaluate(BooleanExpressionEvaluationContext const&) const override { return m_value; }
-    virtual String to_string() const override { return MUST(String::from_utf8(CSS::to_string(m_value))); }
+    virtual void serialize_to(Utf16StringBuilder&) const override;
     virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
 private:
@@ -258,6 +261,6 @@ template<>
 struct AK::Formatter<Web::CSS::BooleanExpression> : AK::Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, Web::CSS::BooleanExpression const& expression)
     {
-        return Formatter<StringView>::format(builder, expression.to_string());
+        return Formatter<StringView>::format(builder, expression.to_string().to_utf8());
     }
 };

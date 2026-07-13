@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16FlyString.h>
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibWeb/Animations/TimeValue.h>
 #include <LibWeb/Bindings/Animation.h>
@@ -34,8 +35,8 @@ public:
     static GC::Ref<Animation> create(JS::Realm&, GC::Ptr<AnimationEffect>, Optional<GC::Ptr<AnimationTimeline>>);
     static GC::Ref<Animation> construct_impl(JS::Realm&, GC::Ptr<AnimationEffect>, Optional<GC::Ptr<AnimationTimeline>>);
 
-    FlyString const& id() const { return m_id; }
-    void set_id(FlyString value) { m_id = move(value); }
+    Utf16FlyString const& id() const { return m_id; }
+    void set_id(Utf16FlyString value) { m_id = move(value); }
 
     GC::Ptr<AnimationEffect> effect() const { return m_effect; }
     void set_effect(GC::Ptr<AnimationEffect>);
@@ -182,7 +183,7 @@ private:
     void invalidate_effect();
 
     // https://www.w3.org/TR/web-animations-1/#dom-animation-id
-    FlyString m_id;
+    Utf16FlyString m_id;
 
     // https://www.w3.org/TR/web-animations-1/#global-animation-list
     unsigned int m_global_animation_list_order { 0 };

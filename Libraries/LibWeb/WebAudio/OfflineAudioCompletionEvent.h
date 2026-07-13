@@ -16,14 +16,14 @@ class OfflineAudioCompletionEvent final : public DOM::Event {
     GC_DECLARE_ALLOCATOR(OfflineAudioCompletionEvent);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<OfflineAudioCompletionEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::OfflineAudioCompletionEventInit const&);
+    static WebIDL::ExceptionOr<GC::Ref<OfflineAudioCompletionEvent>> construct_impl(JS::Realm&, Utf16FlyString const& event_name, Bindings::OfflineAudioCompletionEventInit const&);
 
     virtual ~OfflineAudioCompletionEvent() override;
 
     GC::Ptr<AudioBuffer> rendered_buffer() const { return m_rendered_buffer; }
 
 private:
-    OfflineAudioCompletionEvent(JS::Realm&, FlyString const& event_name, Bindings::OfflineAudioCompletionEventInit const&);
+    OfflineAudioCompletionEvent(JS::Realm&, Utf16FlyString const& event_name, Bindings::OfflineAudioCompletionEventInit const&);
 
     void initialize(JS::Realm&) override;
 

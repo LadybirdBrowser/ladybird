@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibGC/Cell.h>
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/Forward.h>
@@ -62,7 +63,7 @@ public:
 
     void visit(GC::Cell::Visitor& visitor) const;
 
-    String debug_description() const;
+    Utf16String debug_description() const;
     bool operator==(AbstractElement const&) const = default;
 
     CSS::StyleScope const& style_scope() const;

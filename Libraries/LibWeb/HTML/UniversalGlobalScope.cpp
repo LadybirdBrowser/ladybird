@@ -8,12 +8,10 @@
  */
 
 #include <AK/Base64.h>
-#include <AK/String.h>
-#include <AK/Utf8View.h>
+#include <AK/Utf16StringBuilder.h>
 #include <AK/Vector.h>
 #include <LibGC/Function.h>
 #include <LibJS/Runtime/NativeFunction.h>
-#include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/MessagePort.h>
 #include <LibWeb/Bindings/PromiseRejectionEvent.h>
 #include <LibWeb/HTML/PromiseRejectionEvent.h>
@@ -39,15 +37,15 @@ void UniversalGlobalScopeMixin::visit_edges(GC::Cell::Visitor& visitor)
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#dom-btoa
-WebIDL::ExceptionOr<String> UniversalGlobalScopeMixin::btoa(String const& data) const
+WebIDL::ExceptionOr<Utf16String> UniversalGlobalScopeMixin::btoa(Utf16View data) const
 {
     auto& vm = this_impl().vm();
     auto& realm = *vm.current_realm();
 
     // The btoa(data) method must throw an "InvalidCharacterError" DOMException if data contains any character whose code point is greater than U+00FF.
     Vector<u8> byte_string;
-    byte_string.ensure_capacity(data.bytes().size());
-    for (u32 code_point : Utf8View(data)) {
+    byte_string.ensure_capacity(data.length_in_code_units());
+    for (u32 code_point : data) {
         if (code_point > 0xff)
             return WebIDL::InvalidCharacterError::create(realm, "Data contains characters outside the range U+0000 and U+00FF"_utf16);
         byte_string.append(code_point);
@@ -55,25 +53,29 @@ WebIDL::ExceptionOr<String> UniversalGlobalScopeMixin::btoa(String const& data) 
 
     // Otherwise, the user agent must convert data to a byte sequence whose nth byte is the eight-bit representation of the nth code point of data,
     // and then must apply forgiving-base64 encode to that byte sequence and return the result.
-    return TRY_OR_THROW_OOM(vm, encode_base64(byte_string.span()));
+    return TRY_OR_THROW_OOM(vm, encode_base64_to_utf16(byte_string.span()));
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#dom-atob
-WebIDL::ExceptionOr<String> UniversalGlobalScopeMixin::atob(String const& data) const
+WebIDL::ExceptionOr<Utf16String> UniversalGlobalScopeMixin::atob(Utf16View data) const
 {
     auto& vm = this_impl().vm();
     auto& realm = *vm.current_realm();
 
     // 1. Let decodedData be the result of running forgiving-base64 decode on data.
-    auto decoded_data = decode_base64(data);
+    ByteBuffer decoded_data;
+    TRY_OR_THROW_OOM(vm, decoded_data.try_resize(size_required_to_decode_base64(data)));
+    auto decode_result = decode_base64_into(data, decoded_data);
 
     // 2. If decodedData is failure, then throw an "InvalidCharacterError" DOMException.
-    if (decoded_data.is_error())
+    if (decode_result.is_error())
         return WebIDL::InvalidCharacterError::create(realm, "Input string is not valid base64 data"_utf16);
 
     // 3. Return decodedData.
-    // decode_base64() returns a byte buffer. LibJS uses UTF-8 for strings. Use isomorphic decoding to convert bytes to UTF-8.
-    return TextCodec::isomorphic_decode(decoded_data.value());
+    Utf16StringBuilder builder { decoded_data.size() };
+    for (auto byte : decoded_data.bytes())
+        builder.append_code_unit(byte);
+    return builder.to_string();
 }
 
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#dom-queuemicrotask

@@ -5,64 +5,65 @@
  */
 
 #include <AK/HashTable.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibWeb/HTML/Parser/HTMLToken.h>
 
 namespace Web::HTML {
 
-String HTMLToken::to_string() const
+Utf16String HTMLToken::to_string() const
 {
-    StringBuilder builder;
+    Utf16StringBuilder builder;
 
     switch (type()) {
     case HTMLToken::Type::DOCTYPE:
-        builder.append("DOCTYPE"sv);
-        builder.append(" { name: '"sv);
-        builder.append(doctype_data().name);
-        builder.append("' }"sv);
+        builder.append_ascii("DOCTYPE"sv);
+        builder.append_ascii(" { name: '"sv);
+        builder.append(doctype_data().name.view());
+        builder.append_ascii("' }"sv);
         break;
     case HTMLToken::Type::StartTag:
-        builder.append("StartTag"sv);
+        builder.append_ascii("StartTag"sv);
         break;
     case HTMLToken::Type::EndTag:
-        builder.append("EndTag"sv);
+        builder.append_ascii("EndTag"sv);
         break;
     case HTMLToken::Type::Comment:
-        builder.append("Comment"sv);
+        builder.append_ascii("Comment"sv);
         break;
     case HTMLToken::Type::Character:
-        builder.append("Character"sv);
+        builder.append_ascii("Character"sv);
         break;
     case HTMLToken::Type::EndOfFile:
-        builder.append("EndOfFile"sv);
+        builder.append_ascii("EndOfFile"sv);
         break;
     case HTMLToken::Type::Invalid:
         VERIFY_NOT_REACHED();
     }
 
     if (type() == HTMLToken::Type::StartTag || type() == HTMLToken::Type::EndTag) {
-        builder.append(" { name: '"sv);
-        builder.append(tag_name());
-        builder.append("', { "sv);
+        builder.append_ascii(" { name: '"sv);
+        builder.append(tag_name().view());
+        builder.append_ascii("', { "sv);
         for_each_attribute([&](auto& attribute) {
-            builder.append(attribute.local_name);
-            builder.append("=\""sv);
+            builder.append(attribute.local_name.view());
+            builder.append_ascii("=\""sv);
             builder.append(attribute.value);
-            builder.append("\" "sv);
+            builder.append_ascii("\" "sv);
             return IterationDecision::Continue;
         });
-        builder.append("} }"sv);
+        builder.append_ascii("} }"sv);
     }
 
     if (is_comment()) {
-        builder.append(" { data: '"sv);
+        builder.append_ascii(" { data: '"sv);
         builder.append(comment());
-        builder.append("' }"sv);
+        builder.append_ascii("' }"sv);
     }
 
     if (is_character()) {
-        builder.append(" { data: '"sv);
+        builder.append_ascii(" { data: '"sv);
         builder.append_code_point(code_point());
-        builder.append("' }"sv);
+        builder.append_ascii("' }"sv);
     }
 
     if (type() == HTMLToken::Type::Character) {
@@ -71,7 +72,7 @@ String HTMLToken::to_string() const
         builder.appendff("@{}:{}-{}:{}", m_start_position.line, m_start_position.column, m_end_position.line, m_end_position.column);
     }
 
-    return MUST(builder.to_string());
+    return builder.to_string();
 }
 
 void HTMLToken::normalize_attributes()

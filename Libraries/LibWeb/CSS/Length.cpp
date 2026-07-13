@@ -353,6 +353,24 @@ void Length::serialize(StringBuilder& builder, SerializationMode serialization_m
     builder.append(unit_name());
 }
 
+void Length::serialize(Utf16StringBuilder& builder, SerializationMode serialization_mode) const
+{
+    // https://drafts.csswg.org/cssom/#serialize-a-css-value
+    // -> <length>
+    // The <number> component serialized as per <number> followed by the unit in its canonical form as defined in its
+    // respective specification.
+
+    // FIXME: Manually skip this for px so we avoid rounding errors in absolute_length_to_px.
+    //        Maybe provide alternative functions that don't produce CSSPixels?
+    if (serialization_mode == SerializationMode::ResolvedValue && is_absolute() && m_unit != LengthUnit::Px) {
+        serialize_a_number(builder, absolute_length_to_px().to_double());
+        builder.append_ascii("px"sv);
+        return;
+    }
+    serialize_a_number(builder, m_value);
+    builder.append(unit_name());
+}
+
 String Length::to_string(SerializationMode serialization_mode) const
 {
     StringBuilder builder;

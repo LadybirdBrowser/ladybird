@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <AK/Utf16String.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
@@ -20,7 +21,7 @@
 namespace Web::Fetch {
 
 // https://fetch.spec.whatwg.org/#requestinfo
-using RequestInfo = Variant<GC::Ref<Request>, String>;
+using RequestInfo = Variant<GC::Ref<Request>, Utf16String>;
 
 // https://fetch.spec.whatwg.org/#request
 class Request final
@@ -46,16 +47,16 @@ public:
 
     // JS API functions
     [[nodiscard]] String method() const;
-    [[nodiscard]] String url() const;
+    [[nodiscard]] Utf16String url() const;
     [[nodiscard]] GC::Ref<Headers> headers() const;
     [[nodiscard]] Bindings::RequestDestination destination() const;
-    [[nodiscard]] String referrer() const;
+    [[nodiscard]] Utf16String referrer() const;
     [[nodiscard]] Bindings::ReferrerPolicy referrer_policy() const;
     [[nodiscard]] Bindings::RequestMode mode() const;
     [[nodiscard]] Bindings::RequestCredentials credentials() const;
     [[nodiscard]] Bindings::RequestCache cache() const;
     [[nodiscard]] Bindings::RequestRedirect redirect() const;
-    [[nodiscard]] String integrity() const;
+    [[nodiscard]] Utf16String integrity() const;
     [[nodiscard]] bool keepalive() const;
     [[nodiscard]] bool is_reload_navigation() const;
     [[nodiscard]] bool is_history_navigation() const;

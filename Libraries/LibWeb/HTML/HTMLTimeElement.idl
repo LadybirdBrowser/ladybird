@@ -4,6 +4,6 @@ interface HTMLTimeElement : HTMLElement {
 
     [HTMLConstructor] constructor();
 
-    [CEReactions, Reflect=datetime] attribute DOMString dateTime;
+    [CEReactions, Reflect=datetime] attribute Utf16DOMString dateTime;
 
 };

@@ -27,7 +27,7 @@ static WebIDL::ExceptionOr<CSSPerspectiveValueInternal> to_internal(JS::Realm& r
         [](GC::Ref<CSSNumericValue> const& numeric_value) -> WebIDL::ExceptionOr<CSSPerspectiveValueInternal> {
             // 1. If length does not match <length>, throw a TypeError.
             if (!numeric_value->type().matches_length({})) {
-                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSPerspective length component doesn't match <length>"sv };
+                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSPerspective length component doesn't match <length>"_utf16 };
             }
             return { GC::Ref { *numeric_value } };
         },
@@ -39,7 +39,7 @@ static WebIDL::ExceptionOr<CSSPerspectiveValueInternal> to_internal(JS::Realm& r
             // 2. If length does not represent a value that is an ASCII case-insensitive match for the keyword none,
             //    throw a TypeError.
             if (!rectified_length->value().equals_ignoring_ascii_case("none"_fly_string)) {
-                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSPerspective length component is a keyword other than `none`"sv };
+                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSPerspective length component is a keyword other than `none`"_utf16 };
             }
 
             return { rectified_length };

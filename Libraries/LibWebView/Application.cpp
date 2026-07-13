@@ -2277,7 +2277,10 @@ static ErrorOr<Optional<String>> storage_set_result_to_error_or_old_value(Storag
     if (result.has<StorageOperationError>())
         return Error::from_string_literal("Unable to store more than the storage quota");
 
-    return result.get<Optional<String>>();
+    auto old_value = result.get<Optional<Utf16String>>();
+    if (!old_value.has_value())
+        return Optional<String> {};
+    return old_value->to_utf8();
 }
 
 void Application::inspect_storage(DevTools::TabDescription const& description, Web::StorageAPI::StorageEndpointType storage_endpoint, OnStorageItemsReceived on_complete) const
@@ -2302,13 +2305,17 @@ ErrorOr<Optional<String>> Application::set_storage_item(DevTools::TabDescription
         return Error::from_string_literal("Unable to locate tab");
 
     if (storage_endpoint == Web::StorageAPI::StorageEndpointType::SessionStorage) {
-        auto result = view->set_session_storage_item(key, value);
+        auto key_utf16 = Utf16String::from_utf8(key);
+        auto value_utf16 = Utf16String::from_utf8(value);
+        auto result = view->set_session_storage_item(key_utf16, value_utf16);
         if (!result.has_value())
             return Error::from_string_literal("Unable to locate session storage");
         return TRY(storage_set_result_to_error_or_old_value(result.release_value()));
     }
 
-    auto old_value = TRY(storage_set_result_to_error_or_old_value(Application::storage_jar(view->is_private()).set_item(storage_endpoint, storage_key, key, value)));
+    auto key_utf16 = Utf16String::from_utf8(key);
+    auto value_utf16 = Utf16String::from_utf8(value);
+    auto old_value = TRY(storage_set_result_to_error_or_old_value(Application::storage_jar(view->is_private()).set_item(storage_endpoint, storage_key, key_utf16, value_utf16)));
     if (!old_value.has_value()) {
         view->notify_storage_changed({ storage_endpoint, storage_key, DevTools::DevToolsDelegate::StorageChange::Type::Added, key });
     } else if (*old_value != value) {
@@ -2325,15 +2332,16 @@ ErrorOr<Optional<String>> Application::remove_storage_item(DevTools::TabDescript
         return Error::from_string_literal("Unable to locate tab");
 
     if (storage_endpoint == Web::StorageAPI::StorageEndpointType::SessionStorage)
-        return view->remove_session_storage_item(key);
+        return view->remove_session_storage_item(Utf16String::from_utf8(key)).map([](auto const& old_value) { return old_value.to_utf8(); });
 
-    auto old_value = Application::storage_jar(view->is_private()).get_item(storage_endpoint, storage_key, key);
+    auto key_utf16 = Utf16String::from_utf8(key);
+    auto old_value = Application::storage_jar(view->is_private()).get_item(storage_endpoint, storage_key, key_utf16);
     if (!old_value.has_value())
         return Optional<String> {};
 
-    Application::storage_jar(view->is_private()).remove_item(storage_endpoint, storage_key, key);
+    Application::storage_jar(view->is_private()).remove_item(storage_endpoint, storage_key, key_utf16);
     view->notify_storage_changed({ storage_endpoint, storage_key, DevTools::DevToolsDelegate::StorageChange::Type::Deleted, key });
-    return old_value;
+    return old_value->to_utf8();
 }
 
 ErrorOr<void> Application::clear_storage(DevTools::TabDescription const& description, Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key) const

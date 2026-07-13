@@ -51,7 +51,7 @@ struct MatchingRule {
     // Helpers to deal with the fact that `rule` might be a CSSStyleRule or a CSSNestedDeclarations
     CSSStyleProperties const& declaration() const;
     SelectorList const& absolutized_selectors() const;
-    FlyString const& qualified_layer_name() const;
+    Utf16FlyString const& qualified_layer_name() const;
 
     void visit_edges(GC::Cell::Visitor&) const;
 };
@@ -103,7 +103,7 @@ struct RuleCache {
 
 struct RuleCaches {
     RuleCache main;
-    HashMap<FlyString, NonnullOwnPtr<RuleCache>> by_layer;
+    HashMap<Utf16FlyString, NonnullOwnPtr<RuleCache>> by_layer;
 
     void visit_edges(GC::Cell::Visitor&);
 };
@@ -111,7 +111,7 @@ struct RuleCaches {
 struct StyleRuleCache {
     StyleRuleCache();
 
-    Vector<FlyString> qualified_layer_names_in_order;
+    Vector<Utf16FlyString> qualified_layer_names_in_order;
     SelectorInsights selector_insights;
     Array<OwnPtr<RuleCache>, to_underlying(PseudoClass::__Count)> pseudo_class_rule_cache;
     RuleCaches author_rule_cache;

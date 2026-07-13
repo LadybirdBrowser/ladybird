@@ -442,6 +442,9 @@ def record_to_javascript_value(
     key_name = "record_key"
     value_name = "record_value"
     converted_value = to_javascript_value(value_type, value_name, includes, context)
+    converted_key = (
+        f"Utf16FlyString {{ {key_name} }}" if "Utf16" in key_type.name else f"Utf16FlyString::from_utf8({key_name})"
+    )
 
     return f"""[&]() -> JS::Value {{
         // 1. Let result be OrdinaryObjectCreate(%Object.prototype%).
@@ -453,7 +456,7 @@ def record_to_javascript_value(
             // 2. Let jsValue be value converted to a JavaScript value.
             // 3. Let created be ! CreateDataProperty(result, jsKey, jsValue).
             // 4. Assert: created is true.
-            MUST({object_name}->create_data_property(Utf16FlyString::from_utf8({key_name}), {converted_value}));
+            MUST({object_name}->create_data_property({converted_key}, {converted_value}));
         }}
 
         // 3. Return result.

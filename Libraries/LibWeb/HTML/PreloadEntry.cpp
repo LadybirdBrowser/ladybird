@@ -35,14 +35,14 @@ PreloadKey create_a_preload_key(Fetch::Infrastructure::Request const& request)
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#translate-a-preload-destination
-Variant<Empty, Optional<Fetch::Infrastructure::Request::Destination>> translate_a_preload_destination(Optional<Utf16String> const& destination)
+Variant<Empty, Optional<Fetch::Infrastructure::Request::Destination>> translate_a_preload_destination(Utf16View destination)
 {
     // 1. If destination is not "fetch", "font", "image", "script", "style", or "track", then return null.
-    if (!destination.has_value() || !destination->is_one_of("fetch"sv, "font"sv, "image"sv, "script"sv, "style"sv, "track"sv))
+    if (!destination.is_one_of("fetch"sv, "font"sv, "image"sv, "script"sv, "style"sv, "track"sv))
         return {};
 
     // 2. Return the result of translating destination.
-    return Fetch::Infrastructure::translate_potential_destination(*destination);
+    return Fetch::Infrastructure::translate_potential_destination(destination);
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#consume-a-preloaded-resource
@@ -52,7 +52,7 @@ bool consume_a_preloaded_resource(
     Optional<Fetch::Infrastructure::Request::Destination> destination,
     Fetch::Infrastructure::Request::Mode mode,
     Fetch::Infrastructure::Request::CredentialsMode credentials_mode,
-    String const& integrity_metadata,
+    Utf16View integrity_metadata,
     GC::Ref<GC::Function<void(GC::Ref<Fetch::Infrastructure::Response>)>> on_response_available)
 {
     // 1. Let key be a preload key whose URL is url, destination is destination, mode is mode, and credentials mode is

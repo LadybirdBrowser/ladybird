@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Utf16FlyString.h>
+#include <AK/Utf16String.h>
 #include <LibWeb/CSS/CounterStyleDefinition.h>
 #include <LibWeb/CSS/Enums.h>
 
@@ -36,7 +37,7 @@ public:
     Optional<Utf16FlyString> const& fallback() const { return m_fallback; }
     CounterStylePad const& pad() const { return m_pad; }
 
-    Optional<String> generate_an_initial_representation_for_the_counter_value(i64 value) const;
+    Optional<Utf16String> generate_an_initial_representation_for_the_counter_value(i64 value) const;
     bool uses_a_negative_sign() const;
     bool equals(CounterStyle const&) const;
 
@@ -84,6 +85,6 @@ private:
     CounterStylePad m_pad;
 };
 
-String generate_a_counter_representation(RefPtr<CounterStyle const> const& counter_style, StyleScope const& style_scope, i32 value);
+Utf16String generate_a_counter_representation(RefPtr<CounterStyle const> const& counter_style, StyleScope const& style_scope, i32 value);
 
 }

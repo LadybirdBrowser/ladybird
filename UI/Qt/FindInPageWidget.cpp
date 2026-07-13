@@ -127,7 +127,7 @@ void FindInPageWidget::update_chrome_style()
 
 void FindInPageWidget::find_text_changed()
 {
-    auto query = ak_string_from_qstring(m_find_text->text());
+    auto query = utf16_string_from_qstring(m_find_text->text());
     if (query.is_empty())
         set_dynamic_property_if_needed(*m_find_text, FIND_TEXT_NO_RESULTS_PROPERTY, false);
 

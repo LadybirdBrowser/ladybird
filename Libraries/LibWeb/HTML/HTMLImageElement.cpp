@@ -230,7 +230,7 @@ bool HTMLImageElement::is_presentational_hint(Utf16FlyString const& name) const
 void HTMLImageElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
 {
     Base::apply_presentational_hints(properties);
-    for_each_attribute([&](auto& name, auto& value) {
+    for_each_attribute([&](Utf16FlyString const& name, Utf16View value) {
         if (name == HTML::AttributeNames::hspace) {
             if (auto parsed_value = parse_dimension_value(value)) {
                 properties.append({ .property_id = CSS::PropertyID::MarginLeft, .value = *parsed_value });
@@ -262,7 +262,7 @@ void HTMLImageElement::apply_presentational_hints(Vector<CSS::StyleProperty>& pr
 void HTMLImageElement::form_associated_element_attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const&, Optional<Utf16String> const& value, Optional<Utf16FlyString> const&)
 {
     if (name == HTML::AttributeNames::crossorigin) {
-        m_cors_setting = cors_setting_attribute_from_keyword(value);
+        m_cors_setting = cors_setting_attribute_from_keyword(value.map([](auto const& value) { return value.utf16_view(); }));
     }
 
     if (name.is_one_of(HTML::AttributeNames::src, HTML::AttributeNames::srcset)) {
@@ -276,7 +276,7 @@ void HTMLImageElement::form_associated_element_attribute_changed(Utf16FlyString 
     }
 
     if (name == HTML::AttributeNames::decoding) {
-        if (value.has_value() && value->equals_ignoring_ascii_case("sync"sv))
+        if (value.has_value() && value->utf16_view().equals_ignoring_ascii_case(u"sync"sv))
             dbgln("FIXME: HTMLImageElement.decoding = 'sync' is not implemented yet");
     }
 }
@@ -460,10 +460,10 @@ bool HTMLImageElement::complete() const
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-currentsrc
-String HTMLImageElement::current_src() const
+Utf16String HTMLImageElement::current_src() const
 {
     // The currentSrc IDL attribute must return the img element's current request's current URL.
-    return m_current_request->current_url().to_utf8();
+    return m_current_request->current_url();
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-decode
@@ -736,10 +736,10 @@ void HTMLImageElement::update_the_image_data_impl(bool restart_animations, bool 
                     restart_the_animation();
 
                 // 2. Set the current request's current URL to urlString.
-                m_current_request->set_current_url(document().realm(), Utf16String::from_utf8(*url_string));
+                m_current_request->set_current_url(document().realm(), *url_string);
 
                 // 3. If maybe omit events is not set or previousURL is not equal to urlString, then fire an event named load at the img element.
-                if (!maybe_omit_events || previous_url != Utf16String::from_utf8(*url_string))
+                if (!maybe_omit_events || previous_url != *url_string)
                     dispatch_event(DOM::Event::create(realm(), HTML::EventNames::load));
             });
 
@@ -856,14 +856,12 @@ after_step_7:
         }
 
         // 14. If the pending request is not null and urlString is the same as the pending request's current URL, then return.
-        auto utf16_url_string = Utf16String::from_utf8(*url_string);
-
-        if (m_pending_request && utf16_url_string == m_pending_request->current_url())
+        if (m_pending_request && *url_string == m_pending_request->current_url())
             return;
 
         // 15. If urlString is the same as the current request's current URL and the current request's state is
         //     partially available:
-        if (utf16_url_string == m_current_request->current_url() && m_current_request->state() == ImageRequest::State::PartiallyAvailable) {
+        if (*url_string == m_current_request->current_url() && m_current_request->state() == ImageRequest::State::PartiallyAvailable) {
             // 1. Abort the image request for the pending request.
             abort_the_image_request(realm(), m_pending_request);
 
@@ -887,7 +885,7 @@ after_step_7:
 
         // 17. Set image request to a new image request whose current URL is urlString.
         auto image_request = ImageRequest::create(document().realm(), document().page());
-        image_request->set_current_url(document().realm(), move(utf16_url_string));
+        image_request->set_current_url(document().realm(), *url_string);
         image_request->set_current_pixel_density(pixel_density.value_or(1.0f));
 
         // 18. If the current request's state is unavailable or broken, then set the current request to image request.
@@ -908,7 +906,7 @@ after_step_7:
         if (delay_load_event)
             m_load_event_delayer.emplace(document());
 
-        add_callbacks_to_image_request(*image_request, maybe_omit_events, *url_string, previous_url);
+        add_callbacks_to_image_request(*image_request, maybe_omit_events, url_string->utf16_view(), previous_url.utf16_view());
 
         // AD-HOC: If the image request is already available or fetching, no need to start another fetch.
         if (image_request->is_available() || image_request->is_fetching())
@@ -930,10 +928,10 @@ after_step_7:
             request->set_initiator(Fetch::Infrastructure::Request::Initiator::ImageSet);
 
         // 22. Set request's referrer policy to the current state of the element's referrerpolicy attribute.
-        request->set_referrer_policy(ReferrerPolicy::from_string(get_attribute_value(HTML::AttributeNames::referrerpolicy)).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString));
+        request->set_referrer_policy(ReferrerPolicy::from_string(get_attribute_value_view(HTML::AttributeNames::referrerpolicy).value_or({})).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString));
 
         // 23. Set request's priority to the current state of the element's fetchpriority attribute.
-        request->set_priority(Fetch::Infrastructure::request_priority_from_string(get_attribute_value(HTML::AttributeNames::fetchpriority)).value_or(Fetch::Infrastructure::Request::Priority::Auto));
+        request->set_priority(Fetch::Infrastructure::request_priority_from_string(get_attribute_value_view(HTML::AttributeNames::fetchpriority).value_or({})).value_or(Fetch::Infrastructure::Request::Priority::Auto));
 
         // 25. If the will lazy load element steps given the img return true, then:
         if (will_lazy_load_element()) {
@@ -953,12 +951,14 @@ after_step_7:
     }));
 }
 
-void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> image_request, bool maybe_omit_events, String const& url_string, Utf16String const& previous_url)
+void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> image_request, bool maybe_omit_events, Utf16View url_string, Utf16View previous_url)
 {
-    auto utf16_url_string = Utf16String::from_utf8(url_string);
+    auto captured_url_string = Utf16String::from_utf16(url_string);
+    auto captured_previous_url = Utf16String::from_utf16(previous_url);
+
     image_request->add_callbacks(
-        [this, image_request, maybe_omit_events, url_string, utf16_url_string, previous_url]() {
-            batching_dispatcher().enqueue(GC::create_function(realm().heap(), [this, image_request, maybe_omit_events, url_string, utf16_url_string, previous_url] {
+        [this, image_request, maybe_omit_events, url_string = captured_url_string, previous_url = captured_previous_url]() {
+            batching_dispatcher().enqueue(GC::create_function(realm().heap(), [this, image_request, maybe_omit_events, url_string, previous_url] {
                 // AD-HOC: Bail out if the document became inactive (e.g. iframe removed or navigated)
                 //         between when the fetch completed and when this batched callback runs.
                 if (!document().is_fully_active()) {
@@ -1008,13 +1008,13 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
                 set_needs_layout_update_or_repaint_after_image_data_change(*this, DOM::SetNeedsLayoutReason::HTMLImageElementUpdateTheImageData);
 
                 // 4. If maybe omit events is not set or previousURL is not equal to urlString, then fire an event named load at the img element.
-                if (!maybe_omit_events || previous_url != utf16_url_string)
+                if (!maybe_omit_events || previous_url != url_string)
                     dispatch_event(DOM::Event::create(realm(), HTML::EventNames::load));
 
                 m_load_event_delayer.clear();
             }));
         },
-        [this, image_request, maybe_omit_events, utf16_url_string, previous_url]() {
+        [this, image_request, maybe_omit_events, url_string = captured_url_string, previous_url = captured_previous_url]() {
             // AD-HOC: Bail out if the document became inactive (e.g. iframe removed or navigated)
             //         between when the fetch completed and when this failure callback runs.
             if (!document().is_fully_active()) {
@@ -1049,7 +1049,7 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
             // and then, if maybe omit events is not set or previousURL is not equal to urlString,
             // queue an element task on the DOM manipulation task source given the img element
             // to fire an event named error at the img element.
-            if (!maybe_omit_events || previous_url != utf16_url_string)
+            if (!maybe_omit_events || previous_url != url_string)
                 dispatch_event(DOM::Event::create(realm(), HTML::EventNames::error));
 
             m_load_event_delayer.clear();
@@ -1125,7 +1125,7 @@ void HTMLImageElement::react_to_changes_in_the_environment()
 
     // 12. ⌛ Let image request be a new image request whose current URL is urlString
     auto image_request = ImageRequest::create(document().realm(), document().page());
-    image_request->set_current_url(document().realm(), Utf16String::from_utf8(*url_string));
+    image_request->set_current_url(document().realm(), *url_string);
     image_request->set_current_pixel_density(pixel_density.value_or(1.0f));
 
     // 13. ⌛ Set the element's pending request to image request.
@@ -1186,7 +1186,7 @@ void HTMLImageElement::react_to_changes_in_the_environment()
         request->set_initiator(Fetch::Infrastructure::Request::Initiator::ImageSet);
 
         // 3. Set request's referrer policy to the current state of the element's referrerpolicy attribute.
-        request->set_referrer_policy(ReferrerPolicy::from_string(get_attribute_value(HTML::AttributeNames::referrerpolicy)).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString));
+        request->set_referrer_policy(ReferrerPolicy::from_string(get_attribute_value_view(HTML::AttributeNames::referrerpolicy).value_or({})).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString));
 
         // FIXME: 4. Set request's priority to the current state of the element's fetchpriority attribute.
 
@@ -1354,7 +1354,7 @@ static void update_the_source_set(DOM::Element& element)
             continue;
 
         // 4. Parse child's srcset attribute and let source set be the returned source set.
-        auto source_set = parse_a_srcset_attribute(child->get_attribute_value(HTML::AttributeNames::srcset));
+        auto source_set = parse_a_srcset_attribute(child->get_attribute_value_view(HTML::AttributeNames::srcset).value_or({}));
 
         // 5. If source set has zero image sources, continue to the next child.
         if (source_set.is_empty())
@@ -1363,18 +1363,18 @@ static void update_the_source_set(DOM::Element& element)
         // 6. If child has a media attribute, and its value does not match the environment, continue to the next child.
         if (child->has_attribute(HTML::AttributeNames::media)) {
             auto media_query = parse_media_query(CSS::Parser::ParsingParams { element.document() },
-                child->get_attribute_value(HTML::AttributeNames::media));
+                child->get_attribute_value_view(HTML::AttributeNames::media).value_or({}));
             if (!media_query || !media_query->evaluate(element.document())) {
                 continue;
             }
         }
 
         // 7. Parse child's sizes attribute with img, and let source set's source size be the returned value.
-        source_set.m_source_size = parse_a_sizes_attribute(element, child->get_attribute_value(HTML::AttributeNames::sizes), img);
+        source_set.m_source_size = parse_a_sizes_attribute(element, child->get_attribute_value_view(HTML::AttributeNames::sizes).value_or({}), img);
 
         // 8. If child has a type attribute, and its value is an unknown or unsupported MIME type, continue to the next child.
         if (child->has_attribute(HTML::AttributeNames::type)) {
-            auto mime_type = child->get_attribute_value(HTML::AttributeNames::type);
+            auto mime_type = child->get_attribute_value_view(HTML::AttributeNames::type).value_or({});
             if (!is_supported_image_type(mime_type))
                 continue;
         }
@@ -1426,11 +1426,11 @@ bool HTMLImageElement::allows_auto_sizes() const
     // - its sizes attribute's value is "auto" (ASCII case-insensitive), or starts with "auto," (ASCII case-insensitive).
     if (lazy_loading_attribute() != LazyLoading::Lazy)
         return false;
-    auto sizes = attribute(HTML::AttributeNames::sizes);
+    auto sizes = get_attribute_value_view(HTML::AttributeNames::sizes);
     if (!sizes.has_value())
         return false;
-    return sizes->equals_ignoring_ascii_case("auto"sv)
-        || (sizes->length_in_code_units() >= 5 && sizes->substring_view(0, 5).equals_ignoring_ascii_case("auto,"sv));
+    return sizes->equals_ignoring_ascii_case(u"auto"sv)
+        || (sizes->length_in_code_units() >= 5 && sizes->substring_view(0, 5).equals_ignoring_ascii_case(u"auto,"sv));
 }
 
 GC::Ptr<DecodedImageData> HTMLImageElement::decoded_image_data() const

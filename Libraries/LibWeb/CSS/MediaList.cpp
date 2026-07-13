@@ -44,27 +44,9 @@ void MediaList::visit_edges(Visitor& visitor)
 }
 
 // https://www.w3.org/TR/cssom-1/#dom-medialist-mediatext
-String MediaList::media_text() const
+Utf16String MediaList::media_text() const
 {
     return serialize_a_media_query_list(m_media);
-}
-
-// https://www.w3.org/TR/cssom-1/#dom-medialist-mediatext
-void MediaList::set_media_text(StringView text)
-{
-    auto previous_sheet_effects = m_associated_style_sheet
-        ? Optional<ShadowRootStylesheetEffects> { determine_shadow_root_stylesheet_effects(as<CSS::CSSStyleSheet>(*m_associated_style_sheet)) }
-        : Optional<ShadowRootStylesheetEffects> {};
-
-    ScopeGuard guard = [&] {
-        if (m_associated_style_sheet)
-            as<CSS::CSSStyleSheet>(*m_associated_style_sheet).invalidate_owners(DOM::StyleInvalidationReason::MediaListSetMediaText, previous_sheet_effects.has_value() ? &previous_sheet_effects.value() : nullptr);
-    };
-
-    m_media.clear();
-    if (text.is_empty())
-        return;
-    m_media = parse_media_query_list(Parser::ParsingParams { realm() }, text);
 }
 
 void MediaList::set_media_text(Utf16View text)
@@ -85,7 +67,7 @@ void MediaList::set_media_text(Utf16View text)
 }
 
 // https://www.w3.org/TR/cssom-1/#dom-medialist-item
-Optional<String> MediaList::item(u32 index) const
+Optional<Utf16String> MediaList::item(u32 index) const
 {
     if (index >= m_media.size())
         return {};
@@ -94,7 +76,7 @@ Optional<String> MediaList::item(u32 index) const
 }
 
 // https://www.w3.org/TR/cssom-1/#dom-medialist-appendmedium
-void MediaList::append_medium(StringView medium)
+void MediaList::append_medium(Utf16View medium)
 {
     // 1. Let m be the result of parsing the given value.
     auto m = parse_media_query(Parser::ParsingParams { realm() }, medium);
@@ -122,7 +104,7 @@ void MediaList::append_medium(StringView medium)
 }
 
 // https://www.w3.org/TR/cssom-1/#dom-medialist-deletemedium
-WebIDL::ExceptionOr<void> MediaList::delete_medium(StringView medium)
+WebIDL::ExceptionOr<void> MediaList::delete_medium(Utf16View medium)
 {
     // 1. Let m be the result of parsing the given value.
     auto m = parse_media_query(Parser::ParsingParams { realm() }, medium);
@@ -171,9 +153,10 @@ bool MediaList::matches() const
 
 Optional<JS::Value> MediaList::item_value(size_t index) const
 {
-    if (index >= m_media.size())
+    auto item = this->item(index);
+    if (!item.has_value())
         return {};
-    return JS::PrimitiveString::create(vm(), Utf16String::from_utf8(m_media[index]->to_string()));
+    return JS::PrimitiveString::create(vm(), item.release_value());
 }
 
 void MediaList::dump(StringBuilder& builder, int indent_levels) const

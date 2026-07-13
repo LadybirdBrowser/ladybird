@@ -6,12 +6,12 @@ interface FormData {
     constructor(optional HTMLFormElement form, optional HTMLElement? submitter = null);
 
     undefined append(Utf16USVString name, Utf16USVString value);
-    undefined append(Utf16USVString name, Blob blobValue, optional USVString filename);
+    undefined append(Utf16USVString name, Blob blobValue, optional Utf16USVString filename);
     undefined delete(Utf16USVString name);
     FormDataEntryValue? get(Utf16USVString name);
     sequence<FormDataEntryValue> getAll(Utf16USVString name);
     boolean has(Utf16USVString name);
     undefined set(Utf16USVString name, Utf16USVString value);
-    undefined set(Utf16USVString name, Blob blobValue, optional USVString filename);
+    undefined set(Utf16USVString name, Blob blobValue, optional Utf16USVString filename);
     iterable<Utf16USVString, FormDataEntryValue>;
 };

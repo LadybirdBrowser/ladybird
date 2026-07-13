@@ -265,7 +265,7 @@ NumericRangesByValueType property_accepted_ranges_by_value_type(PropertyID);
 bool property_accepts_keyword(PropertyID, Keyword);
 Optional<Keyword> resolve_legacy_value_alias(PropertyID, Keyword);
 Optional<ValueType> property_resolves_percentages_relative_to(PropertyID);
-Vector<StringView> property_custom_ident_blacklist(PropertyID);
+Vector<Utf16View> property_custom_ident_blacklist(PropertyID);
 
 // These perform range-checking, but are also safe to call with properties that don't accept that type. (They'll just return false.)
 bool property_accepts_angle(PropertyID, Angle const&);
@@ -962,7 +962,7 @@ Optional<ValueType> property_resolves_percentages_relative_to(PropertyID propert
     }
 }
 
-Vector<StringView> property_custom_ident_blacklist(PropertyID property_id)
+Vector<Utf16View> property_custom_ident_blacklist(PropertyID property_id)
 {
     switch (property_id) {
 """)
@@ -986,7 +986,7 @@ Vector<StringView> property_custom_ident_blacklist(PropertyID property_id)
 
             out.write(f"""
     case PropertyID::{title_casify(name)}:
-        return Vector {{ """)
+        return Vector<Utf16View> {{ """)
             for keyword in blacklisted_keywords:
                 out.write(f'"{keyword}"sv, ')
             out.write("};\n")

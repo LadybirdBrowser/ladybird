@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
+#include <AK/Utf16String.h>
 #include <LibWeb/Bindings/ErrorEvent.h>
 #include <LibWeb/DOM/Event.h>
 
@@ -18,8 +19,8 @@ class ErrorEvent final : public DOM::Event {
     GC_DECLARE_ALLOCATOR(ErrorEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<ErrorEvent> create(JS::Realm&, FlyString const& event_name, Bindings::ErrorEventInit const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<ErrorEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::ErrorEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<ErrorEvent> create(JS::Realm&, Utf16FlyString const& event_name, Bindings::ErrorEventInit const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<ErrorEvent>> construct_impl(JS::Realm&, Utf16FlyString const& event_name, Bindings::ErrorEventInit const& event_init);
 
     virtual ~ErrorEvent() override;
 
@@ -39,7 +40,7 @@ public:
     JS::Value error() const { return m_error; }
 
 private:
-    ErrorEvent(JS::Realm&, FlyString const& event_name, Bindings::ErrorEventInit const& event_init);
+    ErrorEvent(JS::Realm&, Utf16FlyString const& event_name, Bindings::ErrorEventInit const& event_init);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

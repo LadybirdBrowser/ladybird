@@ -1,7 +1,7 @@
 // https://drafts.csswg.org/css-animations-1/#animationevent
 [Exposed=Window]
 interface AnimationEvent : Event {
-    constructor(CSSOMString type, optional AnimationEventInit animationEventInitDict = {});
+    constructor([Utf16FlyString] Utf16CSSOMString type, optional AnimationEventInit animationEventInitDict = {});
     readonly attribute Utf16CSSOMString animationName;
     readonly attribute double elapsedTime;
     readonly attribute Utf16CSSOMString pseudoElement;

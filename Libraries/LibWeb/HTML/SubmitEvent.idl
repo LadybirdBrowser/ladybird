@@ -1,7 +1,7 @@
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#submitevent
 [Exposed=Window]
 interface SubmitEvent : Event {
-    constructor(DOMString type, optional SubmitEventInit eventInitDict = {});
+    constructor([Utf16FlyString] Utf16DOMString type, optional SubmitEventInit eventInitDict = {});
 
     readonly attribute HTMLElement? submitter;
 };

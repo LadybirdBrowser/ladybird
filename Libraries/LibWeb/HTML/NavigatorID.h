@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16FlyString.h>
+#include <AK/Utf16String.h>
 
 namespace Web::HTML {
 
@@ -17,31 +18,31 @@ public:
     // implementers are strongly urged to include as little information in this API as possible.
 
     // https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-appcodename
-    String app_code_name() const { return "Mozilla"_string; }
+    Utf16FlyString app_code_name() const { return "Mozilla"_utf16_fly_string; }
 
     // https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-appcodename
-    String app_name() const { return "Netscape"_string; }
+    Utf16FlyString app_name() const { return "Netscape"_utf16_fly_string; }
 
     // https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-appversion
-    String app_version() const;
+    Utf16String app_version() const;
 
     // https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-platform
-    String platform() const;
+    Utf16String platform() const;
 
     // https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-product
-    String product() const { return "Gecko"_string; }
+    Utf16FlyString product() const { return "Gecko"_utf16_fly_string; }
 
     // https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-productsub
-    String product_sub() const;
+    Utf16FlyString product_sub() const;
 
     // https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-useragent
-    String user_agent() const;
+    Utf16String user_agent() const;
 
     // https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-vendor
-    String vendor() const;
+    Utf16FlyString vendor() const;
 
     // https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-vendorsub
-    String vendor_sub() const { return String {}; }
+    Utf16FlyString vendor_sub() const { return ""_utf16_fly_string; }
 
     // FIXME: If the navigator compatibility mode is Gecko, then the user agent must also support the following partial interface:
     //       bool taint_enabled()

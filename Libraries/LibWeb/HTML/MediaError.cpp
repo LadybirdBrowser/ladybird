@@ -13,7 +13,7 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(MediaError);
 
-MediaError::MediaError(JS::Realm& realm, Code code, String message)
+MediaError::MediaError(JS::Realm& realm, Code code, Utf16String message)
     : Base(realm)
     , m_code(code)
     , m_message(move(message))

@@ -236,7 +236,7 @@ void FormattingContext::dimension_list_item_marker(ListItemMarkerBox const& mark
     auto const& marker_font = marker.first_available_font();
     if (auto marker_text = marker.text(); marker_text.has_value()) {
         // FIXME: Use per-code-point fonts to measure text.
-        auto text_width = marker_font.width(Utf16String::from_utf8(marker_text.value()));
+        auto text_width = marker_font.width(marker_text.value());
         marker_state.set_content_width(CSSPixels::nearest_value_for(text_width));
     } else {
         marker_state.set_content_width(marker_size);

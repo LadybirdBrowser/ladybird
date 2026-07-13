@@ -44,7 +44,7 @@ void CSSGroupingRule::clear_caches()
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssgroupingrule-insertrule
-WebIDL::ExceptionOr<u32> CSSGroupingRule::insert_rule(StringView rule, u32 index)
+WebIDL::ExceptionOr<u32> CSSGroupingRule::insert_rule(Utf16View rule, u32 index)
 {
     // The insertRule(rule, index) method must return the result of invoking insert a CSS rule rule into the child CSS
     // rules at index, with the nested flag set.

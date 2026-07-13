@@ -343,6 +343,74 @@ void Utf16StringBuilder::append_repeated(Utf16View const& view, size_t count)
         append(view);
 }
 
+void Utf16StringBuilder::append_escaped_for_json(Utf16View const& string)
+{
+    MUST(try_append_escaped_for_json(string));
+}
+
+void Utf16StringBuilder::append_escaped_for_json(StringView string)
+{
+    MUST(try_append_escaped_for_json(string));
+}
+
+ErrorOr<void> Utf16StringBuilder::try_append(char code_unit)
+{
+    append_ascii(code_unit);
+    return {};
+}
+
+ErrorOr<void> Utf16StringBuilder::try_append(StringView string)
+{
+    if (string.is_ascii()) {
+        append_ascii(string);
+        return {};
+    }
+
+    auto utf16_string = TRY(Utf16String::try_from_utf8(string));
+    append(utf16_string.utf16_view());
+    return {};
+}
+
+ErrorOr<void> Utf16StringBuilder::try_append(Utf16View const& view)
+{
+    append(view);
+    return {};
+}
+
+ErrorOr<void> Utf16StringBuilder::try_append_escaped_for_json(StringView string)
+{
+    return try_append_escaped_for_json(Utf16View { string });
+}
+
+ErrorOr<void> Utf16StringBuilder::try_append_escaped_for_json(Utf16View const& string)
+{
+    for (auto code_point : string) {
+        switch (code_point) {
+        case '\b':
+            append_ascii("\\b"sv);
+            break;
+        case '\n':
+            append_ascii("\\n"sv);
+            break;
+        case '\t':
+            append_ascii("\\t"sv);
+            break;
+        case '"':
+            append_ascii("\\\""sv);
+            break;
+        case '\\':
+            append_ascii("\\\\"sv);
+            break;
+        default:
+            if (code_point <= 0x1f)
+                TRY(try_appendff("\\u{:04x}", code_point));
+            else
+                append_code_point(code_point);
+        }
+    }
+    return {};
+}
+
 Utf16String Utf16StringBuilder::to_string()
 {
     return Utf16String::from_string_builder({}, *this);

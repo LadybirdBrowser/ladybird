@@ -21,6 +21,15 @@ constexpr Array supported_hash_functions {
     "sha512"sv,
 };
 
+static bool is_supported_hash_function(Utf16View algorithm)
+{
+    for (auto supported_hash_function : supported_hash_functions) {
+        if (algorithm == supported_hash_function)
+            return true;
+    }
+    return false;
+}
+
 // https://w3c.github.io/webappsec-subresource-integrity/#getprioritizedhashfunction
 static StringView get_prioritized_hash_function(StringView a, StringView b)
 {
@@ -67,24 +76,24 @@ ErrorOr<String> apply_algorithm_to_bytes(StringView algorithm, ByteBuffer const&
 }
 
 // https://w3c.github.io/webappsec-subresource-integrity/#parse-metadata
-ErrorOr<Vector<Metadata>> parse_metadata(StringView metadata)
+ErrorOr<Vector<Metadata>> parse_metadata(Utf16View metadata)
 {
     // 1. Let result be the empty set.
     Vector<Metadata> result;
 
     // 2. For each item returned by splitting metadata on spaces:
-    TRY(metadata.for_each_split_view(' ', SplitBehavior::Nothing, [&](StringView item) -> ErrorOr<void> {
+    for (auto item : metadata.split_view(u' ', SplitBehavior::Nothing)) {
         // 1. Let hash-with-opt-token-list be the result of splitting item on U+003F (?).
-        auto hash_with_opt_token_list = item.split_view('?');
+        auto hash_with_opt_token_list = item.split_view(u'?', SplitBehavior::Nothing);
 
         // 2. Let hash-expression be hash-with-opt-token-list[0].
         auto hash_expression = hash_with_opt_token_list[0];
 
         // 3. Let base64-value be the empty string.
-        StringView base64_value;
+        Utf16View base64_value;
 
         // 4. Let hash-expr-token-list be the result of splitting hash-expression on U+002D (-).
-        auto hash_expr_token_list = hash_expression.split_view('-');
+        auto hash_expr_token_list = hash_expression.split_view(u'-', SplitBehavior::Nothing);
 
         // 5. Let algorithm be hash-expr-token-list[0].
         auto algorithm = hash_expr_token_list[0];
@@ -94,23 +103,21 @@ ErrorOr<Vector<Metadata>> parse_metadata(StringView metadata)
             base64_value = hash_expr_token_list[1];
 
         // 7. If algorithm is not a hash function recognized by the user agent, continue.
-        if (!supported_hash_functions.contains_slow(algorithm))
-            return {};
+        if (!is_supported_hash_function(algorithm))
+            continue;
 
         // 8. Let metadata be the ordered map «["alg" → algorithm, "val" → base64-value]».
         //    Note: Since no options are defined (see the §3.1 Integrity metadata), a corresponding entry is not set in metadata.
         //    If options are defined in a future version, hash-with-opt-token-list[1] can be utilized as options.
         auto metadata = Metadata {
-            .algorithm = TRY(String::from_utf8(algorithm)),
-            .base64_value = TRY(String::from_utf8(base64_value)),
+            .algorithm = TRY(algorithm.to_utf8()),
+            .base64_value = TRY(base64_value.to_utf8()),
             .options = {},
         };
 
         // 9. Append metadata to result.
         TRY(result.try_append(move(metadata)));
-
-        return {};
-    }));
+    }
 
     // 3. Return result.
     return result;
@@ -156,7 +163,7 @@ ErrorOr<Vector<Metadata>> get_strongest_metadata_from_set(Vector<Metadata> const
 }
 
 // https://w3c.github.io/webappsec-subresource-integrity/#does-response-match-metadatalist
-ErrorOr<bool> do_bytes_match_metadata_list(ByteBuffer const& bytes, StringView metadata_list)
+ErrorOr<bool> do_bytes_match_metadata_list(ByteBuffer const& bytes, Utf16View metadata_list)
 {
     // 1. Let parsedMetadata be the result of parsing metadataList.
     auto parsed_metadata = TRY(parse_metadata(metadata_list));

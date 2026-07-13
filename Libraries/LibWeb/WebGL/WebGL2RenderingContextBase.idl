@@ -317,7 +317,7 @@ interface mixin WebGL2RenderingContextBase {
     undefined compressedTexSubImage3D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, [AllowShared] ArrayBufferView srcData, optional unsigned long long srcOffset = 0, optional GLuint srcLengthOverride = 0);
 
     // Programs and shaders
-    [FIXME] GLint getFragDataLocation(WebGLProgram program, DOMString name); // [WebGLHandlesContextLoss]
+    [FIXME] GLint getFragDataLocation(WebGLProgram program, Utf16DOMString name); // [WebGLHandlesContextLoss]
 
     // Uniforms
     undefined uniform1ui(WebGLUniformLocation? location, GLuint v0);
@@ -393,7 +393,7 @@ interface mixin WebGL2RenderingContextBase {
     undefined bindTransformFeedback(GLenum target, WebGLTransformFeedback? tf);
     undefined beginTransformFeedback(GLenum primitiveMode);
     undefined endTransformFeedback();
-    undefined transformFeedbackVaryings(WebGLProgram program, sequence<DOMString> varyings, GLenum bufferMode);
+    undefined transformFeedbackVaryings(WebGLProgram program, sequence<Utf16DOMString> varyings, GLenum bufferMode);
     [FIXME] WebGLActiveInfo? getTransformFeedbackVarying(WebGLProgram program, GLuint index);
     undefined pauseTransformFeedback();
     undefined resumeTransformFeedback();
@@ -402,11 +402,11 @@ interface mixin WebGL2RenderingContextBase {
     undefined bindBufferBase(GLenum target, GLuint index, WebGLBuffer? buffer);
     undefined bindBufferRange(GLenum target, GLuint index, WebGLBuffer? buffer, GLintptr offset, GLsizeiptr size);
     [FIXME] any getIndexedParameter(GLenum target, GLuint index);
-    sequence<GLuint>? getUniformIndices(WebGLProgram program, sequence<DOMString> uniformNames);
+    sequence<GLuint>? getUniformIndices(WebGLProgram program, sequence<Utf16DOMString> uniformNames);
     any getActiveUniforms(WebGLProgram program, sequence<GLuint> uniformIndices, GLenum pname);
-    GLuint getUniformBlockIndex(WebGLProgram program, DOMString uniformBlockName);
+    GLuint getUniformBlockIndex(WebGLProgram program, Utf16DOMString uniformBlockName);
     any getActiveUniformBlockParameter(WebGLProgram program, GLuint uniformBlockIndex, GLenum pname);
-    DOMString? getActiveUniformBlockName(WebGLProgram program, GLuint uniformBlockIndex);
+    Utf16DOMString? getActiveUniformBlockName(WebGLProgram program, GLuint uniformBlockIndex);
     undefined uniformBlockBinding(WebGLProgram program, GLuint uniformBlockIndex, GLuint uniformBlockBinding);
 
     // Vertex Array Objects

@@ -1,5 +1,5 @@
 // https://drafts.csswg.org/css-animations-2/#cssanimation
 [Exposed=Window]
 interface CSSAnimation : Animation {
-    readonly attribute CSSOMString animationName;
+    readonly attribute Utf16CSSOMString animationName;
 };

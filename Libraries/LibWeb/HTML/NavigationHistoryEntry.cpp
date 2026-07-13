@@ -16,6 +16,7 @@
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/Infra/SerializedURL.h>
 
 namespace Web::HTML {
 
@@ -41,7 +42,7 @@ void NavigationHistoryEntry::initialize(JS::Realm& realm)
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigationhistoryentry-url
-Optional<String> NavigationHistoryEntry::url() const
+Optional<Utf16String> NavigationHistoryEntry::url() const
 {
     // The url getter steps are:
     // 1. Let document be this's relevant global object's associated Document.
@@ -49,7 +50,7 @@ Optional<String> NavigationHistoryEntry::url() const
 
     // 2. If document is not fully active, then return the empty string.
     if (!document.is_fully_active())
-        return String {};
+        return Utf16String {};
 
     // 3. Let she be this's session history entry.
     auto const& she = this->m_session_history_entry;
@@ -62,11 +63,11 @@ Optional<String> NavigationHistoryEntry::url() const
         return OptionalNone {};
 
     // 5. Return she's URL, serialized.
-    return she->url().serialize();
+    return utf16_string_from_url_ascii(she->url().serialize());
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-navigationhistoryentry-key
-String NavigationHistoryEntry::key() const
+Utf16String NavigationHistoryEntry::key() const
 {
     // The key of a NavigationHistoryEntry nhe is given by the return value of the following algorithm:
     // 1. If nhe's relevant global object's associated Document is not fully active, then return the empty string.
@@ -79,7 +80,7 @@ String NavigationHistoryEntry::key() const
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-navigationhistoryentry-id
-String NavigationHistoryEntry::id() const
+Utf16String NavigationHistoryEntry::id() const
 {
     // The ID of a NavigationHistoryEntry nhe is given by the return value of the following algorithm:
     // 1. If nhe's relevant global object's associated Document is not fully active, then return the empty string.

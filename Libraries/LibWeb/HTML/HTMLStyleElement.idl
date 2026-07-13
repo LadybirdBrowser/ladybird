@@ -4,11 +4,11 @@ interface HTMLStyleElement : HTMLElement {
     [HTMLConstructor] constructor();
 
     attribute boolean disabled;
-    [CEReactions, Reflect] attribute DOMString media;
+    [CEReactions, Reflect] attribute Utf16DOMString media;
     [FIXME, SameObject, PutForwards=value] readonly attribute DOMTokenList blocking;
 
     // Obsolete
-    [Reflect] attribute DOMString type;
+    [Reflect] attribute Utf16DOMString type;
 };
 
 HTMLStyleElement includes LinkStyle;

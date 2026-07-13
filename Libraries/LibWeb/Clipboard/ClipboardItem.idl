@@ -1,17 +1,17 @@
-typedef Promise<(DOMString or Blob)> ClipboardItemData;
+typedef Promise<(Utf16DOMString or Blob)> ClipboardItemData;
 
 // https://w3c.github.io/clipboard-apis/#clipboard-item-interface
 [SecureContext, Exposed=Window]
 interface ClipboardItem {
-    constructor(record<DOMString, ClipboardItemData> items,
+    constructor(record<Utf16DOMString, ClipboardItemData> items,
               optional ClipboardItemOptions options = {});
 
     readonly attribute PresentationStyle presentationStyle;
-    readonly attribute FrozenArray<DOMString> types;
+    readonly attribute FrozenArray<Utf16DOMString> types;
 
-    Promise<Blob> getType(DOMString type);
+    Promise<Blob> getType(Utf16DOMString type);
 
-    static boolean supports(DOMString type);
+    static boolean supports(Utf16DOMString type);
 };
 
 enum PresentationStyle { "unspecified", "inline", "attachment" };

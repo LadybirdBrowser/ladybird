@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibGC/ConservativeHashMap.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/Root.h>
@@ -24,7 +24,7 @@ struct BlobURLEntry {
 };
 
 // https://w3c.github.io/FileAPI/#BlobURLStore
-using BlobURLStore = GC::ConservativeHashMap<String, BlobURLEntry>;
+using BlobURLStore = GC::ConservativeHashMap<Utf16String, BlobURLEntry>;
 
 BlobURLStore& blob_url_store();
 ErrorOr<Utf16String> generate_new_blob_url();

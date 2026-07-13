@@ -8,12 +8,14 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/URL.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/Infra/SerializedURL.h>
 
 namespace Web::CSS {
 
@@ -29,20 +31,21 @@ public:
         Optional<SelectorList> end_selectors;
     };
 
-    [[nodiscard]] static GC::Ref<CSSImportRule> create(JS::Realm&, URL, GC::Ptr<DOM::Document>, Optional<FlyString> layer, Optional<ImportScope>&& scope, RefPtr<Supports>, GC::Ref<MediaList>);
+    [[nodiscard]] static GC::Ref<CSSImportRule> create(JS::Realm&, URL, GC::Ptr<DOM::Document>, Optional<Utf16FlyString> layer, Optional<ImportScope>&& scope, RefPtr<Supports>, GC::Ref<MediaList>);
 
     virtual ~CSSImportRule() override;
 
     URL const& url() const { return m_url; }
     String href() const { return m_url.url(); }
+    Utf16String href_for_bindings() const { return utf16_string_from_url_ascii(href()); }
 
     CSSStyleSheet* loaded_style_sheet() { return m_style_sheet; }
     CSSStyleSheet const* loaded_style_sheet() const { return m_style_sheet; }
     GC::Ref<MediaList> media() const;
     CSSStyleSheet* style_sheet_for_bindings() { return m_style_sheet; }
 
-    Optional<FlyString> layer_name() const;
-    Optional<String> supports_text() const;
+    Optional<Utf16FlyString> layer_name() const;
+    Optional<Utf16String> supports_text() const;
 
     bool matches() const;
     bool has_scope() const { return m_scope.has_value(); }
@@ -51,11 +54,11 @@ public:
     Optional<SelectorList> const& scope_start_selectors_for_matching() const;
     Optional<SelectorList> const& scope_end_selectors_for_matching() const;
 
-    Optional<FlyString> internal_layer_name() const { return m_layer_internal; }
-    Optional<FlyString> internal_qualified_layer_name(Badge<StyleScope>) const;
+    Optional<Utf16FlyString> internal_layer_name() const { return m_layer_internal; }
+    Optional<Utf16FlyString> internal_qualified_layer_name(Badge<StyleScope>) const;
 
 private:
-    CSSImportRule(JS::Realm&, URL, GC::Ptr<DOM::Document>, Optional<FlyString>, Optional<ImportScope>&&, RefPtr<Supports>, GC::Ref<MediaList>);
+    CSSImportRule(JS::Realm&, URL, GC::Ptr<DOM::Document>, Optional<Utf16FlyString>, Optional<ImportScope>&&, RefPtr<Supports>, GC::Ref<MediaList>);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -66,15 +69,15 @@ private:
 
     virtual GC::Ptr<CSSStyleSheet> parent_style_sheet_for_subresource() override { return m_parent_style_sheet; }
 
-    virtual String serialized() const override;
+    virtual Utf16String serialized() const override;
 
     void fetch();
     void set_style_sheet(GC::Ref<CSSStyleSheet>);
 
     URL m_url;
     GC::Ptr<DOM::Document> m_document;
-    Optional<FlyString> m_layer;
-    Optional<FlyString> m_layer_internal;
+    Optional<Utf16FlyString> m_layer;
+    Optional<Utf16FlyString> m_layer_internal;
     Optional<ImportScope> m_scope;
     mutable Optional<SelectorList> m_cached_scope_start_selectors_for_matching;
     mutable Optional<SelectorList> m_cached_scope_end_selectors_for_matching;

@@ -20,9 +20,9 @@
 
 namespace Web::PermissionsAPI {
 
-bool is_permission_supported(String const& name)
+bool is_permission_supported(Utf16View name)
 {
-    if (name == "geolocation") {
+    if (name == "geolocation"_utf16) {
         return true;
     }
     return false;
@@ -177,10 +177,10 @@ GC::Ref<Web::WebIDL::Promise> Permissions::query(JS::Value permission_desc)
 }
 
 // https://w3c.github.io/permissions/#dfn-getting-the-current-permission-state
-Bindings::PermissionState get_current_permission_state(String const& name, Optional<HTML::EnvironmentSettingsObject&> settings)
+Bindings::PermissionState get_current_permission_state(Utf16View name, Optional<HTML::EnvironmentSettingsObject&> settings)
 {
     // 1. Let descriptor be a newly-created PermissionDescriptor with name initialized to name.
-    Bindings::PermissionDescriptor descriptor { name };
+    Bindings::PermissionDescriptor descriptor { Utf16String::from_utf16(name) };
 
     // 2. Return the permission state of descriptor with settings.
     return permission_state(descriptor, settings);

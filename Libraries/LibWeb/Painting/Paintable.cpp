@@ -1944,7 +1944,7 @@ void Paintable::paint_grid_inspector_overlay(DisplayListRecordingContext& contex
 
                     auto visible_area_rect = area_rect.intersected(viewport_rect);
                     if (!visible_area_rect.is_empty())
-                        paint_centered_label(visible_area_rect, Utf16String::from_utf8(area.name));
+                        paint_centered_label(visible_area_rect, area.name.to_utf16_string());
                 }
             }
         }

@@ -62,7 +62,7 @@ bool HTMLTableColElement::is_presentational_hint(Utf16FlyString const& name) con
 void HTMLTableColElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
 {
     Base::apply_presentational_hints(properties);
-    for_each_attribute([&](auto& name, auto& value) {
+    for_each_attribute([&](Utf16FlyString const& name, Utf16View value) {
         // https://html.spec.whatwg.org/multipage/rendering.html#tables-2:maps-to-the-dimension-property-2
         if (name == HTML::AttributeNames::width) {
             if (auto parsed_value = parse_dimension_value(value))

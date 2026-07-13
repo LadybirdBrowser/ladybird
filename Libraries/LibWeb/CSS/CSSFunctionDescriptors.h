@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <LibWeb/CSS/CSSDescriptors.h>
 
 namespace Web::CSS {
@@ -22,8 +24,8 @@ public:
 
     virtual void initialize(JS::Realm&) override;
 
-    String result() const;
-    WebIDL::ExceptionOr<void> set_result(StringView value);
+    Utf16String result() const;
+    WebIDL::ExceptionOr<void> set_result(Utf16View value);
 
 private:
     CSSFunctionDescriptors(JS::Realm& realm, Vector<Descriptor> descriptors)

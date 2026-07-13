@@ -13,6 +13,7 @@
 #include <AK/RefPtr.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/Bindings/IdleRequest.h>
 #include <LibWeb/Bindings/Intrinsics.h>
@@ -41,7 +42,7 @@ class IdleCallback;
 struct SpecifierResolution {
     // A serialized base URL
     //    A string-or-null that represents the base URL of the specifier, when one exists.
-    Optional<String> serialized_base_url;
+    Optional<Utf16String> serialized_base_url;
 
     // A specifier
     //     A string representing the specifier.
@@ -113,14 +114,14 @@ public:
     void append_resolved_module(SpecifierResolution resolution) { m_resolved_module_set.append(move(resolution)); }
     Vector<SpecifierResolution> const& resolved_module_set() const { return m_resolved_module_set; }
 
-    WebIDL::ExceptionOr<GC::Ptr<WindowProxy>> window_open_steps(StringView url, StringView target, StringView features);
+    WebIDL::ExceptionOr<GC::Ptr<WindowProxy>> window_open_steps(Utf16View url, Utf16View target, Utf16View features);
 
     struct OpenedWindow {
         GC::Ptr<LocalNavigable> navigable;
         TokenizedFeature::NoOpener no_opener { TokenizedFeature::NoOpener::No };
         WindowType window_type { WindowType::ExistingOrNone };
     };
-    WebIDL::ExceptionOr<OpenedWindow> window_open_steps_internal(StringView url, StringView target, StringView features);
+    WebIDL::ExceptionOr<OpenedWindow> window_open_steps_internal(Utf16View url, Utf16View target, Utf16View features);
 
     DOM::Event* current_event() { return m_current_event.ptr(); }
     DOM::Event const* current_event() const { return m_current_event.ptr(); }
@@ -128,7 +129,7 @@ public:
 
     Optional<CSS::FeatureValue> query_media_feature(CSS::MediaFeatureID) const;
 
-    void fire_a_page_transition_event(FlyString const& event_name, bool persisted);
+    void fire_a_page_transition_event(Utf16FlyString const& event_name, bool persisted);
 
     WebIDL::ExceptionOr<GC::Ref<Storage>> local_storage();
     WebIDL::ExceptionOr<GC::Ref<Storage>> session_storage();
@@ -156,12 +157,12 @@ public:
     GC::Ref<WindowProxy> window() const;
     GC::Ref<WindowProxy> self() const;
     GC::Ref<DOM::Document const> document() const;
-    String name() const;
-    void set_name(String const&);
-    String status() const;
+    Utf16String name() const;
+    void set_name(Utf16View);
+    Utf16String status() const;
     void close();
     bool closed() const;
-    void set_status(String const&);
+    void set_status(Utf16View);
     [[nodiscard]] GC::Ref<Location> location();
     GC::Ref<History> history() const;
     GC::Ref<Navigation> navigation();
@@ -185,25 +186,25 @@ public:
     WebIDL::ExceptionOr<void> set_opener(JS::Value);
     GC::Ptr<WindowProxy const> parent() const;
     GC::Ptr<DOM::Element const> frame_element() const;
-    WebIDL::ExceptionOr<GC::Ptr<WindowProxy>> open(Optional<String> const& url, Optional<String> const& target, Optional<String> const& features);
+    WebIDL::ExceptionOr<GC::Ptr<WindowProxy>> open(Optional<Utf16String> const& url, Optional<Utf16String> const& target, Optional<Utf16String> const& features);
 
     [[nodiscard]] GC::Ref<Navigator> navigator();
     [[nodiscard]] GC::Ref<CloseWatcherManager> close_watcher_manager();
     [[nodiscard]] GC::Ref<CookieStore::CookieStore> cookie_store();
     [[nodiscard]] GC::Ref<Speech::SpeechSynthesis> speech_synthesis();
 
-    void alert(String const& message = {});
-    bool confirm(Optional<String> const& message);
-    Optional<String> prompt(Optional<String> const& message, Optional<String> const& default_);
+    void alert(Utf16String const& message = {});
+    bool confirm(Optional<Utf16String> const& message);
+    Optional<Utf16String> prompt(Optional<Utf16String> const& message, Optional<Utf16String> const& default_);
 
-    WebIDL::ExceptionOr<void> post_message(JS::Value message, String const&, GC::RootVector<GC::Ref<JS::Object>> const&);
+    WebIDL::ExceptionOr<void> post_message(JS::Value message, Utf16View, GC::RootVector<GC::Ref<JS::Object>> const&);
     WebIDL::ExceptionOr<void> post_message(JS::Value message, Bindings::WindowPostMessageOptions const&);
 
     Variant<GC::Ref<DOM::Event>, Empty> event() const;
 
-    [[nodiscard]] GC::Ref<CSS::CSSStyleProperties> get_computed_style(DOM::Element&, Optional<String> const& pseudo_element) const;
+    [[nodiscard]] GC::Ref<CSS::CSSStyleProperties> get_computed_style(DOM::Element&, Optional<Utf16String> const& pseudo_element) const;
 
-    WebIDL::ExceptionOr<GC::Ref<CSS::MediaQueryList>> match_media(String const& query);
+    WebIDL::ExceptionOr<GC::Ref<CSS::MediaQueryList>> match_media(Utf16View query);
     [[nodiscard]] GC::Ref<CSS::Screen> screen();
     [[nodiscard]] GC::Ptr<CSS::VisualViewport> visual_viewport();
 
@@ -266,7 +267,7 @@ public:
     [[nodiscard]] Vector<Utf16FlyString> supported_property_names() const override;
     [[nodiscard]] JS::Value named_item_value(Utf16FlyString const&) const override;
 
-    bool find(String const& string);
+    bool find(Utf16View string);
 
     static void for_each_active(Function<IterationDecision(Window&)> callback);
 
@@ -281,7 +282,7 @@ private:
     virtual bool is_html_window() const override { return true; }
 
     // ^HTML::GlobalEventHandlers
-    virtual GC::Ptr<DOM::EventTarget> global_event_handlers_to_event_target(FlyString const&) override { return *this; }
+    virtual GC::Ptr<DOM::EventTarget> global_event_handlers_to_event_target(Utf16FlyString const&) override { return *this; }
 
     // ^HTML::WindowEventHandlers
     virtual GC::Ptr<DOM::EventTarget> window_event_handlers_to_event_target() override { return *this; }
@@ -292,7 +293,7 @@ private:
         Vector<GC::Ref<LocalNavigable>> navigables;
         Vector<GC::Ref<DOM::Element>> elements;
     };
-    NamedObjects named_objects(Utf16FlyString const& name);
+    NamedObjects named_objects(Utf16View name);
 
     WebIDL::ExceptionOr<void> window_post_message_steps(JS::Value, Bindings::WindowPostMessageOptions const&);
 
@@ -346,7 +347,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-status
     // When the Window object is created, the attribute must be set to the empty string. It does not do anything else.
-    String m_status;
+    Utf16String m_status;
 
     GC::Ptr<BarProp const> m_locationbar;
     GC::Ptr<BarProp const> m_menubar;

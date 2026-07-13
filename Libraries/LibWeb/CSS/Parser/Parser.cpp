@@ -233,7 +233,7 @@ OwnPtr<BooleanExpression> Parser::parse_boolean_expression(TokenStream<Component
 
     auto const& peeked_token = tokens.next_token();
     // `not <boolean-expr-group>`
-    if (peeked_token.is_ident("not"sv)) {
+    if (peeked_token.is_ident("not"_utf16)) {
         tokens.discard_a_token();
         tokens.discard_whitespace();
 
@@ -401,11 +401,11 @@ OwnPtr<BooleanExpression> Parser::parse_supports_feature(TokenStream<ComponentVa
     }
 
     // `<supports-selector-fn> = selector( <complex-selector> )`
-    if (first_token.is_function("selector"sv)) {
+    if (first_token.is_function("selector"_utf16)) {
         // FIXME: Parsing and then converting back to a string is weird.
-        StringBuilder builder;
+        Utf16StringBuilder builder;
         for (auto const& item : first_token.function().value)
-            builder.append(item.to_string());
+            item.serialize_to(builder);
         transaction.commit();
         TokenStream selector_tokens { first_token.function().value };
         auto maybe_selector = parse_complex_selector(selector_tokens, SelectorType::Standalone);
@@ -414,11 +414,11 @@ OwnPtr<BooleanExpression> Parser::parse_supports_feature(TokenStream<ComponentVa
         // contain unknown -webkit- pseudo-elements.
         // https://drafts.csswg.org/css-conditional-4/#dfn-support-selector
         bool matches = !maybe_selector.is_error() && !maybe_selector.value()->contains_unknown_webkit_pseudo_element();
-        return Supports::Selector::create(builder.to_string_without_validation(), matches);
+        return Supports::Selector::create(builder.to_string(), matches);
     }
 
     // `<supports-font-tech-fn> = font-tech( <font-tech> )`
-    if (first_token.is_function("font-tech"sv)) {
+    if (first_token.is_function("font-tech"_utf16)) {
         TokenStream tech_tokens { first_token.function().value };
         tech_tokens.discard_whitespace();
         auto tech_token = tech_tokens.consume_a_token();
@@ -433,7 +433,7 @@ OwnPtr<BooleanExpression> Parser::parse_supports_feature(TokenStream<ComponentVa
     }
 
     // `<supports-font-format-fn> = font-format( <font-format> )`
-    if (first_token.is_function("font-format"sv)) {
+    if (first_token.is_function("font-format"_utf16)) {
         TokenStream format_tokens { first_token.function().value };
         format_tokens.discard_whitespace();
         auto format_token = format_tokens.consume_a_token();
@@ -448,7 +448,7 @@ OwnPtr<BooleanExpression> Parser::parse_supports_feature(TokenStream<ComponentVa
     }
 
     // `<supports-at-rule-fn> = at-rule( <at-keyword-token> )`
-    if (first_token.is_function("at-rule"sv)) {
+    if (first_token.is_function("at-rule"_utf16)) {
         TokenStream at_rule_tokens { first_token.function().value };
         at_rule_tokens.discard_whitespace();
         auto at_rule_token = at_rule_tokens.consume_a_token();
@@ -463,7 +463,7 @@ OwnPtr<BooleanExpression> Parser::parse_supports_feature(TokenStream<ComponentVa
     }
 
     // `<supports-env-fn> = env( <ident> )`
-    if (first_token.is_function("env"sv)) {
+    if (first_token.is_function("env"_utf16)) {
         TokenStream format_tokens { first_token.function().value };
         format_tokens.discard_whitespace();
         auto variable_token = format_tokens.consume_a_token();
@@ -1465,7 +1465,7 @@ Optional<Declaration> Parser::consume_a_declaration(TokenStream<T>& input, Neste
         Optional<size_t> important_index;
         for (size_t i = declaration.value.size() - 1; i > 0; i--) {
             auto const& value = declaration.value[i];
-            if (value.is_ident("important"sv)) {
+            if (value.is_ident("important"_utf16)) {
                 important_index = i;
                 break;
             }
@@ -1552,11 +1552,11 @@ Optional<Declaration> Parser::consume_a_declaration(TokenStream<T>& input, Neste
     if (is_valid_in_the_current_context(declaration)) {
         // AD-HOC: Assemble source tokens.
         if (save_full_text == SaveOriginalText::Yes) {
-            StringBuilder original_full_text;
+            Utf16StringBuilder original_full_text;
             for (auto& token : input.tokens_since(start_token_index))
-                original_full_text.append(token.to_string());
+                token.serialize_to(original_full_text);
 
-            declaration.original_full_text = original_full_text.to_string_without_validation();
+            declaration.original_full_text = original_full_text.to_string();
         }
         return declaration;
     }
@@ -2166,7 +2166,7 @@ Optional<StylePropertyAndName> Parser::convert_to_style_property(Declaration con
 
 RefPtr<StyleValue const> Parser::parse_source_size_value(TokenStream<ComponentValue>& tokens)
 {
-    if (tokens.next_token().is_ident("auto"sv)) {
+    if (tokens.next_token().is_ident("auto"_utf16)) {
         tokens.discard_a_token(); // auto
         return KeywordStyleValue::create(Keyword::Auto);
     }
@@ -2326,7 +2326,7 @@ NonnullRefPtr<StyleValue const> Parser::parse_as_sizes_attribute(DOM::Element co
         if (unparsed_size.is_empty()) {
             log_parse_error();
             ErrorReporter::the().report(InvalidValueError {
-                .value_type = "sizes attribute"_fly_string,
+                .value_type = "sizes attribute"_utf16_fly_string,
                 .value_string = m_token_stream.dump_string(),
                 .description = "Failed in step 3.1; all whitespace"_string,
             });
@@ -2344,7 +2344,7 @@ NonnullRefPtr<StyleValue const> Parser::parse_as_sizes_attribute(DOM::Element co
         } else {
             log_parse_error();
             ErrorReporter::the().report(InvalidValueError {
-                .value_type = "sizes attribute"_fly_string,
+                .value_type = "sizes attribute"_utf16_fly_string,
                 .value_string = m_token_stream.dump_string(),
                 .description = "Failed in step 3.2; couldn't parse {} as a <source-size-value>"_string,
             });
@@ -2373,7 +2373,7 @@ NonnullRefPtr<StyleValue const> Parser::parse_as_sizes_attribute(DOM::Element co
             if (i != unparsed_sizes_list.size() - 1) {
                 log_parse_error();
                 ErrorReporter::the().report(InvalidValueError {
-                    .value_type = "sizes attribute"_fly_string,
+                    .value_type = "sizes attribute"_utf16_fly_string,
                     .value_string = m_token_stream.dump_string(),
                     .description = MUST(String::formatted("Failed in step 3.4.1; is unparsed size #{}, count {}", i, unparsed_sizes_list.size())),
                 });

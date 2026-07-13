@@ -87,7 +87,7 @@ private:
     virtual void update_screen_rects(u64 page_id, Vector<Web::DevicePixelRect>, u32) override;
     virtual void load_url(u64 page_id, URL::URL, Web::Bindings::NavigationHistoryBehavior) override;
     virtual void load_url_with_document_resource(u64 page_id, URL::URL,
-        Variant<Empty, String, Web::HTML::POSTResource>, Web::Bindings::NavigationHistoryBehavior) override;
+        Web::HTML::DocumentResource, Web::Bindings::NavigationHistoryBehavior) override;
     virtual void load_html(u64 page_id, ByteString) override;
     virtual void load_html_with_url(u64 page_id, ByteString, URL::URL) override;
     virtual void reload(u64 page_id) override;
@@ -109,8 +109,8 @@ private:
     virtual void get_source(u64 page_id) override;
     virtual void inspect_dom_tree(u64 page_id) override;
     virtual void inspect_storage(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, u64 request_id) override;
-    virtual Messages::WebContentServer::SetSessionStorageItemResponse set_session_storage_item(u64 page_id, String key, String value) override;
-    virtual Messages::WebContentServer::RemoveSessionStorageItemResponse remove_session_storage_item(u64 page_id, String key) override;
+    virtual Messages::WebContentServer::SetSessionStorageItemResponse set_session_storage_item(u64 page_id, Utf16String key, Utf16String value) override;
+    virtual Messages::WebContentServer::RemoveSessionStorageItemResponse remove_session_storage_item(u64 page_id, Utf16String key) override;
     virtual Messages::WebContentServer::ClearSessionStorageResponse clear_session_storage(u64 page_id) override;
     virtual void inspect_dom_node(u64 page_id, WebView::DOMNodeProperties::Type, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element, JsonValue options) override;
     virtual void inspect_grid_layouts(u64 page_id, Web::UniqueNodeID root_node_id) override;
@@ -154,7 +154,7 @@ private:
     virtual void remove_dom_node(u64 page_id, Web::UniqueNodeID node_id) override;
 
     virtual void set_content_blockers(u64 page_id, Core::AnonymousBuffer patterns) override;
-    virtual void set_autoplay_settings(u64 page_id, Web::HTML::AutoplayPolicy policy, Vector<String> allowlist) override;
+    virtual void set_autoplay_settings(u64 page_id, Web::HTML::AutoplayPolicy policy, Vector<Utf16String> allowlist) override;
     virtual void set_proxy_mappings(u64 page_id, Vector<ByteString>, HashMap<ByteString, size_t>) override;
     virtual void set_preferred_color_scheme(u64 page_id, Web::CSS::PreferredColorScheme) override;
     virtual void set_preferred_contrast(u64 page_id, Web::CSS::PreferredContrast) override;
@@ -179,7 +179,7 @@ private:
 
     virtual void alert_closed(u64 page_id) override;
     virtual void confirm_closed(u64 page_id, bool accepted) override;
-    virtual void prompt_closed(u64 page_id, Optional<String> response) override;
+    virtual void prompt_closed(u64 page_id, Optional<Utf16String> response) override;
     virtual void color_picker_update(u64 page_id, Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state) override;
     virtual void file_picker_closed(u64 page_id, Vector<Web::HTML::SelectedFile> selected_files) override;
     virtual void select_dropdown_closed(u64 page_id, Optional<u32> selected_item_id) override;
@@ -207,7 +207,7 @@ private:
     virtual Messages::WebContentServer::CutSelectedTextResponse cut_selected_text(u64 page_id) override;
     virtual void select_all(u64 page_id) override;
 
-    virtual void find_in_page(u64 page_id, String query, CaseSensitivity) override;
+    virtual void find_in_page(u64 page_id, Utf16String query, CaseSensitivity) override;
     virtual void find_in_page_next_match(u64 page_id) override;
     virtual void find_in_page_previous_match(u64 page_id) override;
 
@@ -225,7 +225,7 @@ private:
     virtual void broadcast_channel_message(Web::HTML::BroadcastChannelMessage message) override;
     virtual void did_worker_agent_finish_loading_script(Web::HTML::WorkerAgentOwnerToken owner_token) override;
     virtual void did_worker_agent_fail_loading_script(Web::HTML::WorkerAgentOwnerToken owner_token) override;
-    virtual void did_worker_agent_report_exception(Web::HTML::WorkerAgentOwnerToken owner_token, String message, String filename, u32 lineno, u32 colno) override;
+    virtual void did_worker_agent_report_exception(Web::HTML::WorkerAgentOwnerToken owner_token, Utf16String message, Utf16String filename, u32 lineno, u32 colno) override;
     virtual void did_worker_agent_close(Web::HTML::WorkerAgentOwnerToken owner_token) override;
 
     virtual void request_close(u64 page_id) override;

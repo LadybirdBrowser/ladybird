@@ -62,7 +62,7 @@ size_t CSSRuleList::external_memory_size() const
 
 // AD-HOC: The spec doesn't include a declared_namespaces parameter, but we need it to handle parsing of namespaced selectors.
 // https://drafts.csswg.org/cssom/#insert-a-css-rule
-WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<StringView, CSSRule*> rule, u32 index, Nested nested, HashTable<Utf16FlyString> const& declared_namespaces)
+WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<Utf16View, CSSRule*> rule, u32 index, Nested nested, HashTable<Utf16FlyString> const& declared_namespaces)
 {
     // 1. Set length to the number of items in list.
     auto length = m_rules.size();
@@ -77,17 +77,26 @@ WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<StringView,
     //       if that variant holds a CSSRule already.
 
     CSSRule* new_rule = nullptr;
-    if (rule.has<StringView>()) {
+    if (!rule.has<CSSRule*>()) {
         Parser::ParsingParams parsing_params { realm() };
         parsing_params.rule_context = rule_context();
         parsing_params.declared_namespaces = declared_namespaces;
 
-        new_rule = parse_css_rule(parsing_params, rule.get<StringView>(), nested == Nested::Yes);
+        new_rule = rule.visit(
+            [&](Utf16View rule_text) { return parse_css_rule(parsing_params, rule_text, nested == Nested::Yes); },
+            [](CSSRule*) -> CSSRule* { VERIFY_NOT_REACHED(); });
         if (!new_rule && nested == Nested::Yes) {
-            auto trimmed_rule = rule.get<StringView>().trim_whitespace(TrimMode::Left);
-            if (trimmed_rule.starts_with("@import"sv) || trimmed_rule.starts_with("@namespace"sv)) {
+            auto starts_with_import_or_namespace = rule.visit(
+                [](Utf16View rule_text) {
+                    auto trimmed_rule = rule_text.trim(" \t\n\f\r"sv, TrimMode::Left);
+                    return trimmed_rule.starts_with("@import"sv) || trimmed_rule.starts_with("@namespace"sv);
+                },
+                [](CSSRule*) -> bool { VERIFY_NOT_REACHED(); });
+            if (starts_with_import_or_namespace) {
                 parsing_params.rule_context.clear();
-                new_rule = parse_css_rule(parsing_params, rule.get<StringView>());
+                new_rule = rule.visit(
+                    [&](Utf16View rule_text) { return parse_css_rule(parsing_params, rule_text); },
+                    [](CSSRule*) -> CSSRule* { VERIFY_NOT_REACHED(); });
             }
         }
     } else {
@@ -101,7 +110,9 @@ WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<StringView,
         parsing_params.declared_namespaces = declared_namespaces;
 
         // - Set declarations to the results of performing parse a CSS declaration block, on argument rule.
-        auto declarations = parse_css_property_declaration_block(parsing_params, rule.get<StringView>());
+        auto declarations = rule.visit(
+            [&](Utf16View rule_text) { return parse_css_property_declaration_block(parsing_params, rule_text); },
+            [](CSSRule*) -> Parser::Parser::PropertiesAndCustomProperties { VERIFY_NOT_REACHED(); });
 
         // - If declarations is empty, throw a SyntaxError exception.
         if (declarations.custom_properties.is_empty() && declarations.properties.is_empty())

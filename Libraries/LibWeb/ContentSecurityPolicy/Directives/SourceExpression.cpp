@@ -13,16 +13,16 @@ namespace Web::ContentSecurityPolicy::Directives {
 // https://w3c.github.io/webappsec-csp/#source-expression
 class SourceExpressionParser {
 public:
-    explicit SourceExpressionParser(StringView input)
+    explicit SourceExpressionParser(Utf16View input)
         : m_input(input)
         , m_state({
-              .lexer = GenericLexer { input },
+              .lexer = Utf16GenericLexer { input },
               .parse_result = {},
           })
     {
     }
 
-    [[nodiscard]] GenericLexer const& lexer() const { return m_state.lexer; }
+    [[nodiscard]] Utf16GenericLexer const& lexer() const { return m_state.lexer; }
     [[nodiscard]] SourceExpressionParseResult const& parse_result() const { return m_state.parse_result; }
 
     // https://w3c.github.io/webappsec-csp/#grammardef-scheme-source
@@ -58,7 +58,7 @@ public:
         if (!m_state.lexer.consume_specific_with_predicate(is_ascii_alpha))
             return false;
 
-        (void)m_state.lexer.consume_while([](char ch) {
+        (void)m_state.lexer.consume_while([](char16_t ch) {
             return is_ascii_alpha(ch) || is_ascii_digit(ch) || ch == '+' || ch == '-' || ch == '.';
         });
         return true;
@@ -220,7 +220,7 @@ public:
         return parse_unreserved()
             || parse_percent_encoded()
             || parse_sub_delims()
-            || m_state.lexer.consume_specific_with_predicate(is_any_of(":@"sv));
+            || m_state.lexer.consume_specific_with_predicate([](char16_t ch) { return ch == ':' || ch == '@'; });
     }
 
     // https://datatracker.ietf.org/doc/html/rfc3986#section-2.3
@@ -229,7 +229,7 @@ public:
         // unreserved = ALPHA / DIGIT / "-" / "." / "_" / "~"
         return m_state.lexer.consume_specific_with_predicate(is_ascii_alpha)
             || m_state.lexer.consume_specific_with_predicate(is_ascii_digit)
-            || m_state.lexer.consume_specific_with_predicate(is_any_of("-._~"sv));
+            || m_state.lexer.consume_specific_with_predicate([](char16_t ch) { return ch == '-' || ch == '.' || ch == '_' || ch == '~'; });
     }
 
     // https://datatracker.ietf.org/doc/html/rfc3986#section-2.1
@@ -253,7 +253,9 @@ public:
         // sub-delims  = "!" / "$" / "&" / "'" / "(" / ")"
         //             / "*" / "+" / "," / ";" / "="
         // NOTE: This does not contain ';' and ',' as per the requirement specified in parse_path_part.
-        return m_state.lexer.consume_specific_with_predicate(is_any_of("!$&'()*+="sv));
+        return m_state.lexer.consume_specific_with_predicate([](char16_t ch) {
+            return ch == '!' || ch == '$' || ch == '&' || ch == '\'' || ch == '(' || ch == ')' || ch == '*' || ch == '+' || ch == '=';
+        });
     }
 
     // https://w3c.github.io/webappsec-csp/#grammardef-keyword-source
@@ -284,7 +286,7 @@ public:
         // ; Nonces: 'nonce-[nonce goes here]'
         // nonce-source = "'nonce-" base64-value "'"
         auto prefix = m_state.lexer.consume(7);
-        if (prefix.length() != 7)
+        if (prefix.length_in_code_units() != 7)
             return false;
 
         if (!prefix.equals_ignoring_ascii_case("'nonce-"sv))
@@ -302,7 +304,7 @@ public:
         // base64-value = 1*( ALPHA / DIGIT / "+" / "/" / "-" / "_" )*2( "=" )
         StateTransaction transaction { *this };
 
-        auto is_main_part = [](char ch) {
+        auto is_main_part = [](char16_t ch) {
             return is_ascii_alpha(ch) || is_ascii_digit(ch) || ch == '+' || ch == '/' || ch == '-' || ch == '_';
         };
 
@@ -345,22 +347,22 @@ public:
         StateTransaction transaction { *this };
 
         auto hash_algorithm = m_state.lexer.consume(6);
-        if (hash_algorithm.length() != 6)
+        if (hash_algorithm.length_in_code_units() != 6)
             return false;
 
-        if (hash_algorithm.equals_ignoring_ascii_case("sha256"sv)) {
+        if (hash_algorithm.equals_ignoring_ascii_case(u"sha256"sv)) {
             m_state.parse_result.hash_algorithm = transaction.parsed_string_view();
             transaction.commit();
             return true;
         }
 
-        if (hash_algorithm.equals_ignoring_ascii_case("sha384"sv)) {
+        if (hash_algorithm.equals_ignoring_ascii_case(u"sha384"sv)) {
             m_state.parse_result.hash_algorithm = transaction.parsed_string_view();
             transaction.commit();
             return true;
         }
 
-        if (hash_algorithm.equals_ignoring_ascii_case("sha512"sv)) {
+        if (hash_algorithm.equals_ignoring_ascii_case(u"sha512"sv)) {
             m_state.parse_result.hash_algorithm = transaction.parsed_string_view();
             transaction.commit();
             return true;
@@ -371,7 +373,7 @@ public:
 
 private:
     struct State {
-        GenericLexer lexer;
+        Utf16GenericLexer lexer;
         SourceExpressionParseResult parse_result;
     };
 
@@ -390,7 +392,7 @@ private:
         }
 
         void commit() { m_commit = true; }
-        StringView parsed_string_view() const
+        Utf16View parsed_string_view() const
         {
             return m_parser.m_input.substring_view(m_start_index, m_parser.m_state.lexer.tell() - m_start_index);
         }
@@ -402,7 +404,7 @@ private:
         bool m_commit { false };
     };
 
-    StringView m_input;
+    Utf16View m_input;
     State m_state;
 };
 
@@ -413,7 +415,7 @@ private:
     __ENUMERATE_SOURCE_EXPRESSION_PRODUCTION_PARSER(NonceSource, parse_nonce_source)     \
     __ENUMERATE_SOURCE_EXPRESSION_PRODUCTION_PARSER(HashSource, parse_hash_source)
 
-Optional<SourceExpressionParseResult> parse_source_expression(Production production, StringView input)
+Optional<SourceExpressionParseResult> parse_source_expression(Production production, Utf16View input)
 {
     SourceExpressionParser parser { input };
 

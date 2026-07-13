@@ -17,12 +17,13 @@ WebIDL::ExceptionOr<GC::Ref<FederatedCredential>> create_federated_credential(JS
     //    - init.id's value
     //    - init.provider's value
     if (init.id.is_empty())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "'id' must not be empty."sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "'id' must not be empty."_utf16 };
     if (init.provider.is_empty())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "'provider' must not be empty."sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "'provider' must not be empty."_utf16 };
 
     // AD-HOC: Aligning with how Chromium retrieves the origin by parsing the URL from init.provider.
-    auto url = URL::Parser::basic_parse(init.provider);
+    auto provider_url = init.provider.to_utf8();
+    auto url = URL::Parser::basic_parse(provider_url);
     if (!url.has_value())
         WebIDL::SyntaxError::create(realm, "'provider' is not a valid url."_utf16);
     auto origin = url.value().origin();

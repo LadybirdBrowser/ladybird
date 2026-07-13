@@ -33,26 +33,26 @@ interface HTMLLinkElement : HTMLElement {
     [HTMLConstructor] constructor();
 
     [CEReactions, Reflect, URL] attribute Utf16USVString href;
-    [CEReactions, Reflect=crossorigin, Enumerated=CORSSettingsAttribute] attribute DOMString? crossOrigin;
+    [CEReactions, Reflect=crossorigin, Enumerated=CORSSettingsAttribute] attribute Utf16DOMString? crossOrigin;
     [CEReactions, Reflect] attribute Utf16DOMString rel;
-    [CEReactions, Reflect, Enumerated=PotentialDestination] attribute DOMString as;
+    [CEReactions, Reflect, Enumerated=PotentialDestination] attribute Utf16DOMString as;
     [SameObject, PutForwards=value] readonly attribute DOMTokenList relList;
     [CEReactions] attribute Utf16DOMString media;
-    [CEReactions, Reflect] attribute DOMString integrity;
-    [CEReactions, Reflect] attribute DOMString hreflang;
+    [CEReactions, Reflect] attribute Utf16DOMString integrity;
+    [CEReactions, Reflect] attribute Utf16DOMString hreflang;
     [CEReactions, Reflect] attribute Utf16DOMString type;
     [SameObject, PutForwards=value] readonly attribute DOMTokenList sizes;
-    [CEReactions, Reflect=imagesrcset] attribute USVString imageSrcset;
-    [CEReactions, Reflect=imagesizes] attribute DOMString imageSizes;
-    [CEReactions, Reflect=referrerpolicy, Enumerated=ReferrerPolicy] attribute DOMString referrerPolicy;
+    [CEReactions, Reflect=imagesrcset] attribute Utf16USVString imageSrcset;
+    [CEReactions, Reflect=imagesizes] attribute Utf16DOMString imageSizes;
+    [CEReactions, Reflect=referrerpolicy, Enumerated=ReferrerPolicy] attribute Utf16DOMString referrerPolicy;
     [FIXME, SameObject, PutForwards=value] readonly attribute DOMTokenList blocking;
     [CEReactions, Reflect] attribute boolean disabled;
-    [CEReactions, Enumerated=FetchPriorityAttribute, Reflect=fetchpriority] attribute DOMString fetchPriority;
+    [CEReactions, Enumerated=FetchPriorityAttribute, Reflect=fetchpriority] attribute Utf16DOMString fetchPriority;
 
     // Obsolete
-    [CEReactions, Reflect] attribute DOMString charset;
-    [CEReactions, Reflect] attribute DOMString rev;
-    [CEReactions, Reflect] attribute DOMString target;
+    [CEReactions, Reflect] attribute Utf16DOMString charset;
+    [CEReactions, Reflect] attribute Utf16DOMString rev;
+    [CEReactions, Reflect] attribute Utf16DOMString target;
 
 };
 HTMLLinkElement includes LinkStyle;

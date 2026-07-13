@@ -15,7 +15,7 @@
 namespace Web::HTML {
 
 using ModuleSpecifierMap = HashMap<Utf16String, Optional<URL::URL>>;
-using ModuleIntegrityMap = HashMap<URL::URL, String>;
+using ModuleIntegrityMap = HashMap<URL::URL, Utf16String>;
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#import-map
 class ImportMap {
@@ -40,7 +40,7 @@ private:
     ModuleIntegrityMap m_integrity;
 };
 
-WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteString const& input, URL::URL base_url);
+WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, Utf16View input, URL::URL base_url);
 Optional<Utf16String> normalize_specifier_key(JS::Realm& realm, Utf16View specifier_key, URL::URL base_url);
 WebIDL::ExceptionOr<ModuleSpecifierMap> sort_and_normalise_module_specifier_map(JS::Realm& realm, JS::Object& original_map, URL::URL base_url);
 WebIDL::ExceptionOr<HashMap<URL::URL, ModuleSpecifierMap>> sort_and_normalise_scopes(JS::Realm& realm, JS::Object& original_map, URL::URL base_url);

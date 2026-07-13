@@ -85,7 +85,7 @@ CanvasRenderingContext2D::~CanvasRenderingContext2D() = default;
 void CanvasRenderingContext2D::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
-    set_prototype(&Bindings::ensure_web_prototype<Bindings::CanvasRenderingContext2DPrototype>(realm, "CanvasRenderingContext2D"_string));
+    set_prototype(&Bindings::ensure_web_prototype<Bindings::CanvasRenderingContext2DPrototype>(realm, "CanvasRenderingContext2D"_utf16_fly_string));
 }
 
 void CanvasRenderingContext2D::finalize()
@@ -432,7 +432,7 @@ void CanvasRenderingContext2D::discard_backing_storage()
     }
 }
 
-Gfx::Path CanvasRenderingContext2D::text_path(Utf16String const& text, float x, float y, Optional<double> max_width)
+Gfx::Path CanvasRenderingContext2D::text_path(Utf16View text, float x, float y, Optional<double> max_width)
 {
     if (max_width.has_value() && max_width.value() <= 0)
         return {};
@@ -441,7 +441,7 @@ Gfx::Path CanvasRenderingContext2D::text_path(Utf16String const& text, float x, 
 
     auto const& font_cascade_list = this->font_cascade_list();
     auto const& font = font_cascade_list->first();
-    auto glyph_runs = Gfx::shape_text({ x, y }, text.utf16_view(), *font_cascade_list, resolved_letter_spacing());
+    auto glyph_runs = Gfx::shape_text({ x, y }, text, *font_cascade_list, resolved_letter_spacing());
     Gfx::Path path;
     float text_width = 0;
     for (auto const& glyph_run : glyph_runs) {
@@ -523,7 +523,7 @@ Gfx::Path CanvasRenderingContext2D::text_path(Utf16String const& text, float x, 
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-filltext
-void CanvasRenderingContext2D::fill_text(Utf16String const& text, float x, float y, Optional<double> max_width)
+void CanvasRenderingContext2D::fill_text(Utf16View text, float x, float y, Optional<double> max_width)
 {
     if (!isfinite(x) || !isfinite(y) || (max_width.has_value() && !isfinite(max_width.value())))
         return;
@@ -532,7 +532,7 @@ void CanvasRenderingContext2D::fill_text(Utf16String const& text, float x, float
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-stroketext
-void CanvasRenderingContext2D::stroke_text(Utf16String const& text, float x, float y, Optional<double> max_width)
+void CanvasRenderingContext2D::stroke_text(Utf16View text, float x, float y, Optional<double> max_width)
 {
     if (!isfinite(x) || !isfinite(y) || (max_width.has_value() && !isfinite(max_width.value())))
         return;
@@ -634,11 +634,11 @@ void CanvasRenderingContext2D::stroke(Path2D const& path)
     stroke_internal(path.path().clone());
 }
 
-static Gfx::WindingRule parse_fill_rule(StringView fill_rule)
+static Gfx::WindingRule parse_fill_rule(Utf16FlyString const& fill_rule)
 {
-    if (fill_rule == "evenodd"sv)
+    if (fill_rule == u"evenodd"sv)
         return Gfx::WindingRule::EvenOdd;
-    if (fill_rule == "nonzero"sv)
+    if (fill_rule == u"nonzero"sv)
         return Gfx::WindingRule::Nonzero;
     dbgln("Unrecognized fillRule for CRC2D.fill() - this problem goes away once we pass an enum instead of a string");
     return Gfx::WindingRule::Nonzero;
@@ -670,12 +670,12 @@ void CanvasRenderingContext2D::fill_internal(Gfx::Path path, Gfx::WindingRule wi
     did_draw(bounding_box);
 }
 
-void CanvasRenderingContext2D::fill(StringView fill_rule)
+void CanvasRenderingContext2D::fill(Utf16FlyString const& fill_rule)
 {
     fill_internal(path().clone(), parse_fill_rule(fill_rule));
 }
 
-void CanvasRenderingContext2D::fill(Path2D& path, StringView fill_rule)
+void CanvasRenderingContext2D::fill(Path2D& path, Utf16FlyString const& fill_rule)
 {
     fill_internal(path.path().clone(), parse_fill_rule(fill_rule));
 }
@@ -906,7 +906,7 @@ void CanvasRenderingContext2D::reset_to_default_state()
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-measuretext
-GC::Ref<TextMetrics> CanvasRenderingContext2D::measure_text(Utf16String const& text)
+GC::Ref<TextMetrics> CanvasRenderingContext2D::measure_text(Utf16View text)
 {
     // The measureText(text) method steps are to run the text preparation
     // algorithm, passing it text and the object implementing the CanvasText
@@ -974,7 +974,7 @@ RefPtr<Gfx::FontCascadeList const> CanvasRenderingContext2D::font_cascade_list()
 {
     // When font style value is empty load default font
     if (!drawing_state().font_style_value) {
-        set_font("10px sans-serif"sv);
+        set_font(u"10px sans-serif"sv);
     }
 
     // Get current loaded font
@@ -982,7 +982,7 @@ RefPtr<Gfx::FontCascadeList const> CanvasRenderingContext2D::font_cascade_list()
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#text-preparation-algorithm
-CanvasRenderingContext2D::PreparedText CanvasRenderingContext2D::prepare_text(Utf16String const& text, float max_width)
+CanvasRenderingContext2D::PreparedText CanvasRenderingContext2D::prepare_text(Utf16View text, float max_width)
 {
     // 1. If maxWidth was provided but is less than or equal to zero or equal to NaN, then return an empty array.
     if (max_width <= 0 || max_width != max_width) {
@@ -1053,17 +1053,17 @@ void CanvasRenderingContext2D::clip_internal(Gfx::Path& path, Gfx::WindingRule w
     canvas_command_list->append(Gfx::CanvasCommands::ClipPath { .path = path.clone(), .winding_rule = winding_rule });
 }
 
-void CanvasRenderingContext2D::clip(StringView fill_rule)
+void CanvasRenderingContext2D::clip(Utf16FlyString const& fill_rule)
 {
     clip_internal(path(), parse_fill_rule(fill_rule));
 }
 
-void CanvasRenderingContext2D::clip(Path2D& path, StringView fill_rule)
+void CanvasRenderingContext2D::clip(Path2D& path, Utf16FlyString const& fill_rule)
 {
     clip_internal(path.path(), parse_fill_rule(fill_rule));
 }
 
-static bool is_point_in_path_internal(Gfx::Path path, Gfx::AffineTransform const& transform, double x, double y, StringView fill_rule)
+static bool is_point_in_path_internal(Gfx::Path path, Gfx::AffineTransform const& transform, double x, double y, Utf16FlyString const& fill_rule)
 {
     auto point = Gfx::FloatPoint(x, y);
     if (auto inverse_transform = transform.inverse(); inverse_transform.has_value())
@@ -1082,12 +1082,12 @@ static bool image_provider_is_usable_for_canvas(Layout::ImageProvider const& ima
         && *intrinsic_width > 0 && *intrinsic_height > 0;
 }
 
-bool CanvasRenderingContext2D::is_point_in_path(double x, double y, StringView fill_rule)
+bool CanvasRenderingContext2D::is_point_in_path(double x, double y, Utf16FlyString const& fill_rule)
 {
     return is_point_in_path_internal(path(), drawing_state().transform, x, y, fill_rule);
 }
 
-bool CanvasRenderingContext2D::is_point_in_path(Path2D const& path, double x, double y, StringView fill_rule)
+bool CanvasRenderingContext2D::is_point_in_path(Path2D const& path, double x, double y, Utf16FlyString const& fill_rule)
 {
     return is_point_in_path_internal(path.path(), drawing_state().transform, x, y, fill_rule);
 }
@@ -1218,46 +1218,46 @@ void CanvasRenderingContext2D::set_global_alpha(float alpha)
     drawing_state().global_alpha = alpha;
 }
 
-#define ENUMERATE_COMPOSITE_OPERATIONS(E)  \
-    E("normal", Normal)                    \
-    E("multiply", Multiply)                \
-    E("screen", Screen)                    \
-    E("overlay", Overlay)                  \
-    E("darken", Darken)                    \
-    E("lighten", Lighten)                  \
-    E("color-dodge", ColorDodge)           \
-    E("color-burn", ColorBurn)             \
-    E("hard-light", HardLight)             \
-    E("soft-light", SoftLight)             \
-    E("difference", Difference)            \
-    E("exclusion", Exclusion)              \
-    E("hue", Hue)                          \
-    E("saturation", Saturation)            \
-    E("color", Color)                      \
-    E("luminosity", Luminosity)            \
-    E("clear", Clear)                      \
-    E("copy", Copy)                        \
-    E("source-over", SourceOver)           \
-    E("destination-over", DestinationOver) \
-    E("source-in", SourceIn)               \
-    E("destination-in", DestinationIn)     \
-    E("source-out", SourceOut)             \
-    E("destination-out", DestinationOut)   \
-    E("source-atop", SourceATop)           \
-    E("destination-atop", DestinationATop) \
-    E("xor", Xor)                          \
-    E("lighter", Lighter)                  \
-    E("plus-darker", PlusDarker)           \
-    E("plus-lighter", PlusLighter)
+#define ENUMERATE_COMPOSITE_OPERATIONS(E)                               \
+    E("normal"_utf16, u"normal"sv, Normal)                              \
+    E("multiply"_utf16, u"multiply"sv, Multiply)                        \
+    E("screen"_utf16, u"screen"sv, Screen)                              \
+    E("overlay"_utf16, u"overlay"sv, Overlay)                           \
+    E("darken"_utf16, u"darken"sv, Darken)                              \
+    E("lighten"_utf16, u"lighten"sv, Lighten)                           \
+    E("color-dodge"_utf16, u"color-dodge"sv, ColorDodge)                \
+    E("color-burn"_utf16, u"color-burn"sv, ColorBurn)                   \
+    E("hard-light"_utf16, u"hard-light"sv, HardLight)                   \
+    E("soft-light"_utf16, u"soft-light"sv, SoftLight)                   \
+    E("difference"_utf16, u"difference"sv, Difference)                  \
+    E("exclusion"_utf16, u"exclusion"sv, Exclusion)                     \
+    E("hue"_utf16, u"hue"sv, Hue)                                       \
+    E("saturation"_utf16, u"saturation"sv, Saturation)                  \
+    E("color"_utf16, u"color"sv, Color)                                 \
+    E("luminosity"_utf16, u"luminosity"sv, Luminosity)                  \
+    E("clear"_utf16, u"clear"sv, Clear)                                 \
+    E("copy"_utf16, u"copy"sv, Copy)                                    \
+    E("source-over"_utf16, u"source-over"sv, SourceOver)                \
+    E("destination-over"_utf16, u"destination-over"sv, DestinationOver) \
+    E("source-in"_utf16, u"source-in"sv, SourceIn)                      \
+    E("destination-in"_utf16, u"destination-in"sv, DestinationIn)       \
+    E("source-out"_utf16, u"source-out"sv, SourceOut)                   \
+    E("destination-out"_utf16, u"destination-out"sv, DestinationOut)    \
+    E("source-atop"_utf16, u"source-atop"sv, SourceATop)                \
+    E("destination-atop"_utf16, u"destination-atop"sv, DestinationATop) \
+    E("xor"_utf16, u"xor"sv, Xor)                                       \
+    E("lighter"_utf16, u"lighter"sv, Lighter)                           \
+    E("plus-darker"_utf16, u"plus-darker"sv, PlusDarker)                \
+    E("plus-lighter"_utf16, u"plus-lighter"sv, PlusLighter)
 
-String CanvasRenderingContext2D::global_composite_operation() const
+Utf16String CanvasRenderingContext2D::global_composite_operation() const
 {
     auto current_compositing_and_blending_operator = drawing_state().current_compositing_and_blending_operator;
     switch (current_compositing_and_blending_operator) {
 #undef __ENUMERATE
-#define __ENUMERATE(operation, compositing_and_blending_operator)                \
-    case Gfx::CompositingAndBlendingOperator::compositing_and_blending_operator: \
-        return operation##_string;
+#define __ENUMERATE(operation_string, operation_view, compositing_and_blending_operator) \
+    case Gfx::CompositingAndBlendingOperator::compositing_and_blending_operator:         \
+        return operation_string;
         ENUMERATE_COMPOSITE_OPERATIONS(__ENUMERATE)
 #undef __ENUMERATE
     default:
@@ -1266,13 +1266,13 @@ String CanvasRenderingContext2D::global_composite_operation() const
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-globalcompositeoperation
-void CanvasRenderingContext2D::set_global_composite_operation(String global_composite_operation)
+void CanvasRenderingContext2D::set_global_composite_operation(Utf16View global_composite_operation)
 {
     // 1. If the given value is not identical to any of the values that the <blend-mode> or the <composite-mode> properties are defined to take, then return.
     // 2. Otherwise, set this's current compositing and blending operator to the given value.
 #undef __ENUMERATE
-#define __ENUMERATE(operation, compositing_and_blending_operator)                                                                           \
-    if (global_composite_operation == operation##sv) {                                                                                      \
+#define __ENUMERATE(operation_string, operation_view, compositing_and_blending_operator)                                                    \
+    if (global_composite_operation == operation_view) {                                                                                     \
         drawing_state().current_compositing_and_blending_operator = Gfx::CompositingAndBlendingOperator::compositing_and_blending_operator; \
         return;                                                                                                                             \
     }
@@ -1324,13 +1324,14 @@ void CanvasRenderingContext2D::set_shadow_blur(float blur_radius)
     drawing_state().shadow_blur = blur_radius;
 }
 
-String CanvasRenderingContext2D::shadow_color() const
+Utf16String CanvasRenderingContext2D::shadow_color() const
 {
     // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-shadowcolor
-    return drawing_state().shadow_color.to_string(Gfx::Color::HTMLCompatibleSerialization::Yes);
+    auto serialized_color = drawing_state().shadow_color.to_string(Gfx::Color::HTMLCompatibleSerialization::Yes);
+    return Utf16String::from_ascii_without_validation(serialized_color.bytes());
 }
 
-void CanvasRenderingContext2D::set_shadow_color(String color)
+void CanvasRenderingContext2D::set_shadow_color(Utf16View color)
 {
     // 1. Let context be this's canvas attribute's value, if that is an element; otherwise null.
 
@@ -1430,22 +1431,22 @@ void CanvasRenderingContext2D::paint_shadow_for_stroke_internal(Gfx::Path const&
     did_draw(path.bounding_box());
 }
 
-String CanvasRenderingContext2D::filter() const
+Utf16String CanvasRenderingContext2D::filter() const
 {
     if (!drawing_state().filter_string.has_value()) {
-        return String::from_utf8_without_validation("none"sv.bytes());
+        return "none"_utf16;
     }
 
     return drawing_state().filter_string.value();
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-filter
-void CanvasRenderingContext2D::set_filter(String filter)
+void CanvasRenderingContext2D::set_filter(Utf16View filter)
 {
     drawing_state().filter.clear();
 
     // 1. If the given value is "none", then set this's current filter to "none" and return.
-    if (filter == "none"sv) {
+    if (filter == u"none"sv) {
         drawing_state().filter_string.clear();
         return;
     }
@@ -1519,7 +1520,7 @@ void CanvasRenderingContext2D::set_filter(String filter)
                 });
         }
 
-        drawing_state().filter_string = move(filter);
+        drawing_state().filter_string = Utf16String::from_utf16(filter);
     }
 
     // 3. If parsedValue is failure, then return.

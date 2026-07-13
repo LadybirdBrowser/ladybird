@@ -67,7 +67,8 @@ static JS::ThrowCompletionOr<GC::Ref<WebIDL::CallbackType>> convert_value_to_cal
 }
 
 // https://webidl.spec.whatwg.org/#es-sequence
-static JS::ThrowCompletionOr<Vector<Utf16String>> convert_value_to_sequence_of_strings(JS::VM& vm, JS::Value value)
+template<typename T, typename Converter>
+static JS::ThrowCompletionOr<Vector<T>> convert_value_to_sequence(JS::VM& vm, JS::Value value, Converter converter)
 {
     // FIXME: De-duplicate this from the IDL generator.
     // An ECMAScript value V is converted to an IDL sequence<T> value as follows:
@@ -91,7 +92,7 @@ static JS::ThrowCompletionOr<Vector<Utf16String>> convert_value_to_sequence_of_s
     auto iterator = TRY(JS::get_iterator_from_method(vm, value, *method));
 
     // 2. Initialize i to be 0.
-    Vector<Utf16String> sequence_of_strings;
+    Vector<T> sequence;
 
     // 3. Repeat
     for (;;) {
@@ -100,37 +101,46 @@ static JS::ThrowCompletionOr<Vector<Utf16String>> convert_value_to_sequence_of_s
 
         // 2. If next is false, then return an IDL sequence value of type sequence<T> of length i, where the value of the element at index j is Sj.
         if (!next.has<JS::IterationResult>())
-            return sequence_of_strings;
+            return sequence;
 
         // 3. Let nextItem be ? IteratorValue(next).
         auto next_item = TRY(next.get<JS::IterationResult>().value);
 
         // 4. Initialize Si to the result of converting nextItem to an IDL value of type T.
-
-        // https://webidl.spec.whatwg.org/#es-DOMString
-        // An ECMAScript value V is converted to an IDL DOMString value by running the following algorithm:
-        // 1. If V is null and the conversion is to an IDL type associated with the [LegacyNullToEmptyString] extended attribute, then return the DOMString value that represents the empty string.
-        // NOTE: This doesn't apply.
-
-        // 2. Let x be ? ToString(V).
-        // 3. Return the IDL DOMString value that represents the same sequence of code units as the one the ECMAScript String value x represents.
-        auto string_value = TRY(next_item.to_utf16_string(vm));
-
-        sequence_of_strings.append(move(string_value));
+        sequence.append(TRY(converter(next_item)));
 
         // 5. Set i to i + 1.
     }
 }
 
+static JS::ThrowCompletionOr<Utf16String> convert_value_to_dom_string(JS::VM& vm, JS::Value value)
+{
+    // https://webidl.spec.whatwg.org/#es-DOMString
+    // An ECMAScript value V is converted to an IDL DOMString value by running the following algorithm:
+    // 1. If V is null and the conversion is to an IDL type associated with the [LegacyNullToEmptyString] extended attribute, then return the DOMString value that represents the empty string.
+    // NOTE: This doesn't apply.
+
+    // 2. Let x be ? ToString(V).
+    // 3. Return the IDL DOMString value that represents the same sequence of code units as the one the ECMAScript String value x represents.
+    return TRY(value.to_utf16_string(vm));
+}
+
+static JS::ThrowCompletionOr<Vector<Utf16String>> convert_value_to_sequence_of_strings(JS::VM& vm, JS::Value value)
+{
+    return convert_value_to_sequence<Utf16String>(vm, value, [&](auto next_item) -> JS::ThrowCompletionOr<Utf16String> {
+        return TRY(convert_value_to_dom_string(vm, next_item));
+    });
+}
+
 static JS::ThrowCompletionOr<Vector<Utf16FlyString>> convert_value_to_sequence_of_fly_strings(JS::VM& vm, JS::Value value)
 {
-    auto strings = TRY(convert_value_to_sequence_of_strings(vm, value));
+    return convert_value_to_sequence<Utf16FlyString>(vm, value, [&](auto next_item) -> JS::ThrowCompletionOr<Utf16FlyString> {
+        if (next_item.is_string())
+            return Utf16FlyString::from_utf16(next_item.as_string().utf16_string_view());
 
-    Vector<Utf16FlyString> fly_strings;
-    MUST(fly_strings.try_ensure_capacity(strings.size()));
-    for (auto& string : strings)
-        fly_strings.unchecked_append(Utf16FlyString::from_utf16(string.utf16_view()));
-    return fly_strings;
+        auto string = TRY(convert_value_to_dom_string(vm, next_item));
+        return Utf16FlyString::from_utf16(string.utf16_view());
+    });
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#dom-customelementregistry-define
@@ -268,10 +278,10 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(Utf16FlyString const& 
             disabled_features = TRY(convert_value_to_sequence_of_strings(vm, disabled_features_iterable));
 
         // 9. If disabledFeatures contains "internals", then set disableInternals to true.
-        disable_internals = disabled_features.contains_slow("internals"_utf16);
+        disable_internals = disabled_features.contains_slow(u"internals"sv);
 
         // 10. If disabledFeatures contains "shadow", then set disableShadow to true.
-        disable_shadow = disabled_features.contains_slow("shadow"_utf16);
+        disable_shadow = disabled_features.contains_slow(u"shadow"sv);
 
         // 11. Let formAssociatedValue be ? Get( constructor, "formAssociated").
         auto form_associated_value = TRY(constructor->callback->get(vm.names.formAssociated));

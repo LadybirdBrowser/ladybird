@@ -189,7 +189,7 @@ GC::Ptr<WebIDL::CallbackType> SourceBuffer::onabort()
     return event_handler_attribute(EventNames::abort);
 }
 
-void SourceBuffer::set_content_type(String const& type)
+void SourceBuffer::set_content_type(Utf16View type)
 {
     auto mime_type = MimeSniff::MimeType::parse(type);
     VERIFY(mime_type.has_value());
@@ -250,7 +250,7 @@ WebIDL::ExceptionOr<void> SourceBuffer::set_mode(Bindings::AppendMode mode)
     // 3. If the [[generate timestamps flag]] equals true and the new value equals "segments",
     //    then throw a TypeError exception and abort these steps.
     if (m_processor->generate_timestamps_flag() && mode == Bindings::AppendMode::Segments)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot set mode to 'segments' when generate timestamps flag is true"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot set mode to 'segments' when generate timestamps flag is true"_utf16 };
 
     // 4. If the readyState attribute of the parent media source is in the "ended" state then run the following steps:
     if (m_media_source->ready_state() == Bindings::ReadyState::Ended) {
@@ -401,11 +401,11 @@ WebIDL::ExceptionOr<void> SourceBuffer::abort()
 }
 
 // https://w3c.github.io/media-source/#dom-sourcebuffer-changetype
-WebIDL::ExceptionOr<void> SourceBuffer::change_type(String const& type)
+WebIDL::ExceptionOr<void> SourceBuffer::change_type(Utf16String const& type)
 {
     // 1. If type is an empty string then throw a TypeError exception and abort these steps.
     if (type.is_empty())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Type cannot be empty"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Type cannot be empty"_utf16 };
 
     // 2. If this object has been removed from the sourceBuffers attribute of the parent media source,
     //    then throw an InvalidStateError exception and abort these steps.
@@ -419,7 +419,7 @@ WebIDL::ExceptionOr<void> SourceBuffer::change_type(String const& type)
     // 4. If type contains a MIME type that is not supported or contains a MIME type that is not supported
     //    with the types specified (currently or previously) of SourceBuffer objects in the sourceBuffers
     //    attribute of the parent media source, then throw a NotSupportedError exception and abort these steps.
-    if (!MediaSource::is_type_supported(type))
+    if (!MediaSource::is_type_supported(type.utf16_view()))
         return WebIDL::NotSupportedError::create(realm(), "Type is not supported"_utf16);
 
     // 5. If the readyState attribute of the parent media source is in the "ended" state then run the following steps:
@@ -433,7 +433,7 @@ WebIDL::ExceptionOr<void> SourceBuffer::change_type(String const& type)
     m_processor->reset_parser_state();
 
     // AD-HOC: Recreate the byte stream parser for the new type.
-    set_content_type(type);
+    set_content_type(type.utf16_view());
 
     // 7. Update the [[generate timestamps flag]] on this SourceBuffer object to the value in the
     //    "Generate Timestamps Flag" column of the byte stream format registry entry that is associated with type.

@@ -141,7 +141,7 @@ SelectorList const& MatchingRule::absolutized_selectors() const
     VERIFY_NOT_REACHED();
 }
 
-FlyString const& MatchingRule::qualified_layer_name() const
+Utf16FlyString const& MatchingRule::qualified_layer_name() const
 {
     if (rule->type() == CSSRule::Type::Style)
         return static_cast<CSSStyleRule const&>(*rule).qualified_layer_name();
@@ -180,25 +180,31 @@ void StyleComputer::visit_edges(Visitor& visitor)
         rule.visit_edges(visitor);
 }
 
-Optional<String> StyleComputer::user_agent_style_sheet_source(StringView name)
+template<size_t length>
+static constexpr Utf16View utf16_view(char16_t const (&string)[length])
+{
+    return { string, length - 1 };
+}
+
+Optional<Utf16String> StyleComputer::user_agent_style_sheet_source(Utf16View name)
 {
     extern String const& default_stylesheet_source;
     extern String const& quirks_mode_stylesheet_source;
     extern String const& mathml_stylesheet_source;
     extern String const& svg_stylesheet_source;
 
-    if (name == "CSS/Default.css"sv)
-        return default_stylesheet_source;
-    if (name == "CSS/QuirksMode.css"sv)
-        return quirks_mode_stylesheet_source;
-    if (name == "MathML/Default.css"sv)
-        return mathml_stylesheet_source;
-    if (name == "SVG/Default.css"sv)
-        return svg_stylesheet_source;
+    if (name == utf16_view(u"CSS/Default.css"))
+        return Utf16String::from_utf8(default_stylesheet_source);
+    if (name == utf16_view(u"CSS/QuirksMode.css"))
+        return Utf16String::from_utf8(quirks_mode_stylesheet_source);
+    if (name == utf16_view(u"MathML/Default.css"))
+        return Utf16String::from_utf8(mathml_stylesheet_source);
+    if (name == utf16_view(u"SVG/Default.css"))
+        return Utf16String::from_utf8(svg_stylesheet_source);
     return {};
 }
 
-RuleCache const* StyleComputer::rule_cache_for_cascade_origin(CascadeOrigin cascade_origin, Optional<FlyString const> qualified_layer_name, GC::Ptr<DOM::ShadowRoot const> shadow_root) const
+RuleCache const* StyleComputer::rule_cache_for_cascade_origin(CascadeOrigin cascade_origin, Optional<Utf16FlyString const> qualified_layer_name, GC::Ptr<DOM::ShadowRoot const> shadow_root) const
 {
     auto& style_scope = shadow_root ? shadow_root->style_scope() : document().style_scope();
     auto const& rule_cache = style_scope.rule_cache();
@@ -557,7 +563,7 @@ static bool should_reject_with_parent_filter(DOM::AbstractElement abstract_eleme
     return !parent_filter_may_contain_all(*parent, required_hashes);
 }
 
-Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules_from_context(DOM::AbstractElement abstract_element, CascadeOrigin cascade_origin, GC::Ptr<DOM::ShadowRoot const> context_shadow_root, Optional<FlyString const> qualified_layer_name, u64* matching_pseudo_element_styles) const
+Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules_from_context(DOM::AbstractElement abstract_element, CascadeOrigin cascade_origin, GC::Ptr<DOM::ShadowRoot const> context_shadow_root, Optional<Utf16FlyString const> qualified_layer_name, u64* matching_pseudo_element_styles) const
 {
     auto const& root_node = abstract_element.element().root();
     auto shadow_root = as_if<DOM::ShadowRoot>(root_node);
@@ -884,7 +890,7 @@ void StyleComputer::apply_property_list_to_cascade(
     ReadonlySpan<StyleProperty> properties,
     CascadeOrigin cascade_origin,
     Important important,
-    Optional<FlyString> layer_name,
+    Optional<Utf16FlyString> layer_name,
     GC::Ptr<CSSStyleDeclaration const> source,
     GC::Ptr<DOM::ShadowRoot const> source_shadow_root,
     BypassPseudoElementPropertyWhitelist bypass_pseudo_element_property_whitelist) const
@@ -955,7 +961,7 @@ void StyleComputer::cascade_declarations(
     Vector<ScopedMatchingRule> const& matching_rules,
     CascadeOrigin cascade_origin,
     Important important,
-    Optional<FlyString> layer_name,
+    Optional<Utf16FlyString> layer_name,
     bool include_inline_style) const
 {
     for (auto const& match : matching_rules) {
@@ -2080,7 +2086,7 @@ static JsonArray serialize_devtools_selectors(MatchingRule const& rule)
 {
     JsonArray selectors;
     for (auto const& selector : rule.absolutized_selectors())
-        selectors.must_append(selector->serialize());
+        selectors.must_append(selector->serialize().to_utf8());
     return selectors;
 }
 
@@ -2099,7 +2105,7 @@ static JsonObject serialize_devtools_style_sheet_identifier(StyleSheetIdentifier
     if (identifier.dom_element_unique_id.has_value())
         serialized_identifier.set("domElementUniqueId"sv, identifier.dom_element_unique_id->value());
     if (identifier.url.has_value())
-        serialized_identifier.set("url"sv, *identifier.url);
+        serialized_identifier.set("url"sv, identifier.url->to_utf8());
     serialized_identifier.set("ruleCount"sv, identifier.rule_count);
     return serialized_identifier;
 }
@@ -2138,12 +2144,12 @@ static JsonObject serialize_devtools_matching_rule(DOM::Document const& document
     serialized_rule.set("selectors"sv, serialize_devtools_selectors(rule));
     serialized_rule.set("selectorsSpecificity"sv, serialize_devtools_selector_specificities(rule));
     serialized_rule.set("matchedSelectorIndexes"sv, move(matched_selector_indexes));
-    serialized_rule.set("cssText"sv, rule.rule->css_text());
+    serialized_rule.set("cssText"sv, rule.rule->serialized().to_utf8());
     if (authored_text.has_value()) {
         serialized_rule.set("authoredText"sv, *authored_text);
         serialized_rule.set("declarations"sv, serialize_devtools_style_declarations(document, parse_devtools_style_declarations(document, authored_text->bytes_as_string_view())));
     } else {
-        serialized_rule.set("authoredText"sv, declaration.serialized());
+        serialized_rule.set("authoredText"sv, declaration.serialized().to_utf8());
         serialized_rule.set("declarations"sv, serialize_devtools_style_declarations(document, declaration));
     }
     serialized_rule.set("styleSheetIndex"sv, rule.style_sheet_index);
@@ -2169,13 +2175,13 @@ static JsonObject serialize_devtools_inline_style(DOM::Document const& document,
     JsonObject serialized_rule;
     serialized_rule.set("type"sv, 100);
     serialized_rule.set("className"sv, 100);
-    serialized_rule.set("cssText"sv, declaration.serialized());
+    serialized_rule.set("cssText"sv, declaration.serialized().to_utf8());
     if (authored_text.has_value()) {
         auto authored_text_utf8 = authored_text->to_utf8();
         serialized_rule.set("authoredText"sv, authored_text_utf8);
         serialized_rule.set("declarations"sv, serialize_devtools_style_declarations(document, parse_devtools_style_declarations(document, authored_text->utf16_view())));
     } else {
-        serialized_rule.set("authoredText"sv, declaration.serialized());
+        serialized_rule.set("authoredText"sv, declaration.serialized().to_utf8());
         serialized_rule.set("declarations"sv, serialize_devtools_style_declarations(document, declaration));
     }
     serialized_rule.set("isSystem"sv, false);

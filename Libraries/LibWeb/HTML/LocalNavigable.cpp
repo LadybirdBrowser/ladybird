@@ -97,7 +97,7 @@ struct NavigationParamsFetchStateHolder : public JS::Cell {
         Fetch::Infrastructure::Request::ReferrerType request_referrer,
         ReferrerPolicy::ReferrerPolicy request_referrer_policy,
         Optional<URL::Origin> origin,
-        Variant<Empty, String, POSTResource> resource,
+        DocumentResource resource,
         bool ever_populated,
         Utf16String navigable_target_name)
         : coop_enforcement_result(move(coop_enforcement_result))
@@ -131,7 +131,7 @@ struct NavigationParamsFetchStateHolder : public JS::Cell {
     GC::Ptr<LocalNavigable> navigable;
     ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type;
     TargetSnapshotParams target_snapshot_params;
-    Optional<String> navigation_id;
+    Optional<Utf16String> navigation_id;
 
     // Fields extracted from entry's document_state
     Optional<URL::Origin> initiator_origin;
@@ -143,7 +143,7 @@ struct NavigationParamsFetchStateHolder : public JS::Cell {
     Fetch::Infrastructure::Request::ReferrerType request_referrer { Fetch::Infrastructure::Request::Referrer::Client };
     ReferrerPolicy::ReferrerPolicy request_referrer_policy { ReferrerPolicy::DEFAULT_REFERRER_POLICY };
     Optional<URL::Origin> origin;
-    Variant<Empty, String, POSTResource> resource;
+    DocumentResource resource;
     bool ever_populated = false;
     Utf16String navigable_target_name;
 
@@ -1008,7 +1008,7 @@ GC::Ptr<HTML::Window> LocalNavigable::active_window()
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-target
-Utf16String LocalNavigable::target_name() const
+Utf16String const& LocalNavigable::target_name() const
 {
     // A navigable's target name is its active session history entry's document state's navigable target name.
     return active_session_history_entry()->document_state()->navigable_target_name();
@@ -1049,7 +1049,7 @@ GC::Ptr<LocalTraversableNavigable> LocalNavigable::traversable_navigable() const
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#set-the-ongoing-navigation
-void LocalNavigable::set_ongoing_navigation(Variant<Empty, Traversal, String> ongoing_navigation, NavigationAPIAbortBehavior navigation_api_abort_behavior)
+void LocalNavigable::set_ongoing_navigation(Variant<Empty, Traversal, Utf16String> ongoing_navigation, NavigationAPIAbortBehavior navigation_api_abort_behavior)
 {
     // 1. If navigable's ongoing navigation is equal to newValue, then return.
     if (m_ongoing_navigation == ongoing_navigation)
@@ -1091,7 +1091,7 @@ void LocalNavigable::process_pending_navigations()
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#the-rules-for-choosing-a-navigable
-LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(StringView name, TokenizedFeature::NoOpener no_opener, ActivateTab activate_tab, Optional<TokenizedFeature::Map const&> window_features)
+LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(Utf16View name, TokenizedFeature::NoOpener no_opener, ActivateTab activate_tab, Optional<TokenizedFeature::Map const&> window_features)
 {
     // 1. Let chosen be null.
     GC::Ptr<LocalNavigable> chosen = nullptr;
@@ -1103,13 +1103,13 @@ LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(StringView na
     auto sandboxing_flag_set = active_document()->active_sandboxing_flag_set();
 
     // 4. If name is the empty string or an ASCII case-insensitive match for "_self", then set chosen to currentNavigable.
-    if (name.is_empty() || name.equals_ignoring_ascii_case("_self"sv)) {
+    if (name.is_empty() || name.equals_ignoring_ascii_case(u"_self"sv)) {
         chosen = this;
     }
 
     // 5. Otherwise, if name is an ASCII case-insensitive match for "_parent",
     //    set chosen to currentNavigable's parent, if any, and currentNavigable otherwise.
-    else if (name.equals_ignoring_ascii_case("_parent"sv)) {
+    else if (name.equals_ignoring_ascii_case(u"_parent"sv)) {
         if (auto parent = this->parent())
             chosen = as<LocalNavigable>(*parent);
         else
@@ -1118,14 +1118,14 @@ LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(StringView na
 
     // 6. Otherwise, if name is an ASCII case-insensitive match for "_top",
     //    set chosen to currentNavigable's traversable navigable.
-    else if (name.equals_ignoring_ascii_case("_top"sv)) {
+    else if (name.equals_ignoring_ascii_case(u"_top"sv)) {
         chosen = traversable_navigable();
     }
 
     // 7. Otherwise, if name is not an ASCII case-insensitive match for "_blank" and noopener is false, then set chosen
     //    to the result of finding a navigable by target name given name and currentNavigable.
-    else if (!name.equals_ignoring_ascii_case("_blank"sv) && no_opener == TokenizedFeature::NoOpener::No) {
-        chosen = find_a_navigable_by_target_name(Utf16String::from_utf8(name));
+    else if (!name.equals_ignoring_ascii_case(u"_blank"sv) && no_opener == TokenizedFeature::NoOpener::No) {
+        chosen = find_a_navigable_by_target_name(name);
     }
 
     // 8. If chosen is null, then a new top-level traversable is being requested, and what happens depends on the user
@@ -1165,7 +1165,7 @@ LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(StringView na
                 no_opener = TokenizedFeature::NoOpener::Yes;
 
                 // 2. Set name to "_blank".
-                name = "_blank"sv;
+                name = u"_blank"sv;
 
                 // 3. Set windowType to "new with no opener".
                 window_type = WindowType::NewWithNoOpener;
@@ -1177,15 +1177,16 @@ LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(StringView na
             Utf16String target_name;
 
             // 6. If name is not an ASCII case-insensitive match for "_blank", then set targetName to name.
-            if (!name.equals_ignoring_ascii_case("_blank"sv))
-                target_name = Utf16String::from_utf8(name);
+            if (!name.equals_ignoring_ascii_case(u"_blank"sv))
+                target_name = Utf16String::from_utf16(name);
 
             auto create_new_traversable_closure = [this, no_opener, target_name, activate_tab, window_features](GC::Ptr<BrowsingContext> opener) -> GC::Ref<LocalNavigable> {
-                auto hints = WebViewHints::from_tokenised_features(window_features.value_or({}), traversable_navigable()->page());
+                TokenizedFeature::Map empty_window_features;
+                auto hints = WebViewHints::from_tokenised_features(window_features.has_value() ? *window_features : empty_window_features, traversable_navigable()->page());
                 auto [page, window_handle] = traversable_navigable()->page().client().page_did_request_new_web_view(activate_tab, hints, no_opener);
                 auto traversable = LocalTraversableNavigable::create_a_new_top_level_traversable(*page, opener, target_name);
                 page->set_top_level_traversable(traversable);
-                traversable->set_window_handle(window_handle);
+                traversable->set_window_handle(Utf16String::from_ascii_without_validation(window_handle.bytes()));
                 return traversable;
             };
             auto create_new_traversable = GC::create_function(heap(), move(create_new_traversable_closure));
@@ -1259,7 +1260,7 @@ GC::Ptr<LocalNavigable> LocalNavigable::find_a_navigable_by_target_name(Utf16Vie
                 continue;
 
             // 2. If navigable's target name is name, then return navigable.
-            auto target_name = navigable->target_name();
+            auto const& target_name = navigable->target_name();
             if (target_name.utf16_view() == name)
                 return *navigable;
         }
@@ -1291,7 +1292,7 @@ GC::Ptr<LocalNavigable> LocalNavigable::find_a_navigable_by_target_name(Utf16Vie
                 continue;
 
             // 3. If navigable's target name is name, then return navigable.
-            auto target_name = navigable->target_name();
+            auto const& target_name = navigable->target_name();
             if (target_name.utf16_view() == name)
                 return *navigable;
         }
@@ -1416,21 +1417,21 @@ static GC::Ptr<DOM::Document> attempt_to_create_a_non_fetch_scheme_document(NonF
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#create-navigation-params-from-a-srcdoc-resource
 static GC::Ref<NavigationParams> create_navigation_params_from_a_srcdoc_resource(
-    Variant<Empty, String, POSTResource> const& document_resource,
+    DocumentResource const& document_resource,
     Optional<URL::Origin> const& origin,
     Variant<SerializedPolicyContainer, DocumentState::Client> const& history_policy_container_variant,
     Optional<URL::URL> const& about_base_url,
     GC::Ptr<LocalNavigable> navigable,
     TargetSnapshotParams const& target_snapshot_params,
     UserNavigationInvolvement user_involvement,
-    Optional<String> navigation_id)
+    Optional<Utf16String> navigation_id)
 {
     auto& vm = navigable->vm();
     VERIFY(navigable->active_window());
     auto& realm = navigable->active_window()->realm();
 
     // 1. Let documentResource be entry's document state's resource.
-    VERIFY(document_resource.has<String>());
+    VERIFY(document_resource.has<Utf16String>());
 
     // 2. Let response be a new response with
     //    URL: about:srcdoc
@@ -1439,7 +1440,8 @@ static GC::Ref<NavigationParams> create_navigation_params_from_a_srcdoc_resource
     auto response = Fetch::Infrastructure::Response::create(vm);
     response->url_list().append(URL::about_srcdoc());
     response->header_list()->append({ "Content-Type"sv, "text/html"sv });
-    response->set_body(Fetch::Infrastructure::byte_sequence_as_body(realm, document_resource.get<String>().bytes()));
+    auto document_resource_utf8 = MUST(document_resource.get<Utf16String>().utf16_view().to_utf8());
+    response->set_body(Fetch::Infrastructure::byte_sequence_as_body(realm, document_resource_utf8.bytes()));
 
     // 3. Let responseOrigin be the result of determining the origin given response's URL, targetSnapshotParams's sandboxing flags, and entry's document state's origin.
     auto response_origin = determine_the_origin(response->url(), target_snapshot_params.sandboxing_flags, origin);
@@ -1565,7 +1567,7 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
         //    and top-level origin is topLevelOrigin.
         // FIXME: Make this a proper unique opaque string.
         static int next_id = 1;
-        auto id_string = MUST(String::formatted("create-by-fetching-{}", next_id++));
+        auto id_string = Utf16String::formatted("create-by-fetching-{}", next_id++);
         state_holder->request->set_reserved_client(realm.create<Environment>(id_string, state_holder->current_url, top_level_creation_url, top_level_origin, state_holder->navigable->active_browsing_context()));
     }
 
@@ -1731,7 +1733,7 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#create-navigation-params-by-fetching
 static void create_navigation_params_by_fetching(
     URL::URL url,
-    Variant<Empty, String, POSTResource> document_resource,
+    DocumentResource document_resource,
     Fetch::Infrastructure::Request::ReferrerType request_referrer,
     ReferrerPolicy::ReferrerPolicy request_referrer_policy,
     Optional<URL::Origin> initiator_origin,
@@ -1746,7 +1748,7 @@ static void create_navigation_params_by_fetching(
     TargetSnapshotParams const& target_snapshot_params,
     ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type,
     UserNavigationInvolvement user_involvement,
-    Optional<String> navigation_id,
+    Optional<Utf16String> navigation_id,
     GC::Ref<GC::Function<void(GC::Ref<InternalNavigationResult>)>> completion_steps)
 {
     auto& vm = navigable->vm();
@@ -1944,7 +1946,9 @@ static void create_navigation_params_by_fetching(
         //     then return null.
         if (state_holder->response->is_network_error()) {
             // AD-HOC: We pass the error message if we have one in NullWithError
-            result->navigation_params = state_holder->response->network_error_message();
+            result->navigation_params = state_holder->response->network_error_message().map([](auto const& error_message) {
+                return Utf16String::from_utf8(error_message);
+            });
             completion_steps->function()(*result);
             return;
         }
@@ -2014,7 +2018,7 @@ static void create_navigation_params_by_fetching(
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#populating-a-session-history-entry
 void LocalNavigable::populate_session_history_entry_document(
     URL::URL url,
-    Variant<Empty, String, POSTResource> document_resource,
+    DocumentResource document_resource,
     Fetch::Infrastructure::Request::ReferrerType request_referrer,
     ReferrerPolicy::ReferrerPolicy request_referrer_policy,
     Optional<URL::Origin> initiator_origin,
@@ -2027,7 +2031,7 @@ void LocalNavigable::populate_session_history_entry_document(
     GC::Ref<SourceSnapshotParams> source_snapshot_params,
     TargetSnapshotParams const& target_snapshot_params,
     UserNavigationInvolvement user_involvement,
-    Optional<String> navigation_id,
+    Optional<Utf16String> navigation_id,
     NavigationParamsVariant navigation_params,
     ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type,
     bool allow_POST,
@@ -2106,13 +2110,14 @@ void LocalNavigable::populate_session_history_entry_document(
                          },
                          [](GC::Ref<NonFetchSchemeNavigationParams>) { return false; })) {
                 // 1. Set entry's document state's document to the result of creating a document for inline content that doesn't have a DOM, given navigable, null, navTimingType, and userInvolvement. The inline content should indicate to the user the sort of error that occurred.
-                auto error_message = navigation_params.has<NullOrError>() ? navigation_params.get<NullOrError>().value_or("Unknown error"_string) : "The request was denied."_string;
+                auto error_message = navigation_params.has<NullOrError>() ? navigation_params.get<NullOrError>().value_or("Unknown error"_utf16) : "The request was denied."_utf16;
+                auto error_message_utf8 = error_message.to_utf8();
 
                 auto error_url = result->redirected_url.value_or(url);
-                auto error_html = load_error_page(error_url, error_message).release_value_but_fixme_should_propagate_errors();
+                auto error_html = load_error_page(error_url, error_message_utf8).release_value_but_fixme_should_propagate_errors();
                 output->document = create_document_for_inline_content(this, navigation_id, user_involvement, [this, error_html](auto& document) {
                     auto scripting_mode = document.is_scripting_enabled() ? HTML::ParserScriptingMode::Normal : HTML::ParserScriptingMode::Disabled;
-                    auto parser = HTMLParser::create(document, error_html, scripting_mode, "utf-8"sv);
+                    auto parser = HTMLParser::create_from_byte_string(document, error_html, scripting_mode, "utf-8"sv);
                     document.set_url(URL::about_error());
                     parser->run();
 
@@ -2127,7 +2132,7 @@ void LocalNavigable::populate_session_history_entry_document(
 
                 // 2. Make document unsalvageable given entry's document state's document and "navigation-failure".
                 if (output->document)
-                    output->document->make_unsalvageable("navigation-failure"_string);
+                    output->document->make_unsalvageable("navigation-failure"_utf16);
 
                 // 3. Set saveExtraDocumentState to false.
                 output->save_extra_document_state = false;
@@ -2222,7 +2227,7 @@ void LocalNavigable::populate_session_history_entry_document(
         // 1. If documentResource is a string, then set navigationParams to the result of creating navigation params
         //    from a srcdoc resource given entry, navigable, targetSnapshotParams, userInvolvement, navigationId, and
         //    navTimingType.
-        if (document_resource.has<String>()) {
+        if (document_resource.has<Utf16String>()) {
             wrap_navigation_params(create_navigation_params_from_a_srcdoc_resource(
                 document_resource,
                 origin,
@@ -2438,7 +2443,8 @@ void LocalNavigable::begin_navigation(NavigateParams params)
     // NOTE: This step is handled in LocalNavigable::navigate()
 
     // 7. Let navigationId be the result of generating a random UUID.
-    auto navigation_id = Crypto::generate_random_uuid();
+    auto uuid = Crypto::generate_random_uuid();
+    auto navigation_id = Utf16String::from_ascii_without_validation(uuid.bytes());
 
     // FIXME: 8. If the surrounding agent is equal to navigable's active document's relevant agent, then continue these steps.
     //           Otherwise, queue a global task on the navigation and traversal task source given navigable's active window to continue these steps.
@@ -2699,9 +2705,9 @@ void LocalNavigable::begin_navigation(NavigateParams params)
                 // FIXME: Is calling url_matches_about_srcdoc() correct? https://github.com/whatwg/html/issues/10900
                 if (url_matches_about_blank(url) || url_matches_about_srcdoc(url)) {
                     // AD-HOC: document_resource cannot have an Empty if the url is about:srcdoc since we rely on document_resource
-                    //         having a String to call create_navigation_params_from_a_srcdoc_resource
+                    //         having a Utf16String to call create_navigation_params_from_a_srcdoc_resource
                     if (url_matches_about_srcdoc(url) && document_resource.has<Empty>()) {
-                        document_state->set_resource({ String {} });
+                        document_state->set_resource({ Utf16String {} });
                     }
                     // 1. Set documentState's origin to initiatorOriginSnapshot.
                     document_state->set_origin(document_state->initiator_origin());
@@ -2848,7 +2854,7 @@ void LocalNavigable::begin_navigation(NavigateParams params)
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-fragid
-void LocalNavigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ptr<DOM::Element> source_element, Optional<StorageSerializationRecord> navigation_api_state, String navigation_id)
+void LocalNavigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ptr<DOM::Element> source_element, Optional<StorageSerializationRecord> navigation_api_state, Utf16String navigation_id)
 {
     // 1. Let navigation be navigable's active window's navigation API.
     VERIFY(active_window());
@@ -2946,7 +2952,7 @@ void LocalNavigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandling
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#evaluate-a-javascript:-url
-GC::Ptr<DOM::Document> LocalNavigable::evaluate_javascript_url(URL::URL const& url, URL::Origin const& new_document_origin, UserNavigationInvolvement user_involvement, String navigation_id)
+GC::Ptr<DOM::Document> LocalNavigable::evaluate_javascript_url(URL::URL const& url, URL::Origin const& new_document_origin, UserNavigationInvolvement user_involvement, Utf16String navigation_id)
 {
     auto& vm = this->vm();
     VERIFY(active_window());
@@ -2975,11 +2981,11 @@ GC::Ptr<DOM::Document> LocalNavigable::evaluate_javascript_url(URL::URL const& u
     auto evaluation_status = script->run();
 
     // 8. Let result be null.
-    String result;
+    Optional<Utf16View> result;
 
     // 9. If evaluationStatus is a normal completion, and evaluationStatus.[[Value]] is a String, then set result to evaluationStatus.[[Value]].
     if (evaluation_status.type() == JS::Completion::Type::Normal && evaluation_status.value().is_string()) {
-        result = evaluation_status.value().as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
+        result = evaluation_status.value().as_string().utf16_string_view();
     } else {
         // 10. Otherwise, return null.
         return nullptr;
@@ -2989,10 +2995,11 @@ GC::Ptr<DOM::Document> LocalNavigable::evaluate_javascript_url(URL::URL const& u
     //     URL: targetNavigable's active document's URL
     //     header list: «(`Content-Type`, `text/html;charset=utf-8`)»
     //     body: the UTF-8 encoding of result, as a body
+    auto result_utf8 = MUST(result->to_utf8());
     auto response = Fetch::Infrastructure::Response::create(vm);
     response->url_list().append(active_document()->url());
     response->header_list()->append({ "Content-Type"sv, "text/html"sv });
-    response->set_body(Fetch::Infrastructure::byte_sequence_as_body(realm, result.bytes()));
+    response->set_body(Fetch::Infrastructure::byte_sequence_as_body(realm, result_utf8.bytes()));
 
     // 12. Let policyContainer be targetNavigable's active document's policy container.
     auto const& policy_container = active_document()->policy_container();
@@ -3052,11 +3059,11 @@ GC::Ptr<DOM::Document> LocalNavigable::evaluate_javascript_url(URL::URL const& u
 
     // 17. Return the result of loading an HTML document given navigationParams.
     // NB: The response body is a known byte sequence, so we can pass it directly for sniffing.
-    return load_document(navigation_params, result.bytes());
+    return load_document(navigation_params, result_utf8.bytes());
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-to-a-javascript:-url
-void LocalNavigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlingBehavior history_handling, GC::Ref<SourceSnapshotParams> source_snapshot_params, URL::Origin const& initiator_origin, UserNavigationInvolvement user_involvement, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, InitialInsertion initial_insertion, String navigation_id)
+void LocalNavigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlingBehavior history_handling, GC::Ref<SourceSnapshotParams> source_snapshot_params, URL::Origin const& initiator_origin, UserNavigationInvolvement user_involvement, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, InitialInsertion initial_insertion, Utf16String navigation_id)
 {
     auto& vm = this->vm();
 
@@ -3292,7 +3299,7 @@ TargetSnapshotParams LocalNavigable::snapshot_target_snapshot_params()
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation
-void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, NonnullRefPtr<SessionHistoryEntry> history_entry, GC::Ptr<DOM::Document> pending_document, Optional<String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete)
+void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, NonnullRefPtr<SessionHistoryEntry> history_entry, GC::Ptr<DOM::Document> pending_document, Optional<Utf16String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete)
 {
     // NOTE: This is not in the spec but we should not navigate destroyed navigable.
     if (navigable->has_been_destroyed()) {
@@ -3971,7 +3978,7 @@ void collect_clipboard_text(DOM::Node const& node, DOM::Range const& range, Vect
 
 }
 
-static String visible_text_in_range(DOM::Range const& range)
+static Utf16String visible_text_in_range(DOM::Range const& range)
 {
     Vector<Variant<Utf16String, RequiredLineBreakCount>> items;
     collect_clipboard_text(range.common_ancestor_container(), range, items);
@@ -4001,33 +4008,33 @@ static String visible_text_in_range(DOM::Range const& range)
                 builder.append_repeated_ascii('\n', max_line_breaks);
             });
     }
-    return builder.to_string().to_utf8();
+    return builder.to_string();
 }
 
-String LocalNavigable::selected_text() const
+Utf16String LocalNavigable::selected_text() const
 {
     auto document = active_document();
     if (!document)
-        return String {};
+        return Utf16String {};
 
     document->update_layout(DOM::UpdateLayoutReason::NavigableSelectedText);
 
     auto const* input_element = as_if<HTML::HTMLInputElement>(document->active_element());
     if (input_element && input_element->type_state() == HTML::HTMLInputElement::TypeAttributeState::Password) {
         // Apparently nobody wants bullet characters. We leave the clipboard alone here like other browsers.
-        return String {};
+        return Utf16String {};
     }
     auto selection = document->get_selection();
     if (auto form_text = selection->try_form_control_selected_text_for_stringifier(); form_text.has_value())
-        return form_text->to_utf8();
+        return form_text.release_value();
 
     auto range = selection->range();
     if (!range)
-        return String {};
+        return Utf16String {};
     return visible_text_in_range(*range);
 }
 
-String LocalNavigable::cut_selected_text() const
+Utf16String LocalNavigable::cut_selected_text() const
 {
     auto document = active_document();
     if (!document)
@@ -4062,7 +4069,7 @@ void LocalNavigable::select_all()
     }
 }
 
-void LocalNavigable::paste(Utf16String const& text)
+void LocalNavigable::paste(Utf16View text)
 {
     auto document = active_document();
     if (!document)
@@ -4071,7 +4078,7 @@ void LocalNavigable::paste(Utf16String const& text)
     m_event_handler.handle_paste(text);
 }
 
-void LocalNavigable::set_marked_text_from_input_method(Utf16String const& text)
+void LocalNavigable::set_marked_text_from_input_method(Utf16View text)
 {
     // Platform input methods call this on each composition update, with the current marked/preedit text. LibWeb owns
     // the marked-text range – so each update replaces the previously-marked text. The UI doesn't track the preedit
@@ -4086,7 +4093,7 @@ void LocalNavigable::set_marked_text_from_input_method(Utf16String const& text)
     replace_input_method_marked_text(text);
 }
 
-void LocalNavigable::commit_text_from_input_method(Utf16String const& text, i32 replacement_start, i32 replacement_length)
+void LocalNavigable::commit_text_from_input_method(Utf16View text, i32 replacement_start, i32 replacement_length)
 {
     if ((replacement_start != 0 || replacement_length != 0) && apply_input_method_commit_replacement(text, replacement_start, replacement_length)) {
         m_input_method_composition_node = nullptr;
@@ -4106,7 +4113,7 @@ void LocalNavigable::unmark_text_from_input_method()
     m_input_method_composition_node = nullptr;
 }
 
-void LocalNavigable::replace_input_method_marked_text(Utf16String const& text)
+void LocalNavigable::replace_input_method_marked_text(Utf16View text)
 {
     // Insert text from a platform input method into the currently-focused editable, via the same input-events target
     // that keyboard typing uses — so observers see the correct InputEvent.inputType.
@@ -4149,7 +4156,7 @@ void LocalNavigable::replace_input_method_marked_text(Utf16String const& text)
     target->handle_insert(UIEvents::InputTypes::insertText, text);
 }
 
-bool LocalNavigable::apply_input_method_commit_replacement(Utf16String const& text, i32 replacement_start, i32 replacement_length)
+bool LocalNavigable::apply_input_method_commit_replacement(Utf16View text, i32 replacement_start, i32 replacement_length)
 {
     if (replacement_length < 0)
         return false;
@@ -4243,7 +4250,7 @@ void LocalNavigable::stop_loading()
     clear_pending_navigations();
 
     // 2. If document's unload counter is 0, and navigable's ongoing navigation is a navigation ID, then set the ongoing navigation for navigable to null.
-    if (document->unload_counter() == 0 && ongoing_navigation().has<String>())
+    if (document->unload_counter() == 0 && ongoing_navigation().has<Utf16String>())
         set_ongoing_navigation(Empty {});
 
     // 3. Abort a document and its descendants given document.

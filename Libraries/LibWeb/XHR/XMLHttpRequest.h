@@ -53,14 +53,14 @@ public:
     State ready_state() const { return m_state; }
     Fetch::Infrastructure::Status status() const;
     WebIDL::ExceptionOr<String> status_text() const;
-    WebIDL::ExceptionOr<String> response_text() const;
+    WebIDL::ExceptionOr<Utf16String> response_text() const;
     WebIDL::ExceptionOr<GC::Ptr<DOM::Document>> response_xml();
     WebIDL::ExceptionOr<JS::Value> response();
     Bindings::XMLHttpRequestResponseType response_type() const { return m_response_type; }
-    String response_url();
+    Utf16String response_url();
 
-    WebIDL::ExceptionOr<void> open(String const& method, String const& url);
-    WebIDL::ExceptionOr<void> open(String const& method, String const& url, bool async, Optional<String> const& username = Optional<String> {}, Optional<String> const& password = Optional<String> {});
+    WebIDL::ExceptionOr<void> open(Utf16String const& method, Utf16String const& url);
+    WebIDL::ExceptionOr<void> open(Utf16String const& method, Utf16String const& url, bool async, Optional<Utf16String> const& username = Optional<Utf16String> {}, Optional<Utf16String> const& password = Optional<Utf16String> {});
     WebIDL::ExceptionOr<void> send(NullableDocumentOrXMLHttpRequestBodyInit body);
 
     WebIDL::ExceptionOr<void> set_request_header(String const& name, String const& value);
@@ -72,7 +72,7 @@ public:
     WebIDL::CallbackType* onreadystatechange();
     void set_onreadystatechange(WebIDL::CallbackType*);
 
-    WebIDL::ExceptionOr<void> override_mime_type(String const& mime);
+    WebIDL::ExceptionOr<void> override_mime_type(Utf16String const& mime);
 
     u32 timeout() const;
     WebIDL::ExceptionOr<void> set_timeout(u32 timeout);
@@ -93,12 +93,12 @@ private:
     [[nodiscard]] Optional<StringView> get_final_encoding() const;
     [[nodiscard]] MimeSniff::MimeType get_final_mime_type() const;
 
-    String get_text_response() const;
+    Utf16String get_text_response() const;
     void set_document_response();
 
     WebIDL::ExceptionOr<void> handle_response_end_of_body();
     WebIDL::ExceptionOr<void> handle_errors();
-    JS::ThrowCompletionOr<void> request_error_steps(FlyString const& event_name, GC::Ptr<WebIDL::DOMException> exception = nullptr);
+    JS::ThrowCompletionOr<void> request_error_steps(Utf16FlyString const& event_name, GC::Ptr<WebIDL::DOMException> exception = nullptr);
 
     void stop_timeout_timer();
 

@@ -12,6 +12,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/Time.h>
+#include <AK/Utf16View.h>
 #include <AK/Variant.h>
 #include <LibGC/RootVector.h>
 #include <LibGfx/Rect.h>
@@ -60,9 +61,9 @@ public:
     bool is_fetching() const;
 
     GC::Ptr<MediaError> error() const { return m_error; }
-    void set_decoder_error(String error_message);
+    void set_decoder_error(Utf16String error_message);
 
-    String const& current_src() const { return m_current_src; }
+    Utf16String const& current_src() const { return m_current_src; }
     void select_resource();
 
     OptionalMediaProvider src_object() const;
@@ -94,7 +95,7 @@ public:
         "wav"sv,
         "webm"sv,
     };
-    Bindings::CanPlayTypeResult can_play_type(StringView type) const;
+    Bindings::CanPlayTypeResult can_play_type(Utf16View type) const;
 
     enum class ReadyState : u8 {
         HaveNothing,
@@ -156,7 +157,7 @@ public:
 
     void update_video_frame_and_timeline();
 
-    GC::Ref<TextTrack> add_text_track(Bindings::TextTrackKind kind, String const& label, String const& language);
+    GC::Ref<TextTrack> add_text_track(Bindings::TextTrackKind kind, Utf16View label, Utf16View language);
 
     void update_ready_state();
 
@@ -215,16 +216,16 @@ private:
 
     WebIDL::ExceptionOr<void> load_element();
 
-    void load_url_resource(URL::URL const&, ESCAPING Function<void(String)> failure_callback);
+    void load_url_resource(URL::URL const&, ESCAPING Function<void(Utf16String)> failure_callback);
     void load_remote_resource(ByteRange const&);
-    void load_local_resource(MediaProviderObject const&, ESCAPING Function<void(String)> failure_callback);
+    void load_local_resource(MediaProviderObject const&, ESCAPING Function<void(Utf16String)> failure_callback);
     bool preload_attribute_is_in_none_state() const;
     bool should_wait_for_an_implementation_defined_event_before_fetching_the_resource() const;
     void wait_for_an_implementation_defined_event_before_fetching_the_resource(u32 fetch_generation);
     void continue_fetching_the_resource_after_an_implementation_defined_event();
     void run_remote_mode_resource_fetch_steps(ByteRange, u32 fetch_generation);
 
-    Optional<String> verify_response_or_get_failure_reason(GC::Ref<Fetch::Infrastructure::Response>, ByteRange const&);
+    Optional<Utf16String> verify_response_or_get_failure_reason(GC::Ref<Fetch::Infrastructure::Response>, ByteRange const&);
     bool should_hold_screen_wake_lock() const;
     void update_screen_wake_lock();
 
@@ -239,7 +240,7 @@ private:
     };
     void process_media_data(FetchingStatus);
 
-    void handle_media_source_failure(Span<GC::Ref<WebIDL::Promise>> promises, String error_message);
+    void handle_media_source_failure(Span<GC::Ref<WebIDL::Promise>> promises, Utf16String error_message);
     void forget_media_resource_specific_tracks();
     void set_ready_state(ReadyState);
 
@@ -311,7 +312,7 @@ private:
     MediaProviderObject m_assigned_media_provider_object;
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-currentsrc
-    String m_current_src;
+    Utf16String m_current_src;
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-networkstate
     NetworkState m_network_state { NetworkState::Empty };

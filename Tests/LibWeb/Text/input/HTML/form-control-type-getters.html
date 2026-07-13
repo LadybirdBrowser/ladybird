@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(`fieldset.type: ${document.createElement("fieldset").type}`);
+        println(`output.type: ${document.createElement("output").type}`);
+        println(`textarea.type: ${document.createElement("textarea").type}`);
+
+        const select = document.createElement("select");
+        println(`select.type: ${select.type}`);
+
+        select.multiple = true;
+        println(`select.type after setting multiple: ${select.type}`);
+    });
+</script>

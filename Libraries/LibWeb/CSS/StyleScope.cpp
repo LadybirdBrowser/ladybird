@@ -6,6 +6,7 @@
  */
 
 #include <AK/StringBuilder.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibWeb/CSS/CSSConditionRule.h>
 #include <LibWeb/CSS/CSSContainerRule.h>
 #include <LibWeb/CSS/CSSGroupingRule.h>
@@ -315,16 +316,16 @@ void StyleScope::build_user_style_sheet_if_needed()
     if (!user_style_source.has_value() && content_blocker_style_source.is_empty())
         return;
 
-    StringBuilder source;
+    Utf16StringBuilder source;
     if (user_style_source.has_value())
-        source.append(user_style_source.value());
+        source.append(user_style_source->utf16_view());
     if (!content_blocker_style_source.is_empty()) {
         if (!source.is_empty())
-            source.append('\n');
-        source.append(content_blocker_style_source);
+            source.append_ascii('\n');
+        source.append(content_blocker_style_source.utf16_view());
     }
 
-    m_user_style_sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(document()), source.to_string_without_validation()));
+    m_user_style_sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(document()), source.view()));
 }
 
 void StyleScope::build_rule_cache_if_needed() const
@@ -395,7 +396,7 @@ static CSSStyleSheet& svg_stylesheet()
 
 void StyleScope::for_each_user_agent_stylesheet(bool include_quirks_mode_stylesheet, Function<void(CSS::CSSStyleSheet&, StyleSheetIdentifier const&)> const& callback)
 {
-    auto callback_with_identifier = [&](CSSStyleSheet& sheet, String url) {
+    auto callback_with_identifier = [&](CSSStyleSheet& sheet, Utf16String url) {
         StyleSheetIdentifier identifier {
             .type = StyleSheetIdentifier::Type::UserAgent,
             .url = move(url),
@@ -403,11 +404,11 @@ void StyleScope::for_each_user_agent_stylesheet(bool include_quirks_mode_stylesh
         callback(sheet, identifier);
     };
 
-    callback_with_identifier(default_stylesheet(), "CSS/Default.css"_string);
+    callback_with_identifier(default_stylesheet(), "CSS/Default.css"_utf16);
     if (include_quirks_mode_stylesheet)
-        callback_with_identifier(quirks_mode_stylesheet(), "CSS/QuirksMode.css"_string);
-    callback_with_identifier(mathml_stylesheet(), "MathML/Default.css"_string);
-    callback_with_identifier(svg_stylesheet(), "SVG/Default.css"_string);
+        callback_with_identifier(quirks_mode_stylesheet(), "CSS/QuirksMode.css"_utf16);
+    callback_with_identifier(mathml_stylesheet(), "MathML/Default.css"_utf16);
+    callback_with_identifier(svg_stylesheet(), "SVG/Default.css"_utf16);
 }
 
 Optional<StyleSheetIdentifier> StyleScope::user_agent_style_sheet_identifier(CSS::CSSStyleSheet const& style_sheet)
@@ -785,12 +786,25 @@ void StyleScope::collect_selector_insights(Selector const& selector, SelectorIns
 }
 
 struct LayerNode {
-    OrderedHashMap<FlyString, LayerNode> children {};
+    OrderedHashMap<Utf16FlyString, LayerNode> children {};
 };
 
-static void flatten_layer_names_tree(Vector<FlyString>& layer_names, StringView const& parent_qualified_name, FlyString const& name, LayerNode const& node)
+static Utf16FlyString make_qualified_layer_name(Utf16FlyString const& parent_qualified_name, Utf16FlyString const& name)
 {
-    FlyString qualified_name = parent_qualified_name.is_empty() ? name : MUST(String::formatted("{}.{}", parent_qualified_name, name));
+    if (parent_qualified_name.is_empty())
+        return name;
+
+    Utf16StringBuilder builder;
+    builder.append(parent_qualified_name);
+    builder.append_ascii('.');
+    builder.append(name);
+    auto qualified_name = builder.to_string();
+    return Utf16FlyString::from_utf16(qualified_name.utf16_view());
+}
+
+static void flatten_layer_names_tree(Vector<Utf16FlyString>& layer_names, Utf16FlyString const& parent_qualified_name, Utf16FlyString const& name, LayerNode const& node)
+{
+    auto qualified_name = make_qualified_layer_name(parent_qualified_name, name);
 
     for (auto const& item : node.children)
         flatten_layer_names_tree(layer_names, qualified_name, item.key, item.value);
@@ -802,12 +816,13 @@ void StyleScope::build_qualified_layer_names_cache(StyleRuleCache& rule_cache)
 {
     LayerNode root;
 
-    auto insert_layer_name = [&](FlyString const& internal_qualified_name) {
+    auto insert_layer_name = [&](Utf16FlyString const& internal_qualified_name) {
         auto* node = &root;
-        internal_qualified_name.bytes_as_string_view()
-            .for_each_split_view('.', SplitBehavior::Nothing, [&](StringView part) {
-                auto local_name = MUST(FlyString::from_utf8(part));
+        internal_qualified_name.view()
+            .for_each_split_view(u'.', SplitBehavior::Nothing, [&](Utf16View const& part) {
+                auto local_name = Utf16FlyString::from_utf16(part);
                 node = &node->children.ensure(local_name);
+                return IterationDecision::Continue;
             });
     };
 
@@ -866,7 +881,7 @@ void StyleScope::build_qualified_layer_names_cache(StyleRuleCache& rule_cache)
 
     // Now, produce a flat list of qualified names to use later
     rule_cache.qualified_layer_names_in_order.clear();
-    flatten_layer_names_tree(rule_cache.qualified_layer_names_in_order, ""sv, {}, root);
+    flatten_layer_names_tree(rule_cache.qualified_layer_names_in_order, {}, {}, root);
 }
 
 void StyleScope::invalidate_counter_style_cache()

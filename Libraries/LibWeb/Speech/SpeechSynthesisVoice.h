@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
@@ -23,13 +23,13 @@ public:
     virtual ~SpeechSynthesisVoice() override;
 
     // https://wicg.github.io/speech-api/#dom-speechsynthesisvoice-voiceuri
-    String const& voice_uri() const { return m_voice_uri; }
+    Utf16String const& voice_uri() const { return m_voice_uri; }
 
     // https://wicg.github.io/speech-api/#dom-speechsynthesisvoice-name
-    String const& name() const { return m_name; }
+    Utf16String const& name() const { return m_name; }
 
     // https://wicg.github.io/speech-api/#dom-speechsynthesisvoice-lang
-    String const& lang() const { return m_lang; }
+    Utf16String const& lang() const { return m_lang; }
 
     // https://wicg.github.io/speech-api/#dom-speechsynthesisvoice-localservice
     bool local_service() const { return m_local_service; }
@@ -42,9 +42,9 @@ private:
 
     virtual void initialize(JS::Realm&) override;
 
-    String m_voice_uri;
-    String m_name;
-    String m_lang;
+    Utf16String m_voice_uri;
+    Utf16String m_name;
+    Utf16String m_lang;
     bool m_local_service { false };
     bool m_default { false };
 };
