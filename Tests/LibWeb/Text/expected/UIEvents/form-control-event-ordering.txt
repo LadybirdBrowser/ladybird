@@ -1,0 +1,13 @@
+range
+after sendKey(value="1")
+after controlled render(value="0")
+clear input
+after clear(value="")
+after controlled render(value="value")
+clear textarea
+after clear(value="")
+after controlled render(value="value")
+textarea change
+input(value="x")
+after sendText
+after blur

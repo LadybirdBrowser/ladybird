@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<input id="range" type="range" min="0" max="10" value="0">
+<input id="clear-input" value="value">
+<textarea id="clear-textarea">value</textarea>
+<textarea id="change-textarea"></textarea>
+<button id="blur-target"></button>
+<script>
+    test(() => {
+        const range = document.getElementById("range");
+        let controlledValue = range.value;
+        const rangeEvents = [];
+        range.addEventListener("input", () => {
+            controlledValue = range.value;
+            rangeEvents.push(`input(value=${JSON.stringify(range.value)})`);
+        });
+
+        internals.sendKey(range, "Right");
+        rangeEvents.push(`after sendKey(value=${JSON.stringify(range.value)})`);
+        range.value = controlledValue;
+        rangeEvents.push(`after controlled render(value=${JSON.stringify(range.value)})`);
+
+        println("range");
+        rangeEvents.forEach(println);
+
+        function testClear(control, label) {
+            let controlledValue = control.value;
+            const events = [];
+            control.addEventListener("input", () => {
+                controlledValue = control.value;
+                events.push(`input(value=${JSON.stringify(control.value)})`);
+            });
+
+            internals.clearElement(control);
+            events.push(`after clear(value=${JSON.stringify(control.value)})`);
+            control.value = controlledValue;
+            events.push(`after controlled render(value=${JSON.stringify(control.value)})`);
+
+            println(label);
+            events.forEach(println);
+        }
+
+        testClear(document.getElementById("clear-input"), "clear input");
+        testClear(document.getElementById("clear-textarea"), "clear textarea");
+
+        const textarea = document.getElementById("change-textarea");
+        const textareaEvents = [];
+        for (const type of ["input", "change"])
+            textarea.addEventListener(type, () => textareaEvents.push(`${type}(value=${JSON.stringify(textarea.value)})`));
+
+        internals.sendText(textarea, "x");
+        textareaEvents.push("after sendText");
+        document.getElementById("blur-target").focus();
+        textareaEvents.push("after blur");
+
+        println("textarea change");
+        textareaEvents.forEach(println);
+    });
+</script>
