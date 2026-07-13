@@ -7,6 +7,8 @@
  */
 
 #include <AK/Tuple.h>
+#include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/SVGSVGBox.h>
 #include <LibWeb/Layout/ScrollableOverflow.h>
@@ -49,6 +51,15 @@ struct LogicalAxis {
 static bool inline_axis_is_horizontal(CSS::WritingMode writing_mode)
 {
     return writing_mode == CSS::WritingMode::HorizontalTb;
+}
+
+static bool node_is_in_focused_text_control(DOM::Node const& node)
+{
+    auto shadow_root = node.containing_shadow_root();
+    return shadow_root
+        && shadow_root->is_user_agent_internal()
+        && is<HTML::FormAssociatedTextControlElement>(shadow_root->host())
+        && shadow_root->host()->is_focused();
 }
 
 static PhysicalOverflowDirections physical_overflow_directions(Box const& box)
@@ -166,6 +177,23 @@ CSSPixelRect measure_scrollable_overflow(Box const& box, ContainedBoxesMap const
     if (auto first_paintable = box.first_paintable(); auto const* paintable_with_lines = as_if<Painting::PaintableWithLines>(first_paintable.ptr())) {
         for (auto const& fragment : paintable_with_lines->fragments()) {
             auto fragment_rect = fragment.absolute_rect();
+            if (auto const* dom_node = fragment.layout_node().dom_node(); dom_node && node_is_in_focused_text_control(*dom_node)) {
+                // NB: Reserve one pixel of reachable inline-axis overflow for an end-of-line caret. This keeps the
+                //     caret at its insertion position while allowing a text control to scroll the painted bar fully
+                //     into view, matching the caret overflow accounted for by other engines.
+                auto const& computed_values = fragment.layout_node().computed_values();
+                if (inline_axis_is_horizontal(computed_values.writing_mode())) {
+                    if (computed_values.inline_axis_is_reverse())
+                        fragment_rect.set_left(fragment_rect.left() - 1);
+                    else
+                        fragment_rect.set_right(fragment_rect.right() + 1);
+                } else {
+                    if (computed_values.inline_axis_is_reverse())
+                        fragment_rect.set_top(fragment_rect.top() - 1);
+                    else
+                        fragment_rect.set_bottom(fragment_rect.bottom() + 1);
+                }
+            }
             scrollable_overflow_rect.unite(fragment_rect);
             update_content_overflow_axes(fragment_rect);
         }

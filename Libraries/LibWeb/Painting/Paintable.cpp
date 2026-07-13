@@ -388,6 +388,16 @@ void Paintable::scroll_text_offset_into_view(DOM::Text const& text, size_t offse
 {
     auto scroll_to_cursor = [&](PaintableFragment const& fragment) {
         auto cursor_rect = fragment.range_rect(SelectionState::StartAndEnd, offset, offset);
+        auto const& computed_values = fragment.layout_node().computed_values();
+        if (computed_values.writing_mode() == CSS::WritingMode::HorizontalTb) {
+            if (computed_values.inline_axis_is_reverse())
+                cursor_rect.set_x(cursor_rect.x() - 1);
+            cursor_rect.set_width(1);
+        } else {
+            if (computed_values.inline_axis_is_reverse())
+                cursor_rect.set_y(cursor_rect.y() - 1);
+            cursor_rect.set_height(1);
+        }
         for (auto ancestor = fragment.containing_block_paintable(); ancestor; ancestor = ancestor->containing_block()) {
             if (ancestor->has_scrollable_overflow()) {
                 ancestor->scroll_into_view(cursor_rect);

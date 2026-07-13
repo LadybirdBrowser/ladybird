@@ -1,0 +1,3 @@
+scrolls to caret: true
+rect=[18,8 1x16] color=rgb(0, 0, 0)
+RTL scrolls to caret: true

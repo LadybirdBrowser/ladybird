@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<style>
+input {
+    font: 16px monospace;
+    width: 8px;
+    padding: 0;
+    border: 0;
+}
+</style>
+<input id="ltr">
+<input id="rtl" dir="rtl">
+<script src="include.js"></script>
+<script>
+test(() => {
+    const input = document.querySelector("#ltr");
+    input.focus();
+    internals.sendText(input, "x");
+    const innerText = internals.getShadowRoot(input).querySelector("div > div");
+    println(`scrolls to caret: ${innerText.scrollLeft > 0}`);
+    for (const line of internals.dumpDisplayList().split("\n")) {
+        if (line.includes("FillRect") && line.includes("1x16") && line.includes("rgb(0, 0, 0)"))
+            println(line.slice(line.indexOf("rect=")));
+    }
+
+    const rtlInput = document.querySelector("#rtl");
+    rtlInput.focus();
+    internals.sendText(rtlInput, "x");
+    const rtlInnerText = internals.getShadowRoot(rtlInput).querySelector("div > div");
+    println(`RTL scrolls to caret: ${rtlInnerText.scrollLeft > 0}`);
+});
+</script>
