@@ -87,6 +87,11 @@ HTMLMediaElement::HTMLMediaElement(DOM::Document& document, DOM::QualifiedName q
 
 HTMLMediaElement::~HTMLMediaElement() = default;
 
+bool HTMLMediaElement::is_fetching() const
+{
+    return m_remote_fetch_data && m_remote_fetch_data->fetch_controller;
+}
+
 void HTMLMediaElement::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLMediaElement);

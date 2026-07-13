@@ -9,13 +9,17 @@
         internals.setTestTimeout(15000);
         const httpServer = httpTestServer();
 
-        const token = "media-adoption-round-trip";
-        const mediaURL = await httpServer.createEcho("GET", "/media-adoption-round-trip", {
+        const testID = crypto.randomUUID();
+        const token = `media-adoption-round-trip-${testID}`;
+        const mediaURL = new URL(await httpServer.createEcho("GET", `/media-adoption-round-trip-${testID}`, {
             status: 200,
             headers: { "Content-Type": "video/webm", "Cache-Control": "no-store" },
             body: "",
             wait_for_unblock: token,
-        });
+        }));
+        mediaURL.hostname = uniqueLocalhostHostname("media-adoption");
+        const unblockURL = new URL(`/unblock/${token}`, mediaURL);
+        unblockURL.hostname = uniqueLocalhostHostname("media-adoption-unblock");
 
         const video = document.createElement("video");
         video.preload = "auto";
@@ -23,8 +27,7 @@
         document.body.appendChild(video);
         await new Promise(resolve => video.addEventListener("loadstart", resolve, { once: true }));
 
-        // Give the resource fetch algorithm a few event loop turns to actually start the fetch.
-        for (let i = 0; i < 10; ++i)
+        while (!internals.mediaElementIsFetching(video))
             await new Promise(resolve => setTimeout(resolve, 0));
 
         const inactiveDocument = new DOMParser().parseFromString("<body></body>", "text/html");
@@ -36,6 +39,6 @@
             println(`video error event (error=${video.error.code})`);
             done();
         });
-        await fetch(new URL(`/unblock/${token}`, mediaURL));
+        await fetch(unblockURL);
     });
 </script>

@@ -145,6 +145,7 @@ public:
     String canvas_color_scheme();
     bool style_sheet_may_have_has_selectors(CSS::CSSStyleSheet&);
     WebIDL::ExceptionOr<JS::Object*> image_animation_state_for_url(String const& url);
+    bool media_element_is_fetching(HTML::HTMLMediaElement&);
     JS::Object* async_scrolling_state();
     bool async_scrolling_state_blocks_wheel_event_at(double x, double y);
     bool async_scrolling_state_can_wheel_scroll_at(double x, double y, double delta_x, double delta_y, bool force_stale_wheel_event_regions);

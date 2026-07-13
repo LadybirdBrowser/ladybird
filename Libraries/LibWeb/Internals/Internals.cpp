@@ -42,6 +42,7 @@
 #include <LibWeb/HTML/EventLoop/TaskQueue.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
+#include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -964,6 +965,11 @@ static Optional<AsyncScrollingStateSnapshot> capture_async_scrolling_state(DOM::
         .visual_context_tree = document_paintable->visual_context_tree(),
         .document_paintable = document_paintable,
     };
+}
+
+bool Internals::media_element_is_fetching(HTML::HTMLMediaElement& element)
+{
+    return element.is_fetching();
 }
 
 JS::Object* Internals::async_scrolling_state()

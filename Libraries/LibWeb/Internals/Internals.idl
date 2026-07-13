@@ -142,6 +142,7 @@ interface Internals {
     // Returns the selector-insight cache state for stylesheet invalidation tests.
     boolean styleSheetMayHaveHasSelectors(CSSStyleSheet sheet);
     object imageAnimationStateForURL(USVString url);
+    boolean mediaElementIsFetching(HTMLMediaElement element);
 
     object asyncScrollingState();
     boolean asyncScrollingStateBlocksWheelEventAt(double x, double y);

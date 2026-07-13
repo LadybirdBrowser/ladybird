@@ -57,6 +57,7 @@ public:
     void queue_a_media_element_task(Function<void(HTMLMediaElement&)>);
 
     void cancel_the_fetching_process();
+    bool is_fetching() const;
 
     GC::Ptr<MediaError> error() const { return m_error; }
     void set_decoder_error(String error_message);
