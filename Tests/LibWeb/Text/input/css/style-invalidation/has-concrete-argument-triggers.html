@@ -27,6 +27,7 @@
         assertEqual("initial needle target", readProbe(needleTarget), BASE);
         assertEqual("initial other target", readProbe(otherTarget), BASE);
 
+        document.body.offsetWidth;
         resetStyleCounters();
         mutating.classList.add("needle");
         assertEqual("needle target after relevant mutation", readProbe(needleTarget), MATCH);
