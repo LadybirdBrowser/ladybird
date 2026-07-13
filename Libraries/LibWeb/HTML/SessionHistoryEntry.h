@@ -46,7 +46,13 @@ enum class SessionHistoryEntryUpdateKind : u8 {
     DocumentStatePopulation,
 };
 
-struct SessionHistoryNestedHistoryDescriptor;
+struct SessionHistoryEntryDescriptor;
+
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#nested-history
+struct SessionHistoryNestedHistoryDescriptor {
+    CrossProcessId id;
+    Vector<SessionHistoryEntryDescriptor> entries;
+};
 
 // IPC-friendly descriptors for the parts of session history entries and document states that can survive
 // WebContent process swaps.
@@ -131,14 +137,20 @@ struct CurrentSessionHistoryEntryUpdate {
     SessionHistoryEntryDescriptor entry;
 };
 
-struct CurrentSessionHistoryEntryNestedHistoriesUpdate {
+struct CurrentSessionHistoryEntryNestedHistoryUpdate {
     CrossProcessId document_state_id;
-    Vector<SessionHistoryNestedHistoryDescriptor> nested_histories;
+    SessionHistoryNestedHistoryDescriptor nested_history;
+    i32 current_step { 0 };
+};
+
+struct CurrentSessionHistoryEntryNestedHistoryRemoval {
+    CrossProcessId document_state_id;
+    CrossProcessId nested_history_id;
     i32 current_step { 0 };
 };
 
 struct WebContentSessionHistoryMutation {
-    using Mutation = Variant<CurrentSessionHistoryEntryUpdate, CurrentSessionHistoryEntryNestedHistoriesUpdate, SameDocumentSessionHistoryNavigation, NestedSameDocumentSessionHistoryNavigation, NestedCrossDocumentSessionHistoryNavigation, TopLevelCrossDocumentSessionHistoryNavigation, AppliedSessionHistoryTraversal, RestoredCurrentSessionHistoryStep>;
+    using Mutation = Variant<CurrentSessionHistoryEntryUpdate, CurrentSessionHistoryEntryNestedHistoryUpdate, CurrentSessionHistoryEntryNestedHistoryRemoval, SameDocumentSessionHistoryNavigation, NestedSameDocumentSessionHistoryNavigation, NestedCrossDocumentSessionHistoryNavigation, TopLevelCrossDocumentSessionHistoryNavigation, AppliedSessionHistoryTraversal, RestoredCurrentSessionHistoryStep>;
 
     Mutation mutation;
 
@@ -147,7 +159,12 @@ struct WebContentSessionHistoryMutation {
         return { CurrentSessionHistoryEntryUpdate { update_kind, move(entry) } };
     }
 
-    static WebContentSessionHistoryMutation current_entry_nested_histories_update(CurrentSessionHistoryEntryNestedHistoriesUpdate update)
+    static WebContentSessionHistoryMutation current_entry_nested_history_update(CurrentSessionHistoryEntryNestedHistoryUpdate update)
+    {
+        return { move(update) };
+    }
+
+    static WebContentSessionHistoryMutation current_entry_nested_history_removal(CurrentSessionHistoryEntryNestedHistoryRemoval update)
     {
         return { move(update) };
     }
@@ -186,12 +203,6 @@ struct WebContentSessionHistoryMutation {
 struct WebContentSessionHistoryMutationBatch {
     Vector<WebContentSessionHistoryMutation> mutations;
     i32 final_current_step { 0 };
-};
-
-// https://html.spec.whatwg.org/multipage/browsing-the-web.html#nested-history
-struct SessionHistoryNestedHistoryDescriptor {
-    CrossProcessId id;
-    Vector<SessionHistoryEntryDescriptor> entries;
 };
 
 // https://html.spec.whatwg.org/multipage/history.html#session-history-entry
@@ -314,10 +325,16 @@ template<>
 WEB_API ErrorOr<Web::HTML::CurrentSessionHistoryEntryUpdate> decode(Decoder&);
 
 template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::CurrentSessionHistoryEntryNestedHistoriesUpdate const&);
+WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::CurrentSessionHistoryEntryNestedHistoryUpdate const&);
 
 template<>
-WEB_API ErrorOr<Web::HTML::CurrentSessionHistoryEntryNestedHistoriesUpdate> decode(Decoder&);
+WEB_API ErrorOr<Web::HTML::CurrentSessionHistoryEntryNestedHistoryUpdate> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::CurrentSessionHistoryEntryNestedHistoryRemoval const&);
+
+template<>
+WEB_API ErrorOr<Web::HTML::CurrentSessionHistoryEntryNestedHistoryRemoval> decode(Decoder&);
 
 template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::SameDocumentSessionHistoryNavigation const&);

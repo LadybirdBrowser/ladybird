@@ -49,7 +49,8 @@ public:
 
     enum class WebContentMutationType {
         CurrentEntryUpdate,
-        CurrentEntryNestedHistoriesUpdate,
+        CurrentEntryNestedHistoryUpdate,
+        CurrentEntryNestedHistoryRemoval,
         TopLevelSameDocumentNavigation,
         NestedSameDocumentNavigation,
         NestedCrossDocumentNavigation,
@@ -64,8 +65,9 @@ public:
         Web::HTML::CrossProcessId document_state_id;
         Web::HTML::CrossProcessId parent_document_state_id;
         Web::HTML::CrossProcessId navigable_id;
+        Web::HTML::CrossProcessId nested_history_id;
         Entry entry;
-        Vector<Web::HTML::SessionHistoryNestedHistoryDescriptor> nested_histories;
+        Web::HTML::SessionHistoryNestedHistoryDescriptor nested_history;
         Optional<i32> replaced_step;
         i32 current_step { 0 };
 
@@ -78,12 +80,22 @@ public:
             };
         }
 
-        static WebContentMutation current_entry_nested_histories_update(Web::HTML::CrossProcessId document_state_id, Vector<Web::HTML::SessionHistoryNestedHistoryDescriptor> nested_histories, i32 current_step)
+        static WebContentMutation current_entry_nested_history_update(Web::HTML::CrossProcessId document_state_id, Web::HTML::SessionHistoryNestedHistoryDescriptor nested_history, i32 current_step)
         {
             return {
-                .type = WebContentMutationType::CurrentEntryNestedHistoriesUpdate,
+                .type = WebContentMutationType::CurrentEntryNestedHistoryUpdate,
                 .document_state_id = document_state_id,
-                .nested_histories = move(nested_histories),
+                .nested_history = move(nested_history),
+                .current_step = current_step,
+            };
+        }
+
+        static WebContentMutation current_entry_nested_history_removal(Web::HTML::CrossProcessId document_state_id, Web::HTML::CrossProcessId nested_history_id, i32 current_step)
+        {
+            return {
+                .type = WebContentMutationType::CurrentEntryNestedHistoryRemoval,
+                .document_state_id = document_state_id,
+                .nested_history_id = nested_history_id,
                 .current_step = current_step,
             };
         }
@@ -201,7 +213,8 @@ public:
 private:
     [[nodiscard]] bool web_content_known_history_matches_mirror() const;
     [[nodiscard]] bool update_current_entry_from_web_content(Web::HTML::SessionHistoryEntryUpdateKind, Entry);
-    [[nodiscard]] bool update_current_entry_nested_histories_from_web_content(Web::HTML::CrossProcessId document_state_id, Vector<Web::HTML::SessionHistoryNestedHistoryDescriptor>, i32 current_step);
+    [[nodiscard]] bool update_current_entry_nested_history_from_web_content(Web::HTML::CrossProcessId document_state_id, Web::HTML::SessionHistoryNestedHistoryDescriptor, i32 current_step);
+    [[nodiscard]] bool remove_current_entry_nested_history_from_web_content(Web::HTML::CrossProcessId document_state_id, Web::HTML::CrossProcessId nested_history_id, i32 current_step);
     [[nodiscard]] bool apply_top_level_same_document_navigation_from_web_content(Entry, Optional<i32> replaced_step, i32 current_step);
     [[nodiscard]] bool apply_nested_same_document_navigation_from_web_content(Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId navigable_id, Entry, Optional<i32> replaced_step, i32 current_step);
     [[nodiscard]] bool apply_nested_cross_document_navigation_from_web_content(Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId navigable_id, Entry, i32 current_step);

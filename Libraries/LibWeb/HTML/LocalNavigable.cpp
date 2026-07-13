@@ -3450,6 +3450,11 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
         target_step = traversable->current_session_history_step();
     }
 
+    LocalTraversableNavigable::CrossDocumentSessionHistoryNavigationMutation session_history_navigation_mutation {
+        .navigable = navigable,
+        .entry = history_entry,
+    };
+
     // 10. Apply the push/replace history step targetStep to traversable given historyHandling and userInvolvement.
     traversable->apply_the_push_or_replace_history_step(target_step, history_handling, user_involvement, LocalTraversableNavigable::SynchronousNavigation::No, pending_document, navigable, move(expected_ongoing_navigation_id),
         GC::create_function(navigable->heap(), [on_complete, navigable](HistoryStepResult result) {
@@ -3457,7 +3462,8 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
             if (auto container = navigable->container())
                 container->set_needs_layout_update(DOM::SetNeedsLayoutReason::FinalizeACrossDocumentNavigation);
             on_complete->function()(result);
-        }));
+        }),
+        {}, move(session_history_navigation_mutation));
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#url-and-history-update-steps

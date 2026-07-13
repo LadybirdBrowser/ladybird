@@ -370,14 +370,14 @@ WebContentSessionHistoryMutationResult CanonicalTraversable::did_receive_web_con
         };
     }
 
-    if (mutation.mutation.has<Web::HTML::CurrentSessionHistoryEntryNestedHistoriesUpdate>()) {
-        auto nested_histories_update = move(mutation.mutation.get<Web::HTML::CurrentSessionHistoryEntryNestedHistoriesUpdate>());
+    if (mutation.mutation.has<Web::HTML::CurrentSessionHistoryEntryNestedHistoryUpdate>()) {
+        auto nested_history_update = move(mutation.mutation.get<Web::HTML::CurrentSessionHistoryEntryNestedHistoryUpdate>());
         auto mutation_result = m_session_history.apply_web_content_mutation(
-            TraversableSessionHistory::WebContentMutation::current_entry_nested_histories_update(nested_histories_update.document_state_id, move(nested_histories_update.nested_histories), nested_histories_update.current_step));
+            TraversableSessionHistory::WebContentMutation::current_entry_nested_history_update(nested_history_update.document_state_id, move(nested_history_update.nested_history), nested_history_update.current_step));
         if (!mutation_result.accepted) {
             m_session_history.forget_web_content_state();
             return {
-                .dump_reason = "rejected-current-entry-nested-histories-update"sv,
+                .dump_reason = "rejected-current-entry-nested-history-update"sv,
                 .should_request_session_history_update = true,
                 .should_update_navigation_action_state = true,
             };
@@ -385,7 +385,28 @@ WebContentSessionHistoryMutationResult CanonicalTraversable::did_receive_web_con
 
         return {
             .accepted = true,
-            .dump_reason = "did-update-current-entry-nested-histories"sv,
+            .dump_reason = "did-update-current-entry-nested-history"sv,
+            .should_request_session_history_update = !mutation_result.web_content_history_matches_mirror,
+            .should_update_navigation_action_state = true,
+        };
+    }
+
+    if (mutation.mutation.has<Web::HTML::CurrentSessionHistoryEntryNestedHistoryRemoval>()) {
+        auto nested_history_removal = mutation.mutation.get<Web::HTML::CurrentSessionHistoryEntryNestedHistoryRemoval>();
+        auto mutation_result = m_session_history.apply_web_content_mutation(
+            TraversableSessionHistory::WebContentMutation::current_entry_nested_history_removal(nested_history_removal.document_state_id, nested_history_removal.nested_history_id, nested_history_removal.current_step));
+        if (!mutation_result.accepted) {
+            m_session_history.forget_web_content_state();
+            return {
+                .dump_reason = "rejected-current-entry-nested-history-removal"sv,
+                .should_request_session_history_update = true,
+                .should_update_navigation_action_state = true,
+            };
+        }
+
+        return {
+            .accepted = true,
+            .dump_reason = "did-remove-current-entry-nested-history"sv,
             .should_request_session_history_update = !mutation_result.web_content_history_matches_mirror,
             .should_update_navigation_action_state = true,
         };
@@ -498,25 +519,6 @@ WebContentSessionHistoryMutationResult CanonicalTraversable::did_receive_web_con
     }
 
     return batch_result;
-}
-
-WebContentSessionHistoryMutationResult CanonicalTraversable::did_fail_to_apply_web_content_session_history_mutation()
-{
-    if (m_pending_web_content_session_history_seed.waiting_for_ack)
-        return { .dump_reason = "ignored-session-history-mutation-failure-before-ui-seed-ack"sv };
-
-    if (m_pending_web_content_session_history_seed.ignore_updates_until_seed)
-        return { .dump_reason = "ignored-session-history-mutation-failure-before-ui-seed"sv };
-
-    if (m_pending_web_content_session_history_seed.step_after_loading_top_level_entry.has_value())
-        return { .dump_reason = "ignored-session-history-mutation-failure-before-restored-history-step"sv };
-
-    m_session_history.forget_web_content_state();
-    return {
-        .dump_reason = "webcontent-session-history-mutation-failed"sv,
-        .should_request_session_history_update = true,
-        .should_update_navigation_action_state = true,
-    };
 }
 
 WebContentSessionHistoryUpdateDecision CanonicalTraversable::did_receive_web_content_session_history_update_for_testing(Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index, URL::URL const& current_url)

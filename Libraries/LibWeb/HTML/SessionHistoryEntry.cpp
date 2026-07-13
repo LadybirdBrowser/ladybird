@@ -345,24 +345,47 @@ ErrorOr<Web::HTML::CurrentSessionHistoryEntryUpdate> IPC::decode(Decoder& decode
 }
 
 template<>
-ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::CurrentSessionHistoryEntryNestedHistoriesUpdate const& update)
+ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::CurrentSessionHistoryEntryNestedHistoryUpdate const& update)
 {
     TRY(encoder.encode(update.document_state_id));
-    TRY(encoder.encode(update.nested_histories));
+    TRY(encoder.encode(update.nested_history));
     TRY(encoder.encode(update.current_step));
     return {};
 }
 
 template<>
-ErrorOr<Web::HTML::CurrentSessionHistoryEntryNestedHistoriesUpdate> IPC::decode(Decoder& decoder)
+ErrorOr<Web::HTML::CurrentSessionHistoryEntryNestedHistoryUpdate> IPC::decode(Decoder& decoder)
 {
     auto document_state_id = TRY(decoder.decode<Web::HTML::CrossProcessId>());
-    auto nested_histories = TRY(decoder.decode<Vector<Web::HTML::SessionHistoryNestedHistoryDescriptor>>());
+    auto nested_history = TRY(decoder.decode<Web::HTML::SessionHistoryNestedHistoryDescriptor>());
     auto current_step = TRY(decoder.decode<i32>());
 
-    return Web::HTML::CurrentSessionHistoryEntryNestedHistoriesUpdate {
+    return Web::HTML::CurrentSessionHistoryEntryNestedHistoryUpdate {
         .document_state_id = document_state_id,
-        .nested_histories = move(nested_histories),
+        .nested_history = move(nested_history),
+        .current_step = current_step,
+    };
+}
+
+template<>
+ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::CurrentSessionHistoryEntryNestedHistoryRemoval const& update)
+{
+    TRY(encoder.encode(update.document_state_id));
+    TRY(encoder.encode(update.nested_history_id));
+    TRY(encoder.encode(update.current_step));
+    return {};
+}
+
+template<>
+ErrorOr<Web::HTML::CurrentSessionHistoryEntryNestedHistoryRemoval> IPC::decode(Decoder& decoder)
+{
+    auto document_state_id = TRY(decoder.decode<Web::HTML::CrossProcessId>());
+    auto nested_history_id = TRY(decoder.decode<Web::HTML::CrossProcessId>());
+    auto current_step = TRY(decoder.decode<i32>());
+
+    return Web::HTML::CurrentSessionHistoryEntryNestedHistoryRemoval {
+        .document_state_id = document_state_id,
+        .nested_history_id = nested_history_id,
         .current_step = current_step,
     };
 }

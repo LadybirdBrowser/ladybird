@@ -9,6 +9,7 @@
 #pragma once
 
 #include <AK/Utf16String.h>
+#include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibWeb/Bindings/NavigationType.h>
 #include <LibWeb/Export.h>
@@ -86,12 +87,32 @@ public:
         Yes,
         No,
     };
+    struct SameDocumentSessionHistoryNavigationMutation {
+        GC::Ptr<LocalNavigable> navigable;
+        RefPtr<SessionHistoryEntry> entry;
+        Optional<i32> replaced_step;
+    };
+    struct CrossDocumentSessionHistoryNavigationMutation {
+        GC::Ptr<LocalNavigable> navigable;
+        RefPtr<SessionHistoryEntry> entry;
+    };
+    struct CurrentEntryNestedHistoryUpdateMutation {
+        CrossProcessId document_state_id;
+        SessionHistoryNestedHistoryDescriptor nested_history;
+    };
+    struct CurrentEntryNestedHistoryRemovalMutation {
+        CrossProcessId document_state_id;
+        CrossProcessId nested_history_id;
+    };
+    using CurrentEntryNestedHistoryMutation = Variant<CurrentEntryNestedHistoryUpdateMutation, CurrentEntryNestedHistoryRemovalMutation>;
     void apply_the_traverse_history_step(int, GC::Ptr<SourceSnapshotParams>, GC::Ptr<LocalNavigable>, UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete, ReportAppliedTraversal = ReportAppliedTraversal::Yes);
     void resume_applying_the_traverse_history_step(int, UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete);
     void apply_the_reload_history_step(UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete);
     [[nodiscard]] bool try_to_synchronously_commit_same_document_navigation(GC::Ref<LocalNavigable>, NonnullRefPtr<SessionHistoryEntry>, RefPtr<SessionHistoryEntry> entry_to_replace);
-    void apply_the_push_or_replace_history_step(int step, HistoryHandlingBehavior history_handling, UserNavigationInvolvement, SynchronousNavigation, GC::Ptr<DOM::Document> pending_document, GC::Ptr<LocalNavigable> expected_ongoing_navigation_navigable, Optional<Utf16String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete);
-    void update_for_navigable_creation_or_destruction(GC::Ref<OnApplyHistoryStepComplete> on_complete);
+    void apply_the_push_or_replace_history_step(int step, HistoryHandlingBehavior history_handling, UserNavigationInvolvement, SynchronousNavigation, GC::Ptr<DOM::Document> pending_document, GC::Ptr<LocalNavigable> expected_ongoing_navigation_navigable, Optional<Utf16String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete, Optional<SameDocumentSessionHistoryNavigationMutation> = {}, Optional<CrossDocumentSessionHistoryNavigationMutation> = {});
+    Optional<CurrentEntryNestedHistoryMutation> create_current_entry_nested_history_update_mutation(SessionHistoryEntry const& parent_entry, CrossProcessId nested_history_id);
+    Optional<CurrentEntryNestedHistoryMutation> create_current_entry_nested_history_removal_mutation(SessionHistoryEntry const& parent_entry, CrossProcessId nested_history_id);
+    void update_for_navigable_creation_or_destruction(CurrentEntryNestedHistoryMutation, GC::Ref<OnApplyHistoryStepComplete> on_complete);
 
     int get_the_used_step(int step) const;
     Vector<GC::Root<LocalNavigable>> get_all_local_navigables_whose_current_session_history_entry_will_change_or_reload(int) const;
@@ -170,7 +191,10 @@ private:
         GC::Ptr<LocalNavigable> expected_ongoing_navigation_navigable,
         Optional<Utf16String> expected_ongoing_navigation_id,
         GC::Ref<OnApplyHistoryStepComplete> on_complete,
-        ReportAppliedTraversal = ReportAppliedTraversal::No);
+        ReportAppliedTraversal = ReportAppliedTraversal::No,
+        Optional<SameDocumentSessionHistoryNavigationMutation> = {},
+        Optional<CrossDocumentSessionHistoryNavigationMutation> = {},
+        Optional<CurrentEntryNestedHistoryMutation> = {});
 
     void apply_the_history_step_after_unload_check(
         int step,
@@ -184,7 +208,10 @@ private:
         GC::Ptr<LocalNavigable> expected_ongoing_navigation_navigable,
         Optional<Utf16String> expected_ongoing_navigation_id,
         GC::Ref<OnApplyHistoryStepComplete> on_complete,
-        ReportAppliedTraversal);
+        ReportAppliedTraversal,
+        Optional<SameDocumentSessionHistoryNavigationMutation>,
+        Optional<CrossDocumentSessionHistoryNavigationMutation>,
+        Optional<CurrentEntryNestedHistoryMutation>);
 
     using OnHistoryStepPrechecksComplete = GC::Function<void(HistoryStepResult, int target_step, LocalNavigable::NavigationAPIAbortBehavior)>;
     void run_the_history_step_prechecks(
@@ -205,17 +232,17 @@ private:
     [[nodiscard]] bool can_go_forward() const;
 
     bool report_session_history_reset_for_testing();
-    bool report_session_history_mutation_failure();
     bool send_full_session_history_snapshot(SaveActiveEntryPersistedState = SaveActiveEntryPersistedState::Yes);
     Optional<WebContentSessionHistoryMutation> create_current_session_history_entry_update_mutation(SessionHistoryEntryUpdateKind, SessionHistoryEntry const&, SaveActiveEntryPersistedState = SaveActiveEntryPersistedState::No);
-    Optional<WebContentSessionHistoryMutation> create_current_entry_nested_histories_update_mutation(i32 current_step, SaveActiveEntryPersistedState = SaveActiveEntryPersistedState::Yes);
+    Optional<WebContentSessionHistoryMutation> create_current_entry_nested_history_mutation(CurrentEntryNestedHistoryMutation const&, i32 current_step);
     Optional<WebContentSessionHistoryMutation> create_top_level_same_document_session_history_navigation_mutation(SessionHistoryEntry const&, Optional<i32> replaced_step, i32 current_step);
     Optional<WebContentSessionHistoryMutation> create_nested_same_document_session_history_navigation_mutation(LocalNavigable const&, SessionHistoryEntry const&, Optional<i32> replaced_step, i32 current_step);
     Optional<WebContentSessionHistoryMutation> create_nested_cross_document_session_history_navigation_mutation(LocalNavigable const&, SessionHistoryEntry const&, i32 current_step);
     Optional<WebContentSessionHistoryMutation> create_top_level_cross_document_session_history_navigation_mutation(SessionHistoryEntry const&, i32 current_step);
+    Optional<WebContentSessionHistoryMutation> create_same_document_session_history_navigation_mutation(SameDocumentSessionHistoryNavigationMutation const&, i32 current_step);
+    Optional<WebContentSessionHistoryMutation> create_cross_document_session_history_navigation_mutation(CrossDocumentSessionHistoryNavigationMutation const&, i32 current_step);
     bool report_session_history_mutation(WebContentSessionHistoryMutation);
     bool report_session_history_mutation_batch(Vector<WebContentSessionHistoryMutation>, i32 final_current_step);
-    bool report_current_entry_nested_histories_update(i32 current_step, SaveActiveEntryPersistedState = SaveActiveEntryPersistedState::Yes);
     bool report_top_level_same_document_session_history_navigation(SessionHistoryEntry const&, Optional<i32> replaced_step, i32 current_step);
     bool report_nested_same_document_session_history_navigation(LocalNavigable const&, SessionHistoryEntry const&, Optional<i32> replaced_step, i32 current_step);
     bool report_nested_cross_document_session_history_navigation(LocalNavigable const&, SessionHistoryEntry const&, i32 current_step);

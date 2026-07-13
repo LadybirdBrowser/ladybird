@@ -1332,16 +1332,6 @@ void ViewImplementation::did_update_session_history(Badge<WebContentClient>, Vec
     dump_session_history("did-update-session-history"sv);
 }
 
-void ViewImplementation::did_fail_to_apply_session_history_mutation(Badge<WebContentClient>)
-{
-    auto update = m_top_level_traversable.did_fail_to_apply_web_content_session_history_mutation();
-    if (update.should_request_session_history_update)
-        client().async_request_session_history_update(page_id());
-    if (update.should_update_navigation_action_state)
-        update_navigation_action_state();
-    dump_session_history(update.dump_reason);
-}
-
 static StringView session_history_entry_update_kind_to_string(Web::HTML::SessionHistoryEntryUpdateKind update_kind)
 {
     switch (update_kind) {
@@ -1371,14 +1361,23 @@ void ViewImplementation::did_apply_session_history_mutation(Badge<WebContentClie
                 client().pid(),
                 session_history_entry_update_kind_to_string(current_entry_update.update_kind),
                 history_log_entries(entries));
-        } else if (mutation.mutation.has<Web::HTML::CurrentSessionHistoryEntryNestedHistoriesUpdate>()) {
-            auto const& nested_histories_update = mutation.mutation.get<Web::HTML::CurrentSessionHistoryEntryNestedHistoriesUpdate>();
-            dbgln("[History] UI received WebContent session history mutation page={} pid={} type=current-entry-nested-histories-update document_state_id={} current_step={} nested_history_count={}",
+        } else if (mutation.mutation.has<Web::HTML::CurrentSessionHistoryEntryNestedHistoryUpdate>()) {
+            auto const& nested_history_update = mutation.mutation.get<Web::HTML::CurrentSessionHistoryEntryNestedHistoryUpdate>();
+            dbgln("[History] UI received WebContent session history mutation page={} pid={} type=current-entry-nested-history-update document_state_id={} nested_history_id={} current_step={} nested_history_entry_count={}",
                 page_id(),
                 client().pid(),
-                nested_histories_update.document_state_id,
-                nested_histories_update.current_step,
-                nested_histories_update.nested_histories.size());
+                nested_history_update.document_state_id,
+                nested_history_update.nested_history.id,
+                nested_history_update.current_step,
+                nested_history_update.nested_history.entries.size());
+        } else if (mutation.mutation.has<Web::HTML::CurrentSessionHistoryEntryNestedHistoryRemoval>()) {
+            auto const& nested_history_removal = mutation.mutation.get<Web::HTML::CurrentSessionHistoryEntryNestedHistoryRemoval>();
+            dbgln("[History] UI received WebContent session history mutation page={} pid={} type=current-entry-nested-history-removal document_state_id={} nested_history_id={} current_step={}",
+                page_id(),
+                client().pid(),
+                nested_history_removal.document_state_id,
+                nested_history_removal.nested_history_id,
+                nested_history_removal.current_step);
         } else if (mutation.mutation.has<Web::HTML::NestedSameDocumentSessionHistoryNavigation>()) {
             auto const& nested_navigation = mutation.mutation.get<Web::HTML::NestedSameDocumentSessionHistoryNavigation>();
             Vector<Web::HTML::SessionHistoryEntryDescriptor> entries;
