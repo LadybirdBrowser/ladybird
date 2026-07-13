@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-overflow-3/#scrollable-overflow-calculation">
+<script src="../include.js"></script>
+<style>
+    .scroller {
+        box-sizing: border-box;
+        display: flex;
+        width: 100px;
+        height: 70px;
+        padding-block: 30px 20px;
+        overflow-x: scroll;
+        scrollbar-width: none;
+    }
+
+    .item {
+        position: relative;
+        flex: none;
+        width: 200px;
+        height: 20px;
+    }
+
+    .item::after {
+        content: "";
+        position: absolute;
+        bottom: var(--bottom);
+        width: 1px;
+        height: 1px;
+    }
+</style>
+<div class="scroller" style="--bottom: -20px"><div class="item"></div></div>
+<div class="scroller" style="--bottom: -30px"><div class="item"></div></div>
+<script>
+    test(() => {
+        const scrollers = document.querySelectorAll(".scroller");
+        println(`at padding edge: ${scrollers[0].scrollHeight}`);
+        println(`beyond padding edge: ${scrollers[1].scrollHeight}`);
+    });
+</script>
