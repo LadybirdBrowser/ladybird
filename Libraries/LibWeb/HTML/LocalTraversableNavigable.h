@@ -124,7 +124,7 @@ public:
     void traverse_the_history_by_delta(int delta, GC::Ptr<DOM::Document> source_document = {});
     void traverse_the_history_to_step(int step, GC::Ref<GC::Function<void(bool step_was_available, HistoryStepResult)>> on_complete);
     void check_if_traverse_history_step_is_canceled(int step, GC::Ref<OnApplyHistoryStepComplete> on_complete);
-    bool replace_top_level_session_history_entries_from_ui_process(Vector<SessionHistoryEntryDescriptor>, size_t current_top_level_entry_index, bool allow_reconstructing_current_entry);
+    bool try_to_install_top_level_session_history_entries_from_ui_process(Vector<SessionHistoryEntryDescriptor>, size_t current_top_level_entry_index, bool allow_reconstructing_current_entry);
     void reset_session_history_for_testing(GC::Ref<GC::Function<void()>> on_complete);
 
     void close_top_level_traversable();
@@ -231,8 +231,6 @@ private:
     [[nodiscard]] bool can_go_back() const;
     [[nodiscard]] bool can_go_forward() const;
 
-    bool report_session_history_reset_for_testing();
-    bool send_full_session_history_snapshot(SaveActiveEntryPersistedState = SaveActiveEntryPersistedState::Yes);
     Optional<WebContentSessionHistoryMutation> create_current_session_history_entry_update_mutation(SessionHistoryEntryUpdateKind, SessionHistoryEntry const&, SaveActiveEntryPersistedState = SaveActiveEntryPersistedState::No);
     Optional<WebContentSessionHistoryMutation> create_current_entry_nested_history_mutation(CurrentEntryNestedHistoryMutation const&, i32 current_step);
     Optional<WebContentSessionHistoryMutation> create_top_level_same_document_session_history_navigation_mutation(SessionHistoryEntry const&, Optional<i32> replaced_step, i32 current_step);

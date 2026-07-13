@@ -262,11 +262,9 @@ public:
     void did_change_screen_wake_lock_state(Badge<WebContentClient>, Web::ScreenWakeLockState);
     Web::ScreenWakeLockState screen_wake_lock_state() const { return m_screen_wake_lock_state; }
 
-    void did_update_session_history(Badge<WebContentClient>, Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32>, size_t current_used_step_index);
     void did_apply_session_history_mutation(Badge<WebContentClient>, Web::HTML::WebContentSessionHistoryMutation);
     void did_apply_session_history_mutation_batch(Badge<WebContentClient>, Web::HTML::WebContentSessionHistoryMutationBatch);
-    void did_update_session_history_for_testing(Badge<WebContentClient>, Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32>, size_t current_used_step_index);
-    void did_set_top_level_session_history(Badge<WebContentClient>, bool accepted, Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32> used_steps, size_t current_used_step_index, TraversableSessionHistory::SeedAckProof);
+    void did_install_top_level_session_history_seed(Badge<WebContentClient>, bool accepted, i32 current_step);
     void did_traverse_the_history_to_step(Badge<WebContentClient>, i32 step, bool step_was_available, Web::HTML::HistoryStepResult);
     void did_check_if_traverse_history_step_is_canceled(
         Badge<WebContentClient>, u64 request_id, i32 step, bool canceled);
@@ -412,7 +410,7 @@ protected:
     virtual Vector<Web::Clipboard::SystemClipboardRepresentation> clipboard_entries() const;
 
     virtual bool defer_backing_store_release(i32) { return false; }
-    virtual void did_accept_presented_backing_store(i32, Gfx::IntRect) { }
+    virtual void did_accept_presented_backing_store(i32, Gfx::IntRect) {}
     void release_backing_store(i32 bitmap_id);
 
     static constexpr auto ZOOM_MIN_LEVEL = 0.3;
@@ -431,7 +429,6 @@ protected:
     void complete_webdriver_navigation_completion(u64 request_id, Web::WebDriver::Response);
     void complete_webdriver_pending_navigation_if_url_matches(URL::URL const&);
     void update_navigation_action_state();
-    void apply_web_content_session_history_update(WebContentSessionHistoryUpdateResult const&);
     enum class SessionHistoryDumpMode {
         IfDebuggingEnabled,
         Always,

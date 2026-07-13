@@ -246,13 +246,11 @@ private:
     virtual void did_update_primary_selection(u64 page_id, String) override;
     virtual void did_change_audio_play_state(u64 page_id, Web::HTML::AudioPlayState) override;
     virtual void did_change_screen_wake_lock_state(u64 page_id, Web::ScreenWakeLockState) override;
-    virtual void did_update_session_history(u64 page_id, Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32>, size_t current_used_step_index) override;
     virtual void did_apply_session_history_mutation(u64 page_id, Web::HTML::WebContentSessionHistoryMutation) override;
     virtual void did_apply_session_history_mutation_batch(u64 page_id, Web::HTML::WebContentSessionHistoryMutationBatch) override;
     virtual Messages::WebContentClient::DidRequestUiProcessSessionHistoryForTestingResponse did_request_ui_process_session_history_for_testing(u64 page_id) override;
     virtual Messages::WebContentClient::DidRequestSiteIsolationProcessTreeForTestingResponse did_request_site_isolation_process_tree_for_testing(u64 page_id) override;
-    virtual Messages::WebContentClient::DidUpdateSessionHistoryAndRequestUiProcessSessionHistoryForTestingResponse did_update_session_history_and_request_ui_process_session_history_for_testing(u64 page_id, Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32>, size_t current_used_step_index) override;
-    virtual void did_set_top_level_session_history(u64 page_id, bool accepted, Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32> used_steps, size_t current_used_step_index, u64 seed_ack_proof) override;
+    virtual void did_install_top_level_session_history_seed(u64 page_id, bool accepted, i32 current_step) override;
     virtual void did_traverse_the_history_to_step(u64 page_id, i32 step, bool step_was_available, Web::HTML::HistoryStepResult) override;
     virtual void did_check_if_traverse_history_step_is_canceled(
         u64 page_id, u64 request_id, i32 step, bool canceled) override;

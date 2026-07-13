@@ -20,9 +20,8 @@
         println(`${label}: location=${queryFromURL(location.href)}`);
         println(`${label}: ui-current=${queryFromURL(uiHistory.currentURL)}`);
         println(`${label}: ui-relevant-entries=${relevantEntryQueries(uiHistory.entries, ["?same-document-replaced", "?same-document-pushed"])}`);
-        println(`${label}: ui-webcontent-known-relevant-entries=${relevantEntryQueries(uiHistory.webContentKnownEntries, ["?same-document-replaced", "?same-document-pushed"])}`);
         println(`${label}: ui-buttons=${uiHistory.backButtonEnabled},${uiHistory.forwardButtonEnabled}`);
-        println(`${label}: ui-uses-ui-step-coordinates=${uiHistory.webContentUsesUIStepCoordinates}`);
+        println(`${label}: ui-webcontent-mirror-state=${uiHistory.webContentMirrorState}`);
     }
 
     asyncTest(async done => {

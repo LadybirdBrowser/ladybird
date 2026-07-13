@@ -34,7 +34,6 @@
         println(`${label}: location=${queryFromURL(location.href)}`);
         println(`${label}: ui-current=${queryFromURL(uiHistory.currentURL)}`);
         println(`${label}: ui-current-entry=${secondEntryQueries(uiHistory.entries)}`);
-        println(`${label}: ui-webcontent-known-current-entry=${secondEntryQueries(uiHistory.webContentKnownEntries)}`);
         println(`${label}: ui-forward-button=${uiHistory.forwardButtonEnabled}`);
     }
 
@@ -44,9 +43,7 @@
             const uiHistory = currentUIHistory();
             if (queryFromURL(uiHistory.currentURL) !== "?second"
                 || secondEntryQueries(uiHistory.entries) !== "?second*"
-                || secondEntryQueries(uiHistory.webContentKnownEntries) !== "?second*"
-                || uiHistory.forwardButtonEnabled
-                || uiHistory.webContentKnownEntries.length !== 1)
+                || uiHistory.forwardButtonEnabled)
                 println(`FAIL: unexpected UI history ${JSON.stringify(uiHistory)}`);
             dump("after-navigation", uiHistory);
             sessionStorage.removeItem(testKey);

@@ -171,13 +171,11 @@ endpoint WebContentClient
     did_request_primary_paste(u64 page_id) =|
     did_update_primary_selection(u64 page_id, String text) =|
 
-    did_update_session_history(u64 page_id, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index) =|
     did_apply_session_history_mutation(u64 page_id, Web::HTML::WebContentSessionHistoryMutation mutation) =|
     did_apply_session_history_mutation_batch(u64 page_id, Web::HTML::WebContentSessionHistoryMutationBatch batch) =|
     did_request_ui_process_session_history_for_testing(u64 page_id) => (String session_history)
     did_request_site_isolation_process_tree_for_testing(u64 page_id) => (String process_tree)
-    did_update_session_history_and_request_ui_process_session_history_for_testing(u64 page_id, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index) => (String session_history)
-    did_set_top_level_session_history(u64 page_id, bool accepted, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index, u64 seed_ack_proof) =|
+    did_install_top_level_session_history_seed(u64 page_id, bool accepted, i32 current_step) =|
     did_traverse_the_history_to_step(u64 page_id, i32 step, bool step_was_available, Web::HTML::HistoryStepResult result) =|
     did_check_if_traverse_history_step_is_canceled(u64 page_id, u64 request_id, i32 step, bool canceled) =|
     did_reset_session_history_for_testing(u64 page_id) =|
