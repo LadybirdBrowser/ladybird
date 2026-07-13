@@ -18,6 +18,7 @@
         height: 100%;
         margin: 0;
         animation: slide-in-left 100s linear;
+        animation-play-state: paused;
     }
 </style>
 <div style="display: flex; gap: 24px;">
@@ -26,22 +27,24 @@
 </div>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    test(() => {
         const drawer = document.getElementById("drawer");
         drawer.showModal();
 
-        // The animation samples display:none at its very first frame, so the dialog starts
-        // without a box. Once display animates to block, its box must be (re)generated even
-        // though top layer elements lay out as siblings of the root.
-        await animationFrame();
-        await animationFrame();
+        // The animation samples display:none at time zero, so the dialog starts without a box.
+        // Once display animates to block, its box must be (re)generated even though top layer
+        // elements lay out as siblings of the root.
+        const animation = drawer.getAnimations()[0];
+        animation.currentTime = 0;
+        const initialRect = drawer.getBoundingClientRect();
+        if (getComputedStyle(drawer).display !== "none" || initialRect.width > 0 || initialRect.height > 0)
+            throw new Error("dialog should be boxless at the start of the animation");
+        animation.currentTime = 1;
 
         const rect = drawer.getBoundingClientRect();
         println("modal: " + drawer.matches(":modal"));
         println("computed display: " + getComputedStyle(drawer).display);
         println("has box: " + (rect.width > 0 && rect.height > 0));
         println("width: " + rect.width);
-
-        done();
     });
 </script>
