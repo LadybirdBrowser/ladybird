@@ -1,0 +1,37 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+        const canvasContentGeneration = () => {
+            const match = internals.dumpDisplayList().match(/DrawCanvas@\d+ .*content_generation=(\d+)/);
+            return Number(match[1]);
+        };
+
+        for (const [contextType, backgroundColor] of [["webgl", "white"], ["webgl2", "black"]]) {
+            const canvas = document.createElement("canvas");
+            canvas.width = 100;
+            canvas.height = 100;
+            document.body.appendChild(canvas);
+
+            const gl = canvas.getContext(contextType);
+            await nextFrame();
+            const generationBeforeDraw = canvasContentGeneration();
+
+            gl.clearColor(0, 1, 0, 1);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+
+            // Trigger an unrelated display list recording in the same rendering update. It must not
+            // reuse the DrawCanvas command cached before the WebGL content update.
+            document.body.style.backgroundColor = backgroundColor;
+            await nextFrame();
+
+            const generationAfterDraw = canvasContentGeneration();
+            println(`[${contextType}] cached command has new generation: ${generationAfterDraw > generationBeforeDraw}`);
+
+            canvas.remove();
+            await nextFrame();
+        }
+        done();
+    });
+</script>

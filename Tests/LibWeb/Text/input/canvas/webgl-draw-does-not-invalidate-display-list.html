@@ -4,9 +4,9 @@
 <script src="../include.js"></script>
 <script>
     // WebGL canvas content updates reach the compositor through the canvas surface registry,
-    // so a draw call must schedule a repaint without invalidating the display list. Re-recording
-    // a display list that is identical to the previous one would produce an empty damage
-    // rectangle, and nothing would be repainted on screen.
+    // so a draw call must schedule a repaint without requesting a display list recording. The
+    // cached DrawCanvas command is invalidated separately, so any recording requested by another
+    // change will include the new content generation and damage the canvas.
     //
     // Creating a WebGL context is the exception: it must invalidate the display list, since the
     // recorded DrawCanvas command refers to the context's canvas id.

@@ -1,0 +1,2 @@
+[webgl] cached command has new generation: true
+[webgl2] cached command has new generation: true

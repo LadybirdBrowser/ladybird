@@ -90,7 +90,7 @@ void DrawCompositedContext::dump(StringBuilder& builder) const
 
 void DrawCanvas::dump(StringBuilder& builder) const
 {
-    builder.appendff(" dst_rect={}", dst_rect);
+    builder.appendff(" dst_rect={} content_generation={}", dst_rect, content_generation);
 }
 
 void DrawVideoFrame::dump(StringBuilder& builder) const
