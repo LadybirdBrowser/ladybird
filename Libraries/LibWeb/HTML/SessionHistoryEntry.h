@@ -13,6 +13,7 @@
 #include <AK/RefPtr.h>
 #include <AK/Types.h>
 #include <AK/Utf16String.h>
+#include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Export.h>
@@ -89,6 +90,33 @@ struct SessionHistoryEntryDescriptor {
     Utf16String navigation_api_id;
     ScrollRestorationMode scroll_restoration_mode { ScrollRestorationMode::Auto };
     SessionHistoryEntryScrollPositionData scroll_position_data;
+};
+
+struct SameDocumentSessionHistoryNavigation {
+    SessionHistoryEntryDescriptor entry;
+    Optional<i32> replaced_step;
+    i32 current_step { 0 };
+};
+
+struct CurrentSessionHistoryEntryUpdate {
+    SessionHistoryEntryUpdateKind update_kind { SessionHistoryEntryUpdateKind::NavigationAPIState };
+    SessionHistoryEntryDescriptor entry;
+};
+
+struct WebContentSessionHistoryMutation {
+    using Mutation = Variant<CurrentSessionHistoryEntryUpdate, SameDocumentSessionHistoryNavigation>;
+
+    Mutation mutation;
+
+    static WebContentSessionHistoryMutation current_entry_update(SessionHistoryEntryUpdateKind update_kind, SessionHistoryEntryDescriptor entry)
+    {
+        return { CurrentSessionHistoryEntryUpdate { update_kind, move(entry) } };
+    }
+
+    static WebContentSessionHistoryMutation top_level_same_document_navigation(SameDocumentSessionHistoryNavigation navigation)
+    {
+        return { move(navigation) };
+    }
 };
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#nested-history
@@ -209,6 +237,24 @@ WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::SessionHistoryEntryDescriptor 
 
 template<>
 WEB_API ErrorOr<Web::HTML::SessionHistoryEntryDescriptor> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::CurrentSessionHistoryEntryUpdate const&);
+
+template<>
+WEB_API ErrorOr<Web::HTML::CurrentSessionHistoryEntryUpdate> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::SameDocumentSessionHistoryNavigation const&);
+
+template<>
+WEB_API ErrorOr<Web::HTML::SameDocumentSessionHistoryNavigation> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::WebContentSessionHistoryMutation const&);
+
+template<>
+WEB_API ErrorOr<Web::HTML::WebContentSessionHistoryMutation> decode(Decoder&);
 
 template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::SessionHistoryEntryScrollPositionData const&);

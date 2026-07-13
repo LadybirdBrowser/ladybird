@@ -247,7 +247,7 @@ private:
     virtual void did_change_audio_play_state(u64 page_id, Web::HTML::AudioPlayState) override;
     virtual void did_change_screen_wake_lock_state(u64 page_id, Web::ScreenWakeLockState) override;
     virtual void did_update_session_history(u64 page_id, Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32>, size_t current_used_step_index) override;
-    virtual void did_update_current_session_history_entry(u64 page_id, Web::HTML::SessionHistoryEntryUpdateKind, Web::HTML::SessionHistoryEntryDescriptor) override;
+    virtual void did_apply_session_history_mutation(u64 page_id, Web::HTML::WebContentSessionHistoryMutation) override;
     virtual Messages::WebContentClient::DidRequestUiProcessSessionHistoryForTestingResponse did_request_ui_process_session_history_for_testing(u64 page_id) override;
     virtual Messages::WebContentClient::DidRequestSiteIsolationProcessTreeForTestingResponse did_request_site_isolation_process_tree_for_testing(u64 page_id) override;
     virtual Messages::WebContentClient::DidUpdateSessionHistoryAndRequestUiProcessSessionHistoryForTestingResponse did_update_session_history_and_request_ui_process_session_history_for_testing(u64 page_id, Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32>, size_t current_used_step_index) override;

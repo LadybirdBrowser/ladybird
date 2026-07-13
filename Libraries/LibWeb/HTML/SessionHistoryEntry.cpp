@@ -325,6 +325,66 @@ ErrorOr<Web::HTML::SessionHistoryEntryDescriptor> IPC::decode(Decoder& decoder)
 }
 
 template<>
+ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::CurrentSessionHistoryEntryUpdate const& update)
+{
+    TRY(encoder.encode(update.update_kind));
+    TRY(encoder.encode(update.entry));
+    return {};
+}
+
+template<>
+ErrorOr<Web::HTML::CurrentSessionHistoryEntryUpdate> IPC::decode(Decoder& decoder)
+{
+    auto update_kind = TRY(decoder.decode<Web::HTML::SessionHistoryEntryUpdateKind>());
+    auto entry = TRY(decoder.decode<Web::HTML::SessionHistoryEntryDescriptor>());
+
+    return Web::HTML::CurrentSessionHistoryEntryUpdate {
+        .update_kind = update_kind,
+        .entry = move(entry),
+    };
+}
+
+template<>
+ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::SameDocumentSessionHistoryNavigation const& navigation)
+{
+    TRY(encoder.encode(navigation.entry));
+    TRY(encoder.encode(navigation.replaced_step));
+    TRY(encoder.encode(navigation.current_step));
+    return {};
+}
+
+template<>
+ErrorOr<Web::HTML::SameDocumentSessionHistoryNavigation> IPC::decode(Decoder& decoder)
+{
+    auto entry = TRY(decoder.decode<Web::HTML::SessionHistoryEntryDescriptor>());
+    auto replaced_step = TRY(decoder.decode<Optional<i32>>());
+    auto current_step = TRY(decoder.decode<i32>());
+
+    return Web::HTML::SameDocumentSessionHistoryNavigation {
+        .entry = move(entry),
+        .replaced_step = move(replaced_step),
+        .current_step = current_step,
+    };
+}
+
+template<>
+ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::WebContentSessionHistoryMutation const& mutation)
+{
+    TRY(encoder.encode(mutation.mutation));
+    return {};
+}
+
+template<>
+ErrorOr<Web::HTML::WebContentSessionHistoryMutation> IPC::decode(Decoder& decoder)
+{
+    auto mutation = TRY(decoder.decode<Web::HTML::WebContentSessionHistoryMutation::Mutation>());
+
+    return Web::HTML::WebContentSessionHistoryMutation {
+        .mutation = move(mutation),
+    };
+}
+
+template<>
 ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::SessionHistoryEntryScrollPositionData const& scroll_position_data)
 {
     TRY(encoder.encode(scroll_position_data.viewport_scroll_position));

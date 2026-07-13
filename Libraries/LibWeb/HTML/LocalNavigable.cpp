@@ -85,38 +85,6 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(LocalNavigable);
 
-static bool report_current_session_history_entry_reload_pending_update(LocalTraversableNavigable& traversable, SessionHistoryEntry const& entry)
-{
-    if (!traversable.page().client().should_report_session_history_updates())
-        return false;
-
-    if (!entry.step_value().has_value())
-        return false;
-
-    traversable.save_persisted_state_to_active_session_history_entry();
-
-    SessionHistoryEntryDescriptorCreationState creation_state { [&] {
-        return traversable.page().client().allocate_cross_process_id();
-    } };
-    traversable.page().client().page_did_update_current_session_history_entry(SessionHistoryEntryUpdateKind::DocumentStateReloadPending, create_session_history_entry_descriptor(entry, creation_state));
-    return true;
-}
-
-static bool report_current_session_history_entry_scroll_position_update(LocalTraversableNavigable& traversable, SessionHistoryEntry const& entry)
-{
-    if (!traversable.page().client().should_report_session_history_updates())
-        return false;
-
-    if (!entry.step_value().has_value())
-        return false;
-
-    SessionHistoryEntryDescriptorCreationState creation_state { [&] {
-        return traversable.page().client().allocate_cross_process_id();
-    } };
-    traversable.page().client().page_did_update_current_session_history_entry(SessionHistoryEntryUpdateKind::ScrollPositionData, create_session_history_entry_descriptor(entry, creation_state));
-    return true;
-}
-
 struct NavigationParamsFetchStateHolder : public JS::Cell {
     GC_CELL(NavigationParamsFetchStateHolder, JS::Cell);
     GC_DECLARE_ALLOCATOR(NavigationParamsFetchStateHolder);
@@ -922,7 +890,7 @@ void LocalNavigable::save_persisted_state_to_active_session_history_entry(Report
     auto scroll_position_data_changed = scroll_position_data != entry->scroll_position_data();
     entry->set_scroll_position_data(move(scroll_position_data));
     if (report_current_entry_update == ReportCurrentEntryUpdate::Yes && scroll_position_data_changed)
-        report_current_session_history_entry_scroll_position_update(*traversable_navigable(), *entry);
+        traversable_navigable()->report_current_session_history_entry_update(SessionHistoryEntryUpdateKind::ScrollPositionData, *entry);
 
     // FIXME: 2. Optionally, update entry's persisted user state.
 }
@@ -3239,7 +3207,7 @@ void LocalNavigable::reload(Optional<StorageSerializationRecord> navigation_api_
 
     // AD-HOC: Report the reload-pending document state to the UI process before the reload history step finishes,
     //         so the UI-owned session history mirror remains synchronized during an in-flight reload.
-    report_current_session_history_entry_reload_pending_update(*traversable, *active_session_history_entry());
+    traversable->report_current_session_history_entry_update(SessionHistoryEntryUpdateKind::DocumentStateReloadPending, *active_session_history_entry(), LocalTraversableNavigable::SaveActiveEntryPersistedState::Yes);
 
     // 4. Append the following session history traversal steps to traversable:
     traversable->append_session_history_traversal_steps(GC::create_function(heap(), [traversable, user_involvement](NonnullRefPtr<Core::Promise<Empty>> signal) {

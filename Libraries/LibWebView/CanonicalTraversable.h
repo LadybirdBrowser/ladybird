@@ -106,7 +106,7 @@ struct WebContentSessionHistoryUpdateDecision {
     WebContentSessionHistoryUpdateResult update {};
 };
 
-struct WebContentCurrentSessionHistoryEntryUpdateResult {
+struct WebContentSessionHistoryMutationResult {
     bool accepted { false };
     StringView dump_reason;
     bool should_request_session_history_update { false };
@@ -233,7 +233,7 @@ public:
     Web::HTML::VisibilityState system_visibility_state() const { return m_system_visibility_state; }
     void set_system_visibility_state(Web::HTML::VisibilityState visibility_state) { m_system_visibility_state = visibility_state; }
 
-    bool current_web_content_session_history_matches_mirror() const { return m_current_web_content_session_history_matches_mirror; }
+    bool current_web_content_session_history_matches_mirror() const { return m_session_history.web_content_history_matches_mirror(); }
 
     Optional<PendingSessionHistoryNavigation> const& pending_session_history_navigation() const { return m_pending_session_history_navigation; }
     Optional<PendingSessionHistoryTraversal> const& pending_session_history_traversal() const { return m_pending_session_history_traversal; }
@@ -247,7 +247,7 @@ public:
     void prepare_for_reload();
     void prepare_to_seed_web_content_session_history_from_ui_process();
     WebContentSessionHistoryUpdateDecision did_receive_web_content_session_history_update(Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32> used_steps, size_t current_used_step_index, URL::URL const& current_url);
-    WebContentCurrentSessionHistoryEntryUpdateResult did_receive_web_content_current_entry_update(Web::HTML::SessionHistoryEntryUpdateKind, Web::HTML::SessionHistoryEntryDescriptor);
+    WebContentSessionHistoryMutationResult did_receive_web_content_session_history_mutation(Web::HTML::WebContentSessionHistoryMutation);
     WebContentSessionHistoryUpdateDecision did_receive_web_content_session_history_update_for_testing(Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32> used_steps, size_t current_used_step_index, URL::URL const& current_url);
     WebContentSessionHistorySeedAckResult did_receive_web_content_session_history_seed_ack(bool accepted, Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32> used_steps, size_t current_used_step_index, TraversableSessionHistory::SeedAckProof, URL::URL const& current_url);
     NavigationStartResult did_start_navigation(URL::URL const&, Web::HTML::DocumentResource, Web::HTML::CrossProcessId document_state_id, bool is_redirect, Web::Bindings::NavigationHistoryBehavior, bool is_showing_crash_page);
@@ -278,7 +278,6 @@ private:
     HashMap<Web::HTML::CrossProcessId, WeakPtr<CanonicalNavigable>> m_navigable_index;
     TraversableSessionHistory m_session_history;
     Web::HTML::VisibilityState m_system_visibility_state { Web::HTML::VisibilityState::Hidden };
-    bool m_current_web_content_session_history_matches_mirror { false };
     Optional<PendingSessionHistoryNavigation> m_pending_session_history_navigation;
     Optional<PendingSessionHistoryTraversal> m_pending_session_history_traversal;
     u64 m_next_traverse_history_step_cancelation_check_request_id { 0 };

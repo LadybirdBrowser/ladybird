@@ -47,6 +47,61 @@ public:
         InvalidSnapshot,
     };
 
+    enum class WebContentMutationType {
+        CurrentEntryUpdate,
+        TopLevelSameDocumentNavigation,
+        AppliedTraversal,
+        RestoredCurrentStep,
+    };
+
+    struct WebContentMutation {
+        WebContentMutationType type { WebContentMutationType::CurrentEntryUpdate };
+        Web::HTML::SessionHistoryEntryUpdateKind current_entry_update_kind { Web::HTML::SessionHistoryEntryUpdateKind::NavigationAPIState };
+        Entry entry;
+        Optional<i32> replaced_step;
+        i32 current_step { 0 };
+
+        static WebContentMutation current_entry_update(Web::HTML::SessionHistoryEntryUpdateKind update_kind, Entry entry)
+        {
+            return {
+                .type = WebContentMutationType::CurrentEntryUpdate,
+                .current_entry_update_kind = update_kind,
+                .entry = move(entry),
+            };
+        }
+
+        static WebContentMutation top_level_same_document_navigation(Entry entry, Optional<i32> replaced_step, i32 current_step)
+        {
+            return {
+                .type = WebContentMutationType::TopLevelSameDocumentNavigation,
+                .entry = move(entry),
+                .replaced_step = replaced_step,
+                .current_step = current_step,
+            };
+        }
+
+        static WebContentMutation applied_traversal(i32 step)
+        {
+            return {
+                .type = WebContentMutationType::AppliedTraversal,
+                .current_step = step,
+            };
+        }
+
+        static WebContentMutation restored_current_step(i32 step)
+        {
+            return {
+                .type = WebContentMutationType::RestoredCurrentStep,
+                .current_step = step,
+            };
+        }
+    };
+
+    struct WebContentMutationResult {
+        bool accepted { false };
+        bool web_content_history_matches_mirror { false };
+    };
+
     bool is_empty() const { return m_entries.is_empty(); }
     size_t size() const { return m_entries.size(); }
     size_t used_step_count() const { return m_used_steps.size(); }
@@ -61,13 +116,13 @@ public:
     void mark_current_entry_reload_pending();
     void clear_current_entry_reload_pending();
     UpdateResult update_from_web_content(Vector<Entry> entries, Vector<i32> used_steps, size_t current_used_step_index);
-    [[nodiscard]] bool update_current_entry_from_web_content(Web::HTML::SessionHistoryEntryUpdateKind, Entry);
+    [[nodiscard]] WebContentMutationResult apply_web_content_mutation(WebContentMutation);
     [[nodiscard]] static SeedAckProof compute_seed_ack_proof(Vector<Entry> const&, Vector<i32> const& used_steps, size_t current_used_step_index, Entry const* current_entry_seed_descriptor = nullptr);
     [[nodiscard]] bool web_content_seed_ack_matches_current_mirror(Vector<Entry> const& entries, Vector<i32> const& used_steps, size_t current_used_step_index) const;
     void record_web_content_seeded_from_ui_process(i32 current_step);
-    [[nodiscard]] bool did_restore_web_content_to_current_step(i32 step);
-    [[nodiscard]] bool did_apply_web_content_traversal_to_step(i32 step);
+    void record_web_content_history_preserved();
     void forget_web_content_state();
+    void mark_web_content_history_match_unproven();
     Vector<Entry> entries() const;
     Vector<i32> used_steps() const;
     Vector<Entry> web_content_known_entries() const;
@@ -94,6 +149,12 @@ public:
     void traverse_to(size_t index);
 
 private:
+    [[nodiscard]] bool web_content_known_history_matches_mirror() const;
+    [[nodiscard]] bool update_current_entry_from_web_content(Web::HTML::SessionHistoryEntryUpdateKind, Entry);
+    [[nodiscard]] bool apply_top_level_same_document_navigation_from_web_content(Entry, Optional<i32> replaced_step, i32 current_step);
+    [[nodiscard]] bool did_restore_web_content_to_current_step(i32 step);
+    [[nodiscard]] bool did_apply_web_content_traversal_to_step(i32 step);
+
     // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-session-history-entries
     Vector<Entry> m_entries;
 
@@ -114,6 +175,8 @@ private:
     // coordinate space. In that state WebContent still uses its original step
     // numbers, so the UI must reseed/load instead of delegating traversal by step.
     bool m_web_content_uses_ui_step_coordinates { false };
+
+    bool m_web_content_history_match_is_proven { false };
 };
 
 }
