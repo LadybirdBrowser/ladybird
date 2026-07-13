@@ -9,7 +9,6 @@
 #include <LibCore/Directory.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
-#include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibHTTP/Cache/CacheRequest.h>
@@ -56,9 +55,9 @@ static constexpr StringView cache_directory_for_mode(DiskCache::Mode mode)
     VERIFY_NOT_REACHED();
 }
 
-ErrorOr<DiskCache> DiskCache::create(Mode mode)
+ErrorOr<DiskCache> DiskCache::create(Mode mode, LexicalPath cache_root)
 {
-    auto cache_directory = LexicalPath::join(Core::StandardPaths::cache_directory(), "Ladybird"sv, cache_directory_for_mode(mode));
+    auto cache_directory = cache_root.append(cache_directory_for_mode(mode));
     TRY(Core::Directory::create(cache_directory, Core::Directory::CreateDirectories::Yes));
 
     auto database = mode == DiskCache::Mode::Normal
@@ -71,7 +70,7 @@ ErrorOr<DiskCache> DiskCache::create(Mode mode)
         // Partitioned mode is already a per-process transient cache in its own directory.
         // (A fresh memory-backed database always migrates, so this is necessarily Mode::Normal.)
         dbgln("Disk cache index was created by a newer Ladybird version; using a transient cache this session");
-        return create(Mode::Partitioned);
+        return create(Mode::Partitioned, move(cache_root));
     }
 
     auto index = TRY(CacheIndex::create(database, cache_directory));

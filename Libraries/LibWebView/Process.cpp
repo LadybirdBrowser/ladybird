@@ -204,9 +204,8 @@ ErrorOr<int> Process::create_ipc_socket(ByteString const& socket_path)
     return socket_fd;
 }
 
-ErrorOr<Process::ProcessPaths> Process::paths_for_process(StringView process_name)
+ErrorOr<Process::ProcessPaths> Process::paths_for_process(StringView process_name, StringView runtime_directory)
 {
-    auto runtime_directory = TRY(Core::StandardPaths::runtime_directory());
     auto socket_path = ByteString::formatted("{}/{}.socket", runtime_directory, process_name);
     auto pid_path = ByteString::formatted("{}/{}.pid", runtime_directory, process_name);
 

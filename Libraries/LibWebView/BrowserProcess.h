@@ -53,7 +53,7 @@ public:
     BrowserProcess() = default;
     ~BrowserProcess();
 
-    ErrorOr<ProcessDisposition> connect(Vector<ByteString> const& raw_urls, NewWindow new_window);
+    ErrorOr<ProcessDisposition> connect(Vector<ByteString> const& raw_urls, NewWindow new_window, StringView runtime_directory, StringView profile_identity);
 
     Function<void(Vector<URL::URL> const&)> on_new_tab;
     Function<void(Vector<URL::URL> const&)> on_new_window;
@@ -61,7 +61,7 @@ public:
 private:
     void accept_transport(NonnullOwnPtr<IPC::Transport>);
 #if defined(AK_OS_MACOS)
-    ErrorOr<void> connect_as_client(pid_t pid, Vector<ByteString> const& raw_urls, NewWindow new_window);
+    ErrorOr<void> connect_as_client(pid_t pid, Vector<ByteString> const& raw_urls, NewWindow new_window, StringView profile_identity);
     ErrorOr<void> connect_as_server();
 #else
     ErrorOr<void> connect_as_client(ByteString const& socket_path, Vector<ByteString> const& raw_urls, NewWindow new_window);

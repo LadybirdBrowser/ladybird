@@ -22,6 +22,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     AK::set_rich_debug_enabled(true);
 
     StringView mach_server_name;
+    StringView cache_path;
     bool wait_for_debugger = false;
     bool enable_test_mode = false;
     bool force_cpu_painting = false;
@@ -31,6 +32,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     Core::ArgsParser args_parser;
     args_parser.add_option(mach_server_name, "Mach server name", "mach-server-name", 0, "mach_server_name");
+    args_parser.add_option(cache_path, "Path to the profile cache", "cache-path", 0, "path");
     args_parser.add_option(wait_for_debugger, "Wait for debugger", "wait-for-debugger");
     args_parser.add_option(enable_test_mode, "Enable test mode", "test-mode");
     args_parser.add_option(force_cpu_painting, "Force CPU painting", "force-cpu-painting");
@@ -60,7 +62,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto& event_loop = Core::EventLoop::initialize_for_current_thread();
 
     if (!disable_sandbox)
-        TRY(Compositor::apply_sandbox());
+        TRY(Compositor::apply_sandbox(cache_path));
 
     auto client = TRY(IPC::take_over_accepted_client_from_system_server<Compositor::ConnectionFromClient>(
         mach_server_name, move(skia_backend_context), !disable_async_scrolling));

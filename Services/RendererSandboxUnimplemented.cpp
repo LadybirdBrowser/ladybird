@@ -8,7 +8,7 @@
 
 namespace RendererSandbox {
 
-ErrorOr<void> apply_sandbox(Optional<StringView>)
+ErrorOr<void> apply_sandbox(Optional<StringView>, Optional<StringView>)
 {
     return {};
 }

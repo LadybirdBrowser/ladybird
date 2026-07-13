@@ -42,18 +42,14 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     AK::set_rich_debug_enabled(true);
 
     auto app = TRY(Ladybird::Application::create(arguments));
-    WebView::BrowserProcess browser_process;
+    if (app->should_exit_after_profile_coordination()) {
+        outln("Opening in existing process");
+        return 0;
+    }
+
+    auto& browser_process = app->browser_process();
 
     if (auto const& browser_options = WebView::Application::browser_options(); !browser_options.headless_mode.has_value()) {
-        if (browser_options.force_new_process == WebView::ForceNewProcess::No) {
-            auto disposition = TRY(browser_process.connect(browser_options.raw_urls, browser_options.new_window));
-
-            if (disposition == WebView::BrowserProcess::ProcessDisposition::ExitProcess) {
-                outln("Opening in existing process");
-                return 0;
-            }
-        }
-
         browser_process.on_new_tab = [&](auto const& raw_urls) {
             open_urls_from_client(raw_urls, WebView::NewWindow::No);
         };

@@ -17,7 +17,7 @@
 
 namespace RendererSandbox {
 
-ErrorOr<void> apply_sandbox(Optional<StringView> config_path)
+ErrorOr<void> apply_sandbox(Optional<StringView> config_path, Optional<StringView>)
 {
     TRY(Sandbox::install_no_new_privileges());
     TRY(Sandbox::configure_runtime());

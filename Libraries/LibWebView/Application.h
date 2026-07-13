@@ -31,12 +31,14 @@
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWebView/BookmarkStore.h>
+#include <LibWebView/BrowserProcess.h>
 #include <LibWebView/FileDownloader.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/Options.h>
 #include <LibWebView/PrivateBrowsing.h>
 #include <LibWebView/Process.h>
 #include <LibWebView/ProcessManager.h>
+#include <LibWebView/Profile.h>
 #include <LibWebView/Settings.h>
 #include <LibWebView/StorageJar.h>
 
@@ -66,7 +68,10 @@ public:
 
     static Application& the() { return *s_the; }
 
-    static Settings& settings() { return the().m_settings; }
+    static Settings& settings() { return *the().m_settings; }
+    static Profile const& profile() { return *the().m_profile; }
+    BrowserProcess& browser_process() { return *m_browser_process; }
+    bool should_exit_after_profile_coordination() const { return m_should_exit_after_profile_coordination; }
     static AutocompleteService& autocomplete_service() { return *the().m_autocomplete_service; }
 
     static BrowserOptions const& browser_options() { return the().m_browser_options; }
@@ -83,7 +88,7 @@ public:
     virtual bool supports_client_side_window_decorations() const { return false; }
     void tab_settings_changed(Badge<ApplicationSettingsObserver>);
 
-    static BookmarkStore& bookmark_store() { return the().m_bookmark_store; }
+    static BookmarkStore& bookmark_store() { return *the().m_bookmark_store; }
     void update_bookmark_action_for_current_web_view();
     void bookmarks_changed(Badge<ApplicationBookmarkStoreObserver>);
     void show_bookmarks_bar_changed(Badge<ApplicationSettingsObserver>);
@@ -263,6 +268,7 @@ protected:
 
     virtual void create_platform_arguments(Core::ArgsParser&) { }
     virtual void create_platform_options(BrowserOptions&, RequestServerOptions&, WebContentOptions&) { }
+    virtual bool should_coordinate_browser_process() const { return true; }
     virtual Core::EventLoop& create_platform_event_loop();
 
     virtual Optional<ByteString> ask_user_for_download_path([[maybe_unused]] ByteString const& file) const { return {}; }
@@ -379,10 +385,13 @@ private:
 
     static Application* s_the;
 
-    Settings m_settings;
+    Optional<Profile> m_profile;
+    OwnPtr<Settings> m_settings;
+    OwnPtr<BrowserProcess> m_browser_process;
+    bool m_should_exit_after_profile_coordination { false };
     OwnPtr<ApplicationSettingsObserver> m_settings_observer;
 
-    BookmarkStore m_bookmark_store;
+    OwnPtr<BookmarkStore> m_bookmark_store;
     OwnPtr<ApplicationBookmarkStoreObserver> m_bookmark_store_observer;
     OwnPtr<HistoryStore> m_history_store;
     OwnPtr<AutocompleteService> m_autocomplete_service;

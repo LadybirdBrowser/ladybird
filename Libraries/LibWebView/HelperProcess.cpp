@@ -96,6 +96,10 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(IsP
         arguments.append("--config-path"sv);
         arguments.append(web_content_options.config_path.value());
     }
+    if (web_content_options.cache_path.has_value()) {
+        arguments.append("--cache-path"sv);
+        arguments.append(web_content_options.cache_path.value());
+    }
     if (web_content_options.is_test_mode == WebView::IsTestMode::Yes)
         arguments.append("--test-mode"sv);
     if (web_content_options.log_all_js_exceptions == WebView::LogAllJSExceptions::Yes)
@@ -170,6 +174,11 @@ ErrorOr<NonnullRefPtr<WebView::CompositorClient>> launch_compositor_process()
     auto const& web_content_options = WebView::Application::web_content_options();
 
     Vector<ByteString> arguments;
+
+    if (web_content_options.cache_path.has_value()) {
+        arguments.append("--cache-path"sv);
+        arguments.append(web_content_options.cache_path.value());
+    }
     if (browser_options.disable_sandbox == DisableSandbox::Yes)
         arguments.append("--disable-sandbox"sv);
     if (web_content_options.is_test_mode == WebView::IsTestMode::Yes)
@@ -194,6 +203,11 @@ ErrorOr<NonnullRefPtr<WebWorkerClient>> launch_web_worker_process(Web::Bindings:
     auto const& web_content_options = WebView::Application::web_content_options();
 
     Vector<ByteString> arguments;
+
+    if (web_content_options.cache_path.has_value()) {
+        arguments.append("--cache-path"sv);
+        arguments.append(web_content_options.cache_path.value());
+    }
 
     if (browser_options.disable_sandbox == DisableSandbox::Yes)
         arguments.append("--disable-sandbox"sv);
@@ -236,6 +250,9 @@ ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process()
     auto const& request_server_options = Application::request_server_options();
 
     Vector<ByteString> arguments;
+
+    arguments.append("--cache-path"sv);
+    arguments.append(request_server_options.cache_path);
 
     if (browser_options.disable_sandbox == DisableSandbox::Yes)
         arguments.append("--disable-sandbox"sv);

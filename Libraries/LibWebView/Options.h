@@ -29,11 +29,6 @@ enum class NewWindow {
     Yes,
 };
 
-enum class ForceNewProcess {
-    No,
-    Yes,
-};
-
 enum class AllowPopups {
     No,
     Yes,
@@ -89,7 +84,6 @@ struct BrowserOptions {
     int window_width { 800 };
     int window_height { 600 };
     NewWindow new_window { NewWindow::No };
-    ForceNewProcess force_new_process { ForceNewProcess::No };
     AllowPopups allow_popups { AllowPopups::No };
     DisableScripting disable_scripting { DisableScripting::No };
     DisableSQLDatabase disable_sql_database { DisableSQLDatabase::No };
@@ -112,6 +106,7 @@ enum class HTTPDiskCacheMode {
 
 struct RequestServerOptions {
     Vector<ByteString> certificates;
+    ByteString cache_path;
     HTTPDiskCacheMode http_disk_cache_mode { HTTPDiskCacheMode::Disabled };
     Optional<ByteString> resource_substitution_map_path;
 };
@@ -183,6 +178,7 @@ enum class ReportSessionHistoryUpdatesInTestMode {
 
 struct WebContentOptions {
     Optional<ByteString> config_path {};
+    Optional<ByteString> cache_path {};
     Optional<StringView> user_agent_preset {};
     IsTestMode is_test_mode { IsTestMode::No };
     LogAllJSExceptions log_all_js_exceptions { LogAllJSExceptions::No };

@@ -7,7 +7,6 @@
 #include <AK/LexicalPath.h>
 #include <LibCore/Directory.h>
 #include <LibCore/Environment.h>
-#include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibSandbox/Sandbox.h>
@@ -34,7 +33,7 @@ static ErrorOr<Optional<ByteString>> canonicalized_path_if_exists(StringView pat
     return ByteString { resolved_path };
 }
 
-ErrorOr<void> apply_sandbox(Optional<StringView> config_path)
+ErrorOr<void> apply_sandbox(Optional<StringView> config_path, Optional<StringView> cache_path)
 {
     TRY(Sandbox::configure_runtime());
 
@@ -65,9 +64,10 @@ ErrorOr<void> apply_sandbox(Optional<StringView> config_path)
             TRY(executable_paths.try_append(canonicalized_cranelift_compiler_path.release_value()));
     }
 
-    auto skia_cache_path = TRY(String::formatted("{}/Ladybird", Core::StandardPaths::cache_directory()));
-    TRY(Core::Directory::create(skia_cache_path.to_byte_string(), Core::Directory::CreateDirectories::Yes));
-    TRY(Sandbox::add_seatbelt_path_if_exists(paths, skia_cache_path, Sandbox::SeatbeltPath::Access::ReadWrite));
+    if (cache_path.has_value()) {
+        TRY(Core::Directory::create(*cache_path, Core::Directory::CreateDirectories::Yes));
+        TRY(Sandbox::add_seatbelt_path_if_exists(paths, *cache_path, Sandbox::SeatbeltPath::Access::ReadWrite));
+    }
 
     char darwin_user_cache_directory[PATH_MAX];
     if (confstr(_CS_DARWIN_USER_CACHE_DIR, darwin_user_cache_directory, sizeof(darwin_user_cache_directory)) > 0) {

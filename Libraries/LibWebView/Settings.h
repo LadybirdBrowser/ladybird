@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/Array.h>
-#include <AK/Badge.h>
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
 #include <AK/JsonValue.h>
@@ -106,7 +105,7 @@ public:
 
 class WEBVIEW_API Settings {
 public:
-    static Settings create(Badge<Application>);
+    static Settings create(ByteString settings_path);
 
     JsonValue serialize_json() const;
 

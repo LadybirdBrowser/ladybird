@@ -10,6 +10,6 @@
 
 namespace Compositor {
 
-[[nodiscard]] ErrorOr<void> apply_sandbox();
+[[nodiscard]] ErrorOr<void> apply_sandbox(StringView cache_path);
 
 }

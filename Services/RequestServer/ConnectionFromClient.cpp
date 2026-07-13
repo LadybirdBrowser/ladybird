@@ -10,7 +10,6 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/Proxy.h>
 #include <LibCore/Socket.h>
-#include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibHTTP/Cache/DiskCache.h>
 #include <LibIPC/TransportHandle.h>
@@ -82,7 +81,7 @@ static auto time_curl_call(StringView label, F&& f)
 static constexpr i64 BURST_WINDOW_MS = 100;
 static constexpr u64 BURST_REPORT_THRESHOLD = 5;
 
-ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport, IsPrimaryConnection is_primary_connection, IsPrivate is_private, ConnectionMap& connections, Optional<HTTP::DiskCache&> disk_cache)
+ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport, IsPrimaryConnection is_primary_connection, IsPrivate is_private, ConnectionMap& connections, Optional<HTTP::DiskCache&> disk_cache, ByteString alt_svc_cache_path)
     : IPC::ConnectionFromClient<RequestClientEndpoint, RequestServerEndpoint>(*this, move(transport), s_client_ids.allocate())
     , m_is_private(is_private)
     , m_connections(connections)
@@ -91,7 +90,7 @@ ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transpo
     , m_resolver(Resolver::default_resolver())
 {
     if (m_is_private == IsPrivate::No)
-        m_alt_svc_cache_path = ByteString::formatted("{}/Ladybird/alt-svc-cache.txt", Core::StandardPaths::cache_directory());
+        m_alt_svc_cache_path = move(alt_svc_cache_path);
 
     if (is_primary_connection == IsPrimaryConnection::Yes) {
         VERIFY(g_primary_connection == nullptr);
@@ -211,7 +210,7 @@ ErrorOr<IPC::TransportHandle> ConnectionFromClient::create_client_socket(IsPriva
     auto disk_cache = is_private == IsPrivate::Yes ? Optional<HTTP::DiskCache&> {} : m_disk_cache;
 
     // Note: A ref is stored in the m_connections map
-    auto client = adopt_ref(*new ConnectionFromClient(move(paired.local), IsPrimaryConnection::No, is_private, m_connections, disk_cache));
+    auto client = adopt_ref(*new ConnectionFromClient(move(paired.local), IsPrimaryConnection::No, is_private, m_connections, disk_cache, m_alt_svc_cache_path.value_or({})));
 
     return handle;
 }

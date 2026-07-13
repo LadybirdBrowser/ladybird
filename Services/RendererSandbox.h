@@ -12,6 +12,6 @@
 
 namespace RendererSandbox {
 
-[[nodiscard]] ErrorOr<void> apply_sandbox(Optional<StringView> config_path);
+[[nodiscard]] ErrorOr<void> apply_sandbox(Optional<StringView> config_path, Optional<StringView> cache_path);
 
 }

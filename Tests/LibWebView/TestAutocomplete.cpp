@@ -35,6 +35,8 @@ public:
         browser_options.disable_sql_database = WebView::DisableSQLDatabase::Yes;
         web_content_options.is_test_mode = WebView::IsTestMode::Yes;
     }
+
+    virtual bool should_coordinate_browser_process() const override { return false; }
 };
 
 }

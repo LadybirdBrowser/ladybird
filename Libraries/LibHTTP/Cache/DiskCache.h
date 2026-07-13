@@ -36,7 +36,7 @@ public:
         // response headers will include some status on how the request was handled.
         Testing,
     };
-    static ErrorOr<DiskCache> create(Mode);
+    static ErrorOr<DiskCache> create(Mode, LexicalPath cache_root);
 
     DiskCache(DiskCache&&);
     DiskCache& operator=(DiskCache&&);

@@ -9,7 +9,6 @@
 #include <AK/JsonObject.h>
 #include <AK/Random.h>
 #include <LibCore/File.h>
-#include <LibCore/StandardPaths.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibURL/Parser.h>
 #include <LibWebView/Application.h>
@@ -170,11 +169,8 @@ static Vector<BookmarkItem> create_default_bookmarks()
     };
 }
 
-BookmarkStore BookmarkStore::create(Badge<Application>)
+BookmarkStore BookmarkStore::create(ByteString bookmarks_path)
 {
-    auto bookmarks_directory = ByteString::formatted("{}/Ladybird", Core::StandardPaths::config_directory());
-    auto bookmarks_path = ByteString::formatted("{}/Bookmarks.json", bookmarks_directory);
-
     BookmarkStore store { move(bookmarks_path) };
 
     if (!FileSystem::exists(store.m_bookmarks_path)) {

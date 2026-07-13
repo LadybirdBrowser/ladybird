@@ -144,8 +144,6 @@ static Vector<AutocompleteBookmark> autocomplete_bookmark_snapshot(BookmarkStore
 }
 
 Application::Application(Optional<ByteString> ladybird_binary_path)
-    : m_settings(Settings::create({}))
-    , m_bookmark_store(BookmarkStore::create({}))
 {
     VERIFY(!s_the);
     s_the = this;
@@ -166,6 +164,7 @@ Application::~Application()
 
     m_spare_web_content_process = nullptr;
     m_process_manager = nullptr;
+    m_browser_process = nullptr;
 
     s_the = nullptr;
 }
@@ -232,30 +231,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         warnln("Unable to increase open file limit: {}", result.error());
 #endif
 
-#if defined(AK_OS_MACOS)
-    m_mach_port_server = make<IPC::MachBootstrapListener>(mach_server_name_for_process("Ladybird"sv, Core::System::getpid()));
-    set_mach_server_name(m_mach_port_server->server_port_name());
-
-    m_mach_port_server->on_bootstrap_request = [this](IPC::MachBootstrapListener::BootstrapRequest request) {
-        set_process_mach_port(request.pid, move(request.task_port));
-        auto result = MUST(m_transport_bootstrap_server.handle_bootstrap_request(request.pid, move(request.reply_port)));
-        result.visit(
-            [](IPC::TransportBootstrapMachServer::ChildTransportHandled) {
-            },
-            [this](IPC::TransportBootstrapMachServer::OnDemandTransport& transport) {
-                if (!m_on_browser_process_transport)
-                    return;
-
-                VERIFY(m_event_loop);
-                m_event_loop->deferred_invoke([this, transport = move(transport.ports)]() mutable {
-                    if (!m_on_browser_process_transport)
-                        return;
-                    m_on_browser_process_transport(make<IPC::Transport>(move(transport.receive_right), move(transport.send_right)));
-                });
-            });
-    };
-#endif
-
     Vector<ByteString> raw_urls;
     Vector<ByteString> certificates;
     Optional<HeadlessMode> headless_mode;
@@ -265,6 +240,9 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     Optional<StringView> screenshot_path;
     bool new_window = false;
     bool force_new_process = false;
+    Optional<StringView> profile_name;
+    Optional<StringView> profile_path;
+    bool temporary_profile = false;
     bool allow_popups = false;
     bool disable_scripting = false;
     bool disable_sql_database = false;
@@ -331,7 +309,12 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(window_height, "Set viewport height in pixels (default: 600) (currently only supported for headless mode)", "window-height", 0, "pixels");
     args_parser.add_option(certificates, "Path to a certificate file", "certificate", 'C', "certificate");
     args_parser.add_option(new_window, "Force opening in a new window", "new-window", 'n');
+#if !defined(AK_OS_ANDROID)
     args_parser.add_option(force_new_process, "Force creation of a new browser process", "force-new-process");
+    args_parser.add_option(profile_name, "Select or create a named profile", "profile", 0, "name");
+    args_parser.add_option(profile_path, "Use a self-contained profile at an absolute path", "profile-path", 0, "path");
+    args_parser.add_option(temporary_profile, "Use a temporary profile that is removed on clean shutdown", "temporary-profile");
+#endif
     args_parser.add_option(allow_popups, "Disable popup blocking by default", "allow-popups");
     args_parser.add_option(disable_scripting, "Disable scripting by default", "disable-scripting");
     args_parser.add_option(disable_sql_database, "Disable SQL database", "disable-sql-database");
@@ -445,10 +428,83 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     create_platform_arguments(args_parser);
     args_parser.parse(m_arguments);
 
-    // Our persisted SQL storage assumes it runs in a singleton process. If we have multiple UI processes accessing
-    // the same underlying database, one of them is likely to fail.
-    if (force_new_process)
-        disable_sql_database = true;
+#if !defined(AK_OS_ANDROID)
+    ProfileSelection profile_selection;
+    if (force_new_process) {
+        if (profile_name.has_value() || profile_path.has_value() || temporary_profile)
+            return Error::from_string_literal("--force-new-process cannot be combined with another profile selector");
+        warnln("--force-new-process is deprecated; using --temporary-profile");
+        temporary_profile = true;
+    }
+    if (profile_name.has_value())
+        profile_selection.name = profile_name->to_byte_string();
+    if (profile_path.has_value())
+        profile_selection.path = profile_path->to_byte_string();
+    profile_selection.temporary = temporary_profile;
+#endif
+
+    ProfileRoots profile_roots {
+        .config = Core::StandardPaths::config_directory(),
+        .data = Core::StandardPaths::user_data_directory(),
+        .cache = Core::StandardPaths::cache_directory(),
+        .runtime = TRY(Core::StandardPaths::runtime_directory()),
+        .temporary = Core::StandardPaths::tempfile_directory(),
+    };
+#if defined(AK_OS_WINDOWS)
+    // NB: These StandardPaths values already contain "Ladybird" on Windows.
+    //     Use their parents as the platform roots for profile layouts.
+    profile_roots.data = LexicalPath { profile_roots.data }.parent().string();
+    profile_roots.cache = LexicalPath { profile_roots.cache }.parent().string();
+#endif
+#if defined(AK_OS_ANDROID)
+    m_profile = TRY(Profile::create_legacy(profile_roots));
+#else
+    m_profile = TRY(Profile::create(profile_selection, profile_roots));
+#endif
+
+    // Synchronous IPC used to forward URLs to an existing browser process requires an event loop.
+    if (!headless_mode.has_value() && should_coordinate_browser_process()) {
+        m_browser_options.headless_mode = headless_mode;
+        m_event_loop = &create_platform_event_loop();
+    }
+
+    auto profile_identity = Profile::routing_identifier(profile().paths().identity);
+#if defined(AK_OS_MACOS)
+    auto mach_process_name = ByteString::formatted("Ladybird-{}", profile_identity);
+    m_mach_port_server = make<IPC::MachBootstrapListener>(mach_server_name_for_process(mach_process_name, Core::System::getpid()));
+    set_mach_server_name(m_mach_port_server->server_port_name());
+
+    m_mach_port_server->on_bootstrap_request = [this](IPC::MachBootstrapListener::BootstrapRequest request) {
+        set_process_mach_port(request.pid, move(request.task_port));
+        auto result = MUST(m_transport_bootstrap_server.handle_bootstrap_request(request.pid, move(request.reply_port)));
+        result.visit(
+            [](IPC::TransportBootstrapMachServer::ChildTransportHandled) {
+            },
+            [this](IPC::TransportBootstrapMachServer::OnDemandTransport& transport) {
+                if (!m_on_browser_process_transport)
+                    return;
+
+                VERIFY(m_event_loop);
+                m_event_loop->deferred_invoke([this, transport = move(transport.ports)]() mutable {
+                    if (!m_on_browser_process_transport)
+                        return;
+                    m_on_browser_process_transport(make<IPC::Transport>(move(transport.receive_right), move(transport.send_right)));
+                });
+            });
+    };
+#endif
+
+    m_browser_process = make<BrowserProcess>();
+    if (!headless_mode.has_value() && should_coordinate_browser_process()) {
+        auto disposition = TRY(m_browser_process->connect(raw_urls, new_window ? NewWindow::Yes : NewWindow::No, profile().paths().runtime, profile_identity));
+        if (disposition == BrowserProcess::ProcessDisposition::ExitProcess) {
+            m_should_exit_after_profile_coordination = true;
+            return {};
+        }
+    }
+
+    m_settings = make<Settings>(Settings::create(LexicalPath::join(profile().paths().config, "Settings.json"sv).string()));
+    m_bookmark_store = make<BookmarkStore>(BookmarkStore::create(LexicalPath::join(profile().paths().config, "Bookmarks.json"sv).string()));
 
     if (!dns_server_port.has_value())
         dns_server_port = use_dns_over_tls ? 853 : 53;
@@ -463,7 +519,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     if (profile_process.has_value())
         profile_process_type = process_type_from_name(*profile_process);
 
-    auto configured_content_blocker_list_paths = m_settings.config_variable_as_string_array(ConfigVariableID::ContentBlockerListPaths);
+    auto configured_content_blocker_list_paths = m_settings->config_variable_as_string_array(ConfigVariableID::ContentBlockerListPaths);
 
     Vector<ByteString> content_blocker_list_paths_as_byte_strings;
     TRY(content_blocker_list_paths_as_byte_strings.try_ensure_capacity(configured_content_blocker_list_paths.size() + content_blocker_list_paths.size()));
@@ -485,7 +541,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         .raw_urls = move(raw_urls),
         .headless_mode = headless_mode,
         .new_window = new_window ? NewWindow::Yes : NewWindow::No,
-        .force_new_process = force_new_process ? ForceNewProcess::Yes : ForceNewProcess::No,
         .allow_popups = allow_popups ? AllowPopups::Yes : AllowPopups::No,
         .disable_scripting = disable_scripting ? DisableScripting::Yes : DisableScripting::No,
         .disable_sql_database = disable_sql_database ? DisableSQLDatabase::Yes : DisableSQLDatabase::No,
@@ -517,16 +572,16 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     auto http_disk_cache_mode = HTTPDiskCacheMode::Enabled;
     if (disable_http_disk_cache)
         http_disk_cache_mode = HTTPDiskCacheMode::Disabled;
-    else if (force_new_process)
-        http_disk_cache_mode = HTTPDiskCacheMode::Partitioned;
 
     m_request_server_options = {
         .certificates = move(certificates),
+        .cache_path = profile().paths().cache,
         .http_disk_cache_mode = http_disk_cache_mode,
         .resource_substitution_map_path = resource_substitution_map_path.has_value() ? Optional<ByteString> { *resource_substitution_map_path } : OptionalNone {},
     };
 
     m_web_content_options = {
+        .cache_path = profile().paths().cache,
         .user_agent_preset = move(user_agent_preset),
         .is_test_mode = enable_test_mode ? IsTestMode::Yes : IsTestMode::No,
         .log_all_js_exceptions = log_all_js_exceptions ? LogAllJSExceptions::Yes : LogAllJSExceptions::No,
@@ -567,7 +622,8 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 
     initialize_actions();
 
-    m_event_loop = &create_platform_event_loop();
+    if (!m_event_loop)
+        m_event_loop = &create_platform_event_loop();
     TRY(launch_services());
 
     return {};
@@ -620,7 +676,7 @@ void Application::open_urls_in_new_tabs(ReadonlySpan<URL::URL> urls) const
 
 void Application::open_bookmark_in_new_tab(String const& bookmark_id, Web::HTML::ActivateTab activate_tab) const
 {
-    if (auto bookmark = m_bookmark_store.find_item_by_id(bookmark_id); bookmark.has_value() && bookmark->is_bookmark())
+    if (auto bookmark = m_bookmark_store->find_item_by_id(bookmark_id); bookmark.has_value() && bookmark->is_bookmark())
         open_url_in_new_tab(bookmark->bookmark().url, activate_tab);
 }
 
@@ -639,7 +695,7 @@ static void collect_bookmark_urls(BookmarkItem::Folder const& folder, Vector<URL
 
 void Application::open_bookmark_folder_in_new_tabs(String const& folder_id) const
 {
-    auto folder = m_bookmark_store.find_item_by_id(folder_id);
+    auto folder = m_bookmark_store->find_item_by_id(folder_id);
     if (!folder.has_value() || !folder->is_folder())
         return;
 
@@ -651,7 +707,7 @@ void Application::open_bookmark_folder_in_new_tabs(String const& folder_id) cons
 
 void Application::open_bookmark_in_new_window(String const& bookmark_id, IsPrivate is_private)
 {
-    if (auto bookmark = m_bookmark_store.find_item_by_id(bookmark_id); bookmark.has_value() && bookmark->is_bookmark())
+    if (auto bookmark = m_bookmark_store->find_item_by_id(bookmark_id); bookmark.has_value() && bookmark->is_bookmark())
         open_url_in_new_window(bookmark->bookmark().url, is_private);
 }
 
@@ -958,8 +1014,7 @@ ErrorOr<void> Application::launch_services()
     Optional<ByteString> history_database_directory;
 
     if (m_browser_options.disable_sql_database == DisableSQLDatabase::No) {
-        // FIXME: Move this to a generic "Ladybird data directory" helper.
-        auto database_path = ByteString::formatted("{}/Ladybird", Core::StandardPaths::user_data_directory());
+        auto database_path = profile().paths().data;
         history_database_directory = database_path;
 
         m_database = TRY(Database::Database::create(database_path, "Ladybird"sv));
@@ -1032,7 +1087,7 @@ ErrorOr<void> Application::launch_services()
 
     VERIFY(m_event_loop);
     m_autocomplete_service = make<AutocompleteService>(*m_event_loop, move(history_database_directory));
-    m_autocomplete_service->update_bookmarks(autocomplete_bookmark_snapshot(m_bookmark_store));
+    m_autocomplete_service->update_bookmarks(autocomplete_bookmark_snapshot(*m_bookmark_store));
 
     // No need to monitor the system time zone if the TZ environment variable is set, as it overrides system preferences.
     if (!Core::Environment::has("TZ"sv)) {
@@ -1206,7 +1261,7 @@ ErrorOr<void> Application::launch_request_server()
     };
 
     if (m_browser_options.dns_settings.has_value())
-        m_settings.set_dns_settings(m_browser_options.dns_settings.value(), true);
+        m_settings->set_dns_settings(m_browser_options.dns_settings.value(), true);
 
     return {};
 }
@@ -1765,16 +1820,16 @@ void Application::initialize_actions()
     m_motion_menu->items().first().get<NonnullRefPtr<Action>>()->set_checked(true);
 
     m_toggle_vertical_tabs_expanded_action = Action::create("Toggle Vertical Tabs Expanded"sv, ActionID::ToggleVerticalTabsExpanded, [this]() {
-        auto tab_settings = m_settings.tab_settings();
+        auto tab_settings = m_settings->tab_settings();
         tab_settings.vertical_tabs_expanded = !tab_settings.vertical_tabs_expanded;
-        m_settings.set_tab_settings(tab_settings);
+        m_settings->set_tab_settings(tab_settings);
     });
     update_vertical_tabs_action();
 
     m_toggle_menu_bar_action = Action::create_checkable("Show Menubar"sv, ActionID::ToggleMenuBar, [this]() {
-        m_settings.set_show_menu_bar(!m_settings.show_menu_bar());
+        m_settings->set_show_menu_bar(!m_settings->show_menu_bar());
     });
-    m_toggle_menu_bar_action->set_checked(m_settings.show_menu_bar());
+    m_toggle_menu_bar_action->set_checked(m_settings->show_menu_bar());
 
     m_bookmarks_menu = Menu::create("Bookmarks"sv);
     m_bookmarks_menu->add_action(Action::create("Manage Bookmarks"sv, ActionID::ManageBookmarks, [this]() {
@@ -1800,16 +1855,16 @@ void Application::initialize_actions()
         auto default_title = MUST(UnixDateTime::now().to_string("Saved Tabs %Y-%m-%d"sv));
         display_add_bookmark_folder_dialog(default_title)
             ->when_resolved([this, bookmarks = move(bookmarks)](BookmarkItem::Folder folder) mutable {
-                auto folder_id = m_bookmark_store.add_folder(move(folder.title));
+                auto folder_id = m_bookmark_store->add_folder(move(folder.title));
                 for (auto& bookmark : bookmarks)
-                    m_bookmark_store.add_bookmark(move(bookmark.url), move(bookmark.title), move(bookmark.favicon_base64_png), folder_id);
+                    m_bookmark_store->add_bookmark(move(bookmark.url), move(bookmark.title), move(bookmark.favicon_base64_png), folder_id);
             });
     }));
 
     m_toggle_bookmark_bar_action = Action::create_checkable("Show Bookmarks Bar"sv, ActionID::ToggleBookmarksBar, [this]() {
-        m_settings.set_show_bookmarks_bar(!m_settings.show_bookmarks_bar());
+        m_settings->set_show_bookmarks_bar(!m_settings->show_bookmarks_bar());
     });
-    m_toggle_bookmark_bar_action->set_checked(m_settings.show_bookmarks_bar());
+    m_toggle_bookmark_bar_action->set_checked(m_settings->show_bookmarks_bar());
     m_bookmarks_menu->add_action(*m_toggle_bookmark_bar_action);
 
     m_bookmarks_menu->add_separator();
@@ -1849,7 +1904,7 @@ void Application::initialize_actions()
     m_inspect_menu->add_action(*m_toggle_devtools_action);
 
     m_debug_menu = Menu::create("Debug"sv);
-    m_debug_menu->set_visible(m_settings.config_variable_as_bool(ConfigVariableID::ShowAdvancedDebugMenu));
+    m_debug_menu->set_visible(m_settings->config_variable_as_bool(ConfigVariableID::ShowAdvancedDebugMenu));
     m_debug_menu->add_action(Action::create("Dump Session History Tree"sv, ActionID::DumpSessionHistoryTree, debug_request("dump-session-history"sv)));
     m_debug_menu->add_action(Action::create("Dump DOM Tree"sv, ActionID::DumpDOMTree, debug_request("dump-dom-tree"sv)));
     m_debug_menu->add_action(Action::create("Dump Layout Tree"sv, ActionID::DumpLayoutTree, debug_request("dump-layout-tree"sv)));
@@ -1942,7 +1997,7 @@ void Application::apply_view_options(Badge<ViewImplementation>, ViewImplementati
 
 void Application::update_vertical_tabs_action()
 {
-    auto const& settings = m_settings.tab_settings();
+    auto const& settings = m_settings->tab_settings();
     m_toggle_vertical_tabs_expanded_action->set_visible(settings.vertical_tabs_enabled);
     m_toggle_vertical_tabs_expanded_action->set_engaged(settings.vertical_tabs_expanded);
     m_toggle_vertical_tabs_expanded_action->set_tooltip(settings.vertical_tabs_expanded ? "Minimize Tabs"sv : "Expand Tabs"sv);
@@ -1957,7 +2012,7 @@ void Application::tab_settings_changed(Badge<ApplicationSettingsObserver>)
 void Application::update_bookmark_action_for_current_web_view()
 {
     auto view = active_web_view();
-    auto is_bookmarked = view.has_value() && m_bookmark_store.is_bookmarked(view->url());
+    auto is_bookmarked = view.has_value() && m_bookmark_store->is_bookmarked(view->url());
 
     m_toggle_bookmark_action->set_text(is_bookmarked ? "Remove Bookmark"sv : "Add Bookmark"sv);
     m_toggle_bookmark_action->set_engaged(is_bookmarked);
@@ -1966,7 +2021,7 @@ void Application::update_bookmark_action_for_current_web_view()
 void Application::bookmarks_changed(Badge<ApplicationBookmarkStoreObserver>)
 {
     if (m_autocomplete_service)
-        m_autocomplete_service->update_bookmarks(autocomplete_bookmark_snapshot(m_bookmark_store));
+        m_autocomplete_service->update_bookmarks(autocomplete_bookmark_snapshot(*m_bookmark_store));
     m_bookmarks_menu->shrink(m_bookmarks_menu_static_size);
     create_bookmark_menu_items();
     rebuild_bookmarks_menu();
@@ -1974,14 +2029,14 @@ void Application::bookmarks_changed(Badge<ApplicationBookmarkStoreObserver>)
 
 void Application::toggle_bookmark_for_view(ViewImplementation& view)
 {
-    if (auto bookmark = m_bookmark_store.find_bookmark_by_url(view.url()); bookmark.has_value()) {
-        m_bookmark_store.remove_item(bookmark->id);
+    if (auto bookmark = m_bookmark_store->find_bookmark_by_url(view.url()); bookmark.has_value()) {
+        m_bookmark_store->remove_item(bookmark->id);
         return;
     }
 
     display_add_bookmark_dialog()
         ->when_resolved([this](AddBookmarkDialogResult result) {
-            m_bookmark_store.add_bookmark(move(result.bookmark.url), move(result.bookmark.title), move(result.bookmark.favicon_base64_png), move(result.target_folder_id));
+            m_bookmark_store->add_bookmark(move(result.bookmark.url), move(result.bookmark.title), move(result.bookmark.favicon_base64_png), move(result.target_folder_id));
         });
 }
 
@@ -1990,7 +2045,7 @@ void Application::create_bookmark_menu_items(Optional<MenuData> data)
     auto const& [menu, items, target_folder_id] = data.ensure([&]() -> MenuData {
         return {
             .menu = *m_bookmarks_menu,
-            .items = m_bookmark_store.root_items(),
+            .items = m_bookmark_store->root_items(),
             .target_folder_id = {},
         };
     });

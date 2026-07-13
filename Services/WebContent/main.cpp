@@ -131,6 +131,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Web::Platform::EventLoopPlugin::install(*new Web::Platform::EventLoopPlugin);
 
     auto config_path = WebView::s_ladybird_resource_root;
+    StringView cache_path;
     StringView mach_server_name {};
     Vector<ByteString> certificates;
     bool enable_test_mode = false;
@@ -155,6 +156,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     Core::ArgsParser args_parser;
     args_parser.add_option(config_path, "Ladybird configuration path", "config-path", 0, "config_path");
+    args_parser.add_option(cache_path, "Path to the profile cache", "cache-path", 0, "path");
     args_parser.add_option(enable_test_mode, "Enable test mode", "test-mode");
     args_parser.add_option(expose_experimental_interfaces, "Expose experimental IDL interfaces", "expose-experimental-interfaces");
     args_parser.add_option(expose_internals_object, "Expose internals object", "expose-internals-object");
@@ -257,7 +259,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     }
 
     if (!disable_sandbox)
-        TRY(RendererSandbox::apply_sandbox(config_path));
+        TRY(RendererSandbox::apply_sandbox(config_path, cache_path));
 
 #if defined(AK_OS_MACOS)
     auto browser_port = TRY(Core::MachPort::look_up_from_bootstrap_server(ByteString { mach_server_name }));

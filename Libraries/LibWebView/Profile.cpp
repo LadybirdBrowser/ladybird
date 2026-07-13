@@ -158,4 +158,19 @@ ErrorOr<Profile> Profile::create(ProfileSelection const& selection, ProfileRoots
     return Profile { move(identifier), move(paths) };
 }
 
+ErrorOr<Profile> Profile::create_legacy(ProfileRoots const& roots)
+{
+    ProfilePaths paths {
+        .config = LexicalPath::join(roots.config, "Ladybird"sv).string(),
+        .data = LexicalPath::join(roots.data, "Ladybird"sv).string(),
+        .cache = LexicalPath::join(roots.cache, "Ladybird"sv).string(),
+        .runtime = roots.runtime,
+        .identity = LexicalPath::join(roots.data, "Ladybird"sv).string(),
+    };
+
+    TRY(create_profile_directories(paths));
+    paths.identity = TRY(FileSystem::real_path(paths.identity));
+    return Profile { "legacy"sv, move(paths) };
+}
+
 }

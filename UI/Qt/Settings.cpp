@@ -12,9 +12,20 @@
 
 namespace Ladybird {
 
-Settings::Settings()
+Settings* Settings::s_the = nullptr;
+
+Settings* Settings::initialize(ByteString config_path)
 {
-    m_qsettings = make<QSettings>(QSettings::IniFormat, QSettings::UserScope, "Ladybird", "Ladybird", this);
+    VERIFY(!s_the);
+    static Settings settings { move(config_path) };
+    return &settings;
+}
+
+Settings::Settings(ByteString config_path)
+{
+    s_the = this;
+    auto settings_path = LexicalPath::join(config_path, "Ladybird.ini"sv).string();
+    m_qsettings = make<QSettings>(QString::fromUtf8(settings_path.characters()), QSettings::IniFormat, this);
 }
 
 ByteString Settings::directory()

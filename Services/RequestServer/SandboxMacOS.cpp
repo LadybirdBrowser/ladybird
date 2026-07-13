@@ -7,7 +7,6 @@
 #include <AK/LexicalPath.h>
 #include <AK/String.h>
 #include <LibCore/Directory.h>
-#include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibSandbox/Sandbox.h>
 #include <RequestServer/ResourceSubstitutionMap.h>
@@ -15,13 +14,12 @@
 
 namespace RequestServer {
 
-ErrorOr<void> apply_sandbox(Vector<ByteString> const& certificates)
+ErrorOr<void> apply_sandbox(Vector<ByteString> const& certificates, StringView cache_path)
 {
     TRY(Sandbox::configure_runtime());
 
     Vector<Sandbox::SeatbeltPath> paths;
-    auto cache_path = TRY(String::formatted("{}/Ladybird", Core::StandardPaths::cache_directory()));
-    TRY(Core::Directory::create(cache_path.to_byte_string(), Core::Directory::CreateDirectories::Yes));
+    TRY(Core::Directory::create(cache_path, Core::Directory::CreateDirectories::Yes));
 
     auto executable_path = TRY(Core::System::current_executable_path());
     auto build_root = LexicalPath::dirname(LexicalPath::dirname(LexicalPath::dirname(LexicalPath::dirname(LexicalPath::dirname(executable_path)))));

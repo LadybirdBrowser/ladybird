@@ -20,6 +20,12 @@
 #include <LibWebView/URL.h>
 #include <LibWebView/Utilities.h>
 
+#if defined(AK_OS_WINDOWS)
+#    include <AK/Windows.h>
+#else
+#    include <sys/file.h>
+#endif
+
 namespace WebView {
 
 static HashMap<int, RefPtr<UIProcessConnectionFromClient>>& connections()
@@ -36,15 +42,26 @@ private:
     explicit UIProcessClient(NonnullOwnPtr<IPC::Transport>);
 };
 
-ErrorOr<BrowserProcess::ProcessDisposition> BrowserProcess::connect(Vector<ByteString> const& raw_urls, NewWindow new_window)
+ErrorOr<BrowserProcess::ProcessDisposition> BrowserProcess::connect(Vector<ByteString> const& raw_urls, NewWindow new_window, StringView runtime_directory, [[maybe_unused]] StringView profile_identity)
 {
     static constexpr auto process_name = "Ladybird"sv;
 
-    auto [socket_path, pid_path] = TRY(Process::paths_for_process(process_name));
+    auto startup_lock_path = LexicalPath::join(runtime_directory, "startup.lock"sv).string();
+    auto startup_lock = TRY(Core::File::open(startup_lock_path, Core::File::OpenMode::ReadWrite));
+#if defined(AK_OS_WINDOWS)
+    OVERLAPPED overlapped {};
+    if (!LockFileEx(to_handle(startup_lock->fd()), LOCKFILE_EXCLUSIVE_LOCK, 0, MAXDWORD, MAXDWORD, &overlapped))
+        return Error::from_windows_error();
+#else
+    if (flock(startup_lock->fd(), LOCK_EX) < 0)
+        return Error::from_syscall("flock"sv, errno);
+#endif
+
+    auto [socket_path, pid_path] = TRY(Process::paths_for_process(process_name, runtime_directory));
 
     if (auto pid = TRY(Process::get_process_pid(process_name, pid_path)); pid.has_value()) {
 #if defined(AK_OS_MACOS)
-        TRY(connect_as_client(*pid, raw_urls, new_window));
+        TRY(connect_as_client(*pid, raw_urls, new_window, profile_identity));
 #else
         TRY(connect_as_client(socket_path, raw_urls, new_window));
 #endif
@@ -65,9 +82,10 @@ ErrorOr<BrowserProcess::ProcessDisposition> BrowserProcess::connect(Vector<ByteS
 }
 
 #if defined(AK_OS_MACOS)
-ErrorOr<void> BrowserProcess::connect_as_client(pid_t pid, Vector<ByteString> const& raw_urls, NewWindow new_window)
+ErrorOr<void> BrowserProcess::connect_as_client(pid_t pid, Vector<ByteString> const& raw_urls, NewWindow new_window, StringView profile_identity)
 {
-    auto transport_ports = TRY(IPC::bootstrap_transport_from_mach_server(mach_server_name_for_process("Ladybird"sv, pid)));
+    auto process_name = ByteString::formatted("Ladybird-{}", profile_identity);
+    auto transport_ports = TRY(IPC::bootstrap_transport_from_mach_server(mach_server_name_for_process(process_name, pid)));
     auto client = UIProcessClient::construct(make<IPC::Transport>(move(transport_ports.receive_right), move(transport_ports.send_right)));
 
     switch (new_window) {

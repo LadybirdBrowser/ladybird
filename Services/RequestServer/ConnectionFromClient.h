@@ -49,7 +49,7 @@ public:
     void request_complete(Badge<Request>, Request const&);
 
 private:
-    ConnectionFromClient(NonnullOwnPtr<IPC::Transport>, IsPrimaryConnection, IsPrivate, ConnectionMap&, Optional<HTTP::DiskCache&>);
+    ConnectionFromClient(NonnullOwnPtr<IPC::Transport>, IsPrimaryConnection, IsPrivate, ConnectionMap&, Optional<HTTP::DiskCache&>, ByteString alt_svc_cache_path);
 
     virtual Messages::RequestServer::InitTransportResponse init_transport(int peer_pid) override;
     virtual Messages::RequestServer::ConnectNewClientResponse connect_new_client(IsPrivate) override;

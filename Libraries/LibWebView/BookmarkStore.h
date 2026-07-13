@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/Badge.h>
 #include <AK/JsonValue.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
@@ -55,7 +54,7 @@ public:
 
 class WEBVIEW_API BookmarkStore {
 public:
-    static BookmarkStore create(Badge<Application>);
+    static BookmarkStore create(ByteString bookmarks_path);
 
     Vector<BookmarkItem> const& root_items() const { return m_items; }
 

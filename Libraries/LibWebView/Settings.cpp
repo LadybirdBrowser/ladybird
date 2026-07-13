@@ -9,7 +9,6 @@
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
-#include <LibCore/StandardPaths.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibURL/InternalURLs.h>
@@ -189,12 +188,8 @@ static bool config_variable_value_is_valid(ConfigVariableDefinition const& varia
     return true;
 }
 
-Settings Settings::create(Badge<Application>)
+Settings Settings::create(ByteString settings_path)
 {
-    // FIXME: Move this to a generic "Ladybird config directory" helper.
-    auto settings_directory = ByteString::formatted("{}/Ladybird", Core::StandardPaths::config_directory());
-    auto settings_path = ByteString::formatted("{}/Settings.json", settings_directory);
-
     Settings settings { move(settings_path) };
 
     auto settings_json = read_json_file(settings.m_settings_path);

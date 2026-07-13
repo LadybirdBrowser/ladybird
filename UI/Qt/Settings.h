@@ -25,11 +25,8 @@ public:
     Settings(Settings const&) = delete;
     Settings& operator=(Settings const&) = delete;
 
-    static Settings* the()
-    {
-        static Settings instance;
-        return &instance;
-    }
+    static Settings* initialize(ByteString config_path);
+    static Settings* the() { return s_the; }
 
     ByteString directory();
 
@@ -43,10 +40,11 @@ public:
     void set_is_maximized(bool is_maximized);
 
 protected:
-    Settings();
+    explicit Settings(ByteString config_path);
 
 private:
     OwnPtr<QSettings> m_qsettings;
+    static Settings* s_the;
 };
 
 }

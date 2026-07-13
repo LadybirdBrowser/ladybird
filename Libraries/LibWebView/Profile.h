@@ -44,6 +44,7 @@ public:
     ~Profile();
 
     static ErrorOr<Profile> create(ProfileSelection const&, ProfileRoots const&);
+    static ErrorOr<Profile> create_legacy(ProfileRoots const&);
     static ByteString routing_identifier(StringView canonical_profile_root);
     static bool is_valid_name(StringView);
 

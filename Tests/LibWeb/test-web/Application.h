@@ -23,6 +23,7 @@ public:
 
     virtual void create_platform_arguments(Core::ArgsParser&) override;
     virtual void create_platform_options(WebView::BrowserOptions&, WebView::RequestServerOptions&, WebView::WebContentOptions&) override;
+    virtual bool should_coordinate_browser_process() const override { return false; }
     virtual bool should_capture_web_content_output() const override { return true; }
 
     ErrorOr<void> launch_test_fixtures();
