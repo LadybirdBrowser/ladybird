@@ -24,6 +24,11 @@ static bool steps_are_valid(Vector<i32> const& steps)
     return true;
 }
 
+static bool is_valid_cross_process_id(Web::HTML::CrossProcessId id)
+{
+    return id.namespace_id != 0 && id.local_id != 0;
+}
+
 static bool entries_are_valid(Vector<TraversableSessionHistory::Entry> const& entries)
 {
     Optional<i32> previous_step;
@@ -77,6 +82,32 @@ static void apply_document_state_population_update(Web::HTML::SessionHistoryDocu
     document_state.origin = updated_document_state.origin;
     document_state.resource = updated_document_state.resource;
     document_state.ever_populated = updated_document_state.ever_populated;
+}
+
+static void apply_same_document_navigation_document_state_details(Web::HTML::SessionHistoryDocumentStateDescriptor& document_state, Web::HTML::SessionHistoryDocumentStateDescriptor const& updated_document_state)
+{
+    document_state.history_policy_container = updated_document_state.history_policy_container;
+    document_state.request_referrer = updated_document_state.request_referrer;
+    document_state.request_referrer_policy = updated_document_state.request_referrer_policy;
+    document_state.initiator_origin = updated_document_state.initiator_origin;
+    document_state.origin = updated_document_state.origin;
+    document_state.about_base_url = updated_document_state.about_base_url;
+    document_state.resource = updated_document_state.resource;
+    document_state.reload_pending = updated_document_state.reload_pending;
+    document_state.ever_populated = updated_document_state.ever_populated;
+    document_state.is_provisional = updated_document_state.is_provisional;
+    document_state.navigable_target_name = updated_document_state.navigable_target_name;
+}
+
+static void apply_same_document_navigation_document_state_details(Vector<TraversableSessionHistory::Entry>& entries, Web::HTML::CrossProcessId document_state_id, Web::HTML::SessionHistoryDocumentStateDescriptor const& updated_document_state)
+{
+    for (auto& entry : entries) {
+        if (entry.document_state.id == document_state_id)
+            apply_same_document_navigation_document_state_details(entry.document_state, updated_document_state);
+
+        for (auto& nested_history : entry.document_state.nested_histories)
+            apply_same_document_navigation_document_state_details(nested_history.entries, document_state_id, updated_document_state);
+    }
 }
 
 static bool entry_matches_ignoring_targeted_field(TraversableSessionHistory::Entry const& stored_entry, TraversableSessionHistory::Entry const& updated_entry, Web::HTML::SessionHistoryEntryUpdateKind update_kind)
@@ -239,7 +270,7 @@ static Optional<SameDocumentNavigationMutationResult> apply_current_entry_nested
     return finish_current_entry_nested_history_mutation(move(entries), current_step);
 }
 
-static Optional<SameDocumentNavigationMutationResult> apply_top_level_same_document_navigation(Vector<TraversableSessionHistory::Entry> entries, Vector<i32> used_steps, i32 previous_current_step, TraversableSessionHistory::Entry const& entry, Optional<i32> replaced_step, i32 current_step)
+static Optional<SameDocumentNavigationMutationResult> apply_top_level_same_document_navigation_operation(Vector<TraversableSessionHistory::Entry> entries, Vector<i32> used_steps, i32 previous_current_step, TraversableSessionHistory::Entry const& entry, Optional<i32> replaced_step, i32 current_step)
 {
     auto previous_current_used_step_index = used_steps.find_first_index(previous_current_step);
     if (!previous_current_used_step_index.has_value())
@@ -437,7 +468,7 @@ static Web::HTML::SessionHistoryNestedHistoryDescriptor* nested_history_for_pare
     return nullptr;
 }
 
-static Optional<SameDocumentNavigationMutationResult> apply_nested_same_document_navigation(Vector<TraversableSessionHistory::Entry> entries, Vector<i32> used_steps, i32 previous_current_step, Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId navigable_id, TraversableSessionHistory::Entry const& entry, Optional<i32> replaced_step, i32 current_step)
+static Optional<SameDocumentNavigationMutationResult> apply_nested_same_document_navigation_operation(Vector<TraversableSessionHistory::Entry> entries, Vector<i32> used_steps, i32 previous_current_step, Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId navigable_id, TraversableSessionHistory::Entry const& entry, Optional<i32> replaced_step, i32 current_step)
 {
     auto previous_current_used_step_index = used_steps.find_first_index(previous_current_step);
     if (!previous_current_used_step_index.has_value())
@@ -491,7 +522,7 @@ static Optional<SameDocumentNavigationMutationResult> apply_nested_same_document
     };
 }
 
-static Optional<SameDocumentNavigationMutationResult> apply_nested_cross_document_navigation(Vector<TraversableSessionHistory::Entry> entries, Vector<i32> used_steps, i32 previous_current_step, Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId navigable_id, TraversableSessionHistory::Entry const& entry, i32 current_step)
+static Optional<SameDocumentNavigationMutationResult> apply_nested_cross_document_navigation_operation(Vector<TraversableSessionHistory::Entry> entries, Vector<i32> used_steps, i32 previous_current_step, Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId navigable_id, TraversableSessionHistory::Entry const& entry, i32 current_step)
 {
     auto previous_current_used_step_index = used_steps.find_first_index(previous_current_step);
     if (!previous_current_used_step_index.has_value())
@@ -528,51 +559,6 @@ static Optional<SameDocumentNavigationMutationResult> apply_nested_cross_documen
         if (!nested_history)
             return {};
         nested_history->entries.append(entry);
-        used_steps.append(current_step);
-    }
-
-    auto current_used_step_index = used_steps.find_first_index(current_step);
-    if (!current_used_step_index.has_value())
-        return {};
-
-    if (!entries_are_valid(entries) || !steps_are_valid(used_steps) || !entries_and_used_steps_are_consistent(entries, used_steps))
-        return {};
-
-    return SameDocumentNavigationMutationResult {
-        .entries = move(entries),
-        .used_steps = move(used_steps),
-        .current_used_step_index = *current_used_step_index,
-    };
-}
-
-static Optional<SameDocumentNavigationMutationResult> apply_top_level_cross_document_navigation(Vector<TraversableSessionHistory::Entry> entries, Vector<i32> used_steps, i32 previous_current_step, TraversableSessionHistory::Entry const& entry, i32 current_step)
-{
-    auto previous_current_used_step_index = used_steps.find_first_index(previous_current_step);
-    if (!previous_current_used_step_index.has_value())
-        return {};
-
-    auto previous_current_top_level_entry_index = top_level_entry_index_for_step(entries, previous_current_step);
-    if (!previous_current_top_level_entry_index.has_value())
-        return {};
-
-    if (entry.step != current_step)
-        return {};
-
-    if (current_step == previous_current_step) {
-        if (entries[*previous_current_top_level_entry_index].step != previous_current_step)
-            return {};
-        entries[*previous_current_top_level_entry_index] = entry;
-        used_steps = get_all_used_history_steps(entries);
-    } else {
-        if (current_step <= previous_current_step)
-            return {};
-
-        clear_forward_session_history_entries(entries, previous_current_step);
-        used_steps.shrink(*previous_current_used_step_index + 1);
-        if (used_steps.contains_slow(current_step))
-            return {};
-
-        entries.append(entry);
         used_steps.append(current_step);
     }
 
@@ -735,16 +721,36 @@ bool TraversableSessionHistory::update_current_entry_from_web_content(Web::HTML:
     return true;
 }
 
-bool TraversableSessionHistory::apply_top_level_same_document_navigation_from_web_content(Entry entry, Optional<i32> replaced_step, i32 current_step)
+bool TraversableSessionHistory::apply_top_level_same_document_navigation(Web::HTML::SameDocumentSessionHistoryNavigation navigation)
 {
-    if (entry.step < 0 || current_step < 0 || entry.document_state.id.namespace_id == 0 || entry.document_state.id.local_id == 0)
+    if (navigation.current_step < 0 || !is_valid_cross_process_id(navigation.document_state.id))
         return false;
 
     if (m_entries.is_empty() || m_used_steps.is_empty() || !m_current_used_step_index.has_value())
         return false;
 
     auto previous_authoritative_step = m_used_steps[*m_current_used_step_index];
-    auto authoritative_mutation = apply_top_level_same_document_navigation(m_entries, m_used_steps, previous_authoritative_step, entry, replaced_step, current_step);
+    auto current_top_level_entry_index = top_level_entry_index_for_step(m_entries, previous_authoritative_step);
+    if (!current_top_level_entry_index.has_value())
+        return false;
+
+    if (m_entries[*current_top_level_entry_index].document_state.id != navigation.document_state.id)
+        return false;
+
+    auto entries = m_entries;
+    apply_same_document_navigation_document_state_details(entries, navigation.document_state.id, navigation.document_state);
+
+    auto entry = entries[*current_top_level_entry_index];
+    entry.step = navigation.replaced_step.value_or(navigation.current_step);
+    entry.url = move(navigation.url);
+    entry.classic_history_api_state = move(navigation.classic_history_api_state);
+    entry.navigation_api_state = move(navigation.navigation_api_state);
+    entry.navigation_api_key = move(navigation.navigation_api_key);
+    entry.navigation_api_id = move(navigation.navigation_api_id);
+    entry.scroll_restoration_mode = navigation.scroll_restoration_mode;
+    entry.scroll_position_data = move(navigation.scroll_position_data);
+
+    auto authoritative_mutation = apply_top_level_same_document_navigation_operation(move(entries), m_used_steps, previous_authoritative_step, entry, navigation.replaced_step, navigation.current_step);
     if (!authoritative_mutation.has_value())
         return false;
 
@@ -754,19 +760,87 @@ bool TraversableSessionHistory::apply_top_level_same_document_navigation_from_we
     return true;
 }
 
-bool TraversableSessionHistory::apply_nested_same_document_navigation_from_web_content(Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId navigable_id, Entry entry, Optional<i32> replaced_step, i32 current_step)
+bool TraversableSessionHistory::apply_top_level_cross_document_navigation_commit(Web::HTML::TopLevelCrossDocumentSessionHistoryNavigation navigation)
 {
-    if (parent_document_state_id.namespace_id == 0 || parent_document_state_id.local_id == 0)
+    if (navigation.current_step < 0 || !is_valid_cross_process_id(navigation.document_state.id))
         return false;
-    if (navigable_id.namespace_id == 0 || navigable_id.local_id == 0)
-        return false;
-    if (entry.step < 0 || current_step < 0 || entry.document_state.id.namespace_id == 0 || entry.document_state.id.local_id == 0)
+
+    if (!navigation.document_state.nested_histories.is_empty())
         return false;
 
     if (m_entries.is_empty() || m_used_steps.is_empty() || !m_current_used_step_index.has_value())
         return false;
 
-    auto authoritative_mutation = apply_nested_same_document_navigation(m_entries, m_used_steps, m_used_steps[*m_current_used_step_index], parent_document_state_id, navigable_id, entry, replaced_step, current_step);
+    if (m_used_steps[*m_current_used_step_index] != navigation.current_step)
+        return false;
+
+    auto current_top_level_entry_index = this->current_top_level_entry_index();
+    if (!current_top_level_entry_index.has_value())
+        return false;
+
+    auto entries = m_entries;
+    auto& entry = entries[*current_top_level_entry_index];
+    if (entry.step != navigation.current_step || !entry.document_state.nested_histories.is_empty())
+        return false;
+
+    entry.url = move(navigation.url);
+    entry.document_state = move(navigation.document_state);
+    entry.classic_history_api_state = move(navigation.classic_history_api_state);
+    entry.navigation_api_state = move(navigation.navigation_api_state);
+    entry.navigation_api_key = move(navigation.navigation_api_key);
+    entry.navigation_api_id = move(navigation.navigation_api_id);
+    entry.scroll_restoration_mode = navigation.scroll_restoration_mode;
+    entry.scroll_position_data = move(navigation.scroll_position_data);
+
+    if (!entries_are_valid(entries) || !entries_and_used_steps_are_consistent(entries, m_used_steps))
+        return false;
+
+    m_entries = move(entries);
+    return true;
+}
+
+bool TraversableSessionHistory::apply_nested_same_document_navigation(Web::HTML::NestedSameDocumentSessionHistoryNavigation navigation)
+{
+    if (!is_valid_cross_process_id(navigation.parent_document_state_id))
+        return false;
+    if (!is_valid_cross_process_id(navigation.navigable_id))
+        return false;
+    if (navigation.current_step < 0 || !is_valid_cross_process_id(navigation.document_state.id))
+        return false;
+
+    if (m_entries.is_empty() || m_used_steps.is_empty() || !m_current_used_step_index.has_value())
+        return false;
+
+    auto previous_authoritative_step = m_used_steps[*m_current_used_step_index];
+    auto entries = m_entries;
+    auto* nested_history = nested_history_for_parent_document_state(entries, navigation.parent_document_state_id, navigation.navigable_id);
+    if (!nested_history)
+        return false;
+
+    auto current_entry_index = top_level_entry_index_for_step(nested_history->entries, previous_authoritative_step);
+    if (!current_entry_index.has_value())
+        return false;
+
+    if (nested_history->entries[*current_entry_index].document_state.id != navigation.document_state.id)
+        return false;
+
+    apply_same_document_navigation_document_state_details(entries, navigation.document_state.id, navigation.document_state);
+
+    nested_history = nested_history_for_parent_document_state(entries, navigation.parent_document_state_id, navigation.navigable_id);
+    if (!nested_history)
+        return false;
+
+    auto entry = nested_history->entries[*current_entry_index];
+    entry.step = navigation.replaced_step.value_or(navigation.current_step);
+    entry.url = move(navigation.url);
+    entry.classic_history_api_state = move(navigation.classic_history_api_state);
+    entry.navigation_api_state = move(navigation.navigation_api_state);
+    entry.navigation_api_key = move(navigation.navigation_api_key);
+    entry.navigation_api_id = move(navigation.navigation_api_id);
+    entry.scroll_restoration_mode = navigation.scroll_restoration_mode;
+    entry.scroll_position_data = move(navigation.scroll_position_data);
+
+    auto authoritative_mutation = apply_nested_same_document_navigation_operation(move(entries), m_used_steps, previous_authoritative_step, navigation.parent_document_state_id, navigation.navigable_id, entry, navigation.replaced_step, navigation.current_step);
     if (!authoritative_mutation.has_value())
         return false;
 
@@ -776,19 +850,34 @@ bool TraversableSessionHistory::apply_nested_same_document_navigation_from_web_c
     return true;
 }
 
-bool TraversableSessionHistory::apply_nested_cross_document_navigation_from_web_content(Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId navigable_id, Entry entry, i32 current_step)
+bool TraversableSessionHistory::apply_nested_cross_document_navigation_commit(Web::HTML::NestedCrossDocumentSessionHistoryNavigation navigation)
 {
-    if (parent_document_state_id.namespace_id == 0 || parent_document_state_id.local_id == 0)
+    if (!is_valid_cross_process_id(navigation.parent_document_state_id))
         return false;
-    if (navigable_id.namespace_id == 0 || navigable_id.local_id == 0)
+    if (!is_valid_cross_process_id(navigation.navigable_id))
         return false;
-    if (entry.step < 0 || current_step < 0 || entry.document_state.id.namespace_id == 0 || entry.document_state.id.local_id == 0)
+    if (navigation.current_step < 0 || !is_valid_cross_process_id(navigation.document_state.id))
+        return false;
+
+    if (!navigation.document_state.nested_histories.is_empty())
         return false;
 
     if (m_entries.is_empty() || m_used_steps.is_empty() || !m_current_used_step_index.has_value())
         return false;
 
-    auto authoritative_mutation = apply_nested_cross_document_navigation(m_entries, m_used_steps, m_used_steps[*m_current_used_step_index], parent_document_state_id, navigable_id, entry, current_step);
+    Entry entry {
+        .step = navigation.current_step,
+        .url = move(navigation.url),
+        .document_state = move(navigation.document_state),
+        .classic_history_api_state = move(navigation.classic_history_api_state),
+        .navigation_api_state = move(navigation.navigation_api_state),
+        .navigation_api_key = move(navigation.navigation_api_key),
+        .navigation_api_id = move(navigation.navigation_api_id),
+        .scroll_restoration_mode = navigation.scroll_restoration_mode,
+        .scroll_position_data = move(navigation.scroll_position_data),
+    };
+
+    auto authoritative_mutation = apply_nested_cross_document_navigation_operation(m_entries, m_used_steps, m_used_steps[*m_current_used_step_index], navigation.parent_document_state_id, navigation.navigable_id, entry, navigation.current_step);
     if (!authoritative_mutation.has_value())
         return false;
 
@@ -844,58 +933,6 @@ bool TraversableSessionHistory::remove_current_entry_nested_history_from_web_con
     return true;
 }
 
-bool TraversableSessionHistory::apply_top_level_cross_document_navigation_from_web_content(Entry entry, i32 current_step)
-{
-    if (entry.step < 0 || current_step < 0 || entry.document_state.id.namespace_id == 0 || entry.document_state.id.local_id == 0)
-        return false;
-
-    if (entry.step != current_step)
-        return false;
-
-    if (!entry.document_state.nested_histories.is_empty())
-        return false;
-
-    if (m_entries.is_empty() || m_used_steps.is_empty() || !m_current_used_step_index.has_value())
-        return false;
-
-    if (m_used_steps[*m_current_used_step_index] == current_step) {
-        auto current_top_level_entry_index = this->current_top_level_entry_index();
-        if (!current_top_level_entry_index.has_value())
-            return false;
-
-        auto const& predicted_entry = m_entries[*current_top_level_entry_index];
-        if (predicted_entry.step == entry.step && predicted_entry.document_state.nested_histories.is_empty()) {
-            auto entries = m_entries;
-            entries[*current_top_level_entry_index] = entry;
-            if (!entries_are_valid(entries) || !entries_and_used_steps_are_consistent(entries, m_used_steps))
-                return false;
-
-            m_entries = move(entries);
-            return true;
-        }
-    }
-
-    auto const previous_authoritative_step = m_used_steps[*m_current_used_step_index];
-    if (previous_authoritative_step == current_step) {
-        auto current_top_level_entry_index = this->current_top_level_entry_index();
-        if (!current_top_level_entry_index.has_value())
-            return false;
-
-        auto const& predicted_entry = m_entries[*current_top_level_entry_index];
-        if (predicted_entry.step != entry.step || !predicted_entry.document_state.nested_histories.is_empty())
-            return false;
-    }
-
-    auto authoritative_mutation = apply_top_level_cross_document_navigation(m_entries, m_used_steps, previous_authoritative_step, entry, current_step);
-    if (!authoritative_mutation.has_value())
-        return false;
-
-    m_entries = move(authoritative_mutation->entries);
-    m_used_steps = move(authoritative_mutation->used_steps);
-    m_current_used_step_index = authoritative_mutation->current_used_step_index;
-    return true;
-}
-
 TraversableSessionHistory::WebContentMutationResult TraversableSessionHistory::apply_web_content_mutation(WebContentMutation mutation)
 {
     auto const mirror_was_complete_before_mutation = web_content_history_matches_mirror();
@@ -919,22 +956,6 @@ TraversableSessionHistory::WebContentMutationResult TraversableSessionHistory::a
         return accepted_mutation_result();
     case WebContentMutationType::CurrentEntryNestedHistoryRemoval:
         if (!remove_current_entry_nested_history_from_web_content(mutation.document_state_id, mutation.nested_history_id, mutation.current_step))
-            return {};
-        return accepted_mutation_result();
-    case WebContentMutationType::TopLevelSameDocumentNavigation:
-        if (!apply_top_level_same_document_navigation_from_web_content(move(mutation.entry), mutation.replaced_step, mutation.current_step))
-            return {};
-        return accepted_mutation_result();
-    case WebContentMutationType::NestedSameDocumentNavigation:
-        if (!apply_nested_same_document_navigation_from_web_content(mutation.parent_document_state_id, mutation.navigable_id, move(mutation.entry), mutation.replaced_step, mutation.current_step))
-            return {};
-        return accepted_mutation_result();
-    case WebContentMutationType::NestedCrossDocumentNavigation:
-        if (!apply_nested_cross_document_navigation_from_web_content(mutation.parent_document_state_id, mutation.navigable_id, move(mutation.entry), mutation.current_step))
-            return {};
-        return accepted_mutation_result();
-    case WebContentMutationType::TopLevelCrossDocumentNavigation:
-        if (!apply_top_level_cross_document_navigation_from_web_content(move(mutation.entry), mutation.current_step))
             return {};
         return accepted_mutation_result();
     case WebContentMutationType::RestoredCurrentStep:

@@ -99,7 +99,14 @@ struct SessionHistoryEntryDescriptor {
 };
 
 struct SameDocumentSessionHistoryNavigation {
-    SessionHistoryEntryDescriptor entry;
+    URL::URL url;
+    SessionHistoryDocumentStateDescriptor document_state;
+    StorageSerializationRecord classic_history_api_state;
+    StorageSerializationRecord navigation_api_state;
+    Utf16String navigation_api_key;
+    Utf16String navigation_api_id;
+    ScrollRestorationMode scroll_restoration_mode { ScrollRestorationMode::Auto };
+    SessionHistoryEntryScrollPositionData scroll_position_data;
     Optional<i32> replaced_step;
     i32 current_step { 0 };
 };
@@ -107,7 +114,14 @@ struct SameDocumentSessionHistoryNavigation {
 struct NestedSameDocumentSessionHistoryNavigation {
     CrossProcessId parent_document_state_id;
     CrossProcessId navigable_id;
-    SessionHistoryEntryDescriptor entry;
+    URL::URL url;
+    SessionHistoryDocumentStateDescriptor document_state;
+    StorageSerializationRecord classic_history_api_state;
+    StorageSerializationRecord navigation_api_state;
+    Utf16String navigation_api_key;
+    Utf16String navigation_api_id;
+    ScrollRestorationMode scroll_restoration_mode { ScrollRestorationMode::Auto };
+    SessionHistoryEntryScrollPositionData scroll_position_data;
     Optional<i32> replaced_step;
     i32 current_step { 0 };
 };
@@ -115,12 +129,26 @@ struct NestedSameDocumentSessionHistoryNavigation {
 struct NestedCrossDocumentSessionHistoryNavigation {
     CrossProcessId parent_document_state_id;
     CrossProcessId navigable_id;
-    SessionHistoryEntryDescriptor entry;
+    URL::URL url;
+    SessionHistoryDocumentStateDescriptor document_state;
+    StorageSerializationRecord classic_history_api_state;
+    StorageSerializationRecord navigation_api_state;
+    Utf16String navigation_api_key;
+    Utf16String navigation_api_id;
+    ScrollRestorationMode scroll_restoration_mode { ScrollRestorationMode::Auto };
+    SessionHistoryEntryScrollPositionData scroll_position_data;
     i32 current_step { 0 };
 };
 
 struct TopLevelCrossDocumentSessionHistoryNavigation {
-    SessionHistoryEntryDescriptor entry;
+    URL::URL url;
+    SessionHistoryDocumentStateDescriptor document_state;
+    StorageSerializationRecord classic_history_api_state;
+    StorageSerializationRecord navigation_api_state;
+    Utf16String navigation_api_key;
+    Utf16String navigation_api_id;
+    ScrollRestorationMode scroll_restoration_mode { ScrollRestorationMode::Auto };
+    SessionHistoryEntryScrollPositionData scroll_position_data;
     i32 current_step { 0 };
 };
 

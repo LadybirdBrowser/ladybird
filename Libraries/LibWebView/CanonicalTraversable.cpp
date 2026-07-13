@@ -297,9 +297,7 @@ WebContentSessionHistoryMutationResult CanonicalTraversable::did_receive_web_con
 
     if (mutation.mutation.has<Web::HTML::NestedSameDocumentSessionHistoryNavigation>()) {
         auto nested_navigation = move(mutation.mutation.get<Web::HTML::NestedSameDocumentSessionHistoryNavigation>());
-        auto mutation_result = m_session_history.apply_web_content_mutation(
-            TraversableSessionHistory::WebContentMutation::nested_same_document_navigation(nested_navigation.parent_document_state_id, nested_navigation.navigable_id, move(nested_navigation.entry), nested_navigation.replaced_step, nested_navigation.current_step));
-        if (!mutation_result.accepted) {
+        if (!m_session_history.apply_nested_same_document_navigation(move(nested_navigation))) {
             m_session_history.forget_web_content_state();
             return {
                 .dump_reason = "rejected-nested-same-document-navigation"sv,
@@ -316,9 +314,7 @@ WebContentSessionHistoryMutationResult CanonicalTraversable::did_receive_web_con
 
     if (mutation.mutation.has<Web::HTML::NestedCrossDocumentSessionHistoryNavigation>()) {
         auto nested_navigation = move(mutation.mutation.get<Web::HTML::NestedCrossDocumentSessionHistoryNavigation>());
-        auto mutation_result = m_session_history.apply_web_content_mutation(
-            TraversableSessionHistory::WebContentMutation::nested_cross_document_navigation(nested_navigation.parent_document_state_id, nested_navigation.navigable_id, move(nested_navigation.entry), nested_navigation.current_step));
-        if (!mutation_result.accepted) {
+        if (!m_session_history.apply_nested_cross_document_navigation_commit(move(nested_navigation))) {
             m_session_history.forget_web_content_state();
             return {
                 .dump_reason = "rejected-nested-cross-document-navigation"sv,
@@ -335,12 +331,10 @@ WebContentSessionHistoryMutationResult CanonicalTraversable::did_receive_web_con
 
     if (mutation.mutation.has<Web::HTML::TopLevelCrossDocumentSessionHistoryNavigation>()) {
         auto cross_document_navigation = move(mutation.mutation.get<Web::HTML::TopLevelCrossDocumentSessionHistoryNavigation>());
-        auto navigation_url = cross_document_navigation.entry.url;
+        auto navigation_url = cross_document_navigation.url;
         auto pending_navigation_started_from_complete_mirror = m_pending_session_history_navigation.has_value()
             && m_pending_session_history_navigation->previous_session_history.web_content_history_matches_mirror();
-        auto mutation_result = m_session_history.apply_web_content_mutation(
-            TraversableSessionHistory::WebContentMutation::top_level_cross_document_navigation(move(cross_document_navigation.entry), cross_document_navigation.current_step));
-        if (!mutation_result.accepted) {
+        if (!m_session_history.apply_top_level_cross_document_navigation_commit(move(cross_document_navigation))) {
             m_session_history.forget_web_content_state();
             return {
                 .dump_reason = "rejected-top-level-cross-document-navigation"sv,
@@ -355,7 +349,7 @@ WebContentSessionHistoryMutationResult CanonicalTraversable::did_receive_web_con
             && *current_used_step_index == 0;
         if (pending_navigation_started_from_complete_mirror || mutation_establishes_single_entry_mirror)
             m_session_history.record_web_content_mirror_matches_ui_process();
-        if ((pending_navigation_started_from_complete_mirror || mutation_establishes_single_entry_mirror || mutation_result.web_content_history_matches_mirror) && m_pending_session_history_navigation.has_value())
+        if ((pending_navigation_started_from_complete_mirror || mutation_establishes_single_entry_mirror || m_session_history.web_content_history_matches_mirror()) && m_pending_session_history_navigation.has_value())
             m_pending_session_history_navigation.clear();
 
         return {
@@ -367,9 +361,7 @@ WebContentSessionHistoryMutationResult CanonicalTraversable::did_receive_web_con
     }
 
     auto same_document_navigation = move(mutation.mutation.get<Web::HTML::SameDocumentSessionHistoryNavigation>());
-    auto mutation_result = m_session_history.apply_web_content_mutation(
-        TraversableSessionHistory::WebContentMutation::top_level_same_document_navigation(move(same_document_navigation.entry), same_document_navigation.replaced_step, same_document_navigation.current_step));
-    if (!mutation_result.accepted) {
+    if (!m_session_history.apply_top_level_same_document_navigation(move(same_document_navigation))) {
         m_session_history.forget_web_content_state();
         return {
             .dump_reason = "rejected-same-document-navigation"sv,
