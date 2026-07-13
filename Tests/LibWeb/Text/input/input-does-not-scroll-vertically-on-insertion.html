@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<style>
+input {
+    box-sizing: border-box;
+    font: 15px/15px Arial, sans-serif;
+    width: 200px;
+    height: 38px;
+    padding: 7px 10px 10px 0;
+    border: 0;
+}
+#vertical {
+    writing-mode: vertical-rl;
+    width: 38px;
+    height: 8px;
+    padding: 0;
+}
+</style>
+<input id="horizontal">
+<input id="vertical">
+<script src="include.js"></script>
+<script>
+test(() => {
+    const input = document.querySelector("#horizontal");
+    input.focus();
+
+    const innerText = internals.getShadowRoot(input).querySelector("div > div");
+    println(`before insertion: ${innerText.scrollTop}`);
+
+    internals.sendText(input, "x");
+    println(`after insertion: ${innerText.scrollTop}`);
+
+    const verticalInput = document.querySelector("#vertical");
+    verticalInput.focus();
+    internals.sendText(verticalInput, "xxxxxxxx");
+    const verticalInnerText = internals.getShadowRoot(verticalInput).querySelector("div > div");
+    println(`vertical inline scrolls: ${verticalInnerText.scrollTop > 0}`);
+    println(`vertical block stays stable: ${verticalInnerText.scrollLeft === 0}`);
+});
+</script>

@@ -1,0 +1,4 @@
+before insertion: 0
+after insertion: 0
+vertical inline scrolls: true
+vertical block stays stable: true

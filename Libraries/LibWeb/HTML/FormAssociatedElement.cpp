@@ -1131,7 +1131,12 @@ void FormAssociatedTextControlElement::scroll_cursor_into_view()
     if (!text_node)
         return;
 
-    Painting::Paintable::scroll_text_offset_into_view(*text_node, m_selection_end, m_selection_end_affinity);
+    // https://drafts.csswg.org/css-ui-4/#input-rules
+    // * The content is clipped in the block direction to the padding edge
+    auto scroll_block_direction = is<HTMLInputElement>(element)
+        ? Painting::Paintable::ScrollBlockDirection::No
+        : Painting::Paintable::ScrollBlockDirection::Yes;
+    Painting::Paintable::scroll_text_offset_into_view(*text_node, m_selection_end, m_selection_end_affinity, scroll_block_direction);
 }
 
 void FormAssociatedTextControlElement::selection_was_changed(SelectionSource source)

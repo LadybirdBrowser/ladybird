@@ -384,7 +384,7 @@ void Paintable::set_selection_state(SelectionState state)
     invalidate_paint_cache();
 }
 
-void Paintable::scroll_text_offset_into_view(DOM::Text const& text, size_t offset, TextAffinity affinity)
+void Paintable::scroll_text_offset_into_view(DOM::Text const& text, size_t offset, TextAffinity affinity, ScrollBlockDirection scroll_block_direction)
 {
     auto scroll_to_cursor = [&](PaintableFragment const& fragment) {
         auto cursor_rect = fragment.range_rect(SelectionState::StartAndEnd, offset, offset);
@@ -400,6 +400,16 @@ void Paintable::scroll_text_offset_into_view(DOM::Text const& text, size_t offse
         }
         for (auto ancestor = fragment.containing_block_paintable(); ancestor; ancestor = ancestor->containing_block()) {
             if (ancestor->has_scrollable_overflow()) {
+                if (scroll_block_direction == ScrollBlockDirection::No) {
+                    auto scrollport = ancestor->absolute_padding_box_rect();
+                    if (computed_values.writing_mode() == CSS::WritingMode::HorizontalTb) {
+                        cursor_rect.set_y(scrollport.y() + ancestor->scroll_offset().y());
+                        cursor_rect.set_height(scrollport.height());
+                    } else {
+                        cursor_rect.set_x(scrollport.x() + ancestor->scroll_offset().x());
+                        cursor_rect.set_width(scrollport.width());
+                    }
+                }
                 ancestor->scroll_into_view(cursor_rect);
                 return;
             }

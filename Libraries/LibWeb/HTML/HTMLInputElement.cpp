@@ -193,12 +193,14 @@ void HTMLInputElement::adjust_computed_style(CSS::ComputedProperties::Builder& s
     if (style.display().is_inline_outside() && style.display().is_flow_inside())
         style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::InlineBlock)));
 
-    // NOTE: Other browsers apply a minimum height of a single line's line-height to single-line input elements.
-    if (is_single_line() && style.property(CSS::PropertyID::Height).has_auto()) {
+    // https://drafts.csswg.org/css-ui-4/#input-rules
+    // * The content is vertically centered
+    // NB: Blink, WebKit, and Gecko clamp single-line input text to the font's normal line height. This prevents a
+    //     smaller author-specified line height from clipping glyph ink inside the vertically centered editor.
+    if (is_single_line()) {
         auto current_line_height = style.line_height(document().font_computer()).to_double();
         auto minimum_line_height = CSS::ComputedProperties::normal_line_height(style.first_available_computed_font(document().font_computer())->pixel_metrics()).to_double();
 
-        // FIXME: Instead of overriding line-height, we should set height here instead.
         if (current_line_height < minimum_line_height)
             style.set_property(CSS::PropertyID::LineHeight, CSS::KeywordStyleValue::create(CSS::Keyword::Normal));
     }
