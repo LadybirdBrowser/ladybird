@@ -1,0 +1,10 @@
+input
+beforeinput(value="")
+textInput(value="")
+after sendText(value="i")
+after controlled render(value="")
+textarea
+beforeinput(value="")
+textInput(value="")
+after sendText(value="t")
+after controlled render(value="")

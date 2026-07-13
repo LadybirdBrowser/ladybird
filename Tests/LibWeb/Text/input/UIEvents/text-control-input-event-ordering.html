@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<input id="input">
+<textarea id="textarea"></textarea>
+<script>
+    test(() => {
+        function testControl(control, label, text) {
+            let controlledValue = "";
+            const events = [];
+
+            for (const type of ["beforeinput", "textInput", "input"]) {
+                control.addEventListener(type, () => {
+                    events.push(`${type}(value=${JSON.stringify(control.value)})`);
+                    if (type === "input")
+                        controlledValue = control.value;
+                });
+            }
+
+            control.focus();
+            internals.sendText(control, text);
+            events.push(`after sendText(value=${JSON.stringify(control.value)})`);
+
+            control.value = controlledValue;
+            events.push(`after controlled render(value=${JSON.stringify(control.value)})`);
+
+            println(label);
+            events.forEach(println);
+        }
+
+        testControl(document.getElementById("input"), "input", "i");
+        testControl(document.getElementById("textarea"), "textarea", "t");
+    });
+</script>
