@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ByteString.h>
 #include <AK/Function.h>
 #include <AK/OwnPtr.h>
 #include <AK/String.h>
@@ -30,6 +31,16 @@ static constexpr CGFloat const WINDOW_WIDTH = 1000;
 static constexpr CGFloat const WINDOW_HEIGHT = 800;
 static constexpr CGFloat const TAB_ICON_SIZE = 16;
 static constexpr NSUInteger const TAB_LOADING_SPINNER_SEGMENT_COUNT = 12;
+
+static NSString* window_frame_autosave_name()
+{
+    auto const& profile = WebView::Application::profile();
+    if (profile.is_temporary())
+        return nil;
+
+    auto name = ByteString::formatted("window-{}", WebView::Profile::routing_identifier(profile.paths().identity));
+    return Ladybird::string_to_ns_string(name);
+}
 
 class TabSettingsObserver final : public WebView::SettingsObserver {
 public:
@@ -140,13 +151,15 @@ static NSImage* tab_loading_spinner_icon(NSUInteger frame)
                 ? @"LadybirdPrivateBrowsing"
                 : @"LadybirdBrowsing"];
 
-        if ([self isPrivate] == WebView::IsPrivate::No) {
+        auto* frame_autosave_name = window_frame_autosave_name();
+        if ([self isPrivate] == WebView::IsPrivate::No && frame_autosave_name != nil) {
             // Remember last window position.
-            self.frameAutosaveName = @"window";
+            self.frameAutosaveName = frame_autosave_name;
         } else {
-            // Adopt the last saved frame without persisting changes to it, and keep private windows out of window state
-            // restoration entirely.
-            [self setFrameUsingName:@"window"];
+            // Adopt the last saved frame without persisting changes to it, and keep private and temporary-profile
+            // windows out of window state restoration entirely.
+            if (frame_autosave_name != nil)
+                [self setFrameUsingName:frame_autosave_name];
             [self setRestorable:NO];
         }
 
