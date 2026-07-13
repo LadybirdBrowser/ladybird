@@ -199,8 +199,7 @@ void StyleElementBase::finished_loading_critical_subresources(AnyFailed any_fail
             VERIFY(element.document().script_blocking_style_sheet_set().contains(element));
             VERIFY(style_element_base->m_associated_css_style_sheet_is_blocking_scripts);
             // 2. Remove element from its node document's script-blocking style sheet set.
-            element.document().script_blocking_style_sheet_set().remove(element);
-            element.document().schedule_html_parser_end_check();
+            element.document().remove_from_script_blocking_style_sheet_set(element);
             style_element_base->m_associated_css_style_sheet_is_blocking_scripts = false;
         }
         // 4. Unblock rendering on element.
@@ -276,11 +275,8 @@ void StyleElementBase::remove_from_script_blocking_style_sheet_set_if_needed()
         return;
 
     auto& element = as_element();
-    auto& script_blocking_style_sheet_set = element.document().script_blocking_style_sheet_set();
-    if (script_blocking_style_sheet_set.contains(element)) {
-        script_blocking_style_sheet_set.remove(element);
-        element.document().schedule_html_parser_end_check();
-    }
+    if (element.document().script_blocking_style_sheet_set().contains(element))
+        element.document().remove_from_script_blocking_style_sheet_set(element);
 
     m_associated_css_style_sheet_is_blocking_scripts = false;
     m_document_load_event_delayer.clear();

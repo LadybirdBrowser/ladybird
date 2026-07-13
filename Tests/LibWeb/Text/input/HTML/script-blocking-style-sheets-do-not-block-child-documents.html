@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<script>
+    // A document's script-blocking style sheet set must not hold back script execution in child
+    // navigable documents. The HTML spec includes the container document's set when deciding
+    // whether a document has a style sheet blocking scripts, but Blink and WebKit only consult the
+    // document's own set, and Gecko only consults ancestors for parser-blocking scripts. We match
+    // Blink and WebKit.
+    asyncTest(async done => {
+        const httpServer = httpTestServer();
+        const testID = crypto.randomUUID();
+        const cssToken = `script-blocking-sheet-css-${testID}`;
+
+        const cssURL = await httpServer.createEcho("GET", `/script-blocking-sheet-${testID}.css`, {
+            status: 200,
+            headers: { "Content-Type": "text/css", "Cache-Control": "no-store" },
+            body: "",
+            wait_for_unblock: cssToken,
+        });
+
+        const expectedMessages = new Set(["classic script executed", "module script executed"]);
+        const receivedMessages = new Set();
+        window.addEventListener("message", async event => {
+            if (!expectedMessages.has(event.data))
+                return;
+            receivedMessages.add(event.data);
+            if (receivedMessages.size !== expectedMessages.size)
+                return;
+
+            println("classic script executed while parent style sheet was pending: "
+                + receivedMessages.has("classic script executed"));
+            println("module script executed while parent style sheet was pending: "
+                + receivedMessages.has("module script executed"));
+
+            frameA.contentDocument.querySelector("link").remove();
+            await fetch(new URL(`/unblock/${cssToken}`, cssURL));
+            done();
+        });
+
+        const frameA = document.createElement("iframe");
+        frameA.srcdoc = `
+            <link rel="stylesheet" href="${cssURL}">
+            <iframe srcdoc="<script>top.postMessage('classic script executed', '*');<\/script>"></iframe>
+            <iframe srcdoc="<script type='module'>top.postMessage('module script executed', '*');<\/script>"></iframe>
+        `;
+        document.body.appendChild(frameA);
+    });
+</script>

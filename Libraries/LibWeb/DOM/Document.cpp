@@ -4297,23 +4297,13 @@ String Document::dump_dom_tree_as_json() const
 bool Document::has_a_style_sheet_that_is_blocking_scripts() const
 {
     // 1. If document's script-blocking style sheet set is not empty, then return true.
-    if (!m_script_blocking_style_sheet_set.is_empty())
-        return true;
-
-    // 2. If document's node navigable is null, then return false.
-    auto navigable = this->navigable();
-    if (!navigable)
-        return false;
-
-    // 3. Let containerDocument be document's node navigable's container document.
-    auto container_document = navigable->container_document();
-
-    // 4. If containerDocument is non-null and containerDocument's script-blocking style sheet set is not empty, then return true.
-    if (container_document && !container_document->m_script_blocking_style_sheet_set.is_empty())
-        return true;
-
-    // 5. Return false
-    return false;
+    // INTEROP: The spec goes on to also return true when the container document's script-blocking style sheet set is
+    //          non-empty (steps 2-4). No engine implements that fully: Blink and WebKit only ever consult the
+    //          document's own set, and Gecko only consults ancestor documents for parser-blocking scripts, not for
+    //          deferred or module scripts. Blocking child document scripts on the container document's style sheets
+    //          makes iframes needlessly wait for the embedding page's CSS, so match Blink and WebKit by only
+    //          considering our own set.
+    return !m_script_blocking_style_sheet_set.is_empty();
 }
 
 String Document::referrer() const
@@ -4766,6 +4756,14 @@ void Document::schedule_html_parser_end_check()
         if (auto container = navigable->container())
             container->document().schedule_html_parser_end_check();
     }
+}
+
+void Document::remove_from_script_blocking_style_sheet_set(Element& element)
+{
+    // NB: Removing from the set can unblock this document's parser or parser end state, both of which wait for the
+    //     set to become empty. Always schedule the wake-up here so no removal site can forget it.
+    m_script_blocking_style_sheet_set.remove(element);
+    schedule_html_parser_end_check();
 }
 
 void Document::set_ready_for_post_load_tasks(bool ready)

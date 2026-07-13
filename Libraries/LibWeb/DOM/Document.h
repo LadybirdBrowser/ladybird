@@ -1186,6 +1186,7 @@ public:
 
     auto& script_blocking_style_sheet_set() { return m_script_blocking_style_sheet_set; }
     auto const& script_blocking_style_sheet_set() const { return m_script_blocking_style_sheet_set; }
+    void remove_from_script_blocking_style_sheet_set(Element&);
 
     String dump_display_list();
     String dump_stacking_context_tree();

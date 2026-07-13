@@ -418,7 +418,7 @@ void HTMLLinkElement::fetch_and_process_linked_resource()
 
     if (m_fetch_controller) {
         m_fetch_controller->stop_fetch();
-        document().script_blocking_style_sheet_set().remove(*this);
+        document().remove_from_script_blocking_style_sheet_set(*this);
     }
 
     if (m_relationship & ~(Relationship::DNSPrefetch | Relationship::Preconnect | Relationship::Preload))
@@ -928,8 +928,7 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
         VERIFY(document().script_blocking_style_sheet_set().contains(*this));
 
         // 2. Remove el from its node document's script-blocking style sheet set.
-        document().script_blocking_style_sheet_set().remove(*this);
-        document().schedule_html_parser_end_check();
+        document().remove_from_script_blocking_style_sheet_set(*this);
     }
 
     // 7. Unblock rendering on el.
