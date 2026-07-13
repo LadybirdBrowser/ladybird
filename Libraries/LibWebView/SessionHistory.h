@@ -39,7 +39,6 @@ public:
         NestedSameDocumentNavigation,
         NestedCrossDocumentNavigation,
         TopLevelCrossDocumentNavigation,
-        AppliedTraversal,
         RestoredCurrentStep,
     };
 
@@ -126,14 +125,6 @@ public:
             };
         }
 
-        static WebContentMutation applied_traversal(i32 step)
-        {
-            return {
-                .type = WebContentMutationType::AppliedTraversal,
-                .current_step = step,
-            };
-        }
-
         static WebContentMutation restored_current_step(i32 step)
         {
             return {
@@ -171,6 +162,7 @@ public:
     void record_web_content_mirror_matches_ui_process();
     void forget_web_content_state();
     void mark_web_content_history_match_unproven();
+    [[nodiscard]] bool apply_traversal_to_step(i32 step);
     Vector<Entry> entries() const;
     Vector<i32> used_steps() const;
     WebContentMirrorState web_content_mirror_state() const { return m_web_content_mirror_state; }
@@ -202,7 +194,6 @@ private:
     [[nodiscard]] bool apply_nested_cross_document_navigation_from_web_content(Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId navigable_id, Entry, i32 current_step);
     [[nodiscard]] bool apply_top_level_cross_document_navigation_from_web_content(Entry, i32 current_step);
     [[nodiscard]] bool did_restore_web_content_to_current_step(i32 step);
-    [[nodiscard]] bool did_apply_web_content_traversal_to_step(i32 step);
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-session-history-entries
     Vector<Entry> m_entries;

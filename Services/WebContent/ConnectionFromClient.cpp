@@ -343,6 +343,20 @@ void ConnectionFromClient::traverse_the_history_to_step(u64 page_id, i32 step)
         }));
 }
 
+void ConnectionFromClient::traverse_the_history_to_step_for_history_traversal_request(u64 page_id, u64 history_traversal_request_id, i32 step)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value()) {
+        async_did_traverse_the_history_to_step(page_id, step, false, Web::HTML::HistoryStepResult::Applied);
+        return;
+    }
+
+    page->page().top_level_traversable()->traverse_the_history_to_step_for_history_traversal_request(history_traversal_request_id, step,
+        GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, step](bool step_was_available, Web::HTML::HistoryStepResult result) {
+            async_did_traverse_the_history_to_step(page_id, step, step_was_available, result);
+        }));
+}
+
 void ConnectionFromClient::check_if_traverse_history_step_is_canceled(u64 page_id, u64 request_id, i32 step)
 {
     auto page = this->page(page_id);
@@ -357,6 +371,28 @@ void ConnectionFromClient::check_if_traverse_history_step_is_canceled(u64 page_i
             async_did_check_if_traverse_history_step_is_canceled(
                 page_id, request_id, step, result != Web::HTML::HistoryStepResult::Applied);
         }));
+}
+
+void ConnectionFromClient::check_if_history_traversal_request_step_is_canceled(u64 page_id, u64 history_traversal_request_id, u64 request_id, i32 step)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value()) {
+        async_did_check_if_traverse_history_step_is_canceled(page_id, request_id, step, true);
+        return;
+    }
+
+    auto& heap = Web::HTML::main_thread_event_loop().heap();
+    page->page().top_level_traversable()->check_if_history_traversal_request_step_is_canceled(history_traversal_request_id, step,
+        GC::create_function(heap, [this, page_id, request_id, step](Web::HTML::HistoryStepResult result) {
+            async_did_check_if_traverse_history_step_is_canceled(
+                page_id, request_id, step, result != Web::HTML::HistoryStepResult::Applied);
+        }));
+}
+
+void ConnectionFromClient::discard_history_traversal_request(u64 page_id, u64 history_traversal_request_id)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().top_level_traversable()->discard_history_traversal_request(history_traversal_request_id);
 }
 
 void ConnectionFromClient::install_top_level_session_history_seed(u64 page_id, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, size_t current_top_level_entry_index, bool allow_reconstructing_current_entry)

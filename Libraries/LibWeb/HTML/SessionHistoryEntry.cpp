@@ -489,23 +489,6 @@ ErrorOr<Web::HTML::TopLevelCrossDocumentSessionHistoryNavigation> IPC::decode(De
 }
 
 template<>
-ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::AppliedSessionHistoryTraversal const& traversal)
-{
-    TRY(encoder.encode(traversal.current_step));
-    return {};
-}
-
-template<>
-ErrorOr<Web::HTML::AppliedSessionHistoryTraversal> IPC::decode(Decoder& decoder)
-{
-    auto current_step = TRY(decoder.decode<i32>());
-
-    return Web::HTML::AppliedSessionHistoryTraversal {
-        .current_step = current_step,
-    };
-}
-
-template<>
 ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::RestoredCurrentSessionHistoryStep const& step)
 {
     TRY(encoder.encode(step.current_step));

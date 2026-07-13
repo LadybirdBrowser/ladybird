@@ -1281,10 +1281,12 @@ bool Navigation::inner_navigate_event_firing_algorithm(
             VERIFY(destination_entry);
             auto target_step = destination_entry->session_history_entry().step().get<int>();
             auto traversable = navigable->traversable_navigable();
+            traversable->record_intercepted_history_traversal_step(target_step);
             traversable->append_session_history_traversal_steps(GC::create_function(heap(), [this, event, traversable, target_step, user_involvement_for_resume](NonnullRefPtr<Core::Promise<Empty>> signal) {
                 // NB: This appended step can run after a later navigation has aborted the intercepted
                 //     traverse. In that case, the aborted traverse must not be resumed.
                 if (event->abort_controller()->signal()->aborted() || event != m_ongoing_navigate_event) {
+                    traversable->complete_intercepted_history_traversal_step(target_step, HistoryStepResult::CanceledByNavigate);
                     signal->resolve({});
                     return;
                 }
@@ -1292,7 +1294,8 @@ bool Navigation::inner_navigate_event_firing_algorithm(
                 // 1. Resume applying the traverse history step given event's destination's entry's session history entry's step,
                 //    navigable's traversable navigable, and userInvolvement.
                 traversable->resume_applying_the_traverse_history_step(target_step, user_involvement_for_resume,
-                    GC::create_function(traversable->heap(), [signal](HistoryStepResult) {
+                    GC::create_function(traversable->heap(), [traversable, target_step, signal](HistoryStepResult result) {
+                        traversable->complete_intercepted_history_traversal_step(target_step, result);
                         signal->resolve({});
                     }));
             }));

@@ -116,7 +116,8 @@ public:
     [[nodiscard]] HistoryTraversalOutcome traverse_the_history_by_delta(
         int delta,
         CheckForCancelation = CheckForCancelation::Yes,
-        Function<void(HistoryTraversalOutcome)> = nullptr);
+        Function<void(HistoryTraversalOutcome)> = nullptr,
+        Optional<u64> history_traversal_request_id = {});
     [[nodiscard]] Vector<SessionHistoryTraversalMenuItem> session_history_traversal_menu_items(int direction) const;
 
     void zoom_in();

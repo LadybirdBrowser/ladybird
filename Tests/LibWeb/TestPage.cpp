@@ -37,7 +37,7 @@ public:
         visitor.visit(m_page);
     }
 
-    virtual bool page_did_request_traverse_the_history_by_delta(int delta, Web::HistoryTraversalPrecheck history_traversal_precheck) override
+    virtual bool page_did_request_traverse_the_history_by_delta(Optional<u64>, int delta, Web::HistoryTraversalPrecheck history_traversal_precheck) override
     {
         ++traversal_request_count;
         last_traversal_delta = delta;

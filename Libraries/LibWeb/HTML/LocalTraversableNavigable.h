@@ -83,10 +83,6 @@ public:
         Yes,
         No,
     };
-    enum class ReportAppliedTraversal : bool {
-        Yes,
-        No,
-    };
     struct SameDocumentSessionHistoryNavigationMutation {
         GC::Ptr<LocalNavigable> navigable;
         RefPtr<SessionHistoryEntry> entry;
@@ -105,8 +101,10 @@ public:
         CrossProcessId nested_history_id;
     };
     using CurrentEntryNestedHistoryMutation = Variant<CurrentEntryNestedHistoryUpdateMutation, CurrentEntryNestedHistoryRemovalMutation>;
-    void apply_the_traverse_history_step(int, GC::Ptr<SourceSnapshotParams>, GC::Ptr<LocalNavigable>, UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete, ReportAppliedTraversal = ReportAppliedTraversal::Yes);
+    void apply_the_traverse_history_step(int, GC::Ptr<SourceSnapshotParams>, GC::Ptr<LocalNavigable>, UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete);
     void resume_applying_the_traverse_history_step(int, UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete);
+    void record_intercepted_history_traversal_step(int);
+    void complete_intercepted_history_traversal_step(int, HistoryStepResult);
     void apply_the_reload_history_step(UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete);
     [[nodiscard]] bool try_to_synchronously_commit_same_document_navigation(GC::Ref<LocalNavigable>, NonnullRefPtr<SessionHistoryEntry>, RefPtr<SessionHistoryEntry> entry_to_replace);
     void apply_the_push_or_replace_history_step(int step, HistoryHandlingBehavior history_handling, UserNavigationInvolvement, SynchronousNavigation, GC::Ptr<DOM::Document> pending_document, GC::Ptr<LocalNavigable> expected_ongoing_navigation_navigable, Optional<Utf16String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete, Optional<SameDocumentSessionHistoryNavigationMutation> = {}, Optional<CrossDocumentSessionHistoryNavigationMutation> = {});
@@ -123,7 +121,10 @@ public:
     void clear_the_forward_session_history();
     void traverse_the_history_by_delta(int delta, GC::Ptr<DOM::Document> source_document = {});
     void traverse_the_history_to_step(int step, GC::Ref<GC::Function<void(bool step_was_available, HistoryStepResult)>> on_complete);
+    void traverse_the_history_to_step_for_history_traversal_request(u64 history_traversal_request_id, int step, GC::Ref<GC::Function<void(bool step_was_available, HistoryStepResult)>> on_complete);
     void check_if_traverse_history_step_is_canceled(int step, GC::Ref<OnApplyHistoryStepComplete> on_complete);
+    void check_if_history_traversal_request_step_is_canceled(u64 history_traversal_request_id, int step, GC::Ref<OnApplyHistoryStepComplete> on_complete);
+    void discard_history_traversal_request(u64 history_traversal_request_id);
     bool try_to_install_top_level_session_history_entries_from_ui_process(Vector<SessionHistoryEntryDescriptor>, size_t current_top_level_entry_index, bool allow_reconstructing_current_entry);
     void reset_session_history_for_testing(GC::Ref<GC::Function<void()>> on_complete);
 
@@ -191,7 +192,6 @@ private:
         GC::Ptr<LocalNavigable> expected_ongoing_navigation_navigable,
         Optional<Utf16String> expected_ongoing_navigation_id,
         GC::Ref<OnApplyHistoryStepComplete> on_complete,
-        ReportAppliedTraversal = ReportAppliedTraversal::No,
         Optional<SameDocumentSessionHistoryNavigationMutation> = {},
         Optional<CrossDocumentSessionHistoryNavigationMutation> = {},
         Optional<CurrentEntryNestedHistoryMutation> = {});
@@ -208,10 +208,23 @@ private:
         GC::Ptr<LocalNavigable> expected_ongoing_navigation_navigable,
         Optional<Utf16String> expected_ongoing_navigation_id,
         GC::Ref<OnApplyHistoryStepComplete> on_complete,
-        ReportAppliedTraversal,
         Optional<SameDocumentSessionHistoryNavigationMutation>,
         Optional<CrossDocumentSessionHistoryNavigationMutation>,
         Optional<CurrentEntryNestedHistoryMutation>);
+
+    struct PendingHistoryTraversalRequest {
+        u64 id { 0 };
+        GC::Ptr<SourceSnapshotParams> source_snapshot_params;
+        GC::Ptr<LocalNavigable> initiator_to_check;
+        UserNavigationInvolvement user_involvement { UserNavigationInvolvement::BrowserUI };
+    };
+    struct PendingInterceptedHistoryTraversalCompletion {
+        int step { 0 };
+        GC::Ptr<GC::Function<void(HistoryStepResult)>> on_complete;
+    };
+    u64 store_pending_history_traversal_request(GC::Ptr<SourceSnapshotParams>, GC::Ptr<LocalNavigable> initiator_to_check, UserNavigationInvolvement);
+    Optional<PendingHistoryTraversalRequest> take_pending_history_traversal_request(u64);
+    bool wait_for_intercepted_history_traversal_step_to_complete(int, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete);
 
     using OnHistoryStepPrechecksComplete = GC::Function<void(HistoryStepResult, int target_step, LocalNavigable::NavigationAPIAbortBehavior)>;
     void run_the_history_step_prechecks(
@@ -245,7 +258,6 @@ private:
     bool report_nested_same_document_session_history_navigation(LocalNavigable const&, SessionHistoryEntry const&, Optional<i32> replaced_step, i32 current_step);
     bool report_nested_cross_document_session_history_navigation(LocalNavigable const&, SessionHistoryEntry const&, i32 current_step);
     bool report_top_level_cross_document_session_history_navigation(SessionHistoryEntry const&, i32 current_step);
-    bool report_applied_session_history_traversal(i32 current_step);
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-current-session-history-step
     int m_current_session_history_step { 0 };
@@ -273,6 +285,10 @@ private:
     u64 m_apply_history_step_generation_counter { 0 };
     u64 m_committed_apply_history_step_generation { 0 };
     Vector<int> m_outstanding_claimed_session_history_steps;
+    u64 m_next_history_traversal_request_id { 1 };
+    Vector<PendingHistoryTraversalRequest> m_pending_history_traversal_requests;
+    Vector<int> m_intercepted_history_traversal_steps;
+    Vector<PendingInterceptedHistoryTraversalCompletion> m_pending_intercepted_history_traversal_completions;
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-session-history-entries
     Vector<NonnullRefPtr<SessionHistoryEntry>> m_session_history_entries;

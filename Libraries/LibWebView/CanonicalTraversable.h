@@ -38,6 +38,11 @@ enum class CheckForCancelation : u8 {
     IfWebContentCannotTraverseTarget,
 };
 
+enum class HistoryTraversalRequestSource : u8 {
+    BrowserUI,
+    WebContent,
+};
+
 struct HistoryTraversalOutcome {
     HistoryTraversalStatus status { HistoryTraversalStatus::NoEntry };
     bool will_replace_web_content_process { false };
@@ -158,6 +163,7 @@ struct WebContentHistoryStepResult {
     StringView dump_reason;
     // When set, the UI-owned target entry must be loaded from the UI process instead.
     Optional<TraversableSessionHistory::TraversalTarget> fallback_target {};
+    Optional<URL::URL> current_url {};
     bool should_restore_pending_navigation { false };
     bool should_update_navigation_action_state { false };
     bool should_complete_webdriver_pending_navigation { false };
@@ -238,7 +244,7 @@ public:
     NavigationCancelResult did_cancel_navigation(URL::URL const&, bool has_webdriver_pending_navigation);
     NavigationFinishResult did_finish_navigation(URL::URL const&);
     RestorePendingSessionHistoryNavigationResult restore_pending_session_history_navigation();
-    HistoryTraversalDecision traverse_the_history_by_delta(int delta, CheckForCancelation, URL::URL const& current_url, Function<void(HistoryTraversalOutcome)> on_cancelation_check_complete);
+    HistoryTraversalDecision traverse_the_history_by_delta(int delta, CheckForCancelation, URL::URL const& current_url, Function<void(HistoryTraversalOutcome)> on_cancelation_check_complete, HistoryTraversalRequestSource = HistoryTraversalRequestSource::BrowserUI);
     URL::URL prepare_to_load_session_history_traversal_target_from_ui_process(TraversableSessionHistory::TraversalTarget const&, URL::URL const& current_url);
     WebContentHistoryStepResult did_traverse_the_history_to_step(i32 step, bool step_was_available, Web::HTML::HistoryStepResult);
     HistoryStepCancelationCheckResult did_check_if_traverse_history_step_is_canceled(u64 request_id, i32 step, bool canceled);

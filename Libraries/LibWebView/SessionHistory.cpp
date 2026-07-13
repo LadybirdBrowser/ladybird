@@ -937,13 +937,6 @@ TraversableSessionHistory::WebContentMutationResult TraversableSessionHistory::a
         if (!apply_top_level_cross_document_navigation_from_web_content(move(mutation.entry), mutation.current_step))
             return {};
         return accepted_mutation_result();
-    case WebContentMutationType::AppliedTraversal:
-        if (!did_apply_web_content_traversal_to_step(mutation.current_step))
-            return {};
-        return {
-            .accepted = true,
-            .web_content_history_matches_mirror = web_content_history_matches_mirror(),
-        };
     case WebContentMutationType::RestoredCurrentStep:
         if (!did_restore_web_content_to_current_step(mutation.current_step))
             return {};
@@ -987,7 +980,7 @@ bool TraversableSessionHistory::did_restore_web_content_to_current_step(i32 step
     return true;
 }
 
-bool TraversableSessionHistory::did_apply_web_content_traversal_to_step(i32 step)
+bool TraversableSessionHistory::apply_traversal_to_step(i32 step)
 {
     auto const mirror_was_complete_before_traversal = web_content_history_matches_mirror();
     auto target = traversal_target_for_step(step);
