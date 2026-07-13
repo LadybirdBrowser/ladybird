@@ -888,10 +888,11 @@ static void run_test(TestWebView& view, TestRunContext& context, size_t test_ind
     });
     test.timeout_timer->start();
 
-    view.on_set_test_timeout = [&context, test_index, timeout_in_milliseconds](double milliseconds) {
+    view.on_set_test_timeout = [&context, test_index](double milliseconds) {
         auto& test = context.tests[test_index];
-        if (milliseconds > timeout_in_milliseconds)
-            test.timeout_timer->restart(AK::clamp_to<int>(milliseconds));
+        if (milliseconds <= 0)
+            return;
+        test.timeout_timer->restart(AK::clamp_to<int>(milliseconds));
     };
 
     // Clear the current document.
