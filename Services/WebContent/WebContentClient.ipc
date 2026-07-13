@@ -143,7 +143,7 @@ endpoint WebContentClient
     did_request_activate_tab(u64 page_id) =|
     did_close_browsing_context(u64 page_id) =|
     did_change_needs_beforeunload_check(u64 page_id, bool needs_beforeunload_check) =|
-    did_request_traverse_the_history_by_delta(u64 page_id, Optional<u64> history_traversal_request_id, i32 delta, Web::HistoryTraversalPrecheck history_traversal_precheck) => (bool accepted)
+    did_request_traverse_the_history_by_delta(u64 page_id, Optional<u64> history_traversal_request_id, Web::HTML::SessionHistoryOperationId last_session_history_mutation_id, i32 delta, Web::HistoryTraversalPrecheck history_traversal_precheck) => (bool accepted)
     did_request_webdriver_history_traversal(u64 page_id, u64 request_id, i32 delta) =|
     did_request_webdriver_load_url_from_ui(u64 page_id, URL::URL url) => (Web::WebDriver::Response response)
     did_request_webdriver_traverse_history_from_ui(u64 page_id, i32 delta) => (Web::WebDriver::Response response)
@@ -176,8 +176,7 @@ endpoint WebContentClient
     did_request_ui_process_session_history_for_testing(u64 page_id) => (String session_history)
     did_request_site_isolation_process_tree_for_testing(u64 page_id) => (String process_tree)
     did_install_top_level_session_history_seed(u64 page_id, u64 seed_id, bool accepted, i32 current_step) =|
-    did_traverse_the_history_to_step(u64 page_id, i32 step, bool step_was_available, Web::HTML::HistoryStepResult result) =|
-    did_check_if_traverse_history_step_is_canceled(u64 page_id, u64 request_id, i32 step, bool canceled) =|
+    did_apply_session_history_step(u64 page_id, Web::HTML::SessionHistoryOperationId command_id, bool step_was_available, Web::HTML::HistoryStepResult result) =|
     did_reset_session_history_for_testing(u64 page_id) =|
 
     did_change_audio_play_state(u64 page_id, Web::HTML::AudioPlayState play_state) =|

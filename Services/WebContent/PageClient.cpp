@@ -1103,9 +1103,9 @@ String PageClient::dump_site_isolation_process_tree_for_testing()
     return client().did_request_site_isolation_process_tree_for_testing(m_id);
 }
 
-bool PageClient::page_did_request_traverse_the_history_by_delta(Optional<u64> history_traversal_request_id, int delta, Web::HistoryTraversalPrecheck history_traversal_precheck)
+bool PageClient::page_did_request_traverse_the_history_by_delta(Optional<u64> history_traversal_request_id, Web::HTML::SessionHistoryOperationId last_session_history_mutation_id, int delta, Web::HistoryTraversalPrecheck history_traversal_precheck)
 {
-    return client().did_request_traverse_the_history_by_delta(m_id, history_traversal_request_id, delta, history_traversal_precheck);
+    return client().did_request_traverse_the_history_by_delta(m_id, history_traversal_request_id, last_session_history_mutation_id, delta, history_traversal_precheck);
 }
 
 void PageClient::request_webdriver_history_traversal(int delta, Function<void(WebDriverHistoryTraversalResult)> on_complete)

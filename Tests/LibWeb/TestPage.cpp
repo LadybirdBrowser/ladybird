@@ -37,9 +37,10 @@ public:
         visitor.visit(m_page);
     }
 
-    virtual bool page_did_request_traverse_the_history_by_delta(Optional<u64>, int delta, Web::HistoryTraversalPrecheck history_traversal_precheck) override
+    virtual bool page_did_request_traverse_the_history_by_delta(Optional<u64>, Web::HTML::SessionHistoryOperationId last_session_history_mutation_id, int delta, Web::HistoryTraversalPrecheck history_traversal_precheck) override
     {
         ++traversal_request_count;
+        last_mutation_id = last_session_history_mutation_id;
         last_traversal_delta = delta;
         last_history_traversal_precheck = history_traversal_precheck;
         return accept_traversal_request;
@@ -47,6 +48,7 @@ public:
 
     bool accept_traversal_request { true };
     size_t traversal_request_count { 0 };
+    Web::HTML::SessionHistoryOperationId last_mutation_id { 0 };
     Optional<int> last_traversal_delta;
     Optional<Web::HistoryTraversalPrecheck> last_history_traversal_precheck;
     GC::Ptr<Web::Page> m_page;

@@ -27,6 +27,7 @@ public:
     struct TraversalTarget {
         size_t target_step_index { 0 };
         i32 target_step { 0 };
+        Entry const* target_entry { nullptr };
         Entry const* target_top_level_entry { nullptr };
         bool target_step_is_top_level_entry { false };
         bool changes_top_level_entry { false };
@@ -103,6 +104,7 @@ public:
         TopLevelCommitFromCompleteMirror,
         TopLevelCommitFromAcceptedSeed,
         InitialSingleEntryCommit,
+        AppliedSessionHistoryStepCommand,
     };
 
     bool is_empty() const { return m_entries.is_empty(); }

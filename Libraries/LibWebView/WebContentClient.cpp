@@ -1473,28 +1473,21 @@ void WebContentClient::did_change_needs_beforeunload_check(u64 page_id, bool nee
         view->did_change_needs_beforeunload_check({}, needs_beforeunload_check);
 }
 
-void WebContentClient::did_check_if_traverse_history_step_is_canceled(
-    u64 page_id, u64 request_id, i32 step, bool canceled)
-{
-    if (auto view = view_for_page_id(page_id); view.has_value())
-        view->did_check_if_traverse_history_step_is_canceled({}, request_id, step, canceled);
-}
-
-Messages::WebContentClient::DidRequestTraverseTheHistoryByDeltaResponse WebContentClient::did_request_traverse_the_history_by_delta(u64 page_id, Optional<u64> history_traversal_request_id, i32 delta, Web::HistoryTraversalPrecheck history_traversal_precheck)
+Messages::WebContentClient::DidRequestTraverseTheHistoryByDeltaResponse WebContentClient::did_request_traverse_the_history_by_delta(u64 page_id, Optional<u64> history_traversal_request_id, Web::HTML::SessionHistoryOperationId last_session_history_mutation_id, i32 delta, Web::HistoryTraversalPrecheck history_traversal_precheck)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         auto view_id = view->view_id();
         // This request is already a synchronous IPC from WebContent, so defer
         // the UI traversal before it possibly calls back into WebContent for
         // cancelation checks.
-        Core::deferred_invoke([view_id, history_traversal_request_id, delta, history_traversal_precheck] {
+        Core::deferred_invoke([view_id, history_traversal_request_id, last_session_history_mutation_id, delta, history_traversal_precheck] {
             auto view = ViewImplementation::find_view_by_id(view_id);
             if (!view.has_value())
                 return;
             auto check_for_cancelation = CheckForCancelation::IfWebContentCannotTraverseTarget;
             if (history_traversal_precheck == Web::HistoryTraversalPrecheck::Needed)
                 check_for_cancelation = CheckForCancelation::Yes;
-            (void)view->traverse_the_history_by_delta(delta, check_for_cancelation, nullptr, history_traversal_request_id);
+            (void)view->traverse_the_history_by_delta(delta, check_for_cancelation, nullptr, history_traversal_request_id, last_session_history_mutation_id);
         });
         return true;
     }
@@ -1828,10 +1821,10 @@ void WebContentClient::did_install_top_level_session_history_seed(u64 page_id, u
         view->did_install_top_level_session_history_seed({}, seed_id, accepted, current_step);
 }
 
-void WebContentClient::did_traverse_the_history_to_step(u64 page_id, i32 step, bool step_was_available, Web::HTML::HistoryStepResult result)
+void WebContentClient::did_apply_session_history_step(u64 page_id, Web::HTML::SessionHistoryOperationId command_id, bool step_was_available, Web::HTML::HistoryStepResult result)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
-        view->did_traverse_the_history_to_step({}, step, step_was_available, result);
+        view->did_apply_session_history_step({}, command_id, step_was_available, result);
 }
 
 void WebContentClient::did_reset_session_history_for_testing(u64 page_id)

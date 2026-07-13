@@ -26,6 +26,8 @@ StringView web_content_mirror_proof_to_string(TraversableSessionHistory::WebCont
         return "top-level-commit-from-accepted-seed"sv;
     case TraversableSessionHistory::WebContentMirrorProof::InitialSingleEntryCommit:
         return "initial-single-entry-commit"sv;
+    case TraversableSessionHistory::WebContentMirrorProof::AppliedSessionHistoryStepCommand:
+        return "applied-session-history-step-command"sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -1211,12 +1213,15 @@ Optional<TraversableSessionHistory::TraversalTarget> TraversableSessionHistory::
 
     auto const* target_top_level_entry = top_level_entry_for_step(step);
     VERIFY(target_top_level_entry);
+    auto const* target_entry = entry_for_step_in_entry_list(m_entries, step);
+    VERIFY(target_entry);
     auto const* current_top_level_entry = current_entry();
     VERIFY(current_top_level_entry);
 
     return TraversalTarget {
         .target_step_index = *target_step_index,
         .target_step = step,
+        .target_entry = target_entry,
         .target_top_level_entry = target_top_level_entry,
         .target_step_is_top_level_entry = entry_for_step(step) != nullptr,
         .changes_top_level_entry = target_top_level_entry != current_top_level_entry,

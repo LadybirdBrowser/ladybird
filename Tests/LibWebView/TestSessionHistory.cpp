@@ -1866,13 +1866,15 @@ TEST_CASE(applied_history_step_result_updates_current_step)
     EXPECT(traversable.current_web_content_session_history_matches_mirror());
 
     auto traversal = traversable.traverse_the_history_by_delta(1, WebView::CheckForCancelation::No, parse_url("https://example.test/a"sv), {});
-    EXPECT_EQ(traversal.action, WebView::HistoryTraversalAction::TraverseInWebContent);
+    EXPECT_EQ(traversal.action, WebView::HistoryTraversalAction::ApplySessionHistoryStepInWebContent);
+    VERIFY(traversal.command.has_value());
+    EXPECT_EQ(traversal.command->target_step, 1);
     VERIFY(traversal.target_step.has_value());
     EXPECT_EQ(*traversal.target_step, 1);
     EXPECT(!traversal.webdriver_pending_navigation_completes_with_session_history_update);
 
-    auto step_result = traversable.did_traverse_the_history_to_step(1, true, Web::HTML::HistoryStepResult::Applied);
-    EXPECT_EQ(step_result.dump_reason, "did-apply-session-history-traversal"sv);
+    auto step_result = traversable.did_apply_session_history_step(traversal.command->command_id, true, Web::HTML::HistoryStepResult::Applied);
+    EXPECT_EQ(step_result.dump_reason, "did-apply-session-history-step-command"sv);
     EXPECT(step_result.should_update_navigation_action_state);
     VERIFY(step_result.current_url.has_value());
     EXPECT_EQ(*step_result.current_url, parse_url("https://example.test/b"sv));
@@ -1893,12 +1895,14 @@ TEST_CASE(applied_history_step_result_updates_current_step_without_mutation)
     EXPECT(traversable.current_web_content_session_history_matches_mirror());
 
     auto traversal = traversable.traverse_the_history_by_delta(1, WebView::CheckForCancelation::No, parse_url("https://example.test/a"sv), {});
-    EXPECT_EQ(traversal.action, WebView::HistoryTraversalAction::TraverseInWebContent);
+    EXPECT_EQ(traversal.action, WebView::HistoryTraversalAction::ApplySessionHistoryStepInWebContent);
+    VERIFY(traversal.command.has_value());
+    EXPECT_EQ(traversal.command->target_step, 1);
     VERIFY(traversal.target_step.has_value());
     EXPECT_EQ(*traversal.target_step, 1);
 
-    auto step_result = traversable.did_traverse_the_history_to_step(1, true, Web::HTML::HistoryStepResult::Applied);
-    EXPECT_EQ(step_result.dump_reason, "did-apply-session-history-traversal"sv);
+    auto step_result = traversable.did_apply_session_history_step(traversal.command->command_id, true, Web::HTML::HistoryStepResult::Applied);
+    EXPECT_EQ(step_result.dump_reason, "did-apply-session-history-step-command"sv);
     EXPECT(!step_result.fallback_target.has_value());
     VERIFY(step_result.current_url.has_value());
     EXPECT_EQ(*step_result.current_url, parse_url("https://example.test/b"sv));
@@ -1918,13 +1922,15 @@ TEST_CASE(applied_same_document_traversal_completes_webdriver_from_step_result)
     EXPECT(traversable.current_web_content_session_history_matches_mirror());
 
     auto traversal = traversable.traverse_the_history_by_delta(-1, WebView::CheckForCancelation::No, parse_url("https://example.test/state?push"sv), {});
-    EXPECT_EQ(traversal.action, WebView::HistoryTraversalAction::TraverseInWebContent);
+    EXPECT_EQ(traversal.action, WebView::HistoryTraversalAction::ApplySessionHistoryStepInWebContent);
+    VERIFY(traversal.command.has_value());
+    EXPECT_EQ(traversal.command->target_step, 0);
     VERIFY(traversal.target_step.has_value());
     EXPECT_EQ(*traversal.target_step, 0);
     EXPECT(traversal.webdriver_pending_navigation_completes_with_session_history_update);
 
-    auto step_result = traversable.did_traverse_the_history_to_step(0, true, Web::HTML::HistoryStepResult::Applied);
-    EXPECT_EQ(step_result.dump_reason, "did-apply-session-history-traversal"sv);
+    auto step_result = traversable.did_apply_session_history_step(traversal.command->command_id, true, Web::HTML::HistoryStepResult::Applied);
+    EXPECT_EQ(step_result.dump_reason, "did-apply-session-history-step-command"sv);
     EXPECT(step_result.should_update_navigation_action_state);
     VERIFY(step_result.current_url.has_value());
     EXPECT_EQ(*step_result.current_url, parse_url("https://example.test/state?replace"sv));
@@ -1959,10 +1965,12 @@ TEST_CASE(applied_history_step_result_restores_seeded_current_step)
     EXPECT_EQ(ack.dump_reason, "webcontent-session-history-seed-ack"sv);
     VERIFY(ack.step_to_traverse.has_value());
     EXPECT_EQ(*ack.step_to_traverse, 1);
+    VERIFY(ack.command_to_apply.has_value());
+    EXPECT_EQ(ack.command_to_apply->target_step, 1);
     EXPECT(!traversable.current_web_content_session_history_matches_mirror());
 
-    auto step_result = traversable.did_traverse_the_history_to_step(1, true, Web::HTML::HistoryStepResult::Applied);
-    EXPECT_EQ(step_result.dump_reason, "did-restore-current-session-history-step"sv);
+    auto step_result = traversable.did_apply_session_history_step(ack.command_to_apply->command_id, true, Web::HTML::HistoryStepResult::Applied);
+    EXPECT_EQ(step_result.dump_reason, "did-apply-restore-current-session-history-step-command"sv);
     EXPECT(step_result.should_update_navigation_action_state);
     EXPECT(step_result.should_complete_webdriver_pending_navigation);
     EXPECT(traversable.current_web_content_session_history_matches_mirror());

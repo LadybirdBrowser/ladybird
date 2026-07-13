@@ -115,11 +115,9 @@ public:
     Vector<int> get_all_used_history_steps() const;
     void clear_the_forward_session_history();
     void traverse_the_history_by_delta(int delta, GC::Ptr<DOM::Document> source_document = {});
-    void traverse_the_history_to_step(int step, GC::Ref<GC::Function<void(bool step_was_available, HistoryStepResult)>> on_complete);
-    void traverse_the_history_to_step_for_history_traversal_request(u64 history_traversal_request_id, int step, GC::Ref<GC::Function<void(bool step_was_available, HistoryStepResult)>> on_complete);
-    void check_if_traverse_history_step_is_canceled(int step, GC::Ref<OnApplyHistoryStepComplete> on_complete);
-    void check_if_history_traversal_request_step_is_canceled(u64 history_traversal_request_id, int step, GC::Ref<OnApplyHistoryStepComplete> on_complete);
     void discard_history_traversal_request(u64 history_traversal_request_id);
+    SessionHistoryOperationId last_emitted_session_history_mutation_id() const { return m_last_emitted_session_history_mutation_id; }
+    void apply_session_history_step(Web::HTML::ApplySessionHistoryStepCommand, GC::Ref<GC::Function<void(bool step_was_available, HistoryStepResult)>> on_complete);
     bool try_to_install_top_level_session_history_entries_from_ui_process(Vector<SessionHistoryEntryDescriptor>, size_t current_top_level_entry_index, bool allow_reconstructing_current_entry);
     void reset_session_history_for_testing(GC::Ref<GC::Function<void()>> on_complete);
 
@@ -220,6 +218,7 @@ private:
     u64 store_pending_history_traversal_request(GC::Ptr<SourceSnapshotParams>, GC::Ptr<LocalNavigable> initiator_to_check, UserNavigationInvolvement);
     Optional<PendingHistoryTraversalRequest> take_pending_history_traversal_request(u64);
     bool wait_for_intercepted_history_traversal_step_to_complete(int, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete);
+    bool ensure_command_target_step_is_locally_reachable(Web::HTML::ApplySessionHistoryStepCommand const&);
 
     using OnHistoryStepPrechecksComplete = GC::Function<void(HistoryStepResult, int target_step, LocalNavigable::NavigationAPIAbortBehavior)>;
     void run_the_history_step_prechecks(
@@ -256,6 +255,8 @@ private:
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-current-session-history-step
     int m_current_session_history_step { 0 };
+    SessionHistoryOperationId m_next_session_history_operation_id { 1 };
+    SessionHistoryOperationId m_last_emitted_session_history_mutation_id { 0 };
 
     // Concurrent apply-history-step runs share the step numbering below. Runs are serialized through the session
     // history traversal queue — but a synchronous navigation can jump the queue while another run is paused (see the

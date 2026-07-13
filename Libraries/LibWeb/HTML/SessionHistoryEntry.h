@@ -47,6 +47,8 @@ enum class SessionHistoryEntryUpdateKind : u8 {
     DocumentStateNavigableTargetName,
 };
 
+using SessionHistoryOperationId = u64;
+
 struct SessionHistoryEntryDescriptor;
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#nested-history
@@ -178,52 +180,73 @@ struct ChildNavigableSessionHistoryDestroyed {
 struct WebContentSessionHistoryMutation {
     using Mutation = Variant<CurrentSessionHistoryEntryUpdate, ChildNavigableSessionHistoryCreated, ChildNavigableSessionHistoryDestroyed, SameDocumentSessionHistoryNavigation, NestedSameDocumentSessionHistoryNavigation, NestedCrossDocumentSessionHistoryNavigation, TopLevelCrossDocumentSessionHistoryNavigation, RestoredCurrentSessionHistoryStep>;
 
+    SessionHistoryOperationId operation_id { 0 };
     Mutation mutation;
 
     static WebContentSessionHistoryMutation current_entry_update(SessionHistoryEntryUpdateKind update_kind, SessionHistoryEntryDescriptor entry)
     {
-        return { CurrentSessionHistoryEntryUpdate { update_kind, move(entry) } };
+        return { 0, CurrentSessionHistoryEntryUpdate { update_kind, move(entry) } };
     }
 
     static WebContentSessionHistoryMutation child_navigable_created(ChildNavigableSessionHistoryCreated created)
     {
-        return { move(created) };
+        return { 0, move(created) };
     }
 
     static WebContentSessionHistoryMutation child_navigable_destroyed(ChildNavigableSessionHistoryDestroyed destroyed)
     {
-        return { move(destroyed) };
+        return { 0, move(destroyed) };
     }
 
     static WebContentSessionHistoryMutation top_level_same_document_navigation(SameDocumentSessionHistoryNavigation navigation)
     {
-        return { move(navigation) };
+        return { 0, move(navigation) };
     }
 
     static WebContentSessionHistoryMutation nested_same_document_navigation(NestedSameDocumentSessionHistoryNavigation navigation)
     {
-        return { move(navigation) };
+        return { 0, move(navigation) };
     }
 
     static WebContentSessionHistoryMutation nested_cross_document_navigation(NestedCrossDocumentSessionHistoryNavigation navigation)
     {
-        return { move(navigation) };
+        return { 0, move(navigation) };
     }
 
     static WebContentSessionHistoryMutation top_level_cross_document_navigation(TopLevelCrossDocumentSessionHistoryNavigation navigation)
     {
-        return { move(navigation) };
+        return { 0, move(navigation) };
     }
 
     static WebContentSessionHistoryMutation restored_current_step(RestoredCurrentSessionHistoryStep step)
     {
-        return { step };
+        return { 0, step };
     }
 };
 
 struct WebContentSessionHistoryMutationBatch {
+    SessionHistoryOperationId operation_id { 0 };
     Vector<WebContentSessionHistoryMutation> mutations;
     i32 final_current_step { 0 };
+};
+
+enum class ApplySessionHistoryStepKind : u8 {
+    Traverse,
+    CheckForCancelationBeforeLoad,
+    RestoreCurrentStepAfterLoad,
+};
+
+struct ApplySessionHistoryStepCommand {
+    SessionHistoryOperationId command_id { 0 };
+    SessionHistoryOperationId apply_after_mutation_id { 0 };
+    Optional<u64> history_traversal_request_id;
+    ApplySessionHistoryStepKind kind { ApplySessionHistoryStepKind::Traverse };
+    i32 target_step { 0 };
+    size_t target_step_index { 0 };
+    SessionHistoryEntryDescriptor target_entry;
+    SessionHistoryEntryDescriptor target_top_level_entry;
+    bool target_step_is_top_level_entry { false };
+    bool changes_top_level_entry { false };
 };
 
 // https://html.spec.whatwg.org/multipage/history.html#session-history-entry
@@ -399,6 +422,12 @@ WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::WebContentSessionHistoryMutati
 
 template<>
 WEB_API ErrorOr<Web::HTML::WebContentSessionHistoryMutationBatch> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::ApplySessionHistoryStepCommand const&);
+
+template<>
+WEB_API ErrorOr<Web::HTML::ApplySessionHistoryStepCommand> decode(Decoder&);
 
 template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::SessionHistoryEntryScrollPositionData const&);
