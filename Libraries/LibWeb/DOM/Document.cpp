@@ -1722,11 +1722,10 @@ void Document::set_needs_container_query_evaluation_after_layout(Element const& 
     m_query_containers_needing_container_query_evaluation_after_layout.set(const_cast<Element&>(query_container));
 }
 
-static void compute_subtree_layout(Layout::Box& subtree_root, Layout::LayoutState& layout_state)
+static void compute_subtree_layout(Layout::Box& subtree_root, Layout::LayoutState& layout_state, Painting::Paintable const& root_geometry_source)
 {
     // The boundary's own size and position are frozen at the previous layout's values.
-    if (auto paintable = subtree_root.paintable_box())
-        layout_state.populate_from_paintable(subtree_root, *paintable);
+    layout_state.populate_from_paintable(subtree_root, root_geometry_source);
 
     // Pre-populate the viewport for position:fixed elements inside the subtree.
     auto& viewport = subtree_root.root();
@@ -1751,17 +1750,19 @@ static void compute_subtree_layout(Layout::Box& subtree_root, Layout::LayoutStat
     context->parent_context_did_dimension_child_root_box();
 }
 
-static void relayout_subtree(Layout::Box& subtree_root)
+static void relayout_subtree(Layout::Box& subtree_root, Painting::Paintable& old_paintable)
 {
     Layout::LayoutState layout_state(subtree_root, Layout::LayoutState::Purpose::Commit);
     // Absolutely positioned boundaries re-resolve their own size and position by replaying
     // their layout from saved inputs; SVG root boundaries keep the frozen geometry from the
-    // previous layout.
+    // previous layout, taken from the old paintable since a replaced box no longer has one.
     if (subtree_root.is_absolutely_positioned())
         Layout::FormattingContext::layout_absolutely_positioned_element_from_saved_inputs(layout_state, subtree_root);
     else
-        compute_subtree_layout(subtree_root, layout_state);
-    layout_state.commit(subtree_root);
+        compute_subtree_layout(subtree_root, layout_state, old_paintable);
+    // The commit takes over the old paintable's position in the paint tree, whether the
+    // subtree root reuses it (a surviving box) or replaces it (a rebuilt box).
+    layout_state.commit(subtree_root, old_paintable);
 
     subtree_root.for_each_in_inclusive_subtree([](auto& node) {
         node.reset_needs_layout_update();
@@ -1966,42 +1967,71 @@ Document::PartialRelayoutResult Document::try_partial_relayout(HashTable<WeakPtr
     }
 
     // Collect the live boundary set from the post-build tree: registered boundaries that
-    // survived the build, plus the nearest boundary containing each rebuilt subtree.
-    Vector<Layout::Box*> partial_relayout_roots;
+    // survived the build, plus the nearest boundary containing each rebuilt subtree - which
+    // re-discovers a boundary whose own box the build replaced, since the saved layout inputs
+    // carried over to the replacement.
+    struct PartialRelayoutRoot {
+        Layout::Box* box { nullptr };
+        RefPtr<Painting::Paintable> old_paintable;
+    };
+    Vector<PartialRelayoutRoot> partial_relayout_roots;
     HashTable<Layout::Box*> collected_boundaries;
-    auto collect_boundary = [&](Layout::Box& box) {
-        if (collected_boundaries.set(&box) == AK::HashSetResult::InsertedNewEntry)
-            partial_relayout_roots.append(&box);
+    auto collect_boundary = [&](Layout::Box& box, bool box_was_replaced) {
+        if (collected_boundaries.set(&box) != AK::HashSetResult::InsertedNewEntry)
+            return true;
+
+        RefPtr<Painting::Paintable> old_paintable = box.paintable_box();
+        if (!old_paintable && box_was_replaced && box.dom_node()) {
+            // A replaced box has no paintable yet; the previous one stays referenced by the
+            // DOM node until the next commit replaces it there.
+            old_paintable = box.dom_node()->unsafe_paintable();
+        }
+        if (!old_paintable)
+            return false;
+
+        // A replaced box applies the saved-inputs validity check unconditionally: the change
+        // that drove the replacement cannot be classified anymore.
+        bool saved_inputs_may_be_style_stale = box.needs_own_geometry_update() || box_was_replaced;
+        if (saved_inputs_may_be_style_stale && box.is_absolutely_positioned() && !Layout::FormattingContext::can_replay_saved_abspos_layout_inputs_after_style_change(box))
+            return false;
+
+        partial_relayout_roots.append({
+            .box = &box,
+            .old_paintable = old_paintable,
+        });
+        return true;
     };
 
     for (auto const& root : registered_partial_relayout_roots) {
         auto* box = root.ptr();
-        // A boundary that did not survive the build was removed together with the dirt
-        // inside it: the removal dirtied its parent, whose own marking covers the mutation.
+        // A boundary that did not survive the build was either replaced (re-discovered
+        // through the rebuilt subtree roots below) or removed together with the dirt
+        // inside it (the removal dirtied its parent, whose own marking covers the
+        // mutation).
         if (!box || !box->parent())
             continue;
-        if (!box->is_partial_relayout_boundary())
+        if (!box->is_partial_relayout_boundary() || !collect_boundary(*box, false))
             return PartialRelayoutResult::NotEligible;
-        if (box->needs_own_geometry_update() && box->is_absolutely_positioned() && !Layout::FormattingContext::can_replay_saved_abspos_layout_inputs_after_style_change(*box))
-            return PartialRelayoutResult::NotEligible;
-        collect_boundary(*box);
     }
 
     for (auto* rebuilt_root : rebuilt_subtree_roots) {
         // Every rebuilt subtree must lie inside a boundary for its dirt to be confined.
+        // The rebuilt box itself may qualify with its paintable still pending; boundaries
+        // above it were not replaced and must have one.
         Layout::Box* containing_boundary = nullptr;
+        if (auto* rebuilt_box = as_if<Layout::Box>(*rebuilt_root); rebuilt_box && rebuilt_box->is_partial_relayout_boundary(Layout::RequireExistingPaintable::No))
+            containing_boundary = rebuilt_box;
         for (auto* ancestor = rebuilt_root->parent(); !containing_boundary && ancestor; ancestor = ancestor->parent()) {
             if (auto* ancestor_box = as_if<Layout::Box>(*ancestor); ancestor_box && ancestor_box->is_partial_relayout_boundary())
                 containing_boundary = ancestor_box;
         }
-        if (!containing_boundary)
+        if (!containing_boundary || !collect_boundary(*containing_boundary, containing_boundary == rebuilt_root))
             return PartialRelayoutResult::NotEligible;
-        collect_boundary(*containing_boundary);
     }
 
     // A root nested inside another root is relaid out as part of the ancestor's subtree.
-    partial_relayout_roots.remove_all_matching([&](auto* root) {
-        for (auto* ancestor = root->parent(); ancestor; ancestor = ancestor->parent()) {
+    partial_relayout_roots.remove_all_matching([&](auto const& root) {
+        for (auto* ancestor = root.box->parent(); ancestor; ancestor = ancestor->parent()) {
             if (auto* ancestor_box = as_if<Layout::Box>(*ancestor); ancestor_box && collected_boundaries.contains(ancestor_box))
                 return true;
         }
@@ -2011,11 +2041,11 @@ Document::PartialRelayoutResult Document::try_partial_relayout(HashTable<WeakPtr
     if (partial_relayout_roots.is_empty())
         return PartialRelayoutResult::NotEligible;
 
-    for (auto* root : partial_relayout_roots) {
-        relayout_subtree(*root);
+    for (auto const& root : partial_relayout_roots) {
+        relayout_subtree(*root.box, *root.old_paintable);
         // NB: The subtree commit reset the root's descendant paintables, and the subtree's
         //     new size may change ancestor scrollable overflow; scheduling the root covers both.
-        schedule_scrollable_overflow_recalculation(*root);
+        schedule_scrollable_overflow_recalculation(*root.box);
     }
 
     // The rebuild can replace boxes referenced by the contained-boxes map cached at the

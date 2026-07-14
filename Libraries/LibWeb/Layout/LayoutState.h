@@ -367,8 +367,11 @@ struct LayoutState {
 
     bool is_for_measurement() const { return m_purpose == Purpose::Measurement; }
 
-    // Commits the used values produced by layout and builds a paintable tree.
+    // Commits the used values produced by layout and builds a paintable tree. The overload
+    // taking a paintable to replace splices the rebuilt paint subtree in at that paintable's
+    // position; the plain overload replaces the root's own paintable when there is one.
     void commit(Box& root);
+    void commit(Box& root, Painting::Paintable& paintable_to_replace);
 
     void ensure_capacity(u32 node_count);
 
@@ -404,6 +407,8 @@ private:
 
     PagedStore<UsedValues> m_used_values_store;
     Layout::NodeWithStyle const* m_subtree_root { nullptr };
+    void commit_used_values_and_build_paint_tree(Box& root, RefPtr<Painting::Paintable> parent_paintable, RefPtr<Painting::Paintable> insert_before_paintable);
+
     Purpose m_purpose { Purpose::Commit };
     bool m_should_collect_devtools_layout_data { false };
     HashMap<Box const*, Vector<ContainedAbsposChild>> m_contained_abspos_children;

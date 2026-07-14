@@ -253,20 +253,32 @@ static void build_paint_tree(Node& node, Painting::Paintable* parent_paintable =
 
 void LayoutState::commit(Box& root)
 {
-    // The rebuilt paint subtree takes over the old paintable's position among its siblings,
-    // because paint and hit-test order between siblings with equal stacking follow paintable
-    // tree order.
-    RefPtr<Painting::Paintable> parent_paintable;
-    RefPtr<Painting::Paintable> insert_before_paintable;
     if (!root.is_viewport()) {
-        if (auto existing = root.paintable(); auto* existing_box = existing.ptr()) {
-            parent_paintable = existing_box->parent();
-            insert_before_paintable = existing_box->next_sibling();
-            if (parent_paintable)
-                parent_paintable->remove_child(*existing_box);
+        if (auto existing_paintable = root.paintable()) {
+            commit(root, *existing_paintable);
+            return;
         }
     }
 
+    commit_used_values_and_build_paint_tree(root, nullptr, nullptr);
+}
+
+void LayoutState::commit(Box& root, Painting::Paintable& paintable_to_replace)
+{
+    // Splice the rebuilt paint subtree exactly where the replaced paintable stands, because
+    // paint and hit-test order between siblings with equal stacking follow paintable tree
+    // order.
+    NonnullRefPtr<Painting::Paintable> protect_replaced_paintable = paintable_to_replace;
+    RefPtr<Painting::Paintable> parent_paintable = paintable_to_replace.parent();
+    RefPtr<Painting::Paintable> insert_before_paintable = paintable_to_replace.next_sibling();
+    if (parent_paintable)
+        parent_paintable->remove_child(paintable_to_replace);
+
+    commit_used_values_and_build_paint_tree(root, move(parent_paintable), move(insert_before_paintable));
+}
+
+void LayoutState::commit_used_values_and_build_paint_tree(Box& root, RefPtr<Painting::Paintable> parent_paintable, RefPtr<Painting::Paintable> insert_before_paintable)
+{
     // Cache existing paintables before clearing.
     HashMap<Node const*, NonnullRefPtr<Painting::Paintable>> paintable_cache;
     root.for_each_in_inclusive_subtree([&](Node& node) {
