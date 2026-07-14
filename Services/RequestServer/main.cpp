@@ -16,6 +16,7 @@
 #include <LibHTTP/Cache/DiskCache.h>
 #include <LibIPC/SingleServer.h>
 #include <LibMain/Main.h>
+#include <RequestServer/CURL.h>
 #include <RequestServer/ConnectionFromClient.h>
 #include <RequestServer/Resolver.h>
 #include <RequestServer/ResourceSubstitutionMap.h>
@@ -101,6 +102,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         else
             disk_cache = cache.release_value();
     }
+
+    TRY(RequestServer::initialize_libcurl());
 
     if (!disable_sandbox)
         TRY(RequestServer::apply_sandbox(certificates, cache_path));

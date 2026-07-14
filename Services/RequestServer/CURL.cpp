@@ -6,9 +6,20 @@
  */
 
 #include <AK/Enumerate.h>
+#include <AK/Format.h>
 #include <RequestServer/CURL.h>
 
 namespace RequestServer {
+
+ErrorOr<void> initialize_libcurl()
+{
+    auto result = curl_global_init(CURL_GLOBAL_ALL);
+    if (result != CURLE_OK) {
+        warnln("curl_global_init failed: {}", curl_easy_strerror(result));
+        return Error::from_string_literal("Failed to initialize libcurl");
+    }
+    return {};
+}
 
 ByteString build_curl_resolve_list(DNS::LookupResult const& dns_result, StringView host, u16 port)
 {
