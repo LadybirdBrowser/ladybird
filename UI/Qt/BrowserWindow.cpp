@@ -939,11 +939,7 @@ void BrowserWindow::update_window_title(QString const& title)
 
 void BrowserWindow::tab_title_changed(int index, QString const& title)
 {
-    // NOTE: Qt uses ampersands for shortcut keys in tab titles, so we need to escape them.
-    QString title_escaped = title;
-    title_escaped.replace("&", "&&");
-
-    m_tabs_container->set_tab_text(index, title_escaped);
+    m_tabs_container->set_tab_text(index, title);
     m_tabs_container->set_tab_tooltip(index, title);
 
     if (m_tabs_container->current_index() == index)
