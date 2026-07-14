@@ -411,7 +411,7 @@ QIcon create_chrome_icon(ChromeIcon icon, QPalette const& palette)
     active.setAlpha(icon == ChromeIcon::Close || icon == ChromeIcon::TabClose ? 220 : 236);
 
     auto disabled = ChromeStyle::chrome_muted_text(palette);
-    disabled.setAlpha(icon == ChromeIcon::Close || icon == ChromeIcon::TabClose ? 78 : 96);
+    disabled.setAlpha(icon == ChromeIcon::Close || icon == ChromeIcon::TabClose ? 78 : 82);
 
     QIcon qicon;
 
