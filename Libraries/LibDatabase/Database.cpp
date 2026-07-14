@@ -7,6 +7,7 @@
 #include <AK/ByteString.h>
 #include <AK/String.h>
 #include <AK/Time.h>
+#include <AK/Utf16String.h>
 #include <LibCore/Directory.h>
 #include <LibDatabase/Database.h>
 #include <LibDatabase/ResultRow.h>
@@ -41,6 +42,7 @@ static constexpr StringView sql_error(int error_code)
 
 #define ENUMERATE_SQL_TYPES              \
     __ENUMERATE_TYPE(String)             \
+    __ENUMERATE_TYPE(Utf16String)        \
     __ENUMERATE_TYPE(ByteString)         \
     __ENUMERATE_TYPE(UnixDateTime)       \
     __ENUMERATE_TYPE(i8)                 \
@@ -217,6 +219,9 @@ ErrorOr<void> Database::try_apply_placeholder(StatementID statement_id, int inde
     if constexpr (IsSame<ValueType, String>) {
         StringView string { value };
         SQL_TRY(sqlite3_bind_text(statement, index, string.characters_without_null_termination(), static_cast<int>(string.length()), SQLITE_TRANSIENT));
+    } else if constexpr (IsSame<ValueType, Utf16String>) {
+        // Stored as WTF-8 TEXT; SQLite's own UTF-16 interface would replace lonely surrogates with U+FFFD.
+        TRY(try_apply_placeholder(statement_id, index, value.to_utf8()));
     } else if constexpr (IsSame<ValueType, ByteString>) {
         SQL_TRY(sqlite3_bind_blob(statement, index, value.characters(), static_cast<int>(value.length()), SQLITE_TRANSIENT));
     } else if constexpr (IsSame<ValueType, UnixDateTime>) {
@@ -249,6 +254,10 @@ ValueType Database::result_column(StatementID statement_id, int column)
         auto const* text = reinterpret_cast<char const*>(sqlite3_column_text(statement, column));
         auto length = sqlite3_column_bytes(statement, column);
         return MUST(String::from_utf8(StringView { text, static_cast<size_t>(length) }));
+    } else if constexpr (IsSame<ValueType, Utf16String>) {
+        auto const* text = reinterpret_cast<char const*>(sqlite3_column_text(statement, column));
+        auto length = sqlite3_column_bytes(statement, column);
+        return Utf16String::from_utf8(StringView { text, static_cast<size_t>(length) });
     } else if constexpr (IsSame<ValueType, ByteString>) {
         auto const* blob = sqlite3_column_blob(statement, column);
         auto length = sqlite3_column_bytes(statement, column);

@@ -426,6 +426,51 @@ TEST_CASE(bound_execute_handles_a_zero_parameter_statement)
     EXPECT(ran);
 }
 
+TEST_CASE(utf16_text_round_trips_lonely_surrogates)
+{
+    auto database = TRY_OR_FAIL(DB::create_memory_backed());
+    database->execute_statement(TRY_OR_FAIL(database->prepare_statement("CREATE TABLE t (s TEXT NOT NULL);"sv)), {});
+
+    static constexpr char16_t code_units[] = { 'a', 0xd800, 'b' };
+    auto text = Utf16String::from_utf16(Utf16View { code_units, 3 });
+
+    auto insert = TRY_OR_FAIL(database->prepare_statement("INSERT INTO t (s) VALUES (:s);"sv));
+    TRY_OR_FAIL(database->try_execute_bound_statement(insert, [&](auto& bind) -> ErrorOr<void> {
+        return bind("s"sv, text);
+    }));
+
+    auto select = TRY_OR_FAIL(database->prepare_statement("SELECT s FROM t;"sv));
+    bool read = false;
+    database->execute_statement(select, [&](auto statement_id) -> ErrorOr<void> {
+        read = true;
+        EXPECT_EQ(database->result_column<Utf16String>(statement_id, 0), text);
+        return {};
+    });
+    EXPECT(read);
+
+    bool row_read = false;
+    TRY_OR_FAIL(database->try_execute_bound_statement(select, [](auto&) -> ErrorOr<void> { return {}; }, [&](Database::ResultRow& row) -> ErrorOr<void> {
+        row_read = true;
+        EXPECT_EQ(TRY(row.read_utf16_text("s"sv, 1024)), text);
+        return {}; }));
+    EXPECT(row_read);
+}
+
+TEST_CASE(utf16_text_read_rejects_malformed_bytes)
+{
+    auto database = TRY_OR_FAIL(DB::create_memory_backed());
+    database->execute_statement(TRY_OR_FAIL(database->prepare_statement("CREATE TABLE t (s TEXT NOT NULL);"sv)), {});
+    database->execute_statement(TRY_OR_FAIL(database->prepare_statement("INSERT INTO t (s) VALUES (CAST(x'ff' AS TEXT));"sv)), {});
+
+    auto select = TRY_OR_FAIL(database->prepare_statement("SELECT s FROM t;"sv));
+    bool read = false;
+    TRY_OR_FAIL(database->try_execute_bound_statement(select, [](auto&) -> ErrorOr<void> { return {}; }, [&](Database::ResultRow& row) -> ErrorOr<void> {
+        read = true;
+        EXPECT(row.read_utf16_text("s"sv, 1024).is_error());
+        return {}; }));
+    EXPECT(read);
+}
+
 TEST_CASE(named_binding_supports_more_than_64_parameters)
 {
     auto database = TRY_OR_FAIL(DB::create_memory_backed());
