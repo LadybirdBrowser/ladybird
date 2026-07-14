@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Animation composite order</title>
+<link rel="help" href="https://drafts.csswg.org/css-animations-2/#animation-composite-order">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="support/testcommon.js"></script>
+<style>
+@keyframes margin50 {
+  from {
+    margin-left: 50px;
+  }
+  to {
+    margin-left: 50px;
+  }
+}
+@keyframes margin100 {
+  from {
+    margin-left: 100px;
+  }
+  to {
+    margin-left: 100px;
+  }
+}
+</style>
+<div id="log"</div>
+<script>
+'use strict';
+
+promise_test(async t => {
+  const div = addDiv(t);
+  div.style.animation = 'margin100 100s';
+  assert_equals(getComputedStyle(div).marginLeft, '100px');
+  div.style.animation = 'margin50 100s, margin100 100s';
+  // The margin should be unaffected by margin50 since it is named earlier
+  // in the animation list.
+  assert_equals(getComputedStyle(div).marginLeft, '100px');
+}, "Animations are composited by their order in the animation-name property.");
+
+promise_test(async t => {
+  const div = addDiv(t);
+  const animA = div.animate({margin: ["100px","100px"]}, 100000);
+  assert_equals(getComputedStyle(div).marginLeft, '100px');
+  div.style.animation = 'margin50 100s';
+  // Wait for animation starts
+  await animA.ready;
+  await waitForAnimationFrames(1);
+  assert_equals(getComputedStyle(div).marginLeft, '100px',
+                "A higher-priority animation is not overriden by a more recent"
+                + "one.");
+}, 'Web-animation replaces CSS animation');
+
+</script>

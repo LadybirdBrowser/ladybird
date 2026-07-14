@@ -1,0 +1,453 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Element.getAnimations() for CSS animations</title>
+<!-- TODO: Add a more specific link for this once it is specified. -->
+<link rel="help" href="https://drafts.csswg.org/css-animations-2/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="support/testcommon.js"></script>
+<style>
+@keyframes anim1 {
+  to { left: 100px }
+}
+@keyframes anim2 {
+  to { top: 100px }
+}
+@keyframes multiPropAnim {
+  to { background: green, opacity: 0.5, left: 100px, top: 100px }
+}
+::before {
+  content: ''
+}
+::after {
+  content: ''
+}
+@keyframes empty { }
+</style>
+<div id="log"></div>
+<script>
+'use strict';
+
+test(t => {
+  const div = addDiv(t);
+  assert_equals(div.getAnimations().length, 0,
+    'getAnimations returns an empty sequence for an element'
+    + ' with no animations');
+}, 'getAnimations for non-animated content');
+
+promise_test(async t => {
+  const div = addDiv(t);
+
+  // Add an animation
+  div.style.animation = 'anim1 100s';
+  let animations = div.getAnimations();
+  assert_equals(animations.length, 1,
+    'getAnimations returns an Animation running CSS Animations');
+  await animations[0].ready;
+
+  // Add a second animation
+  div.style.animation = 'anim1 100s, anim2 100s';
+  animations = div.getAnimations();
+  assert_equals(animations.length, 2,
+    'getAnimations returns one CSSAnimation for each value of animation-name');
+  // (We don't check the order of the Animations since that is covered by tests
+  //  later in this file.)
+}, 'getAnimations for CSS Animations');
+
+test(t => {
+  const div = addDiv(t, { style: 'animation: anim1 100s' });
+  assert_class_string(div.getAnimations()[0], 'CSSAnimation',
+                      'Interface of returned animation is CSSAnimation');
+}, 'getAnimations returns CSSAnimation objects for CSS Animations');
+
+test(t => {
+  const div = addDiv(t);
+
+  // Add an animation that targets multiple properties
+  div.style.animation = 'multiPropAnim 100s';
+  assert_equals(div.getAnimations().length, 1,
+    'getAnimations returns only one Animation for a CSS Animation'
+    + ' that targets multiple properties');
+}, 'getAnimations for multi-property animations');
+
+promise_test(async t => {
+  const div = addDiv(t);
+
+  // Add an animation
+  div.style.backgroundColor = 'red';
+  div.style.animation = 'anim1 100s';
+  getComputedStyle(div).backgroundColor;
+
+  // Wait until a frame after the animation starts, then add a transition
+  let animations = div.getAnimations();
+  await animations[0].ready;
+  await waitForFrame();
+
+  div.style.transition = 'all 100s';
+  div.style.backgroundColor = 'green';
+
+  animations = div.getAnimations();
+  assert_equals(animations.length, 2,
+    'getAnimations returns Animations for both animations and'
+    + ' transitions that run simultaneously');
+  assert_class_string(animations[0], 'CSSTransition',
+                      'First-returned animation is the CSS Transition');
+  assert_class_string(animations[1], 'CSSAnimation',
+                      'Second-returned animation is the CSS Animation');
+}, 'getAnimations for both CSS Animations and CSS Transitions at once');
+
+async_test(t => {
+  const div = addDiv(t);
+
+  // Set up event listener
+  div.addEventListener('animationend', t.step_func(() => {
+    assert_equals(div.getAnimations().length, 0,
+      'getAnimations does not return Animations for finished '
+      + ' (and non-forwards-filling) CSS Animations');
+    t.done();
+  }));
+
+  // Add a very short animation
+  div.style.animation = 'anim1 0.01s';
+}, 'getAnimations for CSS Animations that have finished');
+
+async_test(t => {
+  const div = addDiv(t);
+
+  // Set up event listener
+  div.addEventListener('animationend', t.step_func(() => {
+    assert_equals(div.getAnimations().length, 1,
+      'getAnimations returns Animations for CSS Animations that have'
+      + ' finished but are filling forwards');
+    t.done();
+  }));
+
+  // Add a very short animation
+  div.style.animation = 'anim1 0.01s forwards';
+}, 'getAnimations for CSS Animations that have finished but are'
+   + ' forwards filling');
+
+test(t => {
+  const div = addDiv(t);
+  div.style.animation = 'none 100s';
+
+  let animations = div.getAnimations();
+  assert_equals(animations.length, 0,
+    'getAnimations returns an empty sequence for an element'
+    + ' with animation-name: none');
+
+  div.style.animation = 'none 100s, anim1 100s';
+  animations = div.getAnimations();
+  assert_equals(animations.length, 1,
+    'getAnimations returns Animations only for those CSS Animations whose'
+    + ' animation-name is not none');
+}, 'getAnimations for CSS Animations with animation-name: none');
+
+test(t => {
+  const div = addDiv(t);
+  div.style.animation = 'missing 100s';
+  let animations = div.getAnimations();
+  assert_equals(animations.length, 0,
+    'getAnimations returns an empty sequence for an element'
+    + ' with animation-name: missing');
+
+  div.style.animation = 'anim1 100s, missing 100s';
+  animations = div.getAnimations();
+  assert_equals(animations.length, 1,
+    'getAnimations returns Animations only for those CSS Animations whose'
+    + ' animation-name is found');
+}, 'getAnimations for CSS Animations with animation-name: missing');
+
+promise_test(async t => {
+  const div = addDiv(t);
+  div.style.animation = 'anim1 100s, notyet 100s';
+  let animations = div.getAnimations();
+  assert_equals(animations.length, 1,
+    'getAnimations initally only returns Animations for CSS Animations whose'
+    + ' animation-name is found');
+
+  await animations[0].ready;
+  await waitForFrame();
+
+  const keyframes = '@keyframes notyet { to { left: 100px; } }';
+  document.styleSheets[0].insertRule(keyframes, 0);
+  animations = div.getAnimations();
+  assert_equals(animations.length, 2,
+    'getAnimations includes Animation when @keyframes rule is added'
+    + ' later');
+  await waitForAllAnimations(animations);
+
+  assert_true(animations[0].startTime < animations[1].startTime,
+    'Newly added animation has a later start time');
+  document.styleSheets[0].deleteRule(0);
+}, 'getAnimations for CSS Animations where the @keyframes rule is added'
+   + ' later');
+
+test(t => {
+  const div = addDiv(t);
+  div.style.animation = 'anim1 100s, anim1 100s';
+  assert_equals(div.getAnimations().length, 2,
+    'getAnimations returns one Animation for each CSS animation-name'
+    + ' even if the names are duplicated');
+}, 'getAnimations for CSS Animations with duplicated animation-name');
+
+test(t => {
+  const div = addDiv(t);
+  div.style.animation = 'empty 100s';
+  assert_equals(div.getAnimations().length, 1,
+    'getAnimations returns Animations for CSS animations with an'
+    + ' empty keyframes rule');
+}, 'getAnimations for CSS Animations with empty keyframes rule');
+
+promise_test(async t => {
+  const div = addDiv(t);
+  div.style.animation = 'anim1 100s 100s';
+  const animations = div.getAnimations();
+  assert_equals(animations.length, 1,
+    'getAnimations returns animations for CSS animations whose'
+    + ' delay makes them start later');
+  await animations[0].ready;
+  await waitForFrame();
+
+  assert_true(animations[0].startTime <= document.timeline.currentTime,
+    'For CSS Animations in delay phase, the start time of the Animation is'
+    + ' not in the future');
+}, 'getAnimations for CSS animations in delay phase');
+
+test(t => {
+  const div = addDiv(t);
+  div.style.animation = 'anim1 0s 100s';
+  assert_equals(div.getAnimations().length, 1,
+    'getAnimations returns animations for CSS animations whose'
+    + ' duration is zero');
+  div.remove();
+}, 'getAnimations for zero-duration CSS Animations');
+
+test(t => {
+  const div = addDiv(t);
+  div.style.animation = 'anim1 100s';
+  const originalAnimation = div.getAnimations()[0];
+
+  // Update pause state (an Animation change)
+  div.style.animationPlayState = 'paused';
+  const pendingAnimation = div.getAnimations()[0];
+  assert_equals(pendingAnimation.playState, 'paused',
+                'animation\'s play state is updated');
+  assert_equals(originalAnimation, pendingAnimation,
+                'getAnimations returns the same objects even when their'
+                + ' play state changes');
+
+  // Update duration (an Animation change)
+  div.style.animationDuration = '200s';
+  const extendedAnimation = div.getAnimations()[0];
+  assert_equals(
+    extendedAnimation.effect.getTiming().duration,
+    200 * MS_PER_SEC,
+    'animation\'s duration has been updated'
+  );
+  assert_equals(originalAnimation, extendedAnimation,
+                'getAnimations returns the same objects even when their'
+                + ' duration changes');
+}, 'getAnimations returns objects with the same identity');
+
+test(t => {
+  const div = addDiv(t);
+  div.style.animation = 'anim1 100s';
+
+  assert_equals(div.getAnimations().length, 1,
+    'getAnimations returns an animation before canceling');
+
+  const animation = div.getAnimations()[0];
+
+  animation.cancel();
+  assert_equals(div.getAnimations().length, 0,
+    'getAnimations does not return canceled animations');
+
+  animation.play();
+  assert_equals(div.getAnimations().length, 1,
+    'getAnimations returns canceled animations that have been re-started');
+
+}, 'getAnimations for CSS Animations that are canceled');
+
+promise_test(async t => {
+  const div = addDiv(t);
+  div.style.animation = 'anim2 100s';
+
+  await div.getAnimations()[0].ready;
+
+  // Prepend to the list and test that even though anim1 was triggered
+  // *after* anim2, it should come first because it appears first
+  // in the animation-name property.
+  div.style.animation = 'anim1 100s, anim2 100s';
+  let anims = div.getAnimations();
+  assert_equals(anims[0].animationName, 'anim1',
+                'animation order after prepending to list');
+  assert_equals(anims[1].animationName, 'anim2',
+                'animation order after prepending to list');
+
+  // Normally calling cancel and play would this push anim1 to the top of
+  // the stack but it shouldn't for CSS animations that map an the
+  // animation-name property.
+  const anim1 = anims[0];
+  anim1.cancel();
+  anim1.play();
+  anims = div.getAnimations();
+  assert_equals(anims[0].animationName, 'anim1',
+                'animation order after canceling and restarting');
+  assert_equals(anims[1].animationName, 'anim2',
+                'animation order after canceling and restarting');
+}, 'getAnimations for CSS Animations follows animation-name order');
+
+test(t => {
+  addStyle(t, { '#target::after': 'animation: anim1 10s;',
+                '#target::before': 'animation: anim1 10s;' });
+  const target = addDiv(t, { 'id': 'target' });
+  target.style.animation = 'anim1 100s';
+  const animations = target.getAnimations({ subtree: false });
+
+  assert_equals(animations.length, 1,
+                'Should find only the element');
+  assert_equals(animations[0].effect.target, target,
+                'Effect target should be the element');
+}, '{ subtree: false } on a leaf element returns the element\'s animations'
+   + ' and ignore pseudo-elements');
+
+test(t => {
+  addStyle(t, { '#target::after': 'animation: anim1 10s;',
+                '#target::before': 'animation: anim1 10s;' });
+  const target = addDiv(t, { 'id': 'target' });
+  target.style.animation = 'anim1 100s';
+  const animations = target.getAnimations({ subtree: true });
+
+  assert_equals(animations.length, 3,
+                'getAnimations({ subtree: true }) ' +
+                'should return animations on pseudo-elements');
+  assert_equals(animations[0].effect.target, target,
+                'The animation targeting the parent element ' +
+                'should be returned first');
+  assert_equals(animations[0].effect.pseudoElement, null,
+                'The animation targeting the parent element ' +
+                'should be returned first')
+  assert_equals(animations[1].effect.pseudoElement, '::before',
+                'The animation targeting the ::before pseudo-element ' +
+                'should be returned second');
+  assert_equals(animations[2].effect.pseudoElement, '::after',
+                'The animation targeting the ::after pesudo-element ' +
+                'should be returned last');
+}, '{ subtree: true } on a leaf element returns the element\'s animations'
+   + ' and its pseudo-elements\' animations');
+
+test(t => {
+  addStyle(t, { '#parent::after': 'animation: anim1 10s;',
+                '#parent::before': 'animation: anim1 10s;',
+                '#child::after': 'animation: anim1 10s;',
+                '#child::before': 'animation: anim1 10s;' });
+  const parent = addDiv(t, { 'id': 'parent' });
+  parent.style.animation = 'anim1 100s';
+  const child = addDiv(t, { 'id': 'child' });
+  child.style.animation = 'anim1 100s';
+  parent.appendChild(child);
+
+  const animations = parent.getAnimations({ subtree: false });
+  assert_equals(animations.length, 1,
+                'Should find only the element even if it has a child');
+  assert_equals(animations[0].effect.target, parent,
+                'Effect target should be the element');
+}, '{ subtree: false } on an element with a child returns only the element\'s'
+   + ' animations');
+
+test(t => {
+  addStyle(t, { '#parent::after': 'animation: anim1 10s;',
+                '#parent::before': 'animation: anim1 10s;',
+                '#child::after': 'animation: anim1 10s;',
+                '#child::before': 'animation: anim1 10s;' });
+  const parent = addDiv(t, { 'id': 'parent' });
+  const child = addDiv(t, { 'id': 'child' });
+  parent.style.animation = 'anim1 100s';
+  child.style.animation = 'anim1 100s';
+  parent.appendChild(child);
+
+  const animations = parent.getAnimations({ subtree: true });
+  assert_equals(animations.length, 6,
+                'Should find all elements, pseudo-elements that parent has');
+
+  assert_equals(animations[0].effect.target, parent,
+                'The animation targeting the parent element ' +
+                'should be returned first');
+  assert_equals(animations[0].effect.pseudoElement, null,
+                'The animation targeting the parent element ' +
+                'should be returned first');
+  assert_equals(animations[1].effect.pseudoElement, '::before',
+                'The animation targeting the ::before pseudo-element ' +
+                'should be returned second');
+  assert_equals(animations[1].effect.target, parent,
+                'This ::before element should be child of parent element');
+  assert_equals(animations[2].effect.pseudoElement, '::after',
+                'The animation targeting the ::after pesudo-element ' +
+                'should be returned third');
+  assert_equals(animations[2].effect.target, parent,
+                'This ::after element should be child of parent element');
+
+  assert_equals(animations[3].effect.target, child,
+                'The animation targeting the child element ' +
+                'should be returned fourth');
+  assert_equals(animations[4].effect.pseudoElement, '::before',
+                'The animation targeting the ::before pseudo-element ' +
+                'should be returned fifth');
+  assert_equals(animations[4].effect.target, child,
+                'This ::before element should be child of child element');
+  assert_equals(animations[5].effect.pseudoElement, '::after',
+                'The animation targeting the ::after pesudo-element ' +
+                'should be returned last');
+  assert_equals(animations[5].effect.target, child,
+                'This ::after element should be child of child element');
+}, '{ subtree: true } on an element with a child returns animations from the'
+   + ' element, its pseudo-elements, its child and its child pseudo-elements');
+
+test(t => {
+  const parent = addDiv(t, { 'id': 'parent' });
+  const child1 = addDiv(t, { 'id': 'child1' });
+  const grandchild1 = addDiv(t, { 'id': 'grandchild1' });
+  const grandchild2 = addDiv(t, { 'id': 'grandchild2' });
+  const child2 = addDiv(t, { 'id': 'child2' });
+
+  parent.style.animation = 'anim1 100s';
+  child1.style.animation = 'anim1 100s';
+  grandchild1.style.animation = 'anim1 100s';
+  grandchild2.style.animation = 'anim1 100s';
+  child2.style.animation = 'anim1 100s';
+
+  parent.appendChild(child1);
+  child1.appendChild(grandchild1);
+  child1.appendChild(grandchild2);
+  parent.appendChild(child2);
+
+  const animations = parent.getAnimations({ subtree: true });
+  assert_equals(
+    parent.getAnimations({ subtree: true }).length, 5,
+                         'Should find all descendants of the element');
+
+  assert_equals(animations[0].effect.target, parent,
+                'The animation targeting the parent element ' +
+                'should be returned first');
+
+  assert_equals(animations[1].effect.target, child1,
+                'The animation targeting the child1 element ' +
+                'should be returned second');
+
+  assert_equals(animations[2].effect.target, grandchild1,
+                'The animation targeting the grandchild1 element ' +
+                'should be returned third');
+
+  assert_equals(animations[3].effect.target, grandchild2,
+                'The animation targeting the grandchild2 element ' +
+                'should be returned fourth');
+
+  assert_equals(animations[4].effect.target, child2,
+                'The animation targeting the child2 element ' +
+                'should be returned last');
+
+}, '{ subtree: true } on an element with many descendants returns animations'
+   + ' from all the descendants');
+
+</script>

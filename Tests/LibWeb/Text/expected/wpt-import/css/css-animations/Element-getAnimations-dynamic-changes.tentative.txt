@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 5 tests
+
+2 Pass
+3 Fail
+Pass	Animations preserve their startTime when changed
+Pass	Updated Animations maintain their order in the list
+Fail	Only the startTimes of existing animations are preserved
+Fail	Animations are removed from the start of the list while preserving the state of existing Animations
+Fail	Animation state is preserved when interleaving animations in list
