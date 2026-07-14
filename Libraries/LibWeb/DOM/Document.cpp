@@ -1871,7 +1871,7 @@ void Document::update_layout(UpdateLayoutReason reason)
             return;
         }
 
-        auto partial_relayout_roots = m_partial_relayout_invalidation.take_registered_roots();
+        auto registered_partial_relayout_roots = m_partial_relayout_invalidation.take_registered_roots();
 
         // NOTE: If this is a document hosting <template> contents, layout is unnecessary.
         if (m_created_for_appropriate_template_contents)
@@ -1880,20 +1880,40 @@ void Document::update_layout(UpdateLayoutReason reason)
         auto const needs_layout_tree_rebuild = !m_layout_root || needs_layout_tree_update() || child_needs_layout_tree_update() || needs_full_layout_tree_update();
 
         // Partial relayout
-        if (!needs_layout_tree_rebuild && !partial_relayout_roots.is_empty() && !m_layout_root->needs_layout_update()) {
-            for (auto const& root : partial_relayout_roots) {
-                if (root) {
+        if (!needs_layout_tree_rebuild && !registered_partial_relayout_roots.is_empty() && !m_layout_root->needs_layout_update()) {
+            bool can_run_partial_relayout = true;
+
+            // Registration does not keep boundaries alive or qualified: a registered root that
+            // is no longer attached was removed together with the dirt inside it, and one that
+            // no longer qualifies sends the update to the full layout path.
+            Vector<Layout::Box*> partial_relayout_roots;
+            for (auto const& root : registered_partial_relayout_roots) {
+                auto* box = root.ptr();
+                if (!box || !box->parent())
+                    continue;
+                if (!box->is_partial_relayout_boundary()) {
+                    can_run_partial_relayout = false;
+                    break;
+                }
+                partial_relayout_roots.append(box);
+            }
+
+            if (partial_relayout_roots.is_empty())
+                can_run_partial_relayout = false;
+
+            if (can_run_partial_relayout) {
+                for (auto* root : partial_relayout_roots) {
                     relayout_svg_root(as<Layout::SVGSVGBox>(*root));
                     // NB: The subtree commit reset the root's descendant paintables, and the subtree's
                     //     new size may change ancestor scrollable overflow; scheduling the root covers both.
                     schedule_scrollable_overflow_recalculation(*root);
                 }
+
+                update_scrollable_overflow(UpdateScrollableOverflowMode::Scheduled);
+
+                after_layout_commit(LayoutTreeChanged::No);
+                return;
             }
-
-            update_scrollable_overflow(UpdateScrollableOverflowMode::Scheduled);
-
-            after_layout_commit(LayoutTreeChanged::No);
-            return;
         }
 
         auto* document_element = this->document_element();
