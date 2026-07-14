@@ -63,6 +63,10 @@ static constexpr auto TAB_CLOSE_BUTTON_POSITION = QTabBar::RightSide;
 static constexpr auto WINDOW_DRAG_REGION_PROPERTY = "LadybirdWindowDragRegion";
 static constexpr int WINDOW_RESIZE_BORDER_WIDTH = 6;
 static constexpr int WINDOW_RESIZE_CORNER_WIDTH = WINDOW_RESIZE_BORDER_WIDTH * 2;
+#if defined(AK_OS_MACOS)
+static constexpr int NATIVE_WINDOW_CONTROL_X_OFFSET = 6;
+static constexpr int NATIVE_WINDOW_CONTROL_Y_OFFSET = 6;
+#endif
 
 static bool should_use_screen_signal_for_dpi_changes()
 {
@@ -1216,6 +1220,7 @@ bool BrowserWindow::event(QEvent* event)
 #if defined(AK_OS_MACOS)
             QTimer::singleShot(0, this, [this] {
                 hide_appkit_window_title(*this);
+                offset_appkit_window_controls(*this, NATIVE_WINDOW_CONTROL_X_OFFSET, NATIVE_WINDOW_CONTROL_Y_OFFSET);
             });
 #endif
         } else if (platform_surface_event->surfaceEventType() == QPlatformSurfaceEvent::SurfaceAboutToBeDestroyed) {

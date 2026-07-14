@@ -15,6 +15,97 @@
 
 #import <Cocoa/Cocoa.h>
 #import <UI/AppKit/Utilities/DictionaryLookup.h>
+#import <objc/runtime.h>
+
+@interface LadybirdWindowControlOffsetObserver : NSObject
+{
+    int m_x_offset;
+    int m_y_offset;
+    NSButton* m_buttons[3];
+    NSPoint m_target_origins[3];
+    bool m_update_scheduled;
+    bool m_is_applying_offset;
+}
+
+- (instancetype)initWithWindow:(NSWindow*)window xOffset:(int)x_offset yOffset:(int)y_offset;
+- (void)applyWindowControlOffsets;
+- (void)scheduleWindowControlOffsetUpdate:(NSButton*)button;
+- (void)windowControlFrameDidChange:(NSNotification*)notification;
+
+@end
+
+@implementation LadybirdWindowControlOffsetObserver
+
+- (instancetype)initWithWindow:(NSWindow*)window xOffset:(int)x_offset yOffset:(int)y_offset
+{
+    self = [super init];
+    if (!self)
+        return nil;
+
+    m_x_offset = x_offset;
+    m_y_offset = y_offset;
+
+    constexpr NSWindowButton button_types[] = { NSWindowCloseButton, NSWindowMiniaturizeButton, NSWindowZoomButton };
+    for (size_t i = 0; i < std::size(button_types); ++i) {
+        auto* button = [window standardWindowButton:button_types[i]];
+        m_buttons[i] = [button retain];
+        button.postsFrameChangedNotifications = YES;
+        [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(windowControlFrameDidChange:) name:NSViewFrameDidChangeNotification object:button];
+        [self scheduleWindowControlOffsetUpdate:button];
+    }
+
+    return self;
+}
+
+- (void)dealloc
+{
+    [NSNotificationCenter.defaultCenter removeObserver:self];
+    for (auto* button : m_buttons)
+        [button release];
+    [super dealloc];
+}
+
+- (void)applyWindowControlOffsets
+{
+    m_is_applying_offset = true;
+    for (size_t i = 0; i < std::size(m_buttons); ++i)
+        [m_buttons[i] setFrameOrigin:m_target_origins[i]];
+    m_is_applying_offset = false;
+    m_update_scheduled = false;
+}
+
+- (void)scheduleWindowControlOffsetUpdate:(NSButton*)button
+{
+    for (size_t i = 0; i < std::size(m_buttons); ++i) {
+        if (m_buttons[i] != button)
+            continue;
+
+        auto origin = button.frame.origin;
+        origin.x += m_x_offset;
+        origin.y -= m_y_offset;
+        m_target_origins[i] = origin;
+        break;
+    }
+
+    if (m_update_scheduled)
+        return;
+
+    // NB: AppKit ignores frame changes made while its titlebar layout is in progress.
+    //     Apply the offset after that layout pass returns to the main event loop.
+    m_update_scheduled = true;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self applyWindowControlOffsets];
+    });
+}
+
+- (void)windowControlFrameDidChange:(NSNotification*)notification
+{
+    if (m_is_applying_offset)
+        return;
+    [self scheduleWindowControlOffsetUpdate:notification.object];
+}
+
+@end
 
 namespace Ladybird {
 
@@ -215,6 +306,22 @@ void hide_appkit_window_title(QWidget& widget)
         return;
 
     window.titleVisibility = NSWindowTitleHidden;
+}
+
+void offset_appkit_window_controls(QWidget& widget, int x_offset, int y_offset)
+{
+    auto* view = reinterpret_cast<NSView*>(widget.winId());
+    if (!view)
+        return;
+
+    auto* window = view.window;
+    if (!window)
+        return;
+
+    static char observer_key;
+    auto* observer = [[LadybirdWindowControlOffsetObserver alloc] initWithWindow:window xOffset:x_offset yOffset:y_offset];
+    objc_setAssociatedObject(window, &observer_key, observer, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    [observer release];
 }
 
 void make_appkit_window_first_responder(QWidget& widget)

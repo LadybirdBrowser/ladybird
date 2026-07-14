@@ -21,6 +21,7 @@ namespace Ladybird {
 
 #if defined(AK_OS_MACOS)
 void hide_appkit_window_title(QWidget&);
+void offset_appkit_window_controls(QWidget&, int x_offset, int y_offset);
 void install_appkit_event_capture();
 void make_appkit_window_first_responder(QWidget&);
 bool start_appkit_window_drag(QWidget&);
