@@ -1736,6 +1736,26 @@ static void relayout_subtree(Layout::Box& subtree_root)
     });
 }
 
+// The pre-order traversal visits ancestors before the descendants that mark them, so clearing
+// the flag on visit and marking upwards compose within one walk.
+void Document::recompute_containing_block_and_derive_abspos_escape_flags(Layout::Node& layout_node)
+{
+    layout_node.recompute_containing_block({});
+
+    auto* box = as_if<Layout::Box>(layout_node);
+    if (!box)
+        return;
+    box->set_abspos_descendant_escapes(false);
+
+    if (!box->is_absolutely_positioned())
+        return;
+    auto const* containing_block = box->containing_block();
+    for (auto* ancestor = box->parent(); ancestor && ancestor != containing_block; ancestor = ancestor->parent()) {
+        if (auto* ancestor_box = as_if<Layout::Box>(*ancestor))
+            ancestor_box->set_abspos_descendant_escapes(true);
+    }
+}
+
 // Refreshes every structure derived from committed layout results, shared by the partial and
 // full layout paths so neither can forget one.
 void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed)
@@ -1966,7 +1986,7 @@ void Document::update_layout(UpdateLayoutReason reason)
             if (auto* node_with_style = as_if<Layout::NodeWithStyle>(layout_node))
                 node_with_style->set_layout_index(layout_index_counter++);
 
-            layout_node.recompute_containing_block({});
+            recompute_containing_block_and_derive_abspos_escape_flags(layout_node);
 
             return TraversalDecision::Continue;
         });

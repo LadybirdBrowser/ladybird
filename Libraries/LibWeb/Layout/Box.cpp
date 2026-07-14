@@ -45,6 +45,12 @@ void Box::clear_saved_abspos_layout_inputs()
 
 bool Box::is_partial_relayout_boundary() const
 {
+    // An absolutely or fixed positioned descendant whose containing block is outside this
+    // box's subtree is laid out by a formatting context outside it, which makes subtree
+    // isolation impossible for any kind of boundary.
+    if (abspos_descendant_escapes())
+        return false;
+
     // An SVG root's used size is determined solely by its own attributes and outer context,
     // never by its children, so its size and position from the previous layout can be reused.
     // A nested <svg> does not qualify: its subtree is laid out in the outer SVG's

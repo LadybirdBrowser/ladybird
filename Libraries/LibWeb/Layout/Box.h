@@ -79,6 +79,12 @@ public:
     void set_saved_abspos_layout_inputs(AbsposLayoutInputs const&);
     void clear_saved_abspos_layout_inputs();
 
+    // Whether an absolutely or fixed positioned descendant of this box has its containing
+    // block outside this box's subtree, so the descendant's layout escapes the subtree.
+    // Re-derived whenever containing block pointers are recomputed.
+    bool abspos_descendant_escapes() const { return m_abspos_descendant_escapes; }
+    void set_abspos_descendant_escapes(bool value) { m_abspos_descendant_escapes = value; }
+
     void set_default_scroll_shift(WeakPtr<Node> anchor, bool compensates_for_scroll_in_x, bool compensates_for_scroll_in_y)
     {
         m_default_scroll_shift_anchor = move(anchor);
@@ -111,6 +117,7 @@ private:
     WeakPtr<Node> m_default_scroll_shift_anchor;
     bool m_compensates_for_scroll_in_x { false };
     bool m_compensates_for_scroll_in_y { false };
+    bool m_abspos_descendant_escapes { false };
 
     OwnPtr<IntrinsicSizes> mutable m_cached_intrinsic_sizes;
 };
