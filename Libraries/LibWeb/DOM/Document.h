@@ -1260,6 +1260,13 @@ private:
     void tear_down_layout_tree();
 
     void update_active_element();
+    void collect_paintable_boxes_with_auto_content_visibility();
+    bool needs_style_update_after_layout();
+    enum class LayoutTreeChanged : u8 {
+        No,
+        Yes,
+    };
+    void after_layout_commit(LayoutTreeChanged);
 
     void run_unloading_cleanup_steps();
 

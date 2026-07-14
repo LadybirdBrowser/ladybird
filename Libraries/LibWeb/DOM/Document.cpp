@@ -1718,6 +1718,36 @@ static void relayout_svg_root(Layout::SVGSVGBox& svg_root)
     });
 }
 
+// Refreshes every structure derived from committed layout results, shared by the partial and
+// full layout paths so neither can forget one.
+void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed)
+{
+    // NB: Called during layout update.
+    m_layout_root->invalidate_text_blocks_cache();
+
+    invalidate_stacking_context_tree();
+    set_needs_to_record_display_list();
+    set_needs_to_refresh_scroll_state(true);
+
+    unsafe_paintable()->reassign_scroll_frames();
+
+    set_needs_accumulated_visual_contexts_update(true);
+    update_paint_and_hit_testing_properties_if_needed();
+
+    // Selection state lives on paintable fragments, which the commit has rebuilt.
+    if (auto range = get_selection()->range())
+        unsafe_paintable()->recompute_selection_states(*range);
+
+    if (layout_tree_changed == LayoutTreeChanged::Yes) {
+        // Broadcast the current viewport rect to any new paintables, so they know whether
+        // they're visible or not, and re-collect the content-visibility:auto set.
+        inform_all_viewport_clients_about_the_current_viewport_rect();
+        collect_paintable_boxes_with_auto_content_visibility();
+    }
+
+    m_document->set_needs_repaint();
+}
+
 static void propagate_scrollbar_width_to_viewport(Element& root_element, Layout::Viewport& viewport)
 {
     // https://drafts.csswg.org/css-scrollbars/#scrollbar-width
@@ -1804,6 +1834,17 @@ void Document::update_layout_if_needed_for_node(Node const& node, UpdateLayoutRe
         update_layout(reason);
 }
 
+bool Document::needs_style_update_after_layout()
+{
+    return !m_query_containers_needing_container_query_evaluation_after_layout.is_empty()
+        || m_needs_animated_style_update
+        || m_needs_invalidation_of_elements_affected_by_has
+        || m_style_invalidator->has_pending_invalidations()
+        || needs_full_style_update()
+        || needs_style_update()
+        || child_needs_style_update();
+}
+
 void Document::update_layout(UpdateLayoutReason reason)
 {
     auto navigable = this->navigable();
@@ -1815,16 +1856,6 @@ void Document::update_layout(UpdateLayoutReason reason)
     ScopeGuard guard = [&] {
         m_is_running_update_layout = false;
         page().client().flush_pending_dom_mutations();
-    };
-
-    auto needs_style_update_after_layout = [&] {
-        return !m_query_containers_needing_container_query_evaluation_after_layout.is_empty()
-            || m_needs_animated_style_update
-            || m_needs_invalidation_of_elements_affected_by_has
-            || m_style_invalidator->has_pending_invalidations()
-            || needs_full_style_update()
-            || needs_style_update()
-            || child_needs_style_update();
     };
 
     constexpr size_t max_container_query_layout_passes = 8;
@@ -1861,26 +1892,9 @@ void Document::update_layout(UpdateLayoutReason reason)
 
             update_scrollable_overflow(UpdateScrollableOverflowMode::Scheduled);
 
-            m_layout_root->invalidate_text_blocks_cache();
-
-            invalidate_stacking_context_tree();
-            set_needs_to_record_display_list();
-
-            // Paintables in the relaid subtrees were reset during commit and lost their scroll
-            // frame references.
-            unsafe_paintable()->reassign_scroll_frames();
-
-            set_needs_accumulated_visual_contexts_update(true);
-            update_paint_and_hit_testing_properties_if_needed();
-            m_document->set_needs_repaint();
+            after_layout_commit(LayoutTreeChanged::No);
             return;
         }
-
-        // Clear text blocks cache so we rebuild them on the next find action.
-        if (m_layout_root)
-            m_layout_root->invalidate_text_blocks_cache();
-
-        set_needs_to_record_display_list();
 
         auto* document_element = this->document_element();
         auto viewport_rect = navigable->viewport_rect();
@@ -1966,32 +1980,7 @@ void Document::update_layout(UpdateLayoutReason reason)
         style_invalidation_counters().relayouts_performed++;
         update_scrollable_overflow(UpdateScrollableOverflowMode::AfterLayout);
 
-        // Broadcast the current viewport rect to any new paintables, so they know whether they're visible or not.
-        inform_all_viewport_clients_about_the_current_viewport_rect();
-
-        m_document->set_needs_repaint();
-
-        // NB: Called during layout update.
-        unsafe_paintable()->assign_scroll_frames();
-
-        set_needs_accumulated_visual_contexts_update(true);
-        update_paint_and_hit_testing_properties_if_needed();
-
-        if (auto range = get_selection()->range()) {
-            unsafe_paintable()->recompute_selection_states(*range);
-        }
-
-        // Collect elements with content-visibility: auto. This is used in the HTML event loop to avoid traversing the whole tree every time.
-        Vector<WeakPtr<Painting::Paintable>> paintable_boxes_with_auto_content_visibility;
-        unsafe_paintable()->for_each_in_subtree_of_type<Painting::Paintable>([&](auto& paintable_box) {
-            if (paintable_box.dom_node()
-                && paintable_box.dom_node()->is_element()
-                && paintable_box.computed_values().content_visibility() == CSS::ContentVisibility::Auto) {
-                paintable_boxes_with_auto_content_visibility.append(paintable_box);
-            }
-            return TraversalDecision::Continue;
-        });
-        unsafe_paintable()->set_paintable_boxes_with_auto_content_visibility(move(paintable_boxes_with_auto_content_visibility));
+        after_layout_commit(LayoutTreeChanged::Yes);
 
         m_layout_root->for_each_in_inclusive_subtree([](auto& node) {
             node.reset_needs_layout_update();
@@ -2027,6 +2016,21 @@ void Document::update_layout(UpdateLayoutReason reason)
     }
 
     VERIFY(layout_is_up_to_date());
+}
+
+// Collect elements with content-visibility: auto. This is used in the HTML event loop to avoid traversing the whole tree every time.
+void Document::collect_paintable_boxes_with_auto_content_visibility()
+{
+    Vector<WeakPtr<Painting::Paintable>> paintables_with_auto_content_visibility;
+    unsafe_paintable()->for_each_in_subtree_of_type<Painting::Paintable>([&](auto& paintable) {
+        if (paintable.dom_node()
+            && paintable.dom_node()->is_element()
+            && paintable.computed_values().content_visibility() == CSS::ContentVisibility::Auto) {
+            paintables_with_auto_content_visibility.append(paintable);
+        }
+        return TraversalDecision::Continue;
+    });
+    unsafe_paintable()->set_paintable_boxes_with_auto_content_visibility(move(paintables_with_auto_content_visibility));
 }
 
 void Document::clear_devtools_layout_inspection_data()
