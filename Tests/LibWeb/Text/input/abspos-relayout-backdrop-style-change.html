@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    dialog {
+        position: fixed;
+        left: 100px;
+        top: 80px;
+        width: 160px;
+        height: 100px;
+        margin: 0;
+        border: none;
+        padding: 0;
+    }
+    dialog::backdrop { position: fixed; inset: 0; }
+    dialog.big::backdrop { inset: 40px; }
+    #child { width: 60px; height: 20px; }
+</style>
+<dialog id="dialog"><div id="child"></div></dialog>
+<script>
+    // A rendered ::backdrop lives outside the dialog's subtree (its box is a sibling of the
+    // dialog's box), but pseudo-element style diffs are merged into the dialog's aggregated
+    // invalidation. A class toggle whose only relayout effect is on the ::backdrop must not
+    // ride the boundary-self fast path, or the backdrop keeps stale geometry; it has to take
+    // the full layout path.
+    asyncTest(async (done) => {
+        const dialog = document.getElementById("dialog");
+        dialog.showModal();
+        document.body.offsetHeight;
+
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+        dialog.classList.add("big");
+        document.body.offsetHeight;
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        println(`layout-passes partial=${partialDelta} full=${fullDelta}`);
+        println(partialDelta === 0 && fullDelta >= 1 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

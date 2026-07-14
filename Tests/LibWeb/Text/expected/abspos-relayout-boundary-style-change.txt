@@ -1,0 +1,4 @@
+boundary=40,30,180,90
+child=180,45,30,20
+partial-layouts=0 full-layouts=1
+FAIL

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #stage { position: relative; width: 400px; height: 300px; }
+    #boundary {
+        position: absolute;
+        left: 50px;
+        top: 60px;
+        width: 240px;
+        height: 160px;
+    }
+    #fixed {
+        position: fixed;
+        left: 30px;
+        top: 40px;
+        width: 50px;
+        height: 20px;
+    }
+    #child { width: 60px; height: 20px; }
+</style>
+<div id="stage">
+    <div id="boundary">
+        <div id="fixed"></div>
+        <div id="child"></div>
+    </div>
+</div>
+<script>
+    // The fixed box's containing block is the viewport, outside the boundary, so changes
+    // inside the boundary take the full layout path. Removing the fixed box heals the
+    // boundary: the full pass that performs the removal re-derives the escaped-by-abspos
+    // facts, and the next change inside the boundary uses partial relayout again.
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+        document.getElementById("child").style.height = "40px";
+        document.body.offsetHeight;
+        const partialDeltaWhileEscaping = internals.partialLayoutCount() - partialBefore;
+        const fullDeltaWhileEscaping = internals.fullLayoutCount() - fullBefore;
+
+        document.getElementById("fixed").remove();
+        document.body.offsetHeight;
+
+        const partialBeforeHealed = internals.partialLayoutCount();
+        const fullBeforeHealed = internals.fullLayoutCount();
+        document.getElementById("child").style.height = "60px";
+        document.body.offsetHeight;
+        const partialDeltaAfterRemoval = internals.partialLayoutCount() - partialBeforeHealed;
+        const fullDeltaAfterRemoval = internals.fullLayoutCount() - fullBeforeHealed;
+
+        const child = document.getElementById("child").getBoundingClientRect();
+        println(`while-escaping partial=${partialDeltaWhileEscaping} full=${fullDeltaWhileEscaping}`);
+        println(`after-removal partial=${partialDeltaAfterRemoval} full=${fullDeltaAfterRemoval}`);
+        println(`child=${rectToString(child)}`);
+        println(partialDeltaWhileEscaping === 0 && fullDeltaWhileEscaping === 1
+            && partialDeltaAfterRemoval === 1 && fullDeltaAfterRemoval === 0
+            && rectToString(child) === "50,60,60,60" ? "PASS" : "FAIL");
+        done();
+    });
+</script>

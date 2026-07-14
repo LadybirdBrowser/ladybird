@@ -1,0 +1,4 @@
+boundary=20,10,150,100
+content=20,10,80,30
+partial-layouts=0 full-layouts=1
+FAIL

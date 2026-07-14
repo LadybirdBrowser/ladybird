@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #root { position: relative; width: 400px; height: 200px; }
+    #boundary {
+        position: absolute;
+        left: 20px;
+        top: 20px;
+        width: 200px;
+        height: 100px;
+        overflow: hidden;
+    }
+    #child { height: 20px; }
+</style>
+<div id="root">
+    <div id="boundary">
+        <div id="text">selectable text</div>
+        <div id="child"></div>
+    </div>
+</div>
+<script>
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+
+        // Select the text inside the boundary.
+        const textNode = document.getElementById("text").firstChild;
+        const range = document.createRange();
+        range.setStart(textNode, 0);
+        range.setEnd(textNode, textNode.length);
+        window.getSelection().addRange(range);
+        document.body.offsetHeight;
+
+        // Mutate a sibling inside the boundary to trigger a partial relayout. The
+        // partial commit rebuilds paintable fragments for the whole subtree, which
+        // resets fragment-level selection state.
+        const partialBefore = internals.partialLayoutCount();
+        document.getElementById("child").style.height = "40px";
+        document.body.offsetHeight;
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const afterPartial = internals.dumpDisplayList();
+
+        // Ground truth: force a full layout without changing geometry and dump again.
+        const fullBefore = internals.fullLayoutCount();
+        document.body.style.minWidth = "1px";
+        document.body.offsetHeight;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+        const afterFull = internals.dumpDisplayList();
+
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(`selection-painting-matches-full-layout=${afterPartial === afterFull}`);
+        println(partialDelta === 1 && fullDelta === 1 && afterPartial === afterFull ? "PASS" : "FAIL");
+        done();
+    });
+</script>

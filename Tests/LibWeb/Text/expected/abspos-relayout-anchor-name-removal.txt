@@ -1,0 +1,4 @@
+layout-passes partial=0 full=1
+consumer-before=100,70,60,25
+consumer-after=5,5,60,25
+PASS

@@ -1,0 +1,6 @@
+live=80,0,10,10
+reference=80,0,10,10
+paint-count=1
+old-hit-is-moved=false
+partial-layouts=0 full-layouts=1
+FAIL

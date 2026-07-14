@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #stage { position: relative; width: 400px; height: 300px; }
+    #anchor {
+        anchor-name: --btn;
+        margin-left: 40px;
+        margin-top: 30px;
+        width: 100px;
+        height: 30px;
+    }
+    #anchored {
+        position: absolute;
+        position-anchor: --btn;
+        left: anchor(left);
+        top: anchor(bottom);
+        width: 120px;
+    }
+    #inner { width: 80px; height: 20px; }
+</style>
+<div id="stage">
+    <div id="anchor"></div>
+    <div id="anchored">
+        <div id="inner"></div>
+    </div>
+</div>
+<script>
+    // A box whose own insets come from anchor() functions must not replay its layout from
+    // saved inputs, because only a full layout pass resolves anchor() insets. A change
+    // inside it takes the full path and the box keeps its anchored position.
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+
+        const anchoredBefore = document.getElementById("anchored").getBoundingClientRect();
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+        document.getElementById("inner").style.height = "60px";
+        document.body.offsetHeight;
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        const anchor = document.getElementById("anchor").getBoundingClientRect();
+        const anchoredAfter = document.getElementById("anchored").getBoundingClientRect();
+        const inner = document.getElementById("inner").getBoundingClientRect();
+        println(`layout-passes partial=${partialDelta} full=${fullDelta}`);
+        println(`anchor=${rectToString(anchor)}`);
+        println(`anchored-before=${rectToString(anchoredBefore)}`);
+        println(`anchored-after=${rectToString(anchoredAfter)}`);
+        println(`inner=${rectToString(inner)}`);
+        println(partialDelta === 0 && fullDelta === 1
+            && rectToString(anchor) === "40,30,100,30"
+            && rectToString(anchoredBefore) === "40,60,120,20"
+            && rectToString(anchoredAfter) === "40,60,120,60"
+            && rectToString(inner) === "40,60,80,60" ? "PASS" : "FAIL");
+        done();
+    });
+</script>

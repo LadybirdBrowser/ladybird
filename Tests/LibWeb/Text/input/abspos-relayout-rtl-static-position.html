@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .root { position: relative; width: 300px; height: 100px; direction: rtl; }
+    .boundary {
+        /* Both horizontal insets auto in an RTL context: the static position rect is
+           end-aligned, and re-aligns against the live shrink-to-fit width at replay. */
+        position: absolute;
+        top: 10px;
+        height: 40px;
+        overflow: hidden;
+    }
+    .content { height: 10px; background: teal; }
+</style>
+<div class="root">
+    <div id="live" class="boundary"><div id="live-content" class="content" style="width: 50px"></div></div>
+</div>
+<div class="root">
+    <div id="reference" class="boundary"><div class="content" style="width: 120px"></div></div>
+</div>
+<script>
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    function localRect(element) {
+        const rect = element.getBoundingClientRect();
+        const rootRect = element.closest(".root").getBoundingClientRect();
+        return `${rect.left - rootRect.left},${rect.top - rootRect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest((done) => {
+        document.body.offsetHeight;
+
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+
+        document.getElementById("live-content").style.width = "120px";
+        document.body.offsetHeight;
+
+        const live = localRect(document.getElementById("live"));
+        const reference = localRect(document.getElementById("reference"));
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        println(`live=${live}`);
+        println(`reference=${reference}`);
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(live === reference
+            && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

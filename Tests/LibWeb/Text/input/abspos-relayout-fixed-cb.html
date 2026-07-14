@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #parent { position: relative; width: 360px; height: 220px; }
+    #boundary {
+        position: absolute;
+        left: 60px;
+        top: 70px;
+        width: 180px;
+        height: 110px;
+        overflow: hidden;
+        transform: translate(0, 0);
+    }
+    #fixed {
+        position: fixed;
+        left: 15px;
+        top: 10px;
+        width: 40px;
+        height: 20px;
+    }
+    #sibling { width: 80px; height: 20px; }
+</style>
+<div id="parent">
+    <div id="boundary">
+        <div id="fixed"></div>
+        <div id="sibling"></div>
+    </div>
+</div>
+<script>
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+        document.getElementById("sibling").style.height = "65px";
+        document.body.offsetHeight;
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        const boundary = document.getElementById("boundary").getBoundingClientRect();
+        const fixed = document.getElementById("fixed").getBoundingClientRect();
+        const sibling = document.getElementById("sibling").getBoundingClientRect();
+        println(`boundary=${rectToString(boundary)}`);
+        println(`fixed=${rectToString(fixed)}`);
+        println(`sibling=${rectToString(sibling)}`);
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(rectToString(boundary) === "60,70,180,110"
+            && rectToString(fixed) === "75,80,40,20"
+            && rectToString(sibling) === "60,70,80,65"
+            && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

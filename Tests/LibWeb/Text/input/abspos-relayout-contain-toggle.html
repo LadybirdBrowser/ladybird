@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #stage { position: relative; width: 400px; height: 300px; }
+    #boundary {
+        position: absolute;
+        left: 50px;
+        top: 60px;
+        width: 240px;
+        height: 160px;
+    }
+    #wrapper {
+        contain: layout;
+        width: 200px;
+        height: 100px;
+    }
+    #fixed {
+        position: fixed;
+        left: 30px;
+        top: 40px;
+        width: 50px;
+        height: 20px;
+    }
+    #child { width: 60px; height: 20px; }
+</style>
+<div id="stage">
+    <div id="boundary">
+        <div id="wrapper">
+            <div id="fixed"></div>
+        </div>
+        <div id="child"></div>
+    </div>
+</div>
+<script>
+    // The contain:layout wrapper is the fixed box's containing block, so the fixed box does
+    // not escape the boundary and changes inside it use partial relayout. Dropping the
+    // containment re-parents the fixed box's containing block to the viewport without
+    // dirtying layout by itself; the escaped-by-abspos facts derived from the old containing
+    // blocks can no longer be trusted, so the next layout must be a full pass, which re-lays
+    // the fixed box out against the viewport.
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+        document.getElementById("child").style.height = "40px";
+        document.body.offsetHeight;
+        const partialDeltaBeforeToggle = internals.partialLayoutCount() - partialBefore;
+        const fullDeltaBeforeToggle = internals.fullLayoutCount() - fullBefore;
+        const fixedBeforeToggle = document.getElementById("fixed").getBoundingClientRect();
+
+        const partialBeforeToggle = internals.partialLayoutCount();
+        const fullBeforeToggle = internals.fullLayoutCount();
+        document.getElementById("wrapper").style.contain = "none";
+        document.getElementById("child").style.height = "60px";
+        document.body.offsetHeight;
+        const partialDeltaAfterToggle = internals.partialLayoutCount() - partialBeforeToggle;
+        const fullDeltaAfterToggle = internals.fullLayoutCount() - fullBeforeToggle;
+        const fixedAfterToggle = document.getElementById("fixed").getBoundingClientRect();
+
+        println(`before-toggle partial=${partialDeltaBeforeToggle} full=${fullDeltaBeforeToggle}`);
+        println(`after-toggle partial=${partialDeltaAfterToggle} full=${fullDeltaAfterToggle}`);
+        println(`fixed-before-toggle=${rectToString(fixedBeforeToggle)}`);
+        println(`fixed-after-toggle=${rectToString(fixedAfterToggle)}`);
+        println(partialDeltaBeforeToggle === 1 && fullDeltaBeforeToggle === 0
+            && partialDeltaAfterToggle === 0 && fullDeltaAfterToggle === 1
+            && rectToString(fixedBeforeToggle) === "80,100,50,20"
+            && rectToString(fixedAfterToggle) === "30,40,50,20" ? "PASS" : "FAIL");
+        done();
+    });
+</script>

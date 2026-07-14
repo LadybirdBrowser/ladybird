@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #root { position: relative; width: 320px; height: 180px; }
+    #boundary {
+        position: absolute;
+        left: 40px;
+        top: 30px;
+        width: 180px;
+        height: 100px;
+        overflow: hidden;
+    }
+    .abs-child {
+        position: absolute;
+        width: 20px;
+        height: 15px;
+    }
+    #one { left: 5px; top: 10px; }
+    #two { left: 35px; top: 25px; width: 25px; height: 10px; }
+    #three { left: 55px; top: 50px; width: 30px; height: 12px; }
+</style>
+<div id="root">
+    <div id="boundary"></div>
+</div>
+<script>
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest((done) => {
+        document.body.offsetHeight;
+
+        const boundary = document.getElementById("boundary");
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+
+        for (const id of ["one", "two", "three"]) {
+            const child = document.createElement("div");
+            child.id = id;
+            child.className = "abs-child";
+            boundary.appendChild(child);
+        }
+        document.body.offsetHeight;
+
+        const one = document.getElementById("one").getBoundingClientRect();
+        const two = document.getElementById("two").getBoundingClientRect();
+        const three = document.getElementById("three").getBoundingClientRect();
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        println(`one=${rectToString(one)}`);
+        println(`two=${rectToString(two)}`);
+        println(`three=${rectToString(three)}`);
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(rectToString(one) === "45,40,20,15"
+            && rectToString(two) === "75,55,25,10"
+            && rectToString(three) === "95,80,30,12"
+            && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #grid {
+        position: relative;
+        display: grid;
+        grid-template-columns: 100px 200px;
+        grid-template-rows: 80px 120px;
+        width: 300px;
+        height: 200px;
+    }
+    #boundary {
+        position: absolute;
+        grid-column: 2;
+        grid-row: 2;
+        inset: 10px;
+        overflow: hidden;
+    }
+    #content { width: 40px; height: 20px; background: orange; }
+</style>
+<div id="grid">
+    <div id="boundary"><div id="content"></div></div>
+</div>
+<script>
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest((done) => {
+        document.body.offsetHeight;
+
+        const boundary = document.getElementById("boundary");
+
+        // A change inside the subtree replays from the saved grid-area inputs.
+        let partialBefore = internals.partialLayoutCount();
+        let fullBefore = internals.fullLayoutCount();
+        document.getElementById("content").style.width = "70px";
+        document.body.offsetHeight;
+        const subtreeRect = rectToString(boundary.getBoundingClientRect());
+        const subtreePartialDelta = internals.partialLayoutCount() - partialBefore;
+        const subtreeFullDelta = internals.fullLayoutCount() - fullBefore;
+
+        // A style change on the boundary itself may invalidate the saved grid placement
+        // inputs, so it must fall back to a full layout.
+        partialBefore = internals.partialLayoutCount();
+        fullBefore = internals.fullLayoutCount();
+        boundary.style.paddingLeft = "5px";
+        document.body.offsetHeight;
+        const selfRect = rectToString(boundary.getBoundingClientRect());
+        const selfPartialDelta = internals.partialLayoutCount() - partialBefore;
+        const selfFullDelta = internals.fullLayoutCount() - fullBefore;
+
+        println(`subtree=${subtreeRect} partial-layouts=${subtreePartialDelta} full-layouts=${subtreeFullDelta}`);
+        println(`self=${selfRect} partial-layouts=${selfPartialDelta} full-layouts=${selfFullDelta}`);
+        println(subtreeRect === "110,90,180,100"
+            && subtreePartialDelta === 1 && subtreeFullDelta === 0
+            && selfRect === "110,90,180,100"
+            && selfPartialDelta === 0 && selfFullDelta === 1 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #root { position: relative; width: 360px; height: 180px; }
+    #boundary {
+        position: absolute;
+        left: 40px;
+        top: 25px;
+        width: 160px;
+        height: 90px;
+        overflow: hidden;
+    }
+    #host { display: block; width: 80px; height: 30px; }
+</style>
+<div id="root">
+    <div id="boundary">
+        <div id="inner"><div id="host"></div></div>
+    </div>
+</div>
+<script>
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest((done) => {
+        const host = document.getElementById("host");
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = `
+            <style>
+                #existing { width: 20px; height: 10px; }
+                .new-child {
+                    position: absolute;
+                    left: 15px;
+                    top: 10px;
+                    width: 30px;
+                    height: 20px;
+                }
+            </style>
+            <div id="existing"></div>
+        `;
+        document.body.offsetHeight;
+
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+
+        const child = document.createElement("div");
+        child.id = "new-shadow-child";
+        child.className = "new-child";
+        shadow.appendChild(child);
+        document.body.offsetHeight;
+
+        const childRect = child.getBoundingClientRect();
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        println(`shadow-child=${rectToString(childRect)}`);
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(rectToString(childRect) === "55,35,30,20"
+            && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

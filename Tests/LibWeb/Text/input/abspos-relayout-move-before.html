@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #root { position: relative; width: 520px; height: 180px; }
+    .boundary {
+        position: absolute;
+        top: 20px;
+        width: 200px;
+        height: 100px;
+        overflow: hidden;
+        font-size: 0;
+        line-height: 10px;
+    }
+    #live-boundary { left: 40px; }
+    #reference-boundary { left: 280px; }
+    .marker {
+        display: inline-block;
+        width: 30px;
+        height: 10px;
+        vertical-align: top;
+    }
+    .gap {
+        display: inline-block;
+        width: 20px;
+        height: 10px;
+        vertical-align: top;
+    }
+    .move-abs {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+    }
+    #move { background: rgb(51, 52, 53); }
+</style>
+<div id="root">
+    <div id="live-boundary" class="boundary">
+        <span id="live-a"><span class="marker"></span><span id="move" class="move-abs"></span></span><span class="gap"></span><span id="live-b"><span class="marker"></span></span>
+    </div>
+    <div id="reference-boundary" class="boundary">
+        <span><span class="marker"></span></span><span class="gap"></span><span><span class="marker"></span><span id="reference-move" class="move-abs"></span></span>
+    </div>
+</div>
+<script>
+    function countColor(displayList, color) {
+        return displayList.split(`color=${color}`).length - 1;
+    }
+
+    function localRectToString(element, container) {
+        const rect = element.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        return `${rect.left - containerRect.left},${rect.top - containerRect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest((done) => {
+        document.body.offsetHeight;
+
+        const move = document.getElementById("move");
+        const oldRect = move.getBoundingClientRect();
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+
+        const destination = document.getElementById("live-b");
+        if ("moveBefore" in Node.prototype)
+            destination.moveBefore(move, null);
+        else {
+            // Older builds without Node.moveBefore still exercise the same remove+insert layout path.
+            move.remove();
+            destination.appendChild(move);
+        }
+        document.body.offsetHeight;
+
+        const liveRect = localRectToString(move, document.getElementById("live-boundary"));
+        const referenceRect = localRectToString(document.getElementById("reference-move"), document.getElementById("reference-boundary"));
+        const paintCount = countColor(internals.dumpDisplayList(), "rgb(51, 52, 53)");
+        const oldHitIsMoved = document.elementFromPoint(oldRect.left + 2, oldRect.top + 2) === move;
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        println(`live=${liveRect}`);
+        println(`reference=${referenceRect}`);
+        println(`paint-count=${paintCount}`);
+        println(`old-hit-is-moved=${oldHitIsMoved}`);
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(liveRect === "80,0,10,10"
+            && liveRect === referenceRect
+            && paintCount === 1
+            && !oldHitIsMoved
+            && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

@@ -1,0 +1,5 @@
+fixed-before=30,20,40,25
+fixed-after=30,20,40,25
+sibling=100,100,80,70
+partial-layouts=0 full-layouts=1
+PASS

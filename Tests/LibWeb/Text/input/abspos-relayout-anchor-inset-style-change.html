@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #stage { position: relative; width: 400px; height: 300px; }
+    #anchor {
+        anchor-name: --btn;
+        position: absolute;
+        left: 60px;
+        top: 40px;
+        width: 100px;
+        height: 30px;
+    }
+    #anchored {
+        position: absolute;
+        position-anchor: --btn;
+        left: 10px;
+        top: 10px;
+        width: 80px;
+        height: 25px;
+    }
+</style>
+<div id="stage">
+    <div id="anchor"></div>
+    <div id="anchored"></div>
+</div>
+<script>
+    // A style change that puts anchor() functions into the box's insets takes the full
+    // layout path, which resolves them against the anchor and lands the box at its
+    // anchored position.
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+
+        const anchoredBefore = document.getElementById("anchored").getBoundingClientRect();
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+        const anchoredStyle = document.getElementById("anchored").style;
+        anchoredStyle.left = "anchor(right)";
+        anchoredStyle.top = "anchor(top)";
+        document.body.offsetHeight;
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        const anchor = document.getElementById("anchor").getBoundingClientRect();
+        const anchoredAfter = document.getElementById("anchored").getBoundingClientRect();
+        println(`layout-passes partial=${partialDelta} full=${fullDelta}`);
+        println(`anchor=${rectToString(anchor)}`);
+        println(`anchored-before=${rectToString(anchoredBefore)}`);
+        println(`anchored-after=${rectToString(anchoredAfter)}`);
+        println(partialDelta === 0 && fullDelta === 1
+            && rectToString(anchor) === "60,40,100,30"
+            && rectToString(anchoredBefore) === "10,10,80,25"
+            && rectToString(anchoredAfter) === "160,40,80,25" ? "PASS" : "FAIL");
+        done();
+    });
+</script>

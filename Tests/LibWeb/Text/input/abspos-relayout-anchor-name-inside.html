@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #stage { position: relative; width: 400px; height: 240px; }
+    #boundary {
+        position: absolute;
+        left: 30px;
+        top: 40px;
+        width: 180px;
+        height: 120px;
+        overflow: hidden;
+    }
+    #anchor {
+        anchor-name: --a;
+        position: absolute;
+        left: 20px;
+        top: 30px;
+        width: 50px;
+        height: 20px;
+    }
+    #target {
+        position: absolute;
+        position-anchor: --a;
+        left: anchor(left);
+        top: anchor(bottom);
+        width: 60px;
+        height: 25px;
+    }
+</style>
+<div id="stage">
+    <div id="boundary">
+        <div id="anchor"></div>
+    </div>
+    <div id="target"></div>
+</div>
+<script>
+    // An element with a registered anchor-name inside the boundary publishes geometry that
+    // positioned boxes outside consume through anchor(), so a change inside the boundary
+    // must take the full layout path to re-lay them out.
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+
+        const anchorBefore = document.getElementById("anchor").getBoundingClientRect();
+        const targetBefore = document.getElementById("target").getBoundingClientRect();
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+        document.getElementById("anchor").style.top = "60px";
+        document.body.offsetHeight;
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        const anchorAfter = document.getElementById("anchor").getBoundingClientRect();
+        const targetAfter = document.getElementById("target").getBoundingClientRect();
+        println(`layout-passes partial=${partialDelta} full=${fullDelta}`);
+        println(`anchor-before=${rectToString(anchorBefore)}`);
+        println(`target-before=${rectToString(targetBefore)}`);
+        println(`anchor-after=${rectToString(anchorAfter)}`);
+        println(`target-after=${rectToString(targetAfter)}`);
+        println(partialDelta === 0 && fullDelta === 1
+            && rectToString(anchorBefore) === "50,70,50,20"
+            && rectToString(targetBefore) === "50,90,60,25"
+            && rectToString(anchorAfter) === "50,100,50,20"
+            && rectToString(targetAfter) === "50,120,60,25" ? "PASS" : "FAIL");
+        done();
+    });
+</script>

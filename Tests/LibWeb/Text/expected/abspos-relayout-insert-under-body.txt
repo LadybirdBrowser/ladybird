@@ -1,0 +1,3 @@
+inserted=70,45,30,20
+partial-layouts=0 full-layouts=1
+PASS

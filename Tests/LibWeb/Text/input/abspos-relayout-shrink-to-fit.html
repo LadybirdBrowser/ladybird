@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #parent { position: relative; width: 400px; height: 140px; }
+    #boundary {
+        position: absolute;
+        left: 25px;
+        top: 20px;
+        width: auto;
+        height: 50px;
+        overflow: hidden;
+        white-space: nowrap;
+    }
+    #content {
+        display: inline-block;
+        width: 80px;
+        height: 20px;
+    }
+</style>
+<div id="parent">
+    <div id="boundary"><span id="content"></span></div>
+</div>
+<script>
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+
+        const boundaryBefore = document.getElementById("boundary").getBoundingClientRect();
+        const partialBefore = internals.partialLayoutCount();
+        document.getElementById("content").style.width = "180px";
+        document.body.offsetHeight;
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+
+        const boundaryAfter = document.getElementById("boundary").getBoundingClientRect();
+        const content = document.getElementById("content").getBoundingClientRect();
+        println(`boundary-before=${rectToString(boundaryBefore)}`);
+        println(`boundary-after=${rectToString(boundaryAfter)}`);
+        println(`content=${rectToString(content)}`);
+        println(`partial-layouts=${partialDelta}`);
+        println(boundaryBefore.width === 80 && boundaryAfter.width === 180
+            && rectToString(content) === "25,20,180,20"
+            && partialDelta === 1 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

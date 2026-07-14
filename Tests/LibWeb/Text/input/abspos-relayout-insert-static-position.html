@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #root { position: relative; width: 360px; height: 150px; }
+    .boundary {
+        position: absolute;
+        top: 20px;
+        width: 120px;
+        height: 90px;
+        overflow: hidden;
+    }
+    #live-boundary { left: 30px; }
+    #reference-boundary { left: 200px; }
+    .before { width: 80px; height: 25px; }
+    .after { width: 80px; height: 30px; }
+    .static-abs {
+        position: absolute;
+        width: 40px;
+        height: 15px;
+    }
+</style>
+<div id="root">
+    <div id="live-boundary" class="boundary">
+        <div id="live-wrapper"><div class="before"></div><div id="live-after" class="after"></div></div>
+    </div>
+    <div id="reference-boundary" class="boundary">
+        <div><div class="before"></div><div id="reference-abs" class="static-abs"></div><div class="after"></div></div>
+    </div>
+</div>
+<script>
+    function localRectToString(element, container) {
+        const rect = element.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        return `${rect.left - containerRect.left},${rect.top - containerRect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest((done) => {
+        document.body.offsetHeight;
+
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+
+        const liveAbs = document.createElement("div");
+        liveAbs.id = "live-abs";
+        liveAbs.className = "static-abs";
+        document.getElementById("live-wrapper").insertBefore(liveAbs, document.getElementById("live-after"));
+        document.body.offsetHeight;
+
+        const liveRect = localRectToString(liveAbs, document.getElementById("live-boundary"));
+        const referenceRect = localRectToString(document.getElementById("reference-abs"), document.getElementById("reference-boundary"));
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        println(`live=${liveRect}`);
+        println(`reference=${referenceRect}`);
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(liveRect === "0,25,40,15"
+            && liveRect === referenceRect
+            && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

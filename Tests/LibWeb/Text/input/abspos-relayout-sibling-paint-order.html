@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #stage { position: relative; width: 400px; height: 300px; }
+    #first {
+        position: absolute;
+        left: 40px;
+        top: 40px;
+        width: 120px;
+        height: 100px;
+        background: rgb(200, 0, 0);
+    }
+    #second {
+        position: absolute;
+        left: 100px;
+        top: 80px;
+        width: 120px;
+        height: 100px;
+        background: rgb(0, 0, 200);
+    }
+    #child { width: 50px; height: 20px; }
+</style>
+<div id="stage">
+    <div id="first">
+        <div id="child"></div>
+    </div>
+    <div id="second"></div>
+</div>
+<script>
+    // Two overlapping absolutely positioned siblings with auto z-index paint in tree order,
+    // so the later one covers the earlier one. A partial relayout of the earlier sibling must
+    // splice its rebuilt paint subtree back at its original position; reattaching it at the
+    // end of the parent's paintable children would move it on top of the later sibling,
+    // changing paint and hit-test order compared to a full layout.
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+
+        const hitBefore = document.elementFromPoint(150, 110);
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+        document.getElementById("child").style.height = "40px";
+        document.body.offsetHeight;
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        const hitAfter = document.elementFromPoint(150, 110);
+        println(`layout-passes partial=${partialDelta} full=${fullDelta}`);
+        println(`hit-before=${hitBefore ? hitBefore.id : "null"}`);
+        println(`hit-after=${hitAfter ? hitAfter.id : "null"}`);
+        println(partialDelta === 1 && fullDelta === 0
+            && hitBefore && hitBefore.id === "second"
+            && hitAfter && hitAfter.id === "second" ? "PASS" : "FAIL");
+        done();
+    });
+</script>

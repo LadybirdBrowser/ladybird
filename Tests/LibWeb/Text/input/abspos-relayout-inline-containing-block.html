@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; font: 16px/20px monospace; }
+    #cb { position: relative; }
+    #boundary {
+        /* The containing block is an inline box, whose rectangle derives from line box
+           fragments. The saved layout inputs carry it, so subtree changes replay without
+           a full layout. */
+        position: absolute;
+        left: 5px;
+        top: 30px;
+        width: 120px;
+        height: 40px;
+        overflow: hidden;
+    }
+    #content { width: 30px; height: 10px; background: red; }
+</style>
+<div>before<span id="cb">inline containing block<div id="boundary"><div id="content"></div></div></span>after</div>
+<script>
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest((done) => {
+        document.body.offsetHeight;
+
+        const boundary = document.getElementById("boundary");
+        const content = document.getElementById("content");
+        const before = rectToString(boundary.getBoundingClientRect());
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+
+        content.style.width = "60px";
+        document.body.offsetHeight;
+
+        const after = rectToString(boundary.getBoundingClientRect());
+        const contentRect = content.getBoundingClientRect();
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        println(`boundary-before=${before}`);
+        println(`boundary-after=${after}`);
+        println(`content-width=${contentRect.width}`);
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(before === after && contentRect.width === 60
+            && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

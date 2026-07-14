@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #root { position: relative; width: 360px; height: 180px; }
+    #boundary {
+        position: absolute;
+        left: 40px;
+        top: 30px;
+        width: 160px;
+        height: 90px;
+        overflow: hidden;
+    }
+    #hidden { display: none; }
+    #sibling { width: 70px; height: 25px; }
+</style>
+<div id="root">
+    <div id="boundary">
+        <div id="hidden"></div>
+        <div id="sibling"></div>
+    </div>
+</div>
+<script>
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest((done) => {
+        document.body.offsetHeight;
+
+        const siblingBefore = document.getElementById("sibling").getBoundingClientRect();
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+
+        const child = document.createElement("div");
+        child.id = "inserted";
+        child.style.width = "20px";
+        child.style.height = "20px";
+        document.getElementById("hidden").appendChild(child);
+        document.body.offsetHeight;
+
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+        const siblingAfter = document.getElementById("sibling").getBoundingClientRect();
+        const insertedRects = child.getClientRects().length;
+
+        println(`inserted-rects=${insertedRects}`);
+        println(`sibling-before=${rectToString(siblingBefore)}`);
+        println(`sibling-after=${rectToString(siblingAfter)}`);
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(insertedRects === 0
+            && rectToString(siblingBefore) === rectToString(siblingAfter)
+            && partialDelta === 0 && fullDelta === 1 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

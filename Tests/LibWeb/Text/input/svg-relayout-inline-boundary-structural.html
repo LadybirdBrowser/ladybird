@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    span { border-left: 2px solid black; }
+</style>
+<span>before<svg id="boundary" width="40" height="20"></svg>after</span>
+<script>
+    asyncTest((done) => {
+        document.body.offsetHeight;
+
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("cx", "10");
+        circle.setAttribute("cy", "10");
+        circle.setAttribute("r", "5");
+        document.getElementById("boundary").appendChild(circle);
+        document.body.offsetHeight;
+
+        const svgRect = document.getElementById("boundary").getBoundingClientRect();
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        println(`svg=${svgRect.width},${svgRect.height}`);
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(svgRect.width === 40 && svgRect.height === 20
+            && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

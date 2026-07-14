@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #root { position: relative; width: 520px; height: 160px; }
+    .boundary {
+        position: absolute;
+        top: 20px;
+        width: 180px;
+        height: 90px;
+        overflow: hidden;
+        font-size: 0;
+        line-height: 10px;
+    }
+    #live-boundary { left: 40px; }
+    #reference-boundary { left: 280px; }
+    .marker {
+        display: inline-block;
+        width: 30px;
+        height: 10px;
+        vertical-align: top;
+    }
+    .gap {
+        display: inline-block;
+        width: 20px;
+        height: 10px;
+        vertical-align: top;
+    }
+    .static-abs {
+        position: absolute;
+        width: 14px;
+        height: 16px;
+    }
+</style>
+<div id="root">
+    <div id="live-boundary" class="boundary"><span class="marker"></span><span class="gap"></span></div>
+    <div id="reference-boundary" class="boundary"><span class="marker"></span><span class="gap"></span><span id="reference" class="static-abs"></span></div>
+</div>
+<script>
+    function localRectToString(element, container) {
+        const rect = element.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        return `${rect.left - containerRect.left},${rect.top - containerRect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest((done) => {
+        document.body.offsetHeight;
+
+        const liveBoundary = document.getElementById("live-boundary");
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+
+        const inserted = document.createElement("span");
+        inserted.id = "inserted";
+        inserted.className = "static-abs";
+        liveBoundary.appendChild(inserted);
+        document.body.offsetHeight;
+
+        const liveRect = localRectToString(inserted, liveBoundary);
+        const referenceRect = localRectToString(document.getElementById("reference"), document.getElementById("reference-boundary"));
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        println(`live=${liveRect}`);
+        println(`reference=${referenceRect}`);
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(liveRect === "50,0,14,16"
+            && liveRect === referenceRect
+            && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

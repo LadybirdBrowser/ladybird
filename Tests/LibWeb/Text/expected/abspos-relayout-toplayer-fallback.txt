@@ -1,0 +1,4 @@
+open=true
+dialog=70,40,80,50
+partial-layouts=0 full-layouts=1
+PASS

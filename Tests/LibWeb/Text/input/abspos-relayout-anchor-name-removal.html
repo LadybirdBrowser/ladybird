@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #stage { position: relative; width: 400px; height: 300px; }
+    #boundary {
+        position: absolute;
+        left: 30px;
+        top: 40px;
+        width: 200px;
+        height: 150px;
+    }
+    #anchor {
+        anchor-name: --a;
+        position: absolute;
+        left: 20px;
+        top: 30px;
+        width: 50px;
+        height: 20px;
+    }
+    #consumer {
+        position: absolute;
+        position-anchor: --a;
+        left: anchor(right, 5px);
+        top: anchor(top, 5px);
+        width: 60px;
+        height: 25px;
+    }
+</style>
+<div id="stage">
+    <div id="boundary">
+        <div id="anchor"></div>
+    </div>
+    <div id="consumer"></div>
+</div>
+<script>
+    // Removing the anchor provider unregisters its names before the next layout runs, so
+    // the dispatch-time check of the live anchor-name maps cannot see them. The removal
+    // itself must force the full layout path, which re-resolves the outside consumer's
+    // anchor() functions to their fallbacks.
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+
+        const consumerBefore = document.getElementById("consumer").getBoundingClientRect();
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+        document.getElementById("anchor").remove();
+        document.body.offsetHeight;
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        const consumerAfter = document.getElementById("consumer").getBoundingClientRect();
+        println(`layout-passes partial=${partialDelta} full=${fullDelta}`);
+        println(`consumer-before=${rectToString(consumerBefore)}`);
+        println(`consumer-after=${rectToString(consumerAfter)}`);
+        println(partialDelta === 0 && fullDelta >= 1
+            && rectToString(consumerBefore) === "100,70,60,25"
+            && rectToString(consumerAfter) === "5,5,60,25" ? "PASS" : "FAIL");
+        done();
+    });
+</script>

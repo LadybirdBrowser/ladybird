@@ -1,0 +1,4 @@
+while-escaping partial=0 full=1
+after-removal partial=0 full=1
+child=50,60,60,60
+FAIL

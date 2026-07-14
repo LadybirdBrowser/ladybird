@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #inserted {
+        position: absolute;
+        left: 70px;
+        top: 45px;
+        width: 30px;
+        height: 20px;
+    }
+</style>
+<script>
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest((done) => {
+        document.body.offsetHeight;
+
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+
+        const inserted = document.createElement("div");
+        inserted.id = "inserted";
+        document.body.appendChild(inserted);
+        document.body.offsetHeight;
+
+        const insertedRect = inserted.getBoundingClientRect();
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        println(`inserted=${rectToString(insertedRect)}`);
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(rectToString(insertedRect) === "70,45,30,20"
+            && partialDelta === 0 && fullDelta === 1 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

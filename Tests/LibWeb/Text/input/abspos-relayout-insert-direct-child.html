@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #root { position: relative; width: 320px; height: 170px; }
+    #boundary {
+        position: absolute;
+        left: 40px;
+        top: 30px;
+        width: 150px;
+        height: 90px;
+        overflow: hidden;
+    }
+    #outside { width: 120px; height: 20px; }
+    .abs-child {
+        position: absolute;
+        left: 10px;
+        top: 15px;
+        width: 30px;
+        height: 20px;
+    }
+</style>
+<div id="root">
+    <div id="boundary"><div id="inner"></div></div>
+    <div style="height: 130px"></div>
+    <div id="outside"></div>
+</div>
+<script>
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest((done) => {
+        document.body.offsetHeight;
+
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+
+        const child = document.createElement("div");
+        child.id = "inserted";
+        child.className = "abs-child";
+        document.getElementById("boundary").appendChild(child);
+        document.body.offsetHeight;
+
+        const inserted = child.getBoundingClientRect();
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        println(`inserted=${rectToString(inserted)}`);
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(rectToString(inserted) === "50,45,30,20"
+            && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

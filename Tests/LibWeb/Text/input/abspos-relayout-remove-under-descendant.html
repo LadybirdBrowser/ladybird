@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #root { position: relative; width: 360px; height: 180px; }
+    #boundary {
+        position: absolute;
+        left: 40px;
+        top: 30px;
+        width: 160px;
+        height: 90px;
+        overflow: hidden;
+    }
+    #inner { width: 80px; height: 30px; }
+    #removed {
+        position: absolute;
+        left: 15px;
+        top: 10px;
+        width: 35px;
+        height: 20px;
+        background: rgb(41, 42, 43);
+    }
+    #outside { width: 120px; height: 25px; }
+</style>
+<div id="root">
+    <div id="boundary">
+        <div id="inner"><div id="removed"></div></div>
+    </div>
+    <div style="height: 130px"></div>
+    <div id="outside"></div>
+</div>
+<script>
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    function countColor(displayList, color) {
+        return displayList.split(`color=${color}`).length - 1;
+    }
+
+    asyncTest((done) => {
+        document.body.offsetHeight;
+
+        const removed = document.getElementById("removed");
+        const outsideBefore = document.getElementById("outside").getBoundingClientRect();
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+
+        document.getElementById("inner").removeChild(removed);
+        document.body.offsetHeight;
+
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+        const hitRemoved = document.elementFromPoint(57, 42) === removed;
+        const paintCount = countColor(internals.dumpDisplayList(), "rgb(41, 42, 43)");
+        const outsideAfter = document.getElementById("outside").getBoundingClientRect();
+
+        println(`hit-removed=${hitRemoved}`);
+        println(`paint-count=${paintCount}`);
+        println(`outside-before=${rectToString(outsideBefore)}`);
+        println(`outside-after=${rectToString(outsideAfter)}`);
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(!hitRemoved
+            && paintCount === 0
+            && rectToString(outsideBefore) === rectToString(outsideAfter)
+            && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

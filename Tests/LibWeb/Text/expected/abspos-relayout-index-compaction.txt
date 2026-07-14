@@ -1,0 +1,4 @@
+layout-passes-sum-matches=true
+full-passes-bounded=false
+boundary=40,30,200,40
+FAIL

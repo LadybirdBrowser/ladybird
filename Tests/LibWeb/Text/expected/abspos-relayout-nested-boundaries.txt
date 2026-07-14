@@ -1,0 +1,7 @@
+outer=20,30,260,160
+inner=70,70,100,50
+between-before=30,40,90,25
+between-after=30,40,90,25
+child=70,70,60,40
+partial-layouts=0 full-layouts=1
+FAIL

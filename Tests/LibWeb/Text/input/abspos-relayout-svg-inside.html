@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #parent { position: relative; width: 300px; height: 220px; }
+    #boundary {
+        position: absolute;
+        left: 40px;
+        top: 50px;
+        width: 220px;
+        height: 160px;
+        overflow: hidden;
+    }
+    #svg { display: block; }
+    #sibling { width: 70px; height: 20px; }
+    #page-sibling { width: 120px; height: 30px; }
+</style>
+<div id="parent">
+    <div id="boundary">
+        <svg id="svg" width="100" height="80">
+            <path id="path" d="M 10 10 L 50 50" stroke="black" fill="none"/>
+        </svg>
+        <div id="sibling"></div>
+    </div>
+</div>
+<div id="page-sibling"></div>
+<script>
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+
+        const siblingBefore = document.getElementById("sibling").getBoundingClientRect();
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+        document.getElementById("path").setAttribute("d", "M 10 10 L 90 60");
+        document.body.offsetHeight;
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        const boundary = document.getElementById("boundary").getBoundingClientRect();
+        const svg = document.getElementById("svg").getBoundingClientRect();
+        const siblingAfter = document.getElementById("sibling").getBoundingClientRect();
+        const pageSibling = document.getElementById("page-sibling").getBoundingClientRect();
+        println(`boundary=${rectToString(boundary)}`);
+        println(`svg=${rectToString(svg)}`);
+        println(`sibling-before=${rectToString(siblingBefore)}`);
+        println(`sibling-after=${rectToString(siblingAfter)}`);
+        println(`page-sibling=${rectToString(pageSibling)}`);
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(rectToString(boundary) === "40,50,220,160"
+            && rectToString(svg) === "40,50,100,80"
+            && rectToString(siblingBefore) === rectToString(siblingAfter)
+            && rectToString(pageSibling) === "0,220,120,30"
+            && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

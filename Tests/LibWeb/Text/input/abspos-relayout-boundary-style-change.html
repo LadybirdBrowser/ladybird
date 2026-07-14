@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #root { position: relative; width: 320px; height: 180px; }
+    #boundary {
+        position: absolute;
+        left: 40px;
+        top: 30px;
+        width: 150px;
+        height: 90px;
+        overflow: hidden;
+    }
+    #child {
+        position: absolute;
+        right: 10px;
+        top: 15px;
+        width: 30px;
+        height: 20px;
+    }
+</style>
+<div id="root">
+    <div id="boundary"><div id="child"></div></div>
+</div>
+<script>
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest((done) => {
+        document.body.offsetHeight;
+
+        const boundary = document.getElementById("boundary");
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+
+        boundary.style.width = "180px";
+        document.body.offsetHeight;
+
+        const boundaryRect = boundary.getBoundingClientRect();
+        const childRect = document.getElementById("child").getBoundingClientRect();
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        println(`boundary=${rectToString(boundaryRect)}`);
+        println(`child=${rectToString(childRect)}`);
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(rectToString(boundaryRect) === "40,30,180,90"
+            && rectToString(childRect) === "180,45,30,20"
+            && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

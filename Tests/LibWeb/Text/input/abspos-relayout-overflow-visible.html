@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #scroller {
+        position: relative;
+        width: 200px;
+        height: 100px;
+        overflow: auto;
+    }
+    #spacer { height: 20px; }
+    #abspos {
+        position: absolute;
+        left: 0;
+        top: 10px;
+        width: 50px;
+        height: 50px;
+        overflow: visible;
+    }
+    #content { width: 50px; height: 40px; }
+</style>
+<div id="scroller">
+    <div id="spacer"></div>
+    <div id="abspos">
+        <div id="content"></div>
+    </div>
+</div>
+<script>
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+
+        const scroller = document.getElementById("scroller");
+        const scrollHeightBefore = scroller.scrollHeight;
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+        document.getElementById("content").style.height = "180px";
+        document.body.offsetHeight;
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        println(`scrollHeight-before=${scrollHeightBefore}`);
+        println(`scrollHeight-after=${scroller.scrollHeight}`);
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(scrollHeightBefore === 100 && scroller.scrollHeight === 190
+            && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

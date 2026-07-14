@@ -1,0 +1,5 @@
+one=45,40,20,15
+two=75,55,25,10
+three=95,80,30,12
+partial-layouts=0 full-layouts=1
+FAIL

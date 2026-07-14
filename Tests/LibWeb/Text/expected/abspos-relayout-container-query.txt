@@ -1,0 +1,5 @@
+color-before=rgb(0, 0, 0)
+container=10,10,200,60
+color-after=rgb(0, 128, 0)
+partial-layouts=0 full-layouts=1
+FAIL

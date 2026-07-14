@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #root { position: relative; width: 360px; height: 180px; }
+    #boundary {
+        position: absolute;
+        left: 40px;
+        top: 30px;
+        width: 160px;
+        height: 90px;
+        overflow: hidden;
+    }
+    #inner { width: 80px; height: 30px; }
+    #moving {
+        position: absolute;
+        left: 15px;
+        top: 10px;
+        width: 35px;
+        height: 20px;
+    }
+</style>
+<div id="root">
+    <div id="boundary">
+        <div id="inner"><span></span><div id="moving"></div></div>
+    </div>
+</div>
+<script>
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest((done) => {
+        document.body.offsetHeight;
+
+        const moving = document.getElementById("moving");
+        const inner = document.getElementById("inner");
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+
+        inner.removeChild(moving);
+        inner.appendChild(moving);
+        document.body.offsetHeight;
+
+        const movingRect = moving.getBoundingClientRect();
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        println(`moving=${rectToString(movingRect)}`);
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(rectToString(movingRect) === "55,40,35,20"
+            && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

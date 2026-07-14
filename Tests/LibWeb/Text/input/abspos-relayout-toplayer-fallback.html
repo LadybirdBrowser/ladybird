@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #root { position: relative; width: 360px; height: 180px; }
+    #boundary {
+        position: absolute;
+        left: 40px;
+        top: 30px;
+        width: 160px;
+        height: 90px;
+        overflow: hidden;
+    }
+    dialog {
+        position: fixed;
+        left: 70px;
+        top: 40px;
+        width: 80px;
+        height: 50px;
+        margin: 0;
+        padding: 0;
+        border: 0;
+    }
+</style>
+<div id="root">
+    <div id="boundary">
+        <div id="inner"><dialog id="modal"></dialog></div>
+    </div>
+</div>
+<script>
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest((done) => {
+        document.body.offsetHeight;
+
+        const dialog = document.getElementById("modal");
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+
+        dialog.showModal();
+        document.body.offsetHeight;
+
+        const dialogRect = dialog.getBoundingClientRect();
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        println(`open=${dialog.open}`);
+        println(`dialog=${rectToString(dialogRect)}`);
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(dialog.open
+            && rectToString(dialogRect) === "70,40,80,50"
+            && partialDelta === 0 && fullDelta === 1 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

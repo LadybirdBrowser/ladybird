@@ -1,0 +1,5 @@
+layout-passes partial=0 full=1
+anchor=60,40,100,30
+anchored-before=10,10,80,25
+anchored-after=160,40,80,25
+PASS

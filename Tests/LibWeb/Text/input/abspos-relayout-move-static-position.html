@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #root { position: relative; width: 400px; height: 300px; }
+    #boundary {
+        /* left and right are both auto: the horizontal position comes from the static
+           position, which the saved layout inputs carry, so a boundary-self geometry
+           change replays without a full layout. */
+        position: absolute;
+        top: 10px;
+        width: 150px;
+        height: 60px;
+        overflow: hidden;
+    }
+</style>
+<div id="root">
+    <div id="boundary"></div>
+</div>
+<script>
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest((done) => {
+        document.body.offsetHeight;
+
+        const boundary = document.getElementById("boundary");
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+
+        boundary.style.top = "60px";
+        document.body.offsetHeight;
+
+        const rect = boundary.getBoundingClientRect();
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        println(`boundary=${rectToString(rect)}`);
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(rectToString(rect) === "0,60,150,60"
+            && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #root { position: relative; width: 400px; height: 300px; }
+    #boundary {
+        position: absolute;
+        left: 10px;
+        top: 20px;
+        width: 100px;
+        height: 50px;
+        overflow: hidden;
+    }
+</style>
+<div id="root">
+    <div id="boundary"></div>
+</div>
+<script>
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest((done) => {
+        document.body.offsetHeight;
+
+        const boundary = document.getElementById("boundary");
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+
+        boundary.style.left = "70px";
+        boundary.style.top = "80px";
+        document.body.offsetHeight;
+
+        const rect = boundary.getBoundingClientRect();
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        println(`boundary=${rectToString(rect)}`);
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(rectToString(rect) === "70,80,100,50"
+            && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

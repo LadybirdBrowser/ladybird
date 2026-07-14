@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #stage { position: relative; width: 400px; height: 300px; }
+    #boundary {
+        position: absolute;
+        left: 40px;
+        top: 30px;
+        width: 200px;
+    }
+    #child { width: 60px; height: 20px; }
+</style>
+<div id="stage">
+    <div id="boundary">
+        <div id="child"></div>
+    </div>
+    <div id="host"></div>
+</div>
+<script>
+    // A ShadowRoot direct child has no parent element, so revealing it from display:none
+    // marks the element itself - and with no layout node attached yet, neither layout dirt
+    // nor a rebuilt-in-place subtree records the change. When the same update also contains
+    // dirt confined to a boundary, the partial path must not commit with the freshly revealed
+    // subtree never laid out and invisible; the update has to take the full layout path.
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest(async (done) => {
+        const shadow = document.getElementById("host").attachShadow({ mode: "open" });
+        const revealed = document.createElement("div");
+        revealed.style.cssText = "display: none; width: 120px; height: 50px;";
+        shadow.appendChild(revealed);
+        document.body.offsetHeight;
+
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+        revealed.style.display = "block";
+        document.getElementById("child").style.height = "40px";
+        document.body.offsetHeight;
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        const revealedRect = revealed.getBoundingClientRect();
+        const childRect = document.getElementById("child").getBoundingClientRect();
+        println(`layout-passes partial=${partialDelta} full=${fullDelta}`);
+        println(`revealed=${rectToString(revealedRect)}`);
+        println(`child=${rectToString(childRect)}`);
+        println(partialDelta === 0 && fullDelta >= 1
+            && rectToString(revealedRect) === "0,0,120,50"
+            && rectToString(childRect) === "40,30,60,40" ? "PASS" : "FAIL");
+        done();
+    });
+</script>

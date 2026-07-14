@@ -1,0 +1,3 @@
+boundary=0,60,150,60
+partial-layouts=0 full-layouts=1
+FAIL

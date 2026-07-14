@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #parent { position: relative; width: 300px; height: 160px; }
+    #boundary {
+        position: absolute;
+        left: 10px;
+        top: 10px;
+        width: 260px;
+        height: 120px;
+        overflow: hidden;
+    }
+    #container {
+        container-type: inline-size;
+        width: 100px;
+        height: 60px;
+    }
+    #target { color: rgb(0, 0, 0); }
+    @container (min-width: 150px) {
+        #target { color: rgb(0, 128, 0); }
+    }
+</style>
+<div id="parent">
+    <div id="boundary">
+        <div id="container">
+            <div id="target">target</div>
+        </div>
+    </div>
+</div>
+<script>
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+
+        const target = document.getElementById("target");
+        const colorBefore = getComputedStyle(target).color;
+
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+        document.getElementById("container").style.width = "200px";
+        document.body.offsetHeight;
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        const container = document.getElementById("container").getBoundingClientRect();
+        const colorAfter = getComputedStyle(target).color;
+        println(`color-before=${colorBefore}`);
+        println(`container=${rectToString(container)}`);
+        println(`color-after=${colorAfter}`);
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(colorBefore === "rgb(0, 0, 0)"
+            && rectToString(container) === "10,10,200,60"
+            && colorAfter === "rgb(0, 128, 0)"
+            && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

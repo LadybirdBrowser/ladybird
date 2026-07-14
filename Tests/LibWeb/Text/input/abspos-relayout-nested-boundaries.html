@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #parent { position: relative; width: 360px; height: 240px; }
+    #outer {
+        position: absolute;
+        left: 20px;
+        top: 30px;
+        width: 260px;
+        height: 160px;
+        overflow: hidden;
+    }
+    #between {
+        margin-left: 10px;
+        margin-top: 10px;
+        width: 90px;
+        height: 25px;
+    }
+    #inner {
+        position: absolute;
+        left: 50px;
+        top: 40px;
+        width: 100px;
+        height: 50px;
+        overflow: hidden;
+    }
+    #child { width: 60px; height: 15px; }
+</style>
+<div id="parent">
+    <div id="outer">
+        <div id="between"></div>
+        <div id="inner">
+            <div id="child"></div>
+        </div>
+    </div>
+</div>
+<script>
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+
+        const betweenBefore = document.getElementById("between").getBoundingClientRect();
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+        document.getElementById("child").style.height = "40px";
+        document.body.offsetHeight;
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        const outer = document.getElementById("outer").getBoundingClientRect();
+        const inner = document.getElementById("inner").getBoundingClientRect();
+        const betweenAfter = document.getElementById("between").getBoundingClientRect();
+        const child = document.getElementById("child").getBoundingClientRect();
+        println(`outer=${rectToString(outer)}`);
+        println(`inner=${rectToString(inner)}`);
+        println(`between-before=${rectToString(betweenBefore)}`);
+        println(`between-after=${rectToString(betweenAfter)}`);
+        println(`child=${rectToString(child)}`);
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(rectToString(outer) === "20,30,260,160"
+            && rectToString(inner) === "70,70,100,50"
+            && rectToString(betweenBefore) === rectToString(betweenAfter)
+            && rectToString(child) === "70,70,60,40"
+            && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

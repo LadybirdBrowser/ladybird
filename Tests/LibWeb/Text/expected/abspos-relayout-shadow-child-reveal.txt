@@ -1,0 +1,4 @@
+layout-passes partial=0 full=1
+revealed=0,0,120,50
+child=40,30,60,40
+PASS

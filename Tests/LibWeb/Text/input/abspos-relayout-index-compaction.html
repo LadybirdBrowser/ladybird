@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #stage { position: relative; width: 400px; height: 300px; }
+    #boundary {
+        position: absolute;
+        left: 40px;
+        top: 30px;
+        width: 200px;
+    }
+    #inner div { height: 5px; }
+</style>
+<div id="stage">
+    <div id="boundary">
+        <div id="inner"></div>
+    </div>
+</div>
+<script>
+    // Every structural partial relayout builds fresh layout nodes, whose indices grow past
+    // the dense range assigned by the last full pass; the per-pass used values store sizes
+    // its page table by the highest index it touches. Repeated churn inside a boundary must
+    // therefore be interrupted by an occasional full pass that renumbers the tree densely
+    // and resets the counter, keeping per-pass cost bounded, while the vast majority of the
+    // updates stay on the partial path.
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+
+        const iterations = 400;
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+        const inner = document.getElementById("inner");
+        for (let i = 0; i < iterations; ++i) {
+            const children = [];
+            for (let j = 0; j < 8; ++j)
+                children.push(document.createElement("div"));
+            inner.replaceChildren(...children);
+            document.body.offsetHeight;
+        }
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        const boundaryRect = document.getElementById("boundary").getBoundingClientRect();
+        println(`layout-passes-sum-matches=${partialDelta + fullDelta === iterations}`);
+        println(`full-passes-bounded=${fullDelta >= 1 && fullDelta <= 4}`);
+        println(`boundary=${boundaryRect.left},${boundaryRect.top},${boundaryRect.width},${boundaryRect.height}`);
+        println(partialDelta + fullDelta === iterations
+            && fullDelta >= 1 && fullDelta <= 4
+            && boundaryRect.height === 40 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

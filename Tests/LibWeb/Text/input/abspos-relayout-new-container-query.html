@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #stage { position: relative; width: 400px; height: 300px; }
+    #boundary {
+        position: absolute;
+        left: 40px;
+        top: 30px;
+        width: 200px;
+    }
+    .holder { container-type: inline-size; width: 180px; }
+    .cq-child { width: 50cqw; height: 20px; }
+</style>
+<div id="stage">
+    <div id="boundary">
+        <div id="child" style="width: 60px; height: 20px;"></div>
+    </div>
+</div>
+<script>
+    // A container-query container created by the in-branch rebuild has no paintable when its
+    // child's container-relative lengths resolve, and during partial relayout the document
+    // reports layout as up to date, so the no-paintable fallback must still register the
+    // container for post-layout evaluation. The pass then reruns through the full path and
+    // the child gets its real container-relative size instead of committing 0 forever.
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+
+        const holder = document.createElement("div");
+        holder.className = "holder";
+        const cqChild = document.createElement("div");
+        cqChild.className = "cq-child";
+        holder.appendChild(cqChild);
+        document.getElementById("child").appendChild(holder);
+        document.body.offsetHeight;
+
+        const cqRect = cqChild.getBoundingClientRect();
+        println(`cq-child=${rectToString(cqRect)}`);
+        println(cqRect.width === 90 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

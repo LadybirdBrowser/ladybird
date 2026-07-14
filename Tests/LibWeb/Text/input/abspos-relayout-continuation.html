@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #root { position: relative; width: 520px; height: 180px; }
+    .boundary {
+        position: absolute;
+        top: 20px;
+        width: 200px;
+        height: 120px;
+        overflow: hidden;
+        font-size: 0;
+        line-height: 10px;
+    }
+    #live-boundary { left: 40px; }
+    #reference-boundary { left: 280px; }
+    .marker {
+        display: inline-block;
+        width: 20px;
+        height: 10px;
+        vertical-align: top;
+    }
+    .inserted-block {
+        display: block;
+        width: 70px;
+        height: 25px;
+    }
+</style>
+<div id="root">
+    <div id="live-boundary" class="boundary">
+        <div><span id="live-inline"><span id="live-before" class="marker"></span></span><span id="live-after" class="marker"></span></div>
+    </div>
+    <div id="reference-boundary" class="boundary">
+        <div><span><span id="reference-before" class="marker"></span><div id="reference-inserted" class="inserted-block"></div></span><span id="reference-after" class="marker"></span></div>
+    </div>
+</div>
+<script>
+    function localRectToString(element, container) {
+        const rect = element.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        return `${rect.left - containerRect.left},${rect.top - containerRect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest((done) => {
+        document.body.offsetHeight;
+
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+
+        const inserted = document.createElement("div");
+        inserted.id = "live-inserted";
+        inserted.className = "inserted-block";
+        document.getElementById("live-inline").appendChild(inserted);
+        document.body.offsetHeight;
+
+        const liveBoundary = document.getElementById("live-boundary");
+        const referenceBoundary = document.getElementById("reference-boundary");
+        const rectsMatch =
+            localRectToString(document.getElementById("live-before"), liveBoundary) === localRectToString(document.getElementById("reference-before"), referenceBoundary)
+            && localRectToString(inserted, liveBoundary) === localRectToString(document.getElementById("reference-inserted"), referenceBoundary)
+            && localRectToString(document.getElementById("live-after"), liveBoundary) === localRectToString(document.getElementById("reference-after"), referenceBoundary);
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        println(`rects-match=${rectsMatch}`);
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(rectsMatch && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

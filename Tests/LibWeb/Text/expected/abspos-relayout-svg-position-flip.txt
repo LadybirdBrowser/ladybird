@@ -1,0 +1,6 @@
+flip partial=0 full=1
+inside partial=1 full=0
+svg-after-flip=60,120,100,80
+child-after-flip=40,30,60,40
+rect-after-inside=60,120,70,40
+PASS

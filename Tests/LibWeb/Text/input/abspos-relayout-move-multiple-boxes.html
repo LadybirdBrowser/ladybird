@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #root { position: relative; width: 400px; height: 300px; }
+    .boundary {
+        position: absolute;
+        width: 40px;
+        height: 30px;
+        overflow: hidden;
+    }
+    #a { left: 0px; top: 0px; }
+    #b { left: 50px; top: 0px; }
+    #c { left: 100px; top: 0px; }
+</style>
+<div id="root">
+    <div id="a" class="boundary"></div>
+    <div id="b" class="boundary"></div>
+    <div id="c" class="boundary"></div>
+</div>
+<script>
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest((done) => {
+        document.body.offsetHeight;
+
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+
+        document.getElementById("a").style.top = "100px";
+        document.getElementById("b").style.top = "150px";
+        document.getElementById("c").style.left = "200px";
+        document.body.offsetHeight;
+
+        const rectA = document.getElementById("a").getBoundingClientRect();
+        const rectB = document.getElementById("b").getBoundingClientRect();
+        const rectC = document.getElementById("c").getBoundingClientRect();
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        println(`a=${rectToString(rectA)}`);
+        println(`b=${rectToString(rectB)}`);
+        println(`c=${rectToString(rectC)}`);
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(rectToString(rectA) === "0,100,40,30"
+            && rectToString(rectB) === "50,150,40,30"
+            && rectToString(rectC) === "200,0,40,30"
+            && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

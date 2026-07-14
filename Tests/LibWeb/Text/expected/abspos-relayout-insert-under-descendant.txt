@@ -1,0 +1,5 @@
+inserted=55,40,35,20
+outside-before=0,130,120,25
+outside-after=0,130,120,25
+partial-layouts=0 full-layouts=1
+FAIL

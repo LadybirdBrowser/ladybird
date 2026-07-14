@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #root { position: relative; width: 400px; height: 300px; }
+    #boundary {
+        position: absolute;
+        left: 20px;
+        top: 10px;
+        /* Intrinsic sizing: replay re-runs it against subtree content on every partial relayout. */
+        width: min-content;
+        height: 80px;
+        overflow: hidden;
+    }
+    .item { width: 60px; height: 20px; background: green; }
+</style>
+<div id="root">
+    <div id="boundary"><div class="item" id="item"></div></div>
+</div>
+<script>
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest((done) => {
+        document.body.offsetHeight;
+
+        const boundary = document.getElementById("boundary");
+        const before = rectToString(boundary.getBoundingClientRect());
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+
+        document.getElementById("item").style.width = "110px";
+        document.body.offsetHeight;
+
+        const after = rectToString(boundary.getBoundingClientRect());
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        println(`boundary-before=${before}`);
+        println(`boundary-after=${after}`);
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(before === "20,10,60,80" && after === "20,10,110,80"
+            && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

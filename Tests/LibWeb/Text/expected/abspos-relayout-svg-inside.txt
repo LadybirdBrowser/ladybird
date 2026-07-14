@@ -1,0 +1,7 @@
+boundary=40,50,220,160
+svg=40,50,100,80
+sibling-before=40,130,70,20
+sibling-after=40,130,70,20
+page-sibling=0,220,120,30
+partial-layouts=1 full-layouts=0
+PASS

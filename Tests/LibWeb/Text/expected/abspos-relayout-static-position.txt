@@ -1,0 +1,5 @@
+boundary-before=0,70,120,70
+boundary-after=0,70,120,70
+child=0,70,80,55
+partial-layouts=0 full-layouts=1
+FAIL

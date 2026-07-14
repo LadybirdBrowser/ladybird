@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #scroller { position: relative; width: 300px; height: 150px; overflow: auto; }
+    #boundary {
+        position: absolute;
+        left: 10px;
+        top: 20px;
+        width: 100px;
+        /* Content-driven height: growth must resize the boundary and grow the scroller's
+           scrollable overflow, which the geometry diff after commit recomputes. */
+        overflow: hidden;
+    }
+    #content { width: 50px; height: 60px; background: purple; }
+</style>
+<div id="scroller">
+    <div id="boundary"><div id="content"></div></div>
+</div>
+<script>
+    asyncTest((done) => {
+        document.body.offsetHeight;
+
+        const scroller = document.getElementById("scroller");
+        const scrollHeightBefore = scroller.scrollHeight;
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+
+        document.getElementById("content").style.height = "400px";
+        document.body.offsetHeight;
+
+        const boundaryHeight = document.getElementById("boundary").getBoundingClientRect().height;
+        const scrollHeightAfter = scroller.scrollHeight;
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        println(`boundary-height=${boundaryHeight}`);
+        println(`scroll-height-before=${scrollHeightBefore} after=${scrollHeightAfter}`);
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(boundaryHeight === 400
+            && scrollHeightBefore === 150 && scrollHeightAfter === 420
+            && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

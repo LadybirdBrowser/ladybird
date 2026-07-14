@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #root { position: relative; width: 460px; height: 170px; }
+    #boundary {
+        position: absolute;
+        left: 30px;
+        top: 20px;
+        width: 180px;
+        height: 120px;
+        overflow: hidden;
+    }
+    #outside-wrapper {
+        position: absolute;
+        left: 260px;
+        top: 20px;
+    }
+    table { border-collapse: collapse; }
+    td {
+        padding: 0;
+        width: 50px;
+        height: 20px;
+    }
+</style>
+<div id="root">
+    <div id="boundary">
+        <div id="inner">
+            <table id="live-table"><tbody id="live-body"><tr><td>one</td></tr></tbody></table>
+        </div>
+    </div>
+    <div id="outside-wrapper">
+        <table id="outside-table"><tbody><tr><td>one</td></tr><tr><td id="outside-new">new</td></tr></tbody></table>
+    </div>
+</div>
+<script>
+    function localRectToString(element, container) {
+        const rect = element.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        return `${rect.left - containerRect.left},${rect.top - containerRect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest((done) => {
+        document.body.offsetHeight;
+
+        const outsideBefore = localRectToString(document.getElementById("outside-new"), document.getElementById("outside-table"));
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+
+        const row = document.createElement("tr");
+        row.innerHTML = "<td id='live-new'>new</td>";
+        document.getElementById("live-body").appendChild(row);
+        document.body.offsetHeight;
+
+        const liveRect = localRectToString(document.getElementById("live-new"), document.getElementById("live-table"));
+        const outsideAfter = localRectToString(document.getElementById("outside-new"), document.getElementById("outside-table"));
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        println(`live-new=${liveRect}`);
+        println(`outside-before=${outsideBefore}`);
+        println(`outside-after=${outsideAfter}`);
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(liveRect === "0,20,50,20"
+            && outsideBefore === outsideAfter
+            && liveRect === outsideAfter
+            && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #root { position: relative; width: 360px; height: 180px; }
+    #boundary {
+        position: absolute;
+        left: 40px;
+        top: 30px;
+        width: 160px;
+        height: 90px;
+        overflow: hidden;
+    }
+    #inner { width: 80px; height: 30px; }
+    #outside { width: 120px; height: 25px; }
+    .abs-child {
+        position: absolute;
+        left: 15px;
+        top: 10px;
+        width: 35px;
+        height: 20px;
+    }
+</style>
+<div id="root">
+    <div id="boundary">
+        <div id="inner"></div>
+    </div>
+    <div style="height: 130px"></div>
+    <div id="outside"></div>
+</div>
+<script>
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest((done) => {
+        document.body.offsetHeight;
+
+        const outsideBefore = document.getElementById("outside").getBoundingClientRect();
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+
+        const child = document.createElement("div");
+        child.id = "inserted";
+        child.className = "abs-child";
+        document.getElementById("inner").appendChild(child);
+        document.body.offsetHeight;
+
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+        const inserted = child.getBoundingClientRect();
+        const outsideAfter = document.getElementById("outside").getBoundingClientRect();
+
+        println(`inserted=${rectToString(inserted)}`);
+        println(`outside-before=${rectToString(outsideBefore)}`);
+        println(`outside-after=${rectToString(outsideAfter)}`);
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(rectToString(inserted) === "55,40,35,20"
+            && rectToString(outsideBefore) === rectToString(outsideAfter)
+            && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

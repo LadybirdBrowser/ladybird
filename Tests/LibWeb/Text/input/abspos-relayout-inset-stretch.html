@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #parent { position: relative; width: 320px; height: 180px; }
+    #boundary {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+    }
+    #child { width: 100px; height: 25px; }
+</style>
+<div id="parent">
+    <div id="boundary">
+        <div id="child"></div>
+    </div>
+</div>
+<script>
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+        document.getElementById("child").style.height = "70px";
+        document.body.offsetHeight;
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        const boundary = document.getElementById("boundary").getBoundingClientRect();
+        const child = document.getElementById("child").getBoundingClientRect();
+        println(`boundary=${rectToString(boundary)}`);
+        println(`child=${rectToString(child)}`);
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(boundary.left === 0 && boundary.top === 0 && boundary.width === 320 && boundary.height === 180
+            && child.left === 0 && child.top === 0 && child.width === 100 && child.height === 70
+            && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

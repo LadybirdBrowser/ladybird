@@ -1,0 +1,6 @@
+layout-passes partial=0 full=1
+anchor-before=50,70,50,20
+target-before=50,90,60,25
+anchor-after=50,100,50,20
+target-after=50,120,60,25
+PASS

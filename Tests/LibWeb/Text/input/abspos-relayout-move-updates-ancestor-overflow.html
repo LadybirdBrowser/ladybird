@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #scroller {
+        position: relative;
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+    }
+    #boundary {
+        position: absolute;
+        left: 0px;
+        top: 0px;
+        width: 50px;
+        height: 50px;
+        overflow: hidden;
+    }
+</style>
+<div id="scroller">
+    <div id="boundary"></div>
+</div>
+<script>
+    asyncTest((done) => {
+        document.body.offsetHeight;
+
+        const scroller = document.getElementById("scroller");
+        const boundary = document.getElementById("boundary");
+        const scrollHeightBefore = scroller.scrollHeight;
+
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+
+        boundary.style.top = "500px";
+        document.body.offsetHeight;
+
+        const scrollHeightAfter = scroller.scrollHeight;
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        println(`scrollHeight-before=${scrollHeightBefore}`);
+        println(`scrollHeight-after=${scrollHeightAfter}`);
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(scrollHeightAfter === 550
+            && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

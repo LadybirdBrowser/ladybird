@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #stage { position: relative; width: 400px; height: 300px; }
+    #anchor {
+        anchor-name: --a;
+        width: 90px;
+        height: 20px;
+    }
+    #tooltip {
+        position: absolute;
+        position-anchor: --a;
+        left: anchor(right);
+        top: anchor(top);
+        width: 50px;
+        height: 15px;
+    }
+    #boundary {
+        position: absolute;
+        left: 40px;
+        top: 120px;
+        width: 200px;
+        height: 100px;
+        overflow: hidden;
+    }
+    #child { width: 70px; height: 20px; }
+</style>
+<div id="stage">
+    <div id="anchor"></div>
+    <div id="tooltip"></div>
+    <div id="boundary">
+        <div id="child"></div>
+    </div>
+</div>
+<script>
+    // Anchor positioning in use anywhere in the document takes updates off the partial
+    // relayout path: geometry published by anchor names is consumed by positioned boxes
+    // that boundary attribution cannot see, so even a change inside a boundary that
+    // contains no anchor names must take a full layout.
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+
+        const tooltipBefore = document.getElementById("tooltip").getBoundingClientRect();
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+        document.getElementById("child").style.height = "50px";
+        document.body.offsetHeight;
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        const tooltipAfter = document.getElementById("tooltip").getBoundingClientRect();
+        const child = document.getElementById("child").getBoundingClientRect();
+        println(`layout-passes partial=${partialDelta} full=${fullDelta}`);
+        println(`tooltip-before=${rectToString(tooltipBefore)}`);
+        println(`tooltip-after=${rectToString(tooltipAfter)}`);
+        println(`child=${rectToString(child)}`);
+        println(partialDelta === 0 && fullDelta === 1
+            && rectToString(tooltipBefore) === "90,0,50,15"
+            && rectToString(tooltipAfter) === "90,0,50,15"
+            && rectToString(child) === "40,120,70,50" ? "PASS" : "FAIL");
+        done();
+    });
+</script>

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #stage { position: relative; width: 400px; height: 300px; }
+    #boundary {
+        position: absolute;
+        left: 40px;
+        top: 30px;
+        width: 240px;
+        height: 200px;
+    }
+    #svg.moved {
+        position: absolute;
+        left: 20px;
+        top: 90px;
+    }
+    #child { width: 60px; height: 20px; }
+</style>
+<div id="stage">
+    <div id="boundary">
+        <svg id="svg" width="100" height="80" viewBox="0 0 100 80">
+            <rect id="r" width="50" height="40" fill="blue"/>
+        </svg>
+        <div id="child"></div>
+    </div>
+</div>
+<script>
+    // Flipping an in-flow outermost <svg> to position:absolute replaces its box in place;
+    // the replacement carries no saved abspos layout inputs (the old box was in flow). The
+    // rebuilt box must not qualify as its own partial relayout boundary through the SVG arm
+    // of the predicate, or the replay path dereferences the missing inputs. The update takes
+    // the full layout path; once that pass has saved inputs for the now-absolutely-positioned
+    // svg root, changes inside it go back to partial relayout.
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+        document.getElementById("svg").classList.add("moved");
+        document.getElementById("child").style.height = "40px";
+        document.body.offsetHeight;
+        const partialDeltaFlip = internals.partialLayoutCount() - partialBefore;
+        const fullDeltaFlip = internals.fullLayoutCount() - fullBefore;
+        const svgAfterFlip = document.getElementById("svg").getBoundingClientRect();
+        const childAfterFlip = document.getElementById("child").getBoundingClientRect();
+
+        const partialBeforeInside = internals.partialLayoutCount();
+        const fullBeforeInside = internals.fullLayoutCount();
+        document.getElementById("r").setAttribute("width", "70");
+        document.body.offsetHeight;
+        const partialDeltaInside = internals.partialLayoutCount() - partialBeforeInside;
+        const fullDeltaInside = internals.fullLayoutCount() - fullBeforeInside;
+        const rectAfterInside = document.getElementById("r").getBoundingClientRect();
+
+        println(`flip partial=${partialDeltaFlip} full=${fullDeltaFlip}`);
+        println(`inside partial=${partialDeltaInside} full=${fullDeltaInside}`);
+        println(`svg-after-flip=${rectToString(svgAfterFlip)}`);
+        println(`child-after-flip=${rectToString(childAfterFlip)}`);
+        println(`rect-after-inside=${rectToString(rectAfterInside)}`);
+        println(partialDeltaFlip === 0 && fullDeltaFlip >= 1
+            && rectToString(svgAfterFlip) === "60,120,100,80"
+            && rectToString(childAfterFlip) === "40,30,60,40"
+            && rectToString(rectAfterInside) === "60,120,70,40" ? "PASS" : "FAIL");
+        done();
+    });
+</script>

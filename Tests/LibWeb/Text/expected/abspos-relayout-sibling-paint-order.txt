@@ -1,0 +1,4 @@
+layout-passes partial=0 full=1
+hit-before=second
+hit-after=second
+FAIL

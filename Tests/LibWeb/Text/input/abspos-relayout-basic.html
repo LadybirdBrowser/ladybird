@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #root { position: relative; width: 400px; height: 200px; }
+    #boundary {
+        position: absolute;
+        left: 40px;
+        top: 30px;
+        width: 160px;
+        height: 80px;
+        overflow: hidden;
+    }
+    #child { width: 70px; height: 20px; }
+    #spacer { height: 120px; }
+    #outside { width: 200px; height: 25px; }
+</style>
+<div id="root">
+    <div id="boundary">
+        <div id="child"></div>
+    </div>
+    <div id="spacer"></div>
+    <div id="outside"></div>
+</div>
+<script>
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+
+        const outsideBefore = document.getElementById("outside").getBoundingClientRect();
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+        document.getElementById("child").style.height = "60px";
+        document.body.offsetHeight;
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        const child = document.getElementById("child").getBoundingClientRect();
+        const outsideAfter = document.getElementById("outside").getBoundingClientRect();
+        println(`child=${rectToString(child)}`);
+        println(`outside-before=${rectToString(outsideBefore)}`);
+        println(`outside-after=${rectToString(outsideAfter)}`);
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(child.left === 40 && child.top === 30 && child.width === 70 && child.height === 60
+            && rectToString(outsideBefore) === rectToString(outsideAfter)
+            && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
+        done();
+    });
+</script>

@@ -1,0 +1,4 @@
+boundary-before=40,30,150,90
+boundary-after=40,30,150,90
+partial-layouts=0 full-layouts=1
+FAIL

@@ -1,0 +1,5 @@
+layout-passes partial=0 full=1
+tooltip-before=90,0,50,15
+tooltip-after=90,0,50,15
+child=40,120,70,50
+PASS
