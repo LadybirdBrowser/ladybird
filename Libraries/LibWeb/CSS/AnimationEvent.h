@@ -27,6 +27,9 @@ public:
     Utf16String const& animation_name() const { return m_animation_name; }
     double elapsed_time() const { return m_elapsed_time; }
     Utf16String const& pseudo_element() const { return m_pseudo_element; }
+    GC::Ptr<CSSAnimation> animation() const { return m_animation; }
+
+    virtual void visit_edges(Cell::Visitor&) override;
 
 private:
     AnimationEvent(JS::Realm&, Utf16FlyString const& type, Bindings::AnimationEventInit const& event_init);
@@ -41,6 +44,9 @@ private:
 
     // https://www.w3.org/TR/css-animations-1/#dom-animationevent-pseudoelement
     Utf16String m_pseudo_element {};
+
+    // https://drafts.csswg.org/css-animations-2/#dom-animationevent-animation
+    GC::Ptr<CSSAnimation> m_animation;
 };
 
 }

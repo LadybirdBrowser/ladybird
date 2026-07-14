@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 42 tests
 
-41 Pass
-1 Fail
+42 Pass
 Pass	the event is an instance of AnimationEvent
 Pass	the event inherts from Event
 Pass	Missing type argument
@@ -45,4 +44,4 @@ Pass	elapsedTime cannot be set to 'sample'
 Pass	elapsedTime cannot be set to [0.5, 1.0]
 Pass	elapsedTime cannot be set to an object
 Pass	AnimationEventInit properties set value
-Fail	AnimationEventInit animation property sets value
+Pass	AnimationEventInit animation property sets value

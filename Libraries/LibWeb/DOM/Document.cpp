@@ -4028,6 +4028,7 @@ void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::An
             pseudo_element.has_value()) {
             event_init.pseudo_element = pseudo_element.release_value();
         }
+        event_init.animation = css_animation;
 
         auto timeline = animation->timeline();
 

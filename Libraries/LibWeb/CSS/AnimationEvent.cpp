@@ -7,6 +7,7 @@
 #include <LibWeb/Bindings/AnimationEvent.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/AnimationEvent.h>
+#include <LibWeb/CSS/CSSAnimation.h>
 
 namespace Web::CSS {
 
@@ -27,6 +28,7 @@ AnimationEvent::AnimationEvent(JS::Realm& realm, Utf16FlyString const& type, Bin
     , m_animation_name(event_init.animation_name)
     , m_elapsed_time(event_init.elapsed_time)
     , m_pseudo_element(event_init.pseudo_element)
+    , m_animation(event_init.animation)
 {
 }
 
@@ -34,6 +36,12 @@ void AnimationEvent::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(AnimationEvent);
     Base::initialize(realm);
+}
+
+void AnimationEvent::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_animation);
 }
 
 }
