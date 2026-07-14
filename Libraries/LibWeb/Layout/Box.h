@@ -15,6 +15,8 @@
 
 namespace Web::Layout {
 
+struct AbsposLayoutInputs;
+
 struct LineBoxFragmentCoordinate {
     size_t line_box_index { 0 };
     size_t fragment_index { 0 };
@@ -70,6 +72,13 @@ public:
 
     virtual RefPtr<Painting::Paintable> create_paintable() const override;
 
+    // The inputs the absolutely positioned element layout algorithm consumed the last time a
+    // committing layout pass laid this box out; a partial relayout can replay the algorithm
+    // from them without re-running the ancestor formatting context.
+    AbsposLayoutInputs const* saved_abspos_layout_inputs() const { return m_saved_abspos_layout_inputs.ptr(); }
+    void set_saved_abspos_layout_inputs(AbsposLayoutInputs const&);
+    void clear_saved_abspos_layout_inputs();
+
     void set_default_scroll_shift(WeakPtr<Node> anchor, bool compensates_for_scroll_in_x, bool compensates_for_scroll_in_y)
     {
         m_default_scroll_shift_anchor = move(anchor);
@@ -96,6 +105,8 @@ protected:
 
 private:
     virtual bool is_box() const final { return true; }
+
+    OwnPtr<AbsposLayoutInputs> m_saved_abspos_layout_inputs;
 
     WeakPtr<Node> m_default_scroll_shift_anchor;
     bool m_compensates_for_scroll_in_x { false };

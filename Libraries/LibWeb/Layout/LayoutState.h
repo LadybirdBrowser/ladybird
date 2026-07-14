@@ -275,6 +275,14 @@ struct LayoutState {
             return move(m_rare->flex_layout_data);
         }
 
+        void set_abspos_layout_inputs(AbsposLayoutInputs abspos_layout_inputs) { ensure_rare_data().abspos_layout_inputs = move(abspos_layout_inputs); }
+        AbsposLayoutInputs const* abspos_layout_inputs() const
+        {
+            if (!m_rare || !m_rare->abspos_layout_inputs.has_value())
+                return nullptr;
+            return &*m_rare->abspos_layout_inputs;
+        }
+
     private:
         friend struct LayoutState;
         friend class FormattingContext;
@@ -307,6 +315,7 @@ struct LayoutState {
                 , grid_template_rows(other.grid_template_rows)
                 , override_borders_data(other.override_borders_data)
                 , computed_svg_transforms(other.computed_svg_transforms)
+                , abspos_layout_inputs(other.abspos_layout_inputs)
             {
                 if (other.grid_layout_data)
                     grid_layout_data = make<GridLayoutData>(*other.grid_layout_data);
@@ -323,6 +332,7 @@ struct LayoutState {
             RefPtr<CSS::GridTrackSizeListStyleValue const> grid_template_rows;
             Optional<Painting::Paintable::BordersDataWithElementKind> override_borders_data;
             Optional<Painting::SVGGraphicsPaintable::ComputedTransforms> computed_svg_transforms;
+            Optional<AbsposLayoutInputs> abspos_layout_inputs;
         };
 
         RareData& ensure_rare_data()

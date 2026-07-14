@@ -308,6 +308,15 @@ void LayoutState::commit(Box& root)
         if (m_subtree_root && !m_subtree_root->is_inclusive_ancestor_of(node))
             return;
 
+        // Clearing on absence keeps saved inputs from a previous pass from surviving a pass
+        // that no longer laid the box out as absolutely positioned.
+        if (auto* layout_box = as_if<Box>(const_cast<NodeWithStyle&>(node))) {
+            if (auto const* abspos_layout_inputs = used_values.abspos_layout_inputs())
+                layout_box->set_saved_abspos_layout_inputs(*abspos_layout_inputs);
+            else
+                layout_box->clear_saved_abspos_layout_inputs();
+        }
+
         RefPtr<Painting::Paintable> paintable;
 
         // Try to reuse cached paintable for Box nodes

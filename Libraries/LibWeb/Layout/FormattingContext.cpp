@@ -2470,6 +2470,11 @@ void FormattingContext::layout_absolutely_positioned_element(Box& box, AbsposLay
 
     place_child(box, used_offset);
 
+    // The inputs reach the box itself only through LayoutState::commit(), so recording them
+    // into a throwaway measurement state would just be discarded work.
+    if (m_layout_mode == LayoutMode::Normal && !m_state.is_for_measurement())
+        box_state.set_abspos_layout_inputs(inputs);
+
     if (independent_formatting_context)
         independent_formatting_context->parent_context_did_dimension_child_root_box();
 }

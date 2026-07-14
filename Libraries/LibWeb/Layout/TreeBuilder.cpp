@@ -32,6 +32,7 @@
 #include <LibWeb/Dump.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
+#include <LibWeb/Layout/AbsposLayoutInputs.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/FieldSetBox.h>
 #include <LibWeb/Layout/ImageBox.h>
@@ -931,6 +932,14 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         m_layout_root = layout_node;
     } else if (should_create_layout_node) {
         if (may_replace_existing_layout_node) {
+            // The replacement box represents the same element in the same tree position, so the
+            // layout inputs saved by the previous layout pass carry over to it.
+            if (auto const* old_box = as_if<Box>(*old_layout_node)) {
+                if (auto* new_box = as_if<Box>(*layout_node)) {
+                    if (old_box->saved_abspos_layout_inputs())
+                        new_box->set_saved_abspos_layout_inputs(*old_box->saved_abspos_layout_inputs());
+                }
+            }
             old_layout_node->prepare_subtree_for_detach_from_layout_tree();
             old_layout_node->parent()->replace_child(*layout_node, *old_layout_node);
         } else if (layout_node->is_svg_box()) {

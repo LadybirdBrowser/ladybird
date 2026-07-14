@@ -7,6 +7,7 @@
 
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
+#include <LibWeb/Layout/AbsposLayoutInputs.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/FormattingContext.h>
@@ -27,6 +28,19 @@ Box::Box(DOM::Document& document, DOM::Node* node, NonnullOwnPtr<CSS::ComputedVa
 
 Box::~Box()
 {
+}
+
+void Box::set_saved_abspos_layout_inputs(AbsposLayoutInputs const& abspos_layout_inputs)
+{
+    if (m_saved_abspos_layout_inputs)
+        *m_saved_abspos_layout_inputs = abspos_layout_inputs;
+    else
+        m_saved_abspos_layout_inputs = make<AbsposLayoutInputs>(abspos_layout_inputs);
+}
+
+void Box::clear_saved_abspos_layout_inputs()
+{
+    m_saved_abspos_layout_inputs = nullptr;
 }
 
 bool Box::is_partial_relayout_boundary() const
