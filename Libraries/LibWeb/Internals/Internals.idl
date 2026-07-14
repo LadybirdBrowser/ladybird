@@ -5,6 +5,7 @@ interface Internals {
     undefined setTestTimeout(double milliseconds);
     undefined forceIncompatibleVisualContextTreeRebuild();
     unsigned long long visualContextTreeNodeCount();
+    undefined sendMismatchedVisualContextTreeUpdateToCompositor();
     undefined loadReferenceTestMetadata();
 
     Utf16DOMString setTimeZone(Utf16DOMString timeZone);

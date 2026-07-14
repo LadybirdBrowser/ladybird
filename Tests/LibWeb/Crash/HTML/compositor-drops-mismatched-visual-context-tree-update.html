@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<!-- Regression test for the Compositor dropping (rather than crashing on) a visual-context-tree update whose
+     version its installed display list was never recorded against. See #10368.
+     internals.sendMismatchedVisualContextTreeUpdateToCompositor() reproduces the peer inconsistency directly. With the
+     defensive Compositor fix, the update is dropped and the process survives (this test renders and passes); without
+     it, the Compositor crashes. -->
+<html class="test-wait">
+<head><style>#box { width: 100px; height: 100px; transform: rotate(10deg); background: orange; }</style></head>
+<body>
+<div id="box"></div>
+<script>
+    // Let a display list get recorded and installed on the Compositor first.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+        internals.sendMismatchedVisualContextTreeUpdateToCompositor();
+        // If the Compositor survived (dropped the update), we reach here and finish.
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            document.documentElement.classList.remove("test-wait");
+        }));
+    }));
+</script>
+</body>
+</html>

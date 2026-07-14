@@ -186,8 +186,12 @@ void ContextState::install_display_list_update(
 
 void ContextState::update_visual_context_tree(Web::Painting::AccumulatedVisualContextTree visual_context_tree)
 {
-    VERIFY(m_display_list);
-    VERIFY(m_display_list->compatible_visual_context_tree_version() == visual_context_tree.version());
+    if (!m_display_list || m_display_list->compatible_visual_context_tree_version() != visual_context_tree.version()) {
+        dbgln("Compositor: Dropping stale visual context tree update (tree version {}, display list version {})",
+            visual_context_tree.version(),
+            m_display_list ? m_display_list->compatible_visual_context_tree_version() : 0);
+        return;
+    }
     m_visual_context_tree = move(visual_context_tree);
     m_visual_context_tree_for_compositing.clear();
     if (m_async_visual_viewport_transform.has_value() && visual_viewport_transforms_match(visual_viewport_transform(*m_visual_context_tree), *m_async_visual_viewport_transform))

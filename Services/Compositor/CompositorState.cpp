@@ -135,6 +135,13 @@ void CompositorState::update_display_list(Web::Compositor::CompositorContextId c
     auto* context = context_if_present(context_id);
     VERIFY(context);
 
+    if (display_list->compatible_visual_context_tree_version() != visual_context_tree.version()) {
+        dbgln("Compositor: Dropping inconsistent display list update (display list version {}, tree version {})",
+            display_list->compatible_visual_context_tree_version(),
+            visual_context_tree.version());
+        return;
+    }
+
     context->apply_display_list_resource_transaction(move(resource_transaction));
     context->install_display_list_update(move(display_list), move(visual_context_tree), move(scroll_state_snapshot));
 }

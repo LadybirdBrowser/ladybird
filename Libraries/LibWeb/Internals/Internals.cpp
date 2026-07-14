@@ -119,6 +119,27 @@ u64 Internals::visual_context_tree_node_count()
     return paintable->visual_context_tree().nodes().size();
 }
 
+void Internals::send_mismatched_visual_context_tree_update_to_compositor()
+{
+    auto& document = window().associated_document();
+    auto navigable = document.navigable();
+    if (!navigable || !navigable->has_compositor_context())
+        return;
+    auto paintable = document.paintable();
+    if (!paintable || !paintable->has_visual_context_tree())
+        return;
+
+    // Force a fresh, incompatible rebuild — so the tree is minted with a new version that the Compositor's installed
+    // display list was never recorded against.
+    paintable->set_force_incompatible_visual_context_tree_rebuild_for_testing();
+    document.set_needs_accumulated_visual_contexts_update(true);
+    document.update_paint_and_hit_testing_properties_if_needed();
+
+    // Send a bare visual-context-tree update carrying that new version *without* re-recording the display list —
+    // deliberately reproducing the peer inconsistency behind issue #10368.
+    navigable->compositor_context().update_visual_context_tree(paintable->visual_context_tree());
+}
+
 // https://web-platform-tests.org/writing-tests/reftests.html#components-of-a-reftest
 WebIDL::ExceptionOr<void> Internals::load_reference_test_metadata()
 {
