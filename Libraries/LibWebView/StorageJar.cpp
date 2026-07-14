@@ -65,16 +65,6 @@ StorageJar::StorageJar(Optional<PersistedStorage> persisted_storage)
 
 StorageJar::~StorageJar() = default;
 
-static String storage_string_to_database_string(Utf16String const& string)
-{
-    return string.to_utf8();
-}
-
-static Utf16String storage_string_from_database_string(String const& string)
-{
-    return Utf16String::from_utf8(string);
-}
-
 static size_t storage_quota_size(Utf16String const& string)
 {
     auto utf8_string = string.to_utf8();
@@ -228,18 +218,17 @@ Requests::CacheSizes StorageJar::TransientStorage::estimate_storage_size_accesse
 
 Optional<Utf16String> StorageJar::PersistedStorage::get_item(StorageLocation const& key)
 {
-    Optional<String> result;
-    auto bottle_key = storage_string_to_database_string(key.bottle_key);
+    Optional<Utf16String> result;
 
     database.execute_statement(
         statements.get_item,
         [&](auto statement_id) -> ErrorOr<void> {
-            result = database.result_column<String>(statement_id, 0);
+            result = database.result_column<Utf16String>(statement_id, 0);
             return {};
         },
         to_underlying(key.storage_endpoint),
         key.storage_key,
-        bottle_key);
+        key.bottle_key);
 
     if (result.has_value()) {
         database.execute_statement(
@@ -248,17 +237,15 @@ Optional<Utf16String> StorageJar::PersistedStorage::get_item(StorageLocation con
             UnixDateTime::now(),
             to_underlying(key.storage_endpoint),
             key.storage_key,
-            bottle_key);
+            key.bottle_key);
     }
 
-    return result.map(storage_string_from_database_string);
+    return result;
 }
 
 StorageSetResult StorageJar::PersistedStorage::set_item(StorageLocation const& key, Utf16String const& value)
 {
     auto old_value = get_item(key);
-    auto bottle_key = storage_string_to_database_string(key.bottle_key);
-    auto bottle_value = storage_string_to_database_string(value);
 
     size_t current_size = 0;
     database.execute_statement(
@@ -269,9 +256,9 @@ StorageSetResult StorageJar::PersistedStorage::set_item(StorageLocation const& k
         },
         to_underlying(key.storage_endpoint),
         key.storage_key,
-        bottle_key);
+        key.bottle_key);
 
-    auto new_size = bottle_key.bytes().size() + bottle_value.bytes().size();
+    auto new_size = storage_quota_size(key.bottle_key) + storage_quota_size(value);
     if (current_size + new_size > LOCAL_STORAGE_QUOTA)
         return StorageOperationError::QuotaExceededError;
 
@@ -280,8 +267,8 @@ StorageSetResult StorageJar::PersistedStorage::set_item(StorageLocation const& k
         {},
         to_underlying(key.storage_endpoint),
         key.storage_key,
-        bottle_key,
-        bottle_value,
+        key.bottle_key,
+        value,
         UnixDateTime::now());
 
     return old_value;
@@ -289,14 +276,12 @@ StorageSetResult StorageJar::PersistedStorage::set_item(StorageLocation const& k
 
 void StorageJar::PersistedStorage::delete_item(StorageLocation const& key)
 {
-    auto bottle_key = storage_string_to_database_string(key.bottle_key);
-
     database.execute_statement(
         statements.delete_item,
         {},
         to_underlying(key.storage_endpoint),
         key.storage_key,
-        bottle_key);
+        key.bottle_key);
 }
 
 void StorageJar::PersistedStorage::delete_items_accessed_since(UnixDateTime since)
@@ -320,7 +305,7 @@ Vector<Utf16String> StorageJar::PersistedStorage::get_keys(StorageEndpointType s
     database.execute_statement(
         statements.get_keys,
         [&](auto statement_id) -> ErrorOr<void> {
-            keys.append(storage_string_from_database_string(database.result_column<String>(statement_id, 0)));
+            keys.append(database.result_column<Utf16String>(statement_id, 0));
             return {};
         },
         to_underlying(storage_endpoint),
