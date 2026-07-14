@@ -77,6 +77,11 @@ public:
 
     void enable_compressed_texture_format(WebIDL::UnsignedLong format);
 
+    // Holds a WebGLVertexArrayObject for WebGL2 contexts, or a WebGLVertexArrayObjectOES for WebGL1 contexts with the
+    // OES_vertex_array_object extension enabled.
+    GC::Ptr<WebGLObject> current_vertex_array_binding() const { return m_current_vertex_array; }
+    void set_current_vertex_array_binding(GC::Ptr<WebGLObject> vertex_array) { m_current_vertex_array = vertex_array; }
+
 protected:
     WebGLRenderingContextBase(JS::Realm&);
 
@@ -303,6 +308,8 @@ protected:
     //      video is still converted to rec709 RGB data, but not then converted to e.g. srgb RGB data) The initial value is
     //      BROWSER_DEFAULT_WEBGL.
     GLenum m_unpack_colorspace_conversion { BROWSER_DEFAULT_WEBGL };
+
+    GC::Ptr<WebGLObject> m_current_vertex_array;
 
 private:
     GLenum m_error { 0 };

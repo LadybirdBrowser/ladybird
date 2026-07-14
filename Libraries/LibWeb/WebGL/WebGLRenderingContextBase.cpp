@@ -39,6 +39,7 @@ extern "C" {
 #include <LibWeb/WebGL/Extensions/WebGLDrawBuffers.h>
 #include <LibWeb/WebGL/TextureUpload.h>
 #include <LibWeb/WebGL/WebGLContextProxy.h>
+#include <LibWeb/WebGL/WebGLObject.h>
 #include <LibWeb/WebGL/WebGLRenderingContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
 
@@ -199,6 +200,7 @@ void WebGLRenderingContextBase::enable_compressed_texture_format(WebIDL::Unsigne
 void WebGLRenderingContextBase::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_current_vertex_array);
     visitor.visit(m_enabled_extensions);
 }
 

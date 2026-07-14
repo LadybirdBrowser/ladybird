@@ -57,6 +57,8 @@ void OESVertexArrayObject::delete_vertex_array_oes(GC::Ptr<WebGLVertexArrayObjec
 
     auto handle = vertex_array_handle.value();
     m_context->context().delete_vertex_arrays_oes(1, &handle);
+    if (m_context->current_vertex_array_binding() == array_object)
+        m_context->set_current_vertex_array_binding(nullptr);
 }
 
 bool OESVertexArrayObject::is_vertex_array_oes(GC::Ptr<WebGLVertexArrayObjectOES> array_object)
@@ -92,6 +94,7 @@ void OESVertexArrayObject::bind_vertex_array_oes(GC::Ptr<WebGLVertexArrayObjectO
     }
 
     m_context->context().bind_vertex_array_oes(vertex_array_handle);
+    m_context->set_current_vertex_array_binding(array_object);
 }
 
 void OESVertexArrayObject::initialize(JS::Realm& realm)

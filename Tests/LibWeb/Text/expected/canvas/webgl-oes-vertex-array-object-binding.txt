@@ -1,0 +1,7 @@
+binding before enabling extension: null
+error: INVALID_ENUM
+initial binding: null
+bound VAO is returned: true
+binding after unbind: null
+binding after deleting bound VAO: null
+error: NO_ERROR

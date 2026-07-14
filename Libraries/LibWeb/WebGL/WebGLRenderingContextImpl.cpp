@@ -1447,6 +1447,16 @@ WebIDL::ExceptionOr<JS::Value> WebGLRenderingContextImpl::get_parameter(WebIDL::
         set_error(GL_INVALID_ENUM);
         return JS::js_null();
     }
+    case GL_VERTEX_ARRAY_BINDING: { // NOTE: This has the same value as VERTEX_ARRAY_BINDING_OES
+        if (extension_enabled("OES_vertex_array_object"sv) || m_context->webgl_version() == WebGLVersion::WebGL2) {
+            if (!m_current_vertex_array)
+                return JS::js_null();
+            return JS::Value(m_current_vertex_array);
+        }
+
+        set_error(GL_INVALID_ENUM);
+        return JS::js_null();
+    }
 
     case COMPRESSED_TEXTURE_FORMATS: {
         auto formats = enabled_compressed_texture_formats();
@@ -1693,11 +1703,6 @@ WebIDL::ExceptionOr<JS::Value> WebGLRenderingContextImpl::get_parameter(WebIDL::
             GLint result { 0 };
             m_context->get_integerv_robust_angle(GL_UNPACK_SKIP_ROWS, 1, nullptr, &result);
             return JS::Value(result);
-        }
-        case GL_VERTEX_ARRAY_BINDING: { // FIXME: Allow this for VERTEX_ARRAY_BINDING_OES
-            if (!m_current_vertex_array)
-                return JS::js_null();
-            return JS::Value(m_current_vertex_array);
         }
         case MAX_CLIENT_WAIT_TIMEOUT_WEBGL:
             // A page must never be able to block the compositor, so clientWaitSync
@@ -2583,7 +2588,6 @@ void WebGLRenderingContextImpl::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_transform_feedback_binding);
     visitor.visit(m_pixel_pack_buffer_binding);
     visitor.visit(m_pixel_unpack_buffer_binding);
-    visitor.visit(m_current_vertex_array);
     visitor.visit(m_any_samples_passed);
     visitor.visit(m_any_samples_passed_conservative);
     visitor.visit(m_transform_feedback_primitives_written);

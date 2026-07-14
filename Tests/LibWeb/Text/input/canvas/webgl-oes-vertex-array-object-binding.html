@@ -1,0 +1,27 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const canvas = document.createElement("canvas");
+        const gl = canvas.getContext("webgl");
+        const VERTEX_ARRAY_BINDING_OES = 0x85b5;
+
+        println(`binding before enabling extension: ${gl.getParameter(VERTEX_ARRAY_BINDING_OES)}`);
+        println(`error: ${gl.getError() === gl.INVALID_ENUM ? "INVALID_ENUM" : "unexpected"}`);
+
+        const ext = gl.getExtension("OES_vertex_array_object");
+        println(`initial binding: ${gl.getParameter(ext.VERTEX_ARRAY_BINDING_OES)}`);
+
+        const vao = ext.createVertexArrayOES();
+        ext.bindVertexArrayOES(vao);
+        println(`bound VAO is returned: ${gl.getParameter(ext.VERTEX_ARRAY_BINDING_OES) === vao}`);
+
+        ext.bindVertexArrayOES(null);
+        println(`binding after unbind: ${gl.getParameter(ext.VERTEX_ARRAY_BINDING_OES)}`);
+
+        ext.bindVertexArrayOES(vao);
+        ext.deleteVertexArrayOES(vao);
+        println(`binding after deleting bound VAO: ${gl.getParameter(ext.VERTEX_ARRAY_BINDING_OES)}`);
+        println(`error: ${gl.getError() === gl.NO_ERROR ? "NO_ERROR" : "unexpected"}`);
+    });
+</script>
