@@ -1451,7 +1451,10 @@ void FlexFormattingContext::determine_used_cross_size_of_each_flex_item()
                     - item.borders.cross_before - item.borders.cross_after;
 
                 auto const& computed_min_size = computed_cross_min_size(item.box);
-                auto cross_min_size = (!computed_min_size.is_auto() && !computed_min_size.contains_percentage()) ? specified_cross_min_size(item) : 0;
+                // https://drafts.csswg.org/css-flexbox-1/#definite-sizes
+                // Once the cross size of a flex line has been determined, the cross sizes of items in auto-sized flex
+                // containers are also considered definite for the purpose of layout.
+                auto cross_min_size = !computed_min_size.is_auto() ? specified_cross_min_size(item) : 0;
                 auto cross_max_size = !should_treat_cross_max_size_as_none(item.box) ? specified_cross_max_size(item) : CSSPixels::max();
 
                 item.cross_size = css_clamp(unclamped_cross_size, cross_min_size, cross_max_size);

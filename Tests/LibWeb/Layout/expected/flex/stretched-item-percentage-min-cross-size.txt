@@ -7,7 +7,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         Box <div.column> at [20,4] flex-container(column) flex-item [0+0+20 100 20+0+0] [0+0+4 24 4+0+0] [FFC] children: not-inline
           BlockContainer <(anonymous)> (not painted) [BFC] children: inline
             TextNode <#text> (not painted)
-          BlockContainer <div.indicator> at [0,4] positioned flex-item [0+0+0 100 0+0+0] [0+0+0 4 0+0+0] [BFC] children: not-inline
+          BlockContainer <div.indicator> at [0,4] positioned flex-item [0+0+0 140 0+0+0] [0+0+0 4 0+0+0] [BFC] children: not-inline
           BlockContainer <(anonymous)> (not painted) [BFC] children: inline
             TextNode <#text> (not painted)
           BlockContainer <div.label> at [20,8] flex-item [0+0+0 100 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
@@ -23,7 +23,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         Box <div.column> at [20,36] flex-container(column) flex-item [0+0+20 100 20+0+0] [0+0+4 24 4+0+0] [FFC] children: not-inline
           BlockContainer <(anonymous)> (not painted) [BFC] children: inline
             TextNode <#text> (not painted)
-          BlockContainer <div.indicator.percentage-only> at [0,36] positioned flex-item [0+0+0 100 0+0+0] [0+0+0 4 0+0+0] [BFC] children: not-inline
+          BlockContainer <div.indicator.percentage-only> at [0,36] positioned flex-item [0+0+0 150 0+0+0] [0+0+0 4 0+0+0] [BFC] children: not-inline
           BlockContainer <(anonymous)> (not painted) [BFC] children: inline
             TextNode <#text> (not painted)
           BlockContainer <div.label> at [20,40] flex-item [0+0+0 100 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
@@ -39,12 +39,12 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [0,0 800x64]
       Paintable (Box<DIV>.row) [0,0 800x32]
         Paintable (Box<DIV>.column) [0,0 140x32]
-          PaintableWithLines (BlockContainer<DIV>.indicator) [0,4 100x4]
+          PaintableWithLines (BlockContainer<DIV>.indicator) [0,4 140x4]
           PaintableWithLines (BlockContainer<DIV>.label) [20,8 100x20]
       PaintableWithLines (BlockContainer(anonymous)) [0,32 800x0]
       Paintable (Box<DIV>.row) [0,32 800x32]
         Paintable (Box<DIV>.column) [0,32 140x32]
-          PaintableWithLines (BlockContainer<DIV>.indicator.percentage-only) [0,36 100x4]
+          PaintableWithLines (BlockContainer<DIV>.indicator.percentage-only) [0,36 150x4]
           PaintableWithLines (BlockContainer<DIV>.label) [20,40 100x20]
       PaintableWithLines (BlockContainer(anonymous)) [0,64 800x0]
 
