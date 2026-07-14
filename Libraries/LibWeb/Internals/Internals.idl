@@ -4,6 +4,7 @@ interface Internals {
     undefined signalTestIsDone(Utf16DOMString text);
     undefined setTestTimeout(double milliseconds);
     undefined forceIncompatibleVisualContextTreeRebuild();
+    unsigned long long visualContextTreeNodeCount();
     undefined loadReferenceTestMetadata();
 
     Utf16DOMString setTimeZone(Utf16DOMString timeZone);

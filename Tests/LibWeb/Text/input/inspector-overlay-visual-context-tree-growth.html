@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<!-- Each display-list recording that paints an inspector overlay appends the highlighted element's transform/scroll
+     contexts onto the accumulated visual context tree. Those nodes are transient: the next recording must prune them
+     before appending its own — rather than letting them accumulate (and get shipped to the compositor) for the lifetime
+     of the tree. See #10368.
+
+     NB: The tree is only rebuilt from scratch when layout is invalidated. Mutating the DOM between measurements (e.g.,
+     via println) would dirty layout and force a rebuild — masking the growth. So, as in
+     visual-context-value-only-updates.html, all measurements are taken first, and printed at the end. -->
+<style>
+    #box {
+        width: 100px;
+        height: 100px;
+        transform: rotate(10deg);
+        background: orange;
+    }
+</style>
+<script src="include.js"></script>
+<div id="box"></div>
+<script>
+    test(() => {
+        const box = document.getElementById("box");
+
+        // dumpDisplayList() records a fresh display list; the count that follows is the resulting live visual context
+        // tree size (base nodes plus any inspector-overlay nodes appended).
+        const recordAndCount = () => {
+            internals.dumpDisplayList();
+            return internals.visualContextTreeNodeCount();
+        };
+
+        const baseCount = recordAndCount();
+
+        internals.setHighlightedNode(box);
+        const highlightedCounts = [];
+        for (let i = 0; i < 6; i++)
+            highlightedCounts.push(recordAndCount());
+
+        internals.setHighlightedNode(null);
+        const clearedCount = recordAndCount();
+
+        const overlayAppended = highlightedCounts[0] > baseCount;
+        const stayedFlat = highlightedCounts.every(c => c === highlightedCounts[0]);
+        const returnedToBase = clearedCount === baseCount;
+
+        println(overlayAppended
+            ? "PASS: recording with an inspector highlight appends overlay context nodes"
+            : `FAIL: expected overlay nodes to be appended (base ${baseCount}, highlighted ${highlightedCounts[0]})`);
+        println(stayedFlat
+            ? "PASS: repeated recordings while highlighted do not grow the visual context tree"
+            : `FAIL: visual context tree grew across repeated recordings: ${highlightedCounts.join(", ")}`);
+        println(returnedToBase
+            ? "PASS: overlay context nodes are pruned once the highlight is cleared"
+            : `FAIL: expected ${baseCount} nodes after clearing the highlight, got ${clearedCount}`);
+    });
+</script>

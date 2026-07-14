@@ -38,6 +38,7 @@ public:
     void signal_test_is_done(Utf16String const& text);
     void set_test_timeout(double milliseconds);
     void force_incompatible_visual_context_tree_rebuild();
+    u64 visual_context_tree_node_count();
     WebIDL::ExceptionOr<void> load_reference_test_metadata();
 
     WebIDL::ExceptionOr<Utf16String> set_time_zone(Utf16String const& time_zone);

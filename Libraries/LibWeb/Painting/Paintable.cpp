@@ -206,6 +206,8 @@ void Paintable::paint_with_inspector_overlay_context(DisplayListRecordingContext
                 relevant_indices.append(i);
         }
 
+        // NB: These nodes are transient: they're only referenced by the display list being recorded right now — and the
+        //     next recording prunes them again (see ViewportPaintable::prune_inspector_overlay_visual_contexts).
         auto overlay_visual_context_index = VISUAL_VIEWPORT_NODE_INDEX;
         for (auto const& source_visual_context_index : relevant_indices.in_reverse())
             overlay_visual_context_index = visual_context_tree.append(visual_context_tree.node_at(source_visual_context_index).data, overlay_visual_context_index);

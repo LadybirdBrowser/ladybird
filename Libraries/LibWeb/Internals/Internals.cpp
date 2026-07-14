@@ -110,6 +110,15 @@ void Internals::force_incompatible_visual_context_tree_rebuild()
     document.set_needs_accumulated_visual_contexts_update(true);
 }
 
+u64 Internals::visual_context_tree_node_count()
+{
+    auto& document = window().associated_document();
+    auto paintable = document.paintable();
+    if (!paintable || !paintable->has_visual_context_tree())
+        return 0;
+    return paintable->visual_context_tree().nodes().size();
+}
+
 // https://web-platform-tests.org/writing-tests/reftests.html#components-of-a-reftest
 WebIDL::ExceptionOr<void> Internals::load_reference_test_metadata()
 {
