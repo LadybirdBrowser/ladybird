@@ -33,7 +33,7 @@ static constexpr BrowserChromeLayoutPolicy browser_chrome_layout_policy()
     return {
         .expanded_sidebar_width = 232,
         .collapsed_sidebar_width = 52,
-        .toolbar_height = 42,
+        .toolbar_height = 40,
     };
 }
 

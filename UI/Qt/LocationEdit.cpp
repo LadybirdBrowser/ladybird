@@ -98,7 +98,7 @@ LocationEdit::LocationEdit(QWidget* parent, WebView::IsPrivate is_private)
     , m_autocomplete(new Autocomplete(this))
 {
     setObjectName("LadybirdLocationEdit");
-    setMinimumHeight(32);
+    setMinimumHeight(30);
     update_chrome_style();
 
     m_focus_glow_effect = new QGraphicsDropShadowEffect(this);
