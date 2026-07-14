@@ -1,0 +1,66 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 48 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 32 0+0+8] children: not-inline
+      BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.hidden-open> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: not-inline
+      BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.visible-pair> at [8,8] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+        InlineNode <(anonymous)> at [8,8] [0+0+0 58.703125 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from GeneratedTextNode start: 0, length: 7, rect: [8,8 58.703125x16] baseline: 12.796875
+              "[outer]"
+          GeneratedTextNode <(anonymous)> (not painted)
+        InlineNode <(anonymous)> at [66.703125,8] [0+0+0 66.078125 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from GeneratedTextNode start: 0, length: 8, rect: [66.703125,8 66.078125x16] baseline: 12.796875
+              "[/outer]"
+          GeneratedTextNode <(anonymous)> (not painted)
+      BlockContainer <(anonymous)> at [8,24] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.outer> at [8,24] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+        InlineNode <(anonymous)> at [8,24] [0+0+0 58.703125 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from GeneratedTextNode start: 0, length: 7, rect: [8,24 58.703125x16] baseline: 12.796875
+              "[outer]"
+          GeneratedTextNode <(anonymous)> (not painted)
+        InlineNode <span.hidden-close> at [8,24] [0+0+0 0 0+0+0] [0+0+0 16 0+0+0]
+        InlineNode <span.visible-inner> at [66.703125,24] [0+0+0 118.375 0+0+0] [0+0+0 16 0+0+0]
+          InlineNode <(anonymous)> at [66.703125,24] [0+0+0 55.5 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from GeneratedTextNode start: 0, length: 7, rect: [66.703125,24 55.5x16] baseline: 12.796875
+                "[inner]"
+            GeneratedTextNode <(anonymous)> (not painted)
+          InlineNode <(anonymous)> at [122.203125,24] [0+0+0 62.875 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from GeneratedTextNode start: 0, length: 8, rect: [122.203125,24 62.875x16] baseline: 12.796875
+                "[/inner]"
+            GeneratedTextNode <(anonymous)> (not painted)
+        InlineNode <(anonymous)> at [185.078125,24] [0+0+0 66.078125 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from GeneratedTextNode start: 0, length: 8, rect: [185.078125,24 66.078125x16] baseline: 12.796875
+              "[/outer]"
+          GeneratedTextNode <(anonymous)> (not painted)
+      BlockContainer <(anonymous)> at [8,40] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+  BlockContainer <dialog> at [400,300] positioned [381+3+16 0 16+3+381] [281+3+16 0 16+3+281] [BFC] children: not-inline
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x48]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x32]
+      PaintableWithLines (BlockContainer(anonymous)) [8,8 784x0]
+      PaintableWithLines (BlockContainer<DIV>.hidden-open) [8,8 784x0]
+      PaintableWithLines (BlockContainer(anonymous)) [8,8 784x0]
+      PaintableWithLines (BlockContainer<DIV>.visible-pair) [8,8 784x16]
+        InlinePaintable (InlineNode(anonymous)) [8,8 58.703125x16]
+        InlinePaintable (InlineNode(anonymous)) [66.703125,8 66.078125x16]
+      PaintableWithLines (BlockContainer(anonymous)) [8,24 784x0]
+      PaintableWithLines (BlockContainer<DIV>.outer) [8,24 784x16]
+        InlinePaintable (InlineNode(anonymous)) [8,24 58.703125x16]
+        InlinePaintable (InlineNode<SPAN>.hidden-close) [8,24 0x16]
+        InlinePaintable (InlineNode<SPAN>.visible-inner) [66.703125,24 118.375x16]
+          InlinePaintable (InlineNode(anonymous)) [66.703125,24 55.5x16]
+          InlinePaintable (InlineNode(anonymous)) [122.203125,24 62.875x16]
+        InlinePaintable (InlineNode(anonymous)) [185.078125,24 66.078125x16]
+      PaintableWithLines (BlockContainer(anonymous)) [8,40 784x0]
+  PaintableWithLines (BlockContainer<DIALOG>) [381,281 38x38]
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x48] (z-index: auto)
+ SC for BlockContainer<DIALOG> [400,300 0x0] (z-index: auto)

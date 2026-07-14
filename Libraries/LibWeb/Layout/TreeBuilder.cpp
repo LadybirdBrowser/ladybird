@@ -96,14 +96,17 @@ static bool is_out_of_flow_table_internal_child_of_table_root(Layout::NodeWithSt
 
 static Optional<CSS::Display> adjusted_table_display_for_replaced_element(CSS::Display display)
 {
-    // https://drafts.csswg.org/css-tables-3/#table-structure
-    // Replaced elements with a table-root display behave as block or inline depending on their
-    // outer display type. Replaced elements with a table-internal display behave as inline.
+    // https://drafts.csswg.org/css-display-3/#outer-role
+    // Note: Outer display types do affect replaced elements.
     if (display.is_table_inside()) {
         if (display.is_block_outside())
             return CSS::Display::from_short(CSS::Display::Short::Block);
         return CSS::Display::from_short(CSS::Display::Short::Inline);
     }
+
+    // https://drafts.csswg.org/css-display-3/#layout-specific-display
+    // When the 'display' property of a replaced element computes to one of the layout-internal values, it is handled
+    // as having a used value of 'display: inline'.
     if (display.is_internal_table() || display.is_table_caption())
         return CSS::Display::from_short(CSS::Display::Short::Inline);
     return {};
@@ -348,6 +351,17 @@ static NonnullRefPtr<ImageBox> create_content_image_box(DOM::Document& document,
     return image_box;
 }
 
+static CSS::AbstractImageStyleValue const* content_replacement_image(CSS::ComputedContentData const& content)
+{
+    if (content.type != CSS::ComputedContentData::Type::List
+        || content.items.size() != 1
+        || !content.items.first().has<NonnullRefPtr<CSS::AbstractImageStyleValue const>>()) {
+        return nullptr;
+    }
+
+    return content.items.first().get<NonnullRefPtr<CSS::AbstractImageStyleValue const>>().ptr();
+}
+
 struct FirstLetterTarget {
     TextNode* text_node { nullptr };
     size_t letter_start { 0 };
@@ -572,23 +586,27 @@ RefPtr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element&
     if (!pseudo_element_values)
         return {};
 
+    auto pseudo_element_display = pseudo_element_values->display();
+
+    // https://drafts.csswg.org/css-display-3/#box-generation
+    // The element and its descendants generate no boxes or text sequences.
+    if (pseudo_element_display.is_none())
+        return {};
+
     auto initial_quote_nesting_level = m_quote_nesting_level;
     DOM::AbstractElement element_reference { element, pseudo_element };
     auto [pseudo_element_content, final_quote_nesting_level] = pseudo_element_values->resolved_content(element_reference, initial_quote_nesting_level);
     m_quote_nesting_level = final_quote_nesting_level;
-    auto pseudo_element_display = pseudo_element_values->display();
 
     // ::before and ::after only exist if they have content. `content: normal` computes to `none` for them.
-    // We also don't create them if they are `display: none`.
     if (first_is_one_of(pseudo_element, CSS::PseudoElement::Before, CSS::PseudoElement::After)
-        && (pseudo_element_display.is_none()
-            || pseudo_element_content.type == CSS::ContentData::Type::Normal
+        && (pseudo_element_content.type == CSS::ContentData::Type::Normal
             || pseudo_element_content.type == CSS::ContentData::Type::None))
         return {};
 
-    // For ::marker with content or display 'none' -- do nothing.
+    // For ::marker with content 'none' -- do nothing.
     if (pseudo_element == CSS::PseudoElement::Marker
-        && (pseudo_element_display.is_none() || pseudo_element_content.type == CSS::ContentData::Type::None))
+        && pseudo_element_content.type == CSS::ContentData::Type::None)
         return {};
 
     // For ::marker with content 'normal', create the marker pseudo-element from a ListItemMarkerBox
@@ -620,7 +638,30 @@ RefPtr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element&
         }
 
     RefPtr<NodeWithStyle> pseudo_element_node;
-    if (pseudo_element_display.is_contents()) {
+
+    // https://drafts.csswg.org/css-content-3/#content-property
+    // Note: If the value of <content-list> is a single <image>, it must instead be interpreted as a
+    // <content-replacement>.
+    // Makes the element or pseudo-element a replaced element, filled with the specified <image>.
+    auto const* replacement_image = content_replacement_image(pseudo_element_values->computed_content());
+    auto is_content_replacement = replacement_image != nullptr;
+
+    // INTEROP: Blink, WebKit, and Gecko keep generated images as children of pseudo-element boxes. Preserve that
+    //          behavior for list items because our marker layout currently requires a ListItemBox.
+    if (pseudo_element_display.is_list_item())
+        is_content_replacement = false;
+
+    // https://drafts.csswg.org/css-display-3/#box-generation
+    // This value computes to 'display: none' on replaced elements.
+    // INTEROP: Blink, WebKit, and Gecko preserve image content on 'display: contents' pseudo-elements instead.
+    if (pseudo_element_display.is_contents())
+        is_content_replacement = false;
+
+    if (is_content_replacement) {
+        pseudo_element_node = create_content_image_box(document, nullptr, NonnullRefPtr { *pseudo_element_values }, const_cast<CSS::AbstractImageStyleValue&>(*replacement_image));
+        if (auto adjusted_display = adjusted_table_display_for_replaced_element(pseudo_element_display); adjusted_display.has_value())
+            pseudo_element_node->modify_computed_values([&](auto& values) { values.set_display(*adjusted_display); });
+    } else if (pseudo_element_display.is_contents()) {
         pseudo_element_node = make_ref_counted<InlineNode>(document, nullptr, NonnullRefPtr { *pseudo_element_values });
         pseudo_element_node->modify_computed_values([](auto& values) {
             values.set_display(CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow));
@@ -671,21 +712,29 @@ RefPtr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element&
 
         // FIXME: Handle images, and multiple values
         if (new_content.type == CSS::ContentData::Type::List) {
-            push_parent(*pseudo_element_node);
-            for (auto& item : new_content.data) {
-                RefPtr<Layout::Node> layout_node;
-                if (auto const* string = item.get_pointer<Utf16String>()) {
-                    layout_node = make_ref_counted<GeneratedTextNode>(document, *string);
-                } else {
-                    auto& image = *item.get<NonnullRefPtr<CSS::AbstractImageStyleValue>>();
-                    layout_node = create_content_image_box(document, nullptr, NonnullRefPtr { pseudo_element_node->computed_values() }, image);
-                    static_cast<NodeWithStyle&>(*layout_node).attach_style_resources();
+            if (!is_content_replacement) {
+                push_parent(*pseudo_element_node);
+                for (auto& item : new_content.data) {
+                    RefPtr<Layout::Node> layout_node;
+                    if (auto const* string = item.get_pointer<Utf16String>()) {
+                        layout_node = make_ref_counted<GeneratedTextNode>(document, *string);
+                    } else {
+                        auto& image = *item.get<NonnullRefPtr<CSS::AbstractImageStyleValue>>();
+                        auto image_box = create_content_image_box(document, nullptr, NonnullRefPtr { pseudo_element_node->computed_values() }, image);
+                        // https://drafts.csswg.org/css-content-3/#content-property
+                        // For <image>, this is an inline anonymous replaced element.
+                        image_box->modify_computed_values([](auto& values) {
+                            values.set_display(CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow));
+                        });
+                        image_box->attach_style_resources();
+                        layout_node = move(image_box);
+                    }
+                    layout_node->set_generated_for(pseudo_element, element);
+                    auto display = layout_node->is_text_node() ? CSS::Display::from_short(CSS::Display::Short::Inline) : as<NodeWithStyle>(*layout_node).display();
+                    insert_node_into_inline_or_block_ancestor(*layout_node, display, AppendOrPrepend::Append);
                 }
-                layout_node->set_generated_for(pseudo_element, element);
-                auto display = layout_node->is_text_node() ? CSS::Display::from_short(CSS::Display::Short::Inline) : as<NodeWithStyle>(*layout_node).display();
-                insert_node_into_inline_or_block_ancestor(*layout_node, display, AppendOrPrepend::Append);
+                pop_parent();
             }
-            pop_parent();
         } else {
             TODO();
         }
@@ -696,15 +745,11 @@ RefPtr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element&
 
 RefPtr<NodeWithStyle> TreeBuilder::create_content_replacement_if_needed(DOM::Element& element, NonnullRefPtr<CSS::ComputedValues const> computed_values) const
 {
-    auto const& content = computed_values->computed_content();
-    if (content.type != CSS::ComputedContentData::Type::List
-        || content.items.size() != 1
-        || !content.items.first().has<NonnullRefPtr<CSS::AbstractImageStyleValue const>>()) {
+    auto const* replacement_image = content_replacement_image(computed_values->computed_content());
+    if (!replacement_image)
         return {};
-    }
 
-    auto& image = const_cast<CSS::AbstractImageStyleValue&>(*content.items.first().get<NonnullRefPtr<CSS::AbstractImageStyleValue const>>());
-    return create_content_image_box(element.document(), element, move(computed_values), image);
+    return create_content_image_box(element.document(), element, move(computed_values), const_cast<CSS::AbstractImageStyleValue&>(*replacement_image));
 }
 
 static bool is_ignorable_whitespace(Layout::Node const& node)

@@ -2858,6 +2858,14 @@ CSSPixels FormattingContext::calculate_max_content_width(Layout::Box const& box,
     if (auto transferred_width = calculate_transferred_width_for_replaced_element(box, containing_block_constraints); transferred_width.has_value())
         return transferred_width.value();
     if (!auto_size.has_width()) {
+        // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-automatic
+        // When a box has a preferred aspect ratio, its automatic sizes are calculated the same as for a
+        // replaced element with a natural aspect ratio and no natural size in that axis.
+        auto const& computed_width = box.computed_values().width();
+        auto const& computed_height = box.computed_values().height();
+        if (box.is_replaced_box() && auto_size.has_aspect_ratio() && !auto_size.has_height() && computed_width.is_length() && computed_height.is_intrinsic_sizing_constraint())
+            return calculate_inner_width(box, AvailableSize::make_definite(0), computed_width, containing_block_constraints);
+
         // https://drafts.csswg.org/css-sizing-3/#cyclic-percentage-contribution
         // "If the box is non-replaced, then the entire value of any max size property or preferred size property
         // ('width'/'max-width'/'height'/'max-height') specified as an expression containing a percentage [...] that is

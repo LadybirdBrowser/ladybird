@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<style>
+    :root {
+        quotes: "[outer]" "[/outer]" "[inner]" "[/inner]";
+    }
+
+    dialog::backdrop {
+        content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Crect width='16' height='16' fill='green'/%3E%3C/svg%3E");
+        display: none;
+    }
+
+    .hidden-open::before {
+        content: open-quote;
+        display: none;
+    }
+
+    .visible-pair::before,
+    .outer::before,
+    .visible-inner::before {
+        content: open-quote;
+    }
+
+    .visible-pair::after,
+    .outer::after,
+    .visible-inner::after {
+        content: close-quote;
+    }
+
+    .hidden-close::before {
+        content: close-quote;
+        display: none;
+    }
+</style>
+<dialog></dialog>
+<div class="hidden-open"></div>
+<div class="visible-pair"></div>
+<div class="outer"><span class="hidden-close"></span><span class="visible-inner"></span></div>
+<script>
+    document.querySelector("dialog").showModal();
+</script>

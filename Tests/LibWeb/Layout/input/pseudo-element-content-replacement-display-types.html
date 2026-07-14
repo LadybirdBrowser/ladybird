@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<style>
+    div::before,
+    div::after {
+        content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10'%3E%3Crect width='10' height='10' fill='green'/%3E%3C/svg%3E");
+    }
+
+    .inline::before {
+        display: inline;
+    }
+
+    .block::before {
+        display: block;
+    }
+
+    .flex::before {
+        display: flex;
+    }
+
+    .contents::before,
+    .contents::after {
+        display: contents;
+    }
+
+    .single::after {
+        content: none;
+    }
+
+    .table::before,
+    .table::after {
+        display: table;
+    }
+
+    .inline-table::before,
+    .inline-table::after {
+        display: inline-table;
+    }
+
+    .table-row-group::before,
+    .table-row-group::after {
+        display: table-row-group;
+    }
+
+    .table-header-group::before,
+    .table-header-group::after {
+        display: table-header-group;
+    }
+
+    .table-footer-group::before,
+    .table-footer-group::after {
+        display: table-footer-group;
+    }
+
+    .table-row::before,
+    .table-row::after {
+        display: table-row;
+    }
+
+    .table-cell::before,
+    .table-cell::after {
+        display: table-cell;
+    }
+
+    .table-column-group::before,
+    .table-column-group::after {
+        display: table-column-group;
+    }
+
+    .table-column::before,
+    .table-column::after {
+        display: table-column;
+    }
+
+    .table-caption::before,
+    .table-caption::after {
+        display: table-caption;
+    }
+</style>
+<div class="inline single">inline</div>
+<div class="block single">block</div>
+<div class="flex single">flex</div>
+<div class="contents">contents</div>
+<div class="table">table</div>
+<div class="inline-table">inline-table</div>
+<div class="table-row-group">table-row-group</div>
+<div class="table-header-group">table-header-group</div>
+<div class="table-footer-group">table-footer-group</div>
+<div class="table-row">table-row</div>
+<div class="table-cell">table-cell</div>
+<div class="table-column-group">table-column-group</div>
+<div class="table-column">table-column</div>
+<div class="table-caption">table-caption</div>
