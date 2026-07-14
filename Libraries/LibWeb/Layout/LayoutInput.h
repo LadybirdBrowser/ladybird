@@ -19,10 +19,11 @@ struct ContainingBlockConstraints {
 };
 
 struct LayoutInput {
-    explicit LayoutInput(AvailableSpace new_available_space, ContainingBlockConstraints new_containing_block_constraints = {}, Optional<CSSPixelPoint> new_content_box_position_in_bfc_root = {})
+    explicit LayoutInput(AvailableSpace new_available_space, ContainingBlockConstraints new_containing_block_constraints = {}, Optional<CSSPixelPoint> new_content_box_position_in_bfc_root = {}, Optional<CSSPixels> new_table_grid_min_border_box_height = {})
         : available_space(move(new_available_space))
         , containing_block_constraints(move(new_containing_block_constraints))
         , content_box_position_in_bfc_root(new_content_box_position_in_bfc_root)
+        , table_grid_min_border_box_height(new_table_grid_min_border_box_height)
     {
     }
 
@@ -33,13 +34,19 @@ struct LayoutInput {
 
     [[nodiscard]] LayoutInput with_content_box_position_in_bfc_root(Optional<CSSPixelPoint> position) const
     {
-        return LayoutInput { available_space, containing_block_constraints, position };
+        return LayoutInput { available_space, containing_block_constraints, position, table_grid_min_border_box_height };
+    }
+
+    [[nodiscard]] LayoutInput with_table_grid_min_border_box_height(CSSPixels height) const
+    {
+        return LayoutInput { available_space, containing_block_constraints, content_box_position_in_bfc_root, height };
     }
 
     AvailableSpace const available_space;
     ContainingBlockConstraints const containing_block_constraints;
 
     Optional<CSSPixelPoint> const content_box_position_in_bfc_root;
+    Optional<CSSPixels> const table_grid_min_border_box_height;
 };
 
 }

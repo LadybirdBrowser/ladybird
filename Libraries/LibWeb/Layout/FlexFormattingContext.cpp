@@ -11,6 +11,7 @@
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/FlexFormattingContext.h>
 #include <LibWeb/Layout/ReplacedBox.h>
+#include <LibWeb/Layout/TableWrapper.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
 
@@ -251,7 +252,28 @@ void FlexFormattingContext::run(LayoutInput const& layout_input)
         // AD-HOC: Finally, layout the inside of all flex items.
         copy_dimensions_from_flex_items_to_boxes();
         for (auto& item : m_flex_items) {
-            auto item_layout_input = LayoutInput { item.used_values.available_inner_space_or_constraints_from(m_available_space_for_items->space), item_containing_block_constraints() };
+            auto item_layout_input = [&] {
+                auto input = LayoutInput { item.used_values.available_inner_space_or_constraints_from(m_available_space_for_items->space), item_containing_block_constraints() };
+                if (!is<TableWrapper>(item.box) || cross_axis_is_horizontal() || !flex_item_is_stretched(item))
+                    return input;
+
+                // https://drafts.csswg.org/css-flexbox-1/#flex-items
+                // In the case of flex items with display: table, the table wrapper box becomes the flex item,
+                // so the align-self property applies to it.
+                // The contents of any caption boxes contribute to the calculation of
+                // the table wrapper box's min-content and max-content sizes.
+                // However, like width and height, the flex longhands apply to the table box as follows:
+                // the flex item’s final size is calculated
+                // by performing layout as if the distance between
+                // the table wrapper box's edges and the table box's content edges
+                // were all part of the table box's border+padding area,
+                // and the table box were the flex item.
+                auto intrinsic_available_space = input.available_space;
+                intrinsic_available_space.height = AvailableSize::make_indefinite();
+                auto intrinsic_table_grid_height = compute_table_box_height_inside_table_wrapper(item.box, intrinsic_available_space, input.containing_block_constraints);
+                auto extra_height = max(CSSPixels(0), item.cross_size.value() - item.hypothetical_cross_size);
+                return input.with_table_grid_min_border_box_height(intrinsic_table_grid_height + extra_height);
+            }();
             if (auto independent_formatting_context = layout_inside(item.box, LayoutMode::Normal, item_layout_input))
                 independent_formatting_context->parent_context_did_dimension_child_root_box();
 

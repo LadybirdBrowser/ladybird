@@ -1,1 +1,1 @@
-kept label selected below overflowing text: false
+kept label selected below overflowing text: true

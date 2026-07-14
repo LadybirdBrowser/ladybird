@@ -1235,7 +1235,13 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
 
         make_button_content_box_definite(box, available_space, layout_input.containing_block_constraints, measured_content_height);
 
-        independent_formatting_context->run(layout_input.for_child_formatting_context(inner_available_space));
+        auto inside_layout_input = [&] {
+            auto input = layout_input.for_child_formatting_context(inner_available_space);
+            if (table_formatting_context && layout_input.table_grid_min_border_box_height.has_value())
+                return input.with_table_grid_min_border_box_height(*layout_input.table_grid_min_border_box_height);
+            return input;
+        }();
+        independent_formatting_context->run(inside_layout_input);
         if (table_formatting_context)
             pending_position = table_formatting_context->pending_table_box_content_offset_in_wrapper();
         if (is<TableWrapper>(block_container) && box.display().is_table_inside()) {
@@ -1320,7 +1326,7 @@ void BlockFormattingContext::layout_block_level_children(BlockContainer const& b
     // through to the table box unchanged.
     auto child_layout_input = [&]() -> LayoutInput {
         if (is<TableWrapper>(block_container))
-            return LayoutInput { available_space_for_children, layout_input.containing_block_constraints, layout_input.content_box_position_in_bfc_root };
+            return LayoutInput { available_space_for_children, layout_input.containing_block_constraints, layout_input.content_box_position_in_bfc_root, layout_input.table_grid_min_border_box_height };
         else
             return layout_input_for_child_context(m_state.get(block_container), layout_input, available_space_for_children);
     }();

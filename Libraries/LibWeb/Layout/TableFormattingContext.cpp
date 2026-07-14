@@ -1128,6 +1128,12 @@ void TableFormattingContext::compute_table_height()
 
     m_table_height = sum_rows_height;
 
+    if (m_min_border_box_height_from_flex_item.has_value()) {
+        auto const& table_state = m_state.get(table_box());
+        auto min_content_height = *m_min_border_box_height_from_flex_item - table_state.border_box_top() - table_state.border_box_bottom();
+        m_table_height = max(m_table_height, min_content_height);
+    }
+
     if (!table_box().computed_values().height().is_auto()) {
         // If the table has a height property with a value other than auto, it is treated as a minimum height for the
         // table grid, and will eventually be distributed to the height of the rows if their collective minimum height
@@ -1946,6 +1952,7 @@ void TableFormattingContext::run(LayoutInput const& layout_input)
     auto const& available_space = layout_input.available_space;
     FORMATTING_CONTEXT_TRACE();
     m_available_space = available_space;
+    m_min_border_box_height_from_flex_item = layout_input.table_grid_min_border_box_height;
 
     run_until_width_calculation(layout_input);
 
