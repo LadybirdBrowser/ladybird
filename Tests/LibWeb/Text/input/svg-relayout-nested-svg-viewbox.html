@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<svg width="100" height="100" viewBox="0 0 10 10">
+    <svg id="inner" x="0" y="0" width="10" height="10">
+        <rect id="r" width="5" height="5" fill="blue"/>
+    </svg>
+</svg>
+<script>
+    asyncTest(async (done) => {
+        // Force initial layout to complete.
+        document.body.offsetHeight;
+
+        // A nested SVG root must not become the partial relayout boundary: its subtree is
+        // laid out in the outer SVG's viewBox-transformed coordinate system.
+        document.getElementById("r").setAttribute("width", "6");
+        document.body.offsetHeight;
+
+        const rect = document.getElementById("r").getBoundingClientRect();
+        println(rect.width + "x" + rect.height);
+        println(Math.abs(rect.width - 60) < 0.01 && Math.abs(rect.height - 50) < 0.01 ? "PASS" : "FAIL");
+        done();
+    });
+</script>
