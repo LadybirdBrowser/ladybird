@@ -1401,7 +1401,8 @@ void StyleComputer::process_animation_definitions(ComputedProperties const& comp
 
     HashTable<Utf16FlyString> defined_animation_names;
 
-    for (auto const& animation_properties : animation_definitions) {
+    for (size_t i = 0; i < animation_definitions.size(); ++i) {
+        auto const& animation_properties = animation_definitions[i];
         auto const& animation_name = animation_properties.name;
         defined_animation_names.set(animation_name);
 
@@ -1435,6 +1436,7 @@ void StyleComputer::process_animation_definitions(ComputedProperties const& comp
         if (auto const& existing_animation = element_animations->get(animation_properties.name); existing_animation.has_value()) {
             as<Animations::KeyframeEffect>(*existing_animation.value()->effect()).set_key_frame_set(resolve_keyframes());
             existing_animation.value()->apply_css_properties(animation_properties);
+            existing_animation.value()->set_animation_name_index(i);
             continue;
         }
 
@@ -1451,6 +1453,7 @@ void StyleComputer::process_animation_definitions(ComputedProperties const& comp
         animation->set_effect(effect);
 
         animation->apply_css_properties(animation_properties);
+        animation->set_animation_name_index(i);
 
         effect->set_key_frame_set(resolve_keyframes());
 

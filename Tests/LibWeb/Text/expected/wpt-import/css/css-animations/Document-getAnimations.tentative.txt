@@ -2,11 +2,11 @@ Harness status: OK
 
 Found 18 tests
 
-10 Pass
-8 Fail
+11 Pass
+7 Fail
 Pass	getAnimations for non-animated content
 Pass	getAnimations for CSS Animations
-Fail	Order of CSS Animations - within an element unaffected by start time
+Pass	Order of CSS Animations - within an element unaffected by start time
 Pass	Order of CSS Animations - within an element
 Fail	Order of CSS Animations - across elements
 Fail	Order of CSS Animations - across and within elements

@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 22 tests
 
-15 Pass
-7 Fail
+16 Pass
+6 Fail
 Pass	getAnimations for non-animated content
 Pass	getAnimations for CSS Animations
 Pass	getAnimations returns CSSAnimation objects for CSS Animations
@@ -20,7 +20,7 @@ Pass	getAnimations for CSS animations in delay phase
 Pass	getAnimations for zero-duration CSS Animations
 Pass	getAnimations returns objects with the same identity
 Pass	getAnimations for CSS Animations that are canceled
-Fail	getAnimations for CSS Animations follows animation-name order
+Pass	getAnimations for CSS Animations follows animation-name order
 Fail	{ subtree: false } on a leaf element returns the element's animations and ignore pseudo-elements
 Pass	{ subtree: true } on a leaf element returns the element's animations and its pseudo-elements' animations
 Fail	{ subtree: false } on an element with a child returns only the element's animations

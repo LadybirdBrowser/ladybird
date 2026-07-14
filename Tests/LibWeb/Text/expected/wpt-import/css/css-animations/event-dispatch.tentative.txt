@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 32 tests
 
-26 Pass
-6 Fail
+27 Pass
+5 Fail
 Pass	Idle -> Active
 Fail	Idle -> After
 Pass	Before -> Active
@@ -35,4 +35,4 @@ Fail	Cancel the animation after clearing the target effect.
 Pass	Replacing a running animation should get animationcancel earlier than animationstart
 Pass	The cancel event should be fired before the new start event if both have the same position in the animation list
 Pass	The cancel event with an earlier position in animation list should be fired earlier
-Fail	The order of the cancel events follows the relative positions in the animation list at the point when they were cancelled
+Pass	The order of the cancel events follows the relative positions in the animation list at the point when they were cancelled

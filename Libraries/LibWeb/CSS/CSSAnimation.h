@@ -29,6 +29,8 @@ public:
 
     void apply_css_properties(AnimationProperties const&);
 
+    void set_animation_name_index(size_t index) { m_animation_name_index = index; }
+
     EasingFunction const& default_easing() const { return m_default_easing; }
 
     virtual void set_timeline_for_bindings(GC::Ptr<Animations::AnimationTimeline> timeline) override;
@@ -53,6 +55,8 @@ private:
     HashTable<CSS::PropertyID> m_ignored_css_properties;
 
     Optional<CSS::AnimationPlayState> m_last_css_animation_play_state;
+
+    size_t m_animation_name_index { 0 };
 };
 
 }

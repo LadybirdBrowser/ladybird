@@ -50,8 +50,7 @@ int CSSAnimation::class_specific_composite_order(GC::Ref<Animations::Animation> 
 
         // 2. Otherwise, sort A and B based on their position in the computed value of the animation-name property of the
         //    (common) owning element.
-        // FIXME: Do this when animation-name supports multiple values
-        return 0;
+        return m_animation_name_index - other->m_animation_name_index;
     }
 
     // The composite order of CSS Animations without an owning element is based on their position in the global animation list.
