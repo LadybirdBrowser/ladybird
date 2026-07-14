@@ -211,8 +211,8 @@ public:
     virtual bool is_top_level_traversable() const override { return true; }
 
     CanonicalNavigable& insert(WebContentClient& reporting_client, u64 page_id, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, CanonicalNavigable& fallback_parent);
-    Optional<CanonicalNavigable&> find(Web::HTML::CrossProcessId frame_id);
-    Optional<CanonicalNavigable const&> find(Web::HTML::CrossProcessId frame_id) const;
+    Optional<CanonicalNavigable&> find(Web::HTML::CrossProcessId navigable_id);
+    Optional<CanonicalNavigable const&> find(Web::HTML::CrossProcessId navigable_id) const;
     void remove(CanonicalNavigable&);
 
     TraversableSessionHistory const& session_history() const { return m_session_history; }
