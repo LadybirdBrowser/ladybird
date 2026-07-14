@@ -30,6 +30,9 @@ public:
         VERIFY(m_layout_node);
         return *m_layout_node;
     }
+    bool has_layout_node() const { return !!m_layout_node; }
+    // For in-place layout tree updates that replace the referenced node.
+    void set_layout_node(Layout::Node const& layout_node) { m_layout_node = layout_node; }
     PaintableWithLines const& paintable_with_lines() const
     {
         VERIFY(m_paintable_with_lines);

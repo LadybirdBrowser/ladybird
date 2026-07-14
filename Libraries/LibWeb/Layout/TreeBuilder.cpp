@@ -48,6 +48,7 @@
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/TreeBuilder.h>
 #include <LibWeb/Layout/Viewport.h>
+#include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/SVG/SVGSwitchElement.h>
 
 namespace Web::Layout {
@@ -938,6 +939,22 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
                 if (auto* new_box = as_if<Box>(*layout_node)) {
                     if (old_box->saved_abspos_layout_inputs())
                         new_box->set_saved_abspos_layout_inputs(*old_box->saved_abspos_layout_inputs());
+                }
+            }
+            // A replaced node that participated in inline layout is referenced by the flat
+            // fragment and inline-box-piece lists held by its containing block; repoint those
+            // references at the replacement, since a subtree relayout that skips the containing
+            // block never rebuilds them.
+            if (auto* containing_block = old_layout_node->containing_block()) {
+                if (auto* paintable_with_lines = as_if<Painting::PaintableWithLines>(containing_block->paintable().ptr())) {
+                    for (auto& fragment : paintable_with_lines->fragments()) {
+                        if (fragment.has_layout_node() && &fragment.layout_node() == old_layout_node.ptr())
+                            fragment.set_layout_node(*layout_node);
+                    }
+                    for (auto& piece : paintable_with_lines->inline_box_pieces()) {
+                        if (piece.node.ptr() == old_layout_node.ptr())
+                            piece.node = layout_node.ptr();
+                    }
                 }
             }
             old_layout_node->prepare_subtree_for_detach_from_layout_tree();
