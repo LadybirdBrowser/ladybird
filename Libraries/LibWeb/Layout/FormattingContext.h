@@ -144,8 +144,8 @@ public:
     CSSPixels compute_width_for_replaced_element(Box const&, AvailableSpace const&, ContainingBlockConstraints const&) const;
     CSSPixels compute_height_for_replaced_element(Box const&, AvailableSpace const&, ContainingBlockConstraints const&) const;
 
-    OwnPtr<FormattingContext> create_independent_formatting_context_if_needed(LayoutState&, LayoutMode, Box const& child_box);
-    NonnullOwnPtr<FormattingContext> create_independent_formatting_context(LayoutState&, LayoutMode, Box const& child_box);
+    static OwnPtr<FormattingContext> create_independent_formatting_context_if_needed(LayoutState&, LayoutMode, Box const& child_box, FormattingContext* parent);
+    static NonnullOwnPtr<FormattingContext> create_independent_formatting_context(LayoutState&, LayoutMode, Box const& child_box, FormattingContext* parent);
 
     [[nodiscard]] static ContainingBlockConstraints constraints_for_child_context(
         LayoutState::UsedValues const& containing_block_used_values,

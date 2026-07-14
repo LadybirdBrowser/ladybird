@@ -47,7 +47,7 @@ CSSPixels TableFormattingContext::run_caption_layout(CSS::CaptionSide phase, Ava
         bool caption_was_placed = false;
         // The caption boxes are principal block-level boxes that retain their own content, padding, margin, and border areas,
         // and are rendered as normal block boxes inside the table wrapper box, as described in https://www.w3.org/TR/CSS22/tables.html#model
-        if (auto caption_context = create_independent_formatting_context_if_needed(m_state, m_layout_mode, child_box)) {
+        if (auto caption_context = create_independent_formatting_context_if_needed(m_state, m_layout_mode, child_box, this)) {
             auto inner_available_space = caption_available_space;
             auto* block_context = as_if<BlockFormattingContext>(caption_context.ptr());
             CSSPixelPoint caption_offset;
@@ -1000,7 +1000,7 @@ Optional<TableFormattingContext::MeasuredCellContent> TableFormattingContext::me
     auto& throwaway_cell_used_values = throwaway_state.create(cell_box, {}, {});
     throwaway_cell_used_values = cell_used_values;
 
-    auto measuring_context = create_independent_formatting_context_if_needed(throwaway_state, m_layout_mode, cell_box);
+    auto measuring_context = create_independent_formatting_context_if_needed(throwaway_state, m_layout_mode, cell_box, this);
     if (!measuring_context)
         return {};
     measuring_context->run(LayoutInput { inner_available_space });

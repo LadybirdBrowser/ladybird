@@ -1116,7 +1116,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
     if (box_state.has_definite_height() || box_is_html_element_in_quirks_mode)
         resolve_used_height_if_treated_as_auto(box, available_space, layout_input.containing_block_constraints);
 
-    auto independent_formatting_context = create_independent_formatting_context_if_needed(m_state, m_layout_mode, box);
+    auto independent_formatting_context = create_independent_formatting_context_if_needed(m_state, m_layout_mode, box, this);
 
     if (!independent_formatting_context && !is<BlockContainer>(box)) {
         dbgln("FIXME: Block-level box is not BlockContainer but does not create formatting context: {}", box.debug_description());
