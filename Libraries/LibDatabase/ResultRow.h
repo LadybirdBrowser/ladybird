@@ -16,6 +16,7 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
+#include <AK/Utf16String.h>
 #include <LibDatabase/Database.h>
 
 namespace Database {
@@ -72,6 +73,18 @@ public:
             return Error::from_string_literal("Text column exceeds the size limit");
         }
         return String::from_utf8(value.release_value());
+    }
+
+    ErrorOr<Utf16String> read_utf16_text(StringView column, size_t max_bytes)
+    {
+        auto index = TRY(m_database.result_column_index(m_statement_id, column));
+        auto value = m_database.result_text_column_bounded({}, m_statement_id, index, max_bytes);
+        if (value.is_error()) {
+            if (value.error() == Database::ColumnReadError::WrongType)
+                return Error::from_string_literal("Column is not text");
+            return Error::from_string_literal("Text column exceeds the size limit");
+        }
+        return Utf16String::try_from_utf8(value.release_value());
     }
 
     ErrorOr<ByteBuffer> read_blob(StringView column, size_t max_bytes)
