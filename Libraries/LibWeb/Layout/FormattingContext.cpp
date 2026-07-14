@@ -2300,8 +2300,11 @@ void FormattingContext::layout_absolutely_positioned_children(Box const& box)
         if (!m_state.try_get(child_box))
             m_state.create(child_box, {}, {});
         resolve_anchor_insets(child_box);
-        auto static_position_rect = resolve_static_position_relative_to_containing_block(child_box, child->static_position_rect);
-        layout_absolutely_positioned_element(child_box, static_position_rect, resolve_abspos_containing_block_info(child_box));
+        AbsposLayoutInputs inputs {
+            .static_position_rect = resolve_static_position_relative_to_containing_block(child_box, child->static_position_rect),
+            .containing_block_info = resolve_abspos_containing_block_info(child_box),
+        };
+        layout_absolutely_positioned_element(child_box, inputs);
     }
 }
 
@@ -2329,10 +2332,13 @@ StaticPositionRect FormattingContext::resolve_static_position_relative_to_contai
     return static_position_rect;
 }
 
-void FormattingContext::layout_absolutely_positioned_element(Box& box, StaticPositionRect const& static_position_rect, AbsposContainingBlockInfo const& containing_block_info)
+void FormattingContext::layout_absolutely_positioned_element(Box& box, AbsposLayoutInputs const& inputs)
 {
     // SVG elements cannot be absolutely positioned.
     VERIFY(!box.is_svg_box());
+
+    auto const& static_position_rect = inputs.static_position_rect;
+    auto const& containing_block_info = inputs.containing_block_info;
 
     auto& box_state = m_state.get_mutable(box);
 

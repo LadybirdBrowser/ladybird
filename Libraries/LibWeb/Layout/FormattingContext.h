@@ -8,6 +8,7 @@
 
 #include <AK/OwnPtr.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/Layout/AbsposLayoutInputs.h>
 #include <LibWeb/Layout/AvailableSpace.h>
 #include <LibWeb/Layout/LayoutInput.h>
 #include <LibWeb/Layout/LayoutState.h>
@@ -22,43 +23,9 @@ template<typename T>
     return ::max(min, ::min(value, max));
 }
 
-enum class Alignment {
-    Baseline,
-    Center,
-    End,
-    Normal,
-    Safe,
-    SelfEnd,
-    SelfStart,
-    SpaceAround,
-    SpaceBetween,
-    SpaceEvenly,
-    Start,
-    Stretch,
-    Unsafe,
-};
-
-enum class AbsposAxisMode {
-    // Both insets auto: offset = static_position + margin
-    StaticPosition,
-    // At least one explicit inset: offset = rect.origin + inset + margin
-    InsetFromRect,
-};
-
 enum class TableWrapperWidthMode {
     ClampToAvailableWidth,
     UseTableUsedWidthIfNotAuto,
-};
-
-struct AbsposContainingBlockInfo {
-    // Containing block rect in CB Box's content-edge coordinates.
-    CSSPixelRect rect;
-    AbsposAxisMode horizontal_axis_mode;
-    AbsposAxisMode vertical_axis_mode;
-    // Grid alignment for axes with auto CSS insets.
-    // When set, the base method applies alignment-driven insets after sizing.
-    Optional<Alignment> horizontal_alignment;
-    Optional<Alignment> vertical_alignment;
 };
 
 class FormattingContext {
@@ -244,7 +211,7 @@ protected:
 
     ShrinkToFitResult calculate_shrink_to_fit_widths(Box const&, ContainingBlockConstraints const&);
 
-    void layout_absolutely_positioned_element(Box&, StaticPositionRect const&, AbsposContainingBlockInfo const&);
+    void layout_absolutely_positioned_element(Box&, AbsposLayoutInputs const&);
 
     CSSPixels gap_to_px(Variant<CSS::LengthPercentage, CSS::NormalGap> const& gap, CSSPixels reference_value) const;
 
