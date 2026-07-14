@@ -714,7 +714,19 @@ public:
     [[nodiscard]] u32 allocate_layout_node_index() { return m_next_layout_node_index++; }
     void reset_layout_node_index_counter(u32 next_index) { m_next_layout_node_index = next_index; }
 
-    void mark_svg_root_as_needing_relayout(Layout::SVGSVGBox&);
+    // Attribution of pending updates for partial relayout: boundaries that the invalidation
+    // walk stopped at since the last layout pass, resolved into the live boundary set by the
+    // dispatch in Document::update_layout().
+    class PartialRelayoutInvalidation {
+    public:
+        void record_boundary(Layout::Box&);
+        [[nodiscard]] bool has_registered_roots() const { return !m_registered_roots.is_empty(); }
+        [[nodiscard]] HashTable<WeakPtr<Layout::Box>> take_registered_roots() { return move(m_registered_roots); }
+
+    private:
+        HashTable<WeakPtr<Layout::Box>> m_registered_roots;
+    };
+    [[nodiscard]] PartialRelayoutInvalidation& partial_relayout_invalidation() { return m_partial_relayout_invalidation; }
 
     void set_needs_to_refresh_scroll_state(bool b);
 
@@ -1475,7 +1487,7 @@ private:
 
     u32 m_next_layout_node_index { 0 };
 
-    HashTable<WeakPtr<Layout::SVGSVGBox>> m_svg_roots_needing_relayout;
+    PartialRelayoutInvalidation m_partial_relayout_invalidation;
 
     bool m_needs_animated_style_update { false };
 

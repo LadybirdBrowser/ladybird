@@ -29,6 +29,19 @@ Box::~Box()
 {
 }
 
+bool Box::is_partial_relayout_boundary() const
+{
+    // An SVG root's used size is determined solely by its own attributes and outer context,
+    // never by its children, so its size and position from the previous layout can be reused.
+    // A nested <svg> does not qualify: its subtree is laid out in the outer SVG's
+    // viewBox-transformed coordinate system, which a relayout rooted at the inner <svg>
+    // cannot reproduce.
+    if (is_svg_svg_box())
+        return !(parent() && (parent()->is_svg_box() || parent()->is_svg_svg_box()));
+
+    return false;
+}
+
 CSS::SizeWithAspectRatio Box::auto_content_box_size() const
 {
     // https://drafts.csswg.org/css-contain-2/#containment-size

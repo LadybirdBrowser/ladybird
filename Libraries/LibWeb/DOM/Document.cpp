@@ -1685,9 +1685,9 @@ void Document::invalidate_layout_tree(InvalidateLayoutTreeReason reason)
     tear_down_layout_tree();
 }
 
-void Document::mark_svg_root_as_needing_relayout(Layout::SVGSVGBox& svg_root)
+void Document::PartialRelayoutInvalidation::record_boundary(Layout::Box& box)
 {
-    m_svg_roots_needing_relayout.set(svg_root.make_weak_ptr<Layout::SVGSVGBox>());
+    m_registered_roots.set(box.make_weak_ptr<Layout::Box>());
 }
 
 void Document::set_needs_container_query_evaluation_after_layout(Element const& query_container)
@@ -1871,7 +1871,7 @@ void Document::update_layout(UpdateLayoutReason reason)
             return;
         }
 
-        auto svg_roots_to_relayout = move(m_svg_roots_needing_relayout);
+        auto partial_relayout_roots = m_partial_relayout_invalidation.take_registered_roots();
 
         // NOTE: If this is a document hosting <template> contents, layout is unnecessary.
         if (m_created_for_appropriate_template_contents)
@@ -1879,14 +1879,14 @@ void Document::update_layout(UpdateLayoutReason reason)
 
         auto const needs_layout_tree_rebuild = !m_layout_root || needs_layout_tree_update() || child_needs_layout_tree_update() || needs_full_layout_tree_update();
 
-        // Partial SVG relayout
-        if (!needs_layout_tree_rebuild && !svg_roots_to_relayout.is_empty() && !m_layout_root->needs_layout_update()) {
-            for (auto const& svg_root : svg_roots_to_relayout) {
-                if (svg_root) {
-                    relayout_svg_root(*svg_root);
-                    // NB: The subtree commit reset the SVG root's descendant paintables, and the subtree's
+        // Partial relayout
+        if (!needs_layout_tree_rebuild && !partial_relayout_roots.is_empty() && !m_layout_root->needs_layout_update()) {
+            for (auto const& root : partial_relayout_roots) {
+                if (root) {
+                    relayout_svg_root(as<Layout::SVGSVGBox>(*root));
+                    // NB: The subtree commit reset the root's descendant paintables, and the subtree's
                     //     new size may change ancestor scrollable overflow; scheduling the root covers both.
-                    schedule_scrollable_overflow_recalculation(*svg_root);
+                    schedule_scrollable_overflow_recalculation(*root);
                 }
             }
 
@@ -2061,7 +2061,7 @@ bool Document::layout_is_up_to_date() const
         && !needs_layout_tree_update()
         && !child_needs_layout_tree_update()
         && !needs_full_layout_tree_update()
-        && m_svg_roots_needing_relayout.is_empty();
+        && !m_partial_relayout_invalidation.has_registered_roots();
 }
 
 void Document::update_style_computer_viewport_rect()
