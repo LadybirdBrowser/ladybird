@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+
+    .row {
+        display: flex;
+    }
+
+    .column {
+        display: flex;
+        flex-direction: column;
+        padding: 4px 20px;
+    }
+
+    .label {
+        width: 100px;
+        height: 20px;
+    }
+
+    .indicator {
+        position: relative;
+        left: -20px;
+        min-width: calc(100% + 40px);
+        height: 4px;
+        background: green;
+    }
+
+    .percentage-only {
+        min-width: 150%;
+    }
+</style>
+<div class="row">
+    <div class="column">
+        <div class="indicator"></div>
+        <div class="label"></div>
+    </div>
+</div>
+<div class="row">
+    <div class="column">
+        <div class="indicator percentage-only"></div>
+        <div class="label"></div>
+    </div>
+</div>
