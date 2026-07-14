@@ -1695,24 +1695,42 @@ void Document::set_needs_container_query_evaluation_after_layout(Element const& 
     m_query_containers_needing_container_query_evaluation_after_layout.set(const_cast<Element&>(query_container));
 }
 
-static void relayout_svg_root(Layout::SVGSVGBox& svg_root)
+static void compute_subtree_layout(Layout::Box& subtree_root, Layout::LayoutState& layout_state)
 {
-    Layout::LayoutState layout_state(svg_root, Layout::LayoutState::Purpose::Commit);
+    // The boundary's own size and position are frozen at the previous layout's values.
+    if (auto paintable = subtree_root.paintable_box())
+        layout_state.populate_from_paintable(subtree_root, *paintable);
 
-    // Pre-populate the svg_root itself.
-    if (auto paintable = svg_root.paintable_box())
-        layout_state.populate_from_paintable(svg_root, *paintable);
+    // Pre-populate the viewport for position:fixed elements inside the subtree.
+    auto& viewport = subtree_root.root();
+    if (auto paintable = viewport.paintable_box())
+        layout_state.populate_from_paintable(viewport, *paintable);
 
-    auto const& svg_state = layout_state.get(svg_root);
-    auto content_width = svg_state.content_width();
-    auto content_height = svg_state.content_height();
+    auto const& root_state = layout_state.get(subtree_root);
+    auto available_space = Layout::AvailableSpace(
+        Layout::AvailableSize::make_definite(root_state.content_width()),
+        Layout::AvailableSize::make_definite(root_state.content_height()));
 
-    Layout::SVGFormattingContext svg_context(layout_state, Layout::LayoutMode::Normal, svg_root, nullptr);
-    auto available_space = Layout::AvailableSpace(Layout::AvailableSize::make_definite(content_width), Layout::AvailableSize::make_definite(content_height));
-    svg_context.run(Layout::LayoutInput { available_space });
-    layout_state.commit(svg_root);
+    auto context = Layout::FormattingContext::create_independent_formatting_context_if_needed(
+        layout_state, Layout::LayoutMode::Normal, subtree_root, nullptr);
+    VERIFY(context);
 
-    svg_root.for_each_in_inclusive_subtree([](auto& node) {
+    // NOTE: containing_block_constraints stays empty: the subtree root has definite sizes in
+    //       both axes, so nothing below it resolves percentages against inherited constraints.
+    context->run(Layout::LayoutInput { available_space });
+
+    // Lay out the subtree root's own absolutely positioned children, like the parent formatting
+    // context would do after dimensioning the root box during a full layout.
+    context->parent_context_did_dimension_child_root_box();
+}
+
+static void relayout_subtree(Layout::Box& subtree_root)
+{
+    Layout::LayoutState layout_state(subtree_root, Layout::LayoutState::Purpose::Commit);
+    compute_subtree_layout(subtree_root, layout_state);
+    layout_state.commit(subtree_root);
+
+    subtree_root.for_each_in_inclusive_subtree([](auto& node) {
         node.reset_needs_layout_update();
         return TraversalDecision::Continue;
     });
@@ -1903,7 +1921,7 @@ void Document::update_layout(UpdateLayoutReason reason)
 
             if (can_run_partial_relayout) {
                 for (auto* root : partial_relayout_roots) {
-                    relayout_svg_root(as<Layout::SVGSVGBox>(*root));
+                    relayout_subtree(*root);
                     // NB: The subtree commit reset the root's descendant paintables, and the subtree's
                     //     new size may change ancestor scrollable overflow; scheduling the root covers both.
                     schedule_scrollable_overflow_recalculation(*root);
