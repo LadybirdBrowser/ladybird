@@ -5160,8 +5160,8 @@ void Element::play_or_cancel_animations_after_display_property_change()
 
     auto has_inclusive_ancestor_with_display_none_ignoring_animations = this->has_inclusive_ancestor_with_display_none_ignoring_animations();
 
-    auto play_or_cancel_depending_on_display = [&](HashMap<Utf16FlyString, GC::Ref<CSS::CSSAnimation>>& animations) {
-        for (auto& [_, animation] : animations) {
+    auto play_or_cancel_depending_on_display = [&](Vector<GC::Ref<CSS::CSSAnimation>> const& animations) {
+        for (auto& animation : animations) {
             if (has_inclusive_ancestor_with_display_none_ignoring_animations) {
                 animation->cancel();
             } else {

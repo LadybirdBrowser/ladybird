@@ -232,7 +232,7 @@ CSS::StyleScope const& AbstractElement::style_scope() const
     return m_element->style_scope();
 }
 
-HashMap<Utf16FlyString, GC::Ref<CSS::CSSAnimation>>* AbstractElement::css_defined_animations() const
+Vector<GC::Ref<CSS::CSSAnimation>> const* AbstractElement::css_defined_animations() const
 {
     return m_element->css_defined_animations(m_pseudo_element);
 }
@@ -240,6 +240,11 @@ HashMap<Utf16FlyString, GC::Ref<CSS::CSSAnimation>>* AbstractElement::css_define
 void AbstractElement::set_has_css_defined_animations()
 {
     m_element->set_has_css_defined_animations();
+}
+
+void AbstractElement::set_css_defined_animations(Vector<GC::Ref<CSS::CSSAnimation>>&& animations)
+{
+    m_element->set_css_defined_animations(m_pseudo_element, move(animations));
 }
 
 }

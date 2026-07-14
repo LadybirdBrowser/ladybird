@@ -1367,7 +1367,7 @@ void StyleComputer::process_animation_definitions(ComputedProperties const& comp
 
     auto& document = abstract_element.document();
 
-    auto* element_animations = abstract_element.css_defined_animations();
+    auto const* element_animations = abstract_element.css_defined_animations();
 
     // If we have a nullptr for element_animations it means that the pseudo element was invalid and thus we shouldn't apply animations
     if (!element_animations)
@@ -1399,12 +1399,21 @@ void StyleComputer::process_animation_definitions(ComputedProperties const& comp
         return in_display_none_subtree.value();
     };
 
-    HashTable<Utf16FlyString> defined_animation_names;
+    // The same @keyframes rule name may be repeated within an animation-name. Changes to the animation-name update
+    // existing animations by iterating over the new list of animations from last to first, and, for each animation,
+    // finding the last matching animation in the list of existing animations. If a match is found, the existing
+    // animation is updated using the animation properties corresponding to its position in the new list of animations,
+    // whilst maintaining its current playback time as described above. The matching animation is removed from the
+    // existing list of animations such that it will not match twice. If a match is not found, a new animation is
+    // created. As a result, updating animation-name from ‘a’ to ‘a, a’ will cause the existing animation for ‘a’ to
+    // become the second animation in the list and a new animation will be created for the first item in the list.
 
-    for (size_t i = 0; i < animation_definitions.size(); ++i) {
+    auto existing_animations = *element_animations;
+    Vector<GC::Ref<CSSAnimation>> new_animations;
+
+    for (size_t i = animation_definitions.size(); i-- > 0;) {
         auto const& animation_properties = animation_definitions[i];
         auto const& animation_name = animation_properties.name;
-        defined_animation_names.set(animation_name);
 
         auto find_keyframes = [&](GC::Ptr<DOM::ShadowRoot const> shadow_root) -> RefPtr<Animations::KeyframeEffect::KeyFrameSet const> {
             if (auto const* rule_cache = rule_cache_for_cascade_origin(CascadeOrigin::Author, {}, shadow_root)) {
@@ -1431,12 +1440,22 @@ void StyleComputer::process_animation_definitions(ComputedProperties const& comp
             return find_keyframes(nullptr);
         };
 
-        // Changes to the values of animation properties while the animation is running apply as if the animation had
-        // those values from when it began
-        if (auto const& existing_animation = element_animations->get(animation_properties.name); existing_animation.has_value()) {
-            as<Animations::KeyframeEffect>(*existing_animation.value()->effect()).set_key_frame_set(resolve_keyframes());
-            existing_animation.value()->apply_css_properties(animation_properties);
-            existing_animation.value()->set_animation_name_index(i);
+        Optional<size_t> existing_animation_index;
+
+        for (size_t i = existing_animations.size(); i-- > 0;) {
+            if (existing_animations[i]->animation_name() == animation_name) {
+                existing_animation_index = i;
+                break;
+            }
+        }
+
+        if (existing_animation_index.has_value()) {
+            auto existing_animation = existing_animations.take(*existing_animation_index);
+
+            as<Animations::KeyframeEffect>(*existing_animation->effect()).set_key_frame_set(resolve_keyframes());
+            existing_animation->apply_css_properties(animation_properties);
+            existing_animation->set_animation_name_index(i);
+            new_animations.append(existing_animation);
             continue;
         }
 
@@ -1459,17 +1478,19 @@ void StyleComputer::process_animation_definitions(ComputedProperties const& comp
 
         effect->set_target(abstract_element);
         abstract_element.set_has_css_defined_animations();
-        element_animations->set(animation_properties.name, animation);
+        new_animations.append(animation);
     }
 
     // Once an animation has started it continues until it ends or the animation-name is removed
-    for (auto const& existing_animation_name : element_animations->keys()) {
-        if (defined_animation_names.contains(existing_animation_name))
-            continue;
+    // NB: All animations that are matched by the new set of animations have been removed from `existing_animations` by
+    //     this point so any still in the Vector have had their animation-name entries removed.
+    for (auto const& existing_animation : existing_animations)
+        existing_animation->cancel(Animations::Animation::ShouldInvalidate::No);
 
-        element_animations->get(existing_animation_name).value()->cancel(Animations::Animation::ShouldInvalidate::No);
-        element_animations->remove(existing_animation_name);
-    }
+    // NB: We create animations in reverse definition order so flip it back.
+    new_animations.reverse();
+
+    abstract_element.set_css_defined_animations(move(new_animations));
 }
 
 static void collect_dimension_attribute(Vector<StyleProperty>& properties, DOM::Element const& element, Utf16FlyString const& attribute_name, CSS::PropertyID property_id)

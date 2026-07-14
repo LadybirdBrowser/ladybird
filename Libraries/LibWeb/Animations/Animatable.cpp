@@ -286,7 +286,7 @@ bool Animatable::has_css_defined_animations() const
     return m_impl->has_css_defined_animations;
 }
 
-HashMap<Utf16FlyString, GC::Ref<CSS::CSSAnimation>>* Animatable::css_defined_animations(Optional<CSS::PseudoElement> pseudo_element)
+Vector<GC::Ref<CSS::CSSAnimation>> const* Animatable::css_defined_animations(Optional<CSS::PseudoElement> pseudo_element)
 {
     auto& impl = ensure_impl();
 
@@ -298,9 +298,23 @@ HashMap<Utf16FlyString, GC::Ref<CSS::CSSAnimation>>* Animatable::css_defined_ani
                      .value_or(0);
 
     if (!impl.css_defined_animations[index])
-        impl.css_defined_animations[index] = make<HashMap<Utf16FlyString, GC::Ref<CSS::CSSAnimation>>>();
+        impl.css_defined_animations[index] = make<Vector<GC::Ref<CSS::CSSAnimation>>>();
 
     return impl.css_defined_animations[index];
+}
+
+void Animatable::set_css_defined_animations(Optional<CSS::PseudoElement> pseudo_element, Vector<GC::Ref<CSS::CSSAnimation>>&& animations)
+{
+    auto& impl = ensure_impl();
+
+    if (pseudo_element.has_value() && !CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value()))
+        return;
+
+    auto index = pseudo_element
+                     .map([](CSS::PseudoElement pseudo_element_value) { return to_underlying(pseudo_element_value) + 1; })
+                     .value_or(0);
+
+    impl.css_defined_animations[index] = make<Vector<GC::Ref<CSS::CSSAnimation>>>(move(animations));
 }
 
 Animatable::Impl& Animatable::ensure_impl() const

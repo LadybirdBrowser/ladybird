@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 22 tests
 
-16 Pass
-6 Fail
+17 Pass
+5 Fail
 Pass	getAnimations for non-animated content
 Pass	getAnimations for CSS Animations
 Pass	getAnimations returns CSSAnimation objects for CSS Animations
@@ -14,7 +14,7 @@ Pass	getAnimations for CSS Animations that have finished but are forwards fillin
 Pass	getAnimations for CSS Animations with animation-name: none
 Fail	getAnimations for CSS Animations with animation-name: missing
 Fail	getAnimations for CSS Animations where the @keyframes rule is added later
-Fail	getAnimations for CSS Animations with duplicated animation-name
+Pass	getAnimations for CSS Animations with duplicated animation-name
 Pass	getAnimations for CSS Animations with empty keyframes rule
 Pass	getAnimations for CSS animations in delay phase
 Pass	getAnimations for zero-duration CSS Animations
