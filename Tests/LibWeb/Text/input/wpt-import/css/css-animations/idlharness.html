@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>css-animations IDL tests</title>
+  <meta name="timeout" content="long">
+  <link rel="help" href="https://drafts.csswg.org/css-animations/">
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+  <script src="../../resources/WebIDLParser.js"></script>
+  <script src="../../resources/idlharness.js"></script>
+</head>
+
+<body>
+  <div id="log"></div>
+
+  <style>
+    @keyframes test {
+      from { top: 0px; }
+      to { top: 1px; }
+    }
+  </style>
+
+  <script>
+    'use strict';
+
+    idl_test(
+      ['css-animations'],
+      ['html', 'dom', 'cssom'],
+      idl_array => {
+        try {
+          window.keyframes = document.styleSheets[0].cssRules[0];
+        } catch (e) {
+          // Surfaced in idlharness.js's test_object below.
+        }
+
+        idl_array.add_objects({
+          AnimationEvent: ['new AnimationEvent("animationstart")'],
+          CSSKeyframesRule: ['keyframes'],
+          CSSKeyframeRule: ['keyframes.cssRules[0]'],
+        });
+      }
+    );
+  </script>
+</body>
+
+</html>

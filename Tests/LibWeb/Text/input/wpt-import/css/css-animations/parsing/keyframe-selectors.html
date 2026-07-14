@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<title>CSS Animations Test: Parse tests for keyframe selectors</title>
+<link rel="help" href="https://drafts.csswg.org/css-animations-1/#keyframes">
+<link rel="help" href="https://drafts.csswg.org/scroll-animations-1/#typedef-timeline-range-name">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style id="test_sheet">
+</style>
+<script>
+  function isValidKeyFrameSelector(selector_text) {
+    let sheet = test_sheet.sheet;
+    sheet.insertRule(`@keyframes --foo { ${selector_text} {} }`);
+    let keyframe_rule = sheet.cssRules[0].cssRules[0];
+    sheet.deleteRule(0);
+    return keyframe_rule != undefined;
+  }
+
+  function test_valid_keyframe_selector(selector_text) {
+    test(() => {
+      assert_true(isValidKeyFrameSelector(selector_text));
+    }, `'${selector_text}' should be a valid keyframe selector`);
+  }
+
+  function test_invalid_keyframe_selector(selector_text) {
+    test(() => {
+      assert_false(isValidKeyFrameSelector(selector_text));
+    }, `'${selector_text}' should not be a valid keyframe selector`);
+  }
+
+  test_valid_keyframe_selector("0%");
+  test_valid_keyframe_selector("10%");
+  test_valid_keyframe_selector("100%");
+  test_valid_keyframe_selector("from");
+  test_valid_keyframe_selector("to");
+  test_valid_keyframe_selector("entry 10%");
+  test_valid_keyframe_selector("exit 60%");
+  test_valid_keyframe_selector("calc(10%)");
+  test_valid_keyframe_selector("calc(10% * sibling-index())");
+  test_valid_keyframe_selector("calc(10% * sign(1em - 1px))");
+  test_valid_keyframe_selector("entry calc(10%)");
+  test_valid_keyframe_selector("exit calc(60%)");
+
+  test_invalid_keyframe_selector("-10%");
+  test_invalid_keyframe_selector("120%");
+</script>

@@ -1,0 +1,104 @@
+Harness status: OK
+
+Found 98 tests
+
+92 Pass
+6 Fail
+Pass	idl_test setup
+Pass	idl_test validation
+Pass	Partial interface CSSRule: original interface defined
+Pass	Partial interface CSSRule: member names are unique
+Pass	Partial interface mixin GlobalEventHandlers: original interface mixin defined
+Pass	Partial interface mixin GlobalEventHandlers: member names are unique
+Pass	Partial interface Document: member names are unique
+Pass	Partial interface Element: member names are unique
+Pass	Partial interface Document[2]: member names are unique
+Pass	Partial interface Window: member names are unique
+Pass	Document includes GlobalEventHandlers: member names are unique
+Pass	HTMLElement includes GlobalEventHandlers: member names are unique
+Pass	HTMLElement includes ElementContentEditable: member names are unique
+Pass	HTMLElement includes HTMLOrSVGElement: member names are unique
+Pass	Window includes GlobalEventHandlers: member names are unique
+Pass	Window includes WindowEventHandlers: member names are unique
+Pass	Window includes WindowOrWorkerGlobalScope: member names are unique
+Pass	Window includes AnimationFrameProvider: member names are unique
+Pass	Window includes WindowSessionStorage: member names are unique
+Pass	Window includes WindowLocalStorage: member names are unique
+Pass	Document includes NonElementParentNode: member names are unique
+Pass	Document includes DocumentOrShadowRoot: member names are unique
+Pass	Document includes ParentNode: member names are unique
+Pass	Element includes ParentNode: member names are unique
+Pass	Element includes NonDocumentTypeChildNode: member names are unique
+Pass	Element includes ChildNode: member names are unique
+Pass	Element includes Slottable: member names are unique
+Pass	Document includes XPathEvaluatorBase: member names are unique
+Pass	HTMLElement includes ElementCSSInlineStyle: member names are unique
+Pass	AnimationEvent interface: existence and properties of interface object
+Pass	AnimationEvent interface object length
+Pass	AnimationEvent interface object name
+Pass	AnimationEvent interface: existence and properties of interface prototype object
+Pass	AnimationEvent interface: existence and properties of interface prototype object's "constructor" property
+Pass	AnimationEvent interface: existence and properties of interface prototype object's @@unscopables property
+Pass	AnimationEvent interface: attribute animationName
+Pass	AnimationEvent interface: attribute elapsedTime
+Pass	AnimationEvent interface: attribute pseudoElement
+Pass	AnimationEvent must be primary interface of new AnimationEvent("animationstart")
+Pass	Stringification of new AnimationEvent("animationstart")
+Pass	AnimationEvent interface: new AnimationEvent("animationstart") must inherit property "animationName" with the proper type
+Pass	AnimationEvent interface: new AnimationEvent("animationstart") must inherit property "elapsedTime" with the proper type
+Pass	AnimationEvent interface: new AnimationEvent("animationstart") must inherit property "pseudoElement" with the proper type
+Pass	CSSKeyframeRule interface: existence and properties of interface object
+Pass	CSSKeyframeRule interface object length
+Pass	CSSKeyframeRule interface object name
+Pass	CSSKeyframeRule interface: existence and properties of interface prototype object
+Pass	CSSKeyframeRule interface: existence and properties of interface prototype object's "constructor" property
+Pass	CSSKeyframeRule interface: existence and properties of interface prototype object's @@unscopables property
+Pass	CSSKeyframeRule interface: attribute keyText
+Pass	CSSKeyframeRule interface: attribute style
+Pass	CSSKeyframeRule must be primary interface of keyframes.cssRules[0]
+Pass	Stringification of keyframes.cssRules[0]
+Pass	CSSKeyframeRule interface: keyframes.cssRules[0] must inherit property "keyText" with the proper type
+Pass	CSSKeyframeRule interface: keyframes.cssRules[0] must inherit property "style" with the proper type
+Pass	CSSRule interface: keyframes.cssRules[0] must inherit property "KEYFRAMES_RULE" with the proper type
+Pass	CSSRule interface: keyframes.cssRules[0] must inherit property "KEYFRAME_RULE" with the proper type
+Pass	CSSKeyframesRule interface: existence and properties of interface object
+Pass	CSSKeyframesRule interface object length
+Pass	CSSKeyframesRule interface object name
+Pass	CSSKeyframesRule interface: existence and properties of interface prototype object
+Pass	CSSKeyframesRule interface: existence and properties of interface prototype object's "constructor" property
+Pass	CSSKeyframesRule interface: existence and properties of interface prototype object's @@unscopables property
+Pass	CSSKeyframesRule interface: attribute name
+Pass	CSSKeyframesRule interface: attribute cssRules
+Pass	CSSKeyframesRule interface: attribute length
+Fail	CSSKeyframesRule interface: operation appendRule(CSSOMString)
+Fail	CSSKeyframesRule interface: operation deleteRule(CSSOMString)
+Fail	CSSKeyframesRule interface: operation findRule(CSSOMString)
+Pass	CSSKeyframesRule must be primary interface of keyframes
+Pass	Stringification of keyframes
+Pass	CSSKeyframesRule interface: keyframes must inherit property "name" with the proper type
+Pass	CSSKeyframesRule interface: keyframes must inherit property "cssRules" with the proper type
+Pass	CSSKeyframesRule interface: keyframes must inherit property "length" with the proper type
+Fail	CSSKeyframesRule interface: keyframes must inherit property "appendRule(CSSOMString)" with the proper type
+Pass	CSSKeyframesRule interface: calling appendRule(CSSOMString) on keyframes with too few arguments must throw TypeError
+Fail	CSSKeyframesRule interface: keyframes must inherit property "deleteRule(CSSOMString)" with the proper type
+Pass	CSSKeyframesRule interface: calling deleteRule(CSSOMString) on keyframes with too few arguments must throw TypeError
+Fail	CSSKeyframesRule interface: keyframes must inherit property "findRule(CSSOMString)" with the proper type
+Pass	CSSKeyframesRule interface: calling findRule(CSSOMString) on keyframes with too few arguments must throw TypeError
+Pass	CSSRule interface: keyframes must inherit property "KEYFRAMES_RULE" with the proper type
+Pass	CSSRule interface: keyframes must inherit property "KEYFRAME_RULE" with the proper type
+Pass	HTMLElement interface: attribute onanimationstart
+Pass	HTMLElement interface: attribute onanimationiteration
+Pass	HTMLElement interface: attribute onanimationend
+Pass	HTMLElement interface: attribute onanimationcancel
+Pass	Window interface: attribute onanimationstart
+Pass	Window interface: attribute onanimationiteration
+Pass	Window interface: attribute onanimationend
+Pass	Window interface: attribute onanimationcancel
+Pass	Document interface: attribute onanimationstart
+Pass	Document interface: attribute onanimationiteration
+Pass	Document interface: attribute onanimationend
+Pass	Document interface: attribute onanimationcancel
+Pass	CSSRule interface: constant KEYFRAMES_RULE on interface object
+Pass	CSSRule interface: constant KEYFRAMES_RULE on interface prototype object
+Pass	CSSRule interface: constant KEYFRAME_RULE on interface object
+Pass	CSSRule interface: constant KEYFRAME_RULE on interface prototype object

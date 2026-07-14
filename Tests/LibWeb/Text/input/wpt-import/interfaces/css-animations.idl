@@ -1,0 +1,47 @@
+// GENERATED CONTENT - DO NOT EDIT
+// Content was automatically extracted by Reffy into webref
+// (https://github.com/w3c/webref)
+// Source: CSS Animations Module Level 1 (https://drafts.csswg.org/css-animations-1/)
+
+[Exposed=Window]
+interface AnimationEvent : Event {
+  constructor(CSSOMString type, optional AnimationEventInit animationEventInitDict = {});
+  readonly attribute CSSOMString animationName;
+  readonly attribute double elapsedTime;
+  readonly attribute CSSOMString pseudoElement;
+};
+dictionary AnimationEventInit : EventInit {
+  CSSOMString animationName = "";
+  double elapsedTime = 0.0;
+  CSSOMString pseudoElement = "";
+};
+
+partial interface CSSRule {
+    const unsigned short KEYFRAMES_RULE = 7;
+    const unsigned short KEYFRAME_RULE = 8;
+};
+
+[Exposed=Window]
+interface CSSKeyframeRule : CSSRule {
+  attribute CSSOMString keyText;
+  [SameObject, PutForwards=cssText] readonly attribute CSSStyleProperties style;
+};
+
+[Exposed=Window]
+interface CSSKeyframesRule : CSSRule {
+           attribute CSSOMString name;
+  readonly attribute CSSRuleList cssRules;
+  readonly attribute unsigned long length;
+
+  getter CSSKeyframeRule (unsigned long index);
+  undefined        appendRule(CSSOMString rule);
+  undefined        deleteRule(CSSOMString select);
+  CSSKeyframeRule? findRule(CSSOMString select);
+};
+
+partial interface mixin GlobalEventHandlers {
+  attribute EventHandler onanimationstart;
+  attribute EventHandler onanimationiteration;
+  attribute EventHandler onanimationend;
+  attribute EventHandler onanimationcancel;
+};

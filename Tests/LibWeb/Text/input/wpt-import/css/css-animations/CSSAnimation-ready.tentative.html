@@ -1,0 +1,98 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>CSSAnimation.ready</title>
+<!-- TODO: Add a more specific link for this once it is specified. -->
+<link rel="help" href="https://drafts.csswg.org/css-animations-2/#cssanimation">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="support/testcommon.js"></script>
+<style>
+@keyframes abc {
+  to { transform: translate(10px) }
+}
+</style>
+<div id="log"></div>
+<script>
+'use strict';
+
+promise_test(async t => {
+  const div = addDiv(t);
+  div.style.animation = 'abc 100s paused';
+  const animation = div.getAnimations()[0];
+  const originalReadyPromise = animation.ready;
+
+  await animation.ready;
+
+  div.style.animationPlayState = 'running';
+  assert_not_equals(animation.ready, originalReadyPromise,
+                    'After updating animation-play-state a new ready promise'
+                    + ' object is created');
+}, 'A new ready promise is created when setting animation-play-state: running');
+
+promise_test(async t => {
+  const div = addDiv(t);
+
+  // Set up pending animation
+  div.style.animation = 'abc 100s';
+  const animation = div.getAnimations()[0];
+  assert_true(animation.pending, 'Animation is initially pending');
+  const readyPromise = animation.ready;
+
+  // Cancel the animation and flush styles
+  div.style.animation = '';
+  getComputedStyle(div).animation;
+
+  await promise_rejects_dom(t, 'AbortError', readyPromise,
+                        'ready promise is rejected with AbortError');
+}, 'ready promise is rejected when an animation is canceled by resetting'
+   + ' the animation property');
+
+promise_test(async t => {
+  const div = addDiv(t);
+
+  // As before, but this time instead of removing all animations, simply update
+  // the list of animations. At least for Firefox, updating is a different
+  // code path.
+
+  // Set up pending animation
+  div.style.animation = 'abc 100s';
+  const animation = div.getAnimations()[0];
+  assert_true(animation.pending, 'Animation is initially pending');
+  const readyPromise = animation.ready;
+
+  // Update the animation and flush styles
+  div.style.animation = 'def 100s';
+  getComputedStyle(div).animation;
+
+  await promise_rejects_dom(t, 'AbortError', readyPromise,
+                        'ready promise is rejected with AbortError');
+}, 'ready promise is rejected when an animation is canceled by updating'
+   + ' the animation property');
+
+promise_test(async t => {
+  const div = addDiv(t, { style: 'animation: abc 100s' });
+  const animation = div.getAnimations()[0];
+  const originalReadyPromise = animation.ready;
+
+  await animation.ready;
+
+  div.style.animationPlayState = 'paused';
+  assert_not_equals(animation.ready, originalReadyPromise,
+                    'A new Promise object is generated when setting'
+                    + ' animation-play-state: paused');
+}, 'A new ready promise is created when setting animation-play-state: paused');
+
+promise_test(async t => {
+  const div = addDiv(t, { style: 'animation: abc 100s' });
+  const animation = div.getAnimations()[0];
+
+  await animation.ready;
+
+  div.style.animationPlayState = 'paused';
+  const firstReadyPromise = animation.ready;
+  animation.pause();
+  assert_equals(animation.ready, firstReadyPromise,
+                'Ready promise objects are identical after redundant pause');
+}, 'Pausing twice re-uses the same Promise');
+
+</script>

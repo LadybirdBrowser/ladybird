@@ -1,0 +1,85 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>CSSOM -  CSSKeyframesRule interface</title>
+    <link rel="help" href="https://drafts.csswg.org/css-animations/#interface-csskeyframesrule">
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <style>
+        @keyframes foo {
+            0% { top: 0px; }
+            100% { top: 200px; }
+        }
+        @keyframes empty {}
+        @keyframes indexed-access {
+            0% { top: 0px; }
+            100% { top: 200px; }
+        }
+    </style>
+
+    <script>
+    test(function () {
+        var keyframe = document.styleSheets[0].cssRules[0];
+        assert_equals(keyframe.name, "foo", "CSSKeyframesRule name attribute");
+        assert_equals(keyframe.cssRules.length, 2, "CSSKeyframesRule cssRule length attribute");
+        assert_equals(keyframe.cssRules[0].cssText, "0% { top: 0px; }", "CSSKeyframesRule cssRule cssText attribute");
+        assert_equals(keyframe.cssRules[1].cssText, "100% { top: 200px; }", "CSSKeyframesRule cssRule cssText attribute");
+
+        keyframe.appendRule("50% { top: 100px; }");
+        assert_equals(keyframe.cssRules.length, 3, "CSSKeyframesRule cssRule length attribute after appendRule function");
+        assert_equals(keyframe.cssRules[0].cssText, "0% { top: 0px; }", "CSSKeyframesRule cssRule cssText attribute after appendRule function");
+        assert_equals(keyframe.cssRules[1].cssText, "100% { top: 200px; }", "CSSKeyframesRule cssRule cssText attribute after appendRule function");
+        assert_equals(keyframe.cssRules[2].cssText, "50% { top: 100px; }", "CSSKeyframesRule cssRule cssText attribute after appendRule function");
+
+        keyframe.appendRule("0% { top: 50px; }");
+        assert_equals(keyframe.cssRules.length, 4, "CSSKeyframesRule cssRule length attribute after appendRule function");
+        assert_equals(keyframe.cssRules[0].cssText, "0% { top: 0px; }", "CSSKeyframesRule cssRule cssText attribute after appendRule function");
+        assert_equals(keyframe.cssRules[1].cssText, "100% { top: 200px; }", "CSSKeyframesRule cssRule cssText attribute after appendRule function");
+        assert_equals(keyframe.cssRules[2].cssText, "50% { top: 100px; }", "CSSKeyframesRule cssRule cssText attribute after appendRule function");
+        assert_equals(keyframe.cssRules[3].cssText, "0% { top: 50px; }", "CSSKeyframesRule cssRule cssText attribute after appendRule function");
+
+        var find1 = keyframe.findRule("50%");
+        assert_equals(find1.cssText, "50% { top: 100px; }", "CSSKeyframesRule findRule function");
+        var find2 = keyframe.findRule("0%");
+        assert_equals(find2.cssText, "0% { top: 50px; }", "CSSKeyframesRule findRule function");
+        var find3 = keyframe.findRule("70%");
+        assert_equals(find3, null, "CSSKeyframesRule findRule function");
+
+        keyframe.deleteRule("100%");
+        assert_equals(keyframe.cssRules.length, 3, "CSSKeyframesRule cssRule length attribute after deleteRule function");
+        assert_equals(keyframe.cssRules[0].cssText, "0% { top: 0px; }", "CSSKeyframesRule cssRule cssText attribute after deleteRule function");
+        assert_equals(keyframe.cssRules[1].cssText, "50% { top: 100px; }", "CSSKeyframesRule cssRule cssText attribute after deleteRule function");
+        assert_equals(keyframe.cssRules[2].cssText, "0% { top: 50px; }", "CSSKeyframesRule cssRule cssText attribute after deleteRule function");
+        assert_equals(keyframe.cssRules[3], undefined, "CSSKeyframesRule cssRule cssText attribute after deleteRule function");
+
+        keyframe.deleteRule("80%");
+        assert_equals(keyframe.cssRules.length, 3, "CSSKeyframesRule cssRule length attribute after deleteRule function");
+        assert_equals(keyframe.cssRules[0].cssText, "0% { top: 0px; }", "CSSKeyframesRule cssRule cssText attribute after deleteRule function");
+        assert_equals(keyframe.cssRules[1].cssText, "50% { top: 100px; }", "CSSKeyframesRule cssRule cssText attribute after deleteRule function");
+        assert_equals(keyframe.cssRules[2].cssText, "0% { top: 50px; }", "CSSKeyframesRule cssRule cssText attribute after deleteRule function");
+        assert_equals(keyframe.cssRules[3], undefined, "CSSKeyframesRule cssRule cssText attribute after deleteRule function");
+
+        var empty = document.styleSheets[0].cssRules[1];
+        empty.name = "bar";
+        assert_equals(empty.name, "bar", "CSSKeyframesRule name setter");
+        assert_equals(empty.cssText.replace(/\s/g, ""), "@keyframesbar{}", "CSSKeyframesRule cssText attribute");
+
+        empty.name = "initial";
+        assert_equals(empty.name, "initial", "CSSKeyframesRule name setter, CSS-wide keyword");
+        assert_equals(empty.cssText.replace(/\s/g, ""), "@keyframes\"initial\"{}", "CSSKeyframesRule cssText attribute with CSS-wide keyword name");
+
+        empty.name = "none";
+        assert_equals(empty.name, "none", "CSSKeyframesRule name setter, 'none'");
+        assert_equals(empty.cssText.replace(/\s/g, ""), "@keyframes\"none\"{}", "CSSKeyframesRule cssText attribute with 'none' name");
+    }, 'name, cssRules, appendRule, findRule, deleteRule');
+
+    test(function () {
+        const keyframes = document.styleSheets[0].cssRules[2];
+        assert_equals(keyframes[0].cssText, "0% { top: 0px; }", "CSSKeyframesRule indexed getter [0]");
+        assert_equals(keyframes[1].cssText, "100% { top: 200px; }", "CSSKeyframesRule indexed getter [1]");
+        assert_equals(keyframes.length, 2, "CSSKeyframesRule.length");
+    }, 'indexed getter, length');
+    </script>
+</head>
+</html>

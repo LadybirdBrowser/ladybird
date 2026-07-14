@@ -12,6 +12,9 @@
     animation-duration: 2s;
     animation-delay: -1s;
     animation-iteration-count: 2;
+    /* ensure animation remains in-effect so we can fetch it with
+     * getAnimations() even if it has finished */
+    animation-fill-mode: forwards;
 
     background-color: blue;
     height: 100px;
@@ -40,10 +43,15 @@
       assert_idl_attribute(evt, "animationName", "animationstart has animationName property");
       assert_idl_attribute(evt, "elapsedTime", "animationstart has elapsedTime property");
       assert_idl_attribute(evt, "pseudoElement", "animationstart has pseudoElement property");
+      assert_idl_attribute(evt, "animation", "animationstart has animation property");
 
       assert_equals(evt.animationName, "sample", "animationstart has animationName value");
       assert_equals(evt.elapsedTime, 1, "animationstart has elapsedTime value");
-      assert_equals(evt.pseudoElement, "", "animaitonstart has correct pseudoElement value");
+      assert_equals(evt.pseudoElement, "", "animationstart has correct pseudoElement value");
+
+      anim = testDiv.getAnimations()[0];
+      assert_true(anim !== undefined, "the corresponding animation should be found");
+      assert_equals(evt.animation, anim, "animationstart has the coresponding animation");
 
       t.done();
     }), true);
@@ -55,11 +63,13 @@
 
       assert_idl_attribute(evt, "animationName", "animationend has animationName property");
       assert_idl_attribute(evt, "elapsedTime", "animationend has elapsedTime property");
-      assert_idl_attribute(evt, "pseudoElement", "animationstart has pseudoElement property");
+      assert_idl_attribute(evt, "pseudoElement", "animationend has pseudoElement property");
+      assert_idl_attribute(evt, "animation", "animationend has animation property");
 
       assert_equals(evt.animationName, "sample", "animationend has animationName value");
       assert_equals(evt.elapsedTime, 4, "animationend has elapsedTime value");
-      assert_equals(evt.pseudoElement, "", "animaitonstart has correct pseudoElement value");
+      assert_equals(evt.pseudoElement, "", "animationend has correct pseudoElement value");
+      assert_equals(evt.animation, anim, "animationend has the coresponding animation");
 
       t.done();
     }), true);
@@ -71,11 +81,13 @@
 
       assert_idl_attribute(evt, "animationName", "animationiteration has animationName property");
       assert_idl_attribute(evt, "elapsedTime", "animationiteration has elapsedTime property");
-      assert_idl_attribute(evt, "pseudoElement", "animationstart has pseudoElement property");
+      assert_idl_attribute(evt, "pseudoElement", "animationiteration has pseudoElement property");
+      assert_idl_attribute(evt, "animation", "animationiteration has animation property");
 
       assert_equals(evt.animationName, "sample", "animationiteration has animationName value");
       assert_equals(evt.elapsedTime, 2, "animationiteration has elapsedTime value");
-      assert_equals(evt.pseudoElement, "", "animaitonstart has correct pseudoElement value");
+      assert_equals(evt.pseudoElement, "", "animationiteration has correct pseudoElement value");
+      assert_equals(evt.animation, anim, "animationiteration has the coresponding animation");
 
       t.done();
     }), true);

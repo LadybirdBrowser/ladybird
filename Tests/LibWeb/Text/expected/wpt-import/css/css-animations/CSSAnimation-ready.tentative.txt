@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 5 tests
+
+2 Pass
+3 Fail
+Fail	A new ready promise is created when setting animation-play-state: running
+Pass	ready promise is rejected when an animation is canceled by resetting the animation property
+Pass	ready promise is rejected when an animation is canceled by updating the animation property
+Fail	A new ready promise is created when setting animation-play-state: paused
+Fail	Pausing twice re-uses the same Promise

@@ -1,0 +1,48 @@
+Harness status: OK
+
+Found 42 tests
+
+41 Pass
+1 Fail
+Pass	the event is an instance of AnimationEvent
+Pass	the event inherts from Event
+Pass	Missing type argument
+Pass	type argument is string
+Pass	type argument is null
+Pass	event type set to undefined
+Pass	animationName has default value of empty string
+Pass	elapsedTime has default value of 0.0
+Pass	animationName is readonly
+Pass	elapsedTime is readonly
+Pass	animationEventInit argument is null
+Pass	animationEventInit argument is undefined
+Pass	animationEventInit argument is empty dictionary
+Pass	AnimationEvent.pseudoElement initialized from the dictionary
+Pass	animationName set to 'sample'
+Pass	animationName set to undefined
+Pass	animationName set to null
+Pass	animationName set to false
+Pass	animationName set to true
+Pass	animationName set to a number
+Pass	animationName set to []
+Pass	animationName set to [1, 2, 3]
+Pass	animationName set to an object
+Pass	animationName set to an object with a valueOf function
+Pass	elapsedTime set to 0.5
+Pass	elapsedTime set to -0.5
+Pass	elapsedTime set to undefined
+Pass	elapsedTime set to null
+Pass	elapsedTime set to false
+Pass	elapsedTime set to true
+Pass	elapsedTime set to ''
+Pass	elapsedTime set to []
+Pass	elapsedTime set to [0.5]
+Pass	elapsedTime set to an object with a valueOf function
+Pass	elapsedTime cannot be set to NaN
+Pass	elapsedTime cannot be set to Infinity
+Pass	elapsedTime cannot be set to -Infinity
+Pass	elapsedTime cannot be set to 'sample'
+Pass	elapsedTime cannot be set to [0.5, 1.0]
+Pass	elapsedTime cannot be set to an object
+Pass	AnimationEventInit properties set value
+Fail	AnimationEventInit animation property sets value
