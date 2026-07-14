@@ -551,7 +551,7 @@ run_wpt_chunked() {
 
     echo "Preparing the venv setup..."
     base_venv="${BUILD_DIR}/wpt-prep/_venv"
-    ./wpt --venv "$base_venv" run "${WPT_ARGS[@]}" ladybird THIS_TEST_CANNOT_POSSIBLY_EXIST "${WPT_TEST_TYPE_ARGS[@]}" || true
+    ./wpt --venv "$base_venv" run "${WPT_ARGS[@]}" ladybird THIS_TEST_CANNOT_POSSIBLY_EXIST "${WPT_TEST_TYPE_ARGS[@]}"
 
     echo "Launching $procs chunked instances (concurrency=$concurrency each)"
     local logs=()
@@ -570,6 +570,7 @@ run_wpt_chunked() {
         cp -r "$base_venv" "${runpath}/_venv"
 
         command=(./wpt --venv "${runpath}/_venv" \
+            --skip-venv-setup \
             run \
             --this-chunk="$((i + 1))" \
             --total-chunks="$procs" \
