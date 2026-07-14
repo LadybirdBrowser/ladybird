@@ -1477,7 +1477,6 @@ void StyleComputer::process_animation_definitions(ComputedProperties const& comp
         effect->set_key_frame_set(resolve_keyframes());
 
         effect->set_target(abstract_element);
-        abstract_element.set_has_css_defined_animations();
         new_animations.append(animation);
     }
 

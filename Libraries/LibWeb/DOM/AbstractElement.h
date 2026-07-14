@@ -59,7 +59,6 @@ public:
     void set_counters_set(OwnPtr<CSS::CountersSet>&&);
 
     Vector<GC::Ref<CSS::CSSAnimation>> const* css_defined_animations() const;
-    void set_has_css_defined_animations();
     void set_css_defined_animations(Vector<GC::Ref<CSS::CSSAnimation>>&&);
 
     void visit(GC::Cell::Visitor& visitor) const;

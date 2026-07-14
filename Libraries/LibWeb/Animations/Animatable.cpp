@@ -273,11 +273,6 @@ void Animatable::Impl::visit_edges(JS::Cell::Visitor& visitor)
     }
 }
 
-void Animatable::set_has_css_defined_animations()
-{
-    ensure_impl().has_css_defined_animations = true;
-}
-
 bool Animatable::has_css_defined_animations() const
 {
     if (!m_impl)
@@ -315,6 +310,7 @@ void Animatable::set_css_defined_animations(Optional<CSS::PseudoElement> pseudo_
                      .value_or(0);
 
     impl.css_defined_animations[index] = make<Vector<GC::Ref<CSS::CSSAnimation>>>(move(animations));
+    impl.has_css_defined_animations = true;
 }
 
 Animatable::Impl& Animatable::ensure_impl() const
