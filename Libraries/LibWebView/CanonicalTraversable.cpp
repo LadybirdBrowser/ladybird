@@ -40,18 +40,24 @@ CanonicalNavigable& CanonicalTraversable::insert(WebContentClient& reporting_cli
     return navigable_ref;
 }
 
-Optional<CanonicalNavigable&> CanonicalTraversable::find(Web::HTML::CrossProcessId frame_id)
+Optional<CanonicalNavigable&> CanonicalTraversable::find(Web::HTML::CrossProcessId navigable_id)
 {
-    auto navigable = m_navigable_index.get(frame_id);
+    if (id() == navigable_id)
+        return *this;
+
+    auto navigable = m_navigable_index.get(navigable_id);
     if (!navigable.has_value() || !navigable.value())
         return {};
 
     return *navigable.value();
 }
 
-Optional<CanonicalNavigable const&> CanonicalTraversable::find(Web::HTML::CrossProcessId frame_id) const
+Optional<CanonicalNavigable const&> CanonicalTraversable::find(Web::HTML::CrossProcessId navigable_id) const
 {
-    auto navigable = m_navigable_index.get(frame_id);
+    if (id() == navigable_id)
+        return *this;
+
+    auto navigable = m_navigable_index.get(navigable_id);
     if (!navigable.has_value() || !navigable.value())
         return {};
 
