@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<meta http-equiv="Content-Security-Policy" content="style-src 'nonce-value'">
+<div id="target">target</div>
+<script>
+    test(() => {
+        const style = document.createElement("style");
+        style.nonce = "value";
+        style.textContent = "#target { color: rgb(1, 2, 3); }";
+        document.head.appendChild(style);
+
+        println(`nonce attribute: ${style.getAttribute("nonce")}`);
+        println(`color: ${getComputedStyle(document.querySelector("#target")).color}`);
+    });
+</script>

@@ -22,10 +22,12 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/Fetch/Infrastructure/URL.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
+#include <LibWeb/HTML/HTMLStyleElement.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/SRI/SRI.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGScriptElement.h>
+#include <LibWeb/SVG/SVGStyleElement.h>
 
 namespace Web::ContentSecurityPolicy::Directives {
 
@@ -902,7 +904,13 @@ MatchResult does_element_match_source_list_for_type_and_source(GC::Ptr<DOM::Elem
     // FIXME: File spec issue that this algorithm doesn't handle `element` being null, which is it when doing a
     //        javascript: URL navigation. For now, we say that the element is not nonceable if it's null, because
     //        we simply can't pull a nonce attribute value from a null element.
-    if ((type == Directive::InlineType::Script || type == Directive::InlineType::Style) && is_element_nonceable(element) == NonceableResult::Nonceable) {
+    // AD-HOC: For interoperability, match a style element's internal nonce without requiring a nonce content
+    // attribute. This allows styles whose nonce was set through the IDL attribute, which intentionally does not update
+    // the content attribute. Keep applying the nonceability checks above to script elements to prevent dangling markup
+    // attacks.
+    auto is_nonceable = (type == Directive::InlineType::Style && element && (is<HTML::HTMLStyleElement>(element.ptr()) || is<SVG::SVGStyleElement>(element.ptr())))
+        || (type == Directive::InlineType::Script && is_element_nonceable(element) == NonceableResult::Nonceable);
+    if (is_nonceable) {
         // 1. For each expression of list:
         for (auto const& expression : source_list) {
             // 1. If expression matches the nonce-source grammar, and element has a nonce attribute whose value is

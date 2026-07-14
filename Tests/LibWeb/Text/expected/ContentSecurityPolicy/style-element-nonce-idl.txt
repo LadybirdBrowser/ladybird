@@ -1,0 +1,2 @@
+nonce attribute: null
+color: rgb(1, 2, 3)
