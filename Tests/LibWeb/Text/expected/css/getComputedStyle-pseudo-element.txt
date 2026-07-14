@@ -7,3 +7,7 @@
 #foo::after:
   content: "bye"
   color: rgb(0, 128, 0)
+#foo::first-letter:
+  color: rgb(255, 0, 0)
+#foo::selection:
+  background-color: rgb(0, 0, 255)
