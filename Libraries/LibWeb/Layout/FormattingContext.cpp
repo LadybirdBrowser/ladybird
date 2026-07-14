@@ -10,6 +10,7 @@
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
+#include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ShadowRoot.h>
@@ -1896,6 +1897,42 @@ static bool calculation_tree_contains_anchor(CSS::CalculationNode const& root)
     return false;
 }
 
+static bool style_value_contains_anchor(CSS::StyleValue const& value)
+{
+    if (value.is_anchor())
+        return true;
+    if (value.is_calculated())
+        return calculation_tree_contains_anchor(value.as_calculated().calculation());
+    return false;
+}
+
+// NB: Generated boxes for pseudo-elements are anonymous, so their computed properties live in
+//     the generator element under the relevant pseudo-element rather than on a DOM node of
+//     their own.
+static Optional<DOM::AbstractElement> abstract_element_for_box(Box const& box)
+{
+    if (box.is_generated_for_pseudo_element())
+        return DOM::AbstractElement { *box.pseudo_element_generator(), box.generated_for_pseudo_element() };
+    if (auto const* element = as_if<DOM::Element>(box.dom_node()))
+        return DOM::AbstractElement { *element };
+    return {};
+}
+
+bool FormattingContext::box_inset_properties_contain_anchor_functions(Box const& box)
+{
+    auto abstract_element = abstract_element_for_box(box);
+    if (!abstract_element.has_value())
+        return false;
+
+    auto const* computed = abstract_element->computed_properties();
+    if (!computed)
+        return false;
+    return style_value_contains_anchor(computed->property(CSS::PropertyID::Top))
+        || style_value_contains_anchor(computed->property(CSS::PropertyID::Right))
+        || style_value_contains_anchor(computed->property(CSS::PropertyID::Bottom))
+        || style_value_contains_anchor(computed->property(CSS::PropertyID::Left));
+}
+
 static Box const* nearest_scroll_container_ancestor(Box const& box)
 {
     for (auto const* ancestor = box.containing_block(); ancestor; ancestor = ancestor->containing_block()) {
@@ -1967,34 +2004,17 @@ void FormattingContext::resolve_anchor_insets(Box& box) const
     // previous layout.
     box.set_default_scroll_shift({}, false, false);
 
-    // NB: Generated boxes for pseudo-elements are anonymous, so their anchor insets live in the generator element's
-    //     computed properties for the relevant pseudo-element rather than on a DOM node of their own.
-    DOM::Element const* element = nullptr;
-    Optional<CSS::PseudoElement> pseudo_element;
-    if (box.is_generated_for_pseudo_element()) {
-        element = box.pseudo_element_generator();
-        pseudo_element = box.generated_for_pseudo_element();
-    } else {
-        element = as_if<DOM::Element>(box.dom_node());
-    }
-    if (!element)
+    auto abstract_element = abstract_element_for_box(box);
+    if (!abstract_element.has_value())
         return;
 
-    auto computed = element->computed_properties(pseudo_element);
+    auto const* computed = abstract_element->computed_properties();
     if (!computed)
         return;
     auto const& top = computed->property(CSS::PropertyID::Top);
     auto const& right = computed->property(CSS::PropertyID::Right);
     auto const& bottom = computed->property(CSS::PropertyID::Bottom);
     auto const& left = computed->property(CSS::PropertyID::Left);
-
-    auto style_value_contains_anchor = [](CSS::StyleValue const& value) {
-        if (value.is_anchor())
-            return true;
-        if (value.is_calculated())
-            return calculation_tree_contains_anchor(value.as_calculated().calculation());
-        return false;
-    };
 
     bool top_contains_anchor = style_value_contains_anchor(top);
     bool right_contains_anchor = style_value_contains_anchor(right);
@@ -2059,7 +2079,7 @@ void FormattingContext::resolve_anchor_insets(Box& box) const
     // FIXME: Prefer the nearest ancestor of query el that satisfies the conditions over the last element in tree
     //        order.
     auto target_anchor_box = [&](Utf16FlyString const& anchor_name) -> Box* {
-        auto anchor_element = element->document().element_by_anchor_name(anchor_name, *element, is_acceptable_anchor_element);
+        auto anchor_element = abstract_element->element().document().element_by_anchor_name(anchor_name, abstract_element->element(), is_acceptable_anchor_element);
         if (!anchor_element)
             return nullptr;
         return as_if<Box>(anchor_element->unsafe_layout_node());
@@ -2330,6 +2350,39 @@ StaticPositionRect FormattingContext::resolve_static_position_relative_to_contai
     };
     static_position_rect.rect.translate_by(offset_relative_to_merge_point(*static_position_cb) - offset_relative_to_merge_point(*actual_containing_block));
     return static_position_rect;
+}
+
+// Hosts replays of the absolutely positioned element layout algorithm outside any ancestor
+// formatting context run; the algorithm is defined on the FormattingContext base and consumes
+// nothing from the concrete context hosting it.
+class AbsposLayoutReplayContext final : public FormattingContext {
+public:
+    AbsposLayoutReplayContext(LayoutState& state, Box const& containing_block)
+        : FormattingContext(Type::AbsposReplay, LayoutMode::Normal, state, containing_block)
+    {
+    }
+
+    virtual CSSPixels automatic_content_width() const override { VERIFY_NOT_REACHED(); }
+    virtual CSSPixels automatic_content_height() const override { VERIFY_NOT_REACHED(); }
+    virtual void run(LayoutInput const&) override { VERIFY_NOT_REACHED(); }
+};
+
+void FormattingContext::layout_absolutely_positioned_element_from_saved_inputs(LayoutState& state, Box& box)
+{
+    auto* containing_block = box.containing_block();
+    VERIFY(containing_block);
+    VERIFY(box.saved_abspos_layout_inputs());
+    auto inputs = *box.saved_abspos_layout_inputs();
+
+    AbsposLayoutReplayContext context(state, *containing_block);
+
+    // Mirror how the ancestor formatting context prepares an absolutely positioned child
+    // during a full pass: create its used values first.
+    state.create(box, {}, {});
+
+    // Runs the full pipeline: sizing, inside layout, and the box's own absolutely positioned
+    // children via parent_context_did_dimension_child_root_box().
+    context.layout_absolutely_positioned_element(box, inputs);
 }
 
 void FormattingContext::layout_absolutely_positioned_element(Box& box, AbsposLayoutInputs const& inputs)

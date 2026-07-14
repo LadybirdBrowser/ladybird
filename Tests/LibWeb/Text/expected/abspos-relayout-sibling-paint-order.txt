@@ -1,4 +1,4 @@
-layout-passes partial=0 full=1
+layout-passes partial=1 full=0
 hit-before=second
 hit-after=second
-FAIL
+PASS

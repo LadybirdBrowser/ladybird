@@ -1,5 +1,5 @@
 boundary-before=25,20,80,50
 boundary-after=25,20,180,50
 content=25,20,180,20
-partial-layouts=0
-FAIL
+partial-layouts=1
+PASS

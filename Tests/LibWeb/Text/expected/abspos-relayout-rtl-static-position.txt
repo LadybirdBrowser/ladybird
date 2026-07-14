@@ -1,4 +1,4 @@
 live=180,10,120,40
 reference=180,10,120,40
-partial-layouts=0 full-layouts=1
-FAIL
+partial-layouts=1 full-layouts=0
+PASS

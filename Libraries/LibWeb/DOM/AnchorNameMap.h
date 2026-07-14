@@ -21,6 +21,8 @@ public:
     void unregister_name(Utf16FlyString const& name, GC::Ref<Element>);
     GC::Ptr<Element> last_element_by_name_matching(Utf16FlyString const& name, Function<bool(Element&)> const& is_acceptable) const;
 
+    [[nodiscard]] bool has_registered_names() const { return !m_map.is_empty(); }
+
     template<typename Visitor>
     void visit_edges(Visitor& visitor) { visitor.visit(m_map); }
 

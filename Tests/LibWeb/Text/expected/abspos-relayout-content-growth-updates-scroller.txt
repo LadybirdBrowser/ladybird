@@ -1,4 +1,4 @@
 boundary-height=400
 scroll-height-before=150 after=420
-partial-layouts=0 full-layouts=1
-FAIL
+partial-layouts=1 full-layouts=0
+PASS

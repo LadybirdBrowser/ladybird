@@ -1,5 +1,5 @@
-before-toggle partial=0 full=1
+before-toggle partial=1 full=0
 after-toggle partial=0 full=1
 fixed-before-toggle=80,100,50,20
 fixed-after-toggle=30,40,50,20
-FAIL
+PASS

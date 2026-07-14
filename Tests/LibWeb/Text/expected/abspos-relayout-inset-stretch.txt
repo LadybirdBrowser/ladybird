@@ -1,4 +1,4 @@
 boundary=0,0,320,180
 child=0,0,100,70
-partial-layouts=0 full-layouts=1
-FAIL
+partial-layouts=1 full-layouts=0
+PASS

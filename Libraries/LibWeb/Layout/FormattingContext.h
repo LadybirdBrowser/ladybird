@@ -44,6 +44,7 @@ public:
         Table,
         SVG,
         ReplacedWithChildren,
+        AbsposReplay,     // Hosts the absolutely positioned element algorithm when it is replayed from saved inputs.
         InternalReplaced, // Internal hack formatting context for replaced elements. FIXME: Get rid of this.
         InternalDummy,    // Internal hack formatting context for unimplemented things. FIXME: Get rid of this.
     };
@@ -65,6 +66,8 @@ public:
             return "SVG"sv;
         case Type::ReplacedWithChildren:
             return "Replaced, with children"sv;
+        case Type::AbsposReplay:
+            return "Abspos replay"sv;
         case Type::InternalReplaced:
             return "Replaced"sv;
         case Type::InternalDummy:
@@ -113,6 +116,15 @@ public:
 
     static OwnPtr<FormattingContext> create_independent_formatting_context_if_needed(LayoutState&, LayoutMode, Box const& child_box, FormattingContext* parent);
     static NonnullOwnPtr<FormattingContext> create_independent_formatting_context(LayoutState&, LayoutMode, Box const& child_box, FormattingContext* parent);
+
+    // Re-runs the absolutely positioned element layout algorithm for a box from the inputs
+    // saved by the last committing layout pass, without running any ancestor formatting
+    // context. Partial relayout uses this to re-resolve a boundary's own size and position.
+    static void layout_absolutely_positioned_element_from_saved_inputs(LayoutState&, Box&);
+
+    // Whether any of the box's inset properties carries anchor() functions, which only
+    // resolve_anchor_insets() can turn into plain values during a full layout pass.
+    [[nodiscard]] static bool box_inset_properties_contain_anchor_functions(Box const&);
 
     [[nodiscard]] static ContainingBlockConstraints constraints_for_child_context(
         LayoutState::UsedValues const& containing_block_used_values,

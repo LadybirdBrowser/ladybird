@@ -1190,14 +1190,24 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
         auto& anchor_names = as_if<ShadowRoot>(root())
             ? as<ShadowRoot>(root()).anchor_name_map()
             : document().anchor_name_map();
+        bool element_had_registered_anchor_names = false;
         if (m_computed_properties) {
             m_computed_properties->for_each_anchor_name([&](Utf16FlyString const& name) {
+                element_had_registered_anchor_names = true;
                 anchor_names.unregister_name(name, *this);
             });
         }
+        bool element_has_anchor_names = false;
         new_computed_properties->for_each_anchor_name([&](Utf16FlyString const& name) {
+            element_has_anchor_names = true;
             anchor_names.register_name(name, *this);
         });
+
+        // Anchor names that vanish here become invisible to the dispatch-time check of the
+        // live anchor-name maps, while positioned boxes anywhere may hold geometry resolved
+        // against them; names still registered keep that check refusing partial relayout.
+        if (element_had_registered_anchor_names && !element_has_anchor_names)
+            document().partial_relayout_invalidation().record_escape(PartialRelayoutEscapeReason::AnchorNamesUnregisteredByStyleChange);
     }
 
     auto old_non_animated_display_is_none = m_computed_properties ? m_computed_properties->property(CSS::PropertyID::Display, CSS::ComputedProperties::WithAnimationsApplied::No).as_display().display().is_none() : true;
@@ -2004,9 +2014,15 @@ void Element::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, No
             auto& anchor_names = is<ShadowRoot>(old_root)
                 ? as<ShadowRoot>(old_root).anchor_name_map()
                 : document().anchor_name_map();
+            bool element_had_registered_anchor_names = false;
             m_computed_properties->for_each_anchor_name([&](Utf16FlyString const& name) {
+                element_had_registered_anchor_names = true;
                 anchor_names.unregister_name(name, *this);
             });
+            // Positioned boxes anywhere may hold geometry resolved against these names, which
+            // the dispatch-time check of the live anchor-name maps can no longer see.
+            if (element_had_registered_anchor_names)
+                document().partial_relayout_invalidation().record_escape(PartialRelayoutEscapeReason::AnchorNamesUnregisteredByElementRemoval);
         }
     }
 
