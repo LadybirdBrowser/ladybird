@@ -68,6 +68,7 @@ public:
     IterationDecision for_each_in_subtree(Function<IterationDecision(CanonicalNavigable const&)> const&) const;
 
     bool has_remote_host() const { return m_host_locality == HostLocality::Remote && m_remote_client && m_remote_page_id != 0; }
+    bool is_hosted_by(WebContentClient const&, u64 page_id) const;
     WebContentClient& remote_host_client() const;
     u64 remote_host_page_id() const { return m_remote_page_id; }
 

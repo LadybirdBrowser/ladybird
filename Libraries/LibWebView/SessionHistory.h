@@ -59,6 +59,10 @@ public:
     void replace_current_entry(URL::URL, Web::HTML::CrossProcessId document_state_id, Web::HTML::DocumentResource);
     void mark_current_entry_reload_pending();
     void clear_current_entry_reload_pending();
+    bool update_top_level_navigation_api_state(Utf16String const& navigation_api_key, Web::HTML::StorageSerializationRecord navigation_api_state);
+    bool update_nested_navigation_api_state(Web::HTML::CrossProcessId nested_history_id, Utf16String const& navigation_api_key, Web::HTML::StorageSerializationRecord navigation_api_state);
+    bool update_top_level_scroll_restoration_mode(Utf16String const& navigation_api_key, Web::HTML::ScrollRestorationMode scroll_restoration_mode);
+    bool update_nested_scroll_restoration_mode(Web::HTML::CrossProcessId nested_history_id, Utf16String const& navigation_api_key, Web::HTML::ScrollRestorationMode scroll_restoration_mode);
     UpdateResult update_from_web_content(Vector<Entry> entries, Vector<i32> used_steps, size_t current_used_step_index);
     [[nodiscard]] bool did_seed_web_content_from_ui_process(Vector<Entry> entries, Vector<i32> used_steps, size_t current_used_step_index);
     void did_seed_web_content_from_ui_process(size_t current_top_level_entry_index);

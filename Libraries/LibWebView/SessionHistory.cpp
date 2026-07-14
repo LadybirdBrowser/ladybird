@@ -484,6 +484,85 @@ void TraversableSessionHistory::clear_current_entry_reload_pending()
     m_entries[*current_top_level_entry_index].document_state.reload_pending = false;
 }
 
+template<typename UpdateEntry>
+static bool update_session_history_entry_by_navigation_api_key(Vector<TraversableSessionHistory::Entry>& entries, Utf16String const& navigation_api_key, UpdateEntry const& update_entry)
+{
+    auto did_update = false;
+    for (auto& entry : entries) {
+        if (entry.navigation_api_key == navigation_api_key) {
+            update_entry(entry);
+            did_update = true;
+        }
+    }
+    return did_update;
+}
+
+template<typename UpdateEntry>
+static bool update_nested_session_history_entries_by_navigation_api_key(Vector<TraversableSessionHistory::Entry>& entries, Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_api_key, UpdateEntry const& update_entry)
+{
+    auto did_update = false;
+    for (auto& entry : entries) {
+        for (auto& nested_history : entry.document_state.nested_histories) {
+            if (nested_history.id == navigable_id)
+                did_update |= update_session_history_entry_by_navigation_api_key(nested_history.entries, navigation_api_key, update_entry);
+            did_update |= update_nested_session_history_entries_by_navigation_api_key(nested_history.entries, navigable_id, navigation_api_key, update_entry);
+        }
+    }
+    return did_update;
+}
+
+template<typename UpdateEntry>
+static bool update_top_level_session_history_entries_by_navigation_api_key(Vector<TraversableSessionHistory::Entry>& entries, Vector<TraversableSessionHistory::Entry>& web_content_known_entries, Utf16String const& navigation_api_key, UpdateEntry const& update_entry)
+{
+    auto did_update = update_session_history_entry_by_navigation_api_key(entries, navigation_api_key, update_entry);
+    if (!did_update)
+        return false;
+
+    update_session_history_entry_by_navigation_api_key(web_content_known_entries, navigation_api_key, update_entry);
+
+    return true;
+}
+
+template<typename UpdateEntry>
+static bool update_nested_session_history_entries_by_navigation_api_key(Vector<TraversableSessionHistory::Entry>& entries, Vector<TraversableSessionHistory::Entry>& web_content_known_entries, Web::HTML::CrossProcessId nested_history_id, Utf16String const& navigation_api_key, UpdateEntry const& update_entry)
+{
+    auto did_update = update_nested_session_history_entries_by_navigation_api_key(entries, nested_history_id, navigation_api_key, update_entry);
+    if (!did_update)
+        return false;
+
+    update_nested_session_history_entries_by_navigation_api_key(web_content_known_entries, nested_history_id, navigation_api_key, update_entry);
+
+    return true;
+}
+
+bool TraversableSessionHistory::update_top_level_navigation_api_state(Utf16String const& navigation_api_key, Web::HTML::StorageSerializationRecord navigation_api_state)
+{
+    return update_top_level_session_history_entries_by_navigation_api_key(m_entries, m_web_content_known_entries, navigation_api_key, [&](Entry& entry) {
+        entry.navigation_api_state = navigation_api_state;
+    });
+}
+
+bool TraversableSessionHistory::update_nested_navigation_api_state(Web::HTML::CrossProcessId nested_history_id, Utf16String const& navigation_api_key, Web::HTML::StorageSerializationRecord navigation_api_state)
+{
+    return update_nested_session_history_entries_by_navigation_api_key(m_entries, m_web_content_known_entries, nested_history_id, navigation_api_key, [&](Entry& entry) {
+        entry.navigation_api_state = navigation_api_state;
+    });
+}
+
+bool TraversableSessionHistory::update_top_level_scroll_restoration_mode(Utf16String const& navigation_api_key, Web::HTML::ScrollRestorationMode scroll_restoration_mode)
+{
+    return update_top_level_session_history_entries_by_navigation_api_key(m_entries, m_web_content_known_entries, navigation_api_key, [&](Entry& entry) {
+        entry.scroll_restoration_mode = scroll_restoration_mode;
+    });
+}
+
+bool TraversableSessionHistory::update_nested_scroll_restoration_mode(Web::HTML::CrossProcessId nested_history_id, Utf16String const& navigation_api_key, Web::HTML::ScrollRestorationMode scroll_restoration_mode)
+{
+    return update_nested_session_history_entries_by_navigation_api_key(m_entries, m_web_content_known_entries, nested_history_id, navigation_api_key, [&](Entry& entry) {
+        entry.scroll_restoration_mode = scroll_restoration_mode;
+    });
+}
+
 Optional<size_t> TraversableSessionHistory::current_top_level_entry_index() const
 {
     if (!m_current_used_step_index.has_value())
