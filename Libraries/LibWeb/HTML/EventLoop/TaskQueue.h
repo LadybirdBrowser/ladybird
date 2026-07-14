@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/Vector.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
 
@@ -41,8 +40,8 @@ private:
 
     GC::Ref<HTML::EventLoop> m_event_loop;
 
-    Vector<GC::Ref<HTML::Task>> m_tasks;
-    Vector<GC::Ref<HTML::Task>> m_idle_tasks;
+    Task::Queue m_tasks;
+    Task::Queue m_idle_tasks;
     GC::Ptr<HTML::Task const> m_last_added_task;
 };
 
