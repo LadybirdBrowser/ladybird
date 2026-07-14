@@ -286,7 +286,7 @@ public:
             static constexpr int badge_size = 9;
             QRect badge_rect(icon_rect.right() - badge_size + 2, icon_rect.bottom() - badge_size + 2, badge_size, badge_size);
             painter->setPen(Qt::NoPen);
-            painter->setBrush(option.palette.color(QPalette::Base));
+            painter->setBrush(ChromeStyle::chrome_surface(option.palette));
             painter->drawEllipse(badge_rect.adjusted(-1, -1, 1, 1));
             create_chrome_icon(ChromeIcon::StarFilled, option.palette).paint(painter, badge_rect);
         }
