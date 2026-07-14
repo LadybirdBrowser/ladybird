@@ -166,6 +166,29 @@ enum class UpdateLayoutReason {
 
 [[nodiscard]] Utf16View to_string(UpdateLayoutReason);
 
+#define ENUMERATE_PARTIAL_RELAYOUT_ESCAPE_REASONS(X)       \
+    X(ContainingBlockEstablishmentChangedByKeyframeEffect) \
+    X(ContainingBlockEstablishmentChangedByStyleChange)
+
+enum class PartialRelayoutEscapeReason {
+#define ENUMERATE_PARTIAL_RELAYOUT_ESCAPE_REASON(e) e,
+    ENUMERATE_PARTIAL_RELAYOUT_ESCAPE_REASONS(ENUMERATE_PARTIAL_RELAYOUT_ESCAPE_REASON)
+#undef ENUMERATE_PARTIAL_RELAYOUT_ESCAPE_REASON
+};
+
+[[nodiscard]] Utf16View to_string(PartialRelayoutEscapeReason);
+
+#define ENUMERATE_PARTIAL_RELAYOUT_ESCAPE_CLEAR_REASONS(X) \
+    X(FullLayoutPass)
+
+enum class PartialRelayoutEscapeClearReason {
+#define ENUMERATE_PARTIAL_RELAYOUT_ESCAPE_CLEAR_REASON(e) e,
+    ENUMERATE_PARTIAL_RELAYOUT_ESCAPE_CLEAR_REASONS(ENUMERATE_PARTIAL_RELAYOUT_ESCAPE_CLEAR_REASON)
+#undef ENUMERATE_PARTIAL_RELAYOUT_ESCAPE_CLEAR_REASON
+};
+
+[[nodiscard]] Utf16View to_string(PartialRelayoutEscapeClearReason);
+
 // https://html.spec.whatwg.org/multipage/dom.html#document-load-timing-info
 struct DocumentLoadTimingInfo {
     // https://html.spec.whatwg.org/multipage/dom.html#navigation-start-time
@@ -714,17 +737,23 @@ public:
     [[nodiscard]] u32 allocate_layout_node_index() { return m_next_layout_node_index++; }
     void reset_layout_node_index_counter(u32 next_index) { m_next_layout_node_index = next_index; }
 
-    // Attribution of pending updates for partial relayout: boundaries that the invalidation
-    // walk stopped at since the last layout pass, resolved into the live boundary set by the
-    // dispatch in Document::update_layout().
+    // Attribution of pending updates for partial relayout. Invariant: every update recorded
+    // since the last layout pass is either attributed to a boundary in the registered root
+    // set, or the escape bit is set. The dispatch may only run partial relayout while the
+    // escape bit is clear; a full layout pass re-derives every fact boundary qualification
+    // depends on, so it clears the bit.
     class PartialRelayoutInvalidation {
     public:
         void record_boundary(Layout::Box&);
+        void record_escape(PartialRelayoutEscapeReason);
+        void clear_escape(PartialRelayoutEscapeClearReason);
+        [[nodiscard]] bool escapes() const { return m_escapes; }
         [[nodiscard]] bool has_registered_roots() const { return !m_registered_roots.is_empty(); }
         [[nodiscard]] HashTable<WeakPtr<Layout::Box>> take_registered_roots() { return move(m_registered_roots); }
 
     private:
         HashTable<WeakPtr<Layout::Box>> m_registered_roots;
+        bool m_escapes { false };
     };
     [[nodiscard]] PartialRelayoutInvalidation& partial_relayout_invalidation() { return m_partial_relayout_invalidation; }
 

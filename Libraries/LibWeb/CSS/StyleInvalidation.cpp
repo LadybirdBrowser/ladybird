@@ -7,6 +7,7 @@
 
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleInvalidation.h>
+#include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
@@ -57,6 +58,84 @@ static bool is_stacking_context_creating_value(CSS::PropertyID property_id, Styl
         // For properties we haven't optimized (contain, container-type, will-change, all),
         // assume any value creates stacking context to be safe
         return true;
+    }
+}
+
+// Mirrors the checks in Layout::Node::establishes_a_fixed_positioning_containing_block().
+static bool is_containing_block_establishing_value(CSS::PropertyID property_id, StyleValue const* value)
+{
+    if (!value)
+        return false;
+
+    switch (property_id) {
+    case CSS::PropertyID::Transform:
+        if (value->to_keyword() == CSS::Keyword::None)
+            return false;
+        if (value->is_value_list())
+            return value->as_value_list().size() > 0;
+        return value->is_transformation();
+    case CSS::PropertyID::Translate:
+    case CSS::PropertyID::Rotate:
+    case CSS::PropertyID::Scale:
+    case CSS::PropertyID::Perspective:
+        return value->to_keyword() != CSS::Keyword::None;
+    case CSS::PropertyID::TransformStyle:
+        return value->to_keyword() == CSS::Keyword::Preserve3d;
+    case CSS::PropertyID::Filter:
+    case CSS::PropertyID::BackdropFilter:
+        if (value->is_keyword())
+            return value->to_keyword() != CSS::Keyword::None;
+        return value->is_filter_value_list();
+    case CSS::PropertyID::Contain: {
+        // contain: none | strict | content | [ size || inline-size || layout || style || paint ]
+        // Only layout and paint containment (which strict and content include) establish a
+        // containing block; size, inline-size and style containment do not.
+        auto keyword_establishes_containing_block = [](CSS::Keyword keyword) {
+            return AK::first_is_one_of(keyword, CSS::Keyword::Strict, CSS::Keyword::Content, CSS::Keyword::Layout, CSS::Keyword::Paint);
+        };
+        if (value->is_keyword())
+            return keyword_establishes_containing_block(value->to_keyword());
+        if (value->is_value_list()) {
+            for (auto const& entry : value->as_value_list().values()) {
+                if (entry->is_keyword() && keyword_establishes_containing_block(entry->to_keyword()))
+                    return true;
+            }
+            return false;
+        }
+        return true;
+    }
+    case CSS::PropertyID::WillChange: {
+        // will-change establishes a containing block only when it mentions a property whose
+        // non-initial value would, or `position`, which additionally lets a non-atomic inline
+        // establish an absolute positioning containing block.
+        auto entry_establishes_containing_block = [](StyleValue const& entry) {
+            if (!entry.is_custom_ident())
+                return false;
+            auto property = property_id_from_string(entry.as_custom_ident().custom_ident());
+            if (!property.has_value())
+                return false;
+            return AK::first_is_one_of(*property,
+                CSS::PropertyID::Transform, CSS::PropertyID::Translate, CSS::PropertyID::Rotate,
+                CSS::PropertyID::Scale, CSS::PropertyID::Perspective, CSS::PropertyID::TransformStyle,
+                CSS::PropertyID::Filter, CSS::PropertyID::BackdropFilter, CSS::PropertyID::Contain,
+                CSS::PropertyID::Position);
+        };
+        if (value->to_keyword() == CSS::Keyword::Auto)
+            return false;
+        if (value->is_value_list()) {
+            for (auto const& entry : value->as_value_list().values()) {
+                if (entry_establishes_containing_block(entry))
+                    return true;
+            }
+            return false;
+        }
+        return entry_establishes_containing_block(*value);
+    }
+    case CSS::PropertyID::ContainerType:
+        // container-type: size and inline-size apply layout containment; normal does not.
+        return value->to_keyword() == CSS::Keyword::Size || value->to_keyword() == CSS::Keyword::InlineSize;
+    default:
+        return false;
     }
 }
 
@@ -240,6 +319,9 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
             }
         }
     }
+
+    if (is_containing_block_establishing_value(property_id, old_value) != is_containing_block_establishing_value(property_id, new_value))
+        invalidation.changes_containing_block_establishment = true;
 
     bool needs_repaint = true;
     if (CSS::property_affects_accumulated_visual_contexts(property_id)) {

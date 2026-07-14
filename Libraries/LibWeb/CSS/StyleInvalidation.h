@@ -53,6 +53,10 @@ struct RequiredInvalidationAfterStyleChange {
     bool recompute_descendant_styles : 1 { false };
     // At least one inherited longhand changed, so shadow-tree descendants may need inherited style recomputation.
     bool inherited_style_changed : 1 { false };
+    // The element gained or lost a containing block for absolutely/fixed positioned
+    // descendants. Containing block pointers are only recomputed by a full layout pass, so
+    // partial relayout boundary qualification cannot be trusted until one runs.
+    bool changes_containing_block_establishment : 1 { false };
 
     void operator|=(RequiredInvalidationAfterStyleChange const& other)
     {
@@ -62,6 +66,7 @@ struct RequiredInvalidationAfterStyleChange {
         m_needs_scrollable_overflow_recalculation |= other.m_needs_scrollable_overflow_recalculation;
         recompute_descendant_styles |= other.recompute_descendant_styles;
         inherited_style_changed |= other.inherited_style_changed;
+        changes_containing_block_establishment |= other.changes_containing_block_establishment;
     }
 
     [[nodiscard]] bool is_none() const
@@ -70,7 +75,8 @@ struct RequiredInvalidationAfterStyleChange {
             && m_accumulated_visual_contexts == AccumulatedVisualContextInvalidation::None
             && !m_needs_scrollable_overflow_recalculation
             && !recompute_descendant_styles
-            && !inherited_style_changed;
+            && !inherited_style_changed
+            && !changes_containing_block_establishment;
     }
 
     static RequiredInvalidationAfterStyleChange full()

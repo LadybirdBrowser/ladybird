@@ -899,6 +899,9 @@ AnimationUpdateContext::~AnimationUpdateContext()
                 pseudo_element_node->apply_style(*style);
         }
 
+        if (invalidation.changes_containing_block_establishment)
+            target->document().partial_relayout_invalidation().record_escape(DOM::PartialRelayoutEscapeReason::ContainingBlockEstablishmentChangedByKeyframeEffect);
+
         if (invalidation.needs_relayout())
             target->set_needs_layout_update(DOM::SetNeedsLayoutReason::KeyframeEffect);
         if (invalidation.needs_layout_tree_rebuild())
