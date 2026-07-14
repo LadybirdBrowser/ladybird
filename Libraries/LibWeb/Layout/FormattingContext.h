@@ -122,6 +122,12 @@ public:
     // context. Partial relayout uses this to re-resolve a boundary's own size and position.
     static void layout_absolutely_positioned_element_from_saved_inputs(LayoutState&, Box&);
 
+    // Whether the saved layout inputs are still valid for replaying the box's layout after a
+    // style change on the box itself: parts recorded as derived from the box's own computed
+    // values may be stale, while everything else derives from layout outside the subtree,
+    // which such a change cannot affect.
+    [[nodiscard]] static bool can_replay_saved_abspos_layout_inputs_after_style_change(Box const&);
+
     // Whether any of the box's inset properties carries anchor() functions, which only
     // resolve_anchor_insets() can turn into plain values during a full layout pass.
     [[nodiscard]] static bool box_inset_properties_contain_anchor_functions(Box const&);

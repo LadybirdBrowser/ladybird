@@ -1982,6 +1982,8 @@ Document::PartialRelayoutResult Document::try_partial_relayout(HashTable<WeakPtr
             continue;
         if (!box->is_partial_relayout_boundary())
             return PartialRelayoutResult::NotEligible;
+        if (box->needs_own_geometry_update() && box->is_absolutely_positioned() && !Layout::FormattingContext::can_replay_saved_abspos_layout_inputs_after_style_change(*box))
+            return PartialRelayoutResult::NotEligible;
         collect_boundary(*box);
     }
 

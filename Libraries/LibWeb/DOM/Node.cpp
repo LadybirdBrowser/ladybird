@@ -2853,8 +2853,13 @@ void Node::set_needs_repaint(InvalidateDisplayList should_invalidate_display_lis
 
 void Node::set_needs_layout_update(SetNeedsLayoutReason reason)
 {
+    set_needs_layout_update(reason, Layout::LayoutUpdatePropagation::ThroughAncestors);
+}
+
+void Node::set_needs_layout_update(SetNeedsLayoutReason reason, Layout::LayoutUpdatePropagation propagation)
+{
     if (auto* node = unsafe_layout_node()) {
-        node->set_needs_layout_update(reason);
+        node->set_needs_layout_update(reason, propagation);
         document().set_needs_repaint(Badge<Node> {}, InvalidateDisplayList::No);
     }
 }

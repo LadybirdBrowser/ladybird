@@ -1853,17 +1853,25 @@ static Optional<CSSPixelRect> compute_inline_containing_block_rect(InlineNode co
     return bounding_rect;
 }
 
+struct AbsposAxisModes {
+    AbsposAxisMode horizontal;
+    AbsposAxisMode vertical;
+};
+
+// Per-axis mode: auto+auto insets -> static position, otherwise -> inset from rect.
+static AbsposAxisModes abspos_axis_modes_from_computed_insets(CSS::ComputedValues const& computed_values)
+{
+    auto const& inset = computed_values.inset();
+    return {
+        .horizontal = inset.left().is_auto() && inset.right().is_auto() ? AbsposAxisMode::StaticPosition : AbsposAxisMode::InsetFromRect,
+        .vertical = inset.top().is_auto() && inset.bottom().is_auto() ? AbsposAxisMode::StaticPosition : AbsposAxisMode::InsetFromRect,
+    };
+}
+
 AbsposContainingBlockInfo FormattingContext::resolve_abspos_containing_block_info(Box const& box)
 {
     auto const& computed_values = box.computed_values();
-
-    // Per-axis mode: auto+auto insets -> static position, otherwise -> inset from rect
-    auto horizontal_axis_mode = (computed_values.inset().left().is_auto() && computed_values.inset().right().is_auto())
-        ? AbsposAxisMode::StaticPosition
-        : AbsposAxisMode::InsetFromRect;
-    auto vertical_axis_mode = (computed_values.inset().top().is_auto() && computed_values.inset().bottom().is_auto())
-        ? AbsposAxisMode::StaticPosition
-        : AbsposAxisMode::InsetFromRect;
+    auto [horizontal_axis_mode, vertical_axis_mode] = abspos_axis_modes_from_computed_insets(computed_values);
 
     // Check if there's an inline element that should be the real containing block.
     auto inline_containing_block = box.inline_containing_block_if_applicable();
@@ -2367,6 +2375,24 @@ public:
     virtual void run(LayoutInput const&) override { VERIFY_NOT_REACHED(); }
 };
 
+bool FormattingContext::can_replay_saved_abspos_layout_inputs_after_style_change(Box const& box)
+{
+    if (!box.containing_block())
+        return false;
+
+    auto const& inputs = *box.saved_abspos_layout_inputs();
+    if (inputs.containing_block_info.derives_from_own_computed_values)
+        return false;
+
+    auto axis_modes = abspos_axis_modes_from_computed_insets(box.computed_values());
+    bool uses_static_position = axis_modes.horizontal == AbsposAxisMode::StaticPosition
+        || axis_modes.vertical == AbsposAxisMode::StaticPosition;
+    if (uses_static_position && inputs.static_position_rect.alignment_derives_from_own_computed_values)
+        return false;
+
+    return true;
+}
+
 void FormattingContext::layout_absolutely_positioned_element_from_saved_inputs(LayoutState& state, Box& box)
 {
     auto* containing_block = box.containing_block();
@@ -2375,6 +2401,16 @@ void FormattingContext::layout_absolutely_positioned_element_from_saved_inputs(L
     auto inputs = *box.saved_abspos_layout_inputs();
 
     AbsposLayoutReplayContext context(state, *containing_block);
+
+    // The axis modes are the only replay-relevant input derived from the box's own computed
+    // values, which a style change on the box itself may have altered since capture, so
+    // recompute them from the live insets. Inputs that record deriving from the box's own
+    // computed values pin their axis modes structurally and never replay after such a change.
+    if (!inputs.containing_block_info.derives_from_own_computed_values) {
+        auto axis_modes = abspos_axis_modes_from_computed_insets(box.computed_values());
+        inputs.containing_block_info.horizontal_axis_mode = axis_modes.horizontal;
+        inputs.containing_block_info.vertical_axis_mode = axis_modes.vertical;
+    }
 
     // Mirror how the ancestor formatting context prepares an absolutely positioned child
     // during a full pass: create its used values first.

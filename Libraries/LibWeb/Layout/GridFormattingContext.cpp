@@ -3084,6 +3084,7 @@ AbsposContainingBlockInfo GridFormattingContext::resolve_abspos_containing_block
     containing_block_info.rect = grid_area_rect;
     containing_block_info.horizontal_alignment = alignment_for_item(box, GridDimension::Column);
     containing_block_info.vertical_alignment = alignment_for_item(box, GridDimension::Row);
+    containing_block_info.derives_from_own_computed_values = true;
 
     // An absolutely positioned child of a grid container gets its static
     // position from grid placement and alignment, but deeper descendants

@@ -2582,6 +2582,8 @@ StaticPositionRect FlexFormattingContext::calculate_static_position_rect(Box con
     static_position_rect.rect = { { 0, 0 }, { flex_container_width, flex_container_height } };
     static_position_rect.horizontal_alignment = main_axis_is_horizontal() ? main_axis_alignment : cross_axis_alignment;
     static_position_rect.vertical_alignment = main_axis_is_horizontal() ? cross_axis_alignment : main_axis_alignment;
+    // alignment_for_item() consulted the box's own align-self.
+    static_position_rect.alignment_derives_from_own_computed_values = true;
     return static_position_rect;
 }
 

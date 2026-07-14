@@ -1,4 +1,4 @@
 scrollHeight-before=200
 scrollHeight-after=550
-partial-layouts=0 full-layouts=1
-FAIL
+partial-layouts=1 full-layouts=0
+PASS

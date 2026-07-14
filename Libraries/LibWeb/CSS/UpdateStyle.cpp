@@ -23,6 +23,7 @@
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
+#include <LibWeb/Layout/Box.h>
 
 namespace Web::CSS {
 
@@ -42,8 +43,25 @@ static void apply_element_style_invalidation_after_style_change(DOM::Element& el
     if (invalidation.changes_containing_block_establishment)
         element.document().partial_relayout_invalidation().record_escape(DOM::PartialRelayoutEscapeReason::ContainingBlockEstablishmentChangedByStyleChange);
 
-    if (invalidation.needs_relayout())
-        element.set_needs_layout_update(DOM::SetNeedsLayoutReason::StyleChange);
+    if (invalidation.needs_relayout()) {
+        // A relayout-only style change on an absolutely positioned partial relayout boundary
+        // stays confined to it: the box contributes nothing to ancestor layout, and partial
+        // relayout re-resolves the boundary's own size and position. A rendered ::backdrop
+        // disqualifies the element, because pseudo-element style diffs are merged into the
+        // element's invalidation while the ::backdrop box is a sibling of the element's box,
+        // outside the subtree a boundary-self relayout covers.
+        auto* box = as_if<Layout::Box>(element.unsafe_layout_node());
+        if (!invalidation.needs_layout_tree_rebuild()
+            && box
+            && box->is_absolutely_positioned()
+            && box->is_partial_relayout_boundary()
+            && !element.pseudo_element_unsafe_layout_node(CSS::PseudoElement::Backdrop)) {
+            box->set_needs_own_geometry_update();
+            element.set_needs_layout_update(DOM::SetNeedsLayoutReason::StyleChange, Layout::LayoutUpdatePropagation::BoundarySelfOnly);
+        } else {
+            element.set_needs_layout_update(DOM::SetNeedsLayoutReason::StyleChange);
+        }
+    }
     if (invalidation.needs_layout_tree_rebuild())
         element.set_needs_layout_tree_rebuild(DOM::SetNeedsLayoutTreeUpdateReason::StyleChange);
 

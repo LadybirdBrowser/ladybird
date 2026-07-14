@@ -42,6 +42,12 @@ enum class UserSelect : u8;
 
 }
 
+namespace Web::Layout {
+
+enum class LayoutUpdatePropagation : u8;
+
+}
+
 namespace Web::DOM {
 
 enum class NameOrDescription {
@@ -359,6 +365,7 @@ public:
 
     void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::Yes);
     void set_needs_layout_update(SetNeedsLayoutReason);
+    void set_needs_layout_update(SetNeedsLayoutReason, Layout::LayoutUpdatePropagation);
 
     void clear_layout_node_and_paintable(Badge<Document>);
     void set_layout_node(Badge<Layout::Node>, Layout::Node&);
