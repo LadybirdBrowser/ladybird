@@ -654,9 +654,10 @@ void BrowserWindow::initialize_tab(Tab* tab)
 
     tab->view().on_new_web_view = [this, tab](auto activate_tab, Web::HTML::WebViewHints hints, Optional<u64> page_index) {
         if (hints.popup) {
+            auto cascaded_configuration = Application::the().configuration_for_new_window();
             WindowConfiguration configuration {
-                .x = hints.screen_x,
-                .y = hints.screen_y,
+                .x = hints.screen_x.has_value() ? hints.screen_x : cascaded_configuration.x,
+                .y = hints.screen_y.has_value() ? hints.screen_y : cascaded_configuration.y,
                 .width = hints.width,
                 .height = hints.height,
             };
