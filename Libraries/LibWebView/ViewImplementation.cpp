@@ -173,6 +173,7 @@ void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL c
     }
 
     if (m_client_state.client) {
+        m_client_state.client->async_notify_webdriver_of_window_replacement(m_client_state.page_index);
         m_client_state.client->unregister_view(m_client_state.page_index);
     }
 
@@ -1545,6 +1546,10 @@ void ViewImplementation::set_loading_state(bool is_loading)
 
 bool ViewImplementation::restore_pending_session_history_navigation(StringView reason)
 {
+    Optional<URL::URL> provisional_url;
+    if (auto const& pending_navigation = m_top_level_traversable.pending_session_history_navigation(); pending_navigation.has_value())
+        provisional_url = pending_navigation->url;
+
     auto result = m_top_level_traversable.restore_pending_session_history_navigation();
     if (!result.restored)
         return false;
@@ -1559,7 +1564,18 @@ bool ViewImplementation::restore_pending_session_history_navigation(StringView r
             m_should_suppress_history_for_next_load = false;
             m_webdriver_pending_navigation_url = current_url;
             m_webdriver_pending_navigation_completes_with_session_history_update = true;
-            load_current_session_history_entry_from_ui_process();
+            if (provisional_url.has_value() && SiteIsolationManager::the().navigation_requires_process_swap(*provisional_url, current_url)) {
+                auto load = m_top_level_traversable.prepare_current_session_history_entry_load(current_url);
+                auto view_id = m_view_id;
+                Core::deferred_invoke([view_id, load = move(load)]() mutable {
+                    auto view = ViewImplementation::find_view_by_id(view_id);
+                    if (!view.has_value())
+                        return;
+                    view->create_new_process_for_cross_site_navigation(load.url, move(load.document_resource), load.history_handling);
+                });
+            } else {
+                load_current_session_history_entry_from_ui_process();
+            }
         } else {
             m_webdriver_pending_navigation_url.clear();
             m_webdriver_pending_navigation_completes_with_session_history_update = false;

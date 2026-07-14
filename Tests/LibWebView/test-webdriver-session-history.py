@@ -53,6 +53,8 @@ class TestPageServer(http.server.ThreadingHTTPServer):
         self.release_blocked_navigation = threading.Event()
         self.blocked_navigation_response_finished = threading.Event()
         self.navigation_blocked_document_ran = threading.Event()
+        self.blocked_no_content_navigation_requested = threading.Event()
+        self.release_blocked_no_content_navigation = threading.Event()
         self.a_request_lock = threading.Lock()
         self.a_request_count = 0
         self.state_replace_load_document_ran = threading.Event()
@@ -94,6 +96,7 @@ class TestPageHandler(http.server.BaseHTTPRequestHandler):
 <a id="pending" href="http://localhost:{server_port}/navigation-blocked">Pending</a>
 <a id="pending-redirect" href="http://localhost:{server_port}/redirect-to-navigation-blocked">Pending redirect</a>
 <a id="pending-cross-site" href="http://127.0.0.1:{server_port}/navigation-blocked">Pending cross-site</a>
+<a id="pending-cross-site-no-content" href="http://127.0.0.1:{server_port}/navigation-no-content-blocked">Pending cross-site no content</a>
 <p>A</p>""".encode()
             )
             return
@@ -176,6 +179,18 @@ class TestPageHandler(http.server.BaseHTTPRequestHandler):
 
         if self.path == "/document-ran?navigation-blocked":
             server.navigation_blocked_document_ran.set()
+            self.send_response(204)
+            self.end_headers()
+            return
+
+        if self.path == "/navigation-no-content-blocked":
+            server.blocked_no_content_navigation_requested.set()
+            if not server.release_blocked_no_content_navigation.wait(timeout=BLOCKED_RESPONSE_TIMEOUT_SECONDS):
+                self.send_response(500)
+                self.send_header("Content-Type", "text/plain")
+                self.end_headers()
+                self.wfile.write(b"timed out waiting to unblock no-content navigation")
+                return
             self.send_response(204)
             self.end_headers()
             return
@@ -2470,6 +2485,103 @@ def run_cross_process_pending_navigation_browser_ui_back_test(
         request(webdriver_port, "DELETE", f"/session/{session_id}")
 
 
+def run_cross_process_no_content_navigation_restore_test(
+    webdriver_port,
+    page_server,
+    url_a,
+    url_cross_site_no_content,
+):
+    session_id = create_session(webdriver_port)
+    log = [f"cross-process no-content navigation restore initial: {current_url(webdriver_port, session_id)}"]
+    try:
+        load_url_from_ui(webdriver_port, session_id, url_a)
+        expect_url(webdriver_port, session_id, "after no-content navigation setup /a", url_a, log)
+        initial_process_id = session_history(webdriver_port, session_id)["ui"]["webContentProcessID"]
+
+        page_server.blocked_no_content_navigation_requested.clear()
+        page_server.release_blocked_no_content_navigation.clear()
+        page_server.a_document_ran.clear()
+        execute_script(
+            webdriver_port,
+            session_id,
+            'document.querySelector("#pending-cross-site-no-content").click(); return null;',
+        )
+        wait_for_event(page_server.blocked_no_content_navigation_requested, "cross-process no-content request")
+
+        pending_history = session_history(webdriver_port, session_id)
+        pending_navigation = pending_history["ui"]["pendingSessionHistoryNavigation"]
+        provisional_process_id = pending_history["ui"]["webContentProcessID"]
+        if (
+            pending_history["ui"]["currentURL"] != url_cross_site_no_content
+            or pending_navigation.get("previousCurrentURL") != url_a
+            or pending_navigation.get("webContentRestoreMode") != "restore-from-ui-process"
+            or provisional_process_id == initial_process_id
+        ):
+            raise AssertionError(
+                "Expected no-content navigation to install a provisional cross-site process, got "
+                f"{summarize_history_snapshot(pending_history)}\n" + "\n".join(log)
+            )
+
+        page_server.release_blocked_no_content_navigation.set()
+        wait_for_event(page_server.a_document_ran, "restored /a document after no-content navigation")
+        expect_url(webdriver_port, session_id, "after cross-process no-content navigation restores /a", url_a, log)
+        restored_history = expect_ui_session_history(
+            webdriver_port,
+            session_id,
+            "after cross-process no-content navigation restores /a",
+            [url_a],
+            [0],
+            0,
+            False,
+            False,
+            log,
+            expect_web_content_matches_ui=True,
+            expected_web_content_known_used_steps=[0],
+            expected_web_content_current_step=0,
+        )
+        if restored_history["ui"]["webContentProcessID"] == provisional_process_id:
+            raise AssertionError(
+                "Expected no-content restoration to replace the provisional cross-site process\n" + "\n".join(log)
+            )
+        if (
+            restored_history["ui"]["pendingSessionHistoryNavigation"] is not None
+            or restored_history["ui"]["pendingSessionHistoryTraversal"] is not None
+        ):
+            raise AssertionError("Expected no pending history state after no-content restoration\n" + "\n".join(log))
+    finally:
+        page_server.release_blocked_no_content_navigation.set()
+        request(webdriver_port, "DELETE", f"/session/{session_id}")
+
+
+def run_provisional_navigation_browser_ui_back_tests(
+    webdriver_port,
+    page_server,
+    url_a,
+    url_navigation_blocked,
+    url_redirect_to_navigation_blocked,
+    url_cross_site_navigation_blocked,
+):
+    run_pending_navigation_browser_ui_back_test(
+        webdriver_port,
+        page_server,
+        url_a,
+        url_navigation_blocked,
+        url_redirect_to_navigation_blocked,
+    )
+    run_cross_process_pending_navigation_browser_ui_back_test(
+        webdriver_port,
+        page_server,
+        url_a,
+        url_cross_site_navigation_blocked,
+    )
+    run_cross_process_no_content_navigation_restore_test(
+        webdriver_port,
+        page_server,
+        url_a,
+        f"http://127.0.0.1:{page_server.server_port}/navigation-no-content-blocked",
+    )
+
+
 def run_test(webdriver_binary):
     page_server = TestPageServer(("0.0.0.0", 0), TestPageHandler)
     page_server_thread = threading.Thread(target=page_server.serve_forever, daemon=True)
@@ -2535,17 +2647,12 @@ def run_test(webdriver_binary):
 
         expect_ladybird_test_hooks_require_capability(webdriver_port)
 
-        run_pending_navigation_browser_ui_back_test(
+        run_provisional_navigation_browser_ui_back_tests(
             webdriver_port,
             page_server,
             url_a,
             url_navigation_blocked,
             url_redirect_to_navigation_blocked,
-        )
-        run_cross_process_pending_navigation_browser_ui_back_test(
-            webdriver_port,
-            page_server,
-            url_a,
             url_cross_site_navigation_blocked,
         )
 
@@ -5215,6 +5322,7 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
         page_server.release_blocked_process_swap_back.set()
         page_server.release_blocked_forward.set()
         page_server.release_blocked_navigation.set()
+        page_server.release_blocked_no_content_navigation.set()
         page_server.shutdown()
         page_server.server_close()
 

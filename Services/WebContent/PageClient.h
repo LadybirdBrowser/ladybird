@@ -53,6 +53,7 @@ public:
     virtual bool has_focus() const override { return m_has_focus; }
 
     ErrorOr<void> connect_to_webdriver(ByteString const& webdriver_endpoint);
+    void notify_webdriver_of_window_replacement();
     ErrorOr<void> connect_to_web_ui(IPC::TransportHandle);
 
     virtual Queue<Web::QueuedInputEvent>& input_event_queue() override;

@@ -224,10 +224,15 @@ Web::NavigationProcessDecision PageClient::decide_navigation_process(URL::URL co
 
 void PageClient::request_new_process_for_navigation(URL::URL const& url, Web::HTML::DocumentResource document_resource, Web::Bindings::NavigationHistoryBehavior history_handling)
 {
-    if (m_webdriver)
-        m_webdriver->page_did_start_window_replacement({}, page().top_level_traversable()->window_handle().to_utf8());
+    notify_webdriver_of_window_replacement();
 
     client().async_did_request_new_process_for_navigation(m_id, url, move(document_resource), history_handling);
+}
+
+void PageClient::notify_webdriver_of_window_replacement()
+{
+    if (m_webdriver)
+        m_webdriver->page_did_start_window_replacement({}, page().top_level_traversable()->window_handle().to_utf8());
 }
 
 void PageClient::request_new_process_for_child_frame_navigation(Web::HTML::CrossProcessId frame_id, URL::URL const& url, Web::HTML::DocumentResource document_resource, Web::Bindings::NavigationHistoryBehavior history_handling)
