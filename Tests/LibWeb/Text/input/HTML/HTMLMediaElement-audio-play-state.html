@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<video autoplay muted loop src="../../../Assets/test-webm.webm"></video>
+<script>
+    asyncTest(async done => {
+        internals.setTestTimeout(15_000);
+        const video = document.querySelector("video");
+        await new Promise(resolve => video.addEventListener("playing", resolve, { once: true }));
+
+        println(`muted playback reported as playing audio: ${internals.mediaElementIsPlayingAudio(video)}`);
+
+        video.muted = false;
+        println(`unmuted playback reported as playing audio: ${internals.mediaElementIsPlayingAudio(video)}`);
+
+        video.volume = 0;
+        println(`zero-volume playback reported as playing audio: ${internals.mediaElementIsPlayingAudio(video)}`);
+
+        video.volume = 0.5;
+        println(`nonzero-volume playback reported as playing audio: ${internals.mediaElementIsPlayingAudio(video)}`);
+
+        internals.setPageMuted(true);
+        println(`playback in a muted page reported as playing audio: ${internals.mediaElementIsPlayingAudio(video)}`);
+
+        internals.setPageMuted(false);
+        println(`playback in an unmuted page reported as playing audio: ${internals.mediaElementIsPlayingAudio(video)}`);
+
+        video.audioTracks[0].enabled = false;
+        println(`playback without an enabled audio track reported as playing audio: ${internals.mediaElementIsPlayingAudio(video)}`);
+
+        video.audioTracks[0].enabled = true;
+        println(`playback with an enabled audio track reported as playing audio: ${internals.mediaElementIsPlayingAudio(video)}`);
+
+        video.remove();
+        await video.play();
+        const iframe = document.body.appendChild(document.createElement("iframe"));
+        iframe.contentDocument.body.appendChild(iframe.contentDocument.adoptNode(video));
+        println(`playback after adoption reported as playing audio: ${internals.mediaElementIsPlayingAudio(video)}`);
+
+        video.pause();
+        println(`paused media reported as playing audio: ${internals.mediaElementIsPlayingAudio(video)}`);
+
+        await video.play();
+        println(`resumed media reported as playing audio: ${internals.mediaElementIsPlayingAudio(video)}`);
+
+        video.load();
+        println(`reset media reported as playing audio: ${internals.mediaElementIsPlayingAudio(video)}`);
+        done();
+    });
+</script>

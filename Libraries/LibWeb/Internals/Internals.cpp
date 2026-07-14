@@ -990,6 +990,16 @@ bool Internals::media_element_is_fetching(HTML::HTMLMediaElement& element)
     return element.is_fetching();
 }
 
+bool Internals::media_element_is_playing_audio(HTML::HTMLMediaElement& element)
+{
+    return element.is_playing_audio();
+}
+
+void Internals::set_page_muted(bool muted)
+{
+    window().associated_document().page().set_page_mute_state(muted ? HTML::MuteState::Muted : HTML::MuteState::Unmuted);
+}
+
 JS::Object* Internals::async_scrolling_state()
 {
     auto object = JS::Object::create(realm(), nullptr);

@@ -146,6 +146,7 @@ public:
     void page_mute_state_changed(Badge<Page>);
 
     double effective_media_volume() const;
+    bool is_playing_audio() const { return m_is_playing_audio; }
 
     GC::Ref<AudioTrackList> audio_tracks() const { return *m_audio_tracks; }
     GC::Ref<VideoTrackList> video_tracks() const { return *m_video_tracks; }
@@ -253,6 +254,7 @@ private:
     void seek_element(double playback_position, MediaSeekMode = MediaSeekMode::Accurate);
     void finish_seeking_element();
     void notify_about_playing();
+    void update_audio_play_state();
     void set_show_poster(bool);
     void set_paused(bool);
     void set_duration(double);
@@ -362,6 +364,9 @@ private:
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-muted
     bool m_muted { false };
+
+    bool m_has_started_playback { false };
+    bool m_is_playing_audio { false };
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-audiotracks
     GC::Ptr<AudioTrackList> m_audio_tracks;

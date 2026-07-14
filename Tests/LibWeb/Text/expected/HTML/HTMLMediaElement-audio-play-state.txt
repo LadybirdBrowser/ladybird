@@ -1,0 +1,12 @@
+muted playback reported as playing audio: false
+unmuted playback reported as playing audio: true
+zero-volume playback reported as playing audio: false
+nonzero-volume playback reported as playing audio: true
+playback in a muted page reported as playing audio: false
+playback in an unmuted page reported as playing audio: true
+playback without an enabled audio track reported as playing audio: false
+playback with an enabled audio track reported as playing audio: true
+playback after adoption reported as playing audio: true
+paused media reported as playing audio: false
+resumed media reported as playing audio: true
+reset media reported as playing audio: false

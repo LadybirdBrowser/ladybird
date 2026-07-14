@@ -674,11 +674,13 @@ void HTMLMediaElement::volume_or_muted_attribute_changed()
         pause_element();
 
     update_volume();
+    update_audio_play_state();
 }
 
 void HTMLMediaElement::page_mute_state_changed(Badge<Page>)
 {
     update_volume();
+    update_audio_play_state();
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#effective-media-volume
@@ -1691,14 +1693,14 @@ void HTMLMediaElement::set_audio_track_enabled(Badge<AudioTrack>, GC::Ptr<HTML::
 {
     VERIFY(m_playback_manager);
 
-    if (!m_playback_manager->audio_tracks().contains_slow(audio_track->track_in_playback_manager()))
-        return;
+    if (m_playback_manager->audio_tracks().contains_slow(audio_track->track_in_playback_manager())) {
+        if (enabled)
+            m_playback_manager->enable_an_audio_track(audio_track->track_in_playback_manager());
+        else
+            m_playback_manager->disable_an_audio_track(audio_track->track_in_playback_manager());
+    }
 
-    if (enabled)
-        m_playback_manager->enable_an_audio_track(audio_track->track_in_playback_manager());
-    else
-        m_playback_manager->disable_an_audio_track(audio_track->track_in_playback_manager());
-
+    update_audio_play_state();
     update_screen_wake_lock();
 }
 
@@ -2206,6 +2208,7 @@ void HTMLMediaElement::forget_media_resource_specific_tracks()
         m_playback_manager->on_playback_state_change = nullptr;
     m_audio_tracks->remove_all_tracks();
     m_video_tracks->remove_all_tracks();
+    update_audio_play_state();
     m_playback_manager.clear();
     clear_compositor_video_frame();
     update_screen_wake_lock();
@@ -2719,10 +2722,25 @@ void HTMLMediaElement::notify_about_playing()
     if (m_playback_manager)
         m_playback_manager->play();
 
-    if (m_audio_tracks->has_enabled_track())
-        document().page().client().page_did_change_audio_play_state(AudioPlayState::Playing);
+    m_has_started_playback = true;
+    update_audio_play_state();
 
     update_screen_wake_lock();
+}
+
+void HTMLMediaElement::update_audio_play_state()
+{
+    // AD-HOC: Browser chrome should indicate that this element is playing audio only while it can produce audible
+    //         output. Remember the state reported for each element so that changes to any input remain balanced.
+    auto const is_playing_audio = m_has_started_playback
+        && m_audio_tracks->has_enabled_track()
+        && effective_media_volume() > 0;
+    if (m_is_playing_audio == is_playing_audio)
+        return;
+
+    m_is_playing_audio = is_playing_audio;
+    document().page().client().page_did_change_audio_play_state(
+        m_is_playing_audio ? AudioPlayState::Playing : AudioPlayState::Paused);
 }
 
 void HTMLMediaElement::set_show_poster(bool show_poster)
@@ -2744,11 +2762,12 @@ void HTMLMediaElement::set_paused(bool paused)
     m_paused = paused;
 
     if (m_paused) {
+        m_has_started_playback = false;
+
         if (m_playback_manager)
             m_playback_manager->pause();
 
-        if (m_audio_tracks->has_enabled_track())
-            document().page().client().page_did_change_audio_play_state(AudioPlayState::Paused);
+        update_audio_play_state();
     }
 
     update_screen_wake_lock();

@@ -143,6 +143,8 @@ interface Internals {
     boolean styleSheetMayHaveHasSelectors(CSSStyleSheet sheet);
     object imageAnimationStateForURL(Utf16USVString url);
     boolean mediaElementIsFetching(HTMLMediaElement element);
+    boolean mediaElementIsPlayingAudio(HTMLMediaElement element);
+    undefined setPageMuted(boolean muted);
 
     object asyncScrollingState();
     boolean asyncScrollingStateBlocksWheelEventAt(double x, double y);
