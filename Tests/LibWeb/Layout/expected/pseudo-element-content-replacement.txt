@@ -1,0 +1,118 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 288 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 272 0+0+8] children: not-inline
+      BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <button.flex-container.single-image> at [13,10] flex-container(row) [0+1+4 190 4+1+584] [0+1+1 44 1+1+0] [FFC] children: not-inline
+        BlockContainer <(anonymous)> at [13,10] flex-item [0+0+0 190 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+          ImageBox <(anonymous)> at [13,10] [0+0+0 190 0+0+0] [0+0+0 32 0+0+0] children: not-inline
+        BlockContainer <(anonymous)> at [211,10] flex-item [0+0+0 51.296875 0+0+0] [0+0+0 44 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 6, rect: [211,10 51.296875x16] baseline: 12.796875
+              "Ratio-"
+          frag 1 from TextNode start: 6, length: 4, rect: [220.953125,26 31.375x16] baseline: 12.796875
+              "only"
+          frag 2 from TextNode start: 11, length: 3, rect: [218.046875,42 37.1875x16] baseline: 12.796875
+              "SVG"
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,56] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <button.flex-container.single-image.intrinsic-size> at [13,58] flex-container(row) [0+1+4 190 4+1+584] [0+1+1 44 1+1+0] [FFC] children: not-inline
+        BlockContainer <(anonymous)> at [13,58] flex-item [0+0+0 40 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+          ImageBox <(anonymous)> at [13,58] [0+0+0 40 0+0+0] [0+0+0 32 0+0+0] children: not-inline
+        BlockContainer <(anonymous)> at [61,58] flex-item [0+0+0 142 0+0+0] [0+0+0 44 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 14, rect: [79.8125,58 104.359375x16] baseline: 12.796875
+              "Intrinsic-size"
+          frag 1 from TextNode start: 15, length: 3, rect: [113.40625,74 37.1875x16] baseline: 12.796875
+              "SVG"
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,104] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <button.flex-container.single-image.with-alt-text> at [13,106] flex-container(row) [0+1+4 190 4+1+584] [0+1+1 44 1+1+0] [FFC] children: not-inline
+        BlockContainer <(anonymous)> at [13,106] flex-item [0+0+0 190 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+          ImageBox <(anonymous)> at [13,106] [0+0+0 190 0+0+0] [0+0+0 32 0+0+0] children: not-inline
+        BlockContainer <(anonymous)> at [211,106] flex-item [0+0+0 32.140625 0+0+0] [0+0+0 44 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 3, rect: [214.390625,106 25.359375x16] baseline: 12.796875
+              "Alt"
+          frag 1 from TextNode start: 4, length: 4, rect: [211,122 32.140625x16] baseline: 12.796875
+              "text"
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,152] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <button.flex-container.after-only> at [13,154] flex-container(row) [0+1+4 190 4+1+584] [0+1+1 44 1+1+0] [FFC] children: not-inline
+        BlockContainer <(anonymous)> at [13,154] flex-item [0+0+0 45.109375 0+0+0] [0+0+0 44 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 5, rect: [13,154 45.109375x16] baseline: 12.796875
+              "After"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [66.109375,154] flex-item [0+0+0 190 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+          ImageBox <(anonymous)> at [66.109375,154] [0+0+0 190 0+0+0] [0+0+0 32 0+0+0] children: not-inline
+      BlockContainer <(anonymous)> at [8,200] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div.flex-container> at [8,200] flex-container(row) [0+0+0 200 0+0+584] [0+0+0 48 0+0+0] [FFC] children: not-inline
+        ImageBox <div.ordinary-replacement> at [8,200] flex-item [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] children: not-inline
+        BlockContainer <(anonymous)> at [48,200] flex-item [0+0+0 134.75 0+0+0] [0+0+0 48 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 16, rect: [48,200 134.75x16] baseline: 12.796875
+              "Ordinary element"
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,248] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.mixed-content> at [8,248] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+        InlineNode <(anonymous)> at [8,248] [0+0+0 102.71875 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from GeneratedTextNode start: 0, length: 6, rect: [8,248 52.53125x16] baseline: 12.796875
+              "before"
+          frag 1 from ImageBox start: 0, length: 0, rect: [60.53125,250 10x10] baseline: 10
+          frag 2 from GeneratedTextNode start: 0, length: 5, rect: [70.53125,248 40.1875x16] baseline: 12.796875
+              "after"
+          GeneratedTextNode <(anonymous)> (not painted)
+          ImageBox <(anonymous)> at [60.53125,250] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+          GeneratedTextNode <(anonymous)> (not painted)
+      BlockContainer <(anonymous)> at [8,264] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.multiple-images> at [8,264] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+        InlineNode <(anonymous)> at [8,266] [0+0+0 20 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from ImageBox start: 0, length: 0, rect: [8,266 10x10] baseline: 10
+          frag 1 from ImageBox start: 0, length: 0, rect: [18,266 10x10] baseline: 10
+          ImageBox <(anonymous)> at [8,266] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+          ImageBox <(anonymous)> at [18,266] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+      BlockContainer <(anonymous)> at [8,280] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x288]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x272]
+      PaintableWithLines (BlockContainer(anonymous)) [8,8 784x0]
+      Paintable (Box<BUTTON>.flex-container.single-image) [8,8 200x48]
+        PaintableWithLines (BlockContainer(anonymous)) [13,10 190x32]
+          ImagePaintable (ImageBox(anonymous)) [13,10 190x32]
+        PaintableWithLines (BlockContainer(anonymous)) [211,10 51.296875x44]
+      PaintableWithLines (BlockContainer(anonymous)) [8,56 784x0]
+      Paintable (Box<BUTTON>.flex-container.single-image.intrinsic-size) [8,56 200x48]
+        PaintableWithLines (BlockContainer(anonymous)) [13,58 40x32]
+          ImagePaintable (ImageBox(anonymous)) [13,58 40x32]
+        PaintableWithLines (BlockContainer(anonymous)) [61,58 142x44]
+      PaintableWithLines (BlockContainer(anonymous)) [8,104 784x0]
+      Paintable (Box<BUTTON>.flex-container.single-image.with-alt-text) [8,104 200x48]
+        PaintableWithLines (BlockContainer(anonymous)) [13,106 190x32]
+          ImagePaintable (ImageBox(anonymous)) [13,106 190x32]
+        PaintableWithLines (BlockContainer(anonymous)) [211,106 32.140625x44]
+      PaintableWithLines (BlockContainer(anonymous)) [8,152 784x0]
+      Paintable (Box<BUTTON>.flex-container.after-only) [8,152 200x48]
+        PaintableWithLines (BlockContainer(anonymous)) [13,154 45.109375x44]
+        PaintableWithLines (BlockContainer(anonymous)) [66.109375,154 190x32]
+          ImagePaintable (ImageBox(anonymous)) [66.109375,154 190x32]
+      PaintableWithLines (BlockContainer(anonymous)) [8,200 784x0]
+      Paintable (Box<DIV>.flex-container) [8,200 200x48]
+        ImagePaintable (ImageBox<DIV>.ordinary-replacement) [8,200 32x32]
+        PaintableWithLines (BlockContainer(anonymous)) [48,200 134.75x48]
+      PaintableWithLines (BlockContainer(anonymous)) [8,248 784x0]
+      PaintableWithLines (BlockContainer<DIV>.mixed-content) [8,248 784x16]
+        InlinePaintable (InlineNode(anonymous)) [8,248 102.71875x16]
+          ImagePaintable (ImageBox(anonymous)) [60.53125,250 10x10]
+      PaintableWithLines (BlockContainer(anonymous)) [8,264 784x0]
+      PaintableWithLines (BlockContainer<DIV>.multiple-images) [8,264 784x16]
+        InlinePaintable (InlineNode(anonymous)) [8,266 20x10]
+          ImagePaintable (ImageBox(anonymous)) [8,266 10x10]
+          ImagePaintable (ImageBox(anonymous)) [18,266 10x10]
+      PaintableWithLines (BlockContainer(anonymous)) [8,280 784x0]
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x288] (z-index: auto)

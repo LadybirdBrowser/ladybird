@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<style>
+    .flex-container {
+        display: flex;
+        width: 200px;
+        height: 48px;
+        gap: 8px;
+    }
+
+    .single-image::before,
+    .after-only::after,
+    .ordinary-replacement {
+        width: 32px;
+        min-width: fit-content;
+        max-height: 32px;
+    }
+
+    .single-image::before,
+    .after-only::after,
+    .ordinary-replacement {
+        content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' fill='green'/%3E%3C/svg%3E");
+    }
+
+    .single-image.intrinsic-size::before {
+        content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' fill='green'/%3E%3C/svg%3E");
+    }
+
+    .single-image.with-alt-text::before {
+        content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' fill='green'/%3E%3C/svg%3E") / "Green square";
+    }
+
+    .mixed-content::before {
+        content: "before" url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10'%3E%3Crect width='10' height='10' fill='green'/%3E%3C/svg%3E") "after";
+    }
+
+    .multiple-images::before {
+        content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10'%3E%3Crect width='10' height='10' fill='green'/%3E%3C/svg%3E") url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10'%3E%3Crect width='10' height='10' fill='blue'/%3E%3C/svg%3E");
+    }
+</style>
+<body>
+    <button class="flex-container single-image">Ratio-only SVG</button>
+    <button class="flex-container single-image intrinsic-size">Intrinsic-size SVG</button>
+    <button class="flex-container single-image with-alt-text">Alt text</button>
+    <button class="flex-container after-only">After</button>
+    <div class="flex-container"><div class="ordinary-replacement"></div>Ordinary element</div>
+    <div class="mixed-content"></div>
+    <div class="multiple-images"></div>
