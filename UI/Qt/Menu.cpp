@@ -7,9 +7,11 @@
 #include <LibURL/Parser.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/HistoryStore.h>
+#include <UI/Qt/Application.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/Menu.h>
 #include <UI/Qt/StringUtils.h>
+#include <UI/Qt/Tab.h>
 #include <UI/Qt/WebContentView.h>
 
 #include <QAction>
@@ -108,6 +110,11 @@ private:
                 if (action->is_checkable())
                     action->set_checked(checked);
                 action->activate();
+
+                if (action->id() == WebView::ActionID::BookmarkItem) {
+                    if (auto* active_tab = Application::the().active_tab())
+                        active_tab->view().setFocus();
+                }
             }
         });
         QObject::connect(m_action->parent(), &QObject::destroyed, [this, weak_action = action.make_weak_ptr()]() {
