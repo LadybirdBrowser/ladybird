@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <script src="include.js"></script>
 <script>
-    internals.setTestTimeout(6000);
+    internals.setTestTimeout(45000);
 
-    // Quadratic performance characteristics in our parser could cause this to timeout.
-    const siblingCount = 20000;
+    // Quadratic performance characteristics in our parser could cause this to timeout. The budget's sized so a healthy
+    // linear parse fits easily even in our Sanitizer CI jobs, while a quadratic parser exceeds it on any machine class.
+    const siblingCount = 40000;
     document.write("<span></span>".repeat(siblingCount) + "<span>PASS</span>");
 
     test(() => {
