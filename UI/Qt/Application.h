@@ -52,6 +52,7 @@ public:
     BrowserWindow& active_window() const { return *m_active_window; }
     void set_active_window(BrowserWindow&);
     BrowserWindow* active_window_if_any() const { return m_active_window; }
+    BrowserWindow* non_private_window_if_any() const;
 
     Tab* active_tab() const { return m_active_window ? m_active_window->current_tab() : nullptr; }
     void update_reopen_recently_closed_actions() const;

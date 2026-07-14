@@ -439,6 +439,19 @@ void Application::set_active_window(BrowserWindow& window)
     update_macos_application_menu();
 }
 
+BrowserWindow* Application::non_private_window_if_any() const
+{
+    if (m_active_window && m_active_window->is_private() == WebView::IsPrivate::No)
+        return m_active_window;
+
+    for (auto* widget : QApplication::topLevelWidgets()) {
+        if (auto* window = as_if<BrowserWindow>(widget); window && window->is_private() == WebView::IsPrivate::No)
+            return window;
+    }
+
+    return nullptr;
+}
+
 WindowConfiguration Application::configuration_for_new_window() const
 {
     if (auto* previous_active_window = active_window_if_any(); previous_active_window && previous_active_window->isVisible()) {

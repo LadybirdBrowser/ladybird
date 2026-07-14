@@ -67,7 +67,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 #endif
 
         app->on_open_file = [&](auto const& file_url) {
-            if (auto* window = app->active_window_if_any()) {
+            if (auto* window = app->non_private_window_if_any()) {
                 auto& tab = window->new_tab_from_url(file_url, Web::HTML::ActivateTab::Yes, Ladybird::BrowserWindow::TabLocation::end());
                 tab.set_url_is_hidden(false);
                 auto& view = tab.view();
