@@ -131,6 +131,7 @@ private:
 #if defined(AK_OS_MACOS)
     bool select_word_at_position(DOM::Document&, CSSPixelPoint visual_viewport_position, CSSPixelPoint viewport_position);
     void start_selection_from_preserved_mousedown(DOM::Document&);
+    void finish_selection_from_preserved_mousedown(DOM::Document&, CSSPixelPoint visual_viewport_position);
 #endif
 
     void update_mouse_selection(CSSPixelPoint visual_viewport_position);

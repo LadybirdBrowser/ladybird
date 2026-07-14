@@ -51,5 +51,18 @@ body {
             : `FAIL: expected existing selection, got "${getSelection()}"`);
 
         internals.mouseUp(betaCenter.x, betaCenter.y);
+
+        println(getSelection().toString() === ""
+            ? "PASS: primary click clears existing selection"
+            : `FAIL: expected no selection, got "${getSelection()}"`);
+
+        selectAlphaBeta();
+        beta.addEventListener("mouseup", event => event.preventDefault(), { once: true });
+        internals.mouseDown(betaCenter.x, betaCenter.y);
+        internals.mouseUp(betaCenter.x, betaCenter.y);
+
+        println(!navigator.platform.includes("Mac") || getSelection().toString() === "alpha beta"
+            ? "PASS: cancelling mouseup preserves existing selection on macOS"
+            : `FAIL: expected existing selection, got "${getSelection()}"`);
     });
 </script>
