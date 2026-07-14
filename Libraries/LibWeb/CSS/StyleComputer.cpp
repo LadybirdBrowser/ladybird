@@ -9,6 +9,7 @@
 
 #include <AK/BinarySearch.h>
 #include <AK/Bitmap.h>
+#include <AK/BuiltinWrappers.h>
 #include <AK/Debug.h>
 #include <AK/Error.h>
 #include <AK/Find.h>
@@ -4724,6 +4725,9 @@ void RuleCache::add_rule(MatchingRule const& matching_rule, Optional<PseudoEleme
 
     if (matching_rule.contains_pseudo_element && pseudo_element.has_value()) {
         if (Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value())) {
+            auto& pseudo_element_rules = rules_by_pseudo_element[to_underlying(pseudo_element.value())];
+            pseudo_element_rules_mask |= pseudo_element_style_bit(pseudo_element.value());
+
             // Normalized pseudo-element selectors end with a pseudo-element compound; bucket them
             // by the originating element compound so `.foo::before` keeps using the `.foo` bucket.
             auto const& bucket_compound_selector = [&]() -> Selector::CompoundSelector const& {
@@ -4736,10 +4740,10 @@ void RuleCache::add_rule(MatchingRule const& matching_rule, Optional<PseudoEleme
             if (!contains_root_pseudo_class
                 && !bucket_for_compound_selector(bucket_compound_selector).has_value()
                 && (subject_pseudo_class_buckets == SubjectPseudoClassBuckets::No || !subject_pseudo_class_bucket_for_compound_selector(bucket_compound_selector).has_value())
-                && add_rule_to_multiple_is_or_where_buckets(rules_by_pseudo_element[to_underlying(pseudo_element.value())], matching_rule, bucket_compound_selector, next_multi_bucket_rule_index)) {
+                && add_rule_to_multiple_is_or_where_buckets(pseudo_element_rules, matching_rule, bucket_compound_selector, next_multi_bucket_rule_index)) {
                 return;
             }
-            add_rule_to_rule_buckets(rules_by_pseudo_element[to_underlying(pseudo_element.value())], matching_rule, bucket_compound_selector, contains_root_pseudo_class, subject_pseudo_class_buckets, ancestor_hash_buckets);
+            add_rule_to_rule_buckets(pseudo_element_rules, matching_rule, bucket_compound_selector, contains_root_pseudo_class, subject_pseudo_class_buckets, ancestor_hash_buckets);
         }
         return;
     }
@@ -4764,7 +4768,13 @@ void RuleCache::for_each_matching_rules(DOM::AbstractElement abstract_element, F
 void RuleCache::for_each_matching_pseudo_element_rules(DOM::AbstractElement abstract_element, Function<bool(u32)> const& may_contain_ancestor_hash, Function<IterationDecision(Vector<MatchingRule> const&)> callback) const
 {
     VERIFY(!abstract_element.pseudo_element().has_value());
-    for (auto const& pseudo_element_rules : rules_by_pseudo_element) {
+
+    auto remaining_pseudo_element_rules = pseudo_element_rules_mask;
+    while (remaining_pseudo_element_rules != 0) {
+        auto pseudo_element_index = count_trailing_zeroes(remaining_pseudo_element_rules);
+        remaining_pseudo_element_rules &= remaining_pseudo_element_rules - 1;
+
+        auto const& pseudo_element_rules = rules_by_pseudo_element.at(pseudo_element_index);
         if (for_each_matching_rule_bucket(abstract_element, pseudo_element_rules, may_contain_ancestor_hash, callback) == IterationDecision::Break)
             return;
     }

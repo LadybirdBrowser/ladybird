@@ -89,6 +89,7 @@ struct RuleCache {
         Vector<MatchingRule> other_rules;
     };
     Array<PseudoElementRules, to_underlying(CSS::PseudoElement::KnownPseudoElementCount)> rules_by_pseudo_element;
+    u64 pseudo_element_rules_mask { 0 };
 
     HashMap<Utf16FlyString, NonnullRefPtr<Animations::KeyframeEffect::KeyFrameSet>> rules_by_animation_keyframes;
 
