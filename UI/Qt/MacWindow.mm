@@ -31,6 +31,7 @@
 - (void)applyWindowControlOffsets;
 - (void)scheduleWindowControlOffsetUpdate:(NSButton*)button;
 - (void)windowControlFrameDidChange:(NSNotification*)notification;
+- (void)windowDidResize:(NSNotification*)notification;
 
 @end
 
@@ -44,6 +45,8 @@
 
     m_x_offset = x_offset;
     m_y_offset = y_offset;
+
+    [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(windowDidResize:) name:NSWindowDidResizeNotification object:window];
 
     constexpr NSWindowButton button_types[] = { NSWindowCloseButton, NSWindowMiniaturizeButton, NSWindowZoomButton };
     for (size_t i = 0; i < std::size(button_types); ++i) {
@@ -103,6 +106,11 @@
     if (m_is_applying_offset)
         return;
     [self scheduleWindowControlOffsetUpdate:notification.object];
+}
+
+- (void)windowDidResize:(NSNotification*)notification
+{
+    [self applyWindowControlOffsets];
 }
 
 @end
