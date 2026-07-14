@@ -52,6 +52,7 @@ class TestPageServer(http.server.ThreadingHTTPServer):
         self.blocked_navigation_requested = threading.Event()
         self.release_blocked_navigation = threading.Event()
         self.blocked_navigation_response_finished = threading.Event()
+        self.navigation_blocked_document_ran = threading.Event()
         self.a_request_lock = threading.Lock()
         self.a_request_count = 0
         self.state_replace_load_document_ran = threading.Event()
@@ -92,6 +93,7 @@ class TestPageHandler(http.server.BaseHTTPRequestHandler):
 <a id="redirect" href="http://localhost:{server_port}/redirect-to-b">Redirect to B</a>
 <a id="pending" href="http://localhost:{server_port}/navigation-blocked">Pending</a>
 <a id="pending-redirect" href="http://localhost:{server_port}/redirect-to-navigation-blocked">Pending redirect</a>
+<a id="pending-cross-site" href="http://127.0.0.1:{server_port}/navigation-blocked">Pending cross-site</a>
 <p>A</p>""".encode()
             )
             return
@@ -164,9 +166,18 @@ class TestPageHandler(http.server.BaseHTTPRequestHandler):
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html")
                 self.end_headers()
-                self.wfile.write(b"<!doctype html><title>Pending navigation committed</title>")
+                self.wfile.write(
+                    b"<!doctype html><title>Pending navigation committed</title>"
+                    b"<script>fetch('/document-ran?navigation-blocked');</script>"
+                )
             finally:
                 server.blocked_navigation_response_finished.set()
+            return
+
+        if self.path == "/document-ran?navigation-blocked":
+            server.navigation_blocked_document_ran.set()
+            self.send_response(204)
+            self.end_headers()
             return
 
         if self.path.startswith("/nested"):
@@ -2315,6 +2326,145 @@ return null;
             False,
             log,
         )
+
+        page_server.blocked_navigation_requested.clear()
+        page_server.release_blocked_navigation.clear()
+        page_server.blocked_navigation_response_finished.clear()
+        page_server.navigation_blocked_document_ran.clear()
+        execute_script(
+            webdriver_port,
+            session_id,
+            'document.querySelector("#pending").click(); return null;',
+        )
+        wait_for_event(page_server.blocked_navigation_requested, "navigation that will commit request")
+        page_server.release_blocked_navigation.set()
+        wait_for_event(
+            page_server.blocked_navigation_response_finished, "navigation that will commit response completion"
+        )
+        wait_for_event(page_server.navigation_blocked_document_ran, "navigation that will commit document script")
+        expect_url(webdriver_port, session_id, "after pending navigation commits", url_navigation_blocked, log)
+        expect_ui_session_history(
+            webdriver_port,
+            session_id,
+            "after pending navigation commits",
+            [url_a, url_navigation_blocked],
+            [0, 1],
+            1,
+            True,
+            False,
+            log,
+            expect_web_content_matches_ui=True,
+            expected_web_content_known_used_steps=[0, 1],
+            expected_web_content_current_step=1,
+        )
+
+        traverse_history_from_ui(webdriver_port, session_id, -1)
+        expect_url(webdriver_port, session_id, "after back following pending navigation commit", url_a, log)
+        expect_ui_session_history(
+            webdriver_port,
+            session_id,
+            "after back following pending navigation commit",
+            [url_a, url_navigation_blocked],
+            [0, 1],
+            0,
+            False,
+            True,
+            log,
+            expect_web_content_matches_ui=True,
+            expected_web_content_known_used_steps=[0, 1],
+            expected_web_content_current_step=0,
+        )
+
+    finally:
+        page_server.release_blocked_navigation.set()
+        request(webdriver_port, "DELETE", f"/session/{session_id}")
+
+
+def run_cross_process_pending_navigation_browser_ui_back_test(
+    webdriver_port,
+    page_server,
+    url_a,
+    url_cross_site_navigation_blocked,
+):
+    session_id = create_session(webdriver_port)
+    log = [f"cross-process pending navigation browser UI back initial: {current_url(webdriver_port, session_id)}"]
+    try:
+        with page_server.a_request_lock:
+            initial_a_request_count = page_server.a_request_count
+
+        load_url_from_ui(webdriver_port, session_id, url_a)
+        expect_url(webdriver_port, session_id, "after cross-process pending navigation setup /a", url_a, log)
+        with page_server.a_request_lock:
+            a_request_count_after_setup = page_server.a_request_count
+        if a_request_count_after_setup != initial_a_request_count + 1:
+            raise AssertionError(
+                f"Expected one /a request during cross-process setup, got "
+                f"{a_request_count_after_setup - initial_a_request_count}\n" + "\n".join(log)
+            )
+
+        page_server.blocked_navigation_requested.clear()
+        page_server.release_blocked_navigation.clear()
+        page_server.blocked_navigation_response_finished.clear()
+        execute_script(
+            webdriver_port,
+            session_id,
+            'document.querySelector("#pending-cross-site").click(); return null;',
+        )
+        wait_for_event(page_server.blocked_navigation_requested, "cross-process pending navigation request")
+
+        pending_history = session_history(webdriver_port, session_id)
+        pending_navigation = pending_history["ui"]["pendingSessionHistoryNavigation"]
+        if (
+            pending_history["ui"]["currentURL"] != url_cross_site_navigation_blocked
+            or pending_navigation.get("previousCurrentURL") != url_a
+            or pending_navigation.get("webContentRestoreMode") != "restore-from-ui-process"
+        ):
+            raise AssertionError(
+                "Expected cross-process navigation to require UI-process restoration, got "
+                f"{summarize_history_snapshot(pending_history)}\n" + "\n".join(log)
+            )
+
+        page_server.a_document_ran.clear()
+        traverse_history_from_ui(webdriver_port, session_id, -1, wait_for_navigation_completion=False)
+        wait_for_event(page_server.a_document_ran, "restored /a document after cross-process pending navigation")
+        expect_url(webdriver_port, session_id, "after back during cross-process pending navigation", url_a, log)
+        restored_history = wait_for_session_history(
+            webdriver_port,
+            session_id,
+            "after back during cross-process pending navigation",
+            lambda snapshot: (
+                snapshot["ui"]["currentURL"] == url_a
+                and history_entry_urls(snapshot["ui"]) == [url_a, url_cross_site_navigation_blocked]
+                and snapshot["ui"]["currentUsedStepIndex"] == 0
+                and snapshot["ui"]["backButtonEnabled"] is False
+                and snapshot["ui"]["forwardButtonEnabled"] is True
+                and snapshot["ui"]["pendingSessionHistoryNavigation"] is None
+                and snapshot["ui"]["pendingSessionHistoryTraversal"] is None
+            ),
+            log,
+        )
+        if history_entry_urls(restored_history["webContent"]) != [url_a, url_cross_site_navigation_blocked]:
+            raise AssertionError("Expected replacement WebContent to receive the restored history\n" + "\n".join(log))
+        with page_server.a_request_lock:
+            if page_server.a_request_count != a_request_count_after_setup + 1:
+                raise AssertionError(
+                    "Expected cross-process cancellation to restore /a from the UI process\n" + "\n".join(log)
+                )
+
+        page_server.release_blocked_navigation.set()
+        wait_for_event(
+            page_server.blocked_navigation_response_finished,
+            "cross-process canceled response completion",
+        )
+        expect_url(webdriver_port, session_id, "after releasing cross-process canceled response", url_a, log)
+        expect_navigation_buttons(
+            webdriver_port,
+            session_id,
+            "after releasing cross-process canceled response",
+            False,
+            True,
+            log,
+        )
     finally:
         page_server.release_blocked_navigation.set()
         request(webdriver_port, "DELETE", f"/session/{session_id}")
@@ -2356,6 +2506,7 @@ def run_test(webdriver_binary):
         url_d = f"http://localhost:{page_port}/d"
         url_redirect_to_b = f"http://localhost:{page_port}/redirect-to-b"
         url_navigation_blocked = f"http://localhost:{page_port}/navigation-blocked"
+        url_cross_site_navigation_blocked = f"http://127.0.0.1:{page_port}/navigation-blocked"
         url_redirect_to_navigation_blocked = f"http://localhost:{page_port}/redirect-to-navigation-blocked"
         url_nested = f"http://localhost:{page_port}/nested"
         url_state = f"http://localhost:{page_port}/state"
@@ -2390,6 +2541,12 @@ def run_test(webdriver_binary):
             url_a,
             url_navigation_blocked,
             url_redirect_to_navigation_blocked,
+        )
+        run_cross_process_pending_navigation_browser_ui_back_test(
+            webdriver_port,
+            page_server,
+            url_a,
+            url_cross_site_navigation_blocked,
         )
 
         session_id = create_session(webdriver_port)
