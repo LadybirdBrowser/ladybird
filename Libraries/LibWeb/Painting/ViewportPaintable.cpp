@@ -298,6 +298,9 @@ void ViewportPaintable::refresh_scroll_state()
         return;
     m_needs_to_refresh_scroll_state = false;
 
+    // https://drafts.csswg.org/css-position/#sticky-pos
+    // Sticky positioning is similar to relative positioning except the offsets are automatically calculated
+    // in reference to the nearest scrollport.
     m_scroll_state.for_each_sticky_frame([&](auto idx, auto& frame) {
         auto nearest_scrolling_ancestor_index = m_scroll_state.nearest_scrolling_ancestor(idx);
         if (!nearest_scrolling_ancestor_index.value() || !frame.has_sticky_constraints())
@@ -307,12 +310,10 @@ void ViewportPaintable::refresh_scroll_state()
         auto const& sticky_insets = sticky_data.insets;
         auto const& scroll_ancestor_paintable = m_scroll_state.frame_at(nearest_scrolling_ancestor_index).paintable_box();
 
-        // For nested sticky elements, the parent sticky's offset is applied via cumulative_offset.
-        // We need to adjust all position calculations to account for this, so we work in the
-        // coordinate space where the parent sticky is at its current (offset) position.
-        CSSPixelPoint parent_sticky_offset;
-        if (auto parent_idx = frame.parent_index(); parent_idx.value() && m_scroll_state.frame_at(parent_idx).is_sticky())
-            parent_sticky_offset = m_scroll_state.cumulative_offset(parent_idx);
+        // NB: For nested sticky elements, work in the coordinate space where the sticky ancestors are
+        //     at their current positions. The scrolling ancestor's offset is already represented by
+        //     scrollport_rect and must not be applied to the sticky position a second time.
+        auto parent_sticky_offset = m_scroll_state.cumulative_sticky_offset(frame.parent_index());
 
         auto sticky_position_in_ancestor = sticky_data.position_relative_to_scroll_ancestor + parent_sticky_offset;
 

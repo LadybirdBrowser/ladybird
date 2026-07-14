@@ -114,31 +114,15 @@ Optional<AsyncScrollNodeID> AsyncScrollTree::scrollable_ancestor_for_node(AsyncS
     return {};
 }
 
-Optional<Painting::ScrollFrameIndex> AsyncScrollTree::parent_scroll_frame_index(Painting::ScrollFrameIndex scroll_frame_index) const
-{
-    for (auto const& node : m_scroll_nodes) {
-        if (node.node_id.scroll_frame_index != scroll_frame_index)
-            continue;
-        if (!node.parent_node_id.has_value())
-            return {};
-        return node.parent_node_id->scroll_frame_index;
-    }
-
-    if (auto const* sticky_area = sticky_area_for_scroll_frame_index(scroll_frame_index))
-        return sticky_area->parent_scroll_frame_index;
-
-    return {};
-}
-
-Gfx::FloatPoint AsyncScrollTree::cumulative_device_offset_for_frame(Painting::ScrollFrameIndex scroll_frame_index, Painting::ScrollStateSnapshot const& scroll_state_snapshot) const
+Gfx::FloatPoint AsyncScrollTree::cumulative_device_sticky_offset_for_frame(Painting::ScrollFrameIndex scroll_frame_index, Painting::ScrollStateSnapshot const& scroll_state_snapshot) const
 {
     Gfx::FloatPoint offset;
     for (auto index = scroll_frame_index; index.value();) {
-        offset.translate_by(scroll_state_snapshot.device_offset_for_index(index));
-        auto parent_index = parent_scroll_frame_index(index);
-        if (!parent_index.has_value())
+        auto const* sticky_area = sticky_area_for_scroll_frame_index(index);
+        if (!sticky_area)
             break;
-        index = *parent_index;
+        offset.translate_by(scroll_state_snapshot.device_offset_for_index(index));
+        index = sticky_area->parent_scroll_frame_index;
     }
     return offset;
 }
@@ -183,9 +167,7 @@ void AsyncScrollTree::update_sticky_offsets(Painting::ScrollStateSnapshot& scrol
         if (!sticky_area.nearest_scrolling_ancestor_index.value())
             continue;
 
-        Gfx::FloatPoint parent_sticky_offset;
-        if (sticky_area.parent_scroll_frame_index.value() && sticky_area_for_scroll_frame_index(sticky_area.parent_scroll_frame_index))
-            parent_sticky_offset = cumulative_device_offset_for_frame(sticky_area.parent_scroll_frame_index, scroll_state_snapshot);
+        auto parent_sticky_offset = cumulative_device_sticky_offset_for_frame(sticky_area.parent_scroll_frame_index, scroll_state_snapshot);
 
         auto sticky_position_in_ancestor = sticky_area.position_relative_to_scroll_ancestor.translated(parent_sticky_offset);
 

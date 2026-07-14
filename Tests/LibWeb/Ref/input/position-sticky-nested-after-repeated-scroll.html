@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/position-sticky-nested-after-repeated-scroll-ref.html">
+<script src="wpt-import/common/reftest-wait.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    .parent {
+        position: sticky;
+        width: 200px;
+        height: 900px;
+    }
+
+    .first,
+    .second {
+        position: sticky;
+        width: 200px;
+        height: 50px;
+    }
+
+    .first {
+        top: 50px;
+        background: red;
+    }
+
+    .second {
+        top: 100px;
+        background: blue;
+    }
+</style>
+<div class="parent">
+    <div class="first"></div>
+    <div class="second"></div>
+</div>
+<script>
+    requestAnimationFrame(() => {
+        scrollTo(0, 100);
+        requestAnimationFrame(() => {
+            scrollTo(0, 101);
+            requestAnimationFrame(takeScreenshot);
+        });
+    });
+</script>

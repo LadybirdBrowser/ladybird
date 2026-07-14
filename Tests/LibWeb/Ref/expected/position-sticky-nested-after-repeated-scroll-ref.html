@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<script src="../input/wpt-import/common/reftest-wait.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    .parent {
+        position: relative;
+        width: 200px;
+        height: 900px;
+    }
+
+    .first,
+    .second {
+        position: absolute;
+        width: 200px;
+        height: 50px;
+    }
+
+    .first {
+        top: 151px;
+        background: red;
+    }
+
+    .second {
+        top: 201px;
+        background: blue;
+    }
+</style>
+<div class="parent">
+    <div class="first"></div>
+    <div class="second"></div>
+</div>
+<script>
+    scrollTo(0, 101);
+    requestAnimationFrame(takeScreenshot);
+</script>

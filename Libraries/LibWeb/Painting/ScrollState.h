@@ -75,6 +75,16 @@ public:
         return offset;
     }
 
+    CSSPixelPoint cumulative_sticky_offset(ScrollFrameIndex index) const
+    {
+        CSSPixelPoint offset;
+        while (index.value() && frame_at(index).is_sticky()) {
+            offset += frame_at(index).own_offset();
+            index = frame_at(index).parent_index();
+        }
+        return offset;
+    }
+
     ScrollFrameIndex nearest_scrolling_ancestor(ScrollFrameIndex index) const
     {
         auto ancestor = frame_at(index).parent_index();
