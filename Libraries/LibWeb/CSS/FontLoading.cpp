@@ -40,7 +40,10 @@ ErrorOr<NonnullRefPtr<Gfx::Typeface const>> try_load_vector_font(ByteBuffer cons
     if (mime_type_essence.has_value()) {
         if (*mime_type_essence == "font/ttf"sv || *mime_type_essence == "application/x-font-ttf"sv || *mime_type_essence == "font/otf"sv)
             return try_ttf();
-        if (*mime_type_essence == "font/woff"sv || *mime_type_essence == "application/font-woff"sv)
+        // https://drafts.csswg.org/css-fonts-4/#fetch-a-font
+        // 2. ISSUE: Load a font from stream according to its type.
+        // INTEROP: font/x-woff is a legacy alias that remains in use on the web.
+        if (*mime_type_essence == "font/woff"sv || *mime_type_essence == "application/font-woff"sv || *mime_type_essence == "font/x-woff"sv)
             return try_woff();
         if (*mime_type_essence == "font/woff2"sv || *mime_type_essence == "application/font-woff2"sv)
             return try_woff2();
